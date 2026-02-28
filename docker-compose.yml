@@ -1,0 +1,24 @@
+services:
+  tapestry:
+    build: .
+    ports:
+      - "7777:7777"
+      - "7778:7778"
+      - "7474:7474"
+      - "7687:7687"
+    environment:
+      - OWNER_PUBKEY=15bbe95f249325e1a80ab1f87cf42a53b712cb3542838c7e302fc7a40d7384e0
+      - NEO4J_PASSWORD=3wGDrv6c8svbHVxKiXPL
+      - DOMAIN_NAME=localhost
+    volumes:
+      - tapestry-neo4j:/var/lib/neo4j/data
+      - tapestry-strfry:/var/lib/strfry
+      - tapestry-data:/var/lib/brainstorm
+      - tapestry-logs:/var/log/brainstorm
+    restart: unless-stopped
+
+volumes:
+  tapestry-neo4j:
+  tapestry-strfry:
+  tapestry-data:
+  tapestry-logs:
