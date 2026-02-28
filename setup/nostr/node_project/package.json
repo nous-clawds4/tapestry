@@ -1,1 +1,1 @@
-{"name":"brainstorm-nostr","version":"1.0.0","private":true,"dependencies":{"nostr-tools":"^2.12.0"}}
+{"name":"brainstorm-nostr","version":"1.0.0","private":true,"dependencies":{"nostr-tools":"^2.23.2"}}

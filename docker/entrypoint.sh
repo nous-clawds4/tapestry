@@ -14,7 +14,6 @@ SESSION_SECRET="$(openssl rand -hex 32)"
 # Calculate owner npub (best effort, fallback to unassigned)
 OWNER_NPUB="unassigned"
 if [ "$OWNER_PUBKEY" != "unassigned" ] && [ ${#OWNER_PUBKEY} -eq 64 ]; then
-  # npub calculation requires nostr tools; skip if not available
   OWNER_NPUB=$(node -e "
     try {
       const {nip19} = require('nostr-tools');
@@ -150,6 +149,75 @@ if [ -f "${BRAINSTORM_MODULE_BASE_DIR}setup/create_nostr_identity.sh" ]; then
   chmod +x "${BRAINSTORM_MODULE_BASE_DIR}setup/create_nostr_identity.sh"
   "${BRAINSTORM_MODULE_BASE_DIR}setup/create_nostr_identity.sh" || echo "WARNING: Failed to generate Nostr identity"
 fi
+
+# --- Ensure node_modules exist (handles bind-mount + volume case) ---
+if [ ! -d "${BRAINSTORM_MODULE_BASE_DIR}node_modules/express" ]; then
+  echo "Installing npm dependencies..."
+  cd "${BRAINSTORM_MODULE_BASE_DIR}" && npm install --production 2>&1 | tail -3
+fi
+
+# --- Brainstorm startup wrapper ---
+# Sources brainstorm.conf so all env vars are available to the node process
+cat > /usr/local/bin/start-brainstorm.sh << 'BSEOF'
+#!/bin/bash
+source /etc/brainstorm.conf
+exec node /usr/local/lib/node_modules/brainstorm/bin/control-panel.js
+BSEOF
+chmod +x /usr/local/bin/start-brainstorm.sh
+
+# --- Nginx setup ---
+# Configure site (file should be baked in or bind-mounted)
+if [ -f /etc/nginx/sites-available/brainstorm ]; then
+  ln -sf /etc/nginx/sites-available/brainstorm /etc/nginx/sites-enabled/brainstorm
+  rm -f /etc/nginx/sites-enabled/default
+fi
+
+# Add bolt stream proxy if not already present
+if ! grep -q "stream {" /etc/nginx/nginx.conf 2>/dev/null; then
+  cat >> /etc/nginx/nginx.conf << 'NGINXEOF'
+
+# Neo4j Bolt TCP proxy
+stream {
+    server {
+        listen 8687;
+        proxy_pass localhost:7687;
+    }
+}
+NGINXEOF
+fi
+
+# Start nginx in background (not managed by supervisord for simplicity)
+nginx 2>/dev/null || echo "WARNING: nginx failed to start"
+
+# --- Neo4j password change ---
+# The initial password is set above, but if this is a volume-persisted DB
+# the initial password command is a no-op. We need to change it after neo4j starts.
+# We do this in the background so it doesn't block supervisord startup.
+(
+  # Wait for neo4j to be ready
+  for i in $(seq 1 30); do
+    if cd /usr/local/lib/node_modules/brainstorm && node -e "
+      const neo4j = require('neo4j-driver');
+      const d = neo4j.driver('bolt://localhost:7687', neo4j.auth.basic('neo4j', '${NEO4J_PASSWORD}'));
+      d.getServerInfo().then(() => { d.close(); process.exit(0); }).catch(() => { d.close(); process.exit(1); });
+    " 2>/dev/null; then
+      echo "Neo4j ready with configured password"
+      break
+    fi
+    # Try changing from default password
+    if cd /usr/local/lib/node_modules/brainstorm && node -e "
+      const neo4j = require('neo4j-driver');
+      const d = neo4j.driver('bolt://localhost:7687', neo4j.auth.basic('neo4j', 'neo4j'));
+      const s = d.session({database:'system'});
+      s.run(\"ALTER CURRENT USER SET PASSWORD FROM 'neo4j' TO '${NEO4J_PASSWORD}'\")
+        .then(() => { console.log('Neo4j password changed!'); s.close(); d.close(); process.exit(0); })
+        .catch(() => { s.close(); d.close(); process.exit(1); });
+    " 2>/dev/null; then
+      break
+    fi
+    sleep 2
+  done
+) &
 
 # Start supervisord
 exec /usr/bin/supervisord -n -c /etc/supervisor/supervisord.conf

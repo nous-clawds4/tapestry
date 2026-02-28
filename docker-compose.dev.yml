@@ -1,0 +1,23 @@
+# Development override — bind-mounts local code for live editing
+# Usage: docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+#
+# Edit files locally → restart brainstorm to pick up changes:
+#   docker exec tapestry-tapestry-1 supervisorctl restart brainstorm
+#
+# For frontend-only changes (HTML/CSS/JS), just refresh the browser.
+
+services:
+  tapestry:
+    volumes:
+      # Bind-mount local repo over the baked-in code
+      - .:/usr/local/lib/node_modules/brainstorm
+      # Preserve container's node_modules (avoids platform mismatch)
+      - tapestry-node-modules:/usr/local/lib/node_modules/brainstorm/node_modules
+      # Persist data across recreates
+      - tapestry-neo4j:/var/lib/neo4j/data
+      - tapestry-strfry:/var/lib/strfry
+      - tapestry-data:/var/lib/brainstorm
+      - tapestry-logs:/var/log/brainstorm
+
+volumes:
+  tapestry-node-modules:

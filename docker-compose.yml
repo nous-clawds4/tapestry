@@ -7,6 +7,7 @@ services:
       - "7778:7778"
       - "7474:7474"
       - "7687:7687"
+      - "8687:8687"
     environment:
       - OWNER_PUBKEY=15f7dafc4624b1e6b00ab7f863de1a53b71967528070ec7d1837c7a40c1c7270
       - NEO4J_PASSWORD=3wGDrv6c8svbHVxKiXPL
