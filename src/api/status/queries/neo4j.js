@@ -27,9 +27,10 @@ function handleNeo4jStatus(req, res) {
         error: null
     };
 
-    // Check if Neo4j service is running
-    exec('systemctl is-active neo4j', (serviceError, serviceStdout) => {
-        neo4jStatus.running = serviceStdout.trim() === 'active';
+    // Check if Neo4j service is running (supervisord in Docker, systemd on bare metal)
+    exec('supervisorctl status neo4j 2>/dev/null || systemctl is-active neo4j 2>/dev/null', (serviceError, serviceStdout) => {
+        const out = serviceStdout.trim();
+        neo4jStatus.running = out.includes('RUNNING') || out === 'active';
         
         // If not running, return early
         if (!neo4jStatus.running) {

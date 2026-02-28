@@ -38,8 +38,9 @@ function getStrfryStatus(req, res) {
     // 1. Check Strfry service status
     promises.push(
         new Promise((resolve) => {
-            exec('systemctl is-active strfry', (error, stdout, stderr) => {
-                result.service.status = (stdout.trim() === 'active') ? 'running' : 'stopped';
+            exec('supervisorctl status strfry 2>/dev/null || systemctl is-active strfry 2>/dev/null', (error, stdout, stderr) => {
+                const out = (stdout || '').trim();
+                result.service.status = (out.includes('RUNNING') || out === 'active') ? 'running' : 'stopped';
                 resolve();
             });
         })

@@ -229,7 +229,7 @@ function register(app) {
 
     // Generic neo4j query endpoint; requires authentication
     // temporarily disabled
-    // app.get('/api/neo4j/run-query', runQuery);
+    app.get('/api/neo4j/run-query', runQuery);
     
     // Strfry plugin endpoints - with clearer separation of concerns
     app.get('/api/get-strfry-filteredContent', strfry.handleGetFilteredContentStatus);  // Status query (public)

@@ -18,7 +18,7 @@ function handleStatus(req, res) {
     const strfryDomain = getConfigFromFile('STRFRY_DOMAIN', 'localhost');
     const neo4jBrowserUrl = getConfigFromFile('BRAINSTORM_NEO4J_BROWSER_URL', 'http://localhost:7474');
     
-    exec('systemctl status strfry', (error, stdout, stderr) => {
+    exec('supervisorctl status strfry 2>/dev/null || systemctl status strfry 2>/dev/null', (error, stdout, stderr) => {
         return res.json({
             output: stdout || stderr,
             strfryDomain: strfryDomain,

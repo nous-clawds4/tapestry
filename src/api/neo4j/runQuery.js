@@ -40,8 +40,9 @@ function runQuery(req, res) {
     // 1. Check Neo4j service status
     promises.push(
         new Promise((resolve) => {
-            exec('systemctl is-active neo4j', (error, stdout, stderr) => {
-                result.service.status = (stdout.trim() === 'active') ? 'running' : 'stopped';
+            exec('supervisorctl status neo4j 2>/dev/null || systemctl is-active neo4j 2>/dev/null', (error, stdout, stderr) => {
+                const out = (stdout || '').trim();
+                result.service.status = (out.includes('RUNNING') || out === 'active') ? 'running' : 'stopped';
                 resolve();
             });
         })

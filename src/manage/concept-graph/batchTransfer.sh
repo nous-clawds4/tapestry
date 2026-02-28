@@ -28,8 +28,11 @@ eval "$command2"
 # execute processTags.js
 node $SCRIPT_DIR/processTags.js
 
-sudo mv $SCRIPT_DIR/conceptGraphEventsToAddToNeo4j.json /var/lib/neo4j/import/conceptGraphEventsToAddToNeo4j.json
-sudo mv $SCRIPT_DIR/conceptGraphEventTagsToAddToNeo4j.json /var/lib/neo4j/import/conceptGraphEventTagsToAddToNeo4j.json
+# APOC resolves file:/// relative to neo4j home (/usr/share/neo4j/), not the import dir
+sudo mv $SCRIPT_DIR/conceptGraphEventsToAddToNeo4j.json /usr/share/neo4j/conceptGraphEventsToAddToNeo4j.json
+sudo mv $SCRIPT_DIR/conceptGraphEventTagsToAddToNeo4j.json /usr/share/neo4j/conceptGraphEventTagsToAddToNeo4j.json
+sudo chown neo4j:neo4j /usr/share/neo4j/conceptGraphEventsToAddToNeo4j.json
+sudo chown neo4j:neo4j /usr/share/neo4j/conceptGraphEventTagsToAddToNeo4j.json
 
 sudo cypher-shell -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" -a "$NEO4J_URI" -f "$SCRIPT_DIR/apocCypherCommand1_conceptGraph" > /dev/null
 sudo cypher-shell -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" -a "$NEO4J_URI" -f "$SCRIPT_DIR/apocCypherCommand2_conceptGraph" > /dev/null
@@ -54,5 +57,5 @@ sudo cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$comman
 sudo cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$command4" >> ${BRAINSTORM_LOG_DIR}/conceptGraphBatchTransfer.log 2>&1
 
 # clean up
-sudo rm /var/lib/neo4j/import/conceptGraphEventsToAddToNeo4j.json
-sudo rm /var/lib/neo4j/import/conceptGraphEventTagsToAddToNeo4j.json
+sudo rm /usr/share/neo4j/conceptGraphEventsToAddToNeo4j.json
+sudo rm /usr/share/neo4j/conceptGraphEventTagsToAddToNeo4j.json

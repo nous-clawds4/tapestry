@@ -156,6 +156,11 @@ if [ ! -d "${BRAINSTORM_MODULE_BASE_DIR}node_modules/express" ]; then
   cd "${BRAINSTORM_MODULE_BASE_DIR}" && npm install --production 2>&1 | tail -3
 fi
 
+# --- strfry router config ---
+if [ -f "${BRAINSTORM_MODULE_BASE_DIR}setup/strfry-router-tapestry.config" ]; then
+  cp "${BRAINSTORM_MODULE_BASE_DIR}setup/strfry-router-tapestry.config" /etc/strfry-router-tapestry.config
+fi
+
 # --- Brainstorm startup wrapper ---
 # Sources brainstorm.conf so all env vars are available to the node process
 cat > /usr/local/bin/start-brainstorm.sh << 'BSEOF'
