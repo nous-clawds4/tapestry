@@ -7,7 +7,7 @@ RUN apt-get update && apt-get install -y \
     build-essential git curl wget pv bc jq sysstat openssl \
     libyaml-perl libtemplate-perl libregexp-grammars-perl \
     libssl-dev zlib1g-dev liblmdb-dev libflatbuffers-dev libsecp256k1-dev libzstd-dev \
-    openjdk-17-jdk-headless supervisor gnupg lsb-release sudo \
+    openjdk-17-jdk-headless supervisor gnupg lsb-release sudo nginx \
     && rm -rf /var/lib/apt/lists/*
 
 # Node.js 22 via NodeSource
@@ -75,6 +75,16 @@ COPY . /usr/local/lib/node_modules/brainstorm/
 # Install npm dependencies
 RUN cd /usr/local/lib/node_modules/brainstorm && npm install
 
+# Brainstorm startup wrapper (sources config)
+RUN printf '#!/bin/bash\nsource /etc/brainstorm.conf\nexec node /usr/local/lib/node_modules/brainstorm/bin/control-panel.js\n' \
+    > /usr/local/bin/start-brainstorm.sh \
+    && chmod +x /usr/local/bin/start-brainstorm.sh
+
+# Nginx config
+COPY docker/nginx.conf /etc/nginx/sites-available/brainstorm
+RUN ln -sf /etc/nginx/sites-available/brainstorm /etc/nginx/sites-enabled/brainstorm \
+    && rm -f /etc/nginx/sites-enabled/default
+
 # Supervisord config
 COPY docker/supervisord.conf /etc/supervisor/conf.d/tapestry.conf
 
@@ -82,6 +92,6 @@ COPY docker/supervisord.conf /etc/supervisor/conf.d/tapestry.conf
 COPY docker/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
-EXPOSE 7777 7778 7474 7687
+EXPOSE 80 7777 7778 7474 7687
 
 ENTRYPOINT ["/entrypoint.sh"]

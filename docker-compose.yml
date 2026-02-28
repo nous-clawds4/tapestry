@@ -2,12 +2,13 @@ services:
   tapestry:
     build: .
     ports:
+      - "8080:80"
       - "7777:7777"
       - "7778:7778"
       - "7474:7474"
       - "7687:7687"
     environment:
-      - OWNER_PUBKEY=15bbe95f249325e1a80ab1f87cf42a53b712cb3542838c7e302fc7a40d7384e0
+      - OWNER_PUBKEY=15f7dafc4624b1e6b00ab7f863de1a53b71967528070ec7d1837c7a40c1c7270
       - NEO4J_PASSWORD=3wGDrv6c8svbHVxKiXPL
       - DOMAIN_NAME=localhost
     volumes:
