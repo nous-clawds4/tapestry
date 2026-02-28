@@ -224,5 +224,8 @@ nginx 2>/dev/null || echo "WARNING: nginx failed to start"
   done
 ) &
 
+# Symlink concept-graph defaults so setup.sh can find it
+ln -sf /usr/local/lib/node_modules/brainstorm/src/concept-graph/parameters/defaults.conf /etc/concept-graph.conf
+
 # Start supervisord
 exec /usr/bin/supervisord -n -c /etc/supervisor/supervisord.conf
