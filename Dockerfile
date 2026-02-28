@@ -7,7 +7,7 @@ RUN apt-get update && apt-get install -y \
     build-essential git curl wget pv bc jq sysstat openssl \
     libyaml-perl libtemplate-perl libregexp-grammars-perl \
     libssl-dev zlib1g-dev liblmdb-dev libflatbuffers-dev libsecp256k1-dev libzstd-dev \
-    openjdk-17-jdk-headless supervisor gnupg lsb-release \
+    openjdk-17-jdk-headless supervisor gnupg lsb-release sudo \
     && rm -rf /var/lib/apt/lists/*
 
 # Node.js 22 via NodeSource
