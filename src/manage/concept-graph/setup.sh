@@ -136,8 +136,15 @@ FOREACH (ignore IN CASE WHEN relType = 'IS_THE_JSON_SCHEMA_FOR'   THEN [1] ELSE 
 FOREACH (ignore IN CASE WHEN relType = 'ENUMERATES'   THEN [1] ELSE [] END |
   MERGE (from)-[:ENUMERATES]->(to)
 )
-// Repeat for each possible relType value in your data
-// ...
+FOREACH (ignore IN CASE WHEN relType = 'PROVIDED_THE_TEMPLATE_FOR' THEN [1] ELSE [] END |
+  MERGE (from)-[:PROVIDED_THE_TEMPLATE_FOR]->(to)
+)
+FOREACH (ignore IN CASE WHEN relType = 'IMPORT' THEN [1] ELSE [] END |
+  MERGE (from)-[:IMPORT]->(to)
+)
+FOREACH (ignore IN CASE WHEN relType = 'SUPERCEDES' THEN [1] ELSE [] END |
+  MERGE (from)-[:SUPERCEDES]->(to)
+)
 RETURN uuid_nodeFrom, relType, uuid_nodeTo;
 
 "
