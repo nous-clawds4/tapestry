@@ -1,0 +1,157 @@
+# Quickstart Guide
+
+Get Tapestry running locally in under 15 minutes.
+
+## Prerequisites
+
+| Requirement | Version | Notes |
+|-------------|---------|-------|
+| **Docker Desktop** | Any recent | [Install](https://docs.docker.com/get-docker/). Make sure Docker Compose v2 is included. |
+| **Git** | Any | For cloning the repo |
+| **Nostr keypair** | — | Your `npub` / hex pubkey. If you don't have one, create one with [Alby](https://getalby.com) or any nostr client. |
+| **NIP-07 extension** | — | Browser extension for signing. Recommended: [nos2x](https://github.com/nickhntv/nos2x-fox) (Firefox), [Alby](https://getalby.com) (Chrome/Firefox), or [Nostr Connect](https://github.com/nickhntv/nos2x) |
+
+### Resource requirements
+
+- **Disk:** ~2 GB for the Docker image + data
+- **RAM:** 4 GB minimum (Neo4j is the main consumer)
+- **CPU:** Any modern machine. First build compiles strfry from source (~10 min).
+
+## Step 1: Clone
+
+```bash
+git clone https://github.com/nous-clawds4/tapestry.git
+cd tapestry
+git checkout concept-graph
+```
+
+## Step 2: Configure
+
+Edit `docker-compose.yml`:
+
+```yaml
+environment:
+  - OWNER_PUBKEY=<your-hex-pubkey>
+  - NEO4J_PASSWORD=<choose-a-strong-password>
+  - DOMAIN_NAME=localhost
+```
+
+**Finding your hex pubkey:**
+
+If you only have your `npub`, convert it:
+
+- **Web:** Paste your npub at [njump.me](https://njump.me) — the hex key is shown on the profile page
+- **CLI:** `nak key decode npub1yourkey...` (if you have [nak](https://github.com/fiatjaf/nak) installed)
+- **Python:** `from nostr.key import PublicKey; print(PublicKey.from_npub("npub1...").hex())`
+
+## Step 3: Build and start
+
+```bash
+docker compose up -d
+```
+
+**First run:** The Docker image builds from scratch. This takes 10–15 minutes because it:
+1. Compiles strfry (C++ nostr relay) from source
+2. Installs Neo4j 5.x
+3. Installs Node.js dependencies
+
+**Subsequent starts** are fast (seconds).
+
+### Watch the logs
+
+```bash
+docker compose logs -f
+```
+
+You'll see strfry, Neo4j, and the brainstorm Express server start up. Wait until you see output from the brainstorm service before proceeding.
+
+Press `Ctrl+C` to stop watching logs (the container keeps running).
+
+## Step 4: Verify
+
+Open these URLs in your browser:
+
+| URL | What you should see |
+|-----|---------------------|
+| [http://localhost:8080](http://localhost:8080) | Brainstorm control panel |
+| [http://localhost:8080/kg/](http://localhost:8080/kg/) | Knowledge Graph UI (dark theme, sidebar nav) |
+| [http://localhost:7474](http://localhost:7474) | Neo4j Browser (login with `neo4j` / your password) |
+
+## Step 5: Sign in
+
+1. Open [http://localhost:8080/kg/](http://localhost:8080/kg/)
+2. Click **"Sign in with Nostr"** in the top-right corner
+3. Your NIP-07 extension will pop up asking you to approve
+4. After signing, you should see your **name**, **avatar**, and an **Owner** badge
+
+> If you see "Guest" instead of "Owner", double-check that the `OWNER_PUBKEY` in `docker-compose.yml` matches the hex pubkey of the key loaded in your NIP-07 extension.
+
+## Step 6: Import data
+
+Your instance starts empty. Import existing DList data from the DCoSL relay:
+
+```bash
+docker exec tapestry-tapestry-1 strfry sync wss://dcosl.brainstorm.world \
+  --filter '{"kinds":[9998,9999,39998,39999]}' \
+  --dir down
+```
+
+This pulls all DList headers and items from the DCoSL network into your local strfry. You should see sync progress in the output.
+
+After syncing, go to **📋 Simple Lists** in the UI — you should see the imported lists.
+
+### Import into Neo4j
+
+The strfry sync gets events into your local relay. To build the concept graph in Neo4j, you'll need the **tapestry-cli** tool (documentation coming soon). For now, you can use the **Neo4j import** buttons on individual list detail pages in the UI.
+
+## Step 7: Explore
+
+- **📋 Simple Lists** — Browse DList headers, see items, check Neo4j sync status
+- **🧩 Concepts** — Explore the concept graph (after Neo4j import)
+- **👤 Nostr Users** — See all users who have authored events
+- **⚙️ Settings** — Configure relay lists, concept UUIDs (owner only)
+
+## Troubleshooting
+
+### Container won't start
+
+```bash
+# Check container status
+docker compose ps
+
+# View logs
+docker compose logs tapestry
+
+# Restart
+docker compose restart
+```
+
+### "Sign in" doesn't work
+
+- Make sure your NIP-07 extension is active on the page
+- Check the browser console for errors
+- Try a hard refresh (`Ctrl+Shift+R`)
+
+### Neo4j won't connect
+
+```bash
+# Check if Neo4j is running inside the container
+docker exec tapestry-tapestry-1 supervisorctl status
+
+# Restart Neo4j
+docker exec tapestry-tapestry-1 supervisorctl restart neo4j
+```
+
+### Reset everything
+
+```bash
+# Stop and remove containers + volumes (⚠️ deletes all data)
+docker compose down -v
+docker compose up -d
+```
+
+## Next steps
+
+- [Architecture Guide](ARCHITECTURE.md) — understand the system design
+- [Configuration Guide](CONFIGURATION.md) — detailed settings reference
+- [Development Guide](DEVELOPMENT.md) — contribute or extend Tapestry
