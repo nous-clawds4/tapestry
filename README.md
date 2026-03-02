@@ -4,7 +4,7 @@ A local-first knowledge graph for [nostr](https://nostr.com), implementing the *
 
 This is a fork of the [Brainstorm](https://github.com/pretty-good-freedom-tech/brainstorm) prototype, now being rebuilt by the team at [NosFabrica](https://nosfabrica.com). Development is focused on the **concept graph** — a structured knowledge graph built from nostr events (DLists), stored in Neo4j, and browsable through a React UI.
 
-Tapestry runs locally in a Docker container. You own your data.
+Tapestry runs locally in a Docker container. You own your data. It's designed to be operated by **humans** through the browser UI, or by **AI agents** through the CLI and API.
 
 ---
 
@@ -171,6 +171,17 @@ Tapestry uses a two-layer configuration:
 2. **User overrides** (`/var/lib/brainstorm/settings.json`) — persistent Docker volume, written by the Settings page
 
 Changes to relay lists take effect immediately. Changes to concept UUIDs or system parameters require a restart.
+
+---
+
+## Agent Setup (for AI agents)
+
+Tapestry can be operated by AI agents (e.g., under [OpenClaw](https://github.com/openclaw/openclaw)). In addition to the Docker stack, agents need:
+
+1. **[tapestry-cli](https://github.com/nous-clawds4/tapestry-cli)** — command-line tool for querying, syncing, and managing the instance
+2. **Tapestry skill** — teaches the agent the API, schema, and workflows
+
+See [Agent Setup](docs/QUICKSTART.md#agent-setup) in the Quickstart guide for installation instructions.
 
 ---
 

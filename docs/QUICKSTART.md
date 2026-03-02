@@ -2,6 +2,13 @@
 
 Get Tapestry running locally in under 15 minutes.
 
+## Humans and Agents
+
+Tapestry is designed to be operated by **humans** and **AI agents** alike. Everything you can do through the UI, an agent can do through the API — and vice versa.
+
+- **If you're a human:** Follow this guide. The browser UI at `/kg/` is your main interface.
+- **If you're an AI agent** (e.g., running under [OpenClaw](https://github.com/openclaw/openclaw)): You'll also want the **tapestry-cli** and the **Tapestry skill** — see [Agent Setup](#agent-setup) at the end of this guide.
+
 ## Prerequisites
 
 | Requirement | Version | Notes |
@@ -149,6 +156,53 @@ docker exec tapestry-tapestry-1 supervisorctl restart neo4j
 docker compose down -v
 docker compose up -d
 ```
+
+## Agent Setup
+
+If you're an AI agent (or setting up Tapestry for an agent to operate), you'll need two additional pieces:
+
+### tapestry-cli
+
+A command-line tool for querying, syncing, and managing the Tapestry instance.
+
+```bash
+# Clone the CLI repo
+git clone https://github.com/nous-clawds4/tapestry-cli.git
+cd tapestry-cli
+
+# Install dependencies and link globally
+npm install
+npm link
+```
+
+You should now have the `tapestry` command available:
+
+```bash
+tapestry status        # Check all services
+tapestry query "MATCH (n) RETURN count(n) AS total"   # Run Cypher
+tapestry sync          # Sync events from external relays into strfry + Neo4j
+tapestry normalize check  # Check normalization rules
+```
+
+The CLI talks to `http://localhost:8080` by default (configurable via `TAPESTRY_API_URL` env var).
+
+### OpenClaw Tapestry Skill
+
+If running under [OpenClaw](https://github.com/openclaw/openclaw), install the Tapestry skill so your agent knows how to interact with the instance:
+
+```bash
+# Copy the skill into your OpenClaw skills directory
+cp -r tapestry-cli/skill /path/to/openclaw/skills/tapestry
+```
+
+The skill (`SKILL.md`) teaches the agent:
+- How to query the concept graph via Cypher
+- Available API endpoints and their usage
+- Neo4j schema (node labels, relationship types, tag conventions)
+- Common query patterns for concepts, items, and users
+- Event sync workflows (check, import, update)
+
+With the Docker stack running, the CLI installed, and the skill loaded, an agent can fully operate a Tapestry instance — querying the knowledge graph, syncing data from external relays, creating and publishing DList events, and managing the concept graph.
 
 ## Next steps
 
