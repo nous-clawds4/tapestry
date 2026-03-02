@@ -68,6 +68,9 @@ const taskAnalytics = require('./task-analytics/index.js');
 const serviceManagement = require('./service-management/index.js');
 
 const { handleNeo4jSetupConstraintsAndIndexes } = require('./neo4j/commands/setupConstraintsAndIndexes.js');
+const { handleEventCheck, handleEventUpdate, handleEventUuids } = require('./neo4j/eventSync.js');
+const { handleFetchProfiles } = require('./profiles/fetchProfiles.js');
+const { requireOwner, handleGetSettings, handleGetDefaults, handleGetOverrides, handleUpdateSettings, handleResetSetting } = require('./settings/settingsApi.js');
 
 // Import utilities
 const { getConfigFromFile } = require('../utils/config');
@@ -232,6 +235,9 @@ function register(app) {
     app.get('/api/neo4j/run-query', runQuery);
     
     // Strfry plugin endpoints - with clearer separation of concerns
+    app.get('/api/strfry/scan', strfry.handleStrfryScan);  // Scan events from strfry (public)
+    app.get('/api/strfry/scan', strfry.handleStrfryScan);  // Scan strfry events by filter (public)
+    app.post('/api/strfry/publish', strfry.handlePublishEvent);  // Sign and publish events to strfry
     app.get('/api/get-strfry-filteredContent', strfry.handleGetFilteredContentStatus);  // Status query (public)
     app.post('/api/toggle-strfry-filteredContent', strfry.handleToggleStrfryPlugin);  // Toggle command (owner only)
 
@@ -265,6 +271,21 @@ function register(app) {
 
     // Add route handler for running service management scripts
     app.post('/api/run-script', manage.handleRunScript);
+
+    // Neo4j event sync endpoints
+    app.get('/api/neo4j/event-check', handleEventCheck);
+    app.post('/api/neo4j/event-update', handleEventUpdate);
+    app.get('/api/neo4j/event-uuids', handleEventUuids);
+
+    // Profile endpoints
+    app.get('/api/profiles', handleFetchProfiles);
+
+    // Settings endpoints (owner-only except GET merged)
+    app.get('/api/settings', requireOwner, handleGetSettings);
+    app.get('/api/settings/defaults', requireOwner, handleGetDefaults);
+    app.get('/api/settings/overrides', requireOwner, handleGetOverrides);
+    app.put('/api/settings', requireOwner, handleUpdateSettings);
+    app.delete('/api/settings/*', requireOwner, handleResetSetting);
 
     // Neo4j endpoints
     app.post('/api/neo4j-setup-constraints-and-indexes', handleNeo4jSetupConstraintsAndIndexes);
