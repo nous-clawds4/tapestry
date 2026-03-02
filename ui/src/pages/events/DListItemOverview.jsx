@@ -1,0 +1,108 @@
+import { useMemo } from 'react';
+import { useOutletContext, useNavigate } from 'react-router-dom';
+import useProfiles from '../../hooks/useProfiles';
+import AuthorCell from '../../components/AuthorCell';
+
+function getTag(event, name, index = 1) {
+  const tag = event.tags?.find(t => t[0] === name);
+  return tag ? tag[index] : null;
+}
+
+function formatAge(ts) {
+  if (!ts) return '—';
+  const now = Date.now() / 1000;
+  const diff = now - ts;
+  if (diff < 60) return `${Math.floor(diff)}s ago`;
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+  return `${Math.floor(diff / 86400)}d ago`;
+}
+
+function formatDate(ts) {
+  if (!ts) return '—';
+  return new Date(ts * 1000).toLocaleString();
+}
+
+export default function DListItemOverview() {
+  const { event } = useOutletContext();
+  const navigate = useNavigate();
+  const authorPubkeys = useMemo(() => event?.pubkey ? [event.pubkey] : [], [event?.pubkey]);
+  const profiles = useProfiles(authorPubkeys);
+
+  const name = getTag(event, 'name') || '(unnamed)';
+  const description = getTag(event, 'description') || event.content || '(none)';
+  const dTag = getTag(event, 'd');
+  const zTag = getTag(event, 'z');
+  const eTag = getTag(event, 'e');
+  const parentRef = zTag || eTag;
+
+  const aTag = event.kind === 39999
+    ? `${event.kind}:${event.pubkey}:${dTag}`
+    : null;
+
+  function goToParentList() {
+    if (parentRef) {
+      navigate(`/kg/lists/${encodeURIComponent(parentRef)}`);
+    }
+  }
+
+  return (
+    <div className="dlist-overview">
+      <h2>Overview</h2>
+      <table className="detail-table">
+        <tbody>
+          <tr>
+            <th>Name</th>
+            <td>{name}</td>
+          </tr>
+          <tr>
+            <th>Description</th>
+            <td>{description}</td>
+          </tr>
+          <tr>
+            <th>Author</th>
+            <td><AuthorCell pubkey={event.pubkey} profiles={profiles} /></td>
+          </tr>
+          <tr>
+            <th>Event Kind</th>
+            <td>{event.kind}</td>
+          </tr>
+          <tr>
+            <th>Event ID</th>
+            <td><code style={{ fontSize: '0.85em', wordBreak: 'break-all' }}>{event.id}</code></td>
+          </tr>
+          {aTag && (
+            <tr>
+              <th>a-tag</th>
+              <td><code style={{ fontSize: '0.85em', wordBreak: 'break-all' }}>{aTag}</code></td>
+            </tr>
+          )}
+          {dTag && (
+            <tr>
+              <th>d-tag</th>
+              <td><code>{dTag}</code></td>
+            </tr>
+          )}
+          {parentRef && (
+            <tr>
+              <th>Parent List</th>
+              <td>
+                <code
+                  style={{ fontSize: '0.85em', wordBreak: 'break-all', cursor: 'pointer', color: 'var(--accent)' }}
+                  onClick={goToParentList}
+                  title="Go to parent list"
+                >
+                  {parentRef}
+                </code>
+              </td>
+            </tr>
+          )}
+          <tr>
+            <th>Created</th>
+            <td>{formatDate(event.created_at)} ({formatAge(event.created_at)})</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  );
+}
