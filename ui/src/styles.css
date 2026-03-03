@@ -222,6 +222,11 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   background: var(--bg-tertiary);
 }
 
+.constituent-card.missing {
+  border-style: dashed;
+  opacity: 0.5;
+}
+
 /* ─── Data Table ──────────────────────────────────── */
 .data-table-wrapper {
   background: var(--bg-secondary);
