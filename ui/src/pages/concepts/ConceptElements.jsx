@@ -1,18 +1,38 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useOutletContext, useNavigate } from 'react-router-dom';
 import { useCypher } from '../../hooks/useCypher';
 import DataTable from '../../components/DataTable';
 import useProfiles from '../../hooks/useProfiles';
 import AuthorCell from '../../components/AuthorCell';
 
+function ValidationCell({ status, errors }) {
+  if (status === 'pending') return <span className="validation-pending" title="Validating…">⏳</span>;
+  if (status === 'valid') return <span className="validation-valid" title="Valid">✅</span>;
+  if (status === 'invalid') return (
+    <span className="validation-invalid" title={errors || 'Invalid'}>❌</span>
+  );
+  if (status === 'no-json') return <span className="validation-none" title="No JSON data">—</span>;
+  if (status === 'no-schema') return <span className="validation-none" title="No schema available">—</span>;
+  if (status === 'error') return <span className="validation-error" title={errors || 'Parse error'}>⚠️</span>;
+  return <span>—</span>;
+}
+
 export default function ConceptElements() {
   const { uuid } = useOutletContext();
   const navigate = useNavigate();
 
+  // Fetch the concept's JSON schema
+  const { data: schemaData } = useCypher(`
+    MATCH (h:ListHeader {uuid: '${uuid}'})
+    OPTIONAL MATCH (js:JSONSchema)-[:IS_THE_JSON_SCHEMA_FOR]->(h)
+    OPTIONAL MATCH (js)-[:HAS_TAG]->(jt:NostrEventTag {type: 'json'})
+    RETURN head(collect(jt.value)) AS schemaJson
+  `);
+
   // Explicit elements: connected via Superset → HAS_ELEMENT
   const { data: explicit, loading: l1, error: e1 } = useCypher(`
     MATCH (h:ListHeader {uuid: '${uuid}'})-[:IS_THE_CONCEPT_FOR]->(s:Superset)
-      -[:IS_A_SUPERSET_OF*0..5]->(ss)-[:HAS_ELEMENT]->(e:ListItem)
+      -[:IS_A_SUPERSET_OF*0..5]->(ss)-[:HAS_ELEMENT]->(e:NostrEvent)
     OPTIONAL MATCH (e)-[:HAS_TAG]->(j:NostrEventTag {type: 'json'})
     WITH DISTINCT e, head(collect(j.value)) AS json
     RETURN e.uuid AS uuid, e.name AS name, e.pubkey AS author, json
@@ -20,7 +40,7 @@ export default function ConceptElements() {
 
   // Implicit elements: z-tag points to the concept's uuid
   const { data: implicit, loading: l2, error: e2 } = useCypher(`
-    MATCH (e:ListItem)-[:HAS_TAG]->(zt:NostrEventTag {type: 'z', value: '${uuid}'})
+    MATCH (e:NostrEvent)-[:HAS_TAG]->(zt:NostrEventTag {type: 'z', value: '${uuid}'})
     OPTIONAL MATCH (e)-[:HAS_TAG]->(j:NostrEventTag {type: 'json'})
     WITH DISTINCT e, head(collect(j.value)) AS json
     RETURN e.uuid AS uuid, e.name AS name, e.pubkey AS author, json
@@ -48,6 +68,101 @@ export default function ConceptElements() {
     );
   }, [explicit, implicit]);
 
+  // Async validation state: { [uuid]: { status, errors } }
+  const [validationResults, setValidationResults] = useState({});
+
+  useEffect(() => {
+    if (!merged.length) return;
+
+    const schemaRaw = schemaData?.[0]?.schemaJson;
+    if (!schemaRaw) {
+      // No schema — mark all as no-schema
+      const results = {};
+      for (const el of merged) {
+        results[el.uuid] = { status: el.json ? 'no-schema' : 'no-json' };
+      }
+      setValidationResults(results);
+      return;
+    }
+
+    // Mark all as pending initially
+    const pending = {};
+    for (const el of merged) {
+      pending[el.uuid] = { status: el.json ? 'pending' : 'no-json' };
+    }
+    setValidationResults(pending);
+
+    // Validate asynchronously in batches to avoid blocking the UI
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const Ajv = (await import('ajv')).default;
+        const ajv = new Ajv({ allErrors: true, strict: false });
+
+        let schema;
+        try {
+          schema = typeof schemaRaw === 'string' ? JSON.parse(schemaRaw) : schemaRaw;
+        } catch {
+          // Schema itself is unparseable
+          const results = {};
+          for (const el of merged) {
+            results[el.uuid] = { status: el.json ? 'error' : 'no-json', errors: 'Schema parse error' };
+          }
+          if (!cancelled) setValidationResults(results);
+          return;
+        }
+
+        let validate;
+        try {
+          validate = ajv.compile(schema);
+        } catch (e) {
+          const results = {};
+          for (const el of merged) {
+            results[el.uuid] = { status: el.json ? 'error' : 'no-json', errors: `Schema compile error: ${e.message}` };
+          }
+          if (!cancelled) setValidationResults(results);
+          return;
+        }
+
+        const elementsWithJson = merged.filter(el => el.json);
+        const BATCH_SIZE = 10;
+
+        for (let i = 0; i < elementsWithJson.length; i += BATCH_SIZE) {
+          if (cancelled) return;
+
+          const batch = elementsWithJson.slice(i, i + BATCH_SIZE);
+          const batchResults = {};
+
+          for (const el of batch) {
+            try {
+              const parsed = typeof el.json === 'string' ? JSON.parse(el.json) : el.json;
+              const valid = validate(parsed);
+              batchResults[el.uuid] = valid
+                ? { status: 'valid' }
+                : { status: 'invalid', errors: ajv.errorsText(validate.errors) };
+            } catch (e) {
+              batchResults[el.uuid] = { status: 'error', errors: `JSON parse error: ${e.message}` };
+            }
+          }
+
+          if (!cancelled) {
+            setValidationResults(prev => ({ ...prev, ...batchResults }));
+          }
+
+          // Yield to the browser between batches
+          if (i + BATCH_SIZE < elementsWithJson.length) {
+            await new Promise(r => setTimeout(r, 0));
+          }
+        }
+      } catch (e) {
+        console.error('Validation error:', e);
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [merged, schemaData]);
+
   const loading = l1 || l2;
   const error = e1 || e2;
 
@@ -70,12 +185,20 @@ export default function ConceptElements() {
       render: (val) => val ? '✅' : '—',
     },
     {
+      key: 'uuid',
+      label: <span title="JSON validates against concept schema" style={{ cursor: 'help' }}>✓ Schema</span>,
+      render: (val) => {
+        const result = validationResults[val] || { status: 'pending' };
+        return <ValidationCell status={result.status} errors={result.errors} />;
+      },
+    },
+    {
       key: 'json',
       label: 'JSON Data',
       render: (val) => {
         if (!val) return '—';
         try {
-          const parsed = typeof val === 'string' ? JSON.parse(val.replace(/\\"/g, '"')) : val;
+          const parsed = typeof val === 'string' ? JSON.parse(val) : val;
           return <code className="json-preview">{JSON.stringify(parsed, null, 0).slice(0, 80)}…</code>;
         } catch {
           return <code className="json-preview">{String(val).slice(0, 80)}…</code>;
