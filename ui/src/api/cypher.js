@@ -60,7 +60,10 @@ function parseCSVLine(line) {
     if (inQuotes) {
       if (ch === '"' && line[i + 1] === '"') {
         current += '"';
-        i++; // skip escaped quote
+        i++; // skip escaped quote (CSV-style "")
+      } else if (ch === '\\' && line[i + 1] === '"') {
+        current += '"';
+        i++; // skip escaped quote (backslash-style \")
       } else if (ch === '"') {
         inQuotes = false;
       } else {
