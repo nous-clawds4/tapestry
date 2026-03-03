@@ -7,6 +7,7 @@ import ConceptElements from './pages/concepts/ConceptElements';
 import ConceptProperties from './pages/concepts/ConceptProperties';
 import ConceptDag from './pages/concepts/ConceptDag';
 import ConceptSchema from './pages/concepts/ConceptSchema';
+import NewConcept from './pages/concepts/NewConcept';
 import ListsIndex from './pages/lists/Index';
 import DListDetail from './pages/lists/DListDetail';
 import DListOverview from './pages/lists/DListOverview';
@@ -47,6 +48,7 @@ const router = createBrowserRouter([
         handle: { crumb: 'Concepts' },
         children: [
           { index: true, element: <ConceptList /> },
+          { path: 'new', element: <NewConcept />, handle: { crumb: 'New Concept' } },
           {
             path: ':uuid',
             element: <ConceptDetail />,
