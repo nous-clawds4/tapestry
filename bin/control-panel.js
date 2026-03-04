@@ -240,6 +240,11 @@ if (useHTTPS) {
   });
 }
 
+// Graceful shutdown: close Neo4j Bolt driver
+const { closeDriver } = require('../src/lib/neo4j-driver');
+process.on('SIGTERM', async () => { await closeDriver(); process.exit(0); });
+process.on('SIGINT', async () => { await closeDriver(); process.exit(0); });
+
 // Export utility functions for testing and reuse
 module.exports = {
     getConfigFromFile,
