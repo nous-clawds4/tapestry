@@ -10,15 +10,22 @@ const API_BASE = '/api';
  * @returns {Promise<Array<Object>>} Array of row objects with column keys
  */
 export async function cypher(query) {
-  const encoded = encodeURIComponent(query);
-  const res = await fetch(`${API_BASE}/neo4j/run-query?cypher=${encoded}`);
-  const data = await res.json();
+  const res = await fetch(`${API_BASE}/neo4j/query`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ cypher: query }),
+  });
+  const json = await res.json();
 
-  if (!data.success) {
-    throw new Error(data.error || 'Query failed');
+  if (!json.success) {
+    throw new Error(json.error || 'Query failed');
   }
 
-  return parseCypherCSV(data.cypherResults);
+  // Prefer native typed rows from Bolt driver; fall back to CSV parsing
+  if (json.data && Array.isArray(json.data)) {
+    return json.data;
+  }
+  return parseCypherCSV(json.cypherResults);
 }
 
 /**
