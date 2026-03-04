@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCypher } from '../../hooks/useCypher';
 import DataTable from '../../components/DataTable';
@@ -7,8 +7,8 @@ import useProfiles from '../../hooks/useProfiles';
 import AuthorCell from '../../components/AuthorCell';
 
 const QUERY = `
-  MATCH (h:ListHeader)
-  WHERE h.kind IN [9998, 39998]
+  MATCH (h:NostrEvent)
+  WHERE (h:ListHeader OR h:ClassThreadHeader) AND h.kind IN [9998, 39998]
   OPTIONAL MATCH (h)-[:IS_THE_CONCEPT_FOR]->(s:Superset)
   OPTIONAL MATCH (js:JSONSchema)-[:IS_THE_JSON_SCHEMA_FOR]->(h)
   OPTIONAL MATCH (g1)-[:IS_THE_CORE_GRAPH_FOR]->(h)
@@ -35,6 +35,8 @@ const QUERY = `
   RETURN h.uuid AS uuid,
     h.name AS name,
     h.pubkey AS author,
+    CASE WHEN 'ListHeader' IN labels(h) THEN 1 ELSE 0 END AS hasLH,
+    CASE WHEN 'ClassThreadHeader' IN labels(h) THEN 1 ELSE 0 END AS hasCTH,
     supersetCount,
     schemaCount,
     coreGraphCount,
@@ -49,6 +51,23 @@ const QUERY = `
 export default function ConceptList() {
   const { data, loading, error } = useCypher(QUERY);
   const navigate = useNavigate();
+  const [healthMap, setHealthMap] = useState({});
+
+  // Fetch audit summary for all concepts
+  useEffect(() => {
+    fetch('/api/audit/concepts-summary')
+      .then(r => r.json())
+      .then(res => {
+        if (res.success && res.data) {
+          const map = {};
+          for (const item of res.data) {
+            map[item.uuid] = item;
+          }
+          setHealthMap(map);
+        }
+      })
+      .catch(() => {}); // silently fail
+  }, []);
 
   const authorPubkeys = useMemo(
     () => [...new Set((data || []).map(r => r.author).filter(Boolean))],
@@ -60,11 +79,32 @@ export default function ConceptList() {
   const num = (val) => parseInt(val) || '—';
   const iconHeader = (icon, tooltip) => <span title={tooltip} style={{ cursor: 'help' }}>{icon}</span>;
 
+  // Merge health status into row data for sorting
+  const enrichedData = useMemo(() => {
+    if (!data) return [];
+    return data.map(row => {
+      const h = healthMap[row.uuid];
+      // Sort order: pass=0, warn=1, fail=2, unknown=3
+      const healthSort = h ? (h.status === 'pass' ? 0 : h.status === 'warn' ? 1 : 2) : 3;
+      return { ...row, _healthSort: healthSort, _healthSummary: h?.summary || '' };
+    });
+  }, [data, healthMap]);
+
+  const healthIcon = (val, row) => {
+    const h = healthMap[row?.uuid];
+    if (!h) return <span style={{ opacity: 0.3 }}>…</span>;
+    const icon = h.status === 'pass' ? '✅' : h.status === 'warn' ? '⚠️' : '❌';
+    return <span title={h.summary} style={{ cursor: 'help' }}>{icon}</span>;
+  };
+
   const columns = [
     { key: 'name', label: 'Name' },
+    { key: '_healthSort', label: iconHeader('🩺', 'Audit Health'), render: healthIcon },
     { key: 'elementCount', label: iconHeader('📝', 'Elements'), render: num },
     { key: 'setCount', label: iconHeader('🗂️', 'Sets (incl. superset)'), render: num },
     { key: 'propertyCount', label: iconHeader('⚙️', 'Properties'), render: num },
+    { key: 'hasLH', label: iconHeader('📄', 'ListHeader'), render: check },
+    { key: 'hasCTH', label: iconHeader('🏷️', 'CTH Label'), render: check },
     { key: 'supersetCount', label: iconHeader('📦', 'Superset'), render: check },
     { key: 'schemaCount', label: iconHeader('📋', 'JSON Schema'), render: check },
     { key: 'coreGraphCount', label: iconHeader('🔗', 'Core Nodes Graph'), render: check },
@@ -91,7 +131,7 @@ export default function ConceptList() {
       {!loading && !error && (
         <DataTable
           columns={columns}
-          data={data}
+          data={enrichedData}
           onRowClick={(row) => navigate(`/kg/concepts/${encodeURIComponent(row.uuid)}`)}
           emptyMessage="No concepts found"
         />

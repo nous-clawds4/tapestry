@@ -1,5 +1,7 @@
 /* ─── Reset & Base ─────────────────────────────────── */
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+*:where(:not(.jsonjoy, .jsonjoy *)), *:where(:not(.jsonjoy, .jsonjoy *))::before, *:where(:not(.jsonjoy, .jsonjoy *))::after {
+  box-sizing: border-box; margin: 0; padding: 0;
+}
 
 :root {
   --bg: #0d1117;
@@ -707,6 +709,21 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
 .page-header-row h1 { margin-bottom: 4px; }
 
 /* ─── Buttons ────────────────────────────────────────── */
+.btn {
+  background: var(--bg-tertiary);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 20px;
+  font-size: 0.9em;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+  white-space: nowrap;
+}
+.btn:hover { border-color: var(--accent); background: var(--bg-secondary); }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
 .btn-primary {
   background: var(--accent);
   color: #fff;
@@ -1312,4 +1329,332 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
 .author-cell-link:hover .author-name {
   color: var(--accent);
   text-decoration: underline;
+}
+
+/* ─── Manage / Audit Page ─────────────────────────────────────── */
+
+.manage-page {
+  max-width: 1200px;
+}
+
+.manage-page h1 {
+  margin-bottom: 0.25rem;
+}
+
+.page-subtitle {
+  color: var(--text-muted);
+  margin-bottom: 1.5rem;
+}
+
+.manage-nav {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0.75rem;
+}
+
+.manage-nav-link {
+  padding: 0.4rem 1rem;
+  border-radius: 6px;
+  text-decoration: none;
+  color: var(--text);
+  font-weight: 500;
+  transition: background 0.15s;
+}
+
+.manage-nav-link:hover {
+  background: var(--hover);
+}
+
+.manage-nav-link.active {
+  background: var(--accent);
+  color: #fff;
+}
+
+/* Audit page */
+
+.audit-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.audit-commands h3,
+.audit-options h3,
+.audit-cli-preview h3,
+.audit-results h3 {
+  margin-bottom: 0.5rem;
+  font-size: 0.95rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.audit-command-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.audit-cmd-btn {
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--card-bg);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: all 0.15s;
+}
+
+.audit-cmd-btn:hover {
+  border-color: var(--accent);
+  background: var(--hover);
+}
+
+.audit-cmd-btn.active {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+}
+
+.audit-description {
+  padding: 0.75rem 1rem;
+  background: var(--card-bg);
+  border-radius: 8px;
+  border-left: 3px solid var(--accent);
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.audit-options-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 0.75rem;
+}
+
+.audit-option label {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 500;
+  margin-bottom: 0.25rem;
+}
+
+.audit-option input,
+.audit-option select {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--card-bg);
+  color: var(--text);
+  font-size: 0.9rem;
+}
+
+.audit-option input:focus,
+.audit-option select:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.cli-command-box {
+  padding: 0.75rem 1rem;
+  background: #1a1a2e;
+  border-radius: 8px;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 0.9rem;
+  color: #a8e6cf;
+  overflow-x: auto;
+}
+
+.audit-run {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.run-button {
+  padding: 0.6rem 1.5rem;
+  border: none;
+  border-radius: 8px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.run-button:hover {
+  opacity: 0.9;
+}
+
+.run-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.audit-error {
+  padding: 0.75rem 1rem;
+  background: #3a1a1a;
+  border: 1px solid #e74c3c;
+  border-radius: 8px;
+  color: #e74c3c;
+  font-size: 0.9rem;
+}
+
+.audit-results {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.audit-result-section {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1rem;
+  background: var(--card-bg);
+}
+
+.audit-result-section h4 {
+  margin-bottom: 0.5rem;
+  font-size: 0.95rem;
+}
+
+.cypher-details {
+  margin-bottom: 0.75rem;
+}
+
+.cypher-details summary {
+  cursor: pointer;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.cypher-query {
+  margin-top: 0.5rem;
+  padding: 0.75rem;
+  background: #1a1a2e;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  color: #a8e6cf;
+  white-space: pre-wrap;
+  word-break: break-all;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.no-results {
+  color: var(--text-muted);
+  font-style: italic;
+  padding: 0.5rem 0;
+}
+
+.result-table-wrapper {
+  overflow-x: auto;
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+.result-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.result-table th {
+  text-align: left;
+  padding: 0.5rem;
+  border-bottom: 2px solid var(--border);
+  font-weight: 600;
+  white-space: nowrap;
+  position: sticky;
+  top: 0;
+  background: var(--card-bg);
+}
+
+.result-table td {
+  padding: 0.4rem 0.5rem;
+  border-bottom: 1px solid var(--border);
+  max-width: 400px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.result-table tr:hover td {
+  background: var(--hover);
+}
+
+/* Concept Health Audit */
+.health-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+  font-weight: 600;
+  font-size: 1.1rem;
+}
+.health-banner-icon { font-size: 1.4rem; }
+.health-pass { background: rgba(34, 197, 94, 0.15); color: #22c55e; }
+.health-warn { background: rgba(234, 179, 8, 0.15); color: #eab308; }
+.health-fail { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
+.health-section { margin-bottom: 1.5rem; }
+.health-section h3 { margin-bottom: 0.5rem; }
+.uuid-short { font-size: 0.85em; opacity: 0.7; }
+
+/* New Concept Form */
+.new-concept-form { max-width: 600px; }
+.form-field { margin-bottom: 1.25rem; }
+.form-field label { display: block; margin-bottom: 0.4rem; font-weight: 600; }
+.form-field input, .form-field textarea {
+  width: 100%; padding: 0.6rem 0.8rem;
+  background: var(--bg-card, #1a1a2e); border: 1px solid var(--border, #333);
+  border-radius: 6px; color: var(--text, #eee); font-size: 1rem;
+}
+.form-field input:focus, .form-field textarea:focus {
+  outline: none; border-color: var(--accent, #6366f1);
+}
+.form-hint { display: block; margin-top: 0.25rem; font-size: 0.85em; opacity: 0.5; }
+.form-preview { padding: 1rem; background: rgba(99,102,241,0.08); border-radius: 8px; margin-top: 1rem; }
+.form-preview h4 { margin: 0 0 0.5rem 0; }
+.required { color: var(--color-danger, #ef4444); }
+
+/* JSONJoy Schema Editor — dark theme overrides */
+.schema-editor-wrapper {
+  border: 1px solid var(--border, #333);
+  border-radius: 8px;
+  padding: 1rem;
+  background: var(--bg-card, #1a1a2e);
+}
+
+/* Dark theme for jsonjoy schema editor (colors, not spacing — spacing handled by @layer) */
+.jsonjoy {
+  --jsonjoy-color-background: #1a1a2e !important;
+  --jsonjoy-color-foreground: #eee !important;
+  --jsonjoy-color-card: #16213e !important;
+  --jsonjoy-color-card-foreground: #eee !important;
+  --jsonjoy-color-popover: #16213e !important;
+  --jsonjoy-color-popover-foreground: #eee !important;
+  --jsonjoy-color-primary: #6366f1 !important;
+  --jsonjoy-color-primary-foreground: #fff !important;
+  --jsonjoy-color-secondary: rgba(99,102,241,0.15) !important;
+  --jsonjoy-color-secondary-foreground: #eee !important;
+  --jsonjoy-color-muted: rgba(255,255,255,0.08) !important;
+  --jsonjoy-color-muted-foreground: rgba(255,255,255,0.6) !important;
+  --jsonjoy-color-accent: rgba(99,102,241,0.15) !important;
+  --jsonjoy-color-accent-foreground: #eee !important;
+  --jsonjoy-color-destructive: #ef4444 !important;
+  --jsonjoy-color-destructive-foreground: #fff !important;
+  --jsonjoy-color-border: #444 !important;
+  --jsonjoy-color-input: #444 !important;
+  --jsonjoy-color-ring: #6366f1 !important;
+  --jsonjoy-color-sidebar: #1a1a2e !important;
+  --jsonjoy-color-sidebar-foreground: #eee !important;
+  --jsonjoy-color-sidebar-border: #444 !important;
+  --jsonjoy-color-sidebar-accent: rgba(99,102,241,0.15) !important;
+  --jsonjoy-color-sidebar-accent-foreground: #eee !important;
+  --jsonjoy-color-sidebar-ring: #6366f1 !important;
 }

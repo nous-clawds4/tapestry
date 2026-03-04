@@ -7,7 +7,11 @@ import ConceptElements from './pages/concepts/ConceptElements';
 import ConceptProperties from './pages/concepts/ConceptProperties';
 import ConceptDag from './pages/concepts/ConceptDag';
 import ConceptSchema from './pages/concepts/ConceptSchema';
+import ConceptHealth from './pages/concepts/ConceptHealth';
+import NewElement from './pages/concepts/NewElement';
+import ElementDetail from './pages/concepts/ElementDetail';
 import NewConcept from './pages/concepts/NewConcept';
+import NewProperty from './pages/concepts/NewProperty';
 import ListsIndex from './pages/lists/Index';
 import DListDetail from './pages/lists/DListDetail';
 import DListOverview from './pages/lists/DListOverview';
@@ -35,7 +39,8 @@ import DListItemDetail from './pages/events/DListItemDetail';
 import DListItemOverview from './pages/events/DListItemOverview';
 import DListItemRaw from './pages/events/DListItemRaw';
 import DListItemActions from './pages/events/DListItemActions';
-
+import ManageIndex from './pages/manage/Index';
+import Audit from './pages/manage/Audit';
 const router = createBrowserRouter([
   {
     path: '/kg',
@@ -55,8 +60,12 @@ const router = createBrowserRouter([
             handle: { crumb: 'Detail' },
             children: [
               { index: true, element: <ConceptOverview /> },
+              { path: 'health', element: <ConceptHealth />, handle: { crumb: 'Health Audit' } },
               { path: 'elements', element: <ConceptElements />, handle: { crumb: 'Elements' } },
+              { path: 'elements/new', element: <NewElement />, handle: { crumb: 'New Element' } },
+              { path: 'elements/:elemUuid', element: <ElementDetail />, handle: { crumb: 'Element' } },
               { path: 'properties', element: <ConceptProperties />, handle: { crumb: 'Properties' } },
+              { path: 'properties/new', element: <NewProperty />, handle: { crumb: 'New Property' } },
               { path: 'dag', element: <ConceptDag />, handle: { crumb: 'DAG' } },
               { path: 'schema', element: <ConceptSchema />, handle: { crumb: 'Schema' } },
             ],
@@ -136,6 +145,14 @@ const router = createBrowserRouter([
       },
       { path: 'relationships', element: <RelationshipsIndex />, handle: { crumb: 'Relationships' } },
       { path: 'trusted-lists', element: <TrustedListsIndex />, handle: { crumb: 'Trusted Lists' } },
+      {
+        path: 'manage',
+        element: <ManageIndex />,
+        handle: { crumb: 'Manage' },
+        children: [
+          { path: 'audit', element: <Audit />, handle: { crumb: 'Audit' } },
+        ],
+      },
       { path: 'about', element: <AboutIndex />, handle: { crumb: 'About' } },
       { path: 'settings', element: <SettingsIndex />, handle: { crumb: 'Settings' } },
     ],

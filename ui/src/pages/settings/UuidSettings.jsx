@@ -1,13 +1,17 @@
 import { useState } from 'react';
 
 const CONCEPT_UUIDS = [
+  { key: 'nodeType', label: 'Node Types' },
+  { key: 'superset', label: 'Supersets' },
+  { key: 'set', label: 'Sets' },
   { key: 'relationship', label: 'Relationships' },
   { key: 'relationshipType', label: 'Relationship Types' },
-  { key: 'nodeType', label: 'Node Types' },
-  { key: 'set', label: 'Sets' },
-  { key: 'superset', label: 'Supersets' },
-  { key: 'JSONSchema', label: 'JSON Schemas' },
   { key: 'property', label: 'Properties' },
+  { key: 'JSONSchema', label: 'JSON Schemas' },
+  { key: 'list', label: 'Lists' },
+  { key: 'jsonDataType', label: 'JSON Data Types' },
+  { key: 'graphType', label: 'Graph Types' },
+  { key: 'graph', label: 'Graphs' },
 ];
 
 const RELATIONSHIP_TYPE_UUIDS = [

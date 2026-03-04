@@ -10,6 +10,7 @@ const navItems = [
   { to: '/kg/users', label: '👤 Nostr Users' },
   { to: '/kg/relationships', label: '🔗 Relationships' },
   { to: '/kg/trusted-lists', label: '🛡️ Trusted Lists' },
+  { to: '/kg/manage/audit', label: '🛠️ Manage', ownerOnly: true },
   { to: '/kg/about', label: 'ℹ️ About' },
   { to: '/kg/settings', label: '⚙️ Settings', ownerOnly: true },
 ];

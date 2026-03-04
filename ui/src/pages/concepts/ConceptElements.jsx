@@ -115,7 +115,8 @@ export default function ConceptElements() {
 
         let validate;
         try {
-          validate = ajv.compile(schema);
+          const { $schema: _, ...schemaNoMeta } = schema;
+          validate = ajv.compile(schemaNoMeta);
         } catch (e) {
           const results = {};
           for (const el of merged) {
@@ -214,14 +215,22 @@ export default function ConceptElements() {
 
   return (
     <div>
-      <h2>Elements</h2>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+        <h2 style={{ margin: 0 }}>Elements</h2>
+        <button
+          className="btn btn-small btn-primary"
+          onClick={() => navigate(`/kg/concepts/${encodeURIComponent(uuid)}/elements/new`)}
+        >
+          + New Element
+        </button>
+      </div>
       {loading && <div className="loading">Loading elements…</div>}
       {error && <div className="error">Error: {error.message}</div>}
       {!loading && !error && (
         <DataTable
           columns={columns}
           data={merged}
-          onRowClick={(row) => navigate(`/kg/nodes/${encodeURIComponent(row.uuid)}`)}
+          onRowClick={(row) => navigate(`/kg/concepts/${encodeURIComponent(uuid)}/elements/${encodeURIComponent(row.uuid)}`)}
           emptyMessage="No elements found"
         />
       )}

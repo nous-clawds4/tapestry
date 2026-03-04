@@ -306,12 +306,20 @@ async function authMiddleware(req, res, next) {
         return next();
     }
     
+    // Allow localhost/Docker-host CLI access to normalize endpoints (trusted local operator)
+    const remoteAddr = req.ip || req.connection?.remoteAddress || '';
+    const isLocal = ['127.0.0.1', '::1', '::ffff:127.0.0.1', '172.18.0.1', '::ffff:172.18.0.1'].includes(remoteAddr);
+    if (isLocal && req.path.startsWith('/api/normalize')) {
+        return next();
+    }
+
     // Check if user is authenticated for API calls
     if (req.session && req.session.authenticated) {
         // TODO: differentiate between owner and customer endpoints
         const customerOrOwnerEndpoints = [
             '/get-customer',
-            '/neo4j/run-query'
+            '/neo4j/run-query',
+            '/neo4j/query'
         ]
         // Define owner-only endpoints (administrative actions)
         const ownerOnlyEndpoints = [
@@ -352,7 +360,8 @@ async function authMiddleware(req, res, next) {
             '/backups/download',
             '/restore/upload',
             '/restore/sets',
-            '/restore/customer'
+            '/restore/customer',
+            '/api/normalize'
         ];
 
         // Check if this endpoint is for customer or owner only
@@ -437,7 +446,7 @@ async function authMiddleware(req, res, next) {
             '/restore/upload',
             '/restore/sets',
             '/restore/customer',
-            '/neo4j/run-query'
+            '/api/normalize'
         ];
         
         // Check if the current path is a write endpoint

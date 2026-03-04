@@ -7,6 +7,7 @@
 const { getStrfryStatus } = require('./strfry/strfryStatus');
 const { getNeo4jStatus } = require('./neo4j/neo4jStatus');
 const { runQuery } = require('./neo4j/runQuery');
+const { queryPost } = require('./neo4j/queryPost');
 const { getListStatus } = require('./lists/listStatus');
 const { getRankingStatus } = require('./ranking/rankingStatus');
 const { getNetworkStatus } = require('./network/networkStatus');
@@ -232,7 +233,8 @@ function register(app) {
 
     // Generic neo4j query endpoint; requires authentication
     // temporarily disabled
-    app.get('/api/neo4j/run-query', runQuery);
+    app.get('/api/neo4j/run-query', runQuery);       // legacy — deprecate after migration
+    app.post('/api/neo4j/query', queryPost);          // new POST endpoint
     
     // Strfry plugin endpoints - with clearer separation of concerns
     app.get('/api/strfry/scan', strfry.handleStrfryScan);  // Scan events from strfry (public)
@@ -380,6 +382,18 @@ function register(app) {
     app.get('/api/task-analytics/trends', taskAnalytics.handleTaskTrends);
     app.get('/api/task-analytics/predictions', taskAnalytics.handleTaskPredictions);
     app.get('/api/task-analytics/performance', taskAnalytics.handleTaskPerformance);
+
+    // ── Tapestry Audit API ──
+    const { registerAuditRoutes } = require('./audit');
+    registerAuditRoutes(app);
+
+    // ── Tapestry Normalize API ──
+    const { registerNormalizeRoutes } = require('./normalize');
+    registerNormalizeRoutes(app);
+
+    // ── Tapestry Property API ──
+    const { registerPropertyRoutes } = require('./property');
+    registerPropertyRoutes(app);
 
     console.log('Registered all Brainstorm API endpoints');
 }

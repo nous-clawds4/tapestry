@@ -29,6 +29,7 @@ export default function ConceptDetail() {
 
   const tabs = [
     { to: '', label: 'Overview', end: true },
+    { to: 'health', label: '🩺 Health Audit' },
     { to: 'elements', label: 'Elements' },
     { to: 'properties', label: 'Properties' },
     { to: 'dag', label: 'DAG Structure' },

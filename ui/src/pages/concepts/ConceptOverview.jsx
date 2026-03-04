@@ -15,27 +15,25 @@ export default function ConceptOverview() {
     LIMIT 1
   `);
 
-  // Fetch graph instances for this concept (z-tag points to graph concept header, name references this concept)
-  const conceptName = concept?.name || '';
+  // Fetch graph nodes via their relationship to this concept's header
   const { data: graphs } = useCypher(`
-    MATCH (g:ListItem)-[:HAS_TAG]->(zt:NostrEventTag {type: 'z'})
-    WHERE zt.value STARTS WITH '39998:' AND zt.value ENDS WITH ':ec1b87c4'
-    AND g.name CONTAINS '${conceptName.replace(/'/g, "\\'")}'
-    RETURN g.uuid AS uuid, g.name AS name
-    ORDER BY g.name
+    MATCH (h:ListHeader {uuid: '${uuid}'})
+    OPTIONAL MATCH (cg)-[:IS_THE_CORE_GRAPH_FOR]->(h)
+    OPTIONAL MATCH (ctg)-[:IS_THE_CLASS_THREADS_GRAPH_FOR]->(h)
+    OPTIONAL MATCH (ptg)-[:IS_THE_PROPERTY_TREE_GRAPH_FOR]->(h)
+    RETURN cg.uuid AS coreUuid, cg.name AS coreName,
+           ctg.uuid AS ctUuid, ctg.name AS ctName,
+           ptg.uuid AS ptUuid, ptg.name AS ptName
+    LIMIT 1
   `);
 
   const navigate = useNavigate();
   const c = constituents?.[0];
+  const g = graphs?.[0];
 
   function goToNode(nodeUuid) {
     if (nodeUuid) navigate(`/kg/nodes/${encodeURIComponent(nodeUuid)}`);
   }
-
-  // Classify graphs by type
-  const coreNodesGraph = graphs?.find(g => g.name?.includes('core nodes'));
-  const classThreadsGraph = graphs?.find(g => g.name?.includes('class threads'));
-  const propertyTreeGraph = graphs?.find(g => g.name?.includes('property tree'));
 
   return (
     <div className="concept-overview">
@@ -70,11 +68,11 @@ export default function ConceptOverview() {
             <p className="constituent-name">Not yet created</p>
           </div>
         )}
-        {coreNodesGraph ? (
-          <div className="constituent-card clickable" onClick={() => goToNode(coreNodesGraph.uuid)}>
+        {g?.coreUuid ? (
+          <div className="constituent-card clickable" onClick={() => goToNode(g.coreUuid)}>
             <h3>🔗 Core Nodes Graph</h3>
-            <p className="constituent-name">{coreNodesGraph.name}</p>
-            <code className="uuid">{coreNodesGraph.uuid}</code>
+            <p className="constituent-name">{g.coreName}</p>
+            <code className="uuid">{g.coreUuid}</code>
           </div>
         ) : (
           <div className="constituent-card missing">
@@ -82,11 +80,11 @@ export default function ConceptOverview() {
             <p className="constituent-name">Not yet created</p>
           </div>
         )}
-        {classThreadsGraph ? (
-          <div className="constituent-card clickable" onClick={() => goToNode(classThreadsGraph.uuid)}>
+        {g?.ctUuid ? (
+          <div className="constituent-card clickable" onClick={() => goToNode(g.ctUuid)}>
             <h3>🌳 Class Threads Graph</h3>
-            <p className="constituent-name">{classThreadsGraph.name}</p>
-            <code className="uuid">{classThreadsGraph.uuid}</code>
+            <p className="constituent-name">{g.ctName}</p>
+            <code className="uuid">{g.ctUuid}</code>
           </div>
         ) : (
           <div className="constituent-card missing">
@@ -94,11 +92,11 @@ export default function ConceptOverview() {
             <p className="constituent-name">Not yet created</p>
           </div>
         )}
-        {propertyTreeGraph ? (
-          <div className="constituent-card clickable" onClick={() => goToNode(propertyTreeGraph.uuid)}>
+        {g?.ptUuid ? (
+          <div className="constituent-card clickable" onClick={() => goToNode(g.ptUuid)}>
             <h3>🌿 Property Tree Graph</h3>
-            <p className="constituent-name">{propertyTreeGraph.name}</p>
-            <code className="uuid">{propertyTreeGraph.uuid}</code>
+            <p className="constituent-name">{g.ptName}</p>
+            <code className="uuid">{g.ptUuid}</code>
           </div>
         ) : (
           <div className="constituent-card missing">
