@@ -1,11 +1,11 @@
-import { useOutletContext } from 'react-router-dom';
 import { useState, useEffect } from 'react';
+import { useOutletContext } from 'react-router-dom';
 import DListItemNeo4j from '../events/DListItemNeo4j.jsx';
 
 /**
- * Adapter: NodeDetail provides { node, uuid } via outlet context.
+ * Thin adapter: NodeDetail provides { node, uuid } via context.
  * DListItemNeo4j expects an event object.
- * We fetch the strfry event by uuid, or synthesise a minimal one from node data.
+ * We fetch the strfry event by uuid and pass it through.
  */
 export default function NodeNeo4j() {
   const { node, uuid } = useOutletContext();
@@ -26,23 +26,28 @@ export default function NodeNeo4j() {
         if (data.success && data.events?.length) {
           setEvent(data.events[0]);
         } else {
-          setEvent(synthesise(node, uuid));
+          // Minimal synthetic event so the graph query still works
+          setEvent({
+            id: node?.id || uuid,
+            kind: node?.kind ? parseInt(node.kind) : 0,
+            pubkey: node?.pubkey || '',
+            tags: [],
+            created_at: node?.created_at ? parseInt(node.created_at) : 0,
+          });
         }
       })
-      .catch(() => setEvent(synthesise(node, uuid)));
+      .catch(() => {
+        setEvent({
+          id: node?.id || uuid,
+          kind: node?.kind ? parseInt(node.kind) : 0,
+          pubkey: node?.pubkey || '',
+          tags: [],
+          created_at: 0,
+        });
+      });
   }, [uuid, node]);
 
   if (!event) return <p style={{ color: 'var(--text-muted)' }}>Loading…</p>;
 
   return <DListItemNeo4j eventOverride={event} />;
-}
-
-function synthesise(node, uuid) {
-  return {
-    id: node?.id || uuid,
-    kind: node?.kind ? parseInt(node.kind) : 0,
-    pubkey: node?.pubkey || '',
-    tags: [],
-    created_at: node?.created_at ? parseInt(node.created_at) : 0,
-  };
 }

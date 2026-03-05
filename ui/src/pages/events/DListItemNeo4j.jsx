@@ -69,6 +69,157 @@ function friendlyLabel(labels) {
   return display.length ? display.join(', ') : labels.join(', ');
 }
 
+/* ── arrangement engine ── */
+
+const SKELETON_ROLE_POSITIONS = {
+  // Relative to center (0,0). Y-axis: positive = down.
+  // Clock positions for ClassThreadHeader:
+  //   12:00 = core graph (above)
+  //   10:00 = property tree graph (up-left)
+  //    9:00 = JSON schema (left)
+  //    7:00 = primary property (down-left)
+  //    6:00 = superset (below)
+  //    5:00 = class threads graph (down-right)
+  coreGraph:          { x:   0, y: -200 },   // 12 o'clock
+  propertyTreeGraph:  { x: -180, y: -120 },  // 10 o'clock
+  jsonSchema:         { x: -220, y:   0 },   // 9 o'clock
+  primaryProperty:    { x: -180, y:  120 },  // 7 o'clock
+  superset:           { x:   0, y:  200 },   // 6 o'clock
+  classThreadsGraph:  { x:  180, y:  120 },  // 5 o'clock
+};
+
+// Map relationship types to skeleton roles
+function skeletonRoleFromEdge(relType, outgoing, neighbourLabels) {
+  if (relType === 'IS_THE_CONCEPT_FOR' && outgoing) return 'superset';
+  if (relType === 'IS_THE_CONCEPT_FOR' && !outgoing) return 'coreGraph';
+  if (relType === 'IS_THE_JSON_SCHEMA_FOR') return 'jsonSchema';
+  if (relType === 'IS_THE_PRIMARY_PROPERTY_FOR') return 'primaryProperty';
+  if (relType === 'IS_A_SUPERSET_OF') return 'superset';
+  return null;
+}
+
+function computeArrangement(centerId, centerLabels, nodesMap, edgesArr, hop2Nodes, hop2Edges, visNodes) {
+  const positions = {};
+  const cx = 0, cy = 0;
+  positions[centerId] = { x: cx, y: cy };
+
+  const isHeader = centerLabels.includes('ListHeader');
+
+  // Build lookup: nodeId → { relType, outgoing } (relative to center)
+  const edgesByNeighbour = new Map();
+  for (const e of edgesArr) {
+    const neighbourId = e.from === centerId ? e.to : e.from;
+    const outgoing = e.from === centerId;
+    if (!edgesByNeighbour.has(neighbourId)) edgesByNeighbour.set(neighbourId, []);
+    edgesByNeighbour.get(neighbourId).push({ relType: e.relType, outgoing });
+  }
+
+  // Classify neighbours
+  const tags = [];
+  const authors = [];
+  const structural = [];
+  const assigned = new Set(); // nodes that got specific positions
+
+  for (const [nId, info] of nodesMap) {
+    if (nId === centerId) continue;
+    if (!visNodes.get(nId)) continue; // not currently visible
+    if (info.labels?.includes('NostrEventTag')) { tags.push(nId); continue; }
+    if (info.labels?.includes('NostrUser')) { authors.push(nId); continue; }
+    structural.push(nId);
+  }
+
+  // ── ClassThreadHeader-specific: skeleton positions ──
+  if (isHeader) {
+    for (const nId of structural) {
+      const edges = edgesByNeighbour.get(nId) || [];
+      for (const { relType, outgoing } of edges) {
+        const role = skeletonRoleFromEdge(relType, outgoing, nodesMap.get(nId)?.labels);
+        if (role && SKELETON_ROLE_POSITIONS[role] && !assigned.has(role)) {
+          positions[nId] = { ...SKELETON_ROLE_POSITIONS[role] };
+          assigned.add(role);
+          assigned.add(nId);
+          break;
+        }
+      }
+    }
+  }
+
+  // ── General: IS_A_SUPERSET_OF hierarchy (superset above, subset below) ──
+  for (const nId of structural) {
+    if (assigned.has(nId)) continue;
+    const edges = edgesByNeighbour.get(nId) || [];
+    for (const { relType, outgoing } of edges) {
+      if (relType === 'IS_A_SUPERSET_OF') {
+        // outgoing from center means center IS_A_SUPERSET_OF neighbour → neighbour is below
+        // incoming means neighbour IS_A_SUPERSET_OF center → neighbour is above
+        positions[nId] = outgoing ? { x: 0, y: 200 } : { x: 0, y: -200 };
+        assigned.add(nId);
+        break;
+      }
+      if (relType === 'HAS_ELEMENT') {
+        positions[nId] = outgoing ? { x: 0, y: 200 } : { x: 0, y: -200 };
+        assigned.add(nId);
+        break;
+      }
+      if (relType === 'IS_A_PROPERTY_OF') {
+        // neighbour IS_A_PROPERTY_OF center → neighbour below-left
+        positions[nId] = outgoing ? { x: -160, y: -120 } : { x: -160, y: 120 };
+        assigned.add(nId);
+        break;
+      }
+      if (relType === 'ENUMERATES') {
+        positions[nId] = outgoing ? { x: 0, y: 200 } : { x: 0, y: -200 };
+        assigned.add(nId);
+        break;
+      }
+    }
+  }
+
+  // ── Unassigned structural → spread on the left ──
+  const unassignedStructural = structural.filter(n => !assigned.has(n));
+  const structSpacing = 80;
+  const structStartY = -(unassignedStructural.length - 1) * structSpacing / 2;
+  unassignedStructural.forEach((nId, i) => {
+    positions[nId] = { x: -250, y: structStartY + i * structSpacing };
+  });
+
+  // ── Author → top-right ──
+  authors.forEach((nId, i) => {
+    positions[nId] = { x: 250, y: -200 + i * 60 };
+  });
+
+  // ── Tags → stacked vertically on the right, sorted by tag type ──
+  const TAG_ORDER = ['d', 'names', 'name', 'description', 'title', 'slug', 'L', 'l', 'json', 'z', 'e', 'a', 'p', 'r'];
+  tags.sort((a, b) => {
+    const aType = nodesMap.get(a)?.tagType || '';
+    const bType = nodesMap.get(b)?.tagType || '';
+    const ai = TAG_ORDER.indexOf(aType);
+    const bi = TAG_ORDER.indexOf(bType);
+    return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+  });
+
+  const tagX = 320;
+  const tagSpacing = 50;
+  const tagStartY = -(tags.length - 1) * tagSpacing / 2;
+  tags.forEach((nId, i) => {
+    positions[nId] = { x: tagX, y: tagStartY + i * tagSpacing };
+  });
+
+  // ── 2nd-hop refs → further right of their referencing tag ──
+  for (const e of hop2Edges) {
+    const nId = e.to;
+    if (!visNodes.get(nId)) continue;
+    const tagPos = positions[e.from];
+    if (tagPos) {
+      positions[nId] = { x: tagPos.x + 200, y: tagPos.y };
+    } else {
+      positions[nId] = { x: 520, y: 0 };
+    }
+  }
+
+  return positions;
+}
+
 /* ══════════════════════════════════════════════════════
    DListItemNeo4j — ego-graph visualisation
    ══════════════════════════════════════════════════════ */
@@ -85,6 +236,8 @@ export default function DListItemNeo4j({ eventOverride } = {}) {
   const [importing, setImporting] = useState(false);
   const [selectedNode, setSelectedNode] = useState(null); // detail panel
   const [layers, setLayers] = useState({ tags: true, author: true, structure: true, hop2: true });
+  const [arranged, setArranged] = useState(false);
+  const visNodesRef = useRef(null);
 
   /* ── derive uuid from event ── */
   const uuid = (() => {
@@ -352,15 +505,12 @@ export default function DListItemNeo4j({ eventOverride } = {}) {
 
       const net = new Network(containerRef.current, { nodes: visNodes, edges: visEdges }, options);
       networkRef.current = net;
+      visNodesRef.current = visNodes;
 
-      // Click → select node for detail panel
-      net.on('click', (params) => {
-        if (params.nodes.length === 1) {
-          const nodeId = params.nodes[0];
-          const visNode = visNodes.get(nodeId);
-          setSelectedNode(visNode?._info || null);
-        } else {
-          setSelectedNode(null);
+      // Drag start → temporarily unfix so dragging works even on pinned nodes
+      net.on('dragStart', (params) => {
+        for (const nodeId of params.nodes) {
+          visNodes.update({ id: nodeId, fixed: false });
         }
       });
 
@@ -374,11 +524,23 @@ export default function DListItemNeo4j({ eventOverride } = {}) {
         }
       });
 
-      // Double-click → unpin node (release back to physics)
-      net.on('doubleClick', (params) => {
+      // Click → unpin node (release back to physics)
+      net.on('click', (params) => {
         if (params.nodes.length === 1) {
           const nodeId = params.nodes[0];
           visNodes.update({ id: nodeId, fixed: false });
+        }
+      });
+
+      // Double-click → toggle side panel
+      net.on('doubleClick', (params) => {
+        if (params.nodes.length === 1) {
+          const nodeId = params.nodes[0];
+          const visNode = visNodes.get(nodeId);
+          const info = visNode?._info || null;
+          setSelectedNode(prev => prev?.neoId === info?.neoId ? null : info);
+        } else {
+          setSelectedNode(null);
         }
       });
 
@@ -389,6 +551,36 @@ export default function DListItemNeo4j({ eventOverride } = {}) {
   /* ── toggle layer ── */
   function toggleLayer(key) {
     setLayers(prev => ({ ...prev, [key]: !prev[key] }));
+  }
+
+  /* ── arrange toggle ── */
+  function handleArrangeToggle() {
+    const next = !arranged;
+    setArranged(next);
+    const visNodes = visNodesRef.current;
+    const net = networkRef.current;
+    if (!visNodes || !net || !graphData) return;
+
+    if (!next) {
+      // Unpin all nodes
+      visNodes.forEach(n => visNodes.update({ id: n.id, fixed: false }));
+      return;
+    }
+
+    // Compute positions
+    const { nodesMap, edgesArr, hop2Nodes, hop2Edges, centerId } = graphData;
+    const centerInfo = nodesMap.get(centerId);
+    const centerLabels = centerInfo?.labels || [];
+    const positions = computeArrangement(centerId, centerLabels, nodesMap, edgesArr, hop2Nodes, hop2Edges, visNodes);
+
+    // Apply positions and pin
+    for (const [nodeId, pos] of Object.entries(positions)) {
+      const id = parseInt(nodeId);
+      if (visNodes.get(id)) {
+        visNodes.update({ id, x: pos.x, y: pos.y, fixed: { x: true, y: true } });
+      }
+    }
+    net.fit({ animation: { duration: 400, easingFunction: 'easeInOutQuad' } });
   }
 
   /* ── render ── */
@@ -427,7 +619,7 @@ export default function DListItemNeo4j({ eventOverride } = {}) {
 
       {status === 'ready' && (
         <>
-          {/* Layer toggles */}
+          {/* Controls row */}
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 12, alignItems: 'center' }}>
             <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>Show:</span>
             {LAYERS.map(l => (
@@ -436,6 +628,20 @@ export default function DListItemNeo4j({ eventOverride } = {}) {
                 {l.label}
               </label>
             ))}
+            <span style={{ borderLeft: '1px solid var(--border)', height: 20, margin: '0 4px' }} />
+            <button
+              className={`btn btn-small${arranged ? ' btn-active' : ''}`}
+              onClick={handleArrangeToggle}
+              style={{
+                fontSize: 12,
+                background: arranged ? 'var(--accent)' : 'var(--bg-tertiary)',
+                color: arranged ? '#0d1117' : 'var(--text)',
+                border: `1px solid ${arranged ? 'var(--accent)' : 'var(--border)'}`,
+              }}
+              title={arranged ? 'Release all nodes back to physics' : 'Arrange nodes in a structured layout'}
+            >
+              {arranged ? '📐 Arranged' : '📐 Arrange'}
+            </button>
           </div>
 
           {/* Legend */}
@@ -472,7 +678,7 @@ export default function DListItemNeo4j({ eventOverride } = {}) {
           </div>
 
           <p style={{ color: 'var(--text-muted)', fontSize: 12, marginTop: 8 }}>
-            Click to inspect · Drag to pin in place · Double-click to unpin · Scroll to zoom
+            Drag to pin · Click to unpin · Double-click to inspect · Scroll to zoom
           </p>
         </>
       )}
