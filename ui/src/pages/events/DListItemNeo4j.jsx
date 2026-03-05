@@ -95,6 +95,9 @@ function skeletonRoleFromEdge(relType, outgoing, neighbourLabels) {
   if (relType === 'IS_THE_JSON_SCHEMA_FOR') return 'jsonSchema';
   if (relType === 'IS_THE_PRIMARY_PROPERTY_FOR') return 'primaryProperty';
   if (relType === 'IS_A_SUPERSET_OF') return 'superset';
+  if (relType === 'IS_THE_CORE_GRAPH_FOR') return 'coreGraph';
+  if (relType === 'IS_THE_PROPERTY_TREE_GRAPH_FOR') return 'propertyTreeGraph';
+  if (relType === 'IS_THE_CLASS_THREADS_GRAPH_FOR') return 'classThreadsGraph';
   return null;
 }
 
