@@ -8,6 +8,7 @@ import AuthorCell from '../../components/AuthorCell';
 
 import 'jsonjoy-builder/styles.css';
 import { SchemaVisualEditor } from 'jsonjoy-builder';
+import DefaultValuesPanel from '../../components/DefaultValuesPanel';
 
 function parseSchema(raw) {
   if (!raw) return null;
@@ -92,6 +93,68 @@ export default function ConceptSchema() {
   // Show JSON preview of editor state
   const [showPreview, setShowPreview] = useState(false);
 
+  // Raw JSON editor mode
+  const [editorMode, setEditorMode] = useState('visual'); // 'visual' | 'raw'
+  const [rawJson, setRawJson] = useState('');
+  const [rawJsonError, setRawJsonError] = useState(null);
+
+  function switchToRaw() {
+    const fullSchema = {
+      $schema: 'https://json-schema.org/draft/2020-12/schema',
+      type: 'object',
+      ...editSchema,
+    };
+    setRawJson(JSON.stringify(fullSchema, null, 2));
+    setRawJsonError(null);
+    setEditorMode('raw');
+  }
+
+  function switchToVisual() {
+    // Try to parse raw JSON and sync back to visual editor
+    try {
+      const parsed = JSON.parse(rawJson);
+      // Strip $schema for the visual editor (it adds it back on save)
+      const { $schema, ...rest } = parsed;
+      setEditSchema(rest);
+      setRawJsonError(null);
+      setEditorMode('visual');
+    } catch (err) {
+      setRawJsonError(`Invalid JSON: ${err.message}`);
+    }
+  }
+
+  function handleRawJsonChange(e) {
+    setRawJson(e.target.value);
+    setRawJsonError(null);
+  }
+
+  // Save from raw mode: parse first, then save
+  async function handleSaveRaw() {
+    try {
+      const parsed = JSON.parse(rawJson);
+      const { $schema, ...rest } = parsed;
+      setEditSchema(rest);
+      // Now save using the parsed schema
+      setSaving(true);
+      setSaveError(null);
+      setSaveSuccess(false);
+      await saveSchema({ concept: concept.name, schema: rest });
+      setSaveSuccess(true);
+      setEditing(false);
+      setEditSchema(null);
+      setEditorMode('visual');
+      refetch();
+    } catch (err) {
+      if (err instanceof SyntaxError) {
+        setRawJsonError(`Invalid JSON: ${err.message}`);
+      } else {
+        setSaveError(err.message);
+      }
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
@@ -148,10 +211,17 @@ export default function ConceptSchema() {
             </div>
           )}
 
+          {rawJsonError && (
+            <div className="health-banner health-fail" style={{ marginBottom: '1rem' }}>
+              <span className="health-banner-icon">⚠️</span>
+              <span>{rawJsonError}</span>
+            </div>
+          )}
+
           <div style={{ marginBottom: '1rem', display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
             <button
               className="btn btn-primary"
-              onClick={handleSave}
+              onClick={editorMode === 'raw' ? handleSaveRaw : handleSave}
               disabled={saving || !isOwner}
             >
               {saving ? '⏳ Saving…' : '💾 Save Schema'}
@@ -159,29 +229,110 @@ export default function ConceptSchema() {
             <button className="btn" onClick={handleCancel} disabled={saving}>
               Cancel
             </button>
-            <button
-              className="btn"
-              onClick={() => setShowPreview(p => !p)}
-            >
-              {showPreview ? '🔽 Hide JSON' : '📋 Show JSON'}
-            </button>
+
+            {/* Mode toggle */}
+            <div style={{
+              display: 'inline-flex',
+              borderRadius: '6px',
+              overflow: 'hidden',
+              border: '1px solid var(--border, #444)',
+            }}>
+              <button
+                className="btn"
+                style={{
+                  borderRadius: 0,
+                  border: 'none',
+                  borderRight: '1px solid var(--border, #444)',
+                  background: editorMode === 'visual' ? 'var(--accent, #3b82f6)' : 'transparent',
+                  color: editorMode === 'visual' ? '#fff' : 'inherit',
+                  padding: '0.35rem 0.75rem',
+                  fontSize: '0.85rem',
+                }}
+                onClick={editorMode === 'raw' ? switchToVisual : undefined}
+                disabled={editorMode === 'visual'}
+              >
+                🎨 Visual
+              </button>
+              <button
+                className="btn"
+                style={{
+                  borderRadius: 0,
+                  border: 'none',
+                  background: editorMode === 'raw' ? 'var(--accent, #3b82f6)' : 'transparent',
+                  color: editorMode === 'raw' ? '#fff' : 'inherit',
+                  padding: '0.35rem 0.75rem',
+                  fontSize: '0.85rem',
+                }}
+                onClick={editorMode === 'visual' ? switchToRaw : undefined}
+                disabled={editorMode === 'raw'}
+              >
+                { '{ }' } Raw JSON
+              </button>
+            </div>
+
+            {editorMode === 'visual' && (
+              <button
+                className="btn"
+                onClick={() => setShowPreview(p => !p)}
+              >
+                {showPreview ? '🔽 Hide JSON' : '📋 Show JSON'}
+              </button>
+            )}
           </div>
 
-          <div className="schema-editor-wrapper">
-            <SchemaVisualEditor
-              schema={editSchema}
-              onChange={handleSchemaChange}
-            />
-          </div>
+          {editorMode === 'visual' && (
+            <>
+              <div className="schema-editor-wrapper">
+                <SchemaVisualEditor
+                  schema={editSchema}
+                  onChange={handleSchemaChange}
+                />
+              </div>
 
-          {showPreview && editSchema && (
-            <div style={{ marginTop: '1.5rem' }}>
-              <h3 style={{ fontSize: '1rem', marginBottom: '0.5rem' }}>📋 JSON Preview</h3>
-              <pre className="json-block">{JSON.stringify({
-                $schema: 'https://json-schema.org/draft/2020-12/schema',
-                type: 'object',
-                ...editSchema,
-              }, null, 2)}</pre>
+              {editSchema && (
+                <DefaultValuesPanel
+                  schema={editSchema}
+                  onChange={handleSchemaChange}
+                />
+              )}
+
+              {showPreview && editSchema && (
+                <div style={{ marginTop: '1.5rem' }}>
+                  <h3 style={{ fontSize: '1rem', marginBottom: '0.5rem' }}>📋 JSON Preview</h3>
+                  <pre className="json-block">{JSON.stringify({
+                    $schema: 'https://json-schema.org/draft/2020-12/schema',
+                    type: 'object',
+                    ...editSchema,
+                  }, null, 2)}</pre>
+                </div>
+              )}
+            </>
+          )}
+
+          {editorMode === 'raw' && (
+            <div style={{ marginTop: '0.5rem' }}>
+              <textarea
+                value={rawJson}
+                onChange={handleRawJsonChange}
+                spellCheck={false}
+                style={{
+                  width: '100%',
+                  minHeight: '400px',
+                  fontFamily: 'monospace',
+                  fontSize: '0.875rem',
+                  lineHeight: '1.5',
+                  padding: '1rem',
+                  backgroundColor: 'var(--bg-secondary, #1a1a2e)',
+                  color: 'var(--text-primary, #e0e0e0)',
+                  border: '1px solid var(--border, #444)',
+                  borderRadius: '8px',
+                  resize: 'vertical',
+                  tabSize: 2,
+                }}
+              />
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-muted, #888)', marginTop: '0.5rem' }}>
+                Edit the raw JSON Schema directly. Switch back to Visual to continue with the graphical editor.
+              </p>
             </div>
           )}
         </div>

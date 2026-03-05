@@ -72,6 +72,17 @@ export async function generatePropertyTree({ concept } = {}) {
   return data;
 }
 
+export async function addNodeAsElement({ conceptUuid, nodeUuid } = {}) {
+  const res = await fetch(`${API_BASE}/add-node-as-element`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ conceptUuid, nodeUuid }),
+  });
+  const data = await res.json();
+  if (!data.success) throw new Error(data.error || 'Add node as element failed');
+  return data;
+}
+
 export async function normalizeJson({ concept, node } = {}) {
   const res = await fetch(`${API_BASE}/json`, {
     method: 'POST',

@@ -90,13 +90,13 @@ export default function Header() {
                   <span className="dropdown-pubkey" title={user.pubkey}>
                     {shortPubkey(user.pubkey)}
                   </span>
-                  {badge && (
-                    <span className={`user-badge ${badge.className}`}>{badge.label}</span>
-                  )}
                 </div>
                 <hr className="dropdown-divider" />
                 <button className="dropdown-item" onClick={() => { setMenuOpen(false); navigate(`/kg/users/${user.pubkey}`); }}>
                   👤 My Profile
+                </button>
+                <button className="dropdown-item" onClick={() => { setMenuOpen(false); navigate('/kg/users/a228eba2840a855d2983d8f9feb890edc2977feb8230e56ef0f08bc481fe5197'); }}>
+                  🤖 My Assistant's Profile
                 </button>
                 {user.classification === 'owner' && (
                   <button className="dropdown-item" onClick={() => { setMenuOpen(false); navigate('/kg/settings'); }}>

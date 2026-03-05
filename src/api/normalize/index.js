@@ -1548,6 +1548,92 @@ async function handleGeneratePropertyTree(req, res) {
   }
 }
 
+// ══════════════════════════════════════════════════════════════
+// POST /api/normalize/add-node-as-element
+//   Body: { conceptUuid: "<header uuid>", nodeUuid: "<node uuid>" }
+//   Actions:
+//     1. Create HAS_ELEMENT from concept's Superset → target node
+//     2. Update the class threads graph JSON to include the new node
+// ══════════════════════════════════════════════════════════════
+async function handleAddNodeAsElement(req, res) {
+  try {
+    const { conceptUuid, nodeUuid } = req.body || {};
+    if (!conceptUuid) return res.status(400).json({ success: false, error: 'Missing conceptUuid' });
+    if (!nodeUuid) return res.status(400).json({ success: false, error: 'Missing nodeUuid' });
+
+    // Look up concept header, superset, and class threads graph
+    const rows = await runCypher(`
+      MATCH (h:NostrEvent {uuid: $conceptUuid})-[:IS_THE_CONCEPT_FOR]->(sup:Superset)
+      OPTIONAL MATCH (ctg)-[:IS_THE_CLASS_THREADS_GRAPH_FOR]->(h)
+      RETURN h.name AS conceptName, h.uuid AS headerUuid,
+             sup.uuid AS supersetUuid, sup.name AS supersetName,
+             ctg.uuid AS classGraphUuid
+    `, { conceptUuid });
+
+    if (!rows.length) return res.status(404).json({ success: false, error: 'Concept not found or missing superset' });
+    const { conceptName, supersetUuid, supersetName, classGraphUuid } = rows[0];
+
+    // Look up the target node
+    const nodeRows = await runCypher(`
+      MATCH (n:NostrEvent {uuid: $nodeUuid})
+      RETURN n.name AS name, n.uuid AS uuid, labels(n) AS labels
+    `, { nodeUuid });
+    if (!nodeRows.length) return res.status(404).json({ success: false, error: 'Target node not found' });
+    const targetNode = nodeRows[0];
+
+    // Check if HAS_ELEMENT already exists
+    const existingRel = await runCypher(`
+      MATCH (sup:NostrEvent {uuid: $supersetUuid})-[:HAS_ELEMENT]->(n:NostrEvent {uuid: $nodeUuid})
+      RETURN count(*) AS cnt
+    `, { supersetUuid, nodeUuid });
+    if (existingRel[0]?.cnt > 0) {
+      return res.status(409).json({ success: false, error: `${targetNode.name} is already an element of ${conceptName}` });
+    }
+
+    // 1. Create HAS_ELEMENT relationship
+    await writeCypher(`
+      MATCH (sup:NostrEvent {uuid: $supersetUuid}), (node:NostrEvent {uuid: $nodeUuid})
+      MERGE (sup)-[:HAS_ELEMENT]->(node)
+    `, { supersetUuid, nodeUuid });
+
+    // 2. Update class threads graph JSON
+    if (classGraphUuid) {
+      const slug = deriveSlug(conceptName);
+
+      // Fetch current sets in the class thread
+      const setRows = await runCypher(`
+        MATCH (h:NostrEvent {uuid: $conceptUuid})-[:IS_THE_CONCEPT_FOR]->(sup:Superset)
+        OPTIONAL MATCH (sup)-[:IS_A_SUPERSET_OF*0..10]->(s)
+        WHERE s:Superset OR s:NostrEvent
+        RETURN DISTINCT s.uuid AS uuid, s.name AS name
+      `, { conceptUuid });
+
+      const graphJson = {
+        graph: {
+          nodes: setRows.filter(r => r.uuid).map(r => ({ uuid: r.uuid, name: r.name })),
+          relationshipTypes: [
+            { slug: 'IS_A_SUPERSET_OF', name: 'class thread propagation' },
+            { slug: 'HAS_ELEMENT', name: 'class thread termination' },
+          ],
+          relationships: [],
+        },
+      };
+      await regenerateJson(classGraphUuid, graphJson);
+    }
+
+    return res.json({
+      success: true,
+      message: `Added "${targetNode.name}" as element of "${conceptName}"`,
+      element: { name: targetNode.name, uuid: nodeUuid },
+      concept: { name: conceptName, uuid: conceptUuid, supersetUuid },
+      classGraphUpdated: !!classGraphUuid,
+    });
+  } catch (error) {
+    console.error('normalize/add-node-as-element error:', error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+}
+
 function registerNormalizeRoutes(app) {
   app.post('/api/normalize/skeleton', handleNormalizeSkeleton);
   app.post('/api/normalize/json', handleNormalizeJson);
@@ -1557,6 +1643,7 @@ function registerNormalizeRoutes(app) {
   app.post('/api/normalize/save-element-json', handleSaveElementJson);
   app.post('/api/normalize/create-property', handleCreateProperty);
   app.post('/api/normalize/generate-property-tree', handleGeneratePropertyTree);
+  app.post('/api/normalize/add-node-as-element', handleAddNodeAsElement);
 }
 
 module.exports = { registerNormalizeRoutes };

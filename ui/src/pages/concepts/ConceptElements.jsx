@@ -217,12 +217,20 @@ export default function ConceptElements() {
     <div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
         <h2 style={{ margin: 0 }}>Elements</h2>
-        <button
-          className="btn btn-small btn-primary"
-          onClick={() => navigate(`/kg/concepts/${encodeURIComponent(uuid)}/elements/new`)}
-        >
-          + New Element
-        </button>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <button
+            className="btn btn-small btn-primary"
+            onClick={() => navigate(`/kg/concepts/${encodeURIComponent(uuid)}/elements/new`)}
+          >
+            + New Element
+          </button>
+          <button
+            className="btn btn-small"
+            onClick={() => navigate(`/kg/concepts/${encodeURIComponent(uuid)}/elements/add-node`)}
+          >
+            🔗 Add Node as Element
+          </button>
+        </div>
       </div>
       {loading && <div className="loading">Loading elements…</div>}
       {error && <div className="error">Error: {error.message}</div>}

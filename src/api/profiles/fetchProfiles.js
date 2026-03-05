@@ -84,6 +84,35 @@ async function getProfiles(pubkeys) {
       results.set(pk, profile);
     }
 
+    // For any still-missing pubkeys, try local strfry via CLI scan with proper filter
+    const stillMissing = needed.filter(pk => !results.has(pk));
+    if (stillMissing.length > 0) {
+      try {
+        const { execSync } = require('child_process');
+        const filter = JSON.stringify({ kinds: [0], authors: stillMissing });
+        // strfry scan takes a nostr filter as a CLI argument and outputs matching events as JSONL
+        const raw = execSync(`strfry scan '${filter.replace(/'/g, "\\'")}'`, {
+          timeout: 5000, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe']
+        });
+        const lines = raw.trim().split('\n').filter(Boolean);
+        for (const line of lines) {
+          try {
+            const ev = JSON.parse(line);
+            if (ev.kind === 0 && stillMissing.includes(ev.pubkey)) {
+              let profile = {};
+              try { profile = JSON.parse(ev.content); } catch {}
+              if (!results.has(ev.pubkey)) {
+                cache.set(ev.pubkey, { profile, fetchedAt: now });
+                results.set(ev.pubkey, profile);
+              }
+            }
+          } catch {}
+        }
+      } catch (localErr) {
+        console.warn('fetchProfiles: local strfry scan fallback error:', localErr.message);
+      }
+    }
+
     // Cache misses as empty (so we don't re-fetch constantly)
     for (const pk of needed) {
       if (!results.has(pk)) {

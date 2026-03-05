@@ -9,9 +9,11 @@ export default function ConceptOverview() {
     MATCH (h:ListHeader {uuid: '${uuid}'})
     OPTIONAL MATCH (h)-[:IS_THE_CONCEPT_FOR]->(s:Superset)
     OPTIONAL MATCH (js:JSONSchema)-[:IS_THE_JSON_SCHEMA_FOR]->(h)
+    OPTIONAL MATCH (pp)-[:IS_THE_PRIMARY_PROPERTY_FOR]->(h)
     RETURN h.uuid AS headerUuid, h.name AS headerName,
            s.uuid AS supersetUuid, s.name AS supersetName,
-           js.uuid AS schemaUuid, js.name AS schemaName
+           js.uuid AS schemaUuid, js.name AS schemaName,
+           pp.uuid AS ppUuid, pp.name AS ppName
     LIMIT 1
   `);
 
@@ -66,6 +68,18 @@ export default function ConceptOverview() {
           <div className="constituent-card missing">
             <h3>📋 JSON Schema</h3>
             <p className="constituent-name">Not yet created</p>
+          </div>
+        )}
+        {c?.ppUuid ? (
+          <div className="constituent-card clickable" onClick={() => goToNode(c.ppUuid)}>
+            <h3>🔑 Primary Property</h3>
+            <p className="constituent-name">{c.ppName}</p>
+            <code className="uuid">{c.ppUuid}</code>
+          </div>
+        ) : (
+          <div className="constituent-card missing">
+            <h3>🔑 Primary Property</h3>
+            <p className="constituent-name">Not yet assigned</p>
           </div>
         )}
         {g?.coreUuid ? (

@@ -12,6 +12,8 @@ import NewElement from './pages/concepts/NewElement';
 import ElementDetail from './pages/concepts/ElementDetail';
 import NewConcept from './pages/concepts/NewConcept';
 import NewProperty from './pages/concepts/NewProperty';
+import AddNodeAsElement from './pages/concepts/AddNodeAsElement';
+import AddNodeReview from './pages/concepts/AddNodeReview';
 import ListsIndex from './pages/lists/Index';
 import DListDetail from './pages/lists/DListDetail';
 import DListOverview from './pages/lists/DListOverview';
@@ -63,6 +65,8 @@ const router = createBrowserRouter([
               { path: 'health', element: <ConceptHealth />, handle: { crumb: 'Health Audit' } },
               { path: 'elements', element: <ConceptElements />, handle: { crumb: 'Elements' } },
               { path: 'elements/new', element: <NewElement />, handle: { crumb: 'New Element' } },
+              { path: 'elements/add-node', element: <AddNodeAsElement />, handle: { crumb: 'Add Node' } },
+              { path: 'elements/add-node/review', element: <AddNodeReview />, handle: { crumb: 'Review' } },
               { path: 'elements/:elemUuid', element: <ElementDetail />, handle: { crumb: 'Element' } },
               { path: 'properties', element: <ConceptProperties />, handle: { crumb: 'Properties' } },
               { path: 'properties/new', element: <NewProperty />, handle: { crumb: 'New Property' } },
