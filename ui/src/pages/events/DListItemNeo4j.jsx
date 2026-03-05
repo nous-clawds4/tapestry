@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useOutletContext, useNavigate } from 'react-router-dom';
+
 import { cypher } from '../../api/cypher';
 
 /* ── colour palette by label ── */
@@ -71,8 +72,9 @@ function friendlyLabel(labels) {
 /* ══════════════════════════════════════════════════════
    DListItemNeo4j — ego-graph visualisation
    ══════════════════════════════════════════════════════ */
-export default function DListItemNeo4j() {
-  const { event } = useOutletContext();
+export default function DListItemNeo4j({ eventOverride } = {}) {
+  const outletCtx = useOutletContext() || {};
+  const event = eventOverride || outletCtx.event;
   const navigate = useNavigate();
   const containerRef = useRef(null);
   const networkRef = useRef(null);
@@ -362,18 +364,21 @@ export default function DListItemNeo4j() {
         }
       });
 
-      // Double-click → navigate to node detail
+      // Drag end → pin node in place (fix position)
+      net.on('dragEnd', (params) => {
+        if (params.nodes.length > 0) {
+          for (const nodeId of params.nodes) {
+            const pos = net.getPositions([nodeId])[nodeId];
+            visNodes.update({ id: nodeId, fixed: { x: true, y: true }, x: pos.x, y: pos.y });
+          }
+        }
+      });
+
+      // Double-click → unpin node (release back to physics)
       net.on('doubleClick', (params) => {
         if (params.nodes.length === 1) {
           const nodeId = params.nodes[0];
-          const visNode = visNodes.get(nodeId);
-          const info = visNode?._info;
-          if (!info) return;
-          if (info.labels?.includes('NostrUser') && info.pubkey) {
-            navigate(`/kg/users/${info.pubkey}`);
-          } else if (info.uuid) {
-            navigate(`/kg/nodes/${encodeURIComponent(info.uuid)}`);
-          }
+          visNodes.update({ id: nodeId, fixed: false });
         }
       });
 
@@ -467,7 +472,7 @@ export default function DListItemNeo4j() {
           </div>
 
           <p style={{ color: 'var(--text-muted)', fontSize: 12, marginTop: 8 }}>
-            Click a node to inspect · Double-click to navigate · Drag to rearrange · Scroll to zoom
+            Click to inspect · Drag to pin in place · Double-click to unpin · Scroll to zoom
           </p>
         </>
       )}

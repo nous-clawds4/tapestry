@@ -22,6 +22,7 @@ export default function NodeDetail() {
     { to: 'json', label: 'JSON Data' },
     { to: 'concepts', label: 'Concept Membership' },
     { to: 'relationships', label: 'Relationships' },
+    { to: 'neo4j', label: 'Neo4j' },
     { to: 'raw', label: 'Raw Data' },
   ];
 

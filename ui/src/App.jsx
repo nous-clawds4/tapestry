@@ -29,6 +29,7 @@ import NodeJson from './pages/nodes/NodeJson';
 import NodeConcepts from './pages/nodes/NodeConcepts';
 import NodeRelationships from './pages/nodes/NodeRelationships';
 import NodeRaw from './pages/nodes/NodeRaw';
+import NodeNeo4j from './pages/nodes/NodeNeo4j';
 import RelationshipsIndex from './pages/relationships/Index';
 import TrustedListsIndex from './pages/trustedLists/Index';
 import UsersIndex from './pages/users/Index';
@@ -112,6 +113,7 @@ const router = createBrowserRouter([
               { path: 'json', element: <NodeJson />, handle: { crumb: 'JSON' } },
               { path: 'concepts', element: <NodeConcepts />, handle: { crumb: 'Concepts' } },
               { path: 'relationships', element: <NodeRelationships />, handle: { crumb: 'Relationships' } },
+              { path: 'neo4j', element: <NodeNeo4j />, handle: { crumb: 'Neo4j' } },
               { path: 'raw', element: <NodeRaw />, handle: { crumb: 'Raw Data' } },
             ],
           },
