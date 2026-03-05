@@ -2,6 +2,14 @@ import { useOutletContext, useNavigate } from 'react-router-dom';
 import { useCypher } from '../../hooks/useCypher';
 import DataTable from '../../components/DataTable';
 
+function safeParseJson(val) {
+  if (!val) return null;
+  if (typeof val !== 'string') return val;
+  try { return JSON.parse(val); } catch {}
+  try { return JSON.parse(val.replace(/""/g, '"')); } catch {}
+  return null;
+}
+
 export default function ConceptProperties() {
   const { uuid } = useOutletContext();
   const navigate = useNavigate();
@@ -30,7 +38,7 @@ export default function ConceptProperties() {
       render: (val) => {
         if (!val) return '—';
         try {
-          const parsed = typeof val === 'string' ? JSON.parse(val.replace(/\\"/g, '"')) : val;
+          const parsed = safeParseJson(val);
           return parsed?.property?.type || '—';
         } catch { return '—'; }
       },
@@ -41,7 +49,7 @@ export default function ConceptProperties() {
       render: (val) => {
         if (!val) return '—';
         try {
-          const parsed = typeof val === 'string' ? JSON.parse(val.replace(/\\"/g, '"')) : val;
+          const parsed = safeParseJson(val);
           return parsed?.property?.required ? '✅' : '—';
         } catch { return '—'; }
       },
@@ -52,7 +60,7 @@ export default function ConceptProperties() {
       render: (val) => {
         if (!val) return '—';
         try {
-          const parsed = typeof val === 'string' ? JSON.parse(val.replace(/\\"/g, '"')) : val;
+          const parsed = safeParseJson(val);
           return parsed?.property?.description || '—';
         } catch { return '—'; }
       },

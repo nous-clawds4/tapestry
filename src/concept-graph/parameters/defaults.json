@@ -8,11 +8,12 @@
     "set": "39998:2d1fe9d3e0a3f3c0cf41812ba2075eb931b535b432fbdb2a6da430593d569e38:6a339361-beef-4013-a916-1723e05a4671",
     "superset": "39998:2d1fe9d3e0a3f3c0cf41812ba2075eb931b535b432fbdb2a6da430593d569e38:21cbf5be-c972-4f45-ae09-c57e165e8cf9",
     "JSONSchema": "39998:2d1fe9d3e0a3f3c0cf41812ba2075eb931b535b432fbdb2a6da430593d569e38:bba896cc-c190-4e26-a26f-66d678d4ac89",
-    "property": "39998:2d1fe9d3e0a3f3c0cf41812ba2075eb931b535b432fbdb2a6da430593d569e38:6c6a1f9e-6afc-4283-9798-cd2f68c522a7",
+    "property": "39998:401243c0cb5be1fce6e071d26036efe1975803ec63f54beadcbb37ae6015677f:274a97fa",
     "list": "39998:2d1fe9d3e0a3f3c0cf41812ba2075eb931b535b432fbdb2a6da430593d569e38:cf85c5ea-7eb2-407e-bb5d-eac060f36cc8",
     "jsonDataType": "39998:2d1fe9d3e0a3f3c0cf41812ba2075eb931b535b432fbdb2a6da430593d569e38:0689c759-a2ab-46ab-8bc9-e4691ab9eb56",
     "graphType": "39998:2d1fe9d3e0a3f3c0cf41812ba2075eb931b535b432fbdb2a6da430593d569e38:ec92cbdd",
-    "graph": "39998:2d1fe9d3e0a3f3c0cf41812ba2075eb931b535b432fbdb2a6da430593d569e38:ec1b87c4"
+    "graph": "39998:2d1fe9d3e0a3f3c0cf41812ba2075eb931b535b432fbdb2a6da430593d569e38:ec1b87c4",
+    "primaryProperty": "39998:401243c0cb5be1fce6e071d26036efe1975803ec63f54beadcbb37ae6015677f:529ff7d0"
   },
   "relationshipTypeUUIDs": {
     "CLASS_THREAD_INITIATION": "39999:2d1fe9d3e0a3f3c0cf41812ba2075eb931b535b432fbdb2a6da430593d569e38:24bc3eb6-fd75-4679-a3d7-d0b1a2a62be8",
@@ -23,13 +24,36 @@
     "ENUMERATES": "39999:2d1fe9d3e0a3f3c0cf41812ba2075eb931b535b432fbdb2a6da430593d569e38:d0b4f08e-df4a-4131-a75c-e5bd056e4d78"
   },
   "aRelays": {
-    "aPopularGeneralPurposeRelays": ["wss://relay.damus.io", "wss://relay.primal.net", "wss://nos.lol", "wss://relay.nostr.band"],
-    "aDListRelays": ["wss://dcosl.brainstorm.world"],
-    "aTrustedAssertionRelays": ["wss://nip85.nostr.band", "wss://nip85.brainstorm.world", "wss://nip85.nostr1.com"],
-    "aTrustedListRelays": ["wss://nip85.brainstorm.world", "wss://dcosl.brainstorm.world"],
-    "aWotRelays": ["wss://wot.grapevine.network"],
-    "aProfileRelays": ["wss://purplepag.es", "wss://profiles.nostr1.com"],
+    "aPopularGeneralPurposeRelays": [
+      "wss://relay.damus.io",
+      "wss://relay.primal.net",
+      "wss://nos.lol",
+      "wss://relay.nostr.band"
+    ],
+    "aDListRelays": [
+      "wss://dcosl.brainstorm.world"
+    ],
+    "aTrustedAssertionRelays": [
+      "wss://nip85.nostr.band",
+      "wss://nip85.brainstorm.world",
+      "wss://nip85.nostr1.com"
+    ],
+    "aTrustedListRelays": [
+      "wss://nip85.brainstorm.world",
+      "wss://dcosl.brainstorm.world"
+    ],
+    "aWotRelays": [
+      "wss://wot.grapevine.network"
+    ],
+    "aProfileRelays": [
+      "wss://purplepag.es",
+      "wss://profiles.nostr1.com"
+    ],
     "aOutboxRelays": [],
-    "safeModeRelays": ["wss://nip85.brainstorm.world", "wss://dcosl.brainstorm.world", "wss://wot.grapevine.network"]
+    "safeModeRelays": [
+      "wss://nip85.brainstorm.world",
+      "wss://dcosl.brainstorm.world",
+      "wss://wot.grapevine.network"
+    ]
   }
 }

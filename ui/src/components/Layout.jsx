@@ -3,6 +3,7 @@ import Header from './Header';
 import { useAuth } from '../context/AuthContext';
 
 const navItems = [
+  { to: '/kg/', label: '📊 Dashboard', end: true },
   { to: '/kg/concepts', label: '🧩 Concepts' },
   { to: '/kg/lists', label: '📋 Simple Lists' },
   { to: '/kg/events', label: '📡 Events' },
@@ -11,8 +12,6 @@ const navItems = [
   { to: '/kg/relationships', label: '🔗 Relationships' },
   { to: '/kg/trusted-lists', label: '🛡️ Trusted Lists' },
   { to: '/kg/manage/audit', label: '🛠️ Manage', ownerOnly: true },
-  { to: '/kg/about', label: 'ℹ️ About' },
-  { to: '/kg/settings', label: '⚙️ Settings', ownerOnly: true },
 ];
 
 export default function Layout() {
@@ -21,16 +20,14 @@ export default function Layout() {
 
   return (
     <div className="app-layout">
+      <Header />
       <nav className="sidebar">
-        <div className="sidebar-header">
-          <h2>🧠 Tapestry</h2>
-          <span className="subtitle">Knowledge Graph</span>
-        </div>
         <ul className="nav-list">
           {navItems.filter(item => !item.ownerOnly || isOwner).map(item => (
             <li key={item.to}>
               <NavLink
                 to={item.to}
+                end={item.end}
                 className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}
               >
                 {item.label}
@@ -40,7 +37,6 @@ export default function Layout() {
         </ul>
       </nav>
       <div className="main-wrapper">
-        <Header />
         <main className="main-content">
           <Outlet />
         </main>

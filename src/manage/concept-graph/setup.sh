@@ -57,8 +57,8 @@ RETURN n;
 CYPHER_COMMAND4="
 MATCH (n:NostrEvent)-[:HAS_TAG]->(tag:NostrEventTag {type: 'd'})
 WHERE n.kind = 39998 OR n.kind = 39999
-WITH n, n.kind as kind, n.pubkey as pubkey, tag.value as dTag, n.id as eventId
-SET n.aTag = kind + ':' + pubkey + ':' + dTag, n.uuid = kind + ':' + pubkey + ':' + dTag
+WITH n, toInteger(n.kind) as kind, n.pubkey as pubkey, tag.value as dTag, n.id as eventId
+SET n.aTag = toString(kind) + ':' + pubkey + ':' + dTag, n.uuid = toString(kind) + ':' + pubkey + ':' + dTag
 RETURN n;
 
 "

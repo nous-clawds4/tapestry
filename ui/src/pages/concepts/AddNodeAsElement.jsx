@@ -11,9 +11,7 @@ const NODE_LABELS = [
 ];
 
 // Known authors pinned at top of Author selector
-const OWNER_PUBKEY = '15f7dafc4624b1e6b00ab7f863de1a53b71967528070ec7d1837c7a40c1c7270';
-const TA_PUBKEY = 'a228eba2840a855d2983d8f9feb890edc2977feb8230e56ef0f08bc481fe5197';
-const DAVE_PUBKEY = 'e5272de914bd301755c439b88e6959a43c9d2664831f093c51e9c799a16a102f';
+import { OWNER_PUBKEY, TA_PUBKEY, DAVE_PUBKEY } from '../../config/pubkeys';
 
 export default function AddNodeAsElement() {
   const { concept, uuid } = useOutletContext();

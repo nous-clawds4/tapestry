@@ -5,8 +5,11 @@ import { useState, useMemo } from 'react';
 function tryParseJson(raw) {
   if (!raw) return null;
   if (typeof raw === 'object') return raw;
-  let str = typeof raw === 'string' ? raw.replace(/\\"/g, '"') : String(raw);
+  let str = typeof raw === 'string' ? raw : String(raw);
   // Try standard JSON first
+  try { return JSON.parse(str); } catch {}
+  // Try with escaped-quote cleanup
+  str = str.replace(/\\"/g, '"');
   try { return JSON.parse(str); } catch {}
   // Handle Neo4j map literal format: {key: "val", key2: 123}
   // Quote unquoted keys

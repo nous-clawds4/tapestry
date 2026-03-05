@@ -3,10 +3,12 @@ import { useCypher } from '../../hooks/useCypher';
 
 function tryParseJson(raw) {
   if (!raw) return null;
-  try {
-    const cleaned = typeof raw === 'string' ? raw.replace(/\\"/g, '"') : raw;
-    return typeof cleaned === 'string' ? JSON.parse(cleaned) : cleaned;
-  } catch { return null; }
+  // Try parsing as-is first (Bolt driver returns clean strings)
+  if (typeof raw !== 'string') return raw;
+  try { return JSON.parse(raw); } catch {}
+  // Fallback: unescape doubled quotes from CSV parsing
+  try { return JSON.parse(raw.replace(/""/g, '"')); } catch {}
+  return null;
 }
 
 export default function NodeJson() {

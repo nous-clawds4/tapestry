@@ -19,7 +19,7 @@ const { SimplePool } = require(NOSTR_TOOLS_PATH);
 const { getSettings } = require('../../config/settings');
 
 // --- Config ---
-const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 const FETCH_TIMEOUT_MS = 6000;        // 6s per batch
 
 // --- In-memory cache: pubkey -> { profile, fetchedAt } ---

@@ -18,6 +18,9 @@ export default function NewConcept() {
 
   const derivedPlural = plural || (name ? name + 's' : '');
   const derivedSlug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  const derivedPrimaryProp = name.trim().split(/\s+/).map((w, i) =>
+    i === 0 ? w.toLowerCase() : w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()
+  ).join('');
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -67,6 +70,7 @@ export default function NewConcept() {
               <tr><td><strong>Name</strong></td><td>{result.concept.name}</td></tr>
               <tr><td><strong>Plural</strong></td><td>{result.concept.plural}</td></tr>
               <tr><td><strong>Slug</strong></td><td><code>{result.concept.slug}</code></td></tr>
+              <tr><td><strong>Primary Property</strong></td><td><code>{result.concept.primaryProperty}</code></td></tr>
               <tr><td><strong>UUID</strong></td><td><code className="uuid-short">{result.concept.uuid}</code></td></tr>
               <tr><td><strong>Events</strong></td><td>{result.message}</td></tr>
             </tbody>
@@ -143,7 +147,8 @@ export default function NewConcept() {
                   <tr><td>Slug</td><td><code>{derivedSlug}</code></td></tr>
                   <tr><td>Superset</td><td>the superset of all {derivedPlural}</td></tr>
                   <tr><td>JSON Schema</td><td>JSON schema for {name.trim()}</td></tr>
-                  <tr><td>Events</td><td>11 (6 nodes + 5 relationships)</td></tr>
+                  <tr><td>Primary Property</td><td><code>{derivedPrimaryProp}</code></td></tr>
+                  <tr><td>Events</td><td>13 (7 nodes + 6 relationships)</td></tr>
                 </tbody>
               </table>
             </div>

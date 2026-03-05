@@ -74,6 +74,7 @@ export default function DListItemDetail() {
   const tabs = [
     { to: '', label: 'Overview', end: true },
     { to: 'raw', label: 'Raw Data' },
+    { to: 'neo4j', label: 'Neo4j' },
     { to: 'actions', label: 'Actions' },
   ];
 

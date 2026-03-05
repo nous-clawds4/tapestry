@@ -10,6 +10,7 @@ const ROLE_TO_NODE = {
   'ListHeader (CTH)': 'header',
   'Superset': 'superset',
   'JSON Schema': 'schema',
+  'Primary Property': 'primary-property',
   'Core Nodes Graph': 'core-graph',
   'Class Threads Graph': 'class-graph',
   'Property Tree Graph': 'property-graph',

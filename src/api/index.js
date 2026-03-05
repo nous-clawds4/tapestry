@@ -5,6 +5,9 @@
 
 // Import API modules
 const { getStrfryStatus } = require('./strfry/strfryStatus');
+const { handleRouterStatus, handleRouterDefaults } = require('./strfry/routerStatus');
+const { handleUpdateRouterConfig, handleListPlugins, handleRestartRouter, handleRestoreDefaults } = require('./strfry/routerConfig');
+const { handleWipeStrfry } = require('./strfry/wipe');
 const { getNeo4jStatus } = require('./neo4j/neo4jStatus');
 const { runQuery } = require('./neo4j/runQuery');
 const { queryPost } = require('./neo4j/queryPost');
@@ -117,6 +120,13 @@ function register(app) {
     // Register new modular endpoints for both paths
     // TODO: might move these to status module 
     app.get('/api/strfry-status', getStrfryStatus);
+    app.get('/api/strfry/router-status', handleRouterStatus);
+    app.get('/api/strfry/router-defaults', handleRouterDefaults);
+    app.post('/api/strfry/router-config', handleUpdateRouterConfig);
+    app.get('/api/strfry/router-plugins', handleListPlugins);
+    app.post('/api/strfry/router-restart', handleRestartRouter);
+    app.post('/api/strfry/router-restore-defaults', handleRestoreDefaults);
+    app.post('/api/strfry/wipe', handleWipeStrfry);
 
     app.get('/api/list-status', getListStatus);
     

@@ -41,15 +41,17 @@ import DListItemDetail from './pages/events/DListItemDetail';
 import DListItemOverview from './pages/events/DListItemOverview';
 import DListItemRaw from './pages/events/DListItemRaw';
 import DListItemActions from './pages/events/DListItemActions';
+import DListItemNeo4j from './pages/events/DListItemNeo4j';
 import ManageIndex from './pages/manage/Index';
 import Audit from './pages/manage/Audit';
+import Dashboard from './pages/Dashboard';
 const router = createBrowserRouter([
   {
     path: '/kg',
     element: <Layout />,
     handle: { crumb: 'Home' },
     children: [
-      { index: true, element: <Navigate to="concepts" replace /> },
+      { index: true, element: <Dashboard /> },
       {
         path: 'concepts',
         handle: { crumb: 'Concepts' },
@@ -132,6 +134,7 @@ const router = createBrowserRouter([
                 children: [
                   { index: true, element: <DListItemOverview /> },
                   { path: 'raw', element: <DListItemRaw />, handle: { crumb: 'Raw Data' } },
+                  { path: 'neo4j', element: <DListItemNeo4j />, handle: { crumb: 'Neo4j' } },
                   { path: 'actions', element: <DListItemActions />, handle: { crumb: 'Actions' } },
                 ],
               },

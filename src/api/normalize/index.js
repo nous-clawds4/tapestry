@@ -27,6 +27,12 @@ function deriveSlug(name) {
   return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 }
 
+function toCamelCase(name) {
+  return name.trim().split(/\s+/).map((w, i) =>
+    i === 0 ? w.toLowerCase() : w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()
+  ).join('');
+}
+
 // ── Shared: regenerate JSON tag on an event and re-publish ────
 async function regenerateJson(uuid, jsonValue) {
   const tagRows = await runCypher(`
@@ -157,6 +163,8 @@ function configUuid(key) {
     jsonSchema: uuids.JSONSchema,
     graph: uuids.graph,
     relationship: uuids.relationship,
+    property: uuids.property,
+    primaryProperty: uuids.primaryProperty,
   };
   return map[key];
 }
@@ -171,6 +179,7 @@ function roleFromZTag(zTagValue) {
   if (zTagValue === uuids.relationship) return 'relationship';
   if (zTagValue === uuids.set) return 'set';
   if (zTagValue === uuids.property) return 'property';
+  if (zTagValue === uuids.primaryProperty) return 'primaryProperty';
   if (zTagValue === uuids.nodeType) return 'nodeType';
   if (zTagValue === uuids.relationshipType) return 'relationshipType';
   if (zTagValue === uuids.list) return 'list';
@@ -180,7 +189,7 @@ function roleFromZTag(zTagValue) {
 }
 
 // ── Node role definitions ────────────────────────────────────
-const NODE_ROLES = ['superset', 'schema', 'core-graph', 'class-graph', 'property-graph'];
+const NODE_ROLES = ['superset', 'schema', 'primary-property', 'core-graph', 'class-graph', 'property-graph'];
 
 // ── Main handler ─────────────────────────────────────────────
 async function handleNormalizeSkeleton(req, res) {
@@ -223,14 +232,17 @@ async function handleNormalizeSkeleton(req, res) {
       OPTIONAL MATCH (cg)-[:IS_THE_CORE_GRAPH_FOR]->(h)
       OPTIONAL MATCH (ctg)-[:IS_THE_CLASS_THREADS_GRAPH_FOR]->(h)
       OPTIONAL MATCH (ptg)-[:IS_THE_PROPERTY_TREE_GRAPH_FOR]->(h)
+      OPTIONAL MATCH (pp:Property)-[:IS_THE_PRIMARY_PROPERTY_FOR]->(h)
       RETURN sup.uuid AS supersetUuid, js.uuid AS schemaUuid,
-             cg.uuid AS coreGraphUuid, ctg.uuid AS classGraphUuid, ptg.uuid AS propGraphUuid
+             cg.uuid AS coreGraphUuid, ctg.uuid AS classGraphUuid, ptg.uuid AS propGraphUuid,
+             pp.uuid AS primaryPropUuid, pp.name AS primaryPropName
     `, { uuid: headerUuid });
 
     const ex = existing[0] || {};
     const missing = [];
     if (!ex.supersetUuid && (!node || node === 'superset')) missing.push('superset');
     if (!ex.schemaUuid && (!node || node === 'schema')) missing.push('schema');
+    if (!ex.primaryPropUuid && (!node || node === 'primary-property')) missing.push('primary-property');
     if (!ex.coreGraphUuid && (!node || node === 'core-graph')) missing.push('core-graph');
     if (!ex.classGraphUuid && (!node || node === 'class-graph')) missing.push('class-graph');
     if (!ex.propGraphUuid && (!node || node === 'property-graph')) missing.push('property-graph');
@@ -256,6 +268,7 @@ async function handleNormalizeSkeleton(req, res) {
     // Track UUIDs (existing or newly created) for cross-references
     let supersetATag = ex.supersetUuid;
     let schemaATag = ex.schemaUuid;
+    let primaryPropATag = ex.primaryPropUuid;
     let coreGraphATag = ex.coreGraphUuid;
     let classGraphATag = ex.classGraphUuid;
     let propGraphATag = ex.propGraphUuid;
@@ -363,6 +376,59 @@ async function handleNormalizeSkeleton(req, res) {
       await writeCypher(`MATCH (n:NostrEvent {uuid: $uuid}) SET n:JSONSchema`, { uuid: schemaATag });
     }
 
+    // ── Primary Property ──
+    if (missing.includes('primary-property')) {
+      const dTag = `${slug}-primary-property`;
+      const ppKey = toCamelCase(name);
+      const ppName = `primary property for the ${name} concept`;
+      const ppJson = JSON.stringify({
+        property: {
+          name: ppName,
+          key: ppKey,
+          role: 'primaryProperty',
+          conceptName: name,
+          description: `Primary property for the ${name} concept. Elements of ${name} use "${ppKey}" as their top-level JSON key.`,
+        },
+      });
+      const evt = signAndFinalize({
+        kind: 39999,
+        tags: [
+          ['d', dTag],
+          ['name', ppName],
+          ['z', configUuid('primaryProperty')],
+          ['description', `Primary property for the ${name} concept. Elements of ${name} use "${ppKey}" as their top-level JSON key.`],
+          ['json', ppJson],
+        ],
+        content: '',
+      });
+      evt._uuid = `39999:${evt.pubkey}:${dTag}`;
+      primaryPropATag = evt._uuid;
+
+      await createNode('Primary Property', evt, 'IS_THE_PRIMARY_PROPERTY_FOR', 'to-header');
+      await writeCypher(`MATCH (n:NostrEvent {uuid: $uuid}) SET n:Property`, { uuid: primaryPropATag });
+
+      // Also wire IS_A_PROPERTY_OF → schema if schema exists
+      if (schemaATag) {
+        const relDTag = randomDTag();
+        const relEvent = signAndFinalize({
+          kind: 39999, content: '',
+          tags: [
+            ['d', relDTag], ['name', `${name} IS_A_PROPERTY_OF`],
+            ['z', configUuid('relationship')],
+            ['nodeFrom', primaryPropATag], ['nodeTo', schemaATag], ['relationshipType', 'IS_A_PROPERTY_OF'],
+          ],
+        });
+        const relUuid = `39999:${relEvent.pubkey}:${relDTag}`;
+        await publishToStrfry(relEvent);
+        await importEventDirect(relEvent, relUuid);
+        allEvents.push(relEvent);
+        await writeCypher(`
+          MATCH (a:NostrEvent {uuid: $from}), (b:NostrEvent {uuid: $to})
+          MERGE (a)-[:IS_A_PROPERTY_OF]->(b)
+        `, { from: primaryPropATag, to: schemaATag });
+      }
+    }
+
     // ── Core Nodes Graph ──
     // Created without JSON first; JSON is added after all nodes exist (needs all UUIDs)
     if (missing.includes('core-graph')) {
@@ -397,6 +463,7 @@ async function handleNormalizeSkeleton(req, res) {
             { slug: `${slug}_header`, uuid: headerUuid, name },
             ...(supersetATag ? [{ slug: `${slug}_superset`, uuid: supersetATag, name: supersetName }] : []),
             ...(schemaATag ? [{ slug: `${slug}_schema`, uuid: schemaATag, name: schemaName }] : []),
+            ...(primaryPropATag ? [{ slug: `${slug}_primaryProperty`, uuid: primaryPropATag, name: `primary property for the ${name} concept` }] : []),
             { slug: `${slug}_coreNodesGraph`, uuid: coreGraphATag, name: graphName },
             ...(classGraphATag ? [{ slug: `${slug}_classThreadsGraph`, uuid: classGraphATag, name: `class threads graph for the ${name} concept` }] : []),
             ...(propGraphATag ? [{ slug: `${slug}_propertyTreeGraph`, uuid: propGraphATag, name: `property tree graph for the ${name} concept` }] : []),
@@ -404,6 +471,7 @@ async function handleNormalizeSkeleton(req, res) {
           relationshipTypes: [
             { slug: 'IS_THE_CONCEPT_FOR', name: 'class thread initiation' },
             { slug: 'IS_THE_JSON_SCHEMA_FOR', name: 'is the JSON schema for' },
+            { slug: 'IS_THE_PRIMARY_PROPERTY_FOR', name: 'is the primary property for' },
             { slug: 'IS_THE_CORE_GRAPH_FOR', name: 'IS_THE_CORE_GRAPH_FOR' },
             { slug: 'IS_THE_CLASS_THREADS_GRAPH_FOR', name: 'IS_THE_CLASS_THREADS_GRAPH_FOR' },
             { slug: 'IS_THE_PROPERTY_TREE_GRAPH_FOR', name: 'IS_THE_PROPERTY_TREE_GRAPH_FOR' },
@@ -411,6 +479,7 @@ async function handleNormalizeSkeleton(req, res) {
           relationships: [
             { nodeFrom: { slug: `${slug}_header` }, relationshipType: { slug: 'IS_THE_CONCEPT_FOR' }, nodeTo: { slug: `${slug}_superset` } },
             { nodeFrom: { slug: `${slug}_schema` }, relationshipType: { slug: 'IS_THE_JSON_SCHEMA_FOR' }, nodeTo: { slug: `${slug}_header` } },
+            ...(primaryPropATag ? [{ nodeFrom: { slug: `${slug}_primaryProperty` }, relationshipType: { slug: 'IS_THE_PRIMARY_PROPERTY_FOR' }, nodeTo: { slug: `${slug}_header` } }] : []),
             { nodeFrom: { slug: `${slug}_coreNodesGraph` }, relationshipType: { slug: 'IS_THE_CORE_GRAPH_FOR' }, nodeTo: { slug: `${slug}_header` } },
             { nodeFrom: { slug: `${slug}_classThreadsGraph` }, relationshipType: { slug: 'IS_THE_CLASS_THREADS_GRAPH_FOR' }, nodeTo: { slug: `${slug}_header` } },
             { nodeFrom: { slug: `${slug}_propertyTreeGraph` }, relationshipType: { slug: 'IS_THE_PROPERTY_TREE_GRAPH_FOR' }, nodeTo: { slug: `${slug}_header` } },
@@ -469,14 +538,21 @@ async function handleNormalizeSkeleton(req, res) {
     if (missing.includes('property-graph')) {
       const dTag = `${slug}-property-tree-graph`;
       const graphName = `property tree graph for the ${name} concept`;
+      const ptNodes = [];
+      if (schemaATag) ptNodes.push({ slug: `${slug}_schema`, uuid: schemaATag, name: `JSON schema for ${name}` });
+      if (primaryPropATag) ptNodes.push({ slug: `${slug}_primaryProperty`, uuid: primaryPropATag, name: `primary property for the ${name} concept` });
+      const ptRels = [];
+      if (primaryPropATag && schemaATag) {
+        ptRels.push({ nodeFrom: { slug: `${slug}_primaryProperty` }, relationshipType: { slug: 'IS_A_PROPERTY_OF' }, nodeTo: { slug: `${slug}_schema` } });
+      }
       const graphJson = JSON.stringify({
         graph: {
-          nodes: schemaATag ? [{ slug: `${slug}_schema`, uuid: schemaATag, name: `JSON schema for ${name}` }] : [],
+          nodes: ptNodes,
           relationshipTypes: [
             { slug: 'IS_A_PROPERTY_OF', name: 'is a property of' },
             { slug: 'ENUMERATES', name: 'enumerates' },
           ],
-          relationships: [],
+          relationships: ptRels,
         },
       });
       const evt = signAndFinalize({
@@ -522,7 +598,7 @@ async function handleNormalizeJson(req, res) {
       return res.status(400).json({ success: false, error: 'Missing concept name' });
     }
 
-    const validNodes = ['header', 'superset', 'schema', 'core-graph', 'class-graph', 'property-graph'];
+    const validNodes = ['header', 'superset', 'schema', 'primary-property', 'core-graph', 'class-graph', 'property-graph'];
     if (node && !validNodes.includes(node)) {
       return res.status(400).json({ success: false, error: `Invalid node: ${node}. Valid: ${validNodes.join(', ')}` });
     }
@@ -541,6 +617,7 @@ async function handleNormalizeJson(req, res) {
       OPTIONAL MATCH (cg)-[:IS_THE_CORE_GRAPH_FOR]->(h)
       OPTIONAL MATCH (ctg)-[:IS_THE_CLASS_THREADS_GRAPH_FOR]->(h)
       OPTIONAL MATCH (ptg)-[:IS_THE_PROPERTY_TREE_GRAPH_FOR]->(h)
+      OPTIONAL MATCH (pp:Property)-[:IS_THE_PRIMARY_PROPERTY_FOR]->(h)
       RETURN h.uuid AS headerUuid, h.name AS headerName, h.pubkey AS pubkey, h.kind AS kind,
              nt.value AS nameTag, nt.value1 AS plural, st.value AS slug, dt.value AS dTag,
              desc.value AS description,
@@ -548,7 +625,8 @@ async function handleNormalizeJson(req, res) {
              js.uuid AS schemaUuid, js.name AS schemaName,
              cg.uuid AS coreGraphUuid, cg.name AS coreGraphName,
              ctg.uuid AS classGraphUuid, ctg.name AS classGraphName,
-             ptg.uuid AS propGraphUuid, ptg.name AS propGraphName
+             ptg.uuid AS propGraphUuid, ptg.name AS propGraphName,
+             pp.uuid AS primaryPropUuid, pp.name AS primaryPropName
       LIMIT 1
     `, { name: concept });
 
@@ -570,9 +648,11 @@ async function handleNormalizeJson(req, res) {
             name,
             plural,
             slug,
+            ...(slug && { primaryProperty: toCamelCase(name) }),
             constituents: {
               ...(h.supersetUuid && { superset: h.supersetUuid }),
               ...(h.schemaUuid && { jsonSchema: h.schemaUuid }),
+              ...(h.primaryPropUuid && { primaryProperty: h.primaryPropUuid }),
               ...(h.coreGraphUuid && { coreNodesGraph: h.coreGraphUuid }),
               ...(h.classGraphUuid && { classThreadsGraph: h.classGraphUuid }),
               ...(h.propGraphUuid && { propertyTreeGraph: h.propGraphUuid }),
@@ -637,6 +717,7 @@ async function handleNormalizeJson(req, res) {
             { slug: `${slug}_header`, uuid: h.headerUuid, name },
             ...(h.supersetUuid ? [{ slug: `${slug}_superset`, uuid: h.supersetUuid, name: h.supersetName }] : []),
             ...(h.schemaUuid ? [{ slug: `${slug}_schema`, uuid: h.schemaUuid, name: h.schemaName }] : []),
+            ...(h.primaryPropUuid ? [{ slug: `${slug}_primaryProperty`, uuid: h.primaryPropUuid, name: h.primaryPropName }] : []),
             { slug: `${slug}_coreNodesGraph`, uuid: h.coreGraphUuid, name: h.coreGraphName },
             ...(h.classGraphUuid ? [{ slug: `${slug}_classThreadsGraph`, uuid: h.classGraphUuid, name: h.classGraphName }] : []),
             ...(h.propGraphUuid ? [{ slug: `${slug}_propertyTreeGraph`, uuid: h.propGraphUuid, name: h.propGraphName }] : []),
@@ -644,6 +725,7 @@ async function handleNormalizeJson(req, res) {
           relationshipTypes: [
             { slug: 'IS_THE_CONCEPT_FOR', name: 'class thread initiation' },
             { slug: 'IS_THE_JSON_SCHEMA_FOR', name: 'is the JSON schema for' },
+            { slug: 'IS_THE_PRIMARY_PROPERTY_FOR', name: 'is the primary property for' },
             { slug: 'IS_THE_CORE_GRAPH_FOR', name: 'IS_THE_CORE_GRAPH_FOR' },
             { slug: 'IS_THE_CLASS_THREADS_GRAPH_FOR', name: 'IS_THE_CLASS_THREADS_GRAPH_FOR' },
             { slug: 'IS_THE_PROPERTY_TREE_GRAPH_FOR', name: 'IS_THE_PROPERTY_TREE_GRAPH_FOR' },
@@ -651,6 +733,7 @@ async function handleNormalizeJson(req, res) {
           relationships: [
             { nodeFrom: { slug: `${slug}_header` }, relationshipType: { slug: 'IS_THE_CONCEPT_FOR' }, nodeTo: { slug: `${slug}_superset` } },
             { nodeFrom: { slug: `${slug}_schema` }, relationshipType: { slug: 'IS_THE_JSON_SCHEMA_FOR' }, nodeTo: { slug: `${slug}_header` } },
+            ...(h.primaryPropUuid ? [{ nodeFrom: { slug: `${slug}_primaryProperty` }, relationshipType: { slug: 'IS_THE_PRIMARY_PROPERTY_FOR' }, nodeTo: { slug: `${slug}_header` } }] : []),
             { nodeFrom: { slug: `${slug}_coreNodesGraph` }, relationshipType: { slug: 'IS_THE_CORE_GRAPH_FOR' }, nodeTo: { slug: `${slug}_header` } },
             { nodeFrom: { slug: `${slug}_classThreadsGraph` }, relationshipType: { slug: 'IS_THE_CLASS_THREADS_GRAPH_FOR' }, nodeTo: { slug: `${slug}_header` } },
             { nodeFrom: { slug: `${slug}_propertyTreeGraph` }, relationshipType: { slug: 'IS_THE_PROPERTY_TREE_GRAPH_FOR' }, nodeTo: { slug: `${slug}_header` } },
@@ -687,18 +770,41 @@ async function handleNormalizeJson(req, res) {
 
     // ── Property Tree Graph JSON ──
     if ((!node || node === 'property-graph') && h.propGraphUuid) {
+      const ptNodes = [];
+      if (h.schemaUuid) ptNodes.push({ slug: `${slug}_schema`, uuid: h.schemaUuid, name: h.schemaName });
+      if (h.primaryPropUuid) ptNodes.push({ slug: `${slug}_primaryProperty`, uuid: h.primaryPropUuid, name: h.primaryPropName });
+      const ptRels = [];
+      if (h.primaryPropUuid && h.schemaUuid) {
+        ptRels.push({ nodeFrom: { slug: `${slug}_primaryProperty` }, relationshipType: { slug: 'IS_A_PROPERTY_OF' }, nodeTo: { slug: `${slug}_schema` } });
+      }
       const graphJson = {
         graph: {
-          nodes: h.schemaUuid ? [{ slug: `${slug}_schema`, uuid: h.schemaUuid, name: h.schemaName }] : [],
+          nodes: ptNodes,
           relationshipTypes: [
             { slug: 'IS_A_PROPERTY_OF', name: 'is a property of' },
             { slug: 'ENUMERATES', name: 'enumerates' },
           ],
-          relationships: [],
+          relationships: ptRels,
         },
       };
       await regenerateJson(h.propGraphUuid, graphJson);
       updated.push({ role: 'Property Tree Graph', uuid: h.propGraphUuid });
+    }
+
+    // ── Primary Property JSON ──
+    if ((!node || node === 'primary-property') && h.primaryPropUuid) {
+      const ppKey = toCamelCase(name);
+      const ppJson = {
+        property: {
+          name: h.primaryPropName,
+          key: ppKey,
+          role: 'primaryProperty',
+          conceptName: name,
+          description: `Primary property for the ${name} concept. Elements of ${name} use "${ppKey}" as their top-level JSON key.`,
+        },
+      };
+      await regenerateJson(h.primaryPropUuid, ppJson);
+      updated.push({ role: 'Primary Property', uuid: h.primaryPropUuid });
     }
 
     if (updated.length === 0) {
@@ -820,7 +926,35 @@ async function handleCreateConcept(req, res) {
     await writeCypher(`MATCH (n:NostrEvent {uuid: $uuid}) SET n:JSONSchema`, { uuid: schemaUuid });
     allEvents.push(schemaEvent);
 
-    // ── 4. Class Threads Graph ──
+    // ── 4. Primary Property ──
+    const primaryPropDTag = `${slug}-primary-property`;
+    const primaryPropKey = toCamelCase(trimName);
+    const primaryPropName = `primary property for the ${trimName} concept`;
+    const primaryPropJson = JSON.stringify({
+      property: {
+        name: primaryPropName,
+        key: primaryPropKey,
+        role: 'primaryProperty',
+        conceptName: trimName,
+        description: `Primary property for the ${trimName} concept. Elements of ${trimName} use "${primaryPropKey}" as their top-level JSON key.`,
+      },
+    });
+    const primaryPropEvent = signAndFinalize({
+      kind: 39999, content: '',
+      tags: [
+        ['d', primaryPropDTag], ['name', primaryPropName],
+        ['z', configUuid('primaryProperty')],
+        ['description', `Primary property for the ${trimName} concept. Elements of ${trimName} use "${primaryPropKey}" as their top-level JSON key.`],
+        ['json', primaryPropJson],
+      ],
+    });
+    const primaryPropUuid = `39999:${primaryPropEvent.pubkey}:${primaryPropDTag}`;
+    await publishToStrfry(primaryPropEvent);
+    await importEventDirect(primaryPropEvent, primaryPropUuid);
+    await writeCypher(`MATCH (n:NostrEvent {uuid: $uuid}) SET n:Property`, { uuid: primaryPropUuid });
+    allEvents.push(primaryPropEvent);
+
+    // ── 5. Class Threads Graph ──
     const ctDTag = `${slug}-class-threads-graph`;
     const ctName = `class threads graph for the ${trimName} concept`;
     const ctJson = JSON.stringify({ graph: {
@@ -841,16 +975,21 @@ async function handleCreateConcept(req, res) {
     await importEventDirect(ctEvent, ctUuid);
     allEvents.push(ctEvent);
 
-    // ── 5. Property Tree Graph ──
+    // ── 6. Property Tree Graph ──
     const ptDTag = `${slug}-property-tree-graph`;
     const ptName = `property tree graph for the ${trimName} concept`;
     const ptJson = JSON.stringify({ graph: {
-      nodes: [{ slug: `${slug}_schema`, uuid: schemaUuid, name: schemaName }],
+      nodes: [
+        { slug: `${slug}_schema`, uuid: schemaUuid, name: schemaName },
+        { slug: `${slug}_primaryProperty`, uuid: primaryPropUuid, name: primaryPropName },
+      ],
       relationshipTypes: [
         { slug: 'IS_A_PROPERTY_OF', name: 'is a property of' },
         { slug: 'ENUMERATES', name: 'enumerates' },
       ],
-      relationships: [],
+      relationships: [
+        { nodeFrom: { slug: `${slug}_primaryProperty` }, relationshipType: { slug: 'IS_A_PROPERTY_OF' }, nodeTo: { slug: `${slug}_schema` } },
+      ],
     }});
     const ptEvent = signAndFinalize({
       kind: 39999, content: '',
@@ -862,7 +1001,7 @@ async function handleCreateConcept(req, res) {
     await importEventDirect(ptEvent, ptUuid);
     allEvents.push(ptEvent);
 
-    // ── 6. Core Nodes Graph (needs all UUIDs) ──
+    // ── 7. Core Nodes Graph (needs all UUIDs) ──
     const cgDTag = `${slug}-core-nodes-graph`;
     const cgName = `core nodes graph for the ${trimName} concept`;
     const cgJson = JSON.stringify({ graph: {
@@ -873,10 +1012,12 @@ async function handleCreateConcept(req, res) {
         { slug: `${slug}_coreNodesGraph`, uuid: `39999:${headerEvent.pubkey}:${cgDTag}`, name: cgName },
         { slug: `${slug}_classThreadsGraph`, uuid: ctUuid, name: ctName },
         { slug: `${slug}_propertyTreeGraph`, uuid: ptUuid, name: ptName },
+        { slug: `${slug}_primaryProperty`, uuid: primaryPropUuid, name: primaryPropName },
       ],
       relationshipTypes: [
         { slug: 'IS_THE_CONCEPT_FOR', name: 'class thread initiation' },
         { slug: 'IS_THE_JSON_SCHEMA_FOR', name: 'is the JSON schema for' },
+        { slug: 'IS_THE_PRIMARY_PROPERTY_FOR', name: 'is the primary property for' },
         { slug: 'IS_THE_CORE_GRAPH_FOR', name: 'IS_THE_CORE_GRAPH_FOR' },
         { slug: 'IS_THE_CLASS_THREADS_GRAPH_FOR', name: 'IS_THE_CLASS_THREADS_GRAPH_FOR' },
         { slug: 'IS_THE_PROPERTY_TREE_GRAPH_FOR', name: 'IS_THE_PROPERTY_TREE_GRAPH_FOR' },
@@ -884,6 +1025,7 @@ async function handleCreateConcept(req, res) {
       relationships: [
         { nodeFrom: { slug: `${slug}_header` }, relationshipType: { slug: 'IS_THE_CONCEPT_FOR' }, nodeTo: { slug: `${slug}_superset` } },
         { nodeFrom: { slug: `${slug}_schema` }, relationshipType: { slug: 'IS_THE_JSON_SCHEMA_FOR' }, nodeTo: { slug: `${slug}_header` } },
+        { nodeFrom: { slug: `${slug}_primaryProperty` }, relationshipType: { slug: 'IS_THE_PRIMARY_PROPERTY_FOR' }, nodeTo: { slug: `${slug}_header` } },
         { nodeFrom: { slug: `${slug}_coreNodesGraph` }, relationshipType: { slug: 'IS_THE_CORE_GRAPH_FOR' }, nodeTo: { slug: `${slug}_header` } },
         { nodeFrom: { slug: `${slug}_classThreadsGraph` }, relationshipType: { slug: 'IS_THE_CLASS_THREADS_GRAPH_FOR' }, nodeTo: { slug: `${slug}_header` } },
         { nodeFrom: { slug: `${slug}_propertyTreeGraph` }, relationshipType: { slug: 'IS_THE_PROPERTY_TREE_GRAPH_FOR' }, nodeTo: { slug: `${slug}_header` } },
@@ -899,11 +1041,12 @@ async function handleCreateConcept(req, res) {
     await importEventDirect(cgEvent, cgUuid);
     allEvents.push(cgEvent);
 
-    // ── 7. Update ListHeader with constituent JSON ──
+    // ── 8. Update ListHeader with constituent JSON ──
     const headerJson = JSON.stringify({ concept: {
       name: trimName, plural: trimPlural, slug,
+      primaryProperty: primaryPropKey,
       constituents: {
-        superset: supersetUuid, jsonSchema: schemaUuid,
+        superset: supersetUuid, jsonSchema: schemaUuid, primaryProperty: primaryPropUuid,
         coreNodesGraph: cgUuid, classThreadsGraph: ctUuid, propertyTreeGraph: ptUuid,
       },
     }});
@@ -915,10 +1058,12 @@ async function handleCreateConcept(req, res) {
     await publishToStrfry(headerEventV2);
     await importEventDirect(headerEventV2, headerUuid);
 
-    // ── 8. Wiring relationships ──
+    // ── 9. Wiring relationships ──
     const relDefs = [
       { from: headerUuid, to: supersetUuid, type: 'IS_THE_CONCEPT_FOR' },
       { from: schemaUuid, to: headerUuid, type: 'IS_THE_JSON_SCHEMA_FOR' },
+      { from: primaryPropUuid, to: headerUuid, type: 'IS_THE_PRIMARY_PROPERTY_FOR' },
+      { from: primaryPropUuid, to: schemaUuid, type: 'IS_A_PROPERTY_OF' },
       { from: cgUuid, to: headerUuid, type: 'IS_THE_CORE_GRAPH_FOR' },
       { from: ctUuid, to: headerUuid, type: 'IS_THE_CLASS_THREADS_GRAPH_FOR' },
       { from: ptUuid, to: headerUuid, type: 'IS_THE_PROPERTY_TREE_GRAPH_FOR' },
@@ -951,9 +1096,11 @@ async function handleCreateConcept(req, res) {
       message: `Concept "${trimName}" created with ${allEvents.length} events.`,
       concept: {
         name: trimName, plural: trimPlural, slug,
+        primaryProperty: primaryPropKey,
         uuid: headerUuid,
         superset: supersetUuid,
         schema: schemaUuid,
+        primaryPropertyUuid: primaryPropUuid,
         coreGraph: cgUuid,
         classGraph: ctUuid,
         propGraph: ptUuid,
@@ -1634,6 +1781,68 @@ async function handleAddNodeAsElement(req, res) {
   }
 }
 
+// POST /api/normalize/migrate-primary-property-ztags
+// Re-signs primary property events with z-tag pointing to the "primary property" concept
+async function handleMigratePrimaryPropertyZTags(req, res) {
+  try {
+    const newZTag = configUuid('primaryProperty');
+    if (!newZTag) {
+      return res.status(500).json({ success: false, error: 'primaryProperty not found in defaults.json' });
+    }
+
+    // Find all primary property nodes
+    const ppNodes = await runCypher(`
+      MATCH (n:Property)-[:IS_THE_PRIMARY_PROPERTY_FOR]->(h:ListHeader)
+      MATCH (n)-[:HAS_TAG]->(z:NostrEventTag {type: 'z'})
+      WHERE z.value <> $newZTag
+      RETURN n.uuid AS uuid, n.name AS name, z.value AS oldZTag
+    `, { newZTag });
+
+    if (ppNodes.length === 0) {
+      return res.json({ success: true, message: 'All primary property nodes already have correct z-tags.', migrated: [] });
+    }
+
+    const migrated = [];
+    for (const pp of ppNodes) {
+      // Read existing tags
+      const tagRows = await runCypher(`
+        MATCH (e:NostrEvent {uuid: $uuid})-[:HAS_TAG]->(t:NostrEventTag)
+        RETURN t.type AS type, t.value AS value, t.value1 AS value1, t.value2 AS value2
+        ORDER BY t.uuid
+      `, { uuid: pp.uuid });
+
+      // Rebuild tags with corrected z-tag
+      const tags = tagRows.map(t => {
+        const tag = [t.type];
+        if (t.type === 'z') {
+          tag.push(newZTag);
+        } else {
+          tag.push(t.value);
+        }
+        if (t.value1) tag.push(t.value1);
+        if (t.value2) tag.push(t.value2);
+        return tag;
+      });
+
+      const kind = pp.uuid.startsWith('39998:') ? 39998 : 39999;
+      const evt = signAndFinalize({ kind, tags, content: '' });
+      await publishToStrfry(evt);
+      await importEventDirect(evt, pp.uuid);
+      migrated.push({ uuid: pp.uuid, name: pp.name, oldZTag: pp.oldZTag });
+    }
+
+    return res.json({
+      success: true,
+      message: `Migrated ${migrated.length} primary property node(s) to new z-tag.`,
+      newZTag,
+      migrated,
+    });
+  } catch (error) {
+    console.error('normalize/migrate-primary-property-ztags error:', error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+}
+
 function registerNormalizeRoutes(app) {
   app.post('/api/normalize/skeleton', handleNormalizeSkeleton);
   app.post('/api/normalize/json', handleNormalizeJson);
@@ -1644,6 +1853,7 @@ function registerNormalizeRoutes(app) {
   app.post('/api/normalize/create-property', handleCreateProperty);
   app.post('/api/normalize/generate-property-tree', handleGeneratePropertyTree);
   app.post('/api/normalize/add-node-as-element', handleAddNodeAsElement);
+  app.post('/api/normalize/migrate-primary-property-ztags', handleMigratePrimaryPropertyZTags);
 }
 
 module.exports = { registerNormalizeRoutes };

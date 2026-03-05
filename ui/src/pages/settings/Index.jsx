@@ -4,6 +4,7 @@ import Breadcrumbs from '../../components/Breadcrumbs';
 import RelaySettings from './RelaySettings';
 import UuidSettings from './UuidSettings';
 import SystemSettings from './SystemSettings';
+import DatabaseSettings from './DatabaseSettings';
 
 export default function SettingsIndex() {
   const { user, loading: authLoading } = useAuth();
@@ -121,6 +122,7 @@ export default function SettingsIndex() {
 
   const tabs = [
     { key: 'relays', label: '📡 Relays' },
+    { key: 'databases', label: '🗄️ Databases' },
     { key: 'uuids', label: '🔑 Concept UUIDs' },
     { key: 'system', label: '🖥️ System' },
   ];
@@ -167,6 +169,9 @@ export default function SettingsIndex() {
             onSave={handleSave}
             onReset={handleReset}
           />
+        )}
+        {activeTab === 'databases' && (
+          <DatabaseSettings />
         )}
         {activeTab === 'uuids' && (
           <UuidSettings
