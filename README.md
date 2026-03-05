@@ -24,15 +24,22 @@ cd tapestry
 git checkout concept-graph
 ```
 
-### 2. Configure your owner pubkey
+### 2. Configure environment
 
-Edit `docker-compose.yml` and replace the `OWNER_PUBKEY` value with your own **hex pubkey**:
+Copy the example environment file and fill in your values:
 
-```yaml
-environment:
-  - OWNER_PUBKEY=<your-hex-pubkey-here>
-  - NEO4J_PASSWORD=<choose-a-password>
-  - DOMAIN_NAME=localhost
+```bash
+cp .env.example .env
+```
+
+Edit `.env`:
+
+```bash
+# Your nostr public key (hex format, not npub)
+OWNER_PUBKEY=your_hex_pubkey_here
+
+# Choose a strong password for Neo4j
+NEO4J_PASSWORD=change_me_to_something_secure
 ```
 
 > **How to find your hex pubkey:** If you only have your `npub`, you can convert it at [njump.me](https://njump.me) or using the `nak` CLI: `nak key decode npub1...`
@@ -55,7 +62,8 @@ Wait until you see the brainstorm service start. Then open:
 
 - **Control Panel:** [http://localhost:8080](http://localhost:8080)
 - **Knowledge Graph UI:** [http://localhost:8080/kg/](http://localhost:8080/kg/)
-- **Neo4j Browser:** [http://localhost:7474](http://localhost:7474) (user: `neo4j`, password: what you set above)
+- **Neo4j Browser:** [http://localhost:8080/browser/preview/](http://localhost:8080/browser/preview/) (user: `neo4j`, password: what you set above)
+- **Nostr Relay:** `ws://localhost:8080/relay`
 
 ### 5. Sign in
 
@@ -70,7 +78,7 @@ Your Tapestry instance starts with an empty database. To import existing DList d
 
 ```bash
 # Sync DList events from the DCoSL relay into your local strfry
-docker exec tapestry-tapestry-1 strfry sync wss://dcosl.brainstorm.world \
+docker compose exec tapestry strfry sync wss://dcosl.brainstorm.world \
   --filter '{"kinds":[9998,9999,39998,39999]}' \
   --dir down
 ```
@@ -90,7 +98,7 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
 After editing server-side code, restart the brainstorm service:
 
 ```bash
-docker exec tapestry-tapestry-1 supervisorctl restart brainstorm
+docker compose exec tapestry supervisorctl restart brainstorm
 ```
 
 ### React UI Development
@@ -111,12 +119,12 @@ This starts a dev server at [http://localhost:5173/kg/](http://localhost:5173/kg
 
 Tapestry runs as a single Docker container with several services managed by supervisord:
 
-| Service | Port | Purpose |
-|---------|------|---------|
-| **Express** (brainstorm) | 8080 | API server, serves the control panel and Knowledge Graph UI |
-| **strfry** | 7777 | Local nostr relay — stores all events (DLists, profiles, etc.) |
-| **Neo4j** | 7474 (HTTP), 7687 (Bolt) | Graph database — concept graph, relationships, trust scores |
-| **nginx** | 80 (internal) | Reverse proxy |
+| Service | Purpose |
+|---------|---------|
+| **Express** (brainstorm) | API server, serves the control panel and Knowledge Graph UI |
+| **strfry** | Local nostr relay — stores all events (DLists, profiles, etc.) |
+| **Neo4j** | Graph database — concept graph, relationships, trust scores |
+| **nginx** | Reverse proxy — all services accessed via port 8080 |
 
 ### Key concepts
 
@@ -129,9 +137,9 @@ Tapestry runs as a single Docker container with several services managed by supe
 ```
 External relays (DCoSL, purplepag.es, etc.)
         ↓ sync
-   Local strfry (port 7777)
+   Local strfry (ws://localhost:8080/relay)
         ↓ import + normalize
-   Neo4j concept graph (port 7687)
+   Neo4j concept graph
         ↓ query
    React UI (port 8080/kg/)
 ```
@@ -155,7 +163,7 @@ External relays (DCoSL, purplepag.es, etc.)
 
 ## Configuration
 
-### Environment variables (`docker-compose.yml`)
+### Environment variables (`.env`)
 
 | Variable | Required | Description |
 |----------|----------|-------------|
@@ -189,11 +197,17 @@ See [Agent Setup](docs/QUICKSTART.md#agent-setup) in the Quickstart guide for in
 
 | Port | Service | Notes |
 |------|---------|-------|
-| 8080 | Express API + UI | Main entry point |
+| 8080 | Express API + UI | Main entry point — all services proxied through here |
 | 5173 | Vite dev server | Only during development (`npx vite`) |
-| 7474 | Neo4j Browser | Direct database access |
-| 7687 | Neo4j Bolt | For Cypher queries |
-| 7777 | strfry relay | Local nostr relay (WebSocket) |
+
+All services are accessed through the nginx proxy on port 8080:
+
+| Path | Service | Notes |
+|------|---------|-------|
+| `/kg/` | Knowledge Graph UI | React app |
+| `/browser/preview/` | Neo4j Browser | Database access (user: `neo4j`) |
+| `/relay` | strfry relay | Local nostr relay (WebSocket: `ws://localhost:8080/relay`) |
+| `/api/` | Express API | REST endpoints |
 
 ---
 

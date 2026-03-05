@@ -2,7 +2,7 @@
 # Usage: docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
 #
 # Edit files locally → restart brainstorm to pick up changes:
-#   docker exec tapestry-tapestry-1 supervisorctl restart brainstorm
+#   docker compose exec tapestry supervisorctl restart brainstorm
 #
 # For frontend-only changes (HTML/CSS/JS), just refresh the browser.
 

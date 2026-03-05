@@ -1,5 +1,6 @@
 services:
   tapestry:
+    container_name: tapestry
     build: .
     ports:
       - "8080:80"
@@ -9,8 +10,8 @@ services:
       - "7687:7687"
       - "8687:8687"
     environment:
-      - OWNER_PUBKEY=15f7dafc4624b1e6b00ab7f863de1a53b71967528070ec7d1837c7a40c1c7270
-      - NEO4J_PASSWORD=3wGDrv6c8svbHVxKiXPL
+      - OWNER_PUBKEY=${OWNER_PUBKEY}
+      - NEO4J_PASSWORD=${NEO4J_PASSWORD}
       - DOMAIN_NAME=localhost
     volumes:
       - tapestry-neo4j:/var/lib/neo4j/data

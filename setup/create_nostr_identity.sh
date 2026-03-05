@@ -94,9 +94,9 @@ if [ -f "/etc/brainstorm.conf" ]; then
         echo "Adding new keys to config..."
         echo "export BRAINSTORM_RELAY_PUBKEY='$BRAINSTORM_RELAY_PUBKEY'" | sudo tee -a /etc/brainstorm.conf
         echo "export BRAINSTORM_RELAY_NPUB='$BRAINSTORM_RELAY_NPUB'" | sudo tee -a /etc/brainstorm.conf
-        echo "export BRAINSTORM_RELAY_PRIVKEY='$BRAINSTORM_RELAY_PRIVKEY'" | sudo tee -a /etc/brainstorm.conf
-        echo "export BRAINSTORM_RELAY_NSEC='$BRAINSTORM_RELAY_NSEC'" | sudo tee -a /etc/brainstorm.conf
-        echo "# keys added by create_nostr_identity.sh" | sudo tee -a /etc/brainstorm.conf
+        echo "export BRAINSTORM_RELAY_PRIVKEY='$BRAINSTORM_RELAY_PRIVKEY'" | sudo tee -a /etc/brainstorm.conf > /dev/null
+        echo "export BRAINSTORM_RELAY_NSEC='$BRAINSTORM_RELAY_NSEC'" | sudo tee -a /etc/brainstorm.conf > /dev/null
+        echo "# keys added by create_nostr_identity.sh" | sudo tee -a /etc/brainstorm.conf > /dev/null
     fi
 else
     echo "Warning: /etc/brainstorm.conf not found. Only storing keys in $KEYS_FILE."

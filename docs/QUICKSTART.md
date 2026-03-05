@@ -34,13 +34,17 @@ git checkout concept-graph
 
 ## Step 2: Configure
 
-Edit `docker-compose.yml`:
+Copy the example environment file and fill in your values:
 
-```yaml
-environment:
-  - OWNER_PUBKEY=<your-hex-pubkey>
-  - NEO4J_PASSWORD=<choose-a-strong-password>
-  - DOMAIN_NAME=localhost
+```bash
+cp .env.example .env
+```
+
+Edit `.env`:
+
+```bash
+OWNER_PUBKEY=your_hex_pubkey_here
+NEO4J_PASSWORD=change_me_to_something_secure
 ```
 
 **Finding your hex pubkey:**
@@ -91,14 +95,14 @@ Open these URLs in your browser:
 3. Your NIP-07 extension will pop up asking you to approve
 4. After signing, you should see your **name**, **avatar**, and an **Owner** badge
 
-> If you see "Guest" instead of "Owner", double-check that the `OWNER_PUBKEY` in `docker-compose.yml` matches the hex pubkey of the key loaded in your NIP-07 extension.
+> If you see "Guest" instead of "Owner", double-check that the `OWNER_PUBKEY` in `.env` matches the hex pubkey of the key loaded in your NIP-07 extension.
 
 ## Step 6: Import data
 
 Your instance starts empty. Import existing DList data from the DCoSL relay:
 
 ```bash
-docker exec tapestry-tapestry-1 strfry sync wss://dcosl.brainstorm.world \
+docker compose exec tapestry strfry sync wss://dcosl.brainstorm.world \
   --filter '{"kinds":[9998,9999,39998,39999]}' \
   --dir down
 ```
@@ -143,10 +147,10 @@ docker compose restart
 
 ```bash
 # Check if Neo4j is running inside the container
-docker exec tapestry-tapestry-1 supervisorctl status
+docker compose exec tapestry supervisorctl status
 
 # Restart Neo4j
-docker exec tapestry-tapestry-1 supervisorctl restart neo4j
+docker compose exec tapestry supervisorctl restart neo4j
 ```
 
 ### Reset everything

@@ -13,7 +13,7 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
 This bind-mounts the repo at `/usr/local/lib/node_modules/brainstorm` inside the container, so edits to server-side code are reflected immediately after restarting the service:
 
 ```bash
-docker exec tapestry-tapestry-1 supervisorctl restart brainstorm
+docker compose exec tapestry supervisorctl restart brainstorm
 ```
 
 ### React UI (Vite dev server)
@@ -109,7 +109,7 @@ tapestry/
 
 1. **Create the handler** in `src/api/<module>/`
 2. **Register the route** in `src/api/index.js`
-3. **Restart brainstorm:** `docker exec tapestry-tapestry-1 supervisorctl restart brainstorm`
+3. **Restart brainstorm:** `docker compose exec tapestry supervisorctl restart brainstorm`
 
 ### Auth middleware
 
@@ -124,24 +124,24 @@ app.get('/api/my-endpoint', requireOwner, handler);
 
 ```bash
 # View container services
-docker exec tapestry-tapestry-1 supervisorctl status
+docker compose exec tapestry supervisorctl status
 
 # Restart a specific service
-docker exec tapestry-tapestry-1 supervisorctl restart brainstorm
-docker exec tapestry-tapestry-1 supervisorctl restart neo4j
+docker compose exec tapestry supervisorctl restart brainstorm
+docker compose exec tapestry supervisorctl restart neo4j
 
 # Run a Cypher query
-docker exec tapestry-tapestry-1 bash -c "echo 'MATCH (n) RETURN count(n)' | cypher-shell -u neo4j -p <password>"
+docker compose exec tapestry bash -c "echo 'MATCH (n) RETURN count(n)' | cypher-shell -u neo4j -p <password>"
 
 # Scan strfry events
-docker exec tapestry-tapestry-1 strfry scan '{"kinds":[39998]}'
+docker compose exec tapestry strfry scan '{"kinds":[39998]}'
 
 # Sync from an external relay
-docker exec tapestry-tapestry-1 strfry sync wss://dcosl.brainstorm.world \
+docker compose exec tapestry strfry sync wss://dcosl.brainstorm.world \
   --filter '{"kinds":[9998,9999,39998,39999]}' --dir down
 
 # Check container resource usage
-docker stats tapestry-tapestry-1
+docker stats tapestry
 ```
 
 ## Conventions
