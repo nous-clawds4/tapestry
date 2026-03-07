@@ -827,8 +827,48 @@ async function handleNormalizeJson(req, res) {
 // ══════════════════════════════════════════════════════════════
 // POST /api/normalize/create-concept
 //   Body: { name, plural?, description? }
-//   Creates a full concept skeleton: ListHeader + 5 nodes + wiring + JSON
+//   Creates a full concept skeleton matching tapestry-cli concept-header.md spec:
+//   ConceptHeader + Superset + JSON Schema + Core Nodes Graph + Concept Graph
+//   + Property Tree Graph + 5 relationship events.
+//
+//   Word JSON follows the new naming convention structure with oNames, oSlugs,
+//   oKeys, oTitles, oLabels — kept in sync with tapestry-cli/src/lib/concept.js.
 // ══════════════════════════════════════════════════════════════
+
+function toSlugName(name) {
+  return name.toLowerCase().replace(/\s+/g, '-');
+}
+
+function toKeyName(name) {
+  const words = name.split(/\s+/);
+  return words.map((w, i) => {
+    const lower = w.toLowerCase();
+    if (i === 0) return lower;
+    return lower.charAt(0).toUpperCase() + lower.slice(1);
+  }).join('');
+}
+
+function toTitleName(name) {
+  return name.split(/\s+/).map(w =>
+    w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()
+  ).join(' ');
+}
+
+function toLabelName(name) {
+  return name.split(/\s+/).map(w =>
+    w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()
+  ).join('');
+}
+
+function deriveAllNames(singular, plural) {
+  return {
+    oNames:  { singular: singular.toLowerCase(), plural: plural.toLowerCase() },
+    oSlugs:  { singular: toSlugName(singular), plural: toSlugName(plural) },
+    oKeys:   { singular: toKeyName(singular), plural: toKeyName(plural) },
+    oTitles: { singular: toTitleName(singular), plural: toTitleName(plural) },
+    oLabels: { singular: toLabelName(singular), plural: toLabelName(plural) },
+  };
+}
 
 async function handleCreateConcept(req, res) {
   try {
@@ -839,15 +879,17 @@ async function handleCreateConcept(req, res) {
 
     const trimName = name.trim();
     const trimPlural = (plural || '').trim() || trimName + 's';
-    const slug = deriveSlug(trimName);
+    const names = deriveAllNames(trimName, trimPlural);
+    const slug = names.oSlugs.singular;
+    const slugPlural = names.oSlugs.plural;
 
-    // Check for duplicate name (same name, same signer)
+    // Check for duplicate
     const privBytes = getPrivkey();
     const pubkey = Buffer.from(nt().getPublicKey(privBytes)).toString('hex');
 
     const dupes = await runCypher(`
       MATCH (h:NostrEvent)
-      WHERE (h:ListHeader OR h:ClassThreadHeader) AND h.kind IN [9998, 39998]
+      WHERE (h:ListHeader OR h:ConceptHeader) AND h.kind IN [9998, 39998]
         AND h.name = $name AND h.pubkey = $pubkey
       RETURN h.uuid AS uuid
       LIMIT 1
@@ -860,11 +902,29 @@ async function handleCreateConcept(req, res) {
     const allEvents = [];
     const headerDTag = randomDTag();
 
-    // ── 1. ListHeader ──
+    // ── 1. Concept Header / ListHeader (kind 39998) ──
+    const headerWord = {
+      word: {
+        slug: `concept-header-for-the-concept-of-${slugPlural}`,
+        name: `concept header for the concept of ${names.oNames.plural}`,
+        title: `Concept Header for the Concept of ${names.oTitles.plural}`,
+        wordTypes: ['word', 'conceptHeader'],
+      },
+      conceptHeader: {
+        description: description || `${names.oTitles.singular} is a concept.`,
+        oNames: names.oNames,
+        oSlugs: names.oSlugs,
+        oKeys: names.oKeys,
+        oTitles: names.oTitles,
+        oLabels: names.oLabels,
+      },
+    };
+
     const headerTags = [
       ['d', headerDTag],
-      ['names', trimName, trimPlural],
+      ['names', names.oNames.singular, names.oNames.plural],
       ['slug', slug],
+      ['json', JSON.stringify(headerWord)],
     ];
     if (description) headerTags.push(['description', description.trim()]);
 
@@ -874,26 +934,38 @@ async function handleCreateConcept(req, res) {
     await importEventDirect(headerEvent, headerUuid);
     allEvents.push(headerEvent);
 
-    // Set ListHeader + ClassThreadHeader labels
+    // Set ListHeader + ConceptHeader labels
     await writeCypher(`
       MATCH (h:NostrEvent {uuid: $uuid})
-      SET h:ListHeader, h:ClassThreadHeader
+      SET h:ListHeader, h:ConceptHeader
     `, { uuid: headerUuid });
 
     // ── 2. Superset ──
     const supersetDTag = `${slug}-superset`;
-    const supersetName = `the superset of all ${trimPlural}`;
-    const supersetJson = JSON.stringify({
-      supersetOf: trimName, role: 'superset',
-      description: `The superset node for the ${trimName} concept.`,
-    });
+    const supersetWord = {
+      word: {
+        slug: `superset-for-the-concept-of-${slugPlural}`,
+        name: `superset for the concept of ${names.oNames.plural}`,
+        title: `Superset for the Concept of ${names.oTitles.plural}`,
+        wordTypes: ['word', 'superset'],
+        coreMemberOf: [{ slug: `concept-header-for-the-concept-of-${slugPlural}`, uuid: headerUuid }],
+      },
+      superset: {
+        slug: names.oSlugs.plural,
+        name: names.oNames.plural,
+        title: names.oTitles.plural,
+        description: `This is the superset of all known ${names.oNames.plural}.`,
+      },
+    };
+
     const supersetEvent = signAndFinalize({
       kind: 39999, content: '',
       tags: [
-        ['d', supersetDTag], ['name', supersetName],
+        ['d', supersetDTag],
+        ['name', supersetWord.word.name],
         ['z', configUuid('superset')],
-        ['description', `The superset node for the ${trimName} concept.`],
-        ['json', supersetJson],
+        ['description', supersetWord.superset.description],
+        ['json', JSON.stringify(supersetWord)],
       ],
     });
     const supersetUuid = `39999:${supersetEvent.pubkey}:${supersetDTag}`;
@@ -904,20 +976,26 @@ async function handleCreateConcept(req, res) {
 
     // ── 3. JSON Schema ──
     const schemaDTag = `${slug}-schema`;
-    const schemaName = `JSON schema for ${trimName}`;
-    const schemaJson = JSON.stringify({
-      $schema: 'https://json-schema.org/draft/2020-12/schema',
-      type: 'object', title: trimName,
-      description: `JSON Schema for ${trimName}`,
-      properties: {}, required: [],
-    });
+    const schemaWord = {
+      word: {
+        slug: `json-schema-for-the-concept-of-${slugPlural}`,
+        name: `JSON schema for the concept of ${names.oNames.plural}`,
+        title: `JSON Schema for the Concept of ${names.oTitles.plural}`,
+        description: `the json schema for the concept of ${names.oNames.plural}`,
+        wordTypes: ['word', 'jsonSchema'],
+        coreMemberOf: [{ slug: `concept-header-for-the-concept-of-${slugPlural}`, uuid: headerUuid }],
+      },
+      jsonSchema: {},
+    };
+
     const schemaEvent = signAndFinalize({
       kind: 39999, content: '',
       tags: [
-        ['d', schemaDTag], ['name', schemaName],
+        ['d', schemaDTag],
+        ['name', schemaWord.word.name],
         ['z', configUuid('jsonSchema')],
-        ['description', `The JSON Schema defining the horizontal structure of the ${trimName} concept.`],
-        ['json', schemaJson],
+        ['description', schemaWord.word.description],
+        ['json', JSON.stringify(schemaWord)],
       ],
     });
     const schemaUuid = `39999:${schemaEvent.pubkey}:${schemaDTag}`;
@@ -926,146 +1004,192 @@ async function handleCreateConcept(req, res) {
     await writeCypher(`MATCH (n:NostrEvent {uuid: $uuid}) SET n:JSONSchema`, { uuid: schemaUuid });
     allEvents.push(schemaEvent);
 
-    // ── 4. Primary Property ──
-    const primaryPropDTag = `${slug}-primary-property`;
-    const primaryPropKey = toCamelCase(trimName);
-    const primaryPropName = `primary property for the ${trimName} concept`;
-    const primaryPropJson = JSON.stringify({
-      property: {
-        name: primaryPropName,
-        key: primaryPropKey,
-        role: 'primaryProperty',
-        conceptName: trimName,
-        description: `Primary property for the ${trimName} concept. Elements of ${trimName} use "${primaryPropKey}" as their top-level JSON key.`,
-      },
-    });
-    const primaryPropEvent = signAndFinalize({
-      kind: 39999, content: '',
-      tags: [
-        ['d', primaryPropDTag], ['name', primaryPropName],
-        ['z', configUuid('primaryProperty')],
-        ['description', `Primary property for the ${trimName} concept. Elements of ${trimName} use "${primaryPropKey}" as their top-level JSON key.`],
-        ['json', primaryPropJson],
-      ],
-    });
-    const primaryPropUuid = `39999:${primaryPropEvent.pubkey}:${primaryPropDTag}`;
-    await publishToStrfry(primaryPropEvent);
-    await importEventDirect(primaryPropEvent, primaryPropUuid);
-    await writeCypher(`MATCH (n:NostrEvent {uuid: $uuid}) SET n:Property`, { uuid: primaryPropUuid });
-    allEvents.push(primaryPropEvent);
-
-    // ── 5. Class Threads Graph ──
-    const ctDTag = `${slug}-class-threads-graph`;
-    const ctName = `class threads graph for the ${trimName} concept`;
-    const ctJson = JSON.stringify({ graph: {
-      nodes: [{ slug: `${slug}_superset`, uuid: supersetUuid, name: supersetName }],
-      relationshipTypes: [
-        { slug: 'IS_A_SUPERSET_OF', name: 'class thread propagation' },
-        { slug: 'HAS_ELEMENT', name: 'class thread termination' },
-      ],
-      relationships: [],
-    }});
-    const ctEvent = signAndFinalize({
-      kind: 39999, content: '',
-      tags: [['d', ctDTag], ['name', ctName], ['z', configUuid('graph')],
-        ['description', `Class thread graph for ${trimName}.`], ['json', ctJson]],
-    });
-    const ctUuid = `39999:${ctEvent.pubkey}:${ctDTag}`;
-    await publishToStrfry(ctEvent);
-    await importEventDirect(ctEvent, ctUuid);
-    allEvents.push(ctEvent);
-
-    // ── 6. Property Tree Graph ──
+    // ── 4. Property Tree Graph ──
     const ptDTag = `${slug}-property-tree-graph`;
-    const ptName = `property tree graph for the ${trimName} concept`;
-    const ptJson = JSON.stringify({ graph: {
-      nodes: [
-        { slug: `${slug}_schema`, uuid: schemaUuid, name: schemaName },
-        { slug: `${slug}_primaryProperty`, uuid: primaryPropUuid, name: primaryPropName },
-      ],
-      relationshipTypes: [
-        { slug: 'IS_A_PROPERTY_OF', name: 'is a property of' },
-        { slug: 'ENUMERATES', name: 'enumerates' },
-      ],
-      relationships: [
-        { nodeFrom: { slug: `${slug}_primaryProperty` }, relationshipType: { slug: 'IS_A_PROPERTY_OF' }, nodeTo: { slug: `${slug}_schema` } },
-      ],
-    }});
+    const ptWord = {
+      word: {
+        slug: `property-tree-graph-for-the-concept-of-${slugPlural}`,
+        name: `property tree graph for the concept of ${names.oNames.plural}`,
+        title: `Property Tree Graph for the Concept of ${names.oTitles.plural}`,
+        wordTypes: ['word', 'graph', 'propertyTreeGraph'],
+        coreMemberOf: [{ slug: `concept-header-for-the-concept-of-${slugPlural}`, uuid: headerUuid }],
+      },
+      graph: {
+        nodes: [
+          { slug: `json-schema-for-the-concept-of-${slugPlural}`, uuid: schemaUuid },
+        ],
+        relationshipTypes: [{ slug: 'IS_A_PROPERTY_OF' }],
+        relationships: [],
+        imports: [],
+      },
+      propertyTreeGraph: {
+        description: `the collection of the JSON schema node, all property nodes and all of their connections for the concept of ${names.oNames.plural}`,
+      },
+    };
+
     const ptEvent = signAndFinalize({
       kind: 39999, content: '',
-      tags: [['d', ptDTag], ['name', ptName], ['z', configUuid('graph')],
-        ['description', `Property tree graph for ${trimName}.`], ['json', ptJson]],
+      tags: [
+        ['d', ptDTag], ['name', ptWord.word.name], ['z', configUuid('graph')],
+        ['description', ptWord.propertyTreeGraph.description],
+        ['json', JSON.stringify(ptWord)],
+      ],
     });
     const ptUuid = `39999:${ptEvent.pubkey}:${ptDTag}`;
     await publishToStrfry(ptEvent);
     await importEventDirect(ptEvent, ptUuid);
     allEvents.push(ptEvent);
 
-    // ── 7. Core Nodes Graph (needs all UUIDs) ──
-    const cgDTag = `${slug}-core-nodes-graph`;
-    const cgName = `core nodes graph for the ${trimName} concept`;
-    const cgJson = JSON.stringify({ graph: {
-      nodes: [
-        { slug: `${slug}_header`, uuid: headerUuid, name: trimName },
-        { slug: `${slug}_superset`, uuid: supersetUuid, name: supersetName },
-        { slug: `${slug}_schema`, uuid: schemaUuid, name: schemaName },
-        { slug: `${slug}_coreNodesGraph`, uuid: `39999:${headerEvent.pubkey}:${cgDTag}`, name: cgName },
-        { slug: `${slug}_classThreadsGraph`, uuid: ctUuid, name: ctName },
-        { slug: `${slug}_propertyTreeGraph`, uuid: ptUuid, name: ptName },
-        { slug: `${slug}_primaryProperty`, uuid: primaryPropUuid, name: primaryPropName },
-      ],
-      relationshipTypes: [
-        { slug: 'IS_THE_CONCEPT_FOR', name: 'class thread initiation' },
-        { slug: 'IS_THE_JSON_SCHEMA_FOR', name: 'is the JSON schema for' },
-        { slug: 'IS_THE_PRIMARY_PROPERTY_FOR', name: 'is the primary property for' },
-        { slug: 'IS_THE_CORE_GRAPH_FOR', name: 'IS_THE_CORE_GRAPH_FOR' },
-        { slug: 'IS_THE_CLASS_THREADS_GRAPH_FOR', name: 'IS_THE_CLASS_THREADS_GRAPH_FOR' },
-        { slug: 'IS_THE_PROPERTY_TREE_GRAPH_FOR', name: 'IS_THE_PROPERTY_TREE_GRAPH_FOR' },
-      ],
-      relationships: [
-        { nodeFrom: { slug: `${slug}_header` }, relationshipType: { slug: 'IS_THE_CONCEPT_FOR' }, nodeTo: { slug: `${slug}_superset` } },
-        { nodeFrom: { slug: `${slug}_schema` }, relationshipType: { slug: 'IS_THE_JSON_SCHEMA_FOR' }, nodeTo: { slug: `${slug}_header` } },
-        { nodeFrom: { slug: `${slug}_primaryProperty` }, relationshipType: { slug: 'IS_THE_PRIMARY_PROPERTY_FOR' }, nodeTo: { slug: `${slug}_header` } },
-        { nodeFrom: { slug: `${slug}_coreNodesGraph` }, relationshipType: { slug: 'IS_THE_CORE_GRAPH_FOR' }, nodeTo: { slug: `${slug}_header` } },
-        { nodeFrom: { slug: `${slug}_classThreadsGraph` }, relationshipType: { slug: 'IS_THE_CLASS_THREADS_GRAPH_FOR' }, nodeTo: { slug: `${slug}_header` } },
-        { nodeFrom: { slug: `${slug}_propertyTreeGraph` }, relationshipType: { slug: 'IS_THE_PROPERTY_TREE_GRAPH_FOR' }, nodeTo: { slug: `${slug}_header` } },
-      ],
-    }});
+    // ── 5. Concept Graph ──
+    const cgDTag = `${slug}-concept-graph`;
+    const cgWord = {
+      word: {
+        slug: `concept-graph-for-the-concept-of-${slugPlural}`,
+        name: `concept graph for the concept of ${names.oNames.plural}`,
+        title: `Concept Graph for the Concept of ${names.oTitles.plural}`,
+        wordTypes: ['word', 'graph', 'conceptGraph'],
+        coreMemberOf: [{ slug: `concept-header-for-the-concept-of-${slugPlural}`, uuid: headerUuid }],
+      },
+      graph: {
+        nodes: [
+          { slug: `concept-header-for-the-concept-of-${slugPlural}`, uuid: headerUuid },
+          { slug: `superset-for-the-concept-of-${slugPlural}`, uuid: supersetUuid },
+        ],
+        relationshipTypes: [
+          { slug: 'IS_THE_CONCEPT_FOR', uuid: '' },
+          { slug: 'IS_A_SUPERSET_OF', uuid: '' },
+          { slug: 'HAS_ELEMENT', uuid: '' },
+        ],
+        relationships: [{
+          nodeFrom: { slug: `concept-header-for-the-concept-of-${slugPlural}` },
+          relationshipType: { slug: 'IS_THE_CONCEPT_FOR' },
+          nodeTo: { slug: `superset-for-the-concept-of-${slugPlural}` },
+        }],
+        imports: [
+          { slug: `property-tree-graph-for-the-concept-of-${slugPlural}`, uuid: ptUuid },
+        ],
+      },
+      conceptGraph: {
+        description: `The collection of all nodes and edges traversed by the class threads of the concept of ${names.oNames.plural}`,
+        cypher: `MATCH classPath = (conceptHeader)-[:IS_THE_CONCEPT_FOR]->(superset:Superset)-[:IS_A_SUPERSET_OF *0..5]->()-[:HAS_ELEMENT]->() WHERE conceptHeader.uuid = '${headerUuid}' RETURN classPath`,
+      },
+    };
+
     const cgEvent = signAndFinalize({
       kind: 39999, content: '',
-      tags: [['d', cgDTag], ['name', cgName], ['z', configUuid('graph')],
-        ['description', `Core infrastructure nodes for ${trimName}.`], ['json', cgJson]],
+      tags: [
+        ['d', cgDTag], ['name', cgWord.word.name], ['z', configUuid('graph')],
+        ['description', cgWord.conceptGraph.description],
+        ['json', JSON.stringify(cgWord)],
+      ],
     });
     const cgUuid = `39999:${cgEvent.pubkey}:${cgDTag}`;
     await publishToStrfry(cgEvent);
     await importEventDirect(cgEvent, cgUuid);
     allEvents.push(cgEvent);
 
-    // ── 8. Update ListHeader with constituent JSON ──
-    const headerJson = JSON.stringify({ concept: {
-      name: trimName, plural: trimPlural, slug,
-      primaryProperty: primaryPropKey,
-      constituents: {
-        superset: supersetUuid, jsonSchema: schemaUuid, primaryProperty: primaryPropUuid,
-        coreNodesGraph: cgUuid, classThreadsGraph: ctUuid, propertyTreeGraph: ptUuid,
+    // ── 6. Core Nodes Graph ──
+    const coreDTag = `${slug}-core-nodes-graph`;
+    const coreWord = {
+      word: {
+        slug: `core-nodes-graph-for-the-concept-of-${slugPlural}`,
+        name: `core nodes graph for the concept of ${names.oNames.plural}`,
+        title: `Core Nodes Graph for the Concept of ${names.oTitles.plural}`,
+        wordTypes: ['word', 'graph', 'coreNodesGraph'],
+        coreMemberOf: [{ slug: `concept-header-for-the-concept-of-${slugPlural}`, uuid: headerUuid }],
       },
-    }});
-    const headerTagsV2 = [
-      ['d', headerDTag], ['names', trimName, trimPlural], ['slug', slug], ['json', headerJson],
-    ];
-    if (description) headerTagsV2.push(['description', description.trim()]);
-    const headerEventV2 = signAndFinalize({ kind: 39998, tags: headerTagsV2, content: '' });
-    await publishToStrfry(headerEventV2);
-    await importEventDirect(headerEventV2, headerUuid);
+      graph: {
+        nodes: [
+          { slug: `concept-header-for-the-concept-of-${slugPlural}`, uuid: headerUuid },
+          { slug: `superset-for-the-concept-of-${slugPlural}`, uuid: supersetUuid },
+          { slug: `json-schema-for-the-concept-of-${slugPlural}`, uuid: schemaUuid },
+          { slug: `property-tree-graph-for-the-concept-of-${slugPlural}`, uuid: ptUuid },
+          { slug: `concept-graph-for-the-concept-of-${slugPlural}`, uuid: cgUuid },
+        ],
+        relationshipTypes: [
+          { slug: 'IS_THE_CONCEPT_FOR' },
+          { slug: 'IS_THE_JSON_SCHEMA_FOR' },
+          { slug: 'IS_THE_PROPERTY_TREE_GRAPH_FOR' },
+          { slug: 'IS_THE_CORE_GRAPH_FOR' },
+          { slug: 'IS_THE_CONCEPT_GRAPH_FOR' },
+        ],
+        relationships: [
+          { nodeFrom: { slug: `concept-header-for-the-concept-of-${slugPlural}` }, relationshipType: { slug: 'IS_THE_CONCEPT_FOR' }, nodeTo: { slug: `superset-for-the-concept-of-${slugPlural}` } },
+          { nodeFrom: { slug: `json-schema-for-the-concept-of-${slugPlural}` }, relationshipType: { slug: 'IS_THE_JSON_SCHEMA_FOR' }, nodeTo: { slug: `concept-header-for-the-concept-of-${slugPlural}` } },
+          { nodeFrom: { slug: `property-tree-graph-for-the-concept-of-${slugPlural}` }, relationshipType: { slug: 'IS_THE_PROPERTY_TREE_GRAPH_FOR' }, nodeTo: { slug: `concept-header-for-the-concept-of-${slugPlural}` } },
+          { nodeFrom: { slug: `core-nodes-graph-for-the-concept-of-${slugPlural}` }, relationshipType: { slug: 'IS_THE_CORE_GRAPH_FOR' }, nodeTo: { slug: `concept-header-for-the-concept-of-${slugPlural}` } },
+          { nodeFrom: { slug: `concept-graph-for-the-concept-of-${slugPlural}` }, relationshipType: { slug: 'IS_THE_CONCEPT_GRAPH_FOR' }, nodeTo: { slug: `concept-header-for-the-concept-of-${slugPlural}` } },
+        ],
+        imports: [],
+      },
+      coreNodesGraph: {
+        description: `the set of core nodes for the concept of ${names.oNames.plural}`,
+        constituents: {
+          conceptHeader: headerUuid,
+          superset: supersetUuid,
+          jsonSchema: schemaUuid,
+          primaryProperty: '',
+          properties: '',
+          propertyTreeGraph: ptUuid,
+          conceptGraph: cgUuid,
+          coreNodesGraph: '',
+        },
+      },
+    };
 
-    // ── 9. Wiring relationships ──
+    const coreEvent = signAndFinalize({
+      kind: 39999, content: '',
+      tags: [
+        ['d', coreDTag], ['name', coreWord.word.name], ['z', configUuid('graph')],
+        ['description', coreWord.coreNodesGraph.description],
+        ['json', JSON.stringify(coreWord)],
+      ],
+    });
+    const coreUuid = `39999:${coreEvent.pubkey}:${coreDTag}`;
+    await publishToStrfry(coreEvent);
+    await importEventDirect(coreEvent, coreUuid);
+    allEvents.push(coreEvent);
+
+    // ── 7. Update Core Nodes Graph & Concept Graph with final UUIDs ──
+    // Core Nodes Graph: add self-reference
+    coreWord.graph.nodes.push(
+      { slug: `core-nodes-graph-for-the-concept-of-${slugPlural}`, uuid: coreUuid }
+    );
+    coreWord.coreNodesGraph.constituents.coreNodesGraph = coreUuid;
+
+    const coreEventV2 = signAndFinalize({
+      kind: 39999, content: '',
+      tags: [
+        ['d', coreDTag], ['name', coreWord.word.name], ['z', configUuid('graph')],
+        ['description', coreWord.coreNodesGraph.description],
+        ['json', JSON.stringify(coreWord)],
+      ],
+    });
+    await publishToStrfry(coreEventV2);
+    await importEventDirect(coreEventV2, coreUuid);
+
+    // Concept Graph: add core nodes graph import
+    cgWord.graph.imports.push(
+      { slug: `core-nodes-graph-for-the-concept-of-${slugPlural}`, uuid: coreUuid }
+    );
+
+    const cgEventV2 = signAndFinalize({
+      kind: 39999, content: '',
+      tags: [
+        ['d', cgDTag], ['name', cgWord.word.name], ['z', configUuid('graph')],
+        ['description', cgWord.conceptGraph.description],
+        ['json', JSON.stringify(cgWord)],
+      ],
+    });
+    await publishToStrfry(cgEventV2);
+    await importEventDirect(cgEventV2, cgUuid);
+
+    // ── 8. Wiring relationships ──
     const relDefs = [
       { from: headerUuid, to: supersetUuid, type: 'IS_THE_CONCEPT_FOR' },
       { from: schemaUuid, to: headerUuid, type: 'IS_THE_JSON_SCHEMA_FOR' },
-      { from: primaryPropUuid, to: headerUuid, type: 'IS_THE_PRIMARY_PROPERTY_FOR' },
-      { from: primaryPropUuid, to: schemaUuid, type: 'IS_A_PROPERTY_OF' },
-      { from: cgUuid, to: headerUuid, type: 'IS_THE_CORE_GRAPH_FOR' },
-      { from: ctUuid, to: headerUuid, type: 'IS_THE_CLASS_THREADS_GRAPH_FOR' },
+      { from: coreUuid, to: headerUuid, type: 'IS_THE_CORE_GRAPH_FOR' },
+      { from: cgUuid, to: headerUuid, type: 'IS_THE_CONCEPT_GRAPH_FOR' },
       { from: ptUuid, to: headerUuid, type: 'IS_THE_PROPERTY_TREE_GRAPH_FOR' },
     ];
 
@@ -1074,7 +1198,8 @@ async function handleCreateConcept(req, res) {
       const relEvent = signAndFinalize({
         kind: 39999, content: '',
         tags: [
-          ['d', relDTag], ['name', `${trimName} ${rel.type}`],
+          ['d', relDTag],
+          ['name', `${trimName} ${rel.type}`],
           ['z', configUuid('relationship')],
           ['nodeFrom', rel.from], ['nodeTo', rel.to], ['relationshipType', rel.type],
         ],
@@ -1096,13 +1221,12 @@ async function handleCreateConcept(req, res) {
       message: `Concept "${trimName}" created with ${allEvents.length} events.`,
       concept: {
         name: trimName, plural: trimPlural, slug,
-        primaryProperty: primaryPropKey,
+        primaryProperty: names.oKeys.singular,
         uuid: headerUuid,
         superset: supersetUuid,
         schema: schemaUuid,
-        primaryPropertyUuid: primaryPropUuid,
-        coreGraph: cgUuid,
-        classGraph: ctUuid,
+        coreGraph: coreUuid,
+        conceptGraph: cgUuid,
         propGraph: ptUuid,
       },
     });
@@ -1843,6 +1967,617 @@ async function handleMigratePrimaryPropertyZTags(req, res) {
   }
 }
 
+// ══════════════════════════════════════════════════════════════
+// POST /api/normalize/link-concepts
+//   Body: { parent: "<concept name>", child: "<concept name>" }
+//   Creates IS_A_SUPERSET_OF between parent's Superset → child's Superset.
+// ══════════════════════════════════════════════════════════════
+async function handleLinkConcepts(req, res) {
+  try {
+    const { parent, child } = req.body || {};
+    if (!parent) return res.status(400).json({ success: false, error: 'Missing parent concept name' });
+    if (!child) return res.status(400).json({ success: false, error: 'Missing child concept name' });
+
+    // Find parent superset
+    const parentRows = await runCypher(`
+      MATCH (h:ListHeader)-[:HAS_TAG]->(t:NostrEventTag {type: 'names'})
+      WHERE toLower(t.value) = toLower($name)
+      MATCH (h)-[:IS_THE_CONCEPT_FOR]->(s:Superset)
+      OPTIONAL MATCH (s)-[:HAS_TAG]->(n:NostrEventTag {type: 'name'})
+      RETURN s.uuid AS supersetUuid, n.value AS supersetName, t.value AS concept
+      LIMIT 1
+    `, { name: parent });
+    if (!parentRows.length) return res.json({ success: false, error: `Concept "${parent}" not found or has no Superset` });
+
+    // Find child superset
+    const childRows = await runCypher(`
+      MATCH (h:ListHeader)-[:HAS_TAG]->(t:NostrEventTag {type: 'names'})
+      WHERE toLower(t.value) = toLower($name)
+      MATCH (h)-[:IS_THE_CONCEPT_FOR]->(s:Superset)
+      OPTIONAL MATCH (s)-[:HAS_TAG]->(n:NostrEventTag {type: 'name'})
+      RETURN s.uuid AS supersetUuid, n.value AS supersetName, t.value AS concept
+      LIMIT 1
+    `, { name: child });
+    if (!childRows.length) return res.json({ success: false, error: `Concept "${child}" not found or has no Superset` });
+
+    const p = parentRows[0], c = childRows[0];
+
+    // Check if already linked
+    const existing = await runCypher(`
+      MATCH (a:NostrEvent {uuid: $from})-[:IS_A_SUPERSET_OF]->(b:NostrEvent {uuid: $to})
+      RETURN count(*) AS cnt
+    `, { from: p.supersetUuid, to: c.supersetUuid });
+    if (existing[0]?.cnt > 0) {
+      return res.json({ success: false, error: `"${p.concept}" is already a superset of "${c.concept}"` });
+    }
+
+    // Create relationship event
+    const relEvent = signAndFinalize({
+      kind: 39999, content: '',
+      tags: [
+        ['d', randomDTag()],
+        ['name', `${p.supersetName} IS_A_SUPERSET_OF ${c.supersetName}`],
+        ['z', configUuid('relationship')],
+        ['nodeFrom', p.supersetUuid],
+        ['nodeTo', c.supersetUuid],
+        ['relationshipType', 'IS_A_SUPERSET_OF'],
+      ],
+    });
+    await publishToStrfry(relEvent);
+    await importEventDirect(relEvent, `39999:${relEvent.pubkey}:${relEvent.tags.find(t=>t[0]==='d')[1]}`);
+
+    // Wire in Neo4j
+    await writeCypher(`
+      MATCH (a:NostrEvent {uuid: $from}), (b:NostrEvent {uuid: $to})
+      MERGE (a)-[:IS_A_SUPERSET_OF]->(b)
+    `, { from: p.supersetUuid, to: c.supersetUuid });
+
+    return res.json({
+      success: true,
+      message: `Linked: "${p.concept}" is a superset of "${c.concept}"`,
+      parent: { concept: p.concept, supersetUuid: p.supersetUuid },
+      child: { concept: c.concept, supersetUuid: c.supersetUuid },
+    });
+  } catch (error) {
+    console.error('normalize/link-concepts error:', error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+// POST /api/normalize/enumerate
+//   Body: { enumeratingConcept, property, targetConcept, propertyType?, createProperty? }
+//   Creates ENUMERATES relationship + optionally creates Property + IS_A_PROPERTY_OF.
+// ══════════════════════════════════════════════════════════════
+async function handleEnumerate(req, res) {
+  try {
+    const { enumeratingConcept, property: propName, targetConcept, propertyType, createProperty } = req.body || {};
+    if (!enumeratingConcept) return res.status(400).json({ success: false, error: 'Missing enumeratingConcept' });
+    if (!propName) return res.status(400).json({ success: false, error: 'Missing property name' });
+    if (!targetConcept) return res.status(400).json({ success: false, error: 'Missing targetConcept' });
+
+    const pType = propertyType || 'string';
+
+    // Find enumerating concept's superset
+    const enumRows = await runCypher(`
+      MATCH (h)-[:HAS_TAG]->(t:NostrEventTag)
+      WHERE (t.type = 'names' OR t.type = 'name') AND toLower(t.value) = toLower($name)
+      AND (h:ListHeader OR h:ListItem)
+      MATCH (h)-[:IS_THE_CONCEPT_FOR]->(s:Superset)
+      OPTIONAL MATCH (s)-[:HAS_TAG]->(n:NostrEventTag {type: 'name'})
+      RETURN s.uuid AS supersetUuid, n.value AS supersetName, t.value AS concept
+      LIMIT 1
+    `, { name: enumeratingConcept });
+    if (!enumRows.length) return res.json({ success: false, error: `Concept "${enumeratingConcept}" not found or has no Superset` });
+    const enumer = enumRows[0];
+
+    // Find or create property
+    let propRows = await runCypher(`
+      MATCH (p:Property)-[:HAS_TAG]->(n:NostrEventTag {type: 'name'})
+      WHERE toLower(n.value) = toLower($name)
+      RETURN p.uuid AS uuid, n.value AS name
+      LIMIT 1
+    `, { name: propName });
+
+    let propUuid, propDisplayName;
+    if (propRows.length > 0) {
+      propUuid = propRows[0].uuid;
+      propDisplayName = propRows[0].name;
+    } else if (createProperty) {
+      const dTag = randomDTag();
+      const propEvent = signAndFinalize({
+        kind: 39999, content: '',
+        tags: [
+          ['d', dTag], ['name', propName], ['type', pType],
+          ['z', configUuid('property')],
+        ],
+      });
+      propUuid = `39999:${propEvent.pubkey}:${dTag}`;
+      propDisplayName = propName;
+      await publishToStrfry(propEvent);
+      await importEventDirect(propEvent, propUuid);
+      await writeCypher(`MATCH (n:NostrEvent {uuid: $uuid}) SET n:Property`, { uuid: propUuid });
+    } else {
+      return res.json({ success: false, error: `Property "${propName}" not found. Set createProperty: true to create it.` });
+    }
+
+    // Check if ENUMERATES already exists
+    const existingEnum = await runCypher(`
+      MATCH (s:NostrEvent {uuid: $from})-[:ENUMERATES]->(p:NostrEvent {uuid: $to})
+      RETURN count(*) AS cnt
+    `, { from: enumer.supersetUuid, to: propUuid });
+    if (existingEnum[0]?.cnt > 0) {
+      return res.json({ success: false, error: `ENUMERATES relationship already exists` });
+    }
+
+    // Create ENUMERATES relationship event
+    const enumEvent = signAndFinalize({
+      kind: 39999, content: '',
+      tags: [
+        ['d', randomDTag()],
+        ['name', `${enumer.supersetName} ENUMERATES ${propDisplayName}`],
+        ['z', configUuid('relationship')],
+        ['nodeFrom', enumer.supersetUuid],
+        ['nodeTo', propUuid],
+        ['relationshipType', 'ENUMERATES'],
+      ],
+    });
+    await publishToStrfry(enumEvent);
+    await importEventDirect(enumEvent, `39999:${enumEvent.pubkey}:${enumEvent.tags.find(t=>t[0]==='d')[1]}`);
+    await writeCypher(`
+      MATCH (a:NostrEvent {uuid: $from}), (b:NostrEvent {uuid: $to})
+      MERGE (a)-[:ENUMERATES]->(b)
+    `, { from: enumer.supersetUuid, to: propUuid });
+
+    // Wire IS_A_PROPERTY_OF to target concept's schema if not already wired
+    let schemaWired = false;
+    const schemaRows = await runCypher(`
+      MATCH (h)-[:HAS_TAG]->(t:NostrEventTag)
+      WHERE (t.type = 'names' OR t.type = 'name') AND toLower(t.value) = toLower($name)
+      MATCH (js:JSONSchema)-[:IS_THE_JSON_SCHEMA_FOR]->(h)
+      RETURN js.uuid AS schemaUuid, js.name AS schemaName
+      LIMIT 1
+    `, { name: targetConcept });
+
+    if (schemaRows.length > 0) {
+      const existingProp = await runCypher(`
+        MATCH (p:NostrEvent {uuid: $from})-[:IS_A_PROPERTY_OF]->(s:NostrEvent {uuid: $to})
+        RETURN count(*) AS cnt
+      `, { from: propUuid, to: schemaRows[0].schemaUuid });
+      if (existingProp[0]?.cnt === 0) {
+        const propOfEvent = signAndFinalize({
+          kind: 39999, content: '',
+          tags: [
+            ['d', randomDTag()],
+            ['name', `${propDisplayName} IS_A_PROPERTY_OF ${schemaRows[0].schemaName}`],
+            ['z', configUuid('relationship')],
+            ['nodeFrom', propUuid],
+            ['nodeTo', schemaRows[0].schemaUuid],
+            ['relationshipType', 'IS_A_PROPERTY_OF'],
+          ],
+        });
+        await publishToStrfry(propOfEvent);
+        await importEventDirect(propOfEvent, `39999:${propOfEvent.pubkey}:${propOfEvent.tags.find(t=>t[0]==='d')[1]}`);
+        await writeCypher(`
+          MATCH (a:NostrEvent {uuid: $from}), (b:NostrEvent {uuid: $to})
+          MERGE (a)-[:IS_A_PROPERTY_OF]->(b)
+        `, { from: propUuid, to: schemaRows[0].schemaUuid });
+        schemaWired = true;
+      }
+    }
+
+    return res.json({
+      success: true,
+      message: `${enumer.concept} ENUMERATES ${propDisplayName}`,
+      enumerating: { concept: enumer.concept, supersetUuid: enumer.supersetUuid },
+      property: { name: propDisplayName, uuid: propUuid },
+      schemaWired,
+    });
+  } catch (error) {
+    console.error('normalize/enumerate error:', error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+// POST /api/normalize/set-slug
+//   Body: { concept: "<name>", slug: "<slug-value>" }
+//   Updates the slug tag on a concept's header event.
+// ══════════════════════════════════════════════════════════════
+async function handleSetSlug(req, res) {
+  try {
+    const { concept, slug } = req.body || {};
+    if (!concept) return res.status(400).json({ success: false, error: 'Missing concept name' });
+    if (!slug) return res.status(400).json({ success: false, error: 'Missing slug value' });
+
+    // Find the concept header
+    const rows = await runCypher(`
+      MATCH (h:ListHeader)-[:HAS_TAG]->(t:NostrEventTag {type: 'names'})
+      WHERE toLower(t.value) = toLower($name)
+      RETURN h.uuid AS uuid, t.value AS name
+      LIMIT 1
+    `, { name: concept });
+    if (!rows.length) return res.json({ success: false, error: `Concept "${concept}" not found` });
+
+    const headerUuid = rows[0].uuid;
+
+    // Check uniqueness
+    const dupes = await runCypher(`
+      MATCH (h:ListHeader)-[:HAS_TAG]->(s:NostrEventTag {type: 'slug'})
+      WHERE s.value = $slug AND h.uuid <> $uuid
+      RETURN h.uuid AS uuid LIMIT 1
+    `, { slug, uuid: headerUuid });
+    if (dupes.length > 0) return res.json({ success: false, error: `Slug "${slug}" is already used by another concept` });
+
+    // Get existing tags and rebuild with slug
+    const tagRows = await runCypher(`
+      MATCH (e:NostrEvent {uuid: $uuid})-[:HAS_TAG]->(t:NostrEventTag)
+      RETURN t.type AS type, t.value AS value, t.value1 AS value1, t.value2 AS value2
+      ORDER BY t.uuid
+    `, { uuid: headerUuid });
+
+    let hasSlug = false;
+    const tags = [];
+    for (const t of tagRows) {
+      const tag = [t.type, t.value];
+      if (t.value1) tag.push(t.value1);
+      if (t.value2) tag.push(t.value2);
+      if (t.type === 'slug') {
+        tags.push(['slug', slug]);
+        hasSlug = true;
+      } else {
+        tags.push(tag);
+      }
+    }
+    if (!hasSlug) tags.push(['slug', slug]);
+
+    const evt = signAndFinalize({ kind: 39998, tags, content: '' });
+    await publishToStrfry(evt);
+    await importEventDirect(evt, headerUuid);
+
+    return res.json({
+      success: true,
+      message: `Slug "${slug}" set for concept "${rows[0].name}"`,
+      uuid: headerUuid,
+      slug,
+    });
+  } catch (error) {
+    console.error('normalize/set-slug error:', error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+// POST /api/normalize/create-set
+//   Body: { name, parent: "<concept name>" }
+//   Creates a Set node + IS_A_SUPERSET_OF from parent's Superset.
+// ══════════════════════════════════════════════════════════════
+async function handleCreateSet(req, res) {
+  try {
+    const { name, parent } = req.body || {};
+    if (!name) return res.status(400).json({ success: false, error: 'Missing set name' });
+    if (!parent) return res.status(400).json({ success: false, error: 'Missing parent concept name' });
+
+    // Find parent superset
+    const parentRows = await runCypher(`
+      MATCH (h:ListHeader)-[:HAS_TAG]->(t:NostrEventTag {type: 'names'})
+      WHERE toLower(t.value) = toLower($name)
+      MATCH (h)-[:IS_THE_CONCEPT_FOR]->(s:Superset)
+      OPTIONAL MATCH (s)-[:HAS_TAG]->(n:NostrEventTag {type: 'name'})
+      RETURN s.uuid AS supersetUuid, n.value AS supersetName, t.value AS concept
+      LIMIT 1
+    `, { name: parent });
+    if (!parentRows.length) return res.json({ success: false, error: `Concept "${parent}" not found or has no Superset` });
+    const p = parentRows[0];
+
+    // Create Set event
+    const dTag = randomDTag();
+    const setEvent = signAndFinalize({
+      kind: 39999, content: '',
+      tags: [['d', dTag], ['name', name], ['z', configUuid('set') || '']],
+    });
+    const setUuid = `39999:${setEvent.pubkey}:${dTag}`;
+    await publishToStrfry(setEvent);
+    await importEventDirect(setEvent, setUuid);
+    await writeCypher(`MATCH (n:NostrEvent {uuid: $uuid}) SET n:Set`, { uuid: setUuid });
+
+    // Create IS_A_SUPERSET_OF relationship
+    const relEvent = signAndFinalize({
+      kind: 39999, content: '',
+      tags: [
+        ['d', randomDTag()],
+        ['name', `${p.supersetName} IS_A_SUPERSET_OF ${name}`],
+        ['z', configUuid('relationship')],
+        ['nodeFrom', p.supersetUuid],
+        ['nodeTo', setUuid],
+        ['relationshipType', 'IS_A_SUPERSET_OF'],
+      ],
+    });
+    await publishToStrfry(relEvent);
+    await importEventDirect(relEvent, `39999:${relEvent.pubkey}:${relEvent.tags.find(t=>t[0]==='d')[1]}`);
+    await writeCypher(`
+      MATCH (a:NostrEvent {uuid: $from}), (b:NostrEvent {uuid: $to})
+      MERGE (a)-[:IS_A_SUPERSET_OF]->(b)
+    `, { from: p.supersetUuid, to: setUuid });
+
+    return res.json({
+      success: true,
+      message: `Set "${name}" created under "${p.concept}"`,
+      set: { name, uuid: setUuid },
+      parent: { concept: p.concept, supersetUuid: p.supersetUuid },
+    });
+  } catch (error) {
+    console.error('normalize/create-set error:', error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+// POST /api/normalize/add-to-set
+//   Body: { setName, itemName }
+//   Creates HAS_ELEMENT from Set → item.
+// ══════════════════════════════════════════════════════════════
+async function handleAddToSet(req, res) {
+  try {
+    const { setName, itemName } = req.body || {};
+    if (!setName) return res.status(400).json({ success: false, error: 'Missing setName' });
+    if (!itemName) return res.status(400).json({ success: false, error: 'Missing itemName' });
+
+    // Find the Set
+    const setRows = await runCypher(`
+      MATCH (s:Set)-[:HAS_TAG]->(n:NostrEventTag {type: 'name'})
+      WHERE toLower(n.value) = toLower($name)
+      RETURN s.uuid AS uuid, n.value AS name LIMIT 1
+    `, { name: setName });
+    if (!setRows.length) return res.json({ success: false, error: `Set "${setName}" not found` });
+
+    // Find the item (try ListHeader then ListItem)
+    let itemRows = await runCypher(`
+      MATCH (h:ListHeader)-[:HAS_TAG]->(n:NostrEventTag {type: 'names'})
+      WHERE toLower(n.value) = toLower($name)
+      RETURN h.uuid AS uuid, n.value AS name LIMIT 1
+    `, { name: itemName });
+    if (!itemRows.length) {
+      itemRows = await runCypher(`
+        MATCH (i:ListItem)-[:HAS_TAG]->(n:NostrEventTag {type: 'name'})
+        WHERE toLower(n.value) = toLower($name)
+        RETURN i.uuid AS uuid, n.value AS name LIMIT 1
+      `, { name: itemName });
+    }
+    if (!itemRows.length) return res.json({ success: false, error: `Item "${itemName}" not found` });
+
+    const s = setRows[0], item = itemRows[0];
+
+    // Check existing
+    const existing = await runCypher(`
+      MATCH (s:NostrEvent {uuid: $from})-[:HAS_ELEMENT]->(i:NostrEvent {uuid: $to})
+      RETURN count(*) AS cnt
+    `, { from: s.uuid, to: item.uuid });
+    if (existing[0]?.cnt > 0) return res.json({ success: false, error: `"${item.name}" is already in set "${s.name}"` });
+
+    // Create HAS_ELEMENT event
+    const relEvent = signAndFinalize({
+      kind: 39999, content: '',
+      tags: [
+        ['d', randomDTag()],
+        ['name', `${s.name} HAS_ELEMENT ${item.name}`],
+        ['z', configUuid('relationship')],
+        ['nodeFrom', s.uuid],
+        ['nodeTo', item.uuid],
+        ['relationshipType', 'HAS_ELEMENT'],
+      ],
+    });
+    await publishToStrfry(relEvent);
+    await importEventDirect(relEvent, `39999:${relEvent.pubkey}:${relEvent.tags.find(t=>t[0]==='d')[1]}`);
+    await writeCypher(`
+      MATCH (a:NostrEvent {uuid: $from}), (b:NostrEvent {uuid: $to})
+      MERGE (a)-[:HAS_ELEMENT]->(b)
+    `, { from: s.uuid, to: item.uuid });
+
+    return res.json({
+      success: true,
+      message: `Added "${item.name}" to set "${s.name}"`,
+      set: { name: s.name, uuid: s.uuid },
+      item: { name: item.name, uuid: item.uuid },
+    });
+  } catch (error) {
+    console.error('normalize/add-to-set error:', error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+// POST /api/normalize/fork-node
+//   Body: { name, editTags?, addTags?, removeTags? }
+//   Forks a node: copies with new d-tag, swaps relationships, creates provenance link.
+// ══════════════════════════════════════════════════════════════
+async function handleForkNode(req, res) {
+  try {
+    const { name, editTags, addTags, removeTags } = req.body || {};
+    if (!name) return res.status(400).json({ success: false, error: 'Missing node name' });
+
+    // Find the node
+    let nodeRows = await runCypher(`
+      MATCH (n:ListHeader)-[:HAS_TAG]->(t:NostrEventTag {type: 'names'})
+      WHERE toLower(t.value) = toLower($name)
+      RETURN n.uuid AS uuid, t.value AS name, n.kind AS kind, n.pubkey AS pubkey LIMIT 1
+    `, { name });
+    if (!nodeRows.length) {
+      nodeRows = await runCypher(`
+        MATCH (n:ListItem)-[:HAS_TAG]->(t:NostrEventTag {type: 'name'})
+        WHERE toLower(t.value) = toLower($name)
+        RETURN n.uuid AS uuid, t.value AS name, n.kind AS kind, n.pubkey AS pubkey LIMIT 1
+      `, { name });
+    }
+    if (!nodeRows.length) return res.json({ success: false, error: `Node "${name}" not found` });
+    const node = nodeRows[0];
+
+    // Get all tags from the original
+    const tagRows = await runCypher(`
+      MATCH (e:NostrEvent {uuid: $uuid})-[:HAS_TAG]->(t:NostrEventTag)
+      RETURN t.type AS type, t.value AS value, t.value1 AS value1, t.value2 AS value2
+      ORDER BY t.uuid
+    `, { uuid: node.uuid });
+
+    const newDTag = randomDTag();
+    let newTags = tagRows.map(t => {
+      const tag = [t.type, t.value];
+      if (t.value1) tag.push(t.value1);
+      if (t.value2) tag.push(t.value2);
+      return tag;
+    });
+
+    // Replace d-tag
+    const dIdx = newTags.findIndex(t => t[0] === 'd');
+    if (dIdx >= 0) newTags[dIdx] = ['d', newDTag];
+    else newTags.unshift(['d', newDTag]);
+
+    // Apply edits
+    if (editTags) {
+      for (const [key, val] of Object.entries(editTags)) {
+        const idx = newTags.findIndex(t => t[0] === key);
+        if (idx >= 0) newTags[idx][1] = val;
+        else newTags.push([key, val]);
+      }
+    }
+    if (addTags) {
+      for (const [key, val] of Object.entries(addTags)) {
+        newTags.push([key, val]);
+      }
+    }
+    if (removeTags && Array.isArray(removeTags)) {
+      newTags = newTags.filter(t => !removeTags.includes(t[0]));
+    }
+
+    // Create forked event
+    const forkedEvent = signAndFinalize({ kind: node.kind || 39999, tags: newTags, content: '' });
+    const forkedUuid = `${forkedEvent.kind}:${forkedEvent.pubkey}:${newDTag}`;
+    await publishToStrfry(forkedEvent);
+    await importEventDirect(forkedEvent, forkedUuid);
+
+    // Find relationships to swap (exclude AUTHORS, PROVIDED_THE_TEMPLATE_FOR, HAS_TAG)
+    const rels = await runCypher(`
+      MATCH (r:Relationship)-[:HAS_TAG]->(nf:NostrEventTag {type: 'nodeFrom'}),
+            (r)-[:HAS_TAG]->(nt:NostrEventTag {type: 'nodeTo'}),
+            (r)-[:HAS_TAG]->(rt:NostrEventTag {type: 'relationshipType'})
+      WHERE nf.value = $uuid OR nt.value = $uuid
+      RETURN DISTINCT r.uuid AS uuid, nf.value AS nodeFrom, nt.value AS nodeTo, rt.value AS relType
+    `, { uuid: node.uuid });
+
+    const excluded = ['AUTHORS', 'PROVIDED_THE_TEMPLATE_FOR', 'HAS_TAG'];
+    const swappable = rels.filter(r => !excluded.includes(r.relType));
+    const swapped = [];
+
+    for (const r of swappable) {
+      const newFrom = r.nodeFrom === node.uuid ? forkedUuid : r.nodeFrom;
+      const newTo = r.nodeTo === node.uuid ? forkedUuid : r.nodeTo;
+
+      const relEvent = signAndFinalize({
+        kind: 39999, content: '',
+        tags: [
+          ['d', randomDTag()],
+          ['name', `${newFrom} ${r.relType} ${newTo}`],
+          ['z', configUuid('relationship')],
+          ['nodeFrom', newFrom], ['nodeTo', newTo],
+          ['relationshipType', r.relType],
+        ],
+      });
+      await publishToStrfry(relEvent);
+      await importEventDirect(relEvent, `39999:${relEvent.pubkey}:${relEvent.tags.find(t=>t[0]==='d')[1]}`);
+      await writeCypher(`
+        MATCH (a:NostrEvent {uuid: $from}), (b:NostrEvent {uuid: $to})
+        MERGE (a)-[:${r.relType}]->(b)
+      `, { from: newFrom, to: newTo });
+      swapped.push({ relType: r.relType, from: newFrom, to: newTo });
+    }
+
+    // Create PROVIDED_THE_TEMPLATE_FOR
+    const provEvent = signAndFinalize({
+      kind: 39999, content: '',
+      tags: [
+        ['d', randomDTag()],
+        ['name', `${node.name} PROVIDED_THE_TEMPLATE_FOR fork`],
+        ['z', configUuid('relationship')],
+        ['nodeFrom', node.uuid], ['nodeTo', forkedUuid],
+        ['relationshipType', 'PROVIDED_THE_TEMPLATE_FOR'],
+      ],
+    });
+    await publishToStrfry(provEvent);
+    await importEventDirect(provEvent, `39999:${provEvent.pubkey}:${provEvent.tags.find(t=>t[0]==='d')[1]}`);
+    await writeCypher(`
+      MATCH (a:NostrEvent {uuid: $from}), (b:NostrEvent {uuid: $to})
+      MERGE (a)-[:PROVIDED_THE_TEMPLATE_FOR]->(b)
+    `, { from: node.uuid, to: forkedUuid });
+
+    return res.json({
+      success: true,
+      message: `Forked "${node.name}" → ${forkedUuid}`,
+      original: { name: node.name, uuid: node.uuid },
+      fork: { uuid: forkedUuid },
+      swappedRelationships: swapped.length,
+    });
+  } catch (error) {
+    console.error('normalize/fork-node error:', error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+// POST /api/normalize/set-json-tag
+//   Body: { uuid, json? (object or string), remove? (bool) }
+//   Updates the json tag on a replaceable event.
+// ══════════════════════════════════════════════════════════════
+async function handleSetJsonTag(req, res) {
+  try {
+    const { uuid, json, remove } = req.body || {};
+    if (!uuid) return res.status(400).json({ success: false, error: 'Missing uuid' });
+    if (!remove && json === undefined) return res.status(400).json({ success: false, error: 'Missing json or remove flag' });
+
+    // Get existing tags
+    const tagRows = await runCypher(`
+      MATCH (e:NostrEvent {uuid: $uuid})-[:HAS_TAG]->(t:NostrEventTag)
+      RETURN t.type AS type, t.value AS value, t.value1 AS value1, t.value2 AS value2
+      ORDER BY t.uuid
+    `, { uuid });
+    if (!tagRows.length) return res.json({ success: false, error: `Event "${uuid}" not found` });
+
+    const jsonStr = typeof json === 'string' ? json : JSON.stringify(json);
+    let newTags;
+    if (remove) {
+      newTags = tagRows.filter(t => t.type !== 'json').map(t => {
+        const tag = [t.type, t.value];
+        if (t.value1) tag.push(t.value1);
+        if (t.value2) tag.push(t.value2);
+        return tag;
+      });
+    } else {
+      let hasJson = false;
+      newTags = tagRows.map(t => {
+        const tag = [t.type, t.value];
+        if (t.value1) tag.push(t.value1);
+        if (t.value2) tag.push(t.value2);
+        if (t.type === 'json') { hasJson = true; return ['json', jsonStr]; }
+        return tag;
+      });
+      if (!hasJson) newTags.push(['json', jsonStr]);
+    }
+
+    const kind = uuid.startsWith('39998:') ? 39998 : 39999;
+    const evt = signAndFinalize({ kind, tags: newTags, content: '' });
+    await publishToStrfry(evt);
+    await importEventDirect(evt, uuid);
+
+    return res.json({
+      success: true,
+      message: `JSON tag ${remove ? 'removed from' : 'updated on'} ${uuid}`,
+      uuid,
+    });
+  } catch (error) {
+    console.error('normalize/set-json-tag error:', error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+}
+
 function registerNormalizeRoutes(app) {
   app.post('/api/normalize/skeleton', handleNormalizeSkeleton);
   app.post('/api/normalize/json', handleNormalizeJson);
@@ -1854,6 +2589,14 @@ function registerNormalizeRoutes(app) {
   app.post('/api/normalize/generate-property-tree', handleGeneratePropertyTree);
   app.post('/api/normalize/add-node-as-element', handleAddNodeAsElement);
   app.post('/api/normalize/migrate-primary-property-ztags', handleMigratePrimaryPropertyZTags);
+  // Phase 2 endpoints
+  app.post('/api/normalize/link-concepts', handleLinkConcepts);
+  app.post('/api/normalize/enumerate', handleEnumerate);
+  app.post('/api/normalize/set-slug', handleSetSlug);
+  app.post('/api/normalize/create-set', handleCreateSet);
+  app.post('/api/normalize/add-to-set', handleAddToSet);
+  app.post('/api/normalize/fork-node', handleForkNode);
+  app.post('/api/normalize/set-json-tag', handleSetJsonTag);
 }
 
 module.exports = { registerNormalizeRoutes };

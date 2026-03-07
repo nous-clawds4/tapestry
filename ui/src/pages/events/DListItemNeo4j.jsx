@@ -5,11 +5,11 @@ import { cypher } from '../../api/cypher';
 
 /* ── colour palette by label ── */
 const LABEL_COLORS = {
-  ListHeader:    { bg: '#58a6ff', border: '#79c0ff', font: '#0d1117' },
-  ListItem:      { bg: '#3fb950', border: '#56d364', font: '#0d1117' },
-  NostrUser:     { bg: '#d29922', border: '#e3b341', font: '#0d1117' },
+  ListHeader:    { bg: '#58a6ff', border: '#79c0ff', font: '#e6edf3' },
+  ListItem:      { bg: '#3fb950', border: '#56d364', font: '#e6edf3' },
+  NostrUser:     { bg: '#d29922', border: '#e3b341', font: '#e6edf3' },
   NostrEventTag: { bg: '#484f58', border: '#6e7681', font: '#e6edf3' },
-  NostrEvent:    { bg: '#bc8cff', border: '#d2a8ff', font: '#0d1117' },
+  NostrEvent:    { bg: '#bc8cff', border: '#d2a8ff', font: '#e6edf3' },
 };
 
 const LABEL_SHAPES = {
