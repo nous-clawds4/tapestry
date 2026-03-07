@@ -29,11 +29,12 @@ export default function ConceptDetail() {
 
   const tabs = [
     { to: '', label: 'Overview', end: true },
-    { to: 'health', label: '🩺 Health Audit' },
+    { to: 'core-nodes', label: 'Core Nodes' },
     { to: 'elements', label: 'Elements' },
+    { to: 'dag', label: 'Organization (Sets)' },
     { to: 'properties', label: 'Properties' },
-    { to: 'dag', label: 'DAG Structure' },
     { to: 'schema', label: 'JSON Schema' },
+    { to: 'health', label: '🩺 Health Audit' },
   ];
 
   return (

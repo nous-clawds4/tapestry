@@ -8,6 +8,7 @@ import ConceptProperties from './pages/concepts/ConceptProperties';
 import ConceptDag from './pages/concepts/ConceptDag';
 import ConceptSchema from './pages/concepts/ConceptSchema';
 import ConceptHealth from './pages/concepts/ConceptHealth';
+import ConceptCoreNodes from './pages/concepts/ConceptCoreNodes';
 import NewElement from './pages/concepts/NewElement';
 import ElementDetail from './pages/concepts/ElementDetail';
 import NewConcept from './pages/concepts/NewConcept';
@@ -65,6 +66,7 @@ const router = createBrowserRouter([
             handle: { crumb: 'Detail' },
             children: [
               { index: true, element: <ConceptOverview /> },
+              { path: 'core-nodes', element: <ConceptCoreNodes />, handle: { crumb: 'Core Nodes' } },
               { path: 'health', element: <ConceptHealth />, handle: { crumb: 'Health Audit' } },
               { path: 'elements', element: <ConceptElements />, handle: { crumb: 'Elements' } },
               { path: 'elements/new', element: <NewElement />, handle: { crumb: 'New Element' } },
@@ -73,7 +75,7 @@ const router = createBrowserRouter([
               { path: 'elements/:elemUuid', element: <ElementDetail />, handle: { crumb: 'Element' } },
               { path: 'properties', element: <ConceptProperties />, handle: { crumb: 'Properties' } },
               { path: 'properties/new', element: <NewProperty />, handle: { crumb: 'New Property' } },
-              { path: 'dag', element: <ConceptDag />, handle: { crumb: 'DAG' } },
+              { path: 'dag', element: <ConceptDag />, handle: { crumb: 'Organization (Sets)' } },
               { path: 'schema', element: <ConceptSchema />, handle: { crumb: 'Schema' } },
             ],
           },
@@ -135,7 +137,7 @@ const router = createBrowserRouter([
                 handle: { crumb: 'Detail' },
                 children: [
                   { index: true, element: <DListItemOverview /> },
-                  { path: 'raw', element: <DListItemRaw />, handle: { crumb: 'Raw Data' } },
+                  { path: 'raw', element: <DListItemRaw />, handle: { crumb: 'Raw Nostr Event' } },
                   { path: 'neo4j', element: <DListItemNeo4j />, handle: { crumb: 'Neo4j' } },
                   { path: 'actions', element: <DListItemActions />, handle: { crumb: 'Actions' } },
                 ],

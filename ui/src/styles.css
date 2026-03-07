@@ -214,6 +214,25 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   opacity: 0.5;
 }
 
+.constituent-nav {
+  display: flex;
+  gap: 12px;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+
+.constituent-nav a {
+  font-size: 12px;
+  color: var(--accent);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.constituent-nav a:hover {
+  text-decoration: underline;
+}
+
 /* ─── Data Table ──────────────────────────────────── */
 .data-table-wrapper {
   background: var(--bg-secondary);

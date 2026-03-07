@@ -83,7 +83,7 @@ const { getConfigFromFile } = require('../utils/config');
  * Register all API endpoints with the Express app
  * @param {Object} app - Express app instance
  */
-function register(app) {
+async function register(app) {
     // We need to make sure session middleware is applied to the app
     // Check if it's already been applied
     if (!app._brainstormSessionConfigured) {
@@ -399,7 +399,7 @@ function register(app) {
 
     // ── Tapestry Normalize API ──
     const { registerNormalizeRoutes } = require('./normalize');
-    registerNormalizeRoutes(app);
+    await registerNormalizeRoutes(app);
 
     // ── Tapestry Property API ──
     const { registerPropertyRoutes } = require('./property');

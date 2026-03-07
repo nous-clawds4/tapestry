@@ -1,6 +1,7 @@
-import { useOutletContext } from 'react-router-dom';
+import { useOutletContext, Link } from 'react-router-dom';
 import { useCypher } from '../../hooks/useCypher';
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect } from 'react';
+import { queryRelay } from '../../api/relay';
 
 export default function NodeOverview() {
   const { node, uuid } = useOutletContext();
@@ -20,6 +21,17 @@ export default function NodeOverview() {
     return m;
   }, [tagRows]);
 
+  // Check if event exists in strfry
+  const [strfryStatus, setStrfryStatus] = useState('loading'); // 'loading' | 'found' | 'missing'
+  useEffect(() => {
+    if (!node.id) { setStrfryStatus('missing'); return; }
+    let cancelled = false;
+    queryRelay({ ids: [node.id], limit: 1 })
+      .then(events => { if (!cancelled) setStrfryStatus(events.length > 0 ? 'found' : 'missing'); })
+      .catch(() => { if (!cancelled) setStrfryStatus('missing'); });
+    return () => { cancelled = true; };
+  }, [node.id]);
+
   const overviewFields = [
     'name', 'names', 'title', 'titles', 'description', 'slug',
     'alias', 'type', 'd', 'z',
@@ -36,6 +48,20 @@ export default function NodeOverview() {
         <div className="detail-row">
           <span className="detail-label">Event ID</span>
           <code className="detail-value">{node.id}</code>
+        </div>
+        <div className="detail-row">
+          <span className="detail-label">Nostr Event</span>
+          <span className="detail-value">
+            {strfryStatus === 'loading' ? (
+              <span style={{ opacity: 0.5 }}>Checking…</span>
+            ) : strfryStatus === 'found' ? (
+              <Link to={`/kg/events/dlist-items/${node.id}`}>
+                📜 View Nostr Event
+              </Link>
+            ) : (
+              <span style={{ opacity: 0.5 }}>Not found in strfry</span>
+            )}
+          </span>
         </div>
         <div className="detail-row">
           <span className="detail-label">Author</span>

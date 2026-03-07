@@ -216,29 +216,33 @@ app.get('/:filename.html', (req, res) => {
 // Apply auth middleware
 app.use(authMiddleware);
 
-// Register API modules
-api.register(app);
+// Register API modules (async — loads TA key from secure storage) then start server
+(async () => {
+  await api.register(app);
+  console.log('API routes registered');
 
-// Start the server
-if (useHTTPS) {
-  console.log('Starting in HTTPS mode with credentials:', {
-    keyLength: credentials.key.length,
-    certLength: credentials.cert.length
-  });
-  const httpsServer = https.createServer(credentials, app);
-  // Add error handling
-  httpsServer.on('error', (err) => {
-    console.error('HTTPS server error:', err);
-  });
-  httpsServer.listen(port, () => {
-    console.log(`Brainstorm Control Panel running on HTTPS port ${port}`);
-  });
-} else {
-  const httpServer = http.createServer(app);
-  httpServer.listen(port, () => {
-    console.log(`Brainstorm Control Panel running on HTTP port ${port}`);
-  });
-}
+  if (useHTTPS) {
+    console.log('Starting in HTTPS mode with credentials:', {
+      keyLength: credentials.key.length,
+      certLength: credentials.cert.length
+    });
+    const httpsServer = https.createServer(credentials, app);
+    httpsServer.on('error', (err) => {
+      console.error('HTTPS server error:', err);
+    });
+    httpsServer.listen(port, () => {
+      console.log(`Brainstorm Control Panel running on HTTPS port ${port}`);
+    });
+  } else {
+    const httpServer = http.createServer(app);
+    httpServer.listen(port, () => {
+      console.log(`Brainstorm Control Panel running on HTTP port ${port}`);
+    });
+  }
+})().catch(err => {
+  console.error('Failed to start server:', err);
+  process.exit(1);
+});
 
 // Graceful shutdown: close Neo4j Bolt driver
 const { closeDriver } = require('../src/lib/neo4j-driver');

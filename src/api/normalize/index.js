@@ -8,6 +8,7 @@
  */
 const { runCypher, writeCypher } = require('../../lib/neo4j-driver');
 const { getConfigFromFile } = require('../../utils/config');
+const { SecureKeyStorage } = require('../../utils/secureKeyStorage');
 const { exec } = require('child_process');
 const crypto = require('crypto');
 
@@ -65,10 +66,38 @@ async function regenerateJson(uuid, jsonValue) {
   return evt;
 }
 
-function getPrivkey() {
+// ── TA private key cache (loaded once from secure storage) ────
+let _cachedPrivkey = null;
+
+async function loadTAKey() {
+  try {
+    const storage = new SecureKeyStorage({
+      storagePath: '/var/lib/brainstorm/secure-keys'
+    });
+    const keys = await storage.getRelayKeys('tapestry-assistant');
+    if (keys && keys.privkey) {
+      _cachedPrivkey = Uint8Array.from(Buffer.from(keys.privkey, 'hex'));
+      console.log(`[normalize] TA key loaded from secure storage (pubkey: ${keys.pubkey})`);
+      return;
+    }
+  } catch (e) {
+    console.warn(`[normalize] Secure storage unavailable: ${e.message}`);
+  }
+
+  // Fallback to brainstorm.conf for backward compatibility
   const hex = getConfigFromFile('BRAINSTORM_RELAY_PRIVKEY');
-  if (!hex) throw new Error('Tapestry Assistant key not configured (BRAINSTORM_RELAY_PRIVKEY)');
-  return Uint8Array.from(Buffer.from(hex, 'hex'));
+  if (hex) {
+    _cachedPrivkey = Uint8Array.from(Buffer.from(hex, 'hex'));
+    console.warn('[normalize] TA key loaded from brainstorm.conf (DEPRECATED — migrate to secure storage)');
+    return;
+  }
+
+  throw new Error('Tapestry Assistant key not configured. Store it in secure storage or set BRAINSTORM_RELAY_PRIVKEY.');
+}
+
+function getPrivkey() {
+  if (!_cachedPrivkey) throw new Error('TA key not loaded yet — call loadTAKey() at startup');
+  return _cachedPrivkey;
 }
 
 function signAndFinalize(template) {
@@ -189,7 +218,7 @@ function roleFromZTag(zTagValue) {
 }
 
 // ── Node role definitions ────────────────────────────────────
-const NODE_ROLES = ['superset', 'schema', 'primary-property', 'core-graph', 'class-graph', 'property-graph'];
+const NODE_ROLES = ['superset', 'schema', 'primary-property', 'properties', 'core-graph', 'concept-graph', 'property-graph'];
 
 // ── Main handler ─────────────────────────────────────────────
 async function handleNormalizeSkeleton(req, res) {
@@ -230,12 +259,14 @@ async function handleNormalizeSkeleton(req, res) {
       OPTIONAL MATCH (h)-[:IS_THE_CONCEPT_FOR]->(sup:Superset)
       OPTIONAL MATCH (js:JSONSchema)-[:IS_THE_JSON_SCHEMA_FOR]->(h)
       OPTIONAL MATCH (cg)-[:IS_THE_CORE_GRAPH_FOR]->(h)
-      OPTIONAL MATCH (ctg)-[:IS_THE_CLASS_THREADS_GRAPH_FOR]->(h)
+      OPTIONAL MATCH (ctg)-[:IS_THE_CONCEPT_GRAPH_FOR]->(h)
       OPTIONAL MATCH (ptg)-[:IS_THE_PROPERTY_TREE_GRAPH_FOR]->(h)
       OPTIONAL MATCH (pp:Property)-[:IS_THE_PRIMARY_PROPERTY_FOR]->(h)
+      OPTIONAL MATCH (props)-[:IS_THE_PROPERTIES_SET_FOR]->(h)
       RETURN sup.uuid AS supersetUuid, js.uuid AS schemaUuid,
-             cg.uuid AS coreGraphUuid, ctg.uuid AS classGraphUuid, ptg.uuid AS propGraphUuid,
-             pp.uuid AS primaryPropUuid, pp.name AS primaryPropName
+             cg.uuid AS coreGraphUuid, ctg.uuid AS conceptGraphUuid, ptg.uuid AS propGraphUuid,
+             pp.uuid AS primaryPropUuid, pp.name AS primaryPropName,
+             props.uuid AS propsUuid
     `, { uuid: headerUuid });
 
     const ex = existing[0] || {};
@@ -243,8 +274,9 @@ async function handleNormalizeSkeleton(req, res) {
     if (!ex.supersetUuid && (!node || node === 'superset')) missing.push('superset');
     if (!ex.schemaUuid && (!node || node === 'schema')) missing.push('schema');
     if (!ex.primaryPropUuid && (!node || node === 'primary-property')) missing.push('primary-property');
+    if (!ex.propsUuid && (!node || node === 'properties')) missing.push('properties');
     if (!ex.coreGraphUuid && (!node || node === 'core-graph')) missing.push('core-graph');
-    if (!ex.classGraphUuid && (!node || node === 'class-graph')) missing.push('class-graph');
+    if (!ex.conceptGraphUuid && (!node || node === 'concept-graph')) missing.push('concept-graph');
     if (!ex.propGraphUuid && (!node || node === 'property-graph')) missing.push('property-graph');
 
     if (missing.length === 0) {
@@ -429,6 +461,37 @@ async function handleNormalizeSkeleton(req, res) {
       }
     }
 
+    // ── Properties (set) ──
+    if (missing.includes('properties')) {
+      const dTag = `${slug}-properties`;
+      const propsName = `the set of properties for the ${name} concept`;
+      const propsJson = JSON.stringify({
+        word: {
+          slug: `the-set-of-properties-for-the-concept-of-${slug}`,
+          name: propsName,
+          wordTypes: ['word', 'set', 'properties'],
+          coreMemberOf: [{ slug: `concept-header-for-the-concept-of-${slug}`, uuid: headerUuid }],
+        },
+        set: {
+          slug: `properties-for-the-concept-of-${slug}`,
+          name: `properties for the concept of ${name}`,
+        },
+        properties: {},
+      });
+      const evt = signAndFinalize({
+        kind: 39999,
+        tags: [
+          ['d', dTag], ['name', propsName],
+          ['z', configUuid('set')],
+          ['json', propsJson],
+        ],
+        content: '',
+      });
+      evt._uuid = `39999:${evt.pubkey}:${dTag}`;
+
+      await createNode('Properties', evt, 'IS_THE_PROPERTIES_SET_FOR', 'to-header');
+    }
+
     // ── Core Nodes Graph ──
     // Created without JSON first; JSON is added after all nodes exist (needs all UUIDs)
     if (missing.includes('core-graph')) {
@@ -503,10 +566,10 @@ async function handleNormalizeSkeleton(req, res) {
       await importEventDirect(evt2, coreGraphATag);
     }
 
-    // ── Class Threads Graph ──
-    if (missing.includes('class-graph')) {
-      const dTag = `${slug}-class-threads-graph`;
-      const graphName = `class threads graph for the ${name} concept`;
+    // ── Concept Graph ──
+    if (missing.includes('concept-graph')) {
+      const dTag = `${slug}-concept-graph`;
+      const graphName = `concept graph for the ${name} concept`;
       const graphJson = JSON.stringify({
         graph: {
           nodes: supersetATag ? [{ slug: `${slug}_superset`, uuid: supersetATag, name: `the superset of all ${plural}` }] : [],
@@ -523,7 +586,7 @@ async function handleNormalizeSkeleton(req, res) {
           ['d', dTag],
           ['name', graphName],
           ['z', configUuid('graph')],
-          ['description', `Class thread graph for ${name}: superset hierarchy and elements.`],
+          ['description', `Concept graph for ${name}: superset hierarchy and elements.`],
           ['json', graphJson],
         ],
         content: '',
@@ -531,7 +594,7 @@ async function handleNormalizeSkeleton(req, res) {
       evt._uuid = `39999:${evt.pubkey}:${dTag}`;
       classGraphATag = evt._uuid;
 
-      await createNode('Class Threads Graph', evt, 'IS_THE_CLASS_THREADS_GRAPH_FOR', 'to-header');
+      await createNode('Concept Graph', evt, 'IS_THE_CONCEPT_GRAPH_FOR', 'to-header');
     }
 
     // ── Property Tree Graph ──
@@ -828,8 +891,8 @@ async function handleNormalizeJson(req, res) {
 // POST /api/normalize/create-concept
 //   Body: { name, plural?, description? }
 //   Creates a full concept skeleton matching tapestry-cli concept-header.md spec:
-//   ConceptHeader + Superset + JSON Schema + Core Nodes Graph + Concept Graph
-//   + Property Tree Graph + 5 relationship events.
+//   ConceptHeader + Superset + JSON Schema + Primary Property + Properties (set)
+//   + Property Tree Graph + Concept Graph + Core Nodes Graph + 7 relationship events.
 //
 //   Word JSON follows the new naming convention structure with oNames, oSlugs,
 //   oKeys, oTitles, oLabels — kept in sync with tapestry-cli/src/lib/concept.js.
@@ -1004,7 +1067,80 @@ async function handleCreateConcept(req, res) {
     await writeCypher(`MATCH (n:NostrEvent {uuid: $uuid}) SET n:JSONSchema`, { uuid: schemaUuid });
     allEvents.push(schemaEvent);
 
-    // ── 4. Property Tree Graph ──
+    // ── 4. Primary Property ──
+    const ppDTag = `${slug}-primary-property`;
+    const ppWord = {
+      word: {
+        slug: `primary-property-for-the-concept-of-${slugPlural}`,
+        name: `primary property for the concept of ${names.oNames.plural}`,
+        description: `the primary property for the concept of ${names.oNames.plural}`,
+        wordTypes: ['word', 'property', 'primaryProperty'],
+        coreMemberOf: [{ slug: `concept-header-for-the-concept-of-${slugPlural}`, uuid: headerUuid }],
+      },
+      property: {
+        key: names.oKeys.singular,
+        title: names.oTitles.singular,
+        type: 'object',
+        required: ['name', 'slug', 'description'],
+        properties: {
+          name: { type: 'string' },
+          slug: { type: 'string' },
+          description: { type: 'string' },
+        },
+        'x-tapestry': {
+          unique: ['name', 'slug'],
+          defaults: {
+            required: ['name', 'slug', 'description'],
+          },
+        },
+      },
+      primaryProperty: {},
+    };
+
+    const ppEvent = signAndFinalize({
+      kind: 39999, content: '',
+      tags: [
+        ['d', ppDTag], ['name', ppWord.word.name], ['z', configUuid('property')],
+        ['description', ppWord.word.description],
+        ['json', JSON.stringify(ppWord)],
+      ],
+    });
+    const ppUuid = `39999:${ppEvent.pubkey}:${ppDTag}`;
+    await publishToStrfry(ppEvent);
+    await importEventDirect(ppEvent, ppUuid);
+    await writeCypher(`MATCH (n:NostrEvent {uuid: $uuid}) SET n:Property`, { uuid: ppUuid });
+    allEvents.push(ppEvent);
+
+    // ── 5. Properties (set) ──
+    const propsDTag = `${slug}-properties`;
+    const propsWord = {
+      word: {
+        slug: `the-set-of-properties-for-the-concept-of-${slugPlural}`,
+        name: `the set of properties for the concept of ${names.oNames.plural}`,
+        title: `The Set of Properties for the Concept of ${names.oTitles.plural}`,
+        wordTypes: ['word', 'set', 'properties'],
+        coreMemberOf: [{ slug: `concept-header-for-the-concept-of-${slugPlural}`, uuid: headerUuid }],
+      },
+      set: {
+        slug: `properties-for-the-concept-of-${slugPlural}`,
+        name: `properties for the concept of ${names.oNames.plural}`,
+      },
+      properties: {},
+    };
+
+    const propsEvent = signAndFinalize({
+      kind: 39999, content: '',
+      tags: [
+        ['d', propsDTag], ['name', propsWord.word.name], ['z', configUuid('set')],
+        ['json', JSON.stringify(propsWord)],
+      ],
+    });
+    const propsUuid = `39999:${propsEvent.pubkey}:${propsDTag}`;
+    await publishToStrfry(propsEvent);
+    await importEventDirect(propsEvent, propsUuid);
+    allEvents.push(propsEvent);
+
+    // ── 6. Property Tree Graph ──
     const ptDTag = `${slug}-property-tree-graph`;
     const ptWord = {
       word: {
@@ -1017,9 +1153,15 @@ async function handleCreateConcept(req, res) {
       graph: {
         nodes: [
           { slug: `json-schema-for-the-concept-of-${slugPlural}`, uuid: schemaUuid },
+          { slug: `primary-property-for-the-concept-of-${slugPlural}`, uuid: ppUuid },
+          { slug: `the-set-of-properties-for-the-concept-of-${slugPlural}`, uuid: propsUuid },
         ],
         relationshipTypes: [{ slug: 'IS_A_PROPERTY_OF' }],
-        relationships: [],
+        relationships: [{
+          nodeFrom: { slug: `primary-property-for-the-concept-of-${slugPlural}` },
+          relationshipType: { slug: 'IS_A_PROPERTY_OF' },
+          nodeTo: { slug: `json-schema-for-the-concept-of-${slugPlural}` },
+        }],
         imports: [],
       },
       propertyTreeGraph: {
@@ -1040,7 +1182,7 @@ async function handleCreateConcept(req, res) {
     await importEventDirect(ptEvent, ptUuid);
     allEvents.push(ptEvent);
 
-    // ── 5. Concept Graph ──
+    // ── 7. Concept Graph ──
     const cgDTag = `${slug}-concept-graph`;
     const cgWord = {
       word: {
@@ -1088,7 +1230,7 @@ async function handleCreateConcept(req, res) {
     await importEventDirect(cgEvent, cgUuid);
     allEvents.push(cgEvent);
 
-    // ── 6. Core Nodes Graph ──
+    // ── 8. Core Nodes Graph ──
     const coreDTag = `${slug}-core-nodes-graph`;
     const coreWord = {
       word: {
@@ -1103,12 +1245,15 @@ async function handleCreateConcept(req, res) {
           { slug: `concept-header-for-the-concept-of-${slugPlural}`, uuid: headerUuid },
           { slug: `superset-for-the-concept-of-${slugPlural}`, uuid: supersetUuid },
           { slug: `json-schema-for-the-concept-of-${slugPlural}`, uuid: schemaUuid },
+          { slug: `primary-property-for-the-concept-of-${slugPlural}`, uuid: ppUuid },
+          { slug: `the-set-of-properties-for-the-concept-of-${slugPlural}`, uuid: propsUuid },
           { slug: `property-tree-graph-for-the-concept-of-${slugPlural}`, uuid: ptUuid },
           { slug: `concept-graph-for-the-concept-of-${slugPlural}`, uuid: cgUuid },
         ],
         relationshipTypes: [
           { slug: 'IS_THE_CONCEPT_FOR' },
           { slug: 'IS_THE_JSON_SCHEMA_FOR' },
+          { slug: 'IS_THE_PRIMARY_PROPERTY_FOR' },
           { slug: 'IS_THE_PROPERTY_TREE_GRAPH_FOR' },
           { slug: 'IS_THE_CORE_GRAPH_FOR' },
           { slug: 'IS_THE_CONCEPT_GRAPH_FOR' },
@@ -1116,6 +1261,7 @@ async function handleCreateConcept(req, res) {
         relationships: [
           { nodeFrom: { slug: `concept-header-for-the-concept-of-${slugPlural}` }, relationshipType: { slug: 'IS_THE_CONCEPT_FOR' }, nodeTo: { slug: `superset-for-the-concept-of-${slugPlural}` } },
           { nodeFrom: { slug: `json-schema-for-the-concept-of-${slugPlural}` }, relationshipType: { slug: 'IS_THE_JSON_SCHEMA_FOR' }, nodeTo: { slug: `concept-header-for-the-concept-of-${slugPlural}` } },
+          { nodeFrom: { slug: `primary-property-for-the-concept-of-${slugPlural}` }, relationshipType: { slug: 'IS_THE_PRIMARY_PROPERTY_FOR' }, nodeTo: { slug: `concept-header-for-the-concept-of-${slugPlural}` } },
           { nodeFrom: { slug: `property-tree-graph-for-the-concept-of-${slugPlural}` }, relationshipType: { slug: 'IS_THE_PROPERTY_TREE_GRAPH_FOR' }, nodeTo: { slug: `concept-header-for-the-concept-of-${slugPlural}` } },
           { nodeFrom: { slug: `core-nodes-graph-for-the-concept-of-${slugPlural}` }, relationshipType: { slug: 'IS_THE_CORE_GRAPH_FOR' }, nodeTo: { slug: `concept-header-for-the-concept-of-${slugPlural}` } },
           { nodeFrom: { slug: `concept-graph-for-the-concept-of-${slugPlural}` }, relationshipType: { slug: 'IS_THE_CONCEPT_GRAPH_FOR' }, nodeTo: { slug: `concept-header-for-the-concept-of-${slugPlural}` } },
@@ -1128,8 +1274,8 @@ async function handleCreateConcept(req, res) {
           conceptHeader: headerUuid,
           superset: supersetUuid,
           jsonSchema: schemaUuid,
-          primaryProperty: '',
-          properties: '',
+          primaryProperty: ppUuid,
+          properties: propsUuid,
           propertyTreeGraph: ptUuid,
           conceptGraph: cgUuid,
           coreNodesGraph: '',
@@ -1150,7 +1296,7 @@ async function handleCreateConcept(req, res) {
     await importEventDirect(coreEvent, coreUuid);
     allEvents.push(coreEvent);
 
-    // ── 7. Update Core Nodes Graph & Concept Graph with final UUIDs ──
+    // ── 9. Update Core Nodes Graph & Concept Graph with final UUIDs ──
     // Core Nodes Graph: add self-reference
     coreWord.graph.nodes.push(
       { slug: `core-nodes-graph-for-the-concept-of-${slugPlural}`, uuid: coreUuid }
@@ -1184,10 +1330,13 @@ async function handleCreateConcept(req, res) {
     await publishToStrfry(cgEventV2);
     await importEventDirect(cgEventV2, cgUuid);
 
-    // ── 8. Wiring relationships ──
+    // ── 10. Wiring relationships ──
     const relDefs = [
       { from: headerUuid, to: supersetUuid, type: 'IS_THE_CONCEPT_FOR' },
       { from: schemaUuid, to: headerUuid, type: 'IS_THE_JSON_SCHEMA_FOR' },
+      { from: ppUuid, to: headerUuid, type: 'IS_THE_PRIMARY_PROPERTY_FOR' },
+      { from: ppUuid, to: schemaUuid, type: 'IS_A_PROPERTY_OF' },
+      { from: propsUuid, to: headerUuid, type: 'IS_THE_PROPERTIES_SET_FOR' },
       { from: coreUuid, to: headerUuid, type: 'IS_THE_CORE_GRAPH_FOR' },
       { from: cgUuid, to: headerUuid, type: 'IS_THE_CONCEPT_GRAPH_FOR' },
       { from: ptUuid, to: headerUuid, type: 'IS_THE_PROPERTY_TREE_GRAPH_FOR' },
@@ -1221,13 +1370,15 @@ async function handleCreateConcept(req, res) {
       message: `Concept "${trimName}" created with ${allEvents.length} events.`,
       concept: {
         name: trimName, plural: trimPlural, slug,
-        primaryProperty: names.oKeys.singular,
+        primaryPropertyKey: names.oKeys.singular,
         uuid: headerUuid,
         superset: supersetUuid,
         schema: schemaUuid,
-        coreGraph: coreUuid,
+        primaryProperty: ppUuid,
+        properties: propsUuid,
+        propertyTreeGraph: ptUuid,
         conceptGraph: cgUuid,
-        propGraph: ptUuid,
+        coreGraph: coreUuid,
       },
     });
 
@@ -2578,7 +2729,10 @@ async function handleSetJsonTag(req, res) {
   }
 }
 
-function registerNormalizeRoutes(app) {
+async function registerNormalizeRoutes(app) {
+  // Load TA signing key from secure storage at startup
+  await loadTAKey();
+
   app.post('/api/normalize/skeleton', handleNormalizeSkeleton);
   app.post('/api/normalize/json', handleNormalizeJson);
   app.post('/api/normalize/create-concept', handleCreateConcept);

@@ -93,15 +93,17 @@ async function handleSkeletons(req, res) {
       OPTIONAL MATCH (h)-[:IS_THE_CONCEPT_FOR]->(sup:Superset)
       OPTIONAL MATCH (js:JSONSchema)-[:IS_THE_JSON_SCHEMA_FOR]->(h)
       OPTIONAL MATCH (pp:Property)-[:IS_THE_PRIMARY_PROPERTY_FOR]->(h)
+      OPTIONAL MATCH (props)-[:IS_THE_PROPERTIES_SET_FOR]->(h)
       OPTIONAL MATCH (cg)-[:IS_THE_CORE_GRAPH_FOR]->(h)
-      OPTIONAL MATCH (ctg)-[:IS_THE_CLASS_THREADS_GRAPH_FOR]->(h)
+      OPTIONAL MATCH (conceptG)-[:IS_THE_CONCEPT_GRAPH_FOR]->(h)
       OPTIONAL MATCH (ptg)-[:IS_THE_PROPERTY_TREE_GRAPH_FOR]->(h)
       RETURN t.value AS concept, h.uuid AS uuid,
              sup IS NOT NULL AS superset,
              js IS NOT NULL AS schema,
              pp IS NOT NULL AS primaryProp,
+             props IS NOT NULL AS properties,
              cg IS NOT NULL AS coreGraph,
-             ctg IS NOT NULL AS ctGraph,
+             conceptG IS NOT NULL AS conceptGraph,
              ptg IS NOT NULL AS ptGraph
       ORDER BY concept
     `, params);
@@ -136,7 +138,7 @@ async function handleWiring(req, res) {
       { name: 'IS_THE_PRIMARY_PROPERTY_FOR: Property → ListHeader', cypher: `MATCH (a)-[:IS_THE_PRIMARY_PROPERTY_FOR]->(b) WHERE NOT (a:Property AND b:ListHeader) RETURN a.name AS fromNode, labels(a) AS fromLabels, b.name AS toNode, labels(b) AS toLabels` },
       { name: 'ENUMERATES: ListHeader → Property', cypher: `MATCH (a)-[:ENUMERATES]->(b) WHERE NOT (a:ListHeader AND b:Property) RETURN a.name AS fromNode, labels(a) AS fromLabels, b.name AS toNode, labels(b) AS toLabels` },
       { name: 'IS_THE_CORE_GRAPH_FOR: ListItem → ListHeader', cypher: `MATCH (a)-[:IS_THE_CORE_GRAPH_FOR]->(b) WHERE NOT (a:ListItem AND b:ListHeader) RETURN a.name AS fromNode, labels(a) AS fromLabels, b.name AS toNode, labels(b) AS toLabels` },
-      { name: 'IS_THE_CLASS_THREADS_GRAPH_FOR: ListItem → ListHeader', cypher: `MATCH (a)-[:IS_THE_CLASS_THREADS_GRAPH_FOR]->(b) WHERE NOT (a:ListItem AND b:ListHeader) RETURN a.name AS fromNode, labels(a) AS fromLabels, b.name AS toNode, labels(b) AS toLabels` },
+      { name: 'IS_THE_CONCEPT_GRAPH_FOR: ListItem → ListHeader', cypher: `MATCH (a)-[:IS_THE_CONCEPT_GRAPH_FOR]->(b) WHERE NOT (a:ListItem AND b:ListHeader) RETURN a.name AS fromNode, labels(a) AS fromLabels, b.name AS toNode, labels(b) AS toLabels` },
       { name: 'IS_THE_PROPERTY_TREE_GRAPH_FOR: ListItem → ListHeader', cypher: `MATCH (a)-[:IS_THE_PROPERTY_TREE_GRAPH_FOR]->(b) WHERE NOT (a:ListItem AND b:ListHeader) RETURN a.name AS fromNode, labels(a) AS fromLabels, b.name AS toNode, labels(b) AS toLabels` },
     ];
 
@@ -172,12 +174,12 @@ async function handleLabels(req, res) {
 
     const missingCTH = await runCypher(
       `MATCH (h:ListHeader)-[:IS_THE_CONCEPT_FOR]->(:Superset)
-       WHERE NOT h:ClassThreadHeader
+       WHERE NOT h:ConceptHeader
        OPTIONAL MATCH (h)-[:HAS_TAG]->(t:NostrEventTag {type: 'names'})
        RETURN coalesce(t.value, '(unnamed)') AS concept, h.uuid AS uuid
        ORDER BY concept`
     );
-    results.push({ label: 'ClassThreadHeader', concept: 'IS_THE_CONCEPT_FOR present', missing: missingCTH, count: missingCTH.length });
+    results.push({ label: 'ConceptHeader', concept: 'IS_THE_CONCEPT_FOR present', missing: missingCTH, count: missingCTH.length });
 
     res.json({ success: true, data: results });
   } catch (err) {
@@ -198,19 +200,20 @@ async function handleBios(req, res) {
       OPTIONAL MATCH (h:NostrEvent {uuid: c.uuid})
       RETURN c.name AS concept, c.uuid AS uuid,
              h IS NOT NULL AS exists,
-             CASE WHEN h IS NULL THEN false ELSE h:ClassThreadHeader END AS cth,
+             CASE WHEN h IS NULL THEN false ELSE h:ConceptHeader END AS cth,
              CASE WHEN h IS NULL THEN false ELSE EXISTS { MATCH (h)-[:IS_THE_CONCEPT_FOR]->(:Superset) } END AS superset,
              CASE WHEN h IS NULL THEN false ELSE EXISTS { MATCH (:JSONSchema)-[:IS_THE_JSON_SCHEMA_FOR]->(h) } END AS schema,
              CASE WHEN h IS NULL THEN false ELSE EXISTS { MATCH (:Property)-[:IS_THE_PRIMARY_PROPERTY_FOR]->(h) } END AS primaryProp,
+             CASE WHEN h IS NULL THEN false ELSE EXISTS { MATCH ()-[:IS_THE_PROPERTIES_SET_FOR]->(h) } END AS properties,
              CASE WHEN h IS NULL THEN false ELSE EXISTS { MATCH ()-[:IS_THE_CORE_GRAPH_FOR]->(h) } END AS coreGraph,
-             CASE WHEN h IS NULL THEN false ELSE EXISTS { MATCH ()-[:IS_THE_CLASS_THREADS_GRAPH_FOR]->(h) } END AS ctGraph,
+             CASE WHEN h IS NULL THEN false ELSE EXISTS { MATCH ()-[:IS_THE_CONCEPT_GRAPH_FOR]->(h) } END AS conceptGraph,
              CASE WHEN h IS NULL THEN false ELSE EXISTS { MATCH ()-[:IS_THE_PROPERTY_TREE_GRAPH_FOR]->(h) } END AS ptGraph,
              CASE WHEN h IS NULL THEN false ELSE EXISTS { MATCH (h)-[:HAS_TAG]->(:NostrEventTag {type: 'json'}) } END AS json
     `, { concepts: uuids });
 
     const data = rows.map(r => ({
       ...r,
-      complete: r.exists && r.cth && r.superset && r.schema && r.primaryProp && r.coreGraph && r.ctGraph && r.ptGraph && r.json,
+      complete: r.exists && r.cth && r.superset && r.schema && r.primaryProp && r.properties && r.coreGraph && r.conceptGraph && r.ptGraph && r.json,
     }));
 
     const complete = data.filter(d => d.complete).length;
@@ -323,15 +326,17 @@ async function handleHealth(req, res) {
         OPTIONAL MATCH (h)-[:IS_THE_CONCEPT_FOR]->(sup:Superset)
         OPTIONAL MATCH (js:JSONSchema)-[:IS_THE_JSON_SCHEMA_FOR]->(h)
         OPTIONAL MATCH (pp:Property)-[:IS_THE_PRIMARY_PROPERTY_FOR]->(h)
+        OPTIONAL MATCH (props)-[:IS_THE_PROPERTIES_SET_FOR]->(h)
         OPTIONAL MATCH (cg)-[:IS_THE_CORE_GRAPH_FOR]->(h)
-        OPTIONAL MATCH (ctg)-[:IS_THE_CLASS_THREADS_GRAPH_FOR]->(h)
+        OPTIONAL MATCH (conceptG)-[:IS_THE_CONCEPT_GRAPH_FOR]->(h)
         OPTIONAL MATCH (ptg)-[:IS_THE_PROPERTY_TREE_GRAPH_FOR]->(h)
         RETURN t.value AS concept, h.uuid AS uuid,
                sup IS NOT NULL AS superset,
                js IS NOT NULL AS schema,
                pp IS NOT NULL AS primaryProp,
+               props IS NOT NULL AS properties,
                cg IS NOT NULL AS coreGraph,
-               ctg IS NOT NULL AS ctGraph,
+               conceptG IS NOT NULL AS conceptGraph,
                ptg IS NOT NULL AS ptGraph
         ORDER BY concept
       `),
@@ -351,7 +356,7 @@ async function handleHealth(req, res) {
         runCypher(`MATCH (a)-[:IS_THE_JSON_SCHEMA_FOR]->(b) WHERE NOT (a:JSONSchema AND b:ListHeader) RETURN count(*) AS count`),
         runCypher(`MATCH (a)-[:ENUMERATES]->(b) WHERE NOT (a:ListHeader AND b:Property) RETURN count(*) AS count`),
         runCypher(`MATCH (a)-[:IS_THE_CORE_GRAPH_FOR]->(b) WHERE NOT (a:ListItem AND b:ListHeader) RETURN count(*) AS count`),
-        runCypher(`MATCH (a)-[:IS_THE_CLASS_THREADS_GRAPH_FOR]->(b) WHERE NOT (a:ListItem AND b:ListHeader) RETURN count(*) AS count`),
+        runCypher(`MATCH (a)-[:IS_THE_CONCEPT_GRAPH_FOR]->(b) WHERE NOT (a:ListItem AND b:ListHeader) RETURN count(*) AS count`),
         runCypher(`MATCH (a)-[:IS_THE_PROPERTY_TREE_GRAPH_FOR]->(b) WHERE NOT (a:ListItem AND b:ListHeader) RETURN count(*) AS count`),
       ]),
 
@@ -366,7 +371,7 @@ async function handleHealth(req, res) {
             { uuid }
           );
         }),
-        runCypher(`MATCH (h:ListHeader)-[:IS_THE_CONCEPT_FOR]->(:Superset) WHERE NOT h:ClassThreadHeader RETURN count(h) AS count`),
+        runCypher(`MATCH (h:ListHeader)-[:IS_THE_CONCEPT_FOR]->(:Superset) WHERE NOT h:ConceptHeader RETURN count(h) AS count`),
       ]),
 
       // BIOS
@@ -377,12 +382,13 @@ async function handleHealth(req, res) {
           OPTIONAL MATCH (h:NostrEvent {uuid: c.uuid})
           RETURN c.name AS concept, c.uuid AS uuid,
                  h IS NOT NULL AS exists,
-                 CASE WHEN h IS NULL THEN false ELSE h:ClassThreadHeader END AS cth,
+                 CASE WHEN h IS NULL THEN false ELSE h:ConceptHeader END AS cth,
                  CASE WHEN h IS NULL THEN false ELSE EXISTS { MATCH (h)-[:IS_THE_CONCEPT_FOR]->(:Superset) } END AS superset,
                  CASE WHEN h IS NULL THEN false ELSE EXISTS { MATCH (:JSONSchema)-[:IS_THE_JSON_SCHEMA_FOR]->(h) } END AS schema,
                  CASE WHEN h IS NULL THEN false ELSE EXISTS { MATCH (:Property)-[:IS_THE_PRIMARY_PROPERTY_FOR]->(h) } END AS primaryProp,
+                 CASE WHEN h IS NULL THEN false ELSE EXISTS { MATCH ()-[:IS_THE_PROPERTIES_SET_FOR]->(h) } END AS properties,
                  CASE WHEN h IS NULL THEN false ELSE EXISTS { MATCH ()-[:IS_THE_CORE_GRAPH_FOR]->(h) } END AS coreGraph,
-                 CASE WHEN h IS NULL THEN false ELSE EXISTS { MATCH ()-[:IS_THE_CLASS_THREADS_GRAPH_FOR]->(h) } END AS ctGraph,
+                 CASE WHEN h IS NULL THEN false ELSE EXISTS { MATCH ()-[:IS_THE_CONCEPT_GRAPH_FOR]->(h) } END AS conceptGraph,
                  CASE WHEN h IS NULL THEN false ELSE EXISTS { MATCH ()-[:IS_THE_PROPERTY_TREE_GRAPH_FOR]->(h) } END AS ptGraph,
                  CASE WHEN h IS NULL THEN false ELSE EXISTS { MATCH (h)-[:HAS_TAG]->(:NostrEventTag {type: 'json'}) } END AS json
         `, { concepts: uuids });
@@ -395,7 +401,7 @@ async function handleHealth(req, res) {
 
     // Skeletons
     const totalConcepts = skeletonRows.length;
-    const completeConcepts = skeletonRows.filter(r => r.superset && r.schema && r.primaryProp && r.coreGraph && r.ctGraph && r.ptGraph).length;
+    const completeConcepts = skeletonRows.filter(r => r.superset && r.schema && r.primaryProp && r.properties && r.coreGraph && r.conceptGraph && r.ptGraph).length;
     const incompleteConcepts = totalConcepts - completeConcepts;
 
     // Orphans
@@ -411,7 +417,7 @@ async function handleHealth(req, res) {
     const totalMissingLabels = labelData.reduce((sum, r) => sum + (r[0]?.count || 0), 0);
 
     // BIOS
-    const biosComplete = biosData.filter(r => r.exists && r.cth && r.superset && r.schema && r.primaryProp && r.coreGraph && r.ctGraph && r.ptGraph && r.json).length;
+    const biosComplete = biosData.filter(r => r.exists && r.cth && r.superset && r.schema && r.primaryProp && r.properties && r.coreGraph && r.conceptGraph && r.ptGraph && r.json).length;
     const biosTotal = BIOS_CONCEPTS.length;
     const biosReady = biosComplete === biosTotal;
 
@@ -483,40 +489,42 @@ async function handleConceptsSummary(req, res) {
       OPTIONAL MATCH (h)-[:IS_THE_CONCEPT_FOR]->(sup:Superset)
       OPTIONAL MATCH (js:JSONSchema)-[:IS_THE_JSON_SCHEMA_FOR]->(h)
       OPTIONAL MATCH (pp:Property)-[:IS_THE_PRIMARY_PROPERTY_FOR]->(h)
+      OPTIONAL MATCH (props)-[:IS_THE_PROPERTIES_SET_FOR]->(h)
       OPTIONAL MATCH (cg)-[:IS_THE_CORE_GRAPH_FOR]->(h)
-      OPTIONAL MATCH (ctg)-[:IS_THE_CLASS_THREADS_GRAPH_FOR]->(h)
+      OPTIONAL MATCH (conceptG)-[:IS_THE_CONCEPT_GRAPH_FOR]->(h)
       OPTIONAL MATCH (ptg)-[:IS_THE_PROPERTY_TREE_GRAPH_FOR]->(h)
       WITH h, t,
-           h:ClassThreadHeader AS isCTH,
+           h:ConceptHeader AS isCTH,
            EXISTS { MATCH (h)-[:HAS_TAG]->(:NostrEventTag {type: 'json'}) } AS headerJson,
            sup IS NOT NULL AS hasSup,
            CASE WHEN sup IS NULL THEN false ELSE EXISTS { MATCH (sup)-[:HAS_TAG]->(:NostrEventTag {type: 'json'}) } END AS supJson,
            js IS NOT NULL AS hasSchema,
            CASE WHEN js IS NULL THEN false ELSE EXISTS { MATCH (js)-[:HAS_TAG]->(:NostrEventTag {type: 'json'}) } END AS schemaJson,
            pp IS NOT NULL AS hasPP,
+           props IS NOT NULL AS hasProps,
            cg IS NOT NULL AS hasCG,
-           ctg IS NOT NULL AS hasCTG,
+           conceptG IS NOT NULL AS hasConceptG,
            ptg IS NOT NULL AS hasPTG
       RETURN h.uuid AS uuid, t.value AS name,
              isCTH, headerJson,
              hasSup, supJson,
              hasSchema, schemaJson,
-             hasPP, hasCG, hasCTG, hasPTG
+             hasPP, hasProps, hasCG, hasConceptG, hasPTG
       ORDER BY name
     `);
 
     const data = rows.map(r => {
-      const skeletonParts = [true, r.hasSup, r.hasSchema, r.hasPP, r.hasCG, r.hasCTG, r.hasPTG];
+      const skeletonParts = [true, r.hasSup, r.hasSchema, r.hasPP, r.hasProps, r.hasCG, r.hasConceptG, r.hasPTG];
       const skeletonCount = skeletonParts.filter(Boolean).length;
-      const skeletonComplete = skeletonCount === 7;
+      const skeletonComplete = skeletonCount === 8;
 
       const jsonParts = [r.headerJson, r.supJson, r.schemaJson];
       const jsonCount = jsonParts.filter(Boolean).length;
 
       // Determine issues
       const issues = [];
-      if (!skeletonComplete) issues.push(`skeleton ${skeletonCount}/7`);
-      if (!r.isCTH && r.hasSup) issues.push('missing CTH label');
+      if (!skeletonComplete) issues.push(`skeleton ${skeletonCount}/8`);
+      if (!r.isCTH && r.hasSup) issues.push('missing ConceptHeader label');
       if (skeletonComplete && jsonCount < 3) issues.push(`JSON ${jsonCount}/3`);
 
       let status;
@@ -553,7 +561,7 @@ async function handleConcept(req, res) {
       `MATCH (h:ListHeader)-[:HAS_TAG]->(t:NostrEventTag {type: 'names'})
        WHERE toLower(t.value) = toLower($conceptName)
        RETURN h.uuid AS uuid, t.value AS name, h.pubkey AS pubkey,
-              h:ClassThreadHeader AS isCTH,
+              h:ConceptHeader AS isCTH,
               EXISTS { MATCH (h)-[:HAS_TAG]->(:NostrEventTag {type: 'json'}) } AS hasJson`,
       { conceptName }
     );
@@ -571,8 +579,9 @@ async function handleConcept(req, res) {
        OPTIONAL MATCH (h)-[:IS_THE_CONCEPT_FOR]->(sup:Superset)
        OPTIONAL MATCH (js:JSONSchema)-[:IS_THE_JSON_SCHEMA_FOR]->(h)
        OPTIONAL MATCH (pp:Property)-[:IS_THE_PRIMARY_PROPERTY_FOR]->(h)
+       OPTIONAL MATCH (props)-[:IS_THE_PROPERTIES_SET_FOR]->(h)
        OPTIONAL MATCH (cg)-[:IS_THE_CORE_GRAPH_FOR]->(h)
-       OPTIONAL MATCH (ctg)-[:IS_THE_CLASS_THREADS_GRAPH_FOR]->(h)
+       OPTIONAL MATCH (conceptG)-[:IS_THE_CONCEPT_GRAPH_FOR]->(h)
        OPTIONAL MATCH (ptg)-[:IS_THE_PROPERTY_TREE_GRAPH_FOR]->(h)
        RETURN sup.uuid AS supersetUuid, sup.name AS supersetName,
               EXISTS { MATCH (sup)-[:HAS_TAG]->(:NostrEventTag {type: 'json'}) } AS supersetJson,
@@ -580,10 +589,12 @@ async function handleConcept(req, res) {
               EXISTS { MATCH (js)-[:HAS_TAG]->(:NostrEventTag {type: 'json'}) } AS schemaJson,
               pp.uuid AS primaryPropUuid, pp.name AS primaryPropName,
               EXISTS { MATCH (pp)-[:HAS_TAG]->(:NostrEventTag {type: 'json'}) } AS primaryPropJson,
+              props.uuid AS propsUuid, props.name AS propsName,
+              EXISTS { MATCH (props)-[:HAS_TAG]->(:NostrEventTag {type: 'json'}) } AS propsJson,
               cg.uuid AS coreGraphUuid, cg.name AS coreGraphName,
               EXISTS { MATCH (cg)-[:HAS_TAG]->(:NostrEventTag {type: 'json'}) } AS coreGraphJson,
-              ctg.uuid AS ctGraphUuid, ctg.name AS ctGraphName,
-              EXISTS { MATCH (ctg)-[:HAS_TAG]->(:NostrEventTag {type: 'json'}) } AS ctGraphJson,
+              conceptG.uuid AS conceptGraphUuid, conceptG.name AS conceptGraphName,
+              EXISTS { MATCH (conceptG)-[:HAS_TAG]->(:NostrEventTag {type: 'json'}) } AS conceptGraphJson,
               ptg.uuid AS ptGraphUuid, ptg.name AS ptGraphName,
               EXISTS { MATCH (ptg)-[:HAS_TAG]->(:NostrEventTag {type: 'json'}) } AS ptGraphJson
        LIMIT 1`,
@@ -593,13 +604,14 @@ async function handleConcept(req, res) {
     const sk = skeleton[0] || {};
 
     const nodes = [
-      { role: 'ListHeader (CTH)', uuid, name: header.name, exists: true, json: header.hasJson, cth: header.isCTH },
+      { role: 'Concept Header', uuid, name: header.name, exists: true, json: header.hasJson, cth: header.isCTH },
       { role: 'Superset', uuid: sk.supersetUuid, name: sk.supersetName, exists: !!sk.supersetUuid, json: sk.supersetJson || false },
       { role: 'JSON Schema', uuid: sk.schemaUuid, name: sk.schemaName, exists: !!sk.schemaUuid, json: sk.schemaJson || false },
       { role: 'Primary Property', uuid: sk.primaryPropUuid, name: sk.primaryPropName, exists: !!sk.primaryPropUuid, json: sk.primaryPropJson || false },
-      { role: 'Core Nodes Graph', uuid: sk.coreGraphUuid, name: sk.coreGraphName, exists: !!sk.coreGraphUuid, json: sk.coreGraphJson || false },
-      { role: 'Class Threads Graph', uuid: sk.ctGraphUuid, name: sk.ctGraphName, exists: !!sk.ctGraphUuid, json: sk.ctGraphJson || false },
+      { role: 'Properties', uuid: sk.propsUuid, name: sk.propsName, exists: !!sk.propsUuid, json: sk.propsJson || false },
       { role: 'Property Tree Graph', uuid: sk.ptGraphUuid, name: sk.ptGraphName, exists: !!sk.ptGraphUuid, json: sk.ptGraphJson || false },
+      { role: 'Core Nodes Graph', uuid: sk.coreGraphUuid, name: sk.coreGraphName, exists: !!sk.coreGraphUuid, json: sk.coreGraphJson || false },
+      { role: 'Concept Graph', uuid: sk.conceptGraphUuid, name: sk.conceptGraphName, exists: !!sk.conceptGraphUuid, json: sk.conceptGraphJson || false },
     ];
 
     const skeletonComplete = nodes.every(n => n.exists);
@@ -660,8 +672,9 @@ async function handleConcept(req, res) {
            (type(r) = 'IS_A_PROPERTY_OF' AND a:Property AND (b:JSONSchema OR b:Property)) OR
            (type(r) = 'IS_THE_PRIMARY_PROPERTY_FOR' AND a:Property AND b:ListHeader) OR
            (type(r) = 'ENUMERATES' AND a:ListHeader AND b:Property) OR
+           (type(r) = 'IS_THE_PROPERTIES_SET_FOR' AND b:ListHeader) OR
            (type(r) = 'IS_THE_CORE_GRAPH_FOR' AND a:ListItem AND b:ListHeader) OR
-           (type(r) = 'IS_THE_CLASS_THREADS_GRAPH_FOR' AND a:ListItem AND b:ListHeader) OR
+           (type(r) = 'IS_THE_CONCEPT_GRAPH_FOR' AND a:ListItem AND b:ListHeader) OR
            (type(r) = 'IS_THE_PROPERTY_TREE_GRAPH_FOR' AND a:ListItem AND b:ListHeader) OR
            (type(r) = 'HAS_TAG') OR
            (type(r) = 'AUTHORS') OR
@@ -693,21 +706,21 @@ async function handleConcept(req, res) {
         name: 'Skeleton',
         status: skeletonComplete ? 'pass' : 'fail',
         summary: skeletonComplete
-          ? `All 7 nodes present${header.isCTH ? ', CTH label ✅' : ''}`
-          : `${nodes.filter(n => n.exists).length}/7 nodes present`,
+          ? `All 8 nodes present${header.isCTH ? ', ConceptHeader label ✅' : ''}`
+          : `${nodes.filter(n => n.exists).length}/8 nodes present`,
       },
       {
-        name: 'CTH Label',
+        name: 'ConceptHeader Label',
         status: header.isCTH ? 'pass' : (sk.supersetUuid ? 'warn' : 'info'),
-        summary: header.isCTH ? 'ListHeader has ClassThreadHeader label'
-          : sk.supersetUuid ? 'Has superset but missing CTH label' : 'No superset wired yet',
+        summary: header.isCTH ? 'ListHeader has ConceptHeader label'
+          : sk.supersetUuid ? 'Has superset but missing ConceptHeader label' : 'No superset wired yet',
       },
       {
         name: 'JSON Tags',
         status: jsonComplete ? 'pass' : 'warn',
         summary: jsonComplete
           ? 'All skeleton nodes have JSON tags'
-          : `${nodes.filter(n => n.json).length}/7 nodes have JSON tags`,
+          : `${nodes.filter(n => n.json).length}/8 nodes have JSON tags`,
       },
       {
         name: 'Elements',

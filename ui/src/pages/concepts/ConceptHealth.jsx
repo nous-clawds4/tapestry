@@ -7,12 +7,13 @@ import { useAuth } from '../../context/AuthContext';
 const statusIcon = (s) => s === 'pass' ? '✅' : s === 'warn' ? '⚠️' : s === 'fail' ? '❌' : 'ℹ️';
 
 const ROLE_TO_NODE = {
-  'ListHeader (CTH)': 'header',
+  'Concept Header': 'header',
   'Superset': 'superset',
   'JSON Schema': 'schema',
   'Primary Property': 'primary-property',
+  'Properties': 'properties',
   'Core Nodes Graph': 'core-graph',
-  'Class Threads Graph': 'class-graph',
+  'Concept Graph': 'concept-graph',
   'Property Tree Graph': 'property-graph',
 };
 
@@ -111,7 +112,7 @@ export default function ConceptHealth() {
       {skeleton?.nodes && (
         <section className="health-section">
           <h3>
-            Skeleton Nodes
+            Core Nodes
             {hasMissingNodes && (
               <button
                 className="btn btn-small btn-primary"

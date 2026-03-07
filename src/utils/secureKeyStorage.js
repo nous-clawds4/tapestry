@@ -75,11 +75,19 @@ class SecureKeyStorage {
     }
     
     /**
+     * Derive a 32-byte key from the master key string using SHA-256
+     */
+    _deriveKey() {
+        return crypto.createHash('sha256').update(this.masterKey).digest();
+    }
+
+    /**
      * Encrypt sensitive data using AES-256-GCM
      */
     encrypt(data) {
         const iv = crypto.randomBytes(16);
-        const cipher = crypto.createCipher('aes-256-gcm', this.masterKey);
+        const key = this._deriveKey();
+        const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
         
         let encrypted = cipher.update(data, 'utf8', 'hex');
         encrypted += cipher.final('hex');
@@ -97,7 +105,9 @@ class SecureKeyStorage {
      * Decrypt sensitive data
      */
     decrypt(encryptedData) {
-        const decipher = crypto.createDecipher('aes-256-gcm', this.masterKey);
+        const iv = Buffer.from(encryptedData.iv, 'hex');
+        const key = this._deriveKey();
+        const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
         decipher.setAuthTag(Buffer.from(encryptedData.authTag, 'hex'));
         
         let decrypted = decipher.update(encryptedData.encrypted, 'hex', 'utf8');

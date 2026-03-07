@@ -69,11 +69,22 @@ export default function DListItemDetail() {
     );
   }
 
-  const name = getTag(event, 'name') || '(unnamed)';
+  const isListHeader = event.kind === 9998 || event.kind === 39998;
+  const name = getTag(event, 'name');
+  const namesSingular = getTag(event, 'names');
+  const namesPlural = getTag(event, 'names', 2);
+
+  let heading;
+  if (isListHeader && (namesSingular || namesPlural)) {
+    const display = namesPlural || namesSingular;
+    heading = `📄 DList: ${display}`;
+  } else {
+    heading = `📄 ${name || '(unnamed)'}`;
+  }
 
   const tabs = [
     { to: '', label: 'Overview', end: true },
-    { to: 'raw', label: 'Raw Data' },
+    { to: 'raw', label: 'Raw Nostr Event' },
     { to: 'neo4j', label: 'Neo4j' },
     { to: 'actions', label: 'Actions' },
   ];
@@ -82,7 +93,7 @@ export default function DListItemDetail() {
     <div className="page">
       <Breadcrumbs />
 
-      <h1>📄 {name}</h1>
+      <h1>{heading}</h1>
 
       <nav className="tab-nav">
         {tabs.map(tab => (
