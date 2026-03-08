@@ -1,0 +1,16 @@
+{
+  "word": {
+    "slug": "concept-header-for-the-concept-of-image-types",
+    "name": "concept header for the concept of image types",
+    "title": "Concept Header for the Concept of Image Types",
+    "wordTypes": ["word", "conceptHeader"]
+  },
+  "conceptHeader": {
+    "description": "The types of image formats.",
+    "oNames": { "singular": "image type", "plural": "image types" },
+    "oSlugs": { "singular": "image-type", "plural": "image-types" },
+    "oKeys": { "singular": "imageType", "plural": "imageTypes" },
+    "oTitles": { "singular": "Image Type", "plural": "Image Types" },
+    "oLabels": { "singular": "ImageType", "plural": "ImageTypes" }
+  }
+}

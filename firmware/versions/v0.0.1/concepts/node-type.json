@@ -1,0 +1,16 @@
+{
+  "word": {
+    "slug": "concept-header-for-the-concept-of-node-types",
+    "name": "concept header for the concept of node types",
+    "title": "Concept Header for the Concept of Node Types",
+    "wordTypes": ["word", "conceptHeader"]
+  },
+  "conceptHeader": {
+    "description": "The types of nodes in the tapestry concept graph.",
+    "oNames": { "singular": "node type", "plural": "node types" },
+    "oSlugs": { "singular": "node-type", "plural": "node-types" },
+    "oKeys": { "singular": "nodeType", "plural": "nodeTypes" },
+    "oTitles": { "singular": "Node Type", "plural": "Node Types" },
+    "oLabels": { "singular": "NodeType", "plural": "NodeTypes" }
+  }
+}

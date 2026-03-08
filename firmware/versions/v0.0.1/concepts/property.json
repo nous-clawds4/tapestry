@@ -1,0 +1,16 @@
+{
+  "word": {
+    "slug": "concept-header-for-the-concept-of-properties",
+    "name": "concept header for the concept of properties",
+    "title": "Concept Header for the Concept of Properties",
+    "wordTypes": ["word", "conceptHeader"]
+  },
+  "conceptHeader": {
+    "description": "A field or attribute of a concept's elements.",
+    "oNames": { "singular": "property", "plural": "properties" },
+    "oSlugs": { "singular": "property", "plural": "properties" },
+    "oKeys": { "singular": "property", "plural": "properties" },
+    "oTitles": { "singular": "Property", "plural": "Properties" },
+    "oLabels": { "singular": "Property", "plural": "Properties" }
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "word": {
+    "slug": "concept-header-for-the-concept-of-supersets",
+    "name": "concept header for the concept of supersets",
+    "title": "Concept Header for the Concept of Supersets",
+    "wordTypes": ["word", "conceptHeader"]
+  },
+  "conceptHeader": {
+    "description": "The universal set for a concept — the superset of all X.",
+    "oNames": { "singular": "superset", "plural": "supersets" },
+    "oSlugs": { "singular": "superset", "plural": "supersets" },
+    "oKeys": { "singular": "superset", "plural": "supersets" },
+    "oTitles": { "singular": "Superset", "plural": "Supersets" },
+    "oLabels": { "singular": "Superset", "plural": "Supersets" }
+  }
+}

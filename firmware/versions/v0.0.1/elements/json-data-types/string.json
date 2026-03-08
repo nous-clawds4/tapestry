@@ -1,0 +1,15 @@
+{
+  "word": {
+    "slug": "json-data-type--string",
+    "name": "JSON data type: string",
+    "title": "JSON Data Type: String",
+    "description": "A sequence of characters (text)",
+    "wordTypes": ["word", "jsonDataType"]
+  },
+  "jsonDataType": {
+    "slug": "string",
+    "name": "string",
+    "title": "String",
+    "description": "A sequence of characters (text)"
+  }
+}

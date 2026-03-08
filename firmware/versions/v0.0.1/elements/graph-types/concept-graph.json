@@ -1,0 +1,15 @@
+{
+  "word": {
+    "slug": "graph-type--concept-graph",
+    "name": "graph type: concept graph",
+    "title": "Graph Type: Concept Graph",
+    "description": "A graph recording the class thread structure of a concept.",
+    "wordTypes": ["word", "graphType"]
+  },
+  "graphType": {
+    "slug": "concept-graph",
+    "name": "concept graph",
+    "title": "Concept Graph",
+    "description": "Records the Concept Header, Superset, Sets, and Elements traversed by all class threads of a concept."
+  }
+}

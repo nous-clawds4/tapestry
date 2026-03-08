@@ -1,0 +1,16 @@
+{
+  "word": {
+    "slug": "concept-header-for-the-concept-of-sets",
+    "name": "concept header for the concept of sets",
+    "title": "Concept Header for the Concept of Sets",
+    "wordTypes": ["word", "conceptHeader"]
+  },
+  "conceptHeader": {
+    "description": "A subset of elements within a concept.",
+    "oNames": { "singular": "set", "plural": "sets" },
+    "oSlugs": { "singular": "set", "plural": "sets" },
+    "oKeys": { "singular": "set", "plural": "sets" },
+    "oTitles": { "singular": "Set", "plural": "Sets" },
+    "oLabels": { "singular": "Set", "plural": "Sets" }
+  }
+}

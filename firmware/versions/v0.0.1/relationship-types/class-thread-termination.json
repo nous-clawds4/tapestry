@@ -1,0 +1,19 @@
+{
+  "word": {
+    "slug": "CLASS_THREAD_TERMINATION",
+    "name": "class thread termination",
+    "title": "Class Thread Termination",
+    "description": "The relationship that terminates a class thread. Connects a Superset or Set to an Element.",
+    "wordTypes": ["word", "relationshipType"]
+  },
+  "relationshipType": {
+    "slug": "CLASS_THREAD_TERMINATION",
+    "alias": "HAS_ELEMENT",
+    "name": "class thread termination",
+    "title": "Class Thread Termination",
+    "description": "Connects a Superset or Set to an Element. Every class thread ends with this edge.",
+    "nodeFromType": "set",
+    "nodeToType": "element",
+    "category": "classThread"
+  }
+}

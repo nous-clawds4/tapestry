@@ -1,0 +1,16 @@
+{
+  "word": {
+    "slug": "concept-header-for-the-concept-of-core-nodes-graphs",
+    "name": "concept header for the concept of core nodes graphs",
+    "title": "Concept Header for the Concept of Core Nodes Graphs",
+    "wordTypes": ["word", "conceptHeader"]
+  },
+  "conceptHeader": {
+    "description": "A graph recording the core nodes and their wiring.",
+    "oNames": { "singular": "core nodes graph", "plural": "core nodes graphs" },
+    "oSlugs": { "singular": "core-nodes-graph", "plural": "core-nodes-graphs" },
+    "oKeys": { "singular": "coreNodesGraph", "plural": "coreNodesGraphs" },
+    "oTitles": { "singular": "Core Nodes Graph", "plural": "Core Nodes Graphs" },
+    "oLabels": { "singular": "CoreNodesGraph", "plural": "CoreNodesGraphs" }
+  }
+}
