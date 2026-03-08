@@ -382,13 +382,43 @@ async function handleNormalizeSkeleton(req, res) {
     if (missing.includes('schema')) {
       const dTag = `${slug}-schema`;
       const schemaName = `JSON schema for ${name}`;
+      const ppKey = toKeyName(name);       // e.g. "coffeeHouse"
+      const ppSlug = toSlugName(name);     // e.g. "coffee-house"
+      const ppTitle = toTitleName(name);   // e.g. "Coffee House"
       const schemaJson = JSON.stringify({
-        $schema: 'https://json-schema.org/draft/2020-12/schema',
-        type: 'object',
-        title: name,
-        description: `JSON Schema for ${name}`,
-        properties: {},
-        required: [],
+        word: {
+          slug: `json-schema-for-the-concept-of-${slug}`,
+          name: schemaName,
+          title: `JSON Schema for the Concept of ${name}`,
+          description: `the json schema for the concept of ${name}`,
+          wordTypes: ['word', 'jsonSchema'],
+          coreMemberOf: [{ slug: `concept-header-for-the-concept-of-${slug}`, uuid: headerUuid }],
+        },
+        jsonSchema: {
+          $schema: 'https://json-schema.org/draft/2020-12/schema',
+          type: 'object',
+          name: name.toLowerCase(),
+          title: ppTitle,
+          description: `JSON Schema for the concept of ${plural.toLowerCase()}`,
+          required: [ppKey],
+          definitions: {},
+          properties: {
+            [ppKey]: {
+              type: 'object',
+              name: name.toLowerCase(),
+              title: ppTitle,
+              slug: ppSlug,
+              description: `data about this ${name.toLowerCase()}`,
+              required: ['name', 'slug', 'description'],
+              unique: ['name', 'slug'],
+              properties: {
+                name: { type: 'string', name: 'name', slug: 'name', title: 'Name', description: `The name of the ${name.toLowerCase()}` },
+                slug: { type: 'string', name: 'slug', slug: 'slug', title: 'Slug', description: `A unique kebab-case identifier for this ${name.toLowerCase()}` },
+                description: { type: 'string', name: 'description', slug: 'description', title: 'Description', description: `A brief description of the ${name.toLowerCase()}` },
+              },
+            },
+          },
+        },
       });
       const evt = signAndFinalize({
         kind: 39999,
@@ -729,10 +759,28 @@ async function handleNormalizeJson(req, res) {
 
     // ── Superset JSON ──
     if ((!node || node === 'superset') && h.supersetUuid) {
+      const slugPlural = deriveSlug(plural);
+      const titlePlural = plural.split(/\s+/).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
       const supersetJson = {
-        supersetOf: name,
-        role: 'superset',
-        description: `The superset node for the ${name} concept. All ${plural} are elements of this set.`,
+        word: {
+          slug: `superset-for-the-concept-of-${slugPlural}`,
+          name: `superset for the concept of ${plural.toLowerCase()}`,
+          title: `Superset for the Concept of ${titlePlural}`,
+          wordTypes: ['word', 'set', 'superset'],
+          coreMemberOf: [{ slug: `concept-header-for-the-concept-of-${slugPlural}`, uuid: h.headerUuid }],
+        },
+        set: {
+          slug: slugPlural,
+          name: plural.toLowerCase(),
+          title: titlePlural,
+          description: `This is a set of ${plural.toLowerCase()}.`,
+        },
+        superset: {
+          slug: slugPlural,
+          name: plural.toLowerCase(),
+          title: titlePlural,
+          description: `This is the superset of all known ${plural.toLowerCase()}.`,
+        },
       };
       await regenerateJson(h.supersetUuid, supersetJson);
       updated.push({ role: 'Superset', uuid: h.supersetUuid });
@@ -740,35 +788,55 @@ async function handleNormalizeJson(req, res) {
 
     // ── JSON Schema JSON ──
     if ((!node || node === 'schema') && h.schemaUuid) {
-      // Fetch existing json to preserve user-defined properties/required
+      // Fetch existing json to preserve user-defined jsonSchema section
       const existingJsonRows = await runCypher(`
         MATCH (e:NostrEvent {uuid: $uuid})-[:HAS_TAG]->(t:NostrEventTag {type: 'json'})
         RETURN t.value AS json
       `, { uuid: h.schemaUuid });
 
-      let schemaJson;
+      let wordWrapper;
       if (existingJsonRows.length > 0 && existingJsonRows[0].json) {
         try {
-          schemaJson = JSON.parse(existingJsonRows[0].json);
-          // Ensure required fields are present
-          schemaJson.$schema = schemaJson.$schema || 'https://json-schema.org/draft/2020-12/schema';
-          schemaJson.type = schemaJson.type || 'object';
-          schemaJson.title = schemaJson.title || name;
+          const parsed = JSON.parse(existingJsonRows[0].json);
+          if (parsed.word && parsed.jsonSchema !== undefined) {
+            // Already in word-wrapper format — preserve jsonSchema section
+            wordWrapper = parsed;
+          } else {
+            // Legacy flat schema — migrate into word wrapper
+            wordWrapper = {
+              word: {
+                slug: `json-schema-for-the-concept-of-${slug}`,
+                name: `JSON schema for the concept of ${name}`,
+                title: `JSON Schema for the Concept of ${name}`,
+                description: `the json schema for the concept of ${name}`,
+                wordTypes: ['word', 'jsonSchema'],
+                coreMemberOf: [{ slug: `concept-header-for-the-concept-of-${slug}`, uuid: h.headerUuid }],
+              },
+              jsonSchema: parsed,
+            };
+          }
         } catch (e) {
-          schemaJson = null;
+          wordWrapper = null;
         }
       }
-      if (!schemaJson) {
-        schemaJson = {
-          $schema: 'https://json-schema.org/draft/2020-12/schema',
-          type: 'object',
-          title: name,
-          description: `JSON Schema for ${name}`,
-          properties: {},
-          required: [],
+      if (!wordWrapper) {
+        wordWrapper = {
+          word: {
+            slug: `json-schema-for-the-concept-of-${slug}`,
+            name: `JSON schema for the concept of ${name}`,
+            title: `JSON Schema for the Concept of ${name}`,
+            description: `the json schema for the concept of ${name}`,
+            wordTypes: ['word', 'jsonSchema'],
+            coreMemberOf: [{ slug: `concept-header-for-the-concept-of-${slug}`, uuid: h.headerUuid }],
+          },
+          jsonSchema: {},
         };
       }
-      await regenerateJson(h.schemaUuid, schemaJson);
+      // Ensure word section is up to date
+      wordWrapper.word.slug = wordWrapper.word.slug || `json-schema-for-the-concept-of-${slug}`;
+      wordWrapper.word.name = wordWrapper.word.name || `JSON schema for the concept of ${name}`;
+      wordWrapper.word.wordTypes = wordWrapper.word.wordTypes || ['word', 'jsonSchema'];
+      await regenerateJson(h.schemaUuid, wordWrapper);
       updated.push({ role: 'JSON Schema', uuid: h.schemaUuid });
     }
 
@@ -1010,8 +1078,14 @@ async function handleCreateConcept(req, res) {
         slug: `superset-for-the-concept-of-${slugPlural}`,
         name: `superset for the concept of ${names.oNames.plural}`,
         title: `Superset for the Concept of ${names.oTitles.plural}`,
-        wordTypes: ['word', 'superset'],
+        wordTypes: ['word', 'set', 'superset'],
         coreMemberOf: [{ slug: `concept-header-for-the-concept-of-${slugPlural}`, uuid: headerUuid }],
+      },
+      set: {
+        slug: names.oSlugs.plural,
+        name: names.oNames.plural,
+        title: names.oTitles.plural,
+        description: `This is a set of ${names.oNames.plural}.`,
       },
       superset: {
         slug: names.oSlugs.plural,
@@ -1039,6 +1113,8 @@ async function handleCreateConcept(req, res) {
 
     // ── 3. JSON Schema ──
     const schemaDTag = `${slug}-schema`;
+    const ppKey = names.oKeys.singular;       // e.g. "coffeeHouse"
+    const ppSlug = names.oSlugs.singular;     // e.g. "coffee-house"
     const schemaWord = {
       word: {
         slug: `json-schema-for-the-concept-of-${slugPlural}`,
@@ -1048,7 +1124,40 @@ async function handleCreateConcept(req, res) {
         wordTypes: ['word', 'jsonSchema'],
         coreMemberOf: [{ slug: `concept-header-for-the-concept-of-${slugPlural}`, uuid: headerUuid }],
       },
-      jsonSchema: {},
+      jsonSchema: {
+        $schema: 'https://json-schema.org/draft/2020-12/schema',
+        type: 'object',
+        name: names.oNames.singular,
+        title: names.oTitles.singular,
+        description: `JSON Schema for the concept of ${names.oNames.plural}`,
+        required: [ppKey],
+        definitions: {},
+        properties: {
+          [ppKey]: {
+            type: 'object',
+            name: names.oNames.singular,
+            title: names.oTitles.singular,
+            slug: ppSlug,
+            description: `data about this ${names.oNames.singular}`,
+            required: ['name', 'slug', 'description'],
+            unique: ['name', 'slug'],
+            properties: {
+              name: {
+                type: 'string', name: 'name', slug: 'name',
+                title: 'Name', description: `The name of the ${names.oNames.singular}`,
+              },
+              slug: {
+                type: 'string', name: 'slug', slug: 'slug',
+                title: 'Slug', description: `A unique kebab-case identifier for this ${names.oNames.singular}`,
+              },
+              description: {
+                type: 'string', name: 'description', slug: 'description',
+                title: 'Description', description: `A brief description of the ${names.oNames.singular}`,
+              },
+            },
+          },
+        },
+      },
     };
 
     const schemaEvent = signAndFinalize({
@@ -1087,14 +1196,10 @@ async function handleCreateConcept(req, res) {
           slug: { type: 'string' },
           description: { type: 'string' },
         },
-        'x-tapestry': {
-          unique: ['name', 'slug'],
-          defaults: {
-            required: ['name', 'slug', 'description'],
-          },
-        },
       },
-      primaryProperty: {},
+      primaryProperty: {
+        description: `the primary property for the concept of ${names.oNames.plural}`,
+      },
     };
 
     const ppEvent = signAndFinalize({
@@ -1125,7 +1230,9 @@ async function handleCreateConcept(req, res) {
         slug: `properties-for-the-concept-of-${slugPlural}`,
         name: `properties for the concept of ${names.oNames.plural}`,
       },
-      properties: {},
+      properties: {
+        description: `the set of all properties for the concept of ${names.oNames.plural}`,
+      },
     };
 
     const propsEvent = signAndFinalize({
@@ -1450,7 +1557,11 @@ async function handleCreateElement(req, res) {
       let schema = null;
       const raw = schemaRows[0]?.schemaJson;
       if (raw) {
-        try { schema = typeof raw === 'string' ? JSON.parse(raw) : raw; } catch {}
+        try {
+          const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+          // Word-wrapper format: { word: {...}, jsonSchema: {...} }
+          schema = (parsed && parsed.jsonSchema) ? parsed.jsonSchema : parsed;
+        } catch {}
       }
 
       if (schema && schema.properties && Object.keys(schema.properties).length > 0) {
@@ -1528,13 +1639,16 @@ async function handleSaveSchema(req, res) {
     if (!concept) return res.status(400).json({ success: false, error: 'Missing concept name' });
     if (!schema || typeof schema !== 'object') return res.status(400).json({ success: false, error: 'Missing or invalid schema object' });
 
-    // Find the concept's JSON Schema node
+    // Find the concept's JSON Schema node + existing json
     const rows = await runCypher(`
       MATCH (h:NostrEvent)
-      WHERE (h:ListHeader OR h:ClassThreadHeader) AND h.kind IN [9998, 39998]
+      WHERE (h:ListHeader OR h:ClassThreadHeader OR h:ConceptHeader) AND h.kind IN [9998, 39998]
         AND h.name = $concept
       OPTIONAL MATCH (js:JSONSchema)-[:IS_THE_JSON_SCHEMA_FOR]->(h)
-      RETURN h.uuid AS headerUuid, js.uuid AS schemaUuid
+      OPTIONAL MATCH (js)-[:HAS_TAG]->(jt:NostrEventTag {type: 'json'})
+      OPTIONAL MATCH (h)-[:HAS_TAG]->(st:NostrEventTag {type: 'slug'})
+      RETURN h.uuid AS headerUuid, js.uuid AS schemaUuid,
+             head(collect(jt.value)) AS existingJson, st.value AS slug
       LIMIT 1
     `, { concept });
 
@@ -1542,7 +1656,7 @@ async function handleSaveSchema(req, res) {
       return res.json({ success: false, error: `Concept "${concept}" not found` });
     }
 
-    const { schemaUuid } = rows[0];
+    const { schemaUuid, headerUuid, slug: conceptSlug } = rows[0];
     if (!schemaUuid) {
       return res.json({ success: false, error: `Concept "${concept}" has no JSON Schema node. Create one first via normalize skeleton.` });
     }
@@ -1554,7 +1668,34 @@ async function handleSaveSchema(req, res) {
       ...schema,
     };
 
-    await regenerateJson(schemaUuid, finalSchema);
+    // Read existing word wrapper or build one
+    let wordWrapper;
+    const raw = rows[0].existingJson;
+    if (raw) {
+      try {
+        const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+        if (parsed.word && parsed.jsonSchema !== undefined) {
+          wordWrapper = parsed;
+        }
+      } catch {}
+    }
+    const cSlug = conceptSlug || deriveSlug(concept);
+    if (!wordWrapper) {
+      wordWrapper = {
+        word: {
+          slug: `json-schema-for-the-concept-of-${cSlug}`,
+          name: `JSON schema for the concept of ${concept}`,
+          title: `JSON Schema for the Concept of ${concept}`,
+          description: `the json schema for the concept of ${concept}`,
+          wordTypes: ['word', 'jsonSchema'],
+          coreMemberOf: [{ slug: `concept-header-for-the-concept-of-${cSlug}`, uuid: headerUuid }],
+        },
+        jsonSchema: {},
+      };
+    }
+    wordWrapper.jsonSchema = finalSchema;
+
+    await regenerateJson(schemaUuid, wordWrapper);
 
     return res.json({
       success: true,
@@ -1819,10 +1960,12 @@ async function handleGeneratePropertyTree(req, res) {
     const { schemaUuid, schemaName, schemaJson, propGraphUuid, propGraphName } = rows[0];
     if (!schemaUuid) return res.json({ success: false, error: `Concept "${concept}" has no JSON Schema node` });
 
-    // Parse the schema
+    // Parse the schema (supports word-wrapper and legacy flat formats)
     let schema;
     try {
-      schema = typeof schemaJson === 'string' ? JSON.parse(schemaJson) : schemaJson;
+      const parsed = typeof schemaJson === 'string' ? JSON.parse(schemaJson) : schemaJson;
+      // Word-wrapper format: { word: {...}, jsonSchema: {...} }
+      schema = (parsed && parsed.jsonSchema) ? parsed.jsonSchema : parsed;
     } catch {
       return res.json({ success: false, error: 'Could not parse JSON Schema' });
     }

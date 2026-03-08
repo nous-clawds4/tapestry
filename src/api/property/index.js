@@ -111,15 +111,47 @@ async function handleGenerateJsonSchema(req, res) {
     const topLevel = buildSchemaForChildren(schemaUuid);
 
     const schema = {
+      $schema: 'https://json-schema.org/draft/2020-12/schema',
       type: 'object',
+      definitions: {},
       ...topLevel,
     };
 
     // Remove empty required arrays
     if (schema.required && schema.required.length === 0) delete schema.required;
 
+    // Read existing word wrapper or build one
+    const existingJsonRows = await runCypher(`
+      MATCH (e:NostrEvent {uuid: $uuid})-[:HAS_TAG]->(t:NostrEventTag {type: 'json'})
+      RETURN t.value AS json
+    `, { uuid: schemaUuid });
+
+    let wordWrapper;
+    if (existingJsonRows.length > 0 && existingJsonRows[0].json) {
+      try {
+        const parsed = typeof existingJsonRows[0].json === 'string'
+          ? JSON.parse(existingJsonRows[0].json) : existingJsonRows[0].json;
+        if (parsed.word && parsed.jsonSchema !== undefined) {
+          wordWrapper = parsed;
+        }
+      } catch {}
+    }
+    if (!wordWrapper) {
+      wordWrapper = {
+        word: {
+          slug: schemaName ? schemaName.toLowerCase().replace(/\s+/g, '-') : 'json-schema',
+          name: schemaName || `JSON schema for ${concept}`,
+          title: schemaName ? schemaName.replace(/^json /i, 'JSON ') : `JSON Schema for ${concept}`,
+          description: `the json schema for the concept of ${concept}`,
+          wordTypes: ['word', 'jsonSchema'],
+        },
+        jsonSchema: {},
+      };
+    }
+    wordWrapper.jsonSchema = schema;
+
     // Save to the JSON Schema node
-    await regenerateJson(schemaUuid, schema);
+    await regenerateJson(schemaUuid, wordWrapper);
 
     return res.json({
       success: true,
