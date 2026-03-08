@@ -192,47 +192,31 @@ async function importEventDirect(event, uuid) {
   }
 }
 
-// ── UUID config lookup (BIOS concept UUIDs) ──────────────────
-// These are the canonical z-tag UUIDs for skeleton node types
-let _defaults = null;
-function getDefaults() {
-  if (!_defaults) {
-    _defaults = require('../../concept-graph/parameters/defaults.json');
-  }
-  return _defaults;
-}
-
-function configUuid(key) {
-  const d = getDefaults();
-  const uuids = d.conceptUUIDs || {};
-  const map = {
-    superset: uuids.superset,
-    jsonSchema: uuids.JSONSchema,
-    graph: uuids.graph,
-    relationship: uuids.relationship,
-    property: uuids.property,
-    primaryProperty: uuids.primaryProperty,
-  };
-  return map[key];
-}
+// ── UUID lookups (via firmware) ───────────────────────────────
+// Concept UUIDs are loaded from defaults.json via firmware.conceptUuid().
+// Reverse lookup via firmware.conceptSlugFromUuid().
 
 // Reverse lookup: z-tag UUID → role name
+// Uses firmware.conceptSlugFromUuid() with a compatibility map for legacy role names
 function roleFromZTag(zTagValue) {
-  const d = getDefaults();
-  const uuids = d.conceptUUIDs || {};
-  if (zTagValue === uuids.superset) return 'superset';
-  if (zTagValue === uuids.JSONSchema) return 'schema';
-  if (zTagValue === uuids.graph) return 'graph';
-  if (zTagValue === uuids.relationship) return 'relationship';
-  if (zTagValue === uuids.set) return 'set';
-  if (zTagValue === uuids.property) return 'property';
-  if (zTagValue === uuids.primaryProperty) return 'primaryProperty';
-  if (zTagValue === uuids.nodeType) return 'nodeType';
-  if (zTagValue === uuids.relationshipType) return 'relationshipType';
-  if (zTagValue === uuids.list) return 'list';
-  if (zTagValue === uuids.jsonDataType) return 'jsonDataType';
-  if (zTagValue === uuids.graphType) return 'graphType';
-  return null;
+  const slug = firmware.conceptSlugFromUuid(zTagValue);
+  if (!slug) return null;
+  // Map firmware slugs to legacy role names used in the codebase
+  const slugToRole = {
+    'superset': 'superset',
+    'json-schema': 'schema',
+    'graph': 'graph',
+    'relationship': 'relationship',
+    'set': 'set',
+    'property': 'property',
+    'primary-property': 'primaryProperty',
+    'node-type': 'nodeType',
+    'relationship-type': 'relationshipType',
+    'list': 'list',
+    'json-data-type': 'jsonDataType',
+    'graph-type': 'graphType',
+  };
+  return slugToRole[slug] || slug;
 }
 
 // ── Node role definitions ────────────────────────────────────
@@ -340,7 +324,7 @@ async function handleNormalizeSkeleton(req, res) {
         tags: [
           ['d', relDTag],
           ['name', `${name} ${relType}`],
-          ['z', configUuid('relationship')],
+          ['z', firmware.conceptUuid('relationship')],
           ['nodeFrom', from],
           ['nodeTo', to],
           ['relationshipType', relType],
@@ -375,7 +359,7 @@ async function handleNormalizeSkeleton(req, res) {
         tags: [
           ['d', dTag],
           ['name', supersetName],
-          ['z', configUuid('superset')],
+          ['z', firmware.conceptUuid('superset')],
           ['description', `The superset node for the ${name} concept.`],
           ['json', supersetJson],
         ],
@@ -443,7 +427,7 @@ async function handleNormalizeSkeleton(req, res) {
         tags: [
           ['d', dTag],
           ['name', schemaName],
-          ['z', configUuid('jsonSchema')],
+          ['z', firmware.conceptUuid('json-schema')],
           ['description', `The JSON Schema defining the horizontal structure of the ${name} concept.`],
           ['json', schemaJson],
         ],
@@ -475,7 +459,7 @@ async function handleNormalizeSkeleton(req, res) {
         tags: [
           ['d', dTag],
           ['name', ppName],
-          ['z', configUuid('primaryProperty')],
+          ['z', firmware.conceptUuid('primary-property')],
           ['description', `Primary property for the ${name} concept. Elements of ${name} use "${ppKey}" as their top-level JSON key.`],
           ['json', ppJson],
         ],
@@ -494,7 +478,7 @@ async function handleNormalizeSkeleton(req, res) {
           kind: 39999, content: '',
           tags: [
             ['d', relDTag], ['name', `${name} ${REL.PROPERTY_MEMBERSHIP}`],
-            ['z', configUuid('relationship')],
+            ['z', firmware.conceptUuid('relationship')],
             ['nodeFrom', primaryPropATag], ['nodeTo', schemaATag], ['relationshipType', REL.PROPERTY_MEMBERSHIP],
           ],
         });
@@ -530,7 +514,7 @@ async function handleNormalizeSkeleton(req, res) {
         kind: 39999,
         tags: [
           ['d', dTag], ['name', propsName],
-          ['z', configUuid('set')],
+          ['z', firmware.conceptUuid('set')],
           ['json', propsJson],
         ],
         content: '',
@@ -550,7 +534,7 @@ async function handleNormalizeSkeleton(req, res) {
         tags: [
           ['d', dTag],
           ['name', graphName],
-          ['z', configUuid('graph')],
+          ['z', firmware.conceptUuid('graph')],
           ['description', `Core infrastructure nodes for ${name}: header, superset, schema, and three canonical graphs.`],
         ],
         content: '',
@@ -604,7 +588,7 @@ async function handleNormalizeSkeleton(req, res) {
         tags: [
           ['d', dTag],
           ['name', graphName],
-          ['z', configUuid('graph')],
+          ['z', firmware.conceptUuid('graph')],
           ['description', `Core infrastructure nodes for ${name}: header, superset, schema, and three canonical graphs.`],
           ['json', graphJson],
         ],
@@ -633,7 +617,7 @@ async function handleNormalizeSkeleton(req, res) {
         tags: [
           ['d', dTag],
           ['name', graphName],
-          ['z', configUuid('graph')],
+          ['z', firmware.conceptUuid('graph')],
           ['description', `Concept graph for ${name}: superset hierarchy and elements.`],
           ['json', graphJson],
         ],
@@ -671,7 +655,7 @@ async function handleNormalizeSkeleton(req, res) {
         tags: [
           ['d', dTag],
           ['name', graphName],
-          ['z', configUuid('graph')],
+          ['z', firmware.conceptUuid('graph')],
           ['description', `Property tree graph for ${name}: schema and properties.`],
           ['json', graphJson],
         ],
@@ -1118,7 +1102,7 @@ async function handleCreateConcept(req, res) {
       tags: [
         ['d', supersetDTag],
         ['name', supersetWord.word.name],
-        ['z', configUuid('superset')],
+        ['z', firmware.conceptUuid('superset')],
         ['description', supersetWord.superset.description],
         ['json', JSON.stringify(supersetWord)],
       ],
@@ -1183,7 +1167,7 @@ async function handleCreateConcept(req, res) {
       tags: [
         ['d', schemaDTag],
         ['name', schemaWord.word.name],
-        ['z', configUuid('jsonSchema')],
+        ['z', firmware.conceptUuid('json-schema')],
         ['description', schemaWord.word.description],
         ['json', JSON.stringify(schemaWord)],
       ],
@@ -1223,7 +1207,7 @@ async function handleCreateConcept(req, res) {
     const ppEvent = signAndFinalize({
       kind: 39999, content: '',
       tags: [
-        ['d', ppDTag], ['name', ppWord.word.name], ['z', configUuid('property')],
+        ['d', ppDTag], ['name', ppWord.word.name], ['z', firmware.conceptUuid('property')],
         ['description', ppWord.word.description],
         ['json', JSON.stringify(ppWord)],
       ],
@@ -1256,7 +1240,7 @@ async function handleCreateConcept(req, res) {
     const propsEvent = signAndFinalize({
       kind: 39999, content: '',
       tags: [
-        ['d', propsDTag], ['name', propsWord.word.name], ['z', configUuid('set')],
+        ['d', propsDTag], ['name', propsWord.word.name], ['z', firmware.conceptUuid('set')],
         ['json', JSON.stringify(propsWord)],
       ],
     });
@@ -1297,7 +1281,7 @@ async function handleCreateConcept(req, res) {
     const ptEvent = signAndFinalize({
       kind: 39999, content: '',
       tags: [
-        ['d', ptDTag], ['name', ptWord.word.name], ['z', configUuid('graph')],
+        ['d', ptDTag], ['name', ptWord.word.name], ['z', firmware.conceptUuid('graph')],
         ['description', ptWord.propertyTreeGraph.description],
         ['json', JSON.stringify(ptWord)],
       ],
@@ -1345,7 +1329,7 @@ async function handleCreateConcept(req, res) {
     const cgEvent = signAndFinalize({
       kind: 39999, content: '',
       tags: [
-        ['d', cgDTag], ['name', cgWord.word.name], ['z', configUuid('graph')],
+        ['d', cgDTag], ['name', cgWord.word.name], ['z', firmware.conceptUuid('graph')],
         ['description', cgWord.conceptGraph.description],
         ['json', JSON.stringify(cgWord)],
       ],
@@ -1411,7 +1395,7 @@ async function handleCreateConcept(req, res) {
     const coreEvent = signAndFinalize({
       kind: 39999, content: '',
       tags: [
-        ['d', coreDTag], ['name', coreWord.word.name], ['z', configUuid('graph')],
+        ['d', coreDTag], ['name', coreWord.word.name], ['z', firmware.conceptUuid('graph')],
         ['description', coreWord.coreNodesGraph.description],
         ['json', JSON.stringify(coreWord)],
       ],
@@ -1431,7 +1415,7 @@ async function handleCreateConcept(req, res) {
     const coreEventV2 = signAndFinalize({
       kind: 39999, content: '',
       tags: [
-        ['d', coreDTag], ['name', coreWord.word.name], ['z', configUuid('graph')],
+        ['d', coreDTag], ['name', coreWord.word.name], ['z', firmware.conceptUuid('graph')],
         ['description', coreWord.coreNodesGraph.description],
         ['json', JSON.stringify(coreWord)],
       ],
@@ -1447,7 +1431,7 @@ async function handleCreateConcept(req, res) {
     const cgEventV2 = signAndFinalize({
       kind: 39999, content: '',
       tags: [
-        ['d', cgDTag], ['name', cgWord.word.name], ['z', configUuid('graph')],
+        ['d', cgDTag], ['name', cgWord.word.name], ['z', firmware.conceptUuid('graph')],
         ['description', cgWord.conceptGraph.description],
         ['json', JSON.stringify(cgWord)],
       ],
@@ -1474,7 +1458,7 @@ async function handleCreateConcept(req, res) {
         tags: [
           ['d', relDTag],
           ['name', `${trimName} ${rel.type}`],
-          ['z', configUuid('relationship')],
+          ['z', firmware.conceptUuid('relationship')],
           ['nodeFrom', rel.from], ['nodeTo', rel.to], ['relationshipType', rel.type],
         ],
       });
@@ -2221,7 +2205,7 @@ async function handleAddNodeAsElement(req, res) {
 // Re-signs primary property events with z-tag pointing to the "primary property" concept
 async function handleMigratePrimaryPropertyZTags(req, res) {
   try {
-    const newZTag = configUuid('primaryProperty');
+    const newZTag = firmware.conceptUuid('primary-property');
     if (!newZTag) {
       return res.status(500).json({ success: false, error: 'primaryProperty not found in defaults.json' });
     }
@@ -2329,7 +2313,7 @@ async function handleLinkConcepts(req, res) {
       tags: [
         ['d', randomDTag()],
         ['name', `${p.supersetName} ${REL.CLASS_THREAD_PROPAGATION} ${c.supersetName}`],
-        ['z', configUuid('relationship')],
+        ['z', firmware.conceptUuid('relationship')],
         ['nodeFrom', p.supersetUuid],
         ['nodeTo', c.supersetUuid],
         ['relationshipType', REL.CLASS_THREAD_PROPAGATION],
@@ -2401,7 +2385,7 @@ async function handleEnumerate(req, res) {
         kind: 39999, content: '',
         tags: [
           ['d', dTag], ['name', propName], ['type', pType],
-          ['z', configUuid('property')],
+          ['z', firmware.conceptUuid('property')],
         ],
       });
       propUuid = `39999:${propEvent.pubkey}:${dTag}`;
@@ -2428,7 +2412,7 @@ async function handleEnumerate(req, res) {
       tags: [
         ['d', randomDTag()],
         ['name', `${enumer.supersetName} ${REL.PROPERTY_ENUMERATION} ${propDisplayName}`],
-        ['z', configUuid('relationship')],
+        ['z', firmware.conceptUuid('relationship')],
         ['nodeFrom', enumer.supersetUuid],
         ['nodeTo', propUuid],
         ['relationshipType', REL.PROPERTY_ENUMERATION],
@@ -2462,7 +2446,7 @@ async function handleEnumerate(req, res) {
           tags: [
             ['d', randomDTag()],
             ['name', `${propDisplayName} ${REL.PROPERTY_MEMBERSHIP} ${schemaRows[0].schemaName}`],
-            ['z', configUuid('relationship')],
+            ['z', firmware.conceptUuid('relationship')],
             ['nodeFrom', propUuid],
             ['nodeTo', schemaRows[0].schemaUuid],
             ['relationshipType', REL.PROPERTY_MEMBERSHIP],
@@ -2586,7 +2570,7 @@ async function handleCreateSet(req, res) {
     const dTag = randomDTag();
     const setEvent = signAndFinalize({
       kind: 39999, content: '',
-      tags: [['d', dTag], ['name', name], ['z', configUuid('set') || '']],
+      tags: [['d', dTag], ['name', name], ['z', firmware.conceptUuid('set') || '']],
     });
     const setUuid = `39999:${setEvent.pubkey}:${dTag}`;
     await publishToStrfry(setEvent);
@@ -2599,7 +2583,7 @@ async function handleCreateSet(req, res) {
       tags: [
         ['d', randomDTag()],
         ['name', `${p.supersetName} ${REL.CLASS_THREAD_PROPAGATION} ${name}`],
-        ['z', configUuid('relationship')],
+        ['z', firmware.conceptUuid('relationship')],
         ['nodeFrom', p.supersetUuid],
         ['nodeTo', setUuid],
         ['relationshipType', REL.CLASS_THREAD_PROPAGATION],
@@ -2673,7 +2657,7 @@ async function handleAddToSet(req, res) {
       tags: [
         ['d', randomDTag()],
         ['name', `${s.name} ${REL.CLASS_THREAD_TERMINATION} ${item.name}`],
-        ['z', configUuid('relationship')],
+        ['z', firmware.conceptUuid('relationship')],
         ['nodeFrom', s.uuid],
         ['nodeTo', item.uuid],
         ['relationshipType', REL.CLASS_THREAD_TERMINATION],
@@ -2789,7 +2773,7 @@ async function handleForkNode(req, res) {
         tags: [
           ['d', randomDTag()],
           ['name', `${newFrom} ${r.relType} ${newTo}`],
-          ['z', configUuid('relationship')],
+          ['z', firmware.conceptUuid('relationship')],
           ['nodeFrom', newFrom], ['nodeTo', newTo],
           ['relationshipType', r.relType],
         ],
@@ -2809,7 +2793,7 @@ async function handleForkNode(req, res) {
       tags: [
         ['d', randomDTag()],
         ['name', `${node.name} PROVIDED_THE_TEMPLATE_FOR fork`],
-        ['z', configUuid('relationship')],
+        ['z', firmware.conceptUuid('relationship')],
         ['nodeFrom', node.uuid], ['nodeTo', forkedUuid],
         ['relationshipType', 'PROVIDED_THE_TEMPLATE_FOR'],
       ],

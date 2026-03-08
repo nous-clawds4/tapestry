@@ -155,6 +155,70 @@ function loadElements(category) {
   return results;
 }
 
+// ── Instance UUIDs (from defaults.json) ──────────────────────
+// These are the live a-tag UUIDs for BIOS concepts in the current graph.
+// Firmware defines the structure; defaults.json records the instance data.
+// Eventually this will be generated from the graph or stored in firmware.
+
+let _instanceUuids = null;
+
+function loadInstanceUuids() {
+  if (_instanceUuids) return _instanceUuids;
+
+  const defaultsPath = path.resolve(__dirname, '../../concept-graph/parameters/defaults.json');
+  if (!fs.existsSync(defaultsPath)) {
+    console.warn('[firmware] defaults.json not found — conceptUuid() will return null');
+    _instanceUuids = {};
+    return _instanceUuids;
+  }
+  const defaults = JSON.parse(fs.readFileSync(defaultsPath, 'utf8'));
+  const cuuids = defaults.conceptUUIDs || {};
+  const ruuids = defaults.relationshipTypeUUIDs || {};
+
+  // Map firmware slugs → instance UUIDs
+  // The keys in defaults.json use camelCase; we map from firmware kebab-case slugs
+  _instanceUuids = {
+    concepts: {
+      'relationship':          cuuids.relationship,
+      'relationship-type':     cuuids.relationshipType,
+      'node-type':             cuuids.nodeType,
+      'set':                   cuuids.set,
+      'superset':              cuuids.superset,
+      'json-schema':           cuuids.JSONSchema,
+      'property':              cuuids.property,
+      'primary-property':      cuuids.primaryProperty,
+      'list':                  cuuids.list,
+      'json-data-type':        cuuids.jsonDataType,
+      'graph-type':            cuuids.graphType,
+      'graph':                 cuuids.graph,
+    },
+    relationshipTypes: ruuids,
+  };
+
+  return _instanceUuids;
+}
+
+/**
+ * Get the live a-tag UUID for a firmware concept by slug.
+ * e.g., conceptUuid('superset') → '39998:2d1fe...:21cbf5be-...'
+ */
+function conceptUuid(slug) {
+  const inst = loadInstanceUuids();
+  return (inst.concepts || {})[slug] || null;
+}
+
+/**
+ * Reverse lookup: a-tag UUID → firmware concept slug.
+ * e.g., '39998:2d1fe...:21cbf5be-...' → 'superset'
+ */
+function conceptSlugFromUuid(uuid) {
+  const inst = loadInstanceUuids();
+  for (const [slug, u] of Object.entries(inst.concepts || {})) {
+    if (u === uuid) return slug;
+  }
+  return null;
+}
+
 // ── Cache invalidation ───────────────────────────────────────
 
 /**
@@ -166,6 +230,7 @@ function clearCache() {
   _concepts = null;
   _aliasToCanonical = null;
   _canonicalToAlias = null;
+  _instanceUuids = null;
 }
 
 module.exports = {
@@ -177,5 +242,7 @@ module.exports = {
   getConcept,
   allConcepts,
   loadElements,
+  conceptUuid,
+  conceptSlugFromUuid,
   clearCache,
 };
