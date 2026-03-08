@@ -1,0 +1,201 @@
+{
+    "word": {
+        "slug": "json-schema-for-the-concept-of-concept-headers",
+        "title": "JSON Schema for the Concept of Concept Headers",
+        "name": "JSON Schema for the concept of concept headers",
+        "description": "This is the JSON Schema for elements of the concept of concept headers. Every element of this concept must validate against this JSON schema.",
+        "wordTypes": [
+            "word",
+            "jsonSchema"
+        ],
+        "coreMemberOf": [
+            {
+                "slug": "concept-header-for-the-concept-of-concept-headers",
+                "uuid": "<uuid>"
+            }
+        ]
+    },
+    "jsonSchema": {
+        "name": "concept header",
+        "title": "Concept Header",
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "required": [
+            "conceptHeader"
+        ],
+        "definitions": {},
+        "properties": {
+            "conceptHeader": {
+                "type": "object",
+                "name": "concept header",
+                "title": "Concept Header",
+                "slug": "concept-header",
+                "alias": "class thread header",
+                "description": "data about this concept header",
+                "required": [
+                    "oNames",
+                    "oSlugs",
+                    "oKeys",
+                    "oTitles",
+                    "oLabels"
+                ],
+                "unique": [
+                    "oNames",
+                    "oSlugs",
+                    "oKeys",
+                    "oTitles",
+                    "oLabels"
+                ],
+                "properties": {
+                    "oNames": {
+                        "type": "object",
+                        "name": "name",
+                        "title": "Name",
+                        "slug": "name",
+                        "description": "The display names for this concept (lowercase)",
+                        "required": [
+                            "singular",
+                            "plural"
+                        ],
+                        "unique": [],
+                        "properties": {
+                            "singular": {
+                                "type": "string",
+                                "name": "singular",
+                                "title": "Singular",
+                                "description": "Singular display name",
+                                "slug": "singular"
+                            },
+                            "plural": {
+                                "type": "string",
+                                "name": "plural",
+                                "title": "Plural",
+                                "description": "Plural display name",
+                                "slug": "plural"
+                            }
+                        }
+                    },
+                    "oSlugs": {
+                        "type": "object",
+                        "name": "slug",
+                        "title": "Slug",
+                        "slug": "slug",
+                        "description": "The kebab-case identifiers for this concept",
+                        "required": [
+                            "singular",
+                            "plural"
+                        ],
+                        "unique": [],
+                        "properties": {
+                            "singular": {
+                                "type": "string",
+                                "name": "singular",
+                                "title": "Singular",
+                                "description": "Singular slug (e.g. coffee-house)",
+                                "slug": "singular"
+                            },
+                            "plural": {
+                                "type": "string",
+                                "name": "plural",
+                                "title": "Plural",
+                                "description": "Plural slug (e.g. coffee-houses)",
+                                "slug": "plural"
+                            }
+                        }
+                    },
+                    "oKeys": {
+                        "type": "object",
+                        "name": "key",
+                        "title": "Key",
+                        "slug": "key",
+                        "description": "The camelCase identifiers for this concept",
+                        "required": [
+                            "singular",
+                            "plural"
+                        ],
+                        "unique": [],
+                        "properties": {
+                            "singular": {
+                                "type": "string",
+                                "name": "singular",
+                                "title": "Singular",
+                                "description": "Singular key (e.g. coffeeHouse)",
+                                "slug": "singular"
+                            },
+                            "plural": {
+                                "type": "string",
+                                "name": "plural",
+                                "title": "Plural",
+                                "description": "Plural key (e.g. coffeeHouses)",
+                                "slug": "plural"
+                            }
+                        }
+                    },
+                    "oTitles": {
+                        "type": "object",
+                        "name": "title",
+                        "title": "Title",
+                        "slug": "title",
+                        "description": "The Title Case display names for this concept",
+                        "required": [
+                            "singular",
+                            "plural"
+                        ],
+                        "unique": [],
+                        "properties": {
+                            "singular": {
+                                "type": "string",
+                                "name": "singular",
+                                "title": "Singular",
+                                "description": "Singular title (e.g. Coffee House)",
+                                "slug": "singular"
+                            },
+                            "plural": {
+                                "type": "string",
+                                "name": "plural",
+                                "title": "Plural",
+                                "description": "Plural title (e.g. Coffee Houses)",
+                                "slug": "plural"
+                            }
+                        }
+                    },
+                    "oLabels": {
+                        "type": "object",
+                        "name": "label",
+                        "title": "Label",
+                        "slug": "label",
+                        "description": "The PascalCase identifiers for this concept",
+                        "required": [
+                            "singular",
+                            "plural"
+                        ],
+                        "unique": [],
+                        "properties": {
+                            "singular": {
+                                "type": "string",
+                                "name": "singular",
+                                "title": "Singular",
+                                "description": "Singular label (e.g. CoffeeHouse)",
+                                "slug": "singular"
+                            },
+                            "plural": {
+                                "type": "string",
+                                "name": "plural",
+                                "title": "Plural",
+                                "description": "Plural label (e.g. CoffeeHouses)",
+                                "slug": "plural"
+                            }
+                        }
+                    },
+                    "description": {
+                        "type": "string",
+                        "name": "description",
+                        "title": "Description",
+                        "description": "A human-readable description of this concept",
+                        "slug": "description"
+                    }
+                }
+            }
+        }
+    }
+}

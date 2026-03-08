@@ -1,0 +1,111 @@
+{
+    "word": {
+        "slug": "json-schema-for-the-concept-of-image-validation-scripts",
+        "title": "JSON Schema for the Concept of Image Validation Scripts",
+        "name": "JSON Schema for the concept of image validation scripts",
+        "description": "This is the JSON Schema for elements of the concept of image validation scripts. Every element of this concept must validate against this JSON schema.",
+        "wordTypes": [
+            "word",
+            "jsonSchema",
+            "validationTool"
+        ],
+        "coreMemberOf": [
+            {
+                "slug": "concept-header-for-the-concept-of-image-validation-scripts",
+                "uuid": "<uuid>"
+            }
+        ]
+    },
+    "jsonSchema": {
+        "name": "image validation script",
+        "title": "Image Validation Script",
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "required": [
+            "imageValidationScript"
+        ],
+        "definitions": {},
+        "properties": {
+            "imageValidationScript": {
+                "type": "object",
+                "name": "image validation script",
+                "title": "Image Validation Script",
+                "slug": "image-validation-script",
+                "description": "data about this image validation script",
+                "required": [
+                    "slug",
+                    "tool",
+                    "command"
+                ],
+                "unique": [
+                    "slug"
+                ],
+                "properties": {
+                    "slug": {
+                        "type": "string",
+                        "name": "slug",
+                        "title": "Slug",
+                        "slug": "slug",
+                        "description": "Unique identifier for this validation script"
+                    },
+                    "name": {
+                        "type": "string",
+                        "name": "name",
+                        "title": "Name",
+                        "slug": "name",
+                        "description": "Human-readable name"
+                    },
+                    "tool": {
+                        "type": "string",
+                        "name": "tool",
+                        "title": "Tool",
+                        "slug": "tool",
+                        "description": "Name of the external validation tool"
+                    },
+                    "toolVersion": {
+                        "type": "string",
+                        "name": "tool version",
+                        "title": "Tool Version",
+                        "slug": "tool-version",
+                        "description": "Version of the tool this script was tested against"
+                    },
+                    "command": {
+                        "type": "string",
+                        "name": "command",
+                        "title": "Command",
+                        "slug": "command",
+                        "description": "The command template to run, with <file> as placeholder for the file path"
+                    },
+                    "installCommand": {
+                        "type": "string",
+                        "name": "install command",
+                        "title": "Install Command",
+                        "slug": "install-command",
+                        "description": "How to install the validation tool"
+                    },
+                    "path": {
+                        "type": "string",
+                        "name": "path",
+                        "title": "Path",
+                        "slug": "path",
+                        "description": "Absolute path to the tool binary"
+                    },
+                    "successExitCode": {
+                        "type": "integer",
+                        "name": "success exit code",
+                        "title": "Success Exit Code",
+                        "slug": "success-exit-code",
+                        "description": "The exit code that indicates a valid file (typically 0)"
+                    },
+                    "description": {
+                        "type": "string",
+                        "name": "description",
+                        "title": "Description",
+                        "slug": "description",
+                        "description": "Description of what the tool checks"
+                    }
+                }
+            }
+        }
+    }
+}

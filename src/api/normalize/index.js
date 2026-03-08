@@ -2896,6 +2896,10 @@ async function registerNormalizeRoutes(app) {
   app.post('/api/normalize/add-to-set', handleAddToSet);
   app.post('/api/normalize/fork-node', handleForkNode);
   app.post('/api/normalize/set-json-tag', handleSetJsonTag);
+
+  // Firmware install
+  const { handleFirmwareInstall } = require('../../firmware/install');
+  app.post('/api/firmware/install', handleFirmwareInstall);
 }
 
 module.exports = { registerNormalizeRoutes };

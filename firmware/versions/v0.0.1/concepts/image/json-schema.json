@@ -1,0 +1,82 @@
+{
+    "word": {
+        "slug": "json-schema-for-the-concept-of-images",
+        "title": "JSON Schema for the Concept of Images",
+        "name": "JSON Schema for the concept of images",
+        "description": "This is the JSON Schema for the word JSON of image nodes. It validates the metadata that describes an image, not the image file itself.",
+        "wordTypes": [
+            "word",
+            "jsonSchema",
+            "validationTool"
+        ],
+        "coreMemberOf": [
+            {
+                "slug": "concept-header-for-the-concept-of-images",
+                "uuid": "<uuid>"
+            }
+        ]
+    },
+    "jsonSchema": {
+        "name": "image",
+        "title": "Image",
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "definitions": {},
+        "type": "object",
+        "required": [
+            "image"
+        ],
+        "properties": {
+            "image": {
+                "type": "object",
+                "name": "image",
+                "title": "Image",
+                "slug": "image",
+                "description": "Metadata about this image node",
+                "required": [
+                    "slug",
+                    "path"
+                ],
+                "unique": [
+                    "slug"
+                ],
+                "properties": {
+                    "slug": {
+                        "type": "string",
+                        "name": "slug",
+                        "title": "Slug",
+                        "slug": "slug",
+                        "description": "Unique identifier for this image"
+                    },
+                    "name": {
+                        "type": "string",
+                        "name": "name",
+                        "title": "Name",
+                        "slug": "name",
+                        "description": "Human-readable name"
+                    },
+                    "path": {
+                        "type": "string",
+                        "name": "path",
+                        "title": "Path",
+                        "slug": "path",
+                        "description": "Path or URL to the image file"
+                    },
+                    "mimeType": {
+                        "type": "string",
+                        "name": "MIME type",
+                        "title": "MIME Type",
+                        "slug": "mime-type",
+                        "description": "The MIME type of the image (e.g., image/png, image/jpeg)"
+                    },
+                    "description": {
+                        "type": "string",
+                        "name": "description",
+                        "title": "Description",
+                        "slug": "description",
+                        "description": "Human-readable description of the image"
+                    }
+                }
+            }
+        }
+    }
+}

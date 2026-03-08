@@ -105,9 +105,12 @@ function loadConcepts() {
   _concepts = {};
 
   for (const entry of manifest.concepts) {
-    const filePath = path.join(FIRMWARE_DIR, entry.file);
+    // Support both directory format (dir + conceptHeader) and legacy flat format (file)
+    const filePath = entry.dir
+      ? path.join(FIRMWARE_DIR, entry.dir, entry.conceptHeader)
+      : path.join(FIRMWARE_DIR, entry.file);
     if (!fs.existsSync(filePath)) {
-      console.warn(`[firmware] Missing concept file: ${entry.file}`);
+      console.warn(`[firmware] Missing concept file: ${filePath}`);
       continue;
     }
     const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
@@ -131,6 +134,22 @@ function getConcept(slug) {
  */
 function allConcepts() {
   return loadConcepts();
+}
+
+/**
+ * Get the firmware JSON Schema template for a concept by slug.
+ * Returns the full word wrapper (word + jsonSchema sections), or null if not available.
+ * The coreMemberOf UUID will be "<uuid>" — caller must inject the real UUID.
+ */
+function getConceptSchema(slug) {
+  const manifest = getManifest();
+  const entry = manifest.concepts.find(c => c.slug === slug);
+  if (!entry || !entry.dir || !entry.jsonSchema) return null;
+
+  const schemaPath = path.join(FIRMWARE_DIR, entry.dir, entry.jsonSchema);
+  if (!fs.existsSync(schemaPath)) return null;
+
+  return JSON.parse(fs.readFileSync(schemaPath, 'utf8'));
 }
 
 // ── Elements ─────────────────────────────────────────────────
@@ -241,6 +260,7 @@ module.exports = {
   allRelationshipTypes,
   getConcept,
   allConcepts,
+  getConceptSchema,
   loadElements,
   conceptUuid,
   conceptSlugFromUuid,

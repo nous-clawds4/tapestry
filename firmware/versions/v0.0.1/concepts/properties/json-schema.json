@@ -1,0 +1,50 @@
+{
+    "word": {
+        "slug": "json-schema-for-the-concept-of-properties-nodes",
+        "title": "JSON Schema for the Concept of Properties Nodes",
+        "name": "JSON Schema for the concept of properties nodes",
+        "description": "This is the JSON Schema for elements of the concept of properties nodes. Every element of this concept must validate against this JSON schema.",
+        "wordTypes": [
+            "word",
+            "jsonSchema"
+        ],
+        "coreMemberOf": [
+            {
+                "slug": "concept-header-for-the-concept-of-properties-nodes",
+                "uuid": "<uuid>"
+            }
+        ]
+    },
+    "jsonSchema": {
+        "name": "properties node",
+        "title": "Properties Node",
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "definitions": {},
+        "type": "object",
+        "required": [
+            "properties"
+        ],
+        "properties": {
+            "properties": {
+                "type": "object",
+                "name": "properties",
+                "title": "Properties",
+                "slug": "properties",
+                "description": "data about this properties node",
+                "required": [
+                    "description"
+                ],
+                "unique": [],
+                "properties": {
+                    "description": {
+                        "type": "string",
+                        "name": "description",
+                        "title": "Description",
+                        "slug": "description",
+                        "description": "A description of this properties node"
+                    }
+                }
+            }
+        }
+    }
+}

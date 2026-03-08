@@ -1,0 +1,74 @@
+{
+    "word": {
+        "slug": "json-schema-for-the-concept-of-relationships",
+        "name": "JSON Schema for the concept of relationships",
+        "title": "JSON Schema for the Concept of Relationships",
+        "description": "This is the JSON Schema for elements of the concept of relationships. Every element of this concept must validate against this JSON schema.",
+        "wordTypes": [
+            "word",
+            "jsonSchema"
+        ],
+        "coreMemberOf": [
+            {
+                "slug": "concept-header-for-the-concept-of-relationships",
+                "uuid": "<uuid>"
+            }
+        ]
+    },
+    "jsonSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "name": "relationship",
+        "title": "Relationship",
+        "description": "JSON Schema for the concept of relationships",
+        "required": [
+            "relationship"
+        ],
+        "definitions": {},
+        "properties": {
+            "relationship": {
+                "type": "object",
+                "name": "relationship",
+                "title": "Relationship",
+                "slug": "relationship",
+                "description": "data about this relationship",
+                "required": [
+                    "slug"
+                ],
+                "unique": [
+                    "slug"
+                ],
+                "properties": {
+                    "slug": {
+                        "type": "string",
+                        "name": "slug",
+                        "title": "Slug",
+                        "slug": "slug",
+                        "description": "The slug for this relationship"
+                    },
+                    "name": {
+                        "type": "string",
+                        "name": "name",
+                        "title": "Name",
+                        "slug": "name",
+                        "description": "The name for this relationship"
+                    },
+                    "title": {
+                        "type": "string",
+                        "name": "title",
+                        "title": "Title",
+                        "slug": "title",
+                        "description": "The title for this relationship"
+                    },
+                    "description": {
+                        "type": "string",
+                        "name": "description",
+                        "title": "Description",
+                        "slug": "description",
+                        "description": "The top-level description for this relationship"
+                    }
+                }
+            }
+        }
+    }
+}

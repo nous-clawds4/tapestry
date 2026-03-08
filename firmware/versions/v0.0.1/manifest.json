@@ -2,70 +2,262 @@
   "version": "0.0.1",
   "date": "2026-03-08",
   "description": "Initial tapestry firmware — foundational meta-concepts for the tapestry protocol.",
-
   "relationshipTypes": [
-    { "slug": "CLASS_THREAD_INITIATION", "file": "./relationship-types/class-thread-initiation.json" },
-    { "slug": "CLASS_THREAD_PROPAGATION", "file": "./relationship-types/class-thread-propagation.json" },
-    { "slug": "CLASS_THREAD_TERMINATION", "file": "./relationship-types/class-thread-termination.json" },
-    { "slug": "CORE_NODE_JSON_SCHEMA", "file": "./relationship-types/core-node-json-schema.json" },
-    { "slug": "CORE_NODE_PRIMARY_PROPERTY", "file": "./relationship-types/core-node-primary-property.json" },
-    { "slug": "CORE_NODE_PROPERTIES", "file": "./relationship-types/core-node-properties.json" },
-    { "slug": "CORE_NODE_PROPERTY_TREE_GRAPH", "file": "./relationship-types/core-node-property-tree-graph.json" },
-    { "slug": "CORE_NODE_CORE_GRAPH", "file": "./relationship-types/core-node-core-graph.json" },
-    { "slug": "CORE_NODE_CONCEPT_GRAPH", "file": "./relationship-types/core-node-concept-graph.json" },
-    { "slug": "PROPERTY_MEMBERSHIP", "file": "./relationship-types/property-membership.json" },
-    { "slug": "PROPERTY_ENUMERATION", "file": "./relationship-types/property-enumeration.json" }
+    {
+      "slug": "CLASS_THREAD_INITIATION",
+      "file": "./relationship-types/class-thread-initiation.json"
+    },
+    {
+      "slug": "CLASS_THREAD_PROPAGATION",
+      "file": "./relationship-types/class-thread-propagation.json"
+    },
+    {
+      "slug": "CLASS_THREAD_TERMINATION",
+      "file": "./relationship-types/class-thread-termination.json"
+    },
+    {
+      "slug": "CORE_NODE_JSON_SCHEMA",
+      "file": "./relationship-types/core-node-json-schema.json"
+    },
+    {
+      "slug": "CORE_NODE_PRIMARY_PROPERTY",
+      "file": "./relationship-types/core-node-primary-property.json"
+    },
+    {
+      "slug": "CORE_NODE_PROPERTIES",
+      "file": "./relationship-types/core-node-properties.json"
+    },
+    {
+      "slug": "CORE_NODE_PROPERTY_TREE_GRAPH",
+      "file": "./relationship-types/core-node-property-tree-graph.json"
+    },
+    {
+      "slug": "CORE_NODE_CORE_GRAPH",
+      "file": "./relationship-types/core-node-core-graph.json"
+    },
+    {
+      "slug": "CORE_NODE_CONCEPT_GRAPH",
+      "file": "./relationship-types/core-node-concept-graph.json"
+    },
+    {
+      "slug": "PROPERTY_MEMBERSHIP",
+      "file": "./relationship-types/property-membership.json"
+    },
+    {
+      "slug": "PROPERTY_ENUMERATION",
+      "file": "./relationship-types/property-enumeration.json"
+    }
   ],
-
   "concepts": [
-    { "slug": "node-type", "file": "./concepts/node-type.json" },
-    { "slug": "superset", "file": "./concepts/superset.json" },
-    { "slug": "set", "file": "./concepts/set.json" },
-    { "slug": "concept-header", "file": "./concepts/concept-header.json" },
-    { "slug": "relationship", "file": "./concepts/relationship.json" },
-    { "slug": "relationship-type", "file": "./concepts/relationship-type.json" },
-    { "slug": "property", "file": "./concepts/property.json" },
-    { "slug": "primary-property", "file": "./concepts/primary-property.json" },
-    { "slug": "properties", "file": "./concepts/properties.json" },
-    { "slug": "json-schema", "file": "./concepts/json-schema.json" },
-    { "slug": "json-data-type", "file": "./concepts/json-data-type.json" },
-    { "slug": "graph", "file": "./concepts/graph.json" },
-    { "slug": "graph-type", "file": "./concepts/graph-type.json" },
-    { "slug": "property-tree-graph", "file": "./concepts/property-tree-graph.json" },
-    { "slug": "core-nodes-graph", "file": "./concepts/core-nodes-graph.json" },
-    { "slug": "concept-graph", "file": "./concepts/concept-graph.json" },
-    { "slug": "list", "file": "./concepts/list.json" },
-    { "slug": "word", "file": "./concepts/word.json" },
-    { "slug": "validation-tool", "file": "./concepts/validation-tool.json" },
-    { "slug": "validation-tool-type", "file": "./concepts/validation-tool-type.json" },
-    { "slug": "image", "file": "./concepts/image.json" },
-    { "slug": "image-type", "file": "./concepts/image-type.json" },
-    { "slug": "image-validation-script", "file": "./concepts/image-validation-script.json" },
-    { "slug": "tapestry", "file": "./concepts/tapestry.json" }
+    {
+      "slug": "node-type",
+      "dir": "./concepts/node-type/",
+      "conceptHeader": "concept-header.json",
+      "jsonSchema": "json-schema.json"
+    },
+    {
+      "slug": "superset",
+      "dir": "./concepts/superset/",
+      "conceptHeader": "concept-header.json",
+      "jsonSchema": "json-schema.json"
+    },
+    {
+      "slug": "set",
+      "dir": "./concepts/set/",
+      "conceptHeader": "concept-header.json",
+      "jsonSchema": "json-schema.json"
+    },
+    {
+      "slug": "concept-header",
+      "dir": "./concepts/concept-header/",
+      "conceptHeader": "concept-header.json",
+      "jsonSchema": "json-schema.json"
+    },
+    {
+      "slug": "relationship",
+      "dir": "./concepts/relationship/",
+      "conceptHeader": "concept-header.json",
+      "jsonSchema": "json-schema.json"
+    },
+    {
+      "slug": "relationship-type",
+      "dir": "./concepts/relationship-type/",
+      "conceptHeader": "concept-header.json",
+      "jsonSchema": "json-schema.json"
+    },
+    {
+      "slug": "property",
+      "dir": "./concepts/property/",
+      "conceptHeader": "concept-header.json",
+      "jsonSchema": "json-schema.json"
+    },
+    {
+      "slug": "primary-property",
+      "dir": "./concepts/primary-property/",
+      "conceptHeader": "concept-header.json",
+      "jsonSchema": "json-schema.json"
+    },
+    {
+      "slug": "properties",
+      "dir": "./concepts/properties/",
+      "conceptHeader": "concept-header.json",
+      "jsonSchema": "json-schema.json"
+    },
+    {
+      "slug": "json-schema",
+      "dir": "./concepts/json-schema/",
+      "conceptHeader": "concept-header.json",
+      "jsonSchema": "json-schema.json"
+    },
+    {
+      "slug": "json-data-type",
+      "dir": "./concepts/json-data-type/",
+      "conceptHeader": "concept-header.json",
+      "jsonSchema": "json-schema.json"
+    },
+    {
+      "slug": "graph",
+      "dir": "./concepts/graph/",
+      "conceptHeader": "concept-header.json",
+      "jsonSchema": "json-schema.json"
+    },
+    {
+      "slug": "graph-type",
+      "dir": "./concepts/graph-type/",
+      "conceptHeader": "concept-header.json",
+      "jsonSchema": "json-schema.json"
+    },
+    {
+      "slug": "property-tree-graph",
+      "dir": "./concepts/property-tree-graph/",
+      "conceptHeader": "concept-header.json",
+      "jsonSchema": "json-schema.json"
+    },
+    {
+      "slug": "core-nodes-graph",
+      "dir": "./concepts/core-nodes-graph/",
+      "conceptHeader": "concept-header.json",
+      "jsonSchema": "json-schema.json"
+    },
+    {
+      "slug": "concept-graph",
+      "dir": "./concepts/concept-graph/",
+      "conceptHeader": "concept-header.json",
+      "jsonSchema": "json-schema.json"
+    },
+    {
+      "slug": "list",
+      "dir": "./concepts/list/",
+      "conceptHeader": "concept-header.json",
+      "jsonSchema": "json-schema.json"
+    },
+    {
+      "slug": "word",
+      "dir": "./concepts/word/",
+      "conceptHeader": "concept-header.json",
+      "jsonSchema": "json-schema.json"
+    },
+    {
+      "slug": "validation-tool",
+      "dir": "./concepts/validation-tool/",
+      "conceptHeader": "concept-header.json",
+      "jsonSchema": "json-schema.json"
+    },
+    {
+      "slug": "validation-tool-type",
+      "dir": "./concepts/validation-tool-type/",
+      "conceptHeader": "concept-header.json",
+      "jsonSchema": "json-schema.json"
+    },
+    {
+      "slug": "image",
+      "dir": "./concepts/image/",
+      "conceptHeader": "concept-header.json",
+      "jsonSchema": "json-schema.json"
+    },
+    {
+      "slug": "image-type",
+      "dir": "./concepts/image-type/",
+      "conceptHeader": "concept-header.json",
+      "jsonSchema": "json-schema.json"
+    },
+    {
+      "slug": "image-validation-script",
+      "dir": "./concepts/image-validation-script/",
+      "conceptHeader": "concept-header.json",
+      "jsonSchema": "json-schema.json"
+    },
+    {
+      "slug": "tapestry",
+      "dir": "./concepts/tapestry/",
+      "conceptHeader": "concept-header.json",
+      "jsonSchema": "json-schema.json"
+    }
   ],
-
   "elements": {
     "json-data-types": [
-      { "slug": "string", "file": "./elements/json-data-types/string.json" },
-      { "slug": "number", "file": "./elements/json-data-types/number.json" },
-      { "slug": "integer", "file": "./elements/json-data-types/integer.json" },
-      { "slug": "boolean", "file": "./elements/json-data-types/boolean.json" },
-      { "slug": "object", "file": "./elements/json-data-types/object.json" },
-      { "slug": "array", "file": "./elements/json-data-types/array.json" },
-      { "slug": "null", "file": "./elements/json-data-types/null.json" }
+      {
+        "slug": "string",
+        "file": "./elements/json-data-types/string.json"
+      },
+      {
+        "slug": "number",
+        "file": "./elements/json-data-types/number.json"
+      },
+      {
+        "slug": "integer",
+        "file": "./elements/json-data-types/integer.json"
+      },
+      {
+        "slug": "boolean",
+        "file": "./elements/json-data-types/boolean.json"
+      },
+      {
+        "slug": "object",
+        "file": "./elements/json-data-types/object.json"
+      },
+      {
+        "slug": "array",
+        "file": "./elements/json-data-types/array.json"
+      },
+      {
+        "slug": "null",
+        "file": "./elements/json-data-types/null.json"
+      }
     ],
     "node-types": [
-      { "slug": "word", "file": "./elements/node-types/word.json" },
-      { "slug": "image", "file": "./elements/node-types/image.json" }
+      {
+        "slug": "word",
+        "file": "./elements/node-types/word.json"
+      },
+      {
+        "slug": "image",
+        "file": "./elements/node-types/image.json"
+      }
     ],
     "graph-types": [
-      { "slug": "core-nodes-graph", "file": "./elements/graph-types/core-nodes-graph.json" },
-      { "slug": "concept-graph", "file": "./elements/graph-types/concept-graph.json" },
-      { "slug": "property-tree-graph", "file": "./elements/graph-types/property-tree-graph.json" }
+      {
+        "slug": "core-nodes-graph",
+        "file": "./elements/graph-types/core-nodes-graph.json"
+      },
+      {
+        "slug": "concept-graph",
+        "file": "./elements/graph-types/concept-graph.json"
+      },
+      {
+        "slug": "property-tree-graph",
+        "file": "./elements/graph-types/property-tree-graph.json"
+      }
     ],
     "validation-tool-types": [
-      { "slug": "json-schema", "file": "./elements/validation-tool-types/json-schema.json" },
-      { "slug": "image-validation-script", "file": "./elements/validation-tool-types/image-validation-script.json" }
+      {
+        "slug": "json-schema",
+        "file": "./elements/validation-tool-types/json-schema.json"
+      },
+      {
+        "slug": "image-validation-script",
+        "file": "./elements/validation-tool-types/image-validation-script.json"
+      }
     ]
   }
 }

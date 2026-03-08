@@ -1,0 +1,67 @@
+{
+    "word": {
+        "slug": "json-schema-for-the-concept-of-tapestries",
+        "title": "JSON Schema for the Concept of Tapestries",
+        "name": "JSON Schema for the concept of tapestries",
+        "description": "This is the JSON Schema for elements of the concept of tapestries. Every element of this concept must validate against this JSON schema.",
+        "wordTypes": [
+            "word",
+            "jsonSchema",
+            "validationTool"
+        ],
+        "coreMemberOf": [
+            {
+                "slug": "concept-header-for-the-concept-of-tapestries",
+                "uuid": "<uuid>"
+            }
+        ]
+    },
+    "jsonSchema": {
+        "name": "tapestry",
+        "title": "Tapestry",
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "definitions": {},
+        "type": "object",
+        "required": [
+            "tapestry"
+        ],
+        "properties": {
+            "tapestry": {
+                "type": "object",
+                "name": "tapestry",
+                "title": "Tapestry",
+                "slug": "tapestry",
+                "description": "data about this tapestry",
+                "required": [
+                    "slug"
+                ],
+                "unique": [
+                    "slug"
+                ],
+                "properties": {
+                    "slug": {
+                        "type": "string",
+                        "name": "slug",
+                        "title": "Slug",
+                        "slug": "slug",
+                        "description": "Unique kebab-case identifier for this tapestry"
+                    },
+                    "title": {
+                        "type": "string",
+                        "name": "title",
+                        "title": "Title",
+                        "slug": "title",
+                        "description": "Title Case display name"
+                    },
+                    "description": {
+                        "type": "string",
+                        "name": "description",
+                        "title": "Description",
+                        "slug": "description",
+                        "description": "Human-readable description of what this tapestry covers"
+                    }
+                }
+            }
+        }
+    }
+}

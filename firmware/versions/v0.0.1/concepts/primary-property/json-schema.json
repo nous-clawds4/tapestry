@@ -1,0 +1,50 @@
+{
+    "word": {
+        "slug": "json-schema-for-the-concept-of-primary-properties",
+        "title": "JSON Schema for the Concept of Primary Properties",
+        "name": "JSON Schema for the concept of primary properties",
+        "description": "This is the JSON Schema for elements of the concept of primary properties. Every element of this concept must validate against this JSON schema.",
+        "wordTypes": [
+            "word",
+            "jsonSchema"
+        ],
+        "coreMemberOf": [
+            {
+                "slug": "concept-header-for-the-concept-of-primary-properties",
+                "uuid": "<uuid>"
+            }
+        ]
+    },
+    "jsonSchema": {
+        "name": "primary property",
+        "title": "Primary Property",
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "definitions": {},
+        "type": "object",
+        "required": [
+            "primaryProperty"
+        ],
+        "properties": {
+            "primaryProperty": {
+                "type": "object",
+                "name": "primary property",
+                "title": "Primary Property",
+                "slug": "primary-property",
+                "description": "data about this primary property",
+                "required": [
+                    "description"
+                ],
+                "unique": [],
+                "properties": {
+                    "description": {
+                        "type": "string",
+                        "name": "description",
+                        "title": "Description",
+                        "slug": "description",
+                        "description": "A description of this primary property"
+                    }
+                }
+            }
+        }
+    }
+}

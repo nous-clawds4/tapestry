@@ -1,0 +1,74 @@
+{
+    "word": {
+        "slug": "json-schema-for-the-concept-of-graph-types",
+        "name": "JSON Schema for the concept of graph types",
+        "title": "JSON Schema for the Concept of Graph Types",
+        "description": "This is the JSON Schema for elements of the concept of graph types. Every element of this concept must validate against this JSON schema.",
+        "wordTypes": [
+            "word",
+            "jsonSchema"
+        ],
+        "coreMemberOf": [
+            {
+                "slug": "concept-header-for-the-concept-of-graph-types",
+                "uuid": "<uuid>"
+            }
+        ]
+    },
+    "jsonSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "name": "graph type",
+        "title": "Graph Type",
+        "description": "JSON Schema for the concept of graph types",
+        "required": [
+            "graphType"
+        ],
+        "definitions": {},
+        "properties": {
+            "graphType": {
+                "type": "object",
+                "name": "graph type",
+                "title": "Graph Type",
+                "slug": "graph-type",
+                "description": "data about this graph type",
+                "required": [
+                    "slug"
+                ],
+                "unique": [
+                    "slug"
+                ],
+                "properties": {
+                    "slug": {
+                        "type": "string",
+                        "name": "slug",
+                        "title": "Slug",
+                        "slug": "slug",
+                        "description": "The slug for this graph type"
+                    },
+                    "name": {
+                        "type": "string",
+                        "name": "name",
+                        "title": "Name",
+                        "slug": "name",
+                        "description": "The name for this graph type"
+                    },
+                    "title": {
+                        "type": "string",
+                        "name": "title",
+                        "title": "Title",
+                        "slug": "title",
+                        "description": "The title for this graph type"
+                    },
+                    "description": {
+                        "type": "string",
+                        "name": "description",
+                        "title": "Description",
+                        "slug": "description",
+                        "description": "The top-level description for this graph type"
+                    }
+                }
+            }
+        }
+    }
+}

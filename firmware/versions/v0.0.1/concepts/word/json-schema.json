@@ -1,0 +1,107 @@
+{
+    "word": {
+        "slug": "json-schema-for-the-concept-of-words",
+        "title": "JSON Schema for the Concept of Words",
+        "name": "JSON Schema for the concept of words",
+        "description": "This is the JSON Schema for elements of the concept of words. Every word node must validate against this JSON schema. Type-specific sections (coffeeHouse, superset, jsonSchema, etc.) are validated by their own concept schemas.",
+        "wordTypes": [
+            "word",
+            "jsonSchema",
+            "validationTool"
+        ],
+        "coreMemberOf": [
+            {
+                "slug": "concept-header-for-the-concept-of-words",
+                "uuid": "<uuid>"
+            }
+        ]
+    },
+    "jsonSchema": {
+        "name": "word",
+        "title": "Word",
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "definitions": {},
+        "type": "object",
+        "required": [
+            "word"
+        ],
+        "properties": {
+            "word": {
+                "type": "object",
+                "name": "word",
+                "title": "Word",
+                "slug": "word",
+                "description": "Universal metadata present on every word node",
+                "required": [
+                    "slug",
+                    "wordTypes"
+                ],
+                "unique": [
+                    "slug"
+                ],
+                "properties": {
+                    "slug": {
+                        "type": "string",
+                        "name": "slug",
+                        "title": "Slug",
+                        "slug": "slug",
+                        "description": "Unique kebab-case identifier within the concept graph. By convention, formed by concatenating the concept slug and the element slug (e.g., coffee-house--metropolis-coffee-company)."
+                    },
+                    "name": {
+                        "type": "string",
+                        "name": "name",
+                        "title": "Name",
+                        "slug": "name",
+                        "description": "Lowercase human-readable name"
+                    },
+                    "title": {
+                        "type": "string",
+                        "name": "title",
+                        "title": "Title",
+                        "slug": "title",
+                        "description": "Title Case display name"
+                    },
+                    "description": {
+                        "type": "string",
+                        "name": "description",
+                        "title": "Description",
+                        "slug": "description",
+                        "description": "Human-readable description of this word"
+                    },
+                    "wordTypes": {
+                        "type": "array",
+                        "name": "word types",
+                        "title": "Word Types",
+                        "slug": "word-types",
+                        "description": "Ordered list of word types from coarse to fine. Always starts with 'word'.",
+                        "items": {
+                            "type": "string"
+                        },
+                        "minItems": 1
+                    },
+                    "coreMemberOf": {
+                        "type": "array",
+                        "name": "core member of",
+                        "title": "Core Member Of",
+                        "slug": "core-member-of",
+                        "description": "Back-pointer(s) to the Concept Header this node is a core node of. Present on core nodes; absent on regular elements.",
+                        "items": {
+                            "type": "object",
+                            "required": [
+                                "slug"
+                            ],
+                            "properties": {
+                                "slug": {
+                                    "type": "string"
+                                },
+                                "uuid": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

@@ -1,0 +1,96 @@
+{
+    "word": {
+        "slug": "json-schema-for-the-concept-of-node-types",
+        "title": "JSON Schema for the Concept of Node Types",
+        "name": "JSON Schema for the concept of node types",
+        "description": "This is the JSON Schema for elements of the concept of node types. Every element of this concept must validate against this JSON schema.",
+        "wordTypes": [
+            "word",
+            "jsonSchema"
+        ],
+        "coreMemberOf": [
+            {
+                "slug": "concept-header-for-the-concept-of-node-types",
+                "uuid": "<uuid>"
+            }
+        ]
+    },
+    "jsonSchema": {
+        "name": "node type",
+        "title": "Node Type",
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "definitions": {},
+        "type": "object",
+        "required": [
+            "nodeType"
+        ],
+        "properties": {
+            "nodeType": {
+                "type": "object",
+                "name": "node type",
+                "title": "Node Type",
+                "slug": "node-type",
+                "description": "data about this node type",
+                "required": [
+                    "slug",
+                    "name",
+                    "tagType"
+                ],
+                "unique": [
+                    "slug"
+                ],
+                "properties": {
+                    "slug": {
+                        "type": "string",
+                        "name": "slug",
+                        "title": "Slug",
+                        "slug": "slug",
+                        "description": "The unique identifier for this node type"
+                    },
+                    "name": {
+                        "type": "string",
+                        "name": "name",
+                        "title": "Name",
+                        "slug": "name",
+                        "description": "The display name of this node type"
+                    },
+                    "title": {
+                        "type": "string",
+                        "name": "title",
+                        "title": "Title",
+                        "slug": "title",
+                        "description": "The title-case display name"
+                    },
+                    "tagType": {
+                        "type": "string",
+                        "name": "tag type",
+                        "title": "Tag Type",
+                        "slug": "tag-type",
+                        "description": "The nostr event tag type that carries the content for nodes of this type (e.g., json, image)"
+                    },
+                    "description": {
+                        "type": "string",
+                        "name": "description",
+                        "title": "Description",
+                        "slug": "description",
+                        "description": "A description of this node type"
+                    },
+                    "validationConceptSlug": {
+                        "type": "string",
+                        "name": "validation concept slug",
+                        "title": "Validation Concept Slug",
+                        "slug": "validation-concept-slug",
+                        "description": "The slug of the concept that provides the validation mechanism for this node type (e.g., json-schemas, image-validation-scripts)"
+                    },
+                    "coreNodeCount": {
+                        "type": "integer",
+                        "name": "core node count",
+                        "title": "Core Node Count",
+                        "slug": "core-node-count",
+                        "description": "The number of core nodes in the concept skeleton for concepts of this node type"
+                    }
+                }
+            }
+        }
+    }
+}

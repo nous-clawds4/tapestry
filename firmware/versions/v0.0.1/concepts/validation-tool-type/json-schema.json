@@ -1,0 +1,88 @@
+{
+    "word": {
+        "slug": "json-schema-for-the-concept-of-validation-tool-types",
+        "title": "JSON Schema for the Concept of Validation Tool Types",
+        "name": "JSON Schema for the concept of validation tool types",
+        "description": "This is the JSON Schema for elements of the concept of validation tool types. Every element of this concept must validate against this JSON schema.",
+        "wordTypes": [
+            "word",
+            "jsonSchema"
+        ],
+        "coreMemberOf": [
+            {
+                "slug": "concept-header-for-the-concept-of-validation-tool-types",
+                "uuid": "<uuid>"
+            }
+        ]
+    },
+    "jsonSchema": {
+        "name": "validation tool type",
+        "title": "Validation Tool Type",
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "definitions": {},
+        "type": "object",
+        "required": [
+            "validationToolType"
+        ],
+        "properties": {
+            "validationToolType": {
+                "type": "object",
+                "name": "validation tool type",
+                "title": "Validation Tool Type",
+                "slug": "validation-tool-type",
+                "description": "data about this validation tool type",
+                "required": [
+                    "slug",
+                    "name"
+                ],
+                "unique": [
+                    "slug"
+                ],
+                "properties": {
+                    "slug": {
+                        "type": "string",
+                        "name": "slug",
+                        "title": "Slug",
+                        "slug": "slug",
+                        "description": "The unique identifier for this validation tool type"
+                    },
+                    "name": {
+                        "type": "string",
+                        "name": "name",
+                        "title": "Name",
+                        "slug": "name",
+                        "description": "The display name of this validation tool type"
+                    },
+                    "title": {
+                        "type": "string",
+                        "name": "title",
+                        "title": "Title",
+                        "slug": "title",
+                        "description": "The title-case display name"
+                    },
+                    "description": {
+                        "type": "string",
+                        "name": "description",
+                        "title": "Description",
+                        "slug": "description",
+                        "description": "A description of this validation tool type"
+                    },
+                    "nodeTypeSlug": {
+                        "type": "string",
+                        "name": "node type slug",
+                        "title": "Node Type Slug",
+                        "slug": "node-type-slug",
+                        "description": "The slug of the node type this validation tool applies to"
+                    },
+                    "validationFormat": {
+                        "type": "string",
+                        "name": "validation format",
+                        "title": "Validation Format",
+                        "slug": "validation-format",
+                        "description": "The mechanism used for validation (e.g., json-schema-2020-12, external-script)"
+                    }
+                }
+            }
+        }
+    }
+}

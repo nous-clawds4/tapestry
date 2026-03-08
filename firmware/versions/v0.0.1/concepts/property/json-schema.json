@@ -1,0 +1,143 @@
+{
+    "word": {
+        "slug": "json-schema-for-the-concept-of-properties",
+        "title": "JSON Schema for the Concept of Properties",
+        "name": "JSON Schema for the concept of properties",
+        "description": "This is the JSON Schema for elements of the concept of properties. Every element of this concept must validate against this JSON schema.",
+        "wordTypes": [
+            "word",
+            "jsonSchema"
+        ],
+        "coreMemberOf": [
+            {
+                "slug": "concept-header-for-the-concept-of-properties",
+                "uuid": "<uuid>"
+            }
+        ]
+    },
+    "jsonSchema": {
+        "name": "property",
+        "title": "Property",
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "definitions": {},
+        "type": "object",
+        "required": [
+            "property"
+        ],
+        "properties": {
+            "property": {
+                "type": "object",
+                "name": "property",
+                "title": "Property",
+                "slug": "property",
+                "description": "data about this property",
+                "required": [
+                    "key",
+                    "type"
+                ],
+                "unique": [],
+                "properties": {
+                    "key": {
+                        "type": "string",
+                        "name": "key",
+                        "title": "Key",
+                        "slug": "key",
+                        "description": "The property name — becomes the key in the parent JSON Schema"
+                    },
+                    "type": {
+                        "type": "string",
+                        "name": "type",
+                        "title": "Type",
+                        "slug": "type",
+                        "description": "The JSON type (string, number, integer, boolean, object, array)"
+                    },
+                    "description": {
+                        "type": "string",
+                        "name": "description",
+                        "title": "Description",
+                        "slug": "description",
+                        "description": "A human-readable description of this property"
+                    },
+                    "title": {
+                        "type": "string",
+                        "name": "title",
+                        "title": "Title",
+                        "slug": "title",
+                        "description": "Title Case display name for this property"
+                    },
+                    "required": {
+                        "type": "array",
+                        "name": "required",
+                        "title": "Required",
+                        "slug": "required",
+                        "description": "Which child properties are required (for object types)"
+                    },
+                    "properties": {
+                        "type": "object",
+                        "name": "properties",
+                        "title": "Properties",
+                        "slug": "properties",
+                        "description": "Inline child property definitions (for object types)"
+                    },
+                    "enum": {
+                        "type": "array",
+                        "name": "enum",
+                        "title": "Enum",
+                        "slug": "enum",
+                        "description": "Valid values, populated via ENUMERATES relationships"
+                    },
+                    "format": {
+                        "type": "string",
+                        "name": "format",
+                        "title": "Format",
+                        "slug": "format",
+                        "description": "JSON Schema format hint (e.g. email, uri, date)"
+                    },
+                    "pattern": {
+                        "type": "string",
+                        "name": "pattern",
+                        "title": "Pattern",
+                        "slug": "pattern",
+                        "description": "Regex pattern for string validation"
+                    },
+                    "default": {
+                        "type": "string",
+                        "name": "default",
+                        "title": "Default",
+                        "slug": "default",
+                        "description": "Default value for this property"
+                    },
+                    "x-tapestry": {
+                        "type": "object",
+                        "name": "x-tapestry",
+                        "title": "Tapestry Extensions",
+                        "slug": "x-tapestry",
+                        "description": "Tapestry-specific metadata with no JSON Schema equivalent",
+                        "required": [
+                            "requiredByParent",
+                            "unique"
+                        ],
+                        "properties": {
+                            "requiredByParent": {
+                                "type": "boolean",
+                                "name": "requiredByParent",
+                                "title": "Required By Parent",
+                                "slug": "required-by-parent",
+                                "description": "Whether this property is required in its parent object",
+                                "default": false
+                            },
+                            "unique": {
+                                "type": "boolean",
+                                "name": "unique",
+                                "title": "Unique",
+                                "slug": "unique",
+                                "description": "Whether this property's value must be unique across all elements",
+                                "default": false
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
