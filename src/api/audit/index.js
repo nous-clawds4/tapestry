@@ -622,18 +622,18 @@ async function handleConcept(req, res) {
     // 2b. JSON Schema Validation — for each core node with JSON, validate against its concept's schema
     const nodesWithJson = nodes.filter(n => n.exists && n.json && n.uuid);
     if (nodesWithJson.length > 0) {
-      // Batch fetch: for each node, get its JSON content and z-tag (concept UUID)
+      // Batch fetch: for each node, get its JSON content and z-tags (concept UUIDs)
       const jsonRows = await runCypher(
         `UNWIND $uuids AS nodeUuid
          MATCH (n:NostrEvent {uuid: nodeUuid})
          OPTIONAL MATCH (n)-[:HAS_TAG]->(jt:NostrEventTag {type: 'json'})
          OPTIONAL MATCH (n)-[:HAS_TAG]->(zt:NostrEventTag {type: 'z'})
-         RETURN nodeUuid AS uuid, head(collect(jt.value)) AS jsonText, zt.value AS zTag`,
+         RETURN nodeUuid AS uuid, head(collect(DISTINCT jt.value)) AS jsonText, collect(DISTINCT zt.value) AS zTags`,
         { uuids: nodesWithJson.map(n => n.uuid) }
       );
 
       // Collect unique z-tags (concept UUIDs) to fetch their schemas
-      const zTags = [...new Set(jsonRows.filter(r => r.zTag).map(r => r.zTag))];
+      const zTags = [...new Set(jsonRows.flatMap(r => (r.zTags || []).filter(Boolean)))];
       let schemaMap = {}; // zTag → parsed jsonSchema section
 
       if (zTags.length > 0) {
@@ -666,7 +666,9 @@ async function handleConcept(req, res) {
         try {
           const nodeJson = JSON.parse(jr.jsonText);
 
-          if (!jr.zTag) {
+          const nodeZTags = (jr.zTags || []).filter(Boolean);
+
+          if (nodeZTags.length === 0) {
             // Fallback: if this is a kind 39998/9998 ConceptHeader, use firmware schema
             const isConceptHeader = jr.uuid.startsWith('39998:') || jr.uuid.startsWith('9998:');
             if (isConceptHeader) {
@@ -693,9 +695,10 @@ async function handleConcept(req, res) {
             continue;
           }
 
-          const schema = schemaMap[jr.zTag];
+          // Try z-tags in order — use the first one that has a schema available
+          const schema = nodeZTags.map(z => schemaMap[z]).find(s => s);
           if (!schema) {
-            node.valid = null; // Schema not available
+            node.valid = null; // Schema not available for any z-tag
             node.validationNote = 'Concept schema not available';
             continue;
           }

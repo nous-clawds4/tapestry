@@ -1103,6 +1103,8 @@ async function handleCreateConcept(req, res) {
         ['d', supersetDTag],
         ['name', supersetWord.word.name],
         ['z', firmware.conceptUuid('superset')],
+        ['z', firmware.conceptUuid('set')],
+        ['z', firmware.conceptUuid('word')],
         ['description', supersetWord.superset.description],
         ['json', JSON.stringify(supersetWord)],
       ],
@@ -1168,6 +1170,7 @@ async function handleCreateConcept(req, res) {
         ['d', schemaDTag],
         ['name', schemaWord.word.name],
         ['z', firmware.conceptUuid('json-schema')],
+        ['z', firmware.conceptUuid('word')],
         ['description', schemaWord.word.description],
         ['json', JSON.stringify(schemaWord)],
       ],
@@ -1207,7 +1210,10 @@ async function handleCreateConcept(req, res) {
     const ppEvent = signAndFinalize({
       kind: 39999, content: '',
       tags: [
-        ['d', ppDTag], ['name', ppWord.word.name], ['z', firmware.conceptUuid('property')],
+        ['d', ppDTag], ['name', ppWord.word.name],
+        ['z', firmware.conceptUuid('primary-property')],
+        ['z', firmware.conceptUuid('property')],
+        ['z', firmware.conceptUuid('word')],
         ['description', ppWord.word.description],
         ['json', JSON.stringify(ppWord)],
       ],
@@ -1240,7 +1246,10 @@ async function handleCreateConcept(req, res) {
     const propsEvent = signAndFinalize({
       kind: 39999, content: '',
       tags: [
-        ['d', propsDTag], ['name', propsWord.word.name], ['z', firmware.conceptUuid('set')],
+        ['d', propsDTag], ['name', propsWord.word.name],
+        ['z', firmware.conceptUuid('properties')],
+        ['z', firmware.conceptUuid('set')],
+        ['z', firmware.conceptUuid('word')],
         ['json', JSON.stringify(propsWord)],
       ],
     });
@@ -1281,7 +1290,10 @@ async function handleCreateConcept(req, res) {
     const ptEvent = signAndFinalize({
       kind: 39999, content: '',
       tags: [
-        ['d', ptDTag], ['name', ptWord.word.name], ['z', firmware.conceptUuid('graph')],
+        ['d', ptDTag], ['name', ptWord.word.name],
+        ['z', firmware.conceptUuid('property-tree-graph')],
+        ['z', firmware.conceptUuid('graph')],
+        ['z', firmware.conceptUuid('word')],
         ['description', ptWord.propertyTreeGraph.description],
         ['json', JSON.stringify(ptWord)],
       ],
@@ -1329,7 +1341,10 @@ async function handleCreateConcept(req, res) {
     const cgEvent = signAndFinalize({
       kind: 39999, content: '',
       tags: [
-        ['d', cgDTag], ['name', cgWord.word.name], ['z', firmware.conceptUuid('graph')],
+        ['d', cgDTag], ['name', cgWord.word.name],
+        ['z', firmware.conceptUuid('concept-graph')],
+        ['z', firmware.conceptUuid('graph')],
+        ['z', firmware.conceptUuid('word')],
         ['description', cgWord.conceptGraph.description],
         ['json', JSON.stringify(cgWord)],
       ],
@@ -1395,7 +1410,10 @@ async function handleCreateConcept(req, res) {
     const coreEvent = signAndFinalize({
       kind: 39999, content: '',
       tags: [
-        ['d', coreDTag], ['name', coreWord.word.name], ['z', firmware.conceptUuid('graph')],
+        ['d', coreDTag], ['name', coreWord.word.name],
+        ['z', firmware.conceptUuid('core-nodes-graph')],
+        ['z', firmware.conceptUuid('graph')],
+        ['z', firmware.conceptUuid('word')],
         ['description', coreWord.coreNodesGraph.description],
         ['json', JSON.stringify(coreWord)],
       ],
@@ -1415,7 +1433,10 @@ async function handleCreateConcept(req, res) {
     const coreEventV2 = signAndFinalize({
       kind: 39999, content: '',
       tags: [
-        ['d', coreDTag], ['name', coreWord.word.name], ['z', firmware.conceptUuid('graph')],
+        ['d', coreDTag], ['name', coreWord.word.name],
+        ['z', firmware.conceptUuid('core-nodes-graph')],
+        ['z', firmware.conceptUuid('graph')],
+        ['z', firmware.conceptUuid('word')],
         ['description', coreWord.coreNodesGraph.description],
         ['json', JSON.stringify(coreWord)],
       ],
@@ -1431,7 +1452,10 @@ async function handleCreateConcept(req, res) {
     const cgEventV2 = signAndFinalize({
       kind: 39999, content: '',
       tags: [
-        ['d', cgDTag], ['name', cgWord.word.name], ['z', firmware.conceptUuid('graph')],
+        ['d', cgDTag], ['name', cgWord.word.name],
+        ['z', firmware.conceptUuid('concept-graph')],
+        ['z', firmware.conceptUuid('graph')],
+        ['z', firmware.conceptUuid('word')],
         ['description', cgWord.conceptGraph.description],
         ['json', JSON.stringify(cgWord)],
       ],
