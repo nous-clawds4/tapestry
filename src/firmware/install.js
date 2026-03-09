@@ -181,6 +181,43 @@ async function pass1_bootstrap(opts = {}) {
     }
   }
 
+  // ── 1c. Create relationship types as elements ─────────
+
+  if (manifest.relationshipTypes && manifest.relationshipTypes.length > 0) {
+    console.log('\n── Creating relationship type elements ──\n');
+
+    for (const entry of manifest.relationshipTypes) {
+      const filePath = path.join(firmware.firmwareDir(), entry.file);
+      if (!fs.existsSync(filePath)) {
+        console.log(`    ❌ ${entry.slug}: file not found`);
+        errors.push({ slug: entry.slug, error: 'relationship type file not found' });
+        continue;
+      }
+
+      const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+      const elementName = data.relationshipType?.name || data.word?.name || entry.slug;
+
+      console.log(`    📝 ${entry.slug} → "relationship type"`);
+
+      if (dryRun) continue;
+
+      try {
+        const result = await apiPost('/api/normalize/create-element', {
+          concept: 'relationship type',
+          name: elementName,
+        });
+        if (result.success) {
+          console.log(`       ✅ Created`);
+        } else {
+          console.log(`       ⚠️  ${result.error}`);
+        }
+      } catch (err) {
+        console.log(`       ❌ ${err.message}`);
+        errors.push({ slug: entry.slug, error: err.message });
+      }
+    }
+  }
+
   console.log(`\n  Pass 1 complete: ${Object.keys(results).length} concepts, ${errors.length} errors\n`);
   return { results, errors };
 }
