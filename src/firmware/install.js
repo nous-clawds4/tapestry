@@ -45,10 +45,28 @@ async function apiPost(endpoint, body) {
   return json;
 }
 
-async function apiGet(endpoint) {
-  const url = `${API_BASE}${endpoint}`;
+async function apiGet(endpoint, params = {}) {
+  const qs = new URLSearchParams(params).toString();
+  const url = qs ? `${API_BASE}${endpoint}?${qs}` : `${API_BASE}${endpoint}`;
   const resp = await fetch(url);
   return resp.json();
+}
+
+/**
+ * Parse CSV-style results from the Neo4j run-query API.
+ * First line is headers, subsequent lines are values (quoted strings stripped).
+ */
+function parseCsvRows(csvText) {
+  if (!csvText || !csvText.trim()) return [];
+  const lines = csvText.trim().split('\n');
+  if (lines.length < 2) return [];
+  const headers = lines[0].split(',').map(h => h.trim());
+  return lines.slice(1).map(line => {
+    const values = line.split(',').map(v => v.trim().replace(/^"|"$/g, ''));
+    const row = {};
+    headers.forEach((h, i) => { row[h] = values[i]; });
+    return row;
+  });
 }
 
 // ── Pass 1: Bootstrap ────────────────────────────────────────
@@ -217,6 +235,60 @@ async function pass1_bootstrap(opts = {}) {
       }
     }
   }
+
+  // ── 1d. Wire HAS_ELEMENT for core nodes via z-tag matching ─────────
+  // Each core node has z-tags for its type hierarchy (e.g., superset → superset, set, word).
+  // We add HAS_ELEMENT edges from each concept's superset to all nodes with matching z-tags.
+  // Exception: skip "word" — would add 168+ edges with minimal benefit.
+
+  console.log('\n── Wiring HAS_ELEMENT for core node elements ──\n');
+
+  const SKIP_CONCEPTS = ['word'];
+
+  const conceptsRes = await apiGet('/api/neo4j/run-query', {
+    cypher: `MATCH (h:ListHeader:ConceptHeader)-[:IS_THE_CONCEPT_FOR]->(sup:Superset)
+             RETURN h.name AS name, h.uuid AS headerUuid, sup.uuid AS supersetUuid`,
+  });
+
+  const conceptRows = parseCsvRows(conceptsRes.cypherResults);
+
+  let hasElementCount = 0;
+
+  for (const row of conceptRows) {
+    const name = row.name;
+    const headerUuid = row.headerUuid;
+    const supersetUuid = row.supersetUuid;
+
+    if (SKIP_CONCEPTS.includes(name)) {
+      console.log(`    ⏭️  ${name} (skipped — too many elements)`);
+      continue;
+    }
+
+    // Find all nodes with a z-tag pointing to this concept (excluding the concept's own superset)
+    const elemRes = await apiGet('/api/neo4j/run-query', {
+      cypher: `MATCH (n:NostrEvent)-[:HAS_TAG]->(z:NostrEventTag {type: 'z'})
+               WHERE z.value = '${headerUuid}'
+                 AND n.uuid <> '${supersetUuid}'
+               RETURN n.uuid AS uuid`,
+    });
+
+    const elemRows = parseCsvRows(elemRes.cypherResults);
+
+    if (elemRows.length === 0) continue;
+
+    // Add HAS_ELEMENT edges (unwrapped — Neo4j only, no nostr events)
+    for (const elem of elemRows) {
+      await apiGet('/api/neo4j/run-query', {
+        cypher: `MATCH (sup:NostrEvent {uuid: '${supersetUuid}'}), (elem:NostrEvent {uuid: '${elem.uuid}'})
+                 MERGE (sup)-[:HAS_ELEMENT]->(elem)`,
+      });
+      hasElementCount++;
+    }
+
+    console.log(`    📎 ${name}: ${elemRows.length} elements wired`);
+  }
+
+  console.log(`\n  Total HAS_ELEMENT edges added: ${hasElementCount}`);
 
   console.log(`\n  Pass 1 complete: ${Object.keys(results).length} concepts, ${errors.length} errors\n`);
   return { results, errors };
