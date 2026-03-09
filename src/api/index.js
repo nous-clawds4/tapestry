@@ -401,6 +401,10 @@ async function register(app) {
     const { registerNormalizeRoutes } = require('./normalize');
     await registerNormalizeRoutes(app);
 
+    // ── Tapestry Firmware API ──
+    const { registerFirmwareApiRoutes } = require('./firmware');
+    registerFirmwareApiRoutes(app);
+
     // ── Tapestry Property API ──
     const { registerPropertyRoutes } = require('./property');
     registerPropertyRoutes(app);

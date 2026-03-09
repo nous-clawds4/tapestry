@@ -5,6 +5,7 @@ import RelaySettings from './RelaySettings';
 import UuidSettings from './UuidSettings';
 import SystemSettings from './SystemSettings';
 import DatabaseSettings from './DatabaseSettings';
+import FirmwareExplorer from './FirmwareExplorer';
 
 export default function SettingsIndex() {
   const { user, loading: authLoading } = useAuth();
@@ -124,6 +125,7 @@ export default function SettingsIndex() {
     { key: 'relays', label: '📡 Relays' },
     { key: 'databases', label: '🗄️ Databases' },
     { key: 'uuids', label: '🔑 Concept UUIDs' },
+    { key: 'firmware', label: '🔧 Firmware' },
     { key: 'system', label: '🖥️ System' },
   ];
 
@@ -181,6 +183,9 @@ export default function SettingsIndex() {
             onSave={handleSave}
             onReset={handleReset}
           />
+        )}
+        {activeTab === 'firmware' && (
+          <FirmwareExplorer />
         )}
         {activeTab === 'system' && (
           <SystemSettings
