@@ -1,7 +1,7 @@
 {
   "version": "0.0.1",
   "date": "2026-03-08",
-  "description": "Initial tapestry firmware — foundational meta-concepts for the tapestry protocol.",
+  "description": "Initial tapestry firmware \u2014 foundational meta-concepts for the tapestry protocol.",
   "relationshipTypes": [
     {
       "slug": "CLASS_THREAD_INITIATION",
@@ -53,145 +53,203 @@
       "slug": "node-type",
       "dir": "./concepts/node-type/",
       "conceptHeader": "concept-header.json",
-      "jsonSchema": "json-schema.json"
+      "jsonSchema": "json-schema.json",
+      "categories": [
+        "graph-theoretic"
+      ]
     },
     {
       "slug": "superset",
       "dir": "./concepts/superset/",
       "conceptHeader": "concept-header.json",
-      "jsonSchema": "json-schema.json"
+      "jsonSchema": "json-schema.json",
+      "categories": [
+        "core"
+      ]
     },
     {
       "slug": "set",
       "dir": "./concepts/set/",
       "conceptHeader": "concept-header.json",
-      "jsonSchema": "json-schema.json"
+      "jsonSchema": "json-schema.json",
+      "categories": []
     },
     {
       "slug": "concept-header",
       "dir": "./concepts/concept-header/",
       "conceptHeader": "concept-header.json",
-      "jsonSchema": "json-schema.json"
+      "jsonSchema": "json-schema.json",
+      "categories": [
+        "core"
+      ]
     },
     {
       "slug": "relationship",
       "dir": "./concepts/relationship/",
       "conceptHeader": "concept-header.json",
-      "jsonSchema": "json-schema.json"
+      "jsonSchema": "json-schema.json",
+      "categories": [
+        "graph-theoretic"
+      ]
     },
     {
       "slug": "relationship-type",
       "dir": "./concepts/relationship-type/",
       "conceptHeader": "concept-header.json",
-      "jsonSchema": "json-schema.json"
+      "jsonSchema": "json-schema.json",
+      "categories": [
+        "graph-theoretic"
+      ]
     },
     {
       "slug": "property",
       "dir": "./concepts/property/",
       "conceptHeader": "concept-header.json",
-      "jsonSchema": "json-schema.json"
+      "jsonSchema": "json-schema.json",
+      "categories": []
     },
     {
       "slug": "primary-property",
       "dir": "./concepts/primary-property/",
       "conceptHeader": "concept-header.json",
-      "jsonSchema": "json-schema.json"
+      "jsonSchema": "json-schema.json",
+      "categories": [
+        "core"
+      ]
     },
     {
       "slug": "properties",
       "dir": "./concepts/properties/",
       "conceptHeader": "concept-header.json",
-      "jsonSchema": "json-schema.json"
+      "jsonSchema": "json-schema.json",
+      "categories": [
+        "core"
+      ]
     },
     {
       "slug": "json-schema",
       "dir": "./concepts/json-schema/",
       "conceptHeader": "concept-header.json",
-      "jsonSchema": "json-schema.json"
+      "jsonSchema": "json-schema.json",
+      "categories": [
+        "core"
+      ]
     },
     {
       "slug": "json-data-type",
       "dir": "./concepts/json-data-type/",
       "conceptHeader": "concept-header.json",
-      "jsonSchema": "json-schema.json"
+      "jsonSchema": "json-schema.json",
+      "categories": []
     },
     {
       "slug": "graph",
       "dir": "./concepts/graph/",
       "conceptHeader": "concept-header.json",
-      "jsonSchema": "json-schema.json"
+      "jsonSchema": "json-schema.json",
+      "categories": [
+        "graph-theoretic",
+        "graphs"
+      ]
     },
     {
       "slug": "graph-type",
       "dir": "./concepts/graph-type/",
       "conceptHeader": "concept-header.json",
-      "jsonSchema": "json-schema.json"
+      "jsonSchema": "json-schema.json",
+      "categories": [
+        "graph-theoretic"
+      ]
     },
     {
       "slug": "property-tree-graph",
       "dir": "./concepts/property-tree-graph/",
       "conceptHeader": "concept-header.json",
-      "jsonSchema": "json-schema.json"
+      "jsonSchema": "json-schema.json",
+      "categories": [
+        "core",
+        "graphs"
+      ]
     },
     {
       "slug": "core-nodes-graph",
       "dir": "./concepts/core-nodes-graph/",
       "conceptHeader": "concept-header.json",
-      "jsonSchema": "json-schema.json"
+      "jsonSchema": "json-schema.json",
+      "categories": [
+        "core",
+        "graphs"
+      ]
     },
     {
       "slug": "concept-graph",
       "dir": "./concepts/concept-graph/",
       "conceptHeader": "concept-header.json",
-      "jsonSchema": "json-schema.json"
+      "jsonSchema": "json-schema.json",
+      "categories": [
+        "core",
+        "graphs"
+      ]
     },
     {
       "slug": "list",
       "dir": "./concepts/list/",
       "conceptHeader": "concept-header.json",
-      "jsonSchema": "json-schema.json"
+      "jsonSchema": "json-schema.json",
+      "categories": []
     },
     {
       "slug": "word",
       "dir": "./concepts/word/",
       "conceptHeader": "concept-header.json",
-      "jsonSchema": "json-schema.json"
+      "jsonSchema": "json-schema.json",
+      "categories": [
+        "graph-theoretic"
+      ]
     },
     {
       "slug": "validation-tool",
       "dir": "./concepts/validation-tool/",
       "conceptHeader": "concept-header.json",
-      "jsonSchema": "json-schema.json"
+      "jsonSchema": "json-schema.json",
+      "categories": []
     },
     {
       "slug": "validation-tool-type",
       "dir": "./concepts/validation-tool-type/",
       "conceptHeader": "concept-header.json",
-      "jsonSchema": "json-schema.json"
+      "jsonSchema": "json-schema.json",
+      "categories": []
     },
     {
       "slug": "image",
       "dir": "./concepts/image/",
       "conceptHeader": "concept-header.json",
-      "jsonSchema": "json-schema.json"
+      "jsonSchema": "json-schema.json",
+      "categories": []
     },
     {
       "slug": "image-type",
       "dir": "./concepts/image-type/",
       "conceptHeader": "concept-header.json",
-      "jsonSchema": "json-schema.json"
+      "jsonSchema": "json-schema.json",
+      "categories": []
     },
     {
       "slug": "image-validation-script",
       "dir": "./concepts/image-validation-script/",
       "conceptHeader": "concept-header.json",
-      "jsonSchema": "json-schema.json"
+      "jsonSchema": "json-schema.json",
+      "categories": []
     },
     {
       "slug": "tapestry",
       "dir": "./concepts/tapestry/",
       "conceptHeader": "concept-header.json",
-      "jsonSchema": "json-schema.json"
+      "jsonSchema": "json-schema.json",
+      "categories": [
+        "graphs"
+      ]
     }
   ],
   "elements": {

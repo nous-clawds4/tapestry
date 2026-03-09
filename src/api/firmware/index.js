@@ -25,6 +25,7 @@ async function handleManifest(req, res) {
     const manifest = firmware.getManifest();
     const concepts = manifest.concepts.map(c => ({
       slug: c.slug,
+      categories: c.categories || [],
       // Load naming info from firmware
       ...((() => {
         const data = firmware.getConcept(c.slug);
@@ -39,10 +40,14 @@ async function handleManifest(req, res) {
       })()),
     }));
 
+    // Collect unique categories
+    const allCategories = [...new Set(concepts.flatMap(c => c.categories))].sort();
+
     res.json({
       success: true,
       version: manifest.version,
       date: manifest.date,
+      categories: allCategories,
       concepts,
     });
   } catch (err) {

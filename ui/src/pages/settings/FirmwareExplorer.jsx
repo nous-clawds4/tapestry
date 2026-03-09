@@ -18,6 +18,7 @@ export default function FirmwareExplorer() {
   const [selectedSlug, setSelectedSlug] = useState(null);
   const [selectedNode, setSelectedNode] = useState('overview');
   const [conceptData, setConceptData] = useState(null);
+  const [selectedCategory, setSelectedCategory] = useState('all');
   const [loading, setLoading] = useState(true);
   const [conceptLoading, setConceptLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -66,17 +67,35 @@ export default function FirmwareExplorer() {
       <div className="firmware-layout">
         {/* Left: concept list */}
         <div className="firmware-sidebar">
-          <div className="firmware-sidebar-header">Concepts</div>
-          {manifest?.concepts.map(c => (
-            <button
-              key={c.slug}
-              className={`firmware-concept-btn ${selectedSlug === c.slug ? 'active' : ''}`}
-              onClick={() => setSelectedSlug(c.slug)}
-              title={c.description}
+          <div className="firmware-sidebar-header">
+            <select
+              className="firmware-category-select"
+              value={selectedCategory}
+              onChange={e => setSelectedCategory(e.target.value)}
             >
-              {c.name}
-            </button>
-          ))}
+              <option value="all">All ({manifest?.concepts.length})</option>
+              {manifest?.categories?.map(cat => {
+                const count = manifest.concepts.filter(c => c.categories.includes(cat)).length;
+                return (
+                  <option key={cat} value={cat}>
+                    {cat} ({count})
+                  </option>
+                );
+              })}
+            </select>
+          </div>
+          {manifest?.concepts
+            .filter(c => selectedCategory === 'all' || c.categories.includes(selectedCategory))
+            .map(c => (
+              <button
+                key={c.slug}
+                className={`firmware-concept-btn ${selectedSlug === c.slug ? 'active' : ''}`}
+                onClick={() => setSelectedSlug(c.slug)}
+                title={c.description}
+              >
+                {c.name}
+              </button>
+            ))}
         </div>
 
         {/* Right: content area */}

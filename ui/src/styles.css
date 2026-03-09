@@ -1908,3 +1908,20 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
 .firmware-overview-stats {
   font-size: 0.85rem;
 }
+
+.firmware-category-select {
+  width: 100%;
+  padding: 0.4rem 0.5rem;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  outline: none;
+}
+
+.firmware-category-select option {
+  background: var(--bg-surface, #1e1e2e);
+  color: var(--text-primary);
+}
