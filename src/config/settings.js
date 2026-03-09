@@ -12,7 +12,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const DEFAULTS_PATH = path.join(__dirname, '../concept-graph/parameters/defaults.json');
+const DEFAULTS_PATH = path.join(__dirname, 'defaults.json');
 const SETTINGS_PATH = process.env.TAPESTRY_SETTINGS_PATH
   || path.join(process.env.BRAINSTORM_BASE_DIR || '/var/lib/brainstorm', 'settings.json');
 

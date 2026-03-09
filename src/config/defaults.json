@@ -1,0 +1,37 @@
+{
+  "neo4jCypherQueryUrl": "https://straycat.brainstorm.social/api/knowledge-graph-query",
+  "trustScoreCutoff": 10,
+  "aRelays": {
+    "aPopularGeneralPurposeRelays": [
+      "wss://relay.damus.io",
+      "wss://relay.primal.net",
+      "wss://nos.lol",
+      "wss://relay.nostr.band"
+    ],
+    "aDListRelays": [
+      "wss://dcosl.brainstorm.world"
+    ],
+    "aTrustedAssertionRelays": [
+      "wss://nip85.nostr.band",
+      "wss://nip85.brainstorm.world",
+      "wss://nip85.nostr1.com"
+    ],
+    "aTrustedListRelays": [
+      "wss://nip85.brainstorm.world",
+      "wss://dcosl.brainstorm.world"
+    ],
+    "aWotRelays": [
+      "wss://wot.grapevine.network"
+    ],
+    "aProfileRelays": [
+      "wss://purplepag.es",
+      "wss://profiles.nostr1.com"
+    ],
+    "aOutboxRelays": [],
+    "safeModeRelays": [
+      "wss://nip85.brainstorm.world",
+      "wss://dcosl.brainstorm.world",
+      "wss://wot.grapevine.network"
+    ]
+  }
+}

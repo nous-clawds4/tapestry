@@ -174,67 +174,105 @@ function loadElements(category) {
   return results;
 }
 
-// ── Instance UUIDs (from defaults.json) ──────────────────────
-// These are the live a-tag UUIDs for BIOS concepts in the current graph.
-// Firmware defines the structure; defaults.json records the instance data.
-// Eventually this will be generated from the graph or stored in firmware.
+// ── TA Pubkey ────────────────────────────────────────────────
+// The Tapestry Assistant pubkey is needed to compute deterministic concept UUIDs.
+// Read from environment, brainstorm.conf, or secure storage.
 
-let _instanceUuids = null;
+let _taPubkey = null;
 
-function loadInstanceUuids() {
-  if (_instanceUuids) return _instanceUuids;
+function getTAPubkey() {
+  if (_taPubkey) return _taPubkey;
 
-  const defaultsPath = path.resolve(__dirname, '../../concept-graph/parameters/defaults.json');
-  if (!fs.existsSync(defaultsPath)) {
-    console.warn('[firmware] defaults.json not found — conceptUuid() will return null');
-    _instanceUuids = {};
-    return _instanceUuids;
+  // 1. Environment variable
+  if (process.env.TA_PUBKEY) {
+    _taPubkey = process.env.TA_PUBKEY;
+    return _taPubkey;
   }
-  const defaults = JSON.parse(fs.readFileSync(defaultsPath, 'utf8'));
-  const cuuids = defaults.conceptUUIDs || {};
-  const ruuids = defaults.relationshipTypeUUIDs || {};
 
-  // Map firmware slugs → instance UUIDs
-  // The keys in defaults.json use camelCase; we map from firmware kebab-case slugs
-  _instanceUuids = {
-    concepts: {
-      'relationship':          cuuids.relationship,
-      'relationship-type':     cuuids.relationshipType,
-      'node-type':             cuuids.nodeType,
-      'set':                   cuuids.set,
-      'superset':              cuuids.superset,
-      'json-schema':           cuuids.JSONSchema,
-      'property':              cuuids.property,
-      'primary-property':      cuuids.primaryProperty,
-      'list':                  cuuids.list,
-      'json-data-type':        cuuids.jsonDataType,
-      'graph-type':            cuuids.graphType,
-      'graph':                 cuuids.graph,
-    },
-    relationshipTypes: ruuids,
-  };
+  // 2. Read BRAINSTORM_RELAY_PUBKEY or derive from BRAINSTORM_RELAY_PRIVKEY in brainstorm.conf
+  try {
+    const confPath = '/etc/brainstorm.conf';
+    if (fs.existsSync(confPath)) {
+      const conf = fs.readFileSync(confPath, 'utf8');
+      // Try pubkey directly first
+      const pubMatch = conf.match(/BRAINSTORM_RELAY_PUBKEY=["']?([0-9a-f]{64})["']?/);
+      if (pubMatch) {
+        _taPubkey = pubMatch[1];
+        return _taPubkey;
+      }
+      // Fall back to deriving from privkey
+      const privMatch = conf.match(/BRAINSTORM_RELAY_PRIVKEY=["']?([0-9a-f]{64})["']?/);
+      if (privMatch) {
+        const nt = require('nostr-tools/pure');
+        const privBytes = Uint8Array.from(Buffer.from(privMatch[1], 'hex'));
+        _taPubkey = Buffer.from(nt.getPublicKey(privBytes)).toString('hex');
+        return _taPubkey;
+      }
+    }
+  } catch (e) {
+    // Fall through
+  }
 
-  return _instanceUuids;
+  // 3. Try secure storage
+  try {
+    const SecureKeyStorage = require('../../lib/secure-key-storage');
+    const storage = new SecureKeyStorage({ storagePath: '/var/lib/brainstorm/secure-keys' });
+    // Note: getRelayKeys is async, but we need sync here. Use the cached file directly.
+    const keysPath = path.join('/var/lib/brainstorm/secure-keys', 'tapestry-assistant.json');
+    if (fs.existsSync(keysPath)) {
+      const keys = JSON.parse(fs.readFileSync(keysPath, 'utf8'));
+      if (keys.pubkey) {
+        _taPubkey = keys.pubkey;
+        return _taPubkey;
+      }
+    }
+  } catch (e) {
+    // Fall through
+  }
+
+  console.warn('[firmware] Could not determine TA pubkey — conceptUuid() will return null');
+  return null;
 }
 
+// ── Concept UUIDs (computed from TA pubkey + slug) ───────────
+// With deterministic d-tags, concept UUIDs are: 39998:<pubkey>:<slug>
+// No need for defaults.json concept UUID mapping.
+
 /**
- * Get the live a-tag UUID for a firmware concept by slug.
- * e.g., conceptUuid('superset') → '39998:2d1fe...:21cbf5be-...'
+ * Get the a-tag UUID for a firmware concept by slug.
+ * e.g., conceptUuid('superset') → '39998:11f23fe4...:superset'
  */
 function conceptUuid(slug) {
-  const inst = loadInstanceUuids();
-  return (inst.concepts || {})[slug] || null;
+  const pubkey = getTAPubkey();
+  if (!pubkey) return null;
+
+  // Verify slug is a known firmware concept
+  const manifest = getManifest();
+  const entry = manifest.concepts.find(c => c.slug === slug);
+  if (!entry) return null;
+
+  return `39998:${pubkey}:${slug}`;
 }
 
 /**
  * Reverse lookup: a-tag UUID → firmware concept slug.
- * e.g., '39998:2d1fe...:21cbf5be-...' → 'superset'
+ * e.g., '39998:11f23fe4...:superset' → 'superset'
  */
 function conceptSlugFromUuid(uuid) {
-  const inst = loadInstanceUuids();
-  for (const [slug, u] of Object.entries(inst.concepts || {})) {
-    if (u === uuid) return slug;
+  if (!uuid) return null;
+
+  // With deterministic d-tags, the slug is the d-tag portion of the UUID
+  // Format: 39998:<pubkey>:<slug>
+  const parts = uuid.split(':');
+  if (parts.length === 3 && (parts[0] === '39998' || parts[0] === '9998')) {
+    const candidateSlug = parts[2];
+    // Verify it's a known firmware concept
+    const manifest = getManifest();
+    if (manifest.concepts.find(c => c.slug === candidateSlug)) {
+      return candidateSlug;
+    }
   }
+
   return null;
 }
 
@@ -249,12 +287,13 @@ function clearCache() {
   _concepts = null;
   _aliasToCanonical = null;
   _canonicalToAlias = null;
-  _instanceUuids = null;
+  _taPubkey = null;
 }
 
 module.exports = {
   firmwareDir,
   getManifest,
+  getTAPubkey,
   relAlias,
   relCanonical,
   allRelationshipTypes,

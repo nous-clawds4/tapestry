@@ -193,7 +193,7 @@ async function importEventDirect(event, uuid) {
 }
 
 // ── UUID lookups (via firmware) ───────────────────────────────
-// Concept UUIDs are loaded from defaults.json via firmware.conceptUuid().
+// Concept UUIDs are computed from firmware slug + TA pubkey via firmware.conceptUuid().
 // Reverse lookup via firmware.conceptSlugFromUuid().
 
 // Reverse lookup: z-tag UUID → role name
@@ -1806,9 +1806,8 @@ async function handleCreateProperty(req, res) {
       return res.json({ success: false, error: `Property "${trimName}" already exists on "${targetName}" (uuid: ${dupes[0].uuid})` });
     }
 
-    // Get BIOS property concept header UUID for z-tag
-    const defaults = require('../../concept-graph/parameters/defaults.json');
-    const biosPropertyUuid = defaults.conceptUUIDs.property;
+    // Get property concept header UUID for z-tag
+    const biosPropertyUuid = firmware.conceptUuid('property');
 
     // Build property JSON
     const propertyJson = {
@@ -1984,9 +1983,8 @@ async function handleGeneratePropertyTree(req, res) {
       return res.json({ success: false, error: `Concept already has ${existing[0].count} properties. Property tree generation from scratch only — use create-property for incremental changes.` });
     }
 
-    // Get BIOS property concept info
-    const defaults = require('../../concept-graph/parameters/defaults.json');
-    const biosPropertyUuid = defaults.conceptUUIDs.property;
+    // Get property concept info
+    const biosPropertyUuid = firmware.conceptUuid('property');
     const biosSupersetRows = await runCypher(`
       MATCH (h:NostrEvent {uuid: $biosPropertyUuid})-[:${REL.CLASS_THREAD_INITIATION}]->(sup:Superset)
       RETURN sup.uuid AS supersetUuid
@@ -2207,7 +2205,7 @@ async function handleMigratePrimaryPropertyZTags(req, res) {
   try {
     const newZTag = firmware.conceptUuid('primary-property');
     if (!newZTag) {
-      return res.status(500).json({ success: false, error: 'primaryProperty not found in defaults.json' });
+      return res.status(500).json({ success: false, error: 'primaryProperty concept UUID not available — check firmware configuration' });
     }
 
     // Find all primary property nodes

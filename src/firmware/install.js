@@ -181,45 +181,6 @@ async function pass1_bootstrap(opts = {}) {
     }
   }
 
-  // ── 1c. Update defaults.json with new concept UUIDs ────
-
-  if (!dryRun) {
-    const defaultsPath = path.join(__dirname, '..', 'concept-graph', 'parameters', 'defaults.json');
-    if (fs.existsSync(defaultsPath)) {
-      const defaults = JSON.parse(fs.readFileSync(defaultsPath, 'utf8'));
-
-      // Map firmware slugs to defaults.json keys
-      const slugToDefaultsKey = {
-        'relationship': 'relationship',
-        'relationship-type': 'relationshipType',
-        'node-type': 'nodeType',
-        'set': 'set',
-        'superset': 'superset',
-        'json-schema': 'JSONSchema',
-        'property': 'property',
-        'primary-property': 'primaryProperty',
-        'list': 'list',
-        'json-data-type': 'jsonDataType',
-        'graph-type': 'graphType',
-        'graph': 'graph',
-      };
-
-      let updated = 0;
-      for (const [slug, key] of Object.entries(slugToDefaultsKey)) {
-        const r = results[slug];
-        if (r && r.uuid && !r.existing) {
-          defaults.conceptUUIDs[key] = r.uuid;
-          updated++;
-        }
-      }
-
-      if (updated > 0) {
-        fs.writeFileSync(defaultsPath, JSON.stringify(defaults, null, 2) + '\n');
-        console.log(`\n  📝 Updated defaults.json with ${updated} new concept UUIDs`);
-      }
-    }
-  }
-
   console.log(`\n  Pass 1 complete: ${Object.keys(results).length} concepts, ${errors.length} errors\n`);
   return { results, errors };
 }

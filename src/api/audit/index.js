@@ -22,37 +22,36 @@ const Ajv = require('ajv');
 const ajv = new Ajv({ allErrors: true, strict: false, validateSchema: false });
 const firmware = require('../normalize/firmware');
 
-// ─── Config: canonical BIOS UUIDs ─────────────────────────────────
-// These must match tapestry-cli's config.js defaults.
+// ─── Config: firmware concept UUIDs ───────────────────────────────
+// Concept UUIDs are now computed from firmware slugs + TA pubkey.
+// The old FIRMWARE_CONCEPTS array with hardcoded d-tags is no longer needed.
 
-// Active Tapestry Assistant pubkey — derived from BRAINSTORM_RELAY_PRIVKEY in /etc/brainstorm.conf
-const TA_PUBKEY = '401243c0cb5be1fce6e071d26036efe1975803ec63f54beadcbb37ae6015677f';
-
-const BIOS_CONCEPTS = [
-  { name: 'node type', dTag: '1276c2c4-8efb-41b1-ae88-11ca61b4e572' },
-  { name: 'superset', dTag: '21cbf5be-c972-4f45-ae09-c57e165e8cf9' },
-  { name: 'set', dTag: '6a339361-beef-4013-a916-1723e05a4671' },
-  { name: 'relationship', dTag: 'c15357e6-6665-45cc-8ea5-0320b8026f05' },
-  { name: 'relationship type', dTag: '826fa669-b494-46bd-9326-97b894c70d8b' },
-  { name: 'property', dTag: '274a97fa' },
-  { name: 'JSON schema', dTag: 'bba896cc-c190-4e26-a26f-66d678d4ac89' },
-  { name: 'list', dTag: 'cf85c5ea-7eb2-407e-bb5d-eac060f36cc8' },
-  { name: 'JSON data type', dTag: '0689c759-a2ab-46ab-8bc9-e4691ab9eb56' },
-  { name: 'graph type', dTag: 'ec92cbdd' },
-  { name: 'graph', dTag: 'ec1b87c4' },
-  { name: 'primary property', dTag: '529ff7d0' },
-];
-
-function biosUuid(dTag) {
-  return `39998:${TA_PUBKEY}:${dTag}`;
+function firmwareConceptUuid(slug) {
+  return firmware.conceptUuid(slug);
 }
 
+// Firmware concepts that the BIOS/firmware audit checks
+const FIRMWARE_CONCEPTS = [
+  { name: 'node type', slug: 'node-type' },
+  { name: 'superset', slug: 'superset' },
+  { name: 'set', slug: 'set' },
+  { name: 'relationship', slug: 'relationship' },
+  { name: 'relationship type', slug: 'relationship-type' },
+  { name: 'property', slug: 'property' },
+  { name: 'JSON schema', slug: 'json-schema' },
+  { name: 'list', slug: 'list' },
+  { name: 'JSON data type', slug: 'json-data-type' },
+  { name: 'graph type', slug: 'graph-type' },
+  { name: 'graph', slug: 'graph' },
+  { name: 'primary property', slug: 'primary-property' },
+];
+
 const LABEL_CHECKS = [
-  { concept: 'superset', label: 'Superset', dTag: '21cbf5be-c972-4f45-ae09-c57e165e8cf9' },
-  { concept: 'set', label: 'Set', dTag: '6a339361-beef-4013-a916-1723e05a4671' },
-  { concept: 'property', label: 'Property', dTag: '274a97fa' },
-  { concept: 'jsonSchema', label: 'JSONSchema', dTag: 'bba896cc-c190-4e26-a26f-66d678d4ac89' },
-  { concept: 'relationship', label: 'Relationship', dTag: 'c15357e6-6665-45cc-8ea5-0320b8026f05' },
+  { concept: 'superset', label: 'Superset', slug: 'superset' },
+  { concept: 'set', label: 'Set', slug: 'set' },
+  { concept: 'property', label: 'Property', slug: 'property' },
+  { concept: 'jsonSchema', label: 'JSONSchema', slug: 'json-schema' },
+  { concept: 'relationship', label: 'Relationship', slug: 'relationship' },
 ];
 
 // Escape single quotes for Cypher strings
@@ -162,7 +161,7 @@ async function handleLabels(req, res) {
     const results = [];
 
     for (const lc of LABEL_CHECKS) {
-      const uuid = biosUuid(lc.dTag);
+      const uuid = firmwareConceptUuid(lc.slug);
       const missing = await runCypher(
         `MATCH (i:ListItem)-[:HAS_TAG]->(z:NostrEventTag {type: 'z'})
          WHERE z.value = $uuid AND NOT i:${lc.label}
@@ -193,9 +192,9 @@ async function handleLabels(req, res) {
 async function handleBios(req, res) {
   try {
     // Batch all BIOS concepts into a single query using UNWIND
-    const uuids = BIOS_CONCEPTS.map(bc => ({
+    const uuids = FIRMWARE_CONCEPTS.map(bc => ({
       name: bc.name,
-      uuid: biosUuid(bc.dTag),
+      uuid: firmwareConceptUuid(bc.slug),
     }));
 
     const rows = await runCypher(`
@@ -223,8 +222,8 @@ async function handleBios(req, res) {
     res.json({
       success: true,
       data,
-      summary: { total: BIOS_CONCEPTS.length, complete, partial: data.filter(d => d.exists && !d.complete).length, missing: data.filter(d => !d.exists).length },
-      biosReady: complete === BIOS_CONCEPTS.length,
+      summary: { total: FIRMWARE_CONCEPTS.length, complete, partial: data.filter(d => d.exists && !d.complete).length, missing: data.filter(d => !d.exists).length },
+      firmwareReady: complete === FIRMWARE_CONCEPTS.length,
     });
   } catch (err) {
     res.json({ success: false, error: err.message });
@@ -319,7 +318,7 @@ async function handleThreads(req, res) {
 async function handleHealth(req, res) {
   try {
     // Run all checks in parallel
-    const [statsRows, skeletonRows, orphanData, wiringData, labelData, biosData] = await Promise.all([
+    const [statsRows, skeletonRows, orphanData, wiringData, labelData, firmwareData] = await Promise.all([
       // Stats — just totals
       runCypher(`MATCH (n) WITH count(n) AS nodes OPTIONAL MATCH ()-[r]->() RETURN nodes, count(r) AS relationships`),
 
@@ -366,7 +365,7 @@ async function handleHealth(req, res) {
       // Labels — missing label counts
       Promise.all([
         ...LABEL_CHECKS.map(lc => {
-          const uuid = biosUuid(lc.dTag);
+          const uuid = firmwareConceptUuid(lc.slug);
           return runCypher(
             `MATCH (i:ListItem)-[:HAS_TAG]->(z:NostrEventTag {type: 'z'})
              WHERE z.value = $uuid AND NOT i:${lc.label}
@@ -379,7 +378,7 @@ async function handleHealth(req, res) {
 
       // BIOS
       (async () => {
-        const uuids = BIOS_CONCEPTS.map(bc => ({ name: bc.name, uuid: biosUuid(bc.dTag) }));
+        const uuids = FIRMWARE_CONCEPTS.map(bc => ({ name: bc.name, uuid: firmwareConceptUuid(bc.slug) }));
         return runCypher(`
           UNWIND $concepts AS c
           OPTIONAL MATCH (h:NostrEvent {uuid: c.uuid})
@@ -420,16 +419,16 @@ async function handleHealth(req, res) {
     const totalMissingLabels = labelData.reduce((sum, r) => sum + (r[0]?.count || 0), 0);
 
     // BIOS
-    const biosComplete = biosData.filter(r => r.exists && r.cth && r.superset && r.schema && r.primaryProp && r.properties && r.coreGraph && r.conceptGraph && r.ptGraph && r.json).length;
-    const biosTotal = BIOS_CONCEPTS.length;
-    const biosReady = biosComplete === biosTotal;
+    const firmwareComplete = firmwareData.filter(r => r.exists && r.cth && r.superset && r.schema && r.primaryProp && r.properties && r.coreGraph && r.conceptGraph && r.ptGraph && r.json).length;
+    const firmwareTotal = FIRMWARE_CONCEPTS.length;
+    const firmwareReady = firmwareComplete === firmwareTotal;
 
     // ── Build checks array ──
     const checks = [
       {
         name: 'BIOS',
-        status: biosReady ? 'pass' : 'fail',
-        summary: biosReady ? `${biosComplete}/${biosTotal} complete` : `${biosComplete}/${biosTotal} complete — ${biosTotal - biosComplete} missing/incomplete`,
+        status: firmwareReady ? 'pass' : 'fail',
+        summary: firmwareReady ? `${firmwareComplete}/${firmwareTotal} complete` : `${firmwareComplete}/${firmwareTotal} complete — ${firmwareTotal - firmwareComplete} missing/incomplete`,
       },
       {
         name: 'Skeletons',
@@ -797,7 +796,7 @@ async function handleConcept(req, res) {
     // 6. Labels — check elements have correct label for this concept
     let missingLabels = [];
     // Find which BIOS label this concept should assign to its elements
-    const labelMatch = LABEL_CHECKS.find(lc => biosUuid(lc.dTag) === uuid);
+    const labelMatch = LABEL_CHECKS.find(lc => firmwareConceptUuid(lc.slug) === uuid);
     if (labelMatch) {
       missingLabels = await runCypher(
         `MATCH (i:ListItem)-[:HAS_TAG]->(z:NostrEventTag {type: 'z'})
@@ -916,7 +915,8 @@ function registerAuditRoutes(app) {
   app.get('/api/audit/orphans', handleOrphans);
   app.get('/api/audit/wiring', handleWiring);
   app.get('/api/audit/labels', handleLabels);
-  app.get('/api/audit/bios', handleBios);
+  app.get('/api/audit/bios', handleBios);     // legacy alias
+  app.get('/api/audit/firmware', handleBios);  // preferred
   app.get('/api/audit/threads', handleThreads);
 }
 
