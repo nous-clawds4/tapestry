@@ -86,6 +86,7 @@ export default function FirmwareExplorer() {
           </div>
           {manifest?.concepts
             .filter(c => selectedCategory === 'all' || c.categories.includes(selectedCategory))
+            .sort((a, b) => a.name.localeCompare(b.name))
             .map(c => (
               <button
                 key={c.slug}
