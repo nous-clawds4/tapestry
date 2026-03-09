@@ -1476,22 +1476,8 @@ async function handleCreateConcept(req, res) {
     ];
 
     for (const rel of relDefs) {
-      const relDTag = randomDTag();
-      const relEvent = signAndFinalize({
-        kind: 39999, content: '',
-        tags: [
-          ['d', relDTag],
-          ['name', `${trimName} ${rel.type}`],
-          ['z', firmware.conceptUuid('relationship')],
-          ['nodeFrom', rel.from], ['nodeTo', rel.to], ['relationshipType', rel.type],
-        ],
-      });
-      const relUuid = `39999:${relEvent.pubkey}:${relDTag}`;
-      await publishToStrfry(relEvent);
-      await importEventDirect(relEvent, relUuid);
-      allEvents.push(relEvent);
-
-      // Wire in Neo4j
+      // Relationships between core nodes are unwrapped — Neo4j edges only, no nostr events.
+      // See glossary: "wrapped data" for rationale.
       await writeCypher(`
         MATCH (a:NostrEvent {uuid: $from}), (b:NostrEvent {uuid: $to})
         MERGE (a)-[:${rel.type}]->(b)
