@@ -18,6 +18,9 @@
  */
 
 const { runCypher } = require('../../lib/neo4j-driver');
+const Ajv = require('ajv');
+const ajv = new Ajv({ allErrors: true, strict: false, validateSchema: false });
+const firmware = require('../normalize/firmware');
 
 // ─── Config: canonical BIOS UUIDs ─────────────────────────────────
 // These must match tapestry-cli's config.js defaults.
@@ -617,6 +620,110 @@ async function handleConcept(req, res) {
     const skeletonComplete = nodes.every(n => n.exists);
     const jsonComplete = nodes.every(n => n.json);
 
+    // 2b. JSON Schema Validation — for each core node with JSON, validate against its concept's schema
+    const nodesWithJson = nodes.filter(n => n.exists && n.json && n.uuid);
+    if (nodesWithJson.length > 0) {
+      // Batch fetch: for each node, get its JSON content and z-tag (concept UUID)
+      const jsonRows = await runCypher(
+        `UNWIND $uuids AS nodeUuid
+         MATCH (n:NostrEvent {uuid: nodeUuid})
+         OPTIONAL MATCH (n)-[:HAS_TAG]->(jt:NostrEventTag {type: 'json'})
+         OPTIONAL MATCH (n)-[:HAS_TAG]->(zt:NostrEventTag {type: 'z'})
+         RETURN nodeUuid AS uuid, head(collect(jt.value)) AS jsonText, zt.value AS zTag`,
+        { uuids: nodesWithJson.map(n => n.uuid) }
+      );
+
+      // Collect unique z-tags (concept UUIDs) to fetch their schemas
+      const zTags = [...new Set(jsonRows.filter(r => r.zTag).map(r => r.zTag))];
+      let schemaMap = {}; // zTag → parsed jsonSchema section
+
+      if (zTags.length > 0) {
+        const schemaRows = await runCypher(
+          `UNWIND $zTags AS conceptUuid
+           MATCH (h:NostrEvent {uuid: conceptUuid})
+           OPTIONAL MATCH (js:JSONSchema)-[:IS_THE_JSON_SCHEMA_FOR]->(h)
+           OPTIONAL MATCH (js)-[:HAS_TAG]->(jt:NostrEventTag {type: 'json'})
+           RETURN conceptUuid, head(collect(jt.value)) AS schemaJsonText`,
+          { zTags }
+        );
+
+        for (const sr of schemaRows) {
+          if (sr.schemaJsonText) {
+            try {
+              const parsed = JSON.parse(sr.schemaJsonText);
+              if (parsed.jsonSchema) {
+                schemaMap[sr.conceptUuid] = parsed.jsonSchema;
+              }
+            } catch { /* ignore parse errors */ }
+          }
+        }
+      }
+
+      // Validate each node
+      for (const jr of jsonRows) {
+        const node = nodes.find(n => n.uuid === jr.uuid);
+        if (!node || !jr.jsonText) continue;
+
+        try {
+          const nodeJson = JSON.parse(jr.jsonText);
+
+          if (!jr.zTag) {
+            // Fallback: if this is a kind 39998/9998 ConceptHeader, use firmware schema
+            const isConceptHeader = jr.uuid.startsWith('39998:') || jr.uuid.startsWith('9998:');
+            if (isConceptHeader) {
+              const fwSchema = firmware.getConceptSchema('concept-header');
+              if (fwSchema && fwSchema.jsonSchema) {
+                const schemaCopy = { ...fwSchema.jsonSchema };
+                delete schemaCopy.$schema;
+                const validate = ajv.compile(schemaCopy);
+                const isValid = validate(nodeJson);
+                node.valid = isValid;
+                node.validationNote = 'Validated via firmware fallback (concept-header)';
+                if (!isValid) {
+                  node.validationErrors = validate.errors.map(e => ({
+                    path: e.instancePath || '/',
+                    message: e.message,
+                    keyword: e.keyword,
+                  }));
+                }
+                continue;
+              }
+            }
+            node.valid = null;
+            node.validationNote = 'No z-tag — cannot determine concept';
+            continue;
+          }
+
+          const schema = schemaMap[jr.zTag];
+          if (!schema) {
+            node.valid = null; // Schema not available
+            node.validationNote = 'Concept schema not available';
+            continue;
+          }
+
+          // Validate the node's JSON against the concept's JSON Schema
+          // Strip $schema meta-reference — our schemas aren't standard JSON Schema drafts
+          const schemaCopy = { ...schema };
+          delete schemaCopy.$schema;
+          const validate = ajv.compile(schemaCopy);
+          const isValid = validate(nodeJson);
+          node.valid = isValid;
+          if (!isValid) {
+            node.validationErrors = validate.errors.map(e => ({
+              path: e.instancePath || '/',
+              message: e.message,
+              keyword: e.keyword,
+            }));
+          }
+        } catch (e) {
+          node.valid = false;
+          node.validationNote = `JSON parse error: ${e.message}`;
+        }
+      }
+    }
+
+    const validationComplete = nodes.every(n => !n.exists || !n.json || n.valid === true);
+
     // 3. Elements — count, JSON coverage, orphans
     const supersetUuid = sk.supersetUuid;
     let elements = { total: 0, withJson: 0, withoutJson: 0, orphaned: 0, items: [] };
@@ -721,6 +828,24 @@ async function handleConcept(req, res) {
         summary: jsonComplete
           ? 'All skeleton nodes have JSON tags'
           : `${nodes.filter(n => n.json).length}/8 nodes have JSON tags`,
+      },
+      {
+        name: 'JSON Validation',
+        status: validationComplete ? 'pass'
+          : nodes.some(n => n.valid === false) ? 'fail' : 'warn',
+        summary: (() => {
+          const validated = nodes.filter(n => n.valid === true).length;
+          const failed = nodes.filter(n => n.valid === false).length;
+          const skipped = nodes.filter(n => n.valid === null).length;
+          const noJson = nodes.filter(n => n.exists && !n.json).length;
+          if (validated === nodes.length) return 'All nodes validate against their concept schemas';
+          const parts = [];
+          if (validated > 0) parts.push(`${validated} valid`);
+          if (failed > 0) parts.push(`${failed} invalid`);
+          if (skipped > 0) parts.push(`${skipped} no schema`);
+          if (noJson > 0) parts.push(`${noJson} no JSON`);
+          return parts.join(', ');
+        })(),
       },
       {
         name: 'Elements',

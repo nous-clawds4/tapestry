@@ -1033,7 +1033,7 @@ async function handleCreateConcept(req, res) {
     }
 
     const allEvents = [];
-    const headerDTag = randomDTag();
+    const headerDTag = req.body.dTag || randomDTag();
 
     // ── 1. Concept Header / ListHeader (kind 39998) ──
     const headerWord = {

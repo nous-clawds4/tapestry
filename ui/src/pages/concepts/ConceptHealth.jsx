@@ -143,6 +143,7 @@ export default function ConceptHealth() {
                 <th>Name</th>
                 <th>Exists</th>
                 <th>JSON</th>
+                <th>Valid</th>
                 <th>UUID</th>
                 <th>Actions</th>
               </tr>
@@ -157,6 +158,9 @@ export default function ConceptHealth() {
                     <td>{n.name || '—'}</td>
                     <td>{n.exists ? '✅' : '❌'}</td>
                     <td>{n.exists ? (n.json ? '✅' : '❌') : '—'}</td>
+                    <td title={n.validationErrors?.map(e => `${e.path}: ${e.message}`).join('\n') || n.validationNote || ''}>
+                      {!n.exists ? '—' : !n.json ? '—' : n.valid === true ? '✅' : n.valid === false ? '❌' : n.valid === null ? '⚠️' : '—'}
+                    </td>
                     <td><code className="uuid-short" title={n.uuid}>{n.uuid?.slice(-12) || '—'}</code></td>
                     <td>
                       {isMissing && (
