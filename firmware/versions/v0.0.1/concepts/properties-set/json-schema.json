@@ -1,36 +1,36 @@
 {
     "word": {
-        "slug": "json-schema-for-the-concept-of-properties-nodes",
-        "title": "JSON Schema for the Concept of Properties Nodes",
-        "name": "JSON Schema for the concept of properties nodes",
-        "description": "This is the JSON Schema for elements of the concept of properties nodes. Every element of this concept must validate against this JSON schema.",
+        "slug": "json-schema-for-the-concept-of-properties-sets",
+        "title": "JSON Schema for the Concept of Properties Sets",
+        "name": "JSON Schema for the concept of properties sets",
+        "description": "This is the JSON Schema for elements of the concept of properties sets. Every element of this concept must validate against this JSON schema.",
         "wordTypes": [
             "word",
             "jsonSchema"
         ],
         "coreMemberOf": [
             {
-                "slug": "concept-header-for-the-concept-of-properties-nodes",
+                "slug": "concept-header-for-the-concept-of-properties-sets",
                 "uuid": "<uuid>"
             }
         ]
     },
     "jsonSchema": {
-        "name": "properties node",
-        "title": "Properties Node",
+        "name": "properties set",
+        "title": "Properties Set",
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "definitions": {},
         "type": "object",
         "required": [
-            "properties"
+            "propertiesSet"
         ],
         "properties": {
-            "properties": {
+            "propertiesSet": {
                 "type": "object",
-                "name": "properties",
-                "title": "Properties",
-                "slug": "properties",
-                "description": "data about this properties node",
+                "name": "properties set",
+                "title": "Properties Set",
+                "slug": "properties-set",
+                "description": "data about this properties set",
                 "required": [
                     "description"
                 ],
@@ -41,7 +41,7 @@
                         "name": "description",
                         "title": "Description",
                         "slug": "description",
-                        "description": "A description of this properties node"
+                        "description": "A description of this properties set"
                     }
                 }
             }

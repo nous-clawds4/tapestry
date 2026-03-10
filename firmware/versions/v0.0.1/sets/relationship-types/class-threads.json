@@ -1,0 +1,14 @@
+{
+  "word": {
+    "slug": "the-set-of-relationship-types-for-class-threads",
+    "name": "The set of relationship types for class threads",
+    "title": "The Set of Relationship Types for Class Threads",
+    "wordTypes": ["word", "set"]
+  },
+  "set": {
+    "slug": "relationship-types-for-class-threads",
+    "name": "relationship types for class threads",
+    "title": "Relationship Types for Class Threads",
+    "description": "These are the relationship types that form class threads, as per the tapestry protocol."
+  }
+}

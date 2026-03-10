@@ -118,8 +118,8 @@
       ]
     },
     {
-      "slug": "properties",
-      "dir": "./concepts/properties/",
+      "slug": "properties-set",
+      "dir": "./concepts/properties-set/",
       "conceptHeader": "concept-header.json",
       "jsonSchema": "json-schema.json",
       "categories": [
@@ -253,69 +253,125 @@
     }
   ],
   "elements": {
-    "json-data-types": [
-      {
-        "slug": "string",
-        "file": "./elements/json-data-types/string.json"
-      },
-      {
-        "slug": "number",
-        "file": "./elements/json-data-types/number.json"
-      },
-      {
-        "slug": "integer",
-        "file": "./elements/json-data-types/integer.json"
-      },
-      {
-        "slug": "boolean",
-        "file": "./elements/json-data-types/boolean.json"
-      },
-      {
-        "slug": "object",
-        "file": "./elements/json-data-types/object.json"
-      },
-      {
-        "slug": "array",
-        "file": "./elements/json-data-types/array.json"
-      },
-      {
-        "slug": "null",
-        "file": "./elements/json-data-types/null.json"
-      }
-    ],
-    "node-types": [
-      {
-        "slug": "word",
-        "file": "./elements/node-types/word.json"
-      },
-      {
-        "slug": "image",
-        "file": "./elements/node-types/image.json"
-      }
-    ],
-    "graph-types": [
-      {
-        "slug": "core-nodes-graph",
-        "file": "./elements/graph-types/core-nodes-graph.json"
-      },
-      {
-        "slug": "concept-graph",
-        "file": "./elements/graph-types/concept-graph.json"
-      },
-      {
-        "slug": "property-tree-graph",
-        "file": "./elements/graph-types/property-tree-graph.json"
-      }
-    ],
-    "validation-tool-types": [
-      {
-        "slug": "json-schema",
-        "file": "./elements/validation-tool-types/json-schema.json"
-      },
-      {
-        "slug": "image-validation-script",
-        "file": "./elements/validation-tool-types/image-validation-script.json"
-      }
-    ]
+    "json-data-types": {
+      "existing-nodes": [],
+      "new-nodes": [
+        {
+          "slug": "string",
+          "file": "./elements/json-data-types/string.json"
+        },
+        {
+          "slug": "number",
+          "file": "./elements/json-data-types/number.json"
+        },
+        {
+          "slug": "integer",
+          "file": "./elements/json-data-types/integer.json"
+        },
+        {
+          "slug": "boolean",
+          "file": "./elements/json-data-types/boolean.json"
+        },
+        {
+          "slug": "object",
+          "file": "./elements/json-data-types/object.json"
+        },
+        {
+          "slug": "array",
+          "file": "./elements/json-data-types/array.json"
+        },
+        {
+          "slug": "null",
+          "file": "./elements/json-data-types/null.json"
+        }
+      ]
+    },
+    "node-types": {
+      "existing-nodes": [
+        {
+          "concept": "word",
+          "core-node-type": "concept-header"
+        },
+        {
+          "concept": "image",
+          "core-node-type": "concept-header"
+        }
+      ],
+      "new-nodes": []
+    },
+    "graph-types": {
+      "existing-nodes": [
+        {
+          "concept": "core-nodes-graph",
+          "core-node-type": "concept-header"
+        },
+        {
+          "concept": "concept-graph",
+          "core-node-type": "concept-header"
+        },
+        {
+          "concept": "property-tree-graph",
+          "core-node-type": "concept-header"
+        }
+      ],
+      "new-nodes": []
+    },
+    "validation-tool-types": {
+      "existing-nodes": [
+        {
+          "concept": "json-schema",
+          "core-node-type": "concept-header"
+        },
+        {
+          "concept": "image-validation-script",
+          "core-node-type": "concept-header"
+        }
+      ],
+      "new-nodes": []
+    }
+  },
+  "sets": {
+    "graphs": {
+      "existing-sets": [
+        { "concept": "concept-graph" },
+        { "concept": "core-nodes-graph" },
+        { "concept": "property-tree-graph" },
+        { "concept": "tapestry" }
+      ],
+      "new-sets": []
+    },
+    "relationship-types": {
+      "existing-sets": [],
+      "new-sets": [
+        {
+          "slug": "relationship-types-for-class-threads",
+          "file": "./sets/relationship-types/class-threads.json"
+        },
+        {
+          "slug": "relationship-types-for-core-nodes",
+          "file": "./sets/relationship-types/core-nodes.json"
+        }
+      ]
+    },
+    "validation-tools": {
+      "existing-sets": [
+        { "concept": "json-schema" },
+        { "concept": "image-validation-script" }
+      ],
+      "new-sets": []
+    },
+    "properties": {
+      "existing-sets": [
+        { "concept": "primary-property" }
+      ],
+      "new-sets": []
+    },
+    "sets": {
+      "existing-sets": [
+        { "concept": "superset" },
+        { "concept": "properties-set" }
+      ],
+      "new-sets": []
+    }
   }
 }
