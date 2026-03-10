@@ -1,0 +1,15 @@
+{
+  "word": {
+    "slug": "json-data-type--number",
+    "name": "JSON data type: number",
+    "title": "JSON Data Type: Number",
+    "description": "Any numeric value (integer or floating point)",
+    "wordTypes": ["word", "jsonDataType"]
+  },
+  "jsonDataType": {
+    "slug": "number",
+    "name": "number",
+    "title": "Number",
+    "description": "Any numeric value (integer or floating point)"
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "word": {
+    "slug": "CLASS_THREAD_INITIATION",
+    "name": "class thread initiation",
+    "title": "Class Thread Initiation",
+    "description": "The relationship that initiates a class thread. Connects a Concept Header to its Superset.",
+    "wordTypes": ["word", "relationshipType"]
+  },
+  "relationshipType": {
+    "slug": "CLASS_THREAD_INITIATION",
+    "alias": "IS_THE_CONCEPT_FOR",
+    "name": "class thread initiation",
+    "title": "Class Thread Initiation",
+    "description": "Connects a Concept Header to its Superset. Every class thread begins with this edge.",
+    "nodeFromType": "conceptHeader",
+    "nodeToType": "superset",
+    "category": "classThread"
+  }
+}

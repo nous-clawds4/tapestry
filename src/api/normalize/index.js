@@ -433,7 +433,7 @@ async function handleNormalizeSkeleton(req, res) {
               slug: ppSlug,
               description: `data about this ${name.toLowerCase()}`,
               required: ['name', 'slug', 'description'],
-              unique: ['name', 'slug'],
+              'x-tapestry': { unique: ['name', 'slug'] },
               properties: {
                 name: { type: 'string', name: 'name', slug: 'name', title: 'Name', description: `The name of the ${name.toLowerCase()}` },
                 slug: { type: 'string', name: 'slug', slug: 'slug', title: 'Slug', description: `A unique kebab-case identifier for this ${name.toLowerCase()}` },
@@ -1337,7 +1337,7 @@ async function handleCreateConcept(req, res) {
             slug: ppSlug,
             description: `data about this ${names.oNames.singular}`,
             required: ['name', 'slug', 'description'],
-            unique: ['name', 'slug'],
+            'x-tapestry': { unique: ['name', 'slug'] },
             properties: {
               name: {
                 type: 'string', name: 'name', slug: 'name',

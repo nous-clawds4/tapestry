@@ -1,0 +1,16 @@
+{
+  "word": {
+    "slug": "concept-header-for-the-concept-of-validation-tools",
+    "name": "concept header for the concept of validation tools",
+    "title": "Concept Header for the Concept of Validation Tools",
+    "wordTypes": ["word", "conceptHeader"]
+  },
+  "conceptHeader": {
+    "description": "A node that defines how to validate elements of a concept.",
+    "oNames": { "singular": "validation tool", "plural": "validation tools" },
+    "oSlugs": { "singular": "validation-tool", "plural": "validation-tools" },
+    "oKeys": { "singular": "validationTool", "plural": "validationTools" },
+    "oTitles": { "singular": "Validation Tool", "plural": "Validation Tools" },
+    "oLabels": { "singular": "ValidationTool", "plural": "ValidationTools" }
+  }
+}

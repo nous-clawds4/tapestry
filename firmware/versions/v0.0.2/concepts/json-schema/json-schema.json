@@ -1,0 +1,98 @@
+{
+    "word": {
+        "slug": "json-schema-for-the-concept-of-json-schemas",
+        "title": "JSON Schema for the Concept of JSON Schemas",
+        "name": "JSON Schema for the concept of json schemas",
+        "description": "This is the JSON Schema for elements of the concept of json schemas. Every element of this concept must validate against this JSON schema.",
+        "wordTypes": [
+            "word",
+            "jsonSchema"
+        ],
+        "coreMemberOf": [
+            {
+                "slug": "concept-header-for-the-concept-of-json-schemas",
+                "uuid": "<uuid>"
+            }
+        ]
+    },
+    "jsonSchema": {
+        "name": "json schema",
+        "title": "JSON Schema",
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "required": [
+            "jsonSchema"
+        ],
+        "definitions": {},
+        "properties": {
+            "jsonSchema": {
+                "type": "object",
+                "name": "json schema",
+                "title": "JSON Schema",
+                "slug": "json-schema",
+                "description": "A JSON Schema that defines validation rules for elements of a concept.",
+                "required": [
+                    "$schema",
+                    "type",
+                    "required",
+                    "definitions",
+                    "properties"
+                ],
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "name": "name",
+                        "title": "Name",
+                        "slug": "name",
+                        "description": "The name of the concept this schema validates"
+                    },
+                    "title": {
+                        "type": "string",
+                        "name": "title",
+                        "title": "Title",
+                        "slug": "title",
+                        "description": "The title of the concept this schema validates"
+                    },
+                    "$schema": {
+                        "type": "string",
+                        "name": "$schema",
+                        "title": "Schema URI",
+                        "slug": "schema-uri",
+                        "description": "The JSON Schema specification URI"
+                    },
+                    "type": {
+                        "type": "string",
+                        "name": "type",
+                        "title": "Type",
+                        "slug": "type",
+                        "description": "The top-level type (always 'object')"
+                    },
+                    "required": {
+                        "type": "array",
+                        "name": "required",
+                        "title": "Required",
+                        "slug": "required",
+                        "description": "Top-level required properties"
+                    },
+                    "definitions": {
+                        "type": "object",
+                        "name": "definitions",
+                        "title": "Definitions",
+                        "slug": "definitions",
+                        "description": "Reusable schema fragments for cross-concept integration via $ref"
+                    },
+                    "properties": {
+                        "type": "object",
+                        "name": "properties",
+                        "title": "Properties",
+                        "slug": "properties",
+                        "description": "The property definitions assembled from the property tree"
+                    }
+                },
+                "x-tapestry": {
+                    "unique": []
+                }
+            }
+        }
+    }
+}

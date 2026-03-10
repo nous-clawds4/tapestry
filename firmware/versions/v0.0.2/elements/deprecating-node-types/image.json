@@ -1,0 +1,18 @@
+{
+  "word": {
+    "slug": "node-type--image",
+    "name": "node type: image",
+    "title": "Node Type: Image",
+    "description": "A node whose content is a binary image file, carried in an image tag on the nostr event. Validated by an Image Validation Script.",
+    "wordTypes": ["word", "nodeType"]
+  },
+  "nodeType": {
+    "slug": "image",
+    "name": "image",
+    "title": "Image",
+    "tagType": "image",
+    "description": "A node that points to a binary image file. Image-based concepts use a leaner skeleton with 5 core nodes.",
+    "validationConceptSlug": "image-validation-script",
+    "coreNodeCount": 5
+  }
+}

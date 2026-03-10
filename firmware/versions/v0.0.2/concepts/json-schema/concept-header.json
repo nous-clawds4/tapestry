@@ -1,0 +1,16 @@
+{
+  "word": {
+    "slug": "concept-header-for-the-concept-of-json-schemas",
+    "name": "concept header for the concept of JSON schemas",
+    "title": "Concept Header for the Concept of JSON Schemas",
+    "wordTypes": ["word", "conceptHeader"]
+  },
+  "conceptHeader": {
+    "description": "A JSON Schema that validates word-based concept elements.",
+    "oNames": { "singular": "JSON schema", "plural": "JSON schemas" },
+    "oSlugs": { "singular": "json-schema", "plural": "json-schemas" },
+    "oKeys": { "singular": "jsonSchema", "plural": "jsonSchemas" },
+    "oTitles": { "singular": "JSON Schema", "plural": "JSON Schemas" },
+    "oLabels": { "singular": "JsonSchema", "plural": "JsonSchemas" }
+  }
+}

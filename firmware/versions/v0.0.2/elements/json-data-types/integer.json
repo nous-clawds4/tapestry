@@ -1,0 +1,15 @@
+{
+  "word": {
+    "slug": "json-data-type--integer",
+    "name": "JSON data type: integer",
+    "title": "JSON Data Type: Integer",
+    "description": "A whole number (no fractional part)",
+    "wordTypes": ["word", "jsonDataType"]
+  },
+  "jsonDataType": {
+    "slug": "integer",
+    "name": "integer",
+    "title": "Integer",
+    "description": "A whole number (no fractional part)"
+  }
+}

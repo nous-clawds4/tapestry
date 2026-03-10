@@ -1,0 +1,15 @@
+{
+  "word": {
+    "slug": "graph-type--core-nodes-graph",
+    "name": "graph type: core nodes graph",
+    "title": "Graph Type: Core Nodes Graph",
+    "description": "A graph recording the core nodes of a concept and their wiring relationships.",
+    "wordTypes": ["word", "graphType"]
+  },
+  "graphType": {
+    "slug": "core-nodes-graph",
+    "name": "core nodes graph",
+    "title": "Core Nodes Graph",
+    "description": "Records the 8 core nodes (or fewer for non-word types) and the relationships that wire them to the Concept Header."
+  }
+}

@@ -1,0 +1,98 @@
+{
+    "word": {
+        "slug": "json-schema-for-the-concept-of-relationship-types",
+        "title": "JSON Schema for the Concept of Relationship Types",
+        "name": "JSON Schema for the concept of relationship types",
+        "description": "This is the JSON Schema for elements of the concept of relationship types. Every element of this concept must validate against this JSON schema.",
+        "wordTypes": [
+            "word",
+            "jsonSchema",
+            "validationTool"
+        ],
+        "coreMemberOf": [
+            {
+                "slug": "concept-header-for-the-concept-of-relationship-types",
+                "uuid": "<uuid>"
+            }
+        ]
+    },
+    "jsonSchema": {
+        "name": "relationship type",
+        "title": "Relationship Type",
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "definitions": {},
+        "type": "object",
+        "required": [
+            "relationshipType"
+        ],
+        "properties": {
+            "relationshipType": {
+                "type": "object",
+                "name": "relationship type",
+                "title": "Relationship Type",
+                "slug": "relationship-type",
+                "description": "data about this relationship type",
+                "required": [
+                    "slug",
+                    "name"
+                ],
+                "properties": {
+                    "slug": {
+                        "type": "string",
+                        "name": "slug",
+                        "title": "Slug",
+                        "slug": "slug",
+                        "description": "The SCREAMING_SNAKE_CASE identifier for this relationship type (e.g., IS_THE_CONCEPT_FOR)"
+                    },
+                    "name": {
+                        "type": "string",
+                        "name": "name",
+                        "title": "Name",
+                        "slug": "name",
+                        "description": "The canonical name (same as slug for relationship types)"
+                    },
+                    "title": {
+                        "type": "string",
+                        "name": "title",
+                        "title": "Title",
+                        "slug": "title",
+                        "description": "Title-case display name"
+                    },
+                    "description": {
+                        "type": "string",
+                        "name": "description",
+                        "title": "Description",
+                        "slug": "description",
+                        "description": "What this relationship type represents"
+                    },
+                    "nodeFromType": {
+                        "type": "string",
+                        "name": "node from type",
+                        "title": "Node From Type",
+                        "slug": "node-from-type",
+                        "description": "The expected word type of the source node"
+                    },
+                    "nodeToType": {
+                        "type": "string",
+                        "name": "node to type",
+                        "title": "Node To Type",
+                        "slug": "node-to-type",
+                        "description": "The expected word type of the target node"
+                    },
+                    "category": {
+                        "type": "string",
+                        "name": "category",
+                        "title": "Category",
+                        "slug": "category",
+                        "description": "The broad category: classThread, coreNodeWiring, or propertyTree"
+                    }
+                },
+                "x-tapestry": {
+                    "unique": [
+                        "slug"
+                    ]
+                }
+            }
+        }
+    }
+}

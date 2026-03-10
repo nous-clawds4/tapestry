@@ -9,6 +9,7 @@ import AuthorCell from '../../components/AuthorCell';
 import 'jsonjoy-builder/styles.css';
 import { SchemaVisualEditor } from 'jsonjoy-builder';
 import DefaultValuesPanel from '../../components/DefaultValuesPanel';
+import TapestryExtensionsPanel from '../../components/TapestryExtensionsPanel';
 
 function parseSchema(raw) {
   if (!raw) return null;
@@ -46,8 +47,6 @@ export default function ConceptSchema() {
     return savedSchemaRaw;
   }, [savedSchemaRaw]);
 
-  // Keep the word section for re-wrapping on save
-  const savedWordSection = useMemo(() => savedSchemaRaw?.word || null, [savedSchemaRaw]);
 
   const authorPubkeys = useMemo(
     () => schemaNode?.author ? [schemaNode.author] : [],
@@ -87,20 +86,13 @@ export default function ConceptSchema() {
     setSaveSuccess(false);
   }, []);
 
-  // Re-wrap schema in word-wrapper format if the original had one
-  function wrapSchema(schema) {
-    if (savedWordSection) {
-      return { word: savedWordSection, jsonSchema: schema };
-    }
-    return schema;
-  }
-
   async function handleSave() {
     setSaving(true);
     setSaveError(null);
     setSaveSuccess(false);
     try {
-      await saveSchema({ concept: concept.name, schema: wrapSchema(editSchema) });
+      // Send the plain JSON Schema — server handles word-wrapper wrapping
+      await saveSchema({ concept: concept.name, schema: editSchema });
       setSaveSuccess(true);
       setEditing(false);
       setEditSchema(null);
@@ -160,7 +152,7 @@ export default function ConceptSchema() {
       setSaving(true);
       setSaveError(null);
       setSaveSuccess(false);
-      await saveSchema({ concept: concept.name, schema: wrapSchema(rest) });
+      await saveSchema({ concept: concept.name, schema: rest });
       setSaveSuccess(true);
       setEditing(false);
       setEditSchema(null);
@@ -319,14 +311,21 @@ export default function ConceptSchema() {
                 />
               )}
 
+              {editSchema && (
+                <TapestryExtensionsPanel
+                  schema={editSchema}
+                  onChange={handleSchemaChange}
+                />
+              )}
+
               {showPreview && editSchema && (
                 <div style={{ marginTop: '1.5rem' }}>
                   <h3 style={{ fontSize: '1rem', marginBottom: '0.5rem' }}>📋 JSON Preview</h3>
-                  <pre className="json-block">{JSON.stringify(wrapSchema({
+                  <pre className="json-block">{JSON.stringify({
                     $schema: 'https://json-schema.org/draft/2020-12/schema',
                     type: 'object',
                     ...editSchema,
-                  }), null, 2)}</pre>
+                  }, null, 2)}</pre>
                 </div>
               )}
             </>

@@ -1,0 +1,16 @@
+{
+  "word": {
+    "slug": "concept-header-for-the-concept-of-properties-sets",
+    "name": "concept header for the concept of properties sets",
+    "title": "Concept Header for the Concept of Properties Sets",
+    "wordTypes": ["word", "conceptHeader"]
+  },
+  "conceptHeader": {
+    "description": "The set of all properties for a concept.",
+    "oNames": { "singular": "properties set", "plural": "properties sets" },
+    "oSlugs": { "singular": "properties-set", "plural": "properties-sets" },
+    "oKeys": { "singular": "propertiesSet", "plural": "propertiesSets" },
+    "oTitles": { "singular": "Properties Set", "plural": "Properties Sets" },
+    "oLabels": { "singular": "PropertiesSet", "plural": "PropertiesSets" }
+  }
+}

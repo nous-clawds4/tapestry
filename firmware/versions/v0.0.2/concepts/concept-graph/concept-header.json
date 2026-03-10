@@ -1,0 +1,16 @@
+{
+  "word": {
+    "slug": "concept-header-for-the-concept-of-concept-graphs",
+    "name": "concept header for the concept of concept graphs",
+    "title": "Concept Header for the Concept of Concept Graphs",
+    "wordTypes": ["word", "conceptHeader"]
+  },
+  "conceptHeader": {
+    "description": "A graph recording the class thread structure of a concept.",
+    "oNames": { "singular": "concept graph", "plural": "concept graphs" },
+    "oSlugs": { "singular": "concept-graph", "plural": "concept-graphs" },
+    "oKeys": { "singular": "conceptGraph", "plural": "conceptGraphs" },
+    "oTitles": { "singular": "Concept Graph", "plural": "Concept Graphs" },
+    "oLabels": { "singular": "ConceptGraph", "plural": "ConceptGraphs" }
+  }
+}

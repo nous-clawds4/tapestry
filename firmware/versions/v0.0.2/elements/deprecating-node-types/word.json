@@ -1,0 +1,18 @@
+{
+  "word": {
+    "slug": "node-type--word",
+    "name": "node type: word",
+    "title": "Node Type: Word",
+    "description": "A node whose content is structured JSON data, carried in a json tag on the nostr event. Validated by a JSON Schema.",
+    "wordTypes": ["word", "nodeType"]
+  },
+  "nodeType": {
+    "slug": "word",
+    "name": "word",
+    "title": "Word",
+    "tagType": "json",
+    "description": "A node that points to structured JSON data. Word-based concepts use the full 8 core nodes including the property tree machinery.",
+    "validationConceptSlug": "json-schema",
+    "coreNodeCount": 8
+  }
+}

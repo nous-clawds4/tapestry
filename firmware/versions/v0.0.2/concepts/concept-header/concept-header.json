@@ -1,0 +1,16 @@
+{
+  "word": {
+    "slug": "concept-header-for-the-concept-of-concept-headers",
+    "name": "concept header for the concept of concept headers",
+    "title": "Concept Header for the Concept of Concept Headers",
+    "wordTypes": ["word", "conceptHeader"]
+  },
+  "conceptHeader": {
+    "description": "The origin node of a concept's class threads.",
+    "oNames": { "singular": "concept header", "plural": "concept headers" },
+    "oSlugs": { "singular": "concept-header", "plural": "concept-headers" },
+    "oKeys": { "singular": "conceptHeader", "plural": "conceptHeaders" },
+    "oTitles": { "singular": "Concept Header", "plural": "Concept Headers" },
+    "oLabels": { "singular": "ConceptHeader", "plural": "ConceptHeaders" }
+  }
+}

@@ -1,0 +1,52 @@
+{
+    "word": {
+        "slug": "json-schema-for-the-concept-of-concept-graphs",
+        "title": "JSON Schema for the concept of Concept Graphs",
+        "name": "JSON Schema for the concept of concept graphs",
+        "description": "This is the JSON Schema for elements of the concept of concept graphs. Every element of this concept must validate against this JSON schema.",
+        "wordTypes": [
+            "word",
+            "jsonSchema"
+        ],
+        "coreMemberOf": [
+            {
+                "slug": "concept-header-for-the-concept-of-concept-graphs",
+                "uuid": "<uuid>"
+            }
+        ]
+    },
+    "jsonSchema": {
+        "name": "concept graph",
+        "title": "Concept Graph",
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "required": [
+            "conceptGraph"
+        ],
+        "definitions": {},
+        "properties": {
+            "conceptGraph": {
+                "type": "object",
+                "name": "concept graph",
+                "title": "Concept Graph",
+                "slug": "concept-graph",
+                "description": "the collection of nodes and edges traversed by every class thread emanating from the Concept Header node",
+                "required": [],
+                "properties": {
+                    "description": {
+                        "type": "string",
+                        "name": "description"
+                    },
+                    "cypher": {
+                        "type": "string",
+                        "name": "cypher",
+                        "description": "The cypher command that should return the concept graph for this concept"
+                    }
+                },
+                "x-tapestry": {
+                    "unique": []
+                }
+            }
+        }
+    }
+}

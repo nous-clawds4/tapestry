@@ -1,0 +1,19 @@
+{
+  "word": {
+    "slug": "CORE_NODE_CONCEPT_GRAPH",
+    "name": "core node wiring: Concept Graph",
+    "title": "Core Node Wiring: Concept Graph",
+    "description": "Wires a Concept Graph node to its Concept Header.",
+    "wordTypes": ["word", "relationshipType"]
+  },
+  "relationshipType": {
+    "slug": "CORE_NODE_CONCEPT_GRAPH",
+    "alias": "IS_THE_CONCEPT_GRAPH_FOR",
+    "name": "core node wiring: Concept Graph",
+    "title": "Core Node Wiring: Concept Graph",
+    "description": "Connects a Concept Graph node to its Concept Header.",
+    "nodeFromType": "conceptGraph",
+    "nodeToType": "conceptHeader",
+    "category": "coreNodeWiring"
+  }
+}

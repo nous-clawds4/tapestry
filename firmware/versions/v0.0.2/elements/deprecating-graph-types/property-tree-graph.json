@@ -1,0 +1,15 @@
+{
+  "word": {
+    "slug": "graph-type--property-tree-graph",
+    "name": "graph type: property tree graph",
+    "title": "Graph Type: Property Tree Graph",
+    "description": "A graph recording the property tree structure of a concept.",
+    "wordTypes": ["word", "graphType"]
+  },
+  "graphType": {
+    "slug": "property-tree-graph",
+    "name": "property tree graph",
+    "title": "Property Tree Graph",
+    "description": "Records the JSON Schema, Primary Property, Properties set, and all downstream properties with their IS_A_PROPERTY_OF wiring."
+  }
+}

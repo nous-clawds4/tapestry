@@ -1,0 +1,16 @@
+{
+  "word": {
+    "slug": "concept-header-for-the-concept-of-words",
+    "name": "concept header for the concept of words",
+    "title": "Concept Header for the Concept of Words",
+    "wordTypes": ["word", "conceptHeader"]
+  },
+  "conceptHeader": {
+    "description": "A node whose content is structured JSON data.",
+    "oNames": { "singular": "word", "plural": "words" },
+    "oSlugs": { "singular": "word", "plural": "words" },
+    "oKeys": { "singular": "word", "plural": "words" },
+    "oTitles": { "singular": "Word", "plural": "Words" },
+    "oLabels": { "singular": "Word", "plural": "Words" }
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "word": {
+    "slug": "concept-header-for-the-concept-of-tapestries",
+    "name": "concept header for the concept of tapestries",
+    "title": "Concept Header for the Concept of Tapestries",
+    "wordTypes": ["word", "conceptHeader"]
+  },
+  "conceptHeader": {
+    "description": "A graph of concept graphs that validates against normalization rules.",
+    "oNames": { "singular": "tapestry", "plural": "tapestries" },
+    "oSlugs": { "singular": "tapestry", "plural": "tapestries" },
+    "oKeys": { "singular": "tapestry", "plural": "tapestries" },
+    "oTitles": { "singular": "Tapestry", "plural": "Tapestries" },
+    "oLabels": { "singular": "Tapestry", "plural": "Tapestries" }
+  }
+}

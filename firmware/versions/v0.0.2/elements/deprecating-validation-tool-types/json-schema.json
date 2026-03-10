@@ -1,0 +1,17 @@
+{
+  "word": {
+    "slug": "validation-tool-type--json-schema",
+    "name": "validation tool type: JSON Schema",
+    "title": "Validation Tool Type: JSON Schema",
+    "description": "A validation tool that checks whether a word node's JSON data conforms to a defined schema.",
+    "wordTypes": ["word", "validationToolType"]
+  },
+  "validationToolType": {
+    "slug": "json-schema",
+    "name": "JSON Schema",
+    "title": "JSON Schema",
+    "description": "Validates word-based nodes by checking that their JSON data conforms to a JSON Schema (draft 2020-12).",
+    "nodeTypeSlug": "word",
+    "validationFormat": "json-schema-2020-12"
+  }
+}

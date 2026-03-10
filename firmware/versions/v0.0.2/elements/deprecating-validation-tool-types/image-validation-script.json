@@ -1,0 +1,17 @@
+{
+  "word": {
+    "slug": "validation-tool-type--image-validation-script",
+    "name": "validation tool type: Image Validation Script",
+    "title": "Validation Tool Type: Image Validation Script",
+    "description": "A validation tool that checks whether an image file conforms to the expected format by running an external script.",
+    "wordTypes": ["word", "validationToolType"]
+  },
+  "validationToolType": {
+    "slug": "image-validation-script",
+    "name": "Image Validation Script",
+    "title": "Image Validation Script",
+    "description": "Validates image-based nodes by running a script that checks file format integrity.",
+    "nodeTypeSlug": "image",
+    "validationFormat": "external-script"
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "word": {
+    "slug": "CORE_NODE_JSON_SCHEMA",
+    "name": "core node wiring: JSON Schema",
+    "title": "Core Node Wiring: JSON Schema",
+    "description": "Wires a JSON Schema node to its Concept Header.",
+    "wordTypes": ["word", "relationshipType"]
+  },
+  "relationshipType": {
+    "slug": "CORE_NODE_JSON_SCHEMA",
+    "alias": "IS_THE_JSON_SCHEMA_FOR",
+    "name": "core node wiring: JSON Schema",
+    "title": "Core Node Wiring: JSON Schema",
+    "description": "Connects a JSON Schema node to its Concept Header.",
+    "nodeFromType": "jsonSchema",
+    "nodeToType": "conceptHeader",
+    "category": "coreNodeWiring"
+  }
+}
