@@ -1,0 +1,41 @@
+[
+  {
+    "name": "dcosl",
+    "description": "DCoSL: Decentralized Lists — dedicated DCoSL relays",
+    "dir": "both",
+    "filter": { "kinds": [9998, 9999, 39998, 39999], "limit": 5 },
+    "urls": [
+      "wss://dcosl.brainstorm.world",
+      "wss://dcosl.brainstorm.social/relay"
+    ],
+    "pluginDown": "",
+    "pluginUp": "",
+    "defaultEnabled": false
+  },
+  {
+    "name": "dcosl2",
+    "description": "General purpose relays that might have DCoSL data (download only)",
+    "dir": "down",
+    "filter": { "kinds": [9998, 9999, 39998, 39999], "limit": 5 },
+    "urls": [
+      "wss://relay.damus.io"
+    ],
+    "pluginDown": "",
+    "pluginUp": "",
+    "defaultEnabled": false
+  },
+  {
+    "name": "trustedLists",
+    "description": "Relays that maintain Trusted Lists (NIP-85 custom NIP)",
+    "dir": "both",
+    "filter": { "kinds": [30392, 30393, 30394, 30395], "limit": 5 },
+    "urls": [
+      "wss://nip85.brainstorm.world",
+      "wss://nip85.nostr1.com",
+      "wss://nip85.grapevine.network"
+    ],
+    "pluginDown": "",
+    "pluginUp": "",
+    "defaultEnabled": false
+  }
+]

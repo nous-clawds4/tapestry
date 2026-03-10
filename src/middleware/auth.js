@@ -307,9 +307,11 @@ async function authMiddleware(req, res, next) {
     }
     
     // Allow localhost/Docker-host CLI access to normalize endpoints (trusted local operator)
-    const remoteAddr = req.ip || req.connection?.remoteAddress || '';
+    // Guard against missing connection (e.g., internal HTTP requests from firmware install)
+    let remoteAddr = '';
+    try { remoteAddr = req.ip || req.connection?.remoteAddress || ''; } catch { }
     const isLocal = ['127.0.0.1', '::1', '::ffff:127.0.0.1', '172.18.0.1', '::ffff:172.18.0.1'].includes(remoteAddr);
-    if (isLocal && req.path.startsWith('/api/normalize')) {
+    if (isLocal && (req.path.startsWith('/api/normalize') || req.path.startsWith('/api/neo4j'))) {
         return next();
     }
 

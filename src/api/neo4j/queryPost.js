@@ -10,7 +10,10 @@
  * CSV-like string (header + rows). New callers should use "data" instead.
  */
 
-const { runCypher } = require('../../lib/neo4j-driver');
+const { runCypher, writeCypher } = require('../../lib/neo4j-driver');
+
+// Detect write operations that require WRITE access mode
+const WRITE_KEYWORDS = /\b(CREATE|MERGE|DELETE|SET|REMOVE|DETACH|DROP|CALL\s*\{)\b/i;
 
 async function queryPost(req, res) {
     const cypherCommand = (req.body && req.body.cypher) || '';
@@ -21,7 +24,10 @@ async function queryPost(req, res) {
     }
 
     try {
-        const rows = await runCypher(cypherCommand, params);
+        const isWrite = WRITE_KEYWORDS.test(cypherCommand);
+        const rows = isWrite
+            ? await writeCypher(cypherCommand, params)
+            : await runCypher(cypherCommand, params);
 
         // Build backward-compatible cypherResults string
         let cypherResults = '';

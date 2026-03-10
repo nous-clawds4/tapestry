@@ -1,12 +1,21 @@
 /**
- * Firmware API — read-only endpoints for the Firmware Explorer UI.
+ * Firmware API — endpoints for the Firmware Explorer UI.
  *
- * GET /api/firmware/manifest        — firmware version + concept list
- * GET /api/firmware/concept/:slug   — core nodes + raw JSON for a concept
+ * GET  /api/firmware/manifest            — active firmware version + concept list
+ * GET  /api/firmware/concept/:slug       — core nodes + raw JSON for a concept
+ * GET  /api/firmware/versions            — list available firmware versions
+ * GET  /api/firmware/install-status      — check if firmware is installed in Neo4j
+ * POST /api/firmware/install             — install firmware (pass1 + pass2)
  */
 
+const fs = require('fs');
+const path = require('path');
 const firmware = require('../normalize/firmware');
 const { runCypher } = require('../../lib/neo4j-driver');
+const { handleFirmwareInstall } = require('../../firmware/install');
+
+const FIRMWARE_VERSIONS_DIR = path.resolve(__dirname, '../../../firmware/versions');
+const FIRMWARE_ACTIVE_LINK = path.resolve(__dirname, '../../../firmware/active');
 
 // Core node roles and the Neo4j relationship used to find them
 const CORE_NODE_ROLES = [
@@ -26,7 +35,6 @@ async function handleManifest(req, res) {
     const concepts = manifest.concepts.map(c => ({
       slug: c.slug,
       categories: c.categories || [],
-      // Load naming info from firmware
       ...((() => {
         const data = firmware.getConcept(c.slug);
         if (data && data.conceptHeader) {
@@ -40,15 +48,121 @@ async function handleManifest(req, res) {
       })()),
     }));
 
-    // Collect unique categories
     const allCategories = [...new Set(concepts.flatMap(c => c.categories))].sort();
 
     res.json({
       success: true,
       version: manifest.version,
       date: manifest.date,
+      description: manifest.description || '',
       categories: allCategories,
       concepts,
+      relationshipTypes: (manifest.relationshipTypes || []).map(rt => {
+        const filePath = path.join(firmware.firmwareDir(), rt.file);
+        let data = null;
+        try { data = JSON.parse(fs.readFileSync(filePath, 'utf8')); } catch {}
+        return {
+          slug: rt.slug,
+          name: data?.relationshipType?.name || rt.slug,
+          alias: data?.relationshipType?.alias || rt.slug,
+          description: data?.word?.description || '',
+        };
+      }),
+      elements: manifest.elements || {},
+    });
+  } catch (err) {
+    res.json({ success: false, error: err.message });
+  }
+}
+
+/**
+ * GET /api/firmware/versions
+ * Lists all available firmware versions from firmware/versions/ directory.
+ * Each version includes its manifest summary.
+ */
+async function handleVersions(req, res) {
+  try {
+    const versions = [];
+
+    if (fs.existsSync(FIRMWARE_VERSIONS_DIR)) {
+      const dirs = fs.readdirSync(FIRMWARE_VERSIONS_DIR, { withFileTypes: true })
+        .filter(d => d.isDirectory())
+        .map(d => d.name)
+        .sort();
+
+      for (const dir of dirs) {
+        const manifestPath = path.join(FIRMWARE_VERSIONS_DIR, dir, 'manifest.json');
+        if (!fs.existsSync(manifestPath)) continue;
+
+        try {
+          const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+          versions.push({
+            dir,
+            version: manifest.version,
+            date: manifest.date,
+            description: manifest.description || '',
+            conceptCount: (manifest.concepts || []).length,
+            relationshipTypeCount: (manifest.relationshipTypes || []).length,
+            elementCategories: Object.keys(manifest.elements || {}),
+          });
+        } catch (e) {
+          versions.push({ dir, error: e.message });
+        }
+      }
+    }
+
+    // Determine which version is active
+    let activeDir = null;
+    try {
+      const target = fs.readlinkSync(FIRMWARE_ACTIVE_LINK);
+      // target is like "versions/v0.0.1" — extract the dir name
+      activeDir = path.basename(target);
+    } catch {}
+
+    res.json({ success: true, versions, activeDir });
+  } catch (err) {
+    res.json({ success: false, error: err.message });
+  }
+}
+
+/**
+ * GET /api/firmware/install-status
+ * Checks if firmware is actually installed in Neo4j by looking for ConceptHeader nodes.
+ */
+async function handleInstallStatus(req, res) {
+  try {
+    // Count firmware concept headers in Neo4j
+    const manifest = firmware.getManifest();
+    const taPubkey = firmware.getTAPubkey();
+
+    let installedCount = 0;
+    let totalCount = manifest.concepts.length;
+    const missing = [];
+    const installed = [];
+
+    for (const entry of manifest.concepts) {
+      const expectedUuid = `39998:${taPubkey}:${entry.slug}`;
+      const rows = await runCypher(
+        `MATCH (h:NostrEvent {uuid: $uuid}) RETURN h.uuid AS uuid LIMIT 1`,
+        { uuid: expectedUuid }
+      );
+      if (rows.length > 0) {
+        installedCount++;
+        installed.push(entry.slug);
+      } else {
+        missing.push(entry.slug);
+      }
+    }
+
+    res.json({
+      success: true,
+      installed: installedCount === totalCount,
+      partial: installedCount > 0 && installedCount < totalCount,
+      installedCount,
+      totalCount,
+      missing,
+      installedSlugs: installed,
+      activeVersion: manifest.version,
     });
   } catch (err) {
     res.json({ success: false, error: err.message });
@@ -60,16 +174,13 @@ async function handleConcept(req, res) {
     const slug = req.params.slug;
     if (!slug) return res.status(400).json({ success: false, error: 'Missing slug' });
 
-    // Verify it's a firmware concept
     const manifest = firmware.getManifest();
     const entry = manifest.concepts.find(c => c.slug === slug);
     if (!entry) return res.json({ success: false, error: `"${slug}" is not a firmware concept` });
 
-    // Get naming info from firmware
     const conceptData = firmware.getConcept(slug);
     const ch = conceptData?.conceptHeader || {};
 
-    // Find the concept header in the graph
     const conceptName = (ch.oNames?.singular || slug).toLowerCase();
     const headers = await runCypher(
       `MATCH (h:ListHeader)-[:HAS_TAG]->(t:NostrEventTag {type: 'names'})
@@ -92,7 +203,6 @@ async function handleConcept(req, res) {
 
     const headerUuid = headers[0].uuid;
 
-    // Fetch all core nodes + their JSON in one query
     const rows = await runCypher(
       `MATCH (h:ListHeader {uuid: $uuid})
        OPTIONAL MATCH (h)-[:HAS_TAG]->(hj:NostrEventTag {type: 'json'})
@@ -132,7 +242,6 @@ async function handleConcept(req, res) {
 
     const r = rows[0] || {};
 
-    // Parse JSON strings into objects
     function parseJson(str) {
       if (!str) return null;
       try { return JSON.parse(str); } catch { return null; }
@@ -166,7 +275,10 @@ async function handleConcept(req, res) {
 
 function registerFirmwareApiRoutes(app) {
   app.get('/api/firmware/manifest', handleManifest);
+  app.get('/api/firmware/versions', handleVersions);
+  app.get('/api/firmware/install-status', handleInstallStatus);
   app.get('/api/firmware/concept/:slug', handleConcept);
+  app.post('/api/firmware/install', handleFirmwareInstall);
 }
 
 module.exports = { registerFirmwareApiRoutes };

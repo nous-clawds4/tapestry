@@ -157,7 +157,10 @@ if [ ! -d "${BRAINSTORM_MODULE_BASE_DIR}node_modules/express" ]; then
 fi
 
 # --- strfry router config ---
-if [ -f "${BRAINSTORM_MODULE_BASE_DIR}setup/strfry-router-tapestry.config" ]; then
+# Router config is now managed by initRouter() in the Node app.
+# It reads from router-state.json (persistent volume) or initializes from router-presets.json.
+# Only write a fallback config if no state file exists AND the app hasn't started yet.
+if [ ! -f "/var/lib/brainstorm/router-state.json" ] && [ -f "${BRAINSTORM_MODULE_BASE_DIR}setup/strfry-router-tapestry.config" ]; then
   cp "${BRAINSTORM_MODULE_BASE_DIR}setup/strfry-router-tapestry.config" /etc/strfry-router-tapestry.config
 fi
 
