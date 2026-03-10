@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import useProfiles from '../../hooks/useProfiles';
 import AuthorCell from '../../components/AuthorCell';
+import { normalizeSkeleton, normalizeJson } from '../../api/normalize';
+import { queryRelay } from '../../api/relay';
 
 function getTag(event, name, index = 1) {
   const tag = event.tags?.find(t => t[0] === name);
@@ -23,11 +25,34 @@ function formatDate(ts) {
   return new Date(ts * 1000).toLocaleString();
 }
 
-function Neo4jStatus({ uuid }) {
+function Neo4jStatus({ uuid, event }) {
   const [status, setStatus] = useState(null); // API response
   const [loading, setLoading] = useState(true);
-  const [acting, setActing] = useState(false);
+  const [acting, setActing] = useState(null); // null | 'import' | 'expand' | 'full'
   const [error, setError] = useState(null);
+  const [itemCount, setItemCount] = useState(null); // number of DList items available
+
+  // Fetch item count
+  useEffect(() => {
+    if (!event) return;
+    async function fetchItemCount() {
+      try {
+        const parentRef = event.kind === 39998
+          ? `${event.kind}:${event.pubkey}:${getTag(event, 'd')}`
+          : event.id;
+        let items;
+        if (event.kind === 39998) {
+          items = await queryRelay({ kinds: [9999, 39999], '#z': [parentRef] });
+        } else {
+          items = await queryRelay({ kinds: [9999, 39999], '#e': [event.id] });
+        }
+        setItemCount(items.length);
+      } catch {
+        setItemCount(0);
+      }
+    }
+    fetchItemCount();
+  }, [event]);
 
   const fetchStatus = useCallback(async () => {
     try {
@@ -46,9 +71,14 @@ function Neo4jStatus({ uuid }) {
 
   useEffect(() => { fetchStatus(); }, [fetchStatus]);
 
-  async function handleImportOrUpdate() {
+  const conceptName = event
+    ? (getTag(event, 'names', 1) || getTag(event, 'name', 1) || null)
+    : null;
+
+  // Import just the header node
+  async function handleImport() {
     try {
-      setActing(true);
+      setActing('import');
       setError(null);
       const res = await fetch('/api/neo4j/event-update', {
         method: 'POST',
@@ -57,13 +87,121 @@ function Neo4jStatus({ uuid }) {
       });
       const data = await res.json();
       if (!data.success) throw new Error(data.error);
-      // Refresh status
       await fetchStatus();
     } catch (err) {
       setError(err.message);
     } finally {
-      setActing(false);
+      setActing(null);
     }
+  }
+
+  // Import header + fix JSON + create all core nodes
+  async function handleExpand() {
+    try {
+      setActing('expand');
+      setError(null);
+      // Step 1: Import header to Neo4j
+      const res = await fetch('/api/neo4j/event-update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ uuid }),
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error);
+      // Step 2: Fix JSON on the Concept Header
+      await normalizeJson({ concept: conceptName, node: 'header' });
+      // Step 3: Create all missing core nodes (skeleton)
+      await normalizeSkeleton({ concept: conceptName });
+      await fetchStatus();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setActing(null);
+    }
+  }
+
+  // Import header + expand + import all items as elements
+  async function handleFullImport() {
+    try {
+      setActing('full');
+      setError(null);
+      // Step 1: Import header
+      const res = await fetch('/api/neo4j/event-update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ uuid }),
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error);
+      // Step 2: Fix JSON on the Concept Header
+      await normalizeJson({ concept: conceptName, node: 'header' });
+      // Step 3: Create all missing core nodes
+      await normalizeSkeleton({ concept: conceptName });
+      // Step 4: Import each item to Neo4j and wire as element
+      const parentRef = event.kind === 39998
+        ? `${event.kind}:${event.pubkey}:${getTag(event, 'd')}`
+        : event.id;
+      let items;
+      if (event.kind === 39998) {
+        items = await queryRelay({ kinds: [9999, 39999], '#z': [parentRef] });
+      } else {
+        items = await queryRelay({ kinds: [9999, 39999], '#e': [event.id] });
+      }
+      for (const item of items) {
+        const itemDTag = item.tags?.find(t => t[0] === 'd')?.[1];
+        const itemUuid = item.kind === 39999
+          ? `${item.kind}:${item.pubkey}:${itemDTag}`
+          : item.id;
+        // Import item event to Neo4j
+        const itemRes = await fetch('/api/neo4j/event-update', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ uuid: itemUuid }),
+        });
+        const itemData = await itemRes.json();
+        if (!itemData.success) {
+          console.warn(`Failed to import item ${itemUuid}: ${itemData.error}`);
+        }
+      }
+      // Step 5: Run normalize skeleton again to pick up wiring
+      // (items are wired via z-tag → superset during import)
+      // Actually, we need to explicitly wire them. Use add-node-as-element for each.
+      // Find the concept's superset UUID from Neo4j
+      const auditRes = await fetch(`/api/audit/concept?concept=${encodeURIComponent(conceptName)}`);
+      const auditData = await auditRes.json();
+      const supersetUuid = auditData?.skeleton?.nodes?.find(n => n.role === 'Superset')?.uuid;
+      if (supersetUuid) {
+        for (const item of items) {
+          const itemDTag = item.tags?.find(t => t[0] === 'd')?.[1];
+          const itemUuid = item.kind === 39999
+            ? `${item.kind}:${item.pubkey}:${itemDTag}`
+            : item.id;
+          try {
+            const wireRes = await fetch('/api/normalize/add-node-as-element', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ conceptUuid: uuid, nodeUuid: itemUuid }),
+            });
+            const wireData = await wireRes.json();
+            if (!wireData.success && !wireData.error?.includes('already')) {
+              console.warn(`Failed to wire item ${itemUuid}: ${wireData.error}`);
+            }
+          } catch (wireErr) {
+            console.warn(`Failed to wire item ${itemUuid}: ${wireErr.message}`);
+          }
+        }
+      }
+      await fetchStatus();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setActing(null);
+    }
+  }
+
+  // Legacy handler for update/re-import cases
+  async function handleImportOrUpdate() {
+    await handleImport();
   }
 
   if (loading) {
@@ -96,15 +234,38 @@ function Neo4jStatus({ uuid }) {
 
     case 'missing_from_neo4j':
       return (
-        <div className="neo4j-status">
+        <div className="neo4j-status" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '0.5rem' }}>
           <span className="neo4j-badge neo4j-missing">⬜ Not in Neo4j</span>
-          <button
-            className="btn-small btn-import"
-            onClick={handleImportOrUpdate}
-            disabled={acting}
-          >
-            {acting ? 'Importing…' : '📥 Import to Neo4j'}
-          </button>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', width: '100%' }}>
+            <button
+              className="btn-small btn-import"
+              onClick={handleImport}
+              disabled={acting !== null}
+              style={{ textAlign: 'left' }}
+            >
+              {acting === 'import' ? '⏳ Importing…' : '📥 Import to Neo4j (header only)'}
+            </button>
+            {conceptName && (
+              <button
+                className="btn-small btn-import"
+                onClick={handleExpand}
+                disabled={acting !== null}
+                style={{ textAlign: 'left' }}
+              >
+                {acting === 'expand' ? '⏳ Expanding…' : '📥 Import + expand into full Concept'}
+              </button>
+            )}
+            {conceptName && itemCount > 0 && (
+              <button
+                className="btn-small btn-import"
+                onClick={handleFullImport}
+                disabled={acting !== null}
+                style={{ textAlign: 'left' }}
+              >
+                {acting === 'full' ? `⏳ Importing ${itemCount} items…` : `📥 Import + expand + import ${itemCount} item${itemCount !== 1 ? 's' : ''} as elements`}
+              </button>
+            )}
+          </div>
         </div>
       );
 
@@ -118,9 +279,9 @@ function Neo4jStatus({ uuid }) {
           <button
             className="btn-small btn-update"
             onClick={handleImportOrUpdate}
-            disabled={acting}
+            disabled={acting !== null}
           >
-            {acting ? 'Updating…' : '🔄 Update in Neo4j'}
+            {acting !== null ? 'Updating…' : '🔄 Update in Neo4j'}
           </button>
         </div>
       );
@@ -173,7 +334,7 @@ export default function DListOverview() {
     <div className="dlist-overview">
       <h2>Overview</h2>
 
-      <Neo4jStatus uuid={uuid} />
+      <Neo4jStatus uuid={uuid} event={event} />
 
       <table className="detail-table">
         <tbody>

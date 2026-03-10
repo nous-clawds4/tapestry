@@ -71,6 +71,7 @@ export default function ConceptHealth() {
   const { status, checks, skeleton, elements, sets, wiring } = audit;
   const hasMissingNodes = skeleton?.nodes?.some(n => !n.exists);
   const hasMissingJson = skeleton?.nodes?.some(n => n.exists && !n.json);
+  const hasInvalidJson = skeleton?.nodes?.some(n => n.exists && n.json && n.valid === false);
 
   return (
     <div className="concept-health">
@@ -124,13 +125,13 @@ export default function ConceptHealth() {
                 {fixing === 'all' ? '⏳ Creating…' : '🔧 Fix All Missing'}
               </button>
             )}
-            {hasMissingJson && (
+            {(hasMissingJson || hasInvalidJson) && (
               <button
                 className="btn btn-small"
                 style={{ marginLeft: '0.5rem' }}
                 onClick={() => handleFixJson(null)}
                 disabled={fixing !== null || !canFix}
-                title={!canFix ? 'Sign in as owner to fix' : 'Regenerate JSON for all nodes missing it'}
+                title={!canFix ? 'Sign in as owner to fix' : 'Regenerate JSON for all nodes with missing or invalid JSON'}
               >
                 {fixing === 'json-all' ? '⏳ Generating…' : '📝 Fix All JSON'}
               </button>
@@ -178,9 +179,29 @@ export default function ConceptHealth() {
                           className="btn btn-small"
                           onClick={() => handleFixJson(nodeKey)}
                           disabled={fixing !== null || !canFix}
-                          title={!canFix ? 'Sign in as owner to fix' : 'Regenerate JSON tag'}
+                          title={!canFix ? 'Sign in as owner to fix' : 'Generate JSON tag'}
                         >
                           {fixing === `json-${nodeKey}` ? '⏳' : '📝 Fix JSON'}
+                        </button>
+                      )}
+                      {n.exists && n.json && n.valid === false && nodeKey && (
+                        <button
+                          className="btn btn-small"
+                          onClick={() => handleFixJson(nodeKey)}
+                          disabled={fixing !== null || !canFix}
+                          title={!canFix ? 'Sign in as owner to fix' : 'Regenerate JSON to fix validation errors'}
+                        >
+                          {fixing === `json-${nodeKey}` ? '⏳' : '📝 Fix JSON'}
+                        </button>
+                      )}
+                      {n.exists && n.json && n.valid === true && nodeKey && (
+                        <button
+                          className="btn btn-small btn-ghost"
+                          onClick={() => handleFixJson(nodeKey)}
+                          disabled={fixing !== null || !canFix}
+                          title={!canFix ? 'Sign in as owner' : 'Regenerate JSON from current graph state'}
+                        >
+                          {fixing === `json-${nodeKey}` ? '⏳' : '🔄 Rebuild'}
                         </button>
                       )}
                     </td>

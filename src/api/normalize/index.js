@@ -307,6 +307,10 @@ async function handleNormalizeSkeleton(req, res) {
     let classGraphATag = ex.classGraphUuid;
     let propGraphATag = ex.propGraphUuid;
 
+    // Derived naming used across multiple sections
+    const slugPlural = deriveSlug(plural);
+    const titlePlural = plural.split(/\s+/).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+
     // Helper: create node + wiring relationship + publish + import
     async function createNode(role, nodeEvent, relType, relDirection) {
       await publishToStrfry(nodeEvent);
@@ -349,18 +353,35 @@ async function handleNormalizeSkeleton(req, res) {
     if (missing.includes('superset')) {
       const dTag = `${slug}-superset`;
       const supersetName = `the superset of all ${plural}`;
-      const supersetJson = JSON.stringify({
-        supersetOf: name,
-        role: 'superset',
-        description: `The superset node for the ${name} concept.`,
-      });
+      const supersetWord = {
+        word: {
+          slug: `superset-for-the-concept-of-${slugPlural}`,
+          name: `superset for the concept of ${plural.toLowerCase()}`,
+          title: `Superset for the Concept of ${titlePlural}`,
+          wordTypes: ['word', 'set', 'superset'],
+          coreMemberOf: [{ slug: `concept-header-for-the-concept-of-${slugPlural}`, uuid: headerUuid }],
+        },
+        set: {
+          slug: slugPlural,
+          name: plural.toLowerCase(),
+          title: titlePlural,
+          description: `This is a set of ${plural.toLowerCase()}.`,
+        },
+        superset: {
+          slug: slugPlural,
+          name: plural.toLowerCase(),
+          title: titlePlural,
+          description: `This is the superset of all known ${plural.toLowerCase()}.`,
+        },
+      };
+      const supersetJson = JSON.stringify(supersetWord);
       const evt = signAndFinalize({
         kind: 39999,
         tags: [
           ['d', dTag],
           ['name', supersetName],
           ['z', firmware.conceptUuid('superset')],
-          ['description', `The superset node for the ${name} concept.`],
+          ['description', supersetWord.superset.description],
           ['json', supersetJson],
         ],
         content: '',
@@ -444,23 +465,38 @@ async function handleNormalizeSkeleton(req, res) {
     if (missing.includes('primary-property')) {
       const dTag = `${slug}-primary-property`;
       const ppKey = toCamelCase(name);
-      const ppName = `primary property for the ${name} concept`;
-      const ppJson = JSON.stringify({
-        property: {
-          name: ppName,
-          key: ppKey,
-          role: 'primaryProperty',
-          conceptName: name,
-          description: `Primary property for the ${name} concept. Elements of ${name} use "${ppKey}" as their top-level JSON key.`,
+      const ppWord = {
+        word: {
+          slug: `primary-property-for-the-concept-of-${slugPlural}`,
+          name: `primary property for the concept of ${plural.toLowerCase()}`,
+          description: `the primary property for the concept of ${plural.toLowerCase()}`,
+          wordTypes: ['word', 'property', 'primaryProperty'],
+          coreMemberOf: [{ slug: `concept-header-for-the-concept-of-${slugPlural}`, uuid: headerUuid }],
         },
-      });
+        property: {
+          key: ppKey,
+          title: toTitleName(name),
+          type: 'object',
+          required: ['name', 'slug', 'description'],
+          properties: {
+            name: { type: 'string' },
+            slug: { type: 'string' },
+            description: { type: 'string' },
+          },
+        },
+        primaryProperty: {
+          description: `the primary property for the concept of ${plural.toLowerCase()}`,
+        },
+      };
+      const ppName = ppWord.word.name;
+      const ppJson = JSON.stringify(ppWord);
       const evt = signAndFinalize({
         kind: 39999,
         tags: [
           ['d', dTag],
           ['name', ppName],
           ['z', firmware.conceptUuid('primary-property')],
-          ['description', `Primary property for the ${name} concept. Elements of ${name} use "${ppKey}" as their top-level JSON key.`],
+          ['description', ppWord.word.description],
           ['json', ppJson],
         ],
         content: '',
@@ -549,48 +585,68 @@ async function handleNormalizeSkeleton(req, res) {
     if (coreGraphATag && missing.includes('core-graph')) {
       const dTag = `${slug}-core-nodes-graph`;
       const graphName = `core nodes graph for the ${name} concept`;
-      const supersetName = `the superset of all ${plural}`;
-      const schemaName = `JSON schema for ${name}`;
 
-      const graphJson = JSON.stringify({
+      const coreGraphWord = {
+        word: {
+          slug: `core-nodes-graph-for-the-concept-of-${slugPlural}`,
+          name: `core nodes graph for the concept of ${plural.toLowerCase()}`,
+          title: `Core Nodes Graph for the Concept of ${titlePlural}`,
+          wordTypes: ['word', 'graph', 'coreNodesGraph'],
+          coreMemberOf: [{ slug: `concept-header-for-the-concept-of-${slugPlural}`, uuid: headerUuid }],
+        },
         graph: {
           nodes: [
-            { slug: `${slug}_header`, uuid: headerUuid, name },
-            ...(supersetATag ? [{ slug: `${slug}_superset`, uuid: supersetATag, name: supersetName }] : []),
-            ...(schemaATag ? [{ slug: `${slug}_schema`, uuid: schemaATag, name: schemaName }] : []),
-            ...(primaryPropATag ? [{ slug: `${slug}_primaryProperty`, uuid: primaryPropATag, name: `primary property for the ${name} concept` }] : []),
-            { slug: `${slug}_coreNodesGraph`, uuid: coreGraphATag, name: graphName },
-            ...(classGraphATag ? [{ slug: `${slug}_conceptGraph`, uuid: classGraphATag, name: `concept graph for the ${name} concept` }] : []),
-            ...(propGraphATag ? [{ slug: `${slug}_propertyTreeGraph`, uuid: propGraphATag, name: `property tree graph for the ${name} concept` }] : []),
+            { slug: `concept-header-for-the-concept-of-${slugPlural}`, uuid: headerUuid },
+            ...(supersetATag ? [{ slug: `superset-for-the-concept-of-${slugPlural}`, uuid: supersetATag }] : []),
+            ...(schemaATag ? [{ slug: `json-schema-for-the-concept-of-${slugPlural}`, uuid: schemaATag }] : []),
+            ...(primaryPropATag ? [{ slug: `primary-property-for-the-concept-of-${slugPlural}`, uuid: primaryPropATag }] : []),
+            ...(propGraphATag ? [{ slug: `property-tree-graph-for-the-concept-of-${slugPlural}`, uuid: propGraphATag }] : []),
+            ...(classGraphATag ? [{ slug: `concept-graph-for-the-concept-of-${slugPlural}`, uuid: classGraphATag }] : []),
+            { slug: `core-nodes-graph-for-the-concept-of-${slugPlural}`, uuid: coreGraphATag },
           ],
           relationshipTypes: [
-            { slug: REL.CLASS_THREAD_INITIATION, name: 'class thread initiation' },
-            { slug: REL.CORE_NODE_JSON_SCHEMA, name: 'is the JSON schema for' },
-            { slug: REL.CORE_NODE_PRIMARY_PROPERTY, name: 'is the primary property for' },
-            { slug: REL.CORE_NODE_CORE_GRAPH, name: REL.CORE_NODE_CORE_GRAPH },
-            { slug: REL.CORE_NODE_CONCEPT_GRAPH, name: REL.CORE_NODE_CONCEPT_GRAPH },
-            { slug: REL.CORE_NODE_PROPERTY_TREE_GRAPH, name: REL.CORE_NODE_PROPERTY_TREE_GRAPH },
+            { slug: REL.CLASS_THREAD_INITIATION },
+            { slug: REL.CORE_NODE_JSON_SCHEMA },
+            { slug: REL.CORE_NODE_PRIMARY_PROPERTY },
+            { slug: REL.CORE_NODE_PROPERTY_TREE_GRAPH },
+            { slug: REL.CORE_NODE_CORE_GRAPH },
+            { slug: REL.CORE_NODE_CONCEPT_GRAPH },
           ],
           relationships: [
-            { nodeFrom: { slug: `${slug}_header` }, relationshipType: { slug: REL.CLASS_THREAD_INITIATION }, nodeTo: { slug: `${slug}_superset` } },
-            { nodeFrom: { slug: `${slug}_schema` }, relationshipType: { slug: REL.CORE_NODE_JSON_SCHEMA }, nodeTo: { slug: `${slug}_header` } },
-            ...(primaryPropATag ? [{ nodeFrom: { slug: `${slug}_primaryProperty` }, relationshipType: { slug: REL.CORE_NODE_PRIMARY_PROPERTY }, nodeTo: { slug: `${slug}_header` } }] : []),
-            { nodeFrom: { slug: `${slug}_coreNodesGraph` }, relationshipType: { slug: REL.CORE_NODE_CORE_GRAPH }, nodeTo: { slug: `${slug}_header` } },
-            { nodeFrom: { slug: `${slug}_conceptGraph` }, relationshipType: { slug: REL.CORE_NODE_CONCEPT_GRAPH }, nodeTo: { slug: `${slug}_header` } },
-            { nodeFrom: { slug: `${slug}_propertyTreeGraph` }, relationshipType: { slug: REL.CORE_NODE_PROPERTY_TREE_GRAPH }, nodeTo: { slug: `${slug}_header` } },
+            ...(supersetATag ? [{ nodeFrom: { slug: `concept-header-for-the-concept-of-${slugPlural}` }, relationshipType: { slug: REL.CLASS_THREAD_INITIATION }, nodeTo: { slug: `superset-for-the-concept-of-${slugPlural}` } }] : []),
+            ...(schemaATag ? [{ nodeFrom: { slug: `json-schema-for-the-concept-of-${slugPlural}` }, relationshipType: { slug: REL.CORE_NODE_JSON_SCHEMA }, nodeTo: { slug: `concept-header-for-the-concept-of-${slugPlural}` } }] : []),
+            ...(primaryPropATag ? [{ nodeFrom: { slug: `primary-property-for-the-concept-of-${slugPlural}` }, relationshipType: { slug: REL.CORE_NODE_PRIMARY_PROPERTY }, nodeTo: { slug: `concept-header-for-the-concept-of-${slugPlural}` } }] : []),
+            ...(propGraphATag ? [{ nodeFrom: { slug: `property-tree-graph-for-the-concept-of-${slugPlural}` }, relationshipType: { slug: REL.CORE_NODE_PROPERTY_TREE_GRAPH }, nodeTo: { slug: `concept-header-for-the-concept-of-${slugPlural}` } }] : []),
+            { nodeFrom: { slug: `core-nodes-graph-for-the-concept-of-${slugPlural}` }, relationshipType: { slug: REL.CORE_NODE_CORE_GRAPH }, nodeTo: { slug: `concept-header-for-the-concept-of-${slugPlural}` } },
+            ...(classGraphATag ? [{ nodeFrom: { slug: `concept-graph-for-the-concept-of-${slugPlural}` }, relationshipType: { slug: REL.CORE_NODE_CONCEPT_GRAPH }, nodeTo: { slug: `concept-header-for-the-concept-of-${slugPlural}` } }] : []),
           ],
+          imports: [],
         },
-      });
+        coreNodesGraph: {
+          description: `the set of core nodes for the concept of ${plural.toLowerCase()}`,
+          constituents: {
+            conceptHeader: headerUuid,
+            ...(supersetATag && { superset: supersetATag }),
+            ...(schemaATag && { jsonSchema: schemaATag }),
+            ...(primaryPropATag && { primaryProperty: primaryPropATag }),
+            ...(propGraphATag && { propertyTreeGraph: propGraphATag }),
+            ...(classGraphATag && { conceptGraph: classGraphATag }),
+            coreNodesGraph: coreGraphATag,
+          },
+        },
+      };
 
       // Re-publish with JSON
       const evt2 = signAndFinalize({
         kind: 39999,
         tags: [
           ['d', dTag],
-          ['name', graphName],
+          ['name', coreGraphWord.word.name],
+          ['z', firmware.conceptUuid('core-nodes-graph')],
           ['z', firmware.conceptUuid('graph')],
-          ['description', `Core infrastructure nodes for ${name}: header, superset, schema, and three canonical graphs.`],
-          ['json', graphJson],
+          ['z', firmware.conceptUuid('word')],
+          ['description', coreGraphWord.coreNodesGraph.description],
+          ['json', JSON.stringify(coreGraphWord)],
         ],
         content: '',
       });
@@ -601,25 +657,48 @@ async function handleNormalizeSkeleton(req, res) {
     // ── Concept Graph ──
     if (missing.includes('concept-graph')) {
       const dTag = `${slug}-concept-graph`;
-      const graphName = `concept graph for the ${name} concept`;
-      const graphJson = JSON.stringify({
-        graph: {
-          nodes: supersetATag ? [{ slug: `${slug}_superset`, uuid: supersetATag, name: `the superset of all ${plural}` }] : [],
-          relationshipTypes: [
-            { slug: REL.CLASS_THREAD_PROPAGATION, name: 'class thread propagation' },
-            { slug: REL.CLASS_THREAD_TERMINATION, name: 'class thread termination' },
-          ],
-          relationships: [],
+      const conceptGraphWord = {
+        word: {
+          slug: `concept-graph-for-the-concept-of-${slugPlural}`,
+          name: `concept graph for the concept of ${plural.toLowerCase()}`,
+          title: `Concept Graph for the Concept of ${titlePlural}`,
+          wordTypes: ['word', 'graph', 'conceptGraph'],
+          coreMemberOf: [{ slug: `concept-header-for-the-concept-of-${slugPlural}`, uuid: headerUuid }],
         },
-      });
+        graph: {
+          nodes: [
+            { slug: `concept-header-for-the-concept-of-${slugPlural}`, uuid: headerUuid },
+            ...(supersetATag ? [{ slug: `superset-for-the-concept-of-${slugPlural}`, uuid: supersetATag }] : []),
+          ],
+          relationshipTypes: [
+            { slug: REL.CLASS_THREAD_INITIATION, uuid: '' },
+            { slug: REL.CLASS_THREAD_PROPAGATION, uuid: '' },
+            { slug: REL.CLASS_THREAD_TERMINATION, uuid: '' },
+          ],
+          relationships: supersetATag ? [{
+            nodeFrom: { slug: `concept-header-for-the-concept-of-${slugPlural}` },
+            relationshipType: { slug: REL.CLASS_THREAD_INITIATION },
+            nodeTo: { slug: `superset-for-the-concept-of-${slugPlural}` },
+          }] : [],
+          imports: [
+            ...(propGraphATag ? [{ slug: `property-tree-graph-for-the-concept-of-${slugPlural}`, uuid: propGraphATag }] : []),
+          ],
+        },
+        conceptGraph: {
+          description: `The concept graph for the concept of ${plural.toLowerCase()}`,
+          cypher: `MATCH classPath = (conceptHeader)-[:${REL.CLASS_THREAD_INITIATION}]->(superset:Superset)-[:${REL.CLASS_THREAD_PROPAGATION} *0..5]->()-[:${REL.CLASS_THREAD_TERMINATION}]->() WHERE conceptHeader.uuid = '${headerUuid}' RETURN classPath`,
+        },
+      };
       const evt = signAndFinalize({
         kind: 39999,
         tags: [
           ['d', dTag],
-          ['name', graphName],
+          ['name', conceptGraphWord.word.name],
+          ['z', firmware.conceptUuid('concept-graph')],
           ['z', firmware.conceptUuid('graph')],
-          ['description', `Concept graph for ${name}: superset hierarchy and elements.`],
-          ['json', graphJson],
+          ['z', firmware.conceptUuid('word')],
+          ['description', conceptGraphWord.conceptGraph.description],
+          ['json', JSON.stringify(conceptGraphWord)],
         ],
         content: '',
       });
@@ -632,32 +711,41 @@ async function handleNormalizeSkeleton(req, res) {
     // ── Property Tree Graph ──
     if (missing.includes('property-graph')) {
       const dTag = `${slug}-property-tree-graph`;
-      const graphName = `property tree graph for the ${name} concept`;
-      const ptNodes = [];
-      if (schemaATag) ptNodes.push({ slug: `${slug}_schema`, uuid: schemaATag, name: `JSON schema for ${name}` });
-      if (primaryPropATag) ptNodes.push({ slug: `${slug}_primaryProperty`, uuid: primaryPropATag, name: `primary property for the ${name} concept` });
-      const ptRels = [];
-      if (primaryPropATag && schemaATag) {
-        ptRels.push({ nodeFrom: { slug: `${slug}_primaryProperty` }, relationshipType: { slug: REL.PROPERTY_MEMBERSHIP }, nodeTo: { slug: `${slug}_schema` } });
-      }
-      const graphJson = JSON.stringify({
-        graph: {
-          nodes: ptNodes,
-          relationshipTypes: [
-            { slug: REL.PROPERTY_MEMBERSHIP, name: 'is a property of' },
-            { slug: REL.PROPERTY_ENUMERATION, name: 'enumerates' },
-          ],
-          relationships: ptRels,
+      const ptWord = {
+        word: {
+          slug: `property-tree-graph-for-the-concept-of-${slugPlural}`,
+          name: `property tree graph for the concept of ${plural.toLowerCase()}`,
+          title: `Property Tree Graph for the Concept of ${titlePlural}`,
+          wordTypes: ['word', 'graph', 'propertyTreeGraph'],
+          coreMemberOf: [{ slug: `concept-header-for-the-concept-of-${slugPlural}`, uuid: headerUuid }],
         },
-      });
+        graph: {
+          nodes: [
+            ...(schemaATag ? [{ slug: `json-schema-for-the-concept-of-${slugPlural}`, uuid: schemaATag }] : []),
+            ...(primaryPropATag ? [{ slug: `primary-property-for-the-concept-of-${slugPlural}`, uuid: primaryPropATag }] : []),
+          ],
+          relationshipTypes: [{ slug: REL.PROPERTY_MEMBERSHIP }],
+          relationships: (primaryPropATag && schemaATag) ? [{
+            nodeFrom: { slug: `primary-property-for-the-concept-of-${slugPlural}` },
+            relationshipType: { slug: REL.PROPERTY_MEMBERSHIP },
+            nodeTo: { slug: `json-schema-for-the-concept-of-${slugPlural}` },
+          }] : [],
+          imports: [],
+        },
+        propertyTreeGraph: {
+          description: `the collection of the JSON schema node, all property nodes and all of their connections for the concept of ${plural.toLowerCase()}`,
+        },
+      };
       const evt = signAndFinalize({
         kind: 39999,
         tags: [
           ['d', dTag],
-          ['name', graphName],
+          ['name', ptWord.word.name],
+          ['z', firmware.conceptUuid('property-tree-graph')],
           ['z', firmware.conceptUuid('graph')],
-          ['description', `Property tree graph for ${name}: schema and properties.`],
-          ['json', graphJson],
+          ['z', firmware.conceptUuid('word')],
+          ['description', ptWord.propertyTreeGraph.description],
+          ['json', JSON.stringify(ptWord)],
         ],
         content: '',
       });
@@ -770,20 +858,21 @@ async function handleNormalizeJson(req, res) {
     // ── Header JSON ──
     if (!node || node === 'header') {
       if (h.headerUuid) {
+        const names = deriveAllNames(name, plural);
         const headerJson = {
-          concept: {
-            name,
-            plural,
-            slug,
-            ...(slug && { primaryProperty: toCamelCase(name) }),
-            constituents: {
-              ...(h.supersetUuid && { superset: h.supersetUuid }),
-              ...(h.schemaUuid && { jsonSchema: h.schemaUuid }),
-              ...(h.primaryPropUuid && { primaryProperty: h.primaryPropUuid }),
-              ...(h.coreGraphUuid && { coreNodesGraph: h.coreGraphUuid }),
-              ...(h.classGraphUuid && { conceptGraph: h.classGraphUuid }),
-              ...(h.propGraphUuid && { propertyTreeGraph: h.propGraphUuid }),
-            },
+          word: {
+            slug: `concept-header-for-the-concept-of-${names.oSlugs.plural}`,
+            name: `concept header for the concept of ${names.oNames.plural}`,
+            title: `Concept Header for the Concept of ${names.oTitles.plural}`,
+            wordTypes: ['word', 'conceptHeader'],
+          },
+          conceptHeader: {
+            description: h.description || `${names.oTitles.singular} is a concept.`,
+            oNames: names.oNames,
+            oSlugs: names.oSlugs,
+            oKeys: names.oKeys,
+            oTitles: names.oTitles,
+            oLabels: names.oLabels,
           },
         };
         await regenerateJson(h.headerUuid, headerJson);
@@ -876,33 +965,55 @@ async function handleNormalizeJson(req, res) {
 
     // ── Core Nodes Graph JSON ──
     if ((!node || node === 'core-graph') && h.coreGraphUuid) {
+      const ngSlugPlural = deriveSlug(plural);
+      const ngTitlePlural = plural.split(/\s+/).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
       const graphJson = {
+        word: {
+          slug: `core-nodes-graph-for-the-concept-of-${ngSlugPlural}`,
+          name: `core nodes graph for the concept of ${plural.toLowerCase()}`,
+          title: `Core Nodes Graph for the Concept of ${ngTitlePlural}`,
+          wordTypes: ['word', 'graph', 'coreNodesGraph'],
+          coreMemberOf: [{ slug: `concept-header-for-the-concept-of-${ngSlugPlural}`, uuid: h.headerUuid }],
+        },
         graph: {
           nodes: [
-            { slug: `${slug}_header`, uuid: h.headerUuid, name },
-            ...(h.supersetUuid ? [{ slug: `${slug}_superset`, uuid: h.supersetUuid, name: h.supersetName }] : []),
-            ...(h.schemaUuid ? [{ slug: `${slug}_schema`, uuid: h.schemaUuid, name: h.schemaName }] : []),
-            ...(h.primaryPropUuid ? [{ slug: `${slug}_primaryProperty`, uuid: h.primaryPropUuid, name: h.primaryPropName }] : []),
-            { slug: `${slug}_coreNodesGraph`, uuid: h.coreGraphUuid, name: h.coreGraphName },
-            ...(h.classGraphUuid ? [{ slug: `${slug}_conceptGraph`, uuid: h.classGraphUuid, name: h.classGraphName }] : []),
-            ...(h.propGraphUuid ? [{ slug: `${slug}_propertyTreeGraph`, uuid: h.propGraphUuid, name: h.propGraphName }] : []),
+            { slug: `concept-header-for-the-concept-of-${ngSlugPlural}`, uuid: h.headerUuid },
+            ...(h.supersetUuid ? [{ slug: `superset-for-the-concept-of-${ngSlugPlural}`, uuid: h.supersetUuid }] : []),
+            ...(h.schemaUuid ? [{ slug: `json-schema-for-the-concept-of-${ngSlugPlural}`, uuid: h.schemaUuid }] : []),
+            ...(h.primaryPropUuid ? [{ slug: `primary-property-for-the-concept-of-${ngSlugPlural}`, uuid: h.primaryPropUuid }] : []),
+            ...(h.propGraphUuid ? [{ slug: `property-tree-graph-for-the-concept-of-${ngSlugPlural}`, uuid: h.propGraphUuid }] : []),
+            ...(h.classGraphUuid ? [{ slug: `concept-graph-for-the-concept-of-${ngSlugPlural}`, uuid: h.classGraphUuid }] : []),
+            { slug: `core-nodes-graph-for-the-concept-of-${ngSlugPlural}`, uuid: h.coreGraphUuid },
           ],
           relationshipTypes: [
-            { slug: REL.CLASS_THREAD_INITIATION, name: 'class thread initiation' },
-            { slug: REL.CORE_NODE_JSON_SCHEMA, name: 'is the JSON schema for' },
-            { slug: REL.CORE_NODE_PRIMARY_PROPERTY, name: 'is the primary property for' },
-            { slug: REL.CORE_NODE_CORE_GRAPH, name: REL.CORE_NODE_CORE_GRAPH },
-            { slug: REL.CORE_NODE_CONCEPT_GRAPH, name: REL.CORE_NODE_CONCEPT_GRAPH },
-            { slug: REL.CORE_NODE_PROPERTY_TREE_GRAPH, name: REL.CORE_NODE_PROPERTY_TREE_GRAPH },
+            { slug: REL.CLASS_THREAD_INITIATION },
+            { slug: REL.CORE_NODE_JSON_SCHEMA },
+            { slug: REL.CORE_NODE_PRIMARY_PROPERTY },
+            { slug: REL.CORE_NODE_PROPERTY_TREE_GRAPH },
+            { slug: REL.CORE_NODE_CORE_GRAPH },
+            { slug: REL.CORE_NODE_CONCEPT_GRAPH },
           ],
           relationships: [
-            { nodeFrom: { slug: `${slug}_header` }, relationshipType: { slug: REL.CLASS_THREAD_INITIATION }, nodeTo: { slug: `${slug}_superset` } },
-            { nodeFrom: { slug: `${slug}_schema` }, relationshipType: { slug: REL.CORE_NODE_JSON_SCHEMA }, nodeTo: { slug: `${slug}_header` } },
-            ...(h.primaryPropUuid ? [{ nodeFrom: { slug: `${slug}_primaryProperty` }, relationshipType: { slug: REL.CORE_NODE_PRIMARY_PROPERTY }, nodeTo: { slug: `${slug}_header` } }] : []),
-            { nodeFrom: { slug: `${slug}_coreNodesGraph` }, relationshipType: { slug: REL.CORE_NODE_CORE_GRAPH }, nodeTo: { slug: `${slug}_header` } },
-            { nodeFrom: { slug: `${slug}_conceptGraph` }, relationshipType: { slug: REL.CORE_NODE_CONCEPT_GRAPH }, nodeTo: { slug: `${slug}_header` } },
-            { nodeFrom: { slug: `${slug}_propertyTreeGraph` }, relationshipType: { slug: REL.CORE_NODE_PROPERTY_TREE_GRAPH }, nodeTo: { slug: `${slug}_header` } },
+            ...(h.supersetUuid ? [{ nodeFrom: { slug: `concept-header-for-the-concept-of-${ngSlugPlural}` }, relationshipType: { slug: REL.CLASS_THREAD_INITIATION }, nodeTo: { slug: `superset-for-the-concept-of-${ngSlugPlural}` } }] : []),
+            ...(h.schemaUuid ? [{ nodeFrom: { slug: `json-schema-for-the-concept-of-${ngSlugPlural}` }, relationshipType: { slug: REL.CORE_NODE_JSON_SCHEMA }, nodeTo: { slug: `concept-header-for-the-concept-of-${ngSlugPlural}` } }] : []),
+            ...(h.primaryPropUuid ? [{ nodeFrom: { slug: `primary-property-for-the-concept-of-${ngSlugPlural}` }, relationshipType: { slug: REL.CORE_NODE_PRIMARY_PROPERTY }, nodeTo: { slug: `concept-header-for-the-concept-of-${ngSlugPlural}` } }] : []),
+            ...(h.propGraphUuid ? [{ nodeFrom: { slug: `property-tree-graph-for-the-concept-of-${ngSlugPlural}` }, relationshipType: { slug: REL.CORE_NODE_PROPERTY_TREE_GRAPH }, nodeTo: { slug: `concept-header-for-the-concept-of-${ngSlugPlural}` } }] : []),
+            { nodeFrom: { slug: `core-nodes-graph-for-the-concept-of-${ngSlugPlural}` }, relationshipType: { slug: REL.CORE_NODE_CORE_GRAPH }, nodeTo: { slug: `concept-header-for-the-concept-of-${ngSlugPlural}` } },
+            ...(h.classGraphUuid ? [{ nodeFrom: { slug: `concept-graph-for-the-concept-of-${ngSlugPlural}` }, relationshipType: { slug: REL.CORE_NODE_CONCEPT_GRAPH }, nodeTo: { slug: `concept-header-for-the-concept-of-${ngSlugPlural}` } }] : []),
           ],
+          imports: [],
+        },
+        coreNodesGraph: {
+          description: `the set of core nodes for the concept of ${plural.toLowerCase()}`,
+          constituents: {
+            conceptHeader: h.headerUuid,
+            ...(h.supersetUuid && { superset: h.supersetUuid }),
+            ...(h.schemaUuid && { jsonSchema: h.schemaUuid }),
+            ...(h.primaryPropUuid && { primaryProperty: h.primaryPropUuid }),
+            ...(h.propGraphUuid && { propertyTreeGraph: h.propGraphUuid }),
+            ...(h.classGraphUuid && { conceptGraph: h.classGraphUuid }),
+            coreNodesGraph: h.coreGraphUuid,
+          },
         },
       };
       await regenerateJson(h.coreGraphUuid, graphJson);
@@ -911,6 +1022,9 @@ async function handleNormalizeJson(req, res) {
 
     // ── Class Threads Graph JSON ──
     if ((!node || node === 'class-graph') && h.classGraphUuid) {
+      const cgSlugPlural = deriveSlug(plural);
+      const cgTitlePlural = plural.split(/\s+/).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+
       // Include superset + any intermediate sets
       const setRows = await runCypher(`
         MATCH (h:NostrEvent {uuid: $headerUuid})-[:${REL.CLASS_THREAD_INITIATION}]->(sup:Superset)
@@ -920,13 +1034,35 @@ async function handleNormalizeJson(req, res) {
       `, { headerUuid: h.headerUuid });
 
       const graphJson = {
+        word: {
+          slug: `concept-graph-for-the-concept-of-${cgSlugPlural}`,
+          name: `concept graph for the concept of ${plural.toLowerCase()}`,
+          title: `Concept Graph for the Concept of ${cgTitlePlural}`,
+          wordTypes: ['word', 'graph', 'conceptGraph'],
+          coreMemberOf: [{ slug: `concept-header-for-the-concept-of-${cgSlugPlural}`, uuid: h.headerUuid }],
+        },
         graph: {
-          nodes: setRows.filter(r => r.uuid).map(r => ({ uuid: r.uuid, name: r.name })),
-          relationshipTypes: [
-            { slug: REL.CLASS_THREAD_PROPAGATION, name: 'class thread propagation' },
-            { slug: REL.CLASS_THREAD_TERMINATION, name: 'class thread termination' },
+          nodes: [
+            { slug: `concept-header-for-the-concept-of-${cgSlugPlural}`, uuid: h.headerUuid },
+            ...setRows.filter(r => r.uuid).map(r => ({ uuid: r.uuid, name: r.name })),
           ],
-          relationships: [],
+          relationshipTypes: [
+            { slug: REL.CLASS_THREAD_INITIATION, uuid: '' },
+            { slug: REL.CLASS_THREAD_PROPAGATION, uuid: '' },
+            { slug: REL.CLASS_THREAD_TERMINATION, uuid: '' },
+          ],
+          relationships: h.supersetUuid ? [{
+            nodeFrom: { slug: `concept-header-for-the-concept-of-${cgSlugPlural}` },
+            relationshipType: { slug: REL.CLASS_THREAD_INITIATION },
+            nodeTo: { slug: `superset-for-the-concept-of-${cgSlugPlural}` },
+          }] : [],
+          imports: [
+            ...(h.propGraphUuid ? [{ slug: `property-tree-graph-for-the-concept-of-${cgSlugPlural}`, uuid: h.propGraphUuid }] : []),
+          ],
+        },
+        conceptGraph: {
+          description: `The concept graph for the concept of ${plural.toLowerCase()}`,
+          cypher: `MATCH classPath = (conceptHeader)-[:${REL.CLASS_THREAD_INITIATION}]->(superset:Superset)-[:${REL.CLASS_THREAD_PROPAGATION} *0..5]->()-[:${REL.CLASS_THREAD_TERMINATION}]->() WHERE conceptHeader.uuid = '${h.headerUuid}' RETURN classPath`,
         },
       };
       await regenerateJson(h.classGraphUuid, graphJson);
@@ -935,21 +1071,31 @@ async function handleNormalizeJson(req, res) {
 
     // ── Property Tree Graph JSON ──
     if ((!node || node === 'property-graph') && h.propGraphUuid) {
-      const ptNodes = [];
-      if (h.schemaUuid) ptNodes.push({ slug: `${slug}_schema`, uuid: h.schemaUuid, name: h.schemaName });
-      if (h.primaryPropUuid) ptNodes.push({ slug: `${slug}_primaryProperty`, uuid: h.primaryPropUuid, name: h.primaryPropName });
-      const ptRels = [];
-      if (h.primaryPropUuid && h.schemaUuid) {
-        ptRels.push({ nodeFrom: { slug: `${slug}_primaryProperty` }, relationshipType: { slug: REL.PROPERTY_MEMBERSHIP }, nodeTo: { slug: `${slug}_schema` } });
-      }
+      const ptSlugPlural = deriveSlug(plural);
+      const ptTitlePlural = plural.split(/\s+/).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
       const graphJson = {
+        word: {
+          slug: `property-tree-graph-for-the-concept-of-${ptSlugPlural}`,
+          name: `property tree graph for the concept of ${plural.toLowerCase()}`,
+          title: `Property Tree Graph for the Concept of ${ptTitlePlural}`,
+          wordTypes: ['word', 'graph', 'propertyTreeGraph'],
+          coreMemberOf: [{ slug: `concept-header-for-the-concept-of-${ptSlugPlural}`, uuid: h.headerUuid }],
+        },
         graph: {
-          nodes: ptNodes,
-          relationshipTypes: [
-            { slug: REL.PROPERTY_MEMBERSHIP, name: 'is a property of' },
-            { slug: REL.PROPERTY_ENUMERATION, name: 'enumerates' },
+          nodes: [
+            ...(h.schemaUuid ? [{ slug: `json-schema-for-the-concept-of-${ptSlugPlural}`, uuid: h.schemaUuid }] : []),
+            ...(h.primaryPropUuid ? [{ slug: `primary-property-for-the-concept-of-${ptSlugPlural}`, uuid: h.primaryPropUuid }] : []),
           ],
-          relationships: ptRels,
+          relationshipTypes: [{ slug: REL.PROPERTY_MEMBERSHIP }],
+          relationships: (h.primaryPropUuid && h.schemaUuid) ? [{
+            nodeFrom: { slug: `primary-property-for-the-concept-of-${ptSlugPlural}` },
+            relationshipType: { slug: REL.PROPERTY_MEMBERSHIP },
+            nodeTo: { slug: `json-schema-for-the-concept-of-${ptSlugPlural}` },
+          }] : [],
+          imports: [],
+        },
+        propertyTreeGraph: {
+          description: `the collection of the JSON schema node, all property nodes and all of their connections for the concept of ${plural.toLowerCase()}`,
         },
       };
       await regenerateJson(h.propGraphUuid, graphJson);
@@ -959,13 +1105,28 @@ async function handleNormalizeJson(req, res) {
     // ── Primary Property JSON ──
     if ((!node || node === 'primary-property') && h.primaryPropUuid) {
       const ppKey = toCamelCase(name);
+      const ppSlugPlural = deriveSlug(plural);
       const ppJson = {
+        word: {
+          slug: `primary-property-for-the-concept-of-${ppSlugPlural}`,
+          name: `primary property for the concept of ${plural.toLowerCase()}`,
+          description: `the primary property for the concept of ${plural.toLowerCase()}`,
+          wordTypes: ['word', 'property', 'primaryProperty'],
+          coreMemberOf: [{ slug: `concept-header-for-the-concept-of-${ppSlugPlural}`, uuid: h.headerUuid }],
+        },
         property: {
-          name: h.primaryPropName,
           key: ppKey,
-          role: 'primaryProperty',
-          conceptName: name,
-          description: `Primary property for the ${name} concept. Elements of ${name} use "${ppKey}" as their top-level JSON key.`,
+          title: toTitleName(name),
+          type: 'object',
+          required: ['name', 'slug', 'description'],
+          properties: {
+            name: { type: 'string' },
+            slug: { type: 'string' },
+            description: { type: 'string' },
+          },
+        },
+        primaryProperty: {
+          description: `the primary property for the concept of ${plural.toLowerCase()}`,
         },
       };
       await regenerateJson(h.primaryPropUuid, ppJson);

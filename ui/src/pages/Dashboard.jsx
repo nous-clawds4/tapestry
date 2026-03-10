@@ -62,8 +62,8 @@ function OnboardingChecklist({ user, taProfile, conceptCount, onAction }) {
   const items = [
     { key: 'running', label: 'Tapestry is running', done: true },
     { key: 'signed-in', label: 'Signed in as Owner', done: isOwner },
-    { key: 'ta-profile', label: 'Give your Assistant a profile', done: hasTA, action: () => onAction('ta-profile') },
-    { key: 'bios', label: 'Initialize BIOS concepts', done: hasBios, action: () => onAction('bios') },
+    { key: 'ta-profile', label: 'Give your Assistant a profile', done: hasTA, action: () => onAction('ta-profile'), actionLabel: 'Set up profile →' },
+    { key: 'bios', label: 'Install Tapestry firmware', done: hasBios, action: () => onAction('bios'), actionLabel: 'Install firmware →' },
   ];
 
   const allDone = items.every(i => i.done);
@@ -88,20 +88,17 @@ function OnboardingChecklist({ user, taProfile, conceptCount, onAction }) {
               display: 'flex',
               alignItems: 'center',
               gap: '0.5rem',
-              opacity: item.done ? 0.5 : 1,
             }}
           >
             <span style={{ fontSize: '1.1rem' }}>{item.done ? '✅' : '⬜'}</span>
-            <span style={{ textDecoration: item.done ? 'line-through' : 'none' }}>
-              {item.label}
-            </span>
+            <span>{item.label}</span>
             {!item.done && item.action && (
               <button
                 className="btn btn-sm"
                 onClick={item.action}
                 style={{ marginLeft: 'auto', fontSize: '0.75rem' }}
               >
-                Do this →
+                {item.actionLabel || 'Do this →'}
               </button>
             )}
           </li>
