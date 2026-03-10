@@ -191,7 +191,7 @@ const AUDIT_COMMANDS = {
   },
   threads: {
     label: '🧵 Threads',
-    description: 'Traverse class threads for a concept.',
+    description: 'Traverse concept graph for a concept.',
     cli: 'tapestry audit threads',
     options: [
       { key: 'concept', type: 'concept', label: 'Concept name', placeholder: 'e.g. "property" (blank = summary)' },

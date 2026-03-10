@@ -347,7 +347,7 @@ export default function Dashboard() {
         navigate(`/kg/users/${TA_PUBKEY}`);
         break;
       case 'bios':
-        navigate('/kg/concepts');
+        navigate('/kg/settings/firmware');
         break;
     }
   }

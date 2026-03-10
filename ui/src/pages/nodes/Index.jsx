@@ -2,12 +2,8 @@ import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCypher } from '../../hooks/useCypher';
 import useProfiles from '../../hooks/useProfiles';
+import useNeo4jLabels from '../../hooks/useNeo4jLabels';
 import AuthorCell from '../../components/AuthorCell';
-
-const NODE_LABELS = [
-  'ClassThreadHeader', 'JSONSchema', 'ListHeader', 'ListItem',
-  'NostrUser', 'Property', 'Relationship', 'Set', 'Superset',
-];
 
 import { OWNER_PUBKEY, TA_PUBKEY, DAVE_PUBKEY } from '../../config/pubkeys';
 
@@ -33,6 +29,8 @@ export default function NodesIndex() {
   const [labelFilter, setLabelFilter] = useState('');
   const [authorFilter, setAuthorFilter] = useState('');
   const [uuidFilter, setUuidFilter] = useState('');
+
+  const { labels: nodeLabels } = useNeo4jLabels();
 
   // Fetch distinct authors for dropdown
   const { data: authorRows } = useCypher(`
@@ -246,7 +244,7 @@ export default function NodesIndex() {
             }}
           >
             <option value="">All labels</option>
-            {NODE_LABELS.map(l => <option key={l} value={l}>{l}</option>)}
+            {nodeLabels.map(l => <option key={l} value={l}>{l}</option>)}
           </select>
         </div>
         <div>

@@ -28,7 +28,7 @@ const DIR_LABELS = {
 };
 
 function emptyStream() {
-  return { name: '', dir: 'both', filter: { kinds: [], limit: 5 }, urls: [], pluginDown: '', pluginUp: '' };
+  return { name: '', dir: 'both', filter: { kinds: [], limit: 5 }, urls: [], pluginDown: '', pluginUp: '', enabled: true };
 }
 
 /* ── Stream Editor (used for both Add and Edit) ── */
@@ -192,18 +192,50 @@ function StreamEditor({ stream, plugins, onSave, onCancel, isNew }) {
   );
 }
 
+/* ── Toggle Switch ── */
+
+function ToggleSwitch({ enabled, onChange, disabled }) {
+  return (
+    <button
+      onClick={() => onChange(!enabled)}
+      disabled={disabled}
+      title={enabled ? 'Click to disable' : 'Click to enable'}
+      style={{
+        position: 'relative',
+        width: 44, height: 24,
+        borderRadius: 12,
+        border: 'none',
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        backgroundColor: enabled ? '#22c55e' : '#444',
+        transition: 'background-color 0.2s',
+        padding: 0,
+        flexShrink: 0,
+      }}
+    >
+      <span style={{
+        position: 'absolute',
+        top: 2, left: enabled ? 22 : 2,
+        width: 20, height: 20,
+        borderRadius: '50%',
+        backgroundColor: '#fff',
+        transition: 'left 0.2s',
+      }} />
+    </button>
+  );
+}
+
 /* ── Router Management ── */
 
 function RouterStatus() {
   const [data, setData] = useState(null);
   const [plugins, setPlugins] = useState([]);
+  const [presets, setPresets] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [saving, setSaving] = useState(false);
   const [editingIdx, setEditingIdx] = useState(null); // index or 'new'
   const [message, setMessage] = useState(null);
-  const [showDefaults, setShowDefaults] = useState(false);
-  const [defaultStreams, setDefaultStreams] = useState(null);
+  const [showPresets, setShowPresets] = useState(false);
 
   function fetchStatus() {
     return fetch('/api/strfry/router-status')
@@ -231,6 +263,25 @@ function RouterStatus() {
     setTimeout(() => setMessage(null), 4000);
   }
 
+  async function toggleStream(name, enabled) {
+    setSaving(true);
+    try {
+      const res = await fetch('/api/strfry/router-toggle', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, enabled }),
+      });
+      const d = await res.json();
+      if (!d.success) { setError(d.error); return; }
+      await fetchStatus();
+      flash(d.message);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function saveStreams(streams) {
     setSaving(true);
     try {
@@ -254,13 +305,13 @@ function RouterStatus() {
   }
 
   function handleAddStream(stream) {
-    const updated = [...data.streams, stream];
+    const updated = [...data.streams, { ...stream, enabled: true }];
     saveStreams(updated);
   }
 
   function handleEditStream(idx, stream) {
     const updated = [...data.streams];
-    updated[idx] = stream;
+    updated[idx] = { ...stream, enabled: data.streams[idx].enabled };
     saveStreams(updated);
   }
 
@@ -271,45 +322,61 @@ function RouterStatus() {
     saveStreams(updated);
   }
 
-  async function handleToggleDefaults() {
-    if (showDefaults) {
-      setShowDefaults(false);
+  async function handleTogglePresets() {
+    if (showPresets) {
+      setShowPresets(false);
       return;
     }
-    // Fetch defaults if not loaded yet
-    if (!defaultStreams) {
+    if (!presets) {
       try {
-        const res = await fetch('/api/strfry/router-defaults');
+        const res = await fetch('/api/strfry/router-presets');
         const d = await res.json();
-        if (d.success) setDefaultStreams(d.streams);
+        if (d.success) setPresets(d.presets);
         else { setError(d.error); return; }
       } catch (e) { setError(e.message); return; }
     }
-    setShowDefaults(true);
+    setShowPresets(true);
   }
 
-  async function handleImportDefault(defStream) {
-    // Check if stream with same name already exists
-    if (data.streams.some(s => s.name === defStream.name)) {
-      if (!confirm(`Stream "${defStream.name}" already exists. Replace it?`)) return;
-      const updated = data.streams.map(s => s.name === defStream.name ? defStream : s);
+  async function handleImportPreset(preset) {
+    const newStream = {
+      name: preset.name,
+      description: preset.description || '',
+      dir: preset.dir,
+      filter: preset.filter,
+      urls: preset.urls,
+      pluginDown: preset.pluginDown || '',
+      pluginUp: preset.pluginUp || '',
+      enabled: !!preset.defaultEnabled,
+      preset: true,
+    };
+
+    if (data.streams.some(s => s.name === preset.name)) {
+      if (!confirm(`Stream "${preset.name}" already exists. Replace it?`)) return;
+      const updated = data.streams.map(s => s.name === preset.name ? newStream : s);
       await saveStreams(updated);
     } else {
-      await saveStreams([...data.streams, defStream]);
+      await saveStreams([...data.streams, newStream]);
     }
   }
 
-  async function handleImportAllDefaults() {
-    if (!defaultStreams) return;
-    if (!confirm('Import all default streams? Existing streams with the same name will be replaced.')) return;
-    // Merge: replace existing by name, add new ones
-    const merged = [...data.streams];
-    for (const def of defaultStreams) {
-      const idx = merged.findIndex(s => s.name === def.name);
-      if (idx >= 0) merged[idx] = def;
-      else merged.push(def);
+  async function handleRestoreDefaults() {
+    if (!confirm('Restore all streams to presets? Custom streams will be removed. Preset streams will use their default enabled/disabled state.')) return;
+    setSaving(true);
+    try {
+      const res = await fetch('/api/strfry/router-restore-defaults', { method: 'POST' });
+      const d = await res.json();
+      if (d.success) {
+        await fetchStatus();
+        flash(d.message);
+      } else {
+        setError(d.error);
+      }
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setSaving(false);
     }
-    await saveStreams(merged);
   }
 
   async function handleRestart() {
@@ -337,11 +404,14 @@ function RouterStatus() {
     : data.process.status === 'stopped' ? '#f59e0b'
     : '#ef4444';
 
+  const enabledCount = data.streams.filter(s => s.enabled).length;
+
   return (
     <div className="settings-section">
       <h2>🔄 Router Management</h2>
       <p className="settings-hint">
         The strfry router syncs events between your local relay and external relays.
+        Toggle streams on/off to control which relays are active.
       </p>
 
       {message && (
@@ -381,64 +451,76 @@ function RouterStatus() {
                   </span>
                 )}
               </h3>
+              <span style={{ fontSize: '0.8rem', opacity: 0.6 }}>
+                {data.streams.length} stream{data.streams.length !== 1 ? 's' : ''} configured, {enabledCount} enabled
+              </span>
             </div>
           </div>
           <div style={{ display: 'flex', gap: '0.5rem' }}>
             <button className="btn-small" onClick={handleRestart} disabled={saving}>🔄 Restart</button>
-            <button className="btn-small" onClick={handleToggleDefaults} disabled={saving}>
-              {showDefaults ? '🔼 Hide Defaults' : '📋 Show Defaults'}
+            <button className="btn-small" onClick={handleTogglePresets} disabled={saving}>
+              {showPresets ? '🔼 Hide Presets' : '📋 Presets'}
+            </button>
+            <button className="btn-small" onClick={handleRestoreDefaults} disabled={saving}
+              title="Reset all streams to presets with their default enabled state">
+              ↩ Restore Defaults
             </button>
           </div>
         </div>
       </div>
 
-      {/* Defaults panel */}
-      {showDefaults && defaultStreams && (
+      {/* Presets panel */}
+      {showPresets && presets && (
         <div style={{
           marginTop: '0.75rem', padding: '1rem', borderRadius: '8px',
           border: '1px solid rgba(245, 158, 11, 0.3)',
           backgroundColor: 'rgba(245, 158, 11, 0.05)',
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-            <h3 style={{ fontSize: '0.9rem', margin: 0 }}>📋 Default Streams ({defaultStreams.length})</h3>
-            <button className="btn-small btn-primary" onClick={handleImportAllDefaults} disabled={saving}>
-              Import All
-            </button>
-          </div>
+          <h3 style={{ fontSize: '0.9rem', margin: '0 0 0.75rem' }}>📋 Available Presets ({presets.length})</h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-            {defaultStreams.map(ds => {
-              const exists = data.streams.some(s => s.name === ds.name);
+            {presets.map(preset => {
+              const exists = data.streams.some(s => s.name === preset.name);
               return (
-                <div key={ds.name} className="settings-group" style={{ padding: '0.6rem 0.75rem' }}>
+                <div key={preset.name} className="settings-group" style={{ padding: '0.6rem 0.75rem' }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <div style={{ flex: 1 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
-                        <strong style={{ fontSize: '0.85rem' }}>{ds.name}</strong>
+                        <strong style={{ fontSize: '0.85rem' }}>{preset.name}</strong>
                         <span style={{
                           fontSize: '0.7rem', padding: '0.1rem 0.4rem', borderRadius: '4px',
                           backgroundColor: 'rgba(99, 102, 241, 0.15)', color: '#818cf8',
                         }}>
-                          {DIR_LABELS[ds.dir] || ds.dir}
+                          {DIR_LABELS[preset.dir] || preset.dir}
+                        </span>
+                        <span style={{
+                          fontSize: '0.7rem', padding: '0.1rem 0.4rem', borderRadius: '4px',
+                          backgroundColor: preset.defaultEnabled ? 'rgba(34, 197, 94, 0.15)' : 'rgba(107, 114, 128, 0.15)',
+                          color: preset.defaultEnabled ? '#22c55e' : '#9ca3af',
+                        }}>
+                          default: {preset.defaultEnabled ? 'ON' : 'OFF'}
                         </span>
                         {exists && (
                           <span style={{
                             fontSize: '0.7rem', padding: '0.1rem 0.4rem', borderRadius: '4px',
                             backgroundColor: 'rgba(245, 158, 11, 0.15)', color: '#f59e0b',
                           }}>
-                            exists
+                            loaded
                           </span>
                         )}
                       </div>
-                      {ds.filter?.kinds?.length > 0 && (
+                      {preset.description && (
+                        <div style={{ fontSize: '0.75rem', opacity: 0.7, marginBottom: '0.2rem' }}>{preset.description}</div>
+                      )}
+                      {preset.filter?.kinds?.length > 0 && (
                         <div style={{ fontSize: '0.75rem', opacity: 0.6 }}>
-                          kinds: {ds.filter.kinds.join(', ')}
+                          kinds: {preset.filter.kinds.join(', ')}
                         </div>
                       )}
                       <div style={{ fontSize: '0.75rem', opacity: 0.6 }}>
-                        {ds.urls.join(', ')}
+                        {preset.urls.join(', ')}
                       </div>
                     </div>
-                    <button className="btn-small" onClick={() => handleImportDefault(ds)} disabled={saving}>
+                    <button className="btn-small" onClick={() => handleImportPreset(preset)} disabled={saving}>
                       {exists ? '🔄 Replace' : '📥 Import'}
                     </button>
                   </div>
@@ -472,16 +554,40 @@ function RouterStatus() {
                 onCancel={() => setEditingIdx(null)}
               />
             ) : (
-              <div key={stream.name} className="settings-group" style={{ padding: '0.75rem 1rem' }}>
+              <div key={stream.name} className="settings-group" style={{
+                padding: '0.75rem 1rem',
+                opacity: stream.enabled ? 1 : 0.6,
+                transition: 'opacity 0.2s',
+              }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <h4 style={{ margin: 0, fontSize: '0.9rem' }}>{stream.name}</h4>
-                    <span style={{
-                      fontSize: '0.75rem', padding: '0.15rem 0.5rem', borderRadius: '4px',
-                      backgroundColor: 'rgba(99, 102, 241, 0.15)', color: '#818cf8', fontWeight: 500,
-                    }}>
-                      {DIR_LABELS[stream.dir] || stream.dir}
-                    </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <ToggleSwitch
+                      enabled={stream.enabled}
+                      onChange={(val) => toggleStream(stream.name, val)}
+                      disabled={saving || editingIdx !== null}
+                    />
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <h4 style={{ margin: 0, fontSize: '0.9rem' }}>{stream.name}</h4>
+                        <span style={{
+                          fontSize: '0.75rem', padding: '0.15rem 0.5rem', borderRadius: '4px',
+                          backgroundColor: 'rgba(99, 102, 241, 0.15)', color: '#818cf8', fontWeight: 500,
+                        }}>
+                          {DIR_LABELS[stream.dir] || stream.dir}
+                        </span>
+                        {stream.preset && (
+                          <span style={{
+                            fontSize: '0.65rem', padding: '0.1rem 0.35rem', borderRadius: '4px',
+                            backgroundColor: 'rgba(245, 158, 11, 0.12)', color: '#d97706',
+                          }}>
+                            preset
+                          </span>
+                        )}
+                      </div>
+                      {stream.description && (
+                        <div style={{ fontSize: '0.75rem', opacity: 0.6, marginTop: '0.15rem' }}>{stream.description}</div>
+                      )}
+                    </div>
                   </div>
                   <div style={{ display: 'flex', gap: '0.4rem' }}>
                     <button className="btn-small" onClick={() => setEditingIdx(idx)} disabled={saving || editingIdx !== null}>
@@ -494,18 +600,18 @@ function RouterStatus() {
                   </div>
                 </div>
                 {stream.filter && stream.filter.kinds?.length > 0 && (
-                  <div style={{ fontSize: '0.8rem', opacity: 0.7, marginBottom: '0.4rem' }}>
+                  <div style={{ fontSize: '0.8rem', opacity: 0.7, marginBottom: '0.4rem', marginLeft: '3.25rem' }}>
                     Filter: kinds {stream.filter.kinds.join(', ')}
                     {stream.filter.limit ? ` (limit: ${stream.filter.limit})` : ''}
                   </div>
                 )}
                 {(stream.pluginDown || stream.pluginUp) && (
-                  <div style={{ fontSize: '0.8rem', opacity: 0.7, marginBottom: '0.4rem' }}>
+                  <div style={{ fontSize: '0.8rem', opacity: 0.7, marginBottom: '0.4rem', marginLeft: '3.25rem' }}>
                     {stream.pluginDown && <span>Plugin ⬇️: {stream.pluginDown.split('/').pop()} </span>}
                     {stream.pluginUp && <span>Plugin ⬆️: {stream.pluginUp.split('/').pop()}</span>}
                   </div>
                 )}
-                <div className="relay-list">
+                <div className="relay-list" style={{ marginLeft: '3.25rem' }}>
                   {stream.urls.map((url, i) => (
                     <span key={i} className="relay-chip">{url}</span>
                   ))}
@@ -522,6 +628,12 @@ function RouterStatus() {
               onSave={handleAddStream}
               onCancel={() => setEditingIdx(null)}
             />
+          )}
+
+          {data.streams.length === 0 && editingIdx !== 'new' && (
+            <div style={{ padding: '1rem', textAlign: 'center', opacity: 0.5, fontSize: '0.85rem' }}>
+              No streams configured. Add a stream or restore presets.
+            </div>
           )}
         </div>
       </div>

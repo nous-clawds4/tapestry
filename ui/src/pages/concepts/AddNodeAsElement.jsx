@@ -3,12 +3,8 @@ import { useOutletContext, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useCypher } from '../../hooks/useCypher';
 import useProfiles from '../../hooks/useProfiles';
+import useNeo4jLabels from '../../hooks/useNeo4jLabels';
 import AuthorCell from '../../components/AuthorCell';
-
-const NODE_LABELS = [
-  'ClassThreadHeader', 'JSONSchema', 'ListHeader', 'ListItem',
-  'NostrUser', 'Property', 'Relationship', 'Set', 'Superset',
-];
 
 // Known authors pinned at top of Author selector
 import { OWNER_PUBKEY, TA_PUBKEY, DAVE_PUBKEY } from '../../config/pubkeys';
@@ -24,6 +20,8 @@ export default function AddNodeAsElement() {
   const [labelFilter, setLabelFilter] = useState('');
   const [authorFilter, setAuthorFilter] = useState('');
   const [uuidFilter, setUuidFilter] = useState('');
+
+  const { labels: nodeLabels } = useNeo4jLabels();
 
   // Selection
   const [selectedUuid, setSelectedUuid] = useState(null);
@@ -202,7 +200,7 @@ export default function AddNodeAsElement() {
             }}
           >
             <option value="">All labels</option>
-            {NODE_LABELS.map(l => (
+            {nodeLabels.map(l => (
               <option key={l} value={l}>{l}</option>
             ))}
           </select>

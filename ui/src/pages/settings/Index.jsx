@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate, useParams, useLocation, Outlet } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import Breadcrumbs from '../../components/Breadcrumbs';
 import RelaySettings from './RelaySettings';
@@ -7,18 +8,39 @@ import SystemSettings from './SystemSettings';
 import DatabaseSettings from './DatabaseSettings';
 import FirmwareExplorer from './FirmwareExplorer';
 
+const TABS = [
+  { key: 'relays', path: 'relays', label: '📡 Relays' },
+  { key: 'databases', path: 'databases', label: '🗄️ Databases' },
+  { key: 'uuids', path: 'uuids', label: '🔑 Concept UUIDs' },
+  { key: 'firmware', path: 'firmware', label: '🔧 Firmware' },
+  { key: 'system', path: 'system', label: '🖥️ System' },
+];
+
 export default function SettingsIndex() {
   const { user, loading: authLoading } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
   const [settings, setSettings] = useState(null);
   const [defaults, setDefaults] = useState(null);
   const [overrides, setOverrides] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [activeTab, setActiveTab] = useState('relays');
   const [needsRestart, setNeedsRestart] = useState(false);
   const [saveMessage, setSaveMessage] = useState(null);
 
   const isOwner = user?.classification === 'owner';
+
+  // Derive active tab from URL path
+  const pathSegments = location.pathname.replace(/\/$/, '').split('/');
+  const lastSegment = pathSegments[pathSegments.length - 1];
+  const activeTab = TABS.find(t => t.path === lastSegment)?.key || 'relays';
+
+  // Redirect bare /settings to /settings/relays
+  useEffect(() => {
+    if (lastSegment === 'settings') {
+      navigate('relays', { replace: true });
+    }
+  }, [lastSegment, navigate]);
 
   useEffect(() => {
     if (!isOwner) return;
@@ -77,6 +99,11 @@ export default function SettingsIndex() {
     }
   }
 
+  function switchTab(tabKey) {
+    const tab = TABS.find(t => t.key === tabKey);
+    if (tab) navigate(tab.path);
+  }
+
   if (authLoading) {
     return (
       <div className="page">
@@ -121,14 +148,6 @@ export default function SettingsIndex() {
     );
   }
 
-  const tabs = [
-    { key: 'relays', label: '📡 Relays' },
-    { key: 'databases', label: '🗄️ Databases' },
-    { key: 'uuids', label: '🔑 Concept UUIDs' },
-    { key: 'firmware', label: '🔧 Firmware' },
-    { key: 'system', label: '🖥️ System' },
-  ];
-
   return (
     <div className="page">
       <Breadcrumbs />
@@ -151,11 +170,11 @@ export default function SettingsIndex() {
       )}
 
       <div className="tab-bar">
-        {tabs.map(tab => (
+        {TABS.map(tab => (
           <button
             key={tab.key}
             className={`tab-btn ${activeTab === tab.key ? 'active' : ''}`}
-            onClick={() => setActiveTab(tab.key)}
+            onClick={() => switchTab(tab.key)}
           >
             {tab.label}
           </button>
@@ -197,6 +216,9 @@ export default function SettingsIndex() {
           />
         )}
       </div>
+
+      {/* Outlet for nested route breadcrumb resolution */}
+      <Outlet />
     </div>
   );
 }

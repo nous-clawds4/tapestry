@@ -9,12 +9,14 @@ import ConceptDag from './pages/concepts/ConceptDag';
 import ConceptSchema from './pages/concepts/ConceptSchema';
 import ConceptHealth from './pages/concepts/ConceptHealth';
 import ConceptCoreNodes from './pages/concepts/ConceptCoreNodes';
+import ConceptVisualization from './pages/concepts/ConceptVisualization';
 import NewElement from './pages/concepts/NewElement';
 import ElementDetail from './pages/concepts/ElementDetail';
 import NewConcept from './pages/concepts/NewConcept';
 import NewProperty from './pages/concepts/NewProperty';
 import AddNodeAsElement from './pages/concepts/AddNodeAsElement';
 import AddNodeReview from './pages/concepts/AddNodeReview';
+import NewSet from './pages/concepts/NewSet';
 import ListsIndex from './pages/lists/Index';
 import DListDetail from './pages/lists/DListDetail';
 import DListOverview from './pages/lists/DListOverview';
@@ -76,6 +78,8 @@ const router = createBrowserRouter([
               { path: 'properties', element: <ConceptProperties />, handle: { crumb: 'Properties' } },
               { path: 'properties/new', element: <NewProperty />, handle: { crumb: 'New Property' } },
               { path: 'dag', element: <ConceptDag />, handle: { crumb: 'Organization (Sets)' } },
+              { path: 'dag/new-set', element: <NewSet />, handle: { crumb: 'New Set' } },
+              { path: 'visualization', element: <ConceptVisualization />, handle: { crumb: 'Visualization' } },
               { path: 'schema', element: <ConceptSchema />, handle: { crumb: 'Schema' } },
             ],
           },
@@ -165,7 +169,19 @@ const router = createBrowserRouter([
         ],
       },
       { path: 'about', element: <AboutIndex />, handle: { crumb: 'About' } },
-      { path: 'settings', element: <SettingsIndex />, handle: { crumb: 'Settings' } },
+      {
+        path: 'settings',
+        element: <SettingsIndex />,
+        handle: { crumb: 'Settings' },
+        children: [
+          { index: true, handle: { crumb: null } },
+          { path: 'relays', handle: { crumb: 'Relays' } },
+          { path: 'databases', handle: { crumb: 'Databases' } },
+          { path: 'uuids', handle: { crumb: 'Concept UUIDs' } },
+          { path: 'firmware', handle: { crumb: 'Firmware' } },
+          { path: 'system', handle: { crumb: 'System' } },
+        ],
+      },
     ],
   },
 ]);

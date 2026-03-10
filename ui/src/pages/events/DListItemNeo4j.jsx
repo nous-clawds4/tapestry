@@ -73,19 +73,19 @@ function friendlyLabel(labels) {
 
 const SKELETON_ROLE_POSITIONS = {
   // Relative to center (0,0). Y-axis: positive = down.
-  // Clock positions for ClassThreadHeader:
+  // Clock positions for ConceptHeader:
   //   12:00 = core graph (above)
   //   10:00 = property tree graph (up-left)
   //    9:00 = JSON schema (left)
   //    7:00 = primary property (down-left)
   //    6:00 = superset (below)
-  //    5:00 = class threads graph (down-right)
+  //    5:00 = concept graph (down-right)
   coreGraph:          { x:   0, y: -200 },   // 12 o'clock
   propertyTreeGraph:  { x: -180, y: -120 },  // 10 o'clock
   jsonSchema:         { x: -220, y:   0 },   // 9 o'clock
   primaryProperty:    { x: -180, y:  120 },  // 7 o'clock
   superset:           { x:   0, y:  200 },   // 6 o'clock
-  classThreadsGraph:  { x:  180, y:  120 },  // 5 o'clock
+  conceptGraph:       { x:  180, y:  120 },  // 5 o'clock
 };
 
 // Map relationship types to skeleton roles
@@ -97,7 +97,7 @@ function skeletonRoleFromEdge(relType, outgoing, neighbourLabels) {
   if (relType === 'IS_A_SUPERSET_OF') return 'superset';
   if (relType === 'IS_THE_CORE_GRAPH_FOR') return 'coreGraph';
   if (relType === 'IS_THE_PROPERTY_TREE_GRAPH_FOR') return 'propertyTreeGraph';
-  if (relType === 'IS_THE_CLASS_THREADS_GRAPH_FOR') return 'classThreadsGraph';
+  if (relType === 'IS_THE_CONCEPT_GRAPH_FOR') return 'conceptGraph';
   return null;
 }
 
@@ -131,7 +131,7 @@ function computeArrangement(centerId, centerLabels, nodesMap, edgesArr, hop2Node
     structural.push(nId);
   }
 
-  // ── ClassThreadHeader-specific: skeleton positions ──
+  // ── ConceptHeader-specific: skeleton positions ──
   if (isHeader) {
     for (const nId of structural) {
       const edges = edgesByNeighbour.get(nId) || [];

@@ -32,6 +32,7 @@ export default function ConceptDetail() {
     { to: 'core-nodes', label: 'Core Nodes' },
     { to: 'elements', label: 'Elements' },
     { to: 'dag', label: 'Organization (Sets)' },
+    { to: 'visualization', label: 'Visualization' },
     { to: 'properties', label: 'Properties' },
     { to: 'schema', label: 'JSON Schema' },
     { to: 'health', label: '🩺 Health Audit' },

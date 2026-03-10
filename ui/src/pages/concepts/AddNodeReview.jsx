@@ -27,10 +27,10 @@ export default function AddNodeReview() {
   );
   const targetNode = nodeData?.[0];
 
-  // Fetch concept's superset and class threads graph info
+  // Fetch concept's superset and concept graph info
   const { data: conceptData, loading: conceptLoading } = useCypher(`
     MATCH (h:NostrEvent {uuid: '${uuid}'})-[:IS_THE_CONCEPT_FOR]->(sup:Superset)
-    OPTIONAL MATCH (ctg)-[:IS_THE_CLASS_THREADS_GRAPH_FOR]->(h)
+    OPTIONAL MATCH (ctg)-[:IS_THE_CONCEPT_GRAPH_FOR]->(h)
     RETURN sup.uuid AS supersetUuid, sup.name AS supersetName,
            ctg.uuid AS classGraphUuid, ctg.name AS classGraphName
   `);
@@ -195,7 +195,7 @@ export default function AddNodeReview() {
                 </code>
               </li>
               <li>
-                Update <strong>class threads graph</strong> JSON
+                Update <strong>concept graph</strong> JSON
                 {conceptInfo.classGraphUuid
                   ? <> (<code style={{ fontSize: '0.75rem' }}>{conceptInfo.classGraphUuid.slice(0, 30)}…</code>)</>
                   : <span style={{ color: '#f59e0b' }}> ⚠️ not found — will skip</span>
