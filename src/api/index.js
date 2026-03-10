@@ -406,6 +406,9 @@ async function register(app) {
     const { registerFirmwareApiRoutes } = require('./firmware');
     registerFirmwareApiRoutes(app);
 
+    const { registerNegentropySyncRoutes } = require('./strfry/negentropySync');
+    registerNegentropySyncRoutes(app);
+
     // ── Tapestry Property API ──
     const { registerPropertyRoutes } = require('./property');
     registerPropertyRoutes(app);

@@ -641,33 +641,456 @@ function RouterStatus() {
   );
 }
 
+/* ── Negentropy Sync Panel ── */
+
+const KIND_PRESETS = [
+  { label: 'DCoSL (9998, 9999, 39998, 39999)', kinds: [9998, 9999, 39998, 39999] },
+  { label: 'Profiles (0)', kinds: [0] },
+  { label: 'WoT (3, 1984, 10000)', kinds: [3, 1984, 10000] },
+  { label: 'All (no filter)', kinds: [] },
+];
+
+function NegentropySync({ settings }) {
+  const allRelays = (() => {
+    const relays = settings?.aRelays || {};
+    const set = new Set();
+    Object.values(relays).forEach(arr => {
+      if (Array.isArray(arr)) arr.forEach(u => set.add(u));
+    });
+    return [...set].sort();
+  })();
+
+  const [relay, setRelay] = useState('');
+  const [customRelay, setCustomRelay] = useState('');
+  const [dir, setDir] = useState('down');
+  const [kindPreset, setKindPreset] = useState(0); // index into KIND_PRESETS
+  const [customKinds, setCustomKinds] = useState('');
+  const [useCustomKinds, setUseCustomKinds] = useState(false);
+  const [authors, setAuthors] = useState('');
+  const [running, setRunning] = useState(false);
+  const [output, setOutput] = useState([]);
+  const [result, setResult] = useState(null); // { success, exitCode } or null
+  const [error, setError] = useState(null);
+  const [checking, setChecking] = useState(false);
+  const [counting, setCounting] = useState(false);
+  const [counts, setCounts] = useState(null); // { local, remote, localError, remoteError }
+
+  // Check for active sync on mount
+  useEffect(() => {
+    setChecking(true);
+    fetch('/api/strfry/negentropy-sync/status')
+      .then(r => r.json())
+      .then(d => {
+        if (d.active) {
+          setRunning(true);
+          setOutput(d.recentLines?.map(text => ({ text })) || []);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setChecking(false));
+  }, []);
+
+  const effectiveRelay = relay === '__custom__' ? customRelay.trim() : relay;
+
+  const effectiveKinds = useCustomKinds
+    ? customKinds.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n))
+    : KIND_PRESETS[kindPreset].kinds;
+
+  const effectiveAuthors = authors.trim()
+    ? authors.split(',').map(s => s.trim()).filter(Boolean)
+    : [];
+
+  // Build preview command
+  const filterObj = {};
+  if (effectiveKinds.length > 0) filterObj.kinds = effectiveKinds;
+  if (effectiveAuthors.length > 0) filterObj.authors = effectiveAuthors;
+  const filterStr = Object.keys(filterObj).length > 0 ? JSON.stringify(filterObj) : '{}';
+  const dirFlag = dir !== 'both' ? ` --dir ${dir}` : '';
+  const previewCmd = effectiveRelay
+    ? `strfry sync ${effectiveRelay} --filter '${filterStr}'${dirFlag}`
+    : '(select a relay to preview command)';
+
+  function handleStart() {
+    if (!effectiveRelay || !/^wss?:\/\/.+/.test(effectiveRelay)) {
+      setError('Please select or enter a valid relay URL');
+      return;
+    }
+
+    setRunning(true);
+    setOutput([]);
+    setResult(null);
+    setError(null);
+
+    const params = new URLSearchParams({
+      relay: effectiveRelay,
+      dir,
+      filter: JSON.stringify({ kinds: effectiveKinds, authors: effectiveAuthors }),
+    });
+
+    const evtSource = new EventSource(`/api/strfry/negentropy-sync/stream?${params}`);
+
+    evtSource.addEventListener('start', (e) => {
+      try {
+        const data = JSON.parse(e.data);
+        setOutput(prev => [...prev, { text: `▶ Started: ${data.command}`, type: 'info' }]);
+      } catch {}
+    });
+
+    evtSource.addEventListener('line', (e) => {
+      try {
+        const data = JSON.parse(e.data);
+        setOutput(prev => [...prev, { text: data.text, type: 'log' }]);
+      } catch {}
+    });
+
+    evtSource.addEventListener('done', (e) => {
+      try {
+        const data = JSON.parse(e.data);
+        setResult(data);
+        setOutput(prev => [...prev, {
+          text: data.success ? '✅ Sync completed successfully' : `❌ Sync failed (exit code ${data.exitCode})`,
+          type: data.success ? 'success' : 'error',
+        }]);
+      } catch {}
+      evtSource.close();
+      setRunning(false);
+    });
+
+    evtSource.addEventListener('error', (e) => {
+      // SSE error could be connection close (normal at end) or actual error
+      if (evtSource.readyState === EventSource.CLOSED) {
+        evtSource.close();
+        setRunning(false);
+        return;
+      }
+      try {
+        const data = JSON.parse(e.data);
+        setError(data.message);
+        setOutput(prev => [...prev, { text: `❌ Error: ${data.message}`, type: 'error' }]);
+      } catch {
+        // Connection error
+      }
+      evtSource.close();
+      setRunning(false);
+    });
+
+    evtSource.onerror = () => {
+      if (evtSource.readyState === EventSource.CLOSED) return;
+      evtSource.close();
+      setRunning(false);
+    };
+  }
+
+  async function handleCount() {
+    if (!effectiveRelay || !/^wss?:\/\/.+/.test(effectiveRelay)) {
+      setError('Please select or enter a valid relay URL');
+      return;
+    }
+    setCounting(true);
+    setCounts(null);
+    setError(null);
+    try {
+      const params = new URLSearchParams({
+        relay: effectiveRelay,
+        filter: JSON.stringify({ kinds: effectiveKinds, authors: effectiveAuthors }),
+      });
+      const res = await fetch(`/api/strfry/negentropy-sync/count?${params}`);
+      const data = await res.json();
+      if (!data.success) {
+        setError(data.error);
+      } else {
+        setCounts(data);
+      }
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setCounting(false);
+    }
+  }
+
+  const inputStyle = {
+    padding: '0.4rem 0.6rem', fontSize: '0.85rem',
+    backgroundColor: 'var(--bg-primary, #0f0f23)', color: 'var(--text-primary, #e0e0e0)',
+    border: '1px solid var(--border, #444)', borderRadius: '4px', width: '100%',
+  };
+
+  return (
+    <div className="settings-section">
+      <h2>🔃 Negentropy Sync</h2>
+      <p className="settings-hint">
+        Run a one-shot negentropy sync between your local strfry and an external relay.
+      </p>
+
+      {error && (
+        <div style={{
+          padding: '0.5rem 0.75rem', marginBottom: '0.75rem', borderRadius: '6px',
+          backgroundColor: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)',
+          color: '#ef4444', fontSize: '0.85rem',
+        }}>
+          ❌ {error}
+          <button onClick={() => setError(null)} style={{ marginLeft: '0.5rem', background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer' }}>dismiss</button>
+        </div>
+      )}
+
+      {/* Relay selector */}
+      <div className="settings-group" style={{ padding: '1rem' }}>
+        <label style={{ fontSize: '0.8rem', fontWeight: 600, display: 'block', marginBottom: '0.4rem' }}>Relay</label>
+        <select
+          value={relay}
+          onChange={e => setRelay(e.target.value)}
+          disabled={running}
+          style={{ ...inputStyle, cursor: 'pointer', marginBottom: relay === '__custom__' ? '0.4rem' : 0 }}
+        >
+          <option value="">— Select a relay —</option>
+          {allRelays.map(u => <option key={u} value={u}>{u}</option>)}
+          <option value="__custom__">✏️ Enter relay URL manually…</option>
+        </select>
+        {relay === '__custom__' && (
+          <input
+            type="text"
+            value={customRelay}
+            onChange={e => setCustomRelay(e.target.value)}
+            placeholder="wss://relay.example.com"
+            disabled={running}
+            style={inputStyle}
+          />
+        )}
+      </div>
+
+      {/* Direction */}
+      <div className="settings-group" style={{ padding: '1rem' }}>
+        <label style={{ fontSize: '0.8rem', fontWeight: 600, display: 'block', marginBottom: '0.4rem' }}>Direction</label>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          {DIR_OPTIONS.map(o => (
+            <button
+              key={o.value}
+              className={`btn-small ${dir === o.value ? 'btn-primary' : ''}`}
+              onClick={() => setDir(o.value)}
+              disabled={running}
+              style={{ flex: 1 }}
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Kinds filter */}
+      <div className="settings-group" style={{ padding: '1rem' }}>
+        <label style={{ fontSize: '0.8rem', fontWeight: 600, display: 'block', marginBottom: '0.4rem' }}>Event Kinds</label>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+          {KIND_PRESETS.map((preset, i) => (
+            <label key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', cursor: 'pointer' }}>
+              <input
+                type="radio"
+                name="kindPreset"
+                checked={!useCustomKinds && kindPreset === i}
+                onChange={() => { setUseCustomKinds(false); setKindPreset(i); }}
+                disabled={running}
+              />
+              {preset.label}
+            </label>
+          ))}
+          <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', cursor: 'pointer' }}>
+            <input
+              type="radio"
+              name="kindPreset"
+              checked={useCustomKinds}
+              onChange={() => setUseCustomKinds(true)}
+              disabled={running}
+            />
+            Custom:
+          </label>
+          {useCustomKinds && (
+            <input
+              type="text"
+              value={customKinds}
+              onChange={e => setCustomKinds(e.target.value)}
+              placeholder="e.g. 1, 7, 30023"
+              disabled={running}
+              style={{ ...inputStyle, marginLeft: '1.5rem', width: 'calc(100% - 1.5rem)' }}
+            />
+          )}
+        </div>
+      </div>
+
+      {/* Authors filter */}
+      <div className="settings-group" style={{ padding: '1rem' }}>
+        <label style={{ fontSize: '0.8rem', fontWeight: 600, display: 'block', marginBottom: '0.4rem' }}>
+          Authors <span style={{ fontWeight: 400, opacity: 0.6 }}>(optional — comma-separated hex pubkeys)</span>
+        </label>
+        <input
+          type="text"
+          value={authors}
+          onChange={e => setAuthors(e.target.value)}
+          placeholder="Leave empty to sync all authors"
+          disabled={running}
+          style={inputStyle}
+        />
+      </div>
+
+      {/* Command preview */}
+      <div className="settings-group" style={{ padding: '1rem' }}>
+        <label style={{ fontSize: '0.8rem', fontWeight: 600, display: 'block', marginBottom: '0.4rem' }}>Command Preview</label>
+        <code style={{
+          display: 'block', padding: '0.6rem 0.8rem', borderRadius: '6px',
+          backgroundColor: 'rgba(0, 0, 0, 0.3)', fontSize: '0.8rem',
+          wordBreak: 'break-all', lineHeight: '1.5',
+          color: effectiveRelay ? '#a5f3fc' : 'var(--text-muted)',
+          fontFamily: '"JetBrains Mono", "Fira Code", monospace',
+        }}>
+          {previewCmd}
+        </code>
+      </div>
+
+      {/* Count + Start buttons */}
+      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
+        <button
+          className="btn-small"
+          onClick={handleCount}
+          disabled={running || counting || !effectiveRelay || checking}
+          style={{ padding: '0.6rem 1rem', fontSize: '0.85rem', whiteSpace: 'nowrap' }}
+        >
+          {counting ? '⏳ Counting…' : '🔢 Count Events'}
+        </button>
+        <button
+          className="btn-primary"
+          onClick={handleStart}
+          disabled={running || !effectiveRelay || checking}
+          style={{ flex: 1, padding: '0.6rem', fontSize: '0.9rem' }}
+        >
+          {running ? '⏳ Sync in progress…' : checking ? 'Checking status…' : '▶️ Start Negentropy Sync'}
+        </button>
+      </div>
+
+      {/* Count results */}
+      {counts && (
+        <div className="settings-group" style={{ padding: '1rem', marginBottom: '1rem' }}>
+          <label style={{ fontSize: '0.8rem', fontWeight: 600, display: 'block', marginBottom: '0.5rem' }}>
+            🔢 Event Counts (NIP-45)
+          </label>
+          <div style={{ display: 'flex', gap: '1.5rem', fontSize: '0.9rem' }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: '0.75rem', opacity: 0.6, marginBottom: '0.2rem' }}>Local (strfry)</div>
+              {counts.localError
+                ? <span style={{ color: '#ef4444', fontSize: '0.85rem' }}>⚠️ {counts.localError}</span>
+                : <span style={{ fontSize: '1.4rem', fontWeight: 700, color: '#60a5fa' }}>{counts.local?.toLocaleString()}</span>
+              }
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: '0.75rem', opacity: 0.6, marginBottom: '0.2rem' }}>Remote ({counts.relay?.replace(/^wss?:\/\//, '')})</div>
+              {counts.remoteError
+                ? <span style={{ color: '#ef4444', fontSize: '0.85rem' }}>⚠️ {counts.remoteError}</span>
+                : <span style={{ fontSize: '1.4rem', fontWeight: 700, color: '#a78bfa' }}>{counts.remote?.toLocaleString()}</span>
+              }
+            </div>
+            {counts.local != null && counts.remote != null && (
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: '0.75rem', opacity: 0.6, marginBottom: '0.2rem' }}>Difference</div>
+                <span style={{
+                  fontSize: '1.4rem', fontWeight: 700,
+                  color: counts.remote - counts.local > 0 ? '#fbbf24' : counts.remote - counts.local < 0 ? '#34d399' : '#22c55e',
+                }}>
+                  {counts.remote - counts.local > 0
+                    ? `+${(counts.remote - counts.local).toLocaleString()} remote`
+                    : counts.remote - counts.local < 0
+                    ? `+${(counts.local - counts.remote).toLocaleString()} local`
+                    : '✅ Equal'}
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Output log */}
+      {output.length > 0 && (
+        <div className="settings-group" style={{ padding: '1rem' }}>
+          <label style={{ fontSize: '0.8rem', fontWeight: 600, display: 'block', marginBottom: '0.4rem' }}>
+            Output
+            {running && <span style={{ fontWeight: 400, marginLeft: '0.5rem', color: '#22c55e' }}>● live</span>}
+          </label>
+          <div
+            ref={el => { if (el) el.scrollTop = el.scrollHeight; }}
+            style={{
+              maxHeight: '300px', overflowY: 'auto', padding: '0.6rem 0.8rem',
+              borderRadius: '6px', backgroundColor: 'rgba(0, 0, 0, 0.4)',
+              fontFamily: '"JetBrains Mono", "Fira Code", monospace',
+              fontSize: '0.75rem', lineHeight: '1.6',
+            }}
+          >
+            {output.map((line, i) => (
+              <div key={i} style={{
+                color: line.type === 'error' ? '#ef4444'
+                  : line.type === 'success' ? '#22c55e'
+                  : line.type === 'info' ? '#60a5fa'
+                  : '#d4d4d8',
+              }}>
+                {line.text}
+              </div>
+            ))}
+            {running && (
+              <div style={{ color: '#60a5fa', opacity: 0.6 }}>▌</div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+const RELAY_TABS = [
+  { key: 'router', label: '🔄 Router Management' },
+  { key: 'sync', label: '🔃 Negentropy Sync' },
+  { key: 'config', label: '📡 Relay Configuration' },
+];
+
 export default function RelaySettings({ settings, defaults, overrides, onSave, onReset }) {
   const relays = settings?.aRelays || {};
   const defaultRelays = defaults?.aRelays || {};
   const overrideRelays = overrides?.aRelays || {};
 
+  const [activeTab, setActiveTab] = useState('router');
+
   return (
     <>
-    <RouterStatus />
-    <div className="settings-section">
-      <h2>📡 Relay Configuration</h2>
-      <p className="settings-hint">
-        Changes to relay lists take effect immediately — no restart needed.
-      </p>
-      {RELAY_GROUPS.map(group => (
-        <RelayGroup
-          key={group.key}
-          groupKey={group.key}
-          label={group.label}
-          hint={group.hint}
-          urls={relays[group.key] || []}
-          defaultUrls={defaultRelays[group.key] || []}
-          isOverridden={!!overrideRelays[group.key]}
-          onSave={(urls) => onSave({ aRelays: { [group.key]: urls } })}
-          onReset={() => onReset(`aRelays.${group.key}`)}
-        />
-      ))}
-    </div>
+      <div className="tab-bar" style={{ marginBottom: '1rem' }}>
+        {RELAY_TABS.map(tab => (
+          <button
+            key={tab.key}
+            className={`tab-btn ${activeTab === tab.key ? 'active' : ''}`}
+            onClick={() => setActiveTab(tab.key)}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {activeTab === 'router' && <RouterStatus />}
+
+      {activeTab === 'sync' && <NegentropySync settings={settings} />}
+
+      {activeTab === 'config' && (
+        <div className="settings-section">
+          <h2>📡 Relay Configuration</h2>
+          <p className="settings-hint">
+            Changes to relay lists take effect immediately — no restart needed.
+          </p>
+          {RELAY_GROUPS.map(group => (
+            <RelayGroup
+              key={group.key}
+              groupKey={group.key}
+              label={group.label}
+              hint={group.hint}
+              urls={relays[group.key] || []}
+              defaultUrls={defaultRelays[group.key] || []}
+              isOverridden={!!overrideRelays[group.key]}
+              onSave={(urls) => onSave({ aRelays: { [group.key]: urls } })}
+              onReset={() => onReset(`aRelays.${group.key}`)}
+            />
+          ))}
+        </div>
+      )}
     </>
   );
 }
