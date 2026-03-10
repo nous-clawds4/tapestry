@@ -33,7 +33,21 @@ export default function ConceptSchema() {
   `);
 
   const schemaNode = data?.[0];
-  const savedSchema = useMemo(() => parseSchema(schemaNode?.json), [schemaNode?.json]);
+  const savedSchemaRaw = useMemo(() => parseSchema(schemaNode?.json), [schemaNode?.json]);
+
+  // Extract the actual JSON Schema from word-wrapper format if present
+  const savedSchema = useMemo(() => {
+    if (!savedSchemaRaw) return null;
+    // Word-wrapper format: { word: { ... }, jsonSchema: { ... } }
+    if (savedSchemaRaw.jsonSchema && typeof savedSchemaRaw.jsonSchema === 'object') {
+      return savedSchemaRaw.jsonSchema;
+    }
+    // Already a plain JSON Schema (legacy or direct format)
+    return savedSchemaRaw;
+  }, [savedSchemaRaw]);
+
+  // Keep the word section for re-wrapping on save
+  const savedWordSection = useMemo(() => savedSchemaRaw?.word || null, [savedSchemaRaw]);
 
   const authorPubkeys = useMemo(
     () => schemaNode?.author ? [schemaNode.author] : [],
@@ -73,12 +87,20 @@ export default function ConceptSchema() {
     setSaveSuccess(false);
   }, []);
 
+  // Re-wrap schema in word-wrapper format if the original had one
+  function wrapSchema(schema) {
+    if (savedWordSection) {
+      return { word: savedWordSection, jsonSchema: schema };
+    }
+    return schema;
+  }
+
   async function handleSave() {
     setSaving(true);
     setSaveError(null);
     setSaveSuccess(false);
     try {
-      await saveSchema({ concept: concept.name, schema: editSchema });
+      await saveSchema({ concept: concept.name, schema: wrapSchema(editSchema) });
       setSaveSuccess(true);
       setEditing(false);
       setEditSchema(null);
@@ -134,11 +156,11 @@ export default function ConceptSchema() {
       const parsed = JSON.parse(rawJson);
       const { $schema, ...rest } = parsed;
       setEditSchema(rest);
-      // Now save using the parsed schema
+      // Now save using the parsed schema, re-wrapped if needed
       setSaving(true);
       setSaveError(null);
       setSaveSuccess(false);
-      await saveSchema({ concept: concept.name, schema: rest });
+      await saveSchema({ concept: concept.name, schema: wrapSchema(rest) });
       setSaveSuccess(true);
       setEditing(false);
       setEditSchema(null);
@@ -285,6 +307,7 @@ export default function ConceptSchema() {
               <div className="schema-editor-wrapper">
                 <SchemaVisualEditor
                   schema={editSchema}
+                  readOnly={false}
                   onChange={handleSchemaChange}
                 />
               </div>
@@ -299,11 +322,11 @@ export default function ConceptSchema() {
               {showPreview && editSchema && (
                 <div style={{ marginTop: '1.5rem' }}>
                   <h3 style={{ fontSize: '1rem', marginBottom: '0.5rem' }}>📋 JSON Preview</h3>
-                  <pre className="json-block">{JSON.stringify({
+                  <pre className="json-block">{JSON.stringify(wrapSchema({
                     $schema: 'https://json-schema.org/draft/2020-12/schema',
                     type: 'object',
                     ...editSchema,
-                  }, null, 2)}</pre>
+                  }), null, 2)}</pre>
                 </div>
               )}
             </>
