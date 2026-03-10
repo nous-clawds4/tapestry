@@ -20,11 +20,17 @@ const WebSocket = require('ws');
 // Track active sync so we can report status
 let activeSync = null;
 
-function buildCommand(relay, dir, filter) {
+function buildFilterObj(filter) {
   const filterObj = {};
   if (filter.kinds && filter.kinds.length > 0) filterObj.kinds = filter.kinds;
   if (filter.authors && filter.authors.length > 0) filterObj.authors = filter.authors;
+  if (filter.since != null) filterObj.since = filter.since;
+  if (filter.until != null) filterObj.until = filter.until;
+  return filterObj;
+}
 
+function buildCommand(relay, dir, filter) {
+  const filterObj = buildFilterObj(filter);
   const args = ['sync', relay, '--filter', JSON.stringify(filterObj)];
   if (dir && dir !== 'both') {
     args.push('--dir', dir);
@@ -33,10 +39,7 @@ function buildCommand(relay, dir, filter) {
 }
 
 function buildPreviewCommand(relay, dir, filter) {
-  const filterObj = {};
-  if (filter.kinds && filter.kinds.length > 0) filterObj.kinds = filter.kinds;
-  if (filter.authors && filter.authors.length > 0) filterObj.authors = filter.authors;
-
+  const filterObj = buildFilterObj(filter);
   let cmd = `strfry sync ${relay} --filter '${JSON.stringify(filterObj)}'`;
   if (dir && dir !== 'both') {
     cmd += ` --dir ${dir}`;
@@ -311,9 +314,7 @@ async function handleNegentropySyncCount(req, res) {
   }
 
   // Build clean filter object
-  const filterObj = {};
-  if (filter.kinds && filter.kinds.length > 0) filterObj.kinds = filter.kinds;
-  if (filter.authors && filter.authors.length > 0) filterObj.authors = filter.authors;
+  const filterObj = buildFilterObj(filter);
 
   const results = { success: true, relay, filter: filterObj, local: null, remote: null, localError: null, remoteError: null };
 

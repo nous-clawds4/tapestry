@@ -643,6 +643,129 @@ function RouterStatus() {
 
 /* ── Negentropy Sync Panel ── */
 
+const TIME_UNITS = [
+  { label: 'minutes', seconds: 60 },
+  { label: 'hours', seconds: 3600 },
+  { label: 'days', seconds: 86400 },
+  { label: 'weeks', seconds: 604800 },
+  { label: 'years', seconds: 31536000 },
+];
+
+function TimestampPicker({ label, value, onChange, disabled }) {
+  // value is a unix timestamp (number) or null
+  const [mode, setMode] = useState('off'); // 'off' | 'relative' | 'manual'
+  const [amount, setAmount] = useState(1);
+  const [unit, setUnit] = useState(2); // index into TIME_UNITS (default: days)
+  const [manualTs, setManualTs] = useState('');
+
+  // Sync internal state when value changes externally
+  useEffect(() => {
+    if (value == null) setMode('off');
+  }, [value]);
+
+  function handleModeChange(newMode) {
+    setMode(newMode);
+    if (newMode === 'off') {
+      onChange(null);
+    } else if (newMode === 'relative') {
+      applyRelative(amount, unit);
+    } else if (newMode === 'manual') {
+      const ts = parseInt(manualTs);
+      onChange(isNaN(ts) ? null : ts);
+    }
+  }
+
+  function applyRelative(amt, unitIdx) {
+    const secs = (parseFloat(amt) || 0) * TIME_UNITS[unitIdx].seconds;
+    const ts = Math.floor(Date.now() / 1000 - secs);
+    onChange(ts > 0 ? ts : null);
+  }
+
+  function handleAmountChange(val) {
+    setAmount(val);
+    if (mode === 'relative') applyRelative(val, unit);
+  }
+
+  function handleUnitChange(idx) {
+    setUnit(idx);
+    if (mode === 'relative') applyRelative(amount, idx);
+  }
+
+  function handleManualChange(val) {
+    setManualTs(val);
+    const ts = parseInt(val);
+    onChange(isNaN(ts) ? null : ts);
+  }
+
+  const inputStyle = {
+    padding: '0.35rem 0.5rem', fontSize: '0.85rem',
+    backgroundColor: 'var(--bg-primary, #0f0f23)', color: 'var(--text-primary, #e0e0e0)',
+    border: '1px solid var(--border, #444)', borderRadius: '4px',
+  };
+
+  return (
+    <div style={{ marginBottom: '0.5rem' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.3rem' }}>
+        <span style={{ fontSize: '0.8rem', fontWeight: 600, minWidth: '40px' }}>{label}</span>
+        <label style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.8rem', cursor: 'pointer' }}>
+          <input type="radio" name={`ts-${label}`} checked={mode === 'off'} onChange={() => handleModeChange('off')} disabled={disabled} />
+          Off
+        </label>
+        <label style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.8rem', cursor: 'pointer' }}>
+          <input type="radio" name={`ts-${label}`} checked={mode === 'relative'} onChange={() => handleModeChange('relative')} disabled={disabled} />
+          Relative
+        </label>
+        <label style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.8rem', cursor: 'pointer' }}>
+          <input type="radio" name={`ts-${label}`} checked={mode === 'manual'} onChange={() => handleModeChange('manual')} disabled={disabled} />
+          Timestamp
+        </label>
+      </div>
+      {mode === 'relative' && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginLeft: '45px' }}>
+          <input
+            type="number"
+            min="1"
+            value={amount}
+            onChange={e => handleAmountChange(e.target.value)}
+            disabled={disabled}
+            style={{ ...inputStyle, width: '70px' }}
+          />
+          <select
+            value={unit}
+            onChange={e => handleUnitChange(parseInt(e.target.value))}
+            disabled={disabled}
+            style={{ ...inputStyle, cursor: 'pointer' }}
+          >
+            {TIME_UNITS.map((u, i) => <option key={u.label} value={i}>{u.label} ago</option>)}
+          </select>
+          {value != null && (
+            <span style={{ fontSize: '0.75rem', opacity: 0.5 }}>
+              = {new Date(value * 1000).toLocaleString()}
+            </span>
+          )}
+        </div>
+      )}
+      {mode === 'manual' && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginLeft: '45px' }}>
+          <input
+            type="text"
+            value={manualTs}
+            onChange={e => handleManualChange(e.target.value)}
+            placeholder="Unix timestamp (e.g. 1709856000)"
+            disabled={disabled}
+            style={{ ...inputStyle, width: '250px' }}
+          />
+          {value != null && (
+            <span style={{ fontSize: '0.75rem', opacity: 0.5 }}>
+              = {new Date(value * 1000).toLocaleString()}
+            </span>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 const KIND_PRESETS = [
   { label: 'DCoSL (9998, 9999, 39998, 39999)', kinds: [9998, 9999, 39998, 39999] },
   { label: 'Profiles (0)', kinds: [0] },
@@ -667,6 +790,8 @@ function NegentropySync({ settings }) {
   const [customKinds, setCustomKinds] = useState('');
   const [useCustomKinds, setUseCustomKinds] = useState(false);
   const [authors, setAuthors] = useState('');
+  const [since, setSince] = useState(null);
+  const [until, setUntil] = useState(null);
   const [running, setRunning] = useState(false);
   const [output, setOutput] = useState([]);
   const [result, setResult] = useState(null); // { success, exitCode } or null
@@ -704,6 +829,8 @@ function NegentropySync({ settings }) {
   const filterObj = {};
   if (effectiveKinds.length > 0) filterObj.kinds = effectiveKinds;
   if (effectiveAuthors.length > 0) filterObj.authors = effectiveAuthors;
+  if (since != null) filterObj.since = since;
+  if (until != null) filterObj.until = until;
   const filterStr = Object.keys(filterObj).length > 0 ? JSON.stringify(filterObj) : '{}';
   const dirFlag = dir !== 'both' ? ` --dir ${dir}` : '';
   const previewCmd = effectiveRelay
@@ -724,7 +851,7 @@ function NegentropySync({ settings }) {
     const params = new URLSearchParams({
       relay: effectiveRelay,
       dir,
-      filter: JSON.stringify({ kinds: effectiveKinds, authors: effectiveAuthors }),
+      filter: JSON.stringify(filterObj),
     });
 
     const evtSource = new EventSource(`/api/strfry/negentropy-sync/stream?${params}`);
@@ -792,7 +919,7 @@ function NegentropySync({ settings }) {
     try {
       const params = new URLSearchParams({
         relay: effectiveRelay,
-        filter: JSON.stringify({ kinds: effectiveKinds, authors: effectiveAuthors }),
+        filter: JSON.stringify(filterObj),
       });
       const res = await fetch(`/api/strfry/negentropy-sync/count?${params}`);
       const data = await res.json();
@@ -927,6 +1054,15 @@ function NegentropySync({ settings }) {
           disabled={running}
           style={inputStyle}
         />
+      </div>
+
+      {/* Since / Until */}
+      <div className="settings-group" style={{ padding: '1rem' }}>
+        <label style={{ fontSize: '0.8rem', fontWeight: 600, display: 'block', marginBottom: '0.5rem' }}>
+          Time Range <span style={{ fontWeight: 400, opacity: 0.6 }}>(optional)</span>
+        </label>
+        <TimestampPicker label="Since" value={since} onChange={setSince} disabled={running} />
+        <TimestampPicker label="Until" value={until} onChange={setUntil} disabled={running} />
       </div>
 
       {/* Command preview */}
