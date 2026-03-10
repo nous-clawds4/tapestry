@@ -27,11 +27,25 @@ const firmware = require('../api/normalize/firmware');
 
 // ── Config ───────────────────────────────────────────────────
 
-const API_BASE = process.env.TAPESTRY_API_BASE || 'http://localhost:8080';
+// ── Internal vs HTTP API ─────────────────────────────────────
+// When called from within Express (handleFirmwareInstall), we use direct
+// function calls to avoid self-referencing HTTP deadlocks.
+// When called from CLI, we use HTTP calls.
 
-// ── HTTP helpers ─────────────────────────────────────────────
+const API_BASE = process.env.TAPESTRY_API_BASE || 'http://localhost:80';
+
+let _internalMode = false;
+let _internalHandlers = null;
+
+function enableInternalMode(handlers) {
+  _internalMode = true;
+  _internalHandlers = handlers;
+}
 
 async function apiPost(endpoint, body) {
+  if (_internalMode && _internalHandlers?.post) {
+    return _internalHandlers.post(endpoint, body);
+  }
   const url = `${API_BASE}${endpoint}`;
   const resp = await fetch(url, {
     method: 'POST',
@@ -46,10 +60,21 @@ async function apiPost(endpoint, body) {
 }
 
 async function apiGet(endpoint, params = {}) {
+  if (_internalMode && _internalHandlers?.get) {
+    return _internalHandlers.get(endpoint, params);
+  }
   const qs = new URLSearchParams(params).toString();
   const url = qs ? `${API_BASE}${endpoint}?${qs}` : `${API_BASE}${endpoint}`;
   const resp = await fetch(url);
   return resp.json();
+}
+
+/**
+ * Run a Cypher query via the POST endpoint (avoids URL length limits).
+ * Returns the same shape as the GET run-query endpoint for backward compat.
+ */
+async function runCypherApi(cypher, params = {}) {
+  return apiPost('/api/neo4j/query', { cypher, params });
 }
 
 /**
@@ -78,6 +103,21 @@ function parseCsvRows(csvText) {
  *
  * Returns a map of slug → { headerUuid, supersetUuid, schemaUuid, ... }
  */
+/**
+ * Convert a manifest category key (plural) to a firmware concept slug (singular).
+ * Handles irregular plurals like "properties" → "property".
+ */
+function categoryToSlug(category) {
+  // Exact overrides for irregular plurals
+  const overrides = {
+    'properties': 'property',
+    'sets': 'set',
+  };
+  if (overrides[category]) return overrides[category];
+  // Default: strip trailing 's'
+  return category.replace(/s$/, '');
+}
+
 async function pass1_bootstrap(opts = {}) {
   const { dryRun = false } = opts;
   const manifest = firmware.getManifest();
@@ -137,14 +177,55 @@ async function pass1_bootstrap(opts = {}) {
   }
 
   // ── 1b. Create elements ──────────────────────────────────
+  //
+  // Each category in manifest.elements has two arrays:
+  //   new-nodes:      Create a new element node from a JSON file
+  //   existing-nodes: Wire an existing core node as an element (by concept + core-node-type)
+  //
+  // Legacy format (flat array) is also supported for backward compat.
 
   if (manifest.elements) {
     console.log('\n── Creating elements ──\n');
 
-    for (const [category, entries] of Object.entries(manifest.elements)) {
-      console.log(`  Category: ${category}`);
+    // Map category to concept name for the create-element API
+    const categoryToConceptName = {
+      'json-data-types': 'json data type',
+      'node-types': 'node type',
+      'graph-types': 'graph type',
+      'validation-tool-types': 'validation tool type',
+    };
 
-      for (const entry of entries) {
+    // Map core-node-type to the Neo4j relationship used to find it from the ConceptHeader
+    const coreNodeTypeToRel = {
+      'concept-header': null,  // the header itself — no relationship needed
+      'superset': 'IS_THE_CONCEPT_FOR',
+      'json-schema': 'IS_THE_JSON_SCHEMA_FOR',
+      'primary-property': 'IS_THE_PRIMARY_PROPERTY_FOR',
+      'properties-set': 'IS_THE_PROPERTIES_SET_FOR',
+      'property-tree-graph': 'IS_THE_PROPERTY_TREE_GRAPH_FOR',
+      'core-nodes-graph': 'IS_THE_CORE_GRAPH_FOR',
+      'concept-graph': 'IS_THE_CONCEPT_GRAPH_FOR',
+    };
+
+    for (const [category, categoryData] of Object.entries(manifest.elements)) {
+      const conceptName = categoryToConceptName[category];
+      if (!conceptName) {
+        console.log(`  ⚠️  Unknown category "${category}", skipping`);
+        continue;
+      }
+
+      console.log(`  Category: ${category} → concept "${conceptName}"`);
+
+      // Determine structure: new format (object with existing-nodes/new-nodes) or legacy (flat array)
+      const newNodes = Array.isArray(categoryData)
+        ? categoryData                       // legacy: flat array = all new-nodes
+        : (categoryData['new-nodes'] || []);
+      const existingNodes = Array.isArray(categoryData)
+        ? []
+        : (categoryData['existing-nodes'] || []);
+
+      // ── new-nodes: create new element nodes ──
+      for (const entry of newNodes) {
         const filePath = path.join(firmware.firmwareDir(), entry.file);
         if (!fs.existsSync(filePath)) {
           console.log(`    ❌ ${entry.slug}: file not found`);
@@ -153,31 +234,13 @@ async function pass1_bootstrap(opts = {}) {
         }
 
         const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-
-        // Determine the parent concept name from the element's word wrapper
-        // The element's primary section key tells us the concept
         const sectionKeys = Object.keys(data).filter(k => k !== 'word');
-        const conceptKey = sectionKeys[0]; // e.g., "jsonDataType", "nodeType"
+        const conceptKey = sectionKeys[0];
         const elementName = data.word.name.includes(':')
           ? data.word.name.split(':').pop().trim()
           : data[conceptKey]?.name || data.word.slug;
 
-        // Map category to concept name for the create-element API
-        // Names must match what handleCreateConcept stores (lowercased via deriveAllNames)
-        const categoryToConceptName = {
-          'json-data-types': 'json data type',
-          'node-types': 'node type',
-          'graph-types': 'graph type',
-          'validation-tool-types': 'validation tool type',
-        };
-        const conceptName = categoryToConceptName[category];
-
-        if (!conceptName) {
-          console.log(`    ⚠️  Unknown category ${category}, skipping`);
-          continue;
-        }
-
-        console.log(`    📝 ${entry.slug} → "${conceptName}"`);
+        console.log(`    📝 new-node: ${entry.slug} → "${conceptName}"`);
 
         if (dryRun) continue;
 
@@ -194,6 +257,70 @@ async function pass1_bootstrap(opts = {}) {
         } catch (err) {
           console.log(`       ❌ ${err.message}`);
           errors.push({ slug: entry.slug, error: err.message });
+        }
+      }
+
+      // ── existing-nodes: wire existing core nodes as elements ──
+      for (const entry of existingNodes) {
+        const targetConcept = entry.concept;         // firmware concept slug
+        const coreNodeType = entry['core-node-type']; // e.g., "concept-header", "superset"
+
+        console.log(`    🔗 existing-node: ${targetConcept} (${coreNodeType}) → "${conceptName}"`);
+
+        if (dryRun) continue;
+
+        try {
+          // Find the target concept's header UUID
+          const taPubkey = firmware.getTAPubkey();
+          const targetHeaderUuid = `39998:${taPubkey}:${targetConcept}`;
+
+          // Find the target node UUID based on core-node-type
+          let targetNodeUuid;
+          const rel = coreNodeTypeToRel[coreNodeType];
+
+          if (rel === null) {
+            // concept-header: the header IS the target node
+            targetNodeUuid = targetHeaderUuid;
+          } else if (rel) {
+            // Find core node via relationship
+            // Direction: most core nodes point TO the header (in), superset is OUT from header
+            let cypher;
+            if (coreNodeType === 'superset') {
+              cypher = `MATCH (h:NostrEvent {uuid: $headerUuid})-[:${rel}]->(n) RETURN n.uuid AS uuid LIMIT 1`;
+            } else {
+              cypher = `MATCH (n)-[:${rel}]->(h:NostrEvent {uuid: $headerUuid}) RETURN n.uuid AS uuid LIMIT 1`;
+            }
+            const rows = await runCypherApi(cypher, { headerUuid: targetHeaderUuid });
+            const dataRows = rows.data || [];
+            if (dataRows.length === 0) {
+              console.log(`       ⚠️  Core node "${coreNodeType}" not found for concept "${targetConcept}"`);
+              continue;
+            }
+            targetNodeUuid = dataRows[0].uuid;
+          } else {
+            console.log(`       ⚠️  Unknown core-node-type: "${coreNodeType}"`);
+            continue;
+          }
+
+          // Find the parent concept's header UUID (the concept that gains the element)
+          // Category "json-data-types" → concept slug "json-data-type", etc.
+          const parentConceptSlug = categoryToSlug(category);
+          const parentHeaderUuid = `39998:${taPubkey}:${parentConceptSlug}`;
+
+          // Use the add-node-as-element API
+          const result = await apiPost('/api/normalize/add-node-as-element', {
+            conceptUuid: parentHeaderUuid,
+            nodeUuid: targetNodeUuid,
+          });
+
+          if (result.success) {
+            console.log(`       ✅ Wired as element`);
+          } else {
+            console.log(`       ⚠️  ${result.error}`);
+          }
+        } catch (err) {
+          console.log(`       ❌ ${err.message}`);
+          errors.push({ slug: `${targetConcept}:${coreNodeType}`, error: err.message });
         }
       }
     }
@@ -236,6 +363,135 @@ async function pass1_bootstrap(opts = {}) {
     }
   }
 
+  // ── 1c½. Create sets ──────────────────────────────────────
+  //
+  // Each category in manifest.sets has:
+  //   new-sets:      Create a new Set from a JSON file, attach to parent concept's Superset
+  //   existing-sets: Wire an existing node as a Set (not yet implemented)
+
+  if (manifest.sets) {
+    console.log('\n── Creating sets ──\n');
+
+    for (const [category, categoryData] of Object.entries(manifest.sets)) {
+      // Category "relationship-types" → concept slug "relationship-type"
+      const conceptSlug = categoryToSlug(category);
+      const taPubkey = firmware.getTAPubkey();
+      const conceptHeaderUuid = `39998:${taPubkey}:${conceptSlug}`;
+
+      console.log(`  Category: ${category} → concept "${conceptSlug}"`);
+
+      const newSets = categoryData['new-sets'] || [];
+      const existingSets = categoryData['existing-sets'] || [];
+
+      // ── new-sets: create new Set nodes ──
+      for (const entry of newSets) {
+        const filePath = path.join(firmware.firmwareDir(), entry.file);
+        if (!fs.existsSync(filePath)) {
+          console.log(`    ❌ ${entry.slug}: file not found`);
+          errors.push({ slug: entry.slug, error: 'set file not found' });
+          continue;
+        }
+
+        const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+        const setName = data.set?.name || data.word?.name || entry.slug;
+        const setDescription = data.set?.description || '';
+        const dTag = data.word?.slug || entry.slug;
+
+        console.log(`    📝 new-set: ${entry.slug} (d-tag: ${dTag}) → "${conceptSlug}"`);
+
+        if (dryRun) continue;
+
+        try {
+          // Find the concept's Superset UUID to use as parent
+          const supersetRows = await runCypherApi(
+            `MATCH (h:NostrEvent {uuid: $headerUuid})-[:IS_THE_CONCEPT_FOR]->(sup:Superset)
+             RETURN sup.uuid AS uuid LIMIT 1`,
+            { headerUuid: conceptHeaderUuid }
+          );
+          const supersetData = supersetRows.data || [];
+          if (supersetData.length === 0) {
+            console.log(`       ⚠️  Superset not found for concept "${conceptSlug}"`);
+            continue;
+          }
+          const parentSupersetUuid = supersetData[0].uuid;
+
+          const result = await apiPost('/api/normalize/create-set', {
+            name: setName,
+            description: setDescription || undefined,
+            parentUuid: parentSupersetUuid,
+            dTag: dTag,
+          });
+
+          if (result.success) {
+            if (result.set?.alreadyExisted) {
+              console.log(`       ✅ Already exists`);
+            } else {
+              console.log(`       ✅ Created`);
+            }
+          } else {
+            console.log(`       ⚠️  ${result.error}`);
+          }
+        } catch (err) {
+          console.log(`       ❌ ${err.message}`);
+          errors.push({ slug: entry.slug, error: err.message });
+        }
+      }
+
+      // ── existing-sets: wire existing concept Supersets as subsets ──
+      for (const entry of existingSets) {
+        const childConceptSlug = entry.concept;
+
+        console.log(`    🔗 existing-set: ${childConceptSlug} superset → under "${conceptSlug}"`);
+
+        if (dryRun) continue;
+
+        try {
+          const taPk = firmware.getTAPubkey();
+
+          // Find the parent concept's Superset
+          const parentHeaderUuid = `39998:${taPk}:${conceptSlug}`;
+          const parentRows = await runCypherApi(
+            `MATCH (h:NostrEvent {uuid: $headerUuid})-[:IS_THE_CONCEPT_FOR]->(sup:Superset)
+             RETURN sup.uuid AS uuid LIMIT 1`,
+            { headerUuid: parentHeaderUuid }
+          );
+          const parentData = parentRows.data || [];
+          if (parentData.length === 0) {
+            console.log(`       ⚠️  Parent superset not found for concept "${conceptSlug}"`);
+            continue;
+          }
+          const parentSupersetUuid = parentData[0].uuid;
+
+          // Find the child concept's Superset
+          const childHeaderUuid = `39998:${taPk}:${childConceptSlug}`;
+          const childRows = await runCypherApi(
+            `MATCH (h:NostrEvent {uuid: $headerUuid})-[:IS_THE_CONCEPT_FOR]->(sup:Superset)
+             RETURN sup.uuid AS uuid LIMIT 1`,
+            { headerUuid: childHeaderUuid }
+          );
+          const childData = childRows.data || [];
+          if (childData.length === 0) {
+            console.log(`       ⚠️  Child superset not found for concept "${childConceptSlug}"`);
+            continue;
+          }
+          const childSupersetUuid = childData[0].uuid;
+
+          // Create IS_A_SUPERSET_OF: parent superset → child superset
+          await runCypherApi(
+            `MATCH (a:NostrEvent {uuid: $from}), (b:NostrEvent {uuid: $to})
+             MERGE (a)-[:IS_A_SUPERSET_OF]->(b)`,
+            { from: parentSupersetUuid, to: childSupersetUuid }
+          );
+
+          console.log(`       ✅ Wired IS_A_SUPERSET_OF`);
+        } catch (err) {
+          console.log(`       ❌ ${err.message}`);
+          errors.push({ slug: `existing-set:${childConceptSlug}`, error: err.message });
+        }
+      }
+    }
+  }
+
   // ── 1d. Wire HAS_ELEMENT for core nodes via z-tag matching ─────────
   // Each core node has z-tags for its type hierarchy (e.g., superset → superset, set, word).
   // We add HAS_ELEMENT edges from each concept's superset to all nodes with matching z-tags.
@@ -245,12 +501,12 @@ async function pass1_bootstrap(opts = {}) {
 
   const SKIP_CONCEPTS = ['word'];
 
-  const conceptsRes = await apiGet('/api/neo4j/run-query', {
-    cypher: `MATCH (h:ListHeader:ConceptHeader)-[:IS_THE_CONCEPT_FOR]->(sup:Superset)
-             RETURN h.name AS name, h.uuid AS headerUuid, sup.uuid AS supersetUuid`,
-  });
+  const conceptsRes = await runCypherApi(
+    `MATCH (h:ListHeader:ConceptHeader)-[:IS_THE_CONCEPT_FOR]->(sup:Superset)
+     RETURN h.name AS name, h.uuid AS headerUuid, sup.uuid AS supersetUuid`
+  );
 
-  const conceptRows = parseCsvRows(conceptsRes.cypherResults);
+  const conceptRows = conceptsRes.data || parseCsvRows(conceptsRes.cypherResults || '');
 
   let hasElementCount = 0;
 
@@ -265,23 +521,25 @@ async function pass1_bootstrap(opts = {}) {
     }
 
     // Find all nodes with a z-tag pointing to this concept (excluding the concept's own superset)
-    const elemRes = await apiGet('/api/neo4j/run-query', {
-      cypher: `MATCH (n:NostrEvent)-[:HAS_TAG]->(z:NostrEventTag {type: 'z'})
-               WHERE z.value = '${headerUuid}'
-                 AND n.uuid <> '${supersetUuid}'
-               RETURN n.uuid AS uuid`,
-    });
+    const elemRes = await runCypherApi(
+      `MATCH (n:NostrEvent)-[:HAS_TAG]->(z:NostrEventTag {type: 'z'})
+       WHERE z.value = $headerUuid
+         AND n.uuid <> $supersetUuid
+       RETURN n.uuid AS uuid`,
+      { headerUuid, supersetUuid }
+    );
 
-    const elemRows = parseCsvRows(elemRes.cypherResults);
+    const elemRows = elemRes.data || parseCsvRows(elemRes.cypherResults || '');
 
     if (elemRows.length === 0) continue;
 
     // Add HAS_ELEMENT edges (unwrapped — Neo4j only, no nostr events)
     for (const elem of elemRows) {
-      await apiGet('/api/neo4j/run-query', {
-        cypher: `MATCH (sup:NostrEvent {uuid: '${supersetUuid}'}), (elem:NostrEvent {uuid: '${elem.uuid}'})
-                 MERGE (sup)-[:HAS_ELEMENT]->(elem)`,
-      });
+      await runCypherApi(
+        `MATCH (sup:NostrEvent {uuid: $supersetUuid}), (elem:NostrEvent {uuid: $elemUuid})
+         MERGE (sup)-[:HAS_ELEMENT]->(elem)`,
+        { supersetUuid, elemUuid: elem.uuid }
+      );
       hasElementCount++;
     }
 
@@ -351,29 +609,37 @@ async function pass2_enrich(opts = {}) {
       const schemaRel = firmware.relAlias('CORE_NODE_JSON_SCHEMA');
       const conceptNameLower = conceptName.toLowerCase();
 
-      const rows = await apiGet(
-        `/api/neo4j/run-query?cypher=${encodeURIComponent(
-          `MATCH (s:JSONSchema)-[:${schemaRel}]->(h:ListHeader {name: '${conceptNameLower}'})
-           RETURN h.uuid AS headerUuid, s.uuid AS schemaUuid
-           LIMIT 1`
-        )}`
+      const queryResult = await runCypherApi(
+        `MATCH (s:JSONSchema)-[:${schemaRel}]->(h:ListHeader {name: $name})
+         RETURN h.uuid AS headerUuid, s.uuid AS schemaUuid
+         LIMIT 1`,
+        { name: conceptNameLower }
       );
 
-      // Parse CSV response from Neo4j API
-      const csvText = (rows && rows.cypherResults) || '';
-      const csvLines = csvText.trim().split('\n').filter(l => l.trim());
+      // Use data array from POST endpoint, fall back to CSV parsing
+      const dataRows = queryResult.data || [];
 
-      if (csvLines.length < 2) {
+      if (dataRows.length === 0) {
+        // Try CSV fallback
+        const csvText = (queryResult.cypherResults) || '';
+        const csvLines = csvText.trim().split('\n').filter(l => l.trim());
+        if (csvLines.length >= 2) {
+          const dataLine = csvLines[1];
+          const values = dataLine.match(/"([^"]*)"/g)?.map(v => v.replace(/"/g, '')) || [];
+          if (values[0] && values[1]) {
+            dataRows.push({ headerUuid: values[0], schemaUuid: values[1] });
+          }
+        }
+      }
+
+      if (dataRows.length === 0) {
         console.log(`     ⚠️  Concept "${conceptName}" not found in graph — run Pass 1 first`);
         skipped.push(slug);
         continue;
       }
 
-      // Parse header + first data row (CSV with quoted values)
-      const dataLine = csvLines[1];
-      const values = dataLine.match(/"([^"]*)"/g)?.map(v => v.replace(/"/g, '')) || [];
-      const headerUuid = values[0];
-      const schemaUuid = values[1];
+      const headerUuid = dataRows[0].headerUuid;
+      const schemaUuid = dataRows[0].schemaUuid;
 
       if (!headerUuid || !schemaUuid) {
         console.log(`     ⚠️  Could not parse UUIDs for "${conceptName}"`);
@@ -464,12 +730,87 @@ async function install(opts = {}) {
 
 // ── Express handler ──────────────────────────────────────────
 
+/**
+ * Create an internal API bridge that calls Express route handlers directly,
+ * avoiding self-referencing HTTP calls that deadlock the single-threaded server.
+ */
+function createInternalBridge(app) {
+  function callRoute(method, endpoint, bodyOrParams) {
+    return new Promise((resolve, reject) => {
+      // Build a minimal mock req/res
+      const url = new URL(endpoint, 'http://localhost');
+      if (method === 'GET' && bodyOrParams) {
+        for (const [k, v] of Object.entries(bodyOrParams)) {
+          url.searchParams.set(k, v);
+        }
+      }
+
+      const req = {
+        method: method.toUpperCase(),
+        url: url.pathname + url.search,
+        path: url.pathname,
+        query: Object.fromEntries(url.searchParams),
+        params: {},
+        body: method === 'POST' ? bodyOrParams : {},
+        headers: { 'content-type': 'application/json', 'x-forwarded-for': '127.0.0.1' },
+        get: (h) => {
+          const key = h.toLowerCase();
+          if (key === 'content-type') return 'application/json';
+          if (key === 'x-forwarded-for') return '127.0.0.1';
+          return undefined;
+        },
+        connection: { remoteAddress: '127.0.0.1' },
+        socket: { remoteAddress: '127.0.0.1' },
+        ip: '127.0.0.1',
+        session: {},
+      };
+
+      // Extract route params (e.g., :slug) — simple pattern matching
+      const pathParts = url.pathname.split('/');
+      req.params = {};
+
+      const res = {
+        statusCode: 200,
+        _headers: {},
+        status(code) { this.statusCode = code; return this; },
+        json(data) { resolve(data); },
+        setHeader(k, v) { this._headers[k] = v; },
+        getHeader(k) { return this._headers[k]; },
+      };
+
+      // Use Express's internal routing
+      app.handle(req, res, (err) => {
+        if (err) reject(err);
+        else reject(new Error(`No handler found for ${method} ${endpoint}`));
+      });
+    });
+  }
+
+  return {
+    get: (endpoint, params) => callRoute('GET', endpoint, params),
+    post: (endpoint, body) => callRoute('POST', endpoint, body),
+  };
+}
+
 async function handleFirmwareInstall(req, res) {
   try {
     const { pass1 = true, pass2 = true, dryRun = false } = req.body || {};
+
+    // Enable internal mode to bypass HTTP self-calls
+    if (req.app) {
+      enableInternalMode(createInternalBridge(req.app));
+    }
+
     const result = await install({ pass1, pass2, dryRun });
+
+    // Reset to HTTP mode
+    _internalMode = false;
+    _internalHandlers = null;
+
     res.json({ success: true, ...result });
   } catch (err) {
+    _internalMode = false;
+    _internalHandlers = null;
     console.error('[firmware-install]', err);
     res.status(500).json({ success: false, error: err.message });
   }

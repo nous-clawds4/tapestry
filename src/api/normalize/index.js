@@ -372,11 +372,11 @@ async function handleNormalizeSkeleton(req, res) {
       await createNode('Superset', evt, REL.CLASS_THREAD_INITIATION, 'from-header');
       await writeCypher(`MATCH (n:NostrEvent {uuid: $uuid}) SET n:Superset`, { uuid: supersetATag });
 
-      // Also set ClassThreadHeader label on the header if missing
+      // Also set ConceptHeader label on the header if missing
       await writeCypher(`
         MATCH (h:NostrEvent {uuid: $uuid})
-        WHERE NOT h:ClassThreadHeader
-        SET h:ClassThreadHeader
+        WHERE NOT h:ConceptHeader
+        SET h:ConceptHeader
       `, { uuid: headerUuid });
     }
 
@@ -501,14 +501,14 @@ async function handleNormalizeSkeleton(req, res) {
         word: {
           slug: `the-set-of-properties-for-the-concept-of-${slug}`,
           name: propsName,
-          wordTypes: ['word', 'set', 'properties'],
+          wordTypes: ['word', 'set', 'propertiesSet'],
           coreMemberOf: [{ slug: `concept-header-for-the-concept-of-${slug}`, uuid: headerUuid }],
         },
         set: {
           slug: `properties-for-the-concept-of-${slug}`,
           name: `properties for the concept of ${name}`,
         },
-        properties: {},
+        propertiesSet: {},
       });
       const evt = signAndFinalize({
         kind: 39999,
@@ -560,7 +560,7 @@ async function handleNormalizeSkeleton(req, res) {
             ...(schemaATag ? [{ slug: `${slug}_schema`, uuid: schemaATag, name: schemaName }] : []),
             ...(primaryPropATag ? [{ slug: `${slug}_primaryProperty`, uuid: primaryPropATag, name: `primary property for the ${name} concept` }] : []),
             { slug: `${slug}_coreNodesGraph`, uuid: coreGraphATag, name: graphName },
-            ...(classGraphATag ? [{ slug: `${slug}_classThreadsGraph`, uuid: classGraphATag, name: `class threads graph for the ${name} concept` }] : []),
+            ...(classGraphATag ? [{ slug: `${slug}_conceptGraph`, uuid: classGraphATag, name: `concept graph for the ${name} concept` }] : []),
             ...(propGraphATag ? [{ slug: `${slug}_propertyTreeGraph`, uuid: propGraphATag, name: `property tree graph for the ${name} concept` }] : []),
           ],
           relationshipTypes: [
@@ -568,7 +568,7 @@ async function handleNormalizeSkeleton(req, res) {
             { slug: REL.CORE_NODE_JSON_SCHEMA, name: 'is the JSON schema for' },
             { slug: REL.CORE_NODE_PRIMARY_PROPERTY, name: 'is the primary property for' },
             { slug: REL.CORE_NODE_CORE_GRAPH, name: REL.CORE_NODE_CORE_GRAPH },
-            { slug: 'IS_THE_CLASS_THREADS_GRAPH_FOR', name: 'IS_THE_CLASS_THREADS_GRAPH_FOR' },
+            { slug: REL.CORE_NODE_CONCEPT_GRAPH, name: REL.CORE_NODE_CONCEPT_GRAPH },
             { slug: REL.CORE_NODE_PROPERTY_TREE_GRAPH, name: REL.CORE_NODE_PROPERTY_TREE_GRAPH },
           ],
           relationships: [
@@ -576,7 +576,7 @@ async function handleNormalizeSkeleton(req, res) {
             { nodeFrom: { slug: `${slug}_schema` }, relationshipType: { slug: REL.CORE_NODE_JSON_SCHEMA }, nodeTo: { slug: `${slug}_header` } },
             ...(primaryPropATag ? [{ nodeFrom: { slug: `${slug}_primaryProperty` }, relationshipType: { slug: REL.CORE_NODE_PRIMARY_PROPERTY }, nodeTo: { slug: `${slug}_header` } }] : []),
             { nodeFrom: { slug: `${slug}_coreNodesGraph` }, relationshipType: { slug: REL.CORE_NODE_CORE_GRAPH }, nodeTo: { slug: `${slug}_header` } },
-            { nodeFrom: { slug: `${slug}_classThreadsGraph` }, relationshipType: { slug: 'IS_THE_CLASS_THREADS_GRAPH_FOR' }, nodeTo: { slug: `${slug}_header` } },
+            { nodeFrom: { slug: `${slug}_conceptGraph` }, relationshipType: { slug: REL.CORE_NODE_CONCEPT_GRAPH }, nodeTo: { slug: `${slug}_header` } },
             { nodeFrom: { slug: `${slug}_propertyTreeGraph` }, relationshipType: { slug: REL.CORE_NODE_PROPERTY_TREE_GRAPH }, nodeTo: { slug: `${slug}_header` } },
           ],
         },
@@ -667,6 +667,38 @@ async function handleNormalizeSkeleton(req, res) {
       await createNode('Property Tree Graph', evt, REL.CORE_NODE_PROPERTY_TREE_GRAPH, 'to-header');
     }
 
+    // ── Wire each newly created node as an element of its firmware concept ──
+    const skeletonRoleToFirmwareSlug = {
+      'Superset': 'superset',
+      'JSON Schema': 'json-schema',
+      'Primary Property': 'primary-property',
+      'Properties': 'properties-set',
+      'Core Nodes Graph': 'core-nodes-graph',
+      'Concept Graph': 'concept-graph',
+      'Property Tree Graph': 'property-tree-graph',
+    };
+
+    for (const item of created) {
+      const fwSlug = skeletonRoleToFirmwareSlug[item.role];
+      if (!fwSlug) continue;
+
+      const fwConceptUuid = firmware.conceptUuid(fwSlug);
+      if (!fwConceptUuid) continue;
+
+      const fwRows = await runCypher(`
+        MATCH (h:NostrEvent {uuid: $fwConceptUuid})-[:${REL.CLASS_THREAD_INITIATION}]->(sup:Superset)
+        RETURN sup.uuid AS supersetUuid
+        LIMIT 1
+      `, { fwConceptUuid });
+
+      if (fwRows.length > 0 && fwRows[0].supersetUuid) {
+        await writeCypher(`
+          MATCH (sup:NostrEvent {uuid: $supersetUuid}), (node:NostrEvent {uuid: $nodeUuid})
+          MERGE (sup)-[:${REL.CLASS_THREAD_TERMINATION}]->(node)
+        `, { supersetUuid: fwRows[0].supersetUuid, nodeUuid: item.uuid });
+      }
+    }
+
     return res.json({
       success: true,
       message: `Created ${created.length} node(s) with wiring.`,
@@ -710,7 +742,7 @@ async function handleNormalizeJson(req, res) {
       OPTIONAL MATCH (h)-[:${REL.CLASS_THREAD_INITIATION}]->(sup:Superset)
       OPTIONAL MATCH (js:JSONSchema)-[:${REL.CORE_NODE_JSON_SCHEMA}]->(h)
       OPTIONAL MATCH (cg)-[:${REL.CORE_NODE_CORE_GRAPH}]->(h)
-      OPTIONAL MATCH (ctg)-[:IS_THE_CLASS_THREADS_GRAPH_FOR]->(h)
+      OPTIONAL MATCH (ctg)-[:${REL.CORE_NODE_CONCEPT_GRAPH}]->(h)
       OPTIONAL MATCH (ptg)-[:${REL.CORE_NODE_PROPERTY_TREE_GRAPH}]->(h)
       OPTIONAL MATCH (pp:Property)-[:${REL.CORE_NODE_PRIMARY_PROPERTY}]->(h)
       RETURN h.uuid AS headerUuid, h.name AS headerName, h.pubkey AS pubkey, h.kind AS kind,
@@ -749,7 +781,7 @@ async function handleNormalizeJson(req, res) {
               ...(h.schemaUuid && { jsonSchema: h.schemaUuid }),
               ...(h.primaryPropUuid && { primaryProperty: h.primaryPropUuid }),
               ...(h.coreGraphUuid && { coreNodesGraph: h.coreGraphUuid }),
-              ...(h.classGraphUuid && { classThreadsGraph: h.classGraphUuid }),
+              ...(h.classGraphUuid && { conceptGraph: h.classGraphUuid }),
               ...(h.propGraphUuid && { propertyTreeGraph: h.propGraphUuid }),
             },
           },
@@ -852,7 +884,7 @@ async function handleNormalizeJson(req, res) {
             ...(h.schemaUuid ? [{ slug: `${slug}_schema`, uuid: h.schemaUuid, name: h.schemaName }] : []),
             ...(h.primaryPropUuid ? [{ slug: `${slug}_primaryProperty`, uuid: h.primaryPropUuid, name: h.primaryPropName }] : []),
             { slug: `${slug}_coreNodesGraph`, uuid: h.coreGraphUuid, name: h.coreGraphName },
-            ...(h.classGraphUuid ? [{ slug: `${slug}_classThreadsGraph`, uuid: h.classGraphUuid, name: h.classGraphName }] : []),
+            ...(h.classGraphUuid ? [{ slug: `${slug}_conceptGraph`, uuid: h.classGraphUuid, name: h.classGraphName }] : []),
             ...(h.propGraphUuid ? [{ slug: `${slug}_propertyTreeGraph`, uuid: h.propGraphUuid, name: h.propGraphName }] : []),
           ],
           relationshipTypes: [
@@ -860,7 +892,7 @@ async function handleNormalizeJson(req, res) {
             { slug: REL.CORE_NODE_JSON_SCHEMA, name: 'is the JSON schema for' },
             { slug: REL.CORE_NODE_PRIMARY_PROPERTY, name: 'is the primary property for' },
             { slug: REL.CORE_NODE_CORE_GRAPH, name: REL.CORE_NODE_CORE_GRAPH },
-            { slug: 'IS_THE_CLASS_THREADS_GRAPH_FOR', name: 'IS_THE_CLASS_THREADS_GRAPH_FOR' },
+            { slug: REL.CORE_NODE_CONCEPT_GRAPH, name: REL.CORE_NODE_CONCEPT_GRAPH },
             { slug: REL.CORE_NODE_PROPERTY_TREE_GRAPH, name: REL.CORE_NODE_PROPERTY_TREE_GRAPH },
           ],
           relationships: [
@@ -868,7 +900,7 @@ async function handleNormalizeJson(req, res) {
             { nodeFrom: { slug: `${slug}_schema` }, relationshipType: { slug: REL.CORE_NODE_JSON_SCHEMA }, nodeTo: { slug: `${slug}_header` } },
             ...(h.primaryPropUuid ? [{ nodeFrom: { slug: `${slug}_primaryProperty` }, relationshipType: { slug: REL.CORE_NODE_PRIMARY_PROPERTY }, nodeTo: { slug: `${slug}_header` } }] : []),
             { nodeFrom: { slug: `${slug}_coreNodesGraph` }, relationshipType: { slug: REL.CORE_NODE_CORE_GRAPH }, nodeTo: { slug: `${slug}_header` } },
-            { nodeFrom: { slug: `${slug}_classThreadsGraph` }, relationshipType: { slug: 'IS_THE_CLASS_THREADS_GRAPH_FOR' }, nodeTo: { slug: `${slug}_header` } },
+            { nodeFrom: { slug: `${slug}_conceptGraph` }, relationshipType: { slug: REL.CORE_NODE_CONCEPT_GRAPH }, nodeTo: { slug: `${slug}_header` } },
             { nodeFrom: { slug: `${slug}_propertyTreeGraph` }, relationshipType: { slug: REL.CORE_NODE_PROPERTY_TREE_GRAPH }, nodeTo: { slug: `${slug}_header` } },
           ],
         },
@@ -1231,14 +1263,14 @@ async function handleCreateConcept(req, res) {
         slug: `the-set-of-properties-for-the-concept-of-${slugPlural}`,
         name: `the set of properties for the concept of ${names.oNames.plural}`,
         title: `The Set of Properties for the Concept of ${names.oTitles.plural}`,
-        wordTypes: ['word', 'set', 'properties'],
+        wordTypes: ['word', 'set', 'propertiesSet'],
         coreMemberOf: [{ slug: `concept-header-for-the-concept-of-${slugPlural}`, uuid: headerUuid }],
       },
       set: {
         slug: `properties-for-the-concept-of-${slugPlural}`,
         name: `properties for the concept of ${names.oNames.plural}`,
       },
-      properties: {
+      propertiesSet: {
         description: `the set of all properties for the concept of ${names.oNames.plural}`,
       },
     };
@@ -1247,7 +1279,7 @@ async function handleCreateConcept(req, res) {
       kind: 39999, content: '',
       tags: [
         ['d', propsDTag], ['name', propsWord.word.name],
-        ['z', firmware.conceptUuid('properties')],
+        ['z', firmware.conceptUuid('properties-set')],
         ['z', firmware.conceptUuid('set')],
         ['z', firmware.conceptUuid('word')],
         ['json', JSON.stringify(propsWord)],
@@ -1333,7 +1365,7 @@ async function handleCreateConcept(req, res) {
         ],
       },
       conceptGraph: {
-        description: `The collection of all nodes and edges traversed by the class threads of the concept of ${names.oNames.plural}`,
+        description: `The concept graph for the concept of ${names.oNames.plural}`,
         cypher: `MATCH classPath = (conceptHeader)-[:${REL.CLASS_THREAD_INITIATION}]->(superset:Superset)-[:${REL.CLASS_THREAD_PROPAGATION} *0..5]->()-[:${REL.CLASS_THREAD_TERMINATION}]->() WHERE conceptHeader.uuid = '${headerUuid}' RETURN classPath`,
       },
     };
@@ -1482,6 +1514,39 @@ async function handleCreateConcept(req, res) {
         MATCH (a:NostrEvent {uuid: $from}), (b:NostrEvent {uuid: $to})
         MERGE (a)-[:${rel.type}]->(b)
       `, { from: rel.from, to: rel.to });
+    }
+
+    // ── 11. Wire each core node as an element of its firmware concept ──
+    // Each core node's most-specific z-tag identifies which firmware concept
+    // it belongs to. Create CLASS_THREAD_TERMINATION from that concept's
+    // superset to the new node.
+    const coreNodeFirmwareMappings = [
+      { uuid: supersetUuid, slug: 'superset' },
+      { uuid: schemaUuid,   slug: 'json-schema' },
+      { uuid: ppUuid,       slug: 'primary-property' },
+      { uuid: propsUuid,    slug: 'properties-set' },
+      { uuid: ptUuid,       slug: 'property-tree-graph' },
+      { uuid: cgUuid,       slug: 'concept-graph' },
+      { uuid: coreUuid,     slug: 'core-nodes-graph' },
+    ];
+
+    for (const mapping of coreNodeFirmwareMappings) {
+      const fwConceptUuid = firmware.conceptUuid(mapping.slug);
+      if (!fwConceptUuid) continue;
+
+      // Find the firmware concept's superset
+      const fwRows = await runCypher(`
+        MATCH (h:NostrEvent {uuid: $fwConceptUuid})-[:${REL.CLASS_THREAD_INITIATION}]->(sup:Superset)
+        RETURN sup.uuid AS supersetUuid
+        LIMIT 1
+      `, { fwConceptUuid });
+
+      if (fwRows.length > 0 && fwRows[0].supersetUuid) {
+        await writeCypher(`
+          MATCH (sup:NostrEvent {uuid: $supersetUuid}), (node:NostrEvent {uuid: $nodeUuid})
+          MERGE (sup)-[:${REL.CLASS_THREAD_TERMINATION}]->(node)
+        `, { supersetUuid: fwRows[0].supersetUuid, nodeUuid: mapping.uuid });
+      }
     }
 
     return res.json({
@@ -2128,7 +2193,7 @@ async function handleGeneratePropertyTree(req, res) {
 //   Body: { conceptUuid: "<header uuid>", nodeUuid: "<node uuid>" }
 //   Actions:
 //     1. Create HAS_ELEMENT from concept's Superset → target node
-//     2. Update the class threads graph JSON to include the new node
+//     2. Update the concept graph JSON to include the new node
 // ══════════════════════════════════════════════════════════════
 async function handleAddNodeAsElement(req, res) {
   try {
@@ -2136,10 +2201,10 @@ async function handleAddNodeAsElement(req, res) {
     if (!conceptUuid) return res.status(400).json({ success: false, error: 'Missing conceptUuid' });
     if (!nodeUuid) return res.status(400).json({ success: false, error: 'Missing nodeUuid' });
 
-    // Look up concept header, superset, and class threads graph
+    // Look up concept header, superset, and concept graph
     const rows = await runCypher(`
       MATCH (h:NostrEvent {uuid: $conceptUuid})-[:${REL.CLASS_THREAD_INITIATION}]->(sup:Superset)
-      OPTIONAL MATCH (ctg)-[:IS_THE_CLASS_THREADS_GRAPH_FOR]->(h)
+      OPTIONAL MATCH (ctg)-[:${REL.CORE_NODE_CONCEPT_GRAPH}]->(h)
       RETURN h.name AS conceptName, h.uuid AS headerUuid,
              sup.uuid AS supersetUuid, sup.name AS supersetName,
              ctg.uuid AS classGraphUuid
@@ -2171,7 +2236,7 @@ async function handleAddNodeAsElement(req, res) {
       MERGE (sup)-[:${REL.CLASS_THREAD_TERMINATION}]->(node)
     `, { supersetUuid, nodeUuid });
 
-    // 2. Update class threads graph JSON
+    // 2. Update concept graph JSON
     if (classGraphUuid) {
       const slug = deriveSlug(conceptName);
 
@@ -2553,34 +2618,70 @@ async function handleSetSlug(req, res) {
 
 // ══════════════════════════════════════════════════════════════
 // POST /api/normalize/create-set
-//   Body: { name, parent: "<concept name>" }
-//   Creates a Set node + IS_A_SUPERSET_OF from parent's Superset.
+//   Body: { name, description?, parentUuid: "<uuid of parent Set or Superset>", parent?: "<concept name>" }
+//   Creates a Set node + IS_A_SUPERSET_OF from the chosen parent node.
+//   parentUuid takes precedence; falls back to parent (concept name) → its Superset.
 // ══════════════════════════════════════════════════════════════
 async function handleCreateSet(req, res) {
   try {
-    const { name, parent } = req.body || {};
+    const { name, description, parentUuid, parent, dTag: explicitDTag } = req.body || {};
     if (!name) return res.status(400).json({ success: false, error: 'Missing set name' });
-    if (!parent) return res.status(400).json({ success: false, error: 'Missing parent concept name' });
+    if (!parentUuid && !parent) return res.status(400).json({ success: false, error: 'Missing parentUuid or parent concept name' });
 
-    // Find parent superset
-    const parentRows = await runCypher(`
-      MATCH (h:ListHeader)-[:HAS_TAG]->(t:NostrEventTag {type: 'names'})
-      WHERE toLower(t.value) = toLower($name)
-      MATCH (h)-[:${REL.CLASS_THREAD_INITIATION}]->(s:Superset)
-      OPTIONAL MATCH (s)-[:HAS_TAG]->(n:NostrEventTag {type: 'name'})
-      RETURN s.uuid AS supersetUuid, n.value AS supersetName, t.value AS concept
-      LIMIT 1
-    `, { name: parent });
-    if (!parentRows.length) return res.json({ success: false, error: `Concept "${parent}" not found or has no Superset` });
-    const p = parentRows[0];
+    // Resolve parent node
+    let resolvedParentUuid, parentName;
 
-    // Create Set event
-    const dTag = randomDTag();
-    const setEvent = signAndFinalize({
-      kind: 39999, content: '',
-      tags: [['d', dTag], ['name', name], ['z', firmware.conceptUuid('set') || '']],
-    });
-    const setUuid = `39999:${setEvent.pubkey}:${dTag}`;
+    if (parentUuid) {
+      // Direct UUID — verify it exists
+      const rows = await runCypher(`
+        MATCH (n:NostrEvent {uuid: $uuid})
+        RETURN n.uuid AS uuid, n.name AS name
+        LIMIT 1
+      `, { uuid: parentUuid });
+      if (!rows.length) return res.json({ success: false, error: `Parent node "${parentUuid}" not found` });
+      resolvedParentUuid = rows[0].uuid;
+      parentName = rows[0].name;
+    } else {
+      // Legacy: find concept's Superset by name
+      const parentRows = await runCypher(`
+        MATCH (h:ListHeader)-[:HAS_TAG]->(t:NostrEventTag {type: 'names'})
+        WHERE toLower(t.value) = toLower($name)
+        MATCH (h)-[:${REL.CLASS_THREAD_INITIATION}]->(s:Superset)
+        OPTIONAL MATCH (s)-[:HAS_TAG]->(n:NostrEventTag {type: 'name'})
+        RETURN s.uuid AS supersetUuid, n.value AS supersetName, t.value AS concept
+        LIMIT 1
+      `, { name: parent });
+      if (!parentRows.length) return res.json({ success: false, error: `Concept "${parent}" not found or has no Superset` });
+      resolvedParentUuid = parentRows[0].supersetUuid;
+      parentName = parentRows[0].supersetName;
+    }
+
+    // Create Set event (deterministic d-tag if provided, e.g. for firmware installs)
+    const dTag = explicitDTag || randomDTag();
+    const setUuid = `39999:${firmware.getTAPubkey()}:${dTag}`;
+
+    // Check if this set already exists (idempotent for firmware reinstalls)
+    const existingRows = await runCypher(
+      `MATCH (n:NostrEvent {uuid: $uuid}) RETURN n.uuid AS uuid LIMIT 1`,
+      { uuid: setUuid }
+    );
+    if (existingRows.length > 0) {
+      return res.json({
+        success: true,
+        message: `Set "${name}" already exists`,
+        set: { name, uuid: setUuid, description, alreadyExisted: true },
+        parent: { uuid: resolvedParentUuid, name: parentName },
+      });
+    }
+
+    const tags = [
+      ['d', dTag],
+      ['name', name],
+      ['z', firmware.conceptUuid('set') || ''],
+    ];
+    if (description) tags.push(['description', description]);
+
+    const setEvent = signAndFinalize({ kind: 39999, content: '', tags });
     await publishToStrfry(setEvent);
     await importEventDirect(setEvent, setUuid);
     await writeCypher(`MATCH (n:NostrEvent {uuid: $uuid}) SET n:Set`, { uuid: setUuid });
@@ -2590,9 +2691,9 @@ async function handleCreateSet(req, res) {
       kind: 39999, content: '',
       tags: [
         ['d', randomDTag()],
-        ['name', `${p.supersetName} ${REL.CLASS_THREAD_PROPAGATION} ${name}`],
+        ['name', `${parentName} ${REL.CLASS_THREAD_PROPAGATION} ${name}`],
         ['z', firmware.conceptUuid('relationship')],
-        ['nodeFrom', p.supersetUuid],
+        ['nodeFrom', resolvedParentUuid],
         ['nodeTo', setUuid],
         ['relationshipType', REL.CLASS_THREAD_PROPAGATION],
       ],
@@ -2602,13 +2703,13 @@ async function handleCreateSet(req, res) {
     await writeCypher(`
       MATCH (a:NostrEvent {uuid: $from}), (b:NostrEvent {uuid: $to})
       MERGE (a)-[:${REL.CLASS_THREAD_PROPAGATION}]->(b)
-    `, { from: p.supersetUuid, to: setUuid });
+    `, { from: resolvedParentUuid, to: setUuid });
 
     return res.json({
       success: true,
-      message: `Set "${name}" created under "${p.concept}"`,
-      set: { name, uuid: setUuid },
-      parent: { concept: p.concept, supersetUuid: p.supersetUuid },
+      message: `Set "${name}" created under "${parentName}"`,
+      set: { name, uuid: setUuid, description },
+      parent: { uuid: resolvedParentUuid, name: parentName },
     });
   } catch (error) {
     console.error('normalize/create-set error:', error);
