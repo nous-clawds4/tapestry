@@ -3166,6 +3166,7 @@ async function registerNormalizeRoutes(app) {
   app.post('/api/normalize/add-to-set', handleAddToSet);
   app.post('/api/normalize/fork-node', handleForkNode);
   app.post('/api/normalize/set-json-tag', handleSetJsonTag);
+  app.post('/api/normalize/prune-superset-edges', handlePruneSupersetEdges);
 
   // Firmware install
   const { handleFirmwareInstall } = require('../../firmware/install');
@@ -3173,3 +3174,107 @@ async function registerNormalizeRoutes(app) {
 }
 
 module.exports = { registerNormalizeRoutes };
+
+
+// POST /api/normalize/prune-superset-edges
+//   Body: { concept: "<name>", relType: "HAS_ELEMENT" | "IS_A_SUPERSET_OF" }
+//   Prunes redundant direct edges from the concept's Superset.
+//   Returns detailed log of checks and actions.
+// ══════════════════════════════════════════════════════════════
+
+async function handlePruneSupersetEdges(req, res) {
+  try {
+    const { concept, relType } = req.body;
+    if (!concept) return res.status(400).json({ success: false, error: 'Missing concept name' });
+    if (!['HAS_ELEMENT', 'IS_A_SUPERSET_OF'].includes(relType)) {
+      return res.status(400).json({ success: false, error: 'relType must be HAS_ELEMENT or IS_A_SUPERSET_OF' });
+    }
+
+    const log = [];
+    const neoRel = relType === 'HAS_ELEMENT' ? REL.CLASS_THREAD_TERMINATION : REL.CLASS_THREAD_PROPAGATION;
+
+    log.push(`Pruning ${relType} for concept "${concept}"`);
+    log.push(`Neo4j relationship type: ${neoRel}`);
+
+    // Find concept header + superset
+    const rows = await runCypher(`
+      MATCH (h:NostrEvent)
+      WHERE (h:ListHeader OR h:ClassThreadHeader) AND h.kind IN [9998, 39998]
+        AND h.name = $concept
+      OPTIONAL MATCH (h)-[:${REL.CLASS_THREAD_INITIATION}]->(sup:Superset)
+      RETURN h.uuid AS headerUuid, sup.uuid AS supersetUuid
+      LIMIT 1
+    `, { concept });
+
+    if (rows.length === 0) {
+      log.push(`ERROR: Concept "${concept}" not found`);
+      return res.json({ success: false, error: `Concept "${concept}" not found`, log });
+    }
+
+    const { headerUuid, supersetUuid } = rows[0];
+    if (!supersetUuid) {
+      log.push(`ERROR: No Superset node found for "${concept}"`);
+      return res.json({ success: false, error: 'No Superset node', log });
+    }
+
+    log.push(`Header UUID: ${headerUuid}`);
+    log.push(`Superset UUID: ${supersetUuid}`);
+
+    // Find all direct connections from Superset
+    const directRows = await runCypher(`
+      MATCH (sup:NostrEvent {uuid: $supersetUuid})-[:${neoRel}]->(target)
+      RETURN target.uuid AS uuid, target.name AS name
+    `, { supersetUuid });
+
+    log.push(`Direct ${relType} edges from Superset: ${directRows.length}`);
+
+    const pruned = [];
+    const kept = [];
+
+    for (const target of directRows) {
+      // Check for alternate path (length ≥ 2)
+      let checkCypher;
+      if (relType === 'HAS_ELEMENT') {
+        checkCypher = `
+          MATCH p = (sup:NostrEvent {uuid: $supersetUuid})
+                -[:${REL.CLASS_THREAD_PROPAGATION}|${REL.CLASS_THREAD_TERMINATION}*2..12]->
+                (target:NostrEvent {uuid: $targetUuid})
+          RETURN count(p) AS cnt`;
+      } else {
+        checkCypher = `
+          MATCH (sup:NostrEvent {uuid: $supersetUuid})-[:${REL.CLASS_THREAD_PROPAGATION}]->(mid)
+                -[:${REL.CLASS_THREAD_PROPAGATION}*1..10]->(target:NostrEvent {uuid: $targetUuid})
+          WHERE mid.uuid <> $targetUuid
+          RETURN count(*) AS cnt`;
+      }
+
+      log.push(`  Checking "${target.name}" (${target.uuid}):`);
+      log.push(`    Query: ${checkCypher.replace(/\n\s*/g, ' ').trim()}`);
+
+      const altRows = await runCypher(checkCypher, { supersetUuid, targetUuid: target.uuid });
+      const cnt = altRows[0]?.cnt || 0;
+
+      log.push(`    Alternate paths found: ${cnt}`);
+
+      if (cnt > 0) {
+        // Prune
+        await writeCypher(`
+          MATCH (sup:NostrEvent {uuid: $supersetUuid})-[r:${neoRel}]->(target:NostrEvent {uuid: $targetUuid})
+          DELETE r
+        `, { supersetUuid, targetUuid: target.uuid });
+        log.push(`    ✅ PRUNED`);
+        pruned.push({ name: target.name, uuid: target.uuid });
+      } else {
+        log.push(`    ⏭️  KEPT (no alternate path)`);
+        kept.push({ name: target.name, uuid: target.uuid });
+      }
+    }
+
+    log.push(`\nSummary: pruned ${pruned.length}, kept ${kept.length}`);
+
+    return res.json({ success: true, pruned, kept, log });
+  } catch (error) {
+    console.error('normalize/prune-superset-edges error:', error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+}

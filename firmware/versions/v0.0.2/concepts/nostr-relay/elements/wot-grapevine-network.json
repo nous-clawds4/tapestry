@@ -1,0 +1,16 @@
+{
+  "word": {
+    "slug": "nostr-relay--wot-grapevine-network",
+    "name": "nostr relay: wot.grapevine.network",
+    "title": "Nostr Relay: wot.grapevine.network",
+    "wordTypes": [
+      "word",
+      "nostrRelay"
+    ]
+  },
+  "nostrRelay": {
+    "slug": "wot-grapevine-network",
+    "websocketUrl": "wss://wot.grapevine.network",
+    "httpUrl": "https://wot.grapevine.network"
+  }
+}

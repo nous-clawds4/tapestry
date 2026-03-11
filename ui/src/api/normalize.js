@@ -93,3 +93,12 @@ export async function normalizeJson({ concept, node } = {}) {
   if (!data.success) throw new Error(data.error || 'Normalize request failed');
   return data;
 }
+
+export async function pruneSupersetEdges({ concept, relType }) {
+  const res = await fetch('/api/normalize/prune-superset-edges', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ concept, relType }),
+  });
+  return res.json();
+}

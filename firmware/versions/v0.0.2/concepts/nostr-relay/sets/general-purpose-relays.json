@@ -1,0 +1,17 @@
+{
+  "word": {
+    "slug": "the-set-of-general-purpose-relays",
+    "name": "The set of general purpose relays",
+    "title": "The Set of General Purpose Relays",
+    "wordTypes": [
+      "word",
+      "set"
+    ]
+  },
+  "set": {
+    "slug": "general-purpose-relays",
+    "name": "general purpose relays",
+    "title": "General Purpose Relays",
+    "description": "Popular relays for broad reach and general nostr usage."
+  }
+}

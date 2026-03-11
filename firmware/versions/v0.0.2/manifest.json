@@ -2,52 +2,6 @@
   "version": "0.0.2",
   "date": "2026-03-10",
   "description": "Initial tapestry firmware — foundational meta-concepts for the tapestry protocol.",
-  "relationshipTypes": [
-    {
-      "slug": "CLASS_THREAD_INITIATION",
-      "file": "./relationship-types/class-thread-initiation.json"
-    },
-    {
-      "slug": "CLASS_THREAD_PROPAGATION",
-      "file": "./relationship-types/class-thread-propagation.json"
-    },
-    {
-      "slug": "CLASS_THREAD_TERMINATION",
-      "file": "./relationship-types/class-thread-termination.json"
-    },
-    {
-      "slug": "CORE_NODE_JSON_SCHEMA",
-      "file": "./relationship-types/core-node-json-schema.json"
-    },
-    {
-      "slug": "CORE_NODE_PRIMARY_PROPERTY",
-      "file": "./relationship-types/core-node-primary-property.json"
-    },
-    {
-      "slug": "CORE_NODE_PROPERTIES",
-      "file": "./relationship-types/core-node-properties.json"
-    },
-    {
-      "slug": "CORE_NODE_PROPERTY_TREE_GRAPH",
-      "file": "./relationship-types/core-node-property-tree-graph.json"
-    },
-    {
-      "slug": "CORE_NODE_CORE_GRAPH",
-      "file": "./relationship-types/core-node-core-graph.json"
-    },
-    {
-      "slug": "CORE_NODE_CONCEPT_GRAPH",
-      "file": "./relationship-types/core-node-concept-graph.json"
-    },
-    {
-      "slug": "PROPERTY_MEMBERSHIP",
-      "file": "./relationship-types/property-membership.json"
-    },
-    {
-      "slug": "PROPERTY_ENUMERATION",
-      "file": "./relationship-types/property-enumeration.json"
-    }
-  ],
   "concepts": [
     {
       "slug": "node-type",
@@ -272,37 +226,7 @@
   ],
   "elements": {
     "json-data-types": {
-      "existing-nodes": [],
-      "new-nodes": [
-        {
-          "slug": "string",
-          "file": "./elements/json-data-types/string.json"
-        },
-        {
-          "slug": "number",
-          "file": "./elements/json-data-types/number.json"
-        },
-        {
-          "slug": "integer",
-          "file": "./elements/json-data-types/integer.json"
-        },
-        {
-          "slug": "boolean",
-          "file": "./elements/json-data-types/boolean.json"
-        },
-        {
-          "slug": "object",
-          "file": "./elements/json-data-types/object.json"
-        },
-        {
-          "slug": "array",
-          "file": "./elements/json-data-types/array.json"
-        },
-        {
-          "slug": "null",
-          "file": "./elements/json-data-types/null.json"
-        }
-      ]
+      "existing-nodes": []
     },
     "node-types": {
       "existing-nodes": [
@@ -314,8 +238,7 @@
           "concept": "image",
           "core-node-type": "concept-header"
         }
-      ],
-      "new-nodes": []
+      ]
     },
     "graph-types": {
       "existing-nodes": [
@@ -331,8 +254,7 @@
           "concept": "property-tree-graph",
           "core-node-type": "concept-header"
         }
-      ],
-      "new-nodes": []
+      ]
     },
     "validation-tool-types": {
       "existing-nodes": [
@@ -344,8 +266,7 @@
           "concept": "image-validation-script",
           "core-node-type": "concept-header"
         }
-      ],
-      "new-nodes": []
+      ]
     }
   },
   "sets": {
@@ -363,21 +284,10 @@
         {
           "concept": "tapestry"
         }
-      ],
-      "new-sets": []
+      ]
     },
     "relationship-types": {
-      "existing-sets": [],
-      "new-sets": [
-        {
-          "slug": "relationship-types-for-class-threads",
-          "file": "./sets/relationship-types/class-threads.json"
-        },
-        {
-          "slug": "relationship-types-for-core-nodes",
-          "file": "./sets/relationship-types/core-nodes.json"
-        }
-      ]
+      "existing-sets": []
     },
     "validation-tools": {
       "existing-sets": [
@@ -387,16 +297,14 @@
         {
           "concept": "image-validation-script"
         }
-      ],
-      "new-sets": []
+      ]
     },
     "properties": {
       "existing-sets": [
         {
           "concept": "primary-property"
         }
-      ],
-      "new-sets": []
+      ]
     },
     "sets": {
       "existing-sets": [
@@ -406,8 +314,7 @@
         {
           "concept": "properties-set"
         }
-      ],
-      "new-sets": []
+      ]
     }
   },
   "changelog": [
@@ -417,8 +324,55 @@
       "changes": [
         "Migrate unique constraint from bare property to x-tapestry.unique on all concept JSON Schemas",
         "Add nostr-user concept (pubkey, npub, nprofile)",
-        "Add nostr-relay concept (slug, websocketUrl, httpUrl)"
+        "Add nostr-relay concept (slug, websocketUrl, httpUrl)",
+        "Restructure firmware: move elements and sets under their concept directories"
       ]
+    }
+  ],
+  "relationshipTypes": [
+    {
+      "slug": "CLASS_THREAD_INITIATION",
+      "file": "./concepts/relationship-type/elements/class-thread-initiation.json"
+    },
+    {
+      "slug": "CLASS_THREAD_PROPAGATION",
+      "file": "./concepts/relationship-type/elements/class-thread-propagation.json"
+    },
+    {
+      "slug": "CLASS_THREAD_TERMINATION",
+      "file": "./concepts/relationship-type/elements/class-thread-termination.json"
+    },
+    {
+      "slug": "CORE_NODE_JSON_SCHEMA",
+      "file": "./concepts/relationship-type/elements/core-node-json-schema.json"
+    },
+    {
+      "slug": "CORE_NODE_PRIMARY_PROPERTY",
+      "file": "./concepts/relationship-type/elements/core-node-primary-property.json"
+    },
+    {
+      "slug": "CORE_NODE_PROPERTIES",
+      "file": "./concepts/relationship-type/elements/core-node-properties.json"
+    },
+    {
+      "slug": "CORE_NODE_PROPERTY_TREE_GRAPH",
+      "file": "./concepts/relationship-type/elements/core-node-property-tree-graph.json"
+    },
+    {
+      "slug": "CORE_NODE_CORE_GRAPH",
+      "file": "./concepts/relationship-type/elements/core-node-core-graph.json"
+    },
+    {
+      "slug": "CORE_NODE_CONCEPT_GRAPH",
+      "file": "./concepts/relationship-type/elements/core-node-concept-graph.json"
+    },
+    {
+      "slug": "PROPERTY_MEMBERSHIP",
+      "file": "./concepts/relationship-type/elements/property-membership.json"
+    },
+    {
+      "slug": "PROPERTY_ENUMERATION",
+      "file": "./concepts/relationship-type/elements/property-enumeration.json"
     }
   ]
 }

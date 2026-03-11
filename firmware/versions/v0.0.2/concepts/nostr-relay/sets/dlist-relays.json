@@ -1,0 +1,17 @@
+{
+  "word": {
+    "slug": "the-set-of-dlist-relays",
+    "name": "The set of DList relays",
+    "title": "The Set of DList Relays",
+    "wordTypes": [
+      "word",
+      "set"
+    ]
+  },
+  "set": {
+    "slug": "dlist-relays",
+    "name": "DList relays",
+    "title": "DList Relays",
+    "description": "Relays that store DList events (kinds 9998, 9999, 39998, 39999)."
+  }
+}

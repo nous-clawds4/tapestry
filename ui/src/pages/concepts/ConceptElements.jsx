@@ -102,7 +102,9 @@ export default function ConceptElements() {
 
         let schema;
         try {
-          schema = typeof schemaRaw === 'string' ? JSON.parse(schemaRaw) : schemaRaw;
+          const parsed = typeof schemaRaw === 'string' ? JSON.parse(schemaRaw) : schemaRaw;
+          // Extract actual JSON Schema from word-wrapper format if present
+          schema = (parsed.jsonSchema && typeof parsed.jsonSchema === 'object') ? parsed.jsonSchema : parsed;
         } catch {
           // Schema itself is unparseable
           const results = {};

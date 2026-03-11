@@ -30,7 +30,14 @@ export default function NewElement() {
   const schema = useMemo(() => {
     const raw = schemaData?.[0]?.schemaJson;
     if (!raw) return null;
-    try { return typeof raw === 'string' ? JSON.parse(raw) : raw; }
+    try {
+      const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+      // Extract actual JSON Schema from word-wrapper format if present
+      if (parsed.jsonSchema && typeof parsed.jsonSchema === 'object') {
+        return parsed.jsonSchema;
+      }
+      return parsed;
+    }
     catch { return null; }
   }, [schemaData]);
 
@@ -45,7 +52,21 @@ export default function NewElement() {
   }, [schema, schemaInitialized]);
 
   // Derive element name from form values
-  const elementName = formValues.name || formValues.title || formValues.names || '';
+  // Derive element name: check top-level fields first, then dig into the
+  // primary property wrapper (e.g., formValues.tapestry.name)
+  const elementName = useMemo(() => {
+    // Top-level (no-schema fallback)
+    if (formValues.name || formValues.title) return formValues.name || formValues.title;
+    // Schema-driven: find the primary property key and look inside it
+    if (schema?.properties) {
+      const ppKey = Object.keys(schema.properties)[0];
+      const pp = ppKey && formValues[ppKey];
+      if (pp && typeof pp === 'object') {
+        return pp.name || pp.slug || pp.title || '';
+      }
+    }
+    return '';
+  }, [formValues, schema]);
 
   // Build JSON from form values
   const jsonData = useMemo(() => {

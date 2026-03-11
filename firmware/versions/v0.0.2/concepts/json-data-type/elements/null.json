@@ -1,0 +1,16 @@
+{
+  "word": {
+    "slug": "json-data-type--null",
+    "name": "JSON data type: null",
+    "title": "JSON Data Type: Null",
+    "description": "An explicitly empty value",
+    "wordTypes": ["word", "jsonDataType"]
+  },
+  "jsonDataType": {
+    "slug": "null",
+    "name": "null",
+    "title": "Null",
+    "url": "https://json-schema.org/understanding-json-schema/reference/null",
+    "description": "An explicitly empty value"
+  }
+}

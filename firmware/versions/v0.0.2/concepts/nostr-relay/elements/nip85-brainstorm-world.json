@@ -1,0 +1,16 @@
+{
+  "word": {
+    "slug": "nostr-relay--nip85-brainstorm-world",
+    "name": "nostr relay: nip85.brainstorm.world",
+    "title": "Nostr Relay: nip85.brainstorm.world",
+    "wordTypes": [
+      "word",
+      "nostrRelay"
+    ]
+  },
+  "nostrRelay": {
+    "slug": "nip85-brainstorm-world",
+    "websocketUrl": "wss://nip85.brainstorm.world",
+    "httpUrl": "https://nip85.brainstorm.world"
+  }
+}

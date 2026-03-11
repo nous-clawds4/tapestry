@@ -24,6 +24,12 @@
 const fs = require('fs');
 const path = require('path');
 const firmware = require('../api/normalize/firmware');
+// Relationship type aliases used by concept manifests
+const REL = {
+  CLASS_THREAD_INITIATION: firmware.relAlias('CLASS_THREAD_INITIATION') || 'IS_THE_CONCEPT_FOR',
+  CLASS_THREAD_TERMINATION: firmware.relAlias('CLASS_THREAD_TERMINATION') || 'HAS_ELEMENT',
+  CLASS_THREAD_PROPAGATION: firmware.relAlias('CLASS_THREAD_PROPAGATION') || 'IS_A_SUPERSET_OF',
+};
 
 // ── Config ───────────────────────────────────────────────────
 
@@ -176,71 +182,54 @@ async function pass1_bootstrap(opts = {}) {
     }
   }
 
-  // ── 1b. Create elements ──────────────────────────────────
+  // ── 1b. Auto-discover and create elements ─────────────────
   //
-  // Each category in manifest.elements has two arrays:
-  //   new-nodes:      Create a new element node from a JSON file
-  //   existing-nodes: Wire an existing core node as an element (by concept + core-node-type)
+  // Scans concepts/<slug>/elements/*.json for each concept in the manifest.
+  // Each JSON file is a full word-wrapper element passed to create-element.
+  // This replaces both the old manifest.elements new-nodes and the
+  // separate relationshipTypes element creation.
   //
-  // Legacy format (flat array) is also supported for backward compat.
+  // Collects filename → uuid mapping per concept for manifest wiring later.
 
-  if (manifest.elements) {
-    console.log('\n── Creating elements ──\n');
+  // nodeMap[conceptSlug][filename] = uuid  (for elements and sets)
+  const nodeMap = {};
 
-    // Map category to concept name for the create-element API
-    const categoryToConceptName = {
-      'json-data-types': 'json data type',
-      'node-types': 'node type',
-      'graph-types': 'graph type',
-      'validation-tool-types': 'validation tool type',
-    };
+  {
+    console.log('\n── Creating elements (auto-discovered) ──\n');
 
-    // Map core-node-type to the Neo4j relationship used to find it from the ConceptHeader
-    const coreNodeTypeToRel = {
-      'concept-header': null,  // the header itself — no relationship needed
-      'superset': 'IS_THE_CONCEPT_FOR',
-      'json-schema': 'IS_THE_JSON_SCHEMA_FOR',
-      'primary-property': 'IS_THE_PRIMARY_PROPERTY_FOR',
-      'properties-set': 'IS_THE_PROPERTIES_SET_FOR',
-      'property-tree-graph': 'IS_THE_PROPERTY_TREE_GRAPH_FOR',
-      'core-nodes-graph': 'IS_THE_CORE_GRAPH_FOR',
-      'concept-graph': 'IS_THE_CONCEPT_GRAPH_FOR',
-    };
+    for (const entry of manifest.concepts) {
+      const slug = entry.slug;
+      const conceptDir = path.join(firmware.firmwareDir(), entry.dir);
+      const elemDir = path.join(conceptDir, 'elements');
 
-    for (const [category, categoryData] of Object.entries(manifest.elements)) {
-      const conceptName = categoryToConceptName[category];
-      if (!conceptName) {
-        console.log(`  ⚠️  Unknown category "${category}", skipping`);
-        continue;
-      }
+      if (!fs.existsSync(elemDir)) continue;
 
-      console.log(`  Category: ${category} → concept "${conceptName}"`);
+      const files = fs.readdirSync(elemDir).filter(f => f.endsWith('.json')).sort();
+      if (files.length === 0) continue;
 
-      // Determine structure: new format (object with existing-nodes/new-nodes) or legacy (flat array)
-      const newNodes = Array.isArray(categoryData)
-        ? categoryData                       // legacy: flat array = all new-nodes
-        : (categoryData['new-nodes'] || []);
-      const existingNodes = Array.isArray(categoryData)
-        ? []
-        : (categoryData['existing-nodes'] || []);
+      if (!nodeMap[slug]) nodeMap[slug] = {};
 
-      // ── new-nodes: create new element nodes ──
-      for (const entry of newNodes) {
-        const filePath = path.join(firmware.firmwareDir(), entry.file);
-        if (!fs.existsSync(filePath)) {
-          console.log(`    ❌ ${entry.slug}: file not found`);
-          errors.push({ slug: entry.slug, error: 'element file not found' });
-          continue;
-        }
+      // Derive the concept's human name from its concept-header
+      // Neo4j stores names lowercase, so we must match that
+      const headerPath = path.join(conceptDir, entry.conceptHeader);
+      const header = JSON.parse(fs.readFileSync(headerPath, 'utf8'));
+      const conceptName = header.conceptHeader.oNames.singular.toLowerCase();
 
+      console.log(`  ${slug}/ (${files.length} elements) → "${conceptName}"`);
+
+      for (const file of files) {
+        const filePath = path.join(elemDir, file);
         const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+
+        // Derive element name from word-wrapper JSON
         const sectionKeys = Object.keys(data).filter(k => k !== 'word');
         const conceptKey = sectionKeys[0];
         const elementName = data.word.name.includes(':')
           ? data.word.name.split(':').pop().trim()
           : data[conceptKey]?.name || data.word.slug;
 
-        console.log(`    📝 new-node: ${entry.slug} → "${conceptName}"`);
+        const elemSlug = file.replace(/\.json$/, '');
+        console.log(`    📝 ${elemSlug} → "${conceptName}"`);
 
         if (dryRun) continue;
 
@@ -248,42 +237,70 @@ async function pass1_bootstrap(opts = {}) {
           const result = await apiPost('/api/normalize/create-element', {
             concept: conceptName,
             name: elementName,
+            json: data,
           });
           if (result.success) {
             console.log(`       ✅ Created`);
+            if (result.element?.uuid) {
+              nodeMap[slug][elemSlug] = result.element.uuid;
+            }
           } else {
             console.log(`       ⚠️  ${result.error}`);
           }
         } catch (err) {
           console.log(`       ❌ ${err.message}`);
-          errors.push({ slug: entry.slug, error: err.message });
+          errors.push({ slug: elemSlug, error: err.message });
         }
       }
+    }
+  }
 
-      // ── existing-nodes: wire existing core nodes as elements ──
+  // ── 1c. Wire existing nodes as elements ───────────────────
+  //
+  // manifest.elements existing-nodes: wire a concept's core node as an
+  // element of another concept (e.g., word's concept-header as a node-type).
+
+  // Map core-node-type to the Neo4j relationship used to find it from the ConceptHeader
+  const coreNodeTypeToRel = {
+    'concept-header': null,  // the header itself — no relationship needed
+    'superset': 'IS_THE_CONCEPT_FOR',
+    'json-schema': 'IS_THE_JSON_SCHEMA_FOR',
+    'primary-property': 'IS_THE_PRIMARY_PROPERTY_FOR',
+    'properties-set': 'IS_THE_PROPERTIES_SET_FOR',
+    'property-tree-graph': 'IS_THE_PROPERTY_TREE_GRAPH_FOR',
+    'core-nodes-graph': 'IS_THE_CORE_GRAPH_FOR',
+    'concept-graph': 'IS_THE_CONCEPT_GRAPH_FOR',
+  };
+
+  if (manifest.elements) {
+    console.log('\n── Wiring existing nodes as elements ──\n');
+
+    for (const [category, categoryData] of Object.entries(manifest.elements)) {
+      if (Array.isArray(categoryData)) continue; // legacy flat array — skip
+      const existingNodes = categoryData['existing-nodes'] || [];
+      if (existingNodes.length === 0) continue;
+
+      const parentConceptSlug = categoryToSlug(category);
+      console.log(`  Category: ${category} → concept "${parentConceptSlug}"`);
+
       for (const entry of existingNodes) {
-        const targetConcept = entry.concept;         // firmware concept slug
-        const coreNodeType = entry['core-node-type']; // e.g., "concept-header", "superset"
+        const targetConcept = entry.concept;
+        const coreNodeType = entry['core-node-type'];
 
-        console.log(`    🔗 existing-node: ${targetConcept} (${coreNodeType}) → "${conceptName}"`);
+        console.log(`    🔗 existing-node: ${targetConcept} (${coreNodeType})`);
 
         if (dryRun) continue;
 
         try {
-          // Find the target concept's header UUID
           const taPubkey = firmware.getTAPubkey();
           const targetHeaderUuid = `39998:${taPubkey}:${targetConcept}`;
 
-          // Find the target node UUID based on core-node-type
           let targetNodeUuid;
           const rel = coreNodeTypeToRel[coreNodeType];
 
           if (rel === null) {
-            // concept-header: the header IS the target node
             targetNodeUuid = targetHeaderUuid;
           } else if (rel) {
-            // Find core node via relationship
-            // Direction: most core nodes point TO the header (in), superset is OUT from header
             let cypher;
             if (coreNodeType === 'superset') {
               cypher = `MATCH (h:NostrEvent {uuid: $headerUuid})-[:${rel}]->(n) RETURN n.uuid AS uuid LIMIT 1`;
@@ -293,7 +310,7 @@ async function pass1_bootstrap(opts = {}) {
             const rows = await runCypherApi(cypher, { headerUuid: targetHeaderUuid });
             const dataRows = rows.data || [];
             if (dataRows.length === 0) {
-              console.log(`       ⚠️  Core node "${coreNodeType}" not found for concept "${targetConcept}"`);
+              console.log(`       ⚠️  Core node "${coreNodeType}" not found for "${targetConcept}"`);
               continue;
             }
             targetNodeUuid = dataRows[0].uuid;
@@ -302,12 +319,7 @@ async function pass1_bootstrap(opts = {}) {
             continue;
           }
 
-          // Find the parent concept's header UUID (the concept that gains the element)
-          // Category "json-data-types" → concept slug "json-data-type", etc.
-          const parentConceptSlug = categoryToSlug(category);
           const parentHeaderUuid = `39998:${taPubkey}:${parentConceptSlug}`;
-
-          // Use the add-node-as-element API
           const result = await apiPost('/api/normalize/add-node-as-element', {
             conceptUuid: parentHeaderUuid,
             nodeUuid: targetNodeUuid,
@@ -326,83 +338,44 @@ async function pass1_bootstrap(opts = {}) {
     }
   }
 
-  // ── 1c. Create relationship types as elements ─────────
-
-  if (manifest.relationshipTypes && manifest.relationshipTypes.length > 0) {
-    console.log('\n── Creating relationship type elements ──\n');
-
-    for (const entry of manifest.relationshipTypes) {
-      const filePath = path.join(firmware.firmwareDir(), entry.file);
-      if (!fs.existsSync(filePath)) {
-        console.log(`    ❌ ${entry.slug}: file not found`);
-        errors.push({ slug: entry.slug, error: 'relationship type file not found' });
-        continue;
-      }
-
-      const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-      const elementName = data.relationshipType?.name || data.word?.name || entry.slug;
-
-      console.log(`    📝 ${entry.slug} → "relationship type"`);
-
-      if (dryRun) continue;
-
-      try {
-        const result = await apiPost('/api/normalize/create-element', {
-          concept: 'relationship type',
-          name: elementName,
-        });
-        if (result.success) {
-          console.log(`       ✅ Created`);
-        } else {
-          console.log(`       ⚠️  ${result.error}`);
-        }
-      } catch (err) {
-        console.log(`       ❌ ${err.message}`);
-        errors.push({ slug: entry.slug, error: err.message });
-      }
-    }
-  }
-
   // ── 1c½. Create sets ──────────────────────────────────────
   //
-  // Each category in manifest.sets has:
-  //   new-sets:      Create a new Set from a JSON file, attach to parent concept's Superset
-  //   existing-sets: Wire an existing node as a Set (not yet implemented)
+  // Auto-discovers concepts/<slug>/sets/*.json for new sets.
+  // manifest.sets existing-sets still wire existing Supersets as subsets.
 
-  if (manifest.sets) {
-    console.log('\n── Creating sets ──\n');
+  {
+    console.log('\n── Creating sets (auto-discovered) ──\n');
 
-    for (const [category, categoryData] of Object.entries(manifest.sets)) {
-      // Category "relationship-types" → concept slug "relationship-type"
-      const conceptSlug = categoryToSlug(category);
+    for (const conceptEntry of manifest.concepts) {
+      const slug = conceptEntry.slug;
+      const conceptDir = path.join(firmware.firmwareDir(), conceptEntry.dir);
+      const setsDir = path.join(conceptDir, 'sets');
+
+      if (!fs.existsSync(setsDir)) continue;
+
+      const files = fs.readdirSync(setsDir).filter(f => f.endsWith('.json')).sort();
+      if (files.length === 0) continue;
+
       const taPubkey = firmware.getTAPubkey();
-      const conceptHeaderUuid = `39998:${taPubkey}:${conceptSlug}`;
+      const conceptHeaderUuid = `39998:${taPubkey}:${slug}`;
 
-      console.log(`  Category: ${category} → concept "${conceptSlug}"`);
+      if (!nodeMap[slug]) nodeMap[slug] = {};
 
-      const newSets = categoryData['new-sets'] || [];
-      const existingSets = categoryData['existing-sets'] || [];
+      console.log(`  ${slug}/ (${files.length} sets)`);
 
-      // ── new-sets: create new Set nodes ──
-      for (const entry of newSets) {
-        const filePath = path.join(firmware.firmwareDir(), entry.file);
-        if (!fs.existsSync(filePath)) {
-          console.log(`    ❌ ${entry.slug}: file not found`);
-          errors.push({ slug: entry.slug, error: 'set file not found' });
-          continue;
-        }
-
+      for (const file of files) {
+        const filePath = path.join(setsDir, file);
         const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-        const setName = data.set?.name || data.word?.name || entry.slug;
+        const setName = data.set?.name || data.word?.name || file.replace(/\.json$/, '');
         const setDescription = data.set?.description || '';
-        const dTag = data.word?.slug || entry.slug;
+        const dTag = data.word?.slug || file.replace(/\.json$/, '');
+        const fileSlug = file.replace(/\.json$/, '');
 
-        console.log(`    📝 new-set: ${entry.slug} (d-tag: ${dTag}) → "${conceptSlug}"`);
+        console.log(`    📝 ${fileSlug} (d-tag: ${dTag}) → "${slug}"`);
 
         if (dryRun) continue;
 
         try {
-          // Find the concept's Superset UUID to use as parent
           const supersetRows = await runCypherApi(
             `MATCH (h:NostrEvent {uuid: $headerUuid})-[:IS_THE_CONCEPT_FOR]->(sup:Superset)
              RETURN sup.uuid AS uuid LIMIT 1`,
@@ -410,7 +383,7 @@ async function pass1_bootstrap(opts = {}) {
           );
           const supersetData = supersetRows.data || [];
           if (supersetData.length === 0) {
-            console.log(`       ⚠️  Superset not found for concept "${conceptSlug}"`);
+            console.log(`       ⚠️  Superset not found for concept "${slug}"`);
             continue;
           }
           const parentSupersetUuid = supersetData[0].uuid;
@@ -423,6 +396,9 @@ async function pass1_bootstrap(opts = {}) {
           });
 
           if (result.success) {
+            if (result.set?.uuid) {
+              nodeMap[slug][fileSlug] = result.set.uuid;
+            }
             if (result.set?.alreadyExisted) {
               console.log(`       ✅ Already exists`);
             } else {
@@ -433,11 +409,24 @@ async function pass1_bootstrap(opts = {}) {
           }
         } catch (err) {
           console.log(`       ❌ ${err.message}`);
-          errors.push({ slug: entry.slug, error: err.message });
+          errors.push({ slug: dTag, error: err.message });
         }
       }
+    }
+  }
 
-      // ── existing-sets: wire existing concept Supersets as subsets ──
+  // ── Wire existing-sets from manifest ──────────────────────
+
+  if (manifest.sets) {
+    console.log('\n── Wiring existing sets ──\n');
+
+    for (const [category, categoryData] of Object.entries(manifest.sets)) {
+      const conceptSlug = categoryToSlug(category);
+      const existingSets = categoryData['existing-sets'] || [];
+      if (existingSets.length === 0) continue;
+
+      console.log(`  Category: ${category} → concept "${conceptSlug}"`);
+
       for (const entry of existingSets) {
         const childConceptSlug = entry.concept;
 
@@ -487,6 +476,80 @@ async function pass1_bootstrap(opts = {}) {
         } catch (err) {
           console.log(`       ❌ ${err.message}`);
           errors.push({ slug: `existing-set:${childConceptSlug}`, error: err.message });
+        }
+      }
+    }
+  }
+
+  // ── 1c¾. Wire relationships from concept manifests ─────────────
+  //
+  // Each concept dir may have a manifest.json defining internal graph structure:
+  //   HAS_ELEMENT:       [ { nodeFrom: "<filename>", nodeTo: "<filename>" }, ... ]
+  //   IS_A_SUPERSET_OF:  [ { nodeFrom: "<filename>", nodeTo: "<filename>" }, ... ]
+  //
+  // Filenames reference elements/ or sets/ files (without .json).
+  // Resolution: filename → word.slug from the file → uuid from nodeMap.
+
+  {
+    console.log('\n── Wiring concept manifest relationships ──\n');
+
+    for (const entry of manifest.concepts) {
+      const slug = entry.slug;
+      const conceptDir = path.join(firmware.firmwareDir(), entry.dir);
+      const manifestPath = path.join(conceptDir, 'manifest.json');
+
+      if (!fs.existsSync(manifestPath)) {
+        continue;
+      }
+
+      console.log(`  Found concept manifest for ${slug}`);
+      const conceptManifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+      const map = nodeMap[slug] || {};
+      console.log(`    map keys: [${Object.keys(map).join(', ')}]`);
+
+      const relTypes = {
+        'HAS_ELEMENT': REL.CLASS_THREAD_TERMINATION,
+        'IS_A_SUPERSET_OF': REL.CLASS_THREAD_PROPAGATION,
+      };
+
+      for (const [relName, edges] of Object.entries(conceptManifest)) {
+        const neoRel = relTypes[relName];
+        if (!neoRel) {
+          console.log(`  ⚠️  ${slug}: unknown relationship type "${relName}", skipping`);
+          continue;
+        }
+        if (!Array.isArray(edges) || edges.length === 0) continue;
+
+        console.log(`  ${slug}: ${relName} (${edges.length} edges)`);
+
+        for (const edge of edges) {
+          const fromUuid = map[edge.nodeFrom];
+          const toUuid = map[edge.nodeTo];
+
+          if (!fromUuid) {
+            console.log(`    ⚠️  nodeFrom "${edge.nodeFrom}" not found in nodeMap for ${slug}`);
+            continue;
+          }
+          if (!toUuid) {
+            console.log(`    ⚠️  nodeTo "${edge.nodeTo}" not found in nodeMap for ${slug}`);
+            continue;
+          }
+
+          console.log(`    🔗 ${edge.nodeFrom} → ${edge.nodeTo} (${relName})`);
+
+          if (dryRun) continue;
+
+          try {
+            await runCypherApi(
+              `MATCH (a:NostrEvent {uuid: $from}), (b:NostrEvent {uuid: $to})
+               MERGE (a)-[:${neoRel}]->(b)`,
+              { from: fromUuid, to: toUuid }
+            );
+            console.log(`       ✅ Wired`);
+          } catch (err) {
+            console.log(`       ❌ ${err.message}`);
+            errors.push({ slug: `${slug}:${relName}:${edge.nodeFrom}->${edge.nodeTo}`, error: err.message });
+          }
         }
       }
     }
@@ -547,6 +610,101 @@ async function pass1_bootstrap(opts = {}) {
   }
 
   console.log(`\n  Total HAS_ELEMENT edges added: ${hasElementCount}`);
+
+  // ── 1e. Prune redundant Superset edges ─────────────────────
+  //
+  // Now that ALL edges are created (manifest + z-tag wiring), prune direct
+  // edges from each concept's Superset that are redundant — i.e., the target
+  // node is reachable via a longer class-thread path.
+  //
+  // Two passes per concept:
+  //   1. Prune HAS_ELEMENT: remove Superset→element if reachable via sets
+  //   2. Prune IS_A_SUPERSET_OF: remove Superset→set if reachable via other sets
+
+  {
+    console.log('\n── Pruning redundant Superset edges ──\n');
+
+    for (const entry of manifest.concepts) {
+      const slug = entry.slug;
+      const conceptDir = path.join(firmware.firmwareDir(), entry.dir);
+      const manifestPath = path.join(conceptDir, 'manifest.json');
+
+      // Only prune concepts that have a manifest (explicit graph structure)
+      if (!fs.existsSync(manifestPath)) continue;
+      if (dryRun) continue;
+
+      const taPubkey = firmware.getTAPubkey();
+      const headerUuid = `39998:${taPubkey}:${slug}`;
+
+      // Find the concept's Superset
+      const supRows = await runCypherApi(
+        `MATCH (h:NostrEvent {uuid: $headerUuid})-[:${REL.CLASS_THREAD_INITIATION}]->(sup:Superset)
+         RETURN sup.uuid AS uuid LIMIT 1`,
+        { headerUuid }
+      );
+      const supData = supRows.data || [];
+      if (supData.length === 0) continue;
+      const supersetUuid = supData[0].uuid;
+
+      // ── Pass 1: Prune HAS_ELEMENT from Superset ──
+      const directElements = await runCypherApi(
+        `MATCH (sup:NostrEvent {uuid: $supersetUuid})-[:${REL.CLASS_THREAD_TERMINATION}]->(elem)
+         RETURN elem.uuid AS uuid, elem.name AS name`,
+        { supersetUuid }
+      );
+      const elemRows = directElements.data || [];
+
+      let prunedHE = 0;
+      for (const elem of elemRows) {
+        const altPath = await runCypherApi(
+          `MATCH p = (sup:NostrEvent {uuid: $supersetUuid})-[:${REL.CLASS_THREAD_PROPAGATION}|${REL.CLASS_THREAD_TERMINATION}*2..12]->(elem:NostrEvent {uuid: $elemUuid})
+           RETURN count(p) AS cnt`,
+          { supersetUuid, elemUuid: elem.uuid }
+        );
+        const cnt = (altPath.data || [])[0]?.cnt || 0;
+        if (cnt > 0) {
+          await runCypherApi(
+            `MATCH (sup:NostrEvent {uuid: $supersetUuid})-[r:${REL.CLASS_THREAD_TERMINATION}]->(elem:NostrEvent {uuid: $elemUuid})
+             DELETE r`,
+            { supersetUuid, elemUuid: elem.uuid }
+          );
+          prunedHE++;
+        }
+      }
+
+      // ── Pass 2: Prune IS_A_SUPERSET_OF from Superset ──
+      const directSets = await runCypherApi(
+        `MATCH (sup:NostrEvent {uuid: $supersetUuid})-[:${REL.CLASS_THREAD_PROPAGATION}]->(s)
+         RETURN s.uuid AS uuid, s.name AS name`,
+        { supersetUuid }
+      );
+      const setRows = directSets.data || [];
+
+      let prunedSO = 0;
+      for (const set of setRows) {
+        const altPath = await runCypherApi(
+          `MATCH (sup:NostrEvent {uuid: $supersetUuid})-[:${REL.CLASS_THREAD_PROPAGATION}]->(mid)
+                -[:${REL.CLASS_THREAD_PROPAGATION}*1..10]->(s:NostrEvent {uuid: $setUuid})
+           WHERE mid.uuid <> $setUuid
+           RETURN count(*) AS cnt`,
+          { supersetUuid, setUuid: set.uuid }
+        );
+        const cnt = (altPath.data || [])[0]?.cnt || 0;
+        if (cnt > 0) {
+          await runCypherApi(
+            `MATCH (sup:NostrEvent {uuid: $supersetUuid})-[r:${REL.CLASS_THREAD_PROPAGATION}]->(s:NostrEvent {uuid: $setUuid})
+             DELETE r`,
+            { supersetUuid, setUuid: set.uuid }
+          );
+          prunedSO++;
+        }
+      }
+
+      if (prunedHE > 0 || prunedSO > 0) {
+        console.log(`  ${slug}: pruned ${prunedHE} HAS_ELEMENT + ${prunedSO} IS_A_SUPERSET_OF from Superset`);
+      }
+    }
+  }
 
   console.log(`\n  Pass 1 complete: ${Object.keys(results).length} concepts, ${errors.length} errors\n`);
   return { results, errors };

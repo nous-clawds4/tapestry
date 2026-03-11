@@ -1,0 +1,15 @@
+{
+  "word": {
+    "slug": "the-set-of-nostr-relays-organized-by-firmware-category",
+    "name": "the set of nostr relays organized by firmware category",
+    "title": "The Set of Nostr Relays Organized by Firmware Category",
+    "wordTypes": ["word", "set"]
+  },
+  "set": {
+    "slug": "nostr-relays-organized-by-firmware-category",
+    "name": "nostr relays organized by firmware category",
+    "title": "Nostr Relays Organized by Firmware Category",
+    "category": ["disambiguation"],
+    "description": "This is a disambiguation set node for the organization of nostr relays by firmware category."
+  }
+}

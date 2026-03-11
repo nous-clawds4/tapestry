@@ -61,6 +61,7 @@ export default function OrganizationView({ uuid, conceptName }) {
   const [physicsOn, setPhysicsOn] = useState(true);
   const [centralGravity, setCentralGravity] = useState(-80);
   const [windY, setWindY] = useState(0.5);
+  const [showImplicit, setShowImplicit] = useState(false);
   const [repulsion, setRepulsion] = useState(0.8);
   const [springLength, setSpringLength] = useState(120);
   const [showControls, setShowControls] = useState(false);
@@ -71,20 +72,22 @@ export default function OrganizationView({ uuid, conceptName }) {
   const { data: threadData, loading: threadLoading, error: threadError } = useCypher(
     uuid ? `
       MATCH (h:NostrEvent {uuid: '${uuid}'})
-      OPTIONAL MATCH path = (h)-[:IS_THE_CONCEPT_FOR|IS_A_SUPERSET_OF|HAS_ELEMENT*1..10]->(n)
-      WITH h, n, relationships(path) AS rels
+      OPTIONAL MATCH (h)-[:IS_THE_CONCEPT_FOR]->(sup:Superset)
+      WITH h, sup
+      OPTIONAL MATCH path = (sup)-[:IS_A_SUPERSET_OF|HAS_ELEMENT*1..10]->(n)
+      WITH h, sup, n, relationships(path) AS rels
       UNWIND (CASE WHEN rels IS NULL THEN [null] ELSE rels END) AS r
       WITH h,
-           collect(DISTINCT {
-             uuid: n.uuid, name: n.name, labels: labels(n)
-           }) AS nodes,
+           head(collect(DISTINCT sup)) AS sup0,
+           collect(DISTINCT { uuid: n.uuid, name: n.name, labels: labels(n) }) AS threadNodes,
            collect(DISTINCT {
              fromUuid: CASE WHEN r IS NOT NULL THEN startNode(r).uuid ELSE null END,
              toUuid: CASE WHEN r IS NOT NULL THEN endNode(r).uuid ELSE null END,
              relType: CASE WHEN r IS NOT NULL THEN type(r) ELSE null END
-           }) AS edges
+           }) AS threadEdges
       RETURN h.uuid AS headerUuid, h.name AS headerName, labels(h) AS headerLabels,
-             nodes, edges
+             threadNodes + CASE WHEN sup0 IS NOT NULL THEN [{ uuid: sup0.uuid, name: sup0.name, labels: labels(sup0) }] ELSE [] END AS nodes,
+             threadEdges + CASE WHEN sup0 IS NOT NULL THEN [{ fromUuid: h.uuid, toUuid: sup0.uuid, relType: 'IS_THE_CONCEPT_FOR' }] ELSE [] END AS edges
     ` : null
   );
 
@@ -161,6 +164,11 @@ export default function OrganizationView({ uuid, conceptName }) {
     return { nodesMap, edges, implicitEdges, supersetUuid, headerUuid: row.headerUuid };
   }, [threadData]);
 
+  // Refs for DataSets so we can mutate without rebuilding the network
+  const visNodesRef = useRef(null);
+  const visEdgesRef = useRef(null);
+  const implicitEdgeIdsRef = useRef([]);
+
   // ── 3. Build vis-network ──
 
   useEffect(() => {
@@ -171,9 +179,18 @@ export default function OrganizationView({ uuid, conceptName }) {
 
       const visNodes = new DataSet();
       const visEdges = new DataSet();
+      visNodesRef.current = visNodes;
+      visEdgesRef.current = visEdges;
 
       // Determine implicit element UUIDs for coloring
       const implicitUuids = new Set(implicitEdges.map(e => e.toUuid));
+
+      // Determine which nodes are sets vs elements for mass differentiation
+      // Sets: have IS_A_SUPERSET_OF pointing to them, or have HAS_ELEMENT going out
+      const setUuids = new Set();
+      for (const e of edges) {
+        if (e.relType === 'IS_A_SUPERSET_OF') setUuids.add(e.toUuid);
+      }
 
       // Add nodes
       for (const [nodeUuid, info] of nodesMap) {
@@ -183,6 +200,8 @@ export default function OrganizationView({ uuid, conceptName }) {
         const colors = nodeColor(labels, isImplicit);
         const isHeader = nodeUuid === headerUuid;
         const isSuperset = nodeUuid === supersetUuid;
+        const isSet = labels.includes('Set') || setUuids.has(nodeUuid);
+        const isElement = !isHeader && !isSuperset && !isSet;
 
         visNodes.add({
           id: nodeUuid,
@@ -192,6 +211,8 @@ export default function OrganizationView({ uuid, conceptName }) {
           color: { background: colors.bg, border: colors.border, highlight: { background: colors.border, border: colors.bg } },
           font: { color: colors.font, size: isHeader ? 13 : 11, face: 'system-ui' },
           borderWidth: isHeader || isSuperset ? 2 : 1,
+          // High mass on elements so wind only pushes sets
+          mass: isElement ? 8 : 1,
           // Pin header and superset at top
           ...(isHeader ? { x: 0, y: -200, fixed: { x: true, y: true } } : {}),
           ...(isSuperset ? { x: 0, y: -100, fixed: { x: true, y: true } } : {}),
@@ -215,22 +236,6 @@ export default function OrganizationView({ uuid, conceptName }) {
           font: { color: '#8b949e', size: 8, strokeWidth: 0 },
           arrows: 'to',
           width: 1.5,
-          smooth: { type: 'cubicBezier', forceDirection: 'vertical', roundness: 0.3 },
-        });
-      }
-
-      // Add implicit edges (dashed)
-      for (const e of implicitEdges) {
-        if (!visNodes.get(e.fromUuid) || !visNodes.get(e.toUuid)) continue;
-        visEdges.add({
-          from: e.fromUuid,
-          to: e.toUuid,
-          label: 'HAS_ELEMENT',
-          dashes: [6, 4],
-          color: { color: EDGE_COLORS.HAS_ELEMENT_IMPLICIT, highlight: '#e6edf3' },
-          font: { color: '#6b7280', size: 8, strokeWidth: 0 },
-          arrows: 'to',
-          width: 1,
           smooth: { type: 'cubicBezier', forceDirection: 'vertical', roundness: 0.3 },
         });
       }
@@ -318,6 +323,46 @@ export default function OrganizationView({ uuid, conceptName }) {
     };
   }, [graphData]);  // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ── 3a. Toggle implicit edges without rebuilding the network ──
+
+  useEffect(() => {
+    const visEdges = visEdgesRef.current;
+    if (!visEdges || !graphData) return;
+
+    // Remove any existing implicit edges
+    const oldIds = implicitEdgeIdsRef.current;
+    if (oldIds.length > 0) {
+      visEdges.remove(oldIds);
+      implicitEdgeIdsRef.current = [];
+    }
+
+    // Add them back if toggled on
+    if (showImplicit) {
+      const visNodes = visNodesRef.current;
+      const newIds = [];
+      for (const e of graphData.implicitEdges) {
+        if (!visNodes?.get(e.fromUuid) || !visNodes?.get(e.toUuid)) continue;
+        const id = `implicit-${e.fromUuid}-${e.toUuid}`;
+        const edgeData = {
+          id,
+          from: e.fromUuid,
+          to: e.toUuid,
+          label: 'HAS_ELEMENT',
+          dashes: [6, 4],
+          color: { color: EDGE_COLORS.HAS_ELEMENT_IMPLICIT, highlight: '#e6edf3' },
+          font: { color: '#6b7280', size: 8, strokeWidth: 0 },
+          arrows: 'to',
+          width: 1,
+          smooth: { type: 'cubicBezier', forceDirection: 'vertical', roundness: 0.3 },
+        };
+        // Use update (upsert) to handle React strict mode double-firing
+        visEdges.update(edgeData);
+        newIds.push(id);
+      }
+      implicitEdgeIdsRef.current = newIds;
+    }
+  }, [showImplicit, graphData]);
+
   // ── 3b. Sync physics controls to live network ──
 
   useEffect(() => {
@@ -372,25 +417,40 @@ export default function OrganizationView({ uuid, conceptName }) {
           <LegendItem color={COLORS.superset.bg} shape="▲" label="Superset" />
           <LegendItem color={COLORS.set.bg} shape="●" label="Set" />
           <LegendItem color={COLORS.element.bg} shape="■" label="Element" />
-          <LegendItem color={COLORS.implicitElement.bg} shape="■" label="Implicit Element" />
-          <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-            <span style={{ display: 'inline-block', width: 20, height: 0, borderTop: '2px dashed #6b7280' }} />
-            implicit HAS_ELEMENT
-          </span>
+          {showImplicit && <>
+            <LegendItem color={COLORS.implicitElement.bg} shape="■" label="Implicit Element" />
+            <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+              <span style={{ display: 'inline-block', width: 20, height: 0, borderTop: '2px dashed #6b7280' }} />
+              implicit HAS_ELEMENT
+            </span>
+          </>}
         </div>
 
-        {/* Physics toggle button */}
-        <button
-          onClick={() => setShowControls(v => !v)}
-          style={{
-            padding: '0.3rem 0.6rem', fontSize: '0.75rem', borderRadius: '5px',
-            border: '1px solid rgba(255,255,255,0.15)', cursor: 'pointer',
-            backgroundColor: showControls ? 'rgba(99,102,241,0.15)' : 'transparent',
-            color: showControls ? '#818cf8' : '#aaa',
-          }}
-        >
-          ⚙️ Physics
-        </button>
+        {/* Implicit toggle + Physics toggle */}
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <button
+            onClick={() => setShowImplicit(v => !v)}
+            style={{
+              padding: '0.3rem 0.6rem', fontSize: '0.75rem', borderRadius: '5px',
+              border: '1px solid rgba(255,255,255,0.15)', cursor: 'pointer',
+              backgroundColor: showImplicit ? 'rgba(107,114,128,0.2)' : 'transparent',
+              color: showImplicit ? '#9ca3af' : '#aaa',
+            }}
+          >
+            {showImplicit ? '🔗 Hide Implicit' : '🔗 Show Implicit'}
+          </button>
+          <button
+            onClick={() => setShowControls(v => !v)}
+            style={{
+              padding: '0.3rem 0.6rem', fontSize: '0.75rem', borderRadius: '5px',
+              border: '1px solid rgba(255,255,255,0.15)', cursor: 'pointer',
+              backgroundColor: showControls ? 'rgba(99,102,241,0.15)' : 'transparent',
+              color: showControls ? '#818cf8' : '#aaa',
+            }}
+          >
+            ⚙️ Physics
+          </button>
+        </div>
       </div>
 
       {/* Physics Controls Panel */}
@@ -425,7 +485,7 @@ export default function OrganizationView({ uuid, conceptName }) {
           <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
             <span style={{ opacity: 0.7 }}>↓ Wind</span>
             <input
-              type="range" min={0} max={5} step={0.1} value={windY}
+              type="range" min={0} max={50} step={0.5} value={windY}
               onChange={e => setWindY(Number(e.target.value))}
               style={{ width: 100, accentColor: '#22c55e' }}
             />

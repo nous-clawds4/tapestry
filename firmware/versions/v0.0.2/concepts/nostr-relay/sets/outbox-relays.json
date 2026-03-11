@@ -1,0 +1,17 @@
+{
+  "word": {
+    "slug": "the-set-of-outbox-relays",
+    "name": "The set of outbox relays",
+    "title": "The Set of Outbox Relays",
+    "wordTypes": [
+      "word",
+      "set"
+    ]
+  },
+  "set": {
+    "slug": "outbox-relays",
+    "name": "outbox relays",
+    "title": "Outbox Relays",
+    "description": "Relays used for outbox model publishing."
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "word": {
+    "slug": "nostr-relay--nos-lol",
+    "name": "nostr relay: nos.lol",
+    "title": "Nostr Relay: nos.lol",
+    "wordTypes": [
+      "word",
+      "nostrRelay"
+    ]
+  },
+  "nostrRelay": {
+    "slug": "nos-lol",
+    "websocketUrl": "wss://nos.lol",
+    "httpUrl": "https://nos.lol"
+  }
+}

@@ -55,7 +55,14 @@ export default function ElementDetail() {
   const schema = useMemo(() => {
     const raw = schemaData?.[0]?.schemaJson;
     if (!raw) return null;
-    try { return typeof raw === 'string' ? JSON.parse(raw) : raw; }
+    try {
+      const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+      // Extract actual JSON Schema from word-wrapper format if present
+      if (parsed.jsonSchema && typeof parsed.jsonSchema === 'object') {
+        return parsed.jsonSchema;
+      }
+      return parsed;
+    }
     catch { return null; }
   }, [schemaData]);
 

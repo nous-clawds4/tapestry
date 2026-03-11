@@ -5,10 +5,19 @@ import { useMemo } from 'react';
 
 function tryParseJson(raw) {
   if (!raw) return null;
-  if (typeof raw !== 'string') return raw;
-  try { return JSON.parse(raw); } catch {}
-  try { return JSON.parse(raw.replace(/""/g, '"')); } catch {}
-  return null;
+  let parsed = typeof raw === 'string' ? null : raw;
+  if (!parsed) {
+    try { parsed = JSON.parse(raw); } catch {}
+  }
+  if (!parsed) {
+    try { parsed = JSON.parse(raw.replace(/""/g, '"')); } catch {}
+  }
+  if (!parsed) return null;
+  // Extract actual JSON Schema from word-wrapper format if present
+  if (parsed.jsonSchema && typeof parsed.jsonSchema === 'object') {
+    return parsed.jsonSchema;
+  }
+  return parsed;
 }
 
 function basicValidate(data, schema) {

@@ -1,0 +1,16 @@
+{
+  "word": {
+    "slug": "nostr-relay--relay-primal-net",
+    "name": "nostr relay: relay.primal.net",
+    "title": "Nostr Relay: relay.primal.net",
+    "wordTypes": [
+      "word",
+      "nostrRelay"
+    ]
+  },
+  "nostrRelay": {
+    "slug": "relay-primal-net",
+    "websocketUrl": "wss://relay.primal.net",
+    "httpUrl": "https://relay.primal.net"
+  }
+}

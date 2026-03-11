@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useOutletContext, useNavigate } from 'react-router-dom';
 import { auditConcept } from '../../api/audit';
-import { normalizeSkeleton, normalizeJson } from '../../api/normalize';
+import { normalizeSkeleton, normalizeJson, pruneSupersetEdges } from '../../api/normalize';
 import { useAuth } from '../../context/AuthContext';
 
 const statusIcon = (s) => s === 'pass' ? '✅' : s === 'warn' ? '⚠️' : s === 'fail' ? '❌' : 'ℹ️';
@@ -312,10 +312,80 @@ export default function ConceptHealth() {
         </section>
       )}
 
+      {/* ── Prune Superset Edges ── */}
+      <PruneSection concept={concept} isOwner={canFix} />
+
       {/* CLI hint */}
       <section className="health-section" style={{ opacity: 0.6, marginTop: '2rem' }}>
         <p>CLI: <code>tapestry audit concept "{concept.name}"</code> · <code>tapestry normalize skeleton "{concept.name}"</code></p>
       </section>
     </div>
+  );
+}
+
+function PruneSection({ concept, isOwner }) {
+  const [pruneLog, setPruneLog] = useState(null);
+  const [pruning, setPruning] = useState(null); // 'HAS_ELEMENT' | 'IS_A_SUPERSET_OF' | null
+
+  async function handlePrune(relType) {
+    setPruning(relType);
+    setPruneLog(null);
+    try {
+      const result = await pruneSupersetEdges({ concept: concept.name, relType });
+      setPruneLog(result);
+    } catch (err) {
+      setPruneLog({ success: false, error: err.message, log: [err.message] });
+    } finally {
+      setPruning(null);
+    }
+  }
+
+  return (
+    <section className="health-section" style={{ marginTop: '2rem' }}>
+      <h3>✂️ Prune Redundant Superset Edges</h3>
+      <p style={{ opacity: 0.7, marginBottom: '1rem' }}>
+        Remove direct edges from the Superset that are redundant because the target
+        is reachable via a longer class-thread path through sets.
+      </p>
+
+      <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem' }}>
+        <button
+          className="btn"
+          onClick={() => handlePrune('HAS_ELEMENT')}
+          disabled={!!pruning || !isOwner}
+        >
+          {pruning === 'HAS_ELEMENT' ? '⏳ Pruning…' : '✂️ Prune HAS_ELEMENT'}
+        </button>
+        <button
+          className="btn"
+          onClick={() => handlePrune('IS_A_SUPERSET_OF')}
+          disabled={!!pruning || !isOwner}
+        >
+          {pruning === 'IS_A_SUPERSET_OF' ? '⏳ Pruning…' : '✂️ Prune IS_A_SUPERSET_OF'}
+        </button>
+      </div>
+
+      {pruneLog && (
+        <div style={{ marginTop: '1rem' }}>
+          {pruneLog.success ? (
+            <div className="health-banner health-pass" style={{ marginBottom: '0.5rem' }}>
+              <span className="health-banner-icon">✅</span>
+              <span>Pruned {pruneLog.pruned?.length || 0}, kept {pruneLog.kept?.length || 0}</span>
+            </div>
+          ) : (
+            <div className="health-banner health-fail" style={{ marginBottom: '0.5rem' }}>
+              <span className="health-banner-icon">❌</span>
+              <span>{pruneLog.error}</span>
+            </div>
+          )}
+
+          {pruneLog.log && (
+            <pre className="json-block" style={{ maxHeight: '400px', overflow: 'auto', fontSize: '0.8rem' }}>
+              {pruneLog.log.join('\n')}
+            </pre>
+          )}
+        </div>
+      )}
+    </section>
   );
 }

@@ -1,0 +1,16 @@
+{
+  "word": {
+    "slug": "nostr-relay--nip85-nostr-band",
+    "name": "nostr relay: nip85.nostr.band",
+    "title": "Nostr Relay: nip85.nostr.band",
+    "wordTypes": [
+      "word",
+      "nostrRelay"
+    ]
+  },
+  "nostrRelay": {
+    "slug": "nip85-nostr-band",
+    "websocketUrl": "wss://nip85.nostr.band",
+    "httpUrl": "https://nip85.nostr.band"
+  }
+}

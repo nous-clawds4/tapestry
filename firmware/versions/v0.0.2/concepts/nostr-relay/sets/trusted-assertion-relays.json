@@ -1,0 +1,17 @@
+{
+  "word": {
+    "slug": "the-set-of-trusted-assertion-relays",
+    "name": "The set of trusted assertion relays",
+    "title": "The Set of Trusted Assertion Relays",
+    "wordTypes": [
+      "word",
+      "set"
+    ]
+  },
+  "set": {
+    "slug": "trusted-assertion-relays",
+    "name": "trusted assertion relays",
+    "title": "Trusted Assertion Relays",
+    "description": "Relays that store trusted assertion events (kinds 30382-30385)."
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "word": {
+    "slug": "json-data-type--boolean",
+    "name": "JSON data type: boolean",
+    "title": "JSON Data Type: Boolean",
+    "description": "A true or false value",
+    "wordTypes": ["word", "jsonDataType"]
+  },
+  "jsonDataType": {
+    "slug": "boolean",
+    "name": "boolean",
+    "title": "Boolean",
+    "url": "https://json-schema.org/understanding-json-schema/reference/boolean",
+    "description": "A true or false value"
+  }
+}

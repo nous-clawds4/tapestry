@@ -1,0 +1,13 @@
+{
+  "word": {
+    "slug": "nostr-relay--dcosl-brainstorm-world",
+    "name": "nostr relay: dcosl.brainstorm.world",
+    "title": "Nostr Relay: dcosl.brainstorm.world",
+    "wordTypes": ["word", "nostrRelay"]
+  },
+  "nostrRelay": {
+    "slug": "dcosl.brainstorm.world",
+    "websocketUrl": "wss://dcosl.brainstorm.world",
+    "httpUrl": "https://dcosl.brainstorm.world"
+  }
+}

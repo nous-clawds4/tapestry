@@ -1,0 +1,15 @@
+{
+  "word": {
+    "slug": "the-set-of-nostr-relays-organized-by-monetization-strategy",
+    "name": "the set of nostr relays organized by monetization strategy",
+    "title": "The Set of Nostr Relays Organized by Monetization Strategy",
+    "wordTypes": ["word", "set"]
+  },
+  "set": {
+    "slug": "nostr-relays-organized-by-monetization-strategy",
+    "name": "nostr relays organized by monetization strategy",
+    "title": "Nostr Relays Organized by Monetization Strategy",
+    "category": ["disambiguation"],
+    "description": "This is a disambiguation set node for the organization of nostr relays by monetization strategy."
+  }
+}

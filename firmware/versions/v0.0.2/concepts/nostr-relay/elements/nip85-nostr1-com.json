@@ -1,0 +1,16 @@
+{
+  "word": {
+    "slug": "nostr-relay--nip85-nostr1-com",
+    "name": "nostr relay: nip85.nostr1.com",
+    "title": "Nostr Relay: nip85.nostr1.com",
+    "wordTypes": [
+      "word",
+      "nostrRelay"
+    ]
+  },
+  "nostrRelay": {
+    "slug": "nip85-nostr1-com",
+    "websocketUrl": "wss://nip85.nostr1.com",
+    "httpUrl": "https://nip85.nostr1.com"
+  }
+}

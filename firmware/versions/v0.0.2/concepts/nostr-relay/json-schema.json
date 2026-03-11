@@ -39,10 +39,10 @@
                 "properties": {
                     "slug": {
                         "type": "string",
-                        "name": "websocketUrl",
-                        "title": "Websocket URL",
-                        "slug": "websocket-url",
-                        "description": "The websocket URL for this nostr relay"
+                        "name": "slug",
+                        "title": "Slug",
+                        "slug": "slug",
+                        "description": "A unique kebab-case identifier for this nostr relay"
                     },
                     "websocketUrl": {
                         "type": "string",

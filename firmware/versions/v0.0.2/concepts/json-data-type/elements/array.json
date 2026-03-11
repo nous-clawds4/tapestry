@@ -1,0 +1,16 @@
+{
+  "word": {
+    "slug": "json-data-type--array",
+    "name": "JSON data type: array",
+    "title": "JSON Data Type: Array",
+    "description": "An ordered list of values",
+    "wordTypes": ["word", "jsonDataType"]
+  },
+  "jsonDataType": {
+    "slug": "array",
+    "name": "array",
+    "title": "Array",
+    "url": "https://json-schema.org/understanding-json-schema/reference/array",
+    "description": "An ordered list of values"
+  }
+}
