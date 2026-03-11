@@ -173,7 +173,7 @@ export default function ElementDetail() {
         <h2 style={{ margin: 0 }}>{elem.name || 'Unnamed Element'}</h2>
         <button
           className="btn btn-small"
-          onClick={() => navigate(`/kg/nodes/${encodeURIComponent(elemUuid)}`)}
+          onClick={() => navigate(`/kg/databases/neo4j/nodes/${encodeURIComponent(elemUuid)}`)}
           title="View this node outside the concept context"
         >
           🔵 View Full Node

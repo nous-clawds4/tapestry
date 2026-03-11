@@ -159,7 +159,7 @@ export default function NewElement() {
           <div style={{ marginTop: '1.5rem', display: 'flex', gap: '1rem' }}>
             <button
               className="btn"
-              onClick={() => navigate(`/kg/nodes/${encodeURIComponent(result.element.uuid)}`)}
+              onClick={() => navigate(`/kg/databases/neo4j/nodes/${encodeURIComponent(result.element.uuid)}`)}
             >
               🔵 View Node
             </button>

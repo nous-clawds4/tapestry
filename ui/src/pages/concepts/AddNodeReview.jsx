@@ -125,7 +125,7 @@ export default function AddNodeReview() {
             </button>
             <button
               className="btn"
-              onClick={() => navigate(`/kg/nodes/${encodeURIComponent(nodeUuid)}`)}
+              onClick={() => navigate(`/kg/databases/neo4j/nodes/${encodeURIComponent(nodeUuid)}`)}
             >
               🔵 View Node
             </button>

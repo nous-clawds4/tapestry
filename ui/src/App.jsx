@@ -17,6 +17,7 @@ import NewProperty from './pages/concepts/NewProperty';
 import AddNodeAsElement from './pages/concepts/AddNodeAsElement';
 import AddNodeReview from './pages/concepts/AddNodeReview';
 import NewSet from './pages/concepts/NewSet';
+import SetDetail from './pages/concepts/SetDetail';
 import ListsIndex from './pages/lists/Index';
 import DListDetail from './pages/lists/DListDetail';
 import DListOverview from './pages/lists/DListOverview';
@@ -39,15 +40,16 @@ import UsersIndex from './pages/users/Index';
 import UserDetail from './pages/users/UserDetail';
 import AboutIndex from './pages/about/Index';
 import SettingsIndex from './pages/settings/Index';
-import EventsIndex from './pages/events/Index';
+
 import DListItemsList from './pages/events/DListItemsList';
 import DListItemDetail from './pages/events/DListItemDetail';
 import DListItemOverview from './pages/events/DListItemOverview';
 import DListItemRaw from './pages/events/DListItemRaw';
 import DListItemActions from './pages/events/DListItemActions';
 import DListItemNeo4j from './pages/events/DListItemNeo4j';
-import ManageIndex from './pages/manage/Index';
-import Audit from './pages/manage/Audit';
+
+import Neo4jOverview from './pages/databases/Neo4jOverview';
+import StrfryOverview from './pages/databases/StrfryOverview';
 import Dashboard from './pages/Dashboard';
 const router = createBrowserRouter([
   {
@@ -60,7 +62,7 @@ const router = createBrowserRouter([
         path: 'concepts',
         handle: { crumb: 'Concepts' },
         children: [
-          { index: true, element: <ConceptList /> },
+          { index: true, element: <ConceptList />, handle: { crumb: 'Concept Headers' } },
           { path: 'new', element: <NewConcept />, handle: { crumb: 'New Concept' } },
           {
             path: ':uuid',
@@ -79,6 +81,7 @@ const router = createBrowserRouter([
               { path: 'properties/new', element: <NewProperty />, handle: { crumb: 'New Property' } },
               { path: 'dag', element: <ConceptDag />, handle: { crumb: 'Organization (Sets)' } },
               { path: 'dag/new-set', element: <NewSet />, handle: { crumb: 'New Set' } },
+              { path: 'dag/:setUuid', element: <SetDetail />, handle: { crumb: 'Set Detail' } },
               { path: 'visualization', element: <ConceptVisualization />, handle: { crumb: 'Visualization' } },
               { path: 'schema', element: <ConceptSchema />, handle: { crumb: 'Schema' } },
             ],
@@ -89,50 +92,11 @@ const router = createBrowserRouter([
         path: 'lists',
         handle: { crumb: 'Simple Lists' },
         children: [
-          { index: true, element: <ListsIndex /> },
+          { index: true, element: <ListsIndex />, handle: { crumb: 'List Headers' } },
           { path: 'new', element: <NewDList />, handle: { crumb: 'New List' } },
           {
-            path: ':id',
-            element: <DListDetail />,
-            handle: { crumb: 'Detail' },
-            children: [
-              { index: true, element: <DListOverview /> },
-              { path: 'items', element: <DListItems />, handle: { crumb: 'Items' } },
-              { path: 'items/new', element: <NewDListItem />, handle: { crumb: 'New Item' } },
-              { path: 'raw', element: <DListRaw />, handle: { crumb: 'Raw Data' } },
-              { path: 'actions', element: <DListActions />, handle: { crumb: 'Actions' } },
-            ],
-          },
-        ],
-      },
-      {
-        path: 'nodes',
-        handle: { crumb: 'Nodes' },
-        children: [
-          { index: true, element: <NodesIndex /> },
-          {
-            path: ':uuid',
-            element: <NodeDetail />,
-            handle: { crumb: 'Detail' },
-            children: [
-              { index: true, element: <NodeOverview /> },
-              { path: 'json', element: <NodeJson />, handle: { crumb: 'JSON' } },
-              { path: 'concepts', element: <NodeConcepts />, handle: { crumb: 'Concepts' } },
-              { path: 'relationships', element: <NodeRelationships />, handle: { crumb: 'Relationships' } },
-              { path: 'neo4j', element: <NodeNeo4j />, handle: { crumb: 'Neo4j' } },
-              { path: 'raw', element: <NodeRaw />, handle: { crumb: 'Raw Data' } },
-            ],
-          },
-        ],
-      },
-      {
-        path: 'events',
-        handle: { crumb: 'Events' },
-        children: [
-          { index: true, element: <EventsIndex /> },
-          {
-            path: 'dlist-items',
-            handle: { crumb: 'DList Items' },
+            path: 'items',
+            handle: { crumb: 'List Items' },
             children: [
               { index: true, element: <DListItemsList /> },
               {
@@ -148,8 +112,62 @@ const router = createBrowserRouter([
               },
             ],
           },
+          {
+            path: ':id',
+            element: <DListDetail />,
+            handle: { crumb: 'Detail' },
+            children: [
+              { index: true, element: <DListOverview /> },
+              { path: 'items', element: <DListItems />, handle: { crumb: 'Items' } },
+              { path: 'items/new', element: <NewDListItem />, handle: { crumb: 'New Item' } },
+              { path: 'raw', element: <DListRaw />, handle: { crumb: 'Raw Data' } },
+              { path: 'actions', element: <DListActions />, handle: { crumb: 'Actions' } },
+            ],
+          },
         ],
       },
+      {
+        path: 'databases',
+        handle: { crumb: 'Databases' },
+        children: [
+          {
+            path: 'neo4j',
+            handle: { crumb: 'Neo4j' },
+            children: [
+              { index: true, element: <Neo4jOverview />, handle: { crumb: 'Overview' } },
+              {
+                path: 'nodes',
+                handle: { crumb: 'Nodes' },
+                children: [
+                  { index: true, element: <NodesIndex /> },
+                  {
+                    path: ':uuid',
+                    element: <NodeDetail />,
+                    handle: { crumb: 'Detail' },
+                    children: [
+                      { index: true, element: <NodeOverview /> },
+                      { path: 'json', element: <NodeJson />, handle: { crumb: 'JSON' } },
+                      { path: 'concepts', element: <NodeConcepts />, handle: { crumb: 'Concepts' } },
+                      { path: 'relationships', element: <NodeRelationships />, handle: { crumb: 'Relationships' } },
+                      { path: 'neo4j', element: <NodeNeo4j />, handle: { crumb: 'Neo4j' } },
+                      { path: 'raw', element: <NodeRaw />, handle: { crumb: 'Raw Data' } },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+          { path: 'strfry', element: <StrfryOverview />, handle: { crumb: 'Strfry' } },
+        ],
+      },
+      {
+        path: 'nodes',
+        children: [
+          { index: true, element: <Navigate to="/kg/databases/neo4j/nodes" replace /> },
+          { path: ':uuid', element: <Navigate to="/kg/databases/neo4j/nodes" replace /> },
+        ],
+      },
+
       {
         path: 'users',
         handle: { crumb: 'Nostr Users' },
@@ -161,12 +179,8 @@ const router = createBrowserRouter([
       { path: 'relationships', element: <RelationshipsIndex />, handle: { crumb: 'Relationships' } },
       { path: 'trusted-lists', element: <TrustedListsIndex />, handle: { crumb: 'Trusted Lists' } },
       {
-        path: 'manage',
-        element: <ManageIndex />,
-        handle: { crumb: 'Manage' },
-        children: [
-          { path: 'audit', element: <Audit />, handle: { crumb: 'Audit' } },
-        ],
+        path: 'manage/audit',
+        element: <Navigate to="/kg/settings/auditing" replace />,
       },
       { path: 'about', element: <AboutIndex />, handle: { crumb: 'About' } },
       {
@@ -180,6 +194,7 @@ const router = createBrowserRouter([
           { path: 'uuids', handle: { crumb: 'Concept UUIDs' } },
           { path: 'firmware', handle: { crumb: 'Firmware' } },
           { path: 'system', handle: { crumb: 'System' } },
+          { path: 'auditing', handle: { crumb: 'Auditing Tools' } },
         ],
       },
     ],

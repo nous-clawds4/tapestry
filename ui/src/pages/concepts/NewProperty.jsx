@@ -191,7 +191,7 @@ export default function NewProperty() {
           </table>
 
           <div style={{ marginTop: '1.5rem', display: 'flex', gap: '1rem' }}>
-            <button className="btn" onClick={() => navigate(`/kg/nodes/${encodeURIComponent(result.property.uuid)}`)}>
+            <button className="btn" onClick={() => navigate(`/kg/databases/neo4j/nodes/${encodeURIComponent(result.property.uuid)}`)}>
               🔵 View Node
             </button>
             <button className="btn" onClick={() => navigate(`/kg/concepts/${encodeURIComponent(uuid)}/properties`)}>

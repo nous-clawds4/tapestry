@@ -713,7 +713,7 @@ function NodePanel({ info, onClose, onNavigate }) {
 
   function navPath() {
     if (isUser && info.pubkey) return `/kg/users/${info.pubkey}`;
-    if (info.uuid) return `/kg/nodes/${encodeURIComponent(info.uuid)}`;
+    if (info.uuid) return `/kg/databases/neo4j/nodes/${encodeURIComponent(info.uuid)}`;
     return null;
   }
 
@@ -792,9 +792,9 @@ function NodePanel({ info, onClose, onNavigate }) {
             // Try to find matching dlist-item route
             const parts = info.uuid.split(':');
             if (parts[0] === '39999' || parts[0] === '9999') {
-              onNavigate(`/kg/events/dlist-items/${encoded}`);
+              onNavigate(`/kg/lists/items/${encoded}`);
             } else {
-              onNavigate(`/kg/nodes/${encoded}`);
+              onNavigate(`/kg/databases/neo4j/nodes/${encoded}`);
             }
           }}>
             View Event →

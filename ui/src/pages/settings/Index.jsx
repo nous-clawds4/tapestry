@@ -7,6 +7,7 @@ import UuidSettings from './UuidSettings';
 import SystemSettings from './SystemSettings';
 import DatabaseSettings from './DatabaseSettings';
 import FirmwareExplorer from './FirmwareExplorer';
+import Audit from '../manage/Audit';
 
 const TABS = [
   { key: 'relays', path: 'relays', label: '📡 Relays' },
@@ -14,6 +15,7 @@ const TABS = [
   { key: 'uuids', path: 'uuids', label: '🔑 Concept UUIDs' },
   { key: 'firmware', path: 'firmware', label: '🔧 Firmware' },
   { key: 'system', path: 'system', label: '🖥️ System' },
+  { key: 'auditing', path: 'auditing', label: '🔍 Auditing Tools' },
 ];
 
 export default function SettingsIndex() {
@@ -214,6 +216,9 @@ export default function SettingsIndex() {
             onSave={handleSave}
             onReset={handleReset}
           />
+        )}
+        {activeTab === 'auditing' && (
+          <Audit />
         )}
       </div>
 

@@ -128,7 +128,7 @@ export default function DListItems() {
       <DataTable
         columns={columns}
         data={rows}
-        onRowClick={(row) => navigate(`/kg/events/dlist-items/${encodeURIComponent(row.routeId)}`)}
+        onRowClick={(row) => navigate(`/kg/lists/items/${encodeURIComponent(row.routeId)}`)}
         emptyMessage="No items found for this list"
       />
     </div>

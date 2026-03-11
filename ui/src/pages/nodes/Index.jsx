@@ -4,6 +4,7 @@ import { useCypher } from '../../hooks/useCypher';
 import useProfiles from '../../hooks/useProfiles';
 import useNeo4jLabels from '../../hooks/useNeo4jLabels';
 import AuthorCell from '../../components/AuthorCell';
+import Breadcrumbs from '../../components/Breadcrumbs';
 
 import { OWNER_PUBKEY, TA_PUBKEY, DAVE_PUBKEY } from '../../config/pubkeys';
 
@@ -198,6 +199,7 @@ export default function NodesIndex() {
 
   return (
     <div className="page">
+      <Breadcrumbs />
       <h1>Nodes</h1>
       <p style={{ opacity: 0.7, marginBottom: '1rem' }}>
         All nodes in the knowledge graph.
@@ -352,7 +354,7 @@ export default function NodesIndex() {
                 {pageNodes.map(row => (
                   <tr
                     key={row.uuid}
-                    onClick={() => navigate(`/kg/nodes/${encodeURIComponent(row.uuid)}`)}
+                    onClick={() => navigate(`/kg/databases/neo4j/nodes/${encodeURIComponent(row.uuid)}`)}
                     style={{ cursor: 'pointer' }}
                     className="clickable-row"
                   >

@@ -38,7 +38,7 @@ export default function NodeRelationships() {
                 <>
                   <span
                     className="rel-node clickable-text"
-                    onClick={() => rel.otherUuid && navigate(`/kg/nodes/${encodeURIComponent(rel.otherUuid)}`)}
+                    onClick={() => rel.otherUuid && navigate(`/kg/databases/neo4j/nodes/${encodeURIComponent(rel.otherUuid)}`)}
                   >
                     {rel.otherName || rel.otherUuid?.slice(0, 20) + '…'}
                     {rel.otherLabels && Array.isArray(rel.otherLabels) && (
@@ -54,7 +54,7 @@ export default function NodeRelationships() {
                   <span className="rel-arrow">—[<span className="rel-type">{rel.relType}</span>]→</span>
                   <span
                     className="rel-node clickable-text"
-                    onClick={() => rel.otherUuid && navigate(`/kg/nodes/${encodeURIComponent(rel.otherUuid)}`)}
+                    onClick={() => rel.otherUuid && navigate(`/kg/databases/neo4j/nodes/${encodeURIComponent(rel.otherUuid)}`)}
                   >
                     {rel.otherName || rel.otherUuid?.slice(0, 20) + '…'}
                     {rel.otherLabels && Array.isArray(rel.otherLabels) && (

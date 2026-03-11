@@ -175,9 +175,9 @@ export default function NewDListItem() {
       const ev = data.event;
       if (ev.kind === 39999) {
         const d = ev.tags.find(t => t[0] === 'd')?.[1];
-        navigate(`/kg/events/dlist-items/${encodeURIComponent(`39999:${ev.pubkey}:${d}`)}`);
+        navigate(`/kg/lists/items/${encodeURIComponent(`39999:${ev.pubkey}:${d}`)}`);
       } else {
-        navigate(`/kg/events/dlist-items/${encodeURIComponent(ev.id)}`);
+        navigate(`/kg/lists/items/${encodeURIComponent(ev.id)}`);
       }
     } catch (err) {
       setError(err.message);

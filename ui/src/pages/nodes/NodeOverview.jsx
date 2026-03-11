@@ -55,7 +55,7 @@ export default function NodeOverview() {
             {strfryStatus === 'loading' ? (
               <span style={{ opacity: 0.5 }}>Checking…</span>
             ) : strfryStatus === 'found' ? (
-              <Link to={`/kg/events/dlist-items/${node.id}`}>
+              <Link to={`/kg/lists/items/${node.id}`}>
                 📜 View Nostr Event
               </Link>
             ) : (

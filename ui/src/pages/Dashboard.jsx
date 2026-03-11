@@ -132,7 +132,7 @@ function StatsRow() {
 
   const stats = [
     { label: 'Concepts', value: conceptData?.[0]?.cnt ?? '—', emoji: '🧩', to: '/kg/concepts' },
-    { label: 'Nodes', value: nodeData?.[0]?.cnt ?? '—', emoji: '🔵', to: '/kg/nodes' },
+    { label: 'Nodes', value: nodeData?.[0]?.cnt ?? '—', emoji: '🔵', to: '/kg/databases/neo4j/nodes' },
     { label: 'Users', value: userData?.[0]?.cnt ?? '—', emoji: '👤', to: '/kg/users' },
     { label: 'Relationships', value: relData?.[0]?.cnt ?? '—', emoji: '🔗', to: '/kg/relationships' },
   ];
@@ -276,7 +276,7 @@ function RecentActivity() {
           {data.map(row => (
             <tr
               key={row.uuid}
-              onClick={() => navigate(`/kg/nodes/${encodeURIComponent(row.uuid)}`)}
+              onClick={() => navigate(`/kg/databases/neo4j/nodes/${encodeURIComponent(row.uuid)}`)}
               style={{ cursor: 'pointer' }}
               className="clickable-row"
             >

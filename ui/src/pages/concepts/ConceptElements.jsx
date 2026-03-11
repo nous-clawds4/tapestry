@@ -4,6 +4,7 @@ import { useCypher } from '../../hooks/useCypher';
 import DataTable from '../../components/DataTable';
 import useProfiles from '../../hooks/useProfiles';
 import AuthorCell from '../../components/AuthorCell';
+import { OWNER_PUBKEY, TA_PUBKEY, DAVE_PUBKEY } from '../../config/pubkeys';
 
 function ValidationCell({ status, errors }) {
   if (status === 'pending') return <span className="validation-pending" title="Validating…">⏳</span>;
@@ -21,6 +22,37 @@ export default function ConceptElements() {
   const { uuid } = useOutletContext();
   const navigate = useNavigate();
 
+  // ── Filter state ──
+  const [setFilter, setSetFilter] = useState(''); // '' = superset (all), or a set uuid
+  const [authorFilter, setAuthorFilter] = useState('');
+
+  // Fetch all sets for this concept with element counts
+  const { data: setsData } = useCypher(`
+    MATCH (h:ListHeader {uuid: '${uuid}'})-[:IS_THE_CONCEPT_FOR]->(sup:Superset)
+    OPTIONAL MATCH path = (sup)-[:IS_A_SUPERSET_OF*0..10]->(s)
+    WITH s
+    OPTIONAL MATCH (s)-[:IS_A_SUPERSET_OF*0..10]->(ss)-[:HAS_ELEMENT]->(elem)
+    WITH s, count(DISTINCT elem) AS elementCount, labels(s) AS nodeLabels
+    RETURN s.uuid AS uuid, s.name AS name, elementCount, nodeLabels
+    ORDER BY elementCount DESC
+  `);
+
+  // Build sorted set options for the dropdown
+  const setOptions = useMemo(() => {
+    if (!setsData) return [];
+    return setsData;
+  }, [setsData]);
+
+  // The superset uuid (first entry with Superset label, or first overall)
+  const supersetUuid = useMemo(() => {
+    if (!setOptions.length) return null;
+    const sup = setOptions.find(s => s.nodeLabels?.includes('Superset'));
+    return sup?.uuid || setOptions[0]?.uuid || null;
+  }, [setOptions]);
+
+  // Active set uuid for filtering: default to superset
+  const activeSetUuid = setFilter || supersetUuid;
+
   // Fetch the concept's JSON schema
   const { data: schemaData } = useCypher(`
     MATCH (h:ListHeader {uuid: '${uuid}'})
@@ -29,33 +61,40 @@ export default function ConceptElements() {
     RETURN head(collect(jt.value)) AS schemaJson
   `);
 
-  // Explicit elements: connected via Superset → HAS_ELEMENT
-  const { data: explicit, loading: l1, error: e1 } = useCypher(`
-    MATCH (h:ListHeader {uuid: '${uuid}'})-[:IS_THE_CONCEPT_FOR]->(s:Superset)
-      -[:IS_A_SUPERSET_OF*0..5]->(ss)-[:HAS_ELEMENT]->(e:NostrEvent)
-    OPTIONAL MATCH (e)-[:HAS_TAG]->(j:NostrEventTag {type: 'json'})
-    WITH DISTINCT e, head(collect(j.value)) AS json
-    RETURN e.uuid AS uuid, e.name AS name, e.pubkey AS author, json
-  `);
+  // Explicit elements: scoped to the active set (direct + indirect via IS_A_SUPERSET_OF)
+  const { data: explicit, loading: l1, error: e1 } = useCypher(
+    activeSetUuid ? `
+      MATCH (s:NostrEvent {uuid: '${activeSetUuid}'})
+        -[:IS_A_SUPERSET_OF*0..10]->(ss)-[:HAS_ELEMENT]->(e:NostrEvent)
+      OPTIONAL MATCH (e)-[:HAS_TAG]->(j:NostrEventTag {type: 'json'})
+      WITH DISTINCT e, head(collect(j.value)) AS json
+      RETURN e.uuid AS uuid, e.name AS name, e.pubkey AS author, json
+    ` : null
+  );
 
-  // Implicit elements: z-tag points to the concept's uuid
-  const { data: implicit, loading: l2, error: e2 } = useCypher(`
-    MATCH (e:NostrEvent)-[:HAS_TAG]->(zt:NostrEventTag {type: 'z', value: '${uuid}'})
-    OPTIONAL MATCH (e)-[:HAS_TAG]->(j:NostrEventTag {type: 'json'})
-    WITH DISTINCT e, head(collect(j.value)) AS json
-    RETURN e.uuid AS uuid, e.name AS name, e.pubkey AS author, json
-  `);
+  // Implicit elements: z-tag points to the concept's uuid (only when viewing superset / all)
+  const isSuperset = !setFilter || setFilter === supersetUuid;
+  const { data: implicit, loading: l2, error: e2 } = useCypher(
+    isSuperset ? `
+      MATCH (e:NostrEvent)-[:HAS_TAG]->(zt:NostrEventTag {type: 'z', value: '${uuid}'})
+      OPTIONAL MATCH (e)-[:HAS_TAG]->(j:NostrEventTag {type: 'json'})
+      WITH DISTINCT e, head(collect(j.value)) AS json
+      RETURN e.uuid AS uuid, e.name AS name, e.pubkey AS author, json
+    ` : null
+  );
 
   // Merge explicit + implicit, dedup by uuid, mark binding type
+  // Only include implicit elements when viewing the superset (top-level)
   const merged = useMemo(() => {
+    const implicitList = isSuperset ? (implicit || []) : [];
     const explicitUuids = new Set((explicit || []).map(e => e.uuid));
-    const implicitUuids = new Set((implicit || []).map(e => e.uuid));
+    const implicitUuids = new Set(implicitList.map(e => e.uuid));
     const byUuid = new Map();
 
     for (const e of (explicit || [])) {
       byUuid.set(e.uuid, { ...e, isExplicit: true, isImplicit: implicitUuids.has(e.uuid) });
     }
-    for (const e of (implicit || [])) {
+    for (const e of implicitList) {
       if (byUuid.has(e.uuid)) {
         byUuid.get(e.uuid).isImplicit = true;
       } else {
@@ -66,7 +105,7 @@ export default function ConceptElements() {
     return [...byUuid.values()].sort((a, b) =>
       (a.name || '').localeCompare(b.name || '')
     );
-  }, [explicit, implicit]);
+  }, [explicit, implicit, isSuperset]);
 
   // Async validation state: { [uuid]: { status, errors } }
   const [validationResults, setValidationResults] = useState({});
@@ -175,6 +214,33 @@ export default function ConceptElements() {
   );
   const profiles = useProfiles(authorPubkeys);
 
+  // Author filter options (pinned order)
+  const authorOptions = useMemo(() => {
+    const pksSet = new Set(authorPubkeys);
+    const pinned = [];
+    if (pksSet.has(OWNER_PUBKEY)) pinned.push(OWNER_PUBKEY);
+    if (pksSet.has(DAVE_PUBKEY)) pinned.push(DAVE_PUBKEY);
+    if (pksSet.has(TA_PUBKEY)) pinned.push(TA_PUBKEY);
+    const others = authorPubkeys.filter(pk => pk !== OWNER_PUBKEY && pk !== TA_PUBKEY && pk !== DAVE_PUBKEY);
+    return [...pinned, ...others];
+  }, [authorPubkeys]);
+
+  function authorDisplayName(pk) {
+    const p = profiles?.get(pk);
+    const name = p?.name || p?.display_name;
+    const short = pk.slice(0, 8) + '…';
+    if (pk === OWNER_PUBKEY) return name ? `👑 ${name}` : `👑 Owner (${short})`;
+    if (pk === DAVE_PUBKEY) return name ? `🧑‍💻 ${name}` : `🧑‍💻 Dave (${short})`;
+    if (pk === TA_PUBKEY) return name ? `🤖 ${name}` : `🤖 Assistant (${short})`;
+    return name ? `${name} (${short})` : short;
+  }
+
+  // Apply author filter
+  const filteredMerged = useMemo(() => {
+    if (!authorFilter) return merged;
+    return merged.filter(r => r.author === authorFilter);
+  }, [merged, authorFilter]);
+
   const columns = [
     { key: 'name', label: 'Name' },
     {
@@ -234,15 +300,78 @@ export default function ConceptElements() {
           </button>
         </div>
       </div>
+      {/* Set filter */}
+      {setOptions.length > 0 && (
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+          gap: '0.75rem',
+          marginBottom: '1rem',
+          padding: '1rem',
+          border: '1px solid var(--border, #444)',
+          borderRadius: '8px',
+          backgroundColor: 'var(--bg-secondary, #1a1a2e)',
+        }}>
+          <div>
+            <label style={{ fontSize: '0.75rem', fontWeight: 600, display: 'block', marginBottom: '0.25rem' }}>
+              🗂️ Set
+            </label>
+            <select
+              value={setFilter}
+              onChange={e => setSetFilter(e.target.value)}
+              style={{
+                width: '100%', padding: '0.4rem 0.6rem', fontSize: '0.85rem',
+                backgroundColor: 'var(--bg-primary, #0f0f23)', color: 'var(--text-primary, #e0e0e0)',
+                border: '1px solid var(--border, #444)', borderRadius: '4px', cursor: 'pointer',
+              }}
+            >
+              {setOptions.map(s => (
+                <option key={s.uuid} value={s.uuid}>
+                  {s.name || s.uuid?.slice(0, 20) + '…'}
+                  {s.nodeLabels?.includes('Superset') ? ' (Superset)' : ''}
+                  {' — '}{s.elementCount} element{s.elementCount !== 1 ? 's' : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label style={{ fontSize: '0.75rem', fontWeight: 600, display: 'block', marginBottom: '0.25rem' }}>
+              👤 Author
+            </label>
+            <select
+              value={authorFilter}
+              onChange={e => setAuthorFilter(e.target.value)}
+              style={{
+                width: '100%', padding: '0.4rem 0.6rem', fontSize: '0.85rem',
+                backgroundColor: 'var(--bg-primary, #0f0f23)', color: 'var(--text-primary, #e0e0e0)',
+                border: '1px solid var(--border, #444)', borderRadius: '4px', cursor: 'pointer',
+              }}
+            >
+              <option value="">All authors</option>
+              {authorOptions.map(pk => (
+                <option key={pk} value={pk}>{authorDisplayName(pk)}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+      )}
+
       {loading && <div className="loading">Loading elements…</div>}
       {error && <div className="error">Error: {error.message}</div>}
       {!loading && !error && (
-        <DataTable
-          columns={columns}
-          data={merged}
-          onRowClick={(row) => navigate(`/kg/concepts/${encodeURIComponent(uuid)}/elements/${encodeURIComponent(row.uuid)}`)}
-          emptyMessage="No elements found"
-        />
+        <>
+          <p style={{ fontSize: '0.8rem', color: 'var(--text-muted, #888)', marginBottom: '0.5rem' }}>
+            {filteredMerged.length === merged.length
+              ? `${merged.length} elements`
+              : `${filteredMerged.length} of ${merged.length} elements`}
+          </p>
+          <DataTable
+            columns={columns}
+            data={filteredMerged}
+            onRowClick={(row) => navigate(`/kg/concepts/${encodeURIComponent(uuid)}/elements/${encodeURIComponent(row.uuid)}`)}
+            emptyMessage="No elements match your filters"
+          />
+        </>
       )}
     </div>
   );

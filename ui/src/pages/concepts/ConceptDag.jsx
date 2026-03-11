@@ -15,15 +15,19 @@ export default function ConceptDag() {
   const encodedUuid = encodeURIComponent(uuid);
 
   // Fetch the superset + all downstream sets via IS_A_SUPERSET_OF
+  // directCount = elements connected directly to this set
+  // totalCount = elements reachable through this set + all its subsets
   const { data, loading, error } = useCypher(
     uuid ? `
       MATCH (h:NostrEvent {uuid: '${uuid}'})-[:IS_THE_CONCEPT_FOR]->(sup:Superset)
       OPTIONAL MATCH path = (sup)-[:IS_A_SUPERSET_OF*0..10]->(s)
       WITH sup, s, length(path) AS depth
-      OPTIONAL MATCH (s)-[:HAS_ELEMENT]->(elem)
-      WITH s, depth, labels(s) AS nodeLabels, count(DISTINCT elem) AS elementCount
+      OPTIONAL MATCH (s)-[:HAS_ELEMENT]->(directElem)
+      WITH s, depth, labels(s) AS nodeLabels, collect(DISTINCT directElem) AS directElems
+      OPTIONAL MATCH (s)-[:IS_A_SUPERSET_OF*0..10]->(ss)-[:HAS_ELEMENT]->(totalElem)
+      WITH s, depth, nodeLabels, size(directElems) AS directCount, count(DISTINCT totalElem) AS totalCount
       RETURN s.uuid AS uuid, s.name AS name, nodeLabels,
-             depth, elementCount
+             depth, directCount, totalCount
       ORDER BY depth, name
     ` : null
   );
@@ -51,8 +55,12 @@ export default function ConceptDag() {
       },
     },
     {
-      key: 'elementCount',
-      label: 'Elements',
+      key: 'directCount',
+      label: 'Direct',
+    },
+    {
+      key: 'totalCount',
+      label: 'Total',
     },
     {
       key: 'depth',
@@ -97,7 +105,7 @@ export default function ConceptDag() {
         <DataTable
           columns={columns}
           data={data}
-          onRowClick={(row) => navigate(`/kg/nodes/${encodeURIComponent(row.uuid)}`)}
+          onRowClick={(row) => navigate(`/kg/concepts/${encodedUuid}/dag/${encodeURIComponent(row.uuid)}`)}
         />
       )}
     </div>

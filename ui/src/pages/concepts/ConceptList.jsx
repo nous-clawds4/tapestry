@@ -5,6 +5,7 @@ import DataTable from '../../components/DataTable';
 import Breadcrumbs from '../../components/Breadcrumbs';
 import useProfiles from '../../hooks/useProfiles';
 import AuthorCell from '../../components/AuthorCell';
+import { OWNER_PUBKEY, TA_PUBKEY, DAVE_PUBKEY } from '../../config/pubkeys';
 
 const QUERY = `
   MATCH (h:NostrEvent)
@@ -57,6 +58,7 @@ export default function ConceptList() {
   const { data, loading, error } = useCypher(QUERY);
   const navigate = useNavigate();
   const [healthMap, setHealthMap] = useState({});
+  const [authorFilter, setAuthorFilter] = useState('');
 
   // Fetch audit summary for all concepts
   useEffect(() => {
@@ -93,6 +95,34 @@ export default function ConceptList() {
       return { ...row, _healthSort: healthSort, _healthSummary: h?.summary || '' };
     });
   }, [data, healthMap]);
+
+  // Author filter options
+  const authorOptions = useMemo(() => {
+    const allPks = [...new Set(enrichedData.map(r => r.author).filter(Boolean))];
+    const pinned = [];
+    const pksSet = new Set(allPks);
+    if (pksSet.has(OWNER_PUBKEY)) pinned.push(OWNER_PUBKEY);
+    if (pksSet.has(DAVE_PUBKEY)) pinned.push(DAVE_PUBKEY);
+    if (pksSet.has(TA_PUBKEY)) pinned.push(TA_PUBKEY);
+    const others = allPks.filter(pk => pk !== OWNER_PUBKEY && pk !== TA_PUBKEY && pk !== DAVE_PUBKEY);
+    return [...pinned, ...others];
+  }, [enrichedData]);
+
+  function authorDisplayName(pk) {
+    const p = profiles?.get(pk);
+    const name = p?.name || p?.display_name;
+    const short = pk.slice(0, 8) + '…';
+    if (pk === OWNER_PUBKEY) return name ? `👑 ${name}` : `👑 Owner (${short})`;
+    if (pk === DAVE_PUBKEY) return name ? `🧑‍💻 ${name}` : `🧑‍💻 Dave (${short})`;
+    if (pk === TA_PUBKEY) return name ? `🤖 ${name}` : `🤖 Assistant (${short})`;
+    return name ? `${name} (${short})` : short;
+  }
+
+  // Apply filters
+  const filteredData = useMemo(() => {
+    if (!authorFilter) return enrichedData;
+    return enrichedData.filter(r => r.author === authorFilter);
+  }, [enrichedData, authorFilter]);
 
   const healthIcon = (val, row) => {
     const h = healthMap[row?.uuid];
@@ -131,15 +161,54 @@ export default function ConceptList() {
       </div>
       <p className="page-description">All concept definitions in the knowledge graph.</p>
 
+      {/* Filter */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+        gap: '0.75rem',
+        marginBottom: '1rem',
+        padding: '1rem',
+        border: '1px solid var(--border, #444)',
+        borderRadius: '8px',
+        backgroundColor: 'var(--bg-secondary, #1a1a2e)',
+      }}>
+        <div>
+          <label style={{ fontSize: '0.75rem', fontWeight: 600, display: 'block', marginBottom: '0.25rem' }}>
+            👤 Author
+          </label>
+          <select
+            value={authorFilter}
+            onChange={e => setAuthorFilter(e.target.value)}
+            style={{
+              width: '100%', padding: '0.4rem 0.6rem', fontSize: '0.85rem',
+              backgroundColor: 'var(--bg-primary, #0f0f23)', color: 'var(--text-primary, #e0e0e0)',
+              border: '1px solid var(--border, #444)', borderRadius: '4px', cursor: 'pointer',
+            }}
+          >
+            <option value="">All authors</option>
+            {authorOptions.map(pk => (
+              <option key={pk} value={pk}>{authorDisplayName(pk)}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
       {loading && <div className="loading">Loading concepts…</div>}
       {error && <div className="error">Error: {error.message}</div>}
       {!loading && !error && (
-        <DataTable
-          columns={columns}
-          data={enrichedData}
-          onRowClick={(row) => navigate(`/kg/concepts/${encodeURIComponent(row.uuid)}`)}
-          emptyMessage="No concepts found"
-        />
+        <>
+          <p style={{ fontSize: '0.8rem', color: 'var(--text-muted, #888)', marginBottom: '0.5rem' }}>
+            {filteredData.length === enrichedData.length
+              ? `${enrichedData.length} concepts`
+              : `${filteredData.length} of ${enrichedData.length} concepts`}
+          </p>
+          <DataTable
+            columns={columns}
+            data={filteredData}
+            onRowClick={(row) => navigate(`/kg/concepts/${encodeURIComponent(row.uuid)}`)}
+            emptyMessage="No concepts match your filters"
+          />
+        </>
       )}
     </div>
   );
