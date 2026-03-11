@@ -2132,7 +2132,7 @@ async function handleCreateProperty(req, res) {
 
       // Look up IS_A_PROPERTY_OF relationship type UUID
       const relTypeRows = await runCypher(`
-        MATCH (rt:NostrEvent) WHERE rt.name = 'is a property of' OR rt.name = REL.PROPERTY_MEMBERSHIP
+        MATCH (rt:NostrEvent) WHERE rt.name = 'is a property of' OR rt.name = '${REL.PROPERTY_MEMBERSHIP}'
         RETURN rt.uuid AS uuid LIMIT 1
       `, {});
 
@@ -2170,7 +2170,12 @@ async function handleCreateProperty(req, res) {
 //   Reads the concept's JSON Schema, creates property events for all
 //   properties (recursively for nested objects), wires IS_A_PROPERTY_OF,
 //   and updates the property tree graph JSON.
-//   Only works from scratch (no existing properties).
+//
+//   IDEMPOTENT: Uses deterministic d-tags (propertyName + hash of parent UUID).
+//   Re-running produces the same event IDs → strfry replaces events (kind 39999
+//   is replaceable), Neo4j MERGEs on UUID. Safe to call multiple times.
+//
+//   Property tree root: Primary Property node (if exists), else JSON Schema node.
 // ══════════════════════════════════════════════════════════════
 
 async function handleGeneratePropertyTree(req, res) {
@@ -2186,15 +2191,17 @@ async function handleGeneratePropertyTree(req, res) {
       OPTIONAL MATCH (js:JSONSchema)-[:${REL.CORE_NODE_JSON_SCHEMA}]->(h)
       OPTIONAL MATCH (js)-[:HAS_TAG]->(jt:NostrEventTag {type: 'json'})
       OPTIONAL MATCH (pg:NostrEvent)-[:${REL.CORE_NODE_PROPERTY_TREE_GRAPH}]->(h)
+      OPTIONAL MATCH (pp:Property)-[:${REL.CORE_NODE_PRIMARY_PROPERTY}]->(h)
       RETURN h.uuid AS headerUuid, h.name AS headerName,
              js.uuid AS schemaUuid, js.name AS schemaName,
              head(collect(jt.value)) AS schemaJson,
-             pg.uuid AS propGraphUuid, pg.name AS propGraphName
+             pg.uuid AS propGraphUuid, pg.name AS propGraphName,
+             pp.uuid AS primaryUuid, pp.name AS primaryName
       LIMIT 1
     `, { concept });
 
     if (rows.length === 0) return res.json({ success: false, error: `Concept "${concept}" not found` });
-    const { schemaUuid, schemaName, schemaJson, propGraphUuid, propGraphName } = rows[0];
+    const { schemaUuid, schemaName, schemaJson, propGraphUuid, propGraphName, primaryUuid, primaryName } = rows[0];
     if (!schemaUuid) return res.json({ success: false, error: `Concept "${concept}" has no JSON Schema node` });
 
     // Parse the schema (supports word-wrapper and legacy flat formats)
@@ -2208,15 +2215,6 @@ async function handleGeneratePropertyTree(req, res) {
     }
     if (!schema || !schema.properties || Object.keys(schema.properties).length === 0) {
       return res.json({ success: false, error: 'JSON Schema has no properties defined' });
-    }
-
-    // Check for existing properties
-    const existing = await runCypher(`
-      MATCH (p:NostrEvent)-[:${REL.PROPERTY_MEMBERSHIP}]->(js:NostrEvent {uuid: $schemaUuid})
-      RETURN count(p) AS count
-    `, { schemaUuid });
-    if (existing[0]?.count > 0) {
-      return res.json({ success: false, error: `Concept already has ${existing[0].count} properties. Property tree generation from scratch only — use create-property for incremental changes.` });
     }
 
     // Get property concept info
@@ -2234,14 +2232,28 @@ async function handleGeneratePropertyTree(req, res) {
     const graphRelationships = [];
     const relTypeSlug = REL.PROPERTY_MEMBERSHIP;
 
+    // Deterministic d-tag: propertyName + 8-char hash of parent UUID.
+    // Makes generate-property-tree idempotent: re-running produces the same
+    // d-tags → same UUIDs → strfry replaces events, Neo4j MERGEs on UUID.
+    function deterministicDTag(propName, parentUuid) {
+      const hash = crypto.createHash('sha256').update(parentUuid).digest('hex').slice(0, 8);
+      return `${deriveSlug(propName)}-${hash}`;
+    }
+
     async function createPropertiesRecursive(properties, requiredList, parentUuid, parentSlug) {
       for (const [propName, propDef] of Object.entries(properties)) {
         const pType = propDef.type || 'string';
         const pDesc = propDef.description || '';
         const isRequired = (requiredList || []).includes(propName);
 
-        // Build property JSON
+        // Build property JSON (word-wrapper format)
+        const propSlug = deriveSlug(propName);
         const propertyJson = {
+          word: {
+            slug: propSlug,
+            name: propName,
+            wordTypes: ['word', 'property'],
+          },
           property: {
             name: propName,
             type: pType,
@@ -2250,8 +2262,8 @@ async function handleGeneratePropertyTree(req, res) {
           },
         };
 
-        // Create the event
-        const dTag = randomDTag();
+        // Deterministic d-tag: idempotent across re-runs
+        const dTag = deterministicDTag(propName, parentUuid);
         const tags = [
           ['d', dTag],
           ['name', propName],
@@ -2287,7 +2299,6 @@ async function handleGeneratePropertyTree(req, res) {
         created.push({ name: propName, uuid: propUuid, type: pType, parentUuid });
 
         // Add to graph
-        const propSlug = deriveSlug(propName);
         graphNodes.push({ slug: propSlug, uuid: propUuid, name: propName });
         graphRelationships.push({
           nodeFrom: { slug: propSlug },
@@ -2307,14 +2318,70 @@ async function handleGeneratePropertyTree(req, res) {
       }
     }
 
-    const schemaSlug = deriveSlug(schemaName);
-    await createPropertiesRecursive(schema.properties, schema.required, schemaUuid, schemaSlug);
+    // Use primary property as root parent if it exists, otherwise fall back to schema
+    const rootParentUuid = primaryUuid || schemaUuid;
+    const rootParentName = primaryName || schemaName;
+    const rootParentSlug = deriveSlug(rootParentName);
+
+    // If there's a primary property and the schema has exactly one top-level property
+    // that is an object (the wrapper), skip it and wire its children to the primary property.
+    const topLevelKeys = Object.keys(schema.properties);
+    const singleWrapper = topLevelKeys.length === 1 && schema.properties[topLevelKeys[0]]?.type === 'object';
+
+    if (primaryUuid && singleWrapper) {
+      const wrapperDef = schema.properties[topLevelKeys[0]];
+      // Wire the wrapper's children directly to the primary property
+      await createPropertiesRecursive(
+        wrapperDef.properties || {},
+        wrapperDef.required,
+        rootParentUuid,
+        rootParentSlug
+      );
+    } else {
+      await createPropertiesRecursive(schema.properties, schema.required, rootParentUuid, rootParentSlug);
+    }
+
+    // ── Unhook orphaned properties ──
+    // Find all property nodes in the tree that were NOT created/updated in this run.
+    // Remove their IS_A_PROPERTY_OF and HAS_ELEMENT edges (don't delete the events).
+    {
+      const createdUuids = new Set(created.map(c => c.uuid));
+      // Also keep the primary property
+      if (primaryUuid) createdUuids.add(primaryUuid);
+
+      // Find all properties currently wired into this concept's tree
+      const treeRoot = primaryUuid || schemaUuid;
+      const allInTree = await runCypher(`
+        MATCH (p:Property)-[:${REL.PROPERTY_MEMBERSHIP}*1..10]->(root:NostrEvent {uuid: $treeRoot})
+        WHERE NOT p.uuid ENDS WITH '-primary-property'
+        RETURN DISTINCT p.uuid AS uuid, p.name AS name
+      `, { treeRoot });
+
+      const orphans = allInTree.filter(p => !createdUuids.has(p.uuid));
+
+      if (orphans.length > 0) {
+        for (const orphan of orphans) {
+          // Remove IS_A_PROPERTY_OF edge (unhook from tree)
+          await writeCypher(`
+            MATCH (p:NostrEvent {uuid: $uuid})-[r:${REL.PROPERTY_MEMBERSHIP}]->()
+            DELETE r
+          `, { uuid: orphan.uuid });
+
+          // Remove HAS_ELEMENT edge from property superset (if any)
+          await writeCypher(`
+            MATCH ()-[r:${REL.CLASS_THREAD_TERMINATION}]->(p:NostrEvent {uuid: $uuid})
+            DELETE r
+          `, { uuid: orphan.uuid });
+        }
+        console.log(`[generate-property-tree] Unhooked ${orphans.length} orphaned properties: ${orphans.map(o => o.name).join(', ')}`);
+      }
+    }
 
     // Update property tree graph JSON
     if (propGraphUuid) {
       // Look up the IS_A_PROPERTY_OF relationship type UUID if it exists
       const relTypeRows = await runCypher(`
-        MATCH (rt:NostrEvent) WHERE rt.name = 'is a property of' OR rt.name = REL.PROPERTY_MEMBERSHIP
+        MATCH (rt:NostrEvent) WHERE rt.name = 'is a property of' OR rt.name = '${REL.PROPERTY_MEMBERSHIP}'
         RETURN rt.uuid AS uuid, rt.name AS name LIMIT 1
       `, {});
 

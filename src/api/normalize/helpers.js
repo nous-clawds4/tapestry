@@ -22,10 +22,38 @@ function deriveSlug(name) {
   return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 }
 
-function getPrivkey() {
+// ── TA private key cache (loaded once from secure storage) ────
+let _cachedPrivkey = null;
+
+async function loadTAKey() {
+  if (_cachedPrivkey) return;
+  try {
+    const { SecureKeyStorage } = require('../../utils/secureKeyStorage');
+    const storage = new SecureKeyStorage({
+      storagePath: '/var/lib/brainstorm/secure-keys'
+    });
+    const keys = await storage.getRelayKeys('tapestry-assistant');
+    if (keys && keys.privkey) {
+      _cachedPrivkey = Uint8Array.from(Buffer.from(keys.privkey, 'hex'));
+      return;
+    }
+  } catch (e) {
+    // Secure storage unavailable — fall through to legacy
+  }
+
+  // Fallback to brainstorm.conf
   const hex = getConfigFromFile('BRAINSTORM_RELAY_PRIVKEY');
-  if (!hex) throw new Error('Tapestry Assistant key not configured (BRAINSTORM_RELAY_PRIVKEY)');
-  return Uint8Array.from(Buffer.from(hex, 'hex'));
+  if (hex) {
+    _cachedPrivkey = Uint8Array.from(Buffer.from(hex, 'hex'));
+    return;
+  }
+
+  throw new Error('Tapestry Assistant key not configured. Store it in secure storage or set BRAINSTORM_RELAY_PRIVKEY.');
+}
+
+function getPrivkey() {
+  if (!_cachedPrivkey) throw new Error('TA key not loaded yet — call loadTAKey() at startup');
+  return _cachedPrivkey;
 }
 
 function signAndFinalize(template) {
@@ -96,6 +124,7 @@ async function importEventDirect(event, uuid) {
 }
 
 async function regenerateJson(uuid, jsonValue) {
+  await loadTAKey();
   const tagRows = await runCypher(`
     MATCH (e:NostrEvent {uuid: $uuid})-[:HAS_TAG]->(t:NostrEventTag)
     RETURN t.type AS type, t.value AS value, t.value1 AS value1, t.value2 AS value2
@@ -129,6 +158,7 @@ async function regenerateJson(uuid, jsonValue) {
 module.exports = {
   randomDTag,
   deriveSlug,
+  loadTAKey,
   signAndFinalize,
   publishToStrfry,
   importEventDirect,

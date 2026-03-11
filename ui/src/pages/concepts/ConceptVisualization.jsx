@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import OrganizationView from './OrganizationView';
+import PropertyTreeView from './PropertyTreeView';
 
 const VIEWS = [
   { key: 'organization', label: 'Organization (Sets)' },
@@ -43,19 +44,7 @@ export default function ConceptVisualization() {
       )}
 
       {activeView === 'property-tree' && (
-        <div style={{
-          padding: '2rem', textAlign: 'center',
-          border: '1px dashed rgba(255,255,255,0.15)', borderRadius: '8px',
-          opacity: 0.6,
-        }}>
-          <p style={{ fontSize: '1.1rem', marginBottom: '0.5rem' }}>🌳 Property Tree View</p>
-          <p style={{ fontSize: '0.85rem' }}>
-            Visualize the property tree of <strong>{concept?.name}</strong>.
-          </p>
-          <p style={{ fontSize: '0.8rem', fontStyle: 'italic', marginTop: '0.5rem' }}>
-            Coming soon
-          </p>
-        </div>
+        <PropertyTreeView uuid={uuid} conceptName={concept?.name} />
       )}
     </div>
   );

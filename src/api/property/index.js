@@ -15,18 +15,21 @@ async function handleGenerateJsonSchema(req, res) {
     const { concept } = req.body;
     if (!concept) return res.status(400).json({ success: false, error: 'Missing concept name' });
 
-    // Find the concept header and JSON Schema node
+    // Find the concept header, JSON Schema, and Primary Property
     const rows = await runCypher(`
       MATCH (h:NostrEvent)
       WHERE (h:ListHeader OR h:ClassThreadHeader) AND h.kind IN [9998, 39998]
         AND h.name = $concept
       OPTIONAL MATCH (js:JSONSchema)-[:IS_THE_JSON_SCHEMA_FOR]->(h)
-      RETURN h.uuid AS headerUuid, js.uuid AS schemaUuid, js.name AS schemaName
+      OPTIONAL MATCH (pp)-[:IS_THE_PRIMARY_PROPERTY_FOR]->(h)
+      OPTIONAL MATCH (h)-[:HAS_TAG]->(st:NostrEventTag {type: 'slug'})
+      RETURN h.uuid AS headerUuid, js.uuid AS schemaUuid, js.name AS schemaName,
+             pp.uuid AS primaryUuid, pp.name AS primaryName, st.value AS conceptSlug
       LIMIT 1
     `, { concept });
 
     if (rows.length === 0) return res.json({ success: false, error: `Concept "${concept}" not found` });
-    const { schemaUuid, schemaName } = rows[0];
+    const { schemaUuid, schemaName, primaryUuid, primaryName, conceptSlug } = rows[0];
     if (!schemaUuid) return res.json({ success: false, error: `Concept "${concept}" has no JSON Schema node. Run 'tapestry normalize skeleton "${concept}"' first.` });
 
     // Fetch all properties in the tree (at all depths) with their direct parent
@@ -108,7 +111,33 @@ async function handleGenerateJsonSchema(req, res) {
       return { properties, required };
     }
 
-    const topLevel = buildSchemaForChildren(schemaUuid);
+    // If there's a primary property, its children are the inner properties of the wrapper object.
+    // The schema should have one top-level property (the wrapper key) containing those children.
+    let topLevel;
+    if (primaryUuid && childMap[primaryUuid]?.length > 0) {
+      // Build inner properties from primary property's children
+      const innerProps = buildSchemaForChildren(primaryUuid);
+      // Derive the wrapper key from the concept slug (camelCase)
+      const wrapperKey = conceptSlug
+        ? conceptSlug.replace(/-([a-z])/g, (_, c) => c.toUpperCase())
+        : concept.toLowerCase().replace(/\s+([a-z])/g, (_, c) => c.toUpperCase());
+      topLevel = {
+        properties: {
+          [wrapperKey]: {
+            type: 'object',
+            name: concept,
+            title: concept.replace(/\b\w/g, c => c.toUpperCase()),
+            slug: conceptSlug || concept.toLowerCase().replace(/\s+/g, '-'),
+            description: `data about this ${concept}`,
+            ...(innerProps || {}),
+          },
+        },
+        required: [wrapperKey],
+      };
+    } else {
+      // No primary property or no children — build directly from schema children
+      topLevel = buildSchemaForChildren(schemaUuid);
+    }
 
     const schema = {
       $schema: 'https://json-schema.org/draft/2020-12/schema',

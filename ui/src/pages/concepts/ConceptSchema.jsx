@@ -359,6 +359,63 @@ export default function ConceptSchema() {
           )}
         </div>
       )}
+
+      {/* Generate Property Tree button */}
+      {isOwner && concept?.name && (
+        <GeneratePropertyTreeButton concept={concept.name} />
+      )}
+    </div>
+  );
+}
+
+function GeneratePropertyTreeButton({ concept }) {
+  const [status, setStatus] = useState(null); // null | 'loading' | { success, message, error, count }
+
+  async function handleGenerate() {
+    setStatus('loading');
+    try {
+      const res = await fetch('/api/normalize/generate-property-tree', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ concept }),
+      });
+      const data = await res.json();
+      setStatus({
+        success: data.success,
+        message: data.message || data.error,
+        count: data.properties?.length || 0,
+      });
+    } catch (err) {
+      setStatus({ success: false, message: err.message });
+    }
+  }
+
+  return (
+    <div style={{ marginTop: '2rem', paddingTop: '1.5rem', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+        <button
+          className="btn"
+          onClick={handleGenerate}
+          disabled={status === 'loading'}
+          style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+        >
+          {status === 'loading' ? '⏳ Generating…' : '🌳 Generate Property Tree →'}
+        </button>
+        <span style={{ fontSize: '0.8rem', opacity: 0.6 }}>
+          Create/sync the property tree from this JSON Schema
+        </span>
+      </div>
+      {status && status !== 'loading' && (
+        <div style={{
+          marginTop: '0.75rem', padding: '0.5rem 0.75rem', borderRadius: '6px',
+          fontSize: '0.85rem',
+          backgroundColor: status.success ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)',
+          color: status.success ? '#4ade80' : '#f87171',
+          border: `1px solid ${status.success ? 'rgba(34,197,94,0.2)' : 'rgba(239,68,68,0.2)'}`,
+        }}>
+          {status.success ? '✅' : '❌'} {status.message}
+        </div>
+      )}
     </div>
   );
 }

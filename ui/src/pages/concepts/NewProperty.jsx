@@ -24,28 +24,43 @@ export default function NewProperty() {
   const [propFormat, setPropFormat] = useState('');
   const [propPattern, setPropPattern] = useState('');
   const [propEnum, setPropEnum] = useState('');
-  const [parentUuid, setParentUuid] = useState(''); // '' = JSON Schema (default)
+  const [parentUuid, setParentUuid] = useState(''); // set to primary property UUID on load
 
   const typeOptions = ['string', 'number', 'integer', 'boolean', 'object', 'array', 'null'];
 
-  // Fetch the JSON Schema node + any object-typed properties as valid parent targets
+  // Fetch the JSON Schema, Primary Property, and all object-typed properties as valid parent targets
   const { data: schemaRow } = useCypher(`
     MATCH (js:JSONSchema)-[:IS_THE_JSON_SCHEMA_FOR]->(h:NostrEvent {uuid: '${uuid}'})
-    RETURN js.uuid AS schemaUuid, js.name AS schemaName
+    OPTIONAL MATCH (pp)-[:IS_THE_PRIMARY_PROPERTY_FOR]->(h)
+    RETURN js.uuid AS schemaUuid, js.name AS schemaName,
+           pp.uuid AS primaryUuid, pp.name AS primaryName
     LIMIT 1
   `);
   const { data: objectProps } = useCypher(`
     MATCH (js:JSONSchema)-[:IS_THE_JSON_SCHEMA_FOR]->(h:NostrEvent {uuid: '${uuid}'})
-    MATCH (p:Property)-[:IS_A_PROPERTY_OF]->(js)
+    OPTIONAL MATCH (pp)-[:IS_THE_PRIMARY_PROPERTY_FOR]->(h)
+    WITH js, pp
+    MATCH (p:Property)-[:IS_A_PROPERTY_OF*1..10]->(js)
+    WHERE p <> pp
     OPTIONAL MATCH (p)-[:HAS_TAG]->(jt:NostrEventTag {type: 'json'})
     WITH p, head(collect(jt.value)) AS json
     RETURN p.uuid AS uuid, p.name AS name, json
   `);
 
+  // Set default parent to primary property when data loads
+  useEffect(() => {
+    if (schemaRow?.length && schemaRow[0].primaryUuid && !parentUuid) {
+      setParentUuid(schemaRow[0].primaryUuid);
+    }
+  }, [schemaRow]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const parentChoices = useMemo(() => {
     if (!schemaRow?.length) return [];
-    const { schemaName } = schemaRow[0];
-    const choices = [{ uuid: '', label: schemaName || 'JSON Schema (top level)', isDefault: true }];
+    const { primaryUuid, primaryName } = schemaRow[0];
+    // Default parent is the Primary Property (not the JSON Schema)
+    const defaultLabel = primaryName || 'Primary Property (top level)';
+    const defaultUuid = primaryUuid || '';
+    const choices = [{ uuid: defaultUuid, label: defaultLabel, isDefault: true }];
     if (Array.isArray(objectProps)) {
       for (const p of objectProps) {
         if (!p.uuid) continue;
@@ -118,6 +133,7 @@ export default function NewProperty() {
       if (parentUuid) {
         opts.parentUuid = parentUuid;
       } else {
+        // Fallback: use concept name if no parent UUID (shouldn't happen with primary property)
         opts.concept = concept.name;
       }
       const res = await createProperty(opts);

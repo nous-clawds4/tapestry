@@ -219,8 +219,25 @@ The JSON is namespaced by concept slug — a single element can carry data from 
 #### Property Relationships
 | Relationship | Direction |
 |-------------|-----------|
-| `IS_A_PROPERTY_OF` | Property → JSONSchema |
-| `ENUMERATES` | Superset → Property (explicit event) |
+| `IS_A_PROPERTY_OF` | Property → Primary Property (top-level) or Property → Property (nested) |
+| `ENUMERATES` | Superset → Property (horizontal integration, explicit event) |
+
+##### Property Tree Structure
+The property tree mirrors the JSON Schema structure:
+- **JSON Schema** ← Primary Property ← top-level properties ← nested properties
+- Top-level schema properties wire to the **Primary Property** (not directly to the JSON Schema)
+- Nested object properties wire to their parent property
+
+##### Deterministic D-Tags for Properties
+Property events use deterministic d-tags: `<property-slug>-<8-char-sha256(parentUUID)>`.
+This makes `generate-property-tree` **idempotent**: re-running produces identical event IDs,
+strfry replaces existing events (kind 39999 is replaceable), and Neo4j MERGEs on UUID.
+
+##### Two-Way Sync: JSON Schema ↔ Property Tree
+| Direction | Endpoint | Notes |
+|-----------|----------|-------|
+| Schema → Tree | `POST /api/normalize/generate-property-tree` | Idempotent, safe to re-run |
+| Tree → Schema | `POST /api/property/generate-json-schema` | Reads tree, writes to JSONSchema node |
 
 #### Editorial Relationships (explicit events)
 | Relationship | Meaning |
@@ -466,7 +483,8 @@ Base URL: `http://localhost:8080`
 | POST | `/api/normalize/save-schema` | Save/update a concept's JSON Schema |
 | POST | `/api/normalize/save-element-json` | Save/update an element's JSON |
 | POST | `/api/normalize/create-property` | Create a property for a concept |
-| POST | `/api/normalize/generate-property-tree` | Generate the property tree graph |
+| POST | `/api/normalize/generate-property-tree` | Generate property tree from JSON Schema (idempotent) |
+| POST | `/api/normalize/prune-superset-edges` | Prune redundant direct Superset edges |
 | POST | `/api/normalize/add-node-as-element` | Wire an existing node as element of a concept |
 | POST | `/api/normalize/link-concepts` | Create IS_A_SUPERSET_OF between concepts |
 | POST | `/api/normalize/enumerate` | Create ENUMERATES relationship |
@@ -839,7 +857,9 @@ docker compose exec tapestry strfry sync wss://dcosl.brainstorm.world \
 
 - **DList import flow** — just completed (3 import modes from Simple Lists page)
 - **JSON validation** — audit validates core node JSON against firmware schemas; element validation against concept schemas exists but needs polish
-- **Visualization tab** — placeholder exists, actual vis-network graphs not yet implemented
+- **Visualization tab** — two views implemented:
+  - **Organization (Sets):** vis-network graph of class threads (Header → Superset → Sets → Elements). Toggle implicit HAS_ELEMENT edges on/off. Wind affects sets only (mass differentiation).
+  - **Property Tree:** vis-network graph of property tree (JSON Schema → Primary Property → properties). Wind blows left to spread the tree horizontally.
 
 ---
 
@@ -848,7 +868,8 @@ docker compose exec tapestry strfry sync wss://dcosl.brainstorm.world \
 ### Near-Term
 
 - [ ] **Element JSON validation against concept schemas** — full validation pipeline in the audit
-- [ ] **Concept Graph visualization** — vis-network rendering of class threads and property trees (tab exists as placeholder)
+- [x] **Concept Graph visualization** — vis-network rendering of class threads and property trees (both views implemented)
+- [ ] **Pruning UI** — standalone pruning buttons exist on Health Audit; consider auto-prune after firmware install
 - [ ] **GrapeRank integration** — trust scores for WoT-weighted curation
 - [ ] **Loose consensus demonstration** — show how two users' WoTs converge on shared definitions
 - [ ] **IMPORT/SUPERCEDES UI** — buttons to import or supercede another user's concept
