@@ -1,0 +1,158 @@
+{
+  "version": 2,
+  "listOwner": {
+    "name": "Nous-test-1",
+    "pk": "beba5587f5e570afaf6f80d5f5565b3d19c29e82f669634ab199bf050ca375f4",
+    "sk": "8eb83c4f6d89c1657699284a2089688e5b431052a996952591073ae35a07a165"
+  },
+  "listDTag": "dwarf~1",
+  "listUuid": "39998:beba5587f5e570afaf6f80d5f5565b3d19c29e82f669634ab199bf050ca375f4:dwarf~1",
+  "items": {
+    "Doc": {
+      "eventId": "cabeec621f1b79b77fd285e1fd82beda9c468d5ee96e54a1d89c03100167eb90",
+      "author": "Snow White",
+      "authorPk": "a19ffd86e1c5bad3f9f3934ab689c2be4dea2d07e04ff3df9864da1c6a7b8eec",
+      "uuid": "39999:a19ffd86e1c5bad3f9f3934ab689c2be4dea2d07e04ff3df9864da1c6a7b8eec:doc-00a626dc"
+    },
+    "Grumpy": {
+      "eventId": "61d03652d712216b0e38246b72e2087ba839ea20a6a047aa24a081ab5f2fa57f",
+      "author": "Prince Charming",
+      "authorPk": "f03b88f3d7db32b532001f84c0cd195ce4f68ec6e32f211bbc5dc449152043e9",
+      "uuid": "39999:f03b88f3d7db32b532001f84c0cd195ce4f68ec6e32f211bbc5dc449152043e9:grumpy-00a626dc"
+    },
+    "Happy": {
+      "eventId": "3ad3f4ca4c21da91da5c83f7cc1008acc56c8b42e605edf87e8899cf2f7df41f",
+      "author": "Magic Mirror",
+      "authorPk": "50562894a151f6be404018d442e4a4af10bc773d27c55e6806561549e9253003",
+      "uuid": "39999:50562894a151f6be404018d442e4a4af10bc773d27c55e6806561549e9253003:happy-00a626dc"
+    },
+    "Sleepy": {
+      "eventId": "b317a0c4caaa8a91aac978595cf726207eca107f4ab0d020c50ae4e001f59782",
+      "author": "Huntsman",
+      "authorPk": "957bc98b30ce9b13545bfabb1052713de292123a5ab78f40e442010c541b31bc",
+      "uuid": "39999:957bc98b30ce9b13545bfabb1052713de292123a5ab78f40e442010c541b31bc:sleepy-00a626dc"
+    },
+    "Bashful": {
+      "eventId": "eea05c52e6ce3e496477651e171a7324944e9c0c7bc71d84f50e063868a7a2da",
+      "author": "Forest Owl",
+      "authorPk": "a8db6e9b897c558865dbff17e31444984fb8ab8b6ca0d7b17eff767e794b2f8d",
+      "uuid": "39999:a8db6e9b897c558865dbff17e31444984fb8ab8b6ca0d7b17eff767e794b2f8d:bashful-00a626dc"
+    },
+    "Sneezy": {
+      "eventId": "d32fc7e8721698d9d58f9667ead70ad1eeafe39649d15d0ebfa4f8ce4a495aa4",
+      "author": "Woodland Deer",
+      "authorPk": "c97550ea053c80815b7bbf12a21c6e92865e8a51749b377787b361c29a5deafa",
+      "uuid": "39999:c97550ea053c80815b7bbf12a21c6e92865e8a51749b377787b361c29a5deafa:sneezy-00a626dc"
+    },
+    "Dopey": {
+      "eventId": "4c1cfee06b34fc467bbc192437ca1d8b31e41739e98f58bb9a6ad964fae3ff38",
+      "author": "Bluebird",
+      "authorPk": "f3e37e6c65d3cc7d8db8417e6e0ca61dd1f9ce78d29c2277e93ece9b7b634553",
+      "uuid": "39999:f3e37e6c65d3cc7d8db8417e6e0ca61dd1f9ce78d29c2277e93ece9b7b634553:dopey-00a626dc"
+    },
+    "Grouchy": {
+      "eventId": "f67a5bfd24c23f188472a42512b817c970ed26cf5ced860efaa531872df34560",
+      "author": "Evil Queen",
+      "authorPk": "7d43de9c414839d1d8af6b5792c8a110d93a1d579cb6c859bb924709350e1a58",
+      "uuid": "39999:7d43de9c414839d1d8af6b5792c8a110d93a1d579cb6c859bb924709350e1a58:grouchy-00a626dc"
+    },
+    "Jolly": {
+      "eventId": "a1377d9562ce229f6ce6b3e55a7c9d4aba0d7df479b7205bc94833b06bf94c93",
+      "author": "Poison Apple",
+      "authorPk": "c101c0d97e16f4fc2b17c3d69d497d06f952654239e48ddc9b781cce58af6c9d",
+      "uuid": "39999:c101c0d97e16f4fc2b17c3d69d497d06f952654239e48ddc9b781cce58af6c9d:jolly-00a626dc"
+    },
+    "Drowsy": {
+      "eventId": "df7904f380970cac60781d262dea86dc4b51a40698350765c6fbd4b3ff471f72",
+      "author": "Dark Mirror",
+      "authorPk": "8f5bea47b0ac04bcf175c5da0ee8a1942d1a23f2e8f5a11b300441c674b17461",
+      "uuid": "39999:8f5bea47b0ac04bcf175c5da0ee8a1942d1a23f2e8f5a11b300441c674b17461:drowsy-00a626dc"
+    },
+    "Timid": {
+      "eventId": "cf53cb629123cafb8ba8274d9387907db98e4d98855db57e5d89a13b9254f811",
+      "author": "Witch Cat",
+      "authorPk": "08dae6364947c3a8709be97204dcdd2d7dd1df413e04109df0e70d60cf588745",
+      "uuid": "39999:08dae6364947c3a8709be97204dcdd2d7dd1df413e04109df0e70d60cf588745:timid-00a626dc"
+    },
+    "Sniffles": {
+      "eventId": "24aaa8728c0d7e363249a4a8f52eaa9e95c9a57f6fcd5a3047304034d35ba8b5",
+      "author": "Shadow",
+      "authorPk": "ea054f4af974eca730ba70231b4f13ccaf897f0fb814e2a2cf10527e41056f7b",
+      "uuid": "39999:ea054f4af974eca730ba70231b4f13ccaf897f0fb814e2a2cf10527e41056f7b:sniffles-00a626dc"
+    },
+    "Goofy": {
+      "eventId": "1d6551aa7ca0dbe491f6783ea376dfd2d5e92829d512d740421809ebd1443ebc",
+      "author": "Goblin King",
+      "authorPk": "836adca9e63871f3dd96aa37b9aad13ce4a536bc47c8f6b52f472a4997bbe64d",
+      "uuid": "39999:836adca9e63871f3dd96aa37b9aad13ce4a536bc47c8f6b52f472a4997bbe64d:goofy-00a626dc"
+    },
+    "Brainy": {
+      "eventId": "ffa7f68b88fe383091790ac5f03ffde6887224f1ca09014a7899da50aecee0eb",
+      "author": "Troll",
+      "authorPk": "174f32fee83a1ba2923971cb68b5a87187bc66d296371e532ba5de519fe62e21",
+      "uuid": "39999:174f32fee83a1ba2923971cb68b5a87187bc66d296371e532ba5de519fe62e21:brainy-00a626dc"
+    }
+  },
+  "itemContributors": {
+    "realDwarves": [
+      {
+        "dwarf": "Doc",
+        "contributor": "Snow White"
+      },
+      {
+        "dwarf": "Grumpy",
+        "contributor": "Prince Charming"
+      },
+      {
+        "dwarf": "Happy",
+        "contributor": "Magic Mirror"
+      },
+      {
+        "dwarf": "Sleepy",
+        "contributor": "Huntsman"
+      },
+      {
+        "dwarf": "Bashful",
+        "contributor": "Forest Owl"
+      },
+      {
+        "dwarf": "Sneezy",
+        "contributor": "Woodland Deer"
+      },
+      {
+        "dwarf": "Dopey",
+        "contributor": "Bluebird"
+      }
+    ],
+    "pretenders": [
+      {
+        "pretender": "Grouchy",
+        "contributor": "Evil Queen"
+      },
+      {
+        "pretender": "Jolly",
+        "contributor": "Poison Apple"
+      },
+      {
+        "pretender": "Drowsy",
+        "contributor": "Dark Mirror"
+      },
+      {
+        "pretender": "Timid",
+        "contributor": "Witch Cat"
+      },
+      {
+        "pretender": "Sniffles",
+        "contributor": "Shadow"
+      },
+      {
+        "pretender": "Goofy",
+        "contributor": "Goblin King"
+      },
+      {
+        "pretender": "Brainy",
+        "contributor": "Troll"
+      }
+    ]
+  }
+}

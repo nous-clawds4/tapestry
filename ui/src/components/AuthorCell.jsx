@@ -9,12 +9,12 @@ function shortPubkey(pk) {
  * Clickable author cell with avatar + name. Links to /kg/users/:pubkey.
  * Pass `profiles` map and `pubkey`. Stops event propagation to avoid triggering row clicks.
  */
-export default function AuthorCell({ pubkey, profiles }) {
+export default function AuthorCell({ pubkey, profiles, size }) {
   const navigate = useNavigate();
 
   if (!pubkey) return <span className="text-muted">—</span>;
 
-  const p = profiles?.get(pubkey);
+  const p = profiles?.[pubkey];
   const displayName = p?.display_name || p?.name || shortPubkey(pubkey);
   const pic = p?.picture;
 
@@ -23,12 +23,14 @@ export default function AuthorCell({ pubkey, profiles }) {
     navigate(`/kg/users/${pubkey}`);
   }
 
+  const sizeStyle = size ? { width: size, height: size } : undefined;
+
   return (
     <span className="author-cell author-cell-link" title={pubkey} onClick={handleClick}>
       {pic ? (
-        <img src={pic} alt="" className="author-avatar" />
+        <img src={pic} alt="" className="author-avatar" style={sizeStyle} />
       ) : (
-        <span className="author-avatar-placeholder" />
+        <span className="author-avatar-placeholder" style={sizeStyle} />
       )}
       <span className="author-name">{displayName}</span>
     </span>

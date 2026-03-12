@@ -65,7 +65,7 @@ export default function UsersIndex() {
 
   const rows = useMemo(() => {
     return allPubkeys.map(pubkey => {
-      const p = profiles.get(pubkey);
+      const p = profiles?.[pubkey];
       return {
         pubkey,
         displayName: p?.display_name || p?.name || shortPubkey(pubkey),

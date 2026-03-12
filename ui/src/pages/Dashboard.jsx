@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useCypher } from '../hooks/useCypher';
@@ -54,7 +54,7 @@ function WelcomeCard({ taProfile, onSetupProfile, onSurpriseMe }) {
   );
 }
 
-function OnboardingChecklist({ user, taProfile, conceptCount, onAction }) {
+function OnboardingChecklist({ user, taProfile, conceptCount, constraintsOk, onAction }) {
   const isOwner = user?.classification === 'owner';
   const hasTA = taProfile && (taProfile.name || taProfile.picture);
   const hasBios = conceptCount > 0;
@@ -62,6 +62,7 @@ function OnboardingChecklist({ user, taProfile, conceptCount, onAction }) {
   const items = [
     { key: 'running', label: 'Tapestry is running', done: true },
     { key: 'signed-in', label: 'Signed in as Owner', done: isOwner },
+    { key: 'constraints', label: 'Install Neo4j constraints & indexes', done: constraintsOk },
     { key: 'ta-profile', label: 'Give your Assistant a profile', done: hasTA, action: () => onAction('ta-profile'), actionLabel: 'Set up profile →' },
     { key: 'bios', label: 'Install Tapestry firmware', done: hasBios, action: () => onAction('bios'), actionLabel: 'Install firmware →' },
   ];
@@ -216,6 +217,133 @@ function HealthRow() {
   );
 }
 
+/* ─── Constraints Check ───────────────────────────────────── */
+
+const EXPECTED_CONSTRAINTS = [
+  { name: 'nostrEvent_id', label: 'NostrEvent.id', property: 'id', entity: 'NostrEvent' },
+  { name: 'nostrEvent_uuid', label: 'NostrEvent.uuid', property: 'uuid', entity: 'NostrEvent' },
+  { name: 'nostrEventTag_uuid', label: 'NostrEventTag.uuid', property: 'uuid', entity: 'NostrEventTag' },
+  { name: 'nostrUser_pubkey', label: 'NostrUser.pubkey', property: 'pubkey', entity: 'NostrUser' },
+];
+
+const EXPECTED_INDEXES = [
+  { name: 'nostrEvent_kind', label: 'NostrEvent.kind', property: 'kind', entity: 'NostrEvent' },
+];
+
+function ConstraintsCheck({ onStatusChange }) {
+  const [status, setStatus] = useState(null); // null = loading, { constraints, indexes }
+  const [installing, setInstalling] = useState(false);
+  const [error, setError] = useState(null);
+  const { user } = useAuth();
+  const isOwner = user?.classification === 'owner';
+
+  const checkConstraints = useCallback(async () => {
+    try {
+      // Query existing constraints and indexes via Cypher
+      const constraintRes = await fetch('/api/neo4j/query', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          cypher: `SHOW CONSTRAINTS YIELD name, type, labelsOrTypes, properties RETURN name, type, labelsOrTypes, properties`,
+        }),
+      });
+      const constraintData = await constraintRes.json();
+
+      const indexRes = await fetch('/api/neo4j/query', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          cypher: `SHOW INDEXES YIELD name, state, type, labelsOrTypes, properties WHERE type <> 'LOOKUP' RETURN name, state, type, labelsOrTypes, properties`,
+        }),
+      });
+      const indexData = await indexRes.json();
+
+      const existingConstraints = new Set((constraintData.data || []).map(r => r.name));
+      const existingIndexes = new Set((indexData.data || []).map(r => r.name));
+
+      const missingConstraints = EXPECTED_CONSTRAINTS.filter(c => !existingConstraints.has(c.name));
+      const missingIndexes = EXPECTED_INDEXES.filter(i => !existingIndexes.has(i.name));
+
+      const ok = missingConstraints.length === 0 && missingIndexes.length === 0;
+      setStatus({ missingConstraints, missingIndexes, total: EXPECTED_CONSTRAINTS.length + EXPECTED_INDEXES.length });
+      if (onStatusChange) onStatusChange(ok);
+    } catch (err) {
+      setStatus({ missingConstraints: EXPECTED_CONSTRAINTS, missingIndexes: EXPECTED_INDEXES, total: EXPECTED_CONSTRAINTS.length + EXPECTED_INDEXES.length });
+      if (onStatusChange) onStatusChange(false);
+    }
+  }, []);
+
+  useEffect(() => { checkConstraints(); }, [checkConstraints]);
+
+  const handleInstall = useCallback(async () => {
+    setInstalling(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/neo4j-setup-constraints-and-indexes', { method: 'POST' });
+      const data = await res.json();
+      if (data.success) {
+        // Re-check after install
+        await new Promise(r => setTimeout(r, 2000));
+        await checkConstraints();
+      } else {
+        setError(data.error || 'Setup failed');
+      }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setInstalling(false);
+    }
+  }, [checkConstraints]);
+
+  if (!status) return null;
+
+  const totalMissing = status.missingConstraints.length + status.missingIndexes.length;
+  if (totalMissing === 0) return null; // All good, don't show anything
+
+  return (
+    <div className="dashboard-card" style={{
+      border: '1px solid #f59e0b',
+      backgroundColor: 'rgba(245, 158, 11, 0.08)',
+      marginBottom: '1rem',
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem' }}>
+        <span style={{ fontSize: '1.5rem' }}>⚠️</span>
+        <div>
+          <div style={{ fontWeight: 600, color: '#f59e0b' }}>
+            Neo4j Constraints &amp; Indexes Missing
+          </div>
+          <div style={{ fontSize: '0.8rem', opacity: 0.7, marginTop: '0.25rem' }}>
+            {totalMissing} of {status.total} required constraints/indexes are not installed.
+            {status.missingConstraints.length > 0 && (
+              <span> Missing constraints: {status.missingConstraints.map(c => c.label).join(', ')}.</span>
+            )}
+            {status.missingIndexes.length > 0 && (
+              <span> Missing indexes: {status.missingIndexes.map(i => i.label).join(', ')}.</span>
+            )}
+          </div>
+        </div>
+      </div>
+      {isOwner && (
+        <div style={{ marginTop: '0.5rem' }}>
+          <button
+            className="btn btn-primary"
+            onClick={handleInstall}
+            disabled={installing}
+          >
+            {installing ? '⏳ Installing…' : '🔧 Install Constraints & Indexes'}
+          </button>
+          {error && <span className="error" style={{ marginLeft: '0.75rem', fontSize: '0.8rem' }}>{error}</span>}
+        </div>
+      )}
+      {!isOwner && (
+        <p style={{ fontSize: '0.8rem', opacity: 0.6, marginTop: '0.5rem' }}>
+          Ask the system owner to install constraints and indexes.
+        </p>
+      )}
+    </div>
+  );
+}
+
 /* ─── Recent Activity ─────────────────────────────────────── */
 
 function RecentActivity() {
@@ -331,6 +459,9 @@ export default function Dashboard() {
       .catch(() => setTaProfile(null));
   }, []);
 
+  // Check constraints status
+  const [constraintsOk, setConstraintsOk] = useState(null); // null=loading, true/false
+
   // Count concepts for onboarding check
   const { data: conceptCountData } = useCypher(`
     MATCH (n:NostrEvent:ListHeader)-[:IS_THE_CONCEPT_FOR]->()
@@ -394,11 +525,13 @@ export default function Dashboard() {
             user={user}
             taProfile={taProfile}
             conceptCount={conceptCount}
+            constraintsOk={constraintsOk === true}
             onAction={handleOnboardingAction}
           />
         </>
       )}
 
+      <ConstraintsCheck onStatusChange={setConstraintsOk} />
       <StatsRow />
       <HealthRow />
       <RecentActivity />

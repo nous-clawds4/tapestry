@@ -158,7 +158,7 @@ export default function DListsIndex() {
   const profiles = useProfiles(authorPubkeys);
 
   function authorDisplayName(pk) {
-    const p = profiles?.get(pk);
+    const p = profiles?.[pk];
     const name = p?.name || p?.display_name;
     const short = pk.slice(0, 8) + '…';
     if (pk === OWNER_PUBKEY) return name ? `👑 ${name}` : `👑 Owner (${short})`;

@@ -1,0 +1,19 @@
+{
+  "word": {
+    "slug": "REFERENCES",
+    "name": "references",
+    "title": "References",
+    "description": "Connects a NostrEventTag event to either a NostrEvent node in the case of e-tags or a NostrUser node in the case of p-tags.",
+    "wordTypes": ["word", "relationshipType"]
+  },
+  "relationshipType": {
+    "slug": "REFERENCES",
+    "alias": "REFERENCES",
+    "name": "references",
+    "title": "References",
+    "description": "Connects a NostrEventTag event to either a NostrEvent node in the case of e-tags or a NostrUser node in the case of p-tags.",
+    "nodeFromType": "nostrEventTag",
+    "nodeToType": "nostrEvent",
+    "category": "nostr"
+  }
+}

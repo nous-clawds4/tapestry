@@ -1,8 +1,8 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useNavigate, useOutletContext } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import Breadcrumbs from '../../components/Breadcrumbs';
-import { v4 as uuidv4 } from 'uuid';
+import { childDTag, randomDTag } from '../../utils/dtag';
 
 function getTag(event, name, index = 1) {
   const tag = event.tags?.find(t => t[0] === name);
@@ -61,8 +61,14 @@ export default function NewDListItem() {
   const [newCustomKey, setNewCustomKey] = useState('');
   const [newCustomValue, setNewCustomValue] = useState('');
 
-  // d-tag for replaceable items
-  const [itemDTag] = useState(() => uuidv4());
+  // Deterministic d-tag: slug(name)-hash8(parentRef)
+  const [itemDTag, setItemDTag] = useState(() => randomDTag());
+
+  useEffect(() => {
+    if (name.trim() && parentRef) {
+      childDTag(name.trim(), parentRef).then(setItemDTag);
+    }
+  }, [name, parentRef]);
 
   function setPropValue(propName, value) {
     setPropValues(prev => ({ ...prev, [propName]: value }));
@@ -229,6 +235,21 @@ export default function NewDListItem() {
           />
         </div>
       </div>
+
+      {/* D-tag preview */}
+      {replaceable && name.trim() && (
+        <div style={{
+          padding: '0.5rem 0.75rem',
+          fontSize: '0.8rem',
+          backgroundColor: 'var(--bg-secondary, #1a1a2e)',
+          border: '1px solid var(--border, #444)',
+          borderRadius: '6px',
+          marginBottom: '1rem',
+        }}>
+          <span style={{ opacity: 0.5 }}>d-tag: </span>
+          <code style={{ color: '#58a6ff' }}>{itemDTag}</code>
+        </div>
+      )}
 
       {/* Dynamic property fields from parent list definition */}
       {propertyDefs.filter(d => d.name.toLowerCase() !== 'name').length > 0 && (

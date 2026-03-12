@@ -39,6 +39,26 @@
         {
             "nodeFrom": "core-nodes",
             "nodeTo": "class-thread-initiation"
+        },
+        {
+            "nodeFrom": "nostr",
+            "nodeTo": "authors"
+        },
+        {
+            "nodeFrom": "nostr",
+            "nodeTo": "references"
+        },
+        {
+            "nodeFrom": "nostr",
+            "nodeTo": "has-tag"
+        },
+        {
+            "nodeFrom": "nostr",
+            "nodeTo": "class-thread-propagation"
+        },
+        {
+            "nodeFrom": "nostr",
+            "nodeTo": "class-thread-termination"
         }
     ],
     "IS_A_SUPERSET_OF": [

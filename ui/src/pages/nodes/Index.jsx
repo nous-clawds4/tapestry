@@ -132,8 +132,8 @@ export default function NodesIndex() {
           bv = formatLabels(b.lbls);
           break;
         case 'author': {
-          const pa = profiles?.get(a.author);
-          const pb = profiles?.get(b.author);
+          const pa = profiles?.[a.author];
+          const pb = profiles?.[b.author];
           av = (pa?.display_name || pa?.name || a.author || '').toLowerCase();
           bv = (pb?.display_name || pb?.name || b.author || '').toLowerCase();
           break;

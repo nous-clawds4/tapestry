@@ -42,6 +42,8 @@ fi
 
 CYPHER_COMMAND="
 CREATE CONSTRAINT nostrEvent_id IF NOT EXISTS FOR (n:NostrEvent) REQUIRE n.id IS UNIQUE;
+CREATE CONSTRAINT nostrEvent_uuid IF NOT EXISTS FOR (n:NostrEvent) REQUIRE n.uuid IS UNIQUE;
+CREATE INDEX nostrEvent_kind IF NOT EXISTS FOR (n:NostrEvent) ON (n.kind);
 
 CREATE CONSTRAINT nostrEventTag_uuid IF NOT EXISTS FOR (n:NostrEventTag) REQUIRE n.uuid IS UNIQUE;
 

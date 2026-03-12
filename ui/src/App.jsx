@@ -24,6 +24,7 @@ import DListOverview from './pages/lists/DListOverview';
 import DListItems from './pages/lists/DListItems';
 import DListRaw from './pages/lists/DListRaw';
 import DListActions from './pages/lists/DListActions';
+import DListRatings from './pages/lists/DListRatings';
 import NewDList from './pages/lists/NewDList';
 import NewDListItem from './pages/lists/NewDListItem';
 import NodesIndex from './pages/nodes/Index';
@@ -36,7 +37,13 @@ import NodeRaw from './pages/nodes/NodeRaw';
 import NodeNeo4j from './pages/nodes/NodeNeo4j';
 import RelationshipsIndex from './pages/relationships/Index';
 import TrustedListsIndex from './pages/trustedLists/Index';
+import TrustedAssertions from './pages/grapevine/TrustedAssertions';
+import TrustedAssertionsList from './pages/grapevine/TrustedAssertionsList';
+import TrustDetermination from './pages/grapevine/TrustDetermination';
+import TrustedLists from './pages/grapevine/TrustedLists';
+import TrustedListDetail from './pages/grapevine/TrustedListDetail';
 import UsersIndex from './pages/users/Index';
+import UserSearch from './pages/users/Search';
 import UserDetail from './pages/users/UserDetail';
 import AboutIndex from './pages/about/Index';
 import SettingsIndex from './pages/settings/Index';
@@ -47,6 +54,7 @@ import DListItemOverview from './pages/events/DListItemOverview';
 import DListItemRaw from './pages/events/DListItemRaw';
 import DListItemActions from './pages/events/DListItemActions';
 import DListItemNeo4j from './pages/events/DListItemNeo4j';
+import DListItemRatings from './pages/events/DListItemRatings';
 
 import Neo4jOverview from './pages/databases/Neo4jOverview';
 import StrfryOverview from './pages/databases/StrfryOverview';
@@ -105,6 +113,7 @@ const router = createBrowserRouter([
                 handle: { crumb: 'Detail' },
                 children: [
                   { index: true, element: <DListItemOverview /> },
+                  { path: 'ratings', element: <DListItemRatings />, handle: { crumb: 'Ratings' } },
                   { path: 'raw', element: <DListItemRaw />, handle: { crumb: 'Raw Nostr Event' } },
                   { path: 'neo4j', element: <DListItemNeo4j />, handle: { crumb: 'Neo4j' } },
                   { path: 'actions', element: <DListItemActions />, handle: { crumb: 'Actions' } },
@@ -120,6 +129,7 @@ const router = createBrowserRouter([
               { index: true, element: <DListOverview /> },
               { path: 'items', element: <DListItems />, handle: { crumb: 'Items' } },
               { path: 'items/new', element: <NewDListItem />, handle: { crumb: 'New Item' } },
+              { path: 'ratings', element: <DListRatings />, handle: { crumb: 'Ratings' } },
               { path: 'raw', element: <DListRaw />, handle: { crumb: 'Raw Data' } },
               { path: 'actions', element: <DListActions />, handle: { crumb: 'Actions' } },
             ],
@@ -169,10 +179,22 @@ const router = createBrowserRouter([
       },
 
       {
+        path: 'grapevine',
+        handle: { crumb: 'My Grapevine' },
+        children: [
+          { path: 'trusted-assertions', element: <TrustedAssertions />, handle: { crumb: 'TA Treasure Map' } },
+          { path: 'assertions', element: <TrustedAssertionsList />, handle: { crumb: 'Trusted Assertions' } },
+          { path: 'trust-determination', element: <TrustDetermination />, handle: { crumb: 'Trust Determination' } },
+          { path: 'trusted-lists', element: <TrustedLists />, handle: { crumb: 'Trusted Lists' } },
+          { path: 'trusted-lists/:dTag', element: <TrustedListDetail />, handle: { crumb: 'Detail' } },
+        ],
+      },
+      {
         path: 'users',
         handle: { crumb: 'Nostr Users' },
         children: [
           { index: true, element: <UsersIndex /> },
+          { path: 'search', element: <UserSearch />, handle: { crumb: 'Search' } },
           { path: ':pubkey', element: <UserDetail />, handle: { crumb: 'Profile' } },
         ],
       },

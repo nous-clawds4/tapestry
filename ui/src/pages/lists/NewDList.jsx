@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import Breadcrumbs from '../../components/Breadcrumbs';
-import { v4 as uuidv4 } from 'uuid';
+import { headerDTag, randomDTag } from '../../utils/dtag';
 
 export default function NewDList() {
   const navigate = useNavigate();
@@ -25,8 +25,11 @@ export default function NewDList() {
   const [publishing, setPublishing] = useState(false);
   const [error, setError] = useState(null);
 
-  // Generate d-tag for replaceable events
-  const [dTag] = useState(() => uuidv4());
+  // Deterministic d-tag derived from name; falls back to random if name is empty
+  const dTag = useMemo(() => {
+    if (singular.trim()) return headerDTag(singular.trim());
+    return randomDTag();
+  }, [singular]);
 
   function addPropertyTag() {
     const val = newTagValue.trim();
@@ -177,6 +180,21 @@ export default function NewDList() {
           </div>
         </div>
       </div>
+
+      {/* D-tag preview */}
+      {replaceable && singular.trim() && (
+        <div style={{
+          padding: '0.5rem 0.75rem',
+          fontSize: '0.8rem',
+          backgroundColor: 'var(--bg-secondary, #1a1a2e)',
+          border: '1px solid var(--border, #444)',
+          borderRadius: '6px',
+          marginBottom: '1rem',
+        }}>
+          <span style={{ opacity: 0.5 }}>d-tag: </span>
+          <code style={{ color: '#58a6ff' }}>{dTag}</code>
+        </div>
+      )}
 
       <div className="form-section">
         <h2>Description</h2>

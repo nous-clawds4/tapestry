@@ -1,0 +1,19 @@
+{
+  "word": {
+    "slug": "HAS_TAG",
+    "name": "has tag",
+    "title": "Has Tag",
+    "description": "Connects a NostrEvent node to a NostrEventTag node.",
+    "wordTypes": ["word", "relationshipType"]
+  },
+  "relationshipType": {
+    "slug": "HAS_TAG",
+    "alias": "HAS_TAG",
+    "name": "has tag",
+    "title": "Has Tag",
+    "description": "Connects a NostrEvent node to a NostrEventTag node.",
+    "nodeFromType": "nostrEvent",
+    "nodeToType": "nostrEventTag",
+    "category": "nostr"
+  }
+}

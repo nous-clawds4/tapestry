@@ -9,7 +9,7 @@ const clientCache = new Map();
  * Loads asynchronously — returns empty map initially, then updates.
  */
 export default function useProfiles(pubkeys = []) {
-  const [profiles, setProfiles] = useState(new Map());
+  const [profiles, setProfiles] = useState({});
   const prevKeysRef = useRef('');
 
   useEffect(() => {
@@ -20,11 +20,11 @@ export default function useProfiles(pubkeys = []) {
     prevKeysRef.current = key;
 
     // Check client cache first
-    const result = new Map();
+    const result = {};
     const needed = [];
     for (const pk of unique) {
       if (clientCache.has(pk)) {
-        result.set(pk, clientCache.get(pk));
+        result[pk] = clientCache.get(pk);
       } else {
         needed.push(pk);
       }
@@ -32,13 +32,13 @@ export default function useProfiles(pubkeys = []) {
 
     // If everything is cached, just set and return
     if (needed.length === 0) {
-      setProfiles(new Map(result));
+      setProfiles({ ...result });
       return;
     }
 
     // Set cached results immediately, then fetch the rest
-    if (result.size > 0) {
-      setProfiles(new Map(result));
+    if (Object.keys(result).length > 0) {
+      setProfiles({ ...result });
     }
 
     let cancelled = false;
@@ -51,17 +51,17 @@ export default function useProfiles(pubkeys = []) {
 
         for (const [pk, profile] of Object.entries(data.profiles)) {
           clientCache.set(pk, profile);
-          result.set(pk, profile);
+          result[pk] = profile;
         }
         // Cache nulls for pubkeys with no profile found
         for (const pk of needed) {
-          if (!result.has(pk)) {
+          if (!(pk in result)) {
             clientCache.set(pk, null);
-            result.set(pk, null);
+            result[pk] = null;
           }
         }
 
-        setProfiles(new Map(result));
+        setProfiles({ ...result });
       } catch (err) {
         console.warn('useProfiles fetch error:', err);
       }

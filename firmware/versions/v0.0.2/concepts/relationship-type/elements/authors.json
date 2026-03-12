@@ -1,0 +1,19 @@
+{
+  "word": {
+    "slug": "AUTHORS",
+    "name": "authors",
+    "title": "Authors",
+    "description": "Connects a NostrUser node to a NostrEvent node.",
+    "wordTypes": ["word", "relationshipType"]
+  },
+  "relationshipType": {
+    "slug": "AUTHORS",
+    "alias": "AUTHORS",
+    "name": "authors",
+    "title": "Authors",
+    "description": "Connects a NostrUser node to a NostrEvent node.",
+    "nodeFromType": "nostrUser",
+    "nodeToType": "nostrEvent",
+    "category": "nostr"
+  }
+}

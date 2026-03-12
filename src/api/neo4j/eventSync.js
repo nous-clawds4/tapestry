@@ -144,8 +144,29 @@ async function handleEventCheck(req, res) {
 }
 
 /**
+ * Determine the Neo4j label for a given event kind.
+ */
+function kindToLabel(kind) {
+  if (kind === 9998 || kind === 39998) return 'ListHeader';
+  if (kind === 9999 || kind === 39999) return 'ListItem';
+  if (kind === 7) return 'Reaction';
+  return null; // No extra label for unknown kinds
+}
+
+/**
  * Import a single event into Neo4j.
  * Runs the same Cypher that batchTransfer + setup produces, but targeted.
+ *
+ * Supports kinds 9998/39998 (ListHeader), 9999/39999 (ListItem), and 7 (Reaction).
+ * For kind 7 reactions:
+ *   - Node gets :Reaction label
+ *   - content field is stored as e.content
+ *
+ * For all events:
+ *   - NostrEventTags with type "e" get a REFERENCES relationship to the referenced NostrEvent
+ *     (created as a "naked" node if not already present, with id and uuid only)
+ *   - NostrEventTags with type "a" get a REFERENCES relationship to the referenced NostrEvent
+ *     (created as a "naked" node if not already present, with uuid, kind, and pubkey only)
  */
 function buildImportCypher(event) {
   const statements = [];
@@ -153,7 +174,7 @@ function buildImportCypher(event) {
   const dTag = event.tags.find(t => t[0] === 'd')?.[1];
   const uuid = isReplaceable ? `${event.kind}:${event.pubkey}:${dTag}` : event.id;
   const aTag = isReplaceable ? uuid : null;
-  const kindLabel = (event.kind === 9998 || event.kind === 39998) ? 'ListHeader' : 'ListItem';
+  const extraLabel = kindToLabel(event.kind);
 
   // Create/update event node
   const parts = [];
@@ -164,7 +185,12 @@ function buildImportCypher(event) {
     parts.push(`MERGE (e:NostrEvent {id: '${event.id}'})`);
     parts.push(`SET e.pubkey = '${event.pubkey}', e.created_at = ${event.created_at}, e.kind = ${event.kind}, e.uuid = '${uuid}'`);
   }
-  parts.push(`SET e:${kindLabel}`);
+  if (extraLabel) parts.push(`SET e:${extraLabel}`);
+
+  // Store content for reactions
+  if (event.kind === 7 && event.content !== undefined) {
+    parts.push(`SET e.content = '${esc(event.content)}'`);
+  }
 
   const bestName = event.tags.find(t => t[0] === 'name')?.[1]
     || event.tags.find(t => t[0] === 'names')?.[1]
@@ -178,10 +204,14 @@ function buildImportCypher(event) {
 
   // Tags
   const tagParts = [];
+  const refStatements = []; // REFERENCES relationships built separately
+
   for (let i = 0; i < event.tags.length; i++) {
     const tag = event.tags[i];
     if (!tag[0]) continue;
-    const tagUuid = `${event.id.slice(-8)}_${tag[0]}`;
+
+    // Include index in tagUuid to avoid collisions for multiple tags of the same type
+    const tagUuid = `${event.id.slice(-8)}_${i}_${tag[0]}`;
     let setClause = `SET t${i}.type = '${esc(tag[0])}'`;
     for (let j = 0; j < Math.min(tag.length - 1, 5); j++) {
       const suffix = j === 0 ? '' : String(j);
@@ -193,8 +223,40 @@ function buildImportCypher(event) {
     tagParts.push(`MERGE (t${i}:NostrEventTag {uuid: '${esc(tagUuid)}'})`);
     tagParts.push(setClause);
     tagParts.push(`MERGE (e)-[:HAS_TAG]->(t${i})`);
+
+    // Build REFERENCES relationships for "e" and "a" tags
+    if (tag[0] === 'e' && tag[1]) {
+      // "e" tag references an event by id
+      const refId = tag[1];
+      refStatements.push(
+        `MATCH (t:NostrEventTag {uuid: '${esc(tagUuid)}'}) ` +
+        `MERGE (ref:NostrEvent {id: '${esc(refId)}'}) ` +
+        `ON CREATE SET ref.uuid = '${esc(refId)}' ` +
+        `MERGE (t)-[:REFERENCES]->(ref)`
+      );
+    } else if (tag[0] === 'a' && tag[1]) {
+      // "a" tag references a replaceable event by kind:pubkey:d-tag
+      const aVal = tag[1];
+      const aParts = aVal.split(':');
+      if (aParts.length >= 3) {
+        const refKind = parseInt(aParts[0], 10);
+        const refPubkey = aParts[1];
+        // d-tag may contain colons
+        const refDTag = aParts.slice(2).join(':');
+        const refUuid = aVal;
+        refStatements.push(
+          `MATCH (t:NostrEventTag {uuid: '${esc(tagUuid)}'}) ` +
+          `MERGE (ref:NostrEvent {uuid: '${esc(refUuid)}'}) ` +
+          `ON CREATE SET ref.kind = ${refKind}, ref.pubkey = '${esc(refPubkey)}' ` +
+          `MERGE (t)-[:REFERENCES]->(ref)`
+        );
+      }
+    }
   }
   if (tagParts.length > 0) statements.push(tagParts.join(' '));
+
+  // Add REFERENCES statements after tags are created
+  statements.push(...refStatements);
 
   return statements;
 }

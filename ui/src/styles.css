@@ -1035,18 +1035,20 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   gap: 6px;
 }
 .author-avatar {
-  width: 20px;
-  height: 20px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   object-fit: cover;
   flex-shrink: 0;
+  margin: -8px 0;
 }
 .author-avatar-placeholder {
-  width: 20px;
-  height: 20px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   background: var(--bg-tertiary);
   flex-shrink: 0;
+  margin: -8px 0;
 }
 .author-name {
   overflow: hidden;

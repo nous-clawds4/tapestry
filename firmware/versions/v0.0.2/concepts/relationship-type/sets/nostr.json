@@ -1,0 +1,14 @@
+{
+  "word": {
+    "slug": "the-set-of-relationship-types-for-nostr",
+    "name": "The set of relationship types for nostr",
+    "title": "The Set of Relationship Types for Nostr",
+    "wordTypes": ["word", "set"]
+  },
+  "set": {
+    "slug": "relationship-types-for-nostr",
+    "name": "relationship types for nostr",
+    "title": "Relationship Types for Nostr",
+    "description": "These are the relationship types that make up the standard data model for nostr. They are used for the organization of NostUser, NostrEvent, and NostrRelay nodes."
+  }
+}

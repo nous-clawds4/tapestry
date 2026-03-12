@@ -12,6 +12,7 @@ const { SecureKeyStorage } = require('../../utils/secureKeyStorage');
 const { exec } = require('child_process');
 const crypto = require('crypto');
 const firmware = require('./firmware');
+const dtag = require('../../lib/dtag');
 
 // ── Relationship type aliases from firmware ──────────────────
 // Use REL.XXX instead of hardcoded strings. These resolve to the
@@ -1226,7 +1227,7 @@ async function handleCreateConcept(req, res) {
     }
 
     const allEvents = [];
-    const headerDTag = req.body.dTag || randomDTag();
+    const headerDTag = req.body.dTag || (req.body.random ? randomDTag() : dtag.headerDTag(trimName, req.body.nonce));
 
     // ── 1. Concept Header / ListHeader (kind 39998) ──
     const headerWord = {
@@ -1830,7 +1831,7 @@ async function handleCreateElement(req, res) {
     }
 
     // Create the element event
-    const dTag = randomDTag();
+    const dTag = req.body.dTag || (req.body.random ? randomDTag() : dtag.childDTag(trimName, headerUuid, req.body.nonce));
     const tags = [
       ['d', dTag],
       ['name', trimName],
@@ -2056,7 +2057,7 @@ async function handleCreateProperty(req, res) {
     };
 
     // Create the property event
-    const dTag = randomDTag();
+    const dTag = dtag.childDTag(trimName, biosPropertyUuid);
     const tags = [
       ['d', dTag],
       ['name', trimName],
@@ -2681,12 +2682,13 @@ async function handleEnumerate(req, res) {
       propUuid = propRows[0].uuid;
       propDisplayName = propRows[0].name;
     } else if (createProperty) {
-      const dTag = randomDTag();
+      const propertyConceptUuid = firmware.conceptUuid('property');
+      const dTag = dtag.childDTag(propName, propertyConceptUuid);
       const propEvent = signAndFinalize({
         kind: 39999, content: '',
         tags: [
           ['d', dTag], ['name', propName], ['type', pType],
-          ['z', firmware.conceptUuid('property')],
+          ['z', propertyConceptUuid],
         ],
       });
       propUuid = `39999:${propEvent.pubkey}:${dTag}`;
@@ -2884,8 +2886,8 @@ async function handleCreateSet(req, res) {
       parentName = parentRows[0].supersetName;
     }
 
-    // Create Set event (deterministic d-tag if provided, e.g. for firmware installs)
-    const dTag = explicitDTag || randomDTag();
+    // Create Set event (deterministic d-tag)
+    const dTag = explicitDTag || (req.body.random ? randomDTag() : dtag.childDTag(name, resolvedParentUuid, req.body.nonce));
     const setUuid = `39999:${firmware.getTAPubkey()}:${dTag}`;
 
     // Check if this set already exists (idempotent for firmware reinstalls)

@@ -77,10 +77,13 @@ export default function DListDetail() {
   }
 
   const singular = getTag(event, 'names', 1) || getTag(event, 'name', 1) || '(unnamed)';
+  const plural = getTag(event, 'names', 2) || singular;
+  const description = getTag(event, 'description');
 
   const tabs = [
     { to: '', label: 'Overview', end: true },
     { to: 'items', label: 'Items' },
+    { to: 'ratings', label: 'Ratings' },
     { to: 'raw', label: 'Raw Data' },
     { to: 'actions', label: 'Actions' },
   ];
@@ -89,7 +92,25 @@ export default function DListDetail() {
     <div className="page">
       <Breadcrumbs />
 
-      <h1>📋 {singular}</h1>
+      <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+        <div style={{ fontSize: '0.85rem', opacity: 0.45, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+          a list of
+        </div>
+        <h1 style={{
+          fontSize: '2.2rem',
+          margin: '0.15rem 0 0.4rem',
+          color: '#58a6ff',
+          fontWeight: 700,
+          letterSpacing: '0.02em',
+        }}>
+          {plural}
+        </h1>
+        {description && (
+          <p style={{ fontSize: '0.95rem', opacity: 0.6, maxWidth: '600px', margin: '0 auto' }}>
+            {description}
+          </p>
+        )}
+      </div>
 
       <nav className="tab-nav">
         {tabs.map(tab => (

@@ -74,6 +74,8 @@ const serviceManagement = require('./service-management/index.js');
 const { handleNeo4jSetupConstraintsAndIndexes } = require('./neo4j/commands/setupConstraintsAndIndexes.js');
 const { handleEventCheck, handleEventUpdate, handleEventUuids } = require('./neo4j/eventSync.js');
 const { handleFetchProfiles } = require('./profiles/fetchProfiles.js');
+const { handleFetchExternalReactions } = require('./reactions/fetchReactions.js');
+const { handleFetchExternalEvents } = require('./relay/fetchEvents.js');
 const { requireOwner, handleGetSettings, handleGetDefaults, handleGetOverrides, handleUpdateSettings, handleResetSetting } = require('./settings/settingsApi.js');
 
 // Import utilities
@@ -293,6 +295,10 @@ async function register(app) {
     // Profile endpoints
     app.get('/api/profiles', handleFetchProfiles);
 
+    // Reactions (external relay query)
+    app.get('/api/reactions/external', handleFetchExternalReactions);
+    app.get('/api/relay/external', handleFetchExternalEvents);
+
     // Settings endpoints (owner-only except GET merged)
     app.get('/api/settings', requireOwner, handleGetSettings);
     app.get('/api/settings/defaults', requireOwner, handleGetDefaults);
@@ -412,6 +418,10 @@ async function register(app) {
     // ── Tapestry Property API ──
     const { registerPropertyRoutes } = require('./property');
     registerPropertyRoutes(app);
+
+    // ── Trusted List API ──
+    const trustedList = require('./trustedList');
+    trustedList.register(app);
 
     // Initialize router state (presets → state file → strfry config)
     await initRouter();

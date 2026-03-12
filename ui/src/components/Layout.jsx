@@ -49,9 +49,25 @@ const navItems = [
       },
     ],
   },
-  { to: '/kg/users', label: '👤 Nostr Users' },
-  { to: '/kg/relationships', label: '🔗 Relationships' },
-  { to: '/kg/trusted-lists', label: '🛡️ Trusted Lists' },
+  {
+    label: '👤 Nostr Users',
+    prefix: '/kg/users',
+    children: [
+      { to: '/kg/users', label: 'Directory', end: true },
+      { to: '/kg/users/search', label: 'Search' },
+    ],
+  },
+  {
+    label: '🍇 My Grapevine',
+    prefix: '/kg/grapevine',
+    children: [
+      { to: '/kg/grapevine/trusted-assertions', label: 'TA Treasure Map' },
+      { to: '/kg/grapevine/assertions', label: 'Trusted Assertions' },
+      { to: '/kg/grapevine/trusted-lists', label: 'Trusted Lists' },
+      { to: '/kg/grapevine/trust-determination', label: 'Trust Determination' },
+    ],
+  },
+
 ];
 
 /**
