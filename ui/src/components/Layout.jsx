@@ -58,6 +58,14 @@ const navItems = [
     ],
   },
   {
+    label: '📥 I/O',
+    prefix: '/kg/io',
+    children: [
+      { to: '/kg/io/import', label: 'Import' },
+      { to: '/kg/io/export', label: 'Export' },
+    ],
+  },
+  {
     label: '🍇 My Grapevine',
     prefix: '/kg/grapevine',
     children: [

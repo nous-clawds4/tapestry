@@ -423,6 +423,10 @@ async function register(app) {
     const trustedList = require('./trustedList');
     trustedList.register(app);
 
+    // ── Tapestry I/O (Import/Export) API ──
+    const { registerIORoutes } = require('./io');
+    registerIORoutes(app);
+
     // Initialize router state (presets → state file → strfry config)
     await initRouter();
 

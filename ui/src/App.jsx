@@ -58,6 +58,8 @@ import DListItemRatings from './pages/events/DListItemRatings';
 
 import Neo4jOverview from './pages/databases/Neo4jOverview';
 import StrfryOverview from './pages/databases/StrfryOverview';
+import ExportPage from './pages/io/ExportPage';
+import ImportPage from './pages/io/ImportPage';
 import Dashboard from './pages/Dashboard';
 const router = createBrowserRouter([
   {
@@ -203,6 +205,14 @@ const router = createBrowserRouter([
       {
         path: 'manage/audit',
         element: <Navigate to="/kg/settings/auditing" replace />,
+      },
+      {
+        path: 'io',
+        handle: { crumb: 'I/O' },
+        children: [
+          { path: 'import', element: <ImportPage />, handle: { crumb: 'Import' } },
+          { path: 'export', element: <ExportPage />, handle: { crumb: 'Export' } },
+        ],
       },
       { path: 'about', element: <AboutIndex />, handle: { crumb: 'About' } },
       {
