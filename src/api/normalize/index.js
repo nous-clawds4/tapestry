@@ -1247,6 +1247,17 @@ async function handleCreateConcept(req, res) {
       },
     };
 
+    // Merge extra fields from firmware conceptHeader (e.g., x-tapestry)
+    const { conceptHeaderOverrides } = req.body;
+    if (conceptHeaderOverrides) {
+      const generated = new Set(['description', 'oNames', 'oSlugs', 'oKeys', 'oTitles']);
+      for (const [key, value] of Object.entries(conceptHeaderOverrides)) {
+        if (!generated.has(key)) {
+          headerWord.conceptHeader[key] = value;
+        }
+      }
+    }
+
     const headerTags = [
       ['d', headerDTag],
       ['names', names.oNames.singular, names.oNames.plural],
@@ -1572,6 +1583,7 @@ async function handleCreateConcept(req, res) {
           { slug: REL.CLASS_THREAD_INITIATION },
           { slug: REL.CORE_NODE_JSON_SCHEMA },
           { slug: REL.CORE_NODE_PRIMARY_PROPERTY },
+          { slug: REL.CORE_NODE_PROPERTIES },
           { slug: REL.CORE_NODE_PROPERTY_TREE_GRAPH },
           { slug: REL.CORE_NODE_CORE_GRAPH },
           { slug: REL.CORE_NODE_CONCEPT_GRAPH },
@@ -1580,6 +1592,7 @@ async function handleCreateConcept(req, res) {
           { nodeFrom: { slug: `concept-header-for-the-concept-of-${slugPlural}` }, relationshipType: { slug: REL.CLASS_THREAD_INITIATION }, nodeTo: { slug: `superset-for-the-concept-of-${slugPlural}` } },
           { nodeFrom: { slug: `json-schema-for-the-concept-of-${slugPlural}` }, relationshipType: { slug: REL.CORE_NODE_JSON_SCHEMA }, nodeTo: { slug: `concept-header-for-the-concept-of-${slugPlural}` } },
           { nodeFrom: { slug: `primary-property-for-the-concept-of-${slugPlural}` }, relationshipType: { slug: REL.CORE_NODE_PRIMARY_PROPERTY }, nodeTo: { slug: `concept-header-for-the-concept-of-${slugPlural}` } },
+          { nodeFrom: { slug: `the-set-of-properties-for-the-concept-of-${slugPlural}` }, relationshipType: { slug: REL.CORE_NODE_PROPERTIES }, nodeTo: { slug: `concept-header-for-the-concept-of-${slugPlural}` } },
           { nodeFrom: { slug: `property-tree-graph-for-the-concept-of-${slugPlural}` }, relationshipType: { slug: REL.CORE_NODE_PROPERTY_TREE_GRAPH }, nodeTo: { slug: `concept-header-for-the-concept-of-${slugPlural}` } },
           { nodeFrom: { slug: `core-nodes-graph-for-the-concept-of-${slugPlural}` }, relationshipType: { slug: REL.CORE_NODE_CORE_GRAPH }, nodeTo: { slug: `concept-header-for-the-concept-of-${slugPlural}` } },
           { nodeFrom: { slug: `concept-graph-for-the-concept-of-${slugPlural}` }, relationshipType: { slug: REL.CORE_NODE_CONCEPT_GRAPH }, nodeTo: { slug: `concept-header-for-the-concept-of-${slugPlural}` } },

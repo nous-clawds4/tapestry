@@ -166,6 +166,7 @@ async function pass1_bootstrap(opts = {}) {
         plural: ch.oNames.plural,
         description: ch.description,
         dTag: slug,  // deterministic d-tag for firmware concepts
+        conceptHeaderOverrides: ch,  // pass full firmware conceptHeader for extra fields (e.g., x-tapestry)
       });
 
       if (result.success) {
