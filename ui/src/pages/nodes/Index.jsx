@@ -53,7 +53,7 @@ export default function NodesIndex() {
   const authorDropdownProfiles = useProfiles(authorOptions);
 
   function authorDisplayName(pk) {
-    const p = authorDropdownProfiles?.get(pk);
+    const p = authorDropdownProfiles?.[pk];
     const name = p?.name || p?.display_name;
     const short = pk.slice(0, 8) + '…';
     if (pk === OWNER_PUBKEY) return name ? `👑 ${name}` : `👑 Owner (${short})`;
