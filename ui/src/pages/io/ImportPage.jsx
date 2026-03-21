@@ -14,8 +14,15 @@ export default function ImportPage() {
   const [selectedWords, setSelectedWords] = useState(new Set());
   const [previewSlug, setPreviewSlug] = useState(null);
   const [previewJson, setPreviewJson] = useState(null);
+  const [previewRawEvent, setPreviewRawEvent] = useState(null);
+  const [previewHasJson, setPreviewHasJson] = useState(false);
+  const [previewHasRawEvent, setPreviewHasRawEvent] = useState(false);
+  const [previewMode, setPreviewMode] = useState('json'); // 'json' | 'rawEvent'
   const [previewLoading, setPreviewLoading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState(null);
+  const [importError, setImportError] = useState(null);
   const fileInputRef = useRef(null);
 
   // Handle file upload
@@ -101,35 +108,72 @@ export default function ImportPage() {
     }
   }, [manifest, selectedWords]);
 
-  // Preview word JSON
+  // Preview word JSON and/or raw event
   const handlePreview = useCallback(async (slug) => {
     if (previewSlug === slug) {
       setPreviewSlug(null);
       setPreviewJson(null);
+      setPreviewRawEvent(null);
+      setPreviewHasJson(false);
+      setPreviewHasRawEvent(false);
       return;
     }
 
     setPreviewSlug(slug);
     setPreviewLoading(true);
     setPreviewJson(null);
+    setPreviewRawEvent(null);
+    setPreviewHasJson(false);
+    setPreviewHasRawEvent(false);
 
     try {
       const res = await fetch(`/api/io/imports/${tempId}/word/${encodeURIComponent(slug)}`);
       const data = await res.json();
       if (!data.success) throw new Error(data.error || 'Preview failed');
       setPreviewJson(data.json);
+      setPreviewRawEvent(data.rawEvent);
+      setPreviewHasJson(data.hasJson);
+      setPreviewHasRawEvent(data.hasRawEvent);
+      // Default to whichever is available
+      if (data.hasJson) setPreviewMode('json');
+      else if (data.hasRawEvent) setPreviewMode('rawEvent');
     } catch (err) {
       setPreviewJson({ error: err.message });
+      setPreviewHasJson(true);
     } finally {
       setPreviewLoading(false);
     }
   }, [tempId, previewSlug]);
 
+  // Execute import for selected words
+  const handleImport = useCallback(async () => {
+    if (!tempId || selectedWords.size === 0) return;
+    setImporting(true);
+    setImportResult(null);
+    setImportError(null);
+
+    try {
+      const res = await fetch(`/api/io/imports/${tempId}/execute`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ slugs: [...selectedWords] }),
+      });
+      const data = await res.json();
+
+      if (!data.success) throw new Error(data.error || 'Import failed');
+      setImportResult(data);
+    } catch (err) {
+      setImportError(err.message);
+    } finally {
+      setImporting(false);
+    }
+  }, [tempId, selectedWords]);
+
   return (
     <div>
       <h1>Import</h1>
       <p style={{ color: 'var(--text-muted)', marginBottom: '1.5rem' }}>
-        Upload an export zip to preview its contents. (Import to database not yet implemented.)
+        Upload an export zip to preview and import words into strfry and Neo4j.
       </p>
 
       {/* Upload Zone */}
@@ -305,9 +349,44 @@ export default function ImportPage() {
                             {previewLoading ? (
                               <div className="loading" style={{ padding: '1rem' }}>Loading…</div>
                             ) : (
-                              <pre className="json-block" style={{ margin: '0.5rem 1rem', maxHeight: '400px', overflowY: 'auto' }}>
-                                {JSON.stringify(previewJson, null, 2)}
-                              </pre>
+                              <div style={{ margin: '0.5rem 1rem' }}>
+                                {/* Mode toggle buttons */}
+                                <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                                  <button
+                                    className={`btn btn-small${previewMode === 'json' ? ' btn-primary' : ''}`}
+                                    onClick={() => setPreviewMode('json')}
+                                    disabled={!previewHasJson}
+                                    style={{ opacity: previewHasJson ? 1 : 0.4 }}
+                                  >
+                                    JSON Payload
+                                  </button>
+                                  <button
+                                    className={`btn btn-small${previewMode === 'rawEvent' ? ' btn-primary' : ''}`}
+                                    onClick={() => setPreviewMode('rawEvent')}
+                                    disabled={!previewHasRawEvent}
+                                    style={{ opacity: previewHasRawEvent ? 1 : 0.4 }}
+                                  >
+                                    Nostr Event
+                                  </button>
+                                  {!previewHasJson && (
+                                    <span style={{ color: 'var(--text-muted)', fontSize: '0.85em', alignSelf: 'center' }}>
+                                      ⚠ No JSON payload in export
+                                    </span>
+                                  )}
+                                  {!previewHasRawEvent && (
+                                    <span style={{ color: 'var(--text-muted)', fontSize: '0.85em', alignSelf: 'center' }}>
+                                      ⚠ No raw event in export (v1 format)
+                                    </span>
+                                  )}
+                                </div>
+                                {/* Preview content */}
+                                <pre className="json-block" style={{ maxHeight: '400px', overflowY: 'auto' }}>
+                                  {previewMode === 'json'
+                                    ? (previewJson ? JSON.stringify(previewJson, null, 2) : 'Not available')
+                                    : (previewRawEvent ? JSON.stringify(previewRawEvent, null, 2) : 'Not available')
+                                  }
+                                </pre>
+                              </div>
                             )}
                           </td>
                         </tr>
@@ -317,6 +396,96 @@ export default function ImportPage() {
                 </tbody>
               </table>
             </div>
+          </section>
+
+          {/* Import Action */}
+          <section style={{ marginBottom: '1.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+              <button
+                className="btn btn-primary"
+                onClick={handleImport}
+                disabled={importing || selectedWords.size === 0 || !manifest.rawEvents?.length}
+              >
+                {importing ? 'Importing…' : 'Import Selected'}
+              </button>
+              {selectedWords.size > 0 && (
+                <span style={{ color: 'var(--text-muted)', fontSize: '0.9em' }}>
+                  {selectedWords.size} word{selectedWords.size !== 1 ? 's' : ''} selected
+                </span>
+              )}
+              {manifest.exportVersion !== 2 && !manifest.rawEvents?.length && (
+                <span style={{ color: 'var(--warning, #e6a700)', fontSize: '0.9em' }}>
+                  ⚠ This export does not include raw nostr events (v1 format). Import is not available.
+                </span>
+              )}
+            </div>
+
+            {importError && (
+              <div className="health-banner health-fail" style={{ marginTop: '1rem' }}>
+                <span className="health-banner-icon">Error</span>
+                <span>{importError}</span>
+              </div>
+            )}
+
+            {importResult && (
+              <div style={{ marginTop: '1rem' }}>
+                <div className={`health-banner ${importResult.failed > 0 ? 'health-warn' : 'health-pass'}`}>
+                  <span className="health-banner-icon">
+                    {importResult.failed > 0 ? 'Warning' : 'Done'}
+                  </span>
+                  <span>
+                    {importResult.imported} imported, {importResult.skipped} skipped, {importResult.failed} failed
+                    {' · '}
+                    {importResult.conceptsWired || 0} concept links, {importResult.labelsApplied || 0} labels, {importResult.graphRelsCreated || 0} graph relationships
+                  </span>
+                </div>
+
+                {/* Per-word results */}
+                <div className="data-table-wrapper" style={{ marginTop: '0.75rem', maxHeight: '300px', overflowY: 'auto' }}>
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th>Slug</th>
+                        <th>Status</th>
+                        <th>Details</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {importResult.results.map(r => (
+                        <tr key={r.slug}>
+                          <td><strong>{r.slug}</strong></td>
+                          <td>
+                            <span style={{
+                              color: r.status === 'imported' ? 'var(--green)'
+                                : r.status === 'skipped' ? 'var(--text-muted)'
+                                : 'var(--red, #e55)',
+                              fontWeight: 600,
+                              fontSize: '0.9em',
+                            }}>
+                              {r.status === 'imported' ? '✓ Imported'
+                                : r.status === 'skipped' ? '⊘ Skipped'
+                                : '✗ Failed'}
+                            </span>
+                          </td>
+                          <td style={{ color: 'var(--text-muted)', fontSize: '0.9em' }}>
+                            {r.status === 'imported' ? `kind ${r.kind}` : (r.reason || r.error || '')}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {importResult.imported > 0 && (
+                  <p style={{ marginTop: '0.75rem', color: 'var(--text-muted)', fontSize: '0.9em' }}>
+                    💡 Events written to strfry and Neo4j with concept links, labels, and graph relationships.
+                    {importResult.conceptsWired === 0 && (
+                      <> No concept links were created — ensure firmware is installed first.</>
+                    )}
+                  </p>
+                )}
+              </div>
+            )}
           </section>
         </>
       )}

@@ -344,4 +344,4 @@ async function handleEventUuids(req, res) {
   }
 }
 
-module.exports = { handleEventCheck, handleEventUpdate, handleEventUuids };
+module.exports = { handleEventCheck, handleEventUpdate, handleEventUuids, buildImportCypher, executeCypher };
