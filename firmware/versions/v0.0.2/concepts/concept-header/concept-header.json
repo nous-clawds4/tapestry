@@ -11,6 +11,11 @@
     "oSlugs": { "singular": "concept-header", "plural": "concept-headers" },
     "oKeys": { "singular": "conceptHeader", "plural": "conceptHeaders" },
     "oTitles": { "singular": "Concept Header", "plural": "Concept Headers" },
-    "oLabels": { "singular": "ConceptHeader", "plural": "ConceptHeaders" }
+    "oLabels": { "singular": "ConceptHeader", "plural": "ConceptHeaders" },
+    "x-tapestry": {
+      "neo4j": {
+        "nodeLabelRequired": true
+      }
+    }
   }
 }

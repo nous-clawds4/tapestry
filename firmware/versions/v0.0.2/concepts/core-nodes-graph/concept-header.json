@@ -11,6 +11,11 @@
     "oSlugs": { "singular": "core-nodes-graph", "plural": "core-nodes-graphs" },
     "oKeys": { "singular": "coreNodesGraph", "plural": "coreNodesGraphs" },
     "oTitles": { "singular": "Core Nodes Graph", "plural": "Core Nodes Graphs" },
-    "oLabels": { "singular": "CoreNodesGraph", "plural": "CoreNodesGraphs" }
+    "oLabels": { "singular": "CoreNodesGraph", "plural": "CoreNodesGraphs" },
+    "x-tapestry": {
+      "neo4j": {
+        "nodeLabelRequired": false
+      }
+    }
   }
 }

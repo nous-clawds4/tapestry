@@ -11,6 +11,11 @@
     "oSlugs": { "singular": "graph", "plural": "graphs" },
     "oKeys": { "singular": "graph", "plural": "graphs" },
     "oTitles": { "singular": "Graph", "plural": "Graphs" },
-    "oLabels": { "singular": "Graph", "plural": "Graphs" }
+    "oLabels": { "singular": "Graph", "plural": "Graphs" },
+    "x-tapestry": {
+      "neo4j": {
+        "nodeLabelRequired": true
+      }
+    }
   }
 }

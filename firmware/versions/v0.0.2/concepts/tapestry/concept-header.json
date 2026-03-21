@@ -11,6 +11,11 @@
     "oSlugs": { "singular": "tapestry", "plural": "tapestries" },
     "oKeys": { "singular": "tapestry", "plural": "tapestries" },
     "oTitles": { "singular": "Tapestry", "plural": "Tapestries" },
-    "oLabels": { "singular": "Tapestry", "plural": "Tapestries" }
+    "oLabels": { "singular": "Tapestry", "plural": "Tapestries" },
+    "x-tapestry": {
+      "neo4j": {
+        "nodeLabelRequired": true
+      }
+    }
   }
 }

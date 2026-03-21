@@ -11,6 +11,11 @@
     "oSlugs": { "singular": "nostr-relay", "plural": "nostr-relays" },
     "oKeys": { "singular": "nostrRelay", "plural": "nostrRelays" },
     "oTitles": { "singular": "Nostr Relay", "plural": "Nostr Relays" },
-    "oLabels": { "singular": "NostrRelay", "plural": "NostrRelays" }
+    "oLabels": { "singular": "NostrRelay", "plural": "NostrRelays" },
+    "x-tapestry": {
+      "neo4j": {
+        "nodeLabelRequired": true
+      }
+    }
   }
 }

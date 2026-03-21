@@ -11,6 +11,11 @@
     "oSlugs": { "singular": "property", "plural": "properties" },
     "oKeys": { "singular": "property", "plural": "properties" },
     "oTitles": { "singular": "Property", "plural": "Properties" },
-    "oLabels": { "singular": "Property", "plural": "Properties" }
+    "oLabels": { "singular": "Property", "plural": "Properties" },
+    "x-tapestry": {
+      "neo4j": {
+        "nodeLabelRequired": true
+      }
+    }
   }
 }

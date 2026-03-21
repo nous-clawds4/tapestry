@@ -11,6 +11,11 @@
     "oSlugs": { "singular": "concept-graph", "plural": "concept-graphs" },
     "oKeys": { "singular": "conceptGraph", "plural": "conceptGraphs" },
     "oTitles": { "singular": "Concept Graph", "plural": "Concept Graphs" },
-    "oLabels": { "singular": "ConceptGraph", "plural": "ConceptGraphs" }
+    "oLabels": { "singular": "ConceptGraph", "plural": "ConceptGraphs" },
+    "x-tapestry": {
+      "neo4j": {
+        "nodeLabelRequired": true
+      }
+    }
   }
 }

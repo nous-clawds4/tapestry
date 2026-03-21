@@ -11,6 +11,11 @@
     "oSlugs": { "singular": "relationship-type", "plural": "relationship-types" },
     "oKeys": { "singular": "relationshipType", "plural": "relationshipTypes" },
     "oTitles": { "singular": "Relationship Type", "plural": "Relationship Types" },
-    "oLabels": { "singular": "RelationshipType", "plural": "RelationshipTypes" }
+    "oLabels": { "singular": "RelationshipType", "plural": "RelationshipTypes" },
+    "x-tapestry": {
+      "neo4j": {
+        "nodeLabelRequired": false
+      }
+    }
   }
 }

@@ -11,6 +11,11 @@
     "oSlugs": { "singular": "primary-property", "plural": "primary-properties" },
     "oKeys": { "singular": "primaryProperty", "plural": "primaryProperties" },
     "oTitles": { "singular": "Primary Property", "plural": "Primary Properties" },
-    "oLabels": { "singular": "PrimaryProperty", "plural": "PrimaryProperties" }
+    "oLabels": { "singular": "PrimaryProperty", "plural": "PrimaryProperties" },
+    "x-tapestry": {
+      "neo4j": {
+        "nodeLabelRequired": true
+      }
+    }
   }
 }

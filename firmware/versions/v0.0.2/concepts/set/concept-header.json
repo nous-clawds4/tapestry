@@ -11,6 +11,11 @@
     "oSlugs": { "singular": "set", "plural": "sets" },
     "oKeys": { "singular": "set", "plural": "sets" },
     "oTitles": { "singular": "Set", "plural": "Sets" },
-    "oLabels": { "singular": "Set", "plural": "Sets" }
+    "oLabels": { "singular": "Set", "plural": "Sets" },
+    "x-tapestry": {
+      "neo4j": {
+        "nodeLabelRequired": true
+      }
+    }
   }
 }

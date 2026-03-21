@@ -11,6 +11,11 @@
     "oSlugs": { "singular": "word", "plural": "words" },
     "oKeys": { "singular": "word", "plural": "words" },
     "oTitles": { "singular": "Word", "plural": "Words" },
-    "oLabels": { "singular": "Word", "plural": "Words" }
+    "oLabels": { "singular": "Word", "plural": "Words" },
+    "x-tapestry": {
+      "neo4j": {
+        "nodeLabelRequired": false
+      }
+    }
   }
 }

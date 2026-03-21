@@ -11,6 +11,11 @@
     "oSlugs": { "singular": "json-data-type", "plural": "json-data-types" },
     "oKeys": { "singular": "jsonDataType", "plural": "jsonDataTypes" },
     "oTitles": { "singular": "JSON Data Type", "plural": "JSON Data Types" },
-    "oLabels": { "singular": "JsonDataType", "plural": "JsonDataTypes" }
+    "oLabels": { "singular": "JsonDataType", "plural": "JsonDataTypes" },
+    "x-tapestry": {
+      "neo4j": {
+        "nodeLabelRequired": false
+      }
+    }
   }
 }

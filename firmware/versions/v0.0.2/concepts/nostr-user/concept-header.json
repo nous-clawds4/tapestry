@@ -11,6 +11,11 @@
     "oSlugs": { "singular": "nostr-user", "plural": "nostr-users" },
     "oKeys": { "singular": "nostrUser", "plural": "nostrUsers" },
     "oTitles": { "singular": "Nostr User", "plural": "Nostr Users" },
-    "oLabels": { "singular": "NostrUser", "plural": "NostrUsers" }
+    "oLabels": { "singular": "NostrUser", "plural": "NostrUsers" },
+    "x-tapestry": {
+      "neo4j": {
+        "nodeLabelRequired": true
+      }
+    }
   }
 }

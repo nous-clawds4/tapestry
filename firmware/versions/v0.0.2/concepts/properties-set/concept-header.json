@@ -11,6 +11,11 @@
     "oSlugs": { "singular": "properties-set", "plural": "properties-sets" },
     "oKeys": { "singular": "propertiesSet", "plural": "propertiesSets" },
     "oTitles": { "singular": "Properties Set", "plural": "Properties Sets" },
-    "oLabels": { "singular": "PropertiesSet", "plural": "PropertiesSets" }
+    "oLabels": { "singular": "PropertiesSet", "plural": "PropertiesSets" },
+    "x-tapestry": {
+      "neo4j": {
+        "nodeLabelRequired": false
+      }
+    }
   }
 }

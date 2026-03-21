@@ -11,6 +11,11 @@
     "oSlugs": { "singular": "graph-type", "plural": "graph-types" },
     "oKeys": { "singular": "graphType", "plural": "graphTypes" },
     "oTitles": { "singular": "Graph Type", "plural": "Graph Types" },
-    "oLabels": { "singular": "GraphType", "plural": "GraphTypes" }
+    "oLabels": { "singular": "GraphType", "plural": "GraphTypes" },
+    "x-tapestry": {
+      "neo4j": {
+        "nodeLabelRequired": false
+      }
+    }
   }
 }

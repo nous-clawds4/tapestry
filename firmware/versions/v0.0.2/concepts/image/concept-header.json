@@ -11,6 +11,11 @@
     "oSlugs": { "singular": "image", "plural": "images" },
     "oKeys": { "singular": "image", "plural": "images" },
     "oTitles": { "singular": "Image", "plural": "Images" },
-    "oLabels": { "singular": "Image", "plural": "Images" }
+    "oLabels": { "singular": "Image", "plural": "Images" },
+    "x-tapestry": {
+      "neo4j": {
+        "nodeLabelRequired": false
+      }
+    }
   }
 }

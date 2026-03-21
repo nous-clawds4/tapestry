@@ -11,6 +11,11 @@
     "oSlugs": { "singular": "list", "plural": "lists" },
     "oKeys": { "singular": "list", "plural": "lists" },
     "oTitles": { "singular": "List", "plural": "Lists" },
-    "oLabels": { "singular": "List", "plural": "Lists" }
+    "oLabels": { "singular": "List", "plural": "Lists" },
+    "x-tapestry": {
+      "neo4j": {
+        "nodeLabelRequired": false
+      }
+    }
   }
 }

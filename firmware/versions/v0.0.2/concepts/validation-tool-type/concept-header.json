@@ -11,6 +11,11 @@
     "oSlugs": { "singular": "validation-tool-type", "plural": "validation-tool-types" },
     "oKeys": { "singular": "validationToolType", "plural": "validationToolTypes" },
     "oTitles": { "singular": "Validation Tool Type", "plural": "Validation Tool Types" },
-    "oLabels": { "singular": "ValidationToolType", "plural": "ValidationToolTypes" }
+    "oLabels": { "singular": "ValidationToolType", "plural": "ValidationToolTypes" },
+    "x-tapestry": {
+      "neo4j": {
+        "nodeLabelRequired": false
+      }
+    }
   }
 }

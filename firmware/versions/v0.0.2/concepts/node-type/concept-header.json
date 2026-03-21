@@ -11,6 +11,11 @@
     "oSlugs": { "singular": "node-type", "plural": "node-types" },
     "oKeys": { "singular": "nodeType", "plural": "nodeTypes" },
     "oTitles": { "singular": "Node Type", "plural": "Node Types" },
-    "oLabels": { "singular": "NodeType", "plural": "NodeTypes" }
+    "oLabels": { "singular": "NodeType", "plural": "NodeTypes" },
+    "x-tapestry": {
+      "neo4j": {
+        "nodeLabelRequired": false
+      }
+    }
   }
 }

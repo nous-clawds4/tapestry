@@ -11,6 +11,11 @@
     "oSlugs": { "singular": "property-tree-graph", "plural": "property-tree-graphs" },
     "oKeys": { "singular": "propertyTreeGraph", "plural": "propertyTreeGraphs" },
     "oTitles": { "singular": "Property Tree Graph", "plural": "Property Tree Graphs" },
-    "oLabels": { "singular": "PropertyTreeGraph", "plural": "PropertyTreeGraphs" }
+    "oLabels": { "singular": "PropertyTreeGraph", "plural": "PropertyTreeGraphs" },
+    "x-tapestry": {
+      "neo4j": {
+        "nodeLabelRequired": false
+      }
+    }
   }
 }

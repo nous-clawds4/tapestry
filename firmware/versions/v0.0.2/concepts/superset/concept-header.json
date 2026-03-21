@@ -11,6 +11,11 @@
     "oSlugs": { "singular": "superset", "plural": "supersets" },
     "oKeys": { "singular": "superset", "plural": "supersets" },
     "oTitles": { "singular": "Superset", "plural": "Supersets" },
-    "oLabels": { "singular": "Superset", "plural": "Supersets" }
+    "oLabels": { "singular": "Superset", "plural": "Supersets" },
+    "x-tapestry": {
+      "neo4j": {
+        "nodeLabelRequired": true
+      }
+    }
   }
 }

@@ -11,6 +11,11 @@
     "oSlugs": { "singular": "relationship", "plural": "relationships" },
     "oKeys": { "singular": "relationship", "plural": "relationships" },
     "oTitles": { "singular": "Relationship", "plural": "Relationships" },
-    "oLabels": { "singular": "Relationship", "plural": "Relationships" }
+    "oLabels": { "singular": "Relationship", "plural": "Relationships" },
+    "x-tapestry": {
+      "neo4j": {
+        "nodeLabelRequired": false
+      }
+    }
   }
 }
