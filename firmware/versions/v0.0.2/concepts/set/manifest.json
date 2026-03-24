@@ -1,11 +1,4 @@
 {
-    "HAS_ELEMENT": [
-        
-    ],
-    "IS_A_SUPERSET_OF": [
-        {
-            "nodeFrom": "superset-for-the-concept-of-words",
-            "nodeTo": "superset-for-the-concept-of-sets"
-        }
-    ]
+    "HAS_ELEMENT": [],
+    "IS_A_SUPERSET_OF": []
 }

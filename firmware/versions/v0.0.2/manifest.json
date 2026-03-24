@@ -1,378 +1,430 @@
 {
-  "version": "0.0.2",
-  "date": "2026-03-10",
-  "description": "Initial tapestry firmware — foundational meta-concepts for the tapestry protocol.",
-  "concepts": [
-    {
-      "slug": "node-type",
-      "dir": "./concepts/node-type/",
-      "conceptHeader": "concept-header.json",
-      "jsonSchema": "json-schema.json",
-      "categories": [
-        "graph-theoretic"
-      ]
-    },
-    {
-      "slug": "superset",
-      "dir": "./concepts/superset/",
-      "conceptHeader": "concept-header.json",
-      "jsonSchema": "json-schema.json",
-      "categories": [
-        "core"
-      ]
-    },
-    {
-      "slug": "set",
-      "dir": "./concepts/set/",
-      "conceptHeader": "concept-header.json",
-      "jsonSchema": "json-schema.json",
-      "categories": []
-    },
-    {
-      "slug": "concept-header",
-      "dir": "./concepts/concept-header/",
-      "conceptHeader": "concept-header.json",
-      "jsonSchema": "json-schema.json",
-      "categories": [
-        "core"
-      ]
-    },
-    {
-      "slug": "relationship",
-      "dir": "./concepts/relationship/",
-      "conceptHeader": "concept-header.json",
-      "jsonSchema": "json-schema.json",
-      "categories": [
-        "graph-theoretic"
-      ]
-    },
-    {
-      "slug": "relationship-type",
-      "dir": "./concepts/relationship-type/",
-      "conceptHeader": "concept-header.json",
-      "jsonSchema": "json-schema.json",
-      "categories": [
-        "graph-theoretic"
-      ]
-    },
-    {
-      "slug": "property",
-      "dir": "./concepts/property/",
-      "conceptHeader": "concept-header.json",
-      "jsonSchema": "json-schema.json",
-      "categories": []
-    },
-    {
-      "slug": "primary-property",
-      "dir": "./concepts/primary-property/",
-      "conceptHeader": "concept-header.json",
-      "jsonSchema": "json-schema.json",
-      "categories": [
-        "core"
-      ]
-    },
-    {
-      "slug": "properties-set",
-      "dir": "./concepts/properties-set/",
-      "conceptHeader": "concept-header.json",
-      "jsonSchema": "json-schema.json",
-      "categories": [
-        "core"
-      ]
-    },
-    {
-      "slug": "json-schema",
-      "dir": "./concepts/json-schema/",
-      "conceptHeader": "concept-header.json",
-      "jsonSchema": "json-schema.json",
-      "categories": [
-        "core"
-      ]
-    },
-    {
-      "slug": "json-data-type",
-      "dir": "./concepts/json-data-type/",
-      "conceptHeader": "concept-header.json",
-      "jsonSchema": "json-schema.json",
-      "categories": []
-    },
-    {
-      "slug": "graph",
-      "dir": "./concepts/graph/",
-      "conceptHeader": "concept-header.json",
-      "jsonSchema": "json-schema.json",
-      "categories": [
-        "graph-theoretic",
-        "graphs"
-      ]
-    },
-    {
-      "slug": "graph-type",
-      "dir": "./concepts/graph-type/",
-      "conceptHeader": "concept-header.json",
-      "jsonSchema": "json-schema.json",
-      "categories": [
-        "graph-theoretic"
-      ]
-    },
-    {
-      "slug": "property-tree-graph",
-      "dir": "./concepts/property-tree-graph/",
-      "conceptHeader": "concept-header.json",
-      "jsonSchema": "json-schema.json",
-      "categories": [
-        "core",
-        "graphs"
-      ]
-    },
-    {
-      "slug": "core-nodes-graph",
-      "dir": "./concepts/core-nodes-graph/",
-      "conceptHeader": "concept-header.json",
-      "jsonSchema": "json-schema.json",
-      "categories": [
-        "core",
-        "graphs"
-      ]
-    },
-    {
-      "slug": "concept-graph",
-      "dir": "./concepts/concept-graph/",
-      "conceptHeader": "concept-header.json",
-      "jsonSchema": "json-schema.json",
-      "categories": [
-        "core",
-        "graphs"
-      ]
-    },
-    {
-      "slug": "list",
-      "dir": "./concepts/list/",
-      "conceptHeader": "concept-header.json",
-      "jsonSchema": "json-schema.json",
-      "categories": []
-    },
-    {
-      "slug": "word",
-      "dir": "./concepts/word/",
-      "conceptHeader": "concept-header.json",
-      "jsonSchema": "json-schema.json",
-      "categories": [
-        "graph-theoretic"
-      ]
-    },
-    {
-      "slug": "validation-tool",
-      "dir": "./concepts/validation-tool/",
-      "conceptHeader": "concept-header.json",
-      "jsonSchema": "json-schema.json",
-      "categories": []
-    },
-    {
-      "slug": "validation-tool-type",
-      "dir": "./concepts/validation-tool-type/",
-      "conceptHeader": "concept-header.json",
-      "jsonSchema": "json-schema.json",
-      "categories": []
-    },
-    {
-      "slug": "image",
-      "dir": "./concepts/image/",
-      "conceptHeader": "concept-header.json",
-      "jsonSchema": "json-schema.json",
-      "categories": []
-    },
-    {
-      "slug": "image-type",
-      "dir": "./concepts/image-type/",
-      "conceptHeader": "concept-header.json",
-      "jsonSchema": "json-schema.json",
-      "categories": []
-    },
-    {
-      "slug": "image-validation-script",
-      "dir": "./concepts/image-validation-script/",
-      "conceptHeader": "concept-header.json",
-      "jsonSchema": "json-schema.json",
-      "categories": []
-    },
-    {
-      "slug": "tapestry",
-      "dir": "./concepts/tapestry/",
-      "conceptHeader": "concept-header.json",
-      "jsonSchema": "json-schema.json",
-      "categories": [
-        "graphs"
-      ]
-    },
-    {
-      "slug": "nostr-user",
-      "dir": "./concepts/nostr-user/",
-      "conceptHeader": "concept-header.json",
-      "jsonSchema": "json-schema.json",
-      "categories": [
-        "nostr"
-      ]
-    },
-    {
-      "slug": "nostr-relay",
-      "dir": "./concepts/nostr-relay/",
-      "conceptHeader": "concept-header.json",
-      "jsonSchema": "json-schema.json",
-      "categories": [
-        "nostr"
-      ]
-    }
-  ],
-  "elements": {
-    "json-data-types": {
-      "existing-nodes": []
-    },
-    "node-types": {
-      "existing-nodes": [
+    "version": "0.0.2",
+    "date": "2026-03-10",
+    "description": "Initial tapestry firmware \u2014 foundational meta-concepts for the tapestry protocol.",
+    "concepts": [
         {
-          "concept": "word",
-          "core-node-type": "concept-header"
+            "slug": "node-type",
+            "dir": "./concepts/node-type/",
+            "conceptHeader": "concept-header.json",
+            "jsonSchema": "json-schema.json",
+            "categories": [
+                "graph-theoretic"
+            ]
         },
         {
-          "concept": "image",
-          "core-node-type": "concept-header"
+            "slug": "superset",
+            "dir": "./concepts/superset/",
+            "conceptHeader": "concept-header.json",
+            "jsonSchema": "json-schema.json",
+            "categories": [
+                "core"
+            ]
+        },
+        {
+            "slug": "set",
+            "dir": "./concepts/set/",
+            "conceptHeader": "concept-header.json",
+            "jsonSchema": "json-schema.json",
+            "categories": []
+        },
+        {
+            "slug": "concept-header",
+            "dir": "./concepts/concept-header/",
+            "conceptHeader": "concept-header.json",
+            "jsonSchema": "json-schema.json",
+            "categories": [
+                "core"
+            ]
+        },
+        {
+            "slug": "relationship",
+            "dir": "./concepts/relationship/",
+            "conceptHeader": "concept-header.json",
+            "jsonSchema": "json-schema.json",
+            "categories": [
+                "graph-theoretic"
+            ]
+        },
+        {
+            "slug": "relationship-type",
+            "dir": "./concepts/relationship-type/",
+            "conceptHeader": "concept-header.json",
+            "jsonSchema": "json-schema.json",
+            "categories": [
+                "graph-theoretic"
+            ]
+        },
+        {
+            "slug": "property",
+            "dir": "./concepts/property/",
+            "conceptHeader": "concept-header.json",
+            "jsonSchema": "json-schema.json",
+            "categories": []
+        },
+        {
+            "slug": "primary-property",
+            "dir": "./concepts/primary-property/",
+            "conceptHeader": "concept-header.json",
+            "jsonSchema": "json-schema.json",
+            "categories": [
+                "core"
+            ]
+        },
+        {
+            "slug": "properties-set",
+            "dir": "./concepts/properties-set/",
+            "conceptHeader": "concept-header.json",
+            "jsonSchema": "json-schema.json",
+            "categories": [
+                "core"
+            ]
+        },
+        {
+            "slug": "json-schema",
+            "dir": "./concepts/json-schema/",
+            "conceptHeader": "concept-header.json",
+            "jsonSchema": "json-schema.json",
+            "categories": [
+                "core"
+            ]
+        },
+        {
+            "slug": "json-data-type",
+            "dir": "./concepts/json-data-type/",
+            "conceptHeader": "concept-header.json",
+            "jsonSchema": "json-schema.json",
+            "categories": []
+        },
+        {
+            "slug": "graph",
+            "dir": "./concepts/graph/",
+            "conceptHeader": "concept-header.json",
+            "jsonSchema": "json-schema.json",
+            "categories": [
+                "graph-theoretic",
+                "graphs"
+            ]
+        },
+        {
+            "slug": "graph-type",
+            "dir": "./concepts/graph-type/",
+            "conceptHeader": "concept-header.json",
+            "jsonSchema": "json-schema.json",
+            "categories": [
+                "graph-theoretic"
+            ]
+        },
+        {
+            "slug": "property-tree-graph",
+            "dir": "./concepts/property-tree-graph/",
+            "conceptHeader": "concept-header.json",
+            "jsonSchema": "json-schema.json",
+            "categories": [
+                "core",
+                "graphs"
+            ]
+        },
+        {
+            "slug": "core-nodes-graph",
+            "dir": "./concepts/core-nodes-graph/",
+            "conceptHeader": "concept-header.json",
+            "jsonSchema": "json-schema.json",
+            "categories": [
+                "core",
+                "graphs"
+            ]
+        },
+        {
+            "slug": "concept-graph",
+            "dir": "./concepts/concept-graph/",
+            "conceptHeader": "concept-header.json",
+            "jsonSchema": "json-schema.json",
+            "categories": [
+                "core",
+                "graphs"
+            ]
+        },
+        {
+            "slug": "list",
+            "dir": "./concepts/list/",
+            "conceptHeader": "concept-header.json",
+            "jsonSchema": "json-schema.json",
+            "categories": []
+        },
+        {
+            "slug": "word",
+            "dir": "./concepts/word/",
+            "conceptHeader": "concept-header.json",
+            "jsonSchema": "json-schema.json",
+            "categories": [
+                "graph-theoretic"
+            ]
+        },
+        {
+            "slug": "validation-tool",
+            "dir": "./concepts/validation-tool/",
+            "conceptHeader": "concept-header.json",
+            "jsonSchema": "json-schema.json",
+            "categories": []
+        },
+        {
+            "slug": "validation-tool-type",
+            "dir": "./concepts/validation-tool-type/",
+            "conceptHeader": "concept-header.json",
+            "jsonSchema": "json-schema.json",
+            "categories": []
+        },
+        {
+            "slug": "image",
+            "dir": "./concepts/image/",
+            "conceptHeader": "concept-header.json",
+            "jsonSchema": "json-schema.json",
+            "categories": []
+        },
+        {
+            "slug": "image-type",
+            "dir": "./concepts/image-type/",
+            "conceptHeader": "concept-header.json",
+            "jsonSchema": "json-schema.json",
+            "categories": []
+        },
+        {
+            "slug": "image-validation-script",
+            "dir": "./concepts/image-validation-script/",
+            "conceptHeader": "concept-header.json",
+            "jsonSchema": "json-schema.json",
+            "categories": []
+        },
+        {
+            "slug": "tapestry",
+            "dir": "./concepts/tapestry/",
+            "conceptHeader": "concept-header.json",
+            "jsonSchema": "json-schema.json",
+            "categories": [
+                "graphs"
+            ]
+        },
+        {
+            "slug": "nostr-user",
+            "dir": "./concepts/nostr-user/",
+            "conceptHeader": "concept-header.json",
+            "jsonSchema": "json-schema.json",
+            "categories": [
+                "nostr"
+            ]
+        },
+        {
+            "slug": "nostr-relay",
+            "dir": "./concepts/nostr-relay/",
+            "conceptHeader": "concept-header.json",
+            "jsonSchema": "json-schema.json",
+            "categories": [
+                "nostr"
+            ]
         }
-      ]
-    },
-    "graph-types": {
-      "existing-nodes": [
-        {
-          "concept": "core-nodes-graph",
-          "core-node-type": "concept-header"
+    ],
+    "elements": {
+        "json-data-types": {
+            "existing-nodes": []
         },
-        {
-          "concept": "concept-graph",
-          "core-node-type": "concept-header"
+        "node-types": {
+            "existing-nodes": [
+                {
+                    "concept": "word",
+                    "core-node-type": "concept-header"
+                },
+                {
+                    "concept": "image",
+                    "core-node-type": "concept-header"
+                }
+            ]
         },
-        {
-          "concept": "property-tree-graph",
-          "core-node-type": "concept-header"
+        "graph-types": {
+            "existing-nodes": [
+                {
+                    "concept": "core-nodes-graph",
+                    "core-node-type": "concept-header"
+                },
+                {
+                    "concept": "concept-graph",
+                    "core-node-type": "concept-header"
+                },
+                {
+                    "concept": "property-tree-graph",
+                    "core-node-type": "concept-header"
+                }
+            ]
+        },
+        "validation-tool-types": {
+            "existing-nodes": [
+                {
+                    "concept": "json-schema",
+                    "core-node-type": "concept-header"
+                },
+                {
+                    "concept": "image-validation-script",
+                    "core-node-type": "concept-header"
+                }
+            ]
         }
-      ]
-    },
-    "validation-tool-types": {
-      "existing-nodes": [
-        {
-          "concept": "json-schema",
-          "core-node-type": "concept-header"
-        },
-        {
-          "concept": "image-validation-script",
-          "core-node-type": "concept-header"
-        }
-      ]
-    }
-  },
-  "sets": {
-    "graphs": {
-      "existing-sets": [
-        {
-          "concept": "concept-graph"
-        },
-        {
-          "concept": "core-nodes-graph"
-        },
-        {
-          "concept": "property-tree-graph"
-        },
-        {
-          "concept": "tapestry"
-        }
-      ]
-    },
-    "relationship-types": {
-      "existing-sets": []
-    },
-    "validation-tools": {
-      "existing-sets": [
-        {
-          "concept": "json-schema"
-        },
-        {
-          "concept": "image-validation-script"
-        }
-      ]
-    },
-    "properties": {
-      "existing-sets": [
-        {
-          "concept": "primary-property"
-        }
-      ]
     },
     "sets": {
-      "existing-sets": [
+        "graphs": {
+            "existing-sets": [
+                {
+                    "concept": "concept-graph"
+                },
+                {
+                    "concept": "core-nodes-graph"
+                },
+                {
+                    "concept": "property-tree-graph"
+                },
+                {
+                    "concept": "tapestry"
+                }
+            ]
+        },
+        "relationship-types": {
+            "existing-sets": []
+        },
+        "validation-tools": {
+            "existing-sets": [
+                {
+                    "concept": "json-schema"
+                },
+                {
+                    "concept": "image-validation-script"
+                }
+            ]
+        },
+        "properties": {
+            "existing-sets": [
+                {
+                    "concept": "primary-property"
+                }
+            ]
+        },
+        "sets": {
+            "existing-sets": [
+                {
+                    "concept": "superset"
+                },
+                {
+                    "concept": "properties-set"
+                }
+            ]
+        },
+        "words": {
+            "existing-sets": [
+                {
+                    "concept": "set"
+                },
+                {
+                    "concept": "graph"
+                },
+                {
+                    "concept": "property"
+                },
+                {
+                    "concept": "relationship"
+                },
+                {
+                    "concept": "relationship-type"
+                },
+                {
+                    "concept": "node-type"
+                },
+                {
+                    "concept": "graph-type"
+                },
+                {
+                    "concept": "concept-header"
+                },
+                {
+                    "concept": "validation-tool"
+                },
+                {
+                    "concept": "validation-tool-type"
+                },
+                {
+                    "concept": "json-data-type"
+                },
+                {
+                    "concept": "image"
+                },
+                {
+                    "concept": "image-type"
+                },
+                {
+                    "concept": "list"
+                },
+                {
+                    "concept": "nostr-user"
+                },
+                {
+                    "concept": "nostr-relay"
+                }
+            ]
+        }
+    },
+    "changelog": [
         {
-          "concept": "superset"
+            "version": "0.0.2",
+            "date": "2026-03-10",
+            "changes": [
+                "Migrate unique constraint from bare property to x-tapestry.unique on all concept JSON Schemas",
+                "Add nostr-user concept (pubkey, npub, nprofile)",
+                "Add nostr-relay concept (slug, websocketUrl, httpUrl)",
+                "Restructure firmware: move elements and sets under their concept directories"
+            ]
+        }
+    ],
+    "relationshipTypes": [
+        {
+            "slug": "CLASS_THREAD_INITIATION",
+            "file": "./concepts/relationship-type/elements/class-thread-initiation.json"
         },
         {
-          "concept": "properties-set"
+            "slug": "CLASS_THREAD_PROPAGATION",
+            "file": "./concepts/relationship-type/elements/class-thread-propagation.json"
+        },
+        {
+            "slug": "CLASS_THREAD_TERMINATION",
+            "file": "./concepts/relationship-type/elements/class-thread-termination.json"
+        },
+        {
+            "slug": "CORE_NODE_JSON_SCHEMA",
+            "file": "./concepts/relationship-type/elements/core-node-json-schema.json"
+        },
+        {
+            "slug": "CORE_NODE_PRIMARY_PROPERTY",
+            "file": "./concepts/relationship-type/elements/core-node-primary-property.json"
+        },
+        {
+            "slug": "CORE_NODE_PROPERTIES",
+            "file": "./concepts/relationship-type/elements/core-node-properties.json"
+        },
+        {
+            "slug": "CORE_NODE_PROPERTY_TREE_GRAPH",
+            "file": "./concepts/relationship-type/elements/core-node-property-tree-graph.json"
+        },
+        {
+            "slug": "CORE_NODE_CORE_GRAPH",
+            "file": "./concepts/relationship-type/elements/core-node-core-graph.json"
+        },
+        {
+            "slug": "CORE_NODE_CONCEPT_GRAPH",
+            "file": "./concepts/relationship-type/elements/core-node-concept-graph.json"
+        },
+        {
+            "slug": "PROPERTY_MEMBERSHIP",
+            "file": "./concepts/relationship-type/elements/property-membership.json"
+        },
+        {
+            "slug": "PROPERTY_ENUMERATION",
+            "file": "./concepts/relationship-type/elements/property-enumeration.json"
         }
-      ]
-    }
-  },
-  "changelog": [
-    {
-      "version": "0.0.2",
-      "date": "2026-03-10",
-      "changes": [
-        "Migrate unique constraint from bare property to x-tapestry.unique on all concept JSON Schemas",
-        "Add nostr-user concept (pubkey, npub, nprofile)",
-        "Add nostr-relay concept (slug, websocketUrl, httpUrl)",
-        "Restructure firmware: move elements and sets under their concept directories"
-      ]
-    }
-  ],
-  "relationshipTypes": [
-    {
-      "slug": "CLASS_THREAD_INITIATION",
-      "file": "./concepts/relationship-type/elements/class-thread-initiation.json"
-    },
-    {
-      "slug": "CLASS_THREAD_PROPAGATION",
-      "file": "./concepts/relationship-type/elements/class-thread-propagation.json"
-    },
-    {
-      "slug": "CLASS_THREAD_TERMINATION",
-      "file": "./concepts/relationship-type/elements/class-thread-termination.json"
-    },
-    {
-      "slug": "CORE_NODE_JSON_SCHEMA",
-      "file": "./concepts/relationship-type/elements/core-node-json-schema.json"
-    },
-    {
-      "slug": "CORE_NODE_PRIMARY_PROPERTY",
-      "file": "./concepts/relationship-type/elements/core-node-primary-property.json"
-    },
-    {
-      "slug": "CORE_NODE_PROPERTIES",
-      "file": "./concepts/relationship-type/elements/core-node-properties.json"
-    },
-    {
-      "slug": "CORE_NODE_PROPERTY_TREE_GRAPH",
-      "file": "./concepts/relationship-type/elements/core-node-property-tree-graph.json"
-    },
-    {
-      "slug": "CORE_NODE_CORE_GRAPH",
-      "file": "./concepts/relationship-type/elements/core-node-core-graph.json"
-    },
-    {
-      "slug": "CORE_NODE_CONCEPT_GRAPH",
-      "file": "./concepts/relationship-type/elements/core-node-concept-graph.json"
-    },
-    {
-      "slug": "PROPERTY_MEMBERSHIP",
-      "file": "./concepts/relationship-type/elements/property-membership.json"
-    },
-    {
-      "slug": "PROPERTY_ENUMERATION",
-      "file": "./concepts/relationship-type/elements/property-enumeration.json"
-    }
-  ]
+    ]
 }
