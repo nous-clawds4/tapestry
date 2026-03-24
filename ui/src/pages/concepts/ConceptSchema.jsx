@@ -1,24 +1,16 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { useCypher } from '../../hooks/useCypher';
 import { useAuth } from '../../context/AuthContext';
 import { saveSchema } from '../../api/normalize';
 import useProfiles from '../../hooks/useProfiles';
 import AuthorCell from '../../components/AuthorCell';
+import { resolveJsonValue } from '../../utils/lmdb';
 
 import 'jsonjoy-builder/styles.css';
 import { SchemaVisualEditor } from 'jsonjoy-builder';
 import DefaultValuesPanel from '../../components/DefaultValuesPanel';
 import TapestryExtensionsPanel from '../../components/TapestryExtensionsPanel';
-
-function parseSchema(raw) {
-  if (!raw) return null;
-  try {
-    return typeof raw === 'string' ? JSON.parse(raw) : raw;
-  } catch {
-    return null;
-  }
-}
 
 export default function ConceptSchema() {
   const { concept, uuid } = useOutletContext();
@@ -34,7 +26,22 @@ export default function ConceptSchema() {
   `);
 
   const schemaNode = data?.[0];
-  const savedSchemaRaw = useMemo(() => parseSchema(schemaNode?.json), [schemaNode?.json]);
+
+  // Resolve the JSON value (may be inline or an LMDB ref)
+  const [savedSchemaRaw, setSavedSchemaRaw] = useState(null);
+  const [resolving, setResolving] = useState(false);
+
+  useEffect(() => {
+    if (!schemaNode?.json) { setSavedSchemaRaw(null); return; }
+    let cancelled = false;
+    setResolving(true);
+    resolveJsonValue(schemaNode.json).then(resolved => {
+      if (!cancelled) setSavedSchemaRaw(resolved);
+    }).finally(() => {
+      if (!cancelled) setResolving(false);
+    });
+    return () => { cancelled = true; };
+  }, [schemaNode?.json]);
 
   // Extract the actual JSON Schema from word-wrapper format if present
   const savedSchema = useMemo(() => {
@@ -180,7 +187,7 @@ export default function ConceptSchema() {
         )}
       </div>
 
-      {loading && <div className="loading">Loading schema…</div>}
+      {(loading || resolving) && <div className="loading">Loading schema…</div>}
       {error && <div className="error">Error: {error.message}</div>}
 
       {!loading && !error && !schemaNode && (
