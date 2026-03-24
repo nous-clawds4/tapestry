@@ -1,10 +1,11 @@
 /**
  * Set Deriver — computes tapestryJSON for Set and Superset nodes.
  *
- * Strategy: Start with the existing word JSON (from the json tag, already
- * in LMDB from offload). Then enrich:
- *   - Type-specific section (set/superset): elements, directElements, childSets, counts
- *   - graphContext (universal): identifiers, concept, memberOf, parentJsonSchemas, derivedAt
+ * Structure:
+ *   - word (universal): slug, name, description, wordTypes — always shared
+ *   - <conceptSlug> (concept-scoped): properties specific to this concept — optionally shared
+ *   - graphContext (local): identifiers, concept, memberOf, elements, childSets,
+ *     parentJsonSchemas, derivedAt — never shared (stripped before packaging)
  */
 
 const { runCypher } = require('../neo4j-driver');
@@ -64,7 +65,7 @@ async function deriveSet(node) {
     };
   }
 
-  // ── Type-specific queries ──
+  // ── Graph queries ──
 
   // Direct elements (one hop: this node → HAS_ELEMENT → element)
   const directElements = await runCypher(`
@@ -82,7 +83,7 @@ async function deriveSet(node) {
     ORDER BY e.name
   `, { uuid });
 
-  // Child Sets
+  // Child Sets (direct subsets)
   const childSets = await runCypher(`
     MATCH (s { uuid: $uuid })-[:IS_A_SUPERSET_OF]->(child)
     RETURN child.uuid AS uuid, child.tapestryKey AS tapestryKey, child.name AS name,
@@ -90,42 +91,11 @@ async function deriveSet(node) {
     ORDER BY child.name
   `, { uuid });
 
-  // Build/enrich the type-specific section
-  const typeSection = base[typeKey] || {};
-  typeSection.slug = typeSection.slug || node.slug || null;
-  typeSection.name = typeSection.name || name || null;
-  typeSection.elements = allElements.map(e => ({
-    uuid: e.uuid,
-    tapestryKey: e.tapestryKey,
-    name: e.name,
-    slug: e.slug,
-  }));
-  typeSection.directElements = directElements.map(e => ({
-    uuid: e.uuid,
-    tapestryKey: e.tapestryKey,
-    name: e.name,
-    slug: e.slug,
-  }));
-  typeSection.childSets = childSets.map(s => ({
-    uuid: s.uuid,
-    tapestryKey: s.tapestryKey,
-    name: s.name,
-    slug: s.slug,
-  }));
-  typeSection.counts = {
-    directElements: directElements.length,
-    allElements: allElements.length,
-    childSets: childSets.length,
-  };
-
-  base[typeKey] = typeSection;
-
-  // ── graphContext (universal) ──
-
   // Parent concept
   const parentConcept = await runCypher(`
     MATCH (ch:ConceptHeader)-[:IS_THE_CONCEPT_FOR]->(sup)-[:IS_A_SUPERSET_OF*0..10]->(s { uuid: $uuid })
-    RETURN ch.uuid AS uuid, ch.tapestryKey AS tapestryKey, ch.name AS name
+    RETURN ch.uuid AS uuid, ch.tapestryKey AS tapestryKey, ch.name AS name,
+           ch.slug AS slug
     LIMIT 1
   `, { uuid });
 
@@ -133,6 +103,14 @@ async function deriveSet(node) {
   const memberOf = await runCypher(`
     MATCH (parent)-[:HAS_ELEMENT]->(n { uuid: $uuid })
     RETURN parent.uuid AS uuid, parent.tapestryKey AS tapestryKey, parent.name AS name
+    ORDER BY parent.name
+  `, { uuid });
+
+  // Parent supersets (sets this node is a direct subset of)
+  const parentSets = await runCypher(`
+    MATCH (parent)-[:IS_A_SUPERSET_OF]->(s { uuid: $uuid })
+    RETURN parent.uuid AS uuid, parent.tapestryKey AS tapestryKey, parent.name AS name,
+           parent.slug AS slug
     ORDER BY parent.name
   `, { uuid });
 
@@ -146,7 +124,29 @@ async function deriveSet(node) {
            head(collect(jt.value)) AS schemaJson
   `, { uuid });
 
-  // Build parentJsonSchemas with cached validation
+  // ── Concept-scoped section ──
+  // Keyed by concept slug. Contains properties intrinsic to the concept
+  // (not graph-positional). For sets, this is thin — mostly inherited from
+  // existing data. The concept slug provides the natural key for selective sharing.
+
+  const concept = parentConcept[0] || null;
+  if (concept?.slug) {
+    // Preserve any existing concept-scoped data
+    if (!base[concept.slug]) {
+      base[concept.slug] = {};
+    }
+    // Migrate legacy set/superset section if it has concept-intrinsic data
+    const legacySection = base[typeKey] || {};
+    if (legacySection.description && !base[concept.slug].description) {
+      base[concept.slug].description = legacySection.description;
+    }
+  }
+
+  // Clean up legacy type section (elements/childSets now live in graphContext)
+  delete base.set;
+  delete base.superset;
+
+  // ── Build parentJsonSchemas with cached validation ──
   const now = Math.floor(Date.now() / 1000);
   const wordData = base.word || {};
   const parentJsonSchemas = schemaRows.map(row => {
@@ -177,7 +177,6 @@ async function deriveSet(node) {
         }
         const { $schema, ...schemaNoMeta } = schemaObj;
 
-        // Lazy-load Ajv (synchronous require since we're in Node)
         const Ajv = require('ajv');
         const ajv = new Ajv({ allErrors: true, strict: false });
         const validate = ajv.compile(schemaNoMeta);
@@ -197,18 +196,44 @@ async function deriveSet(node) {
     return entry;
   });
 
+  // ── graphContext ──
   base.graphContext = {
     identifiers: {
       tapestryKey: tapestryKey,
     },
-    concept: parentConcept[0] ? {
-      tapestryKey: parentConcept[0].tapestryKey,
-      name: parentConcept[0].name,
+    concept: concept ? {
+      tapestryKey: concept.tapestryKey,
+      name: concept.name,
     } : null,
     memberOf: memberOf.map(m => ({
       tapestryKey: m.tapestryKey,
       name: m.name,
     })),
+    parentSets: parentSets.map(s => ({
+      tapestryKey: s.tapestryKey,
+      name: s.name,
+    })),
+    childSets: childSets.map(s => ({
+      tapestryKey: s.tapestryKey,
+      name: s.name,
+      slug: s.slug,
+    })),
+    elements: {
+      direct: directElements.map(e => ({
+        tapestryKey: e.tapestryKey,
+        name: e.name,
+        slug: e.slug,
+      })),
+      all: allElements.map(e => ({
+        tapestryKey: e.tapestryKey,
+        name: e.name,
+        slug: e.slug,
+      })),
+      counts: {
+        direct: directElements.length,
+        all: allElements.length,
+      },
+    },
     parentJsonSchemas,
     derivedAt: now,
   };
