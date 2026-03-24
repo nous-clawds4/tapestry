@@ -4,7 +4,7 @@
  * Strategy: Start with the existing word JSON (from the json tag, already
  * in LMDB from offload). Then enrich:
  *   - Type-specific section (set/superset): elements, directElements, childSets, counts
- *   - graphContext (universal): concept, memberOf, validatesAgainst, derivedAt
+ *   - graphContext (universal): identifiers, concept, memberOf, parentJsonSchemas, derivedAt
  */
 
 const { runCypher } = require('../neo4j-driver');
@@ -136,30 +136,81 @@ async function deriveSet(node) {
     ORDER BY parent.name
   `, { uuid });
 
-  // JSON Schemas this node should validate against
-  const validatesAgainst = await runCypher(`
+  // JSON Schemas this node should validate against (with schema JSON for validation)
+  const schemaRows = await runCypher(`
     MATCH (ch:ConceptHeader)-[:IS_THE_CONCEPT_FOR]->(sup)-[:IS_A_SUPERSET_OF*0..10]->(s { uuid: $uuid })
-    MATCH (ch)-[:IS_THE_CONCEPT_FOR]->()-[:IS_A_SUPERSET_OF*0..3]->()<-[:IS_THE_JSON_SCHEMA_FOR]-(js)
-    RETURN DISTINCT js.uuid AS uuid, js.tapestryKey AS tapestryKey, js.name AS name
+    MATCH (js:JSONSchema)-[:IS_THE_JSON_SCHEMA_FOR]->(ch)
+    OPTIONAL MATCH (js)-[:HAS_TAG]->(jt:NostrEventTag {type: 'json'})
+    RETURN DISTINCT js.tapestryKey AS schemaTapestryKey,
+           ch.name AS conceptName, ch.tapestryKey AS conceptTapestryKey,
+           head(collect(jt.value)) AS schemaJson
   `, { uuid });
 
+  // Build parentJsonSchemas with cached validation
+  const now = Math.floor(Date.now() / 1000);
+  const wordData = base.word || {};
+  const parentJsonSchemas = schemaRows.map(row => {
+    const entry = {
+      tapestryKey: row.schemaTapestryKey,
+      conceptName: row.conceptName,
+      conceptTapestryKey: row.conceptTapestryKey,
+      lastValidated: null,
+      valid: null,
+      errors: [],
+    };
+
+    // Attempt validation if we have the schema JSON
+    if (row.schemaJson) {
+      try {
+        // Resolve LMDB refs
+        let rawSchema = row.schemaJson;
+        if (isLmdbRef(rawSchema)) {
+          const resolved = resolveValue(rawSchema);
+          rawSchema = resolved || null;
+        }
+        if (!rawSchema) { return entry; }
+        let schemaObj = typeof rawSchema === 'string'
+          ? JSON.parse(rawSchema) : rawSchema;
+        // Unwrap word-wrapper format
+        if (schemaObj.jsonSchema && typeof schemaObj.jsonSchema === 'object') {
+          schemaObj = schemaObj.jsonSchema;
+        }
+        const { $schema, ...schemaNoMeta } = schemaObj;
+
+        // Lazy-load Ajv (synchronous require since we're in Node)
+        const Ajv = require('ajv');
+        const ajv = new Ajv({ allErrors: true, strict: false });
+        const validate = ajv.compile(schemaNoMeta);
+        const valid = validate(wordData);
+        entry.lastValidated = now;
+        entry.valid = valid;
+        entry.errors = valid ? [] : validate.errors.map(
+          e => `${e.instancePath || '/'} ${e.message}`
+        );
+      } catch (e) {
+        entry.lastValidated = now;
+        entry.valid = false;
+        entry.errors = [e.message];
+      }
+    }
+
+    return entry;
+  });
+
   base.graphContext = {
+    identifiers: {
+      tapestryKey: tapestryKey,
+    },
     concept: parentConcept[0] ? {
-      uuid: parentConcept[0].uuid,
       tapestryKey: parentConcept[0].tapestryKey,
       name: parentConcept[0].name,
     } : null,
     memberOf: memberOf.map(m => ({
-      uuid: m.uuid,
       tapestryKey: m.tapestryKey,
       name: m.name,
     })),
-    validatesAgainst: validatesAgainst.map(s => ({
-      uuid: s.uuid,
-      tapestryKey: s.tapestryKey,
-      name: s.name,
-    })),
-    derivedAt: Math.floor(Date.now() / 1000),
+    parentJsonSchemas,
+    derivedAt: now,
   };
 
   // Remove old x-tapestry.derived if present (from prior version)

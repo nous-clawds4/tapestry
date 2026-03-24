@@ -933,6 +933,7 @@ docker compose exec tapestry strfry sync wss://dcosl.brainstorm.world \
 | **DList** | Decentralized List — a nostr event (kind 9998/39998 header + 9999/39999 items). |
 | **ENUMERATES** | A relationship where a concept's elements define the allowed values for a property. Horizontal integration. |
 | **Firmware** | The versioned set of JSON definitions for the protocol's own meta-concepts. Read by the server at runtime. |
+| **graphContext** | Top-level sibling of `word` in tapestryJSON. Contains local, dynamic, non-portable metadata (identifiers, concept membership, schema validation). Stripped before sharing via nostr events. |
 | **GrapeRank** | "PageRank for people" — contextual trust scoring algorithm. |
 | **Grapevine** | The Web of Trust system that determines which curations achieve community consensus. |
 | **IMPORT** | Editorial relationship: "I agree with your concept and want to benefit from your curated elements." |
