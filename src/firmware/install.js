@@ -524,15 +524,34 @@ async function pass1_bootstrap(opts = {}) {
         console.log(`  ${slug}: ${relName} (${edges.length} edges)`);
 
         for (const edge of edges) {
-          const fromUuid = map[edge.nodeFrom];
-          const toUuid = map[edge.nodeTo];
+          let fromUuid = map[edge.nodeFrom];
+          let toUuid = map[edge.nodeTo];
+
+          // Fall back to Neo4j lookup for cross-concept references.
+          // Try slug first, then derive a name from the slug (kebab-case → spaces).
+          if (!fromUuid) {
+            const result = await runCypherApi(
+              `MATCH (n:NostrEvent) WHERE n.slug = $slug OR n.name = $name RETURN n.uuid AS uuid LIMIT 1`,
+              { slug: edge.nodeFrom, name: edge.nodeFrom.replace(/-/g, ' ') }
+            );
+            fromUuid = result?.data?.[0]?.uuid;
+            if (fromUuid) console.log(`    📎 Resolved "${edge.nodeFrom}" via Neo4j lookup`);
+          }
+          if (!toUuid) {
+            const result = await runCypherApi(
+              `MATCH (n:NostrEvent) WHERE n.slug = $slug OR n.name = $name RETURN n.uuid AS uuid LIMIT 1`,
+              { slug: edge.nodeTo, name: edge.nodeTo.replace(/-/g, ' ') }
+            );
+            toUuid = result?.data?.[0]?.uuid;
+            if (toUuid) console.log(`    📎 Resolved "${edge.nodeTo}" via Neo4j lookup`);
+          }
 
           if (!fromUuid) {
-            console.log(`    ⚠️  nodeFrom "${edge.nodeFrom}" not found in nodeMap for ${slug}`);
+            console.log(`    ⚠️  nodeFrom "${edge.nodeFrom}" not found in nodeMap or Neo4j for ${slug}`);
             continue;
           }
           if (!toUuid) {
-            console.log(`    ⚠️  nodeTo "${edge.nodeTo}" not found in nodeMap for ${slug}`);
+            console.log(`    ⚠️  nodeTo "${edge.nodeTo}" not found in nodeMap or Neo4j for ${slug}`);
             continue;
           }
 
