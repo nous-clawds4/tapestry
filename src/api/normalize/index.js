@@ -2218,10 +2218,16 @@ async function handleGeneratePropertyTree(req, res) {
     const { schemaUuid, schemaName, schemaJson, propGraphUuid, propGraphName, primaryUuid, primaryName } = rows[0];
     if (!schemaUuid) return res.json({ success: false, error: `Concept "${concept}" has no JSON Schema node` });
 
-    // Parse the schema (supports word-wrapper and legacy flat formats)
+    // Parse the schema (supports word-wrapper, legacy flat, and LMDB refs)
     let schema;
     try {
-      const parsed = typeof schemaJson === 'string' ? JSON.parse(schemaJson) : schemaJson;
+      let rawSchema = schemaJson;
+      // Resolve LMDB ref if needed
+      if (typeof rawSchema === 'string' && rawSchema.startsWith('lmdb:')) {
+        const { resolveValue } = require('../../lib/tapestry-resolve');
+        rawSchema = resolveValue(rawSchema);
+      }
+      const parsed = typeof rawSchema === 'string' ? JSON.parse(rawSchema) : rawSchema;
       // Word-wrapper format: { word: {...}, jsonSchema: {...} }
       schema = (parsed && parsed.jsonSchema) ? parsed.jsonSchema : parsed;
     } catch {
