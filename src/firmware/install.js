@@ -631,6 +631,40 @@ async function pass1_bootstrap(opts = {}) {
 
   console.log(`\n  Total HAS_ELEMENT edges added: ${hasElementCount}`);
 
+  // ── 1d½. Wire ConceptHeaders as elements of the "concept-header" concept ──
+  // ConceptHeaders are ListHeaders (kind 39998) and don't carry z-tags,
+  // so the z-tag wiring in step 1d doesn't pick them up. We wire them
+  // explicitly as elements of the "concept-header" concept.
+  {
+    console.log('\n── Wiring ConceptHeaders as elements ──\n');
+
+    const chSupRes = await runCypherApi(
+      `MATCH (h:ConceptHeader {name: 'concept header'})-[:IS_THE_CONCEPT_FOR]->(sup:Superset)
+       RETURN sup.uuid AS supersetUuid`,
+    );
+    const chSupersetUuid = (chSupRes.data || [])[0]?.supersetUuid;
+
+    if (chSupersetUuid) {
+      const allHeaders = await runCypherApi(
+        `MATCH (ch:ConceptHeader)
+         WHERE ch.uuid <> $supersetUuid
+         RETURN ch.uuid AS uuid, ch.name AS name`,
+        { supersetUuid: chSupersetUuid }
+      );
+      const headers = allHeaders.data || [];
+      for (const h of headers) {
+        await runCypherApi(
+          `MATCH (sup:NostrEvent {uuid: $supersetUuid}), (ch:NostrEvent {uuid: $chUuid})
+           MERGE (sup)-[:HAS_ELEMENT]->(ch)`,
+          { supersetUuid: chSupersetUuid, chUuid: h.uuid }
+        );
+      }
+      console.log(`    📎 concept header: ${headers.length} elements wired`);
+    } else {
+      console.log(`    ⚠️  "concept header" concept not found or has no Superset`);
+    }
+  }
+
   // ── 1e. Prune redundant Superset edges ─────────────────────
   //
   // Now that ALL edges are created (manifest + z-tag wiring), prune direct
