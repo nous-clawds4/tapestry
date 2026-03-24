@@ -75,6 +75,9 @@ COPY . /usr/local/lib/node_modules/brainstorm/
 # Install npm dependencies
 RUN cd /usr/local/lib/node_modules/brainstorm && npm install
 
+# Build the React UI (public/kg/)
+RUN cd /usr/local/lib/node_modules/brainstorm/ui && npm ci && npm run build
+
 # Nginx config
 COPY docker/nginx.conf /etc/nginx/sites-available/brainstorm
 RUN ln -sf /etc/nginx/sites-available/brainstorm /etc/nginx/sites-enabled/brainstorm \
