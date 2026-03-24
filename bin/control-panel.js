@@ -213,6 +213,11 @@ app.get('/:filename.html', (req, res) => {
     serveHtmlFile(filename, res);
 });
 
+// SPA fallback for React Router (/kg/* routes that aren't static files)
+app.get('/kg/*', (req, res) => {
+    res.sendFile(path.join(__dirname, '../public/kg/index.html'));
+});
+
 // Apply auth middleware
 app.use(authMiddleware);
 
