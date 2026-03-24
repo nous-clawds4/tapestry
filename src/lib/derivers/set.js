@@ -1,11 +1,18 @@
 /**
  * Set Deriver — computes tapestryJSON for Set and Superset nodes.
  *
- * Structure:
- *   - word (universal): slug, name, description, wordTypes — always shared
- *   - <conceptSlug> (concept-scoped): properties specific to this concept — optionally shared
- *   - graphContext (local): identifiers, concept, memberOf, elements, childSets,
- *     parentJsonSchemas, derivedAt — never shared (stripped before packaging)
+ * Structure (per glossary/graph-context.md):
+ *   - word (universal): slug, name, description, wordTypes, coreMemberOf
+ *   - set (concept-scoped): slug, name — present because this is a Set
+ *   - superset (concept-scoped): slug, name — present if this is a Superset
+ *   - graphContext (local, never shared):
+ *       identifiers { tapestryKey, uuid }
+ *       parentSets { direct[], indirect[] }
+ *       childSets { direct[], indirect[] }
+ *       elements { direct[], indirect[] }
+ *       elementOf { direct[], indirect[] }
+ *       parentJsonSchemas[]
+ *       derivedAt
  */
 
 const { runCypher } = require('../neo4j-driver');
@@ -17,11 +24,9 @@ const { resolveValue, isLmdbRef } = require('../tapestry-resolve');
  * Checks LMDB first (from prior offload), then falls back to inline json tag.
  */
 async function getExistingWordJson(node) {
-  // Check if LMDB already has data from a prior offload
   const existing = store.get(node.tapestryKey);
   if (existing?.data?.word) return existing.data;
 
-  // Fall back to inline json tag in Neo4j
   const rows = await runCypher(`
     MATCH (n { uuid: $uuid })-[:HAS_TAG]->(tag { type: 'json' })
     RETURN tag.value AS value
@@ -29,7 +34,6 @@ async function getExistingWordJson(node) {
   `, { uuid: node.uuid });
 
   if (rows.length === 0 || !rows[0].value) return null;
-
   const raw = rows[0].value;
 
   if (isLmdbRef(raw)) {
@@ -45,79 +49,117 @@ async function getExistingWordJson(node) {
   }
 }
 
+/** Map a row to a nodeRef { tapestryKey, name, slug }. */
+function nodeRef(row) {
+  return { tapestryKey: row.tapestryKey, name: row.name, slug: row.slug || null };
+}
+
+/** Derive a slug from a name if none exists. */
+function deriveSlug(name) {
+  if (!name) return null;
+  return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+}
+
 /**
  * Derive tapestryJSON for a Set or Superset node.
  */
 async function deriveSet(node) {
   const { uuid, tapestryKey, name, labels } = node;
   const isSuperset = labels.includes('Superset');
-  const typeKey = isSuperset ? 'superset' : 'set';
 
   // Start with existing word JSON
   const base = await getExistingWordJson(node) || {};
 
-  // Ensure word section exists
+  // ── word section ──
+  const wordTypes = ['word'];
+  if (isSuperset) wordTypes.push('superset');
+  wordTypes.push('set');
+
   if (!base.word) {
-    base.word = {
-      slug: node.slug || null,
-      name: name || null,
-      wordTypes: ['word', typeKey],
-    };
+    base.word = {};
+  }
+  base.word.slug = base.word.slug || node.slug || deriveSlug(name);
+  base.word.name = base.word.name || name || null;
+  base.word.wordTypes = wordTypes;
+  // Preserve existing coreMemberOf if present
+
+  // ── Concept-scoped blocks ──
+  // Always include "set" block. Include "superset" if applicable.
+  if (!base.set) base.set = {};
+  base.set.slug = base.set.slug || deriveSlug(name);
+  base.set.name = base.set.name || name || null;
+
+  if (isSuperset) {
+    if (!base.superset) base.superset = {};
+    base.superset.slug = base.superset.slug || deriveSlug(name);
+    base.superset.name = base.superset.name || name || null;
   }
 
   // ── Graph queries ──
 
-  // Direct elements (one hop: this node → HAS_ELEMENT → element)
+  // Direct elements (this node → HAS_ELEMENT → element)
   const directElements = await runCypher(`
     MATCH (s { uuid: $uuid })-[:HAS_ELEMENT]->(e)
-    RETURN e.uuid AS uuid, e.tapestryKey AS tapestryKey, e.name AS name,
-           e.slug AS slug
+    RETURN e.tapestryKey AS tapestryKey, e.name AS name, e.slug AS slug
     ORDER BY e.name
   `, { uuid });
 
-  // All elements reachable via class thread (recursive)
-  const allElements = await runCypher(`
-    MATCH (s { uuid: $uuid })-[:IS_A_SUPERSET_OF*0..10]->(child)-[:HAS_ELEMENT]->(e)
-    RETURN DISTINCT e.uuid AS uuid, e.tapestryKey AS tapestryKey, e.name AS name,
-           e.slug AS slug
+  // Indirect elements (reachable via child sets, excluding direct)
+  const indirectElements = await runCypher(`
+    MATCH (s { uuid: $uuid })-[:IS_A_SUPERSET_OF*1..10]->(child)-[:HAS_ELEMENT]->(e)
+    WHERE NOT (s)-[:HAS_ELEMENT]->(e)
+    RETURN DISTINCT e.tapestryKey AS tapestryKey, e.name AS name, e.slug AS slug
     ORDER BY e.name
   `, { uuid });
 
-  // Child Sets (direct subsets)
-  const childSets = await runCypher(`
+  // Direct child sets (this node → IS_A_SUPERSET_OF → child)
+  const directChildSets = await runCypher(`
     MATCH (s { uuid: $uuid })-[:IS_A_SUPERSET_OF]->(child)
-    RETURN child.uuid AS uuid, child.tapestryKey AS tapestryKey, child.name AS name,
-           child.slug AS slug
+    RETURN child.tapestryKey AS tapestryKey, child.name AS name, child.slug AS slug
     ORDER BY child.name
   `, { uuid });
 
-  // Parent concept
-  const parentConcept = await runCypher(`
-    MATCH (ch:ConceptHeader)-[:IS_THE_CONCEPT_FOR]->(sup)-[:IS_A_SUPERSET_OF*0..10]->(s { uuid: $uuid })
-    RETURN ch.uuid AS uuid, ch.tapestryKey AS tapestryKey, ch.name AS name,
-           ch.slug AS slug
-    LIMIT 1
+  // Indirect child sets (reachable via 2+ hops)
+  const indirectChildSets = await runCypher(`
+    MATCH (s { uuid: $uuid })-[:IS_A_SUPERSET_OF*2..10]->(child)
+    WHERE NOT (s)-[:IS_A_SUPERSET_OF]->(child)
+    RETURN DISTINCT child.tapestryKey AS tapestryKey, child.name AS name, child.slug AS slug
+    ORDER BY child.name
   `, { uuid });
 
-  // Sets this node is a member of (reverse HAS_ELEMENT)
-  const memberOf = await runCypher(`
-    MATCH (parent)-[:HAS_ELEMENT]->(n { uuid: $uuid })
-    RETURN parent.uuid AS uuid, parent.tapestryKey AS tapestryKey, parent.name AS name
-    ORDER BY parent.name
-  `, { uuid });
-
-  // Parent supersets (sets this node is a direct subset of)
-  const parentSets = await runCypher(`
+  // Direct parent sets (parent → IS_A_SUPERSET_OF → this node)
+  const directParentSets = await runCypher(`
     MATCH (parent)-[:IS_A_SUPERSET_OF]->(s { uuid: $uuid })
-    RETURN parent.uuid AS uuid, parent.tapestryKey AS tapestryKey, parent.name AS name,
-           parent.slug AS slug
+    RETURN parent.tapestryKey AS tapestryKey, parent.name AS name, parent.slug AS slug
     ORDER BY parent.name
   `, { uuid });
 
-  // JSON Schemas this node should validate against.
-  // Via element membership only (explicit HAS_ELEMENT or implicit z-tag),
-  // NOT via set membership (IS_A_SUPERSET_OF alone).
-  // e.g., "free nostr relays" is a Set in the "nostr relay" concept but is NOT a nostr relay.
+  // Indirect parent sets (reachable via 2+ hops up)
+  const indirectParentSets = await runCypher(`
+    MATCH (parent)-[:IS_A_SUPERSET_OF*2..10]->(s { uuid: $uuid })
+    WHERE NOT (parent)-[:IS_A_SUPERSET_OF]->(s { uuid: $uuid })
+    RETURN DISTINCT parent.tapestryKey AS tapestryKey, parent.name AS name, parent.slug AS slug
+    ORDER BY parent.name
+  `, { uuid });
+
+  // elementOf — concepts this node is an element of (via HAS_ELEMENT + z-tag)
+  // Direct: sets that contain this node via direct HAS_ELEMENT
+  const directElementOf = await runCypher(`
+    MATCH (parent)-[:HAS_ELEMENT]->(n { uuid: $uuid })
+    RETURN parent.tapestryKey AS tapestryKey, parent.name AS name, parent.slug AS slug
+    ORDER BY parent.name
+  `, { uuid });
+
+  // Indirect: concepts reachable via the class thread above direct parents
+  const indirectElementOf = await runCypher(`
+    MATCH (parent)-[:HAS_ELEMENT]->(n { uuid: $uuid })
+    MATCH (ancestor)-[:IS_A_SUPERSET_OF*1..10]->(parent)
+    WHERE NOT (ancestor)-[:HAS_ELEMENT]->(n { uuid: $uuid })
+    RETURN DISTINCT ancestor.tapestryKey AS tapestryKey, ancestor.name AS name, ancestor.slug AS slug
+    ORDER BY ancestor.name
+  `, { uuid });
+
+  // JSON Schemas — via element membership (explicit HAS_ELEMENT + implicit z-tag)
   const schemaRows = await runCypher(`
     MATCH (n { uuid: $uuid })
     OPTIONAL MATCH (n)<-[:HAS_ELEMENT]-(parentSet)
@@ -136,31 +178,8 @@ async function deriveSet(node) {
            head(collect(jt.value)) AS schemaJson
   `, { uuid });
 
-  // ── Concept-scoped section ──
-  // Keyed by concept slug. Contains properties intrinsic to the concept
-  // (not graph-positional). For sets, this is thin — mostly inherited from
-  // existing data. The concept slug provides the natural key for selective sharing.
-
-  const concept = parentConcept[0] || null;
-  if (concept?.slug) {
-    // Preserve any existing concept-scoped data
-    if (!base[concept.slug]) {
-      base[concept.slug] = {};
-    }
-    // Migrate legacy set/superset section if it has concept-intrinsic data
-    const legacySection = base[typeKey] || {};
-    if (legacySection.description && !base[concept.slug].description) {
-      base[concept.slug].description = legacySection.description;
-    }
-  }
-
-  // Clean up legacy type section (elements/childSets now live in graphContext)
-  delete base.set;
-  delete base.superset;
-
   // ── Build parentJsonSchemas with cached validation ──
   const now = Math.floor(Date.now() / 1000);
-  const wordData = base.word || {};
   const parentJsonSchemas = schemaRows.map(row => {
     const entry = {
       uuid: row.schemaUuid,
@@ -172,10 +191,8 @@ async function deriveSet(node) {
       errors: [],
     };
 
-    // Attempt validation if we have the schema JSON
     if (row.schemaJson) {
       try {
-        // Resolve LMDB refs
         let rawSchema = row.schemaJson;
         if (isLmdbRef(rawSchema)) {
           const resolved = resolveValue(rawSchema);
@@ -184,7 +201,6 @@ async function deriveSet(node) {
         if (!rawSchema) { return entry; }
         let schemaObj = typeof rawSchema === 'string'
           ? JSON.parse(rawSchema) : rawSchema;
-        // Unwrap word-wrapper format
         if (schemaObj.jsonSchema && typeof schemaObj.jsonSchema === 'object') {
           schemaObj = schemaObj.jsonSchema;
         }
@@ -193,7 +209,8 @@ async function deriveSet(node) {
         const Ajv = require('ajv');
         const ajv = new Ajv({ allErrors: true, strict: false });
         const validate = ajv.compile(schemaNoMeta);
-        const valid = validate(wordData);
+        // Validate the FULL tapestryJSON (base), not just base.word
+        const valid = validate(base);
         entry.lastValidated = now;
         entry.valid = valid;
         entry.errors = valid ? [] : validate.errors.map(
@@ -212,46 +229,30 @@ async function deriveSet(node) {
   // ── graphContext ──
   base.graphContext = {
     identifiers: {
-      tapestryKey: tapestryKey,
+      tapestryKey,
+      uuid,
     },
-    concept: concept ? {
-      tapestryKey: concept.tapestryKey,
-      name: concept.name,
-    } : null,
-    memberOf: memberOf.map(m => ({
-      tapestryKey: m.tapestryKey,
-      name: m.name,
-    })),
-    parentSets: parentSets.map(s => ({
-      tapestryKey: s.tapestryKey,
-      name: s.name,
-    })),
-    childSets: childSets.map(s => ({
-      tapestryKey: s.tapestryKey,
-      name: s.name,
-      slug: s.slug,
-    })),
+    parentSets: {
+      direct: directParentSets.map(nodeRef),
+      indirect: indirectParentSets.map(nodeRef),
+    },
+    childSets: {
+      direct: directChildSets.map(nodeRef),
+      indirect: indirectChildSets.map(nodeRef),
+    },
     elements: {
-      direct: directElements.map(e => ({
-        tapestryKey: e.tapestryKey,
-        name: e.name,
-        slug: e.slug,
-      })),
-      all: allElements.map(e => ({
-        tapestryKey: e.tapestryKey,
-        name: e.name,
-        slug: e.slug,
-      })),
-      counts: {
-        direct: directElements.length,
-        all: allElements.length,
-      },
+      direct: directElements.map(nodeRef),
+      indirect: indirectElements.map(nodeRef),
+    },
+    elementOf: {
+      direct: directElementOf.map(nodeRef),
+      indirect: indirectElementOf.map(nodeRef),
     },
     parentJsonSchemas,
     derivedAt: now,
   };
 
-  // Remove old x-tapestry.derived if present (from prior version)
+  // Remove old artifacts
   if (base['x-tapestry']?.derived) {
     delete base['x-tapestry'].derived;
     if (Object.keys(base['x-tapestry']).length === 0) {
