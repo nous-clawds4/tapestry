@@ -144,6 +144,9 @@ export default function NodeJson() {
   const navigate = useNavigate();
 
   const [activeSource, setActiveSource] = useState('tapestry'); // 'tapestry' | 'neo4j'
+  const [deriving, setDeriving] = useState(false);
+  const [deriveResult, setDeriveResult] = useState(null); // { success, error? }
+  const [refreshCounter, setRefreshCounter] = useState(0); // bump to reload LMDB data
 
   // ── Neo4j json tag ──
   const { data: tagData, loading: tagLoading } = useCypher(`
@@ -168,13 +171,36 @@ export default function NodeJson() {
       return;
     }
     let cancelled = false;
+    setLmdbLoading(true);
     fetch(`/api/tapestry-key/${tapestryKey}`)
       .then(r => r.json())
       .then(d => { if (!cancelled) setLmdbData(d.success ? d.data : null); })
       .catch(() => { if (!cancelled) setLmdbData(null); })
       .finally(() => { if (!cancelled) setLmdbLoading(false); });
     return () => { cancelled = true; };
-  }, [tapestryKey]);
+  }, [tapestryKey, refreshCounter]);
+
+  // ── Derive handler ──
+  async function handleDerive() {
+    if (!tapestryKey) return;
+    setDeriving(true);
+    setDeriveResult(null);
+    try {
+      const resp = await fetch(`/api/tapestry-key/derive/${tapestryKey}`, { method: 'POST' });
+      const d = await resp.json();
+      if (d.success) {
+        setDeriveResult({ success: true });
+        // Reload LMDB data and re-resolve schemas
+        setRefreshCounter(c => c + 1);
+      } else {
+        setDeriveResult({ success: false, error: d.error || 'Derivation failed' });
+      }
+    } catch (e) {
+      setDeriveResult({ success: false, error: e.message });
+    } finally {
+      setDeriving(false);
+    }
+  }
 
   const lmdbContent = lmdbData?.data;
 
@@ -286,7 +312,32 @@ export default function NodeJson() {
 
   return (
     <div>
-      <h2>📋 JSON Data</h2>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+        <h2 style={{ margin: 0 }}>📋 JSON Data</h2>
+        <button
+          className="btn btn-primary btn-small"
+          onClick={handleDerive}
+          disabled={deriving || !tapestryKey}
+          title={tapestryKey ? 'Re-derive tapestryJSON from the graph' : 'No tapestryKey — cannot derive'}
+        >
+          {deriving ? '⏳ Deriving…' : '🔄 Derive'}
+        </button>
+      </div>
+
+      {deriveResult && (
+        <div style={{
+          padding: '0.5rem 1rem', borderRadius: '6px', marginBottom: '1rem',
+          backgroundColor: deriveResult.success ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)',
+          border: `1px solid ${deriveResult.success ? '#22c55e' : '#ef4444'}`,
+          fontSize: '0.85rem', fontWeight: 600,
+          color: deriveResult.success ? '#22c55e' : '#ef4444',
+        }}>
+          {deriveResult.success
+            ? '✅ tapestryJSON re-derived successfully'
+            : `❌ ${deriveResult.error}`
+          }
+        </div>
+      )}
 
       {/* Match indicator when both sources exist */}
       {match !== null && (
