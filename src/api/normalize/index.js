@@ -3249,6 +3249,7 @@ async function registerNormalizeRoutes(app) {
   app.post('/api/normalize/fork-node', handleForkNode);
   app.post('/api/normalize/set-json-tag', handleSetJsonTag);
   app.post('/api/normalize/prune-superset-edges', handlePruneSupersetEdges);
+  app.post('/api/normalize/wire-implicit-elements', handleWireImplicitElements);
 
   // Firmware install
   const { handleFirmwareInstall } = require('../../firmware/install');
@@ -3357,6 +3358,140 @@ async function handlePruneSupersetEdges(req, res) {
     return res.json({ success: true, pruned, kept, log });
   } catch (error) {
     console.error('normalize/prune-superset-edges error:', error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+}
+
+
+// ══════════════════════════════════════════════════════════════
+// POST /api/normalize/wire-implicit-elements
+//   Body: { concept?: "<name>" }  — if omitted, processes ALL concepts
+//   For each concept, finds nodes with a z-tag pointing to that concept's header
+//   but no explicit HAS_ELEMENT path. Wires them to the concept's Superset.
+//   Optionally prunes redundant edges afterward.
+// ══════════════════════════════════════════════════════════════
+
+async function handleWireImplicitElements(req, res) {
+  try {
+    const { concept: conceptFilter, prune = true } = req.body || {};
+    const log = [];
+    let totalWired = 0;
+    let totalAlreadyExplicit = 0;
+    let totalPruned = 0;
+
+    // Find concepts to process
+    let conceptRows;
+    if (conceptFilter) {
+      conceptRows = await runCypher(`
+        MATCH (h:ConceptHeader)
+        WHERE h.name = $name
+        OPTIONAL MATCH (h)-[:${REL.CLASS_THREAD_INITIATION}]->(sup:Superset)
+        RETURN h.uuid AS headerUuid, h.name AS conceptName, sup.uuid AS supersetUuid
+        LIMIT 1
+      `, { name: conceptFilter });
+    } else {
+      conceptRows = await runCypher(`
+        MATCH (h:ConceptHeader)-[:${REL.CLASS_THREAD_INITIATION}]->(sup:Superset)
+        RETURN h.uuid AS headerUuid, h.name AS conceptName, sup.uuid AS supersetUuid
+        ORDER BY h.name
+      `);
+    }
+
+    if (conceptRows.length === 0) {
+      const msg = conceptFilter
+        ? `Concept "${conceptFilter}" not found or has no Superset`
+        : 'No concepts with Superset nodes found';
+      return res.json({ success: false, error: msg, log: [msg] });
+    }
+
+    log.push(`Processing ${conceptRows.length} concept(s)...`);
+
+    for (const { headerUuid, conceptName, supersetUuid } of conceptRows) {
+      log.push(`\n── ${conceptName} ──`);
+      log.push(`  Header: ${headerUuid}`);
+      log.push(`  Superset: ${supersetUuid}`);
+
+      // Find all nodes with a z-tag pointing to this concept header
+      const implicitNodes = await runCypher(`
+        MATCH (n:NostrEvent)-[:HAS_TAG]->(zt:NostrEventTag {type: 'z', value: $headerUuid})
+        RETURN n.uuid AS uuid, n.name AS name
+        ORDER BY n.name
+      `, { headerUuid });
+
+      log.push(`  Implicit elements (via z-tag): ${implicitNodes.length}`);
+
+      if (implicitNodes.length === 0) continue;
+
+      for (const node of implicitNodes) {
+        // Check if this node already has an explicit HAS_ELEMENT path
+        // from any Set/Superset in this concept's class thread
+        const explicitCheck = await runCypher(`
+          MATCH (sup:Superset {uuid: $supersetUuid})
+                -[:${REL.CLASS_THREAD_PROPAGATION}|${REL.CLASS_THREAD_TERMINATION}*0..12]->
+                (parent)-[:${REL.CLASS_THREAD_TERMINATION}]->(n {uuid: $nodeUuid})
+          RETURN count(*) AS cnt
+        `, { supersetUuid, nodeUuid: node.uuid });
+
+        const alreadyExplicit = (explicitCheck[0]?.cnt || 0) > 0;
+
+        if (alreadyExplicit) {
+          log.push(`  ⏭️  "${node.name}" — already explicit`);
+          totalAlreadyExplicit++;
+        } else {
+          // Wire HAS_ELEMENT from Superset → node
+          await writeCypher(`
+            MATCH (sup:Superset {uuid: $supersetUuid}), (n:NostrEvent {uuid: $nodeUuid})
+            MERGE (sup)-[:${REL.CLASS_THREAD_TERMINATION}]->(n)
+          `, { supersetUuid, nodeUuid: node.uuid });
+          log.push(`  ✅ "${node.name}" — wired to Superset`);
+          totalWired++;
+        }
+      }
+
+      // Prune redundant edges if requested.
+      // Only prune if there's an alternate path WITHIN THIS CONCEPT's class thread:
+      // Superset → IS_A_SUPERSET_OF+ → childSet → HAS_ELEMENT → target
+      if (prune && totalWired > 0) {
+        const directEdges = await runCypher(`
+          MATCH (sup:Superset {uuid: $supersetUuid})-[:${REL.CLASS_THREAD_TERMINATION}]->(target)
+          RETURN target.uuid AS uuid, target.name AS name
+        `, { supersetUuid });
+
+        for (const target of directEdges) {
+          // Check: is there a path Superset →IS_A_SUPERSET_OF+→ childSet →HAS_ELEMENT→ target?
+          const altPaths = await runCypher(`
+            MATCH (sup:Superset {uuid: $supersetUuid})
+                  -[:${REL.CLASS_THREAD_PROPAGATION}*1..10]->(childSet)
+                  -[:${REL.CLASS_THREAD_TERMINATION}]->(target:NostrEvent {uuid: $targetUuid})
+            RETURN count(*) AS cnt
+          `, { supersetUuid, targetUuid: target.uuid });
+
+          if ((altPaths[0]?.cnt || 0) > 0) {
+            await writeCypher(`
+              MATCH (sup:Superset {uuid: $supersetUuid})-[r:${REL.CLASS_THREAD_TERMINATION}]->(target:NostrEvent {uuid: $targetUuid})
+              DELETE r
+            `, { supersetUuid, targetUuid: target.uuid });
+            log.push(`  🔄 "${target.name}" — pruned redundant edge`);
+            totalPruned++;
+          }
+        }
+      }
+    }
+
+    log.push(`\n── Summary ──`);
+    log.push(`Wired: ${totalWired}`);
+    log.push(`Already explicit: ${totalAlreadyExplicit}`);
+    if (prune) log.push(`Pruned redundant: ${totalPruned}`);
+
+    return res.json({
+      success: true,
+      wired: totalWired,
+      alreadyExplicit: totalAlreadyExplicit,
+      pruned: totalPruned,
+      log,
+    });
+  } catch (error) {
+    console.error('normalize/wire-implicit-elements error:', error);
     return res.status(500).json({ success: false, error: error.message });
   }
 }
