@@ -201,22 +201,43 @@ export default function NodeJson() {
     RETURN conceptName, schemaUuid, schemaName, schemaJson
   `);
 
-  const schemas = useMemo(() => {
-    if (!schemaRows) return [];
-    return schemaRows
-      .map(r => {
-        const parsed = tryParseJson(r.schemaJson);
-        if (!parsed) return null;
-        const schema = parsed.jsonSchema && typeof parsed.jsonSchema === 'object'
-          ? parsed.jsonSchema : parsed;
-        return {
-          name: r.conceptName,
-          uuid: r.schemaUuid,
-          schemaName: r.schemaName,
-          schema,
-        };
-      })
-      .filter(Boolean);
+  // Resolve schema JSON — may be inline or an LMDB ref that needs fetching
+  const [schemas, setSchemas] = useState([]);
+  useEffect(() => {
+    if (!schemaRows || schemaRows.length === 0) { setSchemas([]); return; }
+
+    let cancelled = false;
+    Promise.all(schemaRows.map(async (r) => {
+      let raw = r.schemaJson;
+
+      // Resolve LMDB refs via the tapestry-key API
+      if (isLmdbRef(raw)) {
+        const key = raw.replace('lmdb:', '');
+        try {
+          const resp = await fetch(`/api/tapestry-key/${key}`);
+          const d = await resp.json();
+          raw = d.success ? d.data?.data : null;
+        } catch {
+          raw = null;
+        }
+      } else {
+        raw = tryParseJson(raw);
+      }
+
+      if (!raw) return null;
+      const schema = raw.jsonSchema && typeof raw.jsonSchema === 'object'
+        ? raw.jsonSchema : raw;
+      return {
+        name: r.conceptName,
+        uuid: r.schemaUuid,
+        schemaName: r.schemaName,
+        schema,
+      };
+    })).then(results => {
+      if (!cancelled) setSchemas(results.filter(Boolean));
+    });
+
+    return () => { cancelled = true; };
   }, [schemaRows]);
 
   // ── Validation state ──
