@@ -103,8 +103,33 @@ export default function StrfryOverview() {
   return (
     <div className="page">
       <Breadcrumbs />
-      <h1>📡 Strfry</h1>
-      <p className="subtitle">Overview of nostr events stored in the local strfry relay.</p>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <div>
+          <h1>📡 Strfry</h1>
+          <p className="subtitle">Overview of nostr events stored in the local strfry relay.</p>
+        </div>
+        <a
+          href="http://localhost:8080/relay"
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '0.4rem',
+            padding: '0.5rem 1rem',
+            borderRadius: '6px',
+            backgroundColor: 'var(--accent, #6366f1)',
+            color: '#fff',
+            textDecoration: 'none',
+            fontSize: '0.85rem',
+            fontWeight: 600,
+            whiteSpace: 'nowrap',
+            marginTop: '0.5rem',
+          }}
+        >
+          🔗 Open Strfry Relay
+        </a>
+      </div>
 
       {/* Summary cards */}
       <div style={{

@@ -4,21 +4,13 @@ import Header from './Header';
 import { useAuth } from '../context/AuthContext';
 
 /**
- * Nav items. Items with `children` render as collapsible groups.
- * Children can themselves have `children` for multi-level nesting.
- * - `to`: route path (for leaf items)
- * - `children`: sub-items (for group items)
- * - `prefix`: URL prefix that determines "active" state for auto-expand
+ * Nav items split into two menus: main and management.
+ * Both start with Dashboard. The active menu is determined by the current route.
  */
-const navItems = [
-  { to: '/kg/', label: '📊 Dashboard', end: true },
-  {
-    label: '🧩 Concepts',
-    prefix: '/kg/concepts',
-    children: [
-      { to: '/kg/concepts', label: 'Concept Headers', end: true },
-    ],
-  },
+const dashboardItem = { to: '/kg/', label: '📊 Dashboard', end: true };
+
+const mainNavItems = [
+  dashboardItem,
   {
     label: '📋 Simple Lists',
     prefix: '/kg/lists',
@@ -27,7 +19,35 @@ const navItems = [
       { to: '/kg/lists/items', label: 'List Items' },
     ],
   },
+  {
+    label: '🧩 Concepts',
+    prefix: '/kg/concepts',
+    children: [
+      { to: '/kg/concepts', label: 'Concept Headers', end: true },
+    ],
+  },
+  {
+    label: '🍇 My Grapevine',
+    prefix: '/kg/grapevine',
+    children: [
+      { to: '/kg/grapevine/trusted-assertions', label: 'TA Treasure Map' },
+      { to: '/kg/grapevine/assertions', label: 'Trusted Assertions' },
+      { to: '/kg/grapevine/trusted-lists', label: 'Trusted Lists' },
+      { to: '/kg/grapevine/trust-determination', label: 'Trust Determination' },
+    ],
+  },
+  {
+    label: '👤 Nostr Users',
+    prefix: '/kg/users',
+    children: [
+      { to: '/kg/users', label: 'Directory', end: true },
+      { to: '/kg/users/search', label: 'Search' },
+    ],
+  },
+];
 
+const managementNavItems = [
+  dashboardItem,
   {
     label: '🗄️ Databases',
     prefix: '/kg/databases',
@@ -50,14 +70,6 @@ const navItems = [
     ],
   },
   {
-    label: '👤 Nostr Users',
-    prefix: '/kg/users',
-    children: [
-      { to: '/kg/users', label: 'Directory', end: true },
-      { to: '/kg/users/search', label: 'Search' },
-    ],
-  },
-  {
     label: '📥 I/O',
     prefix: '/kg/io',
     children: [
@@ -65,18 +77,10 @@ const navItems = [
       { to: '/kg/io/export', label: 'Export' },
     ],
   },
-  {
-    label: '🍇 My Grapevine',
-    prefix: '/kg/grapevine',
-    children: [
-      { to: '/kg/grapevine/trusted-assertions', label: 'TA Treasure Map' },
-      { to: '/kg/grapevine/assertions', label: 'Trusted Assertions' },
-      { to: '/kg/grapevine/trusted-lists', label: 'Trusted Lists' },
-      { to: '/kg/grapevine/trust-determination', label: 'Trust Determination' },
-    ],
-  },
-
 ];
+
+/** Route prefixes that trigger the management menu */
+const MANAGEMENT_PREFIXES = ['/kg/settings', '/kg/databases', '/kg/io', '/kg/manage'];
 
 /**
  * Recursive nav group component supporting arbitrary nesting depth.
@@ -129,11 +133,27 @@ function NavGroup({ item, depth = 0 }) {
 export default function Layout() {
   const { user } = useAuth();
   const isOwner = user?.classification === 'owner';
+  const location = useLocation();
+
+  const isManagement = MANAGEMENT_PREFIXES.some(p => location.pathname.startsWith(p));
+  const navItems = isManagement ? managementNavItems : mainNavItems;
 
   return (
     <div className="app-layout">
       <Header />
       <nav className="sidebar">
+        {isManagement && (
+          <div style={{
+            padding: '0.5rem 1rem',
+            fontSize: '0.7rem',
+            fontWeight: 600,
+            textTransform: 'uppercase',
+            letterSpacing: '0.05em',
+            color: 'var(--text-muted, #888)',
+          }}>
+            ⚙️ Management
+          </div>
+        )}
         <ul className="nav-list">
           {navItems.filter(item => !item.ownerOnly || isOwner).map((item, i) => {
             if (item.children) {
