@@ -11,7 +11,9 @@ export default function NodeDetail() {
     MATCH (n {uuid: '${decodedUuid}'})
     RETURN n.uuid AS uuid, n.id AS id, n.name AS name, n.slug AS slug,
            n.pubkey AS pubkey, n.kind AS kind, n.created_at AS created_at,
-           n.aTag AS aTag, labels(n) AS nodeLabels
+           n.aTag AS aTag, n.tapestryKey AS tapestryKey,
+           n.tapestryJsonUpdatedAt AS tapestryJsonUpdatedAt,
+           labels(n) AS nodeLabels
     LIMIT 1
   `);
 

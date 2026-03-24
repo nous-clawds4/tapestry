@@ -427,6 +427,10 @@ async function register(app) {
     const { registerIORoutes } = require('./io');
     registerIORoutes(app);
 
+    // ── Tapestry Key / LMDB Store API ──
+    const { registerTapestryKeyRoutes } = require('./tapestry-key');
+    registerTapestryKeyRoutes(app);
+
     // Initialize router state (presets → state file → strfry config)
     await initRouter();
 

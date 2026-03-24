@@ -444,6 +444,150 @@ function RecentActivity() {
   );
 }
 
+/* ─── Tapestry Key Status ─────────────────────────────────── */
+
+function TapestryKeyStatus() {
+  const [status, setStatus] = useState(null);
+  const [offloadStatus, setOffloadStatus] = useState(null);
+  const [initializing, setInitializing] = useState(false);
+  const [offloading, setOffloading] = useState(false);
+  const [error, setError] = useState(null);
+  const { user } = useAuth();
+  const isOwner = user?.classification === 'owner';
+
+  const fetchStatus = useCallback(async () => {
+    try {
+      const [statusRes, offloadRes] = await Promise.all([
+        fetch('/api/tapestry-key/status'),
+        fetch('/api/tapestry-key/offload-status'),
+      ]);
+      const statusData = await statusRes.json();
+      const offloadData = await offloadRes.json();
+      if (statusData.success) setStatus(statusData.data);
+      else setError(statusData.error);
+      if (offloadData.success) setOffloadStatus(offloadData.data);
+    } catch (err) {
+      setError(err.message);
+    }
+  }, []);
+
+  useEffect(() => { fetchStatus(); }, [fetchStatus]);
+
+  async function handleInitialize() {
+    if (!confirm(`Initialize tapestryKey on ${status.uninitialized} node(s)? This assigns a permanent UUID to each.`)) return;
+    setInitializing(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/tapestry-key/initialize', { method: 'POST' });
+      const data = await res.json();
+      if (data.success) {
+        await fetchStatus();
+      } else {
+        setError(data.error);
+      }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setInitializing(false);
+    }
+  }
+
+  async function handleOffloadAll() {
+    if (!confirm(`Offload ${offloadStatus.inline} inline JSON tag(s) to LMDB?`)) return;
+    setOffloading(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/tapestry-key/offload-all', { method: 'POST' });
+      const data = await res.json();
+      if (data.success) {
+        await fetchStatus();
+      } else {
+        setError(data.error);
+      }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setOffloading(false);
+    }
+  }
+
+  if (!status) return null;
+
+  const { initialized, uninitialized, total, lmdb } = status;
+  const keysAllGood = uninitialized === 0;
+  const hasInlineTags = offloadStatus && offloadStatus.inline > 0;
+
+  return (
+    <div className="dashboard-card">
+      {/* TapestryKey row */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <span style={{ fontSize: '1.5rem' }}>{keysAllGood ? '🟢' : '🟡'}</span>
+          <div>
+            <div style={{ fontWeight: 600, color: keysAllGood ? '#22c55e' : '#f59e0b' }}>
+              {keysAllGood
+                ? `All ${total} nodes have a tapestryKey`
+                : `${uninitialized} of ${total} nodes need a tapestryKey`
+              }
+            </div>
+            <div style={{ fontSize: '0.8rem', opacity: 0.7, marginTop: '0.25rem' }}>
+              LMDB: {lmdb.count} entr{lmdb.count === 1 ? 'y' : 'ies'} stored
+            </div>
+          </div>
+        </div>
+        {!keysAllGood && isOwner && (
+          <button
+            className="btn btn-primary"
+            onClick={handleInitialize}
+            disabled={initializing}
+            style={{ whiteSpace: 'nowrap' }}
+          >
+            {initializing ? 'Initializing…' : `Initialize ${uninitialized} nodes`}
+          </button>
+        )}
+      </div>
+
+      {/* Offload row */}
+      {offloadStatus && offloadStatus.total > 0 && (
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          marginTop: '0.75rem', paddingTop: '0.75rem',
+          borderTop: '1px solid var(--border, #333)',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <span style={{ fontSize: '1.5rem' }}>{hasInlineTags ? '🟡' : '🟢'}</span>
+            <div>
+              <div style={{ fontWeight: 600, color: hasInlineTags ? '#f59e0b' : '#22c55e' }}>
+                {hasInlineTags
+                  ? `${offloadStatus.inline} of ${offloadStatus.total} JSON tags still inline in Neo4j`
+                  : `All ${offloadStatus.total} JSON tags offloaded to LMDB`
+                }
+              </div>
+              {offloadStatus.offloaded > 0 && (
+                <div style={{ fontSize: '0.8rem', opacity: 0.7, marginTop: '0.25rem' }}>
+                  {offloadStatus.offloaded} already offloaded
+                </div>
+              )}
+            </div>
+          </div>
+          {hasInlineTags && isOwner && keysAllGood && (
+            <button
+              className="btn btn-primary"
+              onClick={handleOffloadAll}
+              disabled={offloading}
+              style={{ whiteSpace: 'nowrap' }}
+            >
+              {offloading ? 'Offloading…' : `Offload ${offloadStatus.inline} tags`}
+            </button>
+          )}
+        </div>
+      )}
+
+      {error && <div style={{ color: '#ef4444', fontSize: '0.8rem', marginTop: '0.5rem' }}>Error: {error}</div>}
+    </div>
+  );
+}
+
 /* ─── Dashboard ───────────────────────────────────────────── */
 
 export default function Dashboard() {
@@ -534,6 +678,7 @@ export default function Dashboard() {
       <ConstraintsCheck onStatusChange={setConstraintsOk} />
       <StatsRow />
       <HealthRow />
+      <TapestryKeyStatus />
       <RecentActivity />
     </div>
   );
