@@ -178,8 +178,36 @@ async function deriveSet(node) {
            head(collect(jt.value)) AS schemaJson
   `, { uuid });
 
-  // ── Build parentJsonSchemas with cached validation ──
+  // ── Build graphContext FIRST (before validation, so schema sees the full object) ──
   const now = Math.floor(Date.now() / 1000);
+
+  base.graphContext = {
+    identifiers: {
+      tapestryKey,
+      uuid,
+    },
+    parentSets: {
+      direct: directParentSets.map(nodeRef),
+      indirect: indirectParentSets.map(nodeRef),
+    },
+    childSets: {
+      direct: directChildSets.map(nodeRef),
+      indirect: indirectChildSets.map(nodeRef),
+    },
+    elements: {
+      direct: directElements.map(nodeRef),
+      indirect: indirectElements.map(nodeRef),
+    },
+    elementOf: {
+      direct: directElementOf.map(nodeRef),
+      indirect: indirectElementOf.map(nodeRef),
+    },
+    parentJsonSchemas: [], // placeholder — filled after validation
+    derivedAt: now,
+  };
+
+  // ── Build parentJsonSchemas with cached validation ──
+  // graphContext is now on base, so validation sees the full tapestryJSON.
   const parentJsonSchemas = schemaRows.map(row => {
     const entry = {
       uuid: row.schemaUuid,
@@ -209,7 +237,6 @@ async function deriveSet(node) {
         const Ajv = require('ajv');
         const ajv = new Ajv({ allErrors: true, strict: false });
         const validate = ajv.compile(schemaNoMeta);
-        // Validate the FULL tapestryJSON (base), not just base.word
         const valid = validate(base);
         entry.lastValidated = now;
         entry.valid = valid;
@@ -226,31 +253,8 @@ async function deriveSet(node) {
     return entry;
   });
 
-  // ── graphContext ──
-  base.graphContext = {
-    identifiers: {
-      tapestryKey,
-      uuid,
-    },
-    parentSets: {
-      direct: directParentSets.map(nodeRef),
-      indirect: indirectParentSets.map(nodeRef),
-    },
-    childSets: {
-      direct: directChildSets.map(nodeRef),
-      indirect: indirectChildSets.map(nodeRef),
-    },
-    elements: {
-      direct: directElements.map(nodeRef),
-      indirect: indirectElements.map(nodeRef),
-    },
-    elementOf: {
-      direct: directElementOf.map(nodeRef),
-      indirect: indirectElementOf.map(nodeRef),
-    },
-    parentJsonSchemas,
-    derivedAt: now,
-  };
+  // Replace placeholder with actual results
+  base.graphContext.parentJsonSchemas = parentJsonSchemas;
 
   // Remove old artifacts
   if (base['x-tapestry']?.derived) {
