@@ -1,4 +1,4 @@
-import { useOutletContext } from 'react-router-dom';
+import { useOutletContext, useNavigate } from 'react-router-dom';
 import { useCypher } from '../../hooks/useCypher';
 import { useState, useEffect, useMemo } from 'react';
 
@@ -16,14 +16,13 @@ function isLmdbRef(value) {
 
 /**
  * Validate a JSON object against one or more schemas using Ajv.
- * Returns { valid, errors[] } where errors is an array of error strings.
  */
 async function validateJson(jsonData, schemas) {
   if (!jsonData || !schemas || schemas.length === 0) return null;
   const { default: Ajv } = await import('ajv');
   const results = [];
 
-  for (const { name, schema } of schemas) {
+  for (const { name, uuid, schema } of schemas) {
     try {
       const ajv = new Ajv({ allErrors: true, strict: false });
       const { $schema, ...schemaNoMeta } = schema;
@@ -31,12 +30,14 @@ async function validateJson(jsonData, schemas) {
       const valid = validate(jsonData);
       results.push({
         conceptName: name,
+        schemaUuid: uuid,
         valid,
         errors: valid ? [] : validate.errors.map(e => `${e.instancePath || '/'} ${e.message}`),
       });
     } catch (e) {
       results.push({
         conceptName: name,
+        schemaUuid: uuid,
         valid: false,
         errors: [e.message],
       });
@@ -45,66 +46,94 @@ async function validateJson(jsonData, schemas) {
   return results;
 }
 
-function ValidationBadge({ results, loading }) {
-  const [showErrors, setShowErrors] = useState(false);
-
-  if (loading) {
-    return <span style={{ fontSize: '0.8rem', opacity: 0.5 }}>Validating…</span>;
-  }
-  if (!results || results.length === 0) {
+/**
+ * Schema list with links and per-schema validation results.
+ */
+function SchemaList({ schemas, results, loading, navigate }) {
+  if (!schemas || schemas.length === 0) {
     return (
-      <span style={{ fontSize: '0.8rem', opacity: 0.5, fontStyle: 'italic' }}>
-        No schemas to validate against
-      </span>
+      <div style={{ marginTop: '1rem', fontSize: '0.8rem', opacity: 0.5, fontStyle: 'italic' }}>
+        No parent JSON Schemas found (this node is not an element of any concept).
+      </div>
     );
   }
 
-  const allValid = results.every(r => r.valid);
-  const totalErrors = results.reduce((sum, r) => sum + r.errors.length, 0);
-
   return (
-    <div style={{ marginTop: '0.75rem' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-        <span style={{
-          fontSize: '0.8rem', padding: '0.2rem 0.6rem', borderRadius: '4px', fontWeight: 600,
-          backgroundColor: allValid ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)',
-          color: allValid ? '#22c55e' : '#ef4444',
+    <div style={{ marginTop: '1rem' }}>
+      <h3 style={{ fontSize: '0.9rem', margin: '0 0 0.5rem 0' }}>
+        📐 Parent JSON Schemas ({schemas.length})
+      </h3>
+      <table className="data-table" style={{ width: '100%', fontSize: '0.85rem' }}>
+        <thead>
+          <tr>
+            <th>Concept</th>
+            <th>Schema</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {schemas.map((s, i) => {
+            const result = results?.find(r => r.schemaUuid === s.uuid);
+            return (
+              <tr key={s.uuid || i}>
+                <td>{s.name}</td>
+                <td>
+                  <a
+                    className="clickable-text"
+                    onClick={() => navigate(`/kg/databases/neo4j/nodes/${encodeURIComponent(s.uuid)}`)}
+                    style={{ cursor: 'pointer' }}
+                    title={`View schema node: ${s.uuid}`}
+                  >
+                    {s.schemaName || 'View schema →'}
+                  </a>
+                </td>
+                <td>
+                  {loading ? (
+                    <span style={{ opacity: 0.5 }}>…</span>
+                  ) : result ? (
+                    result.valid
+                      ? <span style={{ color: '#22c55e' }}>✅ Valid</span>
+                      : <SchemaErrors result={result} />
+                  ) : (
+                    <span style={{ opacity: 0.5 }}>—</span>
+                  )}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function SchemaErrors({ result }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div>
+      <span style={{ color: '#ef4444' }}>
+        ❌ {result.errors.length} error{result.errors.length !== 1 ? 's' : ''}
+      </span>
+      {' '}
+      <button
+        onClick={() => setOpen(o => !o)}
+        style={{
+          background: 'none', border: 'none', color: '#ef4444',
+          cursor: 'pointer', fontSize: '0.8rem', textDecoration: 'underline',
+          padding: 0,
+        }}
+      >
+        {open ? 'hide' : 'show'}
+      </button>
+      {open && (
+        <ul style={{
+          margin: '0.25rem 0 0 1rem', padding: 0, listStyle: 'disc',
+          fontFamily: 'monospace', fontSize: '0.8rem', color: '#ef4444', opacity: 0.9,
         }}>
-          {allValid ? '✅ Valid' : `❌ ${totalErrors} error${totalErrors !== 1 ? 's' : ''}`}
-        </span>
-        <span style={{ fontSize: '0.75rem', opacity: 0.6 }}>
-          against {results.length} schema{results.length !== 1 ? 's' : ''}
-        </span>
-        {!allValid && (
-          <button
-            onClick={() => setShowErrors(e => !e)}
-            style={{
-              background: 'none', border: 'none', color: '#ef4444',
-              cursor: 'pointer', fontSize: '0.8rem', textDecoration: 'underline',
-              padding: 0,
-            }}
-          >
-            {showErrors ? 'Hide errors' : 'Show errors'}
-          </button>
-        )}
-      </div>
-      {showErrors && !allValid && (
-        <div style={{
-          marginTop: '0.5rem', padding: '0.75rem 1rem', borderRadius: '6px',
-          backgroundColor: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)',
-          fontSize: '0.85rem', fontFamily: 'monospace',
-        }}>
-          {results.filter(r => !r.valid).map((r, i) => (
-            <div key={i} style={{ marginBottom: i < results.filter(x => !x.valid).length - 1 ? '0.5rem' : 0 }}>
-              <strong style={{ color: '#ef4444' }}>{r.conceptName}:</strong>
-              <ul style={{ margin: '0.25rem 0 0 1rem', padding: 0, listStyle: 'disc' }}>
-                {r.errors.map((err, j) => (
-                  <li key={j} style={{ opacity: 0.9 }}>{err}</li>
-                ))}
-              </ul>
-            </div>
+          {result.errors.map((err, j) => (
+            <li key={j}>{err}</li>
           ))}
-        </div>
+        </ul>
       )}
     </div>
   );
@@ -112,6 +141,7 @@ function ValidationBadge({ results, loading }) {
 
 export default function NodeJson() {
   const { node, uuid } = useOutletContext();
+  const navigate = useNavigate();
 
   const [activeSource, setActiveSource] = useState('tapestry'); // 'tapestry' | 'neo4j'
 
@@ -148,16 +178,20 @@ export default function NodeJson() {
 
   const lmdbContent = lmdbData?.data;
 
-  // ── Fetch schemas for this node (via concept membership) ──
-  // Find schemas through explicit concept membership (element or set → superset → concept header → schema)
+  // ── Fetch schemas via element membership only ──
+  // A node validates against a concept's schema only if it is an ELEMENT of that
+  // concept (reached via HAS_ELEMENT), not if it is a structural Set within the
+  // concept's class thread (reached via IS_A_SUPERSET_OF only).
   const { data: schemaRows } = useCypher(`
-    MATCH (n {uuid: '${uuid}'})
-    OPTIONAL MATCH (n)<-[:HAS_ELEMENT|IS_A_SUPERSET_OF*1..6]-(s:Superset)<-[:IS_THE_CONCEPT_FOR]-(h:ListHeader)
-    OPTIONAL MATCH (js:JSONSchema)-[:IS_THE_JSON_SCHEMA_FOR]->(h)
+    MATCH (n {uuid: '${uuid}'})<-[:HAS_ELEMENT]-(parentSet)
+          <-[:IS_A_SUPERSET_OF*0..10]-(sup:Superset)
+          <-[:IS_THE_CONCEPT_FOR]-(h:ListHeader)
+    MATCH (js:JSONSchema)-[:IS_THE_JSON_SCHEMA_FOR]->(h)
     OPTIONAL MATCH (js)-[:HAS_TAG]->(jt:NostrEventTag {type: 'json'})
-    WITH DISTINCT h.name AS conceptName, head(collect(jt.value)) AS schemaJson
+    WITH DISTINCT h.name AS conceptName, js.uuid AS schemaUuid,
+         js.name AS schemaName, head(collect(jt.value)) AS schemaJson
     WHERE schemaJson IS NOT NULL
-    RETURN conceptName, schemaJson
+    RETURN conceptName, schemaUuid, schemaName, schemaJson
   `);
 
   const schemas = useMemo(() => {
@@ -166,10 +200,14 @@ export default function NodeJson() {
       .map(r => {
         const parsed = tryParseJson(r.schemaJson);
         if (!parsed) return null;
-        // Extract jsonSchema from word-wrapper if present
         const schema = parsed.jsonSchema && typeof parsed.jsonSchema === 'object'
           ? parsed.jsonSchema : parsed;
-        return { name: r.conceptName, schema };
+        return {
+          name: r.conceptName,
+          uuid: r.schemaUuid,
+          schemaName: r.schemaName,
+          schema,
+        };
       })
       .filter(Boolean);
   }, [schemaRows]);
@@ -188,9 +226,7 @@ export default function NodeJson() {
     setValidationLoading(true);
     const promises = [];
 
-    // Validate tapestryJSON
     if (lmdbContent) {
-      // Extract the inner data if it's wrapped (e.g. has a jsonSchema or wordData wrapper)
       const dataToValidate = lmdbContent.jsonSchema || lmdbContent.wordData || lmdbContent;
       promises.push(
         validateJson(dataToValidate, schemas).then(setTapestryValidation)
@@ -199,7 +235,6 @@ export default function NodeJson() {
       setTapestryValidation(null);
     }
 
-    // Validate Neo4j tag JSON
     if (tagJsonData) {
       const dataToValidate = tagJsonData.jsonSchema || tagJsonData.wordData || tagJsonData;
       promises.push(
@@ -289,9 +324,8 @@ export default function NodeJson() {
       }}>
         {activeSource === 'tapestry' ? (
           <>
-            <strong>tapestryJSON</strong> — The derived/enriched JSON stored in LMDB via the Duality engine.
-            This is the canonical representation, rebuilt from the concept graph and may contain
-            richer data than the original nostr event tag.
+            <strong>tapestryJSON</strong> — Verbose JSON data file derived dynamically from the graph and stored in LMDB via the Duality engine.
+            It is typically not an exact match of the json stored in the nostr event json tag.
             {tapestryKey && (
               <span style={{ display: 'block', marginTop: '0.25rem' }}>
                 Key: <code>{tapestryKey}</code>
@@ -332,9 +366,6 @@ export default function NodeJson() {
               {tagIsLmdbRef ? 'Offloaded to LMDB' : 'Stored inline in Neo4j'}
             </div>
           )}
-
-          {/* Schema validation */}
-          <ValidationBadge results={currentValidation} loading={validationLoading} />
         </>
       ) : !currentLoading ? (
         <p className="placeholder">
@@ -344,10 +375,16 @@ export default function NodeJson() {
               ? `JSON tag offloaded to LMDB (${rawTagValue})`
               : 'No JSON tag on this node.'
           }
-          {/* Still show validation status even when empty */}
-          <ValidationBadge results={currentValidation} loading={validationLoading} />
         </p>
       ) : null}
+
+      {/* Schema list with validation results */}
+      <SchemaList
+        schemas={schemas}
+        results={currentValidation}
+        loading={validationLoading}
+        navigate={navigate}
+      />
     </div>
   );
 }

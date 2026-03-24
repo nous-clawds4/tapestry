@@ -114,12 +114,18 @@ async function deriveSet(node) {
     ORDER BY parent.name
   `, { uuid });
 
-  // JSON Schemas this node should validate against (with schema JSON for validation)
+  // JSON Schemas this node should validate against.
+  // IMPORTANT: Only via element membership (HAS_ELEMENT path), not set membership
+  // (IS_A_SUPERSET_OF path). A Set that organizes elements within a concept is a
+  // structural node, not an element — it shouldn't validate against that concept's schema.
+  // e.g., "free nostr relays" is a Set in the "nostr relay" concept but is NOT a nostr relay.
   const schemaRows = await runCypher(`
-    MATCH (ch:ConceptHeader)-[:IS_THE_CONCEPT_FOR]->(sup)-[:IS_A_SUPERSET_OF*0..10]->(s { uuid: $uuid })
+    MATCH (n { uuid: $uuid })<-[:HAS_ELEMENT]-(parentSet)
+          <-[:IS_A_SUPERSET_OF*0..10]-(sup:Superset)
+          <-[:IS_THE_CONCEPT_FOR]-(ch:ConceptHeader)
     MATCH (js:JSONSchema)-[:IS_THE_JSON_SCHEMA_FOR]->(ch)
     OPTIONAL MATCH (js)-[:HAS_TAG]->(jt:NostrEventTag {type: 'json'})
-    RETURN DISTINCT js.tapestryKey AS schemaTapestryKey,
+    RETURN DISTINCT js.uuid AS schemaUuid, js.tapestryKey AS schemaTapestryKey,
            ch.name AS conceptName, ch.tapestryKey AS conceptTapestryKey,
            head(collect(jt.value)) AS schemaJson
   `, { uuid });
@@ -151,6 +157,7 @@ async function deriveSet(node) {
   const wordData = base.word || {};
   const parentJsonSchemas = schemaRows.map(row => {
     const entry = {
+      uuid: row.schemaUuid,
       tapestryKey: row.schemaTapestryKey,
       conceptName: row.conceptName,
       conceptTapestryKey: row.conceptTapestryKey,
