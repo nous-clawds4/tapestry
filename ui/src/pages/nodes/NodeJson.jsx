@@ -178,14 +178,21 @@ export default function NodeJson() {
 
   const lmdbContent = lmdbData?.data;
 
-  // ── Fetch schemas via element membership only ──
-  // A node validates against a concept's schema only if it is an ELEMENT of that
-  // concept (reached via HAS_ELEMENT), not if it is a structural Set within the
-  // concept's class thread (reached via IS_A_SUPERSET_OF only).
+  // ── Fetch schemas via element membership (explicit + implicit) ──
+  // Explicit: node ←HAS_ELEMENT— set ←IS_A_SUPERSET_OF*— superset ←IS_THE_CONCEPT_FOR— header
+  // Implicit: node has a z-tag pointing to the concept header's UUID
+  // NOT via IS_A_SUPERSET_OF alone (that's set membership, not element membership).
   const { data: schemaRows } = useCypher(`
-    MATCH (n {uuid: '${uuid}'})<-[:HAS_ELEMENT]-(parentSet)
+    MATCH (n {uuid: '${uuid}'})
+    OPTIONAL MATCH (n)<-[:HAS_ELEMENT]-(parentSet)
           <-[:IS_A_SUPERSET_OF*0..10]-(sup:Superset)
-          <-[:IS_THE_CONCEPT_FOR]-(h:ListHeader)
+          <-[:IS_THE_CONCEPT_FOR]-(h1:ListHeader)
+    OPTIONAL MATCH (n)-[:HAS_TAG]->(zt:NostrEventTag {type: 'z'})
+    OPTIONAL MATCH (h2:ListHeader {uuid: zt.value})
+    WITH collect(DISTINCT h1) + collect(DISTINCT h2) AS headers
+    UNWIND headers AS h
+    WITH DISTINCT h
+    WHERE h IS NOT NULL
     MATCH (js:JSONSchema)-[:IS_THE_JSON_SCHEMA_FOR]->(h)
     OPTIONAL MATCH (js)-[:HAS_TAG]->(jt:NostrEventTag {type: 'json'})
     WITH DISTINCT h.name AS conceptName, js.uuid AS schemaUuid,

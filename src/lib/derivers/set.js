@@ -115,14 +115,20 @@ async function deriveSet(node) {
   `, { uuid });
 
   // JSON Schemas this node should validate against.
-  // IMPORTANT: Only via element membership (HAS_ELEMENT path), not set membership
-  // (IS_A_SUPERSET_OF path). A Set that organizes elements within a concept is a
-  // structural node, not an element — it shouldn't validate against that concept's schema.
+  // Via element membership only (explicit HAS_ELEMENT or implicit z-tag),
+  // NOT via set membership (IS_A_SUPERSET_OF alone).
   // e.g., "free nostr relays" is a Set in the "nostr relay" concept but is NOT a nostr relay.
   const schemaRows = await runCypher(`
-    MATCH (n { uuid: $uuid })<-[:HAS_ELEMENT]-(parentSet)
+    MATCH (n { uuid: $uuid })
+    OPTIONAL MATCH (n)<-[:HAS_ELEMENT]-(parentSet)
           <-[:IS_A_SUPERSET_OF*0..10]-(sup:Superset)
-          <-[:IS_THE_CONCEPT_FOR]-(ch:ConceptHeader)
+          <-[:IS_THE_CONCEPT_FOR]-(h1:ConceptHeader)
+    OPTIONAL MATCH (n)-[:HAS_TAG]->(zt:NostrEventTag {type: 'z'})
+    OPTIONAL MATCH (h2:ConceptHeader {uuid: zt.value})
+    WITH collect(DISTINCT h1) + collect(DISTINCT h2) AS headers
+    UNWIND headers AS ch
+    WITH DISTINCT ch
+    WHERE ch IS NOT NULL
     MATCH (js:JSONSchema)-[:IS_THE_JSON_SCHEMA_FOR]->(ch)
     OPTIONAL MATCH (js)-[:HAS_TAG]->(jt:NostrEventTag {type: 'json'})
     RETURN DISTINCT js.uuid AS schemaUuid, js.tapestryKey AS schemaTapestryKey,
