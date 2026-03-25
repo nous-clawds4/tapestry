@@ -1858,8 +1858,15 @@ async function handleCreateElement(req, res) {
     await publishToStrfry(evt);
     await importEventDirect(evt, elemUuid);
 
-    // Set ListItem label
-    await writeCypher(`MATCH (n:NostrEvent {uuid: $uuid}) SET n:ListItem`, { uuid: elemUuid });
+    // Set ListItem label + slug from JSON if available
+    const elemSlug = (typeof finalJson === 'object' && finalJson)
+      ? (finalJson.word?.slug || finalJson[Object.keys(finalJson).find(k => k !== 'word')]?.slug || null)
+      : null;
+    if (elemSlug) {
+      await writeCypher(`MATCH (n:NostrEvent {uuid: $uuid}) SET n:ListItem, n.slug = $slug`, { uuid: elemUuid, slug: elemSlug });
+    } else {
+      await writeCypher(`MATCH (n:NostrEvent {uuid: $uuid}) SET n:ListItem`, { uuid: elemUuid });
+    }
 
     // Wire HAS_ELEMENT from superset
     await writeCypher(`
