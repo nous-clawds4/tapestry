@@ -696,7 +696,9 @@ async function pass1_bootstrap(opts = {}) {
 
       for (const entry of entries) {
         const targetConceptName = entry.concept;
-        const path = entry.path;
+        // Support both old format (path) and new format (source-path + destination-path)
+        const sourcePath = entry['source-path'] || null;
+        const destinationPath = entry['destination-path'] || entry.path;
 
         // Find the target concept's JSON Schema
         const targetRes = await runCypherApi(
@@ -712,18 +714,20 @@ async function pass1_bootstrap(opts = {}) {
         }
 
         if (dryRun) {
-          console.log(`    🔗 ${enumeratingRow.conceptName} superset → ENUMERATES {path: "${path}"} → ${targetConceptName} schema`);
+          console.log(`    🔗 ${enumeratingRow.conceptName} superset → ENUMERATES → ${targetConceptName} schema`);
+          console.log(`        source: ${sourcePath || '(slug fallback)'}, dest: ${destinationPath}`);
           continue;
         }
 
-        // Create the ENUMERATES relationship with path property
+        // Create the ENUMERATES relationship with sourcePath and destinationPath
         await runCypherApi(
           `MATCH (sup:NostrEvent {uuid: $fromUuid}), (js:NostrEvent {uuid: $toUuid})
            MERGE (sup)-[r:ENUMERATES]->(js)
-           SET r.path = $path`,
-          { fromUuid: enumeratingRow.supersetUuid, toUuid: targetRow.schemaUuid, path }
+           SET r.sourcePath = $sourcePath, r.destinationPath = $destinationPath`,
+          { fromUuid: enumeratingRow.supersetUuid, toUuid: targetRow.schemaUuid, sourcePath, destinationPath }
         );
-        console.log(`    🔗 ${enumeratingRow.conceptName} → ENUMERATES {path: "${path}"} → ${targetConceptName} schema`);
+        console.log(`    🔗 ${enumeratingRow.conceptName} → ENUMERATES → ${targetConceptName} schema`);
+        console.log(`        source: ${sourcePath || '(slug fallback)'}, dest: ${destinationPath}`);
         enumCount++;
       }
     }

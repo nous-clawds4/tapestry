@@ -3539,7 +3539,7 @@ async function handleApplyEnumerations(req, res) {
     }
     cypher += `
       RETURN source.uuid AS sourceUuid, source.name AS sourceName,
-             r.path AS path,
+             r.sourcePath AS sourcePath, r.destinationPath AS destinationPath,
              targetSchema.uuid AS schemaUuid, targetSchema.name AS schemaName,
              targetHeader.name AS targetConcept
     `;
@@ -3547,32 +3547,50 @@ async function handleApplyEnumerations(req, res) {
     const enumEdges = await runCypher(cypher, params);
     log.push(`Found ${enumEdges.length} ENUMERATES relationship(s)`);
 
-    for (const edge of enumEdges) {
-      const { sourceUuid, sourceName, path, schemaUuid, schemaName, targetConcept } = edge;
-      log.push(`\n── ${sourceName} → ${path} → ${schemaName} ──`);
+    const store = require('../../lib/tapestry-store');
 
-      // 1. Collect element slugs from the source node (all elements, direct + indirect)
-      // Slugs are resolved from tapestryJSON in LMDB (concept-scoped slug), not Neo4j properties.
+    /** Navigate a dotted path into an object. Returns undefined if path doesn't resolve. */
+    function getByPath(obj, dotPath) {
+      if (!obj || !dotPath) return undefined;
+      const parts = dotPath.split('.');
+      let current = obj;
+      for (const part of parts) {
+        if (current == null || typeof current !== 'object') return undefined;
+        current = current[part];
+      }
+      return current;
+    }
+
+    for (const edge of enumEdges) {
+      const { sourceUuid, sourceName, sourcePath, destinationPath, schemaUuid, schemaName, targetConcept } = edge;
+      const path = destinationPath; // for schema navigation
+      log.push(`\n── ${sourceName} → ${schemaName} ──`);
+      log.push(`  source-path: ${sourcePath || '(slug fallback)'}, destination-path: ${destinationPath}`);
+
+      // 1. Collect enum values from each element's tapestryJSON
       const elements = await runCypher(`
         MATCH (source { uuid: $sourceUuid })-[:IS_A_SUPERSET_OF*0..10]->(s)-[:HAS_ELEMENT]->(e)
         RETURN DISTINCT e.tapestryKey AS tapestryKey, e.name AS name
-        ORDER BY e.name
       `, { sourceUuid });
 
-      const store = require('../../lib/tapestry-store');
       const enumValues = elements.map(e => {
-        // Resolve concept-scoped slug from LMDB
         const entry = store.get(e.tapestryKey);
         const data = entry?.data;
+        if (data && sourcePath) {
+          // Use source-path to extract the value
+          const val = getByPath(data, sourcePath);
+          if (val != null) return String(val);
+        }
         if (data) {
+          // Fallback: concept-scoped slug
           for (const key of Object.keys(data)) {
             if (key === 'word' || key === 'graphContext') continue;
             if (data[key]?.slug) return data[key].slug;
           }
         }
-        // Fall back to name
+        // Last resort: name
         return e.name;
-      }).filter(Boolean);
+      }).filter(Boolean).sort();
       log.push(`  Elements: ${enumValues.length} → [${enumValues.slice(0, 8).join(', ')}${enumValues.length > 8 ? '...' : ''}]`);
 
       if (enumValues.length === 0) {
