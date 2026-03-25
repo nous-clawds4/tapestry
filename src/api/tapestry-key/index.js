@@ -52,22 +52,32 @@ async function handleStatus(req, res) {
     }
     result.total = result.initialized + result.uninitialized;
 
-    // LMDB stats with breakdown
-    const lmdbStats = store.stats();
-    const db = store.getDb();
-    let substantive = 0, empty = 0;
-    for (const { value } of db.getRange()) {
-      const data = value?.data;
-      if (!data || (typeof data === 'object' && Object.keys(data).length === 0)) {
-        empty++;
-      } else {
-        substantive++;
+    // For each initialized node, check its LMDB status
+    let lmdbDerived = 0, lmdbEmpty = 0, lmdbMissing = 0;
+    if (result.initialized > 0) {
+      const keyRows = await runCypher(`
+        MATCH (n)
+        WHERE n.tapestryKey IS NOT NULL AND n.tapestryKey <> '{}'
+        RETURN n.tapestryKey AS tk
+      `);
+      for (const row of keyRows) {
+        const entry = store.get(row.tk);
+        if (!entry) {
+          lmdbMissing++;
+        } else {
+          const data = entry.data;
+          if (!data || (typeof data === 'object' && Object.keys(data).length === 0)) {
+            lmdbEmpty++;
+          } else {
+            lmdbDerived++;
+          }
+        }
       }
     }
     result.lmdb = {
-      ...lmdbStats,
-      substantive,
-      empty,
+      derived: lmdbDerived,
+      empty: lmdbEmpty,
+      missing: lmdbMissing,
     };
 
     res.json({ success: true, data: result });
