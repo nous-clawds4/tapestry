@@ -3255,6 +3255,7 @@ async function registerNormalizeRoutes(app) {
   app.post('/api/normalize/fork-node', handleForkNode);
   app.post('/api/normalize/set-json-tag', handleSetJsonTag);
   app.post('/api/normalize/prune-superset-edges', handlePruneSupersetEdges);
+  app.post('/api/normalize/apply-enumerations', handleApplyEnumerations);
   app.post('/api/normalize/wire-implicit-elements', handleWireImplicitElements);
 
   // Firmware install
@@ -3498,6 +3499,161 @@ async function handleWireImplicitElements(req, res) {
     });
   } catch (error) {
     console.error('normalize/wire-implicit-elements error:', error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+}
+
+
+// ══════════════════════════════════════════════════════════════
+// POST /api/normalize/apply-enumerations
+//   Body: { concept?: "<name>" } — if omitted, processes ALL ENUMERATES edges
+//   For each ENUMERATES relationship:
+//     1. Collects element slugs (or names) from the source Set/Superset
+//     2. Navigates to the target field in the JSON Schema using the path
+//     3. Injects enum values: directly if type=string, into items if type=array
+//     4. Saves the updated schema
+// ══════════════════════════════════════════════════════════════
+
+async function handleApplyEnumerations(req, res) {
+  try {
+    const { concept: conceptFilter } = req.body || {};
+    const log = [];
+    let updated = 0;
+
+    // Find all ENUMERATES relationships (optionally filtered)
+    let cypher = `
+      MATCH (source)-[r:ENUMERATES]->(targetSchema:JSONSchema)
+      MATCH (targetSchema)-[:IS_THE_JSON_SCHEMA_FOR]->(targetHeader:ConceptHeader)
+    `;
+    const params = {};
+    if (conceptFilter) {
+      cypher += `WHERE targetHeader.name = $concept `;
+      params.concept = conceptFilter;
+    }
+    cypher += `
+      RETURN source.uuid AS sourceUuid, source.name AS sourceName,
+             r.path AS path,
+             targetSchema.uuid AS schemaUuid, targetSchema.name AS schemaName,
+             targetHeader.name AS targetConcept
+    `;
+
+    const enumEdges = await runCypher(cypher, params);
+    log.push(`Found ${enumEdges.length} ENUMERATES relationship(s)`);
+
+    for (const edge of enumEdges) {
+      const { sourceUuid, sourceName, path, schemaUuid, schemaName, targetConcept } = edge;
+      log.push(`\n── ${sourceName} → ${path} → ${schemaName} ──`);
+
+      // 1. Collect element slugs from the source node (all elements, direct + indirect)
+      const elements = await runCypher(`
+        MATCH (source { uuid: $sourceUuid })-[:IS_A_SUPERSET_OF*0..10]->(s)-[:HAS_ELEMENT]->(e)
+        RETURN DISTINCT e.slug AS slug, e.name AS name
+        ORDER BY e.name
+      `, { sourceUuid });
+
+      const enumValues = elements.map(e => e.slug || e.name).filter(Boolean);
+      log.push(`  Elements: ${enumValues.length} → [${enumValues.slice(0, 8).join(', ')}${enumValues.length > 8 ? '...' : ''}]`);
+
+      if (enumValues.length === 0) {
+        log.push(`  ⚠️  No elements found — skipping`);
+        continue;
+      }
+
+      // 2. Load the target schema JSON
+      const schemaRows = await runCypher(`
+        MATCH (js:JSONSchema { uuid: $schemaUuid })-[:HAS_TAG]->(jt:NostrEventTag {type: 'json'})
+        RETURN jt.value AS json
+        LIMIT 1
+      `, { schemaUuid });
+
+      let schemaWrapper = schemaRows[0]?.json;
+      if (!schemaWrapper) {
+        log.push(`  ⚠️  No JSON found on schema node — skipping`);
+        continue;
+      }
+
+      // Resolve LMDB ref if needed
+      if (typeof schemaWrapper === 'string' && schemaWrapper.startsWith('lmdb:')) {
+        const { resolveValue } = require('../../lib/tapestry-resolve');
+        schemaWrapper = resolveValue(schemaWrapper);
+      }
+      if (typeof schemaWrapper === 'string') {
+        try { schemaWrapper = JSON.parse(schemaWrapper); } catch {
+          log.push(`  ❌ Could not parse schema JSON — skipping`);
+          continue;
+        }
+      }
+
+      // Extract the jsonSchema section (word-wrapper format)
+      const schema = schemaWrapper?.jsonSchema || schemaWrapper;
+      if (!schema?.properties) {
+        log.push(`  ❌ Schema has no properties — skipping`);
+        continue;
+      }
+
+      // 3. Navigate to the target field using the path
+      // path "property.type" → schema.properties.property.properties.type
+      const pathParts = path.split('.');
+      let target = schema;
+      const breadcrumb = ['schema'];
+
+      for (let i = 0; i < pathParts.length; i++) {
+        const part = pathParts[i];
+        if (!target.properties || !target.properties[part]) {
+          log.push(`  ❌ Could not navigate to "${breadcrumb.join('.')}.properties.${part}" — skipping`);
+          target = null;
+          break;
+        }
+        target = target.properties[part];
+        breadcrumb.push(part);
+      }
+
+      if (!target) continue;
+
+      // 4. Inject enum values
+      if (target.type === 'array' && target.items) {
+        // Array field — put enum in items
+        target.items.enum = enumValues;
+        log.push(`  ✅ Injected ${enumValues.length} enum values into ${path}.items.enum`);
+      } else if (target.type === 'string') {
+        // String field — put enum directly
+        target.enum = enumValues;
+        log.push(`  ✅ Injected ${enumValues.length} enum values into ${path}.enum`);
+      } else {
+        log.push(`  ⚠️  Target field type is "${target.type}" — unsupported, skipping`);
+        continue;
+      }
+
+      // 5. Save the updated schema
+      // Re-wrap in word-wrapper if it was wrapped
+      if (schemaWrapper.jsonSchema) {
+        schemaWrapper.jsonSchema = schema;
+      }
+
+      try {
+        const saveRes = await new Promise((resolve, reject) => {
+          const mockReq = { body: { concept: targetConcept, schema } };
+          const mockRes = {
+            json: (data) => resolve(data),
+            status: () => ({ json: (data) => resolve(data) }),
+          };
+          handleSaveSchema(mockReq, mockRes);
+        });
+        if (saveRes.success) {
+          log.push(`  💾 Schema saved`);
+          updated++;
+        } else {
+          log.push(`  ❌ Save failed: ${saveRes.error}`);
+        }
+      } catch (e) {
+        log.push(`  ❌ Save error: ${e.message}`);
+      }
+    }
+
+    log.push(`\n── Summary: ${updated} schema(s) updated ──`);
+    return res.json({ success: true, updated, log });
+  } catch (error) {
+    console.error('normalize/apply-enumerations error:', error);
     return res.status(500).json({ success: false, error: error.message });
   }
 }
