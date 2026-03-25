@@ -451,6 +451,8 @@ function TapestryKeyStatus() {
   const [offloadStatus, setOffloadStatus] = useState(null);
   const [initializing, setInitializing] = useState(false);
   const [offloading, setOffloading] = useState(false);
+  const [derivingAll, setDerivingAll] = useState(false);
+  const [deriveResult, setDeriveResult] = useState(null);
   const [error, setError] = useState(null);
   const { user } = useAuth();
   const isOwner = user?.classification === 'owner';
@@ -511,6 +513,39 @@ function TapestryKeyStatus() {
     }
   }
 
+  async function handleDeriveAll() {
+    if (!confirm(`Derive tapestryJSON for all nodes? This may take a moment.`)) return;
+    setDerivingAll(true);
+    setDeriveResult(null);
+    setError(null);
+    try {
+      // Derive in order: ListItem first (so Set/Superset can resolve slugs from LMDB),
+      // then specific types
+      const labels = ['ListItem', 'ListHeader', 'ConceptHeader', 'JSONSchema', 'Property', 'Set', 'Superset'];
+      let totalDerived = 0;
+      for (const label of labels) {
+        const res = await fetch(`/api/tapestry-key/derive-all/${label}`, { method: 'POST' });
+        const data = await res.json();
+        if (!data.success) {
+          setError(`Failed on ${label}: ${data.error}`);
+          break;
+        }
+      }
+      // Fetch derive status for counts
+      const statusRes = await fetch('/api/tapestry-key/derive-status');
+      const statusData = await statusRes.json();
+      if (statusData.success) {
+        totalDerived = statusData.data.reduce((sum, l) => sum + l.derived, 0);
+      }
+      setDeriveResult({ success: true, count: totalDerived });
+      await fetchStatus();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setDerivingAll(false);
+    }
+  }
+
   if (!status) return null;
 
   const { initialized, uninitialized, total, lmdb } = status;
@@ -537,17 +572,40 @@ function TapestryKeyStatus() {
             </div>
           </div>
         </div>
-        {!keysAllGood && isOwner && (
-          <button
-            className="btn btn-primary"
-            onClick={handleInitialize}
-            disabled={initializing}
-            style={{ whiteSpace: 'nowrap' }}
-          >
-            {initializing ? 'Initializing…' : `Initialize ${uninitialized} nodes`}
-          </button>
-        )}
+        <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
+          {!keysAllGood && isOwner && (
+            <button
+              className="btn btn-primary"
+              onClick={handleInitialize}
+              disabled={initializing}
+              style={{ whiteSpace: 'nowrap' }}
+            >
+              {initializing ? 'Initializing…' : `Initialize ${uninitialized}`}
+            </button>
+          )}
+          {isOwner && lmdb.missing > 0 && (
+            <button
+              className="btn"
+              onClick={handleDeriveAll}
+              disabled={derivingAll}
+              style={{ whiteSpace: 'nowrap' }}
+            >
+              {derivingAll ? '⏳ Deriving…' : `🔄 Derive All`}
+            </button>
+          )}
+        </div>
       </div>
+
+      {/* Derive result banner */}
+      {deriveResult && (
+        <div style={{
+          marginTop: '0.5rem', padding: '0.4rem 0.75rem', borderRadius: '4px',
+          backgroundColor: 'rgba(34,197,94,0.1)', border: '1px solid #22c55e',
+          fontSize: '0.8rem', color: '#22c55e',
+        }}>
+          ✅ Derived {deriveResult.count} nodes
+        </div>
+      )}
 
       {/* Offload row */}
       {offloadStatus && offloadStatus.total > 0 && (
