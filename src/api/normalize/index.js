@@ -3552,13 +3552,27 @@ async function handleApplyEnumerations(req, res) {
       log.push(`\n── ${sourceName} → ${path} → ${schemaName} ──`);
 
       // 1. Collect element slugs from the source node (all elements, direct + indirect)
+      // Slugs are resolved from tapestryJSON in LMDB (concept-scoped slug), not Neo4j properties.
       const elements = await runCypher(`
         MATCH (source { uuid: $sourceUuid })-[:IS_A_SUPERSET_OF*0..10]->(s)-[:HAS_ELEMENT]->(e)
-        RETURN DISTINCT e.slug AS slug, e.name AS name
+        RETURN DISTINCT e.tapestryKey AS tapestryKey, e.name AS name
         ORDER BY e.name
       `, { sourceUuid });
 
-      const enumValues = elements.map(e => e.slug || e.name).filter(Boolean);
+      const store = require('../../lib/tapestry-store');
+      const enumValues = elements.map(e => {
+        // Resolve concept-scoped slug from LMDB
+        const entry = store.get(e.tapestryKey);
+        const data = entry?.data;
+        if (data) {
+          for (const key of Object.keys(data)) {
+            if (key === 'word' || key === 'graphContext') continue;
+            if (data[key]?.slug) return data[key].slug;
+          }
+        }
+        // Fall back to name
+        return e.name;
+      }).filter(Boolean);
       log.push(`  Elements: ${enumValues.length} → [${enumValues.slice(0, 8).join(', ')}${enumValues.length > 8 ? '...' : ''}]`);
 
       if (enumValues.length === 0) {

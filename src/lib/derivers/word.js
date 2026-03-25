@@ -14,8 +14,24 @@ const { runCypher } = require('../neo4j-driver');
 const store = require('../tapestry-store');
 const { resolveValue, isLmdbRef } = require('../tapestry-resolve');
 
+/**
+ * Resolve the concept-scoped slug for a node from its tapestryJSON in LMDB.
+ */
+function resolveSlug(tapestryKey) {
+  if (!tapestryKey) return null;
+  const entry = store.get(tapestryKey);
+  const data = entry?.data;
+  if (!data) return null;
+
+  for (const key of Object.keys(data)) {
+    if (key === 'word' || key === 'graphContext') continue;
+    if (data[key]?.slug) return data[key].slug;
+  }
+  return data.word?.slug || null;
+}
+
 function nodeRef(row) {
-  return { tapestryKey: row.tapestryKey, name: row.name, slug: row.slug || null };
+  return { tapestryKey: row.tapestryKey, slug: resolveSlug(row.tapestryKey) };
 }
 
 function deriveSlug(name) {
@@ -68,16 +84,14 @@ async function deriveWord(node) {
   // ── elementOf ──
   const directElementOf = await runCypher(`
     MATCH (parent)-[:HAS_ELEMENT]->(n { uuid: $uuid })
-    RETURN parent.tapestryKey AS tapestryKey, parent.name AS name, parent.slug AS slug
-    ORDER BY parent.name
+    RETURN parent.tapestryKey AS tapestryKey
   `, { uuid });
 
   const indirectElementOf = await runCypher(`
     MATCH (parent)-[:HAS_ELEMENT]->(n { uuid: $uuid })
     MATCH (ancestor)-[:IS_A_SUPERSET_OF*1..10]->(parent)
     WHERE NOT (ancestor)-[:HAS_ELEMENT]->(n { uuid: $uuid })
-    RETURN DISTINCT ancestor.tapestryKey AS tapestryKey, ancestor.name AS name, ancestor.slug AS slug
-    ORDER BY ancestor.name
+    RETURN DISTINCT ancestor.tapestryKey AS tapestryKey
   `, { uuid });
 
   // ── JSON Schemas ──
