@@ -224,6 +224,48 @@
             ]
         }
     ],
+    "enumerations": {
+        "concept-headers": {
+            "existing-nodes": [
+                {
+                    "concept": "word",
+                    "path": "word.wordTypes"
+                }
+            ]
+        },
+        "graph-types": {
+            "existing-nodes": [
+                {
+                    "concept": "graph",
+                    "path": "graph.graphType"
+                }
+            ]
+        },
+        "json-data-types": {
+            "existing-nodes": [
+                {
+                    "concept": "property",
+                    "path": "property.type"
+                }
+            ]
+        },
+        "relationship-types": {
+            "existing-nodes": [
+                {
+                    "concept": "relationship",
+                    "path": "relationship.relationshipType"
+                }
+            ]
+        },
+        "dog-breeds": {
+            "existing-nodes": [
+                {
+                    "concept": "dog",
+                    "path": "dog.breed"
+                }
+            ]
+        }
+    },
     "elements": {
         "json-data-types": {
             "existing-nodes": []
