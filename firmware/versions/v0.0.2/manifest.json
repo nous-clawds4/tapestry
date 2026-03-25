@@ -222,6 +222,27 @@
             "categories": [
                 "nostr"
             ]
+        },
+        {
+            "slug": "dog-breed",
+            "dir": "./concepts/dog-breed/",
+            "conceptHeader": "concept-header.json",
+            "jsonSchema": "json-schema.json",
+            "categories": []
+        },
+        {
+            "slug": "dod",
+            "dir": "./concepts/dog/",
+            "conceptHeader": "concept-header.json",
+            "jsonSchema": "json-schema.json",
+            "categories": []
+        },
+        {
+            "slug": "dog",
+            "dir": "./concepts/dog/",
+            "conceptHeader": "concept-header.json",
+            "jsonSchema": "json-schema.json",
+            "categories": []
         }
     ],
     "enumerations": {
