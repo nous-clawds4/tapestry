@@ -531,7 +531,15 @@ function TapestryKeyStatus() {
               }
             </div>
             <div style={{ fontSize: '0.8rem', opacity: 0.7, marginTop: '0.25rem' }}>
-              LMDB: {lmdb.count} entr{lmdb.count === 1 ? 'y' : 'ies'} stored
+              LMDB: {lmdb.count} entr{lmdb.count === 1 ? 'y' : 'ies'}
+              {lmdb.substantive != null && (
+                <> — <span style={{ color: '#22c55e' }}>{lmdb.substantive} derived</span>
+                {lmdb.empty > 0 && <>, <span style={{ color: '#f59e0b' }}>{lmdb.empty} empty</span></>}
+                {initialized > lmdb.count && (
+                  <>, <span style={{ opacity: 0.6 }}>{initialized - lmdb.count} not in LMDB</span>
+                </>)}
+                </>
+              )}
             </div>
           </div>
         </div>

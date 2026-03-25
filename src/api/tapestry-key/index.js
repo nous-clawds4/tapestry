@@ -52,9 +52,23 @@ async function handleStatus(req, res) {
     }
     result.total = result.initialized + result.uninitialized;
 
-    // LMDB stats
-    const lmdb = store.stats();
-    result.lmdb = lmdb;
+    // LMDB stats with breakdown
+    const lmdbStats = store.stats();
+    const db = store.getDb();
+    let substantive = 0, empty = 0;
+    for (const { value } of db.getRange()) {
+      const data = value?.data;
+      if (!data || (typeof data === 'object' && Object.keys(data).length === 0)) {
+        empty++;
+      } else {
+        substantive++;
+      }
+    }
+    result.lmdb = {
+      ...lmdbStats,
+      substantive,
+      empty,
+    };
 
     res.json({ success: true, data: result });
   } catch (err) {
