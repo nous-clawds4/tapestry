@@ -665,6 +665,72 @@ async function pass1_bootstrap(opts = {}) {
     }
   }
 
+  // ── 1d¾. Wire ENUMERATES relationships from manifest ──────────
+  // Each entry in manifest.enumerations declares that the elements of one concept
+  // enumerate the allowed values at a given path in another concept's JSON Schema.
+  // Creates: (enumerating concept's Superset)-[:ENUMERATES {path}]->(target concept's JSONSchema)
+
+  if (manifest.enumerations) {
+    console.log('\n── Wiring ENUMERATES relationships ──\n');
+
+    let enumCount = 0;
+
+    for (const [enumeratingPlural, data] of Object.entries(manifest.enumerations)) {
+      const entries = data['existing-nodes'] || [];
+      if (entries.length === 0) continue;
+
+      // Find the enumerating concept's superset (key is plural, derive singular)
+      const enumeratingSlug = categoryToSlug(enumeratingPlural);
+      const enumeratingName = enumeratingSlug.replace(/-/g, ' ');
+      const enumeratingRes = await runCypherApi(
+        `MATCH (h:ConceptHeader)-[:IS_THE_CONCEPT_FOR]->(sup:Superset)
+         WHERE h.name = $name
+         RETURN sup.uuid AS supersetUuid, h.name AS conceptName`,
+        { name: enumeratingName }
+      );
+      const enumeratingRow = (enumeratingRes.data || [])[0];
+      if (!enumeratingRow) {
+        console.log(`    ⚠️  Enumerating concept "${enumeratingName}" (from "${enumeratingPlural}") not found — skipping`);
+        continue;
+      }
+
+      for (const entry of entries) {
+        const targetConceptName = entry.concept;
+        const path = entry.path;
+
+        // Find the target concept's JSON Schema
+        const targetRes = await runCypherApi(
+          `MATCH (h:ConceptHeader {name: $name})
+           OPTIONAL MATCH (js:JSONSchema)-[:IS_THE_JSON_SCHEMA_FOR]->(h)
+           RETURN js.uuid AS schemaUuid, h.name AS conceptName`,
+          { name: targetConceptName }
+        );
+        const targetRow = (targetRes.data || [])[0];
+        if (!targetRow?.schemaUuid) {
+          console.log(`    ⚠️  Target concept "${targetConceptName}" or its JSON Schema not found — skipping`);
+          continue;
+        }
+
+        if (dryRun) {
+          console.log(`    🔗 ${enumeratingRow.conceptName} superset → ENUMERATES {path: "${path}"} → ${targetConceptName} schema`);
+          continue;
+        }
+
+        // Create the ENUMERATES relationship with path property
+        await runCypherApi(
+          `MATCH (sup:NostrEvent {uuid: $fromUuid}), (js:NostrEvent {uuid: $toUuid})
+           MERGE (sup)-[r:ENUMERATES]->(js)
+           SET r.path = $path`,
+          { fromUuid: enumeratingRow.supersetUuid, toUuid: targetRow.schemaUuid, path }
+        );
+        console.log(`    🔗 ${enumeratingRow.conceptName} → ENUMERATES {path: "${path}"} → ${targetConceptName} schema`);
+        enumCount++;
+      }
+    }
+
+    console.log(`\n  Total ENUMERATES edges added: ${enumCount}`);
+  }
+
   // ── 1e. Prune redundant Superset edges ─────────────────────
   //
   // Now that ALL edges are created (manifest + z-tag wiring), prune direct
