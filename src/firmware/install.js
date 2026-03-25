@@ -826,6 +826,18 @@ async function pass1_bootstrap(opts = {}) {
     }
   }
 
+  // ── 1f. Assign tapestryKeys to all nodes ─────────────────────
+  if (!dryRun) {
+    console.log('\n── Assigning tapestryKeys ──\n');
+    try {
+      const initRes = await apiPost('/api/tapestry-key/initialize', {});
+      const count = initRes?.data?.initialized || 0;
+      console.log(`  📎 ${count} nodes initialized with tapestryKeys`);
+    } catch (err) {
+      console.log(`  ⚠️  tapestryKey initialization failed: ${err.message}`);
+    }
+  }
+
   console.log(`\n  Pass 1 complete: ${Object.keys(results).length} concepts, ${errors.length} errors\n`);
   return { results, errors };
 }
