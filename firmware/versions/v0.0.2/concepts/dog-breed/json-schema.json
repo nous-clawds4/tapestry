@@ -1,0 +1,61 @@
+{
+    "word": {
+        "slug": "json-schema-for-the-concept-of-dog-breeds",
+        "title": "JSON Schema for the Concept of Dog Breeds",
+        "name": "JSON Schema for the concept of dog breeds",
+        "description": "",
+        "wordTypes": [
+            "word",
+            "jsonSchema"
+        ],
+        "coreMemberOf": [
+            {
+                "slug": "concept-header-for-the-concept-of-dog-breeds",
+                "uuid": "<uuid>"
+            }
+        ]
+    },
+    "jsonSchema": {
+        "name": "dog breed",
+        "title": "Dog Breed",
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "definitions": {},
+        "type": "object",
+        "required": [
+            "dogBreed"
+        ],
+        "properties": {
+            "dogBreed": {
+                "type": "object",
+                "name": "dog breed",
+                "title": "Dog Breed",
+                "slug": "dog-breed",
+                "description": "Metadata about this dog breed node",
+                "required": [
+                    "slug"
+                ],
+                "properties": {
+                    "slug": {
+                        "type": "string",
+                        "name": "slug",
+                        "title": "Slug",
+                        "slug": "slug",
+                        "description": "Unique identifier for this dog breed"
+                    },
+                    "name": {
+                        "type": "string",
+                        "name": "name",
+                        "title": "Name",
+                        "slug": "name",
+                        "description": "The name of this dog breed"
+                    }
+                },
+                "x-tapestry": {
+                    "unique": [
+                        "slug"
+                    ]
+                }
+            }
+        }
+    }
+}

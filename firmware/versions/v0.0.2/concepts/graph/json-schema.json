@@ -37,6 +37,13 @@
                     "relationships"
                 ],
                 "properties": {
+                    "graphType": {
+                        "type": "string",
+                        "name": "graph type",
+                        "title": "Graph Type",
+                        "slug": "graph-type",
+                        "description": "The category of the graph"        
+                    },
                     "nodes": {
                         "type": "array",
                         "name": "nodes",

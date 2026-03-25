@@ -1,0 +1,69 @@
+{
+    "word": {
+        "slug": "json-schema-for-the-concept-of-dogs",
+        "title": "JSON Schema for the Concept of Dogs",
+        "name": "JSON Schema for the concept of dogs",
+        "description": "",
+        "wordTypes": [
+            "word",
+            "jsonSchema"
+        ],
+        "coreMemberOf": [
+            {
+                "slug": "concept-header-for-the-concept-of-dogs",
+                "uuid": "<uuid>"
+            }
+        ]
+    },
+    "jsonSchema": {
+        "name": "dog",
+        "title": "Dog",
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "definitions": {},
+        "type": "object",
+        "required": [
+            "dog"
+        ],
+        "properties": {
+            "dog": {
+                "type": "object",
+                "name": "dog",
+                "title": "Dog",
+                "slug": "dog",
+                "description": "Metadata about this dog node",
+                "required": [
+                    "slug",
+                    "name"
+                ],
+                "properties": {
+                    "slug": {
+                        "type": "string",
+                        "name": "slug",
+                        "title": "Slug",
+                        "slug": "slug",
+                        "description": "Unique identifier for this dog"
+                    },
+                    "dogBreed": {
+                        "type": "string",
+                        "name": "dog breed",
+                        "title": "Dog Breed",
+                        "slug": "dog-breed",
+                        "description": "The breed for this dog"
+                    },
+                    "name": {
+                        "type": "string",
+                        "name": "name",
+                        "title": "Name",
+                        "slug": "name",
+                        "description": "The name for this dog"
+                    }
+                },
+                "x-tapestry": {
+                    "unique": [
+                        "slug"
+                    ]
+                }
+            }
+        }
+    }
+}

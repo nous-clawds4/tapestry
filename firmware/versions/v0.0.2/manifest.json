@@ -231,13 +231,6 @@
             "categories": []
         },
         {
-            "slug": "dod",
-            "dir": "./concepts/dog/",
-            "conceptHeader": "concept-header.json",
-            "jsonSchema": "json-schema.json",
-            "categories": []
-        },
-        {
             "slug": "dog",
             "dir": "./concepts/dog/",
             "conceptHeader": "concept-header.json",
@@ -250,7 +243,8 @@
             "existing-nodes": [
                 {
                     "concept": "word",
-                    "path": "word.wordTypes"
+                    "source-path": "conceptHeader.oKeys.singular",
+                    "destination-path": "word.wordTypes"
                 }
             ]
         },
@@ -258,7 +252,8 @@
             "existing-nodes": [
                 {
                     "concept": "graph",
-                    "path": "graph.graphType"
+                    "source-path": "conceptHeader.oKeys.singular",
+                    "destination-path": "graph.graphType"
                 }
             ]
         },
@@ -266,7 +261,8 @@
             "existing-nodes": [
                 {
                     "concept": "property",
-                    "path": "property.type"
+                    "source-path": "jsonDataType.slug",
+                    "destination-path": "property.type"
                 }
             ]
         },
@@ -274,7 +270,8 @@
             "existing-nodes": [
                 {
                     "concept": "relationship",
-                    "path": "relationship.relationshipType"
+                    "source-path": "relationshipType.alias",
+                    "destination-path": "relationship.relationshipType"
                 }
             ]
         },
@@ -282,7 +279,8 @@
             "existing-nodes": [
                 {
                     "concept": "dog",
-                    "path": "dog.breed"
+                    "source-path": "dogBreed.slug",
+                    "destination-path": "dog.breed"
                 }
             ]
         }

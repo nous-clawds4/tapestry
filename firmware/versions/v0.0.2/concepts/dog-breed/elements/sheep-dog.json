@@ -1,0 +1,14 @@
+{
+  "word": {
+    "slug": "dog-breed--sheep-dog",
+    "name": "dog breed: sheep dog",
+    "title": "Dog Breed: Sheep Dog",
+    "wordTypes": ["word", "dogBreed"]
+  },
+  "dogBreed": {
+    "slug": "sheep-dog",
+    "name": "sheep dog",
+    "title": "Sheep Dog",
+    "description": "a breed of dogs historically used in connection with the raising of sheep"
+  }
+}

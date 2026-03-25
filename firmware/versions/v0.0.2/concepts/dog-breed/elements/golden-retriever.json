@@ -1,0 +1,14 @@
+{
+  "word": {
+    "slug": "dog-breed--golden-retriever",
+    "name": "dog breed: golden retriever",
+    "title": "Dog Breed: Golden Retriever",
+    "wordTypes": ["word", "dogBreed"]
+  },
+  "dogBreed": {
+    "slug": "golden-retriever",
+    "name": "golden retriever",
+    "title": "Golden Retriever",
+    "description": "a Scottish breed of retriever dog of medium-large size characterised by a gentle and affectionate nature and a striking golden coat."
+  }
+}

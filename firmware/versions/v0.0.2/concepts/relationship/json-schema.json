@@ -33,7 +33,10 @@
                 "slug": "relationship",
                 "description": "data about this relationship",
                 "required": [
-                    "slug"
+                    "slug",
+                    "nodeFrom",
+                    "relationshipType",
+                    "nodeTo"
                 ],
                 "properties": {
                     "slug": {
@@ -43,26 +46,26 @@
                         "slug": "slug",
                         "description": "The slug for this relationship"
                     },
-                    "name": {
+                    "nodeFrom": {
                         "type": "string",
-                        "name": "name",
-                        "title": "Name",
-                        "slug": "name",
-                        "description": "The name for this relationship"
+                        "name": "node from",
+                        "title": "Node From",
+                        "slug": "nodeFrom",
+                        "description": "The origin node for this relationship"
                     },
-                    "title": {
+                    "relationshipType": {
                         "type": "string",
-                        "name": "title",
-                        "title": "Title",
-                        "slug": "title",
-                        "description": "The title for this relationship"
+                        "name": "relationship type",
+                        "title": "Relationship Type",
+                        "slug": "relationshipType",
+                        "description": "The type of this relationship"
                     },
-                    "description": {
+                    "nodeTo": {
                         "type": "string",
-                        "name": "description",
-                        "title": "Description",
-                        "slug": "description",
-                        "description": "The top-level description for this relationship"
+                        "name": "node to",
+                        "title": "Node To",
+                        "slug": "nodeTo",
+                        "description": "The destination node for this relationship"
                     }
                 },
                 "x-tapestry": {
