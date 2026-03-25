@@ -999,6 +999,52 @@ async function install(opts = {}) {
     p2Result = await pass2_enrich({ dryRun });
   }
 
+  // ── Pass 3: Derive + Apply Enumerations + Wire Implicit Elements ──
+  let p3Result = null;
+  if (!dryRun) {
+    console.log('\n── Pass 3: Derive, Apply Enumerations, Wire Implicit Elements ──\n');
+    p3Result = { derived: 0, enumerationsApplied: 0, implicitWired: 0 };
+
+    // 3a. Derive all — ListItem first so Set/Superset can resolve slugs
+    const deriveLabels = ['ListItem', 'ListHeader', 'ConceptHeader', 'JSONSchema', 'Property', 'Set', 'Superset'];
+    for (const label of deriveLabels) {
+      try {
+        const res = await apiPost(`/api/tapestry-key/derive-all/${label}`, {});
+        console.log(`  🔄 Derived ${label}: ${res.success ? 'OK' : res.error}`);
+      } catch (err) {
+        console.log(`  ⚠️  Derive ${label} failed: ${err.message}`);
+      }
+    }
+    // Get total derived count
+    try {
+      const statusRes = await apiGet('/api/tapestry-key/derive-status');
+      if (statusRes.success) {
+        p3Result.derived = statusRes.data.reduce((sum, l) => sum + l.derived, 0);
+      }
+    } catch {}
+    console.log(`  📊 Total derived: ${p3Result.derived}`);
+
+    // 3b. Apply enumerations (needs derived Superset data in LMDB for slug resolution)
+    try {
+      const enumRes = await apiPost('/api/normalize/apply-enumerations', {});
+      p3Result.enumerationsApplied = enumRes.updated || 0;
+      console.log(`  🔗 Enumerations applied: ${p3Result.enumerationsApplied}`);
+    } catch (err) {
+      console.log(`  ⚠️  Apply enumerations failed: ${err.message}`);
+    }
+
+    // 3c. Wire implicit elements (so schema lookups via HAS_ELEMENT work)
+    try {
+      const wireRes = await apiPost('/api/normalize/wire-implicit-elements', {});
+      p3Result.implicitWired = wireRes.wired || 0;
+      console.log(`  📎 Implicit elements wired: ${p3Result.implicitWired}`);
+    } catch (err) {
+      console.log(`  ⚠️  Wire implicit elements failed: ${err.message}`);
+    }
+
+    console.log('');
+  }
+
   console.log('\n╔══════════════════════════════════════════════════════════╗');
   console.log('║              FIRMWARE INSTALL COMPLETE ✨               ║');
   console.log('╚══════════════════════════════════════════════════════════╝\n');
@@ -1009,13 +1055,13 @@ async function install(opts = {}) {
   if (p2Result) {
     console.log(`  Pass 2: ${p2Result.updated.length} enriched, ${p2Result.skipped.length} skipped, ${p2Result.errors.length} errors`);
   }
+  if (p3Result) {
+    console.log(`  Pass 3: ${p3Result.derived} derived, ${p3Result.enumerationsApplied} enumerations, ${p3Result.implicitWired} implicit elements`);
+  }
 
-  console.log('\n  Next steps:');
-  console.log('    1. Run `tapestry normalize check` to verify graph health');
-  console.log('    2. Run `tapestry normalize fix-supersets` if needed');
   console.log('');
 
-  return { pass1: p1Result, pass2: p2Result };
+  return { pass1: p1Result, pass2: p2Result, pass3: p3Result };
 }
 
 // ── Express handler ──────────────────────────────────────────
