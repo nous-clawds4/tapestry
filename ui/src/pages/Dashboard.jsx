@@ -79,7 +79,7 @@ function OnboardingChecklist({ user, taProfile, conceptCount, constraintsOk, onA
 
   return (
     <div className="dashboard-card">
-      <h3 style={{ margin: '0 0 0.75rem', fontSize: '1rem' }}>Getting Started</h3>
+      <h3 style={{ margin: '0 0 0.75rem', fontSize: '1rem' }}>Getting-Started</h3>
       <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
         {items.map(item => (
           <li
