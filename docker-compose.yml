@@ -11,6 +11,7 @@ services:
       - "8687:8687"
     environment:
       - OWNER_PUBKEY=${OWNER_PUBKEY}
+      - ADMIN_PUBKEYS=${ADMIN_PUBKEYS}
       - NEO4J_PASSWORD=${NEO4J_PASSWORD}
       - DOMAIN_NAME=localhost
     volumes:

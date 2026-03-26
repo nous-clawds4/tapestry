@@ -9,7 +9,7 @@
  */
 
 const CustomerManager = require('../../utils/customerManager');
-const { getOwnerPubkey } = require('../../utils/config');
+const { getOwnerPubkey, isAdminPubkey } = require('../../utils/config');
 
 /**
  * Handle customer deletion request
@@ -29,7 +29,7 @@ async function handleDeleteCustomer(req, res) {
             });
         }
 
-        // Verify user is authenticated and is the owner
+        // Verify user is authenticated and is the owner or admin
         const userPubkey = req.session?.userPubkey;
         if (!userPubkey) {
             return res.status(401).json({
@@ -39,10 +39,10 @@ async function handleDeleteCustomer(req, res) {
         }
 
         const ownerPubkey = getOwnerPubkey();
-        if (userPubkey !== ownerPubkey) {
+        if (userPubkey !== ownerPubkey && !isAdminPubkey(userPubkey)) {
             return res.status(403).json({
                 success: false,
-                error: 'Only the owner can delete customers'
+                error: 'Only the owner or admin can delete customers'
             });
         }
 

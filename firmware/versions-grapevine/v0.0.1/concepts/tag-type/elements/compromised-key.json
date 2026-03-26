@@ -1,0 +1,15 @@
+{
+  "word": {
+    "slug": "tag-type--compromised-nsec",
+    "name": "tag type: compromised nsec",
+    "title": "Tag Type: Compromised Nsec",
+    "description": "",
+    "wordTypes": ["word", "tagType"]
+  },
+  "tagType": {
+    "slug": "compromised-nsec",
+    "name": "compromised nsec",
+    "title": "Compromised Nsec",
+    "description": "a nostr user private key that has been been revealed to a bad actor"
+  }
+}

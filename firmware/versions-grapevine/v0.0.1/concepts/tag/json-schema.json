@@ -1,0 +1,54 @@
+{
+    "word": {
+        "slug": "json-schema-for-the-concept-of-tags",
+        "title": "JSON Schema for the Concept of Tags",
+        "name": "JSON Schema for the concept of tags",
+        "description": "",
+        "wordTypes": [
+            "word",
+            "jsonSchema"
+        ],
+        "coreMemberOf": [
+            {
+                "slug": "concept-header-for-the-concept-of-tags",
+                "uuid": "<uuid>"
+            }
+        ]
+    },
+    "jsonSchema": {
+        "name": "tag",
+        "title": "Tag",
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "definitions": {},
+        "type": "object",
+        "required": [
+            "tag"
+        ],
+        "properties": {
+            "tag": {
+                "type": "object",
+                "name": "tag",
+                "title": "Tag",
+                "slug": "tag",
+                "description": "Metadata about this tag node",
+                "required": [
+                    "slug"
+                ],
+                "properties": {
+                    "slug": {
+                        "type": "string",
+                        "name": "slug",
+                        "title": "Slug",
+                        "slug": "slug",
+                        "description": "Unique identifier for this tag"
+                    }
+                },
+                "x-tapestry": {
+                    "unique": [
+                        "slug"
+                    ]
+                }
+            }
+        }
+    }
+}

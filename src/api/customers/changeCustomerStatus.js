@@ -5,7 +5,7 @@
  */
 
 const CustomerManager = require('../../utils/customerManager');
-const { getOwnerPubkey } = require('../../utils/config');
+const { getOwnerPubkey, isAdminPubkey } = require('../../utils/config');
 
 /**
  * Handle customer status change request
@@ -49,10 +49,10 @@ async function handleChangeCustomerStatus(req, res) {
         }
 
         const ownerPubkey = getOwnerPubkey();
-        if (!ownerPubkey || userPubkey !== ownerPubkey) {
+        if (!ownerPubkey || (userPubkey !== ownerPubkey && !isAdminPubkey(userPubkey))) {
             return res.status(403).json({
                 success: false,
-                error: 'Only the owner can change customer status'
+                error: 'Only the owner or admin can change customer status'
             });
         }
 

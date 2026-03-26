@@ -85,8 +85,30 @@ function getOwnerPubkey() {
     return getConfigFromFile('BRAINSTORM_OWNER_PUBKEY', null);
 }
 
+/**
+ * Get admin public keys from brainstorm.conf
+ * @returns {string[]} Array of admin pubkeys (hex), empty if none configured
+ */
+function getAdminPubkeys() {
+    const raw = getConfigFromFile('BRAINSTORM_ADMIN_PUBKEYS', '');
+    if (!raw) return [];
+    return raw.split(',').map(s => s.trim()).filter(Boolean);
+}
+
+/**
+ * Check if a pubkey is an admin pubkey
+ * @param {string} pubkey - Hex pubkey to check
+ * @returns {boolean}
+ */
+function isAdminPubkey(pubkey) {
+    if (!pubkey) return false;
+    return getAdminPubkeys().includes(pubkey);
+}
+
 module.exports = {
     getConfigFromFile,
     getNeo4jConnection,
-    getOwnerPubkey
+    getOwnerPubkey,
+    getAdminPubkeys,
+    isAdminPubkey
 };

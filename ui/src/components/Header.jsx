@@ -11,6 +11,7 @@ function shortPubkey(pk) {
 function classificationBadge(classification) {
   switch (classification) {
     case 'owner': return { label: 'Owner', className: 'badge-owner' };
+    case 'admin': return { label: 'Admin', className: 'badge-owner' };
     case 'customer': return { label: 'Customer', className: 'badge-customer' };
     case 'guest': return { label: 'Guest', className: 'badge-guest' };
     default: return null;
@@ -102,7 +103,7 @@ export default function Header() {
                 <button className="dropdown-item" onClick={() => { setMenuOpen(false); navigate(`/kg/users/${TA_PUBKEY}`); }}>
                   🤖 My Assistant's Profile
                 </button>
-                {user.classification === 'owner' && (
+                {(user.classification === 'owner' || user.classification === 'admin') && (
                   <button className="dropdown-item" onClick={() => { setMenuOpen(false); navigate('/kg/settings'); }}>
                     ⚙️ Settings
                   </button>

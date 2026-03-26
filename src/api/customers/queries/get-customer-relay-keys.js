@@ -6,7 +6,7 @@
  * Returns relay keys for a specific customer (owner access only)
  */
 
-const { getConfigFromFile } = require('../../../utils/config');
+const { getConfigFromFile, getAdminPubkeys } = require('../../../utils/config');
 const { getCustomerRelayKeys } = require('../../../utils/customerRelayKeys');
 const nostrTools = require('nostr-tools');
 
@@ -22,10 +22,11 @@ async function handleGetCustomerRelayKeys(req, res) {
       });
     }
     
-    if (req.session.pubkey !== ownerPubkey) {
+    const adminPubkeys = getAdminPubkeys();
+    if (req.session.pubkey !== ownerPubkey && !adminPubkeys.includes(req.session.pubkey)) {
       return res.status(403).json({
         success: false,
-        message: 'Owner access required'
+        message: 'Owner or admin access required'
       });
     }
     

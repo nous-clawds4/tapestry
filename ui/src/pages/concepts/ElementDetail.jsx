@@ -16,7 +16,7 @@ export default function ElementDetail() {
   const { elemUuid } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const isOwner = user?.classification === 'owner';
+  const isOwner = user?.classification === 'owner' || user?.classification === 'admin';
 
   const [activeTab, setActiveTab] = useState('overview');
   const [editing, setEditing] = useState(false);

@@ -10,7 +10,7 @@ export default function AddNodeReview() {
   const { concept, uuid } = useOutletContext();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const isOwner = user?.classification === 'owner';
+  const isOwner = user?.classification === 'owner' || user?.classification === 'admin';
   const [searchParams] = useSearchParams();
   const nodeUuid = searchParams.get('node');
 

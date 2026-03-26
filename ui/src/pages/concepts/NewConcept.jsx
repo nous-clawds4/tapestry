@@ -7,7 +7,7 @@ import { createConcept } from '../../api/normalize';
 export default function NewConcept() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const isOwner = user?.classification === 'owner';
+  const isOwner = user?.classification === 'owner' || user?.classification === 'admin';
 
   const [name, setName] = useState('');
   const [plural, setPlural] = useState('');

@@ -5,7 +5,7 @@
 
 const crypto = require('crypto');
 const fs = require('fs');
-const { getConfigFromFile } = require('../utils/config');
+const { getConfigFromFile, getAdminPubkeys } = require('../utils/config');
 const CustomerManager = require('../utils/customerManager');
 
 /**
@@ -243,19 +243,27 @@ function handleAuthTest(req, res) {
 }
 
 /**
- * Check if a user is authenticated as the owner
+ * Check if a user is authenticated as the owner or an admin
  * @param {Object} req - Express request object
- * @returns {boolean} True if the user is the owner, false otherwise
+ * @returns {boolean} True if the user is the owner or admin, false otherwise
+ */
+function isOwnerOrAdmin(req) {
+    if (!req.session || !req.session.authenticated || !req.session.pubkey) {
+        return false;
+    }
+    const ownerPubkey = getConfigFromFile('BRAINSTORM_OWNER_PUBKEY', '');
+    if (req.session.pubkey === ownerPubkey) return true;
+    const adminPubkeys = getAdminPubkeys();
+    return adminPubkeys.includes(req.session.pubkey);
+}
+
+/**
+ * Backward-compat alias for isOwnerOrAdmin
+ * @param {Object} req - Express request object
+ * @returns {boolean}
  */
 function isOwner(req) {
-    // Get owner pubkey from config
-    const ownerPubkey = getConfigFromFile('BRAINSTORM_OWNER_PUBKEY', '');
-    
-    // Check if the user is authenticated and is the owner
-    return req.session && 
-           req.session.authenticated &&
-           req.session.pubkey &&
-           req.session.pubkey === ownerPubkey;
+    return isOwnerOrAdmin(req);
 }
 
 
@@ -504,15 +512,17 @@ function handleAuthVerifyUser(req, res) {
         req.session.challenge = challenge;
         req.session.pubkey = pubkey;
         
-        // Check if this user is the owner for role information
+        // Check if this user is the owner or admin for role information
         const ownerPubkey = getConfigFromFile('BRAINSTORM_OWNER_PUBKEY');
         const isOwnerUser = pubkey === ownerPubkey;
+        const adminPubkeys = getAdminPubkeys();
+        const isAdminUser = adminPubkeys.includes(pubkey);
         
         return res.json({ 
             authorized: true, 
             challenge,
-            isOwner: isOwnerUser,
-            message: isOwnerUser ? 'Owner authentication successful' : 'User authentication successful'
+            isOwner: isOwnerUser || isAdminUser,
+            message: isOwnerUser ? 'Owner authentication successful' : isAdminUser ? 'Admin authentication successful' : 'User authentication successful'
         });
         
     } catch (error) {
@@ -556,10 +566,12 @@ function handleAuthLoginUser(req, res) {
         req.session.authenticated = true;
         req.session.userPubkey = sessionPubkey;
         
-        // Check if user is owner
+        // Check if user is owner or admin
         const ownerPubkey = getConfigFromFile('BRAINSTORM_OWNER_PUBKEY');
         const isOwnerUser = sessionPubkey === ownerPubkey;
-        req.session.isOwner = isOwnerUser;
+        const adminPubkeys = getAdminPubkeys();
+        const isAdminUser = adminPubkeys.includes(sessionPubkey);
+        req.session.isOwner = isOwnerUser || isAdminUser;
 
         // Check if user is customer
         const isCustomerUser = false;
@@ -593,5 +605,6 @@ module.exports = {
     handleAuthVerifyUser,
     handleAuthLoginUser,
     authMiddleware,
-    isOwner
+    isOwner,
+    isOwnerOrAdmin
 };

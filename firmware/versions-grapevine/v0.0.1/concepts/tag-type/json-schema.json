@@ -1,0 +1,77 @@
+{
+    "word": {
+        "slug": "json-schema-for-the-concept-of-rating-templates",
+        "title": "JSON Schema for the Concept of Rating Templates",
+        "name": "JSON Schema for the concept of rating templates",
+        "description": "",
+        "wordTypes": [
+            "word",
+            "jsonSchema"
+        ],
+        "coreMemberOf": [
+            {
+                "slug": "concept-header-for-the-concept-of-rating-templates",
+                "uuid": "<uuid>"
+            }
+        ]
+    },
+    "jsonSchema": {
+        "name": "ratingTemplate",
+        "title": "Rating",
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "definitions": {},
+        "type": "object",
+        "required": [
+            "ratingTemplate"
+        ],
+        "properties": {
+            "ratingTemplate": {
+                "type": "object",
+                "name": "rating template",
+                "title": "Rating Template",
+                "slug": "rating-template",
+                "description": "Metadata about this rating template node",
+                "required": [
+                    "slug",
+                    "name",
+                    "title"
+                ],
+                "properties": {
+                    "slug": {
+                        "type": "string",
+                        "name": "slug",
+                        "title": "Slug",
+                        "slug": "slug",
+                        "description": "Unique identifier for this rating template"
+                    },
+                    "name": {
+                        "type": "string",
+                        "name": "path",
+                        "title": "Path",
+                        "slug": "path",
+                        "description": "the name of this rating template"
+                    },
+                    "title": {
+                        "type": "string",
+                        "name": "path",
+                        "title": "Path",
+                        "slug": "path",
+                        "description": "the title of this rating template"
+                    },
+                    "description": {
+                        "type": "string",
+                        "name": "path",
+                        "title": "Path",
+                        "slug": "path",
+                        "description": "the description of this rating template"
+                    }
+                },
+                "x-tapestry": {
+                    "unique": [
+                        "slug"
+                    ]
+                }
+            }
+        }
+    }
+}

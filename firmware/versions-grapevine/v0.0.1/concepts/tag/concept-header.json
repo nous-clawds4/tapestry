@@ -1,0 +1,21 @@
+{
+  "word": {
+    "slug": "concept-header-for-the-concept-of-tags",
+    "name": "concept header for the concept of tags", 
+    "title": "Concept Header for the Concept of Tags",
+    "wordTypes": ["word", "conceptHeader"]
+  },
+  "conceptHeader": {
+    "description": "like NIP-56 reports, but not limited to bad things. Uses tagType in place of reportType.",
+    "oNames": { "singular": "tag", "plural": "tags" },
+    "oSlugs": { "singular": "tag", "plural": "tags" },
+    "oKeys": { "singular": "tag", "plural": "tags" },
+    "oTitles": { "singular": "Tag", "plural": "Tags" },
+    "oLabels": { "singular": "Tag", "plural": "Tags" },
+    "x-tapestry": {
+      "neo4j": {
+        "nodeLabelRequired": false
+      }
+    }
+  }
+}

@@ -21,7 +21,7 @@ export default function ConceptHealth() {
   const { concept, uuid } = useOutletContext();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const canFix = user?.classification === 'owner';
+  const canFix = user?.classification === 'owner' || user?.classification === 'admin';
   const [audit, setAudit] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);

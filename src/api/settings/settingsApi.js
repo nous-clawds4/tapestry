@@ -47,10 +47,11 @@ function requireOwner(req, res, next) {
   if (!req.session?.pubkey) {
     return res.status(401).json({ success: false, error: 'Not authenticated' });
   }
-  const { getConfigFromFile } = require('../../utils/config');
+  const { getConfigFromFile, getAdminPubkeys } = require('../../utils/config');
   const ownerPubkey = getConfigFromFile('BRAINSTORM_OWNER_PUBKEY');
-  if (!ownerPubkey || req.session.pubkey !== ownerPubkey) {
-    return res.status(403).json({ success: false, error: 'Owner access required' });
+  const adminPubkeys = getAdminPubkeys();
+  if (!ownerPubkey || (req.session.pubkey !== ownerPubkey && !adminPubkeys.includes(req.session.pubkey))) {
+    return res.status(403).json({ success: false, error: 'Owner or admin access required' });
   }
   next();
 }

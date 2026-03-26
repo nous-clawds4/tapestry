@@ -16,7 +16,7 @@ export default function ConceptProperties() {
   const { concept, uuid } = useOutletContext();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const isOwner = user?.classification === 'owner';
+  const isOwner = user?.classification === 'owner' || user?.classification === 'admin';
 
   const { data, loading, error } = useCypher(`
     MATCH (js:JSONSchema)-[:IS_THE_JSON_SCHEMA_FOR]->(h:NostrEvent {uuid: '${uuid}'})

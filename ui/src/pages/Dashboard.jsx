@@ -55,13 +55,13 @@ function WelcomeCard({ taProfile, onSetupProfile, onSurpriseMe }) {
 }
 
 function OnboardingChecklist({ user, taProfile, conceptCount, constraintsOk, onAction }) {
-  const isOwner = user?.classification === 'owner';
+  const isOwner = user?.classification === 'owner' || user?.classification === 'admin';
   const hasTA = taProfile && (taProfile.name || taProfile.picture);
   const hasBios = conceptCount > 0;
 
   const items = [
     { key: 'running', label: 'Tapestry is running', done: true },
-    { key: 'signed-in', label: 'Signed in as Owner', done: isOwner },
+    { key: 'signed-in', label: user?.classification === 'admin' ? 'Signed in as Admin' : 'Signed in as Owner', done: isOwner },
     { key: 'constraints', label: 'Install Neo4j constraints & indexes', done: constraintsOk },
     { key: 'ta-profile', label: 'Give your Assistant a profile', done: hasTA, action: () => onAction('ta-profile'), actionLabel: 'Set up profile →' },
     { key: 'bios', label: 'Install Tapestry firmware', done: hasBios, action: () => onAction('bios'), actionLabel: 'Install firmware →' },
@@ -235,7 +235,7 @@ function ConstraintsCheck({ onStatusChange }) {
   const [installing, setInstalling] = useState(false);
   const [error, setError] = useState(null);
   const { user } = useAuth();
-  const isOwner = user?.classification === 'owner';
+  const isOwner = user?.classification === 'owner' || user?.classification === 'admin';
 
   const checkConstraints = useCallback(async () => {
     try {
@@ -455,7 +455,7 @@ function TapestryKeyStatus() {
   const [deriveResult, setDeriveResult] = useState(null);
   const [error, setError] = useState(null);
   const { user } = useAuth();
-  const isOwner = user?.classification === 'owner';
+  const isOwner = user?.classification === 'owner' || user?.classification === 'admin';
 
   const fetchStatus = useCallback(async () => {
     try {

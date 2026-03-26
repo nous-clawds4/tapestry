@@ -1,0 +1,21 @@
+{
+  "word": {
+    "slug": "concept-header-for-the-concept-of-ratings",
+    "name": "concept header for the concept of ratings",
+    "title": "Concept Header for the Concept of Ratings",
+    "wordTypes": ["word", "conceptHeader"]
+  },
+  "conceptHeader": {
+    "description": "",
+    "oNames": { "singular": "rating", "plural": "ratings" },
+    "oSlugs": { "singular": "rating", "plural": "ratings" },
+    "oKeys": { "singular": "rating", "plural": "ratings" },
+    "oTitles": { "singular": "Rating", "plural": "Ratings" },
+    "oLabels": { "singular": "Rating", "plural": "Ratings" },
+    "x-tapestry": {
+      "neo4j": {
+        "nodeLabelRequired": false
+      }
+    }
+  }
+}

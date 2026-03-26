@@ -30,7 +30,7 @@ export default function SettingsIndex() {
   const [needsRestart, setNeedsRestart] = useState(false);
   const [saveMessage, setSaveMessage] = useState(null);
 
-  const isOwner = user?.classification === 'owner';
+  const isOwner = user?.classification === 'owner' || user?.classification === 'admin';
 
   // Derive active tab from URL path
   const pathSegments = location.pathname.replace(/\/$/, '').split('/');

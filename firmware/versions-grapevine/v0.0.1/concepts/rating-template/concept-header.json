@@ -1,0 +1,21 @@
+{
+  "word": {
+    "slug": "concept-header-for-the-concept-of-rating-templates",
+    "name": "concept header for the concept of rating templates",
+    "title": "Concept Header for the Concept of Rating Templates",
+    "wordTypes": ["word", "conceptHeader"]
+  },
+  "conceptHeader": {
+    "description": "",
+    "oNames": { "singular": "rating template", "plural": "rating templates" },
+    "oSlugs": { "singular": "rating-template", "plural": "rating-templates" },
+    "oKeys": { "singular": "ratingTemplate", "plural": "ratingTemplates" },
+    "oTitles": { "singular": "Rating Template", "plural": "Rating Templates" },
+    "oLabels": { "singular": "RatingTemplate", "plural": "RatingTemplates" },
+    "x-tapestry": {
+      "neo4j": {
+        "nodeLabelRequired": true
+      }
+    }
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "word": {
+    "slug": "tag-type--lost-nsec",
+    "name": "tag type: lost nsec",
+    "title": "Tag Type: Lost Nsec",
+    "description": "",
+    "wordTypes": ["word", "tagType"]
+  },
+  "tagType": {
+    "slug": "lost-nsec",
+    "name": "lost nsec",
+    "title": "Lost Nsec",
+    "description": "a nostr user private key that has been been lost by its owner"
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "word": {
+    "slug": "tag-type--rotated-nsec",
+    "name": "tag type: rotated nsec",
+    "title": "Tag Type: Rotated Nsec",
+    "description": "",
+    "wordTypes": ["word", "tagType"]
+  },
+  "tagType": {
+    "slug": "rotated-nsec",
+    "name": "rotated nsec",
+    "title": "Rotated Nsec",
+    "description": "a nostr user private key that has been been replaced by its owner"
+  }
+}

@@ -1,4 +1,4 @@
-const { getConfigFromFile } = require('../../utils/config');
+const { getConfigFromFile, getAdminPubkeys } = require('../../utils/config');
 const CustomerManager = require('../../utils/customerManager');
 
 /**
@@ -27,6 +27,16 @@ async function handleGetUserClassification(req, res) {
             return res.json({
                 success: true,
                 classification: 'owner',
+                pubkey: userPubkey,
+            });
+        }
+
+        // Check if user is an admin
+        const adminPubkeys = getAdminPubkeys();
+        if (adminPubkeys.includes(userPubkey)) {
+            return res.json({
+                success: true,
+                classification: 'admin',
                 pubkey: userPubkey,
             });
         }

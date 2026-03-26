@@ -132,7 +132,7 @@ function NavGroup({ item, depth = 0 }) {
 
 export default function Layout() {
   const { user } = useAuth();
-  const isOwner = user?.classification === 'owner';
+  const isOwner = user?.classification === 'owner' || user?.classification === 'admin';
   const location = useLocation();
 
   const isManagement = MANAGEMENT_PREFIXES.some(p => location.pathname.startsWith(p));

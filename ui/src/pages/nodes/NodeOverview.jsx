@@ -50,7 +50,7 @@ export default function NodeOverview() {
   );
 
   const { user } = useAuth();
-  const isOwner = user?.classification === 'owner';
+  const isOwner = user?.classification === 'owner' || user?.classification === 'admin';
   const [offloading, setOffloading] = useState(false);
   const [offloadResult, setOffloadResult] = useState(null);
 

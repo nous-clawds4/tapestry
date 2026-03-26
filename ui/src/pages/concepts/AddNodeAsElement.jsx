@@ -13,7 +13,7 @@ export default function AddNodeAsElement() {
   const { concept, uuid } = useOutletContext();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const isOwner = user?.classification === 'owner';
+  const isOwner = user?.classification === 'owner' || user?.classification === 'admin';
 
   // Filters
   const [nameFilter, setNameFilter] = useState('');

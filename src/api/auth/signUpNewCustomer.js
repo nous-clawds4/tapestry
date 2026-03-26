@@ -1,4 +1,4 @@
-const { getConfigFromFile } = require('../../utils/config');
+const { getConfigFromFile, isAdminPubkey } = require('../../utils/config');
 const { createSingleCustomerRelay } = require('../../utils/customerRelayKeys');
 const CustomerManager = require('../../utils/customerManager');
 
@@ -29,6 +29,15 @@ async function handleSignUpNewCustomer(req, res) {
                 success: false,
                 message: 'Owner account cannot sign up as customer',
                 classification: 'owner'
+            });
+        }
+
+        // Check if user is an admin (admins also cannot sign up as customer)
+        if (isAdminPubkey(userPubkey)) {
+            return res.json({
+                success: false,
+                message: 'Admin account cannot sign up as customer',
+                classification: 'admin'
             });
         }
 

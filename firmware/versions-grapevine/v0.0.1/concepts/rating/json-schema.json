@@ -1,0 +1,62 @@
+{
+    "word": {
+        "slug": "json-schema-for-the-concept-of-ratings",
+        "title": "JSON Schema for the Concept of Ratings",
+        "name": "JSON Schema for the concept of ratings",
+        "description": "",
+        "wordTypes": [
+            "word",
+            "jsonSchema"
+        ],
+        "coreMemberOf": [
+            {
+                "slug": "concept-header-for-the-concept-of-ratings",
+                "uuid": "<uuid>"
+            }
+        ]
+    },
+    "jsonSchema": {
+        "name": "rating",
+        "title": "Rating",
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "definitions": {},
+        "type": "object",
+        "required": [
+            "rating"
+        ],
+        "properties": {
+            "rating": {
+                "type": "object",
+                "name": "rating",
+                "title": "Rating",
+                "slug": "rating",
+                "description": "Metadata about this rating node",
+                "required": [
+                    "slug",
+                    "ratingTemplate"
+                ],
+                "properties": {
+                    "slug": {
+                        "type": "string",
+                        "name": "slug",
+                        "title": "Slug",
+                        "slug": "slug",
+                        "description": "Unique identifier for this rating"
+                    },
+                    "ratingTemplate": {
+                        "type": "string",
+                        "name": "path",
+                        "title": "Path",
+                        "slug": "path",
+                        "description": "the type of rating"
+                    }
+                },
+                "x-tapestry": {
+                    "unique": [
+                        "slug"
+                    ]
+                }
+            }
+        }
+    }
+}

@@ -1,0 +1,14 @@
+{
+  "word": {
+    "slug": "the-set-of-tag-types-for-key-rotation",
+    "name": "The set of tag types for key rotation",
+    "title": "The Set of Tag Types for Key Rotation",
+    "wordTypes": ["word", "set"]
+  },
+  "set": {
+    "slug": "tag-types-for-key-rotation",
+    "name": "tag types for key rotation",
+    "title": "Tag Types for Key Rotation",
+    "description": "These are the tag types that are used to flag compromised nostr user private keys (nsecs)."
+  }
+}

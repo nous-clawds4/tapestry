@@ -1,0 +1,70 @@
+{
+  "version": "0.0.1",
+  "date": "2026-03-22",
+  "description": "Initial tapestry firmware — foundational meta-concepts for the tapestry protocol.",
+  "concepts": [
+    {
+      "slug": "rating-type",
+      "dir": "./concepts/rating-type/",
+      "conceptHeader": "concept-header.json",
+      "jsonSchema": "json-schema.json",
+      "categories": [
+        "grapevine"
+      ]
+    },
+    {
+      "slug": "rating",
+      "dir": "./concepts/rating/",
+      "conceptHeader": "concept-header.json",
+      "jsonSchema": "json-schema.json",
+      "categories": [
+        "grapevine"
+      ]
+    }
+  ],
+  "elements": {
+    "ratings": {
+      "existing-nodes": []
+    },
+    "rating-types": {
+      "existing-nodes": [
+        {
+          "concept": "flag",
+          "core-node-type": "concept-header"
+        },
+        {
+          "concept": "5-star",
+          "core-node-type": "concept-header"
+        }
+      ]
+    }
+  },
+  "sets": {
+    "ratings": {
+      "existing-sets": [
+        {
+          "concept": "concept-graph"
+        },
+        {
+          "concept": "core-nodes-graph"
+        },
+        {
+          "concept": "property-tree-graph"
+        },
+        {
+          "concept": "tapestry"
+        }
+      ]
+    },
+    "rating-types": {
+      "existing-sets": []
+    }
+  },
+  "changelog": [],
+  "relationshipTypes": [
+    {
+      "slug": "PROPERTY_ENUMERATION",
+      "file": "./concepts/relationship-type/elements/property-enumeration.json"
+    }
+  ]
+}

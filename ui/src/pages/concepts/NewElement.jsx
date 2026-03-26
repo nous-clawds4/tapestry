@@ -9,7 +9,7 @@ export default function NewElement() {
   const { concept, uuid } = useOutletContext();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const isOwner = user?.classification === 'owner';
+  const isOwner = user?.classification === 'owner' || user?.classification === 'admin';
 
   const [formValues, setFormValues] = useState({});
   const [creating, setCreating] = useState(false);
