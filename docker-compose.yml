@@ -13,7 +13,7 @@ services:
       - OWNER_PUBKEY=${OWNER_PUBKEY}
       - ADMIN_PUBKEYS=${ADMIN_PUBKEYS}
       - NEO4J_PASSWORD=${NEO4J_PASSWORD}
-      - DOMAIN_NAME=localhost
+      - DOMAIN_NAME=${DOMAIN_NAME:-localhost}
     volumes:
       - tapestry-neo4j:/var/lib/neo4j/data
       - tapestry-strfry:/var/lib/strfry
