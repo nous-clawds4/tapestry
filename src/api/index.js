@@ -31,6 +31,7 @@ const { handleGetGrapevineInteraction } = require('./grapevineInteractions/queri
 const { handleOldSearchProfiles, handleOldSearchProfilesStream } = require('./search/profiles');
 const { handleKeywordSearchProfiles } = require('./search/profiles/keyword');
 const { handlePrecomputeWhitelistMaps, handlePrecomputeWhitelistStatus } = require('./search/profiles/whitelistPrecompute');
+const { handleMeiliSearchProfiles, handleMeiliSearchStats } = require('./search/profiles/meili');
 const { handleGetRecentlyActivePubkeys } = require('./content/queries/recentlyActivePubkeys');
 const getTaskDashboardState = require('./taskDashboard/getTaskDashboardState');
 const getTaskExplorerData = require('./taskExplorer/getTaskExplorerData');
@@ -321,6 +322,8 @@ async function register(app) {
     app.get('/api/search/profiles/keyword', handleKeywordSearchProfiles);
     app.get('/api/search/profiles/keyword/precompute-whitelist-maps', handlePrecomputeWhitelistMaps);
     app.get('/api/search/profiles/keyword/precompute-whitelist-maps/status', handlePrecomputeWhitelistStatus);
+    app.get('/api/search/profiles/meili', handleMeiliSearchProfiles);
+    app.get('/api/search/profiles/meili/stats', handleMeiliSearchStats);
 
     // Get Customers endpoint
     app.get('/api/get-customers', customers.handleGetCustomers);

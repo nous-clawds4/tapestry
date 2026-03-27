@@ -20,8 +20,46 @@ services:
       - tapestry-logs:/var/log/brainstorm
     restart: unless-stopped
 
+  # --- Nostr Search (Meilisearch-powered profile search) ---
+  nostr-search-meili:
+    image: getmeili/meilisearch:v1.12
+    container_name: nostr-search-meili
+    ports:
+      - "${MEILI_PORT:-7700}:7700"
+    volumes:
+      - nostr-search-meili:/meili_data
+    environment:
+      - MEILI_ENV=${MEILI_ENV:-development}
+      - MEILI_MASTER_KEY=${MEILI_MASTER_KEY:-}
+      - MEILI_NO_ANALYTICS=true
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:7700/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  nostr-search-api:
+    build:
+      context: ./nostr-search
+      dockerfile: Dockerfile
+    container_name: nostr-search-api
+    ports:
+      - "${NOSTR_SEARCH_PORT:-3069}:3069"
+    environment:
+      - MEILI_URL=http://nostr-search-meili:7700
+      - RELAY_URL=ws://tapestry:80/relay
+      - PORT=3069
+    depends_on:
+      nostr-search-meili:
+        condition: service_healthy
+      tapestry:
+        condition: service_started
+    restart: unless-stopped
+
 volumes:
   tapestry-neo4j:
   tapestry-strfry:
   tapestry-data:
   tapestry-logs:
+  nostr-search-meili:

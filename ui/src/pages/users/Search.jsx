@@ -2,7 +2,6 @@ import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Breadcrumbs from '../../components/Breadcrumbs';
 import useProfiles from '../../hooks/useProfiles';
-import AuthorCell from '../../components/AuthorCell';
 
 /**
  * Validate a hex pubkey (64 lowercase hex chars).
@@ -25,9 +24,7 @@ function npubToHex(npub) {
       if (idx === -1) return null;
       data.push(idx);
     }
-    // Remove 6-char checksum
     const values = data.slice(0, data.length - 6);
-    // Convert 5-bit groups to 8-bit bytes
     let acc = 0;
     let bits = 0;
     const bytes = [];
@@ -46,53 +43,65 @@ function npubToHex(npub) {
   }
 }
 
-function UserPreviewCard({ pubkey }) {
+function UserPreviewCard({ pubkey, searchHit }) {
   const profiles = useProfiles([pubkey]);
   const profile = profiles[pubkey];
   const navigate = useNavigate();
 
+  // Prefer data from search hit (kind 0 fields), fall back to relay-fetched profile
+  const name = searchHit?.name || searchHit?.display_name || profile?.name || profile?.display_name || 'Unknown';
+  const picture = searchHit?.picture || profile?.picture;
+  const nip05 = searchHit?.nip05 || profile?.nip05;
+  const about = searchHit?.about || profile?.about;
+  const npub = searchHit?.npub;
+
   return (
     <div
       style={{
-        marginTop: '1.5rem',
-        padding: '1.25rem',
+        padding: '1rem',
         border: '1px solid var(--border, #444)',
         borderRadius: '8px',
         backgroundColor: 'var(--bg-secondary, #1a1a2e)',
+        cursor: 'pointer',
       }}
+      onClick={() => navigate(`/kg/users/${pubkey}`)}
+      onKeyDown={e => e.key === 'Enter' && navigate(`/kg/users/${pubkey}`)}
+      role="button"
+      tabIndex={0}
     >
-      <h3 style={{ margin: '0 0 1rem', fontSize: '1rem' }}>User Found</h3>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1rem' }}>
-        {profile?.picture && (
+      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+        {picture ? (
           <img
-            src={profile.picture}
+            src={picture}
             alt=""
-            style={{ width: 48, height: 48, borderRadius: '50%', objectFit: 'cover' }}
+            style={{ width: 44, height: 44, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }}
+            onError={e => { e.target.style.display = 'none'; }}
           />
+        ) : (
+          <div style={{
+            width: 44, height: 44, borderRadius: '50%', flexShrink: 0,
+            backgroundColor: 'var(--border, #444)', display: 'flex',
+            alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem',
+          }}>👤</div>
         )}
-        <div>
-          <div style={{ fontWeight: 600, fontSize: '1.1rem' }}>
-            {profile?.name || profile?.display_name || 'Unknown'}
-          </div>
-          {profile?.nip05 && (
-            <div style={{ fontSize: '0.8rem', opacity: 0.6 }}>{profile.nip05}</div>
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <div style={{ fontWeight: 600, fontSize: '1rem' }}>{name}</div>
+          {nip05 && (
+            <div style={{ fontSize: '0.8rem', opacity: 0.6 }}>{nip05}</div>
           )}
-          <div style={{ fontSize: '0.75rem', opacity: 0.5, fontFamily: 'monospace', marginTop: '0.25rem' }}>
-            {pubkey.slice(0, 16)}…{pubkey.slice(-8)}
+          <div style={{ fontSize: '0.7rem', opacity: 0.4, fontFamily: 'monospace', marginTop: '0.15rem' }}>
+            {npub ? `${npub.slice(0, 20)}…${npub.slice(-8)}` : `${pubkey.slice(0, 16)}…${pubkey.slice(-8)}`}
           </div>
-          {profile?.about && (
-            <div style={{ fontSize: '0.85rem', opacity: 0.7, marginTop: '0.5rem', maxWidth: '500px' }}>
-              {profile.about.length > 200 ? profile.about.slice(0, 200) + '…' : profile.about}
+          {about && (
+            <div style={{
+              fontSize: '0.8rem', opacity: 0.6, marginTop: '0.35rem',
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+            }}>
+              {about.length > 150 ? about.slice(0, 150) + '…' : about}
             </div>
           )}
         </div>
       </div>
-      <button
-        className="btn btn-primary"
-        onClick={() => navigate(`/kg/users/${pubkey}`)}
-      >
-        View Profile →
-      </button>
     </div>
   );
 }
@@ -102,11 +111,17 @@ export default function UserSearch() {
   const [npubInput, setNpubInput] = useState('');
   const [keywordInput, setKeywordInput] = useState('');
   const [foundPubkey, setFoundPubkey] = useState(null);
+  const [keywordResults, setKeywordResults] = useState(null);
+  const [keywordMeta, setKeywordMeta] = useState(null);
+  const [keywordLoading, setKeywordLoading] = useState(false);
   const [searchError, setSearchError] = useState(null);
+
+  const navigate = useNavigate();
 
   const searchByPubkey = useCallback(() => {
     setSearchError(null);
     setFoundPubkey(null);
+    setKeywordResults(null);
     const trimmed = pubkeyInput.trim().toLowerCase();
     if (isValidPubkey(trimmed)) {
       setFoundPubkey(trimmed);
@@ -118,6 +133,7 @@ export default function UserSearch() {
   const searchByNpub = useCallback(() => {
     setSearchError(null);
     setFoundPubkey(null);
+    setKeywordResults(null);
     const trimmed = npubInput.trim();
     const hex = npubToHex(trimmed);
     if (hex) {
@@ -126,6 +142,38 @@ export default function UserSearch() {
       setSearchError('Invalid npub. Must start with "npub1" and be a valid bech32 encoding.');
     }
   }, [npubInput]);
+
+  const searchByKeyword = useCallback(async () => {
+    const q = keywordInput.trim();
+    if (!q) return;
+
+    setSearchError(null);
+    setFoundPubkey(null);
+    setKeywordResults(null);
+    setKeywordMeta(null);
+    setKeywordLoading(true);
+
+    try {
+      const resp = await fetch(`/api/search/profiles/meili?q=${encodeURIComponent(q)}&limit=20`);
+      const data = await resp.json();
+
+      if (!resp.ok || data.success === false) {
+        setSearchError(data.error || 'Search service unavailable. Is Meilisearch running?');
+        return;
+      }
+
+      setKeywordResults(data.hits || []);
+      setKeywordMeta({
+        estimatedTotalHits: data.estimatedTotalHits || 0,
+        processingTimeMs: data.processingTimeMs || 0,
+        query: data.query || q,
+      });
+    } catch (err) {
+      setSearchError(`Search failed: ${err.message}`);
+    } finally {
+      setKeywordLoading(false);
+    }
+  }, [keywordInput]);
 
   const inputStyle = {
     flex: 1,
@@ -151,6 +199,35 @@ export default function UserSearch() {
       <Breadcrumbs />
       <h1>🔍 Search Users</h1>
       <p className="subtitle">Find a nostr user by pubkey, npub, or keyword.</p>
+
+      {/* Search by Keyword (promoted to top — this is the primary search now) */}
+      <div style={sectionStyle}>
+        <label style={{ fontWeight: 600, fontSize: '0.85rem', display: 'block', marginBottom: '0.5rem' }}>
+          Search by Keyword
+        </label>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <input
+            type="text"
+            value={keywordInput}
+            onChange={e => setKeywordInput(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && searchByKeyword()}
+            placeholder="e.g. straycat, brainstorm, alice@example.com ..."
+            style={{ ...inputStyle, fontFamily: 'inherit' }}
+            autoFocus
+          />
+          <button
+            className="btn btn-primary"
+            onClick={searchByKeyword}
+            disabled={keywordLoading}
+          >
+            {keywordLoading ? '⏳' : '🔍'} Search
+          </button>
+        </div>
+        <p style={{ fontSize: '0.75rem', margin: '0.5rem 0 0', opacity: 0.5 }}>
+          Full-text search across names, bios, NIP-05, Lightning addresses, and more.
+          Powered by Meilisearch.
+        </p>
+      </div>
 
       {/* Search by Pubkey */}
       <div style={sectionStyle}>
@@ -192,29 +269,6 @@ export default function UserSearch() {
         </div>
       </div>
 
-      {/* Search by Keyword */}
-      <div style={{ ...sectionStyle, opacity: 0.5 }}>
-        <label style={{ fontWeight: 600, fontSize: '0.85rem', display: 'block', marginBottom: '0.5rem' }}>
-          Search by Keyword
-        </label>
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
-          <input
-            type="text"
-            value={keywordInput}
-            onChange={e => setKeywordInput(e.target.value)}
-            placeholder="e.g. straycat, brainstorm, ..."
-            style={inputStyle}
-            disabled
-          />
-          <button className="btn" disabled>
-            🔍 Search
-          </button>
-        </div>
-        <p style={{ fontSize: '0.8rem', margin: '0.5rem 0 0', opacity: 0.7 }}>
-          🚧 Coming soon — keyword search across profiles
-        </p>
-      </div>
-
       {/* Error */}
       {searchError && (
         <div style={{
@@ -230,8 +284,41 @@ export default function UserSearch() {
         </div>
       )}
 
-      {/* Result */}
-      {foundPubkey && <UserPreviewCard pubkey={foundPubkey} />}
+      {/* Single pubkey result */}
+      {foundPubkey && (
+        <div style={{ marginTop: '1rem' }}>
+          <h3 style={{ fontSize: '0.9rem', opacity: 0.7, marginBottom: '0.75rem' }}>Result</h3>
+          <UserPreviewCard pubkey={foundPubkey} />
+        </div>
+      )}
+
+      {/* Keyword search results */}
+      {keywordResults && (
+        <div style={{ marginTop: '1rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '0.75rem' }}>
+            <h3 style={{ fontSize: '0.9rem', opacity: 0.7, margin: 0 }}>
+              {keywordResults.length === 0
+                ? 'No results found'
+                : `${keywordMeta?.estimatedTotalHits?.toLocaleString() || keywordResults.length} results`
+              }
+            </h3>
+            {keywordMeta?.processingTimeMs != null && (
+              <span style={{ fontSize: '0.75rem', opacity: 0.4 }}>
+                {keywordMeta.processingTimeMs}ms
+              </span>
+            )}
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+            {keywordResults.map(hit => (
+              <UserPreviewCard
+                key={hit.pubkey || hit.id}
+                pubkey={hit.pubkey || hit.id}
+                searchHit={hit}
+              />
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
