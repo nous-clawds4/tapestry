@@ -18,7 +18,7 @@ function classificationBadge(classification) {
   }
 }
 
-export default function Header() {
+export default function Header({ onToggleSidebar }) {
   const { user, loading, login, logout } = useAuth();
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -60,6 +60,9 @@ export default function Header() {
 
   return (
     <header className="app-header">
+      <button className="sidebar-toggle" onClick={onToggleSidebar} aria-label="Toggle menu">
+        ☰
+      </button>
       <div className="header-brand" onClick={() => navigate('/kg/')} style={{ cursor: 'pointer' }}>
         <span className="header-brand-name">🧠 Tapestry</span>
       </div>

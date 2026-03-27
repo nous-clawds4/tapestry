@@ -1976,3 +1976,104 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   background: var(--bg-surface, #1e1e2e);
   color: var(--text-primary);
 }
+
+/* ─── Sidebar Toggle (hamburger) ────────────────────── */
+.sidebar-toggle {
+  display: none;  /* hidden on desktop, shown via media query */
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: var(--text);
+  font-size: 22px;
+  padding: 4px 8px;
+  margin-right: 8px;
+  cursor: pointer;
+  border-radius: 4px;
+  line-height: 1;
+}
+.sidebar-toggle:hover {
+  background: var(--bg-tertiary);
+}
+
+/* Overlay behind sidebar (mobile) */
+.sidebar-overlay {
+  display: none;
+}
+
+/* ─── Mobile Responsive (<768px) ────────────────────── */
+@media (max-width: 768px) {
+  /* Sidebar: off-screen by default, slides in as overlay */
+  .sidebar {
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+    z-index: 200;
+  }
+  .sidebar.sidebar-open {
+    transform: translateX(0);
+  }
+
+  /* Dark overlay behind open sidebar */
+  .sidebar-overlay {
+    position: fixed;
+    inset: 0;
+    top: 48px;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 199;
+  }
+  .sidebar-overlay.visible {
+    display: block;
+  }
+
+  /* Main content: full width */
+  .main-wrapper {
+    margin-left: 0;
+  }
+
+  /* Reduce content padding on mobile */
+  .main-content {
+    padding: 16px 12px;
+  }
+
+  /* Show hamburger button */
+  .sidebar-toggle {
+    display: flex;
+  }
+
+  /* Header: tighter padding */
+  .app-header {
+    padding: 8px 12px;
+  }
+
+  /* Tabs: horizontal scroll instead of wrapping */
+  .tab-nav {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    flex-wrap: nowrap;
+  }
+  .tab-nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Tables: horizontal scroll */
+  .data-table-wrapper,
+  .table-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Page titles */
+  .page h1 {
+    font-size: 20px;
+  }
+
+  /* User detail grid — already has a breakpoint at 800px, reinforce */
+  .user-detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* Header user name — hide on very small screens to save space */
+  .user-name {
+    display: none;
+  }
+}

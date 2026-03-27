@@ -135,14 +135,27 @@ export default function Layout() {
   const { user } = useAuth();
   const isOwner = user?.classification === 'owner' || user?.classification === 'admin';
   const location = useLocation();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Close sidebar on navigation (mobile)
+  useEffect(() => {
+    setSidebarOpen(false);
+  }, [location.pathname]);
 
   const isManagement = MANAGEMENT_PREFIXES.some(p => location.pathname.startsWith(p));
   const navItems = isManagement ? managementNavItems : mainNavItems;
 
   return (
     <div className="app-layout">
-      <Header />
-      <nav className="sidebar">
+      <Header onToggleSidebar={() => setSidebarOpen(o => !o)} />
+
+      {/* Overlay behind sidebar (mobile only, controlled by CSS) */}
+      <div
+        className={`sidebar-overlay${sidebarOpen ? ' visible' : ''}`}
+        onClick={() => setSidebarOpen(false)}
+      />
+
+      <nav className={`sidebar${sidebarOpen ? ' sidebar-open' : ''}`}>
         {isManagement && (
           <div style={{
             padding: '0.5rem 1rem',
