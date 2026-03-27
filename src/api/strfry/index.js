@@ -5,6 +5,8 @@
 
 const { handleGetFilteredContentStatus } = require('./queries/filteredContent');
 const { handleStrfryScan } = require('./queries/scan');
+const { handleStrfryScanStream } = require('./queries/scanStream');
+const { handleStrfryScanCount } = require('./queries/scanCount');
 const { handleToggleStrfryPlugin } = require('./commands/toggle');
 const { handlePublishEvent } = require('./commands/publishEvent');
 
@@ -13,6 +15,8 @@ module.exports = {
     // Queries (read operations)
     handleGetFilteredContentStatus,
     handleStrfryScan,
+    handleStrfryScanStream,
+    handleStrfryScanCount,
     
     // Commands (write operations)
     handleToggleStrfryPlugin,

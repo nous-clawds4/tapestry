@@ -33,5 +33,13 @@
       "wss://dcosl.brainstorm.world",
       "wss://wot.grapevine.network"
     ]
+  },
+  "grapevine": {
+    "searchPreferences": {
+      "povPubkey": null,
+      "metrics": [],
+      "delegatedPubkey": null,
+      "nip85Relay": null
+    }
   }
 }

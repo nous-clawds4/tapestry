@@ -1,91 +1,69 @@
 import { useState, useEffect, useMemo } from 'react';
 import Breadcrumbs from '../../components/Breadcrumbs';
-import { queryRelay } from '../../api/relay';
-import useProfiles from '../../hooks/useProfiles';
-import { OWNER_PUBKEY, TA_PUBKEY, DAVE_PUBKEY } from '../../config/pubkeys';
 
-function shortPubkey(pk) {
-  if (!pk) return '—';
-  return pk.slice(0, 8) + '…';
-}
+/**
+ * Strfry overview page.
+ * Uses the /api/strfry-status endpoint (scan --count) instead of fetching all events,
+ * which is not feasible with millions of events in the database.
+ */
 
 export default function StrfryOverview() {
-  const [events, setEvents] = useState([]);
+  const [status, setStatus] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
-    async function fetchEvents() {
+    async function fetchStatus() {
       try {
         setLoading(true);
-        // Fetch all events (no kind filter)
-        const evts = await queryRelay({});
-        if (!cancelled) setEvents(evts);
+        const resp = await fetch('/api/strfry-status');
+        const data = await resp.json();
+        if (!cancelled) {
+          if (data.success) {
+            setStatus(data);
+          } else {
+            setError(data.error || 'Failed to load strfry status');
+          }
+        }
       } catch (err) {
         if (!cancelled) setError(err.message);
       } finally {
         if (!cancelled) setLoading(false);
       }
     }
-    fetchEvents();
+    fetchStatus();
     return () => { cancelled = true; };
   }, []);
 
-  // Aggregate stats
   const byKind = useMemo(() => {
-    const map = new Map();
-    for (const ev of events) {
-      map.set(ev.kind, (map.get(ev.kind) || 0) + 1);
-    }
-    return [...map.entries()].sort((a, b) => a[0] - b[0]).map(([kind, count]) => ({ kind, count }));
-  }, [events]);
+    if (!status?.events?.byKind) return [];
+    return Object.entries(status.events.byKind)
+      .map(([kind, count]) => ({ kind: parseInt(kind), count }))
+      .filter(r => r.count > 0)
+      .sort((a, b) => b.count - a.count);
+  }, [status]);
 
-  const byAuthor = useMemo(() => {
-    const map = new Map();
-    for (const ev of events) {
-      if (ev.pubkey) {
-        map.set(ev.pubkey, (map.get(ev.pubkey) || 0) + 1);
-      }
-    }
-    return [...map.entries()]
-      .sort((a, b) => b[1] - a[1])
-      .map(([pubkey, count]) => ({ pubkey, count }));
-  }, [events]);
+  const total = status?.events?.total || 0;
 
-  const authorPubkeys = useMemo(() => byAuthor.map(a => a.pubkey), [byAuthor]);
-  const profiles = useProfiles(authorPubkeys);
-
-  function authorDisplayName(pk) {
-    const p = profiles?.[pk];
-    const name = p?.name || p?.display_name;
-    const short = shortPubkey(pk);
-    if (pk === OWNER_PUBKEY) return name ? `👑 ${name}` : `👑 Owner (${short})`;
-    if (pk === DAVE_PUBKEY) return name ? `🧑‍💻 ${name}` : `🧑‍💻 Dave (${short})`;
-    if (pk === TA_PUBKEY) return name ? `🤖 ${name}` : `🤖 Assistant (${short})`;
-    return name ? `${name} (${short})` : short;
-  }
-
-  // Age range
-  const ageRange = useMemo(() => {
-    if (events.length === 0) return null;
-    let oldest = Infinity, newest = 0;
-    for (const ev of events) {
-      if (ev.created_at < oldest) oldest = ev.created_at;
-      if (ev.created_at > newest) newest = ev.created_at;
-    }
-    return {
-      oldest: new Date(oldest * 1000).toLocaleDateString(),
-      newest: new Date(newest * 1000).toLocaleDateString(),
-    };
-  }, [events]);
+  const kindLabels = {
+    0: 'Profiles',
+    1: 'Notes',
+    3: 'Follows',
+    7: 'Reactions',
+    1984: 'Reports',
+    10000: 'Mutes',
+    10040: 'Trusted Assertions (10040)',
+    30382: 'Trusted Assertions (30382)',
+    30818: 'Wiki Articles',
+  };
 
   if (loading) {
     return (
       <div className="page">
         <Breadcrumbs />
         <h1>📡 Strfry</h1>
-        <p>Loading events from strfry relay…</p>
+        <p>Loading strfry status…</p>
       </div>
     );
   }
@@ -108,27 +86,6 @@ export default function StrfryOverview() {
           <h1>📡 Strfry</h1>
           <p className="subtitle">Overview of nostr events stored in the local strfry relay.</p>
         </div>
-        <a
-          href="http://localhost:8080/relay"
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '0.4rem',
-            padding: '0.5rem 1rem',
-            borderRadius: '6px',
-            backgroundColor: 'var(--accent, #6366f1)',
-            color: '#fff',
-            textDecoration: 'none',
-            fontSize: '0.85rem',
-            fontWeight: 600,
-            whiteSpace: 'nowrap',
-            marginTop: '0.5rem',
-          }}
-        >
-          🔗 Open Strfry Relay
-        </a>
       </div>
 
       {/* Summary cards */}
@@ -138,12 +95,18 @@ export default function StrfryOverview() {
         gap: '1rem',
         marginBottom: '1.5rem',
       }}>
-        <SummaryCard label="Total Events" value={events.length.toLocaleString()} icon="📨" />
+        <SummaryCard label="Total Events" value={total.toLocaleString()} icon="📨" />
         <SummaryCard label="Event Kinds" value={byKind.length} icon="📦" />
-        <SummaryCard label="Unique Authors" value={byAuthor.length} icon="👤" />
-        {ageRange && (
-          <SummaryCard label="Date Range" value={`${ageRange.oldest} – ${ageRange.newest}`} icon="📅" />
-        )}
+        <SummaryCard
+          label="Service"
+          value={status?.service?.status === 'running' ? '🟢 Running' : '🔴 Stopped'}
+          icon="⚙️"
+        />
+        <SummaryCard
+          label="Recent (1h)"
+          value={(status?.events?.recent || 0).toLocaleString()}
+          icon="🕐"
+        />
       </div>
 
       {/* Events by Kind */}
@@ -152,6 +115,7 @@ export default function StrfryOverview() {
           <thead>
             <tr>
               <th>Kind</th>
+              <th>Description</th>
               <th style={{ textAlign: 'right' }}>Count</th>
               <th style={{ textAlign: 'right' }}>% of Total</th>
             </tr>
@@ -160,33 +124,10 @@ export default function StrfryOverview() {
             {byKind.map(row => (
               <tr key={row.kind}>
                 <td><code style={{ fontSize: '0.85rem' }}>{row.kind}</code></td>
+                <td style={{ fontSize: '0.85rem', opacity: 0.7 }}>{kindLabels[row.kind] || ''}</td>
                 <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{row.count.toLocaleString()}</td>
                 <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
-                  {events.length > 0 ? `${((row.count / events.length) * 100).toFixed(1)}%` : '—'}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </Section>
-
-      {/* Events by Author */}
-      <Section title="Events by Author">
-        <table className="data-table" style={{ width: '100%' }}>
-          <thead>
-            <tr>
-              <th>Author</th>
-              <th style={{ textAlign: 'right' }}>Events</th>
-              <th style={{ textAlign: 'right' }}>% of Total</th>
-            </tr>
-          </thead>
-          <tbody>
-            {byAuthor.map(row => (
-              <tr key={row.pubkey}>
-                <td>{authorDisplayName(row.pubkey)}</td>
-                <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{row.count.toLocaleString()}</td>
-                <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
-                  {events.length > 0 ? `${((row.count / events.length) * 100).toFixed(1)}%` : '—'}
+                  {total > 0 ? `${((row.count / total) * 100).toFixed(1)}%` : '—'}
                 </td>
               </tr>
             ))}

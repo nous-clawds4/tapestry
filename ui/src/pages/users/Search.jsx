@@ -100,6 +100,27 @@ function UserPreviewCard({ pubkey, searchHit }) {
               {about.length > 150 ? about.slice(0, 150) + '…' : about}
             </div>
           )}
+          {/* WoT scores */}
+          {(searchHit?.wot_rank != null || searchHit?.wot_followers != null) && (
+            <div style={{ display: 'flex', gap: '1rem', marginTop: '0.35rem', fontSize: '0.75rem' }}>
+              {searchHit.wot_rank != null && (
+                <span style={{
+                  padding: '0.1rem 0.5rem', borderRadius: '4px',
+                  backgroundColor: 'rgba(88, 166, 255, 0.12)', color: '#58a6ff',
+                }}>
+                  🏅 rank: {searchHit.wot_rank}
+                </span>
+              )}
+              {searchHit.wot_followers != null && (
+                <span style={{
+                  padding: '0.1rem 0.5rem', borderRadius: '4px',
+                  backgroundColor: 'rgba(63, 185, 80, 0.12)', color: '#3fb950',
+                }}>
+                  👥 followers: {searchHit.wot_followers}
+                </span>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -108,7 +129,7 @@ function UserPreviewCard({ pubkey, searchHit }) {
 
 function MeiliStatusPanel({ sectionStyle }) {
   const [stats, setStats] = useState(null);
-  const [resyncStatus, setResyncStatus] = useState(null);
+  const [bulkStatus, setBulkStatus] = useState(null);
   const [loading, setLoading] = useState(false);
 
   const fetchStats = useCallback(async () => {
@@ -119,28 +140,36 @@ function MeiliStatusPanel({ sectionStyle }) {
     } catch { /* ignore */ }
   }, []);
 
+  const fetchBulkStatus = useCallback(async () => {
+    try {
+      const resp = await fetch('/api/search/profiles/meili/bulk-status');
+      const data = await resp.json();
+      setBulkStatus(data);
+    } catch { /* ignore */ }
+  }, []);
+
   useEffect(() => {
     fetchStats();
-    const interval = setInterval(fetchStats, 15000);
+    fetchBulkStatus();
+    const interval = setInterval(() => {
+      fetchStats();
+      fetchBulkStatus();
+    }, 5000);
     return () => clearInterval(interval);
-  }, [fetchStats]);
+  }, [fetchStats, fetchBulkStatus]);
 
   const triggerResync = useCallback(async () => {
     setLoading(true);
-    setResyncStatus(null);
     try {
-      const resp = await fetch('/api/search/profiles/meili/resync', { method: 'POST' });
-      const data = await resp.json();
-      setResyncStatus(data.status === 'resync_started' ? '🔄 Resync started — profiles will update shortly.' : data.status === 'already_syncing' ? '⏳ Already syncing...' : JSON.stringify(data));
-      // Refresh stats after a delay
+      await fetch('/api/search/profiles/meili/resync', { method: 'POST' });
+      // Poll status more frequently while running
+      setTimeout(fetchBulkStatus, 2000);
       setTimeout(fetchStats, 5000);
-      setTimeout(fetchStats, 15000);
-    } catch (err) {
-      setResyncStatus(`❌ ${err.message}`);
-    } finally {
-      setLoading(false);
-    }
-  }, [fetchStats]);
+    } catch { /* ignore */ }
+    finally { setLoading(false); }
+  }, [fetchStats, fetchBulkStatus]);
+
+  const isBulkRunning = bulkStatus?.status === 'fetching' || bulkStatus?.status === 'indexing';
 
   return (
     <div style={{ ...sectionStyle, opacity: 0.7 }}>
@@ -151,26 +180,35 @@ function MeiliStatusPanel({ sectionStyle }) {
         <button
           className="btn"
           onClick={triggerResync}
-          disabled={loading}
+          disabled={loading || isBulkRunning}
           style={{ fontSize: '0.75rem', padding: '0.25rem 0.75rem' }}
         >
-          {loading ? '⏳' : '🔄'} Resync from strfry
+          {isBulkRunning ? '⏳ Indexing...' : '🔄'} Load profiles from strfry
         </button>
       </div>
       {stats && (
         <div style={{ fontSize: '0.8rem', display: 'flex', gap: '1.5rem', flexWrap: 'wrap' }}>
           <span>📊 <strong>{(stats.numberOfDocuments || 0).toLocaleString()}</strong> profiles indexed</span>
           {stats.ingest && (
-            <>
-              <span>{stats.ingest.connected ? '🟢' : '🔴'} Relay: {stats.ingest.connected ? 'connected' : 'disconnected'}</span>
-              <span>👁️ {(stats.ingest.profilesSeen || 0).toLocaleString()} seen</span>
-            </>
+            <span>{stats.ingest.connected ? '🟢' : '🔴'} Live relay: {stats.ingest.connected ? 'connected' : 'disconnected'}</span>
           )}
         </div>
       )}
-      {resyncStatus && (
-        <div style={{ fontSize: '0.8rem', marginTop: '0.5rem' }}>
-          {resyncStatus}
+      {isBulkRunning && (
+        <div style={{ fontSize: '0.8rem', marginTop: '0.5rem', color: '#58a6ff' }}>
+          🔄 Bulk indexing: {(bulkStatus.indexed || 0).toLocaleString()} indexed / {(bulkStatus.processed || 0).toLocaleString()} processed
+          {bulkStatus.status === 'fetching' && ' (streaming from strfry...)'}
+        </div>
+      )}
+      {bulkStatus?.status === 'complete' && bulkStatus.finishedAt && (
+        <div style={{ fontSize: '0.8rem', marginTop: '0.5rem', color: '#3fb950' }}>
+          ✅ Last bulk index: {(bulkStatus.indexed || 0).toLocaleString()} profiles
+          ({((bulkStatus.finishedAt - bulkStatus.startedAt) / 1000).toFixed(1)}s)
+        </div>
+      )}
+      {bulkStatus?.status === 'error' && (
+        <div style={{ fontSize: '0.8rem', marginTop: '0.5rem', color: '#f85149' }}>
+          ❌ Bulk index error: {bulkStatus.error}
         </div>
       )}
     </div>
@@ -225,7 +263,7 @@ export default function UserSearch() {
     setKeywordLoading(true);
 
     try {
-      const resp = await fetch(`/api/search/profiles/meili?q=${encodeURIComponent(q)}&limit=20`);
+      const resp = await fetch(`/api/search/profiles/meili?q=${encodeURIComponent(q)}&limit=100`);
       const data = await resp.json();
 
       if (!resp.ok || data.success === false) {

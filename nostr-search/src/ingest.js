@@ -56,7 +56,7 @@ async function flushBatch() {
   if (batch.length === 0) return;
   const docs = batch.splice(0);
   try {
-    await meili.index(INDEX_NAME).addDocuments(docs, { primaryKey: 'id' });
+    await meili.index(INDEX_NAME).updateDocuments(docs, { primaryKey: 'id' });
     totalIndexed += docs.length;
     console.log(`[meili] Indexed batch of ${docs.length} | Total: ${totalIndexed}`);
   } catch (err) {

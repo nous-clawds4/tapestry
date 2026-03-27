@@ -26,8 +26,12 @@ async function main() {
     const ingestModule = await import('./ingest.js');
     console.log('[startup] Live ingester started');
 
-    // Wire the ingest module into the search API (for /api/resync and /api/stats)
+    const bulkIngestModule = await import('./bulk-ingest.js');
+    console.log('[startup] Bulk ingest module loaded');
+
+    // Wire modules into the search API
     searchModule.setIngestModule(ingestModule);
+    searchModule.setBulkIngestModule(bulkIngestModule);
   } else {
     console.log('[startup] Live ingestion disabled (SYNC_ON_START=false)');
   }

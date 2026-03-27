@@ -40,6 +40,7 @@ import TrustedListsIndex from './pages/trustedLists/Index';
 import TrustedAssertions from './pages/grapevine/TrustedAssertions';
 import TrustedAssertionsList from './pages/grapevine/TrustedAssertionsList';
 import TrustDetermination from './pages/grapevine/TrustDetermination';
+import SearchPreferences from './pages/grapevine/SearchPreferences';
 import TrustedLists from './pages/grapevine/TrustedLists';
 import TrustedListDetail from './pages/grapevine/TrustedListDetail';
 import UsersIndex from './pages/users/Index';
@@ -189,6 +190,7 @@ const router = createBrowserRouter([
           { path: 'trust-determination', element: <TrustDetermination />, handle: { crumb: 'Trust Determination' } },
           { path: 'trusted-lists', element: <TrustedLists />, handle: { crumb: 'Trusted Lists' } },
           { path: 'trusted-lists/:dTag', element: <TrustedListDetail />, handle: { crumb: 'Detail' } },
+          { path: 'search-preferences', element: <SearchPreferences />, handle: { crumb: 'Search Preferences' } },
         ],
       },
       {

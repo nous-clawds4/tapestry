@@ -31,7 +31,7 @@ const { handleGetGrapevineInteraction } = require('./grapevineInteractions/queri
 const { handleOldSearchProfiles, handleOldSearchProfilesStream } = require('./search/profiles');
 const { handleKeywordSearchProfiles } = require('./search/profiles/keyword');
 const { handlePrecomputeWhitelistMaps, handlePrecomputeWhitelistStatus } = require('./search/profiles/whitelistPrecompute');
-const { handleMeiliSearchProfiles, handleMeiliSearchStats, handleMeiliResync } = require('./search/profiles/meili');
+const { handleMeiliSearchProfiles, handleMeiliSearchStats, handleMeiliResync, handleMeiliBulkStatus, handleMeiliLoadScores } = require('./search/profiles/meili');
 const { handleGetRecentlyActivePubkeys } = require('./content/queries/recentlyActivePubkeys');
 const getTaskDashboardState = require('./taskDashboard/getTaskDashboardState');
 const getTaskExplorerData = require('./taskExplorer/getTaskExplorerData');
@@ -78,6 +78,7 @@ const { handleFetchProfiles } = require('./profiles/fetchProfiles.js');
 const { handleFetchExternalReactions } = require('./reactions/fetchReactions.js');
 const { handleFetchExternalEvents } = require('./relay/fetchEvents.js');
 const { requireOwner, handleGetSettings, handleGetDefaults, handleGetOverrides, handleUpdateSettings, handleResetSetting } = require('./settings/settingsApi.js');
+const { handleGetGrapevinePreferences, handleUpdateGrapevinePreferences } = require('./settings/grapevinePrefApi.js');
 
 // Import utilities
 const { getConfigFromFile } = require('../utils/config');
@@ -252,7 +253,8 @@ async function register(app) {
     
     // Strfry plugin endpoints - with clearer separation of concerns
     app.get('/api/strfry/scan', strfry.handleStrfryScan);  // Scan events from strfry (public)
-    app.get('/api/strfry/scan', strfry.handleStrfryScan);  // Scan strfry events by filter (public)
+    app.get('/api/strfry/scan/stream', strfry.handleStrfryScanStream);  // Streaming scan (JSONL, no buffer limit)
+    app.get('/api/strfry/scan/count', strfry.handleStrfryScanCount);   // Count only (no memory issues)
     app.post('/api/strfry/publish', strfry.handlePublishEvent);  // Sign and publish events to strfry
     app.get('/api/get-strfry-filteredContent', strfry.handleGetFilteredContentStatus);  // Status query (public)
     app.post('/api/toggle-strfry-filteredContent', strfry.handleToggleStrfryPlugin);  // Toggle command (owner only)
@@ -301,6 +303,8 @@ async function register(app) {
     app.get('/api/relay/external', handleFetchExternalEvents);
 
     // Settings endpoints (owner-only except GET merged)
+    app.get('/api/grapevine/preferences', handleGetGrapevinePreferences);
+    app.put('/api/grapevine/preferences', handleUpdateGrapevinePreferences);
     app.get('/api/settings', requireOwner, handleGetSettings);
     app.get('/api/settings/defaults', requireOwner, handleGetDefaults);
     app.get('/api/settings/overrides', requireOwner, handleGetOverrides);
@@ -325,6 +329,8 @@ async function register(app) {
     app.get('/api/search/profiles/meili', handleMeiliSearchProfiles);
     app.get('/api/search/profiles/meili/stats', handleMeiliSearchStats);
     app.post('/api/search/profiles/meili/resync', handleMeiliResync);
+    app.get('/api/search/profiles/meili/bulk-status', handleMeiliBulkStatus);
+    app.post('/api/search/profiles/meili/load-scores', handleMeiliLoadScores);
 
     // Get Customers endpoint
     app.get('/api/get-customers', customers.handleGetCustomers);
