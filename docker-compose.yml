@@ -18,6 +18,8 @@ services:
       - tapestry-strfry:/var/lib/strfry
       - tapestry-data:/var/lib/brainstorm
       - tapestry-logs:/var/log/brainstorm
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     restart: unless-stopped
 
   # --- Nostr Search (Meilisearch-powered profile search) ---
