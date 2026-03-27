@@ -10,4 +10,4 @@ COPY public/ public/
 
 EXPOSE 3069
 
-CMD ["node", "src/search.js"]
+CMD ["node", "src/startup.js"]
