@@ -1,0 +1,16 @@
+{
+  "name": "nostr-search",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "ingest": "node src/ingest.js",
+    "serve": "node src/search.js",
+    "start": "bash start.sh"
+  },
+  "dependencies": {
+    "express": "^4.21.0",
+    "meilisearch": "^0.44.0",
+    "nostr-tools": "^2.10.0",
+    "ws": "^8.18.0"
+  }
+}

@@ -1,0 +1,49 @@
+##
+## Nostr Search — Profile search engine for Tapestry
+##
+## Usage (standalone):
+##   docker compose up -d
+##   bash sync.sh
+##   open http://localhost:3069
+##
+## Usage (integrated with Tapestry):
+##   Copy the meilisearch + nostr-search-api services into Tapestry's docker-compose.yml
+##   Run sync.sh after Tapestry is up to populate the index
+##
+
+services:
+  meilisearch:
+    image: getmeili/meilisearch:v1.12
+    container_name: nostr-search-meili
+    ports:
+      - "${MEILI_PORT:-7700}:7700"
+    volumes:
+      - meili_data:/meili_data
+    environment:
+      - MEILI_ENV=${MEILI_ENV:-development}
+      - MEILI_MASTER_KEY=${MEILI_MASTER_KEY:-}
+      - MEILI_NO_ANALYTICS=true
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:7700/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: nostr-search-api
+    ports:
+      - "${API_PORT:-3069}:3069"
+    environment:
+      - MEILI_URL=http://meilisearch:7700
+      - PORT=3069
+    depends_on:
+      meilisearch:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  meili_data:
