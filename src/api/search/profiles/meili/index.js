@@ -6,7 +6,10 @@
  * Returns sub-10ms full-text search across 750K+ kind 0 profiles with typo tolerance.
  */
 
-const NOSTR_SEARCH_URL = process.env.NOSTR_SEARCH_URL || 'http://nostr-search-api:3069';
+// When running in Docker on macOS, nostr-search-api lives on the host network.
+// host.docker.internal resolves to the Docker host from inside any container.
+// Override via NOSTR_SEARCH_URL env var if needed (e.g., when on the same Docker network).
+const NOSTR_SEARCH_URL = process.env.NOSTR_SEARCH_URL || 'http://host.docker.internal:3069';
 
 async function handleMeiliSearchProfiles(req, res) {
   const { q, limit = 20, offset = 0 } = req.query;

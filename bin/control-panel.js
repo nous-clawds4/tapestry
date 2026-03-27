@@ -221,6 +221,12 @@ app.use(authMiddleware);
   await api.register(app);
   console.log('API routes registered');
 
+  // SPA catch-all: any /kg/* route that didn't match a static file or API endpoint
+  // gets served the React app's index.html so client-side routing works on refresh.
+  app.get('/kg/*', (req, res) => {
+    res.sendFile(path.join(__dirname, '../public/kg/index.html'));
+  });
+
   if (useHTTPS) {
     console.log('Starting in HTTPS mode with credentials:', {
       keyLength: credentials.key.length,
