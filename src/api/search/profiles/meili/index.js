@@ -72,7 +72,25 @@ async function handleMeiliSearchStats(req, res) {
   }
 }
 
+/**
+ * Trigger re-ingestion of kind 0 profiles from strfry into Meilisearch.
+ * Call after running negentropy sync to pick up new profiles.
+ */
+async function handleMeiliResync(req, res) {
+  try {
+    const response = await fetch(`${NOSTR_SEARCH_URL}/api/resync`, { method: 'POST' });
+    if (!response.ok) {
+      return res.status(502).json({ success: false, error: 'Search service unavailable' });
+    }
+    const data = await response.json();
+    return res.json({ success: true, ...data });
+  } catch (err) {
+    return res.status(503).json({ success: false, error: err.message });
+  }
+}
+
 module.exports = {
   handleMeiliSearchProfiles,
   handleMeiliSearchStats,
+  handleMeiliResync,
 };

@@ -11,6 +11,12 @@ const INDEX_NAME = 'profiles';
 const meili = new MeiliSearch({ host: MEILI_URL });
 const app = express();
 
+// Will be set by startup.js after ingest module loads
+let ingestModule = null;
+export function setIngestModule(mod) {
+  ingestModule = mod;
+}
+
 app.use(express.static(join(__dirname, '..', 'public')));
 
 app.get('/api/search', async (req, res) => {
@@ -32,13 +38,28 @@ app.get('/api/search', async (req, res) => {
 
 app.get('/api/stats', async (_req, res) => {
   try {
-    const stats = await meili.index(INDEX_NAME).getStats();
-    res.json(stats);
+    const meiliStats = await meili.index(INDEX_NAME).getStats();
+    const ingestStats = ingestModule ? ingestModule.getIngestStats() : null;
+    res.json({ ...meiliStats, ingest: ingestStats });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
+/**
+ * POST /api/resync — trigger re-ingestion from strfry.
+ * Reconnects to the relay and re-fetches all kind 0 events.
+ */
+app.post('/api/resync', (req, res) => {
+  if (!ingestModule) {
+    return res.status(503).json({ error: 'Ingester not available' });
+  }
+  const result = ingestModule.resync();
+  res.json(result);
+});
+
 app.listen(PORT, () => {
   console.log(`[api] Listening on http://localhost:${PORT}`);
 });
+
+export { app };

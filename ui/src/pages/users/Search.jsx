@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Breadcrumbs from '../../components/Breadcrumbs';
 import useProfiles from '../../hooks/useProfiles';
@@ -102,6 +102,77 @@ function UserPreviewCard({ pubkey, searchHit }) {
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+function MeiliStatusPanel({ sectionStyle }) {
+  const [stats, setStats] = useState(null);
+  const [resyncStatus, setResyncStatus] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  const fetchStats = useCallback(async () => {
+    try {
+      const resp = await fetch('/api/search/profiles/meili/stats');
+      const data = await resp.json();
+      if (data.success !== false) setStats(data);
+    } catch { /* ignore */ }
+  }, []);
+
+  useEffect(() => {
+    fetchStats();
+    const interval = setInterval(fetchStats, 15000);
+    return () => clearInterval(interval);
+  }, [fetchStats]);
+
+  const triggerResync = useCallback(async () => {
+    setLoading(true);
+    setResyncStatus(null);
+    try {
+      const resp = await fetch('/api/search/profiles/meili/resync', { method: 'POST' });
+      const data = await resp.json();
+      setResyncStatus(data.status === 'resync_started' ? '🔄 Resync started — profiles will update shortly.' : data.status === 'already_syncing' ? '⏳ Already syncing...' : JSON.stringify(data));
+      // Refresh stats after a delay
+      setTimeout(fetchStats, 5000);
+      setTimeout(fetchStats, 15000);
+    } catch (err) {
+      setResyncStatus(`❌ ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
+  }, [fetchStats]);
+
+  return (
+    <div style={{ ...sectionStyle, opacity: 0.7 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+        <label style={{ fontWeight: 600, fontSize: '0.85rem' }}>
+          Search Index Status
+        </label>
+        <button
+          className="btn"
+          onClick={triggerResync}
+          disabled={loading}
+          style={{ fontSize: '0.75rem', padding: '0.25rem 0.75rem' }}
+        >
+          {loading ? '⏳' : '🔄'} Resync from strfry
+        </button>
+      </div>
+      {stats && (
+        <div style={{ fontSize: '0.8rem', display: 'flex', gap: '1.5rem', flexWrap: 'wrap' }}>
+          <span>📊 <strong>{(stats.numberOfDocuments || 0).toLocaleString()}</strong> profiles indexed</span>
+          {stats.ingest && (
+            <>
+              <span>{stats.ingest.connected ? '🟢' : '🔴'} Relay: {stats.ingest.connected ? 'connected' : 'disconnected'}</span>
+              <span>👁️ {(stats.ingest.profilesSeen || 0).toLocaleString()} seen</span>
+            </>
+          )}
+        </div>
+      )}
+      {resyncStatus && (
+        <div style={{ fontSize: '0.8rem', marginTop: '0.5rem' }}>
+          {resyncStatus}
+        </div>
+      )}
     </div>
   );
 }
@@ -291,6 +362,9 @@ export default function UserSearch() {
           <UserPreviewCard pubkey={foundPubkey} />
         </div>
       )}
+
+      {/* Meilisearch Index Status */}
+      <MeiliStatusPanel sectionStyle={sectionStyle} />
 
       {/* Keyword search results */}
       {keywordResults && (

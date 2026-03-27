@@ -15,6 +15,8 @@ const seen = new Map();
 let batch = [];
 let totalIndexed = 0;
 let flushTimer = null;
+let activeWs = null;
+let syncing = false;
 
 async function configureIndex() {
   const index = meili.index(INDEX_NAME);
@@ -114,6 +116,10 @@ function processEvent(event) {
   }
 }
 
+/**
+ * Connect to the relay and subscribe to kind 0 events.
+ * Stays connected for live updates after initial EOSE.
+ */
 function connect() {
   console.log(`[relay] Connecting to ${RELAY_URL}...`);
   const ws = new WebSocket(RELAY_URL);
@@ -122,6 +128,7 @@ function connect() {
   ws.on('open', () => {
     console.log('[relay] Connected');
     backoff = 1000;
+    activeWs = ws;
 
     // Subscribe to all kind 0 events
     const sub = ['REQ', 'profiles', { kinds: [0] }];
@@ -137,6 +144,7 @@ function connect() {
       } else if (msg[0] === 'EOSE') {
         console.log(`[relay] EOSE received. Profiles seen: ${seen.size}`);
         flushBatch(); // flush remaining after initial dump
+        syncing = false;
       }
     } catch {
       // ignore parse errors
@@ -145,6 +153,7 @@ function connect() {
 
   ws.on('close', () => {
     console.log(`[relay] Disconnected. Reconnecting in ${backoff}ms...`);
+    activeWs = null;
     setTimeout(() => {
       backoff = Math.min(backoff * 2, 30000);
       connect();
@@ -155,6 +164,45 @@ function connect() {
     console.error('[relay] Error:', err.message);
     ws.close();
   });
+}
+
+/**
+ * Trigger a resync: close the existing connection and reconnect.
+ * This re-issues the REQ subscription, causing strfry to re-send
+ * all kind 0 events (including any added since last EOSE).
+ * Returns a status object.
+ */
+export function resync() {
+  if (syncing) {
+    return { status: 'already_syncing', profilesSeen: seen.size, totalIndexed };
+  }
+
+  syncing = true;
+  const beforeCount = seen.size;
+
+  // Close existing connection — the reconnect handler will re-subscribe
+  if (activeWs) {
+    console.log('[resync] Closing existing connection to trigger re-subscribe...');
+    activeWs.close();
+  } else {
+    console.log('[resync] No active connection — connecting...');
+    connect();
+  }
+
+  return { status: 'resync_started', profilesBefore: beforeCount, totalIndexed };
+}
+
+/**
+ * Get current ingestion stats.
+ */
+export function getIngestStats() {
+  return {
+    profilesSeen: seen.size,
+    totalIndexed,
+    connected: activeWs !== null && activeWs.readyState === WebSocket.OPEN,
+    syncing,
+    relayUrl: RELAY_URL,
+  };
 }
 
 async function main() {
