@@ -1,6 +1,6 @@
 {
-    "version": "0.0.2",
-    "date": "2026-03-10",
+    "version": "1.0.0",
+    "date": "2026-03-28",
     "description": "Initial tapestry firmware \u2014 foundational meta-concepts for the tapestry protocol.",
     "concepts": [
         {
@@ -279,13 +279,25 @@
             "existing-nodes": [
                 {
                     "concept": "dog",
-                    "source-path": "dogBreed.slug",
+                    "source-path": "dogBreed.oKeys.singular",
                     "destination-path": "dog.breed"
                 }
             ]
         }
     },
     "elements": {
+        "dog-breeds": {
+            "existing-nodes": [
+                {
+                    "concept": "irish-setter",
+                    "core-node-type": "concept-header"
+                },
+                {
+                    "concept": "golden-retriever",
+                    "core-node-type": "concept-header"
+                }
+            ]
+        },
         "json-data-types": {
             "existing-nodes": []
         },
@@ -432,13 +444,16 @@
     },
     "changelog": [
         {
-            "version": "0.0.2",
-            "date": "2026-03-10",
+            "version": "1.0.0",
+            "date": "2026-03-28",
             "changes": [
                 "Migrate unique constraint from bare property to x-tapestry.unique on all concept JSON Schemas",
                 "Add nostr-user concept (pubkey, npub, nprofile)",
                 "Add nostr-relay concept (slug, websocketUrl, httpUrl)",
-                "Restructure firmware: move elements and sets under their concept directories"
+                "Restructure firmware: move elements and sets under their concept directories",
+                "Add dog and dog-breed concepts with biconditional ENUMERATES → JSON Schema conditionals",
+                "Add rover element as first dog element with breed ↔ wordTypes enforcement",
+                "Rename firmware from v0.0.2 to v1.0.0"
             ]
         }
     ],

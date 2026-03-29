@@ -1,0 +1,54 @@
+{
+    "word": {
+        "slug": "json-schema-for-the-concept-of-golden-retrievers",
+        "title": "JSON Schema for the Concept of Golden Retrievers",
+        "name": "JSON Schema for the concept of golden retrievers",
+        "description": "",
+        "wordTypes": [
+            "word",
+            "jsonSchema"
+        ],
+        "coreMemberOf": [
+            {
+                "slug": "concept-header-for-the-concept-of-golden-retrievers",
+                "uuid": "<uuid>"
+            }
+        ]
+    },
+    "jsonSchema": {
+        "name": "golden retriever",
+        "title": "Golden Retriever",
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "definitions": {},
+        "type": "object",
+        "required": [
+            "goldenRetriever"
+        ],
+        "properties": {
+            "goldenRetriever": {
+                "type": "object",
+                "name": "golden retriever",
+                "title": "Golden Retriever",
+                "slug": "golden-retriever",
+                "description": "Metadata about this golden retriever node",
+                "required": [
+                    "slug"
+                ],
+                "properties": {
+                    "slug": {
+                        "type": "string",
+                        "name": "slug",
+                        "title": "Slug",
+                        "slug": "slug",
+                        "description": "Unique identifier for this golden retriever"
+                    }
+                },
+                "x-tapestry": {
+                    "unique": [
+                        "slug"
+                    ]
+                }
+            }
+        }
+    }
+}
