@@ -45,12 +45,20 @@ app.get('/api/search', async (req, res) => {
       }
     }
 
+    // Check if WoT attributes are actually filterable before using them
+    let wotAvailable = false;
+    try {
+      const currentSettings = await meili.index(INDEX_NAME).getSettings();
+      const filterable = new Set(currentSettings.filterableAttributes || []);
+      wotAvailable = filterable.has('wot_followers');
+    } catch { /* assume not available */ }
+
     // Two-phase search: scored results first (sorted by followers), then unscored backfill
     let result;
-    if (wotFilter === 'false') {
-      // Explicitly no WoT filtering
+    if (wotFilter === 'false' || !wotAvailable) {
+      // No WoT filtering — either explicitly disabled or WoT scores not loaded
       result = await meili.index(INDEX_NAME).search(q.trim(), {
-        limit: maxLimit, offset: parsedOffset, sort: sortRules,
+        limit: maxLimit, offset: parsedOffset,
       });
     } else {
       // Phase 1: search WoT-scored profiles with filters applied
