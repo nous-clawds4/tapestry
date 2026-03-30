@@ -3,7 +3,7 @@
 > **Audience:** AI agents and developers joining the Tapestry project.
 > Read this file to fully onboard — it covers what Tapestry is, how it works, what's been built, what's in progress, and how to contribute.
 
-**Last updated:** 2026-03-10
+**Last updated:** 2026-03-29
 
 ---
 
@@ -81,7 +81,7 @@ Tapestry is being built under **NosFabrica**, a company focused on sovereign hea
 
 ```
 ┌─────────────────────────────────────────────────┐
-│                Docker Container                  │
+│              tapestry container                  │
 │                                                  │
 │  ┌──────────┐  ┌──────────┐  ┌──────────────┐  │
 │  │  strfry   │  │  Neo4j   │  │   Express    │  │
@@ -99,6 +99,17 @@ Tapestry is being built under **NosFabrica**, a company focused on sovereign hea
 └───────────────────────┼──────────────────────────┘
                         │
                    Port 8080 (host)
+
+┌────────────────────────┐   ┌────────────────────────┐
+│  nostr-search-api      │   │  nostr-search-meili    │
+│  (Express, :3069)      │──→│  (Meilisearch, :7700)  │
+│  Live ingestion +      │   │  Full-text search index │
+│  search proxy          │   │  2M+ profiles          │
+└────────┬───────────────┘   └────────────────────────┘
+         │
+         │ WebSocket (kind 0 events)
+         ↓
+    tapestry:80/relay (strfry)
 ```
 
 ### Services
@@ -107,9 +118,11 @@ Tapestry is being built under **NosFabrica**, a company focused on sovereign hea
 |---------|------|------|
 | **strfry** | 7777 (internal WS) | High-performance C++ nostr relay. Local event store — source of truth for raw nostr events. |
 | **Neo4j** | 7474 (HTTP), 7687 (Bolt) | Graph database. Turns flat events into a navigable concept graph with labeled nodes and typed relationships. |
-| **Express** | 80 (internal) → 8080 (host) | REST API server. Serves the React UI at `/kg/`, provides all API endpoints. |
+| **Express** | 80 (internal) → 8080 (host) | REST API server. Serves the React UI at `/kg/`, provides all API endpoints. Proxies search requests to nostr-search-api. |
 | **nginx** | 80 (internal) | Reverse proxy routing `/api/*` to Express, WebSocket to strfry, etc. |
 | **supervisord** | — | Process manager inside the container. Controls all services. |
+| **nostr-search-api** | 3069 | Search API server. Connects to strfry via WebSocket for live kind 0 ingestion, proxies search queries to Meilisearch, handles WoT score loading. |
+| **nostr-search-meili** | 7700 | Meilisearch instance. Full-text search index for nostr profiles. Searchable by name, NIP-05, bio, website, Lightning address. |
 
 ### Docker Volumes
 
@@ -119,15 +132,22 @@ Tapestry is being built under **NosFabrica**, a company focused on sovereign hea
 | `tapestry-strfry` | `/var/lib/strfry` | strfry LMDB event store |
 | `tapestry-data` | `/var/lib/brainstorm` | App data + user settings |
 | `tapestry-logs` | `/var/log/brainstorm` | Logs |
+| `nostr-search-meili` | `/meili_data` | Meilisearch index data |
 
 ### Data Flow
 
 ```
-External relays ──strfry sync──→ strfry (local) ──import──→ Neo4j (graph)
-                                      ↑                         ↑
-                                Express API ←──── React UI (browser)
-                                      ↑
-                                  NIP-07 signing (nos2x / Alby)
+External relays ──strfry router──→ strfry (local) ──import──→ Neo4j (graph)
+                                       ↑                         ↑
+                                 Express API ←──── React UI (browser)
+                                       ↑
+                                   NIP-07 signing (nos2x / Alby)
+
+Profile search pipeline:
+External relays ──strfry router──→ strfry ──WebSocket──→ nostr-search-api ──→ Meilisearch
+  (userProfiles preset)          (kind 0)   (live ingest)    (index)         (full-text search)
+                                                                                    ↑
+                                                              Express proxy ←── React UI
 ```
 
 1. **Sync**: `strfry sync` pulls events from external relays
@@ -560,6 +580,23 @@ Base URL: `http://localhost:8080`
 |--------|----------|-------------|
 | GET | `/api/profiles?pubkeys=<csv>` | Fetch kind:0 profiles from external relays (cached) |
 
+### Search (Meilisearch)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/search/profiles/meili?q=<query>&limit=<n>&offset=<n>` | Full-text profile search. WoT-filtered if scores are loaded. |
+| GET | `/api/search/profiles/meili/stats` | Index stats: document count, live relay status, profile freshness buckets |
+| POST | `/api/search/profiles/meili/resync` | Trigger live ingester resync (clears dedup map, reconnects to relay) |
+| GET | `/api/search/profiles/meili/bulk-status` | Status of bulk re-indexing from strfry |
+| POST | `/api/search/profiles/meili/load-scores` | Batch-upsert WoT scores into profiles index |
+
+### Grapevine / Search Preferences
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/grapevine/preferences` | Get search preferences (POV pubkey, metrics, filters, sort) |
+| PUT | `/api/grapevine/preferences` | Save search preferences |
+
 ---
 
 ## 12. CLI Reference (tapestry-cli)
@@ -671,7 +708,10 @@ tapestry config                    # Show current config
 ├── events/                       Event browser
 │   └── dlist-items/:id/          DList item detail
 ├── users/                        Nostr user directory
+│   ├── search                    Profile search (Meilisearch, search-as-you-type)
 │   └── :pubkey                   User profile
+├── grapevine/
+│   └── search-preferences        WoT search config (POV, metrics, filters, score loading)
 ├── relationships/                Relationship browser
 ├── trusted-lists/                Trusted lists
 ├── manage/                       Management tools
@@ -722,6 +762,17 @@ tapestry config                    # Show current config
 | `NEO4J_PASSWORD` | ✅ | Neo4j database password |
 | `DOMAIN_NAME` | No | Domain name (default: `localhost`) |
 
+### nostr-search-api Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `MEILI_URL` | `http://nostr-search-meili:7700` | Meilisearch URL |
+| `RELAY_URL` | `ws://tapestry:80/relay` | strfry relay WebSocket URL for live ingestion |
+| `TAPESTRY_URL` | `http://tapestry:80` | Tapestry API URL for bulk ingest streaming |
+| `PORT` | `3069` | API listen port |
+| `SYNC_ON_START` | `true` | Set to `false` to disable auto-ingestion on startup |
+| `REINGEST_INTERVAL_HOURS` | `24` | Hours between automatic bulk re-ingestion (0 to disable) |
+
 ### Two-Layer Settings
 
 ```
@@ -744,7 +795,16 @@ Each instance has a server-side nostr identity (the "TA") used for automated act
 
 ### Router Presets
 
-Strfry sync streams are configured in `setup/router-presets.json`. All streams default to disabled. Toggle via `POST /api/strfry/router-toggle`.
+Strfry sync streams are configured in `setup/router-presets.json`. All streams default to disabled. Toggle via `POST /api/strfry/router-toggle` or the UI at `/kg/settings/relays`.
+
+| Preset | Direction | Kinds | Relays | Purpose |
+|--------|-----------|-------|--------|---------|
+| `dcosl` | both | 9998, 9999, 39998, 39999 | dcosl.brainstorm.world, dcosl.brainstorm.social | DCoSL list events |
+| `dcosl2` | down | 9998, 9999, 39998, 39999 | relay.damus.io | General-purpose relay DCoSL data |
+| `userProfiles` | down | 0 | wot.grapevine.network, profiles.nostr1.com, purplepag.es | Continuous kind 0 profile sync for search |
+| `trustedLists` | both | 30392–30395 | nip85.brainstorm.world, nip85.nostr1.com, nip85.grapevine.network | NIP-85 trusted list events |
+
+> **Important:** Enable the `userProfiles` preset to keep the Meilisearch profile index up to date. Without it, only profiles already in strfry will be searchable.
 
 ---
 
@@ -839,6 +899,13 @@ docker compose exec tapestry strfry sync wss://dcosl.brainstorm.world \
 - ✅ Strfry router with presets and toggle
 - ✅ Word-wrapper JSON format for all node types
 - ✅ Getting Started onboarding checklist on Dashboard
+- ✅ Responsive mobile layout with collapsible sidebar
+- ✅ Meilisearch profile search (nostr-search-api + nostr-search-meili containers)
+- ✅ Search page with search-as-you-type, pagination, profile cards with banners/age/website/Lightning
+- ✅ WoT-enhanced search with filters, sort, and score loading from Search Preferences
+- ✅ Profile freshness pipeline: live ingestion, scheduled 24h bulk re-ingestion, retry logic
+- ✅ `userProfiles` router preset for continuous kind 0 sync from profile-aggregating relays
+- ✅ Firmware v1.0.0 with biconditional ENUMERATES schema conditionals
 
 ### CLI (tapestry-cli repo)
 
@@ -855,11 +922,9 @@ docker compose exec tapestry strfry sync wss://dcosl.brainstorm.world \
 
 ## 17. What's In Progress
 
-- **DList import flow** — just completed (3 import modes from Simple Lists page)
 - **JSON validation** — audit validates core node JSON against firmware schemas; element validation against concept schemas exists but needs polish
-- **Visualization tab** — two views implemented:
-  - **Organization (Sets):** vis-network graph of class threads (Header → Superset → Sets → Elements). Toggle implicit HAS_ELEMENT edges on/off. Wind affects sets only (mass differentiation).
-  - **Property Tree:** vis-network graph of property tree (JSON Schema → Primary Property → properties). Wind blows left to spread the tree horizontally.
+- **Profile search polish** — freshness stats in status panel (requires `created_at` filterable attribute to be populated on existing indexes)
+- **Meilisearch scalability** — at 2M+ profiles on a 2-vCPU machine, indexing can saturate CPU; may need tuning for production
 
 ---
 
@@ -868,14 +933,13 @@ docker compose exec tapestry strfry sync wss://dcosl.brainstorm.world \
 ### Near-Term
 
 - [ ] **Element JSON validation against concept schemas** — full validation pipeline in the audit
-- [x] **Concept Graph visualization** — vis-network rendering of class threads and property trees (both views implemented)
 - [ ] **Pruning UI** — standalone pruning buttons exist on Health Audit; consider auto-prune after firmware install
-- [ ] **GrapeRank integration** — trust scores for WoT-weighted curation
 - [ ] **Loose consensus demonstration** — show how two users' WoTs converge on shared definitions
 - [ ] **IMPORT/SUPERCEDES UI** — buttons to import or supercede another user's concept
 - [ ] **Continuous normalization monitoring** — run checks on heartbeat/cron, alert on violations
 - [ ] **Multi-user support** — different views based on trust scores
 - [ ] **Client-side signing flow** — server returns unsigned event templates, client signs via NIP-07, posts back
+- [ ] **Search for concepts/elements/properties** — extend Meilisearch to index concept graph data, not just profiles
 
 ### Medium-Term
 
@@ -883,11 +947,10 @@ docker compose exec tapestry strfry sync wss://dcosl.brainstorm.world \
 - [ ] **NIP-85 trusted assertions** — publish curated lists as NIP-85 events
 - [ ] **Cross-instance federation** — multiple Tapestry instances syncing and discovering each other's concept graphs
 - [ ] **SALUD protocol integration** — health data structured via tapestry concepts
-- [ ] **Search** — full-text search across concepts, elements, properties
+- [ ] **GrapeRank integration** — full PageRank-style trust scoring applied to concept curation
 
 ### Long-Term
 
-- [ ] **Grapevine integration** — full PageRank-style trust scoring applied to concept curation
 - [ ] **Tapestry of Tapestries** — instances importing concepts from each other, WoT-weighted
 - [ ] **Mobile client** — lightweight concept browser for nostr mobile apps
 
