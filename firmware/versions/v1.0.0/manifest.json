@@ -244,7 +244,8 @@
                 {
                     "concept": "word",
                     "source-path": "conceptHeader.oKeys.singular",
-                    "destination-path": "word.wordTypes"
+                    "destination-path": "word.wordTypes",
+                    "enforce-wordType-conditionals": true
                 }
             ]
         },
@@ -253,7 +254,8 @@
                 {
                     "concept": "graph",
                     "source-path": "conceptHeader.oKeys.singular",
-                    "destination-path": "graph.graphType"
+                    "destination-path": "graph.graphType",
+                    "enforce-wordType-conditionals": true
                 }
             ]
         },
@@ -262,7 +264,8 @@
                 {
                     "concept": "property",
                     "source-path": "jsonDataType.slug",
-                    "destination-path": "property.type"
+                    "destination-path": "property.type",
+                    "enforce-wordType-conditionals": false
                 }
             ]
         },
@@ -271,7 +274,8 @@
                 {
                     "concept": "relationship",
                     "source-path": "relationshipType.alias",
-                    "destination-path": "relationship.relationshipType"
+                    "destination-path": "relationship.relationshipType",
+                    "enforce-wordType-conditionals": false
                 }
             ]
         },
@@ -280,7 +284,8 @@
                 {
                     "concept": "dog",
                     "source-path": "dogBreed.oKeys.singular",
-                    "destination-path": "dog.breed"
+                    "destination-path": "dog.breed",
+                    "enforce-wordType-conditionals": true
                 }
             ]
         }
@@ -325,6 +330,10 @@
                 },
                 {
                     "concept": "property-tree-graph",
+                    "core-node-type": "concept-header"
+                },
+                {
+                    "concept": "tapestry",
                     "core-node-type": "concept-header"
                 }
             ]

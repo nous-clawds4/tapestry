@@ -3518,7 +3518,10 @@ async function handleWireImplicitElements(req, res) {
 //     1. Collects element slugs (or names) from the source Set/Superset
 //     2. Navigates to the target field in the JSON Schema using the path
 //     3. Injects enum values: directly if type=string, into items if type=array
-//     4. Saves the updated schema
+//     4. If enforce-wordType-conditionals is true in the manifest, generates
+//        biconditional allOf if/then blocks linking the property value to
+//        word.wordTypes entries
+//     5. Saves the updated schema
 // ══════════════════════════════════════════════════════════════
 
 async function handleApplyEnumerations(req, res) {
@@ -3549,6 +3552,10 @@ async function handleApplyEnumerations(req, res) {
 
     const store = require('../../lib/tapestry-store');
 
+    // Load manifest enumerations to look up enforce-wordType-conditionals
+    const manifest = firmware.getManifest();
+    const manifestEnumerations = manifest.enumerations || {};
+
     /** Navigate a dotted path into an object. Returns undefined if path doesn't resolve. */
     function getByPath(obj, dotPath) {
       if (!obj || !dotPath) return undefined;
@@ -3561,11 +3568,133 @@ async function handleApplyEnumerations(req, res) {
       return current;
     }
 
+    /**
+     * Look up enforce-wordType-conditionals from the manifest for a given
+     * target concept name and destination path.
+     */
+    function shouldEnforceWordTypeConditionals(targetConceptName, destPath) {
+      for (const [, enumDef] of Object.entries(manifestEnumerations)) {
+        for (const node of (enumDef['existing-nodes'] || [])) {
+          if (node.concept === targetConceptName && node['destination-path'] === destPath) {
+            return node['enforce-wordType-conditionals'] === true;
+          }
+        }
+      }
+      return false;
+    }
+
+    /**
+     * Generate biconditional allOf if/then entries for wordType enforcement.
+     * For each enum value, creates:
+     *   - Forward: if property = value → word.wordTypes must contain value
+     *   - Reverse: if word.wordTypes contains value → property must = value
+     */
+    function generateWordTypeConditionals(enumValues, destinationPath) {
+      const pathParts = destinationPath.split('.');
+      const entries = [];
+
+      for (const val of enumValues) {
+        // Build nested property path for the if/then targeting the concept-specific field
+        // e.g., destinationPath "dog.breed" → { properties: { dog: { properties: { breed: { const: val } }, required: ["breed"] } } }
+        function buildPropertyPath(parts, leaf) {
+          if (parts.length === 0) return leaf;
+          const [head, ...rest] = parts;
+          const inner = buildPropertyPath(rest, leaf);
+          const obj = { properties: { [head]: inner } };
+          // Add required on the innermost object property
+          if (rest.length === 0) {
+            obj.properties[head] = { ...inner, required: [parts[parts.length - 1]] };
+            // Actually required should be on the parent, specifying the child key
+            // For "dog.breed": { properties: { dog: { properties: { breed: { const: X } }, required: ["breed"] } } }
+          }
+          return obj;
+        }
+
+        // Build the forward condition: if concept property = value
+        const forwardIf = {};
+        let currentIf = forwardIf;
+        for (let i = 0; i < pathParts.length; i++) {
+          currentIf.properties = { [pathParts[i]]: {} };
+          if (i === pathParts.length - 1) {
+            // Leaf: set the const and required
+            currentIf.properties[pathParts[i]] = {
+              properties: { [pathParts[i]]: { const: val } },
+              required: [pathParts[i]],
+            };
+            // Actually we need the leaf directly
+          }
+          currentIf = currentIf.properties[pathParts[i]];
+        }
+
+        // Simpler approach: build from inside out
+        let forwardIfSchema = { const: val };
+        for (let i = pathParts.length - 1; i >= 0; i--) {
+          const part = pathParts[i];
+          const wrapper = { properties: { [part]: forwardIfSchema } };
+          if (i === pathParts.length - 1 && pathParts.length > 1) {
+            // Add required for the leaf property on its parent object
+            wrapper.required = [part];
+          } else if (pathParts.length === 1) {
+            wrapper.required = [part];
+          }
+          forwardIfSchema = wrapper;
+        }
+
+        // Build the reverse condition: if word.wordTypes contains value
+        const reverseIfSchema = {
+          properties: {
+            word: {
+              properties: {
+                wordTypes: {
+                  contains: { const: val },
+                },
+              },
+            },
+          },
+        };
+
+        // Build the forward then: word.wordTypes must contain value
+        const forwardThenSchema = { ...reverseIfSchema };
+
+        // Build the reverse then: concept property must = value (same structure as forward if)
+        let reverseThenSchema = { const: val };
+        for (let i = pathParts.length - 1; i >= 0; i--) {
+          const part = pathParts[i];
+          const wrapper = { properties: { [part]: reverseThenSchema } };
+          if (i === pathParts.length - 1 && pathParts.length > 1) {
+            wrapper.required = [part];
+          } else if (pathParts.length === 1) {
+            wrapper.required = [part];
+          }
+          reverseThenSchema = wrapper;
+        }
+
+        entries.push(
+          {
+            $comment: `Forward: if ${destinationPath} is ${val}, wordTypes must contain it`,
+            if: forwardIfSchema,
+            then: forwardThenSchema,
+          },
+          {
+            $comment: `Reverse: if wordTypes contains ${val}, ${destinationPath} must be ${val}`,
+            if: reverseIfSchema,
+            then: reverseThenSchema,
+          }
+        );
+      }
+
+      return entries;
+    }
+
     for (const edge of enumEdges) {
       const { sourceUuid, sourceName, sourcePath, destinationPath, schemaUuid, schemaName, targetConcept } = edge;
       const path = destinationPath; // for schema navigation
       log.push(`\n── ${sourceName} → ${schemaName} ──`);
       log.push(`  source-path: ${sourcePath || '(slug fallback)'}, destination-path: ${destinationPath}`);
+
+      // Check manifest for wordType conditional enforcement
+      const enforceConditionals = shouldEnforceWordTypeConditionals(targetConcept, destinationPath);
+      log.push(`  enforce-wordType-conditionals: ${enforceConditionals}`);
 
       // 1. Collect enum values from each element's tapestryJSON
       const elements = await runCypher(`
@@ -3661,6 +3790,44 @@ async function handleApplyEnumerations(req, res) {
       } else {
         log.push(`  ⚠️  Target field type is "${target.type}" — unsupported, skipping`);
         continue;
+      }
+
+      // 4b. Generate biconditional wordType conditionals if enabled
+      if (enforceConditionals) {
+        // Ensure "word" is in the schema's required array
+        if (!schema.required) schema.required = [];
+        if (!schema.required.includes('word')) {
+          schema.required.push('word');
+          log.push(`  ✅ Added "word" to schema required array`);
+        }
+
+        // Ensure the schema has a word property stub for conditionals to reference
+        if (!schema.properties.word) {
+          schema.properties.word = {
+            type: 'object',
+            properties: {
+              wordTypes: {
+                type: 'array',
+                items: { type: 'string' },
+                minItems: 1,
+              },
+            },
+          };
+          log.push(`  ✅ Added word property stub to schema`);
+        }
+
+        // Generate and inject the allOf conditional blocks
+        const conditionals = generateWordTypeConditionals(enumValues, destinationPath);
+
+        // Replace any existing auto-generated conditionals (idempotent)
+        // Keep allOf entries that are NOT from enumeration (no Forward:/Reverse: comment)
+        const existingAllOf = schema.allOf || [];
+        const preserved = existingAllOf.filter(entry =>
+          !entry.$comment || (!entry.$comment.startsWith('Forward:') && !entry.$comment.startsWith('Reverse:'))
+        );
+        schema.allOf = [...preserved, ...conditionals];
+
+        log.push(`  ✅ Generated ${conditionals.length} biconditional wordType entries (${enumValues.length} values × 2)`);
       }
 
       // 5. Save the updated schema
