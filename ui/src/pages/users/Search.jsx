@@ -59,8 +59,9 @@ function timeAgo(unixSeconds) {
 }
 
 function UserPreviewCard({ pubkey, searchHit }) {
-  const profiles = useProfiles([pubkey]);
-  const profile = profiles[pubkey];
+  // Only fetch from relay when there's no search hit (pubkey/npub direct lookup)
+  const profiles = useProfiles(searchHit ? [] : [pubkey]);
+  const profile = searchHit ? null : profiles[pubkey];
   const navigate = useNavigate();
 
   const name = searchHit?.name || searchHit?.display_name || profile?.name || profile?.display_name || 'Unknown';
