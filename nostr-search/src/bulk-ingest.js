@@ -31,6 +31,7 @@ function parseProfileDoc(event) {
     pubkey: event.pubkey,
     npub: nip19.npubEncode(event.pubkey),
     created_at: event.created_at,
+    indexed_at: Math.floor(Date.now() / 1000),
     name: profile.name || '',
     display_name: profile.display_name || profile.displayName || '',
     displayName: profile.displayName || profile.display_name || '',
@@ -61,6 +62,8 @@ export async function runBulkIngest() {
         'name', 'display_name', 'displayName', 'username',
         'nip05', 'npub', 'about', 'lud16', 'website',
       ],
+      filterableAttributes: ['created_at', 'indexed_at'],
+      sortableAttributes: ['created_at', 'indexed_at'],
       displayedAttributes: ['*'],
       rankingRules: ['words', 'typo', 'proximity', 'attribute', 'sort', 'exactness'],
       typoTolerance: { enabled: true, minWordSizeForTypos: { oneTypo: 3, twoTypos: 6 } },
@@ -87,10 +90,24 @@ export async function runBulkIngest() {
     async function flushBatch() {
       if (batch.length === 0) return;
       const docs = batch.splice(0);
-      await index.updateDocuments(docs, { primaryKey: 'id' });
-      bulkStats.indexed += docs.length;
-      if (bulkStats.indexed % 50000 === 0 || bulkStats.indexed === docs.length) {
-        console.log(`[bulk-ingest] Indexed: ${bulkStats.indexed.toLocaleString()} | Processed: ${bulkStats.processed.toLocaleString()}`);
+      const MAX_RETRIES = 3;
+      for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+        try {
+          await index.updateDocuments(docs, { primaryKey: 'id' });
+          bulkStats.indexed += docs.length;
+          if (bulkStats.indexed % 50000 === 0 || bulkStats.indexed === docs.length) {
+            console.log(`[bulk-ingest] Indexed: ${bulkStats.indexed.toLocaleString()} | Processed: ${bulkStats.processed.toLocaleString()}`);
+          }
+          return;
+        } catch (err) {
+          console.error(`[bulk-ingest] Batch error (attempt ${attempt}/${MAX_RETRIES}):`, err.message);
+          if (attempt < MAX_RETRIES) {
+            const delay = 1000 * Math.pow(2, attempt - 1);
+            await new Promise(r => setTimeout(r, delay));
+          } else {
+            throw err; // propagate after all retries exhausted
+          }
+        }
       }
     }
 

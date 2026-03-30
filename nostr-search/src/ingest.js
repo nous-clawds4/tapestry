@@ -33,6 +33,8 @@ async function configureIndex() {
       'lud16',
       'website',
     ],
+    filterableAttributes: ['created_at', 'indexed_at'],
+    sortableAttributes: ['created_at', 'indexed_at'],
     displayedAttributes: ['*'],
     rankingRules: [
       'words',
@@ -55,12 +57,22 @@ async function configureIndex() {
 async function flushBatch() {
   if (batch.length === 0) return;
   const docs = batch.splice(0);
-  try {
-    await meili.index(INDEX_NAME).updateDocuments(docs, { primaryKey: 'id' });
-    totalIndexed += docs.length;
-    console.log(`[meili] Indexed batch of ${docs.length} | Total: ${totalIndexed}`);
-  } catch (err) {
-    console.error('[meili] Batch index error:', err.message);
+  const MAX_RETRIES = 3;
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      await meili.index(INDEX_NAME).updateDocuments(docs, { primaryKey: 'id' });
+      totalIndexed += docs.length;
+      console.log(`[meili] Indexed batch of ${docs.length} | Total: ${totalIndexed}`);
+      return;
+    } catch (err) {
+      console.error(`[meili] Batch index error (attempt ${attempt}/${MAX_RETRIES}):`, err.message);
+      if (attempt < MAX_RETRIES) {
+        const delay = 1000 * Math.pow(2, attempt - 1); // 1s, 2s
+        await new Promise(r => setTimeout(r, delay));
+      } else {
+        console.error(`[meili] Giving up on batch of ${docs.length} after ${MAX_RETRIES} attempts`);
+      }
+    }
   }
 }
 
@@ -94,6 +106,7 @@ function processEvent(event) {
     pubkey,
     npub,
     created_at: event.created_at,
+    indexed_at: Math.floor(Date.now() / 1000),
     name: profile.name || '',
     display_name: profile.display_name || profile.displayName || '',
     displayName: profile.displayName || profile.display_name || '',
@@ -179,6 +192,10 @@ export function resync() {
 
   syncing = true;
   const beforeCount = seen.size;
+
+  // Clear dedup map so all profiles from the relay are re-evaluated
+  seen.clear();
+  console.log(`[resync] Cleared dedup map (had ${beforeCount} entries)`);
 
   // Close existing connection — the reconnect handler will re-subscribe
   if (activeWs) {

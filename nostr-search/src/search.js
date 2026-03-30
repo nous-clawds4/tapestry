@@ -109,7 +109,27 @@ app.get('/api/stats', async (_req, res) => {
   try {
     const meiliStats = await meili.index(INDEX_NAME).getStats();
     const ingestStats = ingestModule ? ingestModule.getIngestStats() : null;
-    res.json({ ...meiliStats, ingest: ingestStats });
+
+    // Compute freshness stats from created_at timestamps
+    let freshness = null;
+    try {
+      const now = Math.floor(Date.now() / 1000);
+      const thresholds = { days30: now - 30 * 86400, days90: now - 90 * 86400, days180: now - 180 * 86400 };
+
+      // Use facet-style queries to count profiles by age bucket
+      const [recent, medium, old] = await Promise.all([
+        meili.index(INDEX_NAME).search('', { limit: 0, filter: `created_at >= ${thresholds.days30}` }),
+        meili.index(INDEX_NAME).search('', { limit: 0, filter: `created_at >= ${thresholds.days90} AND created_at < ${thresholds.days30}` }),
+        meili.index(INDEX_NAME).search('', { limit: 0, filter: `created_at < ${thresholds.days90}` }),
+      ]);
+      freshness = {
+        updatedLast30d: recent.estimatedTotalHits || 0,
+        updated30to90d: medium.estimatedTotalHits || 0,
+        olderThan90d: old.estimatedTotalHits || 0,
+      };
+    } catch { /* freshness stats are best-effort */ }
+
+    res.json({ ...meiliStats, ingest: ingestStats, freshness });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

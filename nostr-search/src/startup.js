@@ -10,6 +10,7 @@
  *   MEILI_URL  - Meilisearch URL (default: http://nostr-search-meili:7700)
  *   PORT       - API listen port (default: 3069)
  *   SYNC_ON_START - set to "false" to disable auto-ingestion (default: true)
+ *   REINGEST_INTERVAL_HOURS - hours between automatic bulk re-ingestions (default: 24, 0 to disable)
  */
 
 async function main() {
@@ -32,6 +33,26 @@ async function main() {
     // Wire modules into the search API
     searchModule.setIngestModule(ingestModule);
     searchModule.setBulkIngestModule(bulkIngestModule);
+
+    // Schedule periodic bulk re-ingestion to keep profiles fresh
+    const reingestHours = parseFloat(process.env.REINGEST_INTERVAL_HOURS ?? '24');
+    if (reingestHours > 0) {
+      const intervalMs = reingestHours * 60 * 60 * 1000;
+      console.log(`[startup] Scheduled bulk re-ingestion every ${reingestHours}h`);
+      setInterval(async () => {
+        const status = bulkIngestModule.getBulkStatus();
+        if (status.status === 'fetching' || status.status === 'indexing') {
+          console.log('[scheduled-reingest] Skipping — bulk ingest already running');
+          return;
+        }
+        console.log('[scheduled-reingest] Starting automatic bulk re-ingestion...');
+        try {
+          await bulkIngestModule.runBulkIngest();
+        } catch (err) {
+          console.error('[scheduled-reingest] Error:', err.message);
+        }
+      }, intervalMs);
+    }
   } else {
     console.log('[startup] Live ingestion disabled (SYNC_ON_START=false)');
   }
