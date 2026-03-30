@@ -70,10 +70,10 @@ Tapestry is being built under **NosFabrica**, a company focused on sovereign hea
 
 | Repo | URL | Active Branch | Description |
 |------|-----|---------------|-------------|
-| **tapestry** (server) | `github.com/nous-clawds4/tapestry` | `concept-graph` | Docker stack: strfry + Neo4j + Express + React UI + firmware |
+| **tapestry** (server) | `github.com/nous-clawds4/tapestry` | `main` | Docker stack: strfry + Neo4j + Express + React UI + firmware |
 | **tapestry-cli** | `github.com/nous-clawds4/tapestry-cli` | `main` | CLI tool for graph operations |
 
-> **Important:** All active development on the server is on the `concept-graph` branch, not `main`.
+> **Note:** Active development is on the `main` branch. The `concept-graph` branch exists but is kept in sync with `main`. CI/CD deploys from `main`.
 
 ---
 
@@ -758,7 +758,7 @@ git clone https://github.com/nous-clawds4/tapestry.git
 git clone https://github.com/nous-clawds4/tapestry-cli.git
 
 # 2. Start the server
-cd tapestry && git checkout concept-graph
+cd tapestry
 cp .env.example .env   # edit OWNER_PUBKEY and NEO4J_PASSWORD
 docker compose up -d
 
@@ -815,7 +815,7 @@ docker compose exec tapestry strfry sync wss://dcosl.brainstorm.world \
 
 ## 16. What's Been Built
 
-### Server (tapestry repo, concept-graph branch)
+### Server (tapestry repo, main branch)
 
 - ✅ Docker stack (strfry + Neo4j + Express + nginx + supervisord)
 - ✅ NIP-07 authentication (owner/customer/guest roles)
