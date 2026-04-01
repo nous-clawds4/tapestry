@@ -41,10 +41,11 @@ async function handleManifest(req, res) {
           return {
             name: data.conceptHeader.oNames?.singular || c.slug,
             plural: data.conceptHeader.oNames?.plural || c.slug + 's',
+            pluralSlug: data.conceptHeader.oSlugs?.plural || c.slug + 's',
             description: data.conceptHeader.description || '',
           };
         }
-        return { name: c.slug, plural: c.slug + 's', description: '' };
+        return { name: c.slug, plural: c.slug + 's', pluralSlug: c.slug + 's', description: '' };
       })()),
     }));
 
@@ -69,6 +70,8 @@ async function handleManifest(req, res) {
         };
       }),
       elements: manifest.elements || {},
+      enumerations: manifest.enumerations || {},
+      sets: manifest.sets || {},
     });
   } catch (err) {
     res.json({ success: false, error: err.message });
