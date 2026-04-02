@@ -87,15 +87,15 @@ export default function BrainstormUserMenu({ user, login, logout }) {
       {isOwnerOrAdmin && (
         <a href="/kg/" className="bs-usermenu-grid-btn" title="Dashboard">
           <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-            <rect x="1" y="1" width="4" height="4" rx="1" fill="currentColor" opacity="0.7"/>
-            <rect x="7" y="1" width="4" height="4" rx="1" fill="currentColor" opacity="0.7"/>
-            <rect x="13" y="1" width="4" height="4" rx="1" fill="currentColor" opacity="0.7"/>
-            <rect x="1" y="7" width="4" height="4" rx="1" fill="currentColor" opacity="0.7"/>
-            <rect x="7" y="7" width="4" height="4" rx="1" fill="currentColor" opacity="0.7"/>
-            <rect x="13" y="7" width="4" height="4" rx="1" fill="currentColor" opacity="0.7"/>
-            <rect x="1" y="13" width="4" height="4" rx="1" fill="currentColor" opacity="0.7"/>
-            <rect x="7" y="13" width="4" height="4" rx="1" fill="currentColor" opacity="0.7"/>
-            <rect x="13" y="13" width="4" height="4" rx="1" fill="currentColor" opacity="0.7"/>
+            <rect x="1" y="1" width="4" height="4" rx="1" fill="currentColor"/>
+            <rect x="7" y="1" width="4" height="4" rx="1" fill="currentColor"/>
+            <rect x="13" y="1" width="4" height="4" rx="1" fill="currentColor"/>
+            <rect x="1" y="7" width="4" height="4" rx="1" fill="currentColor"/>
+            <rect x="7" y="7" width="4" height="4" rx="1" fill="currentColor"/>
+            <rect x="13" y="7" width="4" height="4" rx="1" fill="currentColor"/>
+            <rect x="1" y="13" width="4" height="4" rx="1" fill="currentColor"/>
+            <rect x="7" y="13" width="4" height="4" rx="1" fill="currentColor"/>
+            <rect x="13" y="13" width="4" height="4" rx="1" fill="currentColor"/>
           </svg>
         </a>
       )}

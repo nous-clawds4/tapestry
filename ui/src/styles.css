@@ -2408,13 +2408,13 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  color: rgba(255,255,255,0.55);
+  color: rgba(255,255,255,0.75);
   text-decoration: none;
   transition: background 0.15s, color 0.15s;
 }
 .bs-usermenu-grid-btn:hover {
-  background: rgba(255,255,255,0.08);
-  color: rgba(255,255,255,0.9);
+  background: rgba(255,255,255,0.12);
+  color: #fff;
 }
 .bs-usermenu-avatar-btn {
   background: none;

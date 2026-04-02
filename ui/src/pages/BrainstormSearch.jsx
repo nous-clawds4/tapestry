@@ -413,8 +413,26 @@ function UserMenu({ user, login, logout, pov, setPov, filters, setFilters, sortC
   const displayName = user.profile?.name || user.pubkey.slice(0, 8) + '…';
   const picture = user.profile?.picture;
 
+  const isOwnerOrAdmin = user.classification === 'owner' || user.classification === 'admin';
+
   return (
     <div className="bs-usermenu" ref={menuRef}>
+      {/* Dashboard grid icon for owner/admin */}
+      {isOwnerOrAdmin && (
+        <a href="/kg/" className="bs-usermenu-grid-btn" title="Dashboard">
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+            <rect x="1" y="1" width="4" height="4" rx="1" fill="currentColor"/>
+            <rect x="7" y="1" width="4" height="4" rx="1" fill="currentColor"/>
+            <rect x="13" y="1" width="4" height="4" rx="1" fill="currentColor"/>
+            <rect x="1" y="7" width="4" height="4" rx="1" fill="currentColor"/>
+            <rect x="7" y="7" width="4" height="4" rx="1" fill="currentColor"/>
+            <rect x="13" y="7" width="4" height="4" rx="1" fill="currentColor"/>
+            <rect x="1" y="13" width="4" height="4" rx="1" fill="currentColor"/>
+            <rect x="7" y="13" width="4" height="4" rx="1" fill="currentColor"/>
+            <rect x="13" y="13" width="4" height="4" rx="1" fill="currentColor"/>
+          </svg>
+        </a>
+      )}
       <button
         className="bs-usermenu-avatar-btn"
         onClick={() => setOpen(!open)}
