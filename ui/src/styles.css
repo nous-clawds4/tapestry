@@ -3547,6 +3547,33 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   opacity: 0.5;
   padding-left: 1.5rem;
 }
+.bss-brainstorm-cta {
+  margin: 0.6rem 0;
+  padding: 0.75rem 1rem;
+  border: 1px solid rgba(99,102,241,0.2);
+  border-radius: 8px;
+  background: rgba(99,102,241,0.05);
+}
+.bss-brainstorm-cta p {
+  font-size: 0.85rem;
+  margin: 0 0 0.6rem;
+  opacity: 0.8;
+  line-height: 1.4;
+}
+.bss-brainstorm-btn {
+  display: inline-block;
+  padding: 0.5rem 1rem;
+  border: 1px solid rgba(99,102,241,0.3);
+  border-radius: 8px;
+  background: rgba(99,102,241,0.1);
+  color: #a5b4fc;
+  font-size: 0.85rem;
+  text-decoration: none;
+  transition: background 0.15s;
+}
+.bss-brainstorm-btn:hover {
+  background: rgba(99,102,241,0.2);
+}
 
 /* Metrics */
 .bss-metrics-grid {

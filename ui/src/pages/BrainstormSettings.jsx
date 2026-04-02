@@ -412,6 +412,14 @@ export default function BrainstormSettings() {
           ) : (
             <div className="bss-status-list">
               <StatusRow ok={wotStatus.has10040} label="Treasure Map (kind 10040)" />
+              {!wotStatus.has10040 && (
+                <div className="bss-brainstorm-cta">
+                  <p>Use Brainstorm to Calculate your Grapevine and Personalize your Search Results.</p>
+                  <a href="https://brainstorm.nosfabrica.com" target="_blank" rel="noopener noreferrer" className="bss-brainstorm-btn">
+                    🧠 Go to Brainstorm
+                  </a>
+                </div>
+              )}
               <StatusRow ok={wotStatus.hasRankTag} label="Rank tag in Treasure Map" />
 
               {wotStatus.has10040 && wotStatus.hasRankTag && (<>
