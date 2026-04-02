@@ -79,6 +79,7 @@ const { handleFetchExternalReactions } = require('./reactions/fetchReactions.js'
 const { handleFetchExternalEvents } = require('./relay/fetchEvents.js');
 const { requireOwner, handleGetSettings, handleGetDefaults, handleGetOverrides, handleUpdateSettings, handleResetSetting } = require('./settings/settingsApi.js');
 const { handleGetGrapevinePreferences, handleUpdateGrapevinePreferences } = require('./settings/grapevinePrefApi.js');
+const { handleGetUserPrefs, handleUpdateUserPrefs } = require('./settings/userPrefsApi.js');
 
 // Import utilities
 const { getConfigFromFile } = require('../utils/config');
@@ -305,6 +306,8 @@ async function register(app) {
     // Settings endpoints (owner-only except GET merged)
     app.get('/api/grapevine/preferences', handleGetGrapevinePreferences);
     app.put('/api/grapevine/preferences', handleUpdateGrapevinePreferences);
+    app.get('/api/user-prefs', handleGetUserPrefs);
+    app.put('/api/user-prefs', handleUpdateUserPrefs);
     app.get('/api/settings', requireOwner, handleGetSettings);
     app.get('/api/settings/defaults', requireOwner, handleGetDefaults);
     app.get('/api/settings/overrides', requireOwner, handleGetOverrides);

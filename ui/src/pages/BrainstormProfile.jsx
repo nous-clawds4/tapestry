@@ -159,7 +159,10 @@ export default function BrainstormProfile() {
         >
           ← Back to search
         </button>
-        <a href="/kg/brainstorm-search" className="bsp-logo">🧠 Brainstorm Search</a>
+        <a href="/kg/brainstorm-search" className="bsp-logo">
+          <img src="/kg/brainstorm.svg" alt="" className="bsp-logo-img" />
+          Brainstorm Search
+        </a>
         <div className="bsp-auth">
           {user ? (
             <>
