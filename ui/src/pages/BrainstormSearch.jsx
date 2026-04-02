@@ -6,7 +6,7 @@ import { useAuth } from '../context/AuthContext';
 const EXTERNAL_RELAYS = ['wss://relay.primal.net', 'wss://relay.damus.io', 'wss://nos.lol'];
 const POV_STORAGE_PREFIX = 'bs_pov_';
 
-function UserMenu({ user, login, logout, pov, setPov }) {
+function UserMenu({ user, login, logout, pov, setPov, filters, setFilters, sortConfig, setSortConfig }) {
   const [open, setOpen] = useState(false);
   const menuRef = useRef(null);
 
@@ -30,10 +30,8 @@ function UserMenu({ user, login, logout, pov, setPov }) {
   const [loadStatus, setLoadStatus] = useState(null);        // null | string
   const [scoresReady, setScoresReady] = useState(false);     // Meilisearch has user's WoT scores
 
-  // Metrics selection, filters & sort
+  // Metrics selection (local to UserMenu) + dirty flag
   const [selectedMetrics, setSelectedMetrics] = useState(new Set());
-  const [filters, setFilters] = useState({});
-  const [sortConfig, setSortConfig] = useState({ metric: null, direction: 'desc' });
   const [filterSortDirty, setFilterSortDirty] = useState(false);
 
   // Close on click outside
@@ -257,35 +255,58 @@ function UserMenu({ user, login, logout, pov, setPov }) {
         // Initialize metric selection, filters & sort from allMetrics
         const metricNames = allMetrics.map(m => m.metric);
         setSelectedMetrics(new Set(metricNames));
-        // Load saved filter/sort preferences from server
+
+        // Load saved preferences: user-specific first, then house fallback
+        let loadedFilters = null;
+        let loadedSort = null;
+        let loadedMetrics = null;
+
+        // Try user-specific prefs first
         try {
-          const prefsResp = await fetch('/api/grapevine/preferences');
-          const prefsData = await prefsResp.json();
-          if (prefsData.success && prefsData.preferences) {
-            if (prefsData.preferences.filters) setFilters(prefsData.preferences.filters);
-            if (prefsData.preferences.sort) setSortConfig(prefsData.preferences.sort);
+          const userPrefsResp = await fetch('/api/user-prefs');
+          const userPrefsData = await userPrefsResp.json();
+          if (userPrefsData.success && userPrefsData.preferences) {
+            const up = userPrefsData.preferences;
+            if (up.filters && Object.keys(up.filters).length > 0) loadedFilters = up.filters;
+            if (up.sortConfig?.metric) loadedSort = up.sortConfig;
+            if (up.selectedMetrics?.length) loadedMetrics = up.selectedMetrics;
           }
         } catch {}
-        // Set default filters if none saved
-        setFilters(prev => {
-          if (Object.keys(prev).length > 0) return prev;
+
+        // Fall back to house prefs if user has none
+        if (!loadedFilters && !loadedSort) {
+          try {
+            const prefsResp = await fetch('/api/grapevine/preferences');
+            const prefsData = await prefsResp.json();
+            if (prefsData.success && prefsData.preferences) {
+              if (prefsData.preferences.filters) loadedFilters = prefsData.preferences.filters;
+              if (prefsData.preferences.sort) loadedSort = prefsData.preferences.sort;
+            }
+          } catch {}
+        }
+
+        if (loadedFilters) setFilters(loadedFilters);
+        if (loadedSort) setSortConfig(loadedSort);
+        if (loadedMetrics) setSelectedMetrics(new Set(loadedMetrics));
+
+        // Set default filters if nothing was loaded
+        if (!loadedFilters) {
           const defaults = {};
           const hasRank = metricNames.includes('rank');
           if (hasRank) defaults.rank = { enabled: true, cutoff: 2 };
           for (const m of metricNames) {
             if (!(m in defaults)) defaults[m] = { enabled: false, cutoff: 0 };
           }
-          return defaults;
-        });
-        setSortConfig(prev => {
-          if (prev.metric) return prev;
+          setFilters(defaults);
+        }
+        if (!loadedSort) {
           const hasFollowers = metricNames.includes('followers');
           const hasRank = metricNames.includes('rank');
-          return {
+          setSortConfig({
             metric: hasFollowers ? 'followers' : (hasRank ? 'rank' : metricNames[0] || null),
             direction: 'desc',
-          };
-        });
+          });
+        }
 
         if (localCount > 0) {
           // Get age of most recent TA
@@ -667,9 +688,6 @@ function ResultCard({ hit }) {
       href={`/kg/brainstorm-search/user/${hit.pubkey || hit.id}`}
       className="bs-result-card"
     >
-      {banner && (
-        <div className="bs-result-banner" style={{ backgroundImage: `url(${banner})` }} />
-      )}
       <div className="bs-result-body">
         <div className="bs-result-row">
           {picture ? (
@@ -736,6 +754,9 @@ export default function BrainstormSearch() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState(null);
   const [pov, setPov] = useState('nosfabrica');
+  // Filter/sort state (lifted from UserMenu so doSearch can access them)
+  const [filters, setFilters] = useState({});
+  const [sortConfig, setSortConfig] = useState({ metric: null, direction: 'desc' });
   // Autocomplete suggestions (landing page only)
   const [suggestions, setSuggestions] = useState(null);
   const [suggestLoading, setSuggestLoading] = useState(false);
@@ -765,9 +786,18 @@ export default function BrainstormSearch() {
     }
 
     try {
-      const resp = await fetch(
-        `/api/search/profiles/meili?q=${encodeURIComponent(trimmed)}&limit=${RESULTS_PER_PAGE}&offset=${offset}`
-      );
+      // Build search URL with optional user-specific filter/sort
+      let url = `/api/search/profiles/meili?q=${encodeURIComponent(trimmed)}&limit=${RESULTS_PER_PAGE}&offset=${offset}`;
+
+      // When POV is 'user', send user's personal filter/sort to override house defaults
+      if (pov === 'user' && Object.keys(filters).length > 0) {
+        url += `&wotFilters=${encodeURIComponent(JSON.stringify(filters))}`;
+      }
+      if (pov === 'user' && sortConfig.metric) {
+        url += `&wotSort=${encodeURIComponent(JSON.stringify(sortConfig))}`;
+      }
+
+      const resp = await fetch(url);
       const data = await resp.json();
 
       if (!resp.ok || data.success === false) {
@@ -791,7 +821,7 @@ export default function BrainstormSearch() {
       setLoading(false);
       setLoadingMore(false);
     }
-  }, [query]);
+  }, [query, pov, filters, sortConfig]);
 
   // Autocomplete fetch (landing page — populates dropdown, NOT results)
   const fetchSuggestions = useCallback(async (q) => {
@@ -858,6 +888,15 @@ export default function BrainstormSearch() {
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
   }, []);
 
+  // Re-run search when POV changes while results are showing
+  const prevPovRef = useRef(pov);
+  useEffect(() => {
+    if (prevPovRef.current !== pov && results && meta?.query) {
+      doSearch(meta.query);
+    }
+    prevPovRef.current = pov;
+  }, [pov]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const hasMore = results && meta && results.length < meta.estimatedTotalHits;
 
   // Landing view (no full results yet — suggestions may be showing)
@@ -866,7 +905,7 @@ export default function BrainstormSearch() {
       <div className="bs-page">
         {/* Top-right auth area */}
         <div className="bs-top-bar">
-          <UserMenu user={user} login={login} logout={logout} pov={pov} setPov={setPov} />
+          <UserMenu user={user} login={login} logout={logout} pov={pov} setPov={setPov} filters={filters} setFilters={setFilters} sortConfig={sortConfig} setSortConfig={setSortConfig} />
         </div>
 
         {/* Centered landing */}
@@ -909,11 +948,9 @@ export default function BrainstormSearch() {
                       href={`/kg/brainstorm-search/user/${hit.pubkey || hit.id}`}
                       className="bs-suggest-item"
                       onMouseDown={e => {
-                        // Use mousedown (not click) to fire before blur
-                        e.preventDefault();
+                        e.preventDefault(); // prevent input blur from removing the link
                         setShowSuggestions(false);
-                        setQuery(name);
-                        doSearch(name);
+                        window.location.href = `/kg/brainstorm-search/user/${hit.pubkey || hit.id}`;
                       }}
                     >
                       {hit.picture ? (
@@ -1001,7 +1038,7 @@ export default function BrainstormSearch() {
           </div>
         </div>
         <div className="bs-results-header-right">
-          <UserMenu user={user} login={login} logout={logout} pov={pov} setPov={setPov} />
+          <UserMenu user={user} login={login} logout={logout} pov={pov} setPov={setPov} filters={filters} setFilters={setFilters} sortConfig={sortConfig} setSortConfig={setSortConfig} />
         </div>
       </div>
 

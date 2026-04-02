@@ -24,16 +24,32 @@ async function handleMeiliSearchProfiles(req, res) {
   }
 
   try {
-    // Read saved filter/sort preferences
-    let filterSort = {};
-    try {
-      const { getSettings } = require('../../../../config/settings');
-      const settings = getSettings();
-      const prefs = settings.grapevine?.searchPreferences || {};
-      if (prefs.filters || prefs.sort) {
-        filterSort = { filters: prefs.filters, sort: prefs.sort };
+    // Determine filter/sort: client-provided overrides take priority over house defaults.
+    // Client sends wotFilters=<json> and/or wotSort=<json> query params.
+    let filters = null;
+    let sort = null;
+
+    const clientFilters = req.query.wotFilters;
+    const clientSort = req.query.wotSort;
+
+    if (clientFilters || clientSort) {
+      // Client-provided (My WoT mode)
+      if (clientFilters) {
+        try { filters = JSON.parse(clientFilters); } catch {}
       }
-    } catch { /* ignore */ }
+      if (clientSort) {
+        try { sort = JSON.parse(clientSort); } catch {}
+      }
+    } else {
+      // Fall back to global house preferences
+      try {
+        const { getSettings } = require('../../../../config/settings');
+        const settings = getSettings();
+        const prefs = settings.grapevine?.searchPreferences || {};
+        if (prefs.filters) filters = prefs.filters;
+        if (prefs.sort) sort = prefs.sort;
+      } catch { /* ignore */ }
+    }
 
     const url = new URL('/api/search', NOSTR_SEARCH_URL);
     url.searchParams.set('q', q.trim());
@@ -41,11 +57,11 @@ async function handleMeiliSearchProfiles(req, res) {
     url.searchParams.set('offset', String(parseInt(offset) || 0));
 
     // Pass filter/sort config to nostr-search-api
-    if (filterSort.filters) {
-      url.searchParams.set('wotFilters', JSON.stringify(filterSort.filters));
+    if (filters) {
+      url.searchParams.set('wotFilters', JSON.stringify(filters));
     }
-    if (filterSort.sort?.metric) {
-      url.searchParams.set('sort', `wot_${filterSort.sort.metric}:${filterSort.sort.direction || 'desc'}`);
+    if (sort?.metric) {
+      url.searchParams.set('sort', `wot_${sort.metric}:${sort.direction || 'desc'}`);
     }
 
     const response = await fetch(url.toString());
