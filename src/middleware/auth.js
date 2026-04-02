@@ -326,10 +326,24 @@ async function authMiddleware(req, res, next) {
     // Check if user is authenticated for API calls
     if (req.session && req.session.authenticated) {
         // TODO: differentiate between owner and customer endpoints
+        // Endpoints accessible by any authenticated user (owner, customer, or guest)
+        const authenticatedEndpoints = [
+            '/negentropy-sync-wot',
+            '/negentropy-sync-profiles',
+            '/negentropy-sync-personal',
+            '/negentropy-sync',
+        ];
+        const isAuthenticatedEndpoint = authenticatedEndpoints.some(endpoint =>
+            req.path.includes(endpoint)
+        );
+        if (isAuthenticatedEndpoint) {
+            return next(); // Already verified authenticated above
+        }
+
         const customerOrOwnerEndpoints = [
             '/get-customer',
             '/neo4j/run-query',
-            '/neo4j/query'
+            '/neo4j/query',
         ]
         // Define owner-only endpoints (administrative actions)
         const ownerOnlyEndpoints = [
@@ -351,10 +365,6 @@ async function authMiddleware(req, res, next) {
             '/batch-transfer',
             '/reconciliation',
             '/calculate-hops',
-            '/negentropy-sync-wot',
-            '/negentropy-sync-profiles',
-            '/negentropy-sync-personal',
-            '/negentropy-sync',
             '/neo4j-setup-constraints-and-indexes',
             '/run-script',
             '/process-all-active-customers',
@@ -436,10 +446,6 @@ async function authMiddleware(req, res, next) {
             '/batch-transfer',
             '/reconciliation',
             '/calculate-hops',
-            '/negentropy-sync-wot',
-            '/negentropy-sync-profiles',
-            '/negentropy-sync-personal',
-            '/negentropy-sync',
             '/neo4j-setup-constraints-and-indexes',
             '/run-script',
             '/process-all-active-customers',
