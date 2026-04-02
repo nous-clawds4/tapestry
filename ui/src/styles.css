@@ -2761,3 +2761,297 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
     height: 36px;
   }
 }
+
+/* ════════════════════════════════════════════════════════
+   Brainstorm Profile Page (bsp-)
+   ════════════════════════════════════════════════════════ */
+
+.bsp-page {
+  min-height: 100vh;
+  background: var(--bg-primary, #0f0f1a);
+  color: var(--text-primary, #e2e8f0);
+}
+
+/* Top bar */
+.bsp-top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1.5rem;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  gap: 1rem;
+}
+.bsp-back-btn {
+  background: none;
+  border: none;
+  color: #a5b4fc;
+  cursor: pointer;
+  font-size: 0.85rem;
+  padding: 0.3rem 0;
+}
+.bsp-back-btn:hover {
+  text-decoration: underline;
+}
+.bsp-logo {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary, #e2e8f0);
+  text-decoration: none;
+}
+.bsp-auth {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8rem;
+}
+.bsp-user-name {
+  opacity: 0.6;
+}
+.bsp-link-btn {
+  background: none;
+  border: none;
+  color: #a5b4fc;
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+.bsp-link-btn:hover {
+  text-decoration: underline;
+}
+
+/* Content area */
+.bsp-content {
+  max-width: 700px;
+  margin: 0 auto;
+  padding: 1.5rem;
+}
+.bsp-loading {
+  text-align: center;
+  padding: 3rem 0;
+  opacity: 0.5;
+}
+
+/* Banner */
+.bsp-banner {
+  width: 100%;
+  height: 160px;
+  border-radius: 10px;
+  background-size: cover;
+  background-position: center;
+  margin-bottom: 1rem;
+}
+
+/* Header */
+.bsp-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+.bsp-avatar {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+.bsp-avatar-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(99,102,241,0.15);
+  color: #a5b4fc;
+  font-size: 1.8rem;
+  font-weight: 600;
+}
+.bsp-header-info {
+  min-width: 0;
+}
+.bsp-name {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin: 0;
+  line-height: 1.2;
+}
+.bsp-nip05 {
+  font-size: 0.85rem;
+  opacity: 0.6;
+  margin-top: 0.2rem;
+}
+.bsp-age {
+  font-size: 0.75rem;
+  opacity: 0.4;
+}
+
+/* Sections */
+.bsp-section {
+  margin-bottom: 1.5rem;
+}
+.bsp-section h3 {
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin: 0 0 0.6rem;
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.bsp-about {
+  font-size: 0.9rem;
+  line-height: 1.6;
+  opacity: 0.8;
+  white-space: pre-wrap;
+  margin: 0;
+}
+
+/* Identity grid */
+.bsp-id-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+.bsp-id-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+}
+.bsp-id-label {
+  width: 110px;
+  flex-shrink: 0;
+  opacity: 0.5;
+  font-size: 0.8rem;
+}
+.bsp-id-value {
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 0.8rem;
+  opacity: 0.7;
+}
+.bsp-id-link {
+  color: #a5b4fc;
+  text-decoration: none;
+  font-size: 0.85rem;
+}
+.bsp-id-link:hover {
+  text-decoration: underline;
+}
+.bsp-copy-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.75rem;
+  opacity: 0.4;
+  padding: 0.1rem;
+}
+.bsp-copy-btn:hover {
+  opacity: 0.8;
+}
+
+/* POV tag */
+.bsp-pov-tag {
+  font-size: 0.65rem;
+  font-weight: 500;
+  padding: 0.15rem 0.5rem;
+  border-radius: 10px;
+  background: rgba(99,102,241,0.15);
+  color: #a5b4fc;
+}
+
+/* Trust metrics grid */
+.bsp-trust-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 0.6rem;
+}
+.bsp-trust-card {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.6rem 0.75rem;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 8px;
+  cursor: default;
+  transition: background 0.15s;
+}
+.bsp-trust-card:hover {
+  background: rgba(255,255,255,0.06);
+}
+.bsp-trust-card-icon {
+  font-size: 1.2rem;
+  flex-shrink: 0;
+}
+.bsp-trust-card-body {
+  min-width: 0;
+}
+.bsp-trust-card-value {
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.2;
+}
+.bsp-trust-card-label {
+  font-size: 0.7rem;
+  opacity: 0.45;
+  white-space: nowrap;
+}
+.bsp-trust-loading {
+  padding: 1rem 0;
+  opacity: 0.4;
+  font-size: 0.85rem;
+}
+.bsp-trust-unavailable {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 8px;
+  font-size: 0.85rem;
+  opacity: 0.6;
+}
+.bsp-trust-icon {
+  font-size: 1.1rem;
+}
+
+/* Raw TA event */
+.bsp-ta-raw {
+  margin-top: 0.75rem;
+  font-size: 0.8rem;
+}
+.bsp-ta-raw summary {
+  cursor: pointer;
+  opacity: 0.4;
+  font-size: 0.75rem;
+}
+.bsp-ta-raw summary:hover {
+  opacity: 0.7;
+}
+.bsp-ta-raw pre {
+  margin-top: 0.5rem;
+  padding: 0.75rem;
+  background: rgba(0,0,0,0.3);
+  border-radius: 6px;
+  overflow-x: auto;
+  font-size: 0.7rem;
+  line-height: 1.4;
+  max-height: 300px;
+}
+
+/* Not found */
+.bsp-not-found {
+  text-align: center;
+  padding: 3rem 0;
+  opacity: 0.5;
+}
+
+/* Mobile responsive */
+@media (max-width: 600px) {
+  .bsp-content { padding: 1rem; }
+  .bsp-avatar { width: 56px; height: 56px; }
+  .bsp-name { font-size: 1.2rem; }
+  .bsp-banner { height: 100px; }
+  .bsp-trust-grid { grid-template-columns: 1fr 1fr; }
+  .bsp-id-label { width: 80px; }
+  .bsp-top-bar { padding: 0.5rem 1rem; }
+}

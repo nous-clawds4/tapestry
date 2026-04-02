@@ -35,7 +35,7 @@ function ResultCard({ hit }) {
 
   return (
     <a
-      href={`/kg/users/${hit.pubkey || hit.id}`}
+      href={`/kg/brainstorm-search/user/${hit.pubkey || hit.id}`}
       className="bs-result-card"
     >
       {banner && (
@@ -284,7 +284,7 @@ export default function BrainstormSearch() {
                   return (
                     <a
                       key={hit.pubkey || hit.id}
-                      href={`/kg/users/${hit.pubkey || hit.id}`}
+                      href={`/kg/brainstorm-search/user/${hit.pubkey || hit.id}`}
                       className="bs-suggest-item"
                       onMouseDown={e => {
                         // Use mousedown (not click) to fire before blur
