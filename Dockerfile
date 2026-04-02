@@ -69,14 +69,20 @@ RUN useradd -r -s /bin/false strfry \
 RUN mkdir -p /var/lib/brainstorm /var/log/brainstorm /var/lib/brainstorm/monitoring \
     && mkdir -p /usr/local/lib/strfry/plugins/data
 
-# Copy the brainstorm app
-COPY . /usr/local/lib/node_modules/brainstorm/
-
-# Install npm dependencies
+# ── Dependency caching: copy package manifests first, install, then code ──
+# Server dependencies (cached until package.json or package-lock.json change)
+COPY package.json package-lock.json /usr/local/lib/node_modules/brainstorm/
 RUN cd /usr/local/lib/node_modules/brainstorm && npm install
 
-# Build the React UI (public/kg/)
-RUN cd /usr/local/lib/node_modules/brainstorm/ui && npm ci && npm run build
+# UI dependencies (cached until ui/package.json or ui/package-lock.json change)
+COPY ui/package.json ui/package-lock.json /usr/local/lib/node_modules/brainstorm/ui/
+RUN cd /usr/local/lib/node_modules/brainstorm/ui && npm ci
+
+# Now copy the full application code (this layer busts on every push)
+COPY . /usr/local/lib/node_modules/brainstorm/
+
+# Only the Vite build runs on each deploy (~12s local, ~30-60s on 2 vCPUs)
+RUN cd /usr/local/lib/node_modules/brainstorm/ui && npm run build
 
 # Nginx config
 COPY docker/nginx.conf /etc/nginx/sites-available/brainstorm
