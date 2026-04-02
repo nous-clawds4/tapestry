@@ -96,6 +96,8 @@ function ResultCard({ hit }) {
 
 /* ── Main Page ────────────────────────────────────────── */
 
+const SUGGEST_LIMIT = 6;
+
 export default function BrainstormSearch() {
   const { user, login, logout } = useAuth();
   const [query, setQuery] = useState('');
@@ -105,16 +107,24 @@ export default function BrainstormSearch() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState(null);
   const [pov, setPov] = useState('nosfabrica');
+  // Autocomplete suggestions (landing page only)
+  const [suggestions, setSuggestions] = useState(null);
+  const [suggestLoading, setSuggestLoading] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const suggestRef = useRef(null); // ref for click-outside detection
   const debounceRef = useRef(null);
   const inputRef = useRef(null);
 
   const hasResults = results !== null;
-  const hasQuery = query.trim().length > 0;
 
-  // Search function
+  // Full search (transitions to results view)
   const doSearch = useCallback(async (q, offset = 0) => {
     const trimmed = (q ?? query).trim();
     if (!trimmed) return;
+
+    // Close suggestions when doing full search
+    setSuggestions(null);
+    setShowSuggestions(false);
 
     if (offset === 0) {
       setLoading(true);
@@ -154,18 +164,66 @@ export default function BrainstormSearch() {
     }
   }, [query]);
 
-  // Debounced search-as-you-type
-  const handleInputChange = useCallback((value) => {
+  // Autocomplete fetch (landing page — populates dropdown, NOT results)
+  const fetchSuggestions = useCallback(async (q) => {
+    const trimmed = q.trim();
+    if (trimmed.length < 2) {
+      setSuggestions(null);
+      setShowSuggestions(false);
+      return;
+    }
+    setSuggestLoading(true);
+    try {
+      const resp = await fetch(
+        `/api/search/profiles/meili?q=${encodeURIComponent(trimmed)}&limit=${SUGGEST_LIMIT}&offset=0`
+      );
+      const data = await resp.json();
+      if (resp.ok && data.hits) {
+        setSuggestions(data.hits);
+        setShowSuggestions(true);
+      }
+    } catch {
+      // silently fail suggestions
+    } finally {
+      setSuggestLoading(false);
+    }
+  }, []);
+
+  // Landing page: debounced autocomplete; Results page: debounced full search
+  const handleInputChange = useCallback((value, isResultsView) => {
     setQuery(value);
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    if (value.trim().length >= 2) {
-      debounceRef.current = setTimeout(() => doSearch(value), 300);
-    } else if (value.trim().length === 0) {
-      setResults(null);
-      setMeta(null);
-      setError(null);
+
+    if (isResultsView) {
+      // Results view: search-as-you-type with full results
+      if (value.trim().length >= 2) {
+        debounceRef.current = setTimeout(() => doSearch(value), 300);
+      } else if (value.trim().length === 0) {
+        setResults(null);
+        setMeta(null);
+        setError(null);
+      }
+    } else {
+      // Landing view: autocomplete suggestions only
+      if (value.trim().length >= 2) {
+        debounceRef.current = setTimeout(() => fetchSuggestions(value), 200);
+      } else {
+        setSuggestions(null);
+        setShowSuggestions(false);
+      }
     }
-  }, [doSearch]);
+  }, [doSearch, fetchSuggestions]);
+
+  // Close suggestions on click outside
+  useEffect(() => {
+    function handleClick(e) {
+      if (suggestRef.current && !suggestRef.current.contains(e.target)) {
+        setShowSuggestions(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
 
   useEffect(() => {
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
@@ -173,7 +231,7 @@ export default function BrainstormSearch() {
 
   const hasMore = results && meta && results.length < meta.estimatedTotalHits;
 
-  // Landing view (no results yet)
+  // Landing view (no full results yet — suggestions may be showing)
   if (!hasResults && !loading && !error) {
     return (
       <div className="bs-page">
@@ -197,18 +255,75 @@ export default function BrainstormSearch() {
           </h1>
           <p className="bs-tagline">Search across millions of nostr profiles</p>
 
-          <div className="bs-search-box-landing">
+          <div className="bs-search-box-landing" ref={suggestRef}>
             <span className="bs-search-icon">🔍</span>
             <input
               ref={inputRef}
               type="text"
               className="bs-search-input-landing"
               value={query}
-              onChange={e => handleInputChange(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && doSearch()}
+              onChange={e => handleInputChange(e.target.value, false)}
+              onKeyDown={e => {
+                if (e.key === 'Enter') {
+                  setShowSuggestions(false);
+                  doSearch();
+                }
+                if (e.key === 'Escape') setShowSuggestions(false);
+              }}
+              onFocus={() => { if (suggestions?.length) setShowSuggestions(true); }}
               placeholder="Search by name, bio, NIP-05, website…"
               autoFocus
             />
+
+            {/* Autocomplete dropdown */}
+            {showSuggestions && suggestions && suggestions.length > 0 && (
+              <div className="bs-suggest-dropdown">
+                {suggestions.map(hit => {
+                  const name = hit.name || hit.display_name || 'Unknown';
+                  const nip05 = hit.nip05;
+                  return (
+                    <a
+                      key={hit.pubkey || hit.id}
+                      href={`/kg/users/${hit.pubkey || hit.id}`}
+                      className="bs-suggest-item"
+                      onMouseDown={e => {
+                        // Use mousedown (not click) to fire before blur
+                        e.preventDefault();
+                        setShowSuggestions(false);
+                        setQuery(name);
+                        doSearch(name);
+                      }}
+                    >
+                      {hit.picture ? (
+                        <img
+                          src={hit.picture}
+                          alt=""
+                          className="bs-suggest-avatar"
+                          onError={e => { e.target.style.display = 'none'; }}
+                        />
+                      ) : (
+                        <div className="bs-suggest-avatar bs-suggest-avatar-placeholder">👤</div>
+                      )}
+                      <div className="bs-suggest-info">
+                        <span className="bs-suggest-name">{name}</span>
+                        {nip05 && <span className="bs-suggest-nip05">{nip05}</span>}
+                      </div>
+                      {hit.wot_rank != null && (
+                        <span className="bs-suggest-rank">🏅 {hit.wot_rank}</span>
+                      )}
+                    </a>
+                  );
+                })}
+                <div className="bs-suggest-footer">
+                  Press <kbd>Enter</kbd> for full results
+                </div>
+              </div>
+            )}
+            {showSuggestions && suggestLoading && (
+              <div className="bs-suggest-dropdown">
+                <div className="bs-suggest-loading">Searching…</div>
+              </div>
+            )}
           </div>
 
           {/* POV selector (visible when signed in) */}
@@ -276,7 +391,7 @@ export default function BrainstormSearch() {
               type="text"
               className="bs-search-input-results"
               value={query}
-              onChange={e => handleInputChange(e.target.value)}
+              onChange={e => handleInputChange(e.target.value, true)}
               onKeyDown={e => e.key === 'Enter' && doSearch()}
               placeholder="Search profiles…"
             />
