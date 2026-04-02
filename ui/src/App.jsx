@@ -62,7 +62,12 @@ import StrfryOverview from './pages/databases/StrfryOverview';
 import ExportPage from './pages/io/ExportPage';
 import ImportPage from './pages/io/ImportPage';
 import Dashboard from './pages/Dashboard';
+import BrainstormSearch from './pages/BrainstormSearch';
 const router = createBrowserRouter([
+  {
+    path: '/kg/brainstorm-search',
+    element: <BrainstormSearch />,
+  },
   {
     path: '/kg',
     element: <Layout />,
