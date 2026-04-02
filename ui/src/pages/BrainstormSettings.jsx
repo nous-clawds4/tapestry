@@ -383,6 +383,24 @@ export default function BrainstormSettings() {
       </div>
 
       <div className="bss-content">
+        {/* Dashboard link for owner/admin */}
+        {(user?.classification === 'owner' || user?.classification === 'admin') && (
+          <a href="/kg/" className="bss-dashboard-link">
+            <svg width="16" height="16" viewBox="0 0 18 18" fill="none" style={{ marginRight: '0.4rem' }}>
+              <rect x="1" y="1" width="4" height="4" rx="1" fill="currentColor" opacity="0.7"/>
+              <rect x="7" y="1" width="4" height="4" rx="1" fill="currentColor" opacity="0.7"/>
+              <rect x="13" y="1" width="4" height="4" rx="1" fill="currentColor" opacity="0.7"/>
+              <rect x="1" y="7" width="4" height="4" rx="1" fill="currentColor" opacity="0.7"/>
+              <rect x="7" y="7" width="4" height="4" rx="1" fill="currentColor" opacity="0.7"/>
+              <rect x="13" y="7" width="4" height="4" rx="1" fill="currentColor" opacity="0.7"/>
+              <rect x="1" y="13" width="4" height="4" rx="1" fill="currentColor" opacity="0.7"/>
+              <rect x="7" y="13" width="4" height="4" rx="1" fill="currentColor" opacity="0.7"/>
+              <rect x="13" y="13" width="4" height="4" rx="1" fill="currentColor" opacity="0.7"/>
+            </svg>
+            Dashboard
+          </a>
+        )}
+
         <h1 className="bss-title">⚙️ Personalize your Experience</h1>
         <p className="bss-subtitle">
           Configure Web of Trust scoring to personalize how search results are filtered and ranked.

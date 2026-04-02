@@ -2397,6 +2397,24 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
 /* ── User Menu (avatar + dropdown) ── */
 .bs-usermenu {
   position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.bs-usermenu-grid-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  color: rgba(255,255,255,0.55);
+  text-decoration: none;
+  transition: background 0.15s, color 0.15s;
+}
+.bs-usermenu-grid-btn:hover {
+  background: rgba(255,255,255,0.08);
+  color: rgba(255,255,255,0.9);
 }
 .bs-usermenu-avatar-btn {
   background: none;
@@ -3445,6 +3463,21 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   max-width: 700px;
   margin: 0 auto;
   padding: 1.5rem;
+}
+.bss-dashboard-link {
+  display: inline-flex;
+  align-items: center;
+  color: rgba(255,255,255,0.55);
+  text-decoration: none;
+  font-size: 0.85rem;
+  margin-bottom: 1rem;
+  padding: 0.35rem 0.7rem;
+  border-radius: 6px;
+  transition: background 0.15s, color 0.15s;
+}
+.bss-dashboard-link:hover {
+  background: rgba(255,255,255,0.06);
+  color: rgba(255,255,255,0.85);
 }
 .bss-title {
   font-size: 1.4rem;

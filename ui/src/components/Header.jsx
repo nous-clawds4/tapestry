@@ -63,7 +63,7 @@ export default function Header({ onToggleSidebar }) {
       <button className="sidebar-toggle" onClick={onToggleSidebar} aria-label="Toggle menu">
         ☰
       </button>
-      <div className="header-brand" onClick={() => navigate('/kg/')} style={{ cursor: 'pointer' }}>
+      <div className="header-brand" onClick={() => navigate('/kg/brainstorm-search')} style={{ cursor: 'pointer' }}>
         <span className="header-brand-name">🧠 Tapestry</span>
       </div>
       <div className="header-spacer" />
