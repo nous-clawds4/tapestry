@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
 import { useAuth } from '../context/AuthContext';
+import BrainstormUserMenu, { useHouseProfile } from '../components/BrainstormUserMenu';
 
 /* ── Helpers ──────────────────────────────────────────── */
 
@@ -76,6 +77,7 @@ export default function BrainstormProfile() {
     try { return nip19.npubEncode(pubkey); } catch { return null; }
   }, [pubkey]);
 
+  const houseProfile = useHouseProfile();
   const displayName = profile?.display_name || profile?.name || shortPubkey(pubkey);
   const profileAge = timeAgo(profile?.created_at);
 
@@ -164,14 +166,7 @@ export default function BrainstormProfile() {
           Brainstorm Search
         </a>
         <div className="bsp-auth">
-          {user ? (
-            <>
-              <span className="bsp-user-name">{user.profile?.name || user.pubkey.slice(0, 8) + '…'}</span>
-              <button className="bsp-link-btn" onClick={logout}>Sign out</button>
-            </>
-          ) : (
-            <button className="bsp-link-btn" onClick={login}>Sign in with nostr</button>
-          )}
+          <BrainstormUserMenu user={user} login={login} logout={logout} />
         </div>
       </div>
 
@@ -250,7 +245,18 @@ export default function BrainstormProfile() {
 
             {/* Trust Scores */}
             <div className="bsp-section">
-              <h3>Trust Metrics <span className="bsp-pov-tag">House POV</span></h3>
+              <h3>Trust Metrics
+                <span className="bsp-pov-tag">
+                  {houseProfile ? (
+                    <a href={`/kg/brainstorm-search/user/${houseProfile.pubkey}`} className="bsp-pov-tag-link">
+                      {houseProfile.picture && (
+                        <img src={houseProfile.picture} alt="" className="bsp-pov-tag-avatar" onError={e => { e.target.style.display = 'none'; }} />
+                      )}
+                      {houseProfile.name}
+                    </a>
+                  ) : 'House POV'}
+                </span>
+              </h3>
 
               {trustLoading && (
                 <div className="bsp-trust-loading">Loading trust data…</div>

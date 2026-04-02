@@ -64,6 +64,7 @@ import ImportPage from './pages/io/ImportPage';
 import Dashboard from './pages/Dashboard';
 import BrainstormSearch from './pages/BrainstormSearch';
 import BrainstormProfile from './pages/BrainstormProfile';
+import BrainstormSettings from './pages/BrainstormSettings';
 const router = createBrowserRouter([
   {
     path: '/kg/brainstorm-search',
@@ -72,6 +73,10 @@ const router = createBrowserRouter([
   {
     path: '/kg/brainstorm-search/user/:pubkey',
     element: <BrainstormProfile />,
+  },
+  {
+    path: '/kg/brainstorm-search/settings',
+    element: <BrainstormSettings />,
   },
   {
     path: '/kg',

@@ -7,3 +7,4 @@ ui/node_modules
 docker-compose*.yml
 CODEBASE_ANALYSIS.md
 public/kg/
+.claude/

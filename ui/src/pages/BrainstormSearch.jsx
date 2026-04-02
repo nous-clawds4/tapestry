@@ -1,5 +1,21 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useHouseProfile } from '../components/BrainstormUserMenu';
+
+/* ── House POV Label (shared inline component) ───────── */
+
+function HousePovLabel() {
+  const house = useHouseProfile();
+  if (!house) return <strong>House</strong>;
+  return (
+    <a href={`/kg/brainstorm-search/user/${house.pubkey}`} className="bs-usermenu-pov-link">
+      {house.picture && (
+        <img src={house.picture} alt="" className="bs-usermenu-pov-avatar" onError={e => { e.target.style.display = 'none'; }} />
+      )}
+      <strong>{house.name}</strong>
+    </a>
+  );
+}
 
 /* ── User Menu (avatar + dropdown panel) ─────────────── */
 
@@ -423,212 +439,27 @@ function UserMenu({ user, login, logout, pov, setPov, filters, setFilters, sortC
             </div>
           </div>
 
-          {/* WoT Status */}
+          {/* Compact POV indicator */}
           <div className="bs-usermenu-section">
-            <div className="bs-usermenu-section-title">Web of Trust Status</div>
-            {wotStatus.loading ? (
-              <div className="bs-usermenu-status-loading">Checking…</div>
-            ) : (
-              <div className="bs-usermenu-status-list">
-                {/* Check 1: 10040 */}
-                <div className="bs-usermenu-status-row">
-                  <span>{wotStatus.has10040 ? '✅' : '❌'}</span>
-                  <span>Treasure Map (kind 10040)</span>
-                </div>
-                {/* Check 2: Rank tag */}
-                <div className="bs-usermenu-status-row">
-                  <span>{wotStatus.hasRankTag ? '✅' : '❌'}</span>
-                  <span>Rank tag in Treasure Map</span>
-                </div>
-
-                {/* Only show steps 3–5 if checks 1–2 pass */}
-                {wotStatus.has10040 && wotStatus.hasRankTag && (<>
-                  {/* Check 3: TAs exist */}
-                  <div className="bs-usermenu-status-row">
-                    <span>{wotStatus.hasTAs ? '✅' : '❌'}</span>
-                    <span>
-                      Trusted Assertions
-                      {wotStatus.hasTAs && wotStatus.taAge && (
-                        <span className="bs-usermenu-ta-age"> (latest: {wotStatus.taAge})</span>
-                      )}
-                    </span>
-                  </div>
-
-                  {/* Step 4: Sync */}
-                  <div className="bs-usermenu-status-row">
-                    <span>{wotStatus.localCount > 0 ? '✅' : (syncing ? '⏳' : '❌')}</span>
-                    <span>
-                      Local TAs{wotStatus.localCount != null ? `: ${wotStatus.localCount.toLocaleString()}` : ''}
-                    </span>
-                    <button
-                      className="bs-usermenu-action-btn"
-                      onClick={() => triggerSync(wotStatus.rankAuthor, wotStatus.rankRelay)}
-                      disabled={syncing}
-                      title="Re-sync TAs from relay"
-                    >
-                      {syncing ? '⏳' : '🔄'}
-                    </button>
-                  </div>
-                  {syncStatus && (
-                    <div className="bs-usermenu-substatus">{syncStatus}</div>
-                  )}
-
-                  {/* Step 5: Load scores */}
-                  {wotStatus.localCount > 0 && (
-                    <>
-                      <div className="bs-usermenu-status-row">
-                        <span>{scoresReady ? '✅' : (loadingScores ? '⏳' : '❌')}</span>
-                        <span>Scores in search index</span>
-                        <button
-                          className="bs-usermenu-action-btn"
-                          onClick={() => {
-                            const metricNames = wotStatus.allMetrics.map(m => m.metric);
-                            triggerLoadScores(wotStatus.rankAuthor, metricNames, user.pubkey);
-                          }}
-                          disabled={loadingScores}
-                          title="Re-load scores into Meilisearch"
-                        >
-                          {loadingScores ? '⏳' : '🔄'}
-                        </button>
-                      </div>
-                      {loadStatus && (
-                        <div className="bs-usermenu-substatus">{loadStatus}</div>
-                      )}
-                    </>
-                  )}
-                </>)}
-              </div>
-            )}
-          </div>
-
-          {/* Available Metrics (compact) — only show when pipeline is ready */}
-          {wotStatus.allMetrics.length > 0 && scoresReady && (
-            <div className="bs-usermenu-section">
-              <div className="bs-usermenu-section-title">Trust Metrics</div>
-              <div className="bs-usermenu-metrics-list">
-                {wotStatus.allMetrics.map(m => (
-                  <label key={m.metric} className={`bs-usermenu-metric ${selectedMetrics.has(m.metric) ? 'active' : ''}`}>
-                    <input
-                      type="checkbox"
-                      checked={selectedMetrics.has(m.metric)}
-                      onChange={() => {
-                        setSelectedMetrics(prev => {
-                          const next = new Set(prev);
-                          if (next.has(m.metric)) next.delete(m.metric);
-                          else next.add(m.metric);
-                          return next;
-                        });
-                        setFilterSortDirty(true);
-                      }}
-                    />
-                    <span>{m.metric}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Filter & Sort (compact) — only show when pipeline is ready */}
-          {wotStatus.allMetrics.length > 0 && scoresReady && (
-            <div className="bs-usermenu-section">
-              <div className="bs-usermenu-section-title">Filter &amp; Sort</div>
-
-              {/* Compact filters */}
-              <div className="bs-usermenu-filters">
-                {wotStatus.allMetrics.filter(m => selectedMetrics.has(m.metric)).map(m => {
-                  const f = filters[m.metric] || { enabled: false, cutoff: 0 };
-                  return (
-                    <div key={m.metric} className="bs-usermenu-filter-row">
-                      <input
-                        type="checkbox"
-                        checked={f.enabled}
-                        onChange={() => {
-                          setFilters(prev => ({ ...prev, [m.metric]: { ...f, enabled: !f.enabled } }));
-                          setFilterSortDirty(true);
-                        }}
-                      />
-                      <span className="bs-usermenu-filter-name">{m.metric}</span>
-                      <span className="bs-usermenu-filter-op">≥</span>
-                      <input
-                        type="number"
-                        step="any"
-                        value={f.cutoff}
-                        onChange={e => {
-                          setFilters(prev => ({ ...prev, [m.metric]: { ...f, cutoff: parseFloat(e.target.value) || 0 } }));
-                          setFilterSortDirty(true);
-                        }}
-                        disabled={!f.enabled}
-                        className="bs-usermenu-filter-input"
-                      />
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Sort */}
-              <div className="bs-usermenu-sort-row">
-                <span className="bs-usermenu-filter-name">Sort by</span>
-                <select
-                  value={sortConfig.metric || ''}
-                  onChange={e => {
-                    setSortConfig(prev => ({ ...prev, metric: e.target.value || null }));
-                    setFilterSortDirty(true);
-                  }}
-                  className="bs-usermenu-select"
-                >
-                  <option value="">relevance</option>
-                  {wotStatus.allMetrics.filter(m => selectedMetrics.has(m.metric)).map(m => (
-                    <option key={m.metric} value={m.metric}>{m.metric}</option>
-                  ))}
-                </select>
-                <select
-                  value={sortConfig.direction}
-                  onChange={e => {
-                    setSortConfig(prev => ({ ...prev, direction: e.target.value }));
-                    setFilterSortDirty(true);
-                  }}
-                  className="bs-usermenu-select"
-                >
-                  <option value="desc">desc</option>
-                  <option value="asc">asc</option>
-                </select>
-              </div>
-
-              {/* Save button */}
-              {filterSortDirty && (
-                <button className="bs-usermenu-save-btn" onClick={saveFilterSort}>
-                  💾 Save Preferences
-                </button>
+            <div className="bs-usermenu-pov-indicator">
+              Searching as:{' '}
+              {pov === 'user' && myWotReady ? (
+                <strong>My WoT</strong>
+              ) : (
+                <HousePovLabel />
               )}
-              {!filterSortDirty && Object.keys(filters).length > 0 && (
-                <div className="bs-usermenu-substatus">✓ Saved</div>
-              )}
-            </div>
-          )}
-
-          {/* POV Toggle */}
-          <div className="bs-usermenu-section">
-            <div className="bs-usermenu-section-title">Point of View</div>
-            <div className="bs-usermenu-pov-toggle">
-              <button
-                className={`bs-usermenu-pov-btn ${pov === 'nosfabrica' ? 'active' : ''}`}
-                onClick={() => setPov('nosfabrica')}
-              >
-                House (NosFabrica)
-              </button>
-              <button
-                className={`bs-usermenu-pov-btn ${pov === 'user' ? 'active' : ''} ${!myWotReady ? 'disabled' : ''}`}
-                onClick={() => { if (myWotReady) setPov('user'); }}
-                disabled={!myWotReady}
-                title={!myWotReady ? 'Complete all WoT steps above to enable My WoT' : ''}
-              >
-                My WoT
-              </button>
             </div>
           </div>
 
-          {/* Sign out */}
+          {/* Settings + Sign out */}
           <div className="bs-usermenu-footer">
+            <a
+              href="/kg/brainstorm-search/settings"
+              className="bs-usermenu-settings-btn"
+              onClick={() => setOpen(false)}
+            >
+              ⚙️ Settings
+            </a>
             <button className="bs-usermenu-signout" onClick={() => { setOpen(false); logout(); }}>
               Sign out
             </button>
