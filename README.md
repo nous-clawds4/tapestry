@@ -40,11 +40,16 @@ OWNER_PUBKEY=your_hex_pubkey_here
 
 # Choose a strong password for Neo4j
 NEO4J_PASSWORD=change_me_to_something_secure
+
+# set admin pubkey for the local relay (probably use same as above)
+ADMIN_PUBKEYS=your_hex_pubkey_here
 ```
 
 > **How to find your hex pubkey:** If you only have your `npub`, you can convert it at [njump.me](https://njump.me) or using the `nak` CLI: `nak key decode npub1...`
 
 ### 3. Build and start
+
+_Note: If any of the ports in the docker-compose.yml file are non-negotiably unusable on your system, create a docker-compose.override.yml and set the ports there, shadowing the same yml structure as what you're overriding. See docker-compose.override-example.yml_.
 
 ```bash
 docker compose up -d
