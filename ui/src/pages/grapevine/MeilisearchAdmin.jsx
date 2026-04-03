@@ -308,8 +308,41 @@ export default function MeilisearchAdmin() {
           </div>
         )}
         {bulkStatus?.status === 'complete' && (
-          <div style={{ fontSize: '0.85rem', marginBottom: '0.5rem', color: '#3fb950' }}>
-            ✅ Last ingest complete: {(bulkStatus?.indexed || 0).toLocaleString()} profiles indexed
+          <div style={{ fontSize: '0.85rem', marginBottom: '0.5rem' }}>
+            <div style={{ color: '#3fb950', marginBottom: '0.3rem' }}>
+              ✅ Last ingest complete: {(bulkStatus?.indexed || 0).toLocaleString()} profiles indexed
+              {bulkStatus?.processed ? ` from ${bulkStatus.processed.toLocaleString()} events` : ''}
+              {bulkStatus?.elapsed ? ` in ${bulkStatus.elapsed}s` : ''}
+            </div>
+            {bulkStatus?.errors && (
+              <div style={{ fontSize: '0.8rem', opacity: 0.7, marginTop: '0.3rem' }}>
+                <div>Duplicates skipped: {(bulkStatus.errors.duplicatesSkipped || 0).toLocaleString()}</div>
+                {(bulkStatus.errors.jsonParse > 0 || bulkStatus.errors.missingFields > 0 ||
+                  bulkStatus.errors.contentParse > 0 || bulkStatus.errors.npubEncode > 0) && (
+                  <div style={{ color: '#d29922' }}>
+                    Parse errors: {(bulkStatus.errors.jsonParse + bulkStatus.errors.missingFields +
+                      bulkStatus.errors.contentParse + bulkStatus.errors.npubEncode).toLocaleString()}
+                    {' '}(JSON: {bulkStatus.errors.jsonParse}, missing fields: {bulkStatus.errors.missingFields},
+                    content: {bulkStatus.errors.contentParse}, npub: {bulkStatus.errors.npubEncode})
+                  </div>
+                )}
+                {bulkStatus.errors.batchFailures > 0 && (
+                  <div style={{ color: '#f85149' }}>
+                    ⚠ Batch failures: {bulkStatus.errors.batchFailures}
+                    ({(bulkStatus.errors.batchesDropped || 0).toLocaleString()} profiles dropped,
+                    {bulkStatus.errors.batchRetries} retries)
+                  </div>
+                )}
+              </div>
+            )}
+            {bulkStatus?.sampleErrors?.length > 0 && (
+              <details style={{ fontSize: '0.75rem', marginTop: '0.4rem', opacity: 0.6 }}>
+                <summary style={{ cursor: 'pointer' }}>Sample errors ({bulkStatus.sampleErrors.length})</summary>
+                <pre style={{ margin: '0.3rem 0', whiteSpace: 'pre-wrap', fontSize: '0.7rem' }}>
+                  {JSON.stringify(bulkStatus.sampleErrors, null, 2)}
+                </pre>
+              </details>
+            )}
           </div>
         )}
         <button
