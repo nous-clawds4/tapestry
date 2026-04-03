@@ -8,7 +8,7 @@ services:
       - "7778:7778"
       - "7474:7474"
       - "7687:7687"
-      - "8687:8687"
+      - "8687:8687" # Neo4j Bolt (proxied via nginx TCP stream from 7687)
     environment:
       - OWNER_PUBKEY=${OWNER_PUBKEY}
       - ADMIN_PUBKEYS=${ADMIN_PUBKEYS}

@@ -67,7 +67,11 @@ Wait until you see the brainstorm service start. Then open:
 
 - **Control Panel:** [http://localhost:8080](http://localhost:8080)
 - **Knowledge Graph UI:** [http://localhost:8080/kg/](http://localhost:8080/kg/)
-- **Neo4j Browser:** [http://localhost:8080/browser/preview/](http://localhost:8080/browser/preview/) (user: `neo4j`, password: what you set above)
+- **Neo4j Browser:** [http://localhost:8080/browser/preview/](http://localhost:8080/browser/preview/)
+  - Protocol: `neo4j://`
+  - Connection URL: `localhost:8687`
+  - user: `neo4j`
+  - password: what you set above in `.env`
 - **Nostr Relay:** `ws://localhost:8080/relay`
 
 ### 5. Sign in
