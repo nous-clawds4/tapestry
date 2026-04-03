@@ -679,7 +679,10 @@ export default function BrainstormSearch() {
       const data = await resp.json();
 
       if (!resp.ok || data.success === false) {
-        setError(data.error || 'Search service unavailable.');
+        const errMsg = typeof data.error === 'string' ? data.error
+          : data.error ? JSON.stringify(data.error)
+          : data.detail || 'Search service unavailable.';
+        setError(errMsg);
         return;
       }
 
@@ -1030,7 +1033,7 @@ export default function BrainstormSearch() {
         )}
 
         {error && (
-          <div className="bs-error">{error}</div>
+          <div className="bs-error">{typeof error === 'string' ? error : JSON.stringify(error)}</div>
         )}
 
         {results && !loading && (

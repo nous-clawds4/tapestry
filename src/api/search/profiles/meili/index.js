@@ -128,9 +128,15 @@ async function handleMeiliSearchProfiles(req, res) {
     }
 
     const data = await response.json();
+
+    // Count how many hits have scores for this POV
+    const wotCount = data.hits ? data.hits.filter(h => h[`wot_rank_${povSuffix}`] != null).length : 0;
+
     return res.json({
       success: true,
       povSuffix,
+      _wotCount: wotCount,
+      _filtered: !!(filters && povSuffix),
       ...data,
     });
   } catch (err) {
@@ -354,6 +360,375 @@ async function handleMeiliRandomScored(req, res) {
   }
 }
 
+/**
+ * GET /api/search/profiles/meili/tasks
+ * Return Meilisearch task queue summary: counts by status, recent failed tasks.
+ */
+async function handleMeiliTasks(req, res) {
+  try {
+    const MEILI_URL = process.env.MEILI_URL || 'http://nostr-search-meili:7700';
+
+    // Fetch counts for each status in parallel
+    const statuses = ['enqueued', 'processing', 'succeeded', 'failed', 'canceled'];
+    const countPromises = statuses.map(async (status) => {
+      const resp = await fetch(`${MEILI_URL}/tasks?statuses=${status}&limit=0`);
+      if (!resp.ok) return { status, total: 0 };
+      const data = await resp.json();
+      return { status, total: data.total || 0 };
+    });
+
+    // Fetch recent failed tasks for debugging
+    const failedPromise = fetch(`${MEILI_URL}/tasks?statuses=failed&limit=10`)
+      .then(r => r.ok ? r.json() : { results: [] })
+      .catch(() => ({ results: [] }));
+
+    const [counts, failedData] = await Promise.all([
+      Promise.all(countPromises),
+      failedPromise,
+    ]);
+
+    const summary = {};
+    for (const c of counts) summary[c.status] = c.total;
+
+    const recentFailed = (failedData.results || []).map(t => ({
+      uid: t.uid,
+      type: t.type,
+      error: t.error?.message?.slice(0, 200) || 'Unknown error',
+      enqueuedAt: t.enqueuedAt,
+      finishedAt: t.finishedAt,
+    }));
+
+    return res.json({
+      success: true,
+      queue: summary,
+      pending: (summary.enqueued || 0) + (summary.processing || 0),
+      recentFailed,
+    });
+  } catch (err) {
+    return res.status(503).json({ success: false, error: err.message });
+  }
+}
+
+/**
+ * POST /api/search/profiles/meili/prune-unscored
+ * Delete all profiles from Meilisearch that have no WoT scores.
+ * Strategy: paginate through ALL docs, collect IDs of those without any wot_* score field,
+ * then delete them in batches.
+ */
+async function handleMeiliPruneUnscored(req, res) {
+  const MEILI_URL = process.env.MEILI_URL || 'http://nostr-search-meili:7700';
+  const MEILI_INDEX = process.env.MEILI_INDEX || 'profiles';
+  const BATCH_SIZE = 50000;
+
+  try {
+    // 1. Discover which wot score fields exist (filterable)
+    const settingsResp = await fetch(`${MEILI_URL}/indexes/${MEILI_INDEX}/settings`);
+    if (!settingsResp.ok) {
+      return res.status(502).json({ success: false, error: 'Cannot read Meilisearch settings' });
+    }
+    const settings = await settingsResp.json();
+    const wotFilterable = (settings.filterableAttributes || []).filter(
+      f => f.startsWith('wot_rank_') || f.startsWith('wot_followers_')
+    );
+
+    if (wotFilterable.length === 0) {
+      return res.json({ success: false, error: 'No WoT score fields found — cannot determine which profiles are scored.' });
+    }
+
+    // 2. Collect IDs of scored profiles using search with filter
+    const scoredIds = new Set();
+    const filterField = wotFilterable[0]; // Use first wot_rank_* or wot_followers_* field
+    let offset = 0;
+    const SEARCH_BATCH = 1000;
+
+    while (true) {
+      const searchResp = await fetch(`${MEILI_URL}/indexes/${MEILI_INDEX}/search`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          q: '',
+          filter: `${filterField} EXISTS`,
+          attributesToRetrieve: ['id'],
+          limit: SEARCH_BATCH,
+          offset,
+        }),
+      });
+      if (!searchResp.ok) break;
+      const data = await searchResp.json();
+      const hits = data.hits || [];
+      for (const hit of hits) scoredIds.add(hit.id);
+      if (hits.length < SEARCH_BATCH) break;
+      offset += SEARCH_BATCH;
+      // Safety: Meilisearch caps offset at 1000 for search. Use documents endpoint instead.
+      if (offset >= 1000) break;
+    }
+
+    // If search offset cap was hit, use documents endpoint for remaining scored profiles
+    // Actually, let's use the documents endpoint for ALL IDs and filter locally
+    // This is more reliable than search offset limits.
+
+    // 3. Collect ALL document IDs via documents endpoint (paginated)
+    const allIds = [];
+    let docOffset = 0;
+    const DOC_BATCH = 50000;
+
+    while (true) {
+      const resp = await fetch(
+        `${MEILI_URL}/indexes/${MEILI_INDEX}/documents?fields=id,${filterField}&offset=${docOffset}&limit=${DOC_BATCH}`
+      );
+      if (!resp.ok) break;
+      const data = await resp.json();
+      const results = data.results || [];
+      for (const doc of results) {
+        const hasScore = doc[filterField] !== undefined && doc[filterField] !== null;
+        if (!hasScore) {
+          allIds.push(doc.id);
+        }
+      }
+      if (results.length < DOC_BATCH) break;
+      docOffset += DOC_BATCH;
+    }
+
+    const unscoredCount = allIds.length;
+
+    if (unscoredCount === 0) {
+      return res.json({ success: true, deleted: 0, message: 'All profiles have scores — nothing to prune.' });
+    }
+
+    // 4. Delete unscored profiles in batches
+    let deletedTotal = 0;
+    for (let i = 0; i < allIds.length; i += BATCH_SIZE) {
+      const batch = allIds.slice(i, i + BATCH_SIZE);
+      const delResp = await fetch(`${MEILI_URL}/indexes/${MEILI_INDEX}/documents/delete-batch`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(batch),
+      });
+      if (delResp.ok) {
+        deletedTotal += batch.length;
+      }
+    }
+
+    return res.json({
+      success: true,
+      deleted: deletedTotal,
+      message: `Pruned ${deletedTotal.toLocaleString()} unscored profiles. ${scoredIds.size > 0 ? scoredIds.size.toLocaleString() + ' scored profiles retained.' : ''}`,
+    });
+  } catch (err) {
+    return res.status(503).json({ success: false, error: err.message });
+  }
+}
+
+/**
+ * GET /api/search/profiles/meili/scored-missing-profile
+ * Find scored profiles that have no kind 0 profile data (no created_at field).
+ * Returns count and sample pubkeys.
+ */
+async function handleMeiliScoredMissingProfile(req, res) {
+  const MEILI_URL = process.env.MEILI_URL || 'http://nostr-search-meili:7700';
+  const MEILI_INDEX = process.env.MEILI_INDEX || 'profiles';
+
+  try {
+    // Find a wot score field to filter on
+    const settingsResp = await fetch(`${MEILI_URL}/indexes/${MEILI_INDEX}/settings`);
+    if (!settingsResp.ok) return res.status(502).json({ success: false, error: 'Cannot read settings' });
+    const settings = await settingsResp.json();
+    const wotField = (settings.filterableAttributes || []).find(f => f.startsWith('wot_rank_'));
+    if (!wotField) return res.json({ success: true, missingCount: 0, totalScored: 0, message: 'No WoT score fields found.' });
+
+    // Ensure created_at is filterable so we can use EXISTS
+    const filterableAttrs = settings.filterableAttributes || [];
+    if (!filterableAttrs.includes('created_at')) {
+      // Add created_at as filterable
+      await fetch(`${MEILI_URL}/indexes/${MEILI_INDEX}/settings`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filterableAttributes: [...filterableAttrs, 'created_at'] }),
+      });
+      // Wait for Meilisearch to process
+      await new Promise(r => setTimeout(r, 2000));
+    }
+
+    // Paginate through scored documents, check for missing created_at
+    const missingPubkeys = [];
+    let totalScored = 0;
+    let offset = 0;
+    const BATCH = 50000;
+
+    while (true) {
+      const resp = await fetch(
+        `${MEILI_URL}/indexes/${MEILI_INDEX}/documents?fields=id,pubkey,created_at,${wotField}&offset=${offset}&limit=${BATCH}`
+      );
+      if (!resp.ok) break;
+      const data = await resp.json();
+      const results = data.results || [];
+
+      for (const doc of results) {
+        const hasScore = doc[wotField] !== undefined && doc[wotField] !== null;
+        if (hasScore) {
+          totalScored++;
+          if (!doc.created_at) {
+            missingPubkeys.push(doc.pubkey || doc.id);
+          }
+        }
+      }
+
+      if (results.length < BATCH) break;
+      offset += BATCH;
+    }
+
+    return res.json({
+      success: true,
+      missingCount: missingPubkeys.length,
+      totalScored,
+      samplePubkeys: missingPubkeys.slice(0, 20),
+    });
+  } catch (err) {
+    return res.status(503).json({ success: false, error: err.message });
+  }
+}
+
+/**
+ * POST /api/search/profiles/meili/backfill-profiles
+ * For scored profiles missing kind 0 data, look up their kind 0 events in local strfry
+ * and merge the profile data into Meilisearch.
+ */
+async function handleMeiliBackfillProfiles(req, res) {
+  const MEILI_URL = process.env.MEILI_URL || 'http://nostr-search-meili:7700';
+  const MEILI_INDEX = process.env.MEILI_INDEX || 'profiles';
+
+  try {
+    // 1. Find scored profiles missing created_at (reuse logic from above)
+    const settingsResp = await fetch(`${MEILI_URL}/indexes/${MEILI_INDEX}/settings`);
+    if (!settingsResp.ok) return res.status(502).json({ success: false, error: 'Cannot read settings' });
+    const settings = await settingsResp.json();
+    const wotField = (settings.filterableAttributes || []).find(f => f.startsWith('wot_rank_'));
+    if (!wotField) return res.json({ success: true, backfilled: 0, message: 'No WoT score fields found.' });
+
+    const missingPubkeys = [];
+    let offset = 0;
+    const BATCH = 50000;
+
+    while (true) {
+      const resp = await fetch(
+        `${MEILI_URL}/indexes/${MEILI_INDEX}/documents?fields=id,pubkey,created_at,${wotField}&offset=${offset}&limit=${BATCH}`
+      );
+      if (!resp.ok) break;
+      const data = await resp.json();
+      const results = data.results || [];
+
+      for (const doc of results) {
+        const hasScore = doc[wotField] !== undefined && doc[wotField] !== null;
+        if (hasScore && !doc.created_at) {
+          missingPubkeys.push(doc.pubkey || doc.id);
+        }
+      }
+
+      if (results.length < BATCH) break;
+      offset += BATCH;
+    }
+
+    if (missingPubkeys.length === 0) {
+      return res.json({ success: true, backfilled: 0, notFound: 0, message: 'All scored profiles already have kind 0 data.' });
+    }
+
+    // 2. Query strfry for kind 0 events for these pubkeys (in batches)
+    const { execSync } = require('child_process');
+    const nip19 = require('nostr-tools/nip19');
+
+    function sanitizeStr(s) {
+      if (typeof s !== 'string') return s;
+      return s
+        .replace(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])/g, '')
+        .replace(/(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g, '')
+        .replace(/\\u[0-9a-fA-F]{0,3}(?![0-9a-fA-F])/g, '')
+        .replace(/\0/g, '');
+    }
+
+    const docsToUpdate = [];
+    let notFoundCount = 0;
+    const STRFRY_BATCH = 500;
+
+    for (let i = 0; i < missingPubkeys.length; i += STRFRY_BATCH) {
+      const batch = missingPubkeys.slice(i, i + STRFRY_BATCH);
+      const filter = JSON.stringify({ kinds: [0], authors: batch });
+
+      let rawOutput;
+      try {
+        rawOutput = execSync(`strfry scan '${filter.replace(/'/g, "'\\''")}'`, {
+          maxBuffer: 100 * 1024 * 1024,
+          timeout: 60000,
+        }).toString();
+      } catch {
+        continue;
+      }
+
+      const foundPubkeys = new Set();
+      const lines = rawOutput.trim().split('\n').filter(Boolean);
+
+      for (const line of lines) {
+        try {
+          const event = JSON.parse(line);
+          if (!event.pubkey) continue;
+          foundPubkeys.add(event.pubkey);
+
+          let profile = {};
+          try { profile = JSON.parse(event.content || '{}'); } catch { continue; }
+
+          let npub = '';
+          try { npub = nip19.npubEncode(event.pubkey); } catch { /* ignore */ }
+
+          docsToUpdate.push({
+            id: event.pubkey,
+            pubkey: event.pubkey,
+            npub,
+            created_at: event.created_at || 0,
+            indexed_at: Math.floor(Date.now() / 1000),
+            name: sanitizeStr(profile.name || ''),
+            display_name: sanitizeStr(profile.display_name || ''),
+            displayName: sanitizeStr(profile.displayName || profile.display_name || ''),
+            username: sanitizeStr(profile.username || ''),
+            nip05: sanitizeStr(profile.nip05 || ''),
+            about: sanitizeStr(profile.about || ''),
+            picture: sanitizeStr(profile.picture || ''),
+            banner: sanitizeStr(profile.banner || ''),
+            lud16: sanitizeStr(profile.lud16 || ''),
+            lud06: sanitizeStr(profile.lud06 || ''),
+            website: sanitizeStr(profile.website || ''),
+          });
+        } catch { /* skip malformed */ }
+      }
+
+      for (const pk of batch) {
+        if (!foundPubkeys.has(pk)) notFoundCount++;
+      }
+    }
+
+    // 3. Update Meilisearch with the backfilled profiles
+    let backfilled = 0;
+    const UPDATE_BATCH = 5000;
+    for (let i = 0; i < docsToUpdate.length; i += UPDATE_BATCH) {
+      const chunk = docsToUpdate.slice(i, i + UPDATE_BATCH);
+      const resp = await fetch(`${MEILI_URL}/indexes/${MEILI_INDEX}/documents`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(chunk),
+      });
+      if (resp.ok) backfilled += chunk.length;
+    }
+
+    return res.json({
+      success: true,
+      backfilled,
+      notFound: notFoundCount,
+      total: missingPubkeys.length,
+      message: `Backfilled ${backfilled.toLocaleString()} profiles from strfry. ${notFoundCount.toLocaleString()} not found in local relay.`,
+    });
+  } catch (err) {
+    return res.status(503).json({ success: false, error: err.message });
+  }
+}
+
 module.exports = {
   handleMeiliSearchProfiles,
   handleMeiliSearchStats,
@@ -364,4 +739,8 @@ module.exports = {
   handleMeiliWipe,
   handleMeiliSettings,
   handleMeiliRandomScored,
+  handleMeiliTasks,
+  handleMeiliPruneUnscored,
+  handleMeiliScoredMissingProfile,
+  handleMeiliBackfillProfiles,
 };
