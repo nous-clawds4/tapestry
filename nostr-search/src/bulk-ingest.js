@@ -55,15 +55,25 @@ export async function runBulkIngest() {
   bulkStats = { status: 'fetching', indexed: 0, processed: 0, startedAt: Date.now(), finishedAt: null, error: null };
 
   try {
-    // Configure index settings
+    // Configure index settings — merge with existing filterable/sortable (preserves wot_* fields)
     const index = meili.index(INDEX_NAME);
+    let existingFilterable = [];
+    let existingSortable = [];
+    try {
+      const current = await index.getSettings();
+      existingFilterable = current.filterableAttributes || [];
+      existingSortable = current.sortableAttributes || [];
+    } catch { /* index may not exist yet */ }
+    const mergedFilterable = [...new Set([...existingFilterable, 'created_at', 'indexed_at'])];
+    const mergedSortable = [...new Set([...existingSortable, 'created_at', 'indexed_at'])];
+
     await index.updateSettings({
       searchableAttributes: [
         'name', 'display_name', 'displayName', 'username',
         'nip05', 'npub', 'about', 'lud16', 'website',
       ],
-      filterableAttributes: ['created_at', 'indexed_at'],
-      sortableAttributes: ['created_at', 'indexed_at'],
+      filterableAttributes: mergedFilterable,
+      sortableAttributes: mergedSortable,
       displayedAttributes: ['*'],
       rankingRules: ['words', 'typo', 'proximity', 'attribute', 'sort', 'exactness'],
       typoTolerance: { enabled: true, minWordSizeForTypos: { oneTypo: 3, twoTypos: 6 } },

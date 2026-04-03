@@ -30,30 +30,50 @@ app.get('/api/search', async (req, res) => {
     const parsedOffset = parseInt(offset) || 0;
     const { sort: sortParam, wotFilter, wotFilters: wotFiltersParam } = req.query;
 
-    const sortRules = sortParam ? [sortParam] : ['wot_followers:desc'];
+    // Use provided sort, or no sort if none specified (relevance-based)
+    const sortRules = sortParam ? [sortParam] : [];
 
     // Parse WoT filter config from preferences
     let wotFilterConfig = {};
     try { if (wotFiltersParam) wotFilterConfig = JSON.parse(wotFiltersParam); } catch {}
 
-    // Build Meilisearch filter expression from enabled filters
-    // Null scores are treated as 0, so "wot_rank > 0" effectively filters them out
+    // Check which WoT attributes are actually filterable/sortable
+    let filterableFields = [];
+    let sortableFields = [];
+    try {
+      const currentSettings = await meili.index(INDEX_NAME).getSettings();
+      filterableFields = currentSettings.filterableAttributes || [];
+      sortableFields = currentSettings.sortableAttributes || [];
+    } catch (err) {
+      console.error('[search] getSettings error:', err.message);
+    }
+    const filterableSet = new Set(filterableFields);
+    const sortableSet = new Set(sortableFields);
+    const wotAvailable = filterableFields.some(f => f.startsWith('wot_'));
+
+    // Build Meilisearch filter expression from enabled filters.
+    // Filter keys arrive fully qualified from the proxy (e.g. wot_rank_a8ca55ca).
     const filterParts = [];
-    for (const [metric, cfg] of Object.entries(wotFilterConfig)) {
+    for (const [fieldName, cfg] of Object.entries(wotFilterConfig)) {
       if (cfg?.enabled && cfg.cutoff > 0) {
-        filterParts.push(`wot_${metric} >= ${cfg.cutoff}`);
+        if (filterableSet.has(fieldName)) {
+          filterParts.push(`${fieldName} >= ${cfg.cutoff}`);
+        } else {
+          console.warn(`[search] Skipping filter on ${fieldName} — not filterable`);
+        }
       }
     }
 
-    // Check if WoT attributes are actually filterable before using them
-    let wotAvailable = false;
-    try {
-      const currentSettings = await meili.index(INDEX_NAME).getSettings();
-      const filterable = new Set(currentSettings.filterableAttributes || []);
-      wotAvailable = filterable.has('wot_followers');
-    } catch { /* assume not available */ }
+    // Validate sort field exists as sortable; drop if not.
+    // Sort param arrives fully qualified (e.g. wot_followers_a8ca55ca:desc).
+    const validSortRules = sortRules.filter(rule => {
+      const field = rule.split(':')[0];
+      if (sortableSet.has(field)) return true;
+      console.warn(`[search] Skipping sort on ${field} — not sortable`);
+      return false;
+    });
 
-    // Two-phase search: scored results first (sorted by followers), then unscored backfill
+    // Two-phase search: scored results first (sorted by WoT scores), then unscored backfill
     let result;
     if (wotFilter === 'false' || !wotAvailable) {
       // No WoT filtering — either explicitly disabled or WoT scores not loaded
@@ -62,22 +82,34 @@ app.get('/api/search', async (req, res) => {
       });
     } else {
       // Phase 1: search WoT-scored profiles with filters applied
+      // If no explicit filters, use the sort field to filter for scored profiles
+      let fallbackFilter = null;
+      if (validSortRules.length > 0) {
+        const sf = validSortRules[0].split(':')[0];
+        if (filterableSet.has(sf)) {
+          fallbackFilter = `${sf} > 0`;
+        }
+      }
       const phase1Filter = filterParts.length > 0
         ? filterParts.join(' AND ')
-        : 'wot_followers > 0';
-      const wotResult = await meili.index(INDEX_NAME).search(q.trim(), {
-        limit: maxLimit, offset: parsedOffset, sort: sortRules,
-        filter: phase1Filter,
-      });
+        : (fallbackFilter || null);
+
+      const searchOpts = { limit: maxLimit, offset: parsedOffset };
+      if (validSortRules.length > 0) searchOpts.sort = validSortRules;
+      if (phase1Filter) searchOpts.filter = phase1Filter;
+
+      const wotResult = await meili.index(INDEX_NAME).search(q.trim(), searchOpts);
 
       // Re-sort scored results explicitly (Meilisearch sort is a tiebreaker
       // within text-relevance tiers, so we re-sort to guarantee order)
-      const sortField = sortParam ? sortParam.split(':')[0] : 'wot_followers';
-      const ascending = sortParam?.includes(':asc');
-      const sortedWot = [...wotResult.hits].sort((a, b) => {
-        const diff = (b[sortField] || 0) - (a[sortField] || 0); // descending by default
-        return ascending ? -diff : diff;
-      });
+      const sortField = validSortRules.length > 0 ? validSortRules[0].split(':')[0] : null;
+      const ascending = validSortRules[0]?.includes(':asc');
+      const sortedWot = sortField
+        ? [...wotResult.hits].sort((a, b) => {
+            const diff = (b[sortField] || 0) - (a[sortField] || 0); // descending by default
+            return ascending ? -diff : diff;
+          })
+        : wotResult.hits;
 
       // If filters are active, null/missing scores = 0, so unscored profiles
       // should NOT appear (they fail the filter). Only backfill when no filters are set.
@@ -196,7 +228,7 @@ app.get('/api/bulk-ingest/status', (req, res) => {
  * the score fields are merged in. If not, a document is created with just the scores
  * (kind 0 profile fields will be filled in when the profile is eventually ingested).
  */
-app.post('/api/load-scores', express.json({ limit: '50mb' }), async (req, res) => {
+app.post('/api/load-scores', express.json({ limit: '200mb' }), async (req, res) => {
   const { povPubkey, metrics, scores } = req.body;
 
   if (!scores || !Array.isArray(scores) || scores.length === 0) {

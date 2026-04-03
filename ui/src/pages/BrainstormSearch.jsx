@@ -22,7 +22,7 @@ function HousePovLabel() {
 const EXTERNAL_RELAYS = ['wss://relay.primal.net', 'wss://relay.damus.io', 'wss://nos.lol'];
 const POV_STORAGE_PREFIX = 'bs_pov_';
 
-function UserMenu({ user, login, logout, pov, setPov, filters, setFilters, sortConfig, setSortConfig }) {
+function UserMenu({ user, login, logout, pov, setPov, filters, setFilters, sortConfig, setSortConfig, onWotReady }) {
   const [open, setOpen] = useState(false);
   const menuRef = useRef(null);
 
@@ -149,10 +149,12 @@ function UserMenu({ user, login, logout, pov, setPov, filters, setFilters, sortC
   }
 
   // ── Step 5: Load scores into Meilisearch ──
+  // Scores are namespaced by delegated pubkey: wot_rank_<pubkey8> so multiple POVs coexist.
   async function triggerLoadScores(rankAuthor, metricNames, userPubkey) {
     setLoadingScores(true);
     setLoadStatus('Streaming scores from local relay…');
     try {
+      const povSuffix = rankAuthor.slice(0, 8);
       const filter = encodeURIComponent(JSON.stringify({ kinds: [30382], authors: [rankAuthor] }));
       const resp = await fetch(`/api/strfry/scan/stream?filter=${filter}`);
       if (!resp.ok) throw new Error(`Stream failed: ${resp.status}`);
@@ -177,7 +179,7 @@ function UserMenu({ user, login, logout, pov, setPov, filters, setFilters, sortC
           const scoreObj = { pubkey: dTag };
           for (const tag of event.tags) {
             if (metricNames.includes(tag[0])) {
-              scoreObj[`wot_${tag[0]}`] = parseFloat(tag[1]) || 0;
+              scoreObj[`wot_${tag[0]}_${povSuffix}`] = parseFloat(tag[1]) || 0;
             }
           }
           scores.push(scoreObj);
@@ -189,10 +191,11 @@ function UserMenu({ user, login, logout, pov, setPov, filters, setFilters, sortC
 
       setLoadStatus(`Sending ${scores.length.toLocaleString()} scores to search index…`);
 
+      // Pass delegatedPubkey so the server can register the namespaced fields
       const meiliResp = await fetch('/api/search/profiles/meili/load-scores', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ povPubkey: userPubkey, metrics: metricNames, scores }),
+        body: JSON.stringify({ povPubkey: userPubkey, delegatedPubkey: rankAuthor, metrics: metricNames, scores }),
       });
       const result = await meiliResp.json();
       if (result.success) {
@@ -261,6 +264,9 @@ function UserMenu({ user, login, logout, pov, setPov, filters, setFilters, sortC
 
         const rankAuthor = rankTag[1];
         const rankRelay = rankTag[2];
+
+        // Report delegated pubkey to parent
+        // rankAuthor is the delegated pubkey from the user's kind 10040
 
         // Step 3: Count local TAs
         let localCount = await countLocalTAs(rankAuthor);
@@ -406,6 +412,11 @@ function UserMenu({ user, login, logout, pov, setPov, filters, setFilters, sortC
 
   const myWotReady = wotStatus.has10040 && wotStatus.hasRankTag && wotStatus.hasTAs && scoresReady;
 
+  // Report wotReady status to parent
+  useEffect(() => {
+    if (onWotReady) onWotReady(myWotReady);
+  }, [myWotReady, onWotReady]);
+
   if (!user) {
     return <button className="bs-link-btn" onClick={login}>Sign in with nostr</button>;
   }
@@ -516,9 +527,21 @@ function timeAgo(unixSeconds) {
 
 const RESULTS_PER_PAGE = 40;
 
+/* ── POV-aware score helper ───────────────────────────── */
+
+/** Extract a wot score from a hit, trying namespaced field first, then legacy */
+function getWotScore(hit, metric, povSuffix) {
+  if (povSuffix) {
+    const val = hit[`wot_${metric}_${povSuffix}`];
+    if (val != null) return val;
+  }
+  // Legacy fallback
+  return hit[`wot_${metric}`] ?? null;
+}
+
 /* ── Result Card ──────────────────────────────────────── */
 
-function ResultCard({ hit }) {
+function ResultCard({ hit, povSuffix }) {
   const name = hit.name || hit.display_name || 'Unknown';
   const picture = hit.picture;
   const banner = hit.banner;
@@ -534,7 +557,7 @@ function ResultCard({ hit }) {
 
   return (
     <a
-      href={`/kg/brainstorm-search/user/${hit.pubkey || hit.id}`}
+      href={`/kg/brainstorm-search/user/${hit.pubkey || hit.id}${povSuffix ? `?pov=${povSuffix}` : ''}`}
       className="bs-result-card"
     >
       <div className="bs-result-body">
@@ -573,13 +596,13 @@ function ResultCard({ hit }) {
                 {lud16 && <span>⚡ {lud16}</span>}
               </div>
             )}
-            {(hit.wot_rank != null || hit.wot_followers != null) && (
+            {(getWotScore(hit, 'rank', povSuffix) != null || getWotScore(hit, 'followers', povSuffix) != null) && (
               <div className="bs-result-wot">
-                {hit.wot_rank != null && (
-                  <span className="bs-wot-badge bs-wot-rank">🏅 rank: {hit.wot_rank}</span>
+                {getWotScore(hit, 'rank', povSuffix) != null && (
+                  <span className="bs-wot-badge bs-wot-rank">🏅 rank: {getWotScore(hit, 'rank', povSuffix)}</span>
                 )}
-                {hit.wot_followers != null && (
-                  <span className="bs-wot-badge bs-wot-followers">👥 followers: {hit.wot_followers}</span>
+                {getWotScore(hit, 'followers', povSuffix) != null && (
+                  <span className="bs-wot-badge bs-wot-followers">👥 followers: {getWotScore(hit, 'followers', povSuffix)}</span>
                 )}
               </div>
             )}
@@ -596,6 +619,7 @@ const SUGGEST_LIMIT = 6;
 
 export default function BrainstormSearch() {
   const { user, login, logout } = useAuth();
+  const houseProfile = useHouseProfile();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState(null);
   const [meta, setMeta] = useState(null);
@@ -603,7 +627,10 @@ export default function BrainstormSearch() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState(null);
   const [pov, setPov] = useState('nosfabrica');
-  // Filter/sort state (lifted from UserMenu so doSearch can access them)
+  const [myWotReady, setMyWotReady] = useState(false);
+  const [showPovPicker, setShowPovPicker] = useState(false);
+  const [activePovSuffix, setActivePovSuffix] = useState(null); // returned by server after search
+  // Filter/sort state (used by UserMenu Settings panel — no longer sent in search queries)
   const [filters, setFilters] = useState({});
   const [sortConfig, setSortConfig] = useState({ metric: null, direction: 'desc' });
   // Autocomplete suggestions (landing page only)
@@ -615,6 +642,18 @@ export default function BrainstormSearch() {
   const inputRef = useRef(null);
 
   const hasResults = results !== null;
+
+  // Build the search URL — single function used by both doSearch and fetchSuggestions.
+  // The server proxy is the single authority on filters, sort, and field naming.
+  // Client only sends: q, limit, offset, wotPov, userPubkey.
+  function buildSearchUrl(queryStr, limit, offset) {
+    let url = `/api/search/profiles/meili?q=${encodeURIComponent(queryStr)}&limit=${limit}&offset=${offset}`;
+    url += `&wotPov=${pov === 'user' ? 'user' : 'house'}`;
+    if (pov === 'user' && user?.pubkey) {
+      url += `&userPubkey=${user.pubkey}`;
+    }
+    return url;
+  }
 
   // Full search (transitions to results view)
   const doSearch = useCallback(async (q, offset = 0) => {
@@ -635,17 +674,7 @@ export default function BrainstormSearch() {
     }
 
     try {
-      // Build search URL with optional user-specific filter/sort
-      let url = `/api/search/profiles/meili?q=${encodeURIComponent(trimmed)}&limit=${RESULTS_PER_PAGE}&offset=${offset}`;
-
-      // When POV is 'user', send user's personal filter/sort to override house defaults
-      if (pov === 'user' && Object.keys(filters).length > 0) {
-        url += `&wotFilters=${encodeURIComponent(JSON.stringify(filters))}`;
-      }
-      if (pov === 'user' && sortConfig.metric) {
-        url += `&wotSort=${encodeURIComponent(JSON.stringify(sortConfig))}`;
-      }
-
+      const url = buildSearchUrl(trimmed, RESULTS_PER_PAGE, offset);
       const resp = await fetch(url);
       const data = await resp.json();
 
@@ -653,6 +682,9 @@ export default function BrainstormSearch() {
         setError(data.error || 'Search service unavailable.');
         return;
       }
+
+      // Store the POV suffix returned by the server for display purposes
+      if (data.povSuffix) setActivePovSuffix(data.povSuffix);
 
       if (offset === 0) {
         setResults(data.hits || []);
@@ -670,7 +702,7 @@ export default function BrainstormSearch() {
       setLoading(false);
       setLoadingMore(false);
     }
-  }, [query, pov, filters, sortConfig]);
+  }, [query, pov, user]);
 
   // Autocomplete fetch (landing page — populates dropdown, NOT results)
   const fetchSuggestions = useCallback(async (q) => {
@@ -682,20 +714,21 @@ export default function BrainstormSearch() {
     }
     setSuggestLoading(true);
     try {
-      const resp = await fetch(
-        `/api/search/profiles/meili?q=${encodeURIComponent(trimmed)}&limit=${SUGGEST_LIMIT}&offset=0`
-      );
+      // Same URL structure as doSearch — server handles all POV/filter/sort logic
+      const url = buildSearchUrl(trimmed, SUGGEST_LIMIT, 0);
+      const resp = await fetch(url);
       const data = await resp.json();
       if (resp.ok && data.hits) {
         setSuggestions(data.hits);
         setShowSuggestions(true);
+        if (data.povSuffix) setActivePovSuffix(data.povSuffix);
       }
     } catch {
       // silently fail suggestions
     } finally {
       setSuggestLoading(false);
     }
-  }, []);
+  }, [pov, user]);
 
   // Landing page: debounced autocomplete; Results page: debounced full search
   const handleInputChange = useCallback((value, isResultsView) => {
@@ -754,14 +787,14 @@ export default function BrainstormSearch() {
       <div className="bs-page">
         {/* Top-right auth area */}
         <div className="bs-top-bar">
-          <UserMenu user={user} login={login} logout={logout} pov={pov} setPov={setPov} filters={filters} setFilters={setFilters} sortConfig={sortConfig} setSortConfig={setSortConfig} />
+          <UserMenu user={user} login={login} logout={logout} pov={pov} setPov={setPov} filters={filters} setFilters={setFilters} sortConfig={sortConfig} setSortConfig={setSortConfig} onWotReady={setMyWotReady} />
         </div>
 
         {/* Centered landing */}
         <div className="bs-landing">
           <h1 className="bs-logo">
             <img src="/kg/brainstorm.svg" alt="" className="bs-logo-icon-img" />
-            Brainstorm Search
+            Brainstorm
           </h1>
           <p className="bs-tagline">Search across millions of nostr profiles</p>
 
@@ -794,12 +827,13 @@ export default function BrainstormSearch() {
                   return (
                     <a
                       key={hit.pubkey || hit.id}
-                      href={`/kg/brainstorm-search/user/${hit.pubkey || hit.id}`}
+                      href={`/kg/brainstorm-search/user/${hit.pubkey || hit.id}${activePovSuffix ? `?pov=${activePovSuffix}` : ''}`}
                       className="bs-suggest-item"
                       onMouseDown={e => {
                         e.preventDefault(); // prevent input blur from removing the link
                         setShowSuggestions(false);
-                        window.location.href = `/kg/brainstorm-search/user/${hit.pubkey || hit.id}`;
+                        const povQ = activePovSuffix ? `?pov=${activePovSuffix}` : '';
+                        window.location.href = `/kg/brainstorm-search/user/${hit.pubkey || hit.id}${povQ}`;
                       }}
                     >
                       {hit.picture ? (
@@ -816,8 +850,8 @@ export default function BrainstormSearch() {
                         <span className="bs-suggest-name">{name}</span>
                         {nip05 && <span className="bs-suggest-nip05">{nip05}</span>}
                       </div>
-                      {hit.wot_rank != null && (
-                        <span className="bs-suggest-rank">🏅 {hit.wot_rank}</span>
+                      {getWotScore(hit, 'rank', activePovSuffix) != null && (
+                        <span className="bs-suggest-rank">🏅 {getWotScore(hit, 'rank', activePovSuffix)}</span>
                       )}
                     </a>
                   );
@@ -834,17 +868,63 @@ export default function BrainstormSearch() {
             )}
           </div>
 
-          <div className="bs-hints">
-            <span>Try:</span>
-            {['straycat', 'bitcoin', 'developer', 'nostr'].map(term => (
-              <button
-                key={term}
-                className="bs-hint-chip"
-                onClick={() => { setQuery(term); doSearch(term); }}
-              >
-                {term}
-              </button>
-            ))}
+          {/* Personalization indicator */}
+          <div className="bs-personalization">
+            <span
+              className="bs-personalization-status"
+              onClick={() => setShowPovPicker(prev => !prev)}
+              role="button"
+              tabIndex={0}
+            >
+              {pov === 'user' && myWotReady ? (
+                <span className="bs-personalized">✓ Personalized</span>
+              ) : (
+                <span className="bs-not-personalized">Not Personalized</span>
+              )}
+            </span>
+            <span className="bs-personalization-sep">·</span>
+            <a href="/kg/brainstorm-search/personalization" className="bs-personalization-link">
+              Tell me more!
+            </a>
+
+            {showPovPicker && (
+              <div className="bs-pov-picker">
+                {/* House POV option */}
+                <button
+                  className={`bs-pov-option ${pov !== 'user' || !myWotReady ? 'active' : ''}`}
+                  onClick={() => { setPov('nosfabrica'); setShowPovPicker(false); }}
+                >
+                  {houseProfile?.picture && (
+                    <img src={houseProfile.picture} alt="" className="bs-pov-option-avatar" onError={e => { e.target.style.display = 'none'; }} />
+                  )}
+                  <span>House Point of View</span>
+                  {houseProfile?.name && <span className="bs-pov-option-name">{houseProfile.name}</span>}
+                </button>
+
+                {/* My WoT option */}
+                {!user ? (
+                  <div className="bs-pov-option disabled">
+                    You must be logged in to personalize your search experience.
+                  </div>
+                ) : !myWotReady ? (
+                  <div className="bs-pov-option disabled">
+                    Your personalized perspective is being calculated.{' '}
+                    <a href="/kg/brainstorm-search/settings" className="bs-pov-option-link">Settings</a>
+                  </div>
+                ) : (
+                  <button
+                    className={`bs-pov-option ${pov === 'user' && myWotReady ? 'active' : ''}`}
+                    onClick={() => { setPov('user'); setShowPovPicker(false); }}
+                  >
+                    {user.profile?.picture && (
+                      <img src={user.profile.picture} alt="" className="bs-pov-option-avatar" onError={e => { e.target.style.display = 'none'; }} />
+                    )}
+                    <span>My Point of View</span>
+                    <span className="bs-pov-option-name">{user.profile?.display_name || user.profile?.name || 'You'}</span>
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
@@ -887,7 +967,59 @@ export default function BrainstormSearch() {
           </div>
         </div>
         <div className="bs-results-header-right">
-          <UserMenu user={user} login={login} logout={logout} pov={pov} setPov={setPov} filters={filters} setFilters={setFilters} sortConfig={sortConfig} setSortConfig={setSortConfig} />
+          {/* Compact personalization indicator */}
+          <div className="bs-personalization bs-personalization-compact">
+            <span
+              className="bs-personalization-status"
+              onClick={() => setShowPovPicker(prev => !prev)}
+              role="button"
+              tabIndex={0}
+            >
+              {pov === 'user' && myWotReady ? (
+                <span className="bs-personalized">✓ Personalized</span>
+              ) : (
+                <span className="bs-not-personalized">Not Personalized</span>
+              )}
+            </span>
+
+            {showPovPicker && (
+              <div className="bs-pov-picker bs-pov-picker-right">
+                <button
+                  className={`bs-pov-option ${pov !== 'user' || !myWotReady ? 'active' : ''}`}
+                  onClick={() => { setPov('nosfabrica'); setShowPovPicker(false); }}
+                >
+                  {houseProfile?.picture && (
+                    <img src={houseProfile.picture} alt="" className="bs-pov-option-avatar" onError={e => { e.target.style.display = 'none'; }} />
+                  )}
+                  <span>House Point of View</span>
+                  {houseProfile?.name && <span className="bs-pov-option-name">{houseProfile.name}</span>}
+                </button>
+
+                {!user ? (
+                  <div className="bs-pov-option disabled">
+                    You must be logged in to personalize your search experience.
+                  </div>
+                ) : !myWotReady ? (
+                  <div className="bs-pov-option disabled">
+                    Your personalized perspective is being calculated.{' '}
+                    <a href="/kg/brainstorm-search/settings" className="bs-pov-option-link">Settings</a>
+                  </div>
+                ) : (
+                  <button
+                    className={`bs-pov-option ${pov === 'user' && myWotReady ? 'active' : ''}`}
+                    onClick={() => { setPov('user'); setShowPovPicker(false); }}
+                  >
+                    {user.profile?.picture && (
+                      <img src={user.profile.picture} alt="" className="bs-pov-option-avatar" onError={e => { e.target.style.display = 'none'; }} />
+                    )}
+                    <span>My Point of View</span>
+                    <span className="bs-pov-option-name">{user.profile?.display_name || user.profile?.name || 'You'}</span>
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+          <UserMenu user={user} login={login} logout={logout} pov={pov} setPov={setPov} filters={filters} setFilters={setFilters} sortConfig={sortConfig} setSortConfig={setSortConfig} onWotReady={setMyWotReady} />
         </div>
       </div>
 
@@ -916,7 +1048,7 @@ export default function BrainstormSearch() {
 
             <div className="bs-results-list">
               {results.map(hit => (
-                <ResultCard key={hit.pubkey || hit.id} hit={hit} />
+                <ResultCard key={hit.pubkey || hit.id} hit={hit} povSuffix={activePovSuffix} />
               ))}
             </div>
 

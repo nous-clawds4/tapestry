@@ -21,6 +21,20 @@ let syncing = false;
 async function configureIndex() {
   const index = meili.index(INDEX_NAME);
 
+  // Merge required filterable/sortable attrs with any existing ones (e.g. wot_* fields)
+  let existingFilterable = [];
+  let existingSortable = [];
+  try {
+    const current = await index.getSettings();
+    existingFilterable = current.filterableAttributes || [];
+    existingSortable = current.sortableAttributes || [];
+  } catch { /* index may not exist yet */ }
+
+  const requiredFilterable = ['created_at', 'indexed_at'];
+  const requiredSortable = ['created_at', 'indexed_at'];
+  const mergedFilterable = [...new Set([...existingFilterable, ...requiredFilterable])];
+  const mergedSortable = [...new Set([...existingSortable, ...requiredSortable])];
+
   await index.updateSettings({
     searchableAttributes: [
       'name',
@@ -33,8 +47,8 @@ async function configureIndex() {
       'lud16',
       'website',
     ],
-    filterableAttributes: ['created_at', 'indexed_at'],
-    sortableAttributes: ['created_at', 'indexed_at'],
+    filterableAttributes: mergedFilterable,
+    sortableAttributes: mergedSortable,
     displayedAttributes: ['*'],
     rankingRules: [
       'words',

@@ -41,6 +41,7 @@ import TrustedAssertions from './pages/grapevine/TrustedAssertions';
 import TrustedAssertionsList from './pages/grapevine/TrustedAssertionsList';
 import TrustDetermination from './pages/grapevine/TrustDetermination';
 import SearchPreferences from './pages/grapevine/SearchPreferences';
+import MeilisearchAdmin from './pages/grapevine/MeilisearchAdmin';
 import TrustedLists from './pages/grapevine/TrustedLists';
 import TrustedListDetail from './pages/grapevine/TrustedListDetail';
 import UsersIndex from './pages/users/Index';
@@ -65,6 +66,7 @@ import Dashboard from './pages/Dashboard';
 import BrainstormSearch from './pages/BrainstormSearch';
 import BrainstormProfile from './pages/BrainstormProfile';
 import BrainstormSettings from './pages/BrainstormSettings';
+import BrainstormPersonalization from './pages/BrainstormPersonalization';
 const router = createBrowserRouter([
   {
     path: '/kg/brainstorm-search',
@@ -77,6 +79,10 @@ const router = createBrowserRouter([
   {
     path: '/kg/brainstorm-search/settings',
     element: <BrainstormSettings />,
+  },
+  {
+    path: '/kg/brainstorm-search/personalization',
+    element: <BrainstormPersonalization />,
   },
   {
     path: '/kg',
@@ -206,6 +212,7 @@ const router = createBrowserRouter([
           { path: 'trusted-lists', element: <TrustedLists />, handle: { crumb: 'Trusted Lists' } },
           { path: 'trusted-lists/:dTag', element: <TrustedListDetail />, handle: { crumb: 'Detail' } },
           { path: 'search-preferences', element: <SearchPreferences />, handle: { crumb: 'Search Preferences' } },
+          { path: 'meilisearch', element: <MeilisearchAdmin />, handle: { crumb: 'Meilisearch' } },
         ],
       },
       {

@@ -2787,27 +2787,98 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   color: #a5b4fc;
 }
 
-/* ── Hint chips ── */
-.bs-hints {
+/* ── Personalization indicator ── */
+.bs-personalization {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  margin-top: 1rem;
+  font-size: 0.85rem;
+  opacity: 0.55;
+  position: relative;
+}
+.bs-personalization-status {
+  cursor: pointer;
+  user-select: none;
+}
+.bs-personalization-status:hover { opacity: 0.8; }
+.bs-personalized { color: var(--text-primary, #e6edf3); }
+.bs-not-personalized { color: var(--text-primary, #e6edf3); }
+.bs-personalization-sep { opacity: 0.4; }
+.bs-personalization-link {
+  color: var(--text-primary, #e6edf3);
+  text-decoration: none;
+  opacity: 0.7;
+}
+.bs-personalization-link:hover { opacity: 1; text-decoration: underline; }
+.bs-pov-picker {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-top: 0.5rem;
+  background: var(--bg-secondary, #161b22);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 8px;
+  padding: 0.4rem;
+  min-width: 300px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  z-index: 200;
+  opacity: 1;
+}
+.bs-pov-option {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  margin-top: 1.5rem;
-  font-size: 0.8rem;
-  opacity: 0.5;
-}
-.bs-hint-chip {
-  background: rgba(255,255,255,0.06);
-  border: 1px solid rgba(255,255,255,0.08);
-  color: var(--text-primary, #e0e0e0);
-  padding: 0.25rem 0.65rem;
-  border-radius: 14px;
-  font-size: 0.8rem;
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-primary, #e6edf3);
+  font-size: 0.82rem;
   cursor: pointer;
+  text-align: left;
   transition: background 0.15s;
 }
-.bs-hint-chip:hover {
-  background: rgba(255,255,255,0.12);
+.bs-pov-option:hover:not(.disabled) { background: rgba(255,255,255,0.06); }
+.bs-pov-option.active {
+  background: rgba(99,102,241,0.12);
+  border-left: 2px solid #6366f1;
+}
+.bs-pov-option.disabled {
+  opacity: 0.5;
+  cursor: default;
+  font-size: 0.78rem;
+  padding: 0.6rem 0.75rem;
+  line-height: 1.4;
+}
+.bs-pov-option-avatar {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+.bs-pov-option-name {
+  opacity: 0.5;
+  font-size: 0.78rem;
+  margin-left: auto;
+}
+.bs-pov-option-link { color: #a5b4fc; text-decoration: none; }
+.bs-pov-option-link:hover { text-decoration: underline; }
+
+/* Compact variant for results header */
+.bs-personalization-compact {
+  margin-top: 0;
+  opacity: 0.6;
+  font-size: 0.8rem;
+}
+.bs-pov-picker-right {
+  left: auto;
+  right: 0;
+  transform: none;
 }
 
 /* ── Footer ── */

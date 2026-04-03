@@ -1,8 +1,8 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
 import { useAuth } from '../context/AuthContext';
-import BrainstormUserMenu, { useHouseProfile } from '../components/BrainstormUserMenu';
+import BrainstormUserMenu from '../components/BrainstormUserMenu';
 
 /* ── Helpers ──────────────────────────────────────────── */
 
@@ -63,21 +63,22 @@ function CopyButton({ value }) {
 
 export default function BrainstormProfile() {
   const { pubkey } = useParams();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { user, login, logout } = useAuth();
+
+  // POV suffix can be passed as ?pov=<8char> from the search page
+  const povParam = searchParams.get('pov');
 
   const [profile, setProfile] = useState(null);
   const [profileLoading, setProfileLoading] = useState(true);
   const [trustScores, setTrustScores] = useState(null);
   const [trustLoading, setTrustLoading] = useState(true);
   const [trustError, setTrustError] = useState(null);
-  const [taEvent, setTaEvent] = useState(null);
 
   const npub = useMemo(() => {
     try { return nip19.npubEncode(pubkey); } catch { return null; }
   }, [pubkey]);
-
-  const houseProfile = useHouseProfile();
   const displayName = profile?.display_name || profile?.name || shortPubkey(pubkey);
   const profileAge = timeAgo(profile?.created_at);
 
@@ -96,52 +97,68 @@ export default function BrainstormProfile() {
       .finally(() => setProfileLoading(false));
   }, [pubkey]);
 
-  // Fetch trust scores: get house POV delegated pubkey, then query strfry for TA
+  // Fetch trust scores from Meilisearch (where bulk-loaded scores live)
   useEffect(() => {
     if (!pubkey) return;
     setTrustLoading(true);
     setTrustError(null);
     setTrustScores(null);
-    setTaEvent(null);
 
     (async () => {
       try {
-        // Step 1: Get search preferences to find delegated pubkey
-        const prefsResp = await fetch('/api/grapevine/preferences');
-        const prefsData = await prefsResp.json();
-        const delegatedPubkey = prefsData?.preferences?.delegatedPubkey;
+        // Use POV from URL param, or fall back to house delegated pubkey
+        let povSuffix = povParam || null;
+        if (!povSuffix) {
+          try {
+            const prefsResp = await fetch('/api/grapevine/preferences');
+            const prefsData = await prefsResp.json();
+            if (prefsData?.preferences?.delegatedPubkey) {
+              povSuffix = prefsData.preferences.delegatedPubkey.slice(0, 8);
+            }
+          } catch { /* ignore */ }
+        }
 
-        if (!delegatedPubkey) {
-          setTrustError('No house POV configured. Set a Point of View in Search Preferences.');
+        const resp = await fetch(`/api/search/profiles/meili/document/${pubkey}`);
+        const data = await resp.json();
+
+        if (!data.success || !data.document) {
+          setTrustError('No trust scores available for this user.');
           return;
         }
 
-        // Step 2: Query local strfry for the TA
-        const filter = JSON.stringify({
-          kinds: [30382],
-          authors: [delegatedPubkey],
-          '#d': [pubkey],
-        });
-        const scanResp = await fetch(`/api/strfry/scan?filter=${encodeURIComponent(filter)}`);
-        const scanData = await scanResp.json();
-
-        if (!scanData.success || !scanData.events?.length) {
-          setTrustError('No trust assertion available for this user from the house POV.');
-          return;
-        }
-
-        // Use the most recent event
-        const event = scanData.events.sort((a, b) => b.created_at - a.created_at)[0];
-        setTaEvent(event);
-
-        // Step 3: Parse tags into scores
+        // Extract wot_* fields from the Meilisearch document
+        // Try namespaced fields first (wot_rank_<suffix>), fall back to legacy (wot_rank)
+        const doc = data.document;
         const scores = {};
-        for (const tag of event.tags || []) {
-          const [key, value] = tag;
-          if (key && value && key !== 'd' && key !== 'p') {
-            scores[key] = value;
+        const skipSuffixes = ['pov', 'updated_at'];
+
+        for (const [key, value] of Object.entries(doc)) {
+          if (!key.startsWith('wot_')) continue;
+          const rest = key.slice(4); // strip "wot_"
+
+          // Check if it's a namespaced field matching our POV suffix
+          if (povSuffix && rest.endsWith(`_${povSuffix}`)) {
+            const metric = rest.slice(0, -(povSuffix.length + 1));
+            if (!skipSuffixes.includes(metric)) {
+              scores[metric] = value;
+            }
           }
         }
+
+        // If no namespaced fields found, fall back to legacy un-namespaced fields
+        if (Object.keys(scores).length === 0) {
+          for (const [key, value] of Object.entries(doc)) {
+            if (key.startsWith('wot_') && key !== 'wot_pov' && key !== 'wot_updated_at') {
+              scores[key.replace('wot_', '')] = value;
+            }
+          }
+        }
+
+        if (Object.keys(scores).length === 0) {
+          setTrustError('No trust scores available for this user.');
+          return;
+        }
+
         setTrustScores(scores);
       } catch (err) {
         setTrustError(`Failed to load trust data: ${err.message}`);
@@ -149,7 +166,7 @@ export default function BrainstormProfile() {
         setTrustLoading(false);
       }
     })();
-  }, [pubkey]);
+  }, [pubkey, povParam]);
 
   return (
     <div className="bsp-page">
@@ -163,7 +180,7 @@ export default function BrainstormProfile() {
         </button>
         <a href="/kg/brainstorm-search" className="bsp-logo">
           <img src="/kg/brainstorm.svg" alt="" className="bsp-logo-img" />
-          Brainstorm Search
+          Brainstorm
         </a>
         <div className="bsp-auth">
           <BrainstormUserMenu user={user} login={login} logout={logout} />
@@ -243,23 +260,12 @@ export default function BrainstormProfile() {
               </div>
             </div>
 
-            {/* Trust Scores */}
+            {/* Reputation */}
             <div className="bsp-section">
-              <h3>Trust Metrics
-                <span className="bsp-pov-tag">
-                  {houseProfile ? (
-                    <a href={`/kg/brainstorm-search/user/${houseProfile.pubkey}`} className="bsp-pov-tag-link">
-                      {houseProfile.picture && (
-                        <img src={houseProfile.picture} alt="" className="bsp-pov-tag-avatar" onError={e => { e.target.style.display = 'none'; }} />
-                      )}
-                      {houseProfile.name}
-                    </a>
-                  ) : 'House POV'}
-                </span>
-              </h3>
+              <h3>Reputation</h3>
 
               {trustLoading && (
-                <div className="bsp-trust-loading">Loading trust data…</div>
+                <div className="bsp-trust-loading">Loading reputation data…</div>
               )}
 
               {trustError && (
@@ -290,15 +296,8 @@ export default function BrainstormProfile() {
               {trustScores && Object.keys(trustScores).length === 0 && (
                 <div className="bsp-trust-unavailable">
                   <span className="bsp-trust-icon">📭</span>
-                  <span>Trust assertion exists but contains no scored metrics.</span>
+                  <span>No reputation scores available for this user.</span>
                 </div>
-              )}
-
-              {taEvent && (
-                <details className="bsp-ta-raw">
-                  <summary>Raw Trusted Assertion event</summary>
-                  <pre>{JSON.stringify(taEvent, null, 2)}</pre>
-                </details>
               )}
             </div>
           </>
