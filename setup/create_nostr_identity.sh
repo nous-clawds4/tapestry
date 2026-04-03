@@ -10,11 +10,11 @@ SECURE_KEYS_DIR="/var/lib/brainstorm/secure-keys"
 TA_KEY_FILE="$SECURE_KEYS_DIR/tapestry-assistant.json"
 
 if [ -f "$TA_KEY_FILE" ]; then
-    echo "Tapestry Assistant key already exists in secure storage ($TA_KEY_FILE). Skipping identity generation."
-    # Still ensure brainstorm.conf has the pubkey (non-secret) for backward compat
-    if [ -f "/etc/brainstorm.conf" ]; then
-        # Extract pubkey from secure storage via node
-        TA_PUBKEY=$(node -e "
+  echo "Tapestry Assistant key already exists in secure storage ($TA_KEY_FILE). Skipping identity generation."
+  # Still ensure brainstorm.conf has the pubkey (non-secret) for backward compat
+  if [ -f "/etc/brainstorm.conf" ]; then
+    # Extract pubkey and npub from secure storage via node (no external deps needed)
+    TA_KEYS=$(node -e "
             try {
                 const fs = require('fs');
                 const crypto = require('crypto');
@@ -27,18 +27,25 @@ if [ -f "$TA_KEY_FILE" ]; then
                 let dec = decipher.update(outer.encrypted, 'hex', 'utf8');
                 dec += decipher.final('utf8');
                 const inner = JSON.parse(dec);
-                console.log(inner.pubkey || '');
+                console.log((inner.pubkey || '') + '|' + (inner.npub || ''));
             } catch(e) { console.error(e.message); }
         " 2>/dev/null)
-        if [ -n "$TA_PUBKEY" ]; then
-            if ! grep -q "BRAINSTORM_RELAY_PUBKEY" /etc/brainstorm.conf; then
-                echo "export BRAINSTORM_RELAY_PUBKEY='$TA_PUBKEY'" >> /etc/brainstorm.conf
-                echo "export BRAINSTORM_RELAY_NPUB='$(node -e "console.log(require('nostr-tools').nip19.npubEncode('$TA_PUBKEY'))")'" >> /etc/brainstorm.conf
-                echo "# TA pubkey from secure storage (privkey NOT in this file)" >> /etc/brainstorm.conf
-            fi
+    TA_PUBKEY=$(echo "$TA_KEYS" | cut -d'|' -f1)
+    TA_NPUB=$(echo "$TA_KEYS" | cut -d'|' -f2)
+    if [ -n "$TA_PUBKEY" ]; then
+      if ! grep -q "BRAINSTORM_RELAY_PUBKEY" /etc/brainstorm.conf; then
+        echo "export BRAINSTORM_RELAY_PUBKEY='$TA_PUBKEY'" >> /etc/brainstorm.conf
+        echo "export BRAINSTORM_RELAY_NPUB='$TA_NPUB'" >> /etc/brainstorm.conf
+        echo "# TA pubkey from secure storage (privkey NOT in this file)" >> /etc/brainstorm.conf
+      else
+        # Pubkey line already exists — update npub if it's empty (e.g. from a pre-fix run)
+        if grep -q "BRAINSTORM_RELAY_NPUB=''" /etc/brainstorm.conf; then
+          sed -i "s|export BRAINSTORM_RELAY_NPUB=''|export BRAINSTORM_RELAY_NPUB='$TA_NPUB'|" /etc/brainstorm.conf
         fi
+      fi
     fi
-    exit 0
+  fi
+  exit 0
 fi
 
 # Check if nodejs and npm are installed
