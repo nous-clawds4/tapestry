@@ -116,6 +116,10 @@ if [ -f /usr/local/src/strfry/strfry.conf ]; then
   sed -i 's|db = ".*"|db = "/var/lib/strfry/"|' /etc/strfry.conf
   sed -i 's|nofiles = .*|nofiles = 0|' /etc/strfry.conf
   sed -i 's|maxEventSize = .*|maxEventSize = 1048576|' /etc/strfry.conf
+  sed -i 's|maxSyncEvents = .*|maxSyncEvents = 10000000|' /etc/strfry.conf
+  sed -i 's|maxFilterLimitCount = .*|maxFilterLimitCount = 10000000|' /etc/strfry.conf
+  sed -i 's|maxNumTags = .*|maxNumTags = 8000|' /etc/strfry.conf
+  sed -i 's|rejectEventsOlderThanSeconds = .*|rejectEventsOlderThanSeconds = 189216000|' /etc/strfry.conf
 else
   echo "WARNING: strfry default config not found, creating minimal config"
   cat > /etc/strfry.conf << 'STRFRYEOF'
