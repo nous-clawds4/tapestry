@@ -2,7 +2,7 @@ name: Deploy to Production
 
 on:
   push:
-    branches: [main]
+    branches: [brainstorm-search]
 
 jobs:
   deploy:
@@ -19,6 +19,7 @@ jobs:
           command_timeout: 25m
           script: |
             cd /opt/tapestry
-            git pull origin main
+            git checkout brainstorm-search 2>/dev/null || git checkout -b brainstorm-search origin/brainstorm-search
+            git pull origin brainstorm-search
             docker compose up -d --build
             docker image prune -f
