@@ -21,6 +21,20 @@ let syncing = false;
 async function configureIndex() {
   const index = meili.index(INDEX_NAME);
 
+  // Merge required filterable/sortable attrs with any existing ones (e.g. wot_* fields)
+  let existingFilterable = [];
+  let existingSortable = [];
+  try {
+    const current = await index.getSettings();
+    existingFilterable = current.filterableAttributes || [];
+    existingSortable = current.sortableAttributes || [];
+  } catch { /* index may not exist yet */ }
+
+  const requiredFilterable = ['created_at', 'indexed_at'];
+  const requiredSortable = ['created_at', 'indexed_at'];
+  const mergedFilterable = [...new Set([...existingFilterable, ...requiredFilterable])];
+  const mergedSortable = [...new Set([...existingSortable, ...requiredSortable])];
+
   await index.updateSettings({
     searchableAttributes: [
       'name',
@@ -33,8 +47,8 @@ async function configureIndex() {
       'lud16',
       'website',
     ],
-    filterableAttributes: ['created_at', 'indexed_at'],
-    sortableAttributes: ['created_at', 'indexed_at'],
+    filterableAttributes: mergedFilterable,
+    sortableAttributes: mergedSortable,
     displayedAttributes: ['*'],
     rankingRules: [
       'words',
@@ -84,6 +98,18 @@ function scheduleFlush() {
   }, FLUSH_INTERVAL_MS);
 }
 
+/**
+ * Sanitize a string for Meilisearch — remove broken Unicode escape sequences
+ * and other characters that cause "unexpected end of hex escape" errors.
+ */
+function sanitizeStr(val) {
+  if (typeof val !== 'string') return '';
+  return val
+    .replace(/[\uD800-\uDFFF]/g, '')
+    .replace(/\\u[\da-fA-F]{0,3}(?=[^a-fA-F\d]|$)/g, '')
+    .replace(/\0/g, '');
+}
+
 function processEvent(event) {
   if (event.kind !== 0) return;
 
@@ -107,17 +133,17 @@ function processEvent(event) {
     npub,
     created_at: event.created_at,
     indexed_at: Math.floor(Date.now() / 1000),
-    name: profile.name || '',
-    display_name: profile.display_name || profile.displayName || '',
-    displayName: profile.displayName || profile.display_name || '',
-    username: profile.username || '',
-    nip05: profile.nip05 || '',
-    about: profile.about || '',
-    picture: profile.picture || '',
-    banner: profile.banner || '',
-    lud16: profile.lud16 || '',
-    lud06: profile.lud06 || '',
-    website: profile.website || '',
+    name: sanitizeStr(profile.name),
+    display_name: sanitizeStr(profile.display_name || profile.displayName),
+    displayName: sanitizeStr(profile.displayName || profile.display_name),
+    username: sanitizeStr(profile.username),
+    nip05: sanitizeStr(profile.nip05),
+    about: sanitizeStr(profile.about),
+    picture: sanitizeStr(profile.picture),
+    banner: sanitizeStr(profile.banner),
+    lud16: sanitizeStr(profile.lud16),
+    lud06: sanitizeStr(profile.lud06),
+    website: sanitizeStr(profile.website),
   };
 
   batch.push(doc);

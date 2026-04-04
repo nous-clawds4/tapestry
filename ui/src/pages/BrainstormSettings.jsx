@@ -355,7 +355,7 @@ export default function BrainstormSettings() {
           <a href="/kg/brainstorm-search" className="bss-back">← Back to Search</a>
           <a href="/kg/brainstorm-search" className="bsp-logo">
             <img src="/kg/brainstorm.svg" alt="" className="bsp-logo-img" />
-            Brainstorm Search
+            Brainstorm
           </a>
           <BrainstormUserMenu user={user} login={login} logout={logout} />
         </div>
@@ -375,7 +375,7 @@ export default function BrainstormSettings() {
         <a href="/kg/brainstorm-search" className="bss-back">← Back to Search</a>
         <a href="/kg/brainstorm-search" className="bsp-logo">
           <img src="/kg/brainstorm.svg" alt="" className="bsp-logo-img" />
-          Brainstorm Search
+          Brainstorm
         </a>
         <div className="bss-auth">
           <BrainstormUserMenu user={user} login={login} logout={logout} />

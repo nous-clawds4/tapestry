@@ -35,6 +35,7 @@ const mainNavItems = [
       { to: '/kg/grapevine/trusted-lists', label: 'Trusted Lists' },
       { to: '/kg/grapevine/trust-determination', label: 'Trust Determination' },
       { to: '/kg/grapevine/search-preferences', label: 'Search Preferences' },
+      { to: '/kg/grapevine/meilisearch', label: 'Meilisearch' },
     ],
   },
   {

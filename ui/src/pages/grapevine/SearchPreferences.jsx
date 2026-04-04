@@ -365,10 +365,11 @@ export default function SearchPreferences() {
           const dTag = event.tags?.find(t => t[0] === 'd')?.[1];
           if (!dTag) continue;
 
+          const povSuffix = delegatedPubkey.slice(0, 8);
           const scoreObj = { pubkey: dTag };
           for (const tag of event.tags) {
             if (metricNames.includes(tag[0])) {
-              scoreObj[`wot_${tag[0]}`] = parseFloat(tag[1]) || 0;
+              scoreObj[`wot_${tag[0]}_${povSuffix}`] = parseFloat(tag[1]) || 0;
             }
           }
           scores.push(scoreObj);
@@ -385,7 +386,7 @@ export default function SearchPreferences() {
       const meiliResp = await fetch('/api/search/profiles/meili/load-scores', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ povPubkey, metrics: metricNames, scores }),
+        body: JSON.stringify({ povPubkey, delegatedPubkey, metrics: metricNames, scores }),
       });
 
       const result = await meiliResp.json();

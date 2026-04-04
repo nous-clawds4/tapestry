@@ -31,7 +31,7 @@ const { handleGetGrapevineInteraction } = require('./grapevineInteractions/queri
 const { handleOldSearchProfiles, handleOldSearchProfilesStream } = require('./search/profiles');
 const { handleKeywordSearchProfiles } = require('./search/profiles/keyword');
 const { handlePrecomputeWhitelistMaps, handlePrecomputeWhitelistStatus } = require('./search/profiles/whitelistPrecompute');
-const { handleMeiliSearchProfiles, handleMeiliSearchStats, handleMeiliResync, handleMeiliBulkStatus, handleMeiliLoadScores } = require('./search/profiles/meili');
+const { handleMeiliSearchProfiles, handleMeiliSearchStats, handleMeiliResync, handleMeiliBulkStatus, handleMeiliLoadScores, handleMeiliGetDocument, handleMeiliWipe, handleMeiliSettings, handleMeiliRandomScored, handleMeiliTasks, handleMeiliPruneUnscored, handleMeiliScoredMissingProfile, handleMeiliBackfillProfiles } = require('./search/profiles/meili');
 const { handleGetRecentlyActivePubkeys } = require('./content/queries/recentlyActivePubkeys');
 const getTaskDashboardState = require('./taskDashboard/getTaskDashboardState');
 const getTaskExplorerData = require('./taskExplorer/getTaskExplorerData');
@@ -334,6 +334,14 @@ async function register(app) {
     app.post('/api/search/profiles/meili/resync', handleMeiliResync);
     app.get('/api/search/profiles/meili/bulk-status', handleMeiliBulkStatus);
     app.post('/api/search/profiles/meili/load-scores', handleMeiliLoadScores);
+    app.get('/api/search/profiles/meili/document/:pubkey', handleMeiliGetDocument);
+    app.delete('/api/search/profiles/meili/wipe', handleMeiliWipe);
+    app.get('/api/search/profiles/meili/settings', handleMeiliSettings);
+    app.get('/api/search/profiles/meili/random-scored', handleMeiliRandomScored);
+    app.get('/api/search/profiles/meili/tasks', handleMeiliTasks);
+    app.post('/api/search/profiles/meili/prune-unscored', handleMeiliPruneUnscored);
+    app.get('/api/search/profiles/meili/scored-missing-profile', handleMeiliScoredMissingProfile);
+    app.post('/api/search/profiles/meili/backfill-profiles', handleMeiliBackfillProfiles);
 
     // Get Customers endpoint
     app.get('/api/get-customers', customers.handleGetCustomers);
