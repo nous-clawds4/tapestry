@@ -1,0 +1,12 @@
+{
+  "name": "nip50-proxy",
+  "version": "1.0.0",
+  "description": "NIP-50 search relay proxy for Tapestry — routes search queries to Meilisearch with WoT scoring, passes all other traffic to strfry",
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.js"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}

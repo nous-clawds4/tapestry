@@ -78,6 +78,10 @@ RUN cd /usr/local/lib/node_modules/brainstorm && npm install
 COPY ui/package.json ui/package-lock.json /usr/local/lib/node_modules/brainstorm/ui/
 RUN cd /usr/local/lib/node_modules/brainstorm/ui && npm ci
 
+# NIP-50 proxy dependencies (cached until nip50-proxy/package.json changes)
+COPY nip50-proxy/package.json /usr/local/lib/node_modules/brainstorm/nip50-proxy/
+RUN cd /usr/local/lib/node_modules/brainstorm/nip50-proxy && npm install
+
 # Now copy the full application code (this layer busts on every push)
 COPY . /usr/local/lib/node_modules/brainstorm/
 
