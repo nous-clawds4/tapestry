@@ -69,7 +69,7 @@ const server = http.createServer(async (req, res) => {
 
   // Default: plain text landing page
   res.writeHead(200, { 'Content-Type': 'text/plain' });
-  res.end('Tapestry NIP-50 Relay Proxy — connect via WebSocket');
+  res.end('Tapestry NIP-50 Relay Proxy - connect via WebSocket');
 });
 
 /**

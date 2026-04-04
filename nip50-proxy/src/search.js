@@ -6,7 +6,7 @@
  * and converts profile hits into kind 0 nostr events.
  */
 
-import { getHouseDelegatedPubkey, getHouseFilters, getHouseSort } from './settings.js';
+import { getHouseDelegatedPubkey, getHouseFilters, getHouseSort, readUserPrefs } from './settings.js';
 
 /**
  * Parse a NIP-50 search string into a clean query and WoT extensions.
@@ -63,15 +63,33 @@ export function parseSearchString(searchStr) {
 /**
  * Resolve the delegated pubkey (observer) for WoT field namespacing.
  *
+ * The observer pubkey is the *user's* pubkey, not the delegated pubkey.
+ * We need to look up the user's preferences to find their rankAuthor
+ * (delegated pubkey), which is what Meilisearch fields are namespaced by.
+ *
  * Priority:
- *   1. Explicit observer from search string
+ *   1. Explicit observer from search string → look up user prefs → rankAuthor
  *   2. House default delegated pubkey from settings
  *
  * Returns { delegatedPubkey, suffix } or { delegatedPubkey: null, suffix: null }
  */
 function resolveObserver(extensions) {
-  let delegatedPubkey = extensions.observer || null;
+  let delegatedPubkey = null;
 
+  if (extensions.observer) {
+    // observer is the user's pubkey — look up their saved prefs to find
+    // the delegated pubkey (rankAuthor) whose scores are in Meilisearch
+    const userPrefs = readUserPrefs(extensions.observer);
+    delegatedPubkey = userPrefs.rankAuthor || null;
+
+    // If no prefs found, try using the observer value directly as the
+    // delegated pubkey (caller may have passed the delegated pubkey itself)
+    if (!delegatedPubkey) {
+      delegatedPubkey = extensions.observer;
+    }
+  }
+
+  // Fall back to house default
   if (!delegatedPubkey) {
     delegatedPubkey = getHouseDelegatedPubkey();
   }
