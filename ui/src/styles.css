@@ -2895,6 +2895,10 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
 .bs-footer-link:hover {
   text-decoration: underline;
 }
+.bs-footer-sep {
+  margin: 0 0.5rem;
+  opacity: 0.5;
+}
 
 /* ── Results page layout ── */
 .bs-page-results {

@@ -67,6 +67,7 @@ import BrainstormSearch from './pages/BrainstormSearch';
 import BrainstormProfile from './pages/BrainstormProfile';
 import BrainstormSettings from './pages/BrainstormSettings';
 import BrainstormPersonalization from './pages/BrainstormPersonalization';
+import BrainstormDevelopers from './pages/BrainstormDevelopers';
 const router = createBrowserRouter([
   {
     path: '/kg/brainstorm-search',
@@ -83,6 +84,10 @@ const router = createBrowserRouter([
   {
     path: '/kg/brainstorm-search/personalization',
     element: <BrainstormPersonalization />,
+  },
+  {
+    path: '/kg/brainstorm-search/developers',
+    element: <BrainstormDevelopers />,
   },
   {
     path: '/kg',

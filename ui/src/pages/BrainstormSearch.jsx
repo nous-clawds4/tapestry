@@ -933,6 +933,8 @@ export default function BrainstormSearch() {
 
         <div className="bs-footer">
           Powered by <a href="https://brainstorm.nosfabrica.com/" className="bs-footer-link">NosFabrica</a>
+          <span className="bs-footer-sep">&middot;</span>
+          <a href="/kg/brainstorm-search/developers" className="bs-footer-link">Developers</a>
         </div>
       </div>
     );
