@@ -6,6 +6,7 @@ import BrainstormUserMenu, { useHouseProfile } from '../components/BrainstormUse
 /* ── Helpers ──────────────────────────────────────────── */
 
 const EXTERNAL_RELAYS = ['wss://relay.primal.net', 'wss://relay.damus.io', 'wss://nos.lol'];
+const POV_STORAGE_PREFIX = 'bs_pov_';
 
 function timeAgoShort(unixSeconds) {
   if (!unixSeconds) return null;
@@ -50,6 +51,26 @@ export default function BrainstormSettings() {
   const [filters, setFilters] = useState({});
   const [sortConfig, setSortConfig] = useState({ metric: null, direction: 'desc' });
   const [filterSortDirty, setFilterSortDirty] = useState(false);
+
+  // ── Read persisted POV on mount (mirrors BrainstormSearch logic) ──
+  useEffect(() => {
+    if (!user) return;
+    // Fast: localStorage first
+    const cached = localStorage.getItem(POV_STORAGE_PREFIX + user.pubkey);
+    if (cached === 'user' || cached === 'nosfabrica') setPov(cached);
+  }, [user]);
+
+  // ── Persist POV changes immediately (mirrors BrainstormSearch logic) ──
+  useEffect(() => {
+    if (!user || !pov) return;
+    localStorage.setItem(POV_STORAGE_PREFIX + user.pubkey, pov);
+    // Save to server (best effort, non-blocking)
+    fetch('/api/user-prefs', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pov }),
+    }).catch(() => {});
+  }, [user, pov]);
 
   // ── Helpers ──
   async function countLocalTAs(delegatedPubkey) {
