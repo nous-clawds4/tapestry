@@ -3,7 +3,7 @@
 > **Audience:** AI agents and developers joining the Tapestry project.
 > Read this file to fully onboard — it covers what Tapestry is, how it works, what's been built, what's in progress, and how to contribute.
 
-**Last updated:** 2026-03-29
+**Last updated:** 2026-04-03
 
 ---
 
@@ -80,25 +80,27 @@ Tapestry is being built under **NosFabrica**, a company focused on sovereign hea
 ## 4. Architecture
 
 ```
-┌─────────────────────────────────────────────────┐
-│              tapestry container                  │
-│                                                  │
-│  ┌──────────┐  ┌──────────┐  ┌──────────────┐  │
-│  │  strfry   │  │  Neo4j   │  │   Express    │  │
-│  │  (relay)  │  │  (graph) │  │  (API + UI)  │  │
-│  │  :7777    │  │  :7687   │  │  :80         │  │
-│  └──────────┘  └──────────┘  └──────────────┘  │
-│        │              │              │           │
-│        └──────────────┼──────────────┘           │
-│                       │                          │
-│              ┌────────┴────────┐                 │
-│              │    nginx (:80)  │                 │
-│              │  reverse proxy  │                 │
-│              └─────────────────┘                 │
-│                       │                          │
-└───────────────────────┼──────────────────────────┘
-                        │
-                   Port 8080 (host)
+┌──────────────────────────────────────────────────────────┐
+│              tapestry container                           │
+│                                                           │
+│  ┌──────────┐  ┌──────────┐  ┌──────────────┐           │
+│  │  strfry   │  │  Neo4j   │  │   Express    │           │
+│  │  (relay)  │  │  (graph) │  │  (API + UI)  │           │
+│  │  :7777    │  │  :7687   │  │  :7778       │           │
+│  └─────┬────┘  └──────────┘  └──────────────┘           │
+│        │                                                  │
+│  ┌─────┴──────────┐                                      │
+│  │  nip50-proxy   │  NIP-50 search → Meilisearch         │
+│  │  :7780         │  all other traffic → strfry           │
+│  └────────────────┘                                      │
+│        │                                                  │
+│  ┌─────┴──────────┐                                      │
+│  │  nginx (:80)   │  reverse proxy                       │
+│  └────────────────┘                                      │
+│        │                                                  │
+└────────┼─────────────────────────────────────────────────┘
+         │
+    Port 8080 (host)
 
 ┌────────────────────────┐   ┌────────────────────────┐
 │  nostr-search-api      │   │  nostr-search-meili    │
@@ -118,9 +120,10 @@ Tapestry is being built under **NosFabrica**, a company focused on sovereign hea
 |---------|------|------|
 | **strfry** | 7777 (internal WS) | High-performance C++ nostr relay. Local event store — source of truth for raw nostr events. |
 | **Neo4j** | 7474 (HTTP), 7687 (Bolt) | Graph database. Turns flat events into a navigable concept graph with labeled nodes and typed relationships. |
-| **Express** | 80 (internal) → 8080 (host) | REST API server. Serves the React UI at `/kg/`, provides all API endpoints. Proxies search requests to nostr-search-api. |
-| **nginx** | 80 (internal) | Reverse proxy routing `/api/*` to Express, WebSocket to strfry, etc. |
-| **supervisord** | — | Process manager inside the container. Controls all services. |
+| **Express** | 7778 (internal) → 8080 (host) | REST API server. Serves the React UI at `/kg/`, provides all API endpoints. Proxies search requests to nostr-search-api. |
+| **nip50-proxy** | 7780 (internal) | NIP-50 relay proxy. Sits between nginx and strfry. Intercepts search REQs and routes them through Meilisearch + WoT scoring. Passes all other traffic to strfry transparently. Auto-triggers the WoT pipeline for new observers. |
+| **nginx** | 80 (internal) | Reverse proxy routing `/api/*` to Express, `/relay` to nip50-proxy, etc. |
+| **supervisord** | — | Process manager inside the container. Controls all services (neo4j, strfry, strfry-router, nip50-proxy, brainstorm). |
 | **nostr-search-api** | 3069 | Search API server. Connects to strfry via WebSocket for live kind 0 ingestion, proxies search queries to Meilisearch, handles WoT score loading. |
 | **nostr-search-meili** | 7700 | Meilisearch instance. Full-text search index for nostr profiles. Searchable by name, NIP-05, bio, website, Lightning address. |
 
@@ -148,6 +151,11 @@ External relays ──strfry router──→ strfry ──WebSocket──→ nos
   (userProfiles preset)          (kind 0)   (live ingest)    (index)         (full-text search)
                                                                                     ↑
                                                               Express proxy ←── React UI
+
+NIP-50 relay search pipeline (for external nostr clients):
+Client ──wss://relay──→ nginx ──→ nip50-proxy ──search──→ nostr-search-api ──→ Meilisearch
+                                      │                                         (WoT-scored)
+                                      └──non-search──→ strfry (passthrough)
 ```
 
 1. **Sync**: `strfry sync` pulls events from external relays
@@ -590,6 +598,27 @@ Base URL: `http://localhost:8080`
 | GET | `/api/search/profiles/meili/bulk-status` | Status of bulk re-indexing from strfry |
 | POST | `/api/search/profiles/meili/load-scores` | Batch-upsert WoT scores into profiles index |
 
+### NIP-50 Relay Search (WebSocket)
+
+External nostr clients can search via the relay WebSocket at `wss://<host>/relay`.
+
+**Protocol:** Standard NIP-01 REQ with NIP-50 `search` field:
+```json
+["REQ", "<subId>", {"kinds": [0], "limit": 20, "search": "jack observer:<pubkey> sort:followers:desc filter:rank:gte:2"}]
+```
+
+**Custom extensions** (in the search string, per NIP-50 key:value pattern):
+
+| Extension | Format | Description |
+|-----------|--------|-------------|
+| `observer` | `observer:<hex-pubkey>` | User's pubkey for WoT point of view. Resolved to delegated pubkey via user prefs. Falls back to house POV if omitted. |
+| `sort` | `sort:<metric>:<asc\|desc>` | Sort by WoT metric (e.g., `sort:followers:desc`) |
+| `filter` | `filter:<metric>:<op>:<value>` | Filter by WoT metric threshold (ops: `gte`, `lte`, `gt`, `lt`, `eq`) |
+
+**NIP-11 discovery:** `curl -H "Accept: application/nostr+json" https://<host>/relay` returns relay info with `50` in `supported_nips`.
+
+**Auto-trigger:** If the observer's WoT scores aren't in Meilisearch, the proxy automatically runs the full pipeline in the background (find kind 10040, sync TAs, parse metrics, load scores). The current search returns unscored; the next search will be fully WoT-scored.
+
 ### Grapevine / Search Preferences
 
 | Method | Endpoint | Description |
@@ -906,6 +935,10 @@ docker compose exec tapestry strfry sync wss://dcosl.brainstorm.world \
 - ✅ Profile freshness pipeline: live ingestion, scheduled 24h bulk re-ingestion, retry logic
 - ✅ `userProfiles` router preset for continuous kind 0 sync from profile-aggregating relays
 - ✅ Firmware v1.0.0 with biconditional ENUMERATES schema conditionals
+- ✅ NIP-50 relay proxy (nip50-proxy) — exposes Meilisearch + WoT search via standard nostr WebSocket protocol
+- ✅ NIP-50 custom extensions: `observer:<pubkey>`, `sort:<metric>:<direction>`, `filter:<metric>:<op>:<value>`
+- ✅ NIP-11 relay info advertising NIP-50 support with extension documentation
+- ✅ Background WoT pipeline auto-trigger — when a NIP-50 search arrives for an observer whose scores aren't loaded, the proxy automatically runs the full pipeline (find kind 10040 → parse rank tag → negentropy sync TAs → parse metrics → load scores into Meilisearch)
 
 ### CLI (tapestry-cli repo)
 
@@ -923,8 +956,8 @@ docker compose exec tapestry strfry sync wss://dcosl.brainstorm.world \
 ## 17. What's In Progress
 
 - **JSON validation** — audit validates core node JSON against firmware schemas; element validation against concept schemas exists but needs polish
-- **Profile search polish** — freshness stats in status panel (requires `created_at` filterable attribute to be populated on existing indexes)
 - **Meilisearch scalability** — at 2M+ profiles on a 2-vCPU machine, indexing can saturate CPU; may need tuning for production
+- **NIP-50 adoption** — relay proxy is live; working to get nostr client developers to integrate WoT-powered search results
 
 ---
 
