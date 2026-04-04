@@ -13,6 +13,7 @@ import http from 'http';
 import { WebSocketServer } from 'ws';
 import { ClientSession } from './session.js';
 import { getNip11Info } from './nip11.js';
+import { getPipelineStatus } from './wot-pipeline.js';
 
 const LISTEN_PORT = parseInt(process.env.NIP50_PORT || '7780');
 const LISTEN_HOST = process.env.NIP50_HOST || '127.0.0.1';
@@ -55,7 +56,7 @@ const server = http.createServer(async (req, res) => {
   }
 
   // Health check / status endpoint
-  if (req.url === '/status') {
+  if (req.url === '/status' || req.url === '//status') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({
       service: 'nip50-proxy',
@@ -63,6 +64,7 @@ const server = http.createServer(async (req, res) => {
       activeSessions,
       totalSessions,
       uptime: process.uptime(),
+      wotPipeline: getPipelineStatus(),
     }));
     return;
   }

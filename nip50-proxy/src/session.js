@@ -15,7 +15,8 @@
  */
 
 import WebSocket from 'ws';
-import { parseSearchString, executeSearchQuery, hitToNostrEvent } from './search.js';
+import { parseSearchString, executeSearchQuery, hitToNostrEvent, resolveObserver, checkScoresLoaded } from './search.js';
+import { triggerPipelineIfNeeded } from './wot-pipeline.js';
 
 export class ClientSession {
   /**
@@ -156,9 +157,24 @@ export class ClientSession {
 
   /**
    * Execute a NIP-50 search and send results as EVENT messages.
+   * If the observer's scores aren't loaded, triggers the WoT pipeline
+   * in the background (non-blocking) so the next search will be scored.
    */
   async _executeSearch(subId, searchFilter, allFilters) {
     const { query, extensions } = parseSearchString(searchFilter.search);
+
+    // Check if observer's scores are loaded; trigger pipeline if not
+    if (extensions.observer) {
+      const { suffix } = resolveObserver(extensions);
+      if (suffix) {
+        checkScoresLoaded(this.searchApiUrl, suffix).then(loaded => {
+          if (!loaded) {
+            console.log(`[session] Scores not loaded for suffix ${suffix} — triggering WoT pipeline for ${extensions.observer.slice(0, 12)}...`);
+            triggerPipelineIfNeeded(extensions.observer);
+          }
+        }).catch(() => {}); // Don't block search on this check
+      }
+    }
 
     // Respect kinds filter — currently we only support kind 0
     if (searchFilter.kinds && !searchFilter.kinds.includes(0)) {

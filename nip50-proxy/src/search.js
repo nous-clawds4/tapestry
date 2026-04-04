@@ -73,7 +73,7 @@ export function parseSearchString(searchStr) {
  *
  * Returns { delegatedPubkey, suffix } or { delegatedPubkey: null, suffix: null }
  */
-function resolveObserver(extensions) {
+export function resolveObserver(extensions) {
   let delegatedPubkey = null;
 
   if (extensions.observer) {
@@ -161,6 +161,35 @@ export async function executeSearchQuery(searchApiUrl, query, extensions, limit 
   } catch (err) {
     console.error(`[search] Failed to reach nostr-search-api: ${err.message}`);
     return { hits: [], estimatedTotalHits: 0, processingTimeMs: 0, error: true };
+  }
+}
+
+/**
+ * Check whether WoT scores are loaded in Meilisearch for a given POV suffix.
+ *
+ * Queries the Meilisearch settings to see if any wot_*_<suffix> fields
+ * exist in the filterable attributes.
+ *
+ * @param {string} searchApiUrl - Base URL of nostr-search-api
+ * @param {string} suffix - 8-char delegated pubkey prefix
+ * @returns {boolean} - true if scores are loaded
+ */
+export async function checkScoresLoaded(searchApiUrl, suffix) {
+  if (!suffix) return false;
+
+  try {
+    const MEILI_URL = process.env.MEILI_URL || 'http://nostr-search-meili:7700';
+    const MEILI_INDEX = process.env.MEILI_INDEX || 'profiles';
+    const resp = await fetch(`${MEILI_URL}/indexes/${MEILI_INDEX}/settings`);
+    if (!resp.ok) return false;
+
+    const settings = await resp.json();
+    const filterableAttrs = settings.filterableAttributes || [];
+    const hasWotFields = filterableAttrs.some(f => f.endsWith(`_${suffix}`) && f.startsWith('wot_'));
+    return hasWotFields;
+  } catch (err) {
+    console.warn(`[search] Failed to check scores for suffix ${suffix}: ${err.message}`);
+    return false;
   }
 }
 
