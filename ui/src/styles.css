@@ -3504,6 +3504,240 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   .bsp-top-bar { padding: 0.5rem 1rem; }
 }
 
+/* ── Profile Action Buttons ── */
+
+.bsp-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0.75rem 0 0.5rem;
+  flex-wrap: wrap;
+}
+
+.bsp-action-btn {
+  padding: 0.4rem 1rem;
+  border-radius: 999px;
+  border: 1px solid var(--border, #334155);
+  background: transparent;
+  color: var(--text-primary, #e2e8f0);
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.bsp-action-btn:hover:not(:disabled) {
+  border-color: #6366f1;
+  color: #a5b4fc;
+}
+.bsp-action-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.bsp-action-btn.bsp-action-active {
+  background: rgba(99, 102, 241, 0.15);
+  border-color: #6366f1;
+  color: #a5b4fc;
+}
+
+.bsp-action-btn.bsp-action-mute.bsp-action-active {
+  background: rgba(245, 158, 11, 0.15);
+  border-color: #f59e0b;
+  color: #fbbf24;
+}
+
+.bsp-action-btn.bsp-action-report:hover:not(:disabled) {
+  border-color: #ef4444;
+  color: #fca5a5;
+}
+.bsp-action-btn.bsp-action-reported {
+  background: rgba(239, 68, 68, 0.1);
+  border-color: rgba(239, 68, 68, 0.3);
+  color: #fca5a5;
+  opacity: 0.7;
+}
+
+.bsp-action-error {
+  width: 100%;
+  color: #f87171;
+  font-size: 0.8rem;
+  margin-top: 0.25rem;
+}
+
+/* ── Confirm Dialog ── */
+
+.bsp-confirm-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+.bsp-confirm-box {
+  background: var(--bg-secondary, #1e1e2e);
+  border: 1px solid var(--border, #334155);
+  border-radius: 12px;
+  padding: 1.5rem;
+  max-width: 420px;
+  width: 90%;
+}
+.bsp-confirm-title {
+  margin: 0 0 0.75rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text-primary, #e2e8f0);
+}
+.bsp-confirm-message {
+  margin: 0 0 1.25rem;
+  font-size: 0.9rem;
+  color: var(--text-secondary, #94a3b8);
+  line-height: 1.5;
+}
+.bsp-confirm-buttons {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+}
+.bsp-confirm-cancel,
+.bsp-confirm-ok {
+  padding: 0.4rem 1rem;
+  border-radius: 8px;
+  border: 1px solid var(--border, #334155);
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.bsp-confirm-cancel {
+  background: transparent;
+  color: var(--text-secondary, #94a3b8);
+}
+.bsp-confirm-cancel:hover {
+  border-color: var(--text-secondary, #94a3b8);
+}
+.bsp-confirm-ok {
+  background: #6366f1;
+  border-color: #6366f1;
+  color: white;
+}
+.bsp-confirm-ok:hover {
+  background: #4f46e5;
+}
+
+/* ── Report Modal ── */
+
+.bsp-report-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+.bsp-report-box {
+  background: var(--bg-secondary, #1e1e2e);
+  border: 1px solid var(--border, #334155);
+  border-radius: 12px;
+  padding: 1.5rem;
+  max-width: 480px;
+  width: 90%;
+}
+.bsp-report-title {
+  margin: 0 0 0.25rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text-primary, #e2e8f0);
+}
+.bsp-report-desc {
+  margin: 0 0 1rem;
+  font-size: 0.8rem;
+  color: var(--text-secondary, #94a3b8);
+}
+.bsp-report-options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-bottom: 1rem;
+}
+.bsp-report-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.1s ease;
+}
+.bsp-report-option:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+.bsp-report-option.selected {
+  background: rgba(239, 68, 68, 0.08);
+}
+.bsp-report-option input[type="radio"] {
+  margin-top: 3px;
+  accent-color: #ef4444;
+}
+.bsp-report-option-text {
+  display: flex;
+  flex-direction: column;
+}
+.bsp-report-option-label {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--text-primary, #e2e8f0);
+}
+.bsp-report-option-desc {
+  font-size: 0.75rem;
+  color: var(--text-secondary, #94a3b8);
+}
+.bsp-report-textarea {
+  width: 100%;
+  padding: 0.5rem;
+  border-radius: 8px;
+  border: 1px solid var(--border, #334155);
+  background: var(--bg-primary, #0f0f1a);
+  color: var(--text-primary, #e2e8f0);
+  font-size: 0.85rem;
+  font-family: inherit;
+  resize: vertical;
+  margin-bottom: 1rem;
+  box-sizing: border-box;
+}
+.bsp-report-buttons {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+}
+.bsp-report-cancel,
+.bsp-report-submit {
+  padding: 0.4rem 1rem;
+  border-radius: 8px;
+  border: 1px solid var(--border, #334155);
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.bsp-report-cancel {
+  background: transparent;
+  color: var(--text-secondary, #94a3b8);
+}
+.bsp-report-cancel:hover {
+  border-color: var(--text-secondary, #94a3b8);
+}
+.bsp-report-submit {
+  background: #ef4444;
+  border-color: #ef4444;
+  color: white;
+}
+.bsp-report-submit:hover:not(:disabled) {
+  background: #dc2626;
+}
+.bsp-report-submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 /* ════════════════════════════════════════════════════════
    Brainstorm Settings Page (bss-)
    ════════════════════════════════════════════════════════ */

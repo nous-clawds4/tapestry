@@ -3,6 +3,9 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
 import { useAuth } from '../context/AuthContext';
 import BrainstormUserMenu from '../components/BrainstormUserMenu';
+import { useProfileActions } from '../hooks/useProfileActions';
+import ConfirmDialog from '../components/ConfirmDialog';
+import ReportModal from '../components/ReportModal';
 
 /* ── Helpers ──────────────────────────────────────────── */
 
@@ -75,6 +78,16 @@ export default function BrainstormProfile() {
   const [trustScores, setTrustScores] = useState(null);
   const [trustLoading, setTrustLoading] = useState(true);
   const [trustError, setTrustError] = useState(null);
+  const [reportModalOpen, setReportModalOpen] = useState(false);
+
+  const {
+    isFollowing, isMuted, hasReported,
+    actionLoading, error: actionError,
+    follow, unfollow, mute, unmute, report,
+    needsConfirmation, confirmAction, cancelAction,
+  } = useProfileActions(pubkey, user?.pubkey);
+
+  const showActions = user && user.pubkey !== pubkey;
 
   const npub = useMemo(() => {
     try { return nip19.npubEncode(pubkey); } catch { return null; }
@@ -219,6 +232,41 @@ export default function BrainstormProfile() {
               </div>
             </div>
 
+            {/* Action buttons */}
+            {showActions && (
+              <div className="bsp-actions">
+                <button
+                  className={`bsp-action-btn ${isFollowing ? 'bsp-action-active' : ''}`}
+                  onClick={isFollowing ? unfollow : follow}
+                  disabled={actionLoading !== null || isFollowing === null}
+                >
+                  {actionLoading === 'follow' || actionLoading === 'unfollow'
+                    ? 'Working\u2026'
+                    : isFollowing ? 'Unfollow' : 'Follow'}
+                </button>
+
+                <button
+                  className={`bsp-action-btn bsp-action-mute ${isMuted ? 'bsp-action-active' : ''}`}
+                  onClick={isMuted ? unmute : mute}
+                  disabled={actionLoading !== null || isMuted === null}
+                >
+                  {actionLoading === 'mute' || actionLoading === 'unmute'
+                    ? 'Working\u2026'
+                    : isMuted ? 'Unmute' : 'Mute'}
+                </button>
+
+                <button
+                  className={`bsp-action-btn bsp-action-report ${hasReported ? 'bsp-action-reported' : ''}`}
+                  onClick={() => setReportModalOpen(true)}
+                  disabled={actionLoading !== null || hasReported === true}
+                >
+                  {hasReported ? 'Reported' : 'Report'}
+                </button>
+
+                {actionError && <div className="bsp-action-error">{actionError}</div>}
+              </div>
+            )}
+
             {/* About */}
             {profile?.about && (
               <div className="bsp-section">
@@ -309,6 +357,25 @@ export default function BrainstormProfile() {
           </div>
         )}
       </div>
+
+      {/* Dialogs */}
+      <ConfirmDialog
+        open={!!needsConfirmation}
+        title={needsConfirmation?.title || ''}
+        message={needsConfirmation?.message || ''}
+        onConfirm={confirmAction}
+        onCancel={cancelAction}
+      />
+
+      <ReportModal
+        open={reportModalOpen}
+        loading={actionLoading === 'report'}
+        onSubmit={async (type, note) => {
+          await report(type, note);
+          setReportModalOpen(false);
+        }}
+        onCancel={() => setReportModalOpen(false)}
+      />
     </div>
   );
 }
