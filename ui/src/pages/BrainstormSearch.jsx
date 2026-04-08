@@ -1,6 +1,46 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useHouseProfile } from '../components/BrainstormUserMenu';
+import { nip19 } from 'nostr-tools';
+
+/* ── Nostr identity detection ──────────────────────────── */
+
+/**
+ * Attempt to decode a nostr identity string (npub, hex pubkey, or nprofile)
+ * into a 64-character hex pubkey. Returns null if the input is not a valid
+ * nostr identity, allowing normal text search to proceed.
+ */
+function tryDecodeNostrIdentity(input) {
+  if (!input) return null;
+  const trimmed = input.trim().toLowerCase();
+
+  // 64-char hex string = raw pubkey
+  if (/^[0-9a-f]{64}$/.test(trimmed)) {
+    return trimmed;
+  }
+
+  // npub1... (Bech32-encoded pubkey)
+  if (trimmed.startsWith('npub1')) {
+    try {
+      const decoded = nip19.decode(trimmed);
+      if (decoded.type === 'npub') return decoded.data;
+    } catch {
+      return null;
+    }
+  }
+
+  // nprofile1... (Bech32-encoded profile with optional relay hints)
+  if (trimmed.startsWith('nprofile1')) {
+    try {
+      const decoded = nip19.decode(trimmed);
+      if (decoded.type === 'nprofile') return decoded.data.pubkey;
+    } catch {
+      return null;
+    }
+  }
+
+  return null;
+}
 
 /* ── House POV Label (shared inline component) ───────── */
 
@@ -648,6 +688,15 @@ export default function BrainstormSearch() {
   // Client only sends: q, limit, offset, wotPov, userPubkey.
   function buildSearchUrl(queryStr, limit, offset) {
     let url = `/api/search/profiles/meili?q=${encodeURIComponent(queryStr)}&limit=${limit}&offset=${offset}`;
+
+    // Direct lookup: if query is a nostr identity (npub, hex pubkey, nprofile),
+    // bypass WoT filtering/sorting and search by pubkey only.
+    const identityPubkey = tryDecodeNostrIdentity(queryStr);
+    if (identityPubkey) {
+      url += `&pubkeyLookup=${identityPubkey}`;
+      return url;
+    }
+
     url += `&wotPov=${pov === 'user' ? 'user' : 'house'}`;
     if (pov === 'user' && user?.pubkey) {
       url += `&userPubkey=${user.pubkey}`;

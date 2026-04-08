@@ -55,6 +55,39 @@ async function handleMeiliSearchProfiles(req, res) {
   }
 
   try {
+    // ── Direct pubkey lookup (bypasses WoT filtering/sorting entirely) ──
+    const pubkeyLookup = req.query.pubkeyLookup;
+    if (pubkeyLookup && /^[0-9a-f]{64}$/.test(pubkeyLookup)) {
+      const MEILI_URL = process.env.MEILI_URL || 'http://nostr-search-meili:7700';
+      const MEILI_INDEX = process.env.MEILI_INDEX || 'profiles';
+      try {
+        const response = await fetch(`${MEILI_URL}/indexes/${MEILI_INDEX}/documents/${pubkeyLookup}`);
+        if (response.ok) {
+          const document = await response.json();
+          return res.json({
+            success: true,
+            hits: [document],
+            estimatedTotalHits: 1,
+            processingTimeMs: 0,
+            query: q.trim(),
+            povSuffix: null,
+          });
+        }
+        // 404 or other non-OK status = profile not in index
+        return res.json({
+          success: true,
+          hits: [],
+          estimatedTotalHits: 0,
+          processingTimeMs: 0,
+          query: q.trim(),
+          povSuffix: null,
+        });
+      } catch (err) {
+        console.error(`[meili-proxy] pubkey lookup failed: ${err.message}`);
+        // Fall through to normal search on network error
+      }
+    }
+
     // ── Step 1: Load house preferences (always needed as fallback) ──
     let housePrefs = {};
     try {
