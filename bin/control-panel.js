@@ -218,6 +218,12 @@ app.get('/legacy/:filename.html', (req, res) => {
     serveHtmlFile(filename, res);
 });
 
+// Redirect bare /*.html requests to /legacy/*.html so internal links in
+// legacy HTML pages work without modification.
+app.get('/:filename.html', (req, res) => {
+    res.redirect(301, `/legacy/${req.params.filename}.html`);
+});
+
 // Apply auth middleware
 app.use(authMiddleware);
 
