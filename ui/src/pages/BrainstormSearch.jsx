@@ -611,7 +611,7 @@ function ResultCard({ hit, povSuffix }) {
               src={picture}
               alt=""
               className="bs-result-avatar"
-              onError={e => { e.target.style.display = 'none'; }}
+              onError={e => { e.target.outerHTML = '<div class="bs-result-avatar bs-result-avatar-placeholder">👤</div>'; }}
             />
           ) : (
             <div className="bs-result-avatar bs-result-avatar-placeholder">👤</div>
@@ -912,7 +912,7 @@ export default function BrainstormSearch() {
                           src={hit.picture}
                           alt=""
                           className="bs-suggest-avatar"
-                          onError={e => { e.target.style.display = 'none'; }}
+                          onError={e => { e.target.outerHTML = '<div class="bs-suggest-avatar bs-suggest-avatar-placeholder">👤</div>'; }}
                         />
                       ) : (
                         <div className="bs-suggest-avatar bs-suggest-avatar-placeholder">👤</div>
