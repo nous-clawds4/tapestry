@@ -144,6 +144,10 @@ app.use(express.static(path.join(__dirname, '../public'), {
 // Serve static files under /control/ prefix (for nginx-less local/Docker setups)
 app.use('/control', express.static(path.join(__dirname, '../public')));
 
+// Serve public assets under /legacy/ so relative paths in legacy HTML pages
+// (e.g. ./components/header/header.js, ./css/common.css) resolve correctly.
+app.use('/legacy', express.static(path.join(__dirname, '../public')));
+
 // Serve Chart.js from node_modules
 app.use('/libs/chart.js', express.static(path.join(__dirname, '../node_modules/chart.js/dist')));
 app.use('/libs/chartjs-adapter-date-fns', express.static(path.join(__dirname, '../node_modules/chartjs-adapter-date-fns/dist')));
