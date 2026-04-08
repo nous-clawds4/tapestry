@@ -288,13 +288,13 @@ export default function ConceptElements() {
         <div style={{ display: 'flex', gap: '0.5rem' }}>
           <button
             className="btn btn-small btn-primary"
-            onClick={() => navigate(`/kg/concepts/${encodeURIComponent(uuid)}/elements/new`)}
+            onClick={() => navigate(`/tapestry/concepts/${encodeURIComponent(uuid)}/elements/new`)}
           >
             + New Element
           </button>
           <button
             className="btn btn-small"
-            onClick={() => navigate(`/kg/concepts/${encodeURIComponent(uuid)}/elements/add-node`)}
+            onClick={() => navigate(`/tapestry/concepts/${encodeURIComponent(uuid)}/elements/add-node`)}
           >
             🔗 Add Node as Element
           </button>
@@ -368,7 +368,7 @@ export default function ConceptElements() {
           <DataTable
             columns={columns}
             data={filteredMerged}
-            onRowClick={(row) => navigate(`/kg/concepts/${encodeURIComponent(uuid)}/elements/${encodeURIComponent(row.uuid)}`)}
+            onRowClick={(row) => navigate(`/tapestry/concepts/${encodeURIComponent(uuid)}/elements/${encodeURIComponent(row.uuid)}`)}
             emptyMessage="No elements match your filters"
           />
         </>

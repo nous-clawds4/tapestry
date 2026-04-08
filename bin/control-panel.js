@@ -120,7 +120,15 @@ app.use(cors({
 app.use(express.json({ limit: '100mb' }));
 app.use(express.urlencoded({ extended: true, limit: '100mb' }));
 
-// Serve static files from the public directory with proper MIME types
+// Serve React SPA assets (JS, CSS, SVG, fonts) from Vite build output
+app.use(express.static(path.join(__dirname, '../dist'), {
+    setHeaders: (res, filePath) => {
+        if (filePath.endsWith('.css')) res.set('Content-Type', 'text/css');
+        else if (filePath.endsWith('.js')) res.set('Content-Type', 'text/javascript');
+    }
+}));
+
+// Serve static files from the public directory (legacy assets: CSS, JS, images)
 app.use(express.static(path.join(__dirname, '../public'), {
     setHeaders: (res, path, stat) => {
         if (path.endsWith('.css')) {
@@ -200,22 +208,14 @@ function serveHtmlFile(filename, res) {
     }
 }
 
-// Serve the HTML files - consolidated approach
-// Root path serves index.html
-app.get('/', (req, res) => {
+// Legacy Brainstorm pages — served under /legacy/
+app.get('/legacy', (req, res) => {
     serveHtmlFile('index.html', res);
 });
-
-// Generic handler for all HTML files
-app.get('/:filename.html', (req, res) => {
+app.get('/legacy/:filename.html', (req, res) => {
     const filename = req.params.filename + '.html';
-    console.log(`[SERVER] Route hit: /${filename}`);
+    console.log(`[SERVER] Legacy route hit: /legacy/${filename}`);
     serveHtmlFile(filename, res);
-});
-
-// SPA fallback for React Router (/kg/* routes that aren't static files)
-app.get('/kg/*', (req, res) => {
-    res.sendFile(path.join(__dirname, '../public/kg/index.html'));
 });
 
 // Apply auth middleware
@@ -226,10 +226,12 @@ app.use(authMiddleware);
   await api.register(app);
   console.log('API routes registered');
 
-  // SPA catch-all: any /kg/* route that didn't match a static file or API endpoint
+  // SPA catch-all: any route that didn't match a static file, API endpoint, or legacy page
   // gets served the React app's index.html so client-side routing works on refresh.
-  app.get('/kg/*', (req, res) => {
-    res.sendFile(path.join(__dirname, '../public/kg/index.html'));
+  app.get('*', (req, res, next) => {
+    // Don't catch API routes (already handled above)
+    if (req.path.startsWith('/api/')) return next();
+    res.sendFile(path.join(__dirname, '../dist/index.html'));
   });
 
   if (useHTTPS) {

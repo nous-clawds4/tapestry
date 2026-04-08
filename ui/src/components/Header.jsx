@@ -63,7 +63,7 @@ export default function Header({ onToggleSidebar }) {
       <button className="sidebar-toggle" onClick={onToggleSidebar} aria-label="Toggle menu">
         ☰
       </button>
-      <div className="header-brand" onClick={() => navigate('/kg/brainstorm-search')} style={{ cursor: 'pointer' }}>
+      <div className="header-brand" onClick={() => navigate('/')} style={{ cursor: 'pointer' }}>
         <span className="header-brand-name">🧠 Tapestry</span>
       </div>
       <div className="header-spacer" />
@@ -100,19 +100,19 @@ export default function Header({ onToggleSidebar }) {
                   </span>
                 </div>
                 <hr className="dropdown-divider" />
-                <button className="dropdown-item" onClick={() => { setMenuOpen(false); navigate(`/kg/users/${user.pubkey}`); }}>
+                <button className="dropdown-item" onClick={() => { setMenuOpen(false); navigate(`/tapestry/users/${user.pubkey}`); }}>
                   👤 My Profile
                 </button>
-                <button className="dropdown-item" onClick={() => { setMenuOpen(false); navigate(`/kg/users/${TA_PUBKEY}`); }}>
+                <button className="dropdown-item" onClick={() => { setMenuOpen(false); navigate(`/tapestry/users/${TA_PUBKEY}`); }}>
                   🤖 My Assistant's Profile
                 </button>
                 {(user.classification === 'owner' || user.classification === 'admin') && (
-                  <button className="dropdown-item" onClick={() => { setMenuOpen(false); navigate('/kg/settings'); }}>
+                  <button className="dropdown-item" onClick={() => { setMenuOpen(false); navigate('/tapestry/settings'); }}>
                     ⚙️ Settings
                   </button>
                 )}
                 <hr className="dropdown-divider" />
-                <button className="dropdown-item" onClick={() => { setMenuOpen(false); navigate('/kg/about'); }}>
+                <button className="dropdown-item" onClick={() => { setMenuOpen(false); navigate('/tapestry/about'); }}>
                   ℹ️ About
                 </button>
                 <button className="dropdown-item" onClick={handleLogout}>

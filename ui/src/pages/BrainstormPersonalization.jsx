@@ -13,8 +13,8 @@ export default function BrainstormPersonalization() {
         <button className="bsp-back-btn" onClick={() => navigate(-1)}>
           ← Back
         </button>
-        <a href="/kg/brainstorm-search" className="bsp-logo">
-          <img src="/kg/brainstorm.svg" alt="" className="bsp-logo-img" />
+        <a href="/" className="bsp-logo">
+          <img src="/brainstorm.svg" alt="" className="bsp-logo-img" />
           Brainstorm
         </a>
         <div className="bsp-auth">
@@ -69,7 +69,7 @@ export default function BrainstormPersonalization() {
               </a>
             </li>
             <li style={{ marginBottom: '0.4rem' }}>
-              Visit <a href="/kg/brainstorm-search/settings" style={{ color: '#a5b4fc' }}>Settings</a> to
+              Visit <a href="/settings" style={{ color: '#a5b4fc' }}>Settings</a> to
               sync your scores and configure your filters
             </li>
             <li>Switch to "My Point of View" from the search page</li>

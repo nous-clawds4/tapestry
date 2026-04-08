@@ -79,13 +79,13 @@ export default function ConceptDag() {
         <div style={{ display: 'flex', gap: '0.5rem' }}>
           <button
             className="btn btn-primary"
-            onClick={() => navigate(`/kg/concepts/${encodedUuid}/dag/new-set`)}
+            onClick={() => navigate(`/tapestry/concepts/${encodedUuid}/dag/new-set`)}
           >
             + New Set
           </button>
           <button
             className="btn btn-secondary"
-            onClick={() => navigate(`/kg/concepts/${encodedUuid}/elements/new`)}
+            onClick={() => navigate(`/tapestry/concepts/${encodedUuid}/elements/new`)}
           >
             + New Element
           </button>
@@ -105,7 +105,7 @@ export default function ConceptDag() {
         <DataTable
           columns={columns}
           data={data}
-          onRowClick={(row) => navigate(`/kg/concepts/${encodedUuid}/dag/${encodeURIComponent(row.uuid)}`)}
+          onRowClick={(row) => navigate(`/tapestry/concepts/${encodedUuid}/dag/${encodeURIComponent(row.uuid)}`)}
         />
       )}
     </div>

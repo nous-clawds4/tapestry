@@ -80,7 +80,7 @@ function SchemaList({ schemas, results, loading, navigate }) {
                 <td>
                   <a
                     className="clickable-text"
-                    onClick={() => navigate(`/kg/databases/neo4j/nodes/${encodeURIComponent(s.uuid)}`)}
+                    onClick={() => navigate(`/tapestry/databases/neo4j/nodes/${encodeURIComponent(s.uuid)}`)}
                     style={{ cursor: 'pointer' }}
                     title={`View schema node: ${s.uuid}`}
                   >

@@ -26,8 +26,8 @@ export default function BrainstormDevelopers() {
         <button className="bsp-back-btn" onClick={() => navigate(-1)}>
           &larr; Back
         </button>
-        <a href="/kg/brainstorm-search" className="bsp-logo">
-          <img src="/kg/brainstorm.svg" alt="" className="bsp-logo-img" />
+        <a href="/" className="bsp-logo">
+          <img src="/brainstorm.svg" alt="" className="bsp-logo-img" />
           Brainstorm
         </a>
         <div className="bsp-auth" />

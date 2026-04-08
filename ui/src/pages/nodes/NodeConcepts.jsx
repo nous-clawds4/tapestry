@@ -132,7 +132,7 @@ export default function NodeConcepts() {
       render: (val, row) => (
         <span
           className="clickable-text"
-          onClick={(e) => { e.stopPropagation(); navigate(`/kg/concepts/${encodeURIComponent(row.uuid)}`); }}
+          onClick={(e) => { e.stopPropagation(); navigate(`/tapestry/concepts/${encodeURIComponent(row.uuid)}`); }}
         >
           {val || row.uuid?.slice(0, 20) + '…'}
         </span>

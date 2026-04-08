@@ -373,9 +373,9 @@ export default function BrainstormSettings() {
     return (
       <div className="bss-page">
         <div className="bss-top-bar">
-          <a href="/kg/brainstorm-search" className="bss-back">← Back to Search</a>
-          <a href="/kg/brainstorm-search" className="bsp-logo">
-            <img src="/kg/brainstorm.svg" alt="" className="bsp-logo-img" />
+          <a href="/" className="bss-back">← Back to Search</a>
+          <a href="/" className="bsp-logo">
+            <img src="/brainstorm.svg" alt="" className="bsp-logo-img" />
             Brainstorm
           </a>
           <BrainstormUserMenu user={user} login={login} logout={logout} />
@@ -393,9 +393,9 @@ export default function BrainstormSettings() {
     <div className="bss-page">
       {/* Top bar */}
       <div className="bss-top-bar">
-        <a href="/kg/brainstorm-search" className="bss-back">← Back to Search</a>
-        <a href="/kg/brainstorm-search" className="bsp-logo">
-          <img src="/kg/brainstorm.svg" alt="" className="bsp-logo-img" />
+        <a href="/" className="bss-back">← Back to Search</a>
+        <a href="/" className="bsp-logo">
+          <img src="/brainstorm.svg" alt="" className="bsp-logo-img" />
           Brainstorm
         </a>
         <div className="bss-auth">
@@ -406,7 +406,7 @@ export default function BrainstormSettings() {
       <div className="bss-content">
         {/* Dashboard link for owner/admin */}
         {(user?.classification === 'owner' || user?.classification === 'admin') && (
-          <a href="/kg/" className="bss-dashboard-link">
+          <a href="/tapestry/" className="bss-dashboard-link">
             <svg width="16" height="16" viewBox="0 0 18 18" fill="none" style={{ marginRight: '0.4rem' }}>
               <rect x="1" y="1" width="4" height="4" rx="1" fill="currentColor" opacity="0.7"/>
               <rect x="7" y="1" width="4" height="4" rx="1" fill="currentColor" opacity="0.7"/>
@@ -635,7 +635,7 @@ export default function BrainstormSettings() {
               </div>
               <div className="bss-pov-btn-desc">
                 {houseProfile ? (
-                  <a href={`/kg/brainstorm-search/user/${houseProfile.pubkey}`} className="bss-pov-profile-link" onClick={e => e.stopPropagation()}>
+                  <a href={`/user/${houseProfile.pubkey}`} className="bss-pov-profile-link" onClick={e => e.stopPropagation()}>
                     View profile →
                   </a>
                 ) : "Use the instance's default WoT scores"}

@@ -456,7 +456,7 @@ export default function DListItems() {
         expandedItemId={expandedItemId}
         pTagRequired={pTagRequired}
         onToggleExpand={(id) => setExpandedItemId(prev => prev === id ? null : id)}
-        onRowClick={(row) => navigate(`/kg/lists/items/${encodeURIComponent(row.routeId)}`)}
+        onRowClick={(row) => navigate(`/tapestry/lists/items/${encodeURIComponent(row.routeId)}`)}
       />
 
       {/* Trust method footnote */}
@@ -469,14 +469,14 @@ export default function DListItems() {
         <div>
           <span>* Trust Score determined by </span>
           <Link
-            to="/kg/grapevine/trust-determination"
+            to="/tapestry/grapevine/trust-determination"
             style={{ color: '#58a6ff', textDecoration: 'none' }}
           >
             {trustMethodLabel}
           </Link>
           <span> · PoV: </span>
           <Link
-            to={`/kg/users/${povPubkey}`}
+            to={`/tapestry/users/${povPubkey}`}
             style={{ color: '#58a6ff', textDecoration: 'none' }}
           >
             {povName}
@@ -769,7 +769,7 @@ function TrustBreakdown({ breakdown, totalScore, profiles, trustMethod }) {
               }}>
                 <td style={{ padding: '0.3rem 0.5rem' }}>
                   <Link
-                    to={`/kg/users/${entry.pubkey}`}
+                    to={`/tapestry/users/${entry.pubkey}`}
                     style={{ color: '#58a6ff', textDecoration: 'none' }}
                     onClick={e => e.stopPropagation()}
                   >

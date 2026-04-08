@@ -87,8 +87,8 @@ function UserPreviewCard({ pubkey, searchHit }) {
         cursor: 'pointer',
         overflow: 'hidden',
       }}
-      onClick={() => navigate(`/kg/users/${pubkey}`)}
-      onKeyDown={e => e.key === 'Enter' && navigate(`/kg/users/${pubkey}`)}
+      onClick={() => navigate(`/tapestry/users/${pubkey}`)}
+      onKeyDown={e => e.key === 'Enter' && navigate(`/tapestry/users/${pubkey}`)}
       role="button"
       tabIndex={0}
     >

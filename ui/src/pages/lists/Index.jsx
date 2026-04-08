@@ -234,7 +234,7 @@ export default function DListsIndex() {
             {headers.length} list headers · {items.length} items · from local strfry
           </p>
         </div>
-        <button className="btn-primary" onClick={() => navigate('/kg/lists/new')}>
+        <button className="btn-primary" onClick={() => navigate('/tapestry/lists/new')}>
           + New DList
         </button>
       </div>
@@ -296,7 +296,7 @@ export default function DListsIndex() {
       <DataTable
         columns={columns}
         data={filteredRows}
-        onRowClick={(row) => navigate(`/kg/lists/${encodeURIComponent(row.routeId)}`)}
+        onRowClick={(row) => navigate(`/tapestry/lists/${encodeURIComponent(row.routeId)}`)}
         emptyMessage="No DLists match your filters"
       />
     </div>

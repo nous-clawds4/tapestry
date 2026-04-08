@@ -157,7 +157,7 @@ export default function ConceptList() {
       <Breadcrumbs />
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h1>🧩 Concepts</h1>
-        <button className="btn btn-primary" onClick={() => navigate('/kg/concepts/new')}>+ New Concept</button>
+        <button className="btn btn-primary" onClick={() => navigate('/tapestry/concepts/new')}>+ New Concept</button>
       </div>
       <p className="page-description">All concept definitions in the knowledge graph.</p>
 
@@ -205,7 +205,7 @@ export default function ConceptList() {
           <DataTable
             columns={columns}
             data={filteredData}
-            onRowClick={(row) => navigate(`/kg/concepts/${encodeURIComponent(row.uuid)}`)}
+            onRowClick={(row) => navigate(`/tapestry/concepts/${encodeURIComponent(row.uuid)}`)}
             emptyMessage="No concepts match your filters"
           />
         </>

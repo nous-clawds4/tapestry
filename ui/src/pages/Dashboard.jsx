@@ -132,10 +132,10 @@ function StatsRow() {
   `);
 
   const stats = [
-    { label: 'Concepts', value: conceptData?.[0]?.cnt ?? '—', emoji: '🧩', to: '/kg/concepts' },
-    { label: 'Nodes', value: nodeData?.[0]?.cnt ?? '—', emoji: '🔵', to: '/kg/databases/neo4j/nodes' },
-    { label: 'Users', value: userData?.[0]?.cnt ?? '—', emoji: '👤', to: '/kg/users' },
-    { label: 'Relationships', value: relData?.[0]?.cnt ?? '—', emoji: '🔗', to: '/kg/relationships' },
+    { label: 'Concepts', value: conceptData?.[0]?.cnt ?? '—', emoji: '🧩', to: '/tapestry/concepts' },
+    { label: 'Nodes', value: nodeData?.[0]?.cnt ?? '—', emoji: '🔵', to: '/tapestry/databases/neo4j/nodes' },
+    { label: 'Users', value: userData?.[0]?.cnt ?? '—', emoji: '👤', to: '/tapestry/users' },
+    { label: 'Relationships', value: relData?.[0]?.cnt ?? '—', emoji: '🔗', to: '/tapestry/relationships' },
   ];
 
   const navigate = useNavigate();
@@ -404,7 +404,7 @@ function RecentActivity() {
           {data.map(row => (
             <tr
               key={row.uuid}
-              onClick={() => navigate(`/kg/databases/neo4j/nodes/${encodeURIComponent(row.uuid)}`)}
+              onClick={() => navigate(`/tapestry/databases/neo4j/nodes/${encodeURIComponent(row.uuid)}`)}
               style={{ cursor: 'pointer' }}
               className="clickable-row"
             >
@@ -676,10 +676,10 @@ export default function Dashboard() {
   function handleOnboardingAction(key) {
     switch (key) {
       case 'ta-profile':
-        navigate(`/kg/users/${TA_PUBKEY}`);
+        navigate(`/tapestry/users/${TA_PUBKEY}`);
         break;
       case 'bios':
-        navigate('/kg/settings/firmware');
+        navigate('/tapestry/settings/firmware');
         break;
     }
   }
@@ -722,7 +722,7 @@ export default function Dashboard() {
         <>
           <WelcomeCard
             taProfile={taProfile}
-            onSetupProfile={() => navigate(`/kg/users/${TA_PUBKEY}`)}
+            onSetupProfile={() => navigate(`/tapestry/users/${TA_PUBKEY}`)}
             onSurpriseMe={handleSurpriseMe}
           />
           <OnboardingChecklist

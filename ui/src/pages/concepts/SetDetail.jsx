@@ -113,7 +113,7 @@ export default function SetDetail() {
       <button
         className="btn btn-sm"
         style={{ marginBottom: '1rem' }}
-        onClick={() => navigate(`/kg/concepts/${encodedConceptUuid}/dag`)}
+        onClick={() => navigate(`/tapestry/concepts/${encodedConceptUuid}/dag`)}
       >
         ← Back to Sets
       </button>
@@ -187,7 +187,7 @@ export default function SetDetail() {
                   {supersets.map(row => (
                     <tr
                       key={row.uuid}
-                      onClick={() => navigate(`/kg/concepts/${encodedConceptUuid}/dag/${encodeURIComponent(row.uuid)}`)}
+                      onClick={() => navigate(`/tapestry/concepts/${encodedConceptUuid}/dag/${encodeURIComponent(row.uuid)}`)}
                       style={{ cursor: 'pointer' }}
                       className="clickable-row"
                     >
@@ -219,7 +219,7 @@ export default function SetDetail() {
                   {subsets.map(row => (
                     <tr
                       key={row.uuid}
-                      onClick={() => navigate(`/kg/concepts/${encodedConceptUuid}/dag/${encodeURIComponent(row.uuid)}`)}
+                      onClick={() => navigate(`/tapestry/concepts/${encodedConceptUuid}/dag/${encodeURIComponent(row.uuid)}`)}
                       style={{ cursor: 'pointer' }}
                       className="clickable-row"
                     >
@@ -278,7 +278,7 @@ export default function SetDetail() {
                   {elements.map(row => (
                     <tr
                       key={row.uuid}
-                      onClick={() => navigate(`/kg/concepts/${encodedConceptUuid}/elements/${encodeURIComponent(row.uuid)}`)}
+                      onClick={() => navigate(`/tapestry/concepts/${encodedConceptUuid}/elements/${encodeURIComponent(row.uuid)}`)}
                       style={{ cursor: 'pointer' }}
                       className="clickable-row"
                     >

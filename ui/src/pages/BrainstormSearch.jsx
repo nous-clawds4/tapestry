@@ -52,7 +52,7 @@ function HousePovLabel() {
   const house = useHouseProfile();
   if (!house) return <strong>House</strong>;
   return (
-    <a href={`/kg/brainstorm-search/user/${house.pubkey}`} className="bs-usermenu-pov-link">
+    <a href={`/user/${house.pubkey}`} className="bs-usermenu-pov-link">
       {house.picture && (
         <img src={house.picture} alt="" className="bs-usermenu-pov-avatar" onError={e => { e.target.style.display = 'none'; }} />
       )}
@@ -474,7 +474,7 @@ function UserMenu({ user, login, logout, pov, setPov, filters, setFilters, sortC
     <div className="bs-usermenu" ref={menuRef}>
       {/* Dashboard grid icon for owner/admin */}
       {isOwnerOrAdmin && (
-        <a href="/kg/" className="bs-usermenu-grid-btn" title="Dashboard">
+        <a href="/tapestry/" className="bs-usermenu-grid-btn" title="Dashboard">
           <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
             <rect x="1" y="1" width="4" height="4" rx="1" fill="currentColor"/>
             <rect x="7" y="1" width="4" height="4" rx="1" fill="currentColor"/>
@@ -527,7 +527,7 @@ function UserMenu({ user, login, logout, pov, setPov, filters, setFilters, sortC
           {/* Settings + Sign out */}
           <div className="bs-usermenu-footer">
             <a
-              href="/kg/brainstorm-search/settings"
+              href="/settings"
               className="bs-usermenu-settings-btn"
               onClick={() => setOpen(false)}
             >
@@ -601,7 +601,7 @@ function ResultCard({ hit, povSuffix }) {
 
   return (
     <a
-      href={`/kg/brainstorm-search/user/${hit.pubkey || hit.id}${povSuffix ? `?pov=${povSuffix}` : ''}`}
+      href={`/user/${hit.pubkey || hit.id}${povSuffix ? `?pov=${povSuffix}` : ''}`}
       className="bs-result-card"
     >
       <div className="bs-result-body">
@@ -864,7 +864,7 @@ export default function BrainstormSearch() {
         {/* Centered landing */}
         <div className="bs-landing">
           <h1 className="bs-logo">
-            <img src="/kg/brainstorm.svg" alt="" className="bs-logo-icon-img" />
+            <img src="/brainstorm.svg" alt="" className="bs-logo-icon-img" />
             Brainstorm
           </h1>
           <p className="bs-tagline">Search across millions of nostr profiles</p>
@@ -898,13 +898,13 @@ export default function BrainstormSearch() {
                   return (
                     <a
                       key={hit.pubkey || hit.id}
-                      href={`/kg/brainstorm-search/user/${hit.pubkey || hit.id}${activePovSuffix ? `?pov=${activePovSuffix}` : ''}`}
+                      href={`/user/${hit.pubkey || hit.id}${activePovSuffix ? `?pov=${activePovSuffix}` : ''}`}
                       className="bs-suggest-item"
                       onMouseDown={e => {
                         e.preventDefault(); // prevent input blur from removing the link
                         setShowSuggestions(false);
                         const povQ = activePovSuffix ? `?pov=${activePovSuffix}` : '';
-                        window.location.href = `/kg/brainstorm-search/user/${hit.pubkey || hit.id}${povQ}`;
+                        window.location.href = `/user/${hit.pubkey || hit.id}${povQ}`;
                       }}
                     >
                       {hit.picture ? (
@@ -954,7 +954,7 @@ export default function BrainstormSearch() {
               )}
             </span>
             <span className="bs-personalization-sep">·</span>
-            <a href="/kg/brainstorm-search/personalization" className="bs-personalization-link">
+            <a href="/personalization" className="bs-personalization-link">
               Tell me more!
             </a>
 
@@ -980,7 +980,7 @@ export default function BrainstormSearch() {
                 ) : !myWotReady ? (
                   <div className="bs-pov-option disabled">
                     Your personalized perspective is being calculated.{' '}
-                    <a href="/kg/brainstorm-search/settings" className="bs-pov-option-link">Settings</a>
+                    <a href="/settings" className="bs-pov-option-link">Settings</a>
                   </div>
                 ) : (
                   <button
@@ -1002,7 +1002,7 @@ export default function BrainstormSearch() {
         <div className="bs-footer">
           Powered by <a href="https://brainstorm.nosfabrica.com/" className="bs-footer-link">NosFabrica</a>
           <span className="bs-footer-sep">&middot;</span>
-          <a href="/kg/brainstorm-search/developers" className="bs-footer-link">Developers</a>
+          <a href="/developers" className="bs-footer-link">Developers</a>
         </div>
       </div>
     );
@@ -1015,7 +1015,7 @@ export default function BrainstormSearch() {
       <div className="bs-results-header">
         <div className="bs-results-header-left">
           <a
-            href="/kg/brainstorm-search"
+            href="/"
             className="bs-results-logo"
             onClick={e => {
               e.preventDefault();
@@ -1025,7 +1025,7 @@ export default function BrainstormSearch() {
               setError(null);
             }}
           >
-            <img src="/kg/brainstorm.svg" alt="Brainstorm" className="bs-results-logo-img" />
+            <img src="/brainstorm.svg" alt="Brainstorm" className="bs-results-logo-img" />
           </a>
           <div className="bs-search-box-results">
             <input
@@ -1075,7 +1075,7 @@ export default function BrainstormSearch() {
                 ) : !myWotReady ? (
                   <div className="bs-pov-option disabled">
                     Your personalized perspective is being calculated.{' '}
-                    <a href="/kg/brainstorm-search/settings" className="bs-pov-option-link">Settings</a>
+                    <a href="/settings" className="bs-pov-option-link">Settings</a>
                   </div>
                 ) : (
                   <button

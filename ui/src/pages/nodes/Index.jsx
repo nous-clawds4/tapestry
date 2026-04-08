@@ -354,7 +354,7 @@ export default function NodesIndex() {
                 {pageNodes.map(row => (
                   <tr
                     key={row.uuid}
-                    onClick={() => navigate(`/kg/databases/neo4j/nodes/${encodeURIComponent(row.uuid)}`)}
+                    onClick={() => navigate(`/tapestry/databases/neo4j/nodes/${encodeURIComponent(row.uuid)}`)}
                     style={{ cursor: 'pointer' }}
                     className="clickable-row"
                   >

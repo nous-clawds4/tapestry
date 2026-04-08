@@ -133,7 +133,7 @@ export default function AddNodeAsElement() {
 
   function handleReview() {
     if (!selectedUuid) return;
-    navigate(`/kg/concepts/${encodeURIComponent(uuid)}/elements/add-node/review?node=${encodeURIComponent(selectedUuid)}`);
+    navigate(`/tapestry/concepts/${encodeURIComponent(uuid)}/elements/add-node/review?node=${encodeURIComponent(selectedUuid)}`);
   }
 
   return (
@@ -283,7 +283,7 @@ export default function AddNodeAsElement() {
         <button
           className="btn"
           style={{ marginLeft: 'auto' }}
-          onClick={() => navigate(`/kg/concepts/${encodeURIComponent(uuid)}/elements`)}
+          onClick={() => navigate(`/tapestry/concepts/${encodeURIComponent(uuid)}/elements`)}
         >
           ← Back to Elements
         </button>

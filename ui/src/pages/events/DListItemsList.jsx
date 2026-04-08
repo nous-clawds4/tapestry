@@ -232,7 +232,7 @@ export default function DListItemsList() {
       <DataTable
         columns={columns}
         data={filteredRows}
-        onRowClick={(row) => navigate(`/kg/lists/items/${encodeURIComponent(row.routeId)}`)}
+        onRowClick={(row) => navigate(`/tapestry/lists/items/${encodeURIComponent(row.routeId)}`)}
         emptyMessage="No DList items match your filters"
       />
     </div>
