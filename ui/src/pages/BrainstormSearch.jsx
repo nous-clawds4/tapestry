@@ -42,6 +42,10 @@ function tryDecodeNostrIdentity(input) {
   return null;
 }
 
+/* ── NIP-05 detection ──────────────────────────────────── */
+
+const NIP05_REGEX = /^(?:([\w.+-]+)@)?([\w_-]+(\.[\w_-]+)+)$/;
+
 /* ── House POV Label (shared inline component) ───────── */
 
 function HousePovLabel() {
@@ -666,6 +670,7 @@ export default function BrainstormSearch() {
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState(null);
+  const [nip05Result, setNip05Result] = useState(null);
   const [pov, setPov] = useState('nosfabrica');
   const [myWotReady, setMyWotReady] = useState(false);
   const [showPovPicker, setShowPovPicker] = useState(false);
@@ -695,6 +700,12 @@ export default function BrainstormSearch() {
     if (identityPubkey) {
       url += `&pubkeyLookup=${identityPubkey}`;
       return url;
+    }
+
+    // NIP-05 lookup: if query looks like a NIP-05 identifier, request
+    // parallel verification. Normal search still runs alongside.
+    if (NIP05_REGEX.test(queryStr.trim())) {
+      url += `&nip05Lookup=${encodeURIComponent(queryStr.trim())}`;
     }
 
     url += `&wotPov=${pov === 'user' ? 'user' : 'house'}`;
@@ -738,6 +749,9 @@ export default function BrainstormSearch() {
       // Store the POV suffix returned by the server for display purposes
       if (data.povSuffix) setActivePovSuffix(data.povSuffix);
 
+      // Store NIP-05 verified result (if any)
+      setNip05Result(data.nip05Result || null);
+
       if (offset === 0) {
         setResults(data.hits || []);
       } else {
@@ -771,7 +785,12 @@ export default function BrainstormSearch() {
       const resp = await fetch(url);
       const data = await resp.json();
       if (resp.ok && data.hits) {
-        setSuggestions(data.hits);
+        // If NIP-05 result, prepend it to suggestions for visibility
+        const nip05 = data.nip05Result || null;
+        const filtered = nip05
+          ? data.hits.filter(h => (h.pubkey || h.id) !== (nip05.pubkey || nip05.id))
+          : data.hits;
+        setSuggestions(nip05 ? [{ ...nip05, _nip05Verified: true }, ...filtered] : filtered);
         setShowSuggestions(true);
         if (data.povSuffix) setActivePovSuffix(data.povSuffix);
       }
@@ -1100,10 +1119,20 @@ export default function BrainstormSearch() {
               )}
             </div>
 
+            {/* Pinned NIP-05 verified result (above normal results) */}
+            {nip05Result && (
+              <div className="bs-nip05-pinned">
+                <div className="bs-nip05-badge">✅ NIP-05 Verified</div>
+                <ResultCard hit={nip05Result} povSuffix={activePovSuffix} />
+              </div>
+            )}
+
             <div className="bs-results-list">
-              {results.map(hit => (
-                <ResultCard key={hit.pubkey || hit.id} hit={hit} povSuffix={activePovSuffix} />
-              ))}
+              {results
+                .filter(hit => !nip05Result || (hit.pubkey || hit.id) !== (nip05Result.pubkey || nip05Result.id))
+                .map(hit => (
+                  <ResultCard key={hit.pubkey || hit.id} hit={hit} povSuffix={activePovSuffix} />
+                ))}
             </div>
 
             {hasMore && (

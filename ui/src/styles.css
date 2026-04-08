@@ -3017,6 +3017,24 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   margin-bottom: 1rem;
 }
 
+/* ── Pinned NIP-05 verified card ── */
+.bs-nip05-pinned {
+  margin-bottom: 1rem;
+  border: 1px solid rgba(34, 197, 94, 0.4);
+  border-radius: 10px;
+  background: rgba(34, 197, 94, 0.06);
+  padding: 0.25rem;
+}
+.bs-nip05-badge {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #22c55e;
+  padding: 0.25rem 0.75rem;
+}
+.bs-nip05-pinned .bs-result-card {
+  border-color: rgba(34, 197, 94, 0.3);
+}
+
 /* ── Result cards ── */
 .bs-results-list {
   display: flex;
