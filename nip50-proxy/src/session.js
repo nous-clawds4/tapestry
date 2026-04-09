@@ -15,7 +15,7 @@
  */
 
 import WebSocket from 'ws';
-import { parseSearchString, executeSearchQuery, hitToNostrEvent, resolveObserver, checkScoresLoaded } from './search.js';
+import { parseSearchString, executeSearchQuery, fetchEventsFromStrfry, resolveObserver, checkScoresLoaded } from './search.js';
 import { triggerPipelineIfNeeded } from './wot-pipeline.js';
 
 export class ClientSession {
@@ -194,11 +194,17 @@ export class ClientSession {
         limit
       );
 
-      // Send each hit as an EVENT message
+      // Fetch original events from strfry so signatures are valid
       const hits = results.hits || [];
+      const eventIds = hits.map(h => h.event_id).filter(Boolean);
+      const originalEvents = await fetchEventsFromStrfry(this.strfryUrl, eventIds);
+
+      // Send each original event (preserves valid id + sig)
       for (const hit of hits) {
-        const event = hitToNostrEvent(hit);
-        this._sendToClient(JSON.stringify(['EVENT', subId, event]));
+        const original = hit.event_id ? originalEvents.get(hit.event_id) : null;
+        if (original) {
+          this._sendToClient(JSON.stringify(['EVENT', subId, original]));
+        }
       }
 
       // Check if there are non-search filters that should also be forwarded to strfry
