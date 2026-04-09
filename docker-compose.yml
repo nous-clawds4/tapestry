@@ -3,7 +3,7 @@ services:
     container_name: tapestry
     build: .
     ports:
-      - "8080:80"
+      - "80:80"
       - "7777:7777"
       - "7778:7778"
       - "7474:7474"
