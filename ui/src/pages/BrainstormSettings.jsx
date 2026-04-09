@@ -128,6 +128,7 @@ export default function BrainstormSettings() {
   async function triggerLoadScores(rankAuthor, metricNames, userPubkey) {
     setLoadingScores(true);
     setLoadStatus('Streaming scores from local relay…');
+    const povSuffix = rankAuthor.slice(0, 8);
     try {
       const filter = encodeURIComponent(JSON.stringify({ kinds: [30382], authors: [rankAuthor] }));
       const resp = await fetch(`/api/strfry/scan/stream?filter=${filter}`);
@@ -153,7 +154,7 @@ export default function BrainstormSettings() {
           const scoreObj = { pubkey: dTag };
           for (const tag of event.tags) {
             if (metricNames.includes(tag[0])) {
-              scoreObj[`wot_${tag[0]}`] = parseFloat(tag[1]) || 0;
+              scoreObj[`wot_${tag[0]}_${povSuffix}`] = parseFloat(tag[1]) || 0;
             }
           }
           scores.push(scoreObj);
@@ -168,7 +169,7 @@ export default function BrainstormSettings() {
       const meiliResp = await fetch('/api/search/profiles/meili/load-scores', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ povPubkey: userPubkey, metrics: metricNames, scores }),
+        body: JSON.stringify({ povPubkey: userPubkey, delegatedPubkey: rankAuthor, metrics: metricNames, scores }),
       });
       const result = await meiliResp.json();
       if (result.success) {
