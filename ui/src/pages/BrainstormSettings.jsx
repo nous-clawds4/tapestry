@@ -80,14 +80,17 @@ export default function BrainstormSettings() {
     return data.success ? (data.count ?? 0) : 0;
   }
 
-  async function checkMeiliScores() {
+  async function checkMeiliScores(rankAuthor) {
     try {
+      const suffix = rankAuthor?.slice(0, 8);
+      if (!suffix) return false;
       const resp = await fetch('/api/search/profiles/meili/stats');
       const data = await resp.json();
       if (!data.success) return false;
       const fields = data.fieldDistribution || {};
-      const wotFields = Object.entries(fields).filter(([k]) => k.startsWith('wot_') && k !== 'wot_pov' && k !== 'wot_updated_at');
-      return wotFields.length > 0 && wotFields.some(([, v]) => v > 0);
+      // Only check for fields matching THIS user's POV suffix
+      const userWotFields = Object.entries(fields).filter(([k]) => k.startsWith('wot_') && k.endsWith(`_${suffix}`));
+      return userWotFields.length > 0 && userWotFields.some(([, v]) => v > 0);
     } catch { return false; }
   }
 
@@ -336,7 +339,7 @@ export default function BrainstormSettings() {
         if (cancelled || localCount === 0) return;
 
         // Auto-load scores
-        const hasScores = await checkMeiliScores();
+        const hasScores = await checkMeiliScores(rankAuthor);
         if (cancelled) return;
         if (hasScores) {
           setScoresReady(true);
