@@ -200,7 +200,10 @@ export async function checkScoresLoaded(searchApiUrl, suffix) {
  * Falls back to empty strings if not stored (events will lack id/sig).
  */
 export function hitToNostrEvent(hit) {
-  const content = JSON.stringify({
+  // Use the original content string stored during ingestion so the event ID
+  // and signature remain valid. Fall back to reconstructed content only if
+  // the original wasn't stored (legacy documents).
+  const content = hit.event_content || JSON.stringify({
     name: hit.name || '',
     display_name: hit.display_name || hit.displayName || '',
     about: hit.about || '',
