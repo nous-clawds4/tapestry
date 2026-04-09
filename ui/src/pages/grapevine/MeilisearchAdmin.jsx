@@ -526,9 +526,9 @@ export default function MeilisearchAdmin() {
         </div>
       </div>
 
-      {/* ── Panel 5: Reload Kind 0 Profiles ── */}
+      {/* ── Panel 5: Reload Kind 0 Profile Events ── */}
       <div className="card" style={{ marginBottom: '1.25rem', padding: '1rem', background: 'rgba(255,255,255,0.03)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.06)' }}>
-        <h3 style={{ marginTop: 0, marginBottom: '0.75rem' }}>5. Reload Kind 0 Profiles</h3>
+        <h3 style={{ marginTop: 0, marginBottom: '0.75rem' }}>5. Reload Kind 0 Profile Events</h3>
         <p style={{ fontSize: '0.85rem', opacity: 0.7, marginBottom: '0.75rem' }}>
           Stream all kind 0 events from local strfry and index them into Meilisearch.
         </p>
