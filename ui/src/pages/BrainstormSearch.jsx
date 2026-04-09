@@ -129,13 +129,17 @@ function UserMenu({ user, login, logout, pov, setPov, filters, setFilters, sortC
   useEffect(() => {
     if (!user || !pov) return;
     localStorage.setItem(POV_STORAGE_PREFIX + user.pubkey, pov);
-    // Save to server (best effort, non-blocking)
+    // Save to server — include rankAuthor so the search proxy can resolve
+    // the user's delegated pubkey instead of falling back to house POV.
+    const prefs = { pov };
+    if (wotStatus.rankAuthor) prefs.rankAuthor = wotStatus.rankAuthor;
+    if (wotStatus.rankRelay) prefs.rankRelay = wotStatus.rankRelay;
     fetch('/api/user-prefs', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pov }),
+      body: JSON.stringify(prefs),
     }).catch(() => {});
-  }, [user, pov]);
+  }, [user, pov, wotStatus.rankAuthor]);
 
   // ── Helper: count local TAs ──
   async function countLocalTAs(delegatedPubkey) {
