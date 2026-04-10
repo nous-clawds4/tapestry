@@ -228,6 +228,14 @@ app.get('/:filename.html', (req, res) => {
     res.redirect(301, `/legacy/${req.params.filename}.html`);
 });
 
+// Swagger UI — serve OpenAPI docs at /docs (before auth so docs are public)
+const swaggerUi = require('swagger-ui-express');
+const yaml = require('js-yaml');
+const openapiSpec = yaml.load(fs.readFileSync(path.join(__dirname, '../src/api/openapi.yaml'), 'utf8'));
+app.use('/docs', swaggerUi.serve, swaggerUi.setup(openapiSpec, {
+  customSiteTitle: 'Tapestry API Docs',
+}));
+
 // Apply auth middleware
 app.use(authMiddleware);
 
