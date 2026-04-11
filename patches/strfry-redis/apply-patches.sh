@@ -45,13 +45,13 @@ if ! grep -q "redis_init" "$STRFRY_DIR/golpe/main.cpp.tt"; then
     # Add #include at the top of the file (after the first #include)
     sed -i '0,/#include/{s/#include/#include "redis.h"\n#include/}' "$STRFRY_DIR/golpe/main.cpp.tt"
 
-    # Insert redis_init call before "run(argc, argv);"
-    sed -i '/run(argc, argv);/i\
+    # Insert redis_init AFTER loadConfig (inside run(), where cfg() is available)
+    sed -i '/loadConfig(configFile);/a\
 \
-        // Initialize Redis connection for streaming ETL\
-        if (redis_init(cfg().redis__host.c_str(), cfg().redis__port) != 0) {\
-            LW << "Failed to connect to Redis — streaming ETL disabled";\
-        }' "$STRFRY_DIR/golpe/main.cpp.tt"
+    // Initialize Redis connection for streaming ETL\
+    if (redis_init(cfg().redis__host.c_str(), cfg().redis__port) != 0) {\
+        LW << "Failed to connect to Redis — streaming ETL disabled";\
+    }' "$STRFRY_DIR/golpe/main.cpp.tt"
     echo "  Added redis.h include and redis_init() to golpe/main.cpp.tt"
 else
     echo "  redis_init already in golpe/main.cpp.tt (skipping)"
