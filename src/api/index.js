@@ -436,6 +436,12 @@ async function register(app) {
     const { registerNegentropySyncRoutes } = require('./strfry/negentropySync');
     registerNegentropySyncRoutes(app);
 
+    // ── Streaming ETL Control API ──
+    const streamingETL = require('./streaming-etl');
+    app.get('/api/streaming-etl/status', streamingETL.handleStatus);
+    app.post('/api/streaming-etl/control', streamingETL.handleControl);
+    app.get('/api/streaming-etl/logs', streamingETL.handleLogs);
+
     // ── Tapestry Property API ──
     const { registerPropertyRoutes } = require('./property');
     registerPropertyRoutes(app);

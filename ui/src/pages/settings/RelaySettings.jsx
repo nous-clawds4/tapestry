@@ -1175,10 +1175,191 @@ function NegentropySync({ settings }) {
   );
 }
 
+/* ── Streaming ETL Control Panel ── */
+
+function StreamingETLPanel() {
+  const [status, setStatus] = useState(null);
+  const [logs, setLogs] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [controlling, setControlling] = useState(false);
+  const [message, setMessage] = useState(null);
+  const [error, setError] = useState(null);
+
+  function flash(msg) { setMessage(msg); setTimeout(() => setMessage(null), 5000); }
+
+  async function fetchStatus() {
+    try {
+      const resp = await fetch('/api/streaming-etl/status');
+      const data = await resp.json();
+      if (data.success) setStatus(data);
+      else setError(data.error);
+    } catch (err) { setError(err.message); }
+  }
+
+  async function fetchLogs() {
+    try {
+      const resp = await fetch('/api/streaming-etl/logs?lines=15');
+      const data = await resp.json();
+      if (data.success) setLogs(data.lines);
+    } catch {}
+  }
+
+  async function controlConsumer(action) {
+    setControlling(true);
+    setError(null);
+    try {
+      const resp = await fetch('/api/streaming-etl/control', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action }),
+      });
+      const data = await resp.json();
+      if (data.success) {
+        flash(`Consumer ${action}: ${data.message}`);
+        await fetchStatus();
+        await fetchLogs();
+      } else {
+        setError(data.error);
+      }
+    } catch (err) { setError(err.message); }
+    finally { setControlling(false); }
+  }
+
+  useEffect(() => {
+    setLoading(true);
+    Promise.all([fetchStatus(), fetchLogs()]).finally(() => setLoading(false));
+    const interval = setInterval(() => { fetchStatus(); fetchLogs(); }, 10000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const isRunning = status?.consumer?.status === 'running';
+  const statusColor = isRunning ? '#22c55e' : status?.consumer?.status === 'fatal' ? '#ef4444' : '#f59e0b';
+
+  if (loading) {
+    return <div className="settings-section"><h2>⚡ Streaming ETL</h2><p className="text-muted">Loading...</p></div>;
+  }
+
+  return (
+    <div className="settings-section">
+      <h2>⚡ Streaming ETL</h2>
+      <p className="settings-hint">
+        Real-time pipeline: strfry → Redis → Neo4j. Processes kind 3 (follows), 10000 (mutes), and 1984 (reports) events as they arrive.
+      </p>
+
+      {message && (
+        <div style={{ padding: '0.5rem 0.75rem', marginBottom: '0.75rem', borderRadius: '6px',
+          backgroundColor: 'rgba(34, 197, 94, 0.1)', border: '1px solid rgba(34, 197, 94, 0.3)',
+          color: '#22c55e', fontSize: '0.85rem' }}>
+          ✅ {message}
+        </div>
+      )}
+      {error && (
+        <div style={{ padding: '0.5rem 0.75rem', marginBottom: '0.75rem', borderRadius: '6px',
+          backgroundColor: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)',
+          color: '#ef4444', fontSize: '0.85rem' }}>
+          ❌ {error}
+          <button onClick={() => setError(null)} style={{ marginLeft: '0.5rem', background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer' }}>dismiss</button>
+        </div>
+      )}
+
+      {/* Status + Controls */}
+      <div className="settings-group" style={{ padding: '1rem', marginBottom: '1rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <div style={{ width: 12, height: 12, borderRadius: '50%', backgroundColor: statusColor }} />
+            <div>
+              <strong style={{ textTransform: 'capitalize' }}>{status?.consumer?.status || 'Unknown'}</strong>
+              {status?.consumer?.uptime && (
+                <span style={{ fontSize: '0.8rem', color: 'var(--text-muted, #888)', marginLeft: '0.5rem' }}>
+                  uptime: {status.consumer.uptime}
+                </span>
+              )}
+              {status?.consumer?.pid && (
+                <span style={{ fontSize: '0.8rem', color: 'var(--text-muted, #888)', marginLeft: '0.5rem' }}>
+                  PID: {status.consumer.pid}
+                </span>
+              )}
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            {isRunning ? (
+              <button className="btn-small" onClick={() => controlConsumer('stop')} disabled={controlling}
+                style={{ color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.4)' }}>
+                ⏹ Stop
+              </button>
+            ) : (
+              <button className="btn-small" onClick={() => controlConsumer('start')} disabled={controlling}
+                style={{ color: '#22c55e', borderColor: 'rgba(34, 197, 94, 0.4)' }}>
+                ▶ Start
+              </button>
+            )}
+            <button className="btn-small" onClick={() => controlConsumer('restart')} disabled={controlling}>
+              🔄 Restart
+            </button>
+          </div>
+        </div>
+
+        {/* Metrics row */}
+        <div style={{ display: 'flex', gap: '2rem', fontSize: '0.85rem' }}>
+          <div>
+            <span style={{ color: 'var(--text-muted, #888)' }}>Redis Queue: </span>
+            <strong>{status?.queue?.depth != null ? status.queue.depth.toLocaleString() : '—'}</strong>
+            <span style={{ color: 'var(--text-muted, #888)' }}> events</span>
+          </div>
+          {status?.counts && (
+            <>
+              <div>
+                <span style={{ color: 'var(--text-muted, #888)' }}>Processed: </span>
+                <strong>{status.counts.processed.toLocaleString()}</strong>
+              </div>
+              <div>
+                <span style={{ color: 'var(--text-muted, #888)' }}>Errors: </span>
+                <strong style={{ color: status.counts.errors > 0 ? '#ef4444' : 'inherit' }}>
+                  {status.counts.errors.toLocaleString()}
+                </strong>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Log viewer */}
+      <div className="settings-group" style={{ padding: '1rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+          <h3 style={{ margin: 0, fontSize: '0.95rem' }}>Consumer Log</h3>
+          <button className="btn-small" onClick={fetchLogs}>🔄</button>
+        </div>
+        <div style={{
+          backgroundColor: 'var(--bg-primary, #0f0f23)',
+          border: '1px solid var(--border, #333)',
+          borderRadius: '6px',
+          padding: '0.75rem',
+          maxHeight: '300px',
+          overflowY: 'auto',
+          fontFamily: 'monospace',
+          fontSize: '0.75rem',
+          lineHeight: '1.5',
+          whiteSpace: 'pre-wrap',
+          wordBreak: 'break-all',
+        }}>
+          {logs.length > 0 ? logs.map((line, i) => (
+            <div key={i} style={{ color: line.includes('ERROR') ? '#ef4444' : line.includes('Processed') ? '#22c55e' : 'var(--text-muted, #aaa)' }}>
+              {line}
+            </div>
+          )) : (
+            <div style={{ color: 'var(--text-muted, #666)' }}>No log output yet</div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const RELAY_TABS = [
   { key: 'router', label: '🔄 Router Management' },
   { key: 'sync', label: '🔃 Negentropy Sync' },
   { key: 'config', label: '📡 Relay Configuration' },
+  { key: 'etl', label: '⚡ Streaming ETL' },
 ];
 
 export default function RelaySettings({ settings, defaults, overrides, onSave, onReset }) {
@@ -1227,6 +1408,8 @@ export default function RelaySettings({ settings, defaults, overrides, onSave, o
           ))}
         </div>
       )}
+
+      {activeTab === 'etl' && <StreamingETLPanel />}
     </>
   );
 }
