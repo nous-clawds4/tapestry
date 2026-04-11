@@ -3,7 +3,7 @@
 > **Audience:** AI agents and developers joining the Tapestry project.
 > Read this file to fully onboard — it covers what Tapestry is, how it works, what's been built, what's in progress, and how to contribute.
 
-**Last updated:** 2026-04-09
+**Last updated:** 2026-04-11
 
 ---
 
@@ -599,6 +599,10 @@ Base URL: `http://localhost:8080`
 |--------|----------|-------------|
 | GET | `/api/profiles?pubkeys=<csv>` | Fetch kind:0 profiles from external relays (cached) |
 
+### API Documentation
+
+Swagger UI is served at `/docs` — interactive OpenAPI documentation for all REST endpoints. Publicly accessible (no auth required).
+
 ### Search (Meilisearch)
 
 | Method | Endpoint | Description |
@@ -634,6 +638,8 @@ External nostr clients can search via the relay WebSocket at `wss://<host>/relay
 **NIP-11 discovery:** `curl -H "Accept: application/nostr+json" https://<host>/relay` returns relay info with `50` in `supported_nips`.
 
 **Auto-trigger:** If the observer's WoT scores aren't in Meilisearch, the proxy automatically runs the full pipeline in the background (find kind 10040, sync TAs, parse metrics, load scores). The current search returns unscored; the next search will be fully WoT-scored.
+
+**Event signatures:** When the proxy returns events to clients, it fetches the **original events from strfry** via a temporary WebSocket REQ (by event ID), rather than reconstructing them from Meilisearch fields. This ensures the `content`, `id`, and `sig` are exactly as the author signed them — no reconstruction, no signature mismatch. Clients like `nak` will validate signatures correctly.
 
 ### Grapevine / Search Preferences
 
@@ -900,6 +906,10 @@ Legacy server config at `/etc/brainstorm.conf` inside Docker. Contains:
 - Neo4j connection details
 - Session secret
 
+### Neo4j Config Path (Docker)
+
+Neo4j 5.x looks for its config at `/usr/share/neo4j/conf/` by default, but the Dockerfile installs it at `/etc/neo4j/neo4j.conf` (Debian convention). The `NEO4J_CONF="/etc/neo4j"` environment variable in `docker/supervisord.conf` bridges this gap. Without it, Neo4j falls back to defaults (localhost-only binding, no APOC/GDS procedure allowlists, default memory settings). On bare-metal installs, systemd handles this automatically — Docker/supervisord needs it explicitly.
+
 ### Tapestry Assistant
 
 Each instance has a server-side nostr identity (the "TA") used for automated actions. Its keypair lives in `brainstorm.conf`. The TA signs events when creating concepts, firmware, core nodes, etc.
@@ -1025,6 +1035,39 @@ apt install -y nginx certbot python3-certbot-nginx
 certbot --nginx -d brainstorm.world
 # Certbot auto-renews via systemd timer
 ```
+
+### Firewall (UFW)
+
+Docker port forwarding requires UFW to be enabled on the host, even with permissive rules:
+
+```bash
+ufw allow 'Nginx Full'
+ufw allow 22/tcp
+ufw allow 7474/tcp
+ufw allow 7687/tcp
+ufw default allow incoming
+ufw default allow outgoing
+ufw --force enable
+```
+
+### Accessing Neo4j Browser (production)
+
+The Neo4j browser at `/browser` on HTTPS sites doesn't work because the browser forces `bolt+s://` connections but Neo4j's Bolt port doesn't have SSL termination. Use an SSH tunnel instead:
+
+```bash
+# From your local machine (use non-standard ports if local Docker is also running Neo4j):
+ssh -L 17474:localhost:7474 -L 17687:localhost:7687 root@<droplet-ip>
+
+# Then open in browser:
+# http://localhost:17474/browser/preview/
+# Connect with: bolt://localhost:17687
+```
+
+### Docker Compatibility Notes
+
+- **No `sudo` in scripts**: Inside Docker, everything runs as root. Scripts that use `sudo` will fail with "command not found" because `sudo` doesn't recognize scripts without execute permissions. Use `bash script.sh` instead of `sudo script.sh`.
+- **Neo4j config path**: Requires `NEO4J_CONF="/etc/neo4j"` in supervisord (see Configuration section above).
+- **Batch transfer scripts** (`transfer.sh`, `callBatchTransfer.sh`) have been updated to use `bash` instead of `sudo` for Docker compatibility.
 
 ### Useful Commands
 
