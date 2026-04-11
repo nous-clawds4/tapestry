@@ -139,6 +139,17 @@ events {
 STRFRYEOF
 fi
 
+# Add Redis config for streaming ETL (strfry → Redis → Neo4j)
+REDIS_HOST="${REDIS_HOST:-redis}"
+REDIS_PORT="${REDIS_PORT:-6379}"
+cat >> /etc/strfry.conf << REDISEOF
+
+redis {
+    host = "$REDIS_HOST"
+    port = $REDIS_PORT
+}
+REDISEOF
+
 # Set Neo4j initial password (ignore error if already set)
 neo4j-admin dbms set-initial-password "$NEO4J_PASSWORD" 2>/dev/null || true
 

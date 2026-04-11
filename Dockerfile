@@ -6,7 +6,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y \
     build-essential git curl wget pv bc jq sysstat openssl \
     libyaml-perl libtemplate-perl libregexp-grammars-perl \
-    libssl-dev zlib1g-dev liblmdb-dev libflatbuffers-dev libsecp256k1-dev libzstd-dev \
+    libssl-dev zlib1g-dev liblmdb-dev libflatbuffers-dev libsecp256k1-dev libzstd-dev libhiredis-dev \
     openjdk-17-jdk-headless supervisor gnupg lsb-release sudo nginx libnginx-mod-stream \
     && rm -rf /var/lib/apt/lists/*
 
@@ -15,10 +15,14 @@ RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
     && apt-get install -y nodejs \
     && rm -rf /var/lib/apt/lists/*
 
-# Compile strfry from source
+# Copy Redis patches first (before strfry clone, for Docker layer caching)
+COPY patches/strfry-redis/ /tmp/strfry-redis-patches/
+
+# Compile strfry from source with Redis integration
 RUN git clone https://github.com/hoytech/strfry.git /usr/local/src/strfry \
     && cd /usr/local/src/strfry \
     && git submodule update --init \
+    && bash /tmp/strfry-redis-patches/apply-patches.sh /usr/local/src/strfry \
     && make setup-golpe \
     && make -j$(nproc) \
     && cp strfry /usr/local/bin/strfry
