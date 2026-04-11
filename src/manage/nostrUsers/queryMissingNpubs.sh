@@ -76,7 +76,7 @@ emit_task_event "PROGRESS" "queryMissingNpubs" "system" '{
 }'
 
 # Execute query and save results
-cypherResults=$(sudo cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER_QUERY" 2>&1)
+cypherResults=$(cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER_QUERY" 2>&1)
 
 # Check if query was successful
 if [ $? -ne 0 ]; then

@@ -8,7 +8,7 @@ source /etc/brainstorm.conf
 source "${BRAINSTORM_MODULE_BASE_DIR}/src/utils/structuredLogging.sh"
 
 touch ${BRAINSTORM_LOG_DIR}/syncWoT.log
-sudo chown brainstorm:brainstorm ${BRAINSTORM_LOG_DIR}/syncWoT.log
+chown brainstorm:brainstorm ${BRAINSTORM_LOG_DIR}/syncWoT.log
 
 # Emit structured event for task start
 emit_task_event "TASK_START" "syncWoT" "system" '{
@@ -50,7 +50,7 @@ launch_relay_sync() {
             echo "$(date): [$relay] $line"
             echo "$(date): [$relay] $line" >> ${BRAINSTORM_LOG_DIR}/syncWoT.log
             echo "$(date): $line" >> "$log_file"
-        done < <(sudo strfry sync wss://$relay --filter '{"kinds":[0, 3, 1984, 10000, 30000, 38000, 38172, 38173]}' --dir down 2>&1)
+        done < <(strfry sync wss://$relay --filter '{"kinds":[0, 3, 1984, 10000, 30000, 38000, 38172, 38173]}' --dir down 2>&1)
         
         echo "$(date): Completed syncWoT with $relay"
         echo "$(date): Completed syncWoT with $relay" >> ${BRAINSTORM_LOG_DIR}/syncWoT.log
@@ -178,7 +178,7 @@ emit_task_event "PROGRESS" "syncWoT" "system" '{
 }'
 
 # for some reason, it hangs when I try to sync with wot.brainstorm.social
-# sudo strfry sync wss://wot.brainstorm.social --filter '{"kinds":[3, 1984, 10000, 30000, 38000, 38172, 38173]}' --dir down
+# strfry sync wss://wot.brainstorm.social --filter '{"kinds":[3, 1984, 10000, 30000, 38000, 38172, 38173]}' --dir down
 
 # echo "$(date): Completed syncWoT with wot.brainstorm.social"
 # echo "$(date): Completed syncWoT with wot.brainstorm.social" >> ${BRAINSTORM_LOG_DIR}/syncWoT.log

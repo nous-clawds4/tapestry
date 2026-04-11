@@ -37,31 +37,31 @@ class ServiceController {
                 if (action === 'stop') {
                     // Stop both timer and service
                     commands = [
-                        'sudo systemctl stop brainstorm-monitoring-scheduler.timer',
-                        'sudo systemctl stop brainstorm-monitoring-scheduler.service'
+                        'systemctl stop brainstorm-monitoring-scheduler.timer',
+                        'systemctl stop brainstorm-monitoring-scheduler.service'
                     ];
                 } else if (action === 'start') {
                     // Start both service and timer
                     commands = [
-                        'sudo systemctl start brainstorm-monitoring-scheduler.service',
-                        'sudo systemctl start brainstorm-monitoring-scheduler.timer'
+                        'systemctl start brainstorm-monitoring-scheduler.service',
+                        'systemctl start brainstorm-monitoring-scheduler.timer'
                     ];
                 } else if (action === 'restart') {
                     // Restart both timer and service
                     commands = [
-                        'sudo systemctl stop brainstorm-monitoring-scheduler.timer',
-                        'sudo systemctl restart brainstorm-monitoring-scheduler.service',
-                        'sudo systemctl start brainstorm-monitoring-scheduler.timer'
+                        'systemctl stop brainstorm-monitoring-scheduler.timer',
+                        'systemctl restart brainstorm-monitoring-scheduler.service',
+                        'systemctl start brainstorm-monitoring-scheduler.timer'
                     ];
                 } else if (action === 'trigger') {
                     // Trigger scheduler immediately
-                    commands = ['sudo systemctl start brainstorm-monitoring-scheduler.service'];
+                    commands = ['systemctl start brainstorm-monitoring-scheduler.service'];
                 } else {
-                    commands = [`sudo systemctl ${action} ${service}`];
+                    commands = [`systemctl ${action} ${service}`];
                 }
             } else {
                 // Standard single command for other services
-                commands = [`sudo systemctl ${action} ${service}`];
+                commands = [`systemctl ${action} ${service}`];
             }
             
             // Execute all commands
@@ -80,7 +80,7 @@ class ServiceController {
             return {
                 success: false,
                 error: error.message,
-                command: commands ? commands.join(' && ') : `sudo systemctl ${action} ${service}`
+                command: commands ? commands.join(' && ') : `systemctl ${action} ${service}`
             };
         }
     }

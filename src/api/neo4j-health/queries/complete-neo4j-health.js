@@ -353,13 +353,13 @@ class Neo4jHealthDataParser {
             }
             
             // Get thread info
-            const threadDump = execSync(`sudo -u neo4j jcmd ${pid} Thread.print`).toString();
+            const threadDump = execSync(`-u neo4j jcmd ${pid} Thread.print`).toString();
             const threadCount = (threadDump.match(/^\s*java\.lang\.Thread\.State/gm) || []).length;
             
             // Get peak thread count from jstat
             let peakThreadCount = threadCount;
             try {
-                const jstatOutput = execSync(`sudo -u neo4j jstat -gcutil ${pid} 1 1 | tail -n 1`).toString().trim();
+                const jstatOutput = execSync(`-u neo4j jstat -gcutil ${pid} 1 1 | tail -n 1`).toString().trim();
                 const fields = jstatOutput.split(/\s+/);
                 if (fields.length >= 1) {
                     peakThreadCount = parseInt(fields[0], 10) || threadCount;
@@ -418,7 +418,7 @@ class Neo4jHealthDataParser {
             }
             
             // Get detailed class loader statistics
-            const jcmdOutput = execSync(`sudo -u neo4j jcmd ${pid} VM.classloader_stats`).toString();
+            const jcmdOutput = execSync(`-u neo4j jcmd ${pid} VM.classloader_stats`).toString();
             
             // Extract detailed class loader statistics
             const classLoaderMatches = jcmdOutput.match(/ClassLoader@[0-9a-f]+/g) || [];
@@ -438,7 +438,7 @@ class Neo4jHealthDataParser {
             // Get class loading time from jstat
             let classLoadingTime = 0;
             try {
-                const jstatOutput = execSync(`sudo -u neo4j jstat -class ${pid} 1 1 | tail -n 1`).toString().trim();
+                const jstatOutput = execSync(`-u neo4j jstat -class ${pid} 1 1 | tail -n 1`).toString().trim();
                 const fields = jstatOutput.split(/\s+/);
                 if (fields.length >= 3) {
                     classLoadingTime = parseFloat(fields[2]) / 1000; // Convert to seconds

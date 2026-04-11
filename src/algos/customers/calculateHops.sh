@@ -3,7 +3,7 @@
 # This calculates number of hops from scratch starting with CUSTOMER_PUBKEY which by definition is 0 hops away
 # The resuls are stored in neo4j in the relevant NostrUserWotMetricsCard nodesusing the property: hops
 # This script is called with a command like:
-# sudo bash calculateHops.sh <customer_pubkey> <customer_id> <customer_name>
+# bash calculateHops.sh <customer_pubkey> <customer_id> <customer_name>
 
 source /etc/brainstorm.conf # NEO4J_URI, NEO4J_USER, NEO4J_PASSWORD, BRAINSTORM_LOG_DIR
 
@@ -30,12 +30,12 @@ LOG_DIR="$BRAINSTORM_LOG_DIR/customers/$CUSTOMER_NAME"
 
 # Create log directory if it doesn't exist; chown to brainstorm user
 mkdir -p "$LOG_DIR"
-sudo chown brainstorm:brainstorm "$LOG_DIR"
+chown brainstorm:brainstorm "$LOG_DIR"
 
 # Log file
 LOG_FILE="$LOG_DIR/calculateHops.log"
 touch ${LOG_FILE}
-sudo chown brainstorm:brainstorm ${LOG_FILE}
+chown brainstorm:brainstorm ${LOG_FILE}
 
 CYPHER1="MATCH (c:NostrUserWotMetricsCard {observer_pubkey:'$CUSTOMER_PUBKEY'}) SET c.hops=999"
 CYPHER2="MATCH (c:NostrUserWotMetricsCard {observer_pubkey:'$CUSTOMER_PUBKEY', observee_pubkey:'$CUSTOMER_PUBKEY'}) SET c.hops=0"
@@ -74,9 +74,9 @@ progressMetadata=$(jq -n \
     }')
 emit_task_event "PROGRESS" "calculateCustomerHops" "$CUSTOMER_PUBKEY" "$progressMetadata"
 
-sudo cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER1"
-sudo cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER2"
-cypherResults=$(sudo cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER3")
+cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER1"
+cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER2"
+cypherResults=$(cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER3")
 numUpdates="${cypherResults:11}"
 
 echo "$(date): Continuing calculateHops; numUpdates: $numUpdates numHops: $numHops"
@@ -120,7 +120,7 @@ do
         }')
     emit_task_event "PROGRESS" "calculateCustomerHops" "$CUSTOMER_PUBKEY" "$progressMetadata"
     
-    cypherResults=$(sudo cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER3")
+    cypherResults=$(cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER3")
     numUpdates="${cypherResults:11}"
     
     echo "$(date): Continuing calculateHops; numUpdates: $numUpdates numHops: $numHops"

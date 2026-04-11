@@ -24,12 +24,12 @@ LOG_DIR="$BRAINSTORM_LOG_DIR/customers/$CUSTOMER_NAME"
 
 # Create log directory if it doesn't exist; chown to brainstorm user
 mkdir -p "$LOG_DIR"
-sudo chown brainstorm:brainstorm "$LOG_DIR"
+chown brainstorm:brainstorm "$LOG_DIR"
 
 # Log file
 LOG_FILE="$LOG_DIR/personalizedPageRank.log"
 touch ${LOG_FILE}
-sudo chown brainstorm:brainstorm ${LOG_FILE}
+chown brainstorm:brainstorm ${LOG_FILE}
 
 echo "$(date): Starting personalizedPageRank for CUSTOMER_PUBKEY: $CUSTOMER_PUBKEY"
 echo "$(date): Starting personalizedPageRank for CUSTOMER_PUBKEY: $CUSTOMER_PUBKEY" >> ${LOG_FILE}
@@ -96,7 +96,7 @@ emit_task_event "PROGRESS" "calculateCustomerPageRank" "$CUSTOMER_PUBKEY" '{
 }'
 
 # no need to send output to log file or console
-sudo cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER1" > /dev/null 2>&1
+cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER1" > /dev/null 2>&1
 
 echo "$(date): Continuing personalizedPageRank for CUSTOMER_PUBKEY: $CUSTOMER_PUBKEY ... finished CYPHER1"
 echo "$(date): Continuing personalizedPageRank for CUSTOMER_PUBKEY: $CUSTOMER_PUBKEY ... finished CYPHER1" >> ${LOG_FILE}
@@ -126,7 +126,7 @@ emit_task_event "PROGRESS" "calculateCustomerPageRank" "$CUSTOMER_PUBKEY" '{
     "damping_factor": 0.85
 }'
 
-sudo cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER2" > /dev/null 2>&1
+cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER2" > /dev/null 2>&1
 
 echo "$(date): Continuing personalizedPageRank for CUSTOMER_PUBKEY: $CUSTOMER_PUBKEY ... finished CYPHER2"
 echo "$(date): Continuing personalizedPageRank for CUSTOMER_PUBKEY: $CUSTOMER_PUBKEY ... finished CYPHER2" >> ${LOG_FILE}
@@ -150,7 +150,7 @@ emit_task_event "PROGRESS" "calculateCustomerPageRank" "$CUSTOMER_PUBKEY" '{
     "algorithm": "personalized_pagerank"
 }'
 
-sudo cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER3" > /dev/null 2>&1
+cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER3" > /dev/null 2>&1
 
 echo "$(date): Continuing personalizedPageRank for CUSTOMER_PUBKEY: $CUSTOMER_PUBKEY ... finished CYPHER3"
 echo "$(date): Continuing personalizedPageRank for CUSTOMER_PUBKEY: $CUSTOMER_PUBKEY ... finished CYPHER3" >> ${LOG_FILE}
@@ -166,7 +166,7 @@ emit_task_event "PROGRESS" "calculateCustomerPageRank" "$CUSTOMER_PUBKEY" '{
     "algorithm": "personalized_pagerank"
 }'
 
-sudo cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER4" > /dev/null 2>&1
+cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER4" > /dev/null 2>&1
 
 echo "$(date): Continuing personalizedPageRank for CUSTOMER_PUBKEY: $CUSTOMER_PUBKEY ... finished CYPHER4"
 echo "$(date): Continuing personalizedPageRank for CUSTOMER_PUBKEY: $CUSTOMER_PUBKEY ... finished CYPHER4" >> ${LOG_FILE}
@@ -182,7 +182,7 @@ emit_task_event "PROGRESS" "calculateCustomerPageRank" "$CUSTOMER_PUBKEY" '{
     "algorithm": "personalized_pagerank"
 }'
 
-sudo cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER5" > /dev/null 2>&1
+cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER5" > /dev/null 2>&1
 
 echo "$(date): Continuing personalizedPageRank for CUSTOMER_PUBKEY: $CUSTOMER_PUBKEY ... finished CYPHER5"
 echo "$(date): Continuing personalizedPageRank for CUSTOMER_PUBKEY: $CUSTOMER_PUBKEY ... finished CYPHER5" >> ${LOG_FILE}

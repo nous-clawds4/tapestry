@@ -38,7 +38,7 @@ function handleGetKind10040Info(req, res) {
     }
     
     // Get most recent kind 10040 event
-    const strfryScanCmd = `sudo strfry scan '{"kinds":[10040], "authors":["${pubkey}"], "limit": 1}'`;
+    const strfryScanCmd = `strfry scan '{"kinds":[10040], "authors":["${pubkey}"], "limit": 1}'`;
     let latestEvent = null;
     let timestamp = null;
     let eventId = null;
@@ -101,7 +101,7 @@ async function handleGetKind30382Info(req, res) {
     const relayUrl = getConfigFromFile('BRAINSTORM_RELAY_URL', '');
     
     // Get count of kind 30382 events
-    const strfryScanCountCmd = `sudo strfry scan --count '{"kinds":[30382], "authors":["${relayPubkey}"]}'`;
+    const strfryScanCountCmd = `strfry scan --count '{"kinds":[30382], "authors":["${relayPubkey}"]}'`;
     let count = 0;
     try {
       count = parseInt(execSync(strfryScanCountCmd).toString().trim(), 10);
@@ -110,7 +110,7 @@ async function handleGetKind30382Info(req, res) {
     }
     
     // Get most recent kind 30382 event
-    const strfryScanCmd = `sudo strfry scan '{"kinds":[30382], "authors":["${relayPubkey}"], "limit": 1}'`;
+    const strfryScanCmd = `strfry scan '{"kinds":[30382], "authors":["${relayPubkey}"], "limit": 1}'`;
     let latestEvent = null;
     let timestamp = null;
     

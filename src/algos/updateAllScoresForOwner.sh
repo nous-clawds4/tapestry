@@ -22,7 +22,7 @@ source "$BRAINSTORM_MODULE_BASE_DIR/src/utils/structuredLogging.sh"
 source "$BRAINSTORM_MODULE_MANAGE_DIR/taskQueue/launchChildTask.sh"
 
 touch ${BRAINSTORM_LOG_DIR}/updateAllScoresForOwner.log
-sudo chown brainstorm:brainstorm ${BRAINSTORM_LOG_DIR}/updateAllScoresForOwner.log
+chown brainstorm:brainstorm ${BRAINSTORM_LOG_DIR}/updateAllScoresForOwner.log
 
 # wrapper function which employs legacy log system; 
 # will eventually get rid of this wrapper and just run launchChildTask directly

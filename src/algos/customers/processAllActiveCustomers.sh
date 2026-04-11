@@ -14,12 +14,12 @@ source "$BRAINSTORM_MODULE_BASE_DIR/src/utils/structuredLogging.sh"
 
 # Create log directory if it doesn't exist; chown to brainstorm:brainstorm
 mkdir -p "$BRAINSTORM_LOG_DIR"
-sudo chown brainstorm:brainstorm "$BRAINSTORM_LOG_DIR"
+chown brainstorm:brainstorm "$BRAINSTORM_LOG_DIR"
 
 # Log file
 LOG_FILE="$BRAINSTORM_LOG_DIR/processAllActiveCustomers.log"
 touch ${LOG_FILE}
-sudo chown brainstorm:brainstorm ${LOG_FILE}
+chown brainstorm:brainstorm ${LOG_FILE}
 
 # Logging function
 log_message() {
@@ -111,7 +111,7 @@ while IFS=',' read -r customer_id customer_pubkey customer_name; do
     }'
     
     # Construct and execute the command
-    command="sudo bash $PROCESS_CUSTOMER_SCRIPT $customer_pubkey $customer_id $customer_name"
+    command="bash $PROCESS_CUSTOMER_SCRIPT $customer_pubkey $customer_id $customer_name"
     log_message "Executing: $command"
     
     if $command; then
@@ -169,7 +169,7 @@ emit_task_event "PROGRESS" "processAllActiveCustomers" "" '{
     "cleanup_target": "/var/lib/brainstorm/algos/personalizedGrapeRank/tmp"
 }'
 
-sudo rm -rf /var/lib/brainstorm/algos/personalizedGrapeRank/tmp
+rm -rf /var/lib/brainstorm/algos/personalizedGrapeRank/tmp
 
 # Emit structured event for cleanup completion
 emit_task_event "PROGRESS" "processAllActiveCustomers" "" '{

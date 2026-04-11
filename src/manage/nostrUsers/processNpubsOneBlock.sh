@@ -36,7 +36,7 @@ log_message() {
 cleanup() {
     log_message "Cleaning up temporary files"
     rm -rf "$TEMP_DIR"
-    sudo rm -f "$NEO4J_IMPORT_FILE" 2>/dev/null
+    rm -f "$NEO4J_IMPORT_FILE" 2>/dev/null
 }
 
 # Set trap to cleanup on exit
@@ -91,14 +91,14 @@ log_message "Successfully generated $GENERATED_COUNT npubs"
 
 # Step 3: Move file to Neo4j import directory
 log_message "Step 3: Moving generated npubs to Neo4j import directory"
-if ! sudo cp "$GENERATED_NPUBS" "$NEO4J_IMPORT_FILE"; then
+if ! cp "$GENERATED_NPUBS" "$NEO4J_IMPORT_FILE"; then
     log_message "ERROR: Failed to copy file to Neo4j import directory"
     exit 1
 fi
 
 # Set proper permissions
-sudo chown neo4j:neo4j "$NEO4J_IMPORT_FILE"
-sudo chmod 644 "$NEO4J_IMPORT_FILE"
+chown neo4j:neo4j "$NEO4J_IMPORT_FILE"
+chmod 644 "$NEO4J_IMPORT_FILE"
 
 # Step 4: Update Neo4j with generated npubs
 log_message "Step 4: Updating Neo4j with generated npubs"
@@ -109,7 +109,7 @@ fi
 
 # Step 5: Verify updates
 log_message "Step 5: Verifying updates were successful"
-UPDATED_COUNT=$(sudo cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" \
+UPDATED_COUNT=$(cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" \
     "MATCH (u:NostrUser) WHERE u.npub IS NOT NULL AND u.pubkey IS NOT NULL AND u.hops < 100 RETURN count(u) as total" \
     --format plain 2>/dev/null | tail -n 1 | tr -d '"' || echo "0")
 

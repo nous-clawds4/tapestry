@@ -150,7 +150,7 @@ emit_task_event "PROGRESS" "updateNpubsInNeo4j" "system" '{
 log_message "Executing APOC batch update query"
 
 # Execute the update query
-RESULT=$(sudo cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER_QUERY" 2>&1)
+RESULT=$(cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER_QUERY" 2>&1)
 
 # Check if query was successful
 if [ $? -ne 0 ]; then
@@ -214,7 +214,7 @@ RETURN count(u) as users_with_npub
 LIMIT 1
 "
 
-VERIFICATION_RESULT=$(sudo cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$VERIFICATION_QUERY" 2>/dev/null | tail -n 1 | tr -d '"' || echo "0")
+VERIFICATION_RESULT=$(cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$VERIFICATION_QUERY" 2>/dev/null | tail -n 1 | tr -d '"' || echo "0")
 
 log_message "Verification: $VERIFICATION_RESULT NostrUsers now have npub property"
 log_message "Neo4j npub update process completed successfully"

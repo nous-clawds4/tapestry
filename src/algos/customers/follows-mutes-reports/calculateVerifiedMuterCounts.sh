@@ -1,7 +1,7 @@
 #!/bin/bash
 # to run:
-# sudo bash calculateVerifiedMuterCounts.sh e5272de914bd301755c439b88e6959a43c9d2664831f093c51e9c799a16a102f 0 straycat
-# sudo bash calculateVerifiedMuterCounts.sh  7cc328a08ddb2afdf9f9be77beff4c83489ff979721827d628a542f32a247c0e 1 cloudfodder
+# bash calculateVerifiedMuterCounts.sh e5272de914bd301755c439b88e6959a43c9d2664831f093c51e9c799a16a102f 0 straycat
+# bash calculateVerifiedMuterCounts.sh  7cc328a08ddb2afdf9f9be77beff4c83489ff979721827d628a542f32a247c0e 1 cloudfodder
 
 source /etc/brainstorm.conf # BRAINSTORM_LOG_DIR
 
@@ -39,12 +39,12 @@ LOG_DIR="$BRAINSTORM_LOG_DIR/customers/$CUSTOMER_NAME"
 
 # Create log directory if it doesn't exist; chown to brainstorm user
 mkdir -p "$LOG_DIR"
-sudo chown brainstorm:brainstorm "$LOG_DIR"
+chown brainstorm:brainstorm "$LOG_DIR"
 
 # Log file
 LOG_FILE="$LOG_DIR/calculateVerifiedMuterCounts.log"
 touch ${LOG_FILE}
-sudo chown brainstorm:brainstorm ${LOG_FILE}
+chown brainstorm:brainstorm ${LOG_FILE}
 
 echo "$(date): Starting calculateVerifiedMuterCounts"
 echo "$(date): Starting calculateVerifiedMuterCounts" >> ${LOG_FILE}
@@ -94,7 +94,7 @@ emit_task_event "PROGRESS" "calculateVerifiedMuterCounts" "$CUSTOMER_PUBKEY" '{
     "calculation_type": "count_aggregation"
 }'
 
-cypherResults=$(sudo cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER1")
+cypherResults=$(cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER1")
 numUsersUpdated="${cypherResults:16}"
 
 echo "$(date): numUsersUpdated: $numUsersUpdated (with nonzero verifiedMuterCount)"
@@ -126,7 +126,7 @@ emit_task_event "PROGRESS" "calculateVerifiedMuterCounts" "$CUSTOMER_PUBKEY" '{
     "calculation_type": "count_aggregation"
 }'
 
-cypherResults=$(sudo cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER2")
+cypherResults=$(cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER2")
 numUsersUpdated="${cypherResults:16}"
 
 echo "$(date): numUsersUpdated: $numUsersUpdated (with zero verifiedMuterCount)"

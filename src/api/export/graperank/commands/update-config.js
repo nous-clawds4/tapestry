@@ -65,10 +65,10 @@ function handleUpdateGrapeRankConfig(req, res) {
         // Write the updated configuration to a temporary file
         fs.writeFileSync(tempConfigPath, updatedLines.join('\n'));
         
-        // Use sudo to copy the temporary file to the actual configuration file
-        execSync(`sudo cp ${tempConfigPath} ${configPath}`);
-        execSync(`sudo chown root:brainstorm ${configPath}`);
-        execSync(`sudo chmod 644 ${configPath}`);
+        // Use to copy the temporary file to the actual configuration file
+        execSync(`cp ${tempConfigPath} ${configPath}`);
+        execSync(`chown root:brainstorm ${configPath}`);
+        execSync(`chmod 644 ${configPath}`);
         
         // Clean up the temporary file
         fs.unlinkSync(tempConfigPath);

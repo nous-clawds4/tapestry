@@ -3,7 +3,7 @@
 source /etc/brainstorm.conf # BRAINSTORM_LOG_DIR
 
 touch ${BRAINSTORM_LOG_DIR}/calculateVerifiedMuterCounts.log
-sudo chown brainstorm:brainstorm ${BRAINSTORM_LOG_DIR}/calculateVerifiedMuterCounts.log
+chown brainstorm:brainstorm ${BRAINSTORM_LOG_DIR}/calculateVerifiedMuterCounts.log
 
 echo "$(date): Starting calculateVerifiedMuterCounts"
 echo "$(date): Starting calculateVerifiedMuterCounts" >> ${BRAINSTORM_LOG_DIR}/calculateVerifiedMuterCounts.log
@@ -26,13 +26,13 @@ SET n.verifiedMuterCount = 0
 RETURN count(n) AS numUsersUpdated
 "
 
-cypherResults=$(sudo cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER1")
+cypherResults=$(cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER1")
 numUsersUpdated="${cypherResults:16}"
 
 echo "$(date): numUsersUpdated: $numUsersUpdated (with nonzero verifiedMuterCount)"
 echo "$(date): numUsersUpdated: $numUsersUpdated (with nonzero verifiedMuterCount)" >> ${BRAINSTORM_LOG_DIR}/calculateVerifiedMuterCounts.log
 
-cypherResults=$(sudo cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER2")
+cypherResults=$(cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER2")
 numUsersUpdated="${cypherResults:16}"
 
 echo "$(date): numUsersUpdated: $numUsersUpdated (with zero verifiedMuterCount)"

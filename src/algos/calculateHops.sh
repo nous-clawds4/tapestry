@@ -44,7 +44,7 @@ progressMetadata=$(jq -n \
         description: $description
     }')
 emit_task_event "PROGRESS" "calculateOwnerHops" "system" "$progressMetadata"
-sudo cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER1"
+cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER1"
 
 progressMetadata=$(jq -n \
     --arg phase "initialization" \
@@ -58,7 +58,7 @@ progressMetadata=$(jq -n \
         owner_pubkey: $owner_pubkey
     }')
 emit_task_event "PROGRESS" "calculateOwnerHops" "system" "$progressMetadata"
-sudo cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER2"
+cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER2"
 
 # Phase 2: Iterative hop calculation
 progressMetadata=$(jq -n \
@@ -71,7 +71,7 @@ progressMetadata=$(jq -n \
         description: $description
     }')
 emit_task_event "PROGRESS" "calculateOwnerHops" "system" "$progressMetadata"
-cypherResults=$(sudo cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER3")
+cypherResults=$(cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER3")
 numUpdates="${cypherResults:11}"
 
 progressMetadata=$(jq -n \
@@ -92,7 +92,7 @@ emit_task_event "PROGRESS" "calculateOwnerHops" "system" "$progressMetadata"
 while [[ "$numUpdates" -gt 0 ]] && [[ "$numHops" -lt 12 ]];
 do
     ((numHops++))
-    cypherResults=$(sudo cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER3")
+    cypherResults=$(cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER3")
     numUpdates="${cypherResults:11}"
 
     echo "$(date): calculateHops iteration $numHops"

@@ -24,10 +24,10 @@ const CONFIG_FILES = {
 // Logging setup
 const LOG_DIR = `/var/log/brainstorm/customers/${CUSTOMER_NAME}`;
 execSync(`mkdir -p ${LOG_DIR}`);
-execSync(`sudo chown brainstorm:brainstorm ${LOG_DIR}`);
+execSync(`chown brainstorm:brainstorm ${LOG_DIR}`);
 const LOG_FILE = path.join(LOG_DIR, 'updateNeo4jWithApoc.log');
 execSync(`touch ${LOG_FILE}`);
-execSync(`sudo chown brainstorm:brainstorm ${LOG_FILE}`);
+execSync(`chown brainstorm:brainstorm ${LOG_FILE}`);
 
 // Get Neo4j configuration from brainstorm.conf
 function getNeo4jConfig_deprecated() {
@@ -156,7 +156,7 @@ RETURN batches, total, timeTaken, committedOperations, failedOperations, failedB
   
   try {
     // Execute the Cypher command using cypher-shell
-    const command = `sudo cypher-shell -a "${neo4jConfig.uri}" -u "${neo4jConfig.username}" -p "${neo4jConfig.password}" -f "${cypherFile}"`;
+    const command = `cypher-shell -a "${neo4jConfig.uri}" -u "${neo4jConfig.username}" -p "${neo4jConfig.password}" -f "${cypherFile}"`;
     
     const result = execSync(command, { 
       encoding: 'utf8',
@@ -208,8 +208,8 @@ async function main() {
     const totalRecords = createApocUpdateFile(scorecards, apocUpdateFile);
     
     // Set proper permissions for Neo4j import directory
-    execSync(`sudo chown neo4j:neo4j "${apocUpdateFile}"`);
-    execSync(`sudo chmod 644 "${apocUpdateFile}"`);
+    execSync(`chown neo4j:neo4j "${apocUpdateFile}"`);
+    execSync(`chmod 644 "${apocUpdateFile}"`);
     
     // Update Neo4j using APOC
     await updateNeo4jWithApoc(neo4jConfig, apocUpdateFile, totalRecords);

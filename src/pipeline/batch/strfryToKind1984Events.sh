@@ -10,8 +10,8 @@ fi
 
 filter="{ \"kinds\": [1984], \"since\": $SINCE_TIMESTAMP }"
 
-command1="sudo strfry scan --count '$filter'"
+command1="strfry scan --count '$filter'"
 eval "$command1"
 
-command2="sudo strfry scan '$filter' | jq -cr 'del(.content)' > /usr/local/lib/node_modules/brainstorm/src/pipeline/batch/allKind1984EventsStripped.json"
+command2="strfry scan '$filter' | jq -cr 'del(.content)' > /usr/local/lib/node_modules/brainstorm/src/pipeline/batch/allKind1984EventsStripped.json"
 eval "$command2"

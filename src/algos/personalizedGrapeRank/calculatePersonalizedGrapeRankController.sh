@@ -24,7 +24,7 @@ LOG_FILE="$BRAINSTORM_LOG_DIR/calculatePersonalizedGrapeRankController.log"
 # Create log directory if it doesn't exist
 mkdir -p "$(dirname "$LOG_FILE")"
 touch "$LOG_FILE"
-sudo chown brainstorm:brainstorm "$LOG_FILE"
+chown brainstorm:brainstorm "$LOG_FILE"
 
 # Log start time
 echo "$(date): Starting calculatePersonalizedGrapeRankController"
@@ -50,7 +50,7 @@ run_with_timeout() {
     
     # Run the script in background
     {
-        sudo $BRAINSTORM_MODULE_ALGOS_DIR/personalizedGrapeRank/calculatePersonalizedGrapeRank.sh
+        $BRAINSTORM_MODULE_ALGOS_DIR/personalizedGrapeRank/calculatePersonalizedGrapeRank.sh
         # Create marker file upon successful completion
         touch "$COMPLETION_MARKER"
     } &
@@ -144,8 +144,8 @@ run_with_timeout() {
     }'
     
     # Kill the background process and its children
-    sudo pkill -P $BG_PID 2>/dev/null
-    sudo kill -9 $BG_PID 2>/dev/null
+    pkill -P $BG_PID 2>/dev/null
+    kill -9 $BG_PID 2>/dev/null
     
     # Clean up marker file if it exists
     rm -f "$COMPLETION_MARKER"

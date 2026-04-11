@@ -25,12 +25,12 @@ LOG_DIR="$BRAINSTORM_LOG_DIR/customers/$CUSTOMER_NAME"
 
 # Create log directory if it doesn't exist; chown to brainstorm:brainstorm
 mkdir -p "$LOG_DIR"
-sudo chown brainstorm:brainstorm "$LOG_DIR"
+chown brainstorm:brainstorm "$LOG_DIR"
 
 # Log file
 LOG_FILE="$LOG_DIR/personalizedGrapeRank.log"
 touch ${LOG_FILE}
-sudo chown brainstorm:brainstorm ${LOG_FILE}
+chown brainstorm:brainstorm ${LOG_FILE}
 
 echo "$(date): Starting personalizedGrapeRank for CUSTOMER_NAME: $CUSTOMER_NAME CUSTOMER_ID: $CUSTOMER_ID CUSTOMER_PUBKEY: $CUSTOMER_PUBKEY"
 echo "$(date): Starting personalizedGrapeRank for CUSTOMER_NAME: $CUSTOMER_NAME CUSTOMER_ID: $CUSTOMER_ID CUSTOMER_PUBKEY: $CUSTOMER_PUBKEY" >> ${LOG_FILE}
@@ -69,7 +69,7 @@ if [ ! -f /var/lib/brainstorm/algos/personalizedGrapeRank/tmp/follows.csv ] && [
         "algorithm": "personalized_graperank"
     }'
     
-    if sudo bash $BRAINSTORM_MODULE_ALGOS_DIR/customers/personalizedGrapeRank/initializeRawDataCsv.sh; then
+    if bash $BRAINSTORM_MODULE_ALGOS_DIR/customers/personalizedGrapeRank/initializeRawDataCsv.sh; then
         # Emit structured event for CSV initialization success
         emit_task_event "PROGRESS" "calculateCustomerGrapeRank" "$CUSTOMER_PUBKEY" '{
             "customer_id": "'$CUSTOMER_ID'",
@@ -133,7 +133,7 @@ emit_task_event "PROGRESS" "calculateCustomerGrapeRank" "$CUSTOMER_PUBKEY" '{
 }'
 
 # Interpret ratings. Pass CUSTOMER_PUBKEY, CUSTOMER_ID, and CUSTOMER_NAME as arguments to interpretRatings.js
-if sudo node $BRAINSTORM_MODULE_ALGOS_DIR/customers/personalizedGrapeRank/interpretRatings.js $CUSTOMER_PUBKEY $CUSTOMER_ID $CUSTOMER_NAME; then
+if node $BRAINSTORM_MODULE_ALGOS_DIR/customers/personalizedGrapeRank/interpretRatings.js $CUSTOMER_PUBKEY $CUSTOMER_ID $CUSTOMER_NAME; then
     # Emit structured event for ratings interpretation success
     emit_task_event "PROGRESS" "calculateCustomerGrapeRank" "$CUSTOMER_PUBKEY" '{
         "customer_id": "'$CUSTOMER_ID'",
@@ -183,7 +183,7 @@ emit_task_event "PROGRESS" "calculateCustomerGrapeRank" "$CUSTOMER_PUBKEY" '{
 # Initialize scorecards
 # TODO: initialize from neo4j if scores already exist
 # TODO: edit test changes to this file. scorecards_init.json should be in the customer-specific directory
-if sudo node $BRAINSTORM_MODULE_ALGOS_DIR/customers/personalizedGrapeRank/initializeScorecards.js $CUSTOMER_PUBKEY $CUSTOMER_ID $CUSTOMER_NAME; then
+if node $BRAINSTORM_MODULE_ALGOS_DIR/customers/personalizedGrapeRank/initializeScorecards.js $CUSTOMER_PUBKEY $CUSTOMER_ID $CUSTOMER_NAME; then
     # Emit structured event for scorecards initialization success
     emit_task_event "PROGRESS" "calculateCustomerGrapeRank" "$CUSTOMER_PUBKEY" '{
         "customer_id": "'$CUSTOMER_ID'",
@@ -231,7 +231,7 @@ emit_task_event "PROGRESS" "calculateCustomerGrapeRank" "$CUSTOMER_PUBKEY" '{
 }'
 
 # Calculate GrapeRank
-if sudo node $BRAINSTORM_MODULE_ALGOS_DIR/customers/personalizedGrapeRank/calculateGrapeRank.js $CUSTOMER_PUBKEY $CUSTOMER_ID $CUSTOMER_NAME; then
+if node $BRAINSTORM_MODULE_ALGOS_DIR/customers/personalizedGrapeRank/calculateGrapeRank.js $CUSTOMER_PUBKEY $CUSTOMER_ID $CUSTOMER_NAME; then
     # Emit structured event for GrapeRank calculation success
     emit_task_event "PROGRESS" "calculateCustomerGrapeRank" "$CUSTOMER_PUBKEY" '{
         "customer_id": "'$CUSTOMER_ID'",
@@ -279,7 +279,7 @@ emit_task_event "PROGRESS" "calculateCustomerGrapeRank" "$CUSTOMER_PUBKEY" '{
 }'
 
 # update Neo4j
-if sudo node $BRAINSTORM_MODULE_ALGOS_DIR/customers/personalizedGrapeRank/updateNeo4jWithApoc.js $CUSTOMER_PUBKEY $CUSTOMER_ID $CUSTOMER_NAME; then
+if node $BRAINSTORM_MODULE_ALGOS_DIR/customers/personalizedGrapeRank/updateNeo4jWithApoc.js $CUSTOMER_PUBKEY $CUSTOMER_ID $CUSTOMER_NAME; then
     # Emit structured event for Neo4j update success
     emit_task_event "PROGRESS" "calculateCustomerGrapeRank" "$CUSTOMER_PUBKEY" '{
         "customer_id": "'$CUSTOMER_ID'",

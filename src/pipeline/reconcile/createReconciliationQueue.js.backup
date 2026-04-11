@@ -60,7 +60,7 @@ async function getAllPubkeys() {
       RETURN count(u) AS count
     `;
     
-    const countResult = execSync(`sudo cypher-shell -a "${config.neo4jUri}" -u "${config.neo4jUser}" -p "${config.neo4jPassword}" "${countQuery}" --format plain`).toString();
+    const countResult = execSync(`cypher-shell -a "${config.neo4jUri}" -u "${config.neo4jUser}" -p "${config.neo4jPassword}" "${countQuery}" --format plain`).toString();
     const countLines = countResult.split('\n');
     const totalCount = parseInt(countLines[1].trim(), 10);
     
@@ -78,7 +78,7 @@ async function getAllPubkeys() {
       
       console.log(`${new Date().toISOString()}: Fetching batch of pubkeys (${skip}-${skip + batchSize})...`);
       
-      const result = execSync(`sudo cypher-shell -a "${config.neo4jUri}" -u "${config.neo4jUser}" -p "${config.neo4jPassword}" "${query}" --format plain`).toString();
+      const result = execSync(`cypher-shell -a "${config.neo4jUri}" -u "${config.neo4jUser}" -p "${config.neo4jPassword}" "${query}" --format plain`).toString();
       
       // Parse the result (skip header and footer)
       const lines = result.split('\n');
@@ -172,7 +172,7 @@ async function processEventKind(pubkeysFile, eventKind, relationshipType) {
     fs.writeFileSync(queryFile, neo4jQuery);
     
     // Execute the query from file
-    execSync(`sudo cypher-shell -a "${config.neo4jUri}" -u "${config.neo4jUser}" -p "${config.neo4jPassword}" --file "${queryFile}" --format plain > "${neo4jIdsFile}"`);
+    execSync(`cypher-shell -a "${config.neo4jUri}" -u "${config.neo4jUser}" -p "${config.neo4jPassword}" --file "${queryFile}" --format plain > "${neo4jIdsFile}"`);
     
     // Clean up query file
     fs.unlinkSync(queryFile);

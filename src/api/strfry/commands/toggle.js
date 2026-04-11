@@ -50,13 +50,13 @@ async function handleToggleStrfryPlugin(req, res) {
         
         // Ensure plugin directory exists
         if (!fs.existsSync('/usr/local/lib/strfry/plugins')) {
-            execSync('sudo mkdir -p /usr/local/lib/strfry/plugins');
+            execSync('mkdir -p /usr/local/lib/strfry/plugins');
         }
         
         // Copy plugin file if it doesn't exist at destination
         if (!fs.existsSync(pluginPath)) {
-            execSync(`sudo cp /usr/local/lib/node_modules/brainstorm/plugins/brainstorm.js ${pluginPath}`);
-            execSync(`sudo chmod +x ${pluginPath}`);
+            execSync(`cp /usr/local/lib/node_modules/brainstorm/plugins/brainstorm.js ${pluginPath}`);
+            execSync(`chmod +x ${pluginPath}`);
         }
         
         /*
@@ -106,10 +106,10 @@ async function handleToggleStrfryPlugin(req, res) {
             confContent = confContent.replace(/\nrelay\.writePolicy\.plugin\s*=\s*"[^"]*"\n?/, '\n');
         }
         
-        // Write config to a temporary file and then use sudo to move it
+        // Write config to a temporary file and then use to move it
         const tempConfigPath = '/tmp/strfry.conf.tmp';
         fs.writeFileSync(tempConfigPath, confContent);
-        execSync(`sudo cp ${tempConfigPath} ${strfryConfPath}`);
+        execSync(`cp ${tempConfigPath} ${strfryConfPath}`);
         fs.unlinkSync(tempConfigPath);
         
         // Update strfry-router.config based on action
@@ -146,11 +146,11 @@ async function handleToggleStrfryPlugin(req, res) {
             fs.writeFileSync(tempRouterConfigPath, routerConfigContent);
             
             // Copy the temporary file to the destination
-            execSync(`sudo cp ${tempRouterConfigPath} ${strfryRouterConfPath}`);
+            execSync(`cp ${tempRouterConfigPath} ${strfryRouterConfPath}`);
             fs.unlinkSync(tempRouterConfigPath);
             
             // Restart strfry service
-            execSync('sudo systemctl restart strfry');
+            execSync('systemctl restart strfry');
             
             return res.json({ 
                 success: true,

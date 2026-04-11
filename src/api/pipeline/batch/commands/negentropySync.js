@@ -34,7 +34,7 @@ function handleNegentropySync(req, res) {
     }, 120000); // 2 minutes timeout
     
     // Build the command with the provided relay and filter
-    const command = `sudo strfry sync ${relay} --filter '${filter}' --dir down`;
+    const command = `strfry sync ${relay} --filter '${filter}' --dir down`;
     console.log(`Executing command: ${command}`);
     
     exec(command, (error, stdout, stderr) => {

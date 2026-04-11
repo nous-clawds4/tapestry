@@ -12,7 +12,7 @@ source /etc/brainstorm.conf # BRAINSTORM_LOG_DIR, BRAINSTORM_NIP85_DIR, BRAINSTO
 source "$BRAINSTORM_MODULE_BASE_DIR/src/utils/structuredLogging.sh"
 
 touch ${BRAINSTORM_LOG_DIR}/publishNip85.log
-sudo chown brainstorm:brainstorm ${BRAINSTORM_LOG_DIR}/publishNip85.log
+chown brainstorm:brainstorm ${BRAINSTORM_LOG_DIR}/publishNip85.log
 
 echo "$(date): Starting publishNip85"
 echo "$(date): Starting publishNip85" >> ${BRAINSTORM_LOG_DIR}/publishNip85.log

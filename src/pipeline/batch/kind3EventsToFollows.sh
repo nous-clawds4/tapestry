@@ -9,5 +9,5 @@ cd /usr/local/lib/node_modules/brainstorm/src/pipeline/batch/
 node kind3EventsToFollows.js
 
 # Move files to Neo4j import directory
-sudo mv followsToAddToNeo4j.json /var/lib/neo4j/import/followsToAddToNeo4j.json
-sudo mv allKind3EventsStripped.json /var/lib/neo4j/import/allKind3EventsStripped.json
+mv followsToAddToNeo4j.json /var/lib/neo4j/import/followsToAddToNeo4j.json
+mv allKind3EventsStripped.json /var/lib/neo4j/import/allKind3EventsStripped.json

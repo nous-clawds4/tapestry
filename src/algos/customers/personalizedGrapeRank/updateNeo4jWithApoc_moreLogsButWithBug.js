@@ -24,10 +24,10 @@ const CONFIG_FILES = {
 // Logging setup
 const LOG_DIR = `/var/log/brainstorm/customers/${CUSTOMER_NAME}`;
 execSync(`mkdir -p ${LOG_DIR}`);
-execSync(`sudo chown brainstorm:brainstorm ${LOG_DIR}`);
+execSync(`chown brainstorm:brainstorm ${LOG_DIR}`);
 const LOG_FILE = path.join(LOG_DIR, 'updateNeo4jWithApoc.log');
 execSync(`touch ${LOG_FILE}`);
-execSync(`sudo chown brainstorm:brainstorm ${LOG_FILE}`);
+execSync(`chown brainstorm:brainstorm ${LOG_FILE}`);
 
 // Get Neo4j configuration from brainstorm.conf
 function getNeo4jConfig() {
@@ -107,25 +107,25 @@ async function performPreflightChecks(neo4jConfig) {
   
   try {
     // Check Neo4j memory settings
-    const memoryCheckCommand = `sudo cypher-shell -a "${neo4jConfig.uri}" -u "${neo4jConfig.username}" -p "${neo4jConfig.password}" "CALL dbms.listConfig() YIELD name, value WHERE name CONTAINS 'memory' RETURN name, value ORDER BY name"`;
+    const memoryCheckCommand = `cypher-shell -a "${neo4jConfig.uri}" -u "${neo4jConfig.username}" -p "${neo4jConfig.password}" "CALL dbms.listConfig() YIELD name, value WHERE name CONTAINS 'memory' RETURN name, value ORDER BY name"`;
     const memoryResult = execSync(memoryCheckCommand, { encoding: 'utf8' });
     log('Neo4j Memory Configuration:');
     log(memoryResult);
     
     // Check existing indexes
-    const indexCheckCommand = `sudo cypher-shell -a "${neo4jConfig.uri}" -u "${neo4jConfig.username}" -p "${neo4jConfig.password}" "SHOW INDEXES"`;
+    const indexCheckCommand = `cypher-shell -a "${neo4jConfig.uri}" -u "${neo4jConfig.username}" -p "${neo4jConfig.password}" "SHOW INDEXES"`;
     const indexResult = execSync(indexCheckCommand, { encoding: 'utf8' });
     log('Neo4j Indexes:');
     log(indexResult);
     
     // Check current transaction count
-    const txCheckCommand = `sudo cypher-shell -a "${neo4jConfig.uri}" -u "${neo4jConfig.username}" -p "${neo4jConfig.password}" "CALL dbms.listTransactions() YIELD transactionId, currentQuery, status RETURN count(*) as activeTransactions"`;
+    const txCheckCommand = `cypher-shell -a "${neo4jConfig.uri}" -u "${neo4jConfig.username}" -p "${neo4jConfig.password}" "CALL dbms.listTransactions() YIELD transactionId, currentQuery, status RETURN count(*) as activeTransactions"`;
     const txResult = execSync(txCheckCommand, { encoding: 'utf8' });
     log('Active Transactions:');
     log(txResult);
     
     // Check target node count
-    const nodeCountCommand = `sudo cypher-shell -a "${neo4jConfig.uri}" -u "${neo4jConfig.username}" -p "${neo4jConfig.password}" "MATCH (u:NostrUserWotMetricsCard {customer_id: ${CUSTOMER_ID}}) RETURN count(u) as targetNodes"`;
+    const nodeCountCommand = `cypher-shell -a "${neo4jConfig.uri}" -u "${neo4jConfig.username}" -p "${neo4jConfig.password}" "MATCH (u:NostrUserWotMetricsCard {customer_id: ${CUSTOMER_ID}}) RETURN count(u) as targetNodes"`;
     const nodeCountResult = execSync(nodeCountCommand, { encoding: 'utf8' });
     log('Target Nodes for Update:');
     log(nodeCountResult);
@@ -142,7 +142,7 @@ async function monitorApocProgress(neo4jConfig, intervalMs = 30000) {
   const monitorInterval = setInterval(async () => {
     try {
       // Check active transactions
-      const txCommand = `sudo cypher-shell -a "${neo4jConfig.uri}" -u "${neo4jConfig.username}" -p "${neo4jConfig.password}" "CALL dbms.listTransactions() YIELD transactionId, currentQuery, status, startTime WHERE currentQuery CONTAINS 'apoc.periodic.iterate' RETURN transactionId, status, startTime, currentQuery"`;
+      const txCommand = `cypher-shell -a "${neo4jConfig.uri}" -u "${neo4jConfig.username}" -p "${neo4jConfig.password}" "CALL dbms.listTransactions() YIELD transactionId, currentQuery, status, startTime WHERE currentQuery CONTAINS 'apoc.periodic.iterate' RETURN transactionId, status, startTime, currentQuery"`;
       const txResult = execSync(txCommand, { encoding: 'utf8', timeout: 10000 });
       
       if (txResult.trim()) {
@@ -151,7 +151,7 @@ async function monitorApocProgress(neo4jConfig, intervalMs = 30000) {
         log(txResult);
         
         // Check memory usage
-        const memCommand = `sudo cypher-shell -a "${neo4jConfig.uri}" -u "${neo4jConfig.username}" -p "${neo4jConfig.password}" "CALL dbms.queryJvm('java.lang:type=Memory') YIELD attributes RETURN attributes.HeapMemoryUsage as heapUsage"`;
+        const memCommand = `cypher-shell -a "${neo4jConfig.uri}" -u "${neo4jConfig.username}" -p "${neo4jConfig.password}" "CALL dbms.queryJvm('java.lang:type=Memory') YIELD attributes RETURN attributes.HeapMemoryUsage as heapUsage"`;
         const memResult = execSync(memCommand, { encoding: 'utf8', timeout: 5000 });
         log('JVM Memory Usage:');
         log(memResult);
@@ -216,7 +216,7 @@ RETURN batches, total, timeTaken, committedOperations, failedOperations, failedB
   
   try {
     // Execute the Cypher command using cypher-shell with extended timeout
-    const command = `sudo cypher-shell -a "${neo4jConfig.uri}" -u "${neo4jConfig.username}" -p "${neo4jConfig.password}" -f "${cypherFile}"`;
+    const command = `cypher-shell -a "${neo4jConfig.uri}" -u "${neo4jConfig.username}" -p "${neo4jConfig.password}" -f "${cypherFile}"`;
     
     log(`Executing command: ${command}`);
     
@@ -291,13 +291,13 @@ async function performPostUpdateVerification(neo4jConfig, expectedRecords) {
   
   try {
     // Count updated records
-    const countCommand = `sudo cypher-shell -a "${neo4jConfig.uri}" -u "${neo4jConfig.username}" -p "${neo4jConfig.password}" "MATCH (u:NostrUserWotMetricsCard {customer_id: ${CUSTOMER_ID}}) WHERE u.influence IS NOT NULL RETURN count(u) as updatedNodes"`;
+    const countCommand = `cypher-shell -a "${neo4jConfig.uri}" -u "${neo4jConfig.username}" -p "${neo4jConfig.password}" "MATCH (u:NostrUserWotMetricsCard {customer_id: ${CUSTOMER_ID}}) WHERE u.influence IS NOT NULL RETURN count(u) as updatedNodes"`;
     const countResult = execSync(countCommand, { encoding: 'utf8' });
     log('Updated nodes count:');
     log(countResult);
     
     // Sample some updated records
-    const sampleCommand = `sudo cypher-shell -a "${neo4jConfig.uri}" -u "${neo4jConfig.username}" -p "${neo4jConfig.password}" "MATCH (u:NostrUserWotMetricsCard {customer_id: ${CUSTOMER_ID}}) WHERE u.influence IS NOT NULL RETURN u.observee_pubkey, u.influence, u.average LIMIT 5"`;
+    const sampleCommand = `cypher-shell -a "${neo4jConfig.uri}" -u "${neo4jConfig.username}" -p "${neo4jConfig.password}" "MATCH (u:NostrUserWotMetricsCard {customer_id: ${CUSTOMER_ID}}) WHERE u.influence IS NOT NULL RETURN u.observee_pubkey, u.influence, u.average LIMIT 5"`;
     const sampleResult = execSync(sampleCommand, { encoding: 'utf8' });
     log('Sample updated records:');
     log(sampleResult);
@@ -315,7 +315,7 @@ async function logFailureDebugInfo(neo4jConfig, error) {
   
   try {
     // Check for any remaining transactions
-    const txCommand = `sudo cypher-shell -a "${neo4jConfig.uri}" -u "${neo4jConfig.username}" -p "${neo4jConfig.password}" "CALL dbms.listTransactions() YIELD transactionId, currentQuery, status RETURN *"`;
+    const txCommand = `cypher-shell -a "${neo4jConfig.uri}" -u "${neo4jConfig.username}" -p "${neo4jConfig.password}" "CALL dbms.listTransactions() YIELD transactionId, currentQuery, status RETURN *"`;
     const txResult = execSync(txCommand, { encoding: 'utf8', timeout: 10000 });
     log('Active transactions at failure:');
     log(txResult);
@@ -323,7 +323,7 @@ async function logFailureDebugInfo(neo4jConfig, error) {
     // Check Neo4j logs for recent errors
     log('Checking Neo4j logs for recent errors...');
     try {
-      const logCommand = 'sudo tail -50 /var/log/neo4j/neo4j.log | grep -i "error\|exception\|timeout\|memory"';
+      const logCommand = 'tail -50 /var/log/neo4j/neo4j.log | grep -i "error\|exception\|timeout\|memory"';
       const logResult = execSync(logCommand, { encoding: 'utf8', timeout: 5000 });
       if (logResult.trim()) {
         log('Recent Neo4j log errors:');
@@ -370,8 +370,8 @@ async function main() {
     const totalRecords = createApocUpdateFile(scorecards, apocUpdateFile);
     
     // Set proper permissions for Neo4j import directory
-    execSync(`sudo chown neo4j:neo4j "${apocUpdateFile}"`);
-    execSync(`sudo chmod 644 "${apocUpdateFile}"`);
+    execSync(`chown neo4j:neo4j "${apocUpdateFile}"`);
+    execSync(`chmod 644 "${apocUpdateFile}"`);
     
     // Update Neo4j using APOC
     await updateNeo4jWithApoc(neo4jConfig, apocUpdateFile, totalRecords);

@@ -56,7 +56,7 @@ function getStrfryStatus(req, res) {
     // Function to get event count for a specific kind
     function getEventCountByKind(kind) {
         return new Promise((resolve) => {
-            const cmd = `sudo strfry scan --count '{"kinds":[${kind}]}' 2>/dev/null`;
+            const cmd = `strfry scan --count '{"kinds":[${kind}]}' 2>/dev/null`;
             exec(cmd, EXEC_OPTS, (error, stdout, stderr) => {
                 if (error) {
                     console.error(`Error getting count for kind ${kind}:`, error);
@@ -84,7 +84,7 @@ function getStrfryStatus(req, res) {
     // 3. Get total event count
     promises.push(
         new Promise((resolve) => {
-            const cmd = `sudo strfry scan --count '{}' 2>/dev/null`;
+            const cmd = `strfry scan --count '{}' 2>/dev/null`;
             exec(cmd, EXEC_OPTS, (error, stdout, stderr) => {
                 if (error) {
                     console.error('Error getting total event count:', error);
@@ -108,7 +108,7 @@ function getStrfryStatus(req, res) {
     promises.push(
         new Promise((resolve) => {
             const oneHourAgo = Math.floor(Date.now() / 1000) - 3600;
-            const cmd = `sudo strfry scan --count '{"since":${oneHourAgo}}' 2>/dev/null`;
+            const cmd = `strfry scan --count '{"since":${oneHourAgo}}' 2>/dev/null`;
             exec(cmd, EXEC_OPTS, (error, stdout, stderr) => {
                 if (error) {
                     console.error('Error getting recent event count:', error);

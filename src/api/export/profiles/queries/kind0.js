@@ -44,7 +44,7 @@ function handleGetKind0Event(req, res) {
     ];
     
     // First try to get the event from our local strfry relay
-    const strfryCommand = `sudo strfry scan '{"kinds":[0],"authors":["${pubkey}"],"limit":1}'`;
+    const strfryCommand = `strfry scan '{"kinds":[0],"authors":["${pubkey}"],"limit":1}'`;
     
     exec(strfryCommand, (error, stdout, stderr) => {
       if (error) {

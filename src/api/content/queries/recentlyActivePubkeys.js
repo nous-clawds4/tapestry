@@ -16,7 +16,7 @@ const { exec } = require('child_process');
 function handleGetRecentlyActivePubkeys(req, res) {
     try {
         const unixTime24HoursAgo = Math.floor(Date.now() / 1000) - (24 * 60 * 60);
-        const getEventsCmd = `sudo strfry scan '{"kinds":[1], "since": ${unixTime24HoursAgo}, "limit": 5000}'`;
+        const getEventsCmd = `strfry scan '{"kinds":[1], "since": ${unixTime24HoursAgo}, "limit": 5000}'`;
         
         exec(getEventsCmd, (error, stdout, stderr) => {
             if (error) {

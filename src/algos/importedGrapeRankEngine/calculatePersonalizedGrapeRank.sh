@@ -4,7 +4,7 @@ source /etc/brainstorm.conf # NEO4J_URI, NEO4J_USER, NEO4J_PASSWORD, BRAINSTORM_
 source /etc/graperank.conf # GrapeRank configuration values
 
 touch ${BRAINSTORM_LOG_DIR}/calculateImportedGrapeRank.log
-sudo chown brainstorm:brainstorm ${BRAINSTORM_LOG_DIR}/calculateImportedGrapeRank.log
+chown brainstorm:brainstorm ${BRAINSTORM_LOG_DIR}/calculateImportedGrapeRank.log
 
 echo "$(date): Starting calculateImportedGrapeRank"
 echo "$(date): Starting calculateImportedGrapeRank" >> ${BRAINSTORM_LOG_DIR}/calculateImportedGrapeRank.log
@@ -52,22 +52,22 @@ cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER2" > 
 cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER3" > $TEMP_DIR/reports.csv
 
 # calculate GrapeRank from imported GrapeRank engine library
-# sudo bash $THIS_DIR/calculateFromLibrary.sh
+# bash $THIS_DIR/calculateFromLibrary.sh
 
 # tsc $THIS_DIR/calculateFromLibrary.ts
 node $THIS_DIR/calculateFromLibrary.js
 
 # create one large raw data object oRatingsReverse.json of format: [context][ratee][rater] = [score, confidence]
-# sudo bash $THIS_DIR/initializeRatings.sh
+# bash $THIS_DIR/initializeRatings.sh
 
 # intialize oScorecards: iterate through ratees.csv and create empty objects for each ratee
-# sudo bash $THIS_DIR/initializeScorecards.sh
+# bash $THIS_DIR/initializeScorecards.sh
 
 # iterate through GrapeRank until max iterations or until convergence
-# sudo bash $THIS_DIR/calculateGrapeRank.sh
+# bash $THIS_DIR/calculateGrapeRank.sh
 
 # update Neo4j with data from scorecards.json
-# sudo bash $THIS_DIR/updateNeo4j.sh
+# bash $THIS_DIR/updateNeo4j.sh
 
 # clean up tmp files
 
@@ -75,9 +75,9 @@ node $THIS_DIR/calculateFromLibrary.js
 TIMESTAMP=$(date +%s)
 TMP_CONF=$(mktemp)
 cat /etc/graperank.conf | sed "s/^export WHEN_IMPORTED_LAST_CALCULATED=.*$/export WHEN_IMPORTED_LAST_CALCULATED=$TIMESTAMP/" > "$TMP_CONF"
-sudo cp "$TMP_CONF" /etc/graperank.conf
-sudo chmod 644 /etc/graperank.conf
-sudo chown root:brainstorm /etc/graperank.conf
+cp "$TMP_CONF" /etc/graperank.conf
+chmod 644 /etc/graperank.conf
+chown root:brainstorm /etc/graperank.conf
 rm "$TMP_CONF"
 
 echo "$(date): Finished calculateImportedGrapeRank"

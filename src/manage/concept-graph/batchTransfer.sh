@@ -7,7 +7,7 @@
 source /etc/brainstorm.conf # NEO4J_URI, NEO4J_USER, NEO4J_PASSWORD
 
 touch ${BRAINSTORM_LOG_DIR}/conceptGraphBatchTransfer.log
-sudo chown brainstorm:brainstorm ${BRAINSTORM_LOG_DIR}/conceptGraphBatchTransfer.log
+chown brainstorm:brainstorm ${BRAINSTORM_LOG_DIR}/conceptGraphBatchTransfer.log
 
 echo "$(date): Starting conceptGraphBatchTransfer" 
 echo "$(date): Starting conceptGraphBatchTransfer" >> ${BRAINSTORM_LOG_DIR}/conceptGraphBatchTransfer.log
@@ -19,23 +19,23 @@ SINCE_TIMESTAMP=0
 
 filter="{ \"kinds\": [9998, 9999, 39998, 39999], \"since\": $SINCE_TIMESTAMP }"
 
-command1="sudo strfry scan --count '$filter'"
+command1="strfry scan --count '$filter'"
 eval "$command1"
 
-command2="sudo strfry scan '$filter' | jq -cr 'del(.content)' > $SCRIPT_DIR/conceptGraphEventsToAddToNeo4j.json"
+command2="strfry scan '$filter' | jq -cr 'del(.content)' > $SCRIPT_DIR/conceptGraphEventsToAddToNeo4j.json"
 eval "$command2"
 
 # execute processTags.js
 node $SCRIPT_DIR/processTags.js
 
 # APOC resolves file:/// relative to neo4j home (/usr/share/neo4j/), not the import dir
-sudo mv $SCRIPT_DIR/conceptGraphEventsToAddToNeo4j.json /usr/share/neo4j/conceptGraphEventsToAddToNeo4j.json
-sudo mv $SCRIPT_DIR/conceptGraphEventTagsToAddToNeo4j.json /usr/share/neo4j/conceptGraphEventTagsToAddToNeo4j.json
-sudo chown neo4j:neo4j /usr/share/neo4j/conceptGraphEventsToAddToNeo4j.json
-sudo chown neo4j:neo4j /usr/share/neo4j/conceptGraphEventTagsToAddToNeo4j.json
+mv $SCRIPT_DIR/conceptGraphEventsToAddToNeo4j.json /usr/share/neo4j/conceptGraphEventsToAddToNeo4j.json
+mv $SCRIPT_DIR/conceptGraphEventTagsToAddToNeo4j.json /usr/share/neo4j/conceptGraphEventTagsToAddToNeo4j.json
+chown neo4j:neo4j /usr/share/neo4j/conceptGraphEventsToAddToNeo4j.json
+chown neo4j:neo4j /usr/share/neo4j/conceptGraphEventTagsToAddToNeo4j.json
 
-sudo cypher-shell -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" -a "$NEO4J_URI" -f "$SCRIPT_DIR/apocCypherCommand1_conceptGraph" > /dev/null
-sudo cypher-shell -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" -a "$NEO4J_URI" -f "$SCRIPT_DIR/apocCypherCommand2_conceptGraph" > /dev/null
+cypher-shell -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" -a "$NEO4J_URI" -f "$SCRIPT_DIR/apocCypherCommand1_conceptGraph" > /dev/null
+cypher-shell -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" -a "$NEO4J_URI" -f "$SCRIPT_DIR/apocCypherCommand2_conceptGraph" > /dev/null
 
 # Add REFERENCES relationships to NostrEventTag nodes
 
@@ -53,9 +53,9 @@ MERGE (t)-[:REFERENCES]->(e)
 RETURN count(*) as merged
 "
 
-sudo cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$command3" >> ${BRAINSTORM_LOG_DIR}/conceptGraphBatchTransfer.log 2>&1
-sudo cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$command4" >> ${BRAINSTORM_LOG_DIR}/conceptGraphBatchTransfer.log 2>&1
+cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$command3" >> ${BRAINSTORM_LOG_DIR}/conceptGraphBatchTransfer.log 2>&1
+cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$command4" >> ${BRAINSTORM_LOG_DIR}/conceptGraphBatchTransfer.log 2>&1
 
 # clean up
-sudo rm /usr/share/neo4j/conceptGraphEventsToAddToNeo4j.json
-sudo rm /usr/share/neo4j/conceptGraphEventTagsToAddToNeo4j.json
+rm /usr/share/neo4j/conceptGraphEventsToAddToNeo4j.json
+rm /usr/share/neo4j/conceptGraphEventTagsToAddToNeo4j.json

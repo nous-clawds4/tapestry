@@ -3,7 +3,7 @@
 source /etc/brainstorm.conf # BRAINSTORM_LOG_DIR
 
 touch ${BRAINSTORM_LOG_DIR}/calculateFollowerMuterReporterInputs.log
-sudo chown brainstorm:brainstorm ${BRAINSTORM_LOG_DIR}/calculateFollowerMuterReporterInputs.log
+chown brainstorm:brainstorm ${BRAINSTORM_LOG_DIR}/calculateFollowerMuterReporterInputs.log
 
 echo "$(date): Starting calculateFollowerMuterReporterInputs"
 echo "$(date): Starting calculateFollowerMuterReporterInputs" >> ${BRAINSTORM_LOG_DIR}/calculateFollowerMuterReporterInputs.log  

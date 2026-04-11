@@ -877,7 +877,7 @@ class CustomerManager {
                 } catch (error) {
                     if (error.code === 'EACCES') {
                         console.log('⚠️ No permission to read secure keys directory, skipping');
-                        console.log('   Run as brainstorm user or with sudo to include secure keys');
+                        console.log('   Run as brainstorm user or with to include secure keys');
                     } else {
                         console.log(`⚠️ Failed to backup secure keys: ${error.message}`);
                     }
@@ -2500,7 +2500,7 @@ class CustomerManager {
             const execAsync = promisify(exec);
             
             // Use strfry to check for Kind 10040 events
-            const scanCmd = `sudo strfry scan '{"kinds":[10040], "authors":["${pubkey}"], "limit": 1}'`;
+            const scanCmd = `strfry scan '{"kinds":[10040], "authors":["${pubkey}"], "limit": 1}'`;
             const { stdout } = await execAsync(scanCmd);
             
             if (stdout.trim()) {
@@ -2567,13 +2567,13 @@ class CustomerManager {
             const execAsync = promisify(exec);
             
             // Get count of Kind 30382 events authored by the relay
-            const countCmd = `sudo strfry scan --count '{"kinds":[30382], "authors":["${relayPubkey}"]}'`;
+            const countCmd = `strfry scan --count '{"kinds":[30382], "authors":["${relayPubkey}"]}'`;
             const { stdout: countOutput } = await execAsync(countCmd);
             const count = parseInt(countOutput.trim()) || 0;
             
             if (count > 0) {
                 // Get the most recent Kind 30382 event
-                const scanCmd = `sudo strfry scan '{"kinds":[30382], "authors":["${relayPubkey}"], "limit": 1}'`;
+                const scanCmd = `strfry scan '{"kinds":[30382], "authors":["${relayPubkey}"], "limit": 1}'`;
                 const { stdout } = await execAsync(scanCmd);
                 
                 if (stdout.trim()) {

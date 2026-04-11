@@ -9,5 +9,5 @@ cd /usr/local/lib/node_modules/brainstorm/src/pipeline/batch/
 node kind1984EventsToReports.js
 
 # Move files to Neo4j import directory
-sudo mv reportsToAddToNeo4j.json /var/lib/neo4j/import/reportsToAddToNeo4j.json
-sudo mv allKind1984EventsStripped.json /var/lib/neo4j/import/allKind1984EventsStripped.json
+mv reportsToAddToNeo4j.json /var/lib/neo4j/import/reportsToAddToNeo4j.json
+mv allKind1984EventsStripped.json /var/lib/neo4j/import/allKind1984EventsStripped.json

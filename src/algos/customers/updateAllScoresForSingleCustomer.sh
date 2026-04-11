@@ -30,12 +30,12 @@ LOG_DIR="$BRAINSTORM_LOG_DIR/customers/$CUSTOMER_DIRECTORY_NAME"
 
 # Create log directory if it doesn't exist; chown to brainstorm:brainstorm
 mkdir -p "$LOG_DIR"
-sudo chown brainstorm:brainstorm "$LOG_DIR"
+chown brainstorm:brainstorm "$LOG_DIR"
 
 # Log file
 LOG_FILE="$LOG_DIR/updateAllScoresForSingleCustomer.log"
 touch ${LOG_FILE}
-sudo chown brainstorm:brainstorm ${LOG_FILE}
+chown brainstorm:brainstorm ${LOG_FILE}
 
 # Log start time
 echo "$(date): Starting updateAllScoresForSingleCustomer for customer $CUSTOMER_ID and customer_pubkey $CUSTOMER_PUBKEY and customer_directory_name $CUSTOMER_DIRECTORY_NAME"
@@ -85,7 +85,7 @@ oMetadata=$(jq -n \
 emit_task_event "CHILD_TASK_START" "calculateCustomerHops" "$CUSTOMER_PUBKEY" "$oMetadata"
 
 # Run calculateHops.sh
-if sudo bash $BRAINSTORM_MODULE_ALGOS_DIR/customers/calculateHops.sh "$CUSTOMER_PUBKEY" "$CUSTOMER_ID" "$CUSTOMER_DIRECTORY_NAME"; then
+if bash $BRAINSTORM_MODULE_ALGOS_DIR/customers/calculateHops.sh "$CUSTOMER_PUBKEY" "$CUSTOMER_ID" "$CUSTOMER_DIRECTORY_NAME"; then
     oMetadata=$(jq -n \
         --argjson customer_id "$CUSTOMER_ID" \
         --arg customer_pubkey "$CUSTOMER_PUBKEY" \
@@ -156,7 +156,7 @@ oMetadata=$(jq -n \
 emit_task_event "CHILD_TASK_START" "calculateCustomerPageRank" "$CUSTOMER_PUBKEY" "$oMetadata"
 
 # Run personalizedPageRank.sh
-if sudo bash $BRAINSTORM_MODULE_ALGOS_DIR/customers/personalizedPageRank.sh "$CUSTOMER_PUBKEY" "$CUSTOMER_ID" "$CUSTOMER_DIRECTORY_NAME"; then
+if bash $BRAINSTORM_MODULE_ALGOS_DIR/customers/personalizedPageRank.sh "$CUSTOMER_PUBKEY" "$CUSTOMER_ID" "$CUSTOMER_DIRECTORY_NAME"; then
     oMetadata=$(jq -n \
         --argjson customer_id "$CUSTOMER_ID" \
         --arg customer_pubkey "$CUSTOMER_PUBKEY" \
@@ -227,7 +227,7 @@ oMetadata=$(jq -n \
 emit_task_event "CHILD_TASK_START" "calculateCustomerGrapeRank" "$CUSTOMER_PUBKEY" "$oMetadata"
 
 # Run personalizedGrapeRank.sh
-if sudo bash $BRAINSTORM_MODULE_ALGOS_DIR/customers/personalizedGrapeRank/personalizedGrapeRank.sh "$CUSTOMER_PUBKEY" "$CUSTOMER_ID" "$CUSTOMER_DIRECTORY_NAME"; then
+if bash $BRAINSTORM_MODULE_ALGOS_DIR/customers/personalizedGrapeRank/personalizedGrapeRank.sh "$CUSTOMER_PUBKEY" "$CUSTOMER_ID" "$CUSTOMER_DIRECTORY_NAME"; then
     oMetadata=$(jq -n \
     --argjson customer_id "$CUSTOMER_ID" \
     --arg customer_pubkey "$CUSTOMER_PUBKEY" \
@@ -298,7 +298,7 @@ oMetadata=$(jq -n \
 emit_task_event "CHILD_TASK_START" "processCustomerFollowsMutesReports" "$CUSTOMER_PUBKEY" "$oMetadata"
 
 # Run processFollowsMutesReports.sh
-if sudo bash $BRAINSTORM_MODULE_ALGOS_DIR/customers/follows-mutes-reports/processFollowsMutesReports.sh "$CUSTOMER_PUBKEY" "$CUSTOMER_ID" "$CUSTOMER_DIRECTORY_NAME"; then
+if bash $BRAINSTORM_MODULE_ALGOS_DIR/customers/follows-mutes-reports/processFollowsMutesReports.sh "$CUSTOMER_PUBKEY" "$CUSTOMER_ID" "$CUSTOMER_DIRECTORY_NAME"; then
     oMetadata=$(jq -n \
     --argjson customer_id "$CUSTOMER_ID" \
     --arg customer_pubkey "$CUSTOMER_PUBKEY" \
@@ -374,7 +374,7 @@ oMetadata=$(jq -n \
 emit_task_event "CHILD_TASK_START" "exportCustomerKind30382" "$CUSTOMER_PUBKEY" "$oMetadata"
 
 # generate nip-85 exports
-if sudo bash $BRAINSTORM_MODULE_ALGOS_DIR/customers/nip85/publishNip85.sh "$CUSTOMER_PUBKEY" "$CUSTOMER_ID" "$CUSTOMER_DIRECTORY_NAME"; then
+if bash $BRAINSTORM_MODULE_ALGOS_DIR/customers/nip85/publishNip85.sh "$CUSTOMER_PUBKEY" "$CUSTOMER_ID" "$CUSTOMER_DIRECTORY_NAME"; then
     oMetadata=$(jq -n \
     --argjson customer_id "$CUSTOMER_ID" \
     --arg customer_pubkey "$CUSTOMER_PUBKEY" \

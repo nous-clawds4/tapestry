@@ -160,7 +160,7 @@ check_heap_and_gc_health() {
     
     # Fallback: if EntryPoint search fails, use neo4j status command
     if [[ -z "$neo4j_pid" ]]; then
-        neo4j_pid=$(sudo neo4j status 2>/dev/null | grep -o "pid [0-9]*" | awk '{print $2}' || echo "")
+        neo4j_pid=$(neo4j status 2>/dev/null | grep -o "pid [0-9]*" | awk '{print $2}' || echo "")
     fi
     
     # Final fallback: look for java process with larger memory allocation (main server)
@@ -344,12 +344,12 @@ check_heap_and_gc_health() {
         if command -v jstat >/dev/null 2>&1; then
             # DEBUG: Output jstat commands and results
             echo "DEBUG: Executing jstat commands for PID $neo4j_pid"
-            echo "DEBUG: Command 1: sudo jstat -gc $neo4j_pid"
-            local heap_info=$(sudo jstat -gc "$neo4j_pid" 2>/dev/null || echo "")
+            echo "DEBUG: Command 1: jstat -gc $neo4j_pid"
+            local heap_info=$(jstat -gc "$neo4j_pid" 2>/dev/null || echo "")
             echo "DEBUG: jstat -gc result:"
             echo "$heap_info"
-            echo "DEBUG: Command 2: sudo jstat -class $neo4j_pid"
-            local metaspace_info=$(sudo jstat -class "$neo4j_pid" 2>/dev/null || echo "")
+            echo "DEBUG: Command 2: jstat -class $neo4j_pid"
+            local metaspace_info=$(jstat -class "$neo4j_pid" 2>/dev/null || echo "")
             echo "DEBUG: jstat -class result:"
             echo "$metaspace_info"
             
@@ -387,8 +387,8 @@ check_heap_and_gc_health() {
                     echo "DEBUG: Metaspace from jstat -class: used=$metaspace_used bytes"
                     
                     # Use jstat -gc for more reliable metaspace data (MU and MC columns)
-                    echo "DEBUG: Command 3: sudo jstat -gc $neo4j_pid (for metaspace MC/MU)"
-                    local gc_info=$(sudo jstat -gc "$neo4j_pid" 2>/dev/null || echo "")
+                    echo "DEBUG: Command 3: jstat -gc $neo4j_pid (for metaspace MC/MU)"
+                    local gc_info=$(jstat -gc "$neo4j_pid" 2>/dev/null || echo "")
                     echo "DEBUG: jstat -gc result for metaspace:"
                     echo "$gc_info"
                     if [[ -n "$gc_info" ]]; then
@@ -482,7 +482,7 @@ check_heap_and_gc_health() {
                     
                     # Fallback: if we still don't have capacity, try jstat -gccapacity with better column detection
                     if [[ "$metaspace_total" -eq 0 ]]; then
-                        local capacity_info=$(sudo jstat -gccapacity "$neo4j_pid" 2>/dev/null || echo "")
+                        local capacity_info=$(jstat -gccapacity "$neo4j_pid" 2>/dev/null || echo "")
                         if [[ -n "$capacity_info" ]]; then
                             # Get header to identify MC column position
                             local header=$(echo "$capacity_info" | head -1)

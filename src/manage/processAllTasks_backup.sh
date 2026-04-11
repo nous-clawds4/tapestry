@@ -44,7 +44,7 @@ check_disk_space() {
 }
 
 touch ${BRAINSTORM_LOG_DIR}/processAllTasks.log
-sudo chown brainstorm:brainstorm ${BRAINSTORM_LOG_DIR}/processAllTasks.log
+chown brainstorm:brainstorm ${BRAINSTORM_LOG_DIR}/processAllTasks.log
 
 echo "$(date): Starting processAllTasks" >> ${BRAINSTORM_LOG_DIR}/processAllTasks.log
 
@@ -68,7 +68,7 @@ emit_task_event "CHILD_TASK_START" "processAllTasks" "" '{
     "operation": "constraints_and_indexes"
 }'
 
-if sudo $BRAINSTORM_MODULE_BASE_DIR/setup/neo4jConstraintsAndIndexes.sh; then
+if $BRAINSTORM_MODULE_BASE_DIR/setup/neo4jConstraintsAndIndexes.sh; then
     emit_task_event "CHILD_TASK_END" "processAllTasks" "" '{
         "child_task": "neo4jConstraintsAndIndexes",
         "child_exit_code": '$CHILD_EXIT_CODE',
@@ -111,14 +111,14 @@ fi
 sleep 5
 
 # temporarily disable; perform manually for now
-# sudo $BRAINSTORM_MODULE_MANAGE_DIR/negentropySync/syncProfiles.sh
+# $BRAINSTORM_MODULE_MANAGE_DIR/negentropySync/syncProfiles.sh
 # echo "$(date): Continuing processAllTasks; syncProfiles.sh completed"
 # echo "$(date): Continuing processAllTasks; syncProfiles.sh completed" >> ${BRAINSTORM_LOG_DIR}/processAllTasks.log
 
 # sleep 5
 
 # temporarily disable
-# sudo $BRAINSTORM_MODULE_MANAGE_DIR/negentropySync/syncPersonal.sh
+# $BRAINSTORM_MODULE_MANAGE_DIR/negentropySync/syncPersonal.sh
 # echo "$(date): Continuing processAllTasks; syncPersonal.sh completed"
 # echo "$(date): Continuing processAllTasks; syncPersonal.sh completed" >> ${BRAINSTORM_LOG_DIR}/processAllTasks.log
 
@@ -133,7 +133,7 @@ emit_task_event "CHILD_TASK_START" "processAllTasks" "" '{
     "operation": "batch_transfer"
 }'
 
-if sudo $BRAINSTORM_MODULE_MANAGE_DIR/batchTransfer/callBatchTransferIfNeeded.sh; then
+if $BRAINSTORM_MODULE_MANAGE_DIR/batchTransfer/callBatchTransferIfNeeded.sh; then
     emit_task_event "CHILD_TASK_END" "processAllTasks" "" '{
         "child_task": "callBatchTransferIfNeeded",
         "status": "success",
@@ -159,7 +159,7 @@ echo "$(date): Continuing processAllTasks; callBatchTransferIfNeeded.sh complete
 # Check disk space before deleting relationships
 # check_disk_space "Before deleting relationships"
 
-# sudo $BRAINSTORM_MODULE_MANAGE_DIR/deleteRels/deleteAllRelationships/deleteAllRelationships.sh
+# $BRAINSTORM_MODULE_MANAGE_DIR/deleteRels/deleteAllRelationships/deleteAllRelationships.sh
 # echo "$(date): Continuing processAllTasks; deleteAllRelationships.sh completed"
 # echo "$(date): Continuing processAllTasks; deleteAllRelationships.sh completed" >> ${BRAINSTORM_LOG_DIR}/processAllTasks.log
 
@@ -172,7 +172,7 @@ echo "$(date): Continuing processAllTasks; callBatchTransferIfNeeded.sh complete
 # check_disk_space "After deleting relationships, before neo4j restart"
 
 # restart neo4j to clear tx logs
-# sudo systemctl restart neo4j
+# systemctl restart neo4j
 
 # wait 5 minutes to allow neo4j to clear tx logs
 # sleep 300
@@ -180,7 +180,7 @@ echo "$(date): Continuing processAllTasks; callBatchTransferIfNeeded.sh complete
 # Check disk space after deleting relationships
 # check_disk_space "After deleting relationships, after neo4j restart"
 
-# sudo $BRAINSTORM_MODULE_MANAGE_DIR/batchTransfer/callBatchTransfer.sh
+# $BRAINSTORM_MODULE_MANAGE_DIR/batchTransfer/callBatchTransfer.sh
 # echo "$(date): Continuing processAllTasks; callBatchTransfer.sh completed"
 # echo "$(date): Continuing processAllTasks; callBatchTransfer.sh completed" >> ${BRAINSTORM_LOG_DIR}/processAllTasks.log
 
@@ -190,7 +190,7 @@ echo "$(date): Continuing processAllTasks; callBatchTransferIfNeeded.sh complete
 # sleep 5
 
 # restart neo4j to clear tx logs
-# sudo systemctl restart neo4j
+# systemctl restart neo4j
 
 # wait 5 minutes to allow neo4j to clear tx logs
 # sleep 300
@@ -200,7 +200,7 @@ echo "$(date): Continuing processAllTasks; callBatchTransferIfNeeded.sh complete
 
 # May be removing this step; in its place, using reconcile service to run it more frequently
 # UPDATE: as of July 17 2025 this is replaced by reconciliation service
-# sudo $BRAINSTORM_MODULE_PIPELINE_DIR/reconcile/runFullReconciliation.sh
+# $BRAINSTORM_MODULE_PIPELINE_DIR/reconcile/runFullReconciliation.sh
 # echo "$(date): Continuing processAllTasks; runFullReconciliation.sh completed"
 # echo "$(date): Continuing processAllTasks; runFullReconciliation.sh completed" >> ${BRAINSTORM_LOG_DIR}/processAllTasks.log
 
@@ -218,7 +218,7 @@ emit_task_event "CHILD_TASK_START" "processAllTasks" "" '{
     "structured_logging": true
 }'
 
-if sudo $BRAINSTORM_MODULE_PIPELINE_DIR/reconciliation/reconciliation.sh; then
+if $BRAINSTORM_MODULE_PIPELINE_DIR/reconciliation/reconciliation.sh; then
     emit_task_event "CHILD_TASK_END" "processAllTasks" "" '{
         "child_task": "reconciliation",
         "status": "success",
@@ -255,7 +255,7 @@ emit_task_event "CHILD_TASK_START" "processAllTasks" "" '{
     "operation": "npub_processing"
 }'
 
-if sudo $BRAINSTORM_MODULE_MANAGE_DIR/nostrUsers/processNpubsUpToMaxNumBlocks.sh; then
+if $BRAINSTORM_MODULE_MANAGE_DIR/nostrUsers/processNpubsUpToMaxNumBlocks.sh; then
     emit_task_event "CHILD_TASK_END" "processAllTasks" "" '{
         "child_task": "processNpubs",
         "status": "success",
@@ -288,7 +288,7 @@ emit_task_event "CHILD_TASK_START" "processAllTasks" "" '{
     "structured_logging": true
 }'
 
-if sudo $BRAINSTORM_MODULE_ALGOS_DIR/calculateHops.sh; then
+if $BRAINSTORM_MODULE_ALGOS_DIR/calculateHops.sh; then
     emit_task_event "CHILD_TASK_END" "processAllTasks" "" '{
         "child_task": "calculateHops",
         "status": "success",
@@ -321,7 +321,7 @@ emit_task_event "CHILD_TASK_START" "processAllTasks" "" '{
     "structured_logging": true
 }'
 
-if sudo $BRAINSTORM_MODULE_ALGOS_DIR/calculatePersonalizedPageRank.sh; then
+if $BRAINSTORM_MODULE_ALGOS_DIR/calculatePersonalizedPageRank.sh; then
     emit_task_event "CHILD_TASK_END" "processAllTasks" "" '{
         "child_task": "calculatePersonalizedPageRank",
         "status": "success",
@@ -357,7 +357,7 @@ emit_task_event "CHILD_TASK_START" "processAllTasks" "" '{
 }'
 
 # The controller script handles the timeout and retry logic
-if sudo $BRAINSTORM_MODULE_ALGOS_DIR/personalizedGrapeRank/calculatePersonalizedGrapeRankController.sh; then
+if $BRAINSTORM_MODULE_ALGOS_DIR/personalizedGrapeRank/calculatePersonalizedGrapeRankController.sh; then
     emit_task_event "CHILD_TASK_END" "processAllTasks" "" '{
         "child_task": "calculatePersonalizedGrapeRankController",
         "status": "success",
@@ -392,7 +392,7 @@ emit_task_event "CHILD_TASK_START" "processAllTasks" "" '{
     "structured_logging": true
 }'
 
-if sudo $BRAINSTORM_MODULE_ALGOS_DIR/follows-mutes-reports/processFollowsMutesReports.sh; then
+if $BRAINSTORM_MODULE_ALGOS_DIR/follows-mutes-reports/processFollowsMutesReports.sh; then
     emit_task_event "CHILD_TASK_END" "processAllTasks" "" '{
         "child_task": "processFollowsMutesReports",
         "status": "success",
@@ -426,7 +426,7 @@ emit_task_event "CHILD_TASK_START" "processAllTasks" "" '{
     "operation": "report_scores"
 }'
 
-if sudo $BRAINSTORM_MODULE_ALGOS_DIR/reports/calculateReportScores.sh; then
+if $BRAINSTORM_MODULE_ALGOS_DIR/reports/calculateReportScores.sh; then
     emit_task_event "CHILD_TASK_END" "processAllTasks" "" '{
         "child_task": "calculateReportScores",
         "status": "success",
@@ -450,7 +450,7 @@ echo "$(date): Continuing processAllTasks; calculateReportScores.sh completed" >
 sleep 5
 
 # temporarily disabled while we move calculation of follows, mutes, and reports inputs to a separate script
-# sudo $BRAINSTORM_MODULE_ALGOS_DIR/personalizedBlacklist/calculatePersonalizedBlacklist.sh
+# $BRAINSTORM_MODULE_ALGOS_DIR/personalizedBlacklist/calculatePersonalizedBlacklist.sh
 # echo "$(date): Continuing processAllTasks; calculatePersonalizedBlacklist.sh completed"
 # echo "$(date): Continuing processAllTasks; calculatePersonalizedBlacklist.sh completed" >> ${BRAINSTORM_LOG_DIR}/processAllTasks.log
 
@@ -465,7 +465,7 @@ emit_task_event "CHILD_TASK_START" "processAllTasks" "" '{
     "operation": "whitelist_export"
 }'
 
-if sudo $BRAINSTORM_MODULE_ALGOS_DIR/exportWhitelist.sh; then
+if $BRAINSTORM_MODULE_ALGOS_DIR/exportWhitelist.sh; then
     emit_task_event "CHILD_TASK_END" "processAllTasks" "" '{
         "child_task": "exportWhitelist",
         "status": "success",
@@ -494,7 +494,7 @@ emit_task_event "CHILD_TASK_START" "processAllTasks" \
     "child_task=publishNip85" \
     "message=Starting NIP-85 trusted assertions publishing"
 
-if sudo $BRAINSTORM_MODULE_ALGOS_DIR/nip85/publishNip85.sh; then
+if $BRAINSTORM_MODULE_ALGOS_DIR/nip85/publishNip85.sh; then
     emit_task_event "CHILD_TASK_END" "processAllTasks" \
         "child_task=publishNip85" \
         "status=success" \
@@ -523,7 +523,7 @@ emit_task_event "CHILD_TASK_START" "processAllTasks" "" '{
     "structured_logging": true
 }'
 
-if sudo $BRAINSTORM_MODULE_ALGOS_DIR/customers/processAllActiveCustomers.sh; then
+if $BRAINSTORM_MODULE_ALGOS_DIR/customers/processAllActiveCustomers.sh; then
     emit_task_event "CHILD_TASK_END" "processAllTasks" "" '{
         "child_task": "processAllActiveCustomers",
         "status": "success",
@@ -549,7 +549,7 @@ echo "$(date): Continuing processAllTasks; processAllActiveCustomers.sh complete
 sleep 5
 
 # restart the reconcile service
-# sudo systemctl restart reconcile.service
+# systemctl restart reconcile.service
 # echo "$(date): Continuing processAllTasks; reconcile.service restarted"
 # echo "$(date): Continuing processAllTasks; reconcile.service restarted" >> ${BRAINSTORM_LOG_DIR}/processAllTasks.log
 # sleep 5

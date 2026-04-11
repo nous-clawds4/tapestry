@@ -14,7 +14,7 @@ const { getServiceStatus } = require('../queries/status');
  */
 function controlService(serviceName, action) {
   try {
-    execSync(`sudo systemctl ${action} ${serviceName}`);
+    execSync(`systemctl ${action} ${serviceName}`);
     return { success: true, message: `Service ${serviceName} ${action} successful` };
   } catch (error) {
     return { success: false, message: `Failed to ${action} ${serviceName}: ${error.message}` };

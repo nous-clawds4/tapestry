@@ -5,7 +5,7 @@ source /etc/brainstorm.conf # BRAINSTORM_OWNER_PUBKEY
 source /etc/graperank.conf   # Rating and confidence values
 
 touch ${BRAINSTORM_LOG_DIR}/calculatePersonalizedGrapeRank.log
-sudo chown brainstorm:brainstorm ${BRAINSTORM_LOG_DIR}/calculatePersonalizedGrapeRank.log
+chown brainstorm:brainstorm ${BRAINSTORM_LOG_DIR}/calculatePersonalizedGrapeRank.log
 
 echo "$(date): Starting calculatePersonalizedGrapeRank"
 echo "$(date): Starting calculatePersonalizedGrapeRank" >> ${BRAINSTORM_LOG_DIR}/calculatePersonalizedGrapeRank.log
@@ -57,25 +57,25 @@ echo "$(date): Continuing calculatePersonalizedGrapeRank ... finished cypher que
 echo "$(date): Continuing calculatePersonalizedGrapeRank ... finished cypher queries, starting initializeRatings" >> ${BRAINSTORM_LOG_DIR}/calculatePersonalizedGrapeRank.log
 
 # create one large raw data object oRatingsReverse.json of format: [context][ratee][rater] = [score, confidence]
-sudo bash $THIS_DIR/initializeRatings.sh
+bash $THIS_DIR/initializeRatings.sh
 
 echo "$(date): Continuing calculatePersonalizedGrapeRank ... finished initializeRatings, calling initializeScorecards"
 echo "$(date): Continuing calculatePersonalizedGrapeRank ... finished initializeRatings, calling initializeScorecards" >> ${BRAINSTORM_LOG_DIR}/calculatePersonalizedGrapeRank.log
 
 # intialize oScorecards: iterate through ratees.csv and create empty objects for each ratee
-sudo bash $THIS_DIR/initializeScorecards.sh
+bash $THIS_DIR/initializeScorecards.sh
 
 echo "$(date): Continuing calculatePersonalizedGrapeRank ... finished initializeScorecards, calling calculateGrapeRank"
 echo "$(date): Continuing calculatePersonalizedGrapeRank ... finished initializeScorecards, calling calculateGrapeRank" >> ${BRAINSTORM_LOG_DIR}/calculatePersonalizedGrapeRank.log
 
 # iterate through GrapeRank until max iterations or until convergence
-sudo bash $THIS_DIR/calculateGrapeRank.sh
+bash $THIS_DIR/calculateGrapeRank.sh
 
 echo "$(date): Continuing calculatePersonalizedGrapeRank ... finished calculateGrapeRank, calling updateNeo4j"
 echo "$(date): Continuing calculatePersonalizedGrapeRank ... finished calculateGrapeRank, calling updateNeo4j" >> ${BRAINSTORM_LOG_DIR}/calculatePersonalizedGrapeRank.log
 
 # update Neo4j with data from scorecards.json
-sudo bash $THIS_DIR/updateNeo4j.sh
+bash $THIS_DIR/updateNeo4j.sh
 
 echo "$(date): Continuing calculatePersonalizedGrapeRank ... finished updateNeo4j, starting clean up"
 echo "$(date): Continuing calculatePersonalizedGrapeRank ... finished updateNeo4j, starting clean up" >> ${BRAINSTORM_LOG_DIR}/calculatePersonalizedGrapeRank.log
@@ -86,9 +86,9 @@ echo "$(date): Continuing calculatePersonalizedGrapeRank ... finished updateNeo4
 TIMESTAMP=$(date +%s)
 TMP_CONF=$(mktemp)
 cat /etc/graperank.conf | sed "s/^export WHEN_LAST_CALCULATED=.*$/export WHEN_LAST_CALCULATED=$TIMESTAMP/" > "$TMP_CONF"
-sudo cp "$TMP_CONF" /etc/graperank.conf
-sudo chmod 644 /etc/graperank.conf
-sudo chown root:brainstorm /etc/graperank.conf
+cp "$TMP_CONF" /etc/graperank.conf
+chmod 644 /etc/graperank.conf
+chown root:brainstorm /etc/graperank.conf
 rm "$TMP_CONF"
 
 echo "$(date): Finished calculatePersonalizedGrapeRank"

@@ -26,12 +26,12 @@ const CUSTOMER_NAME = process.argv[4];
 // Get log directory
 const LOG_DIR = '/var/log/brainstorm/customers/' + CUSTOMER_NAME;
 execSync(`touch ${LOG_DIR}`);
-execSync(`sudo chown brainstorm:brainstorm ${LOG_DIR}`);
+execSync(`chown brainstorm:brainstorm ${LOG_DIR}`);
 
 // Log file
 const LOG_FILE = `${LOG_DIR}/publishNip85.log`;
 execSync(`touch ${LOG_FILE}`);
-execSync(`sudo chown brainstorm:brainstorm ${LOG_FILE}`);
+execSync(`chown brainstorm:brainstorm ${LOG_FILE}`);
 
 // Get relay configuration (will be moved into main function)
 const relayUrl = getConfigFromFile('BRAINSTORM_RELAY_URL', '');

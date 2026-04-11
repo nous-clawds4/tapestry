@@ -32,10 +32,10 @@ const CONFIG_FILES = {
 const BATCH_SIZE = 500; // Number of users to update in a single batch
 const LOG_DIR  = '/var/log/brainstorm/customers/' + CUSTOMER_NAME;
 execSync(`touch ${LOG_DIR}`);
-execSync(`sudo chown brainstorm:brainstorm ${LOG_DIR}`);
+execSync(`chown brainstorm:brainstorm ${LOG_DIR}`);
 const LOG_FILE = path.join(LOG_DIR, 'updateNeo4j.log');
 execSync(`touch ${LOG_FILE}`);
-execSync(`sudo chown brainstorm:brainstorm ${LOG_FILE}`);
+execSync(`chown brainstorm:brainstorm ${LOG_FILE}`);
 
 // Get Neo4j configuration from brainstorm.conf
 function getNeo4jConfig() {

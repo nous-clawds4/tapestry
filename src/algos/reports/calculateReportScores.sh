@@ -8,7 +8,7 @@ source /etc/brainstorm.conf # BRAINSTORM_LOG_DIR
 source "$BRAINSTORM_MODULE_BASE_DIR/src/utils/structuredLogging.sh"
 
 touch ${BRAINSTORM_LOG_DIR}/calculateReportScores.log
-sudo chown brainstorm:brainstorm ${BRAINSTORM_LOG_DIR}/calculateReportScores.log
+chown brainstorm:brainstorm ${BRAINSTORM_LOG_DIR}/calculateReportScores.log
 
 echo "$(date): Starting calculateReportScores"
 echo "$(date): Starting calculateReportScores" >> ${BRAINSTORM_LOG_DIR}/calculateReportScores.log
@@ -37,7 +37,7 @@ emit_task_event "PROGRESS" "calculateReportScores" "$BRAINSTORM_OWNER_PUBKEY" '{
 }'
 
 # update reportTypes.txt
-sudo $BRAINSTORM_MODULE_ALGOS_DIR/reports/updateReportTypes.sh
+$BRAINSTORM_MODULE_ALGOS_DIR/reports/updateReportTypes.sh
 
 # import text list of report types
 REPORT_TYPES=$(cat ${BRAINSTORM_MODULE_ALGOS_DIR}/reports/reportTypes.txt)
@@ -72,7 +72,7 @@ emit_task_event "PROGRESS" "calculateReportScores" "$BRAINSTORM_OWNER_PUBKEY" "$
 for reportType in $REPORT_TYPES; do
     report_type_count=$((report_type_count + 1))
 
-    cypherResults1=$(sudo cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "
+    cypherResults1=$(cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "
 MATCH (a:NostrUser)-[r:REPORTS {report_type: '$reportType'}]->(u:NostrUser)
 WITH u, SUM(a.influence) AS influenceTotal, COUNT(r) AS totalReportCount
 SET u.nip56_${reportType}_grapeRankScore = influenceTotal, u.nip56_${reportType}_reportCount = totalReportCount
@@ -81,7 +81,7 @@ RETURN COUNT(u) AS numReportedUsers")
     echo "$(date): for reportType: $reportType; numReportedUsers: $numReportedUsers"
     echo "$(date): for reportType: $reportType; numReportedUsers: $numReportedUsers" >> ${BRAINSTORM_LOG_DIR}/calculateReportScores.log
 
-    cypherResults2=$(sudo cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "
+    cypherResults2=$(cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "
 MATCH (a:NostrUser)-[r:REPORTS {report_type: '$reportType'}]->(u:NostrUser)
 WHERE a.influence > 0.1
 WITH u, COUNT(r) AS verifiedReportCount
@@ -166,7 +166,7 @@ RETURN COUNT(u) AS numReportedUsers
 
 echo "cypherCommand: ${cypherCommand}"
 
-cypherResults3=$(sudo cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$cypherCommand")
+cypherResults3=$(cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$cypherCommand")
 
 numReportedUsers="${cypherResults3:11}"
 

@@ -60,9 +60,9 @@ function handleUpdateWhitelistConfig(req, res) {
     fs.writeFileSync(tempConfigPath, updatedLines.join('\n'));
     
     // Copy the temporary file to the actual configuration file with sudo
-    execSync(`sudo cp ${tempConfigPath} ${configPath}`);
-    execSync(`sudo chmod 644 ${configPath}`);
-    execSync(`sudo chown root:brainstorm ${configPath}`);
+    execSync(`cp ${tempConfigPath} ${configPath}`);
+    execSync(`chmod 644 ${configPath}`);
+    execSync(`chown root:brainstorm ${configPath}`);
     
     // Clean up the temporary file
     fs.unlinkSync(tempConfigPath);

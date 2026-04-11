@@ -26,7 +26,7 @@ RETURN gds.graph.project(
 
 CYPHER2="CALL gds.graph.drop('followsGraph') YIELD graphName"
 
-CYPHER0_RESULTS=$(sudo cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER0")
+CYPHER0_RESULTS=$(cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER0")
 echo "$CYPHER0_RESULTS"
 
 # Iterate over each line in CYPHER0_RESULTS, extract graphName, creationTime, modificationTime
@@ -45,7 +45,7 @@ while IFS=',' read -r graphName creationTime modificationTime; do
             echo "$(date): followsGraph exists and was modified more than 3 hours ago; need to reproject it"
             echo "$(date): followsGraph exists and was modified more than 3 hours ago; need to reproject it" >> ${BRAINSTORM_LOG_DIR}/projectFollowsGraphIntoMemory.log
             # run CYPHER2 to drop the old followsGraph if it exists
-            sudo cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER2"
+            cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER2"
             echo "$(date): old followsGraph dropped"
             echo "$(date): old followsGraph dropped" >> ${BRAINSTORM_LOG_DIR}/projectFollowsGraphIntoMemory.log
         else
@@ -60,7 +60,7 @@ if [ "$RUN_GRAPH_PROJECT" = true ]; then
     echo "$(date): followsGraph dropped"
     echo "$(date): followsGraph dropped" >> ${BRAINSTORM_LOG_DIR}/projectFollowsGraphIntoMemory.log
     # run CYPHER1 to project the new followsGraph into memory
-    sudo cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER1"
+    cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER1"
     echo "$(date): followsGraph projected into memory"
     echo "$(date): followsGraph projected into memory" >> ${BRAINSTORM_LOG_DIR}/projectFollowsGraphIntoMemory.log
 fi

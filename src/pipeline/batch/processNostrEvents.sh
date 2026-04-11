@@ -17,7 +17,7 @@ process_event_kind() {
     
     # Extract events of the specified kind from strfry
     echo "Extracting kind $EVENT_KIND events from strfry..."
-    sudo strfry scan "{ \"kinds\": [$EVENT_KIND]}" > allKind${EVENT_KIND}EventsStripped.json
+    strfry scan "{ \"kinds\": [$EVENT_KIND]}" > allKind${EVENT_KIND}EventsStripped.json
     
     # Process events to extract relationships
     echo "Processing kind $EVENT_KIND events to extract $RELATIONSHIP_TYPE relationships..."
@@ -25,10 +25,10 @@ process_event_kind() {
     
     # Move files to Neo4j import directory
     echo "Moving files to Neo4j import directory..."
-    sudo mv ${RELATIONSHIP_TYPE}ToAddToNeo4j.json /var/lib/neo4j/import/${RELATIONSHIP_TYPE}ToAddToNeo4j.json
-    sudo mv allKind${EVENT_KIND}EventsStripped.json /var/lib/neo4j/import/allKind${EVENT_KIND}EventsStripped.json
-    sudo chown neo4j:neo4j /var/lib/neo4j/import/${RELATIONSHIP_TYPE}ToAddToNeo4j.json
-    sudo chown neo4j:neo4j /var/lib/neo4j/import/allKind${EVENT_KIND}EventsStripped.json
+    mv ${RELATIONSHIP_TYPE}ToAddToNeo4j.json /var/lib/neo4j/import/${RELATIONSHIP_TYPE}ToAddToNeo4j.json
+    mv allKind${EVENT_KIND}EventsStripped.json /var/lib/neo4j/import/allKind${EVENT_KIND}EventsStripped.json
+    chown neo4j:neo4j /var/lib/neo4j/import/${RELATIONSHIP_TYPE}ToAddToNeo4j.json
+    chown neo4j:neo4j /var/lib/neo4j/import/allKind${EVENT_KIND}EventsStripped.json
     
     # Create Cypher query file for this relationship type
     echo "Creating Cypher query for $RELATIONSHIP_TYPE relationships..."
@@ -72,15 +72,15 @@ EOF
     
     # Execute the Cypher query
     echo "Executing Cypher query for $RELATIONSHIP_TYPE relationships..."
-    sudo cp ${RELATIONSHIP_TYPE}CypherCommand.cypher /var/lib/neo4j/import/${RELATIONSHIP_TYPE}CypherCommand.cypher
-    sudo chown neo4j:neo4j /var/lib/neo4j/import/${RELATIONSHIP_TYPE}CypherCommand.cypher
-    sudo cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" -f /var/lib/neo4j/import/${RELATIONSHIP_TYPE}CypherCommand.cypher
+    cp ${RELATIONSHIP_TYPE}CypherCommand.cypher /var/lib/neo4j/import/${RELATIONSHIP_TYPE}CypherCommand.cypher
+    chown neo4j:neo4j /var/lib/neo4j/import/${RELATIONSHIP_TYPE}CypherCommand.cypher
+    cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" -f /var/lib/neo4j/import/${RELATIONSHIP_TYPE}CypherCommand.cypher
     
     # Clean up
     echo "Cleaning up..."
-    sudo rm /var/lib/neo4j/import/${RELATIONSHIP_TYPE}ToAddToNeo4j.json
-    sudo rm /var/lib/neo4j/import/allKind${EVENT_KIND}EventsStripped.json
-    sudo rm /var/lib/neo4j/import/${RELATIONSHIP_TYPE}CypherCommand.cypher
+    rm /var/lib/neo4j/import/${RELATIONSHIP_TYPE}ToAddToNeo4j.json
+    rm /var/lib/neo4j/import/allKind${EVENT_KIND}EventsStripped.json
+    rm /var/lib/neo4j/import/${RELATIONSHIP_TYPE}CypherCommand.cypher
     
     echo "Completed processing kind $EVENT_KIND events for $RELATIONSHIP_TYPE relationships."
 }

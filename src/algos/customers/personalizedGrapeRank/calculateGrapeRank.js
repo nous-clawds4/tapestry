@@ -42,10 +42,10 @@ const CUSTOMER_NAME = process.argv[4];
 // Configuration
 const LOG_DIR  = '/var/log/brainstorm/customers/' + CUSTOMER_NAME;
 execSync(`touch ${LOG_DIR}`);
-execSync(`sudo chown brainstorm:brainstorm ${LOG_DIR}`);
+execSync(`chown brainstorm:brainstorm ${LOG_DIR}`);
 const LOG_FILE = path.join(LOG_DIR, 'calculateGrapeRank.log');
 execSync(`touch ${LOG_FILE}`);
-execSync(`sudo chown brainstorm:brainstorm ${LOG_FILE}`);
+execSync(`chown brainstorm:brainstorm ${LOG_FILE}`);
 
 // const TEMP_DIR = '/var/lib/brainstorm/algos/personalizedGrapeRank/tmp';
 const CUSTOMER_TEMP_DIR = '/var/lib/brainstorm/algos/personalizedGrapeRank/tmp/' + CUSTOMER_NAME;

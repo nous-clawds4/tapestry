@@ -18,7 +18,7 @@ function handleProcessAllActiveCustomers(req, res) {
   res.setTimeout(0); // 0 = no timeout
   
   // Use exec without timeout - allowing unlimited execution time
-  const child = exec('sudo bash /usr/local/lib/node_modules/brainstorm/src/algos/customers/processAllActiveCustomers.sh', {
+  const child = exec('bash /usr/local/lib/node_modules/brainstorm/src/algos/customers/processAllActiveCustomers.sh', {
     maxBuffer: 1024 * 1024 * 10 // 10MB buffer for stdout/stderr (increased for long output)
   }, (error, stdout, stderr) => {
     console.log('Processing all active customers completed');

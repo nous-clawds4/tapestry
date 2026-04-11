@@ -3,7 +3,7 @@
 source /etc/brainstorm.conf # BRAINSTORM_LOG_DIR
 
 touch ${BRAINSTORM_LOG_DIR}/calculateVerifiedFollowerCounts.log
-sudo chown brainstorm:brainstorm ${BRAINSTORM_LOG_DIR}/calculateVerifiedFollowerCounts.log
+chown brainstorm:brainstorm ${BRAINSTORM_LOG_DIR}/calculateVerifiedFollowerCounts.log
 
 echo "$(date): Starting calculateVerifiedFollowerCounts"
 echo "$(date): Starting calculateVerifiedFollowerCounts" >> ${BRAINSTORM_LOG_DIR}/calculateVerifiedFollowerCounts.log
@@ -26,13 +26,13 @@ SET n.verifiedFollowerCount = 0
 RETURN count(n) AS numUsersUpdated
 "
 
-cypherResults=$(sudo cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER1")
+cypherResults=$(cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER1")
 numUsersUpdated="${cypherResults:16}"
 
 echo "$(date): numUsersUpdated: $numUsersUpdated (with nonzero verifiedFollowerCount)"
 echo "$(date): numUsersUpdated: $numUsersUpdated (with nonzero verifiedFollowerCount)" >> ${BRAINSTORM_LOG_DIR}/calculateVerifiedFollowerCounts.log
 
-cypherResults=$(sudo cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER2")
+cypherResults=$(cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER2")
 numUsersUpdated="${cypherResults:16}"
 
 echo "$(date): numUsersUpdated: $numUsersUpdated (with zero verifiedFollowerCount)"
