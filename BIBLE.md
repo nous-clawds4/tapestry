@@ -3,7 +3,7 @@
 > **Audience:** AI agents and developers joining the Tapestry project.
 > Read this file to fully onboard — it covers what Tapestry is, how it works, what's been built, what's in progress, and how to contribute.
 
-**Last updated:** 2026-04-11
+**Last updated:** 2026-04-12
 
 ---
 
@@ -126,12 +126,14 @@ Tapestry is being built under **NosFabrica**, a company focused on sovereign hea
 
 | Service | Port | Role |
 |---------|------|------|
-| **strfry** | 7777 (internal WS) | High-performance C++ nostr relay. Local event store — source of truth for raw nostr events. |
+| **strfry** | 7777 (internal WS) | High-performance C++ nostr relay, patched with Redis integration. After writing events to LMDB, pushes kind 3/10000/1984 events to Redis queue for streaming ETL. |
 | **Neo4j** | 7474 (HTTP), 7687 (Bolt) | Graph database. Turns flat events into a navigable concept graph with labeled nodes and typed relationships. |
 | **Express** | 7778 (internal) → 80 (host) | REST API server. Serves the React SPA from `dist/`, provides all API endpoints. Proxies search requests to nostr-search-api. In production behind host nginx, Docker binds to `127.0.0.1:8080:80`. |
 | **nip50-proxy** | 7780 (internal) | NIP-50 relay proxy. Sits between nginx and strfry. Intercepts search REQs and routes them through Meilisearch + WoT scoring. Passes all other traffic to strfry transparently. Auto-triggers the WoT pipeline for new observers. |
+| **stream-consumer** | — | Node.js process that reads events from Redis queue and writes NostrUser nodes + FOLLOWS/MUTES/REPORTS relationships to Neo4j via Bolt driver. Managed by supervisord. |
 | **nginx** | 80 (internal) | Reverse proxy routing `/api/*` to Express, `/relay` to nip50-proxy, etc. |
-| **supervisord** | — | Process manager inside the container. Controls all services (neo4j, strfry, strfry-router, nip50-proxy, brainstorm). |
+| **supervisord** | — | Process manager inside the container. Controls all services (neo4j, strfry, strfry-router, nip50-proxy, stream-consumer, brainstorm). |
+| **redis** | 6379 (Docker network only) | Separate Docker container. Message queue for streaming ETL — buffers events between strfry and the Neo4j consumer. ~50MB RAM. |
 | **nostr-search-api** | 3069 | Search API server. Connects to strfry via WebSocket for live kind 0 ingestion, proxies search queries to Meilisearch, handles WoT score loading. |
 | **nostr-search-meili** | 7700 | Meilisearch instance. Full-text search index for nostr profiles. Searchable by name, NIP-05, bio, website, Lightning address. |
 
@@ -655,6 +657,14 @@ External nostr clients can search via the relay WebSocket at `wss://<host>/relay
 | GET | `/api/user-prefs` | Get current user's saved preferences (requires session) |
 | PUT | `/api/user-prefs` | Save user preferences (shallow merge). Key fields: `pov`, `rankAuthor`, `rankRelay`, `filters`, `sortConfig`, `selectedMetrics`. |
 
+### Streaming ETL Control
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/streaming-etl/status` | Consumer status (supervisorctl), Redis queue depth, processed event counts |
+| POST | `/api/streaming-etl/control` | Start/stop/restart the consumer. Body: `{ action: "start"|"stop"|"restart" }` |
+| GET | `/api/streaming-etl/logs?lines=15` | Tail the consumer log file (max 100 lines) |
+
 ---
 
 ## 12. CLI Reference (tapestry-cli)
@@ -866,6 +876,35 @@ Example:      wot_followers_78ed0837  (House POV)
 - `selectedMetrics` — array of metric names to use
 
 **Score readiness check** (`checkMeiliScores`): Verifies that Meilisearch has fields matching the user's specific suffix (`wot_*_<suffix>`), not just any `wot_*` field. This prevents false positives from house POV scores or legacy unsuffixed fields.
+
+### Streaming ETL Pipeline
+
+Real-time event processing from strfry to Neo4j, keeping NostrUser nodes and FOLLOWS/MUTES/REPORTS relationships up to date as events arrive.
+
+**Architecture:**
+```
+strfry (LMDB write) → redis_rpush("strfry:events") → Redis queue → stream-consumer → Neo4j (MERGE)
+```
+
+**strfry C++ patch** (`patches/strfry-redis/`): The upstream strfry source is patched during Docker build via `apply-patches.sh`. The patch adds:
+- `redis.h` / `redis.cpp` — persistent Redis connection using hiredis
+- `redis_init()` call in `main.cpp.tt` after config is loaded
+- `redis_rpush()` call in `WriterPipeline.h` after LMDB commit, for kinds 3/10000/1984 only
+- Config entries `redis.host` and `redis.port` in `golpe.yaml`
+- `-lhiredis` linker flag in `rules.mk`
+
+The patch is non-blocking — relay throughput is unaffected by Redis latency. If Redis is down, events are silently dropped (strfry continues normally).
+
+**Node.js consumer** (`src/pipeline/stream/redis-consumer.js`): Blocking pop (`blpop`) from Redis, processes one event at a time:
+- Kind 3: MERGE publisher + followed pubkeys, create FOLLOWS edges, delete stale follows
+- Kind 10000: Same pattern with MUTES relationships
+- Kind 1984: Additive only — MERGE REPORTS edges, never delete
+- Uses `writeCypher()` from `src/lib/neo4j-driver.js` (Bolt driver, connection pooled)
+- MERGE queries ensure idempotency — duplicate events are harmless
+
+**Control panel:** Managed via the "⚡ Streaming ETL" tab on the Relays settings page (`/tapestry/settings/relays`). Shows consumer status, Redis queue depth, processed/error counts, and a live log viewer. Start/stop/restart via `supervisorctl`.
+
+**Why not a strfry write plugin?** Write plugins run BEFORE the LMDB write and block the pipeline — every event waits for the plugin response. During negentropy syncs (millions of events), this would stall the relay. The C++ patch runs AFTER the LMDB commit, non-blocking.
 
 ---
 
@@ -1137,6 +1176,11 @@ docker compose exec tapestry strfry sync wss://dcosl.brainstorm.world \
 - ✅ URL path refactor — Brainstorm Search at root `/`, Tapestry dashboard at `/tapestry/`, legacy at `/legacy/`
 - ✅ CI/CD deployment workflows — GitHub Actions auto-deploy to Digital Ocean on push
 - ✅ Production SSL via host nginx + Certbot
+- ✅ Streaming ETL pipeline — strfry → Redis → Neo4j for real-time FOLLOWS/MUTES/REPORTS processing
+- ✅ strfry C++ Redis patch (non-blocking rpush after LMDB commit, applied during Docker build)
+- ✅ Redis service in Docker stack (~50MB RAM, message queue buffer)
+- ✅ Streaming ETL control panel on Relays settings page (status, start/stop, queue depth, log viewer)
+- ✅ Swagger API documentation at `/docs`
 
 ### CLI (tapestry-cli repo)
 
