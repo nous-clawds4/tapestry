@@ -42,15 +42,14 @@ fi
 
 # 4. Add redis_init() call to golpe/main.cpp.tt
 if ! grep -q "redis_init" "$STRFRY_DIR/golpe/main.cpp.tt"; then
-    # Insert redis_init after the line containing "run(argc, argv);" setup
-    # We add it right before the "run" call at the end of main setup
-    sed -i '/^    run(argc, argv);/i\
+    # Insert redis_init before the "run(argc, argv);" line
+    sed -i '/run(argc, argv);/i\
 \
-    // Initialize Redis connection for streaming ETL\
-    #include "redis.h"\
-    if (redis_init(cfg().redis__host.c_str(), cfg().redis__port) != 0) {\
-        LW << "Failed to connect to Redis — streaming ETL disabled";\
-    }' "$STRFRY_DIR/golpe/main.cpp.tt"
+        // Initialize Redis connection for streaming ETL\
+        #include "redis.h"\
+        if (redis_init(cfg().redis__host.c_str(), cfg().redis__port) != 0) {\
+            LW << "Failed to connect to Redis — streaming ETL disabled";\
+        }' "$STRFRY_DIR/golpe/main.cpp.tt"
     echo "  Added redis_init() to golpe/main.cpp.tt"
 else
     echo "  redis_init already in golpe/main.cpp.tt (skipping)"
