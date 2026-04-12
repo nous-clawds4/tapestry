@@ -86,6 +86,9 @@ RUN cd /usr/local/lib/node_modules/brainstorm/nip50-proxy && npm install
 # Now copy the full application code (this layer busts on every push)
 COPY . /usr/local/lib/node_modules/brainstorm/
 
+# Make all shell scripts executable (Docker copies preserve owner perms, not execute bit)
+RUN find /usr/local/lib/node_modules/brainstorm -name "*.sh" -exec chmod +x {} +
+
 # Only the Vite build runs on each deploy (~12s local, ~30-60s on 2 vCPUs)
 RUN cd /usr/local/lib/node_modules/brainstorm/ui && npm run build
 
