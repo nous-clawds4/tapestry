@@ -3,7 +3,7 @@
 > **Audience:** AI agents and developers joining the Tapestry project.
 > Read this file to fully onboard — it covers what Tapestry is, how it works, what's been built, what's in progress, and how to contribute.
 
-**Last updated:** 2026-04-12
+**Last updated:** 2026-04-13
 
 ---
 
@@ -949,6 +949,8 @@ Legacy server config at `/etc/brainstorm.conf` inside Docker. Contains:
 
 Neo4j 5.x looks for its config at `/usr/share/neo4j/conf/` by default, but the Dockerfile installs it at `/etc/neo4j/neo4j.conf` (Debian convention). The `NEO4J_CONF="/etc/neo4j"` environment variable in `docker/supervisord.conf` bridges this gap. Without it, Neo4j falls back to defaults (localhost-only binding, no APOC/GDS procedure allowlists, default memory settings). On bare-metal installs, systemd handles this automatically — Docker/supervisord needs it explicitly.
 
+**Memory, GC, and concurrency settings** are NOT in the Dockerfile — they are written dynamically by `entrypoint.sh` at startup based on the machine's actual RAM and CPU count. See the Memory Architecture section under Development Workflow for details. The Dockerfile only configures static settings (listen addresses, procedure allowlists, APOC config).
+
 ### Tapestry Assistant
 
 Each instance has a server-side nostr identity (the "TA") used for automated actions. Its keypair lives in `brainstorm.conf`. The TA signs events when creating concepts, firmware, core nodes, etc.
@@ -1058,10 +1060,56 @@ The deploy scripts:
 For a production instance serving Brainstorm Search to many users:
 
 - **Memory-optimized** droplet (Meilisearch + Neo4j + strfry are all memory-heavy)
-- **16GB minimum** — 4GB Neo4j + 3-4GB Meilisearch + 2GB strfry page cache + OS overhead
-- **32GB recommended** — comfortable headroom for concurrent negentropy syncs and score loading
+- **16GB minimum** — functional but tight
+- **32GB recommended** — comfortable for millions of profiles and dozens of WoT users
 - **CPU** — not a bottleneck; Meilisearch queries use microseconds of CPU per search
 - AMD and Intel perform equivalently for this workload
+
+### Memory Architecture
+
+Neo4j memory is configured **dynamically at container startup** by `entrypoint.sh`. The script detects system RAM, reserves memory for non-Neo4j services, and allocates the rest to Neo4j heap and page cache. G1GC and concurrent transaction limits are also set based on machine size.
+
+**Empirical measurements** (32GB DO droplet, 2.6M profiles, 30M FOLLOWS relationships, April 2026):
+
+| Component | Measured RAM | Disk | Notes |
+|---|---|---|---|
+| Meilisearch | 5.6 GB | 10.7 GB | 2.6M profiles + WoT score fields for 3 POVs |
+| Neo4j (inside tapestry) | 2-3 GB | 3.6 GB | 2.46M NostrUser nodes, 30.5M relationships |
+| strfry (inside tapestry) | 0.5-1 GB | LMDB | Memory-mapped, benefits from OS page cache |
+| Redis | 4 MB | — | Queue is nearly empty when consumer keeps up |
+| nostr-search-api | 31 MB | — | Lightweight Node.js process |
+| Node.js (Express, nip50-proxy, consumer) | ~0.5 GB | — | Inside tapestry container |
+| OS | 1-2 GB | — | Kernel, buffers, page cache |
+| **Total** | **~10 GB** | — | Of 31.3 GB available |
+
+**Dynamic allocation formula** (in `docker/entrypoint.sh`):
+
+| Machine | Reserved (non-Neo4j) | Neo4j Heap | Page Cache | Tx Memory | GC | Concurrent Txns |
+|---|---|---|---|---|---|---|
+| 8 GB | 3.5 GB | 1.9 GB | 1.9 GB | 0.9 GB | Default | 100-400 |
+| 16 GB | 7.0 GB | 3.8 GB | 3.8 GB | 1.9 GB | G1GC | 200-800 |
+| 32 GB | 12.0 GB | 8.3 GB | 8.3 GB | 4.2 GB | G1GC + 16m regions | 800 |
+
+G1GC is enabled when heap ≥ 4GB (reduces GC pause times for large heaps). G1HeapRegionSize is set to 16m when heap ≥ 8GB. ExitOnOutOfMemoryError is always enabled.
+
+**Incremental memory per WoT user** (personalized search):
+
+Each user who loads WoT scores into Meilisearch adds POV-suffixed fields (e.g., `wot_rank_<8char>`, `wot_followers_<8char>`) to their scored profiles. Memory cost per user:
+
+| Parameter | Typical Value |
+|---|---|
+| Profiles scored per user | 100K-200K |
+| Metrics per profile | 2-5 |
+| Bytes per numeric field | ~8 (value) + index overhead |
+| **Incremental RAM per user** | **~15-25 MB** |
+| **Incremental disk per user** | **~100-160 MB** |
+
+At ~20 MB per user, a 32GB server with 12GB reserved for Meilisearch and other services can comfortably support **hundreds of concurrent WoT users** before memory pressure. The bottleneck is Meilisearch's filterable/sortable index structures, not the raw score values.
+
+**Scaling guidance:**
+- **< 50 WoT users**: 16 GB server is sufficient
+- **50-500 WoT users**: 32 GB server recommended
+- **500+ WoT users**: 64 GB or split Meilisearch to a dedicated server
 
 ### SSL Setup (one-time)
 

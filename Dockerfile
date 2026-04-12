@@ -53,12 +53,9 @@ RUN sed -i 's/#server.default_listen_address=0.0.0.0/server.default_listen_addre
     && echo "dbms.security.procedures.unrestricted=gds.*" >> /etc/neo4j/neo4j.conf \
     && sed -i '/^dbms.security.procedures.allowlist=/d' /etc/neo4j/neo4j.conf \
     && sed -i '/^#dbms.security.procedures.allowlist=/d' /etc/neo4j/neo4j.conf \
-    && echo "dbms.security.procedures.allowlist=apoc.coll.*,apoc.load.*,apoc.periodic.*,apoc.export.json.query,gds.*" >> /etc/neo4j/neo4j.conf \
-    && echo "" >> /etc/neo4j/neo4j.conf \
-    && echo "# Memory settings for Docker" >> /etc/neo4j/neo4j.conf \
-    && echo "server.memory.heap.initial_size=2g" >> /etc/neo4j/neo4j.conf \
-    && echo "server.memory.heap.max_size=2g" >> /etc/neo4j/neo4j.conf \
-    && echo "server.memory.pagecache.size=2g" >> /etc/neo4j/neo4j.conf
+    && echo "dbms.security.procedures.allowlist=apoc.coll.*,apoc.load.*,apoc.periodic.*,apoc.export.json.query,gds.*" >> /etc/neo4j/neo4j.conf
+    # Note: Memory, GC, and concurrency settings are configured dynamically at runtime
+    # by entrypoint.sh based on the actual machine's RAM and CPU count.
 
 # APOC configuration
 RUN echo "apoc.import.file.enabled=true" > /etc/neo4j/apoc.conf \
