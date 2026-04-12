@@ -442,6 +442,12 @@ async function register(app) {
     app.post('/api/streaming-etl/control', streamingETL.handleControl);
     app.get('/api/streaming-etl/logs', streamingETL.handleLogs);
 
+    // ── Admin Management API (owner-only) ──
+    const adminApi = require('./admin');
+    app.get('/api/admin/list', adminApi.requireOwnerOnly, adminApi.handleListAdmins);
+    app.post('/api/admin/add', adminApi.requireOwnerOnly, adminApi.handleAddAdmin);
+    app.post('/api/admin/remove', adminApi.requireOwnerOnly, adminApi.handleRemoveAdmin);
+
     // ── Tapestry Property API ──
     const { registerPropertyRoutes } = require('./property');
     registerPropertyRoutes(app);
