@@ -910,21 +910,24 @@ The patch is non-blocking — relay throughput is unaffected by Redis latency. I
 
 Neo4j's Graph Data Science library (GDS 2.13.4) is installed and configured (`dbms.security.procedures.unrestricted=gds.*`). Currently used for:
 
-**Hop Distance Calculation** (`src/algos/calculateHopsGDS.sh`): Calculates the shortest hop distance from the instance owner to every other NostrUser via the FOLLOWS graph. Uses GDS BFS (Breadth-First Search) for in-memory traversal — orders of magnitude faster than the legacy iterative Cypher approach.
+**Hop Distance Calculation** (`src/algos/calculateHopsFrontier.sh`): Calculates the shortest hop distance from the instance owner to every other NostrUser via the FOLLOWS graph. Uses a frontier-based BFS approach — each iteration only scans edges from the current hop level's nodes, not the entire graph.
 
 Algorithm:
-1. Project the FOLLOWS graph into GDS memory (`gds.graph.project`) — ~5-10s for 30M edges
-2. Initialize all NostrUser nodes to `hops=999` (batched, 50K rows per transaction)
-3. Run `gds.bfs.stream()` from the owner node — returns all reachable nodes with hop distances
-4. Write hop distances back to Neo4j nodes in batches of 50K
-5. Set owner to `hops=0`
-6. Drop the projection
+1. Initialize all NostrUser nodes to `hops=999` (batched, 50K rows per transaction)
+2. Set owner to `hops=0`
+3. For each hop level N (0→12): match nodes at hop N whose FOLLOWS targets are still at 999, set targets to N+1
+4. Stop when no more updates or max hops reached
 
 Performance comparison (2.46M nodes, 30M FOLLOWS relationships):
-- **Legacy iterative Cypher** (`calculateHops.sh`): Up to 12 passes × 30M relationship scans = 360M scans, minutes to complete
-- **GDS BFS** (`calculateHopsGDS.sh`): Single in-memory traversal, completes in under a minute
+- **Legacy iterative Cypher** (`calculateHops.sh`): Each iteration scans ALL 30M edges looking for any node to update. Up to 12 × 30M = 360M relationship scans.
+- **Frontier-based** (`calculateHopsFrontier.sh`): Each iteration only scans edges from the ~N nodes at the current hop level. Hop 1: 775 nodes × their edges. Hop 2: 309K nodes × their edges. Total work proportional to reachable graph, not total graph.
 
-The legacy script is retained at `src/algos/calculateHops.sh` for side-by-side comparison or fallback. The task registry (`calculateOwnerHops`) points to the GDS version by default.
+Empirical results: Hop 1 completes in 8ms (775 nodes), hop 2 in 1.5s (309K nodes). Total runtime is seconds, not minutes.
+
+Three versions are retained for comparison/fallback:
+- `calculateHopsFrontier.sh` — current default (frontier BFS, fastest)
+- `calculateHopsGDS.sh` — GDS-based attempt (GDS BFS doesn't provide hop distances directly; retained for reference)
+- `calculateHops.sh` — legacy iterative Cypher (slowest but simplest)
 
 **Personalized PageRank** (`src/algos/calculatePersonalizedPageRank.sh`): Uses `gds.pageRank.write()` with the owner as source node. Projects the FOLLOWS graph, runs PageRank with dampingFactor=0.85, writes results back as `personalizedPageRank` property.
 
