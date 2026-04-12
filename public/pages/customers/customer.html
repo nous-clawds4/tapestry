@@ -861,7 +861,11 @@
 
         // ── Brainstorm Assistant Functions ──
 
+        // Module-level variable to store the customer pubkey for assistant functions
+        let _assistantCustomerPubkey = null;
+
         async function loadAssistantStatus(customerPubkey) {
+            _assistantCustomerPubkey = customerPubkey;
             try {
                 const resp = await fetch(`/api/assistant/status?customerPubkey=${customerPubkey}`);
                 const data = await resp.json();
@@ -874,9 +878,8 @@
                 }
 
                 document.getElementById('assistantContent').style.display = 'block';
-                const displayPubkey = data.assistantNpub
-                    ? data.assistantNpub.slice(0, 16) + '...' + data.assistantNpub.slice(-8)
-                    : data.assistantPubkey.slice(0, 12) + '...' + data.assistantPubkey.slice(-8);
+                const pk = data.assistantPubkey || '';
+                const displayPubkey = pk ? pk.slice(0, 12) + '...' + pk.slice(-8) : 'Unknown';
                 document.getElementById('assistantPubkey').textContent = displayPubkey;
 
                 if (data.hasProfile && data.profile) {
@@ -909,14 +912,14 @@
                 const resp = await fetch('/api/assistant/publish-profile', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ customerPubkey: pubkey }),
+                    body: JSON.stringify({ customerPubkey: _assistantCustomerPubkey }),
                 });
                 const data = await resp.json();
                 if (data.success) {
                     status.textContent = '✅ ' + data.message;
                     status.style.color = '#22c55e';
                     // Reload status to show preview
-                    await loadAssistantStatus(pubkey);
+                    await loadAssistantStatus(_assistantCustomerPubkey);
                 } else {
                     status.textContent = '❌ ' + (data.error || 'Failed');
                     status.style.color = '#ef4444';
