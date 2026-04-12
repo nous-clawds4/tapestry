@@ -906,6 +906,30 @@ The patch is non-blocking — relay throughput is unaffected by Redis latency. I
 
 **Why not a strfry write plugin?** Write plugins run BEFORE the LMDB write and block the pipeline — every event waits for the plugin response. During negentropy syncs (millions of events), this would stall the relay. The C++ patch runs AFTER the LMDB commit, non-blocking.
 
+### Graph Algorithms (GDS)
+
+Neo4j's Graph Data Science library (GDS 2.13.4) is installed and configured (`dbms.security.procedures.unrestricted=gds.*`). Currently used for:
+
+**Hop Distance Calculation** (`src/algos/calculateHopsGDS.sh`): Calculates the shortest hop distance from the instance owner to every other NostrUser via the FOLLOWS graph. Uses GDS BFS (Breadth-First Search) for in-memory traversal — orders of magnitude faster than the legacy iterative Cypher approach.
+
+Algorithm:
+1. Project the FOLLOWS graph into GDS memory (`gds.graph.project`) — ~5-10s for 30M edges
+2. Initialize all NostrUser nodes to `hops=999` (batched, 50K rows per transaction)
+3. Run `gds.bfs.stream()` from the owner node — returns all reachable nodes with hop distances
+4. Write hop distances back to Neo4j nodes in batches of 50K
+5. Set owner to `hops=0`
+6. Drop the projection
+
+Performance comparison (2.46M nodes, 30M FOLLOWS relationships):
+- **Legacy iterative Cypher** (`calculateHops.sh`): Up to 12 passes × 30M relationship scans = 360M scans, minutes to complete
+- **GDS BFS** (`calculateHopsGDS.sh`): Single in-memory traversal, completes in under a minute
+
+The legacy script is retained at `src/algos/calculateHops.sh` for side-by-side comparison or fallback. The task registry (`calculateOwnerHops`) points to the GDS version by default.
+
+**Personalized PageRank** (`src/algos/calculatePersonalizedPageRank.sh`): Uses `gds.pageRank.write()` with the owner as source node. Projects the FOLLOWS graph, runs PageRank with dampingFactor=0.85, writes results back as `personalizedPageRank` property.
+
+**Graph Projection Caching** (`src/algos/projectFollowsGraphIntoMemory.sh`): Reusable script that projects the FOLLOWS graph into GDS memory as `followsGraph`. Checks if the projection exists and is < 3 hours old before re-projecting. Used by PageRank; the hop calculation uses its own temporary projection.
+
 ---
 
 ## 14. Configuration

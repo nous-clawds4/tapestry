@@ -583,14 +583,14 @@
     },
 
     "calculateOwnerHops": {
-      "name": "Calculate Owner Hops",
+      "name": "Calculate Owner Hops (GDS)",
       "categories": ["algorithms", "owner"],
-      "description": "Calculates hop distances from the instance owner",
+      "description": "Calculates hop distances from the instance owner using GDS BFS — much faster than iterative Cypher",
       "scripts": [
-        "$BRAINSTORM_MODULE_SRC_DIR/algos/calculateHops.sh"
+        "$BRAINSTORM_MODULE_SRC_DIR/algos/calculateHopsGDS.sh"
       ],
-      "script": "$BRAINSTORM_MODULE_SRC_DIR/algos/calculateHops.sh",
-      "script_relative_path": "algos/calculateHops.sh",
+      "script": "$BRAINSTORM_MODULE_SRC_DIR/algos/calculateHopsGDS.sh",
+      "script_relative_path": "algos/calculateHopsGDS.sh",
       "enforcedTimeout": 600000,
       "arguments": false,
       "parent": "updateAllScoresForOwner",
