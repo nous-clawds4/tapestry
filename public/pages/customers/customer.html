@@ -930,10 +930,8 @@
             }
         }
 
-        // Load assistant status when page loads (after NIP-85 status)
-        if (typeof pubkey !== 'undefined' && pubkey) {
-            loadAssistantStatus(pubkey);
-        }
+        // Note: loadAssistantStatus(pubkey) is called from checkCustomerStatus()
+        // after authentication and customer verification is complete.
 
         /**
          * Handle Kind 10040 publishing with NIP-07 signing
@@ -1116,8 +1114,9 @@
                     // Load new comprehensive NIP-85 status
                     loadNewNip85Status(pubkey);
                     setupNewNip85EventHandlers(pubkey);
-                    
 
+                    // Load Brainstorm Assistant status
+                    loadAssistantStatus(pubkey);
 
                 } else {
                     // User is not a customer - show signup prompt
