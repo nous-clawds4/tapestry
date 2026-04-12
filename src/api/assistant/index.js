@@ -71,7 +71,7 @@ function generateColoredSvg(pubkey) {
  */
 async function uploadToNostrBuild(svgContent, filename) {
   const formData = new FormData();
-  formData.append('file', Buffer.from(svgContent), {
+  formData.append('file[]', Buffer.from(svgContent), {
     filename: filename || 'avatar.svg',
     contentType: 'image/svg+xml',
   });
@@ -79,6 +79,7 @@ async function uploadToNostrBuild(svgContent, filename) {
   const resp = await fetch('https://nostr.build/api/v2/upload/files', {
     method: 'POST',
     body: formData,
+    headers: formData.getHeaders(),
   });
 
   if (!resp.ok) {

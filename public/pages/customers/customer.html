@@ -138,6 +138,8 @@
                             <div class="status-item">
                                 <span class="status-label">Assistant Pubkey:</span>
                                 <span id="assistantPubkey" class="status-value" style="font-family: monospace; font-size: 0.8rem;"></span>
+                                <span id="assistantCopyBtn" style="cursor: pointer; margin-left: 0.5rem; font-size: 0.8rem;" title="Copy full pubkey">📋</span>
+                                <a id="assistantProfileLink" href="#" style="margin-left: 0.5rem; font-size: 0.8rem; text-decoration: none;" title="View profile">👤</a>
                             </div>
                             <div class="status-item">
                                 <span class="status-label">Profile Status:</span>
@@ -881,6 +883,18 @@
                 const pk = data.assistantPubkey || '';
                 const displayPubkey = pk ? pk.slice(0, 12) + '...' + pk.slice(-8) : 'Unknown';
                 document.getElementById('assistantPubkey').textContent = displayPubkey;
+
+                // Copy button
+                document.getElementById('assistantCopyBtn').onclick = () => {
+                    navigator.clipboard.writeText(pk).then(() => {
+                        const btn = document.getElementById('assistantCopyBtn');
+                        btn.textContent = '✅';
+                        setTimeout(() => { btn.textContent = '📋'; }, 1500);
+                    });
+                };
+
+                // Profile link
+                document.getElementById('assistantProfileLink').href = '/profile.html?pubkey=' + pk;
 
                 if (data.hasProfile && data.profile) {
                     document.getElementById('assistantProfileStatus').innerHTML = '<span style="color: #22c55e;">✅ Published</span>';
