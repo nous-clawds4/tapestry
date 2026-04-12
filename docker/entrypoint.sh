@@ -110,6 +110,18 @@ CONFEOF
 
 chmod 664 /etc/brainstorm.conf
 
+# ── Install algorithm config files from templates (if not already present) ──
+# These are created by setup/install-control-panel.sh on bare-metal installs.
+# In Docker, we create them here from the shipped templates.
+CONFIG_DIR="${BRAINSTORM_MODULE_BASE_DIR}config"
+for conffile in graperank whitelist blacklist nip56; do
+  if [ ! -f "/etc/${conffile}.conf" ] && [ -f "${CONFIG_DIR}/${conffile}.conf.template" ]; then
+    cp "${CONFIG_DIR}/${conffile}.conf.template" "/etc/${conffile}.conf"
+    chmod 644 "/etc/${conffile}.conf"
+    echo "Installed /etc/${conffile}.conf from template"
+  fi
+done
+
 # Generate strfry.conf from the default template
 if [ -f /usr/local/src/strfry/strfry.conf ]; then
   cp /usr/local/src/strfry/strfry.conf /etc/strfry.conf
