@@ -10,9 +10,9 @@ source /etc/brainstorm.conf # NEO4J_URI, NEO4J_USER, NEO4J_PASSWORD, BRAINSTORM_
 # Source structured logging utility
 source /usr/local/lib/node_modules/brainstorm/src/utils/structuredLogging.sh
 
-CYPHER1="MATCH (u:NostrUser) SET u.hops=999"
+CYPHER1="MATCH (u:NostrUser) CALL { WITH u SET u.hops=999 } IN TRANSACTIONS OF 10000 ROWS"
 CYPHER2="MATCH (u:NostrUser {pubkey:'$BRAINSTORM_OWNER_PUBKEY'}) SET u.hops=0"
-CYPHER3="MATCH (u1:NostrUser)-[:FOLLOWS]->(u2:NostrUser) WHERE u2.hops - u1.hops > 1 SET u2.hops = u1.hops + 1 RETURN count(u2) as numUpdates"
+CYPHER3="MATCH (u1:NostrUser)-[:FOLLOWS]->(u2:NostrUser) WHERE u2.hops - u1.hops > 1 CALL { WITH u2, u1 SET u2.hops = u1.hops + 1 } IN TRANSACTIONS OF 10000 ROWS RETURN count(u2) as numUpdates"
 
 # Start structured logging
 oMetadata=$(jq -n \

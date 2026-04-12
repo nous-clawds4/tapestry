@@ -37,9 +37,9 @@ LOG_FILE="$LOG_DIR/calculateHops.log"
 touch ${LOG_FILE}
 chown brainstorm:brainstorm ${LOG_FILE}
 
-CYPHER1="MATCH (c:NostrUserWotMetricsCard {observer_pubkey:'$CUSTOMER_PUBKEY'}) SET c.hops=999"
+CYPHER1="MATCH (c:NostrUserWotMetricsCard {observer_pubkey:'$CUSTOMER_PUBKEY'}) CALL { WITH c SET c.hops=999 } IN TRANSACTIONS OF 10000 ROWS"
 CYPHER2="MATCH (c:NostrUserWotMetricsCard {observer_pubkey:'$CUSTOMER_PUBKEY', observee_pubkey:'$CUSTOMER_PUBKEY'}) SET c.hops=0"
-CYPHER3="MATCH (c1:NostrUserWotMetricsCard {observer_pubkey:'$CUSTOMER_PUBKEY'})-[:SPECIFIC_INSTANCE]-(:SetOfNostrUserWotMetricsCards)-[:WOT_METRICS_CARDS]-(u1:NostrUser)-[:FOLLOWS]->(u2:NostrUser)-[:WOT_METRICS_CARDS]->(:SetOfNostrUserWotMetricsCards)-[:SPECIFIC_INSTANCE]->(c2:NostrUserWotMetricsCard {observer_pubkey:'$CUSTOMER_PUBKEY'}) WHERE c2.hops - c1.hops > 1 SET c2.hops = c1.hops + 1 RETURN count(c2) as numUpdates"
+CYPHER3="MATCH (c1:NostrUserWotMetricsCard {observer_pubkey:'$CUSTOMER_PUBKEY'})-[:SPECIFIC_INSTANCE]-(:SetOfNostrUserWotMetricsCards)-[:WOT_METRICS_CARDS]-(u1:NostrUser)-[:FOLLOWS]->(u2:NostrUser)-[:WOT_METRICS_CARDS]->(:SetOfNostrUserWotMetricsCards)-[:SPECIFIC_INSTANCE]->(c2:NostrUserWotMetricsCard {observer_pubkey:'$CUSTOMER_PUBKEY'}) WHERE c2.hops - c1.hops > 1 CALL { WITH c2, c1 SET c2.hops = c1.hops + 1 } IN TRANSACTIONS OF 10000 ROWS RETURN count(c2) as numUpdates"
 
 numHops=1
 
