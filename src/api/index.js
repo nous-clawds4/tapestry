@@ -448,6 +448,11 @@ async function register(app) {
     app.post('/api/admin/add', adminApi.requireOwnerOnly, adminApi.handleAddAdmin);
     app.post('/api/admin/remove', adminApi.requireOwnerOnly, adminApi.handleRemoveAdmin);
 
+    // ── Brainstorm Assistant API ──
+    const assistantApi = require('./assistant');
+    app.post('/api/assistant/publish-profile', assistantApi.handlePublishProfile);
+    app.get('/api/assistant/status', assistantApi.handleAssistantStatus);
+
     // ── Tapestry Property API ──
     const { registerPropertyRoutes } = require('./property');
     registerPropertyRoutes(app);
