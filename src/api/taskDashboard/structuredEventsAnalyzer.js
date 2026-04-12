@@ -18,8 +18,8 @@ class StructuredEventsAnalyzer {
         this.eventsFile = path.join(config.BRAINSTORM_LOG_DIR, 'taskQueue', 'events.jsonl');
         this.structuredLogFile = path.join(config.BRAINSTORM_LOG_DIR, 'taskQueue', 'structured.log');
         this.preservedLogFile = path.join(config.BRAINSTORM_LOG_DIR, 'preserved', 'system_metrics_history.jsonl');
-        // join this.preservedLogFile and this.eventsFile into this.combinedLogFile
-        this.combinedLogFile = { ...this.eventsFile, ...this.preservedLogFile };
+        // Primary events file for task execution tracking
+        this.combinedLogFile = this.eventsFile;
         this.taskRegistry = this.loadTaskRegistry();
         this.diagnostics = {
             filesChecked: [],
