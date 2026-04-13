@@ -988,12 +988,20 @@ Every owner, admin, and customer has an **assistant** — a server-side nostr id
 
 **Customer's assistant** = Customer Relay Key. Created at customer sign-up via `createSingleCustomerRelay()`. Stored in SecureKeyStorage under the customer's hex pubkey.
 
-**Known issues (to be addressed):**
-- Some legacy code reads the owner key via `getConfigFromFile('BRAINSTORM_RELAY_PRIVKEY')` instead of SecureKeyStorage. This will fail on new installs.
-- A legacy plaintext key file exists at `setup/nostr/keys/brainstorm_relay_keys.sh` — should be removed.
-- `ui/src/config/pubkeys.js` has a hardcoded `TA_PUBKEY` — should be fetched dynamically from the API.
-- `nip85.html` uses a different (partially broken) publish flow for kind 10040 — should adopt the same NIP-07 flow as `customer.html`.
-- A unified `getAssistantKeys(pubkey)` function should replace the current two code paths. See the plan file (`streamed-brewing-hopper.md`) for the full implementation plan.
+**Unified key access (`src/utils/assistantKeys.js`):**
+- `getAssistantKeys(pubkey)` — routes to the correct key: owner pubkey → `tapestry-assistant` in SecureKeyStorage, anyone else → customer relay key.
+- `getOwnerAssistantKeys()` — shortcut that always returns the TA key.
+- `getOwnerAssistantPubkey()` — sync helper that returns just the TA pubkey (reads from env, brainstorm.conf pubkey, or SecureKeyStorage JSON file).
+- All code that previously read `BRAINSTORM_RELAY_PRIVKEY` from brainstorm.conf now uses these functions. The legacy plaintext key file (`brainstorm_relay_keys.sh`) is no longer created on new installs.
+
+**Dynamic TA pubkey in the React UI:**
+- `GET /api/assistant/pubkey` returns the owner's TA pubkey (no auth required — pubkey is public).
+- `ConfigContext` (`ui/src/context/ConfigContext.jsx`) fetches the TA pubkey at app startup.
+- All UI components use `useConfig().taPubkey` instead of a hardcoded constant.
+
+**NIP-85 page (`nip85.html`):**
+- Uses the same NIP-07 publish flow as `customer.html`: `POST /api/create-unsigned-kind10040` → NIP-07 sign → `POST /api/publish-signed-kind10040`.
+- The `create-unsigned-kind10040` endpoint defaults to the session pubkey when no explicit pubkey is provided, so the owner doesn't need to pass one.
 
 ### Router Presets
 
