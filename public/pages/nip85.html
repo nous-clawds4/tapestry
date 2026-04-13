@@ -255,7 +255,7 @@
             // Set up the relay link with the correct domain from the server
             const relayLink = document.getElementById('relayLink');
             if (relayLink) {
-                fetch('/control/api/status')
+                fetch('/api/status')
                     .then(response => response.json())
                     .then(data => {
                         if (data && data.strfryDomain) {
@@ -306,7 +306,7 @@
                     kind10040Status.className = 'status-message status-info';
                     
                     // Make API request to create the event
-                    fetch('/control/api/create-kind10040', {
+                    fetch('/api/create-kind10040', {
                         method: 'POST'
                     })
                     .then(response => response.json())
@@ -344,7 +344,7 @@
             if (publishKind10040Btn) {
                 publishKind10040Btn.addEventListener('click', function() {
                     // Check authentication status first
-                    fetch('/control/api/auth/status')
+                    fetch('/api/auth/status')
                         .then(response => response.json())
                         .then(data => {
                             if (data && data.authenticated) {
@@ -366,7 +366,7 @@
             
             // Function to check the status of Kind 30382 publishing
             function checkKind30382Status() {
-                fetch('/control/api/get-kind30382-info')
+                fetch('/api/get-kind30382-info')
                     .then(response => response.json())
                     .then(data => {
                         if (data.success) {
@@ -399,7 +399,7 @@
                 kind10040Status.className = 'status-message status-info';
                 
                 // First, get the unsigned event
-                fetch('/control/api/get-kind10040-event', {
+                fetch('/api/get-kind10040-event', {
                     method: 'GET'
                 })
                 .then(response => response.json())
@@ -433,7 +433,7 @@
                             kind10040Status.textContent = 'Publishing signed event...';
                             
                             // Send the signed event to the server
-                            fetch('/control/api/publish-kind10040-event', {
+                            fetch('/api/publish-kind10040-event', {
                                 method: 'POST',
                                 headers: {
                                     'Content-Type': 'application/json',
@@ -504,7 +504,7 @@
                 kind30382InfoStatus.className = 'status-message info';
                 kind30382InfoStatus.textContent = 'Fetching event information...';
                 
-                fetch('/control/api/get-kind30382-info')
+                fetch('/api/get-kind30382-info')
                     .then(response => response.json())
                     .then(data => {
                         if (data.success) {
@@ -571,7 +571,7 @@
                 kind10040Status.className = 'status-message status-info';
                 
                 // First, get the unsigned event
-                fetch('/control/api/get-kind10040-event', {
+                fetch('/api/get-kind10040-event', {
                     method: 'GET'
                 })
                 .then(response => response.json())
@@ -605,7 +605,7 @@
                             kind10040Status.textContent = 'Publishing signed event...';
                             
                             // Send the signed event to the server
-                            fetch('/control/api/publish-kind10040-event', {
+                            fetch('/api/publish-kind10040-event', {
                                 method: 'POST',
                                 headers: {
                                     'Content-Type': 'application/json',
@@ -675,7 +675,7 @@
                 kind10040InfoStatus.className = 'status-message info';
                 kind10040InfoStatus.textContent = 'Fetching event information...';
                 
-                fetch('/control/api/get-kind10040-info')
+                fetch('/api/get-kind10040-info')
                     .then(response => response.json())
                     .then(data => {
                         if (data.success) {
