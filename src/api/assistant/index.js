@@ -18,6 +18,53 @@ const { exec } = require('child_process');
 const nostrTools = require('nostr-tools');
 const { getCustomerRelayKeys } = require('../../utils/customerRelayKeys');
 const { getConfigFromFile } = require('../../utils/config');
+const WebSocket = require('ws');
+
+const EXTERNAL_RELAYS = [
+  'wss://relay.primal.net',
+  'wss://relay.damus.io',
+  'wss://nos.lol',
+  'wss://wot.grapevine.network',
+  'wss://purplepag.es',
+];
+
+/**
+ * Publish a signed event to an external relay via WebSocket.
+ * Returns a promise that resolves with success/failure.
+ */
+function publishToRelay(relayUrl, signedEvent, timeoutMs = 10000) {
+  return new Promise((resolve) => {
+    try {
+      const ws = new WebSocket(relayUrl);
+      const timer = setTimeout(() => {
+        try { ws.close(); } catch {}
+        resolve({ relay: relayUrl, success: false, error: 'timeout' });
+      }, timeoutMs);
+
+      ws.on('open', () => {
+        ws.send(JSON.stringify(['EVENT', signedEvent]));
+      });
+
+      ws.on('message', (data) => {
+        try {
+          const msg = JSON.parse(data.toString());
+          if (msg[0] === 'OK') {
+            clearTimeout(timer);
+            ws.close();
+            resolve({ relay: relayUrl, success: msg[2] !== false, message: msg[3] || '' });
+          }
+        } catch {}
+      });
+
+      ws.on('error', (err) => {
+        clearTimeout(timer);
+        resolve({ relay: relayUrl, success: false, error: err.message });
+      });
+    } catch (err) {
+      resolve({ relay: relayUrl, success: false, error: err.message });
+    }
+  });
+}
 
 const ABOUT_TEXT = 'I am the Brainstorm Assistant for my owner. My primary task is to publish kind 30382 Trusted Assertions so that my owner\'s personalized web of trust metrics are available to be utilized by any nostr client that supports NIP-85.';
 
@@ -119,12 +166,23 @@ async function handlePublishProfile(req, res) {
 
     console.log(`[assistant] Kind 0 published to strfry for ${assistantPubkey.slice(0, 8)}`);
 
+    // 6. Publish to external relays (in parallel, non-blocking)
+    const relayResults = await Promise.all(
+      EXTERNAL_RELAYS.map(relay => publishToRelay(relay, signedEvent))
+    );
+    const relaySuccesses = relayResults.filter(r => r.success).length;
+    console.log(`[assistant] Published to ${relaySuccesses}/${EXTERNAL_RELAYS.length} external relays`);
+    for (const r of relayResults) {
+      if (!r.success) console.warn(`[assistant] Failed: ${r.relay} — ${r.error || r.message || 'unknown'}`);
+    }
+
     return res.json({
       success: true,
       event: signedEvent,
       assistantPubkey,
       assistantName,
-      message: 'Brainstorm Assistant profile published successfully',
+      relays: { total: EXTERNAL_RELAYS.length, success: relaySuccesses, results: relayResults },
+      message: `Brainstorm Assistant profile published to strfry + ${relaySuccesses}/${EXTERNAL_RELAYS.length} external relays`,
     });
 
   } catch (err) {
