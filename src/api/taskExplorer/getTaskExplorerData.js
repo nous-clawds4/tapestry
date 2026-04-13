@@ -54,6 +54,7 @@ async function getTaskExplorerData(req, res) {
                 name: taskName,
                 description: taskData.description || '',
                 categories: taskData.categories || [],
+                arguments: taskData.arguments || false,
                 parent: taskData.parent || null,
                 children: taskData.children || [],
                 structuredLogging: taskData.structuredLogging === true,

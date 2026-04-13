@@ -1616,23 +1616,24 @@
         function createTaskActions(task) {
             const isRunning = task.execution?.isRunning || false;
             const requiresCustomer = task.categories.includes('customer');
-            
+            const hasLimitArg = !!(task.arguments && task.arguments.limit);
+
             let html = '<div class="task-actions">';
-            
+
             // View Details link
             html += `<a href="/task.html?taskName=${encodeURIComponent(task.name)}" class="task-details-link" title="View detailed execution history">`;
             html += '📊 View Details';
             html += '</a>';
-            
+
             // Run Task button
             const buttonText = isRunning ? '🔄 Running...' : '▶️ Run Task';
             const buttonClass = isRunning ? 'run-task-btn running' : 'run-task-btn';
             const disabled = isRunning ? 'disabled' : '';
-            
-            html += `<button class="${buttonClass}" onclick="handleRunTask('${task.name}', ${requiresCustomer})" ${disabled}>`;
+
+            html += `<button class="${buttonClass}" onclick="handleRunTask('${task.name}', ${requiresCustomer}, ${hasLimitArg})" ${disabled}>`;
             html += buttonText;
             html += '</button>';
-            
+
             // Customer required badge
             if (requiresCustomer) {
                 html += '<span class="customer-required-badge">Customer Required</span>';
@@ -1643,35 +1644,52 @@
         }
 
         // Handle run task button click
-        async function handleRunTask(taskName, requiresCustomer) {
+        async function handleRunTask(taskName, requiresCustomer, hasLimitArg) {
+            // Prompt for optional limit if task supports it
+            let limitValue = null;
+            if (hasLimitArg) {
+                const input = prompt(`Optional: enter a limit for ${taskName}\n(leave blank to use the default):`);
+                if (input !== null && input.trim() !== '') {
+                    const parsed = parseInt(input.trim());
+                    if (isNaN(parsed) || parsed < 1) {
+                        alert('Limit must be a positive number.');
+                        return;
+                    }
+                    limitValue = parsed;
+                }
+            }
+
             if (requiresCustomer) {
-                // Show customer selector modal
-                await showCustomerSelector(taskName);
+                // Show customer selector modal (limit will be passed via closure)
+                await showCustomerSelector(taskName, limitValue);
             } else {
                 // Run system task directly
-                await executeTask(taskName);
+                await executeTask(taskName, null, limitValue);
             }
         }
 
         // Show customer selector modal
-        async function showCustomerSelector(taskName) {
+        async function showCustomerSelector(taskName, limitValue = null) {
+            // Store limit for use by runTaskWithCustomer
+            window._pendingLimitValue = limitValue;
+
             // Create modal HTML
             const modalHTML = `
                 <div class="modal-overlay" id="customer-modal">
                     <div class="modal">
                         <div class="modal-header">
                             <div class="modal-title">Select Customer</div>
-                            <div class="modal-subtitle">Choose a customer to run task: <strong>${taskName}</strong></div>
+                            <div class="modal-subtitle">Choose a customer to run task: <strong>${taskName}</strong>${limitValue ? ` (limit: ${limitValue})` : ''}</div>
                         </div>
-                        
+
                         <div class="customer-search">
                             <input type="text" id="customer-search-input" placeholder="Search customers by name or pubkey..." />
                         </div>
-                        
+
                         <div class="customer-list" id="customer-list">
                             <div style="padding: 2rem; text-align: center; color: #666;">Loading customers...</div>
                         </div>
-                        
+
                         <div class="modal-actions">
                             <button class="modal-btn modal-btn-secondary" onclick="closeCustomerModal()">Cancel</button>
                             <button class="modal-btn modal-btn-primary" id="run-with-customer-btn" onclick="runTaskWithCustomer('${taskName}')" disabled>Run Task</button>
@@ -1760,15 +1778,17 @@
                 alert('Please select a customer');
                 return;
             }
-            
+
             const pubkey = selectedCustomer.dataset.pubkey;
             const customerName = selectedCustomer.dataset.name;
-            
+            const limitValue = window._pendingLimitValue || null;
+            window._pendingLimitValue = null;
+
             // Close customer modal
             closeCustomerModal();
-            
-            // Execute task with customer
-            await executeTask(taskName, { pubkey, customerName });
+
+            // Execute task with customer + optional limit
+            await executeTask(taskName, { pubkey, customerName }, limitValue);
         }
 
         // Close customer selector modal
@@ -1780,7 +1800,7 @@
         }
 
         // Execute task
-        async function executeTask(taskName, customerData = null) {
+        async function executeTask(taskName, customerData = null, limitValue = null) {
             // Build API URL
             let apiUrl = `/api/run-task?taskName=${encodeURIComponent(taskName)}`;
             if (customerData) {
@@ -1788,6 +1808,9 @@
                 if (customerData.customerName && customerData.customerName !== 'Unknown') {
                     apiUrl += `&customerName=${encodeURIComponent(customerData.customerName)}`;
                 }
+            }
+            if (limitValue) {
+                apiUrl += `&limit=${encodeURIComponent(limitValue)}`;
             }
             
             // Show execution modal

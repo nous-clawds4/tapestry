@@ -73,19 +73,24 @@ async function validateCustomerArguments(req) {
 }
 
 // Build command arguments based on task requirements
-async function buildTaskCommand(task, customerArgs = null) {    
+async function buildTaskCommand(task, customerArgs = null, queryParams = {}) {
     // Use the cross-platform config module to expand all environment variables
     const scriptPath = brainstormConfig.expandScriptPath(task.script);
-    
+
     let command = scriptPath;
 
     let args = [];
-    
+
     // Handle customer arguments if required
     if (task.arguments && task.arguments.customer && customerArgs) {
         args = [customerArgs.pubkey, customerArgs.customerId, customerArgs.customerName];
     }
-    
+
+    // Handle optional limit argument
+    if (task.arguments && task.arguments.limit && queryParams.limit) {
+        args.push(queryParams.limit);
+    }
+
     return { command, args };
 }
 
@@ -379,7 +384,7 @@ async function handleRunTask(req, res) {
         }
         
         // Build command
-        const { command, args } = await buildTaskCommand(task, customerArgs);
+        const { command, args } = await buildTaskCommand(task, customerArgs, req.query);
         
         // Verify script exists
         if (!fs.existsSync(command)) {

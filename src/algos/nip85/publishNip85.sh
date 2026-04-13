@@ -93,9 +93,10 @@ emit_task_event "PROGRESS" "exportOwnerKind30382" "$BRAINSTORM_OWNER_PUBKEY" '{
     "scope": "owner"
 }'
 
-# Publish all kind 30382 events to BRAINSTORM_RELAY_URL
-# The script will publish events only for NostrUsers whose hops parameter is not null and is less than 20
-node ${BRAINSTORM_NIP85_DIR}/publish_kind30382.js
+# Publish kind 30382 events to local strfry
+# Optional $1 = limit override (e.g., 50 to publish only top 50)
+LIMIT_ARG="${1:-}"
+node ${BRAINSTORM_NIP85_DIR}/publish_kind30382.js $LIMIT_ARG
 RESULT_30382=$?
 
 # Emit structured event for Phase 3 start

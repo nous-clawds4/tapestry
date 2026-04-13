@@ -862,7 +862,7 @@
       ],
       "script": "$BRAINSTORM_MODULE_SRC_DIR/algos/nip85/publishNip85.sh",
       "script_relative_path": "algos/nip85/publishNip85.sh",
-      "arguments": false,
+      "arguments": { "limit": "optional" },
       "parent": "updateAllScoresForOwner",
       "scope": "owner",
       "priority": "low",
@@ -883,7 +883,8 @@
       "script": "$BRAINSTORM_MODULE_SRC_DIR/algos/customers/nip85/publishNip85.sh",
       "script_relative_path": "algos/customers/nip85/publishNip85.sh",
       "arguments": {
-        "customer": true
+        "customer": true,
+        "limit": "optional"
       },
       "parent": "updateAllScoresForSingleCustomer",
       "priority": "medium",

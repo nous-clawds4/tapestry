@@ -15,10 +15,11 @@ const nostrTools = require('nostr-tools');
 const { getConfigFromFile } = require('../../../utils/config.js');
 const { getCustomerRelayKeys } = require('../../../utils/customerRelayKeys.js');
 
-// Extract CUSTOMER_PUBKEY, CUSTOMER_ID, and CUSTOMER_NAME which are passed as arguments
+// Extract CUSTOMER_PUBKEY, CUSTOMER_ID, CUSTOMER_NAME, and optional LIMIT_OVERRIDE from arguments
 const CUSTOMER_PUBKEY = process.argv[2];
 const CUSTOMER_ID = process.argv[3];
 const CUSTOMER_NAME = process.argv[4];
+const LIMIT_OVERRIDE = process.argv[5]; // optional
 
 // Get config
 const neo4jUri = getConfigFromFile('NEO4J_URI', 'bolt://localhost:7687');
@@ -37,25 +38,26 @@ const driver = neo4j.driver(
 );
 
 // Function to get users with WoT scores from Neo4j
-async function getUsers() {
+async function getUsers(limitOverride = null) {
   const session = driver.session();
-  
+  const effectiveLimit = (limitOverride && !isNaN(parseInt(limitOverride))) ? parseInt(limitOverride) : kind30382_limit;
+
   try {
-    console.log('Querying Neo4j for users with WoT scores...');
-    
+    console.log(`Querying Neo4j for users with WoT scores (limit: ${effectiveLimit})...`);
+
     // Build the query
     let query = `
       MATCH (u:NostrUserWotMetricsCard)
-      WHERE u.personalizedPageRank IS NOT NULL 
+      WHERE u.personalizedPageRank IS NOT NULL
       AND u.influence IS NOT NULL
       AND (u.influence > 0.01 OR u.muterInput > 0.1 OR u.reporterInput > 0.1)
-      AND u.hops IS NOT NULL 
+      AND u.hops IS NOT NULL
       AND u.hops < 100
       AND u.observer_pubkey IS NOT NULL
       AND u.observer_pubkey = '${CUSTOMER_PUBKEY}'
       AND u.observee_pubkey IS NOT NULL
-      RETURN u.observee_pubkey AS pubkey, 
-             u.personalizedPageRank AS personalizedPageRank, 
+      RETURN u.observee_pubkey AS pubkey,
+             u.personalizedPageRank AS personalizedPageRank,
              u.hops AS hops,
              u.influence AS influence,
              u.average AS average,
@@ -65,7 +67,7 @@ async function getUsers() {
              u.verifiedMuterCount AS verifiedMuterCount,
              u.verifiedReporterCount AS verifiedReporterCount
       ORDER BY u.influence DESC
-      LIMIT ${kind30382_limit}
+      LIMIT ${effectiveLimit}
     `;    
     const result = await session.run(query);
     
@@ -188,7 +190,7 @@ function importToStrfry(events) {
 async function main() {
   try {
     // Fetch users with WoT scores
-    const users = await getUsers();
+    const users = await getUsers(LIMIT_OVERRIDE);
 
     if (users.length === 0) {
       console.log('No users found with WoT scores');

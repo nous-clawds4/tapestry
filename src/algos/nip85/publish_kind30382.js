@@ -35,23 +35,23 @@ const driver = neo4j.driver(
 );
 
 // Function to get users with WoT scores from Neo4j
-async function getUsers(limit = null) {
+async function getUsers(limitOverride = null) {
   const session = driver.session();
-  
+  const effectiveLimit = (limitOverride && !isNaN(parseInt(limitOverride))) ? parseInt(limitOverride) : kind30382_limit;
+
   try {
-    console.log('Querying Neo4j for users with WoT scores...');
-    
-    // Build the query with optional limit
+    console.log(`Querying Neo4j for users with WoT scores (limit: ${effectiveLimit})...`);
+
     let query = `
       MATCH (u:NostrUser)
-      WHERE u.personalizedPageRank IS NOT NULL 
+      WHERE u.personalizedPageRank IS NOT NULL
       AND u.influence IS NOT NULL
       AND (u.influence > 0.01 OR u.muterInput > 0.1 OR u.reporterInput > 0.1)
-      AND u.hops IS NOT NULL 
+      AND u.hops IS NOT NULL
       AND u.hops < 100
       AND u.pubkey IS NOT NULL
-      RETURN u.pubkey AS pubkey, 
-             u.personalizedPageRank AS personalizedPageRank, 
+      RETURN u.pubkey AS pubkey,
+             u.personalizedPageRank AS personalizedPageRank,
              u.hops AS hops,
              u.influence AS influence,
              u.average AS average,
@@ -61,12 +61,8 @@ async function getUsers(limit = null) {
              u.verifiedMuterCount AS verifiedMuterCount,
              u.verifiedReporterCount AS verifiedReporterCount
       ORDER BY u.influence DESC
-      LIMIT ${kind30382_limit}
+      LIMIT ${effectiveLimit}
     `;
-    
-    if (limit !== null && !isNaN(parseInt(limit))) {
-      query += ` LIMIT ${parseInt(limit)}`;
-    }
     
     const result = await session.run(query);
     

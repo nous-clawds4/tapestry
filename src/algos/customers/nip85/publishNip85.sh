@@ -27,6 +27,9 @@ CUSTOMER_ID="$2"
 # Get customer_directory_name
 CUSTOMER_DIRECTORY_NAME="$3"
 
+# Optional limit override ($4)
+LIMIT_ARG="${4:-}"
+
 # Get log directory
 LOG_DIR="$BRAINSTORM_LOG_DIR/customers/$CUSTOMER_DIRECTORY_NAME"
 
@@ -101,7 +104,7 @@ emit_task_event "PROGRESS" "exportCustomerKind30382" "$CUSTOMER_PUBKEY" "$oMetad
 
 # Publish all kind 30382 events to BRAINSTORM_RELAY_URL
 # The script will publish events only for NostrUsers whose hops parameter is not null and is less than 20
-node ${BRAINSTORM_MODULE_ALGOS_DIR}/customers/nip85/publish_kind30382.js $CUSTOMER_PUBKEY $CUSTOMER_ID $CUSTOMER_DIRECTORY_NAME
+node ${BRAINSTORM_MODULE_ALGOS_DIR}/customers/nip85/publish_kind30382.js $CUSTOMER_PUBKEY $CUSTOMER_ID $CUSTOMER_DIRECTORY_NAME $LIMIT_ARG
 RESULT_30382=$?
 
 if [ $RESULT_30382 -ne 0 ]; then
