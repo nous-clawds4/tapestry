@@ -967,10 +967,12 @@ Arrays are **replaced**, objects are **deep-merged**.
 ### brainstorm.conf
 
 Legacy server config at `/etc/brainstorm.conf` inside Docker. Contains:
-- `BRAINSTORM_RELAY_PRIVKEY` / `BRAINSTORM_RELAY_PUBKEY` — Tapestry Assistant keypair
+- `BRAINSTORM_RELAY_PUBKEY` / `BRAINSTORM_RELAY_NPUB` — Tapestry Assistant public key (private key is in SecureKeyStorage only, NOT in this file)
 - `BRAINSTORM_OWNER_PUBKEY` — Owner pubkey
 - Neo4j connection details
 - Session secret
+
+**Note:** `BRAINSTORM_RELAY_PRIVKEY` is no longer stored in brainstorm.conf (removed for security). Legacy code that reads it from there will fail — use SecureKeyStorage instead. See "Assistant Keys" section below.
 
 ### Neo4j Config Path (Docker)
 
@@ -978,9 +980,20 @@ Neo4j 5.x looks for its config at `/usr/share/neo4j/conf/` by default, but the D
 
 **Memory, GC, and concurrency settings** are NOT in the Dockerfile — they are written dynamically by `entrypoint.sh` at startup based on the machine's actual RAM and CPU count. See the Memory Architecture section under Development Workflow for details. The Dockerfile only configures static settings (listen addresses, procedure allowlists, APOC config).
 
-### Tapestry Assistant
+### Assistant Keys
 
-Each instance has a server-side nostr identity (the "TA") used for automated actions. Its keypair lives in `brainstorm.conf`. The TA signs events when creating concepts, firmware, core nodes, etc.
+Every owner, admin, and customer has an **assistant** — a server-side nostr identity that publishes kind 30382 Trust Assertions and other automated events on their behalf. Under the hood, all assistant keys are stored in SecureKeyStorage and accessed uniformly.
+
+**Owner's assistant** = the Tapestry Assistant (TA). Created at first container startup by `setup/create_nostr_identity.sh`. Stored in SecureKeyStorage as `tapestry-assistant`. Also signs firmware events, concept graph nodes, and other automated Tapestry operations.
+
+**Customer's assistant** = Customer Relay Key. Created at customer sign-up via `createSingleCustomerRelay()`. Stored in SecureKeyStorage under the customer's hex pubkey.
+
+**Known issues (to be addressed):**
+- Some legacy code reads the owner key via `getConfigFromFile('BRAINSTORM_RELAY_PRIVKEY')` instead of SecureKeyStorage. This will fail on new installs.
+- A legacy plaintext key file exists at `setup/nostr/keys/brainstorm_relay_keys.sh` — should be removed.
+- `ui/src/config/pubkeys.js` has a hardcoded `TA_PUBKEY` — should be fetched dynamically from the API.
+- `nip85.html` uses a different (partially broken) publish flow for kind 10040 — should adopt the same NIP-07 flow as `customer.html`.
+- A unified `getAssistantKeys(pubkey)` function should replace the current two code paths. See the plan file (`streamed-brewing-hopper.md`) for the full implementation plan.
 
 ### Router Presets
 
@@ -1362,7 +1375,8 @@ docker compose exec tapestry strfry sync wss://dcosl.brainstorm.world \
 | **povSuffix** | 8-character prefix of the delegated pubkey (`rankAuthor.slice(0, 8)`). Used to namespace WoT score fields in Meilisearch (e.g., `wot_followers_78ed0837`). |
 | **rankAuthor** | The hex pubkey of the delegated trust authority whose Trust Assertions (kind 30382) provide WoT scores for a given POV. Stored in user prefs. |
 | **SUPERCEDES** | Editorial relationship: "I've evaluated your definition and chosen to replace it with mine." Non-destructive. |
-| **Tapestry Assistant (TA)** | Server-side nostr identity that signs automated events. |
+| **Assistant** | A server-side nostr identity that publishes events on behalf of an owner, admin, or customer. The owner's assistant is the Tapestry Assistant (TA); customer assistants are created at sign-up. All stored in SecureKeyStorage. |
+| **Tapestry Assistant (TA)** | The owner's assistant — server-side nostr identity that signs automated events (firmware, concepts, kind 30382 Trust Assertions). Stored in SecureKeyStorage as `tapestry-assistant`. |
 | **Trust Assertions (TAs)** | Kind 30382 nostr events published by a `rankAuthor` that assign trust scores (rank, followers, etc.) to other pubkeys. Synced via negentropy and loaded into Meilisearch for WoT-powered search. |
 | **Word-wrapper** | The canonical JSON format where every node's data includes a `word` section plus type-specific sections. |
 | **z-tag** | The `z` tag on a ListItem that points to its parent concept's a-tag. Fundamental parent pointer. |
