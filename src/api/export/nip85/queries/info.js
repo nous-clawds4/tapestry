@@ -11,7 +11,7 @@
 
 const { execSync } = require('child_process');
 const { getConfigFromFile } = require('../../../../utils/config');
-const { getCustomerRelayKeys } = require('../../../../utils/customerRelayKeys');
+const { getAssistantKeys } = require('../../../../utils/assistantKeys');
 /**
  * Get information about Kind 10040 events
  * @param {Object} req - Express request object
@@ -78,14 +78,21 @@ function handleGetKind10040Info(req, res) {
  */
 async function handleGetKind30382Info(req, res) {
   try {
-    // Get pubkey from request if available
-    const customerPubkey = req.query.pubkey;
+    // Get pubkey from request, or default to session user (owner on nip85.html)
+    const customerPubkey = req.query.pubkey || req.session?.pubkey;
 
-    console.log(`Fetching relay keys for customer: ${customerPubkey.substring(0, 8)}...`);
-    
+    if (!customerPubkey) {
+      return res.json({
+        success: false,
+        message: 'Pubkey is required (provide in query or sign in)'
+      });
+    }
+
+    console.log(`Fetching relay keys for: ${customerPubkey.substring(0, 8)}...`);
+
     let relayPubkey = null;
-    // Get relay keys from secure storage
-    const relayKeys = await getCustomerRelayKeys(customerPubkey);
+    // Get assistant relay keys (unified: owner → TA key, customer → customer relay key)
+    const relayKeys = await getAssistantKeys(customerPubkey);
     if (relayKeys) {
       relayPubkey = relayKeys.pubkey;
     }
