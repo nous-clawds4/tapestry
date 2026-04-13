@@ -19,7 +19,6 @@ const { exec } = require('child_process');
 const nostrTools = require('nostr-tools');
 const { getCustomerRelayKeys } = require('../../utils/customerRelayKeys');
 const { getConfigFromFile } = require('../../utils/config');
-const FormData = require('form-data');
 
 // Branded banner — upload once to nostr.build, hardcode URL here
 const BANNER_URL = ''; // TODO: Upload a branded banner and paste URL here
@@ -67,19 +66,18 @@ function generateColoredSvg(pubkey) {
 
 /**
  * Upload an SVG string to nostr.build.
+ * Uses Node's built-in FormData + Blob (from undici, available in Node 18+).
  * Returns the hosted URL.
  */
 async function uploadToNostrBuild(svgContent, filename) {
-  const formData = new FormData();
-  formData.append('file[]', Buffer.from(svgContent), {
-    filename: filename || 'avatar.svg',
-    contentType: 'image/svg+xml',
-  });
+  const { Blob } = require('buffer');
+  const formData = new globalThis.FormData();
+  const blob = new Blob([svgContent], { type: 'image/svg+xml' });
+  formData.append('file[]', blob, filename || 'avatar.svg');
 
   const resp = await fetch('https://nostr.build/api/v2/upload/files', {
     method: 'POST',
     body: formData,
-    headers: formData.getHeaders(),
   });
 
   if (!resp.ok) {
