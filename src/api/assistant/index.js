@@ -16,23 +16,8 @@
 
 const { exec } = require('child_process');
 const nostrTools = require('nostr-tools');
-const { getCustomerRelayKeys } = require('../../utils/customerRelayKeys');
+const { getAssistantKeys } = require('../../utils/assistantKeys');
 const { getConfigFromFile } = require('../../utils/config');
-const { SecureKeyStorage } = require('../../utils/secureKeyStorage');
-
-/**
- * Get the Tapestry Assistant (TA) keys for the owner.
- * Returns { privkey, pubkey, npub } or null.
- */
-async function getTAKeys() {
-  try {
-    const storage = new SecureKeyStorage({ storagePath: '/var/lib/brainstorm/secure-keys' });
-    const keys = await storage.getRelayKeys('tapestry-assistant');
-    return keys;
-  } catch {
-    return null;
-  }
-}
 const WebSocket = require('ws');
 
 const EXTERNAL_RELAYS = [
@@ -126,18 +111,10 @@ async function handlePublishProfile(req, res) {
       return res.status(403).json({ success: false, error: 'Not authorized' });
     }
 
-    // 1. Get assistant keys (TA key for owner, customer relay key for customers)
-    let relayKeys;
-    if (isOwner) {
-      relayKeys = await getTAKeys();
-      if (!relayKeys || !relayKeys.privkey) {
-        return res.status(400).json({ success: false, error: 'Tapestry Assistant keys not found.' });
-      }
-    } else {
-      relayKeys = await getCustomerRelayKeys(customerPubkey);
-      if (!relayKeys || !relayKeys.privkey) {
-        return res.status(400).json({ success: false, error: 'Customer relay keys not found. Set up Trusted Assertions first.' });
-      }
+    // 1. Get assistant keys (unified: owner → TA key, customer → customer relay key)
+    const relayKeys = await getAssistantKeys(customerPubkey);
+    if (!relayKeys || !relayKeys.privkey) {
+      return res.status(400).json({ success: false, error: isOwner ? 'Tapestry Assistant keys not found.' : 'Customer relay keys not found. Set up Trusted Assertions first.' });
     }
 
     // Convert privkey from nsec or hex to Uint8Array
@@ -227,10 +204,8 @@ async function handleAssistantStatus(req, res) {
       return res.status(400).json({ success: false, error: 'customerPubkey is required' });
     }
 
-    // Use TA key for owner, customer relay key for customers
-    const ownerPubkey = getConfigFromFile('BRAINSTORM_OWNER_PUBKEY');
-    const isOwner = customerPubkey === ownerPubkey;
-    const relayKeys = isOwner ? await getTAKeys() : await getCustomerRelayKeys(customerPubkey);
+    // Unified assistant key access (owner → TA key, customer → customer relay key)
+    const relayKeys = await getAssistantKeys(customerPubkey);
     if (!relayKeys || !relayKeys.pubkey) {
       return res.json({ success: true, hasRelayKey: false, hasProfile: false });
     }
@@ -274,4 +249,17 @@ async function handleAssistantStatus(req, res) {
   }
 }
 
-module.exports = { handlePublishProfile, handleAssistantStatus };
+/**
+ * GET /api/assistant/pubkey
+ * Returns the owner's Tapestry Assistant pubkey (no auth required — pubkey is public).
+ */
+function handleGetTAPubkey(req, res) {
+  const { getOwnerAssistantPubkey } = require('../../utils/assistantKeys');
+  const pubkey = getOwnerAssistantPubkey();
+  if (!pubkey) {
+    return res.status(404).json({ success: false, error: 'TA pubkey not configured' });
+  }
+  return res.json({ success: true, pubkey });
+}
+
+module.exports = { handlePublishProfile, handleAssistantStatus, handleGetTAPubkey };

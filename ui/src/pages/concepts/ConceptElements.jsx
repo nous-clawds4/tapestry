@@ -4,7 +4,8 @@ import { useCypher } from '../../hooks/useCypher';
 import DataTable from '../../components/DataTable';
 import useProfiles from '../../hooks/useProfiles';
 import AuthorCell from '../../components/AuthorCell';
-import { OWNER_PUBKEY, TA_PUBKEY, DAVE_PUBKEY } from '../../config/pubkeys';
+import { OWNER_PUBKEY, DAVE_PUBKEY } from '../../config/pubkeys';
+import { useConfig } from '../../context/ConfigContext';
 
 function ValidationCell({ status, errors }) {
   if (status === 'pending') return <span className="validation-pending" title="Validating…">⏳</span>;
@@ -19,6 +20,7 @@ function ValidationCell({ status, errors }) {
 }
 
 export default function ConceptElements() {
+  const { taPubkey: TA_PUBKEY } = useConfig();
   const { uuid } = useOutletContext();
   const navigate = useNavigate();
 

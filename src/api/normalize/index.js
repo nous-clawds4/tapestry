@@ -7,8 +7,7 @@
  *   Returns list of created events.
  */
 const { runCypher, writeCypher } = require('../../lib/neo4j-driver');
-const { getConfigFromFile } = require('../../utils/config');
-const { SecureKeyStorage } = require('../../utils/secureKeyStorage');
+const { getOwnerAssistantKeys } = require('../../utils/assistantKeys');
 const { exec } = require('child_process');
 const crypto = require('crypto');
 const firmware = require('./firmware');
@@ -89,29 +88,13 @@ async function regenerateJson(uuid, jsonValue) {
 let _cachedPrivkey = null;
 
 async function loadTAKey() {
-  try {
-    const storage = new SecureKeyStorage({
-      storagePath: '/var/lib/brainstorm/secure-keys'
-    });
-    const keys = await storage.getRelayKeys('tapestry-assistant');
-    if (keys && keys.privkey) {
-      _cachedPrivkey = Uint8Array.from(Buffer.from(keys.privkey, 'hex'));
-      console.log(`[normalize] TA key loaded from secure storage (pubkey: ${keys.pubkey})`);
-      return;
-    }
-  } catch (e) {
-    console.warn(`[normalize] Secure storage unavailable: ${e.message}`);
-  }
-
-  // Fallback to brainstorm.conf for backward compatibility
-  const hex = getConfigFromFile('BRAINSTORM_RELAY_PRIVKEY');
-  if (hex) {
-    _cachedPrivkey = Uint8Array.from(Buffer.from(hex, 'hex'));
-    console.warn('[normalize] TA key loaded from brainstorm.conf (DEPRECATED — migrate to secure storage)');
+  const keys = await getOwnerAssistantKeys();
+  if (keys && keys.privkey) {
+    _cachedPrivkey = Uint8Array.from(Buffer.from(keys.privkey, 'hex'));
+    console.log(`[normalize] TA key loaded from secure storage`);
     return;
   }
-
-  throw new Error('Tapestry Assistant key not configured. Store it in secure storage or set BRAINSTORM_RELAY_PRIVKEY.');
+  throw new Error('Tapestry Assistant key not configured. Store it in SecureKeyStorage.');
 }
 
 function getPrivkey() {

@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useCypher } from '../hooks/useCypher';
 import useProfiles from '../hooks/useProfiles';
 import AuthorCell from '../components/AuthorCell';
-import { TA_PUBKEY } from '../config/pubkeys';
+import { useConfig } from '../context/ConfigContext';
 
 function formatAge(createdAt) {
   if (!createdAt) return '—';
@@ -651,6 +651,7 @@ function TapestryKeyStatus() {
 /* ─── Dashboard ───────────────────────────────────────────── */
 
 export default function Dashboard() {
+  const { taPubkey: TA_PUBKEY } = useConfig();
   const navigate = useNavigate();
   const { user } = useAuth();
 

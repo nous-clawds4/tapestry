@@ -5,7 +5,8 @@ import Breadcrumbs from '../../components/Breadcrumbs';
 import { queryRelay } from '../../api/relay';
 import useProfiles from '../../hooks/useProfiles';
 import AuthorCell from '../../components/AuthorCell';
-import { OWNER_PUBKEY, TA_PUBKEY, DAVE_PUBKEY } from '../../config/pubkeys';
+import { OWNER_PUBKEY, DAVE_PUBKEY } from '../../config/pubkeys';
+import { useConfig } from '../../context/ConfigContext';
 
 function getTag(event, name, index = 1) {
   const tag = event.tags?.find(t => t[0] === name);
@@ -28,6 +29,7 @@ function shortPubkey(pk) {
 }
 
 export default function DListItemsList() {
+  const { taPubkey: TA_PUBKEY } = useConfig();
   const navigate = useNavigate();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);

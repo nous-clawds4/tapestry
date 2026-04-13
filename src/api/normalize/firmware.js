@@ -182,56 +182,12 @@ let _taPubkey = null;
 
 function getTAPubkey() {
   if (_taPubkey) return _taPubkey;
-
-  // 1. Environment variable
-  if (process.env.TA_PUBKEY) {
-    _taPubkey = process.env.TA_PUBKEY;
-    return _taPubkey;
+  const { getOwnerAssistantPubkey } = require('../../utils/assistantKeys');
+  _taPubkey = getOwnerAssistantPubkey();
+  if (!_taPubkey) {
+    console.warn('[firmware] Could not determine TA pubkey — conceptUuid() will return null');
   }
-
-  // 2. Read BRAINSTORM_RELAY_PUBKEY or derive from BRAINSTORM_RELAY_PRIVKEY in brainstorm.conf
-  try {
-    const confPath = '/etc/brainstorm.conf';
-    if (fs.existsSync(confPath)) {
-      const conf = fs.readFileSync(confPath, 'utf8');
-      // Try pubkey directly first
-      const pubMatch = conf.match(/BRAINSTORM_RELAY_PUBKEY=["']?([0-9a-f]{64})["']?/);
-      if (pubMatch) {
-        _taPubkey = pubMatch[1];
-        return _taPubkey;
-      }
-      // Fall back to deriving from privkey
-      const privMatch = conf.match(/BRAINSTORM_RELAY_PRIVKEY=["']?([0-9a-f]{64})["']?/);
-      if (privMatch) {
-        const nt = require('nostr-tools/pure');
-        const privBytes = Uint8Array.from(Buffer.from(privMatch[1], 'hex'));
-        _taPubkey = Buffer.from(nt.getPublicKey(privBytes)).toString('hex');
-        return _taPubkey;
-      }
-    }
-  } catch (e) {
-    // Fall through
-  }
-
-  // 3. Try secure storage
-  try {
-    const SecureKeyStorage = require('../../lib/secure-key-storage');
-    const storage = new SecureKeyStorage({ storagePath: '/var/lib/brainstorm/secure-keys' });
-    // Note: getRelayKeys is async, but we need sync here. Use the cached file directly.
-    const keysPath = path.join('/var/lib/brainstorm/secure-keys', 'tapestry-assistant.json');
-    if (fs.existsSync(keysPath)) {
-      const keys = JSON.parse(fs.readFileSync(keysPath, 'utf8'));
-      if (keys.pubkey) {
-        _taPubkey = keys.pubkey;
-        return _taPubkey;
-      }
-    }
-  } catch (e) {
-    // Fall through
-  }
-
-  console.warn('[firmware] Could not determine TA pubkey — conceptUuid() will return null');
-  return null;
+  return _taPubkey;
 }
 
 // ── Concept UUIDs (computed from TA pubkey + slug) ───────────

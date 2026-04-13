@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { TA_PUBKEY } from '../config/pubkeys';
+import { useConfig } from '../context/ConfigContext';
 
 function shortPubkey(pk) {
   if (!pk) return '';
@@ -19,6 +19,7 @@ function classificationBadge(classification) {
 }
 
 export default function Header({ onToggleSidebar }) {
+  const { taPubkey: TA_PUBKEY } = useConfig();
   const { user, loading, login, logout } = useAuth();
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);

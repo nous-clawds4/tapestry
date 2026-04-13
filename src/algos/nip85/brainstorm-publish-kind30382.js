@@ -4,7 +4,7 @@
  * Brainstorm Publish Kind 30382 Events
  * 
  * This script publishes kind 30382 events for the top 5 users by personalizedPageRank
- * Each event is signed with the relay's private key (BRAINSTORM_RELAY_PRIVKEY)
+ * Each event is signed with the relay's private key (from SecureKeyStorage)
  * and published to the relay via WebSocket
  */
 
@@ -17,16 +17,16 @@ const nostrTools = require('nostr-tools');
 const WebSocket = require('ws');
 const { getConfigFromFile } = require('../../utils/config');
 
+const { getOwnerAssistantKeys } = require('../../utils/assistantKeys');
+
 // Get relay configuration
 const relayUrl = getConfigFromFile('BRAINSTORM_RELAY_URL', '');
-const relayNsec = getConfigFromFile('BRAINSTORM_RELAY_PRIVKEY', '');
 const neo4jUri = getConfigFromFile('NEO4J_URI', 'bolt://localhost:7687');
 const neo4jUser = getConfigFromFile('NEO4J_USER', 'neo4j');
 const neo4jPassword = getConfigFromFile('NEO4J_PASSWORD', 'neo4j');
 
 // Log relay configuration for debugging
 console.log(`Using relay URL: ${relayUrl}`);
-console.log(`Relay private key available: ${relayNsec ? 'Yes' : 'No'}`);
 console.log(`Neo4j URI: ${neo4jUri}`);
 
 // Fallback relay URLs if the main one is not configured
@@ -43,31 +43,9 @@ if (!primaryRelayUrl) {
   primaryRelayUrl = fallbackRelays[0];
 }
 
-// Convert keys to the format needed by nostr-tools
-let relayPrivateKey = relayNsec;
+// Relay keys — loaded from SecureKeyStorage in main()
+let relayPrivateKey = null;
 let relayPubkey = '';
-
-try {
-  if (relayPrivateKey) {
-    // If we have the private key in nsec format, convert it to hex
-    if (relayPrivateKey.startsWith('nsec')) {
-      relayPrivateKey = nostrTools.nip19.decode(relayPrivateKey).data;
-    }
-    
-    // Derive the public key from the private key
-    relayPubkey = nostrTools.getPublicKey(relayPrivateKey);
-    console.log(`Using relay pubkey: ${relayPubkey.substring(0, 8)}...`);
-  } else {
-    console.warn('No relay private key found in configuration. Will attempt to continue but may fail.');
-  }
-} catch (error) {
-  console.error('Error processing relay keys:', error);
-}
-
-if (!relayPrivateKey || !relayPubkey) {
-  console.error('Error: Relay private key not available');
-  process.exit(1);
-}
 
 // Connect to Neo4j
 const driver = neo4j.driver(
@@ -300,10 +278,18 @@ function publishEventToRelay(event, targetRelayUrl = relayUrl) {
 // Main function
 async function main() {
   try {
-    // Check for authenticated session or relay private key
-    // For kind 30382 events, we can use the relay's private key directly
-    // No need for user authentication since these are relay-signed events
-    
+    // Load TA keys from SecureKeyStorage
+    const taKeys = await getOwnerAssistantKeys();
+    if (!taKeys || !taKeys.privkey) {
+      console.error('No relay private key found in SecureKeyStorage. Cannot continue.');
+      process.exit(1);
+    }
+    relayPrivateKey = taKeys.privkey;
+    if (typeof relayPrivateKey === 'string' && relayPrivateKey.startsWith('nsec')) {
+      relayPrivateKey = nostrTools.nip19.decode(relayPrivateKey).data;
+    }
+    relayPubkey = nostrTools.getPublicKey(relayPrivateKey);
+
     console.log(`Using relay pubkey: ${relayPubkey.substring(0, 8)}...`);
     console.log('Fetching users with personalizedPageRank...');
     const topUsers = await getTopUsers();

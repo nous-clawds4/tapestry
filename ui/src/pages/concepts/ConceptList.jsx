@@ -5,7 +5,8 @@ import DataTable from '../../components/DataTable';
 import Breadcrumbs from '../../components/Breadcrumbs';
 import useProfiles from '../../hooks/useProfiles';
 import AuthorCell from '../../components/AuthorCell';
-import { OWNER_PUBKEY, TA_PUBKEY, DAVE_PUBKEY } from '../../config/pubkeys';
+import { OWNER_PUBKEY, DAVE_PUBKEY } from '../../config/pubkeys';
+import { useConfig } from '../../context/ConfigContext';
 
 const QUERY = `
   MATCH (h:NostrEvent)
@@ -55,6 +56,7 @@ const QUERY = `
 `;
 
 export default function ConceptList() {
+  const { taPubkey: TA_PUBKEY } = useConfig();
   const { data, loading, error } = useCypher(QUERY);
   const navigate = useNavigate();
   const [healthMap, setHealthMap] = useState({});

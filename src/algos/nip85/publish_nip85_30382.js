@@ -14,6 +14,8 @@ const { finalizeEvent, getEventHash } = require('nostr-tools');
 const readline = require('readline');
 const os = require('os');
 
+const { getOwnerAssistantKeys } = require('../../utils/assistantKeys');
+
 // Get environment variables from brainstorm.conf using source command
 function getEnvVar(varName) {
   try {
@@ -25,53 +27,21 @@ function getEnvVar(varName) {
   }
 }
 
-// Get the Nostr keys from various possible locations
-function getNostrKeys() {
+// Get the Nostr keys from SecureKeyStorage
+async function getNostrKeys() {
   try {
-    // Try environment variables first
-    const privateKey = getEnvVar('BRAINSTORM_RELAY_PRIVKEY');
-    const publicKey = getEnvVar('BRAINSTORM_RELAY_PUBKEY');
-    
-    if (privateKey && publicKey) {
-      console.log(`Got keys from environment: PUBKEY=${publicKey.substring(0, 8)}...`);
-      return { privateKey, publicKey };
-    }
-    
-    // Check the key file at the known location
-    const keyFilePath = '/home/ubuntu/brainstorm/nostr/keys/brainstorm_relay_keys';
-    
-    if (fs.existsSync(keyFilePath)) {
-      console.log(`Reading keys from file: ${keyFilePath}`);
-      try {
-        const keysData = JSON.parse(fs.readFileSync(keyFilePath, 'utf8'));
-        
-        // The file has fields "nsec" and "pubkey" instead of BRAINSTORM_RELAY_PRIVKEY and BRAINSTORM_RELAY_PUBKEY
-        if (keysData.nsec && keysData.pubkey) {
-          console.log(`Successfully read keys from ${keyFilePath}`);
-          return {
-            privateKey: keysData.nsec,
-            publicKey: keysData.pubkey
-          };
-        } else {
-          console.error(`Key file exists but doesn't contain expected fields (nsec, pubkey)`);
-          console.log('Available fields:', Object.keys(keysData).join(', '));
-        }
-      } catch (e) {
-        console.error(`Error parsing JSON from ${keyFilePath}:`, e.message);
-        // Show the file content for debugging
-        try {
-          const content = fs.readFileSync(keyFilePath, 'utf8');
-          console.log('File content:', content);
-        } catch (readError) {
-          console.error('Error reading file content:', readError.message);
-        }
+    const taKeys = await getOwnerAssistantKeys();
+    if (taKeys && taKeys.privkey) {
+      let privateKey = taKeys.privkey;
+      // If stored as nsec, decode
+      if (typeof privateKey === 'string' && privateKey.startsWith('nsec')) {
+        const { nip19 } = require('nostr-tools');
+        privateKey = nip19.decode(privateKey).data;
       }
-    } else {
-      console.error(`Key file not found at ${keyFilePath}`);
+      console.log(`Got keys from SecureKeyStorage: PUBKEY=${taKeys.pubkey.substring(0, 8)}...`);
+      return { privateKey, publicKey: taKeys.pubkey };
     }
-    
-    // If we get here, we couldn't find the keys
-    console.error('Could not find Nostr keys in any of the expected locations');
+    console.error('No TA keys found in SecureKeyStorage');
     return null;
   } catch (error) {
     console.error('Error reading Nostr keys:', error);
@@ -386,7 +356,7 @@ async function publishNip85() {
   execSync(`echo "$(date): Starting publish_nip85_30382.js" >> /var/log/brainstorm/publishNip85.log`)
   
   // Get Nostr keys
-  const keys = getNostrKeys();
+  const keys = await getNostrKeys();
   if (!keys) {
     console.error('Failed to get Nostr keys');
     process.exit(1);

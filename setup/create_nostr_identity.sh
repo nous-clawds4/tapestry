@@ -127,17 +127,6 @@ const { SecureKeyStorage } = require('$(dirname "$0")/../src/utils/secureKeyStor
 })().catch(e => { console.error('Failed to store in secure storage:', e.message); process.exit(1); });
 "
 
-# Also keep legacy key files for backward compat (will be deprecated)
-KEYS_FILE="$KEYS_DIR/brainstorm_relay_keys"
-echo "$KEYS_JSON" > "$KEYS_FILE"
-chmod 600 "$KEYS_FILE"
-KEYS_SH_FILE="$KEYS_DIR/brainstorm_relay_keys.sh"
-echo "BRAINSTORM_RELAY_PRIVKEY='$BRAINSTORM_RELAY_PRIVKEY'" > "$KEYS_SH_FILE"
-echo "BRAINSTORM_RELAY_NSEC='$BRAINSTORM_RELAY_NSEC'" >> "$KEYS_SH_FILE"
-echo "BRAINSTORM_RELAY_PUBKEY='$BRAINSTORM_RELAY_PUBKEY'" >> "$KEYS_SH_FILE"
-echo "BRAINSTORM_RELAY_NPUB='$BRAINSTORM_RELAY_NPUB'" >> "$KEYS_SH_FILE"
-chmod 600 "$KEYS_SH_FILE"
-
 # Add ONLY public keys to brainstorm.conf (NO private keys)
 if [ -f "/etc/brainstorm.conf" ]; then
     echo "Adding public keys to /etc/brainstorm.conf (privkey in secure storage only)..."

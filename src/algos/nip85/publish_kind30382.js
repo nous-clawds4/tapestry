@@ -4,7 +4,7 @@
  * Brainstorm Publish Kind 30382 Events
  * 
  * This script publishes kind 30382 events for users in the Web of Trust
- * Each event is signed with the relay's private key (BRAINSTORM_RELAY_PRIVKEY)
+ * Each event is signed with the relay's private key (from SecureKeyStorage)
  * and published to the relay via WebSocket
  */
 
@@ -19,7 +19,6 @@ const { getConfigFromFile } = require('../../utils/config');
 
 // Get relay configuration
 const relayUrl = getConfigFromFile('BRAINSTORM_RELAY_URL', '');
-const relayNsec = getConfigFromFile('BRAINSTORM_RELAY_PRIVKEY', '');
 const neo4jUri = getConfigFromFile('NEO4J_URI', 'bolt://localhost:7687');
 const neo4jUser = getConfigFromFile('NEO4J_USER', 'neo4j');
 const neo4jPassword = getConfigFromFile('NEO4J_PASSWORD', 'neo4j');
@@ -42,44 +41,22 @@ try {
   relayUrls = [primaryRelayUrl]; // Fallback to primary relay
 }
 
+const { getOwnerAssistantKeys } = require('../../utils/assistantKeys');
+
 // Log relay configuration for debugging
 console.log(`Using relay URL: ${relayUrl}`);
-console.log(`Relay private key available: ${relayNsec ? 'Yes' : 'No'}`);
 console.log(`Neo4j URI: ${neo4jUri}`);
 console.log(`Kind 30382 limit: ${kind30382_limit}`);
 console.log(`NIP-85 relay URLs: ${nip85RelayUrls}`);
 
 execSync(`echo "$(date): Using relay URL: ${relayUrl}" >> ${logDir}/publishNip85.log`);
-execSync(`echo "$(date): Relay private key available: ${relayNsec ? 'Yes' : 'No'}" >> ${logDir}/publishNip85.log`);
 execSync(`echo "$(date): Neo4j URI: ${neo4jUri}" >> ${logDir}/publishNip85.log`);
 execSync(`echo "$(date): Kind 30382 limit: ${kind30382_limit}" >> ${logDir}/publishNip85.log`);
 execSync(`echo "$(date): NIP-85 relay URLs: ${nip85RelayUrls}" >> ${logDir}/publishNip85.log`);
 
-// Convert keys to the format needed by nostr-tools
-let relayPrivateKey = relayNsec;
+// Relay keys — loaded from SecureKeyStorage at startup
+let relayPrivateKey = null;
 let relayPubkey = '';
-
-try {
-  if (relayPrivateKey) {
-    // If we have the private key in nsec format, convert it to hex
-    if (relayPrivateKey.startsWith('nsec')) {
-      relayPrivateKey = nostrTools.nip19.decode(relayPrivateKey).data;
-    }
-    
-    // Derive the public key from the private key
-    relayPubkey = nostrTools.getPublicKey(relayPrivateKey);
-    console.log(`Using relay pubkey: ${relayPubkey.substring(0, 8)}...`);
-    execSync(`echo "$(date): Using relay pubkey: ${relayPubkey.substring(0, 8)}..." >> ${logDir}/publishNip85.log`);
-  } else {
-    console.error('No relay private key found in configuration. Cannot continue.');
-    execSync(`echo "$(date): No relay private key found in configuration. Cannot continue." >> ${logDir}/publishNip85.log`);
-    process.exit(1);
-  }
-} catch (error) {
-  console.error('Error processing relay keys:', error);
-  execSync(`echo "$(date): Error processing relay keys: ${error.message}" >> ${logDir}/publishNip85.log`);
-  process.exit(1);
-}
 
 // Connect to Neo4j
 const driver = neo4j.driver(
@@ -336,6 +313,22 @@ function publishEventToRelay(event, targetRelayUrl = relayUrl) {
 // Main function
 async function main() {
   try {
+    // Load TA keys from SecureKeyStorage
+    const taKeys = await getOwnerAssistantKeys();
+    if (!taKeys || !taKeys.privkey) {
+      console.error('No relay private key found in SecureKeyStorage. Cannot continue.');
+      execSync(`echo "$(date): No relay private key found in SecureKeyStorage. Cannot continue." >> ${logDir}/publishNip85.log`);
+      process.exit(1);
+    }
+    relayPrivateKey = taKeys.privkey;
+    // If stored as nsec, decode to hex
+    if (typeof relayPrivateKey === 'string' && relayPrivateKey.startsWith('nsec')) {
+      relayPrivateKey = nostrTools.nip19.decode(relayPrivateKey).data;
+    }
+    relayPubkey = nostrTools.getPublicKey(relayPrivateKey);
+    console.log(`Using relay pubkey: ${relayPubkey.substring(0, 8)}...`);
+    execSync(`echo "$(date): Using relay pubkey: ${relayPubkey.substring(0, 8)}..." >> ${logDir}/publishNip85.log`);
+
     // Check if a limit was provided as a command-line argument
     const args = process.argv.slice(2);
     let limit = null;

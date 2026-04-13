@@ -452,6 +452,7 @@ async function register(app) {
     const assistantApi = require('./assistant');
     app.post('/api/assistant/publish-profile', assistantApi.handlePublishProfile);
     app.get('/api/assistant/status', assistantApi.handleAssistantStatus);
+    app.get('/api/assistant/pubkey', assistantApi.handleGetTAPubkey);
 
     // ── Tapestry Property API ──
     const { registerPropertyRoutes } = require('./property');

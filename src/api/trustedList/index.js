@@ -13,8 +13,7 @@
  * Signs with the Tapestry Assistant key and publishes to local strfry.
  */
 
-const { getConfigFromFile } = require('../../utils/config');
-const { SecureKeyStorage } = require('../../utils/secureKeyStorage');
+const { getOwnerAssistantKeys } = require('../../utils/assistantKeys');
 
 let _nt = null;
 function nt() {
@@ -26,29 +25,13 @@ function nt() {
 let _cachedPrivkey = null;
 
 async function loadTAKey() {
-  try {
-    const storage = new SecureKeyStorage({
-      storagePath: '/var/lib/brainstorm/secure-keys'
-    });
-    const keys = await storage.getRelayKeys('tapestry-assistant');
-    if (keys && keys.privkey) {
-      _cachedPrivkey = Uint8Array.from(Buffer.from(keys.privkey, 'hex'));
-      console.log(`[trusted-list] TA key loaded from secure storage`);
-      return;
-    }
-  } catch (e) {
-    console.warn(`[trusted-list] Secure storage unavailable: ${e.message}`);
-  }
-
-  // Fallback to brainstorm.conf
-  const hex = getConfigFromFile('BRAINSTORM_RELAY_PRIVKEY');
-  if (hex) {
-    _cachedPrivkey = Uint8Array.from(Buffer.from(hex, 'hex'));
-    console.warn('[trusted-list] TA key loaded from brainstorm.conf (fallback)');
+  const keys = await getOwnerAssistantKeys();
+  if (keys && keys.privkey) {
+    _cachedPrivkey = Uint8Array.from(Buffer.from(keys.privkey, 'hex'));
+    console.log(`[trusted-list] TA key loaded from secure storage`);
     return;
   }
-
-  throw new Error('TA key not configured');
+  throw new Error('TA key not configured — store it in SecureKeyStorage');
 }
 
 function getPrivkey() {
