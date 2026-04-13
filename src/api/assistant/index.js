@@ -65,19 +65,46 @@ function generateColoredSvg(pubkey) {
 }
 
 /**
- * Upload an SVG string to nostr.build.
- * Uses Node's built-in FormData + Blob (from undici, available in Node 18+).
+ * Create a NIP-98 auth token for nostr.build upload.
+ * Signs a kind 27235 event with the given private key.
+ */
+function createNip98Token(privkeyBytes, url, method) {
+  const event = {
+    kind: 27235,
+    pubkey: nostrTools.getPublicKey(privkeyBytes),
+    created_at: Math.floor(Date.now() / 1000),
+    tags: [
+      ['u', url],
+      ['method', method],
+    ],
+    content: '',
+  };
+  const signedEvent = nostrTools.finalizeEvent(event, privkeyBytes);
+  return Buffer.from(JSON.stringify(signedEvent)).toString('base64');
+}
+
+/**
+ * Upload an SVG string to nostr.build with NIP-98 authentication.
+ * Uses Node's built-in FormData + Blob.
  * Returns the hosted URL.
  */
-async function uploadToNostrBuild(svgContent, filename) {
+async function uploadToNostrBuild(svgContent, filename, privkeyBytes) {
   const { Blob } = require('buffer');
+  const uploadUrl = 'https://nostr.build/api/v2/upload/files';
+
+  // Create NIP-98 auth token
+  const nip98Token = createNip98Token(privkeyBytes, uploadUrl, 'POST');
+
   const formData = new globalThis.FormData();
   const blob = new Blob([svgContent], { type: 'image/svg+xml' });
   formData.append('file[]', blob, filename || 'avatar.svg');
 
-  const resp = await fetch('https://nostr.build/api/v2/upload/files', {
+  const resp = await fetch(uploadUrl, {
     method: 'POST',
     body: formData,
+    headers: {
+      'Authorization': `Nostr ${nip98Token}`,
+    },
   });
 
   if (!resp.ok) {
@@ -166,7 +193,7 @@ async function handlePublishProfile(req, res) {
     // 4. Upload avatar to nostr.build
     let avatarUrl;
     try {
-      avatarUrl = await uploadToNostrBuild(coloredSvg, `brainstorm-assistant-${customerPubkey.slice(0, 8)}.svg`);
+      avatarUrl = await uploadToNostrBuild(coloredSvg, `brainstorm-assistant-${customerPubkey.slice(0, 8)}.svg`, privkeyBytes);
       console.log(`[assistant] Avatar uploaded: ${avatarUrl}`);
     } catch (uploadErr) {
       console.error(`[assistant] nostr.build upload failed: ${uploadErr.message}`);
