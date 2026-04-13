@@ -224,9 +224,11 @@ app.get('/legacy/:filename.html', (req, res) => {
 
 // Redirect bare /*.html requests to /legacy/*.html so internal links in
 // legacy HTML pages work without modification. Preserves query string.
+// Use 302 (not 301) — browsers cache 301 redirects permanently, which
+// causes query-string parameters to be lost on subsequent requests.
 app.get('/:filename.html', (req, res) => {
     const qs = req._parsedUrl.search || '';
-    res.redirect(301, `/legacy/${req.params.filename}.html${qs}`);
+    res.redirect(302, `/legacy/${req.params.filename}.html${qs}`);
 });
 
 // Swagger UI — serve OpenAPI docs at /docs (before auth so docs are public)
