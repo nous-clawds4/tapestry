@@ -105,17 +105,17 @@ async function handleCreateUnsignedKind10040(req, res) {
                     nip85HomeRelay
                 ],
                 [
-                    "30382:verifiedFollowersCount",
+                    "30382:verifiedFollowerCount",
                     relayPubkey,
                     nip85HomeRelay
                 ],
                 [
-                    "30382:verifiedMutersCount",
+                    "30382:verifiedMuterCount",
                     relayPubkey,
                     nip85HomeRelay
                 ],
                 [
-                    "30382:verifiedReportersCount",
+                    "30382:verifiedReporterCount",
                     relayPubkey,
                     nip85HomeRelay
                 ],
