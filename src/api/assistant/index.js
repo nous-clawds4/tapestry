@@ -5,120 +5,21 @@
  * (their relay identity that publishes kind 30382 Trust Assertions).
  *
  * The profile includes:
- * - A unique avatar: Brainstorm brain logo with customer-specific colors
- * - A branded banner (hardcoded nostr.build URL)
  * - Name: "<CustomerName>'s Brainstorm Assistant"
  * - About: describes the assistant's NIP-85 role
+ * - Website: https://brainstorm.nosfabrica.com
+ *
+ * Future enhancements: avatar image, banner image, NIP-05.
  *
  * The event is signed server-side with the assistant's private key.
  */
 
-const path = require('path');
-const fs = require('fs');
 const { exec } = require('child_process');
 const nostrTools = require('nostr-tools');
 const { getCustomerRelayKeys } = require('../../utils/customerRelayKeys');
 const { getConfigFromFile } = require('../../utils/config');
 
-// Branded banner — upload once to nostr.build, hardcode URL here
-const BANNER_URL = ''; // TODO: Upload a branded banner and paste URL here
-
 const ABOUT_TEXT = 'I am the Brainstorm Assistant for my owner. My primary task is to publish kind 30382 Trusted Assertions so that my owner\'s personalized web of trust metrics are available to be utilized by any nostr client that supports NIP-85.';
-
-/**
- * Derive two unique colors from a pubkey hash.
- * Returns HSL color strings for replacing the SVG's orange and purple.
- */
-function deriveColors(pubkey) {
-  const hue1 = parseInt(pubkey.slice(0, 6), 16) % 360;
-  const hue2 = (hue1 + 140) % 360; // complementary-ish offset
-
-  // Convert HSL to hex for SVG fill replacement
-  function hslToHex(h, s, l) {
-    s /= 100;
-    l /= 100;
-    const a = s * Math.min(l, 1 - l);
-    const f = n => {
-      const k = (n + h / 30) % 12;
-      const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
-      return Math.round(255 * color).toString(16).padStart(2, '0');
-    };
-    return `#${f(0)}${f(8)}${f(4)}`;
-  }
-
-  return {
-    primary: hslToHex(hue1, 75, 60),   // replaces #ff914d (orange lightning)
-    secondary: hslToHex(hue2, 65, 50),  // replaces #9546ed (purple cloud)
-  };
-}
-
-/**
- * Generate a colored brainstorm SVG for the given pubkey.
- */
-function generateColoredSvg(pubkey) {
-  const svgPath = path.join(__dirname, '../../../ui/public/brainstorm.svg');
-  let svg = fs.readFileSync(svgPath, 'utf8');
-  const colors = deriveColors(pubkey);
-  svg = svg.replace(/#ff914d/g, colors.primary);
-  svg = svg.replace(/#9546ed/g, colors.secondary);
-  return svg;
-}
-
-/**
- * Create a NIP-98 auth token for nostr.build upload.
- * Signs a kind 27235 event with the given private key.
- */
-function createNip98Token(privkeyBytes, url, method) {
-  const event = {
-    kind: 27235,
-    pubkey: nostrTools.getPublicKey(privkeyBytes),
-    created_at: Math.floor(Date.now() / 1000),
-    tags: [
-      ['u', url],
-      ['method', method],
-    ],
-    content: '',
-  };
-  const signedEvent = nostrTools.finalizeEvent(event, privkeyBytes);
-  return Buffer.from(JSON.stringify(signedEvent)).toString('base64');
-}
-
-/**
- * Upload an SVG string to nostr.build with NIP-98 authentication.
- * Uses Node's built-in FormData + Blob.
- * Returns the hosted URL.
- */
-async function uploadToNostrBuild(svgContent, filename, privkeyBytes) {
-  const { Blob } = require('buffer');
-  const uploadUrl = 'https://nostr.build/api/v2/upload/files';
-
-  // Create NIP-98 auth token
-  const nip98Token = createNip98Token(privkeyBytes, uploadUrl, 'POST');
-
-  const formData = new globalThis.FormData();
-  const blob = new Blob([svgContent], { type: 'image/svg+xml' });
-  formData.append('file[]', blob, filename || 'avatar.svg');
-
-  const resp = await fetch(uploadUrl, {
-    method: 'POST',
-    body: formData,
-    headers: {
-      'Authorization': `Nostr ${nip98Token}`,
-    },
-  });
-
-  if (!resp.ok) {
-    const text = await resp.text();
-    throw new Error(`nostr.build upload failed (${resp.status}): ${text.slice(0, 200)}`);
-  }
-
-  const result = await resp.json();
-  if (result.status !== 'success' || !result.data?.[0]?.url) {
-    throw new Error('nostr.build upload returned unexpected format');
-  }
-
-  return result.data[0].url;
-}
 
 /**
  * Fetch a customer's kind 0 name from strfry.
@@ -186,31 +87,13 @@ async function handlePublishProfile(req, res) {
     const customerName = await getCustomerName(customerPubkey);
     const assistantName = `${customerName}'s Brainstorm Assistant`;
 
-    // 3. Generate colored avatar SVG
-    console.log(`[assistant] Generating colored avatar for ${customerPubkey.slice(0, 8)}...`);
-    const coloredSvg = generateColoredSvg(customerPubkey);
-
-    // 4. Upload avatar to nostr.build
-    let avatarUrl;
-    try {
-      avatarUrl = await uploadToNostrBuild(coloredSvg, `brainstorm-assistant-${customerPubkey.slice(0, 8)}.svg`, privkeyBytes);
-      console.log(`[assistant] Avatar uploaded: ${avatarUrl}`);
-    } catch (uploadErr) {
-      console.error(`[assistant] nostr.build upload failed: ${uploadErr.message}`);
-      return res.status(502).json({ success: false, error: `Avatar upload failed: ${uploadErr.message}` });
-    }
-
-    // 5. Build kind 0 event
+    // 3. Build kind 0 event
     const profileContent = {
       name: assistantName,
       display_name: assistantName,
-      picture: avatarUrl,
       website: 'https://brainstorm.nosfabrica.com',
       about: ABOUT_TEXT,
     };
-    if (BANNER_URL) {
-      profileContent.banner = BANNER_URL;
-    }
 
     const event = {
       kind: 0,
@@ -220,11 +103,11 @@ async function handlePublishProfile(req, res) {
       content: JSON.stringify(profileContent),
     };
 
-    // 6. Sign with assistant's private key
+    // 4. Sign with assistant's private key
     const signedEvent = nostrTools.finalizeEvent(event, privkeyBytes);
     console.log(`[assistant] Kind 0 event signed: ${signedEvent.id.slice(0, 16)}...`);
 
-    // 7. Publish to local strfry
+    // 5. Publish to local strfry
     await new Promise((resolve, reject) => {
       const child = exec('strfry import', { timeout: 10000 }, (error) => {
         if (error) reject(error);
@@ -239,10 +122,9 @@ async function handlePublishProfile(req, res) {
     return res.json({
       success: true,
       event: signedEvent,
-      avatarUrl,
       assistantPubkey,
       assistantName,
-      message: `Brainstorm Assistant profile published successfully`,
+      message: 'Brainstorm Assistant profile published successfully',
     });
 
   } catch (err) {
