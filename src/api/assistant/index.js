@@ -18,6 +18,21 @@ const { exec } = require('child_process');
 const nostrTools = require('nostr-tools');
 const { getCustomerRelayKeys } = require('../../utils/customerRelayKeys');
 const { getConfigFromFile } = require('../../utils/config');
+const { SecureKeyStorage } = require('../../utils/secureKeyStorage');
+
+/**
+ * Get the Tapestry Assistant (TA) keys for the owner.
+ * Returns { privkey, pubkey, npub } or null.
+ */
+async function getTAKeys() {
+  try {
+    const storage = new SecureKeyStorage({ storagePath: '/var/lib/brainstorm/secure-keys' });
+    const keys = await storage.getRelayKeys('tapestry-assistant');
+    return keys;
+  } catch {
+    return null;
+  }
+}
 const WebSocket = require('ws');
 
 const EXTERNAL_RELAYS = [
@@ -106,14 +121,23 @@ async function handlePublishProfile(req, res) {
 
     // Verify caller is the customer or the owner
     const ownerPubkey = getConfigFromFile('BRAINSTORM_OWNER_PUBKEY');
+    const isOwner = customerPubkey === ownerPubkey;
     if (req.session?.pubkey !== customerPubkey && req.session?.pubkey !== ownerPubkey) {
       return res.status(403).json({ success: false, error: 'Not authorized' });
     }
 
-    // 1. Get customer relay keys
-    const relayKeys = await getCustomerRelayKeys(customerPubkey);
-    if (!relayKeys || !relayKeys.privkey) {
-      return res.status(400).json({ success: false, error: 'Customer relay keys not found. Set up Trusted Assertions first.' });
+    // 1. Get assistant keys (TA key for owner, customer relay key for customers)
+    let relayKeys;
+    if (isOwner) {
+      relayKeys = await getTAKeys();
+      if (!relayKeys || !relayKeys.privkey) {
+        return res.status(400).json({ success: false, error: 'Tapestry Assistant keys not found.' });
+      }
+    } else {
+      relayKeys = await getCustomerRelayKeys(customerPubkey);
+      if (!relayKeys || !relayKeys.privkey) {
+        return res.status(400).json({ success: false, error: 'Customer relay keys not found. Set up Trusted Assertions first.' });
+      }
     }
 
     // Convert privkey from nsec or hex to Uint8Array
@@ -203,7 +227,10 @@ async function handleAssistantStatus(req, res) {
       return res.status(400).json({ success: false, error: 'customerPubkey is required' });
     }
 
-    const relayKeys = await getCustomerRelayKeys(customerPubkey);
+    // Use TA key for owner, customer relay key for customers
+    const ownerPubkey = getConfigFromFile('BRAINSTORM_OWNER_PUBKEY');
+    const isOwner = customerPubkey === ownerPubkey;
+    const relayKeys = isOwner ? await getTAKeys() : await getCustomerRelayKeys(customerPubkey);
     if (!relayKeys || !relayKeys.pubkey) {
       return res.json({ success: true, hasRelayKey: false, hasProfile: false });
     }

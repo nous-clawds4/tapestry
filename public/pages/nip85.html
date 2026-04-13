@@ -67,6 +67,52 @@
                 </div>
             </div>
             
+            <!-- Brainstorm Assistant Panel -->
+            <div class="section">
+                <h2>🤖 Your Brainstorm Assistant</h2>
+                <div class="card">
+                    <p>Your Brainstorm Assistant is the Tapestry Assistant identity that publishes kind 30382 Trust Assertions on your behalf.
+                       Give it a profile so other users can see who it represents.</p>
+
+                    <div id="ownerAssistantLoading" class="status-message status-info">Loading assistant status...</div>
+
+                    <div id="ownerAssistantContent" style="display: none;">
+                        <div class="info-panel" style="margin-bottom: 1rem;">
+                            <div class="info-row">
+                                <span class="info-label">Assistant Pubkey:</span>
+                                <span id="ownerAssistantPubkey" class="info-value" style="font-family: monospace; font-size: 0.85rem;"></span>
+                                <span id="ownerAssistantCopyBtn" style="cursor: pointer; margin-left: 0.5rem;" title="Copy full pubkey">📋</span>
+                                <a id="ownerAssistantProfileLink" href="#" style="margin-left: 0.5rem; text-decoration: none;" title="View profile">👤</a>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">Profile Status:</span>
+                                <span id="ownerAssistantProfileStatus" class="info-value"></span>
+                            </div>
+                        </div>
+
+                        <div id="ownerAssistantPreview" style="display: none; margin-bottom: 1rem; padding: 0.75rem; background: rgba(255,255,255,0.03); border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);">
+                            <div style="display: flex; align-items: center; gap: 0.75rem;">
+                                <div>
+                                    <div id="ownerAssistantDisplayName" style="font-weight: 600;"></div>
+                                    <div id="ownerAssistantAbout" style="font-size: 0.85rem; color: #888; margin-top: 0.25rem;"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="button-group">
+                            <button id="publishOwnerAssistantBtn" class="button primary-btn" onclick="publishOwnerAssistantProfile()">
+                                Publish Kind 0 Profile
+                            </button>
+                        </div>
+                        <div id="ownerAssistantPublishStatus" class="status-message"></div>
+                    </div>
+
+                    <div id="ownerAssistantNoKey" style="display: none;" class="status-message status-error">
+                        Tapestry Assistant keys not found.
+                    </div>
+                </div>
+            </div>
+
             <div class="section">
                 <h2>Kind 30382 Event Management</h2>
                 
@@ -101,6 +147,97 @@
     </div>
 
     <script>
+        // ── Brainstorm Assistant Functions (owner) ──
+
+        let _ownerPubkey = null;
+
+        async function loadOwnerAssistantStatus() {
+            try {
+                // Get owner pubkey from auth
+                const authResp = await fetch('/api/auth/status');
+                const authData = await authResp.json();
+                _ownerPubkey = authData.pubkey;
+                if (!_ownerPubkey) {
+                    document.getElementById('ownerAssistantLoading').textContent = 'Sign in to manage your Brainstorm Assistant.';
+                    return;
+                }
+
+                const resp = await fetch(`/api/assistant/status?customerPubkey=${_ownerPubkey}`);
+                const data = await resp.json();
+
+                document.getElementById('ownerAssistantLoading').style.display = 'none';
+
+                if (!data.success || !data.hasRelayKey) {
+                    document.getElementById('ownerAssistantNoKey').style.display = 'block';
+                    return;
+                }
+
+                document.getElementById('ownerAssistantContent').style.display = 'block';
+                const pk = data.assistantPubkey || '';
+                document.getElementById('ownerAssistantPubkey').textContent = pk ? pk.slice(0, 12) + '...' + pk.slice(-8) : 'Unknown';
+
+                // Copy button
+                document.getElementById('ownerAssistantCopyBtn').onclick = () => {
+                    navigator.clipboard.writeText(pk).then(() => {
+                        const btn = document.getElementById('ownerAssistantCopyBtn');
+                        btn.textContent = '✅';
+                        setTimeout(() => { btn.textContent = '📋'; }, 1500);
+                    });
+                };
+
+                // Profile link
+                document.getElementById('ownerAssistantProfileLink').href = '/profile.html?pubkey=' + pk;
+
+                if (data.hasProfile && data.profile) {
+                    document.getElementById('ownerAssistantProfileStatus').innerHTML = '<span style="color: #22c55e;">✅ Published</span>';
+                    document.getElementById('ownerAssistantPreview').style.display = 'block';
+                    document.getElementById('ownerAssistantDisplayName').textContent = data.profile.display_name || data.profile.name || '';
+                    document.getElementById('ownerAssistantAbout').textContent = (data.profile.about || '').slice(0, 120) + '...';
+                    document.getElementById('publishOwnerAssistantBtn').textContent = 'Re-publish Kind 0 Profile';
+                } else {
+                    document.getElementById('ownerAssistantProfileStatus').innerHTML = '<span style="color: #f59e0b;">⚠️ Not published</span>';
+                }
+            } catch (err) {
+                document.getElementById('ownerAssistantLoading').textContent = 'Failed to load assistant status: ' + err.message;
+            }
+        }
+
+        async function publishOwnerAssistantProfile() {
+            if (!_ownerPubkey) return;
+            const btn = document.getElementById('publishOwnerAssistantBtn');
+            const status = document.getElementById('ownerAssistantPublishStatus');
+            btn.disabled = true;
+            btn.textContent = 'Publishing...';
+            status.textContent = 'Publishing profile...';
+            status.className = 'status-message status-info';
+
+            try {
+                const resp = await fetch('/api/assistant/publish-profile', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ customerPubkey: _ownerPubkey }),
+                });
+                const data = await resp.json();
+                if (data.success) {
+                    status.textContent = '✅ ' + data.message;
+                    status.className = 'status-message status-success';
+                    await loadOwnerAssistantStatus();
+                } else {
+                    status.textContent = '❌ ' + (data.error || 'Failed');
+                    status.className = 'status-message status-error';
+                }
+            } catch (err) {
+                status.textContent = '❌ ' + err.message;
+                status.className = 'status-message status-error';
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Re-publish Kind 0 Profile';
+            }
+        }
+
+        // Load assistant status on page load
+        loadOwnerAssistantStatus();
+
         document.addEventListener('DOMContentLoaded', function() {
             // Kind 30382 Event Management
             const kind30382Output = document.getElementById('kind30382Output');
