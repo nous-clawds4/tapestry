@@ -939,6 +939,25 @@
       "notes": "Syncs kind 30382 from NIP-85 relay via strfry negentropy, then parses all metric tags and loads into Meilisearch via load-scores endpoint"
     },
 
+    "pruneOldLogs": {
+      "name": "Prune Old Logs",
+      "categories": ["maintenance"],
+      "description": "Cleans up old log files, rotated archives, and stale temp files to free disk space",
+      "scripts": [
+        "$BRAINSTORM_MODULE_SRC_DIR/manage/maintenance/pruneOldLogs.sh"
+      ],
+      "script": "$BRAINSTORM_MODULE_SRC_DIR/manage/maintenance/pruneOldLogs.sh",
+      "script_relative_path": "manage/maintenance/pruneOldLogs.sh",
+      "arguments": false,
+      "scope": "system",
+      "priority": "low",
+      "frequency": "weekly",
+      "status": "active",
+      "structuredLogging": true,
+      "options": {},
+      "notes": "Applies retention policies: 30-day for archives and customer logs, size caps for active logs (50MB supervisor/neo4j, 20MB task logs), 1-day for stale /tmp files"
+    },
+
     "npubManager": {
       "name": "Npub Manager",
       "categories": ["maintenance"],
