@@ -118,6 +118,13 @@ launch_child_task "exportOwnerKind30382" "updateAllScoresForOwner" "" ""
 
 sleep 5
 
+#################### loadOwnerScoresIntoMeilisearch: start  ##############
+# Child Task 8: Load Owner Scores into Meilisearch
+launch_child_task "loadOwnerScoresIntoMeilisearch" "updateAllScoresForOwner" "" ""
+#################### loadOwnerScoresIntoMeilisearch: complete  ##############
+
+sleep 5
+
 echo "$(date): Finished updateAllScoresForOwner"
 echo "$(date): Finished updateAllScoresForOwner" >> ${BRAINSTORM_LOG_DIR}/updateAllScoresForOwner.log
 

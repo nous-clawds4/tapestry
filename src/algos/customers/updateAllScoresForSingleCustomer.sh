@@ -419,6 +419,75 @@ else
     echo "$(date): ERROR: publishNip85.sh failed for customer $CUSTOMER_DIRECTORY_NAME" >> "$LOG_FILE"
 fi
 
+#################### loadCustomerScoresIntoMeilisearch: start  ##############
+# Child Task 6: Load Customer Scores into Meilisearch
+oMetadata=$(jq -n \
+    --argjson customer_id "$CUSTOMER_ID" \
+    --arg customer_pubkey "$CUSTOMER_PUBKEY" \
+    --arg customer_directory_name "$CUSTOMER_DIRECTORY_NAME" \
+    --arg parent_task "updateAllScoresForSingleCustomer" \
+    --argjson child_order 6 \
+    --arg algorithm "meilisearch_load" \
+    --arg category "export" \
+    --argjson structured_logging true \
+    ' {
+        "customer_id": $customer_id,
+        "customer_pubkey": $customer_pubkey,
+        "customer_directory_name": $customer_directory_name,
+        "parent_task": $parent_task,
+        "child_order": $child_order,
+        "algorithm": $algorithm,
+        "category": $category,
+        "structured_logging": $structured_logging
+    }')
+emit_task_event "CHILD_TASK_START" "loadCustomerScoresIntoMeilisearch" "$CUSTOMER_PUBKEY" "$oMetadata"
+
+if bash $BRAINSTORM_MODULE_ALGOS_DIR/customers/nip85/loadScoresIntoMeilisearch.sh "$CUSTOMER_PUBKEY" "$CUSTOMER_ID" "$CUSTOMER_DIRECTORY_NAME"; then
+    oMetadata=$(jq -n \
+    --argjson customer_id "$CUSTOMER_ID" \
+    --arg customer_pubkey "$CUSTOMER_PUBKEY" \
+    --arg customer_directory_name "$CUSTOMER_DIRECTORY_NAME" \
+    --arg parent_task "updateAllScoresForSingleCustomer" \
+    --argjson child_order 6 \
+    --arg algorithm "meilisearch_load" \
+    --arg category "export" \
+    --argjson structured_logging true \
+    ' {
+        "customer_id": $customer_id,
+        "customer_pubkey": $customer_pubkey,
+        "customer_directory_name": $customer_directory_name,
+        "parent_task": $parent_task,
+        "child_order": $child_order,
+        "algorithm": $algorithm,
+        "category": $category,
+        "structured_logging": $structured_logging
+    }')
+    emit_task_event "CHILD_TASK_END" "loadCustomerScoresIntoMeilisearch" "$CUSTOMER_PUBKEY" "$oMetadata"
+else
+    oMetadata=$(jq -n \
+    --argjson customer_id "$CUSTOMER_ID" \
+    --arg customer_pubkey "$CUSTOMER_PUBKEY" \
+    --arg customer_directory_name "$CUSTOMER_DIRECTORY_NAME" \
+    --arg parent_task "updateAllScoresForSingleCustomer" \
+    --argjson child_order 6 \
+    --arg algorithm "meilisearch_load" \
+    --arg category "export" \
+    --argjson structured_logging true \
+    ' {
+        "customer_id": $customer_id,
+        "customer_pubkey": $customer_pubkey,
+        "customer_directory_name": $customer_directory_name,
+        "parent_task": $parent_task,
+        "child_order": $child_order,
+        "algorithm": $algorithm,
+        "category": $category,
+        "structured_logging": $structured_logging
+    }')
+    emit_task_event "CHILD_TASK_ERROR" "loadCustomerScoresIntoMeilisearch" "$CUSTOMER_PUBKEY" "$oMetadata"
+    echo "$(date): ERROR: loadScoresIntoMeilisearch.sh failed for customer $CUSTOMER_DIRECTORY_NAME" >> "$LOG_FILE"
+fi
+#################### loadCustomerScoresIntoMeilisearch: complete  ##############
+
 # Log end time
 echo "$(date): Finished updateAllScoresForSingleCustomer for customer $CUSTOMER_ID and customer_pubkey $CUSTOMER_PUBKEY and customer_directory_name $CUSTOMER_DIRECTORY_NAME"
 echo "$(date): Finished updateAllScoresForSingleCustomer for customer $CUSTOMER_ID and customer_pubkey $CUSTOMER_PUBKEY and customer_directory_name $CUSTOMER_DIRECTORY_NAME" >> "$LOG_FILE"

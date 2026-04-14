@@ -449,7 +449,8 @@
         "processOwnerFollowsMutesReports",
         "calculateReportScores",
         "exportWhitelist",
-        "exportOwnerKind30382"
+        "exportOwnerKind30382",
+        "loadOwnerScoresIntoMeilisearch"
       ],
       "scope": "owner",
       "priority": "high",
@@ -479,7 +480,8 @@
         "calculateCustomerPageRank",
         "calculateCustomerGrapeRank",
         "processCustomerFollowsMutesReports",
-        "exportCustomerKind30382"
+        "exportCustomerKind30382",
+        "loadCustomerScoresIntoMeilisearch"
       ],
       "scope": "customer",
       "priority": "high",
@@ -893,6 +895,48 @@
       "structuredLogging": true,
       "options":{},
       "notes":"Phase 2 structured logging implemented - comprehensive NIP-85 event publishing tracking with TASK_START/END, PROGRESS events for relay pubkey verification and Kind 30382 publishing phases, error handling with TASK_ERROR events"
+    },
+
+    "loadOwnerScoresIntoMeilisearch": {
+      "name": "Load Owner Scores into Meilisearch",
+      "categories": ["export", "owner"],
+      "description": "Syncs kind 30382 events from NIP-85 relay and loads WoT scores into Meilisearch search index",
+      "scripts": [
+        "$BRAINSTORM_MODULE_SRC_DIR/algos/nip85/loadScoresIntoMeilisearch.sh"
+      ],
+      "script": "$BRAINSTORM_MODULE_SRC_DIR/algos/nip85/loadScoresIntoMeilisearch.sh",
+      "script_relative_path": "algos/nip85/loadScoresIntoMeilisearch.sh",
+      "arguments": false,
+      "parent": "updateAllScoresForOwner",
+      "scope": "owner",
+      "priority": "low",
+      "frequency": "daily",
+      "status": "active",
+      "structuredLogging": true,
+      "options": {},
+      "notes": "Syncs kind 30382 from NIP-85 relay via strfry negentropy, then parses all metric tags and loads into Meilisearch via load-scores endpoint"
+    },
+
+    "loadCustomerScoresIntoMeilisearch": {
+      "name": "Load Customer Scores into Meilisearch",
+      "categories": ["export", "customer"],
+      "description": "Syncs kind 30382 events from NIP-85 relay and loads customer WoT scores into Meilisearch search index",
+      "scripts": [
+        "$BRAINSTORM_MODULE_SRC_DIR/algos/customers/nip85/loadScoresIntoMeilisearch.sh"
+      ],
+      "script": "$BRAINSTORM_MODULE_SRC_DIR/algos/customers/nip85/loadScoresIntoMeilisearch.sh",
+      "script_relative_path": "algos/customers/nip85/loadScoresIntoMeilisearch.sh",
+      "arguments": {
+        "customer": true
+      },
+      "parent": "updateAllScoresForSingleCustomer",
+      "scope": "customer",
+      "priority": "low",
+      "frequency": "per-customer",
+      "status": "active",
+      "structuredLogging": true,
+      "options": {},
+      "notes": "Syncs kind 30382 from NIP-85 relay via strfry negentropy, then parses all metric tags and loads into Meilisearch via load-scores endpoint"
     },
 
     "npubManager": {
