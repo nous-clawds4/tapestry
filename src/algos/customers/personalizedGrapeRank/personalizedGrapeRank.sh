@@ -32,6 +32,21 @@ LOG_FILE="$LOG_DIR/personalizedGrapeRank.log"
 touch ${LOG_FILE}
 chown brainstorm:brainstorm ${LOG_FILE}
 
+# Ensure customer has a graperank.conf (copy from template if missing)
+CUSTOMER_DIR="/var/lib/brainstorm/customers/$CUSTOMER_NAME"
+CUSTOMER_PREFS_DIR="$CUSTOMER_DIR/preferences"
+if [ ! -f "$CUSTOMER_PREFS_DIR/graperank.conf" ]; then
+    mkdir -p "$CUSTOMER_PREFS_DIR"
+    TEMPLATE="${BRAINSTORM_MODULE_BASE_DIR}config/graperank.conf.template"
+    if [ -f "$TEMPLATE" ]; then
+        cp "$TEMPLATE" "$CUSTOMER_PREFS_DIR/graperank.conf"
+        chmod 644 "$CUSTOMER_PREFS_DIR/graperank.conf"
+        echo "$(date): Created graperank.conf from template for $CUSTOMER_NAME" >> ${LOG_FILE}
+    else
+        echo "$(date): WARNING: graperank.conf template not found at $TEMPLATE" >> ${LOG_FILE}
+    fi
+fi
+
 echo "$(date): Starting personalizedGrapeRank for CUSTOMER_NAME: $CUSTOMER_NAME CUSTOMER_ID: $CUSTOMER_ID CUSTOMER_PUBKEY: $CUSTOMER_PUBKEY"
 echo "$(date): Starting personalizedGrapeRank for CUSTOMER_NAME: $CUSTOMER_NAME CUSTOMER_ID: $CUSTOMER_ID CUSTOMER_PUBKEY: $CUSTOMER_PUBKEY" >> ${LOG_FILE}
 
