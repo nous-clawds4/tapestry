@@ -11,8 +11,12 @@ source /etc/brainstorm.conf # BRAINSTORM_MODULE_ALGOS_DIR, BRAINSTORM_LOG_DIR
 # Source structured logging utilities
 source "$BRAINSTORM_MODULE_BASE_DIR/src/utils/structuredLogging.sh"
 
-# Set the timeout in seconds (20 minutes = 1200 seconds)
-TIMEOUT=1200
+# Set the timeout in seconds (45 minutes = 2700 seconds)
+# The GrapeRank pipeline takes ~21 minutes on 2.46M nodes/30M edges:
+#   cypher queries: ~3 min, initializeRatings: ~3 min,
+#   calculateGrapeRank: ~15 min, updateNeo4j: ~1 min
+# 45 minutes provides comfortable headroom for graph growth.
+TIMEOUT=2700
 # Maximum number of retry attempts
 MAX_RETRIES=3
 # Current retry count
