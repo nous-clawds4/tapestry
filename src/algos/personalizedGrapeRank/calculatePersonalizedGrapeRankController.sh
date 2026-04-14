@@ -26,6 +26,15 @@ mkdir -p "$(dirname "$LOG_FILE")"
 touch "$LOG_FILE"
 chown brainstorm:brainstorm "$LOG_FILE"
 
+# Clean up GrapeRank tmp on exit (success, failure, or signal)
+cleanup_graperank_tmp() {
+    if [ -d "/var/lib/brainstorm/algos/personalizedGrapeRank/tmp" ]; then
+        echo "$(date): Cleaning up personalizedGrapeRank tmp files" >> "$LOG_FILE"
+        rm -rf /var/lib/brainstorm/algos/personalizedGrapeRank/tmp
+    fi
+}
+trap cleanup_graperank_tmp EXIT
+
 # Log start time
 echo "$(date): Starting calculatePersonalizedGrapeRankController"
 echo "$(date): Starting calculatePersonalizedGrapeRankController" >> "$LOG_FILE"

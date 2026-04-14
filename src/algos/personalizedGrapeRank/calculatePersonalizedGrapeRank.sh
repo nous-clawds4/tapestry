@@ -81,6 +81,10 @@ echo "$(date): Continuing calculatePersonalizedGrapeRank ... finished updateNeo4
 echo "$(date): Continuing calculatePersonalizedGrapeRank ... finished updateNeo4j, starting clean up" >> ${BRAINSTORM_LOG_DIR}/calculatePersonalizedGrapeRank.log
 
 # clean up tmp files
+if [ -d "$TEMP_DIR" ]; then
+    echo "$(date): Removing GrapeRank tmp directory: $TEMP_DIR"
+    rm -rf "$TEMP_DIR"
+fi
 
 # Update the WHEN_LAST_CALCULATED timestamp in the configuration file
 TIMESTAMP=$(date +%s)

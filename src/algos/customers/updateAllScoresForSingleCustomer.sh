@@ -488,6 +488,14 @@ else
 fi
 #################### loadCustomerScoresIntoMeilisearch: complete  ##############
 
+#################### cleanup: start  ##############
+# Clean up customer's GrapeRank tmp subdirectory if it exists
+if [ -d "/var/lib/brainstorm/algos/personalizedGrapeRank/tmp/${CUSTOMER_DIRECTORY_NAME}" ]; then
+    echo "$(date): Cleaning up GrapeRank tmp for customer $CUSTOMER_DIRECTORY_NAME" >> "$LOG_FILE"
+    rm -rf "/var/lib/brainstorm/algos/personalizedGrapeRank/tmp/${CUSTOMER_DIRECTORY_NAME}"
+fi
+#################### cleanup: complete  ##############
+
 # Log end time
 echo "$(date): Finished updateAllScoresForSingleCustomer for customer $CUSTOMER_ID and customer_pubkey $CUSTOMER_PUBKEY and customer_directory_name $CUSTOMER_DIRECTORY_NAME"
 echo "$(date): Finished updateAllScoresForSingleCustomer for customer $CUSTOMER_ID and customer_pubkey $CUSTOMER_PUBKEY and customer_directory_name $CUSTOMER_DIRECTORY_NAME" >> "$LOG_FILE"
@@ -498,7 +506,7 @@ oMetadata=$(jq -n \
     --arg customer_pubkey "$CUSTOMER_PUBKEY" \
     --arg customer_directory_name "$CUSTOMER_DIRECTORY_NAME" \
     --arg parent_task "updateAllScoresForSingleCustomer" \
-    --argjson child_tasks_completed 5 \
+    --argjson child_tasks_completed 6 \
     --arg description "Updates all trust scores for a single customer" \
     --arg scope "customer_specific" \
     --arg orchestrator_level "secondary" \
