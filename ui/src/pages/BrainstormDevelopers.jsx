@@ -141,7 +141,7 @@ export default function BrainstormDevelopers() {
 
         {/* Footer */}
         <div style={{ marginTop: '3rem', paddingTop: '1.5rem', borderTop: '1px solid rgba(255,255,255,0.1)', opacity: 0.5, fontSize: '0.85rem', textAlign: 'center' }}>
-          <a href="https://brainstorm.nosfabrica.com/" style={{ color: 'inherit', textDecoration: 'underline' }}>My Brainstorm</a>
+          <a href="https://brainstorm.nosfabrica.com/" target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'underline' }}>My Brainstorm</a>
         </div>
       </div>
     </div>

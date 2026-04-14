@@ -1004,7 +1004,7 @@ export default function BrainstormSearch() {
         </div>
 
         <div className="bs-footer">
-          <a href="https://brainstorm.nosfabrica.com/" className="bs-footer-link">My Brainstorm</a>
+          <a href="https://brainstorm.nosfabrica.com/" target="_blank" rel="noopener noreferrer" className="bs-footer-link">My Brainstorm</a>
           <span className="bs-footer-sep">&middot;</span>
           <a href="/developers" className="bs-footer-link">Developers</a>
         </div>

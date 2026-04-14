@@ -77,7 +77,7 @@ export default function BrainstormPersonalization() {
       </div>
 
       <div className="bs-footer">
-        <a href="https://brainstorm.nosfabrica.com/" className="bs-footer-link">My Brainstorm</a>
+        <a href="https://brainstorm.nosfabrica.com/" target="_blank" rel="noopener noreferrer" className="bs-footer-link">My Brainstorm</a>
       </div>
     </div>
   );
