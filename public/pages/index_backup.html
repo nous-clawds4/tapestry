@@ -57,7 +57,7 @@
             checkAuthStatus();
             
             // Fetch owner information from the server
-            fetch('/control/api/owner-info')
+            fetch('/api/owner-info')
                 .then(response => {
                     if (!response.ok) {
                         throw new Error('Network response was not ok');
@@ -71,7 +71,7 @@
                         const ownerNpub = data.ownerNpub;
                         
                         // Fetch owner's profile information (kind0)
-                        fetch(`/control/api/get-kind0?pubkey=${ownerPubkey}`)
+                        fetch(`/api/get-kind0?pubkey=${ownerPubkey}`)
                             .then(response => response.json())
                             .then(profileData => {
                                 if (profileData && profileData.success) {
@@ -177,7 +177,7 @@
         // Function to check authentication status and update button visibility
         function checkAuthStatus() {
             // Make a request to check if the user is authenticated
-            fetch('/control/api/auth/status')
+            fetch('/api/auth/status')
                 .then(response => response.json())
                 .then(data => {
                     const ownerSignInButton = document.getElementById('ownerSignInButton');

@@ -9,7 +9,7 @@ class ObserverSelector {
         this.options = {
             defaultValue: 'owner',
             onChange: null,
-            customersEndpoint: '/control/api/get-customers',
+            customersEndpoint: '/api/get-customers',
             ...options
         };
         

@@ -427,7 +427,7 @@
 
             const serviceStatusPromises = group.services.map(service => {
                 console.log(`Fetching status for service: ${service}`);
-                return fetch(`/control/api/service-status?service=${service}`)
+                return fetch(`/api/service-status?service=${service}`)
                     .then(response => {
                         console.log(`Response for ${service}:`, response);
                         if (!response.ok) {
@@ -519,7 +519,7 @@
             console.log(`Toggling ${groupName} ${action}`);
             
             // Call the appropriate script
-            fetch(`/control/api/run-script`, {
+            fetch(`/api/run-script`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -560,7 +560,7 @@
         // Check services status on page load
         function checkServicesStatus() {
             // For now, we'll just check if the strfry service is running
-            fetch('/control/api/service-status?service=strfry')
+            fetch('/api/service-status?service=strfry')
                 .then(response => response.json())
                 .then(data => {
                     updateStatusUI(data.running ? 'on' : 'off');
@@ -603,7 +603,7 @@
             statusDetails.innerHTML = `<p>Executing ${action === 'on' ? 'startup' : 'shutdown'} script...</p>`;
             
             // Call the API - use the /control/api path to ensure proper routing
-            fetch('/control/api/brainstorm-control', {
+            fetch('/api/brainstorm-control', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -666,7 +666,7 @@
                 }
             });
             
-            fetch('/control/api/calculation-status')
+            fetch('/api/calculation-status')
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
@@ -776,7 +776,7 @@
             servicesStatus.className = 'status info';
             servicesStatus.textContent = 'Loading service statuses...';
             
-            fetch('/control/api/systemd-services')
+            fetch('/api/systemd-services')
                 .then(response => response.json())
                 .then(data => {
                     // Re-enable the button and hide status
@@ -968,7 +968,7 @@
             servicesStatus.className = 'status info';
             servicesStatus.textContent = `${action.charAt(0).toUpperCase() + action.slice(1)}ing ${service} service...`;
             
-            fetch(`/control/api/systemd-services?service=${service}&action=${action}`)
+            fetch(`/api/systemd-services?service=${service}&action=${action}`)
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
@@ -992,100 +992,100 @@
             // Define the configuration for each action button
             const actionConfig = {
                 'syncWoT': {
-                    endpoint: '/control/api/negentropy-sync-wot',
+                    endpoint: '/api/negentropy-sync-wot',
                     // params: { relay: 'wss://relay.hasenpfeffr.com', filter: '{"kinds":[3,1984,10000]}' },
                     method: 'POST',
                     buttonText: 'Sync WoT'
                 },
                 'syncProfiles': {
-                    endpoint: '/control/api/negentropy-sync-profiles',
+                    endpoint: '/api/negentropy-sync-profiles',
                     // params: { relay: 'wss://profiles.nostr1.com', filter: '{"kinds":[0]}' },
                     method: 'POST',
                     buttonText: 'Sync Profiles'
                 },
                 'syncPersonal': {
-                    endpoint: '/control/api/negentropy-sync-personal',
+                    endpoint: '/api/negentropy-sync-personal',
                     // params: { relay: 'wss://relay.primal.net', filter: '{"authors":["BRAINSTORM_OWNER_PUBKEY"]}' },
                     method: 'POST',
                     buttonText: 'Sync Personal'
                 },
                 'deleteAllRelationships': {
-                    endpoint: '/control/api/delete-all-relationships',
+                    endpoint: '/api/delete-all-relationships',
                     method: 'POST',
                     buttonText: 'Delete All Relationships'
                 },
                 'batchTransfer': {
-                    endpoint: '/control/api/batch-transfer',
+                    endpoint: '/api/batch-transfer',
                     method: 'POST',
                     buttonText: 'Batch Transfer'
                 },
                 'reconciliation': {
-                    endpoint: '/control/api/reconciliation',
+                    endpoint: '/api/reconciliation',
                     method: 'POST',
                     buttonText: 'Reconciliation'
                 },
                 'hops': {
-                    endpoint: '/control/api/calculate-hops',
+                    endpoint: '/api/calculate-hops',
                     method: 'POST',
                     buttonText: 'Calculate Hops'
                 },
                 'pageRank': {
-                    endpoint: '/control/api/generate-pagerank',
+                    endpoint: '/api/generate-pagerank',
                     method: 'POST',
                     buttonText: 'Calculate PageRank'
                 },
                 'grapeRank': {
-                    endpoint: '/control/api/generate-graperank',
+                    endpoint: '/api/generate-graperank',
                     method: 'POST',
                     buttonText: 'Calculate GrapeRank'
                 },
                 'verifiedFollowers': {
-                    endpoint: '/control/api/generate-verified-followers',
+                    endpoint: '/api/generate-verified-followers',
                     method: 'POST',
                     buttonText: 'Calculate Verified Followers'
                 },
                 'reports': {
-                    endpoint: '/control/api/generate-reports',
+                    endpoint: '/api/generate-reports',
                     method: 'POST',
                     buttonText: 'Generate Reports'
                 },
                 'blacklist': {
-                    endpoint: '/control/api/generate-blacklist',
+                    endpoint: '/api/generate-blacklist',
                     method: 'POST',
                     buttonText: 'Generate Blacklist'
                 },
                 'whitelist': {
-                    endpoint: '/control/api/export-whitelist',
+                    endpoint: '/api/export-whitelist',
                     method: 'POST',
                     buttonText: 'Export Whitelist'
                 },
                 'nip85': {
-                    endpoint: '/control/api/generate-nip85',
+                    endpoint: '/api/generate-nip85',
                     method: 'POST',
                     buttonText: 'Export NIP-85'
                 },
                 'processAllActiveCustomers': {
-                    endpoint: '/control/api/process-all-active-customers',
+                    endpoint: '/api/process-all-active-customers',
                     method: 'POST',
                     buttonText: 'Process All Active Customers'
                 },
                 'processCustomer_0': {
-                    endpoint: '/control/api/process-customer?customer_id=0',
+                    endpoint: '/api/process-customer?customer_id=0',
                     method: 'POST',
                     buttonText: 'Process Customer 0'
                 },
                 'processCustomer_1': {
-                    endpoint: '/control/api/process-customer?customer_id=1',
+                    endpoint: '/api/process-customer?customer_id=1',
                     method: 'POST',
                     buttonText: 'Process Customer 1'
                 },
                 'processCustomer_2': {
-                    endpoint: '/control/api/process-customer?customer_id=2',
+                    endpoint: '/api/process-customer?customer_id=2',
                     method: 'POST',
                     buttonText: 'Process Customer 2'
                 },
                 'processCustomer_3': {
-                    endpoint: '/control/api/process-customer?customer_id=3',
+                    endpoint: '/api/process-customer?customer_id=3',
                     method: 'POST',
                     buttonText: 'Process Customer 3'
                 }
@@ -1198,7 +1198,7 @@
             if (!group || !group.services) return;
 
             // Call API to get service status
-            fetch('/control/api/service-status')
+            fetch('/api/service-status')
                 .then(response => response.json())
                 .then(data => {
                     const toggle = document.getElementById(toggleId);
@@ -1233,7 +1233,7 @@
 
         // Functions for content filter toggle
         function checkFilteredContentStatus() {
-            fetch('/control/api/get-strfry-filteredContent')
+            fetch('/api/get-strfry-filteredContent')
                 .then(response => response.json())
                 .then(data => {
                     const toggle = document.getElementById('contentFilterToggle');
@@ -1267,7 +1267,7 @@
             
             // Call API to enable/disable the plugin
             const action = enable ? 'enable' : 'disable';
-            fetch('/control/api/toggle-strfry-filteredContent', {
+            fetch('/api/toggle-strfry-filteredContent', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
