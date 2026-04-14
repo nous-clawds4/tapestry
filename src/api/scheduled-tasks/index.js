@@ -25,6 +25,7 @@ const DEFAULTS = {
 let schedulerTimer = null;
 let nextRunAt = null;
 let lastRunAt = null;
+let taskRunning = false;
 
 // ── Config read/write ───────────────────────────────────────
 
@@ -57,7 +58,14 @@ function totalIntervalMs(cfg) {
 }
 
 async function triggerTask() {
+  // Skip if previous run is still active
+  if (taskRunning) {
+    console.log(`[scheduled-tasks] Skipping trigger — previous updateAllScoresForOwner is still running (started at ${lastRunAt})`);
+    return;
+  }
+
   lastRunAt = new Date().toISOString();
+  taskRunning = true;
   const intervalMs = totalIntervalMs(getTaskConfig());
   nextRunAt = new Date(Date.now() + intervalMs).toISOString();
 
@@ -68,8 +76,28 @@ async function triggerTask() {
     });
     const data = await resp.json();
     console.log(`[scheduled-tasks] Task trigger response:`, data.success ? 'success' : data.message);
+
+    // Wait for task to complete by polling its process
+    if (data.execution?.pid) {
+      const pid = data.execution.pid;
+      const { execSync } = require('child_process');
+      const checkInterval = setInterval(() => {
+        try {
+          execSync(`ps -p ${pid} > /dev/null 2>&1`);
+          // Process still running, continue waiting
+        } catch {
+          // Process finished
+          clearInterval(checkInterval);
+          taskRunning = false;
+          console.log(`[scheduled-tasks] updateAllScoresForOwner completed (PID ${pid} exited)`);
+        }
+      }, 30000); // Check every 30 seconds
+    } else {
+      taskRunning = false;
+    }
   } catch (err) {
     console.error(`[scheduled-tasks] Error triggering task:`, err.message);
+    taskRunning = false;
   }
 }
 
