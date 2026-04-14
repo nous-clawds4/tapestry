@@ -27,9 +27,11 @@ export default function BrainstormPersonalization() {
 
         <div style={{ lineHeight: 1.7, fontSize: '0.95rem', opacity: 0.85 }}>
           <p>
-            Brainstorm indexes over a million nostr profiles and lets you search them by name,
-            bio, NIP-05, or website. But what makes it different is <strong>personalization</strong> —
-            the ability to rank and filter search results using your own Web of Trust.
+            Brainstorm indexes millions of nostr profiles (and growing) and lets you search them by name,
+            bio, NIP-05, or website. Legitimate nostr profiles are <a href="https://primal.net/straycat/graperank">distinguished</a> 
+            from spam, impersonators and other bad actors using a combination of factors including follows, mutes, and reports.
+            But what makes this process unique is <strong>personalization</strong>: 
+            search results are ranked and filtered from <em>your</em> perspective, using input from <em>your</em> extended community.
           </p>
 
           <h2 style={{ fontSize: '1.1rem', marginTop: '1.5rem' }}>Two Points of View</h2>
@@ -43,17 +45,9 @@ export default function BrainstormPersonalization() {
             </li>
             <li>
               <strong>My Point of View</strong> — Your personalized perspective. Uses trust scores
-              derived from <em>your</em> Web of Trust. Requires sign-in and a calculated Grapevine.
+              derived from <em>your</em> extended community. Requires sign-in and calculated Trust Scores.
             </li>
           </ul>
-
-          <h2 style={{ fontSize: '1.1rem', marginTop: '1.5rem' }}>What are Trust Scores?</h2>
-          <p>
-            Trust scores come from <strong>kind 30382 Trusted Assertions</strong> — nostr events that
-            encode reputation metrics like WoT Rank, follower count, and GrapeRank influence. These
-            scores are published by a Grapevine calculator and referenced via a <strong>kind 10040
-            Treasure Map</strong>.
-          </p>
 
           <h2 style={{ fontSize: '1.1rem', marginTop: '1.5rem' }}>Getting Personalized</h2>
           <p>
@@ -62,7 +56,7 @@ export default function BrainstormPersonalization() {
           <ol style={{ paddingLeft: '1.2rem', marginTop: '0.5rem' }}>
             <li style={{ marginBottom: '0.4rem' }}>Sign in with a nostr browser extension (NIP-07)</li>
             <li style={{ marginBottom: '0.4rem' }}>
-              Calculate your Grapevine at{' '}
+              Calculate your personalized Trust Metrics at{' '}
               <a href="https://brainstorm.nosfabrica.com/" target="_blank" rel="noopener noreferrer"
                 style={{ color: '#a5b4fc' }}>
                 brainstorm.nosfabrica.com
@@ -83,7 +77,7 @@ export default function BrainstormPersonalization() {
       </div>
 
       <div className="bs-footer">
-        Powered by <a href="https://brainstorm.nosfabrica.com/" className="bs-footer-link">NosFabrica</a>
+        <a href="https://brainstorm.nosfabrica.com/" className="bs-footer-link">My Brainstorm</a>
       </div>
     </div>
   );
