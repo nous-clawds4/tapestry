@@ -1924,6 +1924,7 @@ class CustomerManager {
             return {
                 preset: presetResult.preset,
                 configPath,
+                rawContent: configContent,
                 parameterCount: configData.parameters ? configData.parameters.length : 0,
                 availablePresets: configData.availablePresets || [],
                 customer: {

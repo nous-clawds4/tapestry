@@ -32,18 +32,19 @@ LOG_FILE="$LOG_DIR/personalizedGrapeRank.log"
 touch ${LOG_FILE}
 chown brainstorm:brainstorm ${LOG_FILE}
 
-# Ensure customer has a graperank.conf (copy from template if missing)
+# Ensure customer has a graperank.conf (copy from customer default if missing)
 CUSTOMER_DIR="/var/lib/brainstorm/customers/$CUSTOMER_NAME"
 CUSTOMER_PREFS_DIR="$CUSTOMER_DIR/preferences"
 if [ ! -f "$CUSTOMER_PREFS_DIR/graperank.conf" ]; then
     mkdir -p "$CUSTOMER_PREFS_DIR"
-    TEMPLATE="${BRAINSTORM_MODULE_BASE_DIR}config/graperank.conf.template"
-    if [ -f "$TEMPLATE" ]; then
-        cp "$TEMPLATE" "$CUSTOMER_PREFS_DIR/graperank.conf"
+    # Use the customer default preferences (has PARAMETER_LIST, PRESET_LIST)
+    DEFAULT_PREFS="${BRAINSTORM_MODULE_BASE_DIR}customers/default/preferences/graperank.conf"
+    if [ -f "$DEFAULT_PREFS" ]; then
+        cp "$DEFAULT_PREFS" "$CUSTOMER_PREFS_DIR/graperank.conf"
         chmod 644 "$CUSTOMER_PREFS_DIR/graperank.conf"
-        echo "$(date): Created graperank.conf from template for $CUSTOMER_NAME" >> ${LOG_FILE}
+        echo "$(date): Created graperank.conf from customer defaults for $CUSTOMER_NAME" >> ${LOG_FILE}
     else
-        echo "$(date): WARNING: graperank.conf template not found at $TEMPLATE" >> ${LOG_FILE}
+        echo "$(date): WARNING: customer default graperank.conf not found at $DEFAULT_PREFS" >> ${LOG_FILE}
     fi
 fi
 

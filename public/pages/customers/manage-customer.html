@@ -266,9 +266,14 @@
                             <!-- Show/Hide Update Controls Button -->
                             <div class="preset-toggle-section">
                                 <button id="toggleGraperankUpdateBtn" class="btn btn-sm btn-outline" style="display: none;">⚙️ Update Preset</button>
+                                <button class="btn btn-sm btn-outline" onclick="resetConfigToDefault('graperank')">↩ Reset to Default</button>
+                                <button class="btn btn-sm btn-outline" onclick="toggleConfigFile('graperank')">👁️ Show Config File</button>
+                            </div>
+                            <div id="graperankConfigFileView" style="display: none; margin-top: 0.5rem;">
+                                <pre id="graperankConfigFileContent" style="background: rgba(0,0,0,0.3); padding: 0.75rem; border-radius: 6px; font-size: 0.75rem; max-height: 300px; overflow-y: auto; white-space: pre-wrap;"></pre>
                             </div>
                         </div>
-                        
+
                         <!-- Whitelist Configuration -->
                         <div class="config-section">
                             <h4>Whitelist Algorithm Preset</h4>
@@ -330,9 +335,14 @@
                             <!-- Show/Hide Update Controls Button -->
                             <div class="preset-toggle-section">
                                 <button id="toggleWhitelistUpdateBtn" class="btn btn-sm btn-outline" style="display: none;">⚙️ Update Preset</button>
+                                <button class="btn btn-sm btn-outline" onclick="resetConfigToDefault('whitelist')">↩ Reset to Default</button>
+                                <button class="btn btn-sm btn-outline" onclick="toggleConfigFile('whitelist')">👁️ Show Config File</button>
+                            </div>
+                            <div id="whitelistConfigFileView" style="display: none; margin-top: 0.5rem;">
+                                <pre id="whitelistConfigFileContent" style="background: rgba(0,0,0,0.3); padding: 0.75rem; border-radius: 6px; font-size: 0.75rem; max-height: 300px; overflow-y: auto; white-space: pre-wrap;"></pre>
                             </div>
                         </div>
-                        
+
                         <!-- Blacklist Configuration -->
                         <div class="config-section">
                             <h4>Blacklist Algorithm Preset</h4>
@@ -394,6 +404,11 @@
                             <!-- Show/Hide Update Controls Button -->
                             <div class="preset-toggle-section">
                                 <button id="toggleBlacklistUpdateBtn" class="btn btn-sm btn-outline" style="display: none;">⚙️ Update Preset</button>
+                                <button class="btn btn-sm btn-outline" onclick="resetConfigToDefault('blacklist')">↩ Reset to Default</button>
+                                <button class="btn btn-sm btn-outline" onclick="toggleConfigFile('blacklist')">👁️ Show Config File</button>
+                            </div>
+                            <div id="blacklistConfigFileView" style="display: none; margin-top: 0.5rem;">
+                                <pre id="blacklistConfigFileContent" style="background: rgba(0,0,0,0.3); padding: 0.75rem; border-radius: 6px; font-size: 0.75rem; max-height: 300px; overflow-y: auto; white-space: pre-wrap;"></pre>
                             </div>
                         </div>
                     </div>
@@ -2273,6 +2288,46 @@
          * Load configuration preset for any config type
          * @param {string} configType - Configuration type (e.g., 'whitelist', 'blacklist')
          */
+        async function resetConfigToDefault(configType) {
+            if (!confirm(`Reset ${configType} configuration to default? This will overwrite the current config file.`)) return;
+            try {
+                const resp = await fetch(`/api/algos/config/reset?pubkey=${customerPubkey}&configType=${configType}`, { method: 'POST' });
+                const data = await resp.json();
+                if (data.success) {
+                    alert(`✅ ${configType} configuration reset to default`);
+                    // Reload the config display
+                    if (configType === 'graperank') loadGrapeRankPresetConfig();
+                    else loadConfigPreset(configType);
+                } else {
+                    alert(`❌ ${data.error || 'Failed to reset config'}`);
+                }
+            } catch (err) {
+                alert(`❌ Error: ${err.message}`);
+            }
+        }
+
+        async function toggleConfigFile(configType) {
+            const viewEl = document.getElementById(`${configType}ConfigFileView`);
+            const contentEl = document.getElementById(`${configType}ConfigFileContent`);
+            if (viewEl.style.display === 'none') {
+                // Fetch the raw config file content
+                try {
+                    const resp = await fetch(`/api/algos/config/get?pubkey=${customerPubkey}&configType=${configType}`);
+                    const data = await resp.json();
+                    if (data.success && data.data?.configPath) {
+                        contentEl.textContent = data.data.rawContent || `Config path: ${data.data.configPath}\n\n(Raw content not available — check the file on the server)`;
+                    } else {
+                        contentEl.textContent = data.error || 'Config file not found';
+                    }
+                } catch (err) {
+                    contentEl.textContent = 'Error loading config: ' + err.message;
+                }
+                viewEl.style.display = 'block';
+            } else {
+                viewEl.style.display = 'none';
+            }
+        }
+
         async function loadConfigPreset(configType) {
             try {
                 const response = await fetch(`/api/algos/config/get?pubkey=${customerPubkey}&configType=${configType}`);

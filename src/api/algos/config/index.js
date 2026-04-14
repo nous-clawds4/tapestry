@@ -11,13 +11,15 @@ const { handleUpdateGrapeRankConfig } = require('./commands/graperank');
 const { handleGetGrapeRankConfig } = require('./queries/graperank');
 const { handleUpdateConfig } = require('./commands/index');
 const { handleGetConfig } = require('./queries/index');
+const { handleResetConfig } = require('./commands/resetToDefault');
 
 // Export handlers directly - this allows the central router to register endpoints
 module.exports = {
     // Commands (write operations)
     handleUpdateGrapeRankConfig,
     handleUpdateConfig,
-    
+    handleResetConfig,
+
     // Queries (read operations)
     handleGetGrapeRankConfig,
     handleGetConfig
