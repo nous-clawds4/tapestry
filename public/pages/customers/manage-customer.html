@@ -413,6 +413,55 @@
                         </div>
                     </div>
                     
+                    <!-- Per-Customer Scheduled Tasks -->
+                    <div class="data-card">
+                        <h3>📅 Scheduled Tasks</h3>
+
+                        <!-- Manual trigger -->
+                        <div style="margin-bottom: 1rem;">
+                            <button id="triggerProcessCustomerBtn" class="btn btn-primary" onclick="triggerProcessCustomer()">
+                                ▶ Process This Customer
+                            </button>
+                            <span id="triggerStatus" style="margin-left: 0.75rem; font-size: 0.85rem;"></span>
+                        </div>
+
+                        <!-- Schedule controls -->
+                        <div class="config-section" style="margin-bottom: 1rem;">
+                            <h4>Recurring Schedule</h4>
+                            <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; margin-bottom: 0.75rem;">
+                                <label style="display: flex; align-items: center; gap: 0.5rem;">
+                                    <input type="checkbox" id="customerScheduleEnabled" onchange="markScheduleDirty()">
+                                    Enable recurring schedule
+                                </label>
+                                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                    <span>Every</span>
+                                    <input type="number" id="customerScheduleDays" min="0" max="30" value="0"
+                                        style="width: 3.5rem; padding: 0.25rem; border-radius: 4px; border: 1px solid rgba(255,255,255,0.15); background: rgba(0,0,0,0.3); color: #e0e0e0;"
+                                        onchange="markScheduleDirty()">
+                                    <span>days</span>
+                                    <input type="number" id="customerScheduleHours" min="0" max="23" value="24"
+                                        style="width: 3.5rem; padding: 0.25rem; border-radius: 4px; border: 1px solid rgba(255,255,255,0.15); background: rgba(0,0,0,0.3); color: #e0e0e0;"
+                                        onchange="markScheduleDirty()">
+                                    <span>hours</span>
+                                </div>
+                                <button id="saveCustomerScheduleBtn" class="btn btn-sm btn-primary" onclick="saveCustomerSchedule()" disabled>
+                                    💾 Save
+                                </button>
+                            </div>
+                            <div id="customerScheduleMessage" style="font-size: 0.85rem;"></div>
+
+                            <!-- Timer status -->
+                            <div id="customerTimerStatus" style="font-size: 0.85rem; color: #888; margin-top: 0.5rem;">
+                            </div>
+                        </div>
+
+                        <!-- Recent Runs -->
+                        <div class="config-section">
+                            <h4>Recent Runs</h4>
+                            <div id="customerRecentRuns" style="font-size: 0.85rem; color: #888;">Loading...</div>
+                        </div>
+                    </div>
+
                     <!-- Trust Metrics Status -->
                     <div class="data-card">
                         <h3>Trust Metrics Calculation Status</h3>
@@ -912,7 +961,10 @@
             // Load whitelist and blacklist configuration presets
             loadConfigPreset('whitelist');
             loadConfigPreset('blacklist');
-            
+
+            // Load per-customer scheduled tasks
+            loadCustomerScheduleStatus();
+
             // Update status display in management section
             const statusDisplay = document.getElementById('currentStatusDisplay');
             statusDisplay.textContent = customerData.status.toUpperCase();
@@ -2288,6 +2340,133 @@
          * Load configuration preset for any config type
          * @param {string} configType - Configuration type (e.g., 'whitelist', 'blacklist')
          */
+        // ── Per-Customer Scheduled Tasks ──
+
+        function formatDuration(ms) {
+            if (!ms) return '—';
+            const s = Math.round(ms / 1000);
+            if (s < 60) return `${s}s`;
+            const m = Math.floor(s / 60);
+            const rs = s % 60;
+            if (m < 60) return `${m}m ${rs}s`;
+            const h = Math.floor(m / 60);
+            const rm = m % 60;
+            return `${h}h ${rm}m`;
+        }
+
+        function formatTime(iso) {
+            if (!iso) return '—';
+            return new Date(iso).toLocaleString();
+        }
+
+        async function loadCustomerScheduleStatus() {
+            try {
+                const [statusResp, historyResp] = await Promise.all([
+                    fetch(`/api/customer-schedule/status?pubkey=${customerPubkey}`),
+                    fetch(`/api/customer-schedule/history?pubkey=${customerPubkey}`),
+                ]);
+                const statusData = await statusResp.json();
+                const historyData = await historyResp.json();
+
+                if (statusData.success) {
+                    document.getElementById('customerScheduleEnabled').checked = statusData.schedule.enabled;
+                    document.getElementById('customerScheduleDays').value = statusData.schedule.intervalDays || 0;
+                    document.getElementById('customerScheduleHours').value = statusData.schedule.intervalHours || 0;
+
+                    const timerEl = document.getElementById('customerTimerStatus');
+                    if (statusData.timer.active) {
+                        timerEl.innerHTML = `<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#22c55e;margin-right:0.5rem;"></span>` +
+                            `Scheduler active — next run: <strong>${formatTime(statusData.timer.nextRunAt)}</strong>` +
+                            (statusData.timer.lastRunAt ? `<br>Last triggered: <strong>${formatTime(statusData.timer.lastRunAt)}</strong>` : '');
+                    } else {
+                        timerEl.innerHTML = `<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#666;margin-right:0.5rem;"></span>Scheduler not active`;
+                    }
+                }
+
+                if (historyData.success && historyData.runs.length > 0) {
+                    const runsEl = document.getElementById('customerRecentRuns');
+                    runsEl.innerHTML = `<table style="width:100%;border-collapse:collapse;">
+                        <thead><tr>
+                            <th style="text-align:left;padding:0.25rem 0.5rem;border-bottom:1px solid rgba(255,255,255,0.1);">Started</th>
+                            <th style="text-align:left;padding:0.25rem 0.5rem;border-bottom:1px solid rgba(255,255,255,0.1);">Duration</th>
+                            <th style="text-align:center;padding:0.25rem 0.5rem;border-bottom:1px solid rgba(255,255,255,0.1);">Status</th>
+                        </tr></thead>
+                        <tbody>${historyData.runs.map(run => `<tr>
+                            <td style="padding:0.25rem 0.5rem;">${formatTime(run.startedAt)}</td>
+                            <td style="padding:0.25rem 0.5rem;">${formatDuration(run.durationMs)}</td>
+                            <td style="text-align:center;padding:0.25rem 0.5rem;">${
+                                run.status === 'success' ? '<span style="color:#22c55e">✅</span>' :
+                                run.status === 'failed' ? '<span style="color:#ef4444">❌</span>' :
+                                '<span style="color:#f59e0b">⏳</span>'
+                            }</td>
+                        </tr>`).join('')}</tbody>
+                    </table>`;
+                } else {
+                    document.getElementById('customerRecentRuns').textContent = 'No recent runs';
+                }
+            } catch (err) {
+                document.getElementById('customerRecentRuns').textContent = 'Failed to load: ' + err.message;
+            }
+        }
+
+        async function triggerProcessCustomer() {
+            const btn = document.getElementById('triggerProcessCustomerBtn');
+            const status = document.getElementById('triggerStatus');
+            btn.disabled = true;
+            status.textContent = 'Starting...';
+            status.style.color = '#888';
+            try {
+                const resp = await fetch(`/api/customer-schedule/trigger?pubkey=${customerPubkey}`, { method: 'POST' });
+                const data = await resp.json();
+                if (data.success) {
+                    status.textContent = '✅ ' + data.message;
+                    status.style.color = '#22c55e';
+                } else {
+                    status.textContent = '❌ ' + (data.error || 'Failed');
+                    status.style.color = '#ef4444';
+                }
+            } catch (err) {
+                status.textContent = '❌ ' + err.message;
+                status.style.color = '#ef4444';
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        function markScheduleDirty() {
+            document.getElementById('saveCustomerScheduleBtn').disabled = false;
+        }
+
+        async function saveCustomerSchedule() {
+            const enabled = document.getElementById('customerScheduleEnabled').checked;
+            const days = document.getElementById('customerScheduleDays').value;
+            const hours = document.getElementById('customerScheduleHours').value;
+            const msgEl = document.getElementById('customerScheduleMessage');
+            const btn = document.getElementById('saveCustomerScheduleBtn');
+
+            btn.disabled = true;
+            try {
+                const resp = await fetch(`/api/customer-schedule/update?pubkey=${customerPubkey}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ enabled, intervalDays: days, intervalHours: hours }),
+                });
+                const data = await resp.json();
+                if (data.success) {
+                    msgEl.textContent = '✅ ' + data.message;
+                    msgEl.style.color = '#22c55e';
+                    await loadCustomerScheduleStatus();
+                } else {
+                    msgEl.textContent = '❌ ' + (data.error || 'Failed');
+                    msgEl.style.color = '#ef4444';
+                }
+            } catch (err) {
+                msgEl.textContent = '❌ ' + err.message;
+                msgEl.style.color = '#ef4444';
+            }
+            setTimeout(() => { msgEl.textContent = ''; }, 5000);
+        }
+
         async function resetConfigToDefault(configType) {
             if (!confirm(`Reset ${configType} configuration to default? This will overwrite the current config file.`)) return;
             try {

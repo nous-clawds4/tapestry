@@ -449,6 +449,16 @@ async function register(app) {
     app.post('/api/scheduled-tasks/update', scheduledTasks.handleUpdate);
     app.get('/api/scheduled-tasks/history', scheduledTasks.handleHistory);
 
+    // ── Per-Customer Scheduled Tasks API ──
+    const customerSchedule = require('./customer-schedule');
+    app.get('/api/customer-schedule/status', customerSchedule.handleStatus);
+    app.post('/api/customer-schedule/update', customerSchedule.handleUpdate);
+    app.post('/api/customer-schedule/trigger', customerSchedule.handleTrigger);
+    app.get('/api/customer-schedule/history', customerSchedule.handleHistory);
+
+    // Initialize customer schedulers (restore enabled schedules from config)
+    customerSchedule.initCustomerSchedulers();
+
     // ── Admin Management API (owner-only) ──
     const adminApi = require('./admin');
     app.get('/api/admin/list', adminApi.requireOwnerOnly, adminApi.handleListAdmins);
