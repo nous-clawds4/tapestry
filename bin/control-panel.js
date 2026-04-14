@@ -247,6 +247,10 @@ app.use(authMiddleware);
   await api.register(app);
   console.log('API routes registered');
 
+  // Initialize the scheduled tasks timer (restores schedule from config if enabled)
+  const scheduledTasks = require('../src/api/scheduled-tasks');
+  scheduledTasks.initScheduler();
+
   // SPA catch-all: any route that didn't match a static file, API endpoint, or legacy page
   // gets served the React app's index.html so client-side routing works on refresh.
   app.get('*', (req, res, next) => {

@@ -442,6 +442,12 @@ async function register(app) {
     app.post('/api/streaming-etl/control', streamingETL.handleControl);
     app.get('/api/streaming-etl/logs', streamingETL.handleLogs);
 
+    // ── Scheduled Tasks API ──
+    const scheduledTasks = require('./scheduled-tasks');
+    app.get('/api/scheduled-tasks/status', scheduledTasks.handleStatus);
+    app.post('/api/scheduled-tasks/update', scheduledTasks.handleUpdate);
+    app.get('/api/scheduled-tasks/history', scheduledTasks.handleHistory);
+
     // ── Admin Management API (owner-only) ──
     const adminApi = require('./admin');
     app.get('/api/admin/list', adminApi.requireOwnerOnly, adminApi.handleListAdmins);
