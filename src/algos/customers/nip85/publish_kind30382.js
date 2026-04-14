@@ -25,7 +25,7 @@ const LIMIT_OVERRIDE = process.argv[5]; // optional
 const neo4jUri = getConfigFromFile('NEO4J_URI', 'bolt://localhost:7687');
 const neo4jUser = getConfigFromFile('NEO4J_USER', 'neo4j');
 const neo4jPassword = getConfigFromFile('NEO4J_PASSWORD', 'neo4j');
-const kind30382_limit = getConfigFromFile('BRAINSTORM_30382_LIMIT', '1000');
+const kind30382_limit = getConfigFromFile('BRAINSTORM_30382_LIMIT', '250000');
 
 console.log(`Publishing kind 30382 for customer ${CUSTOMER_PUBKEY} ${CUSTOMER_ID} ${CUSTOMER_NAME}`);
 console.log(`Neo4j URI: ${neo4jUri}`);

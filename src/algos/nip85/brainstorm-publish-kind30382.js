@@ -52,7 +52,7 @@ async function getTopUsers() {
              u.confidence AS confidence,
              u.input AS input
       ORDER BY u.influence DESC
-      LIMIT 100
+      LIMIT 250000
     `);
     
     console.log(`Found ${result.records.length} users with influence`);
@@ -75,7 +75,7 @@ async function getTopUsers() {
                u.confidence AS confidence,
                u.input AS input
         ORDER BY u.personalizedPageRank DESC
-        LIMIT 1000
+        LIMIT 250000
       `);
       
       console.log(`Fallback query found ${fallbackResult.records.length} users`);

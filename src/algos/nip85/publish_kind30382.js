@@ -19,7 +19,7 @@ const { getOwnerAssistantKeys } = require('../../utils/assistantKeys');
 const neo4jUri = getConfigFromFile('NEO4J_URI', 'bolt://localhost:7687');
 const neo4jUser = getConfigFromFile('NEO4J_USER', 'neo4j');
 const neo4jPassword = getConfigFromFile('NEO4J_PASSWORD', 'neo4j');
-const kind30382_limit = getConfigFromFile('BRAINSTORM_30382_LIMIT', '1000');
+const kind30382_limit = getConfigFromFile('BRAINSTORM_30382_LIMIT', '250000');
 
 console.log(`Neo4j URI: ${neo4jUri}`);
 console.log(`Kind 30382 limit: ${kind30382_limit}`);

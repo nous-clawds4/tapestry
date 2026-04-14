@@ -69,7 +69,7 @@ export BRAINSTORM_DEFAULT_POPULAR_GENERAL_PURPOSE_RELAYS='wss://relay.nostr.band
 export BRAINSTORM_POPULAR_GENERAL_PURPOSE_RELAYS='wss://relay.nostr.band,wss://relay.damus.io,wss://relay.primal.net'
 
 # NIP-85 configuration
-export BRAINSTORM_30382_LIMIT="100"
+export BRAINSTORM_30382_LIMIT="250000"
 
 # Performance tuning
 export BRAINSTORM_BATCH_SIZE="100"
