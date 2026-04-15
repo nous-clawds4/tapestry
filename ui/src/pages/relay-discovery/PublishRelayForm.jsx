@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { publishEverywhere } from '../../utils/nostrPublish';
+import { publishEverywhere, importAddressableToNeo4j } from '../../utils/nostrPublish';
 
 const NOSTR_RELAY_Z_TAG =
   '39998:82b75e474dda005e912bcbb910391c60c2b89cc7faf5d3c30b7c59a324973833:nostr-relay';
@@ -82,6 +82,10 @@ export default function PublishRelayForm({ open, onClose, onPublished }) {
           result?.local?.error || 'Publish failed on every relay (local + external).',
         );
       }
+
+      // Pull the event into Neo4j so it becomes queryable as a ListItem.
+      // Best-effort: we don't block UI success on this.
+      importAddressableToNeo4j(signed).catch(() => {});
 
       onPublished?.({ signed, result });
       setWsUrl('');

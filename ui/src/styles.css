@@ -4253,3 +4253,67 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   border-color: rgba(16,185,129,0.4);
   color: #6ee7b7;
 }
+
+/* ── Relay Discovery page ── */
+.rdisc-page { padding: 1rem 0; }
+.rdisc-tabs {
+  display: flex;
+  gap: 0.3rem;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+  margin-bottom: 1rem;
+}
+.rdisc-tab-btn {
+  padding: 0.55rem 1rem;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: rgba(255,255,255,0.6);
+  font-family: inherit;
+  font-size: 0.88rem;
+  cursor: pointer;
+  margin-bottom: -1px;
+}
+.rdisc-tab-btn:hover { color: rgba(255,255,255,0.9); }
+.rdisc-tab-btn.active {
+  color: #c7d2fe;
+  border-bottom-color: #6366f1;
+}
+.rdisc-panel { padding: 0.6rem 0; }
+
+.rdisc-search-form { display: flex; gap: 0.5rem; }
+.rdisc-search-input {
+  flex: 1;
+  padding: 0.55rem 0.75rem;
+  background: rgba(0,0,0,0.3);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 5px;
+  color: inherit;
+  font-family: inherit;
+  font-size: 0.9rem;
+}
+.rdisc-search-input:focus { outline: none; border-color: #6366f1; }
+.rdisc-search-form button {
+  padding: 0.55rem 1rem;
+  background: #6366f1;
+  border: 1px solid #6366f1;
+  border-radius: 5px;
+  color: white;
+  font-family: inherit;
+  font-size: 0.88rem;
+  cursor: pointer;
+}
+.rdisc-search-form button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.rdisc-results { margin-top: 1rem; }
+.rdisc-results-header {
+  margin: 0.5rem 0 0.7rem;
+  font-size: 0.85rem;
+  color: rgba(255,255,255,0.7);
+}
+.rdisc-filter-bar { display: flex; align-items: center; gap: 0.7rem; flex-wrap: wrap; }
+.rdisc-footer-note {
+  margin-top: 0.8rem;
+  font-size: 0.75rem;
+  color: rgba(255,255,255,0.45);
+  font-style: italic;
+}

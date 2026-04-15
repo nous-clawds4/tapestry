@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { publishEverywhere } from '../../utils/nostrPublish';
+import { publishEverywhere, importAddressableToNeo4j } from '../../utils/nostrPublish';
 
 const NOSTR_RELAY_TAG_Z_TAG =
   '39998:82b75e474dda005e912bcbb910391c60c2b89cc7faf5d3c30b7c59a324973833:nostr-relay-tag';
@@ -84,6 +84,7 @@ export default function RelayTagPanel({ relayEventId, relaySlug, user }) {
       if (!localOk && !externalOk) {
         throw new Error(result?.local?.error || 'Publish failed on every relay.');
       }
+      importAddressableToNeo4j(signed).catch(() => {});
       refetch();
     } catch (err) {
       setError(err.message || String(err));

@@ -18,6 +18,7 @@ if (typeof globalThis.WebSocket === 'undefined') {
 
 const { SimplePool } = require(NOSTR_TOOLS_PATH);
 const { exec } = require('child_process');
+const { runCypher } = require('../../lib/neo4j-driver');
 
 const FETCH_TIMEOUT_MS = 8000;
 
@@ -308,10 +309,180 @@ async function handleTagsForRelay(req, res) {
   }
 }
 
+// ── GET /api/relay-discovery/aggregated ──────────────────────────────────
+// Aggregates all relay 39999 items that have been imported into Neo4j,
+// grouped by websocket URL. For each relay we return the list of endorsing
+// author pubkeys (one per 39999 event) and, cross-referenced against the
+// imported nostr-relay-tag applications, the counts of each tag slug.
+//
+// Trust weighting happens client-side via the existing useTrustWeights
+// hook; this endpoint only returns raw endorser pubkeys.
+//
+// Query params:
+//   tagSlug  — optional, filter to relays that have at least one nostr-relay-tag
+//              application with the given tag slug.
+//   limit    — optional, cap on rows returned (default 100).
+
+async function handleAggregated(req, res) {
+  const { tagSlug, limit: limitRaw } = req.query;
+  const limit = Math.max(1, Math.min(500, parseInt(limitRaw, 10) || 100));
+
+  try {
+    // All imported kind 39999 relay items, with authors and JSON payload.
+    const relayRows = await runCypher(
+      `MATCH (e:NostrEvent {kind: 39999})-[:HAS_TAG]->(zt:NostrEventTag {type: 'z'})
+       WHERE zt.value = $zTag
+       OPTIONAL MATCH (u:NostrUser)-[:AUTHORS]->(e)
+       OPTIONAL MATCH (e)-[:HAS_TAG]->(jt:NostrEventTag {type: 'json'})
+       RETURN e.id AS eventId, e.uuid AS uuid, u.pubkey AS author, jt.value AS json`,
+      { zTag: NOSTR_RELAY_Z_TAG }
+    );
+
+    // All imported nostr-relay-tag applications with authors and JSON.
+    const tagAppRows = await runCypher(
+      `MATCH (e:NostrEvent {kind: 39999})-[:HAS_TAG]->(zt:NostrEventTag {type: 'z'})
+       WHERE zt.value = $zTag
+       OPTIONAL MATCH (u:NostrUser)-[:AUTHORS]->(e)
+       OPTIONAL MATCH (e)-[:HAS_TAG]->(jt:NostrEventTag {type: 'json'})
+       RETURN e.id AS eventId, u.pubkey AS author, jt.value AS json`,
+      { zTag: NOSTR_RELAY_TAG_Z_TAG }
+    );
+
+    // All imported tag elements (authored by the TA), so we can resolve
+    // tagEventId → tag slug.
+    const tagRows = await runCypher(
+      `MATCH (e:NostrEvent {kind: 39999, pubkey: $ta})-[:HAS_TAG]->(zt:NostrEventTag {type: 'z'})
+       WHERE zt.value = $zTag
+       OPTIONAL MATCH (e)-[:HAS_TAG]->(jt:NostrEventTag {type: 'json'})
+       RETURN e.id AS eventId, jt.value AS json`,
+      { ta: TA_PUBKEY, zTag: TAG_Z_TAG }
+    );
+
+    const tagSlugByEventId = new Map();
+    const tagMeta = {};
+    for (const row of tagRows) {
+      if (!row.eventId || !row.json) continue;
+      try {
+        const parsed = JSON.parse(row.json);
+        const t = parsed?.tag;
+        if (!t?.slug) continue;
+        tagSlugByEventId.set(row.eventId, t.slug);
+        tagMeta[t.slug] = { slug: t.slug, name: t.name || t.slug, description: t.description || '' };
+      } catch {}
+    }
+
+    // Count tag applications per (relayEventId, tagSlug) and collect authors.
+    // relayApplicationAuthors: relayEventId → tagSlug → Set(authorPubkey)
+    const relayApplicationAuthors = new Map();
+    for (const row of tagAppRows) {
+      if (!row.json) continue;
+      let parsed;
+      try { parsed = JSON.parse(row.json); } catch { continue; }
+      const nrt = parsed?.nostrRelayTag;
+      if (!nrt?.relayEventId || !nrt?.tagEventId) continue;
+      const slug = tagSlugByEventId.get(nrt.tagEventId);
+      if (!slug) continue;
+      if (!relayApplicationAuthors.has(nrt.relayEventId)) {
+        relayApplicationAuthors.set(nrt.relayEventId, new Map());
+      }
+      const bySlug = relayApplicationAuthors.get(nrt.relayEventId);
+      if (!bySlug.has(slug)) bySlug.set(slug, new Set());
+      if (row.author) bySlug.get(slug).add(row.author);
+    }
+
+    // Group relay events by websocket URL.
+    const byUrl = new Map();
+    for (const row of relayRows) {
+      if (!row.json) continue;
+      let parsed;
+      try { parsed = JSON.parse(row.json); } catch { continue; }
+      const nr = parsed?.nostrRelay;
+      if (!nr?.websocketUrl) continue;
+      const url = String(nr.websocketUrl).trim().replace(/\/+$/, '').toLowerCase();
+      if (!url.startsWith('wss://') && !url.startsWith('ws://')) continue;
+
+      if (!byUrl.has(url)) {
+        byUrl.set(url, {
+          websocketUrl: url,
+          httpUrl: typeof nr.httpUrl === 'string' ? nr.httpUrl : null,
+          slug: typeof nr.slug === 'string' ? nr.slug : null,
+          endorsers: new Set(),           // distinct authors who published a 39999 for this relay
+          relayEventIds: new Set(),       // all 39999 event IDs referencing this relay (by url)
+          tagApplications: {},            // tagSlug → { authors: Set, count }
+        });
+      }
+      const entry = byUrl.get(url);
+      if (row.author) entry.endorsers.add(row.author);
+      if (row.eventId) entry.relayEventIds.add(row.eventId);
+    }
+
+    // Merge tag applications into entries.
+    for (const entry of byUrl.values()) {
+      for (const relayEventId of entry.relayEventIds) {
+        const bySlug = relayApplicationAuthors.get(relayEventId);
+        if (!bySlug) continue;
+        for (const [slug, authors] of bySlug) {
+          if (!entry.tagApplications[slug]) {
+            entry.tagApplications[slug] = { authors: new Set(), count: 0 };
+          }
+          for (const a of authors) entry.tagApplications[slug].authors.add(a);
+        }
+      }
+      for (const slug of Object.keys(entry.tagApplications)) {
+        entry.tagApplications[slug].count = entry.tagApplications[slug].authors.size;
+      }
+    }
+
+    // Convert to plain JSON.
+    let entries = [];
+    for (const entry of byUrl.values()) {
+      const tagApps = {};
+      for (const [slug, data] of Object.entries(entry.tagApplications)) {
+        tagApps[slug] = { count: data.count, authors: [...data.authors] };
+      }
+      entries.push({
+        websocketUrl: entry.websocketUrl,
+        httpUrl: entry.httpUrl,
+        slug: entry.slug,
+        endorsers: [...entry.endorsers],
+        endorserCount: entry.endorsers.size,
+        relayEventIds: [...entry.relayEventIds],
+        tagApplications: tagApps,
+      });
+    }
+
+    // Optional tagSlug filter.
+    if (tagSlug) {
+      entries = entries.filter((e) => e.tagApplications?.[tagSlug]);
+    }
+
+    // Default sort: endorser count desc, then total tag application count desc.
+    entries.sort((a, b) => {
+      if (b.endorserCount !== a.endorserCount) return b.endorserCount - a.endorserCount;
+      const at = Object.values(a.tagApplications).reduce((s, d) => s + d.count, 0);
+      const bt = Object.values(b.tagApplications).reduce((s, d) => s + d.count, 0);
+      return bt - at;
+    });
+
+    entries = entries.slice(0, limit);
+
+    res.json({
+      success: true,
+      count: entries.length,
+      relays: entries,
+      tagMeta,
+      filters: { tagSlug: tagSlug || null, limit },
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+}
+
 function registerRelayDiscoveryRoutes(app) {
   app.get('/api/relay-discovery/by-pubkey', handleByPubkey);
   app.get('/api/relay-discovery/available-tags', handleAvailableTags);
   app.get('/api/relay-discovery/tags-for-relay', handleTagsForRelay);
+  app.get('/api/relay-discovery/aggregated', handleAggregated);
 }
 
 module.exports = {
@@ -319,4 +490,5 @@ module.exports = {
   handleByPubkey,
   handleAvailableTags,
   handleTagsForRelay,
+  handleAggregated,
 };
