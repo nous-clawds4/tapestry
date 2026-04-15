@@ -1,135 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { nip19 } from 'nostr-tools';
 import { useAuth } from '../../context/AuthContext';
 import { useTrust, SCORING_METHODS } from '../../context/TrustContext';
 import useTrustWeights from '../../hooks/useTrustWeights';
 import { fetchFromRelays, publishEverywhere, PUBLISH_RELAYS, importAddressableToNeo4j } from '../../utils/nostrPublish';
-
-const TAB_BY_ACCOUNT = 'by-account';
-const TAB_AGGREGATED = 'aggregated';
-
-function decodeToHex(input) {
-  if (!input) return null;
-  const trimmed = input.trim();
-  if (/^[0-9a-f]{64}$/i.test(trimmed)) return trimmed.toLowerCase();
-  try {
-    const decoded = nip19.decode(trimmed);
-    if (decoded.type === 'npub') return decoded.data;
-    if (decoded.type === 'nprofile') return decoded.data.pubkey;
-  } catch {}
-  return null;
-}
-
-/* ── By-Account tab ────────────────────────────────────── */
-
-function ByAccountTab() {
-  const [input, setInput] = useState('');
-  const [pubkey, setPubkey] = useState(null);
-  const [relays, setRelays] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-
-  async function search(e) {
-    e?.preventDefault();
-    const hex = decodeToHex(input);
-    if (!hex) {
-      setError('Enter a 64-char hex pubkey, npub, or nprofile.');
-      setRelays(null);
-      return;
-    }
-    setError(null);
-    setPubkey(hex);
-    setLoading(true);
-    try {
-      const resp = await fetch(`/api/relay-discovery/by-pubkey?pubkey=${hex}`);
-      const data = await resp.json();
-      if (!data.success) {
-        setError(data.error || 'Failed to fetch');
-        setRelays([]);
-      } else {
-        setRelays(data.relays || []);
-      }
-    } catch (err) {
-      setError(err.message);
-      setRelays([]);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  return (
-    <div className="rdisc-tab">
-      <form onSubmit={search} className="rdisc-search-form">
-        <input
-          type="text"
-          placeholder="npub1… or hex pubkey"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          className="rdisc-search-input"
-        />
-        <button type="submit" disabled={loading}>
-          {loading ? 'Searching…' : 'Search'}
-        </button>
-      </form>
-
-      {error && <div className="rtp-error" style={{ marginTop: '0.8rem' }}>⚠️ {error}</div>}
-
-      {pubkey && !loading && relays && (
-        <div className="rdisc-results">
-          <div className="rdisc-results-header">
-            {relays.length} relay{relays.length === 1 ? '' : 's'} for{' '}
-            <code>{pubkey.slice(0, 12)}…{pubkey.slice(-8)}</code>
-            {' '}
-            <a
-              href={`/kg/brainstorm-search/user/${pubkey}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="bsp-id-link"
-            >
-              view full profile ↗
-            </a>
-          </div>
-          {relays.length > 0 && (
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Relay URL</th>
-                  <th>Source</th>
-                  <th>Read</th>
-                  <th>Write</th>
-                </tr>
-              </thead>
-              <tbody>
-                {relays.map((r) => (
-                  <tr key={r.websocketUrl}>
-                    <td>
-                      <code>{r.websocketUrl}</code>
-                      {r.httpUrl && (
-                        <>
-                          {' '}
-                          <a href={r.httpUrl} target="_blank" rel="noopener noreferrer" className="bsp-id-link">↗</a>
-                        </>
-                      )}
-                    </td>
-                    <td>
-                      {r.source === 'both'
-                        ? 'NIP-65 + DCoSL'
-                        : r.source === 'nip65'
-                        ? 'NIP-65'
-                        : 'DCoSL'}
-                    </td>
-                    <td>{r.read ? '✓' : ''}</td>
-                    <td>{r.write ? '✓' : ''}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
 
 /* ── Demo setup panel (WoT seed data helper) ──────────── */
 
@@ -850,36 +723,19 @@ function AggregatedTab() {
 /* ── Main page ─────────────────────────────────────────── */
 
 export default function RelayDiscovery() {
-  const [tab, setTab] = useState(TAB_BY_ACCOUNT);
-
   return (
     <div className="rdisc-page">
       <div className="page-header">
         <h1>Relay Discovery</h1>
         <p className="page-description">
-          Find nostr relays via NIP-65 lists, DCoSL elements, and trust-weighted aggregation.
+          Relays imported into Neo4j, ranked by your trust-weighted endorser score.
+          Looking for the relays <em>a specific account</em> has published? Use{' '}
+          <a href="/kg/brainstorm-search" className="bsp-id-link">brainstorm-search</a>{' '}
+          to find the account — each profile's page has a Relays section.
         </p>
       </div>
 
-      <div className="rdisc-tabs">
-        <button
-          className={`rdisc-tab-btn ${tab === TAB_BY_ACCOUNT ? 'active' : ''}`}
-          onClick={() => setTab(TAB_BY_ACCOUNT)}
-        >
-          By Account
-        </button>
-        <button
-          className={`rdisc-tab-btn ${tab === TAB_AGGREGATED ? 'active' : ''}`}
-          onClick={() => setTab(TAB_AGGREGATED)}
-        >
-          WoT Aggregated
-        </button>
-      </div>
-
-      <div className="rdisc-panel">
-        {tab === TAB_BY_ACCOUNT && <ByAccountTab />}
-        {tab === TAB_AGGREGATED && <AggregatedTab />}
-      </div>
+      <AggregatedTab />
     </div>
   );
 }
