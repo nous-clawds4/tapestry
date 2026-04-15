@@ -18,6 +18,8 @@ if (typeof globalThis.WebSocket === 'undefined') {
 
 const { SimplePool } = require(NOSTR_TOOLS_PATH);
 const { exec } = require('child_process');
+const fs = require('fs');
+const path = require('path');
 const { runCypher } = require('../../lib/neo4j-driver');
 
 const FETCH_TIMEOUT_MS = 8000;
@@ -478,11 +480,41 @@ async function handleAggregated(req, res) {
   }
 }
 
+// ── GET /api/relay-discovery/demo-actors ─────────────────────────────────
+// Returns the good/bad/neutral demo actor pubkey lists produced by
+// test-data/mint-demo-relays.js. Used by the UI to offer a "Follow all
+// demo good actors" shortcut for the WoT demo.
+//
+// If the demo hasn't been seeded, `available` is false and the UI can
+// hide the demo panel.
+
+const DEMO_DATA_PATH = path.resolve(__dirname, '../../../test-data/demo-relays-data.json');
+
+function handleDemoActors(req, res) {
+  try {
+    if (!fs.existsSync(DEMO_DATA_PATH)) {
+      return res.json({ success: true, available: false });
+    }
+    const data = JSON.parse(fs.readFileSync(DEMO_DATA_PATH, 'utf8'));
+    res.json({
+      success: true,
+      available: true,
+      goodActors: data.goodActors || {},
+      badActors: data.badActors || {},
+      neutralActors: data.neutralActors || {},
+      ownerPubkey: data.ownerPubkey || null,
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+}
+
 function registerRelayDiscoveryRoutes(app) {
   app.get('/api/relay-discovery/by-pubkey', handleByPubkey);
   app.get('/api/relay-discovery/available-tags', handleAvailableTags);
   app.get('/api/relay-discovery/tags-for-relay', handleTagsForRelay);
   app.get('/api/relay-discovery/aggregated', handleAggregated);
+  app.get('/api/relay-discovery/demo-actors', handleDemoActors);
 }
 
 module.exports = {
@@ -491,4 +523,5 @@ module.exports = {
   handleAvailableTags,
   handleTagsForRelay,
   handleAggregated,
+  handleDemoActors,
 };
