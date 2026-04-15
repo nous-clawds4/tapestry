@@ -1176,4 +1176,56 @@ if (require.main === module) {
   });
 }
 
-module.exports = { install, pass1_bootstrap, pass2_enrich, handleFirmwareInstall };
+/**
+ * Pass-3 only: derive labels + apply enumerations + wire implicit elements.
+ *
+ * Extracted so callers that land foreign-authored events in Neo4j (e.g.
+ * /api/concept-discovery/import) can trigger the same derivation pipeline
+ * without going through Pass-1 / Pass-2 (which re-sign with our TA key and
+ * would destroy foreign events).
+ *
+ * Requires an `app` (Express instance, usually `req.app`) so the helper can
+ * make internal route calls without looping back through HTTP.
+ */
+async function runPass3(app) {
+  if (!app) throw new Error('runPass3 requires an Express app (pass req.app)');
+  const bridge = createInternalBridge(app);
+  const wasInternal = _internalMode;
+  const prevHandlers = _internalHandlers;
+  enableInternalMode(bridge);
+  try {
+    const result = { derived: 0, enumerationsApplied: 0, implicitWired: 0, errors: [] };
+    const deriveLabels = ['ListItem', 'ListHeader', 'ConceptHeader', 'JSONSchema', 'Property', 'Set', 'Superset'];
+    for (const label of deriveLabels) {
+      try {
+        await bridge.post(`/api/tapestry-key/derive-all/${label}`, {});
+      } catch (err) {
+        result.errors.push(`derive ${label}: ${err.message}`);
+      }
+    }
+    try {
+      const statusRes = await bridge.get('/api/tapestry-key/derive-status');
+      if (statusRes?.success) {
+        result.derived = (statusRes.data || []).reduce((s, l) => s + (l.derived || 0), 0);
+      }
+    } catch {}
+    try {
+      const enumRes = await bridge.post('/api/normalize/apply-enumerations', {});
+      result.enumerationsApplied = enumRes?.updated || 0;
+    } catch (err) {
+      result.errors.push(`apply-enumerations: ${err.message}`);
+    }
+    try {
+      const wireRes = await bridge.post('/api/normalize/wire-implicit-elements', {});
+      result.implicitWired = wireRes?.wired || 0;
+    } catch (err) {
+      result.errors.push(`wire-implicit-elements: ${err.message}`);
+    }
+    return result;
+  } finally {
+    _internalMode = wasInternal;
+    _internalHandlers = prevHandlers;
+  }
+}
+
+module.exports = { install, pass1_bootstrap, pass2_enrich, handleFirmwareInstall, runPass3, createInternalBridge };

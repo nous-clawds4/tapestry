@@ -1,0 +1,35 @@
+{
+  "_comment": [
+    "Bootstrap list for /kg/concept-discovery. Each entry surfaces as a suggestion",
+    "card when a user opens the page with no recent searches of their own.",
+    "",
+    "Today this file IS the suggestion list. In a future revision we expect to",
+    "swap the backing store for a DCoSL-style 'concept-author' DList on nostr: a",
+    "community-curated DList whose elements are concept-author pubkeys. When that",
+    "lands, only the GET /api/concept-discovery/suggested-authors handler changes",
+    "— the response shape stays identical and the UI is unaffected.",
+    "",
+    "For now, seed with: (1) this instance's own TA so users can self-inspect,",
+    "(2) any trusted 'house' accounts we want new installs to discover by default.",
+    "Production installs can edit this file; demo installs can generate additional",
+    "entries via test-data/mint-foreign-concept.js."
+  ],
+  "authors": [
+    {
+      "pubkey": "82b75e474dda005e912bcbb910391c60c2b89cc7faf5d3c30b7c59a324973833",
+      "name": "This instance (self)",
+      "description": "Our own Tapestry Assistant — every firmware concept installed from this repo.",
+      "relays": [
+        "ws://localhost:7777"
+      ]
+    },
+    {
+      "pubkey": "50562894a151f6be404018d442e4a4af10bc773d27c55e6806561549e9253003",
+      "name": "Demo foreign TA (Magic Mirror)",
+      "description": "Foreign Tapestry Assistant for the Concept Discovery demo — publishes the nostr-relay-v2 concept with country + language fields.",
+      "relays": [
+        "ws://localhost:7777"
+      ]
+    }
+  ]
+}

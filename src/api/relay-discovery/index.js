@@ -27,10 +27,33 @@ const FETCH_TIMEOUT_MS = 8000;
 // Firmware TA pubkey (publishes all kind 39998 concept headers).
 const TA_PUBKEY = '82b75e474dda005e912bcbb910391c60c2b89cc7faf5d3c30b7c59a324973833';
 
-// Coordinate for the nostr-relay firmware concept (TA pubkey + d-tag).
+// Coordinate for our own TA's firmware concepts. Retained for fallback: if
+// Neo4j has no ConceptHeader matching a slug (e.g. because a stale install
+// or a prune wiped the firmware), the resolver below falls back to the
+// hardcoded coordinate so the app keeps working.
 const NOSTR_RELAY_Z_TAG = `39998:${TA_PUBKEY}:nostr-relay`;
 const TAG_Z_TAG = `39998:${TA_PUBKEY}:tag`;
 const NOSTR_RELAY_TAG_Z_TAG = `39998:${TA_PUBKEY}:nostr-relay-tag`;
+
+// Runtime resolution of every ConceptHeader coordinate whose d-tag matches
+// `slug`. Returns an array of `39998:<pubkey>:<slug>` strings. Used to make
+// every downstream query (tag lookup, tag-application scan, aggregated
+// ranking) multi-TA aware — any concept imported via /api/concept-discovery
+// automatically contributes to the relay-discovery experience.
+//
+// The `ENDS WITH $suffix` clause matches exactly on the ":<slug>" suffix,
+// regardless of which TA pubkey is in the middle.
+async function resolveConceptCoordinates(slug, fallback) {
+  try {
+    const rows = await runCypher(
+      'MATCH (c:ConceptHeader) WHERE c.uuid ENDS WITH $suffix RETURN c.uuid AS uuid',
+      { suffix: `:${slug}` },
+    );
+    const coords = rows.map((r) => r.uuid).filter(Boolean);
+    if (coords.length > 0) return coords;
+  } catch {}
+  return fallback ? [fallback] : [];
+}
 
 // Default relays used when the client does not specify. Mirrors
 // ui/src/utils/nostrPublish.js PUBLISH_RELAYS so the server query sees the same
@@ -231,10 +254,12 @@ function strfryScan(filter) {
 
 async function handleAvailableTags(req, res) {
   try {
+    // Every imported `tag` ConceptHeader contributes to the tag vocabulary —
+    // we no longer filter by a single author.
+    const tagCoords = await resolveConceptCoordinates('tag', TAG_Z_TAG);
     const events = await strfryScan({
       kinds: [39999],
-      '#z': [TAG_Z_TAG],
-      authors: [TA_PUBKEY],
+      '#z': tagCoords,
     });
 
     const tags = [];
@@ -275,11 +300,12 @@ async function handleTagsForRelay(req, res) {
 
   try {
     // We can't index into the JSON payload from strfry, so scan all
-    // nostr-relay-tag events and filter client-side. This list grows slowly
-    // in the MVP; Phase 4 will move aggregation into Neo4j.
+    // nostr-relay-tag events and filter client-side. Multi-TA aware:
+    // every imported `nostr-relay-tag` coordinate contributes.
+    const tagAppCoords = await resolveConceptCoordinates('nostr-relay-tag', NOSTR_RELAY_TAG_Z_TAG);
     const events = await strfryScan({
       kinds: [39999],
-      '#z': [NOSTR_RELAY_TAG_Z_TAG],
+      '#z': tagAppCoords,
     });
 
     const applications = [];
@@ -326,38 +352,58 @@ async function handleTagsForRelay(req, res) {
 //   limit    — optional, cap on rows returned (default 100).
 
 async function handleAggregated(req, res) {
-  const { tagSlug, limit: limitRaw } = req.query;
+  const { tagSlug, limit: limitRaw, conceptCoord } = req.query;
   const limit = Math.max(1, Math.min(500, parseInt(limitRaw, 10) || 100));
 
   try {
+    // Resolve every installed concept coordinate per slug. Any TA's
+    // nostr-relay / nostr-relay-tag / tag concept contributes.
+    //
+    // When `conceptCoord` is provided, the picker has scoped the view to
+    // a single coordinate — could be a nostr-relay slug, could be
+    // anything else (`dog`, `nostr-relay-v2`, etc.). We use it for the
+    // relay-row filter only; tag aggregation continues across all known
+    // tag/tag-application coordinates so existing tags still annotate
+    // the filtered rows.
+    const [allRelayCoords, tagAppCoords, tagCoords] = await Promise.all([
+      resolveConceptCoordinates('nostr-relay', NOSTR_RELAY_Z_TAG),
+      resolveConceptCoordinates('nostr-relay-tag', NOSTR_RELAY_TAG_Z_TAG),
+      resolveConceptCoordinates('tag', TAG_Z_TAG),
+    ]);
+    // If the caller pinned a specific concept coordinate, use only that.
+    // Otherwise default to "every nostr-relay coordinate we know about."
+    const relayCoords = conceptCoord ? [conceptCoord] : allRelayCoords;
+
     // All imported kind 39999 relay items, with authors and JSON payload.
     const relayRows = await runCypher(
       `MATCH (e:NostrEvent {kind: 39999})-[:HAS_TAG]->(zt:NostrEventTag {type: 'z'})
-       WHERE zt.value = $zTag
+       WHERE zt.value IN $zTags
        OPTIONAL MATCH (u:NostrUser)-[:AUTHORS]->(e)
        OPTIONAL MATCH (e)-[:HAS_TAG]->(jt:NostrEventTag {type: 'json'})
-       RETURN e.id AS eventId, e.uuid AS uuid, u.pubkey AS author, jt.value AS json`,
-      { zTag: NOSTR_RELAY_Z_TAG }
+       RETURN e.id AS eventId, e.uuid AS uuid, u.pubkey AS author, jt.value AS json, zt.value AS concept`,
+      { zTags: relayCoords }
     );
 
     // All imported nostr-relay-tag applications with authors and JSON.
     const tagAppRows = await runCypher(
       `MATCH (e:NostrEvent {kind: 39999})-[:HAS_TAG]->(zt:NostrEventTag {type: 'z'})
-       WHERE zt.value = $zTag
+       WHERE zt.value IN $zTags
        OPTIONAL MATCH (u:NostrUser)-[:AUTHORS]->(e)
        OPTIONAL MATCH (e)-[:HAS_TAG]->(jt:NostrEventTag {type: 'json'})
        RETURN e.id AS eventId, u.pubkey AS author, jt.value AS json`,
-      { zTag: NOSTR_RELAY_TAG_Z_TAG }
+      { zTags: tagAppCoords }
     );
 
-    // All imported tag elements (authored by the TA), so we can resolve
-    // tagEventId → tag slug.
+    // All imported tag elements across every `tag` concept coordinate. No
+    // author filter — each concept-author publishes their own tag elements
+    // and we want to resolve every tagEventId our tag applications might
+    // reference.
     const tagRows = await runCypher(
-      `MATCH (e:NostrEvent {kind: 39999, pubkey: $ta})-[:HAS_TAG]->(zt:NostrEventTag {type: 'z'})
-       WHERE zt.value = $zTag
+      `MATCH (e:NostrEvent {kind: 39999})-[:HAS_TAG]->(zt:NostrEventTag {type: 'z'})
+       WHERE zt.value IN $zTags
        OPTIONAL MATCH (e)-[:HAS_TAG]->(jt:NostrEventTag {type: 'json'})
        RETURN e.id AS eventId, jt.value AS json`,
-      { ta: TA_PUBKEY, zTag: TAG_Z_TAG }
+      { zTags: tagCoords }
     );
 
     const tagSlugByEventId = new Map();
@@ -392,12 +438,21 @@ async function handleAggregated(req, res) {
       if (row.author) bySlug.get(slug).add(row.author);
     }
 
+    // Standard fields the relay UI knows how to render. Anything else in
+    // the relay event's JSON payload becomes "extras" — stuff a foreign
+    // concept may define that this UI doesn't natively render.
+    const STANDARD_FIELDS = new Set(['slug', 'websocketUrl', 'httpUrl']);
+
     // Group relay events by websocket URL.
     const byUrl = new Map();
     for (const row of relayRows) {
       if (!row.json) continue;
       let parsed;
       try { parsed = JSON.parse(row.json); } catch { continue; }
+      // Some foreign schemas may use a different top-level key, but for
+      // now we only know how to extract `nostrRelay`. (Other shapes will
+      // simply yield no rows here, which is the correct "this UI is a
+      // relay UI" behavior.)
       const nr = parsed?.nostrRelay;
       if (!nr?.websocketUrl) continue;
       const url = String(nr.websocketUrl).trim().replace(/\/+$/, '').toLowerCase();
@@ -411,11 +466,21 @@ async function handleAggregated(req, res) {
           endorsers: new Set(),           // distinct authors who published a 39999 for this relay
           relayEventIds: new Set(),       // all 39999 event IDs referencing this relay (by url)
           tagApplications: {},            // tagSlug → { authors: Set, count }
+          extras: {},                     // unmapped JSON keys — schema-divergence surface
+          appearsUnder: new Set(),        // concept coordinates this URL appears under
         });
       }
       const entry = byUrl.get(url);
       if (row.author) entry.endorsers.add(row.author);
       if (row.eventId) entry.relayEventIds.add(row.eventId);
+      if (row.concept) entry.appearsUnder.add(row.concept);
+      // Union extras across every event for this URL — last writer wins
+      // per key, but in practice schemas converge on the same shape.
+      for (const [k, v] of Object.entries(nr)) {
+        if (STANDARD_FIELDS.has(k)) continue;
+        if (v == null) continue;
+        entry.extras[k] = v;
+      }
     }
 
     // Merge tag applications into entries.
@@ -450,6 +515,8 @@ async function handleAggregated(req, res) {
         endorserCount: entry.endorsers.size,
         relayEventIds: [...entry.relayEventIds],
         tagApplications: tagApps,
+        extras: entry.extras,
+        appearsUnder: [...entry.appearsUnder],
       });
     }
 
@@ -473,7 +540,8 @@ async function handleAggregated(req, res) {
       count: entries.length,
       relays: entries,
       tagMeta,
-      filters: { tagSlug: tagSlug || null, limit },
+      filters: { tagSlug: tagSlug || null, conceptCoord: conceptCoord || null, limit },
+      knownConcepts: allRelayCoords,
     });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });

@@ -48,6 +48,7 @@ const mainNavItems = [
     ],
   },
   { to: '/kg/relay-discovery', label: '📡 Relay Discovery' },
+  { to: '/kg/concept-discovery', label: '🔭 Concept Discovery' },
 ];
 
 const managementNavItems = [

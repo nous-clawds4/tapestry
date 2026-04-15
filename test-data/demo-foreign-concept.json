@@ -1,0 +1,77 @@
+{
+  "taName": "Magic Mirror",
+  "taPubkey": "50562894a151f6be404018d442e4a4af10bc773d27c55e6806561549e9253003",
+  "taNpub": "npub12ptz399p28mtuszqrr2y9e9y4ugtcaeaylz4u6qx2c25n6f9xqps8lac3x",
+  "conceptSlug": "nostr-relay-v2",
+  "conceptCoordinate": "39998:50562894a151f6be404018d442e4a4af10bc773d27c55e6806561549e9253003:nostr-relay-v2",
+  "headerEventId": "951edbeabc628cb50946227839c0f49c66e65a7a2949647401bd39b5f98b8d18",
+  "supports": [
+    {
+      "role": "JSONSchema",
+      "uuid": "39999:50562894a151f6be404018d442e4a4af10bc773d27c55e6806561549e9253003:nostr-relay-v2-schema",
+      "eventId": "668d6082ef4a8bd3e8d193df27a2512c0cb492538174ff502e56439186f81d64"
+    },
+    {
+      "role": "PrimaryProperty",
+      "uuid": "39999:50562894a151f6be404018d442e4a4af10bc773d27c55e6806561549e9253003:nostr-relay-v2-primary-property",
+      "eventId": "069d5696a7462dcf014868c915da01bd3b01608ad2727b844d5a8ccb01728507"
+    },
+    {
+      "role": "PropertiesSet",
+      "uuid": "39999:50562894a151f6be404018d442e4a4af10bc773d27c55e6806561549e9253003:nostr-relay-v2-properties",
+      "eventId": "9af73f074f2aeb9fce4b85cc5498d7d99d3181d67e4b4b0e480216ea1b45a875"
+    },
+    {
+      "role": "Superset",
+      "uuid": "39999:50562894a151f6be404018d442e4a4af10bc773d27c55e6806561549e9253003:nostr-relay-v2-superset",
+      "eventId": "1db6fc76064b2a613c664559d7d4cf7eb191e7b0773ec5ae12fc3f30233a5ca9"
+    },
+    {
+      "role": "CoreNodesGraph",
+      "uuid": "39999:50562894a151f6be404018d442e4a4af10bc773d27c55e6806561549e9253003:nostr-relay-v2-core-nodes-graph",
+      "eventId": "f1da8f715bfc8fe5722aa357c42a533fe4934d973ba91491f2d60bd2a01ee217"
+    },
+    {
+      "role": "ConceptGraph",
+      "uuid": "39999:50562894a151f6be404018d442e4a4af10bc773d27c55e6806561549e9253003:nostr-relay-v2-concept-graph",
+      "eventId": "fbc120892cde01d19de29f21e374cb2d89a48889705be62fc6c0c15e2c4dc8ed"
+    },
+    {
+      "role": "PropertyTreeGraph",
+      "uuid": "39999:50562894a151f6be404018d442e4a4af10bc773d27c55e6806561549e9253003:nostr-relay-v2-property-tree-graph",
+      "eventId": "44095fbdec118b878acc5b61c3b027e35f950914911c978196f869747f3457bf"
+    }
+  ],
+  "elements": [
+    {
+      "publisher": "Snow White",
+      "slug": "relay-tokyo",
+      "websocketUrl": "wss://relay-tokyo.example.com",
+      "httpUrl": "https://relay-tokyo.example.com",
+      "country": "JP",
+      "language": "ja",
+      "eventId": "31ec3ef986af5c169a48c7d57cba5924273eac4ba26be9bec4224dc844474c9f",
+      "publisherPubkey": "a19ffd86e1c5bad3f9f3934ab689c2be4dea2d07e04ff3df9864da1c6a7b8eec"
+    },
+    {
+      "publisher": "Huntsman",
+      "slug": "relay-berlin",
+      "websocketUrl": "wss://relay-berlin.example.com",
+      "httpUrl": "https://relay-berlin.example.com",
+      "country": "DE",
+      "language": "de",
+      "eventId": "b683bf3e381c734365a506773f1825f4a25a067a5310fe705f4e4aaea9635e37",
+      "publisherPubkey": "957bc98b30ce9b13545bfabb1052713de292123a5ab78f40e442010c541b31bc"
+    },
+    {
+      "publisher": "Magic Mirror",
+      "slug": "relay-mirror",
+      "websocketUrl": "wss://relay-mirror.example.com",
+      "httpUrl": "https://relay-mirror.example.com",
+      "country": "US",
+      "language": "en",
+      "eventId": "f0a5f4b591ebcef107963951a270dd9bd21560094d2e1818c7a1661ce0fae428",
+      "publisherPubkey": "50562894a151f6be404018d442e4a4af10bc773d27c55e6806561549e9253003"
+    }
+  ]
+}

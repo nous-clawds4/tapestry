@@ -474,15 +474,62 @@ function EndorserList({ pubkeys, weights, profiles }) {
   );
 }
 
+// "Standard" relay fields the UI knows how to render natively. Anything
+// else surfaced by the aggregated endpoint's per-row `extras` is a
+// schema-divergence signal — fields a foreign concept defines that this
+// UI doesn't have a column for.
+const KNOWN_RELAY_FIELDS = new Set(['slug', 'websocketUrl', 'httpUrl']);
+
 function AggregatedTab() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [tagFilter, setTagFilter] = useState('');
   const [expandedUrl, setExpandedUrl] = useState(null);
+  const [installedConcepts, setInstalledConcepts] = useState(null);
+  const [conceptCoord, setConceptCoord] = useState('');           // '' = default (canonical nostr-relay)
+  const [conceptSchema, setConceptSchema] = useState(null);       // schema preview for the selected concept
 
   const { povPubkey, scoringMethod } = useTrust();
   const scoringLabel = SCORING_METHODS.find((m) => m.id === scoringMethod)?.label || scoringMethod;
+
+  // Load the full installed-concepts catalogue once for the picker.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const resp = await fetch('/api/concept-discovery/installed-concepts');
+        const body = await resp.json();
+        if (!cancelled && body.success) setInstalledConcepts(body.concepts || []);
+      } catch {}
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  // When the user picks a concept (other than default), fetch its schema
+  // so we can show the divergence banner ("this concept also defines …").
+  useEffect(() => {
+    if (!conceptCoord) {
+      setConceptSchema(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        // coordinate format: 39998:<pubkey>:<slug>
+        const parts = conceptCoord.split(':');
+        const pubkey = parts[1];
+        const slug = parts.slice(2).join(':');
+        const params = new URLSearchParams({ pubkey, slug, relays: 'ws://localhost:7777' });
+        const resp = await fetch(`/api/concept-discovery/concept-preview?${params}`);
+        const body = await resp.json();
+        if (!cancelled && body.success) setConceptSchema(body);
+      } catch {
+        if (!cancelled) setConceptSchema(null);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [conceptCoord]);
 
   useEffect(() => {
     let cancelled = false;
@@ -490,8 +537,11 @@ function AggregatedTab() {
     setError(null);
     (async () => {
       try {
-        const qs = tagFilter ? `?tagSlug=${encodeURIComponent(tagFilter)}` : '';
-        const resp = await fetch(`/api/relay-discovery/aggregated${qs}`);
+        const params = new URLSearchParams();
+        if (tagFilter) params.set('tagSlug', tagFilter);
+        if (conceptCoord) params.set('conceptCoord', conceptCoord);
+        const qs = params.toString();
+        const resp = await fetch(`/api/relay-discovery/aggregated${qs ? '?' + qs : ''}`);
         const body = await resp.json();
         if (cancelled) return;
         if (!body.success) throw new Error(body.error || 'Failed to fetch');
@@ -503,7 +553,25 @@ function AggregatedTab() {
       }
     })();
     return () => { cancelled = true; };
-  }, [tagFilter]);
+  }, [tagFilter, conceptCoord]);
+
+  // Compute the "extra" field set across the currently visible rows.
+  // Drives the dynamic Extras column header.
+  const extraFieldKeys = useMemo(() => {
+    const set = new Set();
+    for (const r of data?.relays || []) {
+      for (const k of Object.keys(r.extras || {})) set.add(k);
+    }
+    return Array.from(set).sort();
+  }, [data]);
+
+  // What the SCHEMA says vs what the UI knows how to render natively.
+  // Anything in schema but not in KNOWN_RELAY_FIELDS becomes the
+  // "this concept also defines" banner.
+  const schemaExtras = useMemo(() => {
+    if (!conceptSchema?.schema?.properties) return [];
+    return Object.keys(conceptSchema.schema.properties).filter((k) => !KNOWN_RELAY_FIELDS.has(k));
+  }, [conceptSchema]);
 
   const tagMeta = data?.tagMeta || {};
   const tagSlugs = useMemo(() => Object.keys(tagMeta).sort(), [tagMeta]);
@@ -570,10 +638,93 @@ function AggregatedTab() {
 
   const weightsAvailable = weights && Object.keys(weights).length > 0;
 
+  // Group installed concepts (self / foreign) for the picker.
+  const conceptGroups = useMemo(() => {
+    const ours = [];
+    const foreign = [];
+    for (const c of installedConcepts || []) {
+      (c.isOurs ? ours : foreign).push(c);
+    }
+    return { ours, foreign };
+  }, [installedConcepts]);
+
+  const selectedConceptMeta = useMemo(() => {
+    if (!conceptCoord) return null;
+    return (installedConcepts || []).find((c) => c.coordinate === conceptCoord) || null;
+  }, [conceptCoord, installedConcepts]);
+
+  const tableColCount = 5 + (extraFieldKeys.length > 0 ? 1 : 0);
+
   return (
     <div className="rdisc-tab">
-      <DemoPanel />
-      <PipelinePanel />
+      {/* Concept-lens picker */}
+      <div className="rdisc-concept-bar">
+        <span className="rtp-label" style={{ marginRight: '0.5rem' }}>View through concept</span>
+        <select
+          className="rdisc-concept-select"
+          value={conceptCoord}
+          onChange={(e) => setConceptCoord(e.target.value)}
+        >
+          <option value="">Default — canonical nostr-relay (all matching)</option>
+          {conceptGroups.ours.length > 0 && (
+            <optgroup label="Ours (this instance)">
+              {conceptGroups.ours.map((c) => (
+                <option key={c.coordinate} value={c.coordinate}>{c.name} ({c.slug})</option>
+              ))}
+            </optgroup>
+          )}
+          {conceptGroups.foreign.length > 0 && (
+            <optgroup label="Foreign (imported)">
+              {conceptGroups.foreign.map((c) => (
+                <option key={c.coordinate} value={c.coordinate}>
+                  {c.name} ({c.slug}) — by {c.pubkey.slice(0, 8)}…
+                </option>
+              ))}
+            </optgroup>
+          )}
+        </select>
+        {conceptCoord && (
+          <button
+            type="button"
+            className="rdisc-concept-clear"
+            onClick={() => setConceptCoord('')}
+            title="Back to default view"
+          >reset</button>
+        )}
+      </div>
+
+      {/* Schema-divergence banner: visible only when a specific concept
+          is selected and its schema declares fields the relay UI doesn't
+          natively render. */}
+      {selectedConceptMeta && (
+        <div className="rdisc-schema-banner">
+          <div className="rdisc-schema-banner-title">
+            🔍 Viewing through{' '}
+            <code>{selectedConceptMeta.coordinate}</code>{' '}
+            ({selectedConceptMeta.isOurs ? 'ours' : 'foreign — imported'})
+          </div>
+          {conceptSchema?.schema?.properties ? (
+            schemaExtras.length > 0 ? (
+              <div className="rdisc-schema-banner-body">
+                This concept's schema additionally defines{' '}
+                {schemaExtras.map((k) => <code key={k} className="rdisc-extra-key">{k}</code>).reduce((a, b) => [a, ', ', b])}.
+                {extraFieldKeys.length > 0
+                  ? ' These flow through to the rightmost "Extras" column when published events provide values.'
+                  : ' No published events under this coordinate carry values for them yet.'}
+              </div>
+            ) : (
+              <div className="rdisc-schema-banner-body">
+                This concept's schema covers exactly the fields this UI knows about. No
+                schema divergence to surface.
+              </div>
+            )
+          ) : (
+            <div className="rdisc-schema-banner-body">
+              <em>No JSONSchema event found for this concept — extras column may not populate.</em>
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="rdisc-trust-bar">
         <span className="rtp-label" style={{ marginRight: '0.5rem' }}>Trust mode</span>
@@ -617,7 +768,7 @@ function AggregatedTab() {
       {!loading && data && (
         <>
           <div className="rdisc-results-header">
-            {data.count} relay{data.count === 1 ? '' : 's'} imported into Neo4j
+            {data.count} relay{data.count === 1 ? '' : 's'} in view
             {tagFilter && ` — filtered to "${tagMeta[tagFilter]?.name || tagFilter}"`}
             {' — ranked by '}
             {weightsAvailable ? <strong>trust-weighted endorser score</strong> : 'raw endorser count'}
@@ -625,8 +776,9 @@ function AggregatedTab() {
 
           {rankedRelays.length === 0 ? (
             <div className="rtp-empty" style={{ marginTop: '0.8rem' }}>
-              No relays match. User-published relays only appear here after they land in Neo4j
-              (happens automatically on publish via BrainstormProfile → Relays → Publish).
+              {selectedConceptMeta
+                ? <>No relay-shaped events under <code>{selectedConceptMeta.coordinate}</code>. This may not be a relay-shaped concept (e.g. dog), or no one has published instances yet.</>
+                : 'No relays match. User-published relays only appear here after they land in Neo4j (happens automatically on publish via BrainstormProfile → Relays → Publish).'}
             </div>
           ) : (
             <table className="data-table">
@@ -637,6 +789,7 @@ function AggregatedTab() {
                   <th>Endorsers</th>
                   <th>Weighted score</th>
                   <th>Tag applications</th>
+                  {extraFieldKeys.length > 0 && <th>Extras</th>}
                 </tr>
               </thead>
               <tbody>
@@ -690,13 +843,41 @@ function AggregatedTab() {
                             )}
                           </div>
                         </td>
+                        {extraFieldKeys.length > 0 && (
+                          <td>
+                            <div className="rdisc-extras-cell">
+                              {extraFieldKeys.map((k) => {
+                                const v = r.extras?.[k];
+                                if (v == null || v === '') {
+                                  return <span key={k} className="rdisc-extras-empty" title={`${k}: (not set)`}>—</span>;
+                                }
+                                return (
+                                  <span key={k} className="rdisc-extras-pill" title={k}>
+                                    <span className="rdisc-extras-key">{k}</span>{' '}
+                                    <span className="rdisc-extras-val">{String(v)}</span>
+                                  </span>
+                                );
+                              })}
+                            </div>
+                          </td>
+                        )}
                       </tr>
                       {isOpen && (
                         <tr className="rtp-row">
-                          <td colSpan={5}>
+                          <td colSpan={tableColCount}>
                             <div className="rdisc-endorsers-block">
                               <div className="rtp-label">Endorsers ({r.endorserCount})</div>
                               <EndorserList pubkeys={r.endorsers} weights={weights} profiles={profiles} />
+                              {r.appearsUnder && r.appearsUnder.length > 0 && (
+                                <div style={{ marginTop: '0.6rem' }}>
+                                  <div className="rtp-label">Appears under</div>
+                                  <div className="rdisc-appears-list">
+                                    {r.appearsUnder.map((coord) => (
+                                      <code key={coord} className="rdisc-appears-coord">{coord}</code>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           </td>
                         </tr>
@@ -710,12 +891,17 @@ function AggregatedTab() {
 
           <div className="rdisc-footer-note">
             Weight per endorser depends on your Trust Determination (POV + scoring method).
-            Click a relay row to see each endorser and their individual weight. An unknown
-            weight (<code>—</code>) means the hook couldn't resolve a number for that pubkey
-            under the current method.
+            Click a relay row to see each endorser, their weight, and which concept
+            coordinate(s) the row appears under.
           </div>
         </>
       )}
+
+      {/* Operational panels — push to bottom now that the demo is set up. */}
+      <div className="rdisc-ops-panels">
+        <DemoPanel />
+        <PipelinePanel />
+      </div>
     </div>
   );
 }
