@@ -1,0 +1,9 @@
+{
+  "taName": "Magic Mirror",
+  "taPubkey": "50562894a151f6be404018d442e4a4af10bc773d27c55e6806561549e9253003",
+  "taNpub": "npub12ptz399p28mtuszqrr2y9e9y4ugtcaeaylz4u6qx2c25n6f9xqps8lac3x",
+  "conceptSlug": "nostr-relay-v2",
+  "conceptCoordinate": "39998:50562894a151f6be404018d442e4a4af10bc773d27c55e6806561549e9253003:nostr-relay-v2",
+  "headerEventId": "a9f11cae41e556c6aa4b1041d094e5090774bbafe823650a2c487520920583d8",
+  "schemaEventId": "7d1c512399346f25bbb23c129c3842e2a6599e57716128c2b967c399171c5417"
+}

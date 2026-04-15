@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { publishEverywhere, importAddressableToNeo4j } from '../../utils/nostrPublish';
+import KnownConceptsPanel from '../../components/KnownConceptsPanel';
 
 const NOSTR_RELAY_Z_TAG =
   '39998:82b75e474dda005e912bcbb910391c60c2b89cc7faf5d3c30b7c59a324973833:nostr-relay';
@@ -149,6 +150,8 @@ export default function PublishRelayForm({ open, onClose, onPublished }) {
           </label>
 
           {error && <div className="bsp-form-error">{error}</div>}
+
+          <KnownConceptsPanel slug="nostr-relay" />
 
           <div className="bsp-form-actions">
             <button type="button" onClick={onClose} disabled={submitting}>

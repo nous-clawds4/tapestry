@@ -460,6 +460,10 @@ async function register(app) {
     const { registerRelayDiscoveryRoutes } = require('./relay-discovery');
     registerRelayDiscoveryRoutes(app);
 
+    // ── Concept Discovery API (cross-instance concept sharing) ──
+    const { registerConceptDiscoveryRoutes } = require('./concept-discovery');
+    registerConceptDiscoveryRoutes(app);
+
     // Initialize router state (presets → state file → strfry config)
     await initRouter();
 
