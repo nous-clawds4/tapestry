@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
 import { useAuth } from '../context/AuthContext';
@@ -7,6 +7,7 @@ import { useProfileActions } from '../hooks/useProfileActions';
 import ConfirmDialog from '../components/ConfirmDialog';
 import ReportModal from '../components/ReportModal';
 import PublishRelayForm from './relay-discovery/PublishRelayForm';
+import RelayTagPanel from './relay-discovery/RelayTagPanel';
 
 /* ── Helpers ──────────────────────────────────────────── */
 
@@ -87,6 +88,7 @@ export default function BrainstormProfile() {
   const [relaysOpen, setRelaysOpen] = useState(true);
   const [publishOpen, setPublishOpen] = useState(false);
   const [relaysReloadKey, setRelaysReloadKey] = useState(0);
+  const [expandedRelay, setExpandedRelay] = useState(null);
 
   const {
     isFollowing, isMuted, hasReported,
@@ -436,6 +438,7 @@ export default function BrainstormProfile() {
                     <table className="data-table">
                       <thead>
                         <tr>
+                          <th style={{ width: '1.5rem' }}></th>
                           <th>Relay URL</th>
                           <th>Source</th>
                           <th>Read</th>
@@ -443,28 +446,62 @@ export default function BrainstormProfile() {
                         </tr>
                       </thead>
                       <tbody>
-                        {relays.map((r) => (
-                          <tr key={r.websocketUrl}>
-                            <td>
-                              <code>{r.websocketUrl}</code>
-                              {r.httpUrl && (
-                                <>
-                                  {' '}
-                                  <a href={r.httpUrl} target="_blank" rel="noopener noreferrer" className="bsp-id-link">↗</a>
-                                </>
+                        {relays.map((r) => {
+                          // Only rows with a DCoSL relay event can have tag applications
+                          // (tag apps reference a kind 39999 relay event id).
+                          const taggable = r.source === 'dcsl' || r.source === 'both';
+                          const isExpanded = expandedRelay === r.websocketUrl;
+                          return (
+                            <React.Fragment key={r.websocketUrl}>
+                              <tr
+                                className={taggable ? 'clickable' : ''}
+                                onClick={() => {
+                                  if (!taggable) return;
+                                  setExpandedRelay(isExpanded ? null : r.websocketUrl);
+                                }}
+                              >
+                                <td style={{ textAlign: 'center', opacity: 0.6 }}>
+                                  {taggable ? (isExpanded ? '▾' : '▸') : ''}
+                                </td>
+                                <td>
+                                  <code>{r.websocketUrl}</code>
+                                  {r.httpUrl && (
+                                    <>
+                                      {' '}
+                                      <a
+                                        href={r.httpUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="bsp-id-link"
+                                        onClick={(e) => e.stopPropagation()}
+                                      >↗</a>
+                                    </>
+                                  )}
+                                </td>
+                                <td>
+                                  {r.source === 'both'
+                                    ? 'NIP-65 + DCoSL'
+                                    : r.source === 'nip65'
+                                    ? 'NIP-65'
+                                    : 'DCoSL'}
+                                </td>
+                                <td>{r.read ? '✓' : ''}</td>
+                                <td>{r.write ? '✓' : ''}</td>
+                              </tr>
+                              {isExpanded && taggable && (
+                                <tr className="rtp-row">
+                                  <td colSpan={5}>
+                                    <RelayTagPanel
+                                      relayEventId={r.eventId}
+                                      relaySlug={r.slug}
+                                      user={user}
+                                    />
+                                  </td>
+                                </tr>
                               )}
-                            </td>
-                            <td>
-                              {r.source === 'both'
-                                ? 'NIP-65 + DCoSL'
-                                : r.source === 'nip65'
-                                ? 'NIP-65'
-                                : 'DCoSL'}
-                            </td>
-                            <td>{r.read ? '✓' : ''}</td>
-                            <td>{r.write ? '✓' : ''}</td>
-                          </tr>
-                        ))}
+                            </React.Fragment>
+                          );
+                        })}
                       </tbody>
                     </table>
                   )}

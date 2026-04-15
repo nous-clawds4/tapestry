@@ -17,12 +17,17 @@ if (typeof globalThis.WebSocket === 'undefined') {
 }
 
 const { SimplePool } = require(NOSTR_TOOLS_PATH);
+const { exec } = require('child_process');
 
 const FETCH_TIMEOUT_MS = 8000;
 
+// Firmware TA pubkey (publishes all kind 39998 concept headers).
+const TA_PUBKEY = '82b75e474dda005e912bcbb910391c60c2b89cc7faf5d3c30b7c59a324973833';
+
 // Coordinate for the nostr-relay firmware concept (TA pubkey + d-tag).
-const NOSTR_RELAY_Z_TAG =
-  '39998:82b75e474dda005e912bcbb910391c60c2b89cc7faf5d3c30b7c59a324973833:nostr-relay';
+const NOSTR_RELAY_Z_TAG = `39998:${TA_PUBKEY}:nostr-relay`;
+const TAG_Z_TAG = `39998:${TA_PUBKEY}:tag`;
+const NOSTR_RELAY_TAG_Z_TAG = `39998:${TA_PUBKEY}:nostr-relay-tag`;
 
 // Default relays used when the client does not specify. Mirrors
 // ui/src/utils/nostrPublish.js PUBLISH_RELAYS so the server query sees the same
@@ -195,8 +200,123 @@ async function handleByPubkey(req, res) {
   }
 }
 
-function registerRelayDiscoveryRoutes(app) {
-  app.get('/api/relay-discovery/by-pubkey', handleByPubkey);
+// ── Local strfry scan helper ─────────────────────────────────────────────
+// Runs `strfry scan <filter>` and returns parsed events. Mirrors
+// src/api/strfry/queries/scan.js but returns a Promise for composition.
+
+function strfryScan(filter) {
+  return new Promise((resolve, reject) => {
+    const safeFilter = JSON.stringify(filter).replace(/'/g, "'\\''");
+    const cmd = `strfry scan '${safeFilter}'`;
+    exec(cmd, { maxBuffer: 20 * 1024 * 1024 }, (err, stdout) => {
+      if (err) return reject(err);
+      const events = [];
+      for (const line of stdout.split('\n')) {
+        if (!line) continue;
+        try {
+          events.push(JSON.parse(line));
+        } catch {}
+      }
+      resolve(events);
+    });
+  });
 }
 
-module.exports = { registerRelayDiscoveryRoutes, handleByPubkey };
+// ── GET /api/relay-discovery/available-tags ──────────────────────────────
+// Returns all tag elements published under the `tag` firmware concept.
+// Sourced from local strfry (these are firmware elements authored by TA).
+
+async function handleAvailableTags(req, res) {
+  try {
+    const events = await strfryScan({
+      kinds: [39999],
+      '#z': [TAG_Z_TAG],
+      authors: [TA_PUBKEY],
+    });
+
+    const tags = [];
+    for (const ev of events) {
+      const jsonTag = (ev.tags || []).find((t) => t[0] === 'json');
+      if (!jsonTag || !jsonTag[1]) continue;
+      let parsed;
+      try { parsed = JSON.parse(jsonTag[1]); } catch { continue; }
+      const t = parsed?.tag;
+      if (!t || !t.slug) continue;
+      tags.push({
+        eventId: ev.id,
+        slug: t.slug,
+        name: t.name || t.slug,
+        description: t.description || '',
+        applicableTo: Array.isArray(t.applicableTo) ? t.applicableTo : [],
+      });
+    }
+
+    tags.sort((a, b) => a.name.localeCompare(b.name));
+
+    res.json({ success: true, tags, count: tags.length });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+}
+
+// ── GET /api/relay-discovery/tags-for-relay?relayEventId=<id> ────────────
+// Returns all nostr-relay-tag applications that reference the given relay
+// event ID. Each application is an opinion from some author that this relay
+// belongs to some tag.
+
+async function handleTagsForRelay(req, res) {
+  const { relayEventId } = req.query;
+  if (!relayEventId || typeof relayEventId !== 'string') {
+    return res.status(400).json({ success: false, error: 'relayEventId is required' });
+  }
+
+  try {
+    // We can't index into the JSON payload from strfry, so scan all
+    // nostr-relay-tag events and filter client-side. This list grows slowly
+    // in the MVP; Phase 4 will move aggregation into Neo4j.
+    const events = await strfryScan({
+      kinds: [39999],
+      '#z': [NOSTR_RELAY_TAG_Z_TAG],
+    });
+
+    const applications = [];
+    for (const ev of events) {
+      const jsonTag = (ev.tags || []).find((t) => t[0] === 'json');
+      if (!jsonTag || !jsonTag[1]) continue;
+      let parsed;
+      try { parsed = JSON.parse(jsonTag[1]); } catch { continue; }
+      const nrt = parsed?.nostrRelayTag;
+      if (!nrt || nrt.relayEventId !== relayEventId) continue;
+      applications.push({
+        eventId: ev.id,
+        authorPubkey: ev.pubkey,
+        relayEventId: nrt.relayEventId,
+        tagEventId: nrt.tagEventId,
+        confidence: typeof nrt.confidence === 'number' ? nrt.confidence : 1.0,
+        createdAt: ev.created_at,
+      });
+    }
+
+    res.json({
+      success: true,
+      relayEventId,
+      applications,
+      count: applications.length,
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+}
+
+function registerRelayDiscoveryRoutes(app) {
+  app.get('/api/relay-discovery/by-pubkey', handleByPubkey);
+  app.get('/api/relay-discovery/available-tags', handleAvailableTags);
+  app.get('/api/relay-discovery/tags-for-relay', handleTagsForRelay);
+}
+
+module.exports = {
+  registerRelayDiscoveryRoutes,
+  handleByPubkey,
+  handleAvailableTags,
+  handleTagsForRelay,
+};
