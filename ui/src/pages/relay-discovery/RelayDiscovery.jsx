@@ -252,6 +252,254 @@ function DemoPanel() {
   );
 }
 
+/* ── GrapeRank pipeline panel ──────────────────────────── */
+
+const PIPELINE_STEPS = [
+  {
+    id: 'reconcile',
+    title: 'Reconcile follow graph',
+    description: 'Derives FOLLOWS / MUTES / REPORTS edges in Neo4j from kind 3/10000/1984 events in strfry.',
+    endpoint: '/api/reconciliation',
+    method: 'POST',
+    readyWhen: (s) => s && s.kind3InStrfry > 0,
+    completeWhen: (s) => s && s.follows > 0,
+    statusText: (s) => s ? `${s.kind3InStrfry} kind-3 in strfry → ${s.follows} FOLLOWS edges in Neo4j` : '…',
+  },
+  {
+    id: 'hops',
+    title: 'Compute hop distances',
+    description: 'Shortest-path distance from the owner root through the follow graph. Required by GrapeRank.',
+    endpoint: '/api/calculate-hops',
+    method: 'POST',
+    readyWhen: (s) => s && s.follows > 0,
+    completeWhen: (s) => s && s.hopsNodes > 0,
+    statusText: (s) => s ? `${s.hopsNodes} users with hops` : '…',
+  },
+  {
+    id: 'graperank',
+    title: 'Compute GrapeRank',
+    description: 'Runs the personalized GrapeRank algorithm. Writes influence / average / confidence onto NostrUser nodes. Can take several minutes on a real graph.',
+    endpoint: '/api/generate-graperank',
+    method: 'POST',
+    readyWhen: (s) => s && s.hopsNodes > 0,
+    completeWhen: (s) => s && s.grScored > 0,
+    statusText: (s) => s ? `${s.grScored} users with GR scores` : '…',
+  },
+  {
+    id: 'publish30382',
+    title: 'Publish NIP-85 rank events (kind 30382)',
+    description: 'Publishes one kind 30382 per scored user, authored by the relay pubkey. Signed server-side with the TA/relay key. Fires and forgets — may continue in background.',
+    endpoint: '/api/publish-kind30382',
+    method: 'POST',
+    readyWhen: (s) => s && s.grScored > 0,
+    completeWhen: (s) => s && (s.kind30382InNeo4j > 0 || s.kind30382InStrfry > 0),
+    statusText: (s) => s ? `${s.kind30382InStrfry} kind-30382 in strfry, ${s.kind30382InNeo4j} in Neo4j` : '…',
+  },
+];
+
+function PipelinePanel() {
+  const { user } = useAuth();
+  const [state, setState] = useState(null);
+  const [stepStatus, setStepStatus] = useState({}); // { [id]: 'idle' | 'running' | 'done' | 'error' }
+  const [stepMessage, setStepMessage] = useState({});
+  const [tmPublishing, setTmPublishing] = useState(false);
+  const [tmMessage, setTmMessage] = useState(null);
+
+  const loadState = async () => {
+    try {
+      const resp = await fetch('/api/relay-discovery/pipeline-state');
+      const body = await resp.json();
+      if (body.success) setState(body);
+    } catch {}
+  };
+
+  useEffect(() => {
+    loadState();
+    const t = setInterval(loadState, 5000);
+    return () => clearInterval(t);
+  }, []);
+
+  async function runStep(step) {
+    if (!user) {
+      setStepMessage((m) => ({ ...m, [step.id]: 'Log in via NIP-07 first.' }));
+      return;
+    }
+    setStepStatus((s) => ({ ...s, [step.id]: 'running' }));
+    setStepMessage((m) => ({ ...m, [step.id]: 'Running…' }));
+    try {
+      const resp = await fetch(step.endpoint, {
+        method: step.method,
+        headers: { 'Content-Type': 'application/json' },
+        body: step.method === 'POST' ? JSON.stringify({}) : undefined,
+      });
+      const body = await resp.json().catch(() => ({}));
+      if (!resp.ok || body.success === false) {
+        const msg = body.error || body.message || `HTTP ${resp.status}`;
+        setStepStatus((s) => ({ ...s, [step.id]: 'error' }));
+        setStepMessage((m) => ({ ...m, [step.id]: msg }));
+        return;
+      }
+      setStepStatus((s) => ({ ...s, [step.id]: 'done' }));
+      setStepMessage((m) => ({ ...m, [step.id]: body.message || 'Kicked off — may run in background; refresh status below.' }));
+    } catch (err) {
+      setStepStatus((s) => ({ ...s, [step.id]: 'error' }));
+      setStepMessage((m) => ({ ...m, [step.id]: err.message || String(err) }));
+    } finally {
+      loadState();
+    }
+  }
+
+  // Treasure map — needs NIP-07 signing.
+  async function publishTreasureMap() {
+    if (!user) { setTmMessage('Log in via NIP-07 first.'); return; }
+    if (!window.nostr) { setTmMessage('No NIP-07 extension detected.'); return; }
+    setTmPublishing(true);
+    setTmMessage(null);
+    try {
+      // Step 1: create the unsigned event on the server
+      const createResp = await fetch('/api/create-unsigned-kind10040', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pubkey: user.pubkey }),
+      }).catch(() => null);
+      // Fall back to /api/create-kind10040 if the unsigned endpoint isn't there
+      let unsigned = null;
+      if (createResp && createResp.ok) {
+        const body = await createResp.json();
+        unsigned = body.event || body.unsignedEvent || null;
+      }
+      if (!unsigned) {
+        // Secondary path: call the legacy creator and pull the event from disk/response
+        const fallback = await fetch('/api/create-kind10040', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ pubkey: user.pubkey }),
+        });
+        const body = await fallback.json();
+        if (body.event) unsigned = body.event;
+        if (!unsigned && body.output) {
+          // Try to parse an event JSON out of stdout if the legacy script printed it
+          const match = body.output.match(/\{[\s\S]*\"kind\"\s*:\s*10040[\s\S]*\}/);
+          if (match) {
+            try { unsigned = JSON.parse(match[0]); } catch {}
+          }
+        }
+      }
+      if (!unsigned) throw new Error('Could not obtain an unsigned kind 10040 event from the server.');
+
+      // Ensure pubkey is set so NIP-07 signs on behalf of owner
+      const unsignedForSigning = { ...unsigned, pubkey: user.pubkey };
+      delete unsignedForSigning.id;
+      delete unsignedForSigning.sig;
+
+      const signed = await window.nostr.signEvent(unsignedForSigning);
+
+      const pubResp = await fetch('/api/publish-kind10040-event', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ event: signed }),
+      });
+      const pubBody = await pubResp.json();
+      if (!pubResp.ok || pubBody.success === false) {
+        throw new Error(pubBody.error || `HTTP ${pubResp.status}`);
+      }
+      setTmMessage('✅ Treasure map signed and published.');
+      loadState();
+    } catch (err) {
+      setTmMessage('⚠️ ' + (err.message || String(err)));
+    } finally {
+      setTmPublishing(false);
+    }
+  }
+
+  const tmComplete = state && (state.kind10040InStrfry > 0 || state.kind10040InNeo4j > 0);
+
+  return (
+    <div className="rdisc-pipeline-panel">
+      <div className="rdisc-pipeline-title">🍇 GrapeRank Pipeline</div>
+      <div className="rdisc-pipeline-body">
+        <p>
+          The <em>Trusted Assertions (rank)</em> scoring method only works after this
+          pipeline runs. Each step writes to Neo4j or publishes nostr events; run them
+          in order. Computations can take minutes — the panel auto-refreshes state
+          every 5 seconds.
+        </p>
+
+        <table className="rdisc-pipeline-table">
+          <tbody>
+            {PIPELINE_STEPS.map((step, i) => {
+              const status = stepStatus[step.id] || 'idle';
+              const isComplete = step.completeWhen?.(state);
+              const isReady = step.readyWhen?.(state);
+              const msg = stepMessage[step.id];
+              return (
+                <tr key={step.id}>
+                  <td className="rdisc-pipeline-num">{i + 1}</td>
+                  <td className="rdisc-pipeline-info">
+                    <div className="rdisc-pipeline-step-title">
+                      {isComplete ? '✅ ' : status === 'running' ? '⏳ ' : status === 'error' ? '⚠️ ' : ''}
+                      {step.title}
+                    </div>
+                    <div className="rdisc-pipeline-step-desc">{step.description}</div>
+                    <div className="rdisc-pipeline-step-status">
+                      <span>{step.statusText(state)}</span>
+                      {msg && <span className="rdisc-pipeline-step-msg"> — {msg}</span>}
+                    </div>
+                  </td>
+                  <td className="rdisc-pipeline-action">
+                    <button
+                      onClick={() => runStep(step)}
+                      disabled={status === 'running' || !user || !isReady}
+                      title={!user ? 'Log in first' : !isReady ? 'Previous step not complete yet' : ''}
+                    >
+                      {status === 'running' ? 'Running…' : isComplete ? 'Re-run' : 'Run'}
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
+            <tr>
+              <td className="rdisc-pipeline-num">5</td>
+              <td className="rdisc-pipeline-info">
+                <div className="rdisc-pipeline-step-title">
+                  {tmComplete ? '✅ ' : ''}Create + publish Treasure Map (kind 10040)
+                </div>
+                <div className="rdisc-pipeline-step-desc">
+                  The owner signs a kind 10040 (via NIP-07) that tells clients which
+                  pubkey + relay to fetch rank events from. Without this, the hook
+                  can't find the 30382 events even if they exist.
+                </div>
+                <div className="rdisc-pipeline-step-status">
+                  <span>{state ? `${state.kind10040InStrfry} kind-10040 in strfry, ${state.kind10040InNeo4j} in Neo4j` : '…'}</span>
+                  {tmMessage && <span className="rdisc-pipeline-step-msg"> — {tmMessage}</span>}
+                </div>
+              </td>
+              <td className="rdisc-pipeline-action">
+                <button
+                  onClick={publishTreasureMap}
+                  disabled={tmPublishing || !user || !(state && (state.kind30382InStrfry > 0 || state.kind30382InNeo4j > 0))}
+                  title={!user ? 'Log in first' : !(state && (state.kind30382InStrfry > 0 || state.kind30382InNeo4j > 0)) ? 'Publish 30382 events first' : ''}
+                >
+                  {tmPublishing ? 'Signing…' : tmComplete ? 'Re-publish' : 'Sign & publish'}
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div className="rdisc-pipeline-footer">
+          After all five steps complete, go to{' '}
+          <a href="/kg/grapevine/trust-determination" className="rdisc-trust-link" style={{ marginLeft: 0 }}>
+            Trust Determination
+          </a>
+          {' '}and switch scoring to <em>Trusted Assertions (rank)</em>. The aggregated
+          table above will re-rank using real GrapeRank weights.
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ── Aggregated tab ────────────────────────────────────── */
 
 function formatWeight(w) {
@@ -365,6 +613,7 @@ function AggregatedTab() {
   return (
     <div className="rdisc-tab">
       <DemoPanel />
+      <PipelinePanel />
 
       <div className="rdisc-trust-bar">
         <span className="rtp-label" style={{ marginRight: '0.5rem' }}>Trust mode</span>

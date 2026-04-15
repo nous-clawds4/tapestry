@@ -4452,3 +4452,78 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
 .rdisc-endorser-zero .rdisc-endorser-weight { color: rgba(255,255,255,0.4); }
 .rdisc-endorser-unknown { border-style: dotted; }
 .rdisc-endorser-unknown .rdisc-endorser-weight { color: rgba(255,255,255,0.4); }
+
+.rdisc-pipeline-panel {
+  background: rgba(168,85,247,0.06);
+  border: 1px solid rgba(168,85,247,0.25);
+  border-radius: 6px;
+  padding: 0.9rem 1.1rem;
+  margin-bottom: 1.2rem;
+}
+.rdisc-pipeline-title {
+  font-weight: 600;
+  font-size: 0.88rem;
+  color: #e9d5ff;
+  margin-bottom: 0.4rem;
+}
+.rdisc-pipeline-body p {
+  margin: 0 0 0.8rem;
+  font-size: 0.82rem;
+  color: rgba(255,255,255,0.75);
+  line-height: 1.5;
+}
+.rdisc-pipeline-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.rdisc-pipeline-table td {
+  padding: 0.55rem 0.5rem;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  vertical-align: top;
+}
+.rdisc-pipeline-table tr:last-child td { border-bottom: none; }
+.rdisc-pipeline-num {
+  width: 1.8rem;
+  color: rgba(255,255,255,0.4);
+  font-weight: 600;
+  font-family: ui-monospace, monospace;
+}
+.rdisc-pipeline-info { width: auto; }
+.rdisc-pipeline-step-title {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: rgba(255,255,255,0.9);
+}
+.rdisc-pipeline-step-desc {
+  font-size: 0.76rem;
+  color: rgba(255,255,255,0.55);
+  margin-top: 0.15rem;
+  line-height: 1.4;
+}
+.rdisc-pipeline-step-status {
+  font-size: 0.74rem;
+  color: rgba(255,255,255,0.55);
+  margin-top: 0.25rem;
+}
+.rdisc-pipeline-step-msg { color: rgba(255,255,255,0.7); }
+.rdisc-pipeline-action { width: 6rem; text-align: right; }
+.rdisc-pipeline-action button {
+  padding: 0.35rem 0.7rem;
+  background: rgba(168,85,247,0.18);
+  border: 1px solid rgba(168,85,247,0.35);
+  border-radius: 5px;
+  color: #e9d5ff;
+  font-family: inherit;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+.rdisc-pipeline-action button:hover:not(:disabled) {
+  background: rgba(168,85,247,0.3);
+}
+.rdisc-pipeline-action button:disabled { opacity: 0.4; cursor: not-allowed; }
+.rdisc-pipeline-footer {
+  margin-top: 0.8rem;
+  font-size: 0.78rem;
+  color: rgba(255,255,255,0.65);
+  line-height: 1.5;
+}

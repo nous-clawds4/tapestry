@@ -490,6 +490,58 @@ async function handleAggregated(req, res) {
 
 const DEMO_DATA_PATH = path.resolve(__dirname, '../../../test-data/demo-relays-data.json');
 
+// ── GET /api/relay-discovery/pipeline-state ──────────────────────────────
+// Lightweight snapshot of the WoT/GR pipeline state so the UI wizard can
+// show the user how far they've progressed through the pipeline that
+// produces real GrapeRank weights.
+
+function strfryCount(filter) {
+  return new Promise((resolve) => {
+    const safeFilter = JSON.stringify(filter).replace(/'/g, "'\\''");
+    exec(`strfry scan --count '${safeFilter}' 2>/dev/null`, { timeout: 15000 }, (err, stdout) => {
+      if (err) return resolve(0);
+      const n = parseInt(stdout.trim(), 10);
+      resolve(Number.isFinite(n) ? n : 0);
+    });
+  });
+}
+
+async function handlePipelineState(req, res) {
+  try {
+    const [usersRow, followsRow, hopsRow, grRow, kind3Row, kind10040Row, kind30382Row, kind3Strfry, kind7Strfry, kind10040Strfry, kind30382Strfry] = await Promise.all([
+      runCypher('MATCH (n:NostrUser) RETURN count(n) AS c').then((r) => r[0] || { c: 0 }),
+      runCypher('MATCH ()-[r:FOLLOWS]->() RETURN count(r) AS c').then((r) => r[0] || { c: 0 }),
+      runCypher('MATCH (n:NostrUser) WHERE n.hops IS NOT NULL RETURN count(n) AS c').then((r) => r[0] || { c: 0 }),
+      runCypher('MATCH (n:NostrUser) WHERE n.influence IS NOT NULL RETURN count(n) AS c').then((r) => r[0] || { c: 0 }),
+      runCypher('MATCH (e:NostrEvent {kind: 3}) RETURN count(e) AS c').then((r) => r[0] || { c: 0 }),
+      runCypher('MATCH (e:NostrEvent {kind: 10040}) RETURN count(e) AS c').then((r) => r[0] || { c: 0 }),
+      runCypher('MATCH (e:NostrEvent {kind: 30382}) RETURN count(e) AS c').then((r) => r[0] || { c: 0 }),
+      strfryCount({ kinds: [3] }),
+      strfryCount({ kinds: [7] }),
+      strfryCount({ kinds: [10040] }),
+      strfryCount({ kinds: [30382] }),
+    ]);
+
+    res.json({
+      success: true,
+      users: usersRow.c,
+      follows: followsRow.c,
+      hopsNodes: hopsRow.c,
+      grScored: grRow.c,
+      kind3InNeo4j: kind3Row.c,
+      kind10040InNeo4j: kind10040Row.c,
+      kind30382InNeo4j: kind30382Row.c,
+      kind3InStrfry: kind3Strfry,
+      kind7InStrfry: kind7Strfry,
+      kind10040InStrfry: kind10040Strfry,
+      kind30382InStrfry: kind30382Strfry,
+      relayPubkey: TA_PUBKEY, // BRAINSTORM_RELAY_PUBKEY == TA in this install
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+}
+
 function handleDemoActors(req, res) {
   try {
     if (!fs.existsSync(DEMO_DATA_PATH)) {
@@ -515,6 +567,7 @@ function registerRelayDiscoveryRoutes(app) {
   app.get('/api/relay-discovery/tags-for-relay', handleTagsForRelay);
   app.get('/api/relay-discovery/aggregated', handleAggregated);
   app.get('/api/relay-discovery/demo-actors', handleDemoActors);
+  app.get('/api/relay-discovery/pipeline-state', handlePipelineState);
 }
 
 module.exports = {
@@ -524,4 +577,5 @@ module.exports = {
   handleTagsForRelay,
   handleAggregated,
   handleDemoActors,
+  handlePipelineState,
 };
