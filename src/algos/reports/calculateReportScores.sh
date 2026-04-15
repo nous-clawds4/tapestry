@@ -72,20 +72,23 @@ emit_task_event "PROGRESS" "calculateReportScores" "$BRAINSTORM_OWNER_PUBKEY" "$
 for reportType in $REPORT_TYPES; do
     report_type_count=$((report_type_count + 1))
 
+    # Sanitize reportType for use as Neo4j property name (replace hyphens, spaces, special chars with underscores)
+    safeReportType=$(echo "$reportType" | sed 's/[^a-zA-Z0-9_]/_/g')
+
     cypherResults1=$(cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "
 MATCH (a:NostrUser)-[r:REPORTS {report_type: '$reportType'}]->(u:NostrUser)
 WITH u, SUM(a.influence) AS influenceTotal, COUNT(r) AS totalReportCount
-SET u.nip56_${reportType}_grapeRankScore = influenceTotal, u.nip56_${reportType}_reportCount = totalReportCount
+SET u.nip56_${safeReportType}_grapeRankScore = influenceTotal, u.nip56_${safeReportType}_reportCount = totalReportCount
 RETURN COUNT(u) AS numReportedUsers")
     numReportedUsers="${cypherResults1:17}"
-    echo "$(date): for reportType: $reportType; numReportedUsers: $numReportedUsers"
-    echo "$(date): for reportType: $reportType; numReportedUsers: $numReportedUsers" >> ${BRAINSTORM_LOG_DIR}/calculateReportScores.log
+    echo "$(date): for reportType: $reportType (safe: $safeReportType); numReportedUsers: $numReportedUsers"
+    echo "$(date): for reportType: $reportType (safe: $safeReportType); numReportedUsers: $numReportedUsers" >> ${BRAINSTORM_LOG_DIR}/calculateReportScores.log
 
     cypherResults2=$(cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "
 MATCH (a:NostrUser)-[r:REPORTS {report_type: '$reportType'}]->(u:NostrUser)
 WHERE a.influence > 0.1
 WITH u, COUNT(r) AS verifiedReportCount
-SET u.nip56_${reportType}_verifiedReportCount = verifiedReportCount
+SET u.nip56_${safeReportType}_verifiedReportCount = verifiedReportCount
 RETURN COUNT(u) AS numReportedUsers")
     numReportedUsers="${cypherResults2:17}"
 
@@ -142,10 +145,11 @@ TOTAL_REPORT_COUNT=""
 TOTAL_VERIFIED_REPORT_COUNT=""
 TOTAL_GRAPE_RANK_SCORE=""
 for reportType in $REPORT_TYPES; do
-    TOTAL_REPORT_COUNT+="COALESCE(u.nip56_${reportType}_reportCount, 0) + "
-    TOTAL_VERIFIED_REPORT_COUNT+="COALESCE(u.nip56_${reportType}_verifiedReportCount, 0) + "
-    TOTAL_GRAPE_RANK_SCORE+="COALESCE(u.nip56_${reportType}_grapeRankScore, 0) + "
-done 
+    safeReportType=$(echo "$reportType" | sed 's/[^a-zA-Z0-9_]/_/g')
+    TOTAL_REPORT_COUNT+="COALESCE(u.nip56_${safeReportType}_reportCount, 0) + "
+    TOTAL_VERIFIED_REPORT_COUNT+="COALESCE(u.nip56_${safeReportType}_verifiedReportCount, 0) + "
+    TOTAL_GRAPE_RANK_SCORE+="COALESCE(u.nip56_${safeReportType}_grapeRankScore, 0) + "
+done
 
 # remove final " + " from the end of TOTAL_REPORT_COUNT, TOTAL_VERIFIED_REPORT_COUNT, and TOTAL_GRAPE_RANK_SCORE
 TOTAL_REPORT_COUNT="${TOTAL_REPORT_COUNT::-3}"
