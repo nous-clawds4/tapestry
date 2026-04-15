@@ -19,10 +19,38 @@ const { getConfigFromFile } = require('../../utils/config');
 
 // Get relay configuration
 const relayUrl = getConfigFromFile('BRAINSTORM_RELAY_URL', '');
-const relayNsec = getConfigFromFile('BRAINSTORM_RELAY_PRIVKEY', '');
 const neo4jUri = getConfigFromFile('NEO4J_URI', 'bolt://localhost:7687');
 const neo4jUser = getConfigFromFile('NEO4J_USER', 'neo4j');
 const neo4jPassword = getConfigFromFile('NEO4J_PASSWORD', 'neo4j');
+
+// Resolve the relay private key. Prefer secure storage (modern install),
+// fall back to a conf-file value for legacy/CI setups. The secure-storage
+// lookup matches the pattern used in src/api/normalize/helpers.js; for the
+// encrypted-file backend every call is synchronous under the hood so we
+// invoke the sync helpers directly and skip async plumbing.
+function loadRelayPrivateKeyHex() {
+  try {
+    const { SecureKeyStorage } = require('../../utils/secureKeyStorage');
+    const storage = new SecureKeyStorage({
+      storagePath: '/var/lib/brainstorm/secure-keys',
+    });
+    const keyData = storage.getFromEncryptedFile('tapestry-assistant');
+    if (keyData && keyData.privkey) {
+      return storage.decrypt(keyData.privkey);
+    }
+  } catch (_) {
+    // Secure storage unavailable — fall through to brainstorm.conf
+  }
+  const confValue = getConfigFromFile('BRAINSTORM_RELAY_PRIVKEY', '');
+  if (confValue) {
+    return confValue.startsWith('nsec')
+      ? nostrTools.nip19.decode(confValue).data
+      : confValue;
+  }
+  return '';
+}
+
+const relayNsec = loadRelayPrivateKeyHex();
 
 // Log relay configuration for debugging
 console.log(`Using relay URL: ${relayUrl}`);

@@ -542,6 +542,63 @@ async function handlePipelineState(req, res) {
   }
 }
 
+// ── GET /api/relay-discovery/unsigned-10040?pubkey=<hex> ─────────────────
+// Builds an unsigned kind-10040 (NIP-85 Treasure Map) template the client
+// can sign via NIP-07 and publish. Unlike /api/create-unsigned-kind10040
+// this does not require per-customer relay keys — it uses the configured
+// BRAINSTORM_RELAY_PUBKEY + BRAINSTORM_NIP85_HOME_RELAY (or
+// BRAINSTORM_RELAY_URL as fallback) directly, so it works on a
+// single-owner dev install.
+
+const { getConfigFromFile } = require('../../utils/config');
+
+function handleUnsigned10040(req, res) {
+  const { pubkey } = req.query;
+  if (!pubkey || !/^[0-9a-f]{64}$/i.test(pubkey)) {
+    return res.status(400).json({ success: false, error: 'pubkey query param (64-char hex) is required' });
+  }
+  const relayPubkey = getConfigFromFile('BRAINSTORM_RELAY_PUBKEY', '') || TA_PUBKEY;
+  const relayUrl = getConfigFromFile('BRAINSTORM_RELAY_URL', 'ws://localhost:7777');
+  // Prefer BRAINSTORM_RELAY_URL (where kind-30382 events actually get
+  // published by brainstorm-publish-kind30382.js on this install). Only
+  // fall back to BRAINSTORM_NIP85_HOME_RELAY if RELAY_URL is empty.
+  // The original bin/brainstorm-create-kind10040.js does the reverse —
+  // that's the right default for a hosted install with a public NIP-85
+  // home relay, but wrong for a local dev install where the home relay
+  // points at a domain with no 30382s on it.
+  const nip85HomeRelay = relayUrl || getConfigFromFile('BRAINSTORM_NIP85_HOME_RELAY', '');
+
+  // Mirrors the tag set produced by bin/brainstorm-create-kind10040.js so
+  // useTrustWeights's `30382:rank` lookup works unchanged.
+  const rankingTypes = [
+    'rank',
+    'followers',
+    'personalizedGrapeRank_influence',
+    'personalizedGrapeRank_average',
+    'personalizedGrapeRank_confidence',
+    'personalizedGrapeRank_input',
+    'personalizedPageRank',
+    'hops',
+    'verifiedFollowerCount',
+    'verifiedMuterCount',
+    'verifiedReporterCount',
+  ];
+  const unsignedEvent = {
+    kind: 10040,
+    pubkey: pubkey.toLowerCase(),
+    created_at: Math.floor(Date.now() / 1000),
+    content: '',
+    tags: rankingTypes.map((t) => [`30382:${t}`, relayPubkey, nip85HomeRelay]),
+  };
+
+  res.json({
+    success: true,
+    event: unsignedEvent,
+    relayPubkey,
+    nip85HomeRelay,
+  });
+}
+
 function handleDemoActors(req, res) {
   try {
     if (!fs.existsSync(DEMO_DATA_PATH)) {
@@ -568,6 +625,7 @@ function registerRelayDiscoveryRoutes(app) {
   app.get('/api/relay-discovery/aggregated', handleAggregated);
   app.get('/api/relay-discovery/demo-actors', handleDemoActors);
   app.get('/api/relay-discovery/pipeline-state', handlePipelineState);
+  app.get('/api/relay-discovery/unsigned-10040', handleUnsigned10040);
 }
 
 module.exports = {
@@ -578,4 +636,5 @@ module.exports = {
   handleAggregated,
   handleDemoActors,
   handlePipelineState,
+  handleUnsigned10040,
 };

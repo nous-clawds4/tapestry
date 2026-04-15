@@ -3,7 +3,7 @@ import { nip19 } from 'nostr-tools';
 import { useAuth } from '../../context/AuthContext';
 import { useTrust, SCORING_METHODS } from '../../context/TrustContext';
 import useTrustWeights from '../../hooks/useTrustWeights';
-import { fetchFromRelays, publishEverywhere, PUBLISH_RELAYS } from '../../utils/nostrPublish';
+import { fetchFromRelays, publishEverywhere, PUBLISH_RELAYS, importAddressableToNeo4j } from '../../utils/nostrPublish';
 
 const TAB_BY_ACCOUNT = 'by-account';
 const TAB_AGGREGATED = 'aggregated';
@@ -356,53 +356,28 @@ function PipelinePanel() {
     setTmPublishing(true);
     setTmMessage(null);
     try {
-      // Step 1: create the unsigned event on the server
-      const createResp = await fetch('/api/create-unsigned-kind10040', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pubkey: user.pubkey }),
-      }).catch(() => null);
-      // Fall back to /api/create-kind10040 if the unsigned endpoint isn't there
-      let unsigned = null;
-      if (createResp && createResp.ok) {
-        const body = await createResp.json();
-        unsigned = body.event || body.unsignedEvent || null;
+      // Fetch the unsigned template from our own endpoint — doesn't require
+      // per-customer relay keys like /api/create-unsigned-kind10040 does.
+      const tmplResp = await fetch(`/api/relay-discovery/unsigned-10040?pubkey=${user.pubkey}`);
+      const tmplBody = await tmplResp.json();
+      if (!tmplResp.ok || !tmplBody.success || !tmplBody.event) {
+        throw new Error(tmplBody.error || `Could not fetch unsigned 10040 (${tmplResp.status})`);
       }
-      if (!unsigned) {
-        // Secondary path: call the legacy creator and pull the event from disk/response
-        const fallback = await fetch('/api/create-kind10040', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ pubkey: user.pubkey }),
-        });
-        const body = await fallback.json();
-        if (body.event) unsigned = body.event;
-        if (!unsigned && body.output) {
-          // Try to parse an event JSON out of stdout if the legacy script printed it
-          const match = body.output.match(/\{[\s\S]*\"kind\"\s*:\s*10040[\s\S]*\}/);
-          if (match) {
-            try { unsigned = JSON.parse(match[0]); } catch {}
-          }
-        }
+      const unsigned = tmplBody.event;
+
+      const signed = await window.nostr.signEvent(unsigned);
+
+      // Publish via the existing helper — fans out to local strfry + public
+      // relays and doesn't require the owner-session gate on
+      // /api/publish-kind10040-event.
+      const pubResult = await publishEverywhere(signed);
+      const localOk = pubResult?.local?.success;
+      const externalOk = (pubResult?.external?.successes?.length || 0) > 0;
+      if (!localOk && !externalOk) {
+        throw new Error(pubResult?.local?.error || 'Publish failed on every relay.');
       }
-      if (!unsigned) throw new Error('Could not obtain an unsigned kind 10040 event from the server.');
-
-      // Ensure pubkey is set so NIP-07 signs on behalf of owner
-      const unsignedForSigning = { ...unsigned, pubkey: user.pubkey };
-      delete unsignedForSigning.id;
-      delete unsignedForSigning.sig;
-
-      const signed = await window.nostr.signEvent(unsignedForSigning);
-
-      const pubResp = await fetch('/api/publish-kind10040-event', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ event: signed }),
-      });
-      const pubBody = await pubResp.json();
-      if (!pubResp.ok || pubBody.success === false) {
-        throw new Error(pubBody.error || `HTTP ${pubResp.status}`);
-      }
+      // Best-effort: also import into Neo4j so pipeline-state shows it.
+      await importAddressableToNeo4j(signed).catch(() => {});
       setTmMessage('✅ Treasure map signed and published.');
       loadState();
     } catch (err) {
