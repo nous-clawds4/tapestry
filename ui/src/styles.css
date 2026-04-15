@@ -4439,6 +4439,69 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   border-color: rgba(255,255,255,0.25);
 }
 .rdisc-endorser code { background: transparent; padding: 0; font-size: 0.76rem; }
+.rdisc-endorser-avatar {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  background: rgba(255,255,255,0.08);
+}
+.rdisc-endorser-avatar-fallback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  color: rgba(255,255,255,0.6);
+  font-weight: 500;
+}
+.rdisc-endorser-name { font-weight: 500; }
+
+/* Stacked avatar summary inside a collapsed row */
+.rdisc-endorser-stack {
+  display: inline-flex;
+  align-items: center;
+  padding-left: 2px;
+}
+.rdisc-stack-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 2px solid #1a1a1f;
+  margin-left: -8px;
+  background: rgba(255,255,255,0.08);
+  position: relative;
+}
+.rdisc-stack-avatar:first-child { margin-left: 0; }
+.rdisc-stack-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.rdisc-stack-avatar-fallback {
+  font-size: 0.72rem;
+  color: rgba(255,255,255,0.7);
+  font-weight: 600;
+}
+.rdisc-stack-avatar-weighted { box-shadow: 0 0 0 2px rgba(16,185,129,0.55); }
+.rdisc-stack-avatar-zero { opacity: 0.45; }
+.rdisc-stack-avatar-unknown { opacity: 0.6; }
+.rdisc-stack-overflow {
+  background: rgba(99,102,241,0.2);
+  color: #c7d2fe;
+  font-size: 0.68rem;
+  font-weight: 600;
+  border-color: #1a1a1f;
+}
+.rdisc-stack-count {
+  margin-left: 0.6rem;
+  font-size: 0.78rem;
+  color: rgba(255,255,255,0.55);
+}
 .rdisc-endorser-weight {
   font-size: 0.7rem;
   padding: 0 0.3rem;

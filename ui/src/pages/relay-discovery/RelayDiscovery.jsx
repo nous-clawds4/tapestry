@@ -157,6 +157,15 @@ function DemoPanel() {
 
   const goodActorPubkeys = Object.values(info.goodActors || {});
   const badActorPubkeys = Object.values(info.badActors || {});
+  // Everything the script touches that is NOT a seed-good actor. Used by
+  // the "reset demo follows" button to strip stale non-seed demo follows
+  // from the owner's kind 3 without disturbing any non-demo follows.
+  const nonSeedDemoPubkeys = [
+    ...Object.values(info.tier2GoodActors || {}),
+    ...Object.values(info.tier3GoodActors || {}),
+    ...badActorPubkeys,
+    ...Object.values(info.neutralActors || {}),
+  ];
 
   async function followAllGoodActors() {
     if (!user) {
@@ -183,13 +192,24 @@ function DemoPanel() {
       const alreadyFollowed = new Set(
         existingTags.filter((t) => t[0] === 'p' && t[1]).map((t) => t[1]),
       );
-      const toAdd = goodActorPubkeys.filter((pk) => !alreadyFollowed.has(pk));
-      if (toAdd.length === 0) {
+      // Strip any non-seed demo actors the owner may still follow from an
+      // earlier demo revision, so the graph reduces to exactly the intended
+      // seed set (plus any non-demo follows the user had).
+      const nonSeedSet = new Set(nonSeedDemoPubkeys);
+      const filteredTags = existingTags.filter(
+        (t) => t[0] !== 'p' || !t[1] || !nonSeedSet.has(t[1]),
+      );
+      const filteredFollowed = new Set(
+        filteredTags.filter((t) => t[0] === 'p' && t[1]).map((t) => t[1]),
+      );
+      const toAdd = goodActorPubkeys.filter((pk) => !filteredFollowed.has(pk));
+      const toRemove = existingTags.length - filteredTags.length;
+      if (toAdd.length === 0 && toRemove === 0) {
         setResult({ added: 0, total: goodActorPubkeys.length, alreadyFollowed: true });
         setPublishing(false);
         return;
       }
-      const newTags = [...existingTags, ...toAdd.map((pk) => ['p', pk])];
+      const newTags = [...filteredTags, ...toAdd.map((pk) => ['p', pk])];
       const signed = await window.nostr.signEvent({
         kind: 3,
         pubkey: user.pubkey,
@@ -203,7 +223,7 @@ function DemoPanel() {
       if (!localOk && !externalOk) {
         throw new Error(pubResult?.local?.error || 'Publish failed on every relay.');
       }
-      setResult({ added: toAdd.length, total: goodActorPubkeys.length });
+      setResult({ added: toAdd.length, removed: toRemove, total: goodActorPubkeys.length });
     } catch (err) {
       setError(err.message || String(err));
     } finally {
@@ -216,10 +236,11 @@ function DemoPanel() {
       <div className="rdisc-demo-title">🧪 WoT Demo Setup</div>
       <div className="rdisc-demo-body">
         <p>
-          Demo data is seeded: <strong>{goodActorPubkeys.length}</strong> reputable actors endorse
-          good relays, <strong>{badActorPubkeys.length}</strong> bad actors endorse spammy/shady
-          ones. The WoT view ranks relays by endorser pubkeys — so to see the demo pay off,
-          a POV pubkey needs to follow the good actors (and not the bad ones).
+          Demo data is seeded. <strong>{goodActorPubkeys.length}</strong> seed good actors
+          (1 hop from the owner) are the click-to-follow set; another tier of good actors is
+          reachable via <em>their</em> follow graph (2 and 3 hops). <strong>{badActorPubkeys.length}</strong> bad actors
+          form an isolated cluster that GR can't reach. Ranking relays by raw follow-list vs
+          trusted-assertions-rank should land on different orderings once you run the pipeline.
         </p>
         <div className="rdisc-demo-actions">
           <button
@@ -230,7 +251,7 @@ function DemoPanel() {
           >
             {publishing
               ? 'Signing & publishing…'
-              : `Follow all ${goodActorPubkeys.length} demo good actors as ${user?.pubkey ? user.pubkey.slice(0,8) + '…' : 'me'}`}
+              : `Follow ${goodActorPubkeys.length} seed good actors as ${user?.pubkey ? user.pubkey.slice(0,8) + '…' : 'me'}`}
           </button>
           {info.ownerPubkey && (
             <span className="rdisc-demo-hint">
@@ -242,8 +263,8 @@ function DemoPanel() {
         {result && (
           <div className="rdisc-demo-result">
             ✅ {result.alreadyFollowed
-              ? 'You already follow all demo good actors.'
-              : `Added ${result.added} of ${result.total} good actors to your follow list.`}
+              ? `You already follow all ${result.total} seed good actors and no stale demo follows.`
+              : `Set follow list to the ${result.total} seed good actors (added ${result.added}, removed ${result.removed || 0} stale demo follows).`}
           </div>
         )}
         {error && <div className="rtp-error" style={{ marginTop: '0.5rem' }}>⚠️ {error}</div>}
@@ -484,7 +505,57 @@ function formatWeight(w) {
   return w.toFixed(2);
 }
 
-function EndorserList({ pubkeys, weights }) {
+// Stacked avatars for the collapsed row — visual at-a-glance summary of who
+// endorsed a relay. Click-through on the row still expands to the full chip
+// list below.
+function EndorserStack({ pubkeys, profiles, weights, limit = 6 }) {
+  if (!pubkeys || pubkeys.length === 0) {
+    return <span className="rtp-empty" style={{ fontSize: '0.78rem' }}>—</span>;
+  }
+  const visible = pubkeys.slice(0, limit);
+  const overflow = pubkeys.length - visible.length;
+  return (
+    <div className="rdisc-endorser-stack" aria-label={`${pubkeys.length} endorsers`}>
+      {visible.map((pk, i) => {
+        const prof = profiles?.[pk];
+        const label = prof?.display_name || prof?.name || pk.slice(0, 12);
+        const pic = prof?.picture;
+        const initials = (label[0] || '?').toUpperCase();
+        const w = weights?.[pk];
+        const weightCls =
+          w == null ? 'rdisc-stack-avatar-unknown'
+          : w === 0 ? 'rdisc-stack-avatar-zero'
+          : 'rdisc-stack-avatar-weighted';
+        return (
+          <span
+            key={pk}
+            className={`rdisc-stack-avatar ${weightCls}`}
+            title={`${label} — weight: ${formatWeight(w)}`}
+            style={{ zIndex: limit - i }}
+          >
+            {pic ? (
+              <img src={pic} alt="" onError={(e) => { e.target.style.display = 'none'; }} />
+            ) : (
+              <span className="rdisc-stack-avatar-fallback">{initials}</span>
+            )}
+          </span>
+        );
+      })}
+      {overflow > 0 && (
+        <span
+          className="rdisc-stack-avatar rdisc-stack-overflow"
+          title={`${overflow} more`}
+          style={{ zIndex: 0 }}
+        >
+          +{overflow}
+        </span>
+      )}
+      <span className="rdisc-stack-count">{pubkeys.length}</span>
+    </div>
+  );
+}
+
+function EndorserList({ pubkeys, weights, profiles }) {
   if (!pubkeys || pubkeys.length === 0) return <span className="rtp-empty">No endorsers.</span>;
   return (
     <div className="rdisc-endorser-list">
@@ -494,6 +565,10 @@ function EndorserList({ pubkeys, weights }) {
           w == null ? 'rdisc-endorser-unknown'
           : w === 0 ? 'rdisc-endorser-zero'
           : 'rdisc-endorser-weighted';
+        const prof = profiles?.[pk];
+        const label = prof?.display_name || prof?.name || `${pk.slice(0, 12)}…`;
+        const pic = prof?.picture;
+        const initials = (label[0] || '?').toUpperCase();
         return (
           <a
             key={pk}
@@ -501,9 +576,23 @@ function EndorserList({ pubkeys, weights }) {
             target="_blank"
             rel="noopener noreferrer"
             className={`rdisc-endorser ${cls}`}
-            title={`${pk}\nweight: ${formatWeight(w)}`}
+            title={`${label}\n${pk}\nweight: ${formatWeight(w)}`}
           >
-            <code>{pk.slice(0, 12)}…</code>
+            {pic ? (
+              <img
+                src={pic}
+                alt=""
+                className="rdisc-endorser-avatar"
+                onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling?.style && (e.target.nextSibling.style.display = 'inline-flex'); }}
+              />
+            ) : null}
+            <span
+              className="rdisc-endorser-avatar rdisc-endorser-avatar-fallback"
+              style={pic ? { display: 'none' } : undefined}
+            >
+              {initials}
+            </span>
+            <span className="rdisc-endorser-name">{label}</span>
             <span className="rdisc-endorser-weight">{formatWeight(w)}</span>
           </a>
         );
@@ -555,6 +644,29 @@ function AggregatedTab() {
   }, [data]);
 
   const { weights, loading: trustLoading, error: trustError } = useTrustWeights(allEndorserPubkeys);
+
+  // Fetch kind-0 profiles for all endorsers so the expanded rows show
+  // avatars and display names instead of truncated hex.
+  const [profiles, setProfiles] = useState({});
+  useEffect(() => {
+    if (!allEndorserPubkeys || allEndorserPubkeys.length === 0) {
+      setProfiles({});
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const qs = allEndorserPubkeys.join(',');
+        const resp = await fetch(`/api/profiles?pubkeys=${qs}`);
+        const body = await resp.json();
+        if (cancelled) return;
+        setProfiles(body?.profiles || {});
+      } catch {
+        if (!cancelled) setProfiles({});
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [allEndorserPubkeys.join(',')]);
 
   // Re-rank relays by trust-weighted endorser score when weights are ready.
   // Score for a relay = sum over its endorsers of (weight ?? 0). Unknown
@@ -679,7 +791,9 @@ function AggregatedTab() {
                             </>
                           )}
                         </td>
-                        <td>{r.endorserCount}</td>
+                        <td>
+                          <EndorserStack pubkeys={r.endorsers} profiles={profiles} weights={weights} />
+                        </td>
                         <td>
                           {r.weighted != null
                             ? <span className={r.weighted > 0 ? 'rdisc-score-positive' : 'rdisc-score-zero'}>
@@ -709,7 +823,7 @@ function AggregatedTab() {
                           <td colSpan={5}>
                             <div className="rdisc-endorsers-block">
                               <div className="rtp-label">Endorsers ({r.endorserCount})</div>
-                              <EndorserList pubkeys={r.endorsers} weights={weights} />
+                              <EndorserList pubkeys={r.endorsers} weights={weights} profiles={profiles} />
                             </div>
                           </td>
                         </tr>

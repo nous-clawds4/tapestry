@@ -608,7 +608,12 @@ function handleDemoActors(req, res) {
     res.json({
       success: true,
       available: true,
-      goodActors: data.goodActors || {},
+      // goodActors retained for back-compat with the "Follow seed good
+      // actors" button: contains only the SEED (1-hop) good actors.
+      goodActors: data.goodActors || data.seedGoodActors || {},
+      seedGoodActors: data.seedGoodActors || data.goodActors || {},
+      tier2GoodActors: data.tier2GoodActors || {},
+      tier3GoodActors: data.tier3GoodActors || {},
       badActors: data.badActors || {},
       neutralActors: data.neutralActors || {},
       ownerPubkey: data.ownerPubkey || null,

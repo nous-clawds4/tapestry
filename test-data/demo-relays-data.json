@@ -1,26 +1,77 @@
 {
-  "goodActors": {
+  "seedGoodActors": {
     "Snow White": "a19ffd86e1c5bad3f9f3934ab689c2be4dea2d07e04ff3df9864da1c6a7b8eec",
     "Huntsman": "957bc98b30ce9b13545bfabb1052713de292123a5ab78f40e442010c541b31bc",
+    "Prince Charming": "f03b88f3d7db32b532001f84c0cd195ce4f68ec6e32f211bbc5dc449152043e9"
+  },
+  "tier2GoodActors": {
     "Bluebird": "f3e37e6c65d3cc7d8db8417e6e0ca61dd1f9ce78d29c2277e93ece9b7b634553",
-    "Prince Charming": "f03b88f3d7db32b532001f84c0cd195ce4f68ec6e32f211bbc5dc449152043e9",
-    "Wise Owl": "5459ac31fdcbba8ff92cd8ed567d93b9e2ac75bc2322052bb9bb69751d697fd1"
+    "Wise Owl": "5459ac31fdcbba8ff92cd8ed567d93b9e2ac75bc2322052bb9bb69751d697fd1",
+    "Forest Owl": "a8db6e9b897c558865dbff17e31444984fb8ab8b6ca0d7b17eff767e794b2f8d",
+    "Magic Mirror": "50562894a151f6be404018d442e4a4af10bc773d27c55e6806561549e9253003"
+  },
+  "tier3GoodActors": {
+    "Turtle": "9c5134185a43b36b647e9579681a3344b4173a8c777e6c8501d57d19a94f3156"
   },
   "badActors": {
     "Evil Queen": "7d43de9c414839d1d8af6b5792c8a110d93a1d579cb6c859bb924709350e1a58",
     "Troll": "174f32fee83a1ba2923971cb68b5a87187bc66d296371e532ba5de519fe62e21",
     "Shadow": "ea054f4af974eca730ba70231b4f13ccaf897f0fb814e2a2cf10527e41056f7b",
     "Wraith": "de6af75256aec45b9ca49b08d7008357987e27d4861589f423b86b42b34ca7d1",
-    "Goblin King": "836adca9e63871f3dd96aa37b9aad13ce4a536bc47c8f6b52f472a4997bbe64d"
+    "Goblin King": "836adca9e63871f3dd96aa37b9aad13ce4a536bc47c8f6b52f472a4997bbe64d",
+    "Dark Mirror": "8f5bea47b0ac04bcf175c5da0ee8a1942d1a23f2e8f5a11b300441c674b17461"
   },
   "neutralActors": {
     "Doc": "5d6eb170d9629ecae6c45ed6f1f98d48008590b300f24d6ec67082c1ba0d71f8"
   },
+  "goodActors": {
+    "Snow White": "a19ffd86e1c5bad3f9f3934ab689c2be4dea2d07e04ff3df9864da1c6a7b8eec",
+    "Huntsman": "957bc98b30ce9b13545bfabb1052713de292123a5ab78f40e442010c541b31bc",
+    "Prince Charming": "f03b88f3d7db32b532001f84c0cd195ce4f68ec6e32f211bbc5dc449152043e9"
+  },
+  "follows": {
+    "Snow White": [
+      "Bluebird",
+      "Wise Owl",
+      "Forest Owl"
+    ],
+    "Huntsman": [
+      "Bluebird",
+      "Magic Mirror"
+    ],
+    "Prince Charming": [
+      "Wise Owl",
+      "Magic Mirror"
+    ],
+    "Bluebird": [
+      "Turtle"
+    ],
+    "Wise Owl": [
+      "Turtle"
+    ],
+    "Evil Queen": [
+      "Troll",
+      "Shadow",
+      "Goblin King"
+    ],
+    "Troll": [
+      "Evil Queen",
+      "Wraith"
+    ],
+    "Shadow": [
+      "Wraith",
+      "Dark Mirror"
+    ],
+    "Goblin King": [
+      "Evil Queen",
+      "Dark Mirror"
+    ]
+  },
   "relays": [
     {
-      "slug": "goodrelay-one",
-      "websocketUrl": "wss://goodrelay-one.example.com",
-      "httpUrl": "https://goodrelay-one.example.com",
+      "slug": "direct-good",
+      "websocketUrl": "wss://direct-good.example.com",
+      "httpUrl": "https://direct-good.example.com",
       "publishers": [
         "Snow White",
         "Huntsman"
@@ -32,120 +83,126 @@
       "events": [
         {
           "publisher": "Snow White",
-          "eventId": "d227082bbc6518d0c6244548b692229b70702088ee9a21959df85d6adaf2bd26"
+          "eventId": "74b4ed8c7612c4ed041c2a4b03252f1cdcc010ee1086b79b9040e5749697be89"
         },
         {
           "publisher": "Huntsman",
-          "eventId": "285b455da1609109ad5d7993d7d3b817d6602b7be1d634c71cdfa70fb9e3b46a"
+          "eventId": "91debb1b7eeaa65412a9df4bf15bc15872b670fb45bcd5ecee6495130f8d8955"
         }
       ]
     },
     {
-      "slug": "goodrelay-two",
-      "websocketUrl": "wss://goodrelay-two.example.com",
-      "httpUrl": "https://goodrelay-two.example.com",
+      "slug": "two-hop-only",
+      "websocketUrl": "wss://two-hop-only.example.com",
+      "httpUrl": "https://two-hop-only.example.com",
       "publishers": [
-        "Bluebird"
+        "Bluebird",
+        "Wise Owl",
+        "Forest Owl"
       ],
       "publisherPubkeys": [
-        "f3e37e6c65d3cc7d8db8417e6e0ca61dd1f9ce78d29c2277e93ece9b7b634553"
+        "f3e37e6c65d3cc7d8db8417e6e0ca61dd1f9ce78d29c2277e93ece9b7b634553",
+        "5459ac31fdcbba8ff92cd8ed567d93b9e2ac75bc2322052bb9bb69751d697fd1",
+        "a8db6e9b897c558865dbff17e31444984fb8ab8b6ca0d7b17eff767e794b2f8d"
       ],
       "events": [
         {
           "publisher": "Bluebird",
-          "eventId": "f2eed53a43a854f2d4075d00e6745c4d5147077300c1a89bccd1a9292e39f126"
+          "eventId": "e6b7b40f4bec83b59d99be5dc902bd5699484ec844c47271d34f02f9771104a6"
+        },
+        {
+          "publisher": "Wise Owl",
+          "eventId": "dd4789f409867459870b6109e9cc2760361d7235003c28c6bee791a0ebcdebba"
+        },
+        {
+          "publisher": "Forest Owl",
+          "eventId": "ed42da3401c391aa8785734682fb0ec710bea6ef762935f65f4811dacbf0f445"
         }
       ]
     },
     {
-      "slug": "badrelay-spam",
-      "websocketUrl": "wss://spam.example.com",
-      "httpUrl": "https://spam.example.com",
+      "slug": "deep-cross",
+      "websocketUrl": "wss://deep-cross.example.com",
+      "httpUrl": "https://deep-cross.example.com",
       "publishers": [
-        "Evil Queen",
-        "Troll"
+        "Turtle"
       ],
       "publisherPubkeys": [
-        "7d43de9c414839d1d8af6b5792c8a110d93a1d579cb6c859bb924709350e1a58",
-        "174f32fee83a1ba2923971cb68b5a87187bc66d296371e532ba5de519fe62e21"
+        "9c5134185a43b36b647e9579681a3344b4173a8c777e6c8501d57d19a94f3156"
       ],
       "events": [
         {
-          "publisher": "Evil Queen",
-          "eventId": "dfa13459b59f09eff3dba032903b5e26c64d0c5c48425519c9245ead53adf5c5"
-        },
-        {
-          "publisher": "Troll",
-          "eventId": "11a066695b57fb0406c86efbfd7f6ec45c7de4f65c294bb007e2122c0ee2d0aa"
+          "publisher": "Turtle",
+          "eventId": "b0b87fcaca17eff8fae9ce0a2786d6ff1bf98c38d92f0aad21499fe75fb4b041"
         }
       ]
     },
     {
-      "slug": "shady-relay",
-      "websocketUrl": "wss://shady.example.com",
-      "httpUrl": "https://shady.example.com",
-      "publishers": [
-        "Shadow",
-        "Wraith"
-      ],
-      "publisherPubkeys": [
-        "ea054f4af974eca730ba70231b4f13ccaf897f0fb814e2a2cf10527e41056f7b",
-        "de6af75256aec45b9ca49b08d7008357987e27d4861589f423b86b42b34ca7d1"
-      ],
-      "events": [
-        {
-          "publisher": "Shadow",
-          "eventId": "ebbd428e47fe08639b0f05632d8458c5ea84f8b0b300cb80661dbe440555423c"
-        },
-        {
-          "publisher": "Wraith",
-          "eventId": "222f6e16a3257dcff72c277411ee8e50fb339d2225c2c53a1202e7b47fc67f2d"
-        }
-      ]
-    },
-    {
-      "slug": "disputed-relay",
-      "websocketUrl": "wss://disputed.example.com",
-      "httpUrl": "https://disputed.example.com",
+      "slug": "mixed",
+      "websocketUrl": "wss://mixed.example.com",
+      "httpUrl": "https://mixed.example.com",
       "publishers": [
         "Prince Charming",
-        "Goblin King"
+        "Evil Queen"
       ],
       "publisherPubkeys": [
         "f03b88f3d7db32b532001f84c0cd195ce4f68ec6e32f211bbc5dc449152043e9",
-        "836adca9e63871f3dd96aa37b9aad13ce4a536bc47c8f6b52f472a4997bbe64d"
+        "7d43de9c414839d1d8af6b5792c8a110d93a1d579cb6c859bb924709350e1a58"
       ],
       "events": [
         {
           "publisher": "Prince Charming",
-          "eventId": "2c505002b42a880e8c04e96718dbdfb79d70b26a0eb9ebb22fdb2a7dc37ec6ec"
+          "eventId": "7dbe743aca565f70a3bdd3c6dbed9f821ea8c604bce93a1325bb587e8d407637"
         },
         {
-          "publisher": "Goblin King",
-          "eventId": "bff804f2fe51ae0c6e5203ecaac9a9caa9dcaecba790790162f80b54f8070520"
+          "publisher": "Evil Queen",
+          "eventId": "0059ed711415c5b5f6a20b006743d75bb3421ca4cb788b6d20cb8e0960b53577"
         }
       ]
     },
     {
-      "slug": "neutral-relay",
-      "websocketUrl": "wss://neutral.example.com",
-      "httpUrl": "https://neutral.example.com",
+      "slug": "pure-bad",
+      "websocketUrl": "wss://pure-bad.example.com",
+      "httpUrl": "https://pure-bad.example.com",
       "publishers": [
-        "Doc"
+        "Troll",
+        "Shadow"
       ],
       "publisherPubkeys": [
-        "5d6eb170d9629ecae6c45ed6f1f98d48008590b300f24d6ec67082c1ba0d71f8"
+        "174f32fee83a1ba2923971cb68b5a87187bc66d296371e532ba5de519fe62e21",
+        "ea054f4af974eca730ba70231b4f13ccaf897f0fb814e2a2cf10527e41056f7b"
       ],
       "events": [
         {
-          "publisher": "Doc",
-          "eventId": "91ff177f74f08da4ddb2d0aa673a1b94a48405328b80e5b4e81ff8121c33f687"
+          "publisher": "Troll",
+          "eventId": "21affe9681088698da6c1491ffea05ed4b2a7c24f8c955198710132cfb000d5a"
+        },
+        {
+          "publisher": "Shadow",
+          "eventId": "937e5375ffd5a6cd5a40447177e8985b4f3d36a690f7544f41bb58f8d9e128ff"
+        }
+      ]
+    },
+    {
+      "slug": "single-two-hop",
+      "websocketUrl": "wss://single-two-hop.example.com",
+      "httpUrl": "https://single-two-hop.example.com",
+      "publishers": [
+        "Magic Mirror"
+      ],
+      "publisherPubkeys": [
+        "50562894a151f6be404018d442e4a4af10bc773d27c55e6806561549e9253003"
+      ],
+      "events": [
+        {
+          "publisher": "Magic Mirror",
+          "eventId": "bd5c365928f16c8e406e179fa237845d1243a6bb045f44f4460499b25033a01a"
         }
       ]
     }
   ],
   "tagApplicationsByRelay": {
-    "goodrelay-one": [
+    "direct-good": [
       {
         "actor": "Snow White",
         "tag": "free"
@@ -161,76 +218,56 @@
       {
         "actor": "Huntsman",
         "tag": "inbox"
+      }
+    ],
+    "two-hop-only": [
+      {
+        "actor": "Bluebird",
+        "tag": "free"
+      },
+      {
+        "actor": "Bluebird",
+        "tag": "media-hosting"
       },
       {
         "actor": "Wise Owl",
         "tag": "free"
-      }
-    ],
-    "goodrelay-two": [
-      {
-        "actor": "Bluebird",
-        "tag": "free"
       },
       {
-        "actor": "Bluebird",
-        "tag": "media-hosting"
-      },
-      {
-        "actor": "Snow White",
-        "tag": "media-hosting"
+        "actor": "Forest Owl",
+        "tag": "outbox"
       }
     ],
-    "badrelay-spam": [
+    "deep-cross": [
+      {
+        "actor": "Turtle",
+        "tag": "archive"
+      }
+    ],
+    "mixed": [
+      {
+        "actor": "Prince Charming",
+        "tag": "paid"
+      },
       {
         "actor": "Evil Queen",
         "tag": "free"
-      },
+      }
+    ],
+    "pure-bad": [
       {
         "actor": "Troll",
-        "tag": "outbox"
+        "tag": "free"
       },
-      {
-        "actor": "Snow White",
-        "tag": "nsfw"
-      }
-    ],
-    "shady-relay": [
       {
         "actor": "Shadow",
-        "tag": "free"
-      },
-      {
-        "actor": "Wraith",
-        "tag": "archive"
-      },
-      {
-        "actor": "Huntsman",
-        "tag": "paid"
-      }
-    ],
-    "disputed-relay": [
-      {
-        "actor": "Prince Charming",
-        "tag": "free"
-      },
-      {
-        "actor": "Prince Charming",
         "tag": "outbox"
-      },
-      {
-        "actor": "Goblin King",
-        "tag": "archive"
-      },
-      {
-        "actor": "Goblin King",
-        "tag": "nsfw"
       }
     ],
-    "neutral-relay": [
+    "single-two-hop": [
       {
-        "actor": "Doc",
-        "tag": "free"
+        "actor": "Magic Mirror",
+        "tag": "regional"
       }
     ]
   },
