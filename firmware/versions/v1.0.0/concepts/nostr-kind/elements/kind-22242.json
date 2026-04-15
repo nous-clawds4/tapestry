@@ -1,0 +1,15 @@
+{
+  "word": {
+    "slug": "nostr-kind--kind-22242",
+    "name": "nostr kind: 22242 (Client Authentication)",
+    "title": "Nostr Kind: 22242 (Client Authentication)",
+    "wordTypes": ["word", "nostrKind"]
+  },
+  "nostrKind": {
+    "kind": 22242,
+    "name": "Client Authentication",
+    "nip": "NIP-42",
+    "replaceability": "ephemeral",
+    "description": "An ephemeral authentication event sent by a client to a relay in response to an AUTH challenge. Contains relay URL and challenge string; used to prove control of a pubkey for relay access control."
+  }
+}

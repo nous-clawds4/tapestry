@@ -1,0 +1,15 @@
+{
+  "word": {
+    "slug": "nostr-kind--kind-30315",
+    "name": "nostr kind: 30315 (User Statuses)",
+    "title": "Nostr Kind: 30315 (User Statuses)",
+    "wordTypes": ["word", "nostrKind"]
+  },
+  "nostrKind": {
+    "kind": 30315,
+    "name": "User Statuses",
+    "nip": "NIP-38",
+    "replaceability": "parameterized-replaceable",
+    "description": "A short-lived user status message (e.g. 'general', 'music', 'now playing'). The d-tag specifies the status type; an optional expiration tag indicates when the status expires."
+  }
+}

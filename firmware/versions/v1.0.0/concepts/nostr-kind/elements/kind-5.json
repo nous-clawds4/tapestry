@@ -1,0 +1,15 @@
+{
+  "word": {
+    "slug": "nostr-kind--kind-5",
+    "name": "nostr kind: 5 (Event Deletion Request)",
+    "title": "Nostr Kind: 5 (Event Deletion Request)",
+    "wordTypes": ["word", "nostrKind"]
+  },
+  "nostrKind": {
+    "kind": 5,
+    "name": "Event Deletion Request",
+    "nip": "NIP-09",
+    "replaceability": "regular",
+    "description": "A request to delete one or more of the author's own previously published events, referenced via e-tags. Relays and clients that honor this should stop serving the referenced events."
+  }
+}

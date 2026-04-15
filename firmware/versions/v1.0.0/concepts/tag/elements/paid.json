@@ -1,0 +1,14 @@
+{
+  "word": {
+    "slug": "tag--paid",
+    "name": "tag: paid",
+    "title": "Tag: Paid",
+    "wordTypes": ["word", "tag"]
+  },
+  "tag": {
+    "slug": "paid",
+    "name": "Paid",
+    "description": "Relay requires payment or subscription",
+    "applicableTo": ["nostr-relay"]
+  }
+}

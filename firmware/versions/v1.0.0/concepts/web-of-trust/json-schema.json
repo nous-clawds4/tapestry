@@ -1,0 +1,67 @@
+{
+  "word": {
+    "slug": "json-schema-for-the-concept-of-web-of-trust",
+    "name": "JSON Schema for the concept of web of trust",
+    "title": "JSON Schema for the Concept of Web of Trust",
+    "description": "This is the JSON Schema for elements of the concept of web of trust. Every element of this concept must validate against this JSON schema.",
+    "wordTypes": ["word", "jsonSchema"],
+    "coreMemberOf": [
+      {
+        "slug": "concept-header-for-the-concept-of-web-of-trust",
+        "uuid": "<uuid>"
+      }
+    ]
+  },
+  "jsonSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "name": "web of trust",
+    "title": "Web of Trust",
+    "description": "JSON Schema for elements of the concept of web of trust",
+    "required": ["webOfTrust"],
+    "definitions": {},
+    "properties": {
+      "webOfTrust": {
+        "type": "object",
+        "name": "web of trust",
+        "title": "Web of Trust",
+        "slug": "web-of-trust",
+        "description": "data about this web of trust system",
+        "required": ["name"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "name": "name",
+            "title": "Name",
+            "slug": "name",
+            "description": "Name of this Web of Trust system or implementation"
+          },
+          "algorithm": {
+            "type": "string",
+            "name": "algorithm",
+            "title": "Algorithm",
+            "slug": "algorithm",
+            "description": "The scoring algorithm used (e.g. GrapeRank, PageRank, TrustRank)"
+          },
+          "platform": {
+            "type": "string",
+            "name": "platform",
+            "title": "Platform",
+            "slug": "platform",
+            "description": "The platform this WoT system is built for (e.g. nostr, email, bittorrent)"
+          },
+          "description": {
+            "type": "string",
+            "name": "description",
+            "title": "Description",
+            "slug": "description",
+            "description": "What this WoT system does and how it is used"
+          }
+        },
+        "x-tapestry": {
+          "unique": ["name"]
+        }
+      }
+    }
+  }
+}

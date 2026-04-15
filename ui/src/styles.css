@@ -4073,3 +4073,110 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   .bss-pov-toggle { flex-direction: column; }
   .bss-top-bar { padding: 0.5rem 1rem; flex-wrap: wrap; }
 }
+
+/* ── Relay Discovery (BrainstormProfile Relays section + PublishRelayForm) ── */
+.bsp-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.6rem;
+}
+.bsp-section-header h3 { margin: 0; border-bottom: none; padding-bottom: 0; }
+.bsp-badge {
+  display: inline-block;
+  padding: 0 0.45rem;
+  margin-left: 0.35rem;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.08);
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: rgba(255,255,255,0.75);
+}
+
+.bsp-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+.bsp-modal {
+  background: #1a1a1f;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 8px;
+  padding: 1.4rem 1.6rem;
+  max-width: 520px;
+  width: calc(100% - 2rem);
+  box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+}
+.bsp-modal h3 { margin: 0 0 0.4rem; font-size: 1.05rem; }
+.bsp-modal-help {
+  font-size: 0.82rem;
+  opacity: 0.75;
+  margin: 0 0 1rem;
+  line-height: 1.45;
+}
+.bsp-modal-help code {
+  background: rgba(255,255,255,0.08);
+  padding: 0.05rem 0.3rem;
+  border-radius: 3px;
+  font-size: 0.78rem;
+}
+
+.bsp-form { display: flex; flex-direction: column; gap: 0.75rem; }
+.bsp-form-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.82rem;
+}
+.bsp-form-row > span { color: rgba(255,255,255,0.7); }
+.bsp-form-row input {
+  padding: 0.5rem 0.65rem;
+  background: rgba(0,0,0,0.3);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 5px;
+  color: inherit;
+  font-family: inherit;
+  font-size: 0.88rem;
+}
+.bsp-form-row input:focus {
+  outline: none;
+  border-color: #6366f1;
+}
+.bsp-form-error {
+  color: #fca5a5;
+  font-size: 0.82rem;
+  background: rgba(239,68,68,0.08);
+  border: 1px solid rgba(239,68,68,0.25);
+  padding: 0.5rem 0.65rem;
+  border-radius: 5px;
+}
+.bsp-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.6rem;
+  margin-top: 0.4rem;
+}
+.bsp-form-actions button {
+  padding: 0.5rem 1rem;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 5px;
+  color: inherit;
+  font-family: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.bsp-form-actions button[type='submit'] {
+  background: #6366f1;
+  border-color: #6366f1;
+  color: white;
+}
+.bsp-form-actions button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

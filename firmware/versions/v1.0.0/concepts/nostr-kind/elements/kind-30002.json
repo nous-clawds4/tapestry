@@ -1,0 +1,15 @@
+{
+  "word": {
+    "slug": "nostr-kind--kind-30002",
+    "name": "nostr kind: 30002 (Relay Sets)",
+    "title": "Nostr Kind: 30002 (Relay Sets)",
+    "wordTypes": ["word", "nostrKind"]
+  },
+  "nostrKind": {
+    "kind": 30002,
+    "name": "Relay Sets",
+    "nip": "NIP-51",
+    "replaceability": "parameterized-replaceable",
+    "description": "A named set of relay URLs grouped for a specific purpose (e.g. 'my read relays', 'backup relays'). R-tags list the relay URLs; the d-tag names the set."
+  }
+}

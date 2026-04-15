@@ -1,0 +1,15 @@
+{
+  "word": {
+    "slug": "nostr-kind--kind-39999",
+    "name": "nostr kind: 39999 (DList Item)",
+    "title": "Nostr Kind: 39999 (DList Item)",
+    "wordTypes": ["word", "nostrKind"]
+  },
+  "nostrKind": {
+    "kind": 39999,
+    "name": "DList Item",
+    "nip": "NIP-51",
+    "replaceability": "parameterized-replaceable",
+    "description": "A Tapestry DList item event representing a node in the concept graph (element, set, superset, property, schema, etc.). Contains a word-wrapper JSON payload in the 'json' tag; z-tags link it to its parent DList headers."
+  }
+}

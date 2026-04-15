@@ -1,0 +1,14 @@
+{
+  "word": {
+    "slug": "the-set-of-parameterized-replaceable-nostr-kinds",
+    "name": "The set of parameterized replaceable nostr kinds",
+    "title": "The Set of Parameterized Replaceable Nostr Kinds",
+    "wordTypes": ["word", "set"]
+  },
+  "set": {
+    "slug": "parameterized-replaceable-kinds",
+    "name": "parameterized replaceable kinds",
+    "title": "Parameterized Replaceable Kinds",
+    "description": "Nostr event kinds (30000–39999) addressed by kind:pubkey:d-tag; only the latest event per that triple is kept. Enables multiple distinct instances per user, unlike simple replaceable kinds."
+  }
+}

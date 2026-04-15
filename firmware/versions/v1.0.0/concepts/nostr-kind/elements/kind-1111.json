@@ -1,0 +1,15 @@
+{
+  "word": {
+    "slug": "nostr-kind--kind-1111",
+    "name": "nostr kind: 1111 (Comment)",
+    "title": "Nostr Kind: 1111 (Comment)",
+    "wordTypes": ["word", "nostrKind"]
+  },
+  "nostrKind": {
+    "kind": 1111,
+    "name": "Comment",
+    "nip": "NIP-22",
+    "replaceability": "regular",
+    "description": "A comment on any event or external resource. Uses uppercase I-tag or E-tag (and A-tag for addressable events) to indicate the root being commented on, supporting cross-kind threading."
+  }
+}

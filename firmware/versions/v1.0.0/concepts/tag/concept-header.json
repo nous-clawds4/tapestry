@@ -1,0 +1,21 @@
+{
+  "word": {
+    "slug": "concept-header-for-the-concept-of-tags",
+    "name": "concept header for the concept of tags",
+    "title": "Concept Header for the Concept of Tags",
+    "wordTypes": ["word", "conceptHeader"]
+  },
+  "conceptHeader": {
+    "description": "A tag is a first-class concept representing a category assertion. Tags categorize things — initially nostr relays, but eventually also profiles, notes, and other concepts. A tag is a 0–5 star rating without the stars field: an assertion that something belongs to a category.",
+    "oNames": { "singular": "tag", "plural": "tags" },
+    "oSlugs": { "singular": "tag", "plural": "tags" },
+    "oKeys": { "singular": "tag", "plural": "tags" },
+    "oTitles": { "singular": "Tag", "plural": "Tags" },
+    "oLabels": { "singular": "Tag", "plural": "Tags" },
+    "x-tapestry": {
+      "neo4j": {
+        "nodeLabelRequired": true
+      }
+    }
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "word": {
+    "slug": "nostr-kind--kind-10003",
+    "name": "nostr kind: 10003 (Bookmark List)",
+    "title": "Nostr Kind: 10003 (Bookmark List)",
+    "wordTypes": ["word", "nostrKind"]
+  },
+  "nostrKind": {
+    "kind": 10003,
+    "name": "Bookmark List",
+    "nip": "NIP-51",
+    "replaceability": "replaceable",
+    "description": "A user's private and public bookmarks of events, URLs, and profiles. Supports an encrypted content section for private bookmarks alongside public e/a/p/r tags."
+  }
+}

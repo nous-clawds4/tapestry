@@ -1,0 +1,15 @@
+{
+  "word": {
+    "slug": "nostr-kind--kind-9735",
+    "name": "nostr kind: 9735 (Zap)",
+    "title": "Nostr Kind: 9735 (Zap)",
+    "wordTypes": ["word", "nostrKind"]
+  },
+  "nostrKind": {
+    "kind": 9735,
+    "name": "Zap",
+    "nip": "NIP-57",
+    "replaceability": "regular",
+    "description": "A zap receipt published by the recipient's LNURL server confirming that a lightning invoice has been paid. Contains the original zap request and a bolt11 invoice; clients display this as a lightning payment."
+  }
+}

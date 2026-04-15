@@ -1,0 +1,14 @@
+{
+  "word": {
+    "slug": "tag--inbox",
+    "name": "tag: inbox",
+    "title": "Tag: Inbox",
+    "wordTypes": ["word", "tag"]
+  },
+  "tag": {
+    "slug": "inbox",
+    "name": "Inbox",
+    "description": "Relay is suitable for inbox (read) use in NIP-65 relay lists",
+    "applicableTo": ["nostr-relay"]
+  }
+}

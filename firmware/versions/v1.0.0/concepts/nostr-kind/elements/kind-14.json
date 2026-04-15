@@ -1,0 +1,15 @@
+{
+  "word": {
+    "slug": "nostr-kind--kind-14",
+    "name": "nostr kind: 14 (Direct Message)",
+    "title": "Nostr Kind: 14 (Direct Message)",
+    "wordTypes": ["word", "nostrKind"]
+  },
+  "nostrKind": {
+    "kind": 14,
+    "name": "Direct Message",
+    "nip": "NIP-17",
+    "replaceability": "regular",
+    "description": "A private direct message using the gift wrap protocol (NIP-59) for metadata privacy. Supersedes kind 4; the actual message is a kind-14 rumor sealed and gift-wrapped so relays cannot see sender, receiver, or timestamp."
+  }
+}

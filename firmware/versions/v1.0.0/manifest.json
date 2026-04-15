@@ -236,6 +236,79 @@
             "conceptHeader": "concept-header.json",
             "jsonSchema": "json-schema.json",
             "categories": []
+        },
+        {
+            "slug": "nostr-event",
+            "dir": "./concepts/nostr-event/",
+            "conceptHeader": "concept-header.json",
+            "jsonSchema": "json-schema.json",
+            "categories": [
+                "nostr"
+            ]
+        },
+        {
+            "slug": "nostr-kind",
+            "dir": "./concepts/nostr-kind/",
+            "conceptHeader": "concept-header.json",
+            "jsonSchema": "json-schema.json",
+            "categories": [
+                "nostr"
+            ]
+        },
+        {
+            "slug": "graperank",
+            "dir": "./concepts/graperank/",
+            "conceptHeader": "concept-header.json",
+            "jsonSchema": "json-schema.json",
+            "categories": [
+                "web-of-trust"
+            ]
+        },
+        {
+            "slug": "web-of-trust",
+            "dir": "./concepts/web-of-trust/",
+            "conceptHeader": "concept-header.json",
+            "jsonSchema": "json-schema.json",
+            "categories": [
+                "web-of-trust"
+            ]
+        },
+        {
+            "slug": "class-thread",
+            "dir": "./concepts/class-thread/",
+            "conceptHeader": "concept-header.json",
+            "jsonSchema": "json-schema.json",
+            "categories": [
+                "tapestry"
+            ]
+        },
+        {
+            "slug": "word-wrapper",
+            "dir": "./concepts/word-wrapper/",
+            "conceptHeader": "concept-header.json",
+            "jsonSchema": "json-schema.json",
+            "categories": [
+                "tapestry"
+            ]
+        },
+        {
+            "slug": "tag",
+            "dir": "./concepts/tag/",
+            "conceptHeader": "concept-header.json",
+            "jsonSchema": "json-schema.json",
+            "categories": [
+                "tag"
+            ]
+        },
+        {
+            "slug": "nostr-relay-tag",
+            "dir": "./concepts/nostr-relay-tag/",
+            "conceptHeader": "concept-header.json",
+            "jsonSchema": "json-schema.json",
+            "categories": [
+                "tag",
+                "nostr"
+            ]
         }
     ],
     "enumerations": {
@@ -447,11 +520,40 @@
                 },
                 {
                     "concept": "nostr-relay"
+                },
+                {
+                    "concept": "nostr-kind"
+                },
+                {
+                    "concept": "tag"
+                },
+                {
+                    "concept": "nostr-relay-tag"
                 }
             ]
         }
     },
     "changelog": [
+        {
+            "version": "1.0.0",
+            "date": "2026-04-14",
+            "changes": [
+                "Add tag concept with 9 seed elements (paid, free, archive, ephemeral, media-hosting, outbox, inbox, nsfw, regional)",
+                "Add tag sets: general-tags (top superset) and relay-tags (subset containing all 9 seeds)",
+                "Add nostr-relay-tag concept: an assertion linking a relay event ID to a tag event ID",
+                "Register tag and nostr-relay-tag in the words set of the root manifest"
+            ]
+        },
+        {
+            "version": "1.0.0",
+            "date": "2026-04-06",
+            "changes": [
+                "Add 41 nostr-kind elements covering regular, replaceable, ephemeral, and parameterized-replaceable kinds (kinds 0-39999)",
+                "Add 4 nostr-kind sets grouped by replaceability (regular-kinds, replaceable-kinds, ephemeral-kinds, parameterized-replaceable-kinds)",
+                "Add nostr-kind manifest.json with HAS_ELEMENT relationships from sets to elements",
+                "Add nostr-kind to global manifest words set"
+            ]
+        },
         {
             "version": "1.0.0",
             "date": "2026-03-28",

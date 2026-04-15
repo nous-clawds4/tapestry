@@ -1,0 +1,15 @@
+{
+  "word": {
+    "slug": "nostr-kind--kind-10050",
+    "name": "nostr kind: 10050 (Relay List for DMs)",
+    "title": "Nostr Kind: 10050 (Relay List for DMs)",
+    "wordTypes": ["word", "nostrKind"]
+  },
+  "nostrKind": {
+    "kind": 10050,
+    "name": "Relay List for DMs",
+    "nip": "NIP-17",
+    "replaceability": "replaceable",
+    "description": "A user's preferred relay list specifically for receiving private direct messages (kind 14 gift wraps). Senders should deliver gift-wrapped messages to the relays listed here."
+  }
+}

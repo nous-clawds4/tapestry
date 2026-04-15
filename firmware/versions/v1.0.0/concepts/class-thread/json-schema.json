@@ -1,0 +1,67 @@
+{
+  "word": {
+    "slug": "json-schema-for-the-concept-of-class-threads",
+    "name": "JSON Schema for the concept of class threads",
+    "title": "JSON Schema for the Concept of Class Threads",
+    "description": "This is the JSON Schema for elements of the concept of class threads. Every element of this concept must validate against this JSON schema.",
+    "wordTypes": ["word", "jsonSchema"],
+    "coreMemberOf": [
+      {
+        "slug": "concept-header-for-the-concept-of-class-threads",
+        "uuid": "<uuid>"
+      }
+    ]
+  },
+  "jsonSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "name": "class thread",
+    "title": "Class Thread",
+    "description": "JSON Schema for elements of the concept of class threads",
+    "required": ["classThread"],
+    "definitions": {},
+    "properties": {
+      "classThread": {
+        "type": "object",
+        "name": "class thread",
+        "title": "Class Thread",
+        "slug": "class-thread",
+        "description": "data about this class thread",
+        "required": ["conceptSlug"],
+        "properties": {
+          "conceptSlug": {
+            "type": "string",
+            "name": "conceptSlug",
+            "title": "Concept Slug",
+            "slug": "concept-slug",
+            "description": "The slug of the concept this class thread belongs to"
+          },
+          "conceptUuid": {
+            "type": "string",
+            "name": "conceptUuid",
+            "title": "Concept UUID",
+            "slug": "concept-uuid",
+            "description": "The uuid of the ConceptHeader node that initiates this class thread"
+          },
+          "supersetUuid": {
+            "type": "string",
+            "name": "supersetUuid",
+            "title": "Superset UUID",
+            "slug": "superset-uuid",
+            "description": "The uuid of the Superset node that is the root of this class thread"
+          },
+          "depth": {
+            "type": "integer",
+            "name": "depth",
+            "title": "Depth",
+            "slug": "depth",
+            "description": "Number of IS_A_SUPERSET_OF hops in the propagation phase (0 = no sub-supersets)"
+          }
+        },
+        "x-tapestry": {
+          "unique": ["conceptUuid"]
+        }
+      }
+    }
+  }
+}

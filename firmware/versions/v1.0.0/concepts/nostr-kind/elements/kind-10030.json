@@ -1,0 +1,15 @@
+{
+  "word": {
+    "slug": "nostr-kind--kind-10030",
+    "name": "nostr kind: 10030 (User Emoji List)",
+    "title": "Nostr Kind: 10030 (User Emoji List)",
+    "wordTypes": ["word", "nostrKind"]
+  },
+  "nostrKind": {
+    "kind": 10030,
+    "name": "User Emoji List",
+    "nip": "NIP-51",
+    "replaceability": "replaceable",
+    "description": "A user's preferred custom emoji list and emoji sets. Emoji tags reference shortcodes and image URLs; a-tags reference kind-30030 emoji sets."
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "word": {
+    "slug": "tag--media-hosting",
+    "name": "tag: media-hosting",
+    "title": "Tag: Media Hosting",
+    "wordTypes": ["word", "tag"]
+  },
+  "tag": {
+    "slug": "media-hosting",
+    "name": "Media Hosting",
+    "description": "Relay supports or specializes in hosting media (images, video, audio)",
+    "applicableTo": ["nostr-relay"]
+  }
+}
