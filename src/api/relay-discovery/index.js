@@ -352,17 +352,27 @@ async function handleTagsForRelay(req, res) {
 //   limit    — optional, cap on rows returned (default 100).
 
 async function handleAggregated(req, res) {
-  const { tagSlug, limit: limitRaw } = req.query;
+  const { tagSlug, limit: limitRaw, conceptCoord } = req.query;
   const limit = Math.max(1, Math.min(500, parseInt(limitRaw, 10) || 100));
 
   try {
     // Resolve every installed concept coordinate per slug. Any TA's
     // nostr-relay / nostr-relay-tag / tag concept contributes.
-    const [relayCoords, tagAppCoords, tagCoords] = await Promise.all([
+    //
+    // When `conceptCoord` is provided, the picker has scoped the view to
+    // a single coordinate — could be a nostr-relay slug, could be
+    // anything else (`dog`, `nostr-relay-v2`, etc.). We use it for the
+    // relay-row filter only; tag aggregation continues across all known
+    // tag/tag-application coordinates so existing tags still annotate
+    // the filtered rows.
+    const [allRelayCoords, tagAppCoords, tagCoords] = await Promise.all([
       resolveConceptCoordinates('nostr-relay', NOSTR_RELAY_Z_TAG),
       resolveConceptCoordinates('nostr-relay-tag', NOSTR_RELAY_TAG_Z_TAG),
       resolveConceptCoordinates('tag', TAG_Z_TAG),
     ]);
+    // If the caller pinned a specific concept coordinate, use only that.
+    // Otherwise default to "every nostr-relay coordinate we know about."
+    const relayCoords = conceptCoord ? [conceptCoord] : allRelayCoords;
 
     // All imported kind 39999 relay items, with authors and JSON payload.
     const relayRows = await runCypher(
@@ -428,12 +438,21 @@ async function handleAggregated(req, res) {
       if (row.author) bySlug.get(slug).add(row.author);
     }
 
+    // Standard fields the relay UI knows how to render. Anything else in
+    // the relay event's JSON payload becomes "extras" — stuff a foreign
+    // concept may define that this UI doesn't natively render.
+    const STANDARD_FIELDS = new Set(['slug', 'websocketUrl', 'httpUrl']);
+
     // Group relay events by websocket URL.
     const byUrl = new Map();
     for (const row of relayRows) {
       if (!row.json) continue;
       let parsed;
       try { parsed = JSON.parse(row.json); } catch { continue; }
+      // Some foreign schemas may use a different top-level key, but for
+      // now we only know how to extract `nostrRelay`. (Other shapes will
+      // simply yield no rows here, which is the correct "this UI is a
+      // relay UI" behavior.)
       const nr = parsed?.nostrRelay;
       if (!nr?.websocketUrl) continue;
       const url = String(nr.websocketUrl).trim().replace(/\/+$/, '').toLowerCase();
@@ -447,11 +466,21 @@ async function handleAggregated(req, res) {
           endorsers: new Set(),           // distinct authors who published a 39999 for this relay
           relayEventIds: new Set(),       // all 39999 event IDs referencing this relay (by url)
           tagApplications: {},            // tagSlug → { authors: Set, count }
+          extras: {},                     // unmapped JSON keys — schema-divergence surface
+          appearsUnder: new Set(),        // concept coordinates this URL appears under
         });
       }
       const entry = byUrl.get(url);
       if (row.author) entry.endorsers.add(row.author);
       if (row.eventId) entry.relayEventIds.add(row.eventId);
+      if (row.concept) entry.appearsUnder.add(row.concept);
+      // Union extras across every event for this URL — last writer wins
+      // per key, but in practice schemas converge on the same shape.
+      for (const [k, v] of Object.entries(nr)) {
+        if (STANDARD_FIELDS.has(k)) continue;
+        if (v == null) continue;
+        entry.extras[k] = v;
+      }
     }
 
     // Merge tag applications into entries.
@@ -486,6 +515,8 @@ async function handleAggregated(req, res) {
         endorserCount: entry.endorsers.size,
         relayEventIds: [...entry.relayEventIds],
         tagApplications: tagApps,
+        extras: entry.extras,
+        appearsUnder: [...entry.appearsUnder],
       });
     }
 
@@ -509,7 +540,8 @@ async function handleAggregated(req, res) {
       count: entries.length,
       relays: entries,
       tagMeta,
-      filters: { tagSlug: tagSlug || null, limit },
+      filters: { tagSlug: tagSlug || null, conceptCoord: conceptCoord || null, limit },
+      knownConcepts: allRelayCoords,
     });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });

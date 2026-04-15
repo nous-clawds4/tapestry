@@ -47,6 +47,11 @@ const { runCypher } = require('../../lib/neo4j-driver');
 const { buildImportCypher } = require('../neo4j/eventSync');
 const { runPass3 } = require('../../firmware/install');
 const { getDriver } = require('../../lib/neo4j-driver');
+const firmware = require('../normalize/firmware');
+
+// Resolve canonical relationship-type slugs to the Neo4j edge labels this
+// install actually uses (e.g. CLASS_THREAD_INITIATION → IS_THE_CONCEPT_FOR).
+function rel(name) { return firmware.relAlias(name); }
 
 const FETCH_TIMEOUT_MS = 8000;
 const SUGGESTED_AUTHORS_PATH = path.resolve(__dirname, '../../../config/suggested-concept-authors.json');
@@ -115,9 +120,9 @@ async function importEventToNeo4j(event) {
  * Apply concept-aware Neo4j labels to an imported event based on its JSON
  * payload shape. `buildImportCypher` only knows about kind→label mapping
  * (39998 → ListHeader, 39999 → ListItem). Specific labels like
- * :ConceptHeader / :JSONSchema / :Set / :Superset are assigned by the
- * firmware install path during Pass 1 — we replicate that here for foreign
- * imports.
+ * :ConceptHeader / :JSONSchema / :Set / :Superset / :Property are assigned
+ * by the firmware install path during Pass 1; we replicate that here for
+ * foreign imports.
  */
 async function applyContentLabels(event) {
   const dTag = (event.tags || []).find((t) => t[0] === 'd')?.[1];
@@ -132,7 +137,7 @@ async function applyContentLabels(event) {
     if (payload.jsonSchema) labels.add('JSONSchema');
     if (payload.set) labels.add('Set');
     if (wordTypes.includes('superset')) labels.add('Superset');
-    if (payload.primaryProperty) labels.add('Property');
+    if (payload.primaryProperty || wordTypes.includes('property')) labels.add('Property');
   }
   if (labels.size === 0) return;
 
@@ -143,6 +148,56 @@ async function applyContentLabels(event) {
     await session.run(
       `MATCH (e:NostrEvent {uuid: $uuid}) SET ${setClause}`,
       { uuid },
+    );
+  } finally {
+    await session.close();
+  }
+}
+
+/**
+ * Wire structural relationships from a foreign concept's ConceptHeader to
+ * its supporting events, mirroring the edges firmware install creates in
+ * Pass 1 / Pass 2. Without these edges, `wire-implicit-elements` can't
+ * traverse from header → superset → element to attach HAS_ELEMENT, and
+ * the imported concept appears empty in the existing Concepts UI.
+ *
+ * The mapping from wordType → Neo4j relationship type follows the
+ * `relAlias` mapping (CLASS_THREAD_INITIATION → IS_THE_CONCEPT_FOR, etc.).
+ *
+ * Each support event's `word.coreMemberOf[].uuid` already names the
+ * parent ConceptHeader's coordinate, so we can wire from that pointer
+ * without any guess-the-coord logic.
+ */
+async function wireStructuralEdges(event) {
+  if (event.kind !== 39999) return;
+  const payload = parseJsonTag(event);
+  const headerUuid = payload?.word?.coreMemberOf?.[0]?.uuid;
+  if (!headerUuid) return;
+  const wordTypes = Array.isArray(payload?.word?.wordTypes) ? payload.word.wordTypes : [];
+  const dTag = (event.tags || []).find((t) => t[0] === 'd')?.[1];
+  if (!dTag) return;
+  const childUuid = `${event.kind}:${event.pubkey}:${dTag}`;
+
+  // wordType → REL slug. Both are properties of the support event's role.
+  // (Superset → IS_THE_CONCEPT_FOR is the critical one for element wiring.)
+  let relSlug = null;
+  if (wordTypes.includes('superset')) relSlug = 'CLASS_THREAD_INITIATION';
+  else if (wordTypes.includes('jsonSchema')) relSlug = 'CORE_NODE_JSON_SCHEMA';
+  else if (wordTypes.includes('primaryProperty')) relSlug = 'CORE_NODE_PRIMARY_PROPERTY';
+  else if (wordTypes.includes('propertiesSet')) relSlug = 'CORE_NODE_PROPERTIES';
+  else if (wordTypes.includes('propertyTreeGraph')) relSlug = 'CORE_NODE_PROPERTY_TREE_GRAPH';
+  else if (wordTypes.includes('coreNodesGraph')) relSlug = 'CORE_NODE_CORE_GRAPH';
+  else if (wordTypes.includes('conceptGraph')) relSlug = 'CORE_NODE_CONCEPT_GRAPH';
+  if (!relSlug) return;
+
+  const edgeName = rel(relSlug);
+  const driver = getDriver();
+  const session = driver.session();
+  try {
+    await session.run(
+      `MATCH (h:NostrEvent {uuid: $headerUuid}), (c:NostrEvent {uuid: $childUuid})
+       MERGE (h)-[:${edgeName}]->(c)`,
+      { headerUuid, childUuid },
     );
   } finally {
     await session.close();
@@ -423,6 +478,7 @@ async function handleImport(req, res) {
       try {
         await importEventToNeo4j(ev);
         await applyContentLabels(ev);
+        await wireStructuralEdges(ev);
       } catch (err) {
         skipped.push({ eventId: ev.id, reason: `neo4j: ${err.message}` });
       }
@@ -483,12 +539,48 @@ async function handleKnownBySlug(req, res) {
   }
 }
 
+// ── GET /api/concept-discovery/installed-concepts ───────────────────────
+// Lists every ConceptHeader currently in Neo4j. Used by the relay-discovery
+// "view through concept" picker so the user can scope the aggregated view
+// to any installed concept (ours, foreign — anything). Generic on purpose:
+// the UI is what knows about relay-shape semantics, not this endpoint.
+
+const OUR_TA_PUBKEY = '82b75e474dda005e912bcbb910391c60c2b89cc7faf5d3c30b7c59a324973833';
+
+async function handleInstalledConcepts(req, res) {
+  try {
+    const rows = await runCypher(
+      `MATCH (c:ConceptHeader)
+       RETURN c.uuid AS coordinate, c.pubkey AS pubkey, c.name AS name, c.created_at AS createdAt
+       ORDER BY c.name ASC`,
+    );
+    res.json({
+      success: true,
+      concepts: rows.map((r) => {
+        const slug = (r.coordinate || '').split(':').pop();
+        return {
+          coordinate: r.coordinate,
+          pubkey: r.pubkey,
+          slug,
+          name: r.name || slug,
+          createdAt: r.createdAt,
+          isOurs: r.pubkey === OUR_TA_PUBKEY,
+        };
+      }),
+      count: rows.length,
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+}
+
 function registerConceptDiscoveryRoutes(app) {
   app.get('/api/concept-discovery/suggested-authors', handleSuggestedAuthors);
   app.get('/api/concept-discovery/concepts-by-pubkey', handleConceptsByPubkey);
   app.get('/api/concept-discovery/concept-preview', handleConceptPreview);
   app.post('/api/concept-discovery/import', handleImport);
   app.get('/api/concept-discovery/known-by-slug', handleKnownBySlug);
+  app.get('/api/concept-discovery/installed-concepts', handleInstalledConcepts);
 }
 
 module.exports = {
@@ -498,4 +590,5 @@ module.exports = {
   handleConceptPreview,
   handleImport,
   handleKnownBySlug,
+  handleInstalledConcepts,
 };

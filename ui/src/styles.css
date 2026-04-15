@@ -5109,3 +5109,121 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   padding: 0.02rem 0.25rem;
   border-radius: 2px;
 }
+
+/* ── Concept-lens picker on RelayDiscovery ──────────────── */
+.rdisc-concept-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.5rem 0.75rem;
+  background: rgba(168,85,247,0.05);
+  border: 1px solid rgba(168,85,247,0.18);
+  border-radius: 5px;
+  margin-bottom: 0.7rem;
+  font-size: 0.82rem;
+}
+.rdisc-concept-select {
+  flex: 1;
+  padding: 0.4rem 0.55rem;
+  background: rgba(0,0,0,0.3);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 5px;
+  color: inherit;
+  font-family: inherit;
+  font-size: 0.82rem;
+}
+.rdisc-concept-select:focus { outline: none; border-color: #a855f7; }
+.rdisc-concept-clear {
+  padding: 0.35rem 0.7rem;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 5px;
+  color: inherit;
+  font-family: inherit;
+  font-size: 0.74rem;
+  cursor: pointer;
+}
+.rdisc-concept-clear:hover { background: rgba(255,255,255,0.12); }
+
+.rdisc-schema-banner {
+  background: rgba(168,85,247,0.06);
+  border: 1px solid rgba(168,85,247,0.25);
+  border-radius: 5px;
+  padding: 0.6rem 0.8rem;
+  margin-bottom: 0.75rem;
+  font-size: 0.82rem;
+  color: rgba(255,255,255,0.85);
+}
+.rdisc-schema-banner-title {
+  font-weight: 600;
+  color: #e9d5ff;
+  margin-bottom: 0.3rem;
+}
+.rdisc-schema-banner-title code {
+  background: rgba(0,0,0,0.3);
+  padding: 0.05rem 0.4rem;
+  border-radius: 3px;
+  font-size: 0.76rem;
+  font-weight: 400;
+}
+.rdisc-schema-banner-body { color: rgba(255,255,255,0.7); line-height: 1.5; }
+.rdisc-extra-key {
+  background: rgba(168,85,247,0.18);
+  color: #e9d5ff;
+  padding: 0.05rem 0.4rem;
+  border-radius: 3px;
+  font-size: 0.78rem;
+  margin: 0 0.05rem;
+}
+
+.rdisc-extras-cell {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+.rdisc-extras-pill {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.25rem;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  background: rgba(168,85,247,0.12);
+  border: 1px solid rgba(168,85,247,0.3);
+  font-size: 0.74rem;
+}
+.rdisc-extras-key {
+  color: rgba(255,255,255,0.55);
+  font-size: 0.7rem;
+}
+.rdisc-extras-val {
+  color: #e9d5ff;
+  font-weight: 500;
+}
+.rdisc-extras-empty {
+  font-size: 0.74rem;
+  color: rgba(255,255,255,0.25);
+}
+
+.rdisc-appears-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.25rem;
+}
+.rdisc-appears-coord {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  padding: 0.1rem 0.4rem;
+  border-radius: 3px;
+  font-size: 0.7rem;
+  color: rgba(255,255,255,0.6);
+  word-break: break-all;
+}
+
+/* Operational panels (Demo Setup + Pipeline) move below the table once
+   the user has configured them. */
+.rdisc-ops-panels {
+  margin-top: 2rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(255,255,255,0.06);
+}
