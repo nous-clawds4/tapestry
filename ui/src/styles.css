@@ -4590,3 +4590,187 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   color: rgba(255,255,255,0.65);
   line-height: 1.5;
 }
+
+/* ── Floating TrustWidget ──────────────────────────────── */
+.trust-widget {
+  position: fixed;
+  bottom: 1rem;
+  right: 1rem;
+  z-index: 1200;
+  font-family: inherit;
+}
+.trust-widget-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.5rem 0.85rem;
+  background: rgba(99,102,241,0.22);
+  border: 1px solid rgba(99,102,241,0.45);
+  border-radius: 999px;
+  color: #e0e7ff;
+  font-family: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.35);
+  backdrop-filter: blur(6px);
+}
+.trust-widget-pill:hover {
+  background: rgba(99,102,241,0.32);
+  border-color: rgba(99,102,241,0.65);
+}
+.trust-widget-pill-label { font-weight: 600; }
+.trust-widget-pill-pov {
+  font-size: 0.72rem;
+  opacity: 0.8;
+  padding: 0.05rem 0.45rem;
+  border-radius: 999px;
+  background: rgba(0,0,0,0.35);
+  font-family: ui-monospace, SFMono-Regular, monospace;
+}
+
+.trust-widget-panel {
+  width: 320px;
+  max-width: calc(100vw - 2rem);
+  background: #18181d;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 10px;
+  box-shadow: 0 12px 44px rgba(0,0,0,0.55);
+  padding: 0.9rem 1rem 0.85rem;
+  color: inherit;
+}
+.trust-widget-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+.trust-widget-title {
+  font-weight: 600;
+  font-size: 0.88rem;
+  color: #e0e7ff;
+}
+.trust-widget-close {
+  background: transparent;
+  border: none;
+  color: rgba(255,255,255,0.55);
+  font-size: 1.3rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 0.25rem;
+}
+.trust-widget-close:hover { color: rgba(255,255,255,0.9); }
+
+.trust-widget-section + .trust-widget-section {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid rgba(255,255,255,0.06);
+}
+.trust-widget-label {
+  font-size: 0.7rem;
+  color: rgba(255,255,255,0.55);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 0.35rem;
+}
+
+.trust-widget-methods {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+.trust-widget-method {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.55rem;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 0.82rem;
+  color: rgba(255,255,255,0.75);
+}
+.trust-widget-method:hover { background: rgba(255,255,255,0.05); }
+.trust-widget-method.active {
+  background: rgba(99,102,241,0.15);
+  color: #c7d2fe;
+}
+.trust-widget-method input[type='radio'] { margin: 0; }
+
+.trust-widget-pov-current {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-bottom: 0.45rem;
+  font-size: 0.82rem;
+}
+.trust-widget-pov-current code {
+  background: rgba(255,255,255,0.08);
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  font-size: 0.78rem;
+}
+.trust-widget-badge {
+  font-size: 0.68rem;
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+  background: rgba(16,185,129,0.2);
+  color: #6ee7b7;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+}
+.trust-widget-pov-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-bottom: 0.45rem;
+}
+.trust-widget-btn {
+  padding: 0.3rem 0.65rem;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 5px;
+  color: inherit;
+  font-family: inherit;
+  font-size: 0.76rem;
+  cursor: pointer;
+}
+.trust-widget-btn:hover:not(:disabled) { background: rgba(255,255,255,0.1); }
+.trust-widget-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.trust-widget-btn-primary {
+  background: #6366f1;
+  border-color: #6366f1;
+  color: white;
+}
+.trust-widget-btn-primary:hover:not(:disabled) { background: #7780ff; }
+.trust-widget-pov-input {
+  display: flex;
+  gap: 0.35rem;
+}
+.trust-widget-pov-input input {
+  flex: 1;
+  padding: 0.35rem 0.55rem;
+  background: rgba(0,0,0,0.3);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 5px;
+  color: inherit;
+  font-family: inherit;
+  font-size: 0.78rem;
+  min-width: 0;
+}
+.trust-widget-pov-input input:focus {
+  outline: none;
+  border-color: #6366f1;
+}
+.trust-widget-error {
+  margin-top: 0.4rem;
+  font-size: 0.74rem;
+  color: #fca5a5;
+}
+.trust-widget-footer {
+  margin-top: 0.6rem;
+  padding-top: 0.55rem;
+  border-top: 1px solid rgba(255,255,255,0.06);
+  font-size: 0.7rem;
+  color: rgba(255,255,255,0.5);
+  line-height: 1.4;
+}
