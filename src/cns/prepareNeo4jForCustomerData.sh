@@ -89,6 +89,18 @@ oMetadata=$(jq -n \
     }')
 emit_task_event "PROGRESS" "prepareNeo4jForCustomerData" "$CUSTOMER_PUBKEY" "$oMetadata"
 
+# Ensure the observer (customer) always has a NostrUser node and SetOfNostrUserWotMetricsCards,
+# regardless of hop distance from the owner. Without this, customers who aren't followed by
+# anyone (hops=999) would never get scored because addSetsOfMetricsCards.sh filters on hops<100.
+cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "
+MERGE (n:NostrUser {pubkey: '$CUSTOMER_PUBKEY'})
+MERGE (n)-[:WOT_METRICS_CARDS]->(s:Set:SetOfNostrUserWotMetricsCards)
+SET s.observee_pubkey = n.pubkey
+RETURN count(s) AS created
+"
+echo "$(date): Ensured observer $CUSTOMER_PUBKEY has SetOfNostrUserWotMetricsCards"
+echo "$(date): Ensured observer $CUSTOMER_PUBKEY has SetOfNostrUserWotMetricsCards" >> ${LOG_FILE}
+
 # Add SetOfNostrUserWotMetricsCards nodes to the neo4j database. This does not require customer_id or customer_pubkey.
 if bash $BRAINSTORM_MODULE_BASE_DIR/src/cns/addSetsOfMetricsCards.sh; then
     # Emit structured event for first child script success
