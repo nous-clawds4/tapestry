@@ -160,11 +160,17 @@ echo "TOTAL_REPORT_COUNT: ${TOTAL_REPORT_COUNT}"
 echo "TOTAL_VERIFIED_REPORT_COUNT: ${TOTAL_VERIFIED_REPORT_COUNT}"
 echo "TOTAL_GRAPE_RANK_SCORE:  ${TOTAL_GRAPE_RANK_SCORE}"
 
+# Phase 3a: Only update nodes that have actually been reported (have incoming REPORTS relationships)
+# This avoids touching all 2.46M nodes — only the small subset that were reported
 cypherCommand="
 MATCH (u:NostrUser)
-SET u.nip56_totalVerifiedReportCount = $TOTAL_VERIFIED_REPORT_COUNT
-SET u.nip56_totalReportCount = $TOTAL_REPORT_COUNT
-SET u.nip56_totalGrapeRankScore = $TOTAL_GRAPE_RANK_SCORE
+WHERE EXISTS { MATCH ()-[:REPORTS]->(u) }
+CALL {
+    WITH u
+    SET u.nip56_totalVerifiedReportCount = $TOTAL_VERIFIED_REPORT_COUNT
+    SET u.nip56_totalReportCount = $TOTAL_REPORT_COUNT
+    SET u.nip56_totalGrapeRankScore = $TOTAL_GRAPE_RANK_SCORE
+} IN TRANSACTIONS OF 10000 ROWS
 RETURN COUNT(u) AS numReportedUsers
 "
 
@@ -172,7 +178,7 @@ echo "cypherCommand: ${cypherCommand}"
 
 cypherResults3=$(cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$cypherCommand")
 
-numReportedUsers="${cypherResults3:11}"
+numReportedUsers="${cypherResults3:17}"
 
 # Emit structured event for successful completion
 progressMetadata=$(jq -n \
