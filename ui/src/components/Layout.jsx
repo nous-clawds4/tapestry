@@ -20,6 +20,16 @@ const mainNavItems = [
     ],
   },
   {
+    label: '💰 Bounties',
+    prefix: '/tapestry/bounties',
+    children: [
+      { to: '/tapestry/bounties', label: 'All Bounties', end: true },
+      { to: '/tapestry/bounties/eligible', label: 'Eligibility' },
+      { to: '/tapestry/bounties/payments-due', label: 'Payments Due' },
+      { to: '/tapestry/bounties/new', label: 'New Bounty' },
+    ],
+  },
+  {
     label: '🧩 Concepts',
     prefix: '/tapestry/concepts',
     children: [

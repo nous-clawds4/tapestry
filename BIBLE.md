@@ -1391,4 +1391,37 @@ docker compose exec tapestry strfry sync wss://dcosl.brainstorm.world \
 
 ---
 
+## 22. Bounties (Magic Carpet v2)
+
+The bounties subsystem lets a list curator (Alice) offer Lightning sats to any trusted contributor (Bob) who adds items to her list.
+
+### Model
+
+- **Bounty = a row in SQLite**, not a nostr event. Bounties are app-level metadata (no cross-client coordination needed for a PoC). Schema lives in `src/db/bounties.js`; table is `bounties(id, issuer_pubkey, list_coordinate, amount_sats, criteria, expiration, created_at, status)`. DB file is `/var/lib/brainstorm/bounties.db` in prod (tapestry-data volume) or `./data/bounties.db` in dev.
+- **Claim = an ordinary kind-39999 ListItem** on the bountied list, published through tapestry's existing `/tapestry/lists/:id/items/new` flow. No new event kind, no new submission endpoint. Correlation is implicit: claims are items on `bounty.list_coordinate` by pubkeys trusted by the issuer (rank ≥ 2), created after `bounty.created_at`.
+- **Payment = NIP-57 zap** tagging the claim's event id. Client signs kind-9734, posts to the recipient's LNURL callback, gets back an invoice. Kind-9735 receipt (published by the LNURL provider) is the proof of payment.
+- **Fulfilled status = derived**: the bounty is considered `fulfilled` when any kind-9735 receipt exists whose embedded zap request pubkey (parsed from the receipt's `description` tag per NIP-57) equals `bounty.issuer_pubkey`, targeting the bounty's list coordinate.
+
+### Trust check
+
+The `/api/bounties/eligible` endpoint uses `src/lib/trust-rank.js`, a **provider-agnostic** wrapper that reads `rank(observer, subject)` from Trusted Assertions. It looks up `wot_rank_<povSuffix>` on the subject's Meilisearch profile document (where `povSuffix = observer.rankAuthor.slice(0,8)` read from the user-prefs file), falling back to a direct strfry scan for kind-30382 events if Meilisearch hasn't indexed the suffix yet. No GrapeRank-specific code paths — any WoT service provider whose assertions conform to the `rank` tag convention will work.
+
+Set `DEV_SKIP_TRUST_CHECK=true` in `.env` to bypass the rank gate for local development; returns `100` for every pair.
+
+### API
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/bounties` | Create a bounty (session required). Body: `{ listCoordinate, amountSats, criteria, expiration? }`. |
+| GET | `/api/bounties` | List bounties (`?status=open\|all`). Each includes a derived status. |
+| GET | `/api/bounties/eligible?viewer=<hex>` | Bounties whose issuer trusts the viewer at rank ≥ 2. |
+| GET | `/api/bounties/:id` | Single bounty + derived claims + zap receipts. |
+| GET | `/api/bounties/mine/payments-due` | Current user's bounties with unpaid claims. |
+
+### UI
+
+Routes live under `/tapestry/bounties/*`: `BountyList`, `BountyNew`, `BountyDetail`, `Eligibility`, `PaymentsDue`. The list-detail Actions tab has an "Incentivize" button that deeplinks into `BountyNew` with the list's a-tag coordinate pre-filled. The `items/new` page renders a claim banner when arrived at via `?bounty=<id>`.
+
+---
+
 *This document is maintained by the development team. When making significant architectural changes, update this file.*

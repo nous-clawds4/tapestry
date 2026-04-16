@@ -487,6 +487,10 @@ async function register(app) {
     const { registerTapestryKeyRoutes } = require('./tapestry-key');
     registerTapestryKeyRoutes(app);
 
+    // ── Bounties API (Magic Carpet v2) ──
+    const bountiesApi = require('./bounties');
+    bountiesApi.register(app);
+
     // Initialize router state (presets → state file → strfry config)
     await initRouter();
 

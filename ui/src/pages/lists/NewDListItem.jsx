@@ -1,8 +1,9 @@
 import { useState, useMemo, useEffect } from 'react';
-import { useNavigate, useOutletContext } from 'react-router-dom';
+import { useNavigate, useOutletContext, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import Breadcrumbs from '../../components/Breadcrumbs';
 import { childDTag, randomDTag } from '../../utils/dtag';
+import { getBounty } from '../../api/bounties';
 
 function getTag(event, name, index = 1) {
   const tag = event.tags?.find(t => t[0] === name);
@@ -17,6 +18,18 @@ export default function NewDListItem() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { event: parentEvent } = useOutletContext();
+  const [searchParams] = useSearchParams();
+  const bountyId = searchParams.get('bounty');
+  const [bountyInfo, setBountyInfo] = useState(null);
+
+  useEffect(() => {
+    if (!bountyId) return;
+    let cancelled = false;
+    getBounty(bountyId)
+      .then(payload => { if (!cancelled) setBountyInfo(payload); })
+      .catch(() => { /* silent; banner just won't render */ });
+    return () => { cancelled = true; };
+  }, [bountyId]);
 
   // Derive parent list info
   const parentName = getTag(parentEvent, 'names', 1) || getTag(parentEvent, 'name', 1) || '(unnamed)';
@@ -194,6 +207,23 @@ export default function NewDListItem() {
 
   return (
     <div className="new-dlist-item">
+      {bountyInfo?.bounty && (
+        <div style={{ padding: '0.9rem 1rem', background: '#1f3a55', border: '1px solid #1f6feb', borderRadius: 6, marginBottom: '1rem' }}>
+          <div style={{ fontSize: '0.85rem', opacity: 0.85, marginBottom: '0.25rem' }}>
+            💰 You're fulfilling a bounty
+          </div>
+          <div style={{ fontWeight: 600, marginBottom: '0.2rem' }}>
+            {bountyInfo.bounty.criteria}
+          </div>
+          <div style={{ fontSize: '0.85rem', opacity: 0.8 }}>
+            Issuer: <code>{bountyInfo.bounty.issuer_pubkey.slice(0, 8)}…</code>
+            {' · '}
+            Reward: <strong style={{ color: '#f2a134' }}>{bountyInfo.bounty.amount_sats.toLocaleString()} sats</strong>
+            {' · '}
+            The issuer (or anyone) may zap you if they approve your submission.
+          </div>
+        </div>
+      )}
       <h2>Add Item to "{parentName}"</h2>
 
       <div className="form-section">
