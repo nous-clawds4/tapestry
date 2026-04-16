@@ -91,6 +91,11 @@ async function buildTaskCommand(task, customerArgs = null, queryParams = {}) {
         args.push(queryParams.limit);
     }
 
+    // Handle optional warmStart argument
+    if (task.arguments && task.arguments.warmStart && queryParams.warmStart === 'true') {
+        args.push('warmStart');
+    }
+
     return { command, args };
 }
 

@@ -1617,6 +1617,7 @@
             const isRunning = task.execution?.isRunning || false;
             const requiresCustomer = task.categories.includes('customer');
             const hasLimitArg = !!(task.arguments && task.arguments.limit);
+            const hasWarmStartArg = !!(task.arguments && task.arguments.warmStart);
 
             let html = '<div class="task-actions">';
 
@@ -1630,7 +1631,7 @@
             const buttonClass = isRunning ? 'run-task-btn running' : 'run-task-btn';
             const disabled = isRunning ? 'disabled' : '';
 
-            html += `<button class="${buttonClass}" onclick="handleRunTask('${task.name}', ${requiresCustomer}, ${hasLimitArg})" ${disabled}>`;
+            html += `<button class="${buttonClass}" onclick="handleRunTask('${task.name}', ${requiresCustomer}, ${hasLimitArg}, ${hasWarmStartArg})" ${disabled}>`;
             html += buttonText;
             html += '</button>';
 
@@ -1644,7 +1645,7 @@
         }
 
         // Handle run task button click
-        async function handleRunTask(taskName, requiresCustomer, hasLimitArg) {
+        async function handleRunTask(taskName, requiresCustomer, hasLimitArg, hasWarmStartArg) {
             // Prompt for optional limit if task supports it
             let limitValue = null;
             if (hasLimitArg) {
@@ -1660,8 +1661,8 @@
             }
 
             if (requiresCustomer) {
-                // Show customer selector modal (limit will be passed via closure)
-                await showCustomerSelector(taskName, limitValue);
+                // Show customer selector modal (limit and warmStart will be passed via closure)
+                await showCustomerSelector(taskName, limitValue, hasWarmStartArg);
             } else {
                 // Run system task directly
                 await executeTask(taskName, null, limitValue);
@@ -1669,9 +1670,20 @@
         }
 
         // Show customer selector modal
-        async function showCustomerSelector(taskName, limitValue = null) {
+        async function showCustomerSelector(taskName, limitValue = null, hasWarmStartArg = false) {
             // Store limit for use by runTaskWithCustomer
             window._pendingLimitValue = limitValue;
+
+            // Build warm-start option HTML (only shown for tasks that support it)
+            const warmStartHTML = hasWarmStartArg ? `
+                        <div style="padding: 0.75rem 1rem; border-top: 1px solid #eee;">
+                            <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; font-size: 0.9rem;">
+                                <input type="checkbox" id="warm-start-checkbox" />
+                                <span>Warm Start</span>
+                                <span style="color: #888; font-size: 0.8rem;">(initialize from previous Neo4j scores instead of cold start)</span>
+                            </label>
+                        </div>
+            ` : '';
 
             // Create modal HTML
             const modalHTML = `
@@ -1689,6 +1701,8 @@
                         <div class="customer-list" id="customer-list">
                             <div style="padding: 2rem; text-align: center; color: #666;">Loading customers...</div>
                         </div>
+
+                        ${warmStartHTML}
 
                         <div class="modal-actions">
                             <button class="modal-btn modal-btn-secondary" onclick="closeCustomerModal()">Cancel</button>
@@ -1783,12 +1797,13 @@
             const customerName = selectedCustomer.dataset.name;
             const limitValue = window._pendingLimitValue || null;
             window._pendingLimitValue = null;
+            const warmStart = document.getElementById('warm-start-checkbox')?.checked || false;
 
             // Close customer modal
             closeCustomerModal();
 
-            // Execute task with customer + optional limit
-            await executeTask(taskName, { pubkey, customerName }, limitValue);
+            // Execute task with customer + optional limit + optional warmStart
+            await executeTask(taskName, { pubkey, customerName }, limitValue, warmStart);
         }
 
         // Close customer selector modal
@@ -1800,7 +1815,7 @@
         }
 
         // Execute task
-        async function executeTask(taskName, customerData = null, limitValue = null) {
+        async function executeTask(taskName, customerData = null, limitValue = null, warmStart = false) {
             // Build API URL
             let apiUrl = `/api/run-task?taskName=${encodeURIComponent(taskName)}`;
             if (customerData) {
@@ -1811,6 +1826,9 @@
             }
             if (limitValue) {
                 apiUrl += `&limit=${encodeURIComponent(limitValue)}`;
+            }
+            if (warmStart) {
+                apiUrl += `&warmStart=true`;
             }
             
             // Show execution modal

@@ -527,7 +527,13 @@
       "script": "$BRAINSTORM_MODULE_SRC_DIR/algos/customers/personalizedGrapeRank/personalizedGrapeRank.sh",
       "script_relative_path": "algos/customers/personalizedGrapeRank/personalizedGrapeRank.sh",
       "arguments": {
-        "customer": true
+        "customer": true,
+        "warmStart": {
+          "type": "boolean",
+          "label": "Warm Start",
+          "description": "Initialize from previous Neo4j scores instead of cold start",
+          "default": false
+        }
       },
       "parent": "updateAllScoresForSingleCustomer",
       "scope": "customer",

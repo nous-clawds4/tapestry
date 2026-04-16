@@ -20,6 +20,9 @@ CUSTOMER_ID="$2"
 # Get customer_name
 CUSTOMER_NAME="$3"
 
+# Get optional warm start flag (4th argument)
+WARM_START="${4:-}"
+
 # Get log directory
 LOG_DIR="$BRAINSTORM_LOG_DIR/customers/$CUSTOMER_NAME"
 
@@ -59,6 +62,7 @@ emit_task_event "TASK_START" "calculateCustomerGrapeRank" "$CUSTOMER_PUBKEY" '{
     "message": "Starting customer-specific GrapeRank calculation",
     "task_type": "customer_algorithm",
     "algorithm": "personalized_graperank",
+    "warm_start": "'$WARM_START'",
     "scope": "customer",
     "child_processes": 5,
     "phases": ["csv_initialization", "ratings_interpretation", "scorecards_initialization", "graperank_calculation", "neo4j_update"],
@@ -193,13 +197,15 @@ emit_task_event "PROGRESS" "calculateCustomerGrapeRank" "$CUSTOMER_PUBKEY" '{
     "phase": "scorecards_initialization",
     "step": "initialize_scorecards",
     "child_script": "initializeScorecards.js",
+    "warm_start": "'$WARM_START'",
     "algorithm": "personalized_graperank"
 }'
 
-# Initialize scorecards
-# TODO: initialize from neo4j if scores already exist
-# TODO: edit test changes to this file. scorecards_init.json should be in the customer-specific directory
-if node $BRAINSTORM_MODULE_ALGOS_DIR/customers/personalizedGrapeRank/initializeScorecards.js $CUSTOMER_PUBKEY $CUSTOMER_ID $CUSTOMER_NAME; then
+# Initialize scorecards (warm start reads previous scores from Neo4j; cold start uses [0,0,0,0])
+if [ "$WARM_START" = "warmStart" ]; then
+    echo "$(date): Using WARM START initialization from Neo4j" >> ${LOG_FILE}
+fi
+if node $BRAINSTORM_MODULE_ALGOS_DIR/customers/personalizedGrapeRank/initializeScorecards.js $CUSTOMER_PUBKEY $CUSTOMER_ID $CUSTOMER_NAME $WARM_START; then
     # Emit structured event for scorecards initialization success
     emit_task_event "PROGRESS" "calculateCustomerGrapeRank" "$CUSTOMER_PUBKEY" '{
         "customer_id": "'$CUSTOMER_ID'",
