@@ -27,6 +27,11 @@ import DListActions from './pages/lists/DListActions';
 import DListRatings from './pages/lists/DListRatings';
 import NewDList from './pages/lists/NewDList';
 import NewDListItem from './pages/lists/NewDListItem';
+import BountyList from './pages/bounties/BountyList';
+import BountyNew from './pages/bounties/BountyNew';
+import BountyDetail from './pages/bounties/BountyDetail';
+import Eligibility from './pages/bounties/Eligibility';
+import PaymentsDue from './pages/bounties/PaymentsDue';
 import NodesIndex from './pages/nodes/Index';
 import NodeDetail from './pages/nodes/NodeDetail';
 import NodeOverview from './pages/nodes/NodeOverview';
@@ -125,6 +130,17 @@ const router = createBrowserRouter([
               { path: 'schema', element: <ConceptSchema />, handle: { crumb: 'Schema' } },
             ],
           },
+        ],
+      },
+      {
+        path: 'bounties',
+        handle: { crumb: 'Bounties' },
+        children: [
+          { index: true, element: <BountyList /> },
+          { path: 'new', element: <BountyNew />, handle: { crumb: 'New Bounty' } },
+          { path: 'eligible', element: <Eligibility />, handle: { crumb: 'Eligibility' } },
+          { path: 'payments-due', element: <PaymentsDue />, handle: { crumb: 'Payments Due' } },
+          { path: ':id', element: <BountyDetail />, handle: { crumb: 'Detail' } },
         ],
       },
       {

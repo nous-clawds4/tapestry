@@ -1,0 +1,151 @@
+import { useEffect, useState } from 'react';
+import { useParams, Link } from 'react-router-dom';
+import Breadcrumbs from '../../components/Breadcrumbs';
+import { getBounty } from '../../api/bounties';
+import { zapContributor } from '../../utils/zap';
+
+function short(pk) { return pk ? pk.slice(0, 8) + '…' : '—'; }
+function age(ts) {
+  if (!ts) return '—';
+  const d = Date.now() / 1000 - ts;
+  if (d < 60) return `${Math.floor(d)}s ago`;
+  if (d < 3600) return `${Math.floor(d / 60)}m ago`;
+  if (d < 86400) return `${Math.floor(d / 3600)}h ago`;
+  return `${Math.floor(d / 86400)}d ago`;
+}
+
+function getTag(event, name) {
+  const tag = event.tags?.find(t => t[0] === name);
+  return tag ? tag[1] : null;
+}
+
+function titleFromClaim(event) {
+  const names = event.tags?.find(t => t[0] === 'names');
+  if (names && names[1]) return names[1];
+  return getTag(event, 'name') || event.id?.slice(0, 12) || '(untitled)';
+}
+
+function ClaimRow({ claim, bountyAmount, onZap }) {
+  const [busy, setBusy] = useState(false);
+  const [invoice, setInvoice] = useState(null);
+  const [error, setError] = useState(null);
+
+  const paid = !!claim.zapReceipt;
+
+  async function handleZap() {
+    if (paid) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const inv = await onZap(claim.event.pubkey, claim.event.id);
+      setInvoice(inv);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div style={{ padding: '0.9rem', background: '#161b22', border: '1px solid #30363d', borderRadius: 6, marginBottom: '0.5rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem' }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontWeight: 600 }}>{titleFromClaim(claim.event)}</div>
+          <div style={{ fontSize: '0.8rem', opacity: 0.6 }}>
+            by <code>{short(claim.event.pubkey)}</code> · {age(claim.event.created_at)}
+          </div>
+          {claim.event.content && (
+            <div style={{ marginTop: '0.4rem', fontSize: '0.9rem', opacity: 0.85 }}>{claim.event.content}</div>
+          )}
+        </div>
+        <div style={{ textAlign: 'right' }}>
+          {paid ? (
+            <span style={{ background: '#2ea043', color: '#fff', padding: '0.2rem 0.5rem', borderRadius: 3, fontSize: '0.75rem' }}>
+              Paid
+            </span>
+          ) : (
+            <button
+              onClick={handleZap}
+              disabled={busy}
+              style={{ padding: '0.4rem 0.9rem', background: '#f2a134', color: '#0d1117', border: 'none', borderRadius: 4, fontWeight: 700, cursor: busy ? 'wait' : 'pointer' }}
+            >
+              {busy ? 'Zapping…' : `Zap ${bountyAmount} sats`}
+            </button>
+          )}
+        </div>
+      </div>
+      {invoice && (
+        <div style={{ marginTop: '0.6rem', padding: '0.6rem', background: '#0d1117', borderRadius: 4 }}>
+          <div style={{ fontSize: '0.75rem', opacity: 0.6, marginBottom: 4 }}>Lightning invoice (pay with your wallet):</div>
+          <textarea readOnly value={invoice} rows={3} style={{ width: '100%', fontFamily: 'monospace', fontSize: '0.75rem', background: '#010409', color: '#c9d1d9', border: '1px solid #30363d', borderRadius: 3 }} />
+        </div>
+      )}
+      {error && <div style={{ color: '#f85149', marginTop: '0.4rem', fontSize: '0.85rem' }}>{error}</div>}
+    </div>
+  );
+}
+
+export default function BountyDetail() {
+  const { id } = useParams();
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  async function refresh() {
+    try {
+      setLoading(true);
+      setError(null);
+      const payload = await getBounty(id);
+      setData(payload);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => { refresh(); }, [id]);
+
+  if (loading) return <div className="page"><Breadcrumbs /><p>Loading bounty…</p></div>;
+  if (error) return <div className="page"><Breadcrumbs /><p className="error">Error: {error}</p></div>;
+  if (!data?.bounty) return <div className="page"><Breadcrumbs /><p>Bounty not found.</p></div>;
+
+  const { bounty, claims = [] } = data;
+  const derived = bounty.derivedStatus || bounty.status;
+
+  async function onZap(recipientPubkeyHex, claimEventId) {
+    return zapContributor({ recipientPubkeyHex, amountSats: bounty.amount_sats, claimEventId });
+  }
+
+  const listHref = `/tapestry/lists/${encodeURIComponent(bounty.list_coordinate)}`;
+
+  return (
+    <div className="page">
+      <Breadcrumbs />
+      <div style={{ marginBottom: '1.5rem' }}>
+        <div style={{ fontSize: '0.8rem', opacity: 0.55, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Bounty</div>
+        <h1 style={{ margin: '0.2rem 0 0.4rem', color: '#f2a134' }}>
+          {bounty.amount_sats.toLocaleString()} sats
+          <span style={{ fontSize: '0.8rem', marginLeft: '0.8rem', padding: '0.2rem 0.5rem', background: derived === 'open' ? '#2ea043' : '#8b949e', color: '#fff', borderRadius: 3, verticalAlign: 'middle' }}>
+            {derived}
+          </span>
+        </h1>
+        <div style={{ fontSize: '0.9rem', opacity: 0.85 }}>{bounty.criteria}</div>
+        <div style={{ fontSize: '0.8rem', opacity: 0.6, marginTop: '0.4rem' }}>
+          issued by <code>{short(bounty.issuer_pubkey)}</code> · {age(bounty.created_at)}
+        </div>
+        <div style={{ fontSize: '0.85rem', marginTop: '0.3rem' }}>
+          target list: <Link to={listHref} style={{ fontFamily: 'monospace' }}>{bounty.list_coordinate}</Link>
+        </div>
+      </div>
+
+      <h2 style={{ fontSize: '1.2rem', marginTop: '1.5rem' }}>Claims ({claims.length})</h2>
+      {claims.length === 0 && (
+        <p style={{ opacity: 0.6 }}>No claims yet. Trusted contributors submitting list items will appear here.</p>
+      )}
+      {claims.map(c => (
+        <ClaimRow key={c.event.id} claim={c} bountyAmount={bounty.amount_sats} onZap={onZap} />
+      ))}
+    </div>
+  );
+}
