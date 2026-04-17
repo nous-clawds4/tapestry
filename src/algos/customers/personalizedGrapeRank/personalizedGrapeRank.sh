@@ -89,6 +89,7 @@ if [ ! -f /var/lib/brainstorm/algos/personalizedGrapeRank/tmp/follows.csv ] && [
         "algorithm": "personalized_graperank"
     }'
     
+    SECONDS=0
     if bash $BRAINSTORM_MODULE_ALGOS_DIR/customers/personalizedGrapeRank/initializeRawDataCsv.sh; then
         # Emit structured event for CSV initialization success
         emit_task_event "PROGRESS" "calculateCustomerGrapeRank" "$CUSTOMER_PUBKEY" '{
@@ -100,6 +101,7 @@ if [ ! -f /var/lib/brainstorm/algos/personalizedGrapeRank/tmp/follows.csv ] && [
             "step": "initialize_raw_data_csv_complete",
             "child_script": "initializeRawDataCsv.sh",
             "status": "success",
+            "phase_duration_seconds": "'$SECONDS'",
             "algorithm": "personalized_graperank"
         }'
     else
@@ -133,6 +135,7 @@ else
         "phase": "csv_initialization",
         "step": "skip_existing_csv_files",
         "status": "skipped",
+        "phase_duration_seconds": "0",
         "algorithm": "personalized_graperank"
     }'
 fi
@@ -153,6 +156,7 @@ emit_task_event "PROGRESS" "calculateCustomerGrapeRank" "$CUSTOMER_PUBKEY" '{
 }'
 
 # Interpret ratings. Pass CUSTOMER_PUBKEY, CUSTOMER_ID, and CUSTOMER_NAME as arguments to interpretRatings.js
+SECONDS=0
 if node $BRAINSTORM_MODULE_ALGOS_DIR/customers/personalizedGrapeRank/interpretRatings.js $CUSTOMER_PUBKEY $CUSTOMER_ID $CUSTOMER_NAME; then
     # Emit structured event for ratings interpretation success
     emit_task_event "PROGRESS" "calculateCustomerGrapeRank" "$CUSTOMER_PUBKEY" '{
@@ -164,6 +168,7 @@ if node $BRAINSTORM_MODULE_ALGOS_DIR/customers/personalizedGrapeRank/interpretRa
         "step": "interpret_ratings_complete",
         "child_script": "interpretRatings.js",
         "status": "success",
+        "phase_duration_seconds": "'$SECONDS'",
         "algorithm": "personalized_graperank"
     }'
 else
@@ -205,6 +210,7 @@ emit_task_event "PROGRESS" "calculateCustomerGrapeRank" "$CUSTOMER_PUBKEY" '{
 if [ "$WARM_START" = "warmStart" ]; then
     echo "$(date): Using WARM START initialization from Neo4j" >> ${LOG_FILE}
 fi
+SECONDS=0
 if node $BRAINSTORM_MODULE_ALGOS_DIR/customers/personalizedGrapeRank/initializeScorecards.js $CUSTOMER_PUBKEY $CUSTOMER_ID $CUSTOMER_NAME $WARM_START; then
     # Emit structured event for scorecards initialization success
     emit_task_event "PROGRESS" "calculateCustomerGrapeRank" "$CUSTOMER_PUBKEY" '{
@@ -216,6 +222,8 @@ if node $BRAINSTORM_MODULE_ALGOS_DIR/customers/personalizedGrapeRank/initializeS
         "step": "initialize_scorecards_complete",
         "child_script": "initializeScorecards.js",
         "status": "success",
+        "phase_duration_seconds": "'$SECONDS'",
+        "warm_start": "'$WARM_START'",
         "algorithm": "personalized_graperank"
     }'
 else
@@ -252,8 +260,9 @@ emit_task_event "PROGRESS" "calculateCustomerGrapeRank" "$CUSTOMER_PUBKEY" '{
     "algorithm": "personalized_graperank"
 }'
 
-# Calculate GrapeRank
-if node $BRAINSTORM_MODULE_ALGOS_DIR/customers/personalizedGrapeRank/calculateGrapeRank.js $CUSTOMER_PUBKEY $CUSTOMER_ID $CUSTOMER_NAME; then
+# Calculate GrapeRank (pass $WARM_START so the script can log warm vs. cold mode)
+SECONDS=0
+if node $BRAINSTORM_MODULE_ALGOS_DIR/customers/personalizedGrapeRank/calculateGrapeRank.js $CUSTOMER_PUBKEY $CUSTOMER_ID $CUSTOMER_NAME $WARM_START; then
     # Emit structured event for GrapeRank calculation success
     emit_task_event "PROGRESS" "calculateCustomerGrapeRank" "$CUSTOMER_PUBKEY" '{
         "customer_id": "'$CUSTOMER_ID'",
@@ -264,6 +273,8 @@ if node $BRAINSTORM_MODULE_ALGOS_DIR/customers/personalizedGrapeRank/calculateGr
         "step": "calculate_graperank_complete",
         "child_script": "calculateGrapeRank.js",
         "status": "success",
+        "phase_duration_seconds": "'$SECONDS'",
+        "warm_start": "'$WARM_START'",
         "algorithm": "personalized_graperank"
     }'
 else
@@ -301,6 +312,7 @@ emit_task_event "PROGRESS" "calculateCustomerGrapeRank" "$CUSTOMER_PUBKEY" '{
 }'
 
 # update Neo4j
+SECONDS=0
 if node $BRAINSTORM_MODULE_ALGOS_DIR/customers/personalizedGrapeRank/updateNeo4jWithApoc.js $CUSTOMER_PUBKEY $CUSTOMER_ID $CUSTOMER_NAME; then
     # Emit structured event for Neo4j update success
     emit_task_event "PROGRESS" "calculateCustomerGrapeRank" "$CUSTOMER_PUBKEY" '{
@@ -312,6 +324,7 @@ if node $BRAINSTORM_MODULE_ALGOS_DIR/customers/personalizedGrapeRank/updateNeo4j
         "step": "update_neo4j_with_apoc_complete",
         "child_script": "updateNeo4jWithApoc.js",
         "status": "success",
+        "phase_duration_seconds": "'$SECONDS'",
         "algorithm": "personalized_graperank"
     }'
 else

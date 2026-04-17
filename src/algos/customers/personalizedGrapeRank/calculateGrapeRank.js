@@ -33,11 +33,13 @@ const readline = require('readline');
 const { createReadStream, createWriteStream } = require('fs');
 const { Transform } = require('stream');
 const { pipeline } = require('stream/promises');
+const { emitTaskEvent } = require('../../../utils/structuredLogging');
 
-// Extract CUSTOMER_PUBKEY, CUSTOMER_ID, and CUSTOMER_NAME which are passed as arguments
+// Extract CUSTOMER_PUBKEY, CUSTOMER_ID, CUSTOMER_NAME, and optional WARM_START flag
 const CUSTOMER_PUBKEY = process.argv[2];
 const CUSTOMER_ID = process.argv[3];
 const CUSTOMER_NAME = process.argv[4];
+const WARM_START = process.argv[5] === 'warmStart';
 
 // Configuration
 const LOG_DIR  = '/var/log/brainstorm/customers/' + CUSTOMER_NAME;
@@ -527,13 +529,58 @@ async function main() {
     // Write metadata to file
     fs.writeFileSync(metadataFile, JSON.stringify(metadata, null, 2));
     log(`Wrote metadata to ${metadataFile}`);
-    
+
+    // Append metadata to per-customer history JSONL (survives temp-dir cleanup)
+    try {
+      const historyFile = `/var/log/brainstorm/customers/${CUSTOMER_NAME}/graperank_history.jsonl`;
+      const historyEntry = {
+        timestamp: metadata.timestamp,
+        customer_pubkey: CUSTOMER_PUBKEY,
+        customer_name: CUSTOMER_NAME,
+        warm_start: WARM_START ? 'warmStart' : 'coldStart',
+        iterations: metadata.iterations,
+        converged: metadata.converged,
+        max_difference: metadata.max_difference,
+        calculation_time_ms: metadata.calculation_time_ms,
+        total_scorecards: metadata.total_scorecards,
+        parameters: metadata.parameters
+      };
+      fs.appendFileSync(historyFile, JSON.stringify(historyEntry) + '\n');
+      log(`Appended run summary to ${historyFile}`);
+    } catch (historyErr) {
+      log(`Warning: failed to append to graperank_history.jsonl: ${historyErr.message}`);
+    }
+
+    // Emit a structured PROGRESS event so iteration count and convergence appear
+    // in /var/log/brainstorm/taskQueue/events.jsonl and in the task.html timeline.
+    try {
+      await emitTaskEvent('PROGRESS', 'calculateCustomerGrapeRank', CUSTOMER_PUBKEY, {
+        customer_id: CUSTOMER_ID,
+        customer_pubkey: CUSTOMER_PUBKEY,
+        customer_name: CUSTOMER_NAME,
+        message: 'GrapeRank iteration loop complete',
+        phase: 'graperank_calculation',
+        step: 'iteration_complete',
+        iterations: metadata.iterations,
+        converged: metadata.converged,
+        max_difference: metadata.max_difference,
+        calculation_time_ms: metadata.calculation_time_ms,
+        total_scorecards: metadata.total_scorecards,
+        warm_start: WARM_START ? 'warmStart' : 'coldStart',
+        max_iterations: MAX_ITERATIONS,
+        convergence_threshold: CONVERGENCE_THRESHOLD,
+        algorithm: 'personalized_graperank'
+      });
+    } catch (emitErr) {
+      log(`Warning: failed to emit iteration_complete event: ${emitErr.message}`);
+    }
+
     debug += `${new Date().toISOString()}: GrapeRank calculation completed\n`;
     // Write debug log
     fs.writeFileSync(debugFile, debug);
     log(`Wrote debug log to ${debugFile}`);
-    
-    log(`GrapeRank calculation completed in ${metadata.calculation_time_ms}ms`);
+
+    log(`GrapeRank calculation completed in ${metadata.calculation_time_ms}ms (iterations=${metadata.iterations}, converged=${metadata.converged}, warm_start=${WARM_START})`);
   } catch (error) {
     log(`Error calculating GrapeRank: ${error.message}`);
     console.error(error.stack);
