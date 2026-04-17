@@ -13,6 +13,7 @@ const fs = require('fs');
 const path = require('path');
 const readline = require('readline');
 const { execSync } = require('child_process');
+const { emitTaskEvent } = require('../../../utils/structuredLogging');
 
 // Extract CUSTOMER_PUBKEY, CUSTOMER_ID, CUSTOMER_NAME, and optional WARM_START flag
 const CUSTOMER_PUBKEY = process.argv[2];
@@ -64,7 +65,13 @@ function loadScorecardsFromNeo4j(customerId) {
 
   const command = `cypher-shell -a "${neo4jConfig.uri}" -u "${neo4jConfig.username}" -p "${neo4jConfig.password}" "${cypher}" --format plain`;
 
-  const output = execSync(command, { encoding: 'utf8', timeout: 60000 });
+  // maxBuffer: 500 MB handles ~2.5M rows; default 1 MB truncates at ~5k rows.
+  // timeout: 5 minutes to accommodate large customers.
+  const output = execSync(command, {
+    encoding: 'utf8',
+    timeout: 300000,
+    maxBuffer: 500 * 1024 * 1024
+  });
 
   const scorecards = {};
   const lines = output.trim().split('\n');
@@ -107,13 +114,19 @@ async function main() {
 
     // Load existing scores from Neo4j if warm start is enabled
     let neo4jScorecards = {};
+    let warmStartStatus = 'disabled';
+    let warmStartError = null;
     if (WARM_START) {
       try {
         neo4jScorecards = loadScorecardsFromNeo4j(CUSTOMER_ID);
-        console.log(`Warm start: loaded ${Object.keys(neo4jScorecards).length} existing scores from Neo4j`);
+        const count = Object.keys(neo4jScorecards).length;
+        console.log(`Warm start: loaded ${count} existing scores from Neo4j`);
+        warmStartStatus = count > 0 ? 'loaded' : 'no_prior_scores';
       } catch (error) {
         console.warn(`Warm start failed, falling back to cold start: ${error.message}`);
         neo4jScorecards = {};
+        warmStartStatus = 'failed';
+        warmStartError = error.message;
       }
     }
 
@@ -169,6 +182,27 @@ async function main() {
       console.log(`Successfully created scorecards_init.json: ${warmCount} warm-started, ${coldCount} cold-started, ${Object.keys(scorecards).length} total`);
     } else {
       console.log(`Successfully created scorecards_init.json with ${Object.keys(scorecards).length} entries (cold start)`);
+    }
+
+    // Emit structured event so warm_start outcome is visible in task.html timeline
+    try {
+      await emitTaskEvent('PROGRESS', 'calculateCustomerGrapeRank', CUSTOMER_PUBKEY, {
+        customer_id: CUSTOMER_ID,
+        customer_pubkey: CUSTOMER_PUBKEY,
+        customer_name: CUSTOMER_NAME,
+        message: 'Scorecards initialized',
+        phase: 'scorecards_initialization',
+        step: 'initialize_scorecards_summary',
+        warm_start: WARM_START ? 'warmStart' : 'coldStart',
+        warm_start_status: warmStartStatus,
+        warm_start_error: warmStartError,
+        warm_started_count: warmCount,
+        cold_started_count: coldCount,
+        total_scorecards: Object.keys(scorecards).length,
+        algorithm: 'personalized_graperank'
+      });
+    } catch (emitErr) {
+      console.warn(`Warning: failed to emit initialize_scorecards_summary event: ${emitErr.message}`);
     }
   } catch (error) {
     console.error(`Error initializing scorecards: ${error.message}`);
