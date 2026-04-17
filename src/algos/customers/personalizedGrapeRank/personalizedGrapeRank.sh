@@ -23,6 +23,11 @@ CUSTOMER_NAME="$3"
 # Get optional warm start flag (4th argument)
 WARM_START="${4:-}"
 
+# Export this shell's PID so child Node.js scripts emit events with the same
+# PID, causing them to be grouped into the same task session in the timeline UI
+# (StructuredEventsAnalyzer groups by taskName + pid).
+export BRAINSTORM_TASK_PID=$$
+
 # Get log directory
 LOG_DIR="$BRAINSTORM_LOG_DIR/customers/$CUSTOMER_NAME"
 

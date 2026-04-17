@@ -177,7 +177,10 @@ async function emitTaskEvent(eventType, taskName, target = '', metadata = {}) {
         // Get event details
         const timestamp = getIsoTimestamp();
         const scriptName = getScriptName();
-        const pid = process.pid;
+        // Prefer the orchestrating shell's PID (when provided via env) so that
+        // events from Node.js child scripts are grouped into the same session
+        // as the shell's events in the task timeline UI. Falls back to own PID.
+        const pid = parseInt(process.env.BRAINSTORM_TASK_PID, 10) || process.pid;
         
         // Ensure metadata is an object and compact it
         let metadataJson;
