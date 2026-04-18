@@ -15,6 +15,10 @@
 CONFIG_FILE="/etc/brainstorm.conf"
 source "$CONFIG_FILE" # BRAINSTORM_MODULE_MANAGE_DIR, BRAINSTORM_LOG_DIR, BRAINSTORM_MODULE_ALGOS_DIR, BRAINSTORM_MODULE_PIPELINE_DIR
 
+# Optional 1st argument: warmStart flag, forwarded to processAllActiveCustomers
+# and ultimately to each customer's GrapeRank calculation.
+WARM_START="${1:-}"
+
 # Source structured logging utilities
 source "$BRAINSTORM_MODULE_BASE_DIR/src/utils/structuredLogging.sh"
 
@@ -61,13 +65,15 @@ oMetadata=$(jq -n \
     --arg description "Top-level orchestrator for entire Brainstorm system" \
     --arg scope "system_wide" \
     --arg orchestrator_level "primary" \
+    --arg warm_start "$WARM_START" \
     '{
         "message": $message,
         "pipeline_type": $pipeline_type,
         "child_tasks": $child_tasks,
         "description": $description,
         "scope": $scope,
-        "orchestrator_level": $orchestrator_level
+        "orchestrator_level": $orchestrator_level,
+        "warm_start": $warm_start
     }')
 emit_task_event "TASK_START" "processAllTasks" "" "$oMetadata"
 
@@ -218,7 +224,7 @@ sleep 5
 
 #################### processAllActiveCustomers: start  ##############
 # Child Task 6: Process All Active Customers
-launch_child_task "processAllActiveCustomers" "processAllTasks" "" ""
+launch_child_task "processAllActiveCustomers" "processAllTasks" "" "$WARM_START"
 #################### processAllActiveCustomers: complete  ##############
 
 sleep 5

@@ -35,7 +35,11 @@ CUSTOMER_PUBKEY="$1"
 CUSTOMER_ID="$2"
 
 # Get customer_directory_name
-CUSTOMER_DIRECTORY_NAME="$3"  
+CUSTOMER_DIRECTORY_NAME="$3"
+
+# Optional 4th argument: warmStart flag, forwarded to updateAllScoresForSingleCustomer
+# and ultimately to the GrapeRank calculation for this customer.
+WARM_START="${4:-}"
 
 # Get log directory
 LOG_DIR="$BRAINSTORM_LOG_DIR/customers/$CUSTOMER_DIRECTORY_NAME"
@@ -60,11 +64,13 @@ oMetadata=$(jq -n \
     --argjson customer_id "$CUSTOMER_ID" \
     --arg customer_directory_name "$CUSTOMER_DIRECTORY_NAME" \
     --arg customer_pubkey "$CUSTOMER_PUBKEY" \
+    --arg warm_start "$WARM_START" \
     '{
-        "message": $message, 
-        "customer_id": $customer_id, 
-        "customer_directory_name": $customer_directory_name, 
-        "customer_pubkey": $customer_pubkey
+        "message": $message,
+        "customer_id": $customer_id,
+        "customer_directory_name": $customer_directory_name,
+        "customer_pubkey": $customer_pubkey,
+        "warm_start": $warm_start
     }')
 emit_task_event "TASK_START" "processCustomer" "" "$oMetadata"
 
@@ -91,9 +97,9 @@ run_with_timeout() {
     # Create a unique marker file to detect completion
     COMPLETION_MARKER="/tmp/scores_completed_${CUSTOMER_ID}_$(date +%s)"
     
-    # Run the script in background
+    # Run the script in background (forward WARM_START as optional 4th arg)
     {
-        bash $BRAINSTORM_MODULE_ALGOS_DIR/customers/updateAllScoresForSingleCustomer.sh $CUSTOMER_PUBKEY $CUSTOMER_ID $CUSTOMER_DIRECTORY_NAME
+        bash $BRAINSTORM_MODULE_ALGOS_DIR/customers/updateAllScoresForSingleCustomer.sh $CUSTOMER_PUBKEY $CUSTOMER_ID $CUSTOMER_DIRECTORY_NAME $WARM_START
         # Create marker file upon successful completion
         touch "$COMPLETION_MARKER"
     } &

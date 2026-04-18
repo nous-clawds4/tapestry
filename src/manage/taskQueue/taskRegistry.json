@@ -67,7 +67,14 @@
       ],
       "script": "$BRAINSTORM_MODULE_SRC_DIR/manage/processAllTasks.sh",
       "script_relative_path": "manage/processAllTasks.sh",
-      "arguments": false,
+      "arguments": {
+        "warmStart": {
+          "type": "boolean",
+          "label": "Warm Start",
+          "description": "Propagate warm start to the GrapeRank calculation(s) this task triggers",
+          "default": false
+        }
+      },
       "children": [
         "neo4jConstraintsAndIndexes",
         "syncWoT",
@@ -367,7 +374,13 @@
       "script": "$BRAINSTORM_MODULE_SRC_DIR/algos/customers/processAllActiveCustomers.sh",
       "script_relative_path": "algos/customers/processAllActiveCustomers.sh",
       "arguments": {
-        "customer": false
+        "customer": false,
+        "warmStart": {
+          "type": "boolean",
+          "label": "Warm Start",
+          "description": "Propagate warm start to the GrapeRank calculation(s) this task triggers",
+          "default": false
+        }
       },
       "parent": "processAllTasks",
       "children": [
@@ -392,7 +405,13 @@
       "script": "$BRAINSTORM_MODULE_SRC_DIR/algos/customers/processCustomer.sh",
       "script_relative_path": "algos/customers/processCustomer.sh",
       "arguments": {
-        "customer": true
+        "customer": true,
+        "warmStart": {
+          "type": "boolean",
+          "label": "Warm Start",
+          "description": "Propagate warm start to the GrapeRank calculation(s) this task triggers",
+          "default": false
+        }
       },
       "averageDuration": 564500,
       "parent": "processAllActiveCustomers",
@@ -472,7 +491,13 @@
       "script": "$BRAINSTORM_MODULE_SRC_DIR/algos/customers/updateAllScoresForSingleCustomer.sh",
       "script_relative_path": "algos/customers/updateAllScoresForSingleCustomer.sh",
       "arguments": {
-        "customer": true
+        "customer": true,
+        "warmStart": {
+          "type": "boolean",
+          "label": "Warm Start",
+          "description": "Propagate warm start to the GrapeRank calculation(s) this task triggers",
+          "default": false
+        }
       },
       "parent": "processCustomer",
       "children": [

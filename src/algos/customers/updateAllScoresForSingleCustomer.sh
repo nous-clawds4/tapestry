@@ -25,6 +25,10 @@ CUSTOMER_ID="$2"
 # Get customer_directory_name
 CUSTOMER_DIRECTORY_NAME="$3"
 
+# Optional 4th argument: warmStart flag, forwarded to personalizedGrapeRank.sh
+# to enable warm-start initialization from previous Neo4j scores.
+WARM_START="${4:-}"
+
 # Get log directory
 LOG_DIR="$BRAINSTORM_LOG_DIR/customers/$CUSTOMER_DIRECTORY_NAME"
 
@@ -50,6 +54,7 @@ oMetadata=$(jq -n \
     --argjson child_tasks 5 \
     --arg scope "customer_specific" \
     --arg orchestrator_level "secondary" \
+    --arg warm_start "$WARM_START" \
     '{
         "customer_id": $customer_id,
         "customer_pubkey": $customer_pubkey,
@@ -57,7 +62,8 @@ oMetadata=$(jq -n \
         "description": $description,
         "child_tasks": $child_tasks,
         "scope": $scope,
-        "orchestrator_level": $orchestrator_level
+        "orchestrator_level": $orchestrator_level,
+        "warm_start": $warm_start
     }')
 emit_task_event "TASK_START" "updateAllScoresForSingleCustomer" "$CUSTOMER_PUBKEY" "$oMetadata"
 
@@ -226,8 +232,8 @@ oMetadata=$(jq -n \
     }')
 emit_task_event "CHILD_TASK_START" "calculateCustomerGrapeRank" "$CUSTOMER_PUBKEY" "$oMetadata"
 
-# Run personalizedGrapeRank.sh
-if bash $BRAINSTORM_MODULE_ALGOS_DIR/customers/personalizedGrapeRank/personalizedGrapeRank.sh "$CUSTOMER_PUBKEY" "$CUSTOMER_ID" "$CUSTOMER_DIRECTORY_NAME"; then
+# Run personalizedGrapeRank.sh (forward WARM_START as optional 4th arg)
+if bash $BRAINSTORM_MODULE_ALGOS_DIR/customers/personalizedGrapeRank/personalizedGrapeRank.sh "$CUSTOMER_PUBKEY" "$CUSTOMER_ID" "$CUSTOMER_DIRECTORY_NAME" "$WARM_START"; then
     oMetadata=$(jq -n \
     --argjson customer_id "$CUSTOMER_ID" \
     --arg customer_pubkey "$CUSTOMER_PUBKEY" \

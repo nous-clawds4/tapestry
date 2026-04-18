@@ -9,6 +9,10 @@ set -o pipefail # Fail if any pipeline command fails
 # Source configuration
 source /etc/brainstorm.conf # BRAINSTORM_MODULE_ALGOS_DIR, BRAINSTORM_LOG_DIR
 
+# Optional 1st argument: warmStart flag, forwarded to each processCustomer
+# invocation and ultimately to the GrapeRank calculation for each customer.
+WARM_START="${1:-}"
+
 # Source structured logging utilities
 source "$BRAINSTORM_MODULE_BASE_DIR/src/utils/structuredLogging.sh"
 
@@ -34,7 +38,8 @@ emit_task_event "TASK_START" "processAllActiveCustomers" "" '{
     "message": "Starting processing of all active customers",
     "orchestrator_type": "customer_iteration",
     "description": "Consolidated script to process all active customers",
-    "scope": "all_customers"
+    "scope": "all_customers",
+    "warm_start": "'$WARM_START'"
 }'
 
 # Define paths
@@ -110,8 +115,8 @@ while IFS=',' read -r customer_id customer_pubkey customer_name; do
         "operation": "individual_customer_processing"
     }'
     
-    # Construct and execute the command
-    command="bash $PROCESS_CUSTOMER_SCRIPT $customer_pubkey $customer_id $customer_name"
+    # Construct and execute the command (forward WARM_START as optional 4th arg)
+    command="bash $PROCESS_CUSTOMER_SCRIPT $customer_pubkey $customer_id $customer_name $WARM_START"
     log_message "Executing: $command"
     
     if $command; then

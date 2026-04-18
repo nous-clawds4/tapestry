@@ -1663,10 +1663,56 @@
             if (requiresCustomer) {
                 // Show customer selector modal (limit and warmStart will be passed via closure)
                 await showCustomerSelector(taskName, limitValue, hasWarmStartArg);
+            } else if (hasWarmStartArg) {
+                // System task with a Warm Start toggle: show a lightweight options modal
+                await showSystemTaskOptionsModal(taskName, limitValue);
             } else {
                 // Run system task directly
                 await executeTask(taskName, null, limitValue);
             }
+        }
+
+        // Show system-task options modal (used when a task has no customer arg
+        // but does have a Warm Start toggle). Lightweight variant of the
+        // customer selector modal — no customer list.
+        async function showSystemTaskOptionsModal(taskName, limitValue = null) {
+            const modalHTML = `
+                <div class="modal-overlay" id="system-task-modal">
+                    <div class="modal">
+                        <div class="modal-header">
+                            <div class="modal-title">Run Task</div>
+                            <div class="modal-subtitle">Configure options for: <strong>${taskName}</strong>${limitValue ? ` (limit: ${limitValue})` : ''}</div>
+                        </div>
+
+                        <div style="padding: 1rem 1.25rem;">
+                            <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; font-size: 0.95rem;">
+                                <input type="checkbox" id="system-warm-start-checkbox" />
+                                <span>Warm Start</span>
+                                <span style="color: #888; font-size: 0.85rem;">(initialize from previous Neo4j scores instead of cold start)</span>
+                            </label>
+                        </div>
+
+                        <div class="modal-actions">
+                            <button class="modal-btn modal-btn-secondary" onclick="closeSystemTaskModal()">Cancel</button>
+                            <button class="modal-btn modal-btn-primary" onclick="runSystemTaskWithOptions('${taskName}', ${limitValue === null ? 'null' : limitValue})">Run Task</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            document.body.insertAdjacentHTML('beforeend', modalHTML);
+        }
+
+        // Handle confirmation from the system-task options modal.
+        async function runSystemTaskWithOptions(taskName, limitValue) {
+            const warmStart = document.getElementById('system-warm-start-checkbox')?.checked || false;
+            closeSystemTaskModal();
+            await executeTask(taskName, null, limitValue, warmStart);
+        }
+
+        function closeSystemTaskModal() {
+            const modal = document.getElementById('system-task-modal');
+            if (modal) modal.remove();
         }
 
         // Show customer selector modal
