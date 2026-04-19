@@ -1,0 +1,75 @@
+{
+    "word": {
+        "slug": "json-schema-for-the-concept-of-curated-dlists",
+        "title": "JSON Schema for the Concept of Curated Dlists",
+        "name": "JSON Schema for the concept of curated dlists",
+        "description": "",
+        "wordTypes": [
+            "word",
+            "jsonSchema"
+        ],
+        "coreMemberOf": [
+            {
+                "slug": "concept-header-for-the-concept-of-curated-dlists",
+                "uuid": "<uuid>"
+            }
+        ]
+    },
+    "jsonSchema": {
+        "name": "curated dlist",
+        "title": "Curated Dlist",
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "definitions": {},
+        "type": "object",
+        "required": [
+            "curatedDlist"
+        ],
+        "properties": {
+            "curatedDlist": {
+                "type": "object",
+                "name": "curated dlist",
+                "title": "Curated Dlist",
+                "slug": "curated-dlist",
+                "description": "Metadata about this curated dlist node",
+                "required": [
+                    "slug"
+                ],
+                "properties": {
+                    "slug": {
+                        "type": "string",
+                        "name": "slug",
+                        "title": "Slug",
+                        "slug": "slug",
+                        "description": "Unique identifier for this curated dlist"
+                    },
+                    "trustSource": {
+                        "type": "string",
+                        "name": "trust source",
+                        "title": "Trust Source",
+                        "slug": "trust-source",
+                        "description": "The trust source used in the calculation of the composite score for this dlist (trusted assertions, follows, some other trusted list, etc)"
+                    },
+                    "publicationMethods": {
+                        "type": "string",
+                        "name": "publication methods",
+                        "title": "Publication Methods",
+                        "slug": "publication-methods",
+                        "description": "The methods for publication of the scored dlist (trusted lists vs trusted assertions; include metric or not; selected cutoff; etc)"
+                    },
+                    "publicationSchedule": {
+                        "type": "string",
+                        "name": "publication schedule",
+                        "title": "Publication Schedule",
+                        "slug": "publication-schedule",
+                        "description": "The schedule for publication of the scored dlist (scheduled, event-triggered, etc)"
+                    }
+                },
+                "x-tapestry": {
+                    "unique": [
+                        "slug"
+                    ]
+                }
+            }
+        }
+    }
+}
