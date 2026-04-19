@@ -40,11 +40,16 @@ OWNER_PUBKEY=your_hex_pubkey_here
 
 # Choose a strong password for Neo4j
 NEO4J_PASSWORD=change_me_to_something_secure
+
+# set admin pubkey for the local relay (probably use same as above)
+ADMIN_PUBKEYS=your_hex_pubkey_here
 ```
 
 > **How to find your hex pubkey:** If you only have your `npub`, you can convert it at [njump.me](https://njump.me) or using the `nak` CLI: `nak key decode npub1...`
 
 ### 3. Build and start
+
+_Note: If any of the ports in the docker-compose.yml file are non-negotiably unusable on your system, create a docker-compose.override.yml and set the ports there, shadowing the same yml structure as what you're overriding. See docker-compose.override-example.yml_.
 
 ```bash
 docker compose up -d
@@ -62,7 +67,11 @@ Wait until you see the brainstorm service start. Then open:
 
 - **Control Panel:** [http://localhost:8080](http://localhost:8080)
 - **Knowledge Graph UI:** [http://localhost:8080/kg/](http://localhost:8080/kg/)
-- **Neo4j Browser:** [http://localhost:8080/browser/preview/](http://localhost:8080/browser/preview/) (user: `neo4j`, password: what you set above)
+- **Neo4j Browser:** [http://localhost:8080/browser/preview/](http://localhost:8080/browser/preview/)
+  - Protocol: `neo4j://`
+  - Connection URL: `localhost:8687`
+  - user: `neo4j`
+  - password: what you set above in `.env`
 - **Nostr Relay:** `ws://localhost:8080/relay`
 
 ### 5. Sign in
@@ -83,7 +92,40 @@ docker compose exec tapestry strfry sync wss://dcosl.brainstorm.world \
   --dir down
 ```
 
-> **Note:** A more streamlined import workflow is coming soon. For now, you can also use the **tapestry-cli** tool to sync and normalize data into Neo4j.
+> **Note:** A more streamlined import workflow is coming soon. For now, you can also use the **tapestry-cli** tool to sync and normalize data into Neo4j.  
+> If you hit limits, try doing each kind separately and/or adding a limit:
+
+```bash
+docker compose exec tapestry strfry sync wss://dcosl.brainstorm.world \
+  --filter '{"kinds":[9999], "limit": 750000}' \
+  --dir down
+```
+
+### 7. Install Neo4j Constraints & Indexes
+
+At this point, if you visit the /kg dashboard, you'll see:
+> Neo4j Constraints & Indexes Missing
+> 5 of 5 required constraints/indexes are not installed. Missing constraints: NostrEvent.id, NostrEvent.uuid, NostrEventTag.uuid, NostrUser.pubkey. Missing indexes: NostrEvent.kind.
+
+Either click the button there or use cURL:
+
+```bash
+curl -X POST http://localhost:8080/api/neo4j-setup-constraints-and-indexes
+```
+
+Now, when you visit the Neo4j browser you should see these under "Database information".
+
+### 8. Install Firmware
+
+- On the dashboard, click "install firmware ->" to visit <http://localhost:5173/kg/settings/firmware>
+- Click the "Install Firmware" button
+- This will take a little while, but will live update when it's complete
+
+Once finished, you may see some subtle warnings on the dashboard:
+> 168 of 2045 nodes need a tapestryKey
+> 259 of 259 JSON tags still inline in Neo4j
+
+These are harmless and expected for now; Click the blue buttons on each line.
 
 ---
 

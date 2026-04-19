@@ -37,6 +37,7 @@ export default function FirmwareExplorer() {
   const [installing, setInstalling] = useState(false);
   const [installResult, setInstallResult] = useState(null);
   const [error, setError] = useState(null);
+  const [constraintsReady, setConstraintsReady] = useState(false);
 
   // Integration explorer state
   const [integrationMode, setIntegrationMode] = useState(null); // 'enumerations' | 'elements' | 'subsets' | null
@@ -48,7 +49,8 @@ export default function FirmwareExplorer() {
       fetchFirmwareManifest().catch(e => ({ error: e.message })),
       fetchFirmwareVersions().catch(e => ({ error: e.message })),
       fetchInstallStatus().catch(e => ({ error: e.message })),
-    ]).then(([man, ver, status]) => {
+      fetch('/api/status/neo4j-constraints').then(r => r.json()).catch(e => ({ error: e.message })),
+    ]).then(([man, ver, status, constraints]) => {
       if (!man.error) {
         setManifest(man);
         if (man.concepts?.length > 0) setSelectedSlug(man.concepts[0].slug);
@@ -58,6 +60,7 @@ export default function FirmwareExplorer() {
         setActiveDir(ver.activeDir);
       }
       if (!status.error) setInstallStatus(status);
+      setConstraintsReady(constraints?.constraintsTimestamp > 0);
     }).finally(() => setLoading(false));
   }, []);
 
@@ -211,6 +214,7 @@ export default function FirmwareExplorer() {
         manifest={manifest}
         installing={installing}
         onInstall={handleInstall}
+        constraintsReady={constraintsReady}
       />
 
       {/* Install result */}
@@ -384,7 +388,7 @@ export default function FirmwareExplorer() {
 
 /* ── Install Status Banner ── */
 
-function InstallStatusBanner({ installStatus, versions, activeDir, manifest, installing, onInstall }) {
+function InstallStatusBanner({ installStatus, versions, activeDir, manifest, installing, onInstall, constraintsReady }) {
   const isInstalled = installStatus?.installed;
   const isPartial = installStatus?.partial;
 
@@ -513,17 +517,25 @@ function InstallStatusBanner({ installStatus, versions, activeDir, manifest, ins
 
         {/* Install button */}
         {!isInstalled && (
-          <button
-            className="btn-primary"
-            onClick={onInstall}
-            disabled={installing}
-            style={{
-              padding: '0.6rem 1.2rem', fontSize: '0.9rem', whiteSpace: 'nowrap',
-              opacity: installing ? 0.6 : 1,
-            }}
-          >
-            {installing ? '⏳ Installing…' : isPartial ? '🔧 Complete Install' : '🚀 Install Firmware'}
-          </button>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.4rem' }}>
+            <button
+              className="btn-primary"
+              onClick={onInstall}
+              disabled={installing || !constraintsReady}
+              style={{
+                padding: '0.6rem 1.2rem', fontSize: '0.9rem', whiteSpace: 'nowrap',
+                opacity: (installing || !constraintsReady) ? 0.4 : 1,
+                cursor: !constraintsReady ? 'not-allowed' : 'pointer',
+              }}
+            >
+              {installing ? '⏳ Installing…' : isPartial ? '🔧 Complete Install' : '🚀 Install Firmware'}
+            </button>
+            {!constraintsReady && (
+              <span style={{ fontSize: '0.75rem', color: 'rgba(239, 68, 68, 0.9)', textAlign: 'right' }}>
+                ⚠️ Neo4j constraints &amp; indexes must be set up first
+              </span>
+            )}
+          </div>
         )}
       </div>
     </div>
