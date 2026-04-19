@@ -28,7 +28,7 @@ export default function BrainstormPersonalization() {
         <div style={{ lineHeight: 1.7, fontSize: '0.95rem', opacity: 0.85 }}>
           <p>
             Brainstorm indexes millions of nostr profiles (and growing) and lets you search them by name,
-            bio, NIP-05, or website. Legitimate nostr profiles are <a href="https://primal.net/straycat/graperank">distinguished</a> 
+            bio, NIP-05, or website. Legitimate nostr profiles are <a href="https://primal.net/straycat/graperank">distinguished</a>{' '}
             from spam, impersonators and other bad actors using a combination of factors including follows, mutes, and reports.
             But what makes this process unique is <strong>personalization</strong>: 
             search results are ranked and filtered from <em>your</em> perspective, using input from <em>your</em> extended community.
