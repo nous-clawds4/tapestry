@@ -933,6 +933,36 @@ Three versions are retained for comparison/fallback:
 
 **Graph Projection Caching** (`src/algos/projectFollowsGraphIntoMemory.sh`): Reusable script that projects the FOLLOWS graph into GDS memory as `followsGraph`. Checks if the projection exists and is < 3 hours old before re-projecting. Used by PageRank; the hop calculation uses its own temporary projection.
 
+### GrapeRank (Customer Trust Scoring)
+
+GrapeRank is the per-customer personalized trust scoring algorithm — "PageRank for people" with explicit handling of rating confidence, mutes, reports, and an attenuation factor for non-observer raters. Each customer's scorecards live on `NostrUserWotMetricsCard {customer_id, observer_pubkey, observee_pubkey}` nodes with properties `influence`, `average`, `confidence`, `input`. The owner's scorecards live directly on `NostrUser` nodes (same four properties).
+
+**Pipeline** (`src/algos/customers/personalizedGrapeRank/personalizedGrapeRank.sh`), 5 phases:
+1. **CSV initialization** — Cypher dumps of follows/mutes/reports/ratees into `/var/lib/brainstorm/algos/personalizedGrapeRank/tmp/` (skipped if cached; the CSVs are shared across customers in a batch run)
+2. **Ratings interpretation** — `interpretRatings.js` combines the three relationship CSVs into `ratings.json` with precedence reports > mutes > follows
+3. **Scorecards initialization** — `initializeScorecards.js` seeds the starting scorecards (see warm start below)
+4. **GrapeRank iteration** — `calculateGrapeRank.js` iterates until max_diff < 0.001 or 60 iterations; each iteration recomputes every ratee's influence as a confidence-weighted, attenuated average of its raters' influence × rating × rating confidence
+5. **Neo4j update** — `updateNeo4jWithApoc.js` writes scorecards back via APOC batched UPSERTs (batchSize 250)
+
+**Warm start** — opt-in toggle exposed on task-explorer.html for `calculateCustomerGrapeRank` and its four ancestor tasks (`updateAllScoresForSingleCustomer`, `processCustomer`, `processAllActiveCustomers`, `processAllTasks`). The flag is passed as a positional arg and threaded through the shell hierarchy. When enabled, `initializeScorecards.js` runs a tiered fallback:
+1. **`self`** — if the customer has prior `NostrUserWotMetricsCard` scores, seed from them (typical recalculation case; converges in 1–3 iterations instead of ~12–31).
+2. **`owner`** — first-time customer: if the owner is reachable within 3 directed FOLLOWS hops *from* the customer (capped `shortestPath` query), seed from the owner's `NostrUser` scorecards. Directionality matters: GrapeRank influence propagates from observer outward along FOLLOWS, so the owner must be *downstream* of the new customer for their scores to approximate the customer's POV.
+3. **`cold`** — no prior scores and no reachable owner; all ratees start at `[0, 0, 0, 0]` (legacy behavior).
+
+The algorithm is a contraction mapping (ATTENUATION_FACTOR < 1), so any starting point converges to the same fixed point — warm start only affects iteration count, not the final scores.
+
+**Observability**:
+- `initialize_scorecards_summary` PROGRESS event: `warm_start_source` (`self`/`owner`/`cold`/`failed`/`disabled`), `owner_seed_hops`, `warm_started_count` vs `cold_started_count`, `total_scorecards`
+- `iteration_complete` PROGRESS event: `iterations`, `converged`, `max_difference`, `calculation_time_ms`
+- Each phase's success event includes `phase_duration_seconds`
+- `/var/log/brainstorm/customers/<name>/graperank_history.jsonl` — per-run summary appended for each calculation (survives temp-dir cleanup on success)
+- All events emit with the shell orchestrator's PID (via `BRAINSTORM_TASK_PID` env var), so child Node.js scripts appear in the same task-timeline session in `task-explorer.html` and `task.html`
+
+**Typical runtime** (observer with ~287k-node network, April 2026):
+- Cold start: ~20 min (~15 min in iteration phase, 31 iterations)
+- Warm start (self): ~5 min (112 s iteration, 1 iteration)
+- Ratings interpretation (~170 s) now dominates total runtime when warm-started; next optimization target
+
 ---
 
 ## 14. Configuration
@@ -1277,6 +1307,10 @@ docker compose exec tapestry strfry sync wss://dcosl.brainstorm.world \
 - ✅ Redis service in Docker stack (~50MB RAM, message queue buffer)
 - ✅ Streaming ETL control panel on Relays settings page (status, start/stop, queue depth, log viewer)
 - ✅ Swagger API documentation at `/docs`
+- ✅ Customer GrapeRank warm start — initialize scorecards from prior Neo4j scores instead of `[0,0,0,0]`; converges in 1–3 iterations vs ~12–31 cold (~4× speedup, 20 min → 5 min observed)
+- ✅ Warm Start UI toggle in task-explorer.html — exposed on `calculateCustomerGrapeRank`, `updateAllScoresForSingleCustomer`, `processCustomer`, `processAllActiveCustomers`, and `processAllTasks`
+- ✅ Owner-seeded warm start for first-time customers — if the owner is within 3 directed FOLLOWS hops downstream of the customer, seed from the owner's `NostrUser` scorecards; otherwise cold start
+- ✅ GrapeRank observability — per-phase timing in structured events, `iteration_complete` event with convergence metrics (iterations, max_diff, warm_start_source), persistent per-customer `graperank_history.jsonl`
 
 ### CLI (tapestry-cli repo)
 
@@ -1296,6 +1330,7 @@ docker compose exec tapestry strfry sync wss://dcosl.brainstorm.world \
 - **JSON validation** — audit validates core node JSON against firmware schemas; element validation against concept schemas exists but needs polish
 - **Meilisearch scalability** — at 2M+ profiles on a 2-vCPU machine, indexing can saturate CPU; may need tuning for production
 - **NIP-50 adoption** — relay proxy is live; working to get nostr client developers to integrate WoT-powered search results
+- **GrapeRank performance optimization** — first wave (warm start) shipped; the ~55% of remaining runtime spent in the ratings-interpretation phase is the next optimization target
 
 ---
 
@@ -1311,6 +1346,7 @@ docker compose exec tapestry strfry sync wss://dcosl.brainstorm.world \
 - [ ] **Multi-user support** — different views based on trust scores
 - [ ] **Client-side signing flow** — server returns unsigned event templates, client signs via NIP-07, posts back
 - [ ] **Search for concepts/elements/properties** — extend Meilisearch to index concept graph data, not just profiles
+- [ ] **Tier 2 warm-start heuristics** — nearest-customer seeding when the owner is not reachable; community-detection-based seed selection
 
 ### Medium-Term
 
@@ -1368,7 +1404,7 @@ docker compose exec tapestry strfry sync wss://dcosl.brainstorm.world \
 | **ENUMERATES** | A relationship where a concept's elements define the allowed values for a property. Horizontal integration. |
 | **Firmware** | The versioned set of JSON definitions for the protocol's own meta-concepts. Read by the server at runtime. |
 | **graphContext** | Top-level sibling of `word` in tapestryJSON. Contains local, dynamic, non-portable metadata (identifiers, concept membership, schema validation). Stripped before sharing via nostr events. |
-| **GrapeRank** | "PageRank for people" — contextual trust scoring algorithm. |
+| **GrapeRank** | "PageRank for people" — iterative, personalized-per-observer trust scoring. Weighted average of raters' influence × rating × rating confidence, with an attenuation factor on non-observer raters. Converges to a fixed point determined purely by the observer pubkey and the rating graph. |
 | **Grapevine** | The Web of Trust system that determines which curations achieve community consensus. |
 | **IMPORT** | Editorial relationship: "I agree with your concept and want to benefit from your curated elements." |
 | **Loose Consensus** | When two users' WoTs overlap enough to converge on the same definition without central coordination. |
@@ -1386,6 +1422,7 @@ docker compose exec tapestry strfry sync wss://dcosl.brainstorm.world \
 | **Assistant** | A server-side nostr identity that publishes events on behalf of an owner, admin, or customer. The owner's assistant is the Tapestry Assistant (TA); customer assistants are created at sign-up. All stored in SecureKeyStorage. |
 | **Tapestry Assistant (TA)** | The owner's assistant — server-side nostr identity that signs automated events (firmware, concepts, kind 30382 Trust Assertions). Stored in SecureKeyStorage as `tapestry-assistant`. |
 | **Trust Assertions (TAs)** | Kind 30382 nostr events published by a `rankAuthor` that assign trust scores (rank, followers, etc.) to other pubkeys. Synced via negentropy and loaded into Meilisearch for WoT-powered search. |
+| **Warm Start** | An opt-in GrapeRank initialization mode that seeds scorecards from previously-computed scores instead of `[0,0,0,0]`. Three sources in tiered fallback: `self` (customer's own prior scores), `owner` (owner's `NostrUser` scores when the owner is within 3 directed FOLLOWS hops downstream of the customer), and `cold` (no seed available; legacy behavior). Typically cuts customer GrapeRank runtime from ~20 min to ~5 min. |
 | **Word-wrapper** | The canonical JSON format where every node's data includes a `word` section plus type-specific sections. |
 | **z-tag** | The `z` tag on a ListItem that points to its parent concept's a-tag. Fundamental parent pointer. |
 
