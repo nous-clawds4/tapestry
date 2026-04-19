@@ -25,7 +25,7 @@ function handleGenerateForApiPageRank(req, res) {
   const pubkey = req.query.pubkey;
 
   // Use exec with timeout options
-  const child = exec('sudo /usr/local/lib/node_modules/brainstorm/src/algos/personalizedPageRankForApi.sh ' + pubkey, {
+  const child = exec('/usr/local/lib/node_modules/brainstorm/src/algos/personalizedPageRankForApi.sh ' + pubkey, {
     timeout: 170000, // slightly less than the HTTP timeout
     maxBuffer: 1024 * 1024 // 1MB buffer for stdout/stderr
   }, (error, stdout, stderr) => {

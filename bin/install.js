@@ -541,7 +541,7 @@ export BRAINSTORM_DEFAULT_POPULAR_GENERAL_PURPOSE_RELAYS='${defaultPopularGenera
 export BRAINSTORM_POPULAR_GENERAL_PURPOSE_RELAYS='${defaultPopularGeneralPurposeRelays}'
 
 # NIP-85 configuration
-export BRAINSTORM_30382_LIMIT="10"
+export BRAINSTORM_30382_LIMIT="250000"
 
 # Performance tuning
 export BRAINSTORM_BATCH_SIZE="100"

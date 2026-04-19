@@ -3,7 +3,7 @@
 > **Audience:** AI agents and developers joining the Tapestry project.
 > Read this file to fully onboard — it covers what Tapestry is, how it works, what's been built, what's in progress, and how to contribute.
 
-**Last updated:** 2026-04-03
+**Last updated:** 2026-04-13
 
 ---
 
@@ -70,10 +70,18 @@ Tapestry is being built under **NosFabrica**, a company focused on sovereign hea
 
 | Repo | URL | Active Branch | Description |
 |------|-----|---------------|-------------|
-| **tapestry** (server) | `github.com/nous-clawds4/tapestry` | `main` | Docker stack: strfry + Neo4j + Express + React UI + firmware |
+| **tapestry** (server) | `github.com/nous-clawds4/tapestry` | `refactor-paths` | Docker stack: strfry + Neo4j + Express + React UI + Meilisearch + NIP-50 proxy + firmware |
 | **tapestry-cli** | `github.com/nous-clawds4/tapestry-cli` | `main` | CLI tool for graph operations |
 
-> **Note:** Active development is on the `main` branch. The `concept-graph` branch exists but is kept in sync with `main`. CI/CD deploys from `main`.
+### Branch Strategy
+
+| Branch | Purpose | Deploys To |
+|--------|---------|------------|
+| `refactor-paths` | Latest development — URL refactor, Brainstorm Search at root | `brainstorm.world` |
+| `brainstorm-search` | Stable search features, original `/kg/` URL structure | `nous-clawds4.tapestry.ninja` |
+| `main` | Upstream base, concept-graph features | — |
+
+> **Note:** Active development is on the `refactor-paths` branch. It promotes Brainstorm Search to root `/`, moves Tapestry dashboard to `/tapestry/`, and legacy Brainstorm to `/legacy/`. CI/CD workflows deploy automatically on push (see `.github/workflows/`).
 
 ---
 
@@ -100,7 +108,7 @@ Tapestry is being built under **NosFabrica**, a company focused on sovereign hea
 │        │                                                  │
 └────────┼─────────────────────────────────────────────────┘
          │
-    Port 8080 (host)
+    Port 80 (host) — or 127.0.0.1:8080 behind host nginx
 
 ┌────────────────────────┐   ┌────────────────────────┐
 │  nostr-search-api      │   │  nostr-search-meili    │
@@ -118,12 +126,14 @@ Tapestry is being built under **NosFabrica**, a company focused on sovereign hea
 
 | Service | Port | Role |
 |---------|------|------|
-| **strfry** | 7777 (internal WS) | High-performance C++ nostr relay. Local event store — source of truth for raw nostr events. |
+| **strfry** | 7777 (internal WS) | High-performance C++ nostr relay, patched with Redis integration. After writing events to LMDB, pushes kind 3/10000/1984 events to Redis queue for streaming ETL. |
 | **Neo4j** | 7474 (HTTP), 7687 (Bolt) | Graph database. Turns flat events into a navigable concept graph with labeled nodes and typed relationships. |
-| **Express** | 7778 (internal) → 8080 (host) | REST API server. Serves the React UI at `/kg/`, provides all API endpoints. Proxies search requests to nostr-search-api. |
+| **Express** | 7778 (internal) → 80 (host) | REST API server. Serves the React SPA from `dist/`, provides all API endpoints. Proxies search requests to nostr-search-api. In production behind host nginx, Docker binds to `127.0.0.1:8080:80`. |
 | **nip50-proxy** | 7780 (internal) | NIP-50 relay proxy. Sits between nginx and strfry. Intercepts search REQs and routes them through Meilisearch + WoT scoring. Passes all other traffic to strfry transparently. Auto-triggers the WoT pipeline for new observers. |
+| **stream-consumer** | — | Node.js process that reads events from Redis queue and writes NostrUser nodes + FOLLOWS/MUTES/REPORTS relationships to Neo4j via Bolt driver. Managed by supervisord. |
 | **nginx** | 80 (internal) | Reverse proxy routing `/api/*` to Express, `/relay` to nip50-proxy, etc. |
-| **supervisord** | — | Process manager inside the container. Controls all services (neo4j, strfry, strfry-router, nip50-proxy, brainstorm). |
+| **supervisord** | — | Process manager inside the container. Controls all services (neo4j, strfry, strfry-router, nip50-proxy, stream-consumer, brainstorm). |
+| **redis** | 6379 (Docker network only) | Separate Docker container. Message queue for streaming ETL — buffers events between strfry and the Neo4j consumer. ~50MB RAM. |
 | **nostr-search-api** | 3069 | Search API server. Connects to strfry via WebSocket for live kind 0 ingestion, proxies search queries to Meilisearch, handles WoT score loading. |
 | **nostr-search-meili** | 7700 | Meilisearch instance. Full-text search index for nostr profiles. Searchable by name, NIP-05, bio, website, Lightning address. |
 
@@ -559,9 +569,12 @@ Base URL: `http://localhost:8080`
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/api/strfry/scan?filter=<json>` | Scan events matching a filter |
+| GET | `/api/strfry/scan/count?filter=<json>` | Count events matching a filter (can take minutes on large DBs; nginx timeout extended to 600s) |
+| GET | `/api/strfry/scan/stream?filter=<json>` | Stream events as JSONL (no memory issues, nginx no-buffering) |
 | POST | `/api/strfry/publish` | Sign and publish an event |
 | GET | `/api/strfry/router-status` | Router sync status |
 | POST | `/api/strfry/router-toggle` | Enable/disable a sync stream |
+| POST | `/api/strfry/negentropy-sync` | Trigger negentropy sync from a relay |
 | POST | `/api/strfry/wipe` | Wipe all strfry events (dangerous!) |
 
 ### Auth (NIP-07)
@@ -588,15 +601,24 @@ Base URL: `http://localhost:8080`
 |--------|----------|-------------|
 | GET | `/api/profiles?pubkeys=<csv>` | Fetch kind:0 profiles from external relays (cached) |
 
+### API Documentation
+
+Swagger UI is served at `/docs` — interactive OpenAPI documentation for all REST endpoints. Publicly accessible (no auth required).
+
 ### Search (Meilisearch)
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/search/profiles/meili?q=<query>&limit=<n>&offset=<n>` | Full-text profile search. WoT-filtered if scores are loaded. |
-| GET | `/api/search/profiles/meili/stats` | Index stats: document count, live relay status, profile freshness buckets |
+| GET | `/api/search/profiles/meili?q=<query>&limit=<n>&offset=<n>` | Full-text profile search. Supports optional params: `wotPov=house\|user`, `userPubkey=<hex>`, `pubkeyLookup=<hex>` (direct lookup), `nip05Lookup=<identifier>` (parallel NIP-05 verification). |
+| GET | `/api/search/profiles/meili/stats` | Index stats: document count, field distribution, profile freshness |
+| GET | `/api/search/profiles/meili/document/:pubkey` | Fetch a single profile document from Meilisearch by pubkey |
 | POST | `/api/search/profiles/meili/resync` | Trigger live ingester resync (clears dedup map, reconnects to relay) |
 | GET | `/api/search/profiles/meili/bulk-status` | Status of bulk re-indexing from strfry |
-| POST | `/api/search/profiles/meili/load-scores` | Batch-upsert WoT scores into profiles index |
+| POST | `/api/search/profiles/meili/load-scores` | Batch-upsert WoT scores into profiles index. Scores must use suffixed field names: `wot_<metric>_<8char>`. |
+| GET | `/api/search/profiles/meili/settings` | Meilisearch index settings (filterable/sortable attributes) |
+| GET | `/api/search/profiles/meili/tasks` | Meilisearch task queue status |
+| DELETE | `/api/search/profiles/meili/wipe` | Delete entire Meilisearch index (requires re-ingest) |
+| POST | `/api/search/profiles/meili/backfill-profiles` | Restore profile data for scored profiles missing kind 0 data |
 
 ### NIP-50 Relay Search (WebSocket)
 
@@ -619,12 +641,29 @@ External nostr clients can search via the relay WebSocket at `wss://<host>/relay
 
 **Auto-trigger:** If the observer's WoT scores aren't in Meilisearch, the proxy automatically runs the full pipeline in the background (find kind 10040, sync TAs, parse metrics, load scores). The current search returns unscored; the next search will be fully WoT-scored.
 
+**Event signatures:** When the proxy returns events to clients, it fetches the **original events from strfry** via a temporary WebSocket REQ (by event ID), rather than reconstructing them from Meilisearch fields. This ensures the `content`, `id`, and `sig` are exactly as the author signed them — no reconstruction, no signature mismatch. Clients like `nak` will validate signatures correctly.
+
 ### Grapevine / Search Preferences
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/api/grapevine/preferences` | Get search preferences (POV pubkey, metrics, filters, sort) |
 | PUT | `/api/grapevine/preferences` | Save search preferences |
+
+### User Preferences
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/user-prefs` | Get current user's saved preferences (requires session) |
+| PUT | `/api/user-prefs` | Save user preferences (shallow merge). Key fields: `pov`, `rankAuthor`, `rankRelay`, `filters`, `sortConfig`, `selectedMetrics`. |
+
+### Streaming ETL Control
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/streaming-etl/status` | Consumer status (supervisorctl), Redis queue depth, processed event counts |
+| POST | `/api/streaming-etl/control` | Start/stop/restart the consumer. Body: `{ action: "start"|"stop"|"restart" }` |
+| GET | `/api/streaming-etl/logs?lines=15` | Tail the consumer log file (max 100 lines) |
 
 ---
 
@@ -695,13 +734,25 @@ tapestry config                    # Show current config
 
 ## 13. React UI Structure
 
-**Dev server:** `http://localhost:5173/kg/` (Vite, proxies API to :8080)
-**Production:** `http://localhost:8080/kg/` (Express serves built files)
+**Dev server:** `http://localhost:5173/` (Vite, proxies `/api` to :8080)
+**Production:** `http://localhost:80/` (Express serves built files from `dist/`)
+
+The React app is split into two top-level areas:
+- **Brainstorm Search** — the public-facing search UI at root `/`
+- **Tapestry Dashboard** — the knowledge graph management UI at `/tapestry/`
+
+Legacy Brainstorm HTML pages are served at `/legacy/` (not part of the React SPA).
 
 ### Page Hierarchy
 
 ```
-/kg/                              Dashboard (Getting Started + stats)
+/                                 Brainstorm Search (landing + results)
+├── user/:pubkey                  Profile detail (follow, mute, report)
+├── settings                      Search settings (WoT pipeline, metrics, filters)
+├── personalization               WoT personalization guide
+└── developers                    NIP-50 developer integration docs
+
+/tapestry/                        Dashboard (Getting Started + stats)
 ├── concepts/                     Concept list
 │   ├── new                       Create new concept
 │   └── :uuid/                    Concept detail (tabs):
@@ -726,33 +777,34 @@ tapestry config                    # Show current config
 │       │   └── new               Create item
 │       ├── raw                   Raw nostr event
 │       └── actions               DList actions
-├── nodes/                        Neo4j node browser
-│   └── :uuid/                    Node detail (tabs):
-│       ├── (overview)
-│       ├── json                  JSON data
-│       ├── concepts              Which concepts this node belongs to
-│       ├── relationships         Neo4j relationships
-│       ├── neo4j                 Raw Neo4j data
-│       └── raw                   Raw nostr event
-├── events/                       Event browser
-│   └── dlist-items/:id/          DList item detail
-├── users/                        Nostr user directory
-│   ├── search                    Profile search (Meilisearch, search-as-you-type)
-│   └── :pubkey                   User profile
+├── databases/
+│   ├── neo4j/                    Neo4j overview + node browser
+│   │   └── nodes/:uuid           Node detail (JSON, concepts, relationships, raw)
+│   └── strfry                    Strfry overview (lazy-load kind counts)
 ├── grapevine/
-│   └── search-preferences        WoT search config (POV, metrics, filters, score loading)
-├── relationships/                Relationship browser
-├── trusted-lists/                Trusted lists
-├── manage/                       Management tools
-│   └── audit                     Audit dashboard
+│   ├── meilisearch               Meilisearch admin (stats, scores, backfill)
+│   ├── search-preferences        WoT search config (POV, metrics, filters)
+│   └── ...                       Trust lists, assertions, determinations
+├── users/                        Nostr user directory
+│   ├── search                    Profile search (admin, backend)
+│   └── :pubkey                   User profile
+├── io/
+│   ├── import                    Import tools
+│   └── export                    Export tools
 ├── about/                        About page
 └── settings/                     Settings (owner only)
     ├── (general)
-    ├── relays                    Relay configuration
-    ├── databases                 Database management
+    ├── relays                    Relay + negentropy sync configuration
+    ├── databases                 Database management + wipe
+    ├── auditing                  Graph audit tools
     ├── uuids                     Concept UUID config
     ├── firmware                  Firmware explorer
     └── system                    System settings
+
+/legacy/                          Legacy Brainstorm HTML pages
+/relay                            NIP-50 relay proxy (nginx → nip50-proxy)
+/browser/                         Neo4j Browser (nginx → Neo4j:7474)
+/api/*                            REST API endpoints
 ```
 
 ### Key Components
@@ -778,6 +830,138 @@ tapestry config                    # Show current config
 - **Dark theme** — CSS variables in `styles.css` (`--bg-primary`, `--text`, `--accent`)
 - **No markdown tables in Discord/WhatsApp** — bullet lists instead
 - **API clients** in `ui/src/api/` (relay.js, cypher.js, normalize.js, audit.js)
+
+### Brainstorm Search Features
+
+The search UI at root `/` provides several smart lookup modes beyond standard text search:
+
+**Direct Nostr Identity Lookup** — When the user enters a valid npub, hex pubkey, or nprofile, the frontend decodes it to a hex pubkey and passes `pubkeyLookup=<hex>` to the proxy. The proxy fetches the profile directly from Meilisearch by document ID, bypassing WoT filtering and sorting entirely. Returns a single result instantly.
+
+**NIP-05 Verified Profile Lookup** — When the query matches a NIP-05 pattern (e.g., `bob@example.com`), the proxy verifies it in parallel with the normal search by fetching `https://<domain>/.well-known/nostr.json?name=<name>` (5-second timeout). If valid, the verified profile is returned as `nip05Result` in the response — the frontend renders it as a pinned card with a green "✅ NIP-05 Verified" badge above the normal results. The NIP-05 profile is deduplicated from the normal results list.
+
+**Broken Avatar Fallback** — When a profile has a picture URL that fails to load (e.g., dead hosting), the `onError` handler replaces the broken `<img>` with a 👤 placeholder div, preventing layout collapse.
+
+**Strfry Overview Lazy-Load** — The strfry database page (`/tapestry/databases/strfry`) loads the total event count on mount, then provides per-kind count buttons that load individually on demand. This avoids the previous approach of running 12 parallel `strfry scan --count` commands (which timed out on databases with millions of events).
+
+### WoT Score Architecture
+
+WoT scores in Meilisearch are **namespaced by observer POV** using an 8-character suffix derived from the delegated pubkey:
+
+```
+Field naming: wot_<metric>_<delegatedPubkey.slice(0,8)>
+Example:      wot_followers_78ed0837  (House POV)
+              wot_rank_a1b2c3d4       (User's POV)
+```
+
+**Score loading flow:**
+1. User's kind 10040 event specifies a `rankAuthor` (delegated pubkey) and `rankRelay`
+2. TAs (kind 30382 events) are synced from the relay into local strfry
+3. TAs are streamed, parsed, and field names are constructed with the suffix: `wot_<metric>_<suffix>`
+4. Scores are batch-upserted into Meilisearch via `POST /api/search/profiles/meili/load-scores`
+5. The suffix is registered as a filterable+sortable attribute in Meilisearch
+
+**POV resolution during search:**
+1. Client sends `wotPov=user&userPubkey=<hex>` (or `wotPov=house`)
+2. Proxy reads user prefs from `/var/lib/brainstorm/user-prefs/<pubkey>.json`
+3. Extracts `rankAuthor` → derives `povSuffix = rankAuthor.slice(0, 8)`
+4. Namespaces filter keys (`rank` → `wot_rank_<suffix>`) and sort fields
+5. Falls back to house prefs if user's `rankAuthor` is not found
+
+**User preferences** (saved to `/var/lib/brainstorm/user-prefs/<pubkey>.json`):
+- `pov` — `'user'` or `'nosfabrica'` (house)
+- `rankAuthor` — hex pubkey of the delegated trust authority
+- `rankRelay` — relay URL for syncing TAs
+- `filters` — per-metric filter config (e.g., `{ rank: { enabled: true, cutoff: 2 } }`)
+- `sortConfig` — `{ metric: 'followers', direction: 'desc' }`
+- `selectedMetrics` — array of metric names to use
+
+**Score readiness check** (`checkMeiliScores`): Verifies that Meilisearch has fields matching the user's specific suffix (`wot_*_<suffix>`), not just any `wot_*` field. This prevents false positives from house POV scores or legacy unsuffixed fields.
+
+### Streaming ETL Pipeline
+
+Real-time event processing from strfry to Neo4j, keeping NostrUser nodes and FOLLOWS/MUTES/REPORTS relationships up to date as events arrive.
+
+**Architecture:**
+```
+strfry (LMDB write) → redis_rpush("strfry:events") → Redis queue → stream-consumer → Neo4j (MERGE)
+```
+
+**strfry C++ patch** (`patches/strfry-redis/`): The upstream strfry source is patched during Docker build via `apply-patches.sh`. The patch adds:
+- `redis.h` / `redis.cpp` — persistent Redis connection using hiredis
+- `redis_init()` call in `main.cpp.tt` after config is loaded
+- `redis_rpush()` call in `WriterPipeline.h` after LMDB commit, for kinds 3/10000/1984 only
+- Config entries `redis.host` and `redis.port` in `golpe.yaml`
+- `-lhiredis` linker flag in `rules.mk`
+
+The patch is non-blocking — relay throughput is unaffected by Redis latency. If Redis is down, events are silently dropped (strfry continues normally).
+
+**Node.js consumer** (`src/pipeline/stream/redis-consumer.js`): Blocking pop (`blpop`) from Redis, processes one event at a time:
+- Kind 3: MERGE publisher + followed pubkeys, create FOLLOWS edges, delete stale follows
+- Kind 10000: Same pattern with MUTES relationships
+- Kind 1984: Additive only — MERGE REPORTS edges, never delete
+- Uses `writeCypher()` from `src/lib/neo4j-driver.js` (Bolt driver, connection pooled)
+- MERGE queries ensure idempotency — duplicate events are harmless
+
+**Control panel:** Managed via the "⚡ Streaming ETL" tab on the Relays settings page (`/tapestry/settings/relays`). Shows consumer status, Redis queue depth, processed/error counts, and a live log viewer. Start/stop/restart via `supervisorctl`.
+
+**Why not a strfry write plugin?** Write plugins run BEFORE the LMDB write and block the pipeline — every event waits for the plugin response. During negentropy syncs (millions of events), this would stall the relay. The C++ patch runs AFTER the LMDB commit, non-blocking.
+
+### Graph Algorithms (GDS)
+
+Neo4j's Graph Data Science library (GDS 2.13.4) is installed and configured (`dbms.security.procedures.unrestricted=gds.*`). Currently used for:
+
+**Hop Distance Calculation** (`src/algos/calculateHopsFrontier.sh`): Calculates the shortest hop distance from the instance owner to every other NostrUser via the FOLLOWS graph. Uses a frontier-based BFS approach — each iteration only scans edges from the current hop level's nodes, not the entire graph.
+
+Algorithm:
+1. Initialize all NostrUser nodes to `hops=999` (batched, 50K rows per transaction)
+2. Set owner to `hops=0`
+3. For each hop level N (0→12): match nodes at hop N whose FOLLOWS targets are still at 999, set targets to N+1
+4. Stop when no more updates or max hops reached
+
+Performance comparison (2.46M nodes, 30M FOLLOWS relationships):
+- **Legacy iterative Cypher** (`calculateHops.sh`): Each iteration scans ALL 30M edges looking for any node to update. Up to 12 × 30M = 360M relationship scans.
+- **Frontier-based** (`calculateHopsFrontier.sh`): Each iteration only scans edges from the ~N nodes at the current hop level. Hop 1: 775 nodes × their edges. Hop 2: 309K nodes × their edges. Total work proportional to reachable graph, not total graph.
+
+Empirical results: Hop 1 completes in 8ms (775 nodes), hop 2 in 1.5s (309K nodes). Total runtime is seconds, not minutes.
+
+Three versions are retained for comparison/fallback:
+- `calculateHopsFrontier.sh` — current default (frontier BFS, fastest)
+- `calculateHopsGDS.sh` — GDS-based attempt (GDS BFS doesn't provide hop distances directly; retained for reference)
+- `calculateHops.sh` — legacy iterative Cypher (slowest but simplest)
+
+**Personalized PageRank** (`src/algos/calculatePersonalizedPageRank.sh`): Uses `gds.pageRank.write()` with the owner as source node. Projects the FOLLOWS graph, runs PageRank with dampingFactor=0.85, writes results back as `personalizedPageRank` property.
+
+**Graph Projection Caching** (`src/algos/projectFollowsGraphIntoMemory.sh`): Reusable script that projects the FOLLOWS graph into GDS memory as `followsGraph`. Checks if the projection exists and is < 3 hours old before re-projecting. Used by PageRank; the hop calculation uses its own temporary projection.
+
+### GrapeRank (Customer Trust Scoring)
+
+GrapeRank is the per-customer personalized trust scoring algorithm — "PageRank for people" with explicit handling of rating confidence, mutes, reports, and an attenuation factor for non-observer raters. Each customer's scorecards live on `NostrUserWotMetricsCard {customer_id, observer_pubkey, observee_pubkey}` nodes with properties `influence`, `average`, `confidence`, `input`. The owner's scorecards live directly on `NostrUser` nodes (same four properties).
+
+**Pipeline** (`src/algos/customers/personalizedGrapeRank/personalizedGrapeRank.sh`), 5 phases:
+1. **CSV initialization** — Cypher dumps of follows/mutes/reports/ratees into `/var/lib/brainstorm/algos/personalizedGrapeRank/tmp/` (skipped if cached; the CSVs are shared across customers in a batch run)
+2. **Ratings interpretation** — `interpretRatings.js` combines the three relationship CSVs into `ratings.json` with precedence reports > mutes > follows
+3. **Scorecards initialization** — `initializeScorecards.js` seeds the starting scorecards (see warm start below)
+4. **GrapeRank iteration** — `calculateGrapeRank.js` iterates until max_diff < 0.001 or 60 iterations; each iteration recomputes every ratee's influence as a confidence-weighted, attenuated average of its raters' influence × rating × rating confidence
+5. **Neo4j update** — `updateNeo4jWithApoc.js` writes scorecards back via APOC batched UPSERTs (batchSize 250)
+
+**Warm start** — opt-in toggle exposed on task-explorer.html for `calculateCustomerGrapeRank` and its four ancestor tasks (`updateAllScoresForSingleCustomer`, `processCustomer`, `processAllActiveCustomers`, `processAllTasks`). The flag is passed as a positional arg and threaded through the shell hierarchy. When enabled, `initializeScorecards.js` runs a tiered fallback:
+1. **`self`** — if the customer has prior `NostrUserWotMetricsCard` scores, seed from them (typical recalculation case; converges in 1–3 iterations instead of ~12–31).
+2. **`owner`** — first-time customer: if the owner is reachable within 3 directed FOLLOWS hops *from* the customer (capped `shortestPath` query), seed from the owner's `NostrUser` scorecards. Directionality matters: GrapeRank influence propagates from observer outward along FOLLOWS, so the owner must be *downstream* of the new customer for their scores to approximate the customer's POV.
+3. **`cold`** — no prior scores and no reachable owner; all ratees start at `[0, 0, 0, 0]` (legacy behavior).
+
+The algorithm is a contraction mapping (ATTENUATION_FACTOR < 1), so any starting point converges to the same fixed point — warm start only affects iteration count, not the final scores.
+
+**Observability**:
+- `initialize_scorecards_summary` PROGRESS event: `warm_start_source` (`self`/`owner`/`cold`/`failed`/`disabled`), `owner_seed_hops`, `warm_started_count` vs `cold_started_count`, `total_scorecards`
+- `iteration_complete` PROGRESS event: `iterations`, `converged`, `max_difference`, `calculation_time_ms`
+- Each phase's success event includes `phase_duration_seconds`
+- `/var/log/brainstorm/customers/<name>/graperank_history.jsonl` — per-run summary appended for each calculation (survives temp-dir cleanup on success)
+- All events emit with the shell orchestrator's PID (via `BRAINSTORM_TASK_PID` env var), so child Node.js scripts appear in the same task-timeline session in `task-explorer.html` and `task.html`
+
+**Typical runtime** (observer with ~287k-node network, April 2026):
+- Cold start: ~20 min (~15 min in iteration phase, 31 iterations)
+- Warm start (self): ~5 min (112 s iteration, 1 iteration)
+- Ratings interpretation (~170 s) now dominates total runtime when warm-started; next optimization target
 
 ---
 
@@ -813,18 +997,45 @@ Arrays are **replaced**, objects are **deep-merged**.
 ### brainstorm.conf
 
 Legacy server config at `/etc/brainstorm.conf` inside Docker. Contains:
-- `BRAINSTORM_RELAY_PRIVKEY` / `BRAINSTORM_RELAY_PUBKEY` — Tapestry Assistant keypair
+- `BRAINSTORM_RELAY_PUBKEY` / `BRAINSTORM_RELAY_NPUB` — Tapestry Assistant public key (private key is in SecureKeyStorage only, NOT in this file)
 - `BRAINSTORM_OWNER_PUBKEY` — Owner pubkey
 - Neo4j connection details
 - Session secret
 
-### Tapestry Assistant
+**Note:** `BRAINSTORM_RELAY_PRIVKEY` is no longer stored in brainstorm.conf (removed for security). Legacy code that reads it from there will fail — use SecureKeyStorage instead. See "Assistant Keys" section below.
 
-Each instance has a server-side nostr identity (the "TA") used for automated actions. Its keypair lives in `brainstorm.conf`. The TA signs events when creating concepts, firmware, core nodes, etc.
+### Neo4j Config Path (Docker)
+
+Neo4j 5.x looks for its config at `/usr/share/neo4j/conf/` by default, but the Dockerfile installs it at `/etc/neo4j/neo4j.conf` (Debian convention). The `NEO4J_CONF="/etc/neo4j"` environment variable in `docker/supervisord.conf` bridges this gap. Without it, Neo4j falls back to defaults (localhost-only binding, no APOC/GDS procedure allowlists, default memory settings). On bare-metal installs, systemd handles this automatically — Docker/supervisord needs it explicitly.
+
+**Memory, GC, and concurrency settings** are NOT in the Dockerfile — they are written dynamically by `entrypoint.sh` at startup based on the machine's actual RAM and CPU count. See the Memory Architecture section under Development Workflow for details. The Dockerfile only configures static settings (listen addresses, procedure allowlists, APOC config).
+
+### Assistant Keys
+
+Every owner, admin, and customer has an **assistant** — a server-side nostr identity that publishes kind 30382 Trust Assertions and other automated events on their behalf. Under the hood, all assistant keys are stored in SecureKeyStorage and accessed uniformly.
+
+**Owner's assistant** = the Tapestry Assistant (TA). Created at first container startup by `setup/create_nostr_identity.sh`. Stored in SecureKeyStorage as `tapestry-assistant`. Also signs firmware events, concept graph nodes, and other automated Tapestry operations.
+
+**Customer's assistant** = Customer Relay Key. Created at customer sign-up via `createSingleCustomerRelay()`. Stored in SecureKeyStorage under the customer's hex pubkey.
+
+**Unified key access (`src/utils/assistantKeys.js`):**
+- `getAssistantKeys(pubkey)` — routes to the correct key: owner pubkey → `tapestry-assistant` in SecureKeyStorage, anyone else → customer relay key.
+- `getOwnerAssistantKeys()` — shortcut that always returns the TA key.
+- `getOwnerAssistantPubkey()` — sync helper that returns just the TA pubkey (reads from env, brainstorm.conf pubkey, or SecureKeyStorage JSON file).
+- All code that previously read `BRAINSTORM_RELAY_PRIVKEY` from brainstorm.conf now uses these functions. The legacy plaintext key file (`brainstorm_relay_keys.sh`) is no longer created on new installs.
+
+**Dynamic TA pubkey in the React UI:**
+- `GET /api/assistant/pubkey` returns the owner's TA pubkey (no auth required — pubkey is public).
+- `ConfigContext` (`ui/src/context/ConfigContext.jsx`) fetches the TA pubkey at app startup.
+- All UI components use `useConfig().taPubkey` instead of a hardcoded constant.
+
+**NIP-85 page (`nip85.html`):**
+- Uses the same NIP-07 publish flow as `customer.html`: `POST /api/create-unsigned-kind10040` → NIP-07 sign → `POST /api/publish-signed-kind10040`.
+- The `create-unsigned-kind10040` endpoint defaults to the session pubkey when no explicit pubkey is provided, so the owner doesn't need to pass one.
 
 ### Router Presets
 
-Strfry sync streams are configured in `setup/router-presets.json`. All streams default to disabled. Toggle via `POST /api/strfry/router-toggle` or the UI at `/kg/settings/relays`.
+Strfry sync streams are configured in `setup/router-presets.json`. All streams default to disabled. Toggle via `POST /api/strfry/router-toggle` or the UI at `/tapestry/settings/relays`.
 
 | Preset | Direction | Kinds | Relays | Purpose |
 |--------|-----------|-------|--------|---------|
@@ -847,18 +1058,24 @@ git clone https://github.com/nous-clawds4/tapestry.git
 git clone https://github.com/nous-clawds4/tapestry-cli.git
 
 # 2. Start the server
-cd tapestry
-cp .env.example .env   # edit OWNER_PUBKEY and NEO4J_PASSWORD
+cd tapestry && git checkout refactor-paths
+cp .env.example .env   # edit OWNER_PUBKEY, NEO4J_PASSWORD, DOMAIN_NAME
 docker compose up -d
 
 # 3. Start the React dev server (optional, for UI development)
 cd ui && npm install && npx vite --host
-# → http://localhost:5173/kg/
+# → http://localhost:5173/        (Brainstorm Search at root)
+# → http://localhost:5173/tapestry (Tapestry Dashboard)
 
 # 4. Install the CLI
 cd ../tapestry-cli && npm install && npm link
 tapestry status
 ```
+
+### Two frontends during development
+
+- **`:5173`** — Vite dev server. Always reflects latest source code (hot reload). Use this for development.
+- **`:80` (or `:8080`)** — Production build served by Express inside Docker. Requires `cd ui && npm run build` to update after UI changes.
 
 ### Dev Mode (bind-mount code)
 
@@ -871,10 +1088,16 @@ Server code changes are reflected after:
 docker compose exec tapestry supervisorctl restart brainstorm
 ```
 
+**Important:** With dev bind-mount, the container's `node_modules` volume may be empty on first start. If you get `Bad Request` errors from Express, run:
+```bash
+docker compose exec tapestry bash -c 'cd /usr/local/lib/node_modules/brainstorm && npm install'
+docker compose exec tapestry supervisorctl restart brainstorm
+```
+
 ### Building for Production
 
 ```bash
-cd ui && npm run build   # outputs to ui/dist/, served by Express at /kg/
+cd ui && npm run build   # outputs to dist/, served by Express at /
 ```
 
 ### Docker Rebuild (after server-side changes)
@@ -882,6 +1105,134 @@ cd ui && npm run build   # outputs to ui/dist/, served by Express at /kg/
 ```bash
 docker compose build tapestry && docker compose up -d tapestry
 ```
+
+### Production Deployment (with host nginx + SSL)
+
+For production behind a host nginx reverse proxy with Certbot SSL:
+```bash
+# Docker binds to localhost:8080 (not port 80, which host nginx owns)
+sed -i 's/"80:80"/"127.0.0.1:8080:80"/' docker-compose.yml
+
+# Host nginx proxies port 80/443 → 127.0.0.1:8080
+# See .github/workflows/deploy-brainstorm.yml for CI/CD reference
+```
+
+### CI/CD Pipelines
+
+GitHub Actions workflows in `.github/workflows/`:
+
+| Workflow | Branch | Target | Description |
+|----------|--------|--------|-------------|
+| `deploy-brainstorm.yml` | `refactor-paths` | `brainstorm.world` | SSHes into DO droplet, pulls code, rebuilds Docker stack |
+| `deploy.yml` | `brainstorm-search` | `tapestry.ninja` | Same pattern for the tapestry.ninja instance |
+
+The deploy scripts:
+1. Restore `docker-compose.yml` to repo version (`git checkout --`)
+2. Pull latest code
+3. Apply production port remap (`sed` to `127.0.0.1:8080:80`)
+4. Rebuild and restart (`docker compose up -d --build`)
+5. Prune old images
+
+### Server Recommendations
+
+For a production instance serving Brainstorm Search to many users:
+
+- **Memory-optimized** droplet (Meilisearch + Neo4j + strfry are all memory-heavy)
+- **16GB minimum** — functional but tight
+- **32GB recommended** — comfortable for millions of profiles and dozens of WoT users
+- **CPU** — not a bottleneck; Meilisearch queries use microseconds of CPU per search
+- AMD and Intel perform equivalently for this workload
+
+### Memory Architecture
+
+Neo4j memory is configured **dynamically at container startup** by `entrypoint.sh`. The script detects system RAM, reserves memory for non-Neo4j services, and allocates the rest to Neo4j heap and page cache. G1GC and concurrent transaction limits are also set based on machine size.
+
+**Empirical measurements** (32GB DO droplet, 2.6M profiles, 30M FOLLOWS relationships, April 2026):
+
+| Component | Measured RAM | Disk | Notes |
+|---|---|---|---|
+| Meilisearch | 5.6 GB | 10.7 GB | 2.6M profiles + WoT score fields for 3 POVs |
+| Neo4j (inside tapestry) | 2-3 GB | 3.6 GB | 2.46M NostrUser nodes, 30.5M relationships |
+| strfry (inside tapestry) | 0.5-1 GB | LMDB | Memory-mapped, benefits from OS page cache |
+| Redis | 4 MB | — | Queue is nearly empty when consumer keeps up |
+| nostr-search-api | 31 MB | — | Lightweight Node.js process |
+| Node.js (Express, nip50-proxy, consumer) | ~0.5 GB | — | Inside tapestry container |
+| OS | 1-2 GB | — | Kernel, buffers, page cache |
+| **Total** | **~10 GB** | — | Of 31.3 GB available |
+
+**Dynamic allocation formula** (in `docker/entrypoint.sh`):
+
+| Machine | Reserved (non-Neo4j) | Neo4j Heap | Page Cache | Tx Memory | GC | Concurrent Txns |
+|---|---|---|---|---|---|---|
+| 8 GB | 3.5 GB | 1.9 GB | 1.9 GB | 0.9 GB | Default | 100-400 |
+| 16 GB | 7.0 GB | 3.8 GB | 3.8 GB | 1.9 GB | G1GC | 200-800 |
+| 32 GB | 12.0 GB | 8.3 GB | 8.3 GB | 4.2 GB | G1GC + 16m regions | 800 |
+
+G1GC is enabled when heap ≥ 4GB (reduces GC pause times for large heaps). G1HeapRegionSize is set to 16m when heap ≥ 8GB. ExitOnOutOfMemoryError is always enabled.
+
+**Incremental memory per WoT user** (personalized search):
+
+Each user who loads WoT scores into Meilisearch adds POV-suffixed fields (e.g., `wot_rank_<8char>`, `wot_followers_<8char>`) to their scored profiles. Memory cost per user:
+
+| Parameter | Typical Value |
+|---|---|
+| Profiles scored per user | 100K-200K |
+| Metrics per profile | 2-5 |
+| Bytes per numeric field | ~8 (value) + index overhead |
+| **Incremental RAM per user** | **~15-25 MB** |
+| **Incremental disk per user** | **~100-160 MB** |
+
+At ~20 MB per user, a 32GB server with 12GB reserved for Meilisearch and other services can comfortably support **hundreds of concurrent WoT users** before memory pressure. The bottleneck is Meilisearch's filterable/sortable index structures, not the raw score values.
+
+**Scaling guidance:**
+- **< 50 WoT users**: 16 GB server is sufficient
+- **50-500 WoT users**: 32 GB server recommended
+- **500+ WoT users**: 64 GB or split Meilisearch to a dedicated server
+
+### SSL Setup (one-time)
+
+```bash
+apt install -y nginx certbot python3-certbot-nginx
+
+# Create nginx site config proxying to Docker on 127.0.0.1:8080
+# (include proxy_set_header, WebSocket upgrade, 100m client_max_body_size)
+
+certbot --nginx -d brainstorm.world
+# Certbot auto-renews via systemd timer
+```
+
+### Firewall (UFW)
+
+Docker port forwarding requires UFW to be enabled on the host, even with permissive rules:
+
+```bash
+ufw allow 'Nginx Full'
+ufw allow 22/tcp
+ufw allow 7474/tcp
+ufw allow 7687/tcp
+ufw default allow incoming
+ufw default allow outgoing
+ufw --force enable
+```
+
+### Accessing Neo4j Browser (production)
+
+The Neo4j browser at `/browser` on HTTPS sites doesn't work because the browser forces `bolt+s://` connections but Neo4j's Bolt port doesn't have SSL termination. Use an SSH tunnel instead:
+
+```bash
+# From your local machine (use non-standard ports if local Docker is also running Neo4j):
+ssh -L 17474:localhost:7474 -L 17687:localhost:7687 root@<droplet-ip>
+
+# Then open in browser:
+# http://localhost:17474/browser/preview/
+# Connect with: bolt://localhost:17687
+```
+
+### Docker Compatibility Notes
+
+- **No `sudo` in scripts**: Inside Docker, everything runs as root. Scripts that use `sudo` will fail with "command not found" because `sudo` doesn't recognize scripts without execute permissions. Use `bash script.sh` instead of `sudo script.sh`.
+- **Neo4j config path**: Requires `NEO4J_CONF="/etc/neo4j"` in supervisord (see Configuration section above).
+- **Batch transfer scripts** (`transfer.sh`, `callBatchTransfer.sh`) have been updated to use `bash` instead of `sudo` for Docker compatibility.
 
 ### Useful Commands
 
@@ -894,6 +1245,9 @@ docker compose exec tapestry bash -c "echo 'MATCH (n) RETURN count(n)' | cypher-
 
 # Scan strfry
 docker compose exec tapestry strfry scan '{"kinds":[39998]}'
+
+# Count strfry events by kind (can take minutes on large DBs)
+curl 'http://localhost:8080/api/strfry/scan/count?filter={"kinds":[0]}'
 
 # Sync from DCoSL relay
 docker compose exec tapestry strfry sync wss://dcosl.brainstorm.world \
@@ -939,6 +1293,24 @@ docker compose exec tapestry strfry sync wss://dcosl.brainstorm.world \
 - ✅ NIP-50 custom extensions: `observer:<pubkey>`, `sort:<metric>:<direction>`, `filter:<metric>:<op>:<value>`
 - ✅ NIP-11 relay info advertising NIP-50 support with extension documentation
 - ✅ Background WoT pipeline auto-trigger — when a NIP-50 search arrives for an observer whose scores aren't loaded, the proxy automatically runs the full pipeline (find kind 10040 → parse rank tag → negentropy sync TAs → parse metrics → load scores into Meilisearch)
+- ✅ Direct nostr identity lookup — npub, hex pubkey, or nprofile bypasses text search and fetches profile directly from Meilisearch by document ID
+- ✅ NIP-05 verified profile lookup — parallel verification pins verified profile at top of results with ✅ badge, deduplicated from normal results
+- ✅ Broken avatar fallback — broken image URLs replaced with 👤 placeholder instead of collapsing layout
+- ✅ WoT score POV suffix namespacing — scores stored as `wot_<metric>_<8char>` to support multiple simultaneous POVs
+- ✅ Personalized search POV toggle — users can switch between House and personal WoT scores; `rankAuthor` persisted in user prefs
+- ✅ Strfry lazy-load kind counts — individual on-demand counts replace monolithic 12-scan status endpoint
+- ✅ URL path refactor — Brainstorm Search at root `/`, Tapestry dashboard at `/tapestry/`, legacy at `/legacy/`
+- ✅ CI/CD deployment workflows — GitHub Actions auto-deploy to Digital Ocean on push
+- ✅ Production SSL via host nginx + Certbot
+- ✅ Streaming ETL pipeline — strfry → Redis → Neo4j for real-time FOLLOWS/MUTES/REPORTS processing
+- ✅ strfry C++ Redis patch (non-blocking rpush after LMDB commit, applied during Docker build)
+- ✅ Redis service in Docker stack (~50MB RAM, message queue buffer)
+- ✅ Streaming ETL control panel on Relays settings page (status, start/stop, queue depth, log viewer)
+- ✅ Swagger API documentation at `/docs`
+- ✅ Customer GrapeRank warm start — initialize scorecards from prior Neo4j scores instead of `[0,0,0,0]`; converges in 1–3 iterations vs ~12–31 cold (~4× speedup, 20 min → 5 min observed)
+- ✅ Warm Start UI toggle in task-explorer.html — exposed on `calculateCustomerGrapeRank`, `updateAllScoresForSingleCustomer`, `processCustomer`, `processAllActiveCustomers`, and `processAllTasks`
+- ✅ Owner-seeded warm start for first-time customers — if the owner is within 3 directed FOLLOWS hops downstream of the customer, seed from the owner's `NostrUser` scorecards; otherwise cold start
+- ✅ GrapeRank observability — per-phase timing in structured events, `iteration_complete` event with convergence metrics (iterations, max_diff, warm_start_source), persistent per-customer `graperank_history.jsonl`
 
 ### CLI (tapestry-cli repo)
 
@@ -958,6 +1330,7 @@ docker compose exec tapestry strfry sync wss://dcosl.brainstorm.world \
 - **JSON validation** — audit validates core node JSON against firmware schemas; element validation against concept schemas exists but needs polish
 - **Meilisearch scalability** — at 2M+ profiles on a 2-vCPU machine, indexing can saturate CPU; may need tuning for production
 - **NIP-50 adoption** — relay proxy is live; working to get nostr client developers to integrate WoT-powered search results
+- **GrapeRank performance optimization** — first wave (warm start) shipped; the ~55% of remaining runtime spent in the ratings-interpretation phase is the next optimization target
 
 ---
 
@@ -973,6 +1346,7 @@ docker compose exec tapestry strfry sync wss://dcosl.brainstorm.world \
 - [ ] **Multi-user support** — different views based on trust scores
 - [ ] **Client-side signing flow** — server returns unsigned event templates, client signs via NIP-07, posts back
 - [ ] **Search for concepts/elements/properties** — extend Meilisearch to index concept graph data, not just profiles
+- [ ] **Tier 2 warm-start heuristics** — nearest-customer seeding when the owner is not reachable; community-detection-based seed selection
 
 ### Medium-Term
 
@@ -1030,14 +1404,25 @@ docker compose exec tapestry strfry sync wss://dcosl.brainstorm.world \
 | **ENUMERATES** | A relationship where a concept's elements define the allowed values for a property. Horizontal integration. |
 | **Firmware** | The versioned set of JSON definitions for the protocol's own meta-concepts. Read by the server at runtime. |
 | **graphContext** | Top-level sibling of `word` in tapestryJSON. Contains local, dynamic, non-portable metadata (identifiers, concept membership, schema validation). Stripped before sharing via nostr events. |
-| **GrapeRank** | "PageRank for people" — contextual trust scoring algorithm. |
+| **GrapeRank** | "PageRank for people" — iterative, personalized-per-observer trust scoring. Weighted average of raters' influence × rating × rating confidence, with an attenuation factor on non-observer raters. Converges to a fixed point determined purely by the observer pubkey and the rating graph. |
 | **Grapevine** | The Web of Trust system that determines which curations achieve community consensus. |
 | **IMPORT** | Editorial relationship: "I agree with your concept and want to benefit from your curated elements." |
 | **Loose Consensus** | When two users' WoTs overlap enough to converge on the same definition without central coordination. |
+| **Meilisearch** | Full-text search engine used for profile search. Runs as a separate Docker container (`nostr-search-meili`). Indexes 2M+ kind 0 profiles with sub-10ms query times. |
+| **NIP-05** | Nostr verification standard. A NIP-05 identifier (e.g., `bob@example.com`) is verified by fetching `https://domain/.well-known/nostr.json?name=bob` and checking the pubkey mapping. |
 | **NIP-07** | Nostr browser extension signing standard. Used for authentication. |
+| **NIP-50** | Nostr search protocol. The nip50-proxy implements this to expose Meilisearch + WoT search via standard nostr WebSocket protocol. |
+| **nip50-proxy** | Service inside the tapestry container (port 7780) that sits between nginx and strfry, intercepting search REQs and routing them through Meilisearch. |
 | **Normalization** | The process of ensuring the concept graph follows structural rules. |
+| **nostr-search-api** | Separate Docker container (port 3069) that handles live profile ingestion from strfry and proxies search queries to Meilisearch. |
+| **POV (Point of View)** | The WoT perspective used for filtering/sorting search results. Either `house` (instance default) or `user` (personalized). Determines which `povSuffix` is used. |
+| **povSuffix** | 8-character prefix of the delegated pubkey (`rankAuthor.slice(0, 8)`). Used to namespace WoT score fields in Meilisearch (e.g., `wot_followers_78ed0837`). |
+| **rankAuthor** | The hex pubkey of the delegated trust authority whose Trust Assertions (kind 30382) provide WoT scores for a given POV. Stored in user prefs. |
 | **SUPERCEDES** | Editorial relationship: "I've evaluated your definition and chosen to replace it with mine." Non-destructive. |
-| **Tapestry Assistant (TA)** | Server-side nostr identity that signs automated events. |
+| **Assistant** | A server-side nostr identity that publishes events on behalf of an owner, admin, or customer. The owner's assistant is the Tapestry Assistant (TA); customer assistants are created at sign-up. All stored in SecureKeyStorage. |
+| **Tapestry Assistant (TA)** | The owner's assistant — server-side nostr identity that signs automated events (firmware, concepts, kind 30382 Trust Assertions). Stored in SecureKeyStorage as `tapestry-assistant`. |
+| **Trust Assertions (TAs)** | Kind 30382 nostr events published by a `rankAuthor` that assign trust scores (rank, followers, etc.) to other pubkeys. Synced via negentropy and loaded into Meilisearch for WoT-powered search. |
+| **Warm Start** | An opt-in GrapeRank initialization mode that seeds scorecards from previously-computed scores instead of `[0,0,0,0]`. Three sources in tiered fallback: `self` (customer's own prior scores), `owner` (owner's `NostrUser` scores when the owner is within 3 directed FOLLOWS hops downstream of the customer), and `cold` (no seed available; legacy behavior). Typically cuts customer GrapeRank runtime from ~20 min to ~5 min. |
 | **Word-wrapper** | The canonical JSON format where every node's data includes a `word` section plus type-specific sections. |
 | **z-tag** | The `z` tag on a ListItem that points to its parent concept's a-tag. Fundamental parent pointer. |
 

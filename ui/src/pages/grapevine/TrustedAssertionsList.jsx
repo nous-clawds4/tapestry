@@ -180,7 +180,7 @@ export default function TrustedAssertionsList() {
               </div>
               <div style={{ marginTop: '0.75rem' }}>
                 <Link
-                  to="/kg/grapevine/trusted-assertions"
+                  to="/tapestry/grapevine/trusted-assertions"
                   style={{ color: '#58a6ff', fontWeight: 600, fontSize: '0.9rem' }}
                 >
                   Go to TA Treasure Map page →

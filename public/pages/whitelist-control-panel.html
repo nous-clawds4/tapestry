@@ -182,7 +182,7 @@
         // Load current configuration and whitelist stats
         async function loadWhitelistConfig() {
             try {
-                const response = await fetch('/control/api/get-whitelist-config');
+                const response = await fetch('/api/get-whitelist-config');
                 const data = await response.json();
                 
                 if (data.success) {
@@ -224,7 +224,7 @@
         // Load whitelist statistics
         async function loadWhitelistStats() {
             try {
-                const response = await fetch('/control/api/whitelist-stats');
+                const response = await fetch('/api/whitelist-stats');
                 const data = await response.json();
                 
                 if (data.success) {
@@ -243,7 +243,7 @@
         // Load user count for current influence threshold
         async function loadInfluenceCount(threshold) {
             try {
-                const response = await fetch(`/control/api/influence-count?threshold=${threshold}`);
+                const response = await fetch(`/api/influence-count?threshold=${threshold}`);
                 const data = await response.json();
                 
                 if (data.success) {
@@ -261,7 +261,7 @@
         // Load user count for current hops threshold
         async function loadHopsCount(threshold) {
             try {
-                const response = await fetch(`/control/api/hops-count?threshold=${threshold}`);
+                const response = await fetch(`/api/hops-count?threshold=${threshold}`);
                 const data = await response.json();
                 
                 if (data.success) {
@@ -279,7 +279,7 @@
         // Load blacklist count
         async function loadBlacklistCount() {
             try {
-                const response = await fetch(`/control/api/blacklist-count`);
+                const response = await fetch(`/api/blacklist-count`);
                 const data = await response.json();
                 
                 if (data.success) {
@@ -303,7 +303,7 @@
                 const blacklist = document.getElementById('INCORPORATE_BLACKLIST').value;
                 
                 // Construct the query URL with all parameters
-                const url = `/control/api/whitelist-preview-count?influence=${influence}&hops=${hops}&logic=${logic}&blacklist=${blacklist}`;
+                const url = `/api/whitelist-preview-count?influence=${influence}&hops=${hops}&logic=${logic}&blacklist=${blacklist}`;
                 
                 const response = await fetch(url);
                 const data = await response.json();
@@ -356,7 +356,7 @@
                 saveConfigBtn.disabled = true;
                 showStatus(configStatusEl, 'Saving configuration...', 'info');
                 
-                const response = await fetch('/control/api/post-whitelist-config', {
+                const response = await fetch('/api/post-whitelist-config', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -411,7 +411,7 @@
             generateWhitelistStatus.className = 'status info';
             generateWhitelistStatus.textContent = 'Generating personalized whitelist. This may take a few minutes...';
             
-            fetch('/control/api/export-whitelist', {
+            fetch('/api/export-whitelist', {
                 method: 'POST'
             })
             .then(response => response.json())

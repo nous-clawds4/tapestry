@@ -80,14 +80,17 @@ export default function BrainstormSettings() {
     return data.success ? (data.count ?? 0) : 0;
   }
 
-  async function checkMeiliScores() {
+  async function checkMeiliScores(rankAuthor) {
     try {
+      const suffix = rankAuthor?.slice(0, 8);
+      if (!suffix) return false;
       const resp = await fetch('/api/search/profiles/meili/stats');
       const data = await resp.json();
       if (!data.success) return false;
       const fields = data.fieldDistribution || {};
-      const wotFields = Object.entries(fields).filter(([k]) => k.startsWith('wot_') && k !== 'wot_pov' && k !== 'wot_updated_at');
-      return wotFields.length > 0 && wotFields.some(([, v]) => v > 0);
+      // Only check for fields matching THIS user's POV suffix
+      const userWotFields = Object.entries(fields).filter(([k]) => k.startsWith('wot_') && k.endsWith(`_${suffix}`));
+      return userWotFields.length > 0 && userWotFields.some(([, v]) => v > 0);
     } catch { return false; }
   }
 
@@ -128,6 +131,7 @@ export default function BrainstormSettings() {
   async function triggerLoadScores(rankAuthor, metricNames, userPubkey) {
     setLoadingScores(true);
     setLoadStatus('Streaming scores from local relay…');
+    const povSuffix = rankAuthor.slice(0, 8);
     try {
       const filter = encodeURIComponent(JSON.stringify({ kinds: [30382], authors: [rankAuthor] }));
       const resp = await fetch(`/api/strfry/scan/stream?filter=${filter}`);
@@ -153,7 +157,7 @@ export default function BrainstormSettings() {
           const scoreObj = { pubkey: dTag };
           for (const tag of event.tags) {
             if (metricNames.includes(tag[0])) {
-              scoreObj[`wot_${tag[0]}`] = parseFloat(tag[1]) || 0;
+              scoreObj[`wot_${tag[0]}_${povSuffix}`] = parseFloat(tag[1]) || 0;
             }
           }
           scores.push(scoreObj);
@@ -168,7 +172,7 @@ export default function BrainstormSettings() {
       const meiliResp = await fetch('/api/search/profiles/meili/load-scores', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ povPubkey: userPubkey, metrics: metricNames, scores }),
+        body: JSON.stringify({ povPubkey: userPubkey, delegatedPubkey: rankAuthor, metrics: metricNames, scores }),
       });
       const result = await meiliResp.json();
       if (result.success) {
@@ -335,7 +339,7 @@ export default function BrainstormSettings() {
         if (cancelled || localCount === 0) return;
 
         // Auto-load scores
-        const hasScores = await checkMeiliScores();
+        const hasScores = await checkMeiliScores(rankAuthor);
         if (cancelled) return;
         if (hasScores) {
           setScoresReady(true);
@@ -373,9 +377,9 @@ export default function BrainstormSettings() {
     return (
       <div className="bss-page">
         <div className="bss-top-bar">
-          <a href="/kg/brainstorm-search" className="bss-back">← Back to Search</a>
-          <a href="/kg/brainstorm-search" className="bsp-logo">
-            <img src="/kg/brainstorm.svg" alt="" className="bsp-logo-img" />
+          <a href="/" className="bss-back">← Back to Search</a>
+          <a href="/" className="bsp-logo">
+            <img src="/brainstorm.svg" alt="" className="bsp-logo-img" />
             Brainstorm
           </a>
           <BrainstormUserMenu user={user} login={login} logout={logout} />
@@ -393,9 +397,9 @@ export default function BrainstormSettings() {
     <div className="bss-page">
       {/* Top bar */}
       <div className="bss-top-bar">
-        <a href="/kg/brainstorm-search" className="bss-back">← Back to Search</a>
-        <a href="/kg/brainstorm-search" className="bsp-logo">
-          <img src="/kg/brainstorm.svg" alt="" className="bsp-logo-img" />
+        <a href="/" className="bss-back">← Back to Search</a>
+        <a href="/" className="bsp-logo">
+          <img src="/brainstorm.svg" alt="" className="bsp-logo-img" />
           Brainstorm
         </a>
         <div className="bss-auth">
@@ -406,7 +410,7 @@ export default function BrainstormSettings() {
       <div className="bss-content">
         {/* Dashboard link for owner/admin */}
         {(user?.classification === 'owner' || user?.classification === 'admin') && (
-          <a href="/kg/" className="bss-dashboard-link">
+          <a href="/tapestry/" className="bss-dashboard-link">
             <svg width="16" height="16" viewBox="0 0 18 18" fill="none" style={{ marginRight: '0.4rem' }}>
               <rect x="1" y="1" width="4" height="4" rx="1" fill="currentColor" opacity="0.7"/>
               <rect x="7" y="1" width="4" height="4" rx="1" fill="currentColor" opacity="0.7"/>
@@ -635,7 +639,7 @@ export default function BrainstormSettings() {
               </div>
               <div className="bss-pov-btn-desc">
                 {houseProfile ? (
-                  <a href={`/kg/brainstorm-search/user/${houseProfile.pubkey}`} className="bss-pov-profile-link" onClick={e => e.stopPropagation()}>
+                  <a href={`/user/${houseProfile.pubkey}`} className="bss-pov-profile-link" onClick={e => e.stopPropagation()}>
                     View profile →
                   </a>
                 ) : "Use the instance's default WoT scores"}

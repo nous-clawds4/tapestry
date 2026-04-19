@@ -8,7 +8,7 @@
 source /etc/brainstorm.conf # NEO4J_URI, NEO4J_USER, NEO4J_PASSWORD, BRAINSTORM_OWNER_PUBKEY, BRAINSTORM_LOG_DIR, BRAINSTORM_MODULE_ALGOS_DIR
 
 touch ${BRAINSTORM_LOG_DIR}/personalizedPageRankForApi.log
-sudo chown brainstorm:brainstorm ${BRAINSTORM_LOG_DIR}/personalizedPageRankForApi.log
+chown brainstorm:brainstorm ${BRAINSTORM_LOG_DIR}/personalizedPageRankForApi.log
 
 REF_PUBKEY=$1
 
@@ -27,7 +27,7 @@ echo "$(date): Starting personalizedPageRankForApi for $REF_PUBKEY with limit $L
 echo "$(date): Starting personalizedPageRankForApi for $REF_PUBKEY with limit $LIMIT" >> ${BRAINSTORM_LOG_DIR}/personalizedPageRankForApi.log
 
 # make sure followsGraph has been projected into memory
-sudo bash ${BRAINSTORM_MODULE_ALGOS_DIR}/projectFollowsGraphIntoMemory.sh
+bash ${BRAINSTORM_MODULE_ALGOS_DIR}/projectFollowsGraphIntoMemory.sh
 
 echo "$(date): Continuing personalizedPageRankForApi ... projectFollowsGraphIntoMemory.sh completed"
 echo "$(date): Continuing personalizedPageRankForApi ... projectFollowsGraphIntoMemory.sh completed" >> ${BRAINSTORM_LOG_DIR}/personalizedPageRankForApi.log
@@ -47,14 +47,14 @@ LIMIT $LIMIT
 RETURN gds.util.asNode(nodeId).pubkey AS pubkey, score
 "
 
-CYPHER0_RESULTS=$(sudo cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER0")
+CYPHER0_RESULTS=$(cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER0")
 # echo "$CYPHER0_RESULTS"
 
 # store CYPHER0_RESULTS in a tmp file; name of file includes pubkey
 echo "$CYPHER0_RESULTS" > /tmp/personalizedPageRankForApi_${REF_PUBKEY}.txt
 
 # call javascript file to process CYPHER0_RESULTS into json format
-sudo node ${BRAINSTORM_MODULE_ALGOS_DIR}/convertPersonalizedPageRankForApiToJSON.js ${REF_PUBKEY}
+node ${BRAINSTORM_MODULE_ALGOS_DIR}/convertPersonalizedPageRankForApiToJSON.js ${REF_PUBKEY}
 
 echo "$(date): Continuing personalizedPageRankForApi ... finished CYPHER0"
 echo "$(date): Continuing personalizedPageRankForApi ... finished CYPHER0" >> ${BRAINSTORM_LOG_DIR}/personalizedPageRankForApi.log

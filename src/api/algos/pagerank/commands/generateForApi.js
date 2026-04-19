@@ -43,7 +43,7 @@ function handleGenerateForApiPageRank(req, res) {
 
   try {
     // Use exec with timeout and maxBuffer options to handle large outputs
-    let personalizedPageRankForApiCommand = `sudo /usr/local/lib/node_modules/brainstorm/src/algos/personalizedPageRankForApi.sh ${pubkey}`;
+    let personalizedPageRankForApiCommand = `/usr/local/lib/node_modules/brainstorm/src/algos/personalizedPageRankForApi.sh ${pubkey}`;
     if (limit) {
       personalizedPageRankForApiCommand += ` ${limit}`;
     }

@@ -17,7 +17,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # Log file for complete npubs operations
 LOG_FILE="$BRAINSTORM_LOG_DIR/processNpubsUpToMaxNumBlocks.log"
 touch "$LOG_FILE"
-sudo chown brainstorm:brainstorm $LOG_FILE
+chown brainstorm:brainstorm $LOG_FILE
 
 echo "$(date): Starting processNpubsUpToMaxNumBlocks"
 echo "$(date): Starting processNpubsUpToMaxNumBlocks" >> ${LOG_FILE}
@@ -47,7 +47,7 @@ count_missing_npubs() {
     RETURN count(u) as missing_count
     "
     
-    local result=$(sudo cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" \
+    local result=$(cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" \
         "$count_query" 2>/dev/null | tail -n 1 | tr -d '"' || echo "0")
     
     echo "$result"
@@ -62,7 +62,7 @@ count_total_users() {
     RETURN count(u) as total_count
     "
     
-    local result=$(sudo cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" \
+    local result=$(cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" \
         "$count_query" 2>/dev/null | tail -n 1 | tr -d '"' || echo "0")
     
     echo "$result"

@@ -87,7 +87,7 @@ async function processQueueFile(queueFile) {
     console.log(`${new Date().toISOString()}: Processing ${relationshipTypes[kind]} relationships for pubkey ${pubkey}`);
     
     // Get the latest event from strfry
-    const eventJson = execSync(`sudo strfry scan "{ \\"kinds\\": [${kind}], \\"authors\\": [\\"${pubkey}\\"]}" | head -n 1`).toString().trim();
+    const eventJson = execSync(`strfry scan "{ \\"kinds\\": [${kind}], \\"authors\\": [\\"${pubkey}\\"]}" | head -n 1`).toString().trim();
     
     if (!eventJson) {
       console.log(`${new Date().toISOString()}: No ${kind} event found for pubkey ${pubkey}`);
@@ -116,7 +116,7 @@ async function processQueueFile(queueFile) {
         SET u.kind${kind}EventId = "${eventId}", u.kind${kind}CreatedAt = ${createdAt}
       `;
       
-      execSync(`sudo cypher-shell -a "${config.neo4jUri}" -u "${config.neo4jUser}" -p "${config.neo4jPassword}" "${updateQuery}"`);
+      execSync(`cypher-shell -a "${config.neo4jUri}" -u "${config.neo4jUser}" -p "${config.neo4jPassword}" "${updateQuery}"`);
       
       await unlink(path.join(config.queueDir, queueFile));
       return;
@@ -139,7 +139,7 @@ async function processQueueFile(queueFile) {
       RETURN target.pubkey AS targetPubkey
     `;
     
-    const currentOutput = execSync(`sudo cypher-shell -a "${config.neo4jUri}" -u "${config.neo4jUser}" -p "${config.neo4jPassword}" "${getCurrentQuery}" --format plain`).toString();
+    const currentOutput = execSync(`cypher-shell -a "${config.neo4jUri}" -u "${config.neo4jUser}" -p "${config.neo4jPassword}" "${getCurrentQuery}" --format plain`).toString();
     
     // Parse current relationships (skip header and footer)
     const currentLines = currentOutput.split('\n');
@@ -175,7 +175,7 @@ async function processQueueFile(queueFile) {
       
       const addParams = JSON.stringify({ relationships: addRelationships });
       
-      execSync(`sudo cypher-shell -a "${config.neo4jUri}" -u "${config.neo4jUser}" -p "${config.neo4jPassword}" "${addQuery}" --param relationships='${addParams}'`);
+      execSync(`cypher-shell -a "${config.neo4jUri}" -u "${config.neo4jUser}" -p "${config.neo4jPassword}" "${addQuery}" --param relationships='${addParams}'`);
     }
     
     // Remove old relationships
@@ -186,7 +186,7 @@ async function processQueueFile(queueFile) {
         DELETE r
       `;
       
-      execSync(`sudo cypher-shell -a "${config.neo4jUri}" -u "${config.neo4jUser}" -p "${config.neo4jPassword}" "${removeQuery}"`);
+      execSync(`cypher-shell -a "${config.neo4jUri}" -u "${config.neo4jUser}" -p "${config.neo4jPassword}" "${removeQuery}"`);
     }
     
     // Update the event ID in Neo4j
@@ -195,7 +195,7 @@ async function processQueueFile(queueFile) {
       SET u.kind${kind}EventId = "${eventId}", u.kind${kind}CreatedAt = ${createdAt}
     `;
     
-    execSync(`sudo cypher-shell -a "${config.neo4jUri}" -u "${config.neo4jUser}" -p "${config.neo4jPassword}" "${updateQuery}"`);
+    execSync(`cypher-shell -a "${config.neo4jUri}" -u "${config.neo4jUser}" -p "${config.neo4jPassword}" "${updateQuery}"`);
     
     // Clean up
     await unlink(path.join(config.queueDir, queueFile));

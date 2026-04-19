@@ -26,8 +26,7 @@
                     <p>Create and publish your Kind 10040 event for NIP-85 trusted assertions. This instructs clients how to find your published WoT scores.</p>
                     
                     <div class="button-group">
-                        <button id="createKind10040Btn" class="button primary-btn">Create Kind 10040 Event</button>
-                        <button id="publishKind10040Btn" class="button secondary-btn" disabled>Publish Kind 10040 Event</button>
+                        <button id="publishKind10040Btn" class="button primary-btn">Publish Kind 10040 Event</button>
                     </div>
                     
                     <div id="kind10040Output" class="output-container" style="display: none;">
@@ -67,6 +66,52 @@
                 </div>
             </div>
             
+            <!-- Brainstorm Assistant Panel -->
+            <div class="section">
+                <h2>🤖 Your Brainstorm Assistant</h2>
+                <div class="card">
+                    <p>Your Brainstorm Assistant is the Tapestry Assistant identity that publishes kind 30382 Trust Assertions on your behalf.
+                       Give it a profile so other users can see who it represents.</p>
+
+                    <div id="ownerAssistantLoading" class="status-message status-info">Loading assistant status...</div>
+
+                    <div id="ownerAssistantContent" style="display: none;">
+                        <div class="info-panel" style="margin-bottom: 1rem;">
+                            <div class="info-row">
+                                <span class="info-label">Assistant Pubkey:</span>
+                                <span id="ownerAssistantPubkey" class="info-value" style="font-family: monospace; font-size: 0.85rem;"></span>
+                                <span id="ownerAssistantCopyBtn" style="cursor: pointer; margin-left: 0.5rem;" title="Copy full pubkey">📋</span>
+                                <a id="ownerAssistantProfileLink" href="#" style="margin-left: 0.5rem; text-decoration: none;" title="View profile">👤</a>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">Profile Status:</span>
+                                <span id="ownerAssistantProfileStatus" class="info-value"></span>
+                            </div>
+                        </div>
+
+                        <div id="ownerAssistantPreview" style="display: none; margin-bottom: 1rem; padding: 0.75rem; background: rgba(255,255,255,0.03); border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);">
+                            <div style="display: flex; align-items: center; gap: 0.75rem;">
+                                <div>
+                                    <div id="ownerAssistantDisplayName" style="font-weight: 600;"></div>
+                                    <div id="ownerAssistantAbout" style="font-size: 0.85rem; color: #888; margin-top: 0.25rem;"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="button-group">
+                            <button id="publishOwnerAssistantBtn" class="button primary-btn" onclick="publishOwnerAssistantProfile()">
+                                Publish Kind 0 Profile
+                            </button>
+                        </div>
+                        <div id="ownerAssistantPublishStatus" class="status-message"></div>
+                    </div>
+
+                    <div id="ownerAssistantNoKey" style="display: none;" class="status-message status-error">
+                        Tapestry Assistant keys not found.
+                    </div>
+                </div>
+            </div>
+
             <div class="section">
                 <h2>Kind 30382 Event Management</h2>
                 
@@ -101,6 +146,97 @@
     </div>
 
     <script>
+        // ── Brainstorm Assistant Functions (owner) ──
+
+        let _ownerPubkey = null;
+
+        async function loadOwnerAssistantStatus() {
+            try {
+                // Get owner pubkey from auth
+                const authResp = await fetch('/api/auth/status');
+                const authData = await authResp.json();
+                _ownerPubkey = authData.pubkey;
+                if (!_ownerPubkey) {
+                    document.getElementById('ownerAssistantLoading').textContent = 'Sign in to manage your Brainstorm Assistant.';
+                    return;
+                }
+
+                const resp = await fetch(`/api/assistant/status?customerPubkey=${_ownerPubkey}`);
+                const data = await resp.json();
+
+                document.getElementById('ownerAssistantLoading').style.display = 'none';
+
+                if (!data.success || !data.hasRelayKey) {
+                    document.getElementById('ownerAssistantNoKey').style.display = 'block';
+                    return;
+                }
+
+                document.getElementById('ownerAssistantContent').style.display = 'block';
+                const pk = data.assistantPubkey || '';
+                document.getElementById('ownerAssistantPubkey').textContent = pk ? pk.slice(0, 12) + '...' + pk.slice(-8) : 'Unknown';
+
+                // Copy button
+                document.getElementById('ownerAssistantCopyBtn').onclick = () => {
+                    navigator.clipboard.writeText(pk).then(() => {
+                        const btn = document.getElementById('ownerAssistantCopyBtn');
+                        btn.textContent = '✅';
+                        setTimeout(() => { btn.textContent = '📋'; }, 1500);
+                    });
+                };
+
+                // Profile link
+                document.getElementById('ownerAssistantProfileLink').href = '/profile.html?pubkey=' + pk;
+
+                if (data.hasProfile && data.profile) {
+                    document.getElementById('ownerAssistantProfileStatus').innerHTML = '<span style="color: #22c55e;">✅ Published</span>';
+                    document.getElementById('ownerAssistantPreview').style.display = 'block';
+                    document.getElementById('ownerAssistantDisplayName').textContent = data.profile.display_name || data.profile.name || '';
+                    document.getElementById('ownerAssistantAbout').textContent = (data.profile.about || '').slice(0, 120) + '...';
+                    document.getElementById('publishOwnerAssistantBtn').textContent = 'Re-publish Kind 0 Profile';
+                } else {
+                    document.getElementById('ownerAssistantProfileStatus').innerHTML = '<span style="color: #f59e0b;">⚠️ Not published</span>';
+                }
+            } catch (err) {
+                document.getElementById('ownerAssistantLoading').textContent = 'Failed to load assistant status: ' + err.message;
+            }
+        }
+
+        async function publishOwnerAssistantProfile() {
+            if (!_ownerPubkey) return;
+            const btn = document.getElementById('publishOwnerAssistantBtn');
+            const status = document.getElementById('ownerAssistantPublishStatus');
+            btn.disabled = true;
+            btn.textContent = 'Publishing...';
+            status.textContent = 'Publishing profile...';
+            status.className = 'status-message status-info';
+
+            try {
+                const resp = await fetch('/api/assistant/publish-profile', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ customerPubkey: _ownerPubkey }),
+                });
+                const data = await resp.json();
+                if (data.success) {
+                    status.textContent = '✅ ' + data.message;
+                    status.className = 'status-message status-success';
+                    await loadOwnerAssistantStatus();
+                } else {
+                    status.textContent = '❌ ' + (data.error || 'Failed');
+                    status.className = 'status-message status-error';
+                }
+            } catch (err) {
+                status.textContent = '❌ ' + err.message;
+                status.className = 'status-message status-error';
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Re-publish Kind 0 Profile';
+            }
+        }
+
+        // Load assistant status on page load
+        loadOwnerAssistantStatus();
+
         document.addEventListener('DOMContentLoaded', function() {
             // Kind 30382 Event Management
             const kind30382Output = document.getElementById('kind30382Output');
@@ -118,7 +254,7 @@
             // Set up the relay link with the correct domain from the server
             const relayLink = document.getElementById('relayLink');
             if (relayLink) {
-                fetch('/control/api/status')
+                fetch('/api/status')
                     .then(response => response.json())
                     .then(data => {
                         if (data && data.strfryDomain) {
@@ -141,12 +277,11 @@
             }
             
             // Kind 10040 Event Management
-            const createKind10040Btn = document.getElementById('createKind10040Btn');
             const publishKind10040Btn = document.getElementById('publishKind10040Btn');
             const kind10040Output = document.getElementById('kind10040Output');
             const kind10040EventPreview = document.getElementById('kind10040EventPreview');
             const kind10040Status = document.getElementById('kind10040Status');
-            
+
             // Kind 10040 Event Status
             const refreshKind10040InfoBtn = document.getElementById('refreshKind10040InfoBtn');
             const kind10040Timestamp = document.getElementById('kind10040Timestamp');
@@ -156,80 +291,17 @@
             const kind10040EventContainer = document.getElementById('kind10040EventContainer');
             const kind10040LatestEvent = document.getElementById('kind10040LatestEvent');
             const kind10040InfoStatus = document.getElementById('kind10040InfoStatus');
-            
-            // Create Kind 10040 Event
-            if (createKind10040Btn) {
-                createKind10040Btn.addEventListener('click', function() {
-                    // Disable button during processing
-                    createKind10040Btn.disabled = true;
-                    publishKind10040Btn.disabled = true;
-                    
-                    // Update status
-                    kind10040Status.textContent = 'Creating Kind 10040 event...';
-                    kind10040Status.className = 'status-message status-info';
-                    
-                    // Make API request to create the event
-                    fetch('/control/api/create-kind10040', {
-                        method: 'POST'
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            // Show the event preview
-                            kind10040Output.style.display = 'block';
-                            kind10040EventPreview.textContent = data.output;
-                            
-                            // Update status
-                            kind10040Status.textContent = 'Kind 10040 event created successfully. Review the event and click "Publish" to publish it.';
-                            kind10040Status.className = 'status-message status-success';
-                            
-                            // Enable publish button
-                            publishKind10040Btn.disabled = false;
-                        } else {
-                            // Show error
-                            kind10040Status.textContent = 'Error creating Kind 10040 event: ' + (data.error || 'Unknown error');
-                            kind10040Status.className = 'status-message status-error';
-                        }
-                        
-                        // Re-enable create button
-                        createKind10040Btn.disabled = false;
-                    })
-                    .catch(error => {
-                        console.error('Error creating Kind 10040 event:', error);
-                        kind10040Status.textContent = 'Error creating Kind 10040 event: ' + error.message;
-                        kind10040Status.className = 'status-message status-error';
-                        createKind10040Btn.disabled = false;
-                    });
-                });
-            }
-            
-            // Publish Kind 10040 Event
+
+            // Publish Kind 10040 Event (NIP-07 flow, same as customer.html)
             if (publishKind10040Btn) {
                 publishKind10040Btn.addEventListener('click', function() {
-                    // Check authentication status first
-                    fetch('/control/api/auth/status')
-                        .then(response => response.json())
-                        .then(data => {
-                            if (data && data.authenticated) {
-                                // User is authenticated, proceed with publishing
-                                publishEvent();
-                            } else {
-                                // User is not authenticated, show error with sign-in link
-                                kind10040Status.innerHTML = 'Authentication required: Please <a href="/sign-in.html" class="auth-link">sign in</a> with your Nostr key to publish events. This is an administrative action that requires authentication.';
-                                kind10040Status.className = 'status-message status-error';
-                            }
-                        })
-                        .catch(error => {
-                            console.error('Error checking authentication status:', error);
-                            kind10040Status.textContent = 'Error checking authentication: ' + error.message;
-                            kind10040Status.className = 'status-message status-error';
-                        });
+                    publishEvent();
                 });
             }
             
             // Function to check the status of Kind 30382 publishing
             function checkKind30382Status() {
-                fetch('/control/api/get-kind30382-info')
+                fetch('/api/get-kind30382-info')
                     .then(response => response.json())
                     .then(data => {
                         if (data.success) {
@@ -242,124 +314,75 @@
                     });
             }
             
-            // Publish Event
-            function publishEvent() {
-                // Disable buttons during processing
-                createKind10040Btn.disabled = true;
+            // Publish Event (NIP-07 flow — same endpoints as customer.html)
+            async function publishEvent() {
                 publishKind10040Btn.disabled = true;
-                
-                // Check if NIP-07 extension is available
-                if (typeof window.nostr === 'undefined') {
-                    kind10040Status.textContent = 'Error: No Nostr extension detected. Please install a NIP-07 compatible extension like Alby or nos2x.';
-                    kind10040Status.className = 'status-message status-error';
-                    createKind10040Btn.disabled = false;
-                    publishKind10040Btn.disabled = false;
-                    return;
-                }
-                
-                // Update status
-                kind10040Status.textContent = 'Getting event data for signing...';
-                kind10040Status.className = 'status-message status-info';
-                
-                // First, get the unsigned event
-                fetch('/control/api/get-kind10040-event', {
-                    method: 'GET'
-                })
-                .then(response => response.json())
-                .then(async data => {
-                    if (data.success && data.event) {
-                        try {
-                            // Update status
-                            kind10040Status.textContent = 'Signing event with NIP-07...';
-                            
-                            // Get the event data
-                            const event = data.event;
-                            
-                            // Make sure the pubkey matches the user's pubkey
-                            const userPubkey = await window.nostr.getPublicKey();
-                            event.pubkey = userPubkey;
-                            
-                            // Get the challenge from the server response
-                            const challenge = data.challenge;
-                            
-                            // Store the challenge to be sent in the publish request header
-                            // instead of embedding it in the event tags
-                            const sessionChallenge = challenge;
-                            
-                            // Update status
-                            kind10040Status.textContent = 'Signing event with NIP-07...';
-                            
-                            // Sign the event
-                            const signedEvent = await window.nostr.signEvent(event);
-                            
-                            // Now publish the signed event
-                            kind10040Status.textContent = 'Publishing signed event...';
-                            
-                            // Send the signed event to the server
-                            fetch('/control/api/publish-kind10040-event', {
-                                method: 'POST',
-                                headers: {
-                                    'Content-Type': 'application/json',
-                                    'X-Challenge': sessionChallenge  // Pass challenge in a header instead
-                                },
-                                body: JSON.stringify({ event: signedEvent })
-                            })
-                            .then(response => response.json())
-                            .then(data => {
-                                if (data.success) {
-                                    // Update status
-                                    kind10040Status.textContent = 'Kind 10040 event published successfully! (May take a minute or so to be viewable in below panel.)';
-                                    kind10040Status.className = 'status-message status-success';
-                                    
-                                    // Show the output container
-                                    kind10040Output.style.display = 'block';
-                                    
-                                    // Update event preview with the published event
-                                    kind10040EventPreview.textContent = data.output || JSON.stringify(data.event, null, 2);
-                                    
-                                    // Refresh the event info after publishing
-                                    fetchKind10040Info();
-                                } else {
-                                    // Show error
-                                    let errorMessage = 'Error publishing Kind 10040 event: ' + (data.error || data.message || 'Unknown error');
-                                    
-                                    // Add details if available
-                                    if (data.details) {
-                                        console.error('Error details:', data.details);
-                                        errorMessage += '\n\nDetails: ' + data.details;
-                                    }
-                                    
-                                    kind10040Status.textContent = errorMessage;
-                                    kind10040Status.className = 'status-message status-error';
-                                    
-                                    // Re-enable publish button
-                                    publishKind10040Btn.disabled = false;
-                                }
-                            })
-                            .catch(error => {
-                                console.error('Error in kind 10040 event process:', error);
-                                kind10040Status.textContent = 'Error: ' + error.message;
-                                kind10040Status.className = 'status-message status-error';
-                                createKind10040Btn.disabled = false;
-                                publishKind10040Btn.disabled = false;
-                            });
-                        } catch (error) {
-                            console.error('Error signing event:', error);
-                            throw new Error(`Error signing event: ${error.message}`);
-                        }
-                    } else {
-                        throw new Error(data.error || 'Failed to get event data');
+                const originalText = publishKind10040Btn.textContent;
+
+                try {
+                    // Step 1: Check for NIP-07 extension
+                    if (!window.nostr) {
+                        kind10040Status.textContent = 'Error: No Nostr extension detected. Please install a NIP-07 compatible extension like Alby or nos2x.';
+                        kind10040Status.className = 'status-message status-error';
+                        publishKind10040Btn.disabled = false;
+                        return;
                     }
-                })
-                .catch(error => {
+
+                    // Step 2: Create unsigned Kind 10040 event (no pubkey param = owner)
+                    kind10040Status.textContent = 'Creating unsigned event...';
+                    kind10040Status.className = 'status-message status-info';
+                    publishKind10040Btn.textContent = 'Creating event...';
+
+                    const createResponse = await fetch('/api/create-unsigned-kind10040', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({})
+                    });
+                    const createResult = await createResponse.json();
+                    if (!createResult.success) {
+                        throw new Error(createResult.message || createResult.error || 'Failed to create unsigned event');
+                    }
+                    const unsignedEvent = createResult.data.unsignedEvent;
+
+                    // Show preview
+                    kind10040Output.style.display = 'block';
+                    kind10040EventPreview.textContent = JSON.stringify(unsignedEvent, null, 2);
+
+                    // Step 3: Sign the event using NIP-07
+                    kind10040Status.textContent = 'Please sign in your Nostr extension...';
+                    publishKind10040Btn.textContent = 'Signing...';
+
+                    const signedEvent = await window.nostr.signEvent(unsignedEvent);
+
+                    // Step 4: Publish the signed event
+                    kind10040Status.textContent = 'Publishing signed event...';
+                    publishKind10040Btn.textContent = 'Publishing...';
+
+                    const publishResponse = await fetch('/api/publish-signed-kind10040', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ signedEvent })
+                    });
+                    const publishResult = await publishResponse.json();
+
+                    if (publishResult.success) {
+                        kind10040Status.textContent = 'Kind 10040 event published successfully! (May take a minute or so to be viewable in below panel.)';
+                        kind10040Status.className = 'status-message status-success';
+                        kind10040EventPreview.textContent = JSON.stringify(signedEvent, null, 2);
+                        fetchKind10040Info();
+                    } else {
+                        throw new Error(publishResult.error || publishResult.message || 'Failed to publish event');
+                    }
+                } catch (error) {
                     console.error('Error in kind 10040 event process:', error);
                     kind10040Status.textContent = 'Error: ' + error.message;
                     kind10040Status.className = 'status-message status-error';
-                    createKind10040Btn.disabled = false;
+                } finally {
                     publishKind10040Btn.disabled = false;
-                });
+                    publishKind10040Btn.textContent = originalText;
+                }
             }
-            
+
             // Function to fetch kind 30382 event information
             function fetchKind30382Info() {
                 kind30382Count.textContent = 'Loading...';
@@ -367,7 +390,7 @@
                 kind30382InfoStatus.className = 'status-message info';
                 kind30382InfoStatus.textContent = 'Fetching event information...';
                 
-                fetch('/control/api/get-kind30382-info')
+                fetch('/api/get-kind30382-info')
                     .then(response => response.json())
                     .then(data => {
                         if (data.success) {
@@ -413,132 +436,14 @@
             
             // Fetch kind 30382 event information on page load
             fetchKind30382Info();
-            
-            // Publish Event
-            function publishEvent() {
-                // Disable buttons during processing
-                createKind10040Btn.disabled = true;
-                publishKind10040Btn.disabled = true;
-                
-                // Check if NIP-07 extension is available
-                if (typeof window.nostr === 'undefined') {
-                    kind10040Status.textContent = 'Error: No Nostr extension detected. Please install a NIP-07 compatible extension like Alby or nos2x.';
-                    kind10040Status.className = 'status-message status-error';
-                    createKind10040Btn.disabled = false;
-                    publishKind10040Btn.disabled = false;
-                    return;
-                }
-                
-                // Update status
-                kind10040Status.textContent = 'Getting event data for signing...';
-                kind10040Status.className = 'status-message status-info';
-                
-                // First, get the unsigned event
-                fetch('/control/api/get-kind10040-event', {
-                    method: 'GET'
-                })
-                .then(response => response.json())
-                .then(async data => {
-                    if (data.success && data.event) {
-                        try {
-                            // Update status
-                            kind10040Status.textContent = 'Signing event with NIP-07...';
-                            
-                            // Get the event data
-                            const event = data.event;
-                            
-                            // Make sure the pubkey matches the user's pubkey
-                            const userPubkey = await window.nostr.getPublicKey();
-                            event.pubkey = userPubkey;
-                            
-                            // Get the challenge from the server response
-                            const challenge = data.challenge;
-                            
-                            // Store the challenge to be sent in the publish request header
-                            // instead of embedding it in the event tags
-                            const sessionChallenge = challenge;
-                            
-                            // Update status
-                            kind10040Status.textContent = 'Signing event with NIP-07...';
-                            
-                            // Sign the event
-                            const signedEvent = await window.nostr.signEvent(event);
-                            
-                            // Now publish the signed event
-                            kind10040Status.textContent = 'Publishing signed event...';
-                            
-                            // Send the signed event to the server
-                            fetch('/control/api/publish-kind10040-event', {
-                                method: 'POST',
-                                headers: {
-                                    'Content-Type': 'application/json',
-                                    'X-Challenge': sessionChallenge  // Pass challenge in a header instead
-                                },
-                                body: JSON.stringify({ event: signedEvent })
-                            })
-                            .then(response => response.json())
-                            .then(data => {
-                                if (data.success) {
-                                    // Update status
-                                    kind10040Status.textContent = 'Kind 10040 event published successfully! (May take a minute or so to be viewable in below panel.)';
-                                    kind10040Status.className = 'status-message status-success';
-                                    
-                                    // Show the output container
-                                    kind10040Output.style.display = 'block';
-                                    
-                                    // Update event preview with the published event
-                                    kind10040EventPreview.textContent = data.output || JSON.stringify(data.event, null, 2);
-                                    
-                                    // Refresh the event info after publishing
-                                    fetchKind10040Info();
-                                } else {
-                                    // Show error
-                                    let errorMessage = 'Error publishing Kind 10040 event: ' + (data.error || data.message || 'Unknown error');
-                                    
-                                    // Add details if available
-                                    if (data.details) {
-                                        console.error('Error details:', data.details);
-                                        errorMessage += '\n\nDetails: ' + data.details;
-                                    }
-                                    
-                                    kind10040Status.textContent = errorMessage;
-                                    kind10040Status.className = 'status-message status-error';
-                                    
-                                    // Re-enable publish button
-                                    publishKind10040Btn.disabled = false;
-                                }
-                            })
-                            .catch(error => {
-                                console.error('Error in kind 10040 event process:', error);
-                                kind10040Status.textContent = 'Error: ' + error.message;
-                                kind10040Status.className = 'status-message status-error';
-                                createKind10040Btn.disabled = false;
-                                publishKind10040Btn.disabled = false;
-                            });
-                        } catch (error) {
-                            console.error('Error signing event:', error);
-                            throw new Error(`Error signing event: ${error.message}`);
-                        }
-                    } else {
-                        throw new Error(data.error || 'Failed to get event data');
-                    }
-                })
-                .catch(error => {
-                    console.error('Error in kind 10040 event process:', error);
-                    kind10040Status.textContent = 'Error: ' + error.message;
-                    kind10040Status.className = 'status-message status-error';
-                    createKind10040Btn.disabled = false;
-                    publishKind10040Btn.disabled = false;
-                });
-            }
-            
+
             // Function to fetch kind 10040 event information
             function fetchKind10040Info() {
                 kind10040Timestamp.textContent = 'Loading...';
                 kind10040InfoStatus.className = 'status-message info';
                 kind10040InfoStatus.textContent = 'Fetching event information...';
                 
-                fetch('/control/api/get-kind10040-info')
+                fetch('/api/get-kind10040-info')
                     .then(response => response.json())
                     .then(data => {
                         if (data.success) {

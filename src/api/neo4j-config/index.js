@@ -345,7 +345,7 @@ class Neo4jConfigAnalyzer {
                     title: 'Compromise Memory Configuration',
                     current: `Heap: ${javaConfig.heapMax || 'Unknown'}, Pagecache: ${neo4jConfig.pagecacheSize || 'Unknown'}`,
                     recommended: `Use Neo4j Admin Memory Recommendations (see section above)`,
-                    configLocation: 'Run: sudo neo4j-admin server memory-recommendation',
+                    configLocation: 'Run: neo4j-admin server memory-recommendation',
                     reasoning: `Neo4j's built-in recommendation tool provides optimal settings based on your system resources and database size`
                 });
             } else {
@@ -356,7 +356,7 @@ class Neo4jConfigAnalyzer {
                     title: 'Memory Configuration',
                     current: `Heap: ${javaConfig.heapMax || 'Unknown'}, Pagecache: ${neo4jConfig.pagecacheSize || 'Unknown'}`,
                     recommended: `Use Neo4j Admin Memory Recommendations (see section above)`,
-                    configLocation: 'Run: sudo neo4j-admin server memory-recommendation',
+                    configLocation: 'Run: neo4j-admin server memory-recommendation',
                     reasoning: `Neo4j's built-in recommendation tool provides optimal settings based on your system resources and database size`
                 });
             }
@@ -368,7 +368,7 @@ class Neo4jConfigAnalyzer {
                 title: 'Memory Configuration',
                 current: `Heap: ${javaConfig.heapMax || 'Unknown'}, Pagecache: ${neo4jConfig.pagecacheSize || 'Unknown'}`,
                 recommended: `Use Neo4j Admin Memory Recommendations (see section above)`,
-                configLocation: 'Run: sudo neo4j-admin server memory-recommendation',
+                configLocation: 'Run: neo4j-admin server memory-recommendation',
                 reasoning: `Neo4j's built-in recommendation tool provides optimal settings based on your system resources`
             });
         }

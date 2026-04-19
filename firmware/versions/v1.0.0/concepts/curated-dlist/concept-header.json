@@ -1,0 +1,21 @@
+{
+  "word": {
+    "slug": "concept-header-for-the-concept-of-curated-dlists",
+    "name": "concept header for the concept of curated dlists",
+    "title": "Concept Header for the Concept of Curated Dlists",
+    "wordTypes": ["word", "conceptHeader"]
+  },
+  "conceptHeader": {
+    "description": "These are the Decentralized Lists that I am delegating to my community for active curation. Each list requires a Trust Determination method, a publication method, and a publication schedule.",
+    "oNames": { "singular": "curated dlist", "plural": "curated dlists" },
+    "oSlugs": { "singular": "curated-dlist", "plural": "curated-dlists" },
+    "oKeys": { "singular": "curatedDlist", "plural": "curatedDlists" },
+    "oTitles": { "singular": "Curated Dlist", "plural": "Curated Dlist" },
+    "oLabels": { "singular": "CuratedDlist", "plural": "CuratedDlists" },
+    "x-tapestry": {
+      "neo4j": {
+        "nodeLabelRequired": false
+      }
+    }
+  }
+}

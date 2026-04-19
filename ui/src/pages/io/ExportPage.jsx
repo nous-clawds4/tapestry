@@ -3,7 +3,7 @@ import { useCypher } from '../../hooks/useCypher';
 
 /**
  * Export page — select tapestry nodes and concepts, create export zips.
- * Route: /kg/io/export
+ * Route: /tapestry/io/export
  */
 export default function ExportPage() {
   const [filter, setFilter] = useState('');

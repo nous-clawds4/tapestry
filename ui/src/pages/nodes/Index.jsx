@@ -6,7 +6,8 @@ import useNeo4jLabels from '../../hooks/useNeo4jLabels';
 import AuthorCell from '../../components/AuthorCell';
 import Breadcrumbs from '../../components/Breadcrumbs';
 
-import { OWNER_PUBKEY, TA_PUBKEY, DAVE_PUBKEY } from '../../config/pubkeys';
+import { OWNER_PUBKEY, DAVE_PUBKEY } from '../../config/pubkeys';
+import { useConfig } from '../../context/ConfigContext';
 
 const PAGE_SIZE = 50;
 
@@ -23,6 +24,7 @@ function formatAge(createdAt) {
 }
 
 export default function NodesIndex() {
+  const { taPubkey: TA_PUBKEY } = useConfig();
   const navigate = useNavigate();
 
   // Filters
@@ -354,7 +356,7 @@ export default function NodesIndex() {
                 {pageNodes.map(row => (
                   <tr
                     key={row.uuid}
-                    onClick={() => navigate(`/kg/databases/neo4j/nodes/${encodeURIComponent(row.uuid)}`)}
+                    onClick={() => navigate(`/tapestry/databases/neo4j/nodes/${encodeURIComponent(row.uuid)}`)}
                     style={{ cursor: 'pointer' }}
                     className="clickable-row"
                   >

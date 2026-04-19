@@ -77,7 +77,7 @@ export default function ConceptProperties() {
         <h2 style={{ margin: 0 }}>Property Tree</h2>
         <button
           className="btn btn-small btn-primary"
-          onClick={() => navigate(`/kg/concepts/${encodeURIComponent(uuid)}/properties/new`)}
+          onClick={() => navigate(`/tapestry/concepts/${encodeURIComponent(uuid)}/properties/new`)}
         >
           + New Property
         </button>

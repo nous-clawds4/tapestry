@@ -12,7 +12,7 @@ const { execSync } = require('child_process');
  */
 function getServiceStatus(serviceName) {
   try {
-    const result = execSync(`sudo systemctl is-active ${serviceName}`).toString().trim();
+    const result = execSync(`systemctl is-active ${serviceName}`).toString().trim();
     return result === 'active' ? 'active' : 'inactive';
   } catch (error) {
     return 'inactive';

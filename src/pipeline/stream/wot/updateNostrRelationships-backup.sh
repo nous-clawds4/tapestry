@@ -31,7 +31,7 @@ elif [ "$event_kind" == "1984" ]; then
     tag_type="p"
 else
     echo "Unsupported event kind: $event_kind. Removing from queue."
-    sudo rm "$queue_file"
+    rm "$queue_file"
     exit 0
 fi
 
@@ -48,7 +48,7 @@ CYPHER_GET_CURRENT="
 MATCH (u:NostrUser {pubkey:'$pk_author'})-[r:$relationship_type]->(target:NostrUser)
 RETURN u.pubkey AS pk_author, target.pubkey AS pk_target
 "
-sudo cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER_GET_CURRENT" --format plain > "$current_relationships_file"
+cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER_GET_CURRENT" --format plain > "$current_relationships_file"
 
 # Process the output to create a clean JSON array
 if [ -s "$current_relationships_file" ]; then
@@ -78,14 +78,14 @@ fi
 
 # Step 2: Get latest event from strfry
 echo "Fetching latest kind $event_kind event from strfry..."
-sudo strfry scan "{ \"kinds\": [$event_kind], \"authors\": [\"$pk_author\"]}" > "$events_file"
+strfry scan "{ \"kinds\": [$event_kind], \"authors\": [\"$pk_author\"]}" > "$events_file"
 
 # Read the first event (most recent)
 read -r event < "$events_file"
 
 if [ -z "$event" ]; then
     echo "No kind $event_kind event found for $pk_author. Removing from queue."
-    sudo rm "$queue_file"
+    rm "$queue_file"
     rm -f "$current_relationships_file" "$new_relationships_file" "$relationships_to_add_file" "$relationships_to_delete_file" "$events_file"
     exit 0
 fi
@@ -133,8 +133,8 @@ echo "Changes to make: $add_count additions, $delete_count deletions"
 if [ "$delete_count" -gt 0 ]; then
     echo "Deleting obsolete $relationship_type relationships..."
     # Move the file to Neo4j import directory
-    sudo cp "$relationships_to_delete_file" /var/lib/neo4j/import/relationships_to_delete.json
-    sudo chown neo4j:neo4j /var/lib/neo4j/import/relationships_to_delete.json
+    cp "$relationships_to_delete_file" /var/lib/neo4j/import/relationships_to_delete.json
+    chown neo4j:neo4j /var/lib/neo4j/import/relationships_to_delete.json
     
     # Delete obsolete relationships
     CYPHER_DELETE="
@@ -149,15 +149,15 @@ if [ "$delete_count" -gt 0 ]; then
         {batchSize:100, parallel:false, retries:2}
     )
     "
-    sudo cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER_DELETE"
-    sudo rm /var/lib/neo4j/import/relationships_to_delete.json
+    cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER_DELETE"
+    rm /var/lib/neo4j/import/relationships_to_delete.json
 fi
 
 if [ "$add_count" -gt 0 ]; then
     echo "Adding new $relationship_type relationships..."
     # Move the file to Neo4j import directory
-    sudo cp "$relationships_to_add_file" /var/lib/neo4j/import/relationships_to_add.json
-    sudo chown neo4j:neo4j /var/lib/neo4j/import/relationships_to_add.json
+    cp "$relationships_to_add_file" /var/lib/neo4j/import/relationships_to_add.json
+    chown neo4j:neo4j /var/lib/neo4j/import/relationships_to_add.json
     
     # Create nodes for new pubkeys first
     CYPHER_CREATE_NODES="
@@ -174,7 +174,7 @@ if [ "$add_count" -gt 0 ]; then
         {batchSize:100, parallel:false, retries:2}
     );
     "
-    sudo cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER_CREATE_NODES"
+    cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER_CREATE_NODES"
     
     # Create new relationships with timestamp property
     CYPHER_ADD="
@@ -189,8 +189,8 @@ if [ "$add_count" -gt 0 ]; then
         {batchSize:100, parallel:false, retries:2}
     )
     "
-    sudo cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER_ADD"
-    sudo rm /var/lib/neo4j/import/relationships_to_add.json
+    cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER_ADD"
+    rm /var/lib/neo4j/import/relationships_to_add.json
 fi
 
 # Step 6: Update the metadata for the user node
@@ -199,11 +199,11 @@ CYPHER_UPDATE_META="
 MATCH (u:NostrUser {pubkey:'$pk_author'}) 
 SET u.kind${event_kind}EventId='$EVENT_ID', u.kind${event_kind}CreatedAt=$CREATED_AT
 "
-sudo cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER_UPDATE_META"
+cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER_UPDATE_META"
 
 # Step 7: Clean up
 echo "Cleaning up..."
-sudo rm "$queue_file"
+rm "$queue_file"
 rm -f "$current_relationships_file" "$new_relationships_file" "$relationships_to_add_file" "$relationships_to_delete_file" "$events_file"
 
 echo "Successfully processed pubkey: $pk_author for event kind: $event_kind"

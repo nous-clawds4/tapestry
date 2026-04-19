@@ -3,7 +3,7 @@
 source /etc/brainstorm.conf # BRAINSTORM_LOG_DIR
 
 touch ${BRAINSTORM_LOG_DIR}/updateReportTypes.log
-sudo chown brainstorm:brainstorm ${BRAINSTORM_LOG_DIR}/updateReportTypes.log
+chown brainstorm:brainstorm ${BRAINSTORM_LOG_DIR}/updateReportTypes.log
 
 echo "$(date): Starting updateReportTypes"
 echo "$(date): Starting updateReportTypes" >> ${BRAINSTORM_LOG_DIR}/updateReportTypes.log
@@ -17,10 +17,10 @@ WITH DISTINCT r.report_type AS reportType_e34fT4hG
 RETURN reportType_e34fT4hG
 "
 
-cypherResults1=$(sudo cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER1")
+cypherResults1=$(cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER1")
 
 # remove existing reportTypes.json
-sudo rm -f ${BRAINSTORM_MODULE_ALGOS_DIR}/reports/reportTypes.json
+rm -f ${BRAINSTORM_MODULE_ALGOS_DIR}/reports/reportTypes.json
 
 # write new reportTypes.json
 # add opening bracket
@@ -37,9 +37,9 @@ for reportType in $cypherResults1; do
         cypherCommand1="CREATE INDEX nostrUser_nip56_${reportType}_verifiedReportCount IF NOT EXISTS FOR (n:NostrUser) ON (n.nip56_${reportType}_verifiedReportCount)"
         cypherCommand2="CREATE INDEX nostrUser_nip56_${reportType}_reportCount IF NOT EXISTS FOR (n:NostrUser) ON (n.nip56_${reportType}_reportCount)"
         cypherCommand3="CREATE INDEX nostrUser_nip56_${reportType}_grapeRankScore IF NOT EXISTS FOR (n:NostrUser) ON (n.nip56_${reportType}_grapeRankScore)"
-        sudo cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$cypherCommand1"
-        sudo cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$cypherCommand2"
-        sudo cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$cypherCommand3"
+        cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$cypherCommand1"
+        cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$cypherCommand2"
+        cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$cypherCommand3"
     fi
 done
 # add closing bracket

@@ -2,7 +2,7 @@
 
 # This script adds NostrUserWotMetricsCard nodes to the neo4j database for a given customer.
 # It is called with a command like:
-# sudo bash addMetricsCards.sh <customer_id> <customer_pubkey>
+# bash addMetricsCards.sh <customer_id> <customer_pubkey>
 
 source /etc/brainstorm.conf # NEO4J_URI, NEO4J_USER, NEO4J_PASSWORD, BRAINSTORM_LOG_DIR
 
@@ -32,13 +32,13 @@ LOG_DIR="$BRAINSTORM_LOG_DIR/customers/$CUSTOMER_DIRECTORY_NAME"
 
 # Create log directory if it doesn't exist; chown to brainstorm user
 mkdir -p "$LOG_DIR"
-sudo chown brainstorm:brainstorm "$LOG_DIR"
+chown brainstorm:brainstorm "$LOG_DIR"
 
 # Log file
 LOG_FILE="$LOG_DIR/addMetricsCards.log"
 
 touch ${LOG_FILE}
-sudo chown brainstorm:brainstorm ${LOG_FILE}
+chown brainstorm:brainstorm ${LOG_FILE}
 
 CYPHER_LIMIT=10000
 MAX_ITERATIONS=50
@@ -57,7 +57,7 @@ echo "$(date): Starting addMetricsCards for customer_id $CUSTOMER_ID with custom
 numCrds=1
 iterations=1
 while [[ "$numCrds" -gt 0 ]] && [[ "$iterations" -lt "$MAX_ITERATIONS" ]]; do
-    cypherResults=$(sudo cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER1")
+    cypherResults=$(cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER1")
     numCrds="${cypherResults:8}"
     echo "$(date): numCrds = $numCrds"
     echo "$(date): numCrds = $numCrds" >> ${LOG_FILE}

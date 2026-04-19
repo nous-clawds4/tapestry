@@ -31,7 +31,7 @@ CYPHER_GET_CURRENT="
 MATCH (u:NostrUser {pubkey:'$pk_follower'})-[r:FOLLOWS]->(followed:NostrUser)
 RETURN u.pubkey AS pk_follower, followed.pubkey AS pk_followee
 "
-sudo cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER_GET_CURRENT" --format plain > "$current_follows_file"
+cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER_GET_CURRENT" --format plain > "$current_follows_file"
 
 # Process the output to create a clean JSON array
 if [ -s "$current_follows_file" ]; then
@@ -61,14 +61,14 @@ fi
 
 # Step 2: Get latest kind 3 event from strfry
 echo "Fetching latest kind 3 event from strfry..."
-sudo strfry scan "{ \"kinds\": [3], \"authors\": [\"$pk_follower\"]}" > "$kind3_events_file"
+strfry scan "{ \"kinds\": [3], \"authors\": [\"$pk_follower\"]}" > "$kind3_events_file"
 
 # Read the first event (most recent)
 read -r kind3Event < "$kind3_events_file"
 
 if [ -z "$kind3Event" ]; then
     echo "No kind 3 event found for $pk_follower. Removing from queue."
-    sudo rm "$pk_next_full_path"
+    rm "$pk_next_full_path"
     rm -f "$current_follows_file" "$new_follows_file" "$follows_to_add_file" "$follows_to_delete_file" "$kind3_events_file"
     exit 0
 fi
@@ -116,8 +116,8 @@ echo "Changes to make: $add_count additions, $delete_count deletions"
 if [ "$delete_count" -gt 0 ]; then
     echo "Deleting obsolete FOLLOWS relationships..."
     # Move the file to Neo4j import directory
-    sudo cp "$follows_to_delete_file" /var/lib/neo4j/import/follows_to_delete.json
-    sudo chown neo4j:neo4j /var/lib/neo4j/import/follows_to_delete.json
+    cp "$follows_to_delete_file" /var/lib/neo4j/import/follows_to_delete.json
+    chown neo4j:neo4j /var/lib/neo4j/import/follows_to_delete.json
     
     # Delete obsolete follows
     CYPHER_DELETE="
@@ -132,15 +132,15 @@ if [ "$delete_count" -gt 0 ]; then
         {batchSize:100, parallel:false, retries:2}
     )
     "
-    sudo cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER_DELETE"
-    sudo rm /var/lib/neo4j/import/follows_to_delete.json
+    cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER_DELETE"
+    rm /var/lib/neo4j/import/follows_to_delete.json
 fi
 
 if [ "$add_count" -gt 0 ]; then
     echo "Adding new FOLLOWS relationships..."
     # Move the file to Neo4j import directory
-    sudo cp "$follows_to_add_file" /var/lib/neo4j/import/follows_to_add.json
-    sudo chown neo4j:neo4j /var/lib/neo4j/import/follows_to_add.json
+    cp "$follows_to_add_file" /var/lib/neo4j/import/follows_to_add.json
+    chown neo4j:neo4j /var/lib/neo4j/import/follows_to_add.json
     
     # Create nodes for new pubkeys first
     CYPHER_CREATE_NODES="
@@ -157,7 +157,7 @@ if [ "$add_count" -gt 0 ]; then
         {batchSize:100, parallel:false, retries:2}
     );
     "
-    sudo cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER_CREATE_NODES"
+    cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER_CREATE_NODES"
     
     # Create new follows with timestamp property
     CYPHER_ADD="
@@ -172,8 +172,8 @@ if [ "$add_count" -gt 0 ]; then
         {batchSize:100, parallel:false, retries:2}
     )
     "
-    sudo cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER_ADD"
-    sudo rm /var/lib/neo4j/import/follows_to_add.json
+    cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER_ADD"
+    rm /var/lib/neo4j/import/follows_to_add.json
 fi
 
 # Step 6: Update the metadata for the user node
@@ -182,11 +182,11 @@ CYPHER_UPDATE_META="
 MATCH (n:NostrUser {pubkey:'$pk_follower'}) 
 SET n.kind3EventId='$EVENT_ID', n.kind3CreatedAt=$CREATED_AT ;
 "
-sudo cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER_UPDATE_META"
+cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER_UPDATE_META"
 
 # Step 7: Clean up
 echo "Cleaning up..."
-sudo rm "$pk_next_full_path"
+rm "$pk_next_full_path"
 rm -f "$current_follows_file" "$new_follows_file" "$follows_to_add_file" "$follows_to_delete_file" "$kind3_events_file"
 
 echo "Successfully processed pubkey: $pk_follower"

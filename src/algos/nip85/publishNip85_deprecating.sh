@@ -7,7 +7,7 @@
 source /etc/brainstorm.conf # BRAINSTORM_LOG_DIR, BRAINSTORM_MODULE_ALGOS_DIR, BRAINSTORM_RELAY_URL
 
 touch ${BRAINSTORM_LOG_DIR}/publishNip85.log
-sudo chown brainstorm:brainstorm ${BRAINSTORM_LOG_DIR}/publishNip85.log
+chown brainstorm:brainstorm ${BRAINSTORM_LOG_DIR}/publishNip85.log
 
 echo "$(date): Starting publishNip85"
 echo "$(date): Starting publishNip85" >> ${BRAINSTORM_LOG_DIR}/publishNip85.log  

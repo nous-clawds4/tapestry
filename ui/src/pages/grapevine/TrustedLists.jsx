@@ -83,7 +83,7 @@ export default function TrustedLists() {
       label: 'Title',
       render: (val, row) => (
         <Link
-          to={`/kg/grapevine/trusted-lists/${encodeURIComponent(row.dTag)}`}
+          to={`/tapestry/grapevine/trusted-lists/${encodeURIComponent(row.dTag)}`}
           style={{ fontWeight: 500, color: '#58a6ff', textDecoration: 'none' }}
         >
           {val}
@@ -134,7 +134,7 @@ export default function TrustedLists() {
       <p className="subtitle">
         Kind 30392–30395 Trusted List events in local strfry. These are curated, trust-scored summaries
         of list results that can be used as a scoring method on the{' '}
-        <Link to="/kg/grapevine/trust-determination" style={{ color: '#58a6ff' }}>
+        <Link to="/tapestry/grapevine/trust-determination" style={{ color: '#58a6ff' }}>
           Trust Determination
         </Link>{' '}
         page.

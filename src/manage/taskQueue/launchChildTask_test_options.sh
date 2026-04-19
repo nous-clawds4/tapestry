@@ -17,7 +17,7 @@ source "${BRAINSTORM_MODULE_SRC_DIR}/utils/structuredLogging.sh"
 
 LOG_FILE="$BRAINSTORM_LOG_DIR/launchChildTask.log"
 touch ${LOG_FILE}
-sudo chown brainstorm:brainstorm ${LOG_FILE}
+chown brainstorm:brainstorm ${LOG_FILE}
 
 # Check if a task is already running by looking for rscript_relative_path
 # Potential alternative method (not implemented): check the structured logs
@@ -266,8 +266,8 @@ launchChildTask() {
         if [[ "$kill_preexisting" == "true" ]]; then
             echo "$(date): Killing existing process $existing_pid" >> ${LOG_FILE}
             if ! kill -9 "$existing_pid" 2>/dev/null; then
-                sudo kill -9 "$existing_pid" 2>/dev/null || true
-                echo "$(date): Required sudo to kill PID $existing_pid" >> ${LOG_FILE}
+                kill -9 "$existing_pid" 2>/dev/null || true
+                echo "$(date): Required to kill PID $existing_pid" >> ${LOG_FILE}
             fi
             
             # Emit event for process replacement
@@ -406,8 +406,8 @@ launchChildTask() {
             # Try to force kill the process with cross-user compatibility
             if ! kill -9 "$child_pid" 2>/dev/null; then
                 # If direct kill fails (e.g., cross-user), try with sudo
-                sudo kill -9 "$child_pid" 2>/dev/null || true
-                echo "$(date): Force kill required sudo for PID $child_pid" >> ${LOG_FILE}
+                kill -9 "$child_pid" 2>/dev/null || true
+                echo "$(date): Force kill required for PID $child_pid" >> ${LOG_FILE}
             fi
         fi
         

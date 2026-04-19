@@ -9,17 +9,21 @@ set -o pipefail # Fail if any pipeline command fails
 # Source configuration
 source /etc/brainstorm.conf # BRAINSTORM_MODULE_ALGOS_DIR, BRAINSTORM_LOG_DIR
 
+# Optional 1st argument: warmStart flag, forwarded to each processCustomer
+# invocation and ultimately to the GrapeRank calculation for each customer.
+WARM_START="${1:-}"
+
 # Source structured logging utilities
 source "$BRAINSTORM_MODULE_BASE_DIR/src/utils/structuredLogging.sh"
 
 # Create log directory if it doesn't exist; chown to brainstorm:brainstorm
 mkdir -p "$BRAINSTORM_LOG_DIR"
-sudo chown brainstorm:brainstorm "$BRAINSTORM_LOG_DIR"
+chown brainstorm:brainstorm "$BRAINSTORM_LOG_DIR"
 
 # Log file
 LOG_FILE="$BRAINSTORM_LOG_DIR/processAllActiveCustomers.log"
 touch ${LOG_FILE}
-sudo chown brainstorm:brainstorm ${LOG_FILE}
+chown brainstorm:brainstorm ${LOG_FILE}
 
 # Logging function
 log_message() {
@@ -34,7 +38,8 @@ emit_task_event "TASK_START" "processAllActiveCustomers" "" '{
     "message": "Starting processing of all active customers",
     "orchestrator_type": "customer_iteration",
     "description": "Consolidated script to process all active customers",
-    "scope": "all_customers"
+    "scope": "all_customers",
+    "warm_start": "'$WARM_START'"
 }'
 
 # Define paths
@@ -110,8 +115,8 @@ while IFS=',' read -r customer_id customer_pubkey customer_name; do
         "operation": "individual_customer_processing"
     }'
     
-    # Construct and execute the command
-    command="sudo bash $PROCESS_CUSTOMER_SCRIPT $customer_pubkey $customer_id $customer_name"
+    # Construct and execute the command (forward WARM_START as optional 4th arg)
+    command="bash $PROCESS_CUSTOMER_SCRIPT $customer_pubkey $customer_id $customer_name $WARM_START"
     log_message "Executing: $command"
     
     if $command; then
@@ -169,7 +174,7 @@ emit_task_event "PROGRESS" "processAllActiveCustomers" "" '{
     "cleanup_target": "/var/lib/brainstorm/algos/personalizedGrapeRank/tmp"
 }'
 
-sudo rm -rf /var/lib/brainstorm/algos/personalizedGrapeRank/tmp
+rm -rf /var/lib/brainstorm/algos/personalizedGrapeRank/tmp
 
 # Emit structured event for cleanup completion
 emit_task_event "PROGRESS" "processAllActiveCustomers" "" '{

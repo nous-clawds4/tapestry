@@ -42,11 +42,11 @@ function ensureLoggingDirs() {
             fs.writeFileSync(STRUCTURED_LOG_FILE, '', { flag: 'a' });
         }
         
-        // Try to fix ownership if we have sudo access (matches bash version)
+        // Try to fix ownership if we have access (matches bash version)
         try {
             const { execSync } = require('child_process');
-            execSync('sudo -n true', { stdio: 'ignore' });
-            execSync(`sudo chown brainstorm:brainstorm "${EVENTS_FILE}" "${STRUCTURED_LOG_FILE}"`, { stdio: 'ignore' });
+            execSync('-n true', { stdio: 'ignore' });
+            execSync(`chown brainstorm:brainstorm "${EVENTS_FILE}" "${STRUCTURED_LOG_FILE}"`, { stdio: 'ignore' });
         } catch (error) {
             // Ignore ownership errors - not critical
         }
@@ -177,7 +177,10 @@ async function emitTaskEvent(eventType, taskName, target = '', metadata = {}) {
         // Get event details
         const timestamp = getIsoTimestamp();
         const scriptName = getScriptName();
-        const pid = process.pid;
+        // Prefer the orchestrating shell's PID (when provided via env) so that
+        // events from Node.js child scripts are grouped into the same session
+        // as the shell's events in the task timeline UI. Falls back to own PID.
+        const pid = parseInt(process.env.BRAINSTORM_TASK_PID, 10) || process.pid;
         
         // Ensure metadata is an object and compact it
         let metadataJson;

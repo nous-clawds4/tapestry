@@ -55,7 +55,7 @@ export default function DListItemOverview() {
 
   function goToParentList() {
     if (parentRef) {
-      navigate(`/kg/lists/${encodeURIComponent(parentRef)}`);
+      navigate(`/tapestry/lists/${encodeURIComponent(parentRef)}`);
     }
   }
 
@@ -143,7 +143,7 @@ export default function DListItemOverview() {
               {neo4jLoading ? (
                 <span style={{ opacity: 0.5 }}>Checking…</span>
               ) : neo4jExists ? (
-                <Link to={`/kg/databases/neo4j/nodes/${encodeURIComponent(neo4jUuid)}`}>
+                <Link to={`/tapestry/databases/neo4j/nodes/${encodeURIComponent(neo4jUuid)}`}>
                   🔗 View in Neo4j
                 </Link>
               ) : (

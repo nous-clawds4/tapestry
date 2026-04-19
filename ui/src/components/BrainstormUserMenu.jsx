@@ -85,7 +85,7 @@ export default function BrainstormUserMenu({ user, login, logout }) {
     <div className="bs-usermenu" ref={menuRef}>
       {/* Dashboard grid icon for owner/admin */}
       {isOwnerOrAdmin && (
-        <a href="/kg/" className="bs-usermenu-grid-btn" title="Dashboard">
+        <a href="/tapestry/" className="bs-usermenu-grid-btn" title="Dashboard">
           <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
             <rect x="1" y="1" width="4" height="4" rx="1" fill="currentColor"/>
             <rect x="7" y="1" width="4" height="4" rx="1" fill="currentColor"/>
@@ -128,7 +128,7 @@ export default function BrainstormUserMenu({ user, login, logout }) {
               {pov === 'user' ? (
                 <strong>My WoT</strong>
               ) : (
-                <a href={houseProfile ? `/kg/brainstorm-search/user/${houseProfile.pubkey}` : '#'} className="bs-usermenu-pov-link" onClick={() => setOpen(false)}>
+                <a href={houseProfile ? `/user/${houseProfile.pubkey}` : '#'} className="bs-usermenu-pov-link" onClick={() => setOpen(false)}>
                   {houseProfile?.picture && (
                     <img src={houseProfile.picture} alt="" className="bs-usermenu-pov-avatar" onError={e => { e.target.style.display = 'none'; }} />
                   )}
@@ -140,7 +140,7 @@ export default function BrainstormUserMenu({ user, login, logout }) {
 
           <div className="bs-usermenu-footer">
             <a
-              href="/kg/brainstorm-search/settings"
+              href="/settings"
               className="bs-usermenu-settings-btn"
               onClick={() => setOpen(false)}
             >

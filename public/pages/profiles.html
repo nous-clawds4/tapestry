@@ -613,7 +613,7 @@
                 }
                 
                 // Fetch data from API
-                fetch(`/control/api/get-profiles?${params.toString()}`)
+                fetch(`/api/get-profiles?${params.toString()}`)
                     .then(response => response.json())
                     .then(data => {
                         if (data.success) {
@@ -1002,7 +1002,7 @@
                 }
                 
                 // Fetch profile data
-                fetch(`/control/api/get-kind0?pubkey=${pubkey}`)
+                fetch(`/api/get-kind0?pubkey=${pubkey}`)
                     .then(response => response.json())
                     .then(data => {
                         let profileData = null;
@@ -1352,7 +1352,7 @@
             function initializeObserverSelector() {
                 observerSelector = new ObserverSelector('observerSelectorContainer', {
                     defaultValue: 'owner',
-                    customersEndpoint: '/control/api/get-customers',
+                    customersEndpoint: '/api/get-customers',
                     onChange: function(selectedPubkey, customerData) {
                         // Update state
                         state.observerPubkey = selectedPubkey;

@@ -73,7 +73,7 @@ function getTotalCount() {
   try {
     log('Counting total relationships...');
     const query = 'MATCH ()-[r]->() RETURN count(r) as count';
-    const result = execSync(`sudo cypher-shell -a "${config.neo4jUri}" -u "${config.neo4jUser}" -p "${config.neo4jPassword}" "${query}" --format plain`).toString();
+    const result = execSync(`cypher-shell -a "${config.neo4jUri}" -u "${config.neo4jUser}" -p "${config.neo4jPassword}" "${query}" --format plain`).toString();
     
     // Parse the result (skip header and footer)
     const lines = result.split('\n');
@@ -92,7 +92,7 @@ function getTotalCount() {
 function deleteBatch(batchSize) {
   try {
     const query = `MATCH ()-[r]->() WITH r LIMIT ${batchSize} DELETE r RETURN count(r) as deleted`;
-    const result = execSync(`sudo cypher-shell -a "${config.neo4jUri}" -u "${config.neo4jUser}" -p "${config.neo4jPassword}" "${query}" --format plain`).toString();
+    const result = execSync(`cypher-shell -a "${config.neo4jUri}" -u "${config.neo4jUser}" -p "${config.neo4jPassword}" "${query}" --format plain`).toString();
     
     // Parse the result (skip header and footer)
     const lines = result.split('\n');

@@ -79,13 +79,13 @@ export default function NewConcept() {
           <div style={{ marginTop: '1.5rem', display: 'flex', gap: '1rem' }}>
             <button
               className="btn btn-primary"
-              onClick={() => navigate(`/kg/concepts/${encodeURIComponent(result.concept.uuid)}/health`)}
+              onClick={() => navigate(`/tapestry/concepts/${encodeURIComponent(result.concept.uuid)}/health`)}
             >
               🩺 View Health Audit
             </button>
             <button
               className="btn"
-              onClick={() => navigate(`/kg/concepts/${encodeURIComponent(result.concept.uuid)}`)}
+              onClick={() => navigate(`/tapestry/concepts/${encodeURIComponent(result.concept.uuid)}`)}
             >
               📄 View Concept
             </button>

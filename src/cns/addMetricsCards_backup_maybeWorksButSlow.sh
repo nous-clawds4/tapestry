@@ -2,7 +2,7 @@
 
 # This script adds NostrUserWotMetricsCard nodes to the neo4j database for a given customer.
 # It is called with a command like:
-# sudo bash addMetricsCards.sh <customer_id> <customer_pubkey>
+# bash addMetricsCards.sh <customer_id> <customer_pubkey>
 
 source /etc/brainstorm.conf # NEO4J_URI, NEO4J_USER, NEO4J_PASSWORD, BRAINSTORM_LOG_DIR
 
@@ -52,7 +52,7 @@ echo "$(date): Starting addMetricsCards for customer_id $CUSTOMER_ID" >> ${BRAIN
 echo "$(date): Getting ID range for batching"
 echo "$(date): Getting ID range for batching" >> ${BRAINSTORM_LOG_DIR}/addMetricsCards.log
 
-rangeResults=$(sudo cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER_GET_RANGE")
+rangeResults=$(cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER_GET_RANGE")
 rangeData=$(echo "$rangeResults" | tail -n +2 | grep -v '^$')
 
 if [[ -z "$rangeData" ]]; then
@@ -87,7 +87,7 @@ while [[ "$currentId" -le "$maxId" ]]; do
     echo "$(date): Processing batch $batchNum (IDs $currentId to $((nextId-1)))" >> ${BRAINSTORM_LOG_DIR}/addMetricsCards.log
     
     # Create cards for this ID range
-    batchResult=$(sudo cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" \
+    batchResult=$(cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" \
         -P "minId=>$currentId" -P "maxId=>$nextId" "$CYPHER_CREATE_BATCH")
     
     # Extract count from result

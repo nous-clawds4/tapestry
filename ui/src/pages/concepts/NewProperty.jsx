@@ -191,10 +191,10 @@ export default function NewProperty() {
           </table>
 
           <div style={{ marginTop: '1.5rem', display: 'flex', gap: '1rem' }}>
-            <button className="btn" onClick={() => navigate(`/kg/databases/neo4j/nodes/${encodeURIComponent(result.property.uuid)}`)}>
+            <button className="btn" onClick={() => navigate(`/tapestry/databases/neo4j/nodes/${encodeURIComponent(result.property.uuid)}`)}>
               🔵 View Node
             </button>
-            <button className="btn" onClick={() => navigate(`/kg/concepts/${encodeURIComponent(uuid)}/properties`)}>
+            <button className="btn" onClick={() => navigate(`/tapestry/concepts/${encodeURIComponent(uuid)}/properties`)}>
               📋 Back to Properties
             </button>
             <button className="btn btn-primary" onClick={handleReset}>

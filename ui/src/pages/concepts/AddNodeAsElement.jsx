@@ -7,9 +7,11 @@ import useNeo4jLabels from '../../hooks/useNeo4jLabels';
 import AuthorCell from '../../components/AuthorCell';
 
 // Known authors pinned at top of Author selector
-import { OWNER_PUBKEY, TA_PUBKEY, DAVE_PUBKEY } from '../../config/pubkeys';
+import { OWNER_PUBKEY, DAVE_PUBKEY } from '../../config/pubkeys';
+import { useConfig } from '../../context/ConfigContext';
 
 export default function AddNodeAsElement() {
+  const { taPubkey: TA_PUBKEY } = useConfig();
   const { concept, uuid } = useOutletContext();
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -133,7 +135,7 @@ export default function AddNodeAsElement() {
 
   function handleReview() {
     if (!selectedUuid) return;
-    navigate(`/kg/concepts/${encodeURIComponent(uuid)}/elements/add-node/review?node=${encodeURIComponent(selectedUuid)}`);
+    navigate(`/tapestry/concepts/${encodeURIComponent(uuid)}/elements/add-node/review?node=${encodeURIComponent(selectedUuid)}`);
   }
 
   return (
@@ -283,7 +285,7 @@ export default function AddNodeAsElement() {
         <button
           className="btn"
           style={{ marginLeft: 'auto' }}
-          onClick={() => navigate(`/kg/concepts/${encodeURIComponent(uuid)}/elements`)}
+          onClick={() => navigate(`/tapestry/concepts/${encodeURIComponent(uuid)}/elements`)}
         >
           ← Back to Elements
         </button>

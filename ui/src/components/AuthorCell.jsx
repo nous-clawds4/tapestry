@@ -6,7 +6,7 @@ function shortPubkey(pk) {
 }
 
 /**
- * Clickable author cell with avatar + name. Links to /kg/users/:pubkey.
+ * Clickable author cell with avatar + name. Links to /tapestry/users/:pubkey.
  * Pass `profiles` map and `pubkey`. Stops event propagation to avoid triggering row clicks.
  */
 export default function AuthorCell({ pubkey, profiles, size }) {
@@ -20,7 +20,7 @@ export default function AuthorCell({ pubkey, profiles, size }) {
 
   function handleClick(e) {
     e.stopPropagation();
-    navigate(`/kg/users/${pubkey}`);
+    navigate(`/tapestry/users/${pubkey}`);
   }
 
   const sizeStyle = size ? { width: size, height: size } : undefined;

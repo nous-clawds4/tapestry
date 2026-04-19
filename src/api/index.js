@@ -46,7 +46,7 @@ const {
 } = require('./algos/calculation-history');
 
 const { handleGetGrapeRankConfig, handleUpdateGrapeRankConfig } = require('./algos/config');
-const { handleGetConfig, handleUpdateConfig } = require('./algos/config');
+const { handleGetConfig, handleUpdateConfig, handleResetConfig } = require('./algos/config');
 
 // Import domain-specific handler modules
 const nip85 = require('./export/nip85');
@@ -114,6 +114,7 @@ async function register(app) {
 
     app.get('/api/algos/config/get', handleGetConfig); // /api/algos/config/get?pubkey=0xpubkey&configType=graperank
     app.post('/api/algos/config/update', handleUpdateConfig); // /api/algos/config/update?pubkey=0xpubkey&configType=graperank&setPreset=permissive
+    app.post('/api/algos/config/reset', handleResetConfig); // /api/algos/config/reset?pubkey=0xpubkey&configType=graperank
 
     app.get('/api/calculation-history/processAllTrustMetrics', handleGetHistoryProcessAllTrustMetrics);
     app.get('/api/calculation-history/hops', handleGetHistoryHops);
@@ -435,6 +436,40 @@ async function register(app) {
 
     const { registerNegentropySyncRoutes } = require('./strfry/negentropySync');
     registerNegentropySyncRoutes(app);
+
+    // ── Streaming ETL Control API ──
+    const streamingETL = require('./streaming-etl');
+    app.get('/api/streaming-etl/status', streamingETL.handleStatus);
+    app.post('/api/streaming-etl/control', streamingETL.handleControl);
+    app.get('/api/streaming-etl/logs', streamingETL.handleLogs);
+
+    // ── Scheduled Tasks API ──
+    const scheduledTasks = require('./scheduled-tasks');
+    app.get('/api/scheduled-tasks/status', scheduledTasks.handleStatus);
+    app.post('/api/scheduled-tasks/update', scheduledTasks.handleUpdate);
+    app.get('/api/scheduled-tasks/history', scheduledTasks.handleHistory);
+
+    // ── Per-Customer Scheduled Tasks API ──
+    const customerSchedule = require('./customer-schedule');
+    app.get('/api/customer-schedule/status', customerSchedule.handleStatus);
+    app.post('/api/customer-schedule/update', customerSchedule.handleUpdate);
+    app.post('/api/customer-schedule/trigger', customerSchedule.handleTrigger);
+    app.get('/api/customer-schedule/history', customerSchedule.handleHistory);
+
+    // Initialize customer schedulers (restore enabled schedules from config)
+    customerSchedule.initCustomerSchedulers();
+
+    // ── Admin Management API (owner-only) ──
+    const adminApi = require('./admin');
+    app.get('/api/admin/list', adminApi.requireOwnerOnly, adminApi.handleListAdmins);
+    app.post('/api/admin/add', adminApi.requireOwnerOnly, adminApi.handleAddAdmin);
+    app.post('/api/admin/remove', adminApi.requireOwnerOnly, adminApi.handleRemoveAdmin);
+
+    // ── Brainstorm Assistant API ──
+    const assistantApi = require('./assistant');
+    app.post('/api/assistant/publish-profile', assistantApi.handlePublishProfile);
+    app.get('/api/assistant/status', assistantApi.handleAssistantStatus);
+    app.get('/api/assistant/pubkey', assistantApi.handleGetTAPubkey);
 
     // ── Tapestry Property API ──
     const { registerPropertyRoutes } = require('./property');

@@ -1,9 +1,9 @@
 import { NavLink, Outlet } from 'react-router-dom';
 
 const manageNav = [
-  { to: '/kg/manage/audit', label: '🔍 Audit' },
-  // Future: { to: '/kg/manage/normalize', label: '🔧 Normalize' },
-  // Future: { to: '/kg/manage/bios', label: '🧬 BIOS' },
+  { to: '/tapestry/manage/audit', label: '🔍 Audit' },
+  // Future: { to: '/tapestry/manage/normalize', label: '🔧 Normalize' },
+  // Future: { to: '/tapestry/manage/bios', label: '🧬 BIOS' },
 ];
 
 export default function ManageIndex() {

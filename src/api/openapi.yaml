@@ -1,0 +1,3309 @@
+openapi: 3.0.3
+info:
+  title: Tapestry API
+  description: |
+    REST API for the Tapestry decentralized knowledge graph protocol.
+
+    Tapestry takes flat nostr events (DList events) and weaves them into a navigable,
+    validated concept graph stored in Neo4j. This API provides endpoints for managing
+    concepts, auditing the graph, querying Neo4j, interacting with the strfry relay,
+    searching profiles via Meilisearch, and more.
+
+    **Authentication:** Most write endpoints require a NIP-07 session. Use the Auth
+    endpoints to obtain a session. Owner-only endpoints require the instance owner's pubkey.
+  version: 1.0.0
+  contact:
+    name: Tapestry
+    url: https://github.com/nous-clawds4/tapestry
+
+servers:
+  - url: http://localhost:8080
+    description: Local development (Docker / host nginx)
+  - url: http://localhost:7778
+    description: Direct Express server
+
+tags:
+  - name: Auth
+    description: NIP-07 authentication and session management
+  - name: Normalize
+    description: Concept creation, normalization, and graph wiring
+  - name: Audit
+    description: Graph health checks, statistics, and diagnostics
+  - name: Firmware
+    description: Tapestry firmware installation and inspection
+  - name: Neo4j
+    description: Direct Neo4j queries and event sync
+  - name: Strfry
+    description: Local nostr relay operations (scan, publish, sync)
+  - name: Settings
+    description: Instance settings (owner-only)
+  - name: Search
+    description: Profile search via Meilisearch and keyword engines
+  - name: Grapevine
+    description: Web of Trust preferences and interactions
+  - name: User Preferences
+    description: Per-user preference storage
+  - name: Property
+    description: Concept property and JSON Schema management
+  - name: Trusted List
+    description: Publish NIP trusted list events
+  - name: IO
+    description: Import and export concept data
+  - name: Tapestry Key
+    description: LMDB key-value store and JSON derivation
+  - name: Profiles
+    description: Nostr profile fetching
+  - name: Customers
+    description: Customer management (owner-only)
+  - name: Status
+    description: Instance and service status
+  - name: Algos
+    description: GrapeRank, PageRank, hops, and other algorithms
+  - name: NIP-85
+    description: NIP-85 trusted assertion events
+  - name: Pipeline
+    description: Data pipeline operations (sync, reconciliation)
+  - name: Manage
+    description: Task execution and service control
+  - name: Neo4j Health
+    description: Neo4j performance metrics and health monitoring
+
+paths:
+  # ──────────────────────────────────────────────
+  # Auth
+  # ──────────────────────────────────────────────
+  /api/auth/verify:
+    post:
+      tags: [Auth]
+      summary: Request a NIP-07 challenge
+      description: Returns a challenge string for the client to sign with NIP-07.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                signature:
+                  type: string
+                data:
+                  type: string
+      responses:
+        '200':
+          description: Challenge or verification result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthVerifyResponse'
+
+  /api/auth/login:
+    post:
+      tags: [Auth]
+      summary: Submit signed challenge to log in
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                pubkey:
+                  type: string
+                  description: Hex-encoded public key
+                signature:
+                  type: string
+      responses:
+        '200':
+          description: Session created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /api/auth/verify-user:
+    post:
+      tags: [Auth]
+      summary: Request a NIP-07 challenge (user variant)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                signature:
+                  type: string
+                data:
+                  type: string
+      responses:
+        '200':
+          description: Challenge or verification result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthVerifyResponse'
+
+  /api/auth/login-user:
+    post:
+      tags: [Auth]
+      summary: Submit signed challenge to log in (user variant)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                pubkey:
+                  type: string
+                signature:
+                  type: string
+      responses:
+        '200':
+          description: Session created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /api/auth/logout:
+    post:
+      tags: [Auth]
+      summary: End current session
+      responses:
+        '200':
+          description: Session ended
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /api/auth/status:
+    get:
+      tags: [Auth]
+      summary: Check current auth status
+      responses:
+        '200':
+          description: Authentication state
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  authenticated:
+                    type: boolean
+                  pubkey:
+                    type: string
+
+  /api/auth/user-classification:
+    get:
+      tags: [Auth]
+      summary: Get user role classification
+      description: Returns the role of the current session user (owner, admin, customer, guest, unauthenticated).
+      responses:
+        '200':
+          description: User classification
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  classification:
+                    type: string
+                    enum: [owner, admin, customer, guest, unauthenticated]
+                  pubkey:
+                    type: string
+                  customerName:
+                    type: string
+                  customerId:
+                    type: string
+
+  /api/auth/sign-up-new-customer:
+    post:
+      tags: [Auth]
+      summary: Sign up as a new customer
+      description: Requires an authenticated session. Creates a customer account with relay keys.
+      responses:
+        '200':
+          description: Customer created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /api/auth/test:
+    get:
+      tags: [Auth]
+      summary: Test authentication endpoint
+      responses:
+        '200':
+          description: Test result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  timestamp:
+                    type: number
+
+  # ──────────────────────────────────────────────
+  # Normalize
+  # ──────────────────────────────────────────────
+  /api/normalize/create-concept:
+    post:
+      tags: [Normalize]
+      summary: Create a full concept with all 8 core nodes
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                  description: Concept name (e.g. "dogs")
+                plural:
+                  type: string
+                description:
+                  type: string
+                dTag:
+                  type: string
+                nonce:
+                  type: integer
+                random:
+                  type: boolean
+                conceptHeaderOverrides:
+                  type: object
+      responses:
+        '200':
+          description: Concept created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  headerUuid:
+                    type: string
+                  allEvents:
+                    type: array
+                    items:
+                      type: object
+
+  /api/normalize/skeleton:
+    post:
+      tags: [Normalize]
+      summary: Create missing core nodes for an existing concept
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [concept]
+              properties:
+                concept:
+                  type: string
+                  description: Concept name or UUID
+                node:
+                  type: string
+                  description: Specific core node to create (optional, creates all if omitted)
+                dryRun:
+                  type: boolean
+      responses:
+        '200':
+          description: Skeleton result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  created:
+                    type: array
+                    items:
+                      type: string
+                  missing:
+                    type: array
+                    items:
+                      type: string
+
+  /api/normalize/json:
+    post:
+      tags: [Normalize]
+      summary: Regenerate JSON for core nodes
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [concept]
+              properties:
+                concept:
+                  type: string
+                node:
+                  type: string
+      responses:
+        '200':
+          description: JSON regenerated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  updated:
+                    type: array
+                    items:
+                      type: string
+
+  /api/normalize/create-element:
+    post:
+      tags: [Normalize]
+      summary: Create a new element of a concept
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [concept, name]
+              properties:
+                concept:
+                  type: string
+                name:
+                  type: string
+                json:
+                  type: object
+      responses:
+        '200':
+          description: Element created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  elementUuid:
+                    type: string
+
+  /api/normalize/save-schema:
+    post:
+      tags: [Normalize]
+      summary: Save or update a concept's JSON Schema
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [concept, schema]
+              properties:
+                concept:
+                  type: string
+                schema:
+                  type: object
+                  description: JSON Schema object
+      responses:
+        '200':
+          description: Schema saved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  schemaUuid:
+                    type: string
+
+  /api/normalize/save-element-json:
+    post:
+      tags: [Normalize]
+      summary: Save or update an element's JSON data
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [concept, element, json]
+              properties:
+                concept:
+                  type: string
+                element:
+                  type: string
+                json:
+                  type: object
+      responses:
+        '200':
+          description: Element JSON saved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /api/normalize/create-property:
+    post:
+      tags: [Normalize]
+      summary: Create a property for a concept
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [concept, name]
+              properties:
+                concept:
+                  type: string
+                name:
+                  type: string
+                description:
+                  type: string
+                type:
+                  type: string
+                  enum: [string, number, integer, boolean, object, array]
+                enum:
+                  type: array
+                  items:
+                    type: string
+                format:
+                  type: string
+                pattern:
+                  type: string
+                required:
+                  type: boolean
+      responses:
+        '200':
+          description: Property created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  propertyUuid:
+                    type: string
+
+  /api/normalize/generate-property-tree:
+    post:
+      tags: [Normalize]
+      summary: Generate property tree from JSON Schema (idempotent)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [concept]
+              properties:
+                concept:
+                  type: string
+                depth:
+                  type: integer
+                strategy:
+                  type: string
+      responses:
+        '200':
+          description: Property tree generated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  tree:
+                    type: array
+                    items:
+                      type: object
+
+  /api/normalize/add-node-as-element:
+    post:
+      tags: [Normalize]
+      summary: Wire an existing node as element of a concept
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [concept, nodeUuid]
+              properties:
+                concept:
+                  type: string
+                nodeUuid:
+                  type: string
+                elementName:
+                  type: string
+      responses:
+        '200':
+          description: Node wired as element
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /api/normalize/link-concepts:
+    post:
+      tags: [Normalize]
+      summary: Create IS_A_SUPERSET_OF between concepts
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [fromConcept, toConcept]
+              properties:
+                fromConcept:
+                  type: string
+                toConcept:
+                  type: string
+                relType:
+                  type: string
+      responses:
+        '200':
+          description: Concepts linked
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  relUuid:
+                    type: string
+
+  /api/normalize/enumerate:
+    post:
+      tags: [Normalize]
+      summary: Create ENUMERATES relationship
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [concept, propertyName, values]
+              properties:
+                concept:
+                  type: string
+                propertyName:
+                  type: string
+                values:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        '200':
+          description: Enumeration created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  enumUuid:
+                    type: string
+
+  /api/normalize/set-slug:
+    post:
+      tags: [Normalize]
+      summary: Set or update a node's slug
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [concept, slug]
+              properties:
+                concept:
+                  type: string
+                slug:
+                  type: string
+      responses:
+        '200':
+          description: Slug set
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /api/normalize/create-set:
+    post:
+      tags: [Normalize]
+      summary: Create a new Set node under a Superset
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [concept, name]
+              properties:
+                concept:
+                  type: string
+                name:
+                  type: string
+                description:
+                  type: string
+      responses:
+        '200':
+          description: Set created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  setUuid:
+                    type: string
+
+  /api/normalize/add-to-set:
+    post:
+      tags: [Normalize]
+      summary: Add an element to a Set
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [concept, setName, elementName]
+              properties:
+                concept:
+                  type: string
+                setName:
+                  type: string
+                elementName:
+                  type: string
+      responses:
+        '200':
+          description: Element added to set
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /api/normalize/fork-node:
+    post:
+      tags: [Normalize]
+      summary: Fork another author's node
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [fromUuid, newName]
+              properties:
+                fromUuid:
+                  type: string
+                newName:
+                  type: string
+      responses:
+        '200':
+          description: Node forked
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  newUuid:
+                    type: string
+
+  /api/normalize/set-json-tag:
+    post:
+      tags: [Normalize]
+      summary: Set or update any node's json tag
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [uuid, json]
+              properties:
+                uuid:
+                  type: string
+                json:
+                  type: object
+      responses:
+        '200':
+          description: JSON tag set
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /api/normalize/prune-superset-edges:
+    post:
+      tags: [Normalize]
+      summary: Prune redundant direct Superset edges
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [concept, relType]
+              properties:
+                concept:
+                  type: string
+                relType:
+                  type: string
+                  enum: [HAS_ELEMENT, IS_A_SUPERSET_OF]
+      responses:
+        '200':
+          description: Edges pruned
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  log:
+                    type: array
+                    items:
+                      type: string
+
+  /api/normalize/apply-enumerations:
+    post:
+      tags: [Normalize]
+      summary: Apply enumeration relationships for a concept
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [concept]
+              properties:
+                concept:
+                  type: string
+      responses:
+        '200':
+          description: Enumerations applied
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  applied:
+                    type: array
+                    items:
+                      type: string
+
+  /api/normalize/wire-implicit-elements:
+    post:
+      tags: [Normalize]
+      summary: Wire implicit HAS_ELEMENT edges from z-tags
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [concept]
+              properties:
+                concept:
+                  type: string
+      responses:
+        '200':
+          description: Elements wired
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  wired:
+                    type: array
+                    items:
+                      type: string
+
+  /api/normalize/migrate-primary-property-ztags:
+    post:
+      tags: [Normalize]
+      summary: Migrate z-tags to point to primary property concept
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [concept]
+              properties:
+                concept:
+                  type: string
+      responses:
+        '200':
+          description: Z-tags migrated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  migrated:
+                    type: array
+                    items:
+                      type: string
+
+  # ──────────────────────────────────────────────
+  # Audit
+  # ──────────────────────────────────────────────
+  /api/audit/health:
+    get:
+      tags: [Audit]
+      summary: Overall graph health summary
+      responses:
+        '200':
+          description: Health report
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+
+  /api/audit/concepts-summary:
+    get:
+      tags: [Audit]
+      summary: Summary of all concepts
+      responses:
+        '200':
+          description: Concept summaries
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        concept:
+                          type: string
+                        elements:
+                          type: integer
+                        hasSuperset:
+                          type: boolean
+
+  /api/audit/concept:
+    get:
+      tags: [Audit]
+      summary: Detailed audit for one concept
+      parameters:
+        - name: concept
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Concept name or UUID
+      responses:
+        '200':
+          description: Concept audit detail
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+
+  /api/audit/stats:
+    get:
+      tags: [Audit]
+      summary: Graph statistics
+      description: Returns node/relationship counts by label and type, concept counts, signer counts, and JSON coverage.
+      responses:
+        '200':
+          description: Graph stats
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      totals:
+                        type: object
+                      byLabel:
+                        type: object
+                      byRelType:
+                        type: object
+                      concepts:
+                        type: object
+                      signers:
+                        type: object
+                      jsonCoverage:
+                        type: object
+
+  /api/audit/skeletons:
+    get:
+      tags: [Audit]
+      summary: Check all concept skeletons
+      parameters:
+        - name: concept
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Optional concept name to filter
+      responses:
+        '200':
+          description: Skeleton check results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      type: object
+
+  /api/audit/orphans:
+    get:
+      tags: [Audit]
+      summary: Find orphaned nodes
+      description: Finds nodes with broken z-tags, no z-tags, or empty content.
+      responses:
+        '200':
+          description: Orphan report
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      brokenZ:
+                        type: array
+                        items:
+                          type: object
+                      noZ:
+                        type: array
+                        items:
+                          type: object
+                      empty:
+                        type: array
+                        items:
+                          type: object
+
+  /api/audit/wiring:
+    get:
+      tags: [Audit]
+      summary: Check relationship wiring
+      responses:
+        '200':
+          description: Wiring check results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        rule:
+                          type: string
+                        violations:
+                          type: array
+                          items:
+                            type: object
+                        count:
+                          type: integer
+
+  /api/audit/labels:
+    get:
+      tags: [Audit]
+      summary: Check Neo4j labels
+      responses:
+        '200':
+          description: Label check results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      type: object
+
+  /api/audit/firmware:
+    get:
+      tags: [Audit]
+      summary: Check firmware installation status
+      responses:
+        '200':
+          description: Firmware audit
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                  summary:
+                    type: object
+                    properties:
+                      total:
+                        type: integer
+                      complete:
+                        type: integer
+                      partial:
+                        type: integer
+                      missing:
+                        type: integer
+                  firmwareReady:
+                    type: boolean
+
+  /api/audit/threads:
+    get:
+      tags: [Audit]
+      summary: Analyze class threads
+      parameters:
+        - name: concept
+          in: query
+          schema:
+            type: string
+        - name: mode
+          in: query
+          schema:
+            type: string
+            enum: [elements, sets, paths]
+        - name: through
+          in: query
+          schema:
+            type: string
+          description: Set name to filter through
+        - name: depth
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Thread analysis
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      type: object
+
+  # ──────────────────────────────────────────────
+  # Firmware
+  # ──────────────────────────────────────────────
+  /api/firmware/install:
+    post:
+      tags: [Firmware]
+      summary: Install or reinstall firmware concepts
+      description: Two-pass process that bootstraps all concepts and elements, then enriches JSON Schemas. Long-running (up to 10 minutes).
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                versionId:
+                  type: string
+      responses:
+        '200':
+          description: Installation log
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  log:
+                    type: array
+                    items:
+                      type: string
+
+  /api/firmware/manifest:
+    get:
+      tags: [Firmware]
+      summary: Get firmware manifest
+      description: Returns all concepts, relationship types, elements, enumerations, and sets defined in the active firmware version.
+      responses:
+        '200':
+          description: Firmware manifest
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  version:
+                    type: string
+                  date:
+                    type: string
+                  concepts:
+                    type: object
+                  relationshipTypes:
+                    type: object
+                  elements:
+                    type: object
+                  enumerations:
+                    type: object
+                  sets:
+                    type: object
+
+  /api/firmware/concept/{slug}:
+    get:
+      tags: [Firmware]
+      summary: Get a single firmware concept by slug
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Firmware concept data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+
+  /api/firmware/versions:
+    get:
+      tags: [Firmware]
+      summary: List available firmware versions
+      responses:
+        '200':
+          description: Version list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  versions:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        name:
+                          type: string
+                        date:
+                          type: string
+                        description:
+                          type: string
+
+  /api/firmware/install-status:
+    get:
+      tags: [Firmware]
+      summary: Check if firmware is installed
+      responses:
+        '200':
+          description: Install status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  installed:
+                    type: boolean
+
+  # ──────────────────────────────────────────────
+  # Neo4j
+  # ──────────────────────────────────────────────
+  /api/neo4j/run-query:
+    get:
+      tags: [Neo4j]
+      summary: Run Cypher query (legacy GET)
+      deprecated: true
+      description: Use POST /api/neo4j/query instead.
+      parameters:
+        - name: cypher
+          in: query
+          required: true
+          schema:
+            type: string
+          description: URL-encoded Cypher query
+      responses:
+        '200':
+          description: Query results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  cypherCommand:
+                    type: string
+                  cypherResults:
+                    type: string
+
+  /api/neo4j/query:
+    post:
+      tags: [Neo4j]
+      summary: Run Cypher query (preferred)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [cypher]
+              properties:
+                cypher:
+                  type: string
+                  description: Cypher query string
+      responses:
+        '200':
+          description: Query results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  results:
+                    type: array
+                    items:
+                      type: object
+
+  /api/neo4j/event-check:
+    get:
+      tags: [Neo4j]
+      summary: Check if event exists in Neo4j
+      parameters:
+        - name: uuid
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Event existence check
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      uuid:
+                        type: string
+                      exists:
+                        type: boolean
+
+  /api/neo4j/event-update:
+    post:
+      tags: [Neo4j]
+      summary: Import or update a single event in Neo4j
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                event:
+                  type: object
+                uuid:
+                  type: string
+      responses:
+        '200':
+          description: Event updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  uuid:
+                    type: string
+
+  /api/neo4j/event-uuids:
+    get:
+      tags: [Neo4j]
+      summary: List all event UUIDs in Neo4j
+      responses:
+        '200':
+          description: UUID list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  uuids:
+                    type: array
+                    items:
+                      type: string
+
+  /api/neo4j-setup-constraints-and-indexes:
+    post:
+      tags: [Neo4j]
+      summary: Set up Neo4j constraints and indexes
+      responses:
+        '200':
+          description: Constraints and indexes created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  # ──────────────────────────────────────────────
+  # Strfry
+  # ──────────────────────────────────────────────
+  /api/strfry/scan:
+    get:
+      tags: [Strfry]
+      summary: Scan events from strfry
+      parameters:
+        - name: filters
+          in: query
+          schema:
+            type: string
+          description: JSON-encoded nostr filter
+        - name: limit
+          in: query
+          schema:
+            type: integer
+        - name: offset
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Matching events
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  events:
+                    type: array
+                    items:
+                      type: object
+                  total:
+                    type: integer
+
+  /api/strfry/scan/stream:
+    get:
+      tags: [Strfry]
+      summary: Stream events as JSONL
+      description: Returns events as newline-delimited JSON. No memory issues for large result sets. Nginx buffering disabled.
+      parameters:
+        - name: filters
+          in: query
+          schema:
+            type: string
+          description: JSON-encoded nostr filter
+      responses:
+        '200':
+          description: JSONL stream
+          content:
+            application/x-ndjson:
+              schema:
+                type: string
+
+  /api/strfry/scan/count:
+    get:
+      tags: [Strfry]
+      summary: Count events matching a filter
+      description: Can take minutes on large databases.
+      parameters:
+        - name: filters
+          in: query
+          schema:
+            type: string
+          description: JSON-encoded nostr filter
+      responses:
+        '200':
+          description: Event count
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  count:
+                    type: integer
+
+  /api/strfry/publish:
+    post:
+      tags: [Strfry]
+      summary: Sign and publish an event to strfry
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                event:
+                  type: object
+                  description: Nostr event object
+      responses:
+        '200':
+          description: Event published
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  eventId:
+                    type: string
+
+  /api/strfry/wipe:
+    post:
+      tags: [Strfry]
+      summary: Wipe all strfry events
+      description: Dangerous! Deletes all events from the local relay.
+      responses:
+        '200':
+          description: Wipe result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /api/strfry/router-status:
+    get:
+      tags: [Strfry]
+      summary: Get router sync status
+      responses:
+        '200':
+          description: Router status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+
+  /api/strfry/router-toggle:
+    post:
+      tags: [Strfry]
+      summary: Enable or disable a sync stream
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                enabled:
+                  type: boolean
+      responses:
+        '200':
+          description: Stream toggled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /api/strfry/router-presets:
+    get:
+      tags: [Strfry]
+      summary: Get available router presets
+      responses:
+        '200':
+          description: Preset list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+
+  /api/strfry/router-config:
+    post:
+      tags: [Strfry]
+      summary: Update router configuration
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Config updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /api/strfry/router-plugins:
+    get:
+      tags: [Strfry]
+      summary: List router plugins
+      responses:
+        '200':
+          description: Plugin list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+
+  /api/strfry/router-restart:
+    post:
+      tags: [Strfry]
+      summary: Restart the strfry router
+      responses:
+        '200':
+          description: Router restarted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /api/strfry/router-restore-defaults:
+    post:
+      tags: [Strfry]
+      summary: Restore router to default configuration
+      responses:
+        '200':
+          description: Defaults restored
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /api/strfry/negentropy-sync:
+    post:
+      tags: [Strfry]
+      summary: Trigger negentropy sync from a relay
+      description: Non-streaming sync that waits for completion.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Sync result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /api/strfry/negentropy-sync/stream:
+    get:
+      tags: [Strfry]
+      summary: Streaming negentropy sync via SSE
+      description: Returns Server-Sent Events with progress updates.
+      responses:
+        '200':
+          description: SSE stream
+          content:
+            text/event-stream:
+              schema:
+                type: string
+
+  /api/strfry/negentropy-sync/status:
+    get:
+      tags: [Strfry]
+      summary: Get current negentropy sync status
+      responses:
+        '200':
+          description: Sync status (active or idle)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+
+  /api/strfry/negentropy-sync/count:
+    get:
+      tags: [Strfry]
+      summary: Query local and remote event counts
+      responses:
+        '200':
+          description: Event counts
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+
+  # ──────────────────────────────────────────────
+  # Settings
+  # ──────────────────────────────────────────────
+  /api/settings:
+    get:
+      tags: [Settings]
+      summary: Get merged settings (owner-only)
+      responses:
+        '200':
+          description: Settings object
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  settings:
+                    type: object
+                  overrides:
+                    type: object
+                  defaults:
+                    type: object
+                  settingsPath:
+                    type: string
+    put:
+      tags: [Settings]
+      summary: Update settings (owner-only, deep merge)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Key-value pairs to merge into settings
+      responses:
+        '200':
+          description: Settings updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /api/settings/defaults:
+    get:
+      tags: [Settings]
+      summary: Get default settings (owner-only)
+      responses:
+        '200':
+          description: Default settings
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  defaults:
+                    type: object
+
+  /api/settings/overrides:
+    get:
+      tags: [Settings]
+      summary: Get settings overrides (owner-only)
+      responses:
+        '200':
+          description: Override settings
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  overrides:
+                    type: object
+
+  '/api/settings/{keyPath}':
+    delete:
+      tags: [Settings]
+      summary: Reset a setting key to default (owner-only)
+      parameters:
+        - name: keyPath
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Dot-separated key path
+      responses:
+        '200':
+          description: Setting reset
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  # ──────────────────────────────────────────────
+  # Search / Profiles
+  # ──────────────────────────────────────────────
+  /api/search/profiles/meili:
+    get:
+      tags: [Search]
+      summary: Full-text profile search via Meilisearch
+      description: Searches nostr kind 0 profiles. Supports WoT scoring, NIP-05 lookup, and direct pubkey lookup.
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Search query
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: wotPov
+          in: query
+          schema:
+            type: string
+            enum: [house, user]
+          description: Web of Trust point of view
+        - name: userPubkey
+          in: query
+          schema:
+            type: string
+          description: Hex pubkey for user WoT POV
+        - name: pubkeyLookup
+          in: query
+          schema:
+            type: string
+          description: Direct pubkey lookup (bypasses search)
+        - name: nip05Lookup
+          in: query
+          schema:
+            type: string
+          description: NIP-05 identifier for parallel verification
+      responses:
+        '200':
+          description: Search results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  hits:
+                    type: array
+                    items:
+                      type: object
+                  estimatedTotalHits:
+                    type: integer
+                  processingTimeMs:
+                    type: integer
+                  query:
+                    type: string
+                  povSuffix:
+                    type: string
+
+  /api/search/profiles/meili/stats:
+    get:
+      tags: [Search]
+      summary: Meilisearch index statistics
+      description: Document count, field distribution, profile freshness.
+      responses:
+        '200':
+          description: Index stats
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  stats:
+                    type: object
+
+  /api/search/profiles/meili/document/{pubkey}:
+    get:
+      tags: [Search]
+      summary: Get a single profile document by pubkey
+      parameters:
+        - name: pubkey
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Profile document
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  document:
+                    type: object
+
+  /api/search/profiles/meili/resync:
+    post:
+      tags: [Search]
+      summary: Trigger live ingester resync
+      description: Clears dedup map and reconnects to relay.
+      responses:
+        '200':
+          description: Resync triggered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /api/search/profiles/meili/bulk-status:
+    get:
+      tags: [Search]
+      summary: Bulk re-indexing status
+      responses:
+        '200':
+          description: Bulk status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  status:
+                    type: object
+
+  /api/search/profiles/meili/load-scores:
+    post:
+      tags: [Search]
+      summary: Batch upsert WoT scores into profiles index
+      description: 'Scores use suffixed field names: wot_<metric>_<8char>.'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                pubkeys:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        '200':
+          description: Scores loaded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /api/search/profiles/meili/settings:
+    get:
+      tags: [Search]
+      summary: Meilisearch index settings
+      description: Returns filterable and sortable attributes.
+      responses:
+        '200':
+          description: Index settings
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  settings:
+                    type: object
+
+  /api/search/profiles/meili/tasks:
+    get:
+      tags: [Search]
+      summary: Meilisearch task queue status
+      responses:
+        '200':
+          description: Task list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  tasks:
+                    type: array
+                    items:
+                      type: object
+
+  /api/search/profiles/meili/wipe:
+    delete:
+      tags: [Search]
+      summary: Delete entire Meilisearch index
+      description: Requires re-ingest afterwards.
+      responses:
+        '200':
+          description: Index wiped
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /api/search/profiles/meili/random-scored:
+    get:
+      tags: [Search]
+      summary: Get random scored profiles
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Random profiles
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  profiles:
+                    type: array
+                    items:
+                      type: object
+
+  /api/search/profiles/meili/prune-unscored:
+    post:
+      tags: [Search]
+      summary: Prune unscored profiles from index
+      responses:
+        '200':
+          description: Pruned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /api/search/profiles/meili/scored-missing-profile:
+    get:
+      tags: [Search]
+      summary: Find scored profiles missing kind 0 data
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Profiles missing data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  profiles:
+                    type: array
+                    items:
+                      type: object
+
+  /api/search/profiles/meili/backfill-profiles:
+    post:
+      tags: [Search]
+      summary: Backfill profile data for scored profiles
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                pubkeys:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        '200':
+          description: Backfill result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /api/search/profiles:
+    get:
+      tags: [Search]
+      summary: Search profiles (legacy)
+      parameters:
+        - name: q
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Search results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  hits:
+                    type: array
+                    items:
+                      type: object
+                  processingTimeMs:
+                    type: integer
+
+  /api/search/profiles/stream:
+    get:
+      tags: [Search]
+      summary: Stream profile search results
+      parameters:
+        - name: q
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: JSONL stream
+          content:
+            application/x-ndjson:
+              schema:
+                type: string
+
+  /api/search/profiles/keyword:
+    get:
+      tags: [Search]
+      summary: Keyword-based profile search
+      parameters:
+        - name: q
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Search results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  hits:
+                    type: array
+                    items:
+                      type: object
+
+  # ──────────────────────────────────────────────
+  # Grapevine / Preferences
+  # ──────────────────────────────────────────────
+  /api/grapevine/preferences:
+    get:
+      tags: [Grapevine]
+      summary: Get search preferences
+      description: Returns POV pubkey, metrics, filters, and sort configuration.
+      responses:
+        '200':
+          description: Grapevine preferences
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+    put:
+      tags: [Grapevine]
+      summary: Save search preferences
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Preferences saved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  # ──────────────────────────────────────────────
+  # User Preferences
+  # ──────────────────────────────────────────────
+  /api/user-prefs:
+    get:
+      tags: [User Preferences]
+      summary: Get current user's preferences
+      description: Requires an authenticated session.
+      responses:
+        '200':
+          description: User preferences
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+    put:
+      tags: [User Preferences]
+      summary: Save user preferences (shallow merge)
+      description: 'Key fields: pov, rankAuthor, rankRelay, filters, sortConfig, selectedMetrics.'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Preferences saved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  # ──────────────────────────────────────────────
+  # Property
+  # ──────────────────────────────────────────────
+  /api/property/generate-json-schema:
+    post:
+      tags: [Property]
+      summary: Generate JSON Schema from property tree
+      description: Reads a concept's property tree and generates a JSON Schema, saving it to the JSONSchema node.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [concept]
+              properties:
+                concept:
+                  type: string
+      responses:
+        '200':
+          description: Schema generated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  schemaUuid:
+                    type: string
+                  schema:
+                    type: object
+
+  # ──────────────────────────────────────────────
+  # Profiles
+  # ──────────────────────────────────────────────
+  /api/profiles:
+    get:
+      tags: [Profiles]
+      summary: Fetch kind 0 profiles from external relays
+      description: Results are cached.
+      parameters:
+        - name: pubkeys
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Comma-separated hex pubkeys
+      responses:
+        '200':
+          description: Profile data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+
+  # ──────────────────────────────────────────────
+  # Trusted List
+  # ──────────────────────────────────────────────
+  /api/trusted-list/publish:
+    post:
+      tags: [Trusted List]
+      summary: Publish a trusted list event
+      description: Signs and publishes kind 30392-30395 Trusted List events to local strfry.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Event published
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  # ──────────────────────────────────────────────
+  # IO (Import/Export)
+  # ──────────────────────────────────────────────
+  /api/io/exports:
+    get:
+      tags: [IO]
+      summary: List available export zip files
+      responses:
+        '200':
+          description: Export list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      type: object
+    post:
+      tags: [IO]
+      summary: Create a new export zip
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Export created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /api/io/exports/{filename}:
+    get:
+      tags: [IO]
+      summary: Download an export zip file
+      parameters:
+        - name: filename
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Zip file
+          content:
+            application/zip:
+              schema:
+                type: string
+                format: binary
+
+  /api/io/imports/upload:
+    post:
+      tags: [IO]
+      summary: Upload a zip for import
+      description: Parses manifest from uploaded zip. Multipart file upload.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: Import parsed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+
+  /api/io/imports/{tempId}/word/{slug}:
+    get:
+      tags: [IO]
+      summary: Preview a word from uploaded import
+      parameters:
+        - name: tempId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Word preview
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+
+  /api/io/imports/{tempId}/execute:
+    post:
+      tags: [IO]
+      summary: Execute an import
+      description: Writes events to strfry, creates Neo4j nodes, wires concepts, and builds graph relationships.
+      parameters:
+        - name: tempId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Import executed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  # ──────────────────────────────────────────────
+  # Tapestry Key / LMDB
+  # ──────────────────────────────────────────────
+  /api/tapestry-key/status:
+    get:
+      tags: [Tapestry Key]
+      summary: Count initialized vs uninitialized nodes
+      responses:
+        '200':
+          description: Key status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+
+  /api/tapestry-key/initialize:
+    post:
+      tags: [Tapestry Key]
+      summary: Assign tapestryKey to nodes that lack one
+      responses:
+        '200':
+          description: Keys initialized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /api/tapestry-key/offload-status:
+    get:
+      tags: [Tapestry Key]
+      summary: Count inline vs offloaded json tags
+      responses:
+        '200':
+          description: Offload status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+
+  /api/tapestry-key/offload:
+    post:
+      tags: [Tapestry Key]
+      summary: Offload a single tag's inline JSON to LMDB
+      responses:
+        '200':
+          description: JSON offloaded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /api/tapestry-key/offload-all:
+    post:
+      tags: [Tapestry Key]
+      summary: Offload all inline json tags to LMDB
+      responses:
+        '200':
+          description: All offloaded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /api/tapestry-key/derive-status:
+    get:
+      tags: [Tapestry Key]
+      summary: List registered derivers and counts
+      responses:
+        '200':
+          description: Deriver status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+
+  /api/tapestry-key/derive-all/{label}:
+    post:
+      tags: [Tapestry Key]
+      summary: Derive tapestryJSON for all nodes with given label
+      parameters:
+        - name: label
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Derivation result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /api/tapestry-key/derive/{key}:
+    post:
+      tags: [Tapestry Key]
+      summary: Derive tapestryJSON for a single node
+      parameters:
+        - name: key
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Derivation result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /api/tapestry-key/resolve/{key}:
+    get:
+      tags: [Tapestry Key]
+      summary: Resolve tapestryKey (LMDB or inline fallback)
+      parameters:
+        - name: key
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Resolved JSON
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+
+  /api/tapestry-key/{key}:
+    get:
+      tags: [Tapestry Key]
+      summary: Fetch tapestryJSON from LMDB
+      parameters:
+        - name: key
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: LMDB value
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+    post:
+      tags: [Tapestry Key]
+      summary: Write tapestryJSON to LMDB
+      parameters:
+        - name: key
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Value written
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  # ──────────────────────────────────────────────
+  # Customers
+  # ──────────────────────────────────────────────
+  /api/get-customers:
+    get:
+      tags: [Customers]
+      summary: List all customers
+      responses:
+        '200':
+          description: Customer list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      type: object
+
+  /api/get-customer:
+    get:
+      tags: [Customers]
+      summary: Get a single customer
+      responses:
+        '200':
+          description: Customer data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+
+  /api/add-new-customer:
+    post:
+      tags: [Customers]
+      summary: Create a new customer (owner-only)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Customer created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /api/delete-customer:
+    post:
+      tags: [Customers]
+      summary: Delete a customer (owner-only)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Customer deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /api/change-customer-status:
+    post:
+      tags: [Customers]
+      summary: Activate or deactivate a customer (owner-only)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Status changed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /api/update-customer-display-name:
+    post:
+      tags: [Customers]
+      summary: Update customer display name (owner-only)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Display name updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  # ──────────────────────────────────────────────
+  # Status
+  # ──────────────────────────────────────────────
+  /api/status:
+    get:
+      tags: [Status]
+      summary: Overall instance status
+      responses:
+        '200':
+          description: Status report
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+
+  /api/strfry-status:
+    get:
+      tags: [Status]
+      summary: Strfry relay status
+      responses:
+        '200':
+          description: Strfry status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+
+  /api/strfry-stats:
+    get:
+      tags: [Status]
+      summary: Strfry statistics
+      responses:
+        '200':
+          description: Strfry stats
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+
+  /api/neo4j-status:
+    get:
+      tags: [Status]
+      summary: Neo4j database status
+      responses:
+        '200':
+          description: Neo4j status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+
+  /api/instance-status:
+    get:
+      tags: [Status]
+      summary: Combined instance status (legacy)
+      deprecated: true
+      responses:
+        '200':
+          description: Combined status from all services
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  timestamp:
+                    type: number
+                  data:
+                    type: object
+
+  /api/owner-info:
+    get:
+      tags: [Status]
+      summary: Get owner public info
+      responses:
+        '200':
+          description: Owner info
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+
+  /api/debug:
+    get:
+      tags: [Status]
+      summary: Debug info for troubleshooting
+      responses:
+        '200':
+          description: Debug data
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+
+  # ──────────────────────────────────────────────
+  # Algos
+  # ──────────────────────────────────────────────
+  /api/algos/config/get:
+    get:
+      tags: [Algos]
+      summary: Get algorithm config
+      parameters:
+        - name: pubkey
+          in: query
+          schema:
+            type: string
+        - name: configType
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Config data
+          content:
+            application/json:
+              schema:
+                type: object
+
+  /api/algos/config/update:
+    post:
+      tags: [Algos]
+      summary: Update algorithm config
+      parameters:
+        - name: pubkey
+          in: query
+          schema:
+            type: string
+        - name: configType
+          in: query
+          schema:
+            type: string
+        - name: setPreset
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Config updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /api/algos/config/get/graperank:
+    get:
+      tags: [Algos]
+      summary: Get GrapeRank config
+      responses:
+        '200':
+          description: GrapeRank config
+          content:
+            application/json:
+              schema:
+                type: object
+
+  /api/algos/config/update/graperank:
+    post:
+      tags: [Algos]
+      summary: Update GrapeRank config
+      responses:
+        '200':
+          description: Config updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /api/generate-graperank:
+    post:
+      tags: [Algos]
+      summary: Generate GrapeRank scores
+      responses:
+        '200':
+          description: Generation result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /api/generate-pagerank:
+    post:
+      tags: [Algos]
+      summary: Generate PageRank scores
+      responses:
+        '200':
+          description: Generation result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /api/calculate-hops:
+    post:
+      tags: [Algos]
+      summary: Calculate hops from owner
+      responses:
+        '200':
+          description: Calculation result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /api/influence-count:
+    get:
+      tags: [Algos]
+      summary: Get influence count
+      responses:
+        '200':
+          description: Influence count
+          content:
+            application/json:
+              schema:
+                type: object
+
+  /api/hops-count:
+    get:
+      tags: [Algos]
+      summary: Get hops count
+      responses:
+        '200':
+          description: Hops count
+          content:
+            application/json:
+              schema:
+                type: object
+
+  # ──────────────────────────────────────────────
+  # NIP-85
+  # ──────────────────────────────────────────────
+  /api/get-nip85-status:
+    get:
+      tags: [NIP-85]
+      summary: Get NIP-85 status
+      responses:
+        '200':
+          description: NIP-85 status
+          content:
+            application/json:
+              schema:
+                type: object
+
+  /api/create-and-publish-kind10040:
+    post:
+      tags: [NIP-85]
+      summary: Create and publish kind 10040 event
+      responses:
+        '200':
+          description: Event created and published
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /api/get-kind10040-event:
+    get:
+      tags: [NIP-85]
+      summary: Get kind 10040 event
+      responses:
+        '200':
+          description: Kind 10040 event data
+          content:
+            application/json:
+              schema:
+                type: object
+
+  /api/get-kind10040-info:
+    get:
+      tags: [NIP-85]
+      summary: Get kind 10040 info
+      responses:
+        '200':
+          description: Kind 10040 info
+          content:
+            application/json:
+              schema:
+                type: object
+
+  # ──────────────────────────────────────────────
+  # Pipeline
+  # ──────────────────────────────────────────────
+  /api/negentropy-sync:
+    post:
+      tags: [Pipeline]
+      summary: Trigger negentropy sync
+      responses:
+        '200':
+          description: Sync result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /api/batch-transfer:
+    post:
+      tags: [Pipeline]
+      summary: Batch transfer events
+      responses:
+        '200':
+          description: Transfer result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /api/reconciliation:
+    post:
+      tags: [Pipeline]
+      summary: Run reconciliation pipeline
+      responses:
+        '200':
+          description: Reconciliation result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  # ──────────────────────────────────────────────
+  # Manage
+  # ──────────────────────────────────────────────
+  /api/run-task:
+    post:
+      tags: [Manage]
+      summary: Execute a task by name
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Task result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /api/service-management/status:
+    get:
+      tags: [Manage]
+      summary: Get all service statuses
+      responses:
+        '200':
+          description: Service statuses
+          content:
+            application/json:
+              schema:
+                type: object
+
+  /api/service-management/control:
+    post:
+      tags: [Manage]
+      summary: Control a service (start/stop/restart)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          description: Control result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /api/service-management/logs:
+    get:
+      tags: [Manage]
+      summary: Get service logs
+      responses:
+        '200':
+          description: Log output
+          content:
+            application/json:
+              schema:
+                type: object
+
+  # ──────────────────────────────────────────────
+  # Neo4j Health
+  # ──────────────────────────────────────────────
+  /api/neo4j-health/complete:
+    get:
+      tags: [Neo4j Health]
+      summary: Complete Neo4j health report
+      responses:
+        '200':
+          description: Full health data
+          content:
+            application/json:
+              schema:
+                type: object
+
+  /api/neo4j-health/alerts:
+    get:
+      tags: [Neo4j Health]
+      summary: Neo4j health alerts
+      responses:
+        '200':
+          description: Alert list
+          content:
+            application/json:
+              schema:
+                type: object
+
+  /api/neo4j-health/heap-metrics-history:
+    get:
+      tags: [Neo4j Health]
+      summary: Neo4j heap metrics history
+      responses:
+        '200':
+          description: Metrics timeline
+          content:
+            application/json:
+              schema:
+                type: object
+
+  /api/neo4j-health/task-timeline:
+    get:
+      tags: [Neo4j Health]
+      summary: Task execution timeline
+      responses:
+        '200':
+          description: Timeline data
+          content:
+            application/json:
+              schema:
+                type: object
+
+  # ──────────────────────────────────────────────
+  # Calculation History
+  # ──────────────────────────────────────────────
+  /api/calculation-history/hops:
+    get:
+      tags: [Algos]
+      summary: Hops calculation history
+      responses:
+        '200':
+          description: History data
+          content:
+            application/json:
+              schema:
+                type: object
+
+  /api/calculation-history/personalizedGrapeRank:
+    get:
+      tags: [Algos]
+      summary: Personalized GrapeRank calculation history
+      responses:
+        '200':
+          description: History data
+          content:
+            application/json:
+              schema:
+                type: object
+
+  /api/calculation-history/personalizedPageRank:
+    get:
+      tags: [Algos]
+      summary: Personalized PageRank calculation history
+      responses:
+        '200':
+          description: History data
+          content:
+            application/json:
+              schema:
+                type: object
+
+  /api/calculation-history/processAllTrustMetrics:
+    get:
+      tags: [Algos]
+      summary: Trust metrics processing history
+      responses:
+        '200':
+          description: History data
+          content:
+            application/json:
+              schema:
+                type: object
+
+components:
+  schemas:
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string

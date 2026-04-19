@@ -67,7 +67,14 @@
       ],
       "script": "$BRAINSTORM_MODULE_SRC_DIR/manage/processAllTasks.sh",
       "script_relative_path": "manage/processAllTasks.sh",
-      "arguments": false,
+      "arguments": {
+        "warmStart": {
+          "type": "boolean",
+          "label": "Warm Start",
+          "description": "Propagate warm start to the GrapeRank calculation(s) this task triggers",
+          "default": false
+        }
+      },
       "children": [
         "neo4jConstraintsAndIndexes",
         "syncWoT",
@@ -367,7 +374,13 @@
       "script": "$BRAINSTORM_MODULE_SRC_DIR/algos/customers/processAllActiveCustomers.sh",
       "script_relative_path": "algos/customers/processAllActiveCustomers.sh",
       "arguments": {
-        "customer": false
+        "customer": false,
+        "warmStart": {
+          "type": "boolean",
+          "label": "Warm Start",
+          "description": "Propagate warm start to the GrapeRank calculation(s) this task triggers",
+          "default": false
+        }
       },
       "parent": "processAllTasks",
       "children": [
@@ -392,7 +405,13 @@
       "script": "$BRAINSTORM_MODULE_SRC_DIR/algos/customers/processCustomer.sh",
       "script_relative_path": "algos/customers/processCustomer.sh",
       "arguments": {
-        "customer": true
+        "customer": true,
+        "warmStart": {
+          "type": "boolean",
+          "label": "Warm Start",
+          "description": "Propagate warm start to the GrapeRank calculation(s) this task triggers",
+          "default": false
+        }
       },
       "averageDuration": 564500,
       "parent": "processAllActiveCustomers",
@@ -449,7 +468,8 @@
         "processOwnerFollowsMutesReports",
         "calculateReportScores",
         "exportWhitelist",
-        "exportOwnerKind30382"
+        "exportOwnerKind30382",
+        "loadOwnerScoresIntoMeilisearch"
       ],
       "scope": "owner",
       "priority": "high",
@@ -471,7 +491,13 @@
       "script": "$BRAINSTORM_MODULE_SRC_DIR/algos/customers/updateAllScoresForSingleCustomer.sh",
       "script_relative_path": "algos/customers/updateAllScoresForSingleCustomer.sh",
       "arguments": {
-        "customer": true
+        "customer": true,
+        "warmStart": {
+          "type": "boolean",
+          "label": "Warm Start",
+          "description": "Propagate warm start to the GrapeRank calculation(s) this task triggers",
+          "default": false
+        }
       },
       "parent": "processCustomer",
       "children": [
@@ -479,7 +505,8 @@
         "calculateCustomerPageRank",
         "calculateCustomerGrapeRank",
         "processCustomerFollowsMutesReports",
-        "exportCustomerKind30382"
+        "exportCustomerKind30382",
+        "loadCustomerScoresIntoMeilisearch"
       ],
       "scope": "customer",
       "priority": "high",
@@ -525,7 +552,13 @@
       "script": "$BRAINSTORM_MODULE_SRC_DIR/algos/customers/personalizedGrapeRank/personalizedGrapeRank.sh",
       "script_relative_path": "algos/customers/personalizedGrapeRank/personalizedGrapeRank.sh",
       "arguments": {
-        "customer": true
+        "customer": true,
+        "warmStart": {
+          "type": "boolean",
+          "label": "Warm Start",
+          "description": "Initialize from previous Neo4j scores instead of cold start",
+          "default": false
+        }
       },
       "parent": "updateAllScoresForSingleCustomer",
       "scope": "customer",
@@ -583,14 +616,14 @@
     },
 
     "calculateOwnerHops": {
-      "name": "Calculate Owner Hops",
+      "name": "Calculate Owner Hops (Frontier)",
       "categories": ["algorithms", "owner"],
-      "description": "Calculates hop distances from the instance owner",
+      "description": "Calculates hop distances from the instance owner using frontier-based BFS — only scans each hop level's edges, not the entire graph",
       "scripts": [
-        "$BRAINSTORM_MODULE_SRC_DIR/algos/calculateHops.sh"
+        "$BRAINSTORM_MODULE_SRC_DIR/algos/calculateHopsFrontier.sh"
       ],
-      "script": "$BRAINSTORM_MODULE_SRC_DIR/algos/calculateHops.sh",
-      "script_relative_path": "algos/calculateHops.sh",
+      "script": "$BRAINSTORM_MODULE_SRC_DIR/algos/calculateHopsFrontier.sh",
+      "script_relative_path": "algos/calculateHopsFrontier.sh",
       "enforcedTimeout": 600000,
       "arguments": false,
       "parent": "updateAllScoresForOwner",
@@ -862,7 +895,7 @@
       ],
       "script": "$BRAINSTORM_MODULE_SRC_DIR/algos/nip85/publishNip85.sh",
       "script_relative_path": "algos/nip85/publishNip85.sh",
-      "arguments": false,
+      "arguments": { "limit": "optional" },
       "parent": "updateAllScoresForOwner",
       "scope": "owner",
       "priority": "low",
@@ -883,7 +916,8 @@
       "script": "$BRAINSTORM_MODULE_SRC_DIR/algos/customers/nip85/publishNip85.sh",
       "script_relative_path": "algos/customers/nip85/publishNip85.sh",
       "arguments": {
-        "customer": true
+        "customer": true,
+        "limit": "optional"
       },
       "parent": "updateAllScoresForSingleCustomer",
       "priority": "medium",
@@ -892,6 +926,67 @@
       "structuredLogging": true,
       "options":{},
       "notes":"Phase 2 structured logging implemented - comprehensive NIP-85 event publishing tracking with TASK_START/END, PROGRESS events for relay pubkey verification and Kind 30382 publishing phases, error handling with TASK_ERROR events"
+    },
+
+    "loadOwnerScoresIntoMeilisearch": {
+      "name": "Load Owner Scores into Meilisearch",
+      "categories": ["export", "owner"],
+      "description": "Syncs kind 30382 events from NIP-85 relay and loads WoT scores into Meilisearch search index",
+      "scripts": [
+        "$BRAINSTORM_MODULE_SRC_DIR/algos/nip85/loadScoresIntoMeilisearch.sh"
+      ],
+      "script": "$BRAINSTORM_MODULE_SRC_DIR/algos/nip85/loadScoresIntoMeilisearch.sh",
+      "script_relative_path": "algos/nip85/loadScoresIntoMeilisearch.sh",
+      "arguments": false,
+      "parent": "updateAllScoresForOwner",
+      "scope": "owner",
+      "priority": "low",
+      "frequency": "daily",
+      "status": "active",
+      "structuredLogging": true,
+      "options": {},
+      "notes": "Syncs kind 30382 from NIP-85 relay via strfry negentropy, then parses all metric tags and loads into Meilisearch via load-scores endpoint"
+    },
+
+    "loadCustomerScoresIntoMeilisearch": {
+      "name": "Load Customer Scores into Meilisearch",
+      "categories": ["export", "customer"],
+      "description": "Syncs kind 30382 events from NIP-85 relay and loads customer WoT scores into Meilisearch search index",
+      "scripts": [
+        "$BRAINSTORM_MODULE_SRC_DIR/algos/customers/nip85/loadScoresIntoMeilisearch.sh"
+      ],
+      "script": "$BRAINSTORM_MODULE_SRC_DIR/algos/customers/nip85/loadScoresIntoMeilisearch.sh",
+      "script_relative_path": "algos/customers/nip85/loadScoresIntoMeilisearch.sh",
+      "arguments": {
+        "customer": true
+      },
+      "parent": "updateAllScoresForSingleCustomer",
+      "scope": "customer",
+      "priority": "low",
+      "frequency": "per-customer",
+      "status": "active",
+      "structuredLogging": true,
+      "options": {},
+      "notes": "Syncs kind 30382 from NIP-85 relay via strfry negentropy, then parses all metric tags and loads into Meilisearch via load-scores endpoint"
+    },
+
+    "pruneOldLogs": {
+      "name": "Prune Old Logs",
+      "categories": ["maintenance"],
+      "description": "Cleans up old log files, rotated archives, and stale temp files to free disk space",
+      "scripts": [
+        "$BRAINSTORM_MODULE_SRC_DIR/manage/maintenance/pruneOldLogs.sh"
+      ],
+      "script": "$BRAINSTORM_MODULE_SRC_DIR/manage/maintenance/pruneOldLogs.sh",
+      "script_relative_path": "manage/maintenance/pruneOldLogs.sh",
+      "arguments": false,
+      "scope": "system",
+      "priority": "low",
+      "frequency": "weekly",
+      "status": "active",
+      "structuredLogging": true,
+      "options": {},
+      "notes": "Applies retention policies: 30-day for archives and customer logs, size caps for active logs (50MB supervisor/neo4j, 20MB task logs), 1-day for stale /tmp files"
     },
 
     "npubManager": {

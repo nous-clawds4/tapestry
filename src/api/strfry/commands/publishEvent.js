@@ -6,7 +6,7 @@
  *   client — event is already signed by client (NIP-07), just publish
  */
 const { exec } = require('child_process');
-const { getConfigFromFile } = require('../../../utils/config');
+const { getOwnerAssistantKeys } = require('../../../utils/assistantKeys');
 
 // Lazy-load nostr-tools (ESM-friendly path inside Docker)
 let _nt = null;
@@ -29,13 +29,13 @@ async function handlePublishEvent(req, res) {
 
     if (signAs === 'assistant') {
       // Sign with Tapestry Assistant private key
-      const privkeyHex = getConfigFromFile('BRAINSTORM_RELAY_PRIVKEY');
-      if (!privkeyHex) {
+      const taKeys = await getOwnerAssistantKeys();
+      if (!taKeys || !taKeys.privkey) {
         return res.status(500).json({ success: false, error: 'Tapestry Assistant key not configured' });
       }
 
       const nt = getNostrTools();
-      const privBytes = Uint8Array.from(Buffer.from(privkeyHex, 'hex'));
+      const privBytes = Uint8Array.from(Buffer.from(taKeys.privkey, 'hex'));
 
       const template = {
         kind: event.kind,

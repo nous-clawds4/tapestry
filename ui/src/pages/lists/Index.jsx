@@ -5,7 +5,8 @@ import Breadcrumbs from '../../components/Breadcrumbs';
 import { queryRelay } from '../../api/relay';
 import useProfiles from '../../hooks/useProfiles';
 import AuthorCell from '../../components/AuthorCell';
-import { OWNER_PUBKEY, TA_PUBKEY, DAVE_PUBKEY } from '../../config/pubkeys';
+import { OWNER_PUBKEY, DAVE_PUBKEY } from '../../config/pubkeys';
+import { useConfig } from '../../context/ConfigContext';
 
 /**
  * Helper: extract a tag value from an event's tags array.
@@ -38,6 +39,7 @@ function shortPubkey(pk) {
 }
 
 export default function DListsIndex() {
+  const { taPubkey: TA_PUBKEY } = useConfig();
   const navigate = useNavigate();
   const [headers, setHeaders] = useState([]);
   const [items, setItems] = useState([]);
@@ -234,7 +236,7 @@ export default function DListsIndex() {
             {headers.length} list headers · {items.length} items · from local strfry
           </p>
         </div>
-        <button className="btn-primary" onClick={() => navigate('/kg/lists/new')}>
+        <button className="btn-primary" onClick={() => navigate('/tapestry/lists/new')}>
           + New DList
         </button>
       </div>
@@ -296,7 +298,7 @@ export default function DListsIndex() {
       <DataTable
         columns={columns}
         data={filteredRows}
-        onRowClick={(row) => navigate(`/kg/lists/${encodeURIComponent(row.routeId)}`)}
+        onRowClick={(row) => navigate(`/tapestry/lists/${encodeURIComponent(row.routeId)}`)}
         emptyMessage="No DLists match your filters"
       />
     </div>

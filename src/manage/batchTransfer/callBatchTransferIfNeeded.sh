@@ -7,7 +7,7 @@ source "$CONFIG_FILE" # BRAINSTORM_MODULE_PIPELINE_DIR
 source "${BRAINSTORM_MODULE_BASE_DIR}/src/utils/structuredLogging.sh"
 
 touch ${BRAINSTORM_LOG_DIR}/callBatchTransferIfNeeded.log
-sudo chown brainstorm:brainstorm ${BRAINSTORM_LOG_DIR}/callBatchTransferIfNeeded.log
+chown brainstorm:brainstorm ${BRAINSTORM_LOG_DIR}/callBatchTransferIfNeeded.log
 
 echo "$(date): Starting callBatchTransferIfNeeded"
 echo "$(date): Starting callBatchTransferIfNeeded" >> ${BRAINSTORM_LOG_DIR}/callBatchTransferIfNeeded.log
@@ -45,7 +45,7 @@ if [ -z "${batchTransferCompleted}" ]; then
     
     echo "$(date): Continuing callBatchTransferIfNeeded ... starting batch/transfer.sh"
     echo "$(date): Continuing callBatchTransferIfNeeded ... starting batch/transfer.sh" >> ${BRAINSTORM_LOG_DIR}/callBatchTransferIfNeeded.log
-    sudo $BRAINSTORM_MODULE_PIPELINE_DIR/batch/transfer.sh
+    $BRAINSTORM_MODULE_PIPELINE_DIR/batch/transfer.sh
     echo "$(date): Continuing callBatchTransferIfNeeded ... batch/transfer.sh completed"
     echo "$(date): Continuing callBatchTransferIfNeeded ... batch/transfer.sh completed" >> ${BRAINSTORM_LOG_DIR}/callBatchTransferIfNeeded.log
     

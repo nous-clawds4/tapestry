@@ -120,7 +120,7 @@
                 neo4jStatus.textContent = 'Checking Neo4j status...';
                 neo4jContainer.style.display = 'none';
                 
-                fetch('/control/api/neo4j-status')
+                fetch('/api/neo4j-status')
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
@@ -190,7 +190,7 @@
                 constraintsStatus.textContent = 'Setting up Neo4j constraints and indexes...';
                 constraintsSetupOutput.style.display = 'none';
                 
-                fetch('/control/api/neo4j-setup-constraints-and-indexes', {
+                fetch('/api/neo4j-setup-constraints-and-indexes', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -227,7 +227,7 @@
             const neo4jServiceControlStatus = document.getElementById('neo4jServiceControlStatus');
             
             function loadNeo4jServiceStatus() {
-                fetch('/control/api/systemd-services?service=neo4j')
+                fetch('/api/systemd-services?service=neo4j')
                     .then(response => response.json())
                     .then(data => {
                         // Clear the table
@@ -346,7 +346,7 @@
                 neo4jServiceControlStatus.className = 'status info';
                 neo4jServiceControlStatus.textContent = `${action.charAt(0).toUpperCase() + action.slice(1)}ing Neo4j service...`;
                 
-                fetch(`/control/api/systemd-services?service=neo4j&action=${action}`)
+                fetch(`/api/systemd-services?service=neo4j&action=${action}`)
                     .then(response => response.json())
                     .then(data => {
                         if (data.success) {

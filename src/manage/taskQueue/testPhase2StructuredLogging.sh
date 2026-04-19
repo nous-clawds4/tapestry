@@ -39,7 +39,7 @@ echo ""
 START_TIME=$(date +%s)
 
 # Note: This will likely fail, but we want to capture the structured events
-sudo bash "$BRAINSTORM_MODULE_ALGOS_DIR/customers/updateAllScoresForSingleCustomer.sh" \
+bash "$BRAINSTORM_MODULE_ALGOS_DIR/customers/updateAllScoresForSingleCustomer.sh" \
     "$TEST_CUSTOMER_PUBKEY" "$TEST_CUSTOMER_ID" "$TEST_CUSTOMER_NAME" 2>&1 | \
     tee "$TEST_DIR/test_execution.log"
 

@@ -10,7 +10,7 @@ source /etc/brainstorm.conf
 source /etc/concept-graph.conf
 
 touch ${BRAINSTORM_LOG_DIR}/conceptGraphSetup.log
-sudo chown brainstorm:brainstorm ${BRAINSTORM_LOG_DIR}/conceptGraphSetup.log
+chown brainstorm:brainstorm ${BRAINSTORM_LOG_DIR}/conceptGraphSetup.log
 
 echo "$(date): Starting conceptGraphSetup"
 echo "$(date): Starting conceptGraphSetup" >> ${BRAINSTORM_LOG_DIR}/conceptGraphSetup.log
@@ -155,7 +155,7 @@ CYPHER_COMMAND="${CYPHER_COMMAND1}${CYPHER_COMMAND2}${CYPHER_COMMAND3}${CYPHER_C
 # Run Cypher commands with stored password
 echo "$(date): Running Cypher commands to set up concept graph..."
 echo "$(date): Running Cypher commands to set up concept graph..." >> ${BRAINSTORM_LOG_DIR}/conceptGraphSetup.log
-sudo cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER_COMMAND" >> ${BRAINSTORM_LOG_DIR}/conceptGraphSetup.log 2>&1
+cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER_COMMAND" >> ${BRAINSTORM_LOG_DIR}/conceptGraphSetup.log 2>&1
 
 echo "$(date): Finished conceptGraphSetup - SUCCESS"
 echo "$(date): Finished conceptGraphSetup - SUCCESS" >> ${BRAINSTORM_LOG_DIR}/conceptGraphSetup.log

@@ -114,7 +114,7 @@ send_events_to_local_repo() {
             num_files_with_1000_or_more_events=$((num_files_with_1000_or_more_events + 1))
             # process_dat_with_many_events "$EVENT_STORE_DIR" "$file" 
         fi
-        cat "$file" | sudo strfry import
+        cat "$file" | strfry import
     done
     echo "$num_files_with_1000_or_more_events files have 1000 or more events out of $num_files_total files"
 }

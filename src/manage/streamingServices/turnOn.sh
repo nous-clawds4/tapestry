@@ -5,15 +5,15 @@
 echo "Starting streaming services..."
 
 # Start addToQueue service
-sudo systemctl start addToQueue
+systemctl start addToQueue
 sleep 1
 
 # Start processQueue service
-sudo systemctl start processQueue
+systemctl start processQueue
 sleep 1
 
 # Start strfry-router
-sudo systemctl start strfry-router
+systemctl start strfry-router
 sleep 3
 
 echo "Streaming services started successfully."

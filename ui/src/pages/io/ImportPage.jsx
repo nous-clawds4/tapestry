@@ -2,7 +2,7 @@ import { useState, useCallback, useRef } from 'react';
 
 /**
  * Import page — upload a zip, preview contents, select words.
- * Route: /kg/io/import
+ * Route: /tapestry/io/import
  *
  * No actual import to neo4j — just upload, preview, and selection UI.
  */

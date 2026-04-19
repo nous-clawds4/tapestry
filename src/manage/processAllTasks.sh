@@ -15,6 +15,10 @@
 CONFIG_FILE="/etc/brainstorm.conf"
 source "$CONFIG_FILE" # BRAINSTORM_MODULE_MANAGE_DIR, BRAINSTORM_LOG_DIR, BRAINSTORM_MODULE_ALGOS_DIR, BRAINSTORM_MODULE_PIPELINE_DIR
 
+# Optional 1st argument: warmStart flag, forwarded to processAllActiveCustomers
+# and ultimately to each customer's GrapeRank calculation.
+WARM_START="${1:-}"
+
 # Source structured logging utilities
 source "$BRAINSTORM_MODULE_BASE_DIR/src/utils/structuredLogging.sh"
 
@@ -22,7 +26,7 @@ source "$BRAINSTORM_MODULE_BASE_DIR/src/utils/structuredLogging.sh"
 source "$BRAINSTORM_MODULE_MANAGE_DIR/taskQueue/launchChildTask.sh"
 
 touch ${BRAINSTORM_LOG_DIR}/processAllTasks.log
-sudo chown brainstorm:brainstorm ${BRAINSTORM_LOG_DIR}/processAllTasks.log
+chown brainstorm:brainstorm ${BRAINSTORM_LOG_DIR}/processAllTasks.log
 
 # wrapper function which employs legacy log system; 
 # will eventually get rid of this wrapper and just run launchChildTask directly
@@ -61,13 +65,15 @@ oMetadata=$(jq -n \
     --arg description "Top-level orchestrator for entire Brainstorm system" \
     --arg scope "system_wide" \
     --arg orchestrator_level "primary" \
+    --arg warm_start "$WARM_START" \
     '{
         "message": $message,
         "pipeline_type": $pipeline_type,
         "child_tasks": $child_tasks,
         "description": $description,
         "scope": $scope,
-        "orchestrator_level": $orchestrator_level
+        "orchestrator_level": $orchestrator_level,
+        "warm_start": $warm_start
     }')
 emit_task_event "TASK_START" "processAllTasks" "" "$oMetadata"
 
@@ -83,10 +89,10 @@ sleep 5
 #################### syncWoT: start  ##############
 # Child Task 2: Negentropy WoT Sync using launchChildTask
 
-# use command: sudo strfry scan --count '{"kinds": [3]}' to determine how many kind 3 events exist in the local strfry database
+# use command: strfry scan --count '{"kinds": [3]}' to determine how many kind 3 events exist in the local strfry database
 # if numKind3Events < 100, then set timeout to 3 hours
 # otherwise set timeout to 5 minutes
-numKind3Events=$(sudo strfry scan --count '{"kinds": [3]}')
+numKind3Events=$(strfry scan --count '{"kinds": [3]}')
 if [ "$numKind3Events" -lt 100 ]; then
     timeoutDuration=10800001
 else
@@ -114,7 +120,7 @@ sleep 5
 #################### syncProfiles: start  ##############
 # Child Task 2: Negentropy Profiles Sync using launchChildTask
 # override timeout duration to 1 hour if numKind0Events < 100, otherwise set timeout to 5 minutes
-numKind0Events=$(sudo strfry scan --count '{"kinds": [0]}')
+numKind0Events=$(strfry scan --count '{"kinds": [0]}')
 if [ "$numKind0Events" -lt 100 ]; then
     timeoutDuration=3600001
 else
@@ -218,7 +224,7 @@ sleep 5
 
 #################### processAllActiveCustomers: start  ##############
 # Child Task 6: Process All Active Customers
-launch_child_task "processAllActiveCustomers" "processAllTasks" "" ""
+launch_child_task "processAllActiveCustomers" "processAllTasks" "" "$WARM_START"
 #################### processAllActiveCustomers: complete  ##############
 
 sleep 5

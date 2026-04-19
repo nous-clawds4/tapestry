@@ -11,7 +11,7 @@ source "$BRAINSTORM_MODULE_BASE_DIR/src/utils/structuredLogging.sh"
 WHITELIST_OUTPUT_DIR=${STRFRY_PLUGINS_DATA}
 
 touch ${BRAINSTORM_LOG_DIR}/exportWhitelist.log
-sudo chown brainstorm:brainstorm ${BRAINSTORM_LOG_DIR}/exportWhitelist.log
+chown brainstorm:brainstorm ${BRAINSTORM_LOG_DIR}/exportWhitelist.log
 
 echo "$(date): Starting exportWhitelist" >> ${BRAINSTORM_LOG_DIR}/exportWhitelist.log
 
@@ -82,7 +82,7 @@ emit_task_event "PROGRESS" "exportWhitelist" "$BRAINSTORM_OWNER_PUBKEY" '{
 
 echo "$CYPHER2" >> ${BRAINSTORM_LOG_DIR}/exportWhitelist.log
 
-sudo cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER2" | tail -n +2 > ${WHITELIST_OUTPUT_DIR}/whitelistQueryOutput.txt
+cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER2" | tail -n +2 > ${WHITELIST_OUTPUT_DIR}/whitelistQueryOutput.txt
 
 # Emit structured event for Phase 2 completion and Phase 3 start
 emit_task_event "PROGRESS" "exportWhitelist" "$BRAINSTORM_OWNER_PUBKEY" '{
@@ -144,10 +144,10 @@ emit_task_event "PROGRESS" "exportWhitelist" "$BRAINSTORM_OWNER_PUBKEY" '{
     "scope": "owner"
 }'
 
-sudo chown brainstorm:brainstorm ${WHITELIST_OUTPUT_DIR}/whitelist_pubkeys.json
+chown brainstorm:brainstorm ${WHITELIST_OUTPUT_DIR}/whitelist_pubkeys.json
 
 # clean up
-sudo rm ${WHITELIST_OUTPUT_DIR}/whitelistQueryOutput.txt
+rm ${WHITELIST_OUTPUT_DIR}/whitelistQueryOutput.txt
 
 # Emit structured event for successful completion
 emit_task_event "TASK_END" "exportWhitelist" "$BRAINSTORM_OWNER_PUBKEY" '{

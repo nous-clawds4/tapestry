@@ -343,7 +343,7 @@ function TrustPanel({ pubkey, isCurrentPov, setPovPubkey, navigate }) {
             className="btn btn-primary"
             onClick={() => {
               setPovPubkey(pubkey);
-              navigate('/kg/grapevine/trust-determination');
+              navigate('/tapestry/grapevine/trust-determination');
             }}
             style={{ fontSize: '0.85rem', whiteSpace: 'nowrap' }}
           >
@@ -567,7 +567,7 @@ function FollowsList({ followList }) {
               <td style={{ padding: '0.25rem 0.5rem', opacity: 0.4 }}>{i + 1}</td>
               <td style={{ padding: '0.25rem 0.5rem' }}>
                 <Link
-                  to={`/kg/users/${row.pubkey}`}
+                  to={`/tapestry/users/${row.pubkey}`}
                   style={{ color: '#58a6ff', textDecoration: 'none' }}
                 >
                   {row.name || (row.pubkey.slice(0, 12) + '…' + row.pubkey.slice(-6))}

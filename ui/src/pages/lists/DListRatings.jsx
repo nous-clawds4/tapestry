@@ -362,7 +362,7 @@ export default function DListRatings() {
       label: 'List Item',
       render: (val, row) => (
         <Link
-          to={`/kg/lists/items/${row.targetItemId}`}
+          to={`/tapestry/lists/items/${row.targetItemId}`}
           style={{ color: '#58a6ff', fontSize: '0.85rem' }}
           onClick={e => e.stopPropagation()}
         >
@@ -546,14 +546,14 @@ export default function DListRatings() {
                     <div>
                       <span>* Trust Weight determined by </span>
                       <Link
-                        to="/kg/grapevine/trust-determination"
+                        to="/tapestry/grapevine/trust-determination"
                         style={{ color: '#58a6ff', textDecoration: 'none' }}
                       >
                         {trustMethodLabel}
                       </Link>
                       <span> · PoV: </span>
                       <Link
-                        to={`/kg/users/${trustPov}`}
+                        to={`/tapestry/users/${trustPov}`}
                         style={{ color: '#58a6ff', textDecoration: 'none' }}
                       >
                         {povName}

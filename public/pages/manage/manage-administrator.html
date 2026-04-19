@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Administrator Profile</title>
+    <link rel="stylesheet" href="./css/common.css">
+    <script src="./components/header/header.js"></script>
+    <script src="./components/footer/footer.js"></script>
+    <style>
+        .admin-profile-container {
+            max-width: 700px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+        }
+        .admin-back-link {
+            color: #888;
+            text-decoration: none;
+            font-size: 0.85rem;
+            margin-bottom: 1rem;
+            display: inline-block;
+        }
+        .admin-back-link:hover {
+            color: #ccc;
+        }
+        .admin-profile-card {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        .admin-profile-header {
+            display: flex;
+            align-items: center;
+            gap: 1.25rem;
+            margin-bottom: 1.25rem;
+        }
+        .admin-profile-avatar {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            object-fit: cover;
+            background: rgba(255,255,255,0.1);
+            flex-shrink: 0;
+        }
+        .admin-profile-avatar-placeholder {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.08);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            flex-shrink: 0;
+        }
+        .admin-profile-name {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 0.25rem;
+        }
+        .admin-profile-nip05 {
+            color: #888;
+            font-size: 0.9rem;
+            margin-bottom: 0.25rem;
+        }
+        .admin-profile-about {
+            color: #aaa;
+            font-size: 0.9rem;
+            line-height: 1.5;
+            margin-bottom: 1rem;
+        }
+        .admin-profile-fields {
+            display: grid;
+            grid-template-columns: 120px 1fr;
+            gap: 0.5rem 1rem;
+            font-size: 0.85rem;
+        }
+        .admin-field-label {
+            color: #666;
+            text-align: right;
+        }
+        .admin-field-value {
+            color: #ccc;
+            word-break: break-all;
+            font-family: monospace;
+            font-size: 0.8rem;
+        }
+        .admin-field-value a {
+            color: #6b8afd;
+            text-decoration: none;
+        }
+        .admin-field-value a:hover {
+            text-decoration: underline;
+        }
+        .admin-links-section {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 12px;
+            padding: 1.25rem;
+            margin-bottom: 1.5rem;
+        }
+        .admin-links-section h3 {
+            margin: 0 0 0.75rem;
+            font-size: 1rem;
+        }
+        .admin-link-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        .admin-link-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 0.75rem;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 6px;
+            color: #6b8afd;
+            text-decoration: none;
+            font-size: 0.9rem;
+        }
+        .admin-link-item:hover {
+            background: rgba(255,255,255,0.06);
+        }
+        .admin-permissions-section {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 12px;
+            padding: 1.25rem;
+        }
+        .admin-permissions-section h3 {
+            margin: 0 0 0.75rem;
+            font-size: 1rem;
+        }
+        .admin-permissions-note {
+            color: #888;
+            font-size: 0.85rem;
+            line-height: 1.5;
+        }
+        .loading {
+            text-align: center;
+            color: #888;
+            padding: 2rem;
+        }
+        .not-authorized {
+            text-align: center;
+            color: #ef4444;
+            padding: 3rem;
+            font-size: 1.1rem;
+        }
+        .error-msg {
+            text-align: center;
+            color: #ef4444;
+            padding: 2rem;
+        }
+    </style>
+</head>
+<body>
+    <div id="headerContainer"></div>
+
+    <div class="admin-profile-container">
+        <div id="loadingState" class="loading">Loading...</div>
+        <div id="notAuthorized" class="not-authorized" style="display:none;">
+            Only the instance owner can view administrator profiles.
+        </div>
+        <div id="errorState" class="error-msg" style="display:none;"></div>
+        <div id="mainContent" style="display:none;">
+            <a href="/manage-administrators.html" class="admin-back-link">&larr; Back to Manage Administrators</a>
+
+            <!-- Profile card -->
+            <div class="admin-profile-card">
+                <div class="admin-profile-header">
+                    <div id="avatarContainer"></div>
+                    <div>
+                        <div id="profileName" class="admin-profile-name"></div>
+                        <div id="profileNip05" class="admin-profile-nip05"></div>
+                    </div>
+                </div>
+                <div id="profileAbout" class="admin-profile-about"></div>
+                <div id="profileFields" class="admin-profile-fields"></div>
+            </div>
+
+            <!-- Links -->
+            <div class="admin-links-section">
+                <h3>Profile Links</h3>
+                <div id="profileLinks" class="admin-link-list"></div>
+            </div>
+
+            <!-- Permissions (placeholder for future tiers) -->
+            <div class="admin-permissions-section">
+                <h3>Permissions</h3>
+                <p class="admin-permissions-note">
+                    This administrator currently has full admin access, equivalent to the instance owner
+                    (except for the ability to manage other administrators).
+                    <br><br>
+                    In a future update, different permission tiers will be available here.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <div id="footerContainer"></div>
+
+    <script>
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                      .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+        }
+
+        function getPubkeyFromUrl() {
+            const params = new URLSearchParams(window.location.search);
+            return params.get('pubkey');
+        }
+
+        async function checkAuth() {
+            try {
+                const resp = await fetch('/api/auth/user-classification');
+                const data = await resp.json();
+                if (data.classification !== 'owner') {
+                    document.getElementById('loadingState').style.display = 'none';
+                    document.getElementById('notAuthorized').style.display = 'block';
+                    return false;
+                }
+                return true;
+            } catch {
+                document.getElementById('loadingState').style.display = 'none';
+                document.getElementById('notAuthorized').style.display = 'block';
+                return false;
+            }
+        }
+
+        function renderProfile(pubkey, profile) {
+            const name = profile.name || profile.display_name || 'Unknown';
+            const nip05 = profile.nip05 || '';
+            const about = profile.about || '';
+            const picture = profile.picture || '';
+            const npub = profile.npub || '';
+            const website = profile.website || '';
+            const lud16 = profile.lud16 || '';
+            const banner = profile.banner || '';
+
+            // Avatar
+            const avatarContainer = document.getElementById('avatarContainer');
+            if (picture) {
+                avatarContainer.innerHTML = `<img src="${escapeHtml(picture)}" class="admin-profile-avatar" onerror="this.outerHTML='<div class=\\'admin-profile-avatar-placeholder\\'>&#x1F464;</div>'">`;
+            } else {
+                avatarContainer.innerHTML = '<div class="admin-profile-avatar-placeholder">&#x1F464;</div>';
+            }
+
+            // Name & NIP-05
+            document.getElementById('profileName').textContent = name;
+            if (nip05) {
+                document.getElementById('profileNip05').textContent = nip05;
+            }
+
+            // About
+            if (about) {
+                document.getElementById('profileAbout').textContent = about;
+            }
+
+            // Fields
+            const fields = [];
+            if (npub) fields.push({ label: 'npub', value: npub });
+            fields.push({ label: 'pubkey', value: pubkey });
+            if (website) fields.push({ label: 'Website', value: `<a href="${escapeHtml(website)}" target="_blank">${escapeHtml(website)}</a>` });
+            if (lud16) fields.push({ label: 'Lightning', value: escapeHtml(lud16) });
+
+            document.getElementById('profileFields').innerHTML = fields.map(f =>
+                `<div class="admin-field-label">${escapeHtml(f.label)}</div><div class="admin-field-value">${f.value}</div>`
+            ).join('');
+
+            // Links
+            const links = [];
+            links.push({ icon: '🔍', label: 'Brainstorm Search Profile', href: `/user/${pubkey}` });
+            links.push({ icon: '👤', label: 'Legacy Profile Page', href: `/profile.html?pubkey=${pubkey}` });
+            if (npub) {
+                links.push({ icon: '🌐', label: 'View on njump.me', href: `https://njump.me/${npub}` });
+            }
+
+            document.getElementById('profileLinks').innerHTML = links.map(l =>
+                `<a href="${escapeHtml(l.href)}" class="admin-link-item" ${l.href.startsWith('http') ? 'target="_blank"' : ''}>${l.icon} ${escapeHtml(l.label)}</a>`
+            ).join('');
+        }
+
+        // Initialize
+        (async () => {
+            const pubkey = getPubkeyFromUrl();
+            if (!pubkey || !/^[0-9a-f]{64}$/.test(pubkey)) {
+                document.getElementById('loadingState').style.display = 'none';
+                document.getElementById('errorState').style.display = 'block';
+                document.getElementById('errorState').textContent = 'Invalid or missing pubkey parameter.';
+                return;
+            }
+
+            const authorized = await checkAuth();
+            if (!authorized) return;
+
+            // Verify this pubkey is actually an admin
+            try {
+                const resp = await fetch('/api/admin/list');
+                const data = await resp.json();
+                if (!data.success) throw new Error(data.error);
+                const admin = data.admins.find(a => a.pubkey === pubkey);
+                if (!admin) {
+                    document.getElementById('loadingState').style.display = 'none';
+                    document.getElementById('errorState').style.display = 'block';
+                    document.getElementById('errorState').textContent = 'This pubkey is not in the administrator list.';
+                    return;
+                }
+
+                document.getElementById('loadingState').style.display = 'none';
+                document.getElementById('mainContent').style.display = 'block';
+                renderProfile(pubkey, admin);
+            } catch (err) {
+                document.getElementById('loadingState').style.display = 'none';
+                document.getElementById('errorState').style.display = 'block';
+                document.getElementById('errorState').textContent = 'Failed to load administrator data: ' + err.message;
+            }
+        })();
+    </script>
+</body>
+</html>

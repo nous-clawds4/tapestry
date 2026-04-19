@@ -16,7 +16,7 @@ source "$CONFIG_FILE"
 source "$BRAINSTORM_MODULE_BASE_DIR/src/utils/structuredLogging.sh"
 
 touch ${BRAINSTORM_LOG_DIR}/precomputeWhitelistMaps.log
-sudo chown brainstorm:brainstorm ${BRAINSTORM_LOG_DIR}/precomputeWhitelistMaps.log
+chown brainstorm:brainstorm ${BRAINSTORM_LOG_DIR}/precomputeWhitelistMaps.log
 
 echo "$(date): Starting precomputeWhitelistMaps"
 echo "$(date): Starting precomputeWhitelistMaps" >> ${BRAINSTORM_LOG_DIR}/precomputeWhitelistMaps.log

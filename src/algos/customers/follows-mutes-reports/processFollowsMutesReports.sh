@@ -30,12 +30,12 @@ LOG_DIR="$BRAINSTORM_LOG_DIR/customers/$CUSTOMER_NAME"
 
 # Create log directory if it doesn't exist; chown to brainstorm user
 mkdir -p "$LOG_DIR"
-sudo chown brainstorm:brainstorm "$LOG_DIR"
+chown brainstorm:brainstorm "$LOG_DIR"
 
 # Log file
 LOG_FILE="$LOG_DIR/processFollowsMutesReports.log"
 touch ${LOG_FILE}
-sudo chown brainstorm:brainstorm ${LOG_FILE}
+chown brainstorm:brainstorm ${LOG_FILE}
 
 echo "$(date): Starting processFollowsMutesReports for $CUSTOMER_PUBKEY ($CUSTOMER_ID) ($CUSTOMER_NAME)"
 echo "$(date): Starting processFollowsMutesReports for $CUSTOMER_PUBKEY ($CUSTOMER_ID) ($CUSTOMER_NAME)" >> ${LOG_FILE}
@@ -67,7 +67,7 @@ emit_task_event "CHILD_TASK_START" "processCustomerFollowsMutesReports" "$CUSTOM
     "processing_type": "follows"
 }'
 
-if sudo $BRAINSTORM_MODULE_ALGOS_DIR/customers/follows-mutes-reports/calculateVerifiedFollowerCounts.sh $CUSTOMER_PUBKEY $CUSTOMER_ID $CUSTOMER_NAME; then
+if $BRAINSTORM_MODULE_ALGOS_DIR/customers/follows-mutes-reports/calculateVerifiedFollowerCounts.sh $CUSTOMER_PUBKEY $CUSTOMER_ID $CUSTOMER_NAME; then
     # Emit structured event for child task success
     emit_task_event "CHILD_TASK_END" "processCustomerFollowsMutesReports" "$CUSTOMER_PUBKEY" '{
         "child_task": "calculateVerifiedFollowerCounts",
@@ -111,7 +111,7 @@ emit_task_event "CHILD_TASK_START" "processCustomerFollowsMutesReports" "$CUSTOM
     "processing_type": "mutes"
 }'
 
-if sudo $BRAINSTORM_MODULE_ALGOS_DIR/customers/follows-mutes-reports/calculateVerifiedMuterCounts.sh $CUSTOMER_PUBKEY $CUSTOMER_ID $CUSTOMER_NAME; then
+if $BRAINSTORM_MODULE_ALGOS_DIR/customers/follows-mutes-reports/calculateVerifiedMuterCounts.sh $CUSTOMER_PUBKEY $CUSTOMER_ID $CUSTOMER_NAME; then
     # Emit structured event for child task success
     emit_task_event "CHILD_TASK_END" "processCustomerFollowsMutesReports" "$CUSTOMER_PUBKEY" '{
         "child_task": "calculateVerifiedMuterCounts",
@@ -155,7 +155,7 @@ emit_task_event "CHILD_TASK_START" "processCustomerFollowsMutesReports" "$CUSTOM
     "processing_type": "reports"
 }'
 
-if sudo $BRAINSTORM_MODULE_ALGOS_DIR/customers/follows-mutes-reports/calculateVerifiedReporterCounts.sh $CUSTOMER_PUBKEY $CUSTOMER_ID $CUSTOMER_NAME; then
+if $BRAINSTORM_MODULE_ALGOS_DIR/customers/follows-mutes-reports/calculateVerifiedReporterCounts.sh $CUSTOMER_PUBKEY $CUSTOMER_ID $CUSTOMER_NAME; then
     # Emit structured event for child task success
     emit_task_event "CHILD_TASK_END" "processCustomerFollowsMutesReports" "$CUSTOMER_PUBKEY" '{
         "child_task": "calculateVerifiedReporterCounts",
@@ -199,7 +199,7 @@ emit_task_event "CHILD_TASK_START" "processCustomerFollowsMutesReports" "$CUSTOM
     "processing_type": "follows"
 }'
 
-if sudo $BRAINSTORM_MODULE_ALGOS_DIR/customers/follows-mutes-reports/calculateFollowerInputs.sh $CUSTOMER_PUBKEY $CUSTOMER_ID $CUSTOMER_NAME; then
+if $BRAINSTORM_MODULE_ALGOS_DIR/customers/follows-mutes-reports/calculateFollowerInputs.sh $CUSTOMER_PUBKEY $CUSTOMER_ID $CUSTOMER_NAME; then
     # Emit structured event for child task success
     emit_task_event "CHILD_TASK_END" "processCustomerFollowsMutesReports" "$CUSTOMER_PUBKEY" '{
         "child_task": "calculateFollowerInputs",
@@ -243,7 +243,7 @@ emit_task_event "CHILD_TASK_START" "processCustomerFollowsMutesReports" "$CUSTOM
     "processing_type": "mutes"
 }'
 
-if sudo $BRAINSTORM_MODULE_ALGOS_DIR/customers/follows-mutes-reports/calculateMuterInputs.sh $CUSTOMER_PUBKEY $CUSTOMER_ID $CUSTOMER_NAME; then
+if $BRAINSTORM_MODULE_ALGOS_DIR/customers/follows-mutes-reports/calculateMuterInputs.sh $CUSTOMER_PUBKEY $CUSTOMER_ID $CUSTOMER_NAME; then
     # Emit structured event for child task success
     emit_task_event "CHILD_TASK_END" "processCustomerFollowsMutesReports" "$CUSTOMER_PUBKEY" '{
         "child_task": "calculateMuterInputs",
@@ -287,7 +287,7 @@ emit_task_event "CHILD_TASK_START" "processCustomerFollowsMutesReports" "$CUSTOM
     "processing_type": "reports"
 }'
 
-if sudo $BRAINSTORM_MODULE_ALGOS_DIR/customers/follows-mutes-reports/calculateReporterInputs.sh $CUSTOMER_PUBKEY $CUSTOMER_ID $CUSTOMER_NAME; then
+if $BRAINSTORM_MODULE_ALGOS_DIR/customers/follows-mutes-reports/calculateReporterInputs.sh $CUSTOMER_PUBKEY $CUSTOMER_ID $CUSTOMER_NAME; then
     # Emit structured event for child task success
     emit_task_event "CHILD_TASK_END" "processCustomerFollowsMutesReports" "$CUSTOMER_PUBKEY" '{
         "child_task": "calculateReporterInputs",

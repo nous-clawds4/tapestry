@@ -20,17 +20,41 @@ CUSTOMER_ID="$2"
 # Get customer_name
 CUSTOMER_NAME="$3"
 
+# Get optional warm start flag (4th argument)
+WARM_START="${4:-}"
+
+# Export this shell's PID so child Node.js scripts emit events with the same
+# PID, causing them to be grouped into the same task session in the timeline UI
+# (StructuredEventsAnalyzer groups by taskName + pid).
+export BRAINSTORM_TASK_PID=$$
+
 # Get log directory
 LOG_DIR="$BRAINSTORM_LOG_DIR/customers/$CUSTOMER_NAME"
 
 # Create log directory if it doesn't exist; chown to brainstorm:brainstorm
 mkdir -p "$LOG_DIR"
-sudo chown brainstorm:brainstorm "$LOG_DIR"
+chown brainstorm:brainstorm "$LOG_DIR"
 
 # Log file
 LOG_FILE="$LOG_DIR/personalizedGrapeRank.log"
 touch ${LOG_FILE}
-sudo chown brainstorm:brainstorm ${LOG_FILE}
+chown brainstorm:brainstorm ${LOG_FILE}
+
+# Ensure customer has a graperank.conf (copy from customer default if missing)
+CUSTOMER_DIR="/var/lib/brainstorm/customers/$CUSTOMER_NAME"
+CUSTOMER_PREFS_DIR="$CUSTOMER_DIR/preferences"
+if [ ! -f "$CUSTOMER_PREFS_DIR/graperank.conf" ]; then
+    mkdir -p "$CUSTOMER_PREFS_DIR"
+    # Use the customer default preferences (has PARAMETER_LIST, PRESET_LIST)
+    DEFAULT_PREFS="${BRAINSTORM_MODULE_BASE_DIR}customers/default/preferences/graperank.conf"
+    if [ -f "$DEFAULT_PREFS" ]; then
+        cp "$DEFAULT_PREFS" "$CUSTOMER_PREFS_DIR/graperank.conf"
+        chmod 644 "$CUSTOMER_PREFS_DIR/graperank.conf"
+        echo "$(date): Created graperank.conf from customer defaults for $CUSTOMER_NAME" >> ${LOG_FILE}
+    else
+        echo "$(date): WARNING: customer default graperank.conf not found at $DEFAULT_PREFS" >> ${LOG_FILE}
+    fi
+fi
 
 echo "$(date): Starting personalizedGrapeRank for CUSTOMER_NAME: $CUSTOMER_NAME CUSTOMER_ID: $CUSTOMER_ID CUSTOMER_PUBKEY: $CUSTOMER_PUBKEY"
 echo "$(date): Starting personalizedGrapeRank for CUSTOMER_NAME: $CUSTOMER_NAME CUSTOMER_ID: $CUSTOMER_ID CUSTOMER_PUBKEY: $CUSTOMER_PUBKEY" >> ${LOG_FILE}
@@ -43,6 +67,7 @@ emit_task_event "TASK_START" "calculateCustomerGrapeRank" "$CUSTOMER_PUBKEY" '{
     "message": "Starting customer-specific GrapeRank calculation",
     "task_type": "customer_algorithm",
     "algorithm": "personalized_graperank",
+    "warm_start": "'$WARM_START'",
     "scope": "customer",
     "child_processes": 5,
     "phases": ["csv_initialization", "ratings_interpretation", "scorecards_initialization", "graperank_calculation", "neo4j_update"],
@@ -69,7 +94,8 @@ if [ ! -f /var/lib/brainstorm/algos/personalizedGrapeRank/tmp/follows.csv ] && [
         "algorithm": "personalized_graperank"
     }'
     
-    if sudo bash $BRAINSTORM_MODULE_ALGOS_DIR/customers/personalizedGrapeRank/initializeRawDataCsv.sh; then
+    SECONDS=0
+    if bash $BRAINSTORM_MODULE_ALGOS_DIR/customers/personalizedGrapeRank/initializeRawDataCsv.sh; then
         # Emit structured event for CSV initialization success
         emit_task_event "PROGRESS" "calculateCustomerGrapeRank" "$CUSTOMER_PUBKEY" '{
             "customer_id": "'$CUSTOMER_ID'",
@@ -80,6 +106,7 @@ if [ ! -f /var/lib/brainstorm/algos/personalizedGrapeRank/tmp/follows.csv ] && [
             "step": "initialize_raw_data_csv_complete",
             "child_script": "initializeRawDataCsv.sh",
             "status": "success",
+            "phase_duration_seconds": "'$SECONDS'",
             "algorithm": "personalized_graperank"
         }'
     else
@@ -113,6 +140,7 @@ else
         "phase": "csv_initialization",
         "step": "skip_existing_csv_files",
         "status": "skipped",
+        "phase_duration_seconds": "0",
         "algorithm": "personalized_graperank"
     }'
 fi
@@ -133,7 +161,8 @@ emit_task_event "PROGRESS" "calculateCustomerGrapeRank" "$CUSTOMER_PUBKEY" '{
 }'
 
 # Interpret ratings. Pass CUSTOMER_PUBKEY, CUSTOMER_ID, and CUSTOMER_NAME as arguments to interpretRatings.js
-if sudo node $BRAINSTORM_MODULE_ALGOS_DIR/customers/personalizedGrapeRank/interpretRatings.js $CUSTOMER_PUBKEY $CUSTOMER_ID $CUSTOMER_NAME; then
+SECONDS=0
+if node $BRAINSTORM_MODULE_ALGOS_DIR/customers/personalizedGrapeRank/interpretRatings.js $CUSTOMER_PUBKEY $CUSTOMER_ID $CUSTOMER_NAME; then
     # Emit structured event for ratings interpretation success
     emit_task_event "PROGRESS" "calculateCustomerGrapeRank" "$CUSTOMER_PUBKEY" '{
         "customer_id": "'$CUSTOMER_ID'",
@@ -144,6 +173,7 @@ if sudo node $BRAINSTORM_MODULE_ALGOS_DIR/customers/personalizedGrapeRank/interp
         "step": "interpret_ratings_complete",
         "child_script": "interpretRatings.js",
         "status": "success",
+        "phase_duration_seconds": "'$SECONDS'",
         "algorithm": "personalized_graperank"
     }'
 else
@@ -177,13 +207,16 @@ emit_task_event "PROGRESS" "calculateCustomerGrapeRank" "$CUSTOMER_PUBKEY" '{
     "phase": "scorecards_initialization",
     "step": "initialize_scorecards",
     "child_script": "initializeScorecards.js",
+    "warm_start": "'$WARM_START'",
     "algorithm": "personalized_graperank"
 }'
 
-# Initialize scorecards
-# TODO: initialize from neo4j if scores already exist
-# TODO: edit test changes to this file. scorecards_init.json should be in the customer-specific directory
-if sudo node $BRAINSTORM_MODULE_ALGOS_DIR/customers/personalizedGrapeRank/initializeScorecards.js $CUSTOMER_PUBKEY $CUSTOMER_ID $CUSTOMER_NAME; then
+# Initialize scorecards (warm start reads previous scores from Neo4j; cold start uses [0,0,0,0])
+if [ "$WARM_START" = "warmStart" ]; then
+    echo "$(date): Using WARM START initialization from Neo4j" >> ${LOG_FILE}
+fi
+SECONDS=0
+if node $BRAINSTORM_MODULE_ALGOS_DIR/customers/personalizedGrapeRank/initializeScorecards.js $CUSTOMER_PUBKEY $CUSTOMER_ID $CUSTOMER_NAME $WARM_START; then
     # Emit structured event for scorecards initialization success
     emit_task_event "PROGRESS" "calculateCustomerGrapeRank" "$CUSTOMER_PUBKEY" '{
         "customer_id": "'$CUSTOMER_ID'",
@@ -194,6 +227,8 @@ if sudo node $BRAINSTORM_MODULE_ALGOS_DIR/customers/personalizedGrapeRank/initia
         "step": "initialize_scorecards_complete",
         "child_script": "initializeScorecards.js",
         "status": "success",
+        "phase_duration_seconds": "'$SECONDS'",
+        "warm_start": "'$WARM_START'",
         "algorithm": "personalized_graperank"
     }'
 else
@@ -230,8 +265,9 @@ emit_task_event "PROGRESS" "calculateCustomerGrapeRank" "$CUSTOMER_PUBKEY" '{
     "algorithm": "personalized_graperank"
 }'
 
-# Calculate GrapeRank
-if sudo node $BRAINSTORM_MODULE_ALGOS_DIR/customers/personalizedGrapeRank/calculateGrapeRank.js $CUSTOMER_PUBKEY $CUSTOMER_ID $CUSTOMER_NAME; then
+# Calculate GrapeRank (pass $WARM_START so the script can log warm vs. cold mode)
+SECONDS=0
+if node $BRAINSTORM_MODULE_ALGOS_DIR/customers/personalizedGrapeRank/calculateGrapeRank.js $CUSTOMER_PUBKEY $CUSTOMER_ID $CUSTOMER_NAME $WARM_START; then
     # Emit structured event for GrapeRank calculation success
     emit_task_event "PROGRESS" "calculateCustomerGrapeRank" "$CUSTOMER_PUBKEY" '{
         "customer_id": "'$CUSTOMER_ID'",
@@ -242,6 +278,8 @@ if sudo node $BRAINSTORM_MODULE_ALGOS_DIR/customers/personalizedGrapeRank/calcul
         "step": "calculate_graperank_complete",
         "child_script": "calculateGrapeRank.js",
         "status": "success",
+        "phase_duration_seconds": "'$SECONDS'",
+        "warm_start": "'$WARM_START'",
         "algorithm": "personalized_graperank"
     }'
 else
@@ -279,7 +317,8 @@ emit_task_event "PROGRESS" "calculateCustomerGrapeRank" "$CUSTOMER_PUBKEY" '{
 }'
 
 # update Neo4j
-if sudo node $BRAINSTORM_MODULE_ALGOS_DIR/customers/personalizedGrapeRank/updateNeo4jWithApoc.js $CUSTOMER_PUBKEY $CUSTOMER_ID $CUSTOMER_NAME; then
+SECONDS=0
+if node $BRAINSTORM_MODULE_ALGOS_DIR/customers/personalizedGrapeRank/updateNeo4jWithApoc.js $CUSTOMER_PUBKEY $CUSTOMER_ID $CUSTOMER_NAME; then
     # Emit structured event for Neo4j update success
     emit_task_event "PROGRESS" "calculateCustomerGrapeRank" "$CUSTOMER_PUBKEY" '{
         "customer_id": "'$CUSTOMER_ID'",
@@ -290,6 +329,7 @@ if sudo node $BRAINSTORM_MODULE_ALGOS_DIR/customers/personalizedGrapeRank/update
         "step": "update_neo4j_with_apoc_complete",
         "child_script": "updateNeo4jWithApoc.js",
         "status": "success",
+        "phase_duration_seconds": "'$SECONDS'",
         "algorithm": "personalized_graperank"
     }'
 else

@@ -5,7 +5,7 @@ source /etc/brainstorm.conf # BRAINSTORM_OWNER_PUBKEY
 # Log start
 
 touch ${BRAINSTORM_LOG_DIR}/syncPersonal.log
-sudo chown brainstorm:brainstorm ${BRAINSTORM_LOG_DIR}/syncPersonal.log
+chown brainstorm:brainstorm ${BRAINSTORM_LOG_DIR}/syncPersonal.log
 
 # Log start
 
@@ -16,7 +16,7 @@ echo "$(date): Starting syncPersonal for ${BRAINSTORM_OWNER_PUBKEY}" >> ${BRAINS
 FILTER="{\"authors\": [\"${BRAINSTORM_OWNER_PUBKEY}\"]}"
 
 # Run strfry with the filter
-sudo strfry sync wss://relay.primal.net --filter "$FILTER" --dir down
+strfry sync wss://relay.primal.net --filter "$FILTER" --dir down
 
 # Log end
 

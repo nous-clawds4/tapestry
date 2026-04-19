@@ -6,6 +6,7 @@
  * and converts profile hits into kind 0 nostr events.
  */
 
+import WebSocket from 'ws';
 import { getHouseDelegatedPubkey, getHouseFilters, getHouseSort, readUserPrefs } from './settings.js';
 
 /**
@@ -194,31 +195,39 @@ export async function checkScoresLoaded(searchApiUrl, suffix) {
 }
 
 /**
- * Convert a Meilisearch profile hit into a kind 0 nostr event.
+ * Fetch original events from strfry by their event IDs.
+ * Returns a Map of event_id → event object with valid signatures.
  *
- * Uses stored event_id and event_sig if available (from ingest pipeline).
- * Falls back to empty strings if not stored (events will lack id/sig).
+ * @param {string} strfryUrl - WebSocket URL for strfry (e.g., ws://127.0.0.1:7777)
+ * @param {string[]} eventIds - Array of hex event IDs to fetch
+ * @param {number} timeoutMs - Timeout in milliseconds (default 5000)
+ * @returns {Promise<Map<string, object>>} Map of event_id → original event
  */
-export function hitToNostrEvent(hit) {
-  const content = JSON.stringify({
-    name: hit.name || '',
-    display_name: hit.display_name || hit.displayName || '',
-    about: hit.about || '',
-    picture: hit.picture || '',
-    banner: hit.banner || '',
-    nip05: hit.nip05 || '',
-    lud16: hit.lud16 || '',
-    lud06: hit.lud06 || '',
-    website: hit.website || '',
-  });
+export function fetchEventsFromStrfry(strfryUrl, eventIds, timeoutMs = 5000) {
+  if (!eventIds.length) return Promise.resolve(new Map());
 
-  return {
-    id: hit.event_id || '',
-    pubkey: hit.pubkey || hit.id,
-    created_at: hit.created_at || 0,
-    kind: 0,
-    tags: [],
-    content,
-    sig: hit.event_sig || '',
-  };
+  return new Promise((resolve) => {
+    const events = new Map();
+    const ws = new WebSocket(strfryUrl);
+    const subId = `_fetch_${Date.now()}`;
+    const timer = setTimeout(() => { try { ws.close(); } catch {} resolve(events); }, timeoutMs);
+
+    ws.on('open', () => {
+      ws.send(JSON.stringify(['REQ', subId, { ids: eventIds }]));
+    });
+    ws.on('message', (data) => {
+      try {
+        const msg = JSON.parse(data.toString());
+        if (msg[0] === 'EVENT' && msg[1] === subId && msg[2]) {
+          events.set(msg[2].id, msg[2]);
+        } else if (msg[0] === 'EOSE' && msg[1] === subId) {
+          clearTimeout(timer);
+          ws.send(JSON.stringify(['CLOSE', subId]));
+          ws.close();
+          resolve(events);
+        }
+      } catch {}
+    });
+    ws.on('error', () => { clearTimeout(timer); resolve(events); });
+  });
 }

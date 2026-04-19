@@ -8,7 +8,7 @@ source /etc/brainstorm.conf
 source "${BRAINSTORM_MODULE_BASE_DIR}/src/utils/structuredLogging.sh"
 
 touch ${BRAINSTORM_LOG_DIR}/syncProfiles.log
-sudo chown brainstorm:brainstorm ${BRAINSTORM_LOG_DIR}/syncProfiles.log
+chown brainstorm:brainstorm ${BRAINSTORM_LOG_DIR}/syncProfiles.log
 
 # Emit structured event for task start
 emit_task_event "TASK_START" "syncProfiles" "system" '  {
@@ -21,7 +21,7 @@ emit_task_event "TASK_START" "syncProfiles" "system" '  {
 echo "$(date): Starting syncProfiles"
 echo "$(date): Starting syncProfiles" >> ${BRAINSTORM_LOG_DIR}/syncProfiles.log
 
-sudo strfry sync wss://profiles.nostr1.com --filter '{"kinds":[0]}' --dir down
+strfry sync wss://profiles.nostr1.com --filter '{"kinds":[0]}' --dir down
 
 echo "$(date): Finished syncProfiles"
 echo "$(date): Finished syncProfiles" >> ${BRAINSTORM_LOG_DIR}/syncProfiles.log

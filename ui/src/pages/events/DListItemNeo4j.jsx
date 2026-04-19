@@ -712,8 +712,8 @@ function NodePanel({ info, onClose, onNavigate }) {
   const isUser = labels.includes('NostrUser');
 
   function navPath() {
-    if (isUser && info.pubkey) return `/kg/users/${info.pubkey}`;
-    if (info.uuid) return `/kg/databases/neo4j/nodes/${encodeURIComponent(info.uuid)}`;
+    if (isUser && info.pubkey) return `/tapestry/users/${info.pubkey}`;
+    if (info.uuid) return `/tapestry/databases/neo4j/nodes/${encodeURIComponent(info.uuid)}`;
     return null;
   }
 
@@ -792,9 +792,9 @@ function NodePanel({ info, onClose, onNavigate }) {
             // Try to find matching dlist-item route
             const parts = info.uuid.split(':');
             if (parts[0] === '39999' || parts[0] === '9999') {
-              onNavigate(`/kg/lists/items/${encoded}`);
+              onNavigate(`/tapestry/lists/items/${encoded}`);
             } else {
-              onNavigate(`/kg/databases/neo4j/nodes/${encoded}`);
+              onNavigate(`/tapestry/databases/neo4j/nodes/${encoded}`);
             }
           }}>
             View Event →

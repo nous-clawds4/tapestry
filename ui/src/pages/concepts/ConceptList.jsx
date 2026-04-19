@@ -5,7 +5,8 @@ import DataTable from '../../components/DataTable';
 import Breadcrumbs from '../../components/Breadcrumbs';
 import useProfiles from '../../hooks/useProfiles';
 import AuthorCell from '../../components/AuthorCell';
-import { OWNER_PUBKEY, TA_PUBKEY, DAVE_PUBKEY } from '../../config/pubkeys';
+import { OWNER_PUBKEY, DAVE_PUBKEY } from '../../config/pubkeys';
+import { useConfig } from '../../context/ConfigContext';
 
 const QUERY = `
   MATCH (h:NostrEvent)
@@ -55,6 +56,7 @@ const QUERY = `
 `;
 
 export default function ConceptList() {
+  const { taPubkey: TA_PUBKEY } = useConfig();
   const { data, loading, error } = useCypher(QUERY);
   const navigate = useNavigate();
   const [healthMap, setHealthMap] = useState({});
@@ -157,7 +159,7 @@ export default function ConceptList() {
       <Breadcrumbs />
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h1>🧩 Concepts</h1>
-        <button className="btn btn-primary" onClick={() => navigate('/kg/concepts/new')}>+ New Concept</button>
+        <button className="btn btn-primary" onClick={() => navigate('/tapestry/concepts/new')}>+ New Concept</button>
       </div>
       <p className="page-description">All concept definitions in the knowledge graph.</p>
 
@@ -205,7 +207,7 @@ export default function ConceptList() {
           <DataTable
             columns={columns}
             data={filteredData}
-            onRowClick={(row) => navigate(`/kg/concepts/${encodeURIComponent(row.uuid)}`)}
+            onRowClick={(row) => navigate(`/tapestry/concepts/${encodeURIComponent(row.uuid)}`)}
             emptyMessage="No concepts match your filters"
           />
         </>

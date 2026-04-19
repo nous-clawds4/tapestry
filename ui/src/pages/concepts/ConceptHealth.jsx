@@ -251,7 +251,7 @@ export default function ConceptHealth() {
               No elements found.{' '}
               <button
                 className="btn btn-small btn-primary"
-                onClick={() => navigate(`/kg/concepts/${encodeURIComponent(uuid)}/elements/new`)}
+                onClick={() => navigate(`/tapestry/concepts/${encodeURIComponent(uuid)}/elements/new`)}
               >
                 + Add Element
               </button>

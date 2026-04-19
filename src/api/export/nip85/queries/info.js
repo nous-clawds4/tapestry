@@ -11,7 +11,7 @@
 
 const { execSync } = require('child_process');
 const { getConfigFromFile } = require('../../../../utils/config');
-const { getCustomerRelayKeys } = require('../../../../utils/customerRelayKeys');
+const { getAssistantKeys } = require('../../../../utils/assistantKeys');
 /**
  * Get information about Kind 10040 events
  * @param {Object} req - Express request object
@@ -38,7 +38,7 @@ function handleGetKind10040Info(req, res) {
     }
     
     // Get most recent kind 10040 event
-    const strfryScanCmd = `sudo strfry scan '{"kinds":[10040], "authors":["${pubkey}"], "limit": 1}'`;
+    const strfryScanCmd = `strfry scan '{"kinds":[10040], "authors":["${pubkey}"], "limit": 1}'`;
     let latestEvent = null;
     let timestamp = null;
     let eventId = null;
@@ -78,14 +78,21 @@ function handleGetKind10040Info(req, res) {
  */
 async function handleGetKind30382Info(req, res) {
   try {
-    // Get pubkey from request if available
-    const customerPubkey = req.query.pubkey;
+    // Get pubkey from request, or default to session user (owner on nip85.html)
+    const customerPubkey = req.query.pubkey || req.session?.pubkey;
 
-    console.log(`Fetching relay keys for customer: ${customerPubkey.substring(0, 8)}...`);
-    
+    if (!customerPubkey) {
+      return res.json({
+        success: false,
+        message: 'Pubkey is required (provide in query or sign in)'
+      });
+    }
+
+    console.log(`Fetching relay keys for: ${customerPubkey.substring(0, 8)}...`);
+
     let relayPubkey = null;
-    // Get relay keys from secure storage
-    const relayKeys = await getCustomerRelayKeys(customerPubkey);
+    // Get assistant relay keys (unified: owner → TA key, customer → customer relay key)
+    const relayKeys = await getAssistantKeys(customerPubkey);
     if (relayKeys) {
       relayPubkey = relayKeys.pubkey;
     }
@@ -101,7 +108,7 @@ async function handleGetKind30382Info(req, res) {
     const relayUrl = getConfigFromFile('BRAINSTORM_RELAY_URL', '');
     
     // Get count of kind 30382 events
-    const strfryScanCountCmd = `sudo strfry scan --count '{"kinds":[30382], "authors":["${relayPubkey}"]}'`;
+    const strfryScanCountCmd = `strfry scan --count '{"kinds":[30382], "authors":["${relayPubkey}"]}'`;
     let count = 0;
     try {
       count = parseInt(execSync(strfryScanCountCmd).toString().trim(), 10);
@@ -110,7 +117,7 @@ async function handleGetKind30382Info(req, res) {
     }
     
     // Get most recent kind 30382 event
-    const strfryScanCmd = `sudo strfry scan '{"kinds":[30382], "authors":["${relayPubkey}"], "limit": 1}'`;
+    const strfryScanCmd = `strfry scan '{"kinds":[30382], "authors":["${relayPubkey}"], "limit": 1}'`;
     let latestEvent = null;
     let timestamp = null;
     

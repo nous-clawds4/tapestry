@@ -42,9 +42,9 @@ ensure_logging_dirs() {
     # This prevents permission issues when different processes (root vs brainstorm) create files
     touch "$EVENTS_FILE" "$STRUCTURED_LOG_FILE" 2>/dev/null || true
     
-    # Fix ownership if we have sudo access (for systemd processes running as root)
-    if command -v sudo >/dev/null 2>&1 && sudo -n true 2>/dev/null; then
-        sudo chown brainstorm:brainstorm "$EVENTS_FILE" "$STRUCTURED_LOG_FILE" 2>/dev/null || true
+    # Fix ownership if we have access (for systemd processes running as root)
+    if command -v >/dev/null 2>&1 && -n true 2>/dev/null; then
+        chown brainstorm:brainstorm "$EVENTS_FILE" "$STRUCTURED_LOG_FILE" 2>/dev/null || true
     fi
 }
 
