@@ -1,0 +1,15 @@
+{
+  "word": {
+    "slug": "nostr-kind--kind-1984",
+    "name": "nostr kind: 1984 (Reporting)",
+    "title": "Nostr Kind: 1984 (Reporting)",
+    "wordTypes": ["word", "nostrKind"]
+  },
+  "nostrKind": {
+    "kind": 1984,
+    "name": "Reporting",
+    "nip": "NIP-56",
+    "replaceability": "regular",
+    "description": "A report of a user or event for spam, nudity, profanity, illegal content, or impersonation. The p-tag identifies the reported user; an optional e-tag references a specific reported event."
+  }
+}

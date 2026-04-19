@@ -1,0 +1,14 @@
+{
+  "word": {
+    "slug": "tag--archive",
+    "name": "tag: archive",
+    "title": "Tag: Archive",
+    "wordTypes": ["word", "tag"]
+  },
+  "tag": {
+    "slug": "archive",
+    "name": "Archive",
+    "description": "Relay stores events long-term and serves as a historical archive",
+    "applicableTo": ["nostr-relay"]
+  }
+}

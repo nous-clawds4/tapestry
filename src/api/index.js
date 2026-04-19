@@ -483,9 +483,17 @@ async function register(app) {
     const { registerIORoutes } = require('./io');
     registerIORoutes(app);
 
+    // ── Concept Graph (AI context-efficiency) API ──
+    const { registerConceptGraphRoutes } = require('./concept-graph');
+    registerConceptGraphRoutes(app);
+
     // ── Tapestry Key / LMDB Store API ──
     const { registerTapestryKeyRoutes } = require('./tapestry-key');
     registerTapestryKeyRoutes(app);
+
+    // ── Relay Discovery API ──
+    const { registerRelayDiscoveryRoutes } = require('./relay-discovery');
+    registerRelayDiscoveryRoutes(app);
 
     // Initialize router state (presets → state file → strfry config)
     await initRouter();

@@ -1,1 +1,0 @@
-This folder is used to store current reports determined by data in strfry

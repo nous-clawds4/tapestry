@@ -8,6 +8,10 @@
  *   Body: { uuid } — update/import an event in Neo4j from strfry
  */
 const { exec } = require('child_process');
+const { getConfigFromFile } = require('../../utils/config');
+
+const NEO4J_USER = getConfigFromFile('NEO4J_USER', 'neo4j');
+const NEO4J_PASSWORD = getConfigFromFile('NEO4J_PASSWORD', '');
 
 /**
  * Run a Cypher query and return parsed rows.
@@ -16,7 +20,7 @@ function runCypher(query) {
   return new Promise((resolve, reject) => {
     const oneLine = query.replace(/\n/g, ' ').replace(/\s+/g, ' ').trim();
     const escaped = oneLine.replace(/'/g, "'\\''");
-    const cmd = `echo '${escaped}' | cypher-shell -u neo4j -p 3wGDrv6c8svbHVxKiXPL --format plain 2>/dev/null`;
+    const cmd = `echo '${escaped}' | cypher-shell -u ${NEO4J_USER} -p ${NEO4J_PASSWORD} --format plain 2>/dev/null`;
     exec(cmd, { timeout: 15000 }, (error, stdout) => {
       if (error) return reject(error);
       resolve(parseCSV(stdout.trim()));
@@ -268,7 +272,7 @@ function executeCypher(statements) {
   return new Promise((resolve, reject) => {
     const content = statements.map(s => s.trim().replace(/;*$/, '') + ';').join('\n') + '\n';
     const child = exec(
-      'cypher-shell -u neo4j -p 3wGDrv6c8svbHVxKiXPL',
+      `cypher-shell -u ${NEO4J_USER} -p ${NEO4J_PASSWORD}`,
       { timeout: 30000 },
       (error, stdout, stderr) => {
         if (error) return reject(new Error(`cypher-shell: ${error.message}\n${stderr}`));

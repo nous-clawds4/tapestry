@@ -1,0 +1,15 @@
+{
+  "word": {
+    "slug": "nostr-kind--kind-13",
+    "name": "nostr kind: 13 (Seal)",
+    "title": "Nostr Kind: 13 (Seal)",
+    "wordTypes": ["word", "nostrKind"]
+  },
+  "nostrKind": {
+    "kind": 13,
+    "name": "Seal",
+    "nip": "NIP-59",
+    "replaceability": "regular",
+    "description": "A seal wrapping a rumor (unsigned event) encrypted to a recipient, used as part of the gift wrap protocol. The content is NIP-44 encrypted; the seal itself is published with a random keypair inside a kind-1059 gift wrap."
+  }
+}

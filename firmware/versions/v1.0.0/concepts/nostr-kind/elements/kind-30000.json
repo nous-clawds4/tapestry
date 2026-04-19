@@ -1,0 +1,15 @@
+{
+  "word": {
+    "slug": "nostr-kind--kind-30000",
+    "name": "nostr kind: 30000 (Follow Sets)",
+    "title": "Nostr Kind: 30000 (Follow Sets)",
+    "wordTypes": ["word", "nostrKind"]
+  },
+  "nostrKind": {
+    "kind": 30000,
+    "name": "Follow Sets",
+    "nip": "NIP-51",
+    "replaceability": "parameterized-replaceable",
+    "description": "A named, curated list of followed pubkeys (a 'list of people'). The d-tag names the set; p-tags list the members. Multiple follow sets can coexist per user, unlike the single kind-3 follow list."
+  }
+}

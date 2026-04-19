@@ -1,0 +1,15 @@
+{
+  "word": {
+    "slug": "nostr-kind--kind-9734",
+    "name": "nostr kind: 9734 (Zap Request)",
+    "title": "Nostr Kind: 9734 (Zap Request)",
+    "wordTypes": ["word", "nostrKind"]
+  },
+  "nostrKind": {
+    "kind": 9734,
+    "name": "Zap Request",
+    "nip": "NIP-57",
+    "replaceability": "regular",
+    "description": "A request to send a lightning payment (zap) to another user or event. Sent to the recipient's LNURL pay endpoint rather than published to relays; the server uses it to generate a lightning invoice."
+  }
+}

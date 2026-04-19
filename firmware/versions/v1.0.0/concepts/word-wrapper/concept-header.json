@@ -1,0 +1,21 @@
+{
+  "word": {
+    "slug": "concept-header-for-the-concept-of-word-wrappers",
+    "name": "concept header for the concept of word wrappers",
+    "title": "Concept Header for the Concept of Word Wrappers",
+    "wordTypes": ["word", "conceptHeader"]
+  },
+  "conceptHeader": {
+    "description": "The word-wrapper is Tapestry's canonical JSON format for the 'json' tag of any core node or firmware concept event. It has two sections: (1) a universal 'word' key with slug, name, title, wordTypes array, and coreMemberOf array; (2) one or more type-specific keys (conceptHeader, superset, set, property, primaryProperty, graph, conceptGraph, coreNodesGraph, propertyTreeGraph) containing the node's structured data. The format allows a single event to simultaneously represent multiple node types by having multiple type-specific sections. Element data outside firmware uses the concept's camelCase key (e.g., 'dog') as its namespace.",
+    "oNames": { "singular": "word wrapper", "plural": "word wrappers" },
+    "oSlugs": { "singular": "word-wrapper", "plural": "word-wrappers" },
+    "oKeys": { "singular": "wordWrapper", "plural": "wordWrappers" },
+    "oTitles": { "singular": "Word Wrapper", "plural": "Word Wrappers" },
+    "oLabels": { "singular": "WordWrapper", "plural": "WordWrappers" },
+    "x-tapestry": {
+      "neo4j": {
+        "nodeLabelRequired": false
+      }
+    }
+  }
+}

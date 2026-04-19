@@ -68,6 +68,7 @@ import BrainstormProfile from './pages/BrainstormProfile';
 import BrainstormSettings from './pages/BrainstormSettings';
 import BrainstormPersonalization from './pages/BrainstormPersonalization';
 import BrainstormDevelopers from './pages/BrainstormDevelopers';
+import RelayDiscovery from './pages/relay-discovery/RelayDiscovery';
 const router = createBrowserRouter([
   {
     path: '/',
@@ -95,6 +96,7 @@ const router = createBrowserRouter([
     handle: { crumb: 'Home' },
     children: [
       { index: true, element: <Dashboard /> },
+      { path: 'relay-discovery', element: <RelayDiscovery />, handle: { crumb: 'Relay Discovery' } },
       {
         path: 'concepts',
         handle: { crumb: 'Concepts' },

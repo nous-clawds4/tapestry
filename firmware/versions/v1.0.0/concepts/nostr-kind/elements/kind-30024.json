@@ -1,0 +1,15 @@
+{
+  "word": {
+    "slug": "nostr-kind--kind-30024",
+    "name": "nostr kind: 30024 (Draft Long-form Content)",
+    "title": "Nostr Kind: 30024 (Draft Long-form Content)",
+    "wordTypes": ["word", "nostrKind"]
+  },
+  "nostrKind": {
+    "kind": 30024,
+    "name": "Draft Long-form Content",
+    "nip": "NIP-23",
+    "replaceability": "parameterized-replaceable",
+    "description": "A draft version of a long-form article (same structure as kind 30023). Intended for work-in-progress content not yet ready for public distribution."
+  }
+}

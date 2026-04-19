@@ -9,7 +9,21 @@
 const { execSync } = require('child_process');
 const http = require('http');
 
-const API = 'http://localhost:8080';
+function resolveApi() {
+  if (process.env.BRAINSTORM_API) return process.env.BRAINSTORM_API;
+  const argPort = process.argv[2];
+  if (argPort && /^\d+$/.test(argPort)) return `http://localhost:${argPort}`;
+  try {
+    const raw = execSync(
+      "docker inspect tapestry --format '{{(index (index .NetworkSettings.Ports \"7778/tcp\") 0).HostPort}}'",
+      { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] },
+    ).trim();
+    if (/^\d+$/.test(raw)) return `http://localhost:${raw}`;
+  } catch {}
+  return 'http://localhost:7778';
+}
+
+const API = resolveApi();
 
 // ── Account definitions ──────────────────────────────────────
 
@@ -75,7 +89,6 @@ function generateKey() {
 function signEvent(sk, eventJson) {
   const result = execSync(`echo '${JSON.stringify(eventJson).replace(/'/g, "'\\''")}' | nak event --sec ${sk}`, {
     encoding: 'utf8',
-    shell: '/bin/zsh',
   }).trim();
   return JSON.parse(result);
 }

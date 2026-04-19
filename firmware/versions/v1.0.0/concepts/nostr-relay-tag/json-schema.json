@@ -1,0 +1,59 @@
+{
+  "word": {
+    "slug": "json-schema-for-the-concept-of-nostr-relay-tags",
+    "name": "JSON Schema for the concept of nostr relay tags",
+    "title": "JSON Schema for the Concept of Nostr Relay Tags",
+    "description": "This is the JSON Schema for elements of the concept of nostr relay tags. Every element of this concept must validate against this JSON schema.",
+    "wordTypes": ["word", "jsonSchema"],
+    "coreMemberOf": [
+      {
+        "slug": "concept-header-for-the-concept-of-nostr-relay-tags",
+        "uuid": "<uuid>"
+      }
+    ]
+  },
+  "jsonSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "name": "nostr relay tag",
+    "title": "Nostr Relay Tag",
+    "description": "JSON Schema for the concept of nostr relay tags",
+    "required": ["nostrRelayTag"],
+    "definitions": {},
+    "properties": {
+      "nostrRelayTag": {
+        "type": "object",
+        "name": "nostr relay tag",
+        "title": "Nostr Relay Tag",
+        "slug": "nostr-relay-tag",
+        "description": "data about this nostr relay tag assertion",
+        "required": ["relayEventId", "tagEventId"],
+        "properties": {
+          "relayEventId": {
+            "type": "string",
+            "name": "relayEventId",
+            "title": "Relay Event ID",
+            "slug": "relay-event-id",
+            "description": "The event ID of the kind 39999 nostr-relay item being tagged"
+          },
+          "tagEventId": {
+            "type": "string",
+            "name": "tagEventId",
+            "title": "Tag Event ID",
+            "slug": "tag-event-id",
+            "description": "The event ID of the kind 39999 tag item being applied"
+          },
+          "confidence": {
+            "type": "number",
+            "name": "confidence",
+            "title": "Confidence",
+            "slug": "confidence",
+            "description": "Optional author confidence in this assertion, from 0.0 to 1.0. Defaults to 1.0 if omitted.",
+            "minimum": 0.0,
+            "maximum": 1.0
+          }
+        }
+      }
+    }
+  }
+}

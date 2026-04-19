@@ -1,0 +1,14 @@
+{
+  "word": {
+    "slug": "tag--free",
+    "name": "tag: free",
+    "title": "Tag: Free",
+    "wordTypes": ["word", "tag"]
+  },
+  "tag": {
+    "slug": "free",
+    "name": "Free",
+    "description": "Relay is free to use without payment",
+    "applicableTo": ["nostr-relay"]
+  }
+}

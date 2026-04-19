@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import Header from './Header';
 import { useAuth } from '../context/AuthContext';
+import TrustWidget from './TrustWidget';
 
 /**
  * Nav items split into two menus: main and management.
@@ -46,6 +47,7 @@ const mainNavItems = [
       { to: '/tapestry/users/search', label: 'Search' },
     ],
   },
+  { to: '/kg/relay-discovery', label: '📡 Relay Discovery' },
 ];
 
 const managementNavItems = [
@@ -193,6 +195,7 @@ export default function Layout() {
           <Outlet />
         </main>
       </div>
+      <TrustWidget />
     </div>
   );
 }

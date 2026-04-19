@@ -1,0 +1,68 @@
+{
+  "word": {
+    "slug": "json-schema-for-the-concept-of-word-wrappers",
+    "name": "JSON Schema for the concept of word wrappers",
+    "title": "JSON Schema for the Concept of Word Wrappers",
+    "description": "This is the JSON Schema for elements of the concept of word wrappers. Every element of this concept must validate against this JSON schema.",
+    "wordTypes": ["word", "jsonSchema"],
+    "coreMemberOf": [
+      {
+        "slug": "concept-header-for-the-concept-of-word-wrappers",
+        "uuid": "<uuid>"
+      }
+    ]
+  },
+  "jsonSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "name": "word wrapper",
+    "title": "Word Wrapper",
+    "description": "JSON Schema for elements of the concept of word wrappers (Tapestry's canonical JSON tag format)",
+    "required": ["wordWrapper"],
+    "definitions": {},
+    "properties": {
+      "wordWrapper": {
+        "type": "object",
+        "name": "word wrapper",
+        "title": "Word Wrapper",
+        "slug": "word-wrapper",
+        "description": "data about this word wrapper format variant",
+        "required": ["name", "wordTypes"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "name": "name",
+            "title": "Name",
+            "slug": "name",
+            "description": "Name of this word wrapper variant (corresponds to a node type)"
+          },
+          "wordTypes": {
+            "type": "array",
+            "name": "wordTypes",
+            "title": "Word Types",
+            "slug": "word-types",
+            "description": "The wordTypes array values this variant uses (e.g. ['word', 'conceptHeader'])",
+            "items": { "type": "string" }
+          },
+          "typeKey": {
+            "type": "string",
+            "name": "typeKey",
+            "title": "Type Key",
+            "slug": "type-key",
+            "description": "The type-specific JSON key for this variant's data section (e.g. 'conceptHeader', 'superset', 'property')"
+          },
+          "description": {
+            "type": "string",
+            "name": "description",
+            "title": "Description",
+            "slug": "description",
+            "description": "What this word wrapper variant is used for and what its type-specific section contains"
+          }
+        },
+        "x-tapestry": {
+          "unique": ["name", "typeKey"]
+        }
+      }
+    }
+  }
+}

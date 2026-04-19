@@ -1,0 +1,15 @@
+{
+  "word": {
+    "slug": "nostr-kind--kind-1",
+    "name": "nostr kind: 1 (Short Text Note)",
+    "title": "Nostr Kind: 1 (Short Text Note)",
+    "wordTypes": ["word", "nostrKind"]
+  },
+  "nostrKind": {
+    "kind": 1,
+    "name": "Short Text Note",
+    "nip": "NIP-10",
+    "replaceability": "regular",
+    "description": "A plain-text social post, analogous to a tweet. The content field contains human-readable text; e-tags indicate thread roots and replies."
+  }
+}

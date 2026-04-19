@@ -1,0 +1,15 @@
+{
+  "word": {
+    "slug": "nostr-kind--kind-30078",
+    "name": "nostr kind: 30078 (Application-specific Data)",
+    "title": "Nostr Kind: 30078 (Application-specific Data)",
+    "wordTypes": ["word", "nostrKind"]
+  },
+  "nostrKind": {
+    "kind": 30078,
+    "name": "Application-specific Data",
+    "nip": "NIP-78",
+    "replaceability": "parameterized-replaceable",
+    "description": "A generic key-value store for application-specific state, identified by a d-tag namespace. Used by apps to persist user settings, preferences, or arbitrary structured data on Nostr relays."
+  }
+}
