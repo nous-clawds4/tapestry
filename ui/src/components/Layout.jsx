@@ -47,7 +47,7 @@ const mainNavItems = [
       { to: '/tapestry/users/search', label: 'Search' },
     ],
   },
-  { to: '/kg/relay-discovery', label: '📡 Relay Discovery' },
+  { to: '/tapestry/relay-discovery', label: '📡 Relay Discovery' },
 ];
 
 const managementNavItems = [
