@@ -161,7 +161,7 @@ export default function TrustWidget() {
 
           <div className="trust-widget-footer">
             Changes apply live across the app via TrustContext.{' '}
-            <a href="/kg/grapevine/trust-determination" className="bsp-id-link">Full settings →</a>
+            <a href="/tapestry/grapevine/trust-determination" className="bsp-id-link">Full settings →</a>
           </div>
         </div>
       )}

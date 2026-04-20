@@ -358,7 +358,7 @@ function PipelinePanel() {
 
         <div className="rdisc-pipeline-footer">
           After all five steps complete, go to{' '}
-          <a href="/kg/grapevine/trust-determination" className="rdisc-trust-link" style={{ marginLeft: 0 }}>
+          <a href="/tapestry/grapevine/trust-determination" className="rdisc-trust-link" style={{ marginLeft: 0 }}>
             Trust Determination
           </a>
           {' '}and switch scoring to <em>Trusted Assertions (rank)</em>. The aggregated
@@ -445,7 +445,7 @@ function EndorserList({ pubkeys, weights, profiles }) {
         return (
           <a
             key={pk}
-            href={`/kg/brainstorm-search/user/${pk}`}
+            href={`/user/${pk}`}
             target="_blank"
             rel="noopener noreferrer"
             className={`rdisc-endorser ${cls}`}
@@ -584,7 +584,7 @@ function AggregatedTab() {
             ? <code>{povPubkey.slice(0, 12)}…{povPubkey.slice(-8)}</code>
             : <em>(none — defaulting to owner)</em>}
         </span>
-        <a href="/kg/grapevine/trust-determination" className="rdisc-trust-link">change →</a>
+        <a href="/tapestry/grapevine/trust-determination" className="rdisc-trust-link">change →</a>
         {trustLoading && <span className="rdisc-trust-status">resolving weights…</span>}
         {trustError && <span className="rdisc-trust-status rdisc-trust-error" title={trustError}>⚠ weights unavailable</span>}
       </div>
@@ -730,7 +730,7 @@ export default function RelayDiscovery() {
         <p className="page-description">
           Relays imported into Neo4j, ranked by your trust-weighted endorser score.
           Looking for the relays <em>a specific account</em> has published? Use{' '}
-          <a href="/kg/brainstorm-search" className="bsp-id-link">brainstorm-search</a>{' '}
+          <a href="/" className="bsp-id-link">brainstorm-search</a>{' '}
           to find the account — each profile's page has a Relays section.
         </p>
       </div>
