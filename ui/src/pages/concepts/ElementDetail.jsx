@@ -7,7 +7,7 @@ import AuthorCell from '../../components/AuthorCell';
 
 /**
  * Element detail page within a concept's context.
- * Route: /kg/concepts/:uuid/elements/:elemUuid
+ * Route: /tapestry/concepts/:uuid/elements/:elemUuid
  *
  * Shows the element with editing scoped to this concept's JSON Schema.
  */
@@ -173,7 +173,7 @@ export default function ElementDetail() {
         <h2 style={{ margin: 0 }}>{elem.name || 'Unnamed Element'}</h2>
         <button
           className="btn btn-small"
-          onClick={() => navigate(`/kg/databases/neo4j/nodes/${encodeURIComponent(elemUuid)}`)}
+          onClick={() => navigate(`/tapestry/databases/neo4j/nodes/${encodeURIComponent(elemUuid)}`)}
           title="View this node outside the concept context"
         >
           🔵 View Full Node
@@ -234,7 +234,7 @@ export default function ElementDetail() {
               <span className="detail-value">
                 <a
                   className="clickable-text"
-                  onClick={() => navigate(`/kg/concepts/${encodeURIComponent(conceptUuid)}`)}
+                  onClick={() => navigate(`/tapestry/concepts/${encodeURIComponent(conceptUuid)}`)}
                 >
                   {concept?.name}
                 </a>
@@ -307,7 +307,7 @@ export default function ElementDetail() {
               <br />
               <a
                 className="clickable-text"
-                onClick={() => navigate(`/kg/concepts/${encodeURIComponent(conceptUuid)}/schema`)}
+                onClick={() => navigate(`/tapestry/concepts/${encodeURIComponent(conceptUuid)}/schema`)}
                 style={{ marginTop: '0.5rem', display: 'inline-block' }}
               >
                 → Define schema properties

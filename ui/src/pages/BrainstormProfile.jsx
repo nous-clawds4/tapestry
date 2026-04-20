@@ -1,8 +1,13 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
 import { useAuth } from '../context/AuthContext';
 import BrainstormUserMenu from '../components/BrainstormUserMenu';
+import { useProfileActions } from '../hooks/useProfileActions';
+import ConfirmDialog from '../components/ConfirmDialog';
+import ReportModal from '../components/ReportModal';
+import PublishRelayForm from './relay-discovery/PublishRelayForm';
+import RelayTagPanel from './relay-discovery/RelayTagPanel';
 
 /* ── Helpers ──────────────────────────────────────────── */
 
@@ -75,6 +80,24 @@ export default function BrainstormProfile() {
   const [trustScores, setTrustScores] = useState(null);
   const [trustLoading, setTrustLoading] = useState(true);
   const [trustError, setTrustError] = useState(null);
+  const [reportModalOpen, setReportModalOpen] = useState(false);
+
+  const [relays, setRelays] = useState(null);
+  const [relaysLoading, setRelaysLoading] = useState(true);
+  const [relaysError, setRelaysError] = useState(null);
+  const [relaysOpen, setRelaysOpen] = useState(true);
+  const [publishOpen, setPublishOpen] = useState(false);
+  const [relaysReloadKey, setRelaysReloadKey] = useState(0);
+  const [expandedRelay, setExpandedRelay] = useState(null);
+
+  const {
+    isFollowing, isMuted, hasReported,
+    actionLoading, error: actionError,
+    follow, unfollow, mute, unmute, report,
+    needsConfirmation, confirmAction, cancelAction,
+  } = useProfileActions(pubkey, user?.pubkey);
+
+  const showActions = user && user.pubkey !== pubkey;
 
   const npub = useMemo(() => {
     try { return nip19.npubEncode(pubkey); } catch { return null; }
@@ -168,6 +191,37 @@ export default function BrainstormProfile() {
     })();
   }, [pubkey, povParam]);
 
+  // Fetch relays (NIP-65 + DCoSL) for this profile
+  useEffect(() => {
+    if (!pubkey) return;
+    let cancelled = false;
+    setRelaysLoading(true);
+    setRelaysError(null);
+    setRelays(null);
+
+    (async () => {
+      try {
+        const resp = await fetch(`/api/relay-discovery/by-pubkey?pubkey=${pubkey}`);
+        const data = await resp.json();
+        if (cancelled) return;
+        if (!data.success) {
+          setRelaysError(data.error || 'Failed to load relays');
+          setRelays([]);
+        } else {
+          setRelays(data.relays || []);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setRelaysError(err.message);
+          setRelays([]);
+        }
+      } finally {
+        if (!cancelled) setRelaysLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [pubkey, relaysReloadKey]);
+
   return (
     <div className="bsp-page">
       {/* Top bar */}
@@ -178,8 +232,8 @@ export default function BrainstormProfile() {
         >
           ← Back to search
         </button>
-        <a href="/kg/brainstorm-search" className="bsp-logo">
-          <img src="/kg/brainstorm.svg" alt="" className="bsp-logo-img" />
+        <a href="/" className="bsp-logo">
+          <img src="/brainstorm.svg" alt="" className="bsp-logo-img" />
           Brainstorm
         </a>
         <div className="bsp-auth">
@@ -218,6 +272,41 @@ export default function BrainstormProfile() {
                 {profileAge && <span className="bsp-age">Updated {profileAge}</span>}
               </div>
             </div>
+
+            {/* Action buttons */}
+            {showActions && (
+              <div className="bsp-actions">
+                <button
+                  className={`bsp-action-btn ${isFollowing ? 'bsp-action-active' : ''}`}
+                  onClick={isFollowing ? unfollow : follow}
+                  disabled={actionLoading !== null || isFollowing === null}
+                >
+                  {actionLoading === 'follow' || actionLoading === 'unfollow'
+                    ? 'Working\u2026'
+                    : isFollowing ? 'Unfollow' : 'Follow'}
+                </button>
+
+                <button
+                  className={`bsp-action-btn bsp-action-mute ${isMuted ? 'bsp-action-active' : ''}`}
+                  onClick={isMuted ? unmute : mute}
+                  disabled={actionLoading !== null || isMuted === null}
+                >
+                  {actionLoading === 'mute' || actionLoading === 'unmute'
+                    ? 'Working\u2026'
+                    : isMuted ? 'Unmute' : 'Mute'}
+                </button>
+
+                <button
+                  className={`bsp-action-btn bsp-action-report ${hasReported ? 'bsp-action-reported' : ''}`}
+                  onClick={() => setReportModalOpen(true)}
+                  disabled={actionLoading !== null || hasReported === true}
+                >
+                  {hasReported ? 'Reported' : 'Report'}
+                </button>
+
+                {actionError && <div className="bsp-action-error">{actionError}</div>}
+              </div>
+            )}
 
             {/* About */}
             {profile?.about && (
@@ -300,6 +389,125 @@ export default function BrainstormProfile() {
                 </div>
               )}
             </div>
+
+            {/* Relays */}
+            <div className="bsp-section">
+              <div className="bsp-section-header">
+                <h3
+                  className="bsp-section-toggle"
+                  onClick={() => setRelaysOpen(o => !o)}
+                  style={{ cursor: 'pointer', userSelect: 'none' }}
+                >
+                  {relaysOpen ? '▾' : '▸'} Relays
+                  {relays && <span className="bsp-badge"> {relays.length}</span>}
+                </h3>
+                {user && (
+                  <button
+                    className="bsp-action-btn"
+                    onClick={() => setPublishOpen(true)}
+                    title="Publish a new relay entry to the nostr-relay concept"
+                  >
+                    + Publish relay
+                  </button>
+                )}
+              </div>
+
+              {relaysOpen && (
+                <>
+                  {relaysLoading && (
+                    <div className="bsp-trust-loading">Fetching relays from the network…</div>
+                  )}
+
+                  {!relaysLoading && relaysError && (
+                    <div className="bsp-trust-unavailable">
+                      <span className="bsp-trust-icon">⚠️</span>
+                      <span>{relaysError}</span>
+                    </div>
+                  )}
+
+                  {!relaysLoading && !relaysError && relays && relays.length === 0 && (
+                    <div className="bsp-trust-unavailable">
+                      <span className="bsp-trust-icon">📭</span>
+                      <span>
+                        No NIP-65 (kind 10002) or DCoSL (kind 39999) relay entries published by this account.
+                      </span>
+                    </div>
+                  )}
+
+                  {!relaysLoading && relays && relays.length > 0 && (
+                    <table className="data-table">
+                      <thead>
+                        <tr>
+                          <th style={{ width: '1.5rem' }}></th>
+                          <th>Relay URL</th>
+                          <th>Source</th>
+                          <th>Read</th>
+                          <th>Write</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {relays.map((r) => {
+                          // Only rows with a DCoSL relay event can have tag applications
+                          // (tag apps reference a kind 39999 relay event id).
+                          const taggable = r.source === 'dcsl' || r.source === 'both';
+                          const isExpanded = expandedRelay === r.websocketUrl;
+                          return (
+                            <React.Fragment key={r.websocketUrl}>
+                              <tr
+                                className={taggable ? 'clickable' : ''}
+                                onClick={() => {
+                                  if (!taggable) return;
+                                  setExpandedRelay(isExpanded ? null : r.websocketUrl);
+                                }}
+                              >
+                                <td style={{ textAlign: 'center', opacity: 0.6 }}>
+                                  {taggable ? (isExpanded ? '▾' : '▸') : ''}
+                                </td>
+                                <td>
+                                  <code>{r.websocketUrl}</code>
+                                  {r.httpUrl && (
+                                    <>
+                                      {' '}
+                                      <a
+                                        href={r.httpUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="bsp-id-link"
+                                        onClick={(e) => e.stopPropagation()}
+                                      >↗</a>
+                                    </>
+                                  )}
+                                </td>
+                                <td>
+                                  {r.source === 'both'
+                                    ? 'NIP-65 + DCoSL'
+                                    : r.source === 'nip65'
+                                    ? 'NIP-65'
+                                    : 'DCoSL'}
+                                </td>
+                                <td>{r.read ? '✓' : ''}</td>
+                                <td>{r.write ? '✓' : ''}</td>
+                              </tr>
+                              {isExpanded && taggable && (
+                                <tr className="rtp-row">
+                                  <td colSpan={5}>
+                                    <RelayTagPanel
+                                      relayEventId={r.eventId}
+                                      relaySlug={r.slug}
+                                      user={user}
+                                    />
+                                  </td>
+                                </tr>
+                              )}
+                            </React.Fragment>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  )}
+                </>
+              )}
+            </div>
           </>
         )}
 
@@ -309,6 +517,31 @@ export default function BrainstormProfile() {
           </div>
         )}
       </div>
+
+      {/* Dialogs */}
+      <ConfirmDialog
+        open={!!needsConfirmation}
+        title={needsConfirmation?.title || ''}
+        message={needsConfirmation?.message || ''}
+        onConfirm={confirmAction}
+        onCancel={cancelAction}
+      />
+
+      <ReportModal
+        open={reportModalOpen}
+        loading={actionLoading === 'report'}
+        onSubmit={async (type, note) => {
+          await report(type, note);
+          setReportModalOpen(false);
+        }}
+        onCancel={() => setReportModalOpen(false)}
+      />
+
+      <PublishRelayForm
+        open={publishOpen}
+        onClose={() => setPublishOpen(false)}
+        onPublished={() => setRelaysReloadKey(k => k + 1)}
+      />
     </div>
   );
 }

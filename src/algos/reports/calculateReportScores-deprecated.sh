@@ -3,20 +3,20 @@
 source /etc/brainstorm.conf # BRAINSTORM_LOG_DIR
 
 touch ${BRAINSTORM_LOG_DIR}/calculateReportScores.log
-sudo chown brainstorm:brainstorm ${BRAINSTORM_LOG_DIR}/calculateReportScores.log
+chown brainstorm:brainstorm ${BRAINSTORM_LOG_DIR}/calculateReportScores.log
 
 echo "$(date): Starting calculateReportScores"
 echo "$(date): Starting calculateReportScores" >> ${BRAINSTORM_LOG_DIR}/calculateReportScores.log
 
 # update reportTypes.txt
-sudo $BRAINSTORM_MODULE_ALGOS_DIR/reports/updateReportTypes.sh
+$BRAINSTORM_MODULE_ALGOS_DIR/reports/updateReportTypes.sh
 
 # import array of report types
 REPORT_TYPES=$(cat ${BRAINSTORM_MODULE_ALGOS_DIR}/reports/reportTypes.txt)
 
 # loop through report types; for each user, initialize report counts
 for reportType in ${REPORT_TYPES[@]}; do
-    cypherResults1=$(sudo cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "
+    cypherResults1=$(cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "
 MATCH (u:NostrUser)
 SET u.nip56_${reportType}_grapeRankScore = 0
 SET u.nip56_${reportType}_reportCount = 0
@@ -27,7 +27,7 @@ RETURN COUNT(u) AS numReportedUsers")
     echo "$(date): for reportType: $reportType; numReportedUsers: $numReportedUsers" >> ${BRAINSTORM_LOG_DIR}/calculateReportScores.log
 done
 
-cypherResults1=$(sudo cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "
+cypherResults1=$(cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "
 MATCH (u:NostrUser)
 SET u.nip56_totalGrapeRankScore = 0
 SET u.nip56_totalReportCount = 0
@@ -43,7 +43,7 @@ echo "$(date): Finished calculateReportScores" >> ${BRAINSTORM_LOG_DIR}/calculat
 
 # loop through report types; for each reported user, count the total number as well as the influence-weighted number of reports of that type by verified users
 for reportType in ${REPORT_TYPES[@]}; do
-    cypherResults1=$(sudo cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "
+    cypherResults1=$(cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "
 MATCH (a:NostrUser)-[r:REPORTS {report_type: '$reportType'}]->(u:NostrUser)
 WITH u, SUM(a.influence) AS influenceTotal, COUNT(r) AS totalReportCount
 SET u.nip56_${reportType}_grapeRankScore = influenceTotal, u.nip56_${reportType}_reportCount = totalReportCount
@@ -52,7 +52,7 @@ RETURN COUNT(u) AS numReportedUsers")
     echo "$(date): for reportType: $reportType; numReportedUsers: $numReportedUsers"
     echo "$(date): for reportType: $reportType; numReportedUsers: $numReportedUsers" >> ${BRAINSTORM_LOG_DIR}/calculateReportScores.log
 
-    cypherResults2=$(sudo cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "
+    cypherResults2=$(cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "
 MATCH (a:NostrUser)-[r:REPORTS {report_type: '$reportType'}]->(u:NostrUser)
 WHERE a.influence > 0.1
 WITH u, COUNT(r) AS verifiedReportCount
@@ -93,7 +93,7 @@ RETURN COUNT(u) AS numReportedUsers
 
 echo "cypherCommand: ${cypherCommand}"
 
-cypherResults3=$(sudo cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$cypherCommand")
+cypherResults3=$(cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$cypherCommand")
 
 numReportedUsers="${cypherResults3:11}"
 

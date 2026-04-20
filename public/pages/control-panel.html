@@ -211,7 +211,7 @@
             // Set up the relay link with the correct domain from the server
             const relayLink = document.getElementById('relayLink');
             if (relayLink) {
-                fetch('/control/api/status')
+                fetch('/api/status')
                     .then(response => response.json())
                     .then(data => {
                         if (data && data.strfryDomain) {
@@ -241,7 +241,7 @@
             const pluginStatus = document.getElementById('pluginStatus');
             
             function checkFilteredContentStatus() {
-                fetch('/control/api/get-strfry-filteredContent')
+                fetch('/api/get-strfry-filteredContent')
                     .then(response => response.json())
                     .then(data => {
                         if (data.status === 'enabled') {
@@ -275,7 +275,7 @@
                 enablePluginBtn.disabled = true;
                 disablePluginBtn.disabled = true;
                 
-                fetch('/control/api/toggle-strfry-filteredContent', {
+                fetch('/api/toggle-strfry-filteredContent', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -311,7 +311,7 @@
                 enablePluginBtn.disabled = true;
                 disablePluginBtn.disabled = true;
                 
-                fetch('/control/api/toggle-strfry-filteredContent', {
+                fetch('/api/toggle-strfry-filteredContent', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -354,7 +354,7 @@
                 servicesStatus.className = 'status info';
                 servicesStatus.textContent = 'Loading service statuses...';
                 
-                fetch('/control/api/systemd-services')
+                fetch('/api/systemd-services')
                     .then(response => response.json())
                     .then(data => {
                         refreshServicesBtn.disabled = false;
@@ -528,7 +528,7 @@
                 servicesStatus.className = 'status info';
                 servicesStatus.textContent = `${action.charAt(0).toUpperCase() + action.slice(1)}ing ${service} service...`;
                 
-                fetch(`/control/api/systemd-services?service=${service}&action=${action}`)
+                fetch(`/api/systemd-services?service=${service}&action=${action}`)
                     .then(response => response.json())
                     .then(data => {
                         refreshServicesBtn.disabled = false;
@@ -560,7 +560,7 @@
                 statusOutput.style.display = 'block';
                 statusOutput.textContent = 'Checking status...';
                 
-                fetch('/control/api/status')
+                fetch('/api/status')
                 .then(response => response.json())
                 .then(data => {
                     statusOutput.textContent = data.output;
@@ -588,7 +588,7 @@
                 statsStatus.textContent = 'Fetching event statistics...';
                 statsContainer.style.display = 'none';
                 
-                fetch('/control/api/strfry-stats')
+                fetch('/api/strfry-stats')
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
@@ -633,7 +633,7 @@
                 neo4jStatus.textContent = 'Checking Neo4j status...';
                 neo4jContainer.style.display = 'none';
                 
-                fetch('/control/api/neo4j-status')
+                fetch('/api/neo4j-status')
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
@@ -760,7 +760,7 @@
                 generateStatus.textContent = 'Generating PageRank data...';
                 generateOutput.style.display = 'none';
                 
-                fetch('/control/api/generate-pagerank', {
+                fetch('/api/generate-pagerank', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -804,7 +804,7 @@
                 generateGrapeRankStatus.textContent = 'Generating GrapeRank data...';
                 generateGrapeRankOutput.style.display = 'none';
                 
-                fetch('/control/api/generate-graperank', {
+                fetch('/api/generate-graperank', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -849,7 +849,7 @@
                 publishOutput.style.display = 'block';
                 publishOutput.textContent = 'Starting event publication...\n';
                 
-                fetch('/control/api/publish-kind30382', {
+                fetch('/api/publish-kind30382', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -922,7 +922,7 @@
                     batchTransferBtn.disabled = false;
                 }, 60000); // 60 seconds timeout
                 
-                fetch('/control/api/batch-transfer', {
+                fetch('/api/batch-transfer', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -1052,7 +1052,7 @@
                 }, 60000); // 60 seconds timeout
                 
                 // Make AJAX request to the server with relay and filter parameters
-                fetch('/control/api/negentropy-sync', {
+                fetch('/api/negentropy-sync', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'

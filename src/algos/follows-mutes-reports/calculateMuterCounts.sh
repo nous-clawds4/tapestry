@@ -3,7 +3,7 @@
 source /etc/brainstorm.conf # BRAINSTORM_LOG_DIR
 
 touch ${BRAINSTORM_LOG_DIR}/calculateMuterCounts.log
-sudo chown brainstorm:brainstorm ${BRAINSTORM_LOG_DIR}/calculateMuterCounts.log
+chown brainstorm:brainstorm ${BRAINSTORM_LOG_DIR}/calculateMuterCounts.log
 
 echo "$(date): Starting calculateMuterCounts"
 echo "$(date): Starting calculateMuterCounts" >> ${BRAINSTORM_LOG_DIR}/calculateMuterCounts.log
@@ -24,13 +24,13 @@ SET n.muterCount = 0
 RETURN count(n) AS numUsersUpdated
 "
 
-cypherResults=$(sudo cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER1")
+cypherResults=$(cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER1")
 numUsersUpdated="${cypherResults:16}"
 
 echo "$(date): numUsersUpdated: $numUsersUpdated (with nonzero muterCount)"
 echo "$(date): numUsersUpdated: $numUsersUpdated (with nonzero muterCount)" >> ${BRAINSTORM_LOG_DIR}/calculateMuterCounts.log
 
-cypherResults=$(sudo cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER2")
+cypherResults=$(cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER2")
 numUsersUpdated="${cypherResults:16}"
 
 echo "$(date): numUsersUpdated: $numUsersUpdated (with zero muterCount)"

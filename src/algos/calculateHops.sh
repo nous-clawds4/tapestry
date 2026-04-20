@@ -10,9 +10,9 @@ source /etc/brainstorm.conf # NEO4J_URI, NEO4J_USER, NEO4J_PASSWORD, BRAINSTORM_
 # Source structured logging utility
 source /usr/local/lib/node_modules/brainstorm/src/utils/structuredLogging.sh
 
-CYPHER1="MATCH (u:NostrUser) SET u.hops=999"
+CYPHER1="MATCH (u:NostrUser) CALL { WITH u SET u.hops=999 } IN TRANSACTIONS OF 10000 ROWS"
 CYPHER2="MATCH (u:NostrUser {pubkey:'$BRAINSTORM_OWNER_PUBKEY'}) SET u.hops=0"
-CYPHER3="MATCH (u1:NostrUser)-[:FOLLOWS]->(u2:NostrUser) WHERE u2.hops - u1.hops > 1 SET u2.hops = u1.hops + 1 RETURN count(u2) as numUpdates"
+CYPHER3="MATCH (u1:NostrUser)-[:FOLLOWS]->(u2:NostrUser) WHERE u2.hops - u1.hops > 1 CALL { WITH u2, u1 SET u2.hops = u1.hops + 1 } IN TRANSACTIONS OF 10000 ROWS RETURN count(u2) as numUpdates"
 
 # Start structured logging
 oMetadata=$(jq -n \
@@ -44,7 +44,7 @@ progressMetadata=$(jq -n \
         description: $description
     }')
 emit_task_event "PROGRESS" "calculateOwnerHops" "system" "$progressMetadata"
-sudo cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER1"
+cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER1"
 
 progressMetadata=$(jq -n \
     --arg phase "initialization" \
@@ -58,7 +58,7 @@ progressMetadata=$(jq -n \
         owner_pubkey: $owner_pubkey
     }')
 emit_task_event "PROGRESS" "calculateOwnerHops" "system" "$progressMetadata"
-sudo cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER2"
+cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER2"
 
 # Phase 2: Iterative hop calculation
 progressMetadata=$(jq -n \
@@ -71,7 +71,7 @@ progressMetadata=$(jq -n \
         description: $description
     }')
 emit_task_event "PROGRESS" "calculateOwnerHops" "system" "$progressMetadata"
-cypherResults=$(sudo cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER3")
+cypherResults=$(cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER3")
 numUpdates="${cypherResults:11}"
 
 progressMetadata=$(jq -n \
@@ -92,7 +92,7 @@ emit_task_event "PROGRESS" "calculateOwnerHops" "system" "$progressMetadata"
 while [[ "$numUpdates" -gt 0 ]] && [[ "$numHops" -lt 12 ]];
 do
     ((numHops++))
-    cypherResults=$(sudo cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER3")
+    cypherResults=$(cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER3")
     numUpdates="${cypherResults:11}"
 
     echo "$(date): calculateHops iteration $numHops"

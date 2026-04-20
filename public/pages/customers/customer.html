@@ -123,6 +123,52 @@
                     </div>
                 </div>
                 
+                <!-- Brainstorm Assistant Panel -->
+                <div class="nip85-panel" style="margin-top: 1.5rem;">
+                    <h3>🤖 Your Brainstorm Assistant</h3>
+                    <p style="font-size: 0.9rem; color: #aaa; margin-bottom: 1rem;">
+                        Your Brainstorm Assistant is a nostr identity that publishes Trust Assertions on your behalf.
+                        Give it a profile so other users can see who it represents.
+                    </p>
+
+                    <div id="assistantLoading" style="color: #888;">Loading assistant status...</div>
+
+                    <div id="assistantContent" style="display: none;">
+                        <div class="nip85-status-grid" style="margin-bottom: 1rem;">
+                            <div class="status-item">
+                                <span class="status-label">Assistant Pubkey:</span>
+                                <span id="assistantPubkey" class="status-value" style="font-family: monospace; font-size: 0.8rem;"></span>
+                                <span id="assistantCopyBtn" style="cursor: pointer; margin-left: 0.5rem; font-size: 0.8rem;" title="Copy full pubkey">📋</span>
+                                <a id="assistantProfileLink" href="#" style="margin-left: 0.5rem; font-size: 0.8rem; text-decoration: none;" title="View profile">👤</a>
+                            </div>
+                            <div class="status-item">
+                                <span class="status-label">Profile Status:</span>
+                                <span id="assistantProfileStatus" class="status-value"></span>
+                            </div>
+                        </div>
+
+                        <!-- Profile preview (shown after publishing) -->
+                        <div id="assistantProfilePreview" style="display: none; margin-bottom: 1rem; padding: 0.75rem; background: rgba(255,255,255,0.03); border-radius: 8px; border: 1px solid rgba(255,255,255,0.06);">
+                            <div style="display: flex; align-items: center; gap: 0.75rem;">
+                                <img id="assistantAvatar" src="" style="width: 48px; height: 48px; border-radius: 50%; background: rgba(255,255,255,0.1);" onerror="this.style.display='none'">
+                                <div>
+                                    <div id="assistantDisplayName" style="font-weight: 600;"></div>
+                                    <div id="assistantAbout" style="font-size: 0.8rem; color: #888; margin-top: 0.25rem;"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <button id="publishAssistantBtn" class="action-button" onclick="publishAssistantProfile()" style="background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.4); color: #22c55e; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; font-size: 0.9rem;">
+                            Publish Kind 0 Profile
+                        </button>
+                        <span id="assistantPublishStatus" style="margin-left: 0.75rem; font-size: 0.85rem; color: #888;"></span>
+                    </div>
+
+                    <div id="assistantNoKey" style="display: none; color: #888; font-size: 0.9rem;">
+                        Set up Trusted Assertions first to get a Brainstorm Assistant.
+                    </div>
+                </div>
+
                 <!-- Kind 30382 Event Status Panel -->
                 <div class="status-panel">
                     <h3>📊 Kind 30382 Event Status</h3>
@@ -814,7 +860,96 @@
                 });
             }
         }
-        
+
+        // ── Brainstorm Assistant Functions ──
+
+        // Module-level variable to store the customer pubkey for assistant functions
+        let _assistantCustomerPubkey = null;
+
+        async function loadAssistantStatus(customerPubkey) {
+            _assistantCustomerPubkey = customerPubkey;
+            try {
+                const resp = await fetch(`/api/assistant/status?customerPubkey=${customerPubkey}`);
+                const data = await resp.json();
+
+                document.getElementById('assistantLoading').style.display = 'none';
+
+                if (!data.success || !data.hasRelayKey) {
+                    document.getElementById('assistantNoKey').style.display = 'block';
+                    return;
+                }
+
+                document.getElementById('assistantContent').style.display = 'block';
+                const pk = data.assistantPubkey || '';
+                const displayPubkey = pk ? pk.slice(0, 12) + '...' + pk.slice(-8) : 'Unknown';
+                document.getElementById('assistantPubkey').textContent = displayPubkey;
+
+                // Copy button
+                document.getElementById('assistantCopyBtn').onclick = () => {
+                    navigator.clipboard.writeText(pk).then(() => {
+                        const btn = document.getElementById('assistantCopyBtn');
+                        btn.textContent = '✅';
+                        setTimeout(() => { btn.textContent = '📋'; }, 1500);
+                    });
+                };
+
+                // Profile link
+                document.getElementById('assistantProfileLink').href = '/profile.html?pubkey=' + pk;
+
+                if (data.hasProfile && data.profile) {
+                    document.getElementById('assistantProfileStatus').innerHTML = '<span style="color: #22c55e;">✅ Published</span>';
+                    document.getElementById('assistantProfilePreview').style.display = 'block';
+                    if (data.profile.picture) {
+                        document.getElementById('assistantAvatar').src = data.profile.picture;
+                        document.getElementById('assistantAvatar').style.display = 'block';
+                    }
+                    document.getElementById('assistantDisplayName').textContent = data.profile.display_name || data.profile.name || '';
+                    document.getElementById('assistantAbout').textContent = (data.profile.about || '').slice(0, 120) + '...';
+                    document.getElementById('publishAssistantBtn').textContent = 'Re-publish Kind 0 Profile';
+                } else {
+                    document.getElementById('assistantProfileStatus').innerHTML = '<span style="color: #f59e0b;">⚠️ Not published</span>';
+                }
+            } catch (err) {
+                document.getElementById('assistantLoading').textContent = 'Failed to load assistant status';
+            }
+        }
+
+        async function publishAssistantProfile() {
+            const btn = document.getElementById('publishAssistantBtn');
+            const status = document.getElementById('assistantPublishStatus');
+            btn.disabled = true;
+            btn.textContent = 'Publishing...';
+            status.textContent = 'Generating avatar and uploading...';
+            status.style.color = '#888';
+
+            try {
+                const resp = await fetch('/api/assistant/publish-profile', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ customerPubkey: _assistantCustomerPubkey }),
+                });
+                const data = await resp.json();
+                if (data.success) {
+                    status.textContent = '✅ ' + data.message;
+                    status.style.color = '#22c55e';
+                    // Reload status to show preview
+                    await loadAssistantStatus(_assistantCustomerPubkey);
+                } else {
+                    status.textContent = '❌ ' + (data.error || 'Failed');
+                    status.style.color = '#ef4444';
+                }
+            } catch (err) {
+                status.textContent = '❌ ' + err.message;
+                status.style.color = '#ef4444';
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Re-publish Kind 0 Profile';
+            }
+        }
+
+        // Note: loadAssistantStatus(pubkey) is called from checkCustomerStatus()
+        // after authentication and customer verification is complete.
+
         /**
          * Handle Kind 10040 publishing with NIP-07 signing
          * @param {string} customerPubkey - The customer's pubkey
@@ -996,8 +1131,9 @@
                     // Load new comprehensive NIP-85 status
                     loadNewNip85Status(pubkey);
                     setupNewNip85EventHandlers(pubkey);
-                    
 
+                    // Load Brainstorm Assistant status
+                    loadAssistantStatus(pubkey);
 
                 } else {
                     // User is not a customer - show signup prompt

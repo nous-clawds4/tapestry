@@ -1,0 +1,15 @@
+{
+  "word": {
+    "slug": "nostr-kind--kind-16",
+    "name": "nostr kind: 16 (Generic Repost)",
+    "title": "Nostr Kind: 16 (Generic Repost)",
+    "wordTypes": ["word", "nostrKind"]
+  },
+  "nostrKind": {
+    "kind": 16,
+    "name": "Generic Repost",
+    "nip": "NIP-18",
+    "replaceability": "regular",
+    "description": "A repost of any non-kind-1 event. The k-tag specifies the kind of the reposted event; the content contains the original event JSON. Generalizes kind 6 for arbitrary event types."
+  }
+}

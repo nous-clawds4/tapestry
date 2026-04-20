@@ -1,0 +1,14 @@
+{
+  "word": {
+    "slug": "tag--nsfw",
+    "name": "tag: nsfw",
+    "title": "Tag: NSFW",
+    "wordTypes": ["word", "tag"]
+  },
+  "tag": {
+    "slug": "nsfw",
+    "name": "NSFW",
+    "description": "Relay permits or specializes in not-safe-for-work content",
+    "applicableTo": ["nostr-relay"]
+  }
+}

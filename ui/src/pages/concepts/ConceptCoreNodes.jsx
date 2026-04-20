@@ -18,11 +18,11 @@ function NavLinks({ nodeUuid, eventId }) {
   const enc = encodeURIComponent(nodeUuid);
   return (
     <div className="constituent-nav">
-      <Link to={`/kg/databases/neo4j/nodes/${enc}`} title="Neo4j Node">🔗 Node</Link>
+      <Link to={`/tapestry/databases/neo4j/nodes/${enc}`} title="Neo4j Node">🔗 Node</Link>
       {eventId && (
-        <Link to={`/kg/lists/items/${eventId}`} title="Strfry Event">📜 Event</Link>
+        <Link to={`/tapestry/lists/items/${eventId}`} title="Strfry Event">📜 Event</Link>
       )}
-      <Link to={`/kg/databases/neo4j/nodes/${enc}/json`} title="JSON Representation">📋 JSON</Link>
+      <Link to={`/tapestry/databases/neo4j/nodes/${enc}/json`} title="JSON Representation">📋 JSON</Link>
     </div>
   );
 }

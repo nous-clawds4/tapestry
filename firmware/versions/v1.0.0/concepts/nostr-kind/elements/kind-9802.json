@@ -1,0 +1,15 @@
+{
+  "word": {
+    "slug": "nostr-kind--kind-9802",
+    "name": "nostr kind: 9802 (Highlights)",
+    "title": "Nostr Kind: 9802 (Highlights)",
+    "wordTypes": ["word", "nostrKind"]
+  },
+  "nostrKind": {
+    "kind": 9802,
+    "name": "Highlights",
+    "nip": "NIP-84",
+    "replaceability": "regular",
+    "description": "A highlighted passage from a longer piece of content (article, website, etc.). The content field contains the quoted text; context tags reference the source URL or event."
+  }
+}

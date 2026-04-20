@@ -124,7 +124,7 @@ export default function TrustDetermination() {
             </div>
             <div style={{ marginTop: '0.75rem', display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
               <Link
-                to={`/kg/users/${povPubkey}`}
+                to={`/tapestry/users/${povPubkey}`}
                 className="btn btn-sm"
                 style={{ fontSize: '0.75rem' }}
               >
@@ -286,7 +286,7 @@ export default function TrustDetermination() {
         <h3 style={{ margin: '0 0 0.5rem', fontSize: '1rem' }}>Changing Point of View</h3>
         <p style={{ fontSize: '0.85rem', opacity: 0.7, margin: 0 }}>
           To view trust from a different user's perspective, navigate to their
-          {' '}<Link to="/kg/users/search" style={{ color: '#58a6ff' }}>profile page</Link>{' '}
+          {' '}<Link to="/tapestry/users/search" style={{ color: '#58a6ff' }}>profile page</Link>{' '}
           and click the <strong>"Use as Trust PoV"</strong> button. You can always reset to
           the owner's point of view using the button above.
         </p>
@@ -403,7 +403,7 @@ function PovReadinessCheck({ povPubkey }) {
       <h3 style={{ margin: '0 0 0.75rem', fontSize: '1rem' }}>PoV Readiness</h3>
       <p style={{ fontSize: '0.8rem', opacity: 0.6, margin: '0 0 0.75rem' }}>
         Data availability for the current Point of View.
-        {' '}<Link to={`/kg/users/${povPubkey}`} style={{ color: '#58a6ff' }}>
+        {' '}<Link to={`/tapestry/users/${povPubkey}`} style={{ color: '#58a6ff' }}>
           Manage on profile page →
         </Link>
       </p>

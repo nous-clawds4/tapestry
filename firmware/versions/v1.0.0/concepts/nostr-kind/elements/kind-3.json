@@ -1,0 +1,15 @@
+{
+  "word": {
+    "slug": "nostr-kind--kind-3",
+    "name": "nostr kind: 3 (Follows)",
+    "title": "Nostr Kind: 3 (Follows)",
+    "wordTypes": ["word", "nostrKind"]
+  },
+  "nostrKind": {
+    "kind": 3,
+    "name": "Follows",
+    "nip": "NIP-02",
+    "replaceability": "replaceable",
+    "description": "A user's contact/follow list, stored as p-tags in the tags array. The latest event replaces all previous follow lists for the same pubkey."
+  }
+}

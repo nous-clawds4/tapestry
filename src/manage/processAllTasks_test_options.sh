@@ -22,7 +22,7 @@ source "$BRAINSTORM_MODULE_BASE_DIR/src/utils/structuredLogging.sh"
 source "$BRAINSTORM_MODULE_MANAGE_DIR/taskQueue/launchChildTask_test_options.sh"
 
 touch ${BRAINSTORM_LOG_DIR}/processAllTasks.log
-sudo chown brainstorm:brainstorm ${BRAINSTORM_LOG_DIR}/processAllTasks.log
+chown brainstorm:brainstorm ${BRAINSTORM_LOG_DIR}/processAllTasks.log
 
 # wrapper function which employs legacy log system; 
 # will eventually get rid of this wrapper and just run launchChildTask directly
@@ -82,10 +82,10 @@ sleep 5
 #################### syncWoT: start  ##############
 # Child Task 2: Negentropy WoT Sync using launchChildTask
 
-# use command: sudo strfry scan --count '{"kinds": [3]}' to determine how many kind 3 events exist in the local strfry database
+# use command: strfry scan --count '{"kinds": [3]}' to determine how many kind 3 events exist in the local strfry database
 # if numKind3Events < 100, then set timeout to 3 hours
 # otherwise set timeout to 5 minutes
-numKind3Events=$(sudo strfry scan --count '{"kinds": [3]}')
+numKind3Events=$(strfry scan --count '{"kinds": [3]}')
 if [ "$numKind3Events" -lt 100 ]; then
     timeoutDuration=10800000
 else

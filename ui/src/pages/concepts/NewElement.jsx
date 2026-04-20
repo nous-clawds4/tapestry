@@ -159,13 +159,13 @@ export default function NewElement() {
           <div style={{ marginTop: '1.5rem', display: 'flex', gap: '1rem' }}>
             <button
               className="btn"
-              onClick={() => navigate(`/kg/databases/neo4j/nodes/${encodeURIComponent(result.element.uuid)}`)}
+              onClick={() => navigate(`/tapestry/databases/neo4j/nodes/${encodeURIComponent(result.element.uuid)}`)}
             >
               🔵 View Node
             </button>
             <button
               className="btn"
-              onClick={() => navigate(`/kg/concepts/${encodeURIComponent(uuid)}/elements`)}
+              onClick={() => navigate(`/tapestry/concepts/${encodeURIComponent(uuid)}/elements`)}
             >
               📋 Back to Elements
             </button>

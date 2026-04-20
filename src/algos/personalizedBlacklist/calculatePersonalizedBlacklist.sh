@@ -7,7 +7,7 @@
 source /etc/brainstorm.conf # BRAINSTORM_LOG_DIR
 
 touch ${BRAINSTORM_LOG_DIR}/exportBlacklist.log
-sudo chown brainstorm:brainstorm ${BRAINSTORM_LOG_DIR}/exportBlacklist.log
+chown brainstorm:brainstorm ${BRAINSTORM_LOG_DIR}/exportBlacklist.log
 
 echo "$(date): Starting exportBlacklist"
 echo "$(date): Starting exportBlacklist" >> ${BRAINSTORM_LOG_DIR}/exportBlacklist.log  
@@ -159,8 +159,8 @@ echo "}" >> "$BLACKLIST_OUTPUT_FILE.tmp"
 
 # Move the temporary file to the final location
 mv "$BLACKLIST_OUTPUT_FILE.tmp" "$BLACKLIST_OUTPUT_FILE"
-sudo chmod 644 "$BLACKLIST_OUTPUT_FILE"
-sudo chown brainstorm:brainstorm "$BLACKLIST_OUTPUT_FILE"
+chmod 644 "$BLACKLIST_OUTPUT_FILE"
+chown brainstorm:brainstorm "$BLACKLIST_OUTPUT_FILE"
 
 echo "$(date): Continuing exportBlacklist ... about to update blacklist.conf"
 echo "$(date): Continuing exportBlacklist ... about to update blacklist.conf" >> ${BRAINSTORM_LOG_DIR}/exportBlacklist.log  
@@ -169,9 +169,9 @@ echo "$(date): Continuing exportBlacklist ... about to update blacklist.conf" >>
 TIMESTAMP=$(date +%s)
 TMP_CONF=$(mktemp)
 cat "$BLACKLIST_CONF" | sed "s/^export WHEN_LAST_CALCULATED=.*$/export WHEN_LAST_CALCULATED=$TIMESTAMP/" > "$TMP_CONF"
-sudo cp "$TMP_CONF" "$BLACKLIST_CONF"
-sudo chmod 644 "$BLACKLIST_CONF"
-sudo chown root:brainstorm "$BLACKLIST_CONF"
+cp "$TMP_CONF" "$BLACKLIST_CONF"
+chmod 644 "$BLACKLIST_CONF"
+chown root:brainstorm "$BLACKLIST_CONF"
 rm "$TMP_CONF"
 
 echo "Personalized blacklist calculation completed."

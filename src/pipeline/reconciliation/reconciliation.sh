@@ -29,7 +29,7 @@ LOG_FILE="${LOG_DIR}/reconciliation.log"
 
 # Create log file and set permissions
 touch $LOG_FILE
-sudo chown brainstorm:brainstorm $LOG_FILE
+chown brainstorm:brainstorm $LOG_FILE
 
 # Function for logging
 log() {
@@ -94,40 +94,40 @@ function cleanup() {
   trap 'emit_function_error "cleanup" "$LINENO" "$?"' ERR
 
   # clean up mutes (use -f to avoid errors if files don't exist)
-  sudo rm -f /var/lib/neo4j/import/mutesToAddToNeo4j.json
-  sudo rm -f /var/lib/neo4j/import/allKind10000EventsStripped.json
-  sudo rm -f /var/lib/neo4j/import/mutesToDeleteFromNeo4j.json
+  rm -f /var/lib/neo4j/import/mutesToAddToNeo4j.json
+  rm -f /var/lib/neo4j/import/allKind10000EventsStripped.json
+  rm -f /var/lib/neo4j/import/mutesToDeleteFromNeo4j.json
   # clean up follows
-  sudo rm -f /var/lib/neo4j/import/followsToAddToNeo4j.json
-  sudo rm -f /var/lib/neo4j/import/allKind3EventsStripped.json
-  sudo rm -f /var/lib/neo4j/import/followsToDeleteFromNeo4j.json
+  rm -f /var/lib/neo4j/import/followsToAddToNeo4j.json
+  rm -f /var/lib/neo4j/import/allKind3EventsStripped.json
+  rm -f /var/lib/neo4j/import/followsToDeleteFromNeo4j.json
   # clean up reports
-  sudo rm -f /var/lib/neo4j/import/reportsToAddToNeo4j.json
-  sudo rm -f /var/lib/neo4j/import/allKind1984EventsStripped.json
-  # sudo rm -f /var/lib/neo4j/import/reportsToDeleteFromNeo4j.json
+  rm -f /var/lib/neo4j/import/reportsToAddToNeo4j.json
+  rm -f /var/lib/neo4j/import/allKind1984EventsStripped.json
+  # rm -f /var/lib/neo4j/import/reportsToDeleteFromNeo4j.json
 
   # clean up current relationships from base directory
-  sudo rm -f $BASE_DIR/currentMutesFromStrfry.json
-  sudo rm -f $BASE_DIR/currentFollowsFromStrfry.json
-  sudo rm -f $BASE_DIR/currentReportsFromStrfry.json
+  rm -f $BASE_DIR/currentMutesFromStrfry.json
+  rm -f $BASE_DIR/currentFollowsFromStrfry.json
+  rm -f $BASE_DIR/currentReportsFromStrfry.json
 
   # clean up reconciliation/currentRelationshipsFromStrfry
-  sudo rm -rf $BASE_DIR/currentRelationshipsFromStrfry
+  rm -rf $BASE_DIR/currentRelationshipsFromStrfry
   # recreate currentRelationshipsFromStrfry/follows, currentRelationshipsFromStrfry/mutes, and currentRelationshipsFromStrfry/reports
-  sudo mkdir -p $BASE_DIR/currentRelationshipsFromStrfry/follows
-  sudo mkdir -p $BASE_DIR/currentRelationshipsFromStrfry/mutes
-  sudo mkdir -p $BASE_DIR/currentRelationshipsFromStrfry/reports
+  mkdir -p $BASE_DIR/currentRelationshipsFromStrfry/follows
+  mkdir -p $BASE_DIR/currentRelationshipsFromStrfry/mutes
+  mkdir -p $BASE_DIR/currentRelationshipsFromStrfry/reports
 
-  sudo chown -R brainstorm:brainstorm $BASE_DIR/currentRelationshipsFromStrfry
+  chown -R brainstorm:brainstorm $BASE_DIR/currentRelationshipsFromStrfry
 
   # clean up reconciliation/currentRelationshipsFromNeo4j
-  sudo rm -rf $BASE_DIR/currentRelationshipsFromNeo4j
+  rm -rf $BASE_DIR/currentRelationshipsFromNeo4j
   # recreate currentRelationshipsFromNeo4j/follows, currentRelationshipsFromNeo4j/mutes, and currentRelationshipsFromNeo4j/reports
-  sudo mkdir -p $BASE_DIR/currentRelationshipsFromNeo4j/follows
-  sudo mkdir -p $BASE_DIR/currentRelationshipsFromNeo4j/mutes
-  sudo mkdir -p $BASE_DIR/currentRelationshipsFromNeo4j/reports
+  mkdir -p $BASE_DIR/currentRelationshipsFromNeo4j/follows
+  mkdir -p $BASE_DIR/currentRelationshipsFromNeo4j/mutes
+  mkdir -p $BASE_DIR/currentRelationshipsFromNeo4j/reports
 
-  sudo chown -R brainstorm:brainstorm $BASE_DIR/currentRelationshipsFromNeo4j
+  chown -R brainstorm:brainstorm $BASE_DIR/currentRelationshipsFromNeo4j
 
   log "Completed cleanup"
   trap - ERR  # Remove trap
@@ -175,7 +175,7 @@ emit_task_event "PROGRESS" "reconciliation" "system" '{
     "data_source": "neo4j"
 }'
 START_TIME=$(date +%s)
-sudo node "${BASE_DIR}/getCurrentMutesFromNeo4j.js" \
+node "${BASE_DIR}/getCurrentMutesFromNeo4j.js" \
   --neo4jUri="${NEO4J_URI}" \
   --neo4jUser="${NEO4J_USER}" \
   --neo4jPassword="${NEO4J_PASSWORD}" \
@@ -207,9 +207,9 @@ emit_task_event "PROGRESS" "reconciliation" "system" '{
     "data_source": "strfry",
     "event_kind": 10000
 }'
-sudo bash ${BASE_DIR}/strfryToKind10000Events.sh
+bash ${BASE_DIR}/strfryToKind10000Events.sh
 log "Step 2Ab: Completed strfry to kind 10000 events"
-sudo node "${BASE_DIR}/kind10000EventsToMutes.js"
+node "${BASE_DIR}/kind10000EventsToMutes.js"
 log "Step 2Ac: Completed kind 10000 events to mutes"
 emit_task_event "PROGRESS" "reconciliation" "system" '{
     "phase": "A",
@@ -234,7 +234,7 @@ emit_task_event "PROGRESS" "reconciliation" "system" '{
     "description": "Creating JSON files for mutes updates",
     "output_files": ["mutesToAddToNeo4j.json", "mutesToDeleteFromNeo4j.json"]
 }'
-sudo node "${BASE_DIR}/calculateMutesUpdates.js"
+node "${BASE_DIR}/calculateMutesUpdates.js"
 log "Completed creating json files for adding and deleting mutes"
 emit_task_event "PROGRESS" "reconciliation" "system" '{
     "phase": "A",
@@ -260,14 +260,14 @@ emit_task_event "PROGRESS" "reconciliation" "system" '{
 }'
 # add MUTES relationships from mutesToAddToNeo4j.json
 # move mutesToAddToNeo4j.json from json folder to /var/lib/neo4j/import
-sudo mv $BASE_DIR/json/mutesToAddToNeo4j.json /var/lib/neo4j/import/mutesToAddToNeo4j.json
-sudo cypher-shell -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" -a "$NEO4J_URI" -f "$BASE_DIR/apocCypherCommands/apocCypherCommand1_mutesToAddToNeo4j" > /dev/null
+mv $BASE_DIR/json/mutesToAddToNeo4j.json /var/lib/neo4j/import/mutesToAddToNeo4j.json
+cypher-shell -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" -a "$NEO4J_URI" -f "$BASE_DIR/apocCypherCommands/apocCypherCommand1_mutesToAddToNeo4j" > /dev/null
 # delete MUTES relationships from mutesToDeleteFromNeo4j.json
-sudo mv $BASE_DIR/json/mutesToDeleteFromNeo4j.json /var/lib/neo4j/import/mutesToDeleteFromNeo4j.json
-sudo cypher-shell -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" -a "$NEO4J_URI" -f "$BASE_DIR/apocCypherCommands/apocCypherCommand1_mutesToDeleteFromNeo4j" > /dev/null
+mv $BASE_DIR/json/mutesToDeleteFromNeo4j.json /var/lib/neo4j/import/mutesToDeleteFromNeo4j.json
+cypher-shell -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" -a "$NEO4J_URI" -f "$BASE_DIR/apocCypherCommands/apocCypherCommand1_mutesToDeleteFromNeo4j" > /dev/null
 # move allKind10000EventsStripped.json from base folder to /var/lib/neo4j/import
-sudo mv $BASE_DIR/allKind10000EventsStripped.json /var/lib/neo4j/import/allKind10000EventsStripped.json
-sudo cypher-shell -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" -a "$NEO4J_URI" -f "$BASE_DIR/apocCypherCommands/apocCypherCommand2_mutes" > /dev/null
+mv $BASE_DIR/allKind10000EventsStripped.json /var/lib/neo4j/import/allKind10000EventsStripped.json
+cypher-shell -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" -a "$NEO4J_URI" -f "$BASE_DIR/apocCypherCommands/apocCypherCommand2_mutes" > /dev/null
 log "Step 4A completed applying mutes to Neo4j"
 emit_task_event "PROGRESS" "reconciliation" "system" '{
     "phase": "A",
@@ -305,7 +305,7 @@ emit_task_event "PROGRESS" "reconciliation" "system" '{
     "data_source": "neo4j"
 }'
 START_TIME=$(date +%s)
-sudo node "${BASE_DIR}/getCurrentReportsFromNeo4j.js" \
+node "${BASE_DIR}/getCurrentReportsFromNeo4j.js" \
   --neo4jUri="${NEO4J_URI}" \
   --neo4jUser="${NEO4J_USER}" \
   --neo4jPassword="${NEO4J_PASSWORD}" \
@@ -337,9 +337,9 @@ emit_task_event "PROGRESS" "reconciliation" "system" '{
     "data_source": "strfry",
     "event_kind": 1984
 }'
-sudo bash ${BASE_DIR}/strfryToKind1984Events.sh
+bash ${BASE_DIR}/strfryToKind1984Events.sh
 log "Step 2Cb: Completed strfry to kind 1984 events"
-sudo node "${BASE_DIR}/kind1984EventsToReports.js"
+node "${BASE_DIR}/kind1984EventsToReports.js"
 log "Step 2Cc: Completed kind 1984 events to reports"
 emit_task_event "PROGRESS" "reconciliation" "system" '{
     "phase": "C",
@@ -364,7 +364,7 @@ emit_task_event "PROGRESS" "reconciliation" "system" '{
     "description": "Creating JSON files for reports updates",
     "output_files": ["reportsToAddToNeo4j.json", "reportsToDeleteFromNeo4j.json"]
 }'
-sudo node "${BASE_DIR}/calculateReportsUpdates.js"
+node "${BASE_DIR}/calculateReportsUpdates.js"
 log "Completed creating json files for adding and deleting reports"
 emit_task_event "PROGRESS" "reconciliation" "system" '{
     "phase": "C",
@@ -390,14 +390,14 @@ emit_task_event "PROGRESS" "reconciliation" "system" '{
 }'
 # add REPORTS relationships from reportsToAddToNeo4j.json
 # move reportsToAddToNeo4j.json from json folder to /var/lib/neo4j/import
-sudo mv $BASE_DIR/json/reportsToAddToNeo4j.json /var/lib/neo4j/import/reportsToAddToNeo4j.json
-sudo cypher-shell -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" -a "$NEO4J_URI" -f "$BASE_DIR/apocCypherCommands/apocCypherCommand1_reportsToAddToNeo4j" > /dev/null
+mv $BASE_DIR/json/reportsToAddToNeo4j.json /var/lib/neo4j/import/reportsToAddToNeo4j.json
+cypher-shell -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" -a "$NEO4J_URI" -f "$BASE_DIR/apocCypherCommands/apocCypherCommand1_reportsToAddToNeo4j" > /dev/null
 # delete REPORTS relationships from reportsToDeleteFromNeo4j.json
-# sudo mv $BASE_DIR/json/reportsToDeleteFromNeo4j.json /var/lib/neo4j/import/reportsToDeleteFromNeo4j.json
-# sudo cypher-shell -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" -a "$NEO4J_URI" -f "$BASE_DIR/apocCypherCommands/apocCypherCommand1_reportsToDeleteFromNeo4j" > /dev/null
+# mv $BASE_DIR/json/reportsToDeleteFromNeo4j.json /var/lib/neo4j/import/reportsToDeleteFromNeo4j.json
+# cypher-shell -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" -a "$NEO4J_URI" -f "$BASE_DIR/apocCypherCommands/apocCypherCommand1_reportsToDeleteFromNeo4j" > /dev/null
 # move allKind1984EventsStripped.json from base folder to /var/lib/neo4j/import
-sudo mv $BASE_DIR/allKind1984EventsStripped.json /var/lib/neo4j/import/allKind1984EventsStripped.json
-sudo cypher-shell -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" -a "$NEO4J_URI" -f "$BASE_DIR/apocCypherCommands/apocCypherCommand2_reports" > /dev/null
+mv $BASE_DIR/allKind1984EventsStripped.json /var/lib/neo4j/import/allKind1984EventsStripped.json
+cypher-shell -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" -a "$NEO4J_URI" -f "$BASE_DIR/apocCypherCommands/apocCypherCommand2_reports" > /dev/null
 log "Step 4C completed applying reports to Neo4j"
 emit_task_event "PROGRESS" "reconciliation" "system" '{
     "phase": "C",
@@ -435,7 +435,7 @@ emit_task_event "PROGRESS" "reconciliation" "system" '{
     "data_source": "neo4j"
 }'
 START_TIME=$(date +%s)
-sudo node "${BASE_DIR}/getCurrentFollowsFromNeo4j.js" \
+node "${BASE_DIR}/getCurrentFollowsFromNeo4j.js" \
   --neo4jUri="${NEO4J_URI}" \
   --neo4jUser="${NEO4J_USER}" \
   --neo4jPassword="${NEO4J_PASSWORD}" \
@@ -467,9 +467,9 @@ emit_task_event "PROGRESS" "reconciliation" "system" '{
     "data_source": "strfry",
     "event_kind": 3
 }'
-sudo bash ${BASE_DIR}/strfryToKind3Events.sh
+bash ${BASE_DIR}/strfryToKind3Events.sh
 log "Step 2Bb: Completed strfry to kind 3 events"
-sudo node "${BASE_DIR}/kind3EventsToFollows.js"
+node "${BASE_DIR}/kind3EventsToFollows.js"
 log "Step 2Bc: Completed kind 3 events to follows"
 emit_task_event "PROGRESS" "reconciliation" "system" '{
     "phase": "B",
@@ -494,7 +494,7 @@ emit_task_event "PROGRESS" "reconciliation" "system" '{
     "description": "Creating JSON files for follows updates",
     "output_files": ["followsToAddToNeo4j.json", "followsToDeleteFromNeo4j.json"]
 }'
-sudo node "${BASE_DIR}/calculateFollowsUpdates.js"
+node "${BASE_DIR}/calculateFollowsUpdates.js"
 log "Completed creating json files for adding and deleting follows"
 emit_task_event "PROGRESS" "reconciliation" "system" '{
     "phase": "B",
@@ -520,14 +520,14 @@ emit_task_event "PROGRESS" "reconciliation" "system" '{
 }'
 # add FOLLOWS relationships from followsToAddToNeo4j.json
 # move followsToAddToNeo4j.json from json folder to /var/lib/neo4j/import
-sudo mv $BASE_DIR/json/followsToAddToNeo4j.json /var/lib/neo4j/import/followsToAddToNeo4j.json
-sudo cypher-shell -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" -a "$NEO4J_URI" -f "$BASE_DIR/apocCypherCommands/apocCypherCommand1_followsToAddToNeo4j" > /dev/null
+mv $BASE_DIR/json/followsToAddToNeo4j.json /var/lib/neo4j/import/followsToAddToNeo4j.json
+cypher-shell -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" -a "$NEO4J_URI" -f "$BASE_DIR/apocCypherCommands/apocCypherCommand1_followsToAddToNeo4j" > /dev/null
 # delete FOLLOWS relationships from followsToDeleteFromNeo4j.json
-sudo mv $BASE_DIR/json/followsToDeleteFromNeo4j.json /var/lib/neo4j/import/followsToDeleteFromNeo4j.json
-sudo cypher-shell -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" -a "$NEO4J_URI" -f "$BASE_DIR/apocCypherCommands/apocCypherCommand1_followsToDeleteFromNeo4j" > /dev/null
+mv $BASE_DIR/json/followsToDeleteFromNeo4j.json /var/lib/neo4j/import/followsToDeleteFromNeo4j.json
+cypher-shell -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" -a "$NEO4J_URI" -f "$BASE_DIR/apocCypherCommands/apocCypherCommand1_followsToDeleteFromNeo4j" > /dev/null
 # move allKind3EventsStripped.json from base folder to /var/lib/neo4j/import
-sudo mv $BASE_DIR/allKind3EventsStripped.json /var/lib/neo4j/import/allKind3EventsStripped.json
-sudo cypher-shell -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" -a "$NEO4J_URI" -f "$BASE_DIR/apocCypherCommands/apocCypherCommand2_follows" > /dev/null
+mv $BASE_DIR/allKind3EventsStripped.json /var/lib/neo4j/import/allKind3EventsStripped.json
+cypher-shell -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" -a "$NEO4J_URI" -f "$BASE_DIR/apocCypherCommands/apocCypherCommand2_follows" > /dev/null
 log "Step 4B completed applying follows to Neo4j"
 emit_task_event "PROGRESS" "reconciliation" "system" '{
     "phase": "B",
@@ -544,7 +544,7 @@ emit_task_event "PROGRESS" "reconciliation" "system" '{
 # Step 5B: Run processNpubsUpToMaxNumBlocks until all npubs are processed
 # MAX_ITERATIONS=5
 # log "Step 5B: Running processNpubsUpToMaxNumBlocks until all npubs are processed"
-# sudo bash $BRAINSTORM_MODULE_SRC_DIR/manage/nostrUsers/processNpubsUpToMaxNumBlocks.sh $MAX_ITERATIONS
+# bash $BRAINSTORM_MODULE_SRC_DIR/manage/nostrUsers/processNpubsUpToMaxNumBlocks.sh $MAX_ITERATIONS
 # log "Step 5B completed running processNpubsUpToMaxNumBlocks until all npubs are processed"
 
 # Step 6B: Project followsGraph into memory
@@ -555,7 +555,7 @@ emit_task_event "PROGRESS" "reconciliation" \
     "step=6B" \
     "operation=project_follows_graph" \
     "description=Projecting followsGraph into memory"
-sudo bash $BRAINSTORM_MODULE_SRC_DIR/algos/projectFollowsGraphIntoMemory.sh
+bash $BRAINSTORM_MODULE_SRC_DIR/algos/projectFollowsGraphIntoMemory.sh
 log "Step 6B completed projecting followsGraph into memory"
 emit_task_event "PROGRESS" "reconciliation" \
     "system" \

@@ -5,7 +5,7 @@
 echo "Starting processAllTasks timer service..."
 
 # Start processAllTasks timer
-sudo systemctl start processAllTasks.timer
+systemctl start processAllTasks.timer
 
 echo "processAllTasks timer service started successfully."
 

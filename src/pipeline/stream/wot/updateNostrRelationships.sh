@@ -35,7 +35,7 @@ for queue_file in "$@"; do
         tag_type="p"
     else
         echo "Unsupported event kind: $event_kind. Removing from queue."
-        sudo rm "$queue_file"
+        rm "$queue_file"
         continue
     fi
 
@@ -51,7 +51,7 @@ for queue_file in "$@"; do
     MATCH (u:NostrUser {pubkey:'$pk_author'})-[r:$relationship_type]->(target:NostrUser)
     RETURN u.pubkey AS pk_author, target.pubkey AS pk_target
     "
-    sudo cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER_GET_CURRENT" --format plain > "$current_relationships_file"
+    cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER_GET_CURRENT" --format plain > "$current_relationships_file"
 
     # Process the output to create a clean JSON array
     if [ -s "$current_relationships_file" ]; then
@@ -71,14 +71,14 @@ for queue_file in "$@"; do
     fi
 
     # Step 2: Get latest event from strfry
-    sudo strfry scan "{ \"kinds\": [$event_kind], \"authors\": [\"$pk_author\"]}" > "$events_file"
+    strfry scan "{ \"kinds\": [$event_kind], \"authors\": [\"$pk_author\"]}" > "$events_file"
 
     # Read the first event (most recent)
     read -r event < "$events_file"
 
     if [ -z "$event" ]; then
         echo "No kind $event_kind event found for $pk_author. Removing from queue."
-        sudo rm "$queue_file"
+        rm "$queue_file"
         rm -f "$current_relationships_file" "$new_relationships_file" "$relationships_to_add_file" "$relationships_to_delete_file" "$events_file"
         continue
     fi
@@ -146,13 +146,13 @@ done
 # Run the batch Cypher script in a single transaction
 if [ -s "$cypher_script" ]; then
     echo "Running batch Cypher script: $cypher_script"
-    sudo cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" < "$cypher_script"
+    cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" < "$cypher_script"
     status=$?
     echo "Cypher transaction completed with status $status"
     if [ $status -eq 0 ]; then
         # Remove all processed queue files
         for queue_file in "$@"; do
-            sudo rm "$queue_file"
+            rm "$queue_file"
             echo "Removed $queue_file"
         done
         # Remove temporary files

@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Recovery script for stalled APOC processes
-# Usage: sudo bash recoverApocStall.sh [customer_name]
+# Usage: bash recoverApocStall.sh [customer_name]
 
 CUSTOMER_NAME=${1:-"laeserin"}
 CONFIG_FILE="/etc/brainstorm.conf"
@@ -120,4 +120,4 @@ echo ""
 echo "Next steps:"
 echo "1. Review the progress assessment above"
 echo "2. Run the enhanced updateNeo4jWithApoc.js script"
-echo "3. Monitor progress using: sudo bash debugApocStall.sh $CUSTOMER_NAME"
+echo "3. Monitor progress using: bash debugApocStall.sh $CUSTOMER_NAME"

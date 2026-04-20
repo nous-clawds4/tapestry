@@ -1,81 +1,88 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import Breadcrumbs from '../../components/Breadcrumbs';
 
 /**
  * Strfry overview page.
- * Uses the /api/strfry-status endpoint (scan --count) instead of fetching all events,
- * which is not feasible with millions of events in the database.
+ * Loads the total event count on mount, then lets the user load
+ * individual kind counts on demand (each scan takes a while on large DBs).
  */
 
-export default function StrfryOverview() {
-  const [status, setStatus] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+const KIND_PANELS = [
+  { kind: 0,     label: 'Profiles' },
+  { kind: 3,     label: 'Follows' },
+  { kind: 7,     label: 'Reactions' },
+  { kind: 1984,  label: 'Reports' },
+  { kind: 10000, label: 'Mutes' },
+  { kind: 9998,  label: 'DList Headers (legacy)' },
+  { kind: 9999,  label: 'DList Items (legacy)' },
+  { kind: 39998, label: 'DList Headers' },
+  { kind: 39999, label: 'DList Items' },
+];
 
+/** Fetch a single count from `/api/strfry/scan/count`. */
+async function fetchCount(filter = '{}') {
+  const url = '/api/strfry/scan/count?filter=' + encodeURIComponent(filter);
+  const resp = await fetch(url);
+  const data = await resp.json();
+  if (!data.success) throw new Error(data.error || 'Count failed');
+  return data.count;
+}
+
+export default function StrfryOverview() {
+  // Total event count (loaded on mount)
+  const [total, setTotal] = useState(null);          // null = loading, number = loaded
+  const [totalLoading, setTotalLoading] = useState(true);
+  const [totalError, setTotalError] = useState(null);
+
+  // Per-kind counts: { [kind]: { count, loading, error } }
+  const [kindCounts, setKindCounts] = useState({});
+
+  // Load total on mount
   useEffect(() => {
     let cancelled = false;
-    async function fetchStatus() {
+    (async () => {
       try {
-        setLoading(true);
-        const resp = await fetch('/api/strfry-status');
-        const data = await resp.json();
-        if (!cancelled) {
-          if (data.success) {
-            setStatus(data);
-          } else {
-            setError(data.error || 'Failed to load strfry status');
-          }
-        }
+        const count = await fetchCount('{}');
+        if (!cancelled) setTotal(count);
       } catch (err) {
-        if (!cancelled) setError(err.message);
+        if (!cancelled) setTotalError(err.message);
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) setTotalLoading(false);
       }
-    }
-    fetchStatus();
+    })();
     return () => { cancelled = true; };
   }, []);
 
-  const byKind = useMemo(() => {
-    if (!status?.events?.byKind) return [];
-    return Object.entries(status.events.byKind)
-      .map(([kind, count]) => ({ kind: parseInt(kind), count }))
-      .filter(r => r.count > 0)
-      .sort((a, b) => b.count - a.count);
-  }, [status]);
-
-  const total = status?.events?.total || 0;
-
-  const kindLabels = {
-    0: 'Profiles',
-    1: 'Notes',
-    3: 'Follows',
-    7: 'Reactions',
-    1984: 'Reports',
-    10000: 'Mutes',
-    10040: 'Trusted Assertions (10040)',
-    30382: 'Trusted Assertions (30382)',
-    30818: 'Wiki Articles',
-  };
-
-  if (loading) {
-    return (
-      <div className="page">
-        <Breadcrumbs />
-        <h1>📡 Strfry</h1>
-        <p>Loading strfry status…</p>
-      </div>
-    );
+  async function loadKindCount(kind) {
+    setKindCounts(prev => ({
+      ...prev,
+      [kind]: { ...prev[kind], loading: true, error: null },
+    }));
+    try {
+      const count = await fetchCount(JSON.stringify({ kinds: [kind] }));
+      setKindCounts(prev => ({
+        ...prev,
+        [kind]: { count, loading: false, error: null },
+      }));
+    } catch (err) {
+      setKindCounts(prev => ({
+        ...prev,
+        [kind]: { ...prev[kind], loading: false, error: err.message },
+      }));
+    }
   }
 
-  if (error) {
-    return (
-      <div className="page">
-        <Breadcrumbs />
-        <h1>📡 Strfry</h1>
-        <p className="error">Error: {error}</p>
-      </div>
-    );
+  async function refreshTotal() {
+    setTotalLoading(true);
+    setTotalError(null);
+    try {
+      const count = await fetchCount('{}');
+      setTotal(count);
+    } catch (err) {
+      setTotalError(err.message);
+    } finally {
+      setTotalLoading(false);
+    }
   }
 
   return (
@@ -88,77 +95,120 @@ export default function StrfryOverview() {
         </div>
       </div>
 
-      {/* Summary cards */}
+      {/* ── Total count card ── */}
       <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
-        gap: '1rem',
+        padding: '1.25rem',
+        border: '1px solid var(--border, #444)',
+        borderRadius: '8px',
+        backgroundColor: 'var(--bg-secondary, #1a1a2e)',
         marginBottom: '1.5rem',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '1rem',
       }}>
-        <SummaryCard label="Total Events" value={total.toLocaleString()} icon="📨" />
-        <SummaryCard label="Event Kinds" value={byKind.length} icon="📦" />
-        <SummaryCard
-          label="Service"
-          value={status?.service?.status === 'running' ? '🟢 Running' : '🔴 Stopped'}
-          icon="⚙️"
-        />
-        <SummaryCard
-          label="Recent (1h)"
-          value={(status?.events?.recent || 0).toLocaleString()}
-          icon="🕐"
-        />
+        <div style={{ fontSize: '1.75rem' }}>📨</div>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted, #888)', marginBottom: '0.25rem' }}>
+            Total Events
+          </div>
+          {totalLoading ? (
+            <div style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-muted, #888)' }}>
+              Counting…
+            </div>
+          ) : totalError ? (
+            <div style={{ fontSize: '0.9rem', color: '#ef4444' }}>Error: {totalError}</div>
+          ) : (
+            <div style={{ fontSize: '1.5rem', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
+              {(total ?? 0).toLocaleString()}
+            </div>
+          )}
+        </div>
+        <button
+          className="btn-small"
+          onClick={refreshTotal}
+          disabled={totalLoading}
+          title="Refresh total count"
+        >
+          {totalLoading ? '…' : '🔄'}
+        </button>
       </div>
 
-      {/* Events by Kind */}
-      <Section title="Events by Kind">
-        <table className="data-table" style={{ width: '100%' }}>
-          <thead>
-            <tr>
-              <th>Kind</th>
-              <th>Description</th>
-              <th style={{ textAlign: 'right' }}>Count</th>
-              <th style={{ textAlign: 'right' }}>% of Total</th>
-            </tr>
-          </thead>
-          <tbody>
-            {byKind.map(row => (
-              <tr key={row.kind}>
-                <td><code style={{ fontSize: '0.85rem' }}>{row.kind}</code></td>
-                <td style={{ fontSize: '0.85rem', opacity: 0.7 }}>{kindLabels[row.kind] || ''}</td>
-                <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{row.count.toLocaleString()}</td>
-                <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>
-                  {total > 0 ? `${((row.count / total) * 100).toFixed(1)}%` : '—'}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </Section>
-    </div>
-  );
-}
+      {/* ── Kind panels ── */}
+      <h3 style={{ marginBottom: '0.75rem' }}>Events by Kind</h3>
+      <p style={{ fontSize: '0.8rem', color: 'var(--text-muted, #888)', marginBottom: '1rem' }}>
+        Each count scans the database independently. Click a button to load the count for that kind.
+      </p>
 
-function SummaryCard({ label, value, icon }) {
-  return (
-    <div style={{
-      padding: '1rem',
-      border: '1px solid var(--border, #444)',
-      borderRadius: '8px',
-      backgroundColor: 'var(--bg-secondary, #1a1a2e)',
-      textAlign: 'center',
-    }}>
-      <div style={{ fontSize: '1.5rem', marginBottom: '0.25rem' }}>{icon}</div>
-      <div style={{ fontSize: '1.25rem', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{value}</div>
-      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted, #888)', marginTop: '0.25rem' }}>{label}</div>
-    </div>
-  );
-}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
+        gap: '0.75rem',
+      }}>
+        {KIND_PANELS.map(({ kind, label }) => {
+          const state = kindCounts[kind] || {};
+          const hasCount = state.count != null;
+          const pct = hasCount && total > 0
+            ? ((state.count / total) * 100).toFixed(1) + '%'
+            : null;
 
-function Section({ title, children }) {
-  return (
-    <div style={{ marginBottom: '1.5rem' }}>
-      <h3 style={{ marginBottom: '0.5rem' }}>{title}</h3>
-      {children}
+          return (
+            <div
+              key={kind}
+              style={{
+                padding: '1rem',
+                border: '1px solid var(--border, #444)',
+                borderRadius: '8px',
+                backgroundColor: 'var(--bg-secondary, #1a1a2e)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.5rem',
+              }}
+            >
+              {/* Header: kind + label */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <code style={{ fontSize: '0.85rem', fontWeight: 600 }}>{kind}</code>
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted, #888)', marginLeft: '0.5rem' }}>
+                    {label}
+                  </span>
+                </div>
+              </div>
+
+              {/* Count display or load button */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                {state.loading ? (
+                  <span style={{ fontSize: '0.9rem', color: 'var(--text-muted, #888)' }}>Counting…</span>
+                ) : state.error ? (
+                  <span style={{ fontSize: '0.8rem', color: '#ef4444' }}>Error</span>
+                ) : hasCount ? (
+                  <div>
+                    <span style={{ fontSize: '1.25rem', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
+                      {state.count.toLocaleString()}
+                    </span>
+                    {pct && (
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted, #888)', marginLeft: '0.5rem' }}>
+                        ({pct})
+                      </span>
+                    )}
+                  </div>
+                ) : (
+                  <span style={{ fontSize: '1rem', color: 'var(--text-muted, #888)' }}>—</span>
+                )}
+
+                <button
+                  className="btn-small"
+                  onClick={() => loadKindCount(kind)}
+                  disabled={state.loading}
+                  title={hasCount ? 'Refresh count' : 'Load count'}
+                  style={{ minWidth: '5.5rem' }}
+                >
+                  {state.loading ? '…' : hasCount ? '🔄 Refresh' : '📊 Count'}
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

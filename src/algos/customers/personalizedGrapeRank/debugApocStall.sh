@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Debug script for APOC stalling issues
-# Usage: sudo bash debugApocStall.sh [customer_name]
+# Usage: bash debugApocStall.sh [customer_name]
 
 CUSTOMER_NAME=${1:-"laeserin"}
 CONFIG_FILE="/etc/brainstorm.conf"

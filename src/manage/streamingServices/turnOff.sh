@@ -5,15 +5,15 @@
 echo "Stopping streaming services..."
 
 # Stop addToQueue service
-sudo systemctl stop addToQueue
+systemctl stop addToQueue
 sleep 1
 
 # Stop processQueue service
-sudo systemctl stop processQueue
+systemctl stop processQueue
 sleep 1
 
 # Stop strfry-router
-sudo systemctl stop strfry-router
+systemctl stop strfry-router
 sleep 3
 
 echo "Streaming services stopped successfully."

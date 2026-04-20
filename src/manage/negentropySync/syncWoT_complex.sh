@@ -8,7 +8,7 @@ source /etc/brainstorm.conf
 source "${BRAINSTORM_MODULE_BASE_DIR}/src/utils/structuredLogging.sh"
 
 touch ${BRAINSTORM_LOG_DIR}/syncWoT.log
-sudo chown brainstorm:brainstorm ${BRAINSTORM_LOG_DIR}/syncWoT.log
+chown brainstorm:brainstorm ${BRAINSTORM_LOG_DIR}/syncWoT.log
 
 # make array of relays
 # TODO: fetch these relays from brainstorm.conf
@@ -47,8 +47,8 @@ for relay in "${relays[@]}"; do
     echo "$(date): Syncing with $relay"
     echo "$(date): Syncing with $relay" >> ${BRAINSTORM_LOG_DIR}/syncWoT.log
     # launch strfry sync in background and get pid
-    # sudo strfry sync wss://$relay --filter '{"kinds": [0, 3, 1984, 10000, 30000, 38000, 38172, 38173]}' --dir down &
-    sudo strfry sync wss://$relay --filter "$filter" --dir down &
+    # strfry sync wss://$relay --filter '{"kinds": [0, 3, 1984, 10000, 30000, 38000, 38172, 38173]}' --dir down &
+    strfry sync wss://$relay --filter "$filter" --dir down &
     pid=$!
     oMetadata=$(jq -n \
     --arg description "Web of Trust data synchronization from relay" \
@@ -85,7 +85,7 @@ hardcoded_timeout=180 # don't break for at least this amount of time
 keepRunning=true
 while $keepRunning; do
     echo "*****************************************************"
-    num_events_now=$(sudo strfry scan --count '{}')
+    num_events_now=$(strfry scan --count '{}')
     num_new_events=$(($num_events_now - $num_events_last))
     syncWoT_active_time=$(($(date +%s) - $start_time))
     echo "num_events_now: $num_events_now"

@@ -4,13 +4,13 @@ set -o pipefail # Fail if any pipeline command fails
 
 # example commands:
 # straycat.brainstorm.social
-# sudo bash /usr/local/lib/node_modules/brainstorm/src/algos/customers/processCustomer.sh e5272de914bd301755c439b88e6959a43c9d2664831f093c51e9c799a16a102f 0 straycat
-# sudo bash /usr/local/lib/node_modules/brainstorm/src/algos/customers/processCustomer.sh 7cc328a08ddb2afdf9f9be77beff4c83489ff979721827d628a542f32a247c0e 1 cloudfodder
-# sudo bash /usr/local/lib/node_modules/brainstorm/src/algos/customers/processCustomer.sh c230edd34ca5c8318bf4592ac056cde37519d395c0904c37ea1c650b8ad4a712 2 dawn
-# sudo bash /usr/local/lib/node_modules/brainstorm/src/algos/customers/processCustomer.sh df67f9a7e41125745cbe7acfbdcd03691780c643df7bad70f5d2108f2d4fc200 3 manime
+# bash /usr/local/lib/node_modules/brainstorm/src/algos/customers/processCustomer.sh e5272de914bd301755c439b88e6959a43c9d2664831f093c51e9c799a16a102f 0 straycat
+# bash /usr/local/lib/node_modules/brainstorm/src/algos/customers/processCustomer.sh 7cc328a08ddb2afdf9f9be77beff4c83489ff979721827d628a542f32a247c0e 1 cloudfodder
+# bash /usr/local/lib/node_modules/brainstorm/src/algos/customers/processCustomer.sh c230edd34ca5c8318bf4592ac056cde37519d395c0904c37ea1c650b8ad4a712 2 dawn
+# bash /usr/local/lib/node_modules/brainstorm/src/algos/customers/processCustomer.sh df67f9a7e41125745cbe7acfbdcd03691780c643df7bad70f5d2108f2d4fc200 3 manime
 
 # cloudfodder.brainstorm.social
-# sudo bash /usr/local/lib/node_modules/brainstorm/src/algos/customers/processCustomer.sh dd664d5e4016433a8cd69f005ae1480804351789b59de5af06276de65633d319 0 laeserin
+# bash /usr/local/lib/node_modules/brainstorm/src/algos/customers/processCustomer.sh dd664d5e4016433a8cd69f005ae1480804351789b59de5af06276de65633d319 0 laeserin
 
 CONFIG_FILE="/etc/brainstorm.conf"
 source "$CONFIG_FILE"
@@ -35,20 +35,24 @@ CUSTOMER_PUBKEY="$1"
 CUSTOMER_ID="$2"
 
 # Get customer_directory_name
-CUSTOMER_DIRECTORY_NAME="$3"  
+CUSTOMER_DIRECTORY_NAME="$3"
+
+# Optional 4th argument: warmStart flag, forwarded to updateAllScoresForSingleCustomer
+# and ultimately to the GrapeRank calculation for this customer.
+WARM_START="${4:-}"
 
 # Get log directory
 LOG_DIR="$BRAINSTORM_LOG_DIR/customers/$CUSTOMER_DIRECTORY_NAME"
 
 # Create log directory if it doesn't exist; chown to brainstorm user
 mkdir -p "$LOG_DIR"
-sudo chown brainstorm:brainstorm "$LOG_DIR"
+chown brainstorm:brainstorm "$LOG_DIR"
 
 # Log file
 LOG_FILE="$LOG_DIR/processCustomer.log"
 
 touch ${LOG_FILE}
-sudo chown brainstorm:brainstorm ${LOG_FILE}
+chown brainstorm:brainstorm ${LOG_FILE}
 
 # Log start time (legacy format for backward compatibility)
 echo "$(date): Starting processCustomer for customer_directory_name $CUSTOMER_DIRECTORY_NAME customer_pubkey $CUSTOMER_PUBKEY and customer_id $CUSTOMER_ID"
@@ -60,11 +64,13 @@ oMetadata=$(jq -n \
     --argjson customer_id "$CUSTOMER_ID" \
     --arg customer_directory_name "$CUSTOMER_DIRECTORY_NAME" \
     --arg customer_pubkey "$CUSTOMER_PUBKEY" \
+    --arg warm_start "$WARM_START" \
     '{
-        "message": $message, 
-        "customer_id": $customer_id, 
-        "customer_directory_name": $customer_directory_name, 
-        "customer_pubkey": $customer_pubkey
+        "message": $message,
+        "customer_id": $customer_id,
+        "customer_directory_name": $customer_directory_name,
+        "customer_pubkey": $customer_pubkey,
+        "warm_start": $warm_start
     }')
 emit_task_event "TASK_START" "processCustomer" "" "$oMetadata"
 
@@ -74,7 +80,7 @@ TASK_TIMER=$(start_task_timer "processCustomer" "$CUSTOMER_PUBKEY" '{"customerId
 echo "$(date): Continuing processCustomer; starting prepareNeo4jForCustomerData.sh"
 echo "$(date): Continuing processCustomer; starting prepareNeo4jForCustomerData.sh" >> "$LOG_FILE"
 
-sudo bash $BRAINSTORM_MODULE_BASE_DIR/src/cns/prepareNeo4jForCustomerData.sh $CUSTOMER_PUBKEY $CUSTOMER_ID $CUSTOMER_DIRECTORY_NAME # do preliminary steps for GrapeRank that are common to all customers, i.e. generate all ratings
+bash $BRAINSTORM_MODULE_BASE_DIR/src/cns/prepareNeo4jForCustomerData.sh $CUSTOMER_PUBKEY $CUSTOMER_ID $CUSTOMER_DIRECTORY_NAME # do preliminary steps for GrapeRank that are common to all customers, i.e. generate all ratings
 
 echo "$(date): Continuing processCustomer; starting updateAllScoresForSingleCustomer.sh"
 echo "$(date): Continuing processCustomer; starting updateAllScoresForSingleCustomer.sh" >> "$LOG_FILE"
@@ -91,9 +97,9 @@ run_with_timeout() {
     # Create a unique marker file to detect completion
     COMPLETION_MARKER="/tmp/scores_completed_${CUSTOMER_ID}_$(date +%s)"
     
-    # Run the script in background
+    # Run the script in background (forward WARM_START as optional 4th arg)
     {
-        sudo bash $BRAINSTORM_MODULE_ALGOS_DIR/customers/updateAllScoresForSingleCustomer.sh $CUSTOMER_PUBKEY $CUSTOMER_ID $CUSTOMER_DIRECTORY_NAME
+        bash $BRAINSTORM_MODULE_ALGOS_DIR/customers/updateAllScoresForSingleCustomer.sh $CUSTOMER_PUBKEY $CUSTOMER_ID $CUSTOMER_DIRECTORY_NAME $WARM_START
         # Create marker file upon successful completion
         touch "$COMPLETION_MARKER"
     } &
@@ -137,8 +143,8 @@ run_with_timeout() {
     echo "$(date): updateAllScoresForSingleCustomer.sh timed out after $TIMEOUT seconds" >> "$LOG_FILE"
     
     # Kill the background process and its children
-    sudo pkill -P $BG_PID 2>/dev/null
-    sudo kill -9 $BG_PID 2>/dev/null
+    pkill -P $BG_PID 2>/dev/null
+    kill -9 $BG_PID 2>/dev/null
     
     # Clean up marker file if it exists
     rm -f "$COMPLETION_MARKER"

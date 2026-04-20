@@ -214,7 +214,7 @@
             
             // Load current configuration
             function loadCurrentConfig() {
-                fetch('/control/api/get-graperank-config')
+                fetch('/api/get-graperank-config')
                     .then(response => response.json())
                     .then(data => {
                         if (data.success) {
@@ -267,7 +267,7 @@
                 }
                 
                 // Send updated configuration to the server
-                fetch('/control/api/post-graperank-config', {
+                fetch('/api/post-graperank-config', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -330,7 +330,7 @@
                 generateGrapeRankStatus.textContent = 'Generating GrapeRank data...';
                 generateGrapeRankOutput.style.display = 'none';
                 
-                fetch('/control/api/generate-graperank', {
+                fetch('/api/generate-graperank', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -349,7 +349,7 @@
                             
                             // Update the last calculated time
                             const now = Math.floor(Date.now() / 1000);
-                            fetch('/control/api/post-graperank-config', {
+                            fetch('/api/post-graperank-config', {
                                 method: 'POST',
                                 headers: {
                                     'Content-Type': 'application/json'

@@ -9,5 +9,5 @@ cd /usr/local/lib/node_modules/brainstorm/src/pipeline/batch/
 node kind10000EventsToMutes.js
 
 # Move files to Neo4j import directory
-sudo mv mutesToAddToNeo4j.json /var/lib/neo4j/import/mutesToAddToNeo4j.json
-sudo mv allKind10000EventsStripped.json /var/lib/neo4j/import/allKind10000EventsStripped.json
+mv mutesToAddToNeo4j.json /var/lib/neo4j/import/mutesToAddToNeo4j.json
+mv allKind10000EventsStripped.json /var/lib/neo4j/import/allKind10000EventsStripped.json

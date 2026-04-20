@@ -181,9 +181,9 @@ export default function NewDListItem() {
       const ev = data.event;
       if (ev.kind === 39999) {
         const d = ev.tags.find(t => t[0] === 'd')?.[1];
-        navigate(`/kg/lists/items/${encodeURIComponent(`39999:${ev.pubkey}:${d}`)}`);
+        navigate(`/tapestry/lists/items/${encodeURIComponent(`39999:${ev.pubkey}:${d}`)}`);
       } else {
-        navigate(`/kg/lists/items/${encodeURIComponent(ev.id)}`);
+        navigate(`/tapestry/lists/items/${encodeURIComponent(ev.id)}`);
       }
     } catch (err) {
       setError(err.message);

@@ -1,0 +1,15 @@
+{
+  "word": {
+    "slug": "nostr-kind--kind-6",
+    "name": "nostr kind: 6 (Repost)",
+    "title": "Nostr Kind: 6 (Repost)",
+    "wordTypes": ["word", "nostrKind"]
+  },
+  "nostrKind": {
+    "kind": 6,
+    "name": "Repost",
+    "nip": "NIP-18",
+    "replaceability": "regular",
+    "description": "A repost of a kind-1 short text note, with the original event JSON in the content field and an e-tag pointing to the original event."
+  }
+}

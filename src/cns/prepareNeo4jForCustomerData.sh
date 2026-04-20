@@ -6,12 +6,12 @@
 # 1. every NostrUser has a single associated SetOfNostrUserWotMetricsCards node.
 # 2. each SetOfNostrUserWotMetricsCards node has a single associated NostrUserWotMetricsCard node for the given customer.
 # It is called with a command like:
-# sudo bash prepareNeo4jForCustomerData.sh <customer_id> <customer_pubkey>
+# bash prepareNeo4jForCustomerData.sh <customer_id> <customer_pubkey>
 # which in turn calls two other scripts:
-# sudo bash addSetsOfMetricsCards.sh (property 1)
-# sudo bash addMetricsCards.sh <customer_id> <customer_pubkey> (property 2)
+# bash addSetsOfMetricsCards.sh (property 1)
+# bash addMetricsCards.sh <customer_id> <customer_pubkey> (property 2)
 # Example: (cloudfodder.brainstorm.social)
-# sudo bash prepareNeo4jForCustomerData.sh 52387c6b99cc42aac51916b08b7b51d2baddfc19f2ba08d82a48432849dbdfb2 2
+# bash prepareNeo4jForCustomerData.sh 52387c6b99cc42aac51916b08b7b51d2baddfc19f2ba08d82a48432849dbdfb2 2
 
 source /etc/brainstorm.conf # NEO4J_URI, NEO4J_USER, NEO4J_PASSWORD, BRAINSTORM_LOG_DIR
 
@@ -38,13 +38,13 @@ LOG_DIR="$BRAINSTORM_LOG_DIR/customers/$CUSTOMER_DIRECTORY_NAME"
 
 # Create log directory if it doesn't exist; chown to brainstorm user
 mkdir -p "$LOG_DIR"
-sudo chown brainstorm:brainstorm "$LOG_DIR"
+chown brainstorm:brainstorm "$LOG_DIR"
 
 # Log file
 LOG_FILE="$LOG_DIR/prepareNeo4jForCustomerData.log"
 
 touch ${LOG_FILE}
-sudo chown brainstorm:brainstorm ${LOG_FILE}
+chown brainstorm:brainstorm ${LOG_FILE}
 
 # TODO: check if CUSTOMER_ID and CUSTOMER_PUBKEY are valid
 
@@ -89,8 +89,20 @@ oMetadata=$(jq -n \
     }')
 emit_task_event "PROGRESS" "prepareNeo4jForCustomerData" "$CUSTOMER_PUBKEY" "$oMetadata"
 
+# Ensure the observer (customer) always has a NostrUser node and SetOfNostrUserWotMetricsCards,
+# regardless of hop distance from the owner. Without this, customers who aren't followed by
+# anyone (hops=999) would never get scored because addSetsOfMetricsCards.sh filters on hops<100.
+cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "
+MERGE (n:NostrUser {pubkey: '$CUSTOMER_PUBKEY'})
+MERGE (n)-[:WOT_METRICS_CARDS]->(s:Set:SetOfNostrUserWotMetricsCards)
+SET s.observee_pubkey = n.pubkey
+RETURN count(s) AS created
+"
+echo "$(date): Ensured observer $CUSTOMER_PUBKEY has SetOfNostrUserWotMetricsCards"
+echo "$(date): Ensured observer $CUSTOMER_PUBKEY has SetOfNostrUserWotMetricsCards" >> ${LOG_FILE}
+
 # Add SetOfNostrUserWotMetricsCards nodes to the neo4j database. This does not require customer_id or customer_pubkey.
-if sudo bash $BRAINSTORM_MODULE_BASE_DIR/src/cns/addSetsOfMetricsCards.sh; then
+if bash $BRAINSTORM_MODULE_BASE_DIR/src/cns/addSetsOfMetricsCards.sh; then
     # Emit structured event for first child script success
     oMetadata=$(jq -n \
         --argjson customer_id "$CUSTOMER_ID" \
@@ -145,7 +157,7 @@ oMetadata=$(jq -n \
 emit_task_event "PROGRESS" "prepareNeo4jForCustomerData" "$CUSTOMER_PUBKEY" "$oMetadata"
 
 # Add NostrUserWotMetricsCard nodes to the neo4j database for the given customer
-if sudo bash $BRAINSTORM_MODULE_BASE_DIR/src/cns/addMetricsCards.sh $CUSTOMER_PUBKEY $CUSTOMER_ID $CUSTOMER_DIRECTORY_NAME; then
+if bash $BRAINSTORM_MODULE_BASE_DIR/src/cns/addMetricsCards.sh $CUSTOMER_PUBKEY $CUSTOMER_ID $CUSTOMER_DIRECTORY_NAME; then
     # Emit structured event for second child script success
     oMetadata=$(jq -n \
         --argjson customer_id "$CUSTOMER_ID" \

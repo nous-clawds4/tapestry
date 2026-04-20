@@ -1,0 +1,21 @@
+{
+  "word": {
+    "slug": "concept-header-for-the-concept-of-nostr-kinds",
+    "name": "concept header for the concept of nostr kinds",
+    "title": "Concept Header for the Concept of Nostr Kinds",
+    "wordTypes": ["word", "conceptHeader"]
+  },
+  "conceptHeader": {
+    "description": "A Nostr kind is an integer field on a Nostr event (0–65535) that classifies the event's purpose and replaceability. Key kinds: 0 (user metadata/profile), 1 (short text note), 3 (follow/contact list), 7 (reaction), 10000 (mute list). Replaceable events (10000–19999, 20000–29999) may be overwritten by a newer event from the same pubkey. Parameterized-replaceable events (30000–39999) are addressed by kind:pubkey:d-tag and include DList events (39998/39999) used by Tapestry.",
+    "oNames": { "singular": "nostr kind", "plural": "nostr kinds" },
+    "oSlugs": { "singular": "nostr-kind", "plural": "nostr-kinds" },
+    "oKeys": { "singular": "nostrKind", "plural": "nostrKinds" },
+    "oTitles": { "singular": "Nostr Kind", "plural": "Nostr Kinds" },
+    "oLabels": { "singular": "NostrKind", "plural": "NostrKinds" },
+    "x-tapestry": {
+      "neo4j": {
+        "nodeLabelRequired": false
+      }
+    }
+  }
+}

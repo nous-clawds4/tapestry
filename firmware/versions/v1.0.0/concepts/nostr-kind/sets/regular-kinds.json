@@ -1,0 +1,14 @@
+{
+  "word": {
+    "slug": "the-set-of-regular-nostr-kinds",
+    "name": "The set of regular nostr kinds",
+    "title": "The Set of Regular Nostr Kinds",
+    "wordTypes": ["word", "set"]
+  },
+  "set": {
+    "slug": "regular-kinds",
+    "name": "regular kinds",
+    "title": "Regular Kinds",
+    "description": "Nostr event kinds that are regular (non-replaceable): each event is stored independently and not superseded by later events of the same kind and pubkey."
+  }
+}

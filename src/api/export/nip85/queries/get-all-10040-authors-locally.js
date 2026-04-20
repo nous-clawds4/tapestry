@@ -10,7 +10,7 @@ async function handleGetAll10040AuthorsLocally(req, res) {
         console.log('[get-all-10040-authors-locally] Starting to scan for Kind 10040 events...');
         
         // Execute strfry scan command to get all Kind 10040 events
-        const strfryCommand = `sudo strfry scan '{"kinds":[10040]}'`;
+        const strfryCommand = `strfry scan '{"kinds":[10040]}'`;
         
         console.log('[get-all-10040-authors-locally] Executing command:', strfryCommand);
         

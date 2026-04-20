@@ -1,0 +1,15 @@
+{
+  "word": {
+    "slug": "nostr-kind--kind-9",
+    "name": "nostr kind: 9 (Chat Message)",
+    "title": "Nostr Kind: 9 (Chat Message)",
+    "wordTypes": ["word", "nostrKind"]
+  },
+  "nostrKind": {
+    "kind": 9,
+    "name": "Chat Message",
+    "nip": "NIP-C7",
+    "replaceability": "regular",
+    "description": "A plain-text chat message intended for a specific room or channel. Uses h-tags to indicate the chat room and e-tags for threading."
+  }
+}

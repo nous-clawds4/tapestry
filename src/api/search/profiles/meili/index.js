@@ -14,6 +14,52 @@ const NOSTR_SEARCH_URL = process.env.NOSTR_SEARCH_URL || 'http://nostr-search-ap
 const fs = require('fs');
 const path = require('path');
 
+// ── NIP-05 verification ──────────────────────────────────────────
+const NIP05_REGEX = /^(?:([\w.+-]+)@)?([\w_-]+(\.[\w_-]+)+)$/;
+const MEILI_URL = process.env.MEILI_URL || 'http://nostr-search-meili:7700';
+const MEILI_INDEX = process.env.MEILI_INDEX || 'profiles';
+
+/**
+ * Verify a NIP-05 identifier by fetching the domain's .well-known/nostr.json.
+ * Returns the hex pubkey if valid, null otherwise. 5-second timeout.
+ */
+async function verifyNip05(nip05Address) {
+  const match = nip05Address.match(NIP05_REGEX);
+  if (!match) return null;
+  const name = match[1] || '_';
+  const domain = match[2];
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 5000);
+    const resp = await fetch(
+      `https://${domain}/.well-known/nostr.json?name=${encodeURIComponent(name)}`,
+      { signal: controller.signal }
+    );
+    clearTimeout(timer);
+    if (!resp.ok) return null;
+    const json = await resp.json();
+    const pubkey = json.names?.[name] || json.names?.[name.toLowerCase()];
+    if (!pubkey || !/^[0-9a-f]{64}$/.test(pubkey)) return null;
+    return pubkey;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Fetch a single profile document from Meilisearch by pubkey.
+ * Returns the document or null.
+ */
+async function fetchMeiliDocument(pubkey) {
+  try {
+    const resp = await fetch(`${MEILI_URL}/indexes/${MEILI_INDEX}/documents/${pubkey}`);
+    if (!resp.ok) return null;
+    return await resp.json();
+  } catch {
+    return null;
+  }
+}
+
 const USER_PREFS_DIR = '/var/lib/brainstorm/user-prefs';
 
 /**
@@ -55,6 +101,26 @@ async function handleMeiliSearchProfiles(req, res) {
   }
 
   try {
+    // ── Direct pubkey lookup (bypasses WoT filtering/sorting entirely) ──
+    const pubkeyLookup = req.query.pubkeyLookup;
+    if (pubkeyLookup && /^[0-9a-f]{64}$/.test(pubkeyLookup)) {
+      const document = await fetchMeiliDocument(pubkeyLookup);
+      return res.json({
+        success: true,
+        hits: document ? [document] : [],
+        estimatedTotalHits: document ? 1 : 0,
+        processingTimeMs: 0,
+        query: q.trim(),
+        povSuffix: null,
+      });
+    }
+
+    // ── NIP-05 lookup (runs in parallel with normal search) ──
+    const nip05Lookup = req.query.nip05Lookup;
+    const nip05Promise = (nip05Lookup && NIP05_REGEX.test(nip05Lookup))
+      ? verifyNip05(nip05Lookup).then(pubkey => pubkey ? fetchMeiliDocument(pubkey) : null)
+      : Promise.resolve(null);
+
     // ── Step 1: Load house preferences (always needed as fallback) ──
     let housePrefs = {};
     try {
@@ -114,20 +180,30 @@ async function handleMeiliSearchProfiles(req, res) {
       url.searchParams.set('sort', `wot_followers_${povSuffix}:desc`);
     }
 
-    // ── Step 4: Forward to nostr-search-api ──
-    const response = await fetch(url.toString());
+    // ── Step 4: Forward to nostr-search-api (parallel with NIP-05 if active) ──
+    const [searchResponse, nip05Doc] = await Promise.all([
+      fetch(url.toString()),
+      nip05Promise.catch(() => null),
+    ]);
 
-    if (!response.ok) {
-      const text = await response.text();
-      console.error(`[meili-proxy] nostr-search-api returned ${response.status}: ${text.slice(0, 300)}`);
+    if (!searchResponse.ok) {
+      const text = await searchResponse.text();
+      console.error(`[meili-proxy] nostr-search-api returned ${searchResponse.status}: ${text.slice(0, 300)}`);
       return res.status(502).json({
         success: false,
         error: 'Search service unavailable',
-        detail: `nostr-search-api returned ${response.status}`,
+        detail: `nostr-search-api returned ${searchResponse.status}`,
       });
     }
 
-    const data = await response.json();
+    const data = await searchResponse.json();
+
+    // Deduplicate: remove NIP-05 profile from normal results if present
+    const nip05Result = nip05Doc ? { ...nip05Doc, _nip05Verified: true } : null;
+    if (nip05Result && data.hits) {
+      const nip05Pubkey = nip05Result.pubkey || nip05Result.id;
+      data.hits = data.hits.filter(h => (h.pubkey || h.id) !== nip05Pubkey);
+    }
 
     // Count how many hits have scores for this POV
     const wotCount = data.hits ? data.hits.filter(h => h[`wot_rank_${povSuffix}`] != null).length : 0;
@@ -135,6 +211,7 @@ async function handleMeiliSearchProfiles(req, res) {
     return res.json({
       success: true,
       povSuffix,
+      nip05Result,
       _wotCount: wotCount,
       _filtered: !!(filters && povSuffix),
       ...data,

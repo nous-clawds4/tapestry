@@ -56,7 +56,7 @@
             document.getElementById('networkContainer').innerHTML = 
                 '<div class="loading-indicator">Loading network data...</div>';
             
-            const apiUrl = `${window.location.origin}/control/api/get-network-proximity?pubkey=${encodeURIComponent(pubkey)}&limit=50`;
+            const apiUrl = `${window.location.origin}/api/get-network-proximity?pubkey=${encodeURIComponent(pubkey)}&limit=50`;
             console.log('Fetching network data from:', apiUrl);
             
             fetch(apiUrl)

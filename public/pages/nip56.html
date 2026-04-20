@@ -539,7 +539,7 @@
             // Already loaded, nothing to do
             return;
         }
-        fetch(`/control/api/get-kind0?pubkey=${pubkey}`)
+        fetch(`/api/get-kind0?pubkey=${pubkey}`)
             .then(response => response.json())
             .then(data => {
                 let profileData = null;

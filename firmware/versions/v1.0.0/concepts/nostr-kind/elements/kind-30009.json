@@ -1,0 +1,15 @@
+{
+  "word": {
+    "slug": "nostr-kind--kind-30009",
+    "name": "nostr kind: 30009 (Badge Definition)",
+    "title": "Nostr Kind: 30009 (Badge Definition)",
+    "wordTypes": ["word", "nostrKind"]
+  },
+  "nostrKind": {
+    "kind": 30009,
+    "name": "Badge Definition",
+    "nip": "NIP-58",
+    "replaceability": "parameterized-replaceable",
+    "description": "Defines a badge that can be awarded to users. Contains a name, description, image, and thumbnail; identified by the issuer's pubkey and d-tag. Awarded via kind-8 events."
+  }
+}

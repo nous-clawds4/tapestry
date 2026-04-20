@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import Breadcrumbs from '../../components/Breadcrumbs';
 import useProfiles from '../../hooks/useProfiles';
-import { OWNER_PUBKEY, TA_PUBKEY, DAVE_PUBKEY } from '../../config/pubkeys';
+import { OWNER_PUBKEY, DAVE_PUBKEY } from '../../config/pubkeys';
+import { useConfig } from '../../context/ConfigContext';
 
 function shortPubkey(pk) {
   if (!pk) return '—';
@@ -9,6 +10,7 @@ function shortPubkey(pk) {
 }
 
 export default function Neo4jOverview() {
+  const { taPubkey: TA_PUBKEY } = useConfig();
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);

@@ -33,11 +33,11 @@ function handleRunScript(req, res) {
         }
         
         // Make script executable if it's not already
-        execSync(`sudo chmod +x ${script}`);
+        execSync(`chmod +x ${script}`);
         
         // Execute the script
         console.log(`Executing ${script}...`);
-        const output = execSync(`sudo ${script}`, { timeout: 60000 }).toString();
+        const output = execSync(`${script}`, { timeout: 60000 }).toString();
         
         return res.json({
             success: true,

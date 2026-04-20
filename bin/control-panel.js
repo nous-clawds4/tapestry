@@ -120,7 +120,15 @@ app.use(cors({
 app.use(express.json({ limit: '100mb' }));
 app.use(express.urlencoded({ extended: true, limit: '100mb' }));
 
-// Serve static files from the public directory with proper MIME types
+// Serve React SPA assets (JS, CSS, SVG, fonts) from Vite build output
+app.use(express.static(path.join(__dirname, '../dist'), {
+    setHeaders: (res, filePath) => {
+        if (filePath.endsWith('.css')) res.set('Content-Type', 'text/css');
+        else if (filePath.endsWith('.js')) res.set('Content-Type', 'text/javascript');
+    }
+}));
+
+// Serve static files from the public directory (legacy assets: CSS, JS, images)
 app.use(express.static(path.join(__dirname, '../public'), {
     setHeaders: (res, path, stat) => {
         if (path.endsWith('.css')) {
@@ -135,6 +143,10 @@ app.use(express.static(path.join(__dirname, '../public'), {
 
 // Serve static files under /control/ prefix (for nginx-less local/Docker setups)
 app.use('/control', express.static(path.join(__dirname, '../public')));
+
+// Serve public assets under /legacy/ so relative paths in legacy HTML pages
+// (e.g. ./components/header/header.js, ./css/common.css) resolve correctly.
+app.use('/legacy', express.static(path.join(__dirname, '../public')));
 
 // Serve Chart.js from node_modules
 app.use('/libs/chart.js', express.static(path.join(__dirname, '../node_modules/chart.js/dist')));
@@ -200,23 +212,32 @@ function serveHtmlFile(filename, res) {
     }
 }
 
-// Serve the HTML files - consolidated approach
-// Root path serves index.html
-app.get('/', (req, res) => {
+// Legacy Brainstorm pages — served under /legacy/
+app.get('/legacy', (req, res) => {
     serveHtmlFile('index.html', res);
 });
-
-// Generic handler for all HTML files
-app.get('/:filename.html', (req, res) => {
+app.get('/legacy/:filename.html', (req, res) => {
     const filename = req.params.filename + '.html';
-    console.log(`[SERVER] Route hit: /${filename}`);
+    console.log(`[SERVER] Legacy route hit: /legacy/${filename}`);
     serveHtmlFile(filename, res);
 });
 
-// SPA fallback for React Router (/kg/* routes that aren't static files)
-app.get('/kg/*', (req, res) => {
-    res.sendFile(path.join(__dirname, '../public/kg/index.html'));
+// Redirect bare /*.html requests to /legacy/*.html so internal links in
+// legacy HTML pages work without modification. Preserves query string.
+// Use 302 (not 301) — browsers cache 301 redirects permanently, which
+// causes query-string parameters to be lost on subsequent requests.
+app.get('/:filename.html', (req, res) => {
+    const qs = req._parsedUrl.search || '';
+    res.redirect(302, `/legacy/${req.params.filename}.html${qs}`);
 });
+
+// Swagger UI — serve OpenAPI docs at /docs (before auth so docs are public)
+const swaggerUi = require('swagger-ui-express');
+const yaml = require('js-yaml');
+const openapiSpec = yaml.load(fs.readFileSync(path.join(__dirname, '../src/api/openapi.yaml'), 'utf8'));
+app.use('/docs', swaggerUi.serve, swaggerUi.setup(openapiSpec, {
+  customSiteTitle: 'Tapestry API Docs',
+}));
 
 // Apply auth middleware
 app.use(authMiddleware);
@@ -226,10 +247,16 @@ app.use(authMiddleware);
   await api.register(app);
   console.log('API routes registered');
 
-  // SPA catch-all: any /kg/* route that didn't match a static file or API endpoint
+  // Initialize the scheduled tasks timer (restores schedule from config if enabled)
+  const scheduledTasks = require('../src/api/scheduled-tasks');
+  scheduledTasks.initScheduler();
+
+  // SPA catch-all: any route that didn't match a static file, API endpoint, or legacy page
   // gets served the React app's index.html so client-side routing works on refresh.
-  app.get('/kg/*', (req, res) => {
-    res.sendFile(path.join(__dirname, '../public/kg/index.html'));
+  app.get('*', (req, res, next) => {
+    // Don't catch API routes (already handled above)
+    if (req.path.startsWith('/api/')) return next();
+    res.sendFile(path.join(__dirname, '../dist/index.html'));
   });
 
   if (useHTTPS) {

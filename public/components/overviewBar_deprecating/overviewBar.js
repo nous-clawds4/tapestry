@@ -147,7 +147,7 @@ class OverviewBar {
         // Determine if we're in the /control/ path
         const isControlPath = window.location.pathname.startsWith('/control/');
         const apiUrl = isControlPath ? 
-            window.location.origin + '/control/api/instance-status' : 
+            window.location.origin + '/api/instance-status' : 
             window.location.origin + '/api/instance-status';
         
         console.log('Fetching from:', apiUrl);

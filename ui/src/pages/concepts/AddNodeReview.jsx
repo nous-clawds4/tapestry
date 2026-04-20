@@ -86,7 +86,7 @@ export default function AddNodeReview() {
         <button
           className="btn"
           style={{ marginTop: '1rem' }}
-          onClick={() => navigate(`/kg/concepts/${encodeURIComponent(uuid)}/elements/add-node`)}
+          onClick={() => navigate(`/tapestry/concepts/${encodeURIComponent(uuid)}/elements/add-node`)}
         >
           ← Back to Node Selection
         </button>
@@ -119,19 +119,19 @@ export default function AddNodeReview() {
           <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
             <button
               className="btn"
-              onClick={() => navigate(`/kg/concepts/${encodeURIComponent(uuid)}/elements`)}
+              onClick={() => navigate(`/tapestry/concepts/${encodeURIComponent(uuid)}/elements`)}
             >
               📋 Back to Elements
             </button>
             <button
               className="btn"
-              onClick={() => navigate(`/kg/databases/neo4j/nodes/${encodeURIComponent(nodeUuid)}`)}
+              onClick={() => navigate(`/tapestry/databases/neo4j/nodes/${encodeURIComponent(nodeUuid)}`)}
             >
               🔵 View Node
             </button>
             <button
               className="btn btn-primary"
-              onClick={() => navigate(`/kg/concepts/${encodeURIComponent(uuid)}/elements/add-node`)}
+              onClick={() => navigate(`/tapestry/concepts/${encodeURIComponent(uuid)}/elements/add-node`)}
             >
               🔗 Add Another
             </button>
@@ -253,7 +253,7 @@ export default function AddNodeReview() {
             <button
               className="btn"
               disabled={confirming}
-              onClick={() => navigate(`/kg/concepts/${encodeURIComponent(uuid)}/elements/add-node`)}
+              onClick={() => navigate(`/tapestry/concepts/${encodeURIComponent(uuid)}/elements/add-node`)}
             >
               ← Back to Selection
             </button>

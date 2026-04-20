@@ -1,0 +1,15 @@
+{
+  "word": {
+    "slug": "nostr-kind--kind-10000",
+    "name": "nostr kind: 10000 (Mute List)",
+    "title": "Nostr Kind: 10000 (Mute List)",
+    "wordTypes": ["word", "nostrKind"]
+  },
+  "nostrKind": {
+    "kind": 10000,
+    "name": "Mute List",
+    "nip": "NIP-51",
+    "replaceability": "replaceable",
+    "description": "A user's list of muted public keys, event IDs, keywords, and hashtags. The latest event replaces the previous mute list; the content may contain an encrypted private section."
+  }
+}

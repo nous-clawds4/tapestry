@@ -148,7 +148,7 @@ export default function UsersIndex() {
       <DataTable
         columns={columns}
         data={rows}
-        onRowClick={(row) => navigate(`/kg/users/${row.pubkey}`)}
+        onRowClick={(row) => navigate(`/tapestry/users/${row.pubkey}`)}
         emptyMessage="No users found"
       />
     </div>

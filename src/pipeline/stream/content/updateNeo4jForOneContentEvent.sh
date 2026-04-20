@@ -32,11 +32,11 @@ CYPHER_UPDATE_META="
 MATCH (u:NostrUser {pubkey:'$pk_author'})
 SET u.latestContentEventCreatedAt=$CREATED_AT
 "
-sudo cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER_UPDATE_META"
+cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER_UPDATE_META"
 
 # Step 7: Clean up
 echo "Cleaning up..."
-sudo rm "$queue_file"
+rm "$queue_file"
 
 echo "Successfully processed pubkey: $pk_author for event kind: $event_kind and created_at: $CREATED_AT"
 exit 0

@@ -25,17 +25,21 @@ CUSTOMER_ID="$2"
 # Get customer_directory_name
 CUSTOMER_DIRECTORY_NAME="$3"
 
+# Optional 4th argument: warmStart flag, forwarded to personalizedGrapeRank.sh
+# to enable warm-start initialization from previous Neo4j scores.
+WARM_START="${4:-}"
+
 # Get log directory
 LOG_DIR="$BRAINSTORM_LOG_DIR/customers/$CUSTOMER_DIRECTORY_NAME"
 
 # Create log directory if it doesn't exist; chown to brainstorm:brainstorm
 mkdir -p "$LOG_DIR"
-sudo chown brainstorm:brainstorm "$LOG_DIR"
+chown brainstorm:brainstorm "$LOG_DIR"
 
 # Log file
 LOG_FILE="$LOG_DIR/updateAllScoresForSingleCustomer.log"
 touch ${LOG_FILE}
-sudo chown brainstorm:brainstorm ${LOG_FILE}
+chown brainstorm:brainstorm ${LOG_FILE}
 
 # Log start time
 echo "$(date): Starting updateAllScoresForSingleCustomer for customer $CUSTOMER_ID and customer_pubkey $CUSTOMER_PUBKEY and customer_directory_name $CUSTOMER_DIRECTORY_NAME"
@@ -50,6 +54,7 @@ oMetadata=$(jq -n \
     --argjson child_tasks 5 \
     --arg scope "customer_specific" \
     --arg orchestrator_level "secondary" \
+    --arg warm_start "$WARM_START" \
     '{
         "customer_id": $customer_id,
         "customer_pubkey": $customer_pubkey,
@@ -57,7 +62,8 @@ oMetadata=$(jq -n \
         "description": $description,
         "child_tasks": $child_tasks,
         "scope": $scope,
-        "orchestrator_level": $orchestrator_level
+        "orchestrator_level": $orchestrator_level,
+        "warm_start": $warm_start
     }')
 emit_task_event "TASK_START" "updateAllScoresForSingleCustomer" "$CUSTOMER_PUBKEY" "$oMetadata"
 
@@ -85,7 +91,7 @@ oMetadata=$(jq -n \
 emit_task_event "CHILD_TASK_START" "calculateCustomerHops" "$CUSTOMER_PUBKEY" "$oMetadata"
 
 # Run calculateHops.sh
-if sudo bash $BRAINSTORM_MODULE_ALGOS_DIR/customers/calculateHops.sh "$CUSTOMER_PUBKEY" "$CUSTOMER_ID" "$CUSTOMER_DIRECTORY_NAME"; then
+if bash $BRAINSTORM_MODULE_ALGOS_DIR/customers/calculateHops.sh "$CUSTOMER_PUBKEY" "$CUSTOMER_ID" "$CUSTOMER_DIRECTORY_NAME"; then
     oMetadata=$(jq -n \
         --argjson customer_id "$CUSTOMER_ID" \
         --arg customer_pubkey "$CUSTOMER_PUBKEY" \
@@ -156,7 +162,7 @@ oMetadata=$(jq -n \
 emit_task_event "CHILD_TASK_START" "calculateCustomerPageRank" "$CUSTOMER_PUBKEY" "$oMetadata"
 
 # Run personalizedPageRank.sh
-if sudo bash $BRAINSTORM_MODULE_ALGOS_DIR/customers/personalizedPageRank.sh "$CUSTOMER_PUBKEY" "$CUSTOMER_ID" "$CUSTOMER_DIRECTORY_NAME"; then
+if bash $BRAINSTORM_MODULE_ALGOS_DIR/customers/personalizedPageRank.sh "$CUSTOMER_PUBKEY" "$CUSTOMER_ID" "$CUSTOMER_DIRECTORY_NAME"; then
     oMetadata=$(jq -n \
         --argjson customer_id "$CUSTOMER_ID" \
         --arg customer_pubkey "$CUSTOMER_PUBKEY" \
@@ -226,8 +232,8 @@ oMetadata=$(jq -n \
     }')
 emit_task_event "CHILD_TASK_START" "calculateCustomerGrapeRank" "$CUSTOMER_PUBKEY" "$oMetadata"
 
-# Run personalizedGrapeRank.sh
-if sudo bash $BRAINSTORM_MODULE_ALGOS_DIR/customers/personalizedGrapeRank/personalizedGrapeRank.sh "$CUSTOMER_PUBKEY" "$CUSTOMER_ID" "$CUSTOMER_DIRECTORY_NAME"; then
+# Run personalizedGrapeRank.sh (forward WARM_START as optional 4th arg)
+if bash $BRAINSTORM_MODULE_ALGOS_DIR/customers/personalizedGrapeRank/personalizedGrapeRank.sh "$CUSTOMER_PUBKEY" "$CUSTOMER_ID" "$CUSTOMER_DIRECTORY_NAME" "$WARM_START"; then
     oMetadata=$(jq -n \
     --argjson customer_id "$CUSTOMER_ID" \
     --arg customer_pubkey "$CUSTOMER_PUBKEY" \
@@ -298,7 +304,7 @@ oMetadata=$(jq -n \
 emit_task_event "CHILD_TASK_START" "processCustomerFollowsMutesReports" "$CUSTOMER_PUBKEY" "$oMetadata"
 
 # Run processFollowsMutesReports.sh
-if sudo bash $BRAINSTORM_MODULE_ALGOS_DIR/customers/follows-mutes-reports/processFollowsMutesReports.sh "$CUSTOMER_PUBKEY" "$CUSTOMER_ID" "$CUSTOMER_DIRECTORY_NAME"; then
+if bash $BRAINSTORM_MODULE_ALGOS_DIR/customers/follows-mutes-reports/processFollowsMutesReports.sh "$CUSTOMER_PUBKEY" "$CUSTOMER_ID" "$CUSTOMER_DIRECTORY_NAME"; then
     oMetadata=$(jq -n \
     --argjson customer_id "$CUSTOMER_ID" \
     --arg customer_pubkey "$CUSTOMER_PUBKEY" \
@@ -374,7 +380,7 @@ oMetadata=$(jq -n \
 emit_task_event "CHILD_TASK_START" "exportCustomerKind30382" "$CUSTOMER_PUBKEY" "$oMetadata"
 
 # generate nip-85 exports
-if sudo bash $BRAINSTORM_MODULE_ALGOS_DIR/customers/nip85/publishNip85.sh "$CUSTOMER_PUBKEY" "$CUSTOMER_ID" "$CUSTOMER_DIRECTORY_NAME"; then
+if bash $BRAINSTORM_MODULE_ALGOS_DIR/customers/nip85/publishNip85.sh "$CUSTOMER_PUBKEY" "$CUSTOMER_ID" "$CUSTOMER_DIRECTORY_NAME"; then
     oMetadata=$(jq -n \
     --argjson customer_id "$CUSTOMER_ID" \
     --arg customer_pubkey "$CUSTOMER_PUBKEY" \
@@ -419,6 +425,83 @@ else
     echo "$(date): ERROR: publishNip85.sh failed for customer $CUSTOMER_DIRECTORY_NAME" >> "$LOG_FILE"
 fi
 
+#################### loadCustomerScoresIntoMeilisearch: start  ##############
+# Child Task 6: Load Customer Scores into Meilisearch
+oMetadata=$(jq -n \
+    --argjson customer_id "$CUSTOMER_ID" \
+    --arg customer_pubkey "$CUSTOMER_PUBKEY" \
+    --arg customer_directory_name "$CUSTOMER_DIRECTORY_NAME" \
+    --arg parent_task "updateAllScoresForSingleCustomer" \
+    --argjson child_order 6 \
+    --arg algorithm "meilisearch_load" \
+    --arg category "export" \
+    --argjson structured_logging true \
+    ' {
+        "customer_id": $customer_id,
+        "customer_pubkey": $customer_pubkey,
+        "customer_directory_name": $customer_directory_name,
+        "parent_task": $parent_task,
+        "child_order": $child_order,
+        "algorithm": $algorithm,
+        "category": $category,
+        "structured_logging": $structured_logging
+    }')
+emit_task_event "CHILD_TASK_START" "loadCustomerScoresIntoMeilisearch" "$CUSTOMER_PUBKEY" "$oMetadata"
+
+if bash $BRAINSTORM_MODULE_ALGOS_DIR/customers/nip85/loadScoresIntoMeilisearch.sh "$CUSTOMER_PUBKEY" "$CUSTOMER_ID" "$CUSTOMER_DIRECTORY_NAME"; then
+    oMetadata=$(jq -n \
+    --argjson customer_id "$CUSTOMER_ID" \
+    --arg customer_pubkey "$CUSTOMER_PUBKEY" \
+    --arg customer_directory_name "$CUSTOMER_DIRECTORY_NAME" \
+    --arg parent_task "updateAllScoresForSingleCustomer" \
+    --argjson child_order 6 \
+    --arg algorithm "meilisearch_load" \
+    --arg category "export" \
+    --argjson structured_logging true \
+    ' {
+        "customer_id": $customer_id,
+        "customer_pubkey": $customer_pubkey,
+        "customer_directory_name": $customer_directory_name,
+        "parent_task": $parent_task,
+        "child_order": $child_order,
+        "algorithm": $algorithm,
+        "category": $category,
+        "structured_logging": $structured_logging
+    }')
+    emit_task_event "CHILD_TASK_END" "loadCustomerScoresIntoMeilisearch" "$CUSTOMER_PUBKEY" "$oMetadata"
+else
+    oMetadata=$(jq -n \
+    --argjson customer_id "$CUSTOMER_ID" \
+    --arg customer_pubkey "$CUSTOMER_PUBKEY" \
+    --arg customer_directory_name "$CUSTOMER_DIRECTORY_NAME" \
+    --arg parent_task "updateAllScoresForSingleCustomer" \
+    --argjson child_order 6 \
+    --arg algorithm "meilisearch_load" \
+    --arg category "export" \
+    --argjson structured_logging true \
+    ' {
+        "customer_id": $customer_id,
+        "customer_pubkey": $customer_pubkey,
+        "customer_directory_name": $customer_directory_name,
+        "parent_task": $parent_task,
+        "child_order": $child_order,
+        "algorithm": $algorithm,
+        "category": $category,
+        "structured_logging": $structured_logging
+    }')
+    emit_task_event "CHILD_TASK_ERROR" "loadCustomerScoresIntoMeilisearch" "$CUSTOMER_PUBKEY" "$oMetadata"
+    echo "$(date): ERROR: loadScoresIntoMeilisearch.sh failed for customer $CUSTOMER_DIRECTORY_NAME" >> "$LOG_FILE"
+fi
+#################### loadCustomerScoresIntoMeilisearch: complete  ##############
+
+#################### cleanup: start  ##############
+# Clean up customer's GrapeRank tmp subdirectory if it exists
+if [ -d "/var/lib/brainstorm/algos/personalizedGrapeRank/tmp/${CUSTOMER_DIRECTORY_NAME}" ]; then
+    echo "$(date): Cleaning up GrapeRank tmp for customer $CUSTOMER_DIRECTORY_NAME" >> "$LOG_FILE"
+    rm -rf "/var/lib/brainstorm/algos/personalizedGrapeRank/tmp/${CUSTOMER_DIRECTORY_NAME}"
+fi
+#################### cleanup: complete  ##############
+
 # Log end time
 echo "$(date): Finished updateAllScoresForSingleCustomer for customer $CUSTOMER_ID and customer_pubkey $CUSTOMER_PUBKEY and customer_directory_name $CUSTOMER_DIRECTORY_NAME"
 echo "$(date): Finished updateAllScoresForSingleCustomer for customer $CUSTOMER_ID and customer_pubkey $CUSTOMER_PUBKEY and customer_directory_name $CUSTOMER_DIRECTORY_NAME" >> "$LOG_FILE"
@@ -429,7 +512,7 @@ oMetadata=$(jq -n \
     --arg customer_pubkey "$CUSTOMER_PUBKEY" \
     --arg customer_directory_name "$CUSTOMER_DIRECTORY_NAME" \
     --arg parent_task "updateAllScoresForSingleCustomer" \
-    --argjson child_tasks_completed 5 \
+    --argjson child_tasks_completed 6 \
     --arg description "Updates all trust scores for a single customer" \
     --arg scope "customer_specific" \
     --arg orchestrator_level "secondary" \

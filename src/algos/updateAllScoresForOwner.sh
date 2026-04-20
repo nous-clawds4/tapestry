@@ -22,7 +22,7 @@ source "$BRAINSTORM_MODULE_BASE_DIR/src/utils/structuredLogging.sh"
 source "$BRAINSTORM_MODULE_MANAGE_DIR/taskQueue/launchChildTask.sh"
 
 touch ${BRAINSTORM_LOG_DIR}/updateAllScoresForOwner.log
-sudo chown brainstorm:brainstorm ${BRAINSTORM_LOG_DIR}/updateAllScoresForOwner.log
+chown brainstorm:brainstorm ${BRAINSTORM_LOG_DIR}/updateAllScoresForOwner.log
 
 # wrapper function which employs legacy log system; 
 # will eventually get rid of this wrapper and just run launchChildTask directly
@@ -117,6 +117,31 @@ launch_child_task "exportOwnerKind30382" "updateAllScoresForOwner" "" ""
 #################### exportOwnerKind30382: complete  ##############
 
 sleep 5
+
+#################### loadOwnerScoresIntoMeilisearch: start  ##############
+# Child Task 8: Load Owner Scores into Meilisearch
+launch_child_task "loadOwnerScoresIntoMeilisearch" "updateAllScoresForOwner" "" ""
+#################### loadOwnerScoresIntoMeilisearch: complete  ##############
+
+sleep 5
+
+#################### cleanup: start  ##############
+# Clean up temporary files from GrapeRank calculations
+if [ -d "/var/lib/brainstorm/algos/personalizedGrapeRank/tmp" ]; then
+    echo "$(date): Cleaning up personalizedGrapeRank tmp files"
+    rm -rf /var/lib/brainstorm/algos/personalizedGrapeRank/tmp
+fi
+
+# Clean up kind 30382 published event files (if any remain from legacy scripts)
+if [ -d "/var/lib/brainstorm/data/published" ]; then
+    PUBLISHED_COUNT=$(find /var/lib/brainstorm/data/published -name 'kind30382_*.json' -o -name 'kind10040_*.json' 2>/dev/null | wc -l)
+    if [ "$PUBLISHED_COUNT" -gt 0 ]; then
+        echo "$(date): Cleaning up $PUBLISHED_COUNT published event files"
+        find /var/lib/brainstorm/data/published -name 'kind30382_*.json' -delete 2>/dev/null
+        find /var/lib/brainstorm/data/published -name 'kind10040_*.json' -delete 2>/dev/null
+    fi
+fi
+#################### cleanup: complete  ##############
 
 echo "$(date): Finished updateAllScoresForOwner"
 echo "$(date): Finished updateAllScoresForOwner" >> ${BRAINSTORM_LOG_DIR}/updateAllScoresForOwner.log

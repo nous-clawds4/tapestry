@@ -16,7 +16,7 @@ function useDatabaseStats() {
           RETURN nodes, rels
         ` }),
       }).then(r => r.json()),
-      fetch('/api/strfry-status').then(r => r.json()),
+      fetch('/api/strfry/scan/count?filter=' + encodeURIComponent('{}')).then(r => r.json()),
     ])
       .then(([neo4j, strfry]) => {
         setStats({
@@ -25,7 +25,7 @@ function useDatabaseStats() {
             relationships: neo4j.data?.[0]?.rels ?? '—',
           },
           strfry: {
-            events: strfry.events?.total ?? '—',
+            events: strfry.count ?? '—',
           },
         });
       })

@@ -1,0 +1,68 @@
+{
+  "word": {
+    "slug": "json-schema-for-the-concept-of-graperank",
+    "name": "JSON Schema for the concept of graperank",
+    "title": "JSON Schema for the Concept of GrapeRank",
+    "description": "This is the JSON Schema for elements of the concept of graperank. Every element of this concept must validate against this JSON schema.",
+    "wordTypes": ["word", "jsonSchema"],
+    "coreMemberOf": [
+      {
+        "slug": "concept-header-for-the-concept-of-graperank",
+        "uuid": "<uuid>"
+      }
+    ]
+  },
+  "jsonSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "name": "graperank",
+    "title": "GrapeRank",
+    "description": "JSON Schema for elements of the concept of graperank",
+    "required": ["graperank"],
+    "definitions": {},
+    "properties": {
+      "graperank": {
+        "type": "object",
+        "name": "graperank",
+        "title": "GrapeRank",
+        "slug": "graperank",
+        "description": "data about this graperank implementation or configuration",
+        "required": ["name"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "name": "name",
+            "title": "Name",
+            "slug": "name",
+            "description": "Name of this GrapeRank implementation or configuration"
+          },
+          "povPubkey": {
+            "type": "string",
+            "name": "povPubkey",
+            "title": "POV Pubkey",
+            "slug": "pov-pubkey",
+            "description": "The pubkey from whose perspective trust scores are calculated (point of view)"
+          },
+          "inputKinds": {
+            "type": "array",
+            "name": "inputKinds",
+            "title": "Input Kinds",
+            "slug": "input-kinds",
+            "description": "Nostr event kinds used as input signals (typically [3, 10000] for follows and mute lists)",
+            "items": { "type": "integer" }
+          },
+          "outputKind": {
+            "type": "integer",
+            "name": "outputKind",
+            "title": "Output Kind",
+            "slug": "output-kind",
+            "description": "Nostr event kind for output trust score events (typically 30382 per NIP-85)"
+          }
+        },
+        "x-tapestry": {
+          "unique": ["name"]
+        }
+      }
+    }
+  }
+}

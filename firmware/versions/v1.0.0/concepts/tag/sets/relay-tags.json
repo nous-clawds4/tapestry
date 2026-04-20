@@ -1,0 +1,14 @@
+{
+  "word": {
+    "slug": "the-set-of-nostr-relay-tags",
+    "name": "the set of nostr relay tags",
+    "title": "The Set of Nostr Relay Tags",
+    "wordTypes": ["word", "set"]
+  },
+  "set": {
+    "slug": "relay-tags",
+    "name": "relay tags",
+    "title": "Relay Tags",
+    "description": "Tags that apply to nostr relays (e.g. paid, free, archive, nsfw). A subset of general-tags."
+  }
+}

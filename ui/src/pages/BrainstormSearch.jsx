@@ -1,6 +1,50 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useHouseProfile } from '../components/BrainstormUserMenu';
+import { nip19 } from 'nostr-tools';
+
+/* ── Nostr identity detection ──────────────────────────── */
+
+/**
+ * Attempt to decode a nostr identity string (npub, hex pubkey, or nprofile)
+ * into a 64-character hex pubkey. Returns null if the input is not a valid
+ * nostr identity, allowing normal text search to proceed.
+ */
+function tryDecodeNostrIdentity(input) {
+  if (!input) return null;
+  const trimmed = input.trim().toLowerCase();
+
+  // 64-char hex string = raw pubkey
+  if (/^[0-9a-f]{64}$/.test(trimmed)) {
+    return trimmed;
+  }
+
+  // npub1... (Bech32-encoded pubkey)
+  if (trimmed.startsWith('npub1')) {
+    try {
+      const decoded = nip19.decode(trimmed);
+      if (decoded.type === 'npub') return decoded.data;
+    } catch {
+      return null;
+    }
+  }
+
+  // nprofile1... (Bech32-encoded profile with optional relay hints)
+  if (trimmed.startsWith('nprofile1')) {
+    try {
+      const decoded = nip19.decode(trimmed);
+      if (decoded.type === 'nprofile') return decoded.data.pubkey;
+    } catch {
+      return null;
+    }
+  }
+
+  return null;
+}
+
+/* ── NIP-05 detection ──────────────────────────────────── */
+
+const NIP05_REGEX = /^(?:([\w.+-]+)@)?([\w_-]+(\.[\w_-]+)+)$/;
 
 /* ── House POV Label (shared inline component) ───────── */
 
@@ -8,7 +52,7 @@ function HousePovLabel() {
   const house = useHouseProfile();
   if (!house) return <strong>House</strong>;
   return (
-    <a href={`/kg/brainstorm-search/user/${house.pubkey}`} className="bs-usermenu-pov-link">
+    <a href={`/user/${house.pubkey}`} className="bs-usermenu-pov-link">
       {house.picture && (
         <img src={house.picture} alt="" className="bs-usermenu-pov-avatar" onError={e => { e.target.style.display = 'none'; }} />
       )}
@@ -85,13 +129,17 @@ function UserMenu({ user, login, logout, pov, setPov, filters, setFilters, sortC
   useEffect(() => {
     if (!user || !pov) return;
     localStorage.setItem(POV_STORAGE_PREFIX + user.pubkey, pov);
-    // Save to server (best effort, non-blocking)
+    // Save to server — include rankAuthor so the search proxy can resolve
+    // the user's delegated pubkey instead of falling back to house POV.
+    const prefs = { pov };
+    if (wotStatus.rankAuthor) prefs.rankAuthor = wotStatus.rankAuthor;
+    if (wotStatus.rankRelay) prefs.rankRelay = wotStatus.rankRelay;
     fetch('/api/user-prefs', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pov }),
+      body: JSON.stringify(prefs),
     }).catch(() => {});
-  }, [user, pov]);
+  }, [user, pov, wotStatus.rankAuthor]);
 
   // ── Helper: count local TAs ──
   async function countLocalTAs(delegatedPubkey) {
@@ -430,7 +478,7 @@ function UserMenu({ user, login, logout, pov, setPov, filters, setFilters, sortC
     <div className="bs-usermenu" ref={menuRef}>
       {/* Dashboard grid icon for owner/admin */}
       {isOwnerOrAdmin && (
-        <a href="/kg/" className="bs-usermenu-grid-btn" title="Dashboard">
+        <a href="/tapestry/" className="bs-usermenu-grid-btn" title="Dashboard">
           <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
             <rect x="1" y="1" width="4" height="4" rx="1" fill="currentColor"/>
             <rect x="7" y="1" width="4" height="4" rx="1" fill="currentColor"/>
@@ -483,7 +531,7 @@ function UserMenu({ user, login, logout, pov, setPov, filters, setFilters, sortC
           {/* Settings + Sign out */}
           <div className="bs-usermenu-footer">
             <a
-              href="/kg/brainstorm-search/settings"
+              href="/settings"
               className="bs-usermenu-settings-btn"
               onClick={() => setOpen(false)}
             >
@@ -557,7 +605,7 @@ function ResultCard({ hit, povSuffix }) {
 
   return (
     <a
-      href={`/kg/brainstorm-search/user/${hit.pubkey || hit.id}${povSuffix ? `?pov=${povSuffix}` : ''}`}
+      href={`/user/${hit.pubkey || hit.id}${povSuffix ? `?pov=${povSuffix}` : ''}`}
       className="bs-result-card"
     >
       <div className="bs-result-body">
@@ -567,7 +615,7 @@ function ResultCard({ hit, povSuffix }) {
               src={picture}
               alt=""
               className="bs-result-avatar"
-              onError={e => { e.target.style.display = 'none'; }}
+              onError={e => { e.target.outerHTML = '<div class="bs-result-avatar bs-result-avatar-placeholder">👤</div>'; }}
             />
           ) : (
             <div className="bs-result-avatar bs-result-avatar-placeholder">👤</div>
@@ -626,6 +674,7 @@ export default function BrainstormSearch() {
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState(null);
+  const [nip05Result, setNip05Result] = useState(null);
   const [pov, setPov] = useState('nosfabrica');
   const [myWotReady, setMyWotReady] = useState(false);
   const [showPovPicker, setShowPovPicker] = useState(false);
@@ -648,6 +697,21 @@ export default function BrainstormSearch() {
   // Client only sends: q, limit, offset, wotPov, userPubkey.
   function buildSearchUrl(queryStr, limit, offset) {
     let url = `/api/search/profiles/meili?q=${encodeURIComponent(queryStr)}&limit=${limit}&offset=${offset}`;
+
+    // Direct lookup: if query is a nostr identity (npub, hex pubkey, nprofile),
+    // bypass WoT filtering/sorting and search by pubkey only.
+    const identityPubkey = tryDecodeNostrIdentity(queryStr);
+    if (identityPubkey) {
+      url += `&pubkeyLookup=${identityPubkey}`;
+      return url;
+    }
+
+    // NIP-05 lookup: if query looks like a NIP-05 identifier, request
+    // parallel verification. Normal search still runs alongside.
+    if (NIP05_REGEX.test(queryStr.trim())) {
+      url += `&nip05Lookup=${encodeURIComponent(queryStr.trim())}`;
+    }
+
     url += `&wotPov=${pov === 'user' ? 'user' : 'house'}`;
     if (pov === 'user' && user?.pubkey) {
       url += `&userPubkey=${user.pubkey}`;
@@ -689,6 +753,9 @@ export default function BrainstormSearch() {
       // Store the POV suffix returned by the server for display purposes
       if (data.povSuffix) setActivePovSuffix(data.povSuffix);
 
+      // Store NIP-05 verified result (if any)
+      setNip05Result(data.nip05Result || null);
+
       if (offset === 0) {
         setResults(data.hits || []);
       } else {
@@ -722,7 +789,12 @@ export default function BrainstormSearch() {
       const resp = await fetch(url);
       const data = await resp.json();
       if (resp.ok && data.hits) {
-        setSuggestions(data.hits);
+        // If NIP-05 result, prepend it to suggestions for visibility
+        const nip05 = data.nip05Result || null;
+        const filtered = nip05
+          ? data.hits.filter(h => (h.pubkey || h.id) !== (nip05.pubkey || nip05.id))
+          : data.hits;
+        setSuggestions(nip05 ? [{ ...nip05, _nip05Verified: true }, ...filtered] : filtered);
         setShowSuggestions(true);
         if (data.povSuffix) setActivePovSuffix(data.povSuffix);
       }
@@ -796,7 +868,7 @@ export default function BrainstormSearch() {
         {/* Centered landing */}
         <div className="bs-landing">
           <h1 className="bs-logo">
-            <img src="/kg/brainstorm.svg" alt="" className="bs-logo-icon-img" />
+            <img src="/brainstorm.svg" alt="" className="bs-logo-icon-img" />
             Brainstorm
           </h1>
           <p className="bs-tagline">Search across millions of nostr profiles</p>
@@ -830,13 +902,13 @@ export default function BrainstormSearch() {
                   return (
                     <a
                       key={hit.pubkey || hit.id}
-                      href={`/kg/brainstorm-search/user/${hit.pubkey || hit.id}${activePovSuffix ? `?pov=${activePovSuffix}` : ''}`}
+                      href={`/user/${hit.pubkey || hit.id}${activePovSuffix ? `?pov=${activePovSuffix}` : ''}`}
                       className="bs-suggest-item"
                       onMouseDown={e => {
                         e.preventDefault(); // prevent input blur from removing the link
                         setShowSuggestions(false);
                         const povQ = activePovSuffix ? `?pov=${activePovSuffix}` : '';
-                        window.location.href = `/kg/brainstorm-search/user/${hit.pubkey || hit.id}${povQ}`;
+                        window.location.href = `/user/${hit.pubkey || hit.id}${povQ}`;
                       }}
                     >
                       {hit.picture ? (
@@ -844,7 +916,7 @@ export default function BrainstormSearch() {
                           src={hit.picture}
                           alt=""
                           className="bs-suggest-avatar"
-                          onError={e => { e.target.style.display = 'none'; }}
+                          onError={e => { e.target.outerHTML = '<div class="bs-suggest-avatar bs-suggest-avatar-placeholder">👤</div>'; }}
                         />
                       ) : (
                         <div className="bs-suggest-avatar bs-suggest-avatar-placeholder">👤</div>
@@ -886,7 +958,7 @@ export default function BrainstormSearch() {
               )}
             </span>
             <span className="bs-personalization-sep">·</span>
-            <a href="/kg/brainstorm-search/personalization" className="bs-personalization-link">
+            <a href="/personalization" className="bs-personalization-link">
               Tell me more!
             </a>
 
@@ -912,7 +984,7 @@ export default function BrainstormSearch() {
                 ) : !myWotReady ? (
                   <div className="bs-pov-option disabled">
                     Your personalized perspective is being calculated.{' '}
-                    <a href="/kg/brainstorm-search/settings" className="bs-pov-option-link">Settings</a>
+                    <a href="/settings" className="bs-pov-option-link">Settings</a>
                   </div>
                 ) : (
                   <button
@@ -932,7 +1004,9 @@ export default function BrainstormSearch() {
         </div>
 
         <div className="bs-footer">
-          Powered by <a href="https://brainstorm.nosfabrica.com/" className="bs-footer-link">NosFabrica</a>
+          <a href="https://brainstorm.nosfabrica.com/" target="_blank" rel="noopener noreferrer" className="bs-footer-link">My Brainstorm</a>
+          <span className="bs-footer-sep">&middot;</span>
+          <a href="/developers" className="bs-footer-link">Developers</a>
         </div>
       </div>
     );
@@ -945,7 +1019,7 @@ export default function BrainstormSearch() {
       <div className="bs-results-header">
         <div className="bs-results-header-left">
           <a
-            href="/kg/brainstorm-search"
+            href="/"
             className="bs-results-logo"
             onClick={e => {
               e.preventDefault();
@@ -955,7 +1029,7 @@ export default function BrainstormSearch() {
               setError(null);
             }}
           >
-            <img src="/kg/brainstorm.svg" alt="Brainstorm" className="bs-results-logo-img" />
+            <img src="/brainstorm.svg" alt="Brainstorm" className="bs-results-logo-img" />
           </a>
           <div className="bs-search-box-results">
             <input
@@ -1005,7 +1079,7 @@ export default function BrainstormSearch() {
                 ) : !myWotReady ? (
                   <div className="bs-pov-option disabled">
                     Your personalized perspective is being calculated.{' '}
-                    <a href="/kg/brainstorm-search/settings" className="bs-pov-option-link">Settings</a>
+                    <a href="/settings" className="bs-pov-option-link">Settings</a>
                   </div>
                 ) : (
                   <button
@@ -1049,10 +1123,20 @@ export default function BrainstormSearch() {
               )}
             </div>
 
+            {/* Pinned NIP-05 verified result (above normal results) */}
+            {nip05Result && (
+              <div className="bs-nip05-pinned">
+                <div className="bs-nip05-badge">✅ NIP-05 Verified</div>
+                <ResultCard hit={nip05Result} povSuffix={activePovSuffix} />
+              </div>
+            )}
+
             <div className="bs-results-list">
-              {results.map(hit => (
-                <ResultCard key={hit.pubkey || hit.id} hit={hit} povSuffix={activePovSuffix} />
-              ))}
+              {results
+                .filter(hit => !nip05Result || (hit.pubkey || hit.id) !== (nip05Result.pubkey || nip05Result.id))
+                .map(hit => (
+                  <ResultCard key={hit.pubkey || hit.id} hit={hit} povSuffix={activePovSuffix} />
+                ))}
             </div>
 
             {hasMore && (

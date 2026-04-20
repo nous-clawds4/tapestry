@@ -67,29 +67,36 @@ import BrainstormSearch from './pages/BrainstormSearch';
 import BrainstormProfile from './pages/BrainstormProfile';
 import BrainstormSettings from './pages/BrainstormSettings';
 import BrainstormPersonalization from './pages/BrainstormPersonalization';
+import BrainstormDevelopers from './pages/BrainstormDevelopers';
+import RelayDiscovery from './pages/relay-discovery/RelayDiscovery';
 const router = createBrowserRouter([
   {
-    path: '/kg/brainstorm-search',
+    path: '/',
     element: <BrainstormSearch />,
   },
   {
-    path: '/kg/brainstorm-search/user/:pubkey',
+    path: '/user/:pubkey',
     element: <BrainstormProfile />,
   },
   {
-    path: '/kg/brainstorm-search/settings',
+    path: '/settings',
     element: <BrainstormSettings />,
   },
   {
-    path: '/kg/brainstorm-search/personalization',
+    path: '/personalization',
     element: <BrainstormPersonalization />,
   },
   {
-    path: '/kg',
+    path: '/developers',
+    element: <BrainstormDevelopers />,
+  },
+  {
+    path: '/tapestry',
     element: <Layout />,
     handle: { crumb: 'Home' },
     children: [
       { index: true, element: <Dashboard /> },
+      { path: 'relay-discovery', element: <RelayDiscovery />, handle: { crumb: 'Relay Discovery' } },
       {
         path: 'concepts',
         handle: { crumb: 'Concepts' },
@@ -197,8 +204,8 @@ const router = createBrowserRouter([
       {
         path: 'nodes',
         children: [
-          { index: true, element: <Navigate to="/kg/databases/neo4j/nodes" replace /> },
-          { path: ':uuid', element: <Navigate to="/kg/databases/neo4j/nodes" replace /> },
+          { index: true, element: <Navigate to="/tapestry/databases/neo4j/nodes" replace /> },
+          { path: ':uuid', element: <Navigate to="/tapestry/databases/neo4j/nodes" replace /> },
         ],
       },
 
@@ -228,7 +235,7 @@ const router = createBrowserRouter([
       { path: 'trusted-lists', element: <TrustedListsIndex />, handle: { crumb: 'Trusted Lists' } },
       {
         path: 'manage/audit',
-        element: <Navigate to="/kg/settings/auditing" replace />,
+        element: <Navigate to="/tapestry/settings/auditing" replace />,
       },
       {
         path: 'io',

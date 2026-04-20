@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Administrators</title>
+    <link rel="stylesheet" href="./css/common.css">
+    <script src="./components/header/header.js"></script>
+    <script src="./components/footer/footer.js"></script>
+    <style>
+        .admin-container {
+            max-width: 800px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+        }
+        .admin-title {
+            font-size: 1.5rem;
+            margin-bottom: 0.5rem;
+        }
+        .admin-subtitle {
+            color: #888;
+            font-size: 0.9rem;
+            margin-bottom: 1.5rem;
+        }
+        .admin-add-section {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 8px;
+            padding: 1.25rem;
+            margin-bottom: 1.5rem;
+        }
+        .admin-add-section h3 {
+            margin: 0 0 0.75rem;
+            font-size: 1rem;
+        }
+        .admin-add-form {
+            display: flex;
+            gap: 0.5rem;
+        }
+        .admin-add-input {
+            flex: 1;
+            padding: 0.5rem 0.75rem;
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 6px;
+            background: rgba(0,0,0,0.3);
+            color: #e0e0e0;
+            font-size: 0.9rem;
+        }
+        .admin-add-input::placeholder {
+            color: #666;
+        }
+        .admin-add-btn {
+            padding: 0.5rem 1rem;
+            border: 1px solid rgba(34, 197, 94, 0.4);
+            border-radius: 6px;
+            background: rgba(34, 197, 94, 0.1);
+            color: #22c55e;
+            cursor: pointer;
+            font-size: 0.9rem;
+            white-space: nowrap;
+        }
+        .admin-add-btn:hover {
+            background: rgba(34, 197, 94, 0.2);
+        }
+        .admin-add-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .admin-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+        .admin-card {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 8px;
+        }
+        .admin-avatar {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            object-fit: cover;
+            background: rgba(255,255,255,0.1);
+            flex-shrink: 0;
+        }
+        .admin-avatar-placeholder {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.08);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+            flex-shrink: 0;
+        }
+        .admin-info {
+            flex: 1;
+            min-width: 0;
+        }
+        .admin-name {
+            font-weight: 600;
+            font-size: 1rem;
+            margin-bottom: 0.15rem;
+        }
+        .admin-nip05 {
+            color: #888;
+            font-size: 0.8rem;
+            margin-bottom: 0.15rem;
+        }
+        .admin-pubkey {
+            color: #666;
+            font-size: 0.75rem;
+            font-family: monospace;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .admin-remove-btn {
+            padding: 0.4rem 0.75rem;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            border-radius: 6px;
+            background: rgba(239, 68, 68, 0.1);
+            color: #ef4444;
+            cursor: pointer;
+            font-size: 0.8rem;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+        .admin-remove-btn:hover {
+            background: rgba(239, 68, 68, 0.2);
+        }
+        .admin-empty {
+            text-align: center;
+            color: #666;
+            padding: 2rem;
+            background: rgba(255,255,255,0.02);
+            border: 1px dashed rgba(255,255,255,0.1);
+            border-radius: 8px;
+        }
+        .flash-success {
+            padding: 0.5rem 0.75rem;
+            margin-bottom: 0.75rem;
+            border-radius: 6px;
+            background: rgba(34, 197, 94, 0.1);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+            color: #22c55e;
+            font-size: 0.85rem;
+        }
+        .flash-error {
+            padding: 0.5rem 0.75rem;
+            margin-bottom: 0.75rem;
+            border-radius: 6px;
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #ef4444;
+            font-size: 0.85rem;
+        }
+        .loading {
+            text-align: center;
+            color: #888;
+            padding: 2rem;
+        }
+        .not-authorized {
+            text-align: center;
+            color: #ef4444;
+            padding: 3rem;
+            font-size: 1.1rem;
+        }
+    </style>
+</head>
+<body>
+    <div id="headerContainer"></div>
+
+    <div class="admin-container">
+        <div id="loadingState" class="loading">Loading...</div>
+        <div id="notAuthorized" class="not-authorized" style="display:none;">
+            Only the instance owner can manage administrators.
+        </div>
+        <div id="mainContent" style="display:none;">
+            <h1 class="admin-title">Manage Administrators</h1>
+            <p class="admin-subtitle">
+                Administrators have the same permissions as the owner, except they cannot add or remove other administrators.
+            </p>
+
+            <div id="flashContainer"></div>
+
+            <!-- Add admin form -->
+            <div class="admin-add-section">
+                <h3>Add Administrator</h3>
+                <div class="admin-add-form">
+                    <input type="text" id="addInput" class="admin-add-input"
+                        placeholder="Enter npub, hex pubkey, or NIP-05 (e.g. bob@example.com)">
+                    <button id="addBtn" class="admin-add-btn" onclick="addAdmin()">+ Add</button>
+                </div>
+            </div>
+
+            <!-- Admin list -->
+            <h3 style="margin-bottom: 0.75rem;">Current Administrators</h3>
+            <div id="adminList" class="admin-list"></div>
+        </div>
+    </div>
+
+    <div id="footerContainer"></div>
+
+    <script>
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                      .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+        }
+
+        function flash(message, type) {
+            const container = document.getElementById('flashContainer');
+            const div = document.createElement('div');
+            div.className = type === 'error' ? 'flash-error' : 'flash-success';
+            div.textContent = (type === 'error' ? '' : '') + ' ' + message;
+            container.innerHTML = '';
+            container.appendChild(div);
+            setTimeout(() => { if (div.parentNode) div.remove(); }, 5000);
+        }
+
+        async function checkAuth() {
+            try {
+                const resp = await fetch('/api/auth/user-classification');
+                const data = await resp.json();
+                if (data.classification !== 'owner') {
+                    document.getElementById('loadingState').style.display = 'none';
+                    document.getElementById('notAuthorized').style.display = 'block';
+                    return false;
+                }
+                return true;
+            } catch {
+                document.getElementById('loadingState').style.display = 'none';
+                document.getElementById('notAuthorized').style.display = 'block';
+                return false;
+            }
+        }
+
+        async function loadAdmins() {
+            try {
+                const resp = await fetch('/api/admin/list');
+                const data = await resp.json();
+                if (!data.success) {
+                    flash(data.error || 'Failed to load admin list', 'error');
+                    return;
+                }
+                renderAdmins(data.admins);
+            } catch (err) {
+                flash('Failed to load admin list: ' + err.message, 'error');
+            }
+        }
+
+        function renderAdmins(admins) {
+            const container = document.getElementById('adminList');
+            if (!admins || admins.length === 0) {
+                container.innerHTML = '<div class="admin-empty">No administrators configured. Add one above.</div>';
+                return;
+            }
+
+            container.innerHTML = admins.map(admin => {
+                const name = escapeHtml(admin.name || admin.display_name || 'Unknown');
+                const nip05 = escapeHtml(admin.nip05 || '');
+                const npub = escapeHtml(admin.npub || '');
+                const pubkey = escapeHtml(admin.pubkey);
+                const displayPubkey = npub ? npub.slice(0, 20) + '...' + npub.slice(-8) : pubkey.slice(0, 16) + '...' + pubkey.slice(-8);
+
+                const avatar = admin.picture
+                    ? `<img src="${escapeHtml(admin.picture)}" class="admin-avatar" onerror="this.outerHTML='<div class=\\'admin-avatar-placeholder\\'>&#x1F464;</div>'">`
+                    : '<div class="admin-avatar-placeholder">&#x1F464;</div>';
+
+                return `
+                    <div class="admin-card">
+                        <a href="/legacy/manage-administrator.html?pubkey=${pubkey}" style="display:flex;align-items:center;gap:1rem;flex:1;min-width:0;text-decoration:none;color:inherit;">
+                            ${avatar}
+                            <div class="admin-info">
+                                <div class="admin-name">${name}</div>
+                                ${nip05 ? `<div class="admin-nip05">${nip05}</div>` : ''}
+                                <div class="admin-pubkey">${displayPubkey}</div>
+                            </div>
+                        </a>
+                        <button class="admin-remove-btn" onclick="removeAdmin('${pubkey}', '${escapeHtml(name)}')">Remove</button>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        async function addAdmin() {
+            const input = document.getElementById('addInput');
+            const btn = document.getElementById('addBtn');
+            const identifier = input.value.trim();
+            if (!identifier) {
+                flash('Please enter an npub, hex pubkey, or NIP-05 address', 'error');
+                return;
+            }
+
+            btn.disabled = true;
+            btn.textContent = 'Adding...';
+            try {
+                const resp = await fetch('/api/admin/add', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ identifier }),
+                });
+                const data = await resp.json();
+                if (data.success) {
+                    flash(data.message || 'Administrator added', 'success');
+                    input.value = '';
+                    await loadAdmins();
+                } else {
+                    flash(data.error || 'Failed to add administrator', 'error');
+                }
+            } catch (err) {
+                flash('Failed to add administrator: ' + err.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '+ Add';
+            }
+        }
+
+        async function removeAdmin(pubkey, name) {
+            if (!confirm(`Remove ${name || pubkey} from administrators?`)) return;
+
+            try {
+                const resp = await fetch('/api/admin/remove', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ pubkey }),
+                });
+                const data = await resp.json();
+                if (data.success) {
+                    flash(data.message || 'Administrator removed', 'success');
+                    await loadAdmins();
+                } else {
+                    flash(data.error || 'Failed to remove administrator', 'error');
+                }
+            } catch (err) {
+                flash('Failed to remove administrator: ' + err.message, 'error');
+            }
+        }
+
+        // Allow Enter key to submit
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('addInput').addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') addAdmin();
+            });
+        });
+
+        // Initialize
+        (async () => {
+            const authorized = await checkAuth();
+            if (!authorized) return;
+            document.getElementById('loadingState').style.display = 'none';
+            document.getElementById('mainContent').style.display = 'block';
+            await loadAdmins();
+        })();
+    </script>
+</body>
+</html>

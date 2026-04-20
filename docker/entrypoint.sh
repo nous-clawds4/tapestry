@@ -69,7 +69,7 @@ export BRAINSTORM_DEFAULT_POPULAR_GENERAL_PURPOSE_RELAYS='wss://relay.nostr.band
 export BRAINSTORM_POPULAR_GENERAL_PURPOSE_RELAYS='wss://relay.nostr.band,wss://relay.damus.io,wss://relay.primal.net'
 
 # NIP-85 configuration
-export BRAINSTORM_30382_LIMIT="10"
+export BRAINSTORM_30382_LIMIT="250000"
 
 # Performance tuning
 export BRAINSTORM_BATCH_SIZE="100"
@@ -110,6 +110,18 @@ CONFEOF
 
 chmod 664 /etc/brainstorm.conf
 
+# ── Install algorithm config files from templates (if not already present) ──
+# These are created by setup/install-control-panel.sh on bare-metal installs.
+# In Docker, we create them here from the shipped templates.
+CONFIG_DIR="${BRAINSTORM_MODULE_BASE_DIR}config"
+for conffile in graperank whitelist blacklist nip56; do
+  if [ ! -f "/etc/${conffile}.conf" ] && [ -f "${CONFIG_DIR}/${conffile}.conf.template" ]; then
+    cp "${CONFIG_DIR}/${conffile}.conf.template" "/etc/${conffile}.conf"
+    chmod 644 "/etc/${conffile}.conf"
+    echo "Installed /etc/${conffile}.conf from template"
+  fi
+done
+
 # Generate strfry.conf from the default template
 if [ -f /usr/local/src/strfry/strfry.conf ]; then
   cp /usr/local/src/strfry/strfry.conf /etc/strfry.conf
@@ -137,6 +149,100 @@ events {
     maxEventSize = 1048576
 }
 STRFRYEOF
+fi
+
+# Add Redis config for streaming ETL (strfry → Redis → Neo4j)
+REDIS_HOST="${REDIS_HOST:-redis}"
+REDIS_PORT="${REDIS_PORT:-6379}"
+cat >> /etc/strfry.conf << REDISEOF
+
+redis {
+    host = "$REDIS_HOST"
+    port = $REDIS_PORT
+}
+REDISEOF
+
+# ── Dynamic Neo4j memory, GC, and concurrency configuration ──
+# Detects system RAM and CPU count at startup, calculates optimal settings.
+# Reserves memory for other services (Meilisearch, strfry, Redis, Node.js, OS).
+
+TOTAL_MEM_KB=$(grep MemTotal /proc/meminfo | awk '{print $2}')
+TOTAL_MEM_MB=$((TOTAL_MEM_KB / 1024))
+NUM_CPUS=$(nproc)
+
+# Reserve memory for other services (Meilisearch, strfry, Redis, Node.js, OS).
+# Empirical measurements on 32GB/2.6M profiles: Meilisearch uses ~6GB,
+# strfry ~1-2GB, Node.js ~0.5GB, OS ~1-2GB = ~10-12GB total.
+if [ "$TOTAL_MEM_MB" -ge 24000 ]; then
+  RESERVED_MB=12000    # 12GB on large machines (≥24GB) — Meilisearch needs 6-8GB alone
+elif [ "$TOTAL_MEM_MB" -ge 12000 ]; then
+  RESERVED_MB=7000     # 7GB on medium machines (12-24GB)
+else
+  RESERVED_MB=3500     # 3.5GB on small machines (<12GB)
+fi
+
+AVAILABLE_MB=$((TOTAL_MEM_MB - RESERVED_MB))
+# Ensure minimum 1GB available for Neo4j
+if [ "$AVAILABLE_MB" -lt 1024 ]; then
+  AVAILABLE_MB=1024
+fi
+
+NEO4J_HEAP_MB=$((AVAILABLE_MB * 40 / 100))
+NEO4J_CACHE_MB=$((AVAILABLE_MB * 40 / 100))
+NEO4J_TX_MAX_MB=$((NEO4J_HEAP_MB * 50 / 100))
+
+# Concurrent transaction limit: ~100 per CPU core
+NEO4J_CONCURRENT_MAX=$((NUM_CPUS * 100))
+
+echo "=== Neo4j Dynamic Configuration ==="
+echo "  System RAM: ${TOTAL_MEM_MB}MB, CPUs: ${NUM_CPUS}"
+echo "  Reserved for other services: ${RESERVED_MB}MB"
+echo "  Neo4j heap: ${NEO4J_HEAP_MB}MB, page cache: ${NEO4J_CACHE_MB}MB"
+echo "  Transaction memory max: ${NEO4J_TX_MAX_MB}MB"
+echo "  Concurrent transactions max: ${NEO4J_CONCURRENT_MAX}"
+
+# Remove any existing memory/GC settings (from Dockerfile or previous runs)
+sed -i '/^server.memory.heap/d' /etc/neo4j/neo4j.conf
+sed -i '/^server.memory.pagecache/d' /etc/neo4j/neo4j.conf
+sed -i '/^dbms.memory.transaction/d' /etc/neo4j/neo4j.conf
+sed -i '/^db.transaction.concurrent/d' /etc/neo4j/neo4j.conf
+sed -i '/^server.jvm.additional=-XX:.*G1/d' /etc/neo4j/neo4j.conf
+sed -i '/^server.jvm.additional=-XX:+UseG1GC/d' /etc/neo4j/neo4j.conf
+sed -i '/^server.jvm.additional=-XX:+ExitOnOutOfMemoryError/d' /etc/neo4j/neo4j.conf
+sed -i '/^server.jvm.additional=-XX:+HeapDumpOnOutOfMemoryError/d' /etc/neo4j/neo4j.conf
+sed -i '/^# Dynamic Neo4j settings/d' /etc/neo4j/neo4j.conf
+sed -i '/^# Memory settings for Docker/d' /etc/neo4j/neo4j.conf
+
+# Write dynamic settings
+cat >> /etc/neo4j/neo4j.conf << NEO4JMEM
+
+# Dynamic Neo4j settings (calculated at startup by entrypoint.sh)
+server.memory.heap.initial_size=${NEO4J_HEAP_MB}m
+server.memory.heap.max_size=${NEO4J_HEAP_MB}m
+server.memory.pagecache.size=${NEO4J_CACHE_MB}m
+dbms.memory.transaction.total.max=${NEO4J_TX_MAX_MB}m
+db.transaction.concurrent.maximum=${NEO4J_CONCURRENT_MAX}
+NEO4JMEM
+
+# G1GC for heaps ≥ 4GB (better pause times with large heaps)
+if [ "$NEO4J_HEAP_MB" -ge 4096 ]; then
+  cat >> /etc/neo4j/neo4j.conf << G1GCCONF
+server.jvm.additional=-XX:+UseG1GC
+server.jvm.additional=-XX:+ExitOnOutOfMemoryError
+server.jvm.additional=-XX:+HeapDumpOnOutOfMemoryError
+server.jvm.additional=-XX:HeapDumpPath=/var/log/brainstorm/
+G1GCCONF
+  # Larger G1 region size for heaps ≥ 8GB
+  if [ "$NEO4J_HEAP_MB" -ge 8192 ]; then
+    echo "server.jvm.additional=-XX:G1HeapRegionSize=16m" >> /etc/neo4j/neo4j.conf
+    echo "server.jvm.additional=-XX:G1NewSizePercent=20" >> /etc/neo4j/neo4j.conf
+    echo "server.jvm.additional=-XX:G1MaxNewSizePercent=40" >> /etc/neo4j/neo4j.conf
+  fi
+  echo "  G1GC enabled (heap ≥ 4GB)"
+else
+  # Still add OOM handler for small heaps
+  echo "server.jvm.additional=-XX:+ExitOnOutOfMemoryError" >> /etc/neo4j/neo4j.conf
+  echo "  Default GC (heap < 4GB)"
 fi
 
 # Set Neo4j initial password (ignore error if already set)

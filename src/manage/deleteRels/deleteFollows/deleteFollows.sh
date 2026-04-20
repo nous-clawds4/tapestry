@@ -15,14 +15,14 @@ LOGFILE="${BRAINSTORM_LOG_DIR:-/var/log/brainstorm}/deleteFollows.log"
 
 # Create log file if it doesn't exist and set permissions
 touch $LOGFILE
-sudo chown brainstorm:brainstorm $LOGFILE 2>/dev/null || true
+chown brainstorm:brainstorm $LOGFILE 2>/dev/null || true
 
 echo "$(date): Starting deleteFollows.sh" | tee -a $LOGFILE
 echo "$(date): Starting deleteFollows.sh" >> $LOGFILE
 
 # Run the Node.js script
 echo "$(date): Running deleteFollows.js" | tee -a $LOGFILE
-sudo node "$(dirname "$0")/deleteFollows.js"
+node "$(dirname "$0")/deleteFollows.js"
 RESULT=$?
 
 if [ $RESULT -eq 0 ]; then

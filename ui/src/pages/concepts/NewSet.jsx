@@ -51,7 +51,7 @@ export default function NewSet() {
       const data = await res.json();
 
       if (data.success) {
-        navigate(`/kg/concepts/${encodedUuid}/dag`);
+        navigate(`/tapestry/concepts/${encodedUuid}/dag`);
       } else {
         setError(data.error || 'Unknown error');
       }
@@ -164,7 +164,7 @@ export default function NewSet() {
           <button
             type="button"
             className="btn btn-secondary"
-            onClick={() => navigate(`/kg/concepts/${encodedUuid}/dag`)}
+            onClick={() => navigate(`/tapestry/concepts/${encodedUuid}/dag`)}
           >
             Cancel
           </button>

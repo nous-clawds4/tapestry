@@ -194,7 +194,7 @@
             
             // Load current configuration
             function loadCurrentConfig() {
-                fetch('/control/api/get-blacklist-config')
+                fetch('/api/get-blacklist-config')
                     .then(response => response.json())
                     .then(data => {
                         if (data.success) {
@@ -250,7 +250,7 @@
                 }
                 
                 // Send updated configuration to the server
-                fetch('/control/api/post-blacklist-config', {
+                fetch('/api/post-blacklist-config', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -313,7 +313,7 @@
                 generateBlacklistStatus.textContent = 'Generating blacklist...';
                 generateBlacklistOutput.style.display = 'none';
                 
-                fetch('/control/api/generate-blacklist', {
+                fetch('/api/generate-blacklist', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'

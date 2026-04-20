@@ -27,12 +27,12 @@ LOG_DIR="$BRAINSTORM_LOG_DIR/customers/$CUSTOMER_NAME"
 
 # Create log directory if it doesn't exist; chown to brainstorm user
 mkdir -p "$LOG_DIR"
-sudo chown brainstorm:brainstorm "$LOG_DIR"
+chown brainstorm:brainstorm "$LOG_DIR"
 
 # Log file
 LOG_FILE="$LOG_DIR/createCustomerRelayPubkeyIfNeeded.log"
 touch ${LOG_FILE}
-sudo chown brainstorm:brainstorm ${LOG_FILE}
+chown brainstorm:brainstorm ${LOG_FILE}
 
 echo "$(date): Starting createCustomerRelayPubkeyIfNeeded for customer $CUSTOMER_ID and customer_pubkey $CUSTOMER_PUBKEY and customer_name $CUSTOMER_NAME"
 echo "$(date): Starting createCustomerRelayPubkeyIfNeeded for customer $CUSTOMER_ID and customer_pubkey $CUSTOMER_PUBKEY and customer_name $CUSTOMER_NAME" >> ${LOG_FILE}
@@ -79,16 +79,16 @@ if [ -f "/etc/brainstorm.conf" ]; then
         CUSTOMER_RELAY_NSEC=$(echo $KEYS_JSON | jq -r '.nsec')
         CUSTOMER_RELAY_PUBKEY=$(echo $KEYS_JSON | jq -r '.pubkey')
         CUSTOMER_RELAY_NPUB=$(echo $KEYS_JSON | jq -r '.npub')
-        echo "" | sudo tee -a /etc/brainstorm.conf
-        echo "#################### CUSTOMER id: $CUSTOMER_ID ####################" | sudo tee -a /etc/brainstorm.conf
-        echo "# PUBKEY: $CUSTOMER_PUBKEY" | sudo tee -a /etc/brainstorm.conf
-        echo "# NAME: $CUSTOMER_NAME" | sudo tee -a /etc/brainstorm.conf
-        echo "export ${PUBKEY_VAR_NAME}='$CUSTOMER_RELAY_PUBKEY'" | sudo tee -a /etc/brainstorm.conf
-        echo "export ${NPUB_VAR_NAME}='$CUSTOMER_RELAY_NPUB'" | sudo tee -a /etc/brainstorm.conf
-        echo "export ${PRIVKEY_VAR_NAME}='$CUSTOMER_RELAY_PRIVKEY'" | sudo tee -a /etc/brainstorm.conf
-        echo "export ${NSEC_VAR_NAME}='$CUSTOMER_RELAY_NSEC'" | sudo tee -a /etc/brainstorm.conf
-        echo "# keys added by createCustomerRelayPubkeyIfNeeded.sh" | sudo tee -a /etc/brainstorm.conf
-        echo "#############################################################" | sudo tee -a /etc/brainstorm.conf
+        echo "" | tee -a /etc/brainstorm.conf
+        echo "#################### CUSTOMER id: $CUSTOMER_ID ####################" | tee -a /etc/brainstorm.conf
+        echo "# PUBKEY: $CUSTOMER_PUBKEY" | tee -a /etc/brainstorm.conf
+        echo "# NAME: $CUSTOMER_NAME" | tee -a /etc/brainstorm.conf
+        echo "export ${PUBKEY_VAR_NAME}='$CUSTOMER_RELAY_PUBKEY'" | tee -a /etc/brainstorm.conf
+        echo "export ${NPUB_VAR_NAME}='$CUSTOMER_RELAY_NPUB'" | tee -a /etc/brainstorm.conf
+        echo "export ${PRIVKEY_VAR_NAME}='$CUSTOMER_RELAY_PRIVKEY'" | tee -a /etc/brainstorm.conf
+        echo "export ${NSEC_VAR_NAME}='$CUSTOMER_RELAY_NSEC'" | tee -a /etc/brainstorm.conf
+        echo "# keys added by createCustomerRelayPubkeyIfNeeded.sh" | tee -a /etc/brainstorm.conf
+        echo "#############################################################" | tee -a /etc/brainstorm.conf
         echo "Nostr identity created successfully!"
         echo "CUSTOMER_RELAY_PUBKEY: $CUSTOMER_RELAY_PUBKEY"
         echo "CUSTOMER_RELAY_NPUB: $CUSTOMER_RELAY_NPUB"

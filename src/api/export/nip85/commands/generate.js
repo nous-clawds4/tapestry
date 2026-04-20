@@ -28,7 +28,7 @@ function handleGenerateNip85(req, res) {
     console.log(`Executing NIP-85 publishing script: ${scriptPath}`);
     
     // Use exec to run the script with sudo
-    const child = exec(`sudo ${scriptPath}`, {
+    const child = exec(`${scriptPath}`, {
         timeout: 590000, // slightly less than the HTTP timeout
         maxBuffer: 1024 * 1024 // 1MB buffer for stdout/stderr
     }, (error, stdout, stderr) => {

@@ -8,8 +8,8 @@
 
 # TODO: only restart service if it was on before calling this script
 
-sudo systemctl stop addToQueue.service
+systemctl stop addToQueue.service
 
-sudo strfry sync wss://relay.primal.net --filter '{"kinds":[3,1984,10000]}'
+strfry sync wss://relay.primal.net --filter '{"kinds":[3,1984,10000]}'
 
-sudo systemctl start addToQueue.service
+systemctl start addToQueue.service

@@ -86,10 +86,21 @@ function getOwnerPubkey() {
 }
 
 /**
- * Get admin public keys from brainstorm.conf
+ * Get admin public keys.
+ * Reads from settings.json first (runtime-editable, persistent across restarts),
+ * falls back to BRAINSTORM_ADMIN_PUBKEYS in brainstorm.conf (Docker env, static).
  * @returns {string[]} Array of admin pubkeys (hex), empty if none configured
  */
 function getAdminPubkeys() {
+    // Check settings.json first (runtime-editable via admin management page)
+    try {
+        const { getSettings } = require('../config/settings');
+        const settings = getSettings();
+        if (settings.adminPubkeys && Array.isArray(settings.adminPubkeys) && settings.adminPubkeys.length > 0) {
+            return settings.adminPubkeys;
+        }
+    } catch { /* settings module not available, fall through */ }
+    // Fall back to brainstorm.conf (Docker env, static)
     const raw = getConfigFromFile('BRAINSTORM_ADMIN_PUBKEYS', '');
     if (!raw) return [];
     return raw.split(',').map(s => s.trim()).filter(Boolean);

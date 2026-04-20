@@ -5,11 +5,11 @@
 echo "Stopping databases..."
 
 # Stop strfry
-sudo systemctl stop strfry
+systemctl stop strfry
 sleep 3
 
 # Stop Neo4j
-sudo systemctl stop neo4j
+systemctl stop neo4j
 sleep 5
 
 echo "Databases stopped successfully."

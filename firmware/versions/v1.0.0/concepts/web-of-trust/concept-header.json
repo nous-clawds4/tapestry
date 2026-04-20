@@ -1,0 +1,21 @@
+{
+  "word": {
+    "slug": "concept-header-for-the-concept-of-web-of-trust",
+    "name": "concept header for the concept of web of trust",
+    "title": "Concept Header for the Concept of Web of Trust",
+    "wordTypes": ["word", "conceptHeader"]
+  },
+  "conceptHeader": {
+    "description": "A Web of Trust (WoT) is a decentralized reputation system where trust propagates through human relationships rather than central authorities. In Nostr, WoT is derived from follow lists (kind 3) and mute lists (kind 10000): users you follow are implicitly trusted, and their follows extend trust transitively. WoT enables user-controlled content moderation, spam filtering, and curation — each user sees a personalized view of the network weighted by the people they trust. In Tapestry, WoT (via GrapeRank) determines which concept definitions achieve 'loose consensus' across the community.",
+    "oNames": { "singular": "web of trust", "plural": "webs of trust" },
+    "oSlugs": { "singular": "web-of-trust", "plural": "webs-of-trust" },
+    "oKeys": { "singular": "webOfTrust", "plural": "websOfTrust" },
+    "oTitles": { "singular": "Web of Trust", "plural": "Webs of Trust" },
+    "oLabels": { "singular": "WebOfTrust", "plural": "WebsOfTrust" },
+    "x-tapestry": {
+      "neo4j": {
+        "nodeLabelRequired": false
+      }
+    }
+  }
+}

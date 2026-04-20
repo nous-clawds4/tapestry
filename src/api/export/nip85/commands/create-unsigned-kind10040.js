@@ -8,7 +8,7 @@
  */
 
 const { getConfigFromFile } = require('../../../../utils/config');
-const { getCustomerRelayKeys } = require('../../../../utils/customerRelayKeys');
+const { getAssistantKeys } = require('../../../../utils/assistantKeys');
 
 /**
  * Create unsigned Kind 10040 event template
@@ -25,17 +25,17 @@ async function handleCreateUnsignedKind10040(req, res) {
             });
         }
 
-        // Get the customer pubkey from the request
-        const customerPubkey = req.body.pubkey || req.query.pubkey;
-        
+        // Get pubkey from request body, query, or default to the authenticated session user (owner)
+        const customerPubkey = req.body.pubkey || req.query.pubkey || req.session.pubkey;
+
         if (!customerPubkey) {
             return res.status(400).json({
                 success: false,
-                message: 'Customer pubkey is required'
+                message: 'Pubkey is required (provide in body/query or sign in)'
             });
         }
 
-        console.log(`Creating unsigned Kind 10040 event for customer: ${customerPubkey.substring(0, 8)}...`);
+        console.log(`Creating unsigned Kind 10040 event for: ${customerPubkey.substring(0, 8)}...`);
         
         // Get relay configuration
         // TODO: allow owner to specify whether to use BRAINSTORM_RELAY_URL or BRAINSTORM_NIP85_HOME_RELAY
@@ -50,13 +50,13 @@ async function handleCreateUnsignedKind10040(req, res) {
             });
         }
 
-        // Get relay keys to get the relay pubkey
-        const relayKeys = await getCustomerRelayKeys(customerPubkey);
-        
+        // Get assistant relay keys (unified: owner → TA key, customer → customer relay key)
+        const relayKeys = await getAssistantKeys(customerPubkey);
+
         if (!relayKeys || !relayKeys.pubkey) {
             return res.status(404).json({
                 success: false,
-                message: 'Relay keys not found for customer. Please ensure customer relay has been created.'
+                message: 'Assistant relay keys not found. Please ensure the relay identity has been created.'
             });
         }
 
@@ -105,17 +105,17 @@ async function handleCreateUnsignedKind10040(req, res) {
                     nip85HomeRelay
                 ],
                 [
-                    "30382:verifiedFollowersCount",
+                    "30382:verifiedFollowerCount",
                     relayPubkey,
                     nip85HomeRelay
                 ],
                 [
-                    "30382:verifiedMutersCount",
+                    "30382:verifiedMuterCount",
                     relayPubkey,
                     nip85HomeRelay
                 ],
                 [
-                    "30382:verifiedReportersCount",
+                    "30382:verifiedReporterCount",
                     relayPubkey,
                     nip85HomeRelay
                 ],

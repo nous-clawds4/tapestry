@@ -1,0 +1,15 @@
+{
+  "word": {
+    "slug": "nostr-kind--kind-39998",
+    "name": "nostr kind: 39998 (DList Header)",
+    "title": "Nostr Kind: 39998 (DList Header)",
+    "wordTypes": ["word", "nostrKind"]
+  },
+  "nostrKind": {
+    "kind": 39998,
+    "name": "DList Header",
+    "nip": "NIP-51",
+    "replaceability": "parameterized-replaceable",
+    "description": "A Tapestry DList header event that acts as the root node of a class thread in the Tapestry concept graph. Contains a word-wrapper JSON payload in the 'json' tag defining a concept, schema, set, or other Tapestry construct."
+  }
+}

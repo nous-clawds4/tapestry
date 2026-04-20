@@ -40,11 +40,11 @@ async function handleBrainstormControl(req, res) {
         }
         
         // Make script executable if it's not already
-        execSync(`sudo chmod +x ${scriptPath}`);
+        execSync(`chmod +x ${scriptPath}`);
         
         // Execute the script
         console.log(`Executing ${scriptPath}...`);
-        const output = execSync(`sudo ${scriptPath}`, { timeout: 60000 }).toString();
+        const output = execSync(`${scriptPath}`, { timeout: 60000 }).toString();
         
         return res.json({
             success: true,

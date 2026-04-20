@@ -1,0 +1,15 @@
+{
+  "word": {
+    "slug": "nostr-kind--kind-10002",
+    "name": "nostr kind: 10002 (Relay List Metadata)",
+    "title": "Nostr Kind: 10002 (Relay List Metadata)",
+    "wordTypes": ["word", "nostrKind"]
+  },
+  "nostrKind": {
+    "kind": 10002,
+    "name": "Relay List Metadata",
+    "nip": "NIP-65",
+    "replaceability": "replaceable",
+    "description": "A user's preferred relay list with read/write hints, used by clients and relays for the outbox model. R-tags list relay URLs with optional 'read' or 'write' markers."
+  }
+}

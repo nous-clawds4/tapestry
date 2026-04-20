@@ -131,6 +131,8 @@ function processEvent(event) {
     id: pubkey, // Meilisearch primary key (hex pubkey)
     pubkey,
     npub,
+    event_id: event.id,   // original nostr event ID (for NIP-50 relay proxy)
+    event_sig: event.sig,  // original nostr event signature (for NIP-50 relay proxy)
     created_at: event.created_at,
     indexed_at: Math.floor(Date.now() / 1000),
     name: sanitizeStr(profile.name),

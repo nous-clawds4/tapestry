@@ -11,7 +11,7 @@ source /etc/brainstorm.conf # NEO4J_URI, NEO4J_USER, NEO4J_PASSWORD, BRAINSTORM_
 source "$BRAINSTORM_MODULE_BASE_DIR/src/utils/structuredLogging.sh"
 
 touch ${BRAINSTORM_LOG_DIR}/calculatePersonalizedPageRank.log
-sudo chown brainstorm:brainstorm ${BRAINSTORM_LOG_DIR}/calculatePersonalizedPageRank.log
+chown brainstorm:brainstorm ${BRAINSTORM_LOG_DIR}/calculatePersonalizedPageRank.log
 
 echo "$(date): Starting calculatePersonalizedPageRank"
 echo "$(date): Starting calculatePersonalizedPageRank" >> ${BRAINSTORM_LOG_DIR}/calculatePersonalizedPageRank.log
@@ -68,7 +68,7 @@ emit_task_event "PROGRESS" "calculateOwnerPageRank" "$BRAINSTORM_OWNER_PUBKEY" '
     "database": "neo4j"
 }'
 
-if sudo cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER1"; then
+if cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER1"; then
     # Emit structured event for graph projection success
     emit_task_event "PROGRESS" "calculateOwnerPageRank" "$BRAINSTORM_OWNER_PUBKEY" '{
         "message": "Graph projection completed successfully",
@@ -113,7 +113,7 @@ emit_task_event "PROGRESS" "calculateOwnerPageRank" "$BRAINSTORM_OWNER_PUBKEY" '
     "database": "neo4j"
 }'
 
-if sudo cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER2"; then
+if cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER2"; then
     # Emit structured event for PageRank calculation success
     emit_task_event "PROGRESS" "calculateOwnerPageRank" "$BRAINSTORM_OWNER_PUBKEY" '{
         "message": "Personalized PageRank calculation completed successfully",
@@ -153,7 +153,7 @@ emit_task_event "PROGRESS" "calculateOwnerPageRank" "$BRAINSTORM_OWNER_PUBKEY" '
     "database": "neo4j"
 }'
 
-if sudo cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER3"; then
+if cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER3"; then
     # Emit structured event for graph cleanup success
     emit_task_event "PROGRESS" "calculateOwnerPageRank" "$BRAINSTORM_OWNER_PUBKEY" '{
         "message": "Graph cleanup completed successfully",
@@ -200,7 +200,7 @@ emit_task_event "TASK_END" "calculateOwnerPageRank" "$BRAINSTORM_OWNER_PUBKEY" '
 }'
 
 # once personalizedPageRank scores are updated in neo4j (above), call the script that updates the plugin whitelist:
-# sudo ${BRAINSTORM_MODULE_ALGOS_DIR}/exportWhitelist.sh
+# ${BRAINSTORM_MODULE_ALGOS_DIR}/exportWhitelist.sh
 
 echo "$(date): Finished calculatePersonalizedPageRank"
 echo "$(date): Finished calculatePersonalizedPageRank" >> ${BRAINSTORM_LOG_DIR}/calculatePersonalizedPageRank.log

@@ -11,8 +11,12 @@ source /etc/brainstorm.conf # BRAINSTORM_MODULE_ALGOS_DIR, BRAINSTORM_LOG_DIR
 # Source structured logging utilities
 source "$BRAINSTORM_MODULE_BASE_DIR/src/utils/structuredLogging.sh"
 
-# Set the timeout in seconds (20 minutes = 1200 seconds)
-TIMEOUT=1200
+# Set the timeout in seconds (45 minutes = 2700 seconds)
+# The GrapeRank pipeline takes ~21 minutes on 2.46M nodes/30M edges:
+#   cypher queries: ~3 min, initializeRatings: ~3 min,
+#   calculateGrapeRank: ~15 min, updateNeo4j: ~1 min
+# 45 minutes provides comfortable headroom for graph growth.
+TIMEOUT=2700
 # Maximum number of retry attempts
 MAX_RETRIES=3
 # Current retry count
@@ -24,7 +28,16 @@ LOG_FILE="$BRAINSTORM_LOG_DIR/calculatePersonalizedGrapeRankController.log"
 # Create log directory if it doesn't exist
 mkdir -p "$(dirname "$LOG_FILE")"
 touch "$LOG_FILE"
-sudo chown brainstorm:brainstorm "$LOG_FILE"
+chown brainstorm:brainstorm "$LOG_FILE"
+
+# Clean up GrapeRank tmp on exit (success, failure, or signal)
+cleanup_graperank_tmp() {
+    if [ -d "/var/lib/brainstorm/algos/personalizedGrapeRank/tmp" ]; then
+        echo "$(date): Cleaning up personalizedGrapeRank tmp files" >> "$LOG_FILE"
+        rm -rf /var/lib/brainstorm/algos/personalizedGrapeRank/tmp
+    fi
+}
+trap cleanup_graperank_tmp EXIT
 
 # Log start time
 echo "$(date): Starting calculatePersonalizedGrapeRankController"
@@ -50,7 +63,7 @@ run_with_timeout() {
     
     # Run the script in background
     {
-        sudo $BRAINSTORM_MODULE_ALGOS_DIR/personalizedGrapeRank/calculatePersonalizedGrapeRank.sh
+        $BRAINSTORM_MODULE_ALGOS_DIR/personalizedGrapeRank/calculatePersonalizedGrapeRank.sh
         # Create marker file upon successful completion
         touch "$COMPLETION_MARKER"
     } &
@@ -144,8 +157,8 @@ run_with_timeout() {
     }'
     
     # Kill the background process and its children
-    sudo pkill -P $BG_PID 2>/dev/null
-    sudo kill -9 $BG_PID 2>/dev/null
+    pkill -P $BG_PID 2>/dev/null
+    kill -9 $BG_PID 2>/dev/null
     
     # Clean up marker file if it exists
     rm -f "$COMPLETION_MARKER"

@@ -1,0 +1,15 @@
+{
+  "word": {
+    "slug": "nostr-kind--kind-30382",
+    "name": "nostr kind: 30382 (User Trusted Assertion)",
+    "title": "Nostr Kind: 30382 (User Trusted Assertion)",
+    "wordTypes": ["word", "nostrKind"]
+  },
+  "nostrKind": {
+    "kind": 30382,
+    "name": "User Trusted Assertion",
+    "nip": "NIP-85",
+    "replaceability": "parameterized-replaceable",
+    "description": "A trusted assertion about a user's trust rank or WoT score, published by a trusted relay or scoring service. The d-tag identifies the subject pubkey; rank and confidence scores are included as tags."
+  }
+}

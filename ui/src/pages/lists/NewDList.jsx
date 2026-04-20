@@ -113,9 +113,9 @@ export default function NewDList() {
       const ev = data.event;
       if (ev.kind === 39998) {
         const dTagVal = ev.tags.find(t => t[0] === 'd')?.[1];
-        navigate(`/kg/lists/${encodeURIComponent(`39998:${ev.pubkey}:${dTagVal}`)}`);
+        navigate(`/tapestry/lists/${encodeURIComponent(`39998:${ev.pubkey}:${dTagVal}`)}`);
       } else {
-        navigate(`/kg/lists/${encodeURIComponent(ev.id)}`);
+        navigate(`/tapestry/lists/${encodeURIComponent(ev.id)}`);
       }
     } catch (err) {
       setError(err.message);
@@ -291,7 +291,7 @@ export default function NewDList() {
         <div className="form-buttons">
           <button
             className="btn-secondary"
-            onClick={() => navigate('/kg/lists')}
+            onClick={() => navigate('/tapestry/lists')}
           >
             Cancel
           </button>

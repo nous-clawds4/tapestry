@@ -1,1 +1,0 @@
-This folder is used to store current mutes determined by data in strfry

@@ -2,87 +2,89 @@ import { useState, useEffect } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import Header from './Header';
 import { useAuth } from '../context/AuthContext';
+import TrustWidget from './TrustWidget';
 
 /**
  * Nav items split into two menus: main and management.
  * Both start with Dashboard. The active menu is determined by the current route.
  */
-const dashboardItem = { to: '/kg/', label: '📊 Dashboard', end: true };
+const dashboardItem = { to: '/tapestry/', label: '📊 Dashboard', end: true };
 
 const mainNavItems = [
   dashboardItem,
   {
     label: '📋 Simple Lists',
-    prefix: '/kg/lists',
+    prefix: '/tapestry/lists',
     children: [
-      { to: '/kg/lists', label: 'List Headers', end: true },
-      { to: '/kg/lists/items', label: 'List Items' },
+      { to: '/tapestry/lists', label: 'List Headers', end: true },
+      { to: '/tapestry/lists/items', label: 'List Items' },
     ],
   },
   {
     label: '🧩 Concepts',
-    prefix: '/kg/concepts',
+    prefix: '/tapestry/concepts',
     children: [
-      { to: '/kg/concepts', label: 'Concept Headers', end: true },
+      { to: '/tapestry/concepts', label: 'Concept Headers', end: true },
     ],
   },
   {
     label: '🍇 My Grapevine',
-    prefix: '/kg/grapevine',
+    prefix: '/tapestry/grapevine',
     children: [
-      { to: '/kg/grapevine/trusted-assertions', label: 'TA Treasure Map' },
-      { to: '/kg/grapevine/assertions', label: 'Trusted Assertions' },
-      { to: '/kg/grapevine/trusted-lists', label: 'Trusted Lists' },
-      { to: '/kg/grapevine/trust-determination', label: 'Trust Determination' },
-      { to: '/kg/grapevine/search-preferences', label: 'Search Preferences' },
-      { to: '/kg/grapevine/meilisearch', label: 'Meilisearch' },
+      { to: '/tapestry/grapevine/trusted-assertions', label: 'TA Treasure Map' },
+      { to: '/tapestry/grapevine/assertions', label: 'Trusted Assertions' },
+      { to: '/tapestry/grapevine/trusted-lists', label: 'Trusted Lists' },
+      { to: '/tapestry/grapevine/trust-determination', label: 'Trust Determination' },
+      { to: '/tapestry/grapevine/search-preferences', label: 'Search Preferences' },
+      { to: '/tapestry/grapevine/meilisearch', label: 'Meilisearch' },
     ],
   },
   {
     label: '👤 Nostr Users',
-    prefix: '/kg/users',
+    prefix: '/tapestry/users',
     children: [
-      { to: '/kg/users', label: 'Directory', end: true },
-      { to: '/kg/users/search', label: 'Search' },
+      { to: '/tapestry/users', label: 'Directory', end: true },
+      { to: '/tapestry/users/search', label: 'Search' },
     ],
   },
+  { to: '/kg/relay-discovery', label: '📡 Relay Discovery' },
 ];
 
 const managementNavItems = [
   dashboardItem,
   {
     label: '🗄️ Databases',
-    prefix: '/kg/databases',
+    prefix: '/tapestry/databases',
     children: [
       {
         label: 'Neo4j',
-        prefix: '/kg/databases/neo4j',
+        prefix: '/tapestry/databases/neo4j',
         children: [
-          { to: '/kg/databases/neo4j', label: 'Overview', end: true },
-          { to: '/kg/databases/neo4j/nodes', label: 'Nodes' },
+          { to: '/tapestry/databases/neo4j', label: 'Overview', end: true },
+          { to: '/tapestry/databases/neo4j/nodes', label: 'Nodes' },
         ],
       },
       {
         label: 'Strfry',
-        prefix: '/kg/databases/strfry',
+        prefix: '/tapestry/databases/strfry',
         children: [
-          { to: '/kg/databases/strfry', label: 'Overview', end: true },
+          { to: '/tapestry/databases/strfry', label: 'Overview', end: true },
         ],
       },
     ],
   },
   {
     label: '📥 I/O',
-    prefix: '/kg/io',
+    prefix: '/tapestry/io',
     children: [
-      { to: '/kg/io/import', label: 'Import' },
-      { to: '/kg/io/export', label: 'Export' },
+      { to: '/tapestry/io/import', label: 'Import' },
+      { to: '/tapestry/io/export', label: 'Export' },
     ],
   },
 ];
 
 /** Route prefixes that trigger the management menu */
-const MANAGEMENT_PREFIXES = ['/kg/settings', '/kg/databases', '/kg/io', '/kg/manage'];
+const MANAGEMENT_PREFIXES = ['/tapestry/settings', '/tapestry/databases', '/tapestry/io', '/tapestry/manage'];
 
 /**
  * Recursive nav group component supporting arbitrary nesting depth.
@@ -193,6 +195,7 @@ export default function Layout() {
           <Outlet />
         </main>
       </div>
+      <TrustWidget />
     </div>
   );
 }

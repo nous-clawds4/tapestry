@@ -2,8 +2,11 @@ services:
   tapestry:
     container_name: tapestry
     build: .
+    depends_on:
+      redis:
+        condition: service_healthy
     ports:
-      - "8080:80"
+      - "80:80"
       - "7777:7777"
       - "7778:7778"
       - "7474:7474"
@@ -20,6 +23,17 @@ services:
       - tapestry-data:/var/lib/brainstorm
       - tapestry-logs:/var/log/brainstorm
     restart: unless-stopped
+
+  # --- Redis (streaming ETL queue: strfry → Neo4j) ---
+  redis:
+    image: redis:7-alpine
+    container_name: tapestry-redis
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   # --- Nostr Search (Meilisearch-powered profile search) ---
   nostr-search-meili:

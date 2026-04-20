@@ -5,7 +5,7 @@
 echo "Stopping processAllTasks timer service..."
 
 # Stop processAllTasks timer
-sudo systemctl stop processAllTasks.timer
+systemctl stop processAllTasks.timer
 
 echo "processAllTasks timer service stopped successfully."
 
