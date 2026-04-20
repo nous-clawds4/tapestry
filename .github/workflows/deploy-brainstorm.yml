@@ -2,7 +2,7 @@ name: Deploy to Brainstorm World
 
 on:
   push:
-    branches: [refactor-paths]
+    branches: [main]
 
 jobs:
   deploy:
@@ -20,8 +20,8 @@ jobs:
           script: |
             cd /opt/tapestry
             git checkout -- docker-compose.yml 2>/dev/null
-            git checkout refactor-paths 2>/dev/null || git checkout -b refactor-paths origin/refactor-paths
-            git pull origin refactor-paths
+            git checkout main 2>/dev/null || git checkout -b main origin/main
+            git pull origin main
             # Production uses host nginx on port 80, so Docker must bind to 8080 on localhost only
             sed -i 's/"80:80"/"127.0.0.1:8080:80"/' docker-compose.yml
             docker compose up -d --build
