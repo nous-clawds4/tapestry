@@ -495,6 +495,10 @@ async function register(app) {
     const { registerRelayDiscoveryRoutes } = require('./relay-discovery');
     registerRelayDiscoveryRoutes(app);
 
+    // ── Bounties API (Magic Carpet v2) ──
+    const bountiesApi = require('./bounties');
+    bountiesApi.register(app);
+
     // Initialize router state (presets → state file → strfry config)
     await initRouter();
 

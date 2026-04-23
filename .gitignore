@@ -16,6 +16,12 @@ lerna-debug.log*
 
 docker-compose.override.yml
 
+# Local SQLite bounty store (not shared; production uses the tapestry-data volume)
+/data/bounties.db
+/data/bounties.db-journal
+/data/bounties.db-wal
+/data/bounties.db-shm
+
 # Diagnostic reports (https://nodejs.org/api/report.html)
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 
