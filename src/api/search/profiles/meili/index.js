@@ -174,10 +174,18 @@ async function handleMeiliSearchProfiles(req, res) {
     }
 
     // Namespace sort: { metric: "followers", direction: "desc" } → wot_followers_<suffix>:desc
+    //
+    // Three-layer cascade (already resolved into the local `sort` variable above):
+    //   1. User's saved sortConfig (per-user, /var/lib/brainstorm/user-prefs/<pubkey>.json)
+    //   2. House's grapevine.searchPreferences.sort (settings.json, owner-controlled)
+    //   3. None — fall through to Meilisearch's text-relevance ranking
+    //
+    // "None" is represented as { metric: null } in user prefs. The `sort?.metric`
+    // check correctly treats both that case AND a fully-null `sort` as
+    // "do not impose a sort" — we send no `sort` param downstream and let
+    // Meilisearch rank by text relevance.
     if (sort?.metric && povSuffix) {
       url.searchParams.set('sort', `wot_${sort.metric}_${povSuffix}:${sort.direction || 'desc'}`);
-    } else if (povSuffix) {
-      url.searchParams.set('sort', `wot_followers_${povSuffix}:desc`);
     }
 
     // ── Step 4: Forward to nostr-search-api (parallel with NIP-05 if active) ──
