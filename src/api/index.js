@@ -491,10 +491,6 @@ async function register(app) {
     const { registerTapestryKeyRoutes } = require('./tapestry-key');
     registerTapestryKeyRoutes(app);
 
-    // ── Relay Discovery API ──
-    const { registerRelayDiscoveryRoutes } = require('./relay-discovery');
-    registerRelayDiscoveryRoutes(app);
-
     // Initialize router state (presets → state file → strfry config)
     await initRouter();
 
