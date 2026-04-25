@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import Breadcrumbs from '../../components/Breadcrumbs';
+import { useAuth } from '../../context/AuthContext';
 
 /**
  * Search Preferences — configure WoT scoring for profile search.
@@ -113,6 +114,10 @@ export default function SearchPreferences() {
   // Meilisearch score status
   const [meiliScoreStatus, setMeiliScoreStatus] = useState(null);
 
+  // Owner/admin detection — only owners can save these site-wide defaults.
+  const { user } = useAuth();
+  const isOwnerOrAdmin = user?.classification === 'owner' || user?.classification === 'admin';
+
   // Filter & Sort settings
   // filters: { rank: { enabled: true, cutoff: 2 }, followers: { enabled: false, cutoff: 0 } }
   // sort: { metric: 'followers', direction: 'desc' }
@@ -143,8 +148,10 @@ export default function SearchPreferences() {
   // Check on mount and after score loads
   useEffect(() => { checkMeiliScores(); }, [checkMeiliScores]);
 
-  // Save preferences to server
+  // Save preferences to server (owner/admin only — silently no-op for everyone else
+  // to avoid spurious 403s from the auto-save calls that fire during POV lookup, sync, etc.)
   const savePreferences = useCallback(async (prefs) => {
+    if (!isOwnerOrAdmin) return;
     try {
       await fetch('/api/grapevine/preferences', {
         method: 'PUT',
@@ -152,7 +159,7 @@ export default function SearchPreferences() {
         body: JSON.stringify(prefs),
       });
     } catch { /* best effort */ }
-  }, []);
+  }, [isOwnerOrAdmin]);
 
   // Load saved preferences on mount
   useEffect(() => {
@@ -449,13 +456,24 @@ export default function SearchPreferences() {
   return (
     <div className="page">
       <Breadcrumbs />
-      <h1>⚙️ Search Preferences</h1>
+      <h1>⚙️ House Search Defaults</h1>
       {initialLoading && <p style={{ opacity: 0.5 }}>Loading saved preferences...</p>}
       <p className="subtitle">
-        Configure Web of Trust scoring for profile search. Select a Point of View
-        (observer) and choose which trust metrics to use for filtering and ranking
-        search results.
+        Configure the Web-of-Trust defaults for profile search across this instance.
+        Select a Point of View (observer) and choose which trust metrics to use for
+        filtering and ranking. <strong>These are site-wide defaults</strong> that
+        affect every visitor who hasn't set their own personal preferences.
       </p>
+      {!isOwnerOrAdmin && (
+        <div style={{
+          padding: '0.75rem 1rem', border: '1px solid #d29922', borderRadius: '8px',
+          backgroundColor: 'rgba(210, 153, 34, 0.08)', color: '#d29922',
+          fontSize: '0.85rem', marginBottom: '1rem',
+        }}>
+          🔒 <strong>View only.</strong> These are owner/admin-only settings.
+          You can browse the current house defaults, but saving requires the owner or admin role.
+        </div>
+      )}
 
       {/* Step 1: POV Selection */}
       <div style={sectionStyle}>
@@ -646,7 +664,8 @@ export default function SearchPreferences() {
           {/* Save button */}
           <button
             className="btn btn-primary"
-            disabled={!filterSortDirty}
+            disabled={!filterSortDirty || !isOwnerOrAdmin}
+            title={!isOwnerOrAdmin ? 'Saving site-wide defaults requires the owner or admin role' : undefined}
             onClick={async () => {
               await savePreferences({
                 povPubkey, metrics: availableMetrics.map(m => m.metric),
