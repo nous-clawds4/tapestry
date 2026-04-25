@@ -290,25 +290,6 @@
             "categories": [
                 "tapestry"
             ]
-        },
-        {
-            "slug": "tag",
-            "dir": "./concepts/tag/",
-            "conceptHeader": "concept-header.json",
-            "jsonSchema": "json-schema.json",
-            "categories": [
-                "tag"
-            ]
-        },
-        {
-            "slug": "nostr-relay-tag",
-            "dir": "./concepts/nostr-relay-tag/",
-            "conceptHeader": "concept-header.json",
-            "jsonSchema": "json-schema.json",
-            "categories": [
-                "tag",
-                "nostr"
-            ]
         }
     ],
     "enumerations": {
@@ -523,27 +504,11 @@
                 },
                 {
                     "concept": "nostr-kind"
-                },
-                {
-                    "concept": "tag"
-                },
-                {
-                    "concept": "nostr-relay-tag"
                 }
             ]
         }
     },
     "changelog": [
-        {
-            "version": "1.0.0",
-            "date": "2026-04-14",
-            "changes": [
-                "Add tag concept with 9 seed elements (paid, free, archive, ephemeral, media-hosting, outbox, inbox, nsfw, regional)",
-                "Add tag sets: general-tags (top superset) and relay-tags (subset containing all 9 seeds)",
-                "Add nostr-relay-tag concept: an assertion linking a relay event ID to a tag event ID",
-                "Register tag and nostr-relay-tag in the words set of the root manifest"
-            ]
-        },
         {
             "version": "1.0.0",
             "date": "2026-04-06",
