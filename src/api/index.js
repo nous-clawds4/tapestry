@@ -309,8 +309,12 @@ async function register(app) {
     app.get('/api/relay/external', handleFetchExternalEvents);
 
     // Settings endpoints (owner-only except GET merged)
+    // /api/grapevine/preferences writes to the HOUSE config (settings.grapevine.searchPreferences)
+    // which cascades to all users who haven't set their own override. GET stays public so
+    // unauthenticated visitors and the inline picker can read the resolved house defaults.
+    // PUT is owner/admin only — these are site-wide defaults.
     app.get('/api/grapevine/preferences', handleGetGrapevinePreferences);
-    app.put('/api/grapevine/preferences', handleUpdateGrapevinePreferences);
+    app.put('/api/grapevine/preferences', requireOwner, handleUpdateGrapevinePreferences);
     app.get('/api/user-prefs', handleGetUserPrefs);
     app.put('/api/user-prefs', handleUpdateUserPrefs);
     app.get('/api/settings', requireOwner, handleGetSettings);
