@@ -23,20 +23,45 @@ export default function BrainstormPersonalization() {
       </div>
 
       <div className="bsp-content" style={{ maxWidth: 680, margin: '0 auto', padding: '2rem 1.5rem' }}>
-        <h1 style={{ fontSize: '1.5rem', marginBottom: '1.5rem' }}>How Personalization Works</h1>
+        <h1 style={{ fontSize: '1.5rem', marginBottom: '1.5rem' }}>How Personalized Search Works</h1>
 
-        <div style={{ lineHeight: 1.7, fontSize: '0.95rem', opacity: 0.85 }}>
+        <div style={{ lineHeight: 1.7, fontSize: '0.95rem', opacity: 0.85, display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <h2 style={{ fontSize: '1.1rem', marginTop: '1.5rem' }}>Search</h2>
           <p>
             Brainstorm indexes millions of nostr profiles (and growing) and lets you search them by name,
-            bio, NIP-05, or website. Legitimate nostr profiles are <a href="https://primal.net/straycat/graperank">distinguished</a>{' '}
-            from spam, impersonators and other bad actors using a combination of factors including follows, mutes, and reports.
-            But what makes this process unique is <strong>personalization</strong>: 
-            search results are ranked and filtered from <em>your</em> perspective, using input from <em>your</em> extended community.
+            bio, NIP-05, or website. Under the hood we are using <a href="https://meilisearch.com" target="_blank" >Meilisearch</a>,
+            a lightning-fast, open-source, and developer-friendly search engine designed to provide instant, 
+            typo-tolerant full-text and hybrid (semantic) search.
+          </p>
+
+          <h2 style={{ fontSize: '1.1rem', marginTop: '1.5rem' }}>Verification</h2>
+          <p>
+            Brainstorm harnesses organic signals from your community to distinguish "legitimate" nostr accounts from spam, 
+            impersonators, bots, and other bad actors seeking to weasel their way onto the screen in front of your eyes.
+          </p>
+
+          <p>  
+            Currently we rely upon follows, mutes, and reports, processed
+            using a method called <a href="https://primal.net/straycat/graperank">GrapeRank</a> to come up with a 
+            verification score between 0 and 100. When one profile (whose score is above 0) follows another, that profile's score gets a bump up, 
+            leveling out at the max score of 100. Mutes and reports push a score down. But have no fear: if an 
+            unverified account follows, mutes, or reports someone, that follow, mute, or report is <i>completely ignored</i>{' '}
+            by virtue of having a verification score of 0.
+          </p>
+
+          <p>  
+            So it doesn't matter how many spambots are spun up. A thousand, a million. Without social proof, they will all be ignored.
           </p>
 
           <h2 style={{ fontSize: '1.1rem', marginTop: '1.5rem' }}>Two Points of View</h2>
           <p>
-            Every search is filtered through a <strong>point of view</strong>. There are two options:
+            Every search is filtered through a <strong>point of view</strong>. By default, every profile's verification score
+            starts out at 0, meaning "unverified", with the exception of the profile designated as the reference (the point of view) profile, 
+            whose score is fixed at 100. Think of this as meaning that <i>you</i> are, by default, 100 percent certain that{' '}
+            <i>you</i> are not an impersonator or some other bad actor!
+          </p>
+          <p>
+            There are two options:
           </p>
           <ul style={{ paddingLeft: '1.2rem', marginTop: '0.5rem' }}>
             <li style={{ marginBottom: '0.5rem' }}>
@@ -44,8 +69,12 @@ export default function BrainstormPersonalization() {
               operator of this instance. Available to everyone, no sign-in required.
             </li>
             <li>
-              <strong>My Point of View</strong> — Your personalized perspective. Uses trust scores
-              derived from <em>your</em> extended community. Requires sign-in and calculated Trust Scores.
+              <strong>My Point of View</strong> — Your personalized perspective. Uses trust scores{' '}
+              derived from <em>your</em> extended community, calculated and made available to platforms
+              like <a href="https://brainstorm.world" >brainstorm.world</a> by a
+              service such as <a href="https://brainstorm.nosfabrica.com" target="_blank">My Brainstorm</a>.
+              Or if you prefer, you can be your own trust scores service provider by running the{' '}
+              <a href="https://github.com/nosfabrica" target="_blank">open source code</a>.
             </li>
           </ul>
 
@@ -77,7 +106,7 @@ export default function BrainstormPersonalization() {
       </div>
 
       <div className="bs-footer">
-        <a href="https://brainstorm.nosfabrica.com/" target="_blank" rel="noopener noreferrer" className="bs-footer-link">My Brainstorm</a>
+        <a href="https://brainstorm.nosfabrica.com/" target="_blank" rel="noopener noreferrer" className="bs-footer-link">Personalize my Search</a>
       </div>
     </div>
   );

@@ -61,6 +61,22 @@ function HousePovLabel() {
   );
 }
 
+/* ── My POV Label (the logged-in user's own profile, mirrors HousePovLabel) ─ */
+
+function MyPovLabel({ user }) {
+  if (!user) return <strong>My WoT</strong>;
+  const name = user.profile?.display_name || user.profile?.name || user.pubkey.slice(0, 8) + '…';
+  const picture = user.profile?.picture;
+  return (
+    <a href={`/user/${user.pubkey}`} className="bs-usermenu-pov-link">
+      {picture && (
+        <img src={picture} alt="" className="bs-usermenu-pov-avatar" onError={e => { e.target.style.display = 'none'; }} />
+      )}
+      <strong>{name}</strong>
+    </a>
+  );
+}
+
 /* ── User Menu (avatar + dropdown panel) ─────────────── */
 
 const EXTERNAL_RELAYS = ['wss://relay.primal.net', 'wss://relay.damus.io', 'wss://nos.lol'];
@@ -521,7 +537,7 @@ function UserMenu({ user, login, logout, pov, setPov, filters, setFilters, sortC
             <div className="bs-usermenu-pov-indicator">
               Searching as:{' '}
               {pov === 'user' && myWotReady ? (
-                <strong>My WoT</strong>
+                <MyPovLabel user={user} />
               ) : (
                 <HousePovLabel />
               )}
@@ -959,7 +975,7 @@ export default function BrainstormSearch() {
             </span>
             <span className="bs-personalization-sep">·</span>
             <a href="/personalization" className="bs-personalization-link">
-              Tell me more!
+              What is this?
             </a>
 
             {showPovPicker && (
@@ -1004,9 +1020,9 @@ export default function BrainstormSearch() {
         </div>
 
         <div className="bs-footer">
-          <a href="https://brainstorm.nosfabrica.com/" target="_blank" rel="noopener noreferrer" className="bs-footer-link">My Brainstorm</a>
-          <span className="bs-footer-sep">&middot;</span>
           <a href="/developers" className="bs-footer-link">Developers</a>
+          <span className="bs-footer-sep">&middot;</span>
+          <a href="/settings" className="bs-footer-link">Settings</a>
         </div>
       </div>
     );

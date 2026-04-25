@@ -29,8 +29,8 @@ function shortPubkey(pk) {
 /* ── Trust Score Tags ────────────────────────────────── */
 
 const TRUST_METRICS = [
-  { tag: 'rank',                         label: 'WoT Rank',          icon: '🏅', description: 'Composite trust rank (0–100)' },
-  { tag: 'followers',                    label: 'Followers',          icon: '👥', description: 'Verified follower count' },
+  { tag: 'rank',                         label: 'Verification Score',          icon: '🏅', description: 'Composite trust rank (0–100)' },
+  { tag: 'followers',                    label: 'Verified Followers',          icon: '👥', description: 'Verified Follower count, based on the Verification Score being above a threshold (2 by default).' },
   { tag: 'hops',                         label: 'Hops',              icon: '🔗', description: 'Degrees of separation' },
   { tag: 'personalizedGrapeRank_influence', label: 'Influence',      icon: '📊', description: 'GrapeRank influence score' },
   { tag: 'personalizedGrapeRank_average',   label: 'Average',        icon: '📈', description: 'GrapeRank average rating' },
