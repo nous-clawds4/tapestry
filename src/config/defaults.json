@@ -42,5 +42,9 @@
       "delegatedPubkey": null,
       "nip85Relay": null
     }
+  },
+  "nip05": {
+    "names": {},
+    "relays": {}
   }
 }

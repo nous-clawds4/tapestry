@@ -18,6 +18,7 @@ const {
   resetOverride,
   getSettingsPath,
 } = require('../../config/settings');
+const { validateNip05 } = require('../nip05');
 
 /**
  * Validate relay URLs: must be wss:// or ws://
@@ -98,6 +99,14 @@ function handleUpdateSettings(req, res) {
       const errors = validateRelayUrls(patch.aRelays, 'aRelays');
       if (errors.length > 0) {
         return res.status(400).json({ success: false, error: 'Invalid relay URLs', details: errors });
+      }
+    }
+
+    // Validate NIP-05 registry if nip05 section is being updated
+    if (patch.nip05 !== undefined) {
+      const errors = validateNip05(patch.nip05);
+      if (errors.length > 0) {
+        return res.status(400).json({ success: false, error: 'Invalid nip05 settings', details: errors });
       }
     }
 
