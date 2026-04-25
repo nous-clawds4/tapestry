@@ -3,7 +3,7 @@
 > **Audience:** AI agents and developers joining the Tapestry project.
 > Read this file to fully onboard — it covers what Tapestry is, how it works, what's been built, what's in progress, and how to contribute.
 
-**Last updated:** 2026-04-25
+**Last updated:** 2026-04-25 (NIP-05 server endpoint)
 
 ---
 
@@ -594,6 +594,14 @@ Base URL: `http://localhost:8080`
 | POST | `/api/auth/logout` | End session |
 | GET | `/api/auth/user-classification` | Get user role (owner/customer/guest) |
 
+### NIP-05 Server (`.well-known`)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/.well-known/nostr.json` | Public NIP-05 registry. Optional `?name=<x>` filter (per spec). CORS open (`Access-Control-Allow-Origin: *`). `Cache-Control: public, max-age=300`. Backed by the `nip05.names` and `nip05.relays` keys in the two-layer settings system (§14). |
+
+Identifiers are managed via `PUT /api/settings` (owner-only — see below). The PUT handler validates `nip05.names` keys against `/^[a-z0-9._-]+$/`, pubkeys against 64-char hex, and relays against `wss://`/`ws://` prefixes. Any failure returns HTTP 400 with details.
+
 ### Settings (Owner only)
 
 | Method | Endpoint | Description |
@@ -999,7 +1007,22 @@ The algorithm is a contraction mapping (ATTENUATION_FACTOR < 1), so any starting
 defaults.json (shipped with code, git-tracked) + settings.json (user overrides, persistent volume) = merged config
 ```
 
-Arrays are **replaced**, objects are **deep-merged**.
+Arrays are **replaced**, objects are **deep-merged**. The `getSettings()` accessor re-reads both files on every call — no in-process cache, so settings edits take effect on the next request without a restart.
+
+**Top-level keys:** `aRelays`, `adminPubkeys`, `grapevine`, `neo4jCypherQueryUrl`, `trustScoreCutoff`, `nip05`.
+
+The `nip05` key (added 2026-04-25) backs the `/.well-known/nostr.json` endpoint:
+
+```json
+{
+  "nip05": {
+    "names":  { "<name>": "<hex-pubkey>", ... },
+    "relays": { "<hex-pubkey>": ["wss://...", ...], ... }
+  }
+}
+```
+
+`names` maps the local-part of the NIP-05 identifier (e.g., `"brainstorm"` for `brainstorm@brainstorm.world`) to a hex pubkey. `relays` advertises where the holder of that pubkey can be reached. Editing happens via the owner-gated `PUT /api/settings` (see §11) or — for first-time prod registration — directly in the volume's `settings.json` (see §15 "Editing settings.json on a deployed droplet").
 
 ### brainstorm.conf
 
@@ -1261,6 +1284,26 @@ ssh -L 17474:localhost:7474 -L 17687:localhost:7687 root@<droplet-ip>
 # Connect with: bolt://localhost:17687
 ```
 
+### Editing `settings.json` on a deployed droplet
+
+The `tapestry-data` Docker named volume mounts to `/var/lib/brainstorm/` **inside the container**. On the host, this volume's actual storage is at `/var/lib/docker/volumes/tapestry_tapestry-data/_data/` — **not** at `/var/lib/brainstorm/` on the host. Editing the host path has no effect; the brainstorm process reads from the volume.
+
+Two ways to edit the right file:
+
+```bash
+# Option A — inside the container (cleanest)
+cd /opt/tapestry
+docker compose exec tapestry sh -c 'cat > /var/lib/brainstorm/settings.json' <<'EOF'
+{ ... your JSON ... }
+EOF
+
+# Option B — write directly to the volume's host mountpoint
+MP=$(docker volume inspect tapestry_tapestry-data --format '{{.Mountpoint}}')
+nano "$MP/settings.json"
+```
+
+No restart needed — `getSettings()` re-reads on every request. (Hit on 2026-04-25 while registering the first NIP-05 identifier; documenting so it doesn't bite again.)
+
 ### Docker Compatibility Notes
 
 - **No `sudo` in scripts**: Inside Docker, everything runs as root. Scripts that use `sudo` will fail with "command not found" because `sudo` doesn't recognize scripts without execute permissions. Use `bash script.sh` instead of `sudo script.sh`.
@@ -1344,6 +1387,7 @@ docker compose exec tapestry strfry sync wss://dcosl.brainstorm.world \
 - ✅ Warm Start UI toggle in task-explorer.html — exposed on `calculateCustomerGrapeRank`, `updateAllScoresForSingleCustomer`, `processCustomer`, `processAllActiveCustomers`, and `processAllTasks`
 - ✅ Owner-seeded warm start for first-time customers — if the owner is within 3 directed FOLLOWS hops downstream of the customer, seed from the owner's `NostrUser` scorecards; otherwise cold start
 - ✅ GrapeRank observability — per-phase timing in structured events, `iteration_complete` event with convergence metrics (iterations, max_diff, warm_start_source), persistent per-customer `graperank_history.jsonl`
+- ✅ NIP-05 server endpoint at `/.well-known/nostr.json` — settings-backed registry under `nip05.names` and `nip05.relays`. Public read with CORS open + 5-minute soft cache. Owner-only writes via `PUT /api/settings` validated for name regex (`/^[a-z0-9._-]+$/`), 64-char hex pubkeys, and `wss://`/`ws://` relay URLs. First identifier in production: `brainstorm@brainstorm.world` (2026-04-25).
 
 ### CLI (tapestry-cli repo)
 
