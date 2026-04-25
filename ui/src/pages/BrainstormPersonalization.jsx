@@ -1,21 +1,15 @@
-import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import BrainstormUserMenu from '../components/BrainstormUserMenu';
 
 export default function BrainstormPersonalization() {
-  const navigate = useNavigate();
   const { user, login, logout } = useAuth();
 
   return (
     <div className="bsp-page">
       {/* Top bar */}
       <div className="bsp-top-bar">
-        <button className="bsp-back-btn" onClick={() => navigate(-1)}>
-          ← Back
-        </button>
         <a href="/" className="bsp-logo">
           <img src="/brainstorm.svg" alt="" className="bsp-logo-img" />
-          Brainstorm
         </a>
         <div className="bsp-auth">
           <BrainstormUserMenu user={user} login={login} logout={logout} />

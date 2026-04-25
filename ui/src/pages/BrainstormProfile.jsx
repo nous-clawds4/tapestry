@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
 import { useAuth } from '../context/AuthContext';
 import BrainstormUserMenu from '../components/BrainstormUserMenu';
@@ -67,7 +67,6 @@ function CopyButton({ value }) {
 export default function BrainstormProfile() {
   const { pubkey } = useParams();
   const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
   const { user, login, logout } = useAuth();
 
   // POV suffix can be passed as ?pov=<8char> from the search page
@@ -186,15 +185,8 @@ export default function BrainstormProfile() {
     <div className="bsp-page">
       {/* Top bar */}
       <div className="bsp-top-bar">
-        <button
-          className="bsp-back-btn"
-          onClick={() => navigate(-1)}
-        >
-          ← Back to search
-        </button>
         <a href="/" className="bsp-logo">
           <img src="/brainstorm.svg" alt="" className="bsp-logo-img" />
-          Brainstorm
         </a>
         <div className="bsp-auth">
           <BrainstormUserMenu user={user} login={login} logout={logout} />

@@ -1,8 +1,4 @@
-import { useNavigate } from 'react-router-dom';
-
 export default function BrainstormDevelopers() {
-  const navigate = useNavigate();
-
   // Derive relay URL from current host
   const relayUrl = typeof window !== 'undefined'
     ? `wss://${window.location.host}/relay`
@@ -23,12 +19,8 @@ export default function BrainstormDevelopers() {
     <div className="bsp-page">
       {/* Top bar — reuses bsp- styles from BrainstormPersonalization */}
       <div className="bsp-top-bar">
-        <button className="bsp-back-btn" onClick={() => navigate(-1)}>
-          &larr; Back
-        </button>
         <a href="/" className="bsp-logo">
           <img src="/brainstorm.svg" alt="" className="bsp-logo-img" />
-          Brainstorm
         </a>
         <div className="bsp-auth" />
       </div>
