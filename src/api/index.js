@@ -83,6 +83,7 @@ const { handleGetUserPrefs, handleUpdateUserPrefs } = require('./settings/userPr
 
 // Import utilities
 const { getConfigFromFile } = require('../utils/config');
+const { registerNip05Routes } = require('./nip05');
 
 /**
  * Register all API endpoints with the Express app
@@ -108,6 +109,9 @@ async function register(app) {
         // Mark session as configured
         app._brainstormSessionConfigured = true;
     }
+
+    // ── NIP-05 server endpoint (.well-known/nostr.json, public, CORS open) ──
+    registerNip05Routes(app);
 
     app.get('/api/algos/config/get/graperank', handleGetGrapeRankConfig);
     app.post('/api/algos/config/update/graperank', handleUpdateGrapeRankConfig);
