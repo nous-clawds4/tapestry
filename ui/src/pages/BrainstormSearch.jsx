@@ -492,22 +492,6 @@ function UserMenu({ user, login, logout, pov, setPov, filters, setFilters, sortC
 
   return (
     <div className="bs-usermenu" ref={menuRef}>
-      {/* Dashboard grid icon for owner/admin */}
-      {isOwnerOrAdmin && (
-        <a href="/tapestry/" className="bs-usermenu-grid-btn" title="Dashboard">
-          <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-            <rect x="1" y="1" width="4" height="4" rx="1" fill="currentColor"/>
-            <rect x="7" y="1" width="4" height="4" rx="1" fill="currentColor"/>
-            <rect x="13" y="1" width="4" height="4" rx="1" fill="currentColor"/>
-            <rect x="1" y="7" width="4" height="4" rx="1" fill="currentColor"/>
-            <rect x="7" y="7" width="4" height="4" rx="1" fill="currentColor"/>
-            <rect x="13" y="7" width="4" height="4" rx="1" fill="currentColor"/>
-            <rect x="1" y="13" width="4" height="4" rx="1" fill="currentColor"/>
-            <rect x="7" y="13" width="4" height="4" rx="1" fill="currentColor"/>
-            <rect x="13" y="13" width="4" height="4" rx="1" fill="currentColor"/>
-          </svg>
-        </a>
-      )}
       <button
         className="bs-usermenu-avatar-btn"
         onClick={() => setOpen(!open)}
@@ -557,6 +541,29 @@ function UserMenu({ user, login, logout, pov, setPov, filters, setFilters, sortC
               Sign out
             </button>
           </div>
+
+          {isOwnerOrAdmin && (
+            <div className="bs-usermenu-admin-panel">
+              <div className="bs-usermenu-admin-label">
+                <span className="bs-usermenu-admin-dot" />
+                {user.classification === 'owner' ? 'Owner' : 'Admin'}
+              </div>
+              <a
+                href="/tapestry/"
+                className="bs-usermenu-admin-btn"
+                onClick={() => setOpen(false)}
+              >
+                Tapestry Dashboard
+              </a>
+              <a
+                href="/legacy/"
+                className="bs-usermenu-admin-btn"
+                onClick={() => setOpen(false)}
+              >
+                Legacy Dashboard
+              </a>
+            </div>
+          )}
         </div>
       )}
     </div>
