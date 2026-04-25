@@ -61,6 +61,22 @@ function HousePovLabel() {
   );
 }
 
+/* ── My POV Label (the logged-in user's own profile, mirrors HousePovLabel) ─ */
+
+function MyPovLabel({ user }) {
+  if (!user) return <strong>My WoT</strong>;
+  const name = user.profile?.display_name || user.profile?.name || user.pubkey.slice(0, 8) + '…';
+  const picture = user.profile?.picture;
+  return (
+    <a href={`/user/${user.pubkey}`} className="bs-usermenu-pov-link">
+      {picture && (
+        <img src={picture} alt="" className="bs-usermenu-pov-avatar" onError={e => { e.target.style.display = 'none'; }} />
+      )}
+      <strong>{name}</strong>
+    </a>
+  );
+}
+
 /* ── User Menu (avatar + dropdown panel) ─────────────── */
 
 const EXTERNAL_RELAYS = ['wss://relay.primal.net', 'wss://relay.damus.io', 'wss://nos.lol'];
@@ -521,7 +537,7 @@ function UserMenu({ user, login, logout, pov, setPov, filters, setFilters, sortC
             <div className="bs-usermenu-pov-indicator">
               Searching as:{' '}
               {pov === 'user' && myWotReady ? (
-                <strong>My WoT</strong>
+                <MyPovLabel user={user} />
               ) : (
                 <HousePovLabel />
               )}
@@ -647,10 +663,10 @@ function ResultCard({ hit, povSuffix }) {
             {(getWotScore(hit, 'rank', povSuffix) != null || getWotScore(hit, 'followers', povSuffix) != null) && (
               <div className="bs-result-wot">
                 {getWotScore(hit, 'rank', povSuffix) != null && (
-                  <span className="bs-wot-badge bs-wot-rank">🏅 rank: {getWotScore(hit, 'rank', povSuffix)}</span>
+                  <span className="bs-wot-badge bs-wot-rank">🏅 Verification Score: {getWotScore(hit, 'rank', povSuffix)}</span>
                 )}
                 {getWotScore(hit, 'followers', povSuffix) != null && (
-                  <span className="bs-wot-badge bs-wot-followers">👥 followers: {getWotScore(hit, 'followers', povSuffix)}</span>
+                  <span className="bs-wot-badge bs-wot-followers">👥 Verified Followers: {getWotScore(hit, 'followers', povSuffix)}</span>
                 )}
               </div>
             )}
@@ -860,6 +876,8 @@ export default function BrainstormSearch() {
   if (!hasResults && !loading && !error) {
     return (
       <div className="bs-page">
+        {/* Top-left: About */}
+        <a href="/about" className="bs-top-link">About</a>
         {/* Top-right auth area */}
         <div className="bs-top-bar">
           <UserMenu user={user} login={login} logout={logout} pov={pov} setPov={setPov} filters={filters} setFilters={setFilters} sortConfig={sortConfig} setSortConfig={setSortConfig} onWotReady={setMyWotReady} />
@@ -959,7 +977,7 @@ export default function BrainstormSearch() {
             </span>
             <span className="bs-personalization-sep">·</span>
             <a href="/personalization" className="bs-personalization-link">
-              Tell me more!
+              What is this?
             </a>
 
             {showPovPicker && (
@@ -1004,9 +1022,9 @@ export default function BrainstormSearch() {
         </div>
 
         <div className="bs-footer">
-          <a href="https://brainstorm.nosfabrica.com/" target="_blank" rel="noopener noreferrer" className="bs-footer-link">My Brainstorm</a>
-          <span className="bs-footer-sep">&middot;</span>
           <a href="/developers" className="bs-footer-link">Developers</a>
+          <a href="/how-search-works" className="bs-footer-link">How search works</a>
+          <a href="/settings" className="bs-footer-link">Settings</a>
         </div>
       </div>
     );

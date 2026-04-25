@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import BrainstormUserMenu, { useHouseProfile } from '../components/BrainstormUserMenu';
 
@@ -24,7 +23,6 @@ function timeAgoShort(unixSeconds) {
 
 export default function BrainstormSettings() {
   const { user, login, logout } = useAuth();
-  const navigate = useNavigate();
 
   // WoT pipeline state
   const [wotStatus, setWotStatus] = useState({
@@ -377,10 +375,8 @@ export default function BrainstormSettings() {
     return (
       <div className="bss-page">
         <div className="bss-top-bar">
-          <a href="/" className="bss-back">← Back to Search</a>
           <a href="/" className="bsp-logo">
             <img src="/brainstorm.svg" alt="" className="bsp-logo-img" />
-            Brainstorm
           </a>
           <BrainstormUserMenu user={user} login={login} logout={logout} />
         </div>
@@ -397,10 +393,8 @@ export default function BrainstormSettings() {
     <div className="bss-page">
       {/* Top bar */}
       <div className="bss-top-bar">
-        <a href="/" className="bss-back">← Back to Search</a>
         <a href="/" className="bsp-logo">
           <img src="/brainstorm.svg" alt="" className="bsp-logo-img" />
-          Brainstorm
         </a>
         <div className="bss-auth">
           <BrainstormUserMenu user={user} login={login} logout={logout} />

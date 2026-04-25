@@ -1,8 +1,4 @@
-import { useNavigate } from 'react-router-dom';
-
 export default function BrainstormDevelopers() {
-  const navigate = useNavigate();
-
   // Derive relay URL from current host
   const relayUrl = typeof window !== 'undefined'
     ? `wss://${window.location.host}/relay`
@@ -23,12 +19,8 @@ export default function BrainstormDevelopers() {
     <div className="bsp-page">
       {/* Top bar — reuses bsp- styles from BrainstormPersonalization */}
       <div className="bsp-top-bar">
-        <button className="bsp-back-btn" onClick={() => navigate(-1)}>
-          &larr; Back
-        </button>
         <a href="/" className="bsp-logo">
           <img src="/brainstorm.svg" alt="" className="bsp-logo-img" />
-          Brainstorm
         </a>
         <div className="bsp-auth" />
       </div>
@@ -36,7 +28,8 @@ export default function BrainstormDevelopers() {
       <div className="bsp-content" style={{ maxWidth: 720, margin: '0 auto', padding: '2rem 1.5rem' }}>
         <h1 style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>Add Brainstorm Search to Your Nostr Client</h1>
         <p style={{ opacity: 0.6, marginBottom: '2rem', fontSize: '0.9rem' }}>
-          This relay supports NIP-50 full-text profile search.
+          This relay supports <a href="https://github.com/nostr-protocol/nips/blob/master/50.md" target="_blank" >NIP-50</a>{' '}
+          full-text profile search.
           Any nostr client can query it over a standard WebSocket connection.
         </p>
 
@@ -139,9 +132,18 @@ export default function BrainstormDevelopers() {
           Once loaded, subsequent searches will return results that are fully personalized.
         </p>
 
+        {/* Open source */}
+        <h2 style={{ fontSize: '1.1rem', marginTop: '2rem' }}>Open-source</h2>
+        <ul>
+          <a href="https://github.com/nous-clawds4/tapestry" target="_blank">Brainstorm Search</a> (this website)
+        </ul>
+        <ul>
+          <a href="https://github.com/nosfabrica" target="_blank">My Brainstorm</a> (personalization service)
+        </ul>
+
         {/* Footer */}
         <div style={{ marginTop: '3rem', paddingTop: '1.5rem', borderTop: '1px solid rgba(255,255,255,0.1)', opacity: 0.5, fontSize: '0.85rem', textAlign: 'center' }}>
-          <a href="https://brainstorm.nosfabrica.com/" target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'underline' }}>My Brainstorm</a>
+          <a href="https://brainstorm.nosfabrica.com/" target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'underline' }}>Personalize my Search</a>
         </div>
       </div>
     </div>
