@@ -876,6 +876,8 @@ export default function BrainstormSearch() {
   if (!hasResults && !loading && !error) {
     return (
       <div className="bs-page">
+        {/* Top-left: About */}
+        <a href="/about" className="bs-top-link">About</a>
         {/* Top-right auth area */}
         <div className="bs-top-bar">
           <UserMenu user={user} login={login} logout={logout} pov={pov} setPov={setPov} filters={filters} setFilters={setFilters} sortConfig={sortConfig} setSortConfig={setSortConfig} onWotReady={setMyWotReady} />
@@ -1020,12 +1022,8 @@ export default function BrainstormSearch() {
         </div>
 
         <div className="bs-footer">
-          <a href="/about" className="bs-footer-link">About</a>
-          <span className="bs-footer-sep">&middot;</span>
           <a href="/developers" className="bs-footer-link">Developers</a>
-          <span className="bs-footer-sep">&middot;</span>
           <a href="/how-search-works" className="bs-footer-link">How search works</a>
-          <span className="bs-footer-sep">&middot;</span>
           <a href="/settings" className="bs-footer-link">Settings</a>
         </div>
       </div>

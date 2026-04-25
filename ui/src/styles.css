@@ -2234,6 +2234,21 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   padding: 1rem 1.5rem;
   z-index: 10;
 }
+.bs-top-link {
+  position: absolute;
+  top: 0;
+  left: 0;
+  padding: 1rem 1.5rem;
+  z-index: 10;
+  color: #a5b4fc;
+  text-decoration: none;
+  font-size: 0.85rem;
+  opacity: 0.6;
+}
+.bs-top-link:hover {
+  opacity: 1;
+  text-decoration: underline;
+}
 .bs-link-btn {
   background: none;
   border: 1px solid rgba(255,255,255,0.15);
@@ -2883,8 +2898,10 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
 
 /* ── Footer ── */
 .bs-footer {
-  text-align: center;
-  padding: 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem 3rem;
   font-size: 0.75rem;
   opacity: 0.35;
 }
