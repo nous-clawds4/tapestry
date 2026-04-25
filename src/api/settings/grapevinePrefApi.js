@@ -1,11 +1,19 @@
 /**
- * Public Grapevine preferences endpoints.
+ * Grapevine preferences endpoints — house-wide search defaults.
  *
- * GET  /api/grapevine/preferences  — read current search preferences
- * PUT  /api/grapevine/preferences  — save search preferences
+ * GET  /api/grapevine/preferences  — read current house search preferences (public)
+ * PUT  /api/grapevine/preferences  — update house search preferences (owner/admin only,
+ *                                    gated by requireOwner middleware in src/api/index.js)
  *
- * These are public (no auth required) since they're part of the
- * search UI flow. Stored under settings.grapevine.searchPreferences.
+ * Stored under settings.grapevine.searchPreferences. These are SITE-WIDE defaults that
+ * cascade to all users who haven't set their own per-user override (per-user overrides
+ * live in /var/lib/brainstorm/user-prefs/<pubkey>.json via /api/user-prefs).
+ *
+ * The Meilisearch proxy resolves: user prefs → house prefs (these) → text-relevance.
+ *
+ * GET stays public because unauthenticated visitors (and the inline picker) need to
+ * be able to read the resolved house defaults to render hints / display the active
+ * sort. Only the write path is gated.
  */
 
 const { getSettings, updateOverrides } = require('../../config/settings');
