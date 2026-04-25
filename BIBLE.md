@@ -3,7 +3,7 @@
 > **Audience:** AI agents and developers joining the Tapestry project.
 > Read this file to fully onboard — it covers what Tapestry is, how it works, what's been built, what's in progress, and how to contribute.
 
-**Last updated:** 2026-04-13
+**Last updated:** 2026-04-25
 
 ---
 
@@ -68,20 +68,27 @@ Tapestry is being built under **NosFabrica**, a company focused on sovereign hea
 
 ## 3. Repos and Branches
 
-| Repo | URL | Active Branch | Description |
-|------|-----|---------------|-------------|
-| **tapestry** (server) | `github.com/nous-clawds4/tapestry` | `refactor-paths` | Docker stack: strfry + Neo4j + Express + React UI + Meilisearch + NIP-50 proxy + firmware |
+| Repo | URL | Default Branch | Description |
+|------|-----|----------------|-------------|
+| **tapestry** (server) | `github.com/nous-clawds4/tapestry` | `main` | Docker stack: strfry + Neo4j + Express + React UI + Meilisearch + NIP-50 proxy + firmware |
 | **tapestry-cli** | `github.com/nous-clawds4/tapestry-cli` | `main` | CLI tool for graph operations |
 
-### Branch Strategy
+### Branch Strategy (post-2026-04-20 reorg)
+
+Long-lived branches on the tapestry repo:
 
 | Branch | Purpose | Deploys To |
 |--------|---------|------------|
-| `refactor-paths` | Latest development — URL refactor, Brainstorm Search at root | `brainstorm.world` |
-| `brainstorm-search` | Stable search features, original `/kg/` URL structure | `nous-clawds4.tapestry.ninja` |
-| `main` | Upstream base, concept-graph features | — |
+| `main` | Production. PRs merge here only after staging verification. | `brainstorm.world` |
+| `staging` | Pre-production verification. PRs from feature branches land here first. | `staging.brainstorm.world` |
+| `feature-magic-carpet` | Long-lived sandbox for Matthias's bounty-system work. PRs from his fork land here. | `magic-carpet.brainstorm.world` |
+| `develop` | Vinney's legacy integration branch — likely retiring once `staging` adoption is complete. | — |
+| `feature-relay-discovery` | Holds Vinney's Relay Discovery feature for continued development. | — |
+| `feature-tapestry-discovery` | Vinney's WIP stacked on top of `feature-relay-discovery`. | — |
 
-> **Note:** Active development is on the `refactor-paths` branch. It promotes Brainstorm Search to root `/`, moves Tapestry dashboard to `/tapestry/`, and legacy Brainstorm to `/legacy/`. CI/CD workflows deploy automatically on push (see `.github/workflows/`).
+Standard contribution flow: branch off `staging` → PR into `staging` → verify on `staging.brainstorm.world` → PR `staging → main` → CI deploys to `brainstorm.world`. See §15 for details.
+
+> **Retired:** `refactor-paths` and `brainstorm-search` were the dev/prod branches before the 2026-04-20 reorg. They've been deleted; their content lives in `main`. The `nous-clawds4.tapestry.ninja` instance was also retired.
 
 ---
 
@@ -1058,7 +1065,7 @@ git clone https://github.com/nous-clawds4/tapestry.git
 git clone https://github.com/nous-clawds4/tapestry-cli.git
 
 # 2. Start the server
-cd tapestry && git checkout refactor-paths
+cd tapestry && git checkout main
 cp .env.example .env   # edit OWNER_PUBKEY, NEO4J_PASSWORD, DOMAIN_NAME
 docker compose up -d
 
@@ -1121,17 +1128,43 @@ sed -i 's/"80:80"/"127.0.0.1:8080:80"/' docker-compose.yml
 
 GitHub Actions workflows in `.github/workflows/`:
 
-| Workflow | Branch | Target | Description |
-|----------|--------|--------|-------------|
-| `deploy-brainstorm.yml` | `refactor-paths` | `brainstorm.world` | SSHes into DO droplet, pulls code, rebuilds Docker stack |
-| `deploy.yml` | `brainstorm-search` | `tapestry.ninja` | Same pattern for the tapestry.ninja instance |
+| Workflow | Triggered by push to | Target | Description |
+|----------|----------------------|--------|-------------|
+| `deploy-brainstorm.yml` | `main` | `brainstorm.world` | Production. |
+| `deploy-staging.yml` | `staging` | `staging.brainstorm.world` | Pre-production verification. |
+| `deploy-magic-carpet.yml` | `feature-magic-carpet` | `magic-carpet.brainstorm.world` | Matthias's bounty-system sandbox. |
 
-The deploy scripts:
+All three workflows follow the same SSH-action pattern. The deploy scripts:
 1. Restore `docker-compose.yml` to repo version (`git checkout --`)
-2. Pull latest code
+2. Pull latest code from the corresponding branch
 3. Apply production port remap (`sed` to `127.0.0.1:8080:80`)
 4. Rebuild and restart (`docker compose up -d --build`)
 5. Prune old images
+
+Each droplet's secrets follow the convention `DEPLOY_HOST_<NAME>`, `DEPLOY_USER_<NAME>`, `DEPLOY_SSH_KEY_<NAME>` where `<NAME>` is `BRAINSTORM`, `STAGING`, or `MAGIC_CARPET`.
+
+### Branch Promotion Flow
+
+For all functional changes (and docs-only changes for consistency):
+
+1. Branch off `staging` (e.g., `feat/foo`, `fix/bar`, `chore/baz`)
+2. Open PR with base = `staging`
+3. Merge → CI auto-deploys to `staging.brainstorm.world`
+4. Verify on staging
+5. Open PR `staging → main`
+6. Merge → CI auto-deploys to `brainstorm.world`
+7. Source feature branch is auto-deleted (the repo has "Automatically delete head branches" enabled)
+
+For sandbox work targeting Magic Carpet: Matthias contributes via PRs from his fork (`matthiasdebernardini/magic-carpet-v2`) into our `feature-magic-carpet`. Merging deploys to `magic-carpet.brainstorm.world`. Code on `feature-magic-carpet` is **not** intended for production until promoted via the standard `feature-magic-carpet → staging → main` path.
+
+### Branch Protection
+
+The `restrict-deletions` ruleset (Settings → Rules → Rulesets) targets `main`, `staging`, `feature-magic-carpet`, `feature-relay-discovery`, and `feature-tapestry-discovery` with two rules:
+
+- **Restrict deletions** — prevents the auto-delete-head-branches setting from removing long-lived branches when they're the *head* of a promotion PR. (Without this, `staging → main` merges would delete `staging`. We hit this on 2026-04-24 and recovered by recreating `staging` from `main` HEAD.)
+- **Block force pushes** — prevents history rewrites that would lose collaborator work and invalidate CI/CD's record of which SHA was deployed.
+
+Short-lived feature branches (`feat/*`, `fix/*`, `chore/*`) are NOT protected and are auto-deleted by GitHub on merge — desired behavior for keeping the branch list tidy.
 
 ### Server Recommendations
 
@@ -1331,6 +1364,8 @@ docker compose exec tapestry strfry sync wss://dcosl.brainstorm.world \
 - **Meilisearch scalability** — at 2M+ profiles on a 2-vCPU machine, indexing can saturate CPU; may need tuning for production
 - **NIP-50 adoption** — relay proxy is live; working to get nostr client developers to integrate WoT-powered search results
 - **GrapeRank performance optimization** — first wave (warm start) shipped; the ~55% of remaining runtime spent in the ratings-interpretation phase is the next optimization target
+- **Relay Discovery** — Vinney's feature for trust-weighted relay endorsement and tagging. Lives on `feature-relay-discovery`. Was briefly on main via PR #35 (2026-04-19) and pulled back via PR #46/#47 (2026-04-24) for further development. Awaiting rework.
+- **Magic Carpet bounty system** — Matthias's sandbox feature on `feature-magic-carpet`, deployed to `magic-carpet.brainstorm.world`. SQLite-backed bounties + NIP-57 zap flow. Per Matthias's roadmap; not for production.
 
 ---
 
