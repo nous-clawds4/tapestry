@@ -165,7 +165,7 @@ function UserPreviewCard({ pubkey, searchHit }) {
                     padding: '0.1rem 0.5rem', borderRadius: '4px',
                     backgroundColor: 'rgba(88, 166, 255, 0.12)', color: '#58a6ff',
                   }}>
-                    🏅 rank: {searchHit.wot_rank}
+                    🏅 Verification Score: {searchHit.wot_rank}
                   </span>
                 )}
                 {searchHit.wot_followers != null && (
@@ -173,7 +173,7 @@ function UserPreviewCard({ pubkey, searchHit }) {
                     padding: '0.1rem 0.5rem', borderRadius: '4px',
                     backgroundColor: 'rgba(63, 185, 80, 0.12)', color: '#3fb950',
                   }}>
-                    👥 followers: {searchHit.wot_followers}
+                    👥 Verified Followers: {searchHit.wot_followers}
                   </span>
                 )}
               </div>

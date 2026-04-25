@@ -29,7 +29,7 @@ function shortPubkey(pk) {
 /* ── Trust Score Tags ────────────────────────────────── */
 
 const TRUST_METRICS = [
-  { tag: 'rank',                         label: 'Verification Score',          icon: '🏅', description: 'Composite trust rank (0–100)' },
+  { tag: 'rank',                         label: 'Verification Score',          icon: '🏅', description: 'Community-mediated Verification Score (a.k.a. rank) (0–100 percent).' },
   { tag: 'followers',                    label: 'Verified Followers',          icon: '👥', description: 'Verified Follower count, based on the Verification Score being above a threshold (2 by default).' },
   { tag: 'hops',                         label: 'Hops',              icon: '🔗', description: 'Degrees of separation' },
   { tag: 'personalizedGrapeRank_influence', label: 'Influence',      icon: '📊', description: 'GrapeRank influence score' },

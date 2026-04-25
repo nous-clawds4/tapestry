@@ -663,10 +663,10 @@ function ResultCard({ hit, povSuffix }) {
             {(getWotScore(hit, 'rank', povSuffix) != null || getWotScore(hit, 'followers', povSuffix) != null) && (
               <div className="bs-result-wot">
                 {getWotScore(hit, 'rank', povSuffix) != null && (
-                  <span className="bs-wot-badge bs-wot-rank">🏅 rank: {getWotScore(hit, 'rank', povSuffix)}</span>
+                  <span className="bs-wot-badge bs-wot-rank">🏅 Verification Score: {getWotScore(hit, 'rank', povSuffix)}</span>
                 )}
                 {getWotScore(hit, 'followers', povSuffix) != null && (
-                  <span className="bs-wot-badge bs-wot-followers">👥 followers: {getWotScore(hit, 'followers', povSuffix)}</span>
+                  <span className="bs-wot-badge bs-wot-followers">👥 Verified Followers: {getWotScore(hit, 'followers', povSuffix)}</span>
                 )}
               </div>
             )}
