@@ -141,6 +141,33 @@ app.get('/api/search', async (req, res) => {
 
     res.json(result);
   } catch (err) {
+    // Workaround for a known Meilisearch internal panic on certain queries:
+    //   panicked at crates/milli/src/search/new/interner.rs:60:
+    //   assertion failed: self.stable_store.len() < u16::MAX as usize
+    //
+    // Some query strings (e.g. "primal" — popular substring of primal.net,
+    // which appears in tons of profile fields) cause Meilisearch's term
+    // interner to overflow its u16 capacity (65535 entries) due to typo +
+    // prefix expansion across multiple fields. The bug is in milli, not
+    // here. Until Meilisearch is upgraded to a version that fixes this
+    // (currently pinned to v1.12.8 in docker-compose.yml), we catch the
+    // 500 here and return an empty result with a friendly notice the UI
+    // can render in place of "Search service unavailable".
+    //
+    // Tracking issue: see tapestry repo for "Upgrade Meilisearch to fix
+    // interner u16 overflow panic on certain queries".
+    const isMeiliPanic = err.message && err.message.includes('panicked');
+    if (isMeiliPanic) {
+      console.warn(`[search] Meilisearch panic for q="${(q || '').slice(0, 40)}", returning friendly notice. Error: ${err.message}`);
+      return res.json({
+        hits: [],
+        query: (q || '').trim(),
+        processingTimeMs: 0,
+        estimatedTotalHits: 0,
+        _searchTooBroad: true,
+        _notice: 'This query matches too many results — try adding more characters or modifying the search in some other way.',
+      });
+    }
     res.status(500).json({ error: err.message });
   }
 });

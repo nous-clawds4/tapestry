@@ -142,7 +142,7 @@ Standard contribution flow: branch off `staging` → PR into `staging` → verif
 | **supervisord** | — | Process manager inside the container. Controls all services (neo4j, strfry, strfry-router, nip50-proxy, stream-consumer, brainstorm). |
 | **redis** | 6379 (Docker network only) | Separate Docker container. Message queue for streaming ETL — buffers events between strfry and the Neo4j consumer. ~50MB RAM. |
 | **nostr-search-api** | 3069 | Search API server. Connects to strfry via WebSocket for live kind 0 ingestion, proxies search queries to Meilisearch, handles WoT score loading. |
-| **nostr-search-meili** | 7700 | Meilisearch instance. Full-text search index for nostr profiles. Searchable by name, NIP-05, bio, website, Lightning address. |
+| **nostr-search-meili** | 7700 | Meilisearch instance (pinned at `v1.12.8`). Full-text search index for nostr profiles. Searchable by name, NIP-05, bio, website, Lightning address. **Known issue:** v1.12 panics on certain queries (e.g. `q=primal`) due to a milli interner u16 overflow — `nostr-search/src/search.js` catches the panic and returns a friendly notice in place of a 500. See issue #63 for upgrade plan. |
 
 ### Docker Volumes
 
@@ -1410,6 +1410,7 @@ docker compose exec tapestry strfry sync wss://dcosl.brainstorm.world \
 - **GrapeRank performance optimization** — first wave (warm start) shipped; the ~55% of remaining runtime spent in the ratings-interpretation phase is the next optimization target
 - **Relay Discovery** — Vinney's feature for trust-weighted relay endorsement and tagging. Lives on `feature-relay-discovery`. Was briefly on main via PR #35 (2026-04-19) and pulled back via PR #46/#47 (2026-04-24) for further development. Awaiting rework.
 - **Magic Carpet bounty system** — Matthias's sandbox feature on `feature-magic-carpet`, deployed to `magic-carpet.brainstorm.world`. SQLite-backed bounties + NIP-57 zap flow. Per Matthias's roadmap; not for production.
+- **Meilisearch upgrade (#63)** — currently pinned at v1.12.8, which panics on certain queries (e.g. `q=primal`) due to an internal interner u16 overflow in milli. Workaround in place: `nostr-search/src/search.js` catches the panic and returns a friendly notice in place of a 500. Real fix is to upgrade Meilisearch to a version that resolves this; verify index compatibility + reindex if needed; remove the workaround. Tracked in issue #63 with full upgrade plan and risk notes.
 
 ---
 
