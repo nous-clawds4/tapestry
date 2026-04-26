@@ -25,21 +25,22 @@ export default function BrainstormPersonalization() {
             Every search is filtered through a <strong>point of view</strong>. By default, every profile's verification score
             starts out at 0, meaning "unverified", with the exception of the profile designated as the reference (the point of view) profile, 
             whose score is fixed at 100. Think of this as meaning that <i>you</i> are, by default, 100 percent certain that{' '}
-            <i>you</i> are not an impersonator or some other bad actor!
+            <i>you</i> are not an impersonator or some other bad actor! As for the rest of the nostr profiles out there, they are presumed
+            "unverified" until your trusted community says otherwise.
           </p>
           <p>
-            There are two options:
+            We provide you with two options:
           </p>
           <ul style={{ paddingLeft: '1.2rem', marginTop: '0.5rem' }}>
             <li style={{ marginBottom: '0.5rem' }}>
-              <strong>House Point of View</strong> — The default. Uses trust scores calculated by the
-              operator of this instance. Available to everyone, no sign-in required.
+              <strong>House Point of View</strong> — The default. Uses trust scores selected by the
+              operator of this instance, the "house". Available to everyone, no need for a nostr account, no sign-in required.
             </li>
             <li>
               <strong>My Point of View</strong> — Your personalized perspective. Uses trust scores{' '}
               derived from <em>your</em> extended community, calculated and made available to platforms
               like <a href="https://brainstorm.world" >brainstorm.world</a> by a
-              service such as <a href="https://brainstorm.nosfabrica.com" target="_blank">My Brainstorm</a>.
+              service such as the one at <a href="https://brainstorm.nosfabrica.com" target="_blank">brainstorm.nosfabrica.com</a>.
               Or if you prefer, you can be your own trust scores service provider by running the{' '}
               <a href="https://github.com/nosfabrica" target="_blank">open source code</a>.
             </li>
