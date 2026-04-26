@@ -135,16 +135,12 @@ export default function BrainstormDevelopers() {
         {/* Open source */}
         <h2 style={{ fontSize: '1.1rem', marginTop: '2rem' }}>Open-source</h2>
         <ul>
-          <a href="https://github.com/nous-clawds4/tapestry" target="_blank">Brainstorm Search</a> (this website)
+          <a href="https://github.com/nous-clawds4/tapestry" target="_blank">Brainstorm Search repo</a> (this website)
         </ul>
         <ul>
-          <a href="https://github.com/nosfabrica" target="_blank">My Brainstorm</a> (personalization service)
+          <a href="https://github.com/nosfabrica" target="_blank">NosFabrica repos</a> (personalization service)
         </ul>
 
-        {/* Footer */}
-        <div style={{ marginTop: '3rem', paddingTop: '1.5rem', borderTop: '1px solid rgba(255,255,255,0.1)', opacity: 0.5, fontSize: '0.85rem', textAlign: 'center' }}>
-          <a href="https://brainstorm.nosfabrica.com/" target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'underline' }}>Personalize my Search</a>
-        </div>
       </div>
     </div>
   );
