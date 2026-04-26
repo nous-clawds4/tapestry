@@ -3,7 +3,7 @@
 > **Audience:** AI agents and developers joining the Tapestry project.
 > Read this file to fully onboard — it covers what Tapestry is, how it works, what's been built, what's in progress, and how to contribute.
 
-**Last updated:** 2026-04-25 (NIP-05 server endpoint)
+**Last updated:** 2026-04-25 (search-prefs cascade fix + auth gate, cosmetic refresh)
 
 ---
 
@@ -662,8 +662,8 @@ External nostr clients can search via the relay WebSocket at `wss://<host>/relay
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/grapevine/preferences` | Get search preferences (POV pubkey, metrics, filters, sort) |
-| PUT | `/api/grapevine/preferences` | Save search preferences |
+| GET | `/api/grapevine/preferences` | Get house-wide search preferences (POV pubkey, metrics, filters, sort). Public read — the inline picker and anonymous visitors need to be able to read the resolved house default. |
+| PUT | `/api/grapevine/preferences` | Update house-wide search preferences. **Owner/admin only.** These are site-wide defaults that cascade to all users without per-user overrides (see §14 "Search-preferences cascade"). |
 
 ### User Preferences
 
@@ -764,7 +764,9 @@ Legacy Brainstorm HTML pages are served at `/legacy/` (not part of the React SPA
 /                                 Brainstorm Search (landing + results)
 ├── user/:pubkey                  Profile detail (follow, mute, report)
 ├── settings                      Search settings (WoT pipeline, metrics, filters)
-├── personalization               WoT personalization guide
+├── about                         Brainstorm + NosFabrica overview, links to nostr
+├── how-search-works              Mechanics: Meilisearch + Verification (GrapeRank)
+├── personalization               POV explainer (House vs My Point of View)
 └── developers                    NIP-50 developer integration docs
 
 /tapestry/                        Dashboard (Getting Started + stats)
@@ -1023,6 +1025,26 @@ The `nip05` key (added 2026-04-25) backs the `/.well-known/nostr.json` endpoint:
 ```
 
 `names` maps the local-part of the NIP-05 identifier (e.g., `"brainstorm"` for `brainstorm@brainstorm.world`) to a hex pubkey. `relays` advertises where the holder of that pubkey can be reached. Editing happens via the owner-gated `PUT /api/settings` (see §11) or — for first-time prod registration — directly in the volume's `settings.json` (see §15 "Editing settings.json on a deployed droplet").
+
+### Search-preferences cascade
+
+The Meilisearch proxy (`src/api/search/profiles/meili/index.js` lines 137–181) resolves `sort` and `filter` for each search request through three layers:
+
+1. **User's per-user prefs** — `/var/lib/brainstorm/user-prefs/<pubkey>.json`, written via `PUT /api/user-prefs` by signed-in users. *(Underlying API works; no UI exposes sort/filter writes here today — see §17 "What's In Progress".)*
+2. **House-wide prefs** — `settings.grapevine.searchPreferences.{filters,sort}`, written via `PUT /api/grapevine/preferences` (owner/admin only since 2026-04-25). The `/tapestry/grapevine/search-preferences` page is the UI.
+3. **Text relevance** — Meilisearch's default ranking when no `sort` param is sent.
+
+Three distinct sort intents on the user side:
+
+| Intent | `userPrefs.sortConfig` value | Cascade behavior |
+|--------|------------------------------|------------------|
+| Use house default | `null` or absent | falls through to house prefs → if house has nothing, text relevance |
+| Force text relevance | `{ metric: null, direction: 'desc' }` | overrides house, no sort param sent |
+| Specific metric | `{ metric: 'rank', direction: 'desc' }` | overrides house, that metric used |
+
+Same shape for filters: `null`/absent = use house, `{}` = explicit no filters, `{key: value}` = specific filters.
+
+**Historical note:** prior to 2026-04-25, the proxy unconditionally forced `wot_followers:desc` whenever a POV suffix existed and no explicit metric was selected — so the user-side "None" option was unreachable, and the default for unconfigured installs was followers-desc rather than text relevance. Fix removed the forced fallback; default behavior now matches the cascade above.
 
 ### brainstorm.conf
 
@@ -1388,6 +1410,9 @@ docker compose exec tapestry strfry sync wss://dcosl.brainstorm.world \
 - ✅ Owner-seeded warm start for first-time customers — if the owner is within 3 directed FOLLOWS hops downstream of the customer, seed from the owner's `NostrUser` scorecards; otherwise cold start
 - ✅ GrapeRank observability — per-phase timing in structured events, `iteration_complete` event with convergence metrics (iterations, max_diff, warm_start_source), persistent per-customer `graperank_history.jsonl`
 - ✅ NIP-05 server endpoint at `/.well-known/nostr.json` — settings-backed registry under `nip05.names` and `nip05.relays`. Public read with CORS open + 5-minute soft cache. Owner-only writes via `PUT /api/settings` validated for name regex (`/^[a-z0-9._-]+$/`), 64-char hex pubkeys, and `wss://`/`ws://` relay URLs. First identifier in production: `brainstorm@brainstorm.world` (2026-04-25).
+- ✅ Cosmetic refresh (2026-04-25) — Verification rename ("WoT Rank" → "Verification Score", "Followers" → "Verified Followers"); `/personalization` split into `/personalization` (POV philosophy) + new `/how-search-works` (Meilisearch + GrapeRank mechanics); new `/about` page; unified header (no back button, no wordmark) on all non-landing pages; experimental corner-anchored landing layout (About top-left, Developers / How search works / Settings spread across the footer corners + middle); MyPovLabel — the user's profile pic + name show in "Searching as:" when "My WoT" is the active POV.
+- ✅ Meilisearch sort cascade fix (2026-04-25) — removed the forced `wot_followers:desc` fallback that was preventing the user-side "None (text relevance only)" option from taking effect. Three-layer cascade now resolves cleanly: user prefs → house prefs → text relevance. Default behavior for unconfigured installs becomes text relevance instead of followers-desc; owner can still establish a house-wide default via Search Preferences. See §14 "Search-preferences cascade".
+- ✅ Owner/admin auth gate on `PUT /api/grapevine/preferences` (2026-04-25) — the dashboard's House Search Defaults page (`/tapestry/grapevine/search-preferences`) now requires owner/admin role for saves. Previously the endpoint was publicly writable; anyone could rewrite site-wide defaults. Page heading updated to "House Search Defaults"; non-owners see a view-only banner and disabled save button. GET stays public so anonymous visitors and the inline picker can read the resolved house defaults.
 
 ### CLI (tapestry-cli repo)
 
