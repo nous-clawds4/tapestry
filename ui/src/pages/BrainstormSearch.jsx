@@ -694,6 +694,7 @@ export default function BrainstormSearch() {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState(null);
   const [meta, setMeta] = useState(null);
+  const [searchNotice, setSearchNotice] = useState(null); // friendly message in place of "No results found" (e.g. when Meilisearch panics on too-broad queries — see nostr-search/src/search.js)
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState(null);
@@ -756,6 +757,7 @@ export default function BrainstormSearch() {
       setResults(null);
       setMeta(null);
       setError(null);
+      setSearchNotice(null);
     } else {
       setLoadingMore(true);
     }
@@ -778,6 +780,10 @@ export default function BrainstormSearch() {
 
       // Store NIP-05 verified result (if any)
       setNip05Result(data.nip05Result || null);
+
+      // Friendly notice in place of "No results found" — surfaced when the
+      // server side gracefully degrades (e.g. Meilisearch interner panic).
+      setSearchNotice(data._searchTooBroad ? data._notice : null);
 
       if (offset === 0) {
         setResults(data.hits || []);
@@ -1140,7 +1146,7 @@ export default function BrainstormSearch() {
             <div className="bs-results-meta">
               <span>
                 {results.length === 0
-                  ? 'No results found'
+                  ? (searchNotice || 'No results found')
                   : `About ${meta?.estimatedTotalHits?.toLocaleString() || '?'} results`}
               </span>
               {meta?.processingTimeMs != null && (
