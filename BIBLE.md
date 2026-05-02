@@ -2,8 +2,10 @@
 
 > **Audience:** AI agents and developers joining the Tapestry project.
 > Read this file to fully onboard — it covers what Tapestry is, how it works, what's been built, what's in progress, and how to contribute.
+>
+> Specifics of the reference deployment at `brainstorm.world` (deploy targets, droplet specs, CI/CD workflows, branch protection ruleset, active team, tracking issues, operational gotchas we've hit) live in a sibling document: [OPERATIONS.md](./OPERATIONS.md). If you're forking this repo to run your own instance, BIBLE is the doc you want — OPERATIONS describes someone else's running instance.
 
-**Last updated:** 2026-04-25 (search-prefs cascade fix + auth gate, cosmetic refresh)
+**Last updated:** 2026-04-26 (split brainstorm.world specifics into OPERATIONS.md)
 
 ---
 
@@ -73,22 +75,20 @@ Tapestry is being built under **NosFabrica**, a company focused on sovereign hea
 | **tapestry** (server) | `github.com/nous-clawds4/tapestry` | `main` | Docker stack: strfry + Neo4j + Express + React UI + Meilisearch + NIP-50 proxy + firmware |
 | **tapestry-cli** | `github.com/nous-clawds4/tapestry-cli` | `main` | CLI tool for graph operations |
 
-### Branch Strategy (post-2026-04-20 reorg)
+### Recommended branch strategy
 
-Long-lived branches on the tapestry repo:
+`main` is the production branch — direct push triggers a deploy via `.github/workflows/deploy-brainstorm.yml`. Standard contribution flow uses an intermediate `staging` branch as a verification gate:
 
-| Branch | Purpose | Deploys To |
-|--------|---------|------------|
-| `main` | Production. PRs merge here only after staging verification. | `brainstorm.world` |
-| `staging` | Pre-production verification. PRs from feature branches land here first. | `staging.brainstorm.world` |
-| `feature-magic-carpet` | Long-lived sandbox for Matthias's bounty-system work. PRs from his fork land here. | `magic-carpet.brainstorm.world` |
-| `develop` | Vinney's legacy integration branch — likely retiring once `staging` adoption is complete. | — |
-| `feature-relay-discovery` | Holds Vinney's Relay Discovery feature for continued development. | — |
-| `feature-tapestry-discovery` | Vinney's WIP stacked on top of `feature-relay-discovery`. | — |
+```
+feat/foo (off staging)
+  → PR → staging   → CI auto-deploys to a staging environment
+  → verify
+  → PR → main      → CI auto-deploys to production
+```
 
-Standard contribution flow: branch off `staging` → PR into `staging` → verify on `staging.brainstorm.world` → PR `staging → main` → CI deploys to `brainstorm.world`. See §15 for details.
+Long-lived sandbox branches (e.g. for substantial in-progress features that need their own deploy environment) follow the same pattern: dedicated branch + dedicated workflow + dedicated droplet.
 
-> **Retired:** `refactor-paths` and `brainstorm-search` were the dev/prod branches before the 2026-04-20 reorg. They've been deleted; their content lives in `main`. The `nous-clawds4.tapestry.ninja` instance was also retired.
+For the specific branches and deploy targets configured in the reference deployment at `brainstorm.world` (including `staging`, `feature-magic-carpet`, and a few legacy/parked branches), see [OPERATIONS.md §1–§2](./OPERATIONS.md).
 
 ---
 
@@ -142,7 +142,7 @@ Standard contribution flow: branch off `staging` → PR into `staging` → verif
 | **supervisord** | — | Process manager inside the container. Controls all services (neo4j, strfry, strfry-router, nip50-proxy, stream-consumer, brainstorm). |
 | **redis** | 6379 (Docker network only) | Separate Docker container. Message queue for streaming ETL — buffers events between strfry and the Neo4j consumer. ~50MB RAM. |
 | **nostr-search-api** | 3069 | Search API server. Connects to strfry via WebSocket for live kind 0 ingestion, proxies search queries to Meilisearch, handles WoT score loading. |
-| **nostr-search-meili** | 7700 | Meilisearch instance (pinned at `v1.12.8`). Full-text search index for nostr profiles. Searchable by name, NIP-05, bio, website, Lightning address. **Known issue:** v1.12 panics on certain queries (e.g. `q=primal`) due to a milli interner u16 overflow — `nostr-search/src/search.js` catches the panic and returns a friendly notice in place of a 500. See issue #63 for upgrade plan. |
+| **nostr-search-meili** | 7700 | Meilisearch instance (pinned at `v1.12.8` in `docker-compose.yml`). Full-text search index for nostr profiles. Searchable by name, NIP-05, bio, website, Lightning address. **Known issue:** v1.12 panics on certain queries (e.g. `q=primal`) due to a milli interner u16 overflow — `nostr-search/src/search.js` catches the panic and returns a friendly notice in place of a 500. See §17 "Meilisearch upgrade" for the path to a real fix. |
 
 ### Docker Volumes
 
@@ -1171,22 +1171,9 @@ sed -i 's/"80:80"/"127.0.0.1:8080:80"/' docker-compose.yml
 
 ### CI/CD Pipelines
 
-GitHub Actions workflows in `.github/workflows/`:
+GitHub Actions workflows in `.github/workflows/` deploy long-lived branches to dedicated droplets via SSH. Each workflow follows the same shape — pull, port-remap (`sed 's/"80:80"/"127.0.0.1:8080:80"/' docker-compose.yml`), `docker compose up -d --build`, image prune. Secrets follow the convention `DEPLOY_HOST_<NAME>`, `DEPLOY_USER_<NAME>`, `DEPLOY_SSH_KEY_<NAME>`.
 
-| Workflow | Triggered by push to | Target | Description |
-|----------|----------------------|--------|-------------|
-| `deploy-brainstorm.yml` | `main` | `brainstorm.world` | Production. |
-| `deploy-staging.yml` | `staging` | `staging.brainstorm.world` | Pre-production verification. |
-| `deploy-magic-carpet.yml` | `feature-magic-carpet` | `magic-carpet.brainstorm.world` | Matthias's bounty-system sandbox. |
-
-All three workflows follow the same SSH-action pattern. The deploy scripts:
-1. Restore `docker-compose.yml` to repo version (`git checkout --`)
-2. Pull latest code from the corresponding branch
-3. Apply production port remap (`sed` to `127.0.0.1:8080:80`)
-4. Rebuild and restart (`docker compose up -d --build`)
-5. Prune old images
-
-Each droplet's secrets follow the convention `DEPLOY_HOST_<NAME>`, `DEPLOY_USER_<NAME>`, `DEPLOY_SSH_KEY_<NAME>` where `<NAME>` is `BRAINSTORM`, `STAGING`, or `MAGIC_CARPET`.
+The reference deployment at `brainstorm.world` runs three such workflows; specifics are documented in [OPERATIONS.md §1, §3](./OPERATIONS.md).
 
 ### Branch Promotion Flow
 
@@ -1194,22 +1181,22 @@ For all functional changes (and docs-only changes for consistency):
 
 1. Branch off `staging` (e.g., `feat/foo`, `fix/bar`, `chore/baz`)
 2. Open PR with base = `staging`
-3. Merge → CI auto-deploys to `staging.brainstorm.world`
-4. Verify on staging
+3. Merge → CI auto-deploys to your staging environment
+4. Verify
 5. Open PR `staging → main`
-6. Merge → CI auto-deploys to `brainstorm.world`
-7. Source feature branch is auto-deleted (the repo has "Automatically delete head branches" enabled)
-
-For sandbox work targeting Magic Carpet: Matthias contributes via PRs from his fork (`matthiasdebernardini/magic-carpet-v2`) into our `feature-magic-carpet`. Merging deploys to `magic-carpet.brainstorm.world`. Code on `feature-magic-carpet` is **not** intended for production until promoted via the standard `feature-magic-carpet → staging → main` path.
+6. Merge → CI auto-deploys to production
+7. Source feature branch is auto-deleted (assuming the repo has "Automatically delete head branches" enabled)
 
 ### Branch Protection
 
-The `restrict-deletions` ruleset (Settings → Rules → Rulesets) targets `main`, `staging`, `feature-magic-carpet`, `feature-relay-discovery`, and `feature-tapestry-discovery` with two rules:
+Recommended for any long-lived branch (`main`, `staging`, sandbox feature branches): protect against deletion **and** force-pushes. A minimal GitHub Ruleset with "Restrict deletions" + "Block force pushes" suffices.
 
-- **Restrict deletions** — prevents the auto-delete-head-branches setting from removing long-lived branches when they're the *head* of a promotion PR. (Without this, `staging → main` merges would delete `staging`. We hit this on 2026-04-24 and recovered by recreating `staging` from `main` HEAD.)
-- **Block force pushes** — prevents history rewrites that would lose collaborator work and invalidate CI/CD's record of which SHA was deployed.
+- **Restrict deletions** prevents the "Automatically delete head branches" repo setting from auto-removing a long-lived branch when it's the *head* of a promotion PR (e.g., `staging → main` would otherwise delete `staging`).
+- **Block force pushes** prevents history rewrites that would lose collaborator work and invalidate CI/CD's record of which SHA was deployed.
 
 Short-lived feature branches (`feat/*`, `fix/*`, `chore/*`) are NOT protected and are auto-deleted by GitHub on merge — desired behavior for keeping the branch list tidy.
+
+The specific ruleset configured in the reference deployment is in [OPERATIONS.md §4](./OPERATIONS.md).
 
 ### Server Recommendations
 
@@ -1225,18 +1212,7 @@ For a production instance serving Brainstorm Search to many users:
 
 Neo4j memory is configured **dynamically at container startup** by `entrypoint.sh`. The script detects system RAM, reserves memory for non-Neo4j services, and allocates the rest to Neo4j heap and page cache. G1GC and concurrent transaction limits are also set based on machine size.
 
-**Empirical measurements** (32GB DO droplet, 2.6M profiles, 30M FOLLOWS relationships, April 2026):
-
-| Component | Measured RAM | Disk | Notes |
-|---|---|---|---|
-| Meilisearch | 5.6 GB | 10.7 GB | 2.6M profiles + WoT score fields for 3 POVs |
-| Neo4j (inside tapestry) | 2-3 GB | 3.6 GB | 2.46M NostrUser nodes, 30.5M relationships |
-| strfry (inside tapestry) | 0.5-1 GB | LMDB | Memory-mapped, benefits from OS page cache |
-| Redis | 4 MB | — | Queue is nearly empty when consumer keeps up |
-| nostr-search-api | 31 MB | — | Lightweight Node.js process |
-| Node.js (Express, nip50-proxy, consumer) | ~0.5 GB | — | Inside tapestry container |
-| OS | 1-2 GB | — | Kernel, buffers, page cache |
-| **Total** | **~10 GB** | — | Of 31.3 GB available |
+For empirical RAM/disk measurements on the reference deployment (32GB droplet, 2.6M profiles, 30M FOLLOWS), see [OPERATIONS.md §5](./OPERATIONS.md).
 
 **Dynamic allocation formula** (in `docker/entrypoint.sh`):
 
@@ -1433,9 +1409,11 @@ docker compose exec tapestry strfry sync wss://dcosl.brainstorm.world \
 - **Meilisearch scalability** — at 2M+ profiles on a 2-vCPU machine, indexing can saturate CPU; may need tuning for production
 - **NIP-50 adoption** — relay proxy is live; working to get nostr client developers to integrate WoT-powered search results
 - **GrapeRank performance optimization** — first wave (warm start) shipped; the ~55% of remaining runtime spent in the ratings-interpretation phase is the next optimization target
-- **Relay Discovery** — Vinney's feature for trust-weighted relay endorsement and tagging. Lives on `feature-relay-discovery`. Was briefly on main via PR #35 (2026-04-19) and pulled back via PR #46/#47 (2026-04-24) for further development. Awaiting rework.
-- **Magic Carpet bounty system** — Matthias's sandbox feature on `feature-magic-carpet`, deployed to `magic-carpet.brainstorm.world`. SQLite-backed bounties + NIP-57 zap flow. Per Matthias's roadmap; not for production.
-- **Meilisearch upgrade (#63)** — currently pinned at v1.12.8, which panics on certain queries (e.g. `q=primal`) due to an internal interner u16 overflow in milli. Workaround in place: `nostr-search/src/search.js` catches the panic and returns a friendly notice in place of a 500. Real fix is to upgrade Meilisearch to a version that resolves this; verify index compatibility + reindex if needed; remove the workaround. Tracked in issue #63 with full upgrade plan and risk notes.
+- **Relay Discovery** — Trust-weighted relay endorsement and tagging feature. Currently being developed on its own long-lived branch in the reference deployment. (See [OPERATIONS.md §2](./OPERATIONS.md) for the specific branch and history in this fork.)
+- **Magic Carpet bounty system** — Experimental nostr-bounty feature: list curators offer Lightning sats to trusted contributors who add items to curated lists. SQLite-backed bounties + NIP-57 zap flow. Sandbox-only — not yet intended for production.
+- **Meilisearch upgrade** — Currently pinned at v1.12.8 in `docker-compose.yml`. v1.12.x panics on certain queries (e.g. `q=primal`) due to an internal interner u16 overflow in milli. Workaround in place: `nostr-search/src/search.js` catches the panic and returns a friendly notice in place of a 500. Real fix is to upgrade to a version that resolves this; verify index compatibility, plan a reindex, and remove the workaround.
+- **Per-user search-prefs UI** — The Meilisearch proxy resolves search sort/filter through a three-layer cascade (user → house → text relevance — see §14 "Search-preferences cascade"), but there is currently no UI letting a signed-in user override the house defaults. The third tier of the cascade exists in the code but is unreachable from the frontend. `PUT /api/user-prefs` is wired server-side; only the client-side UI is missing. Open design questions: where the picker lives (UserMenu inline picker? new page? section on the existing dashboard Search Preferences page?), and how to render the "Use House Default" / "None" / specific-metric three-state.
+- **Unit tests for the meili-proxy cascade resolver** — The sort/filter cascade in `src/api/search/profiles/meili/index.js` is currently inline in the route handler with no isolated tests. Worth extracting a small `resolveSortParam(userPrefs, housePrefs, povSuffix)` helper and asserting the three states (user override / house default / text relevance) to lock in the regression that surfaced when "None (text relevance only)" was being silently overridden.
 
 ---
 
