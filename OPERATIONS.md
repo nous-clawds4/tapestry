@@ -52,7 +52,6 @@ In addition to the three deploy-target branches:
 
 | Branch | Status | Owner | Purpose |
 |--------|--------|-------|---------|
-| `develop` | legacy | Vinney | Pre-reorg integration branch. Likely retiring once `staging` adoption is complete. |
 | `feature-relay-discovery` | parked | Vinney | Holds the Relay Discovery feature for continued development. Briefly merged via PR #35 (2026-04-19), pulled back via PR #46/#47 (2026-04-24). Awaiting Vinney's rework. |
 | `feature-tapestry-discovery` | WIP | Vinney | Stacked on `feature-relay-discovery`. Open as PR #32, parked. |
 
@@ -60,6 +59,7 @@ In addition to the three deploy-target branches:
 
 - `refactor-paths` — was the dev/prod branch before the 2026-04-20 reorg. Deleted; its content lives in `main`.
 - `brainstorm-search` — was the dev/prod branch for the retired `nous-clawds4.tapestry.ninja` instance. Deleted.
+- `develop` — Vinney's pre-reorg integration branch. Deleted 2026-04-26 after confirming with Vinney; its only unique content vs `main` was a redundant `.pi/` gitignore entry that `main` already had. The role it once served (integration branch) is now filled by `staging`.
 
 ---
 
@@ -127,7 +127,7 @@ The dynamic allocation formula in `docker/entrypoint.sh` is universal — see [B
 | Person | GitHub | Role | Active branches |
 |--------|--------|------|-----------------|
 | **wds4 (David Strayhorn)** | `PrettyGoodFreedomTech` | Owner | manages `main` and `staging` |
-| **Vinney Cavallo** | `vcavallo` | Contributor | `develop`, `feature-relay-discovery`, `feature-tapestry-discovery` (PR #32 parked) |
+| **Vinney Cavallo** | `vcavallo` | Contributor | `feature-relay-discovery`, `feature-tapestry-discovery` (PR #32 parked) |
 | **Matthias DeBernardini** | `matthiasdebernardini` | Contributor | works from his fork (`matthiasdebernardini/magic-carpet-v2`); PRs into `feature-magic-carpet` |
 
 Universal credits and contributor list lives in [BIBLE.md §20 "People"](./BIBLE.md#20-people).
