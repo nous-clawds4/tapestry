@@ -3381,6 +3381,34 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   opacity: 0.4;
 }
 
+/* Following / Verified Followers row (under header, above actions) */
+.bsp-counts {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin: 0.5rem 0 0.25rem;
+  font-size: 0.9rem;
+}
+.bsp-count {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35rem;
+}
+.bsp-count-value {
+  font-weight: 600;
+  color: var(--text-primary, #e2e8f0);
+}
+.bsp-count-label {
+  opacity: 0.6;
+}
+.bsp-count-sep {
+  opacity: 0.3;
+}
+.bsp-counts-loading .bsp-count-value {
+  opacity: 0.4;
+}
+
 /* Sections */
 .bsp-section {
   margin-bottom: 1.5rem;
