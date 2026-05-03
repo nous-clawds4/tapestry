@@ -91,7 +91,6 @@ export default function BrainstormProfile() {
 
   const { data: userData, loading: userDataLoading } = useUserData(pubkey);
   const followingCount = userData?.followingCount ?? null;
-  const verifiedFollowerCount = userData?.verifiedFollowerCount ?? null;
   const fmtCount = (n) => (n == null ? '—' : new Intl.NumberFormat().format(n));
 
   const npub = useMemo(() => {
@@ -231,19 +230,11 @@ export default function BrainstormProfile() {
               </div>
             </div>
 
-            {/* Counts: Following / Verified Followers (Owner POV) */}
-            <div
-              className={`bsp-counts ${userDataLoading ? 'bsp-counts-loading' : ''}`}
-              title="Counts shown from the perspective of this instance's owner."
-            >
+            {/* Following count */}
+            <div className={`bsp-counts ${userDataLoading ? 'bsp-counts-loading' : ''}`}>
               <span className="bsp-count">
                 <span className="bsp-count-value">{fmtCount(followingCount)}</span>
                 <span className="bsp-count-label">Following</span>
-              </span>
-              <span className="bsp-count-sep" aria-hidden="true">·</span>
-              <span className="bsp-count">
-                <span className="bsp-count-value">{fmtCount(verifiedFollowerCount)}</span>
-                <span className="bsp-count-label">Verified Followers</span>
               </span>
             </div>
 
