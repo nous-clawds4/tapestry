@@ -5,6 +5,7 @@
  */
 
 const neo4j = require('neo4j-driver');
+const { exec } = require('child_process');
 const { getConfigFromFile } = require('../../../../utils/config');
 const fs = require('fs');
 const path = require('path');
@@ -285,80 +286,56 @@ function handleGetUserData(req, res) {
 }
 
 /**
- * Get the precomputed count properties on a NostrUser node.
- * Lightweight alternative to handleGetUserData when the caller only needs
- * counts (followingCount, followerCount, verifiedFollowerCount, etc.) and
- * doesn't need the expensive observer-relative graph metrics
- * (frenCount, mutualFollowerCount, recommendations, etc.).
+ * Get count metrics for a user that can be derived directly from strfry.
  *
- * Returns Owner POV (NostrUser node properties). No graph traversals.
+ * Currently returns just `followingCount`, computed as the number of `p` tags
+ * on the user's most recent kind 3 event. Reads from strfry rather than from
+ * the precomputed `NostrUser.followingCount` property because the property is
+ * batch-recomputed by calculateFollowingCounts.sh and can lag the kind 3 event
+ * by hours/days. The kind 3 event is the source of truth.
+ *
+ * Other counts (followerCount, verifiedFollowerCount, etc.) require either
+ * inverse strfry scans (slow) or Neo4j (stale + dependent on graph crawl), so
+ * they're not included here. If we need them later, this endpoint can grow
+ * a hybrid implementation: strfry for follow*, Neo4j for the WoT-derived counts.
  */
 function handleGetUserCounts(req, res) {
-  try {
-    const pubkey = req.query.pubkey;
-    if (!pubkey) {
-      return res.status(400).json({ success: false, error: 'Missing pubkey parameter' });
-    }
-    if (!nip19.npubEncode(pubkey).startsWith('npub')) {
-      return res.status(400).json({ success: false, error: 'Invalid pubkey parameter' });
-    }
-
-    const neo4jUri = getConfigFromFile('NEO4J_URI', 'bolt://localhost:7687');
-    const neo4jUser = getConfigFromFile('NEO4J_USER', 'neo4j');
-    const neo4jPassword = getConfigFromFile('NEO4J_PASSWORD', 'neo4j');
-
-    const driver = neo4j.driver(neo4jUri, neo4j.auth.basic(neo4jUser, neo4jPassword));
-    const session = driver.session();
-
-    const cypherQuery = `
-      MATCH (u:NostrUser {pubkey: $pubkey})
-      RETURN u.followingCount         AS followingCount,
-             u.followerCount          AS followerCount,
-             u.verifiedFollowerCount  AS verifiedFollowerCount,
-             u.mutingCount            AS mutingCount,
-             u.muterCount             AS muterCount,
-             u.verifiedMuterCount     AS verifiedMuterCount,
-             u.reportingCount         AS reportingCount,
-             u.reporterCount          AS reporterCount,
-             u.verifiedReporterCount  AS verifiedReporterCount
-    `;
-
-    const toInt = (v) => (v == null ? null : parseInt(v.toString(), 10));
-
-    session.run(cypherQuery, { pubkey })
-      .then(result => {
-        if (result.records.length === 0) {
-          return res.json({ success: false, message: 'No data found for this user' });
-        }
-        const r = result.records[0];
-        res.status(200).json({
-          success: true,
-          data: {
-            pubkey,
-            followingCount: toInt(r.get('followingCount')),
-            followerCount: toInt(r.get('followerCount')),
-            verifiedFollowerCount: toInt(r.get('verifiedFollowerCount')),
-            mutingCount: toInt(r.get('mutingCount')),
-            muterCount: toInt(r.get('muterCount')),
-            verifiedMuterCount: toInt(r.get('verifiedMuterCount')),
-            reportingCount: toInt(r.get('reportingCount')),
-            reporterCount: toInt(r.get('reporterCount')),
-            verifiedReporterCount: toInt(r.get('verifiedReporterCount')),
-          }
-        });
-      })
-      .catch(error => {
-        console.error('Error in handleGetUserCounts:', error);
-        res.status(500).json({ success: false, message: error.message });
-      })
-      .finally(() => {
-        session.close();
-        driver.close();
-      });
-  } catch (error) {
-    console.error('Error in handleGetUserCounts:', error);
-    res.status(500).json({ success: false, message: error.message });
+  const pubkey = req.query.pubkey;
+  if (!pubkey) {
+    return res.status(400).json({ success: false, error: 'Missing pubkey parameter' });
   }
+  if (!/^[0-9a-f]{64}$/i.test(pubkey)) {
+    return res.status(400).json({ success: false, error: 'Invalid pubkey parameter' });
+  }
+
+  const filter = JSON.stringify({ kinds: [3], authors: [pubkey], limit: 1 });
+  const cmd = `strfry scan '${filter}'`;
+
+  exec(cmd, { maxBuffer: 16 * 1024 * 1024 }, (error, stdout) => {
+    if (error) {
+      console.error('handleGetUserCounts strfry scan error:', error.message);
+      return res.status(500).json({ success: false, message: error.message });
+    }
+
+    let followingCount = null;
+    for (const line of stdout.trim().split('\n')) {
+      if (!line) continue;
+      try {
+        const event = JSON.parse(line);
+        if (Array.isArray(event.tags)) {
+          followingCount = event.tags.filter(t => Array.isArray(t) && t[0] === 'p').length;
+        }
+        break;
+      } catch {
+        // skip strfry log lines
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      data: { pubkey, followingCount }
+    });
+  });
 }
 
 module.exports = {
