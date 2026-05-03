@@ -196,4 +196,6 @@ done
 
 For human users hitting the site immediately after a deploy: refresh once or twice. The flicker resolves on its own.
 
+**Post-stability flicker:** observed once on the #88 production deploy — the 3-consecutive-200s threshold was reached, but the next request burst a few seconds later still got 502s before settling for good. The brainstorm process can briefly cycle once more after first appearing stable. If a smoke test fails right after a streak-based stability check, retry once before treating it as a real failure.
+
 **Long-term fix candidate:** the deploy script could `curl --retry` an API endpoint as a final step before exiting, so CI doesn't report success until brainstorm is actually serving. Not yet done — left as a separate operational improvement.
