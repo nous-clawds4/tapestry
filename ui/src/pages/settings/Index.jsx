@@ -4,7 +4,6 @@ import { useAuth } from '../../context/AuthContext';
 import Breadcrumbs from '../../components/Breadcrumbs';
 import RelaySettings from './RelaySettings';
 import UuidSettings from './UuidSettings';
-import SystemSettings from './SystemSettings';
 import DatabaseSettings from './DatabaseSettings';
 import FirmwareExplorer from './FirmwareExplorer';
 import Audit from '../manage/Audit';
@@ -14,7 +13,6 @@ const TABS = [
   { key: 'databases', path: 'databases', label: '🗄️ Databases' },
   { key: 'uuids', path: 'uuids', label: '🔑 Concept UUIDs' },
   { key: 'firmware', path: 'firmware', label: '🔧 Firmware' },
-  { key: 'system', path: 'system', label: '🖥️ System' },
   { key: 'auditing', path: 'auditing', label: '🔍 Auditing Tools' },
 ];
 
@@ -207,15 +205,6 @@ export default function SettingsIndex() {
         )}
         {activeTab === 'firmware' && (
           <FirmwareExplorer />
-        )}
-        {activeTab === 'system' && (
-          <SystemSettings
-            settings={settings}
-            defaults={defaults}
-            overrides={overrides}
-            onSave={handleSave}
-            onReset={handleReset}
-          />
         )}
         {activeTab === 'auditing' && (
           <Audit />

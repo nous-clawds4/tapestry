@@ -70,6 +70,7 @@ import BrainstormPersonalization from './pages/BrainstormPersonalization';
 import BrainstormHowSearchWorks from './pages/BrainstormHowSearchWorks';
 import BrainstormAbout from './pages/BrainstormAbout';
 import BrainstormDevelopers from './pages/BrainstormDevelopers';
+import NotFound from './pages/NotFound';
 const router = createBrowserRouter([
   {
     path: '/',
@@ -264,12 +265,14 @@ const router = createBrowserRouter([
           { path: 'databases', handle: { crumb: 'Databases' } },
           { path: 'uuids', handle: { crumb: 'Concept UUIDs' } },
           { path: 'firmware', handle: { crumb: 'Firmware' } },
-          { path: 'system', handle: { crumb: 'System' } },
           { path: 'auditing', handle: { crumb: 'Auditing Tools' } },
+          { path: '*', element: <Navigate to="/tapestry/settings/relays" replace /> },
         ],
       },
+      { path: '*', element: <NotFound />, handle: { crumb: 'Not Found' } },
     ],
   },
+  { path: '*', element: <NotFound /> },
 ]);
 
 export default function App() {
