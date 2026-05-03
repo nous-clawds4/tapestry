@@ -153,7 +153,7 @@ export default function SettingsIndex() {
       <Breadcrumbs />
       <h1>⚙️ Settings</h1>
       <p className="subtitle">
-        Configure relays, concept UUIDs, and system parameters.
+        Configure relays and concept UUIDs.
         Overrides are stored on the persistent volume and survive rebuilds.
       </p>
 
