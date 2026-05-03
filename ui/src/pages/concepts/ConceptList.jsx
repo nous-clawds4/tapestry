@@ -5,7 +5,7 @@ import DataTable from '../../components/DataTable';
 import Breadcrumbs from '../../components/Breadcrumbs';
 import useProfiles from '../../hooks/useProfiles';
 import AuthorCell from '../../components/AuthorCell';
-import { OWNER_PUBKEY, DAVE_PUBKEY } from '../../config/pubkeys';
+import { DAVE_PUBKEY } from '../../config/pubkeys';
 import { useConfig } from '../../context/ConfigContext';
 
 const QUERY = `
@@ -56,7 +56,7 @@ const QUERY = `
 `;
 
 export default function ConceptList() {
-  const { taPubkey: TA_PUBKEY } = useConfig();
+  const { taPubkey: TA_PUBKEY, ownerPubkey } = useConfig();
   const { data, loading, error } = useCypher(QUERY);
   const navigate = useNavigate();
   const [healthMap, setHealthMap] = useState({});
@@ -103,10 +103,10 @@ export default function ConceptList() {
     const allPks = [...new Set(enrichedData.map(r => r.author).filter(Boolean))];
     const pinned = [];
     const pksSet = new Set(allPks);
-    if (pksSet.has(OWNER_PUBKEY)) pinned.push(OWNER_PUBKEY);
+    if (pksSet.has(ownerPubkey)) pinned.push(ownerPubkey);
     if (pksSet.has(DAVE_PUBKEY)) pinned.push(DAVE_PUBKEY);
     if (pksSet.has(TA_PUBKEY)) pinned.push(TA_PUBKEY);
-    const others = allPks.filter(pk => pk !== OWNER_PUBKEY && pk !== TA_PUBKEY && pk !== DAVE_PUBKEY);
+    const others = allPks.filter(pk => pk !== ownerPubkey && pk !== TA_PUBKEY && pk !== DAVE_PUBKEY);
     return [...pinned, ...others];
   }, [enrichedData]);
 
@@ -114,7 +114,7 @@ export default function ConceptList() {
     const p = profiles?.[pk];
     const name = p?.name || p?.display_name;
     const short = pk.slice(0, 8) + '…';
-    if (pk === OWNER_PUBKEY) return name ? `👑 ${name}` : `👑 Owner (${short})`;
+    if (pk === ownerPubkey) return name ? `👑 ${name}` : `👑 Owner (${short})`;
     if (pk === DAVE_PUBKEY) return name ? `🧑‍💻 ${name}` : `🧑‍💻 Dave (${short})`;
     if (pk === TA_PUBKEY) return name ? `🤖 ${name}` : `🤖 Assistant (${short})`;
     return name ? `${name} (${short})` : short;

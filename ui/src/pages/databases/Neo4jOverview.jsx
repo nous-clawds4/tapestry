@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import Breadcrumbs from '../../components/Breadcrumbs';
 import useProfiles from '../../hooks/useProfiles';
-import { OWNER_PUBKEY, DAVE_PUBKEY } from '../../config/pubkeys';
+import { DAVE_PUBKEY } from '../../config/pubkeys';
 import { useConfig } from '../../context/ConfigContext';
 
 function shortPubkey(pk) {
@@ -10,7 +10,7 @@ function shortPubkey(pk) {
 }
 
 export default function Neo4jOverview() {
-  const { taPubkey: TA_PUBKEY } = useConfig();
+  const { taPubkey: TA_PUBKEY, ownerPubkey } = useConfig();
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -45,7 +45,7 @@ export default function Neo4jOverview() {
     const p = profiles?.[pk];
     const name = p?.name || p?.display_name;
     const short = shortPubkey(pk);
-    if (pk === OWNER_PUBKEY) return name ? `👑 ${name}` : `👑 Owner (${short})`;
+    if (pk === ownerPubkey) return name ? `👑 ${name}` : `👑 Owner (${short})`;
     if (pk === DAVE_PUBKEY) return name ? `🧑‍💻 ${name}` : `🧑‍💻 Dave (${short})`;
     if (pk === TA_PUBKEY) return name ? `🤖 ${name}` : `🤖 Assistant (${short})`;
     return name ? `${name} (${short})` : short;
