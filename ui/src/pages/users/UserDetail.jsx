@@ -4,6 +4,7 @@ import { nip19 } from 'nostr-tools';
 import Breadcrumbs from '../../components/Breadcrumbs';
 import useProfiles from '../../hooks/useProfiles';
 import { useTrust } from '../../context/TrustContext';
+import { useConfig } from '../../context/ConfigContext';
 import { useCypher } from '../../hooks/useCypher';
 import { queryRelay } from '../../api/relay';
 import AuthorCell from '../../components/AuthorCell';
@@ -46,6 +47,7 @@ export default function UserDetail() {
   const { pubkey } = useParams();
   const navigate = useNavigate();
   const { povPubkey, setPovPubkey } = useTrust();
+  const { aRelays } = useConfig();
   const isCurrentPov = povPubkey === pubkey;
   const pubkeys = useMemo(() => [pubkey], [pubkey]);
   const profiles = useProfiles(pubkeys);
@@ -61,10 +63,10 @@ export default function UserDetail() {
     try {
       return nip19.nprofileEncode({
         pubkey,
-        relays: ['wss://relay.damus.io', 'wss://nos.lol', 'wss://relay.primal.net'],
+        relays: aRelays?.aPopularGeneralPurposeRelays || [],
       });
     } catch { return null; }
-  }, [pubkey]);
+  }, [pubkey, aRelays]);
 
   return (
     <div className="page">

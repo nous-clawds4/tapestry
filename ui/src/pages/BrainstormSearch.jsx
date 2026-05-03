@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useConfig } from '../context/ConfigContext';
 import { useHouseProfile } from '../components/BrainstormUserMenu';
 import { nip19 } from 'nostr-tools';
 
@@ -79,10 +80,10 @@ function MyPovLabel({ user }) {
 
 /* ── User Menu (avatar + dropdown panel) ─────────────── */
 
-const EXTERNAL_RELAYS = ['wss://relay.primal.net', 'wss://relay.damus.io', 'wss://nos.lol'];
 const POV_STORAGE_PREFIX = 'bs_pov_';
 
 function UserMenu({ user, login, logout, pov, setPov, filters, setFilters, sortConfig, setSortConfig, onWotReady }) {
+  const { aRelays } = useConfig();
   const [open, setOpen] = useState(false);
   const menuRef = useRef(null);
 
@@ -301,7 +302,7 @@ function UserMenu({ user, login, logout, pov, setPov, filters, setFilters, sortC
         } catch {}
 
         if (!event10040) {
-          const relays = EXTERNAL_RELAYS.join(',');
+          const relays = (aRelays?.aPopularGeneralPurposeRelays || []).join(',');
           try {
             const extResp = await fetch(`/api/relay/external?filter=${encodeURIComponent(localFilter)}&relays=${encodeURIComponent(relays)}`);
             const extData = await extResp.json();

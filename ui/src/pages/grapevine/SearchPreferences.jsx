@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import Breadcrumbs from '../../components/Breadcrumbs';
 import { useAuth } from '../../context/AuthContext';
+import { useConfig } from '../../context/ConfigContext';
 
 /**
  * Search Preferences — configure WoT scoring for profile search.
@@ -11,13 +12,6 @@ import { useAuth } from '../../context/AuthContext';
  * 3. Sync Trusted Assertions (kind 30382) from the NIP-85 relay into local strfry via negentropy
  * 4. Load scores from local strfry into Meilisearch
  */
-
-const RELAY_SEARCH_LIST = [
-  'wss://relay.damus.io',
-  'wss://relay.primal.net',
-  'wss://nos.lol',
-  'wss://purplepag.es',
-];
 
 function npubToHex(npub) {
   try {
@@ -46,8 +40,8 @@ function isValidPubkey(str) {
   return /^[0-9a-f]{64}$/.test(str);
 }
 
-async function fetchKind10040(pubkey) {
-  for (const relayUrl of RELAY_SEARCH_LIST) {
+async function fetchKind10040(pubkey, relays) {
+  for (const relayUrl of relays) {
     try {
       const event = await new Promise((resolve, reject) => {
         const ws = new WebSocket(relayUrl);
@@ -116,6 +110,8 @@ export default function SearchPreferences() {
 
   // Owner/admin detection — only owners can save these site-wide defaults.
   const { user } = useAuth();
+  const { aRelays } = useConfig();
+  const popularRelays = aRelays?.aPopularGeneralPurposeRelays || [];
   const isOwnerOrAdmin = user?.classification === 'owner' || user?.classification === 'admin';
 
   // Filter & Sort settings
@@ -177,7 +173,7 @@ export default function SearchPreferences() {
           if (prefs.sort) setSortConfig(prefs.sort);
 
           // Auto-lookup the 10040 to restore full state
-          const event = await fetchKind10040(prefs.povPubkey);
+          const event = await fetchKind10040(prefs.povPubkey, popularRelays);
           if (event) {
             setEvent10040(event);
             const metrics = parseMetrics(event);
@@ -237,9 +233,9 @@ export default function SearchPreferences() {
     setLoading(true);
 
     try {
-      const event = await fetchKind10040(hex);
+      const event = await fetchKind10040(hex, popularRelays);
       if (!event) {
-        setError(`No kind 10040 event found for this pubkey on ${RELAY_SEARCH_LIST.length} relays.`);
+        setError(`No kind 10040 event found for this pubkey on ${popularRelays.length} relays.`);
         return;
       }
 

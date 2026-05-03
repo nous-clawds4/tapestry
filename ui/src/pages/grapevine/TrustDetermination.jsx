@@ -2,7 +2,6 @@ import { useMemo, useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import Breadcrumbs from '../../components/Breadcrumbs';
 import { useTrust, SCORING_METHODS } from '../../context/TrustContext';
-import { OWNER_PUBKEY } from '../../config/pubkeys';
 import useProfiles from '../../hooks/useProfiles';
 import { queryRelay } from '../../api/relay';
 

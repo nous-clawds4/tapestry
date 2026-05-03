@@ -1,5 +1,5 @@
-import { createContext, useContext, useState, useCallback } from 'react';
-import { OWNER_PUBKEY } from '../config/pubkeys';
+import { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import { useConfig } from './ConfigContext';
 
 const STORAGE_KEY = 'tapestry_trust_method';
 
@@ -10,11 +10,8 @@ const SCORING_METHODS = [
   { id: 'trust-everyone', label: 'Trust Everyone' },
 ];
 
-const DEFAULT_STATE = {
-  povPubkey: OWNER_PUBKEY,
-  scoringMethod: 'trusted-assertions-rank',
-  trustedListId: '',  // d-tag identifier for selected kind 30392 Trusted List
-};
+const DEFAULT_SCORING_METHOD = 'trusted-assertions-rank';
+const DEFAULT_TRUSTED_LIST_ID = '';
 
 function loadState() {
   try {
@@ -22,15 +19,15 @@ function loadState() {
     if (stored) {
       const parsed = JSON.parse(stored);
       return {
-        povPubkey: parsed.povPubkey || DEFAULT_STATE.povPubkey,
+        povPubkey: parsed.povPubkey || null,
         scoringMethod: SCORING_METHODS.some(m => m.id === parsed.scoringMethod)
           ? parsed.scoringMethod
-          : DEFAULT_STATE.scoringMethod,
-        trustedListId: parsed.trustedListId || DEFAULT_STATE.trustedListId,
+          : DEFAULT_SCORING_METHOD,
+        trustedListId: parsed.trustedListId || DEFAULT_TRUSTED_LIST_ID,
       };
     }
   } catch {}
-  return { ...DEFAULT_STATE };
+  return { povPubkey: null, scoringMethod: DEFAULT_SCORING_METHOD, trustedListId: DEFAULT_TRUSTED_LIST_ID };
 }
 
 function saveState(state) {
@@ -50,7 +47,15 @@ export function useTrust() {
 export { SCORING_METHODS };
 
 export function TrustProvider({ children }) {
+  const { ownerPubkey } = useConfig();
   const [state, setState] = useState(loadState);
+
+  // Once the owner pubkey arrives from the server, default povPubkey to it
+  // (only if the user hasn't set their own — i.e. we restored null from storage).
+  useEffect(() => {
+    if (!ownerPubkey) return;
+    setState(prev => (prev.povPubkey ? prev : { ...prev, povPubkey: ownerPubkey }));
+  }, [ownerPubkey]);
 
   const setPovPubkey = useCallback((pubkey) => {
     setState(prev => {
@@ -77,14 +82,15 @@ export function TrustProvider({ children }) {
   }, []);
 
   const resetToOwner = useCallback(() => {
+    if (!ownerPubkey) return;
     setState(prev => {
-      const next = { ...prev, povPubkey: OWNER_PUBKEY };
+      const next = { ...prev, povPubkey: ownerPubkey };
       saveState(next);
       return next;
     });
-  }, []);
+  }, [ownerPubkey]);
 
-  const isOwnerPov = state.povPubkey === OWNER_PUBKEY;
+  const isOwnerPov = ownerPubkey != null && state.povPubkey === ownerPubkey;
 
   const value = {
     povPubkey: state.povPubkey,

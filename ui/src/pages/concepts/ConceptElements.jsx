@@ -4,7 +4,7 @@ import { useCypher } from '../../hooks/useCypher';
 import DataTable from '../../components/DataTable';
 import useProfiles from '../../hooks/useProfiles';
 import AuthorCell from '../../components/AuthorCell';
-import { OWNER_PUBKEY, DAVE_PUBKEY } from '../../config/pubkeys';
+import { DAVE_PUBKEY } from '../../config/pubkeys';
 import { useConfig } from '../../context/ConfigContext';
 
 function ValidationCell({ status, errors }) {
@@ -20,7 +20,7 @@ function ValidationCell({ status, errors }) {
 }
 
 export default function ConceptElements() {
-  const { taPubkey: TA_PUBKEY } = useConfig();
+  const { taPubkey: TA_PUBKEY, ownerPubkey } = useConfig();
   const { uuid } = useOutletContext();
   const navigate = useNavigate();
 
@@ -220,10 +220,10 @@ export default function ConceptElements() {
   const authorOptions = useMemo(() => {
     const pksSet = new Set(authorPubkeys);
     const pinned = [];
-    if (pksSet.has(OWNER_PUBKEY)) pinned.push(OWNER_PUBKEY);
+    if (pksSet.has(ownerPubkey)) pinned.push(ownerPubkey);
     if (pksSet.has(DAVE_PUBKEY)) pinned.push(DAVE_PUBKEY);
     if (pksSet.has(TA_PUBKEY)) pinned.push(TA_PUBKEY);
-    const others = authorPubkeys.filter(pk => pk !== OWNER_PUBKEY && pk !== TA_PUBKEY && pk !== DAVE_PUBKEY);
+    const others = authorPubkeys.filter(pk => pk !== ownerPubkey && pk !== TA_PUBKEY && pk !== DAVE_PUBKEY);
     return [...pinned, ...others];
   }, [authorPubkeys]);
 
@@ -231,7 +231,7 @@ export default function ConceptElements() {
     const p = profiles?.[pk];
     const name = p?.name || p?.display_name;
     const short = pk.slice(0, 8) + '…';
-    if (pk === OWNER_PUBKEY) return name ? `👑 ${name}` : `👑 Owner (${short})`;
+    if (pk === ownerPubkey) return name ? `👑 ${name}` : `👑 Owner (${short})`;
     if (pk === DAVE_PUBKEY) return name ? `🧑‍💻 ${name}` : `🧑‍💻 Dave (${short})`;
     if (pk === TA_PUBKEY) return name ? `🤖 ${name}` : `🤖 Assistant (${short})`;
     return name ? `${name} (${short})` : short;
