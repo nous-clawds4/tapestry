@@ -53,6 +53,8 @@ tags:
     description: LMDB key-value store and JSON derivation
   - name: Profiles
     description: Nostr profile fetching
+  - name: Users
+    description: Per-user data, counts, and trust metrics from the WoT graph
   - name: Customers
     description: Customer management (owner-only)
   - name: Status
@@ -2323,6 +2325,210 @@ paths:
                     type: boolean
                   data:
                     type: object
+
+  # ──────────────────────────────────────────────
+  # Users
+  # ──────────────────────────────────────────────
+  /api/get-user-data:
+    get:
+      tags: [Users]
+      summary: Get detailed data for a single user
+      description: |
+        Returns trust scores, follower/follow counts, and social-graph metrics
+        (frens, groupies, idols, mutuals, recommendations) for a user, computed
+        from Neo4j. When `observerPubkey` is supplied (and is not `owner`), trust
+        scores are read from the `NostrUserWotMetricsCard` for that observer
+        rather than the user's own `NostrUser` node.
+      parameters:
+        - name: pubkey
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Hex pubkey of the user to fetch
+        - name: observerPubkey
+          in: query
+          required: false
+          schema:
+            type: string
+            default: owner
+          description: |
+            Hex pubkey of the observer whose perspective is used for trust
+            scores. Defaults to `owner`, which resolves to the instance owner's
+            pubkey from `BRAINSTORM_OWNER_PUBKEY`.
+      responses:
+        '200':
+          description: 'User data (or success=false if no profile found)'
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  isUserInNeo4j:
+                    type: boolean
+                  metaData:
+                    type: object
+                    properties:
+                      pubkey:
+                        type: string
+                      observerPubkey:
+                        type: string
+                      query:
+                        type: string
+                  data:
+                    type: object
+                    properties:
+                      pubkey:
+                        type: string
+                      npub:
+                        type: string
+                      followerCount:
+                        type: integer
+                      muterCount:
+                        type: integer
+                      reporterCount:
+                        type: integer
+                      followingCount:
+                        type: integer
+                      mutingCount:
+                        type: integer
+                      reportingCount:
+                        type: integer
+                      personalizedPageRank:
+                        type: number
+                        nullable: true
+                      hops:
+                        type: integer
+                        nullable: true
+                      influence:
+                        type: number
+                        nullable: true
+                      average:
+                        type: number
+                        nullable: true
+                      confidence:
+                        type: number
+                        nullable: true
+                      input:
+                        type: number
+                        nullable: true
+                      verifiedFollowerCount:
+                        type: integer
+                        nullable: true
+                      verifiedMuterCount:
+                        type: integer
+                        nullable: true
+                      verifiedReporterCount:
+                        type: integer
+                        nullable: true
+                      followerInput:
+                        type: number
+                        nullable: true
+                      muterInput:
+                        type: number
+                        nullable: true
+                      reporterInput:
+                        type: number
+                        nullable: true
+                      frenCount:
+                        type: integer
+                        nullable: true
+                      groupieCount:
+                        type: integer
+                        nullable: true
+                      idolCount:
+                        type: integer
+                        nullable: true
+                      mutualFrenCount:
+                        type: integer
+                        nullable: true
+                      mutualGroupieCount:
+                        type: integer
+                        nullable: true
+                      mutualIdolCount:
+                        type: integer
+                        nullable: true
+                      mutualFollowerCount:
+                        type: integer
+                        nullable: true
+                      mutualFollowCount:
+                        type: integer
+                        nullable: true
+                      recommendationsToObserverCount:
+                        type: integer
+                        nullable: true
+                      recommendationsFromObserverCount:
+                        type: integer
+                        nullable: true
+        '400':
+          description: Missing or invalid `pubkey` / `observerPubkey`
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Server or Neo4j query error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/get-user-counts:
+    get:
+      tags: [Users]
+      summary: Get lightweight count metrics for a user
+      description: |
+        Returns counts derivable directly from strfry. Currently `followingCount`
+        only — computed from the number of `p` tags on the user's most recent
+        kind 3 event. Reads from strfry rather than the precomputed
+        `NostrUser.followingCount` property because the property is batch-recomputed
+        and can lag the kind 3 event by hours/days; the kind 3 event is the
+        source of truth.
+
+        Other counts (followerCount, verifiedFollowerCount, etc.) require either
+        inverse strfry scans (slow) or Neo4j (stale + dependent on graph crawl),
+        so they are not included here.
+      parameters:
+        - name: pubkey
+          in: query
+          required: true
+          schema:
+            type: string
+            pattern: '^[0-9a-f]{64}$'
+          description: Hex pubkey (64 hex chars) of the user
+      responses:
+        '200':
+          description: Count metrics for the user
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      pubkey:
+                        type: string
+                      followingCount:
+                        type: integer
+                        nullable: true
+                        description: Number of `p` tags on most recent kind 3, or null if no kind 3 event found
+        '400':
+          description: Missing or invalid `pubkey`
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: strfry scan error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   # ──────────────────────────────────────────────
   # Trusted List
