@@ -152,12 +152,22 @@ app.use('/legacy', express.static(path.join(__dirname, '../public')));
 app.use('/libs/chart.js', express.static(path.join(__dirname, '../node_modules/chart.js/dist')));
 app.use('/libs/chartjs-adapter-date-fns', express.static(path.join(__dirname, '../node_modules/chartjs-adapter-date-fns/dist')));
 
-// Session middleware
+// Session middleware — Redis-backed so sessions survive Docker rebuilds.
+const RedisStore = require('connect-redis').default;
+const Redis = require('ioredis');
+const sessionRedisHost = getConfigFromFile('REDIS_HOST', 'redis');
+const sessionRedisPort = parseInt(getConfigFromFile('REDIS_PORT', '6379'), 10);
+const sessionRedisClient = new Redis({ host: sessionRedisHost, port: sessionRedisPort });
+sessionRedisClient.on('error', (err) => console.error('Session-store Redis error:', err.message));
 app.use(session({
+    store: new RedisStore({ client: sessionRedisClient, prefix: 'brainstorm:sess:' }),
     secret: getConfigFromFile('SESSION_SECRET', 'brainstorm-default-session-secret-please-change-in-production'),
     resave: false,
-    saveUninitialized: true,
-    cookie: { secure: useHTTPS } // Set to true if using HTTPS
+    saveUninitialized: false,
+    cookie: {
+        secure: useHTTPS,
+        maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+    },
 }));
 
 // Helper function to serve HTML files

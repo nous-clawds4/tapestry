@@ -90,25 +90,7 @@ const { registerNip05Routes } = require('./nip05');
  * @param {Object} app - Express app instance
  */
 async function register(app) {
-    // We need to make sure session middleware is applied to the app
-    // Check if it's already been applied
-    if (!app._brainstormSessionConfigured) {
-        console.log('Configuring session middleware for Brainstorm API...');
-        
-        // Load express-session only if needed
-        const session = require('express-session');
-        
-        // Configure session middleware - this must match the main app's configuration
-        app.use(session({
-            secret: getConfigFromFile('SESSION_SECRET', 'brainstorm-default-session-secret-please-change-in-production'),
-            resave: false,
-            saveUninitialized: true,
-            cookie: { secure: false } // Set secure:true if using HTTPS
-        }));
-        
-        // Mark session as configured
-        app._brainstormSessionConfigured = true;
-    }
+    // Session middleware is configured in the entrypoint (bin/control-panel.js).
 
     // ── NIP-05 server endpoint (.well-known/nostr.json, public, CORS open) ──
     registerNip05Routes(app);
