@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useConfig } from '../context/ConfigContext';
 import BrainstormUserMenu, { useHouseProfile } from '../components/BrainstormUserMenu';
 
 /* ── Helpers ──────────────────────────────────────────── */
 
-const EXTERNAL_RELAYS = ['wss://relay.primal.net', 'wss://relay.damus.io', 'wss://nos.lol'];
 const POV_STORAGE_PREFIX = 'bs_pov_';
 
 function timeAgoShort(unixSeconds) {
@@ -23,6 +23,7 @@ function timeAgoShort(unixSeconds) {
 
 export default function BrainstormSettings() {
   const { user, login, logout } = useAuth();
+  const { aRelays } = useConfig();
 
   // WoT pipeline state
   const [wotStatus, setWotStatus] = useState({
@@ -227,7 +228,7 @@ export default function BrainstormSettings() {
         } catch {}
 
         if (!event10040) {
-          const relays = EXTERNAL_RELAYS.join(',');
+          const relays = (aRelays?.aPopularGeneralPurposeRelays || []).join(',');
           try {
             const extResp = await fetch(`/api/relay/external?filter=${encodeURIComponent(localFilter)}&relays=${encodeURIComponent(relays)}`);
             const extData = await extResp.json();

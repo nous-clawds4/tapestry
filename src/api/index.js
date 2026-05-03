@@ -480,6 +480,14 @@ async function register(app) {
     app.get('/api/assistant/status', assistantApi.handleAssistantStatus);
     app.get('/api/assistant/pubkey', assistantApi.handleGetTAPubkey);
 
+    // ── Owner pubkey (public) ──
+    const ownerApi = require('./owner');
+    app.get('/api/owner/pubkey', ownerApi.handleGetOwnerPubkey);
+
+    // ── Public aRelays list ──
+    const relaysApi = require('./relays');
+    app.get('/api/relays', relaysApi.handleGetRelays);
+
     // ── Tapestry Property API ──
     const { registerPropertyRoutes } = require('./property');
     registerPropertyRoutes(app);

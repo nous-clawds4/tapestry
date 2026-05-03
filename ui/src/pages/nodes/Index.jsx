@@ -6,7 +6,7 @@ import useNeo4jLabels from '../../hooks/useNeo4jLabels';
 import AuthorCell from '../../components/AuthorCell';
 import Breadcrumbs from '../../components/Breadcrumbs';
 
-import { OWNER_PUBKEY, DAVE_PUBKEY } from '../../config/pubkeys';
+import { DAVE_PUBKEY } from '../../config/pubkeys';
 import { useConfig } from '../../context/ConfigContext';
 
 const PAGE_SIZE = 50;
@@ -24,7 +24,7 @@ function formatAge(createdAt) {
 }
 
 export default function NodesIndex() {
-  const { taPubkey: TA_PUBKEY } = useConfig();
+  const { taPubkey: TA_PUBKEY, ownerPubkey } = useConfig();
   const navigate = useNavigate();
 
   // Filters
@@ -46,10 +46,10 @@ export default function NodesIndex() {
     if (!authorRows) return [];
     const allPks = new Set(authorRows.map(r => r.pk));
     const pinned = [];
-    if (allPks.has(OWNER_PUBKEY)) pinned.push(OWNER_PUBKEY);
+    if (allPks.has(ownerPubkey)) pinned.push(ownerPubkey);
     if (allPks.has(DAVE_PUBKEY)) pinned.push(DAVE_PUBKEY);
     if (allPks.has(TA_PUBKEY)) pinned.push(TA_PUBKEY);
-    const others = authorRows.map(r => r.pk).filter(pk => pk !== OWNER_PUBKEY && pk !== TA_PUBKEY && pk !== DAVE_PUBKEY);
+    const others = authorRows.map(r => r.pk).filter(pk => pk !== ownerPubkey && pk !== TA_PUBKEY && pk !== DAVE_PUBKEY);
     return [...pinned, ...others];
   }, [authorRows]);
   const authorDropdownProfiles = useProfiles(authorOptions);
@@ -58,7 +58,7 @@ export default function NodesIndex() {
     const p = authorDropdownProfiles?.[pk];
     const name = p?.name || p?.display_name;
     const short = pk.slice(0, 8) + '…';
-    if (pk === OWNER_PUBKEY) return name ? `👑 ${name}` : `👑 Owner (${short})`;
+    if (pk === ownerPubkey) return name ? `👑 ${name}` : `👑 Owner (${short})`;
     if (pk === DAVE_PUBKEY) return name ? `🧑‍💻 ${name}` : `🧑‍💻 Dave (${short})`;
     if (pk === TA_PUBKEY) return name ? `🤖 ${name}` : `🤖 Assistant (${short})`;
     return name ? `${name} (${short})` : short;
