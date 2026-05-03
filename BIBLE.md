@@ -815,8 +815,7 @@ Legacy Brainstorm HTML pages are served at `/legacy/` (not part of the React SPA
     ├── databases                 Database management + wipe
     ├── auditing                  Graph audit tools
     ├── uuids                     Concept UUID config
-    ├── firmware                  Firmware explorer
-    └── system                    System settings
+    └── firmware                  Firmware explorer
 
 /legacy/                          Legacy Brainstorm HTML pages
 /relay                            NIP-50 relay proxy (nginx → nip50-proxy)
@@ -1011,7 +1010,7 @@ defaults.json (shipped with code, git-tracked) + settings.json (user overrides, 
 
 Arrays are **replaced**, objects are **deep-merged**. The `getSettings()` accessor re-reads both files on every call — no in-process cache, so settings edits take effect on the next request without a restart.
 
-**Top-level keys:** `aRelays`, `adminPubkeys`, `grapevine`, `neo4jCypherQueryUrl`, `trustScoreCutoff`, `nip05`.
+**Top-level keys:** `aRelays`, `adminPubkeys`, `grapevine`, `nip05`.
 
 The `nip05` key (added 2026-04-25) backs the `/.well-known/nostr.json` endpoint:
 
@@ -1348,7 +1347,7 @@ docker compose exec tapestry strfry sync wss://dcosl.brainstorm.world \
 - ✅ Organization (Sets/DAG) view
 - ✅ Node detail browser (JSON, concepts, relationships, raw data, Neo4j)
 - ✅ User directory with profile fetching
-- ✅ Settings page (relays, databases, UUIDs, firmware explorer, system)
+- ✅ Settings page (relays, databases, UUIDs, firmware explorer)
 - ✅ Firmware v0.0.1 (24 concepts, 11 relationship types, elements, sets)
 - ✅ Firmware install process (two-pass)
 - ✅ All normalize/audit API endpoints
