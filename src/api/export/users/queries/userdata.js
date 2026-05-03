@@ -284,6 +284,84 @@ function handleGetUserData(req, res) {
   }
 }
 
+/**
+ * Get the precomputed count properties on a NostrUser node.
+ * Lightweight alternative to handleGetUserData when the caller only needs
+ * counts (followingCount, followerCount, verifiedFollowerCount, etc.) and
+ * doesn't need the expensive observer-relative graph metrics
+ * (frenCount, mutualFollowerCount, recommendations, etc.).
+ *
+ * Returns Owner POV (NostrUser node properties). No graph traversals.
+ */
+function handleGetUserCounts(req, res) {
+  try {
+    const pubkey = req.query.pubkey;
+    if (!pubkey) {
+      return res.status(400).json({ success: false, error: 'Missing pubkey parameter' });
+    }
+    if (!nip19.npubEncode(pubkey).startsWith('npub')) {
+      return res.status(400).json({ success: false, error: 'Invalid pubkey parameter' });
+    }
+
+    const neo4jUri = getConfigFromFile('NEO4J_URI', 'bolt://localhost:7687');
+    const neo4jUser = getConfigFromFile('NEO4J_USER', 'neo4j');
+    const neo4jPassword = getConfigFromFile('NEO4J_PASSWORD', 'neo4j');
+
+    const driver = neo4j.driver(neo4jUri, neo4j.auth.basic(neo4jUser, neo4jPassword));
+    const session = driver.session();
+
+    const cypherQuery = `
+      MATCH (u:NostrUser {pubkey: $pubkey})
+      RETURN u.followingCount         AS followingCount,
+             u.followerCount          AS followerCount,
+             u.verifiedFollowerCount  AS verifiedFollowerCount,
+             u.mutingCount            AS mutingCount,
+             u.muterCount             AS muterCount,
+             u.verifiedMuterCount     AS verifiedMuterCount,
+             u.reportingCount         AS reportingCount,
+             u.reporterCount          AS reporterCount,
+             u.verifiedReporterCount  AS verifiedReporterCount
+    `;
+
+    const toInt = (v) => (v == null ? null : parseInt(v.toString(), 10));
+
+    session.run(cypherQuery, { pubkey })
+      .then(result => {
+        if (result.records.length === 0) {
+          return res.json({ success: false, message: 'No data found for this user' });
+        }
+        const r = result.records[0];
+        res.status(200).json({
+          success: true,
+          data: {
+            pubkey,
+            followingCount: toInt(r.get('followingCount')),
+            followerCount: toInt(r.get('followerCount')),
+            verifiedFollowerCount: toInt(r.get('verifiedFollowerCount')),
+            mutingCount: toInt(r.get('mutingCount')),
+            muterCount: toInt(r.get('muterCount')),
+            verifiedMuterCount: toInt(r.get('verifiedMuterCount')),
+            reportingCount: toInt(r.get('reportingCount')),
+            reporterCount: toInt(r.get('reporterCount')),
+            verifiedReporterCount: toInt(r.get('verifiedReporterCount')),
+          }
+        });
+      })
+      .catch(error => {
+        console.error('Error in handleGetUserCounts:', error);
+        res.status(500).json({ success: false, message: error.message });
+      })
+      .finally(() => {
+        session.close();
+        driver.close();
+      });
+  } catch (error) {
+    console.error('Error in handleGetUserCounts:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+}
+
 module.exports = {
-  handleGetUserData
+  handleGetUserData,
+  handleGetUserCounts
 };
