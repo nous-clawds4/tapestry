@@ -4,7 +4,7 @@ import { nip19 } from 'nostr-tools';
 import { useAuth } from '../context/AuthContext';
 import BrainstormUserMenu from '../components/BrainstormUserMenu';
 import { useProfileActions } from '../hooks/useProfileActions';
-import useUserData from '../hooks/useUserData';
+import useUserCounts from '../hooks/useUserCounts';
 import ConfirmDialog from '../components/ConfirmDialog';
 import ReportModal from '../components/ReportModal';
 
@@ -89,8 +89,8 @@ export default function BrainstormProfile() {
 
   const showActions = user && user.pubkey !== pubkey;
 
-  const { data: userData, loading: userDataLoading } = useUserData(pubkey);
-  const followingCount = userData?.followingCount ?? null;
+  const { data: userCounts, loading: userCountsLoading } = useUserCounts(pubkey);
+  const followingCount = userCounts?.followingCount ?? null;
   const fmtCount = (n) => (n == null ? '—' : new Intl.NumberFormat().format(n));
 
   const npub = useMemo(() => {
@@ -231,7 +231,7 @@ export default function BrainstormProfile() {
             </div>
 
             {/* Following count */}
-            <div className={`bsp-counts ${userDataLoading ? 'bsp-counts-loading' : ''}`}>
+            <div className={`bsp-counts ${userCountsLoading ? 'bsp-counts-loading' : ''}`}>
               <span className="bsp-count">
                 <span className="bsp-count-value">{fmtCount(followingCount)}</span>
                 <span className="bsp-count-label">Following</span>
