@@ -175,3 +175,25 @@ After retargeting a PR's base branch via `gh pr edit --base <new>`, subsequent p
 **Workaround:** close the stuck PR and open a fresh one from the same branch → same base. The new PR picks up the actual branch state immediately. Preserve the original body and add a note referencing the stuck PR number.
 
 Hit this on PR #29 → replaced with PR #35 on 2026-04-19.
+
+### 8.5. Post-deploy 502 flicker until brainstorm Express binds
+
+Both `deploy-staging.yml` and `deploy-brainstorm.yml` run `docker compose up -d --build` and exit as soon as the compose command returns. That means CI reports "deploy succeeded" the moment the **container** starts — not when the brainstorm Node process inside it has finished booting (Neo4j driver init, Redis connection, Express middleware, etc., add a few seconds).
+
+In that window, nginx is up but its upstream isn't, so requests get **502 Bad Gateway**. The cycle is short — observed 5–30 s across the runs we've watched (#82, #81, #84, #85 across staging and main) — but it's long enough that a naive smoke test fired right after `gh run watch` returns will get false 502s.
+
+**Recipe for autonomous post-deploy verification:** poll an actual API endpoint (not just `/`, which can flicker between cached static-shell 200s and upstream 502s) until you see **3 consecutive 200s**. Bash:
+
+```bash
+streak=0; attempts=0
+until [ $streak -ge 3 ] || [ $attempts -ge 90 ]; do
+  attempts=$((attempts+1))
+  code=$(curl -s -o /dev/null -w '%{http_code}' "$H/api/get-user-counts?pubkey=<known-pk>")
+  if [ "$code" = "200" ]; then streak=$((streak+1)); else streak=0; fi
+  sleep 2
+done
+```
+
+For human users hitting the site immediately after a deploy: refresh once or twice. The flicker resolves on its own.
+
+**Long-term fix candidate:** the deploy script could `curl --retry` an API endpoint as a final step before exiting, so CI doesn't report success until brainstorm is actually serving. Not yet done — left as a separate operational improvement.
