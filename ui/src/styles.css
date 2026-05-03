@@ -3402,9 +3402,6 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
 .bsp-count-label {
   opacity: 0.6;
 }
-.bsp-count-sep {
-  opacity: 0.3;
-}
 .bsp-counts-loading .bsp-count-value {
   opacity: 0.4;
 }
