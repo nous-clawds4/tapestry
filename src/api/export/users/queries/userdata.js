@@ -5,6 +5,7 @@
  */
 
 const neo4j = require('neo4j-driver');
+const { exec } = require('child_process');
 const { getConfigFromFile } = require('../../../../utils/config');
 const fs = require('fs');
 const path = require('path');
@@ -284,6 +285,60 @@ function handleGetUserData(req, res) {
   }
 }
 
+/**
+ * Get count metrics for a user that can be derived directly from strfry.
+ *
+ * Currently returns just `followingCount`, computed as the number of `p` tags
+ * on the user's most recent kind 3 event. Reads from strfry rather than from
+ * the precomputed `NostrUser.followingCount` property because the property is
+ * batch-recomputed by calculateFollowingCounts.sh and can lag the kind 3 event
+ * by hours/days. The kind 3 event is the source of truth.
+ *
+ * Other counts (followerCount, verifiedFollowerCount, etc.) require either
+ * inverse strfry scans (slow) or Neo4j (stale + dependent on graph crawl), so
+ * they're not included here. If we need them later, this endpoint can grow
+ * a hybrid implementation: strfry for follow*, Neo4j for the WoT-derived counts.
+ */
+function handleGetUserCounts(req, res) {
+  const pubkey = req.query.pubkey;
+  if (!pubkey) {
+    return res.status(400).json({ success: false, error: 'Missing pubkey parameter' });
+  }
+  if (!/^[0-9a-f]{64}$/i.test(pubkey)) {
+    return res.status(400).json({ success: false, error: 'Invalid pubkey parameter' });
+  }
+
+  const filter = JSON.stringify({ kinds: [3], authors: [pubkey], limit: 1 });
+  const cmd = `strfry scan '${filter}'`;
+
+  exec(cmd, { maxBuffer: 16 * 1024 * 1024 }, (error, stdout) => {
+    if (error) {
+      console.error('handleGetUserCounts strfry scan error:', error.message);
+      return res.status(500).json({ success: false, message: error.message });
+    }
+
+    let followingCount = null;
+    for (const line of stdout.trim().split('\n')) {
+      if (!line) continue;
+      try {
+        const event = JSON.parse(line);
+        if (Array.isArray(event.tags)) {
+          followingCount = event.tags.filter(t => Array.isArray(t) && t[0] === 'p').length;
+        }
+        break;
+      } catch {
+        // skip strfry log lines
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      data: { pubkey, followingCount }
+    });
+  });
+}
+
 module.exports = {
-  handleGetUserData
+  handleGetUserData,
+  handleGetUserCounts
 };
