@@ -1,7 +1,5 @@
 {
   "adminPubkeys": [],
-  "neo4jCypherQueryUrl": "https://straycat.brainstorm.social/api/knowledge-graph-query",
-  "trustScoreCutoff": 10,
   "aRelays": {
     "aPopularGeneralPurposeRelays": [
       "wss://relay.damus.io",

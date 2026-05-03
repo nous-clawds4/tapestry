@@ -264,7 +264,6 @@ const router = createBrowserRouter([
           { path: 'databases', handle: { crumb: 'Databases' } },
           { path: 'uuids', handle: { crumb: 'Concept UUIDs' } },
           { path: 'firmware', handle: { crumb: 'Firmware' } },
-          { path: 'system', handle: { crumb: 'System' } },
           { path: 'auditing', handle: { crumb: 'Auditing Tools' } },
         ],
       },

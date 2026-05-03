@@ -145,7 +145,7 @@ function handleResetSetting(req, res) {
  * Relay changes take effect on next fetch (no restart).
  */
 function hasRestartRequired(patch) {
-  return !!(patch.conceptUUIDs || patch.relationshipTypeUUIDs || patch.neo4jCypherQueryUrl);
+  return !!(patch.conceptUUIDs || patch.relationshipTypeUUIDs);
 }
 
 module.exports = {
