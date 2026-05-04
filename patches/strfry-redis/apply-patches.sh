@@ -45,13 +45,21 @@ if ! grep -q "redis_init" "$STRFRY_DIR/golpe/main.cpp.tt"; then
     # Add #include at the top of the file (after the first #include)
     sed -i '0,/#include/{s/#include/#include "redis.h"\n#include/}' "$STRFRY_DIR/golpe/main.cpp.tt"
 
-    # Insert redis_init AFTER loadConfig (inside run(), where cfg() is available)
-    sed -i '/loadConfig(configFile);/a\
+    # Insert redis_init AFTER loadConfig (inside run(), where cfg() is available).
+    # Match prefix "loadConfig(configFile" so this works against both upstream's
+    # historical 1-arg signature and current 2-arg signature.
+    sed -i '/loadConfig(configFile/a\
 \
     // Initialize Redis connection for streaming ETL\
     if (redis_init(cfg().redis__host.c_str(), cfg().redis__port) != 0) {\
         LW << "Failed to connect to Redis — streaming ETL disabled";\
     }' "$STRFRY_DIR/golpe/main.cpp.tt"
+
+    # Verify the insertion actually landed — sed silently no-ops on no-match.
+    if ! grep -q "redis_init" "$STRFRY_DIR/golpe/main.cpp.tt"; then
+        echo "ERROR: redis_init insertion in golpe/main.cpp.tt failed — sed pattern did not match. Upstream signature may have changed again." >&2
+        exit 1
+    fi
     echo "  Added redis.h include and redis_init() to golpe/main.cpp.tt"
 else
     echo "  redis_init already in golpe/main.cpp.tt (skipping)"
@@ -79,6 +87,13 @@ static const std::unordered_set<uint64_t> REDIS_ALLOW_KINDS = {\
                                     redis_rpush("strfry:events", ev.jsonStr.c_str());\
                                 }\
                             }' "$STRFRY_DIR/src/WriterPipeline.h"
+
+    # Verify both insertions actually landed.
+    if ! grep -q "REDIS_ALLOW_KINDS" "$STRFRY_DIR/src/WriterPipeline.h" \
+       || ! grep -q "redis_rpush" "$STRFRY_DIR/src/WriterPipeline.h"; then
+        echo "ERROR: WriterPipeline.h patch failed — sed pattern did not match. Upstream may have changed." >&2
+        exit 1
+    fi
     echo "  Added Redis integration to WriterPipeline.h"
 else
     echo "  Redis already in WriterPipeline.h (skipping)"
