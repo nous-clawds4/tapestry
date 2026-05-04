@@ -109,6 +109,28 @@ These identify the canonical DList items that define relationship types. Changes
 | `IS_THE_JSON_SCHEMA_FOR` | JSONSchema → ListHeader |
 | `ENUMERATES` | Concept → Property |
 
+## graperank.conf
+
+Owner-side GrapeRank tunables live at `/etc/graperank.conf` (created from `config/graperank.conf.template` on first install, persisted via the `tapestry-data` Docker volume so edits survive container rebuilds). Customer-side equivalents live at `customers/<name>/preferences/graperank.conf` (created from `customers/default/preferences/graperank.conf` per-customer).
+
+Sourced by shell scripts directly (`source /etc/graperank.conf`) and by Node code via `getConfigFromFile`. After editing, restart the brainstorm process to reload values that are read at module init (e.g., the legacy `cypherQueries.js` listings).
+
+### GrapeRank algorithm parameters
+
+`RIGOR`, `ATTENUATION_FACTOR`, `FOLLOW_RATING`, `FOLLOW_CONFIDENCE`, `MUTE_RATING`, `MUTE_CONFIDENCE`, `REPORT_RATING`, `REPORT_CONFIDENCE`, `FOLLOW_CONFIDENCE_OF_OBSERVER` — see [BIBLE.md §13 "GrapeRank"](../BIBLE.md) for definitions and tuning guidance.
+
+### Verified-rater influence cutoffs
+
+| Key | Default | Used by |
+|-----|---------|---------|
+| `VERIFIED_FOLLOWERS_INFLUENCE_CUTOFF` | `0.05` | Owner-side `calculateVerifiedFollowerCounts.sh` (writes `n.verifiedFollowerCount` on `NostrUser`); legacy `verifiedFollows`/`verifiedFollowers` listings via `src/api/grapevineInteractions/queries/cypherQueries.js`. |
+| `VERIFIED_MUTERS_INFLUENCE_CUTOFF` | `0.05` | Owner-side `calculateVerifiedMuterCounts.sh`; legacy `verifiedMuters` listing. |
+| `VERIFIED_REPORTERS_INFLUENCE_CUTOFF` | `0.05` | Owner-side `calculateVerifiedReporterCounts.sh`; legacy `verifiedReporters` listing. |
+
+These were unified at `0.05` during the [PREFERENCES_AUDIT §6.2 consolidation](./PREFERENCES_AUDIT.md). Customer-side equivalents in `customers/<name>/preferences/graperank.conf` default to `0.01` (more inclusive). The two planes are intentionally separate; merging them is the open §6.3 question in the audit.
+
+Existing `verifiedFollowerCount` properties in Neo4j carry the value computed at the last batch run. Changing the cutoff in `/etc/graperank.conf` doesn't update the stored values until the next time the script runs.
+
 ## Settings API
 
 All endpoints require **Owner** authentication (NIP-07 login).
