@@ -28,7 +28,7 @@
     "name": "userProfiles",
     "description": "Continuous kind 0 profile sync — keeps local user profiles up to date from profile-aggregating relays",
     "dir": "down",
-    "filter": { "kinds": [0] },
+    "filter": { "kinds": [0], "limit": 5 },
     "urls": [
       "wss://wot.grapevine.network",
       "wss://profiles.nostr1.com",
@@ -47,6 +47,30 @@
       "wss://nip85.brainstorm.world",
       "wss://nip85.nostr1.com",
       "wss://nip85.grapevine.network"
+    ],
+    "pluginDown": "",
+    "pluginUp": "",
+    "defaultEnabled": false
+  },
+  {
+    "name": "WoT",
+    "description": "Relays that maintain Web of Trust (WoT) data (follows, reports, mutes)",
+    "dir": "both",
+    "filter": { "kinds": [3, 1984, 10000], "limit": 5 },
+    "urls": [
+      "wss://wot.grapevine.network"
+    ],
+    "pluginDown": "",
+    "pluginUp": "",
+    "defaultEnabled": false
+  },
+  {
+    "name": "trustedAssertions",
+    "description": "Relays that maintain Trusted Assertions (NIP-85 custom NIP)",
+    "dir": "up",
+    "filter": { "kinds": [30382], "limit": 5 },
+    "urls": [
+      "wss://nip85.brainstorm.world"
     ],
     "pluginDown": "",
     "pluginUp": "",
