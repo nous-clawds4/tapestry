@@ -1,4 +1,15 @@
 // This file contains the cypher queries for the Grapevine Interactions API
+//
+// Verified-* listings filter by an influence threshold sourced from
+// /etc/graperank.conf (VERIFIED_{FOLLOWERS,MUTERS,REPORTERS}_INFLUENCE_CUTOFF).
+// Default 0.05, matching the cutoff the owner-side count algos write into the
+// `verified*Count` properties on NostrUser. Read at module load — restart the
+// brainstorm process to pick up changes to /etc/graperank.conf.
+
+const { getConfigFromFile } = require('../../../utils/config');
+const VERIFIED_FOLLOWERS_INFLUENCE_CUTOFF = getConfigFromFile('VERIFIED_FOLLOWERS_INFLUENCE_CUTOFF', '0.05');
+const VERIFIED_MUTERS_INFLUENCE_CUTOFF = getConfigFromFile('VERIFIED_MUTERS_INFLUENCE_CUTOFF', '0.05');
+const VERIFIED_REPORTERS_INFLUENCE_CUTOFF = getConfigFromFile('VERIFIED_REPORTERS_INFLUENCE_CUTOFF', '0.05');
 
 module.exports = {
     cypherQueries: [
@@ -15,11 +26,11 @@ RETURN followee.pubkey AS pubkey, followee.hops AS hops, followee.influence AS i
         {
             interactionType: 'verifiedFollows',
             title: 'Verified Follows',
-            description: `All verified (🍇-Rank > 0.05) profiles followed by {{observee}}.`,
+            description: `All verified (🍇-Rank > ${VERIFIED_FOLLOWERS_INFLUENCE_CUTOFF}) profiles followed by {{observee}}.`,
             cypherQuery: `
 MATCH (observee:NostrUser {pubkey: $observee})
 OPTIONAL MATCH (observee)-[f:FOLLOWS]->(followee:NostrUser)
-WHERE followee.influence > 0.05
+WHERE followee.influence > ${VERIFIED_FOLLOWERS_INFLUENCE_CUTOFF}
 RETURN followee.pubkey AS pubkey, followee.hops AS hops, followee.influence AS influence
             `
         },
@@ -36,11 +47,11 @@ RETURN follower.pubkey AS pubkey, follower.hops AS hops, follower.influence AS i
         {
             interactionType: 'verifiedFollowers',
             title: 'Verified Followers',
-            description: `All verified (🍇-Rank > 0.05) profiles following {{observee}}.`,
+            description: `All verified (🍇-Rank > ${VERIFIED_FOLLOWERS_INFLUENCE_CUTOFF}) profiles following {{observee}}.`,
             cypherQuery: `
 MATCH (observee:NostrUser {pubkey: $observee})
 OPTIONAL MATCH (follower:NostrUser)-[f:FOLLOWS]->(observee)
-WHERE follower.influence > 0.05
+WHERE follower.influence > ${VERIFIED_FOLLOWERS_INFLUENCE_CUTOFF}
 RETURN follower.pubkey AS pubkey, follower.hops AS hops, follower.influence AS influence
             `
         },
@@ -67,11 +78,11 @@ RETURN muter.pubkey AS pubkey, muter.hops AS hops, muter.influence AS influence
         {
             interactionType: 'verifiedMuters',
             title: 'Verified Muters',
-            description: `All verified (🍇-Rank > 0.05) profiles muting {{observee}}.`,
+            description: `All verified (🍇-Rank > ${VERIFIED_MUTERS_INFLUENCE_CUTOFF}) profiles muting {{observee}}.`,
             cypherQuery: `
 MATCH (observee:NostrUser {pubkey: $observee})
 OPTIONAL MATCH (muter:NostrUser)-[m:MUTES]->(observee)
-WHERE muter.influence > 0.05
+WHERE muter.influence > ${VERIFIED_MUTERS_INFLUENCE_CUTOFF}
 RETURN muter.pubkey AS pubkey, muter.hops AS hops, muter.influence AS influence
             `
         },
@@ -98,11 +109,11 @@ RETURN reporter.pubkey AS pubkey, reporter.hops AS hops, reporter.influence AS i
         {
             interactionType: 'verifiedReporters',
             title: 'Verified Reporters',
-            description: `All verified (🍇-Rank > 0.05) profiles reporting {{observee}}.`,
+            description: `All verified (🍇-Rank > ${VERIFIED_REPORTERS_INFLUENCE_CUTOFF}) profiles reporting {{observee}}.`,
             cypherQuery: `
 MATCH (observee:NostrUser {pubkey: $observee})
 OPTIONAL MATCH (reporter:NostrUser)-[r:REPORTS]->(observee)
-WHERE reporter.influence > 0.05
+WHERE reporter.influence > ${VERIFIED_REPORTERS_INFLUENCE_CUTOFF}
 RETURN reporter.pubkey AS pubkey, reporter.hops AS hops, reporter.influence AS influence
             `
         },

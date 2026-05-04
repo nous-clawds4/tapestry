@@ -1,16 +1,18 @@
 #!/bin/bash
 
 source /etc/brainstorm.conf # BRAINSTORM_LOG_DIR
+[ -f /etc/graperank.conf ] && source /etc/graperank.conf
+CUTOFF=${VERIFIED_REPORTERS_INFLUENCE_CUTOFF:-0.05}
 
 touch ${BRAINSTORM_LOG_DIR}/calculateVerifiedReporterCounts.log
 chown brainstorm:brainstorm ${BRAINSTORM_LOG_DIR}/calculateVerifiedReporterCounts.log
 
-echo "$(date): Starting calculateVerifiedReporterCounts"
-echo "$(date): Starting calculateVerifiedReporterCounts" >> ${BRAINSTORM_LOG_DIR}/calculateVerifiedReporterCounts.log
+echo "$(date): Starting calculateVerifiedReporterCounts (cutoff=${CUTOFF})"
+echo "$(date): Starting calculateVerifiedReporterCounts (cutoff=${CUTOFF})" >> ${BRAINSTORM_LOG_DIR}/calculateVerifiedReporterCounts.log
 
 CYPHER1="
 MATCH (n:NostrUser)<-[f:REPORTS]-(m:NostrUser)
-WHERE m.influence > 0.1
+WHERE m.influence > ${CUTOFF}
 WITH n, count(f) AS verifiedReporterCount
 SET n.verifiedReporterCount = verifiedReporterCount
 RETURN COUNT(n) AS numUsersUpdated"
@@ -19,7 +21,7 @@ RETURN COUNT(n) AS numUsersUpdated"
 CYPHER2="
 MATCH (n:NostrUser)
 OPTIONAL MATCH (n)<-[f:REPORTS]-(m:NostrUser)
-WHERE m.influence > 0.1
+WHERE m.influence > ${CUTOFF}
 WITH n, count(f) as verifiedReporterCount
 WHERE verifiedReporterCount = 0
 SET n.verifiedReporterCount = 0

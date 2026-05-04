@@ -290,9 +290,22 @@ Each of #1–#6 is small, isolated, reversible. Could ship as a single `chore/` 
 
 ### 6.2 Consolidate the verification threshold
 
-Pick **one** settings key — e.g., `settings.wot.influenceCutoffs.{verified}` or `settings.grapevine.verificationThreshold` (naming TBD) — and migrate every site listed in [§4 Pattern A](#4-fragmentation-patterns) to read from it. Decide whether the chosen value is `0.01` or `0.05` or `0.1` or a new compromise (the current values were not chosen together; pick deliberately).
+**Status: partially closed.** When digging into the specifics we found the 17 affected sites split into three semantic buckets, not one:
 
-This is a **single-number consolidation** but touches both the owner and customer pipelines, so it's also when the team has to choose between Pattern E remediation strategies (do owner and customer use the same cutoff, or different-but-explicit ones?). It's worth doing this *before* the bigger Pattern B work because it forces the conversation about owner-customer relationships in a small, well-bounded context.
+- **Bucket A — verified counts** (6 sites): owner-side `calculate{Follower,Muter,Reporter}Counts.sh` at `0.1`, customer-side at `0.01` (configurable). Writes the `verified*Count` properties on `NostrUser` / `NostrUserWotMetricsCard`.
+- **Bucket B — legacy verified-* listings** (4 sites): `src/api/grapevineInteractions/queries/cypherQueries.js` at `0.05`. The verifiedFollowers/etc. lists that the legacy `/legacy/grapevine-analysis.html` page uses.
+- **Bucket C — general "include this user" filters** (7 sites): search keyword endpoint, whitelist export, NIP-85 publish. All at `0.01`. Conceptually distinct from the verified-count idea — these answer "is this user real enough to surface" rather than "is this user verified".
+
+Buckets A and B share semantics: a listing OF a count should match the count's threshold. The `0.1`/`0.05` mismatch was the original fragmentation we noticed (a count of 100 verified followers click-through to a list showing 150). **PR (this work) consolidates A + B at `0.05`** by:
+- Adding `VERIFIED_{FOLLOWERS,MUTERS,REPORTERS}_INFLUENCE_CUTOFF` to the owner-side `config/graperank.conf.template` (defaulting to `0.05`).
+- Making owner-side `calculateVerified*Counts.sh` read these from `/etc/graperank.conf` (with `0.05` fallback if unset).
+- Making `cypherQueries.js` read the same params via `getConfigFromFile` (also defaulting to `0.05`).
+
+Bucket C is **deferred** — distinct purpose, may legitimately want different values.
+
+Owner-side and customer-side still maintain their own conf files (`/etc/graperank.conf` vs. `customers/<n>/preferences/graperank.conf`); the §6.3 question of unifying those planes is separate.
+
+Existing `verifiedFollowerCount` properties on Neo4j nodes carry the OLD `0.1`-based values until the next batch run. Operators wanting the new values immediately can manually trigger the relevant scripts.
 
 ### 6.3 Decide on owner ↔ customer parallel planes (the big one)
 
