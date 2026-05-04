@@ -10,7 +10,20 @@ RELAY_URL="${RELAY_URL:-ws://localhost:7777}"
 
 BRAINSTORM_MODULE_BASE_DIR="/usr/local/lib/node_modules/brainstorm/"
 BRAINSTORM_NODE_BIN="$(which node)"
-SESSION_SECRET="$(openssl rand -hex 32)"
+
+# Persist SESSION_SECRET across container rebuilds. Stored on the tapestry-data
+# volume so that user session cookies remain valid through deploys. To force-rotate
+# (e.g., after a security incident), delete the file: every active session ends
+# the next time the container starts.
+SESSION_SECRET_FILE="/var/lib/brainstorm/session.secret"
+if [ -s "$SESSION_SECRET_FILE" ]; then
+  SESSION_SECRET="$(cat "$SESSION_SECRET_FILE")"
+else
+  SESSION_SECRET="$(openssl rand -hex 32)"
+  mkdir -p "$(dirname "$SESSION_SECRET_FILE")"
+  printf '%s' "$SESSION_SECRET" > "$SESSION_SECRET_FILE"
+  chmod 600 "$SESSION_SECRET_FILE"
+fi
 
 # Calculate owner npub (best effort, fallback to unassigned)
 OWNER_NPUB="unassigned"
