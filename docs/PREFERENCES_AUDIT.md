@@ -279,14 +279,19 @@ The patterns suggest a natural order from most-painful-to-others toward most-pai
 
 ### 6.1 Quick wins (low risk, high payoff)
 
-1. **Move `OWNER_PUBKEY` from [`ui/src/config/pubkeys.js`](../ui/src/config/pubkeys.js) to `ConfigContext`.** Mirror what was already done for the TA pubkey: serve via `GET /api/owner/pubkey` (or include in the existing assistant endpoint), fetch on app mount, propagate via context. Removes a real bug for non-NosFabrica forks.
-2. **Replace UI relay-list hardcodes with `settings.aRelays`.** Affects three files. Same pattern as #1 — fetch via `ConfigContext` or a small `useRelays()` hook.
-3. **Delete dead `defaults.json` keys** (`trustScoreCutoff`, `neo4jCypherQueryUrl`) and remove the [`SystemSettings.jsx`](../ui/src/pages/settings/SystemSettings.jsx) field for `trustScoreCutoff`. After confirming no readers.
-4. **Delete the orphan [`src/concept-graph/deprecated-parameters/defaults.json`](../src/concept-graph/deprecated-parameters/defaults.json).**
-5. **Fix the path reference in [`docs/CONFIGURATION.md`](./CONFIGURATION.md).**
-6. **Delete the `_backup`, `_backup2`, `_beforeRewrite`, `_depr` userdata copies.** They're not in the runtime but make every future cutoff edit a hazard.
+**Status: all shipped (2026-05-03/04).**
 
-Each of #1–#6 is small, isolated, reversible. Could ship as a single `chore/` PR or as a sequence; the audit is the gate to start.
+1. ✅ **Dynamic `OWNER_PUBKEY` via ConfigContext** — shipped via [PR #80](https://github.com/nous-clawds4/tapestry/pull/80). Added `GET /api/owner/pubkey` and migrated 9 consumers to read from `useConfig().ownerPubkey`. Fixed a real bug: the hardcoded literal was actually the Nous pubkey, not the configured owner pubkey, so even production was identifying the wrong account as "owner" before this PR.
+2. ✅ **Dynamic relay lists via `settings.aRelays`** — shipped in same [PR #80](https://github.com/nous-clawds4/tapestry/pull/80). Added `GET /api/relays` and migrated 4 hardcoded-relay consumers in JSX components. The `ui/src/utils/nostrPublish.js` non-component utility still has its own `PUBLISH_RELAYS` constant; deferred as a known follow-up.
+3. ✅ **Deleted dead `defaults.json` keys + the System Settings tab** — shipped via [PR #81](https://github.com/nous-clawds4/tapestry/pull/81). Removed `trustScoreCutoff` and `neo4jCypherQueryUrl`; deleted `ui/src/pages/settings/SystemSettings.jsx` (only existed to edit those dead keys); updated BIBLE.md and CONFIGURATION.md.
+4. ✅ **Deleted the orphan `src/concept-graph/deprecated-parameters/defaults.json`** — shipped in same [PR #81](https://github.com/nous-clawds4/tapestry/pull/81).
+5. ✅ **Fixed the path reference in `docs/CONFIGURATION.md`** — shipped in same [PR #81](https://github.com/nous-clawds4/tapestry/pull/81). Updated from the nonexistent `src/concept-graph/parameters/defaults.json` to `src/config/defaults.json`.
+6. ✅ **Deleted the `_backup`, `_backup2`, `_beforeRewrite`, `_depr` userdata copies** — shipped via [PR #82](https://github.com/nous-clawds4/tapestry/pull/82). Pure delete: 0 lines added, 1627 removed. Each carried its own copy of the `0.05` threshold; deletion eliminates a future fragmentation hazard.
+
+Plus a few related cleanups not originally in §6.1 but ridden along on the same bus:
+
+- ✅ **Catch-all routes for unmatched URLs** — [PR #84](https://github.com/nous-clawds4/tapestry/pull/84). Caught while verifying #81: removing the System tab exposed a pre-existing routing hole where direct navigation to `/tapestry/foo`, `/tapestry/settings/system`, or any other unmatched URL hit the React Router default error UI. Three catch-all routes added.
+- ✅ **Settings subtitle copy fix** — [PR #86](https://github.com/nous-clawds4/tapestry/pull/86). The subtitle still said "Configure relays, concept UUIDs, and system parameters" after the System tab was removed; updated.
 
 ### 6.2 Consolidate the verification threshold
 
