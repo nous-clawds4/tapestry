@@ -18,8 +18,13 @@ RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
 # Copy Redis patches first (before strfry clone, for Docker layer caching)
 COPY patches/strfry-redis/ /tmp/strfry-redis-patches/
 
-# Compile strfry from source with Redis integration
-RUN git clone https://github.com/hoytech/strfry.git /usr/local/src/strfry \
+# Compile strfry from source with Redis integration.
+# Pinned to a specific tag so the Redis patch is applied against a known
+# upstream signature. Bumping this requires verifying patches/strfry-redis/
+# still applies cleanly (the apply-patches.sh validation will fail loudly
+# at build time if a sed pattern stops matching).
+ARG STRFRY_REF=1.1.0
+RUN git clone --branch "$STRFRY_REF" --depth 1 https://github.com/hoytech/strfry.git /usr/local/src/strfry \
     && cd /usr/local/src/strfry \
     && git submodule update --init \
     && bash /tmp/strfry-redis-patches/apply-patches.sh /usr/local/src/strfry \
