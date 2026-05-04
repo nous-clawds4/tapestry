@@ -65,6 +65,18 @@ export REPORT_RATING=-0.1
 export REPORT_CONFIDENCE=0.5
 export FOLLOW_CONFIDENCE_OF_OBSERVER=0.5
 
+# Cutoff for "is this rater influential enough to count toward the verified*Count
+# property on a NostrUser node?" Used by:
+#   src/algos/follows-mutes-reports/calculateVerified{Follower,Muter,Reporter}Counts.sh
+#   src/api/grapevineInteractions/queries/cypherQueries.js (legacy verified* listings)
+# Customer-side equivalents read VERIFIED_*_INFLUENCE_CUTOFF from the customer's own
+# graperank.conf (defaulting to 0.01 — more permissive). PREFERENCES_AUDIT.md §6.2
+# unified the previously-fragmented owner-side values (0.1) and listing values (0.05)
+# at 0.05.
+export VERIFIED_FOLLOWERS_INFLUENCE_CUTOFF=0.05
+export VERIFIED_MUTERS_INFLUENCE_CUTOFF=0.05
+export VERIFIED_REPORTERS_INFLUENCE_CUTOFF=0.05
+
 # WHEN LAST CALCULATED: unix timestamp; 0 indicates not yet calculated
 export WHEN_LAST_CALCULATED=0
 
