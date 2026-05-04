@@ -5,7 +5,7 @@
 >
 > Specifics of the reference deployment at `brainstorm.world` (deploy targets, droplet specs, CI/CD workflows, branch protection ruleset, active team, tracking issues, operational gotchas we've hit) live in a sibling document: [OPERATIONS.md](./OPERATIONS.md). If you're forking this repo to run your own instance, BIBLE is the doc you want — OPERATIONS describes someone else's running instance.
 
-**Last updated:** 2026-04-26 (split brainstorm.world specifics into OPERATIONS.md)
+**Last updated:** 2026-05-04 (preferences audit §6.1 + §6.2; session persistence; user-counts; cycle-* skills)
 
 ---
 
@@ -615,6 +615,16 @@ Identifiers are managed via `PUT /api/settings` (owner-only — see below). The 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/api/profiles?pubkeys=<csv>` | Fetch kind:0 profiles from external relays (cached) |
+
+### Users
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/get-user-data?pubkey=<x>&observerPubkey=<y>` | Detailed per-user data including `followingCount`, `followerCount`, `verifiedFollowerCount`, GrapeRank scores, and observer-relative graph metrics (frenCount, mutualFollowerCount, recommendation counts, etc.). Owner POV by default. Slow on populated graphs (~10s+) due to multiple `OPTIONAL MATCH` traversals. |
+| GET | `/api/get-user-counts?pubkey=<x>` | Lightweight: returns just `{ followingCount }` from the user's most recent kind 3 event in strfry. No Neo4j traversal. Sub-second. Used by the profile page's Following count display. |
+| GET | `/api/owner/pubkey` | The instance owner's hex pubkey. Public, no auth. Mirrors `/api/assistant/pubkey` for the TA. Read at app mount via `ConfigContext`. |
+| GET | `/api/owner-info` | Owner pubkey plus npub and domain name. Public. Pre-existing endpoint kept alongside the more focused `/api/owner/pubkey`. |
+| GET | `/api/relays` | The configured `aRelays` object from settings. Public. UI components read this via `ConfigContext` instead of hardcoding relay arrays. |
 
 ### API Documentation
 
@@ -1388,6 +1398,16 @@ docker compose exec tapestry strfry sync wss://dcosl.brainstorm.world \
 - ✅ Cosmetic refresh (2026-04-25) — Verification rename ("WoT Rank" → "Verification Score", "Followers" → "Verified Followers"); `/personalization` split into `/personalization` (POV philosophy) + new `/how-search-works` (Meilisearch + GrapeRank mechanics); new `/about` page; unified header (no back button, no wordmark) on all non-landing pages; experimental corner-anchored landing layout (About top-left, Developers / How search works / Settings spread across the footer corners + middle); MyPovLabel — the user's profile pic + name show in "Searching as:" when "My WoT" is the active POV.
 - ✅ Meilisearch sort cascade fix (2026-04-25) — removed the forced `wot_followers:desc` fallback that was preventing the user-side "None (text relevance only)" option from taking effect. Three-layer cascade now resolves cleanly: user prefs → house prefs → text relevance. Default behavior for unconfigured installs becomes text relevance instead of followers-desc; owner can still establish a house-wide default via Search Preferences. See §14 "Search-preferences cascade".
 - ✅ Owner/admin auth gate on `PUT /api/grapevine/preferences` (2026-04-25) — the dashboard's House Search Defaults page (`/tapestry/grapevine/search-preferences`) now requires owner/admin role for saves. Previously the endpoint was publicly writable; anyone could rewrite site-wide defaults. Page heading updated to "House Search Defaults"; non-owners see a view-only banner and disabled save button. GET stays public so anonymous visitors and the inline picker can read the resolved house defaults.
+- ✅ Following count on `/user/:pubkey` (2026-05-03) — Twitter/Damus-style `X Following` row beneath the profile header on the public profile page. Initial implementation read from `/api/get-user-data`'s `followingCount`; replaced with the new lightweight `/api/get-user-counts` endpoint (below) for ~50× speedup over the multi-traversal handler. The Verified Followers card stays in the Reputation section as the single source of truth for that number.
+- ✅ `GET /api/get-user-counts` endpoint (2026-05-03) — lightweight follow-count read backed by a strfry `kind 3` lookup + `p`-tag count. Sub-second response vs. the multi-second `/api/get-user-data` it replaced for the simple count case. The kind 3 event is the source of truth (no batch-recomputation lag) and works even before the Neo4j graph is crawled for a new user.
+- ✅ Dynamic `OWNER_PUBKEY` and relay lists in the UI (2026-05-04) — replaced the hardcoded literal in `ui/src/config/pubkeys.js` (which was actually the wrong pubkey for production owner identification — Nous, not Dave) with `ConfigContext` reads from new `GET /api/owner/pubkey` and `GET /api/relays` endpoints. 9 OWNER_PUBKEY consumers and 4 hardcoded-relay consumers migrated. Real bug fix for any non-NosFabrica deployment plus a real fix on production.
+- ✅ Dead-settings cleanup + System tab removal (2026-05-04) — removed the unused `trustScoreCutoff` and `neo4jCypherQueryUrl` keys from `defaults.json`, deleted the orphaned `src/concept-graph/deprecated-parameters/defaults.json`, deleted `ui/src/pages/settings/SystemSettings.jsx` and the `🖥️ System` tab from the Settings page (only existed to edit those dead keys). Settings page now has 5 tabs: `📡 Relays · 🗄️ Databases · 🔑 Concept UUIDs · 🔧 Firmware · 🔍 Auditing Tools`.
+- ✅ Catch-all routes for unmatched URLs (2026-05-04) — direct navigation to any unmatched URL (`/foo`, `/tapestry/foo`, `/tapestry/settings/system`) now renders a friendly `NotFound` page with a link home, instead of React Router's default `Unexpected Application Error! 404 Not Found` developer-mode UI. Added at three nesting levels in `App.jsx`. The `/tapestry/settings/*` catch-all redirects to `/relays` (the default tab).
+- ✅ Threshold consolidation at 0.05 (2026-05-04) — verified-follower/muter/reporter cutoffs in the legacy listings (previously hardcoded `0.05`) and the owner-side `calculateVerified*Counts.sh` (previously hardcoded `0.1`) now both read `VERIFIED_{FOLLOWERS,MUTERS,REPORTERS}_INFLUENCE_CUTOFF` from `/etc/graperank.conf` with `0.05` as the unified default. See [docs/PREFERENCES_AUDIT.md §6.2](./docs/PREFERENCES_AUDIT.md). Customer-side already had configurable cutoffs (defaulting to `0.01`); customer plane unchanged.
+- ✅ Persistent sessions across deploys (2026-05-04) — sessions are now Redis-backed (`connect-redis` over the existing `ioredis` client + the `tapestry-redis` Docker container) AND `SESSION_SECRET` persists across container rebuilds via a file on the `tapestry-data` volume. Both halves are necessary: Redis alone leaves the secret rotating on every deploy and invalidates cookies; persistent secret alone leaves sessions in MemoryStore wiped by container rebuild. Together: signed-in users (and the autonomous-verification Chrome session) survive every deploy. See [OPERATIONS.md §8.5/§8.6](./OPERATIONS.md).
+- ✅ `/cycle-*` slash commands and `docs/SMOKE_TEST.md` (2026-05-04) — four user-invocable skills at `.claude/skills/cycle-{local,staging,prod,full}/SKILL.md` encoding the deploy patterns: build → docker cp → `:8080`, push → PR → staging, promotion → main, and the chained version with halt-on-failure and explicit prod-merge gate. Companion `docs/SMOKE_TEST.md` is the canonical five-tier smoke-test definition (pipeline readiness, sanity reachability, PR-specific, Chrome visual, regression sweep). The `.gitignore` was switched from `.claude/` to `.claude/*` + `!.claude/skills/` so per-user state stays ignored but project skills ship with the repo.
+- ✅ `CLAUDE.md` root pointer (2026-05-03) — short index file at the repo root pointing AI coding tools at BIBLE.md and OPERATIONS.md as the two canonical onboarding docs.
+- ✅ Preferences audit (`docs/PREFERENCES_AUDIT.md`, 2026-05-03) — comprehensive inventory of every preference-shaped value across the codebase (5 storage planes, 5 fragmentation patterns) with a sequenced cleanup plan. §6.1 quick wins all shipped (this batch). §6.2 partially closed (verified-cutoffs unified at 0.05). §6.3 (owner ↔ customer parallel planes) is the open architectural question.
 
 ### CLI (tapestry-cli repo)
 
