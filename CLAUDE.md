@@ -2,7 +2,8 @@
 
 Decentralized knowledge-graph protocol and search engine on nostr. Reference deployment runs at brainstorm.world.
 
-Before starting work, read both:
+Before starting work, read all three:
 
+- [ROADMAP.md](./ROADMAP.md) — product vision, principles, and the strategic roadmap for Brainstorm Search
 - [BIBLE.md](./BIBLE.md) — architecture, protocol, data model, API, design decisions (universal, fork-agnostic)
 - [OPERATIONS.md](./OPERATIONS.md) — brainstorm.world deployment: branches, CI/CD, droplets, gotchas
