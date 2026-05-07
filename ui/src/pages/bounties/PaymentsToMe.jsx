@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Breadcrumbs from '../../components/Breadcrumbs';
+import Bolt12Setup from '../../components/Bolt12Setup';
 import { useAuth } from '../../context/AuthContext';
 import { getPaymentsToMe } from '../../api/bounties';
 
@@ -158,6 +159,7 @@ export default function PaymentsToMe() {
       <p style={{ opacity: 0.7 }}>
         Bounty claims you've submitted, grouped by payment status.
       </p>
+      <Bolt12Setup pubkey={user.pubkey} />
 
       {loading && <p>Loading…</p>}
       {error && <p className="error" style={{ color: '#f85149' }}>Error: {error}</p>}

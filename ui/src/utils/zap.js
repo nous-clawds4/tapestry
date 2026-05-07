@@ -24,12 +24,17 @@ async function fetchProfileEntry(pubkeyHex) {
   return Array.isArray(profiles) ? profiles[0] : profiles?.[pubkeyHex] ?? null;
 }
 
-function readBolt12(profileEntry) {
+// Accept bare offers, lightning: prefixes, and BIP-21 unified URIs from
+// wallets like Phoenix (`bitcoin:?lno=lno1...`). We return the *original*
+// string when it contains a valid offer so the QR encodes whatever form
+// the recipient stored — the unified URI in particular is recognized by
+// the broadest set of wallets.
+export function readBolt12(profileEntry) {
   if (!profileEntry) return null;
   const raw = profileEntry.bolt12 ?? profileEntry.lud12 ?? profileEntry.lightning_offer ?? null;
   if (!raw || typeof raw !== 'string') return null;
   const trimmed = raw.trim();
-  if (!/^lno[a-z0-9]{8,}$/i.test(trimmed)) return null;
+  if (!/lno1[a-z0-9]{8,}/i.test(trimmed)) return null;
   return trimmed;
 }
 
