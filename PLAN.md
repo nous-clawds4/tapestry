@@ -5,7 +5,7 @@
 **Deploy target:** `communities.brainstorm.world` (DigitalOcean droplet + CI/CD to be set up).
 **Companion docs:** [BIBLE.md](./BIBLE.md), [ROADMAP.md](./ROADMAP.md), [OPERATIONS.md](./OPERATIONS.md).
 
-This file is the working planning artifact for the Brainstorm Communities feature. It captures decisions made to date and tracks open questions. The Design prompt for Claude Design will be drafted here (or in a sibling `DESIGN_PROMPT.md`) once the open questions in §6 are resolved.
+This file is the working planning artifact for the Brainstorm Communities feature. It captures decisions made to date and tracks open questions. The Design prompt for Claude Design lives in [DESIGN_PROMPT.md](./DESIGN_PROMPT.md) — that's the artifact this planning phase produced.
 
 ---
 
@@ -281,15 +281,17 @@ Resolved on 2026-05-07. v1 ships with **four user journeys**, scoped per journey
 - **Seeded communities at launch:** 3-5 hand-picked example communities (e.g., Brainstorm, Nostr, NosFabrica, Bitcoin, etc.) so the first visitor has something to interact with — not enough to feel astroturfed
 - **Content type for v1:** kind-1 only; richer kinds (long-form, polls) come later
 
-### Q6 — Visual identity
-Sibling to brainstorm.world (same dark theme, same vibe), or differentiated to signal a different surface?
+### Q6 — Visual identity ✅ CLOSED
+Resolved on 2026-05-07. Approach: **sibling visual identity, with differentiated layouts where the UX requires it.**
 
-### New questions surfaced from the deep design conversation
-- What does "join a community" actually DO in the UI? (Technically: creates Alice's community record event + adds it to her index. But what's the user-facing affordance — a button labeled "Join"? "Add to my list"? "Curate"?)
-- How — if at all — do we visualize the membership-convergence story to non-technical users? It's the killer feature; we have to make it tangible.
-- How is "run your own mirror relay" surfaced — first-class call-to-action, or buried in advanced settings?
-- What does a no-account first-load show — featured communities, default trust root rankings, prominent search bar, all of the above?
-- Where does the user see WHY someone is or isn't a member of a community (algorithm transparency)?
+- **Same vocabulary:** dark theme, same color palette (`--bg-primary`, `--text`, `--accent`), same typography, same button/form styles, same iconography as brainstorm.world.
+- **Different layouts:** community detail page, feed view, member browser, create flow — different page types than search-results, need their own layouts.
+- **Sub-brand mark:** "Brainstorm Communities" within the Brainstorm family. Typographic-only differentiation for v1; dedicated logo mark deferred.
+- **Cross-product navigation:** header link in both directions ("← Brainstorm Search" / "→ Brainstorm Communities"). Not a unified switcher.
+- **Mobile-first.** Social products live and die by mobile. Desktop responsive but secondary.
+
+### Newly surfaced UX questions — embedded in the Design prompt
+The earlier list of "newly surfaced UX questions" (what does "join" look like, how to visualize convergence, member-status display, algorithm transparency, etc.) became tactical enough during the design conversation that they're now content of [DESIGN_PROMPT.md](./DESIGN_PROMPT.md) — instructions for Claude Design to make calls on, not standalone strategic decisions for us. Resolutions to v1.1 deferrals (e.g., mirror tooling) are also reflected there.
 
 ---
 
@@ -348,8 +350,8 @@ These don't block design or implementation but need a plan before public launch:
 | Default trust root (unsigned visitors) | ✅ Decided: brainstorm.world's pubkey for v1; evolve later |
 | Seeded communities at launch | ✅ Decided: 3-5 hand-picked example communities |
 | v1 content type | ✅ Decided: kind-1 notes only |
-| Q6 — Visual identity | 🔴 Open |
-| Newly surfaced UX questions | 🔴 Open |
-| Design prompt | 🔴 Pending Q3–Q6 + new questions |
+| Q6 — Visual identity | ✅ Decided: sibling visual identity, differentiated layouts; mobile-first; typographic-only sub-brand; header-link cross-navigation |
+| Newly surfaced UX questions | ✅ Embedded in [DESIGN_PROMPT.md](./DESIGN_PROMPT.md) for Claude Design to make tactical calls on |
+| Design prompt | ✅ Drafted in [DESIGN_PROMPT.md](./DESIGN_PROMPT.md) — pending CEO review |
 | DigitalOcean droplet + CI/CD | 🔴 Not started |
 | Firmware v1.1.0 (with new concepts) | 🔴 Not started |
