@@ -247,13 +247,19 @@ Resolved on 2026-05-07. Final tag schema is in §3. Sub-question resolutions:
 - `parent_community` (sub-communities) — **deferred** (can be added as an optional field later without migration)
 - DList NIP confirms schema-declaration tags accept arbitrary tag names; no application-only conventions remain except `topic` (used to avoid overloading `t`)
 
-### Q4 — Creation and dedup
-What stops "10,000 communities called Bitcoin" on day one? Options:
-- (a) Embrace it: trust-ranked discovery sorts duplicates naturally
-- (b) Soft canonicalization: surface "are you sure? these existing communities look similar" at create time
-- (c) Hard dedup: prevent identical names entirely
+### Q4 — Creation and dedup ✅ CLOSED
+Resolved on 2026-05-07. Approach: **embrace + soft-canonicalize, no hard dedup.**
 
-Probably some combination; needs a call.
+Key insights:
+- Slugs aren't globally namespaced — d-tags are scoped per (kind, pubkey), so 10,000 "Bitcoin" community records coexist at the protocol level without collision.
+- Two natural anti-fragmentation forces: **(1)** convergence-from-copy — when a user joins, they copy the introducer's record, so chains of joiners share the same record. **(2)** trust-ranked discovery — a viewer only sees communities someone in their trust network has curated.
+- Forking is a feature: legitimate disagreements should be able to fork a community. The system makes *accidental* forking unlikely but never prevents *intentional* forking.
+
+v1 mechanisms:
+- **Soft canonicalization at create time:** when a user attempts to create, surface 3-5 communities with similar names/topics that are also curated by the user's trust network. Three explicit choices: join one of these, fork one with tweaks, or start fresh.
+- **Strict similarity matching for the create-time check:** match on name + topic overlap + trust-graph relevance. Only show similar communities the user's network already curates. Showing 50 random matches at create time is noise.
+- **Discovery-time clustering:** records sharing a `founder_pubkey` are grouped as forks of the same root community in the UI. Records with different founder_pubkeys are surfaced as independent attempts.
+- **No hard dedup:** refusing creation by name match fights the architecture and creates first-mover lock-in (whoever grabs "Bitcoin" first owns the namespace forever).
 
 ### Q5 — v1 UX scope
 Three flavors of user, all valid v1 candidates:
@@ -318,7 +324,7 @@ Flagged here so they're not forgotten. None of these block v1.
 | Q3 — Full field set | ✅ Decided: full DList NIP-aware tag schema in §3; `content` field reserved |
 | DList NIP-aware tag schema | ✅ Decided: formal `["required", ...]` declarations for required tags; custom `topic` avoids `t` overloading |
 | Both-layer representation (DList tags + Concept JSON) | ✅ Decided: both layers populated from v1, kept in sync at write time |
-| Q4 — Creation & dedup | 🔴 Open |
+| Q4 — Creation & dedup | ✅ Decided: embrace + soft canonicalization at create time (strict matching); no hard dedup; founder_pubkey clustering at discovery time |
 | Q5 — v1 UX scope | 🔴 Open |
 | Q6 — Visual identity | 🔴 Open |
 | Newly surfaced UX questions | 🔴 Open |
