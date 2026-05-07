@@ -1,0 +1,25 @@
+{
+    "version": "1.1.0",
+    "date": "2026-05-07",
+    "description": "SKELETON — adds brainstorm-community and brainstorm-community-signal concepts for the Brainstorm Communities feature. NOT YET DEPLOYABLE: the v1.0.0 concepts (and the relationshipTypes / enumerations / elements / sets / changelog top-level entries) must be merged in before the active symlink is switched to v1.1.0. Schemas in the new concept directories are also draft and will likely evolve as the feature implementation begins. See feat/communities/PLAN.md for design context.",
+    "concepts": [
+        {
+            "slug": "brainstorm-community",
+            "dir": "./concepts/brainstorm-community/",
+            "conceptHeader": "concept-header.json",
+            "jsonSchema": "json-schema.json",
+            "categories": [
+                "brainstorm-communities"
+            ]
+        },
+        {
+            "slug": "brainstorm-community-signal",
+            "dir": "./concepts/brainstorm-community-signal/",
+            "conceptHeader": "concept-header.json",
+            "jsonSchema": "json-schema.json",
+            "categories": [
+                "brainstorm-communities"
+            ]
+        }
+    ]
+}

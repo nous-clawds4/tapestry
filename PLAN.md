@@ -233,6 +233,16 @@ The user's `brainstorm-communities` index DList does **not** need its own firmwa
 
 The `brainstorm-communities` DList will be created locally (deterministic d-tag) when each user first loads the firmware.
 
+### Skeleton status
+
+A skeleton of v1.1.0 lives at `firmware/versions/v1.1.0/`:
+
+- `manifest.json` — v1.1.0 manifest with the two new concept entries; explicitly marked "SKELETON — not yet deployable" (the v1.0.0 concepts and the relationshipTypes / enumerations / elements / sets / changelog top-level entries must be merged in before the active symlink is switched).
+- `concepts/brainstorm-community/` — `concept-header.json` + `json-schema.json` + `manifest.json`, with the field set from §3 fully encoded as JSON Schema. Marked SKELETON in description fields.
+- `concepts/brainstorm-community-signal/` — same trio, encoding the signal-item field set.
+
+The `firmware/active` symlink is **not** changed; it still points at `versions/v1.0.0`. v1.1.0 is staged for future activation, not live.
+
 ---
 
 ## 6. Open Design Questions
@@ -354,4 +364,4 @@ These don't block design or implementation but need a plan before public launch:
 | Newly surfaced UX questions | ✅ Embedded in [DESIGN_PROMPT.md](./DESIGN_PROMPT.md) for Claude Design to make tactical calls on |
 | Design prompt | ✅ Drafted in [DESIGN_PROMPT.md](./DESIGN_PROMPT.md) — pending CEO review |
 | DigitalOcean droplet + CI/CD | 🔴 Not started |
-| Firmware v1.1.0 (with new concepts) | 🔴 Not started |
+| Firmware v1.1.0 (with new concepts) | 🟡 Skeleton drafted at `firmware/versions/v1.1.0/`; v1.0.0 concepts and relationshipTypes/enumerations/elements/sets must be merged in before the active symlink is switched |

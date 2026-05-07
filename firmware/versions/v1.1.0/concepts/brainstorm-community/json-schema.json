@@ -1,0 +1,151 @@
+{
+    "word": {
+        "slug": "json-schema-for-the-concept-of-brainstorm-communities",
+        "name": "JSON Schema for the concept of brainstorm communities",
+        "title": "JSON Schema for the Concept of Brainstorm Communities",
+        "description": "the json schema for the concept of brainstorm communities. SKELETON — schema may evolve before v1.1.0 is activated.",
+        "wordTypes": ["word", "jsonSchema"],
+        "coreMemberOf": [
+            {
+                "slug": "concept-header-for-the-concept-of-brainstorm-communities",
+                "uuid": "<uuid>"
+            }
+        ]
+    },
+    "jsonSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "name": "brainstormCommunity",
+        "title": "Brainstorm Community",
+        "description": "JSON Schema for a Brainstorm Community record (one user's personal projection of a community). See feat/communities/PLAN.md §3 for the field set.",
+        "required": ["brainstormCommunity"],
+        "definitions": {},
+        "properties": {
+            "brainstormCommunity": {
+                "type": "object",
+                "name": "brainstormCommunity",
+                "title": "Brainstorm Community",
+                "slug": "brainstorm-community",
+                "alias": "brainstormCommunity",
+                "description": "Data about this Brainstorm Community.",
+                "required": [
+                    "slug",
+                    "name",
+                    "description",
+                    "relays",
+                    "seedMembers",
+                    "weightingModel",
+                    "endorsementThreshold"
+                ],
+                "properties": {
+                    "slug": {
+                        "type": "string",
+                        "name": "slug",
+                        "title": "Slug",
+                        "slug": "slug",
+                        "description": "The slug (deterministic identifier) for this community."
+                    },
+                    "name": {
+                        "type": "string",
+                        "name": "name",
+                        "title": "Name",
+                        "slug": "name",
+                        "description": "Display name of the community."
+                    },
+                    "description": {
+                        "type": "string",
+                        "name": "description",
+                        "title": "Description",
+                        "slug": "description",
+                        "description": "What the community is about."
+                    },
+                    "image": {
+                        "type": "string",
+                        "format": "uri",
+                        "name": "image",
+                        "title": "Image",
+                        "slug": "image",
+                        "description": "Banner image URL."
+                    },
+                    "topics": {
+                        "type": "array",
+                        "items": { "type": "string" },
+                        "name": "topics",
+                        "title": "Topics",
+                        "slug": "topics",
+                        "description": "Topical tags describing the community."
+                    },
+                    "language": {
+                        "type": "string",
+                        "name": "language",
+                        "title": "Language",
+                        "slug": "language",
+                        "description": "Primary language (ISO 639-1 code)."
+                    },
+                    "founder": {
+                        "type": "string",
+                        "name": "founder",
+                        "title": "Founder",
+                        "slug": "founder",
+                        "description": "Pubkey of the original founder. Informational only — has no special algorithmic privilege."
+                    },
+                    "externalRef": {
+                        "type": "object",
+                        "name": "externalRef",
+                        "title": "External Reference",
+                        "slug": "external-ref",
+                        "description": "Optional reference to a wrapped external community (e.g., NIP-72).",
+                        "required": ["type", "aTag"],
+                        "properties": {
+                            "type": {
+                                "type": "string",
+                                "description": "External community type, e.g., 'nip72'."
+                            },
+                            "aTag": {
+                                "type": "string",
+                                "description": "Addressable event tag of the external community, e.g., '34550:<pubkey>:<d-tag>'."
+                            }
+                        }
+                    },
+                    "relays": {
+                        "type": "array",
+                        "items": { "type": "string", "format": "uri" },
+                        "minItems": 1,
+                        "name": "relays",
+                        "title": "Relays",
+                        "slug": "relays",
+                        "description": "URLs of relays serving this community."
+                    },
+                    "seedMembers": {
+                        "type": "array",
+                        "items": { "type": "string" },
+                        "minItems": 1,
+                        "name": "seedMembers",
+                        "title": "Seed Members",
+                        "slug": "seed-members",
+                        "description": "Pubkeys used to seed the GR Community membership algorithm."
+                    },
+                    "weightingModel": {
+                        "type": "string",
+                        "name": "weightingModel",
+                        "title": "Weighting Model",
+                        "slug": "weighting-model",
+                        "description": "Identifier of the GrapeRank scoring system to use for membership computation. Default: 'gr-community-default-v1'."
+                    },
+                    "endorsementThreshold": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 1,
+                        "name": "endorsementThreshold",
+                        "title": "Endorsement Threshold",
+                        "slug": "endorsement-threshold",
+                        "description": "Score threshold in [0, 1] above which a pubkey is considered a member. Default: 0.5."
+                    }
+                },
+                "x-tapestry": {
+                    "unique": ["slug"]
+                }
+            }
+        }
+    }
+}

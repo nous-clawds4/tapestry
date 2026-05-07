@@ -1,0 +1,21 @@
+{
+    "word": {
+        "slug": "concept-header-for-the-concept-of-brainstorm-community-signals",
+        "name": "concept header for the concept of brainstorm community signals",
+        "title": "Concept Header for the Concept of Brainstorm Community Signals",
+        "wordTypes": ["word", "conceptHeader"]
+    },
+    "conceptHeader": {
+        "description": "An endorsement or veto signal issued by a user for a target pubkey within the context of a specific Brainstorm Community. Mirror relays consume these signals via the GR Community scoring system to compute community membership. SKELETON — schema details may evolve before v1.1.0 is activated. See feat/communities/PLAN.md §3.",
+        "oNames": { "singular": "brainstorm community signal", "plural": "brainstorm community signals" },
+        "oSlugs": { "singular": "brainstorm-community-signal", "plural": "brainstorm-community-signals" },
+        "oKeys": { "singular": "brainstormCommunitySignal", "plural": "brainstormCommunitySignals" },
+        "oTitles": { "singular": "Brainstorm Community Signal", "plural": "Brainstorm Community Signals" },
+        "oLabels": { "singular": "Brainstorm Community Signal", "plural": "Brainstorm Community Signals" },
+        "x-tapestry": {
+            "neo4j": {
+                "nodeLabelRequired": true
+            }
+        }
+    }
+}

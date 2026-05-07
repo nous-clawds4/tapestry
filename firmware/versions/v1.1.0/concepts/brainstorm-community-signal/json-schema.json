@@ -1,0 +1,59 @@
+{
+    "word": {
+        "slug": "json-schema-for-the-concept-of-brainstorm-community-signals",
+        "name": "JSON Schema for the concept of brainstorm community signals",
+        "title": "JSON Schema for the Concept of Brainstorm Community Signals",
+        "description": "the json schema for the concept of brainstorm community signals. SKELETON — schema may evolve before v1.1.0 is activated.",
+        "wordTypes": ["word", "jsonSchema"],
+        "coreMemberOf": [
+            {
+                "slug": "concept-header-for-the-concept-of-brainstorm-community-signals",
+                "uuid": "<uuid>"
+            }
+        ]
+    },
+    "jsonSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "name": "brainstormCommunitySignal",
+        "title": "Brainstorm Community Signal",
+        "description": "JSON Schema for a Brainstorm Community signal item (endorsement or veto). See feat/communities/PLAN.md §3 for the field set.",
+        "required": ["brainstormCommunitySignal"],
+        "definitions": {},
+        "properties": {
+            "brainstormCommunitySignal": {
+                "type": "object",
+                "name": "brainstormCommunitySignal",
+                "title": "Brainstorm Community Signal",
+                "slug": "brainstorm-community-signal",
+                "alias": "brainstormCommunitySignal",
+                "description": "An endorsement or veto for a target pubkey within a community.",
+                "required": ["targetPubkey", "type"],
+                "properties": {
+                    "targetPubkey": {
+                        "type": "string",
+                        "name": "targetPubkey",
+                        "title": "Target Pubkey",
+                        "slug": "target-pubkey",
+                        "description": "Pubkey of the person being endorsed or vetoed (mirrored as the event's `p` tag)."
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": ["endorse", "veto"],
+                        "name": "type",
+                        "title": "Type",
+                        "slug": "type",
+                        "description": "Signal polarity. v1 supports 'endorse' and 'veto'; the field is generic to allow future signal types."
+                    },
+                    "comments": {
+                        "type": "string",
+                        "name": "comments",
+                        "title": "Comments",
+                        "slug": "comments",
+                        "description": "Optional free-text justification for this signal."
+                    }
+                }
+            }
+        }
+    }
+}
