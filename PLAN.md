@@ -261,13 +261,25 @@ v1 mechanisms:
 - **Discovery-time clustering:** records sharing a `founder_pubkey` are grouped as forks of the same root community in the UI. Records with different founder_pubkeys are surfaced as independent attempts.
 - **No hard dedup:** refusing creation by name match fights the architecture and creates first-mover lock-in (whoever grabs "Bitcoin" first owns the namespace forever).
 
-### Q5 — v1 UX scope
-Three flavors of user, all valid v1 candidates:
-- **Consumer** — browse trust-ranked communities, view details, no account needed
-- **Curator/joiner** — sign in with NIP-07, join communities (publish endorsements), curate personal community list
-- **Founder** — create a community, set up initial members, optionally run a mirror relay
+### Q5 — v1 UX scope ✅ CLOSED
+Resolved on 2026-05-07. v1 ships with **four user journeys**, scoped per journey:
 
-Which of these does v1 ship with? My instinct: all three at a basic level, but "run a mirror" is operationally complex and may need to be deferred.
+1. **Discover (no account, full v1).** Land → browse trust-ranked communities → search by name/topic → view a community detail page. Default trust root for unsigned visitors is brainstorm.world's pubkey.
+2. **Join / curate (NIP-07 signed in, full v1).** Sign in → find a community → click "Join" (publishes the user's community record + adds it to their `brainstorm-communities` DList) → see "My Communities" → endorse/veto specific members → see how that affects the membership-score map.
+3. **Found (NIP-07 signed in, partial v1).** Create flow with the soft-canonicalization gate from Q4 → configure metadata + engine config → pick from a default relay set hosted by brainstorm.world → invite seed members. **Run-your-own-mirror tooling deferred to v1.1** — founders configure relay URLs but actual relay hosting is brainstorm.world-managed for v1.
+4. **Participate (basic v1).** Members can post kind-1 notes to community relays; non-members are read-only. Notes appear as a feed on the community detail page. Exercises the membership-whitelist mechanism (only members can write) — proof-point of the differentiator. No threads, reactions, or long-form in v1.
+
+**v1 explicit defers:**
+- Run-your-own-mirror tooling and relay-provisioning UX
+- Custom community-scoring systems (everyone uses `gr-community-default-v1`)
+- Sub-communities, long-form content, polls, structured posts, reactions, threads
+- Cross-community feeds
+- Forking flow as a distinct UX (forking still works; no special UI)
+
+**Sub-decisions:**
+- **Default trust root for unsigned visitors:** brainstorm.world's pubkey for v1; document openly; evolve later (potentially to a council or published seed list)
+- **Seeded communities at launch:** 3-5 hand-picked example communities (e.g., Brainstorm, Nostr, NosFabrica, Bitcoin, etc.) so the first visitor has something to interact with — not enough to feel astroturfed
+- **Content type for v1:** kind-1 only; richer kinds (long-form, polls) come later
 
 ### Q6 — Visual identity
 Sibling to brainstorm.world (same dark theme, same vibe), or differentiated to signal a different surface?
@@ -308,6 +320,13 @@ Flagged here so they're not forgotten. None of these block v1.
    - Build UI (consumer-facing first, then curator/joiner, then founder)
    - Wire up community relay infrastructure (whitelist generation, mirror tooling)
 
+### Pre-launch concerns to address (not blocking design, but real)
+
+These don't block design or implementation but need a plan before public launch:
+
+- **Hosting cost.** v1 has brainstorm.world hosting relays for any community a founder creates. Storage scales with content; bandwidth scales with usage. For a free product, what are the limits, and at what scale does this become uneconomic? May need rate-limits, per-community quotas, or a "your community needs to fund itself once it crosses X" model.
+- **Moderation / legal exposure.** Community relays we host can be used for harmful content (CSAM, threats, etc.). The architecture says moderation is community-driven, but the legal entity hosting the relay still bears risk. Need a takedown / safe-harbor policy and probably a `nostr.json` abuse-reporting endpoint before public launch.
+
 ---
 
 ## 9. Decisions Status
@@ -325,7 +344,10 @@ Flagged here so they're not forgotten. None of these block v1.
 | DList NIP-aware tag schema | ✅ Decided: formal `["required", ...]` declarations for required tags; custom `topic` avoids `t` overloading |
 | Both-layer representation (DList tags + Concept JSON) | ✅ Decided: both layers populated from v1, kept in sync at write time |
 | Q4 — Creation & dedup | ✅ Decided: embrace + soft canonicalization at create time (strict matching); no hard dedup; founder_pubkey clustering at discovery time |
-| Q5 — v1 UX scope | 🔴 Open |
+| Q5 — v1 UX scope | ✅ Decided: 4 journeys (Discover/Join/Found/Participate); Found defers mirror tooling; Participate is kind-1 only |
+| Default trust root (unsigned visitors) | ✅ Decided: brainstorm.world's pubkey for v1; evolve later |
+| Seeded communities at launch | ✅ Decided: 3-5 hand-picked example communities |
+| v1 content type | ✅ Decided: kind-1 notes only |
 | Q6 — Visual identity | 🔴 Open |
 | Newly surfaced UX questions | 🔴 Open |
 | Design prompt | 🔴 Pending Q3–Q6 + new questions |
