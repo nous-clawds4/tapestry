@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Breadcrumbs from '../../components/Breadcrumbs';
+import PaymentCode from '../../components/PaymentCode';
 import { useAuth } from '../../context/AuthContext';
 import { getPaymentsDue } from '../../api/bounties';
 import { zapContributor } from '../../utils/zap';
@@ -9,19 +10,19 @@ function short(pk) { return pk ? pk.slice(0, 8) + '…' : '—'; }
 
 function PendingClaimRow({ claim, bountyAmount }) {
   const [busy, setBusy] = useState(false);
-  const [invoice, setInvoice] = useState(null);
+  const [payment, setPayment] = useState(null);
   const [error, setError] = useState(null);
 
   async function handleZap() {
     setBusy(true);
     setError(null);
     try {
-      const inv = await zapContributor({
+      const result = await zapContributor({
         recipientPubkeyHex: claim.event.pubkey,
         amountSats: bountyAmount,
         claimEventId: claim.event.id,
       });
-      setInvoice(inv);
+      setPayment(result);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -41,12 +42,10 @@ function PendingClaimRow({ claim, bountyAmount }) {
           disabled={busy}
           style={{ padding: '0.35rem 0.8rem', background: '#f2a134', color: '#0d1117', border: 'none', borderRadius: 4, fontWeight: 700, cursor: busy ? 'wait' : 'pointer' }}
         >
-          {busy ? 'Zapping…' : `Zap ${bountyAmount}`}
+          {busy ? 'Loading…' : `Zap ${bountyAmount}`}
         </button>
       </div>
-      {invoice && (
-        <textarea readOnly value={invoice} rows={2} style={{ width: '100%', marginTop: 6, fontFamily: 'monospace', fontSize: '0.7rem', background: '#010409', color: '#c9d1d9', border: '1px solid #30363d' }} />
-      )}
+      {payment && <PaymentCode payment={payment} />}
       {error && <div style={{ color: '#f85149', fontSize: '0.8rem', marginTop: 4 }}>{error}</div>}
     </div>
   );

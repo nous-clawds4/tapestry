@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import Breadcrumbs from '../../components/Breadcrumbs';
+import PaymentCode from '../../components/PaymentCode';
 import { getBounty } from '../../api/bounties';
 import { zapContributor } from '../../utils/zap';
 
@@ -27,7 +28,7 @@ function titleFromClaim(event) {
 
 function ClaimRow({ claim, bountyAmount, onZap }) {
   const [busy, setBusy] = useState(false);
-  const [invoice, setInvoice] = useState(null);
+  const [payment, setPayment] = useState(null);
   const [error, setError] = useState(null);
 
   const paid = !!claim.zapReceipt;
@@ -37,8 +38,8 @@ function ClaimRow({ claim, bountyAmount, onZap }) {
     setBusy(true);
     setError(null);
     try {
-      const inv = await onZap(claim.event.pubkey, claim.event.id);
-      setInvoice(inv);
+      const result = await onZap(claim.event.pubkey, claim.event.id);
+      setPayment(result);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -74,12 +75,7 @@ function ClaimRow({ claim, bountyAmount, onZap }) {
           )}
         </div>
       </div>
-      {invoice && (
-        <div style={{ marginTop: '0.6rem', padding: '0.6rem', background: '#0d1117', borderRadius: 4 }}>
-          <div style={{ fontSize: '0.75rem', opacity: 0.6, marginBottom: 4 }}>Lightning invoice (pay with your wallet):</div>
-          <textarea readOnly value={invoice} rows={3} style={{ width: '100%', fontFamily: 'monospace', fontSize: '0.75rem', background: '#010409', color: '#c9d1d9', border: '1px solid #30363d', borderRadius: 3 }} />
-        </div>
-      )}
+      {payment && <PaymentCode payment={payment} />}
       {error && <div style={{ color: '#f85149', marginTop: '0.4rem', fontSize: '0.85rem' }}>{error}</div>}
     </div>
   );

@@ -12,6 +12,7 @@
   "dependencies": {
     "jsonjoy-builder": "^0.3.2",
     "nostr-tools": "^2.23.3",
+    "qrcode": "^1.5.4",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-router-dom": "^7.13.1",

@@ -1,25 +1,41 @@
 /**
- * Client-side NIP-57 zap flow.
+ * Client-side zap flow with BOLT12 + NIP-57 (BOLT11/LNURL) support.
  *
  * zapContributor({ recipientPubkeyHex, amountSats, claimEventId })
- *   -> Lightning invoice string
+ *   -> { type: 'bolt12', payload: '<lno1...>', static: true }
+ *      or { type: 'bolt11', payload: '<lnbc1...>' }
  *
- * Callers must catch errors and show a friendly message (e.g. "This
- * contributor hasn't set up Lightning receiving — you can't zap them yet")
- * when the recipient has no lud16 or the LNURL endpoint doesn't support
- * Nostr zaps. We deliberately throw instead of silently failing so the UI
- * can't send an invoice to the wrong place.
+ * BOLT12 offers (static, reusable) take precedence — no LNURL server, no
+ * per-payment signing, just a payment code the issuer pastes/scans into a
+ * BOLT12-aware wallet (Phoenix, Zeus, CLN, lnd via plugin, etc.). The offer
+ * is read from the recipient's kind-0 profile (`bolt12` field, with
+ * `lud12` / `lightning_offer` as aliases).
+ *
+ * Falls back to the existing NIP-57 LNURL/BOLT11 flow if no BOLT12 offer is
+ * configured. Throws if neither is available so callers can surface a
+ * "recipient has no Lightning address or BOLT12 offer" message.
  */
 
-async function fetchRecipientLud16(pubkeyHex) {
+async function fetchProfileEntry(pubkeyHex) {
   const resp = await fetch(`/api/profiles?pubkeys=${pubkeyHex}`);
   if (!resp.ok) throw new Error(`profile fetch failed (${resp.status})`);
   const payload = await resp.json();
   const profiles = payload?.profiles ?? payload;
-  const entry = Array.isArray(profiles) ? profiles[0] : profiles?.[pubkeyHex] ?? null;
-  const lud16 = entry?.lud16 ?? entry?.lud06 ?? null;
-  if (!lud16) throw new Error('Recipient has no Lightning address');
-  return lud16;
+  return Array.isArray(profiles) ? profiles[0] : profiles?.[pubkeyHex] ?? null;
+}
+
+function readBolt12(profileEntry) {
+  if (!profileEntry) return null;
+  const raw = profileEntry.bolt12 ?? profileEntry.lud12 ?? profileEntry.lightning_offer ?? null;
+  if (!raw || typeof raw !== 'string') return null;
+  const trimmed = raw.trim();
+  if (!/^lno[a-z0-9]{8,}$/i.test(trimmed)) return null;
+  return trimmed;
+}
+
+function readLud16(profileEntry) {
+  if (!profileEntry) return null;
+  return profileEntry.lud16 ?? profileEntry.lud06 ?? null;
 }
 
 async function fetchLnurlPayData(lud16) {
@@ -45,12 +61,21 @@ async function fetchRelayList(recipientPubkeyHex) {
 }
 
 export async function zapContributor({ recipientPubkeyHex, amountSats, claimEventId }) {
-  if (!window.nostr) throw new Error('No NIP-07 signer (nos2x / Alby) detected');
   if (!/^[0-9a-f]{64}$/i.test(recipientPubkeyHex)) throw new Error('recipientPubkeyHex must be hex');
   if (!Number.isInteger(amountSats) || amountSats <= 0) throw new Error('amountSats must be a positive integer');
+
+  const profile = await fetchProfileEntry(recipientPubkeyHex);
+
+  const bolt12 = readBolt12(profile);
+  if (bolt12) {
+    return { type: 'bolt12', payload: bolt12, static: true };
+  }
+
+  const lud16 = readLud16(profile);
+  if (!lud16) throw new Error('Recipient has no Lightning address or BOLT12 offer');
+  if (!window.nostr) throw new Error('No NIP-07 signer (nos2x / Alby) detected');
   if (!claimEventId) throw new Error('claimEventId is required');
 
-  const lud16 = await fetchRecipientLud16(recipientPubkeyHex);
   const lnurlData = await fetchLnurlPayData(lud16);
 
   const amountMsats = amountSats * 1000;
@@ -85,5 +110,5 @@ export async function zapContributor({ recipientPubkeyHex, amountSats, claimEven
   if (!invoiceResp.ok) throw new Error(`LNURL callback returned ${invoiceResp.status}`);
   const invoiceData = await invoiceResp.json();
   if (!invoiceData?.pr) throw new Error('LNURL callback did not return an invoice');
-  return invoiceData.pr;
+  return { type: 'bolt11', payload: invoiceData.pr };
 }
