@@ -327,22 +327,26 @@ The **firmware** is the canonical set of JSON definitions that describe the tape
 ```
 tapestry/firmware/
   versions/
-    v0.0.1/          ← current version
-  active/             ← symlink to current version
+    v0.0.1/          ← legacy
+    v1.0.0/          ← current version
+  active/             ← symlink to current version (versions/v1.0.0)
 ```
 
 The server reads from `firmware/active/` at runtime.
 
 ### What Firmware Defines
 
-The v0.0.1 manifest (`manifest.json`) contains:
+The v1.0.0 manifest (`manifest.json`) contains:
 
 - **11 relationship types** (CLASS_THREAD_INITIATION, CLASS_THREAD_PROPAGATION, CLASS_THREAD_TERMINATION, CORE_NODE_JSON_SCHEMA, CORE_NODE_PRIMARY_PROPERTY, CORE_NODE_PROPERTIES, CORE_NODE_PROPERTY_TREE_GRAPH, CORE_NODE_CORE_GRAPH, CORE_NODE_CONCEPT_GRAPH, PROPERTY_MEMBERSHIP, PROPERTY_ENUMERATION)
-- **24 concepts** organized by category:
+- **34 concepts** organized by category (some concepts belong to multiple categories):
   - **Core (8):** superset, concept-header, primary-property, properties-set, json-schema, property-tree-graph, core-nodes-graph, concept-graph
-  - **Graph-theoretic (6):** node-type, relationship, relationship-type, graph-type, word, graph
+  - **Graph-theoretic (6):** node-type, relationship, relationship-type, graph, graph-type, word
   - **Graphs (5):** graph, property-tree-graph, core-nodes-graph, concept-graph, tapestry
-  - **Other:** set, property, json-data-type, list, validation-tool, validation-tool-type, image, image-type, image-validation-script
+  - **Nostr (4):** nostr-user, nostr-relay, nostr-event, nostr-kind
+  - **Tapestry (2):** class-thread, word-wrapper
+  - **Web-of-trust (2):** graperank, web-of-trust
+  - **Other:** set, property, json-data-type, list, validation-tool, validation-tool-type, image, image-type, image-validation-script, plus example concepts (dog, dog-breed)
 - **Elements:** json-data-types (string, number, integer, boolean, object, array, null), node-types, graph-types, validation-tool-types
 - **Sets:** graphs, relationship-types (class-threads, core-nodes), validation-tools, properties, sets
 
@@ -1457,6 +1461,7 @@ docker compose exec tapestry strfry sync wss://dcosl.brainstorm.world \
 - [ ] **Cross-instance federation** — multiple Tapestry instances syncing and discovering each other's concept graphs
 - [ ] **SALUD protocol integration** — health data structured via tapestry concepts
 - [ ] **GrapeRank integration** — full PageRank-style trust scoring applied to concept curation
+- [ ] **GrapeRank Scoring Systems registry** — formalize multiple GR scoring systems (baseline influence, GR Community membership, future variants) as first-class addressable resources, so curators can reference a system by stable identifier (e.g. via a `weighting_model` field)
 
 ### Long-Term
 
