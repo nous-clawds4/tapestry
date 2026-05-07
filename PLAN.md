@@ -88,47 +88,89 @@ When Alice joins Community X, her first step is to create her own community-reco
 
 ```
 Alice's brainstorm-communities DList   (kind 39998, d-tag: "brainstorm-communities")
+  │  • header tags: names, schema declarations (required / allowed / ...)
   │
   ├── ListItem: Alice's record of Community X   (kind 39999)
-  │     • json tag = metadata + engine config (her personal projection)
+  │     • event tags = community metadata + engine config (DList layer — primary)
+  │     • optional word-wrapper json tag (Concept layer — see §5)
   │     ↑ z-tag
-  │     └── Signals DList for Community X   (kind 39998, d-tag: "comm-{slug}-signals")
-  │           └── ListItems (kind 39999): one per (target pubkey, polarity)
-  │                 • json: { target, polarity: "endorse"|"veto", reason?, weight? }
+  │     └── Signals DList for Community X   (kind 39998, d-tag: "signals/<community-slug>")
+  │           │  • header tags: names, schema declarations (required: p, type; allowed: comments)
+  │           │
+  │           └── ListItems (kind 39999): one per (target pubkey, signal)
+  │                 • event tags: p, type, comments (DList layer)
+  │                 • optional word-wrapper json (Concept layer)
   │
   ├── ListItem: Alice's record of Community Y
   │     ...
 ```
 
-Endorsements and vetoes share one DList with a polarity field — same kind of signal, opposite sign. One subscription pattern for any mirror relay computing whitelists.
+Endorsements and vetoes share one DList. Each signal item carries a `["type", "endorse"|"veto"]` tag — same kind of signal, opposite sign. One subscription pattern for any mirror relay computing whitelists.
 
-### Field Sets (preliminary — subject to refinement under Q3)
+### Two Representation Layers
 
-**Community record** (the ListItem's `json`):
+Each event below carries data in two layers simultaneously:
 
-- `name` (req) — display name
-- `description` (req) — what the community is about
-- `banner_url?` — image URL
-- `topics?[]` — tags
-- `language?` — primary language
-- `founder_pubkey?` — informational
-- `external_ref?` — for NIP-72 wrapping: `{ type: "nip72", a_tag: "..." }`
-- `relay_set[]` — relay URLs that serve this community
-- `seed_members[]` — pubkeys used to seed the membership algo
-- `weighting_model` — defaults to `"gr-community-default-v1"` (a GR Scoring System identifier)
-- `endorsement_threshold` — number ∈ [0, 1] (default 0.5)
-- `veto_policy` — how vetoes count (TBD: enum or small object)
+- **DList layer** (primary) — fields live as native nostr event tags. Any DList-aware client can read/write these directly without needing the Tapestry Concept Graph machinery.
+- **Concept layer** (additional) — the same fields, also expressed as a word-wrapper JSON tag conforming to a firmware Concept's schema. This makes the events compatible with Tapestry's normalization, audit, and graph-query pipeline. See §5 for the firmware Concepts.
 
-~12 fields, most optional.
+Both layers carry the same information and are kept in sync at write time. The tables below describe the **DList layer**; the Concept-layer JSON is a transcription of the same data into the firmware's word-wrapper format.
 
-**Signal item:**
+The `content` field on every event is left empty — reserved for future use (encrypted data).
 
-- `target_pubkey` (req)
-- `polarity` (req): `"endorse" | "veto"`
-- `reason?` — free-text justification
-- `weight?` — for graded endorsements ("strong endorse" vs "weak endorse"); v1-vs-later TBD
+### `brainstorm-communities` DList header (kind 39998)
 
-4 fields.
+| Tag | Status | Notes |
+|---|---|---|
+| `["d", "brainstorm-communities"]` | required | deterministic |
+| `["names", "brainstorm community", "brainstorm communities"]` | required (per DList NIP) | singular, plural |
+| `["titles", "Brainstorm Community", "Brainstorm Communities"]` | optional | display |
+| `["description", "Communities I curate"]` | optional | per-list description |
+| `["required", "t"]` | schema decl | every item declares with `t` (community slug) |
+| `["required", "name"]`, `["required", "description"]` | schema decl | display name + description |
+| `["required", "relay"]`, `["required", "seed"]` | schema decl | relay set, seed members |
+| `["required", "weighting_model"]`, `["required", "endorsement_threshold"]` | schema decl | scoring config |
+| `["allowed", "image"]`, `["allowed", "topic"]`, `["allowed", "language"]`, `["allowed", "founder"]`, `["allowed", "external_ref"]` | schema decl | optional metadata items may include |
+
+### Community record (kind 39999 ListItem on the `brainstorm-communities` DList)
+
+| Tag | Required | Notes |
+|---|---|---|
+| `["d", "<community-slug>"]` | ✅ | replaceable address |
+| `["z", "39998:<user-pubkey>:brainstorm-communities"]` | ✅ | parent pointer (DList NIP) |
+| `["t", "<community-slug>"]` | ✅ | item declaration (DList NIP) — string-named entity |
+| `["name", "<display-name>"]` | ✅ | display name (DList NIP optional metadata) |
+| `["description", "<text>"]` | ✅ | what the community is about |
+| `["image", "<url>"]` | — | banner |
+| `["topic", "<topic>"]` (multi) | — | topical tags (custom; not `t` to avoid overloading the DList NIP item-declaration semantics) |
+| `["language", "<code>"]` | — | ISO 639-1 |
+| `["founder", "<pubkey>"]` | — | informational |
+| `["external_ref", "nip72", "<a-tag>"]` | — | for NIP-72 wrapping |
+| `["relay", "<url>"]` (multi) | ✅ | relay set |
+| `["seed", "<pubkey>"]` (multi) | ✅ | seed members |
+| `["weighting_model", "<id>"]` | ✅ | scoring system identifier; default `"gr-community-default-v1"` |
+| `["endorsement_threshold", "<num>"]` | ✅ | default `"0.5"` |
+
+### Per-community signals DList header (kind 39998)
+
+| Tag | Status | Notes |
+|---|---|---|
+| `["d", "signals/<community-slug>"]` | required | deterministic |
+| `["names", "membership signal", "membership signals"]` | required (per DList NIP) | |
+| `["description", "Endorsements and vetoes for <community>"]` | optional | |
+| `["required", "p"]` | schema decl | every signal targets a pubkey |
+| `["required", "type"]` | schema decl | endorse or veto |
+| `["allowed", "comments"]` | schema decl | optional reason |
+
+### Signal item (kind 39999 ListItem on the signals DList)
+
+| Tag | Required | Notes |
+|---|---|---|
+| `["d", "signal/<community-slug>/<short-hash>"]` | ✅ | unique per (user, community, target) |
+| `["z", "39998:<user-pubkey>:signals/<community-slug>"]` | ✅ | parent pointer |
+| `["p", "<target-pubkey>"]` | ✅ | item declaration — target of the signal |
+| `["type", "endorse"\|"veto"]` | ✅ | signal type |
+| `["comments", "<text>"]` | — | reason — uses DList NIP `comments` tag rather than a custom name |
 
 ---
 
@@ -172,11 +214,20 @@ This default scoring system is referenced by ID `gr-community-default-v1` in the
 
 ## 5. Firmware Additions
 
-Two new concepts to add. These will go in the next firmware version after v1.0.0 (likely v1.1.0):
+Two new firmware Concepts to add in the next firmware version after v1.0.0 (likely v1.1.0). These provide the **Concept layer** for the same events whose DList-layer tag schemas are described in §3.
 
-1. **`brainstorm-community`** — full concept treatment (all 8 core nodes, JSON schema enforced). Schema covers the community-record field set above. This is the heavyweight one because it must be evolvable and validated.
+1. **`brainstorm-community`** — full concept treatment (all 8 core nodes, JSON schema enforced). Schema mirrors the community-record tag set in §3, expressed as a word-wrapper JSON tag on the same kind 39999 ListItem.
 
-2. **`brainstorm-community-signal`** — concept with schema for endorsement/veto items. Lighter but worth normalizing so mirror relays can validate signals before counting them.
+2. **`brainstorm-community-signal`** — concept with schema for endorsement/veto items. Schema mirrors the signal-item tag set in §3.
+
+### Both-layer policy
+
+Each event carries data in BOTH representations from v1:
+
+- **DList layer:** native nostr event tags (described in §3). Any DList-aware nostr client can read these without Tapestry-specific tooling.
+- **Concept layer:** word-wrapper JSON tag matching the firmware Concept's schema. Tapestry-aware tooling uses this for normalization, audit, and graph queries.
+
+Both layers will be populated and kept in sync at write time. The DList layer is the primary user-facing representation; the Concept layer is the integration layer with the rest of Tapestry's machinery.
 
 The user's `brainstorm-communities` index DList does **not** need its own firmware concept — it's just "a DList of items conforming to the `brainstorm-community` concept."
 
@@ -188,12 +239,13 @@ The `brainstorm-communities` DList will be created locally (deterministic d-tag)
 
 These must be resolved before the Design prompt is drafted.
 
-### Q3 — Lock down the field sets
-Sketched in §3. Sub-questions:
-- Is `weight?` on signal items v1 or later?
-- What's the shape of `veto_policy`?
-- Does the record carry a `created_at` field, or rely on event timestamp?
-- Is `parent_community` an v1 field (sub-communities) or deferred?
+### Q3 — Lock down the field sets ✅ CLOSED
+Resolved on 2026-05-07. Final tag schema is in §3. Sub-question resolutions:
+- `weight?` on signal items — **deferred** (v1 uses unweighted endorse/veto)
+- `veto_policy` field — **dropped** (veto handling is a property of the scoring system, not the community record; tunable by changing `weighting_model`)
+- `created_at` field — **not added** (rely on event timestamp)
+- `parent_community` (sub-communities) — **deferred** (can be added as an optional field later without migration)
+- DList NIP confirms schema-declaration tags accept arbitrary tag names; no application-only conventions remain except `topic` (used to avoid overloading `t`)
 
 ### Q4 — Creation and dedup
 What stops "10,000 communities called Bitcoin" on day one? Options:
@@ -233,6 +285,7 @@ Flagged here so they're not forgotten. None of these block v1.
 - [ ] **GrapeRank Scoring Systems registry** — formalize multiple GR systems as first-class addressable resources (also tracked in BIBLE §18 Medium-Term)
 - [ ] **Custom scoring systems per community** — lets a community deviate from `gr-community-default-v1`
 - [ ] **Forking flow** — graceful UX for legitimate community forks (the Catholicism / Protestantism scenario)
+- [ ] **DList NIP spec edit** — clarify that `["disallowed", "..."]` accepts arbitrary tag names. The spec is explicit about this for `required`/`allowed`/`recommended` (examples include `["required", "foo"]`, `["required", "names"]`) but does not say so for `disallowed`. Small upstream PR.
 
 ---
 
@@ -262,7 +315,9 @@ Flagged here so they're not forgotten. None of these block v1.
 | Firmware additions | ✅ Decided: `brainstorm-community` + `brainstorm-community-signal` concepts |
 | GR Community scoring model | ✅ Decided: two-gate (baseline_GR × community_GR) confidence weighting |
 | GR scoring system identifier | ✅ Decided: `gr-community-default-v1` referenced via `weighting_model` field |
-| Q3 — Full field set | 🟡 Sketched, needs lockdown |
+| Q3 — Full field set | ✅ Decided: full DList NIP-aware tag schema in §3; `content` field reserved |
+| DList NIP-aware tag schema | ✅ Decided: formal `["required", ...]` declarations for required tags; custom `topic` avoids `t` overloading |
+| Both-layer representation (DList tags + Concept JSON) | ✅ Decided: both layers populated from v1, kept in sync at write time |
 | Q4 — Creation & dedup | 🔴 Open |
 | Q5 — v1 UX scope | 🔴 Open |
 | Q6 — Visual identity | 🔴 Open |
