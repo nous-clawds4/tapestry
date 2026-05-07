@@ -27,6 +27,7 @@ const mainNavItems = [
       { to: '/tapestry/bounties', label: 'All Bounties', end: true },
       { to: '/tapestry/bounties/eligible', label: 'Eligibility' },
       { to: '/tapestry/bounties/payments-due', label: 'Payments Due' },
+      { to: '/tapestry/bounties/payments-to-me', label: 'Payments to Me' },
       { to: '/tapestry/bounties/new', label: 'New Bounty' },
     ],
   },

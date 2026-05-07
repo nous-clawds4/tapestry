@@ -46,6 +46,11 @@ export default function Eligibility() {
     <div className="page">
       <Breadcrumbs />
       <h1>Eligibility</h1>
+      <div style={{ padding: '0.5rem 0.75rem', background: '#161b22', border: '1px solid #30363d', borderRadius: 4, marginBottom: '0.75rem', fontSize: '0.85rem' }}>
+        <Link to="/tapestry/bounties/payments-to-me" style={{ color: '#58a6ff' }}>
+          View payments owed to you →
+        </Link>
+      </div>
       <p style={{ opacity: 0.7 }}>
         Bounties issued by people whose web of trust says you're trustworthy enough to contribute
         (Trusted Assertion rank ≥ 2).

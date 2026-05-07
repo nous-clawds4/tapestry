@@ -37,3 +37,14 @@ export async function getPaymentsDue() {
   const resp = await fetch('/api/bounties/mine/payments-due', { credentials: 'include' });
   return (await parseJsonOrThrow(resp)).items ?? [];
 }
+
+export async function getPaymentsToMe() {
+  const resp = await fetch('/api/bounties/mine/payments-to-me', { credentials: 'include' });
+  const body = await parseJsonOrThrow(resp);
+  return {
+    pastDue: body.pastDue ?? [],
+    pending: body.pending ?? [],
+    paid: body.paid ?? [],
+    closed: body.closed ?? [],
+  };
+}

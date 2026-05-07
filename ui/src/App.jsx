@@ -32,6 +32,7 @@ import BountyNew from './pages/bounties/BountyNew';
 import BountyDetail from './pages/bounties/BountyDetail';
 import Eligibility from './pages/bounties/Eligibility';
 import PaymentsDue from './pages/bounties/PaymentsDue';
+import PaymentsToMe from './pages/bounties/PaymentsToMe';
 import NodesIndex from './pages/nodes/Index';
 import NodeDetail from './pages/nodes/NodeDetail';
 import NodeOverview from './pages/nodes/NodeOverview';
@@ -140,6 +141,7 @@ const router = createBrowserRouter([
           { path: 'new', element: <BountyNew />, handle: { crumb: 'New Bounty' } },
           { path: 'eligible', element: <Eligibility />, handle: { crumb: 'Eligibility' } },
           { path: 'payments-due', element: <PaymentsDue />, handle: { crumb: 'Payments Due' } },
+          { path: 'payments-to-me', element: <PaymentsToMe />, handle: { crumb: 'Payments to Me' } },
           { path: ':id', element: <BountyDetail />, handle: { crumb: 'Detail' } },
         ],
       },

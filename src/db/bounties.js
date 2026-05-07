@@ -85,6 +85,14 @@ function bountiesByIssuer(pubkey) {
   return selectByIssuerStmt.all(pubkey);
 }
 
+function bountiesByListCoordinates(coords) {
+  if (!coords?.length) return [];
+  const placeholders = coords.map(() => '?').join(',');
+  return db.prepare(
+    `SELECT * FROM bounties WHERE list_coordinate IN (${placeholders}) ORDER BY created_at DESC`
+  ).all(...coords);
+}
+
 function markFulfilled(id) {
   markFulfilledStmt.run(id);
 }
@@ -97,5 +105,6 @@ module.exports = {
   listAllBounties,
   getBounty,
   bountiesByIssuer,
+  bountiesByListCoordinates,
   markFulfilled,
 };
