@@ -68,9 +68,16 @@ Not covered (intentionally):
 # Suite: firmware files + server API contracts + concept graph + live publish
 npm test
 
-# Browser/UI affordances (requires the brainstorm app running on :7778)
-BRAINSTORM_SERVER_ACCESSIBLE=true npm run test:playwright -- tests/brainstorm/profile-tags.spec.js
+# Story 1 UI affordances only — chromium, single project, line reporter (cleanest output)
+BRAINSTORM_SERVER_ACCESSIBLE=true \
+  npx playwright test tests/brainstorm/profile-tags.spec.js \
+  --project=chromium --reporter=line
+
+# On NixOS dev boxes, wrap the same command in nix-shell:
+nix-shell --run 'BRAINSTORM_SERVER_ACCESSIBLE=true npx playwright test tests/brainstorm/profile-tags.spec.js --project=chromium --reporter=line'
 ```
+
+> Running the full `npm run test:playwright` will also execute the repo's pre-existing brainstorm specs (`api-health`, `auth`, `customer-management`, `monitoring-dashboard`, `profile-search`) across all five projects, which produces a lot of unrelated noise — many of those tests have brittle assertions or rely on browsers nixpkgs doesn't ship (webkit). For Story 1 review, use the focused command above.
 
 ## Verification
 
