@@ -3,10 +3,9 @@ const { test, expect } = require('@playwright/test');
 /**
  * Story 1: Tag user profiles — UI affordance tests.
  *
- * These verify the user-visible surface of the profile-tag feature.
- * They do NOT exercise the publish-to-relay path (that requires a NIP-07
- * extension and a signing pubkey) — those are exercised at the API layer
- * and via manual smoke testing per the test plan.
+ * The profile-tags surface lives inline on the profile page. These tests verify
+ * the auth-independent affordances; the publish/revoke paths require NIP-07
+ * signing and are exercised at the API layer.
  *
  * BaseURL is configured in playwright.config.js (default http://localhost:7778).
  * Profile route per ui/src/App.jsx is `/user/:pubkey`.
@@ -21,53 +20,43 @@ test.describe('Profile tagging UI (Story 1)', () => {
   // Any valid 64-char hex pubkey is fine — we're testing affordances, not data.
   const TEST_PUBKEY = '82b75e474dda005e912bcbb910391c60c2b89cc7faf5d3c30b7c59a324973833';
 
-  test('profile page exposes a Tag action button on its action row', async ({ page }) => {
+  test('profile page renders an inline TAGS section with a Manage link', async ({ page }) => {
     await page.goto(`/user/${TEST_PUBKEY}`);
     await page.waitForLoadState('networkidle');
 
-    // Tag button must be visible regardless of auth state; Follow/Mute/Report
-    // are NIP-07-gated and Playwright runs unauthenticated, so we don't anchor
-    // on those.
-    await expect(page.getByRole('button', { name: /^tag$/i }).first()).toBeVisible({ timeout: 10000 });
+    await expect(page.getByRole('heading', { name: /^tags$/i }).first()).toBeVisible({ timeout: 10000 });
+    await expect(page.getByRole('button', { name: /^manage$/i }).first()).toBeVisible();
   });
 
-  test('clicking Tag opens a panel that exposes tag-application affordances', async ({ page }) => {
+  test('TAGS section exposes an add affordance (empty-state or +)', async ({ page }) => {
     await page.goto(`/user/${TEST_PUBKEY}`);
     await page.waitForLoadState('networkidle');
 
-    await page.getByRole('button', { name: /^tag$/i }).first().click();
-
-    // Per AC-2 + AC-3: panel must let the user apply a tag.
-    await expect(page.getByText(/apply/i).first()).toBeVisible({ timeout: 5000 });
+    // Either empty-state ("Add the first tag") or the "+" chip-style button
+    // must be present, depending on whether the profile has any tags.
+    const addAffordance = page.getByRole('button', { name: /add (a|the first) tag|^\+$/i });
+    await expect(addAffordance.first()).toBeVisible({ timeout: 10000 });
   });
 
-  test('tag panel exposes a Dispute affordance for negative tagging', async ({ page }) => {
+  test('clicking the add affordance opens an Add tag dialog with a search input', async ({ page }) => {
     await page.goto(`/user/${TEST_PUBKEY}`);
     await page.waitForLoadState('networkidle');
 
-    await page.getByRole('button', { name: /^tag$/i }).first().click();
+    const addAffordance = page.getByRole('button', { name: /add (a|the first) tag|^\+$/i });
+    await addAffordance.first().click();
 
-    // Per AC-4: dispute (negative-polarity) tagging must be reachable.
-    await expect(page.getByText(/dispute/i).first()).toBeVisible({ timeout: 5000 });
+    // Dialog renders with both Search-existing and Create-new tabs.
+    await expect(page.getByRole('dialog', { name: /add tag/i })).toBeVisible({ timeout: 5000 });
+    await expect(page.getByRole('searchbox', { name: /search tags/i })).toBeVisible();
+    await expect(page.getByRole('button', { name: /create new/i })).toBeVisible();
   });
 
-  test('tag panel exposes inline new-tag creation (name + optional description)', async ({ page }) => {
+  test('Manage button opens a Manage dialog', async ({ page }) => {
     await page.goto(`/user/${TEST_PUBKEY}`);
     await page.waitForLoadState('networkidle');
 
-    await page.getByRole('button', { name: /^tag$/i }).first().click();
+    await page.getByRole('button', { name: /^manage$/i }).first().click();
 
-    // Per AC-2: user can create a new tag inline.
-    await expect(page.getByText(/create.*tag|new tag/i).first()).toBeVisible({ timeout: 5000 });
-  });
-
-  test('tag panel exposes a Manage affordance for revoking own assertions', async ({ page }) => {
-    await page.goto(`/user/${TEST_PUBKEY}`);
-    await page.waitForLoadState('networkidle');
-
-    await page.getByRole('button', { name: /^tag$/i }).first().click();
-
-    // Per AC-7: minimal Manage view (list + revoke).
-    await expect(page.getByText(/manage/i).first()).toBeVisible({ timeout: 5000 });
+    await expect(page.getByRole('dialog', { name: /manage your tags/i })).toBeVisible({ timeout: 5000 });
   });
 });
