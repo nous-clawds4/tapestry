@@ -1,17 +1,17 @@
 /**
- * Basic test for Brainstorm
- * 
- * This is a simple test to verify that the package is working correctly.
- * In a real-world scenario, you would use a testing framework like Jest or Mocha.
+ * Brainstorm test entry point. Runs in two phases:
+ *   1. Hand-rolled smoke tests (config loading).
+ *   2. Story-scoped test suites under test/*.test.js.
+ *
+ * Exit code is 0 only if every phase passes.
  */
 
 const { loadConfig } = require('../lib/config');
 
-// Mock environment variables for testing
+// Mock environment variables for the config smoke check
 process.env.BRAINSTORM_RELAY_URL = 'wss://test-relay.com';
 process.env.BRAINSTORM_RELAY_PUBKEY = 'test-pubkey';
 
-// Test configuration loading
 function testConfigLoading() {
   try {
     const config = loadConfig();
@@ -23,14 +23,33 @@ function testConfigLoading() {
   }
 }
 
-// Run tests
-console.log('Running Brainstorm tests...');
-const configTest = testConfigLoading();
+const profileTags = require('./profile-tags.test.js');
+const profileTagsPublish = require('./profile-tags-publish.test.js');
 
-console.log('\nTest Results:');
-console.log('-------------');
-console.log(`Configuration Loading: ${configTest ? 'PASS' : 'FAIL'}`);
-console.log(`Overall: ${configTest ? 'PASS' : 'FAIL'}`);
+async function main() {
+  console.log('Running Brainstorm tests...');
 
-// Exit with appropriate code
-process.exit(configTest ? 0 : 1);
+  const configOk = testConfigLoading();
+  console.log(`Configuration Loading: ${configOk ? 'PASS' : 'FAIL'}`);
+
+  const profileTagsResult = await profileTags.run();
+  const publishResult = await profileTagsPublish.run();
+
+  console.log('\nTest Results');
+  console.log('-------------');
+  console.log(`Configuration Loading:        ${configOk ? 'PASS' : 'FAIL'}`);
+  console.log(`profile-tags suite:           ${profileTagsResult.fail === 0 ? 'PASS' : 'FAIL'} (${profileTagsResult.pass} passed, ${profileTagsResult.fail} failed)`);
+  const publishLine = publishResult.skipped
+    ? `SKIP (${publishResult.skipped} tests; preconditions not met)`
+    : `${publishResult.fail === 0 ? 'PASS' : 'FAIL'} (${publishResult.pass} passed, ${publishResult.fail} failed)`;
+  console.log(`profile-tags-publish suite:   ${publishLine}`);
+
+  const overallOk = configOk && profileTagsResult.fail === 0 && publishResult.fail === 0;
+  console.log(`Overall:                      ${overallOk ? 'PASS' : 'FAIL'}`);
+  process.exit(overallOk ? 0 : 1);
+}
+
+main().catch((err) => {
+  console.error('Test runner crashed:', err);
+  process.exit(1);
+});
