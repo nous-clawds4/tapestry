@@ -290,6 +290,25 @@
             "categories": [
                 "tapestry"
             ]
+        },
+        {
+            "slug": "tag",
+            "dir": "./concepts/tag/",
+            "conceptHeader": "concept-header.json",
+            "jsonSchema": "json-schema.json",
+            "categories": [
+                "tag"
+            ]
+        },
+        {
+            "slug": "nostr-user-tag",
+            "dir": "./concepts/nostr-user-tag/",
+            "conceptHeader": "concept-header.json",
+            "jsonSchema": "json-schema.json",
+            "categories": [
+                "tag",
+                "nostr"
+            ]
         }
     ],
     "enumerations": {

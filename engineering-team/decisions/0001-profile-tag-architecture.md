@@ -15,7 +15,8 @@ Story 1 asks for the ability to apply categorical tags to user pubkeys with expl
 - `39998:<TA>:nostr-user` — exists; element schema requires `pubkey`, with optional `npub`, `nprofile`. No changes needed.
 
 **Constraints.**
-- The live firmware `tag` concept on this branch is at `firmware/versions-grapevine/v0.0.1/concepts/tag/` with a minimal schema (`slug` only; no `name`/`description`). The richer version with `applicableTo` lived briefly in `versions/v1.0.0/concepts/tag/` and was reverted. The story's UX (chip name + tooltip description + WoT-network filtering) requires the richer fields.
+- A minimal `tag` concept (slug-only) exists in `firmware/versions-grapevine/v0.0.1/concepts/tag/`. A richer version with `name`, `description`, and `applicableTo` lived briefly in `firmware/versions/v1.0.0/concepts/tag/` and was reverted in commit `08743b7e`. The story's UX (chip name + tooltip description + WoT-network filtering) requires the richer fields.
+- **`firmware/active` is a symlink to `firmware/versions/v1.0.0/`** — that is the only firmware tree the install pipeline (`POST /api/firmware/install`) reads from. Files placed in `versions-grapevine/v0.0.1/concepts/` are dormant until a separate manifest swap activates them. Therefore the new concept and the enriched `tag` schema must live in `firmware/versions/v1.0.0/concepts/` and be registered in `firmware/versions/v1.0.0/manifest.json`. *(This constraint was discovered during implementation; prior wording of this ADR placed both concepts in `versions-grapevine/`. Amended in place — see Implementation notes below.)*
 - No new lint/typecheck/build tooling per project rule.
 - JS-without-build front end; backend is plain Node/Express modules under `src/api/`.
 - Publishing flow must reuse `ui/src/utils/nostrPublish.js` (`publishEverywhere`, `publishToLocalStrfry`).
@@ -135,16 +136,22 @@ Why: it mirrors the precedent the story cites, keeps a single firmware concept, 
 **Follow-ups / debt:**
 - The story mentions in "Out of scope" that "relays already covered" by tagging — but `nostr-relay-tag` was reverted from `main`. After this story ships, relay tagging will need a separate re-introduction story. Not a blocker, but the story's framing is slightly out of date with reality. Flagged for PO awareness; no story rework needed.
 - The valence/interpretation arc remains a separate multi-story effort (per the prior design memo). v1 ships without weighted scoring.
-- A future story may want to lift `tag` (with `applicableTo`) from `versions-grapevine/` into `versions/v1.0.0/`. Not in scope here.
+- The original draft of this ADR proposed an `applicableTo` field on the `tag` schema as a soft hint about which concepts a tag is meant for. **Dropped during implementation** — nothing in this story consumes it (the `nostr-user-tag` event joins arbitrary tag↔target without consulting it, and the picker shows tags used by the WoT network rather than filtering by applicability). If a future story needs it as a constraint, re-introduce as its own ADR.
 - A future ADR may extend the firmware schema engine to source declared fields from event-tags directly, eliminating the JSON-mirror pattern.
 
 **Firmware reinstall required?** **Yes.** Two concept changes: enrich `tag` schema, add `nostr-user-tag` concept. Run `POST /api/firmware/install` after merging.
 
 ## Implementation notes
 
-### Firmware (in `firmware/versions-grapevine/v0.0.1/concepts/`)
+### Firmware (in `firmware/versions/v1.0.0/concepts/`)
 
-- **Enrich `tag/json-schema.json`** — add to the `tag` object: `name` (string, required), `description` (string, optional), `applicableTo` (array of concept slugs, optional). Keep `slug` required and `x-tapestry.unique = ["slug"]`. Story acceptance: this is the schema the UI will read for chip labels and tooltips. Update `tag/concept-header.json` description if needed.
+*(See "Constraints" above — the original draft of this ADR placed both concepts in `versions-grapevine/v0.0.1/concepts/`. That tree is dormant; `firmware/active` symlinks to `versions/v1.0.0/`, which is the only path the install pipeline reads. Both concepts must live here and be registered in `firmware/versions/v1.0.0/manifest.json`.)*
+
+- **Re-introduce `tag/`** (the `versions/v1.0.0/concepts/tag/` directory was deleted in commit `08743b7e` along with the relay-discovery feature; recreate it). Three files:
+  - `concept-header.json` — slug `tag`, oNames/oSlugs/oKeys/oTitles/oLabels in the standard form. The description from the deleted `08743b7e^` version is a fine reference template.
+  - `json-schema.json` — enriched with `name` (required) and `description` (optional) added to the `tag` object alongside the existing `slug`. Keep `slug` required and `x-tapestry.unique = ["slug"]`.
+  - `manifest.json` — empty `HAS_ELEMENT` and `IS_A_SUPERSET_OF` arrays.
+- **Register `tag` and `nostr-user-tag` in `firmware/versions/v1.0.0/manifest.json`** as two new entries in the `concepts` array.
 - **New concept directory `nostr-user-tag/`** with three files:
   - `concept-header.json` — slug `nostr-user-tag`, oNames/oSlugs/oKeys/oTitles/oLabels in the same style as the deleted `nostr-relay-tag` concept-header (template: `git show 08743b7e^:firmware/versions/v1.0.0/concepts/nostr-relay-tag/concept-header.json`). `oKeys.singular` should be `nostrUserTag`.
   - `json-schema.json` — the schema sketched in Option A (no polarity field).

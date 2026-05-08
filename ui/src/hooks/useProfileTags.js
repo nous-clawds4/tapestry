@@ -1,0 +1,160 @@
+import { useState, useEffect, useCallback } from 'react';
+import { publishEverywhere } from '../utils/nostrPublish';
+
+const TA_PUBKEY = '82b75e474dda005e912bcbb910391c60c2b89cc7faf5d3c30b7c59a324973833';
+const NOSTR_USER_TAG_HANDLE = `39998:${TA_PUBKEY}:nostr-user-tag`;
+const TAG_HANDLE = `39998:${TA_PUBKEY}:tag`;
+
+function slugify(name) {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+async function nip07Pubkey() {
+  if (!window.nostr) throw new Error('No NIP-07 extension detected. Install one to publish tags.');
+  return window.nostr.getPublicKey();
+}
+
+export default function useProfileTags(targetPubkey, viewerPubkey) {
+  const [availableTags, setAvailableTags] = useState([]);
+  const [applications, setApplications] = useState([]);
+  const [disputes, setDisputes] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [reloadKey, setReloadKey] = useState(0);
+
+  const refetch = useCallback(() => setReloadKey((k) => k + 1), []);
+
+  useEffect(() => {
+    if (!targetPubkey) return;
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+
+    (async () => {
+      try {
+        const [tagsResp, profileResp] = await Promise.all([
+          fetch('/api/profile-tags/available-tags').then((r) => r.json()),
+          fetch(`/api/profile-tags/tags-for-profile?pubkey=${targetPubkey}`).then((r) => r.json()),
+        ]);
+        if (cancelled) return;
+        if (!tagsResp.success) throw new Error(tagsResp.error || 'failed to load available tags');
+        if (!profileResp.success) throw new Error(profileResp.error || 'failed to load profile tags');
+        setAvailableTags(tagsResp.tags || []);
+        setApplications(profileResp.applications || []);
+        setDisputes(profileResp.disputes || []);
+      } catch (err) {
+        if (!cancelled) setError(err.message);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [targetPubkey, reloadKey]);
+
+  const buildAndPublishAssertion = useCallback(
+    async (tag, polarity) => {
+      const authorPk = await nip07Pubkey();
+      const dTag = `profile-tag-${tag.slug}-${targetPubkey.slice(0, 8)}-${authorPk.slice(0, 8)}`;
+      const unsigned = {
+        kind: 39999,
+        pubkey: authorPk,
+        created_at: Math.floor(Date.now() / 1000),
+        tags: [
+          ['d', dTag],
+          ['p', targetPubkey],
+          ['e', tag.eventId],
+          ['z', NOSTR_USER_TAG_HANDLE],
+          ['polarity', String(polarity)],
+        ],
+        content: JSON.stringify({
+          nostrUserTag: { taggedPubkey: targetPubkey, tagEventId: tag.eventId },
+        }),
+      };
+      const signed = await window.nostr.signEvent(unsigned);
+      await publishEverywhere(signed);
+      return signed;
+    },
+    [targetPubkey]
+  );
+
+  const applyTag = useCallback(
+    async (tag) => {
+      await buildAndPublishAssertion(tag, 1);
+      refetch();
+    },
+    [buildAndPublishAssertion, refetch]
+  );
+
+  const disputeTag = useCallback(
+    async (tag) => {
+      await buildAndPublishAssertion(tag, -1);
+      refetch();
+    },
+    [buildAndPublishAssertion, refetch]
+  );
+
+  const createTag = useCallback(
+    async ({ name, description }) => {
+      const authorPk = await nip07Pubkey();
+      const slug = slugify(name);
+      if (!slug) throw new Error('Tag name must contain at least one alphanumeric character.');
+      const unsigned = {
+        kind: 39999,
+        pubkey: authorPk,
+        created_at: Math.floor(Date.now() / 1000),
+        tags: [
+          ['d', slug],
+          ['z', TAG_HANDLE],
+        ],
+        content: JSON.stringify({
+          tag: { slug, name, description: description || '' },
+        }),
+      };
+      const signed = await window.nostr.signEvent(unsigned);
+      await publishEverywhere(signed);
+      refetch();
+      return { eventId: signed.id, slug, name, description: description || '' };
+    },
+    [refetch]
+  );
+
+  const revoke = useCallback(
+    async (eventId) => {
+      const authorPk = await nip07Pubkey();
+      const unsigned = {
+        kind: 5,
+        pubkey: authorPk,
+        created_at: Math.floor(Date.now() / 1000),
+        tags: [['e', eventId]],
+        content: 'revoked',
+      };
+      const signed = await window.nostr.signEvent(unsigned);
+      await publishEverywhere(signed);
+      refetch();
+    },
+    [refetch]
+  );
+
+  const myApplications = applications.filter((a) => a.authorPubkey === viewerPubkey);
+  const myDisputes = disputes.filter((d) => d.authorPubkey === viewerPubkey);
+
+  return {
+    availableTags,
+    applications,
+    disputes,
+    myApplications,
+    myDisputes,
+    loading,
+    error,
+    refetch,
+    applyTag,
+    disputeTag,
+    createTag,
+    revoke,
+  };
+}

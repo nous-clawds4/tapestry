@@ -490,6 +490,10 @@ async function register(app) {
     const { registerTapestryKeyRoutes } = require('./tapestry-key');
     registerTapestryKeyRoutes(app);
 
+    // ── Profile Tags API ──
+    const { registerProfileTagsRoutes } = require('./profile-tags');
+    registerProfileTagsRoutes(app);
+
     // Initialize router state (presets → state file → strfry config)
     await initRouter();
 

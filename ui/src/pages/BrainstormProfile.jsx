@@ -7,6 +7,7 @@ import { useProfileActions } from '../hooks/useProfileActions';
 import useUserCounts from '../hooks/useUserCounts';
 import ConfirmDialog from '../components/ConfirmDialog';
 import ReportModal from '../components/ReportModal';
+import ProfileTagPanel from '../components/ProfileTagPanel';
 
 /* ── Helpers ──────────────────────────────────────────── */
 
@@ -79,6 +80,7 @@ export default function BrainstormProfile() {
   const [trustLoading, setTrustLoading] = useState(true);
   const [trustError, setTrustError] = useState(null);
   const [reportModalOpen, setReportModalOpen] = useState(false);
+  const [tagPanelOpen, setTagPanelOpen] = useState(false);
 
   const {
     isFollowing, isMuted, hasReported,
@@ -239,38 +241,51 @@ export default function BrainstormProfile() {
             </div>
 
             {/* Action buttons */}
-            {showActions && (
-              <div className="bsp-actions">
-                <button
-                  className={`bsp-action-btn ${isFollowing ? 'bsp-action-active' : ''}`}
-                  onClick={isFollowing ? unfollow : follow}
-                  disabled={actionLoading !== null || isFollowing === null}
-                >
-                  {actionLoading === 'follow' || actionLoading === 'unfollow'
-                    ? 'Working\u2026'
-                    : isFollowing ? 'Unfollow' : 'Follow'}
-                </button>
+            <div className="bsp-actions">
+              {showActions && (
+                <>
+                  <button
+                    className={`bsp-action-btn ${isFollowing ? 'bsp-action-active' : ''}`}
+                    onClick={isFollowing ? unfollow : follow}
+                    disabled={actionLoading !== null || isFollowing === null}
+                  >
+                    {actionLoading === 'follow' || actionLoading === 'unfollow'
+                      ? 'Working\u2026'
+                      : isFollowing ? 'Unfollow' : 'Follow'}
+                  </button>
 
-                <button
-                  className={`bsp-action-btn bsp-action-mute ${isMuted ? 'bsp-action-active' : ''}`}
-                  onClick={isMuted ? unmute : mute}
-                  disabled={actionLoading !== null || isMuted === null}
-                >
-                  {actionLoading === 'mute' || actionLoading === 'unmute'
-                    ? 'Working\u2026'
-                    : isMuted ? 'Unmute' : 'Mute'}
-                </button>
+                  <button
+                    className={`bsp-action-btn bsp-action-mute ${isMuted ? 'bsp-action-active' : ''}`}
+                    onClick={isMuted ? unmute : mute}
+                    disabled={actionLoading !== null || isMuted === null}
+                  >
+                    {actionLoading === 'mute' || actionLoading === 'unmute'
+                      ? 'Working\u2026'
+                      : isMuted ? 'Unmute' : 'Mute'}
+                  </button>
 
-                <button
-                  className={`bsp-action-btn bsp-action-report ${hasReported ? 'bsp-action-reported' : ''}`}
-                  onClick={() => setReportModalOpen(true)}
-                  disabled={actionLoading !== null || hasReported === true}
-                >
-                  {hasReported ? 'Reported' : 'Report'}
-                </button>
+                  <button
+                    className={`bsp-action-btn bsp-action-report ${hasReported ? 'bsp-action-reported' : ''}`}
+                    onClick={() => setReportModalOpen(true)}
+                    disabled={actionLoading !== null || hasReported === true}
+                  >
+                    {hasReported ? 'Reported' : 'Report'}
+                  </button>
+                </>
+              )}
 
-                {actionError && <div className="bsp-action-error">{actionError}</div>}
-              </div>
+              <button
+                className={`bsp-action-btn bsp-action-tag ${tagPanelOpen ? 'bsp-action-active' : ''}`}
+                onClick={() => setTagPanelOpen((p) => !p)}
+              >
+                Tag
+              </button>
+
+              {actionError && <div className="bsp-action-error">{actionError}</div>}
+            </div>
+
+            {tagPanelOpen && (
+              <ProfileTagPanel targetPubkey={pubkey} viewerPubkey={user?.pubkey} />
             )}
 
             {/* About */}

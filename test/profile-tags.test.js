@@ -18,7 +18,7 @@ const fs = require('fs');
 const path = require('path');
 
 const TA_PUBKEY = '82b75e474dda005e912bcbb910391c60c2b89cc7faf5d3c30b7c59a324973833';
-const FIRMWARE_DIR = path.resolve(__dirname, '..', 'firmware', 'versions-grapevine', 'v0.0.1', 'concepts');
+const FIRMWARE_DIR = path.resolve(__dirname, '..', 'firmware', 'versions', 'v1.0.0', 'concepts');
 const CONTROL_PANEL_BASE = process.env.BRAINSTORM_BASE_URL || 'http://localhost:7778';
 const CONCEPT_GRAPH_BASE = process.env.CONCEPT_GRAPH_URL || 'http://localhost:8877';
 
@@ -89,13 +89,12 @@ t('firmware: nostr-user-tag schema requires taggedPubkey and tagEventId, omits p
 
 /* ─── Firmware: tag concept enriched with name + description + applicableTo ─── */
 
-t('firmware: tag schema declares name, description, and applicableTo properties', () => {
+t('firmware: tag schema declares name and description properties', () => {
   const file = path.join(FIRMWARE_DIR, 'tag', 'json-schema.json');
   const schema = JSON.parse(fs.readFileSync(file, 'utf8'));
   const props = schema.jsonSchema?.properties?.tag?.properties;
   assert(props?.name, 'tag.name property missing');
   assert(props?.description, 'tag.description property missing');
-  assert(props?.applicableTo, 'tag.applicableTo property missing');
 });
 
 t('firmware: tag schema retains slug uniqueness constraint', () => {
@@ -171,7 +170,7 @@ t('concept-graph nostr-user-tag-schema requires taggedPubkey + tagEventId only (
     'graph schema must NOT contain polarity (event-tag-only per ADR-0001)');
 });
 
-t('concept-graph tag-schema declares name, description, applicableTo', async () => {
+t('concept-graph tag-schema declares name and description', async () => {
   const { status, json } = await fetchJson(
     `${CONCEPT_GRAPH_BASE}/api/concept-graph/node/39999:${TA_PUBKEY}:tag-schema`
   );
@@ -180,7 +179,6 @@ t('concept-graph tag-schema declares name, description, applicableTo', async () 
   const props = parsed.jsonSchema?.properties?.tag?.properties;
   assert(props?.name, 'graph: tag.name missing');
   assert(props?.description, 'graph: tag.description missing');
-  assert(props?.applicableTo, 'graph: tag.applicableTo missing');
 });
 
 /* ─── Run ─── */

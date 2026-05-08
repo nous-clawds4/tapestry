@@ -21,18 +21,14 @@ test.describe('Profile tagging UI (Story 1)', () => {
   // Any valid 64-char hex pubkey is fine — we're testing affordances, not data.
   const TEST_PUBKEY = '82b75e474dda005e912bcbb910391c60c2b89cc7faf5d3c30b7c59a324973833';
 
-  test('profile page exposes a Tag action button alongside Follow / Mute / Report', async ({ page }) => {
+  test('profile page exposes a Tag action button on its action row', async ({ page }) => {
     await page.goto(`/user/${TEST_PUBKEY}`);
     await page.waitForLoadState('networkidle');
 
-    // Sanity: the existing action buttons are present, anchoring the assertion
-    // that Tag belongs in the same row.
-    await expect(page.getByRole('button', { name: /^follow$|^unfollow$/i }).first()).toBeVisible({ timeout: 10000 });
-    await expect(page.getByRole('button', { name: /^mute$|^unmute$/i }).first()).toBeVisible();
-    await expect(page.getByRole('button', { name: /^report$|^reported$/i }).first()).toBeVisible();
-
-    // The new affordance:
-    await expect(page.getByRole('button', { name: /^tag$/i }).first()).toBeVisible();
+    // Tag button must be visible regardless of auth state; Follow/Mute/Report
+    // are NIP-07-gated and Playwright runs unauthenticated, so we don't anchor
+    // on those.
+    await expect(page.getByRole('button', { name: /^tag$/i }).first()).toBeVisible({ timeout: 10000 });
   });
 
   test('clicking Tag opens a panel that exposes tag-application affordances', async ({ page }) => {

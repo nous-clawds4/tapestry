@@ -1,0 +1,50 @@
+{
+  "word": {
+    "slug": "json-schema-for-the-concept-of-nostr-user-tags",
+    "name": "JSON schema for the concept of nostr user tags",
+    "title": "JSON Schema for the Concept of Nostr User Tags",
+    "description": "the json schema for the concept of nostr user tags",
+    "wordTypes": ["word", "jsonSchema"],
+    "coreMemberOf": [
+      {
+        "slug": "concept-header-for-the-concept-of-nostr-user-tags",
+        "uuid": "<uuid>"
+      }
+    ]
+  },
+  "jsonSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "name": "nostr user tag",
+    "title": "Nostr User Tag",
+    "description": "JSON Schema for the concept of nostr user tags",
+    "required": ["nostrUserTag"],
+    "definitions": {},
+    "properties": {
+      "nostrUserTag": {
+        "type": "object",
+        "name": "nostr user tag",
+        "title": "Nostr User Tag",
+        "slug": "nostr-user-tag",
+        "description": "data about this nostr user tag assertion",
+        "required": ["taggedPubkey", "tagEventId"],
+        "properties": {
+          "taggedPubkey": {
+            "type": "string",
+            "name": "taggedPubkey",
+            "title": "Tagged Pubkey",
+            "slug": "tagged-pubkey",
+            "description": "The 64-char hex pubkey of the nostr user being tagged. Mirrors the event's `p` tag."
+          },
+          "tagEventId": {
+            "type": "string",
+            "name": "tagEventId",
+            "title": "Tag Event ID",
+            "slug": "tag-event-id",
+            "description": "The event ID of the kind 39999 tag element being applied. Mirrors the event's `e` tag."
+          }
+        }
+      }
+    }
+  }
+}

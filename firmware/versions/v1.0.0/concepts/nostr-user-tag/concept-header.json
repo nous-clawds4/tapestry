@@ -1,0 +1,21 @@
+{
+  "word": {
+    "slug": "concept-header-for-the-concept-of-nostr-user-tags",
+    "name": "concept header for the concept of nostr user tags",
+    "title": "Concept Header for the Concept of Nostr User Tags",
+    "wordTypes": ["word", "conceptHeader"]
+  },
+  "conceptHeader": {
+    "description": "A nostr-user-tag is an assertion that a specific nostr user (pubkey) belongs to a tag category. Each element links a target pubkey to a tag event ID (kind 39999 in the tag concept), with optional polarity expressed as an event-tag (1 = applied, -1 = disputed; absent = applied). Authors publish these assertions to express their opinion about which categories a profile fits or doesn't fit; aggregated across a web of trust, these assertions build reputation and power trust-weighted profile categorization.",
+    "oNames": { "singular": "nostr user tag", "plural": "nostr user tags" },
+    "oSlugs": { "singular": "nostr-user-tag", "plural": "nostr-user-tags" },
+    "oKeys": { "singular": "nostrUserTag", "plural": "nostrUserTags" },
+    "oTitles": { "singular": "Nostr User Tag", "plural": "Nostr User Tags" },
+    "oLabels": { "singular": "NostrUserTag", "plural": "NostrUserTags" },
+    "x-tapestry": {
+      "neo4j": {
+        "nodeLabelRequired": true
+      }
+    }
+  }
+}
