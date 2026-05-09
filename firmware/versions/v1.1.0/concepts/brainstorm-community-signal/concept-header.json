@@ -6,7 +6,7 @@
         "wordTypes": ["word", "conceptHeader"]
     },
     "conceptHeader": {
-        "description": "An endorsement or veto signal issued by a user for a target pubkey within the context of a specific Brainstorm Community. Mirror relays consume these signals via the GR Community scoring system to compute community membership. SKELETON — schema details may evolve before v1.1.0 is activated. See feat/communities/PLAN.md §3.",
+        "description": "An endorsement or veto signal issued by an author for a target pubkey within the context of a Brainstorm Community (referenced by `a` tag — either a NIP-72 kind 34550 or a native kind 39999 community-record). All such signals share a single global Endorsements DList. Mirror relays consume these signals via the GR Community scoring system to compute community membership. SKELETON — schema details may evolve before v1.1.0 is activated. See COMMUNITY_ENDORSEMENTS_DLIST.md for the canonical spec.",
         "oNames": { "singular": "brainstorm community signal", "plural": "brainstorm community signals" },
         "oSlugs": { "singular": "brainstorm-community-signal", "plural": "brainstorm-community-signals" },
         "oKeys": { "singular": "brainstormCommunitySignal", "plural": "brainstormCommunitySignals" },

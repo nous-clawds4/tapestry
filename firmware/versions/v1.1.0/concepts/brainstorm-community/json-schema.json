@@ -89,24 +89,6 @@
                         "slug": "founder",
                         "description": "Pubkey of the original founder. Informational only — has no special algorithmic privilege."
                     },
-                    "externalRef": {
-                        "type": "object",
-                        "name": "externalRef",
-                        "title": "External Reference",
-                        "slug": "external-ref",
-                        "description": "Optional reference to a wrapped external community (e.g., NIP-72).",
-                        "required": ["type", "aTag"],
-                        "properties": {
-                            "type": {
-                                "type": "string",
-                                "description": "External community type, e.g., 'nip72'."
-                            },
-                            "aTag": {
-                                "type": "string",
-                                "description": "Addressable event tag of the external community, e.g., '34550:<pubkey>:<d-tag>'."
-                            }
-                        }
-                    },
                     "relays": {
                         "type": "array",
                         "items": { "type": "string", "format": "uri" },

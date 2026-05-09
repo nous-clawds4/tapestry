@@ -77,14 +77,16 @@ When Alice joins Community X, her first step is to create her own community-reco
 
 ### DList Structure
 
-**Per user:**
+The data model has two scoping rules — **community-records are personal; endorsements are global.**
+
+**Per user (community-record layer):**
 
 - 1× `brainstorm-communities` DList — index of communities the user participates in.
+- 1× community record per community — a ListItem on the index, with metadata + engine config in its `json` tag. This item IS Alice's "community record event."
 
-**Per (user, community) pair:**
+**Globally scoped (endorsement layer):**
 
-- 1× community record — a ListItem on the index, with metadata + engine config in its `json` tag. This item IS Alice's "community record event."
-- 1× signals DList — Alice's endorsements and vetoes for that community, with the parent z-tag pointing at the community record's a-tag.
+- 1× Brainstorm Community Endorsements DList — collects member-issued endorsement and veto signals from every author across the network. Specified in [COMMUNITY_ENDORSEMENTS_DLIST.md](./COMMUNITY_ENDORSEMENTS_DLIST.md). Items are kind 39999 events that target a pubkey via `p` tag and reference the community via `a` tag; the per-(user, community) signals DList model considered earlier is superseded.
 
 ```
 Alice's brainstorm-communities DList   (kind 39998, d-tag: "brainstorm-communities")
@@ -93,19 +95,20 @@ Alice's brainstorm-communities DList   (kind 39998, d-tag: "brainstorm-communiti
   ├── ListItem: Alice's record of Community X   (kind 39999)
   │     • event tags = community metadata + engine config (DList layer — primary)
   │     • optional word-wrapper json tag (Concept layer — see §5)
-  │     ↑ z-tag
-  │     └── Signals DList for Community X   (kind 39998, d-tag: "signals/<community-slug>")
-  │           │  • header tags: names, schema declarations (required: p, type; allowed: comments)
-  │           │
-  │           └── ListItems (kind 39999): one per (target pubkey, signal)
-  │                 • event tags: p, type, comments (DList layer)
-  │                 • optional word-wrapper json (Concept layer)
   │
   ├── ListItem: Alice's record of Community Y
   │     ...
+
+Brainstorm Community Endorsements DList   (kind 39998, global, well-known canonical pubkey)
+  │  • header tags: required p, required a; recommended type, role; allowed comments
+  │
+  └── kind 39999 endorsement items, one per (author, target, community, role) tuple
+        • event tags: p (target), a (community), type, role, comments
+        • deterministic d-tag for replaceable "latest stance wins" semantics
+        • author can be anyone — endorsements are not scoped to any one user's DList
 ```
 
-Endorsements and vetoes share one DList. Each signal item carries a `["type", "endorse"|"veto"]` tag — same kind of signal, opposite sign. One subscription pattern for any mirror relay computing whitelists.
+Endorsement and veto signals share one global DList. Each signal item carries a `["type", "endorse"|"veto"]` tag and a `["role", "member"|"moderator"]` tag — both with sensible defaults. A mirror computing membership for any community runs a single filter (`kind: 39999, #z: <endorsements list>, #a: <community>`) and receives every relevant signal across the network. See [COMMUNITY_ENDORSEMENTS_DLIST.md](./COMMUNITY_ENDORSEMENTS_DLIST.md) for the full spec.
 
 ### Two Representation Layers
 
@@ -130,7 +133,7 @@ The `content` field on every event is left empty — reserved for future use (en
 | `["required", "name"]`, `["required", "description"]` | schema decl | display name + description |
 | `["required", "relay"]`, `["required", "seed"]` | schema decl | relay set, seed members |
 | `["required", "weighting_model"]`, `["required", "endorsement_threshold"]` | schema decl | scoring config |
-| `["allowed", "image"]`, `["allowed", "topic"]`, `["allowed", "language"]`, `["allowed", "founder"]`, `["allowed", "external_ref"]` | schema decl | optional metadata items may include |
+| `["allowed", "image"]`, `["allowed", "topic"]`, `["allowed", "language"]`, `["allowed", "founder"]`, `["allowed", "a"]` | schema decl | optional metadata items may include; `a` is for NIP-72 wrapping (companion NIP Method 2) |
 
 ### Community record (kind 39999 ListItem on the `brainstorm-communities` DList)
 
@@ -145,32 +148,15 @@ The `content` field on every event is left empty — reserved for future use (en
 | `["topic", "<topic>"]` (multi) | — | topical tags (custom; not `t` to avoid overloading the DList NIP item-declaration semantics) |
 | `["language", "<code>"]` | — | ISO 639-1 |
 | `["founder", "<pubkey>"]` | — | informational |
-| `["external_ref", "nip72", "<a-tag>"]` | — | for NIP-72 wrapping |
+| `["a", "34550:<creator>:<d-tag>"]` | — | for NIP-72 wrapping; bare standard a-tag, single wrap per record. Kind encoded in the a-tag value provides implicit type discrimination. Absent for native Brainstorm communities. See companion NIP Method 2. |
 | `["relay", "<url>"]` (multi) | ✅ | relay set |
 | `["seed", "<pubkey>"]` (multi) | ✅ | seed members |
 | `["weighting_model", "<id>"]` | ✅ | scoring system identifier; default `"gr-community-default-v1"` |
 | `["endorsement_threshold", "<num>"]` | ✅ | default `"0.5"` |
 
-### Per-community signals DList header (kind 39998)
+### Endorsement layer
 
-| Tag | Status | Notes |
-|---|---|---|
-| `["d", "signals/<community-slug>"]` | required | deterministic |
-| `["names", "membership signal", "membership signals"]` | required (per DList NIP) | |
-| `["description", "Endorsements and vetoes for <community>"]` | optional | |
-| `["required", "p"]` | schema decl | every signal targets a pubkey |
-| `["required", "type"]` | schema decl | endorse or veto |
-| `["allowed", "comments"]` | schema decl | optional reason |
-
-### Signal item (kind 39999 ListItem on the signals DList)
-
-| Tag | Required | Notes |
-|---|---|---|
-| `["d", "signal/<community-slug>/<short-hash>"]` | ✅ | unique per (user, community, target) |
-| `["z", "39998:<user-pubkey>:signals/<community-slug>"]` | ✅ | parent pointer |
-| `["p", "<target-pubkey>"]` | ✅ | item declaration — target of the signal |
-| `["type", "endorse"\|"veto"]` | ✅ | signal type |
-| `["comments", "<text>"]` | — | reason — uses DList NIP `comments` tag rather than a custom name |
+The endorsement layer (header + signal items) is specified in [COMMUNITY_ENDORSEMENTS_DLIST.md](./COMMUNITY_ENDORSEMENTS_DLIST.md). Summary: a single global Endorsements DList collects kind 39999 items carrying `p` (target), `a` (community), `type` (endorse/veto), `role` (member/moderator), and optional `comments`. D-tags are deterministic over (target, community, role) to give "latest stance wins" replaceability. Earlier per-(user, community) signals-DList drafts are superseded.
 
 ---
 
@@ -345,10 +331,11 @@ These don't block design or implementation but need a plan before public launch:
 
 | Item | Status |
 |------|--------|
-| Q1 — NIP-72 wrapping vs separate primitive | ✅ Decided: optional `external_ref` field, but Brainstorm and NIP-72 are distinct primitives in the firmware |
+| Q1 — NIP-72 wrapping vs separate primitive | ✅ Decided: optional standard `a` tag on the community record references the wrapped NIP-72 community (companion NIP Method 2). Brainstorm and NIP-72 remain distinct primitives in the firmware |
 | Q2 — What does a Community DO | ✅ Decided: self-curating set of members + relay substrate; content is a downstream emergent layer |
-| Data model (DList structure) | ✅ Decided: 1 index DList per user + 2 DLists per community (record as ListItem on index; signals DList) |
-| Endorsements vs vetoes structure | ✅ Decided: one signals DList per community, with polarity field |
+| Data model (DList structure) | ✅ Decided: per-user `brainstorm-communities` index DList (community-record layer) + single global Endorsements DList (signal layer); per-(user, community) signals DList plan superseded |
+| Endorsements vs vetoes structure | ✅ Decided: single global Endorsements DList per [COMMUNITY_ENDORSEMENTS_DLIST.md](./COMMUNITY_ENDORSEMENTS_DLIST.md); endorse/veto via `type` tag (default endorse), member/moderator via `role` tag (default member) |
+| Protocol-level NIP set | ✅ Decided: three documents — base [DECENTRALIZED_LISTS.md](./DECENTRALIZED_LISTS.md), companion [DECENTRALIZED_LISTS_COMPAT.md](./DECENTRALIZED_LISTS_COMPAT.md) for cross-NIP compatibility (incl. NIP-72), application spec [COMMUNITY_ENDORSEMENTS_DLIST.md](./COMMUNITY_ENDORSEMENTS_DLIST.md) |
 | Firmware additions | ✅ Decided: `brainstorm-community` + `brainstorm-community-signal` concepts |
 | GR Community scoring model | ✅ Decided: two-gate (baseline_GR × community_GR) confidence weighting |
 | GR scoring system identifier | ✅ Decided: `gr-community-default-v1` referenced via `weighting_model` field |

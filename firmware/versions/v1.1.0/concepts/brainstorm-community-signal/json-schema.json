@@ -17,7 +17,7 @@
         "type": "object",
         "name": "brainstormCommunitySignal",
         "title": "Brainstorm Community Signal",
-        "description": "JSON Schema for a Brainstorm Community signal item (endorsement or veto). See feat/communities/PLAN.md §3 for the field set.",
+        "description": "JSON Schema for a Brainstorm Community signal item (endorsement or veto). Items live on the single global Endorsements DList specified in COMMUNITY_ENDORSEMENTS_DLIST.md.",
         "required": ["brainstormCommunitySignal"],
         "definitions": {},
         "properties": {
@@ -28,7 +28,7 @@
                 "slug": "brainstorm-community-signal",
                 "alias": "brainstormCommunitySignal",
                 "description": "An endorsement or veto for a target pubkey within a community.",
-                "required": ["targetPubkey", "type"],
+                "required": ["targetPubkey", "communityATag"],
                 "properties": {
                     "targetPubkey": {
                         "type": "string",
@@ -37,13 +37,28 @@
                         "slug": "target-pubkey",
                         "description": "Pubkey of the person being endorsed or vetoed (mirrored as the event's `p` tag)."
                     },
+                    "communityATag": {
+                        "type": "string",
+                        "name": "communityATag",
+                        "title": "Community A-Tag",
+                        "slug": "community-a-tag",
+                        "description": "Addressable a-tag of the community this signal refers to. Either a kind 34550 NIP-72 community (`34550:<creator>:<d-tag>`) or a kind 39999 native Brainstorm community-record (`39999:<curator>:<d-tag>`). Mirrored as the event's `a` tag."
+                    },
                     "type": {
                         "type": "string",
-                        "enum": ["endorse", "veto"],
                         "name": "type",
                         "title": "Type",
                         "slug": "type",
-                        "description": "Signal polarity. v1 supports 'endorse' and 'veto'; the field is generic to allow future signal types."
+                        "default": "endorse",
+                        "description": "Signal polarity. Conventional values: 'endorse' or 'veto'. Defaults to 'endorse' when absent. Mirrored as the event's `type` tag."
+                    },
+                    "role": {
+                        "type": "string",
+                        "name": "role",
+                        "title": "Role",
+                        "slug": "role",
+                        "default": "member",
+                        "description": "The role being endorsed or vetoed. Conventional values: 'member' or 'moderator'; other values permitted by convention. Defaults to 'member' when absent. Mirrored as the event's `role` tag."
                     },
                     "comments": {
                         "type": "string",

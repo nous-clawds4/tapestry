@@ -7,6 +7,8 @@ We introduce the following event kinds: `9998` and `39998` for _list header decl
 
 _This NIP is agnostic regarding the choice of method or methods for list curation and spam prevention_. (But see below for a brief discussion.)
 
+_See also: [Decentralized Lists: Cross-NIP Compatibility](DECENTRALIZED_LISTS_COMPAT.md), a companion NIP describing how foreign event kinds can play list-item or list-header roles._
+
 ## Declarations of lists and list items
 
 There are two actions: declaration of a list, and declaration of a specific item that belongs to a given list.
