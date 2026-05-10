@@ -31,6 +31,8 @@ By default, a list header expects items to be kind `9999` or `39999` events. A l
 
 Multiple `item-kind` tags are listed individually, following the same convention as `required` and `allowed` in the base NIP. A list header that omits `item-kind` is taken to accept only the standard kinds (`9999`/`39999`).
 
+As with the base NIP's schema-declaration tags, an optional third element MAY be included on any `item-kind` tag to provide a brief human-readable description of the kind being accepted. For example: `["item-kind", "34550", "NIP-72 community-definition events"]`. The description is informational only and does not affect validation.
+
 The `item-kind` tag tells consumers which event kinds to query for when retrieving items on a list. Schema declarations on the header (`required`, `allowed`, `recommended`, `disallowed`) apply *additively* over whatever requirements the foreign kind already imposes by its own NIP — they do not override the foreign kind's own spec.
 
 ## Authorial voice

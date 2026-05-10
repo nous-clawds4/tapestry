@@ -23,6 +23,8 @@ Optional tags: `titles`, `slugs`, which also must have a singular form and a plu
 
 The list header `should` make use of `required` or `allowed` tags to indicate which child item types are expected. For example: `["required", "p"]` indicates that child item declarations must make use of the `p` tag. Each required or allowed tag must be listed individually, not packed together into a single tag. For example, use `["required", "foo"], ["required", "bar"]` rather than `["required", "foo", "bar"]`.
 
+An optional third element MAY be included on any of the `required`, `allowed`, `recommended`, or `disallowed` tags to provide a brief human-readable description of what the named tag represents. For example: `["required", "p", "Pubkey of the person being endorsed"]`, or `["allowed", "comments", "Optional textual reason"]`. The description is informational only and does not affect validation. Two-element forms remain valid; the third element is purely additive.
+
 If the list header is a kind `39998` replaceable event, it _must_ have a `d` tag as described in [NIP-01](https://github.com/nostr-protocol/nips/blob/master/01.md).
 
 ### Item declaration 
