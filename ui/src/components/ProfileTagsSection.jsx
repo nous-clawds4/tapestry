@@ -21,6 +21,7 @@ export default function ProfileTagsSection({ targetPubkey, viewerPubkey }) {
 
   const [busy, setBusy] = useState(false);
   const [dialog, setDialog] = useState(null); // 'add' | 'manage' | null
+  const [actionError, setActionError] = useState(null);
 
   const { displayedTags, appsByTagId, disputesByTagId, appliedTagEventIds } = useMemo(() => {
     const apps = new Map();
@@ -58,21 +59,31 @@ export default function ProfileTagsSection({ targetPubkey, viewerPubkey }) {
   const wrap = async (fn) => {
     if (busy) return;
     setBusy(true);
+    setActionError(null);
     try {
       await fn();
+    } catch (err) {
+      setActionError(err?.message || String(err));
+      // Re-throw so callers that want to react (e.g. AddTagDialog keeping
+      // itself open on failure) still see the error.
+      throw err;
     } finally {
       setBusy(false);
     }
   };
 
-  const handleApply = (tag) => wrap(() => applyTag(tag));
-  const handleDispute = (tag) => wrap(() => disputeTag(tag));
+  // Chip popover handlers: TagChip doesn't render a local error message, so
+  // we swallow the re-thrown rejection here — the section-level actionError
+  // banner is the single source of truth for these surfaces.
+  const handleApply = (tag) => wrap(() => applyTag(tag)).catch(() => {});
+  const handleDispute = (tag) => wrap(() => disputeTag(tag)).catch(() => {});
+  // Dialog handlers: AddTagDialog and ManageTagsDialog both catch the
+  // rejection and keep themselves open with an inline error on failure, so
+  // we leave the throw to propagate.
   const handleSelectExisting = (tag) => wrap(() => applyTag(tag));
   const handleCreateNew = ({ name, description }) =>
     wrap(async () => {
       const created = await createTag({ name, description });
-      // createTag already refetches; the next available-tags fetch will
-      // include the new tag; we apply it in the same flow.
       await applyTag(created);
     });
   const handleRevoke = (eventId) => wrap(() => revoke(eventId));
@@ -94,6 +105,7 @@ export default function ProfileTagsSection({ targetPubkey, viewerPubkey }) {
 
       {loading && <div className="bsp-tags-loading">Loading tags…</div>}
       {error && <div className="bsp-tags-error">⚠️ {error}</div>}
+      {actionError && <div className="bsp-tags-error">⚠️ {actionError}</div>}
 
       {!loading && !error && (
         <div className="bsp-tags-row">

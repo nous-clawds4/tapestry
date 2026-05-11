@@ -17,6 +17,23 @@ async function nip07Pubkey() {
   return window.nostr.getPublicKey();
 }
 
+/**
+ * Publish a signed event everywhere and throw if BOTH local and external
+ * publishes failed (matches the deleted relay-discovery precedent). Partial
+ * failure — local OK with external failing — is acceptable silent because
+ * the strfry router will redistribute later.
+ */
+async function publishOrThrow(signed) {
+  const result = await publishEverywhere(signed);
+  const localOk = result?.local?.success;
+  const externalOk = (result?.external?.successes?.length || 0) > 0;
+  if (!localOk && !externalOk) {
+    const reason = result?.local?.error || 'Publish failed on every relay.';
+    throw new Error(reason);
+  }
+  return result;
+}
+
 export default function useProfileTags(targetPubkey, viewerPubkey) {
   const [availableTags, setAvailableTags] = useState([]);
   const [applications, setApplications] = useState([]);
@@ -76,7 +93,7 @@ export default function useProfileTags(targetPubkey, viewerPubkey) {
         }),
       };
       const signed = await window.nostr.signEvent(unsigned);
-      await publishEverywhere(signed);
+      await publishOrThrow(signed);
       return signed;
     },
     [targetPubkey]
@@ -116,7 +133,7 @@ export default function useProfileTags(targetPubkey, viewerPubkey) {
         }),
       };
       const signed = await window.nostr.signEvent(unsigned);
-      await publishEverywhere(signed);
+      await publishOrThrow(signed);
       refetch();
       return { eventId: signed.id, slug, name, description: description || '' };
     },
@@ -125,16 +142,16 @@ export default function useProfileTags(targetPubkey, viewerPubkey) {
 
   const revoke = useCallback(
     async (eventId) => {
-      const authorPk = await nip07Pubkey();
+      const pubkey = await nip07Pubkey();
       const unsigned = {
         kind: 5,
-        pubkey: authorPk,
+        pubkey,
         created_at: Math.floor(Date.now() / 1000),
         tags: [['e', eventId]],
         content: 'revoked',
       };
       const signed = await window.nostr.signEvent(unsigned);
-      await publishEverywhere(signed);
+      await publishOrThrow(signed);
       refetch();
     },
     [refetch]

@@ -16,8 +16,8 @@ As a Brainstorm user viewing another user's profile, I want to apply or dispute 
 
 ## Acceptance criteria
 
-- [ ] Given I am viewing another user's profile, when the page loads, then a `Tag` action button is visible alongside `Follow`, `Mute`, and `Report`.
-- [ ] Given I click `Tag` on a profile, when the tagging interface opens, then I can (a) select from a list of tags already applied within my WoT network, or (b) create a new tag inline with a required name and optional description.
+- [ ] Given I am viewing another user's profile, when the page loads, then an inline `TAGS` section is visible between the action row and `About`, showing existing tag chips applied by my WoT network with an `Add` (`+`) affordance at the end of the chip row and a `Manage` link at the top right of the section.
+- [ ] Given I click the `Add` (`+`) affordance, when the dialog opens, then I can (a) select an existing tag via typeahead search over tags published on the relay (selection implicitly applies that tag), or (b) switch to a "Create new" tab to publish a new tag inline with a required name and optional description, after which the new tag is immediately applied.
 - [ ] Given I am applying a tag, when I confirm, then a signed assertion is published with explicit polarity `+` (positive: "this tag applies to this pubkey").
 - [ ] Given I am disputing a tag, when I confirm, then a signed assertion is published with explicit polarity `-` (negative: "this tag does NOT apply to this pubkey").
 - [ ] Given polarity is omitted from a published assertion, when consumers read it, then it is interpreted as `+` (default positive). Negative assertions must be explicit.

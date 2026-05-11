@@ -221,24 +221,20 @@ async function findTagsByNameSubstring(query) {
 }
 
 /**
- * Batch fetch profile docs from Meilisearch by primary key. Returns a Map
- * of pubkey → document (only contains docs that exist). Missing docs are
- * absent from the map.
+ * Fetch profile docs from Meilisearch by primary key. Returns a Map of
+ * pubkey → document; pubkeys with no Meili doc are absent from the map.
  *
- * Uses POST /indexes/profiles/documents/fetch which supports filter syntax,
- * with a small `id IN (...)` filter so we can pull many at once.
+ * Uses per-key GETs (`GET /indexes/profiles/documents/<pubkey>`), batched
+ * into chunks of `CHUNK` concurrent requests. Filter-based bulk fetch is
+ * not used because the `id` field is not declared filterable on the index.
  */
 async function meiliFetchProfilesByPubkey(pubkeys) {
   const out = new Map();
   if (!pubkeys || pubkeys.length === 0) return out;
   const unique = Array.from(new Set(pubkeys));
-  // Batch in chunks to keep URLs/bodies bounded.
   const CHUNK = 100;
   for (let i = 0; i < unique.length; i += CHUNK) {
     const batch = unique.slice(i, i + CHUNK);
-    // Try individual-document GETs (Meili's filter on `id` requires the field
-    // to be filterable, which it may not be). Per-key GETs are simple and
-    // tolerant.
     await Promise.all(
       batch.map(async (pk) => {
         try {
@@ -257,24 +253,20 @@ async function meiliFetchProfilesByPubkey(pubkeys) {
 }
 
 /**
- * GET /api/profile-tags/match?q=<>&povSuffix=<8char>&minRank=<n>
+ * Pure tag-match computation. For each tag whose name contains `q` as a
+ * case-insensitive substring, enumerate positive-polarity assertions from
+ * local strfry. If `povSuffix` AND a finite `minRank` are provided, filter
+ * assertions to authors whose `wot_rank_<povSuffix>` >= `minRank` (looked
+ * up against Meili profile docs). Otherwise (no POV configured) all
+ * positive assertions count.
  *
- * Search-time tag matching. For each tag whose name contains `q`,
- * enumerate positive-polarity assertions on local strfry. If `povSuffix`
- * and `minRank` are both provided, filter assertions to those authored
- * by pubkeys whose `wot_rank_<povSuffix>` >= minRank. Otherwise (no POV
- * configured), pass all positive assertions through.
- *
- * Returns: { success, query, povSuffix, minRank, matches: [{ pubkey, matchedTags: [{slug, name, eventId, count}] }] }.
- */
-/**
- * Pure tag-match computation, separate from the HTTP wrapper so the search
- * proxy can call it directly without a self-loopback round-trip.
+ * Exposed via `GET /api/profile-tags/match` (handleMatch) for direct
+ * callers, and consumed in-process by the meili search proxy.
  *
  * @param {object} opts
- * @param {string} opts.q          Search query (case-insensitive substring of tag name)
- * @param {string|null} opts.povSuffix  8-char POV suffix, or null/empty for no WoT filter
- * @param {number|null} opts.minRank    Min `wot_rank_<suffix>` to count, or null/NaN for no filter
+ * @param {string} opts.q                Search query
+ * @param {string|null} opts.povSuffix   8-char POV suffix, or null/empty for no WoT filter
+ * @param {number|null} opts.minRank     Min `wot_rank_<suffix>` to count, or null/NaN for no filter
  * @returns {Promise<{query, povSuffix, minRank, matches: Array<{pubkey, matchedTags}>}>}
  */
 async function computeTagMatches({ q, povSuffix, minRank }) {

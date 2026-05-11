@@ -15,12 +15,6 @@ const fs = require('fs');
 const path = require('path');
 const { computeTagMatches, meiliFetchProfilesByPubkey } = require('../../../profile-tags');
 
-// Internal wrapper so the proxy can compose tag-matching in parallel
-// without making a self-loopback HTTP request.
-async function handleTagMatchInternal({ q, povSuffix, minRank }) {
-  return computeTagMatches({ q, povSuffix, minRank });
-}
-
 // ── NIP-05 verification ──────────────────────────────────────────
 const NIP05_REGEX = /^(?:([\w.+-]+)@)?([\w_-]+(\.[\w_-]+)+)$/;
 const MEILI_URL = process.env.MEILI_URL || 'http://nostr-search-meili:7700';
@@ -201,7 +195,7 @@ async function handleMeiliSearchProfiles(req, res) {
     // at view time"). When povSuffix or rank filter is unset, tag-match
     // returns all positive assertions.
     const minRankFromFilters = filters?.rank?.min;
-    const tagMatchPromise = handleTagMatchInternal({
+    const tagMatchPromise = computeTagMatches({
       q: q.trim(),
       povSuffix,
       minRank: typeof minRankFromFilters === 'number' ? minRankFromFilters : null,

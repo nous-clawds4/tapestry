@@ -159,28 +159,39 @@ Why: it mirrors the precedent the story cites, keeps a single firmware concept, 
 
 ### Server API (in `src/api/profile-tags/index.js`)
 
-Three GET endpoints registered in `src/api/index.js`:
+Four GET endpoints registered in `src/api/index.js`:
 
-- `GET /api/profile-tags/available-tags` — returns kind 39999 elements `#z`'d to `39998:<TA>:tag` from local strfry. Each entry: `{ eventId, slug, name, description, applicableTo }`. Used by the picker UI.
-- `GET /api/profile-tags/tags-for-profile?pubkey=<hex>[&relays=...]` — fetch kind 39999 events `#z`'d to `39998:<TA>:nostr-user-tag` with `#p = pubkey`, from local strfry plus default external relays (mirror `DEFAULT_RELAYS` in the deleted `src/api/relay-discovery/index.js`). Returns `{ applications: [...], disputes: [...] }` where each entry has `{ eventId, authorPubkey, tagEventId, polarity, createdAt }`. Server reads polarity from the `["polarity", ...]` event-tag (defaulting `"1"` if absent), parses to a number, and buckets per the rules above (`>= 0.5` apply, `<= -0.5` dispute, otherwise neutral / not counted).
-- `GET /api/profile-tags/wot-tags?viewer=<hex>` — uses local strfry's author-indexed kind 39999 events with `#z = nostr-user-tag` filtered by `authors:[<viewer's WoT pubkey set>]`, returning the union of `tagEventId`s referenced. v1 may scope this to "all tagEventIds referenced anywhere on local strfry" if WoT-author-list lookup is non-trivial; the WoT filter is a follow-up. Acceptable per story acceptance criterion 2.
+- `GET /api/profile-tags/available-tags` — returns kind 39999 elements `#z`'d to `39998:<TA>:tag` from local strfry. Each entry: `{ eventId, slug, name, description }`. Used by the picker UI.
+- `GET /api/profile-tags/tags-for-profile?pubkey=<hex>` — fetch kind 39999 events `#z`'d to `39998:<TA>:nostr-user-tag` with `#p = pubkey` from local strfry. Returns `{ applications: [...], disputes: [...] }` where each entry has `{ eventId, authorPubkey, tagEventId, polarity, createdAt }`. Server reads polarity from the `["polarity", ...]` event-tag (defaulting `"1"` if absent), parses to a number, and buckets per the rules above (`>= 0.5` apply, `<= -0.5` dispute, otherwise neutral / not counted).
+- `GET /api/profile-tags/wot-tags?viewer=<hex>` — returns the union of `tagEventId`s referenced by `nostr-user-tag` assertions on local strfry. v1: no WoT-author filter (returns everything); WoT-author filtering is a follow-up.
+- `GET /api/profile-tags/match?q=<>&povSuffix=<8>&minRank=<n>` — query-time tag-match for the search proxy. Scans tag elements whose `name` contains `q` (case-insensitive substring), pulls positive-polarity assertions for those tags, filters authors by `wot_rank_<povSuffix> >= minRank` via batched Meili profile-doc lookups, and groups by target. `povSuffix`/`minRank` are optional — when unset (e.g., no house POV configured), the WoT filter is bypassed and all positive assertions count. Exposed for direct callers; also called in-process by the meili proxy.
 
-Use `runCypher` from `src/lib/neo4j-driver` and `SimplePool` via the existing pattern in the deleted `src/api/relay-discovery/index.js` (read it from git history at `08743b7e^` for reference).
+Local strfry is queried directly via `strfry scan` (shell-out). The router brings external-relay events into local strfry, so no in-process SimplePool call is needed in the implementation.
 
 ### UI
 
-- **Hook `ui/src/hooks/useProfileTags.js`** — fetches the three endpoints above, returns `{ availableTags, applications, disputes, loading, error, refetch }` and exposes `applyTag(tag)`, `disputeTag(tag)`, `revoke(eventId)` methods. Each method:
+- **Hook `ui/src/hooks/useProfileTags.js`** — fetches the API endpoints above, returns `{ availableTags, applications, disputes, myApplications, myDisputes, loading, error, refetch }` and exposes `applyTag(tag)`, `disputeTag(tag)`, `createTag({name, description})`, `revoke(eventId)` methods. Each publish method:
   - Builds an unsigned kind-39999 event per the wire shape in Option A. **The `["polarity", ...]` tag is always emitted explicitly by v1 publishers** (`"1"` for apply, `"-1"` for dispute) — story requirement.
   - Calls `window.nostr.signEvent(unsigned)`.
-  - Calls `publishEverywhere(signed)` from `ui/src/utils/nostrPublish.js`.
-  - Calls `importAddressableToNeo4j(signed)` if available; fire-and-forget.
+  - Calls `publishEverywhere(signed)` from `ui/src/utils/nostrPublish.js` and throws when both local and external relay publishing fail (so the UI can surface the error).
   - Calls `refetch()` on success.
   - `revoke(eventId)` publishes a kind-5 deletion event referencing the assertion id.
-- **Component `ui/src/components/ProfileTagPanel.jsx`** — adapts the deleted `RelayTagPanel.jsx` (read from `git show 08743b7e^:ui/src/pages/relay-discovery/RelayTagPanel.jsx`):
-  - Tag chip section: chips from `availableTags` filtered to those with ≥1 application or dispute on this pubkey. Each chip shows the WoT count and a popover (per the mockup) listing asserter avatars/names. Disputers are shown with a warning marker; no free-text rationale in v1.
-  - Inline tag-creation flow: when no matching tag exists in the picker, "Create new tag…" opens a small form (name required, description optional) that publishes a new kind 39999 `tag` element via NIP-07 first, then proceeds to apply it.
-  - "Manage" link: opens the same panel filtered to *my* assertions on this profile, each with a Revoke button.
-- **Modify `ui/src/pages/BrainstormProfile.jsx`** at the action-button row (around line 245–270): add a `Tag` button alongside Follow / Mute / Report that toggles a `<ProfileTagPanel />` mounted below the actions. Wire to existing `useAuth` for NIP-07 status.
+- **Inline `ui/src/components/ProfileTagsSection.jsx`** — renders a `TAGS` section inline on the profile between the action row and `About`. Header has a `Manage` link top-right. Chips for each tag with ≥1 application or dispute, plus an `Add` (`+`) affordance at the end of the chip row. Empty state shows a larger `+ Add the first tag` button.
+- **`ui/src/components/TagChip.jsx`** — chip with hover/focus/click-triggered popover. Popover shows the tag description, applied-by / disputed-by asserter lists, and Apply / Dispute buttons. Disputed-count > 0 shows a `(!)` warn badge on the chip.
+- **`ui/src/components/AddTagDialog.jsx`** — modal opened from `Add` (`+`). Two tabs: typeahead search over `availableTags` (selecting one implicitly applies it), and "Create new" (publishes a kind-39999 `tag` element, then applies it).
+- **`ui/src/components/ManageTagsDialog.jsx`** — modal opened from the `Manage` link. Lists the viewer's own assertions on this profile with Revoke buttons.
+- **Modify `ui/src/pages/BrainstormProfile.jsx`** to mount `<ProfileTagsSection targetPubkey={pubkey} viewerPubkey={user?.pubkey} />` directly after the existing action-button row.
+
+### Search integration (POV-aware, query-time)
+
+Folded into the existing Meili search proxy (`src/api/search/profiles/meili/index.js`). On each search request:
+
+1. Run the existing nostr-search-api / Meili name-match query (no change to its behavior).
+2. In parallel, call `computeTagMatches({ q, povSuffix, minRank })` from `src/api/profile-tags`. The proxy passes the same `povSuffix` it resolved for filters/sorts, and `minRank` from the active filters' rank threshold (`filters.rank.min`).
+3. Merge: name-matches first (Meili's text-relevance preserved), tag-only matches appended (deduped by pubkey). Each tag-bearing hit carries `_matchedTags` so the UI can render a chip.
+4. Tag-only targets without a Meili profile doc surface as minimal stub hits (`{ id, pubkey, _matchedTags }`) so the chip still renders.
+
+When `povSuffix` is unset (dev env without a configured house POV) the tag-match step degrades to returning all positive assertions — graceful, prod has the filter.
 
 ### Polarity defaulting helper
 
