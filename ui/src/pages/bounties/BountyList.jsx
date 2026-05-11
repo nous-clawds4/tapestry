@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Breadcrumbs from '../../components/Breadcrumbs';
 import { listBounties } from '../../api/bounties';
+import { capText, formatSats, maxRewardsText, rewardScopeLabel } from '../../utils/bountyTerms';
 
 function short(pk) { return pk ? pk.slice(0, 8) + '…' : '—'; }
 function age(ts) {
@@ -69,8 +70,10 @@ export default function BountyList() {
                 </div>
               </div>
               <div style={{ textAlign: 'right' }}>
-                <div style={{ color: '#f2a134', fontSize: '1.4rem', fontWeight: 700 }}>{b.amount_sats.toLocaleString()}</div>
-                <div style={{ fontSize: '0.7rem', opacity: 0.6, letterSpacing: '0.05em' }}>SATS</div>
+                <div style={{ color: '#f2a134', fontSize: '1.4rem', fontWeight: 700 }}>{formatSats(b.amount_sats)}</div>
+                <div style={{ fontSize: '0.7rem', opacity: 0.6, letterSpacing: '0.05em' }}>{rewardScopeLabel(b).toUpperCase()}</div>
+                <div style={{ fontSize: '0.75rem', opacity: 0.65, marginTop: '0.25rem' }}>{capText(b)}</div>
+                {maxRewardsText(b) && <div style={{ fontSize: '0.75rem', opacity: 0.65 }}>{maxRewardsText(b)}</div>}
                 <div style={{ marginTop: '0.4rem' }}>
                   <StatusBadge status={b.derivedStatus || b.status} />
                 </div>

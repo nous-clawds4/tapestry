@@ -13,6 +13,9 @@ export default function BountyNew() {
 
   const [listCoordinate, setListCoordinate] = useState(params.get('concept') || '');
   const [amountSats, setAmountSats] = useState(1000);
+  const [bountyCapSats, setBountyCapSats] = useState(1000);
+  const [rewardPerItem, setRewardPerItem] = useState(false);
+  const [maxRewardsPerNpub, setMaxRewardsPerNpub] = useState('');
   const [criteria, setCriteria] = useState('');
   const [expiration, setExpiration] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -24,8 +27,13 @@ export default function BountyNew() {
     }
   }, [authLoading, user, navigate]);
 
+  const amount = Number(amountSats);
+  const cap = Number(bountyCapSats);
+  const maxRewards = Number(maxRewardsPerNpub);
   const valid = COORDINATE_RE.test(listCoordinate)
-    && Number.isInteger(Number(amountSats)) && Number(amountSats) > 0
+    && Number.isInteger(amount) && amount > 0
+    && Number.isInteger(cap) && cap >= amount
+    && (!rewardPerItem || maxRewardsPerNpub === '' || (Number.isInteger(maxRewards) && maxRewards > 0))
     && criteria.trim().length > 0;
 
   async function handleSubmit(e) {
@@ -36,7 +44,10 @@ export default function BountyNew() {
     try {
       const row = await createBounty({
         listCoordinate,
-        amountSats: Number(amountSats),
+        amountSats: amount,
+        bountyCapSats: cap,
+        rewardPerItem,
+        maxRewardsPerNpub: rewardPerItem && maxRewardsPerNpub !== '' ? maxRewards : undefined,
         criteria: criteria.trim(),
         expiration: expiration ? Math.floor(new Date(expiration).getTime() / 1000) : undefined,
       });
@@ -71,7 +82,7 @@ export default function BountyNew() {
         </label>
 
         <label>
-          <div style={{ marginBottom: 4, fontWeight: 600 }}>Reward (sats)</div>
+          <div style={{ marginBottom: 4, fontWeight: 600 }}>Base reward (sats)</div>
           <input
             type="number"
             min={1}
@@ -82,6 +93,47 @@ export default function BountyNew() {
             style={{ width: '100%', padding: '0.5rem', background: '#0d1117', border: '1px solid #30363d', borderRadius: 4, color: '#c9d1d9' }}
           />
         </label>
+
+        <label>
+          <div style={{ marginBottom: 4, fontWeight: 600 }}>Bounty cap (sats)</div>
+          <input
+            type="number"
+            min={amount || 1}
+            step={1}
+            value={bountyCapSats}
+            onChange={e => setBountyCapSats(e.target.value)}
+            required
+            style={{ width: '100%', padding: '0.5rem', background: '#0d1117', border: '1px solid #30363d', borderRadius: 4, color: '#c9d1d9' }}
+          />
+          <small style={{ opacity: 0.6 }}>Total sats reserved for this bounty.</small>
+        </label>
+
+        <label style={{ display: 'flex', gap: '0.6rem', alignItems: 'flex-start' }}>
+          <input
+            type="checkbox"
+            checked={rewardPerItem}
+            onChange={e => setRewardPerItem(e.target.checked)}
+            style={{ marginTop: '0.2rem' }}
+          />
+          <span>
+            <span style={{ display: 'block', fontWeight: 600 }}>Reward each item</span>
+            <small style={{ opacity: 0.6 }}>Off means one base reward per contributor.</small>
+          </span>
+        </label>
+
+        {rewardPerItem && (
+          <label>
+            <div style={{ marginBottom: 4, fontWeight: 600 }}>Max rewards per contributor (optional)</div>
+            <input
+              type="number"
+              min={1}
+              step={1}
+              value={maxRewardsPerNpub}
+              onChange={e => setMaxRewardsPerNpub(e.target.value)}
+              style={{ width: '100%', padding: '0.5rem', background: '#0d1117', border: '1px solid #30363d', borderRadius: 4, color: '#c9d1d9' }}
+            />
+          </label>
+        )}
 
         <label>
           <div style={{ marginBottom: 4, fontWeight: 600 }}>Criteria</div>

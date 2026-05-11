@@ -4,6 +4,7 @@ import Breadcrumbs from '../../components/Breadcrumbs';
 import Bolt12Setup from '../../components/Bolt12Setup';
 import { useAuth } from '../../context/AuthContext';
 import { getPaymentsToMe } from '../../api/bounties';
+import { capText, formatSats, maxRewardsText, rewardScopeLabel } from '../../utils/bountyTerms';
 
 function short(pk) { return pk ? pk.slice(0, 8) + '…' : '—'; }
 function age(ts) {
@@ -97,8 +98,11 @@ function Row({ entry, kind }) {
             )}
           </div>
         </div>
-        <div style={{ color: '#f2a134', fontWeight: 700, whiteSpace: 'nowrap' }}>
-          {bounty.amount_sats.toLocaleString()} sats
+        <div style={{ color: '#f2a134', fontWeight: 700, whiteSpace: 'nowrap', textAlign: 'right' }}>
+          <div>{formatSats(bounty.amount_sats)} sats</div>
+          <div style={{ fontSize: '0.75rem', opacity: 0.7 }}>{rewardScopeLabel(bounty)}</div>
+          <div style={{ fontSize: '0.75rem', opacity: 0.7 }}>{capText(bounty)}</div>
+          {maxRewardsText(bounty) && <div style={{ fontSize: '0.75rem', opacity: 0.7 }}>{maxRewardsText(bounty)}</div>}
         </div>
       </div>
     </div>

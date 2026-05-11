@@ -4,6 +4,7 @@ import Breadcrumbs from '../../components/Breadcrumbs';
 import PaymentCode from '../../components/PaymentCode';
 import { getBounty } from '../../api/bounties';
 import { zapContributor } from '../../utils/zap';
+import { capText, formatSats, maxRewardsText, rewardScopeLabel } from '../../utils/bountyTerms';
 
 function short(pk) { return pk ? pk.slice(0, 8) + '…' : '—'; }
 function age(ts) {
@@ -121,11 +122,15 @@ export default function BountyDetail() {
       <div style={{ marginBottom: '1.5rem' }}>
         <div style={{ fontSize: '0.8rem', opacity: 0.55, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Bounty</div>
         <h1 style={{ margin: '0.2rem 0 0.4rem', color: '#f2a134' }}>
-          {bounty.amount_sats.toLocaleString()} sats
+          {formatSats(bounty.amount_sats)} sats
           <span style={{ fontSize: '0.8rem', marginLeft: '0.8rem', padding: '0.2rem 0.5rem', background: derived === 'open' ? '#2ea043' : '#8b949e', color: '#fff', borderRadius: 3, verticalAlign: 'middle' }}>
             {derived}
           </span>
         </h1>
+        <div style={{ fontSize: '0.85rem', opacity: 0.75, marginBottom: '0.35rem' }}>
+          {rewardScopeLabel(bounty)} / {capText(bounty)}
+          {maxRewardsText(bounty) && <span> / {maxRewardsText(bounty)}</span>}
+        </div>
         <div style={{ fontSize: '0.9rem', opacity: 0.85 }}>{bounty.criteria}</div>
         <div style={{ fontSize: '0.8rem', opacity: 0.6, marginTop: '0.4rem' }}>
           issued by <code>{short(bounty.issuer_pubkey)}</code> · {age(bounty.created_at)}

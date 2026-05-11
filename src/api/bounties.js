@@ -12,8 +12,7 @@ const {
   markFulfilled,
 } = require('../db/bounties');
 const { rank } = require('../lib/trust-rank');
-
-const COORDINATE_RE = /^(\d+):([0-9a-f]{64}):(.+)$/;
+const { normalizeBountyCreatePayload } = require('../lib/bounty-fields');
 
 function requireAuthed(req, res, next) {
   if (!req.session?.authenticated || !req.session?.pubkey) {
@@ -81,32 +80,16 @@ async function listClaimsFor(bounty, { trustFilter = true } = {}) {
 }
 
 async function handleCreateBounty(req, res) {
-  const { listCoordinate, amountSats, criteria, expiration } = req.body || {};
-
-  if (!listCoordinate || !COORDINATE_RE.test(listCoordinate)) {
-    return res.status(400).json({ success: false, error: 'listCoordinate must be <kind>:<pubkey>:<dtag>' });
-  }
-  const amt = Number(amountSats);
-  if (!Number.isInteger(amt) || amt <= 0) {
-    return res.status(400).json({ success: false, error: 'amountSats must be a positive integer' });
-  }
-  if (typeof criteria !== 'string' || !criteria.trim()) {
-    return res.status(400).json({ success: false, error: 'criteria is required' });
-  }
-  let exp = null;
-  if (expiration !== undefined && expiration !== null && expiration !== '') {
-    exp = Number(expiration);
-    if (!Number.isInteger(exp) || exp <= 0) {
-      return res.status(400).json({ success: false, error: 'expiration must be a unix timestamp' });
-    }
+  let payload;
+  try {
+    payload = normalizeBountyCreatePayload(req.body || {});
+  } catch (err) {
+    return res.status(err.statusCode || 400).json({ success: false, error: err.message });
   }
 
   const row = createBounty({
     issuerPubkey: req.session.pubkey,
-    listCoordinate,
-    amountSats: amt,
-    criteria: criteria.trim(),
-    expiration: exp,
+    ...payload,
   });
   res.json({ success: true, bounty: row });
 }

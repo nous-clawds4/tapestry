@@ -16,12 +16,28 @@ export async function getBounty(id) {
   return parseJsonOrThrow(resp);
 }
 
-export async function createBounty({ listCoordinate, amountSats, criteria, expiration }) {
+export async function createBounty({
+  listCoordinate,
+  amountSats,
+  bountyCapSats,
+  rewardPerItem,
+  maxRewardsPerNpub,
+  criteria,
+  expiration,
+}) {
   const resp = await fetch('/api/bounties', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
-    body: JSON.stringify({ listCoordinate, amountSats, criteria, expiration }),
+    body: JSON.stringify({
+      listCoordinate,
+      amountSats,
+      bountyCapSats,
+      rewardPerItem,
+      maxRewardsPerNpub,
+      criteria,
+      expiration,
+    }),
   });
   return (await parseJsonOrThrow(resp)).bounty;
 }
