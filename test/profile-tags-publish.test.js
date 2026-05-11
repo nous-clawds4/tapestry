@@ -19,6 +19,8 @@
 const { execSync } = require('child_process');
 
 const CONTROL_PANEL_BASE = process.env.BRAINSTORM_BASE_URL || 'http://localhost:7778';
+const MEILI_BASE = process.env.MEILI_URL_HOST || 'http://localhost:7700';
+const MEILI_INDEX = process.env.MEILI_INDEX || 'profiles';
 const TA_PUBKEY = '82b75e474dda005e912bcbb910391c60c2b89cc7faf5d3c30b7c59a324973833';
 const NOSTR_USER_TAG_HANDLE = `39998:${TA_PUBKEY}:nostr-user-tag`;
 const TAG_HANDLE = `39998:${TA_PUBKEY}:tag`;
@@ -89,6 +91,30 @@ async function fetchAvailableTags() {
   const r = await fetch(`${CONTROL_PANEL_BASE}/api/profile-tags/available-tags`);
   const json = await r.json().catch(() => null);
   return { status: r.status, json };
+}
+
+async function fetchMeiliSearch(q) {
+  const r = await fetch(`${CONTROL_PANEL_BASE}/api/search/profiles/meili?q=${encodeURIComponent(q)}`);
+  const json = await r.json().catch(() => null);
+  if (!r.ok || !json || json.success === false) {
+    throw new Error(`meili search returned status=${r.status} body=${JSON.stringify(json)}`);
+  }
+  return json;
+}
+
+async function meiliUpsertProfile(doc) {
+  // Upsert a single profile document directly. Reachable from host because
+  // nostr-search-meili exposes port 7700 in the dev stack.
+  const r = await fetch(`${MEILI_BASE}/indexes/${MEILI_INDEX}/documents`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify([doc]),
+  });
+  if (!r.ok) {
+    throw new Error(`meili upsert failed: ${r.status} ${await r.text()}`);
+  }
+  // Meili indexes asynchronously; give it a beat to settle.
+  await sleep(800);
 }
 
 function signProfileTagEvent({ tagSlug, tagEventId, targetPubkey, authorSk, authorPk, polarity }) {
@@ -209,6 +235,65 @@ t('overwriting the same d-tag with flipped polarity moves the entry between buck
   json = await fetchTagsForProfile(targetPk);
   assert((json.applications || []).length === 0, `after overwrite, expected 0 applications, got ${(json.applications || []).length}`);
   assert((json.disputes || []).length === 1, `after overwrite, expected 1 dispute, got ${(json.disputes || []).length}`);
+});
+
+t('typeahead search returns a profile tagged by a third-party author, with _matchedTags on the hit', async () => {
+  const { authorSk, authorPk } = ctx;
+  // Fresh tag with a deliberately unusual name so we don't collide with any
+  // real profile's name/display_name.
+  const tagSlug = `birb-test-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const tagName = tagSlug; // search query uses this verbatim
+
+  // Publish a brand-new tag concept element from the same author. Cannot reuse
+  // ctx.tagEventId because that one's `name` might already match other docs.
+  const tagEvent = nakSignEvent({
+    kind: 39999,
+    tags: [['d', tagSlug], ['z', TAG_HANDLE]],
+    content: JSON.stringify({
+      tag: { slug: tagSlug, name: tagName, description: 'integration-test tag for search flow' },
+    }),
+    privkey: authorSk,
+  });
+  const publishedTag = await publish(tagEvent);
+
+  // Target pubkey is independent — the searching client (this test) is NOT
+  // the asserter. The assertion comes from Author A; the test acts as a
+  // third-party searcher.
+  const targetPk = nakDerivePubkey(nakKeyGen());
+
+  // Seed a Meili profile doc for the target so the search proxy has
+  // enrichment data to return. Name is deliberately UNRELATED to the
+  // search query so the only reason this profile can appear in results
+  // is the tag match.
+  await meiliUpsertProfile({
+    id: targetPk,
+    pubkey: targetPk,
+    name: `ProfileTagsTest-${Date.now()}`,
+    display_name: `ProfileTagsTest-${Date.now()}`,
+  });
+
+  // Apply the tag (positive polarity) — author A → target T.
+  const assertion = signProfileTagEvent({
+    tagSlug,
+    tagEventId: publishedTag.id,
+    targetPubkey: targetPk,
+    authorSk,
+    authorPk,
+    polarity: 1,
+  });
+  await publish(assertion);
+  await sleep(PROPAGATION_MS);
+
+  // Search by the tag name. Searcher is unauthenticated — proxy falls back
+  // to whatever the house POV is (or no POV in dev).
+  const result = await fetchMeiliSearch(tagName);
+  const hit = (result.hits || []).find((h) => (h.pubkey || h.id) === targetPk);
+  assert(hit, `target ${targetPk.slice(0, 8)}… should appear in search results for "${tagName}"`);
+  assert(Array.isArray(hit._matchedTags), 'hit must carry _matchedTags array');
+  assert(
+    hit._matchedTags.some((t) => t.name === tagName),
+    `_matchedTags should include "${tagName}", got ${JSON.stringify(hit._matchedTags)}`
+  );
 });
 
 t('publishing a kind-5 deletion removes the asserted entry from the API response', async () => {

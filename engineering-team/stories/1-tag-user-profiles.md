@@ -26,6 +26,7 @@ As a Brainstorm user viewing another user's profile, I want to apply or dispute 
 - [ ] Given I revoke an assertion, when I confirm, then a deletion or replaceable-overwrite is published per Nostr conventions and the chip count updates.
 - [ ] Given the firmware `tag` concept currently scopes its applicability to nostr-relays, when this feature ships, then a sibling concept exists in firmware for `nostr-user-tag` (or equivalent) that mirrors the `nostr-relay-tag` pattern, and `tag` itself is generalized so it can be referenced from a `nostr-user-tag` element.
 - [ ] Given tag and profile-tag events conform to firmware list patterns, when published, then they are indexable by existing list-header/list-element infrastructure without bespoke parsing.
+- [ ] Given any author in the active PoV's WoT (default: house POV) has applied a tag to a profile, when I search the typeahead for a substring of that tag's name, then the tagged profile appears in the results (ranked below name-matches), and the matched tag is shown prominently on the result row. The searching user does not have to be the asserter — assertions by anyone in the active POV's WoT count.
 
 ## Concepts touched
 - `39998:82b75e474dda005e912bcbb910391c60c2b89cc7faf5d3c30b7c59a324973833:tag` — Tag (existing; may need scope generalization)

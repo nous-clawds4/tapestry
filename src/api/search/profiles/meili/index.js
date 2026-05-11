@@ -13,6 +13,13 @@ const NOSTR_SEARCH_URL = process.env.NOSTR_SEARCH_URL || 'http://nostr-search-ap
 
 const fs = require('fs');
 const path = require('path');
+const { computeTagMatches, meiliFetchProfilesByPubkey } = require('../../../profile-tags');
+
+// Internal wrapper so the proxy can compose tag-matching in parallel
+// without making a self-loopback HTTP request.
+async function handleTagMatchInternal({ q, povSuffix, minRank }) {
+  return computeTagMatches({ q, povSuffix, minRank });
+}
 
 // ── NIP-05 verification ──────────────────────────────────────────
 const NIP05_REGEX = /^(?:([\w.+-]+)@)?([\w_-]+(\.[\w_-]+)+)$/;
@@ -188,10 +195,25 @@ async function handleMeiliSearchProfiles(req, res) {
       url.searchParams.set('sort', `wot_${sort.metric}_${povSuffix}:${sort.direction || 'desc'}`);
     }
 
-    // ── Step 4: Forward to nostr-search-api (parallel with NIP-05 if active) ──
-    const [searchResponse, nip05Doc] = await Promise.all([
+    // ── Step 4: Forward to nostr-search-api (parallel with NIP-05 + tag-match) ──
+    // Tag-match runs at query time against local strfry + Meili author
+    // lookups; it filters by the active POV's WoT (see CLAUDE.md → "Filter
+    // at view time"). When povSuffix or rank filter is unset, tag-match
+    // returns all positive assertions.
+    const minRankFromFilters = filters?.rank?.min;
+    const tagMatchPromise = handleTagMatchInternal({
+      q: q.trim(),
+      povSuffix,
+      minRank: typeof minRankFromFilters === 'number' ? minRankFromFilters : null,
+    }).catch((err) => {
+      console.error(`[meili-proxy] tag-match failed: ${err.message}`);
+      return { matches: [] };
+    });
+
+    const [searchResponse, nip05Doc, tagMatchResult] = await Promise.all([
       fetch(url.toString()),
       nip05Promise.catch(() => null),
+      tagMatchPromise,
     ]);
 
     if (!searchResponse.ok) {
@@ -211,6 +233,42 @@ async function handleMeiliSearchProfiles(req, res) {
     if (nip05Result && data.hits) {
       const nip05Pubkey = nip05Result.pubkey || nip05Result.id;
       data.hits = data.hits.filter(h => (h.pubkey || h.id) !== nip05Pubkey);
+    }
+
+    // Merge tag-match hits AFTER name-match hits, deduped by pubkey.
+    // Name-match hits ranked first preserves Meili's text-relevance ordering.
+    if (tagMatchResult?.matches?.length > 0) {
+      const existingPubkeys = new Set(
+        (data.hits || []).map((h) => h.pubkey || h.id)
+      );
+      const matchesByPubkey = new Map(tagMatchResult.matches.map((m) => [m.pubkey, m]));
+
+      // Annotate name-match hits that ALSO match a tag (so the chip can show
+      // even when the name was the primary reason).
+      if (data.hits) {
+        for (const h of data.hits) {
+          const pk = h.pubkey || h.id;
+          const m = matchesByPubkey.get(pk);
+          if (m) h._matchedTags = m.matchedTags;
+        }
+      }
+
+      // For tag-match-only pubkeys (not already in name-match hits), fetch
+      // enriched Meili docs and append. Targets without a Meili doc still
+      // appear as minimal stub hits so the UI can render at least the chip.
+      const tagOnlyPubkeys = tagMatchResult.matches
+        .map((m) => m.pubkey)
+        .filter((pk) => !existingPubkeys.has(pk));
+
+      if (tagOnlyPubkeys.length > 0) {
+        const docs = await meiliFetchProfilesByPubkey(tagOnlyPubkeys);
+        const appended = tagOnlyPubkeys.map((pk) => {
+          const base = docs.get(pk) || { id: pk, pubkey: pk };
+          return { ...base, _matchedTags: matchesByPubkey.get(pk).matchedTags };
+        });
+        data.hits = (data.hits || []).concat(appended);
+        data.estimatedTotalHits = (data.estimatedTotalHits || 0) + appended.length;
+      }
     }
 
     // Count how many hits have scores for this POV

@@ -27,6 +27,8 @@ const { exec } = require('child_process');
 const TA_PUBKEY = '82b75e474dda005e912bcbb910391c60c2b89cc7faf5d3c30b7c59a324973833';
 const TAG_Z_TAG = `39998:${TA_PUBKEY}:tag`;
 const NOSTR_USER_TAG_Z_TAG = `39998:${TA_PUBKEY}:nostr-user-tag`;
+const MEILI_URL = process.env.MEILI_URL || 'http://nostr-search-meili:7700';
+const MEILI_INDEX = process.env.MEILI_INDEX || 'profiles';
 
 function isHexPubkey(v) {
   return typeof v === 'string' && /^[0-9a-f]{64}$/.test(v);
@@ -193,15 +195,176 @@ async function handleWotTags(req, res) {
   }
 }
 
+/**
+ * Find tag-element events whose tag.name contains `query` as a case-insensitive
+ * substring. Returns minimal metadata for each match.
+ */
+async function findTagsByNameSubstring(query) {
+  if (!query || !query.trim()) return [];
+  const q = query.trim().toLowerCase();
+  const events = await strfryScan({ kinds: [39999], '#z': [TAG_Z_TAG] });
+  const deduped = dedupeReplaceable(events);
+  const out = [];
+  for (const ev of deduped) {
+    const jsonTag = (ev.tags || []).find((t) => t[0] === 'json');
+    const raw = (jsonTag && jsonTag[1]) || ev.content;
+    if (!raw) continue;
+    let parsed;
+    try { parsed = JSON.parse(raw); } catch { continue; }
+    const t = parsed?.tag;
+    if (!t || !t.slug) continue;
+    const name = t.name || t.slug;
+    if (!name.toLowerCase().includes(q)) continue;
+    out.push({ eventId: ev.id, slug: t.slug, name, description: t.description || '' });
+  }
+  return out;
+}
+
+/**
+ * Batch fetch profile docs from Meilisearch by primary key. Returns a Map
+ * of pubkey → document (only contains docs that exist). Missing docs are
+ * absent from the map.
+ *
+ * Uses POST /indexes/profiles/documents/fetch which supports filter syntax,
+ * with a small `id IN (...)` filter so we can pull many at once.
+ */
+async function meiliFetchProfilesByPubkey(pubkeys) {
+  const out = new Map();
+  if (!pubkeys || pubkeys.length === 0) return out;
+  const unique = Array.from(new Set(pubkeys));
+  // Batch in chunks to keep URLs/bodies bounded.
+  const CHUNK = 100;
+  for (let i = 0; i < unique.length; i += CHUNK) {
+    const batch = unique.slice(i, i + CHUNK);
+    // Try individual-document GETs (Meili's filter on `id` requires the field
+    // to be filterable, which it may not be). Per-key GETs are simple and
+    // tolerant.
+    await Promise.all(
+      batch.map(async (pk) => {
+        try {
+          const r = await fetch(`${MEILI_URL}/indexes/${MEILI_INDEX}/documents/${pk}`);
+          if (r.ok) {
+            const doc = await r.json();
+            if (doc && (doc.id || doc.pubkey)) out.set(pk, doc);
+          }
+        } catch {
+          /* tolerate Meili unreachable in dev */
+        }
+      })
+    );
+  }
+  return out;
+}
+
+/**
+ * GET /api/profile-tags/match?q=<>&povSuffix=<8char>&minRank=<n>
+ *
+ * Search-time tag matching. For each tag whose name contains `q`,
+ * enumerate positive-polarity assertions on local strfry. If `povSuffix`
+ * and `minRank` are both provided, filter assertions to those authored
+ * by pubkeys whose `wot_rank_<povSuffix>` >= minRank. Otherwise (no POV
+ * configured), pass all positive assertions through.
+ *
+ * Returns: { success, query, povSuffix, minRank, matches: [{ pubkey, matchedTags: [{slug, name, eventId, count}] }] }.
+ */
+/**
+ * Pure tag-match computation, separate from the HTTP wrapper so the search
+ * proxy can call it directly without a self-loopback round-trip.
+ *
+ * @param {object} opts
+ * @param {string} opts.q          Search query (case-insensitive substring of tag name)
+ * @param {string|null} opts.povSuffix  8-char POV suffix, or null/empty for no WoT filter
+ * @param {number|null} opts.minRank    Min `wot_rank_<suffix>` to count, or null/NaN for no filter
+ * @returns {Promise<{query, povSuffix, minRank, matches: Array<{pubkey, matchedTags}>}>}
+ */
+async function computeTagMatches({ q, povSuffix, minRank }) {
+  if (!q || !q.trim()) {
+    return { query: '', povSuffix: povSuffix || null, minRank: null, matches: [] };
+  }
+  const suffix = (povSuffix && /^[0-9a-f]{8}$/.test(povSuffix)) ? povSuffix : null;
+  const minRankN = (suffix && Number.isFinite(Number(minRank))) ? Number(minRank) : null;
+  const wotFiltering = suffix && Number.isFinite(minRankN);
+
+  const tagMatches = await findTagsByNameSubstring(q);
+  if (tagMatches.length === 0) {
+    return { query: q, povSuffix: suffix, minRank: minRankN, matches: [] };
+  }
+  const tagById = new Map(tagMatches.map((t) => [t.eventId, t]));
+
+  const assertionEvents = await strfryScan({
+    kinds: [39999],
+    '#z': [NOSTR_USER_TAG_Z_TAG],
+    '#e': tagMatches.map((t) => t.eventId),
+  });
+  const deduped = dedupeReplaceable(assertionEvents);
+  const positive = deduped.filter((ev) => bucketize(readPolarity(ev)) === 'apply');
+
+  let authorAllowed = () => true;
+  if (wotFiltering) {
+    const authorPubkeys = Array.from(new Set(positive.map((ev) => ev.pubkey)));
+    const authorDocs = await meiliFetchProfilesByPubkey(authorPubkeys);
+    const rankField = `wot_rank_${suffix}`;
+    authorAllowed = (authorPk) => {
+      const doc = authorDocs.get(authorPk);
+      if (!doc) return false;
+      const r = doc[rankField];
+      return typeof r === 'number' && r >= minRankN;
+    };
+  }
+
+  const byTarget = new Map();
+  for (const ev of positive) {
+    if (!authorAllowed(ev.pubkey)) continue;
+    const pTag = (ev.tags || []).find((t) => t[0] === 'p');
+    const eTag = (ev.tags || []).find((t) => t[0] === 'e');
+    if (!pTag?.[1] || !eTag?.[1]) continue;
+    const targetPk = pTag[1];
+    const tagInfo = tagById.get(eTag[1]);
+    if (!tagInfo) continue;
+    let entry = byTarget.get(targetPk);
+    if (!entry) {
+      entry = { pubkey: targetPk, matchedTags: new Map() };
+      byTarget.set(targetPk, entry);
+    }
+    const prev = entry.matchedTags.get(tagInfo.eventId) || { ...tagInfo, count: 0 };
+    prev.count += 1;
+    entry.matchedTags.set(tagInfo.eventId, prev);
+  }
+
+  const matches = Array.from(byTarget.values()).map((m) => ({
+    pubkey: m.pubkey,
+    matchedTags: Array.from(m.matchedTags.values()),
+  }));
+
+  return { query: q, povSuffix: suffix, minRank: minRankN, matches };
+}
+
+async function handleMatch(req, res) {
+  try {
+    const result = await computeTagMatches({
+      q: req.query.q,
+      povSuffix: req.query.povSuffix,
+      minRank: req.query.minRank,
+    });
+    res.json({ success: true, ...result });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+}
+
 function registerProfileTagsRoutes(app) {
   app.get('/api/profile-tags/available-tags', handleAvailableTags);
   app.get('/api/profile-tags/tags-for-profile', handleTagsForProfile);
   app.get('/api/profile-tags/wot-tags', handleWotTags);
+  app.get('/api/profile-tags/match', handleMatch);
 }
 
 module.exports = {
   handleAvailableTags,
   handleTagsForProfile,
   handleWotTags,
+  handleMatch,
+  computeTagMatches,
+  meiliFetchProfilesByPubkey,
   registerProfileTagsRoutes,
 };

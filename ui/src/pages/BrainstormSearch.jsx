@@ -613,7 +613,34 @@ function getWotScore(hit, metric, povSuffix) {
 
 /* ── Result Card ──────────────────────────────────────── */
 
-function ResultCard({ hit, povSuffix }) {
+/**
+ * Render a small set of "matched tag" chips when this hit was surfaced
+ * because someone in the active PoV's WoT tagged the profile with a tag
+ * whose name matched the search query. Chips that contain the query
+ * substring are highlighted; others appear in a muted style.
+ */
+function MatchedTagChips({ matchedTags, query, className }) {
+  if (!matchedTags || matchedTags.length === 0) return null;
+  const q = (query || '').trim().toLowerCase();
+  return (
+    <span className={`bs-matched-tags ${className || ''}`}>
+      {matchedTags.map((t) => {
+        const hits = q && t.name.toLowerCase().includes(q);
+        return (
+          <span
+            key={t.eventId}
+            className={`bs-matched-tag ${hits ? 'bs-matched-tag-hit' : ''}`}
+            title={t.description || ''}
+          >
+            🏷 {t.name}
+          </span>
+        );
+      })}
+    </span>
+  );
+}
+
+function ResultCard({ hit, povSuffix, query }) {
   const name = hit.name || hit.display_name || 'Unknown';
   const picture = hit.picture;
   const banner = hit.banner;
@@ -653,6 +680,7 @@ function ResultCard({ hit, povSuffix }) {
                 </span>
               )}
             </div>
+            <MatchedTagChips matchedTags={hit._matchedTags} query={query} className="bs-result-matched-tags" />
             {nip05 && <div className="bs-result-nip05">{nip05}</div>}
             <div className="bs-result-pubkey">
               {npub ? `${npub.slice(0, 20)}…${npub.slice(-8)}` : `${(hit.pubkey || '').slice(0, 16)}…${(hit.pubkey || '').slice(-8)}`}
@@ -956,6 +984,7 @@ export default function BrainstormSearch() {
                       <div className="bs-suggest-info">
                         <span className="bs-suggest-name">{name}</span>
                         {nip05 && <span className="bs-suggest-nip05">{nip05}</span>}
+                        <MatchedTagChips matchedTags={hit._matchedTags} query={query} />
                       </div>
                       {getWotScore(hit, 'rank', activePovSuffix) != null && (
                         <span className="bs-suggest-rank">🏅 {getWotScore(hit, 'rank', activePovSuffix)}</span>
@@ -1159,7 +1188,7 @@ export default function BrainstormSearch() {
             {nip05Result && (
               <div className="bs-nip05-pinned">
                 <div className="bs-nip05-badge">✅ NIP-05 Verified</div>
-                <ResultCard hit={nip05Result} povSuffix={activePovSuffix} />
+                <ResultCard hit={nip05Result} povSuffix={activePovSuffix} query={query} />
               </div>
             )}
 
@@ -1167,7 +1196,7 @@ export default function BrainstormSearch() {
               {results
                 .filter(hit => !nip05Result || (hit.pubkey || hit.id) !== (nip05Result.pubkey || nip05Result.id))
                 .map(hit => (
-                  <ResultCard key={hit.pubkey || hit.id} hit={hit} povSuffix={activePovSuffix} />
+                  <ResultCard key={hit.pubkey || hit.id} hit={hit} povSuffix={activePovSuffix} query={query} />
                 ))}
             </div>
 
