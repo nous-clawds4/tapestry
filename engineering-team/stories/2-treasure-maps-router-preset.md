@@ -49,6 +49,6 @@ None at draft time. Design choices (preset name `treasureMaps`, the three relay 
 
 ## Linked artifacts
 
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/0002-treasure-maps-router-preset.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
