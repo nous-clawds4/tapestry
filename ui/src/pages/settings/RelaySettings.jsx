@@ -769,6 +769,7 @@ function TimestampPicker({ label, value, onChange, disabled }) {
 const KIND_PRESETS = [
   { label: 'DCoSL (9998, 9999, 39998, 39999)', kinds: [9998, 9999, 39998, 39999] },
   { label: 'Profiles (0)', kinds: [0] },
+  { label: 'Treasure Maps (10040)', kinds: [10040] },
   { label: 'WoT (3, 1984, 10000)', kinds: [3, 1984, 10000] },
   { label: 'All (no filter)', kinds: [] },
 ];
