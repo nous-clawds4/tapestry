@@ -131,6 +131,28 @@ These were unified at `0.05` during the [PREFERENCES_AUDIT §6.2 consolidation](
 
 Existing `verifiedFollowerCount` properties in Neo4j carry the value computed at the last batch run. Changing the cutoff in `/etc/graperank.conf` doesn't update the stored values until the next time the script runs.
 
+## Router Presets
+
+The strfry-router daemon syncs configurable streams of nostr events between this instance's local strfry and other relays. Streams are managed via two files plus a UI tab:
+
+| File | Role |
+|------|------|
+| `setup/router-presets.json` | Shipped preset definitions (in-repo, read-only). Each entry has `name`, `description`, `dir` (`down` \| `up` \| `both`), `filter`, `urls`, optional plugin paths, and `defaultEnabled`. |
+| `/var/lib/brainstorm/router-state.json` | Per-instance enabled/disabled state for each stream (on the `tapestry-data` Docker volume — persists across container rebuilds). |
+| `/etc/strfry-router-tapestry.config` | Generated config consumed by the strfry-router daemon. Rewritten on every toggle/restart. |
+
+The Router Management tab at `/tapestry/settings/relays` is the UI: it shows configured streams from `router-state.json`, and a **📋 Presets** button reveals additional presets from `router-presets.json` that haven't been added yet. Clicking "+ Add" on a preset inserts it into the operator's state with `enabled` matching its `defaultEnabled`; toggling enabled/disabled rewrites the daemon config and restarts `strfry-router` via `supervisorctl`.
+
+### Adding a new preset
+
+1. Append an entry to `setup/router-presets.json` following the existing shape. Use `defaultEnabled: false` unless there's a clear reason an arriving operator should start syncing immediately.
+2. Deploy. Operators discover the new preset via the **📋 Presets** button → "+ Add". This is the established pattern — see commit `bb4c83e7` for an example of two presets added this way.
+3. If documenting customer-facing impact, note that the preset is opt-in: existing instances won't start syncing the new kind(s) until an operator clicks Add and enables it.
+
+### Negentropy preset system (future work)
+
+The Negentropy Sync tab on the same page uses a hardcoded `KIND_PRESETS` array in `ui/src/pages/settings/RelaySettings.jsx`. Adding a kind is currently a code change (append one row). A future story ([engineering-team/stories/3-router-presets-auto-appear-in-streams.md](../engineering-team/stories/3-router-presets-auto-appear-in-streams.md) tracks a related router-preset UX improvement; a separate story will define a parallel **Negentropy preset system** mirroring how router presets work today — JSON-defined, opt-in, with the same Presets popup pattern). Until then, treat each Negentropy kind addition as a small one-line UI change.
+
 ## Settings API
 
 All endpoints require **Owner** authentication (NIP-07 login).
