@@ -1,17 +1,17 @@
 /**
- * Basic test for Brainstorm
- * 
- * This is a simple test to verify that the package is working correctly.
- * In a real-world scenario, you would use a testing framework like Jest or Mocha.
+ * Brainstorm test entry point. Runs in two phases:
+ *   1. Hand-rolled smoke tests (config loading).
+ *   2. Story-scoped test suites under test/*.test.js.
+ *
+ * Exit code is 0 only if every phase passes.
  */
 
 const { loadConfig } = require('../lib/config');
 
-// Mock environment variables for testing
+// Mock environment variables for the config smoke check
 process.env.BRAINSTORM_RELAY_URL = 'wss://test-relay.com';
 process.env.BRAINSTORM_RELAY_PUBKEY = 'test-pubkey';
 
-// Test configuration loading
 function testConfigLoading() {
   try {
     const config = loadConfig();
@@ -23,14 +23,30 @@ function testConfigLoading() {
   }
 }
 
-// Run tests
-console.log('Running Brainstorm tests...');
-const configTest = testConfigLoading();
+const treasureMaps = require('./treasure-maps-router-preset.test.js');
 
-console.log('\nTest Results:');
-console.log('-------------');
-console.log(`Configuration Loading: ${configTest ? 'PASS' : 'FAIL'}`);
-console.log(`Overall: ${configTest ? 'PASS' : 'FAIL'}`);
+async function main() {
+  console.log('Running Brainstorm tests...\n');
 
-// Exit with appropriate code
-process.exit(configTest ? 0 : 1);
+  const configOk = testConfigLoading();
+  console.log(`\nConfiguration Loading: ${configOk ? 'PASS' : 'FAIL'}\n`);
+
+  console.log('treasure-maps-router-preset suite:');
+  const treasureMapsResult = await treasureMaps.run();
+
+  console.log('\nTest Results');
+  console.log('-------------');
+  console.log(`Configuration Loading:                ${configOk ? 'PASS' : 'FAIL'}`);
+  console.log(
+    `treasure-maps-router-preset suite:    ${treasureMapsResult.fail === 0 ? 'PASS' : 'FAIL'} (${treasureMapsResult.pass} passed, ${treasureMapsResult.fail} failed)`
+  );
+
+  const overallOk = configOk && treasureMapsResult.fail === 0;
+  console.log(`Overall:                              ${overallOk ? 'PASS' : 'FAIL'}`);
+  process.exit(overallOk ? 0 : 1);
+}
+
+main().catch((err) => {
+  console.error('Test runner crashed:', err);
+  process.exit(1);
+});
