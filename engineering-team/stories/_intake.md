@@ -67,3 +67,63 @@ Append-only log of incoming requests, raw, with classification and chosen phase 
 **Classification:** Bug
 **Strictness:** Standard
 **Phase path:** Implementation → Review (Architecture skipped — obvious fix per Standard / Bug rules; intake captures the Architect's call inline above)
+
+---
+
+## 2026-05-14 — Profile-tag polish bundle: omni-search popup + POV correctness (next story: #7)
+
+**Context:** Stories 1–5 of the profile-tag stack shipped and are retired to `engineering-team/stories/done/`. Story 6 (tag-ux-polish) is open but mostly shipped via commit `1e5b3044`; only AC-5 (search-placeholder text mentions "tag") and possibly AC-4 (asserter list scrolls within max-height) remain. The user wants to "button up the feature" with a single bundle covering small fixes, polish, and a few correctness gaps surfaced during /discuss.
+
+**Scope agreed (intake conversation):**
+
+- **A — Tags as a result type in the root search LIVE POPUP** (NOT the Enter-results page; that goes to story #8 below). Click → `/tag/:slug/:tagId`. The data-plumbing exists (`computeTagMatches` in `src/api/profile-tags/index.js`); this story wires it into the autocomplete UI as a new result-row variant.
+- **D — Search placeholder text mentions "tag"** (inherits Story 6 AC-5: `"Search by name, bio, tag, NIP-05, website…"` or equivalent).
+- **E — WoT-author filter on `tags-for-profile`** (POV-correctness fix; documented in `engineering-team/follow-ups.md` as "WoT-author filter on profile TAGS chips"). The chip-row counts on profile pages are currently NOT POV-scoped — violates CLAUDE.md POV-first invariants.
+- **F — POV sweep across other read endpoints.** While fixing E, audit every remaining read endpoint in `src/api/profile-tags/index.js` and adjacent for POV-naive author counts. `wot-tags` is the obvious next candidate. Fix any others found; document any deferred.
+- **G — POV selector reachable from the upper-right avatar menu** — *conditional*. Only ship if pre-verified that switching POV from any page correctly re-derives all POV-dependent state (search filters, tag-detail rows, tagging-activity rows, post-E chip counts). If verification surfaces gaps, drop the AC and file the gaps as follow-ups. User context: "the POV selector below the main search field works properly. it could probably use a bit of a loading state, but otherwise is functional. only thing that could be good to add is putting it in the upper-right avatar menu, so you could switch pov from any page - as long as it actually works correctly everywhere when changed on the fly."
+- **Story 6 AC-4 verification.** Verify the asserter list in the chip popover scrolls within max-height on a profile with lots of asserters; surface as CHANGES_REQUESTED if not. (AC-1/2/3 already done via commit `1e5b3044`.)
+
+**Story 6 disposition:** When AC-5 ships via story #7, close out Story 6 (move to `stories/done/`).
+
+**Out of scope (deliberate; documented):**
+
+- Tag results in the Enter-results page → story #8 (next entry below).
+- Sort order coherence between popup and Enter-results page → story #8.
+- POV selector loading state → either story #8 or a tail-end fix-PR.
+- Agree/disagree framing UX normalization across tag surfaces → punted, remains in `engineering-team/follow-ups.md`.
+- `e` vs `a` wire-shape decision for nostr-user-tag → punted, remains in `engineering-team/follow-ups.md`.
+
+**Classification:** Feature
+**Strictness:** Standard
+**Phase path:** Planning → Architecture → Test Design → Implementation → Review (all five — bundle has multiple ACs, one of which (G) is architecturally non-trivial).
+
+---
+
+## 2026-05-14 — Search-result parity: popup ↔ Enter-results page (queued story: #8)
+
+**Context:** Tabled for after story #7 lands. The user wants the root search's live popup and its Enter-results page to be coherent: same results, same sort order, same affordances. Currently they diverge (different fetch paths / debounce / ranking — needs audit during Architect phase).
+
+**Scope agreed (intake conversation):**
+
+- **B — Live popup vs Enter-results page parity.** Same set of results in both surfaces; no divergence based on which path the user took. Tag results (added to the popup in story #7) carry over to the Enter-results page here.
+- **C — Sort order coherent across both surfaces.** Whatever ranking the popup uses, the results page uses identically.
+- **POV selector loading state polish.** Nice-to-have addition flagged in story #7's intake.
+
+**Architectural meat:** B is the biggest piece. Depending on what causes the divergence today (separate fetch paths? different debounce/threshold? different ranking algorithm? different POV resolution?), this may justify its own ADR that supersedes whichever earlier ADR set up the divergent paths. Architect phase will figure out the shape.
+
+**Out of scope:**
+
+- New result types beyond tags + profiles (NIP-05, etc.) — current set stays.
+- Pagination changes — orthogonal.
+
+**Classification:** Feature
+**Strictness:** Standard
+**Phase path:** Planning → Architecture → Test Design → Implementation → Review (all five — architectural change with parity guarantees that need test coverage).
+
+---
+
+## Session-handoff note (2026-05-14)
+
+If a fresh PO session sees this: the two entries above are the next two stories in order. Plan story #7 first (the bundle); story #8 follows after #7 ships. Story #8 is **already tabled** — its scope is captured here but no story file has been written yet. The user explicitly said "let's `/plan-feature` on 8 now, table it, and then `/plan-feature` on 7 and actually start on it" — so the intended order if you're picking up cold is: plan 8 → save 8 → plan 7 → drive 7 through phases → ship 7 → come back for 8.
+
+Also surfaced during the same session (parked, not for these stories): a `bin/dev-sync-ui.sh` one-liner for the local dev loop (see `engineering-team/follow-ups.md` "Local dev-loop polish"). And: a question about whether to use `e` vs `a` for the parent-tag reference in `nostr-user-tag` events (also in follow-ups).
