@@ -5183,3 +5183,86 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   color: var(--text-muted, #94a3b8);
   font-style: italic;
 }
+
+/* ── Tag-result rows in search (Story 7 / ADR-0006) ── */
+.bs-tag-result-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 0.75rem;
+  text-decoration: none;
+  color: var(--text-primary, #e2e8f0);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  transition: background 0.1s;
+}
+.bs-tag-result-row:hover {
+  background: rgba(165, 180, 252, 0.08);
+}
+.bs-tag-result-row:last-child {
+  border-bottom: none;
+}
+.bs-tag-result-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.4rem;
+  height: 1.4rem;
+  border-radius: 4px;
+  background: rgba(165, 180, 252, 0.18);
+  color: #c7d2fe;
+  font-weight: 700;
+  font-size: 0.85rem;
+  flex-shrink: 0;
+}
+.bs-tag-result-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+.bs-tag-result-name {
+  font-weight: 500;
+  color: var(--text-primary, #e2e8f0);
+  font-size: 0.9rem;
+}
+.bs-tag-result-desc {
+  font-size: 0.75rem;
+  color: var(--text-muted, #94a3b8);
+  margin-top: 0.15rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bs-tag-result-type {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #a5b4fc;
+  background: rgba(165, 180, 252, 0.12);
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+.bs-tag-result-row-results {
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  border: 1px solid rgba(165, 180, 252, 0.18);
+  background: rgba(165, 180, 252, 0.04);
+  margin-bottom: 0.5rem;
+}
+.bs-results-taghits {
+  margin: 0.5rem 0 1rem;
+}
+.bs-tag-result-more {
+  display: block;
+  padding: 0.5rem 0.75rem;
+  text-align: center;
+  font-size: 0.8rem;
+  color: #a5b4fc;
+  text-decoration: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  cursor: pointer;
+}
+.bs-tag-result-more:hover {
+  background: rgba(165, 180, 252, 0.08);
+}

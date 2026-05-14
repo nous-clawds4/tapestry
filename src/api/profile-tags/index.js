@@ -129,6 +129,17 @@ async function handleTagsForProfile(req, res) {
   }
 
   try {
+    // POV resolution per ADR-0006: optional wotPov + userPubkey query params.
+    // When a POV is configured, the WoT filter keeps only assertions whose
+    // author has wot_rank_<suffix> >= minRank. When no POV is configured,
+    // the filter is a no-op (backward-compat).
+    const { resolvePov } = require('../_shared/pov');
+    const { povSuffix, minRank } = resolvePov({
+      wotPov: req.query.wotPov || 'house',
+      userPubkey: req.query.userPubkey || null,
+    });
+    const wotFiltering = !!povSuffix && Number.isFinite(minRank);
+
     const events = await strfryScan({
       kinds: [39999],
       '#z': [NOSTR_USER_TAG_Z_TAG],
@@ -136,9 +147,24 @@ async function handleTagsForProfile(req, res) {
     });
 
     const deduped = dedupeReplaceable(events);
+
+    let authorAllowed = () => true;
+    if (wotFiltering) {
+      const authorPubkeys = Array.from(new Set(deduped.map((ev) => ev.pubkey)));
+      const authorDocs = await meiliFetchProfilesByPubkey(authorPubkeys);
+      const rankField = `wot_rank_${povSuffix}`;
+      authorAllowed = (authorPk) => {
+        const doc = authorDocs.get(authorPk);
+        if (!doc) return false;
+        const r = doc[rankField];
+        return typeof r === 'number' && r >= minRank;
+      };
+    }
+
     const applications = [];
     const disputes = [];
     for (const ev of deduped) {
+      if (!authorAllowed(ev.pubkey)) continue;
       const eTag = (ev.tags || []).find((t) => t[0] === 'e');
       const tagEventId = eTag ? eTag[1] : null;
       if (!tagEventId) continue;
@@ -157,36 +183,62 @@ async function handleTagsForProfile(req, res) {
       // neutral polarity (between -0.5 and 0.5) is intentionally dropped
     }
 
-    res.json({ success: true, pubkey, applications, disputes });
+    res.json({
+      success: true,
+      pubkey,
+      povSuffix: povSuffix || null,
+      minRank: Number.isFinite(minRank) ? minRank : null,
+      applications,
+      disputes,
+    });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
 }
 
 async function handleWotTags(req, res) {
-  const { viewer } = req.query;
-  if (!viewer || !isHexPubkey(viewer)) {
-    return res.status(400).json({
-      success: false,
-      error: 'viewer is required (64-char lowercase hex)',
-    });
-  }
-
+  // POV-param contract per ADR-0006. The legacy `viewer` query param is
+  // replaced by the standard wotPov + userPubkey pair used by the rest of
+  // the read stack. Endpoint has no current consumers; the swap is for
+  // symmetry with the other POV-aware endpoints.
   try {
+    const { resolvePov } = require('../_shared/pov');
+    const { povSuffix, minRank } = resolvePov({
+      wotPov: req.query.wotPov || 'house',
+      userPubkey: req.query.userPubkey || null,
+    });
+    const wotFiltering = !!povSuffix && Number.isFinite(minRank);
+
     const events = await strfryScan({
       kinds: [39999],
       '#z': [NOSTR_USER_TAG_Z_TAG],
     });
     const deduped = dedupeReplaceable(events);
+
+    let authorAllowed = () => true;
+    if (wotFiltering) {
+      const authorPubkeys = Array.from(new Set(deduped.map((ev) => ev.pubkey)));
+      const authorDocs = await meiliFetchProfilesByPubkey(authorPubkeys);
+      const rankField = `wot_rank_${povSuffix}`;
+      authorAllowed = (authorPk) => {
+        const doc = authorDocs.get(authorPk);
+        if (!doc) return false;
+        const r = doc[rankField];
+        return typeof r === 'number' && r >= minRank;
+      };
+    }
+
     const tagEventIds = new Set();
     for (const ev of deduped) {
+      if (!authorAllowed(ev.pubkey)) continue;
       const eTag = (ev.tags || []).find((t) => t[0] === 'e');
       if (eTag && eTag[1]) tagEventIds.add(eTag[1]);
     }
 
     res.json({
       success: true,
-      viewer,
+      povSuffix: povSuffix || null,
+      minRank: Number.isFinite(minRank) ? minRank : null,
       tagEventIds: Array.from(tagEventIds),
       count: tagEventIds.size,
     });
@@ -1032,6 +1084,7 @@ module.exports = {
   handleTagIndex,
   handleAuthoredBy,
   computeTagMatches,
+  findTagsByNameSubstring,
   meiliFetchProfilesByPubkey,
   registerProfileTagsRoutes,
 };

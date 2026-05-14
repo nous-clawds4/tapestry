@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useAuth } from '../context/AuthContext';
 import { publishProfileTagAssertion, publishOrThrow } from '../utils/publishProfileTag';
 
 const TA_PUBKEY = '82b75e474dda005e912bcbb910391c60c2b89cc7faf5d3c30b7c59a324973833';
@@ -17,6 +18,7 @@ async function nip07Pubkey() {
 }
 
 export default function useProfileTags(targetPubkey, viewerPubkey) {
+  const { user, loading: authLoading } = useAuth();
   const [availableTags, setAvailableTags] = useState([]);
   const [applications, setApplications] = useState([]);
   const [disputes, setDisputes] = useState([]);
@@ -28,15 +30,25 @@ export default function useProfileTags(targetPubkey, viewerPubkey) {
 
   useEffect(() => {
     if (!targetPubkey) return;
+    if (authLoading) return undefined;
     let cancelled = false;
     setLoading(true);
     setError(null);
+
+    // POV-aware fetch per ADR-0006: chip-row counts are now WoT-filtered.
+    const tagsForProfileParams = new URLSearchParams({ pubkey: targetPubkey });
+    if (user?.pubkey) {
+      tagsForProfileParams.set('wotPov', 'user');
+      tagsForProfileParams.set('userPubkey', user.pubkey);
+    } else {
+      tagsForProfileParams.set('wotPov', 'house');
+    }
 
     (async () => {
       try {
         const [tagsResp, profileResp] = await Promise.all([
           fetch('/api/profile-tags/available-tags').then((r) => r.json()),
-          fetch(`/api/profile-tags/tags-for-profile?pubkey=${targetPubkey}`).then((r) => r.json()),
+          fetch(`/api/profile-tags/tags-for-profile?${tagsForProfileParams}`).then((r) => r.json()),
         ]);
         if (cancelled) return;
         if (!tagsResp.success) throw new Error(tagsResp.error || 'failed to load available tags');
@@ -53,7 +65,7 @@ export default function useProfileTags(targetPubkey, viewerPubkey) {
     return () => {
       cancelled = true;
     };
-  }, [targetPubkey, reloadKey]);
+  }, [targetPubkey, reloadKey, authLoading, user?.pubkey]);
 
   const buildAndPublishAssertion = useCallback(
     (tag, polarity) => publishProfileTagAssertion({ tag, targetPubkey, polarity }),

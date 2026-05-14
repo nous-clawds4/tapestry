@@ -11,7 +11,13 @@
 // Override via NOSTR_SEARCH_URL env var if running outside Docker.
 const NOSTR_SEARCH_URL = process.env.NOSTR_SEARCH_URL || 'http://nostr-search-api:3069';
 
-const { computeTagMatches, meiliFetchProfilesByPubkey } = require('../../../profile-tags');
+const { computeTagMatches, findTagsByNameSubstring, meiliFetchProfilesByPubkey } = require('../../../profile-tags');
+
+// Story 7 / ADR-0006: tag-elements surface as a first-class result type in
+// the live popup AND the Enter-results page. Callers (popup vs results page)
+// pass different `tagLimit` values; the server clamps to TAG_HITS_LIMIT_MAX.
+const TAG_HITS_LIMIT_DEFAULT = 5;
+const TAG_HITS_LIMIT_MAX = 50;
 const { resolvePov } = require('../../../_shared/pov');
 
 // ── NIP-05 verification ──────────────────────────────────────────
@@ -140,7 +146,7 @@ async function handleMeiliSearchProfiles(req, res) {
       url.searchParams.set('sort', `wot_${sort.metric}_${povSuffix}:${sort.direction || 'desc'}`);
     }
 
-    // ── Step 4: Forward to nostr-search-api (parallel with NIP-05 + tag-match) ──
+    // ── Step 4: Forward to nostr-search-api (parallel with NIP-05 + tag-match + tag-hits) ──
     // Tag-match runs at query time against local strfry + Meili author
     // lookups; it filters by the active POV's WoT (see CLAUDE.md → "Filter
     // at view time"). When povSuffix or rank filter is unset, tag-match
@@ -155,10 +161,19 @@ async function handleMeiliSearchProfiles(req, res) {
       return { matches: [] };
     });
 
-    const [searchResponse, nip05Doc, tagMatchResult] = await Promise.all([
+    // Story 7 / ADR-0006: surface tag-elements as a result type in the
+    // response (separate from profile hits). Same query, different output
+    // — `findTagsByNameSubstring` returns the tag elements themselves.
+    const tagHitsPromise = findTagsByNameSubstring(q.trim()).catch((err) => {
+      console.error(`[meili-proxy] findTagsByNameSubstring failed: ${err.message}`);
+      return [];
+    });
+
+    const [searchResponse, nip05Doc, tagMatchResult, allTagMatches] = await Promise.all([
       fetch(url.toString()),
       nip05Promise.catch(() => null),
       tagMatchPromise,
+      tagHitsPromise,
     ]);
 
     if (!searchResponse.ok) {
@@ -219,6 +234,16 @@ async function handleMeiliSearchProfiles(req, res) {
     // Count how many hits have scores for this POV
     const wotCount = data.hits ? data.hits.filter(h => h[`wot_rank_${povSuffix}`] != null).length : 0;
 
+    // Story 7 / ADR-0006: apply tagLimit (default 5, clamped to max 50) and
+    // emit tagHitsHasMore so the popup can render the "Show more tags →"
+    // affordance accurately.
+    const tagLimitRaw = parseInt(req.query.tagLimit, 10);
+    const tagLimit = Number.isFinite(tagLimitRaw) && tagLimitRaw > 0
+      ? Math.min(tagLimitRaw, TAG_HITS_LIMIT_MAX)
+      : TAG_HITS_LIMIT_DEFAULT;
+    const tagHits = (allTagMatches || []).slice(0, tagLimit);
+    const tagHitsHasMore = (allTagMatches || []).length > tagLimit;
+
     return res.json({
       success: true,
       povSuffix,
@@ -226,6 +251,8 @@ async function handleMeiliSearchProfiles(req, res) {
       _wotCount: wotCount,
       _filtered: !!(filters && povSuffix),
       ...data,
+      tagHits,
+      tagHitsHasMore,
     });
   } catch (err) {
     console.error(`[meili-proxy] Failed to reach nostr-search-api: ${err.message}`);

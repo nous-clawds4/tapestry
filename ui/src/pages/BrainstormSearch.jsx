@@ -4,6 +4,7 @@ import { useConfig } from '../context/ConfigContext';
 import { useHouseProfile } from '../components/BrainstormUserMenu';
 import TopBar from '../components/TopBar';
 import SearchInput from '../components/SearchInput';
+import TagResultRow from '../components/TagResultRow';
 import { nip19 } from 'nostr-tools';
 
 /* ── Nostr identity detection ──────────────────────────── */
@@ -741,6 +742,11 @@ export default function BrainstormSearch() {
   const [suggestions, setSuggestions] = useState(null);
   const [suggestLoading, setSuggestLoading] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  // Story 7 / ADR-0006: tag-elements as a first-class result type in both
+  // the live popup and the Enter-results page.
+  const [popupTagHits, setPopupTagHits] = useState([]);
+  const [popupTagHitsHasMore, setPopupTagHitsHasMore] = useState(false);
+  const [resultsTagHits, setResultsTagHits] = useState([]);
   const suggestRef = useRef(null); // ref for click-outside detection
   const debounceRef = useRef(null);
   const inputRef = useRef(null);
@@ -750,7 +756,7 @@ export default function BrainstormSearch() {
   // Build the search URL — single function used by both doSearch and fetchSuggestions.
   // The server proxy is the single authority on filters, sort, and field naming.
   // Client only sends: q, limit, offset, wotPov, userPubkey.
-  function buildSearchUrl(queryStr, limit, offset) {
+  function buildSearchUrl(queryStr, limit, offset, opts = {}) {
     let url = `/api/search/profiles/meili?q=${encodeURIComponent(queryStr)}&limit=${limit}&offset=${offset}`;
 
     // Direct lookup: if query is a nostr identity (npub, hex pubkey, nprofile),
@@ -770,6 +776,12 @@ export default function BrainstormSearch() {
     url += `&wotPov=${pov === 'user' ? 'user' : 'house'}`;
     if (pov === 'user' && user?.pubkey) {
       url += `&userPubkey=${user.pubkey}`;
+    }
+
+    // Story 7 / ADR-0006: callers can ask the proxy for a larger tag-hits
+    // slice. Popup omits → server default of 5; results page passes 25.
+    if (typeof opts.tagLimit === 'number') {
+      url += `&tagLimit=${opts.tagLimit}`;
     }
     return url;
   }
@@ -794,7 +806,8 @@ export default function BrainstormSearch() {
     }
 
     try {
-      const url = buildSearchUrl(trimmed, RESULTS_PER_PAGE, offset);
+      // Results page asks for a larger tag-hits slice than the popup default.
+      const url = buildSearchUrl(trimmed, RESULTS_PER_PAGE, offset, { tagLimit: 25 });
       const resp = await fetch(url);
       const data = await resp.json();
 
@@ -818,8 +831,12 @@ export default function BrainstormSearch() {
 
       if (offset === 0) {
         setResults(data.hits || []);
+        // Story 7 / ADR-0006: tag-results on the Enter-results page.
+        setResultsTagHits(data.tagHits || []);
       } else {
         setResults(prev => [...(prev || []), ...(data.hits || [])]);
+        // tag-results don't paginate (their full set fits within tagLimit);
+        // keep what we already had.
       }
       setMeta({
         estimatedTotalHits: data.estimatedTotalHits || 0,
@@ -840,6 +857,8 @@ export default function BrainstormSearch() {
     if (trimmed.length < 2) {
       setSuggestions(null);
       setShowSuggestions(false);
+      setPopupTagHits([]);
+      setPopupTagHitsHasMore(false);
       return;
     }
     setSuggestLoading(true);
@@ -857,6 +876,9 @@ export default function BrainstormSearch() {
         setSuggestions(nip05 ? [{ ...nip05, _nip05Verified: true }, ...filtered] : filtered);
         setShowSuggestions(true);
         if (data.povSuffix) setActivePovSuffix(data.povSuffix);
+        // Story 7 / ADR-0006: capture tag-results for the popup.
+        setPopupTagHits(data.tagHits || []);
+        setPopupTagHitsHasMore(!!data.tagHitsHasMore);
       }
     } catch {
       // silently fail suggestions
@@ -952,9 +974,35 @@ export default function BrainstormSearch() {
             autoFocus
           >
             {/* Autocomplete dropdown */}
-            {showSuggestions && suggestions && suggestions.length > 0 && (
+            {showSuggestions && ((suggestions && suggestions.length > 0) || popupTagHits.length > 0) && (
               <div className="bs-suggest-dropdown">
-                {suggestions.map(hit => {
+                {/* Story 7 / ADR-0006: tag-results render first (above
+                    profiles). Click → tag-detail page. */}
+                {popupTagHits.map((tag) => (
+                  <TagResultRow
+                    key={tag.eventId}
+                    tag={tag}
+                    onClick={() => setShowSuggestions(false)}
+                    variant="popup"
+                  />
+                ))}
+                {popupTagHitsHasMore && (
+                  <a
+                    href="#"
+                    className="bs-tag-result-more"
+                    onMouseDown={(e) => {
+                      // Route to the Enter-results page for the current query
+                      // (same behavior as pressing Enter). Story 8 will close
+                      // the residual sort-coherence gap.
+                      e.preventDefault();
+                      setShowSuggestions(false);
+                      doSearch();
+                    }}
+                  >
+                    Show more tags →
+                  </a>
+                )}
+                {suggestions && suggestions.map(hit => {
                   const name = hit.name || hit.display_name || 'Unknown';
                   const nip05 = hit.nip05;
                   return (
@@ -1184,6 +1232,16 @@ export default function BrainstormSearch() {
               <div className="bs-nip05-pinned">
                 <div className="bs-nip05-badge">✅ NIP-05 Verified</div>
                 <ResultCard hit={nip05Result} povSuffix={activePovSuffix} query={query} />
+              </div>
+            )}
+
+            {/* Story 7 / ADR-0006: tag-results render above profiles on the
+                Enter-results page. Sort coherence with the popup is Story 8. */}
+            {resultsTagHits.length > 0 && (
+              <div className="bs-results-taghits">
+                {resultsTagHits.map((tag) => (
+                  <TagResultRow key={tag.eventId} tag={tag} variant="results" />
+                ))}
               </div>
             )}
 
