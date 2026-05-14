@@ -4,6 +4,33 @@ Append-only log of incoming requests, raw, with classification and chosen phase 
 
 ---
 
+## 2026-05-14 — Feature: Brainstorm Communities — Slice 0 (UI scaffold)
+
+**Raw request (verbatim):**
+
+> build out brainstorm communities. […] feat/communities branch is my playground that the repo owner (David Strayhorn) has created for me. Anything I push to that branch will show up on communities.brainstorm.world (he said there's a CI/CD pipeline that handles the deployment automatically). I have some handoff files - basically wireframes from claude design I can share with you to use as a starting point […] the look and feel of the UI needs to be top notch and modern - not a whiff of vibe coded app should be in there, so in that sense, use the wireframes as a starting point in the visual design.
+
+**Pre-intake context captured:**
+
+- Feature is sliced into 7 phases — see [`PLAN.md`](../../PLAN.md) §6/§8 and the locked decisions in user memory (`project_communities_v1_decisions.md`):
+  - **Slice 0** — `ui-communities/` scaffold + Neon-grounded brand palette + mock-data parity with handoff + `deploy-communities.yml` + Express mount **(this story)**
+  - Slice 1 — Firmware v1.1.0 activation (`brainstorm-community`, `brainstorm-community-signal`)
+  - Slice 2 — GR-Community scoring + REST API
+  - Slice 3 — Discover (read-only)
+  - Slice 4 — Detail + Join + Vouch (first write surface)
+  - Slice 5 — Found (5-step wizard)
+  - Slice 6 — Participate (kind-1 read/write gated on membership)
+- Design handoff at `design-handoff/project/` (HTML prototype + JSX components). Brand kit at `design-handoff/Brainstorm Logo/` (SVG/PNG, MuseoModerno variable fonts).
+- Locked palette (sampled from official PNGs, not the prototype's generic lavender): brand `#662d91`, accent `#ba20ba`, highlight `#fbb03b`. See `project_communities_brand.md` in user memory.
+- Code placement decision: new parallel `ui-communities/` Vite app, sibling to the existing `ui/`. Builds to its own dist; Express serves it for the `communities.brainstorm.world` subdomain.
+- Engineering-team harness applies per slice. User has granted blanket inter-phase approval for Slice 0 ("just get going on the plan and keep going").
+
+**Classification:** Feature
+**Strictness:** Standard
+**Phase path:** Planning → Architecture → Test Design → Implementation → Review (all five phases apply per Standard / Feature). Slice 0 stops short of any protocol writes; Slice 1+ pick those up.
+
+---
+
 ## 2026-05-13 — Scheduled task: refresh Meilisearch profiles + House PoV WoT scores
 
 **Raw request (verbatim):**

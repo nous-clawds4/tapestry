@@ -42,6 +42,10 @@ node_modules/
 jspm_packages/
 related-repositories
 
+# Local design-handoff bundle (Claude Design export — reference only).
+# Brand assets we actually need get vendored into ui-communities/ during build.
+design-handoff/
+
 # Playwright runtime artifacts
 test-results/
 playwright-report/
