@@ -28,6 +28,7 @@ const scheduledRefresh = require('./scheduled-search-and-house-scores-refresh.te
 const strfryRouterFirstBoot = require('./strfry-router-first-boot-config.test.js');
 const perQueryNeo4jTimeout = require('./per-query-neo4j-timeout-safety-net.test.js');
 const communitiesUiScaffold = require('./communities-ui-scaffold.test.js');
+const firmwareV110Finalization = require('./firmware-v1.1.0-finalization.test.js');
 
 async function main() {
   console.log('Running Brainstorm tests...\n');
@@ -50,6 +51,9 @@ async function main() {
   console.log('\ncommunities-ui-scaffold suite:');
   const communitiesUiScaffoldResult = await communitiesUiScaffold.run();
 
+  console.log('\nfirmware-v1.1.0-finalization suite:');
+  const firmwareV110FinalizationResult = await firmwareV110Finalization.run();
+
   console.log('\nTest Results');
   console.log('-------------');
   console.log(`Configuration Loading:                           ${configOk ? 'PASS' : 'FAIL'}`);
@@ -68,6 +72,9 @@ async function main() {
   console.log(
     `communities-ui-scaffold suite:                   ${communitiesUiScaffoldResult.fail === 0 ? 'PASS' : 'FAIL'} (${communitiesUiScaffoldResult.pass} passed, ${communitiesUiScaffoldResult.fail} failed)`
   );
+  console.log(
+    `firmware-v1.1.0-finalization suite:              ${firmwareV110FinalizationResult.fail === 0 ? 'PASS' : 'FAIL'} (${firmwareV110FinalizationResult.pass} passed, ${firmwareV110FinalizationResult.fail} failed)`
+  );
 
   const overallOk =
     configOk &&
@@ -75,7 +82,8 @@ async function main() {
     scheduledRefreshResult.fail === 0 &&
     strfryRouterFirstBootResult.fail === 0 &&
     perQueryNeo4jTimeoutResult.fail === 0 &&
-    communitiesUiScaffoldResult.fail === 0;
+    communitiesUiScaffoldResult.fail === 0 &&
+    firmwareV110FinalizationResult.fail === 0;
   console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);
   process.exit(overallOk ? 0 : 1);
 }

@@ -91,5 +91,5 @@ Resolved before story approval:
 ## Linked artifacts
 
 - ADR: [`engineering-team/decisions/0005-firmware-v1.1.0-finalization.md`](../decisions/0005-firmware-v1.1.0-finalization.md)
-- Test plan: `engineering-team/stories/7-firmware-v1.1.0-finalization.test-plan.md` (filled in by Tester)
+- Test plan: [`engineering-team/stories/7-firmware-v1.1.0-finalization.test-plan.md`](7-firmware-v1.1.0-finalization.test-plan.md)
 - Review: `engineering-team/reviews/7-firmware-v1.1.0-finalization.md` (filled in by Reviewer)
