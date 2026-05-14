@@ -26,6 +26,7 @@ function testConfigLoading() {
 const treasureMaps = require('./treasure-maps-router-preset.test.js');
 const scheduledRefresh = require('./scheduled-search-and-house-scores-refresh.test.js');
 const strfryRouterFirstBoot = require('./strfry-router-first-boot-config.test.js');
+const perQueryNeo4jTimeout = require('./per-query-neo4j-timeout-safety-net.test.js');
 
 async function main() {
   console.log('Running Brainstorm tests...\n');
@@ -42,6 +43,9 @@ async function main() {
   console.log('\nstrfry-router-first-boot-config suite:');
   const strfryRouterFirstBootResult = await strfryRouterFirstBoot.run();
 
+  console.log('\nper-query-neo4j-timeout-safety-net suite:');
+  const perQueryNeo4jTimeoutResult = await perQueryNeo4jTimeout.run();
+
   console.log('\nTest Results');
   console.log('-------------');
   console.log(`Configuration Loading:                           ${configOk ? 'PASS' : 'FAIL'}`);
@@ -54,12 +58,16 @@ async function main() {
   console.log(
     `strfry-router-first-boot-config suite:           ${strfryRouterFirstBootResult.fail === 0 ? 'PASS' : 'FAIL'} (${strfryRouterFirstBootResult.pass} passed, ${strfryRouterFirstBootResult.fail} failed)`
   );
+  console.log(
+    `per-query-neo4j-timeout-safety-net suite:        ${perQueryNeo4jTimeoutResult.fail === 0 ? 'PASS' : 'FAIL'} (${perQueryNeo4jTimeoutResult.pass} passed, ${perQueryNeo4jTimeoutResult.fail} failed)`
+  );
 
   const overallOk =
     configOk &&
     treasureMapsResult.fail === 0 &&
     scheduledRefreshResult.fail === 0 &&
-    strfryRouterFirstBootResult.fail === 0;
+    strfryRouterFirstBootResult.fail === 0 &&
+    perQueryNeo4jTimeoutResult.fail === 0;
   console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);
   process.exit(overallOk ? 0 : 1);
 }
