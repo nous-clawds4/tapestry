@@ -68,4 +68,4 @@ None at draft time — initial uncertainty (unset-PoV behavior, panel title, pre
 
 - ADR: `engineering-team/decisions/0003-scheduled-search-and-house-scores-refresh.md`
 - Test plan: `engineering-team/stories/4-scheduled-search-and-house-scores-refresh.test-plan.md`
-- Review: `engineering-team/reviews/4-scheduled-search-and-house-scores-refresh.md` (CHANGES_REQUESTED — wrong banner URL; one-line fix pending)
+- Review: `engineering-team/reviews/4-scheduled-search-and-house-scores-refresh.md` (PASS after one-line URL fix; see Re-review section)

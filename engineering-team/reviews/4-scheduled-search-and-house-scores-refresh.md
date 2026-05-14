@@ -95,7 +95,7 @@ Not applicable — no concept definitions touched, no firmware files modified. A
 
 3. **`tests/brainstorm/scheduled-search-and-house-scores-refresh.spec.js`** — The Playwright spec includes a banner-visibility test that would have caught Blocking #1 by clicking the link. Before promoting to staging, recommend running the spec once (`npx playwright install` then `BRAINSTORM_BASE_URL=http://localhost npm run test:playwright`).
 
-## Verdict
+## Verdict (initial)
 
 **CHANGES_REQUESTED**
 
@@ -106,3 +106,29 @@ One blocking issue (the wrong banner URL) breaks AC-9's intent. The fix is one l
 4. (Optional) tightening the test regex per Non-blocking #1,
 
 re-run `/review-changes` and this should be PASS-ready. The other 11 ACs are fully satisfied, the ADR's design is faithfully implemented, no scope creep, no regressions in the existing Owner pipeline (live-verified via API smoke).
+
+---
+
+## Re-review (post-fix)
+
+**Date:** 2026-05-13
+**Fix commit:** `7371d58b impl-fix: correct HousePovUnconfiguredBanner href + tighten test regex (review 4 Blocking #1)`
+
+**Changes applied:**
+1. `ui/src/pages/settings/RelaySettings.jsx:1380` — href corrected from `/home/my-grapevine/search-preferences` to `/tapestry/grapevine/search-preferences`. Verified against the actual route in `ui/src/App.jsx:230` (`{ path: 'search-preferences' }` nested under `{ path: 'grapevine' }` under the `tapestry` parent) and `ui/src/components/Layout.jsx:37`.
+2. `test/scheduled-search-and-house-scores-refresh.test.js:173-180` — banner-URL assertion tightened from a permissive substring match (`/Search Preferences|search-preferences|grapevine\/search/i`) to a strict path match (`/\/tapestry\/grapevine\/search-preferences/`) — Non-blocking #1 from the initial review. The stricter regex would NOT match the previously-shipped wrong URL, so this exact class of typo cannot recur silently.
+
+**Quality gates (re-run):**
+- `npm test` — **PASS**. 12/12 in the scheduled-search-and-house-scores-refresh suite, 5/5 in the treasure-maps suite, Configuration Loading PASS, Overall PASS.
+- Source verified at `ui/src/pages/settings/RelaySettings.jsx:1380` — only one `search-preferences` occurrence and it's the corrected one.
+- UI bundle rebuilt (`✓ built in 20.14s` → `dist/assets/index-BtapSows.js`); rebuilt bundle contains the corrected URL and does **not** contain the previous wrong URL.
+
+**Non-blocking #2 (loader error wording)** — not addressed in this fix. Tracked as cosmetic; can fold into a future doc / DX pass if desired. Does not affect verdict.
+
+**Non-blocking #3 (Playwright headless install)** — still applies. Recommended to install (`npx playwright install`) before the staging promotion so the spec's banner-visibility test exercises the live route. Does not block this PASS verdict because the unit test now strictly validates the URL string.
+
+## Verdict (final)
+
+**PASS**
+
+All 12 ACs satisfied. Blocking #1 fixed; the corresponding test is now strict enough to prevent recurrence. ADR design faithfully implemented; no scope creep; no regressions in the Owner pipeline (live-verified via API smoke during cycle-local). Diff is mergeable as-is. Recommended next step: open a PR from `feat/scheduled-search-and-house-scores-refresh` → `staging` and follow the `cycle-staging` → `cycle-prod` promotion path. Before staging, recommend a one-time `npx playwright install` so the Playwright spec runs on the local stack as additional defense-in-depth.
