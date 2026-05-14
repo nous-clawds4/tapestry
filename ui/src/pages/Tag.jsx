@@ -2,6 +2,10 @@ import React, { useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
 import TopBar from '../components/TopBar';
+import TagPageRow from '../components/TagPageRow';
+import TagPageSearch from '../components/TagPageSearch';
+import { useAuth } from '../context/AuthContext';
+import { publishProfileTagAssertion } from '../utils/publishProfileTag';
 import useTagDetail from '../hooks/useTagDetail';
 
 // Display fallback when we don't have a kind-0 profile for this pubkey: a
@@ -26,10 +30,23 @@ const SORT_LABELS = [
 export default function Tag() {
   const { tagId, slug } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const {
-    tag, author, rows, sort, setSort,
+    tag, author, rows, viewerAssertions, sort, setSort,
     headerLoading, rowsLoading, headerError, rowsError,
+    refetchRows,
   } = useTagDetail(tagId);
+
+  const handleApply = async (targetPubkey) => {
+    if (!tag) return;
+    await publishProfileTagAssertion({ tag, targetPubkey, polarity: 1 });
+    refetchRows();
+  };
+  const handleDispute = async (targetPubkey) => {
+    if (!tag) return;
+    await publishProfileTagAssertion({ tag, targetPubkey, polarity: -1 });
+    refetchRows();
+  };
 
   // Canonicalize: bare /tag/:tagId → /tag/:slug/:tagId once the tag loads.
   useEffect(() => {
@@ -111,45 +128,26 @@ export default function Tag() {
                   <strong>{tag.name}</strong> yet.
                 </p>
               )}
+              {user && tag && (
+                <TagPageSearch
+                  user={user}
+                  viewerAssertions={viewerAssertions}
+                  onApply={handleApply}
+                  onDispute={handleDispute}
+                />
+              )}
+
               {!rowsLoading && rows.length > 0 && (
                 <ul className="bs-tag-row-list">
                   {rows.map((row) => (
-                    <li key={row.pubkey} className="bs-tag-row">
-                      <Link
-                        to={`/user/${row.pubkey}`}
-                        className="bs-tag-row-link"
-                      >
-                        {row.picture ? (
-                          <img
-                            className="bs-tag-row-avatar"
-                            src={row.picture}
-                            alt=""
-                          />
-                        ) : (
-                          <span
-                            className="bs-tag-row-avatar bs-tag-row-avatar-placeholder"
-                            aria-hidden="true"
-                          />
-                        )}
-                        <span className="bs-tag-row-name">
-                          {row.displayName || shortNpub(row.pubkey)}
-                        </span>
-                        <span className="bs-tag-row-counts">
-                          <span
-                            className="bs-tag-count bs-tag-count-apply"
-                            title="Applications in your POV's WoT"
-                          >
-                            +{row.applications}
-                          </span>
-                          <span
-                            className="bs-tag-count bs-tag-count-dispute"
-                            title="Disputes in your POV's WoT"
-                          >
-                            −{row.disputes}
-                          </span>
-                        </span>
-                      </Link>
-                    </li>
+                    <TagPageRow
+                      key={row.pubkey}
+                      row={row}
+                      viewerState={viewerAssertions[row.pubkey] || null}
+                      showActions={!!user}
+                      onApply={handleApply}
+                      onDispute={handleDispute}
+                    />
                   ))}
                 </ul>
               )}

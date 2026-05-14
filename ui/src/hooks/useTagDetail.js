@@ -1,16 +1,19 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 
 /**
- * Hook for the Tag-detail page (Story 2 / ADR-0002).
+ * Hook for the Tag-detail page (Story 2 / ADR-0002, extended by Story 3 /
+ * ADR-0004).
  *
  * Fetches the tag header (`/api/profile-tags/by-id`) immediately on mount —
  * no auth dependency. Fetches the WoT-filtered rows
  * (`/api/profile-tags/profiles-tagged`) only after the auth bootstrap has
  * settled, so a fresh page-load doesn't race the POV decision.
  *
- * Sort changes trigger a re-fetch of the rows section only; the header
- * doesn't flicker.
+ * When the viewer is logged in, the hook threads `viewerPubkey` to the
+ * server so the response includes a `viewerAssertions` map and per-row
+ * `onlyViewerVisible` flag (ADR-0004 viewer-union). `refetchRows` lets the
+ * tag page re-pull rows after a publish without touching sort/POV.
  */
 export default function useTagDetail(tagId) {
   const { user, loading: authLoading } = useAuth();
@@ -21,10 +24,14 @@ export default function useTagDetail(tagId) {
   const [headerError, setHeaderError] = useState(null);
 
   const [rows, setRows] = useState([]);
+  const [viewerAssertions, setViewerAssertions] = useState({});
   const [povSuffix, setPovSuffix] = useState(null);
   const [sort, setSort] = useState('applied');
   const [rowsLoading, setRowsLoading] = useState(false);
   const [rowsError, setRowsError] = useState(null);
+  const [rowsReloadKey, setRowsReloadKey] = useState(0);
+
+  const refetchRows = useCallback(() => setRowsReloadKey((k) => k + 1), []);
 
   useEffect(() => {
     if (!tagId) return undefined;
@@ -62,6 +69,7 @@ export default function useTagDetail(tagId) {
     if (user?.pubkey) {
       params.set('wotPov', 'user');
       params.set('userPubkey', user.pubkey);
+      params.set('viewerPubkey', user.pubkey);
     } else {
       params.set('wotPov', 'house');
     }
@@ -72,6 +80,7 @@ export default function useTagDetail(tagId) {
         if (cancelled) return;
         if (r.ok && data?.success) {
           setRows(data.rows || []);
+          setViewerAssertions(data.viewerAssertions || {});
           setPovSuffix(data.povSuffix || null);
         } else {
           setRowsError(data?.error || `status ${r.status}`);
@@ -81,12 +90,13 @@ export default function useTagDetail(tagId) {
       .finally(() => { if (!cancelled) setRowsLoading(false); });
 
     return () => { cancelled = true; };
-  }, [tagId, sort, authLoading, user?.pubkey]);
+  }, [tagId, sort, authLoading, user?.pubkey, rowsReloadKey]);
 
   return {
-    tag, author, rows, povSuffix,
+    tag, author, rows, viewerAssertions, povSuffix,
     sort, setSort,
     headerLoading, rowsLoading,
     headerError, rowsError,
+    refetchRows,
   };
 }

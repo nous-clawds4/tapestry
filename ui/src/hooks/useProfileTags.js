@@ -1,8 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
-import { publishEverywhere } from '../utils/nostrPublish';
+import { publishProfileTagAssertion, publishOrThrow } from '../utils/publishProfileTag';
 
 const TA_PUBKEY = '82b75e474dda005e912bcbb910391c60c2b89cc7faf5d3c30b7c59a324973833';
-const NOSTR_USER_TAG_HANDLE = `39998:${TA_PUBKEY}:nostr-user-tag`;
 const TAG_HANDLE = `39998:${TA_PUBKEY}:tag`;
 
 function slugify(name) {
@@ -15,23 +14,6 @@ function slugify(name) {
 async function nip07Pubkey() {
   if (!window.nostr) throw new Error('No NIP-07 extension detected. Install one to publish tags.');
   return window.nostr.getPublicKey();
-}
-
-/**
- * Publish a signed event everywhere and throw if BOTH local and external
- * publishes failed (matches the deleted relay-discovery precedent). Partial
- * failure — local OK with external failing — is acceptable silent because
- * the strfry router will redistribute later.
- */
-async function publishOrThrow(signed) {
-  const result = await publishEverywhere(signed);
-  const localOk = result?.local?.success;
-  const externalOk = (result?.external?.successes?.length || 0) > 0;
-  if (!localOk && !externalOk) {
-    const reason = result?.local?.error || 'Publish failed on every relay.';
-    throw new Error(reason);
-  }
-  return result;
 }
 
 export default function useProfileTags(targetPubkey, viewerPubkey) {
@@ -74,28 +56,7 @@ export default function useProfileTags(targetPubkey, viewerPubkey) {
   }, [targetPubkey, reloadKey]);
 
   const buildAndPublishAssertion = useCallback(
-    async (tag, polarity) => {
-      const authorPk = await nip07Pubkey();
-      const dTag = `profile-tag-${tag.slug}-${targetPubkey.slice(0, 8)}-${authorPk.slice(0, 8)}`;
-      const unsigned = {
-        kind: 39999,
-        pubkey: authorPk,
-        created_at: Math.floor(Date.now() / 1000),
-        tags: [
-          ['d', dTag],
-          ['p', targetPubkey],
-          ['e', tag.eventId],
-          ['z', NOSTR_USER_TAG_HANDLE],
-          ['polarity', String(polarity)],
-        ],
-        content: JSON.stringify({
-          nostrUserTag: { taggedPubkey: targetPubkey, tagEventId: tag.eventId },
-        }),
-      };
-      const signed = await window.nostr.signEvent(unsigned);
-      await publishOrThrow(signed);
-      return signed;
-    },
+    (tag, polarity) => publishProfileTagAssertion({ tag, targetPubkey, polarity }),
     [targetPubkey]
   );
 

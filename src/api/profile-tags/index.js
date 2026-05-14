@@ -470,6 +470,12 @@ async function handleProfilesTagged(req, res) {
     });
   }
 
+  // Optional viewerPubkey for the viewer-union (Story 3 / ADR-0004). Malformed
+  // values are silently treated as absent so a junk client value doesn't
+  // break the read-only contract.
+  const viewerPubkeyRaw = typeof req.query.viewerPubkey === 'string' ? req.query.viewerPubkey : '';
+  const viewerPubkey = /^[0-9a-f]{64}$/.test(viewerPubkeyRaw) ? viewerPubkeyRaw : null;
+
   try {
     const { resolvePov } = require('../_shared/pov');
     const { povSuffix, minRank } = resolvePov({
@@ -484,6 +490,21 @@ async function handleProfilesTagged(req, res) {
       '#e': [tagEventId],
     });
     const deduped = dedupeReplaceable(events);
+
+    // Viewer-union pre-pass: build a map of the viewer's per-target polarity
+    // from the same scan, before the WoT filter runs (the viewer's own
+    // assertion needn't pass the WoT filter — that's the whole point).
+    const viewerAssertions = {};
+    if (viewerPubkey) {
+      for (const ev of deduped) {
+        if (ev.pubkey !== viewerPubkey) continue;
+        const pTag = (ev.tags || []).find((t) => t[0] === 'p');
+        if (!pTag?.[1]) continue;
+        const bucket = bucketize(readPolarity(ev));
+        if (bucket === 'apply') viewerAssertions[pTag[1]] = 'applied';
+        else if (bucket === 'dispute') viewerAssertions[pTag[1]] = 'disputed';
+      }
+    }
 
     let authorAllowed = () => true;
     if (wotFiltering) {
@@ -517,6 +538,14 @@ async function handleProfilesTagged(req, res) {
       else if (bucket === 'dispute') entry.disputes += 1;
     }
 
+    // Viewer-union: ensure every target the viewer asserted on has a row,
+    // even if the WoT filter excluded the viewer's author.
+    for (const targetPk of Object.keys(viewerAssertions)) {
+      if (!byTarget.has(targetPk)) {
+        byTarget.set(targetPk, { pubkey: targetPk, applications: 0, disputes: 0 });
+      }
+    }
+
     // Enrich each row with target Meili doc (displayName, picture). Targets
     // without a Meili doc surface with both fields null.
     const targetPubkeys = Array.from(byTarget.keys());
@@ -525,6 +554,13 @@ async function handleProfilesTagged(req, res) {
       const doc = targetDocs.get(entry.pubkey);
       entry.displayName = doc ? (doc.display_name || doc.name || null) : null;
       entry.picture = doc ? (doc.picture || null) : null;
+      // onlyViewerVisible is true when the only thing making this row appear
+      // is the viewer's own assertion (WoT-filtered counts are zero AND the
+      // viewer has a non-neutral assertion on this target). Always present
+      // (defaults to false) so the UI's row component can read it
+      // unconditionally.
+      entry.onlyViewerVisible = !!viewerAssertions[entry.pubkey]
+        && entry.applications === 0 && entry.disputes === 0;
     }
 
     const rows = Array.from(byTarget.values());
@@ -535,6 +571,7 @@ async function handleProfilesTagged(req, res) {
       povSuffix: povSuffix || null,
       minRank: Number.isFinite(minRank) ? minRank : null,
       sort,
+      viewerAssertions,
       rows,
     });
   } catch (err) {

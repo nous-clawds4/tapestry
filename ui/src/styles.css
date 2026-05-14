@@ -4705,8 +4705,13 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   padding: 0;
 }
 .bs-tag-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
   border-bottom: 1px solid rgba(255,255,255,0.05);
 }
+.bs-tag-row > .bs-tag-row-link { flex: 1 1 auto; min-width: 0; }
 .bs-tag-row-link {
   display: flex;
   align-items: center;
@@ -4745,6 +4750,96 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
 }
 .bs-tag-count-apply { color: #86efac; }
 .bs-tag-count-dispute { color: #fca5a5; }
+
+/* Story 3 / ADR-0004 — per-row Apply/Dispute, viewer-only badge, page-search */
+.bs-tag-row-actions {
+  display: flex;
+  gap: 0.4rem;
+  margin-right: 0.5rem;
+  flex-shrink: 0;
+}
+.bs-tag-row-apply,
+.bs-tag-row-dispute {
+  font: inherit;
+  font-size: 0.82rem;
+  padding: 0.32rem 0.7rem;
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,0.18);
+  background: rgba(255,255,255,0.04);
+  color: inherit;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+}
+.bs-tag-row-apply:hover:not([disabled]) {
+  background: rgba(134, 239, 172, 0.12);
+  border-color: rgba(134, 239, 172, 0.45);
+}
+.bs-tag-row-dispute:hover:not([disabled]) {
+  background: rgba(252, 165, 165, 0.12);
+  border-color: rgba(252, 165, 165, 0.45);
+}
+.bs-tag-row-apply.is-applied {
+  background: rgba(134, 239, 172, 0.18);
+  border-color: rgba(134, 239, 172, 0.6);
+  color: #86efac;
+}
+.bs-tag-row-dispute.is-disputed {
+  background: rgba(252, 165, 165, 0.18);
+  border-color: rgba(252, 165, 165, 0.6);
+  color: #fca5a5;
+}
+.bs-tag-row-apply[disabled],
+.bs-tag-row-dispute[disabled] {
+  cursor: default;
+  opacity: 0.85;
+}
+.bs-tag-row-badge {
+  display: inline-block;
+  margin-left: 0.6rem;
+  padding: 0.1rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 400;
+  border-radius: 999px;
+  background: rgba(250, 204, 21, 0.12);
+  color: #fcd34d;
+  border: 1px solid rgba(250, 204, 21, 0.35);
+  white-space: nowrap;
+  vertical-align: middle;
+}
+.bs-tag-row-error {
+  flex-basis: 100%;
+  margin: 0 0 0.5rem;
+  font-size: 0.85rem;
+  color: #fca5a5;
+}
+.bs-tag-search {
+  margin: 1rem 0 0.5rem;
+}
+.bs-tag-search-results {
+  margin-top: 0.5rem;
+}
+.bs-tag-search-clear {
+  font: inherit;
+  font-size: 1.1rem;
+  line-height: 1;
+  width: 1.5rem;
+  height: 1.5rem;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.08);
+  color: rgba(255,255,255,0.7);
+  cursor: pointer;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: background 0.12s, color 0.12s;
+}
+.bs-tag-search-clear:hover {
+  background: rgba(255,255,255,0.16);
+  color: #fff;
+}
 
 .bs-tag-notfound {
   text-align: center;
