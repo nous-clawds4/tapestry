@@ -75,3 +75,16 @@ Fix: extend `handleTagsForProfile` to accept `wotPov` + `userPubkey`, resolve PO
 Same pattern as the WoT-author filter in `handleProfilesTagged` and `handleTagIndex`. Small server-side change; the UI already passes the user's pubkey via `viewerPubkey` (we'd add the POV resolution alongside it).
 
 **Bundle candidate:** standalone bug-fix story, or fold into a "POV-correctness audit" sweep that re-checks every read endpoint against the POV-first invariant.
+
+## Local dev-loop polish — kill the six-step CSS edit ritual
+
+**Surfaced during:** Story 5 implementation, 2026-05-14.
+
+The current local dev loop (documented in `OPERATIONS.md` §9) for tweaking the UI is: `docker cp` source into the container → `npm run build` inside the container → check bundle hash → hard-refresh browser. Each CSS tweak is ~15–20 seconds of build + 5–10 seconds of shell ritual. A one-line CSS fix turns into a 30-second cycle, several times per visual iteration.
+
+Two tracked candidates, both already named in OPERATIONS.md §9:
+
+1. **`docker-compose.dev.yml` overlay with bind-mounts** — mounts host `./src` and `./ui/src` into the container at the same paths. Combined with `vite --watch`, this would give true hot-reload for UI work. Right long-term fix; needs design thought for HMR + Express static-file serving co-existence.
+2. **`bin/dev-sync-ui.sh` one-liner wrapper** — stop-gap until #1 lands. Wraps the `docker cp` + `npm run build` + bundle-hash echo. ~10 lines of bash. Turns the six-step ritual into one command.
+
+**Bundle candidate:** standalone small story, or fold into an "ops polish" sweep with the agree/disagree framing UX work above.
