@@ -31,6 +31,8 @@ const tagDetailWrite = require('./tag-detail-write.test.js');
 const tagDetailWritePublish = require('./tag-detail-write-publish.test.js');
 const tagIndex = require('./tag-index.test.js');
 const tagIndexPublish = require('./tag-index-publish.test.js');
+const authoredTagging = require('./authored-tagging.test.js');
+const authoredTaggingPublish = require('./authored-tagging-publish.test.js');
 
 async function main() {
   console.log('Running Brainstorm tests...');
@@ -46,6 +48,8 @@ async function main() {
   const tagDetailWritePublishResult = await tagDetailWritePublish.run();
   const tagIndexResult = await tagIndex.run();
   const tagIndexPublishResult = await tagIndexPublish.run();
+  const authoredTaggingResult = await authoredTagging.run();
+  const authoredTaggingPublishResult = await authoredTaggingPublish.run();
 
   console.log('\nTest Results');
   console.log('-------------');
@@ -70,6 +74,11 @@ async function main() {
     ? `SKIP (${tagIndexPublishResult.skipped} tests; preconditions not met)`
     : `${tagIndexPublishResult.fail === 0 ? 'PASS' : 'FAIL'} (${tagIndexPublishResult.pass} passed, ${tagIndexPublishResult.fail} failed)`;
   console.log(`tag-index-publish suite:      ${tipLine}`);
+  console.log(`authored-tagging suite:       ${authoredTaggingResult.fail === 0 ? 'PASS' : 'FAIL'} (${authoredTaggingResult.pass} passed, ${authoredTaggingResult.fail} failed)`);
+  const atpLine = authoredTaggingPublishResult.skipped
+    ? `SKIP (${authoredTaggingPublishResult.skipped} tests; preconditions not met)`
+    : `${authoredTaggingPublishResult.fail === 0 ? 'PASS' : 'FAIL'} (${authoredTaggingPublishResult.pass} passed, ${authoredTaggingPublishResult.fail} failed)`;
+  console.log(`authored-tagging-publish suite: ${atpLine}`);
 
   const overallOk = configOk
     && profileTagsResult.fail === 0
@@ -79,7 +88,9 @@ async function main() {
     && tagDetailWriteResult.fail === 0
     && tagDetailWritePublishResult.fail === 0
     && tagIndexResult.fail === 0
-    && tagIndexPublishResult.fail === 0;
+    && tagIndexPublishResult.fail === 0
+    && authoredTaggingResult.fail === 0
+    && authoredTaggingPublishResult.fail === 0;
   console.log(`Overall:                      ${overallOk ? 'PASS' : 'FAIL'}`);
   process.exit(overallOk ? 0 : 1);
 }
