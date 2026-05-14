@@ -47,6 +47,6 @@ The harness lives in two places:
 
 ## House rules
 
-- The Concept Graph API at `http://localhost:8877` is the authoritative source for domain concepts. Always check there before reading source. See AGENTS.md for the three-call orientation pattern.
-- Reinstall firmware after adding/changing concept definitions: `curl -X POST http://localhost:8877/api/firmware/install`.
+- The Concept Graph API on the local control panel is the authoritative source for domain concepts. Always check there before reading source. See AGENTS.md §1–§3 for the port, TA pubkey, and three-call orientation pattern.
+- Reinstall firmware after adding/changing concept definitions — see AGENTS.md §6 for the exact curl.
 - Don't add new lint or typecheck tooling without an explicit ADR. This project is intentionally JS-without-build.
