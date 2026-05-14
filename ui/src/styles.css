@@ -4673,7 +4673,7 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   margin-bottom: 1rem;
   flex-wrap: wrap;
 }
-.bs-tag-sort-btn {
+.bs-tag-sort .bs-sort-toggle-btn {
   background: rgba(255,255,255,0.04);
   border: 1px solid rgba(255,255,255,0.1);
   color: var(--text-primary, #e0e0e0);
@@ -4683,8 +4683,8 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   font-size: 0.85rem;
   transition: background 0.15s, border-color 0.15s;
 }
-.bs-tag-sort-btn:hover { background: rgba(255,255,255,0.08); }
-.bs-tag-sort-btn.is-active {
+.bs-tag-sort .bs-sort-toggle-btn:hover { background: rgba(255,255,255,0.08); }
+.bs-tag-sort .bs-sort-toggle-btn.is-active {
   background: rgba(165,180,252,0.15);
   border-color: rgba(165,180,252,0.4);
   color: #c7d2fe;
@@ -4902,7 +4902,7 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   gap: 0.5rem;
   flex-wrap: wrap;
 }
-.bs-tagindex-sort-btn {
+.bs-tagindex-sort .bs-sort-toggle-btn {
   background: rgba(255,255,255,0.04);
   border: 1px solid rgba(255,255,255,0.1);
   color: var(--text-primary, #e0e0e0);
@@ -4912,8 +4912,8 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   font-size: 0.85rem;
   transition: background 0.15s, border-color 0.15s;
 }
-.bs-tagindex-sort-btn:hover { background: rgba(255,255,255,0.08); }
-.bs-tagindex-sort-btn.is-active {
+.bs-tagindex-sort .bs-sort-toggle-btn:hover { background: rgba(255,255,255,0.08); }
+.bs-tagindex-sort .bs-sort-toggle-btn.is-active {
   background: rgba(165,180,252,0.15);
   border-color: rgba(165,180,252,0.4);
   color: #c7d2fe;
@@ -5029,3 +5029,157 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
 }
 .bs-tagindex-loadmore:hover:not(:disabled) { background: rgba(165,180,252,0.2); }
 .bs-tagindex-loadmore:disabled { opacity: 0.5; cursor: default; }
+
+/* ── Shared SortToggle base (Story 5 / ADR-0005) ── */
+/* Conservative defaults — per-page treatment lives under each consumer's
+ * wrapper class (.bs-tag-sort, .bs-tagindex-sort, .bsp-authored-sort). */
+.bs-sort-toggle {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+.bs-sort-toggle-btn {
+  cursor: pointer;
+}
+
+/* ── Authored-tagging section (Story 5 / ADR-0005) ── */
+.bsp-authored {
+  margin: 1rem 0 1.25rem;
+}
+.bsp-authored-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.5rem;
+}
+.bsp-authored-title {
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  color: var(--text-muted, #94a3b8);
+  text-transform: uppercase;
+  margin: 0;
+}
+.bsp-authored-sort .bs-sort-toggle-btn {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: var(--text-primary, #e0e0e0);
+  padding: 0.3rem 0.7rem;
+  border-radius: 16px;
+  font-size: 0.78rem;
+  transition: background 0.15s, border-color 0.15s;
+}
+.bsp-authored-sort .bs-sort-toggle-btn:hover { background: rgba(255,255,255,0.08); }
+.bsp-authored-sort .bs-sort-toggle-btn.is-active {
+  background: rgba(165,180,252,0.15);
+  border-color: rgba(165,180,252,0.4);
+  color: #c7d2fe;
+}
+.bsp-authored-loading,
+.bsp-authored-error {
+  font-size: 0.85rem;
+  color: var(--text-muted, #94a3b8);
+  margin: 0.5rem 0;
+}
+.bsp-authored-error { color: #f87171; }
+.bsp-authored-aboutme {
+  background: rgba(165,180,252,0.06);
+  border: 1px solid rgba(165,180,252,0.2);
+  border-radius: 8px;
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 0.75rem;
+}
+.bsp-authored-subhead {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  color: #c7d2fe;
+  text-transform: uppercase;
+  margin: 0 0 0.4rem;
+}
+.bsp-authored-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.bsp-authored-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.45rem 0;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  font-size: 0.9rem;
+}
+.bsp-authored-row:last-child { border-bottom: none; }
+.bsp-authored-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.3rem;
+  height: 1.3rem;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 1rem;
+  line-height: 1;
+  /* Padding-bottom shrinks the flex area at the bottom, shifting the
+   * centered glyph UP to the visual midpoint (compensates for + and −
+   * glyph metrics in our font stack). */
+  padding-bottom: 4px;
+}
+.bsp-authored-applied {
+  background: rgba(34,197,94,0.18);
+  color: #86efac;
+}
+.bsp-authored-disputed {
+  background: rgba(239,68,68,0.18);
+  color: #fca5a5;
+}
+.bsp-authored-tag-link {
+  color: #a5b4fc;
+  text-decoration: none;
+  font-weight: 500;
+}
+.bsp-authored-tag-link:hover { text-decoration: underline; }
+.bsp-authored-verb {
+  color: var(--text-muted, #94a3b8);
+  font-size: 0.85rem;
+}
+.bsp-authored-target-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  color: var(--text-primary, #e2e8f0);
+  text-decoration: none;
+}
+.bsp-authored-target-link:hover { color: #c7d2fe; }
+.bsp-authored-target-avatar {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+.bsp-authored-target-name {
+  font-weight: 500;
+}
+.bsp-authored-time {
+  color: var(--text-muted, #94a3b8);
+  font-size: 0.78rem;
+}
+.bsp-authored-peer {
+  font-size: 0.78rem;
+  color: var(--text-muted, #94a3b8);
+  margin-left: auto;
+  white-space: nowrap;
+}
+.bsp-authored-peer .is-agree { color: #86efac; }
+.bsp-authored-peer .is-disagree { color: #fca5a5; }
+.bsp-authored-peer-sep { opacity: 0.5; }
+.bsp-authored-pov-hint {
+  margin: 0.75rem 0 0;
+  font-size: 0.78rem;
+  color: var(--text-muted, #94a3b8);
+  font-style: italic;
+}

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
 import TopBar from '../components/TopBar';
 import SearchInput from '../components/SearchInput';
+import SortToggle from '../components/SortToggle';
 import useTagIndex from '../hooks/useTagIndex';
 
 function shortNpub(pk) {
@@ -61,19 +62,13 @@ export default function Tags() {
             onChange={setQ}
             placeholder="Filter tags…"
           />
-          <div className="bs-tagindex-sort" role="group" aria-label="Sort tags">
-            {SORT_LABELS.map(({ key, label }) => (
-              <button
-                key={key}
-                type="button"
-                className={`bs-tagindex-sort-btn${sort === key ? ' is-active' : ''}`}
-                aria-pressed={sort === key}
-                onClick={() => setSort(key)}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
+          <SortToggle
+            options={SORT_LABELS}
+            value={sort}
+            onChange={setSort}
+            ariaLabel="Sort tags"
+            className="bs-tagindex-sort"
+          />
         </div>
         {user && (
           <label className="bs-tagindex-mineonly">

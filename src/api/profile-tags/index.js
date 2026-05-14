@@ -758,6 +758,259 @@ async function handleTagIndex(req, res) {
   }
 }
 
+const AUTHORED_BY_VALID_SORTS = ['recent', 'applied', 'disputed', 'most-backed', 'divisive'];
+
+// "Most-backed" uses the polarity-matched peer count: applied rows compete
+// on peerApplications, disputed rows compete on peerDisputes. Across the
+// two polarities the same numeric key intermixes them naturally.
+function backedKey(r) {
+  return r.polarity === 'applied' ? r.peerApplications : r.peerDisputes;
+}
+
+const AUTHORED_BY_SORTERS = {
+  recent: (a, b) =>
+    (b.createdAt - a.createdAt)
+    || a.assertionEventId.localeCompare(b.assertionEventId),
+  applied: (a, b) =>
+    (b.parentApplications - a.parentApplications)
+    || (b.createdAt - a.createdAt)
+    || a.assertionEventId.localeCompare(b.assertionEventId),
+  disputed: (a, b) =>
+    (b.parentDisputes - a.parentDisputes)
+    || (b.createdAt - a.createdAt)
+    || a.assertionEventId.localeCompare(b.assertionEventId),
+  'most-backed': (a, b) =>
+    (backedKey(b) - backedKey(a))
+    || (b.createdAt - a.createdAt)
+    || a.assertionEventId.localeCompare(b.assertionEventId),
+  divisive: (a, b) =>
+    (Math.min(b.parentApplications, b.parentDisputes) - Math.min(a.parentApplications, a.parentDisputes))
+    || ((b.parentApplications + b.parentDisputes) - (a.parentApplications + a.parentDisputes))
+    || (b.createdAt - a.createdAt)
+    || a.assertionEventId.localeCompare(b.assertionEventId),
+};
+
+/**
+ * GET /api/profile-tags/authored-by
+ *   ?authorPubkey=<hex>            (required, 64-char lowercase hex)
+ *   &wotPov=<house|user>&userPubkey=<hex>
+ *   &sort=<recent|applied|disputed|most-backed|divisive>
+ *
+ * Story 5 / ADR-0005. Returns the tagging activity the given pubkey has
+ * authored, filtered to rows whose TARGET is in the viewer's active POV
+ * WoT. Each row carries both Reading-A parent-tag aggregate counts (the
+ * tag's global WoT applications/disputes) AND Reading-B peer counts (other
+ * WoT-allowed authors who asserted the same (tag, target) pair, excluding
+ * the profile owner). Counts are derived per-request from raw assertions —
+ * no persistent per-POV aggregate (CLAUDE.md "filter at view time").
+ */
+async function handleAuthoredBy(req, res) {
+  const { authorPubkey } = req.query;
+  if (!authorPubkey || !/^[0-9a-f]{64}$/.test(authorPubkey)) {
+    return res.status(400).json({
+      success: false,
+      error: 'authorPubkey is required (64-char lowercase hex)',
+    });
+  }
+  const sort = req.query.sort || 'recent';
+  if (!AUTHORED_BY_VALID_SORTS.includes(sort)) {
+    return res.status(400).json({
+      success: false,
+      error: `sort must be one of: ${AUTHORED_BY_VALID_SORTS.join(', ')}`,
+    });
+  }
+
+  try {
+    const { resolvePov } = require('../_shared/pov');
+    const { povSuffix, minRank } = resolvePov({
+      wotPov: req.query.wotPov || 'house',
+      userPubkey: req.query.userPubkey || null,
+    });
+    const wotFiltering = !!povSuffix && Number.isFinite(minRank);
+
+    // Step 1: pull every nostr-user-tag assertion authored by the profile owner.
+    const ownerEvents = await strfryScan({
+      kinds: [39999],
+      '#z': [NOSTR_USER_TAG_Z_TAG],
+      authors: [authorPubkey],
+    });
+    const ownerDeduped = dedupeReplaceable(ownerEvents);
+
+    // Step 2: bucket polarity, capture candidate rows.
+    const candidates = [];
+    for (const ev of ownerDeduped) {
+      const pTag = (ev.tags || []).find((t) => t[0] === 'p');
+      const eTag = (ev.tags || []).find((t) => t[0] === 'e');
+      if (!pTag?.[1] || !eTag?.[1]) continue;
+      const polarity = readPolarity(ev);
+      const bucket = bucketize(polarity);
+      if (bucket === 'neutral') continue;
+      candidates.push({
+        assertionEventId: ev.id,
+        targetPubkey: pTag[1],
+        tagEventId: eTag[1],
+        polarity: bucket === 'apply' ? 'applied' : 'disputed',
+        createdAt: ev.created_at,
+      });
+    }
+
+    if (candidates.length === 0) {
+      return res.json({
+        success: true,
+        povSuffix: povSuffix || null,
+        minRank: Number.isFinite(minRank) ? minRank : null,
+        sort,
+        authorPubkey,
+        rows: [],
+      });
+    }
+
+    // Step 3: target-WoT filter. Drop rows whose target's rank doesn't clear
+    // the threshold. No-op when no POV is configured (graceful degradation,
+    // matches existing endpoints).
+    const targetPubkeys = Array.from(new Set(candidates.map((c) => c.targetPubkey)));
+    const targetDocs = await meiliFetchProfilesByPubkey(targetPubkeys);
+    let targetAllowed = () => true;
+    if (wotFiltering) {
+      const rankField = `wot_rank_${povSuffix}`;
+      targetAllowed = (pk) => {
+        const doc = targetDocs.get(pk);
+        if (!doc) return false;
+        const r = doc[rankField];
+        return typeof r === 'number' && r >= minRank;
+      };
+    }
+    const surviving = candidates.filter((c) => targetAllowed(c.targetPubkey));
+
+    if (surviving.length === 0) {
+      return res.json({
+        success: true,
+        povSuffix: povSuffix || null,
+        minRank: Number.isFinite(minRank) ? minRank : null,
+        sort,
+        authorPubkey,
+        rows: [],
+      });
+    }
+
+    // Step 4: parent-tag enrichment. Drop rows whose parent tag-element isn't
+    // locally available or fails to parse.
+    const tagEventIds = Array.from(new Set(surviving.map((c) => c.tagEventId)));
+    const tagElementEvents = await strfryScan({ kinds: [39999], ids: tagEventIds });
+    const tagByEventId = new Map();
+    for (const ev of tagElementEvents) {
+      const payload = parseTagPayload(ev);
+      if (!payload) continue;
+      tagByEventId.set(ev.id, payload);
+    }
+    const surviving2 = surviving.filter((c) => tagByEventId.has(c.tagEventId));
+
+    if (surviving2.length === 0) {
+      return res.json({
+        success: true,
+        povSuffix: povSuffix || null,
+        minRank: Number.isFinite(minRank) ? minRank : null,
+        sort,
+        authorPubkey,
+        rows: [],
+      });
+    }
+
+    // Step 5: parent-tag scan — yields BOTH parent-tag aggregate counts
+    // (Reading A) AND per-(tag, target) peer counts (Reading B) in one walk.
+    const remainingTagIds = Array.from(new Set(surviving2.map((c) => c.tagEventId)));
+    const parentAssertions = await strfryScan({
+      kinds: [39999],
+      '#z': [NOSTR_USER_TAG_Z_TAG],
+      '#e': remainingTagIds,
+    });
+    const parentDeduped = dedupeReplaceable(parentAssertions);
+
+    let parentAuthorAllowed = () => true;
+    if (wotFiltering) {
+      const parentAuthors = Array.from(new Set(parentDeduped.map((ev) => ev.pubkey)));
+      const parentAuthorDocs = await meiliFetchProfilesByPubkey(parentAuthors);
+      const rankField = `wot_rank_${povSuffix}`;
+      parentAuthorAllowed = (pk) => {
+        const doc = parentAuthorDocs.get(pk);
+        if (!doc) return false;
+        const r = doc[rankField];
+        return typeof r === 'number' && r >= minRank;
+      };
+    }
+
+    const parentCounts = new Map(); // tagEventId → { applications, disputes }
+    const peerCounts = new Map();   // `${tagEventId}|${targetPubkey}` → { applications, disputes }
+    for (const ev of parentDeduped) {
+      if (!parentAuthorAllowed(ev.pubkey)) continue;
+      const eTag = (ev.tags || []).find((t) => t[0] === 'e');
+      if (!eTag?.[1]) continue;
+      const pTag = (ev.tags || []).find((t) => t[0] === 'p');
+      const bucket = bucketize(readPolarity(ev));
+      if (bucket === 'neutral') continue;
+
+      // Parent-tag aggregate (Reading A) — include all WoT-allowed authors.
+      let pEntry = parentCounts.get(eTag[1]);
+      if (!pEntry) {
+        pEntry = { applications: 0, disputes: 0 };
+        parentCounts.set(eTag[1], pEntry);
+      }
+      if (bucket === 'apply') pEntry.applications += 1;
+      else if (bucket === 'dispute') pEntry.disputes += 1;
+
+      // Peer count (Reading B) — exclude the profile owner from their own
+      // peer count; the owner doesn't count themselves as a peer.
+      if (ev.pubkey === authorPubkey) continue;
+      if (!pTag?.[1]) continue;
+      const peerKey = `${eTag[1]}|${pTag[1]}`;
+      let peerEntry = peerCounts.get(peerKey);
+      if (!peerEntry) {
+        peerEntry = { applications: 0, disputes: 0 };
+        peerCounts.set(peerKey, peerEntry);
+      }
+      if (bucket === 'apply') peerEntry.applications += 1;
+      else if (bucket === 'dispute') peerEntry.disputes += 1;
+    }
+
+    // Step 6: compose rows.
+    const rows = surviving2.map((c) => {
+      const tagInfo = tagByEventId.get(c.tagEventId);
+      const targetDoc = targetDocs.get(c.targetPubkey);
+      const parent = parentCounts.get(c.tagEventId);
+      const peer = peerCounts.get(`${c.tagEventId}|${c.targetPubkey}`);
+      return {
+        assertionEventId: c.assertionEventId,
+        polarity: c.polarity,
+        createdAt: c.createdAt,
+        targetPubkey: c.targetPubkey,
+        targetDisplayName: targetDoc ? (targetDoc.display_name || targetDoc.name || null) : null,
+        targetPicture: targetDoc ? (targetDoc.picture || null) : null,
+        tagEventId: c.tagEventId,
+        tagSlug: tagInfo.slug,
+        tagName: tagInfo.name || tagInfo.slug,
+        parentApplications: parent?.applications ?? 0,
+        parentDisputes: parent?.disputes ?? 0,
+        peerApplications: peer?.applications ?? 0,
+        peerDisputes: peer?.disputes ?? 0,
+      };
+    });
+
+    // Step 7: server-side sort.
+    rows.sort(AUTHORED_BY_SORTERS[sort]);
+
+    res.json({
+      success: true,
+      povSuffix: povSuffix || null,
+      minRank: Number.isFinite(minRank) ? minRank : null,
+      sort,
+      authorPubkey,
+      rows,
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+}
+
 function registerProfileTagsRoutes(app) {
   app.get('/api/profile-tags/available-tags', handleAvailableTags);
   app.get('/api/profile-tags/tags-for-profile', handleTagsForProfile);
@@ -766,6 +1019,7 @@ function registerProfileTagsRoutes(app) {
   app.get('/api/profile-tags/by-id', handleTagById);
   app.get('/api/profile-tags/profiles-tagged', handleProfilesTagged);
   app.get('/api/profile-tags/index', handleTagIndex);
+  app.get('/api/profile-tags/authored-by', handleAuthoredBy);
 }
 
 module.exports = {
@@ -776,6 +1030,7 @@ module.exports = {
   handleTagById,
   handleProfilesTagged,
   handleTagIndex,
+  handleAuthoredBy,
   computeTagMatches,
   meiliFetchProfilesByPubkey,
   registerProfileTagsRoutes,

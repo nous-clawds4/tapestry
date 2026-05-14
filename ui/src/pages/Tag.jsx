@@ -4,6 +4,7 @@ import { nip19 } from 'nostr-tools';
 import TopBar from '../components/TopBar';
 import TagPageRow from '../components/TagPageRow';
 import TagPageSearch from '../components/TagPageSearch';
+import SortToggle from '../components/SortToggle';
 import { useAuth } from '../context/AuthContext';
 import { publishProfileTagAssertion } from '../utils/publishProfileTag';
 import useTagDetail from '../hooks/useTagDetail';
@@ -98,23 +99,13 @@ export default function Tag() {
             </header>
 
             <section className="bs-tag-rows">
-              <div
+              <SortToggle
+                options={SORT_LABELS}
+                value={sort}
+                onChange={setSort}
+                ariaLabel="Sort tagged profiles"
                 className="bs-tag-sort"
-                role="group"
-                aria-label="Sort tagged profiles"
-              >
-                {SORT_LABELS.map(({ key, label }) => (
-                  <button
-                    key={key}
-                    type="button"
-                    className={`bs-tag-sort-btn${sort === key ? ' is-active' : ''}`}
-                    aria-pressed={sort === key}
-                    onClick={() => setSort(key)}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
+              />
 
               {rowsLoading && (
                 <p className="bs-tag-loading">Loading profiles…</p>
