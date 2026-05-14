@@ -224,3 +224,15 @@ While preparing a new 5-phase engineering-team flow off `staging`, we discovered
 **Recovery:** one-shot sync PR — branch off `main`, PR back into `staging`, merge. The diff was purely additive on the staging side (main had files staging didn't), so no conflicts. ([PR #122](https://github.com/nous-clawds4/tapestry/pull/122) recorded this for the first occurrence; `deploy-staging.yml` runs but the redeploy is a no-op for running services since only docs/scaffolding moved.)
 
 **Mechanism for prevention:** all changes — *even docs and scaffolding* — should go through the standard `staging → main` flow. The cycle-staging and cycle-prod skills assume parity between the two long-lived branches; landing directly on main breaks that assumption silently. If parity drift is suspected, `git diff --stat origin/main origin/staging` from a fresh checkout reveals it immediately.
+
+### 8.8. 2026-05-14: sandbox instance had list headers but no items
+
+On `tags.brainstorm.world` we noticed the DLists/Concepts for `tag` and `nostr-user-tag` (kind 39998 headers) were present, but no elements (kind 39999) — the UI showed empty lists. The droplet had run firmware install (so headers were correct), but element events published from users on *other* instances (`brainstorm.world`, local dev, etc.) never reached this droplet's strfry.
+
+**Why:** each Tapestry instance's strfry is self-contained. `publishEverywhere` writes to the publishing instance's local strfry plus configured external relays — it does **not** broadcast into every other instance's strfry. A sandbox instance only sees UGC originating on itself unless it opts in to cross-instance mirroring.
+
+**Fix options:**
+- One-shot: `docker compose exec tapestry strfry sync wss://dcosl.brainstorm.world --filter '{"kinds":[9998,9999,39998,39999]}' --dir down`
+- Continuous: enable the `dcosl` router preset in `/tapestry/settings/relays` (both-direction, kinds 9998/9999/39998/39999).
+
+**Mental model:** see [BIBLE.md §14 "Router Presets"](./BIBLE.md#router-presets). `dcosl.brainstorm.world` is *not* a canonical pool — it's just another instance's public-facing relay that's a convenient pull target if you want shared list state across our deployments.
