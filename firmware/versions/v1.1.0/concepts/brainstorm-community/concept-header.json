@@ -6,7 +6,7 @@
         "wordTypes": ["word", "conceptHeader"]
     },
     "conceptHeader": {
-        "description": "A self-curating, leaderless online community on nostr. Each user maintains a personal record of the community (metadata + engine config). Membership is determined algorithmically from member-issued endorsements/vetoes via the GR Community scoring system; no single party owns or controls the community. SKELETON — schema details may evolve before v1.1.0 is activated. See feat/communities/PLAN.md §3 for design.",
+        "description": "A self-curating online community on nostr. Each participant maintains a personal record of the community (metadata plus engine config). Membership is determined algorithmically from member-issued endorsements and vetoes via the GR Community scoring system; no single party owns or controls the community. See feat/communities/PLAN.md §3 for design.",
         "oNames": { "singular": "brainstorm community", "plural": "brainstorm communities" },
         "oSlugs": { "singular": "brainstorm-community", "plural": "brainstorm-communities" },
         "oKeys": { "singular": "brainstormCommunity", "plural": "brainstormCommunities" },
