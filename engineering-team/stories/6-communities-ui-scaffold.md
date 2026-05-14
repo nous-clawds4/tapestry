@@ -1,6 +1,6 @@
 # Story 6: Brainstorm Communities UI scaffold (Slice 0)
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-05-14
 **Type:** Feature
 
@@ -97,4 +97,4 @@ Resolved before story approval:
 
 - ADR: [`engineering-team/decisions/0004-ui-communities-scaffold.md`](../decisions/0004-ui-communities-scaffold.md)
 - Test plan: [`engineering-team/stories/6-communities-ui-scaffold.test-plan.md`](6-communities-ui-scaffold.test-plan.md)
-- Review: `engineering-team/reviews/6-communities-ui-scaffold.md` (filled in by Reviewer)
+- Review: [`engineering-team/reviews/6-communities-ui-scaffold.md`](../reviews/6-communities-ui-scaffold.md) (PASS, 6 non-blocking notes)
