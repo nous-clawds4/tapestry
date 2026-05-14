@@ -95,6 +95,6 @@ Resolved before story approval:
 
 ## Linked artifacts
 
-- ADR: `engineering-team/decisions/0004-ui-communities-scaffold.md` (filled in by Architect)
+- ADR: [`engineering-team/decisions/0004-ui-communities-scaffold.md`](../decisions/0004-ui-communities-scaffold.md)
 - Test plan: `engineering-team/stories/6-communities-ui-scaffold.test-plan.md` (filled in by Tester)
 - Review: `engineering-team/reviews/6-communities-ui-scaffold.md` (filled in by Reviewer)
