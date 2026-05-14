@@ -1,6 +1,6 @@
 # Story 7: Firmware v1.1.0 finalization (Slice 1)
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-05-14
 **Type:** Feature
 
@@ -92,4 +92,4 @@ Resolved before story approval:
 
 - ADR: [`engineering-team/decisions/0005-firmware-v1.1.0-finalization.md`](../decisions/0005-firmware-v1.1.0-finalization.md)
 - Test plan: [`engineering-team/stories/7-firmware-v1.1.0-finalization.test-plan.md`](7-firmware-v1.1.0-finalization.test-plan.md)
-- Review: `engineering-team/reviews/7-firmware-v1.1.0-finalization.md` (filled in by Reviewer)
+- Review: [`engineering-team/reviews/7-firmware-v1.1.0-finalization.md`](../reviews/7-firmware-v1.1.0-finalization.md) (PASS, 5 non-blocking notes)
