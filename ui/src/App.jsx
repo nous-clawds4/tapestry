@@ -70,6 +70,7 @@ import BrainstormPersonalization from './pages/BrainstormPersonalization';
 import BrainstormHowSearchWorks from './pages/BrainstormHowSearchWorks';
 import BrainstormAbout from './pages/BrainstormAbout';
 import BrainstormDevelopers from './pages/BrainstormDevelopers';
+import Tag from './pages/Tag';
 import NotFound from './pages/NotFound';
 const router = createBrowserRouter([
   {
@@ -79,6 +80,14 @@ const router = createBrowserRouter([
   {
     path: '/user/:pubkey',
     element: <BrainstormProfile />,
+  },
+  {
+    path: '/tag/:tagId',
+    element: <Tag />,
+  },
+  {
+    path: '/tag/:slug/:tagId',
+    element: <Tag />,
   },
   {
     path: '/settings',

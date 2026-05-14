@@ -11,9 +11,8 @@
 // Override via NOSTR_SEARCH_URL env var if running outside Docker.
 const NOSTR_SEARCH_URL = process.env.NOSTR_SEARCH_URL || 'http://nostr-search-api:3069';
 
-const fs = require('fs');
-const path = require('path');
 const { computeTagMatches, meiliFetchProfilesByPubkey } = require('../../../profile-tags');
+const { resolvePov } = require('../../../_shared/pov');
 
 // ── NIP-05 verification ──────────────────────────────────────────
 const NIP05_REGEX = /^(?:([\w.+-]+)@)?([\w_-]+(\.[\w_-]+)+)$/;
@@ -61,23 +60,6 @@ async function fetchMeiliDocument(pubkey) {
   }
 }
 
-const USER_PREFS_DIR = '/var/lib/brainstorm/user-prefs';
-
-/**
- * Read a user's saved preferences by pubkey (server-side, no auth required).
- * Returns {} if no prefs found.
- */
-function readUserPrefs(pubkey) {
-  if (!pubkey || pubkey.length !== 64) return {};
-  const filePath = path.join(USER_PREFS_DIR, `${pubkey.replace(/[^0-9a-f]/gi, '')}.json`);
-  try {
-    if (fs.existsSync(filePath)) {
-      return JSON.parse(fs.readFileSync(filePath, 'utf8'));
-    }
-  } catch { /* ignore */ }
-  return {};
-}
-
 /**
  * GET /api/search/profiles/meili?q=<query>&limit=<n>&offset=<n>&wotPov=house|user&userPubkey=<hex>
  *
@@ -122,42 +104,11 @@ async function handleMeiliSearchProfiles(req, res) {
       ? verifyNip05(nip05Lookup).then(pubkey => pubkey ? fetchMeiliDocument(pubkey) : null)
       : Promise.resolve(null);
 
-    // ── Step 1: Load house preferences (always needed as fallback) ──
-    let housePrefs = {};
-    try {
-      const { getSettings } = require('../../../../config/settings');
-      const settings = getSettings();
-      housePrefs = settings.grapevine?.searchPreferences || {};
-    } catch { /* ignore */ }
-
-    // ── Step 2: Determine POV → delegated pubkey → suffix ──
-    const wotPov = req.query.wotPov || 'house';
-    const userPubkey = req.query.userPubkey || null;
-
-    let delegatedPubkey = null;
-    let filters = null;
-    let sort = null;
-
-    if (wotPov === 'user' && userPubkey) {
-      // User POV: read user's saved preferences
-      const userPrefs = readUserPrefs(userPubkey);
-      delegatedPubkey = userPrefs.rankAuthor || null;
-      filters = userPrefs.filters || null;
-      sort = userPrefs.sortConfig || null;
-    }
-
-    // Fall back to house for anything not resolved
-    if (!delegatedPubkey) {
-      delegatedPubkey = housePrefs.delegatedPubkey || null;
-    }
-    if (!filters) {
-      filters = housePrefs.filters || null;
-    }
-    if (!sort) {
-      sort = housePrefs.sort || null;
-    }
-
-    const povSuffix = delegatedPubkey ? delegatedPubkey.slice(0, 8) : null;
+    // ── POV resolution (extracted to src/api/_shared/pov.js per ADR-0002) ──
+    const { povSuffix, filters, sort } = resolvePov({
+      wotPov: req.query.wotPov || 'house',
+      userPubkey: req.query.userPubkey || null,
+    });
 
     // ── Step 3: Build downstream URL with fully-qualified field names ──
     const url = new URL('/api/search', NOSTR_SEARCH_URL);

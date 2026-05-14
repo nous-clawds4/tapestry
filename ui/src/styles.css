@@ -4553,3 +4553,131 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   .bss-top-bar { padding: 0.5rem 1rem; flex-wrap: wrap; }
 }
 
+/* ── Tag detail page (Story 2 / ADR-0002) ───────────────────── */
+
+.bs-tag-header {
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+.bs-tag-name {
+  font-size: 2rem;
+  font-weight: 700;
+  margin: 0 0 0.4rem;
+  letter-spacing: -0.01em;
+}
+.bs-tag-desc {
+  margin: 0 0 0.75rem;
+  opacity: 0.85;
+  font-size: 1rem;
+  line-height: 1.5;
+}
+.bs-tag-author {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+  font-size: 0.85rem;
+  opacity: 0.65;
+}
+.bs-tag-author-avatar {
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+  object-fit: cover;
+}
+.bs-tag-author-name { font-weight: 500; }
+
+.bs-tag-rows { margin-top: 1rem; }
+.bs-tag-sort {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+.bs-tag-sort-btn {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: var(--text-primary, #e0e0e0);
+  padding: 0.4rem 0.9rem;
+  border-radius: 18px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: background 0.15s, border-color 0.15s;
+}
+.bs-tag-sort-btn:hover { background: rgba(255,255,255,0.08); }
+.bs-tag-sort-btn.is-active {
+  background: rgba(165,180,252,0.15);
+  border-color: rgba(165,180,252,0.4);
+  color: #c7d2fe;
+}
+
+.bs-tag-loading,
+.bs-tag-empty,
+.bs-tag-error {
+  margin: 1rem 0;
+  opacity: 0.75;
+  font-size: 0.9rem;
+}
+.bs-tag-error { color: #fca5a5; }
+
+.bs-tag-row-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.bs-tag-row {
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+.bs-tag-row-link {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 0.5rem;
+  text-decoration: none;
+  color: inherit;
+  border-radius: 6px;
+  transition: background 0.12s;
+}
+.bs-tag-row-link:hover { background: rgba(255,255,255,0.04); }
+.bs-tag-row-avatar {
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+.bs-tag-row-avatar-placeholder {
+  display: inline-block;
+  background: rgba(255,255,255,0.08);
+}
+.bs-tag-row-name {
+  flex: 1;
+  font-weight: 500;
+  font-size: 0.95rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bs-tag-row-counts {
+  display: flex;
+  gap: 0.6rem;
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+}
+.bs-tag-count-apply { color: #86efac; }
+.bs-tag-count-dispute { color: #fca5a5; }
+
+.bs-tag-notfound {
+  text-align: center;
+  padding: 3rem 1rem;
+}
+.bs-tag-notfound h1 {
+  font-size: 1.5rem;
+  margin: 0 0 0.5rem;
+}
+.bs-tag-link {
+  color: #a5b4fc;
+  text-decoration: none;
+}
+.bs-tag-link:hover { text-decoration: underline; }

@@ -344,11 +344,211 @@ async function handleMatch(req, res) {
   }
 }
 
+/**
+ * Parse the tag JSON payload from a kind-39999 tag-element event. Firmware
+ * elements carry the payload in a ["json", ...] event-tag; client-published
+ * elements may use event.content. Accept either; return null when neither
+ * carries a parseable {tag: {slug, ...}} payload.
+ */
+function parseTagPayload(ev) {
+  const jsonTag = (ev.tags || []).find((t) => t[0] === 'json');
+  const raw = (jsonTag && jsonTag[1]) || ev.content;
+  if (!raw) return null;
+  let parsed;
+  try { parsed = JSON.parse(raw); } catch { return null; }
+  const t = parsed?.tag;
+  if (!t || !t.slug) return null;
+  return t;
+}
+
+/**
+ * GET /api/profile-tags/by-id?tagEventId=<id>
+ *
+ * Fetch a single kind-39999 tag-element by event id. Returns the tag's
+ * slug/name/description/authorPubkey/createdAt plus an enriched author
+ * block ({displayName, picture}) when the author has a Meili profile doc.
+ * Author degrades to null when Meili lacks the doc; degrades to null when
+ * Meili is unreachable (does not fail the whole request).
+ */
+async function handleTagById(req, res) {
+  const { tagEventId } = req.query;
+  if (!tagEventId || !/^[0-9a-f]{64}$/.test(tagEventId)) {
+    return res.status(400).json({
+      success: false,
+      error: 'tagEventId is required (64-char lowercase hex)',
+    });
+  }
+  try {
+    const events = await strfryScan({ kinds: [39999], ids: [tagEventId] });
+    if (events.length === 0) {
+      return res.status(404).json({ success: false, error: 'tag not found' });
+    }
+    const ev = events[0];
+    const tagPayload = parseTagPayload(ev);
+    if (!tagPayload) {
+      return res.status(404).json({ success: false, error: 'tag payload malformed' });
+    }
+
+    let author = null;
+    try {
+      const docs = await meiliFetchProfilesByPubkey([ev.pubkey]);
+      const doc = docs.get(ev.pubkey);
+      if (doc) {
+        author = {
+          displayName: doc.display_name || doc.name || null,
+          picture: doc.picture || null,
+        };
+      }
+    } catch { /* meili unreachable → author stays null */ }
+
+    res.json({
+      success: true,
+      tag: {
+        eventId: ev.id,
+        slug: tagPayload.slug,
+        name: tagPayload.name || tagPayload.slug,
+        description: tagPayload.description || '',
+        authorPubkey: ev.pubkey,
+        createdAt: ev.created_at,
+      },
+      author,
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+}
+
+const PROFILES_TAGGED_VALID_SORTS = ['applied', 'disputed', 'divisive'];
+
+const PROFILES_TAGGED_SORTERS = {
+  applied: (a, b) =>
+    (b.applications - a.applications)
+    || (b.disputes - a.disputes)
+    || a.pubkey.localeCompare(b.pubkey),
+  disputed: (a, b) =>
+    (b.disputes - a.disputes)
+    || (b.applications - a.applications)
+    || a.pubkey.localeCompare(b.pubkey),
+  divisive: (a, b) =>
+    (Math.min(b.applications, b.disputes) - Math.min(a.applications, a.disputes))
+    || ((b.applications + b.disputes) - (a.applications + a.disputes))
+    || a.pubkey.localeCompare(b.pubkey),
+};
+
+/**
+ * GET /api/profile-tags/profiles-tagged
+ *   ?tagEventId=<id>
+ *   &wotPov=<house|user>
+ *   &userPubkey=<hex>
+ *   &sort=<applied|disputed|divisive>
+ *
+ * Aggregates per-target application/dispute counts for the tag, filtered to
+ * authors who pass the active POV's WoT threshold (wot_rank_<suffix> >=
+ * minRank). When no POV is configured (suffix or minRank null), all bucketed
+ * assertions count — same fallback as computeTagMatches.
+ *
+ * Counts are derived per-request from raw assertions (CLAUDE.md "filter at
+ * view time, not write time"). No persistent per-POV aggregate column.
+ *
+ * Sort is server-side so the contract is correct from day one and pagination
+ * (Story 4 follow-up) drops in cleanly without partial-set sort risk.
+ */
+async function handleProfilesTagged(req, res) {
+  const { tagEventId } = req.query;
+  const sort = req.query.sort || 'applied';
+
+  if (!tagEventId || !/^[0-9a-f]{64}$/.test(tagEventId)) {
+    return res.status(400).json({
+      success: false,
+      error: 'tagEventId is required (64-char lowercase hex)',
+    });
+  }
+  if (!PROFILES_TAGGED_VALID_SORTS.includes(sort)) {
+    return res.status(400).json({
+      success: false,
+      error: `sort must be one of: ${PROFILES_TAGGED_VALID_SORTS.join(', ')}`,
+    });
+  }
+
+  try {
+    const { resolvePov } = require('../_shared/pov');
+    const { povSuffix, minRank } = resolvePov({
+      wotPov: req.query.wotPov || 'house',
+      userPubkey: req.query.userPubkey || null,
+    });
+    const wotFiltering = !!povSuffix && Number.isFinite(minRank);
+
+    const events = await strfryScan({
+      kinds: [39999],
+      '#z': [NOSTR_USER_TAG_Z_TAG],
+      '#e': [tagEventId],
+    });
+    const deduped = dedupeReplaceable(events);
+
+    let authorAllowed = () => true;
+    if (wotFiltering) {
+      const authorPubkeys = Array.from(new Set(deduped.map((ev) => ev.pubkey)));
+      const authorDocs = await meiliFetchProfilesByPubkey(authorPubkeys);
+      const rankField = `wot_rank_${povSuffix}`;
+      authorAllowed = (authorPk) => {
+        const doc = authorDocs.get(authorPk);
+        if (!doc) return false;
+        const r = doc[rankField];
+        return typeof r === 'number' && r >= minRank;
+      };
+    }
+
+    const byTarget = new Map();
+    for (const ev of deduped) {
+      if (!authorAllowed(ev.pubkey)) continue;
+      const pTag = (ev.tags || []).find((t) => t[0] === 'p');
+      if (!pTag?.[1]) continue;
+      const polarity = readPolarity(ev);
+      const bucket = bucketize(polarity);
+      if (bucket === 'neutral') continue;
+
+      const targetPk = pTag[1];
+      let entry = byTarget.get(targetPk);
+      if (!entry) {
+        entry = { pubkey: targetPk, applications: 0, disputes: 0 };
+        byTarget.set(targetPk, entry);
+      }
+      if (bucket === 'apply') entry.applications += 1;
+      else if (bucket === 'dispute') entry.disputes += 1;
+    }
+
+    // Enrich each row with target Meili doc (displayName, picture). Targets
+    // without a Meili doc surface with both fields null.
+    const targetPubkeys = Array.from(byTarget.keys());
+    const targetDocs = await meiliFetchProfilesByPubkey(targetPubkeys);
+    for (const entry of byTarget.values()) {
+      const doc = targetDocs.get(entry.pubkey);
+      entry.displayName = doc ? (doc.display_name || doc.name || null) : null;
+      entry.picture = doc ? (doc.picture || null) : null;
+    }
+
+    const rows = Array.from(byTarget.values());
+    rows.sort(PROFILES_TAGGED_SORTERS[sort]);
+
+    res.json({
+      success: true,
+      povSuffix: povSuffix || null,
+      minRank: Number.isFinite(minRank) ? minRank : null,
+      sort,
+      rows,
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+}
+
 function registerProfileTagsRoutes(app) {
   app.get('/api/profile-tags/available-tags', handleAvailableTags);
   app.get('/api/profile-tags/tags-for-profile', handleTagsForProfile);
   app.get('/api/profile-tags/wot-tags', handleWotTags);
   app.get('/api/profile-tags/match', handleMatch);
+  app.get('/api/profile-tags/by-id', handleTagById);
+  app.get('/api/profile-tags/profiles-tagged', handleProfilesTagged);
 }
 
 module.exports = {
@@ -356,6 +556,8 @@ module.exports = {
   handleTagsForProfile,
   handleWotTags,
   handleMatch,
+  handleTagById,
+  handleProfilesTagged,
   computeTagMatches,
   meiliFetchProfilesByPubkey,
   registerProfileTagsRoutes,

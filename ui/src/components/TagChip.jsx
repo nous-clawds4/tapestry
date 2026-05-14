@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 
 function shortPk(pk) {
   return pk ? `${pk.slice(0, 8)}…` : '';
@@ -65,13 +66,12 @@ export default function TagChip({
         if (!containerRef.current?.contains(e.relatedTarget)) setOpen(false);
       }}
     >
-      <button
-        type="button"
+      <Link
+        to={`/tag/${encodeURIComponent(tag.slug)}/${tag.eventId}`}
         className={`ptc-chip ${myAssertion ? `ptc-chip-mine-${myAssertion.polarity > 0 ? 'apply' : 'dispute'}` : ''}`}
         aria-haspopup="dialog"
         aria-expanded={open}
         aria-controls={popoverId}
-        onClick={() => setOpen((p) => !p)}
       >
         <span className="ptc-name">{tag.name}</span>
         {hasDisputes && (
@@ -79,7 +79,7 @@ export default function TagChip({
             !
           </span>
         )}
-      </button>
+      </Link>
 
       {open && (
         <div className="ptc-popover" role="dialog" id={popoverId} aria-label={`Tag: ${tag.name}`}>
@@ -115,7 +115,7 @@ export default function TagChip({
               type="button"
               className="ptc-btn ptc-btn-apply"
               disabled={busy || !viewerPubkey}
-              onClick={() => onApply(tag)}
+              onClick={(e) => { e.preventDefault(); onApply(tag); }}
             >
               + Apply
             </button>
@@ -123,7 +123,7 @@ export default function TagChip({
               type="button"
               className="ptc-btn ptc-btn-dispute"
               disabled={busy || !viewerPubkey}
-              onClick={() => onDispute(tag)}
+              onClick={(e) => { e.preventDefault(); onDispute(tag); }}
             >
               Dispute
             </button>
