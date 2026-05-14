@@ -153,6 +153,34 @@ The Router Management tab at `/tapestry/settings/relays` is the UI: it shows con
 
 The Negentropy Sync tab on the same page uses a hardcoded `KIND_PRESETS` array in `ui/src/pages/settings/RelaySettings.jsx`. Adding a kind is currently a code change (append one row). A future story ([engineering-team/stories/3-router-presets-auto-appear-in-streams.md](../engineering-team/stories/3-router-presets-auto-appear-in-streams.md) tracks a related router-preset UX improvement; a separate story will define a parallel **Negentropy preset system** mirroring how router presets work today — JSON-defined, opt-in, with the same Presets popup pattern). Until then, treat each Negentropy kind addition as a small one-line UI change.
 
+## Scheduled Tasks
+
+The **Scheduled Tasks** tab on `/tapestry/settings/relays` lets operators enable recurring background tasks with an enable toggle and a "Run every __ days, __ hours" interval (minimum 1 hour). Per-task config persists in `/var/lib/brainstorm/scheduled-tasks.json` and is restored on container restart. Each task fires independently in-process via `setInterval`, posting to `/api/run-task?taskName=<taskId>`.
+
+Currently shipped tasks:
+
+| Task ID | Title | What it does |
+|---|---|---|
+| `updateAllScoresForOwner` | Update All Scores for Owner | Runs the full owner-scoped WoT pipeline (`updateAllScoresForOwner.sh`): GrapeRank, PageRank, follower/muter/reporter counts, kind 30382 publishing, and Meilisearch score load. |
+| `refreshSearchIndex` | Refresh Meilisearch profiles & House PoV scores | Refreshes kind-0 profile data in Meilisearch (always), then — if House PoV is configured — syncs House's kind 10040 (Treasure Map) and kind 30382 (Trusted Assertions) from House's NIP-85 relay and loads House's WoT scores into Meilisearch under `wot_*_<houseSuffix>` fields. |
+
+### Dependencies for `refreshSearchIndex`
+
+The score-refresh half of `refreshSearchIndex` depends on two things being configured:
+
+1. **House PoV** — set the House `povPubkey` + `delegatedPubkey` + `nip85Relay` at **Home > My Grapevine > Search Preferences** (`PUT /api/grapevine/preferences`). If `povPubkey` or `delegatedPubkey` is unset when the task fires, the orchestrator emits a `WARN` event (`houseUnconfigured: true`), skips the score-load step, and exits 0 — the profile-resync half still completes successfully. A banner in the new card surfaces this state to the operator with a link to Search Preferences.
+2. **`treasureMaps` router preset** (recommended) — see "Router presets" above. When enabled, this keeps kind 10040 events continuously fresh in local strfry via bidirectional sync with popular relays. The `refreshSearchIndex` task also runs a *defensive* one-shot 10040 sync per fire (filtered to House's pubkey on House's `nip85Relay`), so the preset is not strictly required — but having it enabled keeps the local 10040 corpus broad rather than House-only.
+
+### Adding a new scheduled task
+
+The scheduler module (`src/api/scheduled-tasks/index.js`) is keyed by `taskId`. To add a third task:
+
+1. Append an entry to `DEFAULTS` in `src/api/scheduled-tasks/index.js` with `{ enabled: false, intervalHours: 24, intervalDays: 0 }`.
+2. Add a matching entry in `src/manage/taskQueue/taskRegistry.json` (`tasks.<taskId>`) pointing at the orchestrator script that will run when the timer fires.
+3. Add a `<ScheduledTaskCard taskId="..." title="..." hint="..." />` row inside `ScheduledTasksPanel` in `ui/src/pages/settings/RelaySettings.jsx`.
+
+No changes to the API routes or persistence layer are needed — they already route by `taskId`.
+
 ## Settings API
 
 All endpoints require **Owner** authentication (NIP-07 login).
