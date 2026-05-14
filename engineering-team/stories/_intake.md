@@ -31,6 +31,25 @@ Append-only log of incoming requests, raw, with classification and chosen phase 
 
 ---
 
+## 2026-05-14 — Feature: Brainstorm Communities — Slice 1 (firmware v1.1.0 finalization)
+
+**Raw request (verbatim):**
+
+> great. on to slice 1 then
+
+**Pre-intake context:**
+
+- Slice 1 finalizes the firmware v1.1.0 skeleton at `firmware/versions/v1.1.0/` so it becomes deployable. Skeleton currently has only the 2 new concepts (`brainstorm-community`, `brainstorm-community-signal`); the manifest is missing the 34 v1.0.0 concepts plus the `enumerations`, `elements`, `sets`, `changelog`, and `relationshipTypes` top-level entries. See [PLAN.md §5](../../PLAN.md#5-firmware-additions) and the SKELETON note in [v1.1.0/manifest.json](../../firmware/versions/v1.1.0/manifest.json).
+- The two new concept-header.json and json-schema.json files are already well-shaped against PLAN.md §3 (DList layer ↔ Concept layer mapping). Minor schema gap: the brainstorm-community JSON Schema does not yet expose the optional NIP-72-wrapping `a` tag per PLAN.md §3 / DECENTRALIZED_LISTS_COMPAT.md Method 2.
+- `firmware/active` symlink currently points at `versions/v1.0.0`. PLAN.md says v1.1.0 stays staged until the active symlink is flipped; this story decides whether the flip happens here or in a separate operator-driven step.
+- No running Tapestry instance in this branch, so live `POST /api/firmware/install` verification is deferred to staging smoke (matches the pattern from story #5).
+
+**Classification:** Feature
+**Strictness:** Standard
+**Phase path:** Planning → Architecture → Test Design → Implementation → Review (all five phases apply). Live install verification deferred to staging smoke.
+
+---
+
 ## 2026-05-13 — Scheduled task: refresh Meilisearch profiles + House PoV WoT scores
 
 **Raw request (verbatim):**
