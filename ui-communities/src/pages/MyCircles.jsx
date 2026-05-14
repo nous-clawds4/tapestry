@@ -14,7 +14,7 @@ export default function MyCircles() {
       <header className={s.header}>
         <div>
           <h1 className={s.title}>Your Circles</h1>
-          <p className={s.subtitle}>Spaces where you belong, on your own terms.</p>
+          <p className={s.subtitle}>The circles you belong to.</p>
         </div>
         <Button variant="primary" size="md" onClick={() => navigate('/create')}>
           + Start a circle
@@ -25,7 +25,7 @@ export default function MyCircles() {
         <div className={s.empty}>
           <BrainstormMark variant="mark" size={64} className={s.emptyMark} />
           <h2 className={s.emptyTitle}>You haven&apos;t joined any circles yet.</h2>
-          <p className={s.emptySub}>Find your people on Discover, or start a circle of your own.</p>
+          <p className={s.emptySub}>Browse Discover to find one, or start your own.</p>
           <div className={s.emptyActions}>
             <Button variant="primary" onClick={() => navigate('/')}>Explore circles</Button>
             <Button variant="ghost" onClick={() => navigate('/create')}>Start a circle</Button>

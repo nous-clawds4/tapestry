@@ -35,8 +35,7 @@ export default function Discover() {
           Find <em>your</em> people
         </h1>
         <p className={s.lede}>
-          Circles built on trust, sustained by the people in them — not by any single
-          owner or platform.
+          Circles built on trust. The people inside each one decide who belongs.
         </p>
         <div className={s.searchWrap}>
           <SearchBar value={query} onChange={setQuery} />
@@ -67,8 +66,8 @@ export default function Discover() {
         {filtered.length === 0 && (
           <div className={s.empty}>
             <BrainstormMark variant="mark" size={64} className={s.emptyMark} />
-            <p className={s.emptyTitle}>No circles match your search.</p>
-            <p className={s.emptySub}>Try a different interest, or clear the filter.</p>
+            <p className={s.emptyTitle}>Nothing matches that search.</p>
+            <p className={s.emptySub}>Try a different interest or clear the filter.</p>
           </div>
         )}
       </section>

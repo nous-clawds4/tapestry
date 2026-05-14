@@ -48,7 +48,7 @@ export const communities = [
   {
     slug: 'listening-room',
     name: 'The Listening Room',
-    description: 'A gathering of music lovers who believe in supporting artists directly — no labels, no gatekeepers, just sound.',
+    description: 'A gathering of music lovers who support artists directly. The audience listens; the artist gets paid.',
     tags: ['independent-sound', 'creative-spark'],
     memberCount: 342,
     trustedHere: 12,
@@ -57,8 +57,8 @@ export const communities = [
     accent: '#c4603a',
     members: ['m1','m2','m4','m6','m8','m10','m12','m15'],
     posts: [
-      { author: 'm1', text: 'Just discovered an incredible artist through a friend here — this is exactly why this circle matters.', time: '2h ago' },
-      { author: 'm6', text: 'Dropped a new mix today. Raw, unfiltered, zero algorithms deciding who hears it. Link in my profile.', time: '5h ago' },
+      { author: 'm1', text: "Discovered a great artist this week, recommended by someone here. The circle works.", time: '2h ago' },
+      { author: 'm6', text: 'Dropped a new mix today. No algorithm decides who hears it. Link in my profile.', time: '5h ago' },
       { author: 'm10', text: 'Anyone else going to the underground show this weekend? Would love to meet some of you in person.', time: '1d ago' },
     ],
   },
@@ -74,9 +74,9 @@ export const communities = [
     accent: '#4a6fe8',
     members: ['m1','m2','m3','m4','m5','m6','m8','m12','m15'],
     posts: [
-      { author: 'm4', text: 'New guide up: setting up your own relay in under 10 minutes. No technical background needed.', time: '15m ago' },
-      { author: 'm2', text: 'The feeling of running your own node for the first time is hard to describe. Freedom tastes different.', time: '3h ago' },
-      { author: 'm12', text: 'Just helped my neighbor set up their first wallet. The look on their face — priceless.', time: '8h ago' },
+      { author: 'm4', text: 'New guide up: how to set up your own relay in under 10 minutes. No technical background required.', time: '15m ago' },
+      { author: 'm2', text: 'Spun up my own node for the first time tonight. Hard to describe what that feels like.', time: '3h ago' },
+      { author: 'm12', text: "Just helped my neighbor set up his first wallet. The look on his face when it confirmed was something.", time: '8h ago' },
     ],
   },
   {
@@ -91,7 +91,7 @@ export const communities = [
     accent: '#5e9e4a',
     members: ['m3','m5','m7','m9','m11','m13','m14'],
     posts: [
-      { author: 'm5', text: 'Spring planting is in full swing. Tomatoes, peppers, herbs — the soil is finally warm enough.', time: '1h ago' },
+      { author: 'm5', text: 'Spring planting is in full swing. Tomatoes, peppers, and herbs going in. The soil is finally warm enough.', time: '1h ago' },
       { author: 'm7', text: 'Does anyone have experience with rainwater collection systems? Looking for advice on filters.', time: '6h ago' },
     ],
   },
@@ -108,8 +108,8 @@ export const communities = [
     members: ['m1','m3','m5','m8','m9','m10','m11','m14'],
     posts: [
       { author: 'm8', text: 'Week 3 of the sourdough experiment. The starter is finally singing. Photos incoming.', time: '30m ago' },
-      { author: 'm3', text: "Made my grandmother's mole recipe for the first time. Took all day. Worth every minute.", time: '4h ago' },
-      { author: 'm14', text: "Foraged chanterelles in the rain this morning. Life doesn't get much better than this.", time: '1d ago' },
+      { author: 'm3', text: "Made my grandmother's mole recipe for the first time. Took all day. Came out really well.", time: '4h ago' },
+      { author: 'm14', text: "Foraged chanterelles in the rain this morning. A pretty good morning.", time: '1d ago' },
     ],
   },
   {
@@ -124,14 +124,14 @@ export const communities = [
     accent: '#3ab5c4',
     members: ['m2','m4','m6','m8','m10','m12','m13','m15'],
     posts: [
-      { author: 'm6', text: 'That second half comeback was one for the ages. Reminded me why I fell in love with this sport.', time: '5m ago' },
+      { author: 'm6', text: 'That second-half comeback was something else. Reminded me why I fell in love with the game.', time: '5m ago' },
       { author: 'm15', text: 'Sunday league update: we won 3-2 in the rain. Absolute scenes at the final whistle.', time: '2h ago' },
     ],
   },
   {
     slug: 'mesh-pioneers',
     name: 'Mesh Pioneers',
-    description: 'Building communication networks that no one can shut down. Meshtastic, LoRa, ham radio, and beyond.',
+    description: 'Building communication networks that no one can shut down. Meshtastic, LoRa, ham radio, and whatever comes next.',
     tags: ['mesh-signal', 'sovereign-tech'],
     memberCount: 183,
     trustedHere: 6,
@@ -147,7 +147,7 @@ export const communities = [
   {
     slug: 'protocol-dreamers',
     name: 'Protocol Dreamers',
-    description: 'Imagining and building the open web. Not just code — the philosophy, the human systems, the future we want.',
+    description: 'Imagining and building the open web. We work on the code, the philosophy, the human systems, and the future they enable.',
     tags: ['open-protocol', 'deep-think'],
     memberCount: 564,
     trustedHere: 21,
@@ -156,14 +156,14 @@ export const communities = [
     accent: '#c44a7a',
     members: ['m1','m2','m4','m8','m10','m12','m14','m15'],
     posts: [
-      { author: 'm1', text: "The best protocols feel invisible. You don't think about TCP/IP when you browse the web. That's the bar.", time: '45m ago' },
-      { author: 'm8', text: 'Read a paper on convergent consensus that blew my mind. The math is beautiful. Sharing thoughts soon.', time: '6h ago' },
+      { author: 'm1', text: "The best protocols feel invisible. Nobody thinks about TCP/IP when they browse the web. We should aim for the same.", time: '45m ago' },
+      { author: 'm8', text: 'Read a paper on convergent consensus last night. The math is doing something pretty elegant. Will share thoughts soon.', time: '6h ago' },
     ],
   },
   {
     slug: 'brainstorm-collective',
     name: 'Brainstorm Collective',
-    description: 'The community behind Brainstorm itself. Building search that serves people, not advertisers.',
+    description: 'The community behind Brainstorm itself. We build search engines for the people using them.',
     tags: ['open-protocol', 'sovereign-tech', 'deep-think'],
     memberCount: 327,
     trustedHere: 28,
@@ -173,7 +173,7 @@ export const communities = [
     members: ['m1','m2','m3','m4','m6','m8','m10','m12'],
     posts: [
       { author: 'm2', text: 'Communities feature is taking shape. Excited to see where this goes.', time: '10m ago' },
-      { author: 'm4', text: "The convergence tests are looking good. Independent nodes, same results. That's the dream.", time: '2h ago' },
+      { author: 'm4', text: "Convergence tests are looking good. Independent nodes are landing on the same membership rosters.", time: '2h ago' },
     ],
   },
 ]

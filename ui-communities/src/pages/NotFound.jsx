@@ -8,7 +8,7 @@ export default function NotFound() {
       <BrainstormMark variant="mark" size={88} className={s.mark} />
       <h1 className={s.title}>We can&apos;t find that circle.</h1>
       <p className={s.copy}>
-        It may have moved, or never existed in your trust network.
+        It may have moved. It may also be outside your trust network.
       </p>
       <Link to="/" className={s.cta}>
         ← Back to Discover

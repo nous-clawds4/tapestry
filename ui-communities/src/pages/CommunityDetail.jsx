@@ -119,13 +119,13 @@ export default function CommunityDetail({ slug }) {
               <div className={s.composer}>
                 <Avatar member="m1" size={36} />
                 <button type="button" className={s.composerInput}>
-                  Share something with the circle…
+                  Share something with the circle
                 </button>
               </div>
             )}
             {c.posts.map((p, i) => <PostCard key={i} post={p} />)}
             {c.posts.length === 0 && (
-              <p className={s.emptyPosts}>No conversations yet. Be the first to share.</p>
+              <p className={s.emptyPosts}>No posts yet. Be the first to share.</p>
             )}
           </div>
         )}
@@ -149,24 +149,24 @@ function About() {
   return (
     <div className={s.about}>
       <div className={s.aboutCallout}>
-        <strong className={s.aboutCalloutTitle}>This circle is self-sustaining.</strong>{' '}
+        <strong className={s.aboutCalloutTitle}>This circle runs itself.</strong>{' '}
         <span>
-          No single person controls who belongs. Membership is determined by the people
-          already here — through vouches and the trust they carry.
+          The people already here decide who belongs, through vouches and the trust each
+          person carries.
         </span>
       </div>
       <div className={s.aboutGrid}>
         <AboutBlock
           title="How membership works"
-          text="When existing members vouch for someone, that person becomes part of the circle. The more trusted the voucher, the more weight their word carries. It's reputation, not rules."
+          text="When members vouch for someone, that person becomes part of the circle. A more trusted voucher carries more weight. Membership runs on reputation."
         />
         <AboutBlock
-          title="Your view, your choice"
-          text="Every member has their own perspective on this circle. You can adjust your settings, your trust in members, even your servers — without affecting anyone else."
+          title="Your view is yours"
+          text="Every member sees this circle from their own perspective. You can adjust your settings, your trust in members, and even your servers without changing what anyone else sees."
         />
         <AboutBlock
           title="No central authority"
-          text="There's no admin who can rug-pull. If someone here behaves badly, members can raise a concern; if many do, the algorithm reflects it."
+          text="There is no admin who can rug-pull. If someone behaves badly, members can raise a concern. When enough do, the algorithm responds."
         />
       </div>
     </div>

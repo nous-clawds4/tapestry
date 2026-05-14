@@ -22,7 +22,7 @@ export default function ViewCallout({ title = 'Your view of this circle', childr
         <strong className={s.title}>{title}.</strong>{' '}
         <span className={s.copy}>
           {children || (
-            <>These settings are personal to you. Other members have their own view — edits here don&apos;t change theirs.</>
+            <>These settings are personal to you. Other members have their own view, and your edits don&apos;t change theirs.</>
           )}
         </span>
       </div>

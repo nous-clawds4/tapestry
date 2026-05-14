@@ -19,7 +19,7 @@ export default function Header({ signedIn, pathname, onNavigate }) {
           type="button"
           className={s.brand}
           onClick={() => onNavigate('/')}
-          aria-label="Brainstorm Communities — home"
+          aria-label="Brainstorm Communities home"
         >
           <BrainstormMark variant="mark" size={28} className={s.mark} />
           <span className={s.wordmark}>

@@ -49,7 +49,7 @@ export default function Create() {
     <div className={s.page}>
       <header className={s.header}>
         <h1 className={s.title}>Start a Circle</h1>
-        <p className={s.subtitle}>Create a space for people who share your passion.</p>
+        <p className={s.subtitle}>Build a home for people who share your interest.</p>
       </header>
 
       <StepProgress steps={STEPS} current={step} />
@@ -70,7 +70,7 @@ export default function Create() {
             placeholder="What brings people here? What will they find?"
             multiline
             rows={3}
-            hint="Keep it honest and inviting — this is the first thing people see."
+            hint="People will read this first. Be honest and inviting."
           />
           <Footer
             primary={
@@ -85,8 +85,8 @@ export default function Create() {
       {step === 1 && (
         <div className={s.step}>
           <div className={s.note}>
-            Before you start fresh, check if your tribe already has a home. People you trust
-            are already part of these circles:
+            Before you start from scratch, take a look at these. People you trust are
+            already part of them.
           </div>
           {similar.length > 0 ? (
             <ul className={s.similarList}>
@@ -112,7 +112,7 @@ export default function Create() {
             </ul>
           ) : (
             <p className={s.empty}>
-              Type a name on the previous step to surface similar circles.
+              Type a name on the previous step to see similar circles.
             </p>
           )}
           <Footer
@@ -155,8 +155,8 @@ export default function Create() {
       {step === 3 && (
         <div className={s.step}>
           <p className={s.lede}>
-            Invite a few people you trust to be the founding voices.
-            They&apos;ll help shape who belongs here.
+            Invite a few people you trust as founding voices. They&apos;ll help shape
+            who belongs here.
           </p>
           <SearchBar
             value={memberQuery}
@@ -214,8 +214,8 @@ export default function Create() {
             </div>
           </div>
           <ViewCallout title="This creates your view of this circle">
-            Others who join will have their own view — that&apos;s how self-sustaining
-            circles work.
+            Others who join will form their own view. That is how a self-sustaining
+            circle works.
           </ViewCallout>
           <Footer
             secondary={<Button variant="ghost" onClick={() => setStep(3)}>Back</Button>}

@@ -1,6 +1,6 @@
 import s from './SearchBar.module.css'
 
-export default function SearchBar({ value, onChange, placeholder = 'Search by interest, passion, or vibe…' }) {
+export default function SearchBar({ value, onChange, placeholder = 'Search by interest or topic' }) {
   return (
     <label className={s.wrap}>
       <svg
