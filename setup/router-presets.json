@@ -75,5 +75,19 @@
     "pluginDown": "",
     "pluginUp": "",
     "defaultEnabled": false
+  },
+  {
+    "name": "treasureMaps",
+    "description": "Bidirectional sync of kind 10040 (TA Treasure Maps) with popular general-purpose relays",
+    "dir": "both",
+    "filter": { "kinds": [10040] },
+    "urls": [
+      "wss://relay.damus.io",
+      "wss://nos.lol",
+      "wss://relay.primal.net"
+    ],
+    "pluginDown": "",
+    "pluginUp": "",
+    "defaultEnabled": false
   }
 ]

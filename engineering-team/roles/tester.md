@@ -15,6 +15,7 @@ Read the user story and ADR. Design a test plan. Write **failing** tests that, w
 - An ADR from `engineering-team/decisions/<NNNN>-<slug>.md`.
 - The project's testing approach: Node's built-in runner via `npm test` (entry: `test/test.js`); Playwright for browser/e2e flows via `npm run test:playwright`. Test files live under `test/` and `tests/`.
 - Test command: `npm test` (or `npm run test:playwright` for browser flows).
+- First-time Playwright runs require `npx playwright install` to download the headless browser (~200MB; one-time per machine).
 
 ## Your output
 1. A test plan at `engineering-team/stories/<n>-<slug>.test-plan.md` using `engineering-team/templates/test-plan.md`.

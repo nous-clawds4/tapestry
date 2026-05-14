@@ -327,22 +327,26 @@ The **firmware** is the canonical set of JSON definitions that describe the tape
 ```
 tapestry/firmware/
   versions/
-    v0.0.1/          ← current version
-  active/             ← symlink to current version
+    v0.0.1/          ← legacy
+    v1.0.0/          ← current version
+  active/             ← symlink to current version (versions/v1.0.0)
 ```
 
 The server reads from `firmware/active/` at runtime.
 
 ### What Firmware Defines
 
-The v0.0.1 manifest (`manifest.json`) contains:
+The v1.0.0 manifest (`manifest.json`) contains:
 
 - **11 relationship types** (CLASS_THREAD_INITIATION, CLASS_THREAD_PROPAGATION, CLASS_THREAD_TERMINATION, CORE_NODE_JSON_SCHEMA, CORE_NODE_PRIMARY_PROPERTY, CORE_NODE_PROPERTIES, CORE_NODE_PROPERTY_TREE_GRAPH, CORE_NODE_CORE_GRAPH, CORE_NODE_CONCEPT_GRAPH, PROPERTY_MEMBERSHIP, PROPERTY_ENUMERATION)
-- **24 concepts** organized by category:
+- **34 concepts** organized by category (some concepts belong to multiple categories):
   - **Core (8):** superset, concept-header, primary-property, properties-set, json-schema, property-tree-graph, core-nodes-graph, concept-graph
-  - **Graph-theoretic (6):** node-type, relationship, relationship-type, graph-type, word, graph
+  - **Graph-theoretic (6):** node-type, relationship, relationship-type, graph, graph-type, word
   - **Graphs (5):** graph, property-tree-graph, core-nodes-graph, concept-graph, tapestry
-  - **Other:** set, property, json-data-type, list, validation-tool, validation-tool-type, image, image-type, image-validation-script
+  - **Nostr (4):** nostr-user, nostr-relay, nostr-event, nostr-kind
+  - **Tapestry (2):** class-thread, word-wrapper
+  - **Web-of-trust (2):** graperank, web-of-trust
+  - **Other:** set, property, json-data-type, list, validation-tool, validation-tool-type, image, image-type, image-validation-script, plus example concepts (dog, dog-breed)
 - **Elements:** json-data-types (string, number, integer, boolean, object, array, null), node-types, graph-types, validation-tool-types
 - **Sets:** graphs, relationship-types (class-threads, core-nodes), validation-tools, properties, sets
 
@@ -1096,16 +1100,29 @@ Every owner, admin, and customer has an **assistant** — a server-side nostr id
 
 ### Router Presets
 
-Strfry sync streams are configured in `setup/router-presets.json`. All streams default to disabled. Toggle via `POST /api/strfry/router-toggle` or the UI at `/tapestry/settings/relays`.
+#### Instances are self-contained
+
+Each Tapestry instance's strfry is the **complete source of truth** for that instance. There is no canonical pool that instances must defer to:
+
+- **Headers** (kind 39998) are written to local strfry by `POST /api/firmware/install` — every instance that has run firmware install has its own copy.
+- **Elements** (kind 39999) and other UGC are written to local strfry by `publishEverywhere` (`ui/src/utils/nostrPublish.js`) — they land on the strfry of the instance where the user published, plus any external relays the client also targets.
+
+Nothing in the protocol *requires* an instance to sync with another instance to function. A fresh instance that has run firmware install and accepts its own users' publishes is fully operational on its own. Treat any cross-instance mirror — `dcosl.brainstorm.world`, `dcosl.brainstorm.social`, or another instance's relay — as **just another relay**, not a canonical home.
+
+#### Presets are opt-in cross-instance mirroring
+
+Router presets exist so an operator can *choose* to share or pull state with other relays. Strfry sync streams are configured in `setup/router-presets.json`. All streams default to disabled. Toggle via `POST /api/strfry/router-toggle` or the UI at `/tapestry/settings/relays`.
 
 | Preset | Direction | Kinds | Relays | Purpose |
 |--------|-----------|-------|--------|---------|
-| `dcosl` | both | 9998, 9999, 39998, 39999 | dcosl.brainstorm.world, dcosl.brainstorm.social | DCoSL list events |
-| `dcosl2` | down | 9998, 9999, 39998, 39999 | relay.damus.io | General-purpose relay DCoSL data |
+| `dcosl` | both | 9998, 9999, 39998, 39999 | dcosl.brainstorm.world, dcosl.brainstorm.social | Opt-in mirror of list events with other instances' public relays |
+| `dcosl2` | down | 9998, 9999, 39998, 39999 | relay.damus.io | Pull list events that appeared on a general-purpose relay |
 | `userProfiles` | down | 0 | wot.grapevine.network, profiles.nostr1.com, purplepag.es | Continuous kind 0 profile sync for search |
 | `trustedLists` | both | 30392–30395 | nip85.brainstorm.world, nip85.nostr1.com, nip85.grapevine.network | NIP-85 trusted list events |
 
 > **Important:** Enable the `userProfiles` preset to keep the Meilisearch profile index up to date. Without it, only profiles already in strfry will be searchable.
+
+> **Note on `dcosl` / `dcosl2`:** these are *not* required for an instance to host its own tags, concept graph, or UGC. Enable them only if you want this instance to receive list events that originated elsewhere (down), or republish its own to a shared mirror (up).
 
 ---
 
@@ -1332,7 +1349,8 @@ docker compose exec tapestry strfry scan '{"kinds":[39998]}'
 # Count strfry events by kind (can take minutes on large DBs)
 curl 'http://localhost:8080/api/strfry/scan/count?filter={"kinds":[0]}'
 
-# Sync from DCoSL relay
+# Optional one-shot pull of list events from another instance's relay
+# (only needed if you want that instance's data and aren't running the dcosl preset)
 docker compose exec tapestry strfry sync wss://dcosl.brainstorm.world \
   --filter '{"kinds":[9998,9999,39998,39999]}' --dir down
 ```
@@ -1457,6 +1475,7 @@ docker compose exec tapestry strfry sync wss://dcosl.brainstorm.world \
 - [ ] **Cross-instance federation** — multiple Tapestry instances syncing and discovering each other's concept graphs
 - [ ] **SALUD protocol integration** — health data structured via tapestry concepts
 - [ ] **GrapeRank integration** — full PageRank-style trust scoring applied to concept curation
+- [ ] **GrapeRank Scoring Systems registry** — formalize multiple GR scoring systems (baseline influence, GR Community membership, future variants) as first-class addressable resources, so curators can reference a system by stable identifier (e.g. via a `weighting_model` field)
 
 ### Long-Term
 

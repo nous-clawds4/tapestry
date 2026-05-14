@@ -23,6 +23,7 @@ function testConfigLoading() {
   }
 }
 
+// Tag-stack suites (from feat/pubkey-tagging-target)
 const profileTags = require('./profile-tags.test.js');
 const profileTagsPublish = require('./profile-tags-publish.test.js');
 const tagDetail = require('./tag-detail.test.js');
@@ -33,6 +34,11 @@ const tagIndex = require('./tag-index.test.js');
 const tagIndexPublish = require('./tag-index-publish.test.js');
 const authoredTagging = require('./authored-tagging.test.js');
 const authoredTaggingPublish = require('./authored-tagging-publish.test.js');
+// Suites added on main since this branch forked
+const treasureMaps = require('./treasure-maps-router-preset.test.js');
+const scheduledRefresh = require('./scheduled-search-and-house-scores-refresh.test.js');
+const strfryRouterFirstBoot = require('./strfry-router-first-boot-config.test.js');
+const perQueryNeo4jTimeout = require('./per-query-neo4j-timeout-safety-net.test.js');
 
 async function main() {
   console.log('Running Brainstorm tests...');
@@ -51,34 +57,49 @@ async function main() {
   const authoredTaggingResult = await authoredTagging.run();
   const authoredTaggingPublishResult = await authoredTaggingPublish.run();
 
+  // Main-side suites — these don't print their own banner, so we announce
+  // each one before running.
+  console.log('\ntreasure-maps-router-preset suite:');
+  const treasureMapsResult = await treasureMaps.run();
+  console.log('\nscheduled-search-and-house-scores-refresh suite:');
+  const scheduledRefreshResult = await scheduledRefresh.run();
+  console.log('\nstrfry-router-first-boot-config suite:');
+  const strfryRouterFirstBootResult = await strfryRouterFirstBoot.run();
+  console.log('\nper-query-neo4j-timeout-safety-net suite:');
+  const perQueryNeo4jTimeoutResult = await perQueryNeo4jTimeout.run();
+
   console.log('\nTest Results');
   console.log('-------------');
-  console.log(`Configuration Loading:        ${configOk ? 'PASS' : 'FAIL'}`);
-  console.log(`profile-tags suite:           ${profileTagsResult.fail === 0 ? 'PASS' : 'FAIL'} (${profileTagsResult.pass} passed, ${profileTagsResult.fail} failed)`);
+  console.log(`Configuration Loading:                           ${configOk ? 'PASS' : 'FAIL'}`);
+  console.log(`profile-tags suite:                              ${profileTagsResult.fail === 0 ? 'PASS' : 'FAIL'} (${profileTagsResult.pass} passed, ${profileTagsResult.fail} failed)`);
   const publishLine = publishResult.skipped
     ? `SKIP (${publishResult.skipped} tests; preconditions not met)`
     : `${publishResult.fail === 0 ? 'PASS' : 'FAIL'} (${publishResult.pass} passed, ${publishResult.fail} failed)`;
-  console.log(`profile-tags-publish suite:   ${publishLine}`);
-  console.log(`tag-detail suite:             ${tagDetailResult.fail === 0 ? 'PASS' : 'FAIL'} (${tagDetailResult.pass} passed, ${tagDetailResult.fail} failed)`);
+  console.log(`profile-tags-publish suite:                      ${publishLine}`);
+  console.log(`tag-detail suite:                                ${tagDetailResult.fail === 0 ? 'PASS' : 'FAIL'} (${tagDetailResult.pass} passed, ${tagDetailResult.fail} failed)`);
   const tdpLine = tagDetailPublishResult.skipped
     ? `SKIP (${tagDetailPublishResult.skipped} tests; preconditions not met)`
     : `${tagDetailPublishResult.fail === 0 ? 'PASS' : 'FAIL'} (${tagDetailPublishResult.pass} passed, ${tagDetailPublishResult.fail} failed)`;
-  console.log(`tag-detail-publish suite:     ${tdpLine}`);
-  console.log(`tag-detail-write suite:       ${tagDetailWriteResult.fail === 0 ? 'PASS' : 'FAIL'} (${tagDetailWriteResult.pass} passed, ${tagDetailWriteResult.fail} failed)`);
+  console.log(`tag-detail-publish suite:                        ${tdpLine}`);
+  console.log(`tag-detail-write suite:                          ${tagDetailWriteResult.fail === 0 ? 'PASS' : 'FAIL'} (${tagDetailWriteResult.pass} passed, ${tagDetailWriteResult.fail} failed)`);
   const tdwpLine = tagDetailWritePublishResult.skipped
     ? `SKIP (${tagDetailWritePublishResult.skipped} tests; preconditions not met)`
     : `${tagDetailWritePublishResult.fail === 0 ? 'PASS' : 'FAIL'} (${tagDetailWritePublishResult.pass} passed, ${tagDetailWritePublishResult.fail} failed)`;
-  console.log(`tag-detail-write-publish suite: ${tdwpLine}`);
-  console.log(`tag-index suite:              ${tagIndexResult.fail === 0 ? 'PASS' : 'FAIL'} (${tagIndexResult.pass} passed, ${tagIndexResult.fail} failed)`);
+  console.log(`tag-detail-write-publish suite:                  ${tdwpLine}`);
+  console.log(`tag-index suite:                                 ${tagIndexResult.fail === 0 ? 'PASS' : 'FAIL'} (${tagIndexResult.pass} passed, ${tagIndexResult.fail} failed)`);
   const tipLine = tagIndexPublishResult.skipped
     ? `SKIP (${tagIndexPublishResult.skipped} tests; preconditions not met)`
     : `${tagIndexPublishResult.fail === 0 ? 'PASS' : 'FAIL'} (${tagIndexPublishResult.pass} passed, ${tagIndexPublishResult.fail} failed)`;
-  console.log(`tag-index-publish suite:      ${tipLine}`);
-  console.log(`authored-tagging suite:       ${authoredTaggingResult.fail === 0 ? 'PASS' : 'FAIL'} (${authoredTaggingResult.pass} passed, ${authoredTaggingResult.fail} failed)`);
+  console.log(`tag-index-publish suite:                         ${tipLine}`);
+  console.log(`authored-tagging suite:                          ${authoredTaggingResult.fail === 0 ? 'PASS' : 'FAIL'} (${authoredTaggingResult.pass} passed, ${authoredTaggingResult.fail} failed)`);
   const atpLine = authoredTaggingPublishResult.skipped
     ? `SKIP (${authoredTaggingPublishResult.skipped} tests; preconditions not met)`
     : `${authoredTaggingPublishResult.fail === 0 ? 'PASS' : 'FAIL'} (${authoredTaggingPublishResult.pass} passed, ${authoredTaggingPublishResult.fail} failed)`;
-  console.log(`authored-tagging-publish suite: ${atpLine}`);
+  console.log(`authored-tagging-publish suite:                  ${atpLine}`);
+  console.log(`treasure-maps-router-preset suite:               ${treasureMapsResult.fail === 0 ? 'PASS' : 'FAIL'} (${treasureMapsResult.pass} passed, ${treasureMapsResult.fail} failed)`);
+  console.log(`scheduled-search-and-house-scores-refresh suite: ${scheduledRefreshResult.fail === 0 ? 'PASS' : 'FAIL'} (${scheduledRefreshResult.pass} passed, ${scheduledRefreshResult.fail} failed)`);
+  console.log(`strfry-router-first-boot-config suite:           ${strfryRouterFirstBootResult.fail === 0 ? 'PASS' : 'FAIL'} (${strfryRouterFirstBootResult.pass} passed, ${strfryRouterFirstBootResult.fail} failed)`);
+  console.log(`per-query-neo4j-timeout-safety-net suite:        ${perQueryNeo4jTimeoutResult.fail === 0 ? 'PASS' : 'FAIL'} (${perQueryNeo4jTimeoutResult.pass} passed, ${perQueryNeo4jTimeoutResult.fail} failed)`);
 
   const overallOk = configOk
     && profileTagsResult.fail === 0
@@ -90,8 +111,12 @@ async function main() {
     && tagIndexResult.fail === 0
     && tagIndexPublishResult.fail === 0
     && authoredTaggingResult.fail === 0
-    && authoredTaggingPublishResult.fail === 0;
-  console.log(`Overall:                      ${overallOk ? 'PASS' : 'FAIL'}`);
+    && authoredTaggingPublishResult.fail === 0
+    && treasureMapsResult.fail === 0
+    && scheduledRefreshResult.fail === 0
+    && strfryRouterFirstBootResult.fail === 0
+    && perQueryNeo4jTimeoutResult.fail === 0;
+  console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);
   process.exit(overallOk ? 0 : 1);
 }
 

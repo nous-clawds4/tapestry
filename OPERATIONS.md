@@ -23,15 +23,16 @@
 
 ## 1. Deploy targets
 
-Three long-lived branches, three Digital Ocean droplets, three CI/CD workflows:
+Four long-lived branches, four Digital Ocean droplets, four CI/CD workflows:
 
 | Branch | Workflow | Target | Purpose |
 |--------|----------|--------|---------|
 | `main` | `deploy-brainstorm.yml` | `brainstorm.world` | Production. PRs merge here only after staging verification. |
 | `staging` | `deploy-staging.yml` | `staging.brainstorm.world` | Pre-production verification. PRs from feature branches land here first. |
 | `feature-magic-carpet` | `deploy-magic-carpet.yml` | `magic-carpet.brainstorm.world` | Long-lived sandbox for Matthias's bounty-system work. |
+| `feat/pubkey-tagging-target` | `deploy-tags.yml` | `tags.brainstorm.world` | Long-lived sandbox for the pubkey-tagging feature work (NIP-85 profile-tagging UX). |
 
-Each workflow uses repo secrets named `DEPLOY_HOST_<NAME>`, `DEPLOY_USER_<NAME>`, `DEPLOY_SSH_KEY_<NAME>` where `<NAME>` is `BRAINSTORM`, `STAGING`, or `MAGIC_CARPET`.
+Each workflow uses repo secrets named `DEPLOY_HOST_<NAME>`, `DEPLOY_USER_<NAME>`, `DEPLOY_SSH_KEY_<NAME>` where `<NAME>` is `BRAINSTORM`, `STAGING`, `MAGIC_CARPET`, or `TAGS`.
 
 ### Standard branch promotion flow
 
@@ -43,13 +44,15 @@ feat/foo (off staging)
     → source feature branch auto-deleted
 ```
 
+**Long-lived sandbox branches** (currently `feature-magic-carpet` and `feat/pubkey-tagging-target`, plus any future additions) follow the same convention: fork from `staging`, deploy to their own droplet via a dedicated `deploy-<name>.yml` workflow, and eventually merge back via the standard `<branch> → staging → main` path. New sandboxes get a row added to the deploy-target table above when they're stood up, plus a row in [§5 "Droplets and empirical measurements"](#5-droplets-and-empirical-measurements).
+
 For Matthias's sandbox: he PRs from his fork's `magic-carpet` branch into our `feature-magic-carpet`. Merging deploys to `magic-carpet.brainstorm.world`. Code on `feature-magic-carpet` is **not** intended for production until promoted via the standard `feature-magic-carpet → staging → main` path.
 
 ---
 
 ## 2. Branches
 
-In addition to the three deploy-target branches:
+In addition to the four deploy-target branches:
 
 | Branch | Status | Owner | Purpose |
 |--------|--------|-------|---------|
@@ -66,7 +69,7 @@ In addition to the three deploy-target branches:
 
 ## 3. CI/CD workflows
 
-GitHub Actions workflows in `.github/workflows/`. All three follow the same SSH-action pattern:
+GitHub Actions workflows in `.github/workflows/`. All four follow the same SSH-action pattern:
 
 1. Restore `docker-compose.yml` to repo version (`git checkout --`)
 2. Pull latest code from the corresponding branch
@@ -103,6 +106,12 @@ Short-lived feature branches (`feat/*`, `fix/*`, `chore/*`) are NOT protected; t
 ### Sandbox: `magic-carpet.brainstorm.world`
 
 - (specs to be filled in — sized for a small WoT-user count)
+
+### Sandbox: `tags.brainstorm.world`
+
+- (specs to be filled in)
+- Behind host nginx + Certbot SSL; Docker stack binds to `127.0.0.1:8080`
+- Stood up 2026-05-12; first CI/CD deploy via `deploy-tags.yml` ran successfully against PR #119.
 
 ### Empirical RAM/disk on production (April 2026)
 
@@ -208,6 +217,26 @@ While verifying the Redis-backed session store landed in #90, we noticed users w
 **Fix (PR #92):** persist `SESSION_SECRET` to `/var/lib/brainstorm/session.secret` on the `tapestry-data` volume. Generate-once-and-store, read on subsequent starts. To force-rotate after a security incident: delete the file; every active session ends on the next container start.
 
 **Lesson:** when fixing a "session persistence" UX, both the *store* (where data lives) and the *secret* (which validates cookies referencing that data) need to survive container rebuilds. Either alone is insufficient.
+
+### 8.7. 2026-05-13: engineering-team scaffolding on main but not on staging
+
+While preparing a new 5-phase engineering-team flow off `staging`, we discovered `engineering-team/` (templates, roles, workflows, README), `AGENTS.md`, and the engineering-team section of `CLAUDE.md` existed on `main` but not on `staging` — about 850 lines of agent-workflow scaffolding silently absent from the pre-production branch. Tracing it back: [PR #111](https://github.com/nous-clawds4/tapestry/pull/111) (commit `4acbe321` — "Add claude 'engineering team' concept") was merged directly to `main`, bypassing staging. All subsequent `staging → main` promotions carried staging's diff *into* main but never the reverse direction — git merges are one-way — so the two branches drifted by exactly that scaffolding.
+
+**Recovery:** one-shot sync PR — branch off `main`, PR back into `staging`, merge. The diff was purely additive on the staging side (main had files staging didn't), so no conflicts. ([PR #122](https://github.com/nous-clawds4/tapestry/pull/122) recorded this for the first occurrence; `deploy-staging.yml` runs but the redeploy is a no-op for running services since only docs/scaffolding moved.)
+
+**Mechanism for prevention:** all changes — *even docs and scaffolding* — should go through the standard `staging → main` flow. The cycle-staging and cycle-prod skills assume parity between the two long-lived branches; landing directly on main breaks that assumption silently. If parity drift is suspected, `git diff --stat origin/main origin/staging` from a fresh checkout reveals it immediately.
+
+### 8.8. 2026-05-14: sandbox instance had list headers but no items
+
+On `tags.brainstorm.world` we noticed the DLists/Concepts for `tag` and `nostr-user-tag` (kind 39998 headers) were present, but no elements (kind 39999) — the UI showed empty lists. The droplet had run firmware install (so headers were correct), but element events published from users on *other* instances (`brainstorm.world`, local dev, etc.) never reached this droplet's strfry.
+
+**Why:** each Tapestry instance's strfry is self-contained. `publishEverywhere` writes to the publishing instance's local strfry plus configured external relays — it does **not** broadcast into every other instance's strfry. A sandbox instance only sees UGC originating on itself unless it opts in to cross-instance mirroring.
+
+**Fix options:**
+- One-shot: `docker compose exec tapestry strfry sync wss://dcosl.brainstorm.world --filter '{"kinds":[9998,9999,39998,39999]}' --dir down`
+- Continuous: enable the `dcosl` router preset in `/tapestry/settings/relays` (both-direction, kinds 9998/9999/39998/39999).
+
+**Mental model:** see [BIBLE.md §14 "Router Presets"](./BIBLE.md#router-presets). `dcosl.brainstorm.world` is *not* a canonical pool — it's just another instance's public-facing relay that's a convenient pull target if you want shared list state across our deployments.
 
 ---
 

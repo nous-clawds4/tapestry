@@ -769,6 +769,7 @@ function TimestampPicker({ label, value, onChange, disabled }) {
 const KIND_PRESETS = [
   { label: 'DCoSL (9998, 9999, 39998, 39999)', kinds: [9998, 9999, 39998, 39999] },
   { label: 'Profiles (0)', kinds: [0] },
+  { label: 'Treasure Maps (10040)', kinds: [10040] },
   { label: 'WoT (3, 1984, 10000)', kinds: [3, 1984, 10000] },
   { label: 'All (no filter)', kinds: [] },
 ];
@@ -1356,7 +1357,37 @@ function StreamingETLPanel() {
 }
 
 // ── Scheduled Tasks Panel ────────────────────────────────────
-function ScheduledTasksPanel() {
+
+// Banner shown inside the refreshSearchIndex card when House PoV is not configured.
+// Reads /api/grapevine/preferences and renders only when povPubkey is falsy.
+function HousePovUnconfiguredBanner() {
+  const [povPubkey, setPovPubkey] = useState(undefined); // undefined = loading, null = unset, string = set
+
+  useEffect(() => {
+    fetch('/api/grapevine/preferences')
+      .then(r => r.json())
+      .then(d => setPovPubkey(d.preferences?.povPubkey || null))
+      .catch(() => setPovPubkey(null));
+  }, []);
+
+  if (povPubkey === undefined) return null;
+  if (povPubkey) return null;
+
+  return (
+    <div style={{ padding: '0.5rem 0.75rem', marginBottom: '0.75rem', borderRadius: '6px',
+      backgroundColor: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)', color: '#f59e0b', fontSize: '0.85rem' }}>
+      ⚠️ House PoV is not configured — the score-refresh half will be skipped until you set it in{' '}
+      <a href="/tapestry/grapevine/search-preferences"
+        style={{ color: '#f59e0b', textDecoration: 'underline' }}>
+        Search Preferences
+      </a>.
+    </div>
+  );
+}
+
+// Reusable card for one taskId. Renders toggle + days/hours inputs +
+// timer status + recent-runs table, all scoped to the given task.
+function ScheduledTaskCard({ taskId, title, hint, banner = null }) {
   const [status, setStatus] = useState(null);
   const [runs, setRuns] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -1372,7 +1403,7 @@ function ScheduledTasksPanel() {
 
   const fetchStatus = useCallback(async () => {
     try {
-      const res = await fetch('/api/scheduled-tasks/status');
+      const res = await fetch(`/api/scheduled-tasks/status?taskId=${encodeURIComponent(taskId)}`);
       const data = await res.json();
       if (data.success) {
         setStatus(data);
@@ -1381,15 +1412,15 @@ function ScheduledTasksPanel() {
         setHours(data.schedule.intervalHours);
       }
     } catch (err) { flashError(err.message); }
-  }, []);
+  }, [taskId]);
 
   const fetchHistory = useCallback(async () => {
     try {
-      const res = await fetch('/api/scheduled-tasks/history');
+      const res = await fetch(`/api/scheduled-tasks/history?taskId=${encodeURIComponent(taskId)}`);
       const data = await res.json();
       if (data.success) setRuns(data.runs);
     } catch (err) { console.error('Error fetching history:', err); }
-  }, []);
+  }, [taskId]);
 
   useEffect(() => {
     Promise.all([fetchStatus(), fetchHistory()]).finally(() => setLoading(false));
@@ -1406,7 +1437,7 @@ function ScheduledTasksPanel() {
       const res = await fetch('/api/scheduled-tasks/update', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ enabled, intervalDays: parseInt(days) || 0, intervalHours: parseInt(hours) || 0 }),
+        body: JSON.stringify({ taskId, enabled, intervalDays: parseInt(days) || 0, intervalHours: parseInt(hours) || 0 }),
       });
       const data = await res.json();
       if (data.success) {
@@ -1436,16 +1467,10 @@ function ScheduledTasksPanel() {
     return new Date(iso).toLocaleString();
   }
 
-  if (loading) return <div style={{ padding: '2rem', textAlign: 'center', color: '#888' }}>Loading...</div>;
+  if (loading) return <div style={{ padding: '2rem', textAlign: 'center', color: '#888' }}>Loading {title}…</div>;
 
   return (
-    <div className="settings-section">
-      <h2>📅 Scheduled Tasks</h2>
-      <p className="settings-hint">
-        Automatically run the full WoT score update pipeline (<code>updateAllScoresForOwner</code>) on a recurring schedule.
-        This includes GrapeRank, PageRank, follower/muter/reporter counts, and kind 30382 event publishing.
-      </p>
-
+    <>
       {message && (
         <div style={{ padding: '0.5rem 0.75rem', marginBottom: '0.75rem', borderRadius: '6px',
           backgroundColor: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.3)', color: '#22c55e', fontSize: '0.85rem' }}>
@@ -1461,7 +1486,10 @@ function ScheduledTasksPanel() {
 
       {/* Schedule Control */}
       <div className="settings-group" style={{ padding: '1rem', marginBottom: '1rem' }}>
-        <h3 style={{ margin: '0 0 0.75rem', fontSize: '1rem' }}>Update All Scores for Owner</h3>
+        <h3 style={{ margin: '0 0 0.75rem', fontSize: '1rem' }}>{title}</h3>
+
+        {hint && <p style={{ fontSize: '0.85rem', color: '#aaa', margin: '0 0 0.75rem' }}>{hint}</p>}
+        {banner}
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '0.75rem' }}>
           <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
@@ -1510,9 +1538,9 @@ function ScheduledTasksPanel() {
       </div>
 
       {/* Execution History */}
-      <div className="settings-group" style={{ padding: '1rem' }}>
+      <div className="settings-group" style={{ padding: '1rem', marginBottom: '1rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-          <h3 style={{ margin: 0, fontSize: '1rem' }}>Recent Runs</h3>
+          <h3 style={{ margin: 0, fontSize: '1rem' }}>Recent Runs ({title})</h3>
           <button className="btn-small" onClick={fetchHistory} style={{ fontSize: '0.8rem', padding: '0.2rem 0.5rem' }}>
             Refresh
           </button>
@@ -1548,12 +1576,36 @@ function ScheduledTasksPanel() {
         )}
 
         <div style={{ marginTop: '0.5rem', fontSize: '0.8rem' }}>
-          <a href="/legacy/task.html?taskName=updateAllScoresForOwner" target="_blank"
+          <a href={`/legacy/task.html?taskName=${encodeURIComponent(taskId)}`} target="_blank"
             style={{ color: '#60a5fa', textDecoration: 'none' }}>
             View full history &rarr;
           </a>
         </div>
       </div>
+    </>
+  );
+}
+
+function ScheduledTasksPanel() {
+  return (
+    <div className="settings-section">
+      <h2>📅 Scheduled Tasks</h2>
+      <p className="settings-hint">
+        Configure recurring background tasks. Each task below has its own enable toggle and schedule.
+      </p>
+
+      <ScheduledTaskCard
+        taskId="updateAllScoresForOwner"
+        title="Update All Scores for Owner"
+        hint={<>Run the full WoT score update pipeline (<code>updateAllScoresForOwner</code>) on a recurring schedule. Includes GrapeRank, PageRank, follower/muter/reporter counts, and kind 30382 event publishing.</>}
+      />
+
+      <ScheduledTaskCard
+        taskId="refreshSearchIndex"
+        title="Refresh Meilisearch profiles & House PoV scores"
+        hint={<>Refresh kind-0 profile data in Meilisearch and, when House PoV is configured, reload House's WoT scores from the latest kind 30382 Trusted Assertions.</>}
+        banner={<HousePovUnconfiguredBanner />}
+      />
     </div>
   );
 }
