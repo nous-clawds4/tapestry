@@ -103,3 +103,19 @@ ADR-0001 shipped the `nostr-user-tag` assertion using an `e`-tag to reference th
 Slug-collision behavior is the same under either reference scheme (both commit to a specific author).
 
 **Bundle candidate:** standalone ADR that partially supersedes ADR-0001's wire-shape section. Modest migration cost, scales with assertion volume — better sooner than later if a switch is on the table.
+
+## Cross-page POV invalidation — propagate POV changes to mounted hooks
+
+**Surfaced during:** Story 7 architecture (ADR-0006), 2026-05-14.
+
+Story 7's "POV selector in the upper-right avatar menu" AC was dropped during architecture because the pre-verification check failed: changing POV from anywhere does not currently invalidate POV-dependent hooks already mounted on the page. Today's POV-aware hooks (`useTagDetail`, `useAuthoredTagging`, `useProfileTags`, and others) read POV at fetch time via the server (`resolvePov`) but do not subscribe to a client-side POV-change signal. The only surface that handles in-page POV change correctly is `BrainstormSearch.jsx`'s inline `UserMenu` (via `useEffect` on `pov` at lines 909–915), and that's local to the search page.
+
+To unblock the avatar-menu POV selector — or any future "switch POV from anywhere" surface — we need cross-page POV propagation:
+
+- A `POVContext` (or equivalent global client-side observable POV state) that holds the active POV.
+- Every POV-aware hook subscribes to it and re-runs its fetch when POV changes.
+- The avatar-menu POV switcher writes to the context (and to user-prefs as today); downstream hooks invalidate transparently.
+
+Affected hooks (enumerated during ADR-0006 audit): `useTagDetail`, `useAuthoredTagging`, `useProfileTags`. Likely more after audit — the search proxy's POV usage on `BrainstormSearch` would also subscribe but already has its own pattern.
+
+**Bundle candidate:** dedicated story + ADR. Scope is real infrastructure work (not polish). When this lands, the avatar-menu POV selector becomes a small follow-on.

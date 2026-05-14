@@ -75,6 +75,6 @@ As a Brainstorm user, I want the search popup to surface tags as their own resul
 - If the pre-verification fails, the avatar-menu AC drops — but **does any of the underlying re-derivation work still ship anyway** (e.g., wiring up cross-page invalidation, even if no visible UI lands)? PO lean: yes, if cheap; no, if it'd require speculative infrastructure. **Architect's judgment.**
 
 ## Linked artifacts
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/0006-profile-tag-polish-omni-search-pov.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
