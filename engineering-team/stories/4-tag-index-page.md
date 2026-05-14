@@ -47,5 +47,5 @@ As a Brainstorm user, I want a page that lists every tag known to my community (
 
 ## Linked artifacts
 - ADR: `engineering-team/decisions/0003-tag-index-page.md`
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/4-tag-index-page.test-plan.md`
 - Review: (filled in after Review phase)

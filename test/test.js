@@ -27,6 +27,8 @@ const profileTags = require('./profile-tags.test.js');
 const profileTagsPublish = require('./profile-tags-publish.test.js');
 const tagDetail = require('./tag-detail.test.js');
 const tagDetailPublish = require('./tag-detail-publish.test.js');
+const tagIndex = require('./tag-index.test.js');
+const tagIndexPublish = require('./tag-index-publish.test.js');
 
 async function main() {
   console.log('Running Brainstorm tests...');
@@ -38,6 +40,8 @@ async function main() {
   const publishResult = await profileTagsPublish.run();
   const tagDetailResult = await tagDetail.run();
   const tagDetailPublishResult = await tagDetailPublish.run();
+  const tagIndexResult = await tagIndex.run();
+  const tagIndexPublishResult = await tagIndexPublish.run();
 
   console.log('\nTest Results');
   console.log('-------------');
@@ -52,12 +56,19 @@ async function main() {
     ? `SKIP (${tagDetailPublishResult.skipped} tests; preconditions not met)`
     : `${tagDetailPublishResult.fail === 0 ? 'PASS' : 'FAIL'} (${tagDetailPublishResult.pass} passed, ${tagDetailPublishResult.fail} failed)`;
   console.log(`tag-detail-publish suite:     ${tdpLine}`);
+  console.log(`tag-index suite:              ${tagIndexResult.fail === 0 ? 'PASS' : 'FAIL'} (${tagIndexResult.pass} passed, ${tagIndexResult.fail} failed)`);
+  const tipLine = tagIndexPublishResult.skipped
+    ? `SKIP (${tagIndexPublishResult.skipped} tests; preconditions not met)`
+    : `${tagIndexPublishResult.fail === 0 ? 'PASS' : 'FAIL'} (${tagIndexPublishResult.pass} passed, ${tagIndexPublishResult.fail} failed)`;
+  console.log(`tag-index-publish suite:      ${tipLine}`);
 
   const overallOk = configOk
     && profileTagsResult.fail === 0
     && publishResult.fail === 0
     && tagDetailResult.fail === 0
-    && tagDetailPublishResult.fail === 0;
+    && tagDetailPublishResult.fail === 0
+    && tagIndexResult.fail === 0
+    && tagIndexPublishResult.fail === 0;
   console.log(`Overall:                      ${overallOk ? 'PASS' : 'FAIL'}`);
   process.exit(overallOk ? 0 : 1);
 }
