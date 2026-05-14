@@ -42,6 +42,10 @@ node_modules/
 jspm_packages/
 related-repositories
 
+# Playwright runtime artifacts
+test-results/
+playwright-report/
+
 # TypeScript cache
 *.tsbuildinfo
 
