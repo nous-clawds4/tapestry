@@ -2,7 +2,7 @@
 
 **Status:** Proposed
 **Date:** 2026-05-14
-**Story:** `engineering-team/stories/7-profile-tag-polish-omni-search-pov.md`
+**Story:** `engineering-team/stories/done/7-profile-tag-polish-omni-search-pov.md`
 
 ## Context
 

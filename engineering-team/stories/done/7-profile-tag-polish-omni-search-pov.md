@@ -1,6 +1,6 @@
 # Story 7: Profile-tag polish bundle — omni-search popup + POV correctness
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-05-14
 **Type:** Feature
 

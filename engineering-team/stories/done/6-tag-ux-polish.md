@@ -1,6 +1,6 @@
 # Story 6: Polish bundle — tag chip popover + search placeholder
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-05-14
 **Type:** Feature
 

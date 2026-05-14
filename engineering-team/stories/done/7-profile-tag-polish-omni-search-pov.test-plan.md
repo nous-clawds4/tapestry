@@ -1,6 +1,6 @@
 # Test Plan: Story 7 — Profile-tag polish bundle (omni-search popup + POV correctness)
 
-**Story:** `engineering-team/stories/7-profile-tag-polish-omni-search-pov.md`
+**Story:** `engineering-team/stories/done/7-profile-tag-polish-omni-search-pov.md`
 **ADR:** `engineering-team/decisions/0006-profile-tag-polish-omni-search-pov.md`
 **Date:** 2026-05-14
 
