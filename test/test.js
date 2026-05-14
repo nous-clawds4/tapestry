@@ -24,6 +24,7 @@ function testConfigLoading() {
 }
 
 const treasureMaps = require('./treasure-maps-router-preset.test.js');
+const scheduledRefresh = require('./scheduled-search-and-house-scores-refresh.test.js');
 
 async function main() {
   console.log('Running Brainstorm tests...\n');
@@ -34,15 +35,21 @@ async function main() {
   console.log('treasure-maps-router-preset suite:');
   const treasureMapsResult = await treasureMaps.run();
 
+  console.log('\nscheduled-search-and-house-scores-refresh suite:');
+  const scheduledRefreshResult = await scheduledRefresh.run();
+
   console.log('\nTest Results');
   console.log('-------------');
-  console.log(`Configuration Loading:                ${configOk ? 'PASS' : 'FAIL'}`);
+  console.log(`Configuration Loading:                           ${configOk ? 'PASS' : 'FAIL'}`);
   console.log(
-    `treasure-maps-router-preset suite:    ${treasureMapsResult.fail === 0 ? 'PASS' : 'FAIL'} (${treasureMapsResult.pass} passed, ${treasureMapsResult.fail} failed)`
+    `treasure-maps-router-preset suite:               ${treasureMapsResult.fail === 0 ? 'PASS' : 'FAIL'} (${treasureMapsResult.pass} passed, ${treasureMapsResult.fail} failed)`
+  );
+  console.log(
+    `scheduled-search-and-house-scores-refresh suite: ${scheduledRefreshResult.fail === 0 ? 'PASS' : 'FAIL'} (${scheduledRefreshResult.pass} passed, ${scheduledRefreshResult.fail} failed)`
   );
 
-  const overallOk = configOk && treasureMapsResult.fail === 0;
-  console.log(`Overall:                              ${overallOk ? 'PASS' : 'FAIL'}`);
+  const overallOk = configOk && treasureMapsResult.fail === 0 && scheduledRefreshResult.fail === 0;
+  console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);
   process.exit(overallOk ? 0 : 1);
 }
 
