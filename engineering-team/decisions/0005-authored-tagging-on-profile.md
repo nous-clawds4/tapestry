@@ -2,7 +2,7 @@
 
 **Status:** Proposed
 **Date:** 2026-05-14
-**Story:** `engineering-team/stories/5-authored-tagging-on-profile.md`
+**Story:** `engineering-team/stories/done/5-authored-tagging-on-profile.md`
 
 ## Context
 

@@ -1,6 +1,6 @@
 # Story 5: Authored-tagging section on profile pages
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-05-14
 **Type:** Feature
 

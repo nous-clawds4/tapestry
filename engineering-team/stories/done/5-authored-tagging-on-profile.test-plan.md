@@ -1,6 +1,6 @@
 # Test Plan: Story 5 — Authored-tagging section on profile pages
 
-**Story:** `engineering-team/stories/5-authored-tagging-on-profile.md`
+**Story:** `engineering-team/stories/done/5-authored-tagging-on-profile.md`
 **ADR:** `engineering-team/decisions/0005-authored-tagging-on-profile.md`
 **Date:** 2026-05-14
 
