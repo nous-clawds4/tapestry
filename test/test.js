@@ -25,6 +25,8 @@ function testConfigLoading() {
 
 const profileTags = require('./profile-tags.test.js');
 const profileTagsPublish = require('./profile-tags-publish.test.js');
+const tagDetail = require('./tag-detail.test.js');
+const tagDetailPublish = require('./tag-detail-publish.test.js');
 
 async function main() {
   console.log('Running Brainstorm tests...');
@@ -34,6 +36,8 @@ async function main() {
 
   const profileTagsResult = await profileTags.run();
   const publishResult = await profileTagsPublish.run();
+  const tagDetailResult = await tagDetail.run();
+  const tagDetailPublishResult = await tagDetailPublish.run();
 
   console.log('\nTest Results');
   console.log('-------------');
@@ -43,8 +47,17 @@ async function main() {
     ? `SKIP (${publishResult.skipped} tests; preconditions not met)`
     : `${publishResult.fail === 0 ? 'PASS' : 'FAIL'} (${publishResult.pass} passed, ${publishResult.fail} failed)`;
   console.log(`profile-tags-publish suite:   ${publishLine}`);
+  console.log(`tag-detail suite:             ${tagDetailResult.fail === 0 ? 'PASS' : 'FAIL'} (${tagDetailResult.pass} passed, ${tagDetailResult.fail} failed)`);
+  const tdpLine = tagDetailPublishResult.skipped
+    ? `SKIP (${tagDetailPublishResult.skipped} tests; preconditions not met)`
+    : `${tagDetailPublishResult.fail === 0 ? 'PASS' : 'FAIL'} (${tagDetailPublishResult.pass} passed, ${tagDetailPublishResult.fail} failed)`;
+  console.log(`tag-detail-publish suite:     ${tdpLine}`);
 
-  const overallOk = configOk && profileTagsResult.fail === 0 && publishResult.fail === 0;
+  const overallOk = configOk
+    && profileTagsResult.fail === 0
+    && publishResult.fail === 0
+    && tagDetailResult.fail === 0
+    && tagDetailPublishResult.fail === 0;
   console.log(`Overall:                      ${overallOk ? 'PASS' : 'FAIL'}`);
   process.exit(overallOk ? 0 : 1);
 }

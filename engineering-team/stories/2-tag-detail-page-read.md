@@ -49,5 +49,5 @@ As a Brainstorm user, I want to visit a stable page for any tag — seeing its d
 
 ## Linked artifacts
 - ADR: `engineering-team/decisions/0002-tag-detail-page-read.md`
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/2-tag-detail-page-read.test-plan.md`
 - Review: (filled in after Review phase)
