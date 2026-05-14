@@ -76,5 +76,5 @@ As a Brainstorm user, I want the search popup to surface tags as their own resul
 
 ## Linked artifacts
 - ADR: `engineering-team/decisions/0006-profile-tag-polish-omni-search-pov.md`
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/7-profile-tag-polish-omni-search-pov.test-plan.md`
 - Review: (filled in after Review phase)

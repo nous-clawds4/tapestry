@@ -34,6 +34,8 @@ const tagIndex = require('./tag-index.test.js');
 const tagIndexPublish = require('./tag-index-publish.test.js');
 const authoredTagging = require('./authored-tagging.test.js');
 const authoredTaggingPublish = require('./authored-tagging-publish.test.js');
+const profileTagPolish = require('./profile-tag-polish.test.js');
+const profileTagPolishPublish = require('./profile-tag-polish-publish.test.js');
 // Suites added on main since this branch forked
 const treasureMaps = require('./treasure-maps-router-preset.test.js');
 const scheduledRefresh = require('./scheduled-search-and-house-scores-refresh.test.js');
@@ -56,6 +58,8 @@ async function main() {
   const tagIndexPublishResult = await tagIndexPublish.run();
   const authoredTaggingResult = await authoredTagging.run();
   const authoredTaggingPublishResult = await authoredTaggingPublish.run();
+  const profileTagPolishResult = await profileTagPolish.run();
+  const profileTagPolishPublishResult = await profileTagPolishPublish.run();
 
   // Main-side suites — these don't print their own banner, so we announce
   // each one before running.
@@ -96,6 +100,11 @@ async function main() {
     ? `SKIP (${authoredTaggingPublishResult.skipped} tests; preconditions not met)`
     : `${authoredTaggingPublishResult.fail === 0 ? 'PASS' : 'FAIL'} (${authoredTaggingPublishResult.pass} passed, ${authoredTaggingPublishResult.fail} failed)`;
   console.log(`authored-tagging-publish suite:                  ${atpLine}`);
+  console.log(`profile-tag-polish suite:                        ${profileTagPolishResult.fail === 0 ? 'PASS' : 'FAIL'} (${profileTagPolishResult.pass} passed, ${profileTagPolishResult.fail} failed)`);
+  const ptppLine = profileTagPolishPublishResult.skipped
+    ? `SKIP (${profileTagPolishPublishResult.skipped} tests; preconditions not met)`
+    : `${profileTagPolishPublishResult.fail === 0 ? 'PASS' : 'FAIL'} (${profileTagPolishPublishResult.pass} passed, ${profileTagPolishPublishResult.fail} failed)`;
+  console.log(`profile-tag-polish-publish suite:                ${ptppLine}`);
   console.log(`treasure-maps-router-preset suite:               ${treasureMapsResult.fail === 0 ? 'PASS' : 'FAIL'} (${treasureMapsResult.pass} passed, ${treasureMapsResult.fail} failed)`);
   console.log(`scheduled-search-and-house-scores-refresh suite: ${scheduledRefreshResult.fail === 0 ? 'PASS' : 'FAIL'} (${scheduledRefreshResult.pass} passed, ${scheduledRefreshResult.fail} failed)`);
   console.log(`strfry-router-first-boot-config suite:           ${strfryRouterFirstBootResult.fail === 0 ? 'PASS' : 'FAIL'} (${strfryRouterFirstBootResult.pass} passed, ${strfryRouterFirstBootResult.fail} failed)`);
@@ -112,6 +121,8 @@ async function main() {
     && tagIndexPublishResult.fail === 0
     && authoredTaggingResult.fail === 0
     && authoredTaggingPublishResult.fail === 0
+    && profileTagPolishResult.fail === 0
+    && profileTagPolishPublishResult.fail === 0
     && treasureMapsResult.fail === 0
     && scheduledRefreshResult.fail === 0
     && strfryRouterFirstBootResult.fail === 0
