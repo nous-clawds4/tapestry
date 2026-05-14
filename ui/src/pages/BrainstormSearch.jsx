@@ -949,7 +949,7 @@ export default function BrainstormSearch() {
                 if (e.key === 'Escape') setShowSuggestions(false);
               }}
               onFocus={() => { if (suggestions?.length) setShowSuggestions(true); }}
-              placeholder="Search by name, bio, NIP-05, website…"
+              placeholder="Search by name, bio, tag, NIP-05, website…"
               autoFocus
             />
 

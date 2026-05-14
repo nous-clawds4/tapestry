@@ -1,20 +1,33 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
+import useProfiles from '../hooks/useProfiles';
 
 function shortPk(pk) {
   return pk ? `${pk.slice(0, 8)}…` : '';
 }
 
-function AsserterRow({ entry }) {
-  // The hook surfaces { authorPubkey, ... }. We don't have profile metadata
-  // here, so render the short pubkey as a fallback handle.
+function AsserterRow({ entry, profile }) {
+  const displayName = profile?.display_name || profile?.name || shortPk(entry.authorPubkey);
+  const picture = profile?.picture;
+  const initial = (displayName || '?')[0].toUpperCase();
   return (
-    <div className="ptc-asserter">
-      <span className="ptc-asserter-avatar" aria-hidden="true">
-        {(entry.authorPubkey || '?')[0].toUpperCase()}
-      </span>
-      <span className="ptc-asserter-name">{shortPk(entry.authorPubkey)}</span>
-    </div>
+    <Link
+      to={`/user/${entry.authorPubkey}`}
+      className="ptc-asserter ptc-asserter-link"
+      title={displayName}
+    >
+      {picture ? (
+        <img
+          className="ptc-asserter-avatar ptc-asserter-avatar-img"
+          src={picture}
+          alt=""
+          onError={(e) => { e.currentTarget.style.display = 'none'; }}
+        />
+      ) : (
+        <span className="ptc-asserter-avatar" aria-hidden="true">{initial}</span>
+      )}
+      <span className="ptc-asserter-name">{displayName}</span>
+    </Link>
   );
 }
 
@@ -30,6 +43,14 @@ export default function TagChip({
   const [open, setOpen] = useState(false);
   const containerRef = useRef(null);
   const popoverId = `tag-popover-${tag.eventId.slice(0, 12)}`;
+
+  // Asserter pubkeys for kind-0 enrichment. useProfiles batches + caches so
+  // re-rendering with the same set is a no-op.
+  const asserterPubkeys = useMemo(
+    () => Array.from(new Set([...applications, ...disputes].map((a) => a.authorPubkey))),
+    [applications, disputes]
+  );
+  const asserterProfiles = useProfiles(asserterPubkeys);
 
   const closeIfOutside = useCallback((e) => {
     if (containerRef.current && !containerRef.current.contains(e.target)) {
@@ -54,6 +75,12 @@ export default function TagChip({
   const myAssertion = [...applications, ...disputes].find((a) => a.authorPubkey === viewerPubkey);
   const hasDisputes = disputes.length > 0;
 
+  // Popover persistence (Story 6 AC-1): the popover opens on hover/focus and
+  // stays open while the cursor moves chip→popover (the bug the story
+  // exists to fix). The CSS hover-bridge (.ptc-popover::before) covers the
+  // visual gap so mouseleave doesn't fire mid-traversal. mouseleave still
+  // closes when the cursor genuinely leaves the chip+popover subtree —
+  // otherwise hovering multiple chips in a row would stack their popovers.
   return (
     <span
       ref={containerRef}
@@ -62,7 +89,8 @@ export default function TagChip({
       onMouseLeave={() => setOpen(false)}
       onFocus={() => setOpen(true)}
       onBlur={(e) => {
-        // Only close if focus is leaving the entire chip subtree
+        // Only close if focus is leaving the entire chip subtree (popover
+        // included).
         if (!containerRef.current?.contains(e.relatedTarget)) setOpen(false);
       }}
     >
@@ -93,7 +121,7 @@ export default function TagChip({
               <div className="ptc-section-label">Applied by {applications.length}</div>
               <div className="ptc-asserters">
                 {applications.map((a) => (
-                  <AsserterRow key={a.eventId} entry={a} />
+                  <AsserterRow key={a.eventId} entry={a} profile={asserterProfiles[a.authorPubkey]} />
                 ))}
               </div>
             </div>
@@ -104,7 +132,7 @@ export default function TagChip({
               <div className="ptc-section-label">Disputed by {disputes.length}</div>
               <div className="ptc-asserters">
                 {disputes.map((d) => (
-                  <AsserterRow key={d.eventId} entry={d} />
+                  <AsserterRow key={d.eventId} entry={d} profile={asserterProfiles[d.authorPubkey]} />
                 ))}
               </div>
             </div>

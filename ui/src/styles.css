@@ -3803,6 +3803,19 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
   font-size: 0.85rem;
 }
+/* Story-6 AC-1 hover bridge: an invisible region covering the chip→popover
+   visual gap so the cursor stays inside the chip's hit area as it traverses,
+   keeping mouseleave from firing mid-move. Without this, the popover
+   dismisses before the cursor reaches it. */
+.ptc-popover::before {
+  content: '';
+  position: absolute;
+  top: -8px;
+  left: 0;
+  right: 0;
+  height: 8px;
+  background: transparent;
+}
 .ptc-popover-name {
   font-size: 0.95rem;
   display: block;
@@ -3829,12 +3842,27 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   display: flex;
   flex-direction: column;
   gap: 0.2rem;
+  /* Story-6 AC-4: cap the rows list so a tag with many asserters doesn't
+     stretch the popover off-screen. Each section (applied / disputed) caps
+     independently so both stay visible. */
+  max-height: 12rem;
+  overflow-y: auto;
 }
 .ptc-asserter {
   display: flex;
   align-items: center;
   gap: 0.4rem;
   font-size: 0.8rem;
+}
+.ptc-asserter-link {
+  text-decoration: none;
+  color: inherit;
+  padding: 0.2rem 0.3rem;
+  border-radius: 4px;
+  transition: background 0.12s;
+}
+.ptc-asserter-link:hover {
+  background: rgba(255, 255, 255, 0.06);
 }
 .ptc-asserter-avatar {
   width: 1.4em;
@@ -3846,6 +3874,16 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   justify-content: center;
   font-size: 0.7em;
   font-weight: 600;
+  flex-shrink: 0;
+}
+.ptc-asserter-avatar-img {
+  background: transparent;
+  object-fit: cover;
+}
+.ptc-asserter-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .ptc-popover-actions {
   display: flex;
