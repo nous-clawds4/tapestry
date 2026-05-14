@@ -1,0 +1,42 @@
+@import './tokens.css';
+@import './fonts.css';
+@import './reset.css';
+
+body {
+  font-family: var(--font-body);
+  font-size: var(--text-base);
+  color: var(--text);
+  background: var(--bg);
+  min-height: 100vh;
+
+  /* Brand-tinted depth: a quiet radial glow in the upper-left so the dark
+   * surface never reads flat. The accent and brand colors interleave so the
+   * page anchors itself to the identity even before any content paints. */
+  background-image:
+    radial-gradient(ellipse 1200px 800px at 8% -10%, rgba(102, 45, 145, 0.18), transparent 55%),
+    radial-gradient(ellipse 900px 600px at 95% 0%, rgba(186, 32, 186, 0.12), transparent 60%),
+    radial-gradient(ellipse 600px 400px at 50% 100%, rgba(102, 45, 145, 0.08), transparent 70%);
+  background-attachment: fixed;
+  background-repeat: no-repeat;
+}
+
+/* Subtle film-grain so the dark surface has texture without distracting.
+ * Generated SVG so we don't ship a PNG. Layered above gradients, below content. */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.025;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  z-index: 0;
+}
+
+#root { position: relative; z-index: var(--z-base); }
+
+main { display: block; }
+
+/* Default link state — overridden inside components when needed */
+a { color: var(--accent); transition: color var(--dur-fast) var(--ease-out-cubic); }
+a:hover { color: var(--accent-hover); }

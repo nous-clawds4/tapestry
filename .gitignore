@@ -46,6 +46,9 @@ related-repositories
 # Brand assets we actually need get vendored into ui-communities/ during build.
 design-handoff/
 
+# Communities UI Vite build output
+dist-communities/
+
 # Playwright runtime artifacts
 test-results/
 playwright-report/

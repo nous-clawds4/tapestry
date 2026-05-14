@@ -1,0 +1,187 @@
+.page {
+  max-width: var(--content-narrow);
+  margin: 0 auto;
+  padding: var(--space-7) var(--space-5) var(--space-8);
+}
+
+.header { margin-bottom: var(--space-6); }
+
+.title {
+  font-family: var(--font-display);
+  font-size: var(--text-3xl);
+  font-weight: 600;
+  letter-spacing: var(--tracking-tight);
+  color: var(--text);
+}
+
+.subtitle {
+  font-size: var(--text-base);
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+.step {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.lede {
+  font-size: var(--text-base);
+  color: var(--text-secondary);
+  line-height: var(--leading-relaxed);
+}
+
+.note {
+  padding: var(--space-4);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  line-height: var(--leading-relaxed);
+}
+
+/* ── Similar circles step ────────────────────────────────── */
+
+.similarList { display: flex; flex-direction: column; gap: var(--space-2); list-style: none; }
+
+.similarItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  transition: border-color var(--dur-fast) var(--ease-out-cubic);
+}
+
+.similarItem:hover { border-color: var(--border-hover); }
+
+.similarName {
+  font-size: var(--text-base);
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 2px;
+}
+
+.similarMeta { font-size: var(--text-xs); color: var(--text-muted); }
+
+.empty {
+  font-size: var(--text-sm);
+  color: var(--text-faint);
+  text-align: center;
+  padding: var(--space-4);
+}
+
+/* ── Topics step ─────────────────────────────────────────── */
+
+.tagGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* ── Founding voices step ────────────────────────────────── */
+
+.memberList {
+  display: flex;
+  flex-direction: column;
+  list-style: none;
+}
+
+.memberItem {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.memberName {
+  flex: 1;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--text);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.seedToggle {
+  width: 26px;
+  height: 26px;
+  border-radius: var(--radius-sm);
+  border: 2px solid var(--border-hover);
+  background: transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-on-accent);
+  transition: all var(--dur-fast) var(--ease-out-cubic);
+}
+
+.seedToggle:hover { border-color: var(--accent); }
+
+.seedToggleOn {
+  background: linear-gradient(135deg, var(--brand) 0%, var(--accent) 100%);
+  border-color: transparent;
+}
+
+/* ── Review step ─────────────────────────────────────────── */
+
+.reviewCard {
+  padding: var(--space-5);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-hover);
+  border-radius: var(--radius-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.reviewTitle {
+  font-family: var(--font-display);
+  font-size: var(--text-2xl);
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: var(--tracking-tight);
+}
+
+.reviewDescription {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  line-height: var(--leading-relaxed);
+}
+
+.reviewTags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.reviewMuted {
+  font-size: var(--text-xs);
+  color: var(--text-faint);
+  font-style: italic;
+}
+
+.reviewMeta {
+  font-size: var(--text-sm);
+  color: var(--text-faint);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--border);
+}
+
+/* ── Footer ──────────────────────────────────────────────── */
+
+.footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}

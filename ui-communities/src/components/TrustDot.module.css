@@ -1,0 +1,8 @@
+.dot {
+  display: inline-block;
+  border-radius: 50%;
+  background: var(--accent);
+  flex-shrink: 0;
+  transition: opacity var(--dur-medium) var(--ease-out-cubic),
+              box-shadow var(--dur-medium) var(--ease-out-cubic);
+}

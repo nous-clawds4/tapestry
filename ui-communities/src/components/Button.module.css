@@ -1,0 +1,89 @@
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-family: var(--font-body);
+  font-weight: 600;
+  letter-spacing: var(--tracking-snug);
+  border: 1px solid transparent;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition:
+    background var(--dur-fast) var(--ease-out-cubic),
+    color var(--dur-fast) var(--ease-out-cubic),
+    border-color var(--dur-fast) var(--ease-out-cubic),
+    transform var(--dur-fast) var(--ease-out-cubic),
+    box-shadow var(--dur-fast) var(--ease-out-cubic);
+  white-space: nowrap;
+  user-select: none;
+}
+
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.btn:not(:disabled):active { transform: translateY(1px); }
+
+/* ── Sizes ───────────────────────────────────────────────── */
+.sm { padding: 6px 14px; font-size: var(--text-xs); }
+.md { padding: 8px 18px; font-size: var(--text-sm); }
+.lg { padding: 11px 24px; font-size: var(--text-base); }
+
+/* ── Variants ────────────────────────────────────────────── */
+
+.primary {
+  color: var(--text-on-accent);
+  background:
+    linear-gradient(135deg, var(--brand) 0%, var(--accent) 100%);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4),
+              inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+.primary:not(:disabled):hover {
+  transform: translateY(-1px);
+  box-shadow:
+    var(--shadow-brand),
+    inset 0 1px 0 rgba(255, 255, 255, 0.16);
+}
+
+.secondary {
+  color: var(--text);
+  background: var(--bg-elevated);
+  border-color: var(--border-hover);
+}
+
+.secondary:not(:disabled):hover {
+  background: var(--bg-hover);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.ghost {
+  color: var(--text-muted);
+  background: transparent;
+}
+
+.ghost:not(:disabled):hover {
+  color: var(--text);
+  background: var(--bg-hover);
+}
+
+.success {
+  color: var(--text-on-accent);
+  background: var(--success);
+  border-color: transparent;
+}
+
+.success:not(:disabled):hover {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+}
+
+.danger {
+  color: var(--danger);
+  background: transparent;
+  border-color: var(--danger-muted);
+}
+
+.danger:not(:disabled):hover {
+  background: var(--danger-muted);
+  border-color: var(--danger);
+}
