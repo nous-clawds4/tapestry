@@ -88,3 +88,18 @@ Two tracked candidates, both already named in OPERATIONS.md §9:
 2. **`bin/dev-sync-ui.sh` one-liner wrapper** — stop-gap until #1 lands. Wraps the `docker cp` + `npm run build` + bundle-hash echo. ~10 lines of bash. Turns the six-step ritual into one command.
 
 **Bundle candidate:** standalone small story, or fold into an "ops polish" sweep with the agree/disagree framing UX work above.
+
+## Revisit nostr-user-tag wire shape: `e` vs `a` (vs `u`) for the parent-tag reference
+
+**Surfaced during:** /discuss session, 2026-05-14.
+
+ADR-0001 shipped the `nostr-user-tag` assertion using an `e`-tag to reference the parent tag-element. The tag-element itself is kind 39999 (parameterized replaceable), so by NIP-01 convention an `a`-tag (`39999:<tagAuthor>:<slug>`) would address the slot rather than pin a specific frozen event. Trade-offs:
+
+- `e` (current) — survives author edits as a fixed reference to the version-at-apply-time; doesn't survive kind-5 deletion of that specific event id; matches the pre-Story-1 relay-tag precedent.
+- `a` — NIP-01 conventional for replaceable events; survives tag-author edits and per-event deletes; loses "which version did I apply" provenance.
+- `u` (uuid) — not Nostr-native; skip unless `a` can't carry the load.
+- Hybrid (`e` + `a` together) — small wire overhead, future-proof, lets read endpoints choose grouping granularity. Probably the right answer if revisited before too many assertions accumulate.
+
+Slug-collision behavior is the same under either reference scheme (both commit to a specific author).
+
+**Bundle candidate:** standalone ADR that partially supersedes ADR-0001's wire-shape section. Modest migration cost, scales with assertion volume — better sooner than later if a switch is on the table.
