@@ -58,7 +58,7 @@ As a Brainstorm user, I want the search popup to surface tags as their own resul
 - `39998:82b75e474dda005e912bcbb910391c60c2b89cc7faf5d3c30b7c59a324973833:nostr-user` — profile result-row interleaving alongside tag rows.
 
 ## Out of scope
-- Tag results on the **Enter-results page** — Story 8.
+- ~~Tag results on the **Enter-results page** — Story 8.~~ **Now in scope** (rolled in during Architecture per PO direction: both popup and Enter-results page surface tag results in Story 7; sort-order coherence + interleaving symmetry remain Story 8's job).
 - Sort-order coherence between popup and Enter-results page — Story 8.
 - POV selector loading state polish — Story 8.
 - Agree/disagree framing UX normalization across tag-detail rows and chip popovers — remains in `engineering-team/follow-ups.md`.

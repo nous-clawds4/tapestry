@@ -74,7 +74,7 @@ Why on the same endpoint and not a new one: one round-trip per keystroke is the 
 }
 ```
 
-`tagHits` is omitted when the query is empty / too short / the proxy is in a code path that doesn't want them (e.g., the eventual Enter-results page — Story 8). Initial limit: 5 (small enough to leave room for profile results; large enough to surface near-matches). `tagHitsHasMore` is `true` when `findTagsByNameSubstring(q).length > TAG_HITS_LIMIT`, signaling the popup to render the "Show more tags →" affordance.
+`tagHits` is omitted when the query is empty / too short. **Limit:** the server accepts an optional `tagLimit` query parameter (default 5, clamped to a max of 50). The popup uses the default; the Enter-results page passes a higher value. `tagHitsHasMore` is computed against whichever limit is in effect for the current request, so each surface's "more available" hint is accurate for *its* slice.
 
 **UI rendering in the popup:**
 
@@ -82,17 +82,20 @@ The autocomplete dropdown renders `tagHits` first (above profiles), with a visua
 
 UX ordering choice: tags first because they're typically far fewer than profile matches and they're the more specific intent — "I searched 'homesteader' because I want the tag, not 30 people who have it." Profile results follow in their existing order.
 
-**"Show more" affordance for tag-results overflow.** When the server caps `tagHits` at 5 and there are more matches available (signaled by an additional response field — `tagHitsHasMore: true` — or by computing `matches.length > TAG_HITS_LIMIT` before the slice), the popup renders a small "Show more tags →" row at the end of the tag-rows section. Clicking it navigates to the Enter-results page for the current query (the existing search-submit destination — same as pressing Enter).
+**"Show more" affordance for tag-results overflow.** When the server caps `tagHits` at the popup limit and more matches exist (signaled by the response's `tagHitsHasMore: true` field), the popup renders a small "Show more tags →" row at the end of the tag-rows section. Clicking it navigates to the Enter-results page for the current query (same destination as pressing Enter).
 
-**Known transient jank:** until Story 8 lands, the Enter-results page is profile-only — it doesn't surface tag results at all. So a user who clicks "Show more tags →" today lands on a page that *doesn't* show the tags they were trying to expand. Story 8's parity work (popup ↔ Enter-results) fixes this. We ship the affordance anyway because:
+**UI rendering on the Enter-results page (added per PO direction).** Both surfaces hit the same search-proxy endpoint (`fetchSuggestions` for the popup; `doSearch` for the results page — verified at `BrainstormSearch.jsx:797, 848`). So `data.tagHits` flows to both for free — adding tag-rows to the Enter-results page is essentially one extra render block. We do it in this story rather than punt entirely to Story 8.
 
-1. It primes the UX shape for Story 8 (the affordance won't appear/disappear when Story 8 lands; only its destination's content improves).
-2. The mental model "the popup is a preview of what Enter would show" is what we ultimately want, even if today's Enter is missing a piece.
-3. Without the affordance, users with >5 tag matches have no way to see the rest; the popup quietly truncates. Surfacing the affordance + accepting the brief jank is better than hiding the overflow.
+The results page renders tag-rows above the profile rows, same row variant the popup uses, no `TAG_HITS_LIMIT` cap on the visible count (the page has room). To allow the results page to request more than the popup's slice, the server accepts an optional `tagLimit` query parameter:
 
-The Implementer should add a small TODO comment on the "Show more tags →" element referencing Story 8 so the next reader understands the transient.
+- Popup callsite (`fetchSuggestions`): omits `tagLimit` → server uses default 5.
+- Results-page callsite (`doSearch`): passes `tagLimit=25` (or similar; Implementer picks a sensible higher number).
 
-**(Considered, rejected) "Show more" → tag-index page.** An alternative target for "Show more tags →" is `/tags?q=<query>` (Story 4's tag-index page already supports substring filtering on tag name+description). This would *avoid* the transient jank — the user lands on a page purpose-built for tag listings. **Rejected** because it splits the omni-search mental model: typing in the global search and then being kicked to a *different page* with different navigation breaks the "one search, one results destination" UX principle the user explicitly favors (omni-search as the guiding principle for affordance layering). Better to accept the transient and let Story 8 close it cleanly.
+`tagHitsHasMore` is computed against whatever `tagLimit` is in effect, so the popup's "Show more tags →" reflects the popup's cap, and a (future) results-page "load more tags" would reflect the results-page's cap.
+
+**What's left for Story 8 (residual jank):** the popup and the Enter-results page now both surface tag-results, but their **sort order and interleaving with profile-results may differ** — the popup orders tags first then profiles; the results page may end up doing the same naïvely but the Architect hasn't audited whether `doSearch`'s rendering loop interleaves tags identically. Story 8's parity work covers sort coherence + interleaving symmetry. Today's "Show more tags →" click lands on a page that **shows tags** (good — main jank closed); their relative position vs profiles **may visually shift** between surfaces (acceptable until Story 8 polishes).
+
+**(Considered, rejected) "Show more" → tag-index page.** An alternative target for "Show more tags →" is `/tags?q=<query>` (Story 4's tag-index page already supports substring filtering on tag name+description). **Rejected** because it splits the omni-search mental model: typing in the global search and then being kicked to a *different page* with different navigation breaks the "one search, one results destination" UX principle the user explicitly favors. Routing to the Enter-results page keeps the model coherent.
 
 **POV-correctness on `handleTagsForProfile`:**
 
@@ -201,9 +204,12 @@ Why: it's the option that honors all three CLAUDE.md invariants (no persistent p
 
 ### Server (`src/api/search/profiles/meili/index.js`)
 
-- **Extend the search-proxy response with `tagHits` + `tagHitsHasMore`.** In the existing handler, before composing the response, call `findTagsByNameSubstring(q)` from `src/api/profile-tags/index.js`. Set `TAG_HITS_LIMIT = 5`. Include in the response object:
-  - `tagHits: matches.slice(0, TAG_HITS_LIMIT)`
-  - `tagHitsHasMore: matches.length > TAG_HITS_LIMIT`
+- **Extend the search-proxy response with `tagHits` + `tagHitsHasMore`.** In the existing handler, before composing the response, call `findTagsByNameSubstring(q)` from `src/api/profile-tags/index.js`. Read `tagLimit` from `req.query`:
+  - If `req.query.tagLimit` is present and parses to a positive integer, use it (clamped to a sane server-side max — suggest 50 to avoid pathological scans).
+  - Else default to `TAG_HITS_LIMIT_DEFAULT = 5`.
+  Include in the response object:
+  - `tagHits: matches.slice(0, effectiveLimit)`
+  - `tagHitsHasMore: matches.length > effectiveLimit`
   Empty/short queries → omit both fields (or `tagHits: []` / `tagHitsHasMore: false` — Implementer chooses; the client tolerates either).
 - Add an import line for `findTagsByNameSubstring` if not already exported; **if it isn't exported**, add it to the module's exports.
 
@@ -237,8 +243,11 @@ Why: it's the option that honors all three CLAUDE.md invariants (no persistent p
   - Optional: truncated description (secondary line, ~140 chars).
   - The row is an `<a href={\`/tag/\${slug}/\${eventId}\`}>` (or `<Link>` — match the surrounding pattern).
 - **"Show more tags →" row.** After the last `tagHits` row, when `tagHitsHasMore` is truthy, render one more row inside the same tag-rows section. Clicking it should trigger the same navigation as pressing Enter on the current query (i.e., it routes to the Enter-results page with `q=<current query>`). Use the existing `doSearch()` / navigation pattern in `BrainstormSearch.jsx` so the route is consistent with submit. Add a brief inline comment referencing Story 8 and the transient (the Enter-results page doesn't surface tag results yet — Story 8 fixes that).
-- **State plumbing:** the existing `setSuggestions(filtered)` path receives the response; add `setTagHits(data.tagHits || [])` and `setTagHitsHasMore(!!data.tagHitsHasMore)` next to it (with corresponding state slots at the top of the component). The dropdown's render branch already conditional on `showSuggestions && suggestions && suggestions.length > 0` — adjust to also render when `tagHits.length > 0`.
-- **No change** to the results-view full-search rendering (that's Story 8's surface). Tag results — and the "Show more tags →" row — stay popup-only for now.
+- **State plumbing for the popup:** the existing `setSuggestions(filtered)` path receives the response; add `setTagHits(data.tagHits || [])` and `setTagHitsHasMore(!!data.tagHitsHasMore)` next to it (with corresponding state slots at the top of the component). The dropdown's render branch already conditional on `showSuggestions && suggestions && suggestions.length > 0` — adjust to also render when `tagHits.length > 0`. The popup's fetch URL **does not** include `tagLimit` (server defaults to 5).
+- **Render tag-result rows on the Enter-results page.** Locate the results-view rendering (the branch after `hasResults && !loading && !error` returns false; results render around line 720-ish in `BrainstormSearch.jsx`). Add a tag-rows section above the profile-rows section, using the same tag-row variant component as the popup. Render `resultsTagHits` (parallel state to `results`) populated by `doSearch`.
+- **`doSearch` URL augmentation.** In `buildSearchUrl` (line 753) or in `doSearch` directly, append `tagLimit=25` (or similar Implementer-chosen value) to the URL when the call comes from the results-page path. The popup's `fetchSuggestions` (line 848) doesn't append `tagLimit` and gets the server default.
+- **State plumbing for the results page:** `setResultsTagHits(data.tagHits || [])` next to `setResults(data.hits || [])` in `doSearch`. No "Show more" affordance on the results page in this story (it'd be redundant — the user is already on the destination). Story 8 can add pagination if needed.
+- **Shared tag-row variant component.** To keep the popup and Enter-results page render consistent, extract a small `<TagResultRow>` component (or similar) that both surfaces consume. Story 8 will likely refine the visual treatment further; having a single component now means Story 8 doesn't have to chase divergent rendering across two surfaces.
 
 ### Client (`ui/src/components/BrainstormUserMenu.jsx`)
 
