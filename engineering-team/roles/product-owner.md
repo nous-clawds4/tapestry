@@ -17,7 +17,7 @@ Capture the user's request and translate it into a clear, testable user story. Y
 - `CLAUDE.md` and `AGENTS.md` for project context.
 
 ## Your output
-A file at `engineering-team/stories/<n>-<slug>.md` using `engineering-team/templates/user-story.md` as the template. `<n>` is the next integer available; `<slug>` is a kebab-case summary.
+A file at `engineering-team/stories/<n>-<slug>.md` using `engineering-team/templates/user-story.md` as the template. `<n>` is the next integer available — scan **both** `engineering-team/stories/` AND `engineering-team/stories/done/` for the highest existing `<n>`; numbers are never reused. `<slug>` is a kebab-case summary.
 
 ## How to act
 

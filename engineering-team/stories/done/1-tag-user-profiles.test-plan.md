@@ -1,6 +1,6 @@
 # Test Plan: Story 1 — Tag user profiles
 
-**Story:** `engineering-team/stories/1-tag-user-profiles.md`
+**Story:** `engineering-team/stories/done/1-tag-user-profiles.md`
 **ADR:** `engineering-team/decisions/0001-profile-tag-architecture.md`
 **Date:** 2026-05-08
 

@@ -86,11 +86,11 @@ None.
 
 ### Non-blocking — documentation drift (clean up before merge if you care, no quality-gate impact)
 
-1. **Story file `engineering-team/stories/1-tag-user-profiles.md:19`** — AC-1 still reads "a `Tag` action button is visible alongside `Follow`, `Mute`, and `Report`." The user-approved UX iteration removed that button in favor of an inline `TAGS` section. The intent is preserved (a discoverable tag affordance on the profile) but the wording is now stale. Suggest a one-line edit to match the new UX.
+1. **Story file `engineering-team/stories/done/1-tag-user-profiles.md:19`** — AC-1 still reads "a `Tag` action button is visible alongside `Follow`, `Mute`, and `Report`." The user-approved UX iteration removed that button in favor of an inline `TAGS` section. The intent is preserved (a discoverable tag affordance on the profile) but the wording is now stale. Suggest a one-line edit to match the new UX.
 
 2. **Story file `:20`** — AC-2 references "click `Tag` on a profile, when the tagging interface opens"; the actual flow is "click the `+` chip in the inline TAGS row → AddTagDialog opens." Same drift as AC-1.
 
-3. **Test plan `engineering-team/stories/1-tag-user-profiles.test-plan.md:13–22`** — coverage table references Playwright test names that no longer exist (e.g. `profile page exposes a Tag action button alongside Follow / Mute / Report`, `tag panel exposes inline new-tag creation`). The Playwright spec was rewritten in commit `2de8be9c`; the plan wasn't updated. Replace the test names with the current ones.
+3. **Test plan `engineering-team/stories/done/1-tag-user-profiles.test-plan.md:13–22`** — coverage table references Playwright test names that no longer exist (e.g. `profile page exposes a Tag action button alongside Follow / Mute / Report`, `tag panel exposes inline new-tag creation`). The Playwright spec was rewritten in commit `2de8be9c`; the plan wasn't updated. Replace the test names with the current ones.
 
 4. **Test plan** — no row for the new search-integration AC (AC-11). Add one referencing the test `typeahead search returns a profile tagged by a third-party author, with _matchedTags on the hit`.
 

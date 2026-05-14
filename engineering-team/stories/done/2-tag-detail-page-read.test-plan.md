@@ -1,6 +1,6 @@
 # Test Plan: Story 2 — Tag-detail page (read)
 
-**Story:** `engineering-team/stories/2-tag-detail-page-read.md`
+**Story:** `engineering-team/stories/done/2-tag-detail-page-read.md`
 **ADR:** `engineering-team/decisions/0002-tag-detail-page-read.md`
 **Date:** 2026-05-14
 

@@ -9,6 +9,8 @@ A classified request from Phase 0 (Intake).
 ## Output
 A user story file at `engineering-team/stories/<n>-<slug>.md`, using the `user-story.md` template.
 
+**Picking `<n>`:** scan **both** `engineering-team/stories/` AND `engineering-team/stories/done/` for the highest existing `<n>`; use `n + 1`. Numbers are never reused — `done/` is where shipped stories live. New stories always start with `**Status:** Draft` or `**Status:** Approved` (the reviewer flips to `Done` on PASS — see workflow 5).
+
 ## Steps
 
 1. **Restate the request** to confirm understanding.

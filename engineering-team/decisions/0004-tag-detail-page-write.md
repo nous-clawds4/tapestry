@@ -2,7 +2,7 @@
 
 **Status:** Proposed
 **Date:** 2026-05-14
-**Story:** `engineering-team/stories/3-tag-detail-page-write.md`
+**Story:** `engineering-team/stories/done/3-tag-detail-page-write.md`
 
 ## Context
 

@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 **Date:** 2026-05-06
-**Story:** `engineering-team/stories/1-tag-user-profiles.md`
+**Story:** `engineering-team/stories/done/1-tag-user-profiles.md`
 
 ## Context
 

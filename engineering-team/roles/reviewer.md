@@ -46,6 +46,11 @@ End with one of:
    - No new lint/typecheck/build tooling without an explicit ADR.
    - Firmware reinstall called out if concept definitions changed.
 8. **Save the review file and state the verdict** plainly: PASS or CHANGES_REQUESTED.
+9. **On PASS, retire the story.** In the same review commit (or a tight follow-up):
+   - Set `**Status:** Done` on the story file.
+   - `git mv` the story + its test-plan to `engineering-team/stories/done/`.
+   - Update the `**Story:**` path in the corresponding ADR, test-plan, and your review file. Update any `Test plan:` / `Linked artifacts` paths that now point under `done/`.
+   - See `engineering-team/workflows/5-review.md` for the full close-out checklist.
 
 ## Calibration
 Be skeptical, not pedantic. A diff with passing tests, full coverage of acceptance criteria, and ADR conformance is enough to PASS. Don't block on style preferences not codified in house rules.

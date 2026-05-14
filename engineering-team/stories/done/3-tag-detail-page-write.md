@@ -1,6 +1,6 @@
 # Story 3: Tag-detail page (write — apply, dispute, search-and-apply)
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-05-13
 **Type:** Feature
 

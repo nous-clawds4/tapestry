@@ -32,3 +32,21 @@ Be skeptical, not pedantic. PASS means the diff is mergeable as-is. CHANGES_REQU
 
 ## Per-phase commits
 Yes. Commit the review file regardless of verdict. Accumulated reviews are valuable signal over time.
+
+## On PASS — close the story out
+
+When the verdict is PASS, do these three things in the same review commit (or a tight follow-up commit) so the story is properly retired:
+
+1. **Set `**Status:** Done`** at the top of the story file.
+2. **`git mv`** the story and its test-plan into `engineering-team/stories/done/`:
+   - `engineering-team/stories/<n>-<slug>.md` → `engineering-team/stories/done/<n>-<slug>.md`
+   - `engineering-team/stories/<n>-<slug>.test-plan.md` → `engineering-team/stories/done/<n>-<slug>.test-plan.md`
+3. **Update path references** that now point at the moved files:
+   - The story's own ADR (`engineering-team/decisions/NNNN-<slug>.md`) — `**Story:**` line.
+   - The test plan's `**Story:**` line.
+   - The story's `Linked artifacts` block (if it references the test-plan by path).
+   - The review's own `**Story:**` / `**Test plan:**` lines if you wrote them with the pre-move paths.
+
+This keeps `engineering-team/stories/` showing only in-flight work. Shipped stories remain readable in `done/` and the git history shows the transition.
+
+> **For Product Owner (Phase 1):** when picking the next story number, scan **both** `engineering-team/stories/` AND `engineering-team/stories/done/` for the highest existing `<n>` — numbers are never reused.

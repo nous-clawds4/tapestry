@@ -1,6 +1,6 @@
 # Story 4: Tag index page
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-05-14
 **Type:** Feature
 
@@ -47,5 +47,5 @@ As a Brainstorm user, I want a page that lists every tag known to my community (
 
 ## Linked artifacts
 - ADR: `engineering-team/decisions/0003-tag-index-page.md`
-- Test plan: `engineering-team/stories/4-tag-index-page.test-plan.md`
+- Test plan: `engineering-team/stories/done/4-tag-index-page.test-plan.md`
 - Review: (filled in after Review phase)

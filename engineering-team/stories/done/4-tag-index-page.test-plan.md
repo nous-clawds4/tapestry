@@ -1,6 +1,6 @@
 # Test Plan: Story 4 — Tag index page
 
-**Story:** `engineering-team/stories/4-tag-index-page.md`
+**Story:** `engineering-team/stories/done/4-tag-index-page.md`
 **ADR:** `engineering-team/decisions/0003-tag-index-page.md`
 **Date:** 2026-05-14
 

@@ -1,6 +1,6 @@
 # Test Plan: Story 3 — Tag-detail page (write — apply, dispute, search-and-apply)
 
-**Story:** `engineering-team/stories/3-tag-detail-page-write.md`
+**Story:** `engineering-team/stories/done/3-tag-detail-page-write.md`
 **ADR:** `engineering-team/decisions/0004-tag-detail-page-write.md`
 **Date:** 2026-05-14
 

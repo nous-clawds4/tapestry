@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 **Date:** 2026-05-14
-**Story:** `engineering-team/stories/4-tag-index-page.md`
+**Story:** `engineering-team/stories/done/4-tag-index-page.md`
 
 ## Context
 

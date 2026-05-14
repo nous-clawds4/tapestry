@@ -1,6 +1,6 @@
 # Story 1: Tag user profiles (positive and negative assertions)
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-05-06
 **Type:** Feature
 
