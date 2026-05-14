@@ -66,6 +66,6 @@ None at draft time — initial uncertainty (unset-PoV behavior, panel title, pre
 
 ## Linked artifacts
 
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/0003-scheduled-search-and-house-scores-refresh.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
