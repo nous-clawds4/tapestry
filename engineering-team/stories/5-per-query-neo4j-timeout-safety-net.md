@@ -60,5 +60,5 @@ Resolved with operator at approval time:
 ## Linked artifacts
 
 - ADR: skipped (Bug, fix is obvious — per CLAUDE.md harness rules for Standard strictness on Bug type)
-- Test plan: to be filled in after Test Design phase
+- Test plan: `engineering-team/stories/5-per-query-neo4j-timeout-safety-net.test-plan.md`
 - Review: to be filled in after Review phase
