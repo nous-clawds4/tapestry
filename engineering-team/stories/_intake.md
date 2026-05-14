@@ -68,6 +68,24 @@ Append-only log of incoming requests, raw, with classification and chosen phase 
 
 ---
 
+## 2026-05-14 — Feature: Brainstorm Communities — Slice 3 (Discover swaps mock data for API)
+
+**Raw request (verbatim):**
+
+> slice 3
+
+**Pre-intake context:**
+
+- Slice 3 swaps the `ui-communities/` read path from `src/data/mockData.js` to the REST endpoints landed in Slice 2 (`GET /api/communities`, `/:slug`, `/:slug/members`). Discover is the first surface that reads from the network; CommunityDetail and Edit follow.
+- Slice 2's data-source layer is stubbed, so a fresh deploy answers with `{ communities: [] }`. Local dev needs the mock data to stay populated; production needs to honestly show the empty state. Introduce an explicit `VITE_USE_MOCK_DATA` env toggle, default `true` in dev / `false` in build — never conditional on the API's actual response shape.
+- Scoped to read-only surfaces. MyCircles + Create stay on mock data this slice because they depend on a viewer's joined-set (Slice 4 auth) and a member-search endpoint (no such endpoint exists yet). Write paths land in Slice 4.
+
+**Classification:** Feature
+**Strictness:** Standard
+**Phase path:** Planning → Architecture → Test Design → Implementation → Review. Live behavior deferred to staging smoke.
+
+---
+
 ## 2026-05-13 — Scheduled task: refresh Meilisearch profiles + House PoV WoT scores
 
 **Raw request (verbatim):**
