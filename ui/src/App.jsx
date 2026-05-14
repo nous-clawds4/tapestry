@@ -71,6 +71,7 @@ import BrainstormHowSearchWorks from './pages/BrainstormHowSearchWorks';
 import BrainstormAbout from './pages/BrainstormAbout';
 import BrainstormDevelopers from './pages/BrainstormDevelopers';
 import Tag from './pages/Tag';
+import Tags from './pages/Tags';
 import NotFound from './pages/NotFound';
 const router = createBrowserRouter([
   {
@@ -88,6 +89,10 @@ const router = createBrowserRouter([
   {
     path: '/tag/:slug/:tagId',
     element: <Tag />,
+  },
+  {
+    path: '/tags',
+    element: <Tags />,
   },
   {
     path: '/settings',

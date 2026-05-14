@@ -32,6 +32,12 @@ The matched tag should be rendered prominently on the profile line item in the t
 
 Once the tag index + tag-detail pages exist, the root app's main search bar should also return tags as a result type alongside profiles and NIP-05. Click-through goes to the tag's detail page. Same POV-aware ranking rules apply. Likely small — fold into the same Meili proxy that already does query-time tag-match for profile results (Story 1).
 
+## Login-button loading state
+
+**Surfaced during:** Story 4 implementation, 2026-05-14.
+
+The "Sign in with nostr" button (in `BrainstormUserMenu` / the local `UserMenu` in `BrainstormSearch`) gives no visible feedback while the NIP-07 auth handshake is in flight. Users can't tell whether the click registered, whether the extension prompt is loading, or whether something failed silently. Add a loading state — disable the button, swap label to "Signing in…" or similar, and surface errors inline. Pick up in a future small-fixes round alongside other UX polish.
+
 ## Community tag-activity surfaces
 
 **Surfaced during:** Story 5 planning, 2026-05-14.

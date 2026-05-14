@@ -542,6 +542,185 @@ async function handleProfilesTagged(req, res) {
   }
 }
 
+const TAG_INDEX_VALID_SORTS = ['used', 'endorsed', 'divisive'];
+
+const TAG_INDEX_SORTERS = {
+  used: (a, b) =>
+    ((b.applications + b.disputes) - (a.applications + a.disputes))
+    || a.tagEventId.localeCompare(b.tagEventId),
+  endorsed: (a, b) =>
+    (b.applications - a.applications)
+    || (b.disputes - a.disputes)
+    || a.tagEventId.localeCompare(b.tagEventId),
+  divisive: (a, b) =>
+    (Math.min(b.applications, b.disputes) - Math.min(a.applications, a.disputes))
+    || ((b.applications + b.disputes) - (a.applications + a.disputes))
+    || a.tagEventId.localeCompare(b.tagEventId),
+};
+
+/**
+ * GET /api/profile-tags/index
+ *   ?wotPov=<house|user>&userPubkey=<hex>
+ *   &sort=<used|endorsed|divisive>
+ *   &q=<substring>
+ *   &limit=<int>&offset=<int>
+ *
+ * The tag-index endpoint (Story 4 / ADR-0003). Returns every tag with at
+ * least one assertion authored by someone in the active POV's WoT, sorted
+ * server-side, optionally narrowed by a case-insensitive substring on name
+ * or description, and paginated via offset+limit. Counts are derived
+ * per-request from raw assertions — no persistent per-POV aggregate
+ * (CLAUDE.md "filter at view time, not write time").
+ */
+async function handleTagIndex(req, res) {
+  const sort = req.query.sort || 'used';
+  if (!TAG_INDEX_VALID_SORTS.includes(sort)) {
+    return res.status(400).json({
+      success: false,
+      error: `sort must be one of: ${TAG_INDEX_VALID_SORTS.join(', ')}`,
+    });
+  }
+
+  const limitRaw = parseInt(req.query.limit, 10);
+  const limit = Number.isFinite(limitRaw) ? Math.max(1, Math.min(limitRaw, 200)) : 50;
+  const offsetRaw = parseInt(req.query.offset, 10);
+  const offset = Number.isFinite(offsetRaw) ? Math.max(0, offsetRaw) : 0;
+  const q = (typeof req.query.q === 'string' ? req.query.q : '').trim();
+  const qLower = q.toLowerCase();
+
+  // Optional "show only tags authored by this pubkey" filter — used by the
+  // tag-index UI's "Only show mine" toggle. Silently ignored when malformed.
+  const authoredByRaw = typeof req.query.authoredBy === 'string' ? req.query.authoredBy : '';
+  const authoredBy = /^[0-9a-f]{64}$/.test(authoredByRaw) ? authoredByRaw : null;
+
+  try {
+    const { resolvePov } = require('../_shared/pov');
+    const { povSuffix, minRank } = resolvePov({
+      wotPov: req.query.wotPov || 'house',
+      userPubkey: req.query.userPubkey || null,
+    });
+    const wotFiltering = !!povSuffix && Number.isFinite(minRank);
+
+    const assertions = await strfryScan({
+      kinds: [39999],
+      '#z': [NOSTR_USER_TAG_Z_TAG],
+    });
+    const deduped = dedupeReplaceable(assertions);
+
+    let authorAllowed = () => true;
+    if (wotFiltering) {
+      const authorPubkeys = Array.from(new Set(deduped.map((ev) => ev.pubkey)));
+      const authorDocs = await meiliFetchProfilesByPubkey(authorPubkeys);
+      const rankField = `wot_rank_${povSuffix}`;
+      authorAllowed = (authorPk) => {
+        const doc = authorDocs.get(authorPk);
+        if (!doc) return false;
+        const r = doc[rankField];
+        return typeof r === 'number' && r >= minRank;
+      };
+    }
+
+    // Group surviving assertions by referenced tagEventId.
+    const byTag = new Map();
+    for (const ev of deduped) {
+      if (!authorAllowed(ev.pubkey)) continue;
+      const eTag = (ev.tags || []).find((t) => t[0] === 'e');
+      if (!eTag?.[1]) continue;
+      const polarity = readPolarity(ev);
+      const bucket = bucketize(polarity);
+      if (bucket === 'neutral') continue;
+
+      const tagEventId = eTag[1];
+      let entry = byTag.get(tagEventId);
+      if (!entry) {
+        entry = { tagEventId, applications: 0, disputes: 0 };
+        byTag.set(tagEventId, entry);
+      }
+      if (bucket === 'apply') entry.applications += 1;
+      else if (bucket === 'dispute') entry.disputes += 1;
+    }
+
+    if (byTag.size === 0) {
+      return res.json({
+        success: true,
+        povSuffix: povSuffix || null,
+        minRank: Number.isFinite(minRank) ? minRank : null,
+        sort,
+        q,
+        authoredBy: authoredBy || null,
+        total: 0,
+        limit,
+        offset,
+        rows: [],
+      });
+    }
+
+    // Batch-scan tag-elements for every referenced tagEventId.
+    const tagEventIds = Array.from(byTag.keys());
+    const tagEvents = await strfryScan({ kinds: [39999], ids: tagEventIds });
+    const tagByEventId = new Map();
+    for (const ev of tagEvents) {
+      const payload = parseTagPayload(ev);
+      if (!payload) continue;
+      tagByEventId.set(ev.id, { event: ev, payload });
+    }
+
+    // Combine counts + tag metadata. Drop tagEventIds whose tag-element isn't
+    // locally available (assertions reference a tag we don't have).
+    const enriched = [];
+    for (const [tagEventId, counts] of byTag) {
+      const tag = tagByEventId.get(tagEventId);
+      if (!tag) continue;
+      enriched.push({
+        tagEventId,
+        slug: tag.payload.slug,
+        name: tag.payload.name || tag.payload.slug,
+        description: tag.payload.description || '',
+        authorPubkey: tag.event.pubkey,
+        applications: counts.applications,
+        disputes: counts.disputes,
+      });
+    }
+
+    // Apply q filter (case-insensitive substring on name or description).
+    let filtered = qLower
+      ? enriched.filter((r) => `${r.name} ${r.description}`.toLowerCase().includes(qLower))
+      : enriched;
+    // Apply authoredBy filter (exact pubkey match on tag-element signer).
+    if (authoredBy) {
+      filtered = filtered.filter((r) => r.authorPubkey === authoredBy);
+    }
+
+    filtered.sort(TAG_INDEX_SORTERS[sort]);
+    const total = filtered.length;
+    const slice = filtered.slice(offset, offset + limit);
+
+    // Enrich each row with its tag-author's Meili profile doc.
+    const authorPubkeys = Array.from(new Set(slice.map((r) => r.authorPubkey)));
+    const authorDocs = await meiliFetchProfilesByPubkey(authorPubkeys);
+    for (const row of slice) {
+      const doc = authorDocs.get(row.authorPubkey);
+      row.displayName = doc ? (doc.display_name || doc.name || null) : null;
+      row.picture = doc ? (doc.picture || null) : null;
+    }
+
+    res.json({
+      success: true,
+      povSuffix: povSuffix || null,
+      minRank: Number.isFinite(minRank) ? minRank : null,
+      sort,
+      q,
+      authoredBy: authoredBy || null,
+      total,
+      limit,
+      offset,
+      rows: slice,
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+}
+
 function registerProfileTagsRoutes(app) {
   app.get('/api/profile-tags/available-tags', handleAvailableTags);
   app.get('/api/profile-tags/tags-for-profile', handleTagsForProfile);
@@ -549,6 +728,7 @@ function registerProfileTagsRoutes(app) {
   app.get('/api/profile-tags/match', handleMatch);
   app.get('/api/profile-tags/by-id', handleTagById);
   app.get('/api/profile-tags/profiles-tagged', handleProfilesTagged);
+  app.get('/api/profile-tags/index', handleTagIndex);
 }
 
 module.exports = {
@@ -558,6 +738,7 @@ module.exports = {
   handleMatch,
   handleTagById,
   handleProfilesTagged,
+  handleTagIndex,
   computeTagMatches,
   meiliFetchProfilesByPubkey,
   registerProfileTagsRoutes,

@@ -18,12 +18,17 @@ test.describe('Tag index page (Story 4)', () => {
     }
   });
 
-  test('AC-1: TopBar exposes a "Tags" nav link reachable from the home page', async ({ page }) => {
-    await page.goto('/');
+  test('AC-1: an "All tags" link on the single-tag-view page reaches /tags', async ({ page }) => {
+    // Per user direction during implementation, the tag-index entry point
+    // lives only on the single-tag-view page (not in the global app top-nav).
+    // Use a synthetic unknown tagId — Tag.jsx still renders its TopBar (with
+    // the "All tags" link) even in the not-found state.
+    const UNKNOWN_TAG_ID = 'b'.repeat(64);
+    await page.goto(`/tag/${UNKNOWN_TAG_ID}`);
     await page.waitForLoadState('networkidle');
-    const tagsLink = page.locator('a[href="/tags"]').first();
-    await expect(tagsLink).toBeVisible({ timeout: 10000 });
-    await tagsLink.click();
+    const allTagsLink = page.locator('a[href="/tags"]').first();
+    await expect(allTagsLink).toBeVisible({ timeout: 10000 });
+    await allTagsLink.click();
     await page.waitForURL(/\/tags$/, { timeout: 5000 });
     expect(page.url()).toMatch(/\/tags$/);
   });

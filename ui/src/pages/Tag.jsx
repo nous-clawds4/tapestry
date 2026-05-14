@@ -1,8 +1,7 @@
 import React, { useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
-import { useAuth } from '../context/AuthContext';
-import BrainstormUserMenu from '../components/BrainstormUserMenu';
+import TopBar from '../components/TopBar';
 import useTagDetail from '../hooks/useTagDetail';
 
 // Display fallback when we don't have a kind-0 profile for this pubkey: a
@@ -27,7 +26,6 @@ const SORT_LABELS = [
 export default function Tag() {
   const { tagId, slug } = useParams();
   const navigate = useNavigate();
-  const { user, login, logout } = useAuth();
   const {
     tag, author, rows, sort, setSort,
     headerLoading, rowsLoading, headerError, rowsError,
@@ -42,17 +40,11 @@ export default function Tag() {
 
   return (
     <div className="bsp-page">
-      <div className="bsp-top-bar">
-        <a href="/" className="bsp-logo">
-          <img src="/brainstorm.svg" alt="" className="bsp-logo-img" />
-          <span>Brainstorm Search</span>
-        </a>
-        <div className="bsp-auth">
-          <BrainstormUserMenu user={user} onLogin={login} onLogout={logout} />
-        </div>
-      </div>
+      <TopBar />
 
       <div className="bsp-content">
+        <Link to="/tags" className="bs-tag-breadcrumb">← All tags</Link>
+
         {headerError === 'not-found' ? (
           <div className="bs-tag-notfound">
             <h1>Tag not found</h1>

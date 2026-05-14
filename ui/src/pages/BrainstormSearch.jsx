@@ -2,6 +2,8 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useConfig } from '../context/ConfigContext';
 import { useHouseProfile } from '../components/BrainstormUserMenu';
+import TopBar from '../components/TopBar';
+import SearchInput from '../components/SearchInput';
 import { nip19 } from 'nostr-tools';
 
 /* ── Nostr identity detection ──────────────────────────── */
@@ -918,12 +920,11 @@ export default function BrainstormSearch() {
   if (!hasResults && !loading && !error) {
     return (
       <div className="bs-page">
-        {/* Top-left: About */}
-        <a href="/about" className="bs-top-link">About</a>
-        {/* Top-right auth area */}
-        <div className="bs-top-bar">
-          <UserMenu user={user} login={login} logout={logout} pov={pov} setPov={setPov} filters={filters} setFilters={setFilters} sortConfig={sortConfig} setSortConfig={setSortConfig} onWotReady={setMyWotReady} />
-        </div>
+        <TopBar
+          authMenu={
+            <UserMenu user={user} login={login} logout={logout} pov={pov} setPov={setPov} filters={filters} setFilters={setFilters} sortConfig={sortConfig} setSortConfig={setSortConfig} onWotReady={setMyWotReady} />
+          }
+        />
 
         {/* Centered landing */}
         <div className="bs-landing">
@@ -933,26 +934,23 @@ export default function BrainstormSearch() {
           </h1>
           <p className="bs-tagline">Search across millions of nostr profiles</p>
 
-          <div className="bs-search-box-landing" ref={suggestRef}>
-            <span className="bs-search-icon">🔍</span>
-            <input
-              ref={inputRef}
-              type="text"
-              className="bs-search-input-landing"
-              value={query}
-              onChange={e => handleInputChange(e.target.value, false)}
-              onKeyDown={e => {
-                if (e.key === 'Enter') {
-                  setShowSuggestions(false);
-                  doSearch();
-                }
-                if (e.key === 'Escape') setShowSuggestions(false);
-              }}
-              onFocus={() => { if (suggestions?.length) setShowSuggestions(true); }}
-              placeholder="Search by name, bio, tag, NIP-05, website…"
-              autoFocus
-            />
-
+          <SearchInput
+            variant="landing"
+            boxRef={suggestRef}
+            inputRef={inputRef}
+            value={query}
+            onChange={(v) => handleInputChange(v, false)}
+            onKeyDown={e => {
+              if (e.key === 'Enter') {
+                setShowSuggestions(false);
+                doSearch();
+              }
+              if (e.key === 'Escape') setShowSuggestions(false);
+            }}
+            onFocus={() => { if (suggestions?.length) setShowSuggestions(true); }}
+            placeholder="Search by name, bio, tag, NIP-05, website…"
+            autoFocus
+          >
             {/* Autocomplete dropdown */}
             {showSuggestions && suggestions && suggestions.length > 0 && (
               <div className="bs-suggest-dropdown">
@@ -1002,7 +1000,7 @@ export default function BrainstormSearch() {
                 <div className="bs-suggest-loading">Searching…</div>
               </div>
             )}
-          </div>
+          </SearchInput>
 
           {/* Personalization indicator */}
           <div className="bs-personalization">
@@ -1092,17 +1090,14 @@ export default function BrainstormSearch() {
           >
             <img src="/brainstorm.svg" alt="Brainstorm" className="bs-results-logo-img" />
           </a>
-          <div className="bs-search-box-results">
-            <input
-              ref={inputRef}
-              type="text"
-              className="bs-search-input-results"
-              value={query}
-              onChange={e => handleInputChange(e.target.value, true)}
-              onKeyDown={e => e.key === 'Enter' && doSearch()}
-              placeholder="Search profiles…"
-            />
-          </div>
+          <SearchInput
+            variant="results"
+            inputRef={inputRef}
+            value={query}
+            onChange={(v) => handleInputChange(v, true)}
+            onKeyDown={e => e.key === 'Enter' && doSearch()}
+            placeholder="Search profiles…"
+          />
         </div>
         <div className="bs-results-header-right">
           {/* Compact personalization indicator */}

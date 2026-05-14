@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
 import { useAuth } from '../context/AuthContext';
-import BrainstormUserMenu from '../components/BrainstormUserMenu';
+import TopBar from '../components/TopBar';
 import { useProfileActions } from '../hooks/useProfileActions';
 import useUserCounts from '../hooks/useUserCounts';
 import ConfirmDialog from '../components/ConfirmDialog';
@@ -189,15 +189,7 @@ export default function BrainstormProfile() {
 
   return (
     <div className="bsp-page">
-      {/* Top bar */}
-      <div className="bsp-top-bar">
-        <a href="/" className="bsp-logo">
-          <img src="/brainstorm.svg" alt="" className="bsp-logo-img" />
-        </a>
-        <div className="bsp-auth">
-          <BrainstormUserMenu user={user} login={login} logout={logout} />
-        </div>
-      </div>
+      <TopBar />
 
       {/* Profile content */}
       <div className="bsp-content">

@@ -3011,6 +3011,22 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
 .bs-search-box-results {
   flex: 1;
   max-width: 560px;
+  /* Lay out the search icon + input + any optional children (autocomplete
+     dropdown) on one row. The original results-mode JSX had only an
+     <input>; the shared <SearchInput> component (ADR-0003) adds the icon,
+     so the box now needs to be a flex container. */
+  display: flex;
+  align-items: center;
+  position: relative;
+  gap: 0.5rem;
+  background: rgba(255,255,255,0.04);
+  border-radius: 20px;
+  padding: 0 0.85rem;
+}
+.bs-search-box-results .bs-search-input-results {
+  border: none;
+  background: transparent;
+  padding: 0.5rem 0;
 }
 .bs-search-input-results {
   width: 100%;
@@ -3302,6 +3318,12 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   padding: 0.75rem 1.5rem;
   border-bottom: 1px solid rgba(255,255,255,0.06);
   gap: 1rem;
+  /* BrainstormSearch's landing layout uses .bs-landing with `margin-top: -4rem`
+     to optically center its hero above midpoint — that negative margin
+     overlaps the top-bar and intercepts clicks on the auth area. Lift the
+     bar above .bs-landing so the sign-in button stays clickable. */
+  position: relative;
+  z-index: 2;
 }
 .bsp-back-btn {
   background: none;
@@ -3333,6 +3355,24 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   gap: 0.5rem;
   font-size: 0.8rem;
 }
+.bsp-top-nav {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-left: auto;
+  margin-right: 1rem;
+}
+.bsp-top-link {
+  color: var(--text-primary, #e2e8f0);
+  opacity: 0.6;
+  text-decoration: none;
+  font-size: 0.85rem;
+  padding: 0.3rem 0.2rem;
+  transition: opacity 0.12s;
+}
+.bsp-top-link:hover { opacity: 1; }
+.bsp-top-link.is-active { opacity: 1; }
+
 .bsp-user-name {
   opacity: 0.6;
 }
@@ -4719,3 +4759,178 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   text-decoration: none;
 }
 .bs-tag-link:hover { text-decoration: underline; }
+.bs-tag-breadcrumb {
+  display: inline-block;
+  color: #a5b4fc;
+  text-decoration: none;
+  font-size: 0.85rem;
+  opacity: 0.7;
+  margin-bottom: 1rem;
+  transition: opacity 0.12s;
+}
+.bs-tag-breadcrumb:hover { opacity: 1; }
+
+/* ── Tag index page (Story 4 / ADR-0003) ───────────────────── */
+
+.bs-tagindex-main { max-width: 900px; }
+.bs-tagindex-header {
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+.bs-tagindex-title {
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin: 0 0 0.4rem;
+  letter-spacing: -0.01em;
+}
+.bs-tagindex-sub {
+  margin: 0;
+  opacity: 0.75;
+  font-size: 0.9rem;
+}
+.bs-tagindex-pov code {
+  background: rgba(255,255,255,0.06);
+  padding: 0.05rem 0.35rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+}
+.bs-tagindex-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+.bs-tagindex-sort {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+.bs-tagindex-sort-btn {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: var(--text-primary, #e0e0e0);
+  padding: 0.4rem 0.85rem;
+  border-radius: 18px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: background 0.15s, border-color 0.15s;
+}
+.bs-tagindex-sort-btn:hover { background: rgba(255,255,255,0.08); }
+.bs-tagindex-sort-btn.is-active {
+  background: rgba(165,180,252,0.15);
+  border-color: rgba(165,180,252,0.4);
+  color: #c7d2fe;
+}
+.bs-tagindex-mineonly {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0 0 1rem;
+  font-size: 0.85rem;
+  opacity: 0.85;
+  cursor: pointer;
+  user-select: none;
+}
+.bs-tagindex-mineonly input { cursor: pointer; }
+.bs-tagindex-loading,
+.bs-tagindex-error,
+.bs-tagindex-empty {
+  margin: 1rem 0;
+  opacity: 0.85;
+  font-size: 0.9rem;
+}
+.bs-tagindex-error { color: #fca5a5; }
+.bs-tagindex-empty p { margin: 0 0 0.5rem; }
+.bs-tagindex-empty-cta { font-size: 0.9rem; }
+.bs-tagindex-link {
+  color: #a5b4fc;
+  text-decoration: none;
+}
+.bs-tagindex-link:hover { text-decoration: underline; }
+.bs-tagindex-clear-btn {
+  background: none;
+  border: 1px solid rgba(255,255,255,0.15);
+  color: var(--text-primary, #e0e0e0);
+  padding: 0.35rem 0.85rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+.bs-tagindex-clear-btn:hover { background: rgba(255,255,255,0.06); }
+.bs-tagindex-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.bs-tagindex-row {
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+.bs-tagindex-row-link {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem 0.5rem;
+  text-decoration: none;
+  color: inherit;
+  border-radius: 6px;
+  transition: background 0.12s;
+}
+.bs-tagindex-row-link:hover { background: rgba(255,255,255,0.04); }
+.bs-tagindex-row-main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+  flex: 1;
+}
+.bs-tagindex-row-name {
+  font-weight: 600;
+  font-size: 1rem;
+}
+.bs-tagindex-row-desc {
+  font-size: 0.85rem;
+  opacity: 0.75;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.bs-tagindex-row-author {
+  font-size: 0.75rem;
+  opacity: 0.55;
+}
+.bs-tagindex-row-counts {
+  display: flex;
+  gap: 0.6rem;
+  font-size: 0.9rem;
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+.bs-tagindex-count-apply { color: #86efac; }
+.bs-tagindex-count-dispute { color: #fca5a5; }
+.bs-tagindex-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid rgba(255,255,255,0.05);
+}
+.bs-tagindex-count-summary {
+  font-size: 0.85rem;
+  opacity: 0.6;
+}
+.bs-tagindex-loadmore {
+  background: rgba(165,180,252,0.12);
+  border: 1px solid rgba(165,180,252,0.3);
+  color: #c7d2fe;
+  padding: 0.5rem 1.1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background 0.15s;
+}
+.bs-tagindex-loadmore:hover:not(:disabled) { background: rgba(165,180,252,0.2); }
+.bs-tagindex-loadmore:disabled { opacity: 0.5; cursor: default; }
