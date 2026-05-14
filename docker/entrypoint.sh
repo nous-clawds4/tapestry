@@ -282,11 +282,25 @@ if [ ! -d "${BRAINSTORM_MODULE_BASE_DIR}node_modules/express" ]; then
 fi
 
 # --- strfry router config ---
-# Router config is now managed by initRouter() in the Node app.
-# It reads from router-state.json (persistent volume) or initializes from router-presets.json.
-# Only write a fallback config if no state file exists AND the app hasn't started yet.
+# Router config is normally managed by initRouter() in the Node app, which reads
+# from router-state.json (persistent volume) or initializes from router-presets.json.
+# On a true first boot the bundled template seeds /etc/ with the legacy defaults.
 if [ ! -f "/var/lib/brainstorm/router-state.json" ] && [ -f "${BRAINSTORM_MODULE_BASE_DIR}setup/strfry-router-tapestry.config" ]; then
   cp "${BRAINSTORM_MODULE_BASE_DIR}setup/strfry-router-tapestry.config" /etc/strfry-router-tapestry.config
+fi
+
+# Guarantee /etc/strfry-router-tapestry.config exists before supervisord starts.
+# strfry-router (priority 25) boots before brainstorm (priority 30), and /etc/ is
+# not on a persistent volume — so on container restart with existing state, the
+# template branch above is skipped and the file is absent. Without this fallback
+# the daemon crash-loops until supervisord marks it FATAL.
+if [ ! -f /etc/strfry-router-tapestry.config ]; then
+  cat > /etc/strfry-router-tapestry.config << 'ROUTERCFG'
+connectionTimeout = 20
+
+streams {
+}
+ROUTERCFG
 fi
 
 # --- Brainstorm startup wrapper ---

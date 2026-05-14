@@ -25,10 +25,15 @@ export default function BrainstormSettings() {
   const { user, login, logout } = useAuth();
   const { aRelays } = useConfig();
 
-  // WoT pipeline state
+  // WoT pipeline state.
+  // has10040 strictly means "10040 is in the local strfry relay" — that's the
+  // signal downstream pipelines (e.g. /api/get-all-10040-authors-locally) use
+  // to enumerate POVs. external10040Event holds an event found only on remote
+  // relays so the UI can offer an inline Import action.
   const [wotStatus, setWotStatus] = useState({
     loading: true,
     has10040: false,
+    external10040Event: null,
     hasRankTag: false,
     hasTAs: false,
     taAge: null,
@@ -37,6 +42,9 @@ export default function BrainstormSettings() {
     localCount: null,
     allMetrics: [],
   });
+
+  const [importing10040, setImporting10040] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const [syncing, setSyncing] = useState(false);
   const [syncStatus, setSyncStatus] = useState(null);
@@ -218,11 +226,16 @@ export default function BrainstormSettings() {
       setWotStatus(s => ({ ...s, loading: true }));
 
       try {
-        // Step 1: Find kind 10040
+        // Step 1: Find kind 10040. Local strfry is the source of truth because
+        // backend pipelines (e.g. /api/get-all-10040-authors-locally) only see
+        // events that landed in local strfry. If only an external relay has it,
+        // we surface an Import action instead of pretending the pipeline is ready.
         let event10040 = null;
-        const localFilter = JSON.stringify({ kinds: [10040], authors: [user.pubkey], limit: 1 });
+        let externalEvent = null;
+        const filter = JSON.stringify({ kinds: [10040], authors: [user.pubkey], limit: 1 });
+
         try {
-          const localResp = await fetch(`/api/strfry/scan?filter=${encodeURIComponent(localFilter)}`);
+          const localResp = await fetch(`/api/strfry/scan?filter=${encodeURIComponent(filter)}`);
           const localData = await localResp.json();
           if (localData.success && localData.events?.length) event10040 = localData.events[0];
         } catch {}
@@ -230,15 +243,24 @@ export default function BrainstormSettings() {
         if (!event10040) {
           const relays = (aRelays?.aPopularGeneralPurposeRelays || []).join(',');
           try {
-            const extResp = await fetch(`/api/relay/external?filter=${encodeURIComponent(localFilter)}&relays=${encodeURIComponent(relays)}`);
+            const extResp = await fetch(`/api/relay/external?filter=${encodeURIComponent(filter)}&relays=${encodeURIComponent(relays)}`);
             const extData = await extResp.json();
-            if (extData.success && extData.events?.length) event10040 = extData.events[0];
+            if (extData.success && extData.events?.length) externalEvent = extData.events[0];
           } catch {}
         }
 
         if (cancelled) return;
-        if (!event10040) {
-          setWotStatus({ loading: false, has10040: false, hasRankTag: false, hasTAs: false, taAge: null, rankAuthor: null, rankRelay: null, localCount: null, allMetrics: [] });
+
+        // Neither local nor external — fall through to Brainstorm CTA.
+        if (!event10040 && !externalEvent) {
+          setWotStatus({ loading: false, has10040: false, external10040Event: null, hasRankTag: false, hasTAs: false, taAge: null, rankAuthor: null, rankRelay: null, localCount: null, allMetrics: [] });
+          return;
+        }
+
+        // External-only — halt the pipeline here. The Import button will
+        // publish to local strfry, bump refreshKey, and re-run this effect.
+        if (!event10040 && externalEvent) {
+          setWotStatus({ loading: false, has10040: false, external10040Event: externalEvent, hasRankTag: false, hasTAs: false, taAge: null, rankAuthor: null, rankRelay: null, localCount: null, allMetrics: [] });
           return;
         }
 
@@ -249,7 +271,7 @@ export default function BrainstormSettings() {
 
         const rankTag = (event10040.tags || []).find(t => t[0] === '30382:rank');
         if (!rankTag || !rankTag[1] || !rankTag[2]) {
-          if (!cancelled) setWotStatus({ loading: false, has10040: true, hasRankTag: false, hasTAs: false, taAge: null, rankAuthor: null, rankRelay: null, localCount: null, allMetrics });
+          if (!cancelled) setWotStatus({ loading: false, has10040: true, external10040Event: null, hasRankTag: false, hasTAs: false, taAge: null, rankAuthor: null, rankRelay: null, localCount: null, allMetrics });
           return;
         }
 
@@ -259,7 +281,7 @@ export default function BrainstormSettings() {
         let localCount = await countLocalTAs(rankAuthor);
         if (cancelled) return;
 
-        const baseStatus = { loading: false, has10040: true, hasRankTag: true, rankAuthor, rankRelay, allMetrics };
+        const baseStatus = { loading: false, has10040: true, external10040Event: null, hasRankTag: true, rankAuthor, rankRelay, allMetrics };
         const metricNames = allMetrics.map(m => m.metric);
         setSelectedMetrics(new Set(metricNames));
 
@@ -354,7 +376,30 @@ export default function BrainstormSettings() {
     })();
 
     return () => { cancelled = true; };
-  }, [user]);
+  }, [user, refreshKey]);
+
+  // Publish the externally-found 10040 to local strfry, then re-run the pipeline.
+  async function importLocal10040() {
+    if (!wotStatus.external10040Event) return;
+    setImporting10040(true);
+    try {
+      const resp = await fetch('/api/strfry/publish', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ event: wotStatus.external10040Event, signAs: 'client' }),
+      });
+      const data = await resp.json();
+      if (data.success) {
+        setRefreshKey(k => k + 1);
+      } else {
+        console.error('[settings] 10040 import failed:', data.error);
+      }
+    } catch (err) {
+      console.error('[settings] 10040 import error:', err);
+    } finally {
+      setImporting10040(false);
+    }
+  }
 
   // Persist POV changes
   useEffect(() => {
@@ -449,8 +494,24 @@ export default function BrainstormSettings() {
             <div className="bss-loading">Checking WoT status…</div>
           ) : (
             <div className="bss-status-list">
-              <StatusRow ok={wotStatus.has10040} label="Treasure Map (kind 10040)" />
-              {!wotStatus.has10040 && (
+              <StatusRow ok={wotStatus.has10040} label="Treasure Map (kind 10040) in local relay" />
+              {!wotStatus.has10040 && wotStatus.external10040Event && (
+                <div className="bss-brainstorm-cta">
+                  <p>
+                    Found on external relays, but not yet in your local strfry. Import it so the WoT pipeline can use it.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={importLocal10040}
+                    disabled={importing10040}
+                    className="bss-brainstorm-btn"
+                    style={{ cursor: importing10040 ? 'not-allowed' : 'pointer', fontFamily: 'inherit', opacity: importing10040 ? 0.5 : 1 }}
+                  >
+                    {importing10040 ? '⏳ Importing…' : '⬇️ Import to local strfry'}
+                  </button>
+                </div>
+              )}
+              {!wotStatus.has10040 && !wotStatus.external10040Event && (
                 <div className="bss-brainstorm-cta">
                   <p>Use Brainstorm to Calculate your Grapevine and Personalize your Search Results.</p>
                   <a href="https://brainstorm.nosfabrica.com" target="_blank" rel="noopener noreferrer" className="bss-brainstorm-btn">

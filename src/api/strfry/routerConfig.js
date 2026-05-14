@@ -324,6 +324,7 @@ async function initRouter() {
 }
 
 module.exports = {
+  generateConfig,
   handleUpdateRouterConfig,
   handleToggleStream,
   handleGetPresets,

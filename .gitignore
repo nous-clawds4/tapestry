@@ -42,6 +42,10 @@ node_modules/
 jspm_packages/
 related-repositories
 
+# Playwright runtime artifacts
+test-results/
+playwright-report/
+
 # TypeScript cache
 *.tsbuildinfo
 
@@ -93,10 +97,13 @@ Thumbs.db
 dist/
 
 # misc — gitignore Claude Code's per-user state and worktrees, but commit
-# project-level skills so they ship with the repo for other sessions.
+# project-level skills and engineering-team harness commands so they ship
+# with the repo for other sessions.
 # Note: must use `.claude/*` (not `.claude/`) so the un-ignore for skills/
-# can re-enter the directory; git doesn't traverse fully-excluded dirs.
+# and commands/ can re-enter the directory; git doesn't traverse
+# fully-excluded dirs.
 .claude/*
 !.claude/skills/
+!.claude/commands/
 
 .pi/

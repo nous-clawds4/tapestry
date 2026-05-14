@@ -57,12 +57,13 @@ function handleGetUserData(req, res) {
     const neo4jUri = getConfigFromFile('NEO4J_URI', 'bolt://localhost:7687');
     const neo4jUser = getConfigFromFile('NEO4J_USER', 'neo4j');
     const neo4jPassword = getConfigFromFile('NEO4J_PASSWORD', 'neo4j');
-    
+    const queryTimeoutMs = parseInt(getConfigFromFile('NEO4J_QUERY_TIMEOUT_MS', 15000), 10);
+
     const driver = neo4j.driver(
       neo4jUri,
       neo4j.auth.basic(neo4jUser, neo4jPassword)
     );
-    
+
     const session = driver.session();
 
     let cypherQuery = `
@@ -168,8 +169,11 @@ function handleGetUserData(req, res) {
     recommendationsFromObserverCount
     `
     
-    // Execute the query
-    session.run(cypherQuery)
+    // Execute the query with a driver-layer deadline so a runaway Cypher
+    // (e.g. high-fanout pubkeys whose follow/follower expansion is unbounded —
+    // see story #6) fails fast with a 504 instead of hanging the nginx upstream.
+    const queryStartMs = Date.now();
+    session.run(cypherQuery, {}, { timeout: queryTimeoutMs })
       .then(result => {
         if (result.records.length === 0) {
           return res.json({
@@ -265,6 +269,15 @@ function handleGetUserData(req, res) {
         res.status(200).json(apiResponse);
       })
       .catch(error => {
+        const elapsedMs = Date.now() - queryStartMs;
+        const isTimeout = error && typeof error.code === 'string' && /TransactionTimedOut/i.test(error.code);
+        if (isTimeout) {
+          console.error('Neo4j query timeout fetching user data:', { pubkey, observerPubkey, elapsedMs, limitMs: queryTimeoutMs, code: error.code });
+          return res.status(504).json({
+            success: false,
+            message: `Neo4j query timeout after ${elapsedMs}ms (limit ${queryTimeoutMs}ms). The user-data query is unbounded for this pubkey; see story #6 for the planned Cypher fix.`
+          });
+        }
         console.error('Error fetching user data:', error);
         res.status(500).json({
           success: false,
