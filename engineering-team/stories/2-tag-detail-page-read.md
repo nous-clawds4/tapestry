@@ -48,6 +48,6 @@ As a Brainstorm user, I want to visit a stable page for any tag — seeing its d
 - Chip click-target split: clicking the chip's *name area* navigates to the tag page; hover/focus opens the popover. Needs to coexist with Story 6's popover-persistence improvements. **Architect to define a coherent interaction model.**
 
 ## Linked artifacts
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/0002-tag-detail-page-read.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
