@@ -27,6 +27,8 @@ const profileTags = require('./profile-tags.test.js');
 const profileTagsPublish = require('./profile-tags-publish.test.js');
 const tagDetail = require('./tag-detail.test.js');
 const tagDetailPublish = require('./tag-detail-publish.test.js');
+const tagDetailWrite = require('./tag-detail-write.test.js');
+const tagDetailWritePublish = require('./tag-detail-write-publish.test.js');
 const tagIndex = require('./tag-index.test.js');
 const tagIndexPublish = require('./tag-index-publish.test.js');
 
@@ -40,6 +42,8 @@ async function main() {
   const publishResult = await profileTagsPublish.run();
   const tagDetailResult = await tagDetail.run();
   const tagDetailPublishResult = await tagDetailPublish.run();
+  const tagDetailWriteResult = await tagDetailWrite.run();
+  const tagDetailWritePublishResult = await tagDetailWritePublish.run();
   const tagIndexResult = await tagIndex.run();
   const tagIndexPublishResult = await tagIndexPublish.run();
 
@@ -56,6 +60,11 @@ async function main() {
     ? `SKIP (${tagDetailPublishResult.skipped} tests; preconditions not met)`
     : `${tagDetailPublishResult.fail === 0 ? 'PASS' : 'FAIL'} (${tagDetailPublishResult.pass} passed, ${tagDetailPublishResult.fail} failed)`;
   console.log(`tag-detail-publish suite:     ${tdpLine}`);
+  console.log(`tag-detail-write suite:       ${tagDetailWriteResult.fail === 0 ? 'PASS' : 'FAIL'} (${tagDetailWriteResult.pass} passed, ${tagDetailWriteResult.fail} failed)`);
+  const tdwpLine = tagDetailWritePublishResult.skipped
+    ? `SKIP (${tagDetailWritePublishResult.skipped} tests; preconditions not met)`
+    : `${tagDetailWritePublishResult.fail === 0 ? 'PASS' : 'FAIL'} (${tagDetailWritePublishResult.pass} passed, ${tagDetailWritePublishResult.fail} failed)`;
+  console.log(`tag-detail-write-publish suite: ${tdwpLine}`);
   console.log(`tag-index suite:              ${tagIndexResult.fail === 0 ? 'PASS' : 'FAIL'} (${tagIndexResult.pass} passed, ${tagIndexResult.fail} failed)`);
   const tipLine = tagIndexPublishResult.skipped
     ? `SKIP (${tagIndexPublishResult.skipped} tests; preconditions not met)`
@@ -67,6 +76,8 @@ async function main() {
     && publishResult.fail === 0
     && tagDetailResult.fail === 0
     && tagDetailPublishResult.fail === 0
+    && tagDetailWriteResult.fail === 0
+    && tagDetailWritePublishResult.fail === 0
     && tagIndexResult.fail === 0
     && tagIndexPublishResult.fail === 0;
   console.log(`Overall:                      ${overallOk ? 'PASS' : 'FAIL'}`);
