@@ -25,6 +25,7 @@ function testConfigLoading() {
 
 const treasureMaps = require('./treasure-maps-router-preset.test.js');
 const scheduledRefresh = require('./scheduled-search-and-house-scores-refresh.test.js');
+const strfryRouterFirstBoot = require('./strfry-router-first-boot-config.test.js');
 
 async function main() {
   console.log('Running Brainstorm tests...\n');
@@ -38,6 +39,9 @@ async function main() {
   console.log('\nscheduled-search-and-house-scores-refresh suite:');
   const scheduledRefreshResult = await scheduledRefresh.run();
 
+  console.log('\nstrfry-router-first-boot-config suite:');
+  const strfryRouterFirstBootResult = await strfryRouterFirstBoot.run();
+
   console.log('\nTest Results');
   console.log('-------------');
   console.log(`Configuration Loading:                           ${configOk ? 'PASS' : 'FAIL'}`);
@@ -47,8 +51,15 @@ async function main() {
   console.log(
     `scheduled-search-and-house-scores-refresh suite: ${scheduledRefreshResult.fail === 0 ? 'PASS' : 'FAIL'} (${scheduledRefreshResult.pass} passed, ${scheduledRefreshResult.fail} failed)`
   );
+  console.log(
+    `strfry-router-first-boot-config suite:           ${strfryRouterFirstBootResult.fail === 0 ? 'PASS' : 'FAIL'} (${strfryRouterFirstBootResult.pass} passed, ${strfryRouterFirstBootResult.fail} failed)`
+  );
 
-  const overallOk = configOk && treasureMapsResult.fail === 0 && scheduledRefreshResult.fail === 0;
+  const overallOk =
+    configOk &&
+    treasureMapsResult.fail === 0 &&
+    scheduledRefreshResult.fail === 0 &&
+    strfryRouterFirstBootResult.fail === 0;
   console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);
   process.exit(overallOk ? 0 : 1);
 }
