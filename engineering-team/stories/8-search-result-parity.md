@@ -7,6 +7,8 @@
 ## Background
 The root app's search has two surfaces: the **live autocomplete popup** that appears as you type, and the **Enter-results page** you land on when you press Enter (or submit) on a query. Today these two surfaces diverge — different result sets, different sort orders, sometimes different affordances entirely. A user who narrows in on a profile via the popup may not see it on the results page, or sees it in a different position; tags surfaced in one surface aren't reliably present in the other.
 
+**Transient introduced by ADR-0006 (Story 7) that this story closes:** Story 7 adds tag-result rows + a "Show more tags →" affordance to the popup. The affordance routes to the Enter-results page, which today is profile-only — so a user clicking it lands on a page that doesn't surface the tags they were trying to expand. This story makes the Enter-results page surface tag results too, closing the gap.
+
 This story closes that gap. Same query → same results in both surfaces, in the same order. Whatever the popup ranks first, the Enter-results page ranks first too. New result types (e.g., tags, surfaced into the popup by story #7) carry over coherently.
 
 Story #7 first adds tag results to the live popup; this story brings the Enter-results page into alignment so the user experience is consistent regardless of which path they took. Treat this as the "omni-search consistency" pass — once it lands, the search surface speaks with one voice.
