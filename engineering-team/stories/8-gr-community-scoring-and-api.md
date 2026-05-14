@@ -1,6 +1,6 @@
 # Story 8: GR-Community scoring + Communities REST API (Slice 2)
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-05-14
 **Type:** Feature
 
@@ -121,4 +121,4 @@ Resolved before story approval:
 
 - ADR: [`engineering-team/decisions/0006-gr-community-scoring-and-api.md`](../decisions/0006-gr-community-scoring-and-api.md)
 - Test plan: [`engineering-team/stories/8-gr-community-scoring-and-api.test-plan.md`](8-gr-community-scoring-and-api.test-plan.md)
-- Review: `engineering-team/reviews/8-gr-community-scoring-and-api.md` (filled in by Reviewer)
+- Review: [`engineering-team/reviews/8-gr-community-scoring-and-api.md`](../reviews/8-gr-community-scoring-and-api.md) (PASS, 6 non-blocking notes)
