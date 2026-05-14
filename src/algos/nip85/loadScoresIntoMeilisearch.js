@@ -1,11 +1,15 @@
 #!/usr/bin/env node
 
 /**
- * Load Owner's WoT Scores into Meilisearch
+ * Load WoT Scores into Meilisearch
  *
- * Reads kind 30382 events from local strfry (authored by the owner's
+ * Reads kind 30382 events from local strfry (authored by an observer's
  * Tapestry Assistant), parses all metric tags, and POSTs them to the
  * Meilisearch load-scores endpoint.
+ *
+ * Defaults to the Owner perspective (BRAINSTORM_OWNER_PUBKEY +
+ * getOwnerAssistantPubkey()). Pass `--povPubkey <hex> --delegatedPubkey <hex>`
+ * to load scores for a different observer (e.g. House PoV — story #4 / ADR 0003).
  */
 
 const { execSync } = require('child_process');
@@ -14,26 +18,40 @@ const { getOwnerAssistantPubkey } = require('../../utils/assistantKeys');
 
 const SKIP_TAGS = new Set(['d']); // d-tag is the subject pubkey, not a metric
 
-async function main() {
-  // 1. Determine pubkeys
-  const ownerPubkey = getConfigFromFile('BRAINSTORM_OWNER_PUBKEY');
-  const delegatedPubkey = getOwnerAssistantPubkey();
+function parseArgs(argv) {
+  const out = {};
+  for (let i = 0; i < argv.length; i++) {
+    if (argv[i] === '--povPubkey' && argv[i + 1]) {
+      out.povPubkey = argv[i + 1];
+      i++;
+    } else if (argv[i] === '--delegatedPubkey' && argv[i + 1]) {
+      out.delegatedPubkey = argv[i + 1];
+      i++;
+    }
+  }
+  return out;
+}
 
-  if (!ownerPubkey) {
-    console.error('BRAINSTORM_OWNER_PUBKEY not configured');
+async function main(overrides = {}) {
+  // 1. Determine pubkeys (overrides win; otherwise fall back to Owner)
+  const povPubkey = overrides.povPubkey || getConfigFromFile('BRAINSTORM_OWNER_PUBKEY');
+  const delegatedPubkey = overrides.delegatedPubkey || getOwnerAssistantPubkey();
+
+  if (!povPubkey) {
+    console.error('povPubkey not provided and BRAINSTORM_OWNER_PUBKEY not configured');
     process.exit(1);
   }
   if (!delegatedPubkey) {
-    console.error('Could not determine TA pubkey (delegatedPubkey)');
+    console.error('delegatedPubkey not provided and getOwnerAssistantPubkey() returned nothing');
     process.exit(1);
   }
 
   const povSuffix = delegatedPubkey.slice(0, 8);
-  console.log(`Owner pubkey: ${ownerPubkey.slice(0, 8)}...`);
+  console.log(`PoV pubkey: ${povPubkey.slice(0, 8)}...`);
   console.log(`Delegated pubkey (TA): ${delegatedPubkey.slice(0, 8)}...`);
   console.log(`POV suffix: ${povSuffix}`);
 
-  // 2. Scan local strfry for kind 30382 events
+  // 2. Scan local strfry for kind 30382 events by this delegated pubkey
   const filter = JSON.stringify({ kinds: [30382], authors: [delegatedPubkey] });
   console.log(`Scanning strfry for kind 30382 events...`);
 
@@ -101,7 +119,7 @@ async function main() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        povPubkey: ownerPubkey,
+        povPubkey,
         delegatedPubkey,
         metrics,
         scores,
@@ -123,7 +141,12 @@ async function main() {
   }
 }
 
-main().catch(err => {
-  console.error('Unhandled error:', err);
-  process.exit(1);
-});
+module.exports = { parseArgs, main };
+
+if (require.main === module) {
+  const overrides = parseArgs(process.argv.slice(2));
+  main(overrides).catch(err => {
+    console.error('Unhandled error:', err);
+    process.exit(1);
+  });
+}
