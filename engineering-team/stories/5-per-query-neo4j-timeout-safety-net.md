@@ -61,4 +61,4 @@ Resolved with operator at approval time:
 
 - ADR: skipped (Bug, fix is obvious — per CLAUDE.md harness rules for Standard strictness on Bug type)
 - Test plan: `engineering-team/stories/5-per-query-neo4j-timeout-safety-net.test-plan.md`
-- Review: to be filled in after Review phase
+- Review: `engineering-team/reviews/5-per-query-neo4j-timeout-safety-net.md` (PASS, 5 non-blocking notes)
