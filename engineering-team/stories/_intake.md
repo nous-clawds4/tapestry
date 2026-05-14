@@ -50,6 +50,24 @@ Append-only log of incoming requests, raw, with classification and chosen phase 
 
 ---
 
+## 2026-05-14 — Feature: Brainstorm Communities — Slice 2 (GR-Community scoring + REST API)
+
+**Raw request (verbatim):**
+
+> keep going
+
+**Pre-intake context:**
+
+- Slice 2 implements the **server-side GR-Community scoring system** (PLAN.md §4) and the **REST API contract** that Slice 3 (Discover) will consume. Scoring is a two-gate confidence-weighted GrapeRank variant: `weight(rater) = baseline_gr(rater) * community_gr(rater)`.
+- Existing GrapeRank at `src/algos/personalizedGrapeRank/` is heavyweight (file-based, scorecards.json, /var/lib persistence). Per-community scoring is bounded (~hundreds of members per community), so an in-memory implementation with deterministic input → output is sufficient. The existing global GR stays unchanged.
+- Live behavior against real strfry/Neo4j is deferred to staging smoke (same pattern as #4/#5/#7). Slice 2 ships the **math** (unit-tested against synthetic graphs) and the **REST contract** (correctly-shaped JSON, empty-when-empty), so Slice 3 can swap mock-data imports for `fetch('/api/communities')` calls.
+
+**Classification:** Feature
+**Strictness:** Standard
+**Phase path:** Planning → Architecture → Test Design → Implementation → Review. Live behavior deferred to staging smoke.
+
+---
+
 ## 2026-05-13 — Scheduled task: refresh Meilisearch profiles + House PoV WoT scores
 
 **Raw request (verbatim):**
