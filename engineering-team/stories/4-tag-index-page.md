@@ -46,6 +46,6 @@ As a Brainstorm user, I want a page that lists every tag known to my community (
 - Pagination model: cursor-based (better for ranked sort orders that may re-rank under new data) vs page-offset (simpler). **Architect.**
 
 ## Linked artifacts
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/0003-tag-index-page.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
