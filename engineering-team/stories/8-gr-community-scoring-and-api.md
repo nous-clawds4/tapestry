@@ -119,6 +119,6 @@ Resolved before story approval:
 
 ## Linked artifacts
 
-- ADR: `engineering-team/decisions/0006-gr-community-scoring-and-api.md` (filled in by Architect)
+- ADR: [`engineering-team/decisions/0006-gr-community-scoring-and-api.md`](../decisions/0006-gr-community-scoring-and-api.md)
 - Test plan: `engineering-team/stories/8-gr-community-scoring-and-api.test-plan.md` (filled in by Tester)
 - Review: `engineering-team/reviews/8-gr-community-scoring-and-api.md` (filled in by Reviewer)
