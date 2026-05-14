@@ -115,5 +115,5 @@ Resolved before story approval:
 ## Linked artifacts
 
 - ADR: [`engineering-team/decisions/0007-discover-swaps-mock-data-for-api.md`](../decisions/0007-discover-swaps-mock-data-for-api.md)
-- Test plan: `engineering-team/stories/9-discover-swaps-mock-data-for-api.test-plan.md` (filled in by Tester)
+- Test plan: [`engineering-team/stories/9-discover-swaps-mock-data-for-api.test-plan.md`](9-discover-swaps-mock-data-for-api.test-plan.md)
 - Review: `engineering-team/reviews/9-discover-swaps-mock-data-for-api.md` (filled in by Reviewer)
