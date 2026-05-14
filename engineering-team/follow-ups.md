@@ -50,3 +50,28 @@ Future story (loose scope, to be brainstormed when we get there): richer relatio
 - Tagger reputation ("this person's tags get agreed with often / their disputes hold up under scrutiny").
 
 Will revisit and brainstorm more relationships before writing acceptance criteria.
+
+## Agree/disagree framing — UX normalization across tag surfaces
+
+**Surfaced during:** Story 5 ADR (ADR-0005), 2026-05-14.
+
+Story 5 introduces a per-row peer annotation (`+N agree` / `−M disagree`) and a `Most-backed` sort key on the new TAGGING ACTIVITY section. The underlying concept — WoT peer-count for a `(tag, target)` pair — already lives in the other tag views, but is labelled inconsistently:
+
+- **Tag-detail page (Tag.jsx):** row counts `+N / −M` are exactly the peer counts for `(this tag, this row's target)`. The `applied` / `disputed` sort modes are de-facto "most-backed (applied)" / "most-backed (disputed)". Could be relabelled or have the agree/disagree framing added inline.
+- **Profile TAGS chips (ProfileTagsSection):** chip counts are peer counts for `(this tag, this profile)`. Popover shows asserter lists split into "applied by" / "disputed by." Could reframe as "N agree, M disagree" intro line for legibility.
+
+Either light copy work (re-label) or richer affordances (e.g., adopt the same `<span class="...-peer">` annotation pattern from Story 5). Defer until Story 5 lands in production and we can see how the new annotation reads on a real profile.
+
+**Bundle candidate:** could ride Story 6's polish pass, or its own small story.
+
+## WoT-author filter on profile TAGS chips
+
+**Surfaced during:** Story 5 ADR (ADR-0005), 2026-05-14.
+
+`GET /api/profile-tags/tags-for-profile` (the endpoint that feeds the chip-row on `ProfileTagsSection`) does **not** WoT-filter assertion authors — it returns every assertion against the target pubkey regardless of who authored it. This predates the POV-first invariants becoming explicit (CLAUDE.md), and violates them: the chip counts are not POV-scoped.
+
+Fix: extend `handleTagsForProfile` to accept `wotPov` + `userPubkey`, resolve POV via `resolvePov` (the same helper Story 2/3/4 use), and filter applications/disputes to authors whose `wot_rank_<povSuffix> >= minRank`. Mirror the fallback rule (no POV → all assertions count, matches existing endpoints' degradation).
+
+Same pattern as the WoT-author filter in `handleProfilesTagged` and `handleTagIndex`. Small server-side change; the UI already passes the user's pubkey via `viewerPubkey` (we'd add the POV resolution alongside it).
+
+**Bundle candidate:** standalone bug-fix story, or fold into a "POV-correctness audit" sweep that re-checks every read endpoint against the POV-first invariant.
