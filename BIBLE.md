@@ -1100,16 +1100,29 @@ Every owner, admin, and customer has an **assistant** — a server-side nostr id
 
 ### Router Presets
 
-Strfry sync streams are configured in `setup/router-presets.json`. All streams default to disabled. Toggle via `POST /api/strfry/router-toggle` or the UI at `/tapestry/settings/relays`.
+#### Instances are self-contained
+
+Each Tapestry instance's strfry is the **complete source of truth** for that instance. There is no canonical pool that instances must defer to:
+
+- **Headers** (kind 39998) are written to local strfry by `POST /api/firmware/install` — every instance that has run firmware install has its own copy.
+- **Elements** (kind 39999) and other UGC are written to local strfry by `publishEverywhere` (`ui/src/utils/nostrPublish.js`) — they land on the strfry of the instance where the user published, plus any external relays the client also targets.
+
+Nothing in the protocol *requires* an instance to sync with another instance to function. A fresh instance that has run firmware install and accepts its own users' publishes is fully operational on its own. Treat any cross-instance mirror — `dcosl.brainstorm.world`, `dcosl.brainstorm.social`, or another instance's relay — as **just another relay**, not a canonical home.
+
+#### Presets are opt-in cross-instance mirroring
+
+Router presets exist so an operator can *choose* to share or pull state with other relays. Strfry sync streams are configured in `setup/router-presets.json`. All streams default to disabled. Toggle via `POST /api/strfry/router-toggle` or the UI at `/tapestry/settings/relays`.
 
 | Preset | Direction | Kinds | Relays | Purpose |
 |--------|-----------|-------|--------|---------|
-| `dcosl` | both | 9998, 9999, 39998, 39999 | dcosl.brainstorm.world, dcosl.brainstorm.social | DCoSL list events |
-| `dcosl2` | down | 9998, 9999, 39998, 39999 | relay.damus.io | General-purpose relay DCoSL data |
+| `dcosl` | both | 9998, 9999, 39998, 39999 | dcosl.brainstorm.world, dcosl.brainstorm.social | Opt-in mirror of list events with other instances' public relays |
+| `dcosl2` | down | 9998, 9999, 39998, 39999 | relay.damus.io | Pull list events that appeared on a general-purpose relay |
 | `userProfiles` | down | 0 | wot.grapevine.network, profiles.nostr1.com, purplepag.es | Continuous kind 0 profile sync for search |
 | `trustedLists` | both | 30392–30395 | nip85.brainstorm.world, nip85.nostr1.com, nip85.grapevine.network | NIP-85 trusted list events |
 
 > **Important:** Enable the `userProfiles` preset to keep the Meilisearch profile index up to date. Without it, only profiles already in strfry will be searchable.
+
+> **Note on `dcosl` / `dcosl2`:** these are *not* required for an instance to host its own tags, concept graph, or UGC. Enable them only if you want this instance to receive list events that originated elsewhere (down), or republish its own to a shared mirror (up).
 
 ---
 
@@ -1336,7 +1349,8 @@ docker compose exec tapestry strfry scan '{"kinds":[39998]}'
 # Count strfry events by kind (can take minutes on large DBs)
 curl 'http://localhost:8080/api/strfry/scan/count?filter={"kinds":[0]}'
 
-# Sync from DCoSL relay
+# Optional one-shot pull of list events from another instance's relay
+# (only needed if you want that instance's data and aren't running the dcosl preset)
 docker compose exec tapestry strfry sync wss://dcosl.brainstorm.world \
   --filter '{"kinds":[9998,9999,39998,39999]}' --dir down
 ```
