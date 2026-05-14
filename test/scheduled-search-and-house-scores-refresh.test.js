@@ -170,8 +170,14 @@ test('RelaySettings.jsx has a House-PoV-unconfigured banner that depends on povP
     'Banner text must include "House PoV is not configured" so operators see the dependency (AC-9)');
   assert(/povPubkey/.test(src),
     'Banner must reference povPubkey (the settings field it checks for absence)');
-  assert(/Search Preferences|search-preferences|grapevine\/search/i.test(src),
-    'Banner must link/refer to Search Preferences (where House PoV is configured)');
+  assert(/Search Preferences/.test(src),
+    'Banner must include the "Search Preferences" link copy');
+  // Strict route check — must match the actual SearchPreferences route per ui/src/App.jsx
+  // ({ path: 'search-preferences' } nested under { path: 'grapevine' } under the 'tapestry' parent).
+  // Previously this regex permitted any string containing "search-preferences", which let a wrong
+  // route like "/home/my-grapevine/search-preferences" pass undetected — see review 4 Blocking #1.
+  assert(/\/tapestry\/grapevine\/search-preferences/.test(src),
+    'Banner href must point to the actual Search Preferences route (/tapestry/grapevine/search-preferences) so clicking it lands on the configuration page, not a 404');
 });
 
 // ── AC-12: docs ──────────────────────────────────────────────

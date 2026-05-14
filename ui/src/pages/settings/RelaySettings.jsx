@@ -1377,7 +1377,7 @@ function HousePovUnconfiguredBanner() {
     <div style={{ padding: '0.5rem 0.75rem', marginBottom: '0.75rem', borderRadius: '6px',
       backgroundColor: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)', color: '#f59e0b', fontSize: '0.85rem' }}>
       ⚠️ House PoV is not configured — the score-refresh half will be skipped until you set it in{' '}
-      <a href="/home/my-grapevine/search-preferences"
+      <a href="/tapestry/grapevine/search-preferences"
         style={{ color: '#f59e0b', textDecoration: 'underline' }}>
         Search Preferences
       </a>.
