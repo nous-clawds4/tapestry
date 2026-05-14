@@ -16,6 +16,15 @@ This bind-mounts the repo at `/usr/local/lib/node_modules/brainstorm` inside the
 docker compose exec tapestry supervisorctl restart brainstorm
 ```
 
+### When a new dep lands
+
+If a teammate adds a dependency to `package.json` and a fresh `docker compose ... up -d` crash-loops brainstorm with `Error: Cannot find module 'X'`, the named volume `tapestry-node-modules` is stale. The dev override bind-mounts the local repo over `/usr/local/lib/node_modules/brainstorm` and then overlays the preserved named volume on its `node_modules/` — so the container sees the new `package.json` from your checkout but an older `node_modules/` from the last container build. Reinstall inside the container against the live `package.json`, then restart:
+
+```bash
+docker exec tapestry bash -c 'cd /usr/local/lib/node_modules/brainstorm && npm install --no-audit --no-fund'
+docker exec tapestry supervisorctl restart brainstorm
+```
+
 ### React UI (Vite dev server)
 
 The frontend lives in `ui/` and uses Vite for development:
@@ -38,6 +47,10 @@ npm run build
 ```
 
 This outputs to `ui/dist/`, which is served by the Express server at `/kg/`.
+
+## Testing
+
+First-time Playwright runs require `npx playwright install` to download the headless browser (~200MB; one-time per machine).
 
 ## Project Structure
 
