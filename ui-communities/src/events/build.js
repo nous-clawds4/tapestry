@@ -182,20 +182,50 @@ export function buildEndorsementSignal({
 }
 
 /**
- * Build a plain kind-1 note tagged with a community a-tag.
+ * Build a NIP-22 kind-1111 comment scoped to a community.
  *
- * The `a` tag scopes the post to a community; readers query for
- * `{ kinds: [1], '#a': [communityATag] }` to surface the conversation.
- * The relay-side membership whitelist gates publishing in production;
- * v1 clients also gate at the composer layer (PLAN.md §2).
+ * Migrated from kind-1 to fix the timeline-leakage issue: kind-1
+ * posts surface in any generic feed reader (Damus, Primal, Amethyst)
+ * as plain notes from the author's account. Kind-1111 is the modern
+ * NIP-22 "Comment" event — ignored by microblog clients, picked up
+ * by the comment-thread tooling other community-style apps already
+ * use (Amethyst, zap.stream chat, white-noise, …).
+ *
+ * Tag shape per NIP-22:
+ *   Uppercase A/K/P  → root reference (the community itself)
+ *   Lowercase a/k/p  → immediate parent (= root for top-level posts)
+ *
+ * The a-tag format is "39999:<curator>:<slug>"; we split it to pull
+ * out the curator pubkey for the P/p tags. Replies (future) point
+ * lowercase a/k/p at the parent comment's e-tag instead.
+ *
+ * Readers query `{ kinds: [1111], '#A': [communityATag] }` — the
+ * uppercase tag-name capture ensures replies show up alongside
+ * top-level posts in the same conversation.
  */
-export function buildKind1Post({ viewerPubkey, communityATag, content }) {
-  if (!viewerPubkey) throw new Error('buildKind1Post: viewerPubkey is required')
-  if (!communityATag) throw new Error('buildKind1Post: communityATag is required')
-  if (!content || !content.trim()) throw new Error('buildKind1Post: content is required')
+export function buildCommunityPost({ viewerPubkey, communityATag, content }) {
+  if (!viewerPubkey) throw new Error('buildCommunityPost: viewerPubkey is required')
+  if (!communityATag) throw new Error('buildCommunityPost: communityATag is required')
+  if (!content || !content.trim()) throw new Error('buildCommunityPost: content is required')
+
+  // a-tag format: "<kind>:<curator-pubkey>:<slug>" — split to derive
+  // the root-kind and root-author tags NIP-22 requires.
+  const [rootKind, rootAuthor] = communityATag.split(':')
+
+  const tags = [
+    ['A', communityATag],
+    ['K', rootKind || '39999'],
+    ['a', communityATag],
+    ['k', rootKind || '39999'],
+  ]
+  if (rootAuthor) {
+    tags.splice(2, 0, ['P', rootAuthor])
+    tags.push(['p', rootAuthor])
+  }
+
   return {
-    kind: 1,
-    tags: [['a', communityATag]],
+    kind: 1111,
+    tags,
     content: content.trim(),
     created_at: nowSec(),
     pubkey: viewerPubkey,

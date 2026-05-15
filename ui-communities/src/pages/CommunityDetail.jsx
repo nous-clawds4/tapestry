@@ -8,9 +8,9 @@ import PostSkeleton from '../components/PostSkeleton.jsx'
 import BrainstormMark from '../components/BrainstormMark.jsx'
 import FetchError from '../components/FetchError.jsx'
 import { getCommunity, getCommunityMembers } from '../api/client.js'
-import { buildCommunityRecord, buildKind1Post } from '../events/build.js'
+import { buildCommunityRecord, buildCommunityPost } from '../events/build.js'
 import { publishEvent } from '../events/publish.js'
-import { fetchKind1ForCommunity } from '../events/fetch.js'
+import { fetchPostsForCommunity } from '../events/fetch.js'
 import { publishErrorCopy } from '../lib/errors.js'
 import { formatCount } from '../lib/format.js'
 import s from './CommunityDetail.module.css'
@@ -94,7 +94,7 @@ export default function CommunityDetail({ slug }) {
     if (!currentCommunity || !communityATag) return
     setPostsState({ status: 'loading', items: [], error: null })
     try {
-      const items = await fetchKind1ForCommunity({
+      const items = await fetchPostsForCommunity({
         communityATag,
         slug: currentCommunity.slug,
       })
@@ -149,7 +149,7 @@ export default function CommunityDetail({ slug }) {
     ])
     setComposerText('')
 
-    const unsigned = buildKind1Post({
+    const unsigned = buildCommunityPost({
       viewerPubkey: viewer,
       communityATag,
       content: text,

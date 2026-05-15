@@ -50,60 +50,75 @@ function read(p) {
  * CommonJS Function() context so we can invoke it from the test.
  * ──────────────────────────────────────────────────────────── */
 
-function loadBuildKind1Post() {
+function loadBuildCommunityPost() {
   const src = read(BUILD_JS);
-  const m = src.match(/export\s+function\s+buildKind1Post\s*\(([^)]*)\)\s*\{([\s\S]*?)^\}/m);
-  if (!m) throw new Error('build.js must export `function buildKind1Post(...) { ... }`');
+  const m = src.match(/export\s+function\s+buildCommunityPost\s*\(([^)]*)\)\s*\{([\s\S]*?)^\}/m);
+  if (!m) throw new Error('build.js must export `function buildCommunityPost(...) { ... }`');
   // The function body uses `nowSec()`; provide a stub.
   const body = `const nowSec = () => 1700000000;\n${m[2]}`;
   // eslint-disable-next-line no-new-func
   return new Function(m[1], body);
 }
 
-test('T1: buildKind1Post returns the right kind/tags/content/created_at/pubkey shape', () => {
-  const buildKind1Post = loadBuildKind1Post();
-  const out = buildKind1Post({
+test('T1: buildCommunityPost returns a NIP-22 kind-1111 comment shape', () => {
+  const buildCommunityPost = loadBuildCommunityPost();
+  const out = buildCommunityPost({
     viewerPubkey: 'a'.repeat(64),
     communityATag: '39999:abc:listening-room',
     content: '  hello world  ',
   });
-  assert(out.kind === 1, `kind must be 1; got ${out.kind}`);
+  assert(out.kind === 1111, `kind must be 1111 (NIP-22 comment); got ${out.kind}`);
   assert(out.content === 'hello world',
     `content must be trimmed; got "${out.content}"`);
   assert(out.pubkey === 'a'.repeat(64), 'pubkey must be the viewer');
   assert(typeof out.created_at === 'number', 'created_at must be a number');
   assert(Array.isArray(out.tags), 'tags must be an array');
+
+  // NIP-22 root reference (uppercase) — the community itself
+  const ATag = out.tags.find(t => t[0] === 'A');
+  assert(ATag && ATag[1] === '39999:abc:listening-room',
+    `tags must include ['A', communityATag]; got ${JSON.stringify(out.tags)}`);
+  const KTag = out.tags.find(t => t[0] === 'K');
+  assert(KTag && KTag[1] === '39999', `tags must include ['K', '39999']; got ${JSON.stringify(out.tags)}`);
+  const PTag = out.tags.find(t => t[0] === 'P');
+  assert(PTag && PTag[1] === 'abc', `tags must include ['P', curator]; got ${JSON.stringify(out.tags)}`);
+
+  // NIP-22 parent reference (lowercase) — same as root for top-level
   const aTag = out.tags.find(t => t[0] === 'a');
   assert(aTag && aTag[1] === '39999:abc:listening-room',
     `tags must include ['a', communityATag]; got ${JSON.stringify(out.tags)}`);
+  const kTag = out.tags.find(t => t[0] === 'k');
+  assert(kTag && kTag[1] === '39999', `tags must include ['k', '39999']; got ${JSON.stringify(out.tags)}`);
+  const pTag = out.tags.find(t => t[0] === 'p');
+  assert(pTag && pTag[1] === 'abc', `tags must include ['p', curator]; got ${JSON.stringify(out.tags)}`);
 });
 
-test('T2: buildKind1Post throws when viewerPubkey is empty', () => {
-  const buildKind1Post = loadBuildKind1Post();
+test('T2: buildCommunityPost throws when viewerPubkey is empty', () => {
+  const buildCommunityPost = loadBuildCommunityPost();
   for (const value of ['', null, undefined]) {
     let threw = false;
     try {
-      buildKind1Post({ viewerPubkey: value, communityATag: '39999:x:y', content: 'hi' });
+      buildCommunityPost({ viewerPubkey: value, communityATag: '39999:x:y', content: 'hi' });
     } catch { threw = true; }
     assert(threw, `must throw on viewerPubkey=${JSON.stringify(value)}`);
   }
 });
 
-test('T3: buildKind1Post throws when communityATag is empty', () => {
-  const buildKind1Post = loadBuildKind1Post();
+test('T3: buildCommunityPost throws when communityATag is empty', () => {
+  const buildCommunityPost = loadBuildCommunityPost();
   let threw = false;
   try {
-    buildKind1Post({ viewerPubkey: 'a'.repeat(64), communityATag: '', content: 'hi' });
+    buildCommunityPost({ viewerPubkey: 'a'.repeat(64), communityATag: '', content: 'hi' });
   } catch { threw = true; }
   assert(threw, 'must throw on empty communityATag');
 });
 
-test('T4: buildKind1Post throws when content is empty or whitespace', () => {
-  const buildKind1Post = loadBuildKind1Post();
+test('T4: buildCommunityPost throws when content is empty or whitespace', () => {
+  const buildCommunityPost = loadBuildCommunityPost();
   for (const value of ['', '   ', null, undefined]) {
     let threw = false;
     try {
-      buildKind1Post({ viewerPubkey: 'a'.repeat(64), communityATag: '39999:x:y', content: value });
+      buildCommunityPost({ viewerPubkey: 'a'.repeat(64), communityATag: '39999:x:y', content: value });
     } catch { threw = true; }
     assert(threw, `must throw on content=${JSON.stringify(value)}`);
   }
@@ -113,11 +128,11 @@ test('T4: buildKind1Post throws when content is empty or whitespace', () => {
  * T5–T8 — fetch.js source-regex
  * ──────────────────────────────────────────────────────────── */
 
-test('T5: src/events/fetch.js exports fetchKind1ForCommunity', () => {
+test('T5: src/events/fetch.js exports fetchPostsForCommunity', () => {
   const src = read(FETCH_JS);
-  assert(/export\s+(?:async\s+)?function\s+fetchKind1ForCommunity/.test(src) ||
-         /export\s+const\s+fetchKind1ForCommunity/.test(src),
-    'fetch.js must export fetchKind1ForCommunity');
+  assert(/export\s+(?:async\s+)?function\s+fetchPostsForCommunity/.test(src) ||
+         /export\s+const\s+fetchPostsForCommunity/.test(src),
+    'fetch.js must export fetchPostsForCommunity');
 });
 
 test('T6: fetch.js gates mock vs real on VITE_USE_MOCK_DATA === "true"', () => {
@@ -127,12 +142,12 @@ test('T6: fetch.js gates mock vs real on VITE_USE_MOCK_DATA === "true"', () => {
     'fetch.js must use the strict === "true" comparison (avoids the truthy-string gotcha)');
 });
 
-test('T7: fetch.js real-mode subscribes with filter { kinds: [1], "#a": [...] }', () => {
+test('T7: fetch.js real-mode subscribes with filter { kinds: [1111], "#A": [...] }', () => {
   const src = read(FETCH_JS);
-  assert(/kinds:\s*\[\s*1\s*\]/.test(src),
-    'fetch.js must filter on kinds: [1]');
-  assert(/['"]#a['"]\s*:\s*\[/.test(src),
-    'fetch.js must filter on the "#a" tag');
+  assert(/kinds:\s*\[\s*1111\s*\]/.test(src),
+    'fetch.js must filter on kinds: [1111] (NIP-22 comment) for the conversation tab');
+  assert(/['"]#A['"]\s*:\s*\[/.test(src),
+    'fetch.js must filter on the uppercase "#A" root-reference tag (NIP-22)');
 });
 
 test('T8: fetch.js handles EOSE via an oneose callback that closes the subscription', () => {
@@ -147,14 +162,14 @@ test('T8: fetch.js handles EOSE via an oneose callback that closes the subscript
  * T9–T11 — CommunityDetail.jsx wiring
  * ──────────────────────────────────────────────────────────── */
 
-test('T9: CommunityDetail.jsx imports fetchKind1ForCommunity + buildKind1Post + publishErrorCopy from the right paths', () => {
+test('T9: CommunityDetail.jsx imports fetchPostsForCommunity + buildCommunityPost + publishErrorCopy from the right paths', () => {
   const src = read(DETAIL_JSX);
   assert(/from\s+['"]\.\.\/events\/fetch(?:\.js)?['"]/.test(src),
     'CommunityDetail.jsx must import from ../events/fetch.js');
-  assert(/fetchKind1ForCommunity/.test(src),
-    'CommunityDetail.jsx must reference fetchKind1ForCommunity');
-  assert(/buildKind1Post/.test(src),
-    'CommunityDetail.jsx must reference buildKind1Post');
+  assert(/fetchPostsForCommunity/.test(src),
+    'CommunityDetail.jsx must reference fetchPostsForCommunity');
+  assert(/buildCommunityPost/.test(src),
+    'CommunityDetail.jsx must reference buildCommunityPost');
   assert(/from\s+['"]\.\.\/lib\/errors(?:\.js)?['"]/.test(src),
     'CommunityDetail.jsx must import publishErrorCopy from ../lib/errors.js');
 });
@@ -171,15 +186,15 @@ test('T10: CommunityDetail.jsx renders the composer only when signedIn && joined
     'CommunityDetail.jsx Conversation composer must render a <textarea> (not just a placeholder button)');
 });
 
-test('T11: CommunityDetail.jsx Send handler calls publishEvent with the result of buildKind1Post', () => {
+test('T11: CommunityDetail.jsx Send handler calls publishEvent with the result of buildCommunityPost', () => {
   const src = read(DETAIL_JSX);
-  // The Send handler must invoke buildKind1Post(...) then publishEvent(...).
-  // Source-order check: buildKind1Post must appear before publishEvent in the file's Send-handler context.
-  const buildIdx = src.indexOf('buildKind1Post(');
-  assert(buildIdx >= 0, 'CommunityDetail.jsx must invoke buildKind1Post(...)');
+  // The Send handler must invoke buildCommunityPost(...) then publishEvent(...).
+  // Source-order check: buildCommunityPost must appear before publishEvent in the file's Send-handler context.
+  const buildIdx = src.indexOf('buildCommunityPost(');
+  assert(buildIdx >= 0, 'CommunityDetail.jsx must invoke buildCommunityPost(...)');
   const sendHandlerPublishIdx = src.indexOf('publishEvent', buildIdx);
   assert(sendHandlerPublishIdx >= 0 && sendHandlerPublishIdx - buildIdx < 800,
-    'CommunityDetail.jsx must call publishEvent shortly after buildKind1Post in the Send handler');
+    'CommunityDetail.jsx must call publishEvent shortly after buildCommunityPost in the Send handler');
 });
 
 /* ────────────────────────────────────────────────────────────

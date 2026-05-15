@@ -23,7 +23,13 @@ const USE_MOCK = import.meta.env.VITE_USE_MOCK_DATA === 'true'
 const FETCH_TIMEOUT_MS = 5000
 
 /**
- * Fetch kind-1 posts for a community.
+ * Fetch NIP-22 kind-1111 comments for a community.
+ *
+ * Migrated from kind-1 — see build.js / buildCommunityPost for the
+ * leakage rationale. Filter uses the uppercase `#A` capture so both
+ * top-level posts and any future replies (which point lowercase a/k/p
+ * at the parent comment but keep the same uppercase root) surface in
+ * one conversation feed.
  *
  * @param {object} args
  * @param {string} args.communityATag  e.g. "39999:<curator>:<slug>"
@@ -32,19 +38,19 @@ const FETCH_TIMEOUT_MS = 5000
  * @param {number} [args.timeout]
  * @returns {Promise<Post[]>}  Post = { id, author, content, createdAt }
  */
-export async function fetchKind1ForCommunity({
+export async function fetchPostsForCommunity({
   communityATag,
   slug,
   relays = DEFAULT_RELAYS,
   timeout = FETCH_TIMEOUT_MS,
 }) {
-  if (!communityATag) throw new Error('fetchKind1ForCommunity: communityATag is required')
+  if (!communityATag) throw new Error('fetchPostsForCommunity: communityATag is required')
 
   if (USE_MOCK) {
     return projectMockPosts(slug)
   }
 
-  const filter = { kinds: [1], '#a': [communityATag] }
+  const filter = { kinds: [1111], '#A': [communityATag] }
   const events = new Map()
   await Promise.all(
     relays.map(url => collectFromRelay(url, filter, events, timeout)),
