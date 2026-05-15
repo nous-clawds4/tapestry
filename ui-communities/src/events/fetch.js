@@ -136,6 +136,42 @@ export async function fetchCommunityRecord({
   return projectCommunityRecord(chosen)
 }
 
+/**
+ * Fetch every community-record on the relay, regardless of curator.
+ * Used as a discovery-side fallback so users see communities created
+ * by other curators (the backend /api/communities list is still the
+ * Slice 2 NB-4 stub returning []).
+ *
+ * Filters at the relay by kind only — strfry has no way to filter on
+ * a partial tag suffix — and client-side narrows to events whose `z`
+ * header points at `…:brainstorm-communities`. That excludes the
+ * firmware's other kind-39999 events (supersets, node-types, etc.)
+ * which use the same kind number but different schemas.
+ */
+export async function fetchAllCommunityRecords({
+  relays = DEFAULT_RELAYS,
+  timeout = FETCH_TIMEOUT_MS,
+} = {}) {
+  if (USE_MOCK) return []  // Discover already merges mock data via the API path
+  const filter = { kinds: [39999] }
+  const events = new Map()
+  await Promise.all(
+    relays.map(url => collectFromRelay(url, filter, events, timeout)),
+  )
+  const records = []
+  for (const e of events.values()) {
+    const zTag = e.tags.find(t => t[0] === 'z')
+    if (!zTag || !zTag[1] || !zTag[1].endsWith(':brainstorm-communities')) continue
+    const projected = projectCommunityRecord(e)
+    if (projected) {
+      projected._createdAt = e.created_at || 0
+      records.push(projected)
+    }
+  }
+  records.sort((a, b) => (b._createdAt || 0) - (a._createdAt || 0))
+  return records
+}
+
 function projectCommunityRecord(event) {
   if (!event || !Array.isArray(event.tags)) return null
 

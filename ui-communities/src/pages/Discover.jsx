@@ -6,7 +6,11 @@ import CommunityCard from '../components/CommunityCard.jsx'
 import BrainstormMark from '../components/BrainstormMark.jsx'
 import CardSkeleton from '../components/CardSkeleton.jsx'
 import FetchError from '../components/FetchError.jsx'
-import { getCommunities, getJoinedCommunitySummaries } from '../api/client.js'
+import {
+  getCommunities,
+  getDiscoverableCommunitiesFromRelay,
+  getJoinedCommunitySummaries,
+} from '../api/client.js'
 import { tags } from '../data/mockData.js'
 import s from './Discover.module.css'
 
@@ -31,21 +35,27 @@ export default function Discover() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setState({ status: 'loading', communities: [], error: null })
 
-    // API list + per-joined-slug hydration in parallel. The hydration
-    // surfaces circles the viewer has joined/created even when the
-    // backend list is still empty (Slice 2 NB-4 deferral). Dedupe by
-    // slug — the API result wins when both have the same circle.
+    // Three data sources merged in priority order:
+    //   1. API list (authoritative when backend wiring lands — Slice 2 NB-4)
+    //   2. Joined-circle hydration (the viewer's own joins/creates)
+    //   3. Relay-wide community-record discovery (other curators' circles)
+    // Dedupe by slug; earlier sources win on collision.
     Promise.all([
       getCommunities(viewer),
       getJoinedCommunitySummaries(Array.from(joinedSet), viewer),
+      getDiscoverableCommunitiesFromRelay(viewer),
     ])
-      .then(([apiList, joinedExtras]) => {
+      .then(([apiList, joinedExtras, relayList]) => {
         if (cancelled) return
-        const apiSlugs = new Set((apiList || []).map(c => c.slug))
-        const merged = [
-          ...(apiList || []),
-          ...joinedExtras.filter(c => !apiSlugs.has(c.slug)),
-        ]
+        const seen = new Set()
+        const merged = []
+        for (const source of [apiList || [], joinedExtras, relayList]) {
+          for (const c of source) {
+            if (!c || !c.slug || seen.has(c.slug)) continue
+            seen.add(c.slug)
+            merged.push(c)
+          }
+        }
         setState({ status: 'ready', communities: merged, error: null })
       })
       .catch(error => {

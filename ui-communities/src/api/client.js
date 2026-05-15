@@ -23,7 +23,7 @@ import {
   getCommunityMembers as mockGetCommunityMembers,
   getVoucherNames as mockGetVoucherNames,
 } from '../data/mockData.js'
-import { fetchCommunityRecord } from '../events/fetch.js'
+import { fetchAllCommunityRecords, fetchCommunityRecord } from '../events/fetch.js'
 import { fetchProfiles } from '../lib/profiles.js'
 import { npubShort } from '../lib/format.js'
 
@@ -232,6 +232,42 @@ export const IS_MOCK_MODE = USE_MOCK
  * viewer's own circles into a backend list that may be empty until
  * Slice 2 NB-4 wires the data sources).
  */
+function recordToListEntry(record, viewer) {
+  return {
+    slug: record.slug,
+    name: record.name,
+    description: record.description,
+    tags: Array.isArray(record.tags) ? record.tags : [],
+    image: record.image || null,
+    accent: record.accent || null,
+    language: record.language || null,
+    memberCount: typeof record.memberCount === 'number' ? record.memberCount : 0,
+    trustedHere: typeof record.trustedHere === 'number' ? record.trustedHere : 0,
+    activity: record.activity || null,
+    members: Array.isArray(record.members) ? record.members : [],
+    joined: viewer ? record.founder === viewer : false,
+  }
+}
+
+/**
+ * Discover all community-records on the relay set, regardless of
+ * curator. Used to surface communities other people created so the
+ * Discover page doesn't only show the viewer's own joinedSet.
+ *
+ * Mock-mode returns [] — getCommunities already returns the full mock
+ * dataset, so this fallback is real-mode-only.
+ */
+export async function getDiscoverableCommunitiesFromRelay(viewer) {
+  if (USE_MOCK) return []
+  try {
+    const records = await fetchAllCommunityRecords()
+    return records.map(r => recordToListEntry(r, viewer))
+  } catch (err) {
+    console.warn('[client] fetchAllCommunityRecords failed:', err && err.message)
+    return []
+  }
+}
+
 export async function getJoinedCommunitySummaries(slugs, viewer) {
   if (!Array.isArray(slugs) || slugs.length === 0) return []
   const results = await Promise.all(
