@@ -141,10 +141,12 @@ test('T11: Create.jsx Review step references the v1 relay default', () => {
 
 test('T12: Create.jsx includes the viewer in the seeds array before building the record', () => {
   const src = read(CREATE_JSX);
-  // Pattern: `new Set([viewer, ...seedMembers])` OR a Set/Array union that
-  // includes both viewer and seedMembers somehow.
-  assert(/new\s+Set\(\s*\[\s*viewer\s*,\s*\.\.\.seedMembers/.test(src) ||
-         /\[\s*viewer\s*,\s*\.\.\.seedMembers/.test(src) ||
+  // Pattern: a Set/Array union spreading viewer with whatever holds the
+  // selected seed pubkeys. seedMembers used to be a flat array of hex
+  // strings; after the profile-search work it became an array of
+  // { pubkey, profile } objects with seedPubkeys derived alongside.
+  assert(/new\s+Set\(\s*\[\s*viewer\s*,\s*\.\.\.(seedMembers|seedPubkeys)/.test(src) ||
+         /\[\s*viewer\s*,\s*\.\.\.(seedMembers|seedPubkeys)/.test(src) ||
          /seedMembers\.includes\(viewer\)/.test(src),
     'Create.jsx must include viewer in the seeds array before building the community-record');
 });

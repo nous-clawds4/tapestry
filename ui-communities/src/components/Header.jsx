@@ -1,7 +1,9 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import BrainstormMark from './BrainstormMark.jsx'
+import ProfileAvatar from './ProfileAvatar.jsx'
 import { npubFull, npubShort } from '../auth/viewer.js'
 import { signInErrorCopy } from '../lib/errors.js'
+import { fetchProfile, getCachedProfile } from '../lib/profiles.js'
 import s from './Header.module.css'
 
 const NAV_ITEMS = [
@@ -14,11 +16,27 @@ export default function Header({ viewer, signedIn, pathname, onNavigate, onSignI
   const [menuOpen, setMenuOpen] = useState(false)
   const [signInState, setSignInState] = useState({ status: 'idle', error: null })
   const [copied, setCopied] = useState(false)
+  const [profile, setProfile] = useState(() => (signedIn ? getCachedProfile(viewer) : null))
   const visible = NAV_ITEMS.filter(item => !item.requiresAuth || signedIn)
 
   const viewerNpub = signedIn ? npubFull(viewer) : ''
   const viewerNpubShort = signedIn ? npubShort(viewer) : ''
-  const avatarInitials = viewerNpubShort ? viewerNpubShort.slice(5, 7).toUpperCase() : '··'
+  const viewerDisplayName = profile && (profile.display_name || profile.name) || ''
+
+  // Fetch the viewer's kind-0 profile after sign-in so the header
+  // can render a real picture + display name instead of the bare npub.
+  useEffect(() => {
+    if (!signedIn || !viewer) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setProfile(null)
+      return
+    }
+    let cancelled = false
+    fetchProfile(viewer).then(p => {
+      if (!cancelled) setProfile(p)
+    })
+    return () => { cancelled = true }
+  }, [signedIn, viewer])
 
   async function handleSignInClick() {
     setSignInState({ status: 'pending', error: null })
@@ -97,15 +115,26 @@ export default function Header({ viewer, signedIn, pathname, onNavigate, onSignI
                 onClick={() => setMenuOpen(o => !o)}
                 aria-haspopup="true"
                 aria-expanded={menuOpen}
-                title={viewerNpub}
+                title={viewerDisplayName || viewerNpub}
               >
-                <span className={s.userAvatar} aria-hidden="true">{avatarInitials}</span>
-                <span className={s.userName}>{viewerNpubShort}</span>
+                <ProfileAvatar pubkey={viewer} profile={profile} size={28} />
+                <span className={s.userName}>
+                  {viewerDisplayName || viewerNpubShort}
+                </span>
               </button>
               {menuOpen && (
                 <div className={s.userDropdown} role="menu">
                   <div className={s.userMeta} title={viewerNpub}>
-                    Signed in as <code className={s.userNpub}>{viewerNpubShort}</code>
+                    {viewerDisplayName ? (
+                      <>
+                        Signed in as <strong className={s.userDisplayName}>{viewerDisplayName}</strong>
+                        <span className={s.userNpubLine}>
+                          <code className={s.userNpub}>{viewerNpubShort}</code>
+                        </span>
+                      </>
+                    ) : (
+                      <>Signed in as <code className={s.userNpub}>{viewerNpubShort}</code></>
+                    )}
                   </div>
                   <button
                     type="button"

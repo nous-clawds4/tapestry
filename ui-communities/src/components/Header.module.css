@@ -151,20 +151,6 @@
 
 .userTrigger:hover { border-color: var(--border-hover); }
 
-.userAvatar {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: var(--radius-full);
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--text-on-accent);
-  background: linear-gradient(135deg, var(--brand) 0%, var(--accent) 100%);
-  letter-spacing: -0.02em;
-}
-
 .userName {
   font-size: var(--text-sm);
   font-weight: 500;
@@ -172,6 +158,10 @@
   font-family: var(--font-body);
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.01em;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .userDropdown {
@@ -205,6 +195,17 @@
   color: var(--text-secondary);
   font-weight: 500;
   letter-spacing: -0.01em;
+}
+
+.userDisplayName {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.userNpubLine {
+  display: block;
+  margin-top: 4px;
+  color: var(--text-faint);
 }
 
 .userItem,

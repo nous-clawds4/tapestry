@@ -1,24 +1,24 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useOutletContext } from 'react-router-dom'
 import Button from '../components/Button.jsx'
 import FormInput from '../components/FormInput.jsx'
 import StepProgress from '../components/StepProgress.jsx'
 import SearchBar from '../components/SearchBar.jsx'
 import TagPill from '../components/TagPill.jsx'
-import Avatar from '../components/Avatar.jsx'
+import ProfileAvatar from '../components/ProfileAvatar.jsx'
 import ViewCallout from '../components/ViewCallout.jsx'
-// Create intentionally reads from mockData per Slice 3 / story #9:
-// - the "Similar circles" step needs a similar-communities query (no API
-//   endpoint exists yet);
-// - the "Founding voices" step needs a member-search-within-trust-network
-//   endpoint (also unbuilt).
-// Both endpoints come in a later story; Create stays on mock data until
-// then so the create flow remains exercisable end-to-end during dev.
-import { communities, members, tags } from '../data/mockData.js'
+// "Similar circles" still reads from mockData per Slice 3 / story #9 —
+// the similar-community query endpoint isn't built yet, so the wizard
+// stays on mock data for that step until the API lands. "Founding
+// voices" now hits the real brainstorm.world profile-search API
+// (src/lib/profiles.js) instead of the mock members list.
+import { communities, tags } from '../data/mockData.js'
 import { buildCommunitiesDListHeader, buildCommunityRecord } from '../events/build.js'
 import { publishEvent } from '../events/publish.js'
 import { publishErrorCopy, signInErrorCopy } from '../lib/errors.js'
+import { searchProfilesByQuery } from '../lib/profiles.js'
 import { slugify } from '../lib/slug.js'
+import { npubShort } from '../lib/format.js'
 import s from './Create.module.css'
 
 const STEPS = ['Name', 'Similar circles', 'Topics', 'Founding voices', 'Review']
@@ -29,11 +29,17 @@ export default function Create() {
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [selectedTags, setSelectedTags] = useState([])
+  // seedMembers is an array of { pubkey, profile } entries so the
+  // Review/Publish path can render names + pictures, and the publish
+  // payload carries the real hex pubkeys.
   const [seedMembers, setSeedMembers] = useState([])
   const [memberQuery, setMemberQuery] = useState('')
+  const [memberResults, setMemberResults] = useState([])
+  const [memberSearchStatus, setMemberSearchStatus] = useState('idle')
   const [publishing, setPublishing] = useState(false)
   const [publishError, setPublishError] = useState(null)
   const [signInState, setSignInState] = useState({ status: 'idle', error: null })
+  const searchTokenRef = useRef(0)
 
   async function handleCreate() {
     if (!signedIn || !viewer || publishing) return
@@ -55,7 +61,8 @@ export default function Create() {
     }
 
     // 2. Publish the kind-39999 community-record. Founder is always a seed.
-    const seeds = Array.from(new Set([viewer, ...seedMembers]))
+    const seedPubkeys = seedMembers.map(m => m.pubkey).filter(Boolean)
+    const seeds = Array.from(new Set([viewer, ...seedPubkeys]))
     const community = {
       slug,
       name: name.trim(),
@@ -99,18 +106,42 @@ export default function Create() {
       .slice(0, 3)
   }, [name])
 
-  const memberResults = useMemo(() => {
-    const q = memberQuery.trim().toLowerCase()
-    return members
-      .filter(m => !q || m.name.toLowerCase().includes(q))
-      .slice(0, 8)
+  // Debounced people-search against brainstorm.world's profile API.
+  // 250 ms keeps keystroke latency low while collapsing typed bursts
+  // into a single round-trip. searchTokenRef guards against stale
+  // promises overwriting newer results.
+  useEffect(() => {
+    const q = memberQuery.trim()
+    if (q.length === 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setMemberResults([])
+      setMemberSearchStatus('idle')
+      return
+    }
+    const token = ++searchTokenRef.current
+    setMemberSearchStatus('searching')
+    const handle = setTimeout(() => {
+      searchProfilesByQuery(q, { limit: 12 }).then(results => {
+        if (token !== searchTokenRef.current) return
+        setMemberResults(results)
+        setMemberSearchStatus(results.length === 0 ? 'empty' : 'ready')
+      })
+    }, 250)
+    return () => clearTimeout(handle)
   }, [memberQuery])
 
   const toggleTag = id =>
     setSelectedTags(prev => (prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]))
 
-  const toggleSeed = id =>
-    setSeedMembers(prev => (prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]))
+  const toggleSeed = entry =>
+    setSeedMembers(prev => {
+      const already = prev.find(m => m.pubkey === entry.pubkey)
+      return already
+        ? prev.filter(m => m.pubkey !== entry.pubkey)
+        : [...prev, entry]
+    })
+
+  const seedHasPubkey = pubkey => seedMembers.some(m => m.pubkey === pubkey)
 
   return (
     <div className={s.page}>
@@ -228,29 +259,65 @@ export default function Create() {
           <SearchBar
             value={memberQuery}
             onChange={setMemberQuery}
-            placeholder="Search for people…"
+            placeholder="Search nostr by name, npub, or nip-05…"
           />
+          {seedMembers.length > 0 && (
+            <ul className={s.seedChipRow} aria-label="Selected founding voices">
+              {seedMembers.map(m => (
+                <li key={m.pubkey} className={s.seedChip}>
+                  <ProfileAvatar pubkey={m.pubkey} profile={m.profile} size={22} />
+                  <span className={s.seedChipName}>
+                    {(m.profile && (m.profile.display_name || m.profile.name)) || npubShort(m.pubkey)}
+                  </span>
+                  <button
+                    type="button"
+                    className={s.seedChipRemove}
+                    onClick={() => toggleSeed(m)}
+                    aria-label={`Remove ${(m.profile && m.profile.name) || 'this person'}`}
+                  >
+                    ×
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
           <ul className={s.memberList}>
-            {memberResults.map(m => (
-              <li key={m.id} className={s.memberItem}>
-                <Avatar member={m} size={36} />
-                <div className={s.memberName}>{m.name}</div>
-                <button
-                  type="button"
-                  onClick={() => toggleSeed(m.id)}
-                  className={
-                    seedMembers.includes(m.id) ? `${s.seedToggle} ${s.seedToggleOn}` : s.seedToggle
-                  }
-                  aria-pressed={seedMembers.includes(m.id)}
-                >
-                  {seedMembers.includes(m.id) && (
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M20 6 9 17l-5-5" />
-                    </svg>
-                  )}
-                </button>
-              </li>
-            ))}
+            {memberResults.map(entry => {
+              const p = entry.profile || {}
+              const displayName = p.display_name || p.name || npubShort(entry.pubkey)
+              const selected = seedHasPubkey(entry.pubkey)
+              return (
+                <li key={entry.pubkey} className={s.memberItem}>
+                  <ProfileAvatar pubkey={entry.pubkey} profile={p} size={36} />
+                  <div className={s.memberMeta}>
+                    <div className={s.memberName}>{displayName}</div>
+                    {p.nip05 && <div className={s.memberHandle}>{p.nip05}</div>}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => toggleSeed(entry)}
+                    className={selected ? `${s.seedToggle} ${s.seedToggleOn}` : s.seedToggle}
+                    aria-pressed={selected}
+                    aria-label={selected ? `Remove ${displayName}` : `Add ${displayName}`}
+                  >
+                    {selected && (
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M20 6 9 17l-5-5" />
+                      </svg>
+                    )}
+                  </button>
+                </li>
+              )
+            })}
+            {memberSearchStatus === 'idle' && seedMembers.length === 0 && (
+              <li className={s.memberHint}>Start typing to search for people on nostr.</li>
+            )}
+            {memberSearchStatus === 'searching' && (
+              <li className={s.memberHint}>Searching…</li>
+            )}
+            {memberSearchStatus === 'empty' && (
+              <li className={s.memberHint}>No matches. Try a different name, npub, or nip-05.</li>
+            )}
           </ul>
           <Footer
             secondary={<Button variant="ghost" onClick={() => setStep(2)}>Back</Button>}
