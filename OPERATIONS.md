@@ -3,7 +3,7 @@
 > **Audience:** the active team running this fork at `brainstorm.world`.
 > **Prerequisite reading:** [BIBLE.md](./BIBLE.md) — what tapestry *is* and how it works. This file documents the specifics of *our* deployment that aren't useful to other operators forking the codebase.
 
-**Last updated:** 2026-05-14
+**Last updated:** 2026-05-15
 
 ---
 
@@ -23,7 +23,7 @@
 
 ## 1. Deploy targets
 
-Four long-lived branches, four Digital Ocean droplets, four CI/CD workflows:
+Six long-lived branches, six Digital Ocean droplets, six CI/CD workflows:
 
 | Branch | Workflow | Target | Purpose |
 |--------|----------|--------|---------|
@@ -31,8 +31,10 @@ Four long-lived branches, four Digital Ocean droplets, four CI/CD workflows:
 | `staging` | `deploy-staging.yml` | `staging.brainstorm.world` | Pre-production verification. PRs from feature branches land here first. |
 | `feature-magic-carpet` | `deploy-magic-carpet.yml` | `magic-carpet.brainstorm.world` | Long-lived sandbox for Matthias's bounty-system work. |
 | `feat/pubkey-tagging-target` | `deploy-tags.yml` | `tags.brainstorm.world` | Long-lived sandbox for the pubkey-tagging feature work (NIP-85 profile-tagging UX). |
+| `feat/communities` | `deploy-communities.yml` | `communities.brainstorm.world` | Long-lived sandbox for the communities / decentralized-lists feature work (brainstorm-community concept, DList NIP-aware tag schema). |
+| `feat/curate` | `deploy-curate.yml` | `curate.brainstorm.world` | Long-lived sandbox for Avi's feature work; scope TBD by Avi. |
 
-Each workflow uses repo secrets named `DEPLOY_HOST_<NAME>`, `DEPLOY_USER_<NAME>`, `DEPLOY_SSH_KEY_<NAME>` where `<NAME>` is `BRAINSTORM`, `STAGING`, `MAGIC_CARPET`, or `TAGS`.
+Each workflow uses repo secrets named `DEPLOY_HOST_<NAME>`, `DEPLOY_USER_<NAME>`, `DEPLOY_SSH_KEY_<NAME>` where `<NAME>` is `BRAINSTORM`, `STAGING`, `MAGIC_CARPET`, `TAGS`, `COMMUNITIES`, or `CURATE`.
 
 ### Standard branch promotion flow
 
@@ -44,7 +46,7 @@ feat/foo (off staging)
     → source feature branch auto-deleted
 ```
 
-**Long-lived sandbox branches** (currently `feature-magic-carpet` and `feat/pubkey-tagging-target`, plus any future additions) follow the same convention: fork from `staging`, deploy to their own droplet via a dedicated `deploy-<name>.yml` workflow, and eventually merge back via the standard `<branch> → staging → main` path. New sandboxes get a row added to the deploy-target table above when they're stood up, plus a row in [§5 "Droplets and empirical measurements"](#5-droplets-and-empirical-measurements).
+**Long-lived sandbox branches** (currently `feature-magic-carpet`, `feat/pubkey-tagging-target`, `feat/communities`, and `feat/curate`, plus any future additions) follow the same convention: fork from `staging`, deploy to their own droplet via a dedicated `deploy-<name>.yml` workflow, and eventually merge back via the standard `<branch> → staging → main` path. New sandboxes get a row added to the deploy-target table above when they're stood up, plus a row in [§5 "Droplets and empirical measurements"](#5-droplets-and-empirical-measurements).
 
 For Matthias's sandbox: he PRs from his fork's `magic-carpet` branch into our `feature-magic-carpet`. Merging deploys to `magic-carpet.brainstorm.world`. Code on `feature-magic-carpet` is **not** intended for production until promoted via the standard `feature-magic-carpet → staging → main` path.
 
@@ -112,6 +114,18 @@ Short-lived feature branches (`feat/*`, `fix/*`, `chore/*`) are NOT protected; t
 - (specs to be filled in)
 - Behind host nginx + Certbot SSL; Docker stack binds to `127.0.0.1:8080`
 - Stood up 2026-05-12; first CI/CD deploy via `deploy-tags.yml` ran successfully against PR #119.
+
+### Sandbox: `communities.brainstorm.world`
+
+- (specs to be filled in — entrypoint dynamic-config reports 32 GB RAM, 8 vCPU)
+- Behind host nginx + Certbot SSL; Docker stack binds to `127.0.0.1:8080`
+- Stood up 2026-05-14; first CI/CD attempt failed at the SSH handshake due to brute-force saturation of `MaxStartups` (see §9.9), succeeded on retry after fail2ban + `PasswordAuthentication no` were applied 2026-05-15.
+
+### Sandbox: `curate.brainstorm.world`
+
+- (specs to be filled in)
+- Behind host nginx + Certbot SSL; Docker stack binds to `127.0.0.1:8080`
+- Stood up 2026-05-15; first CI/CD deploy via `deploy-curate.yml` ran successfully on first push ([run 25901626052](https://github.com/nous-clawds4/tapestry/actions/runs/25901626052), 1m8s) — droplet was hardened per §6.3 step 2 before the deploy SSH key was generated, so §9.9's first-deploy failure didn't recur.
 
 ### Empirical RAM/disk on production (April 2026)
 
