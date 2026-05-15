@@ -15,7 +15,10 @@ import { signEventViaNip07 } from '../auth/viewer.js'
 
 const USE_MOCK = import.meta.env.VITE_USE_MOCK_DATA === 'true'
 
-export const DEFAULT_RELAYS = ['wss://communities.brainstorm.world']
+// The communities droplet exposes strfry at the /relay path (host nginx
+// proxies / to the React app, /relay to the strfry websocket). A bare
+// host URL connects to the HTTP root and never upgrades to a websocket.
+export const DEFAULT_RELAYS = ['wss://communities.brainstorm.world/relay']
 
 const DEFAULT_TIMEOUT_MS = 10000
 
