@@ -94,6 +94,97 @@ function projectRealEvent(ev) {
   }
 }
 
+/**
+ * Fetch a community-record (kind 39999) by slug, directly from the
+ * relay. Used as a client-side fallback when the backend API's
+ * loadCommunityRecord stub returns null — without this, the user's
+ * just-published kind-39999 isn't visible until the backend's
+ * strfry/Neo4j wiring lands (Slice 2 NB-4).
+ *
+ * Returns a normalized API-shaped community object, or null if no
+ * matching event surfaced before EOSE/timeout.
+ *
+ * Disambiguation: kind-39999 has no hard dedup, so multiple curators
+ * may publish with the same d-tag. When `preferredCurator` is given
+ * (typically the viewer's pubkey right after Create), we pick that
+ * one; otherwise we take the highest created_at.
+ */
+export async function fetchCommunityRecord({
+  slug,
+  preferredCurator = null,
+  relays = DEFAULT_RELAYS,
+  timeout = FETCH_TIMEOUT_MS,
+}) {
+  if (!slug) throw new Error('fetchCommunityRecord: slug is required')
+
+  const filter = { kinds: [39999], '#d': [slug] }
+  const events = new Map()
+  await Promise.all(
+    relays.map(url => collectFromRelay(url, filter, events, timeout)),
+  )
+  if (events.size === 0) return null
+
+  const list = Array.from(events.values())
+  let chosen = null
+  if (preferredCurator) {
+    chosen = list.find(e => e.pubkey === preferredCurator) || null
+  }
+  if (!chosen) {
+    chosen = list.reduce((best, e) =>
+      best && (e.created_at || 0) <= (best.created_at || 0) ? best : e, null)
+  }
+  return projectCommunityRecord(chosen)
+}
+
+function projectCommunityRecord(event) {
+  if (!event || !Array.isArray(event.tags)) return null
+
+  const tagsByKey = new Map()  // key → string[]  (multi-value)
+  for (const t of event.tags) {
+    if (!Array.isArray(t) || t.length < 2) continue
+    const key = t[0]
+    const value = t[1]
+    if (!key || !value) continue
+    if (!tagsByKey.has(key)) tagsByKey.set(key, [])
+    tagsByKey.get(key).push(value)
+  }
+  const one = key => {
+    const v = tagsByKey.get(key)
+    return v && v.length > 0 ? v[0] : null
+  }
+  const many = key => tagsByKey.get(key) || []
+
+  const slug = one('d') || ''
+  const seedMembers = many('seed')
+  const founder = one('founder') || event.pubkey
+  const threshold = parseFloat(one('endorsement_threshold'))
+
+  return {
+    slug,
+    name: one('name') || slug,
+    description: one('description') || '',
+    tags: many('topic'),
+    image: one('image'),
+    accent: null,
+    language: one('language'),
+    // Placeholder counts — real numbers come from the backend when
+    // GR-Community scoring + member resolution wire up. Seed members
+    // give us at least a floor.
+    memberCount: seedMembers.length,
+    trustedHere: 0,
+    activity: null,
+    members: [],
+    joined: false,  // caller layers viewer-specific membership on top
+    founder,
+    relays: many('relay'),
+    weightingModel: one('weighting_model') || 'gr-community-default-v1',
+    endorsementThreshold: Number.isFinite(threshold) ? threshold : 0.5,
+    nip72Wrapping: one('a'),
+    posts: [],
+    _source: 'relay',
+  }
+}
+
 function projectMockPosts(slug) {
   const c = communities.find(x => x.slug === slug)
   if (!c || !Array.isArray(c.posts)) return []

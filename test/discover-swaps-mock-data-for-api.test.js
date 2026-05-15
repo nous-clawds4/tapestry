@@ -225,7 +225,10 @@ test('T19: client.js handles 404 by returning null OR a _notFound sentinel resol
   const src = read(CLIENT_PATH);
   // Two acceptable patterns: direct return null on 404, or a sentinel.
   const directNull = /status\s*===\s*404[\s\S]{0,80}return\s+null/.test(src);
-  const sentinel = /_notFound\s*[:=]\s*true/.test(src) && /_notFound[\s\S]{0,80}return\s+null/.test(src);
+  // Window relaxed from 80 → 600 chars to permit a relay-fallback path
+  // between the _notFound sentinel and the eventual `return null`. The
+  // contract still holds: 404 with no relay record resolves to null.
+  const sentinel = /_notFound\s*[:=]\s*true/.test(src) && /_notFound[\s\S]{0,600}return\s+null/.test(src);
   assert(directNull || sentinel,
     'client.js must convert 404 into a null resolution (direct or via _notFound sentinel)');
 });

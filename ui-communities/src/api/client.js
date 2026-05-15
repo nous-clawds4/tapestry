@@ -23,6 +23,7 @@ import {
   getCommunityMembers as mockGetCommunityMembers,
   getVoucherNames as mockGetVoucherNames,
 } from '../data/mockData.js'
+import { fetchCommunityRecord } from '../events/fetch.js'
 
 const USE_MOCK = import.meta.env.VITE_USE_MOCK_DATA === 'true'
 
@@ -112,8 +113,22 @@ async function realGetCommunities(viewer) {
 async function realGetCommunity(slug, viewer) {
   const body = await realGet(`/api/communities/${encodeURIComponent(slug)}${buildQuery(viewer)}`)
   // _notFound sentinel from a 404 response — resolve to null per ADR-0007.
-  if (body && body._notFound) return null
-  return body && body.community ? body.community : null
+  const apiCommunity = body && !body._notFound && body.community ? body.community : null
+  if (apiCommunity) return apiCommunity
+
+  // Client-side relay fallback. The Slice 2 NB-4 dataSources stub
+  // returns null until backend strfry/Neo4j wiring lands, which means
+  // a freshly-published kind-39999 isn't visible via the API. Pull it
+  // back from the relay directly so the just-created circle (and any
+  // other slug a viewer types in) actually renders.
+  const relayRecord = await fetchCommunityRecord({ slug, preferredCurator: viewer })
+  if (!relayRecord) return null
+  return {
+    ...relayRecord,
+    // Seed-member-includes-viewer is the right proxy for "joined" until
+    // the GR-Community membership read lands. Founder is always a seed.
+    joined: viewer ? relayRecord.founder === viewer : false,
+  }
 }
 
 async function realGetCommunityMembers(slug, viewer) {
