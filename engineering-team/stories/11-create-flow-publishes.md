@@ -114,6 +114,6 @@ Resolved at intake:
 
 ## Linked artifacts
 
-- ADR: `engineering-team/decisions/0009-create-flow-publishes.md` (filled in by Architect)
+- ADR: [`engineering-team/decisions/0009-create-flow-publishes.md`](../decisions/0009-create-flow-publishes.md)
 - Test plan: `engineering-team/stories/11-create-flow-publishes.test-plan.md` (filled in by Tester)
 - Review: `engineering-team/reviews/11-create-flow-publishes.md` (filled in by Reviewer)
