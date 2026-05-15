@@ -106,13 +106,14 @@ export default function Create() {
       .slice(0, 3)
   }, [name])
 
-  // Debounced people-search against brainstorm.world's profile API.
-  // 250 ms keeps keystroke latency low while collapsing typed bursts
-  // into a single round-trip. searchTokenRef guards against stale
+  // Debounced people-search against brainstorm.world's meilisearch
+  // proxy. 180 ms is short enough to feel instant, long enough to
+  // collapse typed bursts. Mirrors the brainstorm.world suggestion-
+  // box pacing (200 ms there). searchTokenRef guards against stale
   // promises overwriting newer results.
   useEffect(() => {
     const q = memberQuery.trim()
-    if (q.length === 0) {
+    if (q.length < 2) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setMemberResults([])
       setMemberSearchStatus('idle')
@@ -126,7 +127,7 @@ export default function Create() {
         setMemberResults(results)
         setMemberSearchStatus(results.length === 0 ? 'empty' : 'ready')
       })
-    }, 250)
+    }, 180)
     return () => clearTimeout(handle)
   }, [memberQuery])
 
@@ -286,12 +287,36 @@ export default function Create() {
               const p = entry.profile || {}
               const displayName = p.display_name || p.name || npubShort(entry.pubkey)
               const selected = seedHasPubkey(entry.pubkey)
+              const wot = entry.wot || {}
+              const rank = typeof wot.rank === 'number' ? wot.rank : null
+              const followers = typeof wot.followers === 'number' ? wot.followers : null
               return (
                 <li key={entry.pubkey} className={s.memberItem}>
                   <ProfileAvatar pubkey={entry.pubkey} profile={p} size={36} />
                   <div className={s.memberMeta}>
-                    <div className={s.memberName}>{displayName}</div>
+                    <div className={s.memberNameRow}>
+                      <span className={s.memberName}>{displayName}</span>
+                      {entry.nip05Verified && (
+                        <span className={s.nip05Verified} title="NIP-05 verified">✓</span>
+                      )}
+                    </div>
                     {p.nip05 && <div className={s.memberHandle}>{p.nip05}</div>}
+                    {(rank != null || followers != null) && (
+                      <div className={s.wotRow}>
+                        {rank != null && (
+                          <span className={s.wotBadge} title="Verification score (web-of-trust rank)">
+                            <span className={s.wotIcon} aria-hidden="true">★</span>
+                            {formatWot(rank)}
+                          </span>
+                        )}
+                        {followers != null && (
+                          <span className={s.wotBadgeMuted} title="Verified followers">
+                            <span aria-hidden="true">👥</span>
+                            {formatFollowers(followers)}
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </div>
                   <button
                     type="button"
@@ -310,9 +335,9 @@ export default function Create() {
               )
             })}
             {memberSearchStatus === 'idle' && seedMembers.length === 0 && (
-              <li className={s.memberHint}>Start typing to search for people on nostr.</li>
+              <li className={s.memberHint}>Type at least two characters to search nostr.</li>
             )}
-            {memberSearchStatus === 'searching' && (
+            {memberSearchStatus === 'searching' && memberResults.length === 0 && (
               <li className={s.memberHint}>Searching…</li>
             )}
             {memberSearchStatus === 'empty' && (
@@ -400,6 +425,19 @@ export default function Create() {
       )}
     </div>
   )
+}
+
+function formatWot(rank) {
+  // wot_rank in meili is an integer-ish "verification score" (e.g. 92,
+  // 145, etc. on brainstorm.world). Show as-is rounded.
+  return Math.round(rank).toLocaleString()
+}
+
+function formatFollowers(n) {
+  if (n < 1000) return String(n)
+  if (n < 10000) return `${(n / 1000).toFixed(1)}k`
+  if (n < 1000000) return `${Math.round(n / 1000)}k`
+  return `${(n / 1000000).toFixed(1)}M`
 }
 
 function Footer({ primary, secondary }) {
