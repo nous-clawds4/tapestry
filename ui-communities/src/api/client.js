@@ -179,5 +179,36 @@ export const getCommunities = impl.getCommunities
 export const getCommunity = impl.getCommunity
 export const getCommunityMembers = impl.getCommunityMembers
 export const IS_MOCK_MODE = USE_MOCK
+
+/**
+ * Hydrate a set of slugs into their full community shape. Uses
+ * getCommunity per slug (which has the relay fallback for real mode
+ * and mock projection for dev mode), filters nulls, and returns the
+ * results as list-entry-shaped objects.
+ *
+ * Used by MyCircles (joined-only listing) and Discover (to merge the
+ * viewer's own circles into a backend list that may be empty until
+ * Slice 2 NB-4 wires the data sources).
+ */
+export async function getJoinedCommunitySummaries(slugs, viewer) {
+  if (!Array.isArray(slugs) || slugs.length === 0) return []
+  const results = await Promise.all(
+    slugs.map(slug => getCommunity(slug, viewer).catch(() => null)),
+  )
+  return results.filter(Boolean).map(c => ({
+    slug: c.slug,
+    name: c.name,
+    description: c.description,
+    tags: Array.isArray(c.tags) ? c.tags : [],
+    image: c.image || null,
+    accent: c.accent || null,
+    language: c.language || null,
+    memberCount: typeof c.memberCount === 'number' ? c.memberCount : 0,
+    trustedHere: typeof c.trustedHere === 'number' ? c.trustedHere : 0,
+    activity: c.activity || null,
+    members: Array.isArray(c.members) ? c.members : [],
+    joined: true,
+  }))
+}
 // silence eslint for the import we keep for the mock-mode branch
 void MOCK_MEMBERS

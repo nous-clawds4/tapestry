@@ -15,6 +15,37 @@ import {
   signInWithNip07,
   storeViewerPubkey,
 } from './auth/viewer.js'
+import { IS_MOCK_MODE } from './api/client.js'
+
+// Mock-mode seed so dev starts with three example circles. In real
+// mode (VITE_USE_MOCK_DATA=false) the joined set starts empty and is
+// hydrated from localStorage per-viewer; the only entries are circles
+// the viewer has actually joined or created.
+const MOCK_JOINED_SEED = ['listening-room', 'sovereign-builders', 'brainstorm-collective']
+const JOINED_STORAGE_KEY = 'brainstorm-communities:joined'
+
+function loadJoinedSet(viewerPubkey) {
+  if (IS_MOCK_MODE) return new Set(MOCK_JOINED_SEED)
+  if (!viewerPubkey) return new Set()
+  try {
+    const raw = localStorage.getItem(`${JOINED_STORAGE_KEY}:${viewerPubkey}`)
+    if (!raw) return new Set()
+    const parsed = JSON.parse(raw)
+    return new Set(Array.isArray(parsed) ? parsed : [])
+  } catch {
+    return new Set()
+  }
+}
+
+function saveJoinedSet(viewerPubkey, set) {
+  if (IS_MOCK_MODE || !viewerPubkey) return
+  try {
+    localStorage.setItem(
+      `${JOINED_STORAGE_KEY}:${viewerPubkey}`,
+      JSON.stringify(Array.from(set)),
+    )
+  } catch { /* localStorage full / disabled — best effort */ }
+}
 
 /*
  * AppState — local-state layer for Slices 0-4.
@@ -33,11 +64,28 @@ function AppShell() {
   const [viewer, setViewer] = useState(() => getStoredViewerPubkey())
   const signedIn = viewer !== null
 
-  // Mocked joined / vouched sets, mutated by Join + Vouch interactions.
-  const [joinedSet, setJoinedSet] = useState(
-    () => new Set(['listening-room', 'sovereign-builders', 'brainstorm-collective']),
-  )
-  const [vouchedSet, setVouchedSet] = useState(() => new Set(['m2', 'm4', 'm8']))
+  // joinedSet: dev seeds three example circles; real mode hydrates from
+  // localStorage per-viewer so circles a user joins/creates survive
+  // refreshes and don't bleed across accounts.
+  const [joinedSet, setJoinedSetRaw] = useState(() => loadJoinedSet(viewer))
+  const [vouchedSet, setVouchedSet] = useState(() => (IS_MOCK_MODE ? new Set(['m2', 'm4', 'm8']) : new Set()))
+
+  const setJoinedSet = useCallback(updater => {
+    setJoinedSetRaw(prev => {
+      const next = typeof updater === 'function' ? updater(prev) : updater
+      saveJoinedSet(viewer, next)
+      return next
+    })
+  }, [viewer])
+
+  // Re-hydrate joinedSet whenever the viewer pubkey changes (sign-in,
+  // sign-out, or a different viewer in the same browser). The lint
+  // rule flags the idiomatic "reset state when prop changes" pattern;
+  // a key-based remount of AppShell is out of scope.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setJoinedSetRaw(loadJoinedSet(viewer))
+  }, [viewer])
 
   // Member drawer state — outlives route changes.
   const [drawerMember, setDrawerMember] = useState(null)
@@ -45,7 +93,7 @@ function AppShell() {
 
   const handleJoin = useCallback(
     slug => setJoinedSet(prev => new Set([...prev, slug])),
-    [],
+    [setJoinedSet],
   )
   const handleLeave = useCallback(slug => {
     setJoinedSet(prev => {
@@ -53,7 +101,7 @@ function AppShell() {
       next.delete(slug)
       return next
     })
-  }, [])
+  }, [setJoinedSet])
   const toggleVouch = useCallback(memberId => {
     setVouchedSet(prev => {
       const next = new Set(prev)

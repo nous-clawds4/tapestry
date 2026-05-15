@@ -169,14 +169,16 @@ test('T13: Edit.jsx imports getCommunity from api/client', () => {
     'Edit.jsx must import from ../api/client');
 });
 
-test('T14: MyCircles and Create retain the mockData import with an inline reference to story #9', () => {
-  for (const [filePath, fileName] of [[MY_CIRCLES_PATH, 'MyCircles.jsx'], [CREATE_PATH, 'Create.jsx']]) {
-    const src = read(filePath);
-    assert(/from\s+['"]\.\.\/data\/mockData(?:\.js)?['"]/.test(src),
-      `${fileName} must continue to import from ../data/mockData (intentional per story #9)`);
-    assert(/story\s*#?9|#9|Slice\s+3/i.test(src),
-      `${fileName} must carry an inline comment referencing story #9 / Slice 3 to document the intentional mock-data retention`);
-  }
+test('T14: Create retains the mockData import with an inline reference to story #9', () => {
+  // MyCircles was switched to API-driven hydration (via the relay
+  // fallback) after Slice 6 to surface user-created circles, so it no
+  // longer imports mockData. Create still does — its "Similar circles"
+  // step needs a similar-community query the API hasn't shipped yet.
+  const src = read(CREATE_PATH);
+  assert(/from\s+['"]\.\.\/data\/mockData(?:\.js)?['"]/.test(src),
+    'Create.jsx must continue to import from ../data/mockData (intentional per story #9)');
+  assert(/story\s*#?9|#9|Slice\s+3/i.test(src),
+    'Create.jsx must carry an inline comment referencing story #9 / Slice 3 to document the intentional mock-data retention');
 });
 
 test('T15: Discover.jsx tracks loading / error / ready status branches', () => {

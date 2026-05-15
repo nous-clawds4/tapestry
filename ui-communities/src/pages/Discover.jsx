@@ -6,7 +6,7 @@ import CommunityCard from '../components/CommunityCard.jsx'
 import BrainstormMark from '../components/BrainstormMark.jsx'
 import CardSkeleton from '../components/CardSkeleton.jsx'
 import FetchError from '../components/FetchError.jsx'
-import { getCommunities } from '../api/client.js'
+import { getCommunities, getJoinedCommunitySummaries } from '../api/client.js'
 import { tags } from '../data/mockData.js'
 import s from './Discover.module.css'
 
@@ -19,6 +19,10 @@ export default function Discover() {
   const [retryNonce, setRetryNonce] = useState(0)
   const [state, setState] = useState({ status: 'loading', communities: [], error: null })
 
+  // Snapshot joinedSet for the dep array — Set identity flips on every
+  // mutation but we only want to refetch when the contents change.
+  const joinedKey = Array.from(joinedSet).sort().join(',')
+
   useEffect(() => {
     let cancelled = false
     // Reset to loading on every fetch (initial mount + retry + viewer
@@ -26,10 +30,23 @@ export default function Discover() {
     // data-fetch pattern; a Suspense + use() rework is out of scope.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setState({ status: 'loading', communities: [], error: null })
-    getCommunities(viewer)
-      .then(communities => {
+
+    // API list + per-joined-slug hydration in parallel. The hydration
+    // surfaces circles the viewer has joined/created even when the
+    // backend list is still empty (Slice 2 NB-4 deferral). Dedupe by
+    // slug — the API result wins when both have the same circle.
+    Promise.all([
+      getCommunities(viewer),
+      getJoinedCommunitySummaries(Array.from(joinedSet), viewer),
+    ])
+      .then(([apiList, joinedExtras]) => {
         if (cancelled) return
-        setState({ status: 'ready', communities, error: null })
+        const apiSlugs = new Set((apiList || []).map(c => c.slug))
+        const merged = [
+          ...(apiList || []),
+          ...joinedExtras.filter(c => !apiSlugs.has(c.slug)),
+        ]
+        setState({ status: 'ready', communities: merged, error: null })
       })
       .catch(error => {
         if (cancelled) return
@@ -39,7 +56,10 @@ export default function Discover() {
     return () => {
       cancelled = true
     }
-  }, [viewer, retryNonce])
+    // joinedSet is captured via the joinedKey string snapshot — the
+    // Set identity flips on every mutation, so it can't be a dep.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewer, retryNonce, joinedKey])
 
   const triggerRetry = useCallback(() => setRetryNonce(n => n + 1), [])
 

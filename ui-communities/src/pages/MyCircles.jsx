@@ -1,17 +1,47 @@
+import { useEffect, useState } from 'react'
 import { useOutletContext } from 'react-router-dom'
 import Button from '../components/Button.jsx'
 import CommunityCard from '../components/CommunityCard.jsx'
+import CardSkeleton from '../components/CardSkeleton.jsx'
 import BrainstormMark from '../components/BrainstormMark.jsx'
-// MyCircles intentionally reads from mockData per Slice 3 / story #9: the
-// page filters the global community list by the viewer's joinedSet, which
-// is local React state until Slice 4 wires NIP-07 auth. Swap to a real
-// `/api/me/communities`-style endpoint once the viewer pubkey is real.
-import { communities } from '../data/mockData.js'
+// MyCircles hydrates the viewer's joinedSet through the API client,
+// which uses the relay fallback under the hood (Slice 2 NB-4 stopgap).
+// Each slug round-trips to /api/communities/:slug, and on null the
+// client pulls the kind-39999 event straight from the relay.
+import { getJoinedCommunitySummaries } from '../api/client.js'
 import s from './MyCircles.module.css'
 
 export default function MyCircles() {
-  const { joinedSet, navigate } = useOutletContext()
-  const joined = communities.filter(c => joinedSet.has(c.slug))
+  const { viewer, joinedSet, navigate } = useOutletContext()
+  const [state, setState] = useState({ status: 'loading', joined: [] })
+
+  // Snapshot the joinedSet as a sorted, comma-joined string so the
+  // effect re-runs when the set's contents change (Set identity flips
+  // on every join/leave, but we want a stable dep).
+  const joinedKey = Array.from(joinedSet).sort().join(',')
+
+  useEffect(() => {
+    if (joinedSet.size === 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setState({ status: 'ready', joined: [] })
+      return
+    }
+    let cancelled = false
+    setState({ status: 'loading', joined: [] })
+    getJoinedCommunitySummaries(Array.from(joinedSet), viewer)
+      .then(joined => {
+        if (cancelled) return
+        setState({ status: 'ready', joined })
+      })
+      .catch(error => {
+        if (cancelled) return
+        console.error('[MyCircles] hydration failed:', error)
+        setState({ status: 'ready', joined: [] })
+      })
+    return () => { cancelled = true }
+  }, [joinedKey, viewer])  // eslint-disable-line react-hooks/exhaustive-deps
+
+  const { status, joined } = state
 
   return (
     <div className={s.page}>
@@ -25,7 +55,13 @@ export default function MyCircles() {
         </Button>
       </header>
 
-      {joined.length === 0 ? (
+      {status === 'loading' ? (
+        <section className={s.grid}>
+          <CardSkeleton delay={0} />
+          <CardSkeleton delay={80} />
+          <CardSkeleton delay={160} />
+        </section>
+      ) : joined.length === 0 ? (
         <div className={s.empty}>
           <BrainstormMark variant="mark" size={64} className={s.emptyMark} />
           <h2 className={s.emptyTitle}>You haven&apos;t joined any circles yet.</h2>
