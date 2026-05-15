@@ -1,6 +1,6 @@
 # Story 9: Discover swaps mock data for the Communities REST API (Slice 3)
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-05-14
 **Type:** Feature
 
@@ -116,4 +116,4 @@ Resolved before story approval:
 
 - ADR: [`engineering-team/decisions/0007-discover-swaps-mock-data-for-api.md`](../decisions/0007-discover-swaps-mock-data-for-api.md)
 - Test plan: [`engineering-team/stories/9-discover-swaps-mock-data-for-api.test-plan.md`](9-discover-swaps-mock-data-for-api.test-plan.md)
-- Review: `engineering-team/reviews/9-discover-swaps-mock-data-for-api.md` (filled in by Reviewer)
+- Review: [`engineering-team/reviews/9-discover-swaps-mock-data-for-api.md`](../reviews/9-discover-swaps-mock-data-for-api.md) (PASS, 6 non-blocking notes)
