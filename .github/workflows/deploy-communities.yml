@@ -1,0 +1,28 @@
+name: Deploy to Communities
+
+on:
+  push:
+    branches: [feat/communities]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1
+        timeout-minutes: 60
+        with:
+          host: ${{ secrets.DEPLOY_HOST_COMMUNITIES }}
+          username: ${{ secrets.DEPLOY_USER_COMMUNITIES }}
+          key: ${{ secrets.DEPLOY_SSH_KEY_COMMUNITIES }}
+          command_timeout: 25m
+          script: |
+            cd /opt/tapestry
+            git checkout -- docker-compose.yml 2>/dev/null
+            git checkout feat/communities 2>/dev/null || git checkout -b feat/communities origin/feat/communities
+            git pull origin feat/communities
+            # Communities droplet uses host nginx on port 80, so Docker must bind to 8080 on localhost only
+            sed -i 's/"80:80"/"127.0.0.1:8080:80"/' docker-compose.yml
+            docker compose up -d --build
+            docker image prune -f
