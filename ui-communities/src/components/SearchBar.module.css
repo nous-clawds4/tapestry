@@ -16,7 +16,7 @@
 
 .wrap:focus-within {
   border-color: var(--accent);
-  box-shadow: 0 0 0 4px var(--accent-muted);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent) 18%, transparent);
   background: var(--bg-elevated);
 }
 
@@ -34,9 +34,20 @@
   background: none;
   border: none;
   outline: none;
+  /* Kill the browser-native search-field appearance so the inner
+   * focus ring doesn't double up with the label's outer halo. */
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  box-shadow: none;
   color: var(--text);
   font-size: var(--text-base);
   font-family: var(--font-body);
+}
+
+.input:focus {
+  outline: none;
+  box-shadow: none;
 }
 
 .input::placeholder {
@@ -44,3 +55,6 @@
 }
 
 .input::-webkit-search-cancel-button { display: none; }
+.input::-webkit-search-decoration { display: none; }
+.input::-webkit-search-results-button { display: none; }
+.input::-webkit-search-results-decoration { display: none; }
