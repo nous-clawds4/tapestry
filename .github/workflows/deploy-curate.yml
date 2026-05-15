@@ -50,6 +50,7 @@ jobs:
 
             # Copy static assets into standalone (required by Next.js standalone)
             cp -r public .next/standalone/public 2>/dev/null || true
+            mkdir -p .next/standalone/.next
             cp -r .next/static .next/standalone/.next/static
 
             # Restart the app via pm2
