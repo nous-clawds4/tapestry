@@ -1,6 +1,6 @@
 # Story 11: Create flow publishes a new community (Slice 5)
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-05-14
 **Type:** Feature
 
@@ -116,4 +116,4 @@ Resolved at intake:
 
 - ADR: [`engineering-team/decisions/0009-create-flow-publishes.md`](../decisions/0009-create-flow-publishes.md)
 - Test plan: [`engineering-team/stories/11-create-flow-publishes.test-plan.md`](11-create-flow-publishes.test-plan.md)
-- Review: `engineering-team/reviews/11-create-flow-publishes.md` (filled in by Reviewer)
+- Review: [`engineering-team/reviews/11-create-flow-publishes.md`](../reviews/11-create-flow-publishes.md) (PASS, 6 non-blocking notes)
