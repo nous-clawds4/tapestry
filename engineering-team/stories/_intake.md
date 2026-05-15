@@ -86,6 +86,30 @@ Append-only log of incoming requests, raw, with classification and chosen phase 
 
 ---
 
+## 2026-05-14 — Feature: Brainstorm Communities — Slice 4 (NIP-07 sign-in + Join / Vouch / Raise a concern writes)
+
+**Raw request (verbatim):**
+
+> yes, typo - brainstorm.world, not social. Push now, then move on to slice 4
+
+**Locked decisions captured at intake:**
+
+- Dev-mode publish behavior: **mock publish** — NIP-07 prompt fires, event gets signed, the signed event is `console.log`'d and local state updates optimistically. No relay round-trip in dev. Re-uses the existing `VITE_USE_MOCK_DATA` toggle so mock-data + mock-publish are paired states.
+- Default production relay: **wss://communities.brainstorm.world** — self-hosted on the same droplet that serves the UI.
+- "Raise a concern" UX: **one-click veto with optional comment** — confirmation dialog surfaces an optional `comments` textarea (matches the firmware schema's optional field per Slice 1).
+
+**Pre-intake context:**
+
+- Slice 4 is the first slice that writes. The Sign-in button stops being a no-op; Join / Vouch / Raise-a-concern start publishing real signed nostr events. The viewer pubkey starts threading through `getCommunities(viewer)` etc. so the API can personalize per-viewer.
+- Event shapes follow Slice 1's firmware schemas (kind 39999, `a` tag for the community, `p` tag for the target on signal events, `type` and `role` tags with defaults).
+- Leave semantics are intentionally Slice-4-light: local-state-only "leave" for v1 (real nostr "delete" via NIP-09 / DList header replacement is a follow-up story). Documented as out-of-scope.
+
+**Classification:** Feature
+**Strictness:** Standard
+**Phase path:** Planning → Architecture → Test Design → Implementation → Review. Live publish-to-real-relay deferred to staging smoke.
+
+---
+
 ## 2026-05-13 — Scheduled task: refresh Meilisearch profiles + House PoV WoT scores
 
 **Raw request (verbatim):**
