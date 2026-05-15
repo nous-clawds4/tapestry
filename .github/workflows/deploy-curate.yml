@@ -18,11 +18,49 @@ jobs:
           key: ${{ secrets.DEPLOY_SSH_KEY_CURATE }}
           command_timeout: 25m
           script: |
+            set -e
+
             cd /opt/tapestry
-            git checkout -- docker-compose.yml 2>/dev/null
+            git checkout -- docker-compose.yml 2>/dev/null || true
             git checkout feat/curate 2>/dev/null || git checkout -b feat/curate origin/feat/curate
             git pull origin feat/curate
-            # Curate droplet uses host nginx on port 80, so Docker must bind to 8080 on localhost only
+
+            # --- Tapestry Docker stack (relay, Neo4j, Express) ---
             sed -i 's/"80:80"/"127.0.0.1:8080:80"/' docker-compose.yml
             docker compose up -d --build
             docker image prune -f
+
+            # --- Curate Next.js app ---
+            cd /opt/tapestry/curate
+
+            # Install Node.js 20 if not present
+            if ! command -v node &>/dev/null || [[ "$(node -v)" != v20* && "$(node -v)" != v22* ]]; then
+              curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+              apt-get install -y nodejs
+            fi
+
+            # Install pm2 globally if not present
+            if ! command -v pm2 &>/dev/null; then
+              npm install -g pm2
+            fi
+
+            # Build
+            npm ci --production=false
+            npm run build
+
+            # Copy static assets into standalone (required by Next.js standalone)
+            cp -r public .next/standalone/public 2>/dev/null || true
+            cp -r .next/static .next/standalone/.next/static
+
+            # Restart the app via pm2
+            pm2 delete curate 2>/dev/null || true
+            cd .next/standalone
+            PORT=3000 pm2 start server.js --name curate
+            pm2 save
+
+            # Install nginx config if not already present
+            if [ ! -f /etc/nginx/sites-enabled/curate ]; then
+              cp /opt/tapestry/curate/deploy/nginx-curate.conf /etc/nginx/sites-available/curate
+              ln -sf /etc/nginx/sites-available/curate /etc/nginx/sites-enabled/curate
+              nginx -t && systemctl reload nginx
+            fi
