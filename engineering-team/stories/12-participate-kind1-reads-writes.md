@@ -107,6 +107,6 @@ Resolved at intake:
 
 ## Linked artifacts
 
-- ADR: `engineering-team/decisions/0010-participate-kind1-reads-writes.md` (filled in by Architect)
+- ADR: [`engineering-team/decisions/0010-participate-kind1-reads-writes.md`](../decisions/0010-participate-kind1-reads-writes.md)
 - Test plan: `engineering-team/stories/12-participate-kind1-reads-writes.test-plan.md` (filled in by Tester)
 - Review: `engineering-team/reviews/12-participate-kind1-reads-writes.md` (filled in by Reviewer)
