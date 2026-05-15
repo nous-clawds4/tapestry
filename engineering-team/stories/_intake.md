@@ -110,6 +110,26 @@ Append-only log of incoming requests, raw, with classification and chosen phase 
 
 ---
 
+## 2026-05-14 — Feature: Brainstorm Communities — Slice 5 (Create flow publishes a new community)
+
+**Raw request (verbatim):**
+
+> continue with slice 5
+
+**Pre-intake context:**
+
+- Slice 4 wired the publish path for **Join** (republishing an existing community-record on the viewer's DList) + **Vouch / Raise-a-concern** (endorsement signals). Slice 5 wires the **Found** path: publishing a brand-new community-record from scratch via the Create wizard's existing 5-step flow.
+- The Create wizard already collects name, description, topics, and founding voices (Slice 0); the "Similar circles" step is the soft-canonicalization gate from PLAN.md §6 Q4. Slice 5 only adds the final-step **publish** — everything before the Review step stays the same.
+- PLAN.md §6 Q5.3 explicitly defers founder-controlled mirror tooling to v1.1 — Slice 5 ships with the brainstorm.world-hosted default relay set (re-using `DEFAULT_RELAYS` from Slice 4's `publish.js`).
+- Auto-derive the slug from the wizard's `name` field (lowercase, hyphenate, strip non-alphanumeric). PLAN.md §6 Q4 commits to "no hard dedup" — different curators can use the same slug; the d-tag is scoped per (kind, pubkey) so there's no collision at the protocol level.
+- First-time creators may not yet have a kind-39998 `brainstorm-communities` DList header. Slice 5 publishes the header **before** the community-record event so a clean nostr client sees a well-formed DList with one item. Subsequent creates re-publish the header (idempotent: same d-tag, replaceable event) — small wasted signature, acceptable for v1; future optimization can check the relay first.
+
+**Classification:** Feature
+**Strictness:** Standard
+**Phase path:** Planning → Architecture → Test Design → Implementation → Review. Live publish verification deferred to staging smoke.
+
+---
+
 ## 2026-05-13 — Scheduled task: refresh Meilisearch profiles + House PoV WoT scores
 
 **Raw request (verbatim):**
