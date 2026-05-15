@@ -15,18 +15,77 @@ import ViewCallout from '../components/ViewCallout.jsx'
 // Both endpoints come in a later story; Create stays on mock data until
 // then so the create flow remains exercisable end-to-end during dev.
 import { communities, members, tags } from '../data/mockData.js'
+import { buildCommunitiesDListHeader, buildCommunityRecord } from '../events/build.js'
+import { publishEvent } from '../events/publish.js'
+import { slugify } from '../lib/slug.js'
 import s from './Create.module.css'
 
 const STEPS = ['Name', 'Similar circles', 'Topics', 'Founding voices', 'Review']
 
 export default function Create() {
-  const { navigate, onJoin } = useOutletContext()
+  const { viewer, signedIn, navigate, onJoin, onSignIn } = useOutletContext()
   const [step, setStep] = useState(0)
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [selectedTags, setSelectedTags] = useState([])
   const [seedMembers, setSeedMembers] = useState([])
   const [memberQuery, setMemberQuery] = useState('')
+  const [publishing, setPublishing] = useState(false)
+  const [publishError, setPublishError] = useState(null)
+  const [signInState, setSignInState] = useState({ status: 'idle', error: null })
+
+  async function handleCreate() {
+    if (!signedIn || !viewer || publishing) return
+    const slug = slugify(name)
+    if (!slug) {
+      setPublishError('Please choose a name with at least one letter or number.')
+      return
+    }
+    setPublishing(true)
+    setPublishError(null)
+
+    // 1. Publish the brainstorm-communities DList header (idempotent under
+    //    nostr replaceable-event semantics — same d-tag every time).
+    const headerResult = await publishEvent(buildCommunitiesDListHeader({ viewerPubkey: viewer }))
+    if (!headerResult.ok) {
+      setPublishing(false)
+      setPublishError(publishErrorCopy(headerResult))
+      return
+    }
+
+    // 2. Publish the kind-39999 community-record. Founder is always a seed.
+    const seeds = Array.from(new Set([viewer, ...seedMembers]))
+    const community = {
+      slug,
+      name: name.trim(),
+      description: description.trim(),
+      topics: selectedTags,
+      seedMembers: seeds,
+      founder: viewer,
+      weightingModel: 'gr-community-default-v1',
+      endorsementThreshold: 0.5,
+    }
+    const recordResult = await publishEvent(buildCommunityRecord({ viewerPubkey: viewer, community }))
+    if (!recordResult.ok) {
+      setPublishing(false)
+      setPublishError(publishErrorCopy(recordResult))
+      return
+    }
+
+    // 3. Optimistic joinedSet update + navigate to the new community.
+    onJoin(slug)
+    navigate(`/community/${slug}`)
+  }
+
+  async function handleSignInInline() {
+    setSignInState({ status: 'pending', error: null })
+    const result = await onSignIn()
+    if (!result || result.ok === false) {
+      setSignInState({ status: 'error', error: signInErrorCopy(result && result.error) })
+    } else {
+      setSignInState({ status: 'idle', error: null })
+    }
+  }
 
   const similar = useMemo(() => {
     const q = name.trim().toLowerCase()
@@ -219,19 +278,56 @@ export default function Create() {
             <div className={s.reviewMeta}>
               {seedMembers.length} founding voice{seedMembers.length === 1 ? '' : 's'}
             </div>
+            <p className={s.relayNote}>
+              Your circle will live on <code>communities.brainstorm.world</code> for now.
+              You can host your own mirror later.
+            </p>
           </div>
           <ViewCallout title="This creates your view of this circle">
             Others who join will form their own view. That is how a self-sustaining
             circle works.
           </ViewCallout>
-          <Footer
-            secondary={<Button variant="ghost" onClick={() => setStep(3)}>Back</Button>}
-            primary={
-              <Button variant="primary" size="lg" onClick={() => navigate('/my-circles')}>
-                Create your circle
+
+          {signedIn ? (
+            <>
+              <Footer
+                secondary={
+                  <Button variant="ghost" onClick={() => setStep(3)} disabled={publishing}>
+                    Back
+                  </Button>
+                }
+                primary={
+                  <Button
+                    variant="primary"
+                    size="lg"
+                    onClick={handleCreate}
+                    disabled={publishing || !name.trim()}
+                  >
+                    {publishing ? 'Publishing…' : 'Create your circle'}
+                  </Button>
+                }
+              />
+              {publishError && (
+                <p className={s.publishError} role="alert">{publishError}</p>
+              )}
+            </>
+          ) : (
+            <div className={s.signInPanel}>
+              <p className={s.signInPanelCopy}>Sign in to publish your circle.</p>
+              <Button
+                variant="primary"
+                size="md"
+                onClick={handleSignInInline}
+                disabled={signInState.status === 'pending'}
+              >
+                {signInState.status === 'pending' ? 'Signing in…' : 'Sign in'}
               </Button>
-            }
-          />
+              {signInState.status === 'error' && (
+                <p className={s.publishError} role="alert">{signInState.error}</p>
+              )}
+              <Button variant="ghost" onClick={() => setStep(3)}>Back</Button>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -245,4 +341,32 @@ function Footer({ primary, secondary }) {
       {primary}
     </div>
   )
+}
+
+function publishErrorCopy(result) {
+  switch (result && result.error) {
+    case 'no-extension':
+      return 'Sign in with a nostr extension to publish.'
+    case 'rejected':
+      return 'Signing cancelled.'
+    case 'timeout':
+      return 'The relay took too long to confirm. Try again?'
+    case 'rejected-by-relay':
+      return 'The relay rejected this event.'
+    case 'network':
+      return 'We could not reach the relay. Check your connection?'
+    default:
+      return 'Something went wrong publishing. Try again?'
+  }
+}
+
+function signInErrorCopy(code) {
+  switch (code) {
+    case 'no-extension':
+      return 'You need a nostr browser extension (Alby, nos2x) to publish.'
+    case 'rejected':
+      return 'Sign-in cancelled.'
+    default:
+      return 'Sign-in failed. Try again?'
+  }
 }
