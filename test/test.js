@@ -33,6 +33,7 @@ const grCommunityScoringAndApi = require('./gr-community-scoring-and-api.test.js
 const discoverSwapsMockDataForApi = require('./discover-swaps-mock-data-for-api.test.js');
 const nip07SigninAndWrites = require('./nip07-signin-and-writes.test.js');
 const createFlowPublishes = require('./create-flow-publishes.test.js');
+const participateKind1ReadsWrites = require('./participate-kind1-reads-writes.test.js');
 
 async function main() {
   console.log('Running Brainstorm tests...\n');
@@ -70,6 +71,9 @@ async function main() {
   console.log('\ncreate-flow-publishes suite:');
   const createFlowPublishesResult = await createFlowPublishes.run();
 
+  console.log('\nparticipate-kind1-reads-writes suite:');
+  const participateKind1Result = await participateKind1ReadsWrites.run();
+
   console.log('\nTest Results');
   console.log('-------------');
   console.log(`Configuration Loading:                           ${configOk ? 'PASS' : 'FAIL'}`);
@@ -103,6 +107,9 @@ async function main() {
   console.log(
     `create-flow-publishes suite:                     ${createFlowPublishesResult.fail === 0 ? 'PASS' : 'FAIL'} (${createFlowPublishesResult.pass} passed, ${createFlowPublishesResult.fail} failed)`
   );
+  console.log(
+    `participate-kind1-reads-writes suite:            ${participateKind1Result.fail === 0 ? 'PASS' : 'FAIL'} (${participateKind1Result.pass} passed, ${participateKind1Result.fail} failed)`
+  );
 
   const overallOk =
     configOk &&
@@ -115,7 +122,8 @@ async function main() {
     grCommunityScoringAndApiResult.fail === 0 &&
     discoverSwapsMockDataForApiResult.fail === 0 &&
     nip07SigninAndWritesResult.fail === 0 &&
-    createFlowPublishesResult.fail === 0;
+    createFlowPublishesResult.fail === 0 &&
+    participateKind1Result.fail === 0;
   console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);
   process.exit(overallOk ? 0 : 1);
 }
