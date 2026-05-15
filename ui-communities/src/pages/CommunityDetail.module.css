@@ -285,3 +285,41 @@
   .tabs { gap: 0; }
   .tab { padding: var(--space-3); }
 }
+
+/* ── Loading + not-found surfaces ────────────────────────── */
+
+.loadingPad {
+  margin-top: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+@keyframes detailShimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.loadingTitle,
+.loadingLine {
+  background: linear-gradient(
+    90deg,
+    var(--bg-hover) 0%,
+    color-mix(in oklab, var(--bg-hover) 60%, var(--accent-muted)) 50%,
+    var(--bg-hover) 100%
+  );
+  background-size: 200% 100%;
+  animation: detailShimmer 1.8s linear infinite;
+  border-radius: var(--radius-md);
+}
+
+.loadingTitle { height: 32px; width: 60%; }
+.loadingLine { height: 14px; width: 90%; }
+
+.notFoundMark {
+  color: var(--brand);
+  opacity: 0.45;
+  filter: drop-shadow(0 0 18px var(--accent-glow));
+  margin-bottom: var(--space-3);
+}
+

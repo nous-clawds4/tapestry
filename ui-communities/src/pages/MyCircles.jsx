@@ -2,6 +2,10 @@ import { useOutletContext } from 'react-router-dom'
 import Button from '../components/Button.jsx'
 import CommunityCard from '../components/CommunityCard.jsx'
 import BrainstormMark from '../components/BrainstormMark.jsx'
+// MyCircles intentionally reads from mockData per Slice 3 / story #9: the
+// page filters the global community list by the viewer's joinedSet, which
+// is local React state until Slice 4 wires NIP-07 auth. Swap to a real
+// `/api/me/communities`-style endpoint once the viewer pubkey is real.
 import { communities } from '../data/mockData.js'
 import s from './MyCircles.module.css'
 

@@ -85,3 +85,26 @@
   justify-content: flex-end;
   margin-top: var(--space-4);
 }
+
+/* Loading skeleton — mirrors the form shape */
+
+@keyframes editShimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.loadingTitle,
+.loadingLine {
+  background: linear-gradient(
+    90deg,
+    var(--bg-hover) 0%,
+    color-mix(in oklab, var(--bg-hover) 60%, var(--accent-muted)) 50%,
+    var(--bg-hover) 100%
+  );
+  background-size: 200% 100%;
+  animation: editShimmer 1.8s linear infinite;
+  border-radius: var(--radius-md);
+}
+
+.loadingTitle { height: 32px; width: 50%; margin-bottom: var(--space-3); }
+.loadingLine { height: 56px; width: 100%; margin-bottom: var(--space-3); }

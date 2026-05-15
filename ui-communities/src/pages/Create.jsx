@@ -7,6 +7,13 @@ import SearchBar from '../components/SearchBar.jsx'
 import TagPill from '../components/TagPill.jsx'
 import Avatar from '../components/Avatar.jsx'
 import ViewCallout from '../components/ViewCallout.jsx'
+// Create intentionally reads from mockData per Slice 3 / story #9:
+// - the "Similar circles" step needs a similar-communities query (no API
+//   endpoint exists yet);
+// - the "Founding voices" step needs a member-search-within-trust-network
+//   endpoint (also unbuilt).
+// Both endpoints come in a later story; Create stays on mock data until
+// then so the create flow remains exercisable end-to-end during dev.
 import { communities, members, tags } from '../data/mockData.js'
 import s from './Create.module.css'
 

@@ -1,11 +1,13 @@
-import { useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useOutletContext } from 'react-router-dom'
 import Button from '../components/Button.jsx'
 import TagPill from '../components/TagPill.jsx'
 import MemberRow from '../components/MemberRow.jsx'
 import PostCard from '../components/PostCard.jsx'
 import Avatar from '../components/Avatar.jsx'
-import { getCommunity, getCommunityMembers } from '../data/mockData.js'
+import BrainstormMark from '../components/BrainstormMark.jsx'
+import FetchError from '../components/FetchError.jsx'
+import { getCommunity, getCommunityMembers } from '../api/client.js'
 import { formatCount } from '../lib/format.js'
 import s from './CommunityDetail.module.css'
 
@@ -18,22 +20,82 @@ const TABS = [
 export default function CommunityDetail({ slug }) {
   const { signedIn, joinedSet, vouchedSet, onJoin, onLeave, onVouch, onOpenDrawer, navigate } = useOutletContext()
   const [tab, setTab] = useState('people')
-  const c = getCommunity(slug)
+  const [retryNonce, setRetryNonce] = useState(0)
+  const [state, setState] = useState({
+    status: 'loading',
+    community: null,
+    members: [],
+    error: null,
+  })
 
-  if (!c) {
+  useEffect(() => {
+    let cancelled = false
+    // Reset to loading on every fetch (initial mount + retry + slug change).
+    // The React 19 set-state-in-effect rule flags the idiomatic data-fetch
+    // pattern; a Suspense + use() rework is out of scope for Slice 3.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setState(prev => ({ ...prev, status: 'loading', error: null }))
+    Promise.all([
+      getCommunity(slug, null /* viewer wired in Slice 4 */),
+      getCommunityMembers(slug, null),
+    ])
+      .then(([community, members]) => {
+        if (cancelled) return
+        if (community === null) {
+          setState({ status: 'not-found', community: null, members: [], error: null })
+          return
+        }
+        setState({ status: 'ready', community, members, error: null })
+      })
+      .catch(error => {
+        if (cancelled) return
+        console.error('[CommunityDetail] fetch failed:', error)
+        setState({ status: 'error', community: null, members: [], error })
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [slug, retryNonce])
+
+  const triggerRetry = useCallback(() => setRetryNonce(n => n + 1), [])
+
+  if (state.status === 'loading') {
+    return (
+      <div className={s.page}>
+        <div className={s.banner} aria-hidden="true" style={{ opacity: 0.5 }} />
+        <div className={s.loadingPad} aria-hidden="true">
+          <div className={s.loadingTitle} />
+          <div className={s.loadingLine} />
+        </div>
+      </div>
+    )
+  }
+
+  if (state.status === 'error') {
+    return (
+      <div className={s.page}>
+        <FetchError onRetry={triggerRetry} />
+      </div>
+    )
+  }
+
+  if (state.status === 'not-found' || !state.community) {
     return (
       <div className={s.notFound}>
+        <BrainstormMark variant="mark" size={64} className={s.notFoundMark} />
         <h1>Circle not found.</h1>
         <Button variant="primary" onClick={() => navigate('/')}>Back to Discover</Button>
       </div>
     )
   }
 
-  const members = getCommunityMembers(slug)
+  const c = state.community
+  const members = state.members
   const joined = joinedSet.has(c.slug)
+  const posts = Array.isArray(c.posts) ? c.posts : []
 
   return (
-    <div className={s.page} style={{ '--community-accent': c.accent }}>
+    <div className={s.page} style={{ '--community-accent': c.accent || 'var(--accent)' }}>
       <div className={s.banner} aria-hidden="true">
         <div className={s.bannerWash} />
         <div className={s.bannerPattern} />
@@ -44,7 +106,7 @@ export default function CommunityDetail({ slug }) {
           <h1 className={s.name}>{c.name}</h1>
           <p className={s.description}>{c.description}</p>
           <div className={s.tagRow}>
-            {c.tags.map(t => <TagPill key={t} tag={t} small />)}
+            {(c.tags || []).map(t => <TagPill key={t} tag={t} small />)}
           </div>
         </div>
         {signedIn && (
@@ -78,7 +140,7 @@ export default function CommunityDetail({ slug }) {
       <dl className={s.stats}>
         <Stat label="People" value={formatCount(c.memberCount)} />
         <Stat label="Trusted here" value={c.trustedHere} accent />
-        <Stat label="Active" value={c.activity} />
+        <Stat label="Active" value={c.activity || '—'} />
       </dl>
 
       <nav className={s.tabs} aria-label="Section">
@@ -99,17 +161,20 @@ export default function CommunityDetail({ slug }) {
         {tab === 'people' && (
           <ul className={s.peopleList}>
             {members.map(m => (
-              <li key={m.id}>
+              <li key={m.id || m.pubkey}>
                 <MemberRow
                   member={m}
                   communitySlug={c.slug}
-                  isVouched={vouchedSet.has(m.id)}
+                  isVouched={vouchedSet.has(m.id || m.pubkey)}
                   onVouch={onVouch}
                   onOpen={id => onOpenDrawer(id, c.slug)}
                   showVouch={signedIn && joined}
                 />
               </li>
             ))}
+            {members.length === 0 && (
+              <li className={s.emptyPosts}>No members surfaced for this circle yet.</li>
+            )}
           </ul>
         )}
 
@@ -123,8 +188,8 @@ export default function CommunityDetail({ slug }) {
                 </button>
               </div>
             )}
-            {c.posts.map((p, i) => <PostCard key={i} post={p} />)}
-            {c.posts.length === 0 && (
+            {posts.map((p, i) => <PostCard key={i} post={p} />)}
+            {posts.length === 0 && (
               <p className={s.emptyPosts}>No posts yet. Be the first to share.</p>
             )}
           </div>

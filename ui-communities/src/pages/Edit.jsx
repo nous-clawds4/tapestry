@@ -1,19 +1,69 @@
-import { useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useOutletContext } from 'react-router-dom'
 import Button from '../components/Button.jsx'
 import FormInput from '../components/FormInput.jsx'
 import TagPill from '../components/TagPill.jsx'
 import ViewCallout from '../components/ViewCallout.jsx'
-import { getCommunity } from '../data/mockData.js'
+import FetchError from '../components/FetchError.jsx'
+import { getCommunity } from '../api/client.js'
 import s from './Edit.module.css'
 
 export default function Edit({ slug }) {
   const { navigate } = useOutletContext()
-  const c = getCommunity(slug)
-  const [name, setName] = useState(c?.name || '')
-  const [description, setDescription] = useState(c?.description || '')
+  const [retryNonce, setRetryNonce] = useState(0)
+  const [state, setState] = useState({ status: 'loading', community: null, error: null })
+  const [name, setName] = useState('')
+  const [description, setDescription] = useState('')
 
-  if (!c) {
+  useEffect(() => {
+    let cancelled = false
+    // Reset to loading on every fetch (initial mount + retry + slug change).
+    // The React 19 set-state-in-effect rule flags the idiomatic data-fetch
+    // pattern; a Suspense + use() rework is out of scope for Slice 3.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setState({ status: 'loading', community: null, error: null })
+    getCommunity(slug, null /* viewer wired in Slice 4 */)
+      .then(community => {
+        if (cancelled) return
+        if (community === null) {
+          setState({ status: 'not-found', community: null, error: null })
+          return
+        }
+        setState({ status: 'ready', community, error: null })
+        setName(community.name || '')
+        setDescription(community.description || '')
+      })
+      .catch(error => {
+        if (cancelled) return
+        console.error('[Edit] getCommunity failed:', error)
+        setState({ status: 'error', community: null, error })
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [slug, retryNonce])
+
+  const triggerRetry = useCallback(() => setRetryNonce(n => n + 1), [])
+
+  if (state.status === 'loading') {
+    return (
+      <div className={s.page}>
+        <div className={s.loadingTitle} aria-hidden="true" />
+        <div className={s.loadingLine} aria-hidden="true" />
+        <div className={s.loadingLine} aria-hidden="true" />
+      </div>
+    )
+  }
+
+  if (state.status === 'error') {
+    return (
+      <div className={s.page}>
+        <FetchError onRetry={triggerRetry} />
+      </div>
+    )
+  }
+
+  if (state.status === 'not-found' || !state.community) {
     return (
       <div className={s.page}>
         <p className={s.missing}>Circle not found.</p>
@@ -21,6 +71,8 @@ export default function Edit({ slug }) {
       </div>
     )
   }
+
+  const c = state.community
 
   return (
     <div className={s.page}>
@@ -46,7 +98,7 @@ export default function Edit({ slug }) {
       <div className={s.field}>
         <label className={s.label}>Topics (your view)</label>
         <div className={s.tagRow}>
-          {c.tags.map(t => <TagPill key={t} tag={t} active small />)}
+          {(c.tags || []).map(t => <TagPill key={t} tag={t} active small />)}
         </div>
       </div>
 
@@ -55,7 +107,9 @@ export default function Edit({ slug }) {
         <dl className={s.advancedGrid}>
           <div>
             <dt className={s.advancedKey}>Founding voices</dt>
-            <dd className={s.advancedVal}>{c.members.length} people</dd>
+            <dd className={s.advancedVal}>
+              {Array.isArray(c.members) ? c.members.length : 0} people
+            </dd>
           </div>
           <div>
             <dt className={s.advancedKey}>Trust threshold</dt>
@@ -63,7 +117,9 @@ export default function Edit({ slug }) {
           </div>
           <div>
             <dt className={s.advancedKey}>Scoring model</dt>
-            <dd className={s.advancedVal}>gr-community-default-v1</dd>
+            <dd className={s.advancedVal}>
+              {c.weightingModel || 'gr-community-default-v1'}
+            </dd>
           </div>
         </dl>
       </section>
