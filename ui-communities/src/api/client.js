@@ -24,6 +24,8 @@ import {
   getVoucherNames as mockGetVoucherNames,
 } from '../data/mockData.js'
 import { fetchCommunityRecord } from '../events/fetch.js'
+import { fetchProfiles } from '../lib/profiles.js'
+import { npubShort } from '../lib/format.js'
 
 const USE_MOCK = import.meta.env.VITE_USE_MOCK_DATA === 'true'
 
@@ -133,8 +135,48 @@ async function realGetCommunity(slug, viewer) {
 
 async function realGetCommunityMembers(slug, viewer) {
   const body = await realGet(`/api/communities/${encodeURIComponent(slug)}/members${buildQuery(viewer)}`)
-  if (body === NOT_FOUND) return []
-  return body && Array.isArray(body.members) ? body.members : []
+  const apiMembers = body && body !== NOT_FOUND && Array.isArray(body.members) ? body.members : []
+  if (apiMembers.length > 0) return apiMembers
+
+  // Client-side relay fallback. The Slice 2 NB-4 dataSources stub
+  // returns [] for the members endpoint, so the People tab is empty
+  // even when the community-record event lists seeds. Pull the record
+  // from the relay and hydrate each seed pubkey via the kind-0 lookup.
+  const relayRecord = await fetchCommunityRecord({ slug, preferredCurator: viewer })
+  if (!relayRecord) return []
+  const seeds = Array.isArray(relayRecord.seedMembers) ? relayRecord.seedMembers : []
+  const founder = relayRecord.founder || null
+  if (seeds.length === 0) return []
+
+  const profiles = await fetchProfiles(seeds)
+  // Founder first, then the rest of the seeds in publication order.
+  const ordered = founder
+    ? [founder, ...seeds.filter(pk => pk !== founder)]
+    : seeds
+  return ordered
+    .filter(Boolean)
+    .map(pubkey => {
+      const profile = profiles[pubkey] || null
+      const name = (profile && (profile.display_name || profile.name)) || npubShort(pubkey)
+      return {
+        // Real-mode API fields
+        pubkey,
+        score: null,           // GR-Community scoring lands with Slice 2 NB-4
+        isMember: true,
+        vouchedBy: 0,          // no signals yet
+        voucherNames: [],
+        // Hydrated profile fields used by Avatar / MemberRow / drawer
+        id: pubkey,
+        name,
+        handle: profile && profile.nip05 ? profile.nip05 : null,
+        picture: profile && profile.picture ? profile.picture : null,
+        trust: 0.5,            // visual placeholder until real scores land
+        // Provenance: lets the UI tag founders + tone down vouch copy
+        // for relay-sourced members (no signals to show yet).
+        isFounder: pubkey === founder,
+        _source: 'relay',
+      }
+    })
 }
 
 /* ────────────────────────────────────────────────────────────

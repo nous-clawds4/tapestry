@@ -8,12 +8,19 @@ export default function MemberRow({ member, communitySlug, isVouched, onVouch, o
   const m = typeof member === 'string' ? getMember(member) : member
   if (!m) return null
 
-  const vouchers = getVoucherNames(m.id, communitySlug)
+  // Relay-sourced members (NB-4 fallback) have no vouch signals yet —
+  // surface their founder/seed role instead of "0 people vouch."
+  const vouchers = m._source === 'relay' ? [] : getVoucherNames(m.id, communitySlug)
   const lead = vouchers[0]
   const others = m.vouchedBy - 1
-  const vouchLine = lead
-    ? `Welcomed by ${lead}${others > 0 ? ` + ${others} other${others === 1 ? '' : 's'}` : ''}`
-    : `${m.vouchedBy} people vouch`
+  let vouchLine
+  if (lead) {
+    vouchLine = `Welcomed by ${lead}${others > 0 ? ` + ${others} other${others === 1 ? '' : 's'}` : ''}`
+  } else if (m._source === 'relay') {
+    vouchLine = m.isFounder ? 'Founder' : 'Founding voice'
+  } else {
+    vouchLine = `${m.vouchedBy} people vouch`
+  }
 
   return (
     <div className={s.row} data-testid="member-row">
