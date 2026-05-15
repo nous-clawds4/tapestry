@@ -1,6 +1,6 @@
 # Story 10: NIP-07 sign-in + Join / Vouch / Raise-a-concern writes (Slice 4)
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-05-14
 **Type:** Feature
 
@@ -128,4 +128,4 @@ Resolved during PO drafting:
 
 - ADR: [`engineering-team/decisions/0008-nip07-signin-and-writes.md`](../decisions/0008-nip07-signin-and-writes.md)
 - Test plan: [`engineering-team/stories/10-nip07-signin-and-writes.test-plan.md`](10-nip07-signin-and-writes.test-plan.md)
-- Review: `engineering-team/reviews/10-nip07-signin-and-writes.md` (filled in by Reviewer)
+- Review: [`engineering-team/reviews/10-nip07-signin-and-writes.md`](../reviews/10-nip07-signin-and-writes.md) (PASS, 6 non-blocking notes)
