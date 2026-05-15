@@ -120,8 +120,13 @@ app.use(cors({
 app.use(express.json({ limit: '100mb' }));
 app.use(express.urlencoded({ extended: true, limit: '100mb' }));
 
-// Serve React SPA assets (JS, CSS, SVG, fonts) from Vite build output
+// Serve React SPA assets (JS, CSS, SVG, fonts) from Vite build output.
+// `index: false` is critical — without it, express.static auto-serves
+// `dist/index.html` for `GET /` from EVERY host (including
+// communities.brainstorm.world), which short-circuits the host-aware
+// SPA catch-all below. Hashed asset files still resolve normally.
 app.use(express.static(path.join(__dirname, '../dist'), {
+    index: false,
     setHeaders: (res, filePath) => {
         if (filePath.endsWith('.css')) res.set('Content-Type', 'text/css');
         else if (filePath.endsWith('.js')) res.set('Content-Type', 'text/javascript');
@@ -133,6 +138,7 @@ app.use(express.static(path.join(__dirname, '../dist'), {
 // filenames so collisions are impossible. The SPA-fallback below picks the
 // right index.html based on the request hostname.
 app.use(express.static(path.join(__dirname, '../dist-communities'), {
+    index: false,
     setHeaders: (res, filePath) => {
         if (filePath.endsWith('.css')) res.set('Content-Type', 'text/css');
         else if (filePath.endsWith('.js')) res.set('Content-Type', 'text/javascript');
