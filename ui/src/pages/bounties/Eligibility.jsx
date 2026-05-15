@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import Breadcrumbs from '../../components/Breadcrumbs';
 import { useAuth } from '../../context/AuthContext';
 import { getEligible } from '../../api/bounties';
+import { capText, formatSats, maxRewardsText, remainingRewardsText, rewardScopeLabel } from '../../utils/bountyTerms';
 
 function short(pk) { return pk ? pk.slice(0, 8) + '…' : '—'; }
 function age(ts) {
@@ -22,7 +23,7 @@ export default function Eligibility() {
 
   useEffect(() => {
     if (authLoading) return;
-    if (!user?.pubkey) { setLoading(false); return; }
+    if (!user?.pubkey) return;
     let cancelled = false;
     getEligible(user.pubkey)
       .then(bs => { if (!cancelled) setBounties(bs); })
@@ -68,6 +69,7 @@ export default function Eligibility() {
       <div style={{ display: 'grid', gap: '0.75rem' }}>
         {bounties.map(b => {
           const claimHref = `/tapestry/lists/${encodeURIComponent(b.list_coordinate)}/items/new?bounty=${encodeURIComponent(b.id)}`;
+          const maxText = maxRewardsText(b);
           return (
             <div key={b.id} style={{ padding: '1rem', background: '#161b22', border: '1px solid #30363d', borderRadius: 6 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem' }}>
@@ -84,8 +86,12 @@ export default function Eligibility() {
                   </div>
                 </div>
                 <div style={{ textAlign: 'right', minWidth: 140 }}>
-                  <div style={{ color: '#f2a134', fontSize: '1.4rem', fontWeight: 700 }}>{b.amount_sats.toLocaleString()}</div>
-                  <div style={{ fontSize: '0.7rem', opacity: 0.6, letterSpacing: '0.05em', marginBottom: '0.5rem' }}>SATS</div>
+                  <div style={{ color: '#f2a134', fontSize: '1.4rem', fontWeight: 700 }}>{formatSats(b.amount_sats)}</div>
+                  <div style={{ fontSize: '0.7rem', opacity: 0.6, letterSpacing: '0.05em' }}>{rewardScopeLabel(b).toUpperCase()}</div>
+                  <div style={{ fontSize: '0.75rem', opacity: 0.65, marginTop: '0.25rem' }}>{capText(b)}</div>
+                  {remainingRewardsText(b) && <div style={{ fontSize: '0.75rem', opacity: 0.65 }}>{remainingRewardsText(b)}</div>}
+                  {maxText && <div style={{ fontSize: '0.75rem', opacity: 0.65 }}>{maxText}</div>}
+                  <div style={{ marginBottom: '0.5rem' }} />
                   <Link
                     to={claimHref}
                     style={{ display: 'inline-block', padding: '0.4rem 0.9rem', background: '#2ea043', color: '#fff', borderRadius: 4, textDecoration: 'none', fontWeight: 600 }}

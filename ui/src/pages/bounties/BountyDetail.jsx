@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import Breadcrumbs from '../../components/Breadcrumbs';
 import PaymentCode from '../../components/PaymentCode';
 import { getBounty } from '../../api/bounties';
 import { zapContributor } from '../../utils/zap';
+import { capText, closedReasonText, formatSats, maxRewardsText, remainingRewardsText, rewardScopeLabel } from '../../utils/bountyTerms';
 
 function short(pk) { return pk ? pk.slice(0, 8) + '…' : '—'; }
 function age(ts) {
@@ -26,19 +27,22 @@ function titleFromClaim(event) {
   return getTag(event, 'name') || event.id?.slice(0, 12) || '(untitled)';
 }
 
-function ClaimRow({ claim, bountyAmount, onZap }) {
+function ClaimRow({ claim, bounty, onZap }) {
   const [busy, setBusy] = useState(false);
   const [payment, setPayment] = useState(null);
   const [error, setError] = useState(null);
 
-  const paid = !!claim.zapReceipt;
+  const paymentStatus = claim.paymentStatus || (claim.zapReceipt ? 'paid' : 'payable');
+  const paid = paymentStatus === 'paid' || !!claim.zapReceipt;
+  const payable = paymentStatus === 'payable';
+  const bountyAmount = claim.paymentAmountSats ?? bounty.amount_sats;
 
   async function handleZap() {
-    if (paid) return;
+    if (!payable || paid) return;
     setBusy(true);
     setError(null);
     try {
-      const result = await onZap(claim.event.pubkey, claim.event.id);
+      const result = await onZap(claim.event.pubkey, claim.event.id, bountyAmount);
       setPayment(result);
     } catch (err) {
       setError(err.message);
@@ -64,14 +68,18 @@ function ClaimRow({ claim, bountyAmount, onZap }) {
             <span style={{ background: '#2ea043', color: '#fff', padding: '0.2rem 0.5rem', borderRadius: 3, fontSize: '0.75rem' }}>
               Paid
             </span>
-          ) : (
+          ) : payable ? (
             <button
               onClick={handleZap}
               disabled={busy}
               style={{ padding: '0.4rem 0.9rem', background: '#f2a134', color: '#0d1117', border: 'none', borderRadius: 4, fontWeight: 700, cursor: busy ? 'wait' : 'pointer' }}
             >
-              {busy ? 'Zapping…' : `Zap ${bountyAmount} sats`}
+              {busy ? 'Zapping…' : `Zap ${formatSats(bountyAmount)} sats`}
             </button>
+          ) : (
+            <span style={{ background: '#30363d', color: '#c9d1d9', padding: '0.2rem 0.5rem', borderRadius: 3, fontSize: '0.75rem' }}>
+              {closedReasonText(claim.closedReason)}
+            </span>
           )}
         </div>
       </div>
@@ -87,7 +95,7 @@ export default function BountyDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  async function refresh() {
+  const refresh = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -98,9 +106,9 @@ export default function BountyDetail() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [id]);
 
-  useEffect(() => { refresh(); }, [id]);
+  useEffect(() => { refresh(); }, [refresh]);
 
   if (loading) return <div className="page"><Breadcrumbs /><p>Loading bounty…</p></div>;
   if (error) return <div className="page"><Breadcrumbs /><p className="error">Error: {error}</p></div>;
@@ -109,8 +117,13 @@ export default function BountyDetail() {
   const { bounty, claims = [] } = data;
   const derived = bounty.derivedStatus || bounty.status;
 
-  async function onZap(recipientPubkeyHex, claimEventId) {
-    return zapContributor({ recipientPubkeyHex, amountSats: bounty.amount_sats, claimEventId });
+  async function onZap(recipientPubkeyHex, claimEventId, amountSats) {
+    return zapContributor({
+      recipientPubkeyHex,
+      amountSats,
+      claimEventId,
+      listCoordinate: bounty.list_coordinate,
+    });
   }
 
   const listHref = `/tapestry/lists/${encodeURIComponent(bounty.list_coordinate)}`;
@@ -121,11 +134,16 @@ export default function BountyDetail() {
       <div style={{ marginBottom: '1.5rem' }}>
         <div style={{ fontSize: '0.8rem', opacity: 0.55, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Bounty</div>
         <h1 style={{ margin: '0.2rem 0 0.4rem', color: '#f2a134' }}>
-          {bounty.amount_sats.toLocaleString()} sats
+          {formatSats(bounty.amount_sats)} sats
           <span style={{ fontSize: '0.8rem', marginLeft: '0.8rem', padding: '0.2rem 0.5rem', background: derived === 'open' ? '#2ea043' : '#8b949e', color: '#fff', borderRadius: 3, verticalAlign: 'middle' }}>
             {derived}
           </span>
         </h1>
+        <div style={{ fontSize: '0.85rem', opacity: 0.75, marginBottom: '0.35rem' }}>
+          {rewardScopeLabel(bounty)} / {capText(bounty)}
+          {remainingRewardsText(bounty) && <span> / {remainingRewardsText(bounty)}</span>}
+          {maxRewardsText(bounty) && <span> / {maxRewardsText(bounty)}</span>}
+        </div>
         <div style={{ fontSize: '0.9rem', opacity: 0.85 }}>{bounty.criteria}</div>
         <div style={{ fontSize: '0.8rem', opacity: 0.6, marginTop: '0.4rem' }}>
           issued by <code>{short(bounty.issuer_pubkey)}</code> · {age(bounty.created_at)}
@@ -140,7 +158,7 @@ export default function BountyDetail() {
         <p style={{ opacity: 0.6 }}>No claims yet. Trusted contributors submitting list items will appear here.</p>
       )}
       {claims.map(c => (
-        <ClaimRow key={c.event.id} claim={c} bountyAmount={bounty.amount_sats} onZap={onZap} />
+        <ClaimRow key={c.event.id} claim={c} bounty={bounty} onZap={onZap} />
       ))}
     </div>
   );

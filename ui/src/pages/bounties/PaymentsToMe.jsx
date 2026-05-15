@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Breadcrumbs from '../../components/Breadcrumbs';
 import Bolt12Setup from '../../components/Bolt12Setup';
 import { useAuth } from '../../context/AuthContext';
 import { getPaymentsToMe } from '../../api/bounties';
+import { capText, closedReasonText, formatSats, maxRewardsText, remainingRewardsText, rewardScopeLabel } from '../../utils/bountyTerms';
 
 function short(pk) { return pk ? pk.slice(0, 8) + '…' : '—'; }
 function age(ts) {
@@ -89,7 +90,7 @@ function Row({ entry, kind }) {
           <div style={{ marginTop: '0.4rem' }}>
             {kind === 'pastDue' && <span style={TAG_PAST_DUE}>expired without payment</span>}
             {kind === 'paid' && <span style={TAG_PAID}>paid</span>}
-            {kind === 'closed' && <span style={TAG_CLOSED}>bounty paid to another contributor</span>}
+            {kind === 'closed' && <span style={TAG_CLOSED}>{closedReasonText(claim.closedReason)}</span>}
             {kind === 'paid' && claim.zapReceipt?.id && (
               <span style={{ marginLeft: '0.5rem' }}>
                 <PaidReceiptCopy eventId={claim.zapReceipt.id} />
@@ -97,8 +98,12 @@ function Row({ entry, kind }) {
             )}
           </div>
         </div>
-        <div style={{ color: '#f2a134', fontWeight: 700, whiteSpace: 'nowrap' }}>
-          {bounty.amount_sats.toLocaleString()} sats
+        <div style={{ color: '#f2a134', fontWeight: 700, whiteSpace: 'nowrap', textAlign: 'right' }}>
+          <div>{formatSats(claim.paymentAmountSats ?? bounty.amount_sats)} sats</div>
+          <div style={{ fontSize: '0.75rem', opacity: 0.7 }}>{rewardScopeLabel(bounty)}</div>
+          <div style={{ fontSize: '0.75rem', opacity: 0.7 }}>{capText(bounty)}</div>
+          {remainingRewardsText(bounty) && <div style={{ fontSize: '0.75rem', opacity: 0.7 }}>{remainingRewardsText(bounty)}</div>}
+          {maxRewardsText(bounty) && <div style={{ fontSize: '0.75rem', opacity: 0.7 }}>{maxRewardsText(bounty)}</div>}
         </div>
       </div>
     </div>
@@ -126,18 +131,15 @@ export default function PaymentsToMe() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const refresh = useCallback(() => {
-    setLoading(true);
-    getPaymentsToMe()
-      .then(setData)
-      .catch(e => setError(e.message))
-      .finally(() => setLoading(false));
-  }, []);
-
   useEffect(() => {
     if (authLoading || !user?.pubkey) return;
-    refresh();
-  }, [authLoading, user?.pubkey, refresh]);
+    let cancelled = false;
+    getPaymentsToMe()
+      .then(nextData => { if (!cancelled) setData(nextData); })
+      .catch(e => { if (!cancelled) setError(e.message); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [authLoading, user?.pubkey]);
 
   if (authLoading) return <div className="page"><Breadcrumbs /><p>Loading…</p></div>;
   if (!user?.pubkey) {
@@ -188,8 +190,8 @@ export default function PaymentsToMe() {
             emptyText="No payments yet."
           />
           <Section
-            title="Closed (paid to someone else)"
-            description="Bounties that were paid to a different contributor; your claim wasn't selected."
+            title="Closed"
+            description="Claims that are no longer payable because the bounty cap or contributor limit was reached."
             kind="closed"
             items={closed}
             emptyText="No closed bounties."

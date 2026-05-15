@@ -1,7 +1,7 @@
 /**
  * Client-side zap flow with BOLT12 + NIP-57 (BOLT11/LNURL) support.
  *
- * zapContributor({ recipientPubkeyHex, amountSats, claimEventId })
+ * zapContributor({ recipientPubkeyHex, amountSats, claimEventId, listCoordinate })
  *   -> { type: 'bolt12', payload: '<lno1...>', static: true }
  *      or { type: 'bolt11', payload: '<lnbc1...>' }
  *
@@ -65,7 +65,7 @@ async function fetchRelayList(recipientPubkeyHex) {
   } catch { return []; }
 }
 
-export async function zapContributor({ recipientPubkeyHex, amountSats, claimEventId }) {
+export async function zapContributor({ recipientPubkeyHex, amountSats, claimEventId, listCoordinate }) {
   if (!/^[0-9a-f]{64}$/i.test(recipientPubkeyHex)) throw new Error('recipientPubkeyHex must be hex');
   if (!Number.isInteger(amountSats) || amountSats <= 0) throw new Error('amountSats must be a positive integer');
 
@@ -101,6 +101,7 @@ export async function zapContributor({ recipientPubkeyHex, amountSats, claimEven
     tags: [
       ['p', recipientPubkeyHex],
       ['e', claimEventId],
+      ...(listCoordinate ? [['a', listCoordinate]] : []),
       ['amount', String(amountMsats)],
       relayTag,
     ],
