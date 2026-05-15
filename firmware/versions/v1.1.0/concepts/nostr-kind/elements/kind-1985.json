@@ -1,0 +1,15 @@
+{
+  "word": {
+    "slug": "nostr-kind--kind-1985",
+    "name": "nostr kind: 1985 (Label)",
+    "title": "Nostr Kind: 1985 (Label)",
+    "wordTypes": ["word", "nostrKind"]
+  },
+  "nostrKind": {
+    "kind": 1985,
+    "name": "Label",
+    "nip": "NIP-32",
+    "replaceability": "regular",
+    "description": "A label applied to any event, pubkey, URL, or other target. L-tags define the label namespace; l-tags specify the label value. Used for ontologies, content classification, and moderation."
+  }
+}

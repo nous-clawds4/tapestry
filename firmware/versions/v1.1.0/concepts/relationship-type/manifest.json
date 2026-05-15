@@ -1,0 +1,67 @@
+{
+    "HAS_ELEMENT": [
+        {
+            "nodeFrom": "class-threads",
+            "nodeTo": "class-thread-initiation"
+        },
+        {
+            "nodeFrom": "class-threads",
+            "nodeTo": "class-thread-propagation"
+        },
+        {
+            "nodeFrom": "class-threads",
+            "nodeTo": "class-thread-termination"
+        },
+        {
+            "nodeFrom": "core-nodes",
+            "nodeTo": "core-node-concept-graph"
+        },
+        {
+            "nodeFrom": "core-nodes",
+            "nodeTo": "core-node-core-graph"
+        },
+        {
+            "nodeFrom": "core-nodes",
+            "nodeTo": "core-node-json-schema"
+        },
+        {
+            "nodeFrom": "core-nodes",
+            "nodeTo": "core-node-primary-property"
+        },
+        {
+            "nodeFrom": "core-nodes",
+            "nodeTo": "core-node-properties"
+        },
+        {
+            "nodeFrom": "core-nodes",
+            "nodeTo": "core-node-property-tree-graph"
+        },
+        {
+            "nodeFrom": "core-nodes",
+            "nodeTo": "class-thread-initiation"
+        },
+        {
+            "nodeFrom": "nostr",
+            "nodeTo": "authors"
+        },
+        {
+            "nodeFrom": "nostr",
+            "nodeTo": "references"
+        },
+        {
+            "nodeFrom": "nostr",
+            "nodeTo": "has-tag"
+        },
+        {
+            "nodeFrom": "nostr",
+            "nodeTo": "class-thread-propagation"
+        },
+        {
+            "nodeFrom": "nostr",
+            "nodeTo": "class-thread-termination"
+        }
+    ],
+    "IS_A_SUPERSET_OF": [
+
+    ]
+}

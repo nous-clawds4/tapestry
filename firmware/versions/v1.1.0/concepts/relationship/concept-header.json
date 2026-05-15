@@ -1,0 +1,21 @@
+{
+  "word": {
+    "slug": "concept-header-for-the-concept-of-relationships",
+    "name": "concept header for the concept of relationships",
+    "title": "Concept Header for the Concept of Relationships",
+    "wordTypes": ["word", "conceptHeader"]
+  },
+  "conceptHeader": {
+    "description": "An explicit directed relationship between two nodes.",
+    "oNames": { "singular": "relationship", "plural": "relationships" },
+    "oSlugs": { "singular": "relationship", "plural": "relationships" },
+    "oKeys": { "singular": "relationship", "plural": "relationships" },
+    "oTitles": { "singular": "Relationship", "plural": "Relationships" },
+    "oLabels": { "singular": "Relationship", "plural": "Relationships" },
+    "x-tapestry": {
+      "neo4j": {
+        "nodeLabelRequired": false
+      }
+    }
+  }
+}

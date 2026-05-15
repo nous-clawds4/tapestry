@@ -1,0 +1,21 @@
+{
+  "word": {
+    "slug": "concept-header-for-the-concept-of-primary-properties",
+    "name": "concept header for the concept of primary properties",
+    "title": "Concept Header for the Concept of Primary Properties",
+    "wordTypes": ["word", "conceptHeader"]
+  },
+  "conceptHeader": {
+    "description": "The root container property for a concept.",
+    "oNames": { "singular": "primary property", "plural": "primary properties" },
+    "oSlugs": { "singular": "primary-property", "plural": "primary-properties" },
+    "oKeys": { "singular": "primaryProperty", "plural": "primaryProperties" },
+    "oTitles": { "singular": "Primary Property", "plural": "Primary Properties" },
+    "oLabels": { "singular": "PrimaryProperty", "plural": "PrimaryProperties" },
+    "x-tapestry": {
+      "neo4j": {
+        "nodeLabelRequired": true
+      }
+    }
+  }
+}

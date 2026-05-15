@@ -1,0 +1,74 @@
+{
+  "word": {
+    "slug": "json-schema-for-the-concept-of-nostr-kinds",
+    "name": "JSON Schema for the concept of nostr kinds",
+    "title": "JSON Schema for the Concept of Nostr Kinds",
+    "description": "This is the JSON Schema for elements of the concept of nostr kinds. Every element of this concept must validate against this JSON schema.",
+    "wordTypes": ["word", "jsonSchema"],
+    "coreMemberOf": [
+      {
+        "slug": "concept-header-for-the-concept-of-nostr-kinds",
+        "uuid": "<uuid>"
+      }
+    ]
+  },
+  "jsonSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "name": "nostr kind",
+    "title": "Nostr Kind",
+    "description": "JSON Schema for elements of the concept of nostr kinds",
+    "required": ["nostrKind"],
+    "definitions": {},
+    "properties": {
+      "nostrKind": {
+        "type": "object",
+        "name": "nostr kind",
+        "title": "Nostr Kind",
+        "slug": "nostr-kind",
+        "description": "data about this nostr kind",
+        "required": ["kind", "name"],
+        "properties": {
+          "kind": {
+            "type": "integer",
+            "name": "kind",
+            "title": "Kind",
+            "slug": "kind",
+            "description": "The integer kind number (0–65535)"
+          },
+          "name": {
+            "type": "string",
+            "name": "name",
+            "title": "Name",
+            "slug": "name",
+            "description": "Human-readable name for this kind (e.g. 'short text note')"
+          },
+          "nip": {
+            "type": "string",
+            "name": "nip",
+            "title": "NIP",
+            "slug": "nip",
+            "description": "The NIP number that defines this kind (e.g. 'NIP-01')"
+          },
+          "replaceability": {
+            "type": "string",
+            "name": "replaceability",
+            "title": "Replaceability",
+            "slug": "replaceability",
+            "description": "How this kind behaves with respect to replacement: regular, replaceable, parameterized-replaceable, or ephemeral"
+          },
+          "description": {
+            "type": "string",
+            "name": "description",
+            "title": "Description",
+            "slug": "description",
+            "description": "What events of this kind contain and how they are used"
+          }
+        },
+        "x-tapestry": {
+          "unique": ["kind"]
+        }
+      }
+    }
+  }
+}

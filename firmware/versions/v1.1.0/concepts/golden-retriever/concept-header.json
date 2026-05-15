@@ -1,0 +1,21 @@
+{
+  "word": {
+    "slug": "concept-header-for-the-concept-of-golden-retrievers",
+    "name": "concept header for the concept of golden retrievers",
+    "title": "Concept Header for the Concept of Golden Retrievers",
+    "wordTypes": ["word", "conceptHeader"]
+  },
+  "conceptHeader": {
+    "description": "a Scottish breed of retriever dog of medium-large size characterised by a gentle and affectionate nature and a striking golden coat.",
+    "oNames": { "singular": "golden retriever", "plural": "golden retrievers" },
+    "oSlugs": { "singular": "golden-retriever", "plural": "golden-retrievers" },
+    "oKeys": { "singular": "goldenRetriever", "plural": "goldenRetrievers" },
+    "oTitles": { "singular": "Golden Retriever", "plural": "Golden Retrievers" },
+    "oLabels": { "singular": "GoldenRetriever", "plural": "GoldenRetrievers" },
+    "x-tapestry": {
+      "neo4j": {
+        "nodeLabelRequired": false
+      }
+    }
+  }
+}

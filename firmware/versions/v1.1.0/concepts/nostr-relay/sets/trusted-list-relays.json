@@ -1,0 +1,17 @@
+{
+  "word": {
+    "slug": "the-set-of-trusted-list-relays",
+    "name": "The set of trusted list relays",
+    "title": "The Set of Trusted List Relays",
+    "wordTypes": [
+      "word",
+      "set"
+    ]
+  },
+  "set": {
+    "slug": "trusted-list-relays",
+    "name": "trusted list relays",
+    "title": "Trusted List Relays",
+    "description": "Relays that store trusted list events (kinds 30392-30396)."
+  }
+}

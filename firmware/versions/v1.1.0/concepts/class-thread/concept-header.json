@@ -1,0 +1,21 @@
+{
+  "word": {
+    "slug": "concept-header-for-the-concept-of-class-threads",
+    "name": "concept header for the concept of class threads",
+    "title": "Concept Header for the Concept of Class Threads",
+    "wordTypes": ["word", "conceptHeader"]
+  },
+  "conceptHeader": {
+    "description": "A class thread is Tapestry's core structural pattern for a fully-normalized concept in the Neo4j graph. It is a directed path: ConceptHeader –[IS_THE_CONCEPT_FOR]→ Superset –[IS_A_SUPERSET_OF]→ (0 or more Supersets/Sets) –[HAS_ELEMENT]→ Elements. The thread has three phases: initiation (ConceptHeader → Superset), propagation (Superset → sub-Supersets or Sets, 0+ hops), and termination (Superset/Set → Element). Every concept must have at least one complete class thread to be considered fully normalized.",
+    "oNames": { "singular": "class thread", "plural": "class threads" },
+    "oSlugs": { "singular": "class-thread", "plural": "class-threads" },
+    "oKeys": { "singular": "classThread", "plural": "classThreads" },
+    "oTitles": { "singular": "Class Thread", "plural": "Class Threads" },
+    "oLabels": { "singular": "ClassThread", "plural": "ClassThreads" },
+    "x-tapestry": {
+      "neo4j": {
+        "nodeLabelRequired": false
+      }
+    }
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "word": {
+    "slug": "the-set-of-replaceable-nostr-kinds",
+    "name": "The set of replaceable nostr kinds",
+    "title": "The Set of Replaceable Nostr Kinds",
+    "wordTypes": ["word", "set"]
+  },
+  "set": {
+    "slug": "replaceable-kinds",
+    "name": "replaceable kinds",
+    "title": "Replaceable Kinds",
+    "description": "Nostr event kinds (0, 3, 10000–19999) where only the latest event per pubkey is kept; older events are superseded and may be discarded by relays."
+  }
+}

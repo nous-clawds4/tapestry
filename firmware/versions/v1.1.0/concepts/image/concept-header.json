@@ -1,0 +1,21 @@
+{
+  "word": {
+    "slug": "concept-header-for-the-concept-of-images",
+    "name": "concept header for the concept of images",
+    "title": "Concept Header for the Concept of Images",
+    "wordTypes": ["word", "conceptHeader"]
+  },
+  "conceptHeader": {
+    "description": "A node whose content is a binary image file.",
+    "oNames": { "singular": "image", "plural": "images" },
+    "oSlugs": { "singular": "image", "plural": "images" },
+    "oKeys": { "singular": "image", "plural": "images" },
+    "oTitles": { "singular": "Image", "plural": "Images" },
+    "oLabels": { "singular": "Image", "plural": "Images" },
+    "x-tapestry": {
+      "neo4j": {
+        "nodeLabelRequired": false
+      }
+    }
+  }
+}

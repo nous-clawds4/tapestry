@@ -1,0 +1,19 @@
+{
+  "word": {
+    "slug": "CORE_NODE_PROPERTIES",
+    "name": "core node wiring: Properties",
+    "title": "Core Node Wiring: Properties",
+    "description": "Wires a Properties set node to its Concept Header.",
+    "wordTypes": ["word", "relationshipType"]
+  },
+  "relationshipType": {
+    "slug": "CORE_NODE_PROPERTIES",
+    "alias": "IS_THE_PROPERTIES_SET_FOR",
+    "name": "core node wiring: Properties",
+    "title": "Core Node Wiring: Properties",
+    "description": "Connects a Properties set node to its Concept Header.",
+    "nodeFromType": "properties",
+    "nodeToType": "conceptHeader",
+    "category": "coreNodeWiring"
+  }
+}

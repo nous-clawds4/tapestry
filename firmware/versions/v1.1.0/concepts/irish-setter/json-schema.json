@@ -1,0 +1,54 @@
+{
+    "word": {
+        "slug": "json-schema-for-the-concept-of-irish-setters",
+        "title": "JSON Schema for the Concept of Irish Setters",
+        "name": "JSON Schema for the concept of irish setters",
+        "description": "",
+        "wordTypes": [
+            "word",
+            "jsonSchema"
+        ],
+        "coreMemberOf": [
+            {
+                "slug": "concept-header-for-the-concept-of-irish-setters",
+                "uuid": "<uuid>"
+            }
+        ]
+    },
+    "jsonSchema": {
+        "name": "irish setter",
+        "title": "Irish Setter",
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "definitions": {},
+        "type": "object",
+        "required": [
+            "irishSetter"
+        ],
+        "properties": {
+            "irishSetter": {
+                "type": "object",
+                "name": "irish setter",
+                "title": "Irish Setter",
+                "slug": "irish-setter",
+                "description": "Metadata about this irish setter node",
+                "required": [
+                    "slug"
+                ],
+                "properties": {
+                    "slug": {
+                        "type": "string",
+                        "name": "slug",
+                        "title": "Slug",
+                        "slug": "slug",
+                        "description": "Unique identifier for this irish setter"
+                    }
+                },
+                "x-tapestry": {
+                    "unique": [
+                        "slug"
+                    ]
+                }
+            }
+        }
+    }
+}

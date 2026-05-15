@@ -1,0 +1,13 @@
+{
+    "word": {
+        "slug": "dog--rover",
+        "name": "dog: Rover",
+        "title": "Dog: Rover",
+        "wordTypes": ["word", "dog", "goldenRetriever"]
+    },
+    "dog": {
+        "slug": "rover",
+        "name": "Rover",
+        "breed": "goldenRetriever"
+    }
+}

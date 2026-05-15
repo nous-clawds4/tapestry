@@ -1,0 +1,15 @@
+{
+  "word": {
+    "slug": "nostr-kind--kind-34550",
+    "name": "nostr kind: 34550 (Community Definition)",
+    "title": "Nostr Kind: 34550 (Community Definition)",
+    "wordTypes": ["word", "nostrKind"]
+  },
+  "nostrKind": {
+    "kind": 34550,
+    "name": "Community Definition",
+    "nip": "NIP-72",
+    "replaceability": "parameterized-replaceable",
+    "description": "Defines a moderated community (subreddit-like) with a name, description, image, and list of moderators. Posts submitted to the community (via a-tag) require moderator approval via kind-4550 events."
+  }
+}

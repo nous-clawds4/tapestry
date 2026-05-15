@@ -1,0 +1,17 @@
+{
+  "word": {
+    "slug": "the-set-of-web-of-trust-relays",
+    "name": "The set of web of trust relays",
+    "title": "The Set of Web of Trust Relays",
+    "wordTypes": [
+      "word",
+      "set"
+    ]
+  },
+  "set": {
+    "slug": "web-of-trust-relays",
+    "name": "web of trust relays",
+    "title": "Web of Trust Relays",
+    "description": "Relays that specialize in web of trust data (kinds 3, 1984, 1000)."
+  }
+}

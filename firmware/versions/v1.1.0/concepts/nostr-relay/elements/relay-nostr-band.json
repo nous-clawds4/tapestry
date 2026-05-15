@@ -1,0 +1,16 @@
+{
+  "word": {
+    "slug": "nostr-relay--relay-nostr-band",
+    "name": "nostr relay: relay.nostr.band",
+    "title": "Nostr Relay: relay.nostr.band",
+    "wordTypes": [
+      "word",
+      "nostrRelay"
+    ]
+  },
+  "nostrRelay": {
+    "slug": "relay-nostr-band",
+    "websocketUrl": "wss://relay.nostr.band",
+    "httpUrl": "https://relay.nostr.band"
+  }
+}

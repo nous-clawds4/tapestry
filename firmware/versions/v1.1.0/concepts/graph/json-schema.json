@@ -1,0 +1,161 @@
+{
+    "word": {
+        "slug": "json-schema-for-the-concept-of-graphs",
+        "title": "JSON Schema for the Concept of Graphs",
+        "name": "JSON Schema for the concept of graphs",
+        "description": "This is the JSON Schema for elements of the concept of graphs. Every graph node must validate against this JSON schema. Subtype-specific sections (coreNodesGraph, conceptGraph, propertyTreeGraph) are validated by their own concept schemas.",
+        "wordTypes": [
+            "word",
+            "jsonSchema"
+        ],
+        "coreMemberOf": [
+            {
+                "slug": "concept-header-for-the-concept-of-graphs",
+                "uuid": "<uuid>"
+            }
+        ]
+    },
+    "jsonSchema": {
+        "name": "graph",
+        "title": "Graph",
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "definitions": {},
+        "type": "object",
+        "required": [
+            "graph"
+        ],
+        "properties": {
+            "graph": {
+                "type": "object",
+                "name": "graph",
+                "title": "Graph",
+                "slug": "graph",
+                "description": "A structured collection of nodes, relationship types, relationships, and imports",
+                "required": [
+                    "nodes",
+                    "relationshipTypes",
+                    "relationships"
+                ],
+                "properties": {
+                    "graphType": {
+                        "type": "string",
+                        "name": "graph type",
+                        "title": "Graph Type",
+                        "slug": "graph-type",
+                        "description": "The category of the graph"        
+                    },
+                    "nodes": {
+                        "type": "array",
+                        "name": "nodes",
+                        "title": "Nodes",
+                        "slug": "nodes",
+                        "description": "The nodes contained in this graph",
+                        "items": {
+                            "type": "object",
+                            "required": [
+                                "slug"
+                            ],
+                            "properties": {
+                                "slug": {
+                                    "type": "string"
+                                },
+                                "uuid": {
+                                    "type": "string"
+                                },
+                                "name": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "relationshipTypes": {
+                        "type": "array",
+                        "name": "relationship types",
+                        "title": "Relationship Types",
+                        "slug": "relationship-types",
+                        "description": "The types of relationships used in this graph",
+                        "items": {
+                            "type": "object",
+                            "required": [
+                                "slug"
+                            ],
+                            "properties": {
+                                "slug": {
+                                    "type": "string"
+                                },
+                                "uuid": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "relationships": {
+                        "type": "array",
+                        "name": "relationships",
+                        "title": "Relationships",
+                        "slug": "relationships",
+                        "description": "The directed edges connecting nodes in this graph",
+                        "items": {
+                            "type": "object",
+                            "required": [
+                                "nodeFrom",
+                                "relationshipType",
+                                "nodeTo"
+                            ],
+                            "properties": {
+                                "nodeFrom": {
+                                    "type": "object",
+                                    "properties": {
+                                        "slug": {
+                                            "type": "string"
+                                        }
+                                    }
+                                },
+                                "relationshipType": {
+                                    "type": "object",
+                                    "properties": {
+                                        "slug": {
+                                            "type": "string"
+                                        }
+                                    }
+                                },
+                                "nodeTo": {
+                                    "type": "object",
+                                    "properties": {
+                                        "slug": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "imports": {
+                        "type": "array",
+                        "name": "imports",
+                        "title": "Imports",
+                        "slug": "imports",
+                        "description": "Other graphs whose contents are logically included in this graph",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "slug": {
+                                    "type": "string"
+                                },
+                                "name": {
+                                    "type": "string"
+                                },
+                                "uuid": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                },
+                "x-tapestry": {
+                    "unique": []
+                }
+            }
+        }
+    }
+}

@@ -1,0 +1,21 @@
+{
+  "word": {
+    "slug": "concept-header-for-the-concept-of-relationship-types",
+    "name": "concept header for the concept of relationship types",
+    "title": "Concept Header for the Concept of Relationship Types",
+    "wordTypes": ["word", "conceptHeader"]
+  },
+  "conceptHeader": {
+    "description": "The types of directed relationships that can exist between nodes.",
+    "oNames": { "singular": "relationship type", "plural": "relationship types" },
+    "oSlugs": { "singular": "relationship-type", "plural": "relationship-types" },
+    "oKeys": { "singular": "relationshipType", "plural": "relationshipTypes" },
+    "oTitles": { "singular": "Relationship Type", "plural": "Relationship Types" },
+    "oLabels": { "singular": "RelationshipType", "plural": "RelationshipTypes" },
+    "x-tapestry": {
+      "neo4j": {
+        "nodeLabelRequired": false
+      }
+    }
+  }
+}

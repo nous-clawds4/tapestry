@@ -1,0 +1,21 @@
+{
+  "word": {
+    "slug": "concept-header-for-the-concept-of-image-validation-scripts",
+    "name": "concept header for the concept of image validation scripts",
+    "title": "Concept Header for the Concept of Image Validation Scripts",
+    "wordTypes": ["word", "conceptHeader"]
+  },
+  "conceptHeader": {
+    "description": "A script that validates image file integrity.",
+    "oNames": { "singular": "image validation script", "plural": "image validation scripts" },
+    "oSlugs": { "singular": "image-validation-script", "plural": "image-validation-scripts" },
+    "oKeys": { "singular": "imageValidationScript", "plural": "imageValidationScripts" },
+    "oTitles": { "singular": "Image Validation Script", "plural": "Image Validation Scripts" },
+    "oLabels": { "singular": "ImageValidationScript", "plural": "ImageValidationScripts" },
+    "x-tapestry": {
+      "neo4j": {
+        "nodeLabelRequired": false
+      }
+    }
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "word": {
+    "slug": "nostr-relay--relay-damus-io",
+    "name": "nostr relay: relay.damus.io",
+    "title": "Nostr Relay: relay.damus.io",
+    "wordTypes": ["word", "nostrRelay"]
+  },
+  "nostrRelay": {
+    "slug": "relay-damus-io",
+    "websocketUrl": "wss://relay.damus.io",
+    "httpUrl": "https://relay.damus.io"
+  }
+}

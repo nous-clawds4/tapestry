@@ -1,0 +1,21 @@
+{
+  "word": {
+    "slug": "concept-header-for-the-concept-of-nostr-relays",
+    "name": "concept header for the concept of nostr relays",
+    "title": "Concept Header for the Concept of Nostr Relays",
+    "wordTypes": ["word", "conceptHeader"]
+  },
+  "conceptHeader": {
+    "description": "A Nostr relay is a server that relays Nostr messages to and from the Nostr network.",
+    "oNames": { "singular": "nostr relay", "plural": "nostr relays" },
+    "oSlugs": { "singular": "nostr-relay", "plural": "nostr-relays" },
+    "oKeys": { "singular": "nostrRelay", "plural": "nostrRelays" },
+    "oTitles": { "singular": "Nostr Relay", "plural": "Nostr Relays" },
+    "oLabels": { "singular": "NostrRelay", "plural": "NostrRelays" },
+    "x-tapestry": {
+      "neo4j": {
+        "nodeLabelRequired": true
+      }
+    }
+  }
+}

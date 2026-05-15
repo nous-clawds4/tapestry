@@ -1,0 +1,15 @@
+{
+  "word": {
+    "slug": "nostr-kind--kind-4",
+    "name": "nostr kind: 4 (Encrypted Direct Message)",
+    "title": "Nostr Kind: 4 (Encrypted Direct Message)",
+    "wordTypes": ["word", "nostrKind"]
+  },
+  "nostrKind": {
+    "kind": 4,
+    "name": "Encrypted Direct Message",
+    "nip": "NIP-04",
+    "replaceability": "regular",
+    "description": "A direct message whose content is AES-256-CBC encrypted with a shared secret derived from the sender's private key and recipient's public key. Superseded by kind 14 (NIP-17) for improved privacy."
+  }
+}

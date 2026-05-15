@@ -1,0 +1,15 @@
+{
+  "word": {
+    "slug": "nostr-kind--kind-30023",
+    "name": "nostr kind: 30023 (Long-form Content)",
+    "title": "Nostr Kind: 30023 (Long-form Content)",
+    "wordTypes": ["word", "nostrKind"]
+  },
+  "nostrKind": {
+    "kind": 30023,
+    "name": "Long-form Content",
+    "nip": "NIP-23",
+    "replaceability": "parameterized-replaceable",
+    "description": "A long-form article or blog post with Markdown content. Uses d-tag as the article identifier; supports title, summary, image, and published_at tags. Replaces older versions with the same d-tag."
+  }
+}

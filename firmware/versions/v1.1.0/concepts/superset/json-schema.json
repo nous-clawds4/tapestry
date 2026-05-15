@@ -1,0 +1,77 @@
+{
+    "word": {
+        "slug": "json-schema-for-the-concept-of-supersets",
+        "name": "JSON Schema for the concept of supersets",
+        "title": "JSON Schema for the Concept of Supersets",
+        "description": "the json schema for the concept of supersets",
+        "wordTypes": [
+            "word",
+            "jsonSchema"
+        ],
+        "coreMemberOf": [
+            {
+                "slug": "concept-header-for-the-concept-of-supersets",
+                "uuid": "<uuid>"
+            }
+        ]
+    },
+    "jsonSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "name": "superset",
+        "title": "Superset",
+        "description": "JSON Schema for the concept of supersets",
+        "required": [
+            "superset"
+        ],
+        "definitions": {},
+        "properties": {
+            "superset": {
+                "type": "object",
+                "name": "superset",
+                "title": "Superset",
+                "slug": "superset",
+                "alias": "superset",
+                "description": "data about this superset",
+                "required": [
+                    "slug"
+                ],
+                "properties": {
+                    "slug": {
+                        "type": "string",
+                        "name": "slug",
+                        "title": "Slug",
+                        "slug": "slug",
+                        "description": "The slug for this superset"
+                    },
+                    "name": {
+                        "type": "string",
+                        "name": "name",
+                        "title": "Name",
+                        "slug": "name",
+                        "description": "The name for this superset"
+                    },
+                    "title": {
+                        "type": "string",
+                        "name": "title",
+                        "title": "Title",
+                        "slug": "title",
+                        "description": "The title for this superset"
+                    },
+                    "description": {
+                        "type": "string",
+                        "name": "description",
+                        "title": "Description",
+                        "slug": "description",
+                        "description": "The top-level description for this superset"
+                    }
+                },
+                "x-tapestry": {
+                    "unique": [
+                        "slug"
+                    ]
+                }
+            }
+        }
+    }
+}

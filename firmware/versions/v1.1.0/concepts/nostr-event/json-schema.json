@@ -1,0 +1,81 @@
+{
+  "word": {
+    "slug": "json-schema-for-the-concept-of-nostr-events",
+    "name": "JSON Schema for the concept of nostr events",
+    "title": "JSON Schema for the Concept of Nostr Events",
+    "description": "This is the JSON Schema for elements of the concept of nostr events. Every element of this concept must validate against this JSON schema.",
+    "wordTypes": ["word", "jsonSchema"],
+    "coreMemberOf": [
+      {
+        "slug": "concept-header-for-the-concept-of-nostr-events",
+        "uuid": "<uuid>"
+      }
+    ]
+  },
+  "jsonSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "name": "nostr event",
+    "title": "Nostr Event",
+    "description": "JSON Schema for elements of the concept of nostr events",
+    "required": ["nostrEvent"],
+    "definitions": {},
+    "properties": {
+      "nostrEvent": {
+        "type": "object",
+        "name": "nostr event",
+        "title": "Nostr Event",
+        "slug": "nostr-event",
+        "description": "data about this nostr event",
+        "required": ["id", "pubkey", "kind"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "name": "id",
+            "title": "ID",
+            "slug": "id",
+            "description": "32-byte lowercase hex SHA256 hash of the serialized event fields"
+          },
+          "pubkey": {
+            "type": "string",
+            "name": "pubkey",
+            "title": "Pubkey",
+            "slug": "pubkey",
+            "description": "32-byte lowercase hex public key of the event author"
+          },
+          "kind": {
+            "type": "integer",
+            "name": "kind",
+            "title": "Kind",
+            "slug": "kind",
+            "description": "Integer classifying the event type and replaceability (0–65535)"
+          },
+          "createdAt": {
+            "type": "integer",
+            "name": "createdAt",
+            "title": "Created At",
+            "slug": "created-at",
+            "description": "Unix timestamp in seconds"
+          },
+          "content": {
+            "type": "string",
+            "name": "content",
+            "title": "Content",
+            "slug": "content",
+            "description": "Arbitrary string payload; interpretation depends on the kind"
+          },
+          "sig": {
+            "type": "string",
+            "name": "sig",
+            "title": "Signature",
+            "slug": "sig",
+            "description": "64-byte lowercase hex Schnorr signature of the event's SHA256 hash"
+          }
+        },
+        "x-tapestry": {
+          "unique": ["id"]
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "word": {
+    "slug": "concept-header-for-the-concept-of-graphs",
+    "name": "concept header for the concept of graphs",
+    "title": "Concept Header for the Concept of Graphs",
+    "wordTypes": ["word", "conceptHeader"]
+  },
+  "conceptHeader": {
+    "description": "A graph instance associated with a concept.",
+    "oNames": { "singular": "graph", "plural": "graphs" },
+    "oSlugs": { "singular": "graph", "plural": "graphs" },
+    "oKeys": { "singular": "graph", "plural": "graphs" },
+    "oTitles": { "singular": "Graph", "plural": "Graphs" },
+    "oLabels": { "singular": "Graph", "plural": "Graphs" },
+    "x-tapestry": {
+      "neo4j": {
+        "nodeLabelRequired": true
+      }
+    }
+  }
+}

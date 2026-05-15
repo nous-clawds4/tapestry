@@ -1,0 +1,49 @@
+{
+    "word": {
+        "slug": "json-schema-for-the-concept-of-validation-tools",
+        "title": "JSON Schema for the Concept of Validation Tools",
+        "name": "JSON Schema for the concept of validation tools",
+        "description": "This is the JSON Schema for elements of the concept of validation tools. Every validation tool must validate against this JSON schema. Subtype-specific sections are validated by their own concept schemas.",
+        "wordTypes": [
+            "word",
+            "jsonSchema"
+        ],
+        "coreMemberOf": [
+            {
+                "slug": "concept-header-for-the-concept-of-validation-tools",
+                "uuid": "<uuid>"
+            }
+        ]
+    },
+    "jsonSchema": {
+        "name": "validation tool",
+        "title": "Validation Tool",
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "definitions": {},
+        "type": "object",
+        "required": [
+            "word"
+        ],
+        "properties": {
+            "word": {
+                "type": "object",
+                "required": [
+                    "slug",
+                    "wordTypes"
+                ],
+                "properties": {
+                    "slug": {
+                        "type": "string"
+                    },
+                    "wordTypes": {
+                        "type": "array",
+                        "contains": {
+                            "const": "validationTool"
+                        },
+                        "description": "Must include 'validationTool' among its word types"
+                    }
+                }
+            }
+        }
+    }
+}

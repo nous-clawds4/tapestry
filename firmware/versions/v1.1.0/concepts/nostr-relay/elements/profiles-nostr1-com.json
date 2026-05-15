@@ -1,0 +1,16 @@
+{
+  "word": {
+    "slug": "nostr-relay--profiles-nostr1-com",
+    "name": "nostr relay: profiles.nostr1.com",
+    "title": "Nostr Relay: profiles.nostr1.com",
+    "wordTypes": [
+      "word",
+      "nostrRelay"
+    ]
+  },
+  "nostrRelay": {
+    "slug": "profiles-nostr1-com",
+    "websocketUrl": "wss://profiles.nostr1.com",
+    "httpUrl": "https://profiles.nostr1.com"
+  }
+}

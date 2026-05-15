@@ -1,0 +1,21 @@
+{
+  "word": {
+    "slug": "concept-header-for-the-concept-of-nostr-users",
+    "name": "concept header for the concept of nostr users",
+    "title": "Concept Header for the Concept of Nostr Users",
+    "wordTypes": ["word", "conceptHeader"]
+  },
+  "conceptHeader": {
+    "description": "A Nostr user is an account, identified by a public key, that uses the Nostr protocol.",
+    "oNames": { "singular": "nostr user", "plural": "nostr users" },
+    "oSlugs": { "singular": "nostr-user", "plural": "nostr-users" },
+    "oKeys": { "singular": "nostrUser", "plural": "nostrUsers" },
+    "oTitles": { "singular": "Nostr User", "plural": "Nostr Users" },
+    "oLabels": { "singular": "NostrUser", "plural": "NostrUsers" },
+    "x-tapestry": {
+      "neo4j": {
+        "nodeLabelRequired": true
+      }
+    }
+  }
+}

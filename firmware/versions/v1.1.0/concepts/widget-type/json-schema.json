@@ -1,0 +1,54 @@
+{
+    "word": {
+        "slug": "json-schema-for-the-concept-of-widget-types",
+        "title": "JSON Schema for the Concept of Widget Types",
+        "name": "JSON Schema for the concept of widget types",
+        "description": "",
+        "wordTypes": [
+            "word",
+            "jsonSchema"
+        ],
+        "coreMemberOf": [
+            {
+                "slug": "concept-header-for-the-concept-of-widget-types",
+                "uuid": "<uuid>"
+            }
+        ]
+    },
+    "jsonSchema": {
+        "name": "widget type",
+        "title": "Widget Type",
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "definitions": {},
+        "type": "object",
+        "required": [
+            "widgetType"
+        ],
+        "properties": {
+            "widgetType": {
+                "type": "object",
+                "name": "widget type",
+                "title": "Widget Type",
+                "slug": "widget-type",
+                "description": "Metadata about this widget type node",
+                "required": [
+                    "slug"
+                ],
+                "properties": {
+                    "slug": {
+                        "type": "string",
+                        "name": "slug",
+                        "title": "Slug",
+                        "slug": "slug",
+                        "description": "Unique identifier for this widget type"
+                    }
+                },
+                "x-tapestry": {
+                    "unique": [
+                        "slug"
+                    ]
+                }
+            }
+        }
+    }
+}

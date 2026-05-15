@@ -1,0 +1,19 @@
+{
+  "word": {
+    "slug": "CORE_NODE_PROPERTY_TREE_GRAPH",
+    "name": "core node wiring: Property Tree Graph",
+    "title": "Core Node Wiring: Property Tree Graph",
+    "description": "Wires a Property Tree Graph node to its Concept Header.",
+    "wordTypes": ["word", "relationshipType"]
+  },
+  "relationshipType": {
+    "slug": "CORE_NODE_PROPERTY_TREE_GRAPH",
+    "alias": "IS_THE_PROPERTY_TREE_GRAPH_FOR",
+    "name": "core node wiring: Property Tree Graph",
+    "title": "Core Node Wiring: Property Tree Graph",
+    "description": "Connects a Property Tree Graph node to its Concept Header.",
+    "nodeFromType": "propertyTreeGraph",
+    "nodeToType": "conceptHeader",
+    "category": "coreNodeWiring"
+  }
+}

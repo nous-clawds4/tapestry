@@ -1,0 +1,71 @@
+{
+    "word": {
+        "slug": "json-schema-for-the-concept-of-nostr-users",
+        "name": "JSON Schema for the concept of nostr users",
+        "title": "JSON Schema for the Concept of Nostr Users",
+        "description": "This is the JSON Schema for elements of the concept of nostr users. Every element of this concept must validate against this JSON schema.",
+        "wordTypes": [
+            "word",
+            "jsonSchema"
+        ],
+        "coreMemberOf": [
+            {
+                "slug": "concept-header-for-the-concept-of-nostr-users",
+                "uuid": "<uuid>"
+            }
+        ]
+    },
+    "jsonSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "name": "nostr user",
+        "title": "Nostr User",
+        "description": "JSON Schema for the concept of nostr users",
+        "required": [
+            "nostrUser"
+        ],
+        "definitions": {},
+        "properties": {
+            "nostrUser": {
+                "type": "object",
+                "name": "nostr user",
+                "title": "Nostr User",
+                "slug": "nostr-user",
+                "description": "data about this nostr user",
+                "required": [
+                    "pubkey"
+                ],
+                "properties": {
+                    "pubkey": {
+                        "type": "string",
+                        "name": "pubkey",
+                        "title": "Pubkey",
+                        "slug": "pubkey",
+                        "description": "The public key for this nostr user"
+                    },
+                    "npub": {
+                        "type": "string",
+                        "name": "npub",
+                        "title": "Npub",
+                        "slug": "npub",
+                        "description": "The npub for this nostr user"
+                    },
+                    "nprofile": {
+                        "type": "string",
+                        "name": "nprofile",
+                        "title": "Nprofile",
+                        "slug": "nprofile",
+                        "description": "The nprofile for this nostr user"
+                    }
+                },
+                "x-tapestry": {
+                    "unique": [
+                        "pubkey",
+                        "npub",
+                        "nprofile"
+                    ]
+                }
+            }
+        }
+    }
+}

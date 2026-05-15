@@ -1,0 +1,21 @@
+{
+  "word": {
+    "slug": "concept-header-for-the-concept-of-graph-types",
+    "name": "concept header for the concept of graph types",
+    "title": "Concept Header for the Concept of Graph Types",
+    "wordTypes": ["word", "conceptHeader"]
+  },
+  "conceptHeader": {
+    "description": "The types of graphs associated with each concept.",
+    "oNames": { "singular": "graph type", "plural": "graph types" },
+    "oSlugs": { "singular": "graph-type", "plural": "graph-types" },
+    "oKeys": { "singular": "graphType", "plural": "graphTypes" },
+    "oTitles": { "singular": "Graph Type", "plural": "Graph Types" },
+    "oLabels": { "singular": "GraphType", "plural": "GraphTypes" },
+    "x-tapestry": {
+      "neo4j": {
+        "nodeLabelRequired": false
+      }
+    }
+  }
+}

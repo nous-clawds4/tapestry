@@ -1,0 +1,21 @@
+{
+  "word": {
+    "slug": "concept-header-for-the-concept-of-widgets",
+    "name": "concept header for the concept of widgets",
+    "title": "Concept Header for the Concept of Widgets",
+    "wordTypes": ["word", "conceptHeader"]
+  },
+  "conceptHeader": {
+    "description": "",
+    "oNames": { "singular": "widget", "plural": "widgets" },
+    "oSlugs": { "singular": "widget", "plural": "widgets" },
+    "oKeys": { "singular": "widget", "plural": "widgets" },
+    "oTitles": { "singular": "Widget", "plural": "Widgets" },
+    "oLabels": { "singular": "Widget", "plural": "Widgets" },
+    "x-tapestry": {
+      "neo4j": {
+        "nodeLabelRequired": false
+      }
+    }
+  }
+}

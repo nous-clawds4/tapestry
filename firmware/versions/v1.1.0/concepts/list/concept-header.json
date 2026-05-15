@@ -1,0 +1,21 @@
+{
+  "word": {
+    "slug": "concept-header-for-the-concept-of-lists",
+    "name": "concept header for the concept of lists",
+    "title": "Concept Header for the Concept of Lists",
+    "wordTypes": ["word", "conceptHeader"]
+  },
+  "conceptHeader": {
+    "description": "A list header with associated list items.",
+    "oNames": { "singular": "list", "plural": "lists" },
+    "oSlugs": { "singular": "list", "plural": "lists" },
+    "oKeys": { "singular": "list", "plural": "lists" },
+    "oTitles": { "singular": "List", "plural": "Lists" },
+    "oLabels": { "singular": "List", "plural": "Lists" },
+    "x-tapestry": {
+      "neo4j": {
+        "nodeLabelRequired": false
+      }
+    }
+  }
+}

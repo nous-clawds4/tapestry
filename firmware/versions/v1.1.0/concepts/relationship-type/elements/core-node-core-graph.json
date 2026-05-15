@@ -1,0 +1,19 @@
+{
+  "word": {
+    "slug": "CORE_NODE_CORE_GRAPH",
+    "name": "core node wiring: Core Nodes Graph",
+    "title": "Core Node Wiring: Core Nodes Graph",
+    "description": "Wires a Core Nodes Graph node to its Concept Header.",
+    "wordTypes": ["word", "relationshipType"]
+  },
+  "relationshipType": {
+    "slug": "CORE_NODE_CORE_GRAPH",
+    "alias": "IS_THE_CORE_GRAPH_FOR",
+    "name": "core node wiring: Core Nodes Graph",
+    "title": "Core Node Wiring: Core Nodes Graph",
+    "description": "Connects a Core Nodes Graph node to its Concept Header.",
+    "nodeFromType": "coreNodesGraph",
+    "nodeToType": "conceptHeader",
+    "category": "coreNodeWiring"
+  }
+}

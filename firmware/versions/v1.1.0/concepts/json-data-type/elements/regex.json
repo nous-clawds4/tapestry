@@ -1,0 +1,16 @@
+{
+  "word": {
+    "slug": "json-data-type--regex",
+    "name": "JSON data type: regex",
+    "title": "JSON Data Type: RegEx",
+    "description": "A regular expression",
+    "wordTypes": ["word", "jsonDataType"]
+  },
+  "jsonDataType": {
+    "slug": "regex",
+    "name": "regular expression",
+    "title": "Regular Expression",
+    "url": "https://json-schema.org/understanding-json-schema/reference/regular_expressions",
+    "description": "A specialized sequence of characters that form a search pattern used to match, locate, validate, or manipulate text strings"
+  }
+}

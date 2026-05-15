@@ -1,0 +1,19 @@
+{
+  "word": {
+    "slug": "CLASS_THREAD_PROPAGATION",
+    "name": "class thread propagation",
+    "title": "Class Thread Propagation",
+    "description": "The relationship that propagates a class thread. Connects a Superset or Set to a child Set.",
+    "wordTypes": ["word", "relationshipType"]
+  },
+  "relationshipType": {
+    "slug": "CLASS_THREAD_PROPAGATION",
+    "alias": "IS_A_SUPERSET_OF",
+    "name": "class thread propagation",
+    "title": "Class Thread Propagation",
+    "description": "Connects a Superset or Set to a child Set. Zero or more of these form the middle of a class thread.",
+    "nodeFromType": "set",
+    "nodeToType": "set",
+    "category": "classThread"
+  }
+}

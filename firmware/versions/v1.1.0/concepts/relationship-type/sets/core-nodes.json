@@ -1,0 +1,14 @@
+{
+  "word": {
+    "slug": "the-set-of-relationship-types-for-core-nodes",
+    "name": "The set of relationship types for core nodes",
+    "title": "The Set of Relationship Types for Core Nodes",
+    "wordTypes": ["word", "set"]
+  },
+  "set": {
+    "slug": "relationship-types-for-core-nodes",
+    "name": "relationship types for core nodes",
+    "title": "Relationship Types for Core Nodes",
+    "description": "These are the relationship types that wire together the core nodes of word-type concepts, as per the tapestry protocol."
+  }
+}

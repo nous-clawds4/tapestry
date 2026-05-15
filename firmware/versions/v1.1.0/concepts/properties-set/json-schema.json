@@ -1,0 +1,52 @@
+{
+    "word": {
+        "slug": "json-schema-for-the-concept-of-properties-sets",
+        "title": "JSON Schema for the Concept of Properties Sets",
+        "name": "JSON Schema for the concept of properties sets",
+        "description": "This is the JSON Schema for elements of the concept of properties sets. Every element of this concept must validate against this JSON schema.",
+        "wordTypes": [
+            "word",
+            "jsonSchema"
+        ],
+        "coreMemberOf": [
+            {
+                "slug": "concept-header-for-the-concept-of-properties-sets",
+                "uuid": "<uuid>"
+            }
+        ]
+    },
+    "jsonSchema": {
+        "name": "properties set",
+        "title": "Properties Set",
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "definitions": {},
+        "type": "object",
+        "required": [
+            "propertiesSet"
+        ],
+        "properties": {
+            "propertiesSet": {
+                "type": "object",
+                "name": "properties set",
+                "title": "Properties Set",
+                "slug": "properties-set",
+                "description": "data about this properties set",
+                "required": [
+                    "description"
+                ],
+                "properties": {
+                    "description": {
+                        "type": "string",
+                        "name": "description",
+                        "title": "Description",
+                        "slug": "description",
+                        "description": "A description of this properties set"
+                    }
+                },
+                "x-tapestry": {
+                    "unique": []
+                }
+            }
+        }
+    }
+}

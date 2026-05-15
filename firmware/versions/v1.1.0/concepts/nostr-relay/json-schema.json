@@ -1,0 +1,71 @@
+{
+    "word": {
+        "slug": "json-schema-for-the-concept-of-nostr-relays",
+        "name": "JSON Schema for the concept of nostr relays",
+        "title": "JSON Schema for the Concept of Nostr Relays",
+        "description": "This is the JSON Schema for elements of the concept of nostr relays. Every element of this concept must validate against this JSON schema.",
+        "wordTypes": [
+            "word",
+            "jsonSchema"
+        ],
+        "coreMemberOf": [
+            {
+                "slug": "concept-header-for-the-concept-of-nostr-relays",
+                "uuid": "<uuid>"
+            }
+        ]
+    },
+    "jsonSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "name": "nostr relay",
+        "title": "Nostr Relay",
+        "description": "JSON Schema for the concept of nostr relays",
+        "required": [
+            "nostrRelay"
+        ],
+        "definitions": {},
+        "properties": {
+            "nostrRelay": {
+                "type": "object",
+                "name": "nostr relay",
+                "title": "Nostr Relay",
+                "slug": "nostr-relay",
+                "description": "data about this nostr relay",
+                "required": [
+                    "slug",
+                    "websocketUrl"
+                ],
+                "properties": {
+                    "slug": {
+                        "type": "string",
+                        "name": "slug",
+                        "title": "Slug",
+                        "slug": "slug",
+                        "description": "A unique kebab-case identifier for this nostr relay"
+                    },
+                    "websocketUrl": {
+                        "type": "string",
+                        "name": "websocketUrl",
+                        "title": "Websocket URL",
+                        "slug": "websocket-url",
+                        "description": "The websocket URL for this nostr relay"
+                    },
+                    "httpUrl": {
+                        "type": "string",
+                        "name": "httpUrl",
+                        "title": "HTTP URL",
+                        "slug": "http-url",
+                        "description": "The HTTP URL for this nostr relay"
+                    }
+                },
+                "x-tapestry": {
+                    "unique": [
+                        "slug",
+                        "websocketUrl"
+                    ]
+                }
+            }
+        }
+    }
+}

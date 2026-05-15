@@ -1,0 +1,21 @@
+{
+  "word": {
+    "slug": "concept-header-for-the-concept-of-irish-setters",
+    "name": "concept header for the concept of irish setters",
+    "title": "Concept Header for the Concept of Irish Setters",
+    "wordTypes": ["word", "conceptHeader"]
+  },
+  "conceptHeader": {
+    "description": "a setter, a breed of gundog, and family dog originating in Ireland",
+    "oNames": { "singular": "irish setter", "plural": "irish setters" },
+    "oSlugs": { "singular": "irish-setter", "plural": "irish-setters" },
+    "oKeys": { "singular": "irishSetter", "plural": "irishSetters" },
+    "oTitles": { "singular": "Irish Setter", "plural": "Irish Setters" },
+    "oLabels": { "singular": "IrishSetter", "plural": "IrishSetters" },
+    "x-tapestry": {
+      "neo4j": {
+        "nodeLabelRequired": false
+      }
+    }
+  }
+}

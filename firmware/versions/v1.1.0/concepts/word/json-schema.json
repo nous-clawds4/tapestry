@@ -1,0 +1,387 @@
+{
+    "$comment": "Test schema \u2014 unified word schema with graphContext and conditional dependencies. Will replace json-schema.json once validated.",
+    "word": {
+        "slug": "json-schema-for-the-concept-of-words",
+        "title": "JSON Schema for the Concept of Words",
+        "name": "JSON Schema for the concept of words",
+        "description": "The master schema for all word nodes. Governs the universal 'word' section, concept-scoped blocks, and 'graphContext' including conditional Set-specific fields.",
+        "wordTypes": [
+            "word",
+            "jsonSchema",
+            "validationTool"
+        ],
+        "coreMemberOf": [
+            {
+                "slug": "concept-header-for-the-concept-of-words",
+                "uuid": "<uuid>"
+            }
+        ]
+    },
+    "jsonSchema": {
+        "name": "word",
+        "title": "Word",
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "required": [
+            "word",
+            "graphContext"
+        ],
+        "properties": {
+            "word": {
+                "type": "object",
+                "name": "word",
+                "title": "Word",
+                "slug": "word",
+                "description": "Universal metadata present on every word node.",
+                "required": [
+                    "slug",
+                    "wordTypes"
+                ],
+                "properties": {
+                    "slug": {
+                        "type": "string",
+                        "name": "slug",
+                        "title": "Slug",
+                        "slug": "slug",
+                        "description": "Unique kebab-case identifier within the concept graph."
+                    },
+                    "name": {
+                        "type": "string",
+                        "name": "name",
+                        "title": "Name",
+                        "slug": "name",
+                        "description": "Lowercase human-readable name."
+                    },
+                    "title": {
+                        "type": "string",
+                        "name": "title",
+                        "title": "Title",
+                        "slug": "title",
+                        "description": "Title Case display name."
+                    },
+                    "description": {
+                        "type": "string",
+                        "name": "description",
+                        "title": "Description",
+                        "slug": "description",
+                        "description": "Human-readable description of this word."
+                    },
+                    "wordTypes": {
+                        "type": "array",
+                        "name": "word types",
+                        "title": "Word Types",
+                        "slug": "word-types",
+                        "description": "Ordered list of word types from coarse to fine. Always starts with 'word'.",
+                        "items": {
+                            "type": "string"
+                        },
+                        "minItems": 1
+                    },
+                    "coreMemberOf": {
+                        "type": "array",
+                        "name": "core member of",
+                        "title": "Core Member Of",
+                        "slug": "core-member-of",
+                        "description": "Back-pointer(s) to the Concept Header this node is a core node of. Present on core nodes; absent on regular elements.",
+                        "items": {
+                            "type": "object",
+                            "required": [
+                                "slug"
+                            ],
+                            "properties": {
+                                "slug": {
+                                    "type": "string"
+                                },
+                                "uuid": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    }
+                },
+                "x-tapestry": {
+                    "unique": [
+                        "slug"
+                    ]
+                }
+            },
+            "graphContext": {
+                "type": "object",
+                "name": "graph context",
+                "title": "Graph Context",
+                "slug": "graph-context",
+                "description": "Local, dynamic metadata describing this node's position within the local concept graph. Stripped before sharing via nostr events.",
+                "required": [
+                    "identifiers",
+                    "derivedAt"
+                ],
+                "properties": {
+                    "identifiers": {
+                        "type": "object",
+                        "name": "identifiers",
+                        "title": "Identifiers",
+                        "slug": "identifiers",
+                        "description": "This node's own identifiers in various systems.",
+                        "required": [
+                            "tapestryKey"
+                        ],
+                        "properties": {
+                            "tapestryKey": {
+                                "type": "string",
+                                "name": "tapestry key",
+                                "title": "Tapestry Key",
+                                "slug": "tapestry-key",
+                                "description": "The node's permanent tapestryKey (LMDB key). Never changes."
+                            },
+                            "uuid": {
+                                "type": "string",
+                                "name": "uuid",
+                                "title": "UUID",
+                                "slug": "uuid",
+                                "description": "The node's uuid (aTag for kind 39998, event.id for kind 9998). May change if an unwrapped node is published."
+                            }
+                        }
+                    },
+                    "elementOf": {
+                        "type": "object",
+                        "name": "element of",
+                        "title": "Element Of",
+                        "slug": "element-of",
+                        "description": "Concepts this node is an element of.",
+                        "properties": {
+                            "direct": {
+                                "type": "array",
+                                "description": "Sets that contain this node via direct HAS_ELEMENT.",
+                                "items": {
+                                    "$ref": "#/$defs/nodeRef"
+                                },
+                                "default": []
+                            },
+                            "indirect": {
+                                "type": "array",
+                                "description": "Sets that contain this node via transitive IS_A_SUPERSET_OF chain.",
+                                "items": {
+                                    "$ref": "#/$defs/nodeRef"
+                                },
+                                "default": []
+                            }
+                        }
+                    },
+                    "parentJsonSchemas": {
+                        "type": "array",
+                        "name": "parent JSON schemas",
+                        "title": "Parent JSON Schemas",
+                        "slug": "parent-json-schemas",
+                        "description": "JSON Schemas this node should validate against, with cached validation results.",
+                        "items": {
+                            "type": "object",
+                            "required": [
+                                "tapestryKey",
+                                "conceptName"
+                            ],
+                            "properties": {
+                                "tapestryKey": {
+                                    "type": "string",
+                                    "description": "tapestryKey of the JSON Schema node."
+                                },
+                                "uuid": {
+                                    "type": "string",
+                                    "description": "uuid of the JSON Schema node."
+                                },
+                                "conceptName": {
+                                    "type": "string",
+                                    "description": "Name of the concept this schema belongs to."
+                                },
+                                "conceptTapestryKey": {
+                                    "type": "string",
+                                    "description": "tapestryKey of the concept header."
+                                },
+                                "lastValidated": {
+                                    "type": [
+                                        "number",
+                                        "null"
+                                    ],
+                                    "description": "Unix timestamp of last validation, or null if never validated."
+                                },
+                                "valid": {
+                                    "type": [
+                                        "boolean",
+                                        "null"
+                                    ],
+                                    "description": "Whether the node's data passed validation, or null if not yet validated."
+                                },
+                                "errors": {
+                                    "type": "array",
+                                    "description": "Validation error messages. Empty if valid.",
+                                    "items": {
+                                        "type": "string"
+                                    },
+                                    "default": []
+                                }
+                            }
+                        },
+                        "default": []
+                    },
+                    "derivedAt": {
+                        "type": "number",
+                        "name": "derived at",
+                        "title": "Derived At",
+                        "slug": "derived-at",
+                        "description": "Unix timestamp of the last derivation."
+                    }
+                }
+            }
+        },
+        "$defs": {
+            "nodeRef": {
+                "type": "object",
+                "description": "Lightweight reference to another node in the graph.",
+                "required": [
+                    "tapestryKey"
+                ],
+                "properties": {
+                    "tapestryKey": {
+                        "type": "string",
+                        "description": "The referenced node's tapestryKey."
+                    },
+                    "name": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "Human-readable name (denormalized for display)."
+                    },
+                    "slug": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "description": "Slug (denormalized for display)."
+                    }
+                }
+            },
+            "nodeRefList": {
+                "type": "object",
+                "description": "A direct/indirect split of node references.",
+                "properties": {
+                    "direct": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/$defs/nodeRef"
+                        },
+                        "default": []
+                    },
+                    "indirect": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/$defs/nodeRef"
+                        },
+                        "default": []
+                    }
+                }
+            }
+        },
+        "allOf": [
+            {
+                "$comment": "Conditional: if wordTypes contains 'set', graphContext must include set-specific fields (elements, childSets, parentSets).",
+                "if": {
+                    "properties": {
+                        "word": {
+                            "properties": {
+                                "wordTypes": {
+                                    "contains": {
+                                        "const": "set"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "then": {
+                    "properties": {
+                        "graphContext": {
+                            "required": [
+                                "elements",
+                                "childSets",
+                                "parentSets"
+                            ],
+                            "properties": {
+                                "elements": {
+                                    "type": "object",
+                                    "name": "elements",
+                                    "title": "Elements",
+                                    "slug": "elements",
+                                    "description": "Elements of this set, split by direct HAS_ELEMENT vs indirect (via IS_A_SUPERSET_OF chain).",
+                                    "properties": {
+                                        "direct": {
+                                            "type": "array",
+                                            "description": "Elements connected by direct HAS_ELEMENT.",
+                                            "items": {
+                                                "$ref": "#/$defs/nodeRef"
+                                            },
+                                            "default": []
+                                        },
+                                        "indirect": {
+                                            "type": "array",
+                                            "description": "Elements reachable via child sets (indirect through IS_A_SUPERSET_OF chain).",
+                                            "items": {
+                                                "$ref": "#/$defs/nodeRef"
+                                            },
+                                            "default": []
+                                        }
+                                    }
+                                },
+                                "childSets": {
+                                    "type": "object",
+                                    "name": "child sets",
+                                    "title": "Child Sets",
+                                    "slug": "child-sets",
+                                    "description": "Sets that are subsets of this set (forward IS_A_SUPERSET_OF).",
+                                    "properties": {
+                                        "direct": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/$defs/nodeRef"
+                                            },
+                                            "default": []
+                                        },
+                                        "indirect": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/$defs/nodeRef"
+                                            },
+                                            "default": []
+                                        }
+                                    }
+                                },
+                                "parentSets": {
+                                    "type": "object",
+                                    "name": "parent sets",
+                                    "title": "Parent Sets",
+                                    "slug": "parent-sets",
+                                    "description": "Sets that this set is a subset of (reverse IS_A_SUPERSET_OF).",
+                                    "properties": {
+                                        "direct": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/$defs/nodeRef"
+                                            },
+                                            "default": []
+                                        },
+                                        "indirect": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/$defs/nodeRef"
+                                            },
+                                            "default": []
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        ]
+    }
+}

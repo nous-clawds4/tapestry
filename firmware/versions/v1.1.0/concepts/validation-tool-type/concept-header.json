@@ -1,0 +1,21 @@
+{
+  "word": {
+    "slug": "concept-header-for-the-concept-of-validation-tool-types",
+    "name": "concept header for the concept of validation tool types",
+    "title": "Concept Header for the Concept of Validation Tool Types",
+    "wordTypes": ["word", "conceptHeader"]
+  },
+  "conceptHeader": {
+    "description": "The types of validation tools.",
+    "oNames": { "singular": "validation tool type", "plural": "validation tool types" },
+    "oSlugs": { "singular": "validation-tool-type", "plural": "validation-tool-types" },
+    "oKeys": { "singular": "validationToolType", "plural": "validationToolTypes" },
+    "oTitles": { "singular": "Validation Tool Type", "plural": "Validation Tool Types" },
+    "oLabels": { "singular": "ValidationToolType", "plural": "ValidationToolTypes" },
+    "x-tapestry": {
+      "neo4j": {
+        "nodeLabelRequired": false
+      }
+    }
+  }
+}

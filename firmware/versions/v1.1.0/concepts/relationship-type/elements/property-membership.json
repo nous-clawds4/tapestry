@@ -1,0 +1,19 @@
+{
+  "word": {
+    "slug": "PROPERTY_MEMBERSHIP",
+    "name": "property membership",
+    "title": "Property Membership",
+    "description": "Connects a Property to a JSON Schema or parent Property in the property tree.",
+    "wordTypes": ["word", "relationshipType"]
+  },
+  "relationshipType": {
+    "slug": "PROPERTY_MEMBERSHIP",
+    "alias": "IS_A_PROPERTY_OF",
+    "name": "property membership",
+    "title": "Property Membership",
+    "description": "Connects a Property to a JSON Schema or parent Property, building the property tree.",
+    "nodeFromType": "property",
+    "nodeToType": "jsonSchema",
+    "category": "propertyTree"
+  }
+}

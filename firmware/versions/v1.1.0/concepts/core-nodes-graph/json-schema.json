@@ -1,0 +1,76 @@
+{
+    "word": {
+        "slug": "json-schema-for-the-concept-of-core-nodes-graphs",
+        "name": "JSON Schema for the concept of core nodes graphs",
+        "title": "JSON Schema for the Concept of Core Nodes Graphs",
+        "description": "This is the JSON Schema for elements of the concept of core nodes graphs. Every element of this concept must validate against this JSON schema.",
+        "wordTypes": [
+            "word",
+            "jsonSchema"
+        ],
+        "coreMemberOf": [
+            {
+                "slug": "concept-header-for-the-concept-of-core-nodes-graphs",
+                "uuid": "<uuid>"
+            }
+        ]
+    },
+    "jsonSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "name": "core nodes graph",
+        "title": "Core Nodes Graph",
+        "description": "JSON Schema for the concept of core nodes graphs",
+        "required": [
+            "coreNodesGraph"
+        ],
+        "definitions": {},
+        "properties": {
+            "coreNodesGraph": {
+                "type": "object",
+                "name": "core nodes graph",
+                "title": "Core Nodes Graph",
+                "slug": "core-nodes-graph",
+                "description": "data about this core nodes graph",
+                "required": [
+                    "slug"
+                ],
+                "properties": {
+                    "slug": {
+                        "type": "string",
+                        "name": "slug",
+                        "title": "Slug",
+                        "slug": "slug",
+                        "description": "The slug for this core nodes graph"
+                    },
+                    "name": {
+                        "type": "string",
+                        "name": "name",
+                        "title": "Name",
+                        "slug": "name",
+                        "description": "The name for this core nodes graph"
+                    },
+                    "title": {
+                        "type": "string",
+                        "name": "title",
+                        "title": "Title",
+                        "slug": "title",
+                        "description": "The title for this core nodes graph"
+                    },
+                    "description": {
+                        "type": "string",
+                        "name": "description",
+                        "title": "Description",
+                        "slug": "description",
+                        "description": "The top-level description for this core nodes graph"
+                    }
+                },
+                "x-tapestry": {
+                    "unique": [
+                        "slug"
+                    ]
+                }
+            }
+        }
+    }
+}

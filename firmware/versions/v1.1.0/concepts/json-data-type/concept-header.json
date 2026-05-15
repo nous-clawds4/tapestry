@@ -1,0 +1,21 @@
+{
+  "word": {
+    "slug": "concept-header-for-the-concept-of-json-data-types",
+    "name": "concept header for the concept of JSON data types",
+    "title": "Concept Header for the Concept of JSON Data Types",
+    "wordTypes": ["word", "conceptHeader"]
+  },
+  "conceptHeader": {
+    "description": "The primitive data types of JSON Schema.",
+    "oNames": { "singular": "JSON data type", "plural": "JSON data types" },
+    "oSlugs": { "singular": "json-data-type", "plural": "json-data-types" },
+    "oKeys": { "singular": "jsonDataType", "plural": "jsonDataTypes" },
+    "oTitles": { "singular": "JSON Data Type", "plural": "JSON Data Types" },
+    "oLabels": { "singular": "JsonDataType", "plural": "JsonDataTypes" },
+    "x-tapestry": {
+      "neo4j": {
+        "nodeLabelRequired": false
+      }
+    }
+  }
+}

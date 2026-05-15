@@ -1,0 +1,52 @@
+{
+    "word": {
+        "slug": "json-schema-for-the-concept-of-property-tree-graphs",
+        "title": "JSON Schema for the Concept of Property Tree Graphs",
+        "name": "JSON Schema for the concept of property tree graphs",
+        "description": "This is the JSON Schema for elements of the concept of property tree graphs. Every element of this concept must validate against this JSON schema.",
+        "wordTypes": [
+            "word",
+            "jsonSchema"
+        ],
+        "coreMemberOf": [
+            {
+                "slug": "concept-header-for-the-concept-of-property-tree-graphs",
+                "uuid": "<uuid>"
+            }
+        ]
+    },
+    "jsonSchema": {
+        "name": "property tree graph",
+        "title": "Property Tree Graph",
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "definitions": {},
+        "type": "object",
+        "required": [
+            "propertyTreeGraph"
+        ],
+        "properties": {
+            "propertyTreeGraph": {
+                "type": "object",
+                "name": "property tree graph",
+                "title": "Property Tree Graph",
+                "slug": "property-tree-graph",
+                "description": "data about this property tree graph",
+                "required": [
+                    "description"
+                ],
+                "properties": {
+                    "description": {
+                        "type": "string",
+                        "name": "description",
+                        "title": "Description",
+                        "slug": "description",
+                        "description": "A description of this property tree graph"
+                    }
+                },
+                "x-tapestry": {
+                    "unique": []
+                }
+            }
+        }
+    }
+}

@@ -1,0 +1,15 @@
+{
+  "word": {
+    "slug": "nostr-kind--kind-8",
+    "name": "nostr kind: 8 (Badge Award)",
+    "title": "Nostr Kind: 8 (Badge Award)",
+    "wordTypes": ["word", "nostrKind"]
+  },
+  "nostrKind": {
+    "kind": 8,
+    "name": "Badge Award",
+    "nip": "NIP-58",
+    "replaceability": "regular",
+    "description": "An award of a badge (defined by a kind-30009 Badge Definition) to one or more users. The a-tag references the badge definition; p-tags list the recipients."
+  }
+}

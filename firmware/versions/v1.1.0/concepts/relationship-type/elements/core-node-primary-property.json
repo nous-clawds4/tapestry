@@ -1,0 +1,19 @@
+{
+  "word": {
+    "slug": "CORE_NODE_PRIMARY_PROPERTY",
+    "name": "core node wiring: Primary Property",
+    "title": "Core Node Wiring: Primary Property",
+    "description": "Wires a Primary Property node to its Concept Header.",
+    "wordTypes": ["word", "relationshipType"]
+  },
+  "relationshipType": {
+    "slug": "CORE_NODE_PRIMARY_PROPERTY",
+    "alias": "IS_THE_PRIMARY_PROPERTY_FOR",
+    "name": "core node wiring: Primary Property",
+    "title": "Core Node Wiring: Primary Property",
+    "description": "Connects a Primary Property node to its Concept Header.",
+    "nodeFromType": "primaryProperty",
+    "nodeToType": "conceptHeader",
+    "category": "coreNodeWiring"
+  }
+}

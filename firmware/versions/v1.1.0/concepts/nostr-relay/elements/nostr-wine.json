@@ -1,0 +1,13 @@
+{
+  "word": {
+    "slug": "nostr-relay--nostr-wine",
+    "name": "nostr relay: nostr.wine",
+    "title": "Nostr Relay: nostr.wine",
+    "wordTypes": ["word", "nostrRelay"]
+  },
+  "nostrRelay": {
+    "slug": "nostr-wine",
+    "websocketUrl": "wss://nostr.wine",
+    "httpUrl": "https://nostr.wine"
+  }
+}

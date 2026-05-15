@@ -1,0 +1,118 @@
+{
+    "HAS_ELEMENT": [
+        {
+            "nodeFrom": "paid-relays",
+            "nodeTo": "nostr-wine"
+        },
+        {
+            "nodeFrom": "free-relays",
+            "nodeTo": "dcosl-brainstorm-world"
+        },
+        {
+            "nodeFrom": "profile-relays",
+            "nodeTo": "purplepag-es"
+        },
+        {
+            "nodeFrom": "profile-relays",
+            "nodeTo": "profiles-nostr1-com"
+        },
+        {
+            "nodeFrom": "general-purpose-relays",
+            "nodeTo": "relay-damus-io"
+        },
+        {
+            "nodeFrom": "general-purpose-relays",
+            "nodeTo": "relay-primal-net"
+        },
+        {
+            "nodeFrom": "general-purpose-relays",
+            "nodeTo": "nos-lol"
+        },
+        {
+            "nodeFrom": "general-purpose-relays",
+            "nodeTo": "relay-nostr-band"
+        },
+        {
+            "nodeFrom": "dlist-relays",
+            "nodeTo": "dcosl-brainstorm-world"
+        },
+        {
+            "nodeFrom": "web-of-trust-relays",
+            "nodeTo": "wot-grapevine-network"
+        },
+        {
+            "nodeFrom": "trusted-assertion-relays",
+            "nodeTo": "nip85-nostr-band"
+        },
+        {
+            "nodeFrom": "trusted-assertion-relays",
+            "nodeTo": "nip85-brainstorm-world"
+        },
+        {
+            "nodeFrom": "trusted-assertion-relays",
+            "nodeTo": "nip85-nostr1-com"
+        },
+        {
+            "nodeFrom": "trusted-list-relays",
+            "nodeTo": "nip85-brainstorm-world"
+        },
+        {
+            "nodeFrom": "trusted-list-relays",
+            "nodeTo": "dcosl-brainstorm-world"
+        },
+        {
+            "nodeFrom": "safe-mode-relays",
+            "nodeTo": "nip85-brainstorm-world"
+        },
+        {
+            "nodeFrom": "safe-mode-relays",
+            "nodeTo": "dcosl-brainstorm-world"
+        },
+        {
+            "nodeFrom": "safe-mode-relays",
+            "nodeTo": "wot-grapevine-network"
+        }
+    ],
+    "IS_A_SUPERSET_OF": [
+        {
+            "nodeFrom": "organization-by-monetization",
+            "nodeTo": "free-relays"
+        },
+        {
+            "nodeFrom": "organization-by-monetization",
+            "nodeTo": "paid-relays"
+        },
+        {
+            "nodeFrom": "organization-by-firmware",
+            "nodeTo": "profile-relays"
+        },
+        {
+            "nodeFrom": "organization-by-firmware",
+            "nodeTo": "general-purpose-relays"
+        },
+        {
+            "nodeFrom": "organization-by-firmware",
+            "nodeTo": "dlist-relays"
+        },
+        {
+            "nodeFrom": "organization-by-firmware",
+            "nodeTo": "web-of-trust-relays"
+        },
+        {
+            "nodeFrom": "organization-by-firmware",
+            "nodeTo": "trusted-assertion-relays"
+        },
+        {
+            "nodeFrom": "organization-by-firmware",
+            "nodeTo": "trusted-list-relays"
+        },
+        {
+            "nodeFrom": "organization-by-firmware",
+            "nodeTo": "safe-mode-relays"
+        },
+        {
+            "nodeFrom": "organization-by-firmware",
+            "nodeTo": "outbox-relays"
+        }
+    ]
+}

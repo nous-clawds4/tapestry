@@ -1,0 +1,21 @@
+{
+  "word": {
+    "slug": "concept-header-for-the-concept-of-graperank",
+    "name": "concept header for the concept of graperank",
+    "title": "Concept Header for the Concept of GrapeRank",
+    "wordTypes": ["word", "conceptHeader"]
+  },
+  "conceptHeader": {
+    "description": "GrapeRank is a contextual Web of Trust scoring algorithm for Nostr created by Dave Strayhorn (wds4). Described as 'PageRank for people', it computes personalized trust scores by processing social graph data from nostr follow events (kind 3) and mute lists (kind 10000). Outputs per-user metrics including a GrapeRank score, a PageRank score, and degrees-of-separation, which can be exported as kind 30382 events (NIP-85). Used in Tapestry to determine which concept definitions and curations achieve community 'loose consensus'.",
+    "oNames": { "singular": "graperank", "plural": "graperanks" },
+    "oSlugs": { "singular": "graperank", "plural": "graperanks" },
+    "oKeys": { "singular": "graperank", "plural": "graperanks" },
+    "oTitles": { "singular": "GrapeRank", "plural": "GrapeRanks" },
+    "oLabels": { "singular": "GrapeRank", "plural": "GrapeRanks" },
+    "x-tapestry": {
+      "neo4j": {
+        "nodeLabelRequired": false
+      }
+    }
+  }
+}

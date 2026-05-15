@@ -1,0 +1,13 @@
+{
+    "HAS_ELEMENT": [
+        {
+            "nodeFrom": "numeric-types",
+            "nodeTo": "integer"
+        },
+        {
+            "nodeFrom": "numeric-types",
+            "nodeTo": "number"
+        }
+    ],
+    "IS_A_SUPERSET_OF": []
+}

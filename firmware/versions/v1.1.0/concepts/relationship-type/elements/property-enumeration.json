@@ -1,0 +1,19 @@
+{
+  "word": {
+    "slug": "PROPERTY_ENUMERATION",
+    "name": "property enumeration",
+    "title": "Property Enumeration",
+    "description": "Indicates that a concept's elements enumerate the values of a property.",
+    "wordTypes": ["word", "relationshipType"]
+  },
+  "relationshipType": {
+    "slug": "PROPERTY_ENUMERATION",
+    "alias": "ENUMERATES",
+    "name": "property enumeration",
+    "title": "Property Enumeration",
+    "description": "Connects a Concept Header to a Property, indicating the concept's elements enumerate that property's values.",
+    "nodeFromType": "conceptHeader",
+    "nodeToType": "property",
+    "category": "propertyTree"
+  }
+}

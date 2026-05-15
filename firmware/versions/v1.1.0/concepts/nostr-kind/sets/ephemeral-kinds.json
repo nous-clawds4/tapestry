@@ -1,0 +1,14 @@
+{
+  "word": {
+    "slug": "the-set-of-ephemeral-nostr-kinds",
+    "name": "The set of ephemeral nostr kinds",
+    "title": "The Set of Ephemeral Nostr Kinds",
+    "wordTypes": ["word", "set"]
+  },
+  "set": {
+    "slug": "ephemeral-kinds",
+    "name": "ephemeral kinds",
+    "title": "Ephemeral Kinds",
+    "description": "Nostr event kinds (20000–29999) that are not expected to be stored by relays; they are routed to subscribers in real time and then discarded."
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "word": {
+    "slug": "nostr-kind--kind-10001",
+    "name": "nostr kind: 10001 (Pin List)",
+    "title": "Nostr Kind: 10001 (Pin List)",
+    "wordTypes": ["word", "nostrKind"]
+  },
+  "nostrKind": {
+    "kind": 10001,
+    "name": "Pin List",
+    "nip": "NIP-51",
+    "replaceability": "replaceable",
+    "description": "A user's list of pinned events, displayed prominently on their profile. Stored as e-tags referencing the pinned event IDs."
+  }
+}

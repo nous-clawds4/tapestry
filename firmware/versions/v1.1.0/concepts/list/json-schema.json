@@ -1,0 +1,76 @@
+{
+    "word": {
+        "slug": "json-schema-for-the-concept-of-lists",
+        "name": "JSON Schema for the concept of lists",
+        "title": "JSON Schema for the Concept of Lists",
+        "description": "This is the JSON Schema for elements of the concept of lists. Every element of this concept must validate against this JSON schema.",
+        "wordTypes": [
+            "word",
+            "jsonSchema"
+        ],
+        "coreMemberOf": [
+            {
+                "slug": "concept-header-for-the-concept-of-lists",
+                "uuid": "<uuid>"
+            }
+        ]
+    },
+    "jsonSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "name": "list",
+        "title": "List",
+        "description": "JSON Schema for the concept of lists",
+        "required": [
+            "list"
+        ],
+        "definitions": {},
+        "properties": {
+            "list": {
+                "type": "object",
+                "name": "list",
+                "title": "List",
+                "slug": "list",
+                "description": "data about this list",
+                "required": [
+                    "slug"
+                ],
+                "properties": {
+                    "slug": {
+                        "type": "string",
+                        "name": "slug",
+                        "title": "Slug",
+                        "slug": "slug",
+                        "description": "The slug for this list"
+                    },
+                    "name": {
+                        "type": "string",
+                        "name": "name",
+                        "title": "Name",
+                        "slug": "name",
+                        "description": "The name for this list"
+                    },
+                    "title": {
+                        "type": "string",
+                        "name": "title",
+                        "title": "Title",
+                        "slug": "title",
+                        "description": "The title for this list"
+                    },
+                    "description": {
+                        "type": "string",
+                        "name": "description",
+                        "title": "Description",
+                        "slug": "description",
+                        "description": "The top-level description for this list"
+                    }
+                },
+                "x-tapestry": {
+                    "unique": [
+                        "slug"
+                    ]
+                }
+            }
+        }
+    }
+}

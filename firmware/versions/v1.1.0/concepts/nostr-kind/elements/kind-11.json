@@ -1,0 +1,15 @@
+{
+  "word": {
+    "slug": "nostr-kind--kind-11",
+    "name": "nostr kind: 11 (Thread)",
+    "title": "Nostr Kind: 11 (Thread)",
+    "wordTypes": ["word", "nostrKind"]
+  },
+  "nostrKind": {
+    "kind": 11,
+    "name": "Thread",
+    "nip": "NIP-7D",
+    "replaceability": "regular",
+    "description": "A threaded discussion post, similar to kind 1 but with explicit thread semantics. Used in forum-like contexts where a clear root-and-reply structure is desired."
+  }
+}

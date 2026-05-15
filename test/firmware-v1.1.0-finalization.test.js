@@ -133,7 +133,10 @@ test('no SKELETON / NOT YET DEPLOYABLE markers anywhere under firmware/versions/
   const offenders = [];
   for (const f of files) {
     const raw = fs.readFileSync(f, 'utf8');
-    if (/SKELETON|NOT YET DEPLOYABLE|not yet deployable/i.test(raw)) {
+    // Match the uppercase SKELETON placeholder marker only — the
+    // lowercase word "skeleton" appears legitimately in domain copy
+    // (e.g. node-type/json-schema.json: "the concept skeleton for…").
+    if (/\bSKELETON\b|NOT YET DEPLOYABLE|Not yet deployable/.test(raw)) {
       offenders.push(path.relative(ROOT, f));
     }
   }

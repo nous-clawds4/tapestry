@@ -1,0 +1,15 @@
+{
+  "word": {
+    "slug": "nostr-kind--kind-0",
+    "name": "nostr kind: 0 (User Metadata)",
+    "title": "Nostr Kind: 0 (User Metadata)",
+    "wordTypes": ["word", "nostrKind"]
+  },
+  "nostrKind": {
+    "kind": 0,
+    "name": "User Metadata",
+    "nip": "NIP-01",
+    "replaceability": "replaceable",
+    "description": "Profile metadata for a user, including name, about, picture, and other fields serialized as JSON in the content field. Replaced by the latest event with the same pubkey."
+  }
+}

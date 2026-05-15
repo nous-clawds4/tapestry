@@ -1,0 +1,21 @@
+{
+  "word": {
+    "slug": "concept-header-for-the-concept-of-nostr-events",
+    "name": "concept header for the concept of nostr events",
+    "title": "Concept Header for the Concept of Nostr Events",
+    "wordTypes": ["word", "conceptHeader"]
+  },
+  "conceptHeader": {
+    "description": "A Nostr event is the fundamental data unit of the Nostr protocol — a cryptographically signed JSON object with fields: id (SHA256 of serialized content), pubkey (author's public key), created_at (Unix timestamp), kind (integer classifying the event type), tags (array of metadata arrays), content (arbitrary string payload), and sig (Schnorr signature). Defined in NIP-01.",
+    "oNames": { "singular": "nostr event", "plural": "nostr events" },
+    "oSlugs": { "singular": "nostr-event", "plural": "nostr-events" },
+    "oKeys": { "singular": "nostrEvent", "plural": "nostrEvents" },
+    "oTitles": { "singular": "Nostr Event", "plural": "Nostr Events" },
+    "oLabels": { "singular": "NostrEvent", "plural": "NostrEvents" },
+    "x-tapestry": {
+      "neo4j": {
+        "nodeLabelRequired": true
+      }
+    }
+  }
+}

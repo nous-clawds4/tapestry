@@ -1,0 +1,79 @@
+{
+    "word": {
+        "slug": "json-schema-for-the-concept-of-relationships",
+        "name": "JSON Schema for the concept of relationships",
+        "title": "JSON Schema for the Concept of Relationships",
+        "description": "This is the JSON Schema for elements of the concept of relationships. Every element of this concept must validate against this JSON schema.",
+        "wordTypes": [
+            "word",
+            "jsonSchema"
+        ],
+        "coreMemberOf": [
+            {
+                "slug": "concept-header-for-the-concept-of-relationships",
+                "uuid": "<uuid>"
+            }
+        ]
+    },
+    "jsonSchema": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "type": "object",
+        "name": "relationship",
+        "title": "Relationship",
+        "description": "JSON Schema for the concept of relationships",
+        "required": [
+            "relationship"
+        ],
+        "definitions": {},
+        "properties": {
+            "relationship": {
+                "type": "object",
+                "name": "relationship",
+                "title": "Relationship",
+                "slug": "relationship",
+                "description": "data about this relationship",
+                "required": [
+                    "slug",
+                    "nodeFrom",
+                    "relationshipType",
+                    "nodeTo"
+                ],
+                "properties": {
+                    "slug": {
+                        "type": "string",
+                        "name": "slug",
+                        "title": "Slug",
+                        "slug": "slug",
+                        "description": "The slug for this relationship"
+                    },
+                    "nodeFrom": {
+                        "type": "string",
+                        "name": "node from",
+                        "title": "Node From",
+                        "slug": "nodeFrom",
+                        "description": "The origin node for this relationship"
+                    },
+                    "relationshipType": {
+                        "type": "string",
+                        "name": "relationship type",
+                        "title": "Relationship Type",
+                        "slug": "relationshipType",
+                        "description": "The type of this relationship"
+                    },
+                    "nodeTo": {
+                        "type": "string",
+                        "name": "node to",
+                        "title": "Node To",
+                        "slug": "nodeTo",
+                        "description": "The destination node for this relationship"
+                    }
+                },
+                "x-tapestry": {
+                    "unique": [
+                        "slug"
+                    ]
+                }
+            }
+        }
+    }
+}

@@ -1,0 +1,15 @@
+{
+    "word": {
+      "slug": "the-set-of-numeric-json-data-types",
+      "name": "The set of numeric json data types",
+      "title": "The Set of Numeric JSON Data Types",
+      "wordTypes": ["word", "set"]
+    },
+    "set": {
+      "slug": "numeric-json-data-types",
+      "name": "numeric json data types",
+      "title": "Numeric JSON Data Types",
+      "description": "These are the two json data types that are numeric."
+    }
+  }
+  

@@ -1,0 +1,15 @@
+{
+  "word": {
+    "slug": "nostr-kind--kind-30311",
+    "name": "nostr kind: 30311 (Live Event)",
+    "title": "Nostr Kind: 30311 (Live Event)",
+    "wordTypes": ["word", "nostrKind"]
+  },
+  "nostrKind": {
+    "kind": 30311,
+    "name": "Live Event",
+    "nip": "NIP-53",
+    "replaceability": "parameterized-replaceable",
+    "description": "A live audio/video streaming event with title, summary, image, streaming URL, and participant roster. Status tag indicates 'live', 'ended', or 'planned'; kind-1311 messages are the live chat."
+  }
+}

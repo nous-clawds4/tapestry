@@ -1,0 +1,21 @@
+{
+  "word": {
+    "slug": "concept-header-for-the-concept-of-dogs",
+    "name": "concept header for the concept of dogs",
+    "title": "Concept Header for the Concept of Dogs",
+    "wordTypes": ["word", "conceptHeader"]
+  },
+  "conceptHeader": {
+    "description": "",
+    "oNames": { "singular": "dog", "plural": "dogs" },
+    "oSlugs": { "singular": "dog", "plural": "dogs" },
+    "oKeys": { "singular": "dog", "plural": "dogs" },
+    "oTitles": { "singular": "Dog", "plural": "Dogs" },
+    "oLabels": { "singular": "Dog", "plural": "Dogs" },
+    "x-tapestry": {
+      "neo4j": {
+        "nodeLabelRequired": false
+      }
+    }
+  }
+}

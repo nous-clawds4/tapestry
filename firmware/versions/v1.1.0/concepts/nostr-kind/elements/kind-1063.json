@@ -1,0 +1,15 @@
+{
+  "word": {
+    "slug": "nostr-kind--kind-1063",
+    "name": "nostr kind: 1063 (File Metadata)",
+    "title": "Nostr Kind: 1063 (File Metadata)",
+    "wordTypes": ["word", "nostrKind"]
+  },
+  "nostrKind": {
+    "kind": 1063,
+    "name": "File Metadata",
+    "nip": "NIP-94",
+    "replaceability": "regular",
+    "description": "Metadata about a file hosted on a media server, including URL, MIME type, hash, size, and dimensions. Used to share and reference files (images, video, audio, etc.) with verifiable integrity."
+  }
+}

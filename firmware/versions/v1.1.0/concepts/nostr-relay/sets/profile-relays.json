@@ -1,0 +1,17 @@
+{
+  "word": {
+    "slug": "the-set-of-profile-relays",
+    "name": "The set of profile relays",
+    "title": "The Set of Profile Relays",
+    "wordTypes": [
+      "word",
+      "set"
+    ]
+  },
+  "set": {
+    "slug": "profile-relays",
+    "name": "profile relays",
+    "title": "Profile Relays",
+    "description": "Relays that specialize in serving kind 0 profile data (e.g., purplepag.es)."
+  }
+}

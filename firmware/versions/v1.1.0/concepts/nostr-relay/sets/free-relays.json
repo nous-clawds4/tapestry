@@ -1,0 +1,14 @@
+{
+  "word": {
+    "slug": "the-set-of-free-nostr-relays",
+    "name": "The set of free nostr relays",
+    "title": "The Set of Free Nostr Relays",
+    "wordTypes": ["word", "set"]
+  },
+  "set": {
+    "slug": "free-nostr-relays",
+    "name": "free nostr relays",
+    "title": "Free Nostr Relays",
+    "description": "These are nostr relays that do not charge for usage."
+  }
+}

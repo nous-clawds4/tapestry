@@ -1,0 +1,17 @@
+{
+  "word": {
+    "slug": "the-set-of-safe-mode-relays",
+    "name": "The set of safe mode relays",
+    "title": "The Set of Safe Mode Relays",
+    "wordTypes": [
+      "word",
+      "set"
+    ]
+  },
+  "set": {
+    "slug": "safe-mode-relays",
+    "name": "safe mode relays",
+    "title": "Safe Mode Relays",
+    "description": "Minimal set of relays for safe mode operation."
+  }
+}

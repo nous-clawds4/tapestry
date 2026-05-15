@@ -1,0 +1,14 @@
+{
+  "word": {
+    "slug": "the-set-of-paid-nostr-relays",
+    "name": "The set of paid nostr relays",
+    "title": "The Set of Paid Nostr Relays",
+    "wordTypes": ["word", "set"]
+  },
+  "set": {
+    "slug": "paid-nostr-relays",
+    "name": "paid nostr relays",
+    "title": "Paid Nostr Relays",
+    "description": "These are nostr relays that implement some sort of subscription model or other monetization system."
+  }
+}

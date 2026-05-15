@@ -1,0 +1,15 @@
+{
+  "word": {
+    "slug": "nostr-kind--kind-1059",
+    "name": "nostr kind: 1059 (Gift Wrap)",
+    "title": "Nostr Kind: 1059 (Gift Wrap)",
+    "wordTypes": ["word", "nostrKind"]
+  },
+  "nostrKind": {
+    "kind": 1059,
+    "name": "Gift Wrap",
+    "nip": "NIP-59",
+    "replaceability": "regular",
+    "description": "An outer envelope for sealed private messages published with a random throwaway keypair. The content is a NIP-44 encrypted kind-13 Seal; the p-tag is the recipient's pubkey. Hides sender identity from relays."
+  }
+}

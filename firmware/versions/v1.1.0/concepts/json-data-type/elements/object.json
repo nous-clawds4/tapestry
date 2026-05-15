@@ -1,0 +1,16 @@
+{
+  "word": {
+    "slug": "json-data-type--object",
+    "name": "JSON data type: object",
+    "title": "JSON Data Type: Object",
+    "description": "A collection of key-value pairs (JSON object)",
+    "wordTypes": ["word", "jsonDataType"]
+  },
+  "jsonDataType": {
+    "slug": "object",
+    "name": "object",
+    "title": "Object",
+    "url": "https://json-schema.org/understanding-json-schema/reference/object",
+    "description": "A collection of key-value pairs (JSON object)"
+  }
+}

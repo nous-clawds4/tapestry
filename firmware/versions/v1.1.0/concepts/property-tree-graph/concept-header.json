@@ -1,0 +1,21 @@
+{
+  "word": {
+    "slug": "concept-header-for-the-concept-of-property-tree-graphs",
+    "name": "concept header for the concept of property tree graphs",
+    "title": "Concept Header for the Concept of Property Tree Graphs",
+    "wordTypes": ["word", "conceptHeader"]
+  },
+  "conceptHeader": {
+    "description": "A graph recording the property tree structure of a concept.",
+    "oNames": { "singular": "property tree graph", "plural": "property tree graphs" },
+    "oSlugs": { "singular": "property-tree-graph", "plural": "property-tree-graphs" },
+    "oKeys": { "singular": "propertyTreeGraph", "plural": "propertyTreeGraphs" },
+    "oTitles": { "singular": "Property Tree Graph", "plural": "Property Tree Graphs" },
+    "oLabels": { "singular": "PropertyTreeGraph", "plural": "PropertyTreeGraphs" },
+    "x-tapestry": {
+      "neo4j": {
+        "nodeLabelRequired": false
+      }
+    }
+  }
+}

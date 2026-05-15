@@ -1,0 +1,15 @@
+{
+  "word": {
+    "slug": "nostr-kind--kind-1311",
+    "name": "nostr kind: 1311 (Live Chat Message)",
+    "title": "Nostr Kind: 1311 (Live Chat Message)",
+    "wordTypes": ["word", "nostrKind"]
+  },
+  "nostrKind": {
+    "kind": 1311,
+    "name": "Live Chat Message",
+    "nip": "NIP-53",
+    "replaceability": "regular",
+    "description": "A chat message in a live event stream. The a-tag references the kind-30311 Live Event; used for real-time audience participation during live audio/video broadcasts."
+  }
+}

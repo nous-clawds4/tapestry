@@ -1,0 +1,15 @@
+{
+  "word": {
+    "slug": "nostr-kind--kind-7",
+    "name": "nostr kind: 7 (Reaction)",
+    "title": "Nostr Kind: 7 (Reaction)",
+    "wordTypes": ["word", "nostrKind"]
+  },
+  "nostrKind": {
+    "kind": 7,
+    "name": "Reaction",
+    "nip": "NIP-25",
+    "replaceability": "regular",
+    "description": "A reaction (like, dislike, or custom emoji) to another event. The content is typically '+', '-', or a custom emoji shortcode; e-tags and p-tags reference the reacted-to event and its author."
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "word": {
+    "slug": "nostr-relay--purplepag-es",
+    "name": "nostr relay: purplepag.es",
+    "title": "Nostr Relay: purplepag.es",
+    "wordTypes": [
+      "word",
+      "nostrRelay"
+    ]
+  },
+  "nostrRelay": {
+    "slug": "purplepag-es",
+    "websocketUrl": "wss://purplepag.es",
+    "httpUrl": "https://purplepag.es"
+  }
+}
