@@ -130,6 +130,26 @@ Append-only log of incoming requests, raw, with classification and chosen phase 
 
 ---
 
+## 2026-05-14 — Feature: Brainstorm Communities — Slice 6 (Participate: kind-1 reads + writes on the Conversation tab)
+
+**Raw request (verbatim):**
+
+> yes, slice 6
+
+**Pre-intake context:**
+
+- Slice 6 is the **last v1 slice** per PLAN.md §6 Q5.4 ("Participate (basic v1)"). It wires the Conversation tab from showing hand-typed mock posts to fetching real kind-1 events from the community's relay set and publishing real kind-1 events when a joined member submits the composer.
+- The relay-side membership whitelist (PLAN.md §2 / §8) is what gates writes in production — a non-member's publish gets rejected at the relay layer. The UI's role is to **hide the composer** for non-members and surface the kind-1 feed for everyone. v1 doesn't generate the whitelist (deferred to v1.1 alongside mirror tooling), but the UI shape is correct for when it lands.
+- Mock-mode keeps the wizard-internal mock posts (`c.posts` arrays in `mockData.dev`-style retention) so the Conversation tab stays populated for local dev review. Real-mode reads kind-1 events from `wss://communities.brainstorm.world` filtered by `{ kinds: [1], '#a': [communityATag] }`.
+- The composer is gated on `signedIn && joinedSet.has(slug)`. Mock-mode publish via the existing `[publish/mock]` console log; real-mode WebSocket-publish via the same wrapper Slices 4 + 5 use.
+- **Inherits NB-4 from Slice 2** (real backend data sources not yet live for the community list itself) — Slice 6 reads kind-1 directly from the relay, not via the API, so it's independent of NB-4 and works end-to-end in production as soon as the droplet exists.
+
+**Classification:** Feature
+**Strictness:** Standard
+**Phase path:** Planning → Architecture → Test Design → Implementation → Review. Live behavior against real strfry deferred to staging smoke.
+
+---
+
 ## 2026-05-13 — Scheduled task: refresh Meilisearch profiles + House PoV WoT scores
 
 **Raw request (verbatim):**
