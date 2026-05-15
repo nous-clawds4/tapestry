@@ -48,14 +48,18 @@ jobs:
             npm ci --production=false
             npm run build
 
+            # Find where standalone put server.js (Next.js preserves full path)
+            SERVER_JS=$(find .next/standalone -name "server.js" -type f | head -1)
+            SERVER_DIR=$(dirname "$SERVER_JS")
+
             # Copy static assets into standalone (required by Next.js standalone)
-            cp -r public .next/standalone/public 2>/dev/null || true
-            mkdir -p .next/standalone/.next
-            cp -r .next/static .next/standalone/.next/static
+            cp -r public "$SERVER_DIR/public" 2>/dev/null || true
+            mkdir -p "$SERVER_DIR/.next"
+            cp -r .next/static "$SERVER_DIR/.next/static"
 
             # Restart the app via pm2
             pm2 delete curate 2>/dev/null || true
-            cd .next/standalone
+            cd "$SERVER_DIR"
             PORT=3000 pm2 start server.js --name curate
             pm2 save
 
