@@ -1,0 +1,12 @@
+.stack { display: inline-flex; align-items: center; }
+.item { display: inline-flex; }
+.overflow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-hover);
+  color: var(--text-muted);
+  font-weight: 600;
+}

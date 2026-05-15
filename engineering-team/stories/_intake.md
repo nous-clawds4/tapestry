@@ -4,6 +4,112 @@ Append-only log of incoming requests, raw, with classification and chosen phase 
 
 ---
 
+## 2026-05-14 — Feature: Brainstorm Communities — Slice 0 (UI scaffold)
+
+**Raw request (verbatim):**
+
+> build out brainstorm communities. […] feat/communities branch is my playground that the repo owner (David Strayhorn) has created for me. Anything I push to that branch will show up on communities.brainstorm.world (he said there's a CI/CD pipeline that handles the deployment automatically). I have some handoff files - basically wireframes from claude design I can share with you to use as a starting point […] the look and feel of the UI needs to be top notch and modern - not a whiff of vibe coded app should be in there, so in that sense, use the wireframes as a starting point in the visual design.
+
+**Pre-intake context captured:**
+
+- Feature is sliced into 7 phases — see [`PLAN.md`](../../PLAN.md) §6/§8 and the locked decisions in user memory (`project_communities_v1_decisions.md`):
+  - **Slice 0** — `ui-communities/` scaffold + Neon-grounded brand palette + mock-data parity with handoff + `deploy-communities.yml` + Express mount **(this story)**
+  - Slice 1 — Firmware v1.1.0 activation (`brainstorm-community`, `brainstorm-community-signal`)
+  - Slice 2 — GR-Community scoring + REST API
+  - Slice 3 — Discover (read-only)
+  - Slice 4 — Detail + Join + Vouch (first write surface)
+  - Slice 5 — Found (5-step wizard)
+  - Slice 6 — Participate (kind-1 read/write gated on membership)
+- Design handoff at `design-handoff/project/` (HTML prototype + JSX components). Brand kit at `design-handoff/Brainstorm Logo/` (SVG/PNG, MuseoModerno variable fonts).
+- Locked palette (sampled from official PNGs, not the prototype's generic lavender): brand `#662d91`, accent `#ba20ba`, highlight `#fbb03b`. See `project_communities_brand.md` in user memory.
+- Code placement decision: new parallel `ui-communities/` Vite app, sibling to the existing `ui/`. Builds to its own dist; Express serves it for the `communities.brainstorm.world` subdomain.
+- Engineering-team harness applies per slice. User has granted blanket inter-phase approval for Slice 0 ("just get going on the plan and keep going").
+
+**Classification:** Feature
+**Strictness:** Standard
+**Phase path:** Planning → Architecture → Test Design → Implementation → Review (all five phases apply per Standard / Feature). Slice 0 stops short of any protocol writes; Slice 1+ pick those up.
+
+---
+
+## 2026-05-14 — Feature: Brainstorm Communities — Slice 1 (firmware v1.1.0 finalization)
+
+**Raw request (verbatim):**
+
+> great. on to slice 1 then
+
+**Pre-intake context:**
+
+- Slice 1 finalizes the firmware v1.1.0 skeleton at `firmware/versions/v1.1.0/` so it becomes deployable. Skeleton currently has only the 2 new concepts (`brainstorm-community`, `brainstorm-community-signal`); the manifest is missing the 34 v1.0.0 concepts plus the `enumerations`, `elements`, `sets`, `changelog`, and `relationshipTypes` top-level entries. See [PLAN.md §5](../../PLAN.md#5-firmware-additions) and the SKELETON note in [v1.1.0/manifest.json](../../firmware/versions/v1.1.0/manifest.json).
+- The two new concept-header.json and json-schema.json files are already well-shaped against PLAN.md §3 (DList layer ↔ Concept layer mapping). Minor schema gap: the brainstorm-community JSON Schema does not yet expose the optional NIP-72-wrapping `a` tag per PLAN.md §3 / DECENTRALIZED_LISTS_COMPAT.md Method 2.
+- `firmware/active` symlink currently points at `versions/v1.0.0`. PLAN.md says v1.1.0 stays staged until the active symlink is flipped; this story decides whether the flip happens here or in a separate operator-driven step.
+- No running Tapestry instance in this branch, so live `POST /api/firmware/install` verification is deferred to staging smoke (matches the pattern from story #5).
+
+**Classification:** Feature
+**Strictness:** Standard
+**Phase path:** Planning → Architecture → Test Design → Implementation → Review (all five phases apply). Live install verification deferred to staging smoke.
+
+---
+
+## 2026-05-14 — Feature: Brainstorm Communities — Slice 2 (GR-Community scoring + REST API)
+
+**Raw request (verbatim):**
+
+> keep going
+
+**Pre-intake context:**
+
+- Slice 2 implements the **server-side GR-Community scoring system** (PLAN.md §4) and the **REST API contract** that Slice 3 (Discover) will consume. Scoring is a two-gate confidence-weighted GrapeRank variant: `weight(rater) = baseline_gr(rater) * community_gr(rater)`.
+- Existing GrapeRank at `src/algos/personalizedGrapeRank/` is heavyweight (file-based, scorecards.json, /var/lib persistence). Per-community scoring is bounded (~hundreds of members per community), so an in-memory implementation with deterministic input → output is sufficient. The existing global GR stays unchanged.
+- Live behavior against real strfry/Neo4j is deferred to staging smoke (same pattern as #4/#5/#7). Slice 2 ships the **math** (unit-tested against synthetic graphs) and the **REST contract** (correctly-shaped JSON, empty-when-empty), so Slice 3 can swap mock-data imports for `fetch('/api/communities')` calls.
+
+**Classification:** Feature
+**Strictness:** Standard
+**Phase path:** Planning → Architecture → Test Design → Implementation → Review. Live behavior deferred to staging smoke.
+
+---
+
+## 2026-05-14 — Feature: Brainstorm Communities — Slice 3 (Discover swaps mock data for API)
+
+**Raw request (verbatim):**
+
+> slice 3
+
+**Pre-intake context:**
+
+- Slice 3 swaps the `ui-communities/` read path from `src/data/mockData.js` to the REST endpoints landed in Slice 2 (`GET /api/communities`, `/:slug`, `/:slug/members`). Discover is the first surface that reads from the network; CommunityDetail and Edit follow.
+- Slice 2's data-source layer is stubbed, so a fresh deploy answers with `{ communities: [] }`. Local dev needs the mock data to stay populated; production needs to honestly show the empty state. Introduce an explicit `VITE_USE_MOCK_DATA` env toggle, default `true` in dev / `false` in build — never conditional on the API's actual response shape.
+- Scoped to read-only surfaces. MyCircles + Create stay on mock data this slice because they depend on a viewer's joined-set (Slice 4 auth) and a member-search endpoint (no such endpoint exists yet). Write paths land in Slice 4.
+
+**Classification:** Feature
+**Strictness:** Standard
+**Phase path:** Planning → Architecture → Test Design → Implementation → Review. Live behavior deferred to staging smoke.
+
+---
+
+## 2026-05-14 — Feature: Brainstorm Communities — Slice 4 (NIP-07 sign-in + Join / Vouch / Raise a concern writes)
+
+**Raw request (verbatim):**
+
+> yes, typo - brainstorm.world, not social. Push now, then move on to slice 4
+
+**Locked decisions captured at intake:**
+
+- Dev-mode publish behavior: **mock publish** — NIP-07 prompt fires, event gets signed, the signed event is `console.log`'d and local state updates optimistically. No relay round-trip in dev. Re-uses the existing `VITE_USE_MOCK_DATA` toggle so mock-data + mock-publish are paired states.
+- Default production relay: **wss://communities.brainstorm.world** — self-hosted on the same droplet that serves the UI.
+- "Raise a concern" UX: **one-click veto with optional comment** — confirmation dialog surfaces an optional `comments` textarea (matches the firmware schema's optional field per Slice 1).
+
+**Pre-intake context:**
+
+- Slice 4 is the first slice that writes. The Sign-in button stops being a no-op; Join / Vouch / Raise-a-concern start publishing real signed nostr events. The viewer pubkey starts threading through `getCommunities(viewer)` etc. so the API can personalize per-viewer.
+- Event shapes follow Slice 1's firmware schemas (kind 39999, `a` tag for the community, `p` tag for the target on signal events, `type` and `role` tags with defaults).
+- Leave semantics are intentionally Slice-4-light: local-state-only "leave" for v1 (real nostr "delete" via NIP-09 / DList header replacement is a follow-up story). Documented as out-of-scope.
+
+**Classification:** Feature
+**Strictness:** Standard
+**Phase path:** Planning → Architecture → Test Design → Implementation → Review. Live publish-to-real-relay deferred to staging smoke.
+
+---
+
 ## 2026-05-13 — Scheduled task: refresh Meilisearch profiles + House PoV WoT scores
 
 **Raw request (verbatim):**

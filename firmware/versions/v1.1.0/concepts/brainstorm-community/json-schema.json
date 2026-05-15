@@ -3,7 +3,7 @@
         "slug": "json-schema-for-the-concept-of-brainstorm-communities",
         "name": "JSON Schema for the concept of brainstorm communities",
         "title": "JSON Schema for the Concept of Brainstorm Communities",
-        "description": "the json schema for the concept of brainstorm communities. SKELETON — schema may evolve before v1.1.0 is activated.",
+        "description": "The JSON Schema for the concept of brainstorm communities.",
         "wordTypes": ["word", "jsonSchema"],
         "coreMemberOf": [
             {
@@ -87,7 +87,14 @@
                         "name": "founder",
                         "title": "Founder",
                         "slug": "founder",
-                        "description": "Pubkey of the original founder. Informational only — has no special algorithmic privilege."
+                        "description": "Pubkey of the original founder. Informational only; has no special algorithmic privilege."
+                    },
+                    "nip72Wrapping": {
+                        "type": "string",
+                        "name": "nip72Wrapping",
+                        "title": "NIP-72 Wrapping",
+                        "slug": "nip72-wrapping",
+                        "description": "Optional NIP-72 wrapping reference in the form '34550:<creator>:<d-tag>'. Present when this Brainstorm community wraps an existing NIP-72 (kind 34550) community per DECENTRALIZED_LISTS_COMPAT.md Method 2. Absent for native Brainstorm communities."
                     },
                     "relays": {
                         "type": "array",

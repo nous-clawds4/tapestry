@@ -84,6 +84,10 @@ RUN cd /usr/local/lib/node_modules/brainstorm && npm install
 COPY ui/package.json ui/package-lock.json /usr/local/lib/node_modules/brainstorm/ui/
 RUN cd /usr/local/lib/node_modules/brainstorm/ui && npm ci
 
+# Communities UI dependencies (cached until ui-communities/package.json changes)
+COPY ui-communities/package.json ui-communities/package-lock.json /usr/local/lib/node_modules/brainstorm/ui-communities/
+RUN cd /usr/local/lib/node_modules/brainstorm/ui-communities && npm ci
+
 # NIP-50 proxy dependencies (cached until nip50-proxy/package.json changes)
 COPY nip50-proxy/package.json /usr/local/lib/node_modules/brainstorm/nip50-proxy/
 RUN cd /usr/local/lib/node_modules/brainstorm/nip50-proxy && npm install
@@ -96,6 +100,10 @@ RUN find /usr/local/lib/node_modules/brainstorm -name "*.sh" -exec chmod +x {} +
 
 # Only the Vite build runs on each deploy (~12s local, ~30-60s on 2 vCPUs)
 RUN cd /usr/local/lib/node_modules/brainstorm/ui && npm run build
+
+# Communities UI Vite build — emits to ../dist-communities. Served by Express
+# only on the communities.* host (see bin/control-panel.js SPA catch-all).
+RUN cd /usr/local/lib/node_modules/brainstorm/ui-communities && npm run build
 
 # Nginx config
 COPY docker/nginx.conf /etc/nginx/sites-available/brainstorm

@@ -486,6 +486,12 @@ async function register(app) {
     const { registerConceptGraphRoutes } = require('./concept-graph');
     registerConceptGraphRoutes(app);
 
+    // ── Brainstorm Communities API (public read-only) ──
+    const communitiesApi = require('./communities');
+    app.get('/api/communities', communitiesApi.handleList);
+    app.get('/api/communities/:slug', communitiesApi.handleDetail);
+    app.get('/api/communities/:slug/members', communitiesApi.handleMembers);
+
     // ── Tapestry Key / LMDB Store API ──
     const { registerTapestryKeyRoutes } = require('./tapestry-key');
     registerTapestryKeyRoutes(app);

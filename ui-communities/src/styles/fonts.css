@@ -1,0 +1,40 @@
+/*
+ * Self-hosted typography — no CDN.
+ *
+ * MuseoModerno ships with the Brainstorm brand kit.
+ * DM Sans bundled from the official Google Fonts repo (OFL).
+ *
+ * Both are variable fonts so we get the full weight range from one file.
+ */
+
+@font-face {
+  font-family: 'MuseoModerno';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('/fonts/MuseoModerno-VariableFont_wght.ttf') format('truetype-variations');
+}
+
+@font-face {
+  font-family: 'MuseoModerno';
+  font-style: italic;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('/fonts/MuseoModerno-Italic-VariableFont_wght.ttf') format('truetype-variations');
+}
+
+@font-face {
+  font-family: 'DM Sans';
+  font-style: normal;
+  font-weight: 100 1000;
+  font-display: swap;
+  src: url('/fonts/DMSans-VariableFont.ttf') format('truetype-variations');
+}
+
+@font-face {
+  font-family: 'DM Sans';
+  font-style: italic;
+  font-weight: 100 1000;
+  font-display: swap;
+  src: url('/fonts/DMSans-Italic-VariableFont.ttf') format('truetype-variations');
+}

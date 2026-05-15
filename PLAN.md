@@ -229,6 +229,8 @@ A skeleton of v1.1.0 lives at `firmware/versions/v1.1.0/`:
 
 The `firmware/active` symlink is **not** changed; it still points at `versions/v1.0.0`. v1.1.0 is staged for future activation, not live.
 
+**Finalized 2026-05-14** in story #7. The v1.1.0 manifest was merged with the v1.0.0 concept list, enumerations, elements, sets, relationshipTypes, and changelog. The SKELETON markers were stripped from the manifest and the four concept JSON files. The optional `nip72Wrapping` field was added to the brainstorm-community JSON Schema for NIP-72 a-tag wrapping (DECENTRALIZED_LISTS_COMPAT.md Method 2). The `firmware/active` symlink was flipped to `versions/v1.1.0`.
+
 ---
 
 ## 6. Open Design Questions

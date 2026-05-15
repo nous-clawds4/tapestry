@@ -72,6 +72,111 @@ tags:
 
 paths:
   # ──────────────────────────────────────────────
+  # Brainstorm Communities (Slice 2 — public read-only)
+  # ──────────────────────────────────────────────
+  /api/communities:
+    get:
+      tags: [Communities]
+      summary: List communities reachable through the viewer's trust network
+      description: |
+        Returns the set of Brainstorm Communities that the `viewer` pubkey can
+        reach via their web of trust, sorted by `trustedHere` descending.
+        Empty array on empty data (never 500). Public read-only. When `viewer`
+        is absent or malformed, falls back to the local Tapestry Assistant
+        pubkey.
+      parameters:
+        - in: query
+          name: viewer
+          schema: { type: string }
+          required: false
+          description: Hex pubkey of the viewer. Optional; falls back to local TA.
+      responses:
+        '200':
+          description: Communities list (possibly empty)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  communities: { type: array, items: { type: object } }
+  /api/communities/{slug}:
+    get:
+      tags: [Communities]
+      summary: One community record + the viewer's projection
+      description: |
+        Returns the named community as the viewer sees it. 404 with
+        `{ success: false }` when no community-record matches the slug in
+        the viewer's trust network.
+      parameters:
+        - in: path
+          name: slug
+          required: true
+          schema: { type: string }
+        - in: query
+          name: viewer
+          schema: { type: string }
+          required: false
+      responses:
+        '200':
+          description: Community detail
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  community: { type: object }
+        '404':
+          description: Circle not found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  message: { type: string }
+  /api/communities/{slug}/members:
+    get:
+      tags: [Communities]
+      summary: Membership roster with computed GR-Community scores
+      description: |
+        Returns each candidate pubkey with its computed GR-Community score
+        in [0, 1], an `isMember` boolean (score >= threshold), a vouchedBy
+        count, and a voucherNames array. Sorted by score desc; seeds always
+        score 1.
+      parameters:
+        - in: path
+          name: slug
+          required: true
+          schema: { type: string }
+        - in: query
+          name: viewer
+          schema: { type: string }
+          required: false
+      responses:
+        '200':
+          description: Member roster (possibly empty)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  members:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        pubkey: { type: string }
+                        score: { type: number }
+                        isMember: { type: boolean }
+                        vouchedBy: { type: number }
+                        voucherNames: { type: array, items: { type: string } }
+        '404':
+          description: Circle not found
+
+  # ──────────────────────────────────────────────
   # Auth
   # ──────────────────────────────────────────────
   /api/auth/verify:

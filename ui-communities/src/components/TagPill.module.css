@@ -1,0 +1,42 @@
+.pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 14px;
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--text-muted);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  white-space: nowrap;
+  transition:
+    color var(--dur-fast) var(--ease-out-cubic),
+    background var(--dur-fast) var(--ease-out-cubic),
+    border-color var(--dur-fast) var(--ease-out-cubic);
+}
+
+.small {
+  padding: 3px 10px;
+  font-size: var(--text-xs);
+}
+
+.clickable { cursor: pointer; }
+
+.clickable:hover {
+  color: var(--text);
+  border-color: var(--border-hover);
+  background: var(--bg-hover);
+}
+
+.active {
+  color: var(--accent);
+  background: var(--accent-muted);
+  border-color: var(--border-strong);
+}
+
+.active.clickable:hover {
+  color: var(--accent-hover);
+  background: var(--accent-muted);
+  border-color: var(--accent);
+}

@@ -3,7 +3,7 @@
         "slug": "json-schema-for-the-concept-of-brainstorm-community-signals",
         "name": "JSON Schema for the concept of brainstorm community signals",
         "title": "JSON Schema for the Concept of Brainstorm Community Signals",
-        "description": "the json schema for the concept of brainstorm community signals. SKELETON — schema may evolve before v1.1.0 is activated.",
+        "description": "The JSON Schema for the concept of brainstorm community signals.",
         "wordTypes": ["word", "jsonSchema"],
         "coreMemberOf": [
             {

@@ -128,6 +128,17 @@ app.use(express.static(path.join(__dirname, '../dist'), {
     }
 }));
 
+// Serve the Communities SPA build (ui-communities/) alongside the main ui/ dist.
+// Both static dirs are registered host-independently; Vite content-hashes asset
+// filenames so collisions are impossible. The SPA-fallback below picks the
+// right index.html based on the request hostname.
+app.use(express.static(path.join(__dirname, '../dist-communities'), {
+    setHeaders: (res, filePath) => {
+        if (filePath.endsWith('.css')) res.set('Content-Type', 'text/css');
+        else if (filePath.endsWith('.js')) res.set('Content-Type', 'text/javascript');
+    }
+}));
+
 // Serve static files from the public directory (legacy assets: CSS, JS, images)
 app.use(express.static(path.join(__dirname, '../public'), {
     setHeaders: (res, path, stat) => {
@@ -261,12 +272,27 @@ app.use(authMiddleware);
   const scheduledTasks = require('../src/api/scheduled-tasks');
   scheduledTasks.initScheduler();
 
-  // SPA catch-all: any route that didn't match a static file, API endpoint, or legacy page
-  // gets served the React app's index.html so client-side routing works on refresh.
+  // Host-aware SPA catch-all: any route that didn't match a static file, API endpoint, or
+  // legacy page gets served the appropriate React app's index.html so client-side routing
+  // works on refresh.
+  //
+  // The Brainstorm Communities surface (communities.brainstorm.world droplet) is served
+  // from `dist-communities/`; everything else (brainstorm.world, staging, tags) is served
+  // from `dist/`. Recognized communities hostnames: communities.brainstorm.world,
+  // communities.localhost, and any communities.* alias (for dev / staging variants).
+  const isCommunitiesHost = (req) => {
+    const h = (req.hostname || '').toLowerCase();
+    return h === 'communities.brainstorm.world'
+      || h === 'communities.localhost'
+      || h.startsWith('communities.');
+  };
   app.get('*', (req, res, next) => {
     // Don't catch API routes (already handled above)
     if (req.path.startsWith('/api/')) return next();
-    res.sendFile(path.join(__dirname, '../dist/index.html'));
+    const indexPath = isCommunitiesHost(req)
+      ? path.join(__dirname, '../dist-communities/index.html')
+      : path.join(__dirname, '../dist/index.html');
+    res.sendFile(indexPath);
   });
 
   if (useHTTPS) {

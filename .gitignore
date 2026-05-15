@@ -14,6 +14,12 @@ lerna-debug.log*
 .env.test
 .env.production
 
+# ui-communities ships committed mode toggles per Vite convention; only
+# the .local overrides are developer-private.
+!ui-communities/.env.development
+!ui-communities/.env.production
+ui-communities/.env.local
+
 docker-compose.override.yml
 
 # Diagnostic reports (https://nodejs.org/api/report.html)
@@ -41,6 +47,13 @@ archived2/
 node_modules/
 jspm_packages/
 related-repositories
+
+# Local design-handoff bundle (Claude Design export — reference only).
+# Brand assets we actually need get vendored into ui-communities/ during build.
+design-handoff/
+
+# Communities UI Vite build output
+dist-communities/
 
 # Playwright runtime artifacts
 test-results/
