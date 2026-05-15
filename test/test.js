@@ -31,6 +31,7 @@ const communitiesUiScaffold = require('./communities-ui-scaffold.test.js');
 const firmwareV110Finalization = require('./firmware-v1.1.0-finalization.test.js');
 const grCommunityScoringAndApi = require('./gr-community-scoring-and-api.test.js');
 const discoverSwapsMockDataForApi = require('./discover-swaps-mock-data-for-api.test.js');
+const nip07SigninAndWrites = require('./nip07-signin-and-writes.test.js');
 
 async function main() {
   console.log('Running Brainstorm tests...\n');
@@ -62,6 +63,9 @@ async function main() {
   console.log('\ndiscover-swaps-mock-data-for-api suite:');
   const discoverSwapsMockDataForApiResult = await discoverSwapsMockDataForApi.run();
 
+  console.log('\nnip07-signin-and-writes suite:');
+  const nip07SigninAndWritesResult = await nip07SigninAndWrites.run();
+
   console.log('\nTest Results');
   console.log('-------------');
   console.log(`Configuration Loading:                           ${configOk ? 'PASS' : 'FAIL'}`);
@@ -89,6 +93,9 @@ async function main() {
   console.log(
     `discover-swaps-mock-data-for-api suite:          ${discoverSwapsMockDataForApiResult.fail === 0 ? 'PASS' : 'FAIL'} (${discoverSwapsMockDataForApiResult.pass} passed, ${discoverSwapsMockDataForApiResult.fail} failed)`
   );
+  console.log(
+    `nip07-signin-and-writes suite:                   ${nip07SigninAndWritesResult.fail === 0 ? 'PASS' : 'FAIL'} (${nip07SigninAndWritesResult.pass} passed, ${nip07SigninAndWritesResult.fail} failed)`
+  );
 
   const overallOk =
     configOk &&
@@ -99,7 +106,8 @@ async function main() {
     communitiesUiScaffoldResult.fail === 0 &&
     firmwareV110FinalizationResult.fail === 0 &&
     grCommunityScoringAndApiResult.fail === 0 &&
-    discoverSwapsMockDataForApiResult.fail === 0;
+    discoverSwapsMockDataForApiResult.fail === 0 &&
+    nip07SigninAndWritesResult.fail === 0;
   console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);
   process.exit(overallOk ? 0 : 1);
 }
