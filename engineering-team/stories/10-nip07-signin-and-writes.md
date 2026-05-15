@@ -126,6 +126,6 @@ Resolved during PO drafting:
 
 ## Linked artifacts
 
-- ADR: `engineering-team/decisions/0008-nip07-signin-and-writes.md` (filled in by Architect)
+- ADR: [`engineering-team/decisions/0008-nip07-signin-and-writes.md`](../decisions/0008-nip07-signin-and-writes.md)
 - Test plan: `engineering-team/stories/10-nip07-signin-and-writes.test-plan.md` (filled in by Tester)
 - Review: `engineering-team/reviews/10-nip07-signin-and-writes.md` (filled in by Reviewer)
