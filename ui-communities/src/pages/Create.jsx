@@ -17,6 +17,7 @@ import ViewCallout from '../components/ViewCallout.jsx'
 import { communities, members, tags } from '../data/mockData.js'
 import { buildCommunitiesDListHeader, buildCommunityRecord } from '../events/build.js'
 import { publishEvent } from '../events/publish.js'
+import { publishErrorCopy, signInErrorCopy } from '../lib/errors.js'
 import { slugify } from '../lib/slug.js'
 import s from './Create.module.css'
 
@@ -343,30 +344,3 @@ function Footer({ primary, secondary }) {
   )
 }
 
-function publishErrorCopy(result) {
-  switch (result && result.error) {
-    case 'no-extension':
-      return 'Sign in with a nostr extension to publish.'
-    case 'rejected':
-      return 'Signing cancelled.'
-    case 'timeout':
-      return 'The relay took too long to confirm. Try again?'
-    case 'rejected-by-relay':
-      return 'The relay rejected this event.'
-    case 'network':
-      return 'We could not reach the relay. Check your connection?'
-    default:
-      return 'Something went wrong publishing. Try again?'
-  }
-}
-
-function signInErrorCopy(code) {
-  switch (code) {
-    case 'no-extension':
-      return 'You need a nostr browser extension (Alby, nos2x) to publish.'
-    case 'rejected':
-      return 'Sign-in cancelled.'
-    default:
-      return 'Sign-in failed. Try again?'
-  }
-}

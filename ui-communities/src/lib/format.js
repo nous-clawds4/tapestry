@@ -34,3 +34,23 @@ export function trustTier(level) {
   if (level >= 0.6) return { label: 'Active participant', tone: 'medium' }
   return { label: 'Newer to this circle', tone: 'soft' }
 }
+
+/* Short display form for a hex pubkey when we have no kind-0 profile.
+ * Renders as `npub1<first4>…<last4>` from the hex, good enough as a
+ * stable visual handle until profile resolution lands (Slice 2 NB-1). */
+export function npubShort(hex) {
+  if (!hex || typeof hex !== 'string') return ''
+  const clean = hex.replace(/^0x/, '')
+  if (clean.length < 12) return `npub1${clean}`
+  return `npub1${clean.slice(0, 4)}…${clean.slice(-4)}`
+}
+
+export function relativeTime(seconds) {
+  if (typeof seconds !== 'number' || !Number.isFinite(seconds)) return ''
+  const diff = Math.max(0, Math.floor(Date.now() / 1000) - seconds)
+  if (diff < 60) return 'just now'
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`
+  if (diff < 604800) return `${Math.floor(diff / 86400)}d ago`
+  return `${Math.floor(diff / 604800)}w ago`
+}

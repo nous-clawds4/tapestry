@@ -1,15 +1,17 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useOutletContext } from 'react-router-dom'
 import Button from '../components/Button.jsx'
 import TagPill from '../components/TagPill.jsx'
 import MemberRow from '../components/MemberRow.jsx'
 import PostCard from '../components/PostCard.jsx'
-import Avatar from '../components/Avatar.jsx'
+import PostSkeleton from '../components/PostSkeleton.jsx'
 import BrainstormMark from '../components/BrainstormMark.jsx'
 import FetchError from '../components/FetchError.jsx'
 import { getCommunity, getCommunityMembers } from '../api/client.js'
-import { buildCommunityRecord } from '../events/build.js'
+import { buildCommunityRecord, buildKind1Post } from '../events/build.js'
 import { publishEvent } from '../events/publish.js'
+import { fetchKind1ForCommunity } from '../events/fetch.js'
+import { publishErrorCopy } from '../lib/errors.js'
 import { formatCount } from '../lib/format.js'
 import s from './CommunityDetail.module.css'
 
@@ -31,6 +33,18 @@ export default function CommunityDetail({ slug }) {
   })
   const [publishError, setPublishError] = useState(null)
   const [publishing, setPublishing] = useState(false)
+
+  // Conversation tab state — lazy fetch on first tab open, re-fetch
+  // after Send. See ADR-0010 for the one-shot vs live decision.
+  const [postsState, setPostsState] = useState({
+    status: 'idle',
+    items: [],
+    error: null,
+  })
+  const [pending, setPending] = useState([])  // optimistic kind-1 posts
+  const [composerText, setComposerText] = useState('')
+  const [composerSending, setComposerSending] = useState(false)
+  const conversationLoadedRef = useRef(false)
 
   useEffect(() => {
     let cancelled = false
@@ -70,6 +84,102 @@ export default function CommunityDetail({ slug }) {
   }, [publishError])
 
   const triggerRetry = useCallback(() => setRetryNonce(n => n + 1), [])
+
+  const currentCommunity = state.community
+  const communityATag = currentCommunity
+    ? `39999:${currentCommunity.founder || currentCommunity.curator || viewer || ''}:${currentCommunity.slug}`
+    : null
+
+  const loadPosts = useCallback(async () => {
+    if (!currentCommunity || !communityATag) return
+    setPostsState({ status: 'loading', items: [], error: null })
+    try {
+      const items = await fetchKind1ForCommunity({
+        communityATag,
+        slug: currentCommunity.slug,
+      })
+      setPostsState({ status: 'ready', items, error: null })
+    } catch (error) {
+      console.error('[CommunityDetail] fetchKind1 failed:', error)
+      setPostsState({ status: 'error', items: [], error })
+    }
+  }, [currentCommunity, communityATag])
+
+  // Lazy-load posts the first time the Conversation tab is opened, and
+  // re-fetch when the slug changes if we'd already loaded once.
+  useEffect(() => {
+    if (tab !== 'conversation') return
+    if (!currentCommunity) return
+    if (conversationLoadedRef.current) return
+    conversationLoadedRef.current = true
+    loadPosts()
+  }, [tab, currentCommunity, loadPosts])
+
+  // Reset conversation-tab state when the slug changes. The React 19
+  // rule flags the idiomatic "reset state on prop change" pattern;
+  // a key-based remount is out of scope for Slice 6.
+  useEffect(() => {
+    conversationLoadedRef.current = false
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setPostsState({ status: 'idle', items: [], error: null })
+    setPending([])
+    setComposerText('')
+  }, [slug])
+
+  async function handleSendPost() {
+    if (!signedIn || !viewer || !communityATag) return
+    const text = composerText.trim()
+    if (!text || composerSending) return
+
+    const localId = (typeof crypto !== 'undefined' && crypto.randomUUID)
+      ? crypto.randomUUID()
+      : `local-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+
+    setComposerSending(true)
+    setPending(prev => [
+      {
+        id: localId,
+        author: viewer,
+        content: text,
+        createdAt: Math.floor(Date.now() / 1000),
+        _localId: localId,
+        _status: 'pending',
+      },
+      ...prev,
+    ])
+    setComposerText('')
+
+    const unsigned = buildKind1Post({
+      viewerPubkey: viewer,
+      communityATag,
+      content: text,
+    })
+    const result = await publishEvent(unsigned)
+    setComposerSending(false)
+
+    if (!result.ok) {
+      const errorCopy = result.error === 'rejected-by-relay'
+        ? "The relay didn't recognize you yet. Try again in a moment."
+        : publishErrorCopy(result)
+      setPending(prev => prev.map(p => p._localId === localId
+        ? { ...p, _status: 'error', _error: errorCopy, _text: text }
+        : p))
+      return
+    }
+
+    // Success — drop the optimistic entry and re-fetch so the resolved
+    // event id replaces the local one. Mirrors Slice 5's "navigate after
+    // success" beat: simple over clever.
+    setPending(prev => prev.filter(p => p._localId !== localId))
+    loadPosts()
+  }
+
+  function handleRetryPending(localId) {
+    const entry = pending.find(p => p._localId === localId)
+    if (!entry || !entry._text) return
+    setPending(prev => prev.filter(p => p._localId !== localId))
+    setComposerText(entry._text)
+  }
 
   async function handleJoinClick() {
     if (!signedIn || !viewer || !state.community || publishing) return
@@ -123,7 +233,10 @@ export default function CommunityDetail({ slug }) {
   const c = state.community
   const members = state.members
   const joined = joinedSet.has(c.slug)
-  const posts = Array.isArray(c.posts) ? c.posts : []
+
+  const realPosts = postsState.items
+  const allPosts = [...pending, ...realPosts]
+  const canCompose = signedIn && joined
 
   return (
     <div className={s.page} style={{ '--community-accent': c.accent || 'var(--accent)' }}>
@@ -219,16 +332,63 @@ export default function CommunityDetail({ slug }) {
 
         {tab === 'conversation' && (
           <div className={s.conversation}>
-            {signedIn && joined && (
-              <div className={s.composer}>
-                <Avatar member="m1" size={36} />
-                <button type="button" className={s.composerInput}>
-                  Share something with the circle
-                </button>
+            {canCompose ? (
+              <form
+                className={s.composer}
+                onSubmit={e => {
+                  e.preventDefault()
+                  handleSendPost()
+                }}
+              >
+                <textarea
+                  className={s.composerTextarea}
+                  rows={3}
+                  placeholder="Share something with the circle"
+                  value={composerText}
+                  onChange={e => setComposerText(e.target.value)}
+                  disabled={composerSending}
+                  aria-label="Write a post"
+                />
+                <div className={s.composerActions}>
+                  <Button
+                    variant="primary"
+                    size="md"
+                    onClick={handleSendPost}
+                    disabled={composerSending || !composerText.trim()}
+                  >
+                    {composerSending ? 'Sending…' : 'Send'}
+                  </Button>
+                </div>
+              </form>
+            ) : (
+              <div className={s.joinPrompt}>
+                <span>Join this circle to post.</span>
               </div>
             )}
-            {posts.map((p, i) => <PostCard key={i} post={p} />)}
-            {posts.length === 0 && (
+
+            {postsState.status === 'loading' && allPosts.length === 0 && (
+              <>
+                <PostSkeleton delay={0} />
+                <PostSkeleton delay={80} />
+                <PostSkeleton delay={160} />
+              </>
+            )}
+
+            {postsState.status === 'error' && (
+              <FetchError onRetry={loadPosts} />
+            )}
+
+            {allPosts.map(p => (
+              <PostCard
+                key={p.id || p._localId}
+                post={p}
+                pending={p._status === 'pending'}
+                error={p._status === 'error' ? p._error : null}
+                onRetry={p._status === 'error' ? () => handleRetryPending(p._localId) : null}
+              />
+            ))}
+
+            {postsState.status === 'ready' && allPosts.length === 0 && (
               <p className={s.emptyPosts}>No posts yet. Be the first to share.</p>
             )}
           </div>
@@ -286,19 +446,3 @@ function AboutBlock({ title, text }) {
   )
 }
 
-function publishErrorCopy(result) {
-  switch (result && result.error) {
-    case 'no-extension':
-      return 'Sign in with a nostr extension to publish.'
-    case 'rejected':
-      return 'Signing cancelled.'
-    case 'timeout':
-      return 'The relay took too long to confirm. Try again?'
-    case 'rejected-by-relay':
-      return 'The relay rejected this event.'
-    case 'network':
-      return 'We could not reach the relay. Check your connection?'
-    default:
-      return 'Something went wrong publishing. Try again?'
-  }
-}

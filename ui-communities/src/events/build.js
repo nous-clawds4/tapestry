@@ -181,6 +181,27 @@ export function buildEndorsementSignal({
   }
 }
 
+/**
+ * Build a plain kind-1 note tagged with a community a-tag.
+ *
+ * The `a` tag scopes the post to a community; readers query for
+ * `{ kinds: [1], '#a': [communityATag] }` to surface the conversation.
+ * The relay-side membership whitelist gates publishing in production;
+ * v1 clients also gate at the composer layer (PLAN.md §2).
+ */
+export function buildKind1Post({ viewerPubkey, communityATag, content }) {
+  if (!viewerPubkey) throw new Error('buildKind1Post: viewerPubkey is required')
+  if (!communityATag) throw new Error('buildKind1Post: communityATag is required')
+  if (!content || !content.trim()) throw new Error('buildKind1Post: content is required')
+  return {
+    kind: 1,
+    tags: [['a', communityATag]],
+    content: content.trim(),
+    created_at: nowSec(),
+    pubkey: viewerPubkey,
+  }
+}
+
 export const CONSTANTS = {
   COMMUNITIES_DLIST_DTAG,
   ENDORSEMENTS_DLIST_DTAG,

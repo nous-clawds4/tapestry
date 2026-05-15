@@ -6,6 +6,7 @@ import ConcernDialog from '../components/ConcernDialog.jsx'
 import { getCommunity, getMember } from '../data/mockData.js'
 import { buildEndorsementSignal } from '../events/build.js'
 import { publishEvent } from '../events/publish.js'
+import { publishErrorCopy } from '../lib/errors.js'
 import { trustTier } from '../lib/format.js'
 import s from './MemberDrawerContent.module.css'
 
@@ -162,19 +163,3 @@ export default function MemberDrawerContent({
   )
 }
 
-function publishErrorCopy(result) {
-  switch (result && result.error) {
-    case 'no-extension':
-      return 'Sign in with a nostr extension to publish.'
-    case 'rejected':
-      return 'Signing cancelled.'
-    case 'timeout':
-      return 'The relay took too long to confirm.'
-    case 'rejected-by-relay':
-      return 'The relay rejected this event.'
-    case 'network':
-      return 'We could not reach the relay.'
-    default:
-      return 'Something went wrong publishing.'
-  }
-}

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import BrainstormMark from './BrainstormMark.jsx'
 import { npubFull, npubShort } from '../auth/viewer.js'
+import { signInErrorCopy } from '../lib/errors.js'
 import s from './Header.module.css'
 
 const NAV_ITEMS = [
@@ -25,7 +26,7 @@ export default function Header({ viewer, signedIn, pathname, onNavigate, onSignI
     if (!result || result.ok === false) {
       setSignInState({
         status: 'error',
-        error: errorCopyFor(result && result.error),
+        error: signInErrorCopy(result && result.error),
       })
     } else {
       setSignInState({ status: 'idle', error: null })
@@ -170,13 +171,3 @@ export default function Header({ viewer, signedIn, pathname, onNavigate, onSignI
   )
 }
 
-function errorCopyFor(code) {
-  switch (code) {
-    case 'no-extension':
-      return 'Brainstorm Communities needs a nostr browser extension to sign in. Try Alby or nos2x.'
-    case 'rejected':
-      return 'Sign-in cancelled.'
-    default:
-      return 'Sign-in failed. Try again?'
-  }
-}
