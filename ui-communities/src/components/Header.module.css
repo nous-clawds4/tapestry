@@ -165,7 +165,14 @@
   letter-spacing: -0.02em;
 }
 
-.userName { font-size: var(--text-sm); font-weight: 500; color: var(--text); }
+.userName {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--text);
+  font-family: var(--font-body);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
 
 .userDropdown {
   position: absolute;
@@ -190,6 +197,14 @@
   border-bottom: 1px solid var(--border);
   font-size: var(--text-xs);
   color: var(--text-faint);
+}
+
+.userNpub {
+  font-family: var(--font-body);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+  font-weight: 500;
+  letter-spacing: -0.01em;
 }
 
 .userItem,
@@ -217,7 +232,38 @@
   transition: all var(--dur-fast) var(--ease-out-cubic);
 }
 
-.signInBtn:hover { border-color: var(--accent); color: var(--accent); }
+.signInBtn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+.signInBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.signInBlock {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  position: relative;
+}
+
+.signInError {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 280px;
+  padding: 10px 12px;
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-hover);
+  border-left: 3px solid var(--danger);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  line-height: var(--leading-normal);
+  animation: signInErrorIn 200ms var(--ease-out-cubic);
+}
+
+@keyframes signInErrorIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
 
 /* ── Mobile ─────────────────────────────────────────────── */
 

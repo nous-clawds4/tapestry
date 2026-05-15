@@ -9,21 +9,29 @@ import MyCircles from './pages/MyCircles.jsx'
 import Create from './pages/Create.jsx'
 import Edit from './pages/Edit.jsx'
 import NotFound from './pages/NotFound.jsx'
+import {
+  clearStoredViewerPubkey,
+  getStoredViewerPubkey,
+  signInWithNip07,
+  storeViewerPubkey,
+} from './auth/viewer.js'
 
 /*
- * AppState — minimal local-state layer for Slice 0.
+ * AppState — local-state layer for Slices 0-4.
  *
- * Slice 0 has no auth, no API, no nostr signer. Everything lives in
- * useState at the App root. Drawer state is here so it survives navigation.
- * Slice 4 swaps the booleans for a NIP-07 signer + real publish path.
+ * Slice 4 introduced the viewer pubkey (NIP-07-resolved, persisted to
+ * localStorage). The boolean signedIn derives from viewer !== null.
+ * joinedSet + vouchedSet stay local-optimistic; the publish wrapper
+ * (src/events/publish.js) handles the real publish path.
  */
 
 function AppShell() {
   const navigate = useNavigate()
   const location = useLocation()
 
-  // Sign-in state — Slice 0 placeholder; Slice 4 wires NIP-07.
-  const [signedIn] = useState(true)
+  // Viewer pubkey (hex, 64 chars) restored from localStorage on mount.
+  const [viewer, setViewer] = useState(() => getStoredViewerPubkey())
+  const signedIn = viewer !== null
 
   // Mocked joined / vouched sets, mutated by Join + Vouch interactions.
   const [joinedSet, setJoinedSet] = useState(
@@ -61,6 +69,20 @@ function AppShell() {
   }, [])
   const closeDrawer = useCallback(() => setDrawerMember(null), [])
 
+  const handleSignIn = useCallback(async () => {
+    const result = await signInWithNip07()
+    if (result.ok) {
+      storeViewerPubkey(result.pubkey)
+      setViewer(result.pubkey)
+    }
+    return result
+  }, [])
+
+  const handleSignOut = useCallback(() => {
+    clearStoredViewerPubkey()
+    setViewer(null)
+  }, [])
+
   // Smooth-scroll to top on route change so deep-linked navigation doesn't
   // leave the viewport at an unrelated scroll position.
   useEffect(() => {
@@ -68,20 +90,32 @@ function AppShell() {
   }, [location.pathname])
 
   const ctx = {
+    viewer,
     signedIn,
     joinedSet,
     vouchedSet,
+    setJoinedSet,
+    setVouchedSet,
     onJoin: handleJoin,
     onLeave: handleLeave,
     onVouch: toggleVouch,
     onOpenDrawer: openDrawer,
+    onSignIn: handleSignIn,
+    onSignOut: handleSignOut,
     navigate,
     pathname: location.pathname,
   }
 
   return (
     <>
-      <Header signedIn={signedIn} pathname={location.pathname} onNavigate={navigate} />
+      <Header
+        viewer={viewer}
+        signedIn={signedIn}
+        pathname={location.pathname}
+        onNavigate={navigate}
+        onSignIn={handleSignIn}
+        onSignOut={handleSignOut}
+      />
       <main>
         <Outlet context={ctx} />
       </main>
@@ -93,6 +127,7 @@ function AppShell() {
             vouchedSet={vouchedSet}
             onVouch={toggleVouch}
             signedIn={signedIn}
+            viewer={viewer}
           />
         )}
       </Drawer>

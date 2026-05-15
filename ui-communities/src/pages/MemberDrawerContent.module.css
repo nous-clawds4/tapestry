@@ -120,3 +120,20 @@
 .vouchBtn {
   width: 100%;
 }
+
+.publishError {
+  margin-top: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-hover);
+  border-left: 3px solid var(--danger);
+  border-radius: var(--radius-md);
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  animation: drawerPublishErrorIn 200ms var(--ease-out-cubic);
+}
+
+@keyframes drawerPublishErrorIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}

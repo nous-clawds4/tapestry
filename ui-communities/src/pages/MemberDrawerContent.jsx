@@ -1,13 +1,31 @@
+import { useEffect, useState } from 'react'
 import Avatar from '../components/Avatar.jsx'
 import TrustDot from '../components/TrustDot.jsx'
 import Button from '../components/Button.jsx'
+import ConcernDialog from '../components/ConcernDialog.jsx'
 import { getCommunity, getMember } from '../data/mockData.js'
+import { buildEndorsementSignal } from '../events/build.js'
+import { publishEvent } from '../events/publish.js'
 import { trustTier } from '../lib/format.js'
 import s from './MemberDrawerContent.module.css'
 
-export default function MemberDrawerContent({ memberId, communitySlug, vouchedSet, onVouch, signedIn }) {
+export default function MemberDrawerContent({
+  memberId, communitySlug, vouchedSet, onVouch, signedIn, viewer,
+}) {
   const m = getMember(memberId)
   const c = getCommunity(communitySlug)
+  const [vouchBusy, setVouchBusy] = useState(false)
+  const [concernOpen, setConcernOpen] = useState(false)
+  const [concernBusy, setConcernBusy] = useState(false)
+  const [publishError, setPublishError] = useState(null)
+
+  // Auto-clear publish errors after 5s.
+  useEffect(() => {
+    if (!publishError) return
+    const t = setTimeout(() => setPublishError(null), 5000)
+    return () => clearTimeout(t)
+  }, [publishError])
+
   if (!m || !c) return null
 
   const vouchers = c.members
@@ -17,6 +35,50 @@ export default function MemberDrawerContent({ memberId, communitySlug, vouchedSe
     .filter(Boolean)
   const tier = trustTier(m.trust)
   const trustPct = Math.round(m.trust * 100)
+  const communityATag = `39999:${c.founder || viewer || ''}:${c.slug}`
+
+  async function handleVouch() {
+    if (!viewer || vouchBusy) return
+    setVouchBusy(true)
+    setPublishError(null)
+    // Optimistic flip.
+    const wasVouched = vouchedSet.has(m.id)
+    onVouch(m.id)
+    const unsigned = buildEndorsementSignal({
+      viewerPubkey: viewer,
+      targetPubkey: m.id,
+      communityATag,
+      type: 'endorse',
+      role: 'member',
+    })
+    const result = await publishEvent(unsigned)
+    setVouchBusy(false)
+    if (!result.ok) {
+      // Roll back.
+      if (!wasVouched) onVouch(m.id)
+      setPublishError(publishErrorCopy(result))
+    }
+  }
+
+  async function handleConcernConfirm(comments) {
+    if (!viewer || concernBusy) return
+    setConcernBusy(true)
+    setPublishError(null)
+    const unsigned = buildEndorsementSignal({
+      viewerPubkey: viewer,
+      targetPubkey: m.id,
+      communityATag,
+      type: 'veto',
+      role: 'member',
+      comments,
+    })
+    const result = await publishEvent(unsigned)
+    setConcernBusy(false)
+    setConcernOpen(false)
+    if (!result.ok) {
+      setPublishError(publishErrorCopy(result))
+    }
+  }
 
   return (
     <div className={s.root}>
@@ -62,9 +124,10 @@ export default function MemberDrawerContent({ memberId, communitySlug, vouchedSe
             variant={vouchedSet.has(m.id) ? 'success' : 'primary'}
             size="lg"
             className={s.vouchBtn}
-            onClick={() => onVouch(m.id)}
+            onClick={handleVouch}
+            disabled={vouchBusy}
           >
-            {vouchedSet.has(m.id) ? (
+            {vouchBusy ? 'Signing…' : vouchedSet.has(m.id) ? (
               <>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                   <path d="M20 6 9 17l-5-5" />
@@ -73,9 +136,45 @@ export default function MemberDrawerContent({ memberId, communitySlug, vouchedSe
               </>
             ) : 'Vouch for this person'}
           </Button>
-          <Button variant="danger" size="lg">Raise a concern</Button>
+          <Button
+            variant="danger"
+            size="lg"
+            onClick={() => setConcernOpen(true)}
+            disabled={concernBusy}
+          >
+            Raise a concern
+          </Button>
         </footer>
       )}
+
+      {publishError && (
+        <p className={s.publishError} role="alert">{publishError}</p>
+      )}
+
+      <ConcernDialog
+        open={concernOpen}
+        memberName={m.name}
+        busy={concernBusy}
+        onCancel={() => setConcernOpen(false)}
+        onConfirm={handleConcernConfirm}
+      />
     </div>
   )
+}
+
+function publishErrorCopy(result) {
+  switch (result && result.error) {
+    case 'no-extension':
+      return 'Sign in with a nostr extension to publish.'
+    case 'rejected':
+      return 'Signing cancelled.'
+    case 'timeout':
+      return 'The relay took too long to confirm.'
+    case 'rejected-by-relay':
+      return 'The relay rejected this event.'
+    case 'network':
+      return 'We could not reach the relay.'
+    default:
+      return 'Something went wrong publishing.'
+  }
 }

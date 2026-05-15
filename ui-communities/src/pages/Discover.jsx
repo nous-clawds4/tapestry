@@ -13,7 +13,7 @@ import s from './Discover.module.css'
 const SKELETON_COUNT = 8
 
 export default function Discover() {
-  const { joinedSet } = useOutletContext()
+  const { viewer, joinedSet } = useOutletContext()
   const [query, setQuery] = useState('')
   const [activeTag, setActiveTag] = useState(null)
   const [retryNonce, setRetryNonce] = useState(0)
@@ -21,12 +21,12 @@ export default function Discover() {
 
   useEffect(() => {
     let cancelled = false
-    // Reset to loading on every fetch (initial mount + retry). The React 19
-    // set-state-in-effect rule flags the idiomatic data-fetch pattern;
-    // a Suspense + use() rework is out of scope for Slice 3.
+    // Reset to loading on every fetch (initial mount + retry + viewer
+    // change). The React 19 set-state-in-effect rule flags the idiomatic
+    // data-fetch pattern; a Suspense + use() rework is out of scope.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setState({ status: 'loading', communities: [], error: null })
-    getCommunities(null /* viewer wired in Slice 4 */)
+    getCommunities(viewer)
       .then(communities => {
         if (cancelled) return
         setState({ status: 'ready', communities, error: null })
@@ -39,7 +39,7 @@ export default function Discover() {
     return () => {
       cancelled = true
     }
-  }, [retryNonce])
+  }, [viewer, retryNonce])
 
   const triggerRetry = useCallback(() => setRetryNonce(n => n + 1), [])
 

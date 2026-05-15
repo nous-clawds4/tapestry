@@ -8,6 +8,8 @@ import Avatar from '../components/Avatar.jsx'
 import BrainstormMark from '../components/BrainstormMark.jsx'
 import FetchError from '../components/FetchError.jsx'
 import { getCommunity, getCommunityMembers } from '../api/client.js'
+import { buildCommunityRecord } from '../events/build.js'
+import { publishEvent } from '../events/publish.js'
 import { formatCount } from '../lib/format.js'
 import s from './CommunityDetail.module.css'
 
@@ -18,7 +20,7 @@ const TABS = [
 ]
 
 export default function CommunityDetail({ slug }) {
-  const { signedIn, joinedSet, vouchedSet, onJoin, onLeave, onVouch, onOpenDrawer, navigate } = useOutletContext()
+  const { viewer, signedIn, joinedSet, vouchedSet, onJoin, onLeave, onVouch, onOpenDrawer, navigate } = useOutletContext()
   const [tab, setTab] = useState('people')
   const [retryNonce, setRetryNonce] = useState(0)
   const [state, setState] = useState({
@@ -27,17 +29,20 @@ export default function CommunityDetail({ slug }) {
     members: [],
     error: null,
   })
+  const [publishError, setPublishError] = useState(null)
+  const [publishing, setPublishing] = useState(false)
 
   useEffect(() => {
     let cancelled = false
-    // Reset to loading on every fetch (initial mount + retry + slug change).
-    // The React 19 set-state-in-effect rule flags the idiomatic data-fetch
-    // pattern; a Suspense + use() rework is out of scope for Slice 3.
+    // Reset to loading on every fetch (initial mount + retry + slug change
+    // + viewer change). The React 19 set-state-in-effect rule flags the
+    // idiomatic data-fetch pattern; a Suspense + use() rework is out of
+    // scope for Slice 4.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setState(prev => ({ ...prev, status: 'loading', error: null }))
     Promise.all([
-      getCommunity(slug, null /* viewer wired in Slice 4 */),
-      getCommunityMembers(slug, null),
+      getCommunity(slug, viewer),
+      getCommunityMembers(slug, viewer),
     ])
       .then(([community, members]) => {
         if (cancelled) return
@@ -55,9 +60,35 @@ export default function CommunityDetail({ slug }) {
     return () => {
       cancelled = true
     }
-  }, [slug, retryNonce])
+  }, [slug, viewer, retryNonce])
+
+  // Publish error auto-clears after 5s so the chrome doesn't linger.
+  useEffect(() => {
+    if (!publishError) return
+    const t = setTimeout(() => setPublishError(null), 5000)
+    return () => clearTimeout(t)
+  }, [publishError])
 
   const triggerRetry = useCallback(() => setRetryNonce(n => n + 1), [])
+
+  async function handleJoinClick() {
+    if (!signedIn || !viewer || !state.community || publishing) return
+    setPublishing(true)
+    setPublishError(null)
+    // Optimistic — flip the joined state immediately for responsiveness.
+    onJoin(state.community.slug)
+    const unsigned = buildCommunityRecord({
+      viewerPubkey: viewer,
+      community: state.community,
+    })
+    const result = await publishEvent(unsigned)
+    setPublishing(false)
+    if (!result.ok) {
+      // Roll back the optimistic state on publish failure.
+      onLeave(state.community.slug)
+      setPublishError(publishErrorCopy(result))
+    }
+  }
 
   if (state.status === 'loading') {
     return (
@@ -129,9 +160,17 @@ export default function CommunityDetail({ slug }) {
                 </span>
               </div>
             ) : (
-              <Button variant="primary" size="lg" onClick={() => onJoin(c.slug)}>
-                Join this circle
+              <Button
+                variant="primary"
+                size="lg"
+                onClick={handleJoinClick}
+                disabled={publishing}
+              >
+                {publishing ? 'Joining…' : 'Join this circle'}
               </Button>
+            )}
+            {publishError && (
+              <p className={s.publishError} role="alert">{publishError}</p>
             )}
           </div>
         )}
@@ -245,4 +284,21 @@ function AboutBlock({ title, text }) {
       <p className={s.aboutBlockText}>{text}</p>
     </article>
   )
+}
+
+function publishErrorCopy(result) {
+  switch (result && result.error) {
+    case 'no-extension':
+      return 'Sign in with a nostr extension to publish.'
+    case 'rejected':
+      return 'Signing cancelled.'
+    case 'timeout':
+      return 'The relay took too long to confirm. Try again?'
+    case 'rejected-by-relay':
+      return 'The relay rejected this event.'
+    case 'network':
+      return 'We could not reach the relay. Check your connection?'
+    default:
+      return 'Something went wrong publishing. Try again?'
+  }
 }

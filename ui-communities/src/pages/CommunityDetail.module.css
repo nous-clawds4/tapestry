@@ -323,3 +323,21 @@
   margin-bottom: var(--space-3);
 }
 
+.publishError {
+  margin-top: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-hover);
+  border-left: 3px solid var(--danger);
+  border-radius: var(--radius-md);
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  max-width: 320px;
+  animation: publishErrorIn 200ms var(--ease-out-cubic);
+}
+
+@keyframes publishErrorIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+

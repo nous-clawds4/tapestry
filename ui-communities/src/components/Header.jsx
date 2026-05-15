@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import BrainstormMark from './BrainstormMark.jsx'
+import { npubFull, npubShort } from '../auth/viewer.js'
 import s from './Header.module.css'
 
 const NAV_ITEMS = [
@@ -8,9 +9,38 @@ const NAV_ITEMS = [
   { to: '/create', label: 'Start a Circle', requiresAuth: true },
 ]
 
-export default function Header({ signedIn, pathname, onNavigate }) {
+export default function Header({ viewer, signedIn, pathname, onNavigate, onSignIn, onSignOut }) {
   const [menuOpen, setMenuOpen] = useState(false)
+  const [signInState, setSignInState] = useState({ status: 'idle', error: null })
+  const [copied, setCopied] = useState(false)
   const visible = NAV_ITEMS.filter(item => !item.requiresAuth || signedIn)
+
+  const viewerNpub = signedIn ? npubFull(viewer) : ''
+  const viewerNpubShort = signedIn ? npubShort(viewer) : ''
+  const avatarInitials = viewerNpubShort ? viewerNpubShort.slice(5, 7).toUpperCase() : '··'
+
+  async function handleSignInClick() {
+    setSignInState({ status: 'pending', error: null })
+    const result = await onSignIn()
+    if (!result || result.ok === false) {
+      setSignInState({
+        status: 'error',
+        error: errorCopyFor(result && result.error),
+      })
+    } else {
+      setSignInState({ status: 'idle', error: null })
+    }
+  }
+
+  async function handleCopyNpub() {
+    try {
+      await navigator.clipboard.writeText(viewerNpub)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1600)
+    } catch {
+      // Clipboard API blocked — silently fail.
+    }
+  }
 
   return (
     <header className={s.header}>
@@ -66,13 +96,16 @@ export default function Header({ signedIn, pathname, onNavigate }) {
                 onClick={() => setMenuOpen(o => !o)}
                 aria-haspopup="true"
                 aria-expanded={menuOpen}
+                title={viewerNpub}
               >
-                <span className={s.userAvatar} aria-hidden="true">SC</span>
-                <span className={s.userName}>Sarah</span>
+                <span className={s.userAvatar} aria-hidden="true">{avatarInitials}</span>
+                <span className={s.userName}>{viewerNpubShort}</span>
               </button>
               {menuOpen && (
                 <div className={s.userDropdown} role="menu">
-                  <div className={s.userMeta}>Signed in as Sarah Chen</div>
+                  <div className={s.userMeta} title={viewerNpub}>
+                    Signed in as <code className={s.userNpub}>{viewerNpubShort}</code>
+                  </div>
                   <button
                     type="button"
                     className={s.userItem}
@@ -97,19 +130,53 @@ export default function Header({ signedIn, pathname, onNavigate }) {
                   >
                     Start a Circle
                   </button>
-                  <button type="button" className={s.userItemMuted} role="menuitem">
+                  <button
+                    type="button"
+                    className={s.userItem}
+                    onClick={handleCopyNpub}
+                    role="menuitem"
+                  >
+                    {copied ? 'Copied!' : 'Copy npub'}
+                  </button>
+                  <button
+                    type="button"
+                    className={s.userItemMuted}
+                    onClick={() => { onSignOut(); setMenuOpen(false) }}
+                    role="menuitem"
+                  >
                     Sign out
                   </button>
                 </div>
               )}
             </div>
           ) : (
-            <button type="button" className={s.signInBtn}>
-              Sign in
-            </button>
+            <div className={s.signInBlock}>
+              <button
+                type="button"
+                className={s.signInBtn}
+                onClick={handleSignInClick}
+                disabled={signInState.status === 'pending'}
+              >
+                {signInState.status === 'pending' ? 'Signing in…' : 'Sign in'}
+              </button>
+              {signInState.status === 'error' && (
+                <p className={s.signInError} role="alert">{signInState.error}</p>
+              )}
+            </div>
           )}
         </div>
       </div>
     </header>
   )
+}
+
+function errorCopyFor(code) {
+  switch (code) {
+    case 'no-extension':
+      return 'Brainstorm Communities needs a nostr browser extension to sign in. Try Alby or nos2x.'
+    case 'rejected':
+      return 'Sign-in cancelled.'
+    default:
+      return 'Sign-in failed. Try again?'
+  }
 }

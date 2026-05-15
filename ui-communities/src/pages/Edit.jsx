@@ -9,7 +9,7 @@ import { getCommunity } from '../api/client.js'
 import s from './Edit.module.css'
 
 export default function Edit({ slug }) {
-  const { navigate } = useOutletContext()
+  const { viewer, navigate } = useOutletContext()
   const [retryNonce, setRetryNonce] = useState(0)
   const [state, setState] = useState({ status: 'loading', community: null, error: null })
   const [name, setName] = useState('')
@@ -17,12 +17,12 @@ export default function Edit({ slug }) {
 
   useEffect(() => {
     let cancelled = false
-    // Reset to loading on every fetch (initial mount + retry + slug change).
-    // The React 19 set-state-in-effect rule flags the idiomatic data-fetch
-    // pattern; a Suspense + use() rework is out of scope for Slice 3.
+    // Reset to loading on every fetch (initial mount + retry + slug change
+    // + viewer change). The React 19 set-state-in-effect rule flags the
+    // idiomatic data-fetch pattern; a Suspense + use() rework is out of scope.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setState({ status: 'loading', community: null, error: null })
-    getCommunity(slug, null /* viewer wired in Slice 4 */)
+    getCommunity(slug, viewer)
       .then(community => {
         if (cancelled) return
         if (community === null) {
@@ -41,7 +41,7 @@ export default function Edit({ slug }) {
     return () => {
       cancelled = true
     }
-  }, [slug, retryNonce])
+  }, [slug, viewer, retryNonce])
 
   const triggerRetry = useCallback(() => setRetryNonce(n => n + 1), [])
 
