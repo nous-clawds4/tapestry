@@ -87,7 +87,7 @@ Non-blocking for story approval; flagged so they aren't lost:
 
 ## Linked artifacts
 - Intake: `engineering-team/stories/_intake.md` — 2026-05-17 entry
-- ADR: (filled after Architecture — expected `decisions/0004-*.md`)
+- ADR: `engineering-team/decisions/0004-search-quality-eval-harness.md` — Accepted 2026-05-17
 - Separate harness-contract ADR: tracked independently of this story; not a
   blocker for it
 - Test plan: (filled after Test Design phase)
