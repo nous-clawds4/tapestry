@@ -67,3 +67,26 @@ Append-only log of incoming requests, raw, with classification and chosen phase 
 **Classification:** Bug
 **Strictness:** Standard
 **Phase path:** Implementation → Review (Architecture skipped — obvious fix per Standard / Bug rules; intake captures the Architect's call inline above)
+
+---
+
+## 2026-05-17 — Feature: offline search-quality evaluation harness
+
+**Raw request (verbatim):**
+
+> I would like to move forward with your recommendations. I would eventually like this to be something that Vinney can evaluate and use himself if he finds it useful. What is our next step?
+
+(The "recommendation" being accepted, from the preceding strategy conversation: build an offline search-quality eval harness — a set of hand-judged relevance queries plus a scorer — because today search quality is judged only by eyeball, which is the binding constraint on safely extending agentic-coding autonomy ("the leash") and the prerequisite for any honest measurement of the planned layered Tag→DList WoT search.)
+
+**Clarifications captured in the pre-intake conversation:**
+
+- **Why this, why now:** the harness is the keystone that turns search R&D from "looks right to a human" into a measurable loop — the precondition for lengthening agent autonomy and for trustworthy measurement of layered WoT search. For a *trust* product, the eval set's honesty is a Goodhart/integrity concern, not just an engineering one.
+- **Labels:** relevance judgments are **hand-judged only** for v1 (highest integrity; accepts a small, deliberate initial set). No bootstrapping from WoT-derived data (would make the metric circular).
+- **Process artifact split:** the harness itself is a product artifact (this story). The change to the *engineering-team contract* (a general "every feature ships an executable acceptance check" rule) is explicitly **not** bundled here — it is tracked as its own separate ADR for the user and Vinney to ratify independently.
+- **Delivery:** built on branch `feat/search-eval-harness` off `staging` in an isolated git worktree (story #6 work is in progress on `fix/nip05-verification`; CLAUDE.md requires a clean tree before a feature). To be **pushed as a draft PR, not merged** — initially a proposal for Vinney to evaluate.
+- **Roadmap linkage:** ROADMAP states search quality is powered by trust-weighted curation, expanding via DList NIPs; this harness is the measurement substrate for that trajectory.
+- Several scope questions (v1 search surface, measure-vs-gate, v1 gold-set Done bar) are open and being resolved with the Product Owner in Planning before the story is drafted.
+
+**Classification:** Feature
+**Strictness:** Standard
+**Phase path:** Planning → Architecture → Test Design → Implementation → Review (all five phases apply per Standard / Feature)
