@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
 import Breadcrumbs from '../../components/Breadcrumbs';
 import useProfiles from '../../hooks/useProfiles';
+import useNip05Verification from '../../hooks/useNip05Verification';
 import { useTrust } from '../../context/TrustContext';
 import { useConfig } from '../../context/ConfigContext';
 import { useCypher } from '../../hooks/useCypher';
@@ -52,6 +53,7 @@ export default function UserDetail() {
   const pubkeys = useMemo(() => [pubkey], [pubkey]);
   const profiles = useProfiles(pubkeys);
   const profile = profiles?.[pubkey];
+  const nip05Verified = useNip05Verification(pubkey, profile?.nip05);
 
   const displayName = profile?.display_name || profile?.name || shortPubkey(pubkey);
 
@@ -81,7 +83,7 @@ export default function UserDetail() {
         )}
         <div>
           <h1>{displayName}</h1>
-          {profile?.nip05 && <p className="user-nip05">✅ {profile.nip05}</p>}
+          {profile?.nip05 && <p className="user-nip05">{nip05Verified && '✅ '}{profile.nip05}</p>}
         </div>
       </div>
 
