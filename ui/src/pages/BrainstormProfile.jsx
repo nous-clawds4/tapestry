@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import BrainstormUserMenu from '../components/BrainstormUserMenu';
 import { useProfileActions } from '../hooks/useProfileActions';
 import useUserCounts from '../hooks/useUserCounts';
+import useNip05Verification from '../hooks/useNip05Verification';
 import ConfirmDialog from '../components/ConfirmDialog';
 import ReportModal from '../components/ReportModal';
 
@@ -90,6 +91,7 @@ export default function BrainstormProfile() {
   const showActions = user && user.pubkey !== pubkey;
 
   const { data: userCounts, loading: userCountsLoading } = useUserCounts(pubkey);
+  const nip05Verified = useNip05Verification(pubkey, profile?.nip05);
   const followingCount = userCounts?.followingCount ?? null;
   const fmtCount = (n) => (n == null ? '—' : new Intl.NumberFormat().format(n));
 
@@ -225,7 +227,7 @@ export default function BrainstormProfile() {
               )}
               <div className="bsp-header-info">
                 <h1 className="bsp-name">{displayName}</h1>
-                {profile?.nip05 && <div className="bsp-nip05">✅ {profile.nip05}</div>}
+                {profile?.nip05 && <div className="bsp-nip05">{nip05Verified && '✅ '}{profile.nip05}</div>}
                 {profileAge && <span className="bsp-age">Updated {profileAge}</span>}
               </div>
             </div>
