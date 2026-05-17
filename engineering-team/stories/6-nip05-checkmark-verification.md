@@ -37,5 +37,5 @@ Testable from the outside.
 ## Linked artifacts
 - GitHub issue: https://github.com/nous-clawds4/tapestry/issues/151 — close when this reaches `main` (prod)
 - ADR: N/A — Architecture phase skipped (Standard bug, unambiguous root cause)
-- Test plan: (filled after Test Design)
+- Test plan: `engineering-team/stories/6-nip05-checkmark-verification.test-plan.md`
 - Review: (filled after Review)
