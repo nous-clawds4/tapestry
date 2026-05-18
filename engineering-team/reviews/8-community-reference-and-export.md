@@ -61,3 +61,22 @@ No criterion silently dropped; no behavior beyond the stories.
 **CHANGES_REQUESTED.**
 
 The code is clean, in-scope, ADR-conformant, and the full `npm test` gate is green — there are no architecture/spec/scope defects. But (1) the approved test plans make the behavioral smoke a **required** gate and it has not been run, and (2) the post-derive success log is misleading in exactly the output that smoke relies on. Both asks are small and precise. Route: fix finding #2 via `/implement-feature` (one-function change), run the finding #1 smoke (`cycle-local`), then re-review — no re-architecture, no scope change.
+
+---
+
+## Re-review (2026-05-18) — after ADR 0004/0005 Revision 1 + fixes
+
+**Diff re-audited:** ADR-revision commit `d37f1587` + re-implementation (parameterized `publishEverywhere`, dcosl-only concept publish, `relayHints` → `["wss://dcosl.brainstorm.world"]`, install.js IMPORT-log fix) + Tester consistency notes.
+
+**Quality gate (re-run by reviewer):** `npm test` → **Overall PASS**. All 7 suites + config green; TE1/RE1 still green under the parameterized `publishEverywhere` (primitive + `PUBLISH_RELAYS` still present; export still calls it; no server-side `SimplePool.publish`), TI1 still green (`relayHints` non-empty `ws(s)://` array). `manifest.json` valid JSON.
+
+**Blocking #2 (install.js misleading IMPORT log) — RESOLVED.** [src/firmware/install.js:1144](src/firmware/install.js) now does a `count(b)` presence check before MERGE; logs `✅ IMPORT →` only when the community node exists, else `⏭️ … IMPORT deferred (graceful)`. Smoke output is now trustworthy as M1 evidence.
+
+**ADR adherence (revised):** matches ADR 0004 Rev 1 (relay-parameterized `publishEverywhere`, default arg unchanged ⇒ profile/follow/mute callers byte-identical; concept-export passes the dcosl set) and ADR 0005 Rev 1 (`relayHints` aligned to `wss://dcosl.brainstorm.world`). Export ⇄ import relay sets are now consistent. No scope creep; no new deps.
+
+**Blocking #1 (Reviewer-required behavioral smoke) — code-cleared, behavior gated.** All *code* blockers are resolved; the authoritative behavioral proof is now the **explicitly-authorized stepwise deploy**: `cycle-local` (export→import round-trip on dcosl, local fixture) → `cycle-staging` → `cycle-prod`, then run "Publish concept" for `nostr-relay` on brainstorm.world (TA `919ba08a…`, dcosl-only) so the shipped pointer resolves for real. Per the harness, **PASS ⇒ deploy chain**; the smoke executes there and remains a hard precondition to prod.
+
+**Non-blocking carried forward:** export↔import chicken-and-egg now closes *by plan* at the prod export step (no longer an open risk, just a sequenced action); AC-4 (`knownGoodEventId`) still dormant by default config — exercise via fixture in smoke; ADR pre/post-derive split now documented (Rev 1). 
+
+### Verdict (Re-review)
+**PASS (code/ADR/scope).** Behavioral acceptance gate = the stepwise `cycle-local → cycle-staging → cycle-prod` smoke that is the immediate next planned step. #8 AC-1/AC-2 and #9 AC-1 are **not** to be marked proven until the export→import round-trip is observed on dcosl (cycle-local first, then the real prod-curator export). No further code changes required to proceed.
