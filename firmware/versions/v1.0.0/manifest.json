@@ -221,7 +221,13 @@
             "jsonSchema": "json-schema.json",
             "categories": [
                 "nostr"
-            ]
+            ],
+            "communityReference": {
+                "headerATag": "39998:919ba08af7786892093b8264332d817379662a0ba0ba1f5c791ed7b62a7ee2ff:nostr-relay",
+                "relayHints": [
+                    "wss://dcosl.brainstorm.world"
+                ]
+            }
         },
         {
             "slug": "dog-breed",

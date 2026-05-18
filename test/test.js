@@ -28,6 +28,8 @@ const scheduledRefresh = require('./scheduled-search-and-house-scores-refresh.te
 const strfryRouterFirstBoot = require('./strfry-router-first-boot-config.test.js');
 const perQueryNeo4jTimeout = require('./per-query-neo4j-timeout-safety-net.test.js');
 const nip05CheckmarkVerification = require('./nip05-checkmark-verification.test.js');
+const publishExportConcept = require('./publish-export-a-concept.test.js');
+const communityReferenceStub = require('./community-reference-nostr-relay-stub.test.js');
 
 async function main() {
   console.log('Running Brainstorm tests...\n');
@@ -50,6 +52,12 @@ async function main() {
   console.log('\nnip05-checkmark-verification suite:');
   const nip05CheckmarkVerificationResult = await nip05CheckmarkVerification.run();
 
+  console.log('\npublish-export-a-concept suite:');
+  const publishExportConceptResult = await publishExportConcept.run();
+
+  console.log('\ncommunity-reference-nostr-relay-stub suite:');
+  const communityReferenceStubResult = await communityReferenceStub.run();
+
   console.log('\nTest Results');
   console.log('-------------');
   console.log(`Configuration Loading:                           ${configOk ? 'PASS' : 'FAIL'}`);
@@ -68,6 +76,12 @@ async function main() {
   console.log(
     `nip05-checkmark-verification suite:              ${nip05CheckmarkVerificationResult.fail === 0 ? 'PASS' : 'FAIL'} (${nip05CheckmarkVerificationResult.pass} passed, ${nip05CheckmarkVerificationResult.fail} failed)`
   );
+  console.log(
+    `publish-export-a-concept suite:                  ${publishExportConceptResult.fail === 0 ? 'PASS' : 'FAIL'} (${publishExportConceptResult.pass} passed, ${publishExportConceptResult.fail} failed)`
+  );
+  console.log(
+    `community-reference-nostr-relay-stub suite:      ${communityReferenceStubResult.fail === 0 ? 'PASS' : 'FAIL'} (${communityReferenceStubResult.pass} passed, ${communityReferenceStubResult.fail} failed)`
+  );
 
   const overallOk =
     configOk &&
@@ -75,7 +89,9 @@ async function main() {
     scheduledRefreshResult.fail === 0 &&
     strfryRouterFirstBootResult.fail === 0 &&
     perQueryNeo4jTimeoutResult.fail === 0 &&
-    nip05CheckmarkVerificationResult.fail === 0;
+    nip05CheckmarkVerificationResult.fail === 0 &&
+    publishExportConceptResult.fail === 0 &&
+    communityReferenceStubResult.fail === 0;
   console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);
   process.exit(overallOk ? 0 : 1);
 }

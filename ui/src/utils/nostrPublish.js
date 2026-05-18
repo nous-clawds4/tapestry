@@ -88,14 +88,17 @@ export async function publishToRelays(signedEvent, relays = PUBLISH_RELAYS) {
 }
 
 /**
- * Publish a signed event to both local strfry and all external relays.
+ * Publish a signed event to local strfry and a set of external relays.
  * @param {object} signedEvent - A fully signed nostr event
+ * @param {string[]} [relays=PUBLISH_RELAYS] - External relay targets. Defaults
+ *   to PUBLISH_RELAYS so every existing caller is unchanged; the concept-export
+ *   path passes a restricted DList relay set (ADR 0004 Rev 1).
  * @returns {Promise<{local: object, external: {successes: string[], failures: string[]}}>}
  */
-export async function publishEverywhere(signedEvent) {
+export async function publishEverywhere(signedEvent, relays = PUBLISH_RELAYS) {
   const [local, external] = await Promise.all([
     publishToLocalStrfry(signedEvent),
-    publishToRelays(signedEvent),
+    publishToRelays(signedEvent, relays),
   ]);
   return { local, external };
 }
