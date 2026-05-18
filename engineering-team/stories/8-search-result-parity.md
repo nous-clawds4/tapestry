@@ -49,5 +49,5 @@ As a Brainstorm user, I want the search popup and the Enter-results page to show
 
 ## Linked artifacts
 - ADR: `engineering-team/decisions/0007-search-result-parity.md`
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/8-search-result-parity.test-plan.md`
 - Review: (filled in after Review phase)

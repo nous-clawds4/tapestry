@@ -36,6 +36,7 @@ const authoredTagging = require('./authored-tagging.test.js');
 const authoredTaggingPublish = require('./authored-tagging-publish.test.js');
 const profileTagPolish = require('./profile-tag-polish.test.js');
 const profileTagPolishPublish = require('./profile-tag-polish-publish.test.js');
+const searchResultParity = require('./search-result-parity.test.js');
 // Suites added on main since this branch forked
 const treasureMaps = require('./treasure-maps-router-preset.test.js');
 const scheduledRefresh = require('./scheduled-search-and-house-scores-refresh.test.js');
@@ -60,6 +61,7 @@ async function main() {
   const authoredTaggingPublishResult = await authoredTaggingPublish.run();
   const profileTagPolishResult = await profileTagPolish.run();
   const profileTagPolishPublishResult = await profileTagPolishPublish.run();
+  const searchResultParityResult = await searchResultParity.run();
 
   // Main-side suites — these don't print their own banner, so we announce
   // each one before running.
@@ -105,6 +107,7 @@ async function main() {
     ? `SKIP (${profileTagPolishPublishResult.skipped} tests; preconditions not met)`
     : `${profileTagPolishPublishResult.fail === 0 ? 'PASS' : 'FAIL'} (${profileTagPolishPublishResult.pass} passed, ${profileTagPolishPublishResult.fail} failed)`;
   console.log(`profile-tag-polish-publish suite:                ${ptppLine}`);
+  console.log(`search-result-parity suite:                      ${searchResultParityResult.fail === 0 ? 'PASS' : 'FAIL'} (${searchResultParityResult.pass} passed, ${searchResultParityResult.fail} failed)`);
   console.log(`treasure-maps-router-preset suite:               ${treasureMapsResult.fail === 0 ? 'PASS' : 'FAIL'} (${treasureMapsResult.pass} passed, ${treasureMapsResult.fail} failed)`);
   console.log(`scheduled-search-and-house-scores-refresh suite: ${scheduledRefreshResult.fail === 0 ? 'PASS' : 'FAIL'} (${scheduledRefreshResult.pass} passed, ${scheduledRefreshResult.fail} failed)`);
   console.log(`strfry-router-first-boot-config suite:           ${strfryRouterFirstBootResult.fail === 0 ? 'PASS' : 'FAIL'} (${strfryRouterFirstBootResult.pass} passed, ${strfryRouterFirstBootResult.fail} failed)`);
@@ -123,6 +126,7 @@ async function main() {
     && authoredTaggingPublishResult.fail === 0
     && profileTagPolishResult.fail === 0
     && profileTagPolishPublishResult.fail === 0
+    && searchResultParityResult.fail === 0
     && treasureMapsResult.fail === 0
     && scheduledRefreshResult.fail === 0
     && strfryRouterFirstBootResult.fail === 0
