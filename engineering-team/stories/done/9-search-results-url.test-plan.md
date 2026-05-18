@@ -1,6 +1,6 @@
 # Test Plan: Story 9 — Search-results URL routing
 
-**Story:** `engineering-team/stories/9-search-results-url.md`
+**Story:** `engineering-team/stories/done/9-search-results-url.md`
 **ADR:** `engineering-team/decisions/0008-search-results-url.md`
 **Date:** 2026-05-18
 

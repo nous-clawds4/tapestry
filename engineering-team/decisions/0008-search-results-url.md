@@ -2,7 +2,7 @@
 
 **Status:** Proposed
 **Date:** 2026-05-18
-**Story:** `engineering-team/stories/9-search-results-url.md`
+**Story:** `engineering-team/stories/done/9-search-results-url.md`
 
 ## Context
 

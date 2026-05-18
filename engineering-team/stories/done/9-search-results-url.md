@@ -1,6 +1,6 @@
 # Story 9: Stable URL for the search-results page
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-05-18
 **Type:** Feature
 
