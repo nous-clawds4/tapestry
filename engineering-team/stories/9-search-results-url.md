@@ -53,6 +53,6 @@ As a Brainstorm user, I want the search-results page to have its own stable URL 
 - **Browser-history granularity.** Should every keystroke produce a history entry (no), or only Enter-submits (yes), or also significant transitions like POV changes (maybe)? PO lean: only Enter-submits and POV changes create history entries. Typing alone does not. **Architect.**
 
 ## Linked artifacts
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/0008-search-results-url.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
