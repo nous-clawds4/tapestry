@@ -1,6 +1,6 @@
 # Story 8: Search-result parity — live popup ↔ Enter-results page
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-05-14
 **Type:** Feature
 

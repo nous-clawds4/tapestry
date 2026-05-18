@@ -2,7 +2,7 @@
 
 **Status:** Proposed
 **Date:** 2026-05-18
-**Story:** `engineering-team/stories/8-search-result-parity.md`
+**Story:** `engineering-team/stories/done/8-search-result-parity.md`
 
 ## Context
 

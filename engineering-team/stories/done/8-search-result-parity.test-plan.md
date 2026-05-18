@@ -1,6 +1,6 @@
 # Test Plan: Story 8 — Search-result parity (popup ↔ Enter-results page)
 
-**Story:** `engineering-team/stories/8-search-result-parity.md`
+**Story:** `engineering-team/stories/done/8-search-result-parity.md`
 **ADR:** `engineering-team/decisions/0007-search-result-parity.md`
 **Date:** 2026-05-18
 
