@@ -42,5 +42,5 @@ None blocking — resolved in Discovery. Noted: the placeholder edge is Neo4j-on
 
 ## Linked artifacts
 - ADR: `engineering-team/decisions/0005-community-reference-nostr-relay-stub.md` (Accepted; depends on ADR 0004)
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/8-community-reference-nostr-relay-stub.test-plan.md` (4 sentinels; behavioral AC-1…AC-5 deferred to local/staging smoke — authoritative, Reviewer-required)
 - Review: (filled in after Review phase)
