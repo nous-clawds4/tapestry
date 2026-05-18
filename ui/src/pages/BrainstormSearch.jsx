@@ -765,6 +765,11 @@ export default function BrainstormSearch() {
   const [pov, setPov] = useState('nosfabrica');
   const [myWotReady, setMyWotReady] = useState(false);
   const [showPovPicker, setShowPovPicker] = useState(false);
+  // Story 8 / ADR-0007: indicator state for the in-flight POV switch.
+  // Set to true when the user changes POV; cleared by either of the
+  // fetch-response handlers OR by the user-prefs write callback (handles
+  // the empty-query case where neither fetch path fires).
+  const [povSwitching, setPovSwitching] = useState(false);
   const [activePovSuffix, setActivePovSuffix] = useState(null); // returned by server after search
   // Filter/sort state (used by UserMenu Settings panel — no longer sent in search queries)
   const [filters, setFilters] = useState({});
@@ -860,15 +865,26 @@ export default function BrainstormSearch() {
       // server side gracefully degrades (e.g. Meilisearch interner panic).
       setSearchNotice(data._searchTooBroad ? data._notice : null);
 
+      // Story 8 / ADR-0007: apply the same bucket-sort the popup uses so
+      // both surfaces order the same way (name > tag > description). The
+      // pagination-append branch sorts each page-slice independently —
+      // documented trade-off in ADR-0007 (resort-on-every-load-more would
+      // reorder already-visible rows on each click).
       if (offset === 0) {
-        setResults(data.hits || []);
+        setResults(sortPopupHits(data.hits || [], trimmed));
         // Story 7 / ADR-0006: tag-results on the Enter-results page.
         setResultsTagHits(data.tagHits || []);
       } else {
-        setResults(prev => [...(prev || []), ...(data.hits || [])]);
+        setResults(prev => {
+          const newSlice = sortPopupHits(data.hits || [], trimmed);
+          return prev ? [...prev, ...newSlice] : newSlice;
+        });
         // tag-results don't paginate (their full set fits within tagLimit);
         // keep what we already had.
       }
+      // Story 8 / ADR-0007: clear the in-flight indicator once the
+      // results have arrived (idempotent — clearing twice is fine).
+      setPovSwitching(false);
       setMeta({
         estimatedTotalHits: data.estimatedTotalHits || 0,
         processingTimeMs: data.processingTimeMs || 0,
@@ -915,6 +931,9 @@ export default function BrainstormSearch() {
         // Story 7 / ADR-0006: capture tag-results for the popup.
         setPopupTagHits(data.tagHits || []);
         setPopupTagHitsHasMore(!!data.tagHitsHasMore);
+        // Story 8 / ADR-0007: clear the in-flight POV indicator once the
+        // popup-side response that reflects the new POV has arrived.
+        setPovSwitching(false);
       }
     } catch {
       // silently fail suggestions
@@ -971,6 +990,26 @@ export default function BrainstormSearch() {
     }
     prevPovRef.current = pov;
   }, [pov]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Story 8 / ADR-0007: mirror the results-page POV-change effect for the
+  // popup. When POV flips while the user is in landing-mode mid-typing,
+  // re-fetch suggestions so the popup doesn't go stale.
+  const prevPovPopupRef = useRef(pov);
+  useEffect(() => {
+    if (prevPovPopupRef.current !== pov && !hasResults && query.trim().length >= 2) {
+      fetchSuggestions(query);
+    }
+    prevPovPopupRef.current = pov;
+  }, [pov]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Story 8 / ADR-0007: clear povSwitching for the empty-query case (no
+  // fetch path fires to clear it via response). Short timeout fallback so
+  // the indicator never sticks; fetch-response clears land much sooner.
+  useEffect(() => {
+    if (!povSwitching) return undefined;
+    const t = setTimeout(() => setPovSwitching(false), 1500);
+    return () => clearTimeout(t);
+  }, [povSwitching]);
 
   const hasMore = results && meta && results.length < meta.estimatedTotalHits;
 
@@ -1094,7 +1133,11 @@ export default function BrainstormSearch() {
               role="button"
               tabIndex={0}
             >
-              {pov === 'user' && myWotReady ? (
+              {povSwitching ? (
+                /* Story 8 / ADR-0007: in-flight indicator while POV-change
+                   propagates to the active search surface. */
+                <span className="bs-personalization-switching">Updating POV…</span>
+              ) : pov === 'user' && myWotReady ? (
                 <span className="bs-personalized">✓ Personalized</span>
               ) : (
                 <span className="bs-not-personalized">Not Personalized</span>
@@ -1110,7 +1153,12 @@ export default function BrainstormSearch() {
                 {/* House POV option */}
                 <button
                   className={`bs-pov-option ${pov !== 'user' || !myWotReady ? 'active' : ''}`}
-                  onClick={() => { setPov('nosfabrica'); setShowPovPicker(false); }}
+                  onClick={() => {
+                    // Story 8 / ADR-0007: signal in-flight POV change.
+                    if (pov !== 'nosfabrica') setPovSwitching(true);
+                    setPov('nosfabrica');
+                    setShowPovPicker(false);
+                  }}
                 >
                   {houseProfile?.picture && (
                     <img src={houseProfile.picture} alt="" className="bs-pov-option-avatar" onError={e => { e.target.style.display = 'none'; }} />
@@ -1132,7 +1180,12 @@ export default function BrainstormSearch() {
                 ) : (
                   <button
                     className={`bs-pov-option ${pov === 'user' && myWotReady ? 'active' : ''}`}
-                    onClick={() => { setPov('user'); setShowPovPicker(false); }}
+                    onClick={() => {
+                      // Story 8 / ADR-0007: signal in-flight POV change.
+                      if (pov !== 'user') setPovSwitching(true);
+                      setPov('user');
+                      setShowPovPicker(false);
+                    }}
                   >
                     {user.profile?.picture && (
                       <img src={user.profile.picture} alt="" className="bs-pov-option-avatar" onError={e => { e.target.style.display = 'none'; }} />
@@ -1192,7 +1245,11 @@ export default function BrainstormSearch() {
               role="button"
               tabIndex={0}
             >
-              {pov === 'user' && myWotReady ? (
+              {povSwitching ? (
+                /* Story 8 / ADR-0007: in-flight indicator while POV-change
+                   propagates to the active search surface. */
+                <span className="bs-personalization-switching">Updating POV…</span>
+              ) : pov === 'user' && myWotReady ? (
                 <span className="bs-personalized">✓ Personalized</span>
               ) : (
                 <span className="bs-not-personalized">Not Personalized</span>
@@ -1203,7 +1260,12 @@ export default function BrainstormSearch() {
               <div className="bs-pov-picker bs-pov-picker-right">
                 <button
                   className={`bs-pov-option ${pov !== 'user' || !myWotReady ? 'active' : ''}`}
-                  onClick={() => { setPov('nosfabrica'); setShowPovPicker(false); }}
+                  onClick={() => {
+                    // Story 8 / ADR-0007: signal in-flight POV change.
+                    if (pov !== 'nosfabrica') setPovSwitching(true);
+                    setPov('nosfabrica');
+                    setShowPovPicker(false);
+                  }}
                 >
                   {houseProfile?.picture && (
                     <img src={houseProfile.picture} alt="" className="bs-pov-option-avatar" onError={e => { e.target.style.display = 'none'; }} />
@@ -1224,7 +1286,12 @@ export default function BrainstormSearch() {
                 ) : (
                   <button
                     className={`bs-pov-option ${pov === 'user' && myWotReady ? 'active' : ''}`}
-                    onClick={() => { setPov('user'); setShowPovPicker(false); }}
+                    onClick={() => {
+                      // Story 8 / ADR-0007: signal in-flight POV change.
+                      if (pov !== 'user') setPovSwitching(true);
+                      setPov('user');
+                      setShowPovPicker(false);
+                    }}
                   >
                     {user.profile?.picture && (
                       <img src={user.profile.picture} alt="" className="bs-pov-option-avatar" onError={e => { e.target.style.display = 'none'; }} />
