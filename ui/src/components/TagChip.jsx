@@ -112,7 +112,19 @@ export default function TagChip({
       {open && (
         <div className="ptc-popover" role="dialog" id={popoverId} aria-label={`Tag: ${tag.name}`}>
           <div className="ptc-popover-head">
-            <strong className="ptc-popover-name">{tag.name}</strong>
+            {/* Tag name is a link to the tag's detail page (opens in a new
+                tab). Discoverability fix: users were not realizing the chip
+                itself navigates; the underlined link + open-in-new-tab icon
+                makes the affordance explicit. */}
+            <a
+              href={`/tag/${encodeURIComponent(tag.slug)}/${tag.eventId}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="ptc-popover-name-link"
+            >
+              <strong className="ptc-popover-name">{tag.name}</strong>
+              <span className="ptc-popover-name-icon" aria-hidden="true">↗</span>
+            </a>
             {tag.description && <p className="ptc-popover-desc">{tag.description}</p>}
           </div>
 

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
 import SortToggle from './SortToggle';
@@ -58,7 +58,7 @@ function AuthoredTagRow({ row }) {
       >
         {row.tagName}
       </Link>
-      <span className="bsp-authored-verb">tagged</span>
+      <span className="bsp-authored-arrow" aria-label="applied to">→</span>
       <Link
         to={`/user/${row.targetPubkey}`}
         className="bsp-authored-target-link"
@@ -81,6 +81,10 @@ function AuthoredTagRow({ row }) {
 
 export default function AuthoredTaggingSection({ profilePubkey, viewerPubkey }) {
   const { rows, sort, setSort, povSuffix, loading, error } = useAuthoredTagging(profilePubkey);
+  // Collapsed by default — the section was noisy on initial profile view.
+  // The header is a click target that toggles open/closed; chevron rotates
+  // visually to match.
+  const [collapsed, setCollapsed] = useState(true);
 
   // Loading placeholder so the section doesn't pop in/out during the first
   // auth-bootstrap → fetch cycle.
@@ -101,34 +105,55 @@ export default function AuthoredTaggingSection({ profilePubkey, viewerPubkey }) 
 
   return (
     <section className="bsp-authored" aria-label="Tagging activity">
-      <header className="bsp-authored-head">
-        <h3 className="bsp-authored-title">TAGGING ACTIVITY</h3>
-        <SortToggle
-          options={SORT_LABELS}
-          value={sort}
-          onChange={setSort}
-          ariaLabel="Sort tagging activity"
-          className="bsp-authored-sort"
-        />
-      </header>
-      {error && <p className="bsp-authored-error">⚠️ {error}</p>}
-      {aboutMe.length > 0 && (
-        <div className="bsp-authored-aboutme">
-          <h4 className="bsp-authored-subhead">Tags they&apos;ve placed on YOU</h4>
-          <ul className="bsp-authored-list">
-            {aboutMe.map((r) => <AuthoredTagRow key={r.assertionEventId} row={r} />)}
-          </ul>
+      <button
+        type="button"
+        className="bsp-authored-head bsp-authored-head-toggle"
+        onClick={() => setCollapsed((c) => !c)}
+        aria-expanded={!collapsed}
+        aria-controls="bsp-authored-body"
+      >
+        <h3 className="bsp-authored-title">
+          TAGGING ACTIVITY
+          <span className="bsp-authored-count">({rows.length})</span>
+        </h3>
+        <span
+          className={`bsp-authored-chevron${collapsed ? '' : ' is-open'}`}
+          aria-hidden="true"
+        >
+          ▾
+        </span>
+      </button>
+      {!collapsed && (
+        <div id="bsp-authored-body" className="bsp-authored-body">
+          <div className="bsp-authored-sort-row">
+            <SortToggle
+              options={SORT_LABELS}
+              value={sort}
+              onChange={setSort}
+              ariaLabel="Sort tagging activity"
+              className="bsp-authored-sort"
+            />
+          </div>
+          {error && <p className="bsp-authored-error">⚠️ {error}</p>}
+          {aboutMe.length > 0 && (
+            <div className="bsp-authored-aboutme">
+              <h4 className="bsp-authored-subhead">Tags they&apos;ve placed on YOU</h4>
+              <ul className="bsp-authored-list">
+                {aboutMe.map((r) => <AuthoredTagRow key={r.assertionEventId} row={r} />)}
+              </ul>
+            </div>
+          )}
+          {others.length > 0 && (
+            <ul className="bsp-authored-list">
+              {others.map((r) => <AuthoredTagRow key={r.assertionEventId} row={r} />)}
+            </ul>
+          )}
+          {povSuffix && (
+            <p className="bsp-authored-pov-hint">
+              Targets outside your active POV are hidden. Switch POV to see more.
+            </p>
+          )}
         </div>
-      )}
-      {others.length > 0 && (
-        <ul className="bsp-authored-list">
-          {others.map((r) => <AuthoredTagRow key={r.assertionEventId} row={r} />)}
-        </ul>
-      )}
-      {povSuffix && (
-        <p className="bsp-authored-pov-hint">
-          Targets outside your active POV are hidden. Switch POV to see more.
-        </p>
       )}
     </section>
   );

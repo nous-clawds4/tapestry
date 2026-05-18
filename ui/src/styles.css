@@ -3858,7 +3858,31 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
 }
 .ptc-popover-name {
   font-size: 0.95rem;
-  display: block;
+  display: inline;
+}
+/* Tag name in popover is a link to the tag-detail page (opens in a new
+ * tab). Discoverability fix for users who didn't realize the chip itself
+ * navigates. */
+.ptc-popover-name-link {
+  text-decoration: underline;
+  text-decoration-color: rgba(165, 180, 252, 0.4);
+  text-underline-offset: 2px;
+  color: var(--text-primary, #e2e8f0);
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.25rem;
+}
+.ptc-popover-name-link:hover {
+  text-decoration-color: #c7d2fe;
+  color: #c7d2fe;
+}
+.ptc-popover-name-icon {
+  font-size: 0.75rem;
+  color: var(--text-muted, #94a3b8);
+  line-height: 1;
+}
+.ptc-popover-name-link:hover .ptc-popover-name-icon {
+  color: #c7d2fe;
 }
 .ptc-popover-desc {
   margin: 0.25rem 0 0;
@@ -5049,10 +5073,22 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
 .bsp-authored-head {
   display: flex;
   justify-content: space-between;
-  align-items: baseline;
+  align-items: center;
   gap: 0.75rem;
   flex-wrap: wrap;
   margin-bottom: 0.5rem;
+}
+/* The header is a button so the whole row toggles collapsed/expanded. */
+.bsp-authored-head-toggle {
+  width: 100%;
+  background: transparent;
+  border: none;
+  padding: 0.25rem 0;
+  cursor: pointer;
+  text-align: left;
+}
+.bsp-authored-head-toggle:hover .bsp-authored-title {
+  color: var(--text-primary, #e2e8f0);
 }
 .bsp-authored-title {
   font-size: 0.7rem;
@@ -5061,6 +5097,32 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   color: var(--text-muted, #94a3b8);
   text-transform: uppercase;
   margin: 0;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.4rem;
+}
+.bsp-authored-count {
+  font-size: 0.7rem;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  color: var(--text-muted, #94a3b8);
+  text-transform: none;
+  opacity: 0.7;
+}
+.bsp-authored-chevron {
+  display: inline-block;
+  font-size: 0.85rem;
+  color: var(--text-muted, #94a3b8);
+  transition: transform 0.15s ease;
+  transform: rotate(-90deg); /* points right when collapsed */
+}
+.bsp-authored-chevron.is-open {
+  transform: rotate(0deg); /* points down when expanded */
+}
+.bsp-authored-sort-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 0.5rem;
 }
 .bsp-authored-sort .bs-sort-toggle-btn {
   background: rgba(255,255,255,0.04);
@@ -5143,9 +5205,11 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   font-weight: 500;
 }
 .bsp-authored-tag-link:hover { text-decoration: underline; }
-.bsp-authored-verb {
+.bsp-authored-arrow {
   color: var(--text-muted, #94a3b8);
-  font-size: 0.85rem;
+  font-size: 0.95rem;
+  line-height: 1;
+  margin: 0 0.1rem;
 }
 .bsp-authored-target-link {
   display: inline-flex;
