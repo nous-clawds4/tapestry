@@ -1,0 +1,63 @@
+# Review: Stories #8 & #9 — Community-reference stub + concept export
+
+**Reviewer:** Claude (acting as Reviewer)
+**Date:** 2026-05-18
+**Diff:** `git diff 24460033..c1b96499` (impl commit `c1b96499`)
+**Covers:** Story #8 (`engineering-team/stories/8-community-reference-nostr-relay-stub.md`, ADR 0005) and Story #9 (`engineering-team/stories/9-publish-export-a-concept.md`, ADR 0004) — implemented in one coupled diff.
+
+## Quality gates (run by reviewer, not trusted)
+
+- [x] `npm test` — **PASS**. TE1/TE2/TI1/TI2 green, RE1/RI1/RI2 scope guards green, all 6 pre-existing suites green, Overall PASS. Re-run by reviewer.
+- [ ] `npm run test:playwright` — n/a (no browser spec; per test plans, behavior is smoke-gated).
+- [x] _Lint / typecheck / build — not configured; skipped per role._
+
+## Spec adherence
+
+| AC | Status | Note |
+|---|---|---|
+| #8 AC-1 fetch+import distinct node | structural ✓ / behavioral ⧗ | TI1/TI2 pin it; round-trip is smoke M1 — **not run** |
+| #8 AC-2 placeholder edge | structural ✓ / behavioral ⧗ | post-derive MERGE present; smoke M1 — **not run** |
+| #8 AC-3 graceful | ✓ | per-concept try/catch, miss logs+continues, never throws — code-correct |
+| #8 AC-4 knownGoodEventId | ✓ implemented / dormant | mismatch→skip implemented; shipped manifest omits the field (ADR-optional) — path unexercised |
+| #8 AC-5 idempotent | ✓ | MERGE ⇒ idempotent |
+| #9 AC-1 full export | structural ✓ / behavioral ⧗ | endpoint+UI loop; smoke N1 — **not run** |
+| #9 AC-2 own-authored only | ✓ | `WHERE n.pubkey = $taPubkey` — provenance filter correct |
+| #9 AC-3 graphContext stripped | ✓ | events read from strfry (portable signed form); sound |
+| #9 AC-4 idempotent | ✓ | replaceable events |
+| #9 AC-5 partial failure no abort | ✓ | UI loop per-event try/catch + tally |
+| #9 AC-6 owner-only | ✓ | `requireOwner` on the route |
+
+No criterion silently dropped; no behavior beyond the stories.
+
+## ADR adherence
+
+- ADR 0004 Option A: server enumerates own-authored set; UI reuses `publishEverywhere`; no server-side external publisher. ✓ (RE1 green; `nostrPublish.js`/`PUBLISH_RELAYS` untouched.)
+- ADR 0005 Option A: manifest field + install sub-pass (fetch `/api/relay/external` → publish `/api/strfry/publish` no re-sign → Neo4j-only `IMPORT` MERGE); idempotent; graceful; before Pass-3 derive. ✓
+- **Flagged ADR-prose deviation (non-blocking, correct):** ADR 0005's Implementation notes lump the `IMPORT` MERGE into the pre-derive sub-pass. The implementation correctly **splits** it — fetch/publish pre-derive, MERGE post-derive ([src/firmware/install.js:1135](src/firmware/install.js)) — because the community node does not exist until Pass-3 derive. This honors the ADR's stated *intent* ("publish before derive so it becomes a node; then MERGE") and is the only correct sequencing. Recommend annotating ADR 0005 so the artifact matches reality.
+- No new dependencies. Concept handles in `kind:pubkey:slug` form. Firmware reinstall correctly called out (ADR 0005 Consequences) — see findings re: not yet performed.
+
+## Things tests can't catch
+
+- **No secrets.** The committed `919ba08a…` is a public nostr pubkey (brainstorm.world TA), not a secret. OK.
+- **Logging/style:** new install.js logging matches the file's existing emoji/`console.log` house style; `exportSet.js` `console.error` matches `concept-graph/index.js`. Not debug cruft.
+- **Shell exec:** `exportSet.js` `strfryScan` uses `exec(\`strfry scan '${JSON.stringify(filter)...}'\`)` — identical to the established pattern in `io.js`/`eventSync.js`/`admin/index.js`; `filter` is built from Neo4j-derived hex ids, `handle` is a parameterized Cypher param (never shelled). No new injection vector. Acceptable.
+- No commented-out code, no dead code, no race conditions (sequential install + sequential export loop).
+
+## Findings
+
+### Blocking
+
+1. **Authoritative behavioral gate not executed.** The approved test plans state the local/staging smoke is **Reviewer-required, not optional** (the structural sentinels deliberately cannot prove the relay/Neo4j round-trip). It has not been run. Per role ("approve when in doubt → don't"), I cannot PASS the behavioral ACs (#8 AC-1/AC-2, #9 AC-1) on structural evidence alone. **Asked:** run `cycle-local` to evidence export E2E (N1/N2), import **graceful** (M2), and re-install **idempotency** (M4) before this proceeds.
+2. **[src/firmware/install.js:1141](src/firmware/install.js)** — the post-derive step logs `✅ ${slug}: IMPORT → ${to}` whenever the Cypher call succeeds, but `MATCH (a),(b) MERGE …` creates **no edge and errors not** when the community node `b` is absent (curator hasn't published / derive didn't pick up the foreign 39998). This yields a **false-positive "✅ IMPORT" in smoke output** — directly undermining the M1 evidence the Reviewer must rely on. **Asked (small, Implementer):** return/inspect a created-count (e.g. `… MERGE (a)-[:IMPORT]->(b) RETURN count(*)`) and log success only when the edge was actually created; otherwise log a distinct "community node not present yet — IMPORT deferred".
+
+### Non-blocking
+
+1. **Export↔import chicken-and-egg (track explicitly).** Import-positive M1/M3 is structurally unprovable locally until the reference curator (brainstorm.world TA `919ba08a…`) has itself run the new export. Not an implementation defect — but #8 AC-1/AC-2 must NOT be marked proven until a staging run (where brainstorm.world has exported) or a deliberate fixture (hand-publish a 39998 under a test key + temp `communityReference`). Recommend recording as a staging acceptance item on Story #8.
+2. **#8 AC-4 dormant.** `knownGoodEventId` handling is implemented but the shipped manifest omits the field, so the mismatch path is unexercised by default config (ADR-optional). Acceptable; note for the smoke that AC-4 needs a deliberate fixture to exercise.
+3. **ADR 0005 prose** should be annotated to reflect the (correct) pre/post-derive split — see ADR adherence.
+
+## Verdict
+
+**CHANGES_REQUESTED.**
+
+The code is clean, in-scope, ADR-conformant, and the full `npm test` gate is green — there are no architecture/spec/scope defects. But (1) the approved test plans make the behavioral smoke a **required** gate and it has not been run, and (2) the post-derive success log is misleading in exactly the output that smoke relies on. Both asks are small and precise. Route: fix finding #2 via `/implement-feature` (one-function change), run the finding #1 smoke (`cycle-local`), then re-review — no re-architecture, no scope change.
