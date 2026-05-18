@@ -48,6 +48,6 @@ As a Brainstorm user, I want the search popup and the Enter-results page to show
 - Exact UX of the POV-selector loading indicator (spinner, label change, disabled state, all three). **Architect.**
 
 ## Linked artifacts
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/0007-search-result-parity.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
