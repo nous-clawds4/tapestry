@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useConfig } from '../context/ConfigContext';
 import { useHouseProfile } from '../components/BrainstormUserMenu';
@@ -754,7 +755,16 @@ const SUGGEST_LIMIT = 6;
 export default function BrainstormSearch() {
   const { user, login, logout } = useAuth();
   const houseProfile = useHouseProfile();
-  const [query, setQuery] = useState('');
+  // Story 9 / ADR-0008: URL is the source of truth for the committed
+  // query and POV. `useSearchParams` exposes URL search params; pushes
+  // via setSearchParams create history entries.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const urlQuery = searchParams.get('q') || '';
+  // Initialize the input-box state from the URL so a direct navigation
+  // to /?q=alice loads with "alice" in the box on first paint (no flash
+  // of empty input before the hydration effect runs).
+  const [query, setQuery] = useState(() => searchParams.get('q') || '');
   const [results, setResults] = useState(null);
   const [meta, setMeta] = useState(null);
   const [searchNotice, setSearchNotice] = useState(null); // friendly message in place of "No results found" (e.g. when Meilisearch panics on too-broad queries — see nostr-search/src/search.js)
@@ -821,6 +831,22 @@ export default function BrainstormSearch() {
     }
     return url;
   }
+
+  // Story 9 / ADR-0008: submit pathway pushes the URL. The mount-side
+  // hydration effect (keyed on urlQuery) picks up the new URL and fires
+  // the actual fetch. `replace: true` is used for as-you-type updates on
+  // the results page (avoids history pollution); Enter-submits push.
+  const submitSearch = useCallback((q, opts = {}) => {
+    const trimmed = (q || '').trim();
+    if (!trimmed) return;
+    const params = new URLSearchParams();
+    params.set('q', trimmed);
+    if (pov === 'user' && user?.pubkey) {
+      params.set('wotPov', 'user');
+      params.set('userPubkey', user.pubkey);
+    }
+    setSearchParams(params, opts.replace ? { replace: true } : undefined);
+  }, [pov, user, setSearchParams]);
 
   // Full search (transitions to results view)
   const doSearch = useCallback(async (q, offset = 0) => {
@@ -948,9 +974,11 @@ export default function BrainstormSearch() {
     if (debounceRef.current) clearTimeout(debounceRef.current);
 
     if (isResultsView) {
-      // Results view: search-as-you-type with full results
+      // Results view: search-as-you-type with full results.
+      // Story 9 / ADR-0008: replace (not push) so as-you-type doesn't
+      // pollute history. URL still stays in sync; only Enter-submits push.
       if (value.trim().length >= 2) {
-        debounceRef.current = setTimeout(() => doSearch(value), 300);
+        debounceRef.current = setTimeout(() => submitSearch(value, { replace: true }), 300);
       } else if (value.trim().length === 0) {
         setResults(null);
         setMeta(null);
@@ -1011,6 +1039,25 @@ export default function BrainstormSearch() {
     return () => clearTimeout(t);
   }, [povSwitching]);
 
+  // Story 9 / ADR-0008: mount-side hydration. When the URL's `q` param
+  // changes (initial mount with /?q=..., URL push from submit, browser
+  // back/forward), trigger a search. Guarded by prevQueryRef so the
+  // effect doesn't loop when doSearch updates meta.query downstream.
+  const prevQueryRef = useRef('');
+  useEffect(() => {
+    if (urlQuery && urlQuery !== prevQueryRef.current) {
+      setQuery(urlQuery);
+      doSearch(urlQuery);
+      prevQueryRef.current = urlQuery;
+    } else if (!urlQuery && prevQueryRef.current) {
+      // URL went from results back to landing (e.g., back button).
+      setResults(null);
+      setMeta(null);
+      setError(null);
+      prevQueryRef.current = '';
+    }
+  }, [urlQuery]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const hasMore = results && meta && results.length < meta.estimatedTotalHits;
 
   // Landing view (no full results yet — suggestions may be showing)
@@ -1040,7 +1087,8 @@ export default function BrainstormSearch() {
             onKeyDown={e => {
               if (e.key === 'Enter') {
                 setShowSuggestions(false);
-                doSearch();
+                // Story 9 / ADR-0008: push URL; hydration effect fires doSearch.
+                submitSearch(query);
               }
               if (e.key === 'Escape') setShowSuggestions(false);
             }}
@@ -1066,12 +1114,12 @@ export default function BrainstormSearch() {
                     href="#"
                     className="bs-tag-result-more"
                     onMouseDown={(e) => {
-                      // Route to the Enter-results page for the current query
-                      // (same behavior as pressing Enter). Story 8 will close
-                      // the residual sort-coherence gap.
+                      // Route to the Enter-results page for the current query.
+                      // Story 9 / ADR-0008: push URL; hydration effect fires
+                      // doSearch downstream.
                       e.preventDefault();
                       setShowSuggestions(false);
-                      doSearch();
+                      submitSearch(query);
                     }}
                   >
                     Show more tags →
@@ -1158,6 +1206,14 @@ export default function BrainstormSearch() {
                     if (pov !== 'nosfabrica') setPovSwitching(true);
                     setPov('nosfabrica');
                     setShowPovPicker(false);
+                    // Story 9 / ADR-0008: when a query is active, push the
+                    // POV change to URL so the link is shareable as-viewed.
+                    if (urlQuery) {
+                      const params = new URLSearchParams(searchParams);
+                      params.delete('wotPov');
+                      params.delete('userPubkey');
+                      setSearchParams(params);
+                    }
                   }}
                 >
                   {houseProfile?.picture && (
@@ -1185,6 +1241,14 @@ export default function BrainstormSearch() {
                       if (pov !== 'user') setPovSwitching(true);
                       setPov('user');
                       setShowPovPicker(false);
+                      // Story 9 / ADR-0008: when a query is active, push the
+                      // POV change to URL so the link is shareable as-viewed.
+                      if (urlQuery) {
+                        const params = new URLSearchParams(searchParams);
+                        params.set('wotPov', 'user');
+                        if (user?.pubkey) params.set('userPubkey', user.pubkey);
+                        setSearchParams(params);
+                      }
                     }}
                   >
                     {user.profile?.picture && (
@@ -1232,7 +1296,9 @@ export default function BrainstormSearch() {
             inputRef={inputRef}
             value={query}
             onChange={(v) => handleInputChange(v, true)}
-            onKeyDown={e => e.key === 'Enter' && doSearch()}
+            onKeyDown={e => {
+              if (e.key === 'Enter') submitSearch(query); // Story 9 / ADR-0008
+            }}
             placeholder="Search profiles…"
           />
         </div>
@@ -1265,6 +1331,14 @@ export default function BrainstormSearch() {
                     if (pov !== 'nosfabrica') setPovSwitching(true);
                     setPov('nosfabrica');
                     setShowPovPicker(false);
+                    // Story 9 / ADR-0008: when a query is active, push the
+                    // POV change to URL so the link is shareable as-viewed.
+                    if (urlQuery) {
+                      const params = new URLSearchParams(searchParams);
+                      params.delete('wotPov');
+                      params.delete('userPubkey');
+                      setSearchParams(params);
+                    }
                   }}
                 >
                   {houseProfile?.picture && (
@@ -1291,6 +1365,14 @@ export default function BrainstormSearch() {
                       if (pov !== 'user') setPovSwitching(true);
                       setPov('user');
                       setShowPovPicker(false);
+                      // Story 9 / ADR-0008: when a query is active, push the
+                      // POV change to URL so the link is shareable as-viewed.
+                      if (urlQuery) {
+                        const params = new URLSearchParams(searchParams);
+                        params.set('wotPov', 'user');
+                        if (user?.pubkey) params.set('userPubkey', user.pubkey);
+                        setSearchParams(params);
+                      }
                     }}
                   >
                     {user.profile?.picture && (
