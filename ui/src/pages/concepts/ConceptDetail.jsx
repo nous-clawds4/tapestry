@@ -28,10 +28,13 @@ export default function ConceptDetail() {
   );
   const profiles = useProfiles(authorPubkeys);
 
-  // Story #9 / ADR 0004 — owner publishes this concept to the community.
-  // Server enumerates the own-authored (TA) event set (Concept-Graph-rooted,
-  // owner-only); we re-publish each via the existing publishEverywhere
-  // primitive. Non-owners get a server error surfaced in the status line.
+  // Story #9 / ADR 0004 (Rev 1) — owner publishes this concept to the
+  // community. Server enumerates the own-authored (TA) event set
+  // (Concept-Graph-rooted, owner-only); we re-publish each via the existing
+  // publishEverywhere primitive, targeting ONLY the DList relay
+  // wss://dcosl.brainstorm.world (not the general-purpose PUBLISH_RELAYS) so
+  // we don't pollute popular relays. Non-owners get a server error surfaced.
+  const CONCEPT_PUBLISH_RELAYS = ['wss://dcosl.brainstorm.world'];
   const [publishStatus, setPublishStatus] = useState(null);
   const [publishing, setPublishing] = useState(false);
 
@@ -55,7 +58,7 @@ export default function ConceptDetail() {
       for (const ev of events) {
         setPublishStatus(`Publishing ${ok + fail + 1}/${events.length}…`);
         try {
-          const r = await publishEverywhere(ev);
+          const r = await publishEverywhere(ev, CONCEPT_PUBLISH_RELAYS);
           if (r?.local?.success || (r?.external?.successes?.length > 0)) ok++;
           else fail++;
         } catch {

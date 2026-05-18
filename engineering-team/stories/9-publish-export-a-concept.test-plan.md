@@ -4,6 +4,8 @@
 **ADR:** `engineering-team/decisions/0004-publish-export-a-concept.md`
 **Date:** 2026-05-17
 
+> **Revision (2026-05-18, ADR 0004 Rev 1):** concept export publishes ONLY to `wss://dcosl.brainstorm.world` (relay-parameterized `publishEverywhere`). Sentinels unchanged and still valid (TE1 still pins `publishEverywhere` usage; RE1 still pins the primitive + `PUBLISH_RELAYS` present). Smoke relay target below is now the dcosl DList relay.
+
 ## Approach
 
 Precedent: stories #5 / #6 / strfry-router-first-boot. Export is a relay round-trip — its real behavior (events landing on community relays, Concept-Graph-rooted closure, foreign nodes excluded, idempotency, partial-failure reporting, owner-only enforcement) is **not reproducible in the hand-rolled Node runner** without infra this project has no ADR for, and ADR 0004 deliberately left the route name/path open ("`src/api/concept/` OR extend `src/api/concept-graph/`"). So the in-runner suite pins only the **stable contract ADR 0004 did fix**, and the behavioral proof is the **authoritative local/staging smoke** below.
@@ -34,7 +36,7 @@ TE1, TE2 = FAIL pre-implementation, PASS post. RE1 = PASS pre AND post (scope gu
 
 Run on the local docker stack (`cycle-local`, `http://localhost:8080`) or `staging.brainstorm.world`.
 
-**N1 — AC-1/AC-3 (full Concept-Graph-rooted export, graphContext stripped):** as owner, trigger "Publish concept" for `nostr-relay`. Query a `PUBLISH_RELAYS` member via `/api/relay/external` for `{kinds:[39998,39999],authors:["<local TA pubkey>"]}` scoped to the concept. Expect the 39998 Header **and** the 39999 Concept Graph node **and** its closure (superset, sets, elements, schema, primary-property, properties-set, property-tree-graph, core-nodes-graph). Expect **no `graphContext`** in any published event.
+**N1 — AC-1/AC-3 (full Concept-Graph-rooted export, graphContext stripped):** as owner, trigger "Publish concept" for `nostr-relay`. Query `wss://dcosl.brainstorm.world` via `/api/relay/external` for `{kinds:[39998,39999],authors:["<local TA pubkey>"]}` scoped to the concept. Expect the 39998 Header **and** the 39999 Concept Graph node **and** its closure (superset, sets, elements, schema, primary-property, properties-set, property-tree-graph, core-nodes-graph). Expect **no `graphContext`** in any published event.
 
 **N2 — AC-2 (provenance: foreign nodes excluded):** plant a foreign-authored node inside the `nostr-relay` concept (an element/superset signed by a non-TA pubkey — e.g. via the Story #8 import, or hand-published). Run export. Expect that foreign-authored event is **absent** from the published set (only `authors:["<TA>"]` events emitted).
 

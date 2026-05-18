@@ -1142,6 +1142,19 @@ async function install(opts = {}) {
     console.log('\n── Community-reference IMPORT edges ──\n');
     for (const link of crResult.pending) {
       try {
+        // The edge is real only if the community node exists. MATCH...MERGE
+        // silently no-ops (no error, no edge) when it is absent, so check
+        // presence first and log accurately — the Reviewer-required smoke
+        // reads this line as M1 evidence (review finding #2).
+        const found = await runCypherApi(
+          `MATCH (b:NostrEvent {uuid:$to}) RETURN count(b) AS cnt`,
+          { to: link.to }
+        );
+        const present = ((found && found.data) || [])[0]?.cnt || 0;
+        if (!present) {
+          console.log(`  ⏭️  ${link.slug}: community node ${link.to} not present yet — IMPORT deferred (graceful)`);
+          continue;
+        }
         await runCypherApi(
           `MATCH (a:NostrEvent {uuid:$from}), (b:NostrEvent {uuid:$to})
            MERGE (a)-[:IMPORT]->(b)`,

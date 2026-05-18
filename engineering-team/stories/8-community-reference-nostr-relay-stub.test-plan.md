@@ -4,6 +4,8 @@
 **ADR:** `engineering-team/decisions/0005-community-reference-nostr-relay-stub.md` (depends on ADR 0004)
 **Date:** 2026-05-17
 
+> **Revision (2026-05-18, ADR 0005 Rev 1):** `communityReference.relayHints` is now `["wss://dcosl.brainstorm.world"]` (matches the revised export target). TI1 unchanged and still valid (non-empty `ws(s)://` array). Smoke M1/M3 publish/seek the community Header on the dcosl DList relay.
+
 ## Approach
 
 Precedent: stories #5 / #6. The behavioral core — a real community kind-39998 Header fetched off a relay, imported as a **distinct foreign node**, the Neo4j `IMPORT` placeholder edge created, graceful skip when no relay carries it, `knownGoodEventId` mismatch handling, and re-install idempotency — needs a live firmware install + relays + Neo4j and is **not reproducible in the hand-rolled Node runner**. The in-runner suite pins the **stable contract** (the manifest data shape + the install wiring/ordering/graceful contract ADR 0005 fixed); the behavioral proof is the **authoritative local/staging smoke** below.
