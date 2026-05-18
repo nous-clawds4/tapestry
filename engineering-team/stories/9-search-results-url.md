@@ -54,5 +54,5 @@ As a Brainstorm user, I want the search-results page to have its own stable URL 
 
 ## Linked artifacts
 - ADR: `engineering-team/decisions/0008-search-results-url.md`
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/9-search-results-url.test-plan.md`
 - Review: (filled in after Review phase)
