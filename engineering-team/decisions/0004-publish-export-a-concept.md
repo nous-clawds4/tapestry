@@ -1,6 +1,6 @@
 # ADR 0004: Publish/export a concept — Concept-Graph-rooted
 
-**Status:** Accepted
+**Status:** Accepted (revised 2026-05-18 — see Revision 1)
 **Date:** 2026-05-17
 **Story:** `engineering-team/stories/9-publish-export-a-concept.md`
 
@@ -44,3 +44,17 @@ Wrap the whole concept in one event. **Cons:** breaks a-tag addressing and the c
 
 ## Out of scope
 Privacy-tiered export; Header→ConceptGraph protocol tag; server-side headless export; concepts beyond `nostr-relay` for verification.
+
+---
+
+## Revision 1 (2026-05-18) — restricted DList relay target
+
+**Trigger:** Review of stories #8/#9 (`engineering-team/reviews/8-community-reference-and-export.md`, CHANGES_REQUESTED) + an explicit owner relay-policy decision: concept export must publish **only to `wss://dcosl.brainstorm.world`**, not to the general-purpose `PUBLISH_RELAYS` set (purplepag.es / primal / damus / nos.lol / wot.grapevine.network).
+
+**What changes:**
+- The original Decision's "**No change to `nostrPublish.js` — reuse as-is**" and the implicit `publishEverywhere → PUBLISH_RELAYS` target are **superseded**. `publishEverywhere` is parameterized: `publishEverywhere(signedEvent, relays = PUBLISH_RELAYS)`. The default is unchanged, so every existing caller (profile follow/mute/report via `useProfileActions`) is byte-for-byte unaffected. The concept-export action passes `['wss://dcosl.brainstorm.world']`.
+- Still ADR-0004 Option A in spirit: the browser primitive is reused (not a new server-side publisher); only its relay target is now an argument. Sentinels: **TE1** stays valid (the concept-export UI still calls `publishEverywhere`); **RE1** stays valid (`publishEverywhere` + `PUBLISH_RELAYS` still exported; no server-side `SimplePool.publish`).
+
+**Rationale:** (a) avoid polluting general-purpose relays with concept/DList events; (b) `wss://dcosl.brainstorm.world` is the purpose-built DList relay — the `dcosl` router preset already mirrors kinds 9998/9999/39998/39999; (c) **export target and import `relayHints` must be the same relay set or the round-trip cannot close** — see ADR 0005 Revision 1. Junk-tolerance on the import side is the real robustness mechanism (owner's explicit framing); the restricted publish target is pollution-minimisation courtesy, not correctness.
+
+**Consequences / follow-ups:** Implementer re-cycle: parameterize `publishEverywhere`; concept-export passes the dcosl set. No re-architecture. Reviewer finding #2 (`install.js:1141` misleading IMPORT log) is folded into the same Implementer pass (it is an Implementer fix, not an ADR change — referenced here only for chain coherence).

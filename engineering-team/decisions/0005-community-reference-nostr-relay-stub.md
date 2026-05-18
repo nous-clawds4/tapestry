@@ -1,6 +1,6 @@
 # ADR 0005: Community-reference pointer — Nostr Relay stub
 
-**Status:** Accepted
+**Status:** Accepted (revised 2026-05-18 — see Revision 1)
 **Date:** 2026-05-17
 **Story:** `engineering-team/stories/8-community-reference-nostr-relay-stub.md`
 **Depends on:** ADR 0004 (export contract)
@@ -41,3 +41,17 @@ No linkage ⇒ defeats purpose. Rejected.
 
 ## Out of scope
 Community Superset/sets/elements/schema retrieval; materialization; Header→ConceptGraph tag; signed IMPORT/firmware rel-type; privacy tiers; concepts beyond `nostr-relay`.
+
+---
+
+## Revision 1 (2026-05-18) — relayHints aligned to the DList relay
+
+**Trigger:** Consequence of ADR 0004 Revision 1 (concept export now publishes **only** to `wss://dcosl.brainstorm.world`). The Context's "`communityReference.relayHints` defaults to that PUBLISH_RELAYS set per ADR 0004" is **superseded**: import must look where export actually publishes, or the round-trip cannot close by construction.
+
+**What changes:**
+- Shipped `communityReference.relayHints` becomes **`["wss://dcosl.brainstorm.world"]`** (replacing the 5 popular relays in the implemented manifest — an Implementer re-cycle task).
+- Sentinel **TI1** stays valid: it asserts `relayHints` is a non-empty array of `ws(s)://` URLs — a single dcosl URL satisfies it. `headerATag` (`39998:919ba08a…:nostr-relay`) is unchanged.
+
+**Rationale:** export ⇄ import relay-set consistency (ADR 0004 Rev 1 rationale (c)); concept/DList events belong on the purpose-built DList relay (the `dcosl` preset mirrors 39998/39999), not general-purpose relays.
+
+**Consequences:** The export↔import chicken-and-egg closes only once brainstorm.world's TA (`919ba08a…`) has actually run concept export to `wss://dcosl.brainstorm.world` (the stepwise-to-prod plan). Until then, import graceful-degrades — the correct, intended behaviour (ADR 0005 AC-3). Reviewer non-blocking item (AC-4 dormant) is unaffected by this revision.
