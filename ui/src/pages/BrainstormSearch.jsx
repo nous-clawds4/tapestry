@@ -614,6 +614,37 @@ function getWotScore(hit, metric, povSuffix) {
   return hit[`wot_${metric}`] ?? null;
 }
 
+/**
+ * Bucket profile hits so the popup reads, in order:
+ *   1. Name matches    — query is a case-insensitive substring of name or display_name.
+ *   2. Tag matches     — hit was surfaced via a matched tag (`_matchedTags` is non-empty)
+ *                        AND wasn't already classified as a name match.
+ *   3. Description matches — everything else (Meilisearch surfaced it for
+ *                        some other field, typically `about`).
+ *
+ * A hit that falls into multiple buckets goes into the highest-priority one
+ * (name beats tag beats description). Within each bucket, Meilisearch's
+ * relative order is preserved. Story-7 post-ship sort-order fix.
+ */
+function sortPopupHits(hits, queryStr) {
+  const q = (queryStr || '').toLowerCase().trim();
+  if (!q || !Array.isArray(hits) || hits.length === 0) return hits || [];
+  const nameMatches = [];
+  const tagMatches = [];
+  const descMatches = [];
+  for (const hit of hits) {
+    const haystack = `${hit.name || ''} ${hit.display_name || ''}`.toLowerCase();
+    if (haystack.includes(q)) {
+      nameMatches.push(hit);
+    } else if (Array.isArray(hit._matchedTags) && hit._matchedTags.length > 0) {
+      tagMatches.push(hit);
+    } else {
+      descMatches.push(hit);
+    }
+  }
+  return [...nameMatches, ...tagMatches, ...descMatches];
+}
+
 /* ── Result Card ──────────────────────────────────────── */
 
 /**
@@ -873,7 +904,12 @@ export default function BrainstormSearch() {
         const filtered = nip05
           ? data.hits.filter(h => (h.pubkey || h.id) !== (nip05.pubkey || nip05.id))
           : data.hits;
-        setSuggestions(nip05 ? [{ ...nip05, _nip05Verified: true }, ...filtered] : filtered);
+        // Bucket the profile hits so the popup reads: NIP-05 (if any) →
+        // name matches → tag-matched profiles → description matches. Within
+        // each bucket, preserve Meilisearch's relative order. Story-7
+        // post-ship polish.
+        const sorted = sortPopupHits(filtered, trimmed);
+        setSuggestions(nip05 ? [{ ...nip05, _nip05Verified: true }, ...sorted] : sorted);
         setShowSuggestions(true);
         if (data.povSuffix) setActivePovSuffix(data.povSuffix);
         // Story 7 / ADR-0006: capture tag-results for the popup.
