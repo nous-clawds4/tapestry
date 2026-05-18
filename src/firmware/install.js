@@ -974,6 +974,85 @@ async function pass2_enrich(opts = {}) {
   return { updated, skipped, errors };
 }
 
+// ── Community references (Story #8 / ADR 0005) ───────────────
+//
+// For each firmware concept carrying a `communityReference`, fetch the
+// community-curated kind-39998 Concept Header from the relay hints and
+// publish it to local strfry WITHOUT re-signing (it is the curator's
+// already-signed event). The Neo4j IMPORT placeholder edge is wired
+// AFTER Pass-3 derive (returned as pending), since the community node
+// does not exist until derive turns the published event into a node.
+//
+// Graceful by contract: a relay miss, id mismatch, or any error logs and
+// continues — it never throws out of install (AC-3). The local firmware
+// concept is created exactly as before.
+
+async function pass_communityReferences(opts = {}) {
+  const { dryRun = false } = opts;
+  const manifest = firmware.getManifest();
+  const taPubkey = firmware.getTAPubkey();
+  const pending = [];
+
+  console.log('\n── Community references ──\n');
+
+  for (const entry of manifest.concepts) {
+    const cr = entry.communityReference;
+    if (!cr || !cr.headerATag) continue;
+    const slug = entry.slug;
+
+    try {
+      const parts = String(cr.headerATag).split(':'); // 39998:<curatorPk>:<dTag>
+      if (parts.length < 3 || parts[0] !== '39998') {
+        console.log(`  ⚠️  ${slug}: malformed communityReference.headerATag "${cr.headerATag}" — skipped`);
+        continue;
+      }
+      const curatorPk = parts[1];
+      const dTag = parts.slice(2).join(':');
+
+      const filter = cr.knownGoodEventId
+        ? { ids: [cr.knownGoodEventId] }
+        : { kinds: [39998], authors: [curatorPk], '#d': [dTag] };
+      const relays = (cr.relayHints || []).join(',');
+
+      if (dryRun) {
+        console.log(`  (dry-run) ${slug} → ${cr.headerATag} via ${relays}`);
+        continue;
+      }
+
+      const fetched = await apiGet('/api/relay/external', {
+        filter: JSON.stringify(filter),
+        relays,
+      });
+      const ev = fetched && Array.isArray(fetched.events) ? fetched.events[0] : null;
+
+      if (!ev) {
+        console.log(`  ⚠️  ${slug}: community Header not found on relay hints — skipped (graceful)`);
+        continue;
+      }
+      if (cr.knownGoodEventId && ev.id !== cr.knownGoodEventId) {
+        console.log(`  ⚠️  ${slug}: fetched id ${ev.id} ≠ knownGoodEventId — skipped (graceful)`);
+        continue;
+      }
+
+      // Pass the already-signed foreign event through unchanged (no re-sign —
+      // you cannot sign someone else's event). Pass-3 derive will turn it
+      // into a distinct foreign node (uuid = its own a-tag).
+      await apiPost('/api/strfry/publish', { event: ev });
+
+      pending.push({
+        slug,
+        from: `39998:${taPubkey}:${slug}`,
+        to: cr.headerATag,
+      });
+      console.log(`  ✅ ${slug}: community Header published locally → IMPORT pending`);
+    } catch (err) {
+      console.log(`  ❌ ${slug}: ${err.message} (graceful — continuing)`);
+    }
+  }
+
+  return { pending };
+}
+
 // ── Full install ─────────────────────────────────────────────
 
 async function install(opts = {}) {
@@ -1002,6 +1081,10 @@ async function install(opts = {}) {
   if (pass2) {
     p2Result = await pass2_enrich({ dryRun });
   }
+
+  // Community references: fetch + publish before Pass-3 derive so the
+  // community Header becomes a node; the IMPORT edge is wired post-derive.
+  const crResult = await pass_communityReferences({ dryRun });
 
   // ── Pass 3: Derive + Apply Enumerations + Wire Implicit Elements ──
   let p3Result = null;
@@ -1047,6 +1130,28 @@ async function install(opts = {}) {
     }
 
     console.log('');
+  }
+
+  // ── Community-reference IMPORT edges (post-derive) ──────────
+  // The community Header is now a node (Pass-3 derived it). MERGE the
+  // Neo4j-only placeholder: local Concept Header -[:IMPORT]-> community
+  // Header. MERGE ⇒ idempotent across re-installs (AC-5). Graceful: a
+  // missing community node (derive lagged / fetch was skipped) just
+  // wires no edge — never throws.
+  if (!dryRun && crResult && crResult.pending && crResult.pending.length) {
+    console.log('\n── Community-reference IMPORT edges ──\n');
+    for (const link of crResult.pending) {
+      try {
+        await runCypherApi(
+          `MATCH (a:NostrEvent {uuid:$from}), (b:NostrEvent {uuid:$to})
+           MERGE (a)-[:IMPORT]->(b)`,
+          { from: link.from, to: link.to }
+        );
+        console.log(`  ✅ ${link.slug}: IMPORT → ${link.to}`);
+      } catch (err) {
+        console.log(`  ⚠️  ${link.slug}: IMPORT wiring skipped — ${err.message} (graceful)`);
+      }
+    }
   }
 
   console.log('\n╔══════════════════════════════════════════════════════════╗');
@@ -1176,4 +1281,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { install, pass1_bootstrap, pass2_enrich, handleFirmwareInstall };
+module.exports = { install, pass1_bootstrap, pass2_enrich, pass_communityReferences, handleFirmwareInstall };

@@ -1,9 +1,10 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useParams, NavLink, Outlet } from 'react-router-dom';
 import { useCypher } from '../../hooks/useCypher';
 import Breadcrumbs from '../../components/Breadcrumbs';
 import useProfiles from '../../hooks/useProfiles';
 import AuthorCell from '../../components/AuthorCell';
+import { publishEverywhere } from '../../utils/nostrPublish';
 
 export default function ConceptDetail() {
   const { uuid } = useParams();
@@ -26,6 +27,48 @@ export default function ConceptDetail() {
     [concept?.author]
   );
   const profiles = useProfiles(authorPubkeys);
+
+  // Story #9 / ADR 0004 — owner publishes this concept to the community.
+  // Server enumerates the own-authored (TA) event set (Concept-Graph-rooted,
+  // owner-only); we re-publish each via the existing publishEverywhere
+  // primitive. Non-owners get a server error surfaced in the status line.
+  const [publishStatus, setPublishStatus] = useState(null);
+  const [publishing, setPublishing] = useState(false);
+
+  const publishConcept = async () => {
+    setPublishing(true);
+    setPublishStatus('Collecting concept events…');
+    try {
+      const resp = await fetch(`/api/concept/${encodeURIComponent(decodedUuid)}/export-set`);
+      const data = await resp.json();
+      if (!resp.ok || !data.success) {
+        setPublishStatus(`Error: ${data.error || `HTTP ${resp.status}`}`);
+        return;
+      }
+      const events = data.events || [];
+      if (events.length === 0) {
+        setPublishStatus('Nothing to publish — no own-authored events for this concept.');
+        return;
+      }
+      let ok = 0;
+      let fail = 0;
+      for (const ev of events) {
+        setPublishStatus(`Publishing ${ok + fail + 1}/${events.length}…`);
+        try {
+          const r = await publishEverywhere(ev);
+          if (r?.local?.success || (r?.external?.successes?.length > 0)) ok++;
+          else fail++;
+        } catch {
+          fail++;
+        }
+      }
+      setPublishStatus(`Published ${ok}/${events.length} concept events to the community${fail ? ` (${fail} failed)` : ''}.`);
+    } catch (err) {
+      setPublishStatus(`Error: ${err.message}`);
+    } finally {
+      setPublishing(false);
+    }
+  };
 
   const tabs = [
     { to: '', label: 'Overview', end: true },
@@ -52,6 +95,19 @@ export default function ConceptDetail() {
             <span className="meta-item">UUID: <code>{concept.uuid}</code></span>
             <span className="meta-item">Elements: <strong>{concept.elementCount}</strong></span>
             <span className="meta-item">Author: <AuthorCell pubkey={concept.author} profiles={profiles} /></span>
+          </div>
+
+          <div className="concept-actions">
+            <button
+              type="button"
+              className="btn"
+              onClick={publishConcept}
+              disabled={publishing}
+              title="Publish this concept's own-authored events to the community relays"
+            >
+              {publishing ? 'Publishing…' : 'Publish concept to community'}
+            </button>
+            {publishStatus && <span className="meta-item" style={{ marginLeft: '0.75rem' }}>{publishStatus}</span>}
           </div>
 
           <nav className="tab-nav">
