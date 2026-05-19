@@ -56,5 +56,5 @@ As a NIP-07-authenticated user viewing a tag's detail page, I want to pin (or un
 
 - Epic: `engineering-team/epics/pin-a-tag.md`
 - ADR: `engineering-team/decisions/0009-pin-a-tag.md`
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/10-pin-a-tag.test-plan.md`
 - Review: (filled in after Review phase)
