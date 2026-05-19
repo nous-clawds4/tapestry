@@ -55,6 +55,6 @@ As a NIP-07-authenticated user viewing a tag's detail page, I want to pin (or un
 ## Linked artifacts
 
 - Epic: `engineering-team/epics/pin-a-tag.md`
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/0009-pin-a-tag.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
