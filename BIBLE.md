@@ -290,6 +290,7 @@ strfry replaces existing events (kind 39999 is replaceable), and Neo4j MERGEs on
 | `IMPORT` | "I agree with your concept definition" — implies IS_A_SUPERSET_OF between supersets |
 | `SUPERCEDES` | "I've evaluated your definition and replaced it with mine" — non-destructive |
 | `PROVIDED_THE_TEMPLATE_FOR` | Provenance link from original to forked node |
+| `REFERENCES` (concept-level) | Deferred non-committal pointer: local Concept Header → an external curator's Concept Header. Neo4j-only, carries `source`. NOT an explicit event, NOT agreement, NOT `IS_A_SUPERSET_OF`. Disambiguate from the tag-level `REFERENCES` (`NostrEventTag → NostrEvent`, every `e`/`a` tag) by endpoint labels + `source`. See §22. |
 
 #### Infrastructure
 | Relationship | Meaning |
@@ -1528,7 +1529,10 @@ docker compose exec tapestry strfry sync wss://dcosl.brainstorm.world \
 | **GrapeRank** | "PageRank for people" — iterative, personalized-per-observer trust scoring. Weighted average of raters' influence × rating × rating confidence, with an attenuation factor on non-observer raters. Converges to a fixed point determined purely by the observer pubkey and the rating graph. |
 | **Grapevine** | The Web of Trust system that determines which curations achieve community consensus. |
 | **IMPORT** | Editorial relationship: "I agree with your concept and want to benefit from your curated elements." |
+| **communityReference** | A firmware-concept pointer `{ headerATag, relayHints[], knownGoodEventId? }` to an external curator's published concept. Resolved at install into a `REFERENCES` placeholder. See §22. |
+| **grapevine → firmware → none** | The community-reference resolution precedence: the user's Grapevine is the correct selector of "the community's definition"; the firmware-baked pointer is only a cold-start default; else nothing. Mirrors Warm Start's `self → owner → cold`. See §22. |
 | **Loose Consensus** | When two users' WoTs overlap enough to converge on the same definition without central coordination. |
+| **REFERENCES (concept-level)** | Neo4j-only deferred stub edge: local Concept Header → an external curator's Concept Header (`source` set). NOT agreement/import. Overloaded with the tag-level `REFERENCES`; disambiguate by endpoint labels + `source`. See §22. |
 | **Meilisearch** | Full-text search engine used for profile search. Runs as a separate Docker container (`nostr-search-meili`). Indexes 2M+ kind 0 profiles with sub-10ms query times. |
 | **NIP-05** | Nostr verification standard. A NIP-05 identifier (e.g., `bob@example.com`) is verified by fetching `https://domain/.well-known/nostr.json?name=bob` and checking the pubkey mapping. |
 | **NIP-07** | Nostr browser extension signing standard. Used for authentication. |
@@ -1546,6 +1550,28 @@ docker compose exec tapestry strfry sync wss://dcosl.brainstorm.world \
 | **Warm Start** | An opt-in GrapeRank initialization mode that seeds scorecards from previously-computed scores instead of `[0,0,0,0]`. Three sources in tiered fallback: `self` (customer's own prior scores), `owner` (owner's `NostrUser` scores when the owner is within 3 directed FOLLOWS hops downstream of the customer), and `cold` (no seed available; legacy behavior). Typically cuts customer GrapeRank runtime from ~20 min to ~5 min. |
 | **Word-wrapper** | The canonical JSON format where every node's data includes a `word` section plus type-specific sections. |
 | **z-tag** | The `z` tag on a ListItem that points to its parent concept's a-tag. Fundamental parent pointer. |
+
+---
+
+## 22. Community-Reference Model
+
+A firmware concept may carry a `communityReference` — `{ headerATag, relayHints[], knownGoodEventId? }` — a **deferred, non-committal pointer** to an external curator's published concept (a kind-39998 Header). At firmware install, `pass_communityReferences` fetches that Header from `relayHints`, republishes it to local strfry **without re-signing**, **explicitly materializes it as a Neo4j node** (`buildImportCypher`/`executeCypher`), then MERGEs `(localHeader)-[:REFERENCES {source:'firmware-community'}]->(communityHeader)`. Idempotent; fully graceful (any miss → log + continue, never throws; the local concept is unaffected).
+
+**The `REFERENCES` edge is a stub, not an assertion.** It means "this external curator's concept is a recognized reference for my local concept; I *may* later pull from it" — not agreement, not "imported," not `IS_A_SUPERSET_OF`. It is distinct from the (deferred) editorial `IMPORT`. One local concept may `REFERENCES` **many** external concepts (e.g. Miles's *Jazz Musicians* and Dizzy's) — many-to-one via distinct target nodes; provenance per-edge via `source`.
+
+**Collision contract (binding).** `REFERENCES` is overloaded: event ingest builds high-volume `(:NostrEventTag)-[:REFERENCES]->(:NostrEvent)` for every `e`/`a` tag. Concept-level `REFERENCES` is disambiguated by **endpoint labels** (`ListHeader→ListHeader`) **and** `r.source` (tag-level never sets it). Any consumer traversal MUST filter on both; a bare `MATCH ()-[:REFERENCES]->()` is a defect.
+
+**Resolution model.** The *correct* long-term selector of "the community's definition" is the user's Grapevine (WoT loose consensus over published curations). The firmware-baked pointer is a **cold-start default**, not the truth. Precedence: **`grapevine-resolved → firmware-blessed → none`** — mirroring the Warm Start tiered fallback (`self → owner → cold`).
+
+**Accepted compromise (Flaw A) and its exit.** A firmware-baked pointer is a *centralized* editorial choice (the dev team picks the blessed curator pubkey — currently the reference deployment's TA). Accepted **temporarily**; the exit is the **registry-as-DList**: the per-concept pointer itself becomes a community-curated, Grapevine-ranked DList, retiring the hardcoded choice.
+
+**Invariants & principles.**
+1. *Relay invariant:* concept export and `communityReference.relayHints` must target the same relay set (the purpose-built DList relay, not general-purpose relays) or the round-trip cannot close.
+2. *Export is own-authored:* you never re-export another curator's concept under your identity.
+3. *Materialization ≠ derive:* publishing to strfry does not create a Neo4j node — Pass-3 derive only computes `tapestryJSON` for nodes already present; ingesting a foreign event requires the explicit eventSync import path.
+4. *Verification:* structural sentinels cannot prove relay + Neo4j + install round-trips — the local/staging/prod smoke is the authoritative behavioral gate (it caught the materialization defect that all structural tests missed).
+
+**Deferred (see ADR 0006):** Header→ConceptGraph single-event tag; privacy tiers; signed/first-class editorial relationship-type; registry-as-DList; element/superset materialization.
 
 ---
 
