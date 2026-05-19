@@ -29,5 +29,26 @@ None.
 ### Non-blocking
 1. **Sharpen smoke S1 (Reviewer-required).** The structural sentinel only checks the literal pattern. S1 must assert the emitted 39998 header's `concept-graph` tag value **exactly equals** `39999:<instance TA pubkey from /api/assistant/pubkey>:<dtag>-concept-graph` (not just a 64-hex regex) — this is the authoritative end-to-end confirmation that the `pubkey` var is the real signing pubkey. Plus S2 idempotency on reinstall.
 
-## Verdict
-**PASS (code/ADR/scope).** No blocking issues; minimal, ADR-conformant, no regression. Behavioral acceptance gate = the **Reviewer-required cycle-local smoke S1/S2** (sharpened per finding #1), which is the explicitly-authorized immediate next step. #10 AC-1/AC-2 are not "proven" until that smoke is observed. No further code changes required to proceed.
+## Verdict (initial — SUPERSEDED, see Re-review)
+~~**PASS (code/ADR/scope).**~~ Premature — see Re-review below.
+
+---
+
+## Re-review (cycle-local S1 — 2026-05-19) — verdict corrected to CHANGES_REQUESTED
+
+**S1 FAILED.** The emitted `nostr-relay` 39998 header carried `["concept-graph","39999:653030656430...6166653964663336:nostr-relay-concept-graph"]`. The pubkey segment is the **hex of the ASCII** of `e00ed09087b831ecf40442c82768b2114b707008916ac801dabbfbe76ae9df36` — i.e. **double-encoded**. Root cause: `index.js:1198` `const pubkey = Buffer.from(nt().getPublicKey(privBytes)).toString('hex')` — in this nostr-tools build `getPublicKey` already returns hex, so the `Buffer.from(...).toString('hex')` wrapper re-encodes. The tag's pubkey ≠ the header's real pubkey ⇒ AC-1 broken.
+
+**Reviewer self-correction (candid):** the initial PASS dismissed exactly this risk via code-archaeology ("same idiom as shipped trustedList + load-bearing in dup-check ⇒ must be correct"). That was unsound — under double-encoding the dup-check would *silently never match*, so "it works" was never provable by inspection. The structural sentinel (T1) is pattern-only and stayed green throughout. Only the Reviewer-required behavioral smoke caught it. This is the canonical justification for treating that smoke as **mandatory, not optional** — it did its job.
+
+**Scoped fix applied (Implementer kickback):** `handleCreateConcept` now builds the tag with `nt().getPublicKey(privBytes)` directly (un-wrapped). The shared `pubkey` var at :1198 is **deliberately not touched** — that double-encode is a **pre-existing latent bug** affecting the concept dup-check (`:1206`) and `src/api/trustedList/index.js:44` (and possibly other sites), out of scope for #10 and **spun off as a separate flagged task**.
+
+**Verdict: CHANGES_REQUESTED → re-verifying.** Fix applied; cycle-local S1 (exact tag pubkey == real TA) + S2 (idempotent) re-running. Final PASS only on observed-green S1/S2 + npm test. No scope change; the fix is minimal and within ADR 0007.
+
+### Re-review result (cycle-local, post-fix) — PASS
+
+- **S1 (nostr-relay, authoritative):** real firmware-install-emitted 39998 header carries **exactly** `["concept-graph","39999:e00ed09087b831ecf40442c82768b2114b707008916ac801dabbfbe76ae9df36:nostr-relay-concept-graph"]`; tag pubkey == `event.pubkey` == real TA. Double-encode resolved. **PASS.**
+- **S2 (idempotent):** second firmware reinstall → byte-identical tag value. **PASS.**
+- **npm test:** header-conceptgraph-tag 2/2 (T1, R1), all prior suites + config green, Overall PASS. Clean container startup.
+- **Ad-hoc direct `POST /api/normalize/create-concept`:** not headlessly testable — owner-auth-gated (`{"error":"Authentication required"}`), same class as export-set/firmware-install. Firmware install exercises the identical `handleCreateConcept` path internally, already proven by S1. Documented caveat, **not** a feature signal.
+
+**Final verdict: PASS.** The CHANGES_REQUESTED defect (pubkey double-encode) is fixed and behaviorally verified on the authoritative cycle-local smoke; scope unchanged; the pre-existing shared-`pubkey` double-encode (`:1198`, `trustedList:44`) is spun off as a separate flagged task. Ready for the deploy chain (cycle-staging → cycle-prod, gated).

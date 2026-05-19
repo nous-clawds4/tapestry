@@ -1250,7 +1250,12 @@ async function handleCreateConcept(req, res) {
       // not Neo4j-looked-up, so it is correct even before the concept-graph
       // node exists. Resolution contract (consumed by stream #5, not here):
       // tag-if-present else compute the same deterministic a-tag.
-      ['concept-graph', `39999:${pubkey}:${headerDTag}-concept-graph`],
+      // NOTE: use nt().getPublicKey directly — it already returns 64-char
+      // hex in this nostr-tools build. The `pubkey` var (:1198) wraps it in
+      // Buffer.from(...).toString('hex'), which DOUBLE-ENCODES (story #10
+      // cycle-local smoke caught this). Scoped to this tag; the shared
+      // `pubkey` var double-encode is a separate pre-existing finding.
+      ['concept-graph', `39999:${nt().getPublicKey(privBytes)}:${headerDTag}-concept-graph`],
       ['json', JSON.stringify(headerWord)],
     ];
     if (description) headerTags.push(['description', description.trim()]);
