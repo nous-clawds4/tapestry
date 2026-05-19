@@ -43,4 +43,4 @@ None blocking — resolved in Discovery. Noted: the placeholder edge is Neo4j-on
 ## Linked artifacts
 - ADR: `engineering-team/decisions/0005-community-reference-nostr-relay-stub.md` (Accepted; depends on ADR 0004)
 - Test plan: `engineering-team/stories/8-community-reference-nostr-relay-stub.test-plan.md` (4 sentinels; behavioral AC-1…AC-5 deferred to local/staging smoke — authoritative, Reviewer-required)
-- Review: `engineering-team/reviews/8-community-reference-and-export.md` — re-review **PASS (code/ADR/scope)** after ADR 0004/0005 Rev 1; behavioral acceptance gated on the stepwise cycle-local→staging→prod smoke
+- Review: `engineering-team/reviews/8-community-reference-and-export.md` — **PASS (Re-review 2)**; ADR 0005 Rev 2 fixed the M1 materialization defect + IMPORT→REFERENCES{source}; M1 **closed** on local consumer; ships as follow-up feat→staging→main

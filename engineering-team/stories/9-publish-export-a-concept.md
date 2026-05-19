@@ -39,4 +39,4 @@ None blocking. Note: full Concept-Graph-rooted *retrieval* on the import side de
 ## Linked artifacts
 - ADR: `engineering-team/decisions/0004-publish-export-a-concept.md` (Accepted)
 - Test plan: `engineering-team/stories/9-publish-export-a-concept.test-plan.md` (3 sentinels; behavioral AC-1…AC-6 deferred to local/staging smoke — authoritative, Reviewer-required)
-- Review: `engineering-team/reviews/8-community-reference-and-export.md` (covers #8 & #9) — re-review **PASS (code/ADR/scope)** after ADR 0004 Rev 1; behavioral gate = stepwise deploy smoke
+- Review: `engineering-team/reviews/8-community-reference-and-export.md` (covers #8 & #9) — **PASS (Re-review 2)**; ADR 0005 Rev 2 (M1 materialization fix + IMPORT→REFERENCES{source}); M1 closed on local consumer; follow-up feat→staging→main
