@@ -80,3 +80,20 @@ The code is clean, in-scope, ADR-conformant, and the full `npm test` gate is gre
 
 ### Verdict (Re-review)
 **PASS (code/ADR/scope).** Behavioral acceptance gate = the stepwise `cycle-local → cycle-staging → cycle-prod` smoke that is the immediate next planned step. #8 AC-1/AC-2 and #9 AC-1 are **not** to be marked proven until the export→import round-trip is observed on dcosl (cycle-local first, then the real prod-curator export). No further code changes required to proceed.
+
+---
+
+## Re-review 2 (2026-05-19) — M1 defect found in prod-curator smoke, fixed (ADR 0005 Rev 2)
+
+**What happened:** Owner published the curator `nostr-relay` Header to `wss://dcosl.brainstorm.world` (prod export, confirmed on dcosl). The local-consumer M1 smoke (TA `e00ed090…` ≠ curator) then **caught a real defect**: fetch+publish worked but the edge never formed — root cause: the "Pass-3 derive materializes the strfry event" assumption was false (`tapestry-derive` only computes tapestryJSON for nodes already in Neo4j). This is exactly the class of bug the Reviewer-required behavioral gate exists to catch; it validates having insisted on it.
+
+**Fix audited (ADR 0005 Rev 2):** `pass_communityReferences` now explicitly materializes the fetched event via `buildImportCypher`/`executeCypher` (the real strfry→Neo4j single-event primitive; precedent `src/api/io.js`). Edge renamed `IMPORT`→`REFERENCES` with `source:'firmware-community'` as the accepted-collision mitigation vs eventSync's `(:NostrEventTag)-[:REFERENCES]->(:NostrEvent)`.
+
+**Quality gate (reviewer re-run):** `npm test` → **Overall PASS** (all 7 suites + config). TI2 strengthened — now pins `buildImportCypher|executeCypher` AND a `[:REFERENCES]` MERGE, so the materialization-defect class is structurally caught next time (it previously passed while behaviour was broken). RI1 generalized (label-agnostic). RI2/RE1 unaffected.
+
+**M1 behavioral proof — CLOSED (authoritative):** local consumer reinstall produced `✅ REFERENCES {source:firmware-community} → 39998:919ba08a…:nostr-relay`; concept-graph shows `REFERENCES` present / `IMPORT` gone, target = distinct foreign `[NostrEvent,ListHeader]` node; direct Cypher confirms `r.source='firmware-community'`, target kind 39998. Graceful path + idempotency (MERGE) unaffected.
+
+**Collision-mitigation contract (binding on future consumers):** any traversal of concept-level `REFERENCES` MUST filter by endpoint labels (`ListHeader→ListHeader`) and/or `r.source IS NOT NULL`. A bare `MATCH ()-[:REFERENCES]->()` is a defect (would also match high-volume tag-level edges).
+
+### Verdict (Re-review 2)
+**PASS.** M1 closed on a real consumer instance; defect fixed; ADR amended; sentinels strengthened; full gate green. Ships as a follow-up `feat → staging → main` PR (feature already on prod via #156/#157). The same stepwise smoke applies; staging M1 can be re-proven there post-deploy if desired (curator header already live on dcosl ⇒ smoke is repeatable).
