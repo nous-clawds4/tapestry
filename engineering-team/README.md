@@ -13,6 +13,7 @@ engineering-team/
 ├── workflows/          phase definitions — one file per phase
 ├── templates/          document templates (user story, ADR, test plan, review)
 ├── decisions/          ADRs accumulate here as <NNNN>-<slug>.md
+├── epics/              multi-story features — one file per epic, with inline story stubs for not-yet-promoted stories
 ├── stories/            user stories accumulate here as <n>-<slug>.md
 └── reviews/            review reports accumulate here as <n>-<slug>.md
 ```

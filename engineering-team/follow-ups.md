@@ -2,6 +2,14 @@
 
 Lightweight backlog of work surfaced during a phase but deferred. Each item is a candidate for a future `/plan-feature` story.
 
+## DM alerts on pinned-tag TL deltas
+
+**Surfaced during:** Pin-a-tag epic planning, 2026-05-18. Considered and deliberately dropped from the epic.
+
+**Idea:** When a user's pinned-tag Trusted List (kind 30392) is regenerated and its membership has changed, the Tapestry Assistant could DM the user a delta digest ("3 added, 1 removed").
+
+**Why deferred:** The notification firehose risk outweighs the value at the current stage. Once Story 12 ships and there's real TL-delta traffic to observe, we can reconsider with data. If revisited: default off, with throttling (e.g. one digest per pinned-tag per day max), and a clear opt-out from the `/pins` page.
+
 ## Tag-aware Meilisearch profile search
 
 **Surfaced during:** Story 1 (Tag user profiles), Implementation phase, 2026-05-08.
