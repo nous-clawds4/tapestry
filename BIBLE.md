@@ -208,6 +208,14 @@ Every ListItem has a `z` tag pointing to its parent concept's a-tag:
 ```
 This is the fundamental link between items and concepts.
 
+### Header→ConceptGraph Pointer (`concept-graph` tag)
+
+Every kind-39998 ConceptHeader emitted by `create-concept` carries a self-describing pointer to its Concept Graph core node:
+```json
+["concept-graph", "39999:<pubkey>:<d-tag>-concept-graph"]
+```
+The value is **computed** from the header's own (signing) pubkey + d-tag — not Neo4j-looked-up — so it is correct even before the Concept Graph node exists. **Resolution contract:** to locate a concept's Concept Graph from only its Header, use the `concept-graph` tag **if present, else compute** `39999:<pubkey>:<d-tag>-concept-graph`. The deterministic fallback covers legacy/firmware headers minted before this tag (no mass re-emit needed) and headers from curators who don't carry it. This lets a single fetched Header self-resolve its full concept off-relay, without the (invisible-off-relay) `IS_THE_CONCEPT_GRAPH_FOR` Neo4j edge. ADR 0007, hybrid design C; the consumer is the deferred element/superset materialization stream.
+
 ### Implicit vs. Explicit Relationships
 
 **Most relationships are implicit** — derived by the graph engine from event structure (z-tags, kind numbers, naming conventions). Only editorial/provenance relationships (IMPORT, SUPERCEDES, PROVIDED_THE_TEMPLATE_FOR, ENUMERATES) are explicit nostr events.
@@ -1529,6 +1537,7 @@ docker compose exec tapestry strfry sync wss://dcosl.brainstorm.world \
 | **GrapeRank** | "PageRank for people" — iterative, personalized-per-observer trust scoring. Weighted average of raters' influence × rating × rating confidence, with an attenuation factor on non-observer raters. Converges to a fixed point determined purely by the observer pubkey and the rating graph. |
 | **Grapevine** | The Web of Trust system that determines which curations achieve community consensus. |
 | **IMPORT** | Editorial relationship: "I agree with your concept and want to benefit from your curated elements." |
+| **concept-graph (header tag)** | Self-describing tag on a kind-39998 ConceptHeader: `["concept-graph","39999:<pubkey>:<d-tag>-concept-graph"]` (computed). Resolution = tag-if-present else compute the same a-tag. Lets a single fetched Header resolve its full concept off-relay. ADR 0007. See §5. |
 | **communityReference** | A firmware-concept pointer `{ headerATag, relayHints[], knownGoodEventId? }` to an external curator's published concept. Resolved at install into a `REFERENCES` placeholder. See §22. |
 | **grapevine → firmware → none** | The community-reference resolution precedence: the user's Grapevine is the correct selector of "the community's definition"; the firmware-baked pointer is only a cold-start default; else nothing. Mirrors Warm Start's `self → owner → cold`. See §22. |
 | **Loose Consensus** | When two users' WoTs overlap enough to converge on the same definition without central coordination. |
@@ -1571,7 +1580,9 @@ A firmware concept may carry a `communityReference` — `{ headerATag, relayHint
 3. *Materialization ≠ derive:* publishing to strfry does not create a Neo4j node — Pass-3 derive only computes `tapestryJSON` for nodes already present; ingesting a foreign event requires the explicit eventSync import path.
 4. *Verification:* structural sentinels cannot prove relay + Neo4j + install round-trips — the local/staging/prod smoke is the authoritative behavioral gate (it caught the materialization defect that all structural tests missed).
 
-**Deferred (see ADR 0006):** Header→ConceptGraph single-event tag; privacy tiers; signed/first-class editorial relationship-type; registry-as-DList; element/superset materialization.
+**Header→ConceptGraph (implemented — ADR 0007, §5):** the `concept-graph` header tag + tag-else-compute resolution makes a single fetched Header self-resolve its full concept off-relay. This is the keystone the still-deferred element/superset materialization will consume.
+
+**Deferred (see ADR 0006):** privacy tiers; signed/first-class editorial relationship-type; registry-as-DList; element/superset materialization.
 
 ---
 
