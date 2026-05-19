@@ -2604,7 +2604,8 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   border-radius: 50%;
   object-fit: cover;
 }
-.bs-usermenu-settings-btn {
+.bs-usermenu-settings-btn,
+.bs-usermenu-pins-btn {
   display: block;
   width: 100%;
   padding: 0.5rem;
@@ -2618,8 +2619,12 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   cursor: pointer;
   transition: background 0.15s;
 }
-.bs-usermenu-settings-btn:hover {
+.bs-usermenu-settings-btn:hover,
+.bs-usermenu-pins-btn:hover {
   background: rgba(99,102,241,0.15);
+}
+.bs-usermenu-pins-btn {
+  margin-bottom: 0.4rem;
 }
 .bs-usermenu-signout {
   width: 100%;
@@ -5329,4 +5334,151 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
 }
 .bs-tag-result-more:hover {
   background: rgba(165, 180, 252, 0.08);
+}
+
+/* ── Story 10: Pin a tag (ADR 0009) ─────────────────────────────── */
+
+.bs-tag-pin-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-top: 0.5rem;
+}
+.bs-tag-pin-wrap {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+.bs-tag-pin {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.75rem;
+  border: 1px solid rgba(99, 102, 241, 0.35);
+  border-radius: 8px;
+  background: rgba(99, 102, 241, 0.08);
+  color: #a5b4fc;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.bs-tag-pin:hover {
+  background: rgba(99, 102, 241, 0.18);
+}
+.bs-tag-pin.is-pinned {
+  background: rgba(99, 102, 241, 0.25);
+  border-color: rgba(99, 102, 241, 0.6);
+  color: #c7d2fe;
+}
+.bs-tag-pin[disabled] {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+.bs-tag-pin-error {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #fda4af;
+}
+.bs-tag-pins-link {
+  font-size: 0.85rem;
+  color: #a5b4fc;
+  text-decoration: none;
+}
+.bs-tag-pins-link:hover {
+  text-decoration: underline;
+}
+
+/* /pins page */
+.bs-pins-page {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 1rem;
+}
+.bs-pins-heading {
+  font-size: 1.5rem;
+  margin-bottom: 1rem;
+}
+.bs-pins-empty,
+.bs-pins-loading,
+.bs-pins-error {
+  font-size: 0.95rem;
+  color: var(--text-secondary, #94a3b8);
+}
+.bs-pins-error { color: #fda4af; }
+.bs-pins-browse-link {
+  color: #a5b4fc;
+  text-decoration: none;
+}
+.bs-pins-browse-link:hover {
+  text-decoration: underline;
+}
+.bs-pins-signin-btn {
+  margin-top: 0.75rem;
+  padding: 0.5rem 1rem;
+  border: 1px solid rgba(99, 102, 241, 0.35);
+  border-radius: 8px;
+  background: rgba(99, 102, 241, 0.08);
+  color: #a5b4fc;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+.bs-pins-signin-btn:hover {
+  background: rgba(99, 102, 241, 0.18);
+}
+.bs-pins-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.bs-pins-row {
+  margin: 0;
+  padding: 0;
+}
+.bs-pins-row-link {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 0.75rem;
+  margin-bottom: 0.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  text-decoration: none;
+  color: inherit;
+  transition: background 0.15s, border-color 0.15s;
+}
+.bs-pins-row-link:hover {
+  background: rgba(99, 102, 241, 0.06);
+  border-color: rgba(99, 102, 241, 0.25);
+}
+.bs-pins-row-name {
+  font-weight: 600;
+  color: var(--text-primary, #e2e8f0);
+}
+.bs-pins-row-desc {
+  font-size: 0.85rem;
+  color: var(--text-secondary, #94a3b8);
+}
+
+/* Settings link button */
+.bss-card-body {
+  margin: 0 0 0.75rem;
+  font-size: 0.9rem;
+  color: var(--text-secondary, #94a3b8);
+}
+.bss-link-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 0.9rem;
+  border: 1px solid rgba(99, 102, 241, 0.35);
+  border-radius: 8px;
+  background: rgba(99, 102, 241, 0.08);
+  color: #a5b4fc;
+  font-size: 0.9rem;
+  text-decoration: none;
+  cursor: pointer;
+}
+.bss-link-btn:hover {
+  background: rgba(99, 102, 241, 0.18);
 }

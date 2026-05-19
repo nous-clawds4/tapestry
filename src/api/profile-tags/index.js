@@ -27,6 +27,7 @@ const { exec } = require('child_process');
 const TA_PUBKEY = '82b75e474dda005e912bcbb910391c60c2b89cc7faf5d3c30b7c59a324973833';
 const TAG_Z_TAG = `39998:${TA_PUBKEY}:tag`;
 const NOSTR_USER_TAG_Z_TAG = `39998:${TA_PUBKEY}:nostr-user-tag`;
+const TAG_PINNING_Z_TAG = `39998:${TA_PUBKEY}:tag-pinning`;
 const MEILI_URL = process.env.MEILI_URL || 'http://nostr-search-meili:7700';
 const MEILI_INDEX = process.env.MEILI_INDEX || 'profiles';
 
@@ -414,6 +415,43 @@ function parseTagPayload(ev) {
 }
 
 /**
+ * Extract the curation-method JSON payload from a Pin event (ADR 0009).
+ * Prefers the `curation-method` event-tag (which Story 12's TA cron will
+ * index against); falls back to `content.tagPinning.curationMethod`.
+ */
+function parseCurationMethod(ev) {
+  const cmTag = (ev.tags || []).find((t) => t[0] === 'curation-method');
+  if (cmTag && cmTag[1]) {
+    try { return JSON.parse(cmTag[1]); } catch { /* fall through */ }
+  }
+  if (ev.content) {
+    try {
+      const parsed = JSON.parse(ev.content);
+      const cm = parsed?.tagPinning?.curationMethod;
+      if (cm && typeof cm === 'object') return cm;
+    } catch { /* ignore */ }
+  }
+  return null;
+}
+
+/**
+ * Extract the pinned tag's event id from a Pin event. Prefers the `e` tag;
+ * falls back to `content.tagPinning.tagEventId`.
+ */
+function parsePinTagEventId(ev) {
+  const eTag = (ev.tags || []).find((t) => t[0] === 'e');
+  if (eTag && eTag[1] && /^[0-9a-f]{64}$/.test(eTag[1])) return eTag[1];
+  if (ev.content) {
+    try {
+      const parsed = JSON.parse(ev.content);
+      const id = parsed?.tagPinning?.tagEventId;
+      if (typeof id === 'string' && /^[0-9a-f]{64}$/.test(id)) return id;
+    } catch { /* ignore */ }
+  }
+  return null;
+}
+
+/**
  * GET /api/profile-tags/by-id?tagEventId=<id>
  *
  * Fetch a single kind-39999 tag-element by event id. Returns the tag's
@@ -423,7 +461,7 @@ function parseTagPayload(ev) {
  * Meili is unreachable (does not fail the whole request).
  */
 async function handleTagById(req, res) {
-  const { tagEventId } = req.query;
+  const { tagEventId, viewerPubkey } = req.query;
   if (!tagEventId || !/^[0-9a-f]{64}$/.test(tagEventId)) {
     return res.status(400).json({
       success: false,
@@ -453,6 +491,29 @@ async function handleTagById(req, res) {
       }
     } catch { /* meili unreachable → author stays null */ }
 
+    // ADR 0009: optional viewerPubkey threads a `viewerPin` field onto the
+    // response. Malformed viewerPubkey is silently treated as absent (read
+    // contract preserved for clients that send junk).
+    let viewerPin = null;
+    if (isHexPubkey(viewerPubkey)) {
+      try {
+        const pinEvents = await strfryScan({
+          kinds: [39999],
+          '#z': [TAG_PINNING_Z_TAG],
+          authors: [viewerPubkey],
+          '#e': [tagEventId],
+        });
+        const survivor = dedupeReplaceable(pinEvents)[0] || null;
+        if (survivor) {
+          viewerPin = {
+            pinEventId: survivor.id,
+            createdAt: survivor.created_at,
+            curationMethod: parseCurationMethod(survivor),
+          };
+        }
+      } catch { /* strfry failure on the pin scan must not break the read */ }
+    }
+
     res.json({
       success: true,
       tag: {
@@ -464,6 +525,7 @@ async function handleTagById(req, res) {
         createdAt: ev.created_at,
       },
       author,
+      viewerPin,
     });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
@@ -1063,6 +1125,79 @@ async function handleAuthoredBy(req, res) {
   }
 }
 
+/**
+ * GET /api/profile-tags/pins?viewerPubkey=<hex>
+ *
+ * List a single viewer's tag-pinning records, joined to each pinned tag's
+ * current metadata. Per ADR 0009:
+ *   - Strfry scan for Pin events authored by the viewer carrying the
+ *     `tag-pinning` z-tag, dedupe-replaceable.
+ *   - Bulk-fetch the referenced tag events (one extra strfry scan).
+ *   - Drop pins whose referenced tag event is missing or has a malformed
+ *     payload (dangling-pin filter).
+ *   - Sort by createdAt desc (most-recently-pinned first).
+ */
+async function handlePins(req, res) {
+  const { viewerPubkey } = req.query;
+  if (!isHexPubkey(viewerPubkey)) {
+    return res.status(400).json({
+      success: false,
+      error: 'viewerPubkey is required (64-char lowercase hex)',
+    });
+  }
+  try {
+    const pinEvents = await strfryScan({
+      kinds: [39999],
+      '#z': [TAG_PINNING_Z_TAG],
+      authors: [viewerPubkey],
+    });
+    const dedupedPins = dedupeReplaceable(pinEvents);
+
+    // Map each pin to its referenced tag event id; drop pins with no
+    // resolvable tagEventId.
+    const pinsWithTagIds = [];
+    for (const pin of dedupedPins) {
+      const tagEventId = parsePinTagEventId(pin);
+      if (!tagEventId) continue;
+      pinsWithTagIds.push({ pin, tagEventId });
+    }
+
+    // Bulk-fetch referenced tag events.
+    const uniqueTagIds = [...new Set(pinsWithTagIds.map((p) => p.tagEventId))];
+    let tagEventsById = new Map();
+    if (uniqueTagIds.length > 0) {
+      const tagEvents = await strfryScan({ kinds: [39999], ids: uniqueTagIds });
+      for (const ev of tagEvents) tagEventsById.set(ev.id, ev);
+    }
+
+    const pins = [];
+    for (const { pin, tagEventId } of pinsWithTagIds) {
+      const tagEv = tagEventsById.get(tagEventId);
+      if (!tagEv) continue; // dangling pin — referenced tag missing
+      const tagPayload = parseTagPayload(tagEv);
+      if (!tagPayload) continue; // malformed payload
+      pins.push({
+        pinEventId: pin.id,
+        createdAt: pin.created_at,
+        curationMethod: parseCurationMethod(pin),
+        tag: {
+          eventId: tagEv.id,
+          slug: tagPayload.slug,
+          name: tagPayload.name || tagPayload.slug,
+          description: tagPayload.description || '',
+          authorPubkey: tagEv.pubkey,
+          createdAt: tagEv.created_at,
+        },
+      });
+    }
+
+    pins.sort((a, b) => b.createdAt - a.createdAt);
+    res.json({ success: true, pins });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+}
+
 function registerProfileTagsRoutes(app) {
   app.get('/api/profile-tags/available-tags', handleAvailableTags);
   app.get('/api/profile-tags/tags-for-profile', handleTagsForProfile);
@@ -1072,6 +1207,7 @@ function registerProfileTagsRoutes(app) {
   app.get('/api/profile-tags/profiles-tagged', handleProfilesTagged);
   app.get('/api/profile-tags/index', handleTagIndex);
   app.get('/api/profile-tags/authored-by', handleAuthoredBy);
+  app.get('/api/profile-tags/pins', handlePins);
 }
 
 module.exports = {
@@ -1083,8 +1219,12 @@ module.exports = {
   handleProfilesTagged,
   handleTagIndex,
   handleAuthoredBy,
+  handlePins,
   computeTagMatches,
   findTagsByNameSubstring,
   meiliFetchProfilesByPubkey,
+  parseCurationMethod,
+  parsePinTagEventId,
+  TAG_PINNING_Z_TAG,
   registerProfileTagsRoutes,
 };

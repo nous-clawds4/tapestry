@@ -315,6 +315,15 @@
                 "tag",
                 "nostr"
             ]
+        },
+        {
+            "slug": "tag-pinning",
+            "dir": "./concepts/tag-pinning/",
+            "conceptHeader": "concept-header.json",
+            "jsonSchema": "json-schema.json",
+            "categories": [
+                "tag"
+            ]
         }
     ],
     "enumerations": {

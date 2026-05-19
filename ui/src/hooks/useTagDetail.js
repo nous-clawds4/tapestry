@@ -20,8 +20,10 @@ export default function useTagDetail(tagId) {
 
   const [tag, setTag] = useState(null);
   const [author, setAuthor] = useState(null);
+  const [viewerPin, setViewerPin] = useState(null);
   const [headerLoading, setHeaderLoading] = useState(true);
   const [headerError, setHeaderError] = useState(null);
+  const [headerReloadKey, setHeaderReloadKey] = useState(0);
 
   const [rows, setRows] = useState([]);
   const [viewerAssertions, setViewerAssertions] = useState({});
@@ -32,13 +34,17 @@ export default function useTagDetail(tagId) {
   const [rowsReloadKey, setRowsReloadKey] = useState(0);
 
   const refetchRows = useCallback(() => setRowsReloadKey((k) => k + 1), []);
+  const refetchHeader = useCallback(() => setHeaderReloadKey((k) => k + 1), []);
 
   useEffect(() => {
     if (!tagId) return undefined;
+    if (authLoading) return undefined;
     let cancelled = false;
     setHeaderLoading(true);
     setHeaderError(null);
-    fetch(`/api/profile-tags/by-id?tagEventId=${encodeURIComponent(tagId)}`)
+    const params = new URLSearchParams({ tagEventId: tagId });
+    if (user?.pubkey) params.set('viewerPubkey', user.pubkey);
+    fetch(`/api/profile-tags/by-id?${params}`)
       .then(async (r) => {
         const data = await r.json().catch(() => null);
         if (cancelled) return;
@@ -46,9 +52,11 @@ export default function useTagDetail(tagId) {
           setHeaderError('not-found');
           setTag(null);
           setAuthor(null);
+          setViewerPin(null);
         } else if (r.ok && data?.success) {
           setTag(data.tag);
           setAuthor(data.author);
+          setViewerPin(data.viewerPin || null);
         } else {
           setHeaderError(data?.error || `status ${r.status}`);
         }
@@ -56,7 +64,7 @@ export default function useTagDetail(tagId) {
       .catch((err) => { if (!cancelled) setHeaderError(err.message); })
       .finally(() => { if (!cancelled) setHeaderLoading(false); });
     return () => { cancelled = true; };
-  }, [tagId]);
+  }, [tagId, authLoading, user?.pubkey, headerReloadKey]);
 
   useEffect(() => {
     if (!tagId) return undefined;
@@ -93,10 +101,10 @@ export default function useTagDetail(tagId) {
   }, [tagId, sort, authLoading, user?.pubkey, rowsReloadKey]);
 
   return {
-    tag, author, rows, viewerAssertions, povSuffix,
+    tag, author, viewerPin, rows, viewerAssertions, povSuffix,
     sort, setSort,
     headerLoading, rowsLoading,
     headerError, rowsError,
-    refetchRows,
+    refetchRows, refetchHeader,
   };
 }

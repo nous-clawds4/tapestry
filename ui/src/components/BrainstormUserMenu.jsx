@@ -124,6 +124,13 @@ export default function BrainstormUserMenu({ user, login, logout }) {
 
           <div className="bs-usermenu-footer">
             <a
+              href="/pins"
+              className="bs-usermenu-pins-btn"
+              onClick={() => setOpen(false)}
+            >
+              📌 Your pins
+            </a>
+            <a
               href="/settings"
               className="bs-usermenu-settings-btn"
               onClick={() => setOpen(false)}

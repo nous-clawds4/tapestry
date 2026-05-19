@@ -1,12 +1,14 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
 import TopBar from '../components/TopBar';
 import TagPageRow from '../components/TagPageRow';
 import TagPageSearch from '../components/TagPageSearch';
+import TagPinAffordance from '../components/TagPinAffordance';
 import SortToggle from '../components/SortToggle';
 import { useAuth } from '../context/AuthContext';
 import { publishProfileTagAssertion } from '../utils/publishProfileTag';
+import { pinTag, unpinTag } from '../utils/publishTagPin';
 import useTagDetail from '../hooks/useTagDetail';
 
 // Display fallback when we don't have a kind-0 profile for this pubkey: a
@@ -33,10 +35,13 @@ export default function Tag() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const {
-    tag, author, rows, viewerAssertions, sort, setSort,
+    tag, author, viewerPin, rows, viewerAssertions, sort, setSort,
     headerLoading, rowsLoading, headerError, rowsError,
-    refetchRows,
+    refetchRows, refetchHeader,
   } = useTagDetail(tagId);
+
+  const [pinning, setPinning] = useState(false);
+  const [pinError, setPinError] = useState(null);
 
   const handleApply = async (targetPubkey) => {
     if (!tag) return;
@@ -47,6 +52,25 @@ export default function Tag() {
     if (!tag) return;
     await publishProfileTagAssertion({ tag, targetPubkey, polarity: -1 });
     refetchRows();
+  };
+
+  const handlePin = async () => {
+    if (!tag) return;
+    setPinning(true); setPinError(null);
+    try {
+      await pinTag({ tag });
+      await refetchHeader();
+    } catch (e) { setPinError(e.message || 'Pin failed'); }
+    finally { setPinning(false); }
+  };
+  const handleUnpin = async () => {
+    if (!viewerPin) return;
+    setPinning(true); setPinError(null);
+    try {
+      await unpinTag({ pinEventId: viewerPin.pinEventId });
+      await refetchHeader();
+    } catch (e) { setPinError(e.message || 'Unpin failed'); }
+    finally { setPinning(false); }
   };
 
   // Canonicalize: bare /tag/:tagId → /tag/:slug/:tagId once the tag loads.
@@ -92,6 +116,21 @@ export default function Tag() {
                     {author?.displayName || shortNpub(tag.authorPubkey)}
                   </span>
                 </p>
+              )}
+              {user && tag && (
+                <div className="bs-tag-pin-row">
+                  <TagPinAffordance
+                    user={user}
+                    viewerPin={viewerPin}
+                    onPin={handlePin}
+                    onUnpin={handleUnpin}
+                    loading={pinning}
+                    error={pinError}
+                  />
+                  <Link to="/pins" className="bs-tag-pins-link">
+                    View all my pinned tags →
+                  </Link>
+                </div>
               )}
               {headerError && headerError !== 'not-found' && (
                 <p className="bs-tag-error">⚠️ {headerError}</p>
