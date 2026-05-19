@@ -3,13 +3,15 @@
  * ADR 0005 (Accepted; depends on ADR 0004) — Option A: a firmware
  * `communityReference` manifest field + an idempotent firmware-install
  * sub-pass that fetches the community kind-39998 Header via the existing
- * /api/relay/external, publishes it to local strfry WITHOUT re-signing, and
- * MERGEs a Neo4j-only `IMPORT` placeholder edge (local Header → community
- * Header), failing gracefully (never throws out of install).
+ * /api/relay/external, publishes it to local strfry WITHOUT re-signing,
+ * explicitly materializes it as a Neo4j node (buildImportCypher/executeCypher
+ * — ADR 0005 Rev 2; Pass-3 derive does NOT do this), and MERGEs a Neo4j-only
+ * `REFERENCES {source:'firmware-community'}` placeholder edge (local Header →
+ * community Header), failing gracefully (never throws out of install).
  *
  * Precedent: stories #5 / #6. The behavioral round-trip — a real community
- * Header fetched off a relay, imported as a distinct foreign node, the IMPORT
- * edge present, graceful skip when no relay carries it, knownGoodEventId
+ * Header fetched off a relay, materialized as a distinct foreign node, the
+ * REFERENCES edge present, graceful skip when no relay carries it, knownGoodEventId
  * mismatch handling, and re-install idempotency — needs a live firmware
  * install + relays + Neo4j and is NOT reproducible in this hand-rolled
  * runner. It is the **authoritative behavioral gate via local docker smoke
@@ -18,8 +20,8 @@
  *
  * TI1, TI2 : FAIL pre-implementation, PASS post.
  * RI1, RI2 : PASS pre AND post — scope guards. RI1 flips to FAIL if the
- *            Implementer drifts to ADR Option B (a first-class IMPORT
- *            firmware relationship-type). RI2 flips if the Implementer edits
+ *            Implementer drifts to ADR Option B (a first-class signed
+ *            editorial firmware relationship-type). RI2 flips if the Implementer edits
  *            files ADR 0005 declared "No source change".
  */
 
@@ -84,7 +86,8 @@ test('TI2: install.js has a graceful community-reference sub-pass, wired before 
 
   const iRelay = src.indexOf('/api/relay/external');
   const iStrfry = src.indexOf('/api/strfry/publish');
-  const iImport = src.search(/:\s*IMPORT\s*\]/);
+  const iRefs = src.search(/:\s*REFERENCES\s*\]/);
+  const iMaterialize = src.search(/buildImportCypher|executeCypher/);
   const iDerive = src.indexOf('/api/tapestry-key/derive-all/');
 
   assert(
@@ -100,9 +103,18 @@ test('TI2: install.js has a graceful community-reference sub-pass, wired before 
       'so the existing derive turns it into a distinct foreign node.'
   );
   assert(
-    iImport !== -1,
-    'install.js never MERGEs an `[:IMPORT]` edge (AC-2 placeholder). ADR 0005: ' +
-      'MERGE (localHeader)-[:IMPORT]->(communityHeader), Neo4j-only, idempotent.'
+    iMaterialize !== -1,
+    'install.js does not explicitly materialize the fetched community Header as a Neo4j ' +
+      'node (AC-1/AC-2). ADR 0005 Rev 2: Pass-3 derive does NOT ingest strfry events into ' +
+      'Neo4j — pass_communityReferences MUST call buildImportCypher/executeCypher (from ' +
+      'src/api/neo4j/eventSync) on the fetched event, or the REFERENCES edge can never form ' +
+      '(this was the M1 defect).'
+  );
+  assert(
+    iRefs !== -1,
+    'install.js never MERGEs a `[:REFERENCES]` edge (AC-2 placeholder). ADR 0005 Rev 2: ' +
+      'MERGE (localHeader)-[r:REFERENCES]->(communityHeader) SET r.source=\'firmware-community\' ' +
+      '— Neo4j-only, idempotent; `source` disambiguates from the eventSync tag→event REFERENCES.'
   );
   assert(
     iDerive !== -1,
@@ -131,21 +143,21 @@ test('TI2: install.js has a graceful community-reference sub-pass, wired before 
 // Regression sentinels — PASS now AND post-implementation.
 // ---------------------------------------------------------------------------
 
-test('RI1: no first-class IMPORT firmware relationship-type added (ADR 0005 chose Option A, rejected Option B)', () => {
+test('RI1: no first-class editorial firmware relationship-type added (ADR 0005 chose Option A, rejected Option B)', () => {
   const m = JSON.parse(fs.readFileSync(MANIFEST, 'utf8'));
   assert(
     Array.isArray(m.relationshipTypes) && m.relationshipTypes.length === 11,
-    `manifest.relationshipTypes must stay at the known 11 (Option A: the IMPORT edge is ` +
+    `manifest.relationshipTypes must stay at the known 11 (Option A: the REFERENCES edge is ` +
       `Neo4j-only, NOT a firmware relationship-type). Found ${m.relationshipTypes && m.relationshipTypes.length}. ` +
       'A change here means the Implementer drifted into ADR 0005 Option B (out of scope; ' +
       'belongs to plan item (1)).'
   );
-  const importRel = m.relationshipTypes.filter((r) => /import/i.test(JSON.stringify(r)));
+  const editorialRel = m.relationshipTypes.filter((r) => /\b(import|references)\b/i.test(JSON.stringify(r)));
   assert(
-    importRel.length === 0,
-    'A relationship-type referencing IMPORT was registered in the firmware manifest — that is ' +
-      'ADR 0005 Option B (protocol-correct signed IMPORT), explicitly deferred. The stub keeps ' +
-      'IMPORT as a Neo4j-only edge.'
+    editorialRel.length === 0,
+    'A first-class IMPORT/REFERENCES relationship-type was registered in the firmware manifest — ' +
+      'that is ADR 0005 Option B (protocol-correct signed editorial relationship), explicitly ' +
+      'deferred to plan item (1). The stub keeps it a Neo4j-only REFERENCES edge.'
   );
 });
 

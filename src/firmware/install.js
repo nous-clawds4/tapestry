@@ -24,6 +24,10 @@
 const fs = require('fs');
 const path = require('path');
 const firmware = require('../api/normalize/firmware');
+// Materialize a fetched foreign event into Neo4j as a node (the real
+// strfry→Neo4j import primitive; Pass-3 derive does NOT do this — see
+// ADR 0005 Rev 2). Precedent: src/api/io.js single-event import.
+const { buildImportCypher, executeCypher } = require('../api/neo4j/eventSync');
 // Relationship type aliases used by concept manifests
 const REL = {
   CLASS_THREAD_INITIATION: firmware.relAlias('CLASS_THREAD_INITIATION') || 'IS_THE_CONCEPT_FOR',
@@ -977,11 +981,15 @@ async function pass2_enrich(opts = {}) {
 // ── Community references (Story #8 / ADR 0005) ───────────────
 //
 // For each firmware concept carrying a `communityReference`, fetch the
-// community-curated kind-39998 Concept Header from the relay hints and
+// community-curated kind-39998 Concept Header from the relay hints,
 // publish it to local strfry WITHOUT re-signing (it is the curator's
-// already-signed event). The Neo4j IMPORT placeholder edge is wired
-// AFTER Pass-3 derive (returned as pending), since the community node
-// does not exist until derive turns the published event into a node.
+// already-signed event), AND explicitly materialize it as a Neo4j node
+// via buildImportCypher/executeCypher. ADR 0005 Rev 2: Pass-3 derive
+// does NOT ingest strfry events into Neo4j (it only computes
+// tapestryJSON for nodes already present) — the original "let derive
+// turn it into a node" assumption was the M1 defect. The REFERENCES
+// edge is then wired post-derive (returned as pending) once the node
+// is guaranteed present.
 //
 // Graceful by contract: a relay miss, id mismatch, or any error logs and
 // continues — it never throws out of install (AC-3). The local firmware
@@ -1035,16 +1043,20 @@ async function pass_communityReferences(opts = {}) {
       }
 
       // Pass the already-signed foreign event through unchanged (no re-sign —
-      // you cannot sign someone else's event). Pass-3 derive will turn it
-      // into a distinct foreign node (uuid = its own a-tag).
+      // you cannot sign someone else's event), then explicitly materialize
+      // it as a Neo4j node. buildImportCypher MERGEs (:NostrEvent:ListHeader
+      // {uuid:'<a-tag>'}) for kind 39998 — uuid = its own a-tag, distinct
+      // from the local TA header. ADR 0005 Rev 2: this is required because
+      // Pass-3 derive does not import strfry events into Neo4j.
       await apiPost('/api/strfry/publish', { event: ev });
+      await executeCypher(buildImportCypher(ev));
 
       pending.push({
         slug,
         from: `39998:${taPubkey}:${slug}`,
         to: cr.headerATag,
       });
-      console.log(`  ✅ ${slug}: community Header published locally → IMPORT pending`);
+      console.log(`  ✅ ${slug}: community Header published + materialized → REFERENCES pending`);
     } catch (err) {
       console.log(`  ❌ ${slug}: ${err.message} (graceful — continuing)`);
     }
@@ -1082,8 +1094,9 @@ async function install(opts = {}) {
     p2Result = await pass2_enrich({ dryRun });
   }
 
-  // Community references: fetch + publish before Pass-3 derive so the
-  // community Header becomes a node; the IMPORT edge is wired post-derive.
+  // Community references: fetch + publish + materialize the community
+  // Header as a Neo4j node before Pass-3 derive; the REFERENCES edge is
+  // wired post-derive once the node's presence is confirmed.
   const crResult = await pass_communityReferences({ dryRun });
 
   // ── Pass 3: Derive + Apply Enumerations + Wire Implicit Elements ──
@@ -1132,14 +1145,18 @@ async function install(opts = {}) {
     console.log('');
   }
 
-  // ── Community-reference IMPORT edges (post-derive) ──────────
-  // The community Header is now a node (Pass-3 derived it). MERGE the
-  // Neo4j-only placeholder: local Concept Header -[:IMPORT]-> community
-  // Header. MERGE ⇒ idempotent across re-installs (AC-5). Graceful: a
-  // missing community node (derive lagged / fetch was skipped) just
-  // wires no edge — never throws.
+  // ── Community-reference REFERENCES edges (post-derive) ──────
+  // The community Header was materialized as a node in
+  // pass_communityReferences. MERGE the Neo4j-only placeholder edge:
+  // (local Concept Header)-[:REFERENCES {source:'firmware-community'}]->
+  // (community Header). The `source` property is the disambiguator from
+  // the unrelated, high-volume eventSync (:NostrEventTag)-[:REFERENCES]->
+  // (:NostrEvent) edges (ADR 0005 Rev 2 accepted-collision mitigation):
+  // concept-level REFERENCES is ListHeader→ListHeader AND carries
+  // source; tag-level never sets source. MERGE ⇒ idempotent (AC-5).
+  // Graceful: a missing community node just wires no edge — never throws.
   if (!dryRun && crResult && crResult.pending && crResult.pending.length) {
-    console.log('\n── Community-reference IMPORT edges ──\n');
+    console.log('\n── Community-reference REFERENCES edges ──\n');
     for (const link of crResult.pending) {
       try {
         // The edge is real only if the community node exists. MATCH...MERGE
@@ -1152,17 +1169,18 @@ async function install(opts = {}) {
         );
         const present = ((found && found.data) || [])[0]?.cnt || 0;
         if (!present) {
-          console.log(`  ⏭️  ${link.slug}: community node ${link.to} not present yet — IMPORT deferred (graceful)`);
+          console.log(`  ⏭️  ${link.slug}: community node ${link.to} not present yet — REFERENCES deferred (graceful)`);
           continue;
         }
         await runCypherApi(
           `MATCH (a:NostrEvent {uuid:$from}), (b:NostrEvent {uuid:$to})
-           MERGE (a)-[:IMPORT]->(b)`,
+           MERGE (a)-[r:REFERENCES]->(b)
+           SET r.source = 'firmware-community'`,
           { from: link.from, to: link.to }
         );
-        console.log(`  ✅ ${link.slug}: IMPORT → ${link.to}`);
+        console.log(`  ✅ ${link.slug}: REFERENCES {source:firmware-community} → ${link.to}`);
       } catch (err) {
-        console.log(`  ⚠️  ${link.slug}: IMPORT wiring skipped — ${err.message} (graceful)`);
+        console.log(`  ⚠️  ${link.slug}: REFERENCES wiring skipped — ${err.message} (graceful)`);
       }
     }
   }
