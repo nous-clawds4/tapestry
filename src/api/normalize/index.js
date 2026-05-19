@@ -1245,6 +1245,12 @@ async function handleCreateConcept(req, res) {
       ['d', headerDTag],
       ['names', names.oNames.singular, names.oNames.plural],
       ['slug', slug],
+      // ADR 0007 — self-describing pointer to this concept's Concept Graph
+      // node. Value COMPUTED from the header's own (signing) pubkey + d-tag,
+      // not Neo4j-looked-up, so it is correct even before the concept-graph
+      // node exists. Resolution contract (consumed by stream #5, not here):
+      // tag-if-present else compute the same deterministic a-tag.
+      ['concept-graph', `39999:${pubkey}:${headerDTag}-concept-graph`],
       ['json', JSON.stringify(headerWord)],
     ];
     if (description) headerTags.push(['description', description.trim()]);
