@@ -486,6 +486,10 @@ async function register(app) {
     const { registerConceptGraphRoutes } = require('./concept-graph');
     registerConceptGraphRoutes(app);
 
+    // ── Concept export (Story #9 / ADR 0004) — owner-only ──
+    const { handleConceptExportSet } = require('./concept/exportSet.js');
+    app.get('/api/concept/:handle/export-set', requireOwner, handleConceptExportSet);
+
     // ── Tapestry Key / LMDB Store API ──
     const { registerTapestryKeyRoutes } = require('./tapestry-key');
     registerTapestryKeyRoutes(app);
