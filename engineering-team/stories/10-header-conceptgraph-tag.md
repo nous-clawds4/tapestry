@@ -30,5 +30,5 @@ As a consumer of a community-published concept, given only the curator's 39998 H
 
 ## Linked artifacts
 - ADR: `engineering-team/decisions/0007-header-conceptgraph-tag.md` (Accepted; Option A — descriptive `concept-graph` tag, hybrid tag-else-compute)
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/10-header-conceptgraph-tag.test-plan.md` (T1 sentinel; behavioral AC-1/AC-2 deferred to cycle-local smoke — authoritative, Reviewer-required)
 - Review: (filled in after Review phase)

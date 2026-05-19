@@ -30,6 +30,7 @@ const perQueryNeo4jTimeout = require('./per-query-neo4j-timeout-safety-net.test.
 const nip05CheckmarkVerification = require('./nip05-checkmark-verification.test.js');
 const publishExportConcept = require('./publish-export-a-concept.test.js');
 const communityReferenceStub = require('./community-reference-nostr-relay-stub.test.js');
+const headerConceptGraphTag = require('./header-conceptgraph-tag.test.js');
 
 async function main() {
   console.log('Running Brainstorm tests...\n');
@@ -58,6 +59,9 @@ async function main() {
   console.log('\ncommunity-reference-nostr-relay-stub suite:');
   const communityReferenceStubResult = await communityReferenceStub.run();
 
+  console.log('\nheader-conceptgraph-tag suite:');
+  const headerConceptGraphTagResult = await headerConceptGraphTag.run();
+
   console.log('\nTest Results');
   console.log('-------------');
   console.log(`Configuration Loading:                           ${configOk ? 'PASS' : 'FAIL'}`);
@@ -82,6 +86,9 @@ async function main() {
   console.log(
     `community-reference-nostr-relay-stub suite:      ${communityReferenceStubResult.fail === 0 ? 'PASS' : 'FAIL'} (${communityReferenceStubResult.pass} passed, ${communityReferenceStubResult.fail} failed)`
   );
+  console.log(
+    `header-conceptgraph-tag suite:                   ${headerConceptGraphTagResult.fail === 0 ? 'PASS' : 'FAIL'} (${headerConceptGraphTagResult.pass} passed, ${headerConceptGraphTagResult.fail} failed)`
+  );
 
   const overallOk =
     configOk &&
@@ -91,7 +98,8 @@ async function main() {
     perQueryNeo4jTimeoutResult.fail === 0 &&
     nip05CheckmarkVerificationResult.fail === 0 &&
     publishExportConceptResult.fail === 0 &&
-    communityReferenceStubResult.fail === 0;
+    communityReferenceStubResult.fail === 0 &&
+    headerConceptGraphTagResult.fail === 0;
   console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);
   process.exit(overallOk ? 0 : 1);
 }
