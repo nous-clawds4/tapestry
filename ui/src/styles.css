@@ -6042,3 +6042,32 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   background: rgba(99, 102, 241, 0.18);
 }
 .bs-pindetail-edit[disabled] { opacity: 0.4; cursor: not-allowed; }
+
+/* ── Story 13: pin-aware tag index (ADR 0012) ─────────────── */
+.bs-tagindex-count-pinned {
+  /* Same base shape as .bs-tagindex-count-apply / .-dispute, but a
+     distinct hue so the pin signal reads as separate from the
+     endorsement/dispute counts. */
+  background: rgba(168, 85, 247, 0.12);
+  border: 1px solid rgba(168, 85, 247, 0.35);
+  color: #d8b4fe;
+}
+.bs-tagindex-own-pin {
+  display: inline-block;
+  margin-left: 0.4rem;
+  font-size: 0.8em;
+  vertical-align: middle;
+  opacity: 0.85;
+}
+.bs-tagindex-pinnedonly {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.4rem;
+  font-size: 0.85rem;
+  color: var(--text-secondary, #94a3b8);
+  cursor: pointer;
+}
+.bs-tagindex-pinnedonly input[type="checkbox"] {
+  margin: 0;
+}

@@ -522,6 +522,64 @@ async function aggregateProfilesTagged({ tagEventId, povSuffix, minRank }) {
 }
 
 /**
+ * ADR 0012: pure aggregator for per-tag pin counts under an active POV's
+ * WoT-author filter, plus the viewer's own-pin set. Mirrors the shape of
+ * aggregateProfilesTagged but groups pins by referenced tagEventId.
+ *
+ * Returns:
+ *   - pinCountByTagEventId: Map<tagEventId, number> — distinct WoT-trusted
+ *     authors who have published a Pin event for that tag.
+ *   - viewerPinnedSet: Set<tagEventId> — tags the viewer has personally
+ *     pinned (independent of the WoT filter; per-viewer, not per-POV).
+ *
+ * Dedupe: dedupeReplaceable collapses pin events by (author, d-tag), so
+ * one surviving event per (author, tag) means the count equals "distinct
+ * WoT-trusted pinners" automatically.
+ */
+async function aggregateTagPins({ povSuffix, minRank, viewerPubkey }) {
+  const wotFiltering = !!povSuffix && Number.isFinite(minRank);
+
+  const pinEvents = await strfryScan({
+    kinds: [39999],
+    '#z': [TAG_PINNING_Z_TAG],
+  });
+  const deduped = dedupeReplaceable(pinEvents);
+
+  let authorAllowed = () => true;
+  if (wotFiltering) {
+    const authorPubkeys = Array.from(new Set(deduped.map((ev) => ev.pubkey)));
+    const authorDocs = await meiliFetchProfilesByPubkey(authorPubkeys);
+    const rankField = `wot_rank_${povSuffix}`;
+    authorAllowed = (authorPk) => {
+      const doc = authorDocs.get(authorPk);
+      if (!doc) return false;
+      const r = doc[rankField];
+      return typeof r === 'number' && r >= minRank;
+    };
+  }
+
+  const pinCountByTagEventId = new Map();
+  const viewerPinnedSet = new Set();
+  for (const ev of deduped) {
+    const tagEventId = parsePinTagEventId(ev);
+    if (!tagEventId) continue;
+    // Own-pin indicator is per-viewer, not per-POV. The viewer's own pin
+    // counts toward viewerPinnedSet regardless of the WoT filter on this
+    // request's POV.
+    if (viewerPubkey && ev.pubkey === viewerPubkey) {
+      viewerPinnedSet.add(tagEventId);
+    }
+    if (!authorAllowed(ev.pubkey)) continue;
+    pinCountByTagEventId.set(
+      tagEventId,
+      (pinCountByTagEventId.get(tagEventId) || 0) + 1
+    );
+  }
+
+  return { pinCountByTagEventId, viewerPinnedSet };
+}
+
+/**
  * GET /api/profile-tags/by-id?tagEventId=<id>
  *
  * Fetch a single kind-39999 tag-element by event id. Returns the tag's
@@ -731,7 +789,7 @@ async function handleProfilesTagged(req, res) {
   }
 }
 
-const TAG_INDEX_VALID_SORTS = ['used', 'endorsed', 'divisive'];
+const TAG_INDEX_VALID_SORTS = ['used', 'endorsed', 'divisive', 'most-pinned'];
 
 const TAG_INDEX_SORTERS = {
   used: (a, b) =>
@@ -744,6 +802,10 @@ const TAG_INDEX_SORTERS = {
   divisive: (a, b) =>
     (Math.min(b.applications, b.disputes) - Math.min(a.applications, a.disputes))
     || ((b.applications + b.disputes) - (a.applications + a.disputes))
+    || a.tagEventId.localeCompare(b.tagEventId),
+  // ADR 0012 — sort by distinct WoT-trusted pinners desc, ties on tagEventId.
+  'most-pinned': (a, b) =>
+    ((b.pinnedCount || 0) - (a.pinnedCount || 0))
     || a.tagEventId.localeCompare(b.tagEventId),
 };
 
@@ -781,6 +843,15 @@ async function handleTagIndex(req, res) {
   // tag-index UI's "Only show mine" toggle. Silently ignored when malformed.
   const authoredByRaw = typeof req.query.authoredBy === 'string' ? req.query.authoredBy : '';
   const authoredBy = /^[0-9a-f]{64}$/.test(authoredByRaw) ? authoredByRaw : null;
+
+  // ADR 0012 — pin-aware fields. viewerPubkey drives own-pin marking;
+  // pinnedByMe narrows the listing to the viewer's pinned set. Malformed
+  // viewerPubkey is silently treated as absent (matches the authoredBy
+  // pattern). pinnedByMe is only honored when viewerPubkey is also valid.
+  const viewerPubkeyRaw = typeof req.query.viewerPubkey === 'string' ? req.query.viewerPubkey : '';
+  const viewerPubkey = /^[0-9a-f]{64}$/.test(viewerPubkeyRaw) ? viewerPubkeyRaw : null;
+  const pinnedByMeRaw = typeof req.query.pinnedByMe === 'string' ? req.query.pinnedByMe : '';
+  const pinnedByMe = pinnedByMeRaw === 'true' && !!viewerPubkey;
 
   try {
     const { resolvePov } = require('../_shared/pov');
@@ -829,6 +900,18 @@ async function handleTagIndex(req, res) {
       else if (bucket === 'dispute') entry.disputes += 1;
     }
 
+    // ADR 0012 — pin aggregation under the same POV's WoT-author filter,
+    // plus the viewer's own-pin set. Union the result into byTag so tags
+    // that have pins-but-no-assertions still appear in the listing.
+    const { pinCountByTagEventId, viewerPinnedSet } = await aggregateTagPins({
+      povSuffix, minRank, viewerPubkey,
+    });
+    for (const tagEventId of pinCountByTagEventId.keys()) {
+      if (!byTag.has(tagEventId)) {
+        byTag.set(tagEventId, { tagEventId, applications: 0, disputes: 0 });
+      }
+    }
+
     if (byTag.size === 0) {
       return res.json({
         success: true,
@@ -837,6 +920,8 @@ async function handleTagIndex(req, res) {
         sort,
         q,
         authoredBy: authoredBy || null,
+        viewerPubkey: viewerPubkey || null,
+        pinnedByMe,
         total: 0,
         limit,
         offset,
@@ -868,6 +953,11 @@ async function handleTagIndex(req, res) {
         authorPubkey: tag.event.pubkey,
         applications: counts.applications,
         disputes: counts.disputes,
+        // ADR 0012 — pin-aware fields. Always present so the UI can read
+        // them unconditionally. pinnedCount defaults to 0; viewerPinned
+        // defaults to false (no viewer or viewer hasn't pinned).
+        pinnedCount: pinCountByTagEventId.get(tagEventId) || 0,
+        viewerPinned: viewerPinnedSet.has(tagEventId),
       });
     }
 
@@ -878,6 +968,10 @@ async function handleTagIndex(req, res) {
     // Apply authoredBy filter (exact pubkey match on tag-element signer).
     if (authoredBy) {
       filtered = filtered.filter((r) => r.authorPubkey === authoredBy);
+    }
+    // ADR 0012 — pinnedByMe filter: only rows the viewer has personally pinned.
+    if (pinnedByMe) {
+      filtered = filtered.filter((r) => r.viewerPinned);
     }
 
     filtered.sort(TAG_INDEX_SORTERS[sort]);
@@ -900,6 +994,8 @@ async function handleTagIndex(req, res) {
       sort,
       q,
       authoredBy: authoredBy || null,
+      viewerPubkey: viewerPubkey || null,
+      pinnedByMe,
       total,
       limit,
       offset,
@@ -1349,6 +1445,7 @@ module.exports = {
   findTagsByNameSubstring,
   meiliFetchProfilesByPubkey,
   aggregateProfilesTagged,
+  aggregateTagPins,
   parseTagPayload,
   parseCurationMethod,
   parsePinTagEventId,
