@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # Source configuration
-source /etc/brainstorm.conf # BRAINSTORM_OWNER_PUBKEY
-source /etc/graperank.conf   # Rating and confidence values
+source /etc/brainstorm.conf # BRAINSTORM_OWNER_PUBKEY, BRAINSTORM_MODULE_ALGOS_DIR
+source /etc/graperank.conf   # Rating and confidence values, RAW_CSV_STALENESS_SECONDS
 
 touch ${BRAINSTORM_LOG_DIR}/calculatePersonalizedGrapeRank.log
 chown brainstorm:brainstorm ${BRAINSTORM_LOG_DIR}/calculatePersonalizedGrapeRank.log
@@ -10,51 +10,25 @@ chown brainstorm:brainstorm ${BRAINSTORM_LOG_DIR}/calculatePersonalizedGrapeRank
 echo "$(date): Starting calculatePersonalizedGrapeRank"
 echo "$(date): Starting calculatePersonalizedGrapeRank" >> ${BRAINSTORM_LOG_DIR}/calculatePersonalizedGrapeRank.log
 
-echo "$(date): Continuing calculatePersonalizedGrapeRank ... starting cypher queries"
-echo "$(date): Continuing calculatePersonalizedGrapeRank ... starting cypher queries" >> ${BRAINSTORM_LOG_DIR}/calculatePersonalizedGrapeRank.log
+# Ensure the shared raw-data CSV cache is present and fresh. Story #12 / ADR
+# 0009 folded this (owner-scoped) script into the same coordination protocol
+# used by the customer-aware pipeline. The helper is sourced so the shared
+# flock on fd 200 stays open for the rest of the pipeline; the kernel
+# releases it when this script exits. The owner script is NOT retired — it
+# remains a peer of the customer-aware writer under the shared cache.
+echo "$(date): Continuing calculatePersonalizedGrapeRank ... ensuring shared raw-data CSV cache"
+echo "$(date): Continuing calculatePersonalizedGrapeRank ... ensuring shared raw-data CSV cache" >> ${BRAINSTORM_LOG_DIR}/calculatePersonalizedGrapeRank.log
+source "${BRAINSTORM_MODULE_ALGOS_DIR}/personalizedGrapeRank/ensureRawDataCsv.sh"
+if ! ensure_raw_data_csv; then
+    echo "$(date): ERROR: ensure_raw_data_csv failed; aborting" >> ${BRAINSTORM_LOG_DIR}/calculatePersonalizedGrapeRank.log
+    exit 1
+fi
 
-CYPHER0="
-MATCH (user:NostrUser)
-WHERE user.hops < 100
-RETURN user.pubkey AS ratee_pubkey
-"
-
-CYPHER1="
-MATCH (rater:NostrUser)-[r:FOLLOWS]->(ratee:NostrUser)
-WHERE ratee.hops < 100
-RETURN rater.pubkey AS pk_rater, ratee.pubkey AS pk_ratee
-"
-
-CYPHER2="
-MATCH (rater:NostrUser)-[r:MUTES]->(ratee:NostrUser)
-WHERE ratee.hops < 100
-RETURN rater.pubkey AS pk_rater, ratee.pubkey AS pk_ratee
-"
-
-CYPHER3="
-MATCH (rater:NostrUser)-[r:REPORTS]->(ratee:NostrUser)
-WHERE ratee.hops < 100
-RETURN rater.pubkey AS pk_rater, ratee.pubkey AS pk_ratee
-"
-
-# Create the base directory structure
-USERNAME="brainstorm"
-BASE_DIR="/var/lib/brainstorm"
-TEMP_DIR="$BASE_DIR/algos/personalizedGrapeRank/tmp"
+# THIS_DIR is still needed for the bash child-script invocations below.
 THIS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-mkdir -p $TEMP_DIR
-# Set ownership
-chown -R "$USERNAME:$USERNAME" "$TEMP_DIR"
-# Set permissions
-chmod -R 755 "$TEMP_DIR"
 
-cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER0" > $TEMP_DIR/ratees.csv
-cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER1" > $TEMP_DIR/follows.csv
-cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER2" > $TEMP_DIR/mutes.csv
-cypher-shell -a "$NEO4J_URI" -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" "$CYPHER3" > $TEMP_DIR/reports.csv
-
-echo "$(date): Continuing calculatePersonalizedGrapeRank ... finished cypher queries, starting initializeRatings"
-echo "$(date): Continuing calculatePersonalizedGrapeRank ... finished cypher queries, starting initializeRatings" >> ${BRAINSTORM_LOG_DIR}/calculatePersonalizedGrapeRank.log
+echo "$(date): Continuing calculatePersonalizedGrapeRank ... cache ready, starting initializeRatings"
+echo "$(date): Continuing calculatePersonalizedGrapeRank ... cache ready, starting initializeRatings" >> ${BRAINSTORM_LOG_DIR}/calculatePersonalizedGrapeRank.log
 
 # create one large raw data object oRatingsReverse.json of format: [context][ratee][rater] = [score, confidence]
 bash $THIS_DIR/initializeRatings.sh
@@ -77,14 +51,15 @@ echo "$(date): Continuing calculatePersonalizedGrapeRank ... finished calculateG
 # update Neo4j with data from scorecards.json
 bash $THIS_DIR/updateNeo4j.sh
 
-echo "$(date): Continuing calculatePersonalizedGrapeRank ... finished updateNeo4j, starting clean up"
-echo "$(date): Continuing calculatePersonalizedGrapeRank ... finished updateNeo4j, starting clean up" >> ${BRAINSTORM_LOG_DIR}/calculatePersonalizedGrapeRank.log
+echo "$(date): Continuing calculatePersonalizedGrapeRank ... finished updateNeo4j"
+echo "$(date): Continuing calculatePersonalizedGrapeRank ... finished updateNeo4j" >> ${BRAINSTORM_LOG_DIR}/calculatePersonalizedGrapeRank.log
 
-# clean up tmp files
-if [ -d "$TEMP_DIR" ]; then
-    echo "$(date): Removing GrapeRank tmp directory: $TEMP_DIR"
-    rm -rf "$TEMP_DIR"
-fi
+# Per ADR 0009: the shared raw-data CSV cache outlives this script. The
+# trailing bulk wipe was removed — the cache is now an explicit, observable
+# resource refreshed by staleness expiry, and cache-aware eviction happens
+# at the orchestrator boundaries (processAllActiveCustomers,
+# updateAllScoresForOwner, calculatePersonalizedGrapeRankController) via
+# the helper's evict_raw_data_csv_cache function.
 
 # Update the WHEN_LAST_CALCULATED timestamp in the configuration file
 TIMESTAMP=$(date +%s)

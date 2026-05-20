@@ -126,10 +126,15 @@ launch_child_task "loadOwnerScoresIntoMeilisearch" "updateAllScoresForOwner" "" 
 sleep 5
 
 #################### cleanup: start  ##############
-# Clean up temporary files from GrapeRank calculations
+# Cache-aware cleanup of the shared raw-data CSV cache. Per ADR 0009: the
+# owner pipeline shares the cache with concurrent customer recalcs; a bare
+# `rm -rf .../tmp` here would yank files out from under an in-flight reader.
+# evict_raw_data_csv_cache uses a non-blocking exclusive flock and targets
+# only the four shared CSVs + .last_init sentinel.
 if [ -d "/var/lib/brainstorm/algos/personalizedGrapeRank/tmp" ]; then
-    echo "$(date): Cleaning up personalizedGrapeRank tmp files"
-    rm -rf /var/lib/brainstorm/algos/personalizedGrapeRank/tmp
+    echo "$(date): Cache-aware cleanup of personalizedGrapeRank shared CSV cache"
+    source "${BRAINSTORM_MODULE_ALGOS_DIR}/personalizedGrapeRank/ensureRawDataCsv.sh"
+    evict_raw_data_csv_cache "updateAllScoresForOwner" "$BRAINSTORM_OWNER_PUBKEY"
 fi
 
 # Clean up kind 30382 published event files (if any remain from legacy scripts)

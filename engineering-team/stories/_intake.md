@@ -67,3 +67,71 @@ Append-only log of incoming requests, raw, with classification and chosen phase 
 **Classification:** Bug
 **Strictness:** Standard
 **Phase path:** Implementation → Review (Architecture skipped — obvious fix per Standard / Bug rules; intake captures the Architect's call inline above)
+
+---
+
+## 2026-05-17 — Bug: unauthenticated NIP-05 verification is a constrained SSRF surface
+
+**Raw request (verbatim):**
+
+> Repo: /Users/clawds4/repos/nous-clawds4/tapestry (Tapestry / brainstorm.world). This is a security follow-up surfaced during the Story #6 review (engineering-team/reviews/6-nip05-checkmark-verification.md, "Non-blocking #1").
+>
+> Problem: NIP-05 verification fetches `https://<domain>/.well-known/nostr.json` where `<domain>` is parsed from user-supplied input by the regex `/^(?:([\w.+-]+)@)?([\w_-]+(\.[\w_-]+)+)$/`. That domain group matches IP literals and internal names (e.g. `169.254.169.254`, `10.0.0.5`, `db.internal`), so the server can be induced to make requests to internal/link-local/loopback hosts — a Server-Side Request Forgery surface.
+>
+> There are THREE byte-identical copies of this fetch logic: (1) `src/api/nip05.js` `verifyNip05Identifier()` via the NEW unauthenticated `GET /api/nip05/verify`; (2) `src/api/search/profiles/meili/index.js` `verifyNip05()` via the public search path; (3) `src/api/admin/index.js` `verifyNip05()`, owner-gated.
+>
+> Current partial mitigations: scheme hardcoded `https://`, 5s timeout, fetched body never returned (boolean / resolved pubkey only). Still a constrained SSRF/oracle.
+>
+> Asks: (1) one shared SSRF guard imported by all three call sites, rejecting BEFORE fetch when the domain resolves to a private/link-local/loopback/non-public address — resolve the hostname and check resolved IP(s), fail closed. (2) Decide+implement whether `GET /api/nip05/verify` should be rate-limited; follow an existing repo pattern or note explicitly none exists rather than invent one. (3) `npm test` + a focused test asserting the guard rejects an internal/link-local host (hand-rolled runner). (4) Treat as a Bug; follow harness phases (PO → Tester → Implementer → Reviewer; Architecture skippable if obvious) with human approval gates; branch off `staging` (`fix/* → staging → main`); do NOT bundle with Story #6's `fix/nip05-verification`.
+
+**Pre-intake findings captured during triage:**
+
+- `origin/staging` already contains Story #6's merged fix (PR #154, `27f009a9`); the three NIP-05 files are byte-identical between `origin/staging` and `fix/nip05-verification`. Branching `fix/nip05-ssrf-guard` off `origin/staging` bases this on the merged #6 work without bundling into #6's branch.
+- **No rate-limiting infrastructure exists anywhere in the repo**: no `express-rate-limit`/`express-slow-down`/`axios`/`got` dependency (only `express`), and no `rate.?limit` / `429` / `throttl` reference in `src/`. Every other public endpoint (`/.well-known/nostr.json`, `/api/search/profiles/meili`, the unauthenticated `/api/auth/*`) is unthrottled.
+- `undici` is **not** a resolvable direct dependency; Node is v22 with working core `dns.promises` + `net.isIP`.
+
+**Architect's call (recorded inline — Architecture phase skipped per Standard/Bug, well-known guard pattern, no ADR):**
+
+1. **Guard mechanism (no new deps).** New shared helper `src/utils/ssrfGuard.js` (sibling to the existing cross-cutting `src/utils/taskTimeout.js`). It takes the parsed `domain` and, *before* any fetch: if the host is an IP literal (`net.isIP > 0`), classify it directly; otherwise `dns.promises.lookup(host, { all: true })` and inspect every resolved address. Reject (the helper's failure return) if the host is empty, unresolvable, or any address falls in a non-public range — IPv4 `0/8 10/8 100.64/10 127/8 169.254/16 172.16/12 192.0.0/24 192.0.2/24 192.168/16 198.18/15 198.51.100/24 203.0.113/24 224/4 240/4 255.255.255.255`; IPv6 `:: ::1 fe80::/10 fc00::/7 ff00::/8`, plus IPv4-mapped (`::ffff:a.b.c.d`) unwrapped and re-checked. Fail closed: any error/empty → reject, mirroring the existing `catch { return null }` contract so each call site's downstream semantics (`verified:false` / lookup-failed) are unchanged.
+2. **Consolidate only the guard, not the whole helper.** The three `verifyNip05*` copies stay where they are (consolidating them is a larger refactor, out of scope and explicitly resisted in the #6 review); each gains one early call to the shared guard before its `fetch`.
+3. **Residual DNS-rebinding TOCTOU — accepted, documented, NOT scope-crept.** Resolve-then-fetch leaves a re-resolution gap (guard sees a public IP; `fetch` re-resolves to an internal one). Closing it airtight requires pinning the vetted IP into the socket via a custom `undici` dispatcher = a **new dependency** + larger change. Decision: out of scope here. The gap stays materially constrained by the *unchanged* existing mitigations (https-only scheme, 5s timeout, body never returned → at most a boolean existence/timing oracle, never content exfiltration) — i.e. exactly the "constrained oracle" posture the #6 review already accepted as non-blocking. The guard still removes the *entire* trivial direct-literal / stable-internal-name SSRF (`169.254.169.254`, `10.0.0.5`, `db.internal`), which is the actual ask. Recommend the pinned-resolution hardening (evaluate an `undici` dep) as a **separate** follow-up; flag candidly at the Planning gate.
+4. **Rate limiting (ask #2) — decision: do NOT add; note explicitly.** No rate-limiting pattern exists repo-wide to follow, and the task instruction is explicit: "if none exists, note that explicitly rather than inventing one." Adding a new throttling middleware/dependency is a cross-cutting concern (every unauthenticated endpoint shares the gap, not just this one) that, by the spirit of the "no new tooling without an ADR" house rule and the user's standing anti-scope-bundling preference, must be ratified separately rather than folded into an SSRF bugfix. The SSRF guard itself removes the *amplification-into-internal-targets* value of hammering the endpoint. Recommend a separate follow-up story for org-wide public-endpoint rate limiting; surface this as a resolved-at-approval open question in the story for the user to ratify or redirect at the Planning gate.
+
+**Scope confirmed (from the request):**
+
+- Branch `fix/nip05-ssrf-guard` off `origin/staging`; do not touch `fix/nip05-verification`.
+- Full Bug chain minus Architecture: Planning → Test Design → Implementation → Review, human gate at each phase boundary. Architecture skipped, Architect's call recorded inline above (precedent: strfry-router-first-boot, story #5).
+- New shared helper + 3 one-line call-site additions. One behavioral unit test in `test/`, registered in `test/test.js`.
+
+**Classification:** Bug
+**Strictness:** Standard
+**Phase path:** Planning → Test Design → Implementation → Review (Architecture skipped — well-known SSRF-guard pattern, unambiguous root cause; intake captures the Architect's call inline above. Unlike the strfry-router Bug this one keeps Planning + Test Design: 3 call sites + a new shared helper + a security contract warrant a story and a real behavioral test, and the user explicitly requested the PO→Tester→Implementer→Reviewer chain.)
+
+---
+
+## 2026-05-19 — Bug: graperank shared CSV race blocks concurrent customer recalcs
+
+**Raw request (verbatim, distilled from multi-turn conversation):**
+
+> Eventually, I am going to want to schedule routine tasks, such as recalculation of graperank scores for multiple customers, and we need to deal with the scenario of multiple tasks being scheduled at the same or almost the same time. For this, I think we need a task queue.
+>
+> [After audit of trigger surfaces, concurrency guard, and queue absence:] Yes, ready to write both of those specs. [Phase 1 first; per-customer key = pubkey; graperank race goes first as a separate spec since fixing the race independently de-risks phase 1.]
+
+**Pre-intake findings:**
+
+- Audit identified four task-trigger surfaces (Scheduled Tasks UI, legacy Task Explorer, direct `/api/run-task`, systemd `.timer` units) all converging on `launchChildTask.sh`. Concurrency is enforced only by a `pgrep` + per-task `killPreexisting`/`launchNew` policy. No durable queue.
+- Initial assumption was that `src/algos/personalizedGrapeRank/calculatePersonalizedGrapeRank.sh` was the relevant graperank script. Correction during intake: that script is owner-scoped (takes no args, hardcoded to `BRAINSTORM_OWNER_PUBKEY`). The customer-aware script — `src/algos/customers/personalizedGrapeRank/personalizedGrapeRank.sh`, registered as `calculateCustomerGrapeRank` in `taskRegistry.json` — is the one that will be scheduled per-customer.
+- Customer-specific outputs (scorecards, Neo4j writes scoped by `observer_pubkey`, logs under `/var/lib/brainstorm/customers/<CUSTOMER_NAME>/`) are already correctly namespaced.
+- The race is narrowly scoped to the **first phase** of the customer-aware script (lines 78–146), which deliberately shares CSV files at `/var/lib/brainstorm/algos/personalizedGrapeRank/tmp/` across all customer runs with a "files exist → skip init" check. Two concurrent customer runs can either both init at the same time, or one can read partially-written CSVs.
+- The legacy owner-scoped script writes to the same shared paths and `rm -rf`s them at the end. Its lifecycle interleaves with the customer-aware version and is therefore in-scope for this story (fix or retire — Architect's call).
+- The fix is sequenced **before** the BullMQ queue work (story #13) because phase 1's value depends on safely running concurrent per-customer jobs, which the race blocks.
+
+**Clarifications captured in the pre-intake conversation:**
+
+- Per-customer key = customer pubkey (validated by `validateCustomerArguments` in `runTask.js`).
+- Staging strategy: graperank race fix first (small, standalone); BullMQ phase 1 second; phases 2 & 3 deferred to separate stories.
+- The legacy owner-scoped graperank script's status (still in use? retire?) flagged as an open question to resolve before approval.
+
+**Classification:** Bug
+**Strictness:** Standard
+**Phase path:** Planning → Architecture → Test Design → Implementation → Review (Architecture NOT skipped — the fix has real design choices: per-customer CSV paths vs shared-with-lock vs separate refresh task. ADR warranted.)

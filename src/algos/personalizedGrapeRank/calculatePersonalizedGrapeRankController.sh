@@ -30,11 +30,17 @@ mkdir -p "$(dirname "$LOG_FILE")"
 touch "$LOG_FILE"
 chown brainstorm:brainstorm "$LOG_FILE"
 
-# Clean up GrapeRank tmp on exit (success, failure, or signal)
+# Clean up GrapeRank tmp on exit (success, failure, or signal). Per ADR 0009:
+# this trap can fire on retry/timeout while a concurrent customer recalc holds
+# the shared lock — a bare `rm -rf .../tmp` would race that reader. Use
+# evict_raw_data_csv_cache which acquires a non-blocking exclusive flock and
+# targets only the four shared CSVs + .last_init sentinel; if a peer is in
+# flight the eviction is skipped and the cache survives.
 cleanup_graperank_tmp() {
     if [ -d "/var/lib/brainstorm/algos/personalizedGrapeRank/tmp" ]; then
-        echo "$(date): Cleaning up personalizedGrapeRank tmp files" >> "$LOG_FILE"
-        rm -rf /var/lib/brainstorm/algos/personalizedGrapeRank/tmp
+        echo "$(date): Cache-aware cleanup of personalizedGrapeRank shared CSV cache" >> "$LOG_FILE"
+        source "${BRAINSTORM_MODULE_ALGOS_DIR}/personalizedGrapeRank/ensureRawDataCsv.sh"
+        evict_raw_data_csv_cache "calculatePersonalizedGrapeRankController" "$BRAINSTORM_OWNER_PUBKEY"
     fi
 }
 trap cleanup_graperank_tmp EXIT
