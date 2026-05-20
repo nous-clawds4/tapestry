@@ -2,7 +2,7 @@
 
 **Status:** Proposed
 **Date:** 2026-05-20
-**Story:** `engineering-team/stories/13-most-pinned-tag-index.md`
+**Story:** `engineering-team/stories/done/13-most-pinned-tag-index.md`
 
 ## Context
 

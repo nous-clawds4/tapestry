@@ -1,6 +1,6 @@
 # Test Plan: Story 13 — "Most pinned" sort, per-row counts, own-pin indicator on the tag index
 
-**Story:** `engineering-team/stories/13-most-pinned-tag-index.md`
+**Story:** `engineering-team/stories/done/13-most-pinned-tag-index.md`
 **ADR:** `engineering-team/decisions/0012-most-pinned-tag-index.md`
 **Date:** 2026-05-20
 

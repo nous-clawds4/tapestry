@@ -1,6 +1,6 @@
 # Story 13: "Most pinned" sort, per-row counts, and own-pin indicator on the tag index
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-05-20
 **Type:** Feature
 
@@ -196,5 +196,5 @@ These belong to the Architect to resolve in Phase 2:
     (the WoT-author filter pattern via `aggregateProfilesTagged`
     that this story echoes for pin aggregation)
 - ADR: `engineering-team/decisions/0012-most-pinned-tag-index.md`
-- Test plan: `engineering-team/stories/13-most-pinned-tag-index.test-plan.md`
-- Review: (filled in after Review phase)
+- Test plan: `engineering-team/stories/done/13-most-pinned-tag-index.test-plan.md`
+- Review: `engineering-team/reviews/13-most-pinned-tag-index.md`
