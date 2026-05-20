@@ -67,5 +67,5 @@ To be resolved by the Architect via `/api/concept-graph/summaries`:
 ## Linked artifacts
 
 - ADR: [0009-graperank-shared-csv-coordination.md](../decisions/0009-graperank-shared-csv-coordination.md)
-- Test plan: (filled in after Test Design phase)
+- Test plan: [12-graperank-shared-csv-race.test-plan.md](12-graperank-shared-csv-race.test-plan.md)
 - Review: (filled in after Review phase)
