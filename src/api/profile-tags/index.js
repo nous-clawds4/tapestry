@@ -452,6 +452,65 @@ function parsePinTagEventId(ev) {
 }
 
 /**
+ * ADR 0010: pure aggregator for per-target endorsement/dispute counts on a
+ * tag, under an active POV's WoT-author filter. Shared by handleProfilesTagged
+ * (Story 3) and Story-11's refreshPinnedTags membership compute.
+ *
+ * Returns:
+ *   - byTarget: Map<targetPubkey, { pubkey, applications, disputes }>
+ *   - deduped: the replaceable-collapsed scan, so callers (handleProfilesTagged)
+ *     can reuse it for the viewer-union pre-pass without re-scanning strfry.
+ *   - wotFiltering: boolean indicating whether the WoT-author filter was applied.
+ *
+ * No response-shape enrichment (no displayName/picture, no sort, no viewer-union)
+ * — that's the caller's job.
+ */
+async function aggregateProfilesTagged({ tagEventId, povSuffix, minRank }) {
+  const wotFiltering = !!povSuffix && Number.isFinite(minRank);
+
+  const events = await strfryScan({
+    kinds: [39999],
+    '#z': [NOSTR_USER_TAG_Z_TAG],
+    '#e': [tagEventId],
+  });
+  const deduped = dedupeReplaceable(events);
+
+  let authorAllowed = () => true;
+  if (wotFiltering) {
+    const authorPubkeys = Array.from(new Set(deduped.map((ev) => ev.pubkey)));
+    const authorDocs = await meiliFetchProfilesByPubkey(authorPubkeys);
+    const rankField = `wot_rank_${povSuffix}`;
+    authorAllowed = (authorPk) => {
+      const doc = authorDocs.get(authorPk);
+      if (!doc) return false;
+      const r = doc[rankField];
+      return typeof r === 'number' && r >= minRank;
+    };
+  }
+
+  const byTarget = new Map();
+  for (const ev of deduped) {
+    if (!authorAllowed(ev.pubkey)) continue;
+    const pTag = (ev.tags || []).find((t) => t[0] === 'p');
+    if (!pTag?.[1]) continue;
+    const polarity = readPolarity(ev);
+    const bucket = bucketize(polarity);
+    if (bucket === 'neutral') continue;
+
+    const targetPk = pTag[1];
+    let entry = byTarget.get(targetPk);
+    if (!entry) {
+      entry = { pubkey: targetPk, applications: 0, disputes: 0 };
+      byTarget.set(targetPk, entry);
+    }
+    if (bucket === 'apply') entry.applications += 1;
+    else if (bucket === 'dispute') entry.disputes += 1;
+  }
+
+  return { byTarget, deduped, wotFiltering };
+}
+
+/**
  * GET /api/profile-tags/by-id?tagEventId=<id>
  *
  * Fetch a single kind-39999 tag-element by event id. Returns the tag's
@@ -596,14 +655,14 @@ async function handleProfilesTagged(req, res) {
       wotPov: req.query.wotPov || 'house',
       userPubkey: req.query.userPubkey || null,
     });
-    const wotFiltering = !!povSuffix && Number.isFinite(minRank);
 
-    const events = await strfryScan({
-      kinds: [39999],
-      '#z': [NOSTR_USER_TAG_Z_TAG],
-      '#e': [tagEventId],
+    // ADR 0010: extracted pure helper. Returns the per-target endorsement/
+    // dispute aggregation under the active POV's WoT filter, plus the
+    // deduped scan (so the viewer-union below can reuse it without a
+    // second strfry round-trip).
+    const { byTarget, deduped, wotFiltering } = await aggregateProfilesTagged({
+      tagEventId, povSuffix, minRank,
     });
-    const deduped = dedupeReplaceable(events);
 
     // Viewer-union pre-pass: build a map of the viewer's per-target polarity
     // from the same scan, before the WoT filter runs (the viewer's own
@@ -618,38 +677,6 @@ async function handleProfilesTagged(req, res) {
         if (bucket === 'apply') viewerAssertions[pTag[1]] = 'applied';
         else if (bucket === 'dispute') viewerAssertions[pTag[1]] = 'disputed';
       }
-    }
-
-    let authorAllowed = () => true;
-    if (wotFiltering) {
-      const authorPubkeys = Array.from(new Set(deduped.map((ev) => ev.pubkey)));
-      const authorDocs = await meiliFetchProfilesByPubkey(authorPubkeys);
-      const rankField = `wot_rank_${povSuffix}`;
-      authorAllowed = (authorPk) => {
-        const doc = authorDocs.get(authorPk);
-        if (!doc) return false;
-        const r = doc[rankField];
-        return typeof r === 'number' && r >= minRank;
-      };
-    }
-
-    const byTarget = new Map();
-    for (const ev of deduped) {
-      if (!authorAllowed(ev.pubkey)) continue;
-      const pTag = (ev.tags || []).find((t) => t[0] === 'p');
-      if (!pTag?.[1]) continue;
-      const polarity = readPolarity(ev);
-      const bucket = bucketize(polarity);
-      if (bucket === 'neutral') continue;
-
-      const targetPk = pTag[1];
-      let entry = byTarget.get(targetPk);
-      if (!entry) {
-        entry = { pubkey: targetPk, applications: 0, disputes: 0 };
-        byTarget.set(targetPk, entry);
-      }
-      if (bucket === 'apply') entry.applications += 1;
-      else if (bucket === 'dispute') entry.disputes += 1;
     }
 
     // Viewer-union: ensure every target the viewer asserted on has a row,
@@ -1176,10 +1203,11 @@ async function handlePins(req, res) {
       if (!tagEv) continue; // dangling pin — referenced tag missing
       const tagPayload = parseTagPayload(tagEv);
       if (!tagPayload) continue; // malformed payload
+      const curationMethod = parseCurationMethod(pin);
       pins.push({
         pinEventId: pin.id,
         createdAt: pin.created_at,
-        curationMethod: parseCurationMethod(pin),
+        curationMethod,
         tag: {
           eventId: tagEv.id,
           slug: tagPayload.slug,
@@ -1192,9 +1220,95 @@ async function handlePins(req, res) {
     }
 
     pins.sort((a, b) => b.createdAt - a.createdAt);
+
+    // ADR 0010: enrich each row with tlStatus derived from strfry (no
+    // on-disk persistence). One batched scan covers all pins' d-tags;
+    // results are mapped back to per-row tlStatus objects.
+    await enrichRowsWithTLStatus(pins);
+
     res.json({ success: true, pins });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
+  }
+}
+
+/**
+ * ADR 0010: per-pin tlStatus derived live from strfry. No status file.
+ *
+ * For each pin:
+ *   - If curationMethod.method !== 'nip85:rank' → status='unsupported'.
+ *   - Else compute the TL d-tag from (observer, tagAuthor, tagSlug) and
+ *     look up the latest kind-30392 with that d-tag signed by the TA. If
+ *     missing → status='never'. If present with ['status','retracted']
+ *     marker → status='retracted'. Otherwise → status='ok'.
+ */
+async function enrichRowsWithTLStatus(pins) {
+  // Default status on every row before we begin (so even on a strfry-scan
+  // failure the rows carry the field — the read contract stays uniform).
+  for (const row of pins) {
+    row.tlStatus = { status: 'never', lastRefreshAt: null, tlEventId: null, memberCount: null };
+  }
+
+  // Mark unsupported method rows; collect d-tags for the rest.
+  const wantedDTags = [];
+  for (const row of pins) {
+    const method = row.curationMethod?.method;
+    if (method !== 'nip85:rank') {
+      row.tlStatus = { status: 'unsupported', lastRefreshAt: null, tlEventId: null, memberCount: null };
+      row._tlDTag = null;
+      continue;
+    }
+    const observer = row.curationMethod?.observer;
+    if (!observer || !isHexPubkey(observer)) {
+      // Malformed observer → leave as 'never'; no d-tag to look up.
+      row._tlDTag = null;
+      continue;
+    }
+    const dTag = `tl-pin-${observer.slice(0, 8)}-${row.tag.authorPubkey.slice(0, 8)}-${row.tag.slug}`;
+    row._tlDTag = dTag;
+    wantedDTags.push(dTag);
+  }
+
+  if (wantedDTags.length === 0) {
+    for (const row of pins) delete row._tlDTag;
+    return;
+  }
+
+  let tls = [];
+  try {
+    tls = await strfryScan({
+      kinds: [30392],
+      authors: [TA_PUBKEY],
+      '#d': wantedDTags,
+    });
+  } catch {
+    // strfry scan failed — leave default 'never' on each row.
+    for (const row of pins) delete row._tlDTag;
+    return;
+  }
+
+  // Latest per d-tag wins (kind-30392 is addressable replaceable; defensive).
+  const tlByDTag = new Map();
+  for (const ev of tls) {
+    const d = (ev.tags || []).find((t) => t[0] === 'd')?.[1];
+    if (!d) continue;
+    const cur = tlByDTag.get(d);
+    if (!cur || ev.created_at > cur.created_at) tlByDTag.set(d, ev);
+  }
+
+  for (const row of pins) {
+    const dTag = row._tlDTag;
+    delete row._tlDTag;
+    if (!dTag) continue;
+    const tl = tlByDTag.get(dTag);
+    if (!tl) continue; // leave 'never'
+    const retracted = (tl.tags || []).some((t) => t[0] === 'status' && t[1] === 'retracted');
+    row.tlStatus = {
+      status: retracted ? 'retracted' : 'ok',
+      lastRefreshAt: tl.created_at,
+      tlEventId: tl.id,
+      memberCount: (tl.tags || []).filter((t) => t[0] === 'p').length,
+    };
   }
 }
 
@@ -1223,8 +1337,12 @@ module.exports = {
   computeTagMatches,
   findTagsByNameSubstring,
   meiliFetchProfilesByPubkey,
+  aggregateProfilesTagged,
+  parseTagPayload,
   parseCurationMethod,
   parsePinTagEventId,
   TAG_PINNING_Z_TAG,
+  NOSTR_USER_TAG_Z_TAG,
+  TA_PUBKEY,
   registerProfileTagsRoutes,
 };

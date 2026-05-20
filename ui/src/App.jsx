@@ -73,6 +73,7 @@ import BrainstormDevelopers from './pages/BrainstormDevelopers';
 import Tag from './pages/Tag';
 import Tags from './pages/Tags';
 import Pins from './pages/Pins';
+import PinDetail from './pages/PinDetail';
 import NotFound from './pages/NotFound';
 const router = createBrowserRouter([
   {
@@ -98,6 +99,10 @@ const router = createBrowserRouter([
   {
     path: '/pins',
     element: <Pins />,
+  },
+  {
+    path: '/pin/:dTag',
+    element: <PinDetail />,
   },
   {
     path: '/settings',

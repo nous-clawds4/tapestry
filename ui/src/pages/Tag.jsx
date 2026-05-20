@@ -58,8 +58,16 @@ export default function Tag() {
     if (!tag) return;
     setPinning(true); setPinError(null);
     try {
-      await pinTag({ tag });
+      const signed = await pinTag({ tag });
       await refetchHeader();
+      // ADR 0010 refresh-on-pin: fire-and-forget. Best-effort. The Pin
+      // button has already flipped to Unpin; the TL appears on /pins
+      // whenever this resolves.
+      fetch('/api/trusted-list/refresh-pinned-tag', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pinEventId: signed.id }),
+      }).catch(() => { /* swallow — user can manually refresh from /pins */ });
     } catch (e) { setPinError(e.message || 'Pin failed'); }
     finally { setPinning(false); }
   };

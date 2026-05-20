@@ -11,7 +11,7 @@ import { publishOrThrow } from './publishProfileTag';
  * Both surfaces call pinTag / unpinTag so the wire layout lives in one place.
  */
 
-const TA_PUBKEY = '82b75e474dda005e912bcbb910391c60c2b89cc7faf5d3c30b7c59a324973833';
+export const TA_PUBKEY = '82b75e474dda005e912bcbb910391c60c2b89cc7faf5d3c30b7c59a324973833';
 export const TAG_PINNING_HANDLE = `39998:${TA_PUBKEY}:tag-pinning`;
 
 /** Default curation-method payload (Story 10 v1). Story 11 will let the

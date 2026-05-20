@@ -6,6 +6,8 @@ import { useHouseProfile } from '../components/BrainstormUserMenu';
 import TopBar from '../components/TopBar';
 import SearchInput from '../components/SearchInput';
 import TagResultRow from '../components/TagResultRow';
+import PinnedTagChips from '../components/PinnedTagChips';
+import useTagMemberSets from '../hooks/useTagMemberSets';
 import { nip19 } from 'nostr-tools';
 
 /* ── Nostr identity detection ──────────────────────────── */
@@ -765,6 +767,20 @@ export default function BrainstormSearch() {
   // to /?q=alice loads with "alice" in the box on first paint (no flash
   // of empty input before the hydration effect runs).
   const [query, setQuery] = useState(() => searchParams.get('q') || '');
+  // Story 11 follow-up — TL filter chip state. When non-null, results are
+  // narrowed (client-side) to members of the selected pinned tag's TL.
+  const [activePinId, setActivePinId] = useState(null);
+  // Pinned-tag TL member sets, fetched once when the viewer is known.
+  // Declared AFTER activePinId so the derived helpers below don't trigger
+  // a temporal-dead-zone error.
+  const { sets: tagMemberSets } = useTagMemberSets(user?.pubkey);
+  const activeMemberSet = activePinId
+    ? tagMemberSets.find((s) => s.pinEventId === activePinId)?.memberPubkeys || null
+    : null;
+  const applyPinFilter = (arr) => {
+    if (!activeMemberSet) return arr;
+    return (arr || []).filter((hit) => activeMemberSet.has(hit.pubkey || hit.id));
+  };
   const [results, setResults] = useState(null);
   const [meta, setMeta] = useState(null);
   const [searchNotice, setSearchNotice] = useState(null); // friendly message in place of "No results found" (e.g. when Meilisearch panics on too-broad queries — see nostr-search/src/search.js)
@@ -1125,7 +1141,20 @@ export default function BrainstormSearch() {
                     Show more tags →
                   </a>
                 )}
-                {suggestions && suggestions.map(hit => {
+                {/* Story 11 follow-up — chips inside the dropdown so the
+                    user can adjust the active filter without dismissing
+                    the popup. onMouseDown stops the SearchInput's blur
+                    from firing first and hiding the dropdown. */}
+                {user && tagMemberSets.length > 0 && (
+                  <div className="bs-suggest-chips" onMouseDown={(e) => e.preventDefault()}>
+                    <PinnedTagChips
+                      sets={tagMemberSets}
+                      activePinId={activePinId}
+                      onChange={setActivePinId}
+                    />
+                  </div>
+                )}
+                {suggestions && applyPinFilter(suggestions).map(hit => {
                   const name = hit.name || hit.display_name || 'Unknown';
                   const nip05 = hit.nip05;
                   return (
@@ -1172,6 +1201,19 @@ export default function BrainstormSearch() {
               </div>
             )}
           </SearchInput>
+
+          {/* Story 11 follow-up — pinned-tag filter chips. Renders only
+              when the viewer has pinned tags AND the popup is closed
+              (a duplicate chip row inside the dropdown handles the
+              popup-open case so the user can change the filter
+              mid-query without dismissing the popup). */}
+          {user && tagMemberSets.length > 0 && !showSuggestions && (
+            <PinnedTagChips
+              sets={tagMemberSets}
+              activePinId={activePinId}
+              onChange={setActivePinId}
+            />
+          )}
 
           {/* Personalization indicator */}
           <div className="bs-personalization">
@@ -1389,6 +1431,17 @@ export default function BrainstormSearch() {
         </div>
       </div>
 
+      {/* Story 11 follow-up — pinned-tag filter chips, results view. */}
+      {user && tagMemberSets.length > 0 && (
+        <div className="bs-results-chips-row">
+          <PinnedTagChips
+            sets={tagMemberSets}
+            activePinId={activePinId}
+            onChange={setActivePinId}
+          />
+        </div>
+      )}
+
       {/* Results area */}
       <div className="bs-results-body">
         {loading && (
@@ -1431,7 +1484,7 @@ export default function BrainstormSearch() {
             )}
 
             <div className="bs-results-list">
-              {results
+              {applyPinFilter(results)
                 .filter(hit => !nip05Result || (hit.pubkey || hit.id) !== (nip05Result.pubkey || nip05Result.id))
                 .map(hit => (
                   <ResultCard key={hit.pubkey || hit.id} hit={hit} povSuffix={activePovSuffix} query={query} />

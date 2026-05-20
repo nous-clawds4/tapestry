@@ -1606,6 +1606,12 @@ function ScheduledTasksPanel() {
         hint={<>Refresh kind-0 profile data in Meilisearch and, when House PoV is configured, reload House's WoT scores from the latest kind 30382 Trusted Assertions.</>}
         banner={<HousePovUnconfiguredBanner />}
       />
+
+      <ScheduledTaskCard
+        taskId="refreshPinnedTagTLs"
+        title="Pinned-tag Trusted List refresh"
+        hint={<>Periodically generate a NIP-85 Trusted List (kind 30392) for every pinned tag, computed under that pin's observer POV using the pin's curation-method. v1 supports <code>nip85:rank</code> only; other methods are skipped.</>}
+      />
     </div>
   );
 }

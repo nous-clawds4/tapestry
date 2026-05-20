@@ -40,6 +40,8 @@ const searchResultParity = require('./search-result-parity.test.js');
 const searchResultsUrl = require('./search-results-url.test.js');
 const pinATag = require('./pin-a-tag.test.js');
 const pinATagPublish = require('./pin-a-tag-publish.test.js');
+const tlPubFromPins = require('./tl-publication-from-pins.test.js');
+const tlPubFromPinsPublish = require('./tl-publication-from-pins-publish.test.js');
 // Suites added on main since this branch forked
 const treasureMaps = require('./treasure-maps-router-preset.test.js');
 const scheduledRefresh = require('./scheduled-search-and-house-scores-refresh.test.js');
@@ -71,6 +73,8 @@ async function main() {
   const searchResultsUrlResult = await searchResultsUrl.run();
   const pinATagResult = await pinATag.run();
   const pinATagPublishResult = await pinATagPublish.run();
+  const tlPubFromPinsResult = await tlPubFromPins.run();
+  const tlPubFromPinsPublishResult = await tlPubFromPinsPublish.run();
 
   // Main-side suites — these don't print their own banner, so we announce
   // each one before running.
@@ -132,6 +136,11 @@ async function main() {
     ? `SKIP (${pinATagPublishResult.skipped} tests; preconditions not met)`
     : `${pinATagPublishResult.fail === 0 ? 'PASS' : 'FAIL'} (${pinATagPublishResult.pass} passed, ${pinATagPublishResult.fail} failed)`;
   console.log(`pin-a-tag-publish suite:                         ${patpLine}`);
+  console.log(`tl-publication-from-pins suite:                  ${tlPubFromPinsResult.fail === 0 ? 'PASS' : 'FAIL'} (${tlPubFromPinsResult.pass} passed, ${tlPubFromPinsResult.fail} failed)`);
+  const tlppLine = tlPubFromPinsPublishResult.skipped
+    ? `SKIP (${tlPubFromPinsPublishResult.skipped} tests; preconditions not met)`
+    : `${tlPubFromPinsPublishResult.fail === 0 ? 'PASS' : 'FAIL'} (${tlPubFromPinsPublishResult.pass} passed, ${tlPubFromPinsPublishResult.fail} failed)`;
+  console.log(`tl-publication-from-pins-publish suite:          ${tlppLine}`);
   console.log(`treasure-maps-router-preset suite:               ${treasureMapsResult.fail === 0 ? 'PASS' : 'FAIL'} (${treasureMapsResult.pass} passed, ${treasureMapsResult.fail} failed)`);
   console.log(`scheduled-search-and-house-scores-refresh suite: ${scheduledRefreshResult.fail === 0 ? 'PASS' : 'FAIL'} (${scheduledRefreshResult.pass} passed, ${scheduledRefreshResult.fail} failed)`);
   console.log(`strfry-router-first-boot-config suite:           ${strfryRouterFirstBootResult.fail === 0 ? 'PASS' : 'FAIL'} (${strfryRouterFirstBootResult.pass} passed, ${strfryRouterFirstBootResult.fail} failed)`);
@@ -157,6 +166,8 @@ async function main() {
     && searchResultsUrlResult.fail === 0
     && pinATagResult.fail === 0
     && pinATagPublishResult.fail === 0
+    && tlPubFromPinsResult.fail === 0
+    && tlPubFromPinsPublishResult.fail === 0
     && treasureMapsResult.fail === 0
     && scheduledRefreshResult.fail === 0
     && strfryRouterFirstBootResult.fail === 0

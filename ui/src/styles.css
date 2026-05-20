@@ -5482,3 +5482,372 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
 .bss-link-btn:hover {
   background: rgba(99, 102, 241, 0.18);
 }
+
+/* ── Story 11: Pinned-tag TL refresh (ADR 0010) ─────────────────── */
+
+.bs-pins-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0;
+}
+.bs-pins-row .bs-pins-row-link {
+  flex: 1 1 auto;
+  margin-bottom: 0;
+}
+.bs-pins-row-actions {
+  flex: 0 0 auto;
+  padding-right: 0.75rem;
+}
+.bs-pins-row-status {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 0.75rem;
+  color: var(--text-tertiary, #64748b);
+}
+.bs-pins-row-status.is-ok { color: #86efac; }
+.bs-pins-row-status.is-never { color: var(--text-tertiary, #64748b); }
+.bs-pins-row-status.is-retracted { color: #fda4af; }
+.bs-pins-row-status.is-unsupported { color: #fcd34d; }
+.bs-pins-row-refresh {
+  padding: 0.4rem 0.7rem;
+  border: 1px solid rgba(99, 102, 241, 0.35);
+  border-radius: 6px;
+  background: rgba(99, 102, 241, 0.08);
+  color: #a5b4fc;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+.bs-pins-row-refresh:hover:not([disabled]) {
+  background: rgba(99, 102, 241, 0.18);
+}
+.bs-pins-row-refresh[disabled] {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.bs-pins-row-error {
+  font-size: 0.8rem;
+  color: #fda4af;
+}
+.bs-pins-refresh-all-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+.bs-pins-refresh-all {
+  padding: 0.5rem 0.9rem;
+  border: 1px solid rgba(99, 102, 241, 0.35);
+  border-radius: 8px;
+  background: rgba(99, 102, 241, 0.12);
+  color: #a5b4fc;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.bs-pins-refresh-all:hover:not([disabled]) {
+  background: rgba(99, 102, 241, 0.22);
+}
+.bs-pins-refresh-all[disabled] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.bs-pins-intro {
+  margin: 0 0 1.5rem;
+  padding: 0.75rem 1rem;
+  border-left: 3px solid rgba(99, 102, 241, 0.5);
+  background: rgba(99, 102, 241, 0.05);
+  border-radius: 4px;
+}
+.bs-pins-intro p {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: var(--text-secondary, #94a3b8);
+}
+.bs-pins-intro p + p {
+  margin-top: 0.6rem;
+}
+.bs-pins-intro code,
+.bs-pins-member-hint code {
+  font-size: 0.85em;
+  padding: 0.1em 0.35em;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 3px;
+}
+.bs-pins-member-hint {
+  margin: 1rem 0 0;
+  padding: 0.6rem 0.9rem;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: var(--text-tertiary, #64748b);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* ── Story 11 follow-up: TL share button ───────────────────── */
+.bs-tl-share {
+  border: 1px solid rgba(99, 102, 241, 0.35);
+  border-radius: 6px;
+  background: rgba(99, 102, 241, 0.08);
+  color: #a5b4fc;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.05s;
+}
+.bs-tl-share:hover { background: rgba(99, 102, 241, 0.18); }
+.bs-tl-share:active { transform: scale(0.97); }
+.bs-tl-share.is-copied {
+  background: rgba(134, 239, 172, 0.15);
+  border-color: rgba(134, 239, 172, 0.5);
+  color: #86efac;
+}
+.bs-tl-share-compact {
+  padding: 0.3rem 0.45rem;
+  font-size: 0.95rem;
+  line-height: 1;
+}
+.bs-tl-share-full {
+  padding: 0.4rem 0.8rem;
+  font-size: 0.85rem;
+}
+
+/* ── Story 11 follow-up: PinDetail page ─────────────────────── */
+.bs-pindetail-page {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 1rem;
+}
+.bs-pindetail-breadcrumb {
+  display: inline-block;
+  margin-bottom: 0.75rem;
+  font-size: 0.85rem;
+  color: #a5b4fc;
+  text-decoration: none;
+}
+.bs-pindetail-breadcrumb:hover { text-decoration: underline; }
+.bs-pindetail-header {
+  margin-bottom: 1rem;
+}
+.bs-pindetail-title {
+  margin: 0;
+  font-size: 1.6rem;
+}
+.bs-pindetail-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin-top: 0.5rem;
+}
+.bs-pindetail-refresh {
+  padding: 0.4rem 0.8rem;
+  border: 1px solid rgba(99, 102, 241, 0.35);
+  border-radius: 6px;
+  background: rgba(99, 102, 241, 0.08);
+  color: #a5b4fc;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.bs-pindetail-refresh:hover:not([disabled]) { background: rgba(99, 102, 241, 0.18); }
+.bs-pindetail-refresh[disabled] { opacity: 0.4; cursor: not-allowed; }
+.bs-pindetail-retracted {
+  margin: 0.5rem 0 0;
+  padding: 0.5rem 0.75rem;
+  border-radius: 4px;
+  background: rgba(252, 211, 77, 0.08);
+  border-left: 3px solid rgba(252, 211, 77, 0.5);
+  color: #fcd34d;
+  font-size: 0.85rem;
+}
+.bs-pindetail-meta {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.4rem 1rem;
+  margin: 1rem 0;
+  padding: 0.75rem 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 6px;
+  font-size: 0.85rem;
+}
+.bs-pindetail-meta dt {
+  color: var(--text-tertiary, #64748b);
+  margin: 0;
+}
+.bs-pindetail-meta dd {
+  margin: 0;
+  color: var(--text-primary, #e2e8f0);
+}
+.bs-pindetail-meta a { color: #a5b4fc; text-decoration: none; }
+.bs-pindetail-meta a:hover { text-decoration: underline; }
+.bs-pindetail-meta code {
+  font-size: 0.85em;
+  padding: 0.1em 0.35em;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 3px;
+}
+.bs-pindetail-members-heading {
+  font-size: 1.1rem;
+  margin: 1.5rem 0 0.75rem;
+}
+.bs-pindetail-empty {
+  color: var(--text-tertiary, #64748b);
+  font-size: 0.9rem;
+}
+.bs-pindetail-members { list-style: none; padding: 0; margin: 0; }
+.bs-pindetail-member { margin-bottom: 0.5rem; }
+.bs-pindetail-member-link {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  text-decoration: none;
+  color: inherit;
+  transition: background 0.15s, border-color 0.15s;
+}
+.bs-pindetail-member-link:hover {
+  background: rgba(99, 102, 241, 0.06);
+  border-color: rgba(99, 102, 241, 0.25);
+}
+.bs-pindetail-member-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex: 0 0 auto;
+}
+.bs-pindetail-member-avatar-placeholder {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(99, 102, 241, 0.12);
+  font-size: 1rem;
+}
+.bs-pindetail-member-info {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+.bs-pindetail-member-name {
+  font-weight: 600;
+  color: var(--text-primary, #e2e8f0);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.bs-pindetail-member-nip05 {
+  font-size: 0.78rem;
+  color: var(--text-tertiary, #64748b);
+}
+.bs-pindetail-member-counts {
+  font-size: 0.8rem;
+  color: #86efac;
+  flex: 0 0 auto;
+}
+.bs-pindetail-loading, .bs-pindetail-error {
+  margin: 1rem 0;
+  font-size: 0.9rem;
+  color: var(--text-secondary, #94a3b8);
+}
+.bs-pindetail-error { color: #fda4af; }
+
+/* ── Story 11 follow-up: PinnedTagChips ─────────────────────── */
+.bs-pin-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: center;
+  margin: 0.6rem 0 0;
+  padding: 0.4rem 0;
+  font-size: 0.8rem;
+}
+.bs-pin-chips-label {
+  font-size: 0.75rem;
+  color: var(--text-tertiary, #64748b);
+  margin-right: 0.25rem;
+}
+.bs-pin-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.25rem 0.6rem;
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  border-radius: 999px;
+  background: rgba(99, 102, 241, 0.06);
+  color: var(--text-secondary, #94a3b8);
+  font-size: 0.78rem;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.bs-pin-chip:hover:not(.is-disabled) {
+  background: rgba(99, 102, 241, 0.15);
+  color: #a5b4fc;
+}
+.bs-pin-chip.is-active {
+  background: rgba(99, 102, 241, 0.3);
+  color: #c7d2fe;
+  border-color: rgba(99, 102, 241, 0.7);
+}
+.bs-pin-chip.is-disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+.bs-pin-chip-count {
+  display: inline-block;
+  padding: 0 0.35rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  font-size: 0.7rem;
+  color: var(--text-tertiary, #64748b);
+}
+.bs-pin-chip.is-active .bs-pin-chip-count {
+  background: rgba(255, 255, 255, 0.18);
+  color: #c7d2fe;
+}
+.bs-pin-chip-clear {
+  margin-left: 0.5rem;
+  padding: 0.25rem 0.6rem;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-tertiary, #64748b);
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+.bs-pin-chip-clear:hover { color: #fda4af; }
+.bs-results-chips-row {
+  padding: 0 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+/* ── Story 11 follow-up: in-popup chip row ───────────────── */
+.bs-suggest-chips {
+  padding: 0.4rem 0.75rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+.bs-suggest-chips .bs-pin-chips {
+  margin: 0;
+  padding: 0;
+}
+
+.bs-pindetail-id {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+.bs-pindetail-id code {
+  display: block;
+  word-break: break-all;
+  font-size: 0.78em;
+  padding: 0.3em 0.5em;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 4px;
+  user-select: all;
+}
+.bs-pindetail-id-hint {
+  font-size: 0.7rem;
+  color: var(--text-tertiary, #64748b);
+  font-style: italic;
+}

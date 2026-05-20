@@ -27,6 +27,11 @@ const DEFAULTS = {
     intervalHours: 24,
     intervalDays: 0,
   },
+  refreshPinnedTagTLs: {
+    enabled: false,
+    intervalHours: 24,
+    intervalDays: 0,
+  },
 };
 
 // ── Per-task in-memory timer state ──────────────────────────
