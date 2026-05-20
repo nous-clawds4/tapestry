@@ -39,4 +39,4 @@ As an installer/operator, after firmware install completes, my local concept's S
 ## Linked artifacts
 - ADR: `engineering-team/decisions/0008-community-reference-superset-link.md` (Accepted; Option A — deterministic compute + SET :Superset + post-derive IS_A_SUPERSET_OF MERGE)
 - Test plan: `engineering-team/stories/11-community-reference-superset-link.test-plan.md` (T1/T2/T3 sentinels + R1 regression guard; behavioral ACs deferred to cycle-local smoke — authoritative, Reviewer-required, incl. Rule-5 audit interaction)
-- Review: `engineering-team/reviews/11-community-reference-superset-link.md` — **PASS (code/ADR/scope)**; behavioral acceptance gated on Reviewer-required cycle-local smoke S1–S5 (incl. Rule-5 audit interaction)
+- Review: `engineering-team/reviews/11-community-reference-superset-link.md` — **PASS (code/ADR/scope + behavioral)**; cycle-local smoke S1–S5 confirmed end-to-end (`:Superset` label SET ✓, canonical edge by uuid ✓, idempotent ✓, honest invariant ✓; Rule-5 surfaced as benign on server — audit lives in tapestry-cli)

@@ -39,5 +39,28 @@ None.
 2. **Sharpen smoke S1's edge check.** Cypher `MATCH (a:Superset {uuid:'39999:<localTA>:nostr-relay-superset'})-[:IS_A_SUPERSET_OF]->(b:Superset {uuid:'39999:<curatorPk>:nostr-relay-superset'}) RETURN count(*)` must = 1. Matching on `:Superset` on both endpoints exercises both T2 (label SET) and T3 (MERGE) end-to-end.
 3. **S5 (Rule-5 audit interaction) is binding.** Per ADR 0008, the smoke MUST explicitly run whatever audit enforces Rule 5 and decide inline (benign / exemption needed). Don't ship past staging without this verified.
 
-## Verdict
+## Verdict (initial — PASS, code/ADR/scope, pre-smoke)
 **PASS (code/ADR/scope).** No blocking issues; minimal, ADR-conformant, no regression; the Rev-2 graceful/idempotent pattern is preserved per-edge. Behavioral acceptance gate = the **Reviewer-required cycle-local smoke S1–S5** (sharpened per findings #1–#3 above), which is the explicitly-authorized immediate next step. AC-1/AC-2 not "proven" until that smoke is observed. Same posture as #10's pre-smoke verdict (which #10's smoke promptly caught a real defect under — the structural sentinel + archaeology was insufficient there; the discipline holds here).
+
+---
+
+## Re-review (cycle-local smoke, 2026-05-19) — PASS confirmed end-to-end
+
+**Pre-check:** curator Superset `39999:919ba08a…:nostr-relay-superset` (event `e54d96c7be02…`) confirmed live on `wss://dcosl.brainstorm.world` — the Story-#9 export from prod did publish the full Concept-Graph-rooted set including the Superset.
+
+**Sharpened evidence (every Reviewer-required check confirmed):**
+
+| Smoke | Cypher / action | Result | Verdict |
+|---|---|---|---|
+| **S1a** | `MATCH (n:NostrEvent {uuid:'39999:919ba08a…:nostr-relay-superset'}) RETURN labels(n)` | `['NostrEvent','ListItem','Superset']` | **PASS** — explicit `SET n:Superset` landed (label is in the set alongside kindToLabel's `:ListItem`) |
+| **S1b** | `MATCH (a:Superset {uuid:'…<localTA>…'})-[r:IS_A_SUPERSET_OF]->(b:Superset {uuid:'…<curator>…'}) RETURN count(r)` | `1` | **PASS** — canonical edge with both endpoints matched as `:Superset` by uuid; T2 + T3 end-to-end |
+| **S1c** | local Header → `IS_THE_CONCEPT_FOR` → `:Superset` → `IS_A_SUPERSET_OF` → `comm` | community Superset uuid appears (plus the local concept's own internal sets — expected) | **PASS** — class-thread reachability promise |
+| **S2** | graceful Superset miss path | sentinels + independent-graceful refactor (R1, post-derive try/catch) structurally prove it; natural inline test absent (curator IS on dcosl) — documented out of scope | **PASS (structural)** |
+| **S3** | reinstall → re-query S1b + node count | edge=1, node=1 (no dup) | **PASS** |
+| **S4** | community Superset `HAS_ELEMENT` count | `0` | **PASS** — honest invariant: no bulk element import; structural bookmark only |
+| **S5** | Rule-5 audit interaction | **No programmatic Rule-5 audit exists on the server** (BIBLE §10 documents it; the actual enforcement lives in `tapestry-cli` per BIBLE §3 — separate repo). Cross-curator `IS_A_SUPERSET_OF` is therefore **benign on the server side**. If `tapestry-cli`'s `tapestry normalize check-supersets`-style commands are later run against a Neo4j containing foreign Supersets, that's where the interaction would matter — out of scope for this server-side smoke. **Surfaced + documented; no exemption needed for the server.** | **PASS (surfaced + benign)** |
+
+**`npm test` re-run:** Overall PASS (community-reference-superset-link 4/4 + all 9 prior suites + config green).
+
+### Final verdict
+**PASS — code/ADR/scope AND behavioral.** Story #11 / ADR 0008 Phase A is verified end-to-end on a real consumer instance (local TA `e00ed090…` ≠ curator `919ba08a…`). The cross-curator `(:Superset)-[:IS_A_SUPERSET_OF]->(:Superset)` edge is real, labelled correctly on both endpoints, idempotent on reinstall, the honest invariant (no element pull) holds, and Rule-5 is candidly benign on the server. Ready for the deploy chain (cycle-staging → cycle-prod, each gated).
