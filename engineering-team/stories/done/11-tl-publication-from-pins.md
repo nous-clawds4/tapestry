@@ -1,6 +1,6 @@
 # Story 11: Periodic Trusted List publication from pinned tags
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-05-18
 **Type:** Feature
 
@@ -246,5 +246,5 @@ These belong to the Architect to resolve in Phase 2:
   (existing detail page that should render TLs this story publishes
   without modification — see AC-10).
 - ADR: `engineering-team/decisions/0010-tl-publication-from-pins.md`
-- Test plan: `engineering-team/stories/11-tl-publication-from-pins.test-plan.md`
-- Review: (filled in after Review phase)
+- Test plan: `engineering-team/stories/done/11-tl-publication-from-pins.test-plan.md`
+- Review: `engineering-team/reviews/11-tl-publication-from-pins.md`

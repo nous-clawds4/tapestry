@@ -1,6 +1,6 @@
 # Test Plan: Story 11 — Periodic Trusted List publication from pinned tags
 
-**Story:** `engineering-team/stories/11-tl-publication-from-pins.md`
+**Story:** `engineering-team/stories/done/11-tl-publication-from-pins.md`
 **ADR:** `engineering-team/decisions/0010-tl-publication-from-pins.md`
 **Date:** 2026-05-19
 

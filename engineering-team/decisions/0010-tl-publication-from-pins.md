@@ -2,7 +2,7 @@
 
 **Status:** Proposed
 **Date:** 2026-05-18 (amended 2026-05-20)
-**Story:** `engineering-team/stories/11-tl-publication-from-pins.md`
+**Story:** `engineering-team/stories/done/11-tl-publication-from-pins.md`
 
 ## Context
 
