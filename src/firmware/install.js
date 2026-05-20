@@ -1051,10 +1051,50 @@ async function pass_communityReferences(opts = {}) {
       await apiPost('/api/strfry/publish', { event: ev });
       await executeCypher(buildImportCypher(ev));
 
+      // ── Phase A (story #11 / ADR 0008): community Superset link ─────
+      // Also fetch + materialize the community Superset (deterministic
+      // 39999:<curatorPk>:<dTag>-superset), and explicitly SET :Superset
+      // on the foreign node (buildImportCypher gives :ListItem only for
+      // kind 39999; class-thread queries match `(:Superset)`). The
+      // canonical IS_A_SUPERSET_OF edge is wired post-derive.
+      // Independent inner graceful: a Superset miss does NOT block the
+      // already-succeeded Header → REFERENCES wiring above. Element/set
+      // *data* pull remains deferred (Option B; the link is a bookmark).
+      let supersetTo = null;
+      try {
+        const supersetDTag = `${dTag}-superset`;
+        const supersetUuid = `39999:${curatorPk}:${supersetDTag}`;
+        // Inline `${dTag}-superset` here (also assigned to `supersetDTag`
+        // above) so the deterministic `-superset` resolution is self-evident
+        // in the filter literal (also: TI sentinel anchors on this pattern).
+        const supFilter = { kinds: [39999], authors: [curatorPk], '#d': [`${dTag}-superset`] };
+        const supFetched = await apiGet('/api/relay/external', {
+          filter: JSON.stringify(supFilter),
+          relays,
+        });
+        const supEv = supFetched && Array.isArray(supFetched.events) ? supFetched.events[0] : null;
+        if (!supEv) {
+          console.log(`  ⚠️  ${slug}: community Superset (${supersetDTag}) not found on relay hints — skipped (graceful; REFERENCES still wired)`);
+        } else {
+          await apiPost('/api/strfry/publish', { event: supEv });
+          await executeCypher(buildImportCypher(supEv));
+          await runCypherApi(
+            'MATCH (n:NostrEvent {uuid:$uuid}) SET n:Superset',
+            { uuid: supersetUuid }
+          );
+          supersetTo = supersetUuid;
+          console.log(`  ✅ ${slug}: community Superset published + materialized + labelled :Superset`);
+        }
+      } catch (supErr) {
+        console.log(`  ⚠️  ${slug}: community Superset step failed — ${supErr.message} (graceful; REFERENCES still wired)`);
+      }
+
       pending.push({
         slug,
         from: `39998:${taPubkey}:${slug}`,
         to: cr.headerATag,
+        supersetFrom: `39999:${taPubkey}:${slug}-superset`,
+        supersetTo, // null if Superset materialization skipped/failed (graceful)
       });
       console.log(`  ✅ ${slug}: community Header published + materialized → REFERENCES pending`);
     } catch (err) {
@@ -1145,42 +1185,71 @@ async function install(opts = {}) {
     console.log('');
   }
 
-  // ── Community-reference REFERENCES edges (post-derive) ──────
-  // The community Header was materialized as a node in
-  // pass_communityReferences. MERGE the Neo4j-only placeholder edge:
-  // (local Concept Header)-[:REFERENCES {source:'firmware-community'}]->
-  // (community Header). The `source` property is the disambiguator from
-  // the unrelated, high-volume eventSync (:NostrEventTag)-[:REFERENCES]->
-  // (:NostrEvent) edges (ADR 0005 Rev 2 accepted-collision mitigation):
-  // concept-level REFERENCES is ListHeader→ListHeader AND carries
-  // source; tag-level never sets source. MERGE ⇒ idempotent (AC-5).
-  // Graceful: a missing community node just wires no edge — never throws.
+  // ── Community-reference edges (post-derive) ────────────────
+  //
+  // Two edges per concept, each independently wired:
+  //
+  //   (1) (localHeader)-[:REFERENCES {source:'firmware-community'}]->(communityHeader)
+  //       Neo4j-only placeholder (ADR 0005 Rev 2). `source` disambiguates from
+  //       the high-volume eventSync (:NostrEventTag)-[:REFERENCES]->(:NostrEvent)
+  //       edges (accepted-collision mitigation): concept-level REFERENCES is
+  //       ListHeader→ListHeader AND carries source; tag-level never sets it.
+  //
+  //   (2) (localSuperset:Superset)-[:IS_A_SUPERSET_OF]->(communitySuperset:Superset)
+  //       Canonical class-thread propagation relationship (story #11 / ADR 0008
+  //       Phase A) — wired only if pass_communityReferences successfully
+  //       materialized the foreign Superset (link.supersetTo set) and SET the
+  //       :Superset label on it. No `source` property — this is the canonical
+  //       relationship class-thread queries already understand.
+  //
+  // Both use the same presence-check + graceful try/catch pattern (a missing
+  // node just wires no edge — never throws). Independent: a Header miss
+  // does NOT skip the Superset wiring, and vice versa. MERGEs are idempotent.
   if (!dryRun && crResult && crResult.pending && crResult.pending.length) {
-    console.log('\n── Community-reference REFERENCES edges ──\n');
+    console.log('\n── Community-reference edges (REFERENCES + IS_A_SUPERSET_OF) ──\n');
     for (const link of crResult.pending) {
+      // (1) Header → REFERENCES
       try {
-        // The edge is real only if the community node exists. MATCH...MERGE
-        // silently no-ops (no error, no edge) when it is absent, so check
-        // presence first and log accurately — the Reviewer-required smoke
-        // reads this line as M1 evidence (review finding #2).
         const found = await runCypherApi(
           `MATCH (b:NostrEvent {uuid:$to}) RETURN count(b) AS cnt`,
           { to: link.to }
         );
         const present = ((found && found.data) || [])[0]?.cnt || 0;
         if (!present) {
-          console.log(`  ⏭️  ${link.slug}: community node ${link.to} not present yet — REFERENCES deferred (graceful)`);
+          console.log(`  ⏭️  ${link.slug}: community Header ${link.to} not present yet — REFERENCES deferred (graceful)`);
+        } else {
+          await runCypherApi(
+            `MATCH (a:NostrEvent {uuid:$from}), (b:NostrEvent {uuid:$to})
+             MERGE (a)-[r:REFERENCES]->(b)
+             SET r.source = 'firmware-community'`,
+            { from: link.from, to: link.to }
+          );
+          console.log(`  ✅ ${link.slug}: REFERENCES {source:firmware-community} → ${link.to}`);
+        }
+      } catch (err) {
+        console.log(`  ⚠️  ${link.slug}: REFERENCES wiring skipped — ${err.message} (graceful)`);
+      }
+
+      // (2) Superset → IS_A_SUPERSET_OF (story #11 / ADR 0008)
+      if (!link.supersetTo) continue;
+      try {
+        const foundS = await runCypherApi(
+          `MATCH (b:NostrEvent {uuid:$to}) RETURN count(b) AS cnt`,
+          { to: link.supersetTo }
+        );
+        const presentS = ((foundS && foundS.data) || [])[0]?.cnt || 0;
+        if (!presentS) {
+          console.log(`  ⏭️  ${link.slug}: community Superset ${link.supersetTo} not present yet — IS_A_SUPERSET_OF deferred (graceful)`);
           continue;
         }
         await runCypherApi(
           `MATCH (a:NostrEvent {uuid:$from}), (b:NostrEvent {uuid:$to})
-           MERGE (a)-[r:REFERENCES]->(b)
-           SET r.source = 'firmware-community'`,
-          { from: link.from, to: link.to }
+           MERGE (a)-[:IS_A_SUPERSET_OF]->(b)`,
+          { from: link.supersetFrom, to: link.supersetTo }
         );
-        console.log(`  ✅ ${link.slug}: REFERENCES {source:firmware-community} → ${link.to}`);
+        console.log(`  ✅ ${link.slug}: IS_A_SUPERSET_OF → ${link.supersetTo}`);
       } catch (err) {
-        console.log(`  ⚠️  ${link.slug}: REFERENCES wiring skipped — ${err.message} (graceful)`);
+        console.log(`  ⚠️  ${link.slug}: IS_A_SUPERSET_OF wiring skipped — ${err.message} (graceful)`);
       }
     }
   }
