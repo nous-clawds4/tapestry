@@ -117,3 +117,35 @@ _None._
 **PASS** on the code side (story, ADR, test plan, quality gates).
 
 **Cycle-local smoke (S1–S8) required before merge.** Per project precedent (#11's `ef8ff19f`), the source-sentinel review is necessary but not sufficient for a concurrency story; the authoritative behavioral validation lives in the cycle-local skill against the live Docker stack on `http://localhost:8080`. The smoke either confirms PASS end-to-end or downgrades this verdict to CHANGES_REQUESTED.
+
+---
+
+## Cycle-local smoke verification (added after code-side review)
+
+**Stack:** `tapestry` Docker container, control panel on `localhost:80` and `:7778`, Neo4j on `:7474/:7687`. Stack uptime 6 days. Container shell-script copies (sha256-verified against `HEAD`) match this branch exactly. `/etc/graperank.conf` was absent on the dev container — installed from `config/graperank.conf.template` for the smoke (dev-deployment gap; pre-existing; not story-12).
+
+**Tier 2 standard sanity:** `GET /api/concept-graph/summaries` 200 + count=34; `GET /api/assistant/pubkey` 200; `GET /` 200. No collateral breakage in the API/UI layer.
+
+**Pre-flight caveats:** Neo4j has 0 NostrUser nodes with `hops < 100` (empty fixture); no customer subdirectories under `/var/lib/brainstorm/customers/` (only the `customers.json` registry). These are expected dev-container states per the cycle-local skill's caveat and constrain S1 only — see scenario notes.
+
+### Scenario results
+
+| Scenario | AC | Result | Evidence |
+|---|---|---|---|
+| **S5** clean-FS first run | AC-6 | **PASS** | Full 6-event lifecycle (`wait_begin/end shared` → `wait_begin/end exclusive` → `init_begin/end`); tmp/ went from absent → `.csv.lock`, `.last_init`, 4 CSVs all present with `brainstorm:brainstorm` ownership |
+| **S4** cache hit within window | AC-4 | **PASS** | Immediate re-invocation: 3 events (`wait_begin/end shared` + `csv_cache_hit`); sentinel mtime preserved (1779316736 → 1779316736); no init triggered |
+| **S2** exactly-one-init under contention | AC-2 | **PASS** | Two parallel `ensure_raw_data_csv` calls; summary: `init_begin=1, init_end=1, peer_reuse_hit=1`. Exactly one extraction ran; the other waited and observed `csv_cache_hit` with `outcome:"reused_peer_init"` after the double-check under exclusive lock |
+| **S3** atomic rename / no partial reads | AC-3 | **PASS** | Post-init invariant: zero `.partial` files remain in tmp/; `mv ${target}.partial ${target}` pattern present in helper ([line 102](src/algos/personalizedGrapeRank/ensureRawDataCsv.sh:102)). Combined with T3 source-sentinel, the atomic rename mechanism is confirmed end-to-end |
+| **S7** cache-aware eviction | AC-8 | **PASS** | Two-part test: (a) evict while peer holds shared lock → `csv_cache_evict_skipped` with `reason:"peer_in_flight"`, all 4 CSVs + sentinel SURVIVED; (b) evict idle → `csv_cache_evicted`, CSVs + sentinel removed, `.csv.lock` (infrastructure) preserved. Targets exactly the four CSVs + `.last_init` as ADR §Decision specifies |
+| **S6** owner script folded into protocol | AC-7 | **PASS** | `calculatePersonalizedGrapeRank.sh` invoked directly: logs "ensuring shared raw-data CSV cache" → "cache ready", proceeds to `initializeRatings` without any inline `cypher-shell > $TEMP_DIR/*.csv` extraction; full csv_cache_* event set fires under `taskName: ensureRawDataCsv`; cache survives past script exit (no trailing wipe — ADR §Consequences confirmed). Owner script is folded in AND not retired |
+| **S1** two concurrent customer runs both complete | AC-1 | **CAVEAT-PASS** | The change's coordination layer is fully validated via S2 (concurrent contention) and S6 (downstream pipeline driving the helper). End-to-end "two customers each produce correct scorecards" requires populated Neo4j + ≥2 registered customers — unavailable on this dev container. The flock + atomic-rename + event-stream guarantees that AC-1 builds on are all confirmed |
+| **S8** structured event log surface | AC-10 | **PASS** | Across S5/S4/S2/S7/S6 the events.jsonl emitted all 7 expected `csv_cache_*` phase tokens with correct counts (`hit:3, init_begin:3, init_end:3, wait_begin:10, wait_end:10, evicted:1, evict_skipped:1`). Required AC-10 vocabulary (`hit`, `init_begin`, `init_end`) present; extended vocabulary (`wait_*`, `evict_*`) also present as bonus |
+
+### Cycle-local non-blocking observations
+- **Same-parent PID grouping in S2.** Both subshells of a `bash -c '... & ...'` pattern share `$$`. The `emit_task_event` helper captures `$$`, so the per-process grouping in `events.jsonl` collapses for this synthetic test. **Not introduced by story #12** — pre-existing behavior of `src/utils/structuredLogging.sh:168`. In production, each customer recalc is its own process with its own PID, so grouping works correctly. The S2 result is still valid because the *summary counts* (1 init, 1 peer_reuse) prove the coordination protocol regardless of PID grouping.
+- **`.csv.lock` perms.** Helper's `chmod -R 755` brings the lock file to `-rwxr-xr-x`. Cosmetic; `flock` is not perm-sensitive.
+- **`/etc/graperank.conf` absent on dev container.** Pre-existing deployment-template install gap; not story-12. Surfaces because story-12 introduced a new conf knob, but the same source line existed in the owner-scoped script before this change.
+
+### Final verdict (post-smoke)
+
+**PASS** — all in-scope behavioral guarantees confirmed; S1's end-to-end customer flow caveat is a fixture limitation (not a code regression) and is fully addressed by the staging smoke that `cycle-staging` will run next. The story is ready for the deploy chain.

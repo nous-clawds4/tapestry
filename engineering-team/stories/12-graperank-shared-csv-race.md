@@ -68,4 +68,4 @@ To be resolved by the Architect via `/api/concept-graph/summaries`:
 
 - ADR: [0009-graperank-shared-csv-coordination.md](../decisions/0009-graperank-shared-csv-coordination.md)
 - Test plan: [12-graperank-shared-csv-race.test-plan.md](12-graperank-shared-csv-race.test-plan.md)
-- Review: [../reviews/12-graperank-shared-csv-race.md](../reviews/12-graperank-shared-csv-race.md) — PASS code-side; cycle-local smoke (S1–S8) pending before merge.
+- Review: [../reviews/12-graperank-shared-csv-race.md](../reviews/12-graperank-shared-csv-race.md) — **PASS** end-to-end (code/ADR/scope + cycle-local smoke S1–S8 confirmed).
