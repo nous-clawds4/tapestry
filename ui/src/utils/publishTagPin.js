@@ -3,19 +3,26 @@ import { publishOrThrow } from './publishProfileTag';
 /**
  * Single source of truth for the tag-pinning wire shape from ADR 0009.
  *
+ * IMPORTANT: the TA pubkey is PER-DEPLOYMENT. Callers MUST pass
+ * `taPubkey` to `pinTag()` — typically by reading it from
+ * `useConfig().taPubkey`, which is backed by `/api/assistant/pubkey`.
+ *
+ * NEVER hardcode the TA pubkey here or in any consumer of this
+ * module — see CLAUDE.md "Per-deployment TA pubkey" and AGENTS.md §1.
+ * A literal hardcode silently breaks the pin/TL stack on every
+ * non-dev deployment (the publisher signs with the real on-disk TA
+ * key, but the readers look up TLs under the wrong author and find
+ * nothing).
+ *
  * Used by:
  *   - Tag page (Story 10) — header Pin / Unpin affordance.
- *   - Future Story 11 — curation-method editor (will pass a customized
- *     curationMethod object instead of the default).
+ *   - Story 12 — CurationMethodDialog (custom curation values).
  *
- * Both surfaces call pinTag / unpinTag so the wire layout lives in one place.
+ * The wire layout lives in one place here so future changes to the
+ * pin event's tags / content body only touch this file.
  */
 
-export const TA_PUBKEY = '82b75e474dda005e912bcbb910391c60c2b89cc7faf5d3c30b7c59a324973833';
-export const TAG_PINNING_HANDLE = `39998:${TA_PUBKEY}:tag-pinning`;
-
-/** Default curation-method payload (Story 10 v1). Story 11 will let the
- *  user override these fields per pin at pin time / from /pins. */
+/** Default curation-method payload (Story 10 v1). */
 export function defaultCurationMethod(viewerPubkey) {
   return {
     observer: viewerPubkey,
@@ -30,16 +37,22 @@ export function defaultCurationMethod(viewerPubkey) {
  *
  * @param {object} args
  * @param {{eventId: string, slug: string, authorPubkey: string}} args.tag —
- *   the tag being pinned. `authorPubkey` is the tag-event's publisher (used
- *   in the d-tag and a-tag).
+ *   the tag being pinned. `authorPubkey` is the tag-event's publisher
+ *   (used in the d-tag and a-tag).
+ * @param {string} args.taPubkey — the instance's TA pubkey (hex). REQUIRED.
+ *   Pull from `useConfig().taPubkey` at the call site.
  * @param {object} [args.curationMethod] — optional override; defaults to
  *   `defaultCurationMethod(viewerPubkey)`.
  * @returns {Promise<object>} the signed Pin event.
  */
-export async function pinTag({ tag, curationMethod }) {
+export async function pinTag({ tag, taPubkey, curationMethod }) {
   if (!window.nostr) {
     throw new Error('No NIP-07 extension detected. Install one to pin tags.');
   }
+  if (!taPubkey || !/^[0-9a-f]{64}$/.test(taPubkey)) {
+    throw new Error('pinTag: taPubkey is required (pull from useConfig().taPubkey)');
+  }
+  const tagPinningHandle = `39998:${taPubkey}:tag-pinning`;
   const authorPk = await window.nostr.getPublicKey();
   const curation = curationMethod || defaultCurationMethod(authorPk);
   const dTag = `tag-pin-${tag.slug}-${tag.authorPubkey.slice(0, 8)}-${authorPk.slice(0, 8)}`;
@@ -51,7 +64,7 @@ export async function pinTag({ tag, curationMethod }) {
       ['d', dTag],
       ['e', tag.eventId],
       ['a', `39999:${tag.authorPubkey}:${tag.slug}`],
-      ['z', TAG_PINNING_HANDLE],
+      ['z', tagPinningHandle],
       ['curation-method', JSON.stringify(curation)],
     ],
     content: JSON.stringify({

@@ -23,8 +23,19 @@
  */
 
 const { exec } = require('child_process');
+const { getOwnerAssistantPubkey } = require('../../utils/assistantKeys');
 
-const TA_PUBKEY = '82b75e474dda005e912bcbb910391c60c2b89cc7faf5d3c30b7c59a324973833';
+// TA pubkey is PER-DEPLOYMENT. `getOwnerAssistantPubkey()` reads the
+// runtime value from env → brainstorm.conf → SecureKeyStorage (and
+// caches the result). NEVER hardcode the value — every instance has
+// its own TA, and a literal here makes the pinning/TL stack silently
+// fail on any deployment that isn't the dev environment whose pubkey
+// happened to match. See CLAUDE.md "Per-deployment TA pubkey" and
+// AGENTS.md §1.
+const TA_PUBKEY = getOwnerAssistantPubkey();
+if (!TA_PUBKEY) {
+  console.warn('[profile-tags] TA pubkey not resolved at module load — pin/TL features will be broken until keys are provisioned');
+}
 const TAG_Z_TAG = `39998:${TA_PUBKEY}:tag`;
 const NOSTR_USER_TAG_Z_TAG = `39998:${TA_PUBKEY}:nostr-user-tag`;
 const TAG_PINNING_Z_TAG = `39998:${TA_PUBKEY}:tag-pinning`;

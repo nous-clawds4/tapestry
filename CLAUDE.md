@@ -89,3 +89,18 @@ The harness lives in two places:
 - The Concept Graph API on the local control panel is the authoritative source for domain concepts. Always check there before reading source. See AGENTS.md §1–§3 for the port, TA pubkey, and three-call orientation pattern.
 - Reinstall firmware after adding/changing concept definitions — see AGENTS.md §6 for the exact curl.
 - Don't add new lint or typecheck tooling without an explicit ADR. This project is intentionally JS-without-build.
+
+### Per-deployment TA pubkey — NEVER hardcode
+
+The Tapestry Assistant (TA) pubkey is **created at first container startup** (`setup/create_nostr_identity.sh`) and is **different on every deployment**. The local-dev value (`82b75e47...973833` on this machine) is NOT shared with `tags.brainstorm.world`, `staging.brainstorm.world`, `brainstorm.world`, or any other instance.
+
+A literal hardcode in shared code silently breaks the pin/TL stack (and any other surface that signs as the TA or filters events by TA author) on every non-dev deployment: the signer reads the actual on-disk TA key, but the readers filter `authors: [hardcoded]` and find nothing.
+
+**Always resolve the TA pubkey at runtime:**
+
+- **Server-side:** `const { getOwnerAssistantPubkey } = require('../../utils/assistantKeys')` then `const TA_PUBKEY = getOwnerAssistantPubkey()` at module init (the function caches internally). Falls back through env → `brainstorm.conf` → `SecureKeyStorage` JSON. See `src/utils/assistantKeys.js:49–82`.
+- **Client-side:** `const { taPubkey } = useConfig()` (backed by `/api/assistant/pubkey`). See `ui/src/context/ConfigContext.jsx:14–18`. The rest of the codebase already does this (e.g., `ui/src/pages/concepts/ConceptList.jsx:59`, `ui/src/pages/databases/Neo4jOverview.jsx:13`).
+
+This rule applies anywhere the TA pubkey is used as: an `authors:` filter on a strfry scan; a substring of a concept handle (`39998:<TA>:<slug>`); a `pubkey` argument to `nip19.naddrEncode`; or any identity check. If you find yourself typing `'82b75e47...'`, stop — use the runtime lookup instead.
+
+Reference incident: the Pin/TL stack (Stories 10–12) hardcoded the literal in `ui/src/utils/publishTagPin.js` and `src/api/profile-tags/index.js`. The local instance kept working by coincidence (same TA pubkey); `tags.brainstorm.world` reported "No TL yet" forever because TLs were signed under its real TA but searched for under the hardcoded one. Fix: replace literals with the runtime helpers above. See `engineering-team/stories/_intake.md` entry dated 2026-05-20.
