@@ -1,9 +1,12 @@
-# ADR 0009: Pull community-curated class thread (z-tag recursive walk)
+# ADR 0010: Pull community-curated class thread (z-tag recursive walk)
 
-**Status:** Accepted
-**Date:** 2026-05-20
+**Status:** Accepted (mechanism superseded by ADR 0011)
+**Date:** 2026-05-19
 **Story:** `engineering-team/stories/14-community-class-thread-pull.md`
 **Builds on:** ADR 0005 Rev 2 (`buildImportCypher`/`executeCypher` materialization), ADR 0007 (`concept-graph` tag), ADR 0008 (`IS_A_SUPERSET_OF` cross-curator anchor)
+**Superseded (in part) by:** ADR 0011 §"Decision". The owner-only endpoint surface (`POST /api/concept/:handle/pull-community-class-thread`), `requireOwner` gating, honest invariants (no editorial relationships, no election, local concept untouched), trust posture, termination guards (visited-set + max-fetch + max-depth), and consequence framing all REMAIN IN FORCE. Only the **walk mechanism** (z-tag recursive walk → replaced by `#n`/`#s` tag walk with back-compat z-walk for one cycle) and the **Set vs element classification rule** (was `#a` tags; corrected by ADR 0011 to z-tag `:set` membership) are superseded. ADR 0011 was added after Implementer-phase grounding found the original z-tag walk filter shape and classification rule incompatible with Tapestry's actual published encoding.
+
+**ADR 0011 numbering note:** this ADR was originally numbered 0009 in commit `e0d568b2`; renumbered to 0010 to yield slot 0009 to the parallel graperank-shared-csv-coordination ADR (which was committed independently on `fix/graperank-shared-csv-race`). Story #14, the test plan, and the test sentinels all reference this ADR as 0010.
 
 ## Context
 Story #11 / ADR 0008 wired the `(localSup:Superset)-[:IS_A_SUPERSET_OF]->(communitySup:Superset)` anchor as a structural placeholder, explicitly deferring bulk element/set import as "its own future stream with its own ADR." This is that ADR.
@@ -200,7 +203,7 @@ function handlePullCommunityClassThread(req, res):
 (The exact direction of `IS_A_SUPERSET_OF` above is a **placeholder** — the Implementer MUST diff against `install.js` Pass-1d and lock it to byte-equivalence before submitting for review.)
 
 ### BIBLE §22 update
-Append: "**Phase B (Story #14 / ADR 0009):** owner-on-demand class-thread closure pull via `POST /api/concept/:handle/pull-community-class-thread`. Z-tag recursive walk from the #11 community Superset anchor; foreign Sets get explicit `:Set` label; canonical `HAS_ELEMENT` / `IS_A_SUPERSET_OF` edges MERGEd between foreign nodes (no `source` property). No editorial relationships, no election into local class thread. Idempotent + per-member graceful + visited-set + max-depth + total-fetch budget."
+Append: "**Phase B (Story #14 / ADR 0010, mechanism amended by ADR 0011):** owner-on-demand class-thread closure pull via `POST /api/concept/:handle/pull-community-class-thread`. `#n`/`#s` tag walk from the #11 community Superset anchor (with back-compat z-tag walk during the dual-emit cycle per ADR 0011); foreign Sets get explicit `:Set` label; canonical `HAS_ELEMENT` / `IS_A_SUPERSET_OF` edges MERGEd between foreign nodes (no `source` property). No editorial relationships, no election into local class thread. Idempotent + per-member graceful + visited-set + max-depth + total-fetch budget."
 
 Update the Deferred list: remove "element/set bulk import"; add "editorial relationship types (separate ADR)", "election surface (separate ADR)", "concept-graph fidelity upgrade (separate ADR)".
 
