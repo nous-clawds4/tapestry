@@ -82,6 +82,7 @@ Reviewed the helper line-by-line for race/leak/permission hazards:
 |---|---|
 | Two concurrent first-time init writers race on the CSVs | **Closed** by exclusive lock + double-check |
 | Stale-read of partial CSV during cypher-shell streaming | **Closed** by atomic `mv` from `${target}.partial` |
+| Mixed-snapshot cache after init failure mid-loop | **Closed** by `rm -f $SENTINEL` on init failure (applied inline at [helper:170](src/algos/personalizedGrapeRank/ensureRawDataCsv.sh:170)) |
 | Bulk-wipe yanks files from an in-flight reader | **Closed** by `flock -x -n` in `evict_raw_data_csv_cache` |
 | Lock leak on caller crash | **Closed** by kernel-managed fd-200 release on exit |
 | Owner pipeline's trailing wipe races a peer | **Closed** by removing the trailing wipe (cache outlives the script) |
@@ -101,10 +102,7 @@ _None._
 
 ### Non-blocking (recommend but do not gate)
 
-1. **[src/algos/personalizedGrapeRank/ensureRawDataCsv.sh:96-103](src/algos/personalizedGrapeRank/ensureRawDataCsv.sh:96) — partial-init cross-file consistency.** If `cypher-shell > .partial` succeeds for files 1–2 but fails for file 3, files `ratees.csv` and `follows.csv` are the new snapshot while `mutes.csv` and `reports.csv` are the old; the sentinel keeps its old mtime, so a subsequent reader within the staleness window sees a "fresh" mixed-snapshot cache. Atomically renamed each is still individually well-formed (AC-3 satisfied as literally written), but the four files cross snapshots.
-   - Realistic only on disk-full / filesystem corruption.
-   - Mitigation is one line: also `rm -f "${ENSURE_CSV_SENTINEL}"` on init failure ([line 167 path](src/algos/personalizedGrapeRank/ensureRawDataCsv.sh:167)) so the next reader forces a full re-init.
-   - Recommend either applying inline or filing a follow-up. Not blocking — AC-3 reads strictly as "no run reads a partially-written CSV file" (singular).
+1. **~~partial-init cross-file consistency~~ — RESOLVED inline.** Original finding: if `cypher-shell > .partial` succeeded for files 1–2 but failed for file 3, the sentinel kept its prior mtime and a subsequent reader within the staleness window could consume a mixed-snapshot cache. **Mitigation applied** at [ensureRawDataCsv.sh:170](src/algos/personalizedGrapeRank/ensureRawDataCsv.sh:170): `rm -f "${ENSURE_CSV_SENTINEL}"` immediately before the `csv_cache_init_failed` event. Behaviorally verified against the live container by injecting a fake `cypher-shell` that fails on the MUTES query (3rd extraction) — helper returned rc=1, emitted `csv_cache_init_failed`, and the sentinel was removed. Next reader is now guaranteed to treat the cache as not-initialized and force a fresh re-init.
 
 2. **[src/algos/personalizedGrapeRank/ensureRawDataCsv.sh:118](src/algos/personalizedGrapeRank/ensureRawDataCsv.sh:118) — `chown -R` scope creep.** Recursive chown over the tmp tree on every invocation touches per-customer subdirs the helper otherwise promises not to manage (per its own comment at [line 47-48](src/algos/personalizedGrapeRank/ensureRawDataCsv.sh:47)). In practice all pipeline processes run as `brainstorm`, so chown is a no-op; risk is theoretical. Cleaner: non-recursive (`chown brainstorm:brainstorm "$ENSURE_CSV_TMP_DIR"`).
 

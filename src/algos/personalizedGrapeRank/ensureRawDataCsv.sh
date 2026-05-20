@@ -164,6 +164,13 @@ ensure_raw_data_csv() {
     local init_started_at init_finished_at init_duration
     init_started_at=$(date +%s)
     if ! _ensure_csv_run_init; then
+        # Remove the freshness sentinel so the next reader treats the cache
+        # as not-yet-initialized and re-extracts the whole set, rather than
+        # consuming a possibly-mixed-snapshot cache where an earlier-loop
+        # `mv` succeeded but a later one failed mid-init. The four CSVs
+        # themselves stay individually well-formed (atomic rename guarantee
+        # of AC-3); removing the sentinel guards cross-file consistency.
+        rm -f "${ENSURE_CSV_SENTINEL}"
         emit_task_event "TASK_ERROR" "ensureRawDataCsv" "" '{"phase":"csv_cache_init_failed"}'
         flock -u 200
         return 1
