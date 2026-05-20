@@ -5,10 +5,11 @@ import TopBar from '../components/TopBar';
 import TagPageRow from '../components/TagPageRow';
 import TagPageSearch from '../components/TagPageSearch';
 import TagPinAffordance from '../components/TagPinAffordance';
+import CurationMethodDialog from '../components/CurationMethodDialog';
 import SortToggle from '../components/SortToggle';
 import { useAuth } from '../context/AuthContext';
 import { publishProfileTagAssertion } from '../utils/publishProfileTag';
-import { pinTag, unpinTag } from '../utils/publishTagPin';
+import { pinTag, unpinTag, defaultCurationMethod } from '../utils/publishTagPin';
 import useTagDetail from '../hooks/useTagDetail';
 
 // Display fallback when we don't have a kind-0 profile for this pubkey: a
@@ -42,6 +43,9 @@ export default function Tag() {
 
   const [pinning, setPinning] = useState(false);
   const [pinError, setPinError] = useState(null);
+  // Story 12 / ADR 0011 — curation editor dialog state. Pin button now
+  // opens the dialog; submission inside the dialog does the actual publish.
+  const [showCurationDialog, setShowCurationDialog] = useState(false);
 
   const handleApply = async (targetPubkey) => {
     if (!tag) return;
@@ -54,22 +58,32 @@ export default function Tag() {
     refetchRows();
   };
 
-  const handlePin = async () => {
+  // Story 12 / ADR 0011 — Pin click opens the curation dialog instead of
+  // publishing directly. The dialog's onSubmit runs the actual publish.
+  const handlePin = () => {
+    if (!tag) return;
+    setPinError(null);
+    setShowCurationDialog(true);
+  };
+
+  const publishWithCuration = async (customCuration) => {
     if (!tag) return;
     setPinning(true); setPinError(null);
     try {
-      const signed = await pinTag({ tag });
+      const signed = await pinTag({ tag, curationMethod: customCuration });
       await refetchHeader();
-      // ADR 0010 refresh-on-pin: fire-and-forget. Best-effort. The Pin
-      // button has already flipped to Unpin; the TL appears on /pins
-      // whenever this resolves.
+      // ADR 0010 refresh-on-pin: fire-and-forget. Best-effort.
       fetch('/api/trusted-list/refresh-pinned-tag', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ pinEventId: signed.id }),
       }).catch(() => { /* swallow — user can manually refresh from /pins */ });
-    } catch (e) { setPinError(e.message || 'Pin failed'); }
-    finally { setPinning(false); }
+    } catch (e) {
+      setPinError(e.message || 'Pin failed');
+      throw e; // surface inside the dialog
+    } finally {
+      setPinning(false);
+    }
   };
   const handleUnpin = async () => {
     if (!viewerPin) return;
@@ -144,6 +158,17 @@ export default function Tag() {
                 <p className="bs-tag-error">⚠️ {headerError}</p>
               )}
             </header>
+
+            {showCurationDialog && user && tag && (
+              <CurationMethodDialog
+                tag={tag}
+                initialCuration={defaultCurationMethod(user.pubkey)}
+                mode="create"
+                viewerPubkey={user.pubkey}
+                onSubmit={publishWithCuration}
+                onCancel={() => setShowCurationDialog(false)}
+              />
+            )}
 
             <section className="bs-tag-rows">
               <SortToggle

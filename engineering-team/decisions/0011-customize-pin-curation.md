@@ -2,7 +2,7 @@
 
 **Status:** Proposed
 **Date:** 2026-05-20
-**Story:** `engineering-team/stories/12-customize-pin-curation.md`
+**Story:** `engineering-team/stories/done/12-customize-pin-curation.md`
 
 ## Context
 

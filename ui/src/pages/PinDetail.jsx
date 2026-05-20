@@ -3,9 +3,10 @@ import { useParams, Link } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
 import TopBar from '../components/TopBar';
 import TLShareButton from '../components/TLShareButton';
+import CurationMethodDialog from '../components/CurationMethodDialog';
 import { useAuth } from '../context/AuthContext';
 import useTLDetail from '../hooks/useTLDetail';
-import { TA_PUBKEY } from '../utils/publishTagPin';
+import { TA_PUBKEY, pinTag } from '../utils/publishTagPin';
 
 /**
  * Story 11 follow-up — Brainstorm-side detail page for one pinned-tag
@@ -44,6 +45,12 @@ export default function PinDetail() {
   const { tl, members, loading, error, refetch } = useTLDetail(dTag);
   const [refreshing, setRefreshing] = useState(false);
   const [refreshError, setRefreshError] = useState(null);
+  // Story 12 / ADR 0011 — edit-curation dialog state. The TL event doesn't
+  // carry includeScoreInTL on its own; we look up the pin event via
+  // /api/profile-tags/pins (same workaround the Refresh-now path uses).
+  const [editing, setEditing] = useState(null); // { tag, curationMethod } | null
+  const [openingEditor, setOpeningEditor] = useState(false);
+  const [editError, setEditError] = useState(null);
 
   // Pre-encode the NIP-19 naddr so users without clipboard-API access
   // can still copy it manually from the metadata table.
@@ -91,6 +98,41 @@ export default function PinDetail() {
     }
   };
 
+  // Story 12 / ADR 0011 — opening the edit dialog needs the pin's
+  // includeScoreInTL value, which lives on the kind-39999 pin event
+  // (NOT on the kind-30392 TL). Reuse the Refresh-now lookup pattern:
+  // fetch /api/profile-tags/pins for the viewer, match by tag identity.
+  const openEditDialog = async () => {
+    if (!canRefresh || !tl) return;
+    setOpeningEditor(true); setEditError(null);
+    try {
+      const r = await fetch(`/api/profile-tags/pins?viewerPubkey=${encodeURIComponent(user.pubkey)}`);
+      const j = await r.json();
+      const pin = (j?.pins || []).find((p) =>
+        p.tag?.eventId === tl.sourceTag?.eventId
+        && p.tag?.slug === tl.sourceTag?.slug
+      );
+      if (!pin) throw new Error('Pin event not found for this TL');
+      setEditing({ tag: pin.tag, curationMethod: pin.curationMethod });
+    } catch (e) {
+      setEditError(e.message || 'Could not open editor');
+    } finally {
+      setOpeningEditor(false);
+    }
+  };
+
+  const handleEditSubmit = async (customCuration) => {
+    if (!editing) return;
+    const signed = await pinTag({ tag: editing.tag, curationMethod: customCuration });
+    await refetch();
+    // AC-5 — fire-and-forget refresh of this pin's TL.
+    fetch('/api/trusted-list/refresh-pinned-tag', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pinEventId: signed.id }),
+    }).catch(() => { /* best-effort */ });
+  };
+
   return (
     <div className="bsp-page">
       <TopBar />
@@ -117,10 +159,23 @@ export default function PinDetail() {
                     {refreshing ? 'Refreshing…' : '🔄 Refresh now'}
                   </button>
                 )}
+                {canRefresh && (
+                  <button
+                    type="button"
+                    className="bs-pindetail-edit"
+                    onClick={openEditDialog}
+                    disabled={openingEditor}
+                  >
+                    {openingEditor ? 'Opening…' : '⚙️ Edit curation'}
+                  </button>
+                )}
                 <TLShareButton dTag={tl.dTag} variant="full" />
               </div>
               {refreshError && (
                 <p className="bs-pindetail-error" role="alert">⚠️ {refreshError}</p>
+              )}
+              {editError && (
+                <p className="bs-pindetail-error" role="alert">⚠️ {editError}</p>
               )}
               {tl.retracted && (
                 <p className="bs-pindetail-retracted">
@@ -214,6 +269,16 @@ export default function PinDetail() {
               </ul>
             )}
           </>
+        )}
+        {editing && user && (
+          <CurationMethodDialog
+            tag={editing.tag}
+            initialCuration={editing.curationMethod}
+            mode="edit"
+            viewerPubkey={user.pubkey}
+            onSubmit={handleEditSubmit}
+            onCancel={() => setEditing(null)}
+          />
         )}
       </div>
     </div>

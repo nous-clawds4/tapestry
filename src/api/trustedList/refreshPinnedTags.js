@@ -150,6 +150,29 @@ async function runOnePin(pinEvent) {
   });
   const members = applyDisputesFunction(byTarget, cutoff);
 
+  // Story 12 / ADR 0011 AC-7: enrich members with their wot_rank score
+  // when the pin requested includeScoreInTL AND the observer's POV is
+  // resolvable. AC-8: degrade silently when POV is unresolvable
+  // (povSuffix null) — members still publish without scores.
+  if (curation.includeScoreInTL === true && povSuffix) {
+    try {
+      const memberPubkeys = members.map((m) => m.pubkey);
+      if (memberPubkeys.length > 0) {
+        const memberDocs = await profileTags.meiliFetchProfilesByPubkey(memberPubkeys);
+        const rankField = `wot_rank_${povSuffix}`;
+        for (const m of members) {
+          const doc = memberDocs.get(m.pubkey);
+          if (doc && typeof doc[rankField] === 'number') {
+            m.score = doc[rankField];
+          }
+        }
+      }
+    } catch {
+      // Meili unreachable / lookup failed → degrade silently; members
+      // still publish without scores.
+    }
+  }
+
   const dTag = computeTLDTag({
     observer, tagAuthorPubkey: tag.authorPubkey, tagSlug: tag.slug,
   });
@@ -160,14 +183,25 @@ async function runOnePin(pinEvent) {
       dTag,
       title: tag.name,
       metric: 'pinned-tag-membership',
-      items: members.map((m) => ({ tag: 'p', value: m.pubkey })),
+      items: members.map((m) => {
+        const item = { tag: 'p', value: m.pubkey };
+        if (m.score != null) item.score = m.score;
+        return item;
+      }),
       extraTags: [
         ['observer', observer],
         ['source-tag', tag.eventId, tag.authorPubkey, tag.slug],
         ['cutoff', String(cutoff)],
         ['min-rank', String(minRankForTag)],
       ],
-      content: JSON.stringify({ members }),
+      content: JSON.stringify({
+        members: members.map((m) => ({
+          pubkey: m.pubkey,
+          endorsements: m.endorsements,
+          disputes: m.disputes,
+          ...(m.score != null ? { score: m.score } : {}),
+        })),
+      }),
     });
     return {
       status: 'ok',

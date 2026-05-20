@@ -5851,3 +5851,194 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   color: var(--text-tertiary, #64748b);
   font-style: italic;
 }
+
+/* ── Story 12: CurationMethodDialog (pcd-*) ─────────────── */
+.pcd-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+.pcd {
+  background: var(--bg-secondary, #1a1a2e);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  width: 100%;
+  max-width: 520px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+}
+.pcd-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.9rem 1.1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.pcd-title {
+  margin: 0;
+  font-size: 1.05rem;
+  color: var(--text-primary, #e2e8f0);
+}
+.pcd-close {
+  background: transparent;
+  border: none;
+  color: var(--text-tertiary, #64748b);
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 0.3rem;
+}
+.pcd-close:hover { color: #fda4af; }
+.pcd-tag-info {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.6rem 1.1rem;
+  font-size: 0.85rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+.pcd-tag-label { color: var(--text-tertiary, #64748b); }
+.pcd-tag-name { color: var(--text-primary, #e2e8f0); font-weight: 600; }
+.pcd-body { padding: 1rem 1.1rem; }
+.pcd-field { margin-bottom: 1rem; }
+.pcd-label {
+  display: block;
+  margin-bottom: 0.3rem;
+  font-size: 0.85rem;
+  color: var(--text-secondary, #94a3b8);
+}
+.pcd-input,
+.pcd-select {
+  width: 100%;
+  padding: 0.5rem 0.7rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.2);
+  color: var(--text-primary, #e2e8f0);
+  font-size: 0.9rem;
+  font-family: inherit;
+}
+.pcd-input:focus,
+.pcd-select:focus {
+  outline: none;
+  border-color: rgba(99, 102, 241, 0.6);
+}
+.pcd-input[aria-invalid="true"] { border-color: rgba(252, 113, 122, 0.6); }
+.pcd-toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  cursor: pointer;
+  font-size: 0.9rem;
+  color: var(--text-primary, #e2e8f0);
+}
+.pcd-toggle input[type="checkbox"] {
+  margin-top: 0.2rem;
+}
+.pcd-helper {
+  margin: 0.3rem 0 0;
+  font-size: 0.75rem;
+  color: var(--text-tertiary, #64748b);
+  line-height: 1.4;
+}
+.pcd-error {
+  margin: 0.3rem 0 0;
+  font-size: 0.78rem;
+  color: #fda4af;
+}
+.pcd-form-error {
+  margin: 0.5rem 0;
+  padding: 0.5rem 0.7rem;
+  border-left: 3px solid rgba(252, 113, 122, 0.6);
+  background: rgba(252, 113, 122, 0.08);
+  color: #fda4af;
+  font-size: 0.8rem;
+  border-radius: 4px;
+}
+.pcd-advanced {
+  margin: 1rem 0;
+  padding: 0.5rem 0.7rem;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 6px;
+}
+.pcd-advanced > summary {
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: var(--text-secondary, #94a3b8);
+  list-style: revert;
+}
+.pcd-advanced > summary:hover { color: #a5b4fc; }
+.pcd-advanced[open] > summary { margin-bottom: 0.6rem; }
+.pcd-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+.pcd-cancel,
+.pcd-submit {
+  padding: 0.5rem 0.9rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  font-family: inherit;
+}
+.pcd-cancel {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--text-secondary, #94a3b8);
+}
+.pcd-cancel:hover:not([disabled]) {
+  background: rgba(255, 255, 255, 0.06);
+}
+.pcd-submit {
+  background: rgba(99, 102, 241, 0.25);
+  border: 1px solid rgba(99, 102, 241, 0.6);
+  color: #c7d2fe;
+}
+.pcd-submit:hover:not([disabled]) {
+  background: rgba(99, 102, 241, 0.35);
+}
+.pcd-submit[disabled],
+.pcd-cancel[disabled] { opacity: 0.5; cursor: not-allowed; }
+.pcd code {
+  font-size: 0.85em;
+  padding: 0.05em 0.3em;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 3px;
+}
+
+/* Edit buttons on /pins and PinDetail */
+.bs-pins-row-edit {
+  padding: 0.4rem 0.6rem;
+  border: 1px solid rgba(99, 102, 241, 0.35);
+  border-radius: 6px;
+  background: rgba(99, 102, 241, 0.08);
+  color: #a5b4fc;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+.bs-pins-row-edit:hover:not([disabled]) {
+  background: rgba(99, 102, 241, 0.18);
+}
+.bs-pins-row-edit[disabled] { opacity: 0.4; cursor: not-allowed; }
+
+.bs-pindetail-edit {
+  padding: 0.4rem 0.8rem;
+  border: 1px solid rgba(99, 102, 241, 0.35);
+  border-radius: 6px;
+  background: rgba(99, 102, 241, 0.08);
+  color: #a5b4fc;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.bs-pindetail-edit:hover:not([disabled]) {
+  background: rgba(99, 102, 241, 0.18);
+}
+.bs-pindetail-edit[disabled] { opacity: 0.4; cursor: not-allowed; }

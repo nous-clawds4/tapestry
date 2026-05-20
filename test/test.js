@@ -42,6 +42,7 @@ const pinATag = require('./pin-a-tag.test.js');
 const pinATagPublish = require('./pin-a-tag-publish.test.js');
 const tlPubFromPins = require('./tl-publication-from-pins.test.js');
 const tlPubFromPinsPublish = require('./tl-publication-from-pins-publish.test.js');
+const customizePinCurationPublish = require('./customize-pin-curation-publish.test.js');
 // Suites added on main since this branch forked
 const treasureMaps = require('./treasure-maps-router-preset.test.js');
 const scheduledRefresh = require('./scheduled-search-and-house-scores-refresh.test.js');
@@ -75,6 +76,7 @@ async function main() {
   const pinATagPublishResult = await pinATagPublish.run();
   const tlPubFromPinsResult = await tlPubFromPins.run();
   const tlPubFromPinsPublishResult = await tlPubFromPinsPublish.run();
+  const customizePinCurationPublishResult = await customizePinCurationPublish.run();
 
   // Main-side suites — these don't print their own banner, so we announce
   // each one before running.
@@ -141,6 +143,10 @@ async function main() {
     ? `SKIP (${tlPubFromPinsPublishResult.skipped} tests; preconditions not met)`
     : `${tlPubFromPinsPublishResult.fail === 0 ? 'PASS' : 'FAIL'} (${tlPubFromPinsPublishResult.pass} passed, ${tlPubFromPinsPublishResult.fail} failed)`;
   console.log(`tl-publication-from-pins-publish suite:          ${tlppLine}`);
+  const cpcLine = customizePinCurationPublishResult.skipped
+    ? `SKIP (${customizePinCurationPublishResult.skipped} tests; preconditions not met)`
+    : `${customizePinCurationPublishResult.fail === 0 ? 'PASS' : 'FAIL'} (${customizePinCurationPublishResult.pass} passed, ${customizePinCurationPublishResult.fail} failed)`;
+  console.log(`customize-pin-curation-publish suite:            ${cpcLine}`);
   console.log(`treasure-maps-router-preset suite:               ${treasureMapsResult.fail === 0 ? 'PASS' : 'FAIL'} (${treasureMapsResult.pass} passed, ${treasureMapsResult.fail} failed)`);
   console.log(`scheduled-search-and-house-scores-refresh suite: ${scheduledRefreshResult.fail === 0 ? 'PASS' : 'FAIL'} (${scheduledRefreshResult.pass} passed, ${scheduledRefreshResult.fail} failed)`);
   console.log(`strfry-router-first-boot-config suite:           ${strfryRouterFirstBootResult.fail === 0 ? 'PASS' : 'FAIL'} (${strfryRouterFirstBootResult.pass} passed, ${strfryRouterFirstBootResult.fail} failed)`);
@@ -168,6 +174,7 @@ async function main() {
     && pinATagPublishResult.fail === 0
     && tlPubFromPinsResult.fail === 0
     && tlPubFromPinsPublishResult.fail === 0
+    && customizePinCurationPublishResult.fail === 0
     && treasureMapsResult.fail === 0
     && scheduledRefreshResult.fail === 0
     && strfryRouterFirstBootResult.fail === 0

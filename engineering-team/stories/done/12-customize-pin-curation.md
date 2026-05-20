@@ -1,6 +1,6 @@
 # Story 12: Customize curation method at pin time and on `/pins`
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-05-20
 **Type:** Feature
 
@@ -188,5 +188,5 @@ These belong to the Architect to resolve in Phase 2:
     (the generator that reads curation-method values per pin;
     `refreshPinnedTags.js`'s `runOnePin` is the call site for AC-7)
 - ADR: `engineering-team/decisions/0011-customize-pin-curation.md`
-- Test plan: (filled in after Test Design phase)
-- Review: (filled in after Review phase)
+- Test plan: `engineering-team/stories/done/12-customize-pin-curation.test-plan.md`
+- Review: `engineering-team/reviews/12-customize-pin-curation.md`

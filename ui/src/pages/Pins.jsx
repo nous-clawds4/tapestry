@@ -1,10 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import TopBar from '../components/TopBar';
 import TLShareButton from '../components/TLShareButton';
+import CurationMethodDialog from '../components/CurationMethodDialog';
 import { useAuth } from '../context/AuthContext';
 import usePins from '../hooks/usePins';
 import useRefreshPin from '../hooks/useRefreshPin';
+import { pinTag } from '../utils/publishTagPin';
 
 /**
  * Story 10 / ADR 0009 — viewer's pinned-tag list page.
@@ -75,6 +77,21 @@ export default function Pins() {
   const { user, login } = useAuth();
   const { pins, loading, error, refetch } = usePins(user?.pubkey);
   const { refreshing, refreshOne, refreshAll, error: refreshError } = useRefreshPin(user?.pubkey);
+  // Story 12 / ADR 0011 — per-row Edit button opens the curation dialog
+  // pre-filled with that pin's current values.
+  const [editingPin, setEditingPin] = useState(null);
+
+  const handleEditSubmit = async (customCuration) => {
+    if (!editingPin) return;
+    const signed = await pinTag({ tag: editingPin.tag, curationMethod: customCuration });
+    await refetch();
+    // AC-5 — fire-and-forget refresh of just this pin's TL.
+    fetch('/api/trusted-list/refresh-pinned-tag', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pinEventId: signed.id }),
+    }).catch(() => { /* best-effort */ });
+  };
 
   if (!user) {
     return (
@@ -181,6 +198,16 @@ export default function Pins() {
                       </Link>
                     )}
                     <div className="bs-pins-row-actions">
+                      <button
+                        type="button"
+                        className="bs-pins-row-edit"
+                        onClick={() => setEditingPin(row)}
+                        disabled={isUnsupported}
+                        title="Edit curation method"
+                        aria-label="Edit curation"
+                      >
+                        ⚙️ Edit
+                      </button>
                       {tlDTag && hasTl && (
                         <TLShareButton dTag={tlDTag} variant="compact" />
                       )}
@@ -199,6 +226,16 @@ export default function Pins() {
             </ul>
             <PinsMemberCountHint />
           </>
+        )}
+        {editingPin && (
+          <CurationMethodDialog
+            tag={editingPin.tag}
+            initialCuration={editingPin.curationMethod}
+            mode="edit"
+            viewerPubkey={user.pubkey}
+            onSubmit={handleEditSubmit}
+            onCancel={() => setEditingPin(null)}
+          />
         )}
       </div>
     </div>
