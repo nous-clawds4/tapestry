@@ -127,3 +127,65 @@ Append-only log of incoming requests, raw, with classification and chosen phase 
 If a fresh PO session sees this: the two entries above are the next two stories in order. Plan story #7 first (the bundle); story #8 follows after #7 ships. Story #8 is **already tabled** — its scope is captured here but no story file has been written yet. The user explicitly said "let's `/plan-feature` on 8 now, table it, and then `/plan-feature` on 7 and actually start on it" — so the intended order if you're picking up cold is: plan 8 → save 8 → plan 7 → drive 7 through phases → ship 7 → come back for 8.
 
 Also surfaced during the same session (parked, not for these stories): a `bin/dev-sync-ui.sh` one-liner for the local dev loop (see `engineering-team/follow-ups.md` "Local dev-loop polish"). And: a question about whether to use `e` vs `a` for the parent-tag reference in `nostr-user-tag` events (also in follow-ups).
+
+## 2026-05-20 — Bug: hardcoded TA pubkey in pinning + TL stack breaks every non-local deployment
+
+**Raw observation:**
+
+> on tags.brainstorm.world, pinned tags show "No TL yet" even after a manual refresh, despite the tag's profile-tag activity meeting the pin's cutoff.
+
+**Root cause:**
+
+The Pin/TL stack (Stories 10–12) hardcoded the local-dev TA pubkey
+literal in `ui/src/utils/publishTagPin.js` and `src/api/profile-tags/index.js`.
+The TL signer reads the actual on-disk TA private key via
+`getOwnerAssistantKeys()` → signs the kind-30392 with `tags.brainstorm.world`'s
+real TA pubkey. The READERS filter `authors: [hardcoded literal]`.
+Mismatch → readers never find the freshly-published TL → status
+stays `'never'` forever.
+
+The broader Story-1 stack has the SAME class of error in
+`ui/src/utils/publishProfileTag.js` and `ui/src/hooks/useProfileTags.js`,
+where the PUBLISHERS hardcode the same literal. Pre-fix, the reader
+in `src/api/profile-tags/index.js` ALSO hardcoded the same literal,
+so both sides matched the wrong handle and everything appeared to
+work.
+
+**First fix attempt (commit `d3a2640a` — REVERTED):**
+
+Only addressed the Pin/TL reader path in `src/api/profile-tags/index.js`,
+not the broader Story-1 publisher path. Deployed to
+`feat/pubkey-tagging-target` → triggered CI deploy → tags.brainstorm.world's
+/tags index went empty ("No tags in the selected POV" across every POV)
+because the still-hardcoded publishers were emitting events under
+`39998:<dev-TA>:nostr-user-tag` while the fixed reader scanned under
+`39998:<prod-TA>:nostr-user-tag`. Mismatch → no rows.
+
+**Recovery (commit `4b82a739`):**
+
+Reverted `d3a2640a` on `feat/pubkey-tagging-target`. tags.brainstorm.world
+returns to the all-hardcoded matching-pair state. "No TL yet" bug
+returns as a known trade-off.
+
+**The proper fix (Option B) is a planned migration**, deferred:
+
+1. Convert EVERY hardcoded TA-pubkey site (server + client, Story-1
+   stack + Story-10/11/12 stack) to runtime lookup in ONE coherent
+   change.
+2. Announce the data-loss on tags.brainstorm.world. After the fix
+   deploys, every historical tag event AND every historical
+   nostr-user-tag assertion AND every historical pin event on that
+   instance is orphaned (z-tag references the dev TA's concept, but
+   readers now look under the prod TA's concept). Users must
+   recreate.
+3. **Optional:** migration script that scans the orphaned events,
+   re-signs them under the prod TA's handle, re-publishes. Preserves
+   historical content. Significantly more complex.
+4. Land the docs cleanup so the CLAUDE.md "Known violations" list
+   becomes empty.
+
+**Classification:** Bug → blocked by migration design
+**Strictness:** Standard
+**Phase path:** the proper fix should run through Planning →
+Architecture → Test Design → Implementation → Review (it's a
+data-affecting cross-cutting change; deserves the full harness).
