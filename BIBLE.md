@@ -1580,9 +1580,11 @@ A firmware concept may carry a `communityReference` — `{ headerATag, relayHint
 3. *Materialization ≠ derive:* publishing to strfry does not create a Neo4j node — Pass-3 derive only computes `tapestryJSON` for nodes already present; ingesting a foreign event requires the explicit eventSync import path.
 4. *Verification:* structural sentinels cannot prove relay + Neo4j + install round-trips — the local/staging/prod smoke is the authoritative behavioral gate (it caught the materialization defect that all structural tests missed).
 
-**Header→ConceptGraph (implemented — ADR 0007, §5):** the `concept-graph` header tag + tag-else-compute resolution makes a single fetched Header self-resolve its full concept off-relay. This is the keystone the still-deferred element/superset materialization will consume.
+**Header→ConceptGraph (implemented — ADR 0007, §5):** the `concept-graph` header tag + tag-else-compute resolution makes a single fetched Header self-resolve its full concept off-relay.
 
-**Deferred (see ADR 0006):** privacy tiers; signed/first-class editorial relationship-type; registry-as-DList; element/superset materialization.
+**Superset link, Phase A (implemented — ADR 0008):** at firmware install, `pass_communityReferences` also materializes the community Superset (deterministic `39999:<curatorPk>:<dtag>-superset`), explicitly labels it `:Superset` (`buildImportCypher` gives only `:ListItem` for 39999), and MERGEs the **canonical** `(localSup:Superset)-[:IS_A_SUPERSET_OF]->(communitySup:Superset)` edge — a structural bookmark that participates in class-thread traversals. Community element/set *data* are still NOT pulled local (the link is a placeholder; bulk import remains deferred).
+
+**Deferred (see ADR 0006):** privacy tiers; signed/first-class editorial relationship-type; registry-as-DList; element/set bulk import (the deferred Phase-B of materialization that walks `IS_A_SUPERSET_OF` to actually pull community elements/subsets/schema into the local concept).
 
 ---
 
