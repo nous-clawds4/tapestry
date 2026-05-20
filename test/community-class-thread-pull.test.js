@@ -1,11 +1,11 @@
 /**
- * Story #14 / ADR 0009 — Community class-thread pull (Phase B).
+ * Story #14 / ADR 0010 — Community class-thread pull (Phase B).
  *
  * Adds an owner-only on-demand endpoint POST /api/concept/:handle/pull-community-class-thread
  * that walks z-tags from the #11 community Superset anchor, materializes the
  * curator's full class-thread vocabulary (Sets + elements + canonical
  * HAS_ELEMENT / IS_A_SUPERSET_OF edges) as a foreign sub-graph, gated by
- * requireOwner. Per ADR 0009 the edges carry no `source` property (canonical
+ * requireOwner. Per ADR 0010 the edges carry no `source` property (canonical
  * relationships, not Neo4j-only stubs) and the handler terminates via
  * visited-set + max-depth + max-fetch budget. No editorial relationships,
  * no election, local concept untouched.
@@ -14,7 +14,7 @@
  * required code shape without prescribing implementer naming; the behavioral
  * proof (auth + real /api/relay/external against dcosl + real Neo4j +
  * idempotency + Rule-5 audit + honest invariants) is the **authoritative
- * cycle-local smoke S1–S10** (Reviewer-required, per ADR 0009) — only the
+ * cycle-local smoke S1–S10** (Reviewer-required, per ADR 0010) — only the
  * smoke can prove the foreign sub-graph ends up with `:Set` labelled
  * correctly, the canonical class-thread edges traverse in pass-1d direction,
  * and the local concept's HAS_ELEMENT + IS_A_SUPERSET_OF counts are
@@ -42,10 +42,10 @@ function assert(cond, msg) { if (!cond) throw new Error(msg || 'Assertion failed
 function readMaybe(p) { try { return fs.readFileSync(p, 'utf8'); } catch (e) { return null; } }
 
 // ---------------------------------------------------------------------------
-// Failing tests — FAIL now, PASS once Story #14 is implemented per ADR 0009.
+// Failing tests — FAIL now, PASS once Story #14 is implemented per ADR 0010.
 // ---------------------------------------------------------------------------
 
-test('T1: POST /api/concept/:handle/pull-community-class-thread is registered with requireOwner middleware (AC-1, ADR 0009)', () => {
+test('T1: POST /api/concept/:handle/pull-community-class-thread is registered with requireOwner middleware (AC-1, ADR 0010)', () => {
   const idx = readMaybe(INDEX);
   assert(idx !== null, 'src/api/index.js not found — re-baseline this sentinel.');
   // Match the exact ADR-mandated route + verb + middleware, allowing the
@@ -55,16 +55,16 @@ test('T1: POST /api/concept/:handle/pull-community-class-thread is registered wi
   assert(
     re.test(idx),
     'src/api/index.js does not register POST /api/concept/:handle/pull-community-class-thread with the ' +
-      'requireOwner middleware (AC-1; ADR 0009). Mirror Story #9\'s export-set registration at line 491 — ' +
+      'requireOwner middleware (AC-1; ADR 0010). Mirror Story #9\'s export-set registration at line 491 — ' +
       'POST verb, exact literal path, requireOwner as second argument, handler as third.'
   );
 });
 
-test('T2: pullClassThread.js walks z-tags via /api/relay/external (#z filter + kinds:[39999]) (AC-3, ADR 0009)', () => {
+test('T2: pullClassThread.js walks z-tags via /api/relay/external (#z filter + kinds:[39999]) (AC-3, ADR 0010)', () => {
   const src = readMaybe(PULL);
   assert(
     src !== null,
-    'src/api/concept/pullClassThread.js does not exist yet. Implementer must create the handler per ADR 0009 ' +
+    'src/api/concept/pullClassThread.js does not exist yet. Implementer must create the handler per ADR 0010 ' +
       '(z-tag recursive walk starting at the materialized community Superset from #11; owner-only via requireOwner).'
   );
   // Z-tag filter: `'#z'` (or `"#z"` or backtick) — the kind-39999 sub-graph
@@ -73,7 +73,7 @@ test('T2: pullClassThread.js walks z-tags via /api/relay/external (#z filter + k
   const hasZTag = /['"`]#z['"`]/.test(src);
   assert(
     hasZTag,
-    'pullClassThread.js does not filter by `#z` tag (AC-3; ADR 0009). The z-tag recursive walk fetches ' +
+    'pullClassThread.js does not filter by `#z` tag (AC-3; ADR 0010). The z-tag recursive walk fetches ' +
       'events whose z-tag references the current uuid being walked — `{kinds:[39999], "#z":[<uuid>]}`. ' +
       'Without this filter, the walk has no traversal primitive.'
   );
@@ -82,12 +82,12 @@ test('T2: pullClassThread.js walks z-tags via /api/relay/external (#z filter + k
   const hasKindFilter = /kinds\s*:\s*\[\s*39999\s*\]/.test(src);
   assert(
     hasKindFilter,
-    'pullClassThread.js does not restrict the z-tag walk to kind 39999 (AC-3; ADR 0009). ' +
+    'pullClassThread.js does not restrict the z-tag walk to kind 39999 (AC-3; ADR 0010). ' +
       'Add `kinds:[39999]` to the /api/relay/external filter alongside the #z tag.'
   );
 });
 
-test('T3: pullClassThread.js classifies and SETs :Set label on foreign Sets (AC-3, ADR 0009)', () => {
+test('T3: pullClassThread.js classifies and SETs :Set label on foreign Sets (AC-3, ADR 0010)', () => {
   const src = readMaybe(PULL);
   assert(src !== null, 'src/api/concept/pullClassThread.js does not exist — see T2 for the create-this-file message.');
   // buildImportCypher labels kind-39999 as :ListItem only. Class-thread
@@ -98,7 +98,7 @@ test('T3: pullClassThread.js classifies and SETs :Set label on foreign Sets (AC-
   const re = /SET\s+\w+:Set\b/;
   assert(
     re.test(src),
-    'pullClassThread.js does not SET :Set on classified foreign Sets (AC-3; ADR 0009). ' +
+    'pullClassThread.js does not SET :Set on classified foreign Sets (AC-3; ADR 0010). ' +
       'buildImportCypher gives kind-39999 events only :ListItem; without `SET n:Set` on Sets, ' +
       'class-thread traversals `(:Set)-[:HAS_ELEMENT]->…` will not include them and the ' +
       'reachability promise of Phase B is broken. Use precedent at normalize/index.js:2937: ' +
@@ -106,7 +106,7 @@ test('T3: pullClassThread.js classifies and SETs :Set label on foreign Sets (AC-
   );
 });
 
-test('T4: pullClassThread.js MERGEs canonical HAS_ELEMENT / IS_A_SUPERSET_OF with NO source property (AC-4 + AC-6, ADR 0009)', () => {
+test('T4: pullClassThread.js MERGEs canonical HAS_ELEMENT / IS_A_SUPERSET_OF with NO source property (AC-4 + AC-6, ADR 0010)', () => {
   const src = readMaybe(PULL);
   assert(src !== null, 'src/api/concept/pullClassThread.js does not exist — see T2 for the create-this-file message.');
 
@@ -115,19 +115,19 @@ test('T4: pullClassThread.js MERGEs canonical HAS_ELEMENT / IS_A_SUPERSET_OF wit
   // sub-graph). Both are canonical class-thread relationships.
   assert(
     /MERGE[^;]*:HAS_ELEMENT\b/.test(src),
-    'pullClassThread.js does not MERGE a [:HAS_ELEMENT] edge (AC-4; ADR 0009). The canonical ' +
+    'pullClassThread.js does not MERGE a [:HAS_ELEMENT] edge (AC-4; ADR 0010). The canonical ' +
       'parent-Set→element relationship must be wired between foreign nodes.'
   );
   assert(
     /MERGE[^;]*:IS_A_SUPERSET_OF\b/.test(src),
-    'pullClassThread.js does not MERGE a [:IS_A_SUPERSET_OF] edge (AC-4; ADR 0009). The canonical ' +
+    'pullClassThread.js does not MERGE a [:IS_A_SUPERSET_OF] edge (AC-4; ADR 0010). The canonical ' +
       'set-subset hierarchy must be wired between foreign nodes (pass-1d-direction-equivalent).'
   );
 
   // The honest-invariant gate: the new canonical edges must NOT carry a
   // `source` property. The #11 REFERENCES edge in install.js *does* carry
   // `source:'firmware-community'` (it's a Neo4j-only stub) — these new
-  // edges are canonical class-thread relationships, not stubs, and ADR 0009
+  // edges are canonical class-thread relationships, not stubs, and ADR 0010
   // explicitly forbids `source`. Mirrors ADR 0008's IS_A_SUPERSET_OF posture.
   //
   // Sweep: for each MERGE clause involving HAS_ELEMENT or IS_A_SUPERSET_OF
@@ -139,29 +139,29 @@ test('T4: pullClassThread.js MERGEs canonical HAS_ELEMENT / IS_A_SUPERSET_OF wit
     const matched = m[0];
     assert(
       !/\{[^}]*source[^}]*\}/.test(matched),
-      `pullClassThread.js MERGE for :${m[1]} carries a source property — ADR 0009 forbids it ` +
+      `pullClassThread.js MERGE for :${m[1]} carries a source property — ADR 0010 forbids it ` +
         `(canonical class-thread relationships have no \`source\`, only Neo4j-only stubs like ` +
         `#11 REFERENCES do). Found: ${matched}`
     );
   }
 });
 
-test('T5: pullClassThread.js carries visited-set + max-depth termination guards (AC-5, ADR 0009)', () => {
+test('T5: pullClassThread.js carries visited-set + max-depth termination guards (AC-5, ADR 0010)', () => {
   const src = readMaybe(PULL);
   assert(src !== null, 'src/api/concept/pullClassThread.js does not exist — see T2 for the create-this-file message.');
   // Termination guarantee 1: visited-set on uuid (prevents revisit / cycles).
   assert(
     /\bvisited\b/.test(src),
-    'pullClassThread.js does not carry a visited-set guard (AC-5; ADR 0009). The z-tag walk MUST ' +
+    'pullClassThread.js does not carry a visited-set guard (AC-5; ADR 0010). The z-tag walk MUST ' +
       'track visited uuids to prevent cycles and re-processing (deterministic-uuid + MERGE ' +
       'idempotency alone is not enough — cycles in pathological data would still cost relay calls).'
   );
-  // Termination guarantee 2: max-depth bound (env-configurable per ADR 0009;
+  // Termination guarantee 2: max-depth bound (env-configurable per ADR 0010;
   // default 16). Implementer naming flexibility — match maxDepth, MAX_DEPTH,
   // or max_depth.
   assert(
     /maxDepth|MAX_DEPTH|max_depth/.test(src),
-    'pullClassThread.js does not carry a max-depth termination guard (AC-5; ADR 0009). The walk MUST ' +
+    'pullClassThread.js does not carry a max-depth termination guard (AC-5; ADR 0010). The walk MUST ' +
       'bound recursion depth (env BRAINSTORM_COMMUNITY_PULL_MAX_DEPTH, default 16). Without a hard ' +
       'cap, deeply nested or cycle-bearing curator vocabularies could exhaust resources.'
   );

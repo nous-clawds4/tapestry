@@ -1,11 +1,11 @@
 # Test Plan: Story 14 — Community class-thread pull (Phase B)
 
 **Story:** `engineering-team/stories/14-community-class-thread-pull.md`
-**ADR:** `engineering-team/decisions/0009-community-class-thread-pull.md`
+**ADR:** `engineering-team/decisions/0010-community-class-thread-pull.md`
 **Date:** 2026-05-20
 
 ## Approach
-Same precedent as #5/#6/#8/#10/#11. Source/structural sentinels pin the spec-required code shape ADR 0009 specified — endpoint registration + owner gating, z-tag walk filter shape, `:Set` label SET, canonical edge MERGE with no `source` property, visited-set + max-depth guards. The behavioral round-trip — real owner-authenticated POST actually fetches `#z`-tagged events from `wss://dcosl.brainstorm.world`, materializes a foreign sub-graph (Sets + elements), wires the canonical `HAS_ELEMENT` / `IS_A_SUPERSET_OF` edges in pass-1d-equivalent direction, holds the honest invariants (no editorial relationships, no election, local concept untouched), behaves idempotently, graceful-skips per-member errors, Rule-5 audit interaction — is **not** reproducible in the hand-rolled Node runner (relay + Neo4j + auth) and is the **authoritative cycle-local smoke S1–S10** (Reviewer-required, per ADR 0009). Story #10's cycle-local definitively vindicated this discipline (it caught the pubkey double-encode); #11's cycle-local re-confirmed it (Rule-5 surfaced + recorded as benign on server). Same expectation here.
+Same precedent as #5/#6/#8/#10/#11. Source/structural sentinels pin the spec-required code shape ADR 0010 specified — endpoint registration + owner gating, z-tag walk filter shape, `:Set` label SET, canonical edge MERGE with no `source` property, visited-set + max-depth guards. The behavioral round-trip — real owner-authenticated POST actually fetches `#z`-tagged events from `wss://dcosl.brainstorm.world`, materializes a foreign sub-graph (Sets + elements), wires the canonical `HAS_ELEMENT` / `IS_A_SUPERSET_OF` edges in pass-1d-equivalent direction, holds the honest invariants (no editorial relationships, no election, local concept untouched), behaves idempotently, graceful-skips per-member errors, Rule-5 audit interaction — is **not** reproducible in the hand-rolled Node runner (relay + Neo4j + auth) and is the **authoritative cycle-local smoke S1–S10** (Reviewer-required, per ADR 0010). Story #10's cycle-local definitively vindicated this discipline (it caught the pubkey double-encode); #11's cycle-local re-confirmed it (Rule-5 surfaced + recorded as benign on server). Same expectation here.
 
 ## Coverage map
 
@@ -29,9 +29,9 @@ R1 = PASS pre AND post (regression guard on the #11 `install.js` contract — Ph
 - [x] **No false-positive on `#z` appearing in comments or docs.** T2 requires `#z` AND `kinds:[39999]` (with optional whitespace) — both must appear together within the same file. Docstrings mentioning `#z` alone won't trip the kind filter.
 - [x] **No false-positive on `SET n:Set` in normalize/index.js.** T3 reads only `pullClassThread.js`; the local `:Set` precedent at `src/api/normalize/index.js:2937` is out of T3's scope.
 - [x] **No false-positive on `visited` / `maxDepth` symbols in unrelated files.** T5 reads only `pullClassThread.js`.
-- [ ] **Pass-1d direction lock correctness.** Not catchable in source sentinels — the **cycle-local smoke (S4/S5/S6)** is the authoritative check via Cypher matching on `(:Superset)` / `(:Set)` endpoints + element traversal. ADR 0009 mandates Implementer ground pass-1d byte-equivalence before review.
+- [ ] **Pass-1d direction lock correctness.** Not catchable in source sentinels — the **cycle-local smoke (S4/S5/S6)** is the authoritative check via Cypher matching on `(:Superset)` / `(:Set)` endpoints + element traversal. ADR 0010 mandates Implementer ground pass-1d byte-equivalence before review.
 - [ ] **Pass-1d Superset-edge pruning replication.** Not catchable in source sentinels — Reviewer audit + **cycle-local smoke** verifies the foreign sub-graph shape is canonical.
-- [ ] **Rule-5 audit interaction.** Per ADR 0008 / ADR 0009 — server-side benign (no programmatic enforcement); cycle-local **S10** surfaces + documents.
+- [ ] **Rule-5 audit interaction.** Per ADR 0008 / ADR 0010 — server-side benign (no programmatic enforcement); cycle-local **S10** surfaces + documents.
 
 ## Not covered (deferred to cycle-local smoke — authoritative, Reviewer-required)
 Run on the local Docker stack (control panel `http://localhost:7778`):
@@ -48,13 +48,13 @@ Run on the local Docker stack (control panel `http://localhost:7778`):
 
 **S6 — AC-3 (:Set label SET on foreign Sets):** Cypher `MATCH (n:Set) WHERE n.uuid STARTS WITH '39999:919ba08af778…:' RETURN count(n)` → expect > 0 (the foreign Sets ended up with `:Set` label, not just `:ListItem`).
 
-**S7 — AC-6 (honest invariant — local concept untouched):** Before S3, snapshot: `MATCH (local:ListHeader {uuid:'39998:<localTA>:nostr-relay'})-[:IS_THE_CONCEPT_FOR]->(:Superset)-[:HAS_ELEMENT*0..]-(n) RETURN count(n)` AND `MATCH (a {uuid STARTS WITH '39999:<localTA>:'})-[:IS_A_SUPERSET_OF]->(b) RETURN count(*)`. After S3: re-run. Counts MUST be equal. If they differ, election leaked → FAIL loudly (ADR 0009 invariant violated).
+**S7 — AC-6 (honest invariant — local concept untouched):** Before S3, snapshot: `MATCH (local:ListHeader {uuid:'39998:<localTA>:nostr-relay'})-[:IS_THE_CONCEPT_FOR]->(:Superset)-[:HAS_ELEMENT*0..]-(n) RETURN count(n)` AND `MATCH (a {uuid STARTS WITH '39999:<localTA>:'})-[:IS_A_SUPERSET_OF]->(b) RETURN count(*)`. After S3: re-run. Counts MUST be equal. If they differ, election leaked → FAIL loudly (ADR 0010 invariant violated).
 
 **S8 — AC-5 (idempotency):** Re-run S3 → re-check S4, S5, S6 counts → MUST be unchanged from first pull. Re-check node counts too (no duplicate foreign nodes).
 
 **S9 — Reviewer audit (no editorial relationships smuggled in):** Cypher `MATCH ()-[r]->() WHERE startNode(r).uuid STARTS WITH '39999:919ba08af778…:' AND endNode(r).uuid STARTS WITH '39999:919ba08af778…:' AND type(r) NOT IN ['HAS_ELEMENT','IS_A_SUPERSET_OF','IS_THE_CONCEPT_FOR'] RETURN type(r), count(*)` → expect zero non-class-thread edges between foreign nodes. (Also Cypher: `MATCH ()-[r]->() WHERE startNode(r).uuid STARTS WITH '39999:<localTA>:' AND endNode(r).uuid STARTS WITH '39999:919ba08af778…:' AND type(r) <> 'IS_A_SUPERSET_OF' RETURN type(r), count(*)` → expect zero cross-pubkey edges other than the #11 IS_A_SUPERSET_OF anchor → proves no election.)
 
-**S10 — Rule-5 audit interaction (per ADR 0008 §5 / ADR 0009):** No programmatic server-side audit (lives in `tapestry-cli`, separate repo). Document benign on server; same posture as #11.
+**S10 — Rule-5 audit interaction (per ADR 0008 §5 / ADR 0010):** No programmatic server-side audit (lives in `tapestry-cli`, separate repo). Document benign on server; same posture as #11.
 
 **S11 — Total-fetch budget + truncation (defensive):** Optionally, set `BRAINSTORM_COMMUNITY_PULL_MAX_FETCH=5` env on the container (override), re-run S3, expect `truncated:true` in response and `fetched===5`. Documents that the budget mechanism works. Skippable if curator vocabulary is small.
 
@@ -76,15 +76,15 @@ Confirmed against pre-implementation tree (atop ADR commit `e0d568b2`). Actual `
 
 ```
 community-class-thread-pull suite:
-  ✗ T1: POST /api/concept/:handle/pull-community-class-thread is registered with requireOwner middleware (AC-1, ADR 0009)
-      src/api/index.js does not register POST /api/concept/:handle/pull-community-class-thread with the requireOwner middleware (AC-1; ADR 0009). Mirror Story #9's export-set registration at line 491 — POST verb, exact literal path, requireOwner as second argument, handler as third.
-  ✗ T2: pullClassThread.js walks z-tags via /api/relay/external (#z filter + kinds:[39999]) (AC-3, ADR 0009)
-      src/api/concept/pullClassThread.js does not exist yet. Implementer must create the handler per ADR 0009 (z-tag recursive walk starting at the materialized community Superset from #11; owner-only via requireOwner).
-  ✗ T3: pullClassThread.js classifies and SETs :Set label on foreign Sets (AC-3, ADR 0009)
+  ✗ T1: POST /api/concept/:handle/pull-community-class-thread is registered with requireOwner middleware (AC-1, ADR 0010)
+      src/api/index.js does not register POST /api/concept/:handle/pull-community-class-thread with the requireOwner middleware (AC-1; ADR 0010). Mirror Story #9's export-set registration at line 491 — POST verb, exact literal path, requireOwner as second argument, handler as third.
+  ✗ T2: pullClassThread.js walks z-tags via /api/relay/external (#z filter + kinds:[39999]) (AC-3, ADR 0010)
+      src/api/concept/pullClassThread.js does not exist yet. Implementer must create the handler per ADR 0010 (z-tag recursive walk starting at the materialized community Superset from #11; owner-only via requireOwner).
+  ✗ T3: pullClassThread.js classifies and SETs :Set label on foreign Sets (AC-3, ADR 0010)
       src/api/concept/pullClassThread.js does not exist — see T2 for the create-this-file message.
-  ✗ T4: pullClassThread.js MERGEs canonical HAS_ELEMENT / IS_A_SUPERSET_OF with NO source property (AC-4 + AC-6, ADR 0009)
+  ✗ T4: pullClassThread.js MERGEs canonical HAS_ELEMENT / IS_A_SUPERSET_OF with NO source property (AC-4 + AC-6, ADR 0010)
       src/api/concept/pullClassThread.js does not exist — see T2 for the create-this-file message.
-  ✗ T5: pullClassThread.js carries visited-set + max-depth termination guards (AC-5, ADR 0009)
+  ✗ T5: pullClassThread.js carries visited-set + max-depth termination guards (AC-5, ADR 0010)
       src/api/concept/pullClassThread.js does not exist — see T2 for the create-this-file message.
   ✓ R1: install.js #11 Header materialization + REFERENCES MERGE + IS_A_SUPERSET_OF MERGE preserved (regression guard)
 
@@ -104,4 +104,4 @@ community-class-thread-pull suite:               FAIL (1 passed, 5 failed)
 Overall:                                         FAIL
 ```
 
-Every prior suite stays green — Phase B test additions cause **zero false-positive regression**. T1–T5 FAIL pre-impl with implementer-actionable messages (file-doesn't-exist messages cite ADR 0009 explicitly; each spec clause cites its AC + ADR section). R1 PASS pre-impl, must remain PASS post-impl (regression guard on #11 install.js contract).
+Every prior suite stays green — Phase B test additions cause **zero false-positive regression**. T1–T5 FAIL pre-impl with implementer-actionable messages (file-doesn't-exist messages cite ADR 0010 explicitly; each spec clause cites its AC + ADR section). R1 PASS pre-impl, must remain PASS post-impl (regression guard on #11 install.js contract).

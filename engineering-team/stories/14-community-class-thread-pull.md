@@ -26,7 +26,7 @@ This is an **on-demand owner action**, not an install-time auto-pull. The owner 
 - [ ] **AC-2 (start anchor):** Starting node is the materialized community Superset from #11, looked up by uuid (`39999:<curatorPk>:<dtag>-superset` — deterministic per ADR 0008 Phase A). If the #11 anchor is absent (i.e. firmware install never ran, or `communityReference` is unset for this handle), endpoint returns 4xx with a clear message; nothing materialized.
 - [ ] **AC-3 (mechanism — z-tag recursive walk):** Perform a breadth-first walk over kind-39999 events `#z`-tagged at the current uuid against the concept's `communityReference.relayHints`. For each fetched event: (a) publish to local strfry via `/api/strfry/publish` (no re-sign); (b) materialize via `executeCypher(buildImportCypher(ev))`; (c) classify as Set (has `#a` tags referencing a parent Superset/Set, or its own a-tags do) vs leaf element; (d) `SET n:Set` on Sets via the existing `MATCH (n {uuid:$u}) SET n:Set` precedent (`src/api/normalize/index.js:2937`); elements stay `:ListItem`; (e) enqueue Sets for further walking.
 - [ ] **AC-4 (canonical class-thread edges, no `source` property):** Between foreign nodes, MERGE the canonical class-thread relationships matching `install.js` Pass-1d direction exactly: `(parent)-[:HAS_ELEMENT]->(element)` and the appropriate `IS_A_SUPERSET_OF` direction for set-subset hierarchy. No `source` property — these are canonical class-thread relationships (same posture as #11's `IS_A_SUPERSET_OF`, *not* the Neo4j-only stub posture of `REFERENCES`).
-- [ ] **AC-5 (per-member graceful, idempotent, terminating):** Per-event try/catch around relay fetch, publish, materialization, and each edge MERGE — errors logged + skipped, never thrown. Deterministic a-tags + MERGE ⇒ re-running the endpoint produces zero duplicate nodes/edges. Visited-set on uuid prevents revisiting; max-depth guard prevents pathological walks (ADR 0009 specifies bound).
+- [ ] **AC-5 (per-member graceful, idempotent, terminating):** Per-event try/catch around relay fetch, publish, materialization, and each edge MERGE — errors logged + skipped, never thrown. Deterministic a-tags + MERGE ⇒ re-running the endpoint produces zero duplicate nodes/edges. Visited-set on uuid prevents revisiting; max-depth guard prevents pathological walks (ADR 0010 specifies bound).
 - [ ] **AC-6 (honest invariants — binding):**
   - **No editorial relationship types** wired (e.g. no `RECOMMENDED_BY`, no `ENDORSES`, no curator-marker edges) — strictly class-thread.
   - **No election:** zero new edges are added that cross from the local concept's class thread into the foreign sub-graph except the existing #11 `(localSup)-[:IS_A_SUPERSET_OF]->(communitySup)`. The local concept's own `HAS_ELEMENT` set and own internal `IS_A_SUPERSET_OF` hierarchy are byte-unchanged.
@@ -41,7 +41,7 @@ This is an **on-demand owner action**, not an install-time auto-pull. The owner 
   - Foreign elements — `39999:<curatorPk>:<various>` with labels `:NostrEvent:ListItem` (no `:Set`; these are leaves).
 - **New canonical edges between foreign nodes:** `HAS_ELEMENT` (Set→element), `IS_A_SUPERSET_OF` (set-subset, direction matching install.js Pass-1d).
 
-## Out of scope (deferred under ADR 0006 or this ADR 0009)
+## Out of scope (deferred under ADR 0006 or this ADR 0010)
 
 - **Editorial relationship types** — e.g. `RECOMMENDED_BY`, `ENDORSES`, `DEPENDS_ON`, curator-attribution markers. Its own future stream with its own ADR.
 - **Election of community elements into local class thread** — making the curator's elements appear as if they were the local owner's own (i.e. adding `(localSet)-[:HAS_ELEMENT]->(communityElement)` or merging the two element pools). This is a deliberate next-stream design question (trust, provenance, dedup, user-curation surface).
@@ -51,19 +51,20 @@ This is an **on-demand owner action**, not an install-time auto-pull. The owner 
 - **Hybrid mechanism** (concept-graph-as-index + z-tag walk as fallback) — deferred. Becomes useful once concept-graph fidelity is upgraded; this story commits to pure z-tag walk for now.
 - **Changes to #10 (`concept-graph` tag), the `REFERENCES` edge, the `communityReference` manifest field, `publishEverywhere`/export, the #11 IS_A_SUPERSET_OF placeholder.**
 
-## Open questions (resolved in Architecture / ADR 0009)
+## Open questions (resolved in Architecture / ADR 0010)
 
 - **Mechanism selection (z-tag walk vs concept-graph manifest vs hybrid)** — resolved by grounding (Concept Graph is sparse, not a manifest). Z-tag walk chosen. ADR records the rejected alternatives + their reactivation criteria.
 - **Edge direction for `IS_A_SUPERSET_OF` and `HAS_ELEMENT`** — must be byte-equivalent to `install.js` Pass-1d. ADR specifies the exact pass-1d wiring as the source of truth.
 - **`:Set` label SET** — uses existing precedent at `src/api/normalize/index.js:2937` (`MATCH (n) SET n:Set`). ADR confirms.
-- **Classification of Set vs element from an event** — ADR 0009 specifies the disambiguation rule (a-tags / z-tags inspection).
-- **Termination & cycle protection** — visited-set on uuid + max-depth guard. ADR 0009 specifies the bound (initial recommendation: max-depth = 16, configurable).
+- **Classification of Set vs element from an event** — ADR 0010 specifies the disambiguation rule (a-tags / z-tags inspection).
+- **Termination & cycle protection** — visited-set on uuid + max-depth guard. ADR 0010 specifies the bound (initial recommendation: max-depth = 16, configurable).
 - **Per-event graceful posture** — mirrors #11 per-edge graceful (try/catch around each materialization and each edge MERGE). ADR confirms.
 - **UI surface** — button on `ConceptDetail.jsx` next to "Publish concept to community". Progress / count surfaced inline. ADR confirms.
-- **Concept-Graph-fidelity surfaced as separate stream** — ADR 0009 includes a "Surfaced findings" section that explicitly hands this finding off to a future ADR rather than absorbing it.
+- **Concept-Graph-fidelity surfaced as separate stream** — ADR 0010 includes a "Surfaced findings" section that explicitly hands this finding off to a future ADR rather than absorbing it.
 
 ## Linked artifacts
 
-- ADR: `engineering-team/decisions/0009-community-class-thread-pull.md` (Draft → Ratified pending user approval)
-- Test plan: `engineering-team/stories/14-community-class-thread-pull.test-plan.md` (Tester phase, after ADR ratification)
+- ADR: `engineering-team/decisions/0010-community-class-thread-pull.md` (Accepted; mechanism superseded by ADR 0011 — Implementer-phase grounding found the original z-tag walk filter shape and Set/element classification rule incompatible with Tapestry's actual published encoding)
+- ADR amendment: `engineering-team/decisions/0011-class-thread-tags-and-phase-b-mechanism.md` (Accepted) — establishes single-char `n` and `s` tags (child-claims-parent) for HAS_ELEMENT/IS_A_SUPERSET_OF; amends Phase B to walk these tags; specifies dual-emit migration cycle + trust constraints + reserved-future direction convention
+- Test plan: `engineering-team/stories/14-community-class-thread-pull.test-plan.md` (re-baseline pending — sentinels written against ADR 0010's z-tag-walk mechanism; Tester re-baseline for ADR 0011's `n`/`s`-tag-walk mechanism is the next phase)
 - Review: `engineering-team/reviews/14-community-class-thread-pull.md` (Review phase)
