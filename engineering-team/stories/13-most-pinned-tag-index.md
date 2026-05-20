@@ -196,5 +196,5 @@ These belong to the Architect to resolve in Phase 2:
     (the WoT-author filter pattern via `aggregateProfilesTagged`
     that this story echoes for pin aggregation)
 - ADR: `engineering-team/decisions/0012-most-pinned-tag-index.md`
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/13-most-pinned-tag-index.test-plan.md`
 - Review: (filled in after Review phase)

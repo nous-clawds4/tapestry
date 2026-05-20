@@ -43,6 +43,8 @@ const pinATagPublish = require('./pin-a-tag-publish.test.js');
 const tlPubFromPins = require('./tl-publication-from-pins.test.js');
 const tlPubFromPinsPublish = require('./tl-publication-from-pins-publish.test.js');
 const customizePinCurationPublish = require('./customize-pin-curation-publish.test.js');
+const mostPinnedTagIndex = require('./most-pinned-tag-index.test.js');
+const mostPinnedTagIndexPublish = require('./most-pinned-tag-index-publish.test.js');
 // Suites added on main since this branch forked
 const treasureMaps = require('./treasure-maps-router-preset.test.js');
 const scheduledRefresh = require('./scheduled-search-and-house-scores-refresh.test.js');
@@ -77,6 +79,8 @@ async function main() {
   const tlPubFromPinsResult = await tlPubFromPins.run();
   const tlPubFromPinsPublishResult = await tlPubFromPinsPublish.run();
   const customizePinCurationPublishResult = await customizePinCurationPublish.run();
+  const mostPinnedTagIndexResult = await mostPinnedTagIndex.run();
+  const mostPinnedTagIndexPublishResult = await mostPinnedTagIndexPublish.run();
 
   // Main-side suites — these don't print their own banner, so we announce
   // each one before running.
@@ -147,6 +151,11 @@ async function main() {
     ? `SKIP (${customizePinCurationPublishResult.skipped} tests; preconditions not met)`
     : `${customizePinCurationPublishResult.fail === 0 ? 'PASS' : 'FAIL'} (${customizePinCurationPublishResult.pass} passed, ${customizePinCurationPublishResult.fail} failed)`;
   console.log(`customize-pin-curation-publish suite:            ${cpcLine}`);
+  console.log(`most-pinned-tag-index suite:                     ${mostPinnedTagIndexResult.fail === 0 ? 'PASS' : 'FAIL'} (${mostPinnedTagIndexResult.pass} passed, ${mostPinnedTagIndexResult.fail} failed)`);
+  const mptpLine = mostPinnedTagIndexPublishResult.skipped
+    ? `SKIP (${mostPinnedTagIndexPublishResult.skipped} tests; preconditions not met)`
+    : `${mostPinnedTagIndexPublishResult.fail === 0 ? 'PASS' : 'FAIL'} (${mostPinnedTagIndexPublishResult.pass} passed, ${mostPinnedTagIndexPublishResult.fail} failed)`;
+  console.log(`most-pinned-tag-index-publish suite:             ${mptpLine}`);
   console.log(`treasure-maps-router-preset suite:               ${treasureMapsResult.fail === 0 ? 'PASS' : 'FAIL'} (${treasureMapsResult.pass} passed, ${treasureMapsResult.fail} failed)`);
   console.log(`scheduled-search-and-house-scores-refresh suite: ${scheduledRefreshResult.fail === 0 ? 'PASS' : 'FAIL'} (${scheduledRefreshResult.pass} passed, ${scheduledRefreshResult.fail} failed)`);
   console.log(`strfry-router-first-boot-config suite:           ${strfryRouterFirstBootResult.fail === 0 ? 'PASS' : 'FAIL'} (${strfryRouterFirstBootResult.pass} passed, ${strfryRouterFirstBootResult.fail} failed)`);
@@ -175,6 +184,8 @@ async function main() {
     && tlPubFromPinsResult.fail === 0
     && tlPubFromPinsPublishResult.fail === 0
     && customizePinCurationPublishResult.fail === 0
+    && mostPinnedTagIndexResult.fail === 0
+    && mostPinnedTagIndexPublishResult.fail === 0
     && treasureMapsResult.fail === 0
     && scheduledRefreshResult.fail === 0
     && strfryRouterFirstBootResult.fail === 0
