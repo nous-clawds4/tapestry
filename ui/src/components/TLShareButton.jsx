@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { nip19 } from 'nostr-tools';
-import { useConfig } from '../context/ConfigContext';
+import { TA_PUBKEY } from '../utils/publishTagPin';
 
 /**
  * Story 11 follow-up — copy a Trusted List's NIP-19 naddr to the clipboard.
@@ -9,24 +9,19 @@ import { useConfig } from '../context/ConfigContext';
  * event: encodes (kind, pubkey, identifier=dTag, relays). Recipients
  * paste it into other nostr clients to look up the TL anywhere.
  *
- * TA pubkey is resolved at runtime via useConfig().taPubkey — never
- * hardcode (see CLAUDE.md "Per-deployment TA pubkey").
- *
  * Props:
  *   dTag — the TL's d-tag (the addressable coordinate).
  *   variant — 'compact' (small icon-style button) or 'full' (text + icon).
  */
 export default function TLShareButton({ dTag, variant = 'compact' }) {
-  const { taPubkey } = useConfig();
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState(null);
 
   const handleClick = async () => {
     try {
-      if (!taPubkey) throw new Error('TA pubkey not yet resolved');
       const naddr = nip19.naddrEncode({
         kind: 30392,
-        pubkey: taPubkey,
+        pubkey: TA_PUBKEY,
         identifier: dTag,
         relays: [],
       });
@@ -50,7 +45,6 @@ export default function TLShareButton({ dTag, variant = 'compact' }) {
       type="button"
       className={`bs-tl-share bs-tl-share-${variant}${copied ? ' is-copied' : ''}`}
       onClick={(e) => { e.stopPropagation(); e.preventDefault(); handleClick(); }}
-      disabled={!taPubkey}
       title={error || 'Copy NIP-19 naddr to clipboard (other nostr clients can paste this to find the Trusted List)'}
       aria-label="Copy Trusted List naddr"
     >

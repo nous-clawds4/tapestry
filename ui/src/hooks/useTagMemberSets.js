@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useConfig } from '../context/ConfigContext';
+import { TA_PUBKEY } from '../utils/publishTagPin';
 
 /**
  * Story 11 follow-up — for each of the viewer's pinned tags, fetch its
@@ -23,7 +23,6 @@ import { useConfig } from '../context/ConfigContext';
  * (disabled when the TL hasn't been generated yet).
  */
 export default function useTagMemberSets(viewerPubkey) {
-  const { taPubkey } = useConfig();
   const [sets, setSets] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -33,7 +32,6 @@ export default function useTagMemberSets(viewerPubkey) {
       setSets([]); setError(null); setLoading(false);
       return undefined;
     }
-    if (!taPubkey) return undefined; // wait until ConfigContext resolves
     let cancelled = false;
     setLoading(true); setError(null);
 
@@ -61,7 +59,7 @@ export default function useTagMemberSets(viewerPubkey) {
         if (dTagsToFetch.length > 0) {
           const filter = JSON.stringify({
             kinds: [30392],
-            authors: [taPubkey],
+            authors: [TA_PUBKEY],
             '#d': dTagsToFetch,
           });
           const resp = await fetch(`/api/strfry/scan?filter=${encodeURIComponent(filter)}`);
@@ -113,7 +111,7 @@ export default function useTagMemberSets(viewerPubkey) {
     })();
 
     return () => { cancelled = true; };
-  }, [viewerPubkey, taPubkey]);
+  }, [viewerPubkey]);
 
   return { sets, loading, error };
 }

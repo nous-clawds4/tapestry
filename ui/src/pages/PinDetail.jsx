@@ -5,9 +5,8 @@ import TopBar from '../components/TopBar';
 import TLShareButton from '../components/TLShareButton';
 import CurationMethodDialog from '../components/CurationMethodDialog';
 import { useAuth } from '../context/AuthContext';
-import { useConfig } from '../context/ConfigContext';
 import useTLDetail from '../hooks/useTLDetail';
-import { pinTag } from '../utils/publishTagPin';
+import { TA_PUBKEY, pinTag } from '../utils/publishTagPin';
 
 /**
  * Story 11 follow-up — Brainstorm-side detail page for one pinned-tag
@@ -43,7 +42,6 @@ function timeAgoShort(unixSeconds) {
 export default function PinDetail() {
   const { dTag } = useParams();
   const { user } = useAuth();
-  const { taPubkey } = useConfig();
   const { tl, members, loading, error, refetch } = useTLDetail(dTag);
   const [refreshing, setRefreshing] = useState(false);
   const [refreshError, setRefreshError] = useState(null);
@@ -55,17 +53,15 @@ export default function PinDetail() {
   const [editError, setEditError] = useState(null);
 
   // Pre-encode the NIP-19 naddr so users without clipboard-API access
-  // can still copy it manually from the metadata table. TA pubkey is
-  // per-deployment (CLAUDE.md "Per-deployment TA pubkey") — pulled
-  // from ConfigContext, not hardcoded.
+  // can still copy it manually from the metadata table.
   const naddr = useMemo(() => {
-    if (!dTag || !taPubkey) return null;
+    if (!dTag) return null;
     try {
       return nip19.naddrEncode({
-        kind: 30392, pubkey: taPubkey, identifier: dTag, relays: [],
+        kind: 30392, pubkey: TA_PUBKEY, identifier: dTag, relays: [],
       });
     } catch { return null; }
-  }, [dTag, taPubkey]);
+  }, [dTag]);
 
   // The TL's observer is the rightful owner for refresh-now. The endpoint
   // does its own auth check; we just enable/disable the affordance based
@@ -127,7 +123,7 @@ export default function PinDetail() {
 
   const handleEditSubmit = async (customCuration) => {
     if (!editing) return;
-    const signed = await pinTag({ tag: editing.tag, taPubkey, curationMethod: customCuration });
+    const signed = await pinTag({ tag: editing.tag, curationMethod: customCuration });
     await refetch();
     // AC-5 — fire-and-forget refresh of this pin's TL.
     fetch('/api/trusted-list/refresh-pinned-tag', {

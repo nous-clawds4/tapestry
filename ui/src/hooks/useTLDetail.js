@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useConfig } from '../context/ConfigContext';
+import { TA_PUBKEY } from '../utils/publishTagPin';
 
 /**
  * Story 11 follow-up — fetches a single kind-30392 Trusted List event by
@@ -12,7 +12,6 @@ import { useConfig } from '../context/ConfigContext';
  *   members = [{ pubkey, displayName, picture, nip05, endorsements, disputes }]
  */
 export default function useTLDetail(dTag) {
-  const { taPubkey } = useConfig();
   const [tl, setTl] = useState(null);
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -21,7 +20,6 @@ export default function useTLDetail(dTag) {
 
   useEffect(() => {
     if (!dTag) return undefined;
-    if (!taPubkey) return undefined; // wait until ConfigContext resolves
     let cancelled = false;
     setLoading(true);
     setError(null);
@@ -30,7 +28,7 @@ export default function useTLDetail(dTag) {
       try {
         const filter = JSON.stringify({
           kinds: [30392],
-          authors: [taPubkey],
+          authors: [TA_PUBKEY],
           '#d': [dTag],
         });
         const resp = await fetch(`/api/strfry/scan?filter=${encodeURIComponent(filter)}`);
@@ -125,7 +123,7 @@ export default function useTLDetail(dTag) {
     })();
 
     return () => { cancelled = true; };
-  }, [dTag, reloadKey, taPubkey]);
+  }, [dTag, reloadKey]);
 
   return { tl, members, loading, error, refetch: () => setReloadKey((k) => k + 1) };
 }

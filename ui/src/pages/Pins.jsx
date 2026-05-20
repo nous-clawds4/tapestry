@@ -4,7 +4,6 @@ import TopBar from '../components/TopBar';
 import TLShareButton from '../components/TLShareButton';
 import CurationMethodDialog from '../components/CurationMethodDialog';
 import { useAuth } from '../context/AuthContext';
-import { useConfig } from '../context/ConfigContext';
 import usePins from '../hooks/usePins';
 import useRefreshPin from '../hooks/useRefreshPin';
 import { pinTag } from '../utils/publishTagPin';
@@ -76,7 +75,6 @@ function renderStatusLine(tlStatus) {
 
 export default function Pins() {
   const { user, login } = useAuth();
-  const { taPubkey } = useConfig();
   const { pins, loading, error, refetch } = usePins(user?.pubkey);
   const { refreshing, refreshOne, refreshAll, error: refreshError } = useRefreshPin(user?.pubkey);
   // Story 12 / ADR 0011 — per-row Edit button opens the curation dialog
@@ -85,7 +83,7 @@ export default function Pins() {
 
   const handleEditSubmit = async (customCuration) => {
     if (!editingPin) return;
-    const signed = await pinTag({ tag: editingPin.tag, taPubkey, curationMethod: customCuration });
+    const signed = await pinTag({ tag: editingPin.tag, curationMethod: customCuration });
     await refetch();
     // AC-5 — fire-and-forget refresh of just this pin's TL.
     fetch('/api/trusted-list/refresh-pinned-tag', {
