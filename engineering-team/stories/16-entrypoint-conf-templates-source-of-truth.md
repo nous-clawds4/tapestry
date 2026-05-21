@@ -92,4 +92,4 @@ Step 1 is the larger and riskier of the two; Step 2 is mechanically simple once 
 
 - ADR: [0014-entrypoint-template-rendering.md](../decisions/0014-entrypoint-template-rendering.md)
 - Test plan: [16-entrypoint-conf-templates-source-of-truth.test-plan.md](16-entrypoint-conf-templates-source-of-truth.test-plan.md)
-- Review: (filled in after Review phase)
+- Review: [../reviews/16-entrypoint-conf-templates-source-of-truth.md](../reviews/16-entrypoint-conf-templates-source-of-truth.md) — **PASS** end-to-end (11/11 sentinels + cycle-local smoke S1 byte-equivalence + S2 missing-env failure + S3a/S3b task-queue conditional install PROVED on the live container).
