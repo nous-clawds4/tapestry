@@ -91,5 +91,5 @@ Step 1 is the larger and riskier of the two; Step 2 is mechanically simple once 
 ## Linked artifacts
 
 - ADR: [0014-entrypoint-template-rendering.md](../decisions/0014-entrypoint-template-rendering.md)
-- Test plan: (filled in after Test Design phase)
+- Test plan: [16-entrypoint-conf-templates-source-of-truth.test-plan.md](16-entrypoint-conf-templates-source-of-truth.test-plan.md)
 - Review: (filled in after Review phase)
