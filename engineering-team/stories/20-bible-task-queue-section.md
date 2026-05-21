@@ -65,4 +65,4 @@ Resolved at planning (2026-05-21):
 
 - ADR: _not applicable — Doc fast-track skips Phase 2._
 - Test plan: _not applicable — Doc fast-track skips Phase 3._
-- Review: (filled in after Review phase)
+- Review: [../reviews/20-bible-task-queue-section.md](../reviews/20-bible-task-queue-section.md) — **PASS** end-to-end (16/16 suites unchanged + 20-claim accuracy audit clean + all ADR cross-references resolve).
