@@ -38,6 +38,7 @@ const taskQueueBullmq = require('./task-queue-bullmq.test.js');
 const taskQueueNeo4jResourceClass = require('./task-queue-neo4j-resource-class.test.js');
 const entrypointTemplateRendering = require('./entrypoint-template-rendering.test.js');
 const bullboardAdminAccess = require('./bullboard-admin-access.test.js');
+const adminToolsDashboardPanel = require('./admin-tools-dashboard-panel.test.js');
 
 async function main() {
   console.log('Running Brainstorm tests...\n');
@@ -90,6 +91,9 @@ async function main() {
   console.log('\nbullboard-admin-access suite:');
   const bullboardAdminAccessResult = await bullboardAdminAccess.run();
 
+  console.log('\nadmin-tools-dashboard-panel suite:');
+  const adminToolsDashboardPanelResult = await adminToolsDashboardPanel.run();
+
   console.log('\nTest Results');
   console.log('-------------');
   console.log(`Configuration Loading:                           ${configOk ? 'PASS' : 'FAIL'}`);
@@ -138,6 +142,9 @@ async function main() {
   console.log(
     `bullboard-admin-access suite:                    ${bullboardAdminAccessResult.fail === 0 ? 'PASS' : 'FAIL'} (${bullboardAdminAccessResult.pass} passed, ${bullboardAdminAccessResult.fail} failed)`
   );
+  console.log(
+    `admin-tools-dashboard-panel suite:               ${adminToolsDashboardPanelResult.fail === 0 ? 'PASS' : 'FAIL'} (${adminToolsDashboardPanelResult.pass} passed, ${adminToolsDashboardPanelResult.fail} failed)`
+  );
 
   const overallOk =
     configOk &&
@@ -155,7 +162,8 @@ async function main() {
     taskQueueBullmqResult.fail === 0 &&
     taskQueueNeo4jResourceClassResult.fail === 0 &&
     entrypointTemplateRenderingResult.fail === 0 &&
-    bullboardAdminAccessResult.fail === 0;
+    bullboardAdminAccessResult.fail === 0 &&
+    adminToolsDashboardPanelResult.fail === 0;
   console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);
   process.exit(overallOk ? 0 : 1);
 }
