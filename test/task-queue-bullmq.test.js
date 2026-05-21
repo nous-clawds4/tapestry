@@ -168,10 +168,15 @@ test('T6: Redis container is configured with AOF persistence (appendonly yes, ap
   );
 });
 
-test('T7: BullBoard is mounted at /admin/queues behind owner-only auth (AC-11, ADR 0010 §BullBoard mount)', () => {
+test('T7: BullBoard is mounted at /admin/queues behind some auth middleware (AC-11, ADR 0010 + ADR 0016 §BullBoard mount)', () => {
   // ADR allows the mount to live in a dedicated bullBoardMount.js module OR
   // inline in api/index.js. Either is fine; both need to satisfy: path is
-  // /admin/queues AND the route is guarded by requireOwnerOnly (or requireOwner).
+  // /admin/queues AND the route is guarded by SOME auth middleware. Story #18 /
+  // ADR 0016 broadened the gate from requireOwnerOnly to requireOwnerOrAdmin
+  // (the parameter in bullBoardMount.js was renamed from `requireOwnerOnly` to
+  // `authMiddleware` for accuracy). This sentinel now matches any of the
+  // historical or current names so it survives the evolution AND tells the
+  // next maintainer about the lineage.
   const mountModule = readSafe(BULLBOARD_MOUNT);
   const apiIndex = readSafe(API_INDEX_JS);
   assert(apiIndex !== null, 'src/api/index.js not at expected path — re-baseline this sentinel.');
@@ -183,10 +188,13 @@ test('T7: BullBoard is mounted at /admin/queues behind owner-only auth (AC-11, A
       'src/api/index.js must reference it.'
   );
   assert(
-    /requireOwnerOnly|requireOwner/.test(candidates),
-    'BullBoard route is not guarded by requireOwnerOnly or requireOwner (AC-11; ADR 0010 §BullBoard ' +
-      'mount). retry / remove / pause on a live queue can damage running calculations; the mount must ' +
-      'reuse the existing admin auth pattern (adminApi.requireOwnerOnly, per src/api/index.js:454).'
+    /requireOwnerOnly|requireOwnerOrAdmin|authMiddleware/.test(candidates),
+    'BullBoard route is not guarded by any recognized auth middleware (AC-11; ADR 0010 §BullBoard ' +
+      'mount + ADR 0016 §Implementation). retry / remove / pause on a live queue can damage running ' +
+      'calculations; the mount must reuse one of the admin-auth helpers: requireOwnerOnly (pre-story-#18 ' +
+      'name), requireOwnerOrAdmin (story-#18 widened gate), or the destructured `authMiddleware` ' +
+      'parameter name in bullBoardMount.js. If none of these tokens appear, BullBoard has been mounted ' +
+      'WITHOUT auth — that is the regression this sentinel is here to catch.'
   );
 });
 
