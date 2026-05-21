@@ -10,6 +10,7 @@ RELAY_URL="${RELAY_URL:-ws://localhost:7777}"
 
 BRAINSTORM_MODULE_BASE_DIR="/usr/local/lib/node_modules/brainstorm/"
 BRAINSTORM_NODE_BIN="$(which node)"
+CONFIG_DIR="${BRAINSTORM_MODULE_BASE_DIR}config"
 
 # Persist SESSION_SECRET across container rebuilds. Stored on the tapestry-data
 # volume so that user session cookies remain valid through deploys. To force-rotate
@@ -36,97 +37,28 @@ if [ "$OWNER_PUBKEY" != "unassigned" ] && [ ${#OWNER_PUBKEY} -eq 64 ]; then
   " 2>/dev/null || echo "unassigned")
 fi
 
-# Generate /etc/brainstorm.conf
-cat > /etc/brainstorm.conf << CONFEOF
-# Brainstorm Configuration (Docker)
+# Render /etc/brainstorm.conf from the template (story #16 / ADR 0014).
+# Replaces the prior 80-line heredoc. The renderer reads ${VAR_NAME} references
+# from process.env, so we export the variables the template references before
+# invoking it — they are local shell vars at this point. The renderer rejects
+# unknown ${VAR} references with nonzero exit, so a missing env var fails the
+# boot loudly rather than producing a silently-incomplete conf file.
+export OWNER_PUBKEY ADMIN_PUBKEYS NEO4J_PASSWORD DOMAIN_NAME RELAY_URL
+export BRAINSTORM_MODULE_BASE_DIR BRAINSTORM_NODE_BIN SESSION_SECRET OWNER_NPUB
 
-BRAINSTORM_NODE_BIN="${BRAINSTORM_NODE_BIN}"
-export BRAINSTORM_NODE_BIN
-
-# File paths
-BRAINSTORM_MODULE_BASE_DIR="${BRAINSTORM_MODULE_BASE_DIR}"
-BRAINSTORM_MODULE_SRC_DIR="${BRAINSTORM_MODULE_BASE_DIR}src/"
-BRAINSTORM_MODULE_ALGOS_DIR="${BRAINSTORM_MODULE_BASE_DIR}src/algos"
-BRAINSTORM_EXPORT_DIR="${BRAINSTORM_MODULE_BASE_DIR}src/export"
-BRAINSTORM_MODULE_MANAGE_DIR="${BRAINSTORM_MODULE_BASE_DIR}src/manage"
-BRAINSTORM_NIP85_DIR="${BRAINSTORM_MODULE_BASE_DIR}src/algos/nip85"
-BRAINSTORM_MODULE_PIPELINE_DIR="${BRAINSTORM_MODULE_BASE_DIR}src/pipeline"
-STRFRY_PLUGINS_BASE="/usr/local/lib/strfry/plugins/"
-STRFRY_PLUGINS_DATA="/usr/local/lib/strfry/plugins/data/"
-BRAINSTORM_LOG_DIR="/var/log/brainstorm"
-BRAINSTORM_BASE_DIR="/var/lib/brainstorm"
-
-export BRAINSTORM_MODULE_BASE_DIR
-export BRAINSTORM_MODULE_SRC_DIR
-export BRAINSTORM_MODULE_ALGOS_DIR
-export BRAINSTORM_EXPORT_DIR
-export BRAINSTORM_MODULE_MANAGE_DIR
-export BRAINSTORM_NIP85_DIR
-export STRFRY_PLUGINS_BASE
-export STRFRY_PLUGINS_DATA
-export BRAINSTORM_LOG_DIR
-export BRAINSTORM_BASE_DIR
-
-# WoT relays
-export BRAINSTORM_DEFAULT_WOT_RELAYS='wss://wot.grapevine.network,wss://wot.brainstorm.social,wss://profiles.nostr1.com,wss://relay.hasenpfeffr.com'
-export BRAINSTORM_WOT_RELAYS='wss://wot.grapevine.network,wss://wot.brainstorm.social,wss://profiles.nostr1.com,wss://relay.hasenpfeffr.com'
-
-# NIP-85 relays
-export BRAINSTORM_DEFAULT_NIP85_RELAYS='wss://nip85.brainstorm.world,wss://nip85.nostr1.com'
-export BRAINSTORM_NIP85_RELAYS='wss://nip85.brainstorm.world,wss://nip85.nostr1.com'
-export BRAINSTORM_DEFAULT_NIP85_HOME_RELAY='wss://nip85.brainstorm.world'
-export BRAINSTORM_NIP85_HOME_RELAY='wss://nip85.brainstorm.world'
-
-# Popular general purpose relays
-export BRAINSTORM_DEFAULT_POPULAR_GENERAL_PURPOSE_RELAYS='wss://relay.nostr.band,wss://relay.damus.io,wss://relay.primal.net'
-export BRAINSTORM_POPULAR_GENERAL_PURPOSE_RELAYS='wss://relay.nostr.band,wss://relay.damus.io,wss://relay.primal.net'
-
-# NIP-85 configuration
-export BRAINSTORM_30382_LIMIT="250000"
-
-# Performance tuning
-export BRAINSTORM_BATCH_SIZE="100"
-export BRAINSTORM_DELAY_BETWEEN_BATCHES="1000"
-export BRAINSTORM_DELAY_BETWEEN_EVENTS="50"
-export BRAINSTORM_MAX_RETRIES="3"
-export BRAINSTORM_MAX_CONCURRENT_CONNECTIONS="5"
-
-# Relay configuration
-export BRAINSTORM_RELAY_URL="${RELAY_URL}"
-
-# Neo4j configuration
-export BRAINSTORM_NEO4J_BROWSER_URL="http://${DOMAIN_NAME}:7474"
-export NEO4J_URI="bolt://localhost:7687"
-export NEO4J_USER="neo4j"
-export NEO4J_PASSWORD="${NEO4J_PASSWORD}"
-
-# Strfry configuration
-export STRFRY_DOMAIN="${DOMAIN_NAME}"
-
-# Owner
-export BRAINSTORM_OWNER_PUBKEY="${OWNER_PUBKEY}"
-export BRAINSTORM_OWNER_NPUB="${OWNER_NPUB}"
-export BRAINSTORM_MANAGER_PUBKEYS=""
-export BRAINSTORM_ADMIN_PUBKEYS="${ADMIN_PUBKEYS}"
-
-# Security
-export SESSION_SECRET="${SESSION_SECRET}"
-
-# Process all tasks interval
-export BRAINSTORM_PROCESS_ALL_TASKS_INTERVAL="12hours"
-
-# Actions
-export BRAINSTORM_SEND_EMAIL_UPDATES=0
-export BRAINSTORM_ACCESS=0
-export BRAINSTORM_CREATED_CONSTRAINTS_AND_INDEXES=0
-CONFEOF
-
+if ! node "${BRAINSTORM_MODULE_BASE_DIR}tools/render-conf-template.js" \
+        "${CONFIG_DIR}/brainstorm.conf.template" > /etc/brainstorm.conf; then
+  echo "[entrypoint] FATAL: render of /etc/brainstorm.conf failed" >&2
+  exit 1
+fi
 chmod 664 /etc/brainstorm.conf
+echo "[entrypoint] /etc/brainstorm.conf generated from config/brainstorm.conf.template"
 
 # ── Install algorithm config files from templates (if not already present) ──
 # These are created by setup/install-control-panel.sh on bare-metal installs.
 # In Docker, we create them here from the shipped templates.
-CONFIG_DIR="${BRAINSTORM_MODULE_BASE_DIR}config"
+# CONFIG_DIR was defined near the top of this script so the brainstorm.conf
+# renderer invocation could use it too.
 for conffile in graperank whitelist blacklist nip56; do
   if [ ! -f "/etc/${conffile}.conf" ] && [ -f "${CONFIG_DIR}/${conffile}.conf.template" ]; then
     cp "${CONFIG_DIR}/${conffile}.conf.template" "/etc/${conffile}.conf"
@@ -134,6 +66,17 @@ for conffile in graperank whitelist blacklist nip56; do
     echo "Installed /etc/${conffile}.conf from template"
   fi
 done
+
+# Install /etc/brainstorm-task-queue.json on fresh containers (story #16 / ADR 0014).
+# Mirrors the copy-if-absent pattern above. The template ships with deploy-safe
+# defaults (defaultConcurrency=1, resourceClassCaps.neo4j-heavy=1). Operators
+# tune knobs by editing /etc/brainstorm-task-queue.json after first install;
+# operator edits survive container restarts because of the [ ! -f ] guard.
+if [ ! -f /etc/brainstorm-task-queue.json ] && [ -f "${CONFIG_DIR}/brainstorm-task-queue.json.template" ]; then
+  cp "${CONFIG_DIR}/brainstorm-task-queue.json.template" /etc/brainstorm-task-queue.json
+  chmod 644 /etc/brainstorm-task-queue.json
+  echo "[entrypoint] Installed /etc/brainstorm-task-queue.json from template"
+fi
 
 # Generate strfry.conf from the default template
 if [ -f /usr/local/src/strfry/strfry.conf ]; then

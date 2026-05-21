@@ -1,0 +1,7 @@
+{
+  "defaultConcurrency": 1,
+  "concurrencyByTask": {},
+  "resourceClassCaps": {
+    "neo4j-heavy": 1
+  }
+}

@@ -18,6 +18,8 @@
 7. [Active team and branch ownership](#7-active-team-and-branch-ownership)
 8. [Active tracking issues](#8-active-tracking-issues)
 9. [Operational gotchas we've hit](#9-operational-gotchas-weve-hit)
+10. [Task queue (BullMQ behind /api/run-task)](#10-task-queue-bullmq-behind-apirun-task)
+11. [Conf templates are the source of truth for fresh containers](#11-conf-templates-are-the-source-of-truth-for-fresh-containers)
 
 ---
 
@@ -538,3 +540,47 @@ This should be rare. If it fires, something upstream is stuck (e.g., a single he
 - Resource-class semaphore wraps the Worker callback BEFORE `processor.processJob` runs.
 
 For a tagged task with `concurrencyByTask: 2` and `resourceClassCaps.neo4j-heavy: 1`: the **effective** concurrency is the more restrictive of the two (here, 1 — one per class regardless of per-task budget).
+
+## 11. Conf templates are the source of truth for fresh containers
+
+Story #16 / ADR 0014. Until 2026-05-21 the Docker entrypoint regenerated `/etc/brainstorm.conf` from an 80-line heredoc embedded in `docker/entrypoint.sh`. `config/brainstorm.conf.template` was consulted only by the bare-metal install path and had silently drifted to be missing ~25 of the variables the heredoc carried — including story #13's `TASK_QUEUE_ENABLED=false`, which never reached any fresh Docker container until an operator manually added the line.
+
+After story #16, the contract for fresh containers is:
+
+> **`config/brainstorm.conf.template` is the single source of truth for `/etc/brainstorm.conf`.** The entrypoint renders the template via `tools/render-conf-template.js` at every container start; the heredoc is gone.
+
+### What this means for the operator
+
+- **Adding a new feature flag or env var.** Edit `config/brainstorm.conf.template`, commit, rebuild the image. The next container that starts gets the new line in `/etc/brainstorm.conf` automatically — no entrypoint.sh edit needed.
+- **The renderer fails the boot loudly on a missing env var.** If the template references `${SOME_NEW_VAR}` and the entrypoint never exports it, the container's boot fails with `RenderError: missing env vars in brainstorm.conf.template: SOME_NEW_VAR`. This is by design — better than silently emitting `SOME_NEW_VAR=""` and discovering it at runtime. When adding a template variable, also add the corresponding `export` to `docker/entrypoint.sh` (currently exports `OWNER_PUBKEY`, `ADMIN_PUBKEYS`, `NEO4J_PASSWORD`, `DOMAIN_NAME`, `RELAY_URL`, `BRAINSTORM_MODULE_BASE_DIR`, `BRAINSTORM_NODE_BIN`, `SESSION_SECRET`, `OWNER_NPUB`).
+- **`brainstorm-task-queue.json` follows the conditional-copy pattern.** Its template at `config/brainstorm-task-queue.json.template` is copied to `/etc/brainstorm-task-queue.json` only if the destination does not already exist. Operator edits to the live JSON survive container restarts (unlike `/etc/brainstorm.conf`, which is regenerated unconditionally on every boot).
+
+### The trap — edits inside a running container are lost on restart
+
+The entrypoint **unconditionally overwrites** `/etc/brainstorm.conf` on every container start. This matches the prior heredoc behavior; story #16 did not change it.
+
+If you `docker exec tapestry sed -i ... /etc/brainstorm.conf` to flip a flag (the pattern used during story #15's `TASK_QUEUE_ENABLED` rollout — see §10.1), your edit lasts **until the next container restart**. To make an edit persist:
+
+1. **Repo-level (recommended).** Edit `config/brainstorm.conf.template`, commit, rebuild the image. Fresh containers and restarts both pick it up.
+2. **Operator-level (long-running containers).** Use the `if grep -q ...; else docker exec ... >> ...` recipe below for an in-container append, then **also** update the template so the next deploy doesn't reintroduce the old value.
+
+```bash
+# Append-if-absent recipe (use inside a running container):
+docker exec tapestry bash -c '
+  if grep -q "^export FOO=" /etc/brainstorm.conf; then
+    echo "FOO already set"
+  else
+    echo "export FOO=value" >> /etc/brainstorm.conf
+    echo "appended FOO"
+  fi
+'
+# This wins only until the next restart, when the template re-renders.
+```
+
+### Drift sentinels
+
+`test/entrypoint-template-rendering.test.js` carries two drift sentinels that fail npm test if:
+- A `<<CONFEOF` heredoc reappears in `docker/entrypoint.sh` (T7 — re-introducing a second source of truth).
+- The `render-conf-template.js` invocation count moves off exactly one (T8 — second write-path, or lost integration).
+
+A future reviewer who sees these tests fail should stop and ask whether the change is reintroducing the very drift class story #16 closed.
