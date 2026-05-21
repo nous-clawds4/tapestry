@@ -82,5 +82,5 @@ Deferred to Architect:
 ## Linked artifacts
 
 - ADR: [0016-bullboard-admin-access.md](../decisions/0016-bullboard-admin-access.md)
-- Test plan: (filled in after Test Design phase)
+- Test plan: [18-bullboard-admin-access.test-plan.md](18-bullboard-admin-access.test-plan.md)
 - Review: (filled in after Review phase)
