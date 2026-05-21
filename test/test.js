@@ -36,6 +36,7 @@ const graperankSharedCsvRace = require('./graperank-shared-csv-race.test.js');
 const communityClassThreadPull = require('./community-class-thread-pull.test.js');
 const taskQueueBullmq = require('./task-queue-bullmq.test.js');
 const taskQueueNeo4jResourceClass = require('./task-queue-neo4j-resource-class.test.js');
+const entrypointTemplateRendering = require('./entrypoint-template-rendering.test.js');
 
 async function main() {
   console.log('Running Brainstorm tests...\n');
@@ -82,6 +83,9 @@ async function main() {
   console.log('\ntask-queue-neo4j-resource-class suite:');
   const taskQueueNeo4jResourceClassResult = await taskQueueNeo4jResourceClass.run();
 
+  console.log('\nentrypoint-template-rendering suite:');
+  const entrypointTemplateRenderingResult = await entrypointTemplateRendering.run();
+
   console.log('\nTest Results');
   console.log('-------------');
   console.log(`Configuration Loading:                           ${configOk ? 'PASS' : 'FAIL'}`);
@@ -124,6 +128,9 @@ async function main() {
   console.log(
     `task-queue-neo4j-resource-class suite:           ${taskQueueNeo4jResourceClassResult.fail === 0 ? 'PASS' : 'FAIL'} (${taskQueueNeo4jResourceClassResult.pass} passed, ${taskQueueNeo4jResourceClassResult.fail} failed)`
   );
+  console.log(
+    `entrypoint-template-rendering suite:             ${entrypointTemplateRenderingResult.fail === 0 ? 'PASS' : 'FAIL'} (${entrypointTemplateRenderingResult.pass} passed, ${entrypointTemplateRenderingResult.fail} failed)`
+  );
 
   const overallOk =
     configOk &&
@@ -139,7 +146,8 @@ async function main() {
     graperankSharedCsvRaceResult.fail === 0 &&
     communityClassThreadPullResult.fail === 0 &&
     taskQueueBullmqResult.fail === 0 &&
-    taskQueueNeo4jResourceClassResult.fail === 0;
+    taskQueueNeo4jResourceClassResult.fail === 0 &&
+    entrypointTemplateRenderingResult.fail === 0;
   console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);
   process.exit(overallOk ? 0 : 1);
 }
