@@ -32,6 +32,9 @@
 19. [Key Design Decisions](#19-key-design-decisions)
 20. [People](#20-people)
 21. [Glossary](#21-glossary)
+22. [Community-Reference Model](#22-community-reference-model)
+23. [Class-Thread Membership Tags (`n`, `s`)](#23-class-thread-membership-tags-n-s)
+24. [Task Queue (BullMQ behind /api/run-task)](#24-task-queue-bullmq-behind-apirun-task)
 
 ---
 
@@ -1616,6 +1619,37 @@ A firmware concept may carry a `communityReference` — `{ headerATag, relayHint
 - `IS_A_PROPERTY_OF` (property tree). Candidate letter TBD. Hot-read-path candidate.
 - `REFERENCES` (Story #8 community-reference; flaw-A exit). Candidate letter TBD. Open question: publishing semantics — consumer-owned tag on consumer's concept Header, or separate "reference manifest" kind-39999 event?
 - Editorial relationships (`RECOMMENDED_BY`, `ENDORSES`, etc.). Designed deliberately in a future ADR (trust, provenance, first-class-vs-stub semantics).
+
+---
+
+## 24. Task Queue (BullMQ behind /api/run-task)
+
+Operator-triggered tasks (recalculate scores, refresh search index, sync WoT, etc.) flow through a durable **per-task BullMQ queue** behind `POST /api/run-task`. The queue lives inside the `tapestry` container alongside Express and is backed by the same Redis container the strfry-stream-consumer and session store use (separate keyspaces; no conflict).
+
+**Topology — per-task Queue + Worker.** At brainstorm startup, `bin/control-panel.js` reads `src/manage/taskQueue/taskRegistry.json` and for each registered task constructs one BullMQ `Queue` plus one in-process `Worker`. The Worker's processor (`src/manage/taskQueue/queue/processor.js#processJob`) spawns `launchChildTask.sh` with the right env + args — `pgrep` belt-and-suspenders inside the bash script still guards against concurrent spawns. Job deduplication uses BullMQ's native `jobId`: `${taskName}:${pubkey}` for customer-scoped tasks; `${taskName}` alone for non-customer ones. Concurrent submissions for the same `(taskName, pubkey)` join one execution.
+
+**Feature flag — `TASK_QUEUE_ENABLED`.** Boolean knob in `/etc/brainstorm.conf`. When `true` (default since story #17 / ADR 0015), `/api/run-task` enqueues; when `false` (rollback path), the legacy direct-spawn code runs unchanged. Redis-down with the flag on returns HTTP 503 + `{code:"QUEUE_UNAVAILABLE"}` so monitoring distinguishes it from generic 5xx.
+
+**Source-of-truth chain (config flow).** The flag's lifecycle traces back through stories #16 + #17:
+```
+config/brainstorm.conf.template            (repo-tracked source of truth)
+         │  (rendered at container start by tools/render-conf-template.js,
+         │   substituting ${VAR_NAME} against process.env)
+         ▼
+/etc/brainstorm.conf                       (regenerated unconditionally on every restart)
+         │  (sourced by start-brainstorm.sh)
+         ▼
+bin/control-panel.js                       (reads TASK_QUEUE_ENABLED via brainstormConfig.get)
+```
+The drift sentinels in `test/entrypoint-template-rendering.test.js` (T7 + T8) trip CI if a future change reintroduces a `<<CONFEOF` heredoc in `docker/entrypoint.sh` or moves off exactly-one `render-conf-template.js` invocation.
+
+**Operator UI — BullBoard.** When the flag is on, BullBoard mounts at `/admin/queues/` behind a custom `requireOwnerOrAdmin` middleware (story #18 / ADR 0016). The session pubkey must equal `BRAINSTORM_OWNER_PUBKEY` or be in `BRAINSTORM_ADMIN_PUBKEYS`; everyone else gets HTTP 403 with `error: "Owner or admin access required"`. Admin-management endpoints (`/api/admin/list|add|remove`) deliberately stay on the stricter `requireOwnerOnly` — admins cannot promote or remove other admins (privilege-escalation guardrail).
+
+**Cross-task serialization — `neo4j-heavy` resource class.** BullMQ's built-in concurrency cap is per-queue; story #15 / ADR 0013 adds a Redis-backed counted semaphore that gates cross-queue concurrency on registry-tagged tasks. The owner trio (`calculateOwnerHops`, `calculateOwnerPageRank`, `calculateOwnerGrapeRank`) is tagged `resourceClass: "neo4j-heavy"`; default cap = 1 (one heavy operation at a time). Cap configurable per class in `/etc/brainstorm-task-queue.json`. Wait events emit `resource_class_wait_begin` / `resource_class_wait_end` / `resource_class_released` tokens to `events.jsonl` for operator triage. Untagged tasks bypass the semaphore entirely (no overhead).
+
+**Discoverability.** The dashboard at `/tapestry` shows an "Admin tools" panel (owner+admin only) with a one-click link to BullBoard — see OPERATIONS.md §10.2 for the operator-side details.
+
+**ADRs:** [0012](engineering-team/decisions/0012-task-queue-phase-1-bullmq.md) (BullMQ phase 1); [0013](engineering-team/decisions/0013-task-queue-neo4j-resource-class.md) (resource-class semaphore); [0014](engineering-team/decisions/0014-entrypoint-template-rendering.md) (template-driven config); [0015](engineering-team/decisions/0015-task-queue-on-by-default.md) (default flipped on); [0016](engineering-team/decisions/0016-bullboard-admin-access.md) (owner-or-admin gate).
 
 ---
 

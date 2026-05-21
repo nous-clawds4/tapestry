@@ -431,6 +431,8 @@ The admin-management endpoints (`/api/admin/list|add|remove`) deliberately use a
 
 > **Be careful.** Retry / remove / pause directly affect running calculations. The board title says "Owner + Admin" as a reminder; the auth gate prevents access by non-owner / non-admin sessions but does NOT prevent admins from making destructive choices.
 
+**Dashboard shortcut** (story #19 / ADR 0017). The Tapestry dashboard at `/tapestry` displays an "🛠️ Admin tools" panel for owner + admin sessions, with one-click links to BullBoard (`/admin/queues/`) and the Neo4j Browser (env-aware URL from `/api/status:neo4jBrowserUrl`). The panel is hidden entirely for non-owner / non-admin / unauthenticated visitors. BullBoard's own header also carries a `← Tapestry Dashboard` back-link, closing the navigation loop. Operators don't need to type `/admin/queues/` directly anymore.
+
 ### 10.3 Per-task concurrency config
 
 Server-side file at `/etc/brainstorm-task-queue.json`:
