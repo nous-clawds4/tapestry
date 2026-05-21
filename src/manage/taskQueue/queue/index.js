@@ -102,7 +102,7 @@ async function initTaskQueue({ registry } = {}) {
     const taskDef = registry.tasks[taskName];
     const worker = new Worker(
       taskName,
-      async (job) => processor.process(job, taskDef),
+      async (job) => processor.processJob(job, taskDef),
       { connection: redis, concurrency }
     );
     worker.on('failed', (job, err) => {

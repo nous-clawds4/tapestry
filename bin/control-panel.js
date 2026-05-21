@@ -254,10 +254,9 @@ app.use(authMiddleware);
 
 // Register API modules (async — loads TA key from secure storage) then start server
 (async () => {
-  await api.register(app);
-  console.log('API routes registered');
-
-  // Initialize the BullMQ task queue (story #13 / ADR 0010).
+  // Initialize the BullMQ task queue (story #13 / ADR 0010) BEFORE api.register
+  // so the BullBoard mount inside api/index.js sees a populated queue list
+  // (getAllQueues() returns the in-flight Queues, not []).
   // Gated on TASK_QUEUE_ENABLED — when off, the queue is never constructed
   // and the legacy direct-spawn path in /api/run-task runs unchanged
   // (that IS the rollback path).
@@ -274,6 +273,9 @@ app.use(authMiddleware);
   } else {
     console.log('Task queue disabled (TASK_QUEUE_ENABLED=false) — legacy direct-spawn path active');
   }
+
+  await api.register(app);
+  console.log('API routes registered');
 
   // Initialize the scheduled tasks timer (restores schedule from config if enabled)
   const scheduledTasks = require('../src/api/scheduled-tasks');

@@ -65,8 +65,12 @@ function parseLaunchResult(stdout) {
  * BullMQ processor entry point. Spawns launchChildTask.sh; resolves with
  * the structured result; rejects on spawn error so BullMQ marks the job
  * failed.
+ *
+ * NB: named `processJob` (not `process`) — using `process` here would shadow
+ * the Node.js global inside the function body and `process.env` would resolve
+ * to the function's `.env` (undefined), breaking the spawn's env inheritance.
  */
-function process(job, taskDef) {
+function processJob(job, taskDef) {
   return new Promise((resolve, reject) => {
     const { taskName, customerArgs, queryParams, timeoutMs } = job.data;
 
@@ -130,4 +134,4 @@ function process(job, taskDef) {
   });
 }
 
-module.exports = { process, buildChildArgs, parseLaunchResult };
+module.exports = { processJob, buildChildArgs, parseLaunchResult };
