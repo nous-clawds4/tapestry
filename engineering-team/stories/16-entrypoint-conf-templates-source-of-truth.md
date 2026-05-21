@@ -90,6 +90,6 @@ Step 1 is the larger and riskier of the two; Step 2 is mechanically simple once 
 
 ## Linked artifacts
 
-- ADR: (filled in after Architecture phase)
+- ADR: [0014-entrypoint-template-rendering.md](../decisions/0014-entrypoint-template-rendering.md)
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
