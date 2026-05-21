@@ -68,4 +68,4 @@ Deferred to Architect:
 
 - ADR: [0015-task-queue-on-by-default.md](../decisions/0015-task-queue-on-by-default.md)
 - Test plan: [17-task-queue-on-by-default.test-plan.md](17-task-queue-on-by-default.test-plan.md)
-- Review: (filled in after Review phase)
+- Review: [../reviews/17-task-queue-on-by-default.md](../reviews/17-task-queue-on-by-default.md) — **PASS** end-to-end (14/14 suites + cycle-local smoke S1 renderer output + S2 in-container npm test PROVED on the live container).
