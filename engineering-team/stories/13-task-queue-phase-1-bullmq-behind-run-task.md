@@ -95,6 +95,6 @@ To be resolved by the Architect via `/api/concept-graph/summaries`:
 
 ## Linked artifacts
 
-- ADR: [0010-task-queue-phase-1-bullmq.md](../decisions/0010-task-queue-phase-1-bullmq.md)
+- ADR: [0012-task-queue-phase-1-bullmq.md](../decisions/0012-task-queue-phase-1-bullmq.md) — renumbered from 0010 at merge time (story #14 consumed 0010+0011 in parallel)
 - Test plan: [13-task-queue-phase-1-bullmq-behind-run-task.test-plan.md](13-task-queue-phase-1-bullmq-behind-run-task.test-plan.md)
 - Review: [../reviews/13-task-queue-phase-1-bullmq-behind-run-task.md](../reviews/13-task-queue-phase-1-bullmq-behind-run-task.md) — **PASS** end-to-end (initial CHANGES REQUESTED resolved by `f78920ae`; cycle-local smoke confirmed against live stack with deps installed).

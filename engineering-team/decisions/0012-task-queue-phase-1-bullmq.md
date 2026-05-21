@@ -1,4 +1,6 @@
-# ADR 0010: Route /api/run-task through BullMQ (task queue, phase 1)
+# ADR 0012: Route /api/run-task through BullMQ (task queue, phase 1)
+
+> **Renumbered from ADR 0010 → 0012 at merge time:** story #14 (community-class-thread-pull) shipped to staging in parallel and consumed ADR slots 0010 + 0011 (its architecture + amendment). This ADR's content is unchanged; only the number moved. Inline references to "ADR 0010" in the test code's assertion messages and the test plan's "Verification" paste-in remain as historical artifacts of when this story was numbered 0010 on its branch.
 
 **Status:** Proposed
 **Date:** 2026-05-20
@@ -204,7 +206,7 @@ The Implementer reads this section verbatim.
 
 - **`config/brainstorm.conf.template`** — append:
   ```bash
-  # Task queue (story #13 / ADR 0010). When true, /api/run-task enqueues
+  # Task queue (story #13 / ADR 0012). When true, /api/run-task enqueues
   # jobs through BullMQ instead of directly spawning launchChildTask.sh.
   # When false (default in phase 1), the legacy direct-spawn path runs
   # unchanged — this is the rollback path. Requires Redis (already a

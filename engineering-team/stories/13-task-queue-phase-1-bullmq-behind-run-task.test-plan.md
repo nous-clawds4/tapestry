@@ -1,7 +1,7 @@
 # Test Plan: Story 13 — Route /api/run-task through BullMQ (task queue, phase 1)
 
 **Story:** `engineering-team/stories/13-task-queue-phase-1-bullmq-behind-run-task.md`
-**ADR:** `engineering-team/decisions/0010-task-queue-phase-1-bullmq.md`
+**ADR:** `engineering-team/decisions/0012-task-queue-phase-1-bullmq.md` (renumbered from 0010 at merge — test code's assertion messages still cite "ADR 0010" as a historical artifact)
 **Date:** 2026-05-20
 
 ## Approach
