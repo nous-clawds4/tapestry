@@ -344,6 +344,65 @@ function ConstraintsCheck({ onStatusChange }) {
   );
 }
 
+/* ─── Admin Tools ─────────────────────────────────────────── */
+/**
+ * Operator-tier escape hatch to external admin UIs: BullBoard (task queue
+ * inspector) and Neo4j Browser. Hidden entirely unless the signed-in user
+ * is the owner OR in BRAINSTORM_ADMIN_PUBKEYS.
+ *
+ * The client-side classification check is defense-in-depth — actual access
+ * control happens at the server middleware (story #18 / ADR 0016's
+ * requireOwnerOrAdmin guards /admin/queues). Non-operators can't reach
+ * either tool even if they bypass this UI gate.
+ *
+ * Story #19 / ADR 0017.
+ */
+function AdminToolsPanel() {
+  const { user } = useAuth();
+  const { neo4jBrowserUrl } = useConfig();
+
+  const isOperator = user?.classification === 'owner' || user?.classification === 'admin';
+  if (!isOperator) return null;
+  if (!neo4jBrowserUrl) return null; // wait for config to load — avoids broken Neo4j href flash
+
+  const tools = [
+    {
+      label: 'Task Queue (BullBoard)',
+      description: 'View, retry, pause, or remove queued tasks.',
+      href: '/admin/queues/',
+      emoji: '⚙️',
+    },
+    {
+      label: 'Neo4j Browser',
+      description: 'Direct access to the knowledge graph database.',
+      href: `${neo4jBrowserUrl}/browser/preview/`,
+      emoji: '🗄️',
+    },
+  ];
+
+  return (
+    <div className="dashboard-card">
+      <h3 style={{ margin: '0 0 0.75rem', fontSize: '1rem' }}>🛠️ Admin tools</h3>
+      <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+        {tools.map(t => (
+          <a
+            key={t.label}
+            href={t.href}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="btn"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
+            title={t.description}
+          >
+            <span style={{ fontSize: '1.1rem' }}>{t.emoji}</span>
+            <span>{t.label}</span>
+          </a>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /* ─── Recent Activity ─────────────────────────────────────── */
 
 function RecentActivity() {
@@ -739,6 +798,7 @@ export default function Dashboard() {
       <ConstraintsCheck onStatusChange={setConstraintsOk} />
       <StatsRow />
       <HealthRow />
+      <AdminToolsPanel />
       <TapestryKeyStatus />
       <RecentActivity />
     </div>
