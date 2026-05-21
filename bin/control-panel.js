@@ -257,6 +257,24 @@ app.use(authMiddleware);
   await api.register(app);
   console.log('API routes registered');
 
+  // Initialize the BullMQ task queue (story #13 / ADR 0010).
+  // Gated on TASK_QUEUE_ENABLED — when off, the queue is never constructed
+  // and the legacy direct-spawn path in /api/run-task runs unchanged
+  // (that IS the rollback path).
+  const taskQueueEnabled = getConfigFromFile('TASK_QUEUE_ENABLED', 'false') === 'true';
+  if (taskQueueEnabled) {
+    try {
+      const taskQueue = require('../src/manage/taskQueue/queue');
+      await taskQueue.initTaskQueue();
+      console.log('Task queue initialized (TASK_QUEUE_ENABLED=true)');
+    } catch (e) {
+      console.error(`Failed to initialize task queue: ${e.message}`);
+      console.error('Continuing without queue — /api/run-task will return 503 QUEUE_UNAVAILABLE');
+    }
+  } else {
+    console.log('Task queue disabled (TASK_QUEUE_ENABLED=false) — legacy direct-spawn path active');
+  }
+
   // Initialize the scheduled tasks timer (restores schedule from config if enabled)
   const scheduledTasks = require('../src/api/scheduled-tasks');
   scheduledTasks.initScheduler();

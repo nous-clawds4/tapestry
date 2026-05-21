@@ -405,3 +405,58 @@ If a droplet **fails** one of the first two checks, apply the hardening from §6
 If a droplet shows high abuse counts in the third check but the first two pass, fail2ban is doing its job — the abuse traffic is being banned faster than it can saturate sshd. No action needed.
 
 **Tracking:** add a row to §8 "Active tracking issues" when starting the audit; remove it once all four droplets pass. The audit doesn't need to be scheduled — it's a one-time backfill; new droplets are protected by §6.3 step 2 going forward.
+
+---
+
+## 10. Task queue (BullMQ behind /api/run-task)
+
+**Story #13 / ADR 0010.** Phase 1 of a multi-phase migration that routes `/api/run-task` through a real durable queue. Feature-flagged off by default in this phase — flip on per deployment after smoke confirms.
+
+### 10.1 Feature flag
+
+`TASK_QUEUE_ENABLED` in `/etc/brainstorm.conf` controls whether `/api/run-task` enqueues jobs through BullMQ or runs the legacy direct-spawn path.
+
+- `TASK_QUEUE_ENABLED=false` (default) — legacy direct-spawn. Zero queue dependency. **This is the rollback path** — flip the flag, `supervisorctl restart brainstorm`, and the queue is out of the picture.
+- `TASK_QUEUE_ENABLED=true` — `/api/run-task` enqueues per-task BullMQ jobs; in-process Workers consume them; `launchChildTask.sh` still spawns the work (its pgrep guard remains as belt-and-suspenders).
+
+When the flag is on and Redis is unreachable, `/api/run-task` returns `503` with body `{success: false, error: "task queue (Redis) unreachable", code: "QUEUE_UNAVAILABLE"}` so monitoring can distinguish this failure from 4xx client errors or 5xx unhandled exceptions.
+
+### 10.2 BullBoard UI (operator queue inspector)
+
+When the flag is on, BullBoard is mounted at `https://<host>/admin/queues` behind owner-only auth (same gate as `/api/admin/*`). It shows per-task queues with active / waiting / completed / failed counts, and exposes retry / remove / **pause** controls.
+
+> **Be careful.** Retry / remove / pause directly affect running calculations. The board title says "Owner Only" as a reminder; the auth gate prevents accidental access by non-owner sessions.
+
+### 10.3 Per-task concurrency config
+
+Server-side file at `/etc/brainstorm-task-queue.json`:
+
+```json
+{
+  "defaultConcurrency": 1,
+  "concurrencyByTask": {
+    "calculateCustomerGrapeRank": 1
+  }
+}
+```
+
+Unset = `defaultConcurrency`. Phase 1 ships with everything at `1` to match today's effective serial behavior; the operator tunes upward task-by-task after observing real load.
+
+A future sibling story will introduce a shared "Neo4j-heavy class" concurrency cap across multiple task types (cross-task serialization) — that's tracked separately and out of scope for phase 1.
+
+### 10.4 Drain / pause for maintenance
+
+To pause all incoming jobs during planned maintenance (e.g., a Neo4j restart):
+
+1. Open BullBoard at `/admin/queues`.
+2. Click each queue's **Pause** button. Jobs in `active` complete; new submissions land in `waiting` and don't dispatch.
+3. Perform maintenance.
+4. Click each queue's **Resume** button. Queued jobs dispatch in order.
+
+To drain a queue (kill all waiting jobs for one task without affecting active ones), use the queue's "Clear waiting" button in BullBoard.
+
+A faster alternative for full deployments: flip `TASK_QUEUE_ENABLED=false`, `supervisorctl restart brainstorm`. The legacy direct-spawn path absorbs new submissions; the queued jobs remain in Redis (AOF-persisted) and resume when the flag flips back on.
+
+### 10.5 Redis persistence
+
+`docker-compose.yml` runs Redis with `--appendonly yes --appendfsync everysec`. Queued jobs survive `docker restart tapestry-redis` and container updates. No adverse interaction with the strfry-stream-consumer (which uses `blpop` on `strfry:events`) — AOF only adds an on-disk append per list operation.

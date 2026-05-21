@@ -4,6 +4,7 @@
  */
 
 // Import API modules
+const brainstormConfig = require('../utils/brainstormConfig');
 const { getStrfryStatus } = require('./strfry/strfryStatus');
 const { handleRouterStatus } = require('./strfry/routerStatus');
 const { handleUpdateRouterConfig, handleToggleStream, handleGetPresets, handleListPlugins, handleRestartRouter, handleRestoreDefaults, initRouter } = require('./strfry/routerConfig');
@@ -455,6 +456,22 @@ async function register(app) {
     app.get('/api/admin/list', adminApi.requireOwnerOnly, adminApi.handleListAdmins);
     app.post('/api/admin/add', adminApi.requireOwnerOnly, adminApi.handleAddAdmin);
     app.post('/api/admin/remove', adminApi.requireOwnerOnly, adminApi.handleRemoveAdmin);
+
+    // ── BullBoard (task queue operations UI) — owner-only at /admin/queues ──
+    // Story #13 / ADR 0010. Mounted only when TASK_QUEUE_ENABLED=true; when
+    // the flag is off, the queue isn't initialized and the route isn't mounted.
+    if (brainstormConfig.get('TASK_QUEUE_ENABLED') === 'true') {
+        try {
+            const taskQueue = require('../manage/taskQueue/queue');
+            const { mountBullBoard } = require('../manage/taskQueue/queue/bullBoardMount');
+            mountBullBoard(app, {
+                queues: taskQueue.getAllQueues(),
+                requireOwnerOnly: adminApi.requireOwnerOnly
+            });
+        } catch (e) {
+            console.warn(`[api] Skipping BullBoard mount: ${e.message}`);
+        }
+    }
 
     // ── Brainstorm Assistant API ──
     const assistantApi = require('./assistant');

@@ -37,3 +37,11 @@ export BRAINSTORM_KEYS_FILE="/usr/local/lib/node_modules/brainstorm/src/nostr/ke
 
 # Control panel configuration
 export CONTROL_PANEL_PORT="7778"
+
+# Task queue (story #13 / ADR 0010). When true, /api/run-task enqueues jobs
+# through BullMQ instead of directly spawning launchChildTask.sh. When false
+# (default in phase 1), the legacy direct-spawn path runs unchanged — this is
+# the rollback path. Requires Redis (already a runtime dependency for sessions
+# and the strfry-stream-consumer). BullBoard UI is mounted at /admin/queues
+# (owner-only) only when this flag is true.
+export TASK_QUEUE_ENABLED=false
