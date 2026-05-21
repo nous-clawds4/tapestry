@@ -1,6 +1,6 @@
 # Story 14: Speed up reconciliation — incremental mode with periodic full fallback
 
-**Status:** Draft
+**Status:** Approved
 **Created:** 2026-05-20
 **Type:** Feature
 
