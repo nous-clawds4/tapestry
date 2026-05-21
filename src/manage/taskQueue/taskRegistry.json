@@ -539,6 +539,7 @@
 
     "calculateOwnerGrapeRank": {
       "name": "Calculate Owner GrapeRank",
+      "resourceClass": "neo4j-heavy",
       "categories": ["algorithms", "owner"],
       "description": "Calculates personalized GrapeRank scores for the instance owner",
       "scripts": [
@@ -592,6 +593,7 @@
 
     "calculateOwnerPageRank": {
       "name": "Calculate Owner PageRank",
+      "resourceClass": "neo4j-heavy",
       "categories": ["algorithms", "owner"],
       "description": "Calculates personalized PageRank scores for the instance owner",
       "scripts": [
@@ -635,6 +637,7 @@
 
     "calculateOwnerHops": {
       "name": "Calculate Owner Hops (Frontier)",
+      "resourceClass": "neo4j-heavy",
       "categories": ["algorithms", "owner"],
       "description": "Calculates hop distances from the instance owner using frontier-based BFS — only scans each hop level's edges, not the entire graph",
       "scripts": [

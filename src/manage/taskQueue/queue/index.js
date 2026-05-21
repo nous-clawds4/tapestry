@@ -25,6 +25,7 @@ const { Queue, Worker, QueueEvents } = require('bullmq');
 const Redis = require('ioredis');
 const brainstormConfig = require('../../../utils/brainstormConfig');
 const processor = require('./processor');
+const resourceSemaphore = require('./resourceSemaphore');
 
 const QUEUE_CONFIG_PATH = '/etc/brainstorm-task-queue.json';
 const DEFAULT_QUEUE_CONFIG = { defaultConcurrency: 1, concurrencyByTask: {} };
@@ -87,6 +88,15 @@ async function initTaskQueue({ registry } = {}) {
   const queueConfig = loadQueueConfig();
   const redis = createRedisConnection();
 
+  // Construct the cross-task resource-class semaphore (story #15 / ADR 0013).
+  // When resourceClassCaps is empty/missing, only tagged tasks (those with
+  // taskDef.resourceClass set) hit the wrap below — untagged tasks call the
+  // processor directly with no overhead, no behavior change vs story #13.
+  const semaphore = resourceSemaphore.createSemaphore(
+    redis,
+    queueConfig.resourceClassCaps || {}
+  );
+
   const queues = new Map();
   const workers = new Map();
   const queueEvents = new Map();
@@ -100,11 +110,27 @@ async function initTaskQueue({ registry } = {}) {
       queueConfig.defaultConcurrency;
 
     const taskDef = registry.tasks[taskName];
-    const worker = new Worker(
-      taskName,
-      async (job) => processor.processJob(job, taskDef),
-      { connection: redis, concurrency }
-    );
+    const resourceClass = taskDef && taskDef.resourceClass;
+
+    // Conditional Worker-callback wrap. Tagged tasks acquire the resource-
+    // class semaphore before processor.processJob runs; untagged tasks call
+    // the processor directly (story #13 behavior unchanged).
+    const workerFn = resourceClass
+      ? async (job) => {
+          const release = await semaphore.acquire(resourceClass, {
+            taskName,
+            target: (job && job.data && job.data.customerArgs && job.data.customerArgs.pubkey) || '',
+            jobId: job && job.id
+          });
+          try {
+            return await processor.processJob(job, taskDef);
+          } finally {
+            await release();
+          }
+        }
+      : async (job) => processor.processJob(job, taskDef);
+
+    const worker = new Worker(taskName, workerFn, { connection: redis, concurrency });
     worker.on('failed', (job, err) => {
       console.error(`[task-queue] Worker for ${taskName} failed job ${job && job.id}: ${err && err.message}`);
     });
@@ -113,8 +139,12 @@ async function initTaskQueue({ registry } = {}) {
     queueEvents.set(taskName, new QueueEvents(taskName, { connection: redis }));
   }
 
-  _state = { redis, queues, workers, queueEvents, registry, queueConfig };
-  console.log(`[task-queue] Initialized ${queues.size} queues + workers (defaultConcurrency=${queueConfig.defaultConcurrency})`);
+  _state = { redis, queues, workers, queueEvents, registry, queueConfig, semaphore };
+  console.log(
+    `[task-queue] Initialized ${queues.size} queues + workers ` +
+    `(defaultConcurrency=${queueConfig.defaultConcurrency}, ` +
+    `resourceClasses=${Object.keys(queueConfig.resourceClassCaps || {}).join(',') || 'none'})`
+  );
   return _state;
 }
 

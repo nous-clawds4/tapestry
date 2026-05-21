@@ -35,6 +35,7 @@ const communityReferenceSupersetLink = require('./community-reference-superset-l
 const graperankSharedCsvRace = require('./graperank-shared-csv-race.test.js');
 const communityClassThreadPull = require('./community-class-thread-pull.test.js');
 const taskQueueBullmq = require('./task-queue-bullmq.test.js');
+const taskQueueNeo4jResourceClass = require('./task-queue-neo4j-resource-class.test.js');
 
 async function main() {
   console.log('Running Brainstorm tests...\n');
@@ -78,6 +79,9 @@ async function main() {
   console.log('\ntask-queue-bullmq suite:');
   const taskQueueBullmqResult = await taskQueueBullmq.run();
 
+  console.log('\ntask-queue-neo4j-resource-class suite:');
+  const taskQueueNeo4jResourceClassResult = await taskQueueNeo4jResourceClass.run();
+
   console.log('\nTest Results');
   console.log('-------------');
   console.log(`Configuration Loading:                           ${configOk ? 'PASS' : 'FAIL'}`);
@@ -117,6 +121,9 @@ async function main() {
   console.log(
     `task-queue-bullmq suite:                         ${taskQueueBullmqResult.fail === 0 ? 'PASS' : 'FAIL'} (${taskQueueBullmqResult.pass} passed, ${taskQueueBullmqResult.fail} failed)`
   );
+  console.log(
+    `task-queue-neo4j-resource-class suite:           ${taskQueueNeo4jResourceClassResult.fail === 0 ? 'PASS' : 'FAIL'} (${taskQueueNeo4jResourceClassResult.pass} passed, ${taskQueueNeo4jResourceClassResult.fail} failed)`
+  );
 
   const overallOk =
     configOk &&
@@ -131,7 +138,8 @@ async function main() {
     communityReferenceSupersetLinkResult.fail === 0 &&
     graperankSharedCsvRaceResult.fail === 0 &&
     communityClassThreadPullResult.fail === 0 &&
-    taskQueueBullmqResult.fail === 0;
+    taskQueueBullmqResult.fail === 0 &&
+    taskQueueNeo4jResourceClassResult.fail === 0;
   console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);
   process.exit(overallOk ? 0 : 1);
 }
