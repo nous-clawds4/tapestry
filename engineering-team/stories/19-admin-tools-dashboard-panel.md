@@ -96,4 +96,4 @@ Deferred to Architect:
 
 - ADR: [0017-admin-tools-dashboard-panel.md](../decisions/0017-admin-tools-dashboard-panel.md)
 - Test plan: [19-admin-tools-dashboard-panel.test-plan.md](19-admin-tools-dashboard-panel.test-plan.md)
-- Review: (filled in after Review phase)
+- Review: [../reviews/19-admin-tools-dashboard-panel.md](../reviews/19-admin-tools-dashboard-panel.md) — **PASS** end-to-end (16/16 suites + cycle-local bundle inspection shows new tokens present & `localhost:8080` bug eliminated from served bundle).
