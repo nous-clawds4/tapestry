@@ -94,6 +94,6 @@ Deferred to Architect:
 
 ## Linked artifacts
 
-- ADR: (filled in after Architecture phase)
+- ADR: [0017-admin-tools-dashboard-panel.md](../decisions/0017-admin-tools-dashboard-panel.md)
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
