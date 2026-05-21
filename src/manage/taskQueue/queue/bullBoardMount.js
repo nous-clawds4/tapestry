@@ -46,7 +46,11 @@ function mountBullBoard(app, { queues, authMiddleware }) {
       uiConfig: {
         boardTitle: 'Tapestry Task Queue — Owner + Admin',
         boardLogo: { path: '' },
-        miscLinks: []
+        // Story #19 / ADR 0017 — back-link from BullBoard's header to the
+        // Tapestry dashboard so operators close the navigation loop.
+        miscLinks: [
+          { text: '← Tapestry Dashboard', url: '/tapestry' }
+        ]
       }
     }
   });

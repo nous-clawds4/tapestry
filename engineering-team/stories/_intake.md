@@ -168,3 +168,43 @@ Option 1 is structurally cleaner; option 2 is a one-line fix. Architect's call.
 **Strictness:** Standard
 **Phase path:** Planning → Architecture (likely brief) → (Test Design optional — if option 2, just a sentinel that the log line isn't emitted at info level; if option 1, a sentinel that `/etc/brainstorm.conf` is parsed at most once per process lifetime) → Implementation → Review
 **Priority:** Low. Captured during the operator's 2026-05-21 plan-of-plans (steps 1 + 2 done, step 3 — this — deliberately deferred). Pick up when operator-experience polish is in season; no urgency.
+
+---
+
+## 2026-05-21 — UX: /relay public HTTP landing page is unhelpful plain-text (+ NIP-11 merge silently incomplete)
+
+**Surfaced during:** Story #19 planning chat. Operator asked why `https://staging.brainstorm.world/relay` shows "Tapestry NIP-50 Relay Proxy - connect via WebSocket" instead of the more useful HTML landing page that most strfry deployments show (e.g., the older Tapestry instance at `wss://straycat.brainstorm.social/relay`).
+
+**Architectural background:**
+- `/relay` routes (via nginx) to a custom NIP-50 search proxy at `nip50-proxy/src/index.js`, NOT directly to strfry. The proxy translates `REQ` messages containing NIP-50 search filters into Meilisearch queries with WoT scoring, and forwards everything else through to strfry on `127.0.0.1:7777`.
+- This proxy is a real differentiator — straycat doesn't have it, so its `/relay` goes straight to strfry's native HTTP face (which serves a default HTML landing page when no `Accept: application/nostr+json` header is present).
+- The current Tapestry proxy was built primarily for WebSocket clients; the HTTP/browser GET case was treated as low-priority. The fallback at [`nip50-proxy/src/index.js:74`](nip50-proxy/src/index.js#L74) just returns plain text.
+
+**Two related issues (one bug + one UX):**
+
+1. **Bug: NIP-11 merge silently drops strfry's native fields.**
+   - `nip50-proxy/src/nip11.js:18-38` fetches strfry's NIP-11 via HTTP to `127.0.0.1:7777` and is supposed to spread its fields into the merged response. But the production response carries ONLY the NIP-50-added fields (`software`, `supported_nips`, `search_capabilities`) — no `name`, `pubkey`, `contact`, `description`, `limitation`, etc.
+   - Direct comparison: straycat's `/relay` NIP-11 includes all the strfry-side fields (e.g., `"contact": "nostr: npub1...", "description": "Brainstorm: a personalized WoT relay featuring the Grapevine", "limitation": { "max_limit": 500, ... }`). Tapestry's `/relay` NIP-11 is missing all of those.
+   - Likely cause: either strfry's HTTP face isn't reachable on `127.0.0.1:7777` from inside the proxy's process, OR the request is silently failing and `fetchStrfryInfo()` falls through to its empty-object fallback at line 37. The function catches errors and logs a warning; check `nip50-proxy.log` for `[nip11] Failed to fetch strfry NIP-11 info` to confirm.
+   - Nostr clients that fetch relay info via NIP-11 currently see an incomplete document. Worth fixing regardless of the UX work.
+
+2. **UX: HTML browser landing page is bare plaintext.**
+   - When a browser GETs `/relay` (i.e., Accept header is `text/html`), the proxy returns one line: `"Tapestry NIP-50 Relay Proxy - connect via WebSocket"`.
+   - A more useful response would be a small HTML page showing: relay name, WebSocket endpoint URL (with copy-to-clipboard hint), supported NIPs (with friendly descriptions especially for the WoT-scored NIP-50 extension Tapestry adds), and possibly a discreet "About this relay" link.
+   - Straycat shows this is the natural expectation — older Tapestry instances inherited strfry's default HTML landing page; the NIP-50 proxy regressed it.
+
+**Out of scope for the immediate triage:**
+- Rewriting the proxy's WebSocket path (works fine).
+- Reorganizing how nginx routes `/relay` (the proxy is the right home; only the HTTP responses need work).
+- Multi-relay or multi-tenant relay-info documents.
+
+**Two plausible fixes for the future story (Architect to weigh):**
+1. **Minimum viable**: fix the NIP-11 merge bug (issue 1) so clients see the full document. Keep the plain-text browser fallback. Stops the bleeding for Nostr clients; punts on the UX work.
+2. **Full UX rebuild**: fix the merge bug AND replace the plain-text fallback with a proper HTML landing page (showing the NIP-11 data in a human-readable form). More work but ships a complete public-facing surface.
+
+The Architect picks the scope when the story gets planned. (1) is genuinely minimum; (2) is the "do it right" path.
+
+**Classification:** Bug (NIP-11 merge) + UX improvement (HTML landing page). Both surfaces are public — anyone on the internet hitting `/relay` sees the result. Not gated to operators.
+**Strictness:** Standard
+**Phase path:** Planning → Architecture → Test Design → Implementation → Review (the merge bug alone might fast-track if the cause is mechanical, but the combined story warrants full harness)
+**Priority:** Low-medium. No Nostr clients are broken (NIP-11 partial document still parses); the relay still works via WebSocket. Worth fixing for relay-discovery hygiene + visitor first-impression, but not blocking any operator workflow.
