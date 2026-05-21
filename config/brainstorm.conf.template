@@ -91,10 +91,10 @@ export BRAINSTORM_SEND_EMAIL_UPDATES=0
 export BRAINSTORM_ACCESS=0
 export BRAINSTORM_CREATED_CONSTRAINTS_AND_INDEXES=0
 
-# Task queue (story #13 / ADR 0012). When true, /api/run-task enqueues jobs
-# through BullMQ instead of directly spawning launchChildTask.sh. When false
-# (default in phase 1), the legacy direct-spawn path runs unchanged — this is
-# the rollback path. Requires Redis (already a runtime dependency for sessions
-# and the strfry-stream-consumer). BullBoard UI is mounted at /admin/queues
-# (owner-only) only when this flag is true.
-export TASK_QUEUE_ENABLED=false
+# Task queue (story #13 / ADR 0012; default flipped from false to true in
+# story #17 / ADR 0015 after the queue path matured in production). When
+# true, /api/run-task enqueues jobs through BullMQ and BullBoard mounts at
+# /admin/queues (owner-only). When false, the legacy direct-spawn path runs
+# unchanged — that's the rollback path. Requires Redis (already a runtime
+# dependency for sessions and the strfry-stream-consumer).
+export TASK_QUEUE_ENABLED=true
