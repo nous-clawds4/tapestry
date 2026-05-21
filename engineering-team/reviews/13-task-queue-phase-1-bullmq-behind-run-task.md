@@ -151,3 +151,35 @@ Both fixes are tiny (one rename + one reorder). Once they land:
 - Then cycle-local smoke can drive S1–S11 against the live stack. **That** validation will decide PASS / re-CHANGES.
 
 The six non-blocking observations are recorded above for context but do not gate this verdict. They can be addressed in follow-up commits or deferred to a future small-fixes story — Implementer's call.
+
+---
+
+## Re-review (after blocker fix commit `f78920ae`)
+
+**Delta:** 3 files, +13 / −7. Implementer applied both fixes exactly as asked plus added anti-regression comments. Diff verified by inspection (`git diff f78920ae^...f78920ae`).
+
+### Gate re-run
+
+`npm test` — **PASS** (18/18 + 11 prior unchanged). `node -c` parse clean on the 3 modified modules.
+
+### Cycle-local smoke verification
+
+Drove the validation that source-sentinels by design couldn't do. Container: `tapestry` Docker (up 7 days). Deployed the full impl tree (`bin/control-panel.js`, `src/api/index.js`, `src/api/manage/commands/runTask.js`, the 3 new `queue/*` modules); installed the new deps (`bullmq`, `@bull-board/api`, `@bull-board/express`) into the container (35 packages added, ~26 s); `supervisorctl restart brainstorm` between flag flips.
+
+| Scenario | Result | Evidence |
+|---|---|---|
+| Flag-off boot (rollback path) | **PASS** | Boot log: `Task queue disabled (TASK_QUEUE_ENABLED=false) — legacy direct-spawn path active`; Tier 2 sanity (`/api/concept-graph/summaries`, `/api/assistant/pubkey`, `/`) all 200; `/admin/queues` correctly serves the React SPA shell (not BullBoard) because the mount block is gated on the flag. |
+| Flag-on boot ordering | **PASS — Blocking #2 RESOLVED** | Boot log shows in order: `Found TASK_QUEUE_ENABLED=true` → `[task-queue] Initialized 51 queues + workers (defaultConcurrency=1)` → `Task queue initialized` → `[bull-board] Mounted at /admin/queues (owner-only)` → `Registered all Brainstorm API endpoints`. The mount log line is direct evidence that `getAllQueues()` returned the populated list when BullBoard tried to attach — the init-order fix works. |
+| S8 — BullBoard mount + owner-only auth gate (AC-11) | **PASS** | `GET /admin/queues` (unauthenticated) → **401** `{"success":false,"error":"Not authenticated"}` from `adminApi.requireOwnerOnly`. Mount IS attached (401 from the middleware proves it; pre-fix it was a SPA-shell 200 because the route didn't exist). |
+| S1-lite — Customer/non-customer task enqueues end-to-end (AC-2, AC-5, AC-6, AC-13) — **Blocking #1 RESOLVED** | **PASS** | `POST /api/run-task?taskName=exportWhitelist` → `{"success":true, "executionMode":"async", "queued":true, "jobId":"exportWhitelist", "pid":null, "status":"queued", ...}` — response shape matches ADR §Sync vs async exactly (jobId=taskName alone for non-customer task per AC-5; `pid:null` legacy field for parser compat). Redis showed `bull:exportWhitelist:active` + `bull:exportWhitelist:exportWhitelist:lock` immediately after enqueue → Worker picked it up. 8 s later: `completed: 1, failed: 0`. Worker log: `[task-queue] processor invoking launchChildTask for: exportWhitelist (job exportWhitelist)` — this single line alone disproves the `process`-shadow bug; if it had survived, the spawn would have thrown TypeError and the job would be in `failed`, not `completed`. |
+| Rollback round-trip (AC-15) | **PASS** | Flipped flag back to `false`, `supervisorctl restart` — boot log: `Found TASK_QUEUE_ENABLED=false` → `Task queue disabled (TASK_QUEUE_ENABLED=false) — legacy direct-spawn path active`. No BullMQ init, no BullBoard mount; everything reverts cleanly. |
+
+### Smoke scenarios deferred to staging
+
+S2 (concurrent dedup contention), S3 (per-customer concurrent execution), S6 (control-panel restart preserves in-flight jobs), S7 (AOF persists across Redis restart), S9 (sync-vs-async at the UI surface), S11 (503 QUEUE_UNAVAILABLE — would require stopping Redis, disruptive to the dev container). These are best driven on staging where the load shape is closer to production and Redis-restart risk is acceptable.
+
+### Final verdict (post-smoke)
+
+**PASS** end-to-end. Both blockers resolved and behaviorally confirmed against the live stack. Code-side review and cycle-local smoke both clean. The six non-blocking observations from the original review remain open as recorded — Implementer's call whether to address inline before the staging promote, in follow-up commits, or in a small-fixes story. None gate this verdict.
+
+The story is ready for the deploy chain (`cycle-staging`, then on explicit confirmation `cycle-prod`). Recommend keeping `TASK_QUEUE_ENABLED=false` in the deploy default and flipping to `true` per environment after staging smoke confirms the behavioral round-trip there.
