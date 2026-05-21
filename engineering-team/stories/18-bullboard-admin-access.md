@@ -83,4 +83,4 @@ Deferred to Architect:
 
 - ADR: [0016-bullboard-admin-access.md](../decisions/0016-bullboard-admin-access.md)
 - Test plan: [18-bullboard-admin-access.test-plan.md](18-bullboard-admin-access.test-plan.md)
-- Review: (filled in after Review phase)
+- Review: [../reviews/18-bullboard-admin-access.md](../reviews/18-bullboard-admin-access.md) — **PASS** end-to-end (15/15 suites + cycle-local boot log shows `(owner+admin)` mount + privilege-escalation guardrail intact at structural, sentinel, and behavioral levels).
