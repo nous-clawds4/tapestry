@@ -66,6 +66,6 @@ ADR 0012 §Forward-compat hook pinned the design space: a resource-class tag on 
 
 ## Linked artifacts
 
-- ADR: (filled in after Architecture phase)
+- ADR: [0013-task-queue-neo4j-resource-class.md](../decisions/0013-task-queue-neo4j-resource-class.md)
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
