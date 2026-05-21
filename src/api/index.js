@@ -457,16 +457,20 @@ async function register(app) {
     app.post('/api/admin/add', adminApi.requireOwnerOnly, adminApi.handleAddAdmin);
     app.post('/api/admin/remove', adminApi.requireOwnerOnly, adminApi.handleRemoveAdmin);
 
-    // ── BullBoard (task queue operations UI) — owner-only at /admin/queues ──
-    // Story #13 / ADR 0010. Mounted only when TASK_QUEUE_ENABLED=true; when
-    // the flag is off, the queue isn't initialized and the route isn't mounted.
+    // ── BullBoard (task queue operations UI) — owner+admin at /admin/queues ──
+    // Story #13 / ADR 0010 (mount). Story #18 / ADR 0016 widened the gate from
+    // owner-only to owner+admin via requireOwnerOrAdmin. Admin-management
+    // endpoints above (/api/admin/list|add|remove) still use requireOwnerOnly —
+    // see ADR 0016 §Decision §privilege-escalation guardrail.
+    // Mounted only when TASK_QUEUE_ENABLED=true; when the flag is off, the
+    // queue isn't initialized and the route isn't mounted.
     if (brainstormConfig.get('TASK_QUEUE_ENABLED') === 'true') {
         try {
             const taskQueue = require('../manage/taskQueue/queue');
             const { mountBullBoard } = require('../manage/taskQueue/queue/bullBoardMount');
             mountBullBoard(app, {
                 queues: taskQueue.getAllQueues(),
-                requireOwnerOnly: adminApi.requireOwnerOnly
+                authMiddleware: adminApi.requireOwnerOrAdmin
             });
         } catch (e) {
             console.warn(`[api] Skipping BullBoard mount: ${e.message}`);

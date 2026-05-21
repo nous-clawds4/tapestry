@@ -37,6 +37,7 @@ const communityClassThreadPull = require('./community-class-thread-pull.test.js'
 const taskQueueBullmq = require('./task-queue-bullmq.test.js');
 const taskQueueNeo4jResourceClass = require('./task-queue-neo4j-resource-class.test.js');
 const entrypointTemplateRendering = require('./entrypoint-template-rendering.test.js');
+const bullboardAdminAccess = require('./bullboard-admin-access.test.js');
 
 async function main() {
   console.log('Running Brainstorm tests...\n');
@@ -86,6 +87,9 @@ async function main() {
   console.log('\nentrypoint-template-rendering suite:');
   const entrypointTemplateRenderingResult = await entrypointTemplateRendering.run();
 
+  console.log('\nbullboard-admin-access suite:');
+  const bullboardAdminAccessResult = await bullboardAdminAccess.run();
+
   console.log('\nTest Results');
   console.log('-------------');
   console.log(`Configuration Loading:                           ${configOk ? 'PASS' : 'FAIL'}`);
@@ -131,6 +135,9 @@ async function main() {
   console.log(
     `entrypoint-template-rendering suite:             ${entrypointTemplateRenderingResult.fail === 0 ? 'PASS' : 'FAIL'} (${entrypointTemplateRenderingResult.pass} passed, ${entrypointTemplateRenderingResult.fail} failed)`
   );
+  console.log(
+    `bullboard-admin-access suite:                    ${bullboardAdminAccessResult.fail === 0 ? 'PASS' : 'FAIL'} (${bullboardAdminAccessResult.pass} passed, ${bullboardAdminAccessResult.fail} failed)`
+  );
 
   const overallOk =
     configOk &&
@@ -147,7 +154,8 @@ async function main() {
     communityClassThreadPullResult.fail === 0 &&
     taskQueueBullmqResult.fail === 0 &&
     taskQueueNeo4jResourceClassResult.fail === 0 &&
-    entrypointTemplateRenderingResult.fail === 0;
+    entrypointTemplateRenderingResult.fail === 0 &&
+    bullboardAdminAccessResult.fail === 0;
   console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);
   process.exit(overallOk ? 0 : 1);
 }

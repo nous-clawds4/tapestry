@@ -312,20 +312,23 @@ test('R3: runTask.js feature-flag branch + 503 QUEUE_UNAVAILABLE preserved (stor
   );
 });
 
-test('R4: BullBoard mount module still exists and references /admin/queues + requireOwnerOnly (story #13 / ADR 0012 contract)', () => {
+test('R4: BullBoard mount module still exists and references /admin/queues + some auth middleware (story #13 / ADR 0012 + story #18 / ADR 0016 contracts)', () => {
   const mount = readSafe(BULLBOARD_MOUNT);
   assert(mount !== null, 'bullBoardMount.js missing — re-baseline this sentinel.');
   assert(
     /['"`]\/admin\/queues['"`]/.test(mount),
     'R4: bullBoardMount.js no longer references the canonical /admin/queues path (story #13 / ADR 0012 ' +
       'regression). The mount path is part of the operator-facing contract; do not change it as a side ' +
-      'effect of story #15.'
+      'effect of story #15 or any subsequent story.'
   );
   assert(
-    /requireOwnerOnly|requireOwner/.test(mount),
-    'R4: bullBoardMount.js no longer references the owner-only auth gate (story #13 / ADR 0012 ' +
-      'regression). retry / remove / pause controls remain capable of affecting in-flight calculations; the ' +
-      'gate stays.'
+    /requireOwnerOnly|requireOwnerOrAdmin|authMiddleware/.test(mount),
+    'R4: bullBoardMount.js no longer references any recognized auth middleware token (story #13 / ADR ' +
+      '0012 + story #18 / ADR 0016 regression). retry / remove / pause controls remain capable of ' +
+      'affecting in-flight calculations; the gate stays. As of story #18 the destructured parameter is ' +
+      'named `authMiddleware` and the middleware passed in is `requireOwnerOrAdmin`; pre-story-#18 it ' +
+      'was `requireOwnerOnly`. Any of these tokens satisfies the contract. If NONE appear, the mount ' +
+      'has been wired without auth — the regression this sentinel exists to catch.'
   );
 });
 

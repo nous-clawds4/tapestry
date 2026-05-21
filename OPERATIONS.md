@@ -425,9 +425,11 @@ When the flag is on and Redis is unreachable, `/api/run-task` returns `503` with
 
 ### 10.2 BullBoard UI (operator queue inspector)
 
-When the flag is on, BullBoard is mounted at `https://<host>/admin/queues` behind owner-only auth (same gate as `/api/admin/*`). It shows per-task queues with active / waiting / completed / failed counts, and exposes retry / remove / **pause** controls.
+When the flag is on, BullBoard is mounted at `https://<host>/admin/queues` behind **owner-or-admin auth** (story #18 / ADR 0016, widened from owner-only in story #13). The owner and any pubkey listed in `BRAINSTORM_ADMIN_PUBKEYS` get full access — view queues, retry / remove / **pause** jobs. The board shows per-task queues with active / waiting / completed / failed counts.
 
-> **Be careful.** Retry / remove / pause directly affect running calculations. The board title says "Owner Only" as a reminder; the auth gate prevents accidental access by non-owner sessions.
+The admin-management endpoints (`/api/admin/list|add|remove`) deliberately use a stricter owner-only gate; admins cannot promote or remove other admins. Only the owner can change the admin list.
+
+> **Be careful.** Retry / remove / pause directly affect running calculations. The board title says "Owner + Admin" as a reminder; the auth gate prevents access by non-owner / non-admin sessions but does NOT prevent admins from making destructive choices.
 
 ### 10.3 Per-task concurrency config
 
