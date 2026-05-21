@@ -135,3 +135,36 @@ Append-only log of incoming requests, raw, with classification and chosen phase 
 **Classification:** Bug
 **Strictness:** Standard
 **Phase path:** Planning → Architecture → Test Design → Implementation → Review (Architecture NOT skipped — the fix has real design choices: per-customer CSV paths vs shared-with-lock vs separate refresh task. ADR warranted.)
+
+---
+
+## 2026-05-21 — Cleanup: per-request /etc/brainstorm.conf re-read spam in brainstorm.log
+
+**Surfaced during:** Story #17's staging+prod verification, when checking the BullBoard mount via `docker exec tapestry cat /var/log/supervisor/brainstorm.log`. The tail window was dominated by hundreds of repeated lines:
+
+```
+Reading config for BRAINSTORM_OWNER_PUBKEY from /etc/brainstorm.conf
+Found BRAINSTORM_OWNER_PUBKEY=<64-hex> (quoted)
+```
+
+— two lines per request, fired every time control-panel.js needs the owner pubkey (which appears to be on most authenticated endpoints).
+
+**Symptoms:**
+- Fills `brainstorm.log` with low-signal noise; makes operator debugging harder (real signals get buried).
+- Likely causes a small but unnecessary I/O cost on every authenticated request (parse /etc/brainstorm.conf to extract one value).
+- Pre-existing behavior — observed during story #17 work but **not introduced by stories #13 / #15 / #16 / #17**. The re-read pattern predates the task queue.
+
+**Two plausible fixes (Architect to weigh):**
+1. **Cache the parsed config** in-process on first read; invalidate on SIGHUP or on explicit reload. Eliminates the I/O and the log lines on the hot path.
+2. **Downgrade the logging to debug level** so the lines only appear when explicitly opted into. Keeps the re-read semantics; just stops the noise.
+
+Option 1 is structurally cleaner; option 2 is a one-line fix. Architect's call.
+
+**Out of scope for the immediate triage:**
+- Re-architecting how control-panel.js consumes config more broadly. Just this one variable's read pattern.
+- Touching `lib/config.js` or `brainstormConfig` semantics for any other consumer.
+
+**Classification:** Refactor (cosmetic / log-hygiene; no behavior change for the user, no API contract change)
+**Strictness:** Standard
+**Phase path:** Planning → Architecture (likely brief) → (Test Design optional — if option 2, just a sentinel that the log line isn't emitted at info level; if option 1, a sentinel that `/etc/brainstorm.conf` is parsed at most once per process lifetime) → Implementation → Review
+**Priority:** Low. Captured during the operator's 2026-05-21 plan-of-plans (steps 1 + 2 done, step 3 — this — deliberately deferred). Pick up when operator-experience polish is in season; no urgency.
