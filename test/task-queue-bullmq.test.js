@@ -223,16 +223,23 @@ test('T9: docker/supervisord.conf does NOT gain a new entry for a separate task-
   );
 });
 
-test('T10: brainstorm.conf.template defines TASK_QUEUE_ENABLED=false as the default rollback-safe value (AC-15, ADR 0010 §Config)', () => {
+test('T10: brainstorm.conf.template defines the TASK_QUEUE_ENABLED knob (default value flipped from false to true in story #17 / ADR 0015; story #13 / ADR 0012 contract that the knob is *present* preserved)', () => {
   const src = readSafe(BRAINSTORM_CONF_T);
   assert(src !== null, 'config/brainstorm.conf.template not at expected path — re-baseline this sentinel.');
-  // ADR §Config pins exactly this line. The default `false` is the deploy-
-  // safe rollback — flipped on by the operator only after smoke confirms.
+  // ADR 0012 §Config originally pinned `=false` as the deploy-safe default. Story #17 /
+  // ADR 0015 flipped the default to `=true` after the queue path matured in production
+  // over days on staging + prod. The story-#13 contract that survives is "the knob is
+  // present in the template" — the flag itself remains a real toggle, only its default
+  // changed. The story-#17 specific assertion (default is `=true`) lives in R2 of
+  // test/entrypoint-template-rendering.test.js — keeping that as the single source of
+  // truth for the current default value.
   assert(
-    /export\s+TASK_QUEUE_ENABLED\s*=\s*false\b/.test(src),
-    'config/brainstorm.conf.template does not define `export TASK_QUEUE_ENABLED=false` (AC-15; ADR 0010 ' +
+    /export\s+TASK_QUEUE_ENABLED\s*=\s*(true|false)\b/.test(src),
+    'config/brainstorm.conf.template does not define `export TASK_QUEUE_ENABLED=<bool>` (AC-15; ADR 0012 ' +
       '§Config). The knob must be present in the template (deployment installs it at /etc/brainstorm.conf) ' +
-      'with the deploy-safe `false` default. Operator flips on after smoke confirms.'
+      'so the runtime flag-on/flag-off branches in runTask.js and control-panel.js still have a config ' +
+      'surface. The current deploy-safe default is `=true` (per story #17 / ADR 0015); R2 in ' +
+      'test/entrypoint-template-rendering.test.js pins the value-side assertion.'
   );
 });
 

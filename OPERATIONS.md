@@ -418,8 +418,8 @@ If a droplet shows high abuse counts in the third check but the first two pass, 
 
 `TASK_QUEUE_ENABLED` in `/etc/brainstorm.conf` controls whether `/api/run-task` enqueues jobs through BullMQ or runs the legacy direct-spawn path.
 
-- `TASK_QUEUE_ENABLED=false` (default) — legacy direct-spawn. Zero queue dependency. **This is the rollback path** — flip the flag, `supervisorctl restart brainstorm`, and the queue is out of the picture.
-- `TASK_QUEUE_ENABLED=true` — `/api/run-task` enqueues per-task BullMQ jobs; in-process Workers consume them; `launchChildTask.sh` still spawns the work (its pgrep guard remains as belt-and-suspenders).
+- `TASK_QUEUE_ENABLED=true` (default since story #17 / ADR 0015) — `/api/run-task` enqueues per-task BullMQ jobs; in-process Workers consume them; `launchChildTask.sh` still spawns the work (its pgrep guard remains as belt-and-suspenders). BullBoard UI mounts at `/admin/queues` (owner-only).
+- `TASK_QUEUE_ENABLED=false` — legacy direct-spawn. Zero queue dependency. **This is the rollback path** — flip the flag in the template (or, for an in-container hotfix, in `/etc/brainstorm.conf`), `supervisorctl restart brainstorm`, and the queue is out of the picture.
 
 When the flag is on and Redis is unreachable, `/api/run-task` returns `503` with body `{success: false, error: "task queue (Redis) unreachable", code: "QUEUE_UNAVAILABLE"}` so monitoring can distinguish this failure from 4xx client errors or 5xx unhandled exceptions.
 
