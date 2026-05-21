@@ -24,11 +24,17 @@ services:
       - tapestry-logs:/var/log/brainstorm
     restart: unless-stopped
 
-  # --- Redis (streaming ETL queue: strfry → Neo4j) ---
+  # --- Redis (streaming ETL queue: strfry → Neo4j; sessions; task queue) ---
+  # AOF persistence (story #13 / ADR 0010) so queued BullMQ jobs survive a
+  # Redis restart. appendfsync everysec is the BullMQ-recommended production
+  # setting. Compatible with the existing strfry-stream-consumer (blpop on
+  # strfry:events) — AOF doesn't change blpop semantics, just adds an on-disk
+  # append per list operation.
   redis:
     image: redis:7-alpine
     container_name: tapestry-redis
     restart: unless-stopped
+    command: redis-server --appendonly yes --appendfsync everysec
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s

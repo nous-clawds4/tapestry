@@ -401,8 +401,68 @@ async function handleRunTask(req, res) {
         
         // Calculate execution configuration
         const executionConfig = await calculateTaskExecution(task, registry);
-        
-        // Execute task
+
+        // ── Feature-flag branch: route through BullMQ when TASK_QUEUE_ENABLED. ──
+        // Story #13 / ADR 0010. When the flag is off (deploy-safe default in
+        // phase 1), the legacy direct-spawn path below runs unchanged — that
+        // IS the rollback path. When on, dispatch through the queue module;
+        // 503 with code QUEUE_UNAVAILABLE if Redis is unreachable so the
+        // failure mode is machine-identifiable.
+        if (brainstormConfig.get('TASK_QUEUE_ENABLED') === 'true') {
+            const taskQueue = require('../../../manage/taskQueue/queue');
+            if (!(await taskQueue.isQueueAvailable())) {
+                return res.status(503).json({
+                    success: false,
+                    error: 'task queue (Redis) unreachable',
+                    code: 'QUEUE_UNAVAILABLE'
+                });
+            }
+
+            const queueArgs = {
+                taskName,
+                customerArgs,
+                queryParams: req.query,
+                timeoutMs: executionConfig.timeoutConfig.timeoutMs
+            };
+
+            const queueResult = executionConfig.executionMode.shouldRunAsync
+                ? await taskQueue.runViaQueueAsync(queueArgs)
+                : await taskQueue.runViaQueueSync(queueArgs);
+
+            const responseMessage =
+                queueResult.statusMessage ||
+                (queueResult.executionMode === 'async'
+                    ? `Task '${taskName}' enqueued via BullMQ`
+                    : queueResult.success
+                        ? `Task '${taskName}' completed via BullMQ`
+                        : `Task '${taskName}' completed with errors via BullMQ`);
+
+            return res.json({
+                success: queueResult.success,
+                task: {
+                    name: task.name,
+                    description: task.description,
+                    categories: task.categories,
+                    requiresCustomer: !!(task.arguments && task.arguments.customer),
+                    timeout: executionConfig.timeoutConfig.timeoutMinutes + ' minutes',
+                    executionMode: queueResult.executionMode
+                },
+                execution: queueResult,
+                message: responseMessage,
+                queued: queueResult.executionMode === 'async',
+                jobId: queueResult.jobId,
+                ...(queueResult.executionMode === 'async' && {
+                    monitoring: {
+                        jobId: queueResult.jobId,
+                        pid: null,
+                        estimatedDuration: queueResult.estimatedDuration,
+                        note: 'Task is queued via BullMQ. Check /admin/queues or Task Explorer for progress.'
+                    }
+                })
+            });
+        }
+
+        // Execute task (legacy direct-spawn path — unchanged when flag is off)
         console.log(`[RunTask] Starting task: ${taskName}`);
         const result = await executeTask(command, args, taskName, task, registry, executionConfig);
         

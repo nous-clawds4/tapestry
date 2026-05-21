@@ -34,6 +34,7 @@ const headerConceptGraphTag = require('./header-conceptgraph-tag.test.js');
 const communityReferenceSupersetLink = require('./community-reference-superset-link.test.js');
 const graperankSharedCsvRace = require('./graperank-shared-csv-race.test.js');
 const communityClassThreadPull = require('./community-class-thread-pull.test.js');
+const taskQueueBullmq = require('./task-queue-bullmq.test.js');
 
 async function main() {
   console.log('Running Brainstorm tests...\n');
@@ -74,6 +75,9 @@ async function main() {
   console.log('\ncommunity-class-thread-pull suite:');
   const communityClassThreadPullResult = await communityClassThreadPull.run();
 
+  console.log('\ntask-queue-bullmq suite:');
+  const taskQueueBullmqResult = await taskQueueBullmq.run();
+
   console.log('\nTest Results');
   console.log('-------------');
   console.log(`Configuration Loading:                           ${configOk ? 'PASS' : 'FAIL'}`);
@@ -110,6 +114,9 @@ async function main() {
   console.log(
     `community-class-thread-pull suite:               ${communityClassThreadPullResult.fail === 0 ? 'PASS' : 'FAIL'} (${communityClassThreadPullResult.pass} passed, ${communityClassThreadPullResult.fail} failed)`
   );
+  console.log(
+    `task-queue-bullmq suite:                         ${taskQueueBullmqResult.fail === 0 ? 'PASS' : 'FAIL'} (${taskQueueBullmqResult.pass} passed, ${taskQueueBullmqResult.fail} failed)`
+  );
 
   const overallOk =
     configOk &&
@@ -123,7 +130,8 @@ async function main() {
     headerConceptGraphTagResult.fail === 0 &&
     communityReferenceSupersetLinkResult.fail === 0 &&
     graperankSharedCsvRaceResult.fail === 0 &&
-    communityClassThreadPullResult.fail === 0;
+    communityClassThreadPullResult.fail === 0 &&
+    taskQueueBullmqResult.fail === 0;
   console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);
   process.exit(overallOk ? 0 : 1);
 }
