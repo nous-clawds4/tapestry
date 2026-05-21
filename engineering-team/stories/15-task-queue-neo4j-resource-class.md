@@ -68,4 +68,4 @@ ADR 0012 §Forward-compat hook pinned the design space: a resource-class tag on 
 
 - ADR: [0013-task-queue-neo4j-resource-class.md](../decisions/0013-task-queue-neo4j-resource-class.md)
 - Test plan: [15-task-queue-neo4j-resource-class.test-plan.md](15-task-queue-neo4j-resource-class.test-plan.md)
-- Review: (filled in after Review phase)
+- Review: [../reviews/15-task-queue-neo4j-resource-class.md](../reviews/15-task-queue-neo4j-resource-class.md) — **PASS** end-to-end (14/14 sentinels + cycle-local smoke S2 cross-task serialization PROVED on the live container).
