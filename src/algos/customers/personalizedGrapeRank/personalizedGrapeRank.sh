@@ -75,74 +75,43 @@ emit_task_event "TASK_START" "calculateCustomerGrapeRank" "$CUSTOMER_PUBKEY" '{
     "parent_task": "updateAllScoresForSingleCustomer"
 }'
 
-# initialize raw data csv files. Note that this step is not customer-specific, i.e. it is the same for all customers
-# First determine whether the csv files already exist in location: /var/lib/brainstorm/algos/personalizedGrapeRank/tmp
-# If files already exist, echo that we are skipping this step
-if [ ! -f /var/lib/brainstorm/algos/personalizedGrapeRank/tmp/follows.csv ] && [ ! -f /var/lib/brainstorm/algos/personalizedGrapeRank/tmp/mutes.csv ] && [ ! -f /var/lib/brainstorm/algos/personalizedGrapeRank/tmp/reports.csv ] && [ ! -f /var/lib/brainstorm/algos/personalizedGrapeRank/tmp/ratees.csv ]; then
-    echo "$(date): Continuing personalizedGrapeRank; starting initializeRawDataCsv.sh"
-    echo "$(date): Continuing personalizedGrapeRank; starting initializeRawDataCsv.sh" >> ${LOG_FILE}
-    
-    # Emit structured event for CSV initialization start
+# Ensure the shared raw-data CSV cache is present and fresh. The helper is
+# SOURCED (not exec'd) so the shared flock on fd 200 stays open in this
+# shell for the rest of the pipeline — the kernel releases it when this
+# script exits. See ADR 0009 (story #12) for the coordination protocol.
+echo "$(date): Continuing personalizedGrapeRank; sourcing ensureRawDataCsv.sh"
+echo "$(date): Continuing personalizedGrapeRank; sourcing ensureRawDataCsv.sh" >> ${LOG_FILE}
+source "${BRAINSTORM_MODULE_ALGOS_DIR}/personalizedGrapeRank/ensureRawDataCsv.sh"
+SECONDS=0
+if ensure_raw_data_csv; then
     emit_task_event "PROGRESS" "calculateCustomerGrapeRank" "$CUSTOMER_PUBKEY" '{
         "customer_id": "'$CUSTOMER_ID'",
         "customer_pubkey": "'$CUSTOMER_PUBKEY'",
         "customer_name": "'$CUSTOMER_NAME'",
-        "message": "Starting CSV data initialization",
+        "message": "Shared raw-data CSV cache ready",
         "phase": "csv_initialization",
-        "step": "initialize_raw_data_csv",
-        "child_script": "initializeRawDataCsv.sh",
+        "step": "ensure_raw_data_csv_complete",
+        "child_script": "ensureRawDataCsv.sh",
+        "status": "success",
+        "phase_duration_seconds": "'$SECONDS'",
         "algorithm": "personalized_graperank"
     }'
-    
-    SECONDS=0
-    if bash $BRAINSTORM_MODULE_ALGOS_DIR/customers/personalizedGrapeRank/initializeRawDataCsv.sh; then
-        # Emit structured event for CSV initialization success
-        emit_task_event "PROGRESS" "calculateCustomerGrapeRank" "$CUSTOMER_PUBKEY" '{
-            "customer_id": "'$CUSTOMER_ID'",
-            "customer_pubkey": "'$CUSTOMER_PUBKEY'",
-            "customer_name": "'$CUSTOMER_NAME'",
-            "message": "CSV data initialization completed successfully",
-            "phase": "csv_initialization",
-            "step": "initialize_raw_data_csv_complete",
-            "child_script": "initializeRawDataCsv.sh",
-            "status": "success",
-            "phase_duration_seconds": "'$SECONDS'",
-            "algorithm": "personalized_graperank"
-        }'
-    else
-        # Emit structured event for CSV initialization failure
-        emit_task_event "TASK_ERROR" "calculateCustomerGrapeRank" "$CUSTOMER_PUBKEY" '{
-            "customer_id": "'$CUSTOMER_ID'",
-            "customer_pubkey": "'$CUSTOMER_PUBKEY'",
-            "customer_name": "'$CUSTOMER_NAME'",
-            "message": "CSV data initialization failed",
-            "status": "failed",
-            "task_type": "customer_algorithm",
-            "algorithm": "personalized_graperank",
-            "child_script": "initializeRawDataCsv.sh",
-            "error_reason": "child_script_failure",
-            "category": "algorithms",
-            "scope": "customer",
-            "parent_task": "updateAllScoresForSingleCustomer"
-        }'
-        exit 1
-    fi
 else
-    echo "$(date): Continuing personalizedGrapeRank; skipping initializeRawDataCsv because csv files already exist"
-    echo "$(date): Continuing personalizedGrapeRank; skipping initializeRawDataCsv because csv files already exist" >> ${LOG_FILE}
-    
-    # Emit structured event for CSV initialization skip
-    emit_task_event "PROGRESS" "calculateCustomerGrapeRank" "$CUSTOMER_PUBKEY" '{
+    emit_task_event "TASK_ERROR" "calculateCustomerGrapeRank" "$CUSTOMER_PUBKEY" '{
         "customer_id": "'$CUSTOMER_ID'",
         "customer_pubkey": "'$CUSTOMER_PUBKEY'",
         "customer_name": "'$CUSTOMER_NAME'",
-        "message": "CSV data initialization skipped - files already exist",
-        "phase": "csv_initialization",
-        "step": "skip_existing_csv_files",
-        "status": "skipped",
-        "phase_duration_seconds": "0",
-        "algorithm": "personalized_graperank"
+        "message": "Shared raw-data CSV cache could not be ensured",
+        "status": "failed",
+        "task_type": "customer_algorithm",
+        "algorithm": "personalized_graperank",
+        "child_script": "ensureRawDataCsv.sh",
+        "error_reason": "ensure_raw_data_csv_failed",
+        "category": "algorithms",
+        "scope": "customer",
+        "parent_task": "updateAllScoresForSingleCustomer"
     }'
+    exit 1
 fi
 
 echo "$(date): Continuing personalizedGrapeRank; starting interpretRatings.js"

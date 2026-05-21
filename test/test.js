@@ -32,6 +32,8 @@ const publishExportConcept = require('./publish-export-a-concept.test.js');
 const communityReferenceStub = require('./community-reference-nostr-relay-stub.test.js');
 const headerConceptGraphTag = require('./header-conceptgraph-tag.test.js');
 const communityReferenceSupersetLink = require('./community-reference-superset-link.test.js');
+const graperankSharedCsvRace = require('./graperank-shared-csv-race.test.js');
+const communityClassThreadPull = require('./community-class-thread-pull.test.js');
 
 async function main() {
   console.log('Running Brainstorm tests...\n');
@@ -66,6 +68,12 @@ async function main() {
   console.log('\ncommunity-reference-superset-link suite:');
   const communityReferenceSupersetLinkResult = await communityReferenceSupersetLink.run();
 
+  console.log('\ngraperank-shared-csv-race suite:');
+  const graperankSharedCsvRaceResult = await graperankSharedCsvRace.run();
+
+  console.log('\ncommunity-class-thread-pull suite:');
+  const communityClassThreadPullResult = await communityClassThreadPull.run();
+
   console.log('\nTest Results');
   console.log('-------------');
   console.log(`Configuration Loading:                           ${configOk ? 'PASS' : 'FAIL'}`);
@@ -96,6 +104,12 @@ async function main() {
   console.log(
     `community-reference-superset-link suite:         ${communityReferenceSupersetLinkResult.fail === 0 ? 'PASS' : 'FAIL'} (${communityReferenceSupersetLinkResult.pass} passed, ${communityReferenceSupersetLinkResult.fail} failed)`
   );
+  console.log(
+    `graperank-shared-csv-race suite:                 ${graperankSharedCsvRaceResult.fail === 0 ? 'PASS' : 'FAIL'} (${graperankSharedCsvRaceResult.pass} passed, ${graperankSharedCsvRaceResult.fail} failed)`
+  );
+  console.log(
+    `community-class-thread-pull suite:               ${communityClassThreadPullResult.fail === 0 ? 'PASS' : 'FAIL'} (${communityClassThreadPullResult.pass} passed, ${communityClassThreadPullResult.fail} failed)`
+  );
 
   const overallOk =
     configOk &&
@@ -107,7 +121,9 @@ async function main() {
     publishExportConceptResult.fail === 0 &&
     communityReferenceStubResult.fail === 0 &&
     headerConceptGraphTagResult.fail === 0 &&
-    communityReferenceSupersetLinkResult.fail === 0;
+    communityReferenceSupersetLinkResult.fail === 0 &&
+    graperankSharedCsvRaceResult.fail === 0 &&
+    communityClassThreadPullResult.fail === 0;
   console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);
   process.exit(overallOk ? 0 : 1);
 }

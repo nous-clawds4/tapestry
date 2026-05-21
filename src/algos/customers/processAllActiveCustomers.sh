@@ -163,23 +163,28 @@ emit_task_event "PROGRESS" "processAllActiveCustomers" "" '{
     "success_rate": "'$(echo "scale=2; $processed_count * 100 / $customer_count" | bc)'"
 }'
 
-# Clean up personalizedGrapeRank tmp files
-log_message "Cleaning up personalizedGrapeRank tmp files"
+# Cache-aware cleanup of the shared raw-data CSV cache. Per ADR 0009: use a
+# non-blocking exclusive flock so an in-flight peer (any other customer
+# recalc or the owner pipeline) is not interrupted. evict_raw_data_csv_cache
+# targets ONLY the four shared CSVs + .last_init sentinel — per-customer
+# subdirectories under tmp/<CUSTOMER>/ are cleaned up by
+# updateAllScoresForSingleCustomer.sh.
+log_message "Cache-aware cleanup of personalizedGrapeRank shared CSV cache"
 
-# Emit structured event for cleanup start
 emit_task_event "PROGRESS" "processAllActiveCustomers" "" '{
     "step": "cleanup_start",
-    "message": "Starting cleanup of personalizedGrapeRank tmp files",
+    "message": "Starting cache-aware cleanup of personalizedGrapeRank shared CSV cache",
     "operation": "temporary_file_cleanup",
     "cleanup_target": "/var/lib/brainstorm/algos/personalizedGrapeRank/tmp"
 }'
 
-rm -rf /var/lib/brainstorm/algos/personalizedGrapeRank/tmp
+# Source the helper — provides evict_raw_data_csv_cache (uses flock -x -n).
+source "${BRAINSTORM_MODULE_ALGOS_DIR}/personalizedGrapeRank/ensureRawDataCsv.sh"
+evict_raw_data_csv_cache "processAllActiveCustomers" ""
 
-# Emit structured event for cleanup completion
 emit_task_event "PROGRESS" "processAllActiveCustomers" "" '{
     "step": "cleanup_complete",
-    "message": "Completed cleanup of personalizedGrapeRank tmp files",
+    "message": "Completed cache-aware cleanup of personalizedGrapeRank shared CSV cache",
     "operation": "temporary_file_cleanup",
     "cleanup_target": "/var/lib/brainstorm/algos/personalizedGrapeRank/tmp"
 }'
