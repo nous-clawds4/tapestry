@@ -2928,6 +2928,12 @@ async function handleCreateSet(req, res) {
       ['d', dTag],
       ['name', name],
       ['z', firmware.conceptUuid('set') || ''],
+      // ADR 0011 §"Emission in handleCreateSet": child-claims-parent canonical
+      // `s` tag (IS_A_SUPERSET_OF-inverse). Single-char, relay-indexed by
+      // default per NIP-01. Dual-emit policy: the relationship-descriptor
+      // event below is preserved during the back-compat cycle (R2 regression-
+      // guards both encodings until a future ADR ratifies the cutover).
+      ['s', resolvedParentUuid],
     ];
     if (description) tags.push(['description', description]);
 
@@ -3010,7 +3016,54 @@ async function handleAddToSet(req, res) {
     `, { from: s.uuid, to: item.uuid });
     if (existing[0]?.cnt > 0) return res.json({ success: false, error: `"${item.name}" is already in set "${s.name}"` });
 
-    // Create HAS_ELEMENT event
+    // ── Dual-emit (ADR 0011 §"Emission in handleAddToSet"): re-publish the
+    // item event with the canonical child-claims-parent `n` tag appended
+    // (relay-indexed HAS_ELEMENT-inverse). Locally-authored items only;
+    // foreign-authored items cannot be re-signed → log + skip the n-tag
+    // republish (the descriptor event below still fires). Idempotency at
+    // this site is guaranteed by the early-return existing-edge check
+    // above (line 3013-3017) — handleAddToSet only runs for new memberships.
+    const localTApubkey = firmware.getTAPubkey();
+    const itemParts = item.uuid.split(':');
+    const itemAuthor = itemParts.length >= 2 ? itemParts[1] : null;
+    if (itemAuthor === localTApubkey) {
+      try {
+        const itemKind = parseInt(itemParts[0], 10);
+        const itemDTag = itemParts.slice(2).join(':');
+        const existingEv = await new Promise((resolve, reject) => {
+          const filter = JSON.stringify({ kinds: [itemKind], authors: [itemAuthor], '#d': [itemDTag] });
+          const safeFilter = filter.replace(/'/g, "'\\''");
+          exec(`strfry scan '${safeFilter}'`, { maxBuffer: 4 * 1024 * 1024 }, (error, stdout) => {
+            if (error) return reject(error);
+            const line = String(stdout).trim().split('\n')[0];
+            if (!line) return resolve(null);
+            try { resolve(JSON.parse(line)); } catch (e) { reject(e); }
+          });
+        });
+        if (existingEv) {
+          // Build replacement with `n` tag appended. Preserve existing kind /
+          // d-tag / content / all tags (replaceable event replaces by d-tag).
+          const newTags = [...(existingEv.tags || []), ['n', s.uuid]];
+          const replacement = signAndFinalize({
+            kind: itemKind,
+            content: existingEv.content || '',
+            tags: newTags,
+          });
+          await publishToStrfry(replacement);
+          await importEventDirect(replacement, item.uuid);
+        } else {
+          console.warn(`[normalize/add-to-set] item ${item.uuid} not found in strfry — skipping n-tag republish (descriptor event still emitted; ADR 0011 §"Emission in handleAddToSet")`);
+        }
+      } catch (err) {
+        console.warn(`[normalize/add-to-set] n-tag republish failed for ${item.uuid}: ${err.message} — descriptor event still emitted (ADR 0011 dual-emit graceful)`);
+      }
+    } else {
+      console.warn(`[normalize/add-to-set] item ${item.uuid} authored by ${itemAuthor} (not local TA ${localTApubkey}) — skipping n-tag republish per ADR 0011; descriptor event still emitted`);
+    }
+
+    // Create HAS_ELEMENT event (descriptor — ADR 0011 dual-emit policy: this
+    // remains during the back-compat cycle; the cutover ADR will eventually
+    // deprecate it. R2 regression-guards both descriptor literals below).
     const relEvent = signAndFinalize({
       kind: 39999, content: '',
       tags: [

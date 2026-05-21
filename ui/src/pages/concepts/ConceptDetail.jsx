@@ -73,6 +73,41 @@ export default function ConceptDetail() {
     }
   };
 
+  // Story #14 / ADR 0010 (mechanism amended by ADR 0011) — owner pulls the
+  // curator's class-thread closure into the local Neo4j as a foreign sub-graph
+  // reachable from the local concept only via the #11 IS_A_SUPERSET_OF anchor.
+  // Owner-only (server enforces via requireOwner middleware). Walks #n + #s
+  // tags + back-compat z-at-Header walk; honors trust gate (curator-pubkey
+  // only); honest invariants (no editorial relationships, no election, local
+  // concept untouched).
+  const [pulling, setPulling] = useState(false);
+  const [pullStatus, setPullStatus] = useState(null);
+
+  const pullCommunityClassThread = async () => {
+    setPulling(true);
+    setPullStatus('Walking community class thread…');
+    try {
+      const resp = await fetch(
+        `/api/concept/${encodeURIComponent(decodedUuid)}/pull-community-class-thread`,
+        { method: 'POST', headers: { 'Content-Type': 'application/json' } }
+      );
+      const data = await resp.json();
+      if (!resp.ok || !data.success) {
+        setPullStatus(`Error: ${data.error || `HTTP ${resp.status}`}`);
+        return;
+      }
+      const skippedNote = data.skipped > 0 ? ` (${data.skipped} skipped by trust gate)` : '';
+      const truncNote = data.truncated ? ' [TRUNCATED — fetch budget hit]' : '';
+      setPullStatus(
+        `Pulled ${data.materialized}/${data.fetched} events; ${data.edgesMerged} canonical edges merged at depth ${data.depth}${skippedNote}${truncNote}.`
+      );
+    } catch (err) {
+      setPullStatus(`Error: ${err.message}`);
+    } finally {
+      setPulling(false);
+    }
+  };
+
   const tabs = [
     { to: '', label: 'Overview', end: true },
     { to: 'core-nodes', label: 'Core Nodes' },
@@ -111,6 +146,19 @@ export default function ConceptDetail() {
               {publishing ? 'Publishing…' : 'Publish concept to community'}
             </button>
             {publishStatus && <span className="meta-item" style={{ marginLeft: '0.75rem' }}>{publishStatus}</span>}
+          </div>
+
+          <div className="concept-actions" style={{ marginTop: '0.5rem' }}>
+            <button
+              type="button"
+              className="btn"
+              onClick={pullCommunityClassThread}
+              disabled={pulling}
+              title="Walk the community curator's class-thread closure into your local graph as a foreign sub-graph (reachable only via the IS_A_SUPERSET_OF anchor; your concept stays untouched)"
+            >
+              {pulling ? 'Pulling…' : 'Pull community class thread'}
+            </button>
+            {pullStatus && <span className="meta-item" style={{ marginLeft: '0.75rem' }}>{pullStatus}</span>}
           </div>
 
           <nav className="tab-nav">
