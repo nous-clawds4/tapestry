@@ -460,3 +460,81 @@ A faster alternative for full deployments: flip `TASK_QUEUE_ENABLED=false`, `sup
 ### 10.5 Redis persistence
 
 `docker-compose.yml` runs Redis with `--appendonly yes --appendfsync everysec`. Queued jobs survive `docker restart tapestry-redis` and container updates. No adverse interaction with the strfry-stream-consumer (which uses `blpop` on `strfry:events`) — AOF only adds an on-disk append per list operation.
+
+### 10.6 Cross-task resource-class concurrency caps
+
+**Story #15 / ADR 0013.** Story #13 introduced per-task queues with per-task concurrency caps — sufficient to serialize against same-task contention but not across different task names. Triggering `calculateOwnerGrapeRank` and `calculateOwnerPageRank` back-to-back will still run them concurrently because they live in different per-task queues. This subsection covers the additional cross-task layer.
+
+Requires `TASK_QUEUE_ENABLED=true` (§10.1). When the flag is off, the legacy direct-spawn path runs and resource-class tags have no effect.
+
+#### The `resourceClass` registry tag
+
+Tasks in `src/manage/taskQueue/taskRegistry.json` opt into cross-task serialization by adding a top-level `resourceClass` string, e.g.:
+
+```json
+{
+  "name": "Calculate Owner GrapeRank",
+  "resourceClass": "neo4j-heavy",
+  "categories": ["algorithms", "owner"],
+  ...
+}
+```
+
+Tasks without the tag are unaffected — they continue to use story #13's per-task concurrency only.
+
+The **initial tag set** shipped with this story is the owner trio:
+- `calculateOwnerHops`
+- `calculateOwnerPageRank`
+- `calculateOwnerGrapeRank`
+
+These are the three Neo4j-heavy tasks the operator demonstrated the cross-task pain with on `brainstorm.world`. Extend the set operationally by editing the registry and restarting the control panel.
+
+#### The `resourceClassCaps` config key
+
+Per-class concurrency caps live in `/etc/brainstorm-task-queue.json` as a sibling key to story #13's `concurrencyByTask`:
+
+```json
+{
+  "defaultConcurrency": 1,
+  "concurrencyByTask": {},
+  "resourceClassCaps": {
+    "neo4j-heavy": 1
+  }
+}
+```
+
+Cap default for `neo4j-heavy` is **1** — one Neo4j-heavy task at a time, the strictest interpretation matching the demonstrated pain. Raise to `2` (or higher) per environment if Neo4j proves it can handle concurrent heavy ops; lower to `0` (after a future enhancement) is not currently supported — a missing cap entry treats the class as cap=1 with a warning.
+
+#### Tagging a new task
+
+1. Edit `src/manage/taskQueue/taskRegistry.json`. Add `"resourceClass": "<class-name>"` to the entry.
+2. If `<class-name>` is new, edit `/etc/brainstorm-task-queue.json` and add an entry to `resourceClassCaps` with a numeric cap. (Untagged class = warning + cap=1 fallback.)
+3. `supervisorctl restart brainstorm`.
+4. Trigger the task. Inspect `/var/log/brainstorm/taskQueue/events.jsonl` for `phase=resource_class_*` events to confirm the wrap is active.
+
+#### Observability — `events.jsonl` phase tokens
+
+Resource-class lifecycle events are written to the same `events.jsonl` that bash `emit_task_event` uses (Node-side equivalent at `src/utils/structuredEvents.js`). Three phase tokens to grep for:
+
+- `resource_class_wait_begin` — task waiting for a slot. Metadata: `resourceClass`, `cap`, `jobId`.
+- `resource_class_wait_end` — wait resolved. Metadata: `resourceClass`, `wait_seconds`, `outcome` (`"acquired"` or `"timeout"`), `jobId`.
+- `resource_class_released` — task done, slot returned. Metadata: `resourceClass`, `held_seconds`, `jobId`.
+
+Quick operator check: "why hasn't my task started?" →
+```bash
+tail -f /var/log/brainstorm/taskQueue/events.jsonl | grep resource_class
+```
+
+#### The `RESOURCE_CLASS_WAIT_TIMEOUT` failure mode
+
+If a task waits longer than the configured `acquireTimeoutMs` (default **4 hours** — longer than any single heavy-task expected duration), the wait rejects with an Error whose `.code === 'RESOURCE_CLASS_WAIT_TIMEOUT'`. BullMQ marks the job failed; the job appears in BullBoard's `failed` tab with the error message containing `RESOURCE_CLASS_WAIT_TIMEOUT`. The corresponding `events.jsonl` entry is a `TASK_ERROR` event with `metadata.outcome: "timeout"`.
+
+This should be rare. If it fires, something upstream is stuck (e.g., a single heavy task running for >4 hours). Operator action: investigate the holder, manually clear the Redis hash if needed: `docker exec tapestry-redis redis-cli DEL taskQueue:resource-class:neo4j-heavy:holders`.
+
+#### Composes additively with story #13
+
+- Per-`(taskName, pubkey)` jobId dedup → unchanged.
+- Per-task concurrency from `concurrencyByTask` → unchanged.
+- Resource-class semaphore wraps the Worker callback BEFORE `processor.processJob` runs.
+
+For a tagged task with `concurrencyByTask: 2` and `resourceClassCaps.neo4j-heavy: 1`: the **effective** concurrency is the more restrictive of the two (here, 1 — one per class regardless of per-task budget).
