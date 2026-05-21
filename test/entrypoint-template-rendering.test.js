@@ -287,8 +287,10 @@ test('T4: rendering the template via render-conf-template.js with a fixture env 
     BRAINSTORM_SEND_EMAIL_UPDATES: '0',
     BRAINSTORM_ACCESS: '0',
     BRAINSTORM_CREATED_CONSTRAINTS_AND_INDEXES: '0',
-    // Story #13 addition — the ONE variable not in the old heredoc but required in the new template.
-    TASK_QUEUE_ENABLED: 'false'
+    // Story #13 addition that reached fresh containers via story #16. Default flipped from
+    // 'false' to 'true' in story #17 / ADR 0015 — the queue + BullBoard + cross-task
+    // neo4j-heavy serialization now come up automatically without an operator flip.
+    TASK_QUEUE_ENABLED: 'true'
   };
 
   const mismatches = [];
@@ -426,15 +428,19 @@ test('R1: docker/entrypoint.sh still installs the other conf templates (graperan
   );
 });
 
-test('R2: config/brainstorm.conf.template still carries TASK_QUEUE_ENABLED=false (story #13 contract preserved; AC "fresh containers contain export TASK_QUEUE_ENABLED=false")', () => {
+test('R2: config/brainstorm.conf.template carries TASK_QUEUE_ENABLED=true (story #17 / ADR 0015 default; story #13 contract preserved with the flag still present)', () => {
   const src = readSafe(CONF_TEMPLATE);
-  assert(src !== null, 'brainstorm.conf.template missing — cannot check story #13 contract.');
+  assert(src !== null, 'brainstorm.conf.template missing — cannot check story #17 contract.');
   assert(
-    /TASK_QUEUE_ENABLED\s*=\s*false/.test(src),
-    'R2: config/brainstorm.conf.template no longer carries TASK_QUEUE_ENABLED=false (story #13 / ADR ' +
-      '0012 regression; story #16 AC explicitly requires this line to reach fresh containers). The flag ' +
-      'must remain in the template at the deploy-safe default `false`; flipping it to `true` in template ' +
-      'defaults breaks the rollback path for fresh deploys (the entire point of having the flag).'
+    /TASK_QUEUE_ENABLED\s*=\s*true/.test(src),
+    'R2: config/brainstorm.conf.template no longer carries TASK_QUEUE_ENABLED=true (story #17 / ADR ' +
+      '0015 regression). Story #17 flipped the default from `false` to `true` because the queue path ' +
+      'matured in production over days and the manual-flip-after-every-deploy recipe was a chronic ' +
+      'operator chore. Reverting to `=false` re-opens that chore on every fresh container. The flag ' +
+      'itself stays — story #13\'s rollback branch is still wired up in runTask.js and control-panel.js ' +
+      '— only the default changes. If you intentionally want the template to default to `=false` again ' +
+      '(a real architectural change, not a test fix), also flip this sentinel back to its pre-story-#17 ' +
+      'form (assert =false) so it tracks the new intended default.'
   );
 });
 

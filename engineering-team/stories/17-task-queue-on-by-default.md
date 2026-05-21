@@ -67,5 +67,5 @@ Deferred to Architect:
 ## Linked artifacts
 
 - ADR: [0015-task-queue-on-by-default.md](../decisions/0015-task-queue-on-by-default.md)
-- Test plan: (filled in after Test Design phase)
+- Test plan: [17-task-queue-on-by-default.test-plan.md](17-task-queue-on-by-default.test-plan.md)
 - Review: (filled in after Review phase)
