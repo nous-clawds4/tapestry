@@ -95,6 +95,6 @@ To be resolved by the Architect via `/api/concept-graph/summaries`:
 
 ## Linked artifacts
 
-- ADR: (filled in after Architecture phase)
+- ADR: [0010-task-queue-phase-1-bullmq.md](../decisions/0010-task-queue-phase-1-bullmq.md)
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
