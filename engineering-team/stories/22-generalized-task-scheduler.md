@@ -86,4 +86,4 @@ How we'll know it works (informational; the Tester writes the plan in Phase 3):
 
 - ADR: [0019-generalized-task-scheduler.md](../decisions/0019-generalized-task-scheduler.md)
 - Test plan: [22-generalized-task-scheduler.test-plan.md](22-generalized-task-scheduler.test-plan.md)
-- Review: (filled in after Review phase)
+- Review: [22-generalized-task-scheduler.md](../reviews/22-generalized-task-scheduler.md) — **PASS** (2026-05-22; S1–S9 cycle-local/staging smoke is the Reviewer-required behavioral gate before prod)
