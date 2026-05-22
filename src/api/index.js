@@ -440,6 +440,7 @@ async function register(app) {
     app.get('/api/scheduled-tasks/status', scheduledTasks.handleStatus);
     app.post('/api/scheduled-tasks/update', scheduledTasks.handleUpdate);
     app.get('/api/scheduled-tasks/history', scheduledTasks.handleHistory);
+    app.get('/api/scheduled-tasks/list', scheduledTasks.handleList);
 
     // ── Per-Customer Scheduled Tasks API ──
     const customerSchedule = require('./customer-schedule');

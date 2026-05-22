@@ -40,6 +40,7 @@ const entrypointTemplateRendering = require('./entrypoint-template-rendering.tes
 const bullboardAdminAccess = require('./bullboard-admin-access.test.js');
 const adminToolsDashboardPanel = require('./admin-tools-dashboard-panel.test.js');
 const reconciliationIncrementalMode = require('./reconciliation-incremental-mode.test.js');
+const generalizedTaskScheduler = require('./generalized-task-scheduler.test.js');
 
 async function main() {
   console.log('Running Brainstorm tests...\n');
@@ -98,6 +99,9 @@ async function main() {
   console.log('\nreconciliation-incremental-mode suite:');
   const reconciliationIncrementalModeResult = await reconciliationIncrementalMode.run();
 
+  console.log('\ngeneralized-task-scheduler suite:');
+  const generalizedTaskSchedulerResult = await generalizedTaskScheduler.run();
+
   console.log('\nTest Results');
   console.log('-------------');
   console.log(`Configuration Loading:                           ${configOk ? 'PASS' : 'FAIL'}`);
@@ -152,6 +156,9 @@ async function main() {
   console.log(
     `reconciliation-incremental-mode suite:           ${reconciliationIncrementalModeResult.fail === 0 ? 'PASS' : 'FAIL'} (${reconciliationIncrementalModeResult.pass} passed, ${reconciliationIncrementalModeResult.fail} failed)`
   );
+  console.log(
+    `generalized-task-scheduler suite:                ${generalizedTaskSchedulerResult.fail === 0 ? 'PASS' : 'FAIL'} (${generalizedTaskSchedulerResult.pass} passed, ${generalizedTaskSchedulerResult.fail} failed)`
+  );
 
   const overallOk =
     configOk &&
@@ -171,7 +178,8 @@ async function main() {
     entrypointTemplateRenderingResult.fail === 0 &&
     bullboardAdminAccessResult.fail === 0 &&
     adminToolsDashboardPanelResult.fail === 0 &&
-    reconciliationIncrementalModeResult.fail === 0;
+    reconciliationIncrementalModeResult.fail === 0 &&
+    generalizedTaskSchedulerResult.fail === 0;
   console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);
   process.exit(overallOk ? 0 : 1);
 }
