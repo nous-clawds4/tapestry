@@ -4,6 +4,21 @@ const fs = require('fs');
 const path = require('path');
 const readline = require('readline');
 
+// reconcileNetwork (Story #23 / ADR 0020): optionally restrict output to a
+// covered author set (--filterAuthorsFile <path>) so the per-pubkey fanout
+// stays bounded to the network instead of every strfry author.
+let filterAuthors = null;
+{
+  const fIdx = process.argv.indexOf('--filterAuthorsFile');
+  if (fIdx !== -1 && process.argv[fIdx + 1]) {
+    filterAuthors = new Set(
+      fs.readFileSync(process.argv[fIdx + 1], 'utf8')
+        .split('\n').map((s) => s.trim().toLowerCase()).filter(Boolean)
+    );
+    console.log(`Filtering output to ${filterAuthors.size} covered authors from ${process.argv[fIdx + 1]}`);
+  }
+}
+
 // Path configuration
 const inputPath = path.join(__dirname, 'allKind1984EventsStripped.json');
 const outputPath = path.join(__dirname, 'currentReportsFromStrfry.json');
@@ -58,6 +73,7 @@ async function processFile() {
     try {
       const oEvent = JSON.parse(line);
       const pk_rater = oEvent.pubkey.toLowerCase();
+      if (filterAuthors && !filterAuthors.has(pk_rater)) { return; }
       const aTags = oEvent.tags;
       const created_at = oEvent.created_at;
 
