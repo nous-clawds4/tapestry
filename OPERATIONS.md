@@ -640,3 +640,36 @@ Trigger `reconcileAll` (or `reconciliation.sh --mode all`). Use this whenever yo
 ### 12.5 Observability
 
 `reconciliation.log` + `events.jsonl` carry, per run: the `mode`, the `watermark` consumed and `watermark_advanced_to`, per-kind `drift` (`added` / `deleted`), per-kind `edge_counts_before`/`edge_counts_after`, and per-stage `duration`. A `recent` run with nothing to do emits `phase: "no_drift"` and exits in the sub-minute fast-path. The precise "how much drift did we catch" answer is the per-kind `added`/`deleted` totals.
+
+## 13. Task scheduling — generalized scheduler (story #22 / ADR 0019)
+
+Recurring task scheduling is served by **BullMQ Job Schedulers** attached to each task's queue — not an in-process `setInterval` (which was retired). **Any** task in the registry can be scheduled; schedules are durable (persisted in Redis, survive a control-panel restart) and every fire routes through the queue, so the `neo4j-heavy` semaphore, per-task concurrency, and BullBoard all apply.
+
+### 13.1 Configuring a schedule
+
+Manage schedules from the **Scheduled Tasks** panel (Relay Settings → Scheduled Tasks) or via the API:
+- `GET /api/scheduled-tasks/list` — every schedulable (registered) task + its current schedule + next/last run.
+- `GET /api/scheduled-tasks/status?taskId=…`, `POST /api/scheduled-tasks/update`, `GET /api/scheduled-tasks/history?taskId=…`.
+
+Schedule shape in `/var/lib/brainstorm/scheduled-tasks.json` — the **source of truth** (Job Schedulers in Redis are the execution layer, reconciled from this file on boot and on every update):
+
+```json
+{ "reconcileRecent":    { "enabled": true, "intervalMinutes": 10 },
+  "reconcileAll":       { "enabled": true, "cron": "0 4 * * 0" },
+  "refreshSearchIndex": { "enabled": true, "intervalHours": 24 } }
+```
+
+- **Interval**: `intervalDays` + `intervalHours` + `intervalMinutes` (summed). **Sub-hour is allowed** — the old 1-hour floor is gone, so `intervalMinutes: 10` is valid.
+- **Cron**: a `cron` expression takes precedence over the interval fields — pin a heavy run to a low-traffic window.
+
+### 13.2 Durability & missed-fire policy
+
+Schedules live in Redis as BullMQ Job Schedulers, so they survive a control-panel restart (unlike the retired `setInterval`). **Missed-fire policy: skip-and-resume, no backfill** — a fire missed while the process was down is not replayed; the next future occurrence runs normally. For `reconcileRecent` this is harmless — the next run's watermark window simply spans the gap.
+
+### 13.3 Kill-switch
+
+Set `"scheduler": false` in `/etc/brainstorm-task-queue.json` and restart the control-panel to halt ALL scheduling (the boot reconcile upserts nothing and removes managed Job Schedulers). Default is on. Per-task `enabled: false` is the finer-grained control.
+
+### 13.4 Scheduling reconciliation — seed the watermark first
+
+Before enabling a frequent `reconcileRecent` schedule on an instance with no reconciliation watermark, **run `reconcileAll` once** in a low-traffic window to seed the watermark (§12.1). Otherwise the first scheduled `reconcileRecent` self-bootstraps a full pass (6–8h on a large graph) — it completes and logs `"bootstrap": true`, but you don't want that as a surprise inside a 10-minute schedule. Recommended cadence once seeded: `reconcileRecent` every ~10 min, `reconcileAll` weekly via cron at a low-traffic hour.

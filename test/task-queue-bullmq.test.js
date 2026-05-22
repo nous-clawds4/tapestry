@@ -320,16 +320,22 @@ test('R1: runTask.js still accepts the existing query parameters (taskName, pubk
   }
 });
 
-test('R2: scheduled-tasks/index.js still POSTs to /api/run-task (AC-7, AC-8, regression guard)', () => {
+test('R2: scheduled-tasks/index.js schedules via the BullMQ scheduler, not by POSTing /api/run-task (ADR 0019 phase-2 migration)', () => {
   const src = readSafe(SCHEDULED_TASKS);
   assert(src !== null, 'scheduled-tasks/index.js missing — re-baseline this sentinel.');
-  // AC-7: existing UIs work unchanged. The scheduler must continue to hit
-  // /api/run-task as today; the queue layer is invisible to it.
+  // RE-BASELINED for ADR 0019 (task-queue phase 2). The phase-1 R2 guarded the
+  // scheduler's fetch(/api/run-task) path and its own comment said "Migrating the
+  // scheduler off /api/run-task is a phase-2 story." This IS that story: recurring
+  // scheduling now runs through BullMQ Job Schedulers on the per-task queues.
   assert(
-    /\/api\/run-task/.test(src),
-    'R2: scheduled-tasks/index.js no longer references /api/run-task (AC-7/AC-8; regression). The phase-1 ' +
-      'design preserves the contract — scheduler hits /api/run-task; that endpoint enqueues; everything ' +
-      'downstream is invisible to the caller. Migrating the scheduler off /api/run-task is a phase-2 story.'
+    /queue\/scheduler|reconcileSchedulesFromConfig/.test(src),
+    'R2: scheduled-tasks/index.js must drive recurring scheduling through the BullMQ scheduler layer ' +
+      '(queue/scheduler.js, via reconcileSchedulesFromConfig) — ADR 0019 phase-2 migration.'
+  );
+  assert(
+    !/\/api\/run-task/.test(src),
+    'R2: scheduled-tasks/index.js should no longer POST to /api/run-task (ADR 0019). Scheduled fires are added ' +
+      'to the task queue by BullMQ Job Schedulers, not by the scheduler calling the HTTP endpoint.'
   );
 });
 
