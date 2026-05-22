@@ -208,3 +208,48 @@ The Architect picks the scope when the story gets planned. (1) is genuinely mini
 **Strictness:** Standard
 **Phase path:** Planning → Architecture → Test Design → Implementation → Review (the merge bug alone might fast-track if the cause is mechanical, but the combined story warrants full harness)
 **Priority:** Low-medium. No Nostr clients are broken (NIP-11 partial document still parses); the relay still works via WebSocket. Worth fixing for relay-discovery hygiene + visitor first-impression, but not blocking any operator workflow.
+
+## 2026-05-21 — Feature: generalized Task Scheduler (BullMQ repeatable jobs) — task-queue phase 2
+
+Replace the in-process `setInterval` scheduler (`src/api/scheduled-tasks/index.js`) with a durable, generalized scheduler built on **BullMQ repeatable/cron jobs**. This is the documented phase 2 of the task queue (story #13).
+
+Why now: story #21 built three manually-triggerable reconciliation tasks (`reconcileRecent`/`reconcileAll`/`reconcileAuthor`) and deliberately did NOT wire any cadence — because the current scheduler can't serve them. Limitations of `src/api/scheduled-tasks/index.js` this would remove:
+- **1-hour minimum interval** (`index.js:258`) — can't do sub-hour.
+- **Hardcoded task set** (`DEFAULTS` = `updateAllScoresForOwner`, `refreshSearchIndex`) — can't schedule arbitrary registered tasks without code edits.
+- **In-process `setInterval`** — dies with the control-panel process; a missed fire is silently skipped (flagged in story #13 background).
+- The only existing sub-hour workaround is a host `systemd` timer, which bypasses the BullMQ queue and the `neo4j-heavy` semaphore.
+
+Target: any registered task schedulable by interval/cron; durable in Redis (survives restarts); routes through the queue (semaphore + BullBoard observability for free); sub-hour intervals. The three reconcile tasks then slot in with no bespoke per-task code — the tasks are already frequency-agnostic by design.
+
+Out of scope: event/dependency-driven triggers (`processAllTasks` already handles chaining); per-customer fan-out scheduling (separate concern).
+
+**Classification:** Feature (task-queue phase 2)
+**Strictness:** Standard
+**Phase path:** Planning → Architecture → Test Design → Implementation → Review
+**Priority:** Medium. Unblocks automated reconciliation cadence and generalizes scheduling for all tasks; until then reconciliation is manual.
+
+## 2026-05-21 — Cleanup: deprecate legacy `reconciliation` task + `reconcile.timer` (superseded by story #21)
+
+Story #21 replaced the single `reconciliation` flow with three explicit task keys. Two now-superseded mechanisms remain for back-compat and should be removed once the new tasks are in routine use:
+
+1. **Legacy `reconciliation` registry key** — retained because `processAllTasks.sh:152` still calls it (now defaults to `--mode recent`). Removal requires deciding whether reconciliation stays in the `processAllTasks` chain (repoint `:152` → `reconcileRecent`) or is decoupled and scheduled independently via the generalized scheduler. Ordering dependency to preserve: reconciliation should run before the owner score calcs so they operate on a synced graph.
+2. **`systemd/reconcile.timer` + `reconcile.service`** — runs `reconciliation.sh` directly every 5 min, bypassing the queue and the `neo4j-heavy` semaphore. Operator reports it has been disabled for a long time. Full removal touches: the unit files; control-panel references (`src/api/export/services/commands/control.js:40`, `queries/status.js:35`); and the sudoers grant (`setup/configure-control-panel-sudo.sh:68-71`).
+
+**Classification:** Refactor / cleanup (removing superseded mechanisms; no new user-facing behavior)
+**Strictness:** Standard
+**Phase path:** Architecture (the `processAllTasks` decoupling decision) → Implementation → Review; the timer-file removal alone could fast-track.
+**Priority:** Low-medium. No correctness issue today; hygiene to avoid two reconciliation paths drifting. Best done alongside or after the generalized scheduler.
+
+## 2026-05-21 — Feature: `reconcileAuthor` trigger surfaces (profile button + API + per-customer scheduling)
+
+Story #21 / ADR 0018 built the `reconcileAuthor` engine mode (`reconciliation.sh --mode author --pubkey <hex>`) but explicitly deferred its trigger surfaces. This story delivers them:
+- A profile-page "reconcile this user" button (frontend).
+- An API endpoint to trigger a single-author reconcile by pubkey (the `--pubkey` value is supplied here; today the registry entry carries only `--mode author`).
+- Optional per-customer scheduling (reconcile customers' authors periodically but not the whole network) — follows the existing `calculateCustomer*` customer-scoped pattern.
+
+Note: `reconcileAuthor` is intentionally NOT `neo4j-heavy` so an interactive trigger stays responsive (never queues behind a sweep).
+
+**Classification:** Feature (UI + API + scheduling)
+**Strictness:** Standard
+**Phase path:** Planning → Architecture → Test Design → Implementation → Review
+**Priority:** Low-medium. The engine works; this is the operator/user-facing surface.

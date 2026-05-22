@@ -593,11 +593,11 @@ A future reviewer who sees these tests fail should stop and ask whether the chan
 
 Reconciliation repairs drift between strfry (canonical nostr event store) and the Neo4j social graph (FOLLOWS / MUTES / REPORTS from kind 3 / 10000 / 1984). One engine — `src/pipeline/reconciliation/reconciliation.sh` — runs in three author-scoped modes, exposed as three task-registry keys (all invoke the same script with a different `--mode`):
 
-| Task | Command | Authors covered | Schedule | `neo4j-heavy`? |
+| Task | Command | Authors covered | Triggered | `neo4j-heavy`? |
 |---|---|---|---|---|
-| `reconcileRecent` | `reconciliation.sh --mode recent` | only authors with an event since the watermark | **~every 10 min** | yes |
-| `reconcileAll` | `reconciliation.sh --mode all` | every author (today's full sweep) | **weekly** + incident recovery | yes |
-| `reconcileAuthor` | `reconciliation.sh --mode author --pubkey <hex>` | one author | on demand | no |
+| `reconcileRecent` | `reconciliation.sh --mode recent` | only authors with an event since the watermark | manually (see §12.3) | yes |
+| `reconcileAll` | `reconciliation.sh --mode all` | every author (today's full sweep) | manually + incident recovery (§12.3) | yes |
+| `reconcileAuthor` | `reconciliation.sh --mode author --pubkey <hex>` | one author | on demand (§12.3) | no |
 
 `recent` is the routine sweep and the default (running `reconciliation.sh` with no `--mode` is `recent`). `all` is the correctness oracle and the weekly drift-recovery fallback — it stays slow (hours) but catches drift that `recent` can't see (e.g. a bad edge with no corresponding recent event). `author` is a tiny point repair; it is deliberately **not** `neo4j-heavy` so an interactive "reconcile me" trigger never queues behind a multi-hour sweep.
 
@@ -612,7 +612,8 @@ Reconciliation repairs drift between strfry (canonical nostr event store) and th
 ```
 
 - Each `recent` run scans strfry `since (lastRunStartedAt - RECONCILIATION_OVERLAP_SECONDS)` and restricts the Neo4j extraction to the same authors.
-- **First run / lost watermark:** if `state.json` is missing, `reconcileRecent` **bootstraps with one full pass** (logged with `"bootstrap": true`), then writes the watermark. Delete `state.json` to force a re-bootstrap.
+- **Seeding the watermark (recommended first step on a fresh instance):** run `reconcileAll` **once**. It establishes the baseline and writes the watermark, after which `reconcileRecent` runs genuinely incrementally. `reconcileAll`'s task timeout (8 h) accommodates the full sweep.
+- **First run / lost watermark (self-healing fallback):** if `reconcileRecent` is triggered with no `state.json`, it **self-bootstraps with one full pass** (logged with `"bootstrap": true`), then writes the watermark. Caveat: a bootstrap takes hours, which exceeds `reconcileRecent`'s shorter task timeout, so it is *reported* as a timeout (exit 124) — but the task runs with `forceKill: false`, so it is **not killed**; it completes in the background and writes the watermark. Prefer seeding via `reconcileAll` to avoid that misleading status. Delete `state.json` to force a re-bootstrap.
 - `author` mode does **not** read or advance the watermark.
 - A failed run does **not** advance the watermark (next run re-covers the window).
 - Inspect: `cat /var/lib/brainstorm/pipeline/reconciliation/state.json | jq`.
@@ -621,9 +622,16 @@ Reconciliation repairs drift between strfry (canonical nostr event store) and th
 
 - `RECONCILIATION_OVERLAP_SECONDS` (default `3600`) — safety window re-scanned on top of the watermark so events that landed during the prior run are re-covered. Re-scanning is idempotent (the diff finds no change).
 
-### 12.3 Cadence lives in the scheduler
+### 12.3 Triggering & scheduling
 
-There is no in-script cadence: schedule `reconcileRecent` (~10 min) and `reconcileAll` (weekly) as two independent tasks. The `neo4j-heavy` semaphore (ADR 0013) guarantees they never run concurrently — a running `reconcileAll` holds the slot and queued `reconcileRecent` triggers harmlessly dedup behind it. The bulk sweeps also serialize against `calculateOwner{Hops,PageRank,GrapeRank}`, which was the original reconciliation-vs-recalculation Neo4j-contention pain.
+**Today these three tasks are manual-trigger only** — via the Task Explorer or `POST /api/run-task` (which routes through the BullMQ queue, so the `neo4j-heavy` semaphore applies and the bulk sweeps serialize against `calculateOwner{Hops,PageRank,GrapeRank}` — the original reconciliation-vs-recalculation contention). No per-task cadence is wired into this story by design: the three tasks are deliberately **frequency-agnostic** — `reconcileRecent`'s watermark makes its scan window self-adjusting, so it is correct at any interval, and `reconcileAll`/`reconcileAuthor` don't depend on cadence at all.
+
+Automated scheduling is deferred to a future **generalized Task Scheduler** — the documented phase 2 of the task queue (story #13), built on **BullMQ repeatable/cron jobs**. It will schedule any registered task, support sub-hour intervals, survive process restarts, and route through the queue (and thus the semaphore). The three reconcile tasks will slot into it as ordinary schedulable tasks with no bespoke per-task code.
+
+**Deprecated / superseded scheduling mechanisms — do NOT use for reconciliation:**
+- The host `systemd/reconcile.timer` (every 5 min → runs `reconciliation.sh` *directly*) is **deprecated**: it bypasses the queue and the `neo4j-heavy` semaphore. Confirm it is disabled (`systemctl is-enabled reconcile.timer`). Full removal (unit files + the control-panel references in `src/api/export/services/commands/control.js` & `queries/status.js` + the sudoers grant in `setup/configure-control-panel-sudo.sh`) is tracked as a follow-up.
+- The in-process scheduler (`src/api/scheduled-tasks/index.js`) has a **1-hour minimum interval** and a hardcoded task set that excludes the reconcile tasks — not used here; itself slated for replacement by the BullMQ scheduler.
+- The legacy `reconciliation` registry key is retained only for back-compat (still invoked by `processAllTasks.sh`; now defaults to `--mode recent`). It is **deprecated** in favor of the three explicit keys; its removal (and repointing/decoupling `processAllTasks`) is a tracked follow-up.
 
 ### 12.4 Force a full run (incident recovery)
 
