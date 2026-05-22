@@ -340,6 +340,61 @@ async function processRaterBatch(raters, batchIndex, totalBatches) {
 }
 
 /**
+ * Streamed restricted-author extraction (Story #23 / ADR 0020).
+ *
+ * Replaces the per-author N+1 (getFollowsForRater in a loop) with ONE
+ * WHERE-scoped query per chunk: the covered pubkeys are passed as a query
+ * PARAMETER ($pubkeys) so Neo4j plans a NodeIndexSeek over :NostrUser(pubkey)
+ * (NOT a label scan, NOT string-interpolated), and the projection is plain
+ * `u.pubkey, t.pubkey` — no eager DISTINCT/ORDER BY/collect/SKIP/LIMIT, the
+ * exact operators that hit transaction.total.max and crashed the full sweep.
+ * Writes the SAME per-pubkey files the diff (calculateFollowsUpdates.js) reads,
+ * including an empty file for a covered rater with no FOLLOWS in Neo4j (so a
+ * cleared follow list diffs correctly).
+ *
+ * @param {Array<string>} raters - the covered author set (from --authorsFromDir)
+ */
+async function extractFollowsForAuthorsStreamed(raters) {
+  const CHUNK = 5000; // bound the IN-list parameter payload + per-chunk memory
+  const totalChunks = Math.ceil(raters.length / CHUNK) || 1;
+  let written = 0;
+  for (let i = 0; i < raters.length; i += CHUNK) {
+    const chunk = raters.slice(i, i + CHUNK);
+    const session = driver.session();
+    try {
+      const result = await session.run(
+        `MATCH (u:NostrUser)-[:FOLLOWS]->(t:NostrUser)
+         WHERE u.pubkey IN $pubkeys
+         RETURN u.pubkey AS rater, t.pubkey AS ratee`,
+        { pubkeys: chunk }
+      );
+      const byRater = Object.create(null);
+      for (const rec of result.records) {
+        const rater = rec.get('rater');
+        const ratee = rec.get('ratee');
+        (byRater[rater] || (byRater[rater] = Object.create(null)))[ratee] = true;
+      }
+      for (const rater of chunk) {
+        const follows = byRater[rater] || {};
+        await writeFileWithTimeout(
+          path.join(config.outputDir, `${rater}.json`),
+          JSON.stringify({ [rater]: follows }, null, 2)
+        );
+        written++;
+      }
+    } catch (error) {
+      await log(`ERROR: streamed extraction chunk ${Math.floor(i / CHUNK) + 1} failed: ${error.message}`);
+      throw error;
+    } finally {
+      await session.close();
+    }
+    await log(`Streamed batch ${Math.floor(i / CHUNK) + 1} of ${totalChunks}. Covered raters: ${Math.min(i + CHUNK, raters.length)}/${raters.length}`);
+    if (global.gc) global.gc();
+  }
+  await log(`Completed streamed restricted-author extraction. Wrote ${written} rater files.`);
+}
+
+/**
  * Main execution function
  */
 async function main() {
@@ -358,24 +413,27 @@ async function main() {
       await log(`Restricting extraction to ${restrictedRaters.length} authors from ${config.authorsFromDir}`);
     }
 
-    // Get total count of raters
+    // Total covered raters (for the _summary.json below).
     const raterCount = restrictedRaters ? restrictedRaters.length : await getRaterCount();
 
-    // Process raters in batches
-    const batchCount = Math.ceil(raterCount / config.batchSize) || 1;
-
-    for (let i = 0; i < raterCount; i += config.batchSize) {
-      const batchIndex = Math.floor(i / config.batchSize) + 1;
-      const batchRaters = restrictedRaters
-        ? restrictedRaters.slice(i, i + config.batchSize)
-        : await getRaters(i, config.batchSize);
-
-      await processRaterBatch(batchRaters, batchIndex, batchCount);
-
-      // Force garbage collection if available; log when garbage collection is about to be performed
-      if (global.gc) {
-        await log(`Garbage collection about to be performed`);
-        global.gc();
+    if (restrictedRaters) {
+      // Story #23 / ADR 0020: streamed single-query extraction over the covered
+      // author set — one parameterized WHERE u.pubkey IN $pubkeys query per
+      // chunk, no per-author N+1, no eager rater-enumeration.
+      await extractFollowsForAuthorsStreamed(restrictedRaters);
+    } else {
+      // Legacy full mode (reconciliation.sh --mode all): per-author batches via
+      // getRaters(). Replaced by the streamed merge-join reconcileAll in a later
+      // Story #23 phase; retained until then so the existing full sweep still runs.
+      const batchCount = Math.ceil(raterCount / config.batchSize) || 1;
+      for (let i = 0; i < raterCount; i += config.batchSize) {
+        const batchIndex = Math.floor(i / config.batchSize) + 1;
+        const batchRaters = await getRaters(i, config.batchSize);
+        await processRaterBatch(batchRaters, batchIndex, batchCount);
+        if (global.gc) {
+          await log(`Garbage collection about to be performed`);
+          global.gc();
+        }
       }
     }
     
