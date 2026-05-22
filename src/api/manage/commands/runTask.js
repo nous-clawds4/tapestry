@@ -81,6 +81,12 @@ async function buildTaskCommand(task, customerArgs = null, queryParams = {}) {
 
     let args = [];
 
+    // Static args declared on the registry entry (e.g. reconciliation "--mode all").
+    // Word-split so each token becomes its own argv element downstream.
+    if (task.staticArgs) {
+        args.push(...String(task.staticArgs).trim().split(/\s+/).filter(Boolean));
+    }
+
     // Handle customer arguments if required
     if (task.arguments && task.arguments.customer && customerArgs) {
         args = [customerArgs.pubkey, customerArgs.customerId, customerArgs.customerName];

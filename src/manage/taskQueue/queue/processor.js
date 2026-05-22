@@ -20,6 +20,12 @@ const brainstormConfig = require('../../../utils/brainstormConfig');
  */
 function buildChildArgs(taskDef, customerArgs, queryParams) {
   const args = [];
+  // Static args declared on the registry entry (e.g. reconciliation "--mode all").
+  // Word-split so each token becomes its own argv element when launchChildTask
+  // runs `bash "$child_script" $child_args`.
+  if (taskDef.staticArgs) {
+    args.push(...String(taskDef.staticArgs).trim().split(/\s+/).filter(Boolean));
+  }
   if (taskDef.arguments && taskDef.arguments.customer && customerArgs) {
     args.push(customerArgs.pubkey, customerArgs.customerId, customerArgs.customerName);
   }

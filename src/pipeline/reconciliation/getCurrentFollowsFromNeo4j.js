@@ -52,6 +52,11 @@ const argv = yargs(hideBin(process.argv))
     type: 'number',
     default: 1000
   })
+  .option('authorsFromDir', {
+    describe: 'Incremental/author mode: restrict extraction to the <pubkey>.json files in this directory (the matching currentRelationshipsFromStrfry/<kind>/ dir) instead of scanning every rater in Neo4j',
+    type: 'string',
+    default: ''
+  })
   .help()
   .argv;
 
@@ -64,7 +69,8 @@ const config = {
   },
   outputDir: argv.outputDir,
   logFile: argv.logFile,
-  batchSize: argv.batchSize
+  batchSize: argv.batchSize,
+  authorsFromDir: argv.authorsFromDir
 };
 
 // Ensure log directory exists
@@ -165,6 +171,22 @@ async function getRaters(skip, limit) {
   } finally {
     await session.close();
   }
+}
+
+/**
+ * Incremental/author mode: read the covered rater pubkeys from the strfry
+ * relationship directory (one <pubkey>.json file per covered author) instead of
+ * scanning every rater in Neo4j. This restricts the extraction to the SAME
+ * author set as the strfry side — the reconciliation correctness invariant
+ * (ADR 0018 §Option A). No Neo4j query, no N+1 over the whole graph.
+ * @param {string} dir - the matching currentRelationshipsFromStrfry/<kind>/ dir
+ * @returns {Array<string>} rater pubkeys
+ */
+function getRatersFromDir(dir) {
+  if (!fs.existsSync(dir)) return [];
+  return fs.readdirSync(dir)
+    .filter(f => f.endsWith('.json') && f !== '_summary.json')
+    .map(f => f.replace(/\.json$/, ''));
 }
 
 /**
@@ -291,61 +313,29 @@ async function writeFileWithTimeout(
  * @param {number} totalBatches - Total number of batches
  */
 async function processRaterBatch(raters, batchIndex, totalBatches) {
-  // await log(`Processing batch ${batchIndex}/${totalBatches} (${raters.length} raters)...`);
-  
   let processedCount = 0;
   let errorCount = 0;
-  
-  // create new log file called reconciliation_currentRaterBatch.log
-  const currentRaterBatchLogFile = path.join('/var/log/brainstorm/', `reconciliation_currentRaterBatch.log`);
-  // delete log file if it exists
-  if (fs.existsSync(currentRaterBatchLogFile)) {
-    fs.unlinkSync(currentRaterBatchLogFile);
-  }
-  // now create it
-  fs.writeFileSync(currentRaterBatchLogFile, '');
-  
+
   for (const raterPubkey of raters) {
     try {
-      // log to log file
-      fs.appendFileSync(currentRaterBatchLogFile, `\n\nProcessing rater ${raterPubkey}; processedCount: ${processedCount}; errorCount: ${errorCount}\n`);
       const followsData = await getFollowsForRater(raterPubkey);
-      fs.appendFileSync(currentRaterBatchLogFile, `Processing rater ${raterPubkey}; followsData successful\n`);
-      const filePath = path.join(config.outputDir, `${raterPubkey}.json`);    
-      
-      fs.appendFileSync(currentRaterBatchLogFile, `Processing rater ${raterPubkey}; filePath successful\n`);
+      const filePath = path.join(config.outputDir, `${raterPubkey}.json`);
 
       if (followsData) {
-        fs.appendFileSync(currentRaterBatchLogFile, `Processing rater ${raterPubkey}; filePath: ${filePath}; stringified followsData: ${JSON.stringify(followsData)}\n`);
-        // await writeFile(filePath, JSON.stringify(followsData, null, 2));
         await writeFileWithTimeout(filePath, JSON.stringify(followsData, null, 2));
-        fs.appendFileSync(currentRaterBatchLogFile, `Processing rater ${raterPubkey}; writeFile successful\n`);
         processedCount++;
       } else {
-        fs.appendFileSync(currentRaterBatchLogFile, `Processing rater ${raterPubkey}; writeFile failed\n`);
         await log(`WARNING: Empty data for rater ${raterPubkey}, skipping file write`);
       }
-      
-      // Log progress periodically
-      if (processedCount % 10 === 0 || processedCount === raters.length) {
-        const progress = Math.round((processedCount / raters.length) * 100);
-        fs.appendFileSync(currentRaterBatchLogFile, `Processing rater ${raterPubkey}; progress ${progress}%\n`);
-        // await log(`Batch ${batchIndex} of ${totalBatches} progress: ${progress}% (${processedCount}/${raters.length} Neo4j followers)`);
-      }
-      fs.appendFileSync(currentRaterBatchLogFile, `Processing rater ${raterPubkey}; completed\n`);
     } catch (error) {
-      fs.appendFileSync(currentRaterBatchLogFile, `Processing rater ${raterPubkey}; error ${error.message}\n`);
       await log(`WARNING: Failed to process rater ${raterPubkey}: ${error.message}`);
       errorCount++;
     }
-    
-    // Force garbage collection if available; log when garbage collection is about to be performed
-    if (global.gc) {
-      await log(`Garbage collection about to be performed`);
-      global.gc();
-    }
+
+    // Force garbage collection if available
+    if (global.gc) global.gc();
   }
-  
+
   await log(`Completed batch ${batchIndex} of ${totalBatches}. Processed: ${processedCount}, Errors: ${errorCount}`);
 }
 
@@ -360,18 +350,28 @@ async function main() {
     // Ensure output directory exists
     await ensureOutputDirectory();
     
+    // Incremental/author mode: restrict to the covered author set discovered in
+    // the strfry relationship dir; otherwise scan every rater in Neo4j (full mode).
+    let restrictedRaters = null;
+    if (config.authorsFromDir) {
+      restrictedRaters = getRatersFromDir(config.authorsFromDir);
+      await log(`Restricting extraction to ${restrictedRaters.length} authors from ${config.authorsFromDir}`);
+    }
+
     // Get total count of raters
-    const raterCount = await getRaterCount();
-    
+    const raterCount = restrictedRaters ? restrictedRaters.length : await getRaterCount();
+
     // Process raters in batches
-    const batchCount = Math.ceil(raterCount / config.batchSize);
-    
+    const batchCount = Math.ceil(raterCount / config.batchSize) || 1;
+
     for (let i = 0; i < raterCount; i += config.batchSize) {
       const batchIndex = Math.floor(i / config.batchSize) + 1;
-      const batchRaters = await getRaters(i, config.batchSize);
-      
+      const batchRaters = restrictedRaters
+        ? restrictedRaters.slice(i, i + config.batchSize)
+        : await getRaters(i, config.batchSize);
+
       await processRaterBatch(batchRaters, batchIndex, batchCount);
-      
+
       // Force garbage collection if available; log when garbage collection is about to be performed
       if (global.gc) {
         await log(`Garbage collection about to be performed`);

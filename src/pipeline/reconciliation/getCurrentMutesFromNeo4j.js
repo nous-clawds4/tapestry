@@ -52,6 +52,11 @@ const argv = yargs(hideBin(process.argv))
     type: 'number',
     default: 1000
   })
+  .option('authorsFromDir', {
+    describe: 'Incremental/author mode: restrict extraction to the <pubkey>.json files in this directory (the matching currentRelationshipsFromStrfry/<kind>/ dir) instead of scanning every rater in Neo4j',
+    type: 'string',
+    default: ''
+  })
   .help()
   .argv;
 
@@ -64,7 +69,8 @@ const config = {
   },
   outputDir: argv.outputDir,
   logFile: argv.logFile,
-  batchSize: argv.batchSize
+  batchSize: argv.batchSize,
+  authorsFromDir: argv.authorsFromDir
 };
 
 // Ensure log directory exists
@@ -165,6 +171,22 @@ async function getRaters(skip, limit) {
   } finally {
     await session.close();
   }
+}
+
+/**
+ * Incremental/author mode: read the covered rater pubkeys from the strfry
+ * relationship directory (one <pubkey>.json file per covered author) instead of
+ * scanning every rater in Neo4j. This restricts the extraction to the SAME
+ * author set as the strfry side — the reconciliation correctness invariant
+ * (ADR 0018 §Option A). No Neo4j query, no N+1 over the whole graph.
+ * @param {string} dir - the matching currentRelationshipsFromStrfry/<kind>/ dir
+ * @returns {Array<string>} rater pubkeys
+ */
+function getRatersFromDir(dir) {
+  if (!fs.existsSync(dir)) return [];
+  return fs.readdirSync(dir)
+    .filter(f => f.endsWith('.json') && f !== '_summary.json')
+    .map(f => f.replace(/\.json$/, ''));
 }
 
 /**
@@ -313,18 +335,28 @@ async function main() {
     // Ensure output directory exists
     await ensureOutputDirectory();
     
+    // Incremental/author mode: restrict to the covered author set discovered in
+    // the strfry relationship dir; otherwise scan every rater in Neo4j (full mode).
+    let restrictedRaters = null;
+    if (config.authorsFromDir) {
+      restrictedRaters = getRatersFromDir(config.authorsFromDir);
+      await log(`Restricting extraction to ${restrictedRaters.length} authors from ${config.authorsFromDir}`);
+    }
+
     // Get total count of raters
-    const raterCount = await getRaterCount();
-    
+    const raterCount = restrictedRaters ? restrictedRaters.length : await getRaterCount();
+
     // Process raters in batches
-    const batchCount = Math.ceil(raterCount / config.batchSize);
-    
+    const batchCount = Math.ceil(raterCount / config.batchSize) || 1;
+
     for (let i = 0; i < raterCount; i += config.batchSize) {
       const batchIndex = Math.floor(i / config.batchSize) + 1;
-      const batchRaters = await getRaters(i, config.batchSize);
-      
+      const batchRaters = restrictedRaters
+        ? restrictedRaters.slice(i, i + config.batchSize)
+        : await getRaters(i, config.batchSize);
+
       await processRaterBatch(batchRaters, batchIndex, batchCount);
-      
+
       // Force garbage collection if available
       if (global.gc) global.gc();
     }

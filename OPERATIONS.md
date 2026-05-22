@@ -588,3 +588,47 @@ docker exec tapestry bash -c '
 - The `render-conf-template.js` invocation count moves off exactly one (T8 — second write-path, or lost integration).
 
 A future reviewer who sees these tests fail should stop and ask whether the change is reintroducing the very drift class story #16 closed.
+
+## 12. Reconciliation — `recent` / `all` / `author` modes (story #21 / ADR 0018)
+
+Reconciliation repairs drift between strfry (canonical nostr event store) and the Neo4j social graph (FOLLOWS / MUTES / REPORTS from kind 3 / 10000 / 1984). One engine — `src/pipeline/reconciliation/reconciliation.sh` — runs in three author-scoped modes, exposed as three task-registry keys (all invoke the same script with a different `--mode`):
+
+| Task | Command | Authors covered | Schedule | `neo4j-heavy`? |
+|---|---|---|---|---|
+| `reconcileRecent` | `reconciliation.sh --mode recent` | only authors with an event since the watermark | **~every 10 min** | yes |
+| `reconcileAll` | `reconciliation.sh --mode all` | every author (today's full sweep) | **weekly** + incident recovery | yes |
+| `reconcileAuthor` | `reconciliation.sh --mode author --pubkey <hex>` | one author | on demand | no |
+
+`recent` is the routine sweep and the default (running `reconciliation.sh` with no `--mode` is `recent`). `all` is the correctness oracle and the weekly drift-recovery fallback — it stays slow (hours) but catches drift that `recent` can't see (e.g. a bad edge with no corresponding recent event). `author` is a tiny point repair; it is deliberately **not** `neo4j-heavy` so an interactive "reconcile me" trigger never queues behind a multi-hour sweep.
+
+### 12.1 The watermark
+
+`recent` mode persists a watermark at `/var/lib/brainstorm/pipeline/reconciliation/state.json`:
+
+```json
+{ "lastRunStartedAt": 1716300000, "lastRunCompletedAt": 1716300420,
+  "lastRunMode": "recent", "lastFullRunCompletedAt": 1715700000,
+  "edgeCounts": { "follows": 11900000, "mutes": 240000, "reports": 38000 } }
+```
+
+- Each `recent` run scans strfry `since (lastRunStartedAt - RECONCILIATION_OVERLAP_SECONDS)` and restricts the Neo4j extraction to the same authors.
+- **First run / lost watermark:** if `state.json` is missing, `reconcileRecent` **bootstraps with one full pass** (logged with `"bootstrap": true`), then writes the watermark. Delete `state.json` to force a re-bootstrap.
+- `author` mode does **not** read or advance the watermark.
+- A failed run does **not** advance the watermark (next run re-covers the window).
+- Inspect: `cat /var/lib/brainstorm/pipeline/reconciliation/state.json | jq`.
+
+### 12.2 Config (`/etc/brainstorm.conf`)
+
+- `RECONCILIATION_OVERLAP_SECONDS` (default `3600`) — safety window re-scanned on top of the watermark so events that landed during the prior run are re-covered. Re-scanning is idempotent (the diff finds no change).
+
+### 12.3 Cadence lives in the scheduler
+
+There is no in-script cadence: schedule `reconcileRecent` (~10 min) and `reconcileAll` (weekly) as two independent tasks. The `neo4j-heavy` semaphore (ADR 0013) guarantees they never run concurrently — a running `reconcileAll` holds the slot and queued `reconcileRecent` triggers harmlessly dedup behind it. The bulk sweeps also serialize against `calculateOwner{Hops,PageRank,GrapeRank}`, which was the original reconciliation-vs-recalculation Neo4j-contention pain.
+
+### 12.4 Force a full run (incident recovery)
+
+Trigger `reconcileAll` (or `reconciliation.sh --mode all`). Use this whenever you suspect drift that the incremental sweep wouldn't catch — a partial write, a botched migration, or after any direct Neo4j surgery.
+
+### 12.5 Observability
+
+`reconciliation.log` + `events.jsonl` carry, per run: the `mode`, the `watermark` consumed and `watermark_advanced_to`, per-kind `drift` (`added` / `deleted`), per-kind `edge_counts_before`/`edge_counts_after`, and per-stage `duration`. A `recent` run with nothing to do emits `phase: "no_drift"` and exits in the sub-minute fast-path. The precise "how much drift did we catch" answer is the per-kind `added`/`deleted` totals.
