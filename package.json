@@ -81,7 +81,8 @@
     "typescript": "^5.8.2",
     "websocket": "^1.0.35",
     "websocket-polyfill": "^0.0.3",
-    "ws": "^8.18.1"
+    "ws": "^8.18.1",
+    "yargs": "^18.0.0"
   },
   "devDependencies": {
     "@playwright/test": "^1.40.0"

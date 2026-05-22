@@ -13,17 +13,18 @@
  * "Not covered (deferred to cycle-local smoke)" section.
  *
  * T1..T10 : FAIL pre-implementation, PASS post.
- * R1..R5  : PASS pre AND post — regression guards on the machinery ADR 0018
+ * R1..R6  : PASS pre AND post — regression guards on the machinery ADR 0018
  *           reuses verbatim (the per-author SET diff, the converters, the APOC
- *           apply, cleanup(), and the strfry `--recent` capability).
+ *           apply, cleanup(), the strfry `--recent` capability) + the yargs
+ *           dependency the extractors require.
  *
- * NOTE on behavioral coverage: the reconciliation Node scripts require runtime
- * deps (e.g. `yargs`) that live only in the production install
- * (/usr/local/lib/node_modules/brainstorm), not in this dev checkout — so they
- * cannot be invoked from `npm test`. The behavioral set-diff verification
+ * NOTE on behavioral coverage: the reconciliation Node extractors require
+ * `yargs` (now declared in package.json — R6) plus neo4j-driver, and the apply
+ * step needs APOC in Neo4j; a full end-to-end run also needs the live strfry +
+ * Neo4j stack with seeded data. So the behavioral set-diff verification
  * (same-count-different-membership → one add + one delete; missing-side → all
- * adds / all deletes) is therefore exercised in cycle-local smoke against the
- * live stack. R1 pins the set-based shape at the source level here.
+ * adds / all deletes) is exercised in cycle-local smoke against the live stack,
+ * not from `npm test`. R1 pins the set-based shape at the source level here.
  */
 
 const fs = require('fs');
@@ -348,6 +349,19 @@ test('R5: all three strfry dumpers still support --recent (the mechanism recent 
         'this flag — it must remain in all three dumpers (kind 3 / 10000 / 1984).'
     );
   }
+});
+
+test('R6: package.json declares the yargs runtime dependency the extractors require (pre-existing gap surfaced by cycle-local)', () => {
+  const pkg = readJsonSafe(path.join(ROOT, 'package.json'));
+  assert(pkg && pkg.dependencies, 'package.json missing or has no dependencies block — re-baseline this sentinel.');
+  assert(
+    typeof pkg.dependencies.yargs === 'string',
+    "R6: package.json does not declare a `yargs` runtime dependency. The reconciliation extractors " +
+      "(getCurrent{Follows,Mutes,Reports}FromNeo4j.js) `require('yargs/yargs')`; without yargs declared AND " +
+      'installed, the Neo4j-extraction step throws MODULE_NOT_FOUND and reconciliation cannot run at all — a ' +
+      'pre-existing gap surfaced by the story #21 cycle-local smoke. Do not drop this dependency without first ' +
+      'removing the require from the three extractors.'
+  );
 });
 
 async function run() {

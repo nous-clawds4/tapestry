@@ -108,3 +108,12 @@ dist/
 !.claude/agents/
 
 .pi/
+
+# Reconciliation pipeline runtime output (story #21 / ADR 0018) — regenerated each run
+src/pipeline/reconciliation/currentRelationshipsFromNeo4j/
+src/pipeline/reconciliation/currentRelationshipsFromStrfry/
+src/pipeline/reconciliation/allKind*EventsStripped.json
+src/pipeline/reconciliation/currentFollowsFromStrfry.json
+src/pipeline/reconciliation/currentMutesFromStrfry.json
+src/pipeline/reconciliation/currentReportsFromStrfry.json
+src/pipeline/reconciliation/json/*.json
