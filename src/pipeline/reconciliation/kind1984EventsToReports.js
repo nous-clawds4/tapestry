@@ -9,13 +9,19 @@ const readline = require('readline');
 // stays bounded to the network instead of every strfry author.
 let filterAuthors = null;
 {
-  const fIdx = process.argv.indexOf('--filterAuthorsFile');
-  if (fIdx !== -1 && process.argv[fIdx + 1]) {
+  // Accept both `--filterAuthorsFile <path>` and `--filterAuthorsFile=<path>`.
+  let filterPath = null;
+  for (let k = 0; k < process.argv.length; k++) {
+    const a = process.argv[k];
+    if (a === '--filterAuthorsFile') { filterPath = process.argv[k + 1]; }
+    else if (a.startsWith('--filterAuthorsFile=')) { filterPath = a.slice('--filterAuthorsFile='.length); }
+  }
+  if (filterPath) {
     filterAuthors = new Set(
-      fs.readFileSync(process.argv[fIdx + 1], 'utf8')
+      fs.readFileSync(filterPath, 'utf8')
         .split('\n').map((s) => s.trim().toLowerCase()).filter(Boolean)
     );
-    console.log(`Filtering output to ${filterAuthors.size} covered authors from ${process.argv[fIdx + 1]}`);
+    console.log(`Filtering output to ${filterAuthors.size} covered authors from ${filterPath}`);
   }
 }
 
