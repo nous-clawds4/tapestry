@@ -1,4 +1,4 @@
-# Story 14: Speed up reconciliation — incremental mode with periodic full fallback
+# Story 21: Speed up reconciliation — incremental mode with periodic full fallback
 
 **Status:** Approved
 **Created:** 2026-05-20
@@ -65,14 +65,22 @@ To be resolved by the Architect via `/api/concept-graph/summaries`:
 - **Deleting the deprecated `src/pipeline/reconcile/` directory.** `note.md` says it's being deprecated; cleanup is a separate housekeeping task.
 - **Changing the underlying Neo4j data model** (relationship types, NostrUser node shape).
 - **Routing reconciliation through the new BullMQ task queue** (story #13). Reconciliation continues to use whatever invocation path it uses today. If story #13 ships first, reconciliation will naturally benefit, but this story does not depend on it and must not be blocked by it.
-- **A UI surface for triggering or monitoring reconciliation.** Operator continues to use the existing trigger paths (Task Explorer, direct `/api/run-task`, systemd).
+- **A UI surface for triggering or monitoring reconciliation**, including the `reconcileAuthor` trigger surfaces (profile-page button, API endpoint, customer-scoped scheduling) — a **follow-up story** (see ADR 0018). Operator continues to use the existing trigger paths (Task Explorer, direct `/api/run-task`, systemd) for the sweep tasks.
 - **Adding new Neo4j indexes or schema constraints** — if the Architect believes one is needed for the streaming paged query to be fast enough, that becomes a sub-decision in the ADR.
 - **Reconciling event kinds beyond 3 / 10000 / 1984.** Only the three kinds the current pipeline covers.
 - **Pruning or rotating the per-pubkey JSON intermediate files** beyond what the Architect's chosen design naturally requires.
 
 ## Open questions
 
-To resolve at the architecture gate (the operator has explicitly deferred these to the Architect):
+**Resolved at the architecture gate (2026-05-21) — see [ADR 0018](../decisions/0018-reconciliation-incremental-mode.md).** Summary:
+- Q1 runtime target → acceptance bar **< 15 min** steady-state (typically seconds–minutes).
+- Q2 cadence → two **independent scheduled tasks**: incremental ~10 min, full **weekly**. Cadence lives in the scheduler, not the script.
+- Q3 first-run → `reconcileRecent` with no watermark **bootstraps with one full pass**.
+- Q4 pre-check → **hard early-exit** when zero events since the watermark; coarse Neo4j-vs-strfry count comparison logged as a drift *signal*, not a gate. (The per-author check is a **set diff**, never a count.)
+- Q5 queue interaction → bulk sweeps tagged **`neo4j-heavy`** (ADR 0013 semaphore); stays behind the queue (ADR 0015).
+- **Scope refinement:** landed as **three** author-scoped tasks — `reconcileRecent` (incremental), `reconcileAll` (full/oracle), `reconcileAuthor` (single author). The single-author *engine mode* is in scope here; its trigger surfaces (profile button, API endpoint, customer scheduling) are a **follow-up story**.
+
+Original deferred questions (kept for traceability):
 
 1. **Steady-state runtime target.** "Minutes" — exact upper bound (e.g., < 5, < 15, < 30 minutes) is the Architect's recommendation; operator ratifies.
 2. **Default full-reconciliation cadence.** Weekly automatic? Daily at low-traffic hour? Manual-only? Architect proposes; operator ratifies.
@@ -93,6 +101,6 @@ How we'll know it works (informational; the Tester writes the actual test plan i
 
 ## Linked artifacts
 
-- ADR: (filled in after Architecture phase)
+- ADR: [0018-reconciliation-incremental-mode.md](../decisions/0018-reconciliation-incremental-mode.md)
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
