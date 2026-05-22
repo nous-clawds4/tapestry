@@ -437,6 +437,38 @@
       "notes": "Story #21 / ADR 0018. Single-author engine mode (--mode author --pubkey). Intentionally NOT neo4j-heavy. The --pubkey value is supplied by the trigger surface (follow-up story)."
     },
 
+    "reconcileNetwork": {
+      "name": "Reconcile (network)",
+      "categories": ["network"],
+      "description": "Reconcile a configurable TRUSTED NETWORK defined by a Neo4j property predicate: influence >= cutoff (default 0.05 from graperank.conf VERIFIED_FOLLOWERS_INFLUENCE_CUTOFF) and/or hops <= N. At least one SUBSTANTIVE constraint is required — the script refuses influence<=0, hops>=999, or no constraint (those select the whole graph). With no args it defaults to the verified network (influence >= cutoff).",
+      "scripts": [
+        "$BRAINSTORM_MODULE_SRC_DIR/pipeline/reconciliation/reconcileNetwork.sh"
+      ],
+      "script": "$BRAINSTORM_MODULE_SRC_DIR/pipeline/reconciliation/reconcileNetwork.sh",
+      "script_relative_path": "pipeline/reconciliation/reconcileNetwork.sh",
+      "staticArgs": "",
+      "arguments": false,
+      "parent": "processAllTasks",
+      "scope": "system",
+      "priority": "medium",
+      "frequency": "frequent",
+      "status": "active",
+      "structuredLogging": true,
+      "resourceClass": "neo4j-heavy",
+      "options": {
+        "completion": {
+          "failure": {
+            "timeout": {
+              "comments": "3600000 = 60 minutes (bounded by the network predicate; <1h target)",
+              "duration": 3600000,
+              "forceKill": false
+            }
+          }
+        }
+      },
+      "notes": "Story #23 / ADR 0020. Own script (reconcileNetwork.sh); parameterized influence/hops predicate with substantive-constraint guards; approach B (full strfry dump + converter author-filter + streamed extractor); neo4j-heavy. The influence/hops trigger PROMPT is Phase 2b; with no args it defaults to the verified network."
+    },
+
     "processNpubsUpToMaxNumBlocks": {
       "name": "Process Npubs Up To Max Blocks",
       "categories": ["maintenance"],

@@ -117,3 +117,6 @@ src/pipeline/reconciliation/currentFollowsFromStrfry.json
 src/pipeline/reconciliation/currentMutesFromStrfry.json
 src/pipeline/reconciliation/currentReportsFromStrfry.json
 src/pipeline/reconciliation/json/*.json
+
+# reconcileNetwork runtime output (Story #23)
+src/pipeline/reconciliation/network-authors.txt
