@@ -102,5 +102,5 @@ How we'll know it works (informational; the Tester writes the actual test plan i
 ## Linked artifacts
 
 - ADR: [0018-reconciliation-incremental-mode.md](../decisions/0018-reconciliation-incremental-mode.md)
-- Test plan: (filled in after Test Design phase)
+- Test plan: [21-reconciliation-incremental-mode.test-plan.md](21-reconciliation-incremental-mode.test-plan.md)
 - Review: (filled in after Review phase)
