@@ -1,0 +1,69 @@
+# Story 23: Reconciliation re-architecture — independent, guarantee-specific tasks
+
+**Status:** Approved
+**Created:** 2026-05-22
+**Type:** Refactor (re-architecture), driven by a prod-blocking Bug in `reconcileAll`. All phases apply (behavior changes; the model is re-opened).
+
+## Background
+
+Story #21 / ADR 0018 delivered reconciliation as **one** script (`reconciliation.sh`) parametrized by `--mode recent|all|author`, all sharing a single extract-current-state-from-Neo4j → diff-against-strfry → apply pipeline.
+
+Staging — which is **prod-scale** (~2.5M `NostrUser`, ~300k with `FOLLOWS`, ~32M `FOLLOWS`) — proved the shared model doesn't hold:
+- **`reconcileAll`** ran ~6h, died ~62% through the follows phase against Neo4j's transaction-memory ceiling, and never wrote a watermark (review #22 staging addendum).
+- **`reconcileRecent`** is implemented but untested, and suspected unacceptably slow at scale.
+- **`reconcileAuthor`** works.
+
+The realization: the three modes encode **three genuinely different consistency guarantees**, but are forced through **one implementation** that was not built for prod scale. The operator's decision (2026-05-22): stop treating reconciliation as one parametrized task — treat it as **three independent tasks, each implemented and tuned for its own guarantee** — and deprecate the legacy mode-less `reconciliation` task. The full-state-extraction **model is open to redesign** (broadest scope).
+
+This work is the **gate for #21 and #22's production promotion**; both remain blocked until reconciliation is viable at scale.
+
+**Operator decisions captured at Planning (2026-05-22):**
+- **Three independent tasks, three guarantees.** Reconciliation is not one parametrized task. `reconcileAuthor` = single-author consistency (works); `reconcileRecent` = recent-window consistency (exists, untested, suspected slow); `reconcileAll` = full consistency (breaks). Each is rebuilt independently because each guarantees something different.
+- **Deprecate the legacy `reconciliation` task** (the mode-less shared entry).
+- **Broadest scope — the model is on the table.** Whether to keep extracting full current state from Neo4j and diffing against strfry is itself open for redesign.
+- **`reconcileRecent` has a bounded recency window.** It reconciles within an **overridable maximum lookback** (default on the order of 1–6 hours), not an unbounded since-watermark window — so its cost is predictable and it can never accidentally degrade into a full pass. Drift *older* than the window is `reconcileAll`'s domain (or an explicit override).
+- **`reconcileAll` budget: complete in under ~1 hour at prod scale.** (A full extract-diff-apply over 32M edges is unlikely to hit this — the target deliberately forces the model question.)
+- **Single story, Architect phases it — `reconcileRecent` first.** This stays one story; the Architect produces one ADR (model decision + the three tasks), then phases implementation (test → impl → review) per task in this order: **(1) `reconcileRecent`** — bounded and lower-risk, built and tested first so its results inform the model choice; **(2) `reconcileAll`** — built with those learnings against the <1h budget. `reconcileAuthor` already works (regression-protect, validate early).
+- **#21 and #22 stay blocked from prod** until this lands.
+
+## User-facing description
+
+**As the operator,** I want reconciliation expressed as **independent tasks, each delivering a clearly-defined consistency guarantee that holds at production scale within bounded time and memory**, **so that** each can run on its own cadence without inheriting the others' cost — and so the full-graph case stops being an unbounded multi-hour memory bomb that can't even seed a baseline.
+
+## Acceptance criteria
+
+- [ ] **`reconcileAuthor` — single-author consistency.** Given one author, its relationships in Neo4j are made to match strfry; completes in seconds; **no regression** from today's working behavior.
+- [ ] **`reconcileRecent` — recent-window consistency.** Reconciles relationships changed within a **bounded recency window** — an **overridable maximum lookback** with a sensible default (on the order of 1–6 hours) so its cost is predictable and it can never degrade into a full pass — completing **well within its intended cadence** (story #21 envisioned ~every 10 minutes) so successive fires don't overlap. Validated by measurement at prod scale; rebuilt if it overflows that budget.
+- [ ] **The recency window is overridable.** Given an explicit recency override on a `reconcileRecent` invocation, the lookback uses that value instead of the default.
+- [ ] **`reconcileAll` — full consistency.** Establishes Neo4j↔strfry consistency across the entire graph (~32M edges) **to completion**, within **bounded memory** (no transaction-memory ceiling breach) and **under ~1 hour wall-time** at prod scale, persisting its result/baseline.
+- [ ] **The three tasks are independent.** Each has its own documented guarantee and implementation; the cost or failure of one does not entangle the others (notably, `reconcileRecent` must not inherit `reconcileAll`'s full-graph cost).
+- [ ] **The legacy mode-less `reconciliation` task is deprecated/removed** once the three independent tasks exist — no shared `--mode` entry remains as the supported path.
+- [ ] **`OPERATIONS.md` updated:** the three tasks, their guarantees, expected runtimes, the seeding/baseline model, and the deprecation.
+
+## Concepts touched
+
+Operational/infra (Architect resolves any handles via the Concept Graph API; #21/#22 found none in the domain graph):
+- Reconciliation tasks: `reconcileAuthor` / `reconcileRecent` / `reconcileAll`
+- The WoT graph — `NostrUser` nodes; `FOLLOWS` (and mutes/reports) relationships; strfry as source of truth; Neo4j as the graph store
+- Task registry + task queue (#13/#15) and the durable scheduler (#22) — downstream consumers
+
+## Out of scope
+
+- The scheduler mechanism itself (#22, delivered) — this story changes *what* is scheduled, not *how*.
+- Turning reconciliation schedules **on in prod** — operator action, gated by the prod-promotion decision.
+- The #22 panel-observability gaps (OBS-1 phantom "running"; OBS-2 reconcile last-run blank) — tracked against #22, unless the Architect chooses to fold the terminal-event-on-failure fix in here.
+- `reconcileAuthor` trigger surfaces (profile button / API) — still the separate follow-up from #22.
+
+## Open questions
+
+To resolve at the Architecture gate (Architect proposes; operator ratifies):
+1. **The model (broadest-scope rethink):** should reconciliation keep extracting full current state from Neo4j and diffing against strfry, or establish/maintain consistency another way (e.g., derive from the primary ingest path)? This is the central Architecture decision and likely the only way to hit the <1h `reconcileAll` budget.
+2. **Seeding/baseline + the coverage gap:** given full-pass fragility, how is the initial watermark/baseline established? And since `reconcileRecent` now only covers a bounded window, what covers drift *older* than that window (periodic `reconcileAll`? an override? something else)? Does #22's "seed via `reconcileAll` first" runbook (AC-10) change? These three are linked.
+3. **Legacy timer:** does deprecating the host `reconcile.timer` + legacy `reconciliation` registry key (deferred in #22) land here or stay a follow-up?
+
+_Resolved at Planning:_ structure (single story, Architect phases per task, **`reconcileRecent` first then `reconcileAll`**); `reconcileAll` budget (<~1h); `reconcileRecent` = **bounded, overridable recency window (default ~1–6h)**, completing well within its ~10-min cadence (measured).
+
+## Linked artifacts
+
+- Driven by: review #22 staging addendum; ADR 0018 (reconciliation — to be revisited); story #21; story #22 (blocked on this).
+- ADR / Test plan / Review: (filled in later phases)
