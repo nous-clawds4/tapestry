@@ -347,13 +347,13 @@
     "reconcileRecent": {
       "name": "Reconcile (recent)",
       "categories": ["network"],
-      "description": "Incremental reconciliation: only authors with a relevant event since the last successful run. Bootstraps with a full pass if no watermark exists. The routine sweep — schedule ~every 10 minutes.",
+      "description": "Recent-window reconciliation: only authors with a relevant event inside a bounded, overridable recency window (default 6h). Never a full pass / bootstrap. The routine sweep — schedule ~every 10 minutes.",
       "scripts": [
-        "$BRAINSTORM_MODULE_SRC_DIR/pipeline/reconciliation/reconciliation.sh"
+        "$BRAINSTORM_MODULE_SRC_DIR/pipeline/reconciliation/reconcileRecent.sh"
       ],
-      "script": "$BRAINSTORM_MODULE_SRC_DIR/pipeline/reconciliation/reconciliation.sh",
-      "script_relative_path": "pipeline/reconciliation/reconciliation.sh",
-      "staticArgs": "--mode recent",
+      "script": "$BRAINSTORM_MODULE_SRC_DIR/pipeline/reconciliation/reconcileRecent.sh",
+      "script_relative_path": "pipeline/reconciliation/reconcileRecent.sh",
+      "staticArgs": "",
       "arguments": false,
       "parent": "processAllTasks",
       "scope": "system",
@@ -373,7 +373,7 @@
           }
         }
       },
-      "notes": "Story #21 / ADR 0018. Author-restricted incremental sweep; neo4j-heavy (serializes with GrapeRank/PageRank/Hops via ADR 0013)."
+      "notes": "Story #23 / ADR 0020. Own script (reconcileRecent.sh); bounded overridable recency window, no bootstrap; streamed single-query extraction; neo4j-heavy (serializes via ADR 0013)."
     },
 
     "reconcileAll": {
