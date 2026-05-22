@@ -103,4 +103,4 @@ How we'll know it works (informational; the Tester writes the actual test plan i
 
 - ADR: [0018-reconciliation-incremental-mode.md](../decisions/0018-reconciliation-incremental-mode.md)
 - Test plan: [21-reconciliation-incremental-mode.test-plan.md](21-reconciliation-incremental-mode.test-plan.md)
-- Review: (filled in after Review phase)
+- Review: [../reviews/21-reconciliation-incremental-mode.md](../reviews/21-reconciliation-incremental-mode.md) — PASS (source/design audit; cycle-local smoke S1–S10 required before prod)
