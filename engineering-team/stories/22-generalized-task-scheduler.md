@@ -84,6 +84,6 @@ How we'll know it works (informational; the Tester writes the plan in Phase 3):
 
 ## Linked artifacts
 
-- ADR: (filled in after Architecture phase)
+- ADR: [0019-generalized-task-scheduler.md](../decisions/0019-generalized-task-scheduler.md)
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
