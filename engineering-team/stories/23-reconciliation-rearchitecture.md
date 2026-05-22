@@ -70,4 +70,5 @@ _Resolved by ADR 0020:_ **Q1 model** = **four** independent task scripts, each a
 
 - Driven by: review #22 staging addendum; ADR 0018 (reconciliation — superseded in part); story #21; story #22 (blocked on this).
 - ADR: [0020-reconciliation-rearchitecture.md](../decisions/0020-reconciliation-rearchitecture.md) — **Accepted** (2026-05-22): four independent tasks (author / recent / network / all); single `WHERE`-scoped streamed query per task; `reconcileNetwork` = configurable trusted network, `reconcileAll` = truly all; fixes #22 OBS-1/OBS-2 as a side effect.
-- Test plan / Review: (filled in later phases)
+- Test plan: [23-reconciliation-rearchitecture.test-plan.md](23-reconciliation-rearchitecture.test-plan.md) — 11 failing sentinels (T1–T11) + 4 regression guards (R1–R4) at the `npm test` layer; behavioral correctness, bounded-memory completion at scale, and the budgets = cycle-local/staging smoke (S1–S10, Reviewer-required).
+- Review: (filled in after Review phase)
