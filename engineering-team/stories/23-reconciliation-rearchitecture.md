@@ -35,7 +35,7 @@ This work is the **gate for #21 and #22's production promotion**; both remain bl
 - [ ] **`reconcileAuthor` — single-author consistency.** Given one author, its relationships in Neo4j are made to match strfry; completes in seconds; **no regression** from today's working behavior.
 - [ ] **`reconcileRecent` — recent-window consistency.** Reconciles relationships changed within a **bounded recency window** — an **overridable maximum lookback** with a sensible default (on the order of 1–6 hours) so its cost is predictable and it can never degrade into a full pass — completing **well within its intended cadence** (story #21 envisioned ~every 10 minutes) so successive fires don't overlap. Validated by measurement at prod scale; rebuilt if it overflows that budget.
 - [ ] **The recency window is overridable.** Given an explicit recency override on a `reconcileRecent` invocation, the lookback uses that value instead of the default.
-- [ ] **`reconcileAll` — full consistency.** Establishes Neo4j↔strfry consistency across the entire graph (~32M edges) **to completion**, within **bounded memory** (no transaction-memory ceiling breach) and **under ~1 hour wall-time** at prod scale, persisting its result/baseline.
+- [ ] **`reconcileAll` — full consistency across the verified/trusted set.** Establishes Neo4j↔strfry consistency for every **verified** user (GrapeRank `influence ≥ VERIFIED_FOLLOWERS_INFLUENCE_CUTOFF`, default 0.05) **to completion**, within **bounded memory** (no transaction-memory ceiling breach) and **under ~1 hour wall-time** at prod scale, persisting its result/baseline. (Refined from "entire graph" per ADR 0020 — untrusted accounts' follows are inert to the WoT; a user is reconciled on the first `reconcileAll` after it crosses the cutoff.)
 - [ ] **The three tasks are independent.** Each has its own documented guarantee and implementation; the cost or failure of one does not entangle the others (notably, `reconcileRecent` must not inherit `reconcileAll`'s full-graph cost).
 - [ ] **The legacy mode-less `reconciliation` task is deprecated/removed** once the three independent tasks exist — no shared `--mode` entry remains as the supported path.
 - [ ] **`OPERATIONS.md` updated:** the three tasks, their guarantees, expected runtimes, the seeding/baseline model, and the deprecation.
@@ -63,7 +63,10 @@ To resolve at the Architecture gate (Architect proposes; operator ratifies):
 
 _Resolved at Planning:_ structure (single story, Architect phases per task, **`reconcileRecent` first then `reconcileAll`**); `reconcileAll` budget (<~1h); `reconcileRecent` = **bounded, overridable recency window (default ~1–6h)**, completing well within its ~10-min cadence (measured).
 
+_Resolved by ADR 0020:_ **Q1 model** = three independent task scripts, each a single `WHERE`-scoped streamed query (extract-diff-apply retained but de-N+1'd); `reconcileAll` scoped to the verified set. **Q2 seeding** dissolves — bounded `reconcileRecent` never bootstraps; older-than-window drift is covered by the periodic `reconcileAll`. **Q3** — the legacy `reconciliation` registry key is removed here; the host `reconcile.timer` deprecation stays a follow-up.
+
 ## Linked artifacts
 
-- Driven by: review #22 staging addendum; ADR 0018 (reconciliation — to be revisited); story #21; story #22 (blocked on this).
-- ADR / Test plan / Review: (filled in later phases)
+- Driven by: review #22 staging addendum; ADR 0018 (reconciliation — superseded in part); story #21; story #22 (blocked on this).
+- ADR: [0020-reconciliation-rearchitecture.md](../decisions/0020-reconciliation-rearchitecture.md) — **Accepted** (2026-05-22): three independent tasks; single `WHERE`-scoped streamed query per task; `reconcileAll` scoped to the verified set; fixes #22 OBS-1/OBS-2 as a side effect.
+- Test plan / Review: (filled in later phases)
