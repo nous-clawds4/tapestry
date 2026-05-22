@@ -4,6 +4,8 @@
 **Date:** 2026-05-22
 **Diff:** `git diff 458a736f..HEAD` (story #22 commits `0ab48fbf`→`1b12e73c`)
 
+> **⚠️ Prod-promotion verdict revised 2026-05-22 → CHANGES REQUESTED.** The static-diff **PASS** below stands (scheduler design/code is correct), but the Reviewer-required staging smoke surfaced a **blocking, prod-scale failure** in the reconcile task this story exists to schedule. See the **Staging smoke addendum** at the end of this file. **Do not `cycle-prod`.**
+
 > **Base note:** `main` does not yet contain the PR #185 merge (`458a736f`, story #21), so `git diff main...HEAD` pulls in all of story #21's reconciliation diff. This review isolates **story #22 only** by diffing against the #185 merge commit. Story #22 touches 13 files: `OPERATIONS.md`, `bin/control-panel.js`, `src/api/index.js`, `src/api/scheduled-tasks/index.js`, `src/manage/taskQueue/queue/scheduler.js` (new), the UI panel, the new test + two re-baselined tests + the runner, and the three engineering-team artifacts.
 
 ## Quality gates (run by reviewer, not trusted)
@@ -87,3 +89,40 @@ _None._
 **PASS** — The diff matches the story's acceptance criteria and ADR 0019's chosen design (Option A); the in-process `setInterval` scheduler is cleanly retired with no dangling references; all 18 test suites are green (new suite 12/12); the two re-baselined sentinels are legitimate ADR-0019 evolutions (1-hour-floor and `/api/run-task` guards correctly inverted for the phase-2 migration), not weakenings. The one ADR deviation (`timeoutMs` in job data) is a justified improvement. No blocking issues.
 
 This PASS authorizes the standard deploy chain. **The S1–S9 cycle-local/staging smoke is the authoritative behavioral gate and must pass on `staging.brainstorm.world` before `cycle-prod`** — the durability (S3), no-regression (S4), and reconcile-serialization (S5) checks in particular, since prod promotion of story #21 depends on them.
+
+---
+
+## Staging smoke addendum — behavioral gate result (2026-05-22, post-#186 merge)
+
+The PASS above was a static-diff verdict that deferred the behavioral heart to the **Reviewer-required S1–S9 staging smoke**, naming S3/S4/S5 as the gate before `cycle-prod`. That gate has now been exercised on `staging.brainstorm.world` — a **prod-scale** graph (~2.5M `NostrUser`, ~300k with `FOLLOWS`, **~32M `FOLLOWS`**). **Result: the gate is NOT met — prod promotion is blocked.** The scheduler code in this diff is not at fault; the blocker is downstream in the reconcile task it correctly scheduled.
+
+**What ran.** Per AC-10 / OPERATIONS §13.4, S5 begins by seeding the watermark with a deliberate `reconcileAll`. A single manual `reconcileAll` was triggered. Live confirmation of the **#22 mechanism**: BullBoard showed it enqueued and run through the queue (AC-5) under the registry `--mode all` static-arg (AC-9); the new `GET /api/scheduled-tasks/list` enumerated any registry task (AC-1), an unregistered `taskId` → 400, and `refreshSearchIndex` showed a live `nextRunAt` exactly 1h after `lastRunAt` — its schedule migrated and the durable Job Scheduler is firing (AC-6 mechanism, partial S4). Tier 1/2 were green; the staging *deploy* itself was clean. Then the reconcile task failed.
+
+### S5-BLOCKER — `reconcileAll` not viable at prod scale  *(root cause: story #21 / ADR 0018 reconcile extractor — NOT the #22 scheduler)* — **BLOCKING for prod**
+
+`reconcileAll --mode all` ran 05:22:59 → ~11:21 UTC (**~6h**) and died mid-pass without a terminal event:
+
+- Phase A (mutes) ✓ 70s (+277/−46, ~191k edges); Phase C (reports) ✓ 76s (+1284, ~168k edges); **Phase B (follows)** started 05:25:25, read current follows in 1000-row batches, reached **batch 1359 / 2195 (~62%)**, then errored in `getCurrentFollowsFromNeo4j`:
+  > `Failed to get raters: The allocation of an extra 2.0 MiB would use more than the limit 3.9 GiB. Currently using 3.9 GiB. dbms.memory.transaction.total.max threshold reached`
+- **Not** a restart (container `tapestry` up 11h continuously) and **not** a host/container OOM (`TASK_START` `systemContext`: mem 51.5%, load 2.55, neo4j accessible) — it is **Neo4j's transaction-memory ceiling**.
+- `reconciliation.sh` persists the watermark only on success (lines 360–376); it died first, so **the watermark was not seeded** (`/var/lib/brainstorm/pipeline/reconciliation/state.json` absent). A re-run reproduces identically. At ~62% of the *read* alone after 6h, a clean pass would be ≥10–12h even absent the memory wall.
+
+**Consequence.** The seed cannot complete → `reconcileRecent`'s no-watermark bootstrap hits the same wall → **S5 is unvalidatable**, and decisively the **production reconcile schedules this entire story exists to enable cannot run at prod scale.** Story #22 met its purpose by surfacing this before prod.
+
+### OBS-1 — a failed `neo4j-heavy` job reads as perpetually "running"  *(story #22, AC-8)* — **should-fix**
+
+The failure emitted **no `TASK_END` and no `TASK_ERROR`** (the `reconciliation.sh` `ERR` trap is scoped to a narrow cleanup block; the extractor error didn't trip it, and a `SIGKILL` couldn't either). `getRecentRuns` infers "running" from a `TASK_START` with no terminal event, so `/api/scheduled-tasks/status` and the panel report the dead job **"running" indefinitely** (verified live: API said `running` for >8h after death). This contradicts AC-8 ("panel reflects current state … last run") and misleads the operator. No reaper exists.
+
+### OBS-2 — reconcile tasks' "last run" is always blank in the panel  *(story #22, AC-8; root in legacy `reconciliation` identity)* — **should-fix**
+
+All reconcile registry tasks wrap `reconciliation.sh`, which logs run events under the script identity `reconciliation`. `getRecentRuns(taskId)` filters `events.jsonl` by exact `taskName`, so for `reconcileAll`/`reconcileRecent` it returns empty → the panel's "last run" / Recent Runs is **always blank** for them (next-run, keyed off the Job Scheduler, is unaffected). Root cause is the shared-script log identity (the legacy `reconciliation` key — explicitly out of scope per the story), but it surfaces through #22's panel and partially misses AC-8 for the reconcile tasks.
+
+### Revised verdict — prod promotion: **CHANGES REQUESTED**
+
+The static-diff **PASS stands** (scheduler design/code correct; staging deploy + #22 mechanism observed healthy), but the **Reviewer-required behavioral gate (S5) cannot pass** until the reconcile extractor scales. Kick back:
+
+1. **Primary — new bug, story #21 / ADR 0018 territory:** bound transaction memory in `getCurrentFollowsFromNeo4j` so a full pass completes at 32M-edge scale. *PO should open a dedicated bug story; this is distinct from #22.*
+2. **Secondary — story #22:** OBS-1 (emit a terminal event / add a stalled-job reaper so a dead job stops reading "running") and OBS-2 (resolve reconcile-task run history to the `reconciliation` identity, or document the gap).
+3. Re-run the seed → exercise **S3 + S5** only after the primary fix lands.
+
+This addendum supersedes the original "*This PASS authorizes the standard deploy chain … before `cycle-prod`*" to the extent of prod promotion: **do not `cycle-prod` until S5 passes.**
