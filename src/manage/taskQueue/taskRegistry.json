@@ -379,13 +379,13 @@
     "reconcileAll": {
       "name": "Reconcile (full)",
       "categories": ["network"],
-      "description": "Full reconciliation over every author (the correctness oracle and periodic drift-recovery fallback). Schedule weekly; also the incident-recovery / force-full path.",
+      "description": "Full reconciliation over the ENTIRE graph (truly all). The complete oracle / incident-recovery sweep. Mutes/reports use approach B (no filter); follows uses a sorted merge-join (bounded memory at 32M edges). Schedule weekly; <1h target.",
       "scripts": [
-        "$BRAINSTORM_MODULE_SRC_DIR/pipeline/reconciliation/reconciliation.sh"
+        "$BRAINSTORM_MODULE_SRC_DIR/pipeline/reconciliation/reconcileAll.sh"
       ],
-      "script": "$BRAINSTORM_MODULE_SRC_DIR/pipeline/reconciliation/reconciliation.sh",
-      "script_relative_path": "pipeline/reconciliation/reconciliation.sh",
-      "staticArgs": "--mode all",
+      "script": "$BRAINSTORM_MODULE_SRC_DIR/pipeline/reconciliation/reconcileAll.sh",
+      "script_relative_path": "pipeline/reconciliation/reconcileAll.sh",
+      "staticArgs": "",
       "arguments": false,
       "scope": "system",
       "priority": "medium",
@@ -404,7 +404,7 @@
           }
         }
       },
-      "notes": "Story #21 / ADR 0018. Full-graph sweep — today's behavior, retained as oracle + weekly fallback; neo4j-heavy."
+      "notes": "Story #23 / ADR 0020. Own script (reconcileAll.sh); mutes/reports approach B + follows sorted merge-join via extractFollowsToTSV.js + jq + sort + comm + awk; bounded memory at 32M edges; neo4j-heavy. <1h target, not gate."
     },
 
     "reconcileAuthor": {
