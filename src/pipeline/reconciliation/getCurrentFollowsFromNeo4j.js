@@ -126,52 +126,11 @@ async function ensureOutputDirectory() {
   }
 }
 
-/**
- * Get count of raters (users who have FOLLOWS relationships)
- */
-async function getRaterCount() {
-  const session = driver.session();
-  try {
-    const result = await session.run(`
-      MATCH (u:NostrUser)-[r:FOLLOWS]->()
-      RETURN COUNT(DISTINCT u) AS count
-    `);
-    
-    const count = result.records[0].get('count').toInt();
-    await log(`Found ${count} users with FOLLOWS relationships`);
-    return count;
-  } catch (error) {
-    await log(`ERROR: Failed to get rater count: ${error.message}`);
-    throw error;
-  } finally {
-    await session.close();
-  }
-}
-
-/**
- * Get all raters (users who have FOLLOWS relationships)
- * @param {number} skip - Number of raters to skip
- * @param {number} limit - Maximum number of raters to return
- * @returns {Array} Array of rater pubkeys
- */
-async function getRaters(skip, limit) {
-  const session = driver.session();
-  try {
-    const cypherQuery = ` MATCH (u:NostrUser)-[r:FOLLOWS]->(target:NostrUser)
-      RETURN DISTINCT u.pubkey AS pubkey
-      ORDER BY u.pubkey
-      SKIP ${skip}
-      LIMIT ${limit}`;
-    const result = await session.run(cypherQuery);
-    
-    return result.records.map(record => record.get('pubkey'));
-  } catch (error) {
-    await log(`ERROR: Failed to get raters: ${error.message}`);
-    throw error;
-  } finally {
-    await session.close();
-  }
-}
+// Legacy getRaterCount + getRaters removed (Story #23 / ADR 0020). The eager
+// full-graph rater-pagination query (DISTINCT-with-sort-and-paginate) was the
+// workload that hit Neo4j's transaction.total.max and crashed reconcileAll at
+// 32M edges. All four reconcile tasks now pass --authorsFromDir; reconcileAll's
+// full sweep uses extractFollowsToTSV.js.
 
 /**
  * Incremental/author mode: read the covered rater pubkeys from the strfry
@@ -189,57 +148,10 @@ function getRatersFromDir(dir) {
     .map(f => f.replace(/\.json$/, ''));
 }
 
-/**
- * Create a promise that rejects after specified timeout
- * @param {number} ms - Timeout in milliseconds
- * @returns {Promise} Promise that rejects after timeout
- */
-function timeout(ms) {
-  return new Promise((_, reject) => {
-    setTimeout(() => reject(new Error(`function: getFollowsForRater timed out after ${ms}ms`)), ms);
-  });
-}
-
-/**
- * Get all FOLLOWS relationships for a specific rater with timeout
- * @param {string} raterPubkey - Pubkey of the rater
- * @param {number} timeoutMs - Timeout in milliseconds (default: 60000 - 60 seconds)
- * @returns {Object} Object containing the rater's FOLLOWS relationships
- */
-async function getFollowsForRater(raterPubkey, timeoutMs = 60000) {
-  const session = driver.session();
-  try {
-    // Create the query promise
-    const queryPromise = session.run(`
-      MATCH (u:NostrUser {pubkey: $pubkey})-[r:FOLLOWS]->(target:NostrUser)
-      RETURN target.pubkey AS ratee
-    `, { pubkey: raterPubkey });
-    
-    // Race between the query and a timeout
-    const result = await Promise.race([
-      queryPromise,
-      timeout(timeoutMs)
-    ]);
-    
-    const follows = {};
-    result.records.forEach(record => {
-      const ratee = record.get('ratee');
-      // Use boolean true instead of timestamp
-      follows[ratee] = true;
-    });
-    
-    return { [raterPubkey]: follows };
-  } catch (error) {
-    if (error.message.includes('timed out')) {
-      log(`TIMEOUT: Query for rater ${raterPubkey} exceeded ${timeoutMs}ms`);
-    } else {
-      log(`ERROR: Getting FOLLOWS for rater ${raterPubkey}: ${error.message}`);
-    }
-    throw error;
-  } finally {
-    await session.close();
-  }
-}
+// Legacy timeout() + getFollowsForRater() removed (Story #23 / ADR 0020). The
+// per-author N+1 (one Cypher round-trip per rater × ~2.2M raters) is replaced
+// by extractFollowsForAuthorsStreamed below — ONE parameterized `WHERE u.pubkey
+// IN $pubkeys` query per chunk.
 
 /**
  * Write file with timeout and retry logic
@@ -306,38 +218,8 @@ async function writeFileWithTimeout(
   throw lastError;
 }
 
-/**
- * Process a batch of raters and create individual JSON files
- * @param {Array} raters - Array of rater pubkeys
- * @param {number} batchIndex - Index of the current batch
- * @param {number} totalBatches - Total number of batches
- */
-async function processRaterBatch(raters, batchIndex, totalBatches) {
-  let processedCount = 0;
-  let errorCount = 0;
-
-  for (const raterPubkey of raters) {
-    try {
-      const followsData = await getFollowsForRater(raterPubkey);
-      const filePath = path.join(config.outputDir, `${raterPubkey}.json`);
-
-      if (followsData) {
-        await writeFileWithTimeout(filePath, JSON.stringify(followsData, null, 2));
-        processedCount++;
-      } else {
-        await log(`WARNING: Empty data for rater ${raterPubkey}, skipping file write`);
-      }
-    } catch (error) {
-      await log(`WARNING: Failed to process rater ${raterPubkey}: ${error.message}`);
-      errorCount++;
-    }
-
-    // Force garbage collection if available
-    if (global.gc) global.gc();
-  }
-
-  await log(`Completed batch ${batchIndex} of ${totalBatches}. Processed: ${processedCount}, Errors: ${errorCount}`);
-}
+// Legacy processRaterBatch() removed — was the driver for the per-author N+1.
+// Replaced by extractFollowsForAuthorsStreamed (chunked parameterized IN).
 
 /**
  * Streamed restricted-author extraction (Story #23 / ADR 0020).
@@ -405,37 +287,18 @@ async function main() {
     // Ensure output directory exists
     await ensureOutputDirectory();
     
-    // Incremental/author mode: restrict to the covered author set discovered in
-    // the strfry relationship dir; otherwise scan every rater in Neo4j (full mode).
-    let restrictedRaters = null;
-    if (config.authorsFromDir) {
-      restrictedRaters = getRatersFromDir(config.authorsFromDir);
-      await log(`Restricting extraction to ${restrictedRaters.length} authors from ${config.authorsFromDir}`);
+    // --authorsFromDir is REQUIRED (Story #23 / ADR 0020): the legacy full-mode
+    // getRaters() path was removed. reconcileAll uses extractFollowsToTSV.js
+    // for full-graph extraction; reconcileRecent / reconcileNetwork /
+    // reconcileAuthor all pass --authorsFromDir.
+    if (!config.authorsFromDir) {
+      throw new Error('--authorsFromDir is required (legacy full-mode rater enumeration removed in ADR 0020; use extractFollowsToTSV.js for full-graph extraction)');
     }
+    const restrictedRaters = getRatersFromDir(config.authorsFromDir);
+    await log(`Restricting extraction to ${restrictedRaters.length} authors from ${config.authorsFromDir}`);
+    const raterCount = restrictedRaters.length;
 
-    // Total covered raters (for the _summary.json below).
-    const raterCount = restrictedRaters ? restrictedRaters.length : await getRaterCount();
-
-    if (restrictedRaters) {
-      // Story #23 / ADR 0020: streamed single-query extraction over the covered
-      // author set — one parameterized WHERE u.pubkey IN $pubkeys query per
-      // chunk, no per-author N+1, no eager rater-enumeration.
-      await extractFollowsForAuthorsStreamed(restrictedRaters);
-    } else {
-      // Legacy full mode (reconciliation.sh --mode all): per-author batches via
-      // getRaters(). Replaced by the streamed merge-join reconcileAll in a later
-      // Story #23 phase; retained until then so the existing full sweep still runs.
-      const batchCount = Math.ceil(raterCount / config.batchSize) || 1;
-      for (let i = 0; i < raterCount; i += config.batchSize) {
-        const batchIndex = Math.floor(i / config.batchSize) + 1;
-        const batchRaters = await getRaters(i, config.batchSize);
-        await processRaterBatch(batchRaters, batchIndex, batchCount);
-        if (global.gc) {
-          await log(`Garbage collection about to be performed`);
-          global.gc();
-        }
-      }
-    }
+    await extractFollowsForAuthorsStreamed(restrictedRaters);
     
     // Create a summary file with the count of extracted relationships
     const summaryFile = path.join(config.outputDir, '_summary.json');

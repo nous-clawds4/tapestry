@@ -44,7 +44,7 @@ EMITTED_TERMINAL=0
 emit_terminal_on_exit() {
   local code=$?
   if [[ "$EMITTED_TERMINAL" -eq 0 && "$code" -ne 0 ]]; then
-    emit_task_event "TASK_ERROR" "${TASK_NAME}" "system" \
+    emit_task_event "TASK_ERROR" "reconcileAll" "system" \
       "{\"message\":\"reconcileAll failed\",\"failed_command\":\"${BASH_COMMAND}\",\"exit_code\":${code},\"status\":\"failed\"}"
   fi
 }
@@ -93,7 +93,7 @@ extract_and_dump_no_filter() {
 }
 
 log "Starting ${TASK_NAME}"
-emit_task_event "TASK_START" "${TASK_NAME}" "system" "{
+emit_task_event "TASK_START" "reconcileAll" "system" "{
     \"description\": \"Full-graph Neo4j <-> strfry reconciliation (truly all)\",
     \"task\": \"${TASK_NAME}\",
     \"mechanism\": \"mutes+reports approach B; follows sorted merge-join\",
@@ -105,7 +105,7 @@ cleanup
 #############################################
 # A: MUTES (kind 10000) — approach B, no filter
 #############################################
-emit_task_event "PROGRESS" "${TASK_NAME}" "system" "{\"phase\":\"A\",\"phase_name\":\"process_mutes\",\"task\":\"${TASK_NAME}\",\"operation\":\"phase_start\"}"
+emit_task_event "PROGRESS" "reconcileAll" "system" "{\"phase\":\"A\",\"phase_name\":\"process_mutes\",\"task\":\"${TASK_NAME}\",\"operation\":\"phase_start\"}"
 PHASE_START=$(date +%s); MUTES_BEFORE=$(neo4j_rel_count "MUTES")
 log "Phase A: mutes — full dump + extract (approach B, no filter)"
 extract_and_dump_no_filter "${BASE_DIR}/getCurrentMutesFromNeo4j.js" "${BASE_DIR}/strfryToKind10000Events.sh" "${BASE_DIR}/kind10000EventsToMutes.js" "mutes"
@@ -120,12 +120,12 @@ cypher-shell -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" -a "$NEO4J_URI" -f "$BASE_DIR
 mv "$BASE_DIR/allKind10000EventsStripped.json" /var/lib/neo4j/import/allKind10000EventsStripped.json
 cypher-shell -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" -a "$NEO4J_URI" -f "$BASE_DIR/apocCypherCommands/apocCypherCommand2_mutes" > /dev/null
 MUTES_AFTER=$(neo4j_rel_count "MUTES")
-emit_task_event "PROGRESS" "${TASK_NAME}" "system" "{\"phase\":\"A\",\"phase_name\":\"process_mutes\",\"task\":\"${TASK_NAME}\",\"operation\":\"drift\",\"added\":${MUTES_ADDED},\"deleted\":${MUTES_DELETED},\"edge_counts_before\":${MUTES_BEFORE},\"edge_counts_after\":${MUTES_AFTER},\"duration\":$(( $(date +%s) - PHASE_START )),\"status\":\"completed\"}"
+emit_task_event "PROGRESS" "reconcileAll" "system" "{\"phase\":\"A\",\"phase_name\":\"process_mutes\",\"task\":\"${TASK_NAME}\",\"operation\":\"drift\",\"added\":${MUTES_ADDED},\"deleted\":${MUTES_DELETED},\"edge_counts_before\":${MUTES_BEFORE},\"edge_counts_after\":${MUTES_AFTER},\"duration\":$(( $(date +%s) - PHASE_START )),\"status\":\"completed\"}"
 
 #############################################
 # C: REPORTS (kind 1984) — approach B, no filter, append-only
 #############################################
-emit_task_event "PROGRESS" "${TASK_NAME}" "system" "{\"phase\":\"C\",\"phase_name\":\"process_reports\",\"task\":\"${TASK_NAME}\",\"operation\":\"phase_start\"}"
+emit_task_event "PROGRESS" "reconcileAll" "system" "{\"phase\":\"C\",\"phase_name\":\"process_reports\",\"task\":\"${TASK_NAME}\",\"operation\":\"phase_start\"}"
 PHASE_START=$(date +%s); REPORTS_BEFORE=$(neo4j_rel_count "REPORTS")
 log "Phase C: reports — full dump + extract (approach B, no filter)"
 extract_and_dump_no_filter "${BASE_DIR}/getCurrentReportsFromNeo4j.js" "${BASE_DIR}/strfryToKind1984Events.sh" "${BASE_DIR}/kind1984EventsToReports.js" "reports"
@@ -138,12 +138,12 @@ cypher-shell -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" -a "$NEO4J_URI" -f "$BASE_DIR
 mv "$BASE_DIR/allKind1984EventsStripped.json" /var/lib/neo4j/import/allKind1984EventsStripped.json
 cypher-shell -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" -a "$NEO4J_URI" -f "$BASE_DIR/apocCypherCommands/apocCypherCommand2_reports" > /dev/null
 REPORTS_AFTER=$(neo4j_rel_count "REPORTS")
-emit_task_event "PROGRESS" "${TASK_NAME}" "system" "{\"phase\":\"C\",\"phase_name\":\"process_reports\",\"task\":\"${TASK_NAME}\",\"operation\":\"drift\",\"added\":${REPORTS_ADDED},\"deleted\":${REPORTS_DELETED},\"edge_counts_before\":${REPORTS_BEFORE},\"edge_counts_after\":${REPORTS_AFTER},\"duration\":$(( $(date +%s) - PHASE_START )),\"status\":\"completed\"}"
+emit_task_event "PROGRESS" "reconcileAll" "system" "{\"phase\":\"C\",\"phase_name\":\"process_reports\",\"task\":\"${TASK_NAME}\",\"operation\":\"drift\",\"added\":${REPORTS_ADDED},\"deleted\":${REPORTS_DELETED},\"edge_counts_before\":${REPORTS_BEFORE},\"edge_counts_after\":${REPORTS_AFTER},\"duration\":$(( $(date +%s) - PHASE_START )),\"status\":\"completed\"}"
 
 #############################################
 # B: FOLLOWS (kind 3) — SORTED MERGE-JOIN (the ADR 0020 mechanism for 32M edges)
 #############################################
-emit_task_event "PROGRESS" "${TASK_NAME}" "system" "{\"phase\":\"B\",\"phase_name\":\"process_follows\",\"task\":\"${TASK_NAME}\",\"operation\":\"phase_start\",\"mechanism\":\"sorted_merge_join\"}"
+emit_task_event "PROGRESS" "reconcileAll" "system" "{\"phase\":\"B\",\"phase_name\":\"process_follows\",\"task\":\"${TASK_NAME}\",\"operation\":\"phase_start\",\"mechanism\":\"sorted_merge_join\"}"
 PHASE_START=$(date +%s); FOLLOWS_BEFORE=$(neo4j_rel_count "FOLLOWS")
 
 # 1. Stream the FULL Neo4j FOLLOWS edge set to TSV (rater\tratee), reactively —
@@ -196,7 +196,7 @@ cypher-shell -u "$NEO4J_USER" -p "$NEO4J_PASSWORD" -a "$NEO4J_URI" -f "$BASE_DIR
 rm -f "$BASE_DIR/neo4j-follows.tsv" "$BASE_DIR/neo4j-follows.sorted" "$BASE_DIR/strfry-follows.tsv" "$BASE_DIR/strfry-follows.sorted" "$BASE_DIR/follows-adds.tsv" "$BASE_DIR/follows-deletes.tsv"
 
 FOLLOWS_AFTER=$(neo4j_rel_count "FOLLOWS")
-emit_task_event "PROGRESS" "${TASK_NAME}" "system" "{\"phase\":\"B\",\"phase_name\":\"process_follows\",\"task\":\"${TASK_NAME}\",\"operation\":\"drift\",\"added\":${FOLLOWS_ADDED},\"deleted\":${FOLLOWS_DELETED},\"edge_counts_before\":${FOLLOWS_BEFORE},\"edge_counts_after\":${FOLLOWS_AFTER},\"duration\":$(( $(date +%s) - PHASE_START )),\"status\":\"completed\",\"mechanism\":\"sorted_merge_join\"}"
+emit_task_event "PROGRESS" "reconcileAll" "system" "{\"phase\":\"B\",\"phase_name\":\"process_follows\",\"task\":\"${TASK_NAME}\",\"operation\":\"drift\",\"added\":${FOLLOWS_ADDED},\"deleted\":${FOLLOWS_DELETED},\"edge_counts_before\":${FOLLOWS_BEFORE},\"edge_counts_after\":${FOLLOWS_AFTER},\"duration\":$(( $(date +%s) - PHASE_START )),\"status\":\"completed\",\"mechanism\":\"sorted_merge_join\"}"
 
 log "Projecting followsGraph into memory"
 bash "$BRAINSTORM_MODULE_SRC_DIR/algos/projectFollowsGraphIntoMemory.sh"
@@ -205,7 +205,7 @@ cleanup
 check_disk_space "At end of ${TASK_NAME}"
 
 log "Finished ${TASK_NAME}"
-emit_task_event "TASK_END" "${TASK_NAME}" "system" "{
+emit_task_event "TASK_END" "reconcileAll" "system" "{
     \"task\": \"${TASK_NAME}\",
     \"drift\": {
         \"follows\": { \"added\": ${FOLLOWS_ADDED}, \"deleted\": ${FOLLOWS_DELETED} },

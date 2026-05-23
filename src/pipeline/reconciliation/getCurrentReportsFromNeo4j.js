@@ -126,52 +126,9 @@ async function ensureOutputDirectory() {
   }
 }
 
-/**
- * Get count of raters (users who have REPORTS relationships)
- */
-async function getRaterCount() {
-  const session = driver.session();
-  try {
-    const result = await session.run(`
-      MATCH (u:NostrUser)-[r:REPORTS]->()
-      RETURN COUNT(DISTINCT u) AS count
-    `);
-    
-    const count = result.records[0].get('count').toInt();
-    await log(`Found ${count} users with REPORTS relationships`);
-    return count;
-  } catch (error) {
-    await log(`ERROR: Failed to get rater count: ${error.message}`);
-    throw error;
-  } finally {
-    await session.close();
-  }
-}
-
-/**
- * Get all raters (users who have REPORTS relationships)
- * @param {number} skip - Number of raters to skip
- * @param {number} limit - Maximum number of raters to return
- * @returns {Array} Array of rater pubkeys
- */
-async function getRaters(skip, limit) {
-  const session = driver.session();
-  try {
-    const cypherQuery = ` MATCH (u:NostrUser)-[r:REPORTS]->(target:NostrUser)
-      RETURN DISTINCT u.pubkey AS pubkey
-      ORDER BY u.pubkey
-      SKIP ${skip}
-      LIMIT ${limit}`;
-    const result = await session.run(cypherQuery);
-    
-    return result.records.map(record => record.get('pubkey'));
-  } catch (error) {
-    await log(`ERROR: Failed to get raters: ${error.message}`);
-    throw error;
-  } finally {
-    await session.close();
-  }
-}
+// Legacy getRaterCount + getRaters removed (Story #23 / ADR 0020). All
+// four reconcile tasks now pass --authorsFromDir; the per-author N+1
+// getReportsForRater() is acceptable at reports' bounded scale (~170k authors).
 
 /**
  * Incremental/author mode: read the covered rater pubkeys from the strfry
@@ -338,29 +295,21 @@ async function main() {
     // Ensure output directory exists
     await ensureOutputDirectory();
     
-    // Incremental/author mode: restrict to the covered author set discovered in
-    // the strfry relationship dir; otherwise scan every rater in Neo4j (full mode).
-    let restrictedRaters = null;
-    if (config.authorsFromDir) {
-      restrictedRaters = getRatersFromDir(config.authorsFromDir);
-      await log(`Restricting extraction to ${restrictedRaters.length} authors from ${config.authorsFromDir}`);
+    // --authorsFromDir is REQUIRED (Story #23 / ADR 0020): the legacy full-mode
+    // getRaters() path was removed. All four reconcile tasks pass --authorsFromDir.
+    if (!config.authorsFromDir) {
+      throw new Error('--authorsFromDir is required (legacy full-mode rater enumeration removed in ADR 0020)');
     }
+    const restrictedRaters = getRatersFromDir(config.authorsFromDir);
+    await log(`Restricting extraction to ${restrictedRaters.length} authors from ${config.authorsFromDir}`);
+    const raterCount = restrictedRaters.length;
 
-    // Get total count of raters
-    const raterCount = restrictedRaters ? restrictedRaters.length : await getRaterCount();
-
-    // Process raters in batches
+    // Process raters in batches (per-author N+1 getReportsForRater is fine at reports' bounded scale).
     const batchCount = Math.ceil(raterCount / config.batchSize) || 1;
-
     for (let i = 0; i < raterCount; i += config.batchSize) {
       const batchIndex = Math.floor(i / config.batchSize) + 1;
-      const batchRaters = restrictedRaters
-        ? restrictedRaters.slice(i, i + config.batchSize)
-        : await getRaters(i, config.batchSize);
-
+      const batchRaters = restrictedRaters.slice(i, i + config.batchSize);
       await processRaterBatch(batchRaters, batchIndex, batchCount);
-
-      // Force garbage collection if available
       if (global.gc) global.gc();
     }
     

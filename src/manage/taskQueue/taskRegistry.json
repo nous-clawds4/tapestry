@@ -314,36 +314,6 @@
       "notes": "Phase 2 structured events not yet implemented"
     },
 
-    "reconciliation": {
-      "name": "Data Reconciliation",
-      "categories": ["network"],
-      "description": "Reconciles neo4j with strfry, taking strfry as source of truth",
-      "scripts": [
-        "$BRAINSTORM_MODULE_SRC_DIR/pipeline/reconciliation/reconciliation.sh"
-      ],
-      "script": "$BRAINSTORM_MODULE_SRC_DIR/pipeline/reconciliation/reconciliation.sh",
-      "script_relative_path": "pipeline/reconciliation/reconciliation.sh",
-      "arguments": false,
-      "parent": "processAllTasks",
-      "scope": "system",
-      "priority": "medium",
-      "frequency": "daily",
-      "status": "active",
-      "structuredLogging": true,
-      "options": {
-        "completion": {
-          "failure": {
-            "timeout": {
-              "comments": "5400000 = 1.5 hours",
-              "duration": 5400000,
-              "forceKill": false
-            }
-          }
-        }
-      },
-      "notes": "Legacy key (back-compat). With story #21 / ADR 0018 the script defaults to --mode recent (incremental). Prefer reconcileRecent / reconcileAll / reconcileAuthor for explicit modes."
-    },
-
     "reconcileRecent": {
       "name": "Reconcile (recent)",
       "categories": ["network"],
@@ -412,11 +382,11 @@
       "categories": ["network"],
       "description": "Reconcile a single author's relationships on demand. Requires --pubkey <hex>. NOT neo4j-heavy: a tiny point write that stays responsive for interactive triggers (does not queue behind a sweep). Trigger surfaces (profile button, API, customer scheduling) are a follow-up story.",
       "scripts": [
-        "$BRAINSTORM_MODULE_SRC_DIR/pipeline/reconciliation/reconciliation.sh"
+        "$BRAINSTORM_MODULE_SRC_DIR/pipeline/reconciliation/reconcileAuthor.sh"
       ],
-      "script": "$BRAINSTORM_MODULE_SRC_DIR/pipeline/reconciliation/reconciliation.sh",
-      "script_relative_path": "pipeline/reconciliation/reconciliation.sh",
-      "staticArgs": "--mode author",
+      "script": "$BRAINSTORM_MODULE_SRC_DIR/pipeline/reconciliation/reconcileAuthor.sh",
+      "script_relative_path": "pipeline/reconciliation/reconcileAuthor.sh",
+      "staticArgs": "",
       "arguments": false,
       "scope": "system",
       "priority": "medium",
@@ -434,7 +404,7 @@
           }
         }
       },
-      "notes": "Story #21 / ADR 0018. Single-author engine mode (--mode author --pubkey). Intentionally NOT neo4j-heavy. The --pubkey value is supplied by the trigger surface (follow-up story)."
+      "notes": "Story #23 / ADR 0020. Own script (reconcileAuthor.sh); requires --pubkey <hex>; intentionally NOT neo4j-heavy (stays responsive for interactive triggers, never queues behind a sweep). The --pubkey value is supplied by the trigger surface (follow-up story)."
     },
 
     "reconcileNetwork": {

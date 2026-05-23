@@ -193,48 +193,40 @@ test('T7: the per-rater debug log (reconciliation_currentRaterBatch.log) is remo
   );
 });
 
-test('T8: taskRegistry has reconcileRecent + reconcileAll (neo4j-heavy) and reconcileAuthor (NOT neo4j-heavy), all → reconciliation.sh (AC-2, AC-5, AC-6; ADR 0018 §Impl 5)', () => {
+test('T8: taskRegistry has reconcileRecent + reconcileAll (neo4j-heavy) and reconcileAuthor (NOT neo4j-heavy), each pointing at its OWN script (re-baselined for ADR 0020 — the single --mode engine was retired in favor of independent per-task scripts)', () => {
   const r = readJsonSafe(TASK_REGISTRY);
   assert(r !== null && r.tasks, 'taskRegistry.json missing or malformed — re-baseline this sentinel.');
 
   const cases = [
-    { key: 'reconcileRecent', mode: 'recent', heavy: true },
-    { key: 'reconcileAll',    mode: 'all',    heavy: true },
-    { key: 'reconcileAuthor', mode: 'author', heavy: false },
+    { key: 'reconcileRecent', script: 'reconcileRecent.sh', heavy: true },
+    { key: 'reconcileAll',    script: 'reconcileAll.sh',    heavy: true },
+    { key: 'reconcileAuthor', script: 'reconcileAuthor.sh', heavy: false },
   ];
   for (const c of cases) {
     const entry = r.tasks[c.key];
     assert(
       entry,
-      'taskRegistry.json has no `' + c.key + '` task (AC-2, AC-6; ADR 0018 §Impl 5). The single `reconciliation` ' +
-        'entry is replaced by three keys, all invoking the same reconciliation.sh with a different --mode. The ' +
-        'operator triggers each via the existing surface — no new shell script.'
+      'taskRegistry.json has no `' + c.key + '` task (ADR 0020 §Decision). Each reconcile task is its own ' +
+        'registry entry pointing at its own script under src/pipeline/reconciliation/.'
     );
     const blob = JSON.stringify(entry);
     assert(
-      /reconciliation\.sh/.test(blob),
-      'taskRegistry.json `' + c.key + '` does not point at reconciliation.sh (AC-6; ADR 0018 §Impl 5). All three ' +
-        'modes share one engine script.'
-    );
-    assert(
-      new RegExp('--mode\\s+' + c.mode + '\\b').test(blob),
-      'taskRegistry.json `' + c.key + '` does not invoke `--mode ' + c.mode + '` (AC-2; ADR 0018 §Impl 5). The ' +
-        'mode is selected by the registry entry, not by which script is called.'
+      new RegExp(c.script.replace(/\./g, '\\.')).test(blob),
+      'taskRegistry.json `' + c.key + '` does not point at ' + c.script + ' (ADR 0020 §Decision/§Impl — the ' +
+        '--mode engine was retired; each task has its own script).'
     );
     if (c.heavy) {
       assert(
         entry.resourceClass === 'neo4j-heavy',
-        'taskRegistry.json `' + c.key + '` is not tagged "resourceClass": "neo4j-heavy" (AC-5; ADR 0018 §Impl 5; ' +
-          'ADR 0013). The bulk sweeps must serialize against calculateOwner{Hops,PageRank,GrapeRank} via the ' +
-          'ADR 0013 semaphore — this is the fix for the original reconciliation-vs-recalculation Neo4j ' +
-          'contention.'
+        'taskRegistry.json `' + c.key + '` is not tagged "resourceClass": "neo4j-heavy" (ADR 0013 / ADR 0020). ' +
+          'Bulk sweeps must serialize against calculateOwner{Hops,PageRank,GrapeRank} via the semaphore.'
       );
     } else {
       assert(
         entry.resourceClass !== 'neo4j-heavy',
-        'taskRegistry.json `' + c.key + '` is tagged neo4j-heavy but must NOT be (ADR 0018 §Decision). ' +
-          '`reconcileAuthor` is a tiny point write that backs an interactive "reconcile me" trigger; tagging it ' +
-          'neo4j-heavy would queue it behind an 8-hour sweep. It stays off the class so it runs responsively.'
+        'taskRegistry.json `' + c.key + '` is tagged neo4j-heavy but must NOT be (ADR 0018 §Decision retained in ' +
+          'ADR 0020). `reconcileAuthor` is a tiny point write for interactive triggers; tagging it neo4j-heavy ' +
+          'would queue it behind a sweep.'
       );
     }
   }
