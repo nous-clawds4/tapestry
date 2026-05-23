@@ -81,4 +81,4 @@ The PO oriented via `GET http://localhost:7778/api/concept-graph/summaries` (34 
 
 - ADR: [engineering-team/decisions/0015-scheduled-tasks-with-arguments.md](../decisions/0015-scheduled-tasks-with-arguments.md)
 - Test plan: [engineering-team/stories/17-scheduled-tasks-with-arguments.test-plan.md](17-scheduled-tasks-with-arguments.test-plan.md)
-- Review: (filled in after Review phase)
+- Review: [engineering-team/reviews/17-scheduled-tasks-with-arguments.md](../reviews/17-scheduled-tasks-with-arguments.md) — **CHANGES_REQUESTED** (collides with `origin/staging`'s ADR 0019 / story #22; needs Architect amendment to reconcile multi-entry+args with BullMQ Job Schedulers, plus renumbering to avoid `origin/staging` collisions on story 17 + ADR 0015).
