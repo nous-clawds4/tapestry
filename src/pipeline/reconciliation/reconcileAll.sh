@@ -156,11 +156,11 @@ node "${BASE_DIR}/extractFollowsToTSV.js" \
 # 2. Dump strfry kind-3 (full, no filter) + convert events → TSV (rater\tratee per p-tag).
 log "Phase B: dumping strfry kind-3 (full)"
 bash "${BASE_DIR}/strfryToKind3Events.sh"
-log "Phase B: converting strfry events → TSV via jq"
-jq -r '. as $e | (.tags // []) | map(select(.[0] == "p")) | .[] | (($e.pubkey // "") | ascii_downcase) + "\t" + ((.[1] // "") | ascii_downcase)' \
+log "Phase B: converting strfry events → TSV (Node, replaces the slow jq step that was ~86% of total runtime)"
+node "${BASE_DIR}/kind3EventsToFollowsTSV.js" \
   "${BASE_DIR}/allKind3EventsStripped.json" \
-  | awk -F'\t' 'length($1)==64 && length($2)==64' \
-  > "${BASE_DIR}/strfry-follows.tsv"
+  "${BASE_DIR}/strfry-follows.tsv" \
+  "${LOG_FILE}"
 
 # 3. External-sort both sides (LC_ALL=C for byte-wise, sort -T in BASE_DIR for temp).
 log "Phase B: external-sorting both sides"
