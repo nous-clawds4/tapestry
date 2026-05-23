@@ -1,8 +1,10 @@
-# Test Plan: Story 17 — Per-task arguments in the Scheduled Tasks panel
+# Test Plan: Story 24 — Per-task arguments in the Scheduled Tasks panel
 
-**Story:** `engineering-team/stories/17-scheduled-tasks-with-arguments.md`
-**ADR:** `engineering-team/decisions/0015-scheduled-tasks-with-arguments.md`
-**Date:** 2026-05-23
+> **Renumbered from Story #17 / ADR 0015 → Story #24 / ADR 0021 at sync time (2026-05-23).** Internal references to "Story #17" and "ADR 0015" below are kept verbatim as historical record of how the test plan was drafted. The test plan will need amending after the Architect amends ADR 0021 to reconcile with ADR 0019's BullMQ Job Schedulers — T13-T20 (backend refactor sentinels for `entryId`-keyed `setInterval` state) are no longer the right contract.
+
+**Story:** `engineering-team/stories/24-scheduled-tasks-with-arguments.md`
+**ADR:** `engineering-team/decisions/0021-scheduled-tasks-with-arguments.md`
+**Date:** 2026-05-23 (drafted), renumbered 2026-05-23 at sync
 
 ## Test posture
 

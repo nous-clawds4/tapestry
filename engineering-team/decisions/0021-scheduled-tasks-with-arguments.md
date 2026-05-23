@@ -1,8 +1,11 @@
-# ADR 0015: Per-task arguments and multiple entries per task in the Scheduled Tasks panel
+# ADR 0021: Per-task arguments and multiple entries per task in the Scheduled Tasks panel
 
-**Status:** Proposed
+> **Renumbered from 0015 → 0021 at sync time (2026-05-23):** ADR 0015 on `origin/staging` was already taken by `task-queue-on-by-default`. **Status flipped Proposed → Needs Amendment** by the review at `engineering-team/reviews/24-scheduled-tasks-with-arguments.md`: this ADR's in-process `setInterval` mechanism is superseded by `origin/staging`'s **ADR 0019 (Generalized task scheduler via BullMQ Job Schedulers)** that was merged while this work was being drafted on a stale local branch. The Architect needs to amend this ADR (or write a successor) reconciling the multi-entry-per-task + per-entry-args concept with ADR 0019's BullMQ Job Scheduler execution mechanism. Internal references to "ADR 0015" / "Story #17" below refer to the original-numbering identity of THIS document; they are kept verbatim as historical record of how the work was drafted.
+
+**Status:** Needs Amendment (was: Proposed)
 **Date:** 2026-05-23
-**Story:** `engineering-team/stories/17-scheduled-tasks-with-arguments.md`
+**Story:** `engineering-team/stories/24-scheduled-tasks-with-arguments.md`
+**Superseded execution mechanism by:** ADR 0019 (BullMQ Job Schedulers) on `origin/staging`. The Architect must reconcile.
 
 ## Context
 

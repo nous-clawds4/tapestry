@@ -1,4 +1,6 @@
-# Review: Story 17 — Per-task arguments in the Scheduled Tasks panel
+# Review: Story 24 — Per-task arguments in the Scheduled Tasks panel
+
+> **Filed under the original numbering (story #17 / ADR 0015) and renumbered to story #24 / ADR 0021 at sync time (2026-05-23).** The body of this review is preserved verbatim as historical record — it documents the original-numbering collisions and the architectural collision with ADR 0019 that motivated both the renumbering and the verdict.
 
 **Reviewer:** Claude (acting as Reviewer)
 **Date:** 2026-05-23

@@ -1,6 +1,8 @@
-# Story 17: Per-task arguments in the Scheduled Tasks panel
+# Story 24: Per-task arguments in the Scheduled Tasks panel
 
-**Status:** Approved
+> **Renumbered from #17 → #24 at sync time (2026-05-23):** story #17 on `origin/staging` was already taken by `task-queue-on-by-default`; #24 is the next free slot. The companion ADR was renumbered 0015 → 0021 for the same reason. Review verdict on the original story #17 / ADR 0015 was **CHANGES_REQUESTED** — see the linked review for the asks against the Architect (the in-process scheduler this ADR builds on was superseded by ADR 0019's BullMQ Job Schedulers between the time this work was drafted on a stale branch and the time the Reviewer caught it).
+
+**Status:** Approved (needs ADR amendment per review)
 **Created:** 2026-05-23
 **Type:** Feature
 
@@ -79,6 +81,6 @@ The PO oriented via `GET http://localhost:7778/api/concept-graph/summaries` (34 
 
 ## Linked artifacts
 
-- ADR: [engineering-team/decisions/0015-scheduled-tasks-with-arguments.md](../decisions/0015-scheduled-tasks-with-arguments.md)
-- Test plan: [engineering-team/stories/17-scheduled-tasks-with-arguments.test-plan.md](17-scheduled-tasks-with-arguments.test-plan.md)
-- Review: [engineering-team/reviews/17-scheduled-tasks-with-arguments.md](../reviews/17-scheduled-tasks-with-arguments.md) — **CHANGES_REQUESTED** (collides with `origin/staging`'s ADR 0019 / story #22; needs Architect amendment to reconcile multi-entry+args with BullMQ Job Schedulers, plus renumbering to avoid `origin/staging` collisions on story 17 + ADR 0015).
+- ADR: [engineering-team/decisions/0021-scheduled-tasks-with-arguments.md](../decisions/0021-scheduled-tasks-with-arguments.md) — renumbered from 0015 at sync time; **needs Architect amendment** to reconcile with `origin/staging`'s ADR 0019 (BullMQ Job Schedulers).
+- Test plan: [engineering-team/stories/24-scheduled-tasks-with-arguments.test-plan.md](24-scheduled-tasks-with-arguments.test-plan.md)
+- Review: [engineering-team/reviews/24-scheduled-tasks-with-arguments.md](../reviews/24-scheduled-tasks-with-arguments.md) — **CHANGES_REQUESTED** (architecture conflict with shipped ADR 0019).
