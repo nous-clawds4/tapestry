@@ -1,65 +1,64 @@
 /**
- * Scheduled Tasks API
+ * Scheduled Tasks API — generalized, durable scheduling (story #22 / ADR 0019).
  *
- * Manages recurring timers for one or more named tasks, keyed by taskId.
- * Config is persisted in /var/lib/brainstorm/scheduled-tasks.json.
- * Timers run in-process via setInterval and trigger their task through
- * the existing /api/run-task endpoint.
+ * Recurring scheduling is now served by BullMQ Job Schedulers attached to each
+ * task's existing queue (see ../../manage/taskQueue/queue/scheduler.js), NOT an
+ * in-process setInterval. This module owns the operator-facing config (which
+ * tasks, enabled?, interval/cron) — the SOURCE OF TRUTH — persisted in
+ * /var/lib/brainstorm/scheduled-tasks.json, and reconciles it into Job
+ * Schedulers on boot and on every update.
  *
- * Per ADR 0003 (Option A): generalized from a single hardcoded task to a
- * Map<taskId, timerState>. Handlers require taskId from req.query/body.
+ * Generalized from ADR 0003's hardcoded task set: ANY task in the registry can
+ * be scheduled. Schema (backward-compatible): per task
+ *   { enabled, intervalDays?, intervalHours?, intervalMinutes?, cron? }
+ * — cron wins; otherwise days/hours/minutes sum to an interval. No 1-hour floor.
  */
 
 const fs = require('fs');
 const path = require('path');
+const brainstormConfig = require('../../utils/brainstormConfig');
 
 const CONFIG_PATH = '/var/lib/brainstorm/scheduled-tasks.json';
 const EVENTS_PATH = '/var/log/brainstorm/taskQueue/events.jsonl';
 
-const DEFAULTS = {
-  updateAllScoresForOwner: {
-    enabled: false,
-    intervalHours: 24,
-    intervalDays: 0,
-  },
-  refreshSearchIndex: {
-    enabled: false,
-    intervalHours: 24,
-    intervalDays: 0,
-  },
-};
+// ── Task registry (the schedulable-task universe — replaces ADR 0003's DEFAULTS) ──
 
-// ── Per-task in-memory timer state ──────────────────────────
-// taskId → { schedulerTimer, nextRunAt, lastRunAt, taskRunning }
-const timerState = new Map();
-
-function getTimerState(taskId) {
-  if (!timerState.has(taskId)) {
-    timerState.set(taskId, {
-      schedulerTimer: null,
-      nextRunAt: null,
-      lastRunAt: null,
-      taskRunning: false,
-    });
+let _registry = null;
+function loadRegistry() {
+  if (_registry) return _registry;
+  try {
+    const registryPath = path.join(
+      brainstormConfig.get('BRAINSTORM_MODULE_MANAGE_DIR'),
+      'taskQueue/taskRegistry.json'
+    );
+    _registry = JSON.parse(fs.readFileSync(registryPath, 'utf8'));
+  } catch (e) {
+    console.error('[scheduled-tasks] Could not load taskRegistry.json:', e.message);
+    _registry = { tasks: {} };
   }
-  return timerState.get(taskId);
+  return _registry;
 }
 
-function isKnownTaskId(taskId) {
-  return Boolean(taskId) && Object.prototype.hasOwnProperty.call(DEFAULTS, taskId);
+function isRegisteredTask(taskId) {
+  const reg = loadRegistry();
+  return Boolean(taskId) && Boolean(reg.tasks && reg.tasks[taskId]);
+}
+
+// Lazy require — pulls in BullMQ via the queue module only when scheduling runs
+// (gated by TASK_QUEUE_ENABLED at the call sites), keeping module load cheap.
+function scheduler() {
+  return require('../../manage/taskQueue/queue/scheduler');
 }
 
 // ── Config read/write ───────────────────────────────────────
 
 function readConfig() {
   try {
-    if (fs.existsSync(CONFIG_PATH)) {
-      return JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
-    }
+    if (fs.existsSync(CONFIG_PATH)) return JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
   } catch (e) {
     console.error('[scheduled-tasks] Error reading config:', e.message);
   }
-  return { ...DEFAULTS };
+  return {};
 }
 
 function writeConfig(config) {
@@ -70,109 +69,29 @@ function writeConfig(config) {
 
 function getTaskConfig(taskId) {
   const config = readConfig();
-  return config[taskId] || DEFAULTS[taskId];
+  return config[taskId] || { enabled: false, intervalDays: 0, intervalHours: 0, intervalMinutes: 0, cron: '' };
 }
 
-// ── Scheduler logic ─────────────────────────────────────────
-
-function totalIntervalMs(cfg) {
-  return ((cfg.intervalDays || 0) * 24 + (cfg.intervalHours || 0)) * 3600000;
-}
-
-function makeTriggerTask(taskId) {
-  return async function triggerTask() {
-    const state = getTimerState(taskId);
-    if (state.taskRunning) {
-      console.log(`[scheduled-tasks] Skipping trigger — previous ${taskId} is still running (started at ${state.lastRunAt})`);
-      return;
-    }
-
-    state.lastRunAt = new Date().toISOString();
-    state.taskRunning = true;
-    const intervalMs = totalIntervalMs(getTaskConfig(taskId));
-    state.nextRunAt = new Date(Date.now() + intervalMs).toISOString();
-
-    console.log(`[scheduled-tasks] Triggering ${taskId} at ${state.lastRunAt}`);
-    try {
-      const resp = await fetch(`http://127.0.0.1:7778/api/run-task?taskName=${taskId}`, {
-        method: 'POST',
-      });
-      const data = await resp.json();
-      console.log(`[scheduled-tasks] Task trigger response (${taskId}):`, data.success ? 'success' : data.message);
-
-      // Wait for task to complete by polling its process
-      if (data.execution?.pid) {
-        const pid = data.execution.pid;
-        const { execSync } = require('child_process');
-        const checkInterval = setInterval(() => {
-          try {
-            execSync(`ps -p ${pid} > /dev/null 2>&1`);
-            // Process still running, continue waiting
-          } catch {
-            clearInterval(checkInterval);
-            state.taskRunning = false;
-            console.log(`[scheduled-tasks] ${taskId} completed (PID ${pid} exited)`);
-          }
-        }, 30000); // Check every 30 seconds
-      } else {
-        state.taskRunning = false;
-      }
-    } catch (err) {
-      console.error(`[scheduled-tasks] Error triggering ${taskId}:`, err.message);
-      state.taskRunning = false;
-    }
-  };
-}
-
-function startScheduler(taskId, cfg) {
-  stopScheduler(taskId);
-  const intervalMs = totalIntervalMs(cfg);
-  if (intervalMs < 3600000) {
-    console.warn(`[scheduled-tasks] Interval too short (< 1 hour) for ${taskId}, not starting`);
-    return;
-  }
-  const state = getTimerState(taskId);
-  state.nextRunAt = new Date(Date.now() + intervalMs).toISOString();
-  state.schedulerTimer = setInterval(makeTriggerTask(taskId), intervalMs);
-  console.log(`[scheduled-tasks] Scheduler started for ${taskId}: every ${cfg.intervalDays || 0}d ${cfg.intervalHours || 0}h (next run: ${state.nextRunAt})`);
-}
-
-function stopScheduler(taskId) {
-  const state = getTimerState(taskId);
-  if (state.schedulerTimer) {
-    clearInterval(state.schedulerTimer);
-    state.schedulerTimer = null;
-    state.nextRunAt = null;
-    console.log(`[scheduled-tasks] Scheduler stopped for ${taskId}`);
-  }
-}
+// ── Boot reconcile (replaces the old setInterval initScheduler) ──
 
 /**
- * Called once at server startup. Iterates every known taskId in DEFAULTS
- * and restores the scheduler for any task whose persisted config has
- * enabled:true. Per ADR 0003, no single task is privileged here.
+ * Read the persisted config + registry and reconcile into BullMQ Job
+ * Schedulers. Called once at control-panel boot (gated by TASK_QUEUE_ENABLED,
+ * since it needs the queue initialized).
  */
-function initScheduler() {
-  for (const taskId of Object.keys(DEFAULTS)) {
-    const cfg = getTaskConfig(taskId);
-    if (cfg.enabled) {
-      console.log(`[scheduled-tasks] Restoring enabled schedule from config: ${taskId}`);
-      startScheduler(taskId, cfg);
-    } else {
-      console.log(`[scheduled-tasks] Scheduler disabled in config for ${taskId}, not starting`);
-    }
-  }
+async function reconcileSchedulesFromConfig() {
+  const config = readConfig();
+  const registry = loadRegistry();
+  return scheduler().reconcileSchedules(config, registry);
 }
 
-// ── Task execution history ──────────────────────────────────
+// ── Task execution history (events.jsonl — unchanged from ADR 0003) ──
 
 function getRecentRuns(taskName, maxRuns = 5) {
   const runs = [];
   try {
     if (!fs.existsSync(EVENTS_PATH)) return runs;
     const lines = fs.readFileSync(EVENTS_PATH, 'utf8').trim().split('\n').filter(Boolean);
-
-    // Collect starts and ends for this task
     const starts = [];
     const ends = [];
     for (const line of lines) {
@@ -183,18 +102,12 @@ function getRecentRuns(taskName, maxRuns = 5) {
         else if (rec.eventType === 'TASK_END') ends.push(rec);
       } catch { /* skip bad lines */ }
     }
-
-    // Walk starts in reverse (most recent first), find matching end
     for (let i = starts.length - 1; i >= 0 && runs.length < maxRuns; i--) {
       const start = starts[i];
       let matchedEnd = null;
       for (const end of ends) {
-        if (new Date(end.timestamp) > new Date(start.timestamp)) {
-          matchedEnd = end;
-          break;
-        }
+        if (new Date(end.timestamp) > new Date(start.timestamp)) { matchedEnd = end; break; }
       }
-
       runs.push({
         startedAt: start.timestamp,
         endedAt: matchedEnd ? matchedEnd.timestamp : null,
@@ -209,86 +122,86 @@ function getRecentRuns(taskName, maxRuns = 5) {
   return runs;
 }
 
+// ── Helpers ─────────────────────────────────────────────────
+
+function unknownTask(res, taskId) {
+  return res.status(400).json({
+    success: false,
+    error: `Unknown or unregistered taskId: ${taskId}. Schedulable tasks come from the task registry.`,
+  });
+}
+
+async function nextRunSafe(taskId) {
+  try { return await scheduler().getNextRun(taskId); }
+  catch (_e) { return null; }
+}
+
 // ── API Handlers ────────────────────────────────────────────
 
-function handleStatus(req, res) {
+async function handleStatus(req, res) {
   const taskId = req.query.taskId;
-  if (!isKnownTaskId(taskId)) {
-    return res.status(400).json({
-      success: false,
-      error: `Unknown or missing taskId: ${taskId}. Known: ${Object.keys(DEFAULTS).join(', ')}`,
-    });
-  }
+  if (!isRegisteredTask(taskId)) return unknownTask(res, taskId);
   const cfg = getTaskConfig(taskId);
-  const state = getTimerState(taskId);
-  const totalHours = (cfg.intervalDays || 0) * 24 + (cfg.intervalHours || 0);
+  const nextRunAt = await nextRunSafe(taskId);
+  const runs = getRecentRuns(taskId, 1);
   return res.json({
     success: true,
     taskId,
     schedule: {
-      enabled: cfg.enabled,
-      intervalHours: cfg.intervalHours,
-      intervalDays: cfg.intervalDays,
-      totalIntervalHours: totalHours,
+      enabled: !!cfg.enabled,
+      intervalDays: cfg.intervalDays || 0,
+      intervalHours: cfg.intervalHours || 0,
+      intervalMinutes: cfg.intervalMinutes || 0,
+      cron: cfg.cron || '',
     },
     timer: {
-      active: state.schedulerTimer !== null,
-      nextRunAt: state.nextRunAt,
-      lastRunAt: state.lastRunAt,
+      active: !!nextRunAt,
+      nextRunAt,
+      lastRunAt: runs[0] ? runs[0].startedAt : null,
     },
   });
 }
 
 async function handleUpdate(req, res) {
   try {
-    const taskId = req.body.taskId;
-    const { enabled, intervalHours, intervalDays } = req.body;
+    const { taskId, enabled, intervalDays, intervalHours, intervalMinutes, cron } = req.body;
+    if (!isRegisteredTask(taskId)) return unknownTask(res, taskId);
 
-    if (!isKnownTaskId(taskId)) {
-      return res.status(400).json({
-        success: false,
-        error: `Unknown or missing taskId: ${taskId}. Known: ${Object.keys(DEFAULTS).join(', ')}`,
-      });
-    }
-
-    const days = parseInt(intervalDays) || 0;
-    const hours = parseInt(intervalHours) || 0;
-    const totalHours = days * 24 + hours;
-
-    if (enabled && totalHours < 1) {
-      return res.status(400).json({ success: false, error: 'Minimum interval is 1 hour' });
-    }
-    if (days < 0 || hours < 0) {
+    const entry = {
+      enabled: !!enabled,
+      intervalDays: parseInt(intervalDays) || 0,
+      intervalHours: parseInt(intervalHours) || 0,
+      intervalMinutes: parseInt(intervalMinutes) || 0,
+      cron: typeof cron === 'string' ? cron.trim() : '',
+    };
+    if (entry.intervalDays < 0 || entry.intervalHours < 0 || entry.intervalMinutes < 0) {
       return res.status(400).json({ success: false, error: 'Interval values must be non-negative' });
     }
-
-    // Save
-    const config = readConfig();
-    config[taskId] = {
-      enabled: !!enabled,
-      intervalHours: hours,
-      intervalDays: days,
-    };
-    writeConfig(config);
-
-    // Start or stop timer (per-task)
-    if (enabled) {
-      startScheduler(taskId, config[taskId]);
-    } else {
-      stopScheduler(taskId);
+    // No 1-hour floor (ADR 0019) — but an enabled schedule must specify SOMETHING.
+    if (entry.enabled && !scheduler().isValidSchedule(entry)) {
+      return res.status(400).json({ success: false, error: 'Enabled schedule needs a cron expression or a positive interval' });
     }
 
-    const state = getTimerState(taskId);
+    const config = readConfig();
+    config[taskId] = entry;
+    writeConfig(config);
+
+    // Reconcile just this task's Job Scheduler.
+    try {
+      if (entry.enabled) await scheduler().upsertSchedule(taskId, entry, loadRegistry());
+      else await scheduler().removeSchedule(taskId);
+    } catch (e) {
+      return res.status(503).json({ success: false, error: `Scheduling unavailable (task queue not initialized?): ${e.message}` });
+    }
+
+    const nextRunAt = await nextRunSafe(taskId);
+    const spec = entry.cron ? `cron "${entry.cron}"` : `every ${entry.intervalDays}d ${entry.intervalHours}h ${entry.intervalMinutes}m`;
     return res.json({
       success: true,
-      message: enabled ? `${taskId} enabled: every ${days}d ${hours}h` : `${taskId} disabled`,
+      message: entry.enabled ? `${taskId} enabled: ${spec}` : `${taskId} disabled`,
       taskId,
-      schedule: config[taskId],
-      timer: {
-        active: state.schedulerTimer !== null,
-        nextRunAt: state.nextRunAt,
-        lastRunAt: state.lastRunAt,
-      },
+      schedule: entry,
+      timer: { active: !!nextRunAt, nextRunAt, lastRunAt: null },
     });
   } catch (err) {
     console.error('[scheduled-tasks] Error updating:', err.message);
@@ -298,14 +211,49 @@ async function handleUpdate(req, res) {
 
 function handleHistory(req, res) {
   const taskId = req.query.taskId;
-  if (!isKnownTaskId(taskId)) {
-    return res.status(400).json({
-      success: false,
-      error: `Unknown or missing taskId: ${taskId}. Known: ${Object.keys(DEFAULTS).join(', ')}`,
-    });
-  }
-  const runs = getRecentRuns(taskId, 5);
-  return res.json({ success: true, taskId, runs });
+  if (!isRegisteredTask(taskId)) return unknownTask(res, taskId);
+  return res.json({ success: true, taskId, runs: getRecentRuns(taskId, 5) });
 }
 
-module.exports = { handleStatus, handleUpdate, handleHistory, initScheduler };
+/**
+ * List every schedulable (registered) task with its current schedule + next/last
+ * run. Drives the generalized Scheduled Tasks UI panel (ADR 0019).
+ */
+async function handleList(req, res) {
+  const reg = loadRegistry();
+  const config = readConfig();
+  const out = [];
+  for (const taskId of Object.keys(reg.tasks || {})) {
+    const def = reg.tasks[taskId] || {};
+    const cfg = config[taskId] || {};
+    const nextRunAt = await nextRunSafe(taskId);
+    const runs = getRecentRuns(taskId, 1);
+    out.push({
+      taskId,
+      name: def.name || taskId,
+      categories: def.categories || [],
+      resourceClass: def.resourceClass || null,
+      schedule: {
+        enabled: !!cfg.enabled,
+        intervalDays: cfg.intervalDays || 0,
+        intervalHours: cfg.intervalHours || 0,
+        intervalMinutes: cfg.intervalMinutes || 0,
+        cron: cfg.cron || '',
+      },
+      timer: { active: !!nextRunAt, nextRunAt, lastRunAt: runs[0] ? runs[0].startedAt : null },
+    });
+  }
+  return res.json({ success: true, tasks: out });
+}
+
+module.exports = {
+  handleStatus,
+  handleUpdate,
+  handleHistory,
+  handleList,
+  reconcileSchedulesFromConfig,
+  // exported for testability / reuse
+  readConfig,
+  isRegisteredTask,
+  getRecentRuns,
+};

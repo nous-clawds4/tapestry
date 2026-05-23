@@ -8,6 +8,27 @@ const readline = require('readline');
 const inputPath = path.join(__dirname, 'allKind10000EventsStripped.json');
 const outputPath = path.join(__dirname, 'currentMutesFromStrfry.json');
 
+// reconcileNetwork (Story #23 / ADR 0020): optionally restrict output to a
+// covered author set (--filterAuthorsFile <path>) so the per-pubkey fanout
+// stays bounded to the network instead of every strfry author.
+let filterAuthors = null;
+{
+  // Accept both `--filterAuthorsFile <path>` and `--filterAuthorsFile=<path>`.
+  let filterPath = null;
+  for (let k = 0; k < process.argv.length; k++) {
+    const a = process.argv[k];
+    if (a === '--filterAuthorsFile') { filterPath = process.argv[k + 1]; }
+    else if (a.startsWith('--filterAuthorsFile=')) { filterPath = a.slice('--filterAuthorsFile='.length); }
+  }
+  if (filterPath) {
+    filterAuthors = new Set(
+      fs.readFileSync(filterPath, 'utf8')
+        .split('\n').map((s) => s.trim().toLowerCase()).filter(Boolean)
+    );
+    console.log(`Filtering output to ${filterAuthors.size} covered authors from ${filterPath}`);
+  }
+}
+
 // Clear the output file first
 fs.writeFileSync(outputPath, '');
 
@@ -55,6 +76,7 @@ async function processFile() {
     try {
       const oEvent = JSON.parse(line);
       const pk_rater = oEvent.pubkey.toLowerCase();
+      if (filterAuthors && !filterAuthors.has(pk_rater)) { return; }
       const aTags = oEvent.tags;
       const created_at = oEvent.created_at;
       let oTemp = {};

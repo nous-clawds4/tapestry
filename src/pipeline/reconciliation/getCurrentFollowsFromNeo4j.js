@@ -52,6 +52,11 @@ const argv = yargs(hideBin(process.argv))
     type: 'number',
     default: 1000
   })
+  .option('authorsFromDir', {
+    describe: 'Incremental/author mode: restrict extraction to the <pubkey>.json files in this directory (the matching currentRelationshipsFromStrfry/<kind>/ dir) instead of scanning every rater in Neo4j',
+    type: 'string',
+    default: ''
+  })
   .help()
   .argv;
 
@@ -64,7 +69,8 @@ const config = {
   },
   outputDir: argv.outputDir,
   logFile: argv.logFile,
-  batchSize: argv.batchSize
+  batchSize: argv.batchSize,
+  authorsFromDir: argv.authorsFromDir
 };
 
 // Ensure log directory exists
@@ -120,104 +126,32 @@ async function ensureOutputDirectory() {
   }
 }
 
-/**
- * Get count of raters (users who have FOLLOWS relationships)
- */
-async function getRaterCount() {
-  const session = driver.session();
-  try {
-    const result = await session.run(`
-      MATCH (u:NostrUser)-[r:FOLLOWS]->()
-      RETURN COUNT(DISTINCT u) AS count
-    `);
-    
-    const count = result.records[0].get('count').toInt();
-    await log(`Found ${count} users with FOLLOWS relationships`);
-    return count;
-  } catch (error) {
-    await log(`ERROR: Failed to get rater count: ${error.message}`);
-    throw error;
-  } finally {
-    await session.close();
-  }
-}
+// Legacy getRaterCount + getRaters removed (Story #23 / ADR 0020). The eager
+// full-graph rater-pagination query (DISTINCT-with-sort-and-paginate) was the
+// workload that hit Neo4j's transaction.total.max and crashed reconcileAll at
+// 32M edges. All four reconcile tasks now pass --authorsFromDir; reconcileAll's
+// full sweep uses extractFollowsToTSV.js.
 
 /**
- * Get all raters (users who have FOLLOWS relationships)
- * @param {number} skip - Number of raters to skip
- * @param {number} limit - Maximum number of raters to return
- * @returns {Array} Array of rater pubkeys
+ * Incremental/author mode: read the covered rater pubkeys from the strfry
+ * relationship directory (one <pubkey>.json file per covered author) instead of
+ * scanning every rater in Neo4j. This restricts the extraction to the SAME
+ * author set as the strfry side — the reconciliation correctness invariant
+ * (ADR 0018 §Option A). No Neo4j query, no N+1 over the whole graph.
+ * @param {string} dir - the matching currentRelationshipsFromStrfry/<kind>/ dir
+ * @returns {Array<string>} rater pubkeys
  */
-async function getRaters(skip, limit) {
-  const session = driver.session();
-  try {
-    const cypherQuery = ` MATCH (u:NostrUser)-[r:FOLLOWS]->(target:NostrUser)
-      RETURN DISTINCT u.pubkey AS pubkey
-      ORDER BY u.pubkey
-      SKIP ${skip}
-      LIMIT ${limit}`;
-    const result = await session.run(cypherQuery);
-    
-    return result.records.map(record => record.get('pubkey'));
-  } catch (error) {
-    await log(`ERROR: Failed to get raters: ${error.message}`);
-    throw error;
-  } finally {
-    await session.close();
-  }
+function getRatersFromDir(dir) {
+  if (!fs.existsSync(dir)) return [];
+  return fs.readdirSync(dir)
+    .filter(f => f.endsWith('.json') && f !== '_summary.json')
+    .map(f => f.replace(/\.json$/, ''));
 }
 
-/**
- * Create a promise that rejects after specified timeout
- * @param {number} ms - Timeout in milliseconds
- * @returns {Promise} Promise that rejects after timeout
- */
-function timeout(ms) {
-  return new Promise((_, reject) => {
-    setTimeout(() => reject(new Error(`function: getFollowsForRater timed out after ${ms}ms`)), ms);
-  });
-}
-
-/**
- * Get all FOLLOWS relationships for a specific rater with timeout
- * @param {string} raterPubkey - Pubkey of the rater
- * @param {number} timeoutMs - Timeout in milliseconds (default: 60000 - 60 seconds)
- * @returns {Object} Object containing the rater's FOLLOWS relationships
- */
-async function getFollowsForRater(raterPubkey, timeoutMs = 60000) {
-  const session = driver.session();
-  try {
-    // Create the query promise
-    const queryPromise = session.run(`
-      MATCH (u:NostrUser {pubkey: $pubkey})-[r:FOLLOWS]->(target:NostrUser)
-      RETURN target.pubkey AS ratee
-    `, { pubkey: raterPubkey });
-    
-    // Race between the query and a timeout
-    const result = await Promise.race([
-      queryPromise,
-      timeout(timeoutMs)
-    ]);
-    
-    const follows = {};
-    result.records.forEach(record => {
-      const ratee = record.get('ratee');
-      // Use boolean true instead of timestamp
-      follows[ratee] = true;
-    });
-    
-    return { [raterPubkey]: follows };
-  } catch (error) {
-    if (error.message.includes('timed out')) {
-      log(`TIMEOUT: Query for rater ${raterPubkey} exceeded ${timeoutMs}ms`);
-    } else {
-      log(`ERROR: Getting FOLLOWS for rater ${raterPubkey}: ${error.message}`);
-    }
-    throw error;
-  } finally {
-    await session.close();
-  }
-}
+// Legacy timeout() + getFollowsForRater() removed (Story #23 / ADR 0020). The
+// per-author N+1 (one Cypher round-trip per rater × ~2.2M raters) is replaced
+// by extractFollowsForAuthorsStreamed below — ONE parameterized `WHERE u.pubkey
+// IN $pubkeys` query per chunk.
 
 /**
  * Write file with timeout and retry logic
@@ -284,69 +218,62 @@ async function writeFileWithTimeout(
   throw lastError;
 }
 
-/**
- * Process a batch of raters and create individual JSON files
- * @param {Array} raters - Array of rater pubkeys
- * @param {number} batchIndex - Index of the current batch
- * @param {number} totalBatches - Total number of batches
- */
-async function processRaterBatch(raters, batchIndex, totalBatches) {
-  // await log(`Processing batch ${batchIndex}/${totalBatches} (${raters.length} raters)...`);
-  
-  let processedCount = 0;
-  let errorCount = 0;
-  
-  // create new log file called reconciliation_currentRaterBatch.log
-  const currentRaterBatchLogFile = path.join('/var/log/brainstorm/', `reconciliation_currentRaterBatch.log`);
-  // delete log file if it exists
-  if (fs.existsSync(currentRaterBatchLogFile)) {
-    fs.unlinkSync(currentRaterBatchLogFile);
-  }
-  // now create it
-  fs.writeFileSync(currentRaterBatchLogFile, '');
-  
-  for (const raterPubkey of raters) {
-    try {
-      // log to log file
-      fs.appendFileSync(currentRaterBatchLogFile, `\n\nProcessing rater ${raterPubkey}; processedCount: ${processedCount}; errorCount: ${errorCount}\n`);
-      const followsData = await getFollowsForRater(raterPubkey);
-      fs.appendFileSync(currentRaterBatchLogFile, `Processing rater ${raterPubkey}; followsData successful\n`);
-      const filePath = path.join(config.outputDir, `${raterPubkey}.json`);    
-      
-      fs.appendFileSync(currentRaterBatchLogFile, `Processing rater ${raterPubkey}; filePath successful\n`);
+// Legacy processRaterBatch() removed — was the driver for the per-author N+1.
+// Replaced by extractFollowsForAuthorsStreamed (chunked parameterized IN).
 
-      if (followsData) {
-        fs.appendFileSync(currentRaterBatchLogFile, `Processing rater ${raterPubkey}; filePath: ${filePath}; stringified followsData: ${JSON.stringify(followsData)}\n`);
-        // await writeFile(filePath, JSON.stringify(followsData, null, 2));
-        await writeFileWithTimeout(filePath, JSON.stringify(followsData, null, 2));
-        fs.appendFileSync(currentRaterBatchLogFile, `Processing rater ${raterPubkey}; writeFile successful\n`);
-        processedCount++;
-      } else {
-        fs.appendFileSync(currentRaterBatchLogFile, `Processing rater ${raterPubkey}; writeFile failed\n`);
-        await log(`WARNING: Empty data for rater ${raterPubkey}, skipping file write`);
+/**
+ * Streamed restricted-author extraction (Story #23 / ADR 0020).
+ *
+ * Replaces the per-author N+1 (getFollowsForRater in a loop) with ONE
+ * WHERE-scoped query per chunk: the covered pubkeys are passed as a query
+ * PARAMETER ($pubkeys) so Neo4j plans a NodeIndexSeek over :NostrUser(pubkey)
+ * (NOT a label scan, NOT string-interpolated), and the projection is plain
+ * `u.pubkey, t.pubkey` — no eager DISTINCT/ORDER BY/collect/SKIP/LIMIT, the
+ * exact operators that hit transaction.total.max and crashed the full sweep.
+ * Writes the SAME per-pubkey files the diff (calculateFollowsUpdates.js) reads,
+ * including an empty file for a covered rater with no FOLLOWS in Neo4j (so a
+ * cleared follow list diffs correctly).
+ *
+ * @param {Array<string>} raters - the covered author set (from --authorsFromDir)
+ */
+async function extractFollowsForAuthorsStreamed(raters) {
+  const CHUNK = 5000; // bound the IN-list parameter payload + per-chunk memory
+  const totalChunks = Math.ceil(raters.length / CHUNK) || 1;
+  let written = 0;
+  for (let i = 0; i < raters.length; i += CHUNK) {
+    const chunk = raters.slice(i, i + CHUNK);
+    const session = driver.session();
+    try {
+      const result = await session.run(
+        `MATCH (u:NostrUser)-[:FOLLOWS]->(t:NostrUser)
+         WHERE u.pubkey IN $pubkeys
+         RETURN u.pubkey AS rater, t.pubkey AS ratee`,
+        { pubkeys: chunk }
+      );
+      const byRater = Object.create(null);
+      for (const rec of result.records) {
+        const rater = rec.get('rater');
+        const ratee = rec.get('ratee');
+        (byRater[rater] || (byRater[rater] = Object.create(null)))[ratee] = true;
       }
-      
-      // Log progress periodically
-      if (processedCount % 10 === 0 || processedCount === raters.length) {
-        const progress = Math.round((processedCount / raters.length) * 100);
-        fs.appendFileSync(currentRaterBatchLogFile, `Processing rater ${raterPubkey}; progress ${progress}%\n`);
-        // await log(`Batch ${batchIndex} of ${totalBatches} progress: ${progress}% (${processedCount}/${raters.length} Neo4j followers)`);
+      for (const rater of chunk) {
+        const follows = byRater[rater] || {};
+        await writeFileWithTimeout(
+          path.join(config.outputDir, `${rater}.json`),
+          JSON.stringify({ [rater]: follows }, null, 2)
+        );
+        written++;
       }
-      fs.appendFileSync(currentRaterBatchLogFile, `Processing rater ${raterPubkey}; completed\n`);
     } catch (error) {
-      fs.appendFileSync(currentRaterBatchLogFile, `Processing rater ${raterPubkey}; error ${error.message}\n`);
-      await log(`WARNING: Failed to process rater ${raterPubkey}: ${error.message}`);
-      errorCount++;
+      await log(`ERROR: streamed extraction chunk ${Math.floor(i / CHUNK) + 1} failed: ${error.message}`);
+      throw error;
+    } finally {
+      await session.close();
     }
-    
-    // Force garbage collection if available; log when garbage collection is about to be performed
-    if (global.gc) {
-      await log(`Garbage collection about to be performed`);
-      global.gc();
-    }
+    await log(`Streamed batch ${Math.floor(i / CHUNK) + 1} of ${totalChunks}. Covered raters: ${Math.min(i + CHUNK, raters.length)}/${raters.length}`);
+    if (global.gc) global.gc();
   }
-  
-  await log(`Completed batch ${batchIndex} of ${totalBatches}. Processed: ${processedCount}, Errors: ${errorCount}`);
+  await log(`Completed streamed restricted-author extraction. Wrote ${written} rater files.`);
 }
 
 /**
@@ -360,24 +287,18 @@ async function main() {
     // Ensure output directory exists
     await ensureOutputDirectory();
     
-    // Get total count of raters
-    const raterCount = await getRaterCount();
-    
-    // Process raters in batches
-    const batchCount = Math.ceil(raterCount / config.batchSize);
-    
-    for (let i = 0; i < raterCount; i += config.batchSize) {
-      const batchIndex = Math.floor(i / config.batchSize) + 1;
-      const batchRaters = await getRaters(i, config.batchSize);
-      
-      await processRaterBatch(batchRaters, batchIndex, batchCount);
-      
-      // Force garbage collection if available; log when garbage collection is about to be performed
-      if (global.gc) {
-        await log(`Garbage collection about to be performed`);
-        global.gc();
-      }
+    // --authorsFromDir is REQUIRED (Story #23 / ADR 0020): the legacy full-mode
+    // getRaters() path was removed. reconcileAll uses extractFollowsToTSV.js
+    // for full-graph extraction; reconcileRecent / reconcileNetwork /
+    // reconcileAuthor all pass --authorsFromDir.
+    if (!config.authorsFromDir) {
+      throw new Error('--authorsFromDir is required (legacy full-mode rater enumeration removed in ADR 0020; use extractFollowsToTSV.js for full-graph extraction)');
     }
+    const restrictedRaters = getRatersFromDir(config.authorsFromDir);
+    await log(`Restricting extraction to ${restrictedRaters.length} authors from ${config.authorsFromDir}`);
+    const raterCount = restrictedRaters.length;
+
+    await extractFollowsForAuthorsStreamed(restrictedRaters);
     
     // Create a summary file with the count of extracted relationships
     const summaryFile = path.join(config.outputDir, '_summary.json');

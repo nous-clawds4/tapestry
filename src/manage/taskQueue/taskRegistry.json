@@ -314,34 +314,129 @@
       "notes": "Phase 2 structured events not yet implemented"
     },
 
-    "reconciliation": {
-      "name": "Data Reconciliation",
+    "reconcileRecent": {
+      "name": "Reconcile (recent)",
       "categories": ["network"],
-      "description": "Reconciles neo4j with strfry, taking strfry as source of truth",
+      "description": "Recent-window reconciliation: only authors with a relevant event inside a bounded, overridable recency window (default 6h). Never a full pass / bootstrap. The routine sweep — schedule ~every 10 minutes.",
       "scripts": [
-        "$BRAINSTORM_MODULE_SRC_DIR/pipeline/reconciliation/reconciliation.sh"
+        "$BRAINSTORM_MODULE_SRC_DIR/pipeline/reconciliation/reconcileRecent.sh"
       ],
-      "script": "$BRAINSTORM_MODULE_SRC_DIR/pipeline/reconciliation/reconciliation.sh",
-      "script_relative_path": "pipeline/reconciliation/reconciliation.sh",
+      "script": "$BRAINSTORM_MODULE_SRC_DIR/pipeline/reconciliation/reconcileRecent.sh",
+      "script_relative_path": "pipeline/reconciliation/reconcileRecent.sh",
+      "staticArgs": "",
       "arguments": false,
       "parent": "processAllTasks",
       "scope": "system",
       "priority": "medium",
-      "frequency": "daily",
+      "frequency": "frequent",
+      "status": "active",
+      "structuredLogging": true,
+      "resourceClass": "neo4j-heavy",
+      "options": {
+        "completion": {
+          "failure": {
+            "timeout": {
+              "comments": "1800000 = 30 minutes (incremental run is minutes; generous ceiling)",
+              "duration": 1800000,
+              "forceKill": false
+            }
+          }
+        }
+      },
+      "notes": "Story #23 / ADR 0020. Own script (reconcileRecent.sh); bounded overridable recency window, no bootstrap; streamed single-query extraction; neo4j-heavy (serializes via ADR 0013)."
+    },
+
+    "reconcileAll": {
+      "name": "Reconcile (full)",
+      "categories": ["network"],
+      "description": "Full reconciliation over the ENTIRE graph (truly all). The complete oracle / incident-recovery sweep. Mutes/reports use approach B (no filter); follows uses a sorted merge-join (bounded memory at 32M edges). Schedule weekly; <1h target.",
+      "scripts": [
+        "$BRAINSTORM_MODULE_SRC_DIR/pipeline/reconciliation/reconcileAll.sh"
+      ],
+      "script": "$BRAINSTORM_MODULE_SRC_DIR/pipeline/reconciliation/reconcileAll.sh",
+      "script_relative_path": "pipeline/reconciliation/reconcileAll.sh",
+      "staticArgs": "",
+      "arguments": false,
+      "scope": "system",
+      "priority": "medium",
+      "frequency": "weekly",
+      "status": "active",
+      "structuredLogging": true,
+      "resourceClass": "neo4j-heavy",
+      "options": {
+        "completion": {
+          "failure": {
+            "timeout": {
+              "comments": "28800000 = 8 hours (full graph sweep)",
+              "duration": 28800000,
+              "forceKill": false
+            }
+          }
+        }
+      },
+      "notes": "Story #23 / ADR 0020. Own script (reconcileAll.sh); mutes/reports approach B + follows sorted merge-join via extractFollowsToTSV.js + jq + sort + comm + awk; bounded memory at 32M edges; neo4j-heavy. <1h target, not gate."
+    },
+
+    "reconcileAuthor": {
+      "name": "Reconcile (single author)",
+      "categories": ["network"],
+      "description": "Reconcile a single author's relationships on demand. Requires --pubkey <hex>. NOT neo4j-heavy: a tiny point write that stays responsive for interactive triggers (does not queue behind a sweep). Trigger surfaces (profile button, API, customer scheduling) are a follow-up story.",
+      "scripts": [
+        "$BRAINSTORM_MODULE_SRC_DIR/pipeline/reconciliation/reconcileAuthor.sh"
+      ],
+      "script": "$BRAINSTORM_MODULE_SRC_DIR/pipeline/reconciliation/reconcileAuthor.sh",
+      "script_relative_path": "pipeline/reconciliation/reconcileAuthor.sh",
+      "staticArgs": "",
+      "arguments": false,
+      "scope": "system",
+      "priority": "medium",
+      "frequency": "manual",
       "status": "active",
       "structuredLogging": true,
       "options": {
         "completion": {
           "failure": {
             "timeout": {
-              "comments": "5400000 = 1.5 hours",
-              "duration": 5400000,
+              "comments": "600000 = 10 minutes (single author)",
+              "duration": 600000,
               "forceKill": false
             }
           }
         }
       },
-      "notes": "Phase 2 structured logging implemented - comprehensive 3-phase reconciliation tracking with TASK_START/END, detailed PROGRESS events for each phase (A: mutes, B: follows, C: reports), operation-specific tracking with timing and status"
+      "notes": "Story #23 / ADR 0020. Own script (reconcileAuthor.sh); requires --pubkey <hex>; intentionally NOT neo4j-heavy (stays responsive for interactive triggers, never queues behind a sweep). The --pubkey value is supplied by the trigger surface (follow-up story)."
+    },
+
+    "reconcileNetwork": {
+      "name": "Reconcile (network)",
+      "categories": ["network"],
+      "description": "Reconcile a configurable TRUSTED NETWORK defined by a Neo4j property predicate: influence >= cutoff (default 0.05 from graperank.conf VERIFIED_FOLLOWERS_INFLUENCE_CUTOFF) and/or hops <= N. At least one SUBSTANTIVE constraint is required — the script refuses influence<=0, hops>=999, or no constraint (those select the whole graph). With no args it defaults to the verified network (influence >= cutoff).",
+      "scripts": [
+        "$BRAINSTORM_MODULE_SRC_DIR/pipeline/reconciliation/reconcileNetwork.sh"
+      ],
+      "script": "$BRAINSTORM_MODULE_SRC_DIR/pipeline/reconciliation/reconcileNetwork.sh",
+      "script_relative_path": "pipeline/reconciliation/reconcileNetwork.sh",
+      "staticArgs": "",
+      "arguments": false,
+      "parent": "processAllTasks",
+      "scope": "system",
+      "priority": "medium",
+      "frequency": "frequent",
+      "status": "active",
+      "structuredLogging": true,
+      "resourceClass": "neo4j-heavy",
+      "options": {
+        "completion": {
+          "failure": {
+            "timeout": {
+              "comments": "3600000 = 60 minutes (bounded by the network predicate; <1h target)",
+              "duration": 3600000,
+              "forceKill": false
+            }
+          }
+        }
+      },
+      "notes": "Story #23 / ADR 0020. Own script (reconcileNetwork.sh); parameterized influence/hops predicate with substantive-constraint guards; approach B (full strfry dump + converter author-filter + streamed extractor); neo4j-heavy. The influence/hops trigger PROMPT is Phase 2b; with no args it defaults to the verified network."
     },
 
     "processNpubsUpToMaxNumBlocks": {

@@ -1397,6 +1397,8 @@ function ScheduledTaskCard({ taskId, title, hint, banner = null }) {
   const [enabled, setEnabled] = useState(false);
   const [days, setDays] = useState(0);
   const [hours, setHours] = useState(24);
+  const [minutes, setMinutes] = useState(0);
+  const [cron, setCron] = useState('');
 
   function flash(msg) { setMessage(msg); setTimeout(() => setMessage(null), 4000); }
   function flashError(msg) { setError(msg); setTimeout(() => setError(null), 5000); }
@@ -1408,8 +1410,10 @@ function ScheduledTaskCard({ taskId, title, hint, banner = null }) {
       if (data.success) {
         setStatus(data);
         setEnabled(data.schedule.enabled);
-        setDays(data.schedule.intervalDays);
-        setHours(data.schedule.intervalHours);
+        setDays(data.schedule.intervalDays || 0);
+        setHours(data.schedule.intervalHours || 0);
+        setMinutes(data.schedule.intervalMinutes || 0);
+        setCron(data.schedule.cron || '');
       }
     } catch (err) { flashError(err.message); }
   }, [taskId]);
@@ -1427,9 +1431,10 @@ function ScheduledTaskCard({ taskId, title, hint, banner = null }) {
   }, [fetchStatus, fetchHistory]);
 
   async function handleSave() {
-    const totalHours = (parseInt(days) || 0) * 24 + (parseInt(hours) || 0);
-    if (enabled && totalHours < 1) {
-      flashError('Minimum interval is 1 hour');
+    // No 1-hour floor (ADR 0019). An enabled schedule needs a cron OR a positive interval.
+    const totalMin = (parseInt(days) || 0) * 1440 + (parseInt(hours) || 0) * 60 + (parseInt(minutes) || 0);
+    if (enabled && !cron.trim() && totalMin <= 0) {
+      flashError('Enabled schedule needs a cron expression or a positive interval');
       return;
     }
     setSaving(true);
@@ -1437,7 +1442,7 @@ function ScheduledTaskCard({ taskId, title, hint, banner = null }) {
       const res = await fetch('/api/scheduled-tasks/update', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ taskId, enabled, intervalDays: parseInt(days) || 0, intervalHours: parseInt(hours) || 0 }),
+        body: JSON.stringify({ taskId, enabled, intervalDays: parseInt(days) || 0, intervalHours: parseInt(hours) || 0, intervalMinutes: parseInt(minutes) || 0, cron: cron.trim() }),
       });
       const data = await res.json();
       if (data.success) {
@@ -1514,10 +1519,27 @@ function ScheduledTaskCard({ taskId, title, hint, banner = null }) {
                 backgroundColor: 'rgba(0,0,0,0.3)', color: '#e0e0e0', fontSize: '0.85rem', textAlign: 'center' }} />
             <span style={{ fontSize: '0.85rem', color: '#aaa' }}>hours</span>
           </label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+            <input type="number" min="0" max="59" value={minutes}
+              onChange={e => setMinutes(e.target.value)}
+              style={{ width: '3.5rem', padding: '0.3rem 0.5rem', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.15)',
+                backgroundColor: 'rgba(0,0,0,0.3)', color: '#e0e0e0', fontSize: '0.85rem', textAlign: 'center' }} />
+            <span style={{ fontSize: '0.85rem', color: '#aaa' }}>min</span>
+          </label>
           <button className="btn-small" onClick={handleSave} disabled={saving}
             style={{ padding: '0.3rem 0.75rem', fontSize: '0.85rem' }}>
             {saving ? 'Saving...' : 'Save'}
           </button>
+        </div>
+
+        {/* Cron (overrides the interval when set) */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem', flexWrap: 'wrap' }}>
+          <span style={{ fontSize: '0.85rem', color: '#aaa' }}>or cron:</span>
+          <input type="text" value={cron} placeholder="e.g. 0 4 * * 0"
+            onChange={e => setCron(e.target.value)}
+            style={{ width: '12rem', padding: '0.3rem 0.5rem', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.15)',
+              backgroundColor: 'rgba(0,0,0,0.3)', color: '#e0e0e0', fontSize: '0.85rem' }} />
+          <span style={{ fontSize: '0.75rem', color: '#777' }}>(cron overrides the interval)</span>
         </div>
 
         {/* Timer status */}
@@ -1586,26 +1608,70 @@ function ScheduledTaskCard({ taskId, title, hint, banner = null }) {
   );
 }
 
+// Generalized panel (story #22 / ADR 0019): any registered task is schedulable.
+// Lists currently-scheduled tasks as cards, plus a picker to add any other
+// registry task. Fed by GET /api/scheduled-tasks/list.
 function ScheduledTasksPanel() {
+  const [tasks, setTasks] = useState(null);
+  const [error, setError] = useState(null);
+  const [added, setAdded] = useState([]); // taskIds surfaced via the picker this session
+  const [pick, setPick] = useState('');
+
+  useEffect(() => {
+    fetch('/api/scheduled-tasks/list')
+      .then(r => r.json())
+      .then(d => { if (d.success) setTasks(d.tasks); else setError(d.error || 'Failed to load tasks'); })
+      .catch(e => setError(e.message));
+  }, []);
+
+  if (error) {
+    return <div className="settings-section"><h2>📅 Scheduled Tasks</h2>
+      <div style={{ color: '#ef4444', fontSize: '0.85rem' }}>{error}</div></div>;
+  }
+  if (tasks === null) {
+    return <div className="settings-section"><h2>📅 Scheduled Tasks</h2>
+      <div style={{ color: '#888', padding: '1rem' }}>Loading tasks…</div></div>;
+  }
+
+  const hasSchedule = (s) => s.enabled || s.cron || s.intervalDays || s.intervalHours || s.intervalMinutes;
+  const shown = tasks.filter(t => hasSchedule(t.schedule) || added.includes(t.taskId));
+  const shownIds = new Set(shown.map(t => t.taskId));
+
   return (
     <div className="settings-section">
       <h2>📅 Scheduled Tasks</h2>
       <p className="settings-hint">
-        Configure recurring background tasks. Each task below has its own enable toggle and schedule.
+        Any registered task can be scheduled by interval (down to minutes) or cron. Schedules are durable
+        (survive a restart) and run through the task queue.
       </p>
 
-      <ScheduledTaskCard
-        taskId="updateAllScoresForOwner"
-        title="Update All Scores for Owner"
-        hint={<>Run the full WoT score update pipeline (<code>updateAllScoresForOwner</code>) on a recurring schedule. Includes GrapeRank, PageRank, follower/muter/reporter counts, and kind 30382 event publishing.</>}
-      />
+      <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap' }}>
+        <span style={{ fontSize: '0.85rem', color: '#aaa' }}>Add a task to schedule:</span>
+        <select value={pick} onChange={e => setPick(e.target.value)}
+          style={{ padding: '0.3rem 0.5rem', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.15)',
+            backgroundColor: 'rgba(0,0,0,0.3)', color: '#e0e0e0', fontSize: '0.85rem' }}>
+          <option value="">— pick a task —</option>
+          {tasks.filter(t => !shownIds.has(t.taskId)).map(t => (
+            <option key={t.taskId} value={t.taskId}>{t.name || t.taskId}</option>
+          ))}
+        </select>
+        <button className="btn-small" disabled={!pick}
+          onClick={() => { setAdded(a => [...a, pick]); setPick(''); }}
+          style={{ padding: '0.3rem 0.75rem', fontSize: '0.85rem' }}>Add</button>
+      </div>
 
-      <ScheduledTaskCard
-        taskId="refreshSearchIndex"
-        title="Refresh Meilisearch profiles & House PoV scores"
-        hint={<>Refresh kind-0 profile data in Meilisearch and, when House PoV is configured, reload House's WoT scores from the latest kind 30382 Trusted Assertions.</>}
-        banner={<HousePovUnconfiguredBanner />}
-      />
+      {shown.length === 0 && (
+        <p style={{ color: '#888', fontSize: '0.85rem' }}>No tasks scheduled yet — use the picker above to add one.</p>
+      )}
+      {shown.map(t => (
+        <ScheduledTaskCard
+          key={t.taskId}
+          taskId={t.taskId}
+          title={t.name || t.taskId}
+          hint={t.resourceClass ? <>Resource class: <code>{t.resourceClass}</code>.</> : null}
+          banner={t.taskId === 'refreshSearchIndex' ? <HousePovUnconfiguredBanner /> : null}
+        />
+      ))}
     </div>
   );
 }
