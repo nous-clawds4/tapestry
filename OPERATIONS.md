@@ -589,57 +589,88 @@ docker exec tapestry bash -c '
 
 A future reviewer who sees these tests fail should stop and ask whether the change is reintroducing the very drift class story #16 closed.
 
-## 12. Reconciliation — `recent` / `all` / `author` modes (story #21 / ADR 0018)
+## 12. Reconciliation — four independent tasks (story #23 / ADR 0020)
 
-Reconciliation repairs drift between strfry (canonical nostr event store) and the Neo4j social graph (FOLLOWS / MUTES / REPORTS from kind 3 / 10000 / 1984). One engine — `src/pipeline/reconciliation/reconciliation.sh` — runs in three author-scoped modes, exposed as three task-registry keys (all invoke the same script with a different `--mode`):
+Reconciliation repairs drift between strfry (canonical nostr event store) and the Neo4j social graph (FOLLOWS / MUTES / REPORTS from kind 3 / 10000 / 1984). Story #23 **superseded** the single `reconciliation.sh --mode` engine — whose eager full-graph `DISTINCT u.pubkey ... ORDER BY u.pubkey SKIP/LIMIT` rater-pagination hit Neo4j's `transaction.total.max` and crashed `reconcileAll` at 32M edges — with **four independent task scripts**, each tuned to its own guarantee. The legacy `reconciliation` registry key was **removed**.
 
-| Task | Command | Authors covered | Triggered | `neo4j-heavy`? |
+| Task | Script | Scope | Mechanism | `neo4j-heavy`? |
 |---|---|---|---|---|
-| `reconcileRecent` | `reconciliation.sh --mode recent` | only authors with an event since the watermark | manually (see §12.3) | yes |
-| `reconcileAll` | `reconciliation.sh --mode all` | every author (today's full sweep) | manually + incident recovery (§12.3) | yes |
-| `reconcileAuthor` | `reconciliation.sh --mode author --pubkey <hex>` | one author | on demand (§12.3) | no |
+| `reconcileRecent` | `reconcileRecent.sh` | authors with an event in a bounded, overridable recency window (default 6h) | streamed parameterized `WHERE u.pubkey IN $list` over the recent set | yes |
+| `reconcileNetwork` | `reconcileNetwork.sh` | a parameterized trusted network (`influence ≥ cutoff` and/or `hops ≤ N`) | full strfry dump → converter `--filterAuthorsFile` (network set from Neo4j) → streamed extractor | yes |
+| `reconcileAll` | `reconcileAll.sh` | **truly all** (~32M FOLLOWS edges) | reactive-streamed Neo4j → TSV + Node strfry→TSV + `LC_ALL=C sort -u` + `comm` **merge-join** + APOC apply | yes |
+| `reconcileAuthor` | `reconcileAuthor.sh` | one author (`--pubkey <hex>`) | streamed one-element `IN` query | **no** (stays responsive for interactive triggers) |
 
-`recent` is the routine sweep and the default (running `reconciliation.sh` with no `--mode` is `recent`). `all` is the correctness oracle and the weekly drift-recovery fallback — it stays slow (hours) but catches drift that `recent` can't see (e.g. a bad edge with no corresponding recent event). `author` is a tiny point repair; it is deliberately **not** `neo4j-heavy` so an interactive "reconcile me" trigger never queues behind a multi-hour sweep.
+All four reuse the existing diff (`calculate{Mutes,Reports,Follows}Updates.js`) and APOC apply commands. Each emits structured events under its **own** `taskName` (fixes #22 OBS-2 — `/api/scheduled-tasks/history?taskId=reconcileX` resolves per task) with a `trap`-based terminal-on-failure (fixes #22 OBS-1 — a crash never reads as perpetually "running"). The three bulk sweeps serialize via the `neo4j-heavy` semaphore (ADR 0013).
 
-### 12.1 The watermark
+### 12.1 `reconcileRecent` — bounded recency window
 
-`recent` mode persists a watermark at `/var/lib/brainstorm/pipeline/reconciliation/state.json`:
-
-```json
-{ "lastRunStartedAt": 1716300000, "lastRunCompletedAt": 1716300420,
-  "lastRunMode": "recent", "lastFullRunCompletedAt": 1715700000,
-  "edgeCounts": { "follows": 11900000, "mutes": 240000, "reports": 38000 } }
+```bash
+RECONCILE_RECENT_MAX_RECENCY_SECONDS=21600   # default 6h (env / brainstorm.conf)
+reconcileRecent.sh --recency 3600            # per-run override (1h)
 ```
 
-- Each `recent` run scans strfry `since (lastRunStartedAt - RECONCILIATION_OVERLAP_SECONDS)` and restricts the Neo4j extraction to the same authors.
-- **Seeding the watermark (recommended first step on a fresh instance):** run `reconcileAll` **once**. It establishes the baseline and writes the watermark, after which `reconcileRecent` runs genuinely incrementally. `reconcileAll`'s task timeout (8 h) accommodates the full sweep.
-- **First run / lost watermark (self-healing fallback):** if `reconcileRecent` is triggered with no `state.json`, it **self-bootstraps with one full pass** (logged with `"bootstrap": true`), then writes the watermark. Caveat: a bootstrap takes hours, which exceeds `reconcileRecent`'s shorter task timeout, so it is *reported* as a timeout (exit 124) — but the task runs with `forceKill: false`, so it is **not killed**; it completes in the background and writes the watermark. Prefer seeding via `reconcileAll` to avoid that misleading status. Delete `state.json` to force a re-bootstrap.
-- `author` mode does **not** read or advance the watermark.
-- A failed run does **not** advance the watermark (next run re-covers the window).
-- Inspect: `cat /var/lib/brainstorm/pipeline/reconciliation/state.json | jq`.
+Lookback = `min(now − watermark + RECONCILIATION_OVERLAP_SECONDS, max_recency)`. **No watermark ⇒ just the max-recency window; NEVER a bootstrap full pass** (the previous engine's runaway). Drift older than the window is `reconcileNetwork`'s / `reconcileAll`'s job.
 
-### 12.2 Config (`/etc/brainstorm.conf`)
+Watermark at `/var/lib/brainstorm/pipeline/reconciliation/state.json`; advanced on success only.
 
-- `RECONCILIATION_OVERLAP_SECONDS` (default `3600`) — safety window re-scanned on top of the watermark so events that landed during the prior run are re-covered. Re-scanning is idempotent (the diff finds no change).
+### 12.2 `reconcileNetwork` — parameterized trusted network
 
-### 12.3 Triggering & scheduling
+Reconciles a configurable **trusted network**, defined by a Neo4j property predicate. Two parameters; both ANDed when both given:
 
-**Today these three tasks are manual-trigger only** — via the Task Explorer or `POST /api/run-task` (which routes through the BullMQ queue, so the `neo4j-heavy` semaphore applies and the bulk sweeps serialize against `calculateOwner{Hops,PageRank,GrapeRank}` — the original reconciliation-vs-recalculation contention). No per-task cadence is wired into this story by design: the three tasks are deliberately **frequency-agnostic** — `reconcileRecent`'s watermark makes its scan window self-adjusting, so it is correct at any interval, and `reconcileAll`/`reconcileAuthor` don't depend on cadence at all.
+```bash
+reconcileNetwork.sh                             # default: influence ≥ 0.05 (verified)
+reconcileNetwork.sh --influence 0.05            # verified
+reconcileNetwork.sh --hops 3                    # within 3 follow-hops of the owner
+reconcileNetwork.sh --influence 0.1 --hops 2    # both, ANDed
+```
 
-Automated scheduling is deferred to a future **generalized Task Scheduler** — the documented phase 2 of the task queue (story #13), built on **BullMQ repeatable/cron jobs**. It will schedule any registered task, support sub-hour intervals, survive process restarts, and route through the queue (and thus the semaphore). The three reconcile tasks will slot into it as ordinary schedulable tasks with no bespoke per-task code.
+The default cutoff reads `VERIFIED_FOLLOWERS_INFLUENCE_CUTOFF` from `/etc/graperank.conf` (default `0.05`) — the same threshold the rest of the system uses for "verified."
 
-**Deprecated / superseded scheduling mechanisms — do NOT use for reconciliation:**
-- The host `systemd/reconcile.timer` (every 5 min → runs `reconciliation.sh` *directly*) is **deprecated**: it bypasses the queue and the `neo4j-heavy` semaphore. Confirm it is disabled (`systemctl is-enabled reconcile.timer`). Full removal (unit files + the control-panel references in `src/api/export/services/commands/control.js` & `queries/status.js` + the sudoers grant in `setup/configure-control-panel-sudo.sh`) is tracked as a follow-up.
-- The in-process scheduler (`src/api/scheduled-tasks/index.js`) has a **1-hour minimum interval** and a hardcoded task set that excludes the reconcile tasks — not used here; itself slated for replacement by the BullMQ scheduler.
-- The legacy `reconciliation` registry key is retained only for back-compat (still invoked by `processAllTasks.sh`; now defaults to `--mode recent`). It is **deprecated** in favor of the three explicit keys; its removal (and repointing/decoupling `processAllTasks`) is a tracked follow-up.
+**SAFETY GUARDS** (enforced in the script regardless of caller): refuses `influence ≤ 0` (selects every user), `hops ≥ 999` (the disconnected sentinel — also selects every user), or no substantive constraint. Without those, the predicate would degenerate into an unconstrained full scan — the exact workload that crashed `reconcileAll`.
 
-### 12.4 Force a full run (incident recovery)
+### 12.3 `reconcileAll` — truly all, sorted merge-join
 
-Trigger `reconcileAll` (or `reconciliation.sh --mode all`). Use this whenever you suspect drift that the incremental sweep wouldn't catch — a partial write, a botched migration, or after any direct Neo4j surgery.
+The complete oracle / incident-recovery sweep. **Mutes/reports** use the per-pubkey path (bounded by their small scale, ~190k/170k). **Follows** uses a **sorted merge-join** at 32M-edge scale:
 
-### 12.5 Observability
+1. `extractFollowsToTSV.js` streams the full Neo4j FOLLOWS to a TSV via reactive `subscribe` (no eager operator, bounded transaction memory).
+2. `strfryToKind3Events.sh` dumps all kind-3; `kind3EventsToFollowsTSV.js` streams events to a parallel TSV (`rater\tratee` per p-tag, lowercased, 64-hex-filtered).
+3. `LC_ALL=C sort -u -T ${BASE_DIR}` external-sorts both files.
+4. `comm -23` emits adds (strfry-only); `comm -13` emits deletes (Neo4j-only).
+5. `awk` converts to APOC apply JSON; existing apply commands run.
 
-`reconciliation.log` + `events.jsonl` carry, per run: the `mode`, the `watermark` consumed and `watermark_advanced_to`, per-kind `drift` (`added` / `deleted`), per-kind `edge_counts_before`/`edge_counts_after`, and per-stage `duration`. A `recent` run with nothing to do emits `phase: "no_drift"` and exits in the sub-minute fast-path. The precise "how much drift did we catch" answer is the per-kind `added`/`deleted` totals.
+**Bounded memory regardless of graph size.** Target: **< 1h** at 32M edges; staging-measured runtime after the jq → Node converter optimization: **~14 minutes**. Schedule weekly in a low-traffic window (registry timeout is 8h safety margin).
+
+For incident recovery (drift the incremental sweep wouldn't catch — partial write, botched migration, direct Neo4j surgery), trigger `reconcileAll` manually.
+
+### 12.4 `reconcileAuthor` — single author
+
+```bash
+reconcileAuthor.sh --pubkey <64-hex>
+```
+
+Scope is exactly one author. **No watermark, no GDS reprojection** (single-author change doesn't warrant either). Intentionally **NOT `neo4j-heavy`** — a tiny point repair that stays responsive for interactive triggers and never queues behind a sweep. (The profile-page / API trigger surfaces are a separate follow-up story; the engine is delivered here.)
+
+### 12.5 Config (`/etc/brainstorm.conf`)
+
+- `RECONCILIATION_OVERLAP_SECONDS` (default `3600`) — safety window re-scanned on top of `reconcileRecent`'s watermark. Re-scanning is idempotent.
+- `RECONCILE_RECENT_MAX_RECENCY_SECONDS` (default `21600` = 6h) — the bounded cap.
+
+### 12.6 Observability
+
+Per-task structured events in `${BRAINSTORM_LOG_DIR}/taskQueue/events.jsonl`:
+- `TASK_START` / `TASK_END` / `TASK_ERROR` under each task's **own** `taskName` (OBS-2 fix).
+- `TASK_ERROR` on **every** non-zero exit path via a script-level `trap` (OBS-1 fix).
+- Per-phase `PROGRESS` with `added`, `deleted`, `edge_counts_before`/`after`, `duration`.
+
+Human log: `${BRAINSTORM_LOG_DIR}/reconciliation.log` (per-phase + extractor/converter step traces).
+
+### 12.7 Deprecated / removed (story #23)
+
+- The legacy `reconciliation` registry task key was **removed**. Use the four explicit task keys.
+- The `reconciliation.sh --mode` engine is **superseded** by the four scripts; the file remains on disk as dead code (clean-removal is a tracked follow-up).
+- The `getCurrentFollowsFromNeo4j_working.js` / `_working2.js` cruft variants are **removed**.
+- The eager-pagination `getRaterCount()` / `getRaters()` functions are **removed** from all three Neo4j extractors; `--authorsFromDir` is now required.
+- The host `systemd/reconcile.timer` remains **deprecated** (bypasses queue + semaphore); confirm `systemctl is-enabled reconcile.timer` is disabled. Unit-file removal is a tracked follow-up.
 
 ## 13. Task scheduling — generalized scheduler (story #22 / ADR 0019)
 
@@ -670,6 +701,13 @@ Schedules live in Redis as BullMQ Job Schedulers, so they survive a control-pane
 
 Set `"scheduler": false` in `/etc/brainstorm-task-queue.json` and restart the control-panel to halt ALL scheduling (the boot reconcile upserts nothing and removes managed Job Schedulers). Default is on. Per-task `enabled: false` is the finer-grained control.
 
-### 13.4 Scheduling reconciliation — seed the watermark first
+### 13.4 Scheduling reconciliation
 
-Before enabling a frequent `reconcileRecent` schedule on an instance with no reconciliation watermark, **run `reconcileAll` once** in a low-traffic window to seed the watermark (§12.1). Otherwise the first scheduled `reconcileRecent` self-bootstraps a full pass (6–8h on a large graph) — it completes and logs `"bootstrap": true`, but you don't want that as a surprise inside a 10-minute schedule. Recommended cadence once seeded: `reconcileRecent` every ~10 min, `reconcileAll` weekly via cron at a low-traffic hour.
+Suggested cadence:
+
+- `reconcileRecent` — every ~10 minutes (`intervalMinutes: 10`). Bounded by the recency window; cost is proportional to recent activity, not graph size.
+- `reconcileNetwork` — every few hours (`intervalHours: 6`) or daily. Cost bounded by the network predicate; staging-measured runtime on the verified set: ~9 min.
+- `reconcileAll` — weekly via cron at a low-traffic hour (e.g. `cron: "0 4 * * 0"`). Holds `neo4j-heavy` for ~15 min on the staging-scale 32M-edge graph; blocks GrapeRank/PageRank meanwhile.
+- `reconcileAuthor` — on-demand, not scheduled.
+
+**No seed-first runbook needed** (story #23): the bounded `reconcileRecent` cannot bootstrap into a full pass on a missing watermark, so the previous "run `reconcileAll` first" caveat is obsolete.
