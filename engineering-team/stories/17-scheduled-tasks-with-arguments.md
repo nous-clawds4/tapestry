@@ -80,5 +80,5 @@ The PO oriented via `GET http://localhost:7778/api/concept-graph/summaries` (34 
 ## Linked artifacts
 
 - ADR: [engineering-team/decisions/0015-scheduled-tasks-with-arguments.md](../decisions/0015-scheduled-tasks-with-arguments.md)
-- Test plan: (filled in after Test Design phase)
+- Test plan: [engineering-team/stories/17-scheduled-tasks-with-arguments.test-plan.md](17-scheduled-tasks-with-arguments.test-plan.md)
 - Review: (filled in after Review phase)
