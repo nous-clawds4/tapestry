@@ -441,6 +441,10 @@ async function register(app) {
     app.post('/api/scheduled-tasks/update', scheduledTasks.handleUpdate);
     app.get('/api/scheduled-tasks/history', scheduledTasks.handleHistory);
     app.get('/api/scheduled-tasks/list', scheduledTasks.handleList);
+    // Story #24 / ADR 0021 — per-entry CRUD + registry-tasks dropdown source.
+    app.post('/api/scheduled-tasks/create', scheduledTasks.handleCreate);
+    app.post('/api/scheduled-tasks/delete', scheduledTasks.handleDelete);
+    app.get('/api/scheduled-tasks/registry-tasks', scheduledTasks.handleRegistryTasks);
 
     // ── Per-Customer Scheduled Tasks API ──
     const customerSchedule = require('./customer-schedule');

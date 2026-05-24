@@ -1,27 +1,37 @@
 /**
- * Scheduled Tasks API — generalized, durable scheduling (story #22 / ADR 0019).
+ * Scheduled Tasks API — per-entry scheduling (story #24 / ADR 0021).
  *
- * Recurring scheduling is now served by BullMQ Job Schedulers attached to each
- * task's existing queue (see ../../manage/taskQueue/queue/scheduler.js), NOT an
- * in-process setInterval. This module owns the operator-facing config (which
- * tasks, enabled?, interval/cron) — the SOURCE OF TRUTH — persisted in
- * /var/lib/brainstorm/scheduled-tasks.json, and reconciles it into Job
- * Schedulers on boot and on every update.
+ * Replaces ADR 0019's per-task shape with per-entry: each scheduled entry
+ * has its own id, taskId, label, args, and schedule. Multiple entries can
+ * share a taskId (e.g., processCustomer for Alice every 6h, for Bob every
+ * 24h), each with independent args and an independent Job Scheduler keyed
+ * `sched:${entry.id}`.
  *
- * Generalized from ADR 0003's hardcoded task set: ANY task in the registry can
- * be scheduled. Schema (backward-compatible): per task
- *   { enabled, intervalDays?, intervalHours?, intervalMinutes?, cron? }
- * — cron wins; otherwise days/hours/minutes sum to an interval. No 1-hour floor.
+ * The persisted config at /var/lib/brainstorm/scheduled-tasks.json is the
+ * SOURCE OF TRUTH; BullMQ Job Schedulers in Redis are the EXECUTION layer.
+ * This module owns the operator-facing CRUD + reconcile-on-boot; the
+ * scheduler.js module owns the BullMQ Job Scheduler interaction.
+ *
+ * v2 on-disk shape:
+ *   { version: 2, entries: [{ id, taskId, label, args, enabled,
+ *       intervalDays, intervalHours, intervalMinutes, cron, lastError? }, ...] }
+ *
+ * readConfig() pipes through migrateConfigIfNeeded so v1 (ADR 0019's
+ * `{ [taskId]: schedule }` shape) auto-upgrades on first read with stable
+ * `legacy:<taskId>` IDs.
  */
 
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const brainstormConfig = require('../../utils/brainstormConfig');
+const { migrateConfigIfNeeded } = require('./migration');
+const { validateEntry } = require('./validation');
 
 const CONFIG_PATH = '/var/lib/brainstorm/scheduled-tasks.json';
 const EVENTS_PATH = '/var/log/brainstorm/taskQueue/events.jsonl';
 
-// ── Task registry (the schedulable-task universe — replaces ADR 0003's DEFAULTS) ──
+// ── Registry access ───────────────────────────────────────────────────
 
 let _registry = null;
 function loadRegistry() {
@@ -44,21 +54,26 @@ function isRegisteredTask(taskId) {
   return Boolean(taskId) && Boolean(reg.tasks && reg.tasks[taskId]);
 }
 
-// Lazy require — pulls in BullMQ via the queue module only when scheduling runs
-// (gated by TASK_QUEUE_ENABLED at the call sites), keeping module load cheap.
+// Lazy require — pulls in BullMQ via the queue module only when scheduling
+// is actually invoked (gated by TASK_QUEUE_ENABLED at the call sites).
 function scheduler() {
   return require('../../manage/taskQueue/queue/scheduler');
 }
 
-// ── Config read/write ───────────────────────────────────────
+// ── Config read/write ──────────────────────────────────────────────────
 
 function readConfig() {
+  let parsed = null;
   try {
-    if (fs.existsSync(CONFIG_PATH)) return JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
+    if (fs.existsSync(CONFIG_PATH)) parsed = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
   } catch (e) {
     console.error('[scheduled-tasks] Error reading config:', e.message);
   }
-  return {};
+  // Always pipe through the migrator — idempotent on v2, transparently
+  // upgrades v1 (ADR 0019 per-task shape) on first read.
+  let registry = null;
+  try { registry = loadRegistry(); } catch (_e) { /* registry may be unavailable in test contexts */ }
+  return migrateConfigIfNeeded(parsed, registry);
 }
 
 function writeConfig(config) {
@@ -67,25 +82,22 @@ function writeConfig(config) {
   fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2));
 }
 
-function getTaskConfig(taskId) {
-  const config = readConfig();
-  return config[taskId] || { enabled: false, intervalDays: 0, intervalHours: 0, intervalMinutes: 0, cron: '' };
+function findEntry(config, entryId) {
+  return config.entries.find(e => e.id === entryId);
 }
 
-// ── Boot reconcile (replaces the old setInterval initScheduler) ──
+// ── Boot reconcile (replaces ADR 0003's initScheduler; preserves the
+//    ADR 0019 function name + signature so bin/control-panel.js stays put) ──
 
-/**
- * Read the persisted config + registry and reconcile into BullMQ Job
- * Schedulers. Called once at control-panel boot (gated by TASK_QUEUE_ENABLED,
- * since it needs the queue initialized).
- */
 async function reconcileSchedulesFromConfig() {
   const config = readConfig();
   const registry = loadRegistry();
   return scheduler().reconcileSchedules(config, registry);
 }
 
-// ── Task execution history (events.jsonl — unchanged from ADR 0003) ──
+// ── Task execution history (events.jsonl — task-keyed; multi-entry
+//    entries that share a taskId share this surface, per ADR 0021's
+//    documented constraint) ──
 
 function getRecentRuns(taskName, maxRuns = 5) {
   const runs = [];
@@ -122,128 +134,314 @@ function getRecentRuns(taskName, maxRuns = 5) {
   return runs;
 }
 
-// ── Helpers ─────────────────────────────────────────────────
+// ── Helpers ────────────────────────────────────────────────────────────
 
-function unknownTask(res, taskId) {
-  return res.status(400).json({
-    success: false,
-    error: `Unknown or unregistered taskId: ${taskId}. Schedulable tasks come from the task registry.`,
-  });
-}
-
-async function nextRunSafe(taskId) {
-  try { return await scheduler().getNextRun(taskId); }
+async function nextRunSafe(entryId, taskId) {
+  try { return await scheduler().getNextRun(entryId, taskId); }
   catch (_e) { return null; }
 }
 
-// ── API Handlers ────────────────────────────────────────────
-
-async function handleStatus(req, res) {
-  const taskId = req.query.taskId;
-  if (!isRegisteredTask(taskId)) return unknownTask(res, taskId);
-  const cfg = getTaskConfig(taskId);
-  const nextRunAt = await nextRunSafe(taskId);
-  const runs = getRecentRuns(taskId, 1);
-  return res.json({
-    success: true,
-    taskId,
-    schedule: {
-      enabled: !!cfg.enabled,
-      intervalDays: cfg.intervalDays || 0,
-      intervalHours: cfg.intervalHours || 0,
-      intervalMinutes: cfg.intervalMinutes || 0,
-      cron: cfg.cron || '',
-    },
-    timer: {
-      active: !!nextRunAt,
-      nextRunAt,
-      lastRunAt: runs[0] ? runs[0].startedAt : null,
-    },
+function entryNotFound(res, entryId) {
+  return res.status(404).json({
+    success: false,
+    error: `Entry '${entryId}' not found`,
   });
 }
 
-async function handleUpdate(req, res) {
-  try {
-    const { taskId, enabled, intervalDays, intervalHours, intervalMinutes, cron } = req.body;
-    if (!isRegisteredTask(taskId)) return unknownTask(res, taskId);
+function newEntryId() {
+  return `entry-${crypto.randomUUID()}`;
+}
 
+function deriveDefaultLabel(taskId, registry) {
+  return (registry && registry.tasks && registry.tasks[taskId] && registry.tasks[taskId].name) || taskId;
+}
+
+/**
+ * Save-time CustomerManager existence check (ADR 0021 §Files-to-edit;
+ * §Q2 "save-time check (fast feedback)"). For customer-task entries whose
+ * `args.customer` is set, verifies the pubkey resolves to a current
+ * customer record before persisting. Pubkey FORMAT is already validated
+ * by validateEntry; this is the EXISTENCE check, complementing it.
+ *
+ * Returns `null` on success (or when the task doesn't take a customer arg,
+ * or when no customer was supplied — the latter is validateEntry's job to
+ * reject if required). Returns an error object on miss; the caller maps it
+ * to a 400 response with the same shape as validateEntry's errors.
+ *
+ * NB: this is "defense-in-depth for fast feedback, not the load-bearing
+ * check" — the fire-time path in entryResolver is what guarantees
+ * correctness. Skipping this check still leaves the system correct; the
+ * operator just gets feedback at the next fire instead of immediately.
+ */
+async function verifyCustomerExists(entry, registry) {
+  const task = registry && registry.tasks && registry.tasks[entry.taskId];
+  if (!task || !task.arguments || task.arguments.customer !== true) return null;
+
+  const pubkey = entry.args && entry.args.customer;
+  if (!pubkey) return null; // validateEntry handles required-missing case
+
+  try {
+    const CustomerManager = require('../../utils/customerManager');
+    const cm = new CustomerManager();
+    await cm.initialize();
+    const customer = await cm.getCustomer(pubkey);
+    if (!customer) {
+      return {
+        field: 'customer',
+        code: 'CUSTOMER_NOT_FOUND',
+        message: `Customer ${pubkey} is not present in CustomerManager — pick a different customer or create one before scheduling.`,
+        pubkey,
+      };
+    }
+  } catch (e) {
+    return {
+      field: 'customer',
+      code: 'CUSTOMER_LOOKUP_ERROR',
+      message: `CustomerManager lookup failed at save time: ${e.message}`,
+      pubkey,
+    };
+  }
+  return null;
+}
+
+// ── API Handlers ────────────────────────────────────────────────────────
+
+/** GET /api/scheduled-tasks/list — returns the per-entry view. */
+async function handleList(req, res) {
+  const config = readConfig();
+  const registry = loadRegistry();
+  const entries = [];
+  for (const entry of config.entries) {
+    const nextRunAt = await nextRunSafe(entry.id, entry.taskId);
+    const lastRun = getRecentRuns(entry.taskId, 1)[0] || null;
+    const taskDef = registry.tasks && registry.tasks[entry.taskId];
+    entries.push({
+      ...entry,
+      taskName: (taskDef && taskDef.name) || entry.taskId,
+      timer: {
+        active: !!nextRunAt,
+        nextRunAt,
+        lastRunAt: lastRun ? lastRun.startedAt : null,
+      },
+    });
+  }
+  return res.json({ success: true, entries });
+}
+
+/** GET /api/scheduled-tasks/registry-tasks — parameterized-task subset
+ *  (tasks with non-empty `arguments` AND frequency !== "continuous"),
+ *  for the Add Entry modal's task picker. */
+function handleRegistryTasks(req, res) {
+  const reg = loadRegistry();
+  const tasks = [];
+  for (const [taskId, task] of Object.entries(reg.tasks || {})) {
+    if (task.frequency === 'continuous') continue;
+    if (!task.arguments || typeof task.arguments !== 'object' || Array.isArray(task.arguments)) continue;
+    if (Object.keys(task.arguments).length === 0) continue;
+    tasks.push({
+      taskId,
+      name: task.name || taskId,
+      description: task.description || '',
+      arguments: task.arguments,
+      categories: task.categories || [],
+      frequency: task.frequency || 'periodic',
+    });
+  }
+  return res.json({ success: true, tasks });
+}
+
+/** POST /api/scheduled-tasks/create — new entry. */
+async function handleCreate(req, res) {
+  try {
+    const { taskId, args, label, enabled, intervalDays, intervalHours, intervalMinutes, cron } = req.body || {};
+    if (!taskId) return res.status(400).json({ success: false, error: 'taskId is required' });
+
+    const registry = loadRegistry();
     const entry = {
+      id: newEntryId(),
+      taskId,
+      label: label || deriveDefaultLabel(taskId, registry),
+      args: args || {},
       enabled: !!enabled,
-      intervalDays: parseInt(intervalDays) || 0,
-      intervalHours: parseInt(intervalHours) || 0,
+      intervalDays:    parseInt(intervalDays)    || 0,
+      intervalHours:   parseInt(intervalHours)   || 0,
       intervalMinutes: parseInt(intervalMinutes) || 0,
       cron: typeof cron === 'string' ? cron.trim() : '',
     };
-    if (entry.intervalDays < 0 || entry.intervalHours < 0 || entry.intervalMinutes < 0) {
-      return res.status(400).json({ success: false, error: 'Interval values must be non-negative' });
+
+    const validation = validateEntry(entry, registry);
+    if (!validation.ok) {
+      return res.status(400).json({ success: false, error: 'Entry validation failed', errors: validation.errors });
     }
-    // No 1-hour floor (ADR 0019) — but an enabled schedule must specify SOMETHING.
-    if (entry.enabled && !scheduler().isValidSchedule(entry)) {
-      return res.status(400).json({ success: false, error: 'Enabled schedule needs a cron expression or a positive interval' });
+
+    // Save-time CustomerManager existence check (ADR 0021 §Files-to-edit).
+    const customerError = await verifyCustomerExists(entry, registry);
+    if (customerError) {
+      return res.status(400).json({ success: false, error: 'Entry validation failed', errors: [customerError] });
     }
 
     const config = readConfig();
-    config[taskId] = entry;
+    config.entries.push(entry);
     writeConfig(config);
 
-    // Reconcile just this task's Job Scheduler.
-    try {
-      if (entry.enabled) await scheduler().upsertSchedule(taskId, entry, loadRegistry());
-      else await scheduler().removeSchedule(taskId);
-    } catch (e) {
-      return res.status(503).json({ success: false, error: `Scheduling unavailable (task queue not initialized?): ${e.message}` });
+    if (entry.enabled) {
+      try { await scheduler().upsertSchedule(entry, registry); }
+      catch (e) {
+        return res.status(503).json({ success: false, error: `Scheduling unavailable: ${e.message}` });
+      }
     }
 
-    const nextRunAt = await nextRunSafe(taskId);
-    const spec = entry.cron ? `cron "${entry.cron}"` : `every ${entry.intervalDays}d ${entry.intervalHours}h ${entry.intervalMinutes}m`;
-    return res.json({
-      success: true,
-      message: entry.enabled ? `${taskId} enabled: ${spec}` : `${taskId} disabled`,
-      taskId,
-      schedule: entry,
-      timer: { active: !!nextRunAt, nextRunAt, lastRunAt: null },
-    });
+    return res.json({ success: true, entry });
   } catch (err) {
-    console.error('[scheduled-tasks] Error updating:', err.message);
+    console.error('[scheduled-tasks] handleCreate error:', err.message);
     return res.status(500).json({ success: false, error: err.message });
   }
 }
 
-function handleHistory(req, res) {
-  const taskId = req.query.taskId;
-  if (!isRegisteredTask(taskId)) return unknownTask(res, taskId);
-  return res.json({ success: true, taskId, runs: getRecentRuns(taskId, 5) });
+/** POST /api/scheduled-tasks/update — update entry by entryId. */
+async function handleUpdate(req, res) {
+  try {
+    const { entryId, enabled, intervalDays, intervalHours, intervalMinutes, cron, args, label } = req.body || {};
+    if (!entryId) return res.status(400).json({ success: false, error: 'entryId is required' });
+
+    const config = readConfig();
+    const entry = findEntry(config, entryId);
+    if (!entry) return entryNotFound(res, entryId);
+
+    // Apply the patch (only fields explicitly provided).
+    const updated = { ...entry };
+    if (enabled !== undefined) updated.enabled = !!enabled;
+    if (intervalDays !== undefined)    updated.intervalDays    = parseInt(intervalDays)    || 0;
+    if (intervalHours !== undefined)   updated.intervalHours   = parseInt(intervalHours)   || 0;
+    if (intervalMinutes !== undefined) updated.intervalMinutes = parseInt(intervalMinutes) || 0;
+    if (cron !== undefined) updated.cron = typeof cron === 'string' ? cron.trim() : '';
+    if (args !== undefined) updated.args = args;
+    if (label !== undefined) updated.label = label;
+    if (enabled === true) delete updated.lastError;
+
+    const registry = loadRegistry();
+    const validation = validateEntry(updated, registry);
+    if (!validation.ok) {
+      return res.status(400).json({ success: false, error: 'Entry validation failed', errors: validation.errors });
+    }
+
+    // Save-time CustomerManager existence check (ADR 0021 §Files-to-edit).
+    // Only enforce when the customer arg actually changes in this patch —
+    // otherwise an operator toggling enabled/schedule on an entry whose
+    // customer existed at create-time but has since been deleted would
+    // bounce on save instead of being caught by the fire-time path.
+    if (args !== undefined) {
+      const customerError = await verifyCustomerExists(updated, registry);
+      if (customerError) {
+        return res.status(400).json({ success: false, error: 'Entry validation failed', errors: [customerError] });
+      }
+    }
+
+    const idx = config.entries.findIndex(e => e.id === entryId);
+    config.entries[idx] = updated;
+    writeConfig(config);
+
+    try {
+      if (updated.enabled) await scheduler().upsertSchedule(updated, registry);
+      else await scheduler().removeSchedule(updated.id, updated.taskId);
+    } catch (e) {
+      return res.status(503).json({ success: false, error: `Scheduling unavailable: ${e.message}` });
+    }
+
+    const nextRunAt = await nextRunSafe(updated.id, updated.taskId);
+    const spec = updated.cron
+      ? `cron "${updated.cron}"`
+      : `every ${updated.intervalDays}d ${updated.intervalHours}h ${updated.intervalMinutes}m`;
+    return res.json({
+      success: true,
+      message: updated.enabled ? `${updated.id} enabled: ${spec}` : `${updated.id} disabled`,
+      entry: updated,
+      timer: { active: !!nextRunAt, nextRunAt, lastRunAt: null },
+    });
+  } catch (err) {
+    console.error('[scheduled-tasks] handleUpdate error:', err.message);
+    return res.status(500).json({ success: false, error: err.message });
+  }
 }
 
-/**
- * List every schedulable (registered) task with its current schedule + next/last
- * run. Drives the generalized Scheduled Tasks UI panel (ADR 0019).
- */
-async function handleList(req, res) {
-  const reg = loadRegistry();
-  const config = readConfig();
-  const out = [];
-  for (const taskId of Object.keys(reg.tasks || {})) {
-    const def = reg.tasks[taskId] || {};
-    const cfg = config[taskId] || {};
-    const nextRunAt = await nextRunSafe(taskId);
-    const runs = getRecentRuns(taskId, 1);
-    out.push({
-      taskId,
-      name: def.name || taskId,
-      categories: def.categories || [],
-      resourceClass: def.resourceClass || null,
-      schedule: {
-        enabled: !!cfg.enabled,
-        intervalDays: cfg.intervalDays || 0,
-        intervalHours: cfg.intervalHours || 0,
-        intervalMinutes: cfg.intervalMinutes || 0,
-        cron: cfg.cron || '',
-      },
-      timer: { active: !!nextRunAt, nextRunAt, lastRunAt: runs[0] ? runs[0].startedAt : null },
-    });
+/** POST /api/scheduled-tasks/delete — remove entry; refuses enabled-without-force. */
+async function handleDelete(req, res) {
+  try {
+    const { entryId, force } = req.body || {};
+    if (!entryId) return res.status(400).json({ success: false, error: 'entryId is required' });
+
+    const config = readConfig();
+    const entry = findEntry(config, entryId);
+    if (!entry) return entryNotFound(res, entryId);
+
+    if (entry.enabled && !force) {
+      return res.status(400).json({
+        success: false,
+        error: `Entry '${entryId}' is enabled; disable it first or pass force: true`,
+        code: 'ENABLED_NO_FORCE',
+      });
+    }
+
+    config.entries = config.entries.filter(e => e.id !== entryId);
+    writeConfig(config);
+
+    try { await scheduler().removeSchedule(entry.id, entry.taskId); }
+    catch (e) { /* best-effort — config is already removed */ }
+
+    return res.json({ success: true, message: `Entry '${entryId}' deleted` });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
   }
-  return res.json({ success: true, tasks: out });
+}
+
+/** GET /api/scheduled-tasks/status?entryId=<id> — per-entry status. */
+async function handleStatus(req, res) {
+  const entryId = req.query.entryId;
+  if (!entryId) return res.status(400).json({ success: false, error: 'entryId is required' });
+  const config = readConfig();
+  const entry = findEntry(config, entryId);
+  if (!entry) return entryNotFound(res, entryId);
+
+  const nextRunAt = await nextRunSafe(entry.id, entry.taskId);
+  const lastRun = getRecentRuns(entry.taskId, 1)[0] || null;
+  return res.json({
+    success: true,
+    entryId,
+    taskId: entry.taskId,
+    label: entry.label,
+    args: entry.args,
+    schedule: {
+      enabled: !!entry.enabled,
+      intervalDays: entry.intervalDays || 0,
+      intervalHours: entry.intervalHours || 0,
+      intervalMinutes: entry.intervalMinutes || 0,
+      cron: entry.cron || '',
+    },
+    timer: {
+      active: !!nextRunAt,
+      nextRunAt,
+      lastRunAt: lastRun ? lastRun.startedAt : null,
+    },
+    lastError: entry.lastError || null,
+  });
+}
+
+/** GET /api/scheduled-tasks/history?entryId=<id> — per-task event-log records.
+ *  ADR 0021 documents the caveat: entries sharing a taskId share this list. */
+function handleHistory(req, res) {
+  const entryId = req.query.entryId;
+  if (!entryId) return res.status(400).json({ success: false, error: 'entryId is required' });
+  const config = readConfig();
+  const entry = findEntry(config, entryId);
+  if (!entry) return entryNotFound(res, entryId);
+
+  return res.json({
+    success: true,
+    entryId,
+    taskId: entry.taskId,
+    runs: getRecentRuns(entry.taskId, 5),
+    note: 'Recent runs are reported per task name, not per entry. Multiple entries sharing a taskId share this list. Per-entry granularity is a future story.',
+  });
 }
 
 module.exports = {
@@ -251,8 +449,11 @@ module.exports = {
   handleUpdate,
   handleHistory,
   handleList,
+  handleCreate,
+  handleDelete,
+  handleRegistryTasks,
   reconcileSchedulesFromConfig,
-  // exported for testability / reuse
+  // Exported for testability / reuse:
   readConfig,
   isRegisteredTask,
   getRecentRuns,
