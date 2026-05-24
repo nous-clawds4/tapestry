@@ -45,15 +45,21 @@ test('refreshSearchIndex + updateAllScoresForOwner are schedulable via the task 
 });
 
 // ── ADR constraint: handlers route by taskId ─────────────────
-test('scheduler handlers read taskId from req (query/body) — taskId-keyed routing per ADR Option A', () => {
+test('scheduler handlers read entryId from req (query/body) — per-entry routing per ADR 0021 (was taskId per ADR 0003/0019)', () => {
+  // ADR 0021 (story #24) explicitly changes the handler key from taskId to
+  // entryId. The operator approved the API-shape break at the architecture
+  // gate ("OK to break this; no need for a backward-compat shim").
+  // This sentinel is updated to reflect the new contract — the underlying
+  // intent (handlers must require an ID and return 400 when missing)
+  // remains the regression target.
   const src = fs.readFileSync(SCHEDULER_PATH, 'utf8');
   assert(
-    /req\.(query|body|params)\.taskId/.test(src),
-    'scheduler handlers must read taskId from req (e.g. req.query.taskId / req.body.taskId) so /api/scheduled-tasks/* can route per task — per ADR 0003 Option A'
+    /req\.(query|body|params)\.entryId/.test(src),
+    'scheduler handlers must read entryId from req (e.g. req.query.entryId / req.body.entryId) so /api/scheduled-tasks/* can route per scheduled entry — per ADR 0021'
   );
   assert(
-    /(status\(400\)|res\.status\(400\))[\s\S]{0,400}taskId|taskId[\s\S]{0,400}(status\(400\)|res\.status\(400\))/.test(src),
-    'handlers must return HTTP 400 when taskId is missing or unknown (ADR Option A: required, no implicit default)'
+    /(status\(400\)|res\.status\(400\))[\s\S]{0,400}entryId|entryId[\s\S]{0,400}(status\(400\)|res\.status\(400\))/.test(src),
+    'handlers must return HTTP 400 when entryId is missing (ADR 0021: required, no implicit default)'
   );
 });
 
