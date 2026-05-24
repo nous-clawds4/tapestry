@@ -57,6 +57,6 @@ None. Per ADR 0013, the task-queue / resource-class subsystem has no concept-gra
 
 ## Linked artifacts
 
-- ADR: (filled in after Architecture phase — will be an in-place amendment to ADR 0013, same pattern as ADR 0022 amending ADR 0012)
+- ADR: [`engineering-team/decisions/0023-task-queue-semaphore-protection-audit.md`](../decisions/0023-task-queue-semaphore-protection-audit.md) (includes in-place amendment to ADR 0013's protection-model section)
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
