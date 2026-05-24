@@ -1708,16 +1708,25 @@ function ScheduledTasksPanel() {
 
   // Display-label derivation per ADR 0021 §Q4. Order of precedence:
   //   1. LEGACY_TITLE_OVERRIDES (story #4 continuity for the two migrated entries)
-  //   2. Operator-set entry.label that doesn't match the auto-derived pattern
-  //   3. Auto-derived "<task name> — <current customer name>" from the live customer list
-  //   4. entry.label fallback
-  //   5. entry.taskId
+  //   2. Operator-customized entry.label — anything different from the
+  //      auto-default task name (which is what handleCreate stores when the
+  //      operator didn't type a label). ADR §Q4: "the stored entry.label
+  //      is only used when the operator explicitly set it."
+  //   3. Auto-derived "<task name> — <current customer name>" from the live
+  //      customer list — so renames surface on next refresh.
+  //   4. entry.label fallback (the auto-default task name) when the customer
+  //      isn't in the customer list (orphan / not-yet-loaded — the orphan
+  //      badge surfaces this case separately).
+  //   5. entry.taskId as last resort.
   function computeDisplayTitle(entry) {
     if (LEGACY_TITLE_OVERRIDES[entry.id]) return LEGACY_TITLE_OVERRIDES[entry.id];
+    const taskName = entry.taskName || entry.taskId;
+    // Operator-customized: entry.label exists AND doesn't match the default
+    // auto-fill that handleCreate writes (which is registry.tasks[taskId].name).
+    const isCustomLabel = entry.label && entry.label !== taskName;
+    if (isCustomLabel) return entry.label;
     if (entry.args && entry.args.customer && customerByPubkey[entry.args.customer]) {
-      const taskName = entry.taskName || entry.taskId;
-      const customerName = customerByPubkey[entry.args.customer].name;
-      return `${taskName} — ${customerName}`;
+      return `${taskName} — ${customerByPubkey[entry.args.customer].name}`;
     }
     return entry.label || entry.taskId;
   }

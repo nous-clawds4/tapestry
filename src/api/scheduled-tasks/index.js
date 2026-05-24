@@ -156,6 +156,54 @@ function deriveDefaultLabel(taskId, registry) {
   return (registry && registry.tasks && registry.tasks[taskId] && registry.tasks[taskId].name) || taskId;
 }
 
+/**
+ * Save-time CustomerManager existence check (ADR 0021 §Files-to-edit;
+ * §Q2 "save-time check (fast feedback)"). For customer-task entries whose
+ * `args.customer` is set, verifies the pubkey resolves to a current
+ * customer record before persisting. Pubkey FORMAT is already validated
+ * by validateEntry; this is the EXISTENCE check, complementing it.
+ *
+ * Returns `null` on success (or when the task doesn't take a customer arg,
+ * or when no customer was supplied — the latter is validateEntry's job to
+ * reject if required). Returns an error object on miss; the caller maps it
+ * to a 400 response with the same shape as validateEntry's errors.
+ *
+ * NB: this is "defense-in-depth for fast feedback, not the load-bearing
+ * check" — the fire-time path in entryResolver is what guarantees
+ * correctness. Skipping this check still leaves the system correct; the
+ * operator just gets feedback at the next fire instead of immediately.
+ */
+async function verifyCustomerExists(entry, registry) {
+  const task = registry && registry.tasks && registry.tasks[entry.taskId];
+  if (!task || !task.arguments || task.arguments.customer !== true) return null;
+
+  const pubkey = entry.args && entry.args.customer;
+  if (!pubkey) return null; // validateEntry handles required-missing case
+
+  try {
+    const CustomerManager = require('../../utils/customerManager');
+    const cm = new CustomerManager();
+    await cm.initialize();
+    const customer = await cm.getCustomer(pubkey);
+    if (!customer) {
+      return {
+        field: 'customer',
+        code: 'CUSTOMER_NOT_FOUND',
+        message: `Customer ${pubkey} is not present in CustomerManager — pick a different customer or create one before scheduling.`,
+        pubkey,
+      };
+    }
+  } catch (e) {
+    return {
+      field: 'customer',
+      code: 'CUSTOMER_LOOKUP_ERROR',
+      message: `CustomerManager lookup failed at save time: ${e.message}`,
+      pubkey,
+    };
+  }
+  return null;
+}
+
 // ── API Handlers ────────────────────────────────────────────────────────
 
 /** GET /api/scheduled-tasks/list — returns the per-entry view. */
@@ -226,6 +274,12 @@ async function handleCreate(req, res) {
       return res.status(400).json({ success: false, error: 'Entry validation failed', errors: validation.errors });
     }
 
+    // Save-time CustomerManager existence check (ADR 0021 §Files-to-edit).
+    const customerError = await verifyCustomerExists(entry, registry);
+    if (customerError) {
+      return res.status(400).json({ success: false, error: 'Entry validation failed', errors: [customerError] });
+    }
+
     const config = readConfig();
     config.entries.push(entry);
     writeConfig(config);
@@ -269,6 +323,18 @@ async function handleUpdate(req, res) {
     const validation = validateEntry(updated, registry);
     if (!validation.ok) {
       return res.status(400).json({ success: false, error: 'Entry validation failed', errors: validation.errors });
+    }
+
+    // Save-time CustomerManager existence check (ADR 0021 §Files-to-edit).
+    // Only enforce when the customer arg actually changes in this patch —
+    // otherwise an operator toggling enabled/schedule on an entry whose
+    // customer existed at create-time but has since been deleted would
+    // bounce on save instead of being caught by the fire-time path.
+    if (args !== undefined) {
+      const customerError = await verifyCustomerExists(updated, registry);
+      if (customerError) {
+        return res.status(400).json({ success: false, error: 'Entry validation failed', errors: [customerError] });
+      }
     }
 
     const idx = config.entries.findIndex(e => e.id === entryId);
