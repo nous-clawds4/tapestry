@@ -174,15 +174,29 @@ function getAllQueues() {
 }
 
 /**
- * Enqueue a task. Returns the BullMQ Job. Idempotent on jobId — concurrent
- * submissions for the same (taskName, pubkey) join one execution.
+ * Enqueue a task. Returns the BullMQ Job. Idempotent on jobId while the
+ * previous attempt is in `wait` or `active` — concurrent submissions for
+ * the same (taskName, pubkey) join one execution. Once the previous attempt
+ * finalizes (completed or failed), the next submission with the same jobId
+ * creates a fresh execution.
+ *
+ * The wait/active-only dedup window is enforced by passing
+ * `removeOnComplete: true` and `removeOnFail: true` on every add: these
+ * map to BullMQ's `{count: 0}` keepJobs semantics, which deletes the per-
+ * job Redis hash as part of finalization. With the hash gone, `queue.add`
+ * with the same jobId finds nothing in any state and creates a fresh job.
+ * See ADR 0022 (story #25) for the full rationale and the empirical probe.
  */
 async function enqueueTask({ taskName, customerArgs, queryParams, timeoutMs }) {
   const queue = getQueue(taskName);
   if (!queue) throw new Error(`Unknown task: ${taskName}`);
   const jobId = computeJobId(taskName, customerArgs);
   const data = { taskName, customerArgs, queryParams, timeoutMs };
-  return queue.add(taskName, data, { jobId });
+  return queue.add(taskName, data, {
+    jobId,
+    removeOnComplete: true,
+    removeOnFail: true,
+  });
 }
 
 /**

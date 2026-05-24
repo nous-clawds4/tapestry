@@ -295,3 +295,68 @@ Note: `reconcileAuthor` is intentionally NOT `neo4j-heavy` so an interactive tri
 **Strictness:** Standard.
 **Phase path:** Architect amends ADR 0012 picking one of the three options; Implementer + Reviewer.
 **Priority:** Medium-high. Limits operator's ability to re-run tasks ad hoc on demand — affects debugging, recovery from failures, and any "I want to fire X now" workflow.
+
+---
+
+## 2026-05-24 — Feature: unified all-tasks timeline UI (cross-queue past + present + future)
+
+**Surfaced during:** `/discuss` triage of Intake B on 2026-05-24. Operator asked: "I'd like to have a single, compact timeline that shows all tasks past, present, and future. Ideally one that I can scroll up and down if there is a lot of data on it. Of course, there will need to be a limit on how long we keep tasks in our logs. But why does BullBoard not have this feature?"
+
+**Mechanism (why the gap exists):** BullBoard's data model is per-queue — list of queues → click into one → see jobs by `wait`/`active`/`completed`/`failed`/`delayed`. With ADR 0012 Option A's per-task-queue topology (54 queues at full enrollment), operators have to click through 54 queues to know "what's been happening." BullBoard's UI was built for the common case of a handful of larger queues; it doesn't accommodate fleets of small per-task queues well, and it has no built-in cross-queue chronological view.
+
+**Existing partial solution to extend or reference:** `src/api/neo4j-health/getTaskTimeline.js` (`GET /api/neo4j-health/task-timeline?hours=24`) already reads `events.jsonl`, builds a chronological timeline, returns it to the Neo4j Performance Metrics dashboard. Currently scoped to ~22 hardcoded "DB-intensive" tasks plotted as colored markers — its purpose is Neo4j context, not general-purpose task visibility. The general-purpose version would generalize this pattern.
+
+**Data sources to merge for the unified view:**
+- **Past** — `events.jsonl` (TASK_START + TASK_END pairs; already structured; bounded by rotation at `BRAINSTORM_EVENTS_MAX_SIZE`).
+- **Present** — across all 54 queues, BullMQ `wait` + `active` lists (one multi-pipelined Redis query keyed by `bull:<task>:*`).
+- **Future** — BullMQ Job Scheduler `delayed` jobs (ADR 0021 already persists these to Redis; per-entry schedulers keyed `sched:${entry.id}`).
+
+**Out of scope for the immediate triage:**
+- Replacing BullBoard. BullBoard stays as the *interactive* surface (pause / retry / inspect / remove a specific queue's state). The new view is the *observation* surface for "what's happening overall."
+- Reverting ADR 0012's per-task-queue topology to single-queue (rejected at the time for good reasons; cross-queue UI is the right answer, not topology change).
+- Subshell-invoked children visibility (overlaps Intake A 2026-05-24 — children that bypass BullMQ won't appear in the "present" view but WILL appear in the "past" view via events.jsonl; this is intentional and Intake A is the right place to triage the root cause).
+
+**Open questions for Planning:**
+1. **Retention policy.** events.jsonl rotates at `BRAINSTORM_EVENTS_MAX_SIZE`; is that the right anchor for "how far back the timeline shows," or should the UI cap at a fixed window (e.g., 7 days) regardless of file size?
+2. **Filtering.** With 54 tasks, even a compact timeline gets busy. Per-task and per-category filters (orchestrator / graph-calc / ranking / monitoring / customer) are likely required; default-on filters worth picking in Planning.
+3. **Where it lives.** Three candidates: (a) new top-level "Admin Tools → Task Activity" page, (b) new tab inside the existing Scheduled Tasks panel, (c) extend the Neo4j Performance Metrics dashboard's timeline (least disruptive but conflates Neo4j context with general visibility). Probably (a).
+4. **Live vs poll.** events.jsonl is append-only on disk; the simplest implementation polls every N seconds. A future SSE/websocket push is nice-to-have but adds infra (gate behind whether polling is operator-visibly laggy).
+
+**Classification:** Feature (operator-experience UI; consolidates several partial surfaces into one).
+**Strictness:** Standard.
+**Phase path:** Planning → Architecture → Test Design → Implementation → Review (all five — UI + new API + cross-source data merge each have real design choices).
+**Priority:** Medium-low. No operator workflow is blocked today (data is reachable via grep + BullBoard + Neo4j Performance dashboard), but the friction is real and recurring. Worth doing once Intake B's task-queue hygiene is settled.
+
+---
+
+## 2026-05-24 — Cleanup: scheduled-fire job retention (`upsertJobScheduler` opts)
+
+**Surfaced during:** story #25 / ADR 0022 implementation on 2026-05-24, as the stretch goal the ADR called out. The Implementer deferred it per the ADR's "Defer if" criteria (the empirical probe + the tester's plan were both scoped to the manual-trigger path; bundling would require extending both).
+
+**Mechanism:** `src/manage/taskQueue/queue/scheduler.js` calls `queue.upsertJobScheduler(schedulerId, repeatOpts, jobTemplate)` (line 91-98) with a `jobTemplate` of `{ name, data }` — no `opts` field. Each scheduled fire is therefore created with BullMQ defaults (`removeOnComplete: false` → `{count: -1}` → keep forever). Unlike the manual-trigger path (story #25's dedup bug), this is NOT a correctness issue — each scheduled fire gets a unique generated jobId (`repeat:<schedulerId>:<timestamp>` or similar), so dedup doesn't bite. But every fire leaves a per-job hash in Redis indefinitely, so memory grows unbounded over months of operation.
+
+**Fix shape (per ADR 0022 §Stretch goal):**
+```js
+await queue.upsertJobScheduler(
+  schedulerId(entry.id),
+  toRepeatOpts(entry),
+  {
+    name: entry.taskId,
+    data: { taskName: entry.taskId, entryId: entry.id, timeoutMs },
+    opts: { removeOnComplete: true, removeOnFail: true },  // <-- add this
+  }
+);
+```
+
+**Verification needed before this lands:**
+1. **Empirical probe extension** — confirm `opts` on `upsertJobScheduler`'s job template is the right BullMQ surface for per-fire options on the installed `bullmq@5.76.10`. Possible probe: create a scheduler, wait for two fires, assert the first fire's hash is gone after the second fires. The story #25 probe at `test/probe-bullmq-removeOnComplete-immediate.js` is the natural sibling to extend.
+2. **Regression test** — add a sentinel that scheduler.js's `upsertJobScheduler` call passes `opts: { removeOnComplete: true, removeOnFail: true }`.
+
+**Trade-off (same as story #25):** BullBoard's `completed`/`failed` tabs become empty for scheduled-fire jobs too. `events.jsonl` remains the durable history surface. Same out-of-scope clause from story #25 applies.
+
+**Out of scope:** the same items as story #25 (Intake A subshell bypass, unified all-tasks timeline UI, etc.) — this is a strictly mechanical follow-up.
+
+**Classification:** Cleanup (Redis-memory hygiene; no correctness issue today).
+**Strictness:** Standard.
+**Phase path:** Architecture (brief — same Option A pattern as ADR 0022 applied to a sibling code path) → Test Design (one sentinel + one probe extension) → Implementation → Review. Architecture could potentially fast-track since the design rationale is verbatim ADR 0022.
+**Priority:** Low. Slow-growing Redis bloat; no operator workflow blocked today. Worth doing for hygiene before the next major task-queue work or if Redis memory becomes a concern.
