@@ -563,6 +563,80 @@ test('R2: src/api/scheduled-tasks/index.js still exports reconcileSchedulesFromC
     'src/api/scheduled-tasks/index.js must continue to export reconcileSchedulesFromConfig — bin/control-panel.js invokes it once at startup to reconcile config → BullMQ Job Schedulers (story #22 / ADR 0019 cold-start hook; ADR 0021 keeps the function name and call site, only changes internals to iterate entries).');
 });
 
+test('R4: groupEventsIntoSessions deduplicates multi-emit TASK_START/TASK_END records by <pid>_<date> (regression — Recent Runs was showing 2 rows per fire)', () => {
+  // Background: structured-logging utility writes TASK_START + TASK_END from
+  // BOTH layers per fire — the launchChildTask.sh wrapper AND the task
+  // script's own emit each write a record. Both share the same PID. The naive
+  // initial getRecentRuns counted raw records and showed 2× rows per fire on
+  // the panel's Recent Runs table while the legacy explorer (which groups by
+  // <pid>_<date> sessions) correctly showed 1.
+  //
+  // This test pins the corrected contract: each (pid, date) pair is one
+  // logical run regardless of how many wrapper layers emitted events for it.
+  const r = safeRequire(SCHEDULER_API_PATH);
+  assert(r.ok, `scheduler API module unavailable: ${r.error}`);
+  assert(typeof r.module.groupEventsIntoSessions === 'function',
+    'src/api/scheduled-tasks/index.js must export `groupEventsIntoSessions(taskName, lines) → runs[]` for direct unit testing of the dedup rule.');
+
+  // Fixture: two simultaneous fires (pid 35608 at 11:12, pid 26031 at 08:12),
+  // each emitting the launchChildTask wrapper's TASK_START + TASK_END AND the
+  // script's TASK_START + TASK_END. That's 4 lines per fire → 8 raw records.
+  // Expected result: 2 logical sessions (one per pid).
+  const lines = [
+    // pid 35608 session — wrapper emit
+    JSON.stringify({ taskName: 'processCustomer', eventType: 'TASK_START', pid: 35608, timestamp: '2026-05-24T11:12:58+00:00', target: '' }),
+    // pid 35608 session — script emit (same pid, same fire)
+    JSON.stringify({ taskName: 'processCustomer', eventType: 'TASK_START', pid: 35608, timestamp: '2026-05-24T11:12:58+00:00', target: '<pubkey>' }),
+    JSON.stringify({ taskName: 'processCustomer', eventType: 'TASK_END',   pid: 35608, timestamp: '2026-05-24T12:28:05+00:00', target: '<pubkey>', exitCode: 0, duration: 4507000 }),
+    JSON.stringify({ taskName: 'processCustomer', eventType: 'TASK_END',   pid: 35608, timestamp: '2026-05-24T12:28:05+00:00', target: '', exitCode: 0 }),
+    // pid 26031 session — separate fire
+    JSON.stringify({ taskName: 'processCustomer', eventType: 'TASK_START', pid: 26031, timestamp: '2026-05-24T08:12:58+00:00' }),
+    JSON.stringify({ taskName: 'processCustomer', eventType: 'TASK_START', pid: 26031, timestamp: '2026-05-24T08:12:58+00:00' }),
+    JSON.stringify({ taskName: 'processCustomer', eventType: 'TASK_END',   pid: 26031, timestamp: '2026-05-24T09:33:03+00:00', exitCode: 0 }),
+    JSON.stringify({ taskName: 'processCustomer', eventType: 'TASK_END',   pid: 26031, timestamp: '2026-05-24T09:33:03+00:00', exitCode: 0 }),
+    // unrelated task on same pid — must NOT bleed into our results
+    JSON.stringify({ taskName: 'someOtherTask', eventType: 'TASK_START', pid: 35608, timestamp: '2026-05-24T13:00:00+00:00' }),
+    // malformed line — must be skipped, not throw
+    'this is not json',
+  ];
+
+  const sessions = r.module.groupEventsIntoSessions('processCustomer', lines);
+
+  assert(Array.isArray(sessions),
+    'groupEventsIntoSessions must return an array.');
+  assert(sessions.length === 2,
+    `Expected 2 deduped sessions (one per pid), got ${sessions.length}. Multi-emit TASK_START/TASK_END records were NOT collapsed into sessions — getRecentRuns will return doubled rows on the panel.`);
+
+  // Most recent first.
+  assert(sessions[0].startedAt === '2026-05-24T11:12:58+00:00',
+    `Sessions must be sorted by startedAt descending; got first session startedAt: ${sessions[0].startedAt}`);
+  assert(sessions[0].endedAt === '2026-05-24T12:28:05+00:00',
+    `Latest TASK_END must be picked as endedAt; got: ${sessions[0].endedAt}`);
+  assert(sessions[0].status === 'success',
+    `Session status must reflect the TASK_END outcome (failure flag); got: ${sessions[0].status}`);
+  assert(sessions[0].durationMs === 4507000,
+    `Session durationMs must be picked from the TASK_END record; got: ${sessions[0].durationMs}`);
+  assert(sessions[1].startedAt === '2026-05-24T08:12:58+00:00',
+    `Second session startedAt mismatch; got: ${sessions[1].startedAt}`);
+
+  // Sanity: failure flag honored.
+  const failureLines = [
+    JSON.stringify({ taskName: 'processCustomer', eventType: 'TASK_START', pid: 99999, timestamp: '2026-05-24T15:00:00+00:00' }),
+    JSON.stringify({ taskName: 'processCustomer', eventType: 'TASK_END',   pid: 99999, timestamp: '2026-05-24T15:01:00+00:00', failure: true, exitCode: 1 }),
+  ];
+  const failureSessions = r.module.groupEventsIntoSessions('processCustomer', failureLines);
+  assert(failureSessions.length === 1 && failureSessions[0].status === 'failed' && failureSessions[0].exitCode === 1,
+    `TASK_END with failure:true must produce status:'failed' + exitCode preserved; got: ${JSON.stringify(failureSessions)}`);
+
+  // Sanity: still-running session (TASK_START only) keeps status:'running'.
+  const runningLines = [
+    JSON.stringify({ taskName: 'processCustomer', eventType: 'TASK_START', pid: 77777, timestamp: '2026-05-24T16:00:00+00:00' }),
+  ];
+  const runningSessions = r.module.groupEventsIntoSessions('processCustomer', runningLines);
+  assert(runningSessions.length === 1 && runningSessions[0].status === 'running' && runningSessions[0].endedAt === null,
+    `TASK_START without a paired TASK_END must produce status:'running' + endedAt:null; got: ${JSON.stringify(runningSessions)}`);
+});
+
 test('R3: filterSchedulableTasks includes non-parameterized tasks like reconcile* (regression guard — ADR 0019 surface preserved)', () => {
   // Background: when ADR 0021's "+ Add Scheduled Entry" modal first shipped,
   // handleRegistryTasks had an overly strict filter that excluded any task
