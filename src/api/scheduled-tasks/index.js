@@ -99,39 +99,69 @@ async function reconcileSchedulesFromConfig() {
 //    entries that share a taskId share this surface, per ADR 0021's
 //    documented constraint) ──
 
+/**
+ * Group raw events.jsonl lines into one logical "run" per session, where a
+ * session is `<pid>_<YYYY-MM-DD>`. Pure function — exported for testability.
+ *
+ * Why session-dedup is necessary: the structured-logging utility writes
+ * TASK_START + TASK_END events from MULTIPLE layers per fire — the
+ * launchChildTask.sh wrapper AND the task script's own emit each write a
+ * record. Both share the same PID. Without dedup, `getRecentRuns` returns
+ * 2× rows per fire — exactly the bug operator reported (panel showing
+ * `processCustomer` ran twice at each scheduled tick when it only ran once).
+ *
+ * Matches the legacy task explorer's contract
+ * (src/api/taskExplorer/getTaskExplorerSingleTaskData), which groups by
+ * sessionId = `<pid>_<YYYY-MM-DD>` and reports one row per session.
+ *
+ * Returns an array of `{ startedAt, endedAt, durationMs, status, exitCode }`
+ * sorted by startedAt descending. Each session uses the earliest TASK_START
+ * timestamp and the latest TASK_END timestamp.
+ */
+function groupEventsIntoSessions(taskName, lines) {
+  const sessions = new Map(); // sessionKey → { startedAt, endedAt, durationMs, status, exitCode }
+  for (const line of lines) {
+    let rec;
+    try { rec = JSON.parse(line); } catch { continue; }
+    if (!rec || rec.taskName !== taskName) continue;
+    if (rec.eventType !== 'TASK_START' && rec.eventType !== 'TASK_END') continue;
+
+    const pid = (rec.pid !== undefined && rec.pid !== null) ? String(rec.pid) : 'unknown';
+    const date = (rec.timestamp || '').slice(0, 10); // YYYY-MM-DD
+    const key = `${pid}_${date}`;
+
+    let s = sessions.get(key);
+    if (!s) {
+      s = { startedAt: null, endedAt: null, durationMs: null, status: 'running', exitCode: null };
+      sessions.set(key, s);
+    }
+
+    if (rec.eventType === 'TASK_START') {
+      // Earliest TASK_START within the session.
+      if (!s.startedAt || (rec.timestamp && rec.timestamp < s.startedAt)) s.startedAt = rec.timestamp;
+    } else {
+      // Latest TASK_END within the session.
+      if (!s.endedAt || (rec.timestamp && rec.timestamp > s.endedAt)) s.endedAt = rec.timestamp;
+      s.status = rec.failure ? 'failed' : 'success';
+      if (rec.exitCode !== undefined) s.exitCode = rec.exitCode;
+      if (rec.duration !== undefined) s.durationMs = rec.duration;
+    }
+  }
+
+  return Array.from(sessions.values())
+    .filter(s => s.startedAt) // drop sessions that only saw TASK_END (orphan / pre-process)
+    .sort((a, b) => (b.startedAt || '').localeCompare(a.startedAt || ''));
+}
+
 function getRecentRuns(taskName, maxRuns = 5) {
-  const runs = [];
   try {
-    if (!fs.existsSync(EVENTS_PATH)) return runs;
+    if (!fs.existsSync(EVENTS_PATH)) return [];
     const lines = fs.readFileSync(EVENTS_PATH, 'utf8').trim().split('\n').filter(Boolean);
-    const starts = [];
-    const ends = [];
-    for (const line of lines) {
-      try {
-        const rec = JSON.parse(line);
-        if (rec.taskName !== taskName) continue;
-        if (rec.eventType === 'TASK_START') starts.push(rec);
-        else if (rec.eventType === 'TASK_END') ends.push(rec);
-      } catch { /* skip bad lines */ }
-    }
-    for (let i = starts.length - 1; i >= 0 && runs.length < maxRuns; i--) {
-      const start = starts[i];
-      let matchedEnd = null;
-      for (const end of ends) {
-        if (new Date(end.timestamp) > new Date(start.timestamp)) { matchedEnd = end; break; }
-      }
-      runs.push({
-        startedAt: start.timestamp,
-        endedAt: matchedEnd ? matchedEnd.timestamp : null,
-        durationMs: matchedEnd ? matchedEnd.duration : null,
-        status: matchedEnd ? (matchedEnd.failure ? 'failed' : 'success') : 'running',
-        exitCode: matchedEnd ? matchedEnd.exitCode : null,
-      });
-    }
+    return groupEventsIntoSessions(taskName, lines).slice(0, maxRuns);
   } catch (e) {
     console.error('[scheduled-tasks] Error reading history:', e.message);
+    return [];
   }
-  return runs;
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────
@@ -480,5 +510,6 @@ module.exports = {
   readConfig,
   isRegisteredTask,
   getRecentRuns,
+  groupEventsIntoSessions,
   filterSchedulableTasks,
 };
