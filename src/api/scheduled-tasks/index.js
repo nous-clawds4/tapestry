@@ -228,26 +228,49 @@ async function handleList(req, res) {
   return res.json({ success: true, entries });
 }
 
-/** GET /api/scheduled-tasks/registry-tasks — parameterized-task subset
- *  (tasks with non-empty `arguments` AND frequency !== "continuous"),
- *  for the Add Entry modal's task picker. */
-function handleRegistryTasks(req, res) {
-  const reg = loadRegistry();
+/**
+ * Pure-function filter for the Add Entry modal's task dropdown. Exported
+ * for unit testability — handleRegistryTasks wraps it for the HTTP boundary.
+ *
+ * Rule: any non-continuous task in the registry. ADR 0019's panel already
+ * permitted scheduling any non-continuous task; ADR 0021's amendment
+ * preserves that surface — non-parameterized tasks (e.g., reconcileAll,
+ * reconcileRecent, reconcileAuthor, reconcileNetwork) MUST remain
+ * schedulable from the modal even though they don't take operator-supplied
+ * arguments. The modal handles a no-args task gracefully: argsSchema is
+ * empty so no arg form fields render, and Save is enabled immediately.
+ *
+ * "continuous" excludes the queue-internal daemons (taskQueueManager /
+ * taskScheduler / taskExecutor / systemStateGatherer) which are not
+ * scheduled tasks at all.
+ */
+function filterSchedulableTasks(registry) {
   const tasks = [];
-  for (const [taskId, task] of Object.entries(reg.tasks || {})) {
+  for (const [taskId, task] of Object.entries((registry && registry.tasks) || {})) {
+    if (!task || typeof task !== 'object') continue;
     if (task.frequency === 'continuous') continue;
-    if (!task.arguments || typeof task.arguments !== 'object' || Array.isArray(task.arguments)) continue;
-    if (Object.keys(task.arguments).length === 0) continue;
     tasks.push({
       taskId,
       name: task.name || taskId,
       description: task.description || '',
-      arguments: task.arguments,
+      // Normalize arguments to an object for the modal — `false` / missing
+      // collapses to `{}` so the modal's switch over `Object.entries(args)`
+      // is well-defined for non-parameterized tasks.
+      arguments: (task.arguments && typeof task.arguments === 'object' && !Array.isArray(task.arguments))
+        ? task.arguments
+        : {},
       categories: task.categories || [],
       frequency: task.frequency || 'periodic',
     });
   }
-  return res.json({ success: true, tasks });
+  return tasks;
+}
+
+/** GET /api/scheduled-tasks/registry-tasks — the dropdown source for the
+ *  Add Entry modal. Returns every non-continuous registered task; the modal
+ *  renders an arg form only for tasks whose arguments object is non-empty. */
+function handleRegistryTasks(req, res) {
+  return res.json({ success: true, tasks: filterSchedulableTasks(loadRegistry()) });
 }
 
 /** POST /api/scheduled-tasks/create — new entry. */
@@ -457,4 +480,5 @@ module.exports = {
   readConfig,
   isRegisteredTask,
   getRecentRuns,
+  filterSchedulableTasks,
 };
