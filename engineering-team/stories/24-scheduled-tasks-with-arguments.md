@@ -2,7 +2,7 @@
 
 > **Renumbered from #17 → #24 at sync time (2026-05-23):** story #17 on `origin/staging` was already taken by `task-queue-on-by-default`; #24 is the next free slot. The companion ADR was renumbered 0015 → 0021 for the same reason. Review verdict on the original story #17 / ADR 0015 was **CHANGES_REQUESTED** — see the linked review for the asks against the Architect (the in-process scheduler this ADR builds on was superseded by ADR 0019's BullMQ Job Schedulers between the time this work was drafted on a stale branch and the time the Reviewer caught it).
 
-**Status:** Approved (needs ADR amendment per review)
+**Status:** Approved (ADR amended 2026-05-23 to build on ADR 0019)
 **Created:** 2026-05-23
 **Type:** Feature
 
@@ -81,6 +81,6 @@ The PO oriented via `GET http://localhost:7778/api/concept-graph/summaries` (34 
 
 ## Linked artifacts
 
-- ADR: [engineering-team/decisions/0021-scheduled-tasks-with-arguments.md](../decisions/0021-scheduled-tasks-with-arguments.md) — renumbered from 0015 at sync time; **needs Architect amendment** to reconcile with `origin/staging`'s ADR 0019 (BullMQ Job Schedulers).
+- ADR: [engineering-team/decisions/0021-scheduled-tasks-with-arguments.md](../decisions/0021-scheduled-tasks-with-arguments.md) — renumbered from 0015 at sync time; **body amended 2026-05-23** to build on `origin/staging`'s ADR 0019 (BullMQ Job Schedulers) with per-entry scheduling + fire-time customer resolution.
 - Test plan: [engineering-team/stories/24-scheduled-tasks-with-arguments.test-plan.md](24-scheduled-tasks-with-arguments.test-plan.md)
 - Review: [engineering-team/reviews/24-scheduled-tasks-with-arguments.md](../reviews/24-scheduled-tasks-with-arguments.md) — **CHANGES_REQUESTED** (architecture conflict with shipped ADR 0019).
