@@ -2,7 +2,7 @@
 
 > **Renumbered from #17 → #24 at sync time (2026-05-23):** story #17 on `origin/staging` was already taken by `task-queue-on-by-default`; #24 is the next free slot. The companion ADR was renumbered 0015 → 0021 for the same reason. Review verdict on the original story #17 / ADR 0015 was **CHANGES_REQUESTED** — see the linked review for the asks against the Architect (the in-process scheduler this ADR builds on was superseded by ADR 0019's BullMQ Job Schedulers between the time this work was drafted on a stale branch and the time the Reviewer caught it).
 
-**Status:** Approved (ADR amended 2026-05-23 to build on ADR 0019)
+**Status:** Done (shipped to production 2026-05-24)
 **Created:** 2026-05-23
 **Type:** Feature
 
@@ -86,3 +86,18 @@ The PO oriented via `GET http://localhost:7778/api/concept-graph/summaries` (34 
 - Review (original, historical): [engineering-team/reviews/24-scheduled-tasks-with-arguments.md](../reviews/24-scheduled-tasks-with-arguments.md) — **CHANGES_REQUESTED** (architecture conflict with shipped ADR 0019; closed by the amendment cycle).
 - Review (amended impl): [engineering-team/reviews/24-scheduled-tasks-with-arguments-amended.md](../reviews/24-scheduled-tasks-with-arguments-amended.md) — **PASS** end-to-end. Cycle-local smoke verified the load-bearing CUSTOMER_NOT_FOUND fire-time auto-disable round-trip with ENTRY_AUTO_DISABLED event emission. Two non-blocking ADR deviations flagged (save-time CustomerManager check; display-label operator-override precedence).
 - Review (follow-up impl): [engineering-team/reviews/24-scheduled-tasks-with-arguments-amended-followup.md](../reviews/24-scheduled-tasks-with-arguments-amended-followup.md) — **PASS**. Both non-blocking deviations closed cleanly. Story ready for deploy chain (cycle-staging → cycle-prod).
+
+## Shipped to production (2026-05-24)
+
+The main feature plus three operator-discovered follow-up fixes, all merged to `main` and verified live on `brainstorm.world`:
+
+| PR | Commit | Description |
+|---|---|---|
+| [#195](https://github.com/nous-clawds4/tapestry/pull/195) | `c9bef416` | **Story #24 / ADR 0021 main feature** — per-entry scheduled tasks with arguments; per-entry Job Schedulers keyed `sched:${entry.id}`; fire-time customer resolution via new `entryResolver`; v1→v2 on-disk migration with stable `legacy:<taskId>` IDs |
+| [#197](https://github.com/nous-clawds4/tapestry/pull/197) | `49e0b861` | **Dropdown filter** — re-included non-parameterized tasks (`reconcileAll`/`reconcileRecent`/`reconcileAuthor`/`reconcileNetwork`) in the Add Scheduled Entry modal; the initial filter was over-strict and dropped them |
+| [#199](https://github.com/nous-clawds4/tapestry/pull/199) | `6ad154d2` | **Recent Runs dedup** — `getRecentRuns` was double-counting because `events.jsonl` records 2 TASK_START + 2 TASK_END per fire (wrapper + script emit, same PID); fixed to group by `<pid>_<date>` matching the legacy explorer's contract |
+| [#201](https://github.com/nous-clawds4/tapestry/pull/201) | `da1e8c66` | **`neo4j-heavy` registry backfill** — 20 missing tags added to taskRegistry.json closing the concurrency gap where untagged heavy tasks ran concurrently with `reconcileAll` |
+
+Tier 4 visual verification on production completed 2026-05-24 (the verification that had been deferred across 5+ cycle reports during the session, now done end-to-end with Chrome MCP). See [docs/TASK_SCHEDULING_HANDOFF_2026-05-24.md](../../docs/TASK_SCHEDULING_HANDOFF_2026-05-24.md) for the exhaustive what-was-verified / what-still-needs-testing matrix and the testing checklist for the next session.
+
+Two architectural questions surfaced during diagnosis that are queued as new intake entries (not blocking this story's completion): the `launch_child_task` subshell pattern bypassing BullMQ + semaphore (Intake A) and BullMQ jobId dedup silently blocking manual re-triggers of completed tasks (Intake B). See `engineering-team/stories/_intake.md`.
