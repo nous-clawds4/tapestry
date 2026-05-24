@@ -43,6 +43,7 @@ const reconciliationIncrementalMode = require('./reconciliation-incremental-mode
 const generalizedTaskScheduler = require('./generalized-task-scheduler.test.js');
 const reconciliationRearchitecture = require('./reconciliation-rearchitecture.test.js');
 const scheduledTasksWithArguments = require('./scheduled-tasks-with-arguments.test.js');
+const manualTaskRetriggerAfterFinish = require('./manual-task-retrigger-after-finish.test.js');
 
 async function main() {
   console.log('Running Brainstorm tests...\n');
@@ -110,6 +111,9 @@ async function main() {
   console.log('\nscheduled-tasks-with-arguments suite:');
   const scheduledTasksWithArgumentsResult = await scheduledTasksWithArguments.run();
 
+  console.log('\nmanual-task-retrigger-after-finish suite:');
+  const manualTaskRetriggerAfterFinishResult = await manualTaskRetriggerAfterFinish.run();
+
   console.log('\nTest Results');
   console.log('-------------');
   console.log(`Configuration Loading:                           ${configOk ? 'PASS' : 'FAIL'}`);
@@ -173,6 +177,9 @@ async function main() {
   console.log(
     `scheduled-tasks-with-arguments suite:            ${scheduledTasksWithArgumentsResult.fail === 0 ? 'PASS' : 'FAIL'} (${scheduledTasksWithArgumentsResult.pass} passed, ${scheduledTasksWithArgumentsResult.fail} failed)`
   );
+  console.log(
+    `manual-task-retrigger-after-finish suite:        ${manualTaskRetriggerAfterFinishResult.fail === 0 ? 'PASS' : 'FAIL'} (${manualTaskRetriggerAfterFinishResult.pass} passed, ${manualTaskRetriggerAfterFinishResult.fail} failed)`
+  );
 
   const overallOk =
     configOk &&
@@ -195,7 +202,8 @@ async function main() {
     reconciliationIncrementalModeResult.fail === 0 &&
     generalizedTaskSchedulerResult.fail === 0 &&
     reconciliationRearchitectureResult.fail === 0 &&
-    scheduledTasksWithArgumentsResult.fail === 0;
+    scheduledTasksWithArgumentsResult.fail === 0 &&
+    manualTaskRetriggerAfterFinishResult.fail === 0;
   console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);
   process.exit(overallOk ? 0 : 1);
 }

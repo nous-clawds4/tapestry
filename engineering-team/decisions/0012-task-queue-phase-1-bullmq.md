@@ -31,11 +31,17 @@ None. The Concept Graph `/api/concept-graph/summaries` returns zero concepts mat
 
 One BullMQ `Queue` and one `Worker` per `taskRegistry` task name. 51 (taskName, queue, worker) triples at full enrollment, sharing a single underlying `ioredis` connection via BullMQ's `connection` reuse. Each Worker's concurrency is configurable per task; default `1` for every task in phase 1 (matches the existing pgrep-serialization behavior).
 
-**Dedup:** BullMQ's `Queue.add(name, data, { jobId })` is idempotent on `jobId` while a job with that ID is in `wait` or `active`. New submissions with the same `jobId` return the existing job (no new execution). After the job completes/fails and is moved out of `wait`/`active`, a subsequent `add` with the same ID creates a fresh execution. We compute:
+**Dedup:** BullMQ's `Queue.add(name, data, { jobId })` is idempotent on `jobId` while a job with that ID exists in Redis. Empirically — confirmed against `bullmq@5.76.10` in [ADR 0022](0022-manual-task-retrigger-dedup-fix.md) — that idempotency spans **all job states**, including `completed` and `failed`, not only `wait`/`active`. To restore the wait/active-only dedup window we actually want (concurrent same-jobId fires join one execution while the job is running; once it finishes, a fresh add creates a fresh execution), we pass `removeOnComplete: true` and `removeOnFail: true` on every `queue.add`:
+
+```js
+queue.add(taskName, data, { jobId, removeOnComplete: true, removeOnFail: true })
+```
+
+These options map to BullMQ's `{count: 0}` `keepJobs` semantics, which delete the per-job Redis hash as part of finalization. With the hash gone, the next `queue.add` for the same jobId finds nothing in any state and creates a fresh job — the wait/active-only dedup window the AC requires. We compute:
 ```
 jobId = customerTask ? `${taskName}:${pubkey}` : `${taskName}`
 ```
-This satisfies the per-`(taskName, pubkey)` dedup AC for customer tasks and per-`taskName` dedup for non-customer tasks, using BullMQ-native mechanics (no custom precheck).
+This satisfies the per-`(taskName, pubkey)` dedup AC for customer tasks and per-`taskName` dedup for non-customer tasks, using BullMQ-native mechanics (no custom precheck). See ADR 0022 for the empirical probe (`test/probe-bullmq-removeOnComplete-immediate.js`) that pins this behavior against the installed BullMQ version and the deployment dry-run analysis showing the no-downtime path.
 
 **Sync vs async:** preserved by branching on the existing `determineExecutionMode`:
 - **Async path:** `await queue.add(jobId, data); return res.json({queued: true, jobId, status: 'queued', ...})` — immediate response, same shape as today's async response (substitutes `jobId` for `pid` and adds it alongside; keeps legacy `pid` field as `null` to avoid breaking parsers).
@@ -93,6 +99,7 @@ The dispatcher architecture chosen here makes step 3 a one-line wrapper around e
 - 51 (queue, worker) pairs at full enrollment = ~50–100 Redis subscriptions/connections (BullMQ Workers each maintain a blocking-pop connection plus listener connections). Mitigation: BullMQ's `connection: sharedConnection` cuts this materially; document the connection-pooling choice in the Implementer's setup.
 - Worker in the API process means a runaway worker can starve API responsiveness. Mitigation: per-task default concurrency `1`; long-running work is in a child process spawned by `launchChildTask.sh` anyway, so the worker itself is mostly idle awaiting child exit.
 - BullBoard is a new direct dependency (`@bull-board/api`, `@bull-board/express`). Acceptable: story authorized it explicitly.
+- BullBoard's `completed`/`failed` tabs are empty for queues using `removeOnComplete: true` / `removeOnFail: true` (added in [ADR 0022](0022-manual-task-retrigger-dedup-fix.md)) — `events.jsonl` is the durable failure record. The `wait`/`active`/`delayed` tabs are unaffected and remain the surface for "what is happening now."
 
 ### Option B — Single shared queue + custom Redis sorted-set for per-group concurrency
 
