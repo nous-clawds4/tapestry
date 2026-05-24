@@ -30,6 +30,55 @@ The story's 6 ACs require: (1) every tagged task is reachable from a BullMQ-invo
 - **Latent unprotected path (not currently scheduled, but registered + has a systemd timer file):** `processAllTasks` is registered (untagged) with parents-many tagged children invoked via `launch_child_task`. `systemd/processAllTasks.timer` exists in the repo. If activated (host systemd, not Docker-internal) this would fire `processAllTasks.sh` and run a long subshell chain of dormant-tagged children. Operator status of this timer is not visible from the host; the safe assumption is it could become active.
 - **Defense-in-depth premise (from PR #201):** tags on children are NOT pure decoration — they engage when the child is independently invoked via `/api/run-task` or scheduled as its own entry. Children's tags are dormant only on parent-driven paths; they're load-bearing on direct paths. Story Out-of-scope explicitly preserves these "dormant tags" as defense-in-depth.
 
+### 2026-05-24 amendment — JS-driven `child_process.exec` from API handlers: explicitly scoped out
+
+During the Implementer's audit pass on 2026-05-24, a 5th spawn pattern was surfaced that does NOT fall into the subshell taxonomy this ADR addresses: legacy API handlers in `src/api/algos/*/commands/*.js`, `src/api/customers/commands/process-all-active-customers.js`, and `src/api/pipeline/reconcile/commands/execute.js` use `child_process.exec` to spawn tagged-task scripts directly from Node, bypassing both BullMQ and the parent-tag chain entirely. The Implementer correctly invoked the Outcome contract's "stop and re-open ADR 0023" branch ("a tagged child reached via a non-bash mechanism like a cron entry or a JS-driven `exec()`").
+
+**Confirmed live cases that map to tagged tasks:**
+
+| Endpoint | Handler file:line | Script spawned | Tagged task it maps to |
+|---|---|---|---|
+| `POST /api/process-all-active-customers` | [`src/api/customers/commands/process-all-active-customers.js:21`](src/api/customers/commands/process-all-active-customers.js:21) | `processAllActiveCustomers.sh` | processAllActiveCustomers ✓ |
+| `POST /api/generate-pagerank` | [`src/api/algos/pagerank/commands/generate.js:21`](src/api/algos/pagerank/commands/generate.js:21) | `calculatePersonalizedPageRank.sh` | calculateOwnerPageRank ✓ |
+| `POST /api/generate-reports` | [`src/api/algos/reports/commands/generate.js:21`](src/api/algos/reports/commands/generate.js:21) | `calculateReportScores.sh` | calculateReportScores ✓ |
+| `POST /api/generate-verified-followers` | [`src/api/algos/verifiedFollowers/commands/generate.js:21`](src/api/algos/verifiedFollowers/commands/generate.js:21) | `calculateVerifiedFollowerCounts.sh` | calculateVerifiedFollowerCounts ✓ |
+| `GET /api/calculate-hops`-ish | [`src/api/algos/hops/commands/calculate.js:31`](src/api/algos/hops/commands/calculate.js:31) | `src/algos/calculateHops.sh` | calculateCustomerHops ✓ (per registry script-path match) |
+
+Also surfaced but not currently a tagged-task gap: `algos/graperank/commands/generate.js` (spawns `calculatePersonalizedGrapeRank.sh` which isn't registered — possibly legacy/superseded), `pipeline/reconcile/commands/execute.js` (spawns `reconciliation.sh`, also not in the registry — the deprecated path per OPERATIONS.md §"reconcile.timer remains deprecated"), and three `negentropySync` handlers (spawn scripts that aren't tagged tasks — no gap).
+
+**Why this is materially different from the four subshell patterns.** Subshell-spawned children at least inherit protection from a tagged parent's BullMQ Worker callback. JS-exec API handlers are *top-level* entry points — there's no parent in the Worker callback chain to inherit from. The mitigation is fundamentally different (refactor handler to enqueue via BullMQ → Worker → semaphore wrap, or deprecate the legacy endpoint, or accept). None of those fixes are this ADR's chosen mechanism (registry-data tagging). Story #26 / ADR 0023 is the wrong vehicle.
+
+**Decision: explicitly scope OUT of story #26 / ADR 0023; file as a new intake for separate triage.** Story #26's AC #1 already enumerates only three invocation paths ("`/api/run-task`, a scheduled-tasks entry, or as a subshell child of any parent script") — JS-exec API endpoints are not named. The story is literally already scoped to subshell patterns; this amendment makes explicit what was implicit. The Implementer's attestation sentence template is updated below to reflect the narrowed scope.
+
+**Implementer copy-to-file at commit time.** When committing the story #26 implementation, the Implementer copies the following block verbatim into `engineering-team/stories/_intake.md` (append at end). This filing is a deliverable of the story; it doesn't need re-Architect review.
+
+> **## 2026-05-24 — Architecture: legacy API handlers `child_process.exec` tagged-task scripts directly, bypassing BullMQ + semaphore**
+>
+> **Surfaced during:** the Implementer's audit pass for story #26 / ADR 0023 on 2026-05-24. Halted implementation per ADR 0023's Outcome contract ("stop and re-open ADR 0023 if the audit surfaces a new spawn pattern not enumerated... or any other novelty"). ADR 0023's amendment scopes the JS-exec pattern OUT and files this intake.
+>
+> **Mechanism:** five registered API endpoints in `src/api/index.js` route to JS handlers that use `child_process.exec` to spawn bash scripts directly. The spawned scripts map to neo4j-heavy tagged tasks in the registry, but the exec path completely bypasses BullMQ — no Worker callback runs, no semaphore acquire happens. Parent-tag inheritance (the mechanism story #26 ships for the subshell pattern) does not apply because there's no parent in a BullMQ Worker callback chain; the handler IS the entry point.
+>
+> **Confirmed handler-to-tagged-task mappings:**
+> | Endpoint | Handler | Tagged task |
+> |---|---|---|
+> | `POST /api/process-all-active-customers` | `process-all-active-customers.js:21` | processAllActiveCustomers |
+> | `POST /api/generate-pagerank` | `algos/pagerank/commands/generate.js:21` | calculateOwnerPageRank |
+> | `POST /api/generate-reports` | `algos/reports/commands/generate.js:21` | calculateReportScores |
+> | `POST /api/generate-verified-followers` | `algos/verifiedFollowers/commands/generate.js:21` | calculateVerifiedFollowerCounts |
+> | `GET /api/calculate-hops`-ish | `algos/hops/commands/calculate.js:31` | calculateCustomerHops |
+>
+> Also flagged: `algos/graperank/commands/generate.js` spawns `calculatePersonalizedGrapeRank.sh` (not in registry — possibly superseded by `/api/run-task?taskName=calculateOwnerGrapeRank`), `pipeline/reconcile/commands/execute.js` spawns `reconciliation.sh` (deprecated path per OPERATIONS.md). These two probably want deprecation rather than refactor.
+>
+> **Three remediation options (Architect to triage):**
+> 1. **Refactor JS handlers to enqueue via BullMQ.** Replace the `exec` call with a call to `taskQueue.enqueueTask` (or an internal `/api/run-task` HTTP call). Job goes through Worker callback, semaphore engages, BullBoard sees it. Closest to ADR 0012's intent. Trade-off: ~5 handler files to touch + behavioral migration (sync vs async semantics, response shape).
+> 2. **Deprecate the legacy endpoints.** These handlers predate `/api/run-task` (story #13 / ADR 0012, 2026-05-20). Confirm no live consumers (UI, scripts, cron); if clear, remove the endpoint + handler; document `/api/run-task?taskName=<task>` as the replacement. Smallest diff if no consumers; can't ship if consumers exist.
+> 3. **Accept + document.** Add a warning to each handler comment + OPERATIONS.md noting these bypass the semaphore. Punts the gap. Probably unacceptable for the live `/api/generate-pagerank` and `/api/process-all-active-customers` endpoints — they run heavy Neo4j work.
+>
+> **Classification:** Bug — public API endpoints bypass the documented ADR 0013 protection model. Same neo4j-heavy serialization concern as Intake A but via different URLs.
+> **Strictness:** Standard.
+> **Phase path:** `/discuss` first to triage the three options (especially: which endpoints have live consumers? which to refactor vs deprecate?), then Planning → Architecture → Test Design → Implementation → Review.
+> **Priority:** Medium-high. Operator-triggerable, currently unprotected on prod. Same severity as Intake B was before story #25 closed it.
+
 ## Options considered
 
 ### Option A — Minimal: tag only the two known gaps (rejected)
@@ -49,7 +98,7 @@ Add `resourceClass: neo4j-heavy` to `processAllTasks` and `processNpubsUpToMaxNu
 
 ### Option B — Comprehensive audit + tag (chosen)
 
-Implementer runs a systematic audit across all four spawn patterns + traces every multi-hop chain that ends in a tagged task. For each chain, ensures the entry-point task name is itself tagged. The audit results — the full list of parent scripts inspected, the chains identified, the tag-additions made — are recorded in the ADR 0013 in-place amendment. The chosen tag set is enumerated in this ADR's Implementation notes (Implementer expected to match it, with deviations reported back if the audit surfaces additional parents).
+Implementer runs a systematic audit across all four **subshell** spawn patterns + traces every multi-hop chain that ends in a tagged task. (Per the 2026-05-24 amendment above, JS-driven `child_process.exec` from API handlers is explicitly scoped out and filed as a separate intake — the Implementer's audit confirms subshell coverage, not API-handler coverage.) For each chain, ensures the entry-point task name is itself tagged. The audit results — the full list of parent scripts inspected, the chains identified, the tag-additions made — are recorded in the ADR 0013 in-place amendment. The chosen tag set is enumerated in this ADR's Implementation notes (Implementer expected to match it, with deviations reported back if the audit surfaces additional parents).
 
 **Pros**
 - Satisfies story AC #3 in full.
@@ -106,6 +155,7 @@ What we trade away: marginally more deterministic serialization across paths tha
 - The cap=1 semaphore now reliably serializes more paths than before. Throughput at the orchestrator level may feel slightly more sequential; this matches the original intent of ADR 0013 + is the desired behavior for neo4j-heavy work.
 
 **Follow-up debt (out of scope here)**
+- **JS-driven `child_process.exec` from legacy API handlers** (surfaced during the Implementer's audit on 2026-05-24). ~5 public API endpoints (`/api/process-all-active-customers`, `/api/generate-pagerank`, `/api/generate-reports`, `/api/generate-verified-followers`, `/api/calculate-hops`-ish) directly `exec` tagged-task scripts from Node, bypassing BullMQ + the semaphore entirely. Materially different mitigation from the subshell pattern this ADR addresses — needs its own Architect triage between refactor-to-enqueue / deprecate-the-endpoint / accept. Filed by the Implementer at commit time per the "Implementer copy-to-file at commit time" block in the 2026-05-24 amendment above.
 - **Programmatic enforcement** (Option C). File as a follow-up intake if registry drift becomes a recurring problem. The audit script the Implementer writes for this story is half the work of such an enforcer.
 - **Dual-registry entries for the same script** (e.g., `processNpubsUpToMaxNumBlocks` vs `npubManager` for `processNpubsUpToMaxNumBlocks.sh`) — this story tags the untagged variant so both paths engage. Whether to consolidate the duplicate registrations entirely is a separate hygiene question for a future story.
 - **Option B from the `/discuss`** (refactor parents to invoke children via `/api/run-task`) — the cleaner long-term architecture. Worth revisiting when there's a forcing function (e.g., per-child concurrency tuning becomes operationally critical, or new tagged-task additions repeatedly break the convention).
@@ -121,7 +171,7 @@ The Implementer reads this section verbatim.
 Goal: enumerate every parent script whose subshell-spawn chain reaches a tagged child, and confirm the parent's task name is itself tagged.
 
 1. **List tagged-task scripts.** From [`src/manage/taskQueue/taskRegistry.json`](src/manage/taskQueue/taskRegistry.json), extract the set of scripts referenced by tasks where `resourceClass === "neo4j-heavy"`. Expected: ~22 unique .sh files (26 task entries, some duplicates per dual-registration).
-2. **Grep for callers, all four spawn patterns.** For each tagged-task script S (basename, e.g. `updateNpubsInNeo4j.sh`):
+2. **Grep for callers, all four subshell spawn patterns** (JS-exec is explicitly out of scope per the 2026-05-24 amendment). For each tagged-task script S (basename, e.g. `updateNpubsInNeo4j.sh`):
    ```bash
    grep -rln -E "(launch_child_task[[:space:]]+[\"']${TASK_NAME}[\"']|bash[[:space:]]+[^[:space:]]*${S}|^[[:space:]]*[^[:space:]]*${S}[[:space:]]|node[[:space:]]+[^[:space:]]*${S%.sh}.js)" --include="*.sh" .
    ```
@@ -143,7 +193,7 @@ Pre-audit identified the following entries to tag. The Implementer's audit eithe
 
 **Outcome contract:**
 
-- **Audit confirms the pre-audit set is complete (no additional gaps):** Implementer proceeds to tag exactly the 2 listed entries. The ADR 0013 audit-results table must explicitly include a final row reading: **"No other parent scripts reach a tagged child via an unprotected chain — audit performed 2026-MM-DD per ADR 0023 §Audit method, all four spawn patterns checked."** This sentence is not optional — it converts a silent omission into a positive assertion that future readers can rely on.
+- **Audit confirms the pre-audit set is complete (no additional gaps):** Implementer proceeds to tag exactly the 2 listed entries. The ADR 0013 audit-results table must explicitly include a final row reading: **"No other parent scripts reach a tagged child via an unprotected subshell chain — audit performed 2026-MM-DD per ADR 0023 §Audit method, all four subshell spawn patterns checked. JS-driven `child_process.exec` from API handlers is explicitly out of scope per ADR 0023's 2026-05-24 amendment and is filed as a separate intake."** This sentence is not optional — it converts a silent omission into a positive assertion that future readers can rely on, and it precisely scopes what the audit covers vs. what's separately tracked.
 - **Audit surfaces additional gaps:** Implementer **pauses before tagging** and reports the new findings back. Each new finding gets a row in the audit-results table (parent task | child task(s) reached | spawn-pattern + file:line). Then: if the new finding is a clean parallel to the known gaps (an untagged orchestrator with subshell-reachable tagged children, no architectural novelty), proceed to tag without re-opening this ADR. If the new finding involves a *new* spawn pattern not enumerated in §"Four spawn patterns to audit" above, or any other novelty (e.g., a tagged child reached via a non-bash mechanism like a cron entry or a JS-driven `exec()`), **stop and re-open ADR 0023** — the Architect needs to evaluate whether the protection model assumption still holds.
 - **Audit cannot be completed (e.g., genuine ambiguity in a chain):** Implementer surfaces the ambiguity back, doesn't tag speculatively.
 
