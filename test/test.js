@@ -44,6 +44,7 @@ const generalizedTaskScheduler = require('./generalized-task-scheduler.test.js')
 const reconciliationRearchitecture = require('./reconciliation-rearchitecture.test.js');
 const scheduledTasksWithArguments = require('./scheduled-tasks-with-arguments.test.js');
 const manualTaskRetriggerAfterFinish = require('./manual-task-retrigger-after-finish.test.js');
+const taskQueueSemaphoreProtectionAudit = require('./task-queue-semaphore-protection-audit.test.js');
 
 async function main() {
   console.log('Running Brainstorm tests...\n');
@@ -114,6 +115,9 @@ async function main() {
   console.log('\nmanual-task-retrigger-after-finish suite:');
   const manualTaskRetriggerAfterFinishResult = await manualTaskRetriggerAfterFinish.run();
 
+  console.log('\ntask-queue-semaphore-protection-audit suite:');
+  const taskQueueSemaphoreProtectionAuditResult = await taskQueueSemaphoreProtectionAudit.run();
+
   console.log('\nTest Results');
   console.log('-------------');
   console.log(`Configuration Loading:                           ${configOk ? 'PASS' : 'FAIL'}`);
@@ -180,6 +184,9 @@ async function main() {
   console.log(
     `manual-task-retrigger-after-finish suite:        ${manualTaskRetriggerAfterFinishResult.fail === 0 ? 'PASS' : 'FAIL'} (${manualTaskRetriggerAfterFinishResult.pass} passed, ${manualTaskRetriggerAfterFinishResult.fail} failed)`
   );
+  console.log(
+    `task-queue-semaphore-protection-audit suite:     ${taskQueueSemaphoreProtectionAuditResult.fail === 0 ? 'PASS' : 'FAIL'} (${taskQueueSemaphoreProtectionAuditResult.pass} passed, ${taskQueueSemaphoreProtectionAuditResult.fail} failed)`
+  );
 
   const overallOk =
     configOk &&
@@ -203,7 +210,8 @@ async function main() {
     generalizedTaskSchedulerResult.fail === 0 &&
     reconciliationRearchitectureResult.fail === 0 &&
     scheduledTasksWithArgumentsResult.fail === 0 &&
-    manualTaskRetriggerAfterFinishResult.fail === 0;
+    manualTaskRetriggerAfterFinishResult.fail === 0 &&
+    taskQueueSemaphoreProtectionAuditResult.fail === 0;
   console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);
   process.exit(overallOk ? 0 : 1);
 }

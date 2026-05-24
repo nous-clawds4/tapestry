@@ -58,5 +58,5 @@ None. Per ADR 0013, the task-queue / resource-class subsystem has no concept-gra
 ## Linked artifacts
 
 - ADR: [`engineering-team/decisions/0023-task-queue-semaphore-protection-audit.md`](../decisions/0023-task-queue-semaphore-protection-audit.md) (includes in-place amendment to ADR 0013's protection-model section)
-- Test plan: (filled in after Test Design phase)
+- Test plan: [`engineering-team/stories/26-task-queue-semaphore-protection-audit.test-plan.md`](26-task-queue-semaphore-protection-audit.test-plan.md) (6 structural sentinels at `test/task-queue-semaphore-protection-audit.test.js`; optional behavioral probe at `test/probe-resource-class-semaphore-serialization.js` may be written by Implementer per ADR 0023's suggestion — not required via sentinel)
 - Review: (filled in after Review phase)
