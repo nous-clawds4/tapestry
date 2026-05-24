@@ -563,6 +563,53 @@ test('R2: src/api/scheduled-tasks/index.js still exports reconcileSchedulesFromC
     'src/api/scheduled-tasks/index.js must continue to export reconcileSchedulesFromConfig — bin/control-panel.js invokes it once at startup to reconcile config → BullMQ Job Schedulers (story #22 / ADR 0019 cold-start hook; ADR 0021 keeps the function name and call site, only changes internals to iterate entries).');
 });
 
+test('R3: filterSchedulableTasks includes non-parameterized tasks like reconcile* (regression guard — ADR 0019 surface preserved)', () => {
+  // Background: when ADR 0021's "+ Add Scheduled Entry" modal first shipped,
+  // handleRegistryTasks had an overly strict filter that excluded any task
+  // whose `arguments` block was empty/false — silently dropping all four
+  // reconcile* tasks from the dropdown (story #22 / ADR 0019's motivating
+  // consumers). This test pins the corrected contract: every non-continuous
+  // task in the registry is schedulable, regardless of whether it takes args.
+  const r = safeRequire(SCHEDULER_API_PATH);
+  assert(r.ok, `scheduler API module unavailable: ${r.error}`);
+  assert(typeof r.module.filterSchedulableTasks === 'function',
+    'src/api/scheduled-tasks/index.js must export `filterSchedulableTasks(registry) → tasks[]` for direct testability of the dropdown-population rule.');
+
+  const registry = JSON.parse(fs.readFileSync(REGISTRY_PATH, 'utf8'));
+  const tasks = r.module.filterSchedulableTasks(registry);
+  const taskIds = new Set(tasks.map(t => t.taskId));
+
+  // Must-include: the four reconcile* tasks (ADR 0019's motivating consumers
+  // — story #22 explicitly designed scheduling around them). All four have
+  // arguments: false in the registry, so any "non-empty arguments required"
+  // filter would silently exclude them — exactly the regression this guards.
+  for (const id of ['reconcileAll', 'reconcileRecent', 'reconcileAuthor', 'reconcileNetwork']) {
+    assert(taskIds.has(id),
+      `filterSchedulableTasks must include "${id}" — it has arguments:false but a real schedule via ADR 0019. Schedulable tasks the modal returned: ${[...taskIds].join(', ').slice(0, 200)}…`);
+  }
+
+  // Sanity-include: a parameterized task (must still work).
+  assert(taskIds.has('processCustomer'),
+    'filterSchedulableTasks must include parameterized tasks like processCustomer too.');
+
+  // Must-exclude: continuous-frequency queue-internal daemons. These are
+  // the queue runtime, not user-schedulable tasks; including them would
+  // let an operator accidentally start/stop daemon-like infrastructure.
+  for (const id of ['taskQueueManager', 'taskScheduler', 'taskExecutor', 'systemStateGatherer']) {
+    if (registry.tasks[id] && registry.tasks[id].frequency === 'continuous') {
+      assert(!taskIds.has(id),
+        `filterSchedulableTasks must EXCLUDE "${id}" (frequency: continuous — queue-internal daemon, not schedulable).`);
+    }
+  }
+
+  // The returned shape must normalize `arguments` to an object so the modal's
+  // `Object.entries(task.arguments || {})` iteration is well-defined for
+  // non-parameterized tasks (where the registry has arguments:false).
+  const reconcileAll = tasks.find(t => t.taskId === 'reconcileAll');
+  assert(reconcileAll && typeof reconcileAll.arguments === 'object' && !Array.isArray(reconcileAll.arguments),
+    'filterSchedulableTasks must normalize `arguments` to an object on the returned task — `false` collapses to `{}` so the modal\'s arg-form iteration is safe.');
+});
+
 // ─────────────────────────────────────────────────────────────────────────
 // Runner
 // ─────────────────────────────────────────────────────────────────────────
