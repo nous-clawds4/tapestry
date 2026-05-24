@@ -326,3 +326,37 @@ Note: `reconcileAuthor` is intentionally NOT `neo4j-heavy` so an interactive tri
 **Strictness:** Standard.
 **Phase path:** Planning → Architecture → Test Design → Implementation → Review (all five — UI + new API + cross-source data merge each have real design choices).
 **Priority:** Medium-low. No operator workflow is blocked today (data is reachable via grep + BullBoard + Neo4j Performance dashboard), but the friction is real and recurring. Worth doing once Intake B's task-queue hygiene is settled.
+
+---
+
+## 2026-05-24 — Cleanup: scheduled-fire job retention (`upsertJobScheduler` opts)
+
+**Surfaced during:** story #25 / ADR 0022 implementation on 2026-05-24, as the stretch goal the ADR called out. The Implementer deferred it per the ADR's "Defer if" criteria (the empirical probe + the tester's plan were both scoped to the manual-trigger path; bundling would require extending both).
+
+**Mechanism:** `src/manage/taskQueue/queue/scheduler.js` calls `queue.upsertJobScheduler(schedulerId, repeatOpts, jobTemplate)` (line 91-98) with a `jobTemplate` of `{ name, data }` — no `opts` field. Each scheduled fire is therefore created with BullMQ defaults (`removeOnComplete: false` → `{count: -1}` → keep forever). Unlike the manual-trigger path (story #25's dedup bug), this is NOT a correctness issue — each scheduled fire gets a unique generated jobId (`repeat:<schedulerId>:<timestamp>` or similar), so dedup doesn't bite. But every fire leaves a per-job hash in Redis indefinitely, so memory grows unbounded over months of operation.
+
+**Fix shape (per ADR 0022 §Stretch goal):**
+```js
+await queue.upsertJobScheduler(
+  schedulerId(entry.id),
+  toRepeatOpts(entry),
+  {
+    name: entry.taskId,
+    data: { taskName: entry.taskId, entryId: entry.id, timeoutMs },
+    opts: { removeOnComplete: true, removeOnFail: true },  // <-- add this
+  }
+);
+```
+
+**Verification needed before this lands:**
+1. **Empirical probe extension** — confirm `opts` on `upsertJobScheduler`'s job template is the right BullMQ surface for per-fire options on the installed `bullmq@5.76.10`. Possible probe: create a scheduler, wait for two fires, assert the first fire's hash is gone after the second fires. The story #25 probe at `test/probe-bullmq-removeOnComplete-immediate.js` is the natural sibling to extend.
+2. **Regression test** — add a sentinel that scheduler.js's `upsertJobScheduler` call passes `opts: { removeOnComplete: true, removeOnFail: true }`.
+
+**Trade-off (same as story #25):** BullBoard's `completed`/`failed` tabs become empty for scheduled-fire jobs too. `events.jsonl` remains the durable history surface. Same out-of-scope clause from story #25 applies.
+
+**Out of scope:** the same items as story #25 (Intake A subshell bypass, unified all-tasks timeline UI, etc.) — this is a strictly mechanical follow-up.
+
+**Classification:** Cleanup (Redis-memory hygiene; no correctness issue today).
+**Strictness:** Standard.
+**Phase path:** Architecture (brief — same Option A pattern as ADR 0022 applied to a sibling code path) → Test Design (one sentinel + one probe extension) → Implementation → Review. Architecture could potentially fast-track since the design rationale is verbatim ADR 0022.
+**Priority:** Low. Slow-growing Redis bloat; no operator workflow blocked today. Worth doing for hygiene before the next major task-queue work or if Redis memory becomes a concern.
