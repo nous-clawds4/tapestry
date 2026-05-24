@@ -77,9 +77,38 @@ function parseLaunchResult(stdout) {
  * to the function's `.env` (undefined), breaking the spawn's env inheritance.
  */
 function processJob(job, taskDef) {
-  return new Promise((resolve, reject) => {
-    const { taskName, customerArgs, queryParams, timeoutMs } = job.data;
+  // ── Scheduled-fire branch (story #24 / ADR 0021) ─────────────────────
+  // Per-entry scheduled fires carry `entryId` in their job-data and have
+  // NO customerArgs / queryParams baked in (those resolve fresh at fire
+  // time via entryResolver). Manual /api/run-task calls take the
+  // unchanged path below (no entryId).
+  return Promise.resolve().then(async () => {
+    let { taskName, customerArgs, queryParams, timeoutMs, entryId } = job.data;
 
+    if (entryId) {
+      const { resolveScheduledEntry, disableEntryWithError } = require('./entryResolver');
+      const resolved = await resolveScheduledEntry(entryId, taskDef);
+      if (!resolved.ok) {
+        // Auto-disable the entry, drop its Job Scheduler, fail the job.
+        // The failure is visible in BullBoard with the explicit error code;
+        // events.jsonl carries an ENTRY_AUTO_DISABLED record for the panel.
+        await disableEntryWithError(entryId, resolved.error);
+        throw new Error(`[scheduler] entry ${entryId} auto-disabled: ${resolved.error.code} — ${resolved.error.message}`);
+      }
+      customerArgs = resolved.customerArgs;
+      queryParams  = resolved.queryParams;
+    }
+
+    return runWithResolvedArgs({ job, taskDef, taskName, customerArgs, queryParams, timeoutMs });
+  });
+}
+
+// Extracted to keep the Promise/spawn machinery readable next to the new
+// scheduled-fire branch above. The body is unchanged from the original
+// processJob — it spawns launchChildTask.sh with the same args, parses
+// LAUNCHCHILDTASK_RESULT, and resolves with the structured result.
+function runWithResolvedArgs({ job, taskDef, taskName, customerArgs, queryParams, timeoutMs }) {
+  return new Promise((resolve, reject) => {
     const launchChildTaskPath = brainstormConfig.expandScriptPath(
       '$BRAINSTORM_MODULE_MANAGE_DIR/taskQueue/launchChildTask.sh'
     );
