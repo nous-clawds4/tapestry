@@ -332,6 +332,77 @@ test('R4: BullBoard mount module still exists and references /admin/queues + som
   );
 });
 
+test('R5: the full neo4j-heavy allowlist is tagged in taskRegistry.json (operator-approved backfill, post-story-#24)', () => {
+  // Background: operator observed on staging that scheduling
+  // updateAllScoresForOwner + reconcileAll on aligned 6h cadences caused
+  // them to fire concurrently — both hit Neo4j hard, no semaphore
+  // serialization. Root cause: updateAllScoresForOwner (and many siblings)
+  // were never tagged with `resourceClass: "neo4j-heavy"` even though the
+  // already-tagged calculateOwner* trio (T9 above) implied the convention.
+  //
+  // This sentinel pins the full operator-approved allowlist. If a future
+  // edit drops a tag, R5 fails and names the specific task. If a new task
+  // belongs in the heavy set, extend the allowlist below.
+  //
+  // The allowlist was finalized in conversation with the operator (per the
+  // discussion that produced this commit). It deliberately EXCLUDES:
+  //   - reconcileAuthor (lightweight; UI-triggered, needs fast turnaround)
+  //   - queryMissingNpubs (single read-only Cypher query — much lighter
+  //     than write-heavy multi-query tasks)
+  //   - generateNpubs (pure JS + filesystem write; no Neo4j touch — the
+  //     Neo4j write in the chain is in updateNpubsInNeo4j, which IS tagged)
+  // If you're considering adding any of these, re-read the rationale above
+  // and the parent/child semaphore-dormancy discussion (parent-tag holds
+  // semaphore for the whole subshell chain; child-tag is dormant under
+  // parent-driven invocations).
+  const r = readJsonSafe(TASK_REGISTRY);
+  assert(r !== null && r.tasks, 'taskRegistry.json missing or malformed — re-baseline this sentinel.');
+
+  const HEAVY_ALLOWLIST = [
+    // Pre-existing (story #15 / ADR 0013 — the initial trio + reconcile-family
+    // additions from story #21):
+    'calculateOwnerHops', 'calculateOwnerPageRank', 'calculateOwnerGrapeRank',
+    'reconcileRecent', 'reconcileAll', 'reconcileNetwork',
+    // Backfill (post-story-#24, operator-approved):
+    'updateAllScoresForOwner', 'updateAllScoresForSingleCustomer',
+    'processCustomer', 'processAllActiveCustomers',
+    'calculateCustomerGrapeRank', 'calculateCustomerPageRank', 'calculateCustomerHops',
+    'processCustomerFollowsMutesReports', 'processOwnerFollowsMutesReports',
+    'calculateVerifiedFollowerCounts', 'calculateVerifiedMuterCounts', 'calculateVerifiedReporterCounts',
+    'calculateFollowerInputs', 'calculateMuterInputs', 'calculateReporterInputs',
+    'calculateReportScores', 'prepareNeo4jForCustomerData',
+    'updateNpubsInNeo4j', 'neo4jConstraintsAndIndexes', 'npubManager',
+  ];
+
+  const missing = [];
+  for (const taskName of HEAVY_ALLOWLIST) {
+    const entry = r.tasks[taskName];
+    if (!entry) {
+      missing.push(`${taskName} (NOT IN REGISTRY)`);
+      continue;
+    }
+    if (entry.resourceClass !== 'neo4j-heavy') {
+      missing.push(`${taskName} (resourceClass=${JSON.stringify(entry.resourceClass)})`);
+    }
+  }
+  assert(
+    missing.length === 0,
+    'R5: the following tasks must carry `"resourceClass": "neo4j-heavy"` per the operator-approved backfill ' +
+      '(post-story-#24 fix; otherwise concurrent fires don\'t serialize on the semaphore): ' + missing.join(', ') +
+      '. If a task was intentionally removed from the heavy set, also remove it from R5\'s allowlist and ' +
+      'document the rationale alongside the existing exclusions (reconcileAuthor / queryMissingNpubs / generateNpubs).'
+  );
+
+  // Bonus check: the count should be exactly the allowlist length. If a
+  // NEW task in the registry got the tag without being added to R5, R5
+  // doesn't fail — but if the count drift is large, future operators may
+  // want to know.
+  const actuallyTagged = Object.entries(r.tasks).filter(([_, t]) => t.resourceClass === 'neo4j-heavy').map(([n]) => n);
+  if (actuallyTagged.length !== HEAVY_ALLOWLIST.length) {
+    console.log(`      [R5 note] registry has ${actuallyTagged.length} neo4j-heavy tasks; allowlist has ${HEAVY_ALLOWLIST.length}. Extra in registry: ${actuallyTagged.filter(n => !HEAVY_ALLOWLIST.includes(n)).join(', ') || '(none)'}.`);
+  }
+});
+
 async function run() {
   let pass = 0, fail = 0;
   for (const t of tests) {

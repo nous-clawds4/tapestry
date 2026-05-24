@@ -185,6 +185,7 @@
     },
 
     "neo4jConstraintsAndIndexes": {
+      "resourceClass": "neo4j-heavy",
       "name": "Neo4j Constraints and Indexes",
       "categories": ["maintenance"],
       "description": "Sets up database constraints and indexes",
@@ -460,6 +461,7 @@
     },
 
     "processAllActiveCustomers": {
+      "resourceClass": "neo4j-heavy",
       "name": "Process All Active Customers",
       "categories": ["orchestrator", "customer"],
       "description": "Processes all active customers by calling processCustomer.sh for each",
@@ -491,6 +493,7 @@
     },
 
     "processCustomer": {
+      "resourceClass": "neo4j-heavy",
       "name": "Process Customer",
       "categories": ["customer"],
       "description": "Complete processing pipeline for a single customer",
@@ -525,6 +528,7 @@
     },
 
     "prepareNeo4jForCustomerData": {
+      "resourceClass": "neo4j-heavy",
       "name": "Prepare Neo4j For Customer Data",
       "categories": ["customer", "maintenance"],
       "description": "Preliminary steps for customer data processing, common to all customers",
@@ -547,6 +551,7 @@
     },
 
     "updateAllScoresForOwner": {
+      "resourceClass": "neo4j-heavy",
       "name": "Update All Scores For Owner",
       "categories": ["owner", "algorithms"],
       "description": "Updates all trust scores for the owner",
@@ -595,6 +600,7 @@
     },
 
     "updateAllScoresForSingleCustomer": {
+      "resourceClass": "neo4j-heavy",
       "name": "Update All Scores For Single Customer",
       "categories": ["customer", "algorithms"],
       "description": "Updates all trust scores for a single customer",
@@ -657,6 +663,7 @@
     },
 
     "calculateCustomerGrapeRank": {
+      "resourceClass": "neo4j-heavy",
       "name": "Calculate Customer GrapeRank",
       "categories": ["algorithms", "customer"],
       "description": "Calculates personalized GrapeRank scores for a specific customer",
@@ -708,6 +715,7 @@
     },
 
     "calculateCustomerPageRank": {
+      "resourceClass": "neo4j-heavy",
       "name": "Calculate Customer PageRank",
       "categories": ["algorithms", "customer"],
       "description": "Calculates personalized PageRank scores for a customer",
@@ -753,6 +761,7 @@
     },
 
     "calculateCustomerHops": {
+      "resourceClass": "neo4j-heavy",
       "name": "Calculate Customer Hops",
       "categories": ["algorithms", "customer"],
       "description": "Calculates hop distances for a specific customer",
@@ -775,6 +784,7 @@
     },
 
     "processCustomerFollowsMutesReports": {
+      "resourceClass": "neo4j-heavy",
       "name": "Process Customer Follows Mutes Reports",
       "categories": ["algorithms", "customer"],
       "description": "Processes follows, mutes, and reports data for a specific customer",
@@ -805,6 +815,7 @@
     },
 
     "calculateVerifiedFollowerCounts": {
+      "resourceClass": "neo4j-heavy",
       "name": "Calculate Verified Follower Counts",
       "categories": ["algorithms", "customer"],
       "description": "Calculates verified follower counts for a specific customer",
@@ -828,6 +839,7 @@
     },
 
     "calculateVerifiedMuterCounts": {
+      "resourceClass": "neo4j-heavy",
       "name": "Calculate Verified Muter Counts",
       "categories": ["algorithms", "customer"],
       "description": "Calculates verified muter counts for a specific customer",
@@ -851,6 +863,7 @@
     },
 
     "calculateVerifiedReporterCounts": {
+      "resourceClass": "neo4j-heavy",
       "name": "Calculate Verified Reporter Counts",
       "categories": ["algorithms", "customer"],
       "description": "Calculates verified reporter counts for a specific customer",
@@ -874,6 +887,7 @@
     },
 
     "calculateFollowerInputs": {
+      "resourceClass": "neo4j-heavy",
       "name": "Calculate Follower Inputs",
       "categories": ["algorithms", "customer"],
       "description": "Calculates follower inputs for a specific customer",
@@ -897,6 +911,7 @@
     },
 
     "calculateMuterInputs": {
+      "resourceClass": "neo4j-heavy",
       "name": "Calculate Muter Inputs",
       "categories": ["algorithms", "customer"],
       "description": "Calculates muter inputs for a specific customer",
@@ -920,6 +935,7 @@
     },
 
     "calculateReporterInputs": {
+      "resourceClass": "neo4j-heavy",
       "name": "Calculate Reporter Inputs",
       "categories": ["algorithms", "customer"],
       "description": "Calculates reporter inputs for a specific customer",
@@ -943,6 +959,7 @@
     },
 
     "processOwnerFollowsMutesReports": {
+      "resourceClass": "neo4j-heavy",
       "name": "Process Owner Follows Mutes Reports",
       "categories": ["algorithms", "owner"],
       "description": "Processes follows, mutes, and reports data for the instance owner",
@@ -963,6 +980,7 @@
     },
 
     "calculateReportScores": {
+      "resourceClass": "neo4j-heavy",
       "name": "Calculate Report Scores",
       "categories": ["algorithms", "owner"],
       "description": "Calculates report scores for the system",
@@ -1106,6 +1124,7 @@
     },
 
     "npubManager": {
+      "resourceClass": "neo4j-heavy",
       "name": "Npub Manager",
       "categories": ["maintenance"],
       "description": "Ensures all NostrUser nodes have npub properties",
@@ -1167,6 +1186,7 @@
     },
 
     "updateNpubsInNeo4j": {
+      "resourceClass": "neo4j-heavy",
       "name": "Update Npubs In Neo4j",
       "categories": ["maintenance"],
       "description": "Updates Neo4j nodes with generated npubs",
