@@ -253,3 +253,45 @@ Note: `reconcileAuthor` is intentionally NOT `neo4j-heavy` so an interactive tri
 **Strictness:** Standard
 **Phase path:** Planning → Architecture → Test Design → Implementation → Review
 **Priority:** Low-medium. The engine works; this is the operator/user-facing surface.
+
+---
+
+## 2026-05-24 — Architecture: `launch_child_task` subshell pattern bypasses BullMQ + `neo4j-heavy` semaphore
+
+**Surfaced during:** story #24 follow-up diagnosis — operator triggered `calculateOwnerPageRank` while `processCustomer` was running and expected the semaphore to serialize them. Neither task appeared in BullBoard's active/waiting states; events.jsonl showed they ran anyway.
+
+**Mechanism (confirmed):** parent task scripts (e.g., `updateAllScoresForOwner.sh`) `source "$BRAINSTORM_MODULE_MANAGE_DIR/taskQueue/launchChildTask.sh"` and call `launch_child_task "<child>" "<parent>" ...` as a shell function. That function runs the child's script directly as a subshell inside the parent's process tree — it does NOT enqueue via BullMQ. So:
+
+- The child's BullMQ Worker callback never runs for parent-driven invocations.
+- The `neo4j-heavy` semaphore wrap (which lives in the Worker callback per `src/manage/taskQueue/queue/index.js:118-131`) is never invoked.
+- Tags on child tasks are dormant on parent-driven paths; they only engage when the child is independently scheduled or manually triggered via `/api/run-task`.
+
+**Practical consequence:** ADR 0013's cross-task serialization is only complete when the **directly-scheduled or `/api/run-task`-triggered** task itself is tagged. Story #24 PR #201 closed this for the immediate operator-reported bug by tagging the orchestrator-level parents (`updateAllScoresForOwner`, `processCustomer`, `processAllActiveCustomers`, etc.) so their wraps hold the semaphore for the whole subshell chain. But the underlying architectural property — "tagging children is dormant on parent-driven paths" — remains.
+
+**Open question for next session:** is the right path forward to (a) accept the current architecture and document it (parent-tag is load-bearing, child-tags are safety nets for ad-hoc runs); (b) refactor parent scripts to invoke children via `/api/run-task` so children flow through BullMQ and get their own Worker callbacks; or (c) something else (e.g., have `launch_child_task` itself acquire the semaphore directly via Redis)? Each option has trade-offs around correctness, structured-logging fidelity, and dev ergonomics.
+
+**Classification:** Architectural follow-up (not a bug per se — the system works correctly, but the semaphore's protection model is more nuanced than ADR 0013's wording suggests).
+**Strictness:** Standard.
+**Phase path:** `/discuss` first to triage the architectural options; then Planning → Architecture → impl as warranted.
+**Priority:** Medium. No active incident; surfaces every time an operator schedules a child task or expects subshell-invoked children to be serialized.
+
+---
+
+## 2026-05-24 — Architecture: BullMQ `jobId` dedup silently blocks manual re-triggers of completed tasks
+
+**Surfaced during:** story #24 follow-up diagnosis — operator manually triggered `calculateOwnerPageRank` via the legacy task explorer expecting BullMQ to enqueue a new job; the queue's only entry was a 3-day-old completed job, no new execution happened.
+
+**Mechanism (confirmed):** per ADR 0012, `jobId = ${taskName}` for non-customer tasks and `${taskName}:${pubkey}` for customer tasks. BullMQ's `queue.add(name, data, { jobId })` semantics are stricter than ADR 0012's text suggested: BullMQ dedups by `jobId` across ALL states including `completed` and `failed`, not just `wait`/`active`. So once a non-customer task has any completed job in the queue with that `jobId`, subsequent `/api/run-task` triggers silently return the existing completed job without creating a new execution. Reproduced live on staging + prod against `calculateOwnerPageRank` (only completed job dates from 2026-05-21 despite multiple subsequent runs visible in `events.jsonl` from subshell invocations).
+
+**Practical consequence:** the runs the operator sees in the legacy task explorer for these tasks today are all subshell invocations from parent scripts (Intake A above); the manual `/api/run-task` path is effectively dead for re-runs of any task that's ever completed via BullMQ. ADR 0012's "dedup is only during wait/active" wording was an incorrect interpretation of BullMQ's actual behavior.
+
+**Three remediation options identified:**
+
+1. **`removeOnComplete: <N>`** (or `true`) on `queue.add` — completed jobs are removed automatically, freeing the jobId for re-add. Recommend `removeOnComplete: 10` so the last 10 stay visible in BullBoard for inspection but re-triggers work. Smallest diff.
+2. **Unique `jobId` per attempt** (e.g., `${taskName}:${Date.now()}` for non-customer, append-suffix for customer). Eliminates dedup entirely. Trade-off: loses the intentional dedup-of-concurrent-identical-fires that ADR 0012 cared about for customer tasks.
+3. **Hybrid** — keep stable jobId during `wait`/`active` (so concurrent identical fires dedup), but compute a fresh jobId once the previous attempt is in `completed`. Requires a small precheck before `queue.add`.
+
+**Classification:** Bug — ADR 0012's documented contract doesn't match observed behavior; operators expect manual re-triggers to work. Likely a small fix (1 ADR amendment + a one-line change to `queue/index.js`).
+**Strictness:** Standard.
+**Phase path:** Architect amends ADR 0012 picking one of the three options; Implementer + Reviewer.
+**Priority:** Medium-high. Limits operator's ability to re-run tasks ad hoc on demand — affects debugging, recovery from failures, and any "I want to fire X now" workflow.
