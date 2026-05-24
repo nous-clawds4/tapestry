@@ -56,6 +56,6 @@ None. Per ADR 0012, the task-queue subsystem has no concept-graph footprint. The
 
 ## Linked artifacts
 
-- ADR: (filled in after Architecture phase — will be an amendment to ADR 0012)
+- ADR: [`engineering-team/decisions/0022-manual-task-retrigger-dedup-fix.md`](../decisions/0022-manual-task-retrigger-dedup-fix.md) (includes in-place amendment to ADR 0012's "Dedup" section)
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
