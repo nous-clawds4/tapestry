@@ -58,4 +58,4 @@ None. Per ADR 0012, the task-queue subsystem has no concept-graph footprint. The
 
 - ADR: [`engineering-team/decisions/0022-manual-task-retrigger-dedup-fix.md`](../decisions/0022-manual-task-retrigger-dedup-fix.md) (includes in-place amendment to ADR 0012's "Dedup" section)
 - Test plan: [`engineering-team/stories/25-manual-task-retrigger-after-finish.test-plan.md`](25-manual-task-retrigger-after-finish.test-plan.md) (10 structural sentinels at `test/manual-task-retrigger-after-finish.test.js`; empirical probe at `test/probe-bullmq-removeOnComplete-immediate.js` to be written by Implementer per ADR 0022 mandate)
-- Review: (filled in after Review phase)
+- Review: [`engineering-team/reviews/25-manual-task-retrigger-after-finish.md`](../reviews/25-manual-task-retrigger-after-finish.md) — **PASS** (2026-05-24, against commit `e45c410e`)
