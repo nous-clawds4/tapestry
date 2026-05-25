@@ -1,6 +1,10 @@
 # neo4j-heavy Semaphore Investigation — Session Handoff (2026-05-24)
 
-**Status:** 🔴 **OPEN** — investigation work not yet started; awaiting fresh session.
+**Status:** ✅ **ADDRESSED 2026-05-25** — the investigation completed and shipped end-to-end. Root cause was a three-bug timeout-propagation chain (NOT any of the candidate hypotheses listed below — see ADR 0024 for the actual mechanism). Fix shipped via story #27 / ADR 0024 (`8968b384` on main) + Track A per-task overrides (`9d9fb98a` on main). See [`POST_TIMEOUT_FIX_HANDOFF_2026-05-25.md`](POST_TIMEOUT_FIX_HANDOFF_2026-05-25.md) for what's next. Body below preserved as historical context for the original investigation framing.
+
+---
+
+**Original status (preserved):** 🔴 **OPEN** — investigation work not yet started; awaiting fresh session.
 **Audience:** the operator / next-session reader who is picking up the task-queue semaphore investigation.
 **Source session:** the multi-phase work on 2026-05-24 that (a) shipped story #25 (manual task re-trigger dedup fix) to prod, and (b) discovered during story #26's review that the `neo4j-heavy` semaphore is functionally broken — it releases ~5-6 seconds after acquire while tagged work runs unprotected for hours.
 
