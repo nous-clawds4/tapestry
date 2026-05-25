@@ -121,6 +121,31 @@ What we are trading away: visual fidelity in BullBoard (jobs appear `active` dur
 
 **Firmware reinstall required?** No.
 
+## Protection model — entry-point tagging is load-bearing (amended 2026-05-24, ADR 0023)
+
+This section was added in-place per ADR 0023 (story #26, 2026-05-24) after PR #201 (story #24 follow-up) revealed that the protection mechanism designed here has a more nuanced reach than the original text implied.
+
+**The architectural property.** The `semaphore.acquire(resourceClass, ...)` wrap lives inside the BullMQ Worker callback (see `src/manage/taskQueue/queue/index.js:118-131`). The semaphore therefore engages only when the tagged task is invoked through the BullMQ Worker path — i.e., directly via `/api/run-task` or as a scheduled-tasks entry (story #24 / ADR 0021). When a parent script invokes a child via one of the four subshell spawn patterns (`launch_child_task` from `launchChildTask.sh`, bare `bash $script`, direct executable invocation, or `node $script.js`), the child runs as a forked subprocess outside BullMQ — its Worker callback never executes, its `resourceClass` tag is *dormant* on this parent-driven path.
+
+**The convention.** A tagged task is protected on a given invocation path iff some task in that path's invocation chain is itself tagged. In practice this means: **every entry point that can reach a tagged child must itself be tagged** — direct invocation via BullMQ engages the wrap natively; subshell-spawned children inherit semaphore-held state from a tagged ancestor's still-running Worker callback. PR #201 backfilled the orchestrator-level parents (`updateAllScoresForOwner`, `processCustomer`, `processAllActiveCustomers`) to satisfy this. Story #26 / ADR 0023 audited the remaining gaps and added two more (`processAllTasks`, `processNpubsUpToMaxNumBlocks`).
+
+**Child tags are intentionally retained as defense-in-depth.** A child's `resourceClass` tag is dormant on parent-driven subshell paths but load-bearing on direct paths — if an operator schedules a child task as its own entry, or hits `/api/run-task?taskName=<child>`, the tag engages. Removing dormant child tags would create a new gap any time a future operator scheduled a tagged child independently.
+
+**Audit results (compiled by the Implementer on 2026-05-25 per ADR 0023 §Audit method).**
+
+| Parent script | Child(ren) reached | Spawn pattern + line | Gap before fix | Gap after fix |
+|---|---|---|---|---|
+| `src/algos/updateAllScoresForOwner.sh` (tagged ✓) | calculateOwnerHops, calculateOwnerPageRank, calculateOwnerGrapeRank, processOwnerFollowsMutesReports, calculateReportScores, exportOwnerKind30382, loadOwnerScoresIntoMeilisearch | `launch_child_task` :72,79,86,93,100,116,123 | parent already tagged — no gap | unchanged ✓ |
+| `src/manage/processAllTasks.sh` (was untagged ❌) | syncWoT, syncProfiles, callBatchTransferIfNeeded, reconciliation, processNpubsUpToMaxNumBlocks, updateAllScoresForOwner, calculateOwnerHops, calculateOwnerPageRank, calculateOwnerGrapeRank, processOwnerFollowsMutesReports, calculateReportScores, exportOwnerKind30382, processAllActiveCustomers | `launch_child_task` :113,137,145,152,159,166,175,182,189,196,203,219,227 | latent: parent untagged, chain dormant if `processAllTasks` activated | `processAllTasks` now tagged → chain protected ✓ |
+| `src/algos/customers/processAllActiveCustomers.sh` (tagged ✓) | processCustomer | `bash $script` :119 | parent already tagged — no gap | unchanged ✓ |
+| `src/algos/customers/processCustomer.sh` (tagged ✓) | prepareNeo4jForCustomerData, updateAllScoresForSingleCustomer | `bash $script` :83,102 | parent already tagged — no gap | unchanged ✓ |
+| `src/algos/customers/updateAllScoresForSingleCustomer.sh` (tagged ✓) | calculateCustomerHops, calculateCustomerPageRank, calculateCustomerGrapeRank, processCustomerFollowsMutesReports | `bash $script` :94,165,236,307 (publishNip85.sh + loadScoresIntoMeilisearch.sh at :383,451 are not tagged) | parent already tagged — no gap | unchanged ✓ |
+| `src/manage/nostrUsers/processNpubsUpToMaxNumBlocks.sh` (was untagged ❌ when scheduled as `processNpubsUpToMaxNumBlocks`; tagged ✓ when scheduled as `npubManager`) | (spawns processNpubsOneBlock.sh — not a registered task — which directly-invokes updateNpubsInNeo4j.sh at :105) | indirect via processNpubsOneBlock.sh `direct exec` :50, `node $script.js` :72, `direct exec` :105 | live: prod scheduler uses untagged variant; chain to updateNpubsInNeo4j dormant | `processNpubsUpToMaxNumBlocks` now tagged → chain protected ✓ |
+
+**No other parent scripts reach a tagged child via an unprotected subshell chain — audit performed 2026-05-25 per ADR 0023 §Audit method, all four subshell spawn patterns checked. JS-driven `child_process.exec` from API handlers is explicitly out of scope per ADR 0023's 2026-05-24 amendment and is filed as a separate intake.**
+
+For the full design rationale (Options A/B/C, the dormant-child-tag decision, deployment dry-run, follow-up debt), see [`engineering-team/decisions/0023-task-queue-semaphore-protection-audit.md`](0023-task-queue-semaphore-protection-audit.md).
+
 ## Implementation notes
 
 The Implementer reads this section verbatim.

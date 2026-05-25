@@ -360,3 +360,34 @@ await queue.upsertJobScheduler(
 **Strictness:** Standard.
 **Phase path:** Architecture (brief — same Option A pattern as ADR 0022 applied to a sibling code path) → Test Design (one sentinel + one probe extension) → Implementation → Review. Architecture could potentially fast-track since the design rationale is verbatim ADR 0022.
 **Priority:** Low. Slow-growing Redis bloat; no operator workflow blocked today. Worth doing for hygiene before the next major task-queue work or if Redis memory becomes a concern.
+
+---
+
+## 2026-05-24 — Architecture: legacy API handlers `child_process.exec` tagged-task scripts directly, bypassing BullMQ + semaphore
+
+**Surfaced during:** the Implementer's audit pass for story #26 / ADR 0023 on 2026-05-24. Halted implementation per ADR 0023's Outcome contract ("stop and re-open ADR 0023 if the audit surfaces a new spawn pattern not enumerated... or any other novelty"). ADR 0023's amendment scopes the JS-exec pattern OUT and files this intake.
+
+**Mechanism:** five registered API endpoints in `src/api/index.js` route to JS handlers that use `child_process.exec` to spawn bash scripts directly. The spawned scripts map to neo4j-heavy tagged tasks in the registry, but the exec path completely bypasses BullMQ — no Worker callback runs, no semaphore acquire happens. Parent-tag inheritance (the mechanism story #26 ships for the subshell pattern) does not apply because there's no parent in a BullMQ Worker callback chain; the handler IS the entry point.
+
+**Confirmed handler-to-tagged-task mappings:**
+
+| Endpoint | Handler | Tagged task |
+|---|---|---|
+| `POST /api/process-all-active-customers` | `process-all-active-customers.js:21` | processAllActiveCustomers |
+| `POST /api/generate-pagerank` | `algos/pagerank/commands/generate.js:21` | calculateOwnerPageRank |
+| `POST /api/generate-reports` | `algos/reports/commands/generate.js:21` | calculateReportScores |
+| `POST /api/generate-verified-followers` | `algos/verifiedFollowers/commands/generate.js:21` | calculateVerifiedFollowerCounts |
+| `GET /api/calculate-hops`-ish | `algos/hops/commands/calculate.js:31` | calculateCustomerHops |
+
+Also flagged: `algos/graperank/commands/generate.js` spawns `calculatePersonalizedGrapeRank.sh` (not in registry — possibly superseded by `/api/run-task?taskName=calculateOwnerGrapeRank`), `pipeline/reconcile/commands/execute.js` spawns `reconciliation.sh` (deprecated path per OPERATIONS.md). These two probably want deprecation rather than refactor.
+
+**Three remediation options (Architect to triage):**
+
+1. **Refactor JS handlers to enqueue via BullMQ.** Replace the `exec` call with a call to `taskQueue.enqueueTask` (or an internal `/api/run-task` HTTP call). Job goes through Worker callback, semaphore engages, BullBoard sees it. Closest to ADR 0012's intent. Trade-off: ~5 handler files to touch + behavioral migration (sync vs async semantics, response shape).
+2. **Deprecate the legacy endpoints.** These handlers predate `/api/run-task` (story #13 / ADR 0012, 2026-05-20). Confirm no live consumers (UI, scripts, cron); if clear, remove the endpoint + handler; document `/api/run-task?taskName=<task>` as the replacement. Smallest diff if no consumers; can't ship if consumers exist.
+3. **Accept + document.** Add a warning to each handler comment + OPERATIONS.md noting these bypass the semaphore. Punts the gap. Probably unacceptable for the live `/api/generate-pagerank` and `/api/process-all-active-customers` endpoints — they run heavy Neo4j work.
+
+**Classification:** Bug — public API endpoints bypass the documented ADR 0013 protection model. Same neo4j-heavy serialization concern as Intake A but via different URLs.
+**Strictness:** Standard.
+**Phase path:** `/discuss` first to triage the three options (especially: which endpoints have live consumers? which to refactor vs deprecate?), then Planning → Architecture → Test Design → Implementation → Review.
+**Priority:** Medium-high. Operator-triggerable, currently unprotected on prod. Same severity as Intake B was before story #25 closed it.

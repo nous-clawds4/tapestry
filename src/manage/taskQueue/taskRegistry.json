@@ -89,6 +89,7 @@
       "frequency": "timer-based",
       "status": "legacy",
       "structuredLogging": true,
+      "resourceClass": "neo4j-heavy",
       "options": {
         "launch": {
           "processAlreadyRunning": {
@@ -456,6 +457,7 @@
       "frequency": "daily",
       "status": "active",
       "structuredLogging": true,
+      "resourceClass": "neo4j-heavy",
       "options":{},
       "notes": "Phase 2 structured logging implemented with comprehensive iterative npub generation events: TASK_START, initialization status, per-iteration progress tracking, error detection with infinite loop prevention, child script failure handling, and multiple completion scenarios (success/partial_success) with detailed metrics."
     },
