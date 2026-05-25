@@ -104,9 +104,11 @@ export default function Header({ onToggleSidebar }) {
                 <button className="dropdown-item" onClick={() => { setMenuOpen(false); navigate(`/tapestry/users/${user.pubkey}`); }}>
                   👤 My Profile
                 </button>
-                <button className="dropdown-item" onClick={() => { setMenuOpen(false); navigate(`/tapestry/users/${TA_PUBKEY}`); }}>
-                  🤖 My Assistant's Profile
-                </button>
+                {user.assistantPubkey && (
+                  <button className="dropdown-item" onClick={() => { setMenuOpen(false); navigate(`/tapestry/users/${user.assistantPubkey}`); }}>
+                    🤖 My Assistant's Profile
+                  </button>
+                )}
                 {(user.classification === 'owner' || user.classification === 'admin') && (
                   <button className="dropdown-item" onClick={() => { setMenuOpen(false); navigate('/tapestry/settings'); }}>
                     ⚙️ Settings
