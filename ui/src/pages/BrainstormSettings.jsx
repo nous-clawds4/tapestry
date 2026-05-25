@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useConfig } from '../context/ConfigContext';
 import BrainstormUserMenu, { useHouseProfile } from '../components/BrainstormUserMenu';
+import AssistantProfileEditor from '../components/AssistantProfileEditor';
 
 /* ── Helpers ──────────────────────────────────────────── */
 
@@ -485,6 +486,11 @@ export default function BrainstormSettings() {
               <div className="bss-profile-pubkey">{user.pubkey.slice(0, 16)}…{user.pubkey.slice(-8)}</div>
             </div>
           </div>
+        </div>
+
+        {/* Assistant profile card */}
+        <div className="bss-card">
+          <AssistantProfileEditor customerPubkey={user.pubkey} />
         </div>
 
         {/* WoT Status */}

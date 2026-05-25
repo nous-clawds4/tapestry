@@ -7,12 +7,14 @@ import UuidSettings from './UuidSettings';
 import DatabaseSettings from './DatabaseSettings';
 import FirmwareExplorer from './FirmwareExplorer';
 import Audit from '../manage/Audit';
+import AssistantProfileEditor from '../../components/AssistantProfileEditor';
 
 const TABS = [
   { key: 'relays', path: 'relays', label: '📡 Relays' },
   { key: 'databases', path: 'databases', label: '🗄️ Databases' },
   { key: 'uuids', path: 'uuids', label: '🔑 Concept UUIDs' },
   { key: 'firmware', path: 'firmware', label: '🔧 Firmware' },
+  { key: 'assistant', path: 'assistant', label: '🤖 Assistant Profile' },
   { key: 'auditing', path: 'auditing', label: '🔍 Auditing Tools' },
 ];
 
@@ -205,6 +207,9 @@ export default function SettingsIndex() {
         )}
         {activeTab === 'firmware' && (
           <FirmwareExplorer />
+        )}
+        {activeTab === 'assistant' && (
+          <AssistantProfileEditor customerPubkey={user?.pubkey} />
         )}
         {activeTab === 'auditing' && (
           <Audit />

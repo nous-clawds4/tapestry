@@ -1,17 +1,18 @@
 /**
  * Brainstorm Assistant API
  *
- * Publishes a kind 0 profile event for a customer's Brainstorm Assistant
- * (their relay identity that publishes kind 30382 Trust Assertions).
+ * Endpoints for managing an assistant's kind 0 nostr profile. The "assistant"
+ * is a server-side nostr identity:
+ *   - For the owner: the Tapestry Assistant (TA) key.
+ *   - For a customer: their Customer Relay Key.
  *
- * The profile includes:
- * - Name: "<CustomerName>'s Brainstorm Assistant"
- * - About: describes the assistant's NIP-85 role
- * - Website: https://brainstorm.nosfabrica.com
+ * The key is selected by getAssistantKeys(pubkey). The kind 0 event is signed
+ * server-side with that key and published to local strfry plus the external
+ * relays in EXTERNAL_RELAYS.
  *
- * Future enhancements: avatar image, banner image, NIP-05.
- *
- * The event is signed server-side with the assistant's private key.
+ * POST /api/assistant/publish-profile accepts an optional `content` object so
+ * the caller can pass user-edited fields; when omitted, instance-branded
+ * defaults are used (legacy behavior for older callers).
  */
 
 const { exec } = require('child_process');
@@ -66,12 +67,13 @@ function publishToRelay(relayUrl, signedEvent, timeoutMs = 10000) {
   });
 }
 
-const ABOUT_TEXT = 'I am the Brainstorm Assistant for my owner. My primary task is to publish kind 30382 Trusted Assertions so that my owner\'s personalized web of trust metrics are available to be utilized by any nostr client that supports NIP-85.';
+const PROFILE_FIELDS = ['name', 'display_name', 'about', 'picture', 'banner', 'website', 'nip05', 'lud16'];
 
 /**
- * Fetch a customer's kind 0 name from strfry.
+ * Fetch a nostr kind 0 display name for a pubkey from local strfry.
+ * Used to derive the customer name for an assistant's default profile.
  */
-function getCustomerName(pubkey) {
+function getKind0DisplayName(pubkey, fallback = 'My Owner') {
   return new Promise((resolve) => {
     const filter = JSON.stringify({ kinds: [0], authors: [pubkey], limit: 1 });
     exec(`strfry scan '${filter.replace(/'/g, "'\\''")}' 2>/dev/null`, {
@@ -79,27 +81,94 @@ function getCustomerName(pubkey) {
       timeout: 10000,
     }, (error, stdout) => {
       if (error || !stdout.trim()) {
-        resolve('My Owner');
+        resolve(fallback);
         return;
       }
       try {
         const event = JSON.parse(stdout.trim().split('\n')[0]);
         const content = JSON.parse(event.content);
-        resolve(content.display_name || content.name || 'My Owner');
+        resolve(content.display_name || content.name || fallback);
       } catch {
-        resolve('My Owner');
+        resolve(fallback);
       }
     });
   });
 }
 
 /**
+ * Derive the instance's https website URL from configured domain or relay URL.
+ * Returns e.g. "https://brainstorm.world" or empty string if unconfigured.
+ */
+function getInstanceWebsite() {
+  const domain = getConfigFromFile('STRFRY_DOMAIN', '');
+  if (domain && domain !== 'localhost') return `https://${domain}`;
+  const relayUrl = getConfigFromFile('BRAINSTORM_RELAY_URL', '');
+  if (relayUrl) {
+    const host = relayUrl.replace(/^wss?:\/\//, '').replace(/\/.*$/, '');
+    if (host && host !== 'localhost') return `https://${host}`;
+  }
+  return '';
+}
+
+/**
+ * Build instance-branded default kind 0 content for an assistant.
+ * Owner assistant defaults differ from customer assistant defaults.
+ */
+async function buildDefaultProfileContent(pubkey, isOwner) {
+  const website = getInstanceWebsite();
+  if (isOwner) {
+    const ownerName = await getKind0DisplayName(pubkey, 'the owner');
+    return {
+      name: 'Tapestry Assistant',
+      display_name: 'Tapestry Assistant',
+      about: `Server-side Tapestry Assistant for ${ownerName}. Signs firmware events, concept graph nodes, kind 30382 Trust Assertions, and other automated events on behalf of this Tapestry instance.`,
+      picture: '',
+      banner: '',
+      website,
+      nip05: '',
+      lud16: '',
+    };
+  }
+  const customerName = await getKind0DisplayName(pubkey, 'a customer');
+  return {
+    name: `${customerName}'s Brainstorm Assistant`,
+    display_name: `${customerName}'s Brainstorm Assistant`,
+    about: `I am the Brainstorm Assistant for ${customerName}. My primary task is to publish kind 30382 Trusted Assertions so that ${customerName}'s personalized web of trust metrics are available to be utilized by any nostr client that supports NIP-85.`,
+    picture: '',
+    banner: '',
+    website,
+    nip05: '',
+    lud16: '',
+  };
+}
+
+/**
+ * Strip any keys outside the allowed kind 0 fields and coerce values to strings.
+ */
+function sanitizeProfileContent(content) {
+  const clean = {};
+  for (const key of PROFILE_FIELDS) {
+    const value = content?.[key];
+    if (typeof value === 'string') {
+      clean[key] = value;
+    }
+  }
+  return clean;
+}
+
+/**
  * POST /api/assistant/publish-profile
- * Body: { customerPubkey: "hex" }
+ * Body: {
+ *   customerPubkey: "hex",          // pubkey whose assistant we're publishing for
+ *   content?: {                      // optional user-edited kind 0 fields
+ *     name, display_name, about, picture, banner, website, nip05, lud16
+ *   }
+ * }
+ * If `content` is omitted, instance-branded defaults are used (legacy behavior).
  */
 async function handlePublishProfile(req, res) {
   try {
-    const { customerPubkey } = req.body;
+    const { customerPubkey, content } = req.body;
     if (!customerPubkey || !/^[0-9a-f]{64}$/.test(customerPubkey)) {
       return res.status(400).json({ success: false, error: 'Valid customerPubkey is required' });
     }
@@ -131,17 +200,17 @@ async function handlePublishProfile(req, res) {
 
     const assistantPubkey = nostrTools.getPublicKey(privkeyBytes);
 
-    // 2. Get customer's name for the assistant's display name
-    const customerName = await getCustomerName(customerPubkey);
-    const assistantName = `${customerName}'s Brainstorm Assistant`;
+    // 2. Pick profile content: user-supplied if present, otherwise instance defaults
+    const profileContent = content && typeof content === 'object'
+      ? sanitizeProfileContent(content)
+      : await buildDefaultProfileContent(customerPubkey, isOwner);
 
-    // 3. Build kind 0 event
-    const profileContent = {
-      name: assistantName,
-      display_name: assistantName,
-      website: 'https://brainstorm.nosfabrica.com',
-      about: ABOUT_TEXT,
-    };
+    // Drop empty-string keys so we don't pollute kind 0 with blank fields
+    for (const k of Object.keys(profileContent)) {
+      if (profileContent[k] === '') delete profileContent[k];
+    }
+
+    const assistantName = profileContent.display_name || profileContent.name || 'Assistant';
 
     const event = {
       kind: 0,
@@ -195,7 +264,9 @@ async function handlePublishProfile(req, res) {
 /**
  * GET /api/assistant/status
  * Query: ?customerPubkey=hex
- * Returns whether the assistant has a kind 0 profile published.
+ * Returns the assistant's pubkey, the current published kind 0 (if any), and
+ * the instance-branded defaults the UI should prefill into the form for a
+ * fresh setup.
  */
 async function handleAssistantStatus(req, res) {
   try {
@@ -204,10 +275,15 @@ async function handleAssistantStatus(req, res) {
       return res.status(400).json({ success: false, error: 'customerPubkey is required' });
     }
 
+    const ownerPubkey = getConfigFromFile('BRAINSTORM_OWNER_PUBKEY');
+    const isOwner = customerPubkey === ownerPubkey;
+
     // Unified assistant key access (owner → TA key, customer → customer relay key)
     const relayKeys = await getAssistantKeys(customerPubkey);
+    const defaults = await buildDefaultProfileContent(customerPubkey, isOwner);
+
     if (!relayKeys || !relayKeys.pubkey) {
-      return res.json({ success: true, hasRelayKey: false, hasProfile: false });
+      return res.json({ success: true, hasRelayKey: false, hasProfile: false, defaults });
     }
 
     // Check if kind 0 exists for the assistant pubkey
@@ -243,6 +319,8 @@ async function handleAssistantStatus(req, res) {
       assistantNpub: relayKeys.npub,
       hasProfile: !!result,
       profile,
+      defaults,
+      isOwner,
     });
   } catch (err) {
     return res.status(500).json({ success: false, error: err.message });
