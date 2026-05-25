@@ -382,7 +382,7 @@ launchChildTask() {
         sleep $check_interval
         elapsed=$((elapsed + check_interval))
         
-        if [[ $elapsed -ge $timeout_seconds ]]; then
+        if [[ $timeout_seconds -gt 0 && $elapsed -ge $timeout_seconds ]]; then
             echo "$(date): Process $child_pid timed out after ${elapsed}s" >> ${LOG_FILE}
             timed_out=true
             break
