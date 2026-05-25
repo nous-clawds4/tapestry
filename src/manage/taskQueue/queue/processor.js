@@ -115,16 +115,15 @@ function runWithResolvedArgs({ job, taskDef, taskName, customerArgs, queryParams
 
     const args = buildChildArgs(taskDef, customerArgs, queryParams);
 
-    const optionsJson = JSON.stringify({
-      completion: {
-        failure: {
-          timeout: {
-            duration: timeoutMs || 0,
-            forceKill: false
+    const optionsJson = (timeoutMs && timeoutMs > 0)
+      ? JSON.stringify({
+          completion: {
+            failure: {
+              timeout: { duration: timeoutMs, forceKill: false }
+            }
           }
-        }
-      }
-    });
+        })
+      : '{}';
 
     const childArgs = args.length > 0 ? args.join(' ') : '';
 

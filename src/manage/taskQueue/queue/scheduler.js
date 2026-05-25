@@ -25,6 +25,7 @@
 
 const fs = require('fs');
 const taskQueue = require('./index'); // getQueue, getAllQueues — per-task BullMQ queues (ADR 0012)
+const { resolveTaskTimeout } = require('../../../utils/taskTimeout');
 
 const QUEUE_CONFIG_PATH = '/etc/brainstorm-task-queue.json';
 const SCHEDULER_PREFIX = 'sched:';
@@ -83,10 +84,7 @@ async function upsertSchedule(entry, registry) {
     throw new Error(`No BullMQ queue for task '${entry.taskId}' (not a registered task, or queue not initialized)`);
   }
   const taskDef = registry && registry.tasks && registry.tasks[entry.taskId];
-  const timeoutMs =
-    (taskDef && taskDef.options && taskDef.options.completion &&
-      taskDef.options.completion.failure && taskDef.options.completion.failure.timeout &&
-      taskDef.options.completion.failure.timeout.duration) || 0;
+  const { timeoutMs } = resolveTaskTimeout(taskDef, registry);
 
   await queue.upsertJobScheduler(
     schedulerId(entry.id),

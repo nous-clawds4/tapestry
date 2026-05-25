@@ -396,6 +396,8 @@ Also flagged: `algos/graperank/commands/generate.js` spawns `calculatePersonaliz
 
 ## 2026-05-24 — Bug: `neo4j-heavy` semaphore released ~5s after acquire while tagged work runs unprotected for hours
 
+**PICKED UP 2026-05-25** — Captured as [story #27](27-scheduled-task-timeout-propagation.md). The /discuss + source-only inspection + empirical staging evidence (18 hourly `CHILD_TASK_ERROR` events with `timeout_duration: 0, elapsed_time: 5000` across `refreshSearchIndex`, `processCustomer`, `updateAllScoresForOwner`) revealed the actual root cause is a three-bug conspiracy in the scheduled-task timeout propagation path, NOT the candidate hypotheses listed below. Story #27's framing is "scheduled tasks bypass configured timeouts (semaphore release is the downstream symptom)." The probe described in the Method section was not needed — source-only inspection located the bug and the staging logs confirmed it.
+
 **Surfaced during:** Review-phase operator triage on story #26 / ADR 0023. Operator noticed a "Running" task in the Scheduled Tasks panel with no matching TASK_END for 1.5 hours; investigation revealed `held_seconds: 6` on `resource_class_released` events across MULTIPLE tagged tasks (`processCustomer`, `updateAllScoresForOwner` confirmed; pattern likely universal). See ADR 0023's 2026-05-24 (later) amendment for the full evidence table.
 
 **The bug:** The BullMQ Worker callback at `src/manage/taskQueue/queue/index.js:118-131` is `await processor.processJob(...)` then `await release()`. processor.processJob spawns `bash launchChildTask.sh ...` and resolves on `child.on('close')`. Empirically, that close event fires ~5-6 seconds after spawn EVEN WHEN the underlying task script (e.g., processCustomer.sh) is still running and will continue running for hours. As a result, the semaphore releases ~5-6s after acquire, and the actual heavy Neo4j work runs concurrently with any other heavy work — defeating ADR 0013's cap=1 serialization contract.
@@ -456,3 +458,55 @@ Also flagged: `algos/graperank/commands/generate.js` spawns `calculatePersonaliz
 **Strictness:** Standard.
 **Phase path:** `/discuss` first to settle the four decision points; then likely Implementation + Review (Architecture and Test Design probably skippable — small mechanical change with no ADR-worthy design choice).
 **Priority:** Low. Quality-of-life improvement for the harness. No correctness issue today.
+
+---
+
+## 2026-05-25 — Follow-up: per-task timeout overrides for long-running `neo4j-heavy` tasks + (long-term) auto-tune from observed average runtimes
+
+**Surfaced during:** Cycle-staging verification of story #27 / ADR 0024 (scheduled-task timeout propagation fix). Once the fix correctly propagated `options_default.completion.failure.timeout.duration: 1800000` (30 min) through the chain, the `resource_class_released` events on staging revealed that `processCustomer` consistently hits that 30-min ceiling: two back-to-back fires at 08:43:03Z and 11:43:04Z both reported `held_seconds: 1805/1806` (= 1800s timeout + ~5s monitor-tick overhead). The actual `processCustomer.sh` work runtime exceeds 30 min on the prod-scale staging graph (~32M FOLLOWS); pre-story-#27, this was hidden because the semaphore was releasing at 6s anyway.
+
+Post-fix steady state: the semaphore is held for the first 30 min of `processCustomer`, then releases (because the wrapper script declares timeout). Because `forceKill: false` is hardcoded in `src/manage/taskQueue/queue/processor.js:118-126` (deliberately preserved per story #27 §"Out of scope"), the backgrounded `processCustomer.sh` keeps running orphaned beyond that. Strictly better than pre-fix (6s protected vs ~hours unprotected), but the "30 min" ceiling is too short — `processCustomer` should hold the semaphore for its actual full duration (~30-60 min on the prod-scale graph; longer on prod itself).
+
+`updateAllScoresForOwner` is expected to exhibit the same shape (the per-handoff data showed it had the same `held_seconds: 6` symptom pre-fix, so it presumably also runs longer than 30 min on prod-scale). Confirm empirically once a full post-fix fire of it completes on staging.
+
+**Short-term (mechanical fix):** add per-task `options.completion.failure.timeout.duration` overrides to long-running `neo4j-heavy` tasks in `src/manage/taskQueue/taskRegistry.json`. Candidate task list (verify each empirically before committing to a value):
+
+| Task | Today's `options` | Proposed override (subject to empirical refinement) |
+|---|---|---|
+| `processCustomer` | `{}` | 5400000 ms (90 min) |
+| `updateAllScoresForOwner` | `{}` | 7200000 ms (2 hr) |
+| `processNpubsUpToMaxNumBlocks` | TBD | TBD — run once, observe |
+| `reconcileAll` | already has explicit ✓ | n/a — confirmed working at 798–979s on staging |
+| Others tagged `neo4j-heavy` with `"options": {}` | various | audit & decide |
+
+The override mechanism is already supported by `resolveTaskTimeout` Priority 1 (verified by story #27's AC #7 test U2) — no code change required, only registry edits.
+
+**Long-term (auto-tune feature):** track average successful-run durations per task, periodically (or on operator command) propose / apply per-task timeout overrides sized to e.g. `2× p95(actualDuration)` or similar safety factor. Several inputs already exist:
+
+- `CHILD_TASK_END` events in `/var/log/brainstorm/taskQueue/events.jsonl` carry `child_task_id` + start/end timestamps — durations are computable.
+- `taskRegistry.json` already has an `averageDuration` field on some entries (e.g., `processCustomer: 564500`, `updateAllScoresForOwner: averageDuration not yet set`); `resolveTaskTimeout` Priority 3 already falls through to `averageDuration × 2` when no explicit timeout is set. The auto-tune feature would *populate* and *maintain* `averageDuration` (and/or push an explicit `options.completion.failure.timeout.duration`) based on observed runs.
+- Already-shipped Scheduled Tasks panel + Task Explorer surface task history; the auto-tune could be a separate background task or a control-panel-admin action.
+
+Open design questions for the long-term feature:
+1. **Trigger model:** background task on a cadence (e.g., daily), or on-command via an admin endpoint, or both?
+2. **Safety factor:** `2× p95`, `2× max`, `1.5× rolling-30-day-p99`, …?
+3. **What gets updated:** `averageDuration` (passive — feeds resolveTaskTimeout's Priority 3 fallback) or explicit `options.completion.failure.timeout.duration` (active — overrides Priority 1)?
+4. **Persistence model:** edit `taskRegistry.json` in place? Or maintain a separate runtime-stats file that resolveTaskTimeout consults? (Editing the registry in place creates a git churn surface; a separate stats file is cleaner.)
+5. **Bounds enforcement:** `resolveTaskTimeout` already clamps to 5 min / 24 hr. Should the auto-tune respect or override those bounds?
+6. **`forceKill` interaction:** if the auto-tune raises the timeout high enough that timeouts ~never fire, the `forceKill: false` hardcode becomes moot. If kept low for safety, `forceKill: false` keeps the "orphaned-child" risk live. Consider revisiting (separate ADR if pursued).
+
+**Classification:** Feature (auto-tune) + Bug-adjacent housekeeping (per-task overrides for the currently-broken-shaped tasks).
+**Strictness:** Standard.
+**Phase path:** Two-track.
+- **Track A (short-term, can ship immediately):** mechanical registry edits + cycle-staging + cycle-prod. Probably Implementer + Reviewer only (one-line registry edits per task; no Architecture-worthy design choice). Could even fast-track without a story since it's a 5-minute change once the values are chosen.
+- **Track B (long-term, separate story):** `/discuss` to settle the 6 design questions, then full Plan / Architect / Test / Implement / Review.
+**Priority:**
+- Track A: **Medium.** Visible operator-experience issue (CHILD_TASK_ERROR events firing on every long-task completion); strictly better than pre-fix but the new false-positive-timeouts are noise.
+- Track B: **Low-medium.** Quality-of-life improvement; not load-bearing for correctness.
+
+**Empirical staging evidence (cite in future story):**
+```
+processCustomer 2026-05-25 08:43:03Z → held_seconds: 1805
+processCustomer 2026-05-25 11:43:04Z → held_seconds: 1806
+reconcileAll    2026-05-25 07:51:43Z → held_seconds:  798  (baseline — already had explicit timeout)
+```
