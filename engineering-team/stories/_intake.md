@@ -360,3 +360,99 @@ await queue.upsertJobScheduler(
 **Strictness:** Standard.
 **Phase path:** Architecture (brief — same Option A pattern as ADR 0022 applied to a sibling code path) → Test Design (one sentinel + one probe extension) → Implementation → Review. Architecture could potentially fast-track since the design rationale is verbatim ADR 0022.
 **Priority:** Low. Slow-growing Redis bloat; no operator workflow blocked today. Worth doing for hygiene before the next major task-queue work or if Redis memory becomes a concern.
+
+---
+
+## 2026-05-24 — Architecture: legacy API handlers `child_process.exec` tagged-task scripts directly, bypassing BullMQ + semaphore
+
+**Surfaced during:** the Implementer's audit pass for story #26 / ADR 0023 on 2026-05-24. Halted implementation per ADR 0023's Outcome contract ("stop and re-open ADR 0023 if the audit surfaces a new spawn pattern not enumerated... or any other novelty"). ADR 0023's amendment scopes the JS-exec pattern OUT and files this intake.
+
+**Mechanism:** five registered API endpoints in `src/api/index.js` route to JS handlers that use `child_process.exec` to spawn bash scripts directly. The spawned scripts map to neo4j-heavy tagged tasks in the registry, but the exec path completely bypasses BullMQ — no Worker callback runs, no semaphore acquire happens. Parent-tag inheritance (the mechanism story #26 ships for the subshell pattern) does not apply because there's no parent in a BullMQ Worker callback chain; the handler IS the entry point.
+
+**Confirmed handler-to-tagged-task mappings:**
+
+| Endpoint | Handler | Tagged task |
+|---|---|---|
+| `POST /api/process-all-active-customers` | `process-all-active-customers.js:21` | processAllActiveCustomers |
+| `POST /api/generate-pagerank` | `algos/pagerank/commands/generate.js:21` | calculateOwnerPageRank |
+| `POST /api/generate-reports` | `algos/reports/commands/generate.js:21` | calculateReportScores |
+| `POST /api/generate-verified-followers` | `algos/verifiedFollowers/commands/generate.js:21` | calculateVerifiedFollowerCounts |
+| `GET /api/calculate-hops`-ish | `algos/hops/commands/calculate.js:31` | calculateCustomerHops |
+
+Also flagged: `algos/graperank/commands/generate.js` spawns `calculatePersonalizedGrapeRank.sh` (not in registry — possibly superseded by `/api/run-task?taskName=calculateOwnerGrapeRank`), `pipeline/reconcile/commands/execute.js` spawns `reconciliation.sh` (deprecated path per OPERATIONS.md). These two probably want deprecation rather than refactor.
+
+**Three remediation options (Architect to triage):**
+
+1. **Refactor JS handlers to enqueue via BullMQ.** Replace the `exec` call with a call to `taskQueue.enqueueTask` (or an internal `/api/run-task` HTTP call). Job goes through Worker callback, semaphore engages, BullBoard sees it. Closest to ADR 0012's intent. Trade-off: ~5 handler files to touch + behavioral migration (sync vs async semantics, response shape).
+2. **Deprecate the legacy endpoints.** These handlers predate `/api/run-task` (story #13 / ADR 0012, 2026-05-20). Confirm no live consumers (UI, scripts, cron); if clear, remove the endpoint + handler; document `/api/run-task?taskName=<task>` as the replacement. Smallest diff if no consumers; can't ship if consumers exist.
+3. **Accept + document.** Add a warning to each handler comment + OPERATIONS.md noting these bypass the semaphore. Punts the gap. Probably unacceptable for the live `/api/generate-pagerank` and `/api/process-all-active-customers` endpoints — they run heavy Neo4j work.
+
+**Classification:** Bug — public API endpoints bypass the documented ADR 0013 protection model. Same neo4j-heavy serialization concern as Intake A but via different URLs.
+**Strictness:** Standard.
+**Phase path:** `/discuss` first to triage the three options (especially: which endpoints have live consumers? which to refactor vs deprecate?), then Planning → Architecture → Test Design → Implementation → Review.
+**Priority:** Medium-high. Operator-triggerable, currently unprotected on prod. Same severity as Intake B was before story #25 closed it.
+
+---
+
+## 2026-05-24 — Bug: `neo4j-heavy` semaphore released ~5s after acquire while tagged work runs unprotected for hours
+
+**Surfaced during:** Review-phase operator triage on story #26 / ADR 0023. Operator noticed a "Running" task in the Scheduled Tasks panel with no matching TASK_END for 1.5 hours; investigation revealed `held_seconds: 6` on `resource_class_released` events across MULTIPLE tagged tasks (`processCustomer`, `updateAllScoresForOwner` confirmed; pattern likely universal). See ADR 0023's 2026-05-24 (later) amendment for the full evidence table.
+
+**The bug:** The BullMQ Worker callback at `src/manage/taskQueue/queue/index.js:118-131` is `await processor.processJob(...)` then `await release()`. processor.processJob spawns `bash launchChildTask.sh ...` and resolves on `child.on('close')`. Empirically, that close event fires ~5-6 seconds after spawn EVEN WHEN the underlying task script (e.g., processCustomer.sh) is still running and will continue running for hours. As a result, the semaphore releases ~5-6s after acquire, and the actual heavy Neo4j work runs concurrently with any other heavy work — defeating ADR 0013's cap=1 serialization contract.
+
+**Investigation required:** what causes `child.on('close')` on the launchChildTask.sh bash process to fire within 5-6 seconds when the backgrounded child it spawned is still running? Candidate hypotheses (unverified):
+1. `launchChildTask.sh:380-390`'s `while ps -p $child_pid` monitor loop exits prematurely — possibly the captured PID from `bash $child_script &` corresponds to a short-lived intermediate.
+2. BullMQ stalled-job recovery (default 30s `stalledInterval` × `maxStalledCount`=1) fires and moves the job, triggering the `finally` block.
+3. Bash subshell semantics with `&` + `set -e`/`set -o pipefail` cause the wrapper to exit unexpectedly.
+4. Something else.
+
+**Method:** write a deterministic reproduction probe (similar in shape to story #25's `probe-bullmq-removeOnComplete-immediate.js`). Steps:
+1. Create a synthetic tagged task whose script sleeps for N=120 seconds.
+2. Wire it through the actual `initTaskQueue` machinery (real BullMQ Worker, real semaphore wrap, real processor.js → launchChildTask.sh path).
+3. Trigger via `enqueueTask` or scheduler.
+4. Observe and log: Worker callback entry time, semaphore acquire time, bash subprocess spawn time, every `ps -p $child_pid` check result in launchChildTask.sh, `child.on('close')` fire time, semaphore release time, bash subprocess actual end time.
+5. Identify exactly which event fires at T+~5s that causes the close to fire while the work continues.
+
+**Once root cause identified, design the fix.** Possible fix shapes (architect chooses after the probe finishes):
+- **Fix launchChildTask.sh's PID tracking** so the monitor loop waits for the actual long-running process, not an intermediate.
+- **Fix the spawn pattern in processor.js** to use `child_process.spawn` with options that don't background-detach the subprocess.
+- **Refactor the semaphore wrap location** to be inside launchChildTask.sh itself (using Redis directly) so it covers the full subprocess lifetime regardless of Node-side timing.
+- **Refactor to a poll/lease model** where the Worker periodically checks if the bash subprocess is still running and re-acquires/renews the semaphore lease.
+- **Bigger refactor:** Option B from `/discuss` (refactor parents to enqueue children via /api/run-task) — children flow through their own BullMQ Workers, semaphore engages on each.
+
+**Impact on story #26:** That story's tag-additions are functionally moot pending this fix. They can be: (a) reverted, (b) kept as "no-op-but-documented" with the BIBLE.md / ADR amendments updated to reflect the actual broken state, or (c) carried forward into the investigation story and shipped together with the real fix. Architect/PO call.
+
+**Impact on PR #201's tagging:** Same. PR #201's value was always "defense-in-depth on the BullMQ-direct path" — that part still works (when a tagged task is fired via `/api/run-task` directly, the Worker callback wraps the few seconds of setup with the semaphore). But the "protect the subshell chain" intent is empty.
+
+**Classification:** Bug — high severity (load-bearing assumption violated, ADR 0013's documented contract not enforced, multiple shipped stories built on this assumption).
+**Strictness:** Standard.
+**Phase path:** `/discuss` first to align on the investigation scope, then Planning (probe + investigation story), then Architecture (fix design after probe results), then Test Design / Implementation / Review.
+**Priority:** **HIGH.** Architecture's stated contract has been functionally absent for the entire life of the resource-class semaphore (story #15, 2026-05-20 onward). Each new Neo4j-heavy task added since then has been relying on a protection that doesn't actually engage. Investigation deserves immediate attention.
+
+---
+
+## 2026-05-24 — Meta: origin-sync check at PO + Architect phase entry
+
+**Surfaced during:** the 2026-05-24 session start. A chip was spawned proposing this same idea (a pre-flight check that verifies the local branch is in sync with origin before any PO or Architect work begins). The chip was never picked up. Filed here as a proper intake so the work doesn't depend on the chip persisting.
+
+**Background:** during the work-up to story #25, the session started on a branch (`main`) that was *behind* `origin/staging`. The drift wasn't caught until pushing time, costing a small but real debugging cycle. This is a recurring class of bug at session boundaries when the operator switches between machines / branches across sessions.
+
+**Goal:** Make this drift impossible (or at least loud) at the *start* of a session. Specifically, the Product Owner and Architect phases of `engineering-team/` should refuse to proceed (or warn aggressively) if `git fetch` would reveal divergence from the configured base branch.
+
+**Where to look:**
+- `engineering-team/roles/product-owner.md`
+- `engineering-team/roles/architect.md`
+- `engineering-team/workflows/1-planning.md`
+- `engineering-team/workflows/2-architecture.md`
+- Any pre-flight check pattern already in `.claude/agents/*.md` or `.claude/commands/*.md`
+
+**Decision points to triage:**
+1. Should this be a hard fail (refuse to plan/design) or just a loud warning?
+2. Should the check fetch automatically, or just compare `HEAD` vs the cached `origin/<base>`?
+3. Which base branch? Likely `origin/staging` for this project per `OPERATIONS.md`, but the check should probably read from a config rather than hardcode.
+4. Should this apply to all five phases or just the two upstream ones (PO + Architect)?
+
+**Classification:** Meta-tooling (engineering-team harness improvement; no production code impact).
+**Strictness:** Standard.
+**Phase path:** `/discuss` first to settle the four decision points; then likely Implementation + Review (Architecture and Test Design probably skippable — small mechanical change with no ADR-worthy design choice).
+**Priority:** Low. Quality-of-life improvement for the harness. No correctness issue today.
