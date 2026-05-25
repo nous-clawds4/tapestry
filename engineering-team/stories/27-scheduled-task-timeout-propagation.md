@@ -81,7 +81,7 @@ None at the PO level. The diagnosis is locked from `/discuss` + empirical stagin
 
 ## Linked artifacts
 
-- ADR: (filled in after Architecture phase)
+- ADR: [`engineering-team/decisions/0024-scheduled-task-timeout-propagation.md`](../decisions/0024-scheduled-task-timeout-propagation.md)
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
 
