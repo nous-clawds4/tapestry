@@ -6,6 +6,7 @@ import useProfiles from '../../hooks/useProfiles';
 import useNip05Verification from '../../hooks/useNip05Verification';
 import { useTrust } from '../../context/TrustContext';
 import { useConfig } from '../../context/ConfigContext';
+import { useAuth } from '../../context/AuthContext';
 import { useCypher } from '../../hooks/useCypher';
 import { queryRelay } from '../../api/relay';
 import AuthorCell from '../../components/AuthorCell';
@@ -49,7 +50,9 @@ export default function UserDetail() {
   const navigate = useNavigate();
   const { povPubkey, setPovPubkey } = useTrust();
   const { aRelays } = useConfig();
+  const { user } = useAuth();
   const isCurrentPov = povPubkey === pubkey;
+  const isMyAssistant = !!user?.assistantPubkey && user.assistantPubkey === pubkey;
   const pubkeys = useMemo(() => [pubkey], [pubkey]);
   const profiles = useProfiles(pubkeys);
   const profile = profiles?.[pubkey];
@@ -73,6 +76,33 @@ export default function UserDetail() {
   return (
     <div className="page">
       <Breadcrumbs />
+      {isMyAssistant && (
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.75rem',
+          padding: '0.75rem 1rem',
+          marginBottom: '1rem',
+          backgroundColor: 'rgba(99, 102, 241, 0.12)',
+          border: '1px solid rgba(99, 102, 241, 0.5)',
+          borderRadius: '8px',
+        }}>
+          <span style={{ fontSize: '1.4rem' }}>🤖</span>
+          <div style={{ flex: 1, fontSize: '0.9rem' }}>
+            <strong>This is your Tapestry Assistant.</strong>{' '}
+            <span style={{ opacity: 0.8 }}>
+              The server-side identity that signs automated events on your behalf.
+            </span>
+          </div>
+          <Link
+            to="/tapestry/settings/assistant"
+            className="btn btn-primary"
+            style={{ fontSize: '0.85rem', whiteSpace: 'nowrap', textDecoration: 'none' }}
+          >
+            ✏️ Edit Assistant profile →
+          </Link>
+        </div>
+      )}
       <div className="user-detail-header">
         {profile?.picture ? (
           <img src={profile.picture} alt="" className="user-detail-avatar" />
