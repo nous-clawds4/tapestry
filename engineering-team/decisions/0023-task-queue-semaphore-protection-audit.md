@@ -79,6 +79,85 @@ Also surfaced but not currently a tagged-task gap: `algos/graperank/commands/gen
 > **Phase path:** `/discuss` first to triage the three options (especially: which endpoints have live consumers? which to refactor vs deprecate?), then Planning → Architecture → Test Design → Implementation → Review.
 > **Priority:** Medium-high. Operator-triggerable, currently unprotected on prod. Same severity as Intake B was before story #25 closed it.
 
+### 2026-05-24 amendment (later) — chosen mechanism is functionally moot; story #26 paused pending root-cause investigation
+
+After the Implementer completed story #26's implementation, an operator-observed discrepancy on `staging.brainstorm.world` surfaced data that invalidates this ADR's premise. During Review-phase triage, the operator noticed:
+
+- `Process Brainstorm` (taskId: `processCustomer`) showed "Running" on the Scheduled Tasks panel from a 7:12 PM EDT TASK_START with no TASK_END.
+- BullBoard's active view was empty.
+- The legacy task explorer showed TASK_START with no TASK_END.
+
+Pulling the structured events from `events.jsonl` revealed the actual sequence (all UTC):
+
+| Timestamp | Event | PID | Detail |
+|---|---|---|---|
+| 23:12:57.975 | `resource_class_wait_end` | 188 (Node Worker) | semaphore **acquired**, wait_seconds: 0 |
+| 23:12:58 | `TASK_START` (×2) | 1723 (processCustomer.sh) | task begins |
+| **23:13:03.973** | **`resource_class_released`** | **188** | **semaphore released, `held_seconds: 6`** |
+| (77-min gap, processCustomer.sh PID 1723 still running) | — | 1723 | task continues unprotected |
+| 00:29:37 (2026-05-25) | `TASK_END` (×2) | 1723 | task finishes naturally |
+
+**The semaphore was held for ~6 seconds out of a ~77-minute task.** The same pattern was confirmed against another tagged task: `updateAllScoresForOwner`'s most recent run (19:08:19 UTC) shows the same `held_seconds: 6` shape.
+
+**Implications:**
+
+- **PR #201's parent-tagging fix is functionally moot.** Tagging parents adds ~6 seconds of semaphore-held setup time, not protection over the actual heavy work. The bash subprocess (where the heavy Neo4j work actually happens) runs *outside* the semaphore for the bulk of its duration.
+- **Story #26 / ADR 0023's chosen mechanism (Option B: comprehensive tag) is also functionally moot.** Tagging `processAllTasks` and `processNpubsUpToMaxNumBlocks` will give them ~6 seconds of semaphore protection each, then their work runs unprotected like everything else.
+- **ADR 0013's documented contract ("cap concurrent neo4j-heavy work at 1") is not what the system actually enforces.** Two scheduled tagged tasks firing in the same minute would both acquire+release in ~6 seconds and then run in parallel for hours. The reason Neo4j hasn't crashed despite this is either (a) the actual concurrent workload hasn't been heavy enough to trigger the crash mode ADR 0013 was guarding against, (b) Neo4j is more tolerant than ADR 0013 assumed, or (c) other coincidences have masked it.
+- **The audit attestation in ADR 0013's amendment ("audit performed... all four subshell spawn patterns checked") is technically accurate but materially misleading** — the audit was complete given the (incorrect) premise that parent-tag protects the chain.
+
+**Root cause: requires investigation, not architect speculation.** The mechanism by which the Worker's `await processor.processJob` resolves after ~6 seconds while the bash subprocess keeps running is not yet identified. Candidate hypotheses (all unverified):
+
+1. `launchChildTask.sh:380-390` monitor loop exits prematurely — possibly the captured `child_pid` from `bash "$child_script" &` corresponds to a short-lived intermediate shell rather than the actual long-running script process.
+2. BullMQ stalled-job recovery fires within 30s (default `stalledInterval`), moves the job, fires the Worker callback's `finally` block. The orphaned bash subprocess keeps running.
+3. processor.js's `child.on('close')` fires on the bash launchChildTask.sh PID, but that PID exits early due to some bash subshell semantics related to backgrounded processes + `set -e`/`set -o pipefail`.
+4. Some other Node/BullMQ race condition.
+
+The exact cause needs a focused reproduction probe — not architecture guesswork.
+
+**Decision: story #26 is paused; this ADR's chosen mechanism is marked premise-undermined; new investigation story spun off.**
+
+- Story #26's branch (`fix/launch-child-task-protection-audit`) is NOT to be deployed to staging until the root cause is identified and a real fix lands. The implementation work (registry tags + ADR/BIBLE.md amendments) is reversible — `git revert` if the investigation determines the tags should be removed, or carry forward into the new story if the root cause fix vindicates the parent-tag pattern.
+- The Reviewer's PASS verdict from earlier in this session is **withdrawn** in light of this finding. The verdict was technically accurate to its stated scope (ADR adherence + AC list as written + test gate) but materially misleading because the underlying mechanism is broken. The Reviewer report should not be committed as-is.
+- A new investigation story is spun off (intake content below). It carries the actual root-cause work and any architectural redesign that follows.
+
+**Implementer copy-to-file at commit time** (if story #26's tag/doc work is kept; otherwise the investigation story carries this forward). Append the following to `engineering-team/stories/_intake.md`:
+
+> **## 2026-05-24 — Bug: `neo4j-heavy` semaphore released ~5s after acquire while tagged work runs unprotected for hours**
+>
+> **Surfaced during:** Review-phase operator triage on story #26 / ADR 0023. Operator noticed a "Running" task in the Scheduled Tasks panel with no matching TASK_END for 1.5 hours; investigation revealed `held_seconds: 6` on `resource_class_released` events across MULTIPLE tagged tasks (`processCustomer`, `updateAllScoresForOwner` confirmed; pattern likely universal). See ADR 0023's 2026-05-24 (later) amendment for the full evidence table.
+>
+> **The bug:** The BullMQ Worker callback at `src/manage/taskQueue/queue/index.js:118-131` is `await processor.processJob(...)` then `await release()`. processor.processJob spawns `bash launchChildTask.sh ...` and resolves on `child.on('close')`. Empirically, that close event fires ~5-6 seconds after spawn EVEN WHEN the underlying task script (e.g., processCustomer.sh) is still running and will continue running for hours. As a result, the semaphore releases ~5-6s after acquire, and the actual heavy Neo4j work runs concurrently with any other heavy work — defeating ADR 0013's cap=1 serialization contract.
+>
+> **Investigation required:** what causes `child.on('close')` on the launchChildTask.sh bash process to fire within 5-6 seconds when the backgrounded child it spawned is still running? Candidate hypotheses (unverified):
+> 1. `launchChildTask.sh:380-390`'s `while ps -p $child_pid` monitor loop exits prematurely — possibly the captured PID from `bash $child_script &` corresponds to a short-lived intermediate.
+> 2. BullMQ stalled-job recovery (default 30s `stalledInterval` × `maxStalledCount`=1) fires and moves the job, triggering the `finally` block.
+> 3. Bash subshell semantics with `&` + `set -e`/`set -o pipefail` cause the wrapper to exit unexpectedly.
+> 4. Something else.
+>
+> **Method:** write a deterministic reproduction probe (similar in shape to story #25's `probe-bullmq-removeOnComplete-immediate.js`). Steps:
+> 1. Create a synthetic tagged task whose script sleeps for N=120 seconds.
+> 2. Wire it through the actual `initTaskQueue` machinery (real BullMQ Worker, real semaphore wrap, real processor.js → launchChildTask.sh path).
+> 3. Trigger via `enqueueTask` or scheduler.
+> 4. Observe and log: Worker callback entry time, semaphore acquire time, bash subprocess spawn time, every `ps -p $child_pid` check result in launchChildTask.sh, `child.on('close')` fire time, semaphore release time, bash subprocess actual end time.
+> 5. Identify exactly which event fires at T+~5s that causes the close to fire while the work continues.
+>
+> **Once root cause identified, design the fix.** Possible fix shapes (architect chooses after the probe finishes):
+> - **Fix launchChildTask.sh's PID tracking** so the monitor loop waits for the actual long-running process, not an intermediate.
+> - **Fix the spawn pattern in processor.js** to use `child_process.spawn` with options that don't background-detach the subprocess.
+> - **Refactor the semaphore wrap location** to be inside launchChildTask.sh itself (using Redis directly) so it covers the full subprocess lifetime regardless of Node-side timing.
+> - **Refactor to a poll/lease model** where the Worker periodically checks if the bash subprocess is still running and re-acquires/renews the semaphore lease.
+> - **Bigger refactor:** Option B from `/discuss` (refactor parents to enqueue children via /api/run-task) — children flow through their own BullMQ Workers, semaphore engages on each.
+>
+> **Impact on story #26:** That story's tag-additions are functionally moot pending this fix. They can be: (a) reverted, (b) kept as "no-op-but-documented" with the BIBLE.md / ADR amendments updated to reflect the actual broken state, or (c) carried forward into the investigation story and shipped together with the real fix. Architect/PO call.
+>
+> **Impact on PR #201's tagging:** Same. PR #201's value was always "defense-in-depth on the BullMQ-direct path" — that part still works (when a tagged task is fired via `/api/run-task` directly, the Worker callback wraps the few seconds of setup with the semaphore). But the "protect the subshell chain" intent is empty.
+>
+> **Classification:** Bug — high severity (load-bearing assumption violated, ADR 0013's documented contract not enforced, multiple shipped stories built on this assumption).
+> **Strictness:** Standard.
+> **Phase path:** `/discuss` first to align on the investigation scope, then Planning (probe + investigation story), then Architecture (fix design after probe results), then Test Design / Implementation / Review.
+> **Priority:** **HIGH.** Architecture's stated contract has been functionally absent for the entire life of the resource-class semaphore (story #15, 2026-05-20 onward). Each new Neo4j-heavy task added since then has been relying on a protection that doesn't actually engage. Investigation deserves immediate attention.
+
 ## Options considered
 
 ### Option A — Minimal: tag only the two known gaps (rejected)
@@ -128,6 +207,8 @@ Write a registry-walking validator that, at boot or in `npm test`, traverses eve
 Story #26 left open whether to trim the dormant `resourceClass` tags from children whose only invocation path is from a tagged parent. **Decision: keep them.** The tags are not dormant on direct paths (`/api/run-task`, scheduled-as-entry) — they engage there. Trimming would create a *new* gap any time an operator scheduled a child task independently. Defense-in-depth wins on a clear cost-benefit basis: the cost of keeping the tags is zero (BullMQ ignores them on subshell paths anyway); the cost of removing them is a future incident when someone schedules a tagged child independently and expects protection.
 
 ## Decision
+
+> ⚠️ **Premise undermined (2026-05-24 later amendment, above):** the chosen mechanism — registry-data tagging of parent tasks — is functionally moot in the current architecture. The semaphore is released ~5-6 seconds after acquire while the actual heavy work runs unprotected for hours. Story #26 is **paused**; a new investigation story (intake content embedded in the amendment) carries the root-cause work. Do NOT ship story #26 as-is.
 
 **We chose Option B (comprehensive audit + tag) + keep dormant child tags.**
 

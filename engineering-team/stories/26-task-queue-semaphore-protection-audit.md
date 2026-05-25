@@ -1,6 +1,6 @@
 # Story 26: Close `neo4j-heavy` semaphore coverage gaps for subshell-invoked task chains
 
-**Status:** Draft
+**Status:** Paused — premise undermined by 2026-05-24 operational discovery (see ADR 0023's 2026-05-24 later amendment + `engineering-team/stories/_intake.md` 2026-05-24 "neo4j-heavy semaphore released ~5s after acquire" entry). Branch `fix/launch-child-task-protection-audit` held unmerged pending the investigation story's outcome.
 **Created:** 2026-05-24
 **Type:** Bug
 
@@ -57,6 +57,6 @@ None. Per ADR 0013, the task-queue / resource-class subsystem has no concept-gra
 
 ## Linked artifacts
 
-- ADR: [`engineering-team/decisions/0023-task-queue-semaphore-protection-audit.md`](../decisions/0023-task-queue-semaphore-protection-audit.md) (includes in-place amendment to ADR 0013's protection-model section)
-- Test plan: [`engineering-team/stories/26-task-queue-semaphore-protection-audit.test-plan.md`](26-task-queue-semaphore-protection-audit.test-plan.md) (6 structural sentinels at `test/task-queue-semaphore-protection-audit.test.js`; optional behavioral probe at `test/probe-resource-class-semaphore-serialization.js` may be written by Implementer per ADR 0023's suggestion — not required via sentinel)
-- Review: (filled in after Review phase)
+- ADR: [`engineering-team/decisions/0023-task-queue-semaphore-protection-audit.md`](../decisions/0023-task-queue-semaphore-protection-audit.md) (includes in-place amendment to ADR 0013's protection-model section + a 2026-05-24 amendment scoping JS-exec from API handlers OUT and filing as a new intake)
+- Test plan: [`engineering-team/stories/26-task-queue-semaphore-protection-audit.test-plan.md`](26-task-queue-semaphore-protection-audit.test-plan.md) (6 structural sentinels at `test/task-queue-semaphore-protection-audit.test.js`; optional behavioral probe was offered by the ADR but skipped by the Implementer with documented rationale — existing test/task-queue-neo4j-resource-class.test.js 15-test suite covers the mechanism)
+- Review: [`engineering-team/reviews/26-task-queue-semaphore-protection-audit.md`](../reviews/26-task-queue-semaphore-protection-audit.md) — **PASS verdict withdrawn 2026-05-24** (see addendum); preserved as audit trail. Original verdict was technically accurate to its declared scope but materially misleading because the underlying mechanism is broken (semaphore released ~6s after acquire while work runs for hours unprotected).
