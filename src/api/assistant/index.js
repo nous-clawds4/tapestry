@@ -20,6 +20,7 @@ const nostrTools = require('nostr-tools');
 const { getAssistantKeys } = require('../../utils/assistantKeys');
 const { getConfigFromFile, getAdminPubkeys } = require('../../utils/config');
 const { SecureKeyStorage } = require('../../utils/secureKeyStorage');
+const { getSettings, updateOverrides, resetOverride } = require('../../config/settings');
 const WebSocket = require('ws');
 
 const EXTERNAL_RELAYS = [
@@ -68,7 +69,11 @@ function publishToRelay(relayUrl, signedEvent, timeoutMs = 10000) {
   });
 }
 
-const PROFILE_FIELDS = ['name', 'display_name', 'about', 'picture', 'banner', 'website', 'nip05', 'lud16'];
+// NIP-05 (`nip05`) is server-computed and deterministic — see
+// computeAssistantLocalPart — so we intentionally exclude it from the list
+// of user-editable kind 0 fields. If a client sends one, sanitizeProfileContent
+// drops it; the publish handler always sets nip05 itself.
+const PROFILE_FIELDS = ['name', 'display_name', 'about', 'picture', 'banner', 'website', 'lud16'];
 
 /**
  * Fetch a nostr kind 0 display name for a pubkey from local strfry.
@@ -97,18 +102,73 @@ function getKind0DisplayName(pubkey, fallback = 'My Owner') {
 }
 
 /**
- * Derive the instance's https website URL from configured domain or relay URL.
- * Returns e.g. "https://brainstorm.world" or empty string if unconfigured.
+ * Derive the instance's bare hostname from configured domain or relay URL.
+ * Returns e.g. "brainstorm.world" or "localhost" if unconfigured.
  */
-function getInstanceWebsite() {
+function getInstanceDomain() {
   const domain = getConfigFromFile('STRFRY_DOMAIN', '');
-  if (domain && domain !== 'localhost') return `https://${domain}`;
+  if (domain && domain !== 'localhost') return domain;
   const relayUrl = getConfigFromFile('BRAINSTORM_RELAY_URL', '');
   if (relayUrl) {
     const host = relayUrl.replace(/^wss?:\/\//, '').replace(/\/.*$/, '');
-    if (host && host !== 'localhost') return `https://${host}`;
+    if (host) return host;
   }
-  return '';
+  return 'localhost';
+}
+
+/**
+ * Derive the instance's https website URL.
+ * Returns e.g. "https://brainstorm.world" or empty string if unconfigured.
+ */
+function getInstanceWebsite() {
+  const domain = getInstanceDomain();
+  return domain && domain !== 'localhost' ? `https://${domain}` : '';
+}
+
+/**
+ * Compute a deterministic NIP-05 local-part for an Assistant.
+ *
+ * Format: `<sanitized-name>-tapestry-assistant-<6-char-suffix>`
+ *   - sanitized-name: lowercase, NIP-05-legal chars only (`[a-z0-9._-]`),
+ *     non-legal runs collapsed to `-`, leading/trailing separators stripped,
+ *     capped at 32 chars to avoid runaway names. If empty after sanitization,
+ *     the whole prefix is dropped — yielding just `tapestry-assistant-<suffix>`.
+ *   - 6-char-suffix: last 6 hex chars of the assistant pubkey.
+ *
+ * Determinism: same caller name + same assistant pubkey → same local-part.
+ * Uniqueness: 16M possible suffixes; collisions are vanishingly unlikely at
+ * Brainstorm's user-base size. "Last writer wins" if it ever happens.
+ */
+function computeAssistantLocalPart(callerName, assistantPubkey) {
+  const suffix = String(assistantPubkey || '').slice(-6).toLowerCase();
+  const sanitized = String(callerName || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, '-')
+    .replace(/[-._]{2,}/g, '-')
+    .replace(/^[-._]+|[-._]+$/g, '')
+    .slice(0, 32)
+    .replace(/[-._]+$/, '');
+  return sanitized
+    ? `${sanitized}-tapestry-assistant-${suffix}`
+    : `tapestry-assistant-${suffix}`;
+}
+
+/**
+ * Update the settings-backed NIP-05 names map to point `localPart` at
+ * `assistantPubkey`, removing any prior entries that pointed at the same
+ * pubkey under a different local-part. This is what keeps
+ * `/.well-known/nostr.json` consistent with the latest published Assistant
+ * profile (handled by src/api/nip05.js).
+ */
+function updateNip05Mapping(localPart, assistantPubkey) {
+  const settings = getSettings();
+  const existingNames = (settings.nip05 && settings.nip05.names) || {};
+  for (const [key, val] of Object.entries(existingNames)) {
+    if (val === assistantPubkey && key !== localPart) {
+      try { resetOverride(`nip05.names.${key}`); } catch (e) { console.warn(`[assistant] could not remove old nip05 mapping "${key}":`, e.message); }
+    }
+  }
+  updateOverrides({ nip05: { names: { [localPart]: assistantPubkey } } });
 }
 
 /**
@@ -206,7 +266,17 @@ async function handlePublishProfile(req, res) {
       ? sanitizeProfileContent(content)
       : await buildDefaultProfileContent(customerPubkey, isOwner);
 
-    // Drop empty-string keys so we don't pollute kind 0 with blank fields
+    // 2a. NIP-05 is server-managed. Compute the deterministic local-part from
+    // the caller's current display name and the assistant's pubkey, set it on
+    // the kind 0, and update settings.nip05.names so the existing
+    // /.well-known/nostr.json handler attests to it.
+    const callerName = await getKind0DisplayName(customerPubkey, '');
+    const localPart = computeAssistantLocalPart(callerName, assistantPubkey);
+    const domain = getInstanceDomain();
+    profileContent.nip05 = `${localPart}@${domain}`;
+
+    // Drop empty-string keys so we don't pollute kind 0 with blank fields.
+    // (nip05 was just set above, so it survives this pass.)
     for (const k of Object.keys(profileContent)) {
       if (profileContent[k] === '') delete profileContent[k];
     }
@@ -237,6 +307,16 @@ async function handlePublishProfile(req, res) {
 
     console.log(`[assistant] Kind 0 published to strfry for ${assistantPubkey.slice(0, 8)}`);
 
+    // 5b. Keep .well-known/nostr.json in sync. Done after the strfry publish so
+    // a publish failure doesn't leave a NIP-05 record pointing at a kind 0
+    // that isn't actually published.
+    try {
+      updateNip05Mapping(localPart, assistantPubkey);
+      console.log(`[assistant] NIP-05 mapping ${localPart} → ${assistantPubkey.slice(0, 8)} written`);
+    } catch (err) {
+      console.warn('[assistant] NIP-05 mapping update failed (kind 0 already published):', err.message);
+    }
+
     // 6. Publish to external relays (in parallel, non-blocking)
     const relayResults = await Promise.all(
       EXTERNAL_RELAYS.map(relay => publishToRelay(relay, signedEvent))
@@ -252,8 +332,9 @@ async function handlePublishProfile(req, res) {
       event: signedEvent,
       assistantPubkey,
       assistantName,
+      nip05: { localPart, domain, address: `${localPart}@${domain}` },
       relays: { total: EXTERNAL_RELAYS.length, success: relaySuccesses, results: relayResults },
-      message: `Brainstorm Assistant profile published to strfry + ${relaySuccesses}/${EXTERNAL_RELAYS.length} external relays`,
+      message: `Tapestry Assistant profile published to strfry + ${relaySuccesses}/${EXTERNAL_RELAYS.length} external relays`,
     });
 
   } catch (err) {
@@ -286,6 +367,14 @@ async function handleAssistantStatus(req, res) {
     if (!relayKeys || !relayKeys.pubkey) {
       return res.json({ success: true, hasRelayKey: false, hasProfile: false, defaults });
     }
+
+    // Compute the deterministic NIP-05 for this Assistant. Returned for the
+    // editor's read-only display; the same value gets written into the kind 0
+    // and into settings.nip05.names on the next publish.
+    const callerName = await getKind0DisplayName(customerPubkey, '');
+    const localPart = computeAssistantLocalPart(callerName, relayKeys.pubkey);
+    const domain = getInstanceDomain();
+    const computedNip05 = { localPart, domain, address: `${localPart}@${domain}` };
 
     // Check if kind 0 exists for the assistant pubkey
     const filter = JSON.stringify({ kinds: [0], authors: [relayKeys.pubkey], limit: 1 });
@@ -322,6 +411,7 @@ async function handleAssistantStatus(req, res) {
       profile,
       defaults,
       isOwner,
+      computedNip05,
     });
   } catch (err) {
     return res.status(500).json({ success: false, error: err.message });
