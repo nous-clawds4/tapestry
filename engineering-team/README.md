@@ -14,8 +14,11 @@ engineering-team/
 ├── templates/          document templates (user story, ADR, test plan, review)
 ├── decisions/          ADRs accumulate here as <NNNN>-<slug>.md
 ├── stories/            user stories accumulate here as <n>-<slug>.md
+│   └── _intake.md      queued-but-unplanned work catalog (see below)
 └── reviews/            review reports accumulate here as <n>-<slug>.md
 ```
+
+**`stories/_intake.md`** is the append-only queue of incoming requests that haven't been formalized as stories yet. Anything a session surfaces that's worth doing but isn't ready for `/plan-feature` lands here first with classification + priority + a sketch of the work. When picking up new work, scan `_intake.md` for queued items before opening a fresh feature request — there's often a relevant entry already triaged. Entries are roughly chronological and dated `## YYYY-MM-DD — <Type>: <slug>`. Filed entries are not auto-pruned when shipped; older entries may be historical.
 
 The Claude Code wiring lives elsewhere:
 

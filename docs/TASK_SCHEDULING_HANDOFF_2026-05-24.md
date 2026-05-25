@@ -1,5 +1,15 @@
 # Task Scheduling — Session Handoff (2026-05-24)
 
+**Status:** ✅ **ADDRESSED / SUPERSEDED** by [`SEMAPHORE_INVESTIGATION_HANDOFF_2026-05-24.md`](SEMAPHORE_INVESTIGATION_HANDOFF_2026-05-24.md).
+
+The follow-on session this handoff was written for took place on 2026-05-24. During it: story #25 (Intake B — manual task re-trigger dedup fix) shipped to prod; story #26 (Intake A — close subshell-chain semaphore coverage gaps) ran through Planning → Architecture → Test Design → Implementation → Review and was then PAUSED when an operator-surfaced discrepancy revealed that the `neo4j-heavy` semaphore is functionally broken (released ~5-6 seconds after acquire while tagged work runs unprotected for hours). That discovery is now the primary investigation target. **New work continues from the superseding handoff doc above, not from this one.**
+
+The testing checklist (T1–T28) below was largely overtaken by events — story #25 implicitly verified many of the items by shipping cleanly, and the semaphore discovery makes T11/T27's behavioral claims about cross-task serialization moot until the investigation lands.
+
+The original content of this handoff is preserved below for historical context.
+
+---
+
 > **Audience:** the operator / next-session reader who wants to know what shipped today, what's been verified, what hasn't, and where to start testing.
 > **Source session:** the multi-PR cycle on 2026-05-24 that closed story #24 (per-entry scheduled tasks with arguments) plus three operator-discovered follow-up fixes.
 
