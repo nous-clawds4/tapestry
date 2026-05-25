@@ -54,6 +54,6 @@ None. Per ADR 0013, the task-queue + wrapper-script subsystem has no concept-gra
 
 ## Linked artifacts
 
-- ADR: (filled in after Architecture phase)
+- ADR: [`engineering-team/decisions/0025-kill-timeout-orphans-by-default.md`](../decisions/0025-kill-timeout-orphans-by-default.md)
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
