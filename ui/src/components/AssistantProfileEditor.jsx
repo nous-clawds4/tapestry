@@ -1,5 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 
+// NIP-05 is omitted on purpose — the server computes it deterministically
+// from the caller's name + the Assistant's pubkey, and writes the matching
+// /.well-known/nostr.json entry at publish time. Users don't get to set it.
 const PROFILE_FIELDS = [
   { key: 'name', label: 'Name', placeholder: 'e.g. Alice\'s Tapestry Assistant' },
   { key: 'display_name', label: 'Display name', placeholder: 'Shown in nostr clients' },
@@ -7,7 +11,6 @@ const PROFILE_FIELDS = [
   { key: 'picture', label: 'Picture URL', placeholder: 'https://example.com/avatar.png' },
   { key: 'banner', label: 'Banner URL', placeholder: 'https://example.com/banner.png' },
   { key: 'website', label: 'Website', placeholder: 'https://example.com' },
-  { key: 'nip05', label: 'NIP-05', placeholder: 'name@example.com' },
   { key: 'lud16', label: 'Lightning address', placeholder: 'name@example.com' },
 ];
 
@@ -173,8 +176,23 @@ export default function AssistantProfileEditor({ customerPubkey }) {
         </p>
       </div>
 
-      <div style={{ fontSize: '0.8rem', opacity: 0.8 }}>
-        <div><strong>Assistant pubkey:</strong> <code>{shortPk}</code></div>
+      <div style={{ fontSize: '0.8rem', opacity: 0.8, display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+        <div>
+          <strong>Assistant pubkey:</strong>{' '}
+          <code>{shortPk}</code>{' '}
+          <Link
+            to={`/tapestry/users/${status.assistantPubkey}`}
+            style={{ color: '#58a6ff', textDecoration: 'none', marginLeft: '0.25rem' }}
+          >
+            View public profile →
+          </Link>
+        </div>
+        {status.computedNip05?.address && (
+          <div>
+            <strong>NIP-05:</strong> <code>{status.computedNip05.address}</code>{' '}
+            <span style={{ opacity: 0.6 }}>(server-managed, updates on publish)</span>
+          </div>
+        )}
         <div>
           <strong>Currently published:</strong>{' '}
           {status.hasProfile
