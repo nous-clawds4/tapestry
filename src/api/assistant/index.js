@@ -18,7 +18,8 @@
 const { exec } = require('child_process');
 const nostrTools = require('nostr-tools');
 const { getAssistantKeys } = require('../../utils/assistantKeys');
-const { getConfigFromFile } = require('../../utils/config');
+const { getConfigFromFile, getAdminPubkeys } = require('../../utils/config');
+const { SecureKeyStorage } = require('../../utils/secureKeyStorage');
 const WebSocket = require('ws');
 
 const EXTERNAL_RELAYS = [
@@ -131,9 +132,9 @@ async function buildDefaultProfileContent(pubkey, isOwner) {
   }
   const customerName = await getKind0DisplayName(pubkey, 'a customer');
   return {
-    name: `${customerName}'s Brainstorm Assistant`,
-    display_name: `${customerName}'s Brainstorm Assistant`,
-    about: `I am the Brainstorm Assistant for ${customerName}. My primary task is to publish kind 30382 Trusted Assertions so that ${customerName}'s personalized web of trust metrics are available to be utilized by any nostr client that supports NIP-85.`,
+    name: `${customerName}'s Tapestry Assistant`,
+    display_name: `${customerName}'s Tapestry Assistant`,
+    about: `I am the Tapestry Assistant for ${customerName}. My primary task is to publish kind 30382 Trusted Assertions so that ${customerName}'s personalized web of trust metrics are available to be utilized by any nostr client that supports NIP-85.`,
     picture: '',
     banner: '',
     website,
@@ -340,4 +341,75 @@ function handleGetTAPubkey(req, res) {
   return res.json({ success: true, pubkey });
 }
 
-module.exports = { handlePublishProfile, handleAssistantStatus, handleGetTAPubkey };
+/**
+ * POST /api/assistant/provision-key
+ * Generates and stores a new server-side Assistant keypair for the caller's
+ * session pubkey, if one doesn't already exist. Used by admins (who don't
+ * get one at signup the way customers do) and as a fallback in any case
+ * where a recognised user is missing their Assistant key.
+ *
+ * Auth: any authenticated session whose pubkey is the owner, an admin, or
+ * an active customer. Storage scheme matches customer relay keys (slot is
+ * the caller's pubkey), so getAssistantKeys(pubkey) will find it without
+ * any extra routing.
+ */
+async function handleProvisionAssistantKey(req, res) {
+  try {
+    if (!req.session || !req.session.authenticated || !req.session.pubkey) {
+      return res.status(401).json({ success: false, error: 'Authentication required' });
+    }
+    const sessionPubkey = req.session.pubkey;
+
+    // Only known roles can provision: owner, admin, or active customer.
+    const ownerPubkey = getConfigFromFile('BRAINSTORM_OWNER_PUBKEY');
+    const isOwner = sessionPubkey === ownerPubkey;
+    const isAdmin = !isOwner && getAdminPubkeys().includes(sessionPubkey);
+    let isCustomer = false;
+    if (!isOwner && !isAdmin) {
+      try {
+        const CustomerManager = require('../../utils/customerManager');
+        const cm = new CustomerManager();
+        await cm.initialize();
+        const customer = await cm.getCustomer(sessionPubkey);
+        isCustomer = customer && customer.status === 'active';
+      } catch {}
+    }
+    if (!isOwner && !isAdmin && !isCustomer) {
+      return res.status(403).json({ success: false, error: 'Only the owner, an admin, or an active customer can provision an Assistant key' });
+    }
+
+    // If a key already exists, refuse — re-provisioning would lose the
+    // signing identity of every event already signed by the old key.
+    const existing = await getAssistantKeys(sessionPubkey);
+    if (existing && existing.pubkey) {
+      return res.status(409).json({
+        success: false,
+        error: 'Assistant key already exists for this user',
+        pubkey: existing.pubkey,
+        npub: existing.npub,
+      });
+    }
+
+    const { generateRelayKeys } = require('../../utils/customerRelayKeys');
+    const keys = generateRelayKeys();
+
+    // Store under the caller's pubkey — same slot scheme as customer keys.
+    // Owner is handled above (existing check would have returned the TA key
+    // stored under 'tapestry-assistant'), so we never write the owner here.
+    const storage = new SecureKeyStorage();
+    await storage.storeRelayKeys(sessionPubkey, keys);
+
+    console.log(`[assistant] Provisioned new Assistant key for ${sessionPubkey.slice(0, 8)} (role: ${isAdmin ? 'admin' : isCustomer ? 'customer' : 'owner'})`);
+
+    return res.json({
+      success: true,
+      pubkey: keys.pubkey,
+      npub: keys.npub,
+    });
+  } catch (err) {
+    console.error('[assistant] provision-key error:', err);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+}
+
+module.exports = { handlePublishProfile, handleAssistantStatus, handleGetTAPubkey, handleProvisionAssistantKey };

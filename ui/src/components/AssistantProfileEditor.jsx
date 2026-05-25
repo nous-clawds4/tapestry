@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 
 const PROFILE_FIELDS = [
-  { key: 'name', label: 'Name', placeholder: 'e.g. Alice\'s Brainstorm Assistant' },
+  { key: 'name', label: 'Name', placeholder: 'e.g. Alice\'s Tapestry Assistant' },
   { key: 'display_name', label: 'Display name', placeholder: 'Shown in nostr clients' },
   { key: 'about', label: 'About', placeholder: 'Short description of what this assistant does', multiline: true },
   { key: 'picture', label: 'Picture URL', placeholder: 'https://example.com/avatar.png' },
@@ -42,6 +42,8 @@ export default function AssistantProfileEditor({ customerPubkey }) {
   const [error, setError] = useState(null);
   const [publishing, setPublishing] = useState(false);
   const [publishResult, setPublishResult] = useState(null);
+  const [provisioning, setProvisioning] = useState(false);
+  const [provisionError, setProvisionError] = useState(null);
 
   const loadStatus = useCallback(async () => {
     if (!customerPubkey) return;
@@ -73,6 +75,22 @@ export default function AssistantProfileEditor({ customerPubkey }) {
     if (!status?.defaults) return;
     setForm(pickFields(status.defaults));
     setPublishResult(null);
+  }
+
+  async function provisionKey() {
+    setProvisioning(true);
+    setProvisionError(null);
+    try {
+      const res = await fetch('/api/assistant/provision-key', { method: 'POST' });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || 'Provisioning failed');
+      // Key created; reload status so the editor flips into the form view.
+      await loadStatus();
+    } catch (err) {
+      setProvisionError(err.message);
+    } finally {
+      setProvisioning(false);
+    }
   }
 
   async function publish() {
@@ -112,15 +130,28 @@ export default function AssistantProfileEditor({ customerPubkey }) {
 
   if (!status?.hasRelayKey) {
     return (
-      <div className="settings-group">
-        <h3 style={{ margin: '0 0 0.5rem' }}>
-          {status?.isOwner ? '🤖 Tapestry Assistant Profile' : '🤖 Your Brainstorm Assistant Profile'}
+      <div className="settings-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+        <h3 style={{ margin: '0 0 0.25rem' }}>
+          {status?.isOwner ? '🤖 Tapestry Assistant Profile' : '🤖 Your Tapestry Assistant Profile'}
         </h3>
-        <p style={{ opacity: 0.8 }}>
-          {status?.isOwner
-            ? 'The Tapestry Assistant key has not been created yet. Restart the container to provision it.'
-            : 'Your Customer Relay Key has not been created yet. Set up Trusted Assertions first.'}
+        <p style={{ margin: 0, opacity: 0.8 }}>
+          You don't have a server-side Tapestry Assistant key yet. Create one to start publishing
+          {status?.isOwner ? ' automated events' : ' a kind 0 profile and kind 30382 Trust Assertions'} from your Assistant.
         </p>
+        <div>
+          <button
+            className="settings-action-btn"
+            onClick={provisionKey}
+            disabled={provisioning}
+          >
+            {provisioning ? 'Creating…' : 'Create my Tapestry Assistant key'}
+          </button>
+        </div>
+        {provisionError && (
+          <div className="settings-message settings-message-error" style={{ marginTop: 0 }}>
+            ❌ {provisionError}
+          </div>
+        )}
       </div>
     );
   }
@@ -133,12 +164,12 @@ export default function AssistantProfileEditor({ customerPubkey }) {
     <div className="settings-group" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
       <div>
         <h3 style={{ margin: '0 0 0.25rem' }}>
-          {status.isOwner ? '🤖 Tapestry Assistant Profile' : '🤖 Your Brainstorm Assistant Profile'}
+          {status.isOwner ? '🤖 Tapestry Assistant Profile' : '🤖 Your Tapestry Assistant Profile'}
         </h3>
         <p style={{ margin: 0, fontSize: '0.85rem', opacity: 0.75 }}>
           {status.isOwner
             ? 'The kind 0 profile published by this instance\'s Tapestry Assistant — the server-side identity that signs automated events.'
-            : 'The kind 0 profile published by your server-side assistant — the identity that signs your kind 30382 Trust Assertions.'}
+            : 'The kind 0 profile published by your server-side Tapestry Assistant — the identity that signs your kind 30382 Trust Assertions.'}
         </p>
       </div>
 

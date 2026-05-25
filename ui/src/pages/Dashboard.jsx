@@ -42,7 +42,7 @@ function WelcomeCard({ taProfile, onSetupProfile, onSurpriseMe }) {
           </p>
           <div style={{ display: 'flex', gap: '0.75rem' }}>
             <button className="btn btn-primary" onClick={onSetupProfile}>
-              🎨 Set up my profile
+              🎨 Set up my Assistant's profile
             </button>
             <button className="btn" onClick={onSurpriseMe}>
               🎲 Surprise me
@@ -736,7 +736,7 @@ export default function Dashboard() {
   function handleOnboardingAction(key) {
     switch (key) {
       case 'ta-profile':
-        navigate(`/tapestry/users/${TA_PUBKEY}`);
+        navigate('/tapestry/settings/assistant');
         break;
       case 'bios':
         navigate('/tapestry/settings/firmware');
@@ -782,7 +782,7 @@ export default function Dashboard() {
         <>
           <WelcomeCard
             taProfile={taProfile}
-            onSetupProfile={() => navigate(`/tapestry/users/${TA_PUBKEY}`)}
+            onSetupProfile={() => navigate('/tapestry/settings/assistant')}
             onSurpriseMe={handleSurpriseMe}
           />
           <OnboardingChecklist

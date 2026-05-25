@@ -1,9 +1,26 @@
 const { getConfigFromFile, getAdminPubkeys } = require('../../utils/config');
 const CustomerManager = require('../../utils/customerManager');
+const { getAssistantKeys } = require('../../utils/assistantKeys');
+
+/**
+ * Resolve the caller's Assistant pubkey, if one exists.
+ * Returns null for users who don't have a key provisioned yet (e.g. admins
+ * who haven't run provision-key, or unauthenticated callers).
+ */
+async function resolveAssistantPubkey(userPubkey) {
+    if (!userPubkey) return null;
+    try {
+        const keys = await getAssistantKeys(userPubkey);
+        return keys && keys.pubkey ? keys.pubkey : null;
+    } catch {
+        return null;
+    }
+}
 
 /**
  * Get user classification (owner/customer/regular user)
- * Returns the classification of the authenticated user
+ * Returns the classification of the authenticated user, plus the caller's
+ * server-side Assistant pubkey if one is provisioned.
  * to call: api/auth/user-classification
  */
 async function handleGetUserClassification(req, res) {
@@ -13,11 +30,13 @@ async function handleGetUserClassification(req, res) {
             return res.json({
                 success: true,
                 classification: 'unauthenticated',
-                pubkey: null
+                pubkey: null,
+                assistantPubkey: null,
             });
         }
 
         const userPubkey = req.session.pubkey;
+        const assistantPubkey = await resolveAssistantPubkey(userPubkey);
 
         // Get owner pubkey from brainstorm.conf
         let ownerPubkey = getConfigFromFile('BRAINSTORM_OWNER_PUBKEY');
@@ -28,6 +47,7 @@ async function handleGetUserClassification(req, res) {
                 success: true,
                 classification: 'owner',
                 pubkey: userPubkey,
+                assistantPubkey,
             });
         }
 
@@ -38,6 +58,7 @@ async function handleGetUserClassification(req, res) {
                 success: true,
                 classification: 'admin',
                 pubkey: userPubkey,
+                assistantPubkey,
             });
         }
 
@@ -45,17 +66,18 @@ async function handleGetUserClassification(req, res) {
         try {
             const customerManager = new CustomerManager();
             await customerManager.initialize();
-            
+
             // Get customer by pubkey
             const customer = await customerManager.getCustomer(userPubkey);
-            
+
             if (customer && customer.status === 'active') {
                 return res.json({
                     success: true,
                     classification: 'customer',
                     pubkey: userPubkey,
                     customerName: customer.name,
-                    customerId: customer.id
+                    customerId: customer.id,
+                    assistantPubkey,
                 });
             }
         } catch (error) {
@@ -66,7 +88,8 @@ async function handleGetUserClassification(req, res) {
         return res.json({
             success: true,
             classification: 'guest',
-            pubkey: userPubkey
+            pubkey: userPubkey,
+            assistantPubkey,
         });
 
     } catch (error) {
