@@ -44,6 +44,7 @@ const generalizedTaskScheduler = require('./generalized-task-scheduler.test.js')
 const reconciliationRearchitecture = require('./reconciliation-rearchitecture.test.js');
 const scheduledTasksWithArguments = require('./scheduled-tasks-with-arguments.test.js');
 const manualTaskRetriggerAfterFinish = require('./manual-task-retrigger-after-finish.test.js');
+const scheduledTaskTimeoutPropagation = require('./scheduled-task-timeout-propagation.test.js');
 
 async function main() {
   console.log('Running Brainstorm tests...\n');
@@ -114,6 +115,9 @@ async function main() {
   console.log('\nmanual-task-retrigger-after-finish suite:');
   const manualTaskRetriggerAfterFinishResult = await manualTaskRetriggerAfterFinish.run();
 
+  console.log('\nscheduled-task-timeout-propagation suite:');
+  const scheduledTaskTimeoutPropagationResult = await scheduledTaskTimeoutPropagation.run();
+
   console.log('\nTest Results');
   console.log('-------------');
   console.log(`Configuration Loading:                           ${configOk ? 'PASS' : 'FAIL'}`);
@@ -180,6 +184,9 @@ async function main() {
   console.log(
     `manual-task-retrigger-after-finish suite:        ${manualTaskRetriggerAfterFinishResult.fail === 0 ? 'PASS' : 'FAIL'} (${manualTaskRetriggerAfterFinishResult.pass} passed, ${manualTaskRetriggerAfterFinishResult.fail} failed)`
   );
+  console.log(
+    `scheduled-task-timeout-propagation suite:        ${scheduledTaskTimeoutPropagationResult.fail === 0 ? 'PASS' : 'FAIL'} (${scheduledTaskTimeoutPropagationResult.pass} passed, ${scheduledTaskTimeoutPropagationResult.fail} failed)`
+  );
 
   const overallOk =
     configOk &&
@@ -203,7 +210,8 @@ async function main() {
     generalizedTaskSchedulerResult.fail === 0 &&
     reconciliationRearchitectureResult.fail === 0 &&
     scheduledTasksWithArgumentsResult.fail === 0 &&
-    manualTaskRetriggerAfterFinishResult.fail === 0;
+    manualTaskRetriggerAfterFinishResult.fail === 0 &&
+    scheduledTaskTimeoutPropagationResult.fail === 0;
   console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);
   process.exit(overallOk ? 0 : 1);
 }
