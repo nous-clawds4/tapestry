@@ -523,7 +523,16 @@
       "status": "active",
       "estimatedDuration": "20-60 minutes",
       "structuredLogging": true,
-      "options":{},
+      "options": {
+        "completion": {
+          "failure": {
+            "timeout": {
+              "comments": "5400000 = 90 minutes. Covers the 20-60 min estimatedDuration with headroom. Empirical staging+prod evidence post story #27 (2026-05-25): held_seconds=1805 confirmed this task exceeds the 30-min options_default ceiling on prod-scale graphs.",
+              "duration": 5400000
+            }
+          }
+        }
+      },
       "notes": "Phase 1 structured events implemented"
     },
 
@@ -577,7 +586,16 @@
       "timeout": "4 hours",
       "retries": 3,
       "structuredLogging": true,
-      "options":{},
+      "options": {
+        "completion": {
+          "failure": {
+            "timeout": {
+              "comments": "14400000 = 4 hours. Honors the legacy `timeout: \"4 hours\"` decorative field above (the string form was never actually parsed by resolveTaskTimeout). Task orchestrates 8 children including syncWoT-class work; 4h is the long-standing operator expectation.",
+              "duration": 14400000
+            }
+          }
+        }
+      },
       "notes":"Phase 2 structured events implemented - emits TASK_START/END, CHILD_TASK_START/END/ERROR for all 5 child tasks"
     },
 
@@ -634,7 +652,16 @@
       "timeout": "4 hours",
       "retries": 3,
       "structuredLogging": true,
-      "options":{},
+      "options": {
+        "completion": {
+          "failure": {
+            "timeout": {
+              "comments": "14400000 = 4 hours. Matches updateAllScoresForOwner's override; honors the legacy `timeout: \"4 hours\"` decorative field above (never actually parsed pre-fix). Per-customer scope means it can run frequently — per-fire timeout protection is load-bearing.",
+              "duration": 14400000
+            }
+          }
+        }
+      },
       "notes":"Phase 2 structured events implemented - emits TASK_START/END, CHILD_TASK_START/END/ERROR for all 5 child tasks"
     },
 
