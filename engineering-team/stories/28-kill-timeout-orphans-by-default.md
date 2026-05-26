@@ -55,5 +55,5 @@ None. Per ADR 0013, the task-queue + wrapper-script subsystem has no concept-gra
 ## Linked artifacts
 
 - ADR: [`engineering-team/decisions/0025-kill-timeout-orphans-by-default.md`](../decisions/0025-kill-timeout-orphans-by-default.md)
-- Test plan: (filled in after Test Design phase)
+- Test plan: [`engineering-team/stories/28-kill-timeout-orphans-by-default.test-plan.md`](28-kill-timeout-orphans-by-default.test-plan.md) (9 sentinels at `test/kill-timeout-orphans-by-default.test.js` + empirical probe at `test/probe-kill-timeout-orphans.js`)
 - Review: (filled in after Review phase)
