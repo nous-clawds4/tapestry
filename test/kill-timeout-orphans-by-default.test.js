@@ -153,10 +153,13 @@ test('R1: launchChildTask.sh\'s force_kill block at :402-412 still reads from re
   // The fix does NOT touch this file; it only flips the *resolved value* that
   // the merge will produce. The kill machinery itself must remain intact.
   assert(
-    /force_kill=\$\(\s*echo\s+["']?\$resolved_options["']?\s*\|\s*jq\s+-r\s+['"]\.failure\.timeout\.forceKill\s*\/\/\s*false['"]/.test(src),
-    "launchChildTask.sh must still read `force_kill` from `resolved_options` via jq lookup at " +
-    "`.failure.timeout.forceKill // false`. The fix flips the resolved value upstream, but the " +
-    "wrapper's read path must remain. (AC #1, AC #4)"
+    /force_kill=\$\(\s*echo\s+["']?\$resolved_options["']?\s*\|\s*jq\s+-r\s+['"]\.failure\.timeout\.forceKill\s*\/\/\s*true['"]/.test(src),
+    "launchChildTask.sh must read `force_kill` from `resolved_options` via jq lookup at " +
+    "`.failure.timeout.forceKill // true`. The `// true` jq fallback aligns with the global " +
+    "registry default `forceKill: true` (story #28); the fallback only engages on deep registry " +
+    "corruption when resolved_options has no forceKill at all, but the value should match the " +
+    "rest of the system's default. The hygiene alignment shipped 2026-05-26 closes the " +
+    "documentation lie left behind by story #28's flip. (AC #1, AC #4; post-story-#28 hygiene)"
   );
   assert(
     /if\s*\[\[\s*["']?\$force_kill["']?\s*==\s*["']true["']\s*\]\]/.test(src),
