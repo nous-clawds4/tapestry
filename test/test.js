@@ -46,6 +46,7 @@ const scheduledTasksWithArguments = require('./scheduled-tasks-with-arguments.te
 const manualTaskRetriggerAfterFinish = require('./manual-task-retrigger-after-finish.test.js');
 const scheduledTaskTimeoutPropagation = require('./scheduled-task-timeout-propagation.test.js');
 const killTimeoutOrphansByDefault = require('./kill-timeout-orphans-by-default.test.js');
+const taskQueueSemaphoreProtectionAudit = require('./task-queue-semaphore-protection-audit.test.js');
 
 async function main() {
   console.log('Running Brainstorm tests...\n');
@@ -122,6 +123,9 @@ async function main() {
   console.log('\nkill-timeout-orphans-by-default suite:');
   const killTimeoutOrphansByDefaultResult = await killTimeoutOrphansByDefault.run();
 
+  console.log('\ntask-queue-semaphore-protection-audit suite:');
+  const taskQueueSemaphoreProtectionAuditResult = await taskQueueSemaphoreProtectionAudit.run();
+
   console.log('\nTest Results');
   console.log('-------------');
   console.log(`Configuration Loading:                           ${configOk ? 'PASS' : 'FAIL'}`);
@@ -194,6 +198,9 @@ async function main() {
   console.log(
     `kill-timeout-orphans-by-default suite:           ${killTimeoutOrphansByDefaultResult.fail === 0 ? 'PASS' : 'FAIL'} (${killTimeoutOrphansByDefaultResult.pass} passed, ${killTimeoutOrphansByDefaultResult.fail} failed)`
   );
+  console.log(
+    `task-queue-semaphore-protection-audit suite:     ${taskQueueSemaphoreProtectionAuditResult.fail === 0 ? 'PASS' : 'FAIL'} (${taskQueueSemaphoreProtectionAuditResult.pass} passed, ${taskQueueSemaphoreProtectionAuditResult.fail} failed)`
+  );
 
   const overallOk =
     configOk &&
@@ -219,7 +226,8 @@ async function main() {
     scheduledTasksWithArgumentsResult.fail === 0 &&
     manualTaskRetriggerAfterFinishResult.fail === 0 &&
     scheduledTaskTimeoutPropagationResult.fail === 0 &&
-    killTimeoutOrphansByDefaultResult.fail === 0;
+    killTimeoutOrphansByDefaultResult.fail === 0 &&
+    taskQueueSemaphoreProtectionAuditResult.fail === 0;
   console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);
   process.exit(overallOk ? 0 : 1);
 }
