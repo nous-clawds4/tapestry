@@ -43,22 +43,14 @@ const QUEUE_INDEX_MODULE   = path.join(ROOT, 'src/manage/taskQueue/queue/index.j
 const INTAKE_FILE          = path.join(ROOT, 'engineering-team/stories/_intake.md');
 const PROBE_SCRIPT         = path.join(ROOT, 'test/probe-kill-timeout-orphans.js');
 
-// The 11 per-task forceKill: false overrides ADR 0025 §Decision specifies
-// must remain unchanged for this story. (Architect chose Option A over Option D;
-// cleanup is deferred to the follow-up intake.)
-const PER_TASK_OVERRIDES_PRESERVED = [
-  'processAllTasks',
-  'syncWoT',
-  'syncProfiles',
-  'callBatchTransfer',
-  'reconcileRecent',
-  'reconcileAll',
-  'reconcileAuthor',
-  'reconcileNetwork',
-  'applicationHealthMonitor',
-  'neo4jPerformanceMonitor',
-  'externalNetworkConnectivityMonitor'
-];
+// Part A of the ADR 0025 follow-up intake (shipped 2026-05-26 via fast-track)
+// deleted 9 of the 11 redundant per-task `forceKill: false` overrides so they
+// inherit the new global default `true` from story #28. Only syncWoT +
+// syncProfiles retain the explicit override — Part B's deferred investigation
+// must settle the correct timeout duration on those two before their overrides
+// can also be removed (their current 60s duration is mis-sized for tasks with
+// estimatedDuration "30-60 minutes" and averageDuration 44500ms).
+const PER_TASK_OVERRIDES_PRESERVED_POST_PART_A = ['syncProfiles', 'syncWoT'];
 
 function readSafe(p) {
   try { return fs.readFileSync(p, 'utf8'); }
@@ -220,41 +212,42 @@ test('R3: queue/index.js still wraps tagged-task Worker callback with semaphore.
   );
 });
 
-test('R4: the 11 per-task forceKill: false overrides remain unchanged in taskRegistry.json (ADR 0025 §Decision — explicit non-change)', () => {
+test('R4 (post-Part-A): only syncWoT + syncProfiles retain explicit forceKill: false (Part B deferred — _intake.md 2026-05-25)', () => {
   const raw = readSafe(TASK_REGISTRY_PATH);
   assert(raw !== null, 'taskRegistry.json missing — S1 must pass first.');
   let registry;
   try { registry = JSON.parse(raw); }
   catch (e) { throw new Error('taskRegistry.json failed to parse: ' + e.message); }
 
-  // ADR 0025 §Decision chose Option A: preserve all 11 per-task `forceKill: false`
-  // overrides as-is for this story. The follow-up intake (I1) carries the proper
-  // triage for these. Touching them in this story = scope creep into Option D.
-  //
-  // Each preserved task must have its per-task override at
-  //   tasks.<name>.options.completion.failure.timeout.forceKill === false
-  for (const taskName of PER_TASK_OVERRIDES_PRESERVED) {
-    const task = registry.tasks && registry.tasks[taskName];
-    assert(
-      task !== undefined,
-      `Task \`${taskName}\` must exist in taskRegistry.json. ADR 0025 §Decision specifies this task's ` +
-      "explicit per-task `forceKill: false` override as a preserved non-change for story #28."
-    );
-    const fk = task &&
-      task.options &&
-      task.options.completion &&
-      task.options.completion.failure &&
-      task.options.completion.failure.timeout &&
-      task.options.completion.failure.timeout.forceKill;
-    assert(
-      fk === false,
-      `Task \`${taskName}\` must retain its explicit per-task \`forceKill: false\` override ` +
-      `(got ${JSON.stringify(fk)}). ADR 0025 §Decision chose Option A — preserve all 11 per-task ` +
-      "overrides; the cleanup is captured in the follow-up intake (Part A: 9 redundant overrides, " +
-      "Part B: 2 mis-sized durations on syncWoT/syncProfiles). Removing this override in story #28 " +
-      "is scope creep into Option D, which the Architect explicitly rejected."
-    );
-  }
+  // Iterate ALL tasks, collect those with explicit `forceKill: false`. After
+  // Part A (2026-05-26 fast-track), the set should equal exactly
+  // {syncProfiles, syncWoT} — Part B's deferred 60s-duration investigation
+  // is what blocks removing those last two. Any other task carrying explicit
+  // `forceKill: false` would be a regression or scope creep worth flagging
+  // during review.
+  const tasksWithExplicitForceKillFalse = Object.entries(registry.tasks || {})
+    .filter(([_, task]) => {
+      const fk = task && task.options && task.options.completion &&
+                 task.options.completion.failure && task.options.completion.failure.timeout &&
+                 task.options.completion.failure.timeout.forceKill;
+      return fk === false;
+    })
+    .map(([name, _]) => name)
+    .sort();
+
+  const expected = PER_TASK_OVERRIDES_PRESERVED_POST_PART_A;
+  assert(
+    JSON.stringify(tasksWithExplicitForceKillFalse) === JSON.stringify(expected),
+    `Exactly two tasks should retain explicit \`forceKill: false\` after Part A: ${JSON.stringify(expected)}. ` +
+    `Got: ${JSON.stringify(tasksWithExplicitForceKillFalse)}. ` +
+    "Part A (2026-05-26 fast-track, per _intake.md follow-up filed by ADR 0025) deleted the 9 redundant " +
+    "per-task overrides on processAllTasks, callBatchTransfer, reconcileRecent, reconcileAll, " +
+    "reconcileAuthor, reconcileNetwork, applicationHealthMonitor, neo4jPerformanceMonitor, " +
+    "externalNetworkConnectivityMonitor — those tasks now inherit `forceKill: true` from the global " +
+    "default (story #28). syncWoT + syncProfiles retain the override pending Part B's investigation " +
+    "of their clearly-wrong 60s timeout duration. If a new task gains explicit `forceKill: false` in " +
+    "the registry, surface it during review — the global default should be the path of least resistance."
+  );
 });
 
 // ---------------------------------------------------------------------------
