@@ -59,6 +59,7 @@
 
   "tasks": {
     "processAllTasks": {
+      "resourceClass": "neo4j-heavy",
       "name": "Process All Tasks",
       "categories": ["orchestrator"],
       "description": "Legacy sequential orchestrator for all background tasks",
@@ -441,6 +442,7 @@
     },
 
     "processNpubsUpToMaxNumBlocks": {
+      "resourceClass": "neo4j-heavy",
       "name": "Process Npubs Up To Max Blocks",
       "categories": ["maintenance"],
       "description": "Processes npub generation up to maximum number of blocks",
