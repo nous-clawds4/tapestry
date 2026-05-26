@@ -38,7 +38,7 @@
       "failure": {
         "timeout": {
           "duration": 1800000,
-          "forceKill": false,
+          "forceKill": true,
           "restart": true,
           "maxRetries": 3,
           "parentNextStep": "nextTaskInQueue"

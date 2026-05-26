@@ -119,7 +119,7 @@ function runWithResolvedArgs({ job, taskDef, taskName, customerArgs, queryParams
       ? JSON.stringify({
           completion: {
             failure: {
-              timeout: { duration: timeoutMs, forceKill: false }
+              timeout: { duration: timeoutMs }
             }
           }
         })
