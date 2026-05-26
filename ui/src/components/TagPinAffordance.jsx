@@ -22,6 +22,7 @@ export default function TagPinAffordance({
     if (isPinned) onUnpin();
     else onPin();
   };
+  // Story 17 / ADR 0014 Decision 10 — native title tooltip explains pinning.
   return (
     <div className="bs-tag-pin-wrap">
       <button
@@ -30,6 +31,7 @@ export default function TagPinAffordance({
         onClick={handleClick}
         disabled={loading}
         aria-pressed={isPinned}
+        title="Pin this tag to publish a Trusted List (kind-30392) curated to your preferences. Other Nostr apps can read it for content discovery and trust-weighted ranking."
       >
         {loading
           ? (isPinned ? 'Unpinning…' : 'Pinning…')

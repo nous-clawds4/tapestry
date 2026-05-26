@@ -61,7 +61,7 @@ export default function CurationMethodDialog({
   onCancel,
 }) {
   const init = initialCuration || {};
-  const [cutoff, setCutoff] = useState(String(init.cutoff ?? 2));
+  const [cutoff, setCutoff] = useState(String(init.cutoff ?? 1));
   const [includeScoreInTL, setIncludeScoreInTL] = useState(!!init.includeScoreInTL);
   const [method, setMethod] = useState(init.method || 'nip85:rank');
   const [observer, setObserver] = useState(
@@ -150,6 +150,16 @@ export default function CurationMethodDialog({
           <span className="pcd-tag-name">{tag?.name || tag?.slug || '—'}</span>
         </div>
 
+        <div className="pcd-intro">
+          <p>
+            Pinning a tag tells this instance to periodically publish a{' '}
+            <strong>Trusted List</strong> (NIP-85 kind-30392) under your
+            point-of-view, listing the profiles that the tag applies to.
+            Other Nostr apps can read those lists for content discovery,
+            list curation, and trust-weighted ranking.
+          </p>
+        </div>
+
         <form className="pcd-body" onSubmit={handleSubmit}>
           <div className="pcd-field">
             <label htmlFor="pcd-cutoff" className="pcd-label">Cutoff</label>
@@ -173,22 +183,27 @@ export default function CurationMethodDialog({
             </p>
           </div>
 
-          <div className="pcd-field">
-            <label className="pcd-toggle">
-              <input
-                type="checkbox"
-                checked={includeScoreInTL}
-                onChange={(e) => setIncludeScoreInTL(e.target.checked)}
-                disabled={submitting}
-              />
-              <span>Include rank scores in the published Trusted List</span>
-            </label>
-            <p className="pcd-helper">
-              Rank scores require a configured POV for the observer. If the
-              observer's POV isn't resolvable, members appear in the list
-              without scores.
-            </p>
-          </div>
+          {/* Story 17 / ADR 0014 Decision 8 — hidden in v1; new pins default
+              to includeScoreInTL=true via defaultCurationMethod. Re-enable
+              when richer curation UX lands. */}
+          {false && (
+            <div className="pcd-field">
+              <label className="pcd-toggle">
+                <input
+                  type="checkbox"
+                  checked={includeScoreInTL}
+                  onChange={(e) => setIncludeScoreInTL(e.target.checked)}
+                  disabled={submitting}
+                />
+                <span>Include rank scores in the published Trusted List</span>
+              </label>
+              <p className="pcd-helper">
+                Rank scores require a configured POV for the observer. If the
+                observer's POV isn't resolvable, members appear in the list
+                without scores.
+              </p>
+            </div>
+          )}
 
           <div className="pcd-field">
             <label htmlFor="pcd-method" className="pcd-label">Method</label>
@@ -210,33 +225,39 @@ export default function CurationMethodDialog({
             )}
           </div>
 
-          <details
-            className="pcd-advanced"
-            open={advancedOpen}
-            onToggle={(e) => setAdvancedOpen(e.target.open)}
-          >
-            <summary>Advanced</summary>
-            <div className="pcd-field">
-              <label htmlFor="pcd-observer" className="pcd-label">Observer pubkey</label>
-              <input
-                id="pcd-observer"
-                type="text"
-                className="pcd-input"
-                placeholder={`Defaults to you (${viewerPubkey?.slice(0, 8)}…)`}
-                value={observer}
-                onChange={(e) => setObserver(e.target.value)}
-                disabled={submitting}
-                aria-invalid={!!fieldErrors.observer}
-              />
-              {fieldErrors.observer && (
-                <p className="pcd-error" role="alert">{fieldErrors.observer}</p>
-              )}
-              <p className="pcd-helper">
-                Accepts a 64-char hex pubkey or an <code>npub1…</code> identifier.
-                Leave empty to use your own pubkey.
-              </p>
-            </div>
-          </details>
+          {/* Story 17 / ADR 0014 Decision 8 — Advanced (observer override)
+              hidden in v1; the observer always falls back to the viewer's
+              own pubkey via defaultCurationMethod. Re-enable when a POV
+              picker is added. */}
+          {false && (
+            <details
+              className="pcd-advanced"
+              open={advancedOpen}
+              onToggle={(e) => setAdvancedOpen(e.target.open)}
+            >
+              <summary>Advanced</summary>
+              <div className="pcd-field">
+                <label htmlFor="pcd-observer" className="pcd-label">Observer pubkey</label>
+                <input
+                  id="pcd-observer"
+                  type="text"
+                  className="pcd-input"
+                  placeholder={`Defaults to you (${viewerPubkey?.slice(0, 8)}…)`}
+                  value={observer}
+                  onChange={(e) => setObserver(e.target.value)}
+                  disabled={submitting}
+                  aria-invalid={!!fieldErrors.observer}
+                />
+                {fieldErrors.observer && (
+                  <p className="pcd-error" role="alert">{fieldErrors.observer}</p>
+                )}
+                <p className="pcd-helper">
+                  Accepts a 64-char hex pubkey or an <code>npub1…</code> identifier.
+                  Leave empty to use your own pubkey.
+                </p>
+              </div>
+            </details>
+          )}
 
           {error && (
             <p className="pcd-form-error" role="alert">⚠️ {error}</p>

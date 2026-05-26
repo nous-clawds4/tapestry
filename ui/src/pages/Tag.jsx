@@ -1,53 +1,59 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { nip19 } from 'nostr-tools';
 import TopBar from '../components/TopBar';
 import TagPageRow from '../components/TagPageRow';
-import TagPageSearch from '../components/TagPageSearch';
 import TagPinAffordance from '../components/TagPinAffordance';
 import CurationMethodDialog from '../components/CurationMethodDialog';
-import SortToggle from '../components/SortToggle';
+import TagViewControls from '../components/TagViewControls';
+import TagSomeoneModal from '../components/TagSomeoneModal';
 import { useAuth } from '../context/AuthContext';
 import { useConfig } from '../context/ConfigContext';
 import { publishProfileTagAssertion } from '../utils/publishProfileTag';
 import { pinTag, unpinTag, defaultCurationMethod } from '../utils/publishTagPin';
 import useTagDetail from '../hooks/useTagDetail';
 
-// Display fallback when we don't have a kind-0 profile for this pubkey: a
-// shortened npub (NIP-19 bech32) is what users recognize and can paste into
-// other Nostr clients. Falling back to raw hex pubkey would be opaque.
-function shortNpub(pk) {
-  if (!pk) return '—';
-  try {
-    const npub = nip19.npubEncode(pk);
-    return `${npub.slice(0, 12)}…${npub.slice(-6)}`;
-  } catch {
-    return `${pk.slice(0, 12)}…${pk.slice(-8)}`;
-  }
-}
+/**
+ * Story 17 / ADR 0014: tag-detail page reshape.
+ *
+ * Curated default view (View options collapsed): rows are filtered to
+ * `applications > disputes` (Net >= 1) and per-row action buttons are
+ * hover-only. Expanded view: all WoT-filtered rows shown, buttons always-on,
+ * sort chips + client-side filter input visible.
+ *
+ * "Tag someone" replaces the old inline page-search with a clearly-
+ * separated modal (TagSomeoneModal).
+ */
 
-const SORT_LABELS = [
-  { key: 'applied', label: 'Most applied' },
-  { key: 'disputed', label: 'Most disputed' },
-  { key: 'divisive', label: 'Most divisive' },
-];
+function rowMatchesFilter(row, text) {
+  if (!text) return true;
+  const needle = text.trim().toLowerCase();
+  if (!needle) return true;
+  const fields = [row.displayName, row.nip05, row.about, row.website];
+  for (const f of fields) {
+    if (f && String(f).toLowerCase().includes(needle)) return true;
+  }
+  return false;
+}
 
 export default function Tag() {
   const { tagId, slug } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, login } = useAuth();
   const { taPubkey } = useConfig();
   const {
-    tag, author, viewerPin, rows, viewerAssertions, sort, setSort,
+    tag, viewerPin, rows, viewerAssertions, povSuffix, sort, setSort,
     headerLoading, rowsLoading, headerError, rowsError,
     refetchRows, refetchHeader,
   } = useTagDetail(tagId);
 
   const [pinning, setPinning] = useState(false);
   const [pinError, setPinError] = useState(null);
-  // Story 12 / ADR 0011 — curation editor dialog state. Pin button now
-  // opens the dialog; submission inside the dialog does the actual publish.
   const [showCurationDialog, setShowCurationDialog] = useState(false);
+
+  // Story 17 new state.
+  const [viewOptionsExpanded, setViewOptionsExpanded] = useState(false);
+  const [filterText, setFilterText] = useState('');
+  const [tagSomeoneOpen, setTagSomeoneOpen] = useState(false);
 
   const handleApply = async (targetPubkey) => {
     if (!tag) return;
@@ -60,8 +66,6 @@ export default function Tag() {
     refetchRows();
   };
 
-  // Story 12 / ADR 0011 — Pin click opens the curation dialog instead of
-  // publishing directly. The dialog's onSubmit runs the actual publish.
   const handlePin = () => {
     if (!tag) return;
     setPinError(null);
@@ -74,7 +78,6 @@ export default function Tag() {
     try {
       const signed = await pinTag({ tag, taPubkey, curationMethod: customCuration });
       await refetchHeader();
-      // ADR 0010 refresh-on-pin: fire-and-forget. Best-effort.
       fetch('/api/trusted-list/refresh-pinned-tag', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -82,7 +85,7 @@ export default function Tag() {
       }).catch(() => { /* swallow — user can manually refresh from /pins */ });
     } catch (e) {
       setPinError(e.message || 'Pin failed');
-      throw e; // surface inside the dialog
+      throw e;
     } finally {
       setPinning(false);
     }
@@ -97,12 +100,36 @@ export default function Tag() {
     finally { setPinning(false); }
   };
 
+  const handleTagSomeoneClick = async () => {
+    if (!user) {
+      try { await login(); } catch { return; }
+      return;
+    }
+    setTagSomeoneOpen(true);
+  };
+
   // Canonicalize: bare /tag/:tagId → /tag/:slug/:tagId once the tag loads.
   useEffect(() => {
     if (tag?.slug && !slug) {
       navigate(`/tag/${encodeURIComponent(tag.slug)}/${tagId}`, { replace: true });
     }
   }, [tag, slug, tagId, navigate]);
+
+  // AC-10: text filter → Curated filter (when collapsed) → displayed rows.
+  const displayedRows = useMemo(() => {
+    const byText = filterText ? rows.filter((r) => rowMatchesFilter(r, filterText)) : rows;
+    if (viewOptionsExpanded) return byText;
+    return byText.filter((r) => (r.applications || 0) > (r.disputes || 0));
+  }, [rows, filterText, viewOptionsExpanded]);
+
+  // For TagSomeoneModal: a pubkey→row lookup so search hits that already
+  // appear in the page list render with their +N/-M counts instead of a
+  // Verification Score.
+  const rowsByPubkey = useMemo(() => {
+    const m = new Map();
+    for (const r of rows) m.set(r.pubkey, r);
+    return m;
+  }, [rows]);
 
   return (
     <div className="bsp-page">
@@ -126,21 +153,6 @@ export default function Tag() {
               {tag?.description && (
                 <p className="bs-tag-desc">{tag.description}</p>
               )}
-              {tag && (
-                <p className="bs-tag-author">
-                  Created by{' '}
-                  {author?.picture && (
-                    <img
-                      className="bs-tag-author-avatar"
-                      src={author.picture}
-                      alt=""
-                    />
-                  )}
-                  <span className="bs-tag-author-name">
-                    {author?.displayName || shortNpub(tag.authorPubkey)}
-                  </span>
-                </p>
-              )}
               {user && tag && (
                 <div className="bs-tag-pin-row">
                   <TagPinAffordance
@@ -151,9 +163,6 @@ export default function Tag() {
                     loading={pinning}
                     error={pinError}
                   />
-                  <Link to="/pins" className="bs-tag-pins-link">
-                    View all my pinned tags →
-                  </Link>
                 </div>
               )}
               {headerError && headerError !== 'not-found' && (
@@ -173,12 +182,14 @@ export default function Tag() {
             )}
 
             <section className="bs-tag-rows">
-              <SortToggle
-                options={SORT_LABELS}
-                value={sort}
-                onChange={setSort}
-                ariaLabel="Sort tagged profiles"
-                className="bs-tag-sort"
+              <TagViewControls
+                sort={sort}
+                onSortChange={setSort}
+                expanded={viewOptionsExpanded}
+                onToggleExpand={setViewOptionsExpanded}
+                filterText={filterText}
+                onFilterChange={setFilterText}
+                onTagSomeoneClick={handleTagSomeoneClick}
               />
 
               {rowsLoading && (
@@ -193,23 +204,23 @@ export default function Tag() {
                   <strong>{tag.name}</strong> yet.
                 </p>
               )}
-              {user && tag && (
-                <TagPageSearch
-                  user={user}
-                  viewerAssertions={viewerAssertions}
-                  onApply={handleApply}
-                  onDispute={handleDispute}
-                />
+              {!rowsLoading && !rowsError && rows.length > 0 && displayedRows.length === 0 && (
+                <p className="bs-tag-empty">
+                  {filterText
+                    ? `No tagged profiles match "${filterText}".`
+                    : 'No profiles meet the Curated threshold yet. Open View options to see all rows.'}
+                </p>
               )}
 
-              {!rowsLoading && rows.length > 0 && (
+              {!rowsLoading && displayedRows.length > 0 && (
                 <ul className="bs-tag-row-list">
-                  {rows.map((row) => (
+                  {displayedRows.map((row) => (
                     <TagPageRow
                       key={row.pubkey}
                       row={row}
                       viewerState={viewerAssertions[row.pubkey] || null}
                       showActions={!!user}
+                      showActionsOnHover={!viewOptionsExpanded}
                       onApply={handleApply}
                       onDispute={handleDispute}
                     />
@@ -217,6 +228,18 @@ export default function Tag() {
                 </ul>
               )}
             </section>
+
+            <TagSomeoneModal
+              open={tagSomeoneOpen}
+              onClose={() => setTagSomeoneOpen(false)}
+              tag={tag}
+              viewerPubkey={user?.pubkey || null}
+              viewerAssertions={viewerAssertions}
+              rowsByPubkey={rowsByPubkey}
+              povSuffix={povSuffix}
+              onApply={handleApply}
+              onDispute={handleDispute}
+            />
           </>
         )}
       </div>

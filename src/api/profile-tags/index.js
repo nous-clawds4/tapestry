@@ -764,6 +764,12 @@ async function handleProfilesTagged(req, res) {
       const doc = targetDocs.get(entry.pubkey);
       entry.displayName = doc ? (doc.display_name || doc.name || null) : null;
       entry.picture = doc ? (doc.picture || null) : null;
+      // Story 17 / ADR 0014 Decision 12 — passthrough fields that feed the
+      // tag-detail page's client-side filter input. Always present so the
+      // client can read unconditionally; values default to null.
+      entry.nip05 = doc ? (doc.nip05 || null) : null;
+      entry.about = doc ? (doc.about || null) : null;
+      entry.website = doc ? (doc.website || null) : null;
       // onlyViewerVisible is true when the only thing making this row appear
       // is the viewer's own assertion (WoT-filtered counts are zero AND the
       // viewer has a non-neutral assertion on this target). Always present

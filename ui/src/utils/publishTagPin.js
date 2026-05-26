@@ -22,13 +22,18 @@ import { publishOrThrow } from './publishProfileTag';
  * pin event's tags / content body only touch this file.
  */
 
-/** Default curation-method payload (Story 10 v1). */
+/**
+ * Default curation-method payload.
+ *
+ * Story 17 flipped cutoff 2→1 (WYSIWYG with Curated view) and
+ * includeScoreInTL false→true (richer TLs by default).
+ */
 export function defaultCurationMethod(viewerPubkey) {
   return {
     observer: viewerPubkey,
     method: 'nip85:rank',
-    cutoff: 2,
-    includeScoreInTL: false,
+    cutoff: 1,
+    includeScoreInTL: true,
   };
 }
 
