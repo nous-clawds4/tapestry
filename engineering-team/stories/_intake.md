@@ -510,3 +510,111 @@ processCustomer 2026-05-25 08:43:03Z → held_seconds: 1805
 processCustomer 2026-05-25 11:43:04Z → held_seconds: 1806
 reconcileAll    2026-05-25 07:51:43Z → held_seconds:  798  (baseline — already had explicit timeout)
 ```
+
+**PICKED UP 2026-05-25** — Track A shipped as PR #216 (staging) + PR #217 (prod). Explicit per-task overrides added for `processCustomer` (90 min), `updateAllScoresForOwner` (4 hr), `updateAllScoresForSingleCustomer` (4 hr). Verified end-to-end on prod via the post-deploy fresh tick at 20:23:04Z showing `resolved_options.failure.timeout.duration: 5400000`. Track B (auto-tune) remains open — captured separately as the long-term feature, not yet started.
+
+---
+
+## 2026-05-25 — Bug: BullMQ Job Scheduler stalled-recovered ticks use pre-deploy `job.data`
+
+**Surfaced during:** prod verification of Track A (PR #217). Investigation thread documented inline in the Track A cycle-prod conversation; the conclusive evidence came from `HGETALL bull:processCustomer:repeat:sched:entry-...:1779729784143` showing `data:{...,"timeoutMs":1800000}` on a tick whose master scheduler template had been updated to `timeoutMs:5400000` post-deploy.
+
+**Mechanism:** BullMQ Job Schedulers snapshot the master `data` template into each per-tick job at JOB-GENERATION time (typically at previous-tick completion). When the container restarts mid-fire (deploy), any in-flight job is killed; BullMQ's stalled-job recovery moves it from `active` back to `wait` for re-pickup by the next Worker — **with its original `data` payload intact**. The recovered job runs to completion with whatever data was current when the tick was generated, not what's current at execution time. So a `taskRegistry.json` or scheduler-config change shipped in a deploy does NOT retroactively apply to any pre-deploy tick that gets recovered after the deploy. The downstream code path (`processor.js → launchChildTask.sh`) sees the stale `timeoutMs` in `job.data` and propagates it.
+
+**Concrete impact observed (2026-05-25 prod):**
+| Event | Timestamp | Source data |
+|---|---|---|
+| Track A deploy | 17:36:38Z | (no impact on tick data — only updates registry + master template) |
+| Pre-deploy tick generated | 14:23:04Z | `timeoutMs: 1800000` (correct for that era) |
+| Pre-deploy tick became active | 17:23:04Z | (running normally) |
+| Container restart kills active job | ~17:38:00Z | (BullMQ Worker reconnects, sees the active job, marks stalled) |
+| Stalled job recovered to wait | ~17:38:39Z | (data intact: `timeoutMs: 1800000` — stale) |
+| Worker picks up recovered job | 17:38:39Z | (semaphore wait, ran for 3h 45min waiting on semaphore held by ANOTHER stalled-recovered job) |
+| Wrapper spawned + ran 30-min timeout | 21:23:04Z | logged `(timeout: 1800s)` — stale data propagated end-to-end |
+| Worker callback completes | 21:53:09Z | emitted `CHILD_TASK_ERROR error_type=timeout elapsed_time=1800000` |
+
+**Why this isn't a Track A regression:** Track A (and story #27 before it) deliberately scoped only the propagation chain for NEW ticks. The fact that stalled-recovered ticks bypass `resolveTaskTimeout` is a BullMQ property + our deploy pattern interaction; nothing in story #27 or Track A pretends to address it. Future readers of the prod evidence will need to distinguish "still-broken Track A" from "stalled-recovered cutover artifact" — this intake makes that distinction crisp.
+
+**Cutover window:** typically clears within a few ticks (one or two scheduler periods). For `processCustomer` (3h cadence), within ~6 hours of deploy. After that, all live ticks have fresh data.
+
+**Possible fixes (Architect to triage when picked up):**
+1. **Re-derive `data` from current master template at job-pickup time.** Modify the BullMQ Worker callback (in `src/manage/taskQueue/queue/index.js:118-131`) to re-read the Job Scheduler's master template and merge fresh values into `job.data` before passing to `processor.processJob`. Low-impact change; recovers cleanly from any pre-deploy data drift.
+2. **Force-drain BullMQ active jobs before deploy.** Add a pre-deploy hook that waits for active jobs to complete (or fails them explicitly) so no stalled recovery is needed. Higher operational impact; would lengthen deploy windows during a heavy `processCustomer` run.
+3. **Accept and document.** This is a known BullMQ behavior with bounded cutover impact. The diagnostic pattern (HGETALL the master template + per-tick keys) is now established. Just document the operator playbook for distinguishing cutover noise from real regressions in `OPERATIONS.md`.
+
+**Classification:** Bug (subtle data-staleness on deploy boundary). Not user-facing under normal operation.
+**Strictness:** Standard.
+**Phase path:** `/discuss` to triage the three fix shapes (the trade-offs are real), then Planning if a fix is chosen. Option 3 (just document) might be the right call — needs operator input.
+**Priority:** **Low.** Only manifests at deploy moments, only affects in-flight jobs at that moment, only causes a few stale-data ticks before the system stabilizes. The bigger concern is the *combination* of this + the orphan-prevention issue below — together they can suppress a meaningful number of scheduled fires across a cutover.
+
+---
+
+## 2026-05-25 — Bug: `forceKill: false` timeout orphans suppress subsequent scheduled fires via `check_task_already_running`
+
+**Surfaced during:** prod verification of Track A (PR #217), specifically the post-deploy 20:23:04Z processCustomer tick at 22:06:32Z which logged `LAUNCHCHILDTASK_RESULT: {"launch_action":"prevented","existing_pid":195788,"launch_new":false}`. The 195788 PID came from the PREVIOUS fire (the stalled-recovered 17:23:04Z tick) whose wrapper had declared timeout at 21:53:09Z but — per the `forceKill: false` hardcode in `processor.js` — did NOT kill the backgrounded `processCustomer.sh`. The orphan was still running when the next scheduled tick fired, and the wrapper's standard `check_task_already_running` logic (`src/manage/taskQueue/launchChildTask.sh:25-67`) found it and prevented the new launch under the default `launchNew: false` policy.
+
+**Mechanism (full chain):**
+1. A wrapper-script timeout fires (genuine or spurious). `forceKill: false` (hardcoded in `processor.js:117-127`; deliberately preserved per story #27 §"Out of scope") means the script declares timeout and exits without killing the backgrounded child.
+2. The Node `child.on('close')` fires, Worker callback's `finally { await release() }` releases the semaphore.
+3. The backgrounded `processCustomer.sh` (or other tagged-task script) keeps running orphaned — could be minutes to hours of additional runtime depending on actual workload.
+4. The next scheduled fire of the same task fires its tick → Worker → processor → wrapper.
+5. Wrapper's `check_task_already_running` calls `pgrep -f "$script_relative_path"`, finds the orphan PID.
+6. Wrapper consults `options_default.launch.processAlreadyRunning.withoutError = { killPreexisting: false, launchNew: false }`. **Decides NOT to launch the new fire**, emits `TASK_LAUNCH_PREVENTED`, returns success (LAUNCHCHILDTASK_RESULT.launch_action="prevented").
+7. From BullMQ's perspective, the job completed successfully. The scheduled fire was effectively SKIPPED.
+
+**Concrete impact observed (2026-05-25 prod):** the post-deploy fresh tick at 20:23:04Z had its launch prevented at 22:06:32 because the prior stale tick's orphan (PID 195788) was still running. **The fresh tick's actual neo4j-heavy work did not run at all** — silently skipped.
+
+**Severity of skipping:** previously hidden. A single timeout firing on a long-running task could cascade-skip multiple subsequent scheduled fires for as long as the orphan persists. Pre-Track-A on prod (post-story-#27), every `processCustomer` fire was hitting the 30-min ceiling and orphaning — meaning the system was probably skipping a meaningful fraction of `processCustomer` runs cumulatively. Track A reduces the frequency of timeouts (90 min vs 30 min for `processCustomer`), but doesn't fix the underlying interaction.
+
+**Why story #27 / Track A didn't address it:** story #27 explicitly scoped out `forceKill` reconsideration. Track A only changes timeout VALUES; it doesn't change the orphan-prevention interaction. Both were correct scopes for their stories; this intake captures the next layer of the onion now that we have empirical evidence.
+
+**Strong argument for `forceKill: true` as the default:** with `forceKill: false`, a timed-out task creates an orphan that blocks subsequent fires. With `forceKill: true`, the orphan is killed at timeout, the next scheduled fire runs cleanly. The cost of `forceKill: true` is "an actually-still-doing-useful-work task gets killed at its timeout" — but with appropriately-sized per-task timeouts (which Track A + the auto-tune Track B trend toward), legitimate work shouldn't be hitting the timeout in the first place.
+
+**Possible fixes (Architect to triage):**
+1. **Flip `forceKill: false` → `true`** as the global default in `taskRegistry.json:options_default.completion.failure.timeout.forceKill`. Per-task overrides remain available. Easiest fix.
+2. **Smarter `check_task_already_running` policy:** detect that an "existing" PID is the orphan from a prior timed-out run (e.g., compare PID's parent process or runtime) and treat as "kill orphan + launch new." More logic, more accurate.
+3. **Change `processAlreadyRunning.withoutError.launchNew` default to `true`:** lets the next fire run concurrently with the orphan, accepting the doubled neo4j-heavy load for that window. Probably wrong — defeats the dedup purpose for legitimately-overlapping tasks.
+4. **Auto-tune timeouts** (Track B from intake `eb2df679`) so timeouts almost never fire. Doesn't solve the issue when they DO fire.
+5. **Combine #1 + #4:** `forceKill: true` as a backstop, but tune timeouts high enough that the backstop rarely engages.
+
+**Classification:** Bug — silent suppression of scheduled fires under post-timeout conditions. Production-impacting (cumulative work loss).
+**Strictness:** Standard.
+**Phase path:** `/discuss` to settle the design choice (especially `forceKill: true` vs the smarter `check_task_already_running` logic). Then Planning → Architecture → Test Design → Implementation → Review.
+**Priority:** **Medium-high.** Production has been silently skipping scheduled fires since story #15 shipped (~2026-05-20) whenever timeouts fired. Track A reduces the frequency but doesn't fix the mechanism. Worth surfacing before the operator builds operational habits around the current behavior.
+
+---
+
+## 2026-05-25 — Cleanup + Bug: per-task `forceKill: false` overrides after story #28's default-flip
+
+**Surfaced during:** Architect-phase audit for story #28 / ADR 0025 (2026-05-25). The audit of all 11 per-task `forceKill: false` overrides in `taskRegistry.json` found two distinct concerns that story #28's narrow scope (flip the global default) deliberately did not address.
+
+**Part A — Cleanup: 9 redundant overrides.** The following 9 entries have a `forceKill: false` override that appears to be a copy-paste artifact rather than a deliberate choice (no `comments` field justifying the choice; durations are reasonable for the work):
+
+| Line | Task | Duration |
+|---|---|---|
+| 110 | processAllTasks | 6h |
+| 291 | callBatchTransfer | 1h |
+| 342 | reconcileRecent | 30min |
+| 373 | reconcileAll | 8h |
+| 403 | reconcileAuthor | 10min |
+| 435 | reconcileNetwork | 60min |
+| 1431 | applicationHealthMonitor | 10min |
+| 1460 | neo4jPerformanceMonitor | 10min |
+| 1489 | externalNetworkConnectivityMonitor | 10min |
+
+Deleting just the `"forceKill": false` line from each (preserving `duration`/`comments` if present) would let these tasks inherit the new `forceKill: true` global default. Each is independently low-risk (durations are generous; if the kill bites, it bites for a real reason).
+
+**Part B — Bug: 2 mis-sized timeout durations.** The following 2 entries carry a 60-second timeout that's clearly wrong for tasks with `estimatedDuration: "30-60 minutes"` and `averageDuration: 44500` (44.5s average — many runs exceed):
+
+| Line | Task | Duration | Comment |
+|---|---|---|---|
+| 231 | syncWoT | 60s | `estimatedDuration: "30-60 minutes"`, `averageDuration: 44500` |
+| 262 | syncProfiles | 60s | same |
+
+Today the `forceKill: false` override masks the impact (wrapper declares timeout, bash continues unprotected, work eventually completes). If we drop the override without fixing the duration, work gets killed at 60s every time a sync runs slow. The right sequence is: investigate the correct duration value (probably 30-60 min matching the estimatedDuration with headroom) FIRST, then drop the override.
+
+**Suggested phase path:**
+- Part A (cleanup): one fast-track story or part of a story. Standard 5-phase if bundled with Part B.
+- Part B (bug): properly-scoped story + ADR (the right duration value is an architectural choice that affects operator expectations + may have a follow-on on auto-tune Track B).
+
+**Classification:** Mixed (cleanup + bug). **Priority:** Medium — incomplete coverage of story #28's intended fix; cosmetic + 2 latent bugs.
