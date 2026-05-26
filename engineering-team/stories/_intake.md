@@ -581,3 +581,40 @@ reconcileAll    2026-05-25 07:51:43Z → held_seconds:  798  (baseline — alrea
 **Strictness:** Standard.
 **Phase path:** `/discuss` to settle the design choice (especially `forceKill: true` vs the smarter `check_task_already_running` logic). Then Planning → Architecture → Test Design → Implementation → Review.
 **Priority:** **Medium-high.** Production has been silently skipping scheduled fires since story #15 shipped (~2026-05-20) whenever timeouts fired. Track A reduces the frequency but doesn't fix the mechanism. Worth surfacing before the operator builds operational habits around the current behavior.
+
+---
+
+## 2026-05-25 — Cleanup + Bug: per-task `forceKill: false` overrides after story #28's default-flip
+
+**Surfaced during:** Architect-phase audit for story #28 / ADR 0025 (2026-05-25). The audit of all 11 per-task `forceKill: false` overrides in `taskRegistry.json` found two distinct concerns that story #28's narrow scope (flip the global default) deliberately did not address.
+
+**Part A — Cleanup: 9 redundant overrides.** The following 9 entries have a `forceKill: false` override that appears to be a copy-paste artifact rather than a deliberate choice (no `comments` field justifying the choice; durations are reasonable for the work):
+
+| Line | Task | Duration |
+|---|---|---|
+| 110 | processAllTasks | 6h |
+| 291 | callBatchTransfer | 1h |
+| 342 | reconcileRecent | 30min |
+| 373 | reconcileAll | 8h |
+| 403 | reconcileAuthor | 10min |
+| 435 | reconcileNetwork | 60min |
+| 1431 | applicationHealthMonitor | 10min |
+| 1460 | neo4jPerformanceMonitor | 10min |
+| 1489 | externalNetworkConnectivityMonitor | 10min |
+
+Deleting just the `"forceKill": false` line from each (preserving `duration`/`comments` if present) would let these tasks inherit the new `forceKill: true` global default. Each is independently low-risk (durations are generous; if the kill bites, it bites for a real reason).
+
+**Part B — Bug: 2 mis-sized timeout durations.** The following 2 entries carry a 60-second timeout that's clearly wrong for tasks with `estimatedDuration: "30-60 minutes"` and `averageDuration: 44500` (44.5s average — many runs exceed):
+
+| Line | Task | Duration | Comment |
+|---|---|---|---|
+| 231 | syncWoT | 60s | `estimatedDuration: "30-60 minutes"`, `averageDuration: 44500` |
+| 262 | syncProfiles | 60s | same |
+
+Today the `forceKill: false` override masks the impact (wrapper declares timeout, bash continues unprotected, work eventually completes). If we drop the override without fixing the duration, work gets killed at 60s every time a sync runs slow. The right sequence is: investigate the correct duration value (probably 30-60 min matching the estimatedDuration with headroom) FIRST, then drop the override.
+
+**Suggested phase path:**
+- Part A (cleanup): one fast-track story or part of a story. Standard 5-phase if bundled with Part B.
+- Part B (bug): properly-scoped story + ADR (the right duration value is an architectural choice that affects operator expectations + may have a follow-on on auto-tune Track B).
+
+**Classification:** Mixed (cleanup + bug). **Priority:** Medium — incomplete coverage of story #28's intended fix; cosmetic + 2 latent bugs.
