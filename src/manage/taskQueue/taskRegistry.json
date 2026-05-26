@@ -107,8 +107,7 @@
           "failure": {
             "timeout": {
               "comments": "21600000 = 6 hours - generous timeout to accommodate all child tasks including long-running reconciliation (1.5h), syncWoT (1h), and customer processing",
-              "duration": 21600000,
-              "forceKill": false
+              "duration": 21600000
             }
           }
         }
@@ -288,8 +287,7 @@
           "failure": {
             "timeout": {
               "comments": "3600000 = 1 hour",
-              "duration": 3600000,
-              "forceKill": false
+              "duration": 3600000
             }
           }
         }
@@ -339,8 +337,7 @@
           "failure": {
             "timeout": {
               "comments": "1800000 = 30 minutes (incremental run is minutes; generous ceiling)",
-              "duration": 1800000,
-              "forceKill": false
+              "duration": 1800000
             }
           }
         }
@@ -370,8 +367,7 @@
           "failure": {
             "timeout": {
               "comments": "28800000 = 8 hours (full graph sweep)",
-              "duration": 28800000,
-              "forceKill": false
+              "duration": 28800000
             }
           }
         }
@@ -400,8 +396,7 @@
           "failure": {
             "timeout": {
               "comments": "600000 = 10 minutes (single author)",
-              "duration": 600000,
-              "forceKill": false
+              "duration": 600000
             }
           }
         }
@@ -432,8 +427,7 @@
           "failure": {
             "timeout": {
               "comments": "3600000 = 60 minutes (bounded by the network predicate; <1h target)",
-              "duration": 3600000,
-              "forceKill": false
+              "duration": 3600000
             }
           }
         }
@@ -1429,8 +1423,7 @@
         "completion": {
           "failure": {
             "timeout": {
-              "duration": 600000,
-              "forceKill": false
+              "duration": 600000
             }
           }
         }
@@ -1458,8 +1451,7 @@
         "completion": {
           "failure": {
             "timeout": {
-              "duration": 600000,
-              "forceKill": false
+              "duration": 600000
             }
           }
         }
@@ -1487,8 +1479,7 @@
         "completion": {
           "failure": {
             "timeout": {
-              "duration": 600000,
-              "forceKill": false
+              "duration": 600000
             }
           }
         }
