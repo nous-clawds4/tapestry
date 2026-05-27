@@ -18,8 +18,14 @@ jobs:
           key: ${{ secrets.DEPLOY_SSH_KEY_TAGS }}
           command_timeout: 25m
           script: |
+            # Fail fast: any non-zero exit aborts the script. Without this,
+            # a docker-build failure was silently followed by `docker image
+            # prune` (exit 0), and the SSH action reported success while the
+            # old container kept running. Discovered post-Story-16 deploy
+            # 2026-05-27 — see engineering-team/stories/16-*.md timeline.
+            set -euo pipefail
             cd /opt/tapestry
-            git checkout -- docker-compose.yml 2>/dev/null
+            git checkout -- docker-compose.yml 2>/dev/null || true
             git checkout feat/pubkey-tagging-target 2>/dev/null || git checkout -b feat/pubkey-tagging-target origin/feat/pubkey-tagging-target
             git pull origin feat/pubkey-tagging-target
             # Tags droplet uses host nginx on port 80, so Docker must bind to 8080 on localhost only
