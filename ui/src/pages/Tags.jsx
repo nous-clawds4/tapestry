@@ -22,9 +22,10 @@ function truncate(str, n) {
 }
 
 const SORT_LABELS = [
-  { key: 'used',     label: 'Most used' },
-  { key: 'endorsed', label: 'Most endorsed' },
-  { key: 'divisive', label: 'Most divisive' },
+  { key: 'used',        label: 'Most used' },
+  { key: 'endorsed',    label: 'Most endorsed' },
+  { key: 'divisive',    label: 'Most divisive' },
+  { key: 'most-pinned', label: 'Most pinned' },
 ];
 
 export default function Tags() {
@@ -33,6 +34,7 @@ export default function Tags() {
     sort, setSort,
     q, setQ,
     mineOnly, setMineOnly,
+    pinnedByMe, setPinnedByMe,
     loading, error,
     loadMore,
     user,
@@ -80,6 +82,16 @@ export default function Tags() {
             <span>Only show tags I authored</span>
           </label>
         )}
+        {user && (
+          <label className="bs-tagindex-pinnedonly">
+            <input
+              type="checkbox"
+              checked={pinnedByMe}
+              onChange={(e) => setPinnedByMe(e.target.checked)}
+            />
+            <span>Only show tags I've pinned</span>
+          </label>
+        )}
 
         {error && <p className="bs-tagindex-error">⚠️ {error}</p>}
         {isInitialLoading && <p className="bs-tagindex-loading">Loading tags…</p>}
@@ -121,7 +133,16 @@ export default function Tags() {
                     className="bs-tagindex-row-link"
                   >
                     <div className="bs-tagindex-row-main">
-                      <span className="bs-tagindex-row-name">{row.name}</span>
+                      <span className="bs-tagindex-row-name">
+                        {row.name}
+                        {user && row.viewerPinned && (
+                          <span
+                            className="bs-tagindex-own-pin"
+                            title="You have pinned this tag"
+                            aria-label="you pinned this tag"
+                          >📌</span>
+                        )}
+                      </span>
                       {row.description && (
                         <span className="bs-tagindex-row-desc">{truncate(row.description, 140)}</span>
                       )}
@@ -135,6 +156,9 @@ export default function Tags() {
                       </span>
                       <span className="bs-tagindex-count bs-tagindex-count-dispute" title="Disputes in your POV's WoT">
                         −{row.disputes}
+                      </span>
+                      <span className="bs-tagindex-count bs-tagindex-count-pinned" title="Pins by people in your POV's WoT">
+                        📌{row.pinnedCount ?? 0}
                       </span>
                     </div>
                   </Link>

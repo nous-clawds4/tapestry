@@ -90,26 +90,19 @@ The harness lives in two places:
 - Reinstall firmware after adding/changing concept definitions — see AGENTS.md §6 for the exact curl.
 - Don't add new lint or typecheck tooling without an explicit ADR. This project is intentionally JS-without-build.
 
-### Per-deployment TA pubkey — NEVER hardcode (invariant in force; current code violates)
+### Per-deployment TA pubkey — NEVER hardcode
 
 The Tapestry Assistant (TA) pubkey is **created at first container startup** (`setup/create_nostr_identity.sh`) and is **different on every deployment**. The local-dev value (`82b75e47...973833` on this machine) is NOT shared with `tags.brainstorm.world`, `staging.brainstorm.world`, `brainstorm.world`, or any other instance.
 
-A literal hardcode in shared code silently breaks any surface that signs as the TA or filters events by TA author/handle on every non-dev deployment.
+A literal hardcode in shared code silently breaks the pin/TL stack (and any other surface that signs as the TA or filters events by TA author) on every non-dev deployment: the signer reads the actual on-disk TA key, but the readers filter `authors: [hardcoded]` and find nothing.
 
 **Always resolve the TA pubkey at runtime:**
 
-- **Server-side:** `const { getOwnerAssistantPubkey } = require('../../utils/assistantKeys')` then `getOwnerAssistantPubkey()` (function caches internally; falls back env → `brainstorm.conf` → `SecureKeyStorage`). See `src/utils/assistantKeys.js:49–82`.
-- **Client-side:** `const { taPubkey } = useConfig()` (backed by `/api/assistant/pubkey`). See `ui/src/context/ConfigContext.jsx:14–18`. Most of the codebase already does this (e.g., `ui/src/pages/concepts/ConceptList.jsx:59`).
+- **Server-side:** `const { getOwnerAssistantPubkey } = require('../../utils/assistantKeys')` then `const TA_PUBKEY = getOwnerAssistantPubkey()` at module init (the function caches internally). Falls back through env → `brainstorm.conf` → `SecureKeyStorage` JSON. See `src/utils/assistantKeys.js:49–82`.
+- **Client-side:** `const { taPubkey } = useConfig()` (backed by `/api/assistant/pubkey`). See `ui/src/context/ConfigContext.jsx:14–18`. The rest of the codebase already does this (e.g., `ui/src/pages/concepts/ConceptList.jsx:59`, `ui/src/pages/databases/Neo4jOverview.jsx:13`).
 
-This rule applies anywhere the TA pubkey is used as: an `authors:` filter on a strfry scan; a substring of a concept handle (`39998:<TA>:<slug>`); a `pubkey` argument to `nip19.naddrEncode`; or any identity check. If you find yourself typing `'82b75e47…'`, stop — use the runtime lookup.
+This rule applies anywhere the TA pubkey is used as: an `authors:` filter on a strfry scan; a substring of a concept handle (`39998:<TA>:<slug>`); a `pubkey` argument to `nip19.naddrEncode`; or any identity check. If you find yourself typing `'82b75e47...'`, stop — use the runtime lookup instead.
 
-**⚠️ Known violations as of 2026-05-20 (incident-driven docs):**
+Reference incident: the Pin/TL stack (Stories 10–12) hardcoded the literal in `ui/src/utils/publishTagPin.js` and `src/api/profile-tags/index.js`. The local instance kept working by coincidence (same TA pubkey); `tags.brainstorm.world` reported "No TL yet" forever because TLs were signed under its real TA but searched for under the hardcoded one. Fix: replace literals with the runtime helpers above. See `engineering-team/stories/_intake.md` entry dated 2026-05-20.
 
-The following sites still hardcode the dev TA pubkey. They form a matching-pair (publishers + readers all use the same wrong value), which is why deployments whose TA happens to be the dev value work, and other deployments quietly break. A previous partial fix (commit `d3a2640a`) addressed only some reader sites in `src/api/profile-tags/index.js`, breaking the matching pair on `tags.brainstorm.world` and orphaning its tag events. That fix was reverted; the invariant remains.
-
-- `ui/src/utils/publishProfileTag.js:15–16` — `TA_PUBKEY` literal + `NOSTR_USER_TAG_HANDLE` constant.
-- `ui/src/hooks/useProfileTags.js:5–6` — `TA_PUBKEY` literal + `TAG_HANDLE` constant.
-- `ui/src/utils/publishTagPin.js` — `TA_PUBKEY` literal + `TAG_PINNING_HANDLE` constant.
-- `src/api/profile-tags/index.js:27–30` — `TA_PUBKEY` + derived `TAG_Z_TAG` / `NOSTR_USER_TAG_Z_TAG` / `TAG_PINNING_Z_TAG`.
-
-**The proper fix (Option B) is a planned migration**, not a hot-patch. It must convert EVERY site in one coherent change AND account for the orphaning of existing events on instances whose actual TA pubkey differs from the dev literal. See `engineering-team/stories/_intake.md` entries dated 2026-05-20 (the original incident + the revert).
+**Named exception (ADR 0015):** the z-tag composition for the `tag`, `nostr-user-tag`, and `tag-pinning` concept handles is intentionally bound to a literal pubkey — `LEGACY_Z_TAG_PUBKEY` in `src/api/profile-tags/index.js`, `LEGACY_TA_PUBKEY` in `ui/src/utils/publishTagPin.js`, plus the existing literal hardcodes in `ui/src/hooks/useProfileTags.js` and `ui/src/utils/publishProfileTag.js`. This preserves visibility of historical user activity (tags, applies, disputes, pins) across non-dev deployments where wholesale runtime-migration would orphan all existing events. Every OTHER use of the TA pubkey — author filtering, signer reads, signing operations — must use the runtime helper. Future re-parenting of these concepts under a non-literal pubkey is a separate epic (out of Story 16; sketched in ADR 0015's "Eventual full retirement" section). A reviewer who sees a diff removing `LEGACY_*` constants without an accompanying re-parenting migration MUST reject. See `engineering-team/decisions/0015-restore-historical-data-and-fix-tl-author-filter.md`.

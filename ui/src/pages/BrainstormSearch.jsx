@@ -8,6 +8,7 @@ import SearchInput from '../components/SearchInput';
 import TagResultRow from '../components/TagResultRow';
 import PinnedTagChips from '../components/PinnedTagChips';
 import useTagMemberSets from '../hooks/useTagMemberSets';
+import { getWotScore } from '../utils/wotScore';
 import { nip19 } from 'nostr-tools';
 
 /* ── Nostr identity detection ──────────────────────────── */
@@ -604,18 +605,6 @@ function timeAgo(unixSeconds) {
 }
 
 const RESULTS_PER_PAGE = 40;
-
-/* ── POV-aware score helper ───────────────────────────── */
-
-/** Extract a wot score from a hit, trying namespaced field first, then legacy */
-function getWotScore(hit, metric, povSuffix) {
-  if (povSuffix) {
-    const val = hit[`wot_${metric}_${povSuffix}`];
-    if (val != null) return val;
-  }
-  // Legacy fallback
-  return hit[`wot_${metric}`] ?? null;
-}
 
 /**
  * Bucket profile hits so the popup reads, in order:

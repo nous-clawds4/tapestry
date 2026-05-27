@@ -4773,19 +4773,65 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
 }
 .bs-tag-row-counts {
   display: flex;
-  gap: 0.6rem;
-  font-size: 0.85rem;
+  gap: 0.5rem;
+  font-size: 0.78rem;
   font-variant-numeric: tabular-nums;
+  /* Story 17 / ADR 0014 AC-7 — de-saturate small counts so the Net score
+     reads first. Was implicitly 1; explicit 0.55 deprioritizes them. */
+  opacity: 0.55;
 }
 .bs-tag-count-apply { color: #86efac; }
 .bs-tag-count-dispute { color: #fca5a5; }
 
-/* Story 3 / ADR-0004 — per-row Apply/Dispute, viewer-only badge, page-search */
+/* Story 17 / ADR 0014 — three-slot row layout + Net score + hover-reveal.
+
+   The row is a flex container with three slots:
+     [link (flex:1)] [actions (reserved-width)] [scores]
+
+   The actions slot reserves `min-width` permanently so toggling its
+   `visibility` between hidden/visible does not shift the row's other
+   contents — no jiggle (AC-9). */
+.bs-tag-row-scores {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.bs-tag-row-net {
+  font-size: 1.05rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  min-width: 2.2rem;
+  text-align: right;
+}
+.bs-tag-row-net.is-positive { color: #4ade80; }   /* green */
+.bs-tag-row-net.is-negative { color: #f87171; }   /* red */
+.bs-tag-row-net.is-zero     { color: #fcd34d; }   /* yellow — contested */
+.bs-tag-row-verif {
+  font-size: 0.9rem;
+  color: #d4b675;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Story 3 / ADR-0004 — per-row Apply/Dispute, viewer-only badge, page-search.
+   Story 17 / ADR 0014 — visibility:hidden by default with a reserved
+   min-width; reveal selectors flip to visibility:visible on hover, when
+   `is-revealed` is set (touch tap), when `is-expanded-mode` is set
+   (Expanded view: always-on), or on :focus-within (keyboard). */
 .bs-tag-row-actions {
   display: flex;
   gap: 0.4rem;
   margin-right: 0.5rem;
   flex-shrink: 0;
+  min-width: 9.5rem;          /* reserved width — Apply + Dispute combined */
+  visibility: hidden;          /* default state: occupied but invisible */
+}
+.bs-tag-row:hover .bs-tag-row-actions,
+.bs-tag-row.is-revealed .bs-tag-row-actions,
+.bs-tag-row.is-expanded-mode .bs-tag-row-actions,
+.bs-tag-row:focus-within .bs-tag-row-actions {
+  visibility: visible;
 }
 .bs-tag-row-apply,
 .bs-tag-row-dispute {
@@ -6042,3 +6088,201 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   background: rgba(99, 102, 241, 0.18);
 }
 .bs-pindetail-edit[disabled] { opacity: 0.4; cursor: not-allowed; }
+
+/* ── Story 13: pin-aware tag index (ADR 0012) ─────────────── */
+.bs-tagindex-count-pinned {
+  /* Same base shape as .bs-tagindex-count-apply / .-dispute, but a
+     distinct hue so the pin signal reads as separate from the
+     endorsement/dispute counts. */
+  background: rgba(168, 85, 247, 0.12);
+  border: 1px solid rgba(168, 85, 247, 0.35);
+  color: #d8b4fe;
+}
+.bs-tagindex-own-pin {
+  display: inline-block;
+  margin-left: 0.4rem;
+  font-size: 0.8em;
+  vertical-align: middle;
+  opacity: 0.85;
+}
+.bs-tagindex-pinnedonly {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.4rem;
+  font-size: 0.85rem;
+  color: var(--text-secondary, #94a3b8);
+  cursor: pointer;
+}
+.bs-tagindex-pinnedonly input[type="checkbox"] {
+  margin: 0;
+}
+
+/* ────────────────────────────────────────────────────────────────────────
+   Story 17 / ADR 0014 — TagViewControls (toolbar above the row list) +
+   TagSomeoneModal (separated search dialog).
+   ──────────────────────────────────────────────────────────────────────── */
+.bs-tag-view-controls {
+  margin: 0.75rem 0 0.5rem;
+}
+.bs-tag-view-controls-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+.bs-tag-view-tagsomeone {
+  font: inherit;
+  font-size: 0.9rem;
+  padding: 0.4rem 0.9rem;
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,0.18);
+  background: rgba(255,255,255,0.04);
+  color: inherit;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+}
+.bs-tag-view-tagsomeone:hover {
+  background: rgba(255,255,255,0.08);
+  border-color: rgba(255,255,255,0.3);
+}
+.bs-tag-view-options {
+  /* The <details> element itself; we style its <summary> below.
+     Hide the default disclosure marker — we render our own chevron. */
+}
+.bs-tag-view-options > summary {
+  list-style: none;
+  cursor: pointer;
+}
+.bs-tag-view-options > summary::-webkit-details-marker { display: none; }
+.bs-tag-view-options-summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.9rem;
+  color: var(--text-secondary, #94a3b8);
+  padding: 0.3rem 0.4rem;
+  border-radius: 6px;
+}
+.bs-tag-view-options-summary:hover {
+  background: rgba(255,255,255,0.04);
+  color: inherit;
+}
+.bs-tag-view-options-chevron {
+  display: inline-block;
+  transition: transform 0.15s;
+}
+.bs-tag-view-options[open] .bs-tag-view-options-chevron {
+  transform: rotate(180deg);
+}
+.bs-tag-view-options-panel {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 0;
+  margin-top: 0.3rem;
+  border-top: 1px solid rgba(255,255,255,0.06);
+}
+.bs-tag-view-filter {
+  flex: 1 1 14rem;
+  font: inherit;
+  font-size: 0.9rem;
+  padding: 0.35rem 0.6rem;
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,0.18);
+  background: rgba(255,255,255,0.04);
+  color: inherit;
+  min-width: 10rem;
+}
+.bs-tag-view-filter::placeholder { color: rgba(255,255,255,0.4); }
+
+/* TagSomeoneModal — modal chrome + body. Namespaced under .tsm-* so it
+   stays independent of the curation dialog's .pcd-* namespace, even though
+   the visual shape is similar. */
+.tsm-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.55);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 4rem 1rem 1rem;
+  z-index: 1000;
+}
+.tsm-dialog {
+  background: var(--bg-elev, #1b2333);
+  color: inherit;
+  border-radius: 10px;
+  box-shadow: 0 16px 48px rgba(0,0,0,0.45);
+  width: 100%;
+  max-width: 38rem;
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 6rem);
+  overflow: hidden;
+}
+.tsm-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.9rem 1rem;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+.tsm-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+.tsm-close {
+  background: none;
+  border: none;
+  color: inherit;
+  font-size: 1.4rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 0.4rem;
+  opacity: 0.7;
+}
+.tsm-close:hover { opacity: 1; }
+.tsm-body {
+  padding: 0.9rem 1rem 1rem;
+  overflow-y: auto;
+}
+.tsm-search-input {
+  width: 100%;
+  font: inherit;
+  font-size: 0.95rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,0.18);
+  background: rgba(255,255,255,0.04);
+  color: inherit;
+  box-sizing: border-box;
+}
+.tsm-status {
+  margin: 0.75rem 0 0;
+  font-size: 0.9rem;
+  color: var(--text-secondary, #94a3b8);
+}
+.tsm-status.tsm-error { color: #fca5a5; }
+.tsm-results {
+  margin-top: 0.5rem;
+}
+
+/* CurationMethodDialog intro paragraph (Story 17 / ADR 0014 Decision 9). */
+.pcd-intro {
+  margin: 0.5rem 1rem 0.75rem;
+  padding: 0.65rem 0.85rem;
+  border-radius: 6px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.06);
+}
+.pcd-intro p {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.45;
+  color: var(--text-secondary, #94a3b8);
+}
+.pcd-intro strong { color: inherit; }
+

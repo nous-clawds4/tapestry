@@ -18,6 +18,8 @@ export default function useTagIndex() {
   const [sort, setSortState] = useState('used');
   const [q, setQState] = useState('');
   const [mineOnly, setMineOnlyState] = useState(false);
+  // Story 13 / ADR 0012 — "Only tags I've pinned" filter.
+  const [pinnedByMe, setPinnedByMeState] = useState(false);
   const [offset, setOffset] = useState(0);
 
   const [rows, setRows] = useState([]);
@@ -40,6 +42,10 @@ export default function useTagIndex() {
     setMineOnlyState(next);
     setOffset(0);
   }, []);
+  const setPinnedByMe = useCallback((next) => {
+    setPinnedByMeState(next);
+    setOffset(0);
+  }, []);
 
   // Track which fetch is "live" so a stale completion doesn't stomp.
   const liveSeqRef = useRef(0);
@@ -60,6 +66,8 @@ export default function useTagIndex() {
     if (user?.pubkey) {
       params.set('wotPov', 'user');
       params.set('userPubkey', user.pubkey);
+      // Story 13 / ADR 0012 — viewerPubkey drives per-row viewerPinned.
+      params.set('viewerPubkey', user.pubkey);
     } else {
       params.set('wotPov', 'house');
     }
@@ -67,6 +75,10 @@ export default function useTagIndex() {
     // Silently inactive when not logged in (toggle is hidden in the UI).
     if (mineOnly && user?.pubkey) {
       params.set('authoredBy', user.pubkey);
+    }
+    // Story 13 / ADR 0012 — "Only tags I've pinned" filter.
+    if (pinnedByMe && user?.pubkey) {
+      params.set('pinnedByMe', 'true');
     }
 
     fetch(`/api/profile-tags/index?${params}`)
@@ -86,7 +98,7 @@ export default function useTagIndex() {
       .finally(() => { if (!cancelled) setLoading(false); });
 
     return () => { cancelled = true; };
-  }, [authLoading, user?.pubkey, sort, q, mineOnly, offset]);
+  }, [authLoading, user?.pubkey, sort, q, mineOnly, pinnedByMe, offset]);
 
   const loadMore = useCallback(() => {
     if (loading) return;
@@ -99,6 +111,7 @@ export default function useTagIndex() {
     sort, setSort,
     q, setQ,
     mineOnly, setMineOnly,
+    pinnedByMe, setPinnedByMe,
     loading, error,
     loadMore,
     pageSize: PAGE_SIZE,

@@ -5,23 +5,47 @@ import { publishOrThrow } from './publishProfileTag';
  *
  * Used by:
  *   - Tag page (Story 10) — header Pin / Unpin affordance.
- *   - Future Story 11 — curation-method editor (will pass a customized
- *     curationMethod object instead of the default).
+ *   - Story 12 — CurationMethodDialog (custom curation values).
  *
- * Both surfaces call pinTag / unpinTag so the wire layout lives in one place.
+ * The wire layout lives in one place here so future changes to the
+ * pin event's tags / content body only touch this file.
+ *
+ * The z-tag is composed from LEGACY_TA_PUBKEY (a hardcoded literal),
+ * not from the deployment's runtime TA pubkey — see ADR 0015. This
+ * preserves visibility of historical pin events on non-dev
+ * deployments. The runtime TA pubkey continues to be the right value
+ * for every OTHER use (signer reads, kind-30392 author filtering on
+ * the server side); only z-tag composition uses the legacy literal.
  */
 
-export const TA_PUBKEY = '82b75e474dda005e912bcbb910391c60c2b89cc7faf5d3c30b7c59a324973833';
-export const TAG_PINNING_HANDLE = `39998:${TA_PUBKEY}:tag-pinning`;
+/**
+ * Legacy z-tag-composition pubkey — see ADR 0015.
+ *
+ * Used only for composing the kind-39999 `z` tag handle that
+ * historical pin events reference. NOT to be confused with the
+ * deployment's runtime TA pubkey (`useConfig().taPubkey`), which
+ * is correct for any OTHER use of "the TA pubkey" but, by
+ * deliberate design, is NOT used here.
+ *
+ * Mirrors the same pattern in `useProfileTags.js` and
+ * `publishProfileTag.js` (sibling client publishers for the other
+ * two z-tag namespaces).
+ */
+const LEGACY_TA_PUBKEY = '82b75e474dda005e912bcbb910391c60c2b89cc7faf5d3c30b7c59a324973833';
+const TAG_PINNING_HANDLE = `39998:${LEGACY_TA_PUBKEY}:tag-pinning`;
 
-/** Default curation-method payload (Story 10 v1). Story 11 will let the
- *  user override these fields per pin at pin time / from /pins. */
+/**
+ * Default curation-method payload.
+ *
+ * Story 17 flipped cutoff 2→1 (WYSIWYG with Curated view) and
+ * includeScoreInTL false→true (richer TLs by default).
+ */
 export function defaultCurationMethod(viewerPubkey) {
   return {
     observer: viewerPubkey,
     method: 'nip85:rank',
-    cutoff: 2,
-    includeScoreInTL: false,
+    cutoff: 1,
+    includeScoreInTL: true,
   };
 }
 
@@ -30,8 +54,8 @@ export function defaultCurationMethod(viewerPubkey) {
  *
  * @param {object} args
  * @param {{eventId: string, slug: string, authorPubkey: string}} args.tag —
- *   the tag being pinned. `authorPubkey` is the tag-event's publisher (used
- *   in the d-tag and a-tag).
+ *   the tag being pinned. `authorPubkey` is the tag-event's publisher
+ *   (used in the d-tag and a-tag).
  * @param {object} [args.curationMethod] — optional override; defaults to
  *   `defaultCurationMethod(viewerPubkey)`.
  * @returns {Promise<object>} the signed Pin event.
