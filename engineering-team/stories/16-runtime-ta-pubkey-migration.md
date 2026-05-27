@@ -1,261 +1,309 @@
-# Story 16: Runtime TA pubkey resolution — complete migration across publishers + readers
+# Story 16: Surgical fix — restore historical data visibility while making pin TLs work
 
-**Status:** Approved (QUEUED — see Background)
+**Status:** Approved (redrafted 2026-05-26 — was originally a sweeping migration; rescoped after the d3a2640a incident plus a session-time discovery that Story 13 silently re-introduced part of the broken state)
 **Created:** 2026-05-20
-**Type:** Bug (cross-cutting migration)
+**Redrafted:** 2026-05-26
+**Type:** Bug (surgical, server-side only)
 
-> **Queue position:** This story is deliberately deferred to be the
-> LAST story before the final deploy of the pin-a-tag epic. The
-> sequence is: Story 13 (in flight) → Story 14 (Treasure Map) →
-> Story 15 (Encryption) → **Story 16 (this story)** → final deploy
-> chain.
+> **Queue position:** Last story before the pin-a-tag epic's production
+> deploy. Sequence: Story 17 (shipped) → **Story 16 (this story)** →
+> final deploy chain.
 >
-> Do not pick this up before Stories 13/14/15 ship. The reason for
-> the deferral is that this migration causes orphaning of historical
-> events on any deployment whose actual TA pubkey differs from the
-> dev literal `82b75e47…973833`; the data loss should be timed once,
-> deliberately, after the epic's user-facing features are in place
-> so users have a clean re-creation surface.
+> Story 14 (Treasure Map) and Story 15 (Encryption) remain paused.
 
 ## Background
 
-The codebase hardcodes a single TA pubkey literal —
-`82b75e47…973833`, which happens to be the value on the
-local-dev instance — in four sites:
+### What the symptom is
 
-- `src/api/profile-tags/index.js:27–30` (server reader, derives
-  `TAG_Z_TAG`, `NOSTR_USER_TAG_Z_TAG`, `TAG_PINNING_Z_TAG`).
-- `ui/src/utils/publishProfileTag.js:15–16` (client publisher,
-  Story-1 nostr-user-tag stack).
-- `ui/src/hooks/useProfileTags.js:5–6` (client publisher, Story-1
-  tag-creation stack).
-- `ui/src/utils/publishTagPin.js` (client publisher, Story-10 pin
-  stack).
+On `tags.brainstorm.world`, pinned tags show "No TL yet" / "TL
+unavailable" even after a manual refresh, despite the tag's
+profile-tag activity meeting the pin's cutoff. The TL refresh cron
+runs, generates a kind-30392, signs it with the on-disk TA private
+key, publishes it to local strfry. The reader then asks strfry "give
+me kind-30392 events authored by `<the hardcoded dev literal>`" and
+finds nothing — because the events are authored by the real
+production TA, not the literal. Result: TLs are invisible to their
+own readers.
 
-On the dev instance the literal happens to equal the actual TA's
-pubkey, so all four sites match each other and the system works. On
-every other deployment — `tags.brainstorm.world`,
-`staging.brainstorm.world`, `brainstorm.world`, and any fork — the
-TA pubkey is different, but because all four sites still match
-*each other* (all using the same wrong value), the system **appears
-to work** on those deployments too. The signed events have the
-wrong z-tag handles and the wrong author identities, but readers
-filter under the same wrong values, so the matching pair stays
-coherent.
+### What's currently in the branch (and why this matters)
 
-The bug surfaces the moment any site is "fixed" without the others.
-A partial fix (commit `d3a2640a`, reverted as `4b82a739`) updated
-only the server reader in `src/api/profile-tags/index.js` —
-breaking the matching pair on `tags.brainstorm.world` and
-producing an empty tag index across every POV. The revert restored
-service.
+The original Story 16 brief was to convert *all* hardcoded literal
+references to runtime lookup across the four sites listed in the
+incident intake. That was a wide, risky migration that — by design
+in the original draft — accepted the orphaning of every historical
+tag, apply/dispute, and pin event on every non-dev deployment.
 
-This story converts ALL four sites to runtime lookup in one
-coherent change. After it ships:
+A session-time audit on 2026-05-26 surfaced that the situation is
+not what the original brief assumed. The relevant history:
 
-- Each deployment publishes events using ITS OWN TA pubkey in z-tags.
-- Each deployment's readers filter under ITS OWN TA pubkey.
-- The matching pair is correct on every deployment, not just dev.
-- The historical-event orphaning on non-dev deployments is the
-  unavoidable cost of correctness.
+| Commit | Effect |
+|---|---|
+| `d3a2640a` | Original "fix" — server-side switched to runtime; pushed to prod; orphaned every event on `tags.brainstorm.world`. |
+| `4b82a739` | Revert. Server restored the literal. Tags visible again. |
+| `cbc2b8f0` ("impl: most-pinned-tag-index") | **Silently re-introduced the runtime lookup** at `src/api/profile-tags/index.js:35`. |
+| `738158bd` (Story 17) | Did not touch this. |
 
-The CLAUDE.md "Known violations" subsection added during the
-incident lists the exact four sites; this story's success metric
-is "that list is empty."
+So the current branch state is: **server-side z-tag derivations
+already use runtime lookup; client publishers still use the
+literal**. On this dev machine the literal happens to equal the
+runtime TA, so the mismatch is invisible. On every other deployment
+(`tags.brainstorm.world` first and foremost) the mismatch is the
+same shape as d3a2640a. Shipping this branch as-is would repeat the
+d3a2640a incident.
+
+### What the user actually wants
+
+Captured in conversation 2026-05-26:
+
+> "yes, i want pins to work (no hardcoded literal pubkey) and for
+> the existing tags on tags.brainstorm.world to remain visible. i
+> don't care if the tags there refer to a dev key in their tag
+> name, that's kind of irrelevant. one day we can migrate
+> taggings to a different parent or something. i just need
+> existing user activity to remain intact AND for pins to work
+> on tags.brainstorm.world (no 'TL unavailable' error)"
+
+Two non-negotiable goals:
+
+1. **No data loss.** Historical tag, apply, dispute, and pin
+   events on `tags.brainstorm.world` (and any other non-dev
+   deployment) MUST remain visible to all read endpoints after
+   the deploy.
+2. **Pins must work.** The "No TL yet" / "TL unavailable" symptom
+   on production pins MUST be resolved — readers must find the
+   TLs the cron signs.
+
+The decision: **keep the literal in the wire** (z-tags) where it
+sits today across both historical data and live client publishers,
+and **change only the parts of the server that read TLs by
+author**. Everything else stays bit-for-bit compatible with what
+both this dev and `tags.brainstorm.world` already have on disk.
+
+The user explicitly acknowledged that historical events on prod
+referencing the dev literal in their z-tags is fine for now: "i
+don't care if the tags there refer to a dev key in their tag
+name, that's kind of irrelevant. one day we can migrate taggings
+to a different parent or something." Re-parenting historical
+events under a new concept handle is a future migration; not in
+this story.
 
 ## User-facing description
 
-As an operator of a Brainstorm/Tapestry deployment whose TA pubkey
-is NOT the dev literal `82b75e47…`, I want the pin/TL/tag stack to
-sign and read events under MY instance's actual TA pubkey — so
-that the pin-a-tag features, Trusted List publication, profile
-tagging, and tag index all work correctly on my deployment without
-silent identity-mismatch failures.
-
-As a developer reading the codebase, I want zero hardcoded TA
-pubkey literals — so that any future feature that filters by TA
-author or composes TA-prefixed concept handles is portable across
-deployments by construction.
+As an operator of `tags.brainstorm.world` (and any other Brainstorm
+deployment whose on-disk TA pubkey differs from the dev literal), I
+want pinned-tag Trusted Lists to be discoverable by my instance's
+own read endpoints, AND I want every historical tag, apply, dispute,
+and pin event on my deployment to remain visible after this fix
+ships, so that the pin-a-tag epic can be promoted to production
+without losing accumulated user activity.
 
 ## Acceptance criteria
 
-- [ ] **AC-1** — Given the server module
-  `src/api/profile-tags/index.js` is loaded on any deployment, when
-  it computes `TAG_Z_TAG` / `NOSTR_USER_TAG_Z_TAG` /
-  `TAG_PINNING_Z_TAG`, then each constant uses the result of
-  `getOwnerAssistantPubkey()` (from `src/utils/assistantKeys.js`)
-  — not a hardcoded literal.
+- [ ] **AC-1** — Given a deployment whose on-disk TA pubkey is the
+  dev literal (the local dev machine), when the fix is applied and
+  the server reloads, then EVERY tag, apply/dispute, and pin event
+  that was visible before the fix remains visible after the fix —
+  i.e., the test suite's existing pass count under the previously
+  shipped Story 17 state continues to pass on this dev machine.
 
-- [ ] **AC-2** — Given the client module
-  `ui/src/utils/publishProfileTag.js` is used to build a
-  nostr-user-tag assertion, when the event is constructed, then the
-  `z`-tag references the deployment's actual TA pubkey (obtained
-  from `useConfig().taPubkey` at the caller, threaded as a function
-  argument) — not a hardcoded literal.
+- [ ] **AC-2** — Given a deployment whose on-disk TA pubkey is
+  NOT the dev literal (`tags.brainstorm.world`), when the fix
+  ships there, then EVERY tag, apply/dispute, and pin event that
+  was visible BEFORE the deploy remains visible AFTER. Verified
+  post-deploy by walking the `/tags` page, opening a representative
+  tag-detail page, opening `/pins`, and confirming previously-
+  present rows are still present.
 
-- [ ] **AC-3** — Given the client module
-  `ui/src/hooks/useProfileTags.js` is used to publish a tag-concept
-  event, when the event is constructed, then the `z`-tag references
-  the deployment's actual TA pubkey — not a hardcoded literal.
+- [ ] **AC-3** — Given a deployment whose on-disk TA pubkey is
+  NOT the dev literal (`tags.brainstorm.world`), when a user with
+  a pinned tag visits `/pins` after the fix ships, then the
+  pin's row reflects an `ok`/`never`/`retracted` status that
+  reflects the **actually-published** kind-30392 events the cron
+  produced (not a perpetual "No TL yet"). After a manual `Refresh
+  now`, the row's status updates to `ok` with the correct member
+  count within ~10 seconds, matching the existing Story-11
+  behavior.
 
-- [ ] **AC-4** — Given the client module
-  `ui/src/utils/publishTagPin.js` is used to publish a pin event,
-  when the event is constructed, then the `z`-tag references the
-  deployment's actual TA pubkey — not a hardcoded literal.
+- [ ] **AC-4** — Given the post-fix source of
+  `src/api/profile-tags/index.js`, when a grep is performed for
+  any `authors: [...]` filter referencing kind-30392 events, then
+  the pubkey passed is the **runtime-resolved** TA, not a literal.
 
-- [ ] **AC-5** — Given the codebase is searched for the literal
-  string `82b75e474dda005e912bcbb910391c60c2b89cc7faf5d3c30b7c59a324973833`
-  (or any prefix > 16 chars of it), when the search runs, then no
-  hits appear in `src/` or `ui/src/` (test fixtures and the dev
-  TA's stored keystore may legitimately contain it; those are out
-  of scope).
+- [ ] **AC-5** — Given the post-fix source of
+  `src/api/profile-tags/index.js` and
+  `src/api/trustedList/refreshPinnedTags.js`, when a grep is
+  performed for the z-tag-derivation constants (`TAG_Z_TAG`,
+  `NOSTR_USER_TAG_Z_TAG`, `TAG_PINNING_Z_TAG`), then their pubkey
+  segment is a **hardcoded literal** (not a runtime call). The
+  literal lives at exactly ONE source location per file (a
+  module-level constant) and is named in a way that flags it as
+  intentional legacy — e.g. `LEGACY_Z_TAG_PUBKEY`. A 2–4 line
+  comment block at the literal's declaration explains why the
+  literal is intentional and points at this story file plus the
+  d3a2640a incident.
 
-- [ ] **AC-6** — Given the dev / local deployment whose TA pubkey
-  IS the literal, when the migrated code runs, then ALL existing
-  functionality (tag publishing, tag index, profile tagging, pin
-  publishing, TL refresh, /pins, PinDetail, Brainstorm Search chip
-  filter) works identically to before — the runtime lookup happens
-  to return the same value that was previously hardcoded, so the
-  migration is transparent on this instance.
+- [ ] **AC-6** — Given the client publish helpers
+  (`ui/src/utils/publishProfileTag.js`,
+  `ui/src/hooks/useProfileTags.js`,
+  `ui/src/utils/publishTagPin.js`), when a diff is taken against
+  the pre-fix state, then NONE of them have been modified. The
+  client wire format is unchanged; new client-published events
+  carry the literal in their z-tags exactly as they did before
+  this story.
 
-- [ ] **AC-7** — Given a non-dev deployment (TA pubkey differs from
-  the dev literal), when the migrated code runs, then NEW events
-  published from that instance carry z-tags referencing the
-  instance's actual TA pubkey, and readers on that instance find
-  those events correctly. (Tested directly on `tags.brainstorm.world`
-  as part of the deploy.)
+- [ ] **AC-7** — Given the existing test suite (`npm test`), when
+  it runs after the fix, then EVERY previously-passing test still
+  passes. The dev machine masks the bug (literal == runtime), so
+  no test regresses on dev. (Tests that REQUIRE non-dev semantics
+  to demonstrate the bug live in this story's new test suite.)
 
-- [ ] **AC-8** — Given the CLAUDE.md "Known violations" list
-  enumerates the four hardcoded sites, when this story ships, then
-  the list is emptied (replaced with a sentence confirming the
-  invariant is satisfied across the codebase, or the list is
-  removed entirely).
-
-- [ ] **AC-9** — Given the existing test gate (`npm test`), when
-  the migration is applied, then every previously-passing suite
-  continues to pass on the dev instance. The publish-flow tests'
-  fixture publishes (which write events to local strfry) MUST use
-  the runtime TA pubkey, not a hardcoded literal, to validate the
-  end-to-end portability story.
-
-- [ ] **AC-10** — Given the migration ships to
-  `tags.brainstorm.world`, when an operator visits `/tags` after
-  the deploy, then the page renders the documented data-loss
-  empty-state for that instance (no tags found until re-created);
-  visiting `/pins` shows the same empty state. The orphan condition
-  is acknowledged in advance via a deploy note; it is NOT a
-  regression that this story must avoid — it is the contracted
-  consequence of correctness.
+- [ ] **AC-8** — Given a new test fixture that simulates the
+  non-dev case (TL events authored by a fixture TA pubkey whose
+  value is NOT the literal), when the test runs against the
+  post-fix server, then the TL-status enrichment correctly
+  identifies the fixture TL by its real signing pubkey. The
+  fixture's intent is to lock down the runtime-author-filter
+  behavior on this dev machine without requiring access to
+  `tags.brainstorm.world`.
 
 ## Concepts touched
 
-- `39998:<TA>:tag` — every tag-concept event on a non-dev
-  deployment is orphaned by the migration.
-- `39998:<TA>:nostr-user-tag` — every nostr-user-tag assertion is
-  orphaned on a non-dev deployment.
-- `39998:<TA>:tag-pinning` — every pin event is orphaned on a
-  non-dev deployment.
-- `39998:<TA>:web-of-trust` — unaffected; WoT rank lookups use POV
-  pubkeys, not the TA pubkey, so no orphaning here.
-- **No new concepts.** Pure code refactor + data-loss disclosure.
+- `39998:<dev-literal>:tag` — the z-tag namespace that historical
+  tag events on every deployment reference today. Continues to be
+  what new client-published tag events reference after this story
+  (no change to clients).
+- `39998:<dev-literal>:nostr-user-tag` — same pattern for
+  apply/dispute events.
+- `39998:<dev-literal>:tag-pinning` — same pattern for pin events.
+- `kind-30392` (NIP-85 Trusted Lists) — events authored by the
+  deployment's REAL TA pubkey. The runtime-author-filter change
+  in this story is exclusively about finding these.
+- **No new firmware concepts.** No reinstall.
 
 ## Out of scope
 
-- **Migration script that re-signs orphaned events** under the
-  correct TA pubkey and re-publishes them. Significantly more
-  complex (each orphan must be re-signed with the prod TA's
-  private key; the script needs strfry write access; user-facing
-  events authored by USERS can't be re-signed by the TA — only
-  TA-authored events like kind-30392 TLs and the firmware ConceptHeaders
-  could). Deferred until product feedback says historical content on
-  some non-dev instance is too valuable to lose.
+- **Migrating client publishers to runtime TA.** Explicit user
+  decision (2026-05-26): leave the client wire alone. New events
+  continue to carry the literal in z-tags. A future story may
+  rebase the entire codebase off the literal as part of a
+  re-parenting / concept-migration effort; not now.
+- **Migrating historical events** by re-signing under a new TA
+  pubkey or under a new concept parent. Future migration; the
+  user explicitly punted this ("one day we can migrate taggings
+  to a different parent or something").
+- **Removing every hardcoded literal from the codebase.** The
+  original Story 16 brief targeted four sites; this redraft
+  shrinks scope to only the parts that block AC-2 + AC-3. The
+  client publishers keep their literal.
+- **Documentation updates beyond this story file + the new
+  literal's comment.** CLAUDE.md's "Known violations" subsection
+  may need an update to acknowledge the literal is now an
+  intentional debt rather than a bug; that's a one-line edit, but
+  belongs in this story's commit, not a separate one.
+- **Restarting / deploying the local dev stack as part of the
+  fix.** The Implementer cycles local; the operator promotes
+  staging/prod themselves.
+- **Touching any of the publish-suite test files that
+  hardcode `TA_PUBKEY = '82b75e47…'` literals at their module
+  top.** Those are pre-existing test fixtures whose dev-machine
+  semantics work because literal == runtime; out of this story's
+  scope.
 
-- **Versioning the migration.** This is a one-shot conversion —
-  every site at once. No feature-flag gating, no staged rollout.
-  Trying to do half is what produced the d3a2640a incident.
+## Implementation sketch (for the Architect / Implementer)
 
-- **Updating the firmware ConceptHeaders** (which are signed by the
-  prod TA at first install) — they already reference the correct
-  prod TA pubkey because `firmware/install` uses the runtime TA.
-  No change needed.
+The fix is two files:
 
-- **A startup check that warns on TA-pubkey resolution failure** —
-  `getOwnerAssistantPubkey()` already returns null + logs a warning
-  on failure; this story doesn't add a new diagnostic surface.
+- `src/api/profile-tags/index.js`:
+  - Introduce a new module-level constant
+    `LEGACY_Z_TAG_PUBKEY = '82b75e474dda005e912bcbb910391c60c2b89cc7faf5d3c30b7c59a324973833'`
+    with an explanatory comment block (per AC-5).
+  - Rewrite the three z-tag constants:
+    `TAG_Z_TAG = '39998:' + LEGACY_Z_TAG_PUBKEY + ':tag'`, and
+    likewise for the other two.
+  - Replace the literal in the `authors:` filter at line ~1394
+    (inside `enrichRowsWithTLStatus`) with the runtime
+    `getOwnerAssistantPubkey()` call. The current
+    `const TA_PUBKEY = getOwnerAssistantPubkey()` at line 35
+    stays; we just stop using it for z-tag derivation.
+  - Keep the existing `module.exports.TA_PUBKEY` so
+    `refreshPinnedTags.js`'s import (which uses it for the
+    `retractStaleTLs` `authors:` filter) keeps working
+    unchanged. (`profileTags.TA_PUBKEY` continues to point at
+    the runtime value.)
 
-- **Cross-references to the TA pubkey in tests' hardcoded
-  expectations** — test fixtures that compare to the literal value
-  are a Tester concern; this story replaces them with runtime
-  fetches from `/api/assistant/pubkey` (already the pattern in
-  some publish-flow suites).
+- `src/api/trustedList/refreshPinnedTags.js`:
+  - No code change needed if the consumed `profileTags.TA_PUBKEY`
+    is the runtime value (it already is post-cbc2b8f0). The line
+    244 author filter then transparently uses the runtime TA via
+    the existing import.
+  - But the test suite should still verify the post-fix author
+    filter passes the runtime value (AC-4).
 
-- **Other hardcoded pubkey literals** beyond the TA — e.g., the
-  `DAVE_PUBKEY` cosmetic constant in `ui/src/config/pubkeys.js:6`
-  is a NosFabrica-specific affordance, not a TA-pubkey violation;
-  it's outside this story.
-
-- **Documentation for non-Brainstorm forks** describing the
-  re-creation flow on their deployment — left to whoever forks
-  the codebase; not a blocker for this story.
+The naming change (`LEGACY_Z_TAG_PUBKEY`) is the safety latch
+against the next refactor silently merging the two concepts back
+together — same way d3a2640a slipped back in via cbc2b8f0. The
+comment block at the declaration is the canonical place for any
+future developer to read "why does this look weird" before they
+"clean it up."
 
 ## Open questions
 
-These belong to the Architect to resolve in Phase 2:
+These belong to the Architect to resolve in Phase 2 (Architecture
+is still light per Bug-class Standard rules, but the d3a2640a
+history justifies a brief ADR):
 
-- **Threading taPubkey into the Story-1 publishers**
-  (`publishProfileTag.js`, `useProfileTags.js`): function argument
-  (matches the `publishTagPin.js` pattern from the d3a2640a
-  attempt) or read-from-context within the helper module? The
-  former requires every caller to pass it; the latter ties the
-  helper to React's context (it's used only from React components
-  today, but conceptually it's a pure publish helper). — Architect.
+- **Exact naming of the legacy constant.** `LEGACY_Z_TAG_PUBKEY`
+  vs `Z_TAG_AUTHOR_LITERAL` vs `INSTANCE_LITERAL_PUBKEY` — pick
+  the one that's hardest to misread.
 
-- **Module-init vs lazy resolution on the server.** The d3a2640a
-  attempt resolved at module init. If the keystore is briefly
-  missing at module load (boot ordering on a fresh container), the
-  fallback warning fires and the constants freeze on null. Lazy
-  resolution per call (with `getOwnerAssistantPubkey()`'s internal
-  cache absorbing the cost) is safer but uglier — every reference
-  site becomes a function call. — Architect.
+- **Whether `module.exports.TA_PUBKEY` continues to export the
+  runtime value** (current state on this branch via cbc2b8f0) or
+  is renamed for clarity. If kept named `TA_PUBKEY`, the
+  Implementer should NOT also export `LEGACY_Z_TAG_PUBKEY` —
+  forcing every importer to either use the runtime or accept
+  that they want the literal explicitly, the latter forces a
+  comment justifying it.
 
-- **Deploy choreography.** Should the deploy be timed (e.g.,
-  Tuesday off-peak), pre-announced, post-announced? The user-facing
-  empty state on `/tags` and `/pins` will be alarming if it
-  surprises operators. — Architect to coordinate with whoever owns
-  the deploy comms.
-
-- **Test fixture portability.** Some existing publish-flow tests
-  build z-tags from a hardcoded literal in their fixtures (e.g.,
-  `test/pin-a-tag-publish.test.js`, `test/tag-detail-write-publish.test.js`).
-  After this migration the fixtures should fetch
-  `/api/assistant/pubkey` once at setup and use the resolved value
-  — same pattern Story 13's publish suite already adopted (per
-  the bug-fix preamble). The Tester will catch any stragglers. —
-  Architect to flag, Tester to enforce.
+- **Whether to update CLAUDE.md's "Per-deployment TA pubkey"
+  subsection** to mention that z-tag derivations are an
+  intentional accepted-debt exception, with cross-reference to
+  this story. Likely yes; one sentence.
 
 ## Linked artifacts
 
 - **Incident intake:** `engineering-team/stories/_intake.md`
   entry dated 2026-05-20 ("Bug: hardcoded TA pubkey in pinning +
-  TL stack breaks every non-local deployment"). Documents the
-  original symptom, the failed first-fix attempt (d3a2640a), and
-  the revert.
-- **Reverted fix:** commit `d3a2640a` (`fix: resolve TA pubkey at
-  runtime in Pin/TL stack`) — the partial attempt that broke
-  `tags.brainstorm.world`. Lives in history; reverted by
-  `4b82a739`. Useful as a reference for the server-side
-  conversion shape (the conversion was correct *in direction*;
-  this story extends it to the publishers).
+  TL stack breaks every non-local deployment").
+- **Reverted first attempt:** `d3a2640a`. Useful as the
+  cautionary tale.
+- **Silent re-introduction:** `cbc2b8f0`. The single change that
+  brought the branch back into the broken state without anyone
+  noticing.
+- **Original story draft:** preserved in git history at
+  `bc06404c`. Useful as the "what we used to think the right
+  scope was" reference.
 - **House rule:** `CLAUDE.md` "Per-deployment TA pubkey — NEVER
-  hardcode" subsection. The "Known violations" sub-list inside
-  it is the success-criterion checklist for this story.
-- **Existing helper (server):** `src/utils/assistantKeys.js:49–82`
-  (`getOwnerAssistantPubkey()`).
-- **Existing helper (client):** `ui/src/context/ConfigContext.jsx:14–18`
-  (`useConfig().taPubkey`, backed by `/api/assistant/pubkey`).
-- **Prior stories impacted:** 1, 2, 3, 4, 7, 10, 11, 12 — every
-  story whose code path touches one of the four hardcoded sites.
-  The migration's correctness must preserve all their tests.
-- ADR: (filled in after Architecture phase)
-- Test plan: (filled in after Test Design phase)
-- Review: (filled in after Review phase)
+  hardcode" subsection. This story is the single named exception:
+  the legacy literal stays in z-tag derivations because
+  historical data binds us. The rule still applies to every
+  OTHER use of the TA pubkey (author filters, signer reads,
+  signing operations, etc.).
+- **Existing helpers:**
+  - Server: `src/utils/assistantKeys.js:49–82`
+    (`getOwnerAssistantPubkey()`).
+  - Client: `ui/src/context/ConfigContext.jsx:9–35`
+    (`useConfig().taPubkey`).
+- **Prior stories impacted:**
+  - Story 11 (TL publication) — `refreshPinnedTags.js`'s author
+    filter starts being correct on non-dev.
+  - Story 13 (most-pinned-tag-index) — the commit that silently
+    re-broke the runtime-vs-literal balance. Story 13's behavior
+    itself is unaffected by this fix; only the underlying
+    constants change shape.
+- **Successor:**
+  - The pin-a-tag epic's final deploy chain to staging and prod.
+    Stories 14/15 remain paused; this is the last gate before
+    promoting the pin epic to production.
+- ADR: `engineering-team/decisions/0015-restore-historical-data-and-fix-tl-author-filter.md`
+- Test plan: `engineering-team/stories/16-runtime-ta-pubkey-migration.test-plan.md`
+- Review: `engineering-team/reviews/16-restore-historical-data-and-fix-tl-author-filter.md`

@@ -25,20 +25,40 @@
 const { exec } = require('child_process');
 const { getOwnerAssistantPubkey } = require('../../utils/assistantKeys');
 
-// TA pubkey is PER-DEPLOYMENT. `getOwnerAssistantPubkey()` reads the
-// runtime value from env → brainstorm.conf → SecureKeyStorage (and
-// caches the result). NEVER hardcode the value — every instance has
-// its own TA, and a literal here makes the pinning/TL stack silently
-// fail on any deployment that isn't the dev environment whose pubkey
-// happened to match. See CLAUDE.md "Per-deployment TA pubkey" and
-// AGENTS.md §1.
+/**
+ * Legacy z-tag-composition pubkey — see ADR 0015.
+ *
+ * Historical kind-39999 events on every Brainstorm/Tapestry
+ * deployment have z-tags composed with this literal value,
+ * including events that pre-date any deployment realizing the
+ * literal didn't match the on-disk TA. The literal is wire-binding:
+ * changing it orphans historical data on non-dev deployments
+ * (this is exactly the d3a2640a / "lost tags" incident).
+ *
+ * This constant is used ONLY for z-tag composition. For any other
+ * use of "the TA pubkey" (signer reads, kind-30392 author
+ * filtering, signing operations), use the runtime `TA_PUBKEY`
+ * constant below — it resolves via `getOwnerAssistantPubkey()`
+ * per CLAUDE.md "Per-deployment TA pubkey".
+ *
+ * See ADR 0015
+ * (engineering-team/decisions/0015-restore-historical-data-and-fix-tl-author-filter.md)
+ * and engineering-team/stories/16-runtime-ta-pubkey-migration.md
+ * for the incident history that produced this exception.
+ */
+const LEGACY_Z_TAG_PUBKEY = '82b75e474dda005e912bcbb910391c60c2b89cc7faf5d3c30b7c59a324973833';
+
+// Runtime TA pubkey — used for kind-30392 author filtering (TLs
+// signed by the on-disk TA key). NEVER substitute the legacy
+// literal here; the bug we're fixing is exactly that mismatch.
+// For z-tag composition, see LEGACY_Z_TAG_PUBKEY above.
 const TA_PUBKEY = getOwnerAssistantPubkey();
 if (!TA_PUBKEY) {
   console.warn('[profile-tags] TA pubkey not resolved at module load — pin/TL features will be broken until keys are provisioned');
 }
-const TAG_Z_TAG = `39998:${TA_PUBKEY}:tag`;
-const NOSTR_USER_TAG_Z_TAG = `39998:${TA_PUBKEY}:nostr-user-tag`;
-const TAG_PINNING_Z_TAG = `39998:${TA_PUBKEY}:tag-pinning`;
+const TAG_Z_TAG = `39998:${LEGACY_Z_TAG_PUBKEY}:tag`;
+const NOSTR_USER_TAG_Z_TAG = `39998:${LEGACY_Z_TAG_PUBKEY}:nostr-user-tag`;
+const TAG_PINNING_Z_TAG = `39998:${LEGACY_Z_TAG_PUBKEY}:tag-pinning`;
 const MEILI_URL = process.env.MEILI_URL || 'http://nostr-search-meili:7700';
 const MEILI_INDEX = process.env.MEILI_INDEX || 'profiles';
 

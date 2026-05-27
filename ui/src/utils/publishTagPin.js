@@ -3,24 +3,36 @@ import { publishOrThrow } from './publishProfileTag';
 /**
  * Single source of truth for the tag-pinning wire shape from ADR 0009.
  *
- * IMPORTANT: the TA pubkey is PER-DEPLOYMENT. Callers MUST pass
- * `taPubkey` to `pinTag()` — typically by reading it from
- * `useConfig().taPubkey`, which is backed by `/api/assistant/pubkey`.
- *
- * NEVER hardcode the TA pubkey here or in any consumer of this
- * module — see CLAUDE.md "Per-deployment TA pubkey" and AGENTS.md §1.
- * A literal hardcode silently breaks the pin/TL stack on every
- * non-dev deployment (the publisher signs with the real on-disk TA
- * key, but the readers look up TLs under the wrong author and find
- * nothing).
- *
  * Used by:
  *   - Tag page (Story 10) — header Pin / Unpin affordance.
  *   - Story 12 — CurationMethodDialog (custom curation values).
  *
  * The wire layout lives in one place here so future changes to the
  * pin event's tags / content body only touch this file.
+ *
+ * The z-tag is composed from LEGACY_TA_PUBKEY (a hardcoded literal),
+ * not from the deployment's runtime TA pubkey — see ADR 0015. This
+ * preserves visibility of historical pin events on non-dev
+ * deployments. The runtime TA pubkey continues to be the right value
+ * for every OTHER use (signer reads, kind-30392 author filtering on
+ * the server side); only z-tag composition uses the legacy literal.
  */
+
+/**
+ * Legacy z-tag-composition pubkey — see ADR 0015.
+ *
+ * Used only for composing the kind-39999 `z` tag handle that
+ * historical pin events reference. NOT to be confused with the
+ * deployment's runtime TA pubkey (`useConfig().taPubkey`), which
+ * is correct for any OTHER use of "the TA pubkey" but, by
+ * deliberate design, is NOT used here.
+ *
+ * Mirrors the same pattern in `useProfileTags.js` and
+ * `publishProfileTag.js` (sibling client publishers for the other
+ * two z-tag namespaces).
+ */
+const LEGACY_TA_PUBKEY = '82b75e474dda005e912bcbb910391c60c2b89cc7faf5d3c30b7c59a324973833';
+const TAG_PINNING_HANDLE = `39998:${LEGACY_TA_PUBKEY}:tag-pinning`;
 
 /**
  * Default curation-method payload.
@@ -44,20 +56,14 @@ export function defaultCurationMethod(viewerPubkey) {
  * @param {{eventId: string, slug: string, authorPubkey: string}} args.tag —
  *   the tag being pinned. `authorPubkey` is the tag-event's publisher
  *   (used in the d-tag and a-tag).
- * @param {string} args.taPubkey — the instance's TA pubkey (hex). REQUIRED.
- *   Pull from `useConfig().taPubkey` at the call site.
  * @param {object} [args.curationMethod] — optional override; defaults to
  *   `defaultCurationMethod(viewerPubkey)`.
  * @returns {Promise<object>} the signed Pin event.
  */
-export async function pinTag({ tag, taPubkey, curationMethod }) {
+export async function pinTag({ tag, curationMethod }) {
   if (!window.nostr) {
     throw new Error('No NIP-07 extension detected. Install one to pin tags.');
   }
-  if (!taPubkey || !/^[0-9a-f]{64}$/.test(taPubkey)) {
-    throw new Error('pinTag: taPubkey is required (pull from useConfig().taPubkey)');
-  }
-  const tagPinningHandle = `39998:${taPubkey}:tag-pinning`;
   const authorPk = await window.nostr.getPublicKey();
   const curation = curationMethod || defaultCurationMethod(authorPk);
   const dTag = `tag-pin-${tag.slug}-${tag.authorPubkey.slice(0, 8)}-${authorPk.slice(0, 8)}`;
@@ -69,7 +75,7 @@ export async function pinTag({ tag, taPubkey, curationMethod }) {
       ['d', dTag],
       ['e', tag.eventId],
       ['a', `39999:${tag.authorPubkey}:${tag.slug}`],
-      ['z', tagPinningHandle],
+      ['z', TAG_PINNING_HANDLE],
       ['curation-method', JSON.stringify(curation)],
     ],
     content: JSON.stringify({

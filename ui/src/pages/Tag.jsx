@@ -7,7 +7,6 @@ import CurationMethodDialog from '../components/CurationMethodDialog';
 import TagViewControls from '../components/TagViewControls';
 import TagSomeoneModal from '../components/TagSomeoneModal';
 import { useAuth } from '../context/AuthContext';
-import { useConfig } from '../context/ConfigContext';
 import { publishProfileTagAssertion } from '../utils/publishProfileTag';
 import { pinTag, unpinTag, defaultCurationMethod } from '../utils/publishTagPin';
 import useTagDetail from '../hooks/useTagDetail';
@@ -39,7 +38,6 @@ export default function Tag() {
   const { tagId, slug } = useParams();
   const navigate = useNavigate();
   const { user, login } = useAuth();
-  const { taPubkey } = useConfig();
   const {
     tag, viewerPin, rows, viewerAssertions, povSuffix, sort, setSort,
     headerLoading, rowsLoading, headerError, rowsError,
@@ -76,7 +74,7 @@ export default function Tag() {
     if (!tag) return;
     setPinning(true); setPinError(null);
     try {
-      const signed = await pinTag({ tag, taPubkey, curationMethod: customCuration });
+      const signed = await pinTag({ tag, curationMethod: customCuration });
       await refetchHeader();
       fetch('/api/trusted-list/refresh-pinned-tag', {
         method: 'POST',
