@@ -2,7 +2,7 @@
 
 **Status:** Proposed
 **Date:** 2026-05-28
-**Story:** `engineering-team/stories/19-nip51-list-export-from-pins.md`
+**Story:** `engineering-team/stories/done/19-nip51-list-export-from-pins.md`
 
 ## Context
 

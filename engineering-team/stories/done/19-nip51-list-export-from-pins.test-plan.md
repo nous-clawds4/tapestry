@@ -1,6 +1,6 @@
 # Test Plan: Story 19 — NIP-51 kind-30000 list export from pinned tags
 
-**Story:** `engineering-team/stories/19-nip51-list-export-from-pins.md`
+**Story:** `engineering-team/stories/done/19-nip51-list-export-from-pins.md`
 **ADR:** `engineering-team/decisions/0017-nip51-list-export-from-pins.md`
 **Date:** 2026-05-28
 

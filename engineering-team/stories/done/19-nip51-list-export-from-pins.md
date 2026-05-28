@@ -1,6 +1,6 @@
 # Story 19: NIP-51 kind-30000 list export from pinned tags
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-05-28
 **Type:** Feature
 
@@ -624,8 +624,8 @@ or during Phase 2:
   - `engineering-team/stories/14-treasure-map-pin-integration.md` (paused)
   - `engineering-team/stories/16-runtime-ta-pubkey-migration.md` (pending)
 - ADR: `engineering-team/decisions/0017-nip51-list-export-from-pins.md`
-- Test plan: `engineering-team/stories/19-nip51-list-export-from-pins.test-plan.md`
-- Review: (filled in after Review phase)
+- Test plan: `engineering-team/stories/done/19-nip51-list-export-from-pins.test-plan.md`
+- Review: `engineering-team/reviews/19-nip51-list-export-from-pins.md`
 
 ## Amendment 2026-05-28 — multi-relay broadcast to user's NIP-65 write relays
 
