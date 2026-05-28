@@ -498,11 +498,13 @@ implementation time, not bake in literals.)
   vocabulary unchanged; only the cross-client export framing is
   NIP-51.
 
-- **Multi-relay publishing of the kind-30000.** Local strfry only
+- ~~**Multi-relay publishing of the kind-30000.** Local strfry only
   in v1, matching the existing kind-30392 publish scope.
   Cross-client portability depends on the recipient's client
   having local strfry in its relay list (or on the share `naddr`
-  including a relay hint — see Open Questions).
+  including a relay hint — see Open Questions).~~
+  **Superseded by Amendment 2026-05-28 below** — multi-relay
+  broadcast to the user's NIP-65 write relays is now in scope.
 
 - **Encrypted (NIP-44) lists.** Public only in v1.
 
@@ -621,6 +623,118 @@ or during Phase 2:
 - **Pending / paused dependencies (unchanged by this story):**
   - `engineering-team/stories/14-treasure-map-pin-integration.md` (paused)
   - `engineering-team/stories/16-runtime-ta-pubkey-migration.md` (pending)
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/0017-nip51-list-export-from-pins.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
+
+## Amendment 2026-05-28 — multi-relay broadcast to user's NIP-65 write relays
+
+After the initial story was drafted and the ADR Q3 resolved the
+`naddr` recipient relay list as "include the instance's
+`BRAINSTORM_RELAY_URL`," the PO surfaced a load-bearing gap:
+
+> When a user pastes their `naddr` into Damus / Amethyst / Iris,
+> those clients look for the event on the *user's own write
+> relays* (per NIP-65). If the kind-30000 only lives on the
+> Brainstorm instance's local strfry, the recipient client won't
+> find it unless they manually add the Brainstorm relay to their
+> relay list. That defeats the cross-client UX promise of the
+> story.
+
+The fix is to also broadcast the kind-30000 to the user's NIP-65
+(kind-10002) write relays at publish time, and to include those
+write relays (not the instance relay) in the `naddr` so recipients
+can find it on the user's own relay set.
+
+This amendment:
+
+- **Removes** "Multi-relay publishing of the kind-30000" from Out
+  of Scope (struck through above).
+- **Adds** the acceptance criteria below.
+- **Triggers** an ADR amendment (`0017-nip51-list-export-from-pins.md`
+  → "Amendment 2026-05-28 — multi-relay broadcast" section)
+  that supersedes Q3 (naddr relay list) and resolves the new
+  open questions below.
+
+### New acceptance criteria
+
+- [ ] **AC-25** — Given the kind-30000 publish flow (at pin time
+  per AC-1 or at re-export time per AC-11), when the client
+  publishes the signed event, then **the publish targets include
+  the user's NIP-65 (kind-10002) write relays** — i.e. relays
+  declared as `write` (or read+write — i.e. no explicit `read-only`
+  marker) in the user's most recent kind-10002 event in local
+  strfry. Local strfry MUST also receive a copy (so internal
+  surfaces keep working). Failure on any individual external relay
+  is tolerated; success of at least one relay (local strfry or
+  external) is required for the action to be considered successful
+  (the existing `publishOrThrow` policy).
+
+- [ ] **AC-26** — Given the user clicks the "Export for use in
+  other clients" affordance (or the at-pin-time export flow runs),
+  when the export popover / dialog is rendered, **before publish**,
+  it surfaces a **relay preview** stating in plain English where
+  the list will go. Example wording (Architect's call):
+  `"This will publish the NIP-51 list '<title>' to: wss://relay.damus.io, wss://nos.lol, … (3 of your write relays, from your NIP-65 relay list)."`
+  The user can see the relay set before confirming the publish.
+
+- [ ] **AC-27** — Given the user has **no kind-10002 event** in
+  local strfry (no published relay list, or it hasn't been synced
+  yet), when they invoke the export flow, then the UI **clearly
+  communicates this** — e.g. `"You haven't published a NIP-65
+  relay list, so this list will only be published to this
+  Brainstorm instance's relay. To make it discoverable in other
+  nostr clients, publish a relay list (NIP-65) first."` The user
+  MAY still proceed (publishing to whatever fallback the
+  Architect picks, e.g. local strfry only, or the existing
+  `aRelays` from `ConfigContext`), but they MUST be informed of
+  the limitation. The exact fallback policy is the Architect's
+  decision per the ADR amendment.
+
+- [ ] **AC-28** — Given the `naddr` copied to the clipboard
+  (AC-11), it **includes the user's NIP-65 write relays** (a
+  subset is acceptable — Architect's call on count, e.g. first 3
+  by order or all of them) in its `relays` field. If the user
+  has no kind-10002, the `naddr` includes whatever fallback the
+  Architect chose for AC-27 (or is `relays`-less if no fallback
+  is feasible). **The previously-resolved Q3 in the ADR (include
+  `BRAINSTORM_RELAY_URL`) is superseded.**
+
+### New open questions for the ADR amendment
+
+These belong to the Architect to resolve in the ADR amendment:
+
+- **Source of the user's NIP-65 list.** Local strfry only, or
+  fetch from an external relay on demand if local is empty? PO
+  leans local-strfry-only (consistent with how the rest of the
+  pin stack reads strfry); if local doesn't have the user's
+  kind-10002, fall back to UI warning per AC-27.
+
+- **Does `syncWoT.sh` already pull kind-10002?** If not, this
+  story's Implementer adds it to the synced-kinds list (a
+  one-line addition to `src/manage/negentropySync/syncWoT.sh`).
+  Architect to confirm and bundle.
+
+- **Naddr relay count.** All write relays, top-N (e.g. 3), or
+  some other policy? PO leans **all** (naddr size is not a
+  practical issue with handfuls of relays).
+
+- **Fallback when kind-10002 is absent (AC-27).** Three options:
+  (a) publish to local strfry only with a clear UI warning;
+  (b) publish to local strfry + `aRelays` (the instance's
+  configured broadcast relays) with a different warning;
+  (c) refuse to publish until the user sets up a relay list.
+  PO leans (a) — least surprising, most respectful of the user's
+  identity (don't publish to relays they haven't claimed).
+  Architect to commit.
+
+- **Refreshing the user's write-relay list.** If the user
+  updates their kind-10002 between exports, when does this
+  surface in the UI? Architect picks; PO leans "re-read on every
+  Export action, no caching beyond a single click's flow."
+
+- **The kind-30000 publish to external relays takes longer than
+  local strfry alone.** UI must indicate "publishing…" while
+  external publishes are in flight (the existing
+  `<TLExportButton>` "exporting" state handles this; just confirm
+  it covers the multi-relay timeout window).
