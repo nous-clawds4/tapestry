@@ -56,6 +56,8 @@ const perQueryNeo4jTimeout = require('./per-query-neo4j-timeout-safety-net.test.
 const nip05CheckmarkVerification = require('./nip05-checkmark-verification.test.js');
 const publishExportConcept = require('./publish-export-a-concept.test.js');
 const communityReferenceStub = require('./community-reference-nostr-relay-stub.test.js');
+const nip51ListExport = require('./nip51-list-export-from-pins.test.js');
+const nip51ListExportPublish = require('./nip51-list-export-from-pins-publish.test.js');
 
 async function main() {
   console.log('Running Brainstorm tests...');
@@ -107,6 +109,10 @@ async function main() {
 
   console.log('\ncommunity-reference-nostr-relay-stub suite:');
   const communityReferenceStubResult = await communityReferenceStub.run();
+
+  const nip51ListExportResult = await nip51ListExport.run();
+  console.log('\nnip51-list-export-from-pins publish-flow suite:');
+  const nip51ListExportPublishResult = await nip51ListExportPublish.run();
 
   console.log('\nTest Results');
   console.log('-------------');
@@ -175,6 +181,11 @@ async function main() {
   console.log(`nip05-checkmark-verification suite:              ${nip05CheckmarkVerificationResult.fail === 0 ? 'PASS' : 'FAIL'} (${nip05CheckmarkVerificationResult.pass} passed, ${nip05CheckmarkVerificationResult.fail} failed)`);
   console.log(`publish-export-a-concept suite:                  ${publishExportConceptResult.fail === 0 ? 'PASS' : 'FAIL'} (${publishExportConceptResult.pass} passed, ${publishExportConceptResult.fail} failed)`);
   console.log(`community-reference-nostr-relay-stub suite:      ${communityReferenceStubResult.fail === 0 ? 'PASS' : 'FAIL'} (${communityReferenceStubResult.pass} passed, ${communityReferenceStubResult.fail} failed)`);
+  console.log(`nip51-list-export-from-pins suite:               ${nip51ListExportResult.fail === 0 ? 'PASS' : 'FAIL'} (${nip51ListExportResult.pass} passed, ${nip51ListExportResult.fail} failed)`);
+  const nleLine = nip51ListExportPublishResult.skipped
+    ? `SKIP (${nip51ListExportPublishResult.skipped} tests; preconditions not met)`
+    : `${nip51ListExportPublishResult.fail === 0 ? 'PASS' : 'FAIL'} (${nip51ListExportPublishResult.pass} passed, ${nip51ListExportPublishResult.fail} failed)`;
+  console.log(`nip51-list-export-from-pins-publish suite:       ${nleLine}`);
 
   const overallOk = configOk
     && profileTagsResult.fail === 0
@@ -207,7 +218,9 @@ async function main() {
     && perQueryNeo4jTimeoutResult.fail === 0
     && nip05CheckmarkVerificationResult.fail === 0
     && publishExportConceptResult.fail === 0
-    && communityReferenceStubResult.fail === 0;
+    && communityReferenceStubResult.fail === 0
+    && nip51ListExportResult.fail === 0
+    && nip51ListExportPublishResult.fail === 0;
   console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);
   process.exit(overallOk ? 0 : 1);
 }

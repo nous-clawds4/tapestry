@@ -624,7 +624,7 @@ or during Phase 2:
   - `engineering-team/stories/14-treasure-map-pin-integration.md` (paused)
   - `engineering-team/stories/16-runtime-ta-pubkey-migration.md` (pending)
 - ADR: `engineering-team/decisions/0017-nip51-list-export-from-pins.md`
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/19-nip51-list-export-from-pins.test-plan.md`
 - Review: (filled in after Review phase)
 
 ## Amendment 2026-05-28 — multi-relay broadcast to user's NIP-65 write relays
