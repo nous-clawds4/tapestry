@@ -380,6 +380,6 @@ These belong to the Architect or to the user to resolve in Phase 2:
     client (not just 30392-aware ones) can consume the pin for
     discovery and ranking. To be opened as its own epic / story
     after this one ships.
-- ADR: (filled in after Architecture phase)
-- Test plan: (filled in after Test Design phase)
+- ADR: `engineering-team/decisions/0016-curated-mobile-affordances-and-pin-state-polish.md`
+- Test plan: **skipped** by PO decision 2026-05-28 — Story 18 is a UI nudge bundle (CSS reveal rules, label/hover swaps, a one-line click handler reroute, a small popover). No behavior change at the data/wire layer. Manual smoke during Implementation + Review covers it. Reviewer should verify the AC walkthrough by hand in browser at both desktop and a touch viewport.
 - Review: (filled in after Review phase)
