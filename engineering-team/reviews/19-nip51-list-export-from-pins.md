@@ -205,3 +205,125 @@ respects all three CLAUDE.md invariants (POV-first, decentralized-first,
 filter-at-view-time), and introduces no new firmware concepts or build
 infrastructure. Non-blocking findings are noted for follow-up but do not
 gate merge.
+
+---
+
+## Amendment II review — 2026-05-28
+
+The PO surfaced a wrong-layer issue after the original PASS: the user's
+NIP-65 write-relay list is identity data sourced from `window.nostr`,
+not WoT-graph data. ADR Amendment II rerouted the lookup client-side
+via `window.nostr.getRelays()`. This addendum reviews the
+implementation of that amendment.
+
+### Quality gates (Reviewer-run)
+
+- [x] `node test/nip51-list-export-from-pins.test.js` — **8 passed, 0 failed**
+- [x] `node test/nip51-list-export-from-pins-publish.test.js` — **11 passed, 0 failed**
+      (3 writeRelays-row tests removed per Amendment II §11; 1 strfry
+      kind-10002 precondition removed)
+- [x] `npm test` (full) — same shape as original review: 30 suites green,
+      `tag-detail-curated-view-and-pin-polish` 2 pre-existing failures
+      (unrelated; previously confirmed via git stash baseline).
+- [ ] `npm run test:playwright` — not run on this machine; spec updated
+      with `getRelays` mocks for AC-26 / AC-27.
+
+### Spec adherence (Amendment II ACs)
+
+- [x] **AC-25** — `publishNip51ExportForPin` accepts writeRelays from
+      caller; falls back to `fetchUserWriteRelays()` (NIP-07 getRelays)
+      when omitted. `publishEverywhere(signed, writeRelays)` is the
+      publish target.
+- [x] **AC-26** — `TLExportButton` `useEffect` on `open` calls
+      `fetchUserWriteRelays()`; popover renders the relay list from
+      component state. "Reading your relay list…" loading state added.
+- [x] **AC-27** — When `getRelays()` is missing, rejects, or returns
+      no write entries, the popover renders the no-NIP-65 warning copy
+      (rewritten to mention `window.nostr.getRelays()`).
+- [x] **AC-28** — Client composes naddr via `nip19.naddrEncode` from
+      the user's write relays after signing. Server endpoint no longer
+      returns a pre-composed naddr.
+
+### ADR adherence (Amendment II §§II-1–II-13)
+
+- [x] II-1 `fetchUserWriteRelays()` helper present in
+      `ui/src/utils/publishTagPin.js`, parses `getRelays()` output,
+      filters write entries (`meta.write !== false`).
+- [x] II-2 No deferred fallback to direct relay fetch (correctly
+      out of v1 scope).
+- [x] II-3 `prepare-nip51-export` response shrank to
+      `{ success, unsigned, dTag, memberCount }` — no writeRelays,
+      no naddr.
+- [x] II-4 `nip51ExportStatus` shape on /pins rows dropped
+      writeRelays; other fields unchanged.
+- [x] II-5 `src/api/_shared/userRelays.js` deleted (`git rm`).
+- [x] II-6 `syncWoT.sh` kind-10002 reverted (line 31 back to
+      `[0, 3, 1984, 10000, 30000, 38000, 38172, 38173]`).
+- [x] II-7 `TLExportButton` fetches relays on `open`; no
+      `writeRelays` prop.
+- [x] II-8 `publishNip51ExportForPin` signature
+      `{ pinEventId, title, writeRelays? }`; composes naddr via
+      `nip19.naddrEncode` client-side.
+- [x] II-9 `Tag.jsx` pin-time flow unchanged (fire-and-forget without
+      `writeRelays` arg → helper does its own NIP-07 lookup).
+- [x] II-10 ACs reframed in-place (no AC numbers reused).
+- [x] II-11 Tester revisions applied per Amendment II §11 list.
+- [x] II-12 No new firmware concept; no firmware reinstall.
+
+### Concept-graph integrity
+
+Unchanged from original review. Still reuses `tag-pinning` z-tag with
+`LEGACY_Z_TAG_PUBKEY`. No firmware concepts touched.
+
+### Things tests can't catch
+
+- [x] No secrets in committed files.
+- [x] No `console.log` debug statements (only existing `console.error`
+      from prior commit).
+- [x] No commented-out code.
+- [x] **Original non-blocking finding #1 (silent local-failure swallow)
+      is FIXED in this amendment** —
+      `publishTagPin.js:198` removed the `&& publishRelays.length > 0`
+      clause; the helper now throws on full publish failure
+      regardless of whether external targets were specified.
+- [x] **Original non-blocking finding #2 (dynamic import) is FIXED** —
+      `publishEverywhere` + `nip19` now static-imported at file top.
+- [x] No regressions in row-shape: `nip51ExportStatus` still carries
+      `status`, `exportedAt`, `exportEventId`, `memberCount`,
+      `diffVsTL`, `currentTitle`. Only `writeRelays` removed.
+
+### House rules
+
+- [x] Concept Graph API authority respected (no changes here).
+- [x] No new lint/typecheck/build tooling.
+- [x] Runtime TA pubkey rule still honored.
+
+### Findings
+
+**Blocking:** _None._
+
+**Non-blocking:**
+
+1. **`ui/src/components/TLExportButton.jsx:69–73`** — popover still
+   does not dismiss on outside-click. Carried over from original
+   review; minor UX polish; not a regression.
+
+2. **`tests/brainstorm/nip51-list-export-from-pins.spec.js`** — Playwright
+   spec was updated but not exercised here (no browser env). Reviewer
+   note: the `getRelays`-absent path (AC-27) is covered by
+   `mockNip07TwoSignNoGetRelays`; recommend running the spec before
+   first user-pushed deploy.
+
+3. **Pre-existing failures in `tag-detail-curated-view-and-pin-polish`**
+   — same 2 tests as the original review. Still orthogonal.
+
+### Amendment II verdict
+
+**PASS**
+
+Amendment II correctly relocates the user's NIP-65 lookup to its
+proper layer (NIP-07 / client-side identity data), drops the
+wrong-layer infrastructure (server helper, syncWoT kind addition,
+row-payload field, server-composed naddr), and fixes two of the
+original review's non-blocking findings (silent failure swallow,
+dynamic import). All Story 19 tests green. Ready to ship.
