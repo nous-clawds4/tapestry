@@ -1122,3 +1122,205 @@ Implementer adds:
 
 Still **no**. The Amendment is a publish-target and UI change;
 no concept-graph changes.
+
+## Amendment 2026-05-28 (II) — wrong-layer fix: client-side NIP-07 relay lookup (supersedes A1, A2, A4, A7-partial)
+
+The first Amendment had the user's NIP-65 (kind 10002) sourced from
+**local strfry**, with `syncWoT.sh` bundling the kind-10002 addition
+so that "the user's NIP-65 was reliably present in local strfry."
+
+After ship, the PO surfaced that this design is at the wrong layer:
+
+> "shouldn't this just be a thing that happens when the user logs in?
+> not a whole system-wide WoT sync anything?"
+>
+> "this is just 'oh, we have a logged in user, WoT is irrelevant here,
+> they have xyz relays, they want to publish a list.' …what does WoT
+> or GR have to do with this?"
+
+The PO is correct. Web-of-Trust sync is a *trust-graph* concern (follow
+lists, mutes, reports, NIP-85 attestations for the crowd the operator
+scores). The logged-in user's *own write-relay list* is identity data —
+the user is right there in the browser, holding their NIP-07 extension
+which already knows the answer. Routing it through a system-wide cron
+conflates two unrelated concerns and produces exactly the failure mode
+the PO hit: the popover's no-NIP-65 warning fires on every fresh
+deployment until a system cron happens to run.
+
+This amendment fixes the layer:
+
+### II-1 — Primary source: `window.nostr.getRelays()`
+
+NIP-07 specifies an optional `getRelays(): Promise<{[url]:
+{read:boolean, write:boolean}}>`. Most popular extensions (Alby,
+nos2x, Flamingo, Nostore, AKA, etc.) implement it. **This is the
+authoritative source for the logged-in user's write-relay list** for
+this feature.
+
+Client-side new helper `fetchUserWriteRelays()` (in
+`ui/src/utils/publishTagPin.js`, sibling of `publishNip51ExportForPin`):
+
+```js
+export async function fetchUserWriteRelays() {
+  if (!window.nostr?.getRelays) return [];
+  try {
+    const relays = await window.nostr.getRelays();
+    if (!relays || typeof relays !== 'object') return [];
+    return Object.entries(relays)
+      .filter(([, meta]) => meta && meta.write !== false)
+      .map(([url]) => url);
+  } catch {
+    return [];
+  }
+}
+```
+
+`meta.write !== false` admits both `{write: true}` and entries with
+no marker (the NIP-65 "both" convention) while excluding explicit
+`{write: false}` / read-only entries.
+
+### II-2 — Fallback when `getRelays()` returns nothing
+
+If the NIP-07 extension does not implement `getRelays()` (returns
+`undefined` or throws), OR the returned list is empty, the client
+**does not** make any further fetch. It shows the AC-27 no-NIP-65
+warning and publishes to local strfry only.
+
+A future-stronger fallback (a direct relay fetch via existing
+`fetchFromRelays` from `ui/src/utils/nostrPublish.js`, hitting a small
+set of well-known relays for the user's kind-10002) is left as a
+follow-up if user feedback shows the warning fires too often in
+practice. Not in v1 of this amendment.
+
+### II-3 — Server endpoint shrinks
+
+`POST /api/trusted-list/prepare-nip51-export` now returns:
+
+```js
+{ success, unsigned, dTag, memberCount }
+```
+
+No `naddr`, no `writeRelays`. The client composes the naddr itself
+(it already imports `nip19` from `nostr-tools` in `TLShareButton.jsx`
+and other surfaces). Server-side `getViewerWriteRelays` is no longer
+called from this endpoint; the import line in
+`src/api/trustedList/index.js` is removed.
+
+### II-4 — `enrichRowsWithNip51ExportStatus` drops `writeRelays`
+
+The /pins row's `nip51ExportStatus` object no longer carries a
+`writeRelays` field. (It is replaced by the client's per-click NIP-07
+lookup.) Other fields — `status`, `exportedAt`, `exportEventId`,
+`memberCount`, `diffVsTL`, `currentTitle` — are unchanged.
+
+Server-side `getViewerWriteRelays` call inside this enricher is
+removed. The import line in `src/api/profile-tags/index.js` is
+removed.
+
+### II-5 — `src/api/_shared/userRelays.js` is deleted
+
+No remaining callers. The file is removed in this amendment.
+
+### II-6 — `syncWoT.sh` kind-10002 addition is reverted
+
+The one-line addition from Amendment A2 was justified only by A1's
+"read from local strfry" decision. A1 is superseded; A2's
+justification is gone; the line is reverted in
+`src/manage/negentropySync/syncWoT.sh`.
+
+(If a *different* future feature wants kind-10002 in local strfry —
+e.g., the deferred fallback in II-2, or a per-user relay-list display
+elsewhere — it should add kind-10002 to the sync as its own change
+with its own justification. Don't add infrastructure on speculation.)
+
+### II-7 — `TLExportButton.jsx` fetches relays on popover open
+
+On click that opens the popover, the component calls
+`fetchUserWriteRelays()` and stashes the result in component state.
+The popover's relay-preview block renders from that state, not from
+a `writeRelays` prop passed in from the parent. Re-fetched on every
+open (no caching across opens; matches Amendment A5's
+"re-read-on-every-Export-click").
+
+The `writeRelays` prop on `TLExportButton` is removed (parents
+shouldn't need to provide it).
+
+### II-8 — `publishNip51ExportForPin` accepts writeRelays as an arg
+
+Signature: `publishNip51ExportForPin({ pinEventId, title?, writeRelays? })`.
+
+If `writeRelays` is omitted, the helper calls `fetchUserWriteRelays()`
+itself (so pin-time fire-and-forget invocations still work without
+the caller doing the lookup). When called from `TLExportButton` (which
+already has the writeRelays in state from the popover open), it passes
+them in to avoid the double-fetch.
+
+The naddr is composed client-side via
+`nip19.naddrEncode({kind:30000, pubkey:signed.pubkey, identifier:dTag,
+relays: writeRelays})` after signing. The helper's return value gains
+the naddr.
+
+### II-9 — Tag.jsx pin-time flow
+
+The fire-and-forget `publishNip51ExportForPin({ pinEventId: signed.id })`
+call at pin time stays as-is (no `writeRelays` arg → helper does its
+own NIP-07 lookup).
+
+### II-10 — ACs reframed (no AC numbers reused or dropped)
+
+- **AC-25** — "publish to user's NIP-65 write relays" — source is now
+  `window.nostr.getRelays()`, not local strfry kind-10002. Wire-shape
+  outcome (the published kind-30000 lands on the user's write relays)
+  is unchanged.
+- **AC-26** — relay-preview popover — source is `getRelays()`; preview
+  renders write entries; otherwise the no-NIP-65 warning per AC-27.
+- **AC-27** — no-NIP-65 fallback fires when `getRelays()` is missing
+  or returns empty (not when local strfry lacks a kind-10002).
+- **AC-28** — `naddr` includes the user's write relays — composed
+  client-side from `getRelays()` output; same final shape.
+
+The server-side `writeRelays` field assertions on /pins rows
+(originally part of AC-25 in Amendment I) are **removed** — the
+feature no longer surfaces relays through that channel.
+
+### II-11 — Test changes
+
+The Tester revises the publish-flow suite:
+
+- **Removes** the three `nip51ExportStatus.writeRelays`-on-row tests
+  (they asserted the deleted field).
+- **Removes** the "strfry contains the viewer's kind-10002"
+  precondition test (no longer used by the feature).
+- **Removes** the contract suite's syncWoT.sh kind-10002 assertion
+  (reverted).
+- **Keeps** the naddr-encoding test (manually composes naddr; still
+  valid).
+- **Keeps** the unauthenticated/missing-pinEventId/malformed
+  endpoint-validation tests.
+- **Keeps** the kind-30000 wire-shape tests.
+- **Keeps** the replaceability + d-tag tests.
+- The Playwright spec retains its AC-26 (relay-preview) and AC-27
+  (no-NIP-65 warning) tests; the `window.nostr.getRelays` mock is
+  added in the spec's `mockNip07TwoSign` helper to return a known
+  relay set, and a separate test mocks `getRelays` returning `{}`
+  to exercise the warning path.
+
+### II-12 — Concept-graph integrity
+
+Unchanged: no new firmware concept; no firmware reinstall; still
+reuses `tag-pinning` z-tag with `LEGACY_Z_TAG_PUBKEY`.
+
+### II-13 — What this amendment does NOT change
+
+- Wire shape of the kind-30000 event (d, z, title, description, p
+  tags, content).
+- Pin-time two-prompt flow.
+- Replaceability invariants (AC-5–AC-8).
+- Brainstorm-internal no-regression ACs (AC-18–AC-20).
+- The Playwright spec's structural ACs (AC-10, AC-11, AC-13, AC-14,
+  AC-17, AC-19).
+- The unpin hint (Q9).
+
+### Firmware reinstall
+
+Still **no**.

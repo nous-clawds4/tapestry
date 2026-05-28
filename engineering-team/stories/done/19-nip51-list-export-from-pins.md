@@ -738,3 +738,114 @@ These belong to the Architect to resolve in the ADR amendment:
   external publishes are in flight (the existing
   `<TLExportButton>` "exporting" state handles this; just confirm
   it covers the multi-relay timeout window).
+
+## Amendment II 2026-05-28 — wrong-layer fix: client-side NIP-07 relay lookup
+
+The first Amendment routed the user's NIP-65 (kind 10002) read
+through local strfry, requiring a system-wide `syncWoT.sh` change
+to make it reliable. After ship, the PO surfaced that this is at
+the wrong layer:
+
+> "shouldn't this just be a thing that happens when the user logs in?
+> not a whole system-wide WoT sync anything?"
+>
+> "what does WoT or GR have to do with this?"
+
+Correct: WoT-sync is a trust-graph concern (everyone's follow lists,
+mutes, attestations). The logged-in user's own write-relay list is
+identity data — the user is right there in the browser, holding a
+NIP-07 extension that already knows the answer.
+
+This amendment supersedes the relevant portions of Amendment I and
+ADR 0017 Amendment A1/A2/A4/A7. The wire shape of the kind-30000
+event, the d-tag composition, the replaceability invariants, the
+pin-time two-prompt flow, and the Brainstorm-internal no-regression
+ACs are all unchanged.
+
+### ACs refined
+
+The four Amendment-I ACs are refined as follows. AC numbers are
+preserved (no renumbering, no AC silently dropped):
+
+- [ ] **AC-25** — Given the kind-30000 publish flow, the publish
+  targets include the user's NIP-65 write relays, **sourced
+  client-side from `window.nostr.getRelays()`** (filtering to
+  entries with `write !== false`). Local strfry also receives a
+  copy. Failure on individual external relays is tolerated; the
+  publish is considered successful if at least local strfry or
+  any one external relay succeeded (matches existing
+  `publishEverywhere` policy).
+
+  - [ ] **AC-25a (deleted from AC-25 surface)** — the
+    `nip51ExportStatus.writeRelays` field on /pins rows is
+    **removed**. Relay listing is per-click, client-side, no
+    longer surfaced on the row payload.
+
+- [ ] **AC-26** — Given the user clicks Export, the popover renders
+  the relay-preview block sourced from `window.nostr.getRelays()`
+  fetched on popover open (not from a prop or pre-fetched row
+  field).
+
+- [ ] **AC-27** — Given `window.nostr.getRelays()` is undefined,
+  rejects, or returns an empty / all-read-only set, the popover
+  shows the no-NIP-65 warning copy. The user MAY still click
+  Export to publish to local strfry only.
+
+- [ ] **AC-28** — The naddr is composed **client-side** via
+  `nip19.naddrEncode` after signing, using the `writeRelays`
+  from the NIP-07 lookup. Same final shape; different source.
+
+### Out of scope (deferred to future amendments / stories)
+
+- **Direct-relay fallback when NIP-07 lacks `getRelays`.** A future
+  fallback could fetch the user's kind-10002 from a small set of
+  well-known relays via `fetchFromRelays` (already in
+  `nostrPublish.js`). Deferred until user feedback shows the
+  no-NIP-65 warning fires too often in practice.
+
+- **Resurrecting `syncWoT.sh` kind-10002.** Reverted by this
+  amendment. A future feature that genuinely needs kind-10002 in
+  local strfry should add it back with its own justification.
+
+### Tester changes
+
+- Drop the three `nip51ExportStatus.writeRelays`-on-row tests.
+- Drop the "strfry contains the viewer's kind-10002" precondition
+  test.
+- Drop the contract suite's `syncWoT.sh kinds list includes 10002`
+  assertion.
+- Keep naddr-encoding, wire-shape, replaceability, endpoint
+  validation, and POV tests.
+- The Playwright spec's `mockNip07TwoSign` helper gains a
+  `window.nostr.getRelays` mock returning a known relay set; the
+  AC-27 test variant mocks it returning `{}`.
+
+### Implementer changes
+
+- Delete `src/api/_shared/userRelays.js`.
+- Remove `getViewerWriteRelays` imports + calls from
+  `src/api/profile-tags/index.js` (drop `writeRelays` field from
+  `nip51ExportStatus`) and `src/api/trustedList/index.js` (drop
+  `writeRelays` + `naddr` from the prepare endpoint's response).
+- Revert `src/manage/negentropySync/syncWoT.sh` kind-10002 addition.
+- Add `fetchUserWriteRelays()` helper in
+  `ui/src/utils/publishTagPin.js`.
+- `publishNip51ExportForPin` accepts a `writeRelays` arg; if
+  omitted, calls `fetchUserWriteRelays()` itself. Composes the
+  naddr client-side after signing.
+- `TLExportButton.jsx` fetches relays on popover open via
+  `fetchUserWriteRelays`, renders the preview, passes them to
+  `publishNip51ExportForPin` on confirm. The `writeRelays` prop
+  is removed.
+- `Pins.jsx` / `PinDetail.jsx` drop the `writeRelays` prop from
+  `TLExportButton` (component manages it internally).
+
+### CLAUDE.md invariants
+
+Unchanged. POV-first, decentralized-first, filter-at-view-time
+still hold; the user signing their own list with their own relay
+list is the *most* decentralized layering.
+
+### Firmware reinstall
+
+Still **no**.
