@@ -2,7 +2,31 @@
 
 **Story:** `engineering-team/stories/done/19-nip51-list-export-from-pins.md`
 **ADR:** `engineering-team/decisions/0017-nip51-list-export-from-pins.md`
-**Date:** 2026-05-28
+**Date:** 2026-05-28 (revised for ADR Amendment II)
+
+## Amendment II 2026-05-28 — revised test scope
+
+The original test plan asserted server-side `writeRelays` on /pins
+rows and a `syncWoT.sh` kind-10002 guard. ADR Amendment II supersedes
+both: the user's NIP-65 write-relay list is now sourced client-side
+via `window.nostr.getRelays()`. The following tests are removed:
+
+- contract suite: `syncWoT.sh kind list includes 10002` → **inverted**
+  to assert kind-10002 is NOT in the list (Amendment II reverted it).
+- publish suite: `nip51ExportStatus on row exposes write-relay set` → **removed**.
+- publish suite: `no kind-10002 → writeRelays:[] on row` → **removed**.
+- publish suite: `strfry contains viewer's kind-10002 precondition` → **removed**.
+
+Added / changed:
+
+- Playwright spec's `mockNip07TwoSign` helper gains a
+  `window.nostr.getRelays()` mock returning a known relay set; AC-27
+  variant uses `mockNip07TwoSignNoGetRelays` (omitted getRelays) to
+  exercise the warning path.
+- The `nip51ExportStatus` row-shape tests still assert the OTHER
+  fields (`status`, `exportedAt`, `exportEventId`, `memberCount`,
+  `diffVsTL`, `currentTitle`) — only the `writeRelays` field is
+  removed.
 
 ## Coverage map
 

@@ -100,9 +100,37 @@ test.describe('NIP-51 kind-30000 list export from pinned tags (Story 19)', () =>
 
   /**
    * Inject a NIP-07 mock that records both signEvent calls (for AC-1
-   * which requires TWO signs: pin + kind-30000).
+   * which requires TWO signs: pin + kind-30000). Per ADR 0017
+   * Amendment II, also mocks window.nostr.getRelays() — the
+   * popover's relay-preview source.
    */
-  async function mockNip07TwoSign(page) {
+  async function mockNip07TwoSign(page, { getRelaysReturns = null } = {}) {
+    const defaultRelays = {
+      'wss://relay.alpha.example': { read: true, write: true },
+      'wss://relay.beta.example':  { read: true, write: false },  // read-only — filtered out
+      'wss://relay.gamma.example': { read: true, write: true },
+    };
+    const relayMap = getRelaysReturns === null ? defaultRelays : getRelaysReturns;
+    await page.addInitScript(({ pubkey, pinEventId, kind30000EventId, relayMap }) => {
+      const signCalls = [];
+      window.__signedEvents = signCalls;
+      window.nostr = {
+        async getPublicKey() { return pubkey; },
+        async signEvent(unsigned) {
+          signCalls.push(unsigned);
+          const id = unsigned.kind === 39999
+            ? pinEventId
+            : (unsigned.kind === 30000 ? kind30000EventId : 'c'.repeat(64));
+          return { ...unsigned, id, sig: '0'.repeat(128) };
+        },
+        // Amendment II: client-side NIP-07 source for write relays.
+        async getRelays() { return relayMap; },
+      };
+    }, { pubkey: VIEWER_PK, pinEventId: PIN_EVENT_ID, kind30000EventId: KIND30000_EVENT_ID, relayMap });
+  }
+
+  /** NIP-07 present but without getRelays() implemented — fallback path per AC-27. */
+  async function mockNip07TwoSignNoGetRelays(page) {
     await page.addInitScript(({ pubkey, pinEventId, kind30000EventId }) => {
       const signCalls = [];
       window.__signedEvents = signCalls;
@@ -110,12 +138,12 @@ test.describe('NIP-51 kind-30000 list export from pinned tags (Story 19)', () =>
         async getPublicKey() { return pubkey; },
         async signEvent(unsigned) {
           signCalls.push(unsigned);
-          // Return the event with a deterministic id based on kind.
           const id = unsigned.kind === 39999
             ? pinEventId
             : (unsigned.kind === 30000 ? kind30000EventId : 'c'.repeat(64));
           return { ...unsigned, id, sig: '0'.repeat(128) };
         },
+        // getRelays intentionally absent — exercises Amendment II AC-27 path.
       };
     }, { pubkey: VIEWER_PK, pinEventId: PIN_EVENT_ID, kind30000EventId: KIND30000_EVENT_ID });
   }
@@ -196,9 +224,11 @@ test.describe('NIP-51 kind-30000 list export from pinned tags (Story 19)', () =>
 
   /**
    * Mock /api/profile-tags/pins with the additive nip51ExportStatus
-   * field per ADR 0017 Implementation notes.
+   * field. Per ADR 0017 Amendment II, the writeRelays field is NOT
+   * on the row payload — client fetches relays via NIP-07 at popover
+   * open time.
    */
-  async function mockPinsRoute(page, { exportStatus = 'never-exported', writeRelays = WRITE_RELAYS } = {}) {
+  async function mockPinsRoute(page, { exportStatus = 'never-exported' } = {}) {
     await page.route('**/api/profile-tags/pins**', (r) => {
       const exportedAt = exportStatus === 'never-exported' ? null : 1715000200;
       const exportEventId = exportStatus === 'never-exported' ? null : KIND30000_EVENT_ID;
@@ -224,7 +254,7 @@ test.describe('NIP-51 kind-30000 list export from pinned tags (Story 19)', () =>
               nip51ExportStatus: {
                 status: exportStatus, exportedAt,
                 exportEventId, memberCount, diffVsTL,
-                writeRelays, currentTitle: exportStatus === 'never-exported' ? null : 'Existing custom title',
+                currentTitle: exportStatus === 'never-exported' ? null : 'Existing custom title',
               },
             },
           ],
@@ -233,8 +263,10 @@ test.describe('NIP-51 kind-30000 list export from pinned tags (Story 19)', () =>
     });
   }
 
-  /** Mock the prepare endpoint with the documented response shape. */
-  async function mockPrepareEndpoint(page, { writeRelays = WRITE_RELAYS } = {}) {
+  /** Mock the prepare endpoint with the documented response shape.
+   *  Per ADR 0017 Amendment II, the response drops writeRelays and
+   *  naddr — client composes naddr itself from the NIP-07 lookup. */
+  async function mockPrepareEndpoint(page) {
     await page.route('**/api/trusted-list/prepare-nip51-export', (route) => {
       const req = route.request();
       const body = JSON.parse(req.postData() || '{}');
@@ -259,8 +291,6 @@ test.describe('NIP-51 kind-30000 list export from pinned tags (Story 19)', () =>
           },
           dTag: D_TAG,
           memberCount: 2,
-          naddr: NADDR_PREVIEW,
-          writeRelays,
         }),
       });
     });
@@ -543,16 +573,17 @@ test.describe('NIP-51 kind-30000 list export from pinned tags (Story 19)', () =>
     expect(signedKind30000Count).toBe(0);
   });
 
-  /* ─────────── AC-27: no kind-10002 → fallback warning ─────────── */
+  /* ─────────── AC-27: no NIP-07 getRelays → fallback warning ─────────── */
 
-  test('AC-27: when the viewer has no kind-10002, the Export popover shows the "no NIP-65 relay list" warning copy', async ({ page }) => {
+  test('AC-27: when window.nostr.getRelays is missing or returns empty, the Export popover shows the "no NIP-65 relay list" warning copy', async ({ page }) => {
     await mockLoggedIn(page);
     await mockAssistantPubkey(page);
-    await mockNip07TwoSign(page);
+    // Two-sign NIP-07 mock WITHOUT getRelays() — exercises AC-27 path.
+    await mockNip07TwoSignNoGetRelays(page);
     await mockClipboard(page);
     await mockStrfryPublish(page);
-    await mockPrepareEndpoint(page, { writeRelays: [] });
-    await mockPinsRoute(page, { exportStatus: 'never-exported', writeRelays: [] });
+    await mockPrepareEndpoint(page);
+    await mockPinsRoute(page, { exportStatus: 'never-exported' });
 
     await page.goto(PINS_PAGE_URL);
     await page.waitForLoadState('networkidle');

@@ -161,36 +161,25 @@ t('/api/profile-tags/pins row shape (when rows exist) carries a nip51ExportStatu
   assert(true, 'row shape verified in test/nip51-list-export-from-pins-publish.test.js');
 });
 
-/* ─── syncWoT.sh kind list — ADR 0017 Amendment A2 ─── */
+/* ─── ADR 0017 Amendment II: syncWoT.sh kind-10002 reverted ─── */
 
-t('src/manage/negentropySync/syncWoT.sh strfry-sync kind list includes 10002 (ADR 0017 Amendment A2)', async () => {
-  // Without 10002 in the synced kinds, the user's NIP-65 (kind 10002)
-  // event isn't guaranteed to be present in local strfry, which
-  // silently degrades AC-25 / AC-27 / AC-28: prepare-nip51-export's
-  // writeRelays returns [] for any in-WoT user, and the cross-client
-  // UX promise quietly fails. This file-content guard ensures the
-  // Implementer remembers to bundle the one-line sync addition.
+t('src/manage/negentropySync/syncWoT.sh strfry-sync kind list does NOT include 10002 (ADR 0017 Amendment II reverted A2)', async () => {
+  // Amendment I (A2) added 10002. Amendment II superseded the
+  // wrong-layer "read from local strfry" approach and reverted A2;
+  // the user's NIP-65 is now read client-side via NIP-07
+  // window.nostr.getRelays(). If 10002 is back in this list, an
+  // Implementer has re-introduced the wrong-layer infrastructure
+  // without justification.
   const scriptPath = path.join(__dirname, '..', 'src', 'manage', 'negentropySync', 'syncWoT.sh');
-  assert(fs.existsSync(scriptPath),
-    `expected ${scriptPath} to exist; either the path moved or the project layout changed`);
+  assert(fs.existsSync(scriptPath), `expected ${scriptPath} to exist`);
   const content = fs.readFileSync(scriptPath, 'utf-8');
-
-  // Match the strfry sync line — it should contain a JSON kinds array.
   const syncLine = content.split('\n').find((l) => l.includes('strfry sync') && l.includes('kinds'));
-  assert(syncLine, `expected a "strfry sync ... kinds: [...]" line in syncWoT.sh; got contents starting with:\n${content.slice(0, 200)}`);
-
-  // Pull out the kinds array literal. The line shape is
-  //   strfry sync wss://$relay --filter '{"kinds": [0, 3, 1984, ...]}' ...
+  assert(syncLine, `expected a "strfry sync ... kinds: [...]" line in syncWoT.sh`);
   const match = syncLine.match(/"kinds"\s*:\s*\[([^\]]*)\]/);
-  assert(match, `failed to parse the kinds array from syncWoT.sh's sync line:\n${syncLine}`);
-  const kinds = match[1]
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean)
-    .map((s) => parseInt(s, 10));
-
-  assert(kinds.includes(10002),
-    `syncWoT.sh kinds list must include 10002 (NIP-65 relay metadata) per ADR 0017 Amendment A2; current list: [${kinds.join(', ')}]`);
+  assert(match, `failed to parse the kinds array from syncWoT.sh`);
+  const kinds = match[1].split(',').map((s) => s.trim()).filter(Boolean).map((s) => parseInt(s, 10));
+  assert(!kinds.includes(10002),
+    `syncWoT.sh kinds list must NOT include 10002 (Amendment II reverted A2 — NIP-65 is read client-side via NIP-07); current list: [${kinds.join(', ')}]`);
 });
 
 /* ─── ADR 0017 Amendment A9: do NOT introduce /api/config/public-relay ─── */

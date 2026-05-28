@@ -542,95 +542,20 @@ tBasic('nip51ExportStatus.diffVsTL has the shape {added, removed} per ADR 0017 I
     `diffVsTL.removed must be a number; got ${JSON.stringify(diff)}`);
 });
 
-/* AC-25 / AC-28: NIP-65 read returns the user's write relays */
-
-tBasic('strfry contains the viewer\'s NIP-65 (kind 10002) event with the expected r-tags (precondition for AC-25 / AC-28)', async () => {
-  const { viewerPk, writeRelayA, readRelayB, bothRelayC } = basicCtx;
-  const events = await strfryScan({ kinds: [10002], authors: [viewerPk] });
-  assert(events.length > 0,
-    `expected viewer's kind-10002 in strfry; got ${events.length} events for author ${viewerPk.slice(0, 8)}…`);
-  events.sort((a, b) => b.created_at - a.created_at);
-  const latest = events[0];
-  const rTags = (latest.tags || []).filter((t) => t[0] === 'r');
-  assert(rTags.length >= 3,
-    `kind-10002 must carry at least 3 r-tags from the fixture; got ${rTags.length}: ${JSON.stringify(rTags)}`);
-  const urls = rTags.map((t) => t[1]);
-  assert(urls.includes(writeRelayA) && urls.includes(readRelayB) && urls.includes(bothRelayC),
-    `kind-10002 r-tags must include all three fixture URLs; got ${JSON.stringify(urls)}`);
-});
-
-tBasic('nip51ExportStatus on the /pins row exposes the viewer\'s NIP-65 write-relay set (or writeRelays:[] when absent) — AC-25 / AC-28', async () => {
-  // The server's enrichRowsWithTLStatus (or sibling) must also carry
-  // the writeRelays it consulted, so the UI's relay-preview popover
-  // can render without an extra fetch. Spec is per ADR 0017
-  // Amendment A7 / A6: the server returns writeRelays alongside the
-  // unsigned template AND the read path surfaces them on /pins rows
-  // (for the popover preview to render before the user clicks
-  // Export). The field is part of the documented row shape.
-  const { viewerPk, pinEventId, expectedWriteRelays } = basicCtx;
-  const { json } = await fetchJson(
-    `${CONTROL_PANEL_BASE}/api/profile-tags/pins?viewerPubkey=${viewerPk}`
-  );
-  const row = (json.pins || []).find((p) => p.pinEventId === pinEventId);
-  assert(row?.nip51ExportStatus,
-    `row + nip51ExportStatus must exist`);
-  assert(Array.isArray(row.nip51ExportStatus.writeRelays),
-    `nip51ExportStatus.writeRelays must be an array (AC-25); got ${JSON.stringify(row.nip51ExportStatus.writeRelays)}`);
-  // Order MAY differ between the server's parse and our expected
-  // (the spec only requires "write or read+write"; order preserved
-  // is the recommendation but not a hard AC). We assert set equality.
-  const set = new Set(row.nip51ExportStatus.writeRelays);
-  for (const want of expectedWriteRelays) {
-    assert(set.has(want),
-      `nip51ExportStatus.writeRelays must include ${want} (write or no-marker in fixture's NIP-65); got ${JSON.stringify(row.nip51ExportStatus.writeRelays)}`);
-  }
-  // Read-only relay MUST NOT appear.
-  const { readRelayB } = basicCtx;
-  assert(!set.has(readRelayB),
-    `nip51ExportStatus.writeRelays must NOT include the read-only relay ${readRelayB}; got ${JSON.stringify(row.nip51ExportStatus.writeRelays)}`);
-});
-
-tBasic('a viewer with NO kind-10002 in strfry yields nip51ExportStatus.writeRelays === [] (AC-27 server-side)', async () => {
-  // Set up a completely separate ephemeral viewer (no NIP-65
-  // published) and a pin for them.
-  const tagAuthorSk = nakKeyGen();
-  const tagAuthorPk = nakDerivePubkey(tagAuthorSk);
-  const slugBase = `s19noNip65-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-  const tagSlug = `nip51-no65-${slugBase}`;
-  const publishedTag = await publishTagEvent({
-    slug: tagSlug,
-    name: `No NIP-65 ${slugBase}`,
-    description: 'no-nip65 fallback test',
-    authorSk: tagAuthorSk,
-  });
-  const tag = {
-    eventId: publishedTag.id,
-    slug: tagSlug,
-    authorPubkey: tagAuthorPk,
-    name: `No NIP-65 ${slugBase}`,
-  };
-
-  const viewerSk = nakKeyGen();
-  const viewerPk = nakDerivePubkey(viewerSk);
-  const pinEvent = buildPinEvent({
-    tag, viewerSk, viewerPk,
-    curationMethod: defaultCurationMethod(viewerPk),
-  });
-  const publishedPin = await publish(pinEvent);
-  await sleep(PROPAGATION_MS);
-
-  const { json } = await fetchJson(
-    `${CONTROL_PANEL_BASE}/api/profile-tags/pins?viewerPubkey=${viewerPk}`
-  );
-  const row = (json.pins || []).find((p) => p.pinEventId === publishedPin.id);
-  assert(row, `pin row must appear in /pins for the no-NIP-65 viewer`);
-  assert(row.nip51ExportStatus,
-    `row must carry nip51ExportStatus; got ${JSON.stringify(row)}`);
-  assert(Array.isArray(row.nip51ExportStatus.writeRelays),
-    `nip51ExportStatus.writeRelays must be an array even when no kind-10002 exists; got ${JSON.stringify(row.nip51ExportStatus.writeRelays)}`);
-  assert(row.nip51ExportStatus.writeRelays.length === 0,
-    `nip51ExportStatus.writeRelays must be EMPTY for a viewer with no kind-10002 (AC-27 server-side); got ${JSON.stringify(row.nip51ExportStatus.writeRelays)}`);
-});
+/* AC-25 / AC-28 NOTE: per ADR 0017 Amendment II, the user's NIP-65
+ * write-relay list is sourced CLIENT-SIDE from window.nostr.getRelays(),
+ * not from local strfry or the server's /pins row enrichment. The
+ * server endpoint no longer returns writeRelays; rows no longer carry
+ * a writeRelays field. The original Amendment-I tests asserting those
+ * server-side surfaces are removed (see Amendment II §11). Client-side
+ * relay-source behavior is covered by tests/brainstorm/
+ * nip51-list-export-from-pins.spec.js (Playwright with mocked
+ * window.nostr.getRelays).
+ *
+ * The naddr-encoding test below still composes naddr from a manually-
+ * provided writeRelays array; it pins the client's naddr encoding
+ * contract (kind/pubkey/identifier/relays decode back).
+ */
 
 /* AC-23: POV isolation — two viewers, distinct (pubkey, d-tag) coords */
 
