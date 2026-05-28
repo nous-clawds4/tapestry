@@ -64,6 +64,7 @@ We chose **Option A**, implementing only the **owner (`NostrUser`-node) branch**
   - **Count vs list divergence** — `Following: N` (strfry) ≠ list length (Neo4j) is expected; UI copy + tests must **not** assume equality.
   - **UI rebuild required** — `ui/src` changes need `npm run build` (Vite → `dist/`) to appear; the local Docker bind-mount serves `dist/`, so testing includes a rebuild.
   - **Owner-only** — logged-in customers and logged-out visitors all see the owner POV; no selector.
+- **Verification (two options, both available):** interactively via the **Claude-in-Chrome** extension (real session, no install) and deterministically via the **Playwright** spec `tests/brainstorm/profile-follows-list.spec.js` (browsers installed via `npx playwright install`; runs headless in CI / across mobile viewports). See the test plan.
 - **Deferred / follow-ups (customer phase):** add the card branch to this endpoint (`observer` param + `NostrUserWotMetricsCard` join, per `userdata.js:75-85`), the POV selector, customer-default-observer, and `?observer=<customer>` URL support. At that point **verify an index on `NostrUserWotMetricsCard(observer_pubkey, observee_pubkey)`** (large follow sets multiply card lookups → 504 risk without it). Also: generalize to other interaction types; consider server-side sort/paginate; reconcile the two POV schemes.
 - **Firmware reinstall required?** **No** — no concept definitions change.
 
