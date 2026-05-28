@@ -3,6 +3,7 @@
 **Status:** Approved
 **Created:** 2026-05-28
 **Type:** Feature
+**Amended:** 2026-05-28 — customer-observer support deferred to a follow-up; **v1 is owner-POV only**. See "Deferred to a follow-up" below and ADR 0026.
 
 ## Background
 The primary user-facing profile (`/user/<pubkey>`) shows a bare **"Following"** count with no way to act on it. To actually *see and evaluate* who someone follows — ranked by local trust signals, from a chosen point of view — users today must leave for the legacy grapevine-analysis page, which is styled and structured for a different context. This story brings that capability into the primary profile experience as a native, standalone follows page, reusing the trust data this instance already computes locally.
@@ -16,7 +17,7 @@ Testable from the outside. Each criterion gets at least one test.
 **Navigation & URL**
 - [ ] **Entry point.** Given a profile at `/user/<pubkey>`, when it renders, then the "Following" count is a link that navigates **in the same tab** to `/user/<pubkey>/follows`.
 - [ ] **Return.** Given the follows page, when the user activates a "← Back to profile" control (and likewise the browser back button), then they return to `/user/<pubkey>`.
-- [ ] **Direct load with POV.** Given `/user/<pubkey>/follows?observer=<obs>`, when loaded directly, then the page shows `<pubkey>`'s follows computed from `<obs>`'s point of view.
+- [ ] **Direct load.** Given `/user/<pubkey>/follows`, when loaded directly, then the page shows `<pubkey>`'s follows computed from the **instance owner's** point of view. *(Honoring `?observer=<customer>` for other points of view is deferred — see below.)*
 - [ ] **Row navigation.** Given a row (an account `<pubkey>` follows), when the viewer activates it, then they navigate **in the same tab** to that account's own `/user/<that-pubkey>` profile.
 
 **The list**
@@ -33,13 +34,20 @@ Testable from the outside. Each criterion gets at least one test.
 - [ ] **Name fallback.** Each row's name column shows the display name; if absent, the name; if both absent, a shortened npub.
 - [ ] **Rank.** The rank column shows an integer **0–100**, equal to `round(influence × 100)` from the selected point of view (not a raw decimal).
 
-**Point of view**
-- [ ] **Observer-relative data.** Given two different selected points of view, when each is selected, then the **rank, hops, and all three verified counts** change to reflect the selected point of view.
-- [ ] **POV selector.** The page provides a point-of-view selector listing the instance's customers plus a **"Global / owner"** option; selecting one updates the displayed data and the `observer` value in the URL.
-- [ ] **Default observer.** With no `observer` specified: if the logged-in user is a customer, the default point of view is themselves; otherwise (including logged-out visitors) the default point of view is the instance owner.
+**Point of view (v1: owner only)**
+- [ ] **Owner point of view.** All metrics (rank, hops, verified counts) are computed from the **instance owner's** point of view, for every viewer (including logged-in customers and logged-out visitors). Per-row values are read directly from the `NostrUser` node.
+
+*(The point-of-view selector, customer-relative metrics, and customer-default-observer behavior are **deferred** — see "Deferred to a follow-up" below.)*
 
 **Disclosure**
 - [ ] **Local-data disclosure.** The page provides a **tappable** ⓘ affordance that reveals a note stating all data here is computed **locally by this Tapestry instance and is not imported via NIP-85**; the affordance works by tap on touch devices (not hover-only).
+
+## Deferred to a follow-up (customer observers)
+In the original story; deferred per the 2026-05-28 amendment because customer-observer trust scores live on a different node type (`NostrUserWotMetricsCard`) requiring a distinct query path (see ADR 0026). Tracked for a follow-up story:
+- **Observer-relative data.** Switching point of view changes rank, hops, and the three verified counts.
+- **POV selector.** A selector listing the instance's customers plus a "Global / owner" option; selecting one updates the data and the `observer` URL param.
+- **Customer-default observer.** If the logged-in user is a customer, default the point of view to themselves; otherwise the instance owner.
+- **`?observer=<customer>` URL support** for non-owner points of view.
 
 ## Concepts touched
 *(Concept Graph API at `:8877` was unreachable during planning — concepts named in plain language; the Architect should resolve handles via `/api/concept-graph/summaries`.)*
@@ -68,8 +76,9 @@ None open.
 ## Notes for the Architect
 - This is a **large story** (16 criteria spanning the UI plus a trust-data dependency). It's one coherent unit of value — the page is useless without its data — so it was kept whole, but the Architect is free to **propose phasing the implementation** (e.g., the data-availability work before the UI) within a single ADR.
 - A key known constraint: the default sort is **verified-followers descending across the entire follow set**, so those counts (and the other observer-relative values) need to be available for ranking the whole list, not fetched lazily per visible row. Prior art for the data + POV selector exists in the legacy grapevine-analysis page; reuse vs. extension of existing endpoints is the Architect's call.
+- **Amendment outcome (2026-05-28):** v1 scoped to owner POV; metrics read from the `NostrUser` node (no card join). Customer observers deferred. Disambiguation precedent: a single endpoint branches internally on `observerPubkey === 'owner'` (read `NostrUser`) vs. a customer pubkey (read `NostrUserWotMetricsCard`) — see `src/api/export/users/queries/userdata.js:24,40-54,75-85` and ADR 0026.
 
 ## Linked artifacts
-- ADR: *(filled in after Architecture phase)*
+- ADR: `engineering-team/decisions/0026-profile-follows-list.md`
 - Test plan: *(filled in after Test Design phase)*
 - Review: *(filled in after Review phase)*
