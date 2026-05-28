@@ -290,6 +290,15 @@ export default function CurationMethodDialog({
             <p className="pcd-form-error" role="alert">⚠️ {error}</p>
           )}
 
+          {mode === 'edit' && onUnpin && confirmingUnpin && (
+            <p className="pcd-unpin-export-hint" role="note">
+              Note: your published cross-client list (NIP-51 kind 30000) will
+              not be automatically retracted. To take it down from your other
+              clients, re-export an empty version from the pin's detail page,
+              or publish a NIP-09 deletion yourself.
+            </p>
+          )}
+
           <div className="pcd-actions">
             {mode === 'edit' && onUnpin && (
               <button

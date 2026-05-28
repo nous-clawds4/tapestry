@@ -24,6 +24,7 @@
 
 const { exec } = require('child_process');
 const { getOwnerAssistantPubkey } = require('../../utils/assistantKeys');
+const { getViewerWriteRelays } = require('../_shared/userRelays');
 
 /**
  * Legacy z-tag-composition pubkey — see ADR 0015.
@@ -1357,7 +1358,12 @@ async function handlePins(req, res) {
     // ADR 0010: enrich each row with tlStatus derived from strfry (no
     // on-disk persistence). One batched scan covers all pins' d-tags;
     // results are mapped back to per-row tlStatus objects.
-    await enrichRowsWithTLStatus(pins);
+    const { tlByDTag, wantedDTags } = await enrichRowsWithTLStatus(pins);
+    // ADR 0017: also enrich each row with nip51ExportStatus (Story 19).
+    // Re-uses the d-tags + kind-30392 scan results from the previous call
+    // to avoid double-scanning strfry. writeRelays read once for the viewer
+    // and shared across all their rows.
+    await enrichRowsWithNip51ExportStatus(pins, viewerPubkey, { tlByDTag, wantedDTags });
 
     res.json({ success: true, pins });
   } catch (err) {
@@ -1402,9 +1408,12 @@ async function enrichRowsWithTLStatus(pins) {
     wantedDTags.push(dTag);
   }
 
+  // Latest per d-tag wins (kind-30392 is addressable replaceable; defensive).
+  // Returned to the caller so Story-19's nip51-export-status enricher can
+  // reuse the same scan results without round-tripping strfry again.
+  const tlByDTag = new Map();
   if (wantedDTags.length === 0) {
-    for (const row of pins) delete row._tlDTag;
-    return;
+    return { tlByDTag, wantedDTags };
   }
 
   let tls = [];
@@ -1416,12 +1425,9 @@ async function enrichRowsWithTLStatus(pins) {
     });
   } catch {
     // strfry scan failed — leave default 'never' on each row.
-    for (const row of pins) delete row._tlDTag;
-    return;
+    return { tlByDTag, wantedDTags };
   }
 
-  // Latest per d-tag wins (kind-30392 is addressable replaceable; defensive).
-  const tlByDTag = new Map();
   for (const ev of tls) {
     const d = (ev.tags || []).find((t) => t[0] === 'd')?.[1];
     if (!d) continue;
@@ -1431,7 +1437,6 @@ async function enrichRowsWithTLStatus(pins) {
 
   for (const row of pins) {
     const dTag = row._tlDTag;
-    delete row._tlDTag;
     if (!dTag) continue;
     const tl = tlByDTag.get(dTag);
     if (!tl) continue; // leave 'never'
@@ -1441,6 +1446,121 @@ async function enrichRowsWithTLStatus(pins) {
       lastRefreshAt: tl.created_at,
       tlEventId: tl.id,
       memberCount: (tl.tags || []).filter((t) => t[0] === 'p').length,
+    };
+  }
+
+  return { tlByDTag, wantedDTags };
+}
+
+/**
+ * Story 19 / ADR 0017: per-pin nip51ExportStatus derived live from strfry
+ * + the user's NIP-65 write relays. Mirrors enrichRowsWithTLStatus's
+ * derive-from-strfry-on-read pattern (no on-disk state).
+ *
+ * For each pin row:
+ *   - If unsupported method (per enrichRowsWithTLStatus) → nip51ExportStatus
+ *     status='never-exported', writeRelays still populated.
+ *   - Else fetch the user's latest kind-30000 with the same d-tag (signed
+ *     by viewerPubkey, NOT the TA). If absent → status='never-exported'.
+ *     If present → compare its p-tag set with the current kind-30392's
+ *     p-tag set (passed in via tlByDTag):
+ *       - same set → status='ok-fresh', diffVsTL={added:0, removed:0}
+ *       - differs   → status='stale',     diffVsTL={added:N, removed:M}
+ *   - writeRelays = viewer's NIP-65 write-relay list (or [] if no kind-10002).
+ *
+ * Must be called AFTER enrichRowsWithTLStatus (which stashes row._tlDTag
+ * and we read tlByDTag from its return).
+ */
+async function enrichRowsWithNip51ExportStatus(pins, viewerPubkey, { tlByDTag = new Map(), wantedDTags = [] } = {}) {
+  // Default: every row carries a populated nip51ExportStatus object so
+  // the UI doesn't have to null-check the field; the writeRelays array
+  // (computed once below) is shared across all rows for the same viewer.
+  let writeRelays = [];
+  if (isHexPubkey(viewerPubkey)) {
+    try { writeRelays = await getViewerWriteRelays(viewerPubkey); }
+    catch { writeRelays = []; }
+  }
+
+  for (const row of pins) {
+    row.nip51ExportStatus = {
+      status: 'never-exported',
+      exportedAt: null,
+      exportEventId: null,
+      memberCount: null,
+      diffVsTL: null,
+      writeRelays,
+      currentTitle: null,
+    };
+  }
+
+  // Cleanup: row._tlDTag was stashed by enrichRowsWithTLStatus; remove
+  // it after we've used it here.
+  const rowsByDTag = new Map();
+  for (const row of pins) {
+    if (row._tlDTag) rowsByDTag.set(row._tlDTag, row);
+  }
+
+  if (rowsByDTag.size === 0 || !isHexPubkey(viewerPubkey)) {
+    for (const row of pins) delete row._tlDTag;
+    return;
+  }
+
+  // One batched scan: viewer's kind-30000 events whose d-tag matches any
+  // of the wanted d-tags. (kind 30000 is parameterized-replaceable; the
+  // (kind, pubkey, d) coordinate carries the latest by created_at.)
+  let exports = [];
+  try {
+    exports = await strfryScan({
+      kinds: [30000],
+      authors: [viewerPubkey],
+      '#d': wantedDTags,
+    });
+  } catch {
+    for (const row of pins) delete row._tlDTag;
+    return;
+  }
+
+  // Latest per d-tag wins.
+  const exportByDTag = new Map();
+  for (const ev of exports) {
+    const d = (ev.tags || []).find((t) => t[0] === 'd')?.[1];
+    if (!d) continue;
+    const cur = exportByDTag.get(d);
+    if (!cur || ev.created_at > cur.created_at) exportByDTag.set(d, ev);
+  }
+
+  for (const row of pins) {
+    const dTag = row._tlDTag;
+    delete row._tlDTag;
+    if (!dTag) continue;
+    const exportEv = exportByDTag.get(dTag);
+    if (!exportEv) continue; // leave 'never-exported'
+
+    const exportMembers = (exportEv.tags || []).filter((t) => t[0] === 'p').map((t) => t[1]);
+    const exportTitle = (exportEv.tags || []).find((t) => t[0] === 'title')?.[1] || null;
+
+    // Compare against the current kind-30392's p-tag set, if one exists.
+    // If no kind-30392, treat diff as zero (the export reflects "nothing
+    // in the TL yet" — not stale, not behind).
+    const tl = tlByDTag.get(dTag);
+    let added = 0, removed = 0;
+    if (tl) {
+      const tlMembers = (tl.tags || []).filter((t) => t[0] === 'p').map((t) => t[1]);
+      const exportSet = new Set(exportMembers);
+      const tlSet = new Set(tlMembers);
+      for (const m of tlMembers) if (!exportSet.has(m)) added++;
+      for (const m of exportMembers) if (!tlSet.has(m)) removed++;
+    }
+    const status = (added + removed) === 0 ? 'ok-fresh' : 'stale';
+
+    row.nip51ExportStatus = {
+      status,
+      exportedAt: exportEv.created_at,
+      exportEventId: exportEv.id,
+      memberCount: exportMembers.length,
+      diffVsTL: { added, removed },
+      writeRelays,
+      currentTitle: exportTitle,
     };
   }
 }

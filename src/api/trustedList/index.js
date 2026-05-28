@@ -14,12 +14,22 @@
  */
 
 const { getOwnerAssistantKeys } = require('../../utils/assistantKeys');
+const { getViewerWriteRelays } = require('../_shared/userRelays');
 
 let _nt = null;
 function nt() {
   if (!_nt) _nt = require('/usr/local/lib/node_modules/brainstorm/node_modules/nostr-tools');
   return _nt;
 }
+
+/**
+ * Story 19 / ADR 0017: kind-30000 export's "via Brainstorm" description.
+ * Per ADR Q5: title is purely user-chosen (defaults to bare tag name);
+ * description is the instance-managed hint so other-client readers know
+ * what this list is.
+ */
+const BRAINSTORM_EXPORT_DESCRIPTION =
+  "A Pinned-tag list from Brainstorm — members are trusted in this tag under the exporter's web-of-trust point of view. Re-publish from your Brainstorm instance to update.";
 
 // ── TA private key cache (same pattern as normalize) ──────────
 let _cachedPrivkey = null;
@@ -207,11 +217,168 @@ async function handleRefreshForViewer(req, res) {
   }
 }
 
+/* ── Story 19 / ADR 0017: prepare-nip51-export ───────────────────────── */
+
+function strfryScan(filter) {
+  const { exec } = require('child_process');
+  return new Promise((resolve, reject) => {
+    const safe = JSON.stringify(filter).replace(/'/g, "'\\''");
+    exec(`strfry scan '${safe}'`, { maxBuffer: 20 * 1024 * 1024 }, (err, stdout) => {
+      if (err) return reject(err);
+      const events = [];
+      for (const line of stdout.split('\n')) {
+        if (!line) continue;
+        try { events.push(JSON.parse(line)); } catch {}
+      }
+      resolve(events);
+    });
+  });
+}
+
+/**
+ * Story 19 / ADR 0017: prepare an unsigned kind-30000 NIP-51 follow-set
+ * export for the session user. Returns the unsigned template (client
+ * signs via NIP-07 and publishes via publishEverywhere) plus the pre-
+ * encoded naddr and the user's NIP-65 write relays so the UI's pre-
+ * publish relay-preview popover can render without an extra fetch.
+ *
+ * Auth: session pubkey required; the template's pubkey field is set to
+ * it. The client cannot sign as someone else (the second NIP-07 prompt
+ * will use the user's own key regardless of what's in the template).
+ *
+ * Input:  { pinEventId, title?, writeRelays? }
+ *   - title: if provided, used as the title tag; else defaults to
+ *     tag.name (bare). (ADR Q5: "title is purely the user's choice.")
+ *   - writeRelays is currently ignored — the server is the authoritative
+ *     source per Amendment A7 (defense in depth) — but accepted in the
+ *     body for forward-compat.
+ *
+ * Output: { success, unsigned, dTag, memberCount, naddr, writeRelays }
+ */
+async function handlePrepareNip51Export(req, res) {
+  const sessionPubkey = requireAuth(req, res);
+  if (!sessionPubkey) return;
+
+  const { pinEventId, title: providedTitle } = req.body || {};
+  if (!pinEventId || !/^[0-9a-f]{64}$/.test(pinEventId)) {
+    return res.status(400).json({ success: false, error: 'pinEventId is required (64-char lowercase hex)' });
+  }
+
+  try {
+    const profileTags = require('../profile-tags');
+
+    // 1. Look up the pin event.
+    const pinEvents = await strfryScan({ kinds: [39999], ids: [pinEventId] });
+    if (pinEvents.length === 0) {
+      return res.status(404).json({ success: false, error: 'pin event not found' });
+    }
+    const pinEvent = pinEvents[0];
+
+    // 2. Validate ownership: session must equal pin author.
+    if (pinEvent.pubkey !== sessionPubkey) {
+      return res.status(403).json({ success: false, error: 'pin event author does not match session pubkey' });
+    }
+
+    // 3. Parse curation method (only nip85:rank supported in v1).
+    const curation = profileTags.parseCurationMethod(pinEvent);
+    if (!curation || curation.method !== 'nip85:rank') {
+      return res.status(400).json({ success: false, error: 'curation method not supported in v1 (nip85:rank only)' });
+    }
+    const observer = curation.observer;
+    if (!observer || !/^[0-9a-f]{64}$/.test(observer)) {
+      return res.status(400).json({ success: false, error: 'pin observer pubkey missing or malformed' });
+    }
+
+    // 4. Look up the referenced tag event.
+    const tagEventId = profileTags.parsePinTagEventId(pinEvent);
+    if (!tagEventId) {
+      return res.status(400).json({ success: false, error: 'pin event has no referenced tag' });
+    }
+    const tagEvents = await strfryScan({ kinds: [39999], ids: [tagEventId] });
+    if (tagEvents.length === 0) {
+      return res.status(404).json({ success: false, error: 'referenced tag event missing from local strfry' });
+    }
+    const tagEv = tagEvents[0];
+    const tagPayload = profileTags.parseTagPayload(tagEv);
+    if (!tagPayload || !tagPayload.slug) {
+      return res.status(400).json({ success: false, error: 'tag event payload malformed' });
+    }
+
+    // 5. Compute the d-tag (per ADR AC-6: identical to the kind-30392's
+    //    d-tag composition for the same pin).
+    const dTag = `tl-pin-${observer.slice(0, 8)}-${tagEv.pubkey.slice(0, 8)}-${tagPayload.slug}`;
+
+    // 6. Read the current kind-30392 to source membership (per ADR Q7:
+    //    "read current kind-30392, don't trigger a fresh WoT-scan").
+    const taPubkey = profileTags.TA_PUBKEY;
+    let memberPubkeys = [];
+    if (taPubkey) {
+      const tls = await strfryScan({ kinds: [30392], authors: [taPubkey], '#d': [dTag] });
+      if (tls.length > 0) {
+        tls.sort((a, b) => b.created_at - a.created_at);
+        const latest = tls[0];
+        const retracted = (latest.tags || []).some((t) => t[0] === 'status' && t[1] === 'retracted');
+        if (!retracted) {
+          memberPubkeys = (latest.tags || []).filter((t) => t[0] === 'p').map((t) => t[1]);
+        }
+      }
+    }
+
+    // 7. Read the viewer's NIP-65 write relays (per Amendment A1).
+    const writeRelays = await getViewerWriteRelays(sessionPubkey);
+
+    // 8. Resolve title (per ADR Q4/Q5: default to bare tag.name).
+    const title = (typeof providedTitle === 'string' && providedTitle.trim().length > 0)
+      ? providedTitle.trim()
+      : (tagPayload.name || tagPayload.slug);
+
+    // 9. Build unsigned kind-30000 template.
+    //    - z-tag reuses the existing tag-pinning concept handle (per
+    //      ADR Q2: LEGACY pubkey, no new concept, no firmware reinstall).
+    const zTagHandle = profileTags.TAG_PINNING_Z_TAG;
+    const unsigned = {
+      kind: 30000,
+      pubkey: sessionPubkey,
+      created_at: Math.floor(Date.now() / 1000),
+      tags: [
+        ['d', dTag],
+        ['z', zTagHandle],
+        ['title', title],
+        ['description', BRAINSTORM_EXPORT_DESCRIPTION],
+        ...memberPubkeys.map((pk) => ['p', pk]),
+      ],
+      content: '',
+    };
+
+    // 10. Pre-encode the naddr the client will copy to the clipboard.
+    //     Relays from the user's NIP-65 (per Amendment A4: include all).
+    const naddr = nt().nip19.naddrEncode({
+      kind: 30000,
+      pubkey: sessionPubkey,
+      identifier: dTag,
+      relays: writeRelays,
+    });
+
+    return res.json({
+      success: true,
+      unsigned,
+      dTag,
+      memberCount: memberPubkeys.length,
+      naddr,
+      writeRelays,
+    });
+  } catch (err) {
+    console.error('trusted-list/prepare-nip51-export error:', err);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+}
+
 function register(app) {
   app.post('/api/trusted-list/publish', handlePublishTrustedList);
   app.post('/api/trusted-list/refresh-all-pinned-tags', handleRefreshAllPinnedTags);
   app.post('/api/trusted-list/refresh-pinned-tag', handleRefreshOnePinnedTag);
   app.post('/api/trusted-list/refresh-pinned-tags-for-viewer', handleRefreshForViewer);
+  app.post('/api/trusted-list/prepare-nip51-export', handlePrepareNip51Export);
 }
 
 module.exports = { register, buildAndPublishTL };

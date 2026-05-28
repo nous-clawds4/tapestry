@@ -1,8 +1,9 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
 import TopBar from '../components/TopBar';
 import TLShareButton from '../components/TLShareButton';
+import TLExportButton from '../components/TLExportButton';
 import CurationMethodDialog from '../components/CurationMethodDialog';
 import { useAuth } from '../context/AuthContext';
 import { useConfig } from '../context/ConfigContext';
@@ -53,6 +54,28 @@ export default function PinDetail() {
   const [editing, setEditing] = useState(null); // { tag, curationMethod } | null
   const [openingEditor, setOpeningEditor] = useState(false);
   const [editError, setEditError] = useState(null);
+
+  // Story 19 / ADR 0017 — pre-fetch the viewer's matching pin row so the
+  // new Export section can render with pinEventId, currentTitle, and the
+  // viewer's NIP-65 write relays (all derived server-side on /pins).
+  const [pinRow, setPinRow] = useState(null);
+  useEffect(() => {
+    if (!user || !tl?.sourceTag) { setPinRow(null); return; }
+    let cancelled = false;
+    (async () => {
+      try {
+        const r = await fetch(`/api/profile-tags/pins?viewerPubkey=${encodeURIComponent(user.pubkey)}`);
+        const j = await r.json();
+        if (cancelled) return;
+        const row = (j?.pins || []).find((p) =>
+          p.tag?.eventId === tl.sourceTag.eventId
+          && p.tag?.slug === tl.sourceTag.slug
+        );
+        setPinRow(row || null);
+      } catch { if (!cancelled) setPinRow(null); }
+    })();
+    return () => { cancelled = true; };
+  }, [user, tl?.sourceTag?.eventId, tl?.sourceTag?.slug]);
 
   // Pre-encode the NIP-19 naddr so users without clipboard-API access
   // can still copy it manually from the metadata table. TA pubkey is
@@ -238,6 +261,42 @@ export default function PinDetail() {
                 </>
               )}
             </dl>
+
+            {pinRow && (
+              <section className="bs-pindetail-export">
+                <h3 className="bs-pindetail-export-heading">
+                  Export for use in other clients
+                </h3>
+                <p className="bs-pindetail-export-help">
+                  Publish this list as a NIP-51 follow set under your key so
+                  others can subscribe to it in Damus, Amethyst, Iris,
+                  Coracle, and any other NIP-51-aware nostr client. The
+                  list will be sent to your NIP-65 write relays — re-export
+                  whenever you want to update the published membership.
+                </p>
+                <div className="bs-pindetail-export-row">
+                  <TLExportButton
+                    pinEventId={pinRow.pinEventId}
+                    dTag={dTag}
+                    currentTitle={pinRow.nip51ExportStatus?.currentTitle}
+                    writeRelays={pinRow.nip51ExportStatus?.writeRelays || []}
+                    defaultTitle={pinRow.tag?.name || tl.title}
+                    variant="full"
+                    onExported={refetch}
+                  />
+                  {pinRow.nip51ExportStatus && (
+                    <span className={`bs-pindetail-export-status is-${pinRow.nip51ExportStatus.status}`}>
+                      {pinRow.nip51ExportStatus.status === 'never-exported'
+                        && 'Not yet exported for other clients.'}
+                      {pinRow.nip51ExportStatus.status === 'ok-fresh'
+                        && `Last exported ${timeAgoShort(pinRow.nip51ExportStatus.exportedAt)} · in sync with the current list.`}
+                      {pinRow.nip51ExportStatus.status === 'stale'
+                        && `Last exported ${timeAgoShort(pinRow.nip51ExportStatus.exportedAt)} · ${(pinRow.nip51ExportStatus.diffVsTL?.added || 0) + (pinRow.nip51ExportStatus.diffVsTL?.removed || 0)} changes since last export.`}
+                    </span>
+                  )}
+                </div>
+              </section>
+            )}
 
             <h2 className="bs-pindetail-members-heading">
               Members ({members.length})

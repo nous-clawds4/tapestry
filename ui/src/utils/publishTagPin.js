@@ -120,6 +120,54 @@ export async function pinTag({ tag, curationMethod }) {
 }
 
 /**
+ * Story 19 / ADR 0017: prepare + sign + publish a kind-30000 NIP-51
+ * follow-set export for a pinned tag.
+ *
+ * Flow per ADR:
+ *   1. POST /api/trusted-list/prepare-nip51-export with { pinEventId,
+ *      title? }. Server resolves the d-tag, reads current kind-30392
+ *      membership, reads viewer's NIP-65 write relays, returns
+ *      { unsigned, naddr, writeRelays, dTag, memberCount }.
+ *   2. NIP-07 sign the unsigned template.
+ *   3. Publish via publishEverywhere(signed, writeRelays) so the event
+ *      lands on local strfry AND on the user's own write relays (other
+ *      nostr clients can find it on the user's identity).
+ *
+ * Returns { signed, naddr, writeRelays, dTag, memberCount }.
+ *
+ * Caller decides what to do with naddr (e.g. copy to clipboard). Throws
+ * on prepare-endpoint failure, NIP-07 rejection, or full publish failure
+ * (publishEverywhere's "throw only if BOTH local and external fail").
+ */
+export async function publishNip51ExportForPin({ pinEventId, title } = {}) {
+  if (!window.nostr) {
+    throw new Error('No NIP-07 extension detected. Install one to export lists.');
+  }
+  const prepareResp = await fetch('/api/trusted-list/prepare-nip51-export', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ pinEventId, title }),
+  });
+  const prepareData = await prepareResp.json().catch(() => null);
+  if (!prepareResp.ok || !prepareData?.success) {
+    throw new Error(prepareData?.error || `prepare-nip51-export failed: status ${prepareResp.status}`);
+  }
+  const { unsigned, naddr, writeRelays, dTag, memberCount } = prepareData;
+  const signed = await window.nostr.signEvent(unsigned);
+
+  // Publish: local strfry + user's NIP-65 write relays.
+  const { publishEverywhere } = await import('./nostrPublish');
+  const publishRelays = Array.isArray(writeRelays) ? writeRelays : [];
+  const result = await publishEverywhere(signed, publishRelays);
+  const localOk = result?.local?.success;
+  const externalOk = (result?.external?.successes?.length || 0) > 0;
+  if (!localOk && !externalOk && publishRelays.length > 0) {
+    throw new Error(result?.local?.error || 'Publish failed on every relay.');
+  }
+  return { signed, naddr, writeRelays, dTag, memberCount };
+}
+
+/**
  * Build, sign, and publish a NIP-09 kind-5 deletion targeting a Pin event.
  *
  * @param {object} args

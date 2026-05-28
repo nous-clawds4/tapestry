@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import TopBar from '../components/TopBar';
 import TLShareButton from '../components/TLShareButton';
+import TLExportButton from '../components/TLExportButton';
 import CurationMethodDialog from '../components/CurationMethodDialog';
 import { useAuth } from '../context/AuthContext';
 import usePins from '../hooks/usePins';
@@ -68,6 +69,43 @@ function renderStatusLine(tlStatus) {
           Unsupported curation method (v1 supports nip85:rank only)
         </span>
       );
+    default:
+      return null;
+  }
+}
+
+/**
+ * Story 19 — render the kind-30000 NIP-51 export-status line below
+ * the kind-30392 tlStatus line. Distinguishes three states:
+ *   - never-exported → inviting "Not yet exported for other clients" hint
+ *   - ok-fresh       → "Exported X ago · in sync"
+ *   - stale          → "Exported X ago · N changes since last export"
+ */
+function renderExportStatusLine(nip51) {
+  if (!nip51) return null;
+  switch (nip51.status) {
+    case 'never-exported':
+      return (
+        <span className="bs-pins-row-export-status is-never">
+          Not yet exported for other clients
+        </span>
+      );
+    case 'ok-fresh':
+      return (
+        <span className="bs-pins-row-export-status is-fresh">
+          Exported {timeAgoShort(nip51.exportedAt)} · in sync
+        </span>
+      );
+    case 'stale': {
+      const diff = nip51.diffVsTL || { added: 0, removed: 0 };
+      const total = (diff.added || 0) + (diff.removed || 0);
+      return (
+        <span className="bs-pins-row-export-status is-stale">
+          Exported {timeAgoShort(nip51.exportedAt)} · {total} change{total === 1 ? '' : 's'} since last export
+          {diff.added > 0 && ` (+${diff.added}`}{diff.removed > 0 && ` ${diff.added > 0 ? '/ ' : '('}−${diff.removed}`}{(diff.added > 0 || diff.removed > 0) && ')'}
+        </span>
+      );
+    }
     default:
       return null;
   }
@@ -198,6 +236,7 @@ export default function Pins() {
                           <span className="bs-pins-row-desc">{row.tag.description}</span>
                         )}
                         {renderStatusLine(row.tlStatus)}
+                        {!isUnsupported && renderExportStatusLine(row.nip51ExportStatus)}
                       </Link>
                     ) : (
                       <Link
@@ -209,6 +248,7 @@ export default function Pins() {
                           <span className="bs-pins-row-desc">{row.tag.description}</span>
                         )}
                         {renderStatusLine(row.tlStatus)}
+                        {!isUnsupported && renderExportStatusLine(row.nip51ExportStatus)}
                       </Link>
                     )}
                     <div className="bs-pins-row-actions">
@@ -224,6 +264,17 @@ export default function Pins() {
                       </button>
                       {tlDTag && hasTl && (
                         <TLShareButton dTag={tlDTag} variant="compact" />
+                      )}
+                      {tlDTag && !isUnsupported && (
+                        <TLExportButton
+                          pinEventId={row.pinEventId}
+                          dTag={tlDTag}
+                          currentTitle={row.nip51ExportStatus?.currentTitle}
+                          writeRelays={row.nip51ExportStatus?.writeRelays || []}
+                          defaultTitle={row.tag.name}
+                          variant="compact"
+                          onExported={refetch}
+                        />
                       )}
                       <button
                         type="button"

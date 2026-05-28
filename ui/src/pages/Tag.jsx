@@ -7,7 +7,7 @@ import TagViewControls from '../components/TagViewControls';
 import TagSomeoneModal from '../components/TagSomeoneModal';
 import { useAuth } from '../context/AuthContext';
 import { publishProfileTagAssertion } from '../utils/publishProfileTag';
-import { pinTag, defaultCurationMethod } from '../utils/publishTagPin';
+import { pinTag, defaultCurationMethod, publishNip51ExportForPin } from '../utils/publishTagPin';
 import useTagDetail from '../hooks/useTagDetail';
 
 /**
@@ -77,6 +77,14 @@ export default function Tag() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ pinEventId: signed.id }),
       }).catch(() => { /* swallow — user can manually refresh from /pins */ });
+      // Story 19 / ADR 0017 AC-1: publish a parallel kind-30000 NIP-51
+      // follow-set export under the user's key so the pinned list is
+      // discoverable in any nostr client. Fire-and-forget; failure
+      // (user rejects the second NIP-07 prompt, no kind-10002, etc.)
+      // is recoverable via the /pins Export button later — the pin
+      // itself already landed.
+      publishNip51ExportForPin({ pinEventId: signed.id })
+        .catch(() => { /* swallow — user can re-export from /pins */ });
     } catch (e) {
       setPinError(e.message || 'Pin failed');
       throw e;

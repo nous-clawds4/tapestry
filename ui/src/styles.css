@@ -6555,3 +6555,171 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   [data-bs-tooltip]::after { display: none; }
 }
 
+
+/* ── Story 19 / ADR 0017: NIP-51 kind-30000 export — TLExportButton ── */
+.bs-tl-export-wrap {
+  position: relative;
+  display: inline-block;
+}
+.bs-tl-export {
+  border: 1px solid rgba(244, 114, 182, 0.35);
+  border-radius: 6px;
+  background: rgba(244, 114, 182, 0.08);
+  color: #f9a8d4;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.05s;
+}
+.bs-tl-export:hover:not(:disabled) { background: rgba(244, 114, 182, 0.18); }
+.bs-tl-export:active:not(:disabled) { transform: scale(0.97); }
+.bs-tl-export:disabled { opacity: 0.5; cursor: not-allowed; }
+.bs-tl-export.is-copied {
+  background: rgba(134, 239, 172, 0.15);
+  border-color: rgba(134, 239, 172, 0.5);
+  color: #86efac;
+}
+.bs-tl-export-compact {
+  padding: 0.3rem 0.45rem;
+  font-size: 0.95rem;
+  line-height: 1;
+}
+.bs-tl-export-full {
+  padding: 0.4rem 0.8rem;
+  font-size: 0.85rem;
+}
+.bs-tl-export-popover {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 100;
+  min-width: 24rem;
+  max-width: 32rem;
+  padding: 0.85rem 1rem;
+  background: #181d2f;
+  border: 1px solid rgba(244, 114, 182, 0.35);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+.bs-tl-export-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-bottom: 0.6rem;
+}
+.bs-tl-export-label {
+  font-size: 0.8rem;
+  color: #cbd5e1;
+}
+.bs-tl-export-input {
+  padding: 0.4rem 0.6rem;
+  background: #0f1322;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  border-radius: 4px;
+  color: #e5e7eb;
+  font-size: 0.9rem;
+}
+.bs-tl-export-preview {
+  padding: 0.6rem 0.8rem;
+  margin-bottom: 0.6rem;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+.bs-tl-export-preview.is-ok {
+  background: rgba(56, 189, 248, 0.06);
+  border: 1px solid rgba(56, 189, 248, 0.18);
+  color: #cbd5e1;
+}
+.bs-tl-export-preview.is-warn {
+  background: rgba(251, 191, 36, 0.08);
+  border: 1px solid rgba(251, 191, 36, 0.3);
+  color: #fbbf24;
+}
+.bs-tl-export-preview-lead { margin: 0 0 0.4rem 0; }
+.bs-tl-export-preview-list {
+  margin: 0 0 0.4rem 0;
+  padding-left: 1.2rem;
+}
+.bs-tl-export-preview-list li code {
+  font-size: 0.78rem;
+  color: #a5b4fc;
+}
+.bs-tl-export-preview-foot {
+  margin: 0;
+  font-size: 0.75rem;
+  color: #94a3b8;
+}
+.bs-tl-export-error {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.8rem;
+  color: #fda4af;
+}
+.bs-tl-export-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+.bs-tl-export-cancel,
+.bs-tl-export-confirm {
+  padding: 0.35rem 0.8rem;
+  font-size: 0.85rem;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.bs-tl-export-cancel {
+  background: transparent;
+  color: #94a3b8;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+}
+.bs-tl-export-confirm {
+  background: rgba(244, 114, 182, 0.18);
+  color: #f9a8d4;
+  border: 1px solid rgba(244, 114, 182, 0.35);
+}
+.bs-tl-export-confirm:disabled,
+.bs-tl-export-cancel:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Per-row export status line on /pins (Story 19). */
+.bs-pins-row-export-status {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 0.75rem;
+  color: #94a3b8;
+}
+.bs-pins-row-export-status.is-never { color: #94a3b8; }
+.bs-pins-row-export-status.is-fresh { color: #86efac; }
+.bs-pins-row-export-status.is-stale { color: #fbbf24; }
+
+/* PinDetail Export-for-other-clients section (Story 19). */
+.bs-pindetail-export {
+  margin: 1.5rem 0 1rem 0;
+  padding: 1rem 1.1rem;
+  border: 1px solid rgba(244, 114, 182, 0.22);
+  background: rgba(244, 114, 182, 0.04);
+  border-radius: 8px;
+}
+.bs-pindetail-export-heading {
+  margin: 0 0 0.4rem 0;
+  font-size: 1rem;
+  color: #f9a8d4;
+}
+.bs-pindetail-export-help {
+  margin: 0 0 0.7rem 0;
+  font-size: 0.85rem;
+  color: #cbd5e1;
+  line-height: 1.5;
+}
+.bs-pindetail-export-row {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  flex-wrap: wrap;
+}
+.bs-pindetail-export-status {
+  font-size: 0.8rem;
+  color: #94a3b8;
+}
+.bs-pindetail-export-status.is-fresh { color: #86efac; }
+.bs-pindetail-export-status.is-stale { color: #fbbf24; }
