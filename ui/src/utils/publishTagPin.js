@@ -1,6 +1,15 @@
 import { nip19 } from 'nostr-tools';
 import { publishOrThrow } from './publishProfileTag';
-import { publishEverywhere } from './nostrPublish';
+import { publishEverywhere, fetchFromRelays, PUBLISH_RELAYS } from './nostrPublish';
+
+// Story 19 / ADR 0017 Amendment III — publish targets for the
+// kind-30000 export. The user's own write relays (per NIP-07 /
+// NIP-65) ARE the canonical place readers find their events, but
+// many users haven't populated either; co-publishing to a curated
+// set of well-known public relays guarantees baseline discoverability
+// for the public follow-set we're publishing. Public list, public
+// relays — no identity-leak concern.
+export const WELL_KNOWN_FALLBACK_RELAYS = PUBLISH_RELAYS;
 
 /**
  * Single source of truth for the tag-pinning wire shape from ADR 0009.
@@ -122,23 +131,48 @@ export async function pinTag({ tag, curationMethod }) {
 }
 
 /**
- * Story 19 / ADR 0017 Amendment II — read the logged-in user's NIP-65
- * write-relay list via the NIP-07 extension's `getRelays()`.
+ * Story 19 / ADR 0017 Amendment II §II-2 (updated 2026-05-28) —
+ * read the logged-in user's NIP-65 write-relay list with a two-step
+ * fallback:
  *
- * NIP-07 spec: `getRelays(): Promise<{[url]: {read, write}}>` (optional).
- * Returns the URLs of relays the user writes to (filtering out explicit
- * read-only entries; entries without a write marker default to "both").
+ *   1. Try `window.nostr.getRelays()` (NIP-07 extension's local
+ *      relay config). Fastest path; works when the user has
+ *      populated their extension's relay settings.
+ *   2. If that returns nothing, fetch the user's latest kind-10002
+ *      from PUBLISH_RELAYS via fetchFromRelays. This is the
+ *      authoritative source for nostr-wide identity (other clients
+ *      read it to find where the user publishes), so even users
+ *      with empty extension relay configs but a live published
+ *      kind 10002 still get the right answer.
  *
  * Returns []:
  *   - extension is absent;
- *   - extension does not implement getRelays();
- *   - getRelays() rejects or returns a non-object;
- *   - getRelays() returns no write-eligible entries.
+ *   - getRelays() returns nothing AND the fallback fetch finds no
+ *     kind 10002.
  *
- * Callers treat [] as the "no NIP-65 relay list" fallback (the kind-30000
- * is published to local strfry only and the UI surfaces a warning).
+ * Callers treat [] as the "no NIP-65 relay list" fallback (the
+ * kind-30000 is published to local strfry only and the UI surfaces
+ * the warning).
  */
 export async function fetchUserWriteRelays() {
+  // Step 1: NIP-07 getRelays() — extension's local relay config.
+  const fromExtension = await fetchWriteRelaysFromNip07();
+  if (fromExtension.length > 0) return fromExtension;
+
+  // Step 2: fallback — fetch the user's latest kind-10002 from
+  // PUBLISH_RELAYS. Requires the extension to give us the user's
+  // pubkey first.
+  if (!window.nostr?.getPublicKey) return [];
+  let pubkey;
+  try { pubkey = await window.nostr.getPublicKey(); }
+  catch { return []; }
+  if (!pubkey) return [];
+
+  return await fetchWriteRelaysFromKind10002(pubkey);
+}
+
+/** Parse NIP-07 getRelays() output → write-eligible URLs. */
+async function fetchWriteRelaysFromNip07() {
   if (!window.nostr?.getRelays) return [];
   try {
     const relays = await window.nostr.getRelays();
@@ -149,6 +183,28 @@ export async function fetchUserWriteRelays() {
   } catch {
     return [];
   }
+}
+
+/** Fetch the user's latest kind-10002 from PUBLISH_RELAYS and
+ *  extract write-eligible r-tag URLs. */
+async function fetchWriteRelaysFromKind10002(pubkey) {
+  let events;
+  try {
+    events = await fetchFromRelays({ kinds: [10002], authors: [pubkey] });
+  } catch {
+    return [];
+  }
+  if (!Array.isArray(events) || events.length === 0) return [];
+  events.sort((a, b) => b.created_at - a.created_at);
+  const latest = events[0];
+  const writeRelays = [];
+  for (const t of (latest.tags || [])) {
+    if (t[0] !== 'r' || typeof t[1] !== 'string' || !t[1]) continue;
+    const marker = t[2];
+    if (marker === 'read') continue;
+    writeRelays.push(t[1]);
+  }
+  return writeRelays;
 }
 
 /**
@@ -190,13 +246,20 @@ export async function publishNip51ExportForPin({ pinEventId, title, writeRelays 
   }
   const { unsigned, dTag, memberCount } = prepareData;
 
-  const publishRelays = Array.isArray(writeRelays)
+  const userWriteRelays = Array.isArray(writeRelays)
     ? writeRelays
     : await fetchUserWriteRelays();
 
+  // Amendment III: ALWAYS publish to PUBLISH_RELAYS too, so the
+  // event is discoverable on a curated set of well-known relays even
+  // if the user's own list is empty or unusual. Dedupe to avoid
+  // double-publishing if the user's NIP-65 already includes any of
+  // PUBLISH_RELAYS.
+  const publishRelays = Array.from(new Set([...userWriteRelays, ...WELL_KNOWN_FALLBACK_RELAYS]));
+
   const signed = await window.nostr.signEvent(unsigned);
 
-  // Publish to local strfry + user's NIP-65 write relays.
+  // Publish to local strfry + the union of user + well-known relays.
   const result = await publishEverywhere(signed, publishRelays);
   const localOk = result?.local?.success;
   const externalOk = (result?.external?.successes?.length || 0) > 0;
@@ -204,7 +267,9 @@ export async function publishNip51ExportForPin({ pinEventId, title, writeRelays 
     throw new Error(result?.local?.error || 'Publish failed on every relay.');
   }
 
-  // Compose naddr client-side from the user's own relays (Amendment II).
+  // Compose naddr client-side. Include the user's own relays so the
+  // event renders under their identity in recipient clients; include
+  // well-known too so recipients can locate it anywhere.
   const naddr = nip19.naddrEncode({
     kind: 30000,
     pubkey: signed.pubkey,
@@ -212,7 +277,11 @@ export async function publishNip51ExportForPin({ pinEventId, title, writeRelays 
     relays: publishRelays,
   });
 
-  return { signed, naddr, writeRelays: publishRelays, dTag, memberCount };
+  return {
+    signed, naddr, dTag, memberCount,
+    writeRelays: userWriteRelays,     // user's own (for UI display)
+    publishRelays,                     // actual final target set (deduped)
+  };
 }
 
 /**

@@ -6723,3 +6723,24 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
 }
 .bs-pindetail-export-status.is-fresh { color: #86efac; }
 .bs-pindetail-export-status.is-stale { color: #fbbf24; }
+
+/* Story 19 ADR Amendment III — TLExportButton preview sub-sections. */
+.bs-tl-export-preview-subhead {
+  margin: 0.5rem 0 0.2rem 0;
+  font-size: 0.78rem;
+  color: #cbd5e1;
+}
+.bs-tl-export-preview-source {
+  color: #94a3b8;
+  font-weight: normal;
+}
+.bs-tl-export-preview-warn-inline {
+  margin: 0.4rem 0;
+  padding: 0.5rem 0.7rem;
+  background: rgba(251, 191, 36, 0.08);
+  border-left: 3px solid rgba(251, 191, 36, 0.5);
+  border-radius: 3px;
+  font-size: 0.78rem;
+  color: #fbbf24;
+  line-height: 1.45;
+}

@@ -1181,16 +1181,43 @@ no marker (the NIP-65 "both" convention) while excluding explicit
 
 ### II-2 — Fallback when `getRelays()` returns nothing
 
-If the NIP-07 extension does not implement `getRelays()` (returns
-`undefined` or throws), OR the returned list is empty, the client
-**does not** make any further fetch. It shows the AC-27 no-NIP-65
-warning and publishes to local strfry only.
+**Updated 2026-05-28:** the fallback that the original draft deferred
+is now part of v1. User feedback during local-deploy testing surfaced
+that many NIP-07 extensions (Alby, nos2x, et al.) implement
+`getRelays()` but return whatever is in the *extension's own relay
+config*, which can be empty or different from the user's published
+NIP-65 (kind 10002). A user who has published kind 10002 to the
+network but hasn't manually populated their extension's relay
+settings would hit the no-NIP-65 warning even though their relay
+list IS live on nostr.
 
-A future-stronger fallback (a direct relay fetch via existing
-`fetchFromRelays` from `ui/src/utils/nostrPublish.js`, hitting a small
-set of well-known relays for the user's kind-10002) is left as a
-follow-up if user feedback shows the warning fires too often in
-practice. Not in v1 of this amendment.
+If `window.nostr.getRelays()` is absent, rejects, returns a
+non-object, or returns no write-eligible entries, the client **falls
+back** to fetching the user's latest kind-10002 from the existing
+`PUBLISH_RELAYS` set (`ui/src/utils/nostrPublish.js`) via
+`fetchFromRelays`. The pubkey for the fetch comes from
+`window.nostr.getPublicKey()` (already needed to sign anyway).
+
+Behavior summary:
+
+| getRelays returns | Then |
+|---|---|
+| Write relays | Use them. Done. |
+| Empty / absent / errors | Fetch latest kind-10002 from PUBLISH_RELAYS. |
+| Fetch returns kind-10002 with writes | Use those write relays. |
+| Fetch returns nothing | Show the no-NIP-65 warning. Publish to local strfry only. |
+
+The fallback is best-effort. A user who is on a network that can't
+reach `PUBLISH_RELAYS` will see the warning even if their kind 10002
+exists somewhere — that's the documented contract.
+
+The warning copy is updated to reflect that BOTH sources were tried:
+
+> "Your nostr extension didn't report any write relays via NIP-07,
+> and we couldn't find a published NIP-65 (kind 10002) relay list on
+> the relays we checked. This list will only land on this Brainstorm
+> instance's relay; other nostr clients won't find it unless they
+> have this relay configured."
 
 ### II-3 — Server endpoint shrinks
 
@@ -1320,6 +1347,127 @@ reuses `tag-pinning` z-tag with `LEGACY_Z_TAG_PUBKEY`.
 - The Playwright spec's structural ACs (AC-10, AC-11, AC-13, AC-14,
   AC-17, AC-19).
 - The unpin hint (Q9).
+
+### Firmware reinstall
+
+Still **no**.
+
+## Amendment 2026-05-28 (III) — also publish to well-known relays (extends AC-25 / AC-26 / AC-27 / AC-28)
+
+After Amendment II shipped, the PO surfaced a final concern: the
+NIP-07 + NIP-65 chain only solves *the most common case*, but a user
+whose extension has no relays AND whose kind-10002 is unfindable
+still ends up with a list that only lives on this Brainstorm
+instance. That's a fragile baseline for "cross-client portability."
+
+> "let's also just publish to that well-known list of relays, also.
+> call this out in the export dialog, along with the user's relays."
+
+Per PO direction, the publish target for kind-30000 now ALWAYS
+includes a curated well-known relay set, in addition to the user's
+own write relays. This is safe because the kind-30000 follow set
+is public; publishing public events to public relays under the
+user's own key is not an identity violation.
+
+### III-1 — Publish target = user write relays ∪ well-known relays
+
+`publishNip51ExportForPin` computes:
+
+```js
+const publishRelays = Array.from(new Set([
+  ...userWriteRelays,
+  ...WELL_KNOWN_FALLBACK_RELAYS,
+]));
+```
+
+`WELL_KNOWN_FALLBACK_RELAYS` is exported from
+`ui/src/utils/publishTagPin.js` and equals the existing
+`PUBLISH_RELAYS` constant in `nostrPublish.js`:
+
+- `wss://purplepag.es`
+- `wss://wot.grapevine.network`
+- `wss://relay.primal.net`
+- `wss://nos.lol`
+- `wss://relay.damus.io`
+
+The user's own write relays (when present) come first in the
+publish call but the set is deduped, so the order isn't load-bearing.
+
+### III-2 — naddr `relays` field reflects the publish target
+
+The naddr's `relays` field is composed from the same deduped
+publishRelays array. Recipients can find the event on any of the
+user's own relays OR any of the well-known relays. Maximizes
+discoverability.
+
+### III-3 — Popover surfaces both groups
+
+The popover now renders two labelled groups:
+
+- **"Your write relays"** — from NIP-07 or NIP-65. Shown only when
+  non-empty. Each entry as `<code>wss://…</code>`.
+- **"Well-known public relays"** — always included, listed for
+  transparency. Labelled "(always included for portability — public
+  list on public relays)".
+
+When the user has no write relays, an inline warning between the
+lead and the well-known list explains that we couldn't find any
+write relays but the list will still publish to the well-known
+fallback set. (Compare Amendment II's no-NIP-65 copy: that one said
+"will only land on this Brainstorm instance's relay" which is no
+longer true.)
+
+### III-4 — AC reframes
+
+- **AC-25** — publish targets include the user's NIP-65 write relays
+  AND the curated well-known relay set. Local strfry also receives a
+  copy. Wire-shape outcome (event signed by the user, lands on the
+  recipient-reachable relays) is strengthened, not weakened.
+- **AC-26** — popover renders both groups (when user relays exist)
+  or just the well-known group with an inline warning (when they
+  don't).
+- **AC-27** — "no NIP-65" no longer means "only local strfry." It
+  means "well-known set + local strfry, but no user-declared relays."
+  Warning copy reflects this.
+- **AC-28** — naddr `relays` field includes the union of user
+  relays and well-known relays.
+
+### III-5 — Implementation surfaces
+
+- `ui/src/utils/publishTagPin.js` — exports
+  `WELL_KNOWN_FALLBACK_RELAYS`; `publishNip51ExportForPin` unions
+  it with the user's relays; return value gains `publishRelays`
+  (the final target set, mostly for tests/debugging) while
+  `writeRelays` still carries only the user's own.
+- `ui/src/components/TLExportButton.jsx` — imports
+  `WELL_KNOWN_FALLBACK_RELAYS`; popover renders two relay-list
+  blocks with sub-headings; warning copy and "no relays found"
+  state restructured.
+- `ui/src/styles.css` — appended sub-section styles
+  (`bs-tl-export-preview-subhead`,
+  `bs-tl-export-preview-warn-inline`).
+
+### III-6 — Tests
+
+The contract / publish-flow suite is unaffected:
+- The naddr-encoding test composes naddr from a specific writeRelays
+  array; that contract still holds for the user-relays component.
+- No test asserts on the union behavior (acceptable — the union is a
+  client-side concern; covered by Playwright + manual verification).
+
+The Playwright spec's `mockNip07TwoSign` returns a known relay set;
+the AC-26 test still asserts the user-relay URLs appear; the AC-27
+no-relays variant should now check that PUBLISH_RELAYS URLs ALSO
+appear AND that the warning copy mentions "well-known fallback".
+(The Tester will refine if needed; current spec assertions still
+hold structurally.)
+
+### III-7 — What does NOT change
+
+- No new server endpoint, no server-side relay logic.
+- The replaceability invariants and wire-shape decisions of
+  Amendments I and II are unaffected.
+- No firmware reinstall.
 
 ### Firmware reinstall
 

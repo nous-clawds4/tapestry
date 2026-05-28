@@ -1,5 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { publishNip51ExportForPin, fetchUserWriteRelays } from '../utils/publishTagPin';
+import {
+  publishNip51ExportForPin,
+  fetchUserWriteRelays,
+  WELL_KNOWN_FALLBACK_RELAYS,
+} from '../utils/publishTagPin';
 
 /**
  * Story 19 / ADR 0017 — kind-30000 NIP-51 follow-set export button.
@@ -145,29 +149,57 @@ export default function TLExportButton({
             <div className="bs-tl-export-preview is-ok">
               <p className="bs-tl-export-preview-lead">Reading your relay list…</p>
             </div>
-          ) : hasWriteRelays ? (
-            <div className="bs-tl-export-preview is-ok">
+          ) : (
+            <div className={`bs-tl-export-preview ${hasWriteRelays ? 'is-ok' : 'is-warn'}`}>
               <p className="bs-tl-export-preview-lead">
                 This will publish the NIP-51 list <strong>{(titleDraft || defaultTitle || 'untitled')}</strong> to:
               </p>
+
+              {hasWriteRelays ? (
+                <>
+                  <p className="bs-tl-export-preview-subhead">
+                    <strong>Your write relays</strong>
+                    {' '}
+                    <span className="bs-tl-export-preview-source">
+                      (from your NIP-07 extension or published NIP-65 list)
+                    </span>
+                  </p>
+                  <ul className="bs-tl-export-preview-list">
+                    {writeRelays.map((r) => (
+                      <li key={r}><code>{r}</code></li>
+                    ))}
+                  </ul>
+                </>
+              ) : (
+                <p className="bs-tl-export-preview-warn-inline" role="alert">
+                  ⚠️ <strong>No write relays found for you</strong> — neither
+                  your NIP-07 extension (<code>window.nostr.getRelays()</code>)
+                  nor a published NIP-65 (kind 10002) list on the well-known
+                  relays we checked. The list will still publish to the
+                  well-known fallback relays below, so it WILL be reachable
+                  by other nostr clients, but it won't appear among events
+                  signed by you in clients that fetch only from your declared
+                  relays. To fix: populate your extension's relay settings,
+                  or publish a NIP-65 relay list.
+                </p>
+              )}
+
+              <p className="bs-tl-export-preview-subhead">
+                <strong>Well-known public relays</strong>
+                {' '}
+                <span className="bs-tl-export-preview-source">
+                  (always included for portability — public list on public relays)
+                </span>
+              </p>
               <ul className="bs-tl-export-preview-list">
-                {writeRelays.map((r) => (
+                {WELL_KNOWN_FALLBACK_RELAYS.map((r) => (
                   <li key={r}><code>{r}</code></li>
                 ))}
               </ul>
+
               <p className="bs-tl-export-preview-foot">
-                ({writeRelays.length} of your write relays via NIP-07
-                <code> getRelays()</code>, plus this Brainstorm instance's relay.)
+                Plus this Brainstorm instance's local relay.
               </p>
-            </div>
-          ) : (
-            <div className="bs-tl-export-preview is-warn" role="alert">
-              ⚠️ Your nostr extension didn't report any write relays
-              (<code>window.nostr.getRelays()</code> returned nothing). This
-              list will only land on this Brainstorm instance's relay; other
-              nostr clients won't find it unless they have this relay
-              configured. Make sure your extension's relay settings include
-              write relays and try again.
             </div>
           )}
 
