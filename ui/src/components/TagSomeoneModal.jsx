@@ -205,6 +205,8 @@ export default function TagSomeoneModal({
                     viewerState={viewerAssertions?.[pubkey] || null}
                     showActions={true}
                     showActionsOnHover={true}
+                    scoresAlwaysVisible={true}
+                    tapOpensMenu={true}
                     verificationScore={verificationScore}
                     onApply={onApply}
                     onDispute={onDispute}

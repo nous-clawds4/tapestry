@@ -35,6 +35,34 @@ const LEGACY_TA_PUBKEY = '82b75e474dda005e912bcbb910391c60c2b89cc7faf5d3c30b7c59
 const TAG_PINNING_HANDLE = `39998:${LEGACY_TA_PUBKEY}:tag-pinning`;
 
 /**
+ * Compose the kind-39999 pin event's `d`-tag identifier. This is the
+ * tag the *viewer* writes onto their own pin event so that re-pinning
+ * the same tag replaces the prior pin (parameterized replaceable).
+ *
+ * NOT the URL slug — see `computeTLDTag()` for the kind-30392 TL
+ * identifier the `/pin/:dTag` route navigates to.
+ */
+export function computePinEventDTag({ tagSlug, tagAuthorPubkey, viewerPubkey }) {
+  return `tag-pin-${tagSlug}-${tagAuthorPubkey.slice(0, 8)}-${viewerPubkey.slice(0, 8)}`;
+}
+
+/**
+ * Compose the kind-30392 Trusted List event's `d`-tag identifier — the
+ * one the TA writes when materializing a pin into a published TL, and
+ * the one the `/pin/:dTag` route in `PinDetail.jsx` uses to address it.
+ *
+ * Server source of truth: `src/api/trustedList/refreshPinnedTags.js`
+ * (`computeTLDTag()` at :67). This client helper mirrors that exact
+ * formula. If the server formula changes, update this one in lockstep.
+ *
+ * `observer` is the curation-method's observer pubkey (defaults to
+ * the viewer's own pubkey via `defaultCurationMethod()`).
+ */
+export function computeTLDTag({ observer, tagAuthorPubkey, tagSlug }) {
+  return `tl-pin-${observer.slice(0, 8)}-${tagAuthorPubkey.slice(0, 8)}-${tagSlug}`;
+}
+
+/**
  * Default curation-method payload.
  *
  * Story 17 flipped cutoff 2→1 (WYSIWYG with Curated view) and
@@ -66,7 +94,11 @@ export async function pinTag({ tag, curationMethod }) {
   }
   const authorPk = await window.nostr.getPublicKey();
   const curation = curationMethod || defaultCurationMethod(authorPk);
-  const dTag = `tag-pin-${tag.slug}-${tag.authorPubkey.slice(0, 8)}-${authorPk.slice(0, 8)}`;
+  const dTag = computePinEventDTag({
+    tagSlug: tag.slug,
+    tagAuthorPubkey: tag.authorPubkey,
+    viewerPubkey: authorPk,
+  });
   const unsigned = {
     kind: 39999,
     pubkey: authorPk,

@@ -6,7 +6,7 @@ import CurationMethodDialog from '../components/CurationMethodDialog';
 import { useAuth } from '../context/AuthContext';
 import usePins from '../hooks/usePins';
 import useRefreshPin from '../hooks/useRefreshPin';
-import { pinTag } from '../utils/publishTagPin';
+import { pinTag, unpinTag, computeTLDTag } from '../utils/publishTagPin';
 
 /**
  * Story 10 / ADR 0009 — viewer's pinned-tag list page.
@@ -93,6 +93,16 @@ export default function Pins() {
     }).catch(() => { /* best-effort */ });
   };
 
+  // Story 18 / ADR 0016 — Unpin button inside the edit dialog. The
+  // tag-detail Pin button no longer unpins on click (it now navigates
+  // to the pin's detail page), so this dialog is the new home for
+  // deliberate unpinning from the /pins page.
+  const handleEditUnpin = async () => {
+    if (!editingPin) return;
+    await unpinTag({ pinEventId: editingPin.pinEventId });
+    await refetch();
+  };
+
   if (!user) {
     return (
       <div className="bsp-page">
@@ -168,7 +178,11 @@ export default function Pins() {
                 // Compute the TL's d-tag for /pin/:dTag link + share button.
                 const observer = row.curationMethod?.observer;
                 const tlDTag = (!isUnsupported && observer)
-                  ? `tl-pin-${observer.slice(0, 8)}-${row.tag.authorPubkey.slice(0, 8)}-${row.tag.slug}`
+                  ? computeTLDTag({
+                      observer,
+                      tagAuthorPubkey: row.tag.authorPubkey,
+                      tagSlug: row.tag.slug,
+                    })
                   : null;
                 const hasTl = row.tlStatus?.status === 'ok' || row.tlStatus?.status === 'retracted';
                 return (
@@ -235,6 +249,7 @@ export default function Pins() {
             viewerPubkey={user.pubkey}
             onSubmit={handleEditSubmit}
             onCancel={() => setEditingPin(null)}
+            onUnpin={handleEditUnpin}
           />
         )}
       </div>

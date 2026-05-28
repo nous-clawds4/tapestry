@@ -4817,8 +4817,9 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
 /* Story 3 / ADR-0004 — per-row Apply/Dispute, viewer-only badge, page-search.
    Story 17 / ADR 0014 — visibility:hidden by default with a reserved
    min-width; reveal selectors flip to visibility:visible on hover, when
-   `is-revealed` is set (touch tap), when `is-expanded-mode` is set
-   (Expanded view: always-on), or on :focus-within (keyboard). */
+   `is-expanded-mode` is set (Expanded view: always-on), or on
+   :focus-within (keyboard). Story 18 removed `is-revealed` (the
+   touch-tap row-wide reveal) — touch UX is now the ⋯ menu. */
 .bs-tag-row-actions {
   display: flex;
   gap: 0.4rem;
@@ -4828,10 +4829,164 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   visibility: hidden;          /* default state: occupied but invisible */
 }
 .bs-tag-row:hover .bs-tag-row-actions,
-.bs-tag-row.is-revealed .bs-tag-row-actions,
 .bs-tag-row.is-expanded-mode .bs-tag-row-actions,
 .bs-tag-row:focus-within .bs-tag-row-actions {
   visibility: visible;
+}
+/* Story 18 / ADR 0016 — scores join the hover-reveal cohort in the
+   collapsed Curated view. Expanded mode keeps them always-visible via
+   the is-expanded-mode override. The reserved slot width on
+   .bs-tag-row-scores (min-width below) plus the existing flex-shrink:0
+   guarantee no layout shift on appear/disappear. */
+.bs-tag-row:not(.is-expanded-mode) .bs-tag-row-scores {
+  visibility: hidden;
+  min-width: 5rem;
+}
+.bs-tag-row:hover .bs-tag-row-scores,
+.bs-tag-row.is-expanded-mode .bs-tag-row-scores,
+.bs-tag-row.is-scores-pinned .bs-tag-row-scores,
+.bs-tag-row:focus-within .bs-tag-row-scores {
+  visibility: visible;
+}
+/* Story 18 — search-result rows (TagSomeoneModal) pin the scores so
+   the Verification Score is always readable; it's as important as
+   the avatar/name for triage. Pinned rows ignore the collapsed
+   Curated visibility:hidden default. */
+.bs-tag-row.is-scores-pinned .bs-tag-row-scores {
+  min-width: 0;
+}
+/* Inside the touch overflow menu, both slots are always shown
+   regardless of inherited hover state OR the mobile
+   `display: none` override applied to inline `.bs-tag-row-actions`.
+   The menu IS the reveal. */
+.bs-tag-row-overflow-menu .bs-tag-row-actions {
+  display: flex !important;
+  visibility: visible !important;
+}
+.bs-tag-row-overflow-menu .bs-tag-row-scores {
+  visibility: visible !important;
+}
+
+/* Story 18 / ADR 0016 — overflow trigger + popover.
+
+   Width-based switch: ⋯ shows on narrow viewports (≤ 768px CSS
+   pixels), hides on wider ones where the Story-17 inline +
+   hover-reveal is the right affordance. The earlier "always show"
+   was debugging a different bug (logged-out gating the trigger,
+   since fixed) and is no longer needed. */
+.bs-tag-row-overflow {
+  display: inline-flex;
+  position: relative;
+  margin-left: 0.25rem;
+  flex-shrink: 0;
+}
+@media (max-width: 768px) {
+  .bs-tag-row > .bs-tag-row-actions { display: none; }
+}
+@media (min-width: 769px) {
+  .bs-tag-row-overflow { display: none; }
+}
+.bs-tag-row-overflow-trigger {
+  font: inherit;
+  font-size: 1.1rem;
+  line-height: 1;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,0.18);
+  background: rgba(255,255,255,0.04);
+  color: inherit;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.bs-tag-row-overflow-trigger:hover:not([disabled]) {
+  background: rgba(255,255,255,0.08);
+}
+.bs-tag-row-overflow-menu {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  margin-top: 0.25rem;
+  z-index: 30;
+  min-width: 13rem;
+  max-height: 60vh;
+  overflow-y: auto;
+  background: #1f2937;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 8px;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.45);
+  padding: 0.6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+/* On narrow viewports, render the menu as a bottom-sheet using
+   `position: fixed`. Fixed positioning ignores parent overflow
+   clipping, so the sheet displays correctly even when the row lives
+   inside an `overflow: hidden` container (e.g. TagSomeoneModal). A
+   sheet-style menu is also more idiomatic for mobile than an anchored
+   popover. The backdrop dims the rest of the viewport so the sheet
+   reads as a focused surface. */
+@media (max-width: 768px) {
+  .bs-tag-row-overflow-menu {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    top: auto;
+    margin: 0;
+    width: auto;
+    min-width: 0;
+    max-height: 70vh;
+    border-radius: 12px 12px 0 0;
+    box-shadow: 0 -8px 24px rgba(0,0,0,0.55);
+    padding: 1rem 1rem calc(1rem + env(safe-area-inset-bottom));
+    z-index: 1100;       /* above TagSomeoneModal's 1000 */
+    gap: 0.75rem;
+  }
+  /* Soft backdrop behind the sheet, rendered via the trigger's
+     ::before so we don't need any extra JSX. */
+  .bs-tag-row-overflow-trigger[aria-expanded="true"]::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.35);
+    z-index: 1099;
+    pointer-events: none; /* clicks reach the document listener below */
+  }
+}
+.bs-tag-row-overflow-menu .bs-tag-row-actions {
+  /* The reserved-width invariant doesn't matter inside the menu;
+     give the buttons room to breathe instead. */
+  min-width: 0;
+  margin-right: 0;
+}
+/* Story 18 / ADR 0016 — brief inline help for mobile users who
+   can't reach hover-tooltips on the score nodes. */
+.bs-tag-row-overflow-help {
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1.35;
+  color: rgba(255, 255, 255, 0.55);
+}
+/* Story 18 — "View profile" link inside the menu (search context).
+   When the tap-on-row no longer navigates, this is the way out. */
+.bs-tag-row-overflow-visit {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.7rem;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.04);
+  color: inherit;
+  text-decoration: none;
+  font-size: 0.85rem;
+}
+.bs-tag-row-overflow-visit:hover {
+  background: rgba(255, 255, 255, 0.08);
 }
 .bs-tag-row-apply,
 .bs-tag-row-dispute {
@@ -5417,6 +5572,13 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   border-color: rgba(99, 102, 241, 0.6);
   color: #c7d2fe;
 }
+/* Story 18 / ADR 0016 — pinned-state label swap on hover. Default
+   label reads "📌 Pinned" (status). On hover the label swaps to
+   "📌 View Pin" (action) and the click navigates to the pin-detail
+   page rather than toggling unpin. */
+.bs-tag-pin .bs-tag-pin-label-hover { display: none; }
+.bs-tag-pin.is-pinned:hover:not([disabled]) .bs-tag-pin-label-default { display: none; }
+.bs-tag-pin.is-pinned:hover:not([disabled]) .bs-tag-pin-label-hover { display: inline; }
 .bs-tag-pin[disabled] {
   cursor: not-allowed;
   opacity: 0.6;
@@ -6023,10 +6185,34 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
 .pcd-advanced[open] > summary { margin-bottom: 0.6rem; }
 .pcd-actions {
   display: flex;
-  justify-content: flex-end;
+  align-items: center;
   gap: 0.5rem;
   margin-top: 1rem;
 }
+/* Story 18 / ADR 0016 — destructive Unpin lives on the left. The
+   spacer pushes Cancel/Submit to the right so the destructive button
+   is visually separate from the confirmation pair. */
+.pcd-actions-spacer { flex: 1; }
+.pcd-unpin {
+  padding: 0.5rem 0.9rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  font-family: inherit;
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.45);
+  color: #fca5a5;
+}
+.pcd-unpin:hover:not([disabled]) {
+  background: rgba(239, 68, 68, 0.22);
+  border-color: rgba(239, 68, 68, 0.7);
+}
+.pcd-unpin.is-confirming {
+  background: rgba(239, 68, 68, 0.35);
+  border-color: rgba(239, 68, 68, 0.85);
+  color: #fff;
+}
+.pcd-unpin[disabled] { opacity: 0.5; cursor: not-allowed; }
 .pcd-cancel,
 .pcd-submit {
   padding: 0.5rem 0.9rem;
@@ -6142,7 +6328,25 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   cursor: pointer;
   transition: background 0.12s, border-color 0.12s;
 }
-.bs-tag-view-tagsomeone:hover {
+/* Story 18 — disabled (logged-out) state. Greyed-out, non-interactive,
+   no hover/active feedback. Self-explanatory label ("🔒 Sign in to
+   tag someone") covers for the unreachable touch tooltip. */
+.bs-tag-view-tagsomeone:disabled,
+.bs-tag-view-tagsomeone.is-disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: transparent;
+  border-color: rgba(255,255,255,0.08);
+  color: rgba(255,255,255,0.55);
+}
+.bs-tag-view-tagsomeone:disabled:hover,
+.bs-tag-view-tagsomeone:disabled:active,
+.bs-tag-view-tagsomeone.is-disabled:hover,
+.bs-tag-view-tagsomeone.is-disabled:active {
+  background: transparent;
+  border-color: rgba(255,255,255,0.08);
+}
+.bs-tag-view-tagsomeone:hover:not(:disabled):not(.is-disabled) {
   background: rgba(255,255,255,0.08);
   border-color: rgba(255,255,255,0.3);
 }
@@ -6285,4 +6489,69 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   color: var(--text-secondary, #94a3b8);
 }
 .pcd-intro strong { color: inherit; }
+
+/* ── Story 18 / ADR 0016 — global affordances ───────────────────────
+
+   1. `.bs-sr-only`: visually-hidden text that remains in the
+      accessibility tree. Used by TagPageRow to mirror score values
+      when the visual slot is `visibility: hidden` under the
+      collapsed Curated view (AC-19).
+   2. `[data-bs-tooltip]`: pure-CSS tooltip pattern with a fast,
+      tunable onset. Replaces native `title=` on Story-18-touched
+      surfaces so the tooltip feels attached to the cursor instead
+      of arriving 1–2s late. The text comes from the attribute
+      value; an `aria-label` (or `aria-describedby`) on the same
+      node is required so screen-reader behavior is preserved (the
+      ::after pseudo-element is not in the accessibility tree).
+      Tune `--bs-tooltip-onset` to change the show-delay globally. */
+
+:root { --bs-tooltip-onset: 200ms; }
+
+.bs-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+[data-bs-tooltip] { position: relative; }
+[data-bs-tooltip]::after {
+  content: attr(data-bs-tooltip);
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  background: #1f2937;
+  color: #f3f4f6;
+  padding: 0.3rem 0.55rem;
+  border-radius: 4px;
+  font-size: 0.78rem;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 80ms ease;
+  transition-delay: 0s;       /* immediate on hide */
+  z-index: 50;
+}
+[data-bs-tooltip]:hover::after,
+[data-bs-tooltip]:focus-visible::after {
+  opacity: 1;
+  transition-delay: var(--bs-tooltip-onset);
+}
+/* Multi-line / long-copy variant — opt-in via data attr. */
+[data-bs-tooltip][data-bs-tooltip-wrap="true"]::after {
+  white-space: normal;
+  max-width: 22rem;
+  width: max-content;
+}
+/* Hover-driven tooltips are noise on touch; suppress on hover-none
+   viewports where the CSS pseudo-tooltip can't be dismissed. */
+@media (hover: none) {
+  [data-bs-tooltip]::after { display: none; }
+}
 

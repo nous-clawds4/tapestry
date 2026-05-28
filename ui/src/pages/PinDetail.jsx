@@ -7,7 +7,7 @@ import CurationMethodDialog from '../components/CurationMethodDialog';
 import { useAuth } from '../context/AuthContext';
 import { useConfig } from '../context/ConfigContext';
 import useTLDetail from '../hooks/useTLDetail';
-import { pinTag } from '../utils/publishTagPin';
+import { pinTag, unpinTag } from '../utils/publishTagPin';
 
 /**
  * Story 11 follow-up — Brainstorm-side detail page for one pinned-tag
@@ -117,7 +117,7 @@ export default function PinDetail() {
         && p.tag?.slug === tl.sourceTag?.slug
       );
       if (!pin) throw new Error('Pin event not found for this TL');
-      setEditing({ tag: pin.tag, curationMethod: pin.curationMethod });
+      setEditing({ tag: pin.tag, curationMethod: pin.curationMethod, pinEventId: pin.pinEventId });
     } catch (e) {
       setEditError(e.message || 'Could not open editor');
     } finally {
@@ -135,6 +135,13 @@ export default function PinDetail() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ pinEventId: signed.id }),
     }).catch(() => { /* best-effort */ });
+  };
+
+  // Story 18 / ADR 0016 — Unpin from inside the edit dialog.
+  const handleEditUnpin = async () => {
+    if (!editing) return;
+    await unpinTag({ pinEventId: editing.pinEventId });
+    await refetch();
   };
 
   return (
@@ -282,6 +289,7 @@ export default function PinDetail() {
             viewerPubkey={user.pubkey}
             onSubmit={handleEditSubmit}
             onCancel={() => setEditing(null)}
+            onUnpin={handleEditUnpin}
           />
         )}
       </div>

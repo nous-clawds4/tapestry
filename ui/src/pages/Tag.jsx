@@ -3,12 +3,11 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import TopBar from '../components/TopBar';
 import TagPageRow from '../components/TagPageRow';
 import TagPinAffordance from '../components/TagPinAffordance';
-import CurationMethodDialog from '../components/CurationMethodDialog';
 import TagViewControls from '../components/TagViewControls';
 import TagSomeoneModal from '../components/TagSomeoneModal';
 import { useAuth } from '../context/AuthContext';
 import { publishProfileTagAssertion } from '../utils/publishProfileTag';
-import { pinTag, unpinTag, defaultCurationMethod } from '../utils/publishTagPin';
+import { pinTag, defaultCurationMethod } from '../utils/publishTagPin';
 import useTagDetail from '../hooks/useTagDetail';
 
 /**
@@ -46,7 +45,6 @@ export default function Tag() {
 
   const [pinning, setPinning] = useState(false);
   const [pinError, setPinError] = useState(null);
-  const [showCurationDialog, setShowCurationDialog] = useState(false);
 
   // Story 17 new state.
   const [viewOptionsExpanded, setViewOptionsExpanded] = useState(false);
@@ -64,12 +62,10 @@ export default function Tag() {
     refetchRows();
   };
 
-  const handlePin = () => {
-    if (!tag) return;
-    setPinError(null);
-    setShowCurationDialog(true);
-  };
-
+  // Story 18 / ADR 0016 — first pin publishes immediately with defaults
+  // (WYSIWYG with Curated view). The curation dialog stays in the file
+  // but is no longer auto-opened here; it remains reachable from the
+  // `/pins` edit affordance.
   const publishWithCuration = async (customCuration) => {
     if (!tag) return;
     setPinning(true); setPinError(null);
@@ -88,14 +84,13 @@ export default function Tag() {
       setPinning(false);
     }
   };
-  const handleUnpin = async () => {
-    if (!viewerPin) return;
-    setPinning(true); setPinError(null);
+
+  const handlePin = async () => {
+    if (!tag || !user) return;
+    setPinError(null);
     try {
-      await unpinTag({ pinEventId: viewerPin.pinEventId });
-      await refetchHeader();
-    } catch (e) { setPinError(e.message || 'Unpin failed'); }
-    finally { setPinning(false); }
+      await publishWithCuration(defaultCurationMethod(user.pubkey));
+    } catch { /* error already surfaced via setPinError */ }
   };
 
   const handleTagSomeoneClick = async () => {
@@ -155,9 +150,9 @@ export default function Tag() {
                 <div className="bs-tag-pin-row">
                   <TagPinAffordance
                     user={user}
+                    tag={tag}
                     viewerPin={viewerPin}
                     onPin={handlePin}
-                    onUnpin={handleUnpin}
                     loading={pinning}
                     error={pinError}
                   />
@@ -168,17 +163,6 @@ export default function Tag() {
               )}
             </header>
 
-            {showCurationDialog && user && tag && (
-              <CurationMethodDialog
-                tag={tag}
-                initialCuration={defaultCurationMethod(user.pubkey)}
-                mode="create"
-                viewerPubkey={user.pubkey}
-                onSubmit={publishWithCuration}
-                onCancel={() => setShowCurationDialog(false)}
-              />
-            )}
-
             <section className="bs-tag-rows">
               <TagViewControls
                 sort={sort}
@@ -188,6 +172,7 @@ export default function Tag() {
                 filterText={filterText}
                 onFilterChange={setFilterText}
                 onTagSomeoneClick={handleTagSomeoneClick}
+                signedIn={!!user}
               />
 
               {rowsLoading && (

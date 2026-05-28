@@ -31,6 +31,7 @@ export default function TagViewControls({
   filterText,
   onFilterChange,
   onTagSomeoneClick,
+  signedIn = true,
 }) {
   const handleDetailsToggle = (e) => {
     if (onToggleExpand) onToggleExpand(e.currentTarget.open);
@@ -41,10 +42,13 @@ export default function TagViewControls({
       <div className="bs-tag-view-controls-row">
         <button
           type="button"
-          className="bs-tag-view-tagsomeone"
-          onClick={onTagSomeoneClick}
+          className={`bs-tag-view-tagsomeone${signedIn ? '' : ' is-disabled'}`}
+          onClick={signedIn ? onTagSomeoneClick : undefined}
+          disabled={!signedIn}
+          data-bs-tooltip={signedIn ? undefined : 'Sign in to tag someone'}
+          aria-label={signedIn ? 'Tag someone' : 'Sign in to tag someone'}
         >
-          ➕ Tag someone
+          {signedIn ? '➕ Tag someone' : '🔒 Sign in to tag someone'}
         </button>
 
         <details

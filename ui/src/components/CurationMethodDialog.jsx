@@ -16,6 +16,11 @@ import { nip19 } from 'nostr-tools';
  *   viewerPubkey    — used as the default observer when the field is empty
  *   onSubmit(custom) — async; resolves on publish success, rejects to surface inline error
  *   onCancel        — closes the dialog without publishing
+ *   onUnpin         — Story 18 / ADR 0016; optional. When provided AND
+ *                     `mode === 'edit'`, renders a destructive "Unpin"
+ *                     button on the left of the action row. Resolving
+ *                     the promise closes the dialog (the caller is
+ *                     responsible for the underlying delete + refresh).
  */
 const SUPPORTED_METHODS = [
   { value: 'nip85:rank',      label: 'nip85:rank',      enabled: true },
@@ -59,6 +64,7 @@ export default function CurationMethodDialog({
   viewerPubkey,
   onSubmit,
   onCancel,
+  onUnpin,
 }) {
   const init = initialCuration || {};
   const [cutoff, setCutoff] = useState(String(init.cutoff ?? 1));
@@ -73,6 +79,8 @@ export default function CurationMethodDialog({
   const [error, setError] = useState(null);
   const [fieldErrors, setFieldErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
+  const [unpinning, setUnpinning] = useState(false);
+  const [confirmingUnpin, setConfirmingUnpin] = useState(false);
 
   const dialogRef = useRef(null);
   const cutoffRef = useRef(null);
@@ -119,6 +127,25 @@ export default function CurationMethodDialog({
   };
 
   const submitLabel = mode === 'edit' ? 'Save changes' : 'Pin with these settings';
+
+  const handleUnpinClick = async () => {
+    if (!onUnpin || unpinning || submitting) return;
+    if (!confirmingUnpin) {
+      setConfirmingUnpin(true);
+      return;
+    }
+    setUnpinning(true);
+    setError(null);
+    try {
+      await onUnpin();
+      onCancel(); // close on success
+    } catch (err) {
+      setError(err?.message || 'Unpin failed');
+      setConfirmingUnpin(false);
+    } finally {
+      setUnpinning(false);
+    }
+  };
 
   return (
     <div
@@ -264,18 +291,32 @@ export default function CurationMethodDialog({
           )}
 
           <div className="pcd-actions">
+            {mode === 'edit' && onUnpin && (
+              <button
+                type="button"
+                className={`pcd-unpin${confirmingUnpin ? ' is-confirming' : ''}`}
+                onClick={handleUnpinClick}
+                disabled={submitting || unpinning}
+                aria-label={confirmingUnpin ? 'Confirm unpin' : 'Unpin this tag'}
+              >
+                {unpinning
+                  ? 'Unpinning…'
+                  : confirmingUnpin ? 'Confirm Unpin' : '🗑 Unpin'}
+              </button>
+            )}
+            <span className="pcd-actions-spacer" />
             <button
               type="button"
               className="pcd-cancel"
               onClick={onCancel}
-              disabled={submitting}
+              disabled={submitting || unpinning}
             >
               Cancel
             </button>
             <button
               type="submit"
               className="pcd-submit"
-              disabled={submitting}
+              disabled={submitting || unpinning}
             >
               {submitting ? 'Publishing…' : submitLabel}
             </button>
