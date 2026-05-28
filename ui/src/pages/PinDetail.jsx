@@ -279,7 +279,6 @@ export default function PinDetail() {
                     pinEventId={pinRow.pinEventId}
                     dTag={dTag}
                     currentTitle={pinRow.nip51ExportStatus?.currentTitle}
-                    writeRelays={pinRow.nip51ExportStatus?.writeRelays || []}
                     defaultTitle={pinRow.tag?.name || tl.title}
                     variant="full"
                     onExported={refetch}

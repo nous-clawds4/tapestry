@@ -24,7 +24,6 @@
 
 const { exec } = require('child_process');
 const { getOwnerAssistantPubkey } = require('../../utils/assistantKeys');
-const { getViewerWriteRelays } = require('../_shared/userRelays');
 
 /**
  * Legacy z-tag-composition pubkey — see ADR 0015.
@@ -1361,8 +1360,7 @@ async function handlePins(req, res) {
     const { tlByDTag, wantedDTags } = await enrichRowsWithTLStatus(pins);
     // ADR 0017: also enrich each row with nip51ExportStatus (Story 19).
     // Re-uses the d-tags + kind-30392 scan results from the previous call
-    // to avoid double-scanning strfry. writeRelays read once for the viewer
-    // and shared across all their rows.
+    // to avoid double-scanning strfry.
     await enrichRowsWithNip51ExportStatus(pins, viewerPubkey, { tlByDTag, wantedDTags });
 
     res.json({ success: true, pins });
@@ -1453,34 +1451,30 @@ async function enrichRowsWithTLStatus(pins) {
 }
 
 /**
- * Story 19 / ADR 0017: per-pin nip51ExportStatus derived live from strfry
- * + the user's NIP-65 write relays. Mirrors enrichRowsWithTLStatus's
- * derive-from-strfry-on-read pattern (no on-disk state).
+ * Story 19 / ADR 0017: per-pin nip51ExportStatus derived live from strfry.
+ * Mirrors enrichRowsWithTLStatus's derive-from-strfry-on-read pattern
+ * (no on-disk state).
  *
  * For each pin row:
  *   - If unsupported method (per enrichRowsWithTLStatus) → nip51ExportStatus
- *     status='never-exported', writeRelays still populated.
+ *     status='never-exported'.
  *   - Else fetch the user's latest kind-30000 with the same d-tag (signed
  *     by viewerPubkey, NOT the TA). If absent → status='never-exported'.
  *     If present → compare its p-tag set with the current kind-30392's
  *     p-tag set (passed in via tlByDTag):
  *       - same set → status='ok-fresh', diffVsTL={added:0, removed:0}
  *       - differs   → status='stale',     diffVsTL={added:N, removed:M}
- *   - writeRelays = viewer's NIP-65 write-relay list (or [] if no kind-10002).
  *
  * Must be called AFTER enrichRowsWithTLStatus (which stashes row._tlDTag
  * and we read tlByDTag from its return).
+ *
+ * ADR 0017 Amendment II: this enricher no longer surfaces writeRelays.
+ * The user's NIP-65 write-relay list is identity data fetched client-side
+ * via window.nostr.getRelays() at popover-open time.
  */
 async function enrichRowsWithNip51ExportStatus(pins, viewerPubkey, { tlByDTag = new Map(), wantedDTags = [] } = {}) {
   // Default: every row carries a populated nip51ExportStatus object so
-  // the UI doesn't have to null-check the field; the writeRelays array
-  // (computed once below) is shared across all rows for the same viewer.
-  let writeRelays = [];
-  if (isHexPubkey(viewerPubkey)) {
-    try { writeRelays = await getViewerWriteRelays(viewerPubkey); }
-    catch { writeRelays = []; }
-  }
-
+  // the UI doesn't have to null-check the field.
   for (const row of pins) {
     row.nip51ExportStatus = {
       status: 'never-exported',
@@ -1488,7 +1482,6 @@ async function enrichRowsWithNip51ExportStatus(pins, viewerPubkey, { tlByDTag = 
       exportEventId: null,
       memberCount: null,
       diffVsTL: null,
-      writeRelays,
       currentTitle: null,
     };
   }
@@ -1559,7 +1552,6 @@ async function enrichRowsWithNip51ExportStatus(pins, viewerPubkey, { tlByDTag = 
       exportEventId: exportEv.id,
       memberCount: exportMembers.length,
       diffVsTL: { added, removed },
-      writeRelays,
       currentTitle: exportTitle,
     };
   }

@@ -28,7 +28,7 @@ emit_task_event "TASK_START" "syncWoT" "system" "$oMetadata"
 echo "$(date): Starting syncWoT"
 echo "$(date): Starting syncWoT" >> ${BRAINSTORM_LOG_DIR}/syncWoT.log
 
-strfry sync wss://$relay --filter '{"kinds": [0, 3, 1984, 10000, 10002, 30000, 38000, 38172, 38173]}' --dir down
+strfry sync wss://$relay --filter '{"kinds": [0, 3, 1984, 10000, 30000, 38000, 38172, 38173]}' --dir down
 
 echo "$(date): Finished syncWoT"
 echo "$(date): Finished syncWoT" >> ${BRAINSTORM_LOG_DIR}/syncWoT.log

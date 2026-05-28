@@ -14,7 +14,6 @@
  */
 
 const { getOwnerAssistantKeys } = require('../../utils/assistantKeys');
-const { getViewerWriteRelays } = require('../_shared/userRelays');
 
 let _nt = null;
 function nt() {
@@ -246,14 +245,16 @@ function strfryScan(filter) {
  * it. The client cannot sign as someone else (the second NIP-07 prompt
  * will use the user's own key regardless of what's in the template).
  *
- * Input:  { pinEventId, title?, writeRelays? }
+ * Input:  { pinEventId, title? }
  *   - title: if provided, used as the title tag; else defaults to
  *     tag.name (bare). (ADR Q5: "title is purely the user's choice.")
- *   - writeRelays is currently ignored — the server is the authoritative
- *     source per Amendment A7 (defense in depth) — but accepted in the
- *     body for forward-compat.
  *
- * Output: { success, unsigned, dTag, memberCount, naddr, writeRelays }
+ * Output: { success, unsigned, dTag, memberCount }
+ *
+ * ADR 0017 Amendment II: this endpoint no longer returns writeRelays
+ * or a pre-composed naddr — the user's NIP-65 write-relay list is
+ * client-side identity data sourced from window.nostr.getRelays().
+ * The client composes the naddr itself after signing.
  */
 async function handlePrepareNip51Export(req, res) {
   const sessionPubkey = requireAuth(req, res);
@@ -324,17 +325,16 @@ async function handlePrepareNip51Export(req, res) {
       }
     }
 
-    // 7. Read the viewer's NIP-65 write relays (per Amendment A1).
-    const writeRelays = await getViewerWriteRelays(sessionPubkey);
-
-    // 8. Resolve title (per ADR Q4/Q5: default to bare tag.name).
+    // 7. Resolve title (per ADR Q4/Q5: default to bare tag.name).
     const title = (typeof providedTitle === 'string' && providedTitle.trim().length > 0)
       ? providedTitle.trim()
       : (tagPayload.name || tagPayload.slug);
 
-    // 9. Build unsigned kind-30000 template.
+    // 8. Build unsigned kind-30000 template.
     //    - z-tag reuses the existing tag-pinning concept handle (per
     //      ADR Q2: LEGACY pubkey, no new concept, no firmware reinstall).
+    //    - Per Amendment II: naddr is composed client-side from the
+    //      NIP-07 getRelays() lookup; not assembled here.
     const zTagHandle = profileTags.TAG_PINNING_Z_TAG;
     const unsigned = {
       kind: 30000,
@@ -350,22 +350,11 @@ async function handlePrepareNip51Export(req, res) {
       content: '',
     };
 
-    // 10. Pre-encode the naddr the client will copy to the clipboard.
-    //     Relays from the user's NIP-65 (per Amendment A4: include all).
-    const naddr = nt().nip19.naddrEncode({
-      kind: 30000,
-      pubkey: sessionPubkey,
-      identifier: dTag,
-      relays: writeRelays,
-    });
-
     return res.json({
       success: true,
       unsigned,
       dTag,
       memberCount: memberPubkeys.length,
-      naddr,
-      writeRelays,
     });
   } catch (err) {
     console.error('trusted-list/prepare-nip51-export error:', err);

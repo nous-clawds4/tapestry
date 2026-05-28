@@ -1,4 +1,6 @@
+import { nip19 } from 'nostr-tools';
 import { publishOrThrow } from './publishProfileTag';
+import { publishEverywhere } from './nostrPublish';
 
 /**
  * Single source of truth for the tag-pinning wire shape from ADR 0009.
@@ -120,26 +122,60 @@ export async function pinTag({ tag, curationMethod }) {
 }
 
 /**
+ * Story 19 / ADR 0017 Amendment II — read the logged-in user's NIP-65
+ * write-relay list via the NIP-07 extension's `getRelays()`.
+ *
+ * NIP-07 spec: `getRelays(): Promise<{[url]: {read, write}}>` (optional).
+ * Returns the URLs of relays the user writes to (filtering out explicit
+ * read-only entries; entries without a write marker default to "both").
+ *
+ * Returns []:
+ *   - extension is absent;
+ *   - extension does not implement getRelays();
+ *   - getRelays() rejects or returns a non-object;
+ *   - getRelays() returns no write-eligible entries.
+ *
+ * Callers treat [] as the "no NIP-65 relay list" fallback (the kind-30000
+ * is published to local strfry only and the UI surfaces a warning).
+ */
+export async function fetchUserWriteRelays() {
+  if (!window.nostr?.getRelays) return [];
+  try {
+    const relays = await window.nostr.getRelays();
+    if (!relays || typeof relays !== 'object') return [];
+    return Object.entries(relays)
+      .filter(([, meta]) => meta && meta.write !== false)
+      .map(([url]) => url);
+  } catch {
+    return [];
+  }
+}
+
+/**
  * Story 19 / ADR 0017: prepare + sign + publish a kind-30000 NIP-51
  * follow-set export for a pinned tag.
  *
- * Flow per ADR:
+ * Flow per ADR (with Amendment II layering):
  *   1. POST /api/trusted-list/prepare-nip51-export with { pinEventId,
  *      title? }. Server resolves the d-tag, reads current kind-30392
- *      membership, reads viewer's NIP-65 write relays, returns
- *      { unsigned, naddr, writeRelays, dTag, memberCount }.
- *   2. NIP-07 sign the unsigned template.
- *   3. Publish via publishEverywhere(signed, writeRelays) so the event
+ *      membership, returns { unsigned, dTag, memberCount }.
+ *   2. Read the user's NIP-65 write relays client-side (caller-provided
+ *      or via fetchUserWriteRelays — NIP-07 `getRelays()`).
+ *   3. NIP-07 sign the unsigned template.
+ *   4. Publish via publishEverywhere(signed, writeRelays) so the event
  *      lands on local strfry AND on the user's own write relays (other
  *      nostr clients can find it on the user's identity).
+ *   5. Compose the naddr client-side via nip19.naddrEncode using the
+ *      user's write relays.
+ *
+ * @param {object} args
+ * @param {string} args.pinEventId
+ * @param {string} [args.title]
+ * @param {string[]} [args.writeRelays] — if omitted, calls fetchUserWriteRelays.
  *
  * Returns { signed, naddr, writeRelays, dTag, memberCount }.
- *
- * Caller decides what to do with naddr (e.g. copy to clipboard). Throws
- * on prepare-endpoint failure, NIP-07 rejection, or full publish failure
- * (publishEverywhere's "throw only if BOTH local and external fail").
  */
-export async function publishNip51ExportForPin({ pinEventId, title } = {}) {
+export async function publishNip51ExportForPin({ pinEventId, title, writeRelays } = {}) {
   if (!window.nostr) {
     throw new Error('No NIP-07 extension detected. Install one to export lists.');
   }
@@ -152,19 +188,31 @@ export async function publishNip51ExportForPin({ pinEventId, title } = {}) {
   if (!prepareResp.ok || !prepareData?.success) {
     throw new Error(prepareData?.error || `prepare-nip51-export failed: status ${prepareResp.status}`);
   }
-  const { unsigned, naddr, writeRelays, dTag, memberCount } = prepareData;
+  const { unsigned, dTag, memberCount } = prepareData;
+
+  const publishRelays = Array.isArray(writeRelays)
+    ? writeRelays
+    : await fetchUserWriteRelays();
+
   const signed = await window.nostr.signEvent(unsigned);
 
-  // Publish: local strfry + user's NIP-65 write relays.
-  const { publishEverywhere } = await import('./nostrPublish');
-  const publishRelays = Array.isArray(writeRelays) ? writeRelays : [];
+  // Publish to local strfry + user's NIP-65 write relays.
   const result = await publishEverywhere(signed, publishRelays);
   const localOk = result?.local?.success;
   const externalOk = (result?.external?.successes?.length || 0) > 0;
-  if (!localOk && !externalOk && publishRelays.length > 0) {
+  if (!localOk && !externalOk) {
     throw new Error(result?.local?.error || 'Publish failed on every relay.');
   }
-  return { signed, naddr, writeRelays, dTag, memberCount };
+
+  // Compose naddr client-side from the user's own relays (Amendment II).
+  const naddr = nip19.naddrEncode({
+    kind: 30000,
+    pubkey: signed.pubkey,
+    identifier: dTag,
+    relays: publishRelays,
+  });
+
+  return { signed, naddr, writeRelays: publishRelays, dTag, memberCount };
 }
 
 /**

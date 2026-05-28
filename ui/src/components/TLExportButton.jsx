@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { publishNip51ExportForPin } from '../utils/publishTagPin';
+import { publishNip51ExportForPin, fetchUserWriteRelays } from '../utils/publishTagPin';
 
 /**
  * Story 19 / ADR 0017 — kind-30000 NIP-51 follow-set export button.
@@ -8,7 +8,8 @@ import { publishNip51ExportForPin } from '../utils/publishTagPin';
  * Click → opens an inline popover with:
  *   - editable title (defaults to currentTitle or tag.name)
  *   - relay-preview block listing the user's NIP-65 write relays
- *     (or a no-NIP-65 warning when writeRelays is empty)
+ *     fetched via window.nostr.getRelays() on open
+ *     (Amendment II: client-side NIP-07 source, not the row payload)
  *   - [Export] + [Cancel] buttons
  *
  * On Export:
@@ -23,16 +24,13 @@ import { publishNip51ExportForPin } from '../utils/publishTagPin';
  *   dTag          — d-tag (unused directly here; for parent symmetry)
  *   currentTitle  — pre-fill for the title input (last published title
  *                   from nip51ExportStatus.currentTitle), or null
- *   writeRelays   — user's NIP-65 write relays (from
- *                   nip51ExportStatus.writeRelays). Empty array means no
- *                   kind-10002; the popover shows the AC-27 warning.
  *   defaultTitle  — fallback when currentTitle and user input are empty
  *                   (typically the tag's display name)
  *   variant       — 'compact' (icon-only button) or 'full' (text+icon)
  *   onExported    — optional callback after a successful publish
  */
 export default function TLExportButton({
-  pinEventId, dTag, currentTitle, writeRelays = [], defaultTitle = '',
+  pinEventId, dTag, currentTitle, defaultTitle = '',
   variant = 'compact', onExported,
 }) {
   const [open, setOpen] = useState(false);
@@ -40,6 +38,9 @@ export default function TLExportButton({
   const [exporting, setExporting] = useState(false);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState(null);
+  // Amendment II: writeRelays is per-open, fetched from NIP-07 getRelays().
+  // null = not yet fetched (loading); [] = fetched but no entries.
+  const [writeRelays, setWriteRelays] = useState(null);
 
   useEffect(() => {
     // Keep the input synced when the parent passes a new currentTitle
@@ -48,8 +49,22 @@ export default function TLExportButton({
     setTitleDraft(currentTitle || defaultTitle);
   }, [currentTitle, defaultTitle, open]);
 
+  // Amendment II — fetch the user's NIP-65 write relays each time the
+  // popover opens. No caching across opens (per ADR Amendment A5
+  // "re-read on every Export action").
+  useEffect(() => {
+    if (!open) { setWriteRelays(null); return; }
+    let cancelled = false;
+    (async () => {
+      const relays = await fetchUserWriteRelays();
+      if (!cancelled) setWriteRelays(relays);
+    })();
+    return () => { cancelled = true; };
+  }, [open]);
+
   const hasNip07 = typeof window !== 'undefined' && !!window.nostr;
   const hasWriteRelays = Array.isArray(writeRelays) && writeRelays.length > 0;
+  const relaysLoading = writeRelays === null;
 
   const handleTriggerClick = (e) => {
     e.stopPropagation(); e.preventDefault();
@@ -62,9 +77,12 @@ export default function TLExportButton({
     setExporting(true);
     setError(null);
     try {
+      // Pass the freshly-fetched writeRelays from popover state, so the
+      // helper doesn't double-fetch.
       const { naddr } = await publishNip51ExportForPin({
         pinEventId,
         title: (titleDraft || '').trim() || undefined,
+        writeRelays: Array.isArray(writeRelays) ? writeRelays : [],
       });
       if (navigator?.clipboard?.writeText && naddr) {
         try { await navigator.clipboard.writeText(naddr); } catch { /* clipboard rejected */ }
@@ -123,7 +141,11 @@ export default function TLExportButton({
             />
           </div>
 
-          {hasWriteRelays ? (
+          {relaysLoading ? (
+            <div className="bs-tl-export-preview is-ok">
+              <p className="bs-tl-export-preview-lead">Reading your relay list…</p>
+            </div>
+          ) : hasWriteRelays ? (
             <div className="bs-tl-export-preview is-ok">
               <p className="bs-tl-export-preview-lead">
                 This will publish the NIP-51 list <strong>{(titleDraft || defaultTitle || 'untitled')}</strong> to:
@@ -134,16 +156,18 @@ export default function TLExportButton({
                 ))}
               </ul>
               <p className="bs-tl-export-preview-foot">
-                ({writeRelays.length} of your write relays from your NIP-65 relay list, plus this Brainstorm instance's relay.)
+                ({writeRelays.length} of your write relays via NIP-07
+                <code> getRelays()</code>, plus this Brainstorm instance's relay.)
               </p>
             </div>
           ) : (
             <div className="bs-tl-export-preview is-warn" role="alert">
-              ⚠️ You haven't published a NIP-65 relay list, so this list will
-              only land on this Brainstorm instance's relay. Other nostr
-              clients won't find it unless they have this relay configured.
-              To make it discoverable, publish a NIP-65 relay list and try
-              again.
+              ⚠️ Your nostr extension didn't report any write relays
+              (<code>window.nostr.getRelays()</code> returned nothing). This
+              list will only land on this Brainstorm instance's relay; other
+              nostr clients won't find it unless they have this relay
+              configured. Make sure your extension's relay settings include
+              write relays and try again.
             </div>
           )}
 
