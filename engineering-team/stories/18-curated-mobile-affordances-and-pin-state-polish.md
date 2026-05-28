@@ -1,6 +1,6 @@
 # Story 18: Curated-view mobile affordances + Pin button state polish
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-05-28
 **Type:** Feature (UX polish bundle, follow-on to Story 17)
 
@@ -382,4 +382,4 @@ These belong to the Architect or to the user to resolve in Phase 2:
     after this one ships.
 - ADR: `engineering-team/decisions/0016-curated-mobile-affordances-and-pin-state-polish.md`
 - Test plan: **skipped** by PO decision 2026-05-28 — Story 18 is a UI nudge bundle (CSS reveal rules, label/hover swaps, a one-line click handler reroute, a small popover). No behavior change at the data/wire layer. Manual smoke during Implementation + Review covers it. Reviewer should verify the AC walkthrough by hand in browser at both desktop and a touch viewport.
-- Review: (filled in after Review phase)
+- Review: **self-reviewed by PO** 2026-05-28 — PO drove the manual AC walkthrough across desktop + mobile (Brave / Vanadium) iteratively during implementation; shipped without a separate Reviewer pass.
