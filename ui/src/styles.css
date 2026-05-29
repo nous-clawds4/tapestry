@@ -6865,22 +6865,99 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
 .bs-pindetail-sync.is-pending .bs-pindetail-sync-status { color: #fbbf24; }
 .bs-pindetail-sync.is-stale .bs-pindetail-sync-status { color: #fbbf24; }
 
-/* naddr copy rows in the metadata list. */
-.bs-pindetail-naddr { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; }
-.bs-pindetail-naddr code { word-break: break-all; }
-.bs-pindetail-copy {
-  background: rgba(148, 163, 184, 0.12);
-  border: 1px solid rgba(148, 163, 184, 0.25);
-  border-radius: 4px;
+/* "Details and List IDs" collapse around the metadata list. */
+.bs-pindetail-details { margin: 1rem 0; }
+.bs-pindetail-details > summary {
   cursor: pointer;
-  padding: 0.1rem 0.4rem;
-  font-size: 0.8rem;
-  line-height: 1;
+  font-size: 0.85rem;
+  color: #94a3b8;
+  user-select: none;
+  padding: 0.3rem 0;
 }
-.bs-pindetail-copy:hover { background: rgba(148, 163, 184, 0.22); }
+.bs-pindetail-details > summary:hover { color: #cbd5e1; }
+/* the dl inside the disclosure drops its own outer margin */
+.bs-pindetail-details .bs-pindetail-meta { margin: 0.3rem 0 0; }
+
+/* Grid cells must be allowed to shrink, else a long id blows out the 1fr
+   column and pushes the help text off-screen. */
+.bs-pindetail-meta dd { min-width: 0; }
+
+/* naddr copy rows: truncated id (first-5…last-4) + copy + help line. */
+.bs-pindetail-naddr { min-width: 0; }
+.bs-pindetail-naddr-line {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+.bs-pindetail-naddr-toggle {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  color: inherit;
+  min-width: 0;
+}
+.bs-pindetail-naddr-toggle code { word-break: break-all; text-align: left; }
+.bs-pindetail-naddr-showall {
+  font-size: 0.68rem;
+  color: #818cf8;
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+.bs-pindetail-naddr-toggle:hover .bs-pindetail-naddr-showall { opacity: 1; }
+/* Expanded id: plain, user-selectable so manual copy works as a fallback. */
+.bs-pindetail-naddr-full {
+  word-break: break-all;
+  user-select: text;
+  -webkit-user-select: text;
+  cursor: text;
+}
+.bs-pindetail-naddr-hide {
+  flex: none;
+  background: none;
+  border: none;
+  color: #818cf8;
+  cursor: pointer;
+  font-size: 0.68rem;
+  padding: 0;
+}
+.bs-pindetail-naddr-hide:hover { text-decoration: underline; }
+.bs-pindetail-copy {
+  flex: none;
+  background: rgba(129, 140, 248, 0.14);
+  border: 1px solid rgba(129, 140, 248, 0.3);
+  border-radius: 4px;
+  color: #c7d2fe;
+  cursor: pointer;
+  padding: 0.15rem 0.5rem;
+  font-size: 0.72rem;
+  white-space: nowrap;
+}
+.bs-pindetail-copy:hover { background: rgba(129, 140, 248, 0.24); }
 .bs-pindetail-naddr-help {
-  flex-basis: 100%;
-  font-size: 0.75rem;
+  margin: 0.15rem 0 0;
+  font-size: 0.72rem;
   color: #94a3b8;
   line-height: 1.4;
+}
+
+/* Mobile: make the curation + tag-someone modals width-respecting bottom
+   trays, matching the Export modal (.bs-tl-export-popover) pattern. */
+@media (max-width: 768px) {
+  .pcd-backdrop, .tsm-backdrop {
+    align-items: flex-end;
+    padding: 0;
+  }
+  .pcd, .tsm-dialog {
+    width: 100%;
+    max-width: 100vw;
+    max-height: 85vh;
+    border-radius: 12px 12px 0 0;
+  }
 }

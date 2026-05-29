@@ -48,32 +48,88 @@ function timeAgoShort(unixSeconds) {
   return `${Math.floor(diff / 2592000)}mo ago`;
 }
 
-/** A naddr metadata row with its own copy-to-clipboard control + help line.
- *  The copied value is always an naddr (addressable; resolves the latest
- *  replaceable event in other clients) — never a raw event id (AC-11). */
-function NaddrRow({ label, naddr, help }) {
-  const [copied, setCopied] = useState(false);
-  const copy = async () => {
+/** Copy text to the clipboard, with a fallback for non-secure contexts
+ *  (http:// on a LAN IP) and older browsers where navigator.clipboard is
+ *  unavailable. Resolves on success, rejects if every path fails. */
+function copyText(text) {
+  if (navigator.clipboard && window.isSecureContext) {
+    return navigator.clipboard.writeText(text);
+  }
+  return new Promise((resolve, reject) => {
     try {
-      await navigator.clipboard.writeText(naddr);
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.setAttribute('readonly', '');
+      ta.style.position = 'fixed';
+      ta.style.top = '-9999px';
+      document.body.appendChild(ta);
+      ta.select();
+      const ok = document.execCommand('copy');
+      document.body.removeChild(ta);
+      if (ok) resolve(); else reject(new Error('copy command rejected'));
+    } catch (e) { reject(e); }
+  });
+}
+
+/** A naddr metadata row: a truncated id (first-5…last-4) that expands on
+ *  click (showing "show all" on hover), a working copy control, and a help
+ *  line. The copied value is always the full naddr (addressable; resolves
+ *  the latest replaceable event in other clients) — never a raw id (AC-11). */
+function NaddrRow({ label, naddr, help }) {
+  const [expanded, setExpanded] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const short = naddr.length > 12 ? `${naddr.slice(0, 5)}…${naddr.slice(-4)}` : naddr;
+  const copy = async (e) => {
+    e.stopPropagation();
+    try {
+      await copyText(naddr);
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
-    } catch { /* clipboard rejected */ }
+    } catch {
+      // Every copy path failed — expand the full id so the user can
+      // highlight-and-copy it manually.
+      setExpanded(true);
+    }
   };
   return (
     <>
       <dt>{label}</dt>
-      <dd className="bs-pindetail-id bs-pindetail-naddr">
-        <code>{naddr}</code>
-        <button
-          type="button"
-          className="bs-pindetail-copy"
-          onClick={copy}
-          aria-label={`Copy ${label} naddr`}
-        >
-          {copied ? '✓' : '📋'}
-        </button>
-        <span className="bs-pindetail-naddr-help">{help}</span>
+      <dd className="bs-pindetail-naddr">
+        <div className="bs-pindetail-naddr-line">
+          {expanded ? (
+            // Full id as plain selectable text — so manual highlight-and-copy
+            // works even if the Clipboard API is unavailable in the browser.
+            <code className="bs-pindetail-naddr-full">{naddr}</code>
+          ) : (
+            <button
+              type="button"
+              className="bs-pindetail-naddr-toggle"
+              onClick={() => setExpanded(true)}
+              title="Click to show the full ID"
+            >
+              <code>{short}</code>
+              <span className="bs-pindetail-naddr-showall">show all</span>
+            </button>
+          )}
+          <button
+            type="button"
+            className="bs-pindetail-copy"
+            onClick={copy}
+            aria-label={`Copy ${label}`}
+          >
+            {copied ? '✓ Copied' : 'Copy'}
+          </button>
+          {expanded && (
+            <button
+              type="button"
+              className="bs-pindetail-naddr-hide"
+              onClick={() => setExpanded(false)}
+            >
+              hide
+            </button>
+          )}
+        </div>
+        <p className="bs-pindetail-naddr-help">{help}</p>
       </dd>
     </>
   );
@@ -237,7 +293,8 @@ export default function PinnedListPanel({ tag, viewerPin, onChanged, exportSync 
   return (
     <div className="bs-pindetail-panel">
       <header className="bs-pindetail-header">
-        <h2 className="bs-pindetail-title">{tl.title || tl.dTag}</h2>
+        {/* Tag title is already shown page-level (Tag.jsx <h1 bs-tag-name>);
+            no duplicate heading here. */}
         <div className="bs-pindetail-actions">
           {canManage && (
             <ExportModal
@@ -273,6 +330,8 @@ export default function PinnedListPanel({ tag, viewerPin, onChanged, exportSync 
         )}
       </header>
 
+      <details className="bs-pindetail-details">
+        <summary>Details and List IDs</summary>
       <dl className="bs-pindetail-meta">
         <dt>Observer</dt>
         <dd>
@@ -311,6 +370,7 @@ export default function PinnedListPanel({ tag, viewerPin, onChanged, exportSync 
           />
         )}
       </dl>
+      </details>
 
       <h3 className="bs-pindetail-members-heading">
         Members ({members.length})
