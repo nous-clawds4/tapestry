@@ -255,6 +255,19 @@ test('T22: the local-data ⓘ disclosure states data is computed locally and NOT
     'the ⓘ affordance must open on tap/click (mobile-friendly), not hover-only — expect an onClick handler.');
 });
 
+test('T23: the /api/profiles batch size respects the server cap (PROFILE_CHUNK ≤ 50) — regression guard for the staging Name-column bug', () => {
+  const src = safeRead(FOLLOWS_PAGE);
+  assert(src.length > 0, 'BrainstormFollows.jsx does not exist yet.');
+  // /api/profiles returns 400 for >50 pubkeys (src/api/profiles/fetchProfiles.js:148). The page must
+  // batch profile lookups at <= 50, or the Name column silently falls back to npub for every row
+  // (caught on staging: PROFILE_CHUNK was 100, every /api/profiles chunk 400'd, names never resolved).
+  const m = src.match(/PROFILE_CHUNK\s*=\s*(\d+)/);
+  assert(m, 'BrainstormFollows.jsx must define `PROFILE_CHUNK` (the /api/profiles batch size) so this invariant is guarded.');
+  const chunk = parseInt(m[1], 10);
+  assert(chunk >= 1 && chunk <= 50,
+    `the /api/profiles batch size (PROFILE_CHUNK=${chunk}) must be 1..50 — /api/profiles 400s for >50 pubkeys (fetchProfiles.js:148).`);
+});
+
 // ===========================================================================
 // REGRESSION SENTINELS (must PASS before AND after implementation)
 // ===========================================================================
