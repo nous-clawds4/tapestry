@@ -48,20 +48,9 @@ function loadVisible() {
   return { ...DEFAULT_VISIBLE };
 }
 
-// Batch-fetch kind-0 profiles (names + pictures), chunked for large follow sets.
-async function fetchProfiles(pubkeys) {
-  const out = {};
-  const CHUNK = 100;
-  for (let i = 0; i < pubkeys.length; i += CHUNK) {
-    const batch = pubkeys.slice(i, i + CHUNK);
-    try {
-      const r = await fetch(`/api/profiles?pubkeys=${batch.join(',')}`);
-      const j = await r.json();
-      if (j?.profiles) Object.assign(out, j.profiles);
-    } catch { /* tolerate partial profile failures */ }
-  }
-  return out;
-}
+// /api/profiles caps at 50 pubkeys per request (src/api/profiles/fetchProfiles.js:148),
+// so profile lookups are batched at PROFILE_CHUNK and merged chunk-by-chunk as they arrive.
+const PROFILE_CHUNK = 50;
 
 /* ── Local-data disclosure popover (tap to open; mobile-friendly) ── */
 
@@ -102,11 +91,24 @@ export default function BrainstormFollows() {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(visible)); } catch { /* ignore */ }
   }, [visible]);
 
-  // Batch-load names/pics for the followed pubkeys.
+  // Batch-load names/pics for the followed pubkeys. /api/profiles caps at 50 pubkeys/request,
+  // so chunk at PROFILE_CHUNK and merge each chunk as it returns (names fill in progressively;
+  // one slow/failed chunk no longer blocks the whole list).
   useEffect(() => {
     if (!follows || follows.length === 0) { setProfiles({}); return; }
     let cancelled = false;
-    fetchProfiles(follows.map(f => f.pubkey)).then(p => { if (!cancelled) setProfiles(p); });
+    setProfiles({});
+    const pubkeys = follows.map(f => f.pubkey);
+    (async () => {
+      for (let i = 0; i < pubkeys.length && !cancelled; i += PROFILE_CHUNK) {
+        const batch = pubkeys.slice(i, i + PROFILE_CHUNK);
+        try {
+          const r = await fetch(`/api/profiles?pubkeys=${batch.join(',')}`);
+          const j = await r.json();
+          if (!cancelled && j?.profiles) setProfiles(prev => ({ ...prev, ...j.profiles }));
+        } catch { /* tolerate partial profile failures */ }
+      }
+    })();
     return () => { cancelled = true; };
   }, [follows]);
 
