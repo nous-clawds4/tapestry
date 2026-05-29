@@ -127,3 +127,18 @@ To unblock the avatar-menu POV selector — or any future "switch POV from anywh
 Affected hooks (enumerated during ADR-0006 audit): `useTagDetail`, `useAuthoredTagging`, `useProfileTags`. Likely more after audit — the search proxy's POV usage on `BrainstormSearch` would also subscribe but already has its own pattern.
 
 **Bundle candidate:** dedicated story + ADR. Scope is real infrastructure work (not polish). When this lands, the avatar-menu POV selector becomes a small follow-on.
+
+## Update Story-19 Playwright spec for the retired /pin/:dTag page (Story 20 fallout)
+
+**Surfaced during:** Story 20 review (ADR-0018), 2026-05-29. Verdict was CHANGES_REQUESTED solely on this item; the user chose to defer it to prioritize other work. Story 20 implementation is otherwise complete, ADR-conformant, all 20 Node tests green, build-clean, browser-verified.
+
+Story 20 retired `ui/src/pages/PinDetail.jsx`; `/pin/:dTag` now redirects (via `ui/src/components/PinRedirect.jsx`) to `/tag/:slug/:eventId?tab=pinned`, and the pinned-list content lives in the new `PinnedListPanel` (the tag-detail "Pinned" tab). This invalidated the Story-19 Playwright spec:
+
+- **`tests/brainstorm/nip51-list-export-from-pins.spec.js`**, test **"AC-19: /pin/:dTag renders the existing kind-30392 metadata … AND adds the new Export section"** (~line 602). It `page.goto(PIN_DETAIL_URL)` (`/pin/<D_TAG>`) and asserts the PinDetail page (heading, observer, export section, share button), but sets up `mockStrfryScanForPinDetail` + `mockPinsRoute` **without** `mockTagByIdRoute`. After the redirect the Tag page has no `viewerPin` → no Pinned tab → assertions fail. The spec is env-gated (`BRAINSTORM_SERVER_ACCESSIBLE=true`) and NOT in the default `npm test` gate, so it's latent until Playwright is run.
+
+**The fix (~10 lines):**
+1. Retarget AC-19 to the Pinned tab: add `await mockTagByIdRoute(page, { viewerPin: { pinEventId: PIN_EVENT_ID, createdAt: 1715000100, curationMethod: { observer: VIEWER_PK, method: 'nip85:rank', cutoff: 1, includeScoreInTL: true } } })` and `page.goto('/tag/' + TAG_SLUG + '/' + TAG_ID + '?tab=pinned')` — OR keep `goto(PIN_DETAIL_URL)` and assert the redirect lands on the Pinned tab.
+2. Rename the now-stale `PIN_DETAIL_URL` / `mockStrfryScanForPinDetail` so intent matches.
+3. Verify the export-section assertion against the **changed pin-row match key**: `PinnedListPanel` matches the export row by `p.pinEventId === viewerPin.pinEventId` (old `PinDetail` matched by tag identity). The `mockPinsRoute` row uses `pinEventId: PIN_EVENT_ID`, so it aligns iff the mocked `viewerPin.pinEventId` is also `PIN_EVENT_ID`.
+
+**To resume:** re-run `/review-changes` after the spec is fixed → expect PASS → then retire Story 20 (Status: Done, `git mv` story + test-plan to `stories/done/`, update path refs) and ship via the deploy chain. Full detail in `engineering-team/reviews/20-pin-detail-into-tag-pinned-tab.md` (Blocking #1) and its non-blocking notes (orphan `tabpanel` ARIA when unpinned; `PinnedListPanel` fetch-while-hidden; pre-existing "default 2" string in `PinsMemberCountHint`).
