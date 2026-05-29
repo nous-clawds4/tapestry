@@ -317,5 +317,5 @@ These belong to the Architect to resolve in Phase 2:
   Export / Sync overhaul, which will also revisit cross-app sharing of
   the kind-30392 TL and the kind-30000 NIP-51 list.
 - ADR: `engineering-team/decisions/0018-pin-detail-into-tag-pinned-tab.md`
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/20-pin-detail-into-tag-pinned-tab.test-plan.md`
 - Review: (filled in after Review phase)

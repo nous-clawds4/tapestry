@@ -58,6 +58,7 @@ const publishExportConcept = require('./publish-export-a-concept.test.js');
 const communityReferenceStub = require('./community-reference-nostr-relay-stub.test.js');
 const nip51ListExport = require('./nip51-list-export-from-pins.test.js');
 const nip51ListExportPublish = require('./nip51-list-export-from-pins-publish.test.js');
+const pinDetailIntoTagTab = require('./pin-detail-into-tag-pinned-tab.test.js');
 
 async function main() {
   console.log('Running Brainstorm tests...');
@@ -113,6 +114,7 @@ async function main() {
   const nip51ListExportResult = await nip51ListExport.run();
   console.log('\nnip51-list-export-from-pins publish-flow suite:');
   const nip51ListExportPublishResult = await nip51ListExportPublish.run();
+  const pinDetailIntoTagTabResult = await pinDetailIntoTagTab.run();
 
   console.log('\nTest Results');
   console.log('-------------');
@@ -186,6 +188,7 @@ async function main() {
     ? `SKIP (${nip51ListExportPublishResult.skipped} tests; preconditions not met)`
     : `${nip51ListExportPublishResult.fail === 0 ? 'PASS' : 'FAIL'} (${nip51ListExportPublishResult.pass} passed, ${nip51ListExportPublishResult.fail} failed)`;
   console.log(`nip51-list-export-from-pins-publish suite:       ${nleLine}`);
+  console.log(`pin-detail-into-tag-pinned-tab suite:            ${pinDetailIntoTagTabResult.fail === 0 ? 'PASS' : 'FAIL'} (${pinDetailIntoTagTabResult.pass} passed, ${pinDetailIntoTagTabResult.fail} failed)`);
 
   const overallOk = configOk
     && profileTagsResult.fail === 0
@@ -220,7 +223,8 @@ async function main() {
     && publishExportConceptResult.fail === 0
     && communityReferenceStubResult.fail === 0
     && nip51ListExportResult.fail === 0
-    && nip51ListExportPublishResult.fail === 0;
+    && nip51ListExportPublishResult.fail === 0
+    && pinDetailIntoTagTabResult.fail === 0;
   console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);
   process.exit(overallOk ? 0 : 1);
 }
