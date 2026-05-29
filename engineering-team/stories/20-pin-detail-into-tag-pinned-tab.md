@@ -316,6 +316,6 @@ These belong to the Architect to resolve in Phase 2:
 - **Follow-on (explicitly next, OUT of scope here):** the Refresh /
   Export / Sync overhaul, which will also revisit cross-app sharing of
   the kind-30392 TL and the kind-30000 NIP-51 list.
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/0018-pin-detail-into-tag-pinned-tab.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)

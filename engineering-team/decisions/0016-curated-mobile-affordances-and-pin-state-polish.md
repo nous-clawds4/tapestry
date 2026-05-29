@@ -1,8 +1,15 @@
 # ADR 0016: Curated-view mobile affordances + Pin button state polish
 
-**Status:** Proposed
+**Status:** Accepted (AC-13–AC-15 partially superseded by ADR 0018)
 **Date:** 2026-05-28
 **Story:** `engineering-team/stories/18-curated-mobile-affordances-and-pin-state-polish.md`
+
+> **Note (2026-05-29):** AC-13–AC-15 of this ADR (the already-pinned
+> header Pin button navigating to `/pin/:dTag`) are superseded by
+> ADR 0018: the button now toggles an on-page "Pinned" tab and the
+> `/pin/:dTag` page is retired to a redirect. The rest of this ADR
+> (mobile overflow affordances on tagged-profile rows, fast tooltip
+> onset, first-pin no-dialog publish) stands.
 
 ## Context
 
