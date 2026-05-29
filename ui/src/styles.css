@@ -4922,6 +4922,10 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   flex-direction: column;
   gap: 0.5rem;
 }
+/* Desktop default: the anchored popover uses the document-level outside-tap
+   listener; the full-screen backdrop element is mobile-only. (Base rule must
+   precede the @media override below so source order resolves correctly.) */
+.bs-tag-row-overflow-backdrop { display: none; }
 /* On narrow viewports, render the menu as a bottom-sheet using
    `position: fixed`. Fixed positioning ignores parent overflow
    clipping, so the sheet displays correctly even when the row lives
@@ -4946,15 +4950,16 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
     z-index: 1100;       /* above TagSomeoneModal's 1000 */
     gap: 0.75rem;
   }
-  /* Soft backdrop behind the sheet, rendered via the trigger's
-     ::before so we don't need any extra JSX. */
-  .bs-tag-row-overflow-trigger[aria-expanded="true"]::before {
-    content: '';
+  /* Real backdrop element (see TagPageRow): pointer-events:auto so a tap
+     anywhere outside the sheet dismisses it on every platform — iOS does
+     not fire mouse events on non-interactive areas, so the old
+     pointer-events:none ::before relied on a listener that never ran. */
+  .bs-tag-row-overflow-backdrop {
+    display: block;
     position: fixed;
     inset: 0;
     background: rgba(0,0,0,0.35);
     z-index: 1099;
-    pointer-events: none; /* clicks reach the document listener below */
   }
 }
 .bs-tag-row-overflow-menu .bs-tag-row-actions {

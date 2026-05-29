@@ -311,6 +311,22 @@ export default function TagPageRow({
             ⋯
           </button>
           {overflowOpen && (
+            <>
+            {/* Real backdrop (mobile bottom-sheet): a CSS ::before with
+                pointer-events:none can't dismiss on iOS, where taps on
+                non-interactive areas don't fire mouse events. This element
+                captures the tap, closes the sheet, and marks the close so a
+                sibling row's link doesn't immediately open a stacked sheet. */}
+            <div
+              className="bs-tag-row-overflow-backdrop"
+              aria-hidden="true"
+              onPointerDown={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (menuRecentlyClosedRef) menuRecentlyClosedRef.current = Date.now();
+                closeOverflow();
+              }}
+            />
             <div className="bs-tag-row-overflow-menu" role="menu">
               {scoresMarkup}
               {(hasAssertions || verificationScore != null) && (
@@ -332,6 +348,7 @@ export default function TagPageRow({
                 </Link>
               )}
             </div>
+            </>
           )}
         </div>
       )}
