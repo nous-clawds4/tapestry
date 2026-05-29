@@ -5596,13 +5596,11 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   border-color: rgba(99, 102, 241, 0.6);
   color: #c7d2fe;
 }
-/* Story 18 / ADR 0016 — pinned-state label swap on hover. Default
-   label reads "📌 Pinned" (status). On hover the label swaps to
-   "📌 View Pin" (action) and the click navigates to the pin-detail
-   page rather than toggling unpin. */
-.bs-tag-pin .bs-tag-pin-label-hover { display: none; }
-.bs-tag-pin.is-pinned:hover:not([disabled]) .bs-tag-pin-label-default { display: none; }
-.bs-tag-pin.is-pinned:hover:not([disabled]) .bs-tag-pin-label-hover { display: inline; }
+/* Story 20 / ADR 0018 — the pinned-state button label is driven by
+   React state (📌 Pinned ↔ ← Back to Tag) based on the active tab, not
+   a CSS hover swap. The old .bs-tag-pin-label-hover swap rules were
+   removed: they hid the only rendered label on hover, collapsing the
+   button. */
 .bs-tag-pin[disabled] {
   cursor: not-allowed;
   opacity: 0.6;
