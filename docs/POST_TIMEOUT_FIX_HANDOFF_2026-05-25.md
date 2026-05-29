@@ -1,6 +1,6 @@
 # Post-Timeout-Fix Session Handoff (2026-05-25)
 
-**Status:** 🔴 **OPEN** — follow-up intakes filed; no immediate-action work in flight, but several medium-to-high priority items are queued for the next session's pick.
+**Status:** ✅ **ADDRESSED** (2026-05-26) — every recommended next-session item in this handoff was picked up and shipped end-to-end during the 2026-05-26 session. See [`docs/POST_TIMEOUT_FIX_COMPLETION_HANDOFF_2026-05-26.md`](./POST_TIMEOUT_FIX_COMPLETION_HANDOFF_2026-05-26.md) for the completion narrative + the next-session pickup state. Body below preserved as the audit trail of what was queued.
 **Audience:** the operator / next-session reader picking up after today's `neo4j-heavy` timeout-propagation fix shipped to production.
 **Source session:** the work on 2026-05-25 that (a) addressed the open `SEMAPHORE_INVESTIGATION_HANDOFF_2026-05-24.md`, (b) shipped story #27 / ADR 0024 (scheduled-task timeout propagation fix) to prod, (c) shipped the Track A follow-up (per-task timeout overrides) to prod, and (d) surfaced two new high-signal intakes during cycle-prod verification.
 

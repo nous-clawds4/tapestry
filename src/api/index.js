@@ -29,6 +29,7 @@ const { handleGetUserClassification } = require('./auth/getUserClassification');
 const { handleSignUpNewCustomer } = require('./auth/signUpNewCustomer');
 const { handleGetOwnerInfo } = require('./owner/ownerInfo');
 const { handleGetGrapevineInteraction } = require('./grapevineInteractions/queries');
+const { handleGetGrapevineFollows } = require('./grapevineInteractions/queries/followsWithMetrics');
 const { handleOldSearchProfiles, handleOldSearchProfilesStream } = require('./search/profiles');
 const { handleKeywordSearchProfiles } = require('./search/profiles/keyword');
 const { handlePrecomputeWhitelistMaps, handlePrecomputeWhitelistStatus } = require('./search/profiles/whitelistPrecompute');
@@ -315,6 +316,8 @@ async function register(app) {
 
     // Grapevine Interactions endpoint
     app.get('/api/get-grapevine-interaction', handleGetGrapevineInteraction);
+    // Follows list with owner-POV metrics (story #29 / ADR 0026)
+    app.get('/api/get-grapevine-follows', handleGetGrapevineFollows);
 
     // Search endpoint
     app.get('/api/search/profiles', handleOldSearchProfiles);

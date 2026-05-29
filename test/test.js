@@ -47,6 +47,7 @@ const manualTaskRetriggerAfterFinish = require('./manual-task-retrigger-after-fi
 const scheduledTaskTimeoutPropagation = require('./scheduled-task-timeout-propagation.test.js');
 const killTimeoutOrphansByDefault = require('./kill-timeout-orphans-by-default.test.js');
 const taskQueueSemaphoreProtectionAudit = require('./task-queue-semaphore-protection-audit.test.js');
+const profileFollowsList = require('./profile-follows-list.test.js');
 
 async function main() {
   console.log('Running Brainstorm tests...\n');
@@ -126,6 +127,9 @@ async function main() {
   console.log('\ntask-queue-semaphore-protection-audit suite:');
   const taskQueueSemaphoreProtectionAuditResult = await taskQueueSemaphoreProtectionAudit.run();
 
+  console.log('\nprofile-follows-list suite:');
+  const profileFollowsListResult = await profileFollowsList.run();
+
   console.log('\nTest Results');
   console.log('-------------');
   console.log(`Configuration Loading:                           ${configOk ? 'PASS' : 'FAIL'}`);
@@ -201,6 +205,9 @@ async function main() {
   console.log(
     `task-queue-semaphore-protection-audit suite:     ${taskQueueSemaphoreProtectionAuditResult.fail === 0 ? 'PASS' : 'FAIL'} (${taskQueueSemaphoreProtectionAuditResult.pass} passed, ${taskQueueSemaphoreProtectionAuditResult.fail} failed)`
   );
+  console.log(
+    `profile-follows-list suite:                      ${profileFollowsListResult.fail === 0 ? 'PASS' : 'FAIL'} (${profileFollowsListResult.pass} passed, ${profileFollowsListResult.fail} failed)`
+  );
 
   const overallOk =
     configOk &&
@@ -227,7 +234,8 @@ async function main() {
     manualTaskRetriggerAfterFinishResult.fail === 0 &&
     scheduledTaskTimeoutPropagationResult.fail === 0 &&
     killTimeoutOrphansByDefaultResult.fail === 0 &&
-    taskQueueSemaphoreProtectionAuditResult.fail === 0;
+    taskQueueSemaphoreProtectionAuditResult.fail === 0 &&
+    profileFollowsListResult.fail === 0;
   console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);
   process.exit(overallOk ? 0 : 1);
 }
