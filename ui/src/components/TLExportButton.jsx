@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   publishNip51ExportForPin,
   fetchUserWriteRelays,
@@ -66,6 +66,21 @@ export default function TLExportButton({
     return () => { cancelled = true; };
   }, [open]);
 
+  const handleClose = useCallback(() => {
+    setOpen(false);
+    setError(null);
+  }, []);
+
+  // Escape closes the modal.
+  useEffect(() => {
+    if (!open) return undefined;
+    const onKey = (e) => {
+      if (e.key === 'Escape' && !exporting) handleClose();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [open, exporting, handleClose]);
+
   const hasNip07 = typeof window !== 'undefined' && !!window.nostr;
   const hasWriteRelays = Array.isArray(writeRelays) && writeRelays.length > 0;
   const relaysLoading = writeRelays === null;
@@ -125,10 +140,17 @@ export default function TLExportButton({
 
       {open && (
         <div
+          className="bs-tl-export-backdrop"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget && !exporting) handleClose();
+          }}
+        >
+        <div
           className="bs-tl-export-popover"
           role="dialog"
           aria-label="Export list for other clients"
           onClick={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.stopPropagation()}
         >
           <div className="bs-tl-export-row">
             <label className="bs-tl-export-label" htmlFor="bs-tl-export-title">
@@ -211,7 +233,7 @@ export default function TLExportButton({
             <button
               type="button"
               className="bs-tl-export-cancel"
-              onClick={() => { setOpen(false); setError(null); }}
+              onClick={handleClose}
               disabled={exporting}
             >
               Cancel
@@ -225,6 +247,7 @@ export default function TLExportButton({
               {exporting ? 'Exporting…' : 'Export'}
             </button>
           </div>
+        </div>
         </div>
       )}
     </span>

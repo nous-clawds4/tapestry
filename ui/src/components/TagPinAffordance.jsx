@@ -1,56 +1,56 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
-import { computeTLDTag } from '../utils/publishTagPin';
 
 /**
  * Story 10 / ADR 0009 — Pin button for the tag detail header.
  *
- * Story 18 / ADR 0016 polish:
- *   - Unpinned state: still a single-click action (Tag.jsx now publishes
- *     immediately with defaults — no curation-dialog interstitial).
- *   - Pinned state: button is no longer a toggle. Default label is
- *     "📌 Pinned"; on hover it swaps to "📌 View Pin" (CSS-only). Click
- *     navigates to `/pin/<dTag>` where the user can inspect / edit /
- *     unpin deliberately. `onUnpin` is no longer wired here; unpinning
- *     happens from the pin-detail page or from `/pins`.
- *   - Tooltip migrates from native `title=` to `data-bs-tooltip=` for
- *     the fast onset configured globally in styles.css.
+ * Story 20 / ADR 0018 — the button is now a tab toggle (supersedes
+ * ADR 0016 AC-13–AC-15, which navigated to /pin/:dTag):
+ *   - Unpinned: single-click action; Tag.jsx publishes immediately with
+ *     defaults (no curation-dialog interstitial) and switches to the
+ *     Pinned tab.
+ *   - Pinned, on the default tab: label "📌 Pinned"; click switches to
+ *     the on-page "Pinned" tab. It does NOT navigate away and does NOT
+ *     unpin (unpinning lives in the Pinned tab's Edit-curation dialog).
+ *   - Pinned, on the Pinned tab: label "← Back to Tag"; click switches
+ *     back to the default tab.
  *
- * Loading and error states are driven by the parent (Tag.jsx) so the
- * same spinner/error surface is reusable across the curation-editor
- * surface on `/pins`.
+ * Loading and error states are driven by the parent (Tag.jsx).
  */
 export default function TagPinAffordance({
-  user, tag, viewerPin, onPin, loading, error,
+  user, viewerPin, onPin, loading, error, activeTab, onSwitchTab,
 }) {
   if (!user) return null;
-  const navigate = useNavigate();
   const isPinned = !!viewerPin;
+  const onPinnedTab = activeTab === 'pinned';
 
   const handleClick = () => {
     if (loading) return;
     if (isPinned) {
-      if (!tag) return;
-      // The /pin/:dTag route resolves the kind-30392 TL by the TA's
-      // d-tag, not the viewer's pin event d-tag. Use the observer
-      // from the curation method if present (custom observers) and
-      // fall back to the viewer's own pubkey (the default).
-      const observer = viewerPin?.curationMethod?.observer || user.pubkey;
-      const dTag = computeTLDTag({
-        observer,
-        tagAuthorPubkey: tag.authorPubkey,
-        tagSlug: tag.slug,
-      });
-      navigate(`/pin/${dTag}`);
+      onSwitchTab(onPinnedTab ? 'default' : 'pinned');
       return;
     }
     onPin();
   };
 
-  const tooltip = isPinned
-    ? "View this pin's details and members."
-    : 'Pin this tag to publish a Trusted List (kind-30392) curated to your preferences. Other Nostr apps can read it for content discovery and trust-weighted ranking.';
-  const ariaLabel = isPinned ? 'View this pin' : 'Pin this tag';
+  let label;
+  if (loading) {
+    label = isPinned ? 'Loading…' : 'Pinning…';
+  } else if (!isPinned) {
+    label = '📌 Pin';
+  } else if (onPinnedTab) {
+    label = '← Back to Tag';
+  } else {
+    label = '📌 Pinned';
+  }
+
+  const tooltip = !isPinned
+    ? 'Pin this tag to publish a Trusted List (kind-30392) curated to your preferences. Other Nostr apps can read it for content discovery and trust-weighted ranking.'
+    : onPinnedTab
+      ? 'Back to the tagged-profiles view.'
+      : 'View this pin: its Trusted List members and curation settings.';
+  const ariaLabel = !isPinned
+    ? 'Pin this tag'
+    : onPinnedTab ? 'Back to the tag view' : 'View this pin';
 
   return (
     <div className="bs-tag-pin-wrap">
@@ -63,22 +63,7 @@ export default function TagPinAffordance({
         data-bs-tooltip={tooltip}
         data-bs-tooltip-wrap="true"
       >
-        {loading ? (
-          <span className="bs-tag-pin-label-default">
-            {isPinned ? 'Loading…' : 'Pinning…'}
-          </span>
-        ) : (
-          <>
-            <span className="bs-tag-pin-label-default">
-              {isPinned ? '📌 Pinned' : '📌 Pin'}
-            </span>
-            {isPinned && (
-              <span className="bs-tag-pin-label-hover" aria-hidden="true">
-                📌 View Pin
-              </span>
-            )}
-          </>
-        )}
+        <span className="bs-tag-pin-label-default">{label}</span>
       </button>
       {error && (
         <p className="bs-tag-pin-error" role="alert">⚠️ {error}</p>

@@ -1,13 +1,9 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
 import TopBar from '../components/TopBar';
-import TLShareButton from '../components/TLShareButton';
-import TLExportButton from '../components/TLExportButton';
-import CurationMethodDialog from '../components/CurationMethodDialog';
 import { useAuth } from '../context/AuthContext';
 import usePins from '../hooks/usePins';
 import useRefreshPin from '../hooks/useRefreshPin';
-import { pinTag, unpinTag, computeTLDTag } from '../utils/publishTagPin';
 
 /**
  * Story 10 / ADR 0009 — viewer's pinned-tag list page.
@@ -111,35 +107,39 @@ function renderExportStatusLine(nip51) {
   }
 }
 
+/**
+ * Story 20 / ADR 0018 — one pinned-tag row is now a plain link to its
+ * tag's detail page with the Pinned tab selected. No per-row actions or
+ * overflow menu (per-pin management moved to the Pinned tab). A
+ * right-edge chevron signals tappability — important on touch, where
+ * there is no hover. Read-only status lines remain informational.
+ */
+function PinRow({ row }) {
+  const isUnsupported = row.tlStatus?.status === 'unsupported';
+  return (
+    <li className="bs-pins-row">
+      <Link
+        className="bs-pins-row-link"
+        to={`/tag/${encodeURIComponent(row.tag.slug)}/${row.tag.eventId}?tab=pinned`}
+      >
+        <span className="bs-pins-row-main">
+          <span className="bs-pins-row-name">{row.tag.name}</span>
+          {row.tag.description && (
+            <span className="bs-pins-row-desc">{row.tag.description}</span>
+          )}
+          {renderStatusLine(row.tlStatus)}
+          {!isUnsupported && renderExportStatusLine(row.nip51ExportStatus)}
+        </span>
+        <span className="bs-pins-row-chevron" aria-hidden="true">›</span>
+      </Link>
+    </li>
+  );
+}
+
 export default function Pins() {
   const { user, login } = useAuth();
   const { pins, loading, error, refetch } = usePins(user?.pubkey);
-  const { refreshing, refreshOne, refreshAll, error: refreshError } = useRefreshPin(user?.pubkey);
-  // Story 12 / ADR 0011 — per-row Edit button opens the curation dialog
-  // pre-filled with that pin's current values.
-  const [editingPin, setEditingPin] = useState(null);
-
-  const handleEditSubmit = async (customCuration) => {
-    if (!editingPin) return;
-    const signed = await pinTag({ tag: editingPin.tag, curationMethod: customCuration });
-    await refetch();
-    // AC-5 — fire-and-forget refresh of just this pin's TL.
-    fetch('/api/trusted-list/refresh-pinned-tag', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pinEventId: signed.id }),
-    }).catch(() => { /* best-effort */ });
-  };
-
-  // Story 18 / ADR 0016 — Unpin button inside the edit dialog. The
-  // tag-detail Pin button no longer unpins on click (it now navigates
-  // to the pin's detail page), so this dialog is the new home for
-  // deliberate unpinning from the /pins page.
-  const handleEditUnpin = async () => {
-    if (!editingPin) return;
-    await unpinTag({ pinEventId: editingPin.pinEventId });
-    await refetch();
-  };
+  const { refreshing, refreshAll, error: refreshError } = useRefreshPin(user?.pubkey);
 
   if (!user) {
     return (
@@ -163,12 +163,6 @@ export default function Pins() {
     );
   }
 
-  const handleRefreshOne = async (pinEventId) => {
-    try {
-      await refreshOne(pinEventId);
-      await refetch();
-    } catch { /* useRefreshPin captures the error */ }
-  };
   const handleRefreshAll = async () => {
     try {
       await refreshAll();
@@ -210,97 +204,12 @@ export default function Pins() {
               </div>
             )}
             <ul className="bs-pins-list">
-              {pins.map((row) => {
-                const isUnsupported = row.tlStatus?.status === 'unsupported';
-                const isRefreshingThis = refreshing === `one:${row.pinEventId}`;
-                // Compute the TL's d-tag for /pin/:dTag link + share button.
-                const observer = row.curationMethod?.observer;
-                const tlDTag = (!isUnsupported && observer)
-                  ? computeTLDTag({
-                      observer,
-                      tagAuthorPubkey: row.tag.authorPubkey,
-                      tagSlug: row.tag.slug,
-                    })
-                  : null;
-                const hasTl = row.tlStatus?.status === 'ok' || row.tlStatus?.status === 'retracted';
-                return (
-                  <li key={row.pinEventId} className="bs-pins-row">
-                    {hasTl && tlDTag ? (
-                      <Link
-                        to={`/pin/${encodeURIComponent(tlDTag)}`}
-                        className="bs-pins-row-link"
-                        title="Open Trusted List detail"
-                      >
-                        <span className="bs-pins-row-name">{row.tag.name}</span>
-                        {row.tag.description && (
-                          <span className="bs-pins-row-desc">{row.tag.description}</span>
-                        )}
-                        {renderStatusLine(row.tlStatus)}
-                        {!isUnsupported && renderExportStatusLine(row.nip51ExportStatus)}
-                      </Link>
-                    ) : (
-                      <Link
-                        to={`/tag/${encodeURIComponent(row.tag.slug)}/${row.tag.eventId}`}
-                        className="bs-pins-row-link"
-                      >
-                        <span className="bs-pins-row-name">{row.tag.name}</span>
-                        {row.tag.description && (
-                          <span className="bs-pins-row-desc">{row.tag.description}</span>
-                        )}
-                        {renderStatusLine(row.tlStatus)}
-                        {!isUnsupported && renderExportStatusLine(row.nip51ExportStatus)}
-                      </Link>
-                    )}
-                    <div className="bs-pins-row-actions">
-                      <button
-                        type="button"
-                        className="bs-pins-row-edit"
-                        onClick={() => setEditingPin(row)}
-                        disabled={isUnsupported}
-                        title="Edit curation method"
-                        aria-label="Edit curation"
-                      >
-                        ⚙️ Edit
-                      </button>
-                      {tlDTag && hasTl && (
-                        <TLShareButton dTag={tlDTag} variant="compact" />
-                      )}
-                      {tlDTag && !isUnsupported && (
-                        <TLExportButton
-                          pinEventId={row.pinEventId}
-                          dTag={tlDTag}
-                          currentTitle={row.nip51ExportStatus?.currentTitle}
-                          defaultTitle={row.tag.name}
-                          variant="compact"
-                          onExported={refetch}
-                        />
-                      )}
-                      <button
-                        type="button"
-                        className="bs-pins-row-refresh"
-                        onClick={() => handleRefreshOne(row.pinEventId)}
-                        disabled={isUnsupported || isRefreshingThis || refreshing === 'all'}
-                      >
-                        {isRefreshingThis ? 'Refreshing…' : 'Refresh now'}
-                      </button>
-                    </div>
-                  </li>
-                );
-              })}
+              {pins.map((row) => (
+                <PinRow key={row.pinEventId} row={row} />
+              ))}
             </ul>
             <PinsMemberCountHint />
           </>
-        )}
-        {editingPin && (
-          <CurationMethodDialog
-            tag={editingPin.tag}
-            initialCuration={editingPin.curationMethod}
-            mode="edit"
-            viewerPubkey={user.pubkey}
-            onSubmit={handleEditSubmit}
-            onCancel={() => setEditingPin(null)}
-            onUnpin={handleEditUnpin}
-          />
         )}
       </div>
     </div>

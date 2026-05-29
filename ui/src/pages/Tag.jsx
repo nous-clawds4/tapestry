@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom';
 import TopBar from '../components/TopBar';
 import TagPageRow from '../components/TagPageRow';
 import TagPinAffordance from '../components/TagPinAffordance';
 import TagViewControls from '../components/TagViewControls';
 import TagSomeoneModal from '../components/TagSomeoneModal';
+import PinnedListPanel from '../components/PinnedListPanel';
 import { useAuth } from '../context/AuthContext';
 import { publishProfileTagAssertion } from '../utils/publishProfileTag';
 import { pinTag, defaultCurationMethod, publishNip51ExportForPin } from '../utils/publishTagPin';
@@ -36,6 +37,7 @@ function rowMatchesFilter(row, text) {
 export default function Tag() {
   const { tagId, slug } = useParams();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user, login } = useAuth();
   const {
     tag, viewerPin, rows, viewerAssertions, povSuffix, sort, setSort,
@@ -50,6 +52,29 @@ export default function Tag() {
   const [viewOptionsExpanded, setViewOptionsExpanded] = useState(false);
   const [filterText, setFilterText] = useState('');
   const [tagSomeoneOpen, setTagSomeoneOpen] = useState(false);
+
+  // Story 20 / ADR 0018 — the "Pinned" tab. It exists only when the
+  // viewer has pinned this tag. Default selection: the Pinned tab when
+  // pinned (AC-3), unless a ?tab= param says otherwise. A stale
+  // ?tab=pinned on an un-pinned tag falls back to the default tab.
+  const isPinned = !!viewerPin;
+  const tabParam = searchParams.get('tab');
+  const [activeTab, setActiveTab] = useState('default');
+  useEffect(() => {
+    const desired = (tabParam === 'pinned' && isPinned) ? 'pinned'
+      : (tabParam === 'default') ? 'default'
+        : (isPinned ? 'pinned' : 'default');
+    setActiveTab(desired);
+  }, [tabParam, isPinned]);
+
+  const switchTab = (t) => {
+    setActiveTab(t);
+    setSearchParams((prev) => {
+      const p = new URLSearchParams(prev);
+      p.set('tab', t);
+      return p;
+    }, { replace: true });
+  };
 
   const handleApply = async (targetPubkey) => {
     if (!tag) return;
@@ -72,6 +97,13 @@ export default function Tag() {
     try {
       const signed = await pinTag({ tag, curationMethod: customCuration });
       await refetchHeader();
+      // AC-4 — first pin auto-switches to the Pinned tab.
+      setActiveTab('pinned');
+      setSearchParams((prev) => {
+        const p = new URLSearchParams(prev);
+        p.set('tab', 'pinned');
+        return p;
+      }, { replace: true });
       fetch('/api/trusted-list/refresh-pinned-tag', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -158,11 +190,12 @@ export default function Tag() {
                 <div className="bs-tag-pin-row">
                   <TagPinAffordance
                     user={user}
-                    tag={tag}
                     viewerPin={viewerPin}
                     onPin={handlePin}
                     loading={pinning}
                     error={pinError}
+                    activeTab={activeTab}
+                    onSwitchTab={switchTab}
                   />
                 </div>
               )}
@@ -171,7 +204,43 @@ export default function Tag() {
               )}
             </header>
 
-            <section className="bs-tag-rows">
+            {/* Story 20 / ADR 0018 — tab strip only when the viewer has pinned. */}
+            {isPinned && (
+              <div className="bs-tag-tablist" role="tablist" aria-label="Tag views">
+                <button
+                  type="button"
+                  role="tab"
+                  id="bs-tag-tab-default"
+                  aria-selected={activeTab === 'default'}
+                  aria-controls="bs-tag-panel-default"
+                  className={`bs-tag-tab${activeTab === 'default' ? ' is-active' : ''}`}
+                  onClick={() => switchTab('default')}
+                >
+                  Tagged profiles
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  id="bs-tag-tab-pinned"
+                  aria-selected={activeTab === 'pinned'}
+                  aria-controls="bs-tag-panel-pinned"
+                  className={`bs-tag-tab${activeTab === 'pinned' ? ' is-active' : ''}`}
+                  onClick={() => switchTab('pinned')}
+                >
+                  Pinned
+                </button>
+              </div>
+            )}
+
+            {/* Default tab — kept mounted (hidden when inactive) so sort /
+                View options / filter / scroll survive tab switches (AC-7). */}
+            <section
+              className="bs-tag-rows"
+              role="tabpanel"
+              id="bs-tag-panel-default"
+              aria-labelledby="bs-tag-tab-default"
+              hidden={activeTab !== 'default'}
+            >
               <TagViewControls
                 sort={sort}
                 onSortChange={setSort}
@@ -219,6 +288,22 @@ export default function Tag() {
                 </ul>
               )}
             </section>
+
+            {/* Pinned tab — the viewer's kind-30392 Trusted List view. */}
+            {isPinned && (
+              <section
+                role="tabpanel"
+                id="bs-tag-panel-pinned"
+                aria-labelledby="bs-tag-tab-pinned"
+                hidden={activeTab !== 'pinned'}
+              >
+                <PinnedListPanel
+                  tag={tag}
+                  viewerPin={viewerPin}
+                  onChanged={refetchHeader}
+                />
+              </section>
+            )}
 
             <TagSomeoneModal
               open={tagSomeoneOpen}

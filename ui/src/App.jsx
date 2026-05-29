@@ -73,7 +73,7 @@ import BrainstormDevelopers from './pages/BrainstormDevelopers';
 import Tag from './pages/Tag';
 import Tags from './pages/Tags';
 import Pins from './pages/Pins';
-import PinDetail from './pages/PinDetail';
+import PinRedirect from './components/PinRedirect';
 import NotFound from './pages/NotFound';
 const router = createBrowserRouter([
   {
@@ -102,7 +102,7 @@ const router = createBrowserRouter([
   },
   {
     path: '/pin/:dTag',
-    element: <PinDetail />,
+    element: <PinRedirect />,
   },
   {
     path: '/settings',

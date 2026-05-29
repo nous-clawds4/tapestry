@@ -53,6 +53,12 @@ export default function TagSomeoneModal({
   const debounceRef = useRef(null);
   const seqRef = useRef(0);
   const inputRef = useRef(null);
+  // Shared across sibling TagPageRow ⋯ menus so that a row's outside-tap
+  // close marks the timestamp synchronously, and a sibling row's tap-to-
+  // open is suppressed for the same gesture. Prevents stacked menus on
+  // mobile when the user taps elsewhere to dismiss but accidentally
+  // lands on another profile row.
+  const menuRecentlyClosedRef = useRef(0);
 
   // Escape closes; also focus the search input on open.
   useEffect(() => {
@@ -207,6 +213,7 @@ export default function TagSomeoneModal({
                     showActionsOnHover={true}
                     scoresAlwaysVisible={true}
                     tapOpensMenu={true}
+                    menuRecentlyClosedRef={menuRecentlyClosedRef}
                     verificationScore={verificationScore}
                     onApply={onApply}
                     onDispute={onDispute}

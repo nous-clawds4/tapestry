@@ -51,6 +51,11 @@ import { nip19 } from 'nostr-tools';
  *                         can still reach the profile page. Used in
  *                         the search modal where the primary intent
  *                         is apply/dispute, not navigate.
+ *   menuRecentlyClosedRef — optional shared MutableRef<number>. When
+ *                         present, the outside-tap close sets it to
+ *                         Date.now(). handleLinkClick reads it to skip
+ *                         "tap-elsewhere-just-closed → open another row"
+ *                         from stacking menus across sibling rows.
  *   verificationScore   — number | null; rendered in the scores slot when
  *                         row.applications + row.disputes === 0.
  *   onApply, onDispute  — async (targetPubkey) => void publishers
@@ -73,6 +78,7 @@ export default function TagPageRow({
   showActionsOnHover = false,
   scoresAlwaysVisible = false,
   tapOpensMenu = false,
+  menuRecentlyClosedRef = null,
   verificationScore = null,
   onApply,
   onDispute,
@@ -110,6 +116,12 @@ export default function TagPageRow({
     if (!overflowOpen) return undefined;
     const onDocDown = (e) => {
       if (overflowRef.current && !overflowRef.current.contains(e.target)) {
+        // Mark the close time synchronously (before the subsequent
+        // click bubbles to a sibling row's link). handleLinkClick on
+        // that sibling reads this to avoid opening a stacked menu.
+        if (menuRecentlyClosedRef) {
+          menuRecentlyClosedRef.current = Date.now();
+        }
         closeOverflow();
       }
     };
@@ -122,7 +134,7 @@ export default function TagPageRow({
       document.removeEventListener('mousedown', onDocDown);
       document.removeEventListener('keydown', onKey);
     };
-  }, [overflowOpen, closeOverflow]);
+  }, [overflowOpen, closeOverflow, menuRecentlyClosedRef]);
 
   const applications = row.applications || 0;
   const disputes = row.disputes || 0;
@@ -153,6 +165,13 @@ export default function TagPageRow({
     if (typeof window !== 'undefined' && window.matchMedia
         && window.matchMedia('(max-width: 768px)').matches) {
       e.preventDefault();
+      // Stacked-menu guard: if a sibling row's menu was just closed by
+      // outside-tap (this same gesture), don't immediately open ours.
+      // The first tap dismisses; the user has to tap again to act.
+      if (menuRecentlyClosedRef
+          && (Date.now() - (menuRecentlyClosedRef.current || 0)) < 300) {
+        return;
+      }
       setOverflowOpen(true);
     }
   };

@@ -5546,6 +5546,30 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   flex-wrap: wrap;
   margin-top: 0.5rem;
 }
+/* Story 20 / ADR 0018 — tag-detail tab strip (default vs Pinned). */
+.bs-tag-tablist {
+  display: flex;
+  gap: 0.25rem;
+  margin: 1rem 0 0.75rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.bs-tag-tab {
+  font: inherit;
+  font-size: 0.9rem;
+  padding: 0.5rem 0.9rem;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--text-secondary, #94a3b8);
+  cursor: pointer;
+}
+.bs-tag-tab:hover {
+  color: var(--text-primary, #e2e8f0);
+}
+.bs-tag-tab.is-active {
+  color: var(--text-primary, #e2e8f0);
+  border-bottom-color: #818cf8;
+}
 .bs-tag-pin-wrap {
   display: inline-flex;
   flex-direction: column;
@@ -5693,19 +5717,25 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
 
 /* ── Story 11: Pinned-tag TL refresh (ADR 0010) ─────────────────── */
 
-.bs-pins-row {
-  display: flex;
+/* Story 20 / ADR 0018 — /pins rows are plain links with a right-edge
+   chevron (always visible, so the row reads as tappable on touch). */
+.bs-pins-row-link {
+  flex-direction: row;
   align-items: center;
   gap: 0.75rem;
-  padding: 0;
 }
-.bs-pins-row .bs-pins-row-link {
+.bs-pins-row-main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
   flex: 1 1 auto;
-  margin-bottom: 0;
+  min-width: 0;
 }
-.bs-pins-row-actions {
+.bs-pins-row-chevron {
   flex: 0 0 auto;
-  padding-right: 0.75rem;
+  font-size: 1.4rem;
+  line-height: 1;
+  color: var(--text-tertiary, #64748b);
 }
 .bs-pins-row-status {
   display: block;
@@ -6080,6 +6110,25 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   max-height: 90vh;
   overflow-y: auto;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+}
+/* Narrow viewport: backdrop drops to almost-zero padding so the dialog
+   has the full width, and the action row wraps when buttons no longer
+   fit side-by-side (Unpin + Cancel + Save changes on a 360px phone). */
+@media (max-width: 480px) {
+  .pcd-backdrop { padding: 0.5rem; }
+  .pcd-head { padding: 0.75rem 0.9rem; }
+  .pcd-tag-info { padding: 0.5rem 0.9rem; }
+  .pcd-body { padding: 0.85rem 0.9rem; }
+  .pcd-actions {
+    flex-wrap: wrap;
+    row-gap: 0.5rem;
+  }
+  .pcd-actions-spacer { display: none; }
+  .pcd-cancel,
+  .pcd-submit,
+  .pcd-unpin {
+    flex: 1 1 auto;
+  }
 }
 .pcd-head {
   display: flex;
@@ -6586,18 +6635,43 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   padding: 0.4rem 0.8rem;
   font-size: 0.85rem;
 }
+/* Backdrop wraps the popover and centers it in the viewport so it
+   never falls off-screen near the edge (the previous anchored
+   `position: absolute; right: 0` overflowed on narrow viewports and
+   near the right edge of wide ones). */
+.bs-tl-export-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
 .bs-tl-export-popover {
-  position: absolute;
-  top: calc(100% + 4px);
-  right: 0;
-  z-index: 100;
-  min-width: 24rem;
+  position: relative;
+  width: 100%;
   max-width: 32rem;
+  max-height: 90vh;
+  overflow-y: auto;
   padding: 0.85rem 1rem;
   background: #181d2f;
   border: 1px solid rgba(244, 114, 182, 0.35);
   border-radius: 8px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+@media (max-width: 768px) {
+  .bs-tl-export-backdrop {
+    align-items: flex-end;
+    padding: 0;
+  }
+  .bs-tl-export-popover {
+    max-width: 100vw;
+    max-height: 85vh;
+    border-radius: 12px 12px 0 0;
+    padding: 1rem 1rem calc(1rem + env(safe-area-inset-bottom));
+  }
 }
 .bs-tl-export-row {
   display: flex;
