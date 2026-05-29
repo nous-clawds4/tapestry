@@ -318,4 +318,4 @@ These belong to the Architect to resolve in Phase 2:
   the kind-30392 TL and the kind-30000 NIP-51 list.
 - ADR: `engineering-team/decisions/0018-pin-detail-into-tag-pinned-tab.md`
 - Test plan: `engineering-team/stories/20-pin-detail-into-tag-pinned-tab.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/20-pin-detail-into-tag-pinned-tab.md` (CHANGES_REQUESTED 2026-05-29 — Story-19 Playwright spec AC-19 still targets the retired /pin page)
