@@ -30,6 +30,7 @@ const APP_JSX         = path.resolve(__dirname, '../ui/src/App.jsx');
 const FOLLOWS_PAGE    = path.resolve(__dirname, '../ui/src/pages/BrainstormFollows.jsx');
 const FOLLOWS_HOOK    = path.resolve(__dirname, '../ui/src/hooks/useGrapevineFollows.js');
 const PROFILE_PAGE    = path.resolve(__dirname, '../ui/src/pages/BrainstormProfile.jsx');
+const STYLES          = path.resolve(__dirname, '../ui/src/styles.css');
 
 const tests = [];
 function test(name, fn) { tests.push({ name, fn }); }
@@ -266,6 +267,18 @@ test('T23: the /api/profiles batch size respects the server cap (PROFILE_CHUNK �
   const chunk = parseInt(m[1], 10);
   assert(chunk >= 1 && chunk <= 50,
     `the /api/profiles batch size (PROFILE_CHUNK=${chunk}) must be 1..50 — /api/profiles 400s for >50 pubkeys (fetchProfiles.js:148).`);
+});
+
+test('T24: the follows search input must not use a fixed-length flex-basis (mobile column layout turns it into a giant height) — regression guard', () => {
+  const css = safeRead(STYLES);
+  assert(css.length > 0, 'ui/src/styles.css missing — unexpected.');
+  const block = css.match(/\.bsp-follows-search\s*\{[^}]*\}/);
+  assert(block, 'styles.css must define a `.bsp-follows-search` rule.');
+  // The controls container becomes `flex-direction: column` under @media (max-width: 600px), so a
+  // fixed-length flex-basis on the search input governs its HEIGHT, not width (caught on smartphone
+  // portrait: input ~10x too tall; fine in landscape where the media query is off).
+  assert(!/flex\s*:\s*\d+(\.\d+)?\s+\d+(\.\d+)?\s+\d+(\.\d+)?\s*(rem|px|em|vh|vw)\b/.test(block[0]),
+    'the .bsp-follows-search `flex` shorthand must not use a fixed-length flex-basis (e.g. `flex: 1 1 16rem`) — in the mobile column layout that becomes the input height. Use `flex: 1 1 auto` + `min-width`.');
 });
 
 // ===========================================================================

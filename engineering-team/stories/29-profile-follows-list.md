@@ -81,4 +81,4 @@ None open.
 ## Linked artifacts
 - ADR: `engineering-team/decisions/0026-profile-follows-list.md`
 - Test plan: `engineering-team/stories/29-profile-follows-list.test-plan.md`
-- Review: `engineering-team/reviews/29-profile-follows-list.md` — **PASS** (2026-05-28); staging-fix follow-up `engineering-team/reviews/29-profile-follows-list-fix.md` — **PASS** (2026-05-29)
+- Review: `engineering-team/reviews/29-profile-follows-list.md` — **PASS** (2026-05-28); staging-fix follow-up `engineering-team/reviews/29-profile-follows-list-fix.md` — **PASS** (2026-05-29); mobile-fix follow-up `engineering-team/reviews/29-profile-follows-list-mobile-fix.md` — **PASS** (2026-05-29)
