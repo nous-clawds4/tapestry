@@ -4182,7 +4182,11 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   margin-bottom: 1rem;
 }
 .bsp-follows-search {
-  flex: 1 1 16rem;
+  /* flex-basis stays `auto` (not a rem length) so the mobile column layout
+     can't turn the basis into a giant input height; min-width covers the
+     row-layout "don't get too narrow" intent. */
+  flex: 1 1 auto;
+  min-width: 12rem;
   padding: 0.5rem 0.75rem;
   border: 1px solid rgba(127, 127, 127, 0.35);
   border-radius: 6px;
