@@ -259,6 +259,6 @@ carries over unchanged.
 
 ## Linked artifacts
 
-- ADR: (filled in after Architecture phase)
-- Test plan: (filled in after Test Design phase)
+- ADR: `engineering-team/decisions/0019-collapse-into-export-concept.md`
+- Test plan: `engineering-team/stories/21-collapse-into-export-concept.test-plan.md`
 - Review: (filled in after Review phase)
