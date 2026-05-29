@@ -307,3 +307,99 @@ export async function unpinTag({ pinEventId }) {
   await publishOrThrow(signed);
   return signed;
 }
+
+/**
+ * Story 21 / ADR 0019 — keep a pinned tag's exports current after the
+ * viewer Applies/Disputes that tag (or reconfigures its curation).
+ *
+ * Called from BOTH assertion entry points (Tag.jsx handlers and
+ * useProfileTags applyTag/disputeTag). It:
+ *   1. Finds the viewer's pin matching the asserted tag by its stable
+ *      (authorPubkey, slug) identity. No matching pin → no-op (AC-16).
+ *   2. Recomputes the TA-signed kind-30392 (silent server call).
+ *   3. Re-publishes the user-signed kind-30000 ONLY when an export
+ *      footprint already exists (nip51ExportStatus.status !==
+ *      'never-exported') — this is the one step that needs a NIP-07
+ *      prompt (AC-12/13). Never-exported pins recompute only, no prompt
+ *      (AC-15).
+ *
+ * Rapid taggings for the same pin are coalesced by a trailing debounce
+ * keyed on pinEventId (Open Q1).
+ *
+ * @param {object} args
+ * @param {{authorPubkey: string, slug: string}} args.tag
+ * @param {string} args.viewerPubkey
+ * @param {object} [args.knownPinRow] — a full /pins row (with
+ *   nip51ExportStatus) if the caller already has it; otherwise we fetch.
+ * @param {(state: 'changed'|'exporting'|'idle'|'declined') => void} [args.onProgress]
+ */
+const REEXPORT_DEBOUNCE_MS = 2000;
+const _reexportTimers = new Map();
+
+export async function syncPinnedExportsForTag({ tag, viewerPubkey, knownPinRow, onProgress } = {}) {
+  if (!tag || !viewerPubkey || !tag.slug) return;
+
+  // 1. Resolve the matching pin row.
+  let pinRow = knownPinRow && knownPinRow.nip51ExportStatus ? knownPinRow : null;
+  if (!pinRow) {
+    try {
+      const r = await fetch(`/api/profile-tags/pins?viewerPubkey=${encodeURIComponent(viewerPubkey)}`);
+      const j = await r.json();
+      pinRow = (j?.pins || []).find(
+        (p) => p.tag?.slug === tag.slug && p.tag?.authorPubkey === tag.authorPubkey
+      ) || null;
+    } catch {
+      return; // can't resolve — best-effort, give up quietly
+    }
+  }
+  if (!pinRow || !pinRow.pinEventId) return; // AC-16: tag not pinned by viewer
+
+  // 2. Debounce per pin: coalesce rapid Apply/Dispute bursts into one run.
+  const pinEventId = pinRow.pinEventId;
+  const existing = _reexportTimers.get(pinEventId);
+  if (existing) { clearTimeout(existing.timer); existing.resolve?.(); }
+
+  return new Promise((resolve) => {
+    const timer = setTimeout(async () => {
+      _reexportTimers.delete(pinEventId);
+      try { await runReexportForPin(pinRow, onProgress); } finally { resolve(); }
+    }, REEXPORT_DEBOUNCE_MS);
+    _reexportTimers.set(pinEventId, { timer, resolve });
+  });
+}
+
+/** Recompute the kind-30392, then re-export the kind-30000 if a footprint
+ *  exists. Reflects the just-published assertion because prepare-nip51-export
+ *  reads the *current* kind-30392 (recomputed in step 1 first). */
+async function runReexportForPin(pinRow, onProgress) {
+  const pinEventId = pinRow.pinEventId;
+  onProgress?.('changed');
+
+  // Step 1: recompute the TA-signed kind-30392 (silent).
+  try {
+    await fetch('/api/trusted-list/refresh-pinned-tag', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pinEventId }),
+    });
+  } catch { /* best-effort; cron remains the backstop */ }
+
+  // Step 2: re-export the user-signed kind-30000 only if one already exists.
+  const status = pinRow.nip51ExportStatus?.status;
+  if (status && status !== 'never-exported') {
+    onProgress?.('exporting');
+    try {
+      await publishNip51ExportForPin({
+        pinEventId,
+        title: pinRow.nip51ExportStatus?.currentTitle || undefined,
+      });
+      onProgress?.('idle');
+    } catch {
+      // User declined the NIP-07 prompt (or publish failed): the 30392
+      // update stands; the 30000 is now stale → surfaced as out-of-sync.
+      onProgress?.('declined');
+    }
+  } else {
+    onProgress?.('idle');
+  }
+}

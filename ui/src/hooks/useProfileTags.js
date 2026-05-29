@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { publishProfileTagAssertion, publishOrThrow } from '../utils/publishProfileTag';
+import { syncPinnedExportsForTag } from '../utils/publishTagPin';
 
 const TA_PUBKEY = '82b75e474dda005e912bcbb910391c60c2b89cc7faf5d3c30b7c59a324973833';
 const TAG_HANDLE = `39998:${TA_PUBKEY}:tag`;
@@ -72,20 +73,31 @@ export default function useProfileTags(targetPubkey, viewerPubkey) {
     [targetPubkey]
   );
 
+  // Story 21 / ADR 0019 — if the viewer has pinned this tag, keep its
+  // exports current after the assertion (recompute kind-30392, re-export
+  // the kind-30000 footprint). No-op when the tag isn't pinned (AC-16).
+  const reexportAfterAssertion = useCallback((tag) => {
+    if (!viewerPubkey) return;
+    syncPinnedExportsForTag({ tag, viewerPubkey })
+      .catch(() => { /* best-effort */ });
+  }, [viewerPubkey]);
+
   const applyTag = useCallback(
     async (tag) => {
       await buildAndPublishAssertion(tag, 1);
       refetch();
+      reexportAfterAssertion(tag);
     },
-    [buildAndPublishAssertion, refetch]
+    [buildAndPublishAssertion, refetch, reexportAfterAssertion]
   );
 
   const disputeTag = useCallback(
     async (tag) => {
       await buildAndPublishAssertion(tag, -1);
       refetch();
+      reexportAfterAssertion(tag);
     },
-    [buildAndPublishAssertion, refetch]
+    [buildAndPublishAssertion, refetch, reexportAfterAssertion]
   );
 
   const createTag = useCallback(

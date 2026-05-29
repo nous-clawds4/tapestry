@@ -722,14 +722,19 @@ t('R-2: TagPageRow.jsx still emits +N and −N count text (presentation reshape,
   );
 });
 
-t('R-3: refreshPinnedTags.js server-side cutoff fallback remains `?? 2` (ADR Decision 11 — unchanged)', () => {
+t('R-3: refreshPinnedTags.js server-side cutoff fallback is 1 (superseded by Story 21 / ADR 0019 AC-21)', () => {
   const src = readSafe(REFRESH_PINNED_TAGS);
-  // Per ADR Decision 11: the SERVER fallback at refreshPinnedTags.js:145 stays at 2
-  // (defensive for malformed historical pins). Only the CLIENT default flips.
+  // SUPERSEDED: ADR 0014/0016 Decision 11 kept the server fallback at 2.
+  // Story 21 / ADR 0019 AC-21 unifies the default at 1 everywhere (client
+  // already sent 1; this fallback now matches). An explicit finite cutoff is
+  // still honored unchanged.
   assert(
-    /curation\.cutoff\s*:\s*2/.test(src),
-    'R-3: refreshPinnedTags.js must keep its defensive fallback at `cutoff = 2` (ADR Decision 11 — server ' +
-      'fallback unchanged). Pattern not found — did the Implementer mistakenly also flip the server fallback?'
+    /curation\.cutoff\s*:\s*1/.test(src),
+    'R-3: refreshPinnedTags.js cutoff fallback must default to 1 (Story 21 / ADR 0019 AC-21). Pattern not found.'
+  );
+  assert(
+    !/curation\.cutoff\s*:\s*2/.test(src),
+    'R-3: refreshPinnedTags.js must no longer default the cutoff fallback to 2 (superseded by ADR 0019).'
   );
 });
 

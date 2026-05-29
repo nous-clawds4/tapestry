@@ -7,7 +7,7 @@ import useRefreshPin from '../hooks/useRefreshPin';
 
 /**
  * Story 10 / ADR 0009 — viewer's pinned-tag list page.
- * Story 11 / ADR 0010 — per-row tlStatus + Refresh now button; top-of-list
+ * Story 11 / ADR 0010 — per-row tlStatus + export-status lines; top-of-list
  * Refresh all button.
  */
 function timeAgoShort(unixSeconds) {
@@ -39,7 +39,7 @@ function PinsMemberCountHint() {
   return (
     <p className="bs-pins-member-hint">
       A profile becomes a list member when its endorsements from your
-      Web of Trust meet the <code>cutoff</code> (default 2)
+      Web of Trust meet the <code>cutoff</code> (default 1)
       <em> and</em> outnumber any disputes.
     </p>
   );

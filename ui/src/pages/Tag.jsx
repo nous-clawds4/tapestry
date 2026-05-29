@@ -8,7 +8,7 @@ import TagSomeoneModal from '../components/TagSomeoneModal';
 import PinnedListPanel from '../components/PinnedListPanel';
 import { useAuth } from '../context/AuthContext';
 import { publishProfileTagAssertion } from '../utils/publishProfileTag';
-import { pinTag, defaultCurationMethod, publishNip51ExportForPin } from '../utils/publishTagPin';
+import { pinTag, defaultCurationMethod, publishNip51ExportForPin, syncPinnedExportsForTag } from '../utils/publishTagPin';
 import useTagDetail from '../hooks/useTagDetail';
 
 /**
@@ -47,6 +47,9 @@ export default function Tag() {
 
   const [pinning, setPinning] = useState(false);
   const [pinError, setPinError] = useState(null);
+  // Story 21 / ADR 0019 — transient re-export state driven by Apply/Dispute
+  // on a pinned tag; read by the Pinned tab's sync-status lines (AC-19).
+  const [exportSync, setExportSync] = useState('idle');
 
   // Story 17 new state.
   const [viewOptionsExpanded, setViewOptionsExpanded] = useState(false);
@@ -76,15 +79,28 @@ export default function Tag() {
     }, { replace: true });
   };
 
+  // Story 21 / ADR 0019 — after an assertion on a tag the viewer has
+  // pinned, keep its exports current: recompute the kind-30392 and
+  // re-publish the kind-30000 footprint (debounced, NIP-07 prompt).
+  // No-op when the viewer hasn't pinned this tag (AC-16).
+  const reexportAfterAssertion = () => {
+    if (!isPinned || !user) return;
+    syncPinnedExportsForTag({
+      tag, viewerPubkey: user.pubkey, onProgress: setExportSync,
+    }).catch(() => { /* best-effort; status surfaces the result */ });
+  };
+
   const handleApply = async (targetPubkey) => {
     if (!tag) return;
     await publishProfileTagAssertion({ tag, targetPubkey, polarity: 1 });
     refetchRows();
+    reexportAfterAssertion();
   };
   const handleDispute = async (targetPubkey) => {
     if (!tag) return;
     await publishProfileTagAssertion({ tag, targetPubkey, polarity: -1 });
     refetchRows();
+    reexportAfterAssertion();
   };
 
   // Story 18 / ADR 0016 — first pin publishes immediately with defaults
@@ -301,6 +317,7 @@ export default function Tag() {
                   tag={tag}
                   viewerPin={viewerPin}
                   onChanged={refetchHeader}
+                  exportSync={exportSync}
                 />
               </section>
             )}

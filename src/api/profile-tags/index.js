@@ -138,6 +138,10 @@ async function handleAvailableTags(req, res) {
       if (!t || !t.slug) continue;
       tags.push({
         eventId: ev.id,
+        // Story 21 / ADR 0019: expose the tag author so the client-side
+        // re-export orchestrator can match an asserted tag to a pinned tag
+        // by its stable (authorPubkey, slug) identity.
+        authorPubkey: ev.pubkey,
         slug: t.slug,
         name: t.name || t.slug,
         description: t.description || '',

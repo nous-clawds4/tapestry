@@ -142,7 +142,10 @@ async function runOnePin(pinEvent) {
   // assertions count" — same semantic the rest of the codebase uses.
   // The disputes function (cutoff + endorsements>disputes) still applies.
   const { povSuffix, minRank } = resolvePov({ wotPov: 'user', userPubkey: observer });
-  const cutoff = Number.isFinite(curation.cutoff) ? curation.cutoff : 2;
+  // Story 21 / ADR 0019 AC-21: default cutoff is 1 when none is set (the
+  // client's defaultCurationMethod already sends 1; this server fallback
+  // now matches). An explicit finite cutoff is still honored unchanged.
+  const cutoff = Number.isFinite(curation.cutoff) ? curation.cutoff : 1;
   const minRankForTag = Number.isFinite(minRank) ? minRank : 0;
 
   const { byTarget } = await profileTags.aggregateProfilesTagged({

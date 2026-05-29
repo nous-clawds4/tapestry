@@ -34,7 +34,9 @@ const PIN_REDIRECT = path.join(UI_COMPONENTS, 'PinRedirect.jsx');
 const TAG_PIN_AFFORDANCE = path.join(UI_COMPONENTS, 'TagPinAffordance.jsx');
 const TAG_PAGE_ROW = path.join(UI_COMPONENTS, 'TagPageRow.jsx');
 const TAG_SOMEONE_MODAL = path.join(UI_COMPONENTS, 'TagSomeoneModal.jsx');
-const TL_EXPORT_BUTTON = path.join(UI_COMPONENTS, 'TLExportButton.jsx');
+// Story 21 / ADR 0019 superseded TLExportButton/TLShareButton: the single
+// collapsed Export affordance now lives in ExportModal.jsx.
+const EXPORT_MODAL = path.join(UI_COMPONENTS, 'ExportModal.jsx');
 const STYLES = path.join(REPO_ROOT, 'ui/src/styles.css');
 
 function assert(cond, msg) {
@@ -143,10 +145,10 @@ test('AC-8: PinnedListPanel carries owner controls keyed by viewerPin.pinEventId
     'AC-8: PinnedListPanel must reuse CurationMethodDialog for Edit curation.');
   assert(/onUnpin/.test(src),
     'AC-8: the curation dialog must wire onUnpin (unpinning lives here, not on /pins).');
-  assert(/TLShareButton/.test(src) && /TLExportButton/.test(src),
-    'AC-8: PinnedListPanel must keep the Share and NIP-51 Export controls.');
-  assert(/refresh/i.test(src),
-    'AC-8: PinnedListPanel must keep the Refresh-now control.');
+  // Story 21 / ADR 0019: Share + NIP-51 Export + Refresh collapsed into the
+  // single ExportModal affordance.
+  assert(/ExportModal/.test(src),
+    'AC-8: PinnedListPanel must use the collapsed ExportModal (subsumes Share, NIP-51 Export, and Refresh).');
   assert(/pinEventId/.test(src),
     'AC-8: owner actions must be keyed by viewerPin.pinEventId (no separate pins lookup needed).');
 });
@@ -242,12 +244,14 @@ test('AC-16: /pin/:dTag route no longer renders PinDetail; redirects to the tag 
 
 /* ─────────────────────────── AC-17 preservation guards ────────────────── */
 
-test('AC-17 keep: export-modal backdrop + Escape-close preserved in TLExportButton + styles', () => {
-  const src = readSafe(TL_EXPORT_BUTTON);
+test('AC-17 keep: export-modal backdrop + Escape-close preserved in ExportModal + styles', () => {
+  // Story 21 / ADR 0019: the export modal moved from TLExportButton to the
+  // collapsed ExportModal; backdrop + Escape-close must be preserved there.
+  const src = readSafe(EXPORT_MODAL);
   assert(/bs-tl-export-backdrop/.test(src),
-    'AC-17: TLExportButton must keep the modal backdrop wrapper (mobile usability).');
+    'AC-17: ExportModal must keep the modal backdrop wrapper (mobile usability).');
   assert(/Escape/.test(src) && /handleClose/.test(src),
-    'AC-17: TLExportButton must keep Escape-to-close / click-outside handling.');
+    'AC-17: ExportModal must keep Escape-to-close / click-outside handling.');
   const css = readSafe(STYLES);
   assert(/\.bs-tl-export-backdrop/.test(css),
     'AC-17: styles.css must keep .bs-tl-export-backdrop.');

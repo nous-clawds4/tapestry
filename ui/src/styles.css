@@ -6816,3 +6816,71 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   color: #fbbf24;
   line-height: 1.45;
 }
+
+/* ── Story 21 / ADR 0019: collapsed Export modal + sync status + naddr rows ── */
+
+/* "What will be exported?" disclosure inside the Export modal. */
+.bs-export-what {
+  margin: 0.5rem 0;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  border-radius: 6px;
+  padding: 0.4rem 0.6rem;
+  background: rgba(148, 163, 184, 0.06);
+}
+.bs-export-what-summary {
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: #94a3b8;
+  user-select: none;
+}
+.bs-export-what-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.55rem;
+}
+.bs-export-target {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+.bs-export-target input[type="checkbox"] { margin-top: 0.2rem; }
+
+/* Two-line sync status under the Pinned-tab header. */
+.bs-pindetail-sync { margin: 0.4rem 0 0.2rem; }
+.bs-pindetail-sync-when {
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #cbd5e1;
+}
+.bs-pindetail-sync-status {
+  margin: 0.1rem 0 0;
+  font-size: 0.78rem;
+  color: #94a3b8;
+}
+.bs-pindetail-sync.is-ok .bs-pindetail-sync-status { color: #4ade80; }
+.bs-pindetail-sync.is-pending .bs-pindetail-sync-status { color: #fbbf24; }
+.bs-pindetail-sync.is-stale .bs-pindetail-sync-status { color: #fbbf24; }
+
+/* naddr copy rows in the metadata list. */
+.bs-pindetail-naddr { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; }
+.bs-pindetail-naddr code { word-break: break-all; }
+.bs-pindetail-copy {
+  background: rgba(148, 163, 184, 0.12);
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  border-radius: 4px;
+  cursor: pointer;
+  padding: 0.1rem 0.4rem;
+  font-size: 0.8rem;
+  line-height: 1;
+}
+.bs-pindetail-copy:hover { background: rgba(148, 163, 184, 0.22); }
+.bs-pindetail-naddr-help {
+  flex-basis: 100%;
+  font-size: 0.75rem;
+  color: #94a3b8;
+  line-height: 1.4;
+}

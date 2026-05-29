@@ -1,28 +1,31 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { nip19 } from 'nostr-tools';
-import TLShareButton from './TLShareButton';
-import TLExportButton from './TLExportButton';
+import ExportModal from './ExportModal';
 import CurationMethodDialog from './CurationMethodDialog';
 import { useAuth } from '../context/AuthContext';
 import { useConfig } from '../context/ConfigContext';
 import useTLDetail from '../hooks/useTLDetail';
-import { pinTag, unpinTag, computeTLDTag } from '../utils/publishTagPin';
+import {
+  pinTag, unpinTag, computeTLDTag,
+  syncPinnedExportsForTag, WELL_KNOWN_FALLBACK_RELAYS,
+} from '../utils/publishTagPin';
 
 /**
  * Story 20 / ADR 0018 — the "Pinned" tab body on the tag-detail page.
+ * Story 21 / ADR 0019 — collapses the former Refresh / Share / Export
+ * affordances into ONE "Export" action (see ExportModal), adds an naddr
+ * copy row per published kind, and shows a two-line sync status.
  *
- * Extracted from the now-retired PinDetail page. Renders the viewer's
- * kind-30392 Trusted List for this tag: metadata (Observer / Cutoff /
- * Min rank / Last refreshed / d-tag / naddr — but NOT a "Tag" row,
- * which is redundant on the tag's own page), the owner actions
- * (Refresh now, Edit curation, Share, NIP-51 Export), and the member
- * list.
+ * The pin context (pinEventId + curationMethod) arrives via the
+ * `viewerPin` prop (from /api/profile-tags/by-id). A separate
+ * /api/profile-tags/pins lookup supplies the NIP-51 export status
+ * (currentTitle + state) and the kind-30392 freshness used by the
+ * status lines.
  *
- * Unlike PinDetail, the pin context (pinEventId + curationMethod)
- * arrives via the `viewerPin` prop (from /api/profile-tags/by-id), so
- * Refresh / Edit / Unpin need no separate /api/profile-tags/pins
- * lookup. That lookup survives only to obtain the NIP-51 export status
- * (currentTitle + status) for the Export section.
+ * `exportSync` is a transient signal lifted from Tag.jsx: when an
+ * Apply/Dispute on this tag triggers an auto-re-export, the parent
+ * drives 'changed' → 'exporting' → 'idle'|'declined' so the status
+ * lines reflect the in-flight state (AC-19).
  */
 function shortNpub(pk) {
   if (!pk) return '—';
@@ -45,7 +48,38 @@ function timeAgoShort(unixSeconds) {
   return `${Math.floor(diff / 2592000)}mo ago`;
 }
 
-export default function PinnedListPanel({ tag, viewerPin, onChanged }) {
+/** A naddr metadata row with its own copy-to-clipboard control + help line.
+ *  The copied value is always an naddr (addressable; resolves the latest
+ *  replaceable event in other clients) — never a raw event id (AC-11). */
+function NaddrRow({ label, naddr, help }) {
+  const [copied, setCopied] = useState(false);
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(naddr);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch { /* clipboard rejected */ }
+  };
+  return (
+    <>
+      <dt>{label}</dt>
+      <dd className="bs-pindetail-id bs-pindetail-naddr">
+        <code>{naddr}</code>
+        <button
+          type="button"
+          className="bs-pindetail-copy"
+          onClick={copy}
+          aria-label={`Copy ${label} naddr`}
+        >
+          {copied ? '✓' : '📋'}
+        </button>
+        <span className="bs-pindetail-naddr-help">{help}</span>
+      </dd>
+    </>
+  );
+}
+
+export default function PinnedListPanel({ tag, viewerPin, onChanged, exportSync = 'idle' }) {
   const { user } = useAuth();
   const { taPubkey } = useConfig();
 
@@ -65,30 +99,42 @@ export default function PinnedListPanel({ tag, viewerPin, onChanged }) {
 
   const { tl, members, loading, error, refetch } = useTLDetail(dTag);
 
-  const [refreshing, setRefreshing] = useState(false);
-  const [refreshError, setRefreshError] = useState(null);
   const [editing, setEditing] = useState(false);
+  // Local transient sync state for panel-initiated re-exports (curation
+  // reconfig). Merged with the lifted `exportSync` prop below.
+  const [localSync, setLocalSync] = useState('idle');
+  const effectiveSync = exportSync !== 'idle' ? exportSync : localSync;
 
-  // Story 19 / ADR 0017 — fetch the viewer's matching pin row to surface
-  // the NIP-51 export status (currentTitle + state) in the Export
-  // section. The /by-id viewerPin does not carry it.
+  // Story 19/21 — the viewer's matching pin row carries nip51ExportStatus
+  // (currentTitle + state) and tlStatus, which the /by-id viewerPin lacks.
   const [pinRow, setPinRow] = useState(null);
-  useEffect(() => {
-    if (!user || !pinEventId) { setPinRow(null); return undefined; }
-    let cancelled = false;
-    (async () => {
-      try {
-        const r = await fetch(`/api/profile-tags/pins?viewerPubkey=${encodeURIComponent(user.pubkey)}`);
-        const j = await r.json();
-        if (cancelled) return;
-        const row = (j?.pins || []).find((p) => p.pinEventId === pinEventId);
-        setPinRow(row || null);
-      } catch { if (!cancelled) setPinRow(null); }
-    })();
-    return () => { cancelled = true; };
+  const loadPinRow = useCallback(async () => {
+    if (!user || !pinEventId) { setPinRow(null); return; }
+    try {
+      const r = await fetch(`/api/profile-tags/pins?viewerPubkey=${encodeURIComponent(user.pubkey)}`);
+      const j = await r.json();
+      const row = (j?.pins || []).find((p) => p.pinEventId === pinEventId);
+      setPinRow(row || null);
+    } catch { setPinRow(null); }
   }, [user, pinEventId]);
+  useEffect(() => { let on = true; (async () => { if (on) await loadPinRow(); })(); return () => { on = false; }; }, [loadPinRow]);
 
-  const naddr = useMemo(() => {
+  // AC-19 — when a tag-page-driven re-export settles ('exporting' →
+  // 'idle'/'declined'), refetch so the status line + naddr rows revert to
+  // their true (in-sync / stale) state.
+  const prevSyncRef = React.useRef(exportSync);
+  useEffect(() => {
+    const prev = prevSyncRef.current;
+    prevSyncRef.current = exportSync;
+    if ((prev === 'exporting' || prev === 'changed') &&
+        (exportSync === 'idle' || exportSync === 'declined')) {
+      refetch();
+      loadPinRow();
+    }
+  }, [exportSync, refetch, loadPinRow]);
+
+  // kind-30392 naddr (TA-signed). Always available once a TL exists.
+  const naddr30392 = useMemo(() => {
     if (!dTag || !taPubkey) return null;
     try {
       return nip19.naddrEncode({
@@ -97,43 +143,51 @@ export default function PinnedListPanel({ tag, viewerPin, onChanged }) {
     } catch { return null; }
   }, [dTag, taPubkey]);
 
-  const canManage = !!user && !!pinEventId;
-
-  const handleRefresh = async () => {
-    if (!canManage) return;
-    setRefreshing(true); setRefreshError(null);
+  // kind-30000 naddr (user-signed). Composed against the well-known
+  // fallback relays so it resolves in other clients without an async
+  // write-relay fetch on render.
+  const naddr30000 = useMemo(() => {
+    if (!dTag || !user?.pubkey) return null;
     try {
-      const rr = await fetch('/api/trusted-list/refresh-pinned-tag', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pinEventId }),
+      return nip19.naddrEncode({
+        kind: 30000, pubkey: user.pubkey, identifier: dTag,
+        relays: WELL_KNOWN_FALLBACK_RELAYS,
       });
-      const data = await rr.json().catch(() => null);
-      if (!rr.ok || !data?.success) throw new Error(data?.error || `status ${rr.status}`);
-      await refetch();
-      onChanged?.();
-    } catch (e) {
-      setRefreshError(e.message || 'Refresh failed');
-    } finally {
-      setRefreshing(false);
-    }
-  };
+    } catch { return null; }
+  }, [dTag, user?.pubkey]);
+
+  const canManage = !!user && !!pinEventId;
+  const nip51 = pinRow?.nip51ExportStatus;
+  const hasFollowSet = !!nip51 && nip51.status !== 'never-exported';
+
+  const handleExported = useCallback(async () => {
+    setLocalSync('idle');
+    await refetch();
+    await loadPinRow();
+    onChanged?.();
+  }, [refetch, loadPinRow, onChanged]);
 
   const handleEditSubmit = async (customCuration) => {
     const signed = await pinTag({ tag, curationMethod: customCuration });
     await refetch();
     onChanged?.();
-    // AC-5 (Story 12) — fire-and-forget refresh of this pin's TL.
-    fetch('/api/trusted-list/refresh-pinned-tag', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pinEventId: signed.id }),
-    }).catch(() => { /* best-effort */ });
+    // AC-13 — a curation reconfig recomputes the kind-30392 and re-exports
+    // the kind-30000 footprint, just like an Apply/Dispute does.
+    if (user) {
+      await syncPinnedExportsForTag({
+        tag, viewerPubkey: user.pubkey, onProgress: setLocalSync,
+      });
+      await loadPinRow();
+    } else {
+      // No signer somehow — fall back to a bare TL refresh.
+      fetch('/api/trusted-list/refresh-pinned-tag', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pinEventId: signed.id }),
+      }).catch(() => { /* best-effort */ });
+    }
   };
 
-  // Story 18 / ADR 0016 — Unpin from inside the edit dialog. Unpinning
-  // makes the header refetch drop viewerPin, which removes the Pinned
-  // tab (Tag.jsx falls back to the default tab).
   const handleEditUnpin = async () => {
     if (!pinEventId) return;
     await unpinTag({ pinEventId });
@@ -144,17 +198,40 @@ export default function PinnedListPanel({ tag, viewerPin, onChanged }) {
     return <p className="bs-pindetail-loading">Loading Trusted List…</p>;
   }
   if (error) {
-    return (
-      <p className="bs-pindetail-error" role="alert">⚠️ {error}</p>
-    );
+    return <p className="bs-pindetail-error" role="alert">⚠️ {error}</p>;
   }
   if (!tl) {
     return (
       <p className="bs-pindetail-empty">
         No Trusted List has been published for this pin yet — it will
-        appear after the next refresh.
+        appear after your first Export.
       </p>
     );
+  }
+
+  // ── Two-line sync status (AC-17–20) ──────────────────────────────────
+  // Line 1 = the "last exported" timestamp (or "Exporting…" while in flight).
+  // Line 2 = the in-sync / out-of-sync status.
+  const hasAnyExport = !!tl || hasFollowSet;
+  const exportedAt = hasFollowSet ? nip51.exportedAt : tl?.createdAt;
+
+  let timestampLine = null;
+  if (effectiveSync === 'exporting') {
+    timestampLine = 'Exporting…';
+  } else if (hasAnyExport && exportedAt) {
+    timestampLine = `Last exported ${timeAgoShort(exportedAt)}`;
+  }
+
+  let statusLine = null;
+  let statusKind = 'ok';
+  if (effectiveSync === 'changed' || effectiveSync === 'exporting') {
+    statusLine = 'Pinned list changed, last export out of sync'; statusKind = 'pending';
+  } else if (effectiveSync === 'declined') {
+    statusLine = 'Last export out of sync — Export to update'; statusKind = 'stale';
+  } else if (nip51?.status === 'stale') {
+    statusLine = 'Last export out of sync (background list refresh coming soon!)'; statusKind = 'stale';
+  } else if (hasAnyExport) {
+    statusLine = 'Last export is in sync with current Pin'; statusKind = 'ok';
   }
 
   return (
@@ -163,14 +240,13 @@ export default function PinnedListPanel({ tag, viewerPin, onChanged }) {
         <h2 className="bs-pindetail-title">{tl.title || tl.dTag}</h2>
         <div className="bs-pindetail-actions">
           {canManage && (
-            <button
-              type="button"
-              className="bs-pindetail-refresh"
-              onClick={handleRefresh}
-              disabled={refreshing}
-            >
-              {refreshing ? 'Refreshing…' : '🔄 Refresh now'}
-            </button>
+            <ExportModal
+              pinEventId={pinEventId}
+              currentTitle={nip51?.currentTitle}
+              defaultTitle={pinRow?.tag?.name || tag?.name || tl.title}
+              variant="full"
+              onExported={handleExported}
+            />
           )}
           {canManage && (
             <button
@@ -181,11 +257,15 @@ export default function PinnedListPanel({ tag, viewerPin, onChanged }) {
               ⚙️ Edit curation
             </button>
           )}
-          <TLShareButton dTag={tl.dTag} variant="full" />
         </div>
-        {refreshError && (
-          <p className="bs-pindetail-error" role="alert">⚠️ {refreshError}</p>
+
+        {(timestampLine || statusLine) && (
+          <div className={`bs-pindetail-sync is-${statusKind}`}>
+            {timestampLine && <p className="bs-pindetail-sync-when">{timestampLine}</p>}
+            {statusLine && <p className="bs-pindetail-sync-status">{statusLine}</p>}
+          </div>
         )}
+
         {tl.retracted && (
           <p className="bs-pindetail-retracted">
             This Trusted List has been retracted (the underlying tag was unpinned).
@@ -212,48 +292,25 @@ export default function PinnedListPanel({ tag, viewerPin, onChanged }) {
         <dd>{timeAgoShort(tl.createdAt)}</dd>
         <dt>d-tag</dt>
         <dd className="bs-pindetail-id"><code>{tl.dTag}</code></dd>
-        {naddr && (
-          <>
-            <dt>Share ID (naddr)</dt>
-            <dd className="bs-pindetail-id"><code>{naddr}</code></dd>
-          </>
+
+        {/* AC-8/9/11 — one naddr copy row per published kind, with a help
+            line. The Trusted List row appears once a TL exists; the Follow
+            Set row once the kind-30000 has been exported. */}
+        {naddr30392 && (
+          <NaddrRow
+            label="Trusted List (naddr)"
+            naddr={naddr30392}
+            help="The Trusted List includes ranks; useful in curation pipelines."
+          />
+        )}
+        {hasFollowSet && naddr30000 && (
+          <NaddrRow
+            label="Follow Set (naddr)"
+            naddr={naddr30000}
+            help="Look for this list in your favorite client that supports Lists and Follow Sets."
+          />
         )}
       </dl>
-
-      {pinRow && (
-        <section className="bs-pindetail-export">
-          <h3 className="bs-pindetail-export-heading">
-            Export for use in other clients
-          </h3>
-          <p className="bs-pindetail-export-help">
-            Publish this list as a NIP-51 follow set under your key so
-            others can subscribe to it in Damus, Amethyst, Iris, Coracle,
-            and any other NIP-51-aware nostr client. The list will be sent
-            to your NIP-65 write relays — re-export whenever you want to
-            update the published membership.
-          </p>
-          <div className="bs-pindetail-export-row">
-            <TLExportButton
-              pinEventId={pinRow.pinEventId}
-              dTag={dTag}
-              currentTitle={pinRow.nip51ExportStatus?.currentTitle}
-              defaultTitle={pinRow.tag?.name || tl.title}
-              variant="full"
-              onExported={() => { refetch(); onChanged?.(); }}
-            />
-            {pinRow.nip51ExportStatus && (
-              <span className={`bs-pindetail-export-status is-${pinRow.nip51ExportStatus.status}`}>
-                {pinRow.nip51ExportStatus.status === 'never-exported'
-                  && 'Not yet exported for other clients.'}
-                {pinRow.nip51ExportStatus.status === 'ok-fresh'
-                  && `Last exported ${timeAgoShort(pinRow.nip51ExportStatus.exportedAt)} · in sync with the current list.`}
-                {pinRow.nip51ExportStatus.status === 'stale'
-                  && `Last exported ${timeAgoShort(pinRow.nip51ExportStatus.exportedAt)} · ${(pinRow.nip51ExportStatus.diffVsTL?.added || 0) + (pinRow.nip51ExportStatus.diffVsTL?.removed || 0)} changes since last export.`}
-              </span>
-            )}
-          </div>
-        </section>
-      )}
 
       <h3 className="bs-pindetail-members-heading">
         Members ({members.length})
