@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { useParams, useSearchParams } from 'react-router-dom';
+import { useParams, useSearchParams, Link } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
 import { useAuth } from '../context/AuthContext';
 import BrainstormUserMenu from '../components/BrainstormUserMenu';
@@ -234,10 +234,10 @@ export default function BrainstormProfile() {
 
             {/* Following count */}
             <div className={`bsp-counts ${userCountsLoading ? 'bsp-counts-loading' : ''}`}>
-              <span className="bsp-count">
+              <Link to={`/user/${pubkey}/follows`} className="bsp-count bsp-count-link">
                 <span className="bsp-count-value">{fmtCount(followingCount)}</span>
                 <span className="bsp-count-label">Following</span>
-              </span>
+              </Link>
             </div>
 
             {/* Action buttons */}

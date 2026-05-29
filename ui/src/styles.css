@@ -4146,3 +4146,115 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   .bss-top-bar { padding: 0.5rem 1rem; flex-wrap: wrap; }
 }
 
+/* ── Follows list page (story #29 / ADR 0026) ──────────── */
+.bsp-count-link { cursor: pointer; text-decoration: none; color: inherit; }
+.bsp-count-link:hover .bsp-count-value { text-decoration: underline; }
+
+.bsp-follows-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+.bsp-back-link { font-size: 0.85rem; opacity: 0.75; text-decoration: none; }
+.bsp-back-link:hover { opacity: 1; text-decoration: underline; }
+.bsp-follows-title { margin: 0; font-size: 1.4rem; }
+.bsp-info-btn {
+  margin-left: auto;
+  border: 1px solid rgba(127, 127, 127, 0.4);
+  background: transparent;
+  color: inherit;
+  border-radius: 999px;
+  width: 1.75rem;
+  height: 1.75rem;
+  line-height: 1;
+  cursor: pointer;
+  font-size: 1rem;
+}
+.bsp-info-btn:hover { background: rgba(127, 127, 127, 0.15); }
+
+.bsp-follows-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+.bsp-follows-search {
+  flex: 1 1 16rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid rgba(127, 127, 127, 0.35);
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+}
+.bsp-follows-colmenu { position: relative; }
+.bsp-follows-colbtn,
+.bsp-follows-colreset {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid rgba(127, 127, 127, 0.35);
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+.bsp-follows-colpanel {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.25rem);
+  z-index: 20;
+  min-width: 12rem;
+  padding: 0.5rem;
+  border: 1px solid rgba(127, 127, 127, 0.35);
+  border-radius: 8px;
+  background: var(--bsp-bg, #1b1b1f);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35);
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.bsp-follows-colopt { display: flex; align-items: center; gap: 0.5rem; font-size: 0.9rem; cursor: pointer; }
+.bsp-follows-colreset { margin-top: 0.35rem; }
+
+.bsp-follows-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  display: inline-block;
+  vertical-align: middle;
+}
+.bsp-follows-avatar-ph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(127, 127, 127, 0.25);
+  font-weight: 600;
+}
+.bsp-follows-npub { font-size: 0.8rem; opacity: 0.85; }
+.bsp-empty { padding: 2rem; text-align: center; opacity: 0.7; }
+
+.table-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 0.75rem;
+}
+.table-page-btn {
+  padding: 0.35rem 0.75rem;
+  border: 1px solid rgba(127, 127, 127, 0.35);
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+.table-page-btn:disabled { opacity: 0.4; cursor: default; }
+.table-page-info { font-size: 0.85rem; opacity: 0.75; }
+
+@media (max-width: 600px) {
+  .bsp-follows-controls { flex-direction: column; align-items: stretch; }
+  .bsp-follows-colpanel { right: auto; left: 0; }
+}
+
