@@ -388,6 +388,10 @@ async function runReexportForPin(pinRow, onProgress) {
   } catch { /* best-effort; cron remains the backstop */ }
 
   // Step 2: re-export the user-signed kind-30000 only if one already exists.
+  // NOTE (Story 22 / ADR 0020): the kind-39089 Follow Pack is deliberately
+  // NOT re-exported here. Packs are explicit point-in-time snapshots — auto-
+  // re-signing one on every re-tag would mean a NIP-07 prompt per assertion.
+  // Drift is surfaced honestly via followPackStatus instead (PinnedListPanel).
   const status = pinRow.nip51ExportStatus?.status;
   if (status && status !== 'never-exported') {
     onProgress?.('exporting');

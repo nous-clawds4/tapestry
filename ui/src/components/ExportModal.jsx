@@ -4,6 +4,7 @@ import {
   fetchUserWriteRelays,
   WELL_KNOWN_FALLBACK_RELAYS,
 } from '../utils/publishTagPin';
+import { timeAgo } from '../utils/timeAgo';
 
 /**
  * Story 21 / ADR 0019 — the single "Export" affordance.
@@ -27,14 +28,16 @@ import {
  *      second NIP-07 prompt; same membership, different kind).
  *
  * Props:
- *   pinEventId    — kind-39999 pin event id (required)
- *   currentTitle  — last published kind-30000 title, or null
- *   defaultTitle  — fallback title (the tag's display name)
- *   variant       — 'compact' | 'full'
- *   onExported    — callback after a successful export so the parent refetches
+ *   pinEventId       — kind-39999 pin event id (required)
+ *   currentTitle     — last published kind-30000 title, or null
+ *   defaultTitle     — fallback title (the tag's display name)
+ *   followPackStatus — the pin row's kind-39089 export status (ADR 0020);
+ *                      drives the "last exported as a pack {ago}" memory hint
+ *   variant          — 'compact' | 'full'
+ *   onExported       — callback after a successful export so the parent refetches
  */
 export default function ExportModal({
-  pinEventId, currentTitle, defaultTitle = '',
+  pinEventId, currentTitle, defaultTitle = '', followPackStatus = null,
   variant = 'full', onExported,
 }) {
   const [open, setOpen] = useState(false);
@@ -81,6 +84,13 @@ export default function ExportModal({
   const relaysLoading = writeRelays === null;
   // AC-5: disable Export when no target is selected.
   const nothingSelected = !exportFollowSet && !exportTrustedList && !exportFollowPack;
+
+  // Story 22 / ADR 0020 — "last exported as a pack {ago}" memory hint. Shown
+  // when a kind-39089 was exported before; it does NOT auto-check the box
+  // (opt-in semantics preserved — surfacing memory ≠ re-selecting).
+  const packExportedAgo = followPackStatus && followPackStatus.status !== 'never-exported'
+    ? timeAgo(followPackStatus.exportedAt)
+    : null;
 
   const handleTriggerClick = (e) => {
     e.stopPropagation(); e.preventDefault();
@@ -221,6 +231,9 @@ export default function ExportModal({
                     <strong>Follow Pack</strong> (kind-39089) — a NIP-51
                     starter pack of the same members, shareable so others can
                     follow the whole set at once.
+                    {packExportedAgo && (
+                      <em className="bs-export-target-hint"> Last exported as a pack {packExportedAgo}.</em>
+                    )}
                   </span>
                 </label>
               </div>

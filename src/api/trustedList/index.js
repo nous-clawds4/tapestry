@@ -30,6 +30,15 @@ function nt() {
 const BRAINSTORM_EXPORT_DESCRIPTION =
   "A Pinned-tag list from Brainstorm — members are trusted in this tag under the exporter's web-of-trust point of view. Re-publish from your Brainstorm instance to update.";
 
+/**
+ * Story 22 / ADR 0020: kind-39089 Follow Pack ("starter pack") description.
+ * A pack is meant to be handed to other people, so it gets sharing-
+ * appropriate copy — the kind-30000 line ("Re-publish from your Brainstorm
+ * instance…") is meaningless to a stranger who receives the pack.
+ */
+const FOLLOW_PACK_DESCRIPTION =
+  "A starter pack from Brainstorm — a set of profiles trusted in this tag under the sharer's web-of-trust point of view. Follow them all at once.";
+
 // ── TA private key cache (same pattern as normalize) ──────────
 let _cachedPrivkey = null;
 
@@ -354,7 +363,7 @@ async function handlePrepareNip51Export(req, res) {
         ['d', dTag],
         ['z', zTagHandle],
         ['title', title],
-        ['description', BRAINSTORM_EXPORT_DESCRIPTION],
+        ['description', exportKind === 39089 ? FOLLOW_PACK_DESCRIPTION : BRAINSTORM_EXPORT_DESCRIPTION],
         ...memberPubkeys.map((pk) => ['p', pk]),
       ],
       content: '',

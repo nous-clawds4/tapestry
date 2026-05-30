@@ -212,9 +212,27 @@ export default function PinnedListPanel({ tag, viewerPin, onChanged, exportSync 
     } catch { return null; }
   }, [dTag, user?.pubkey]);
 
+  // kind-39089 naddr (user-signed Follow Pack). Same coordinate as the
+  // Follow Set but a distinct kind — Story 22 / ADR 0020.
+  const naddr39089 = useMemo(() => {
+    if (!dTag || !user?.pubkey) return null;
+    try {
+      return nip19.naddrEncode({
+        kind: 39089, pubkey: user.pubkey, identifier: dTag,
+        relays: WELL_KNOWN_FALLBACK_RELAYS,
+      });
+    } catch { return null; }
+  }, [dTag, user?.pubkey]);
+
   const canManage = !!user && !!pinEventId;
   const nip51 = pinRow?.nip51ExportStatus;
   const hasFollowSet = !!nip51 && nip51.status !== 'never-exported';
+  // Follow Pack (kind-39089) export status — shown only once exported.
+  const followPack = pinRow?.followPackStatus;
+  const hasFollowPack = !!followPack && followPack.status !== 'never-exported';
+  const followPackBehind = hasFollowPack && followPack.status === 'stale'
+    ? ((followPack.diffVsTL?.added || 0) + (followPack.diffVsTL?.removed || 0))
+    : 0;
 
   const handleExported = useCallback(async () => {
     setLocalSync('idle');
@@ -301,6 +319,7 @@ export default function PinnedListPanel({ tag, viewerPin, onChanged, exportSync 
               pinEventId={pinEventId}
               currentTitle={nip51?.currentTitle}
               defaultTitle={pinRow?.tag?.name || tag?.name || tl.title}
+              followPackStatus={followPack}
               variant="full"
               onExported={handleExported}
             />
@@ -369,8 +388,27 @@ export default function PinnedListPanel({ tag, viewerPin, onChanged, exportSync 
             help="Look for this list in your favorite client that supports Lists and Follow Sets."
           />
         )}
+        {/* Story 22 / ADR 0020 — the Follow Pack row appears once a kind-39089
+            has been exported (before that the naddr would point at nothing). */}
+        {hasFollowPack && naddr39089 && (
+          <NaddrRow
+            label="Follow Pack (naddr)"
+            naddr={naddr39089}
+            help="Others can follow the whole set at once from this address."
+          />
+        )}
       </dl>
       </details>
+
+      {/* Story 22 / ADR 0020 — honest staleness for a snapshot pack: the
+          Follow Pack is not auto-re-published, so surface when it has drifted
+          from the current membership and invite a deliberate re-export. */}
+      {followPackBehind > 0 && (
+        <p className="bs-pindetail-pack-drift" role="status">
+          This Follow Pack is {followPackBehind} members behind your current
+          list — re-export to update it.
+        </p>
+      )}
 
       <h3 className="bs-pindetail-members-heading">
         Members ({members.length})
