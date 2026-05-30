@@ -99,4 +99,4 @@ kind-30000 export does — no new concept, **no firmware reinstall**.
 - ADR: `engineering-team/decisions/0020-follow-pack-export-target.md`
 - Test plan: `engineering-team/stories/22-follow-pack-export-target.test-plan.md`
   (read-side failing tests added to `test/collapse-into-export-concept.test.js`).
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/22-follow-pack-export-target.md` — **PASS** (2 non-blocking cosmetic notes)
