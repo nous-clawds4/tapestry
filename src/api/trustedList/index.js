@@ -260,9 +260,16 @@ async function handlePrepareNip51Export(req, res) {
   const sessionPubkey = requireAuth(req, res);
   if (!sessionPubkey) return;
 
-  const { pinEventId, title: providedTitle } = req.body || {};
+  const { pinEventId, title: providedTitle, kind: providedKind } = req.body || {};
   if (!pinEventId || !/^[0-9a-f]{64}$/.test(pinEventId)) {
     return res.status(400).json({ success: false, error: 'pinEventId is required (64-char lowercase hex)' });
+  }
+  // Export kind: kind-30000 Follow Set (default) or kind-39089 Follow Pack
+  // (NIP-51 "starter pack"). Both carry the same pubkey membership; only
+  // the event kind differs, so the rest of this handler is kind-agnostic.
+  const exportKind = providedKind === undefined ? 30000 : providedKind;
+  if (exportKind !== 30000 && exportKind !== 39089) {
+    return res.status(400).json({ success: false, error: 'kind must be 30000 (Follow Set) or 39089 (Follow Pack)' });
   }
 
   try {
@@ -330,14 +337,17 @@ async function handlePrepareNip51Export(req, res) {
       ? providedTitle.trim()
       : (tagPayload.name || tagPayload.slug);
 
-    // 8. Build unsigned kind-30000 template.
+    // 8. Build unsigned kind-30000 / kind-39089 template.
     //    - z-tag reuses the existing tag-pinning concept handle (per
     //      ADR Q2: LEGACY pubkey, no new concept, no firmware reinstall).
     //    - Per Amendment II: naddr is composed client-side from the
     //      NIP-07 getRelays() lookup; not assembled here.
+    //    - kind-30000 (Follow Set) and kind-39089 (Follow Pack) share the
+    //      same d-tag, title, description, and `p` membership; only the
+    //      kind differs, so the two are addressable in parallel.
     const zTagHandle = profileTags.TAG_PINNING_Z_TAG;
     const unsigned = {
-      kind: 30000,
+      kind: exportKind,
       pubkey: sessionPubkey,
       created_at: Math.floor(Date.now() / 1000),
       tags: [

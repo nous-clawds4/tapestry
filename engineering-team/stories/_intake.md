@@ -189,3 +189,34 @@ returns as a known trade-off.
 **Phase path:** the proper fix should run through Planning →
 Architecture → Test Design → Implementation → Review (it's a
 data-affecting cross-cutting change; deserves the full harness).
+
+---
+
+## 2026-05-30 — Add a "Follow Packs" (kind-39089) export target
+
+**Raw request (verbatim):**
+
+> Need to add one more option to the "What will be exported?" collapse:
+> "Follow Packs", which are 39089 - here is the snippet from the NIP:
+> Starter packs 39089 a named set of profiles to be shared around with
+> the goal of being followed together "p" (pubkeys). have this one
+> UNCHECKED by default. But add it's mention to any copy that mentions
+> the 30000 and TL.
+
+**Follow-up (verbatim):**
+
+> we can do it incrementally like this, but make sure to capture this in
+> ADRs and any other engineering-team docs as we usually do.
+
+**Classification:** Feature (incremental extension of Story 21 / ADR 0019).
+**Strictness:** Standard — done incrementally (direct implementation)
+with the artifacts captured at the user's direction: Story 22 + ADR 0020.
+Tests are an incremental extension of Story 21's
+`collapse-into-export-concept` coverage rather than a fresh failing-test
+phase (the new target reuses the existing prepare/publish path; the only
+new wire difference is the event `kind`).
+**Phase path:** Planning + Architecture captured as Story 22 / ADR 0020;
+Implementation landed in the same change; Review pending.
+**Artifacts:**
+- Story: `engineering-team/stories/22-follow-pack-export-target.md`
+- ADR: `engineering-team/decisions/0020-follow-pack-export-target.md`

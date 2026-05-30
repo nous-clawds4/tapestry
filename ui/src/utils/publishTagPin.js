@@ -228,17 +228,20 @@ async function fetchWriteRelaysFromKind10002(pubkey) {
  * @param {string} args.pinEventId
  * @param {string} [args.title]
  * @param {string[]} [args.writeRelays] — if omitted, calls fetchUserWriteRelays.
+ * @param {number} [args.kind=30000] — 30000 (Follow Set) or 39089 (Follow
+ *   Pack / NIP-51 "starter pack"). Both carry the same membership; only
+ *   the published event kind (and the encoded naddr) differ.
  *
  * Returns { signed, naddr, writeRelays, dTag, memberCount }.
  */
-export async function publishNip51ExportForPin({ pinEventId, title, writeRelays } = {}) {
+export async function publishNip51ExportForPin({ pinEventId, title, writeRelays, kind = 30000 } = {}) {
   if (!window.nostr) {
     throw new Error('No NIP-07 extension detected. Install one to export lists.');
   }
   const prepareResp = await fetch('/api/trusted-list/prepare-nip51-export', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ pinEventId, title }),
+    body: JSON.stringify({ pinEventId, title, kind }),
   });
   const prepareData = await prepareResp.json().catch(() => null);
   if (!prepareResp.ok || !prepareData?.success) {
@@ -271,7 +274,7 @@ export async function publishNip51ExportForPin({ pinEventId, title, writeRelays 
   // event renders under their identity in recipient clients; include
   // well-known too so recipients can locate it anywhere.
   const naddr = nip19.naddrEncode({
-    kind: 30000,
+    kind,
     pubkey: signed.pubkey,
     identifier: dTag,
     relays: publishRelays,
