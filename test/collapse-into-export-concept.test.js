@@ -120,6 +120,126 @@ test('AC-3: the Export modal offers both a Follow Set and a Trusted List target'
     'AC-3: the Export modal must offer a "Trusted List" (kind-30392) export target');
 });
 
+/* ── Story 22 / ADR 0020: optional Follow Pack (kind-39089) target ── */
+
+test('Story22 AC-1: the Export modal offers a Follow Pack (kind-39089) target', () => {
+  const modal = readFileSafe('ui/src/components/ExportModal.jsx');
+  assert(modal.length > 0, 'could not read ui/src/components/ExportModal.jsx');
+  assert(/Follow Pack/.test(modal),
+    'Story22 AC-1: the Export modal must offer a "Follow Pack" export target');
+  assert(/39089/.test(modal),
+    'Story22 AC-1: the Follow Pack target must name kind-39089');
+});
+
+test('Story22 AC-2: the Follow Pack target is UNCHECKED by default', () => {
+  const modal = readFileSafe('ui/src/components/ExportModal.jsx');
+  // The opt-in target's state must initialize to false (Follow Set /
+  // Trusted List stay true — asserted by Story 21 AC-3 above).
+  assert(/useState\(false\)/.test(modal) && /exportFollowPack/.test(modal),
+    'Story22 AC-2: ExportModal must hold an exportFollowPack state defaulting to false');
+  assert(/const \[exportFollowPack,\s*setExportFollowPack\]\s*=\s*useState\(false\)/.test(modal),
+    'Story22 AC-2: exportFollowPack must default-initialize to false (opt-in)');
+});
+
+test('Story22 AC-3: the Follow Pack publishes with kind 39089 via the shared publisher', () => {
+  const modal = readFileSafe('ui/src/components/ExportModal.jsx');
+  assert(/kind:\s*39089/.test(modal),
+    'Story22 AC-3: confirming with Follow Pack checked must call publishNip51ExportForPin with kind 39089');
+});
+
+test('Story22 AC-3 (server): prepare-nip51-export accepts and validates kind 39089', () => {
+  const src = readFileSafe('src/api/trustedList/index.js');
+  assert(/39089/.test(src),
+    'Story22 AC-3: prepare-nip51-export must accept kind 39089 (Follow Pack)');
+  assert(/exportKind\s*!==\s*30000\s*&&\s*exportKind\s*!==\s*39089/.test(src),
+    'Story22 AC-3: prepare-nip51-export must reject any kind other than 30000 or 39089');
+  assert(/kind:\s*exportKind/.test(src),
+    'Story22 AC-3: the unsigned template kind must be the validated exportKind, not a hardcoded 30000');
+});
+
+/* ── Story 22 / ADR 0020 — read-side (the part the one-off omitted) ──
+   The four tests above lock the already-landed WRITE side. The tests below
+   are the read-side ADR 0020 adds and are expected to FAIL until the
+   Implementer builds them: a pack-specific description, a followPackStatus
+   on /pins, the panel naddr row + drift hint, and the modal memory hint.
+   AC-4/AC-5 here are regression guards (write-side already correct).        */
+
+test('Story22 AC-7: kind-39089 carries a Follow-Pack-specific description (not the kind-30000 mirror copy)', () => {
+  const src = readFileSafe('src/api/trustedList/index.js');
+  assert(src.length > 0, 'could not read src/api/trustedList/index.js');
+  // The kind-30000 copy ("…Re-publish from your Brainstorm instance to
+  // update.") is meaningless to a stranger who receives the pack. The pack
+  // needs its own description, selected by kind.
+  assert(/FOLLOW_PACK_DESCRIPTION|STARTER_PACK_DESCRIPTION|PACK_DESCRIPTION/.test(src),
+    'Story22 AC-7: prepare-nip51-export must define a Follow-Pack-specific description constant');
+  assert(/exportKind\s*===\s*39089\s*\?|39089\s*===\s*exportKind\s*\?/.test(src),
+    'Story22 AC-7: the unsigned template description must branch on exportKind === 39089, not use BRAINSTORM_EXPORT_DESCRIPTION unconditionally');
+});
+
+test('Story22 AC-8: the /pins enricher derives followPackStatus and scans kind-39089', () => {
+  const src = readFileSafe('src/api/profile-tags/index.js');
+  assert(src.length > 0, 'could not read src/api/profile-tags/index.js');
+  assert(/followPackStatus/.test(src),
+    'Story22 AC-8: each /pins row must carry a followPackStatus (mirroring nip51ExportStatus)');
+  // followPackStatus must be sourced from a strfry scan that includes 39089.
+  assert(/kinds:\s*\[\s*30000\s*,\s*39089\s*\]|kinds:\s*\[\s*39089/.test(src),
+    'Story22 AC-8: the export-status enricher must scan kind-39089 (e.g. kinds:[30000,39089]) to know whether a pack was exported');
+});
+
+test('Story22 AC-9: PinnedListPanel composes a kind-39089 naddr and renders a gated "Follow Pack (naddr)" row', () => {
+  const panel = readFileSafe('ui/src/components/PinnedListPanel.jsx');
+  assert(panel.length > 0, 'could not read ui/src/components/PinnedListPanel.jsx');
+  assert(/kind:\s*39089/.test(panel),
+    'Story22 AC-9: the detail panel must compose a kind-39089 naddr for the Follow Pack');
+  assert(/Follow Pack \(naddr\)|label="Follow Pack/.test(panel),
+    'Story22 AC-9: the detail panel must render a "Follow Pack (naddr)" copy row');
+  assert(/followPackStatus/.test(panel),
+    'Story22 AC-9: the Follow Pack row must be gated on followPackStatus (shown only once exported, like the Follow Set row)');
+});
+
+test('Story22 AC-10: a stale Follow Pack shows a "members behind / re-export to update" drift hint', () => {
+  const panel = readFileSafe('ui/src/components/PinnedListPanel.jsx');
+  assert(/members behind/i.test(panel),
+    'Story22 AC-10: a stale Follow Pack must surface a "N members behind your current list" drift hint');
+  assert(/re-export to update/i.test(panel),
+    'Story22 AC-10: the drift hint must prompt "re-export to update" (the export action publishes the pack — not "re-share")');
+});
+
+test('Story22 AC-10 (snapshot guard): the auto-re-export path does NOT publish kind-39089', () => {
+  const helper = readFileSafe('ui/src/utils/publishTagPin.js');
+  assert(helper.length > 0, 'could not read ui/src/utils/publishTagPin.js');
+  // Packs are deliberate snapshots: runReexportForPin re-publishes only the
+  // kind-30000 footprint. The shared publisher accepts a `kind` (so the
+  // string "39089" legitimately appears in its JSDoc), but no publish call
+  // in this module may PASS kind:39089 — the only 39089 export is the
+  // explicit, user-initiated modal action.
+  assert(!/kind:\s*39089/.test(helper),
+    'Story22 AC-10: publishTagPin.js must NOT pass kind:39089 to a publish call (auto-re-export path) — packs are snapshots (no prompt-per-retag)');
+});
+
+test('Story22 AC-11: the Export modal surfaces a "last exported as a pack" memory hint without auto-checking', () => {
+  const modal = readFileSafe('ui/src/components/ExportModal.jsx');
+  assert(/last exported as a pack/i.test(modal),
+    'Story22 AC-11: when a pack was exported before, the modal must show a "last exported as a pack {ago}" hint');
+  assert(/followPackStatus/.test(modal),
+    'Story22 AC-11: the memory hint must read followPackStatus from the pin row');
+  // Opt-in preserved: surfacing memory must not flip the checkbox to checked.
+  assert(/const \[exportFollowPack,\s*setExportFollowPack\]\s*=\s*useState\(false\)/.test(modal),
+    'Story22 AC-11: the memory hint must not auto-check Follow Pack (state stays useState(false))');
+});
+
+test('Story22 AC-4 (guard): Export is disabled only when ALL THREE targets are unchecked', () => {
+  const modal = readFileSafe('ui/src/components/ExportModal.jsx');
+  assert(/!exportFollowSet\s*&&\s*!exportTrustedList\s*&&\s*!exportFollowPack/.test(modal),
+    'Story22 AC-4: nothingSelected must require all three targets unchecked (Follow Pack alone is a valid export)');
+});
+
+test('Story22 AC-5 (guard): the relay preview renders when either user-signed list is selected', () => {
+  const modal = readFileSafe('ui/src/components/ExportModal.jsx');
+  assert(/exportFollowSet\s*\|\|\s*exportFollowPack/.test(modal),
+    'Story22 AC-5: the relay-preview gate must include exportFollowPack (both kind-30000 and kind-39089 publish to relays)');
+});
+
 /* ── C. Detail-view naddr rows + help lines (AC-8/9/11) ── */
 
 test('AC-9: the kind-30000 detail row carries the "Lists and Follow Sets" help line', () => {
