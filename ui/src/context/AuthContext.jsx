@@ -1,4 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { waitForNostr } from '../utils/nip07';
+import LoginErrorModal from '../components/LoginErrorModal';
 
 const AuthContext = createContext(null);
 
@@ -6,9 +8,24 @@ export function useAuth() {
   return useContext(AuthContext);
 }
 
+// Login failures are categorized so the shared modal can show controlled,
+// vendor-neutral copy instead of leaking raw extension/server strings.
+//   NO_SIGNER       — no NIP-07 signer appeared (even after the injection wait)
+//   SIGNER_DECLINED — the user rejected getPublicKey()/signEvent() in their signer
+//   NOT_AUTHORIZED  — the server declined the pubkey or the signed challenge
+//   UNKNOWN         — anything else (network, parse, …)
+function makeLoginError(code, message) {
+  const err = new Error(message);
+  err.code = code;
+  return err;
+}
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null); // { pubkey, classification, profile }
   const [loading, setLoading] = useState(true);
+  // { code, message } | null — surfaced in the shared LoginErrorModal below so
+  // every login entry point reports the reason instead of failing silently.
+  const [loginError, setLoginError] = useState(null);
 
   // Check session status on mount
   useEffect(() => {
@@ -54,13 +71,24 @@ export function AuthProvider({ children }) {
     }
   }
 
-  const login = useCallback(async () => {
-    if (!window.nostr) {
-      throw new Error('No NIP-07 extension found. Please install nos2x, Alby, or similar.');
+  const runLogin = useCallback(async () => {
+    // Wait briefly for an asynchronously-injected signer before giving up —
+    // an immediate check mis-reports late-injecting extensions (ADR 0021).
+    const nostr = await waitForNostr();
+    if (!nostr) {
+      throw makeLoginError(
+        'NO_SIGNER',
+        'No Nostr signer detected. Signing in needs a NIP-07 signer — usually a browser extension that holds your Nostr keys. Install one, then try again.'
+      );
     }
 
-    // Step 1: Get pubkey from extension
-    const pubkey = await window.nostr.getPublicKey();
+    // Step 1: Get pubkey from the signer (the user may decline here)
+    let pubkey;
+    try {
+      pubkey = await nostr.getPublicKey();
+    } catch {
+      throw makeLoginError('SIGNER_DECLINED', 'Sign-in was cancelled in your signer. Try again when you’re ready.');
+    }
 
     // Step 2: Verify with server — get challenge
     const verifyRes = await fetch('/api/auth/verify-user', {
@@ -71,10 +99,10 @@ export function AuthProvider({ children }) {
     const verifyData = await verifyRes.json();
 
     if (!verifyData.authorized) {
-      throw new Error(verifyData.message || 'Authentication failed');
+      throw makeLoginError('NOT_AUTHORIZED', verifyData.message || 'You’re not authorized to sign in here.');
     }
 
-    // Step 3: Sign the challenge
+    // Step 3: Sign the challenge (the user may decline here too)
     const event = {
       kind: 22242,
       created_at: Math.floor(Date.now() / 1000),
@@ -83,7 +111,12 @@ export function AuthProvider({ children }) {
       pubkey,
     };
 
-    const signedEvent = await window.nostr.signEvent(event);
+    let signedEvent;
+    try {
+      signedEvent = await nostr.signEvent(event);
+    } catch {
+      throw makeLoginError('SIGNER_DECLINED', 'Sign-in was cancelled in your signer. Try again when you’re ready.');
+    }
 
     // Step 4: Login with signed event
     const loginRes = await fetch('/api/auth/login-user', {
@@ -94,12 +127,25 @@ export function AuthProvider({ children }) {
     const loginData = await loginRes.json();
 
     if (!loginData.success) {
-      throw new Error(loginData.message || 'Login failed');
+      throw makeLoginError('NOT_AUTHORIZED', loginData.message || 'Sign-in was rejected. Please try again.');
     }
 
     // Step 5: Refresh status
     await checkStatus();
   }, []);
+
+  // Public login wrapper: records any failure (as a coded error) for the shared
+  // modal, then re-throws so callers that branch on success — e.g. Tag.jsx
+  // aborting a follow-up action — keep working unchanged.
+  const login = useCallback(async () => {
+    try {
+      setLoginError(null);
+      await runLogin();
+    } catch (err) {
+      setLoginError({ code: err?.code || 'UNKNOWN', message: err?.message || 'Sign-in failed. Please try again.' });
+      throw err;
+    }
+  }, [runLogin]);
 
   const logout = useCallback(async () => {
     try {
@@ -113,6 +159,7 @@ export function AuthProvider({ children }) {
   return (
     <AuthContext.Provider value={{ user, loading, login, logout }}>
       {children}
+      <LoginErrorModal error={loginError} onClose={() => setLoginError(null)} />
     </AuthContext.Provider>
   );
 }

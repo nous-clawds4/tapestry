@@ -23,7 +23,6 @@ export default function Header({ onToggleSidebar }) {
   const { user, loading, login, logout } = useAuth();
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
-  const [loginError, setLoginError] = useState(null);
   const [loggingIn, setLoggingIn] = useState(false);
   const menuRef = useRef(null);
 
@@ -40,11 +39,10 @@ export default function Header({ onToggleSidebar }) {
 
   async function handleLogin() {
     try {
-      setLoginError(null);
       setLoggingIn(true);
-      await login();
-    } catch (err) {
-      setLoginError(err.message);
+      await login(); // failures are surfaced by the shared LoginErrorModal
+    } catch {
+      // already reported via the modal; swallow to avoid an unhandled rejection
     } finally {
       setLoggingIn(false);
     }
@@ -131,9 +129,6 @@ export default function Header({ onToggleSidebar }) {
             >
               {loggingIn ? 'Signing in…' : 'Sign in with Nostr'}
             </button>
-            {loginError && (
-              <span className="signin-error" title={loginError}>⚠️ {loginError}</span>
-            )}
           </div>
         )}
       </div>

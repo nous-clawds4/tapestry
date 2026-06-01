@@ -11,6 +11,10 @@ import useTagMemberSets from '../hooks/useTagMemberSets';
 import { getWotScore } from '../utils/wotScore';
 import { nip19 } from 'nostr-tools';
 
+// How many tag hits to show before collapsing the rest behind a toggle, so a
+// long tag list doesn't push the profile results out of view (all viewports).
+const TAG_COLLAPSE_LIMIT = 3;
+
 /* ── Nostr identity detection ──────────────────────────── */
 
 /**
@@ -490,7 +494,7 @@ function UserMenu({ user, login, logout, pov, setPov, filters, setFilters, sortC
   }, [myWotReady, onWotReady]);
 
   if (!user) {
-    return <button className="bs-link-btn" onClick={login}>Sign in with nostr</button>;
+    return <button className="bs-link-btn" onClick={() => login().catch(() => {})}>Sign in with nostr</button>;
   }
 
   const displayName = user.profile?.name || user.pubkey.slice(0, 8) + '…';
@@ -798,6 +802,9 @@ export default function BrainstormSearch() {
   const [popupTagHits, setPopupTagHits] = useState([]);
   const [popupTagHitsHasMore, setPopupTagHitsHasMore] = useState(false);
   const [resultsTagHits, setResultsTagHits] = useState([]);
+  // Tag hits render above profiles; a long tag list can bury the people below.
+  // Collapse to the first few and let the user expand. Reset on each new search.
+  const [tagsExpanded, setTagsExpanded] = useState(false);
   const suggestRef = useRef(null); // ref for click-outside detection
   const debounceRef = useRef(null);
   const inputRef = useRef(null);
@@ -905,6 +912,7 @@ export default function BrainstormSearch() {
         setResults(sortPopupHits(data.hits || [], trimmed));
         // Story 7 / ADR-0006: tag-results on the Enter-results page.
         setResultsTagHits(data.tagHits || []);
+        setTagsExpanded(false); // collapse tags again for each fresh result set
       } else {
         setResults(prev => {
           const newSlice = sortPopupHits(data.hits || [], trimmed);
@@ -1466,9 +1474,21 @@ export default function BrainstormSearch() {
                 Enter-results page. Sort coherence with the popup is Story 8. */}
             {resultsTagHits.length > 0 && (
               <div className="bs-results-taghits">
-                {resultsTagHits.map((tag) => (
+                {(tagsExpanded ? resultsTagHits : resultsTagHits.slice(0, TAG_COLLAPSE_LIMIT)).map((tag) => (
                   <TagResultRow key={tag.eventId} tag={tag} variant="results" />
                 ))}
+                {resultsTagHits.length > TAG_COLLAPSE_LIMIT && (
+                  <button
+                    type="button"
+                    className="bs-taghits-toggle"
+                    onClick={() => setTagsExpanded(v => !v)}
+                    aria-expanded={tagsExpanded}
+                  >
+                    {tagsExpanded
+                      ? 'Show fewer tags'
+                      : `▸ Show ${resultsTagHits.length - TAG_COLLAPSE_LIMIT} more tags`}
+                  </button>
+                )}
               </div>
             )}
 

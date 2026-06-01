@@ -72,7 +72,7 @@ export default function BrainstormUserMenu({ user, login, logout }) {
   }, [user]);
 
   if (!user) {
-    return <button className="bs-link-btn" onClick={login}>Sign in with nostr</button>;
+    return <button className="bs-link-btn" onClick={() => login().catch(() => {})}>Sign in with nostr</button>;
   }
 
   const displayName = user.profile?.name || user.pubkey.slice(0, 8) + '…';
