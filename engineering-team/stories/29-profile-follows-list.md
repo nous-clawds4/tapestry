@@ -1,9 +1,10 @@
 # Story 29: Follows list on the primary profile page
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-05-28
 **Type:** Feature
 **Amended:** 2026-05-28 — customer-observer support deferred to a follow-up; **v1 is owner-POV only**. See "Deferred to a follow-up" below and ADR 0026.
+**Shipped:** 2026-05-29 — v1 live on brainstorm.world. Feature #226; staging-caught fixes #227 (Name-column /api/profiles 50-cap) + #228 (mobile search height); promotion #229.
 
 ## Background
 The primary user-facing profile (`/user/<pubkey>`) shows a bare **"Following"** count with no way to act on it. To actually *see and evaluate* who someone follows — ranked by local trust signals, from a chosen point of view — users today must leave for the legacy grapevine-analysis page, which is styled and structured for a different context. This story brings that capability into the primary profile experience as a native, standalone follows page, reusing the trust data this instance already computes locally.
