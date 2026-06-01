@@ -60,6 +60,7 @@ const nip51ListExport = require('./nip51-list-export-from-pins.test.js');
 const nip51ListExportPublish = require('./nip51-list-export-from-pins-publish.test.js');
 const pinDetailIntoTagTab = require('./pin-detail-into-tag-pinned-tab.test.js');
 const collapseIntoExport = require('./collapse-into-export-concept.test.js');
+const loginFailureAndTagCollapse = require('./login-failure-and-tag-collapse.test.js');
 
 async function main() {
   console.log('Running Brainstorm tests...');
@@ -117,6 +118,7 @@ async function main() {
   const nip51ListExportPublishResult = await nip51ListExportPublish.run();
   const pinDetailIntoTagTabResult = await pinDetailIntoTagTab.run();
   const collapseIntoExportResult = await collapseIntoExport.run();
+  const loginFailureAndTagCollapseResult = await loginFailureAndTagCollapse.run();
 
   console.log('\nTest Results');
   console.log('-------------');
@@ -192,6 +194,7 @@ async function main() {
   console.log(`nip51-list-export-from-pins-publish suite:       ${nleLine}`);
   console.log(`pin-detail-into-tag-pinned-tab suite:            ${pinDetailIntoTagTabResult.fail === 0 ? 'PASS' : 'FAIL'} (${pinDetailIntoTagTabResult.pass} passed, ${pinDetailIntoTagTabResult.fail} failed)`);
   console.log(`collapse-into-export-concept suite:              ${collapseIntoExportResult.fail === 0 ? 'PASS' : 'FAIL'} (${collapseIntoExportResult.pass} passed, ${collapseIntoExportResult.fail} failed)`);
+  console.log(`login-failure-and-tag-collapse suite:            ${loginFailureAndTagCollapseResult.fail === 0 ? 'PASS' : 'FAIL'} (${loginFailureAndTagCollapseResult.pass} passed, ${loginFailureAndTagCollapseResult.fail} failed)`);
 
   const overallOk = configOk
     && profileTagsResult.fail === 0
@@ -228,7 +231,8 @@ async function main() {
     && nip51ListExportResult.fail === 0
     && nip51ListExportPublishResult.fail === 0
     && pinDetailIntoTagTabResult.fail === 0
-    && collapseIntoExportResult.fail === 0;
+    && collapseIntoExportResult.fail === 0
+    && loginFailureAndTagCollapseResult.fail === 0;
   console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);
   process.exit(overallOk ? 0 : 1);
 }
