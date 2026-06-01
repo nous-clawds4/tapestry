@@ -220,3 +220,32 @@ Implementation landed in the same change; Review pending.
 **Artifacts:**
 - Story: `engineering-team/stories/22-follow-pack-export-target.md`
 - ADR: `engineering-team/decisions/0020-follow-pack-export-target.md`
+
+---
+
+## 2026-06-01 — Two UI bugs: silent login failure + mobile tag crowding
+
+**Raw request (verbatim):**
+
+> Two bugs:
+> - when someone clicks login button but has no nip-07, nothing happens.
+>   We need to show an indication of why login failed and what to do
+> - when searching on mobile and lots of tags show up, they crowd out the
+>   user profiles. [...] maybe we have a "show more" collapse for tags after
+>   the first n on Mobile? want it to be clear at a glance that the search
+>   results are a mix of things - if you only see the tags you don't realize
+>   there may be profiles lower down
+
+**UX decisions captured with the user (via Q&A):** vendor-neutral copy (no
+named extensions); handle ALL login failure modes (no signer / declined /
+server-rejected); tag fix is collapse-only (no section labels), all viewports,
+show first 3 then a toggle.
+
+**Classification:** Two bugs, batched on `bugfixes`. Non-obvious enough that the
+user requested an explicit Architecture pass ("design these fixes properly").
+**Strictness:** Standard.
+**Phase path:** Architecture done as ADR 0021. **No Product Owner story** — the
+user elected to proceed without one. Test Design → Implementation → Review to
+follow. (If a story is ever backfilled, link ADR 0021 into it.)
+**Artifacts:**
+- ADR: `engineering-team/decisions/0021-login-failure-surfacing-and-tag-result-collapse.md`
