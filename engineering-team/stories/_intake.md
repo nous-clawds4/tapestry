@@ -249,3 +249,5 @@ user elected to proceed without one. Test Design → Implementation → Review t
 follow. (If a story is ever backfilled, link ADR 0021 into it.)
 **Artifacts:**
 - ADR: `engineering-team/decisions/0021-login-failure-surfacing-and-tag-result-collapse.md`
+- Test plan: `engineering-team/stories/login-failure-and-tag-collapse.test-plan.md`
+- Review (PASS): `engineering-team/reviews/0021-login-failure-surfacing-and-tag-result-collapse.md`
