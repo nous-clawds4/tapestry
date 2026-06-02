@@ -6,6 +6,7 @@ import useProfiles from '../../hooks/useProfiles';
 import useNip05Verification from '../../hooks/useNip05Verification';
 import { useTrust } from '../../context/TrustContext';
 import { useConfig } from '../../context/ConfigContext';
+import { toExternalUrl } from '../../utils/url';
 import { useAuth } from '../../context/AuthContext';
 import { useCypher } from '../../hooks/useCypher';
 import { queryRelay } from '../../api/relay';
@@ -157,7 +158,7 @@ export default function UserDetail() {
               {profile?.website && (
                 <tr>
                   <td className="detail-label">Website</td>
-                  <td><a href={profile.website} target="_blank" rel="noopener noreferrer">{profile.website}</a></td>
+                  <td><a href={toExternalUrl(profile.website)} target="_blank" rel="noopener noreferrer">{profile.website}</a></td>
                 </tr>
               )}
               {profile?.lud16 && (

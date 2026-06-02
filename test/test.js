@@ -48,6 +48,7 @@ const scheduledTaskTimeoutPropagation = require('./scheduled-task-timeout-propag
 const killTimeoutOrphansByDefault = require('./kill-timeout-orphans-by-default.test.js');
 const taskQueueSemaphoreProtectionAudit = require('./task-queue-semaphore-protection-audit.test.js');
 const profileFollowsList = require('./profile-follows-list.test.js');
+const profileWebsiteLink = require('./profile-website-link.test.js');
 
 async function main() {
   console.log('Running Brainstorm tests...\n');
@@ -130,6 +131,9 @@ async function main() {
   console.log('\nprofile-follows-list suite:');
   const profileFollowsListResult = await profileFollowsList.run();
 
+  console.log('\nprofile-website-link suite:');
+  const profileWebsiteLinkResult = await profileWebsiteLink.run();
+
   console.log('\nTest Results');
   console.log('-------------');
   console.log(`Configuration Loading:                           ${configOk ? 'PASS' : 'FAIL'}`);
@@ -208,6 +212,9 @@ async function main() {
   console.log(
     `profile-follows-list suite:                      ${profileFollowsListResult.fail === 0 ? 'PASS' : 'FAIL'} (${profileFollowsListResult.pass} passed, ${profileFollowsListResult.fail} failed)`
   );
+  console.log(
+    `profile-website-link suite:                      ${profileWebsiteLinkResult.fail === 0 ? 'PASS' : 'FAIL'} (${profileWebsiteLinkResult.pass} passed, ${profileWebsiteLinkResult.fail} failed)`
+  );
 
   const overallOk =
     configOk &&
@@ -235,7 +242,8 @@ async function main() {
     scheduledTaskTimeoutPropagationResult.fail === 0 &&
     killTimeoutOrphansByDefaultResult.fail === 0 &&
     taskQueueSemaphoreProtectionAuditResult.fail === 0 &&
-    profileFollowsListResult.fail === 0;
+    profileFollowsListResult.fail === 0 &&
+    profileWebsiteLinkResult.fail === 0;
   console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);
   process.exit(overallOk ? 0 : 1);
 }
