@@ -12,6 +12,7 @@ const {
   calculateBountyPaymentState,
   canAcceptNewClaimFrom,
 } = require('../src/lib/bounty-policy');
+const { _private: bountyApi } = require('../src/api/bounties');
 
 // Mock environment variables for testing
 process.env.BRAINSTORM_RELAY_URL = 'wss://test-relay.com';
@@ -140,18 +141,34 @@ function testBountyPaymentPolicy() {
   }
 }
 
+function testEligibleBountyFiltering() {
+  try {
+    const viewer = 'a'.repeat(64);
+    assert.strictEqual(bountyApi.isOwnBounty({ issuer_pubkey: viewer }, viewer), true);
+    assert.strictEqual(bountyApi.isOwnBounty({ issuer_pubkey: viewer.toUpperCase() }, viewer), true);
+    assert.strictEqual(bountyApi.isOwnBounty({ issuer_pubkey: 'b'.repeat(64) }, viewer), false);
+    assert.strictEqual(bountyApi.isOwnBounty({}, viewer), false);
+    return true;
+  } catch (error) {
+    console.error('Eligible bounty filtering failed:', error.message);
+    return false;
+  }
+}
+
 // Run tests
 console.log('Running Brainstorm tests...');
 const configTest = testConfigLoading();
 const bountyFieldsTest = testBountyFieldValidation();
 const bountyPolicyTest = testBountyPaymentPolicy();
+const eligibleBountyFilteringTest = testEligibleBountyFiltering();
 
 console.log('\nTest Results:');
 console.log('-------------');
 console.log(`Configuration Loading: ${configTest ? 'PASS' : 'FAIL'}`);
 console.log(`Bounty Field Validation: ${bountyFieldsTest ? 'PASS' : 'FAIL'}`);
 console.log(`Bounty Payment Policy: ${bountyPolicyTest ? 'PASS' : 'FAIL'}`);
-console.log(`Overall: ${configTest && bountyFieldsTest && bountyPolicyTest ? 'PASS' : 'FAIL'}`);
+console.log(`Eligible Bounty Filtering: ${eligibleBountyFilteringTest ? 'PASS' : 'FAIL'}`);
+console.log(`Overall: ${configTest && bountyFieldsTest && bountyPolicyTest && eligibleBountyFilteringTest ? 'PASS' : 'FAIL'}`);
 
 // Exit with appropriate code
-process.exit(configTest && bountyFieldsTest && bountyPolicyTest ? 0 : 1);
+process.exit(configTest && bountyFieldsTest && bountyPolicyTest && eligibleBountyFilteringTest ? 0 : 1);

@@ -66,6 +66,10 @@ function bountyForClient(bounty, paymentState, { now = Math.floor(Date.now() / 1
   };
 }
 
+function isOwnBounty(bounty, viewer) {
+  return bounty?.issuer_pubkey?.toLowerCase() === viewer;
+}
+
 async function paymentStateForBounty(bounty, options = {}) {
   const claims = await listClaimsFor(bounty, options);
   return {
@@ -139,6 +143,7 @@ async function handleEligibleBounties(req, res) {
   const open = listOpenBounties({ limit: 500 });
   const now = Math.floor(Date.now() / 1000);
   const checked = await Promise.all(open.map(async b => {
+    if (isOwnBounty(b, viewer)) return null;
     const issuerRank = await rank(b.issuer_pubkey, viewer);
     if (issuerRank < 2) return null;
     const { paymentState } = await paymentStateForBounty(b, { trustFilter: true });
@@ -294,4 +299,4 @@ function register(app) {
   app.get('/api/bounties/:id', handleGetBounty);
 }
 
-module.exports = { register };
+module.exports = { register, _private: { isOwnBounty } };
