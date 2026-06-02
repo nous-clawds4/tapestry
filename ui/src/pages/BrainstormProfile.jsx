@@ -8,6 +8,7 @@ import useUserCounts from '../hooks/useUserCounts';
 import useNip05Verification from '../hooks/useNip05Verification';
 import ConfirmDialog from '../components/ConfirmDialog';
 import ReportModal from '../components/ReportModal';
+import { toExternalUrl } from '../utils/url';
 
 /* ── Helpers ──────────────────────────────────────────── */
 
@@ -302,7 +303,7 @@ export default function BrainstormProfile() {
                 {profile?.website && (
                   <div className="bsp-id-row">
                     <span className="bsp-id-label">Website</span>
-                    <a href={profile.website} target="_blank" rel="noopener noreferrer" className="bsp-id-link">
+                    <a href={toExternalUrl(profile.website)} target="_blank" rel="noopener noreferrer" className="bsp-id-link">
                       {profile.website.replace(/^https?:\/\//, '').replace(/\/$/, '')}
                     </a>
                   </div>
