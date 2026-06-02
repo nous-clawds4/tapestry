@@ -1,10 +1,13 @@
 /**
  * Profile fetch endpoint with in-memory cache.
  *
- * GET /api/profiles?pubkeys=hex1,hex2,...
+ * GET /api/profiles?pubkeys=hex1,hex2,...[&fresh=1]
  *
- * Fetches kind:0 profiles from PROFILE_RELAYS (defaults.conf),
- * caches in memory with 1-hour TTL.
+ * Fetches kind:0 profiles from PROFILE_RELAYS AND the local strfry store, then
+ * keeps the newest by created_at per pubkey (rev. 2, Finding 1 — local writes
+ * must not be masked by a stale external profile). Caches in memory (5-min TTL).
+ * `?fresh=1` bypasses the cache; invalidateProfileCache() lets the kind-0 save
+ * path drop a stale entry the moment a profile is republished.
  */
 
 const NOSTR_TOOLS_PATH = '/usr/local/lib/node_modules/brainstorm/node_modules/nostr-tools';
@@ -17,6 +20,7 @@ if (typeof globalThis.WebSocket === 'undefined') {
 
 const { SimplePool } = require(NOSTR_TOOLS_PATH);
 const { getSettings } = require('../../config/settings');
+const { mergeNewestByPubkey } = require('../../lib/receiving/newest');
 
 // --- Config ---
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
@@ -40,94 +44,107 @@ function getProfileRelays() {
 }
 
 /**
+ * Gather kind:0 events for the given pubkeys from BOTH the local strfry store
+ * and the external profile relays. Local is collected first so it wins ties
+ * (it's the source of truth for a just-published profile); a genuinely newer
+ * external profile still wins on a strictly-greater created_at. Best-effort:
+ * a failure of either source is logged, not thrown.
+ * Returns a flat array of events.
+ */
+async function collectKind0Events(needed) {
+  const events = [];
+
+  // Local strfry store (always — newest-wins decides, not "missing only").
+  try {
+    const { execSync } = require('child_process');
+    const filter = JSON.stringify({ kinds: [0], authors: needed });
+    // strfry scan takes a nostr filter as a CLI argument and outputs matching events as JSONL
+    const raw = execSync(`strfry scan '${filter.replace(/'/g, "\\'")}'`, {
+      timeout: 5000, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'],
+    });
+    for (const line of raw.trim().split('\n').filter(Boolean)) {
+      try {
+        const ev = JSON.parse(line);
+        if (ev && ev.kind === 0 && needed.includes(ev.pubkey)) events.push(ev);
+      } catch {}
+    }
+  } catch (localErr) {
+    console.warn('fetchProfiles: local strfry scan error:', localErr.message);
+  }
+
+  // External profile relays.
+  const profileRelays = getProfileRelays();
+  const pool = new SimplePool();
+  try {
+    const ext = await Promise.race([
+      pool.querySync(profileRelays, { kinds: [0], authors: needed }),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), FETCH_TIMEOUT_MS)),
+    ]);
+    if (Array.isArray(ext)) {
+      for (const ev of ext) if (ev && ev.kind === 0 && needed.includes(ev.pubkey)) events.push(ev);
+    }
+  } catch (err) {
+    console.warn('fetchProfiles: relay fetch error:', err.message);
+  } finally {
+    try { pool.close(profileRelays); } catch {}
+  }
+
+  return events;
+}
+
+/**
  * Fetch profiles for a list of pubkeys, using cache where possible.
+ * @param {string[]} pubkeys
+ * @param {object} [opts]
+ * @param {boolean} [opts.bypassCache=false] skip the read-through cache (?fresh=1)
  * Returns Map<pubkey, profileObj>.
  */
-async function getProfiles(pubkeys) {
+async function getProfiles(pubkeys, { bypassCache = false } = {}) {
   const now = Date.now();
   const results = new Map();
   const needed = [];
 
   for (const pk of pubkeys) {
-    const cached = cache.get(pk);
-    if (cached && (now - cached.fetchedAt) < CACHE_TTL_MS) {
-      results.set(pk, cached.profile);
-    } else {
-      needed.push(pk);
+    if (!bypassCache) {
+      const cached = cache.get(pk);
+      if (cached && (now - cached.fetchedAt) < CACHE_TTL_MS) {
+        results.set(pk, cached.profile);
+        continue;
+      }
     }
+    needed.push(pk);
   }
 
   if (needed.length === 0) return results;
 
-  // Fetch from relays
-  const profileRelays = getProfileRelays();
-  const pool = new SimplePool();
-  try {
-    const events = await Promise.race([
-      pool.querySync(profileRelays, { kinds: [0], authors: needed }),
-      new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), FETCH_TIMEOUT_MS)),
-    ]);
+  const events = await collectKind0Events(needed);
+  const latest = mergeNewestByPubkey(events); // pubkey -> newest kind:0 event across both sources
 
-    // Keep only the latest kind:0 per pubkey
-    const latest = new Map();
-    for (const ev of events) {
-      const prev = latest.get(ev.pubkey);
-      if (!prev || ev.created_at > prev.created_at) {
-        latest.set(ev.pubkey, ev);
-      }
-    }
+  for (const [pk, ev] of latest) {
+    let profile = {};
+    try { profile = JSON.parse(ev.content); } catch {}
+    cache.set(pk, { profile, fetchedAt: now });
+    results.set(pk, profile);
+  }
 
-    for (const [pk, ev] of latest) {
-      let profile = {};
-      try { profile = JSON.parse(ev.content); } catch {}
-      cache.set(pk, { profile, fetchedAt: now });
-      results.set(pk, profile);
+  // Cache misses as empty (so we don't re-fetch constantly)
+  for (const pk of needed) {
+    if (!results.has(pk)) {
+      cache.set(pk, { profile: null, fetchedAt: now });
+      results.set(pk, null);
     }
-
-    // For any still-missing pubkeys, try local strfry via CLI scan with proper filter
-    const stillMissing = needed.filter(pk => !results.has(pk));
-    if (stillMissing.length > 0) {
-      try {
-        const { execSync } = require('child_process');
-        const filter = JSON.stringify({ kinds: [0], authors: stillMissing });
-        // strfry scan takes a nostr filter as a CLI argument and outputs matching events as JSONL
-        const raw = execSync(`strfry scan '${filter.replace(/'/g, "\\'")}'`, {
-          timeout: 5000, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe']
-        });
-        const lines = raw.trim().split('\n').filter(Boolean);
-        for (const line of lines) {
-          try {
-            const ev = JSON.parse(line);
-            if (ev.kind === 0 && stillMissing.includes(ev.pubkey)) {
-              let profile = {};
-              try { profile = JSON.parse(ev.content); } catch {}
-              if (!results.has(ev.pubkey)) {
-                cache.set(ev.pubkey, { profile, fetchedAt: now });
-                results.set(ev.pubkey, profile);
-              }
-            }
-          } catch {}
-        }
-      } catch (localErr) {
-        console.warn('fetchProfiles: local strfry scan fallback error:', localErr.message);
-      }
-    }
-
-    // Cache misses as empty (so we don't re-fetch constantly)
-    for (const pk of needed) {
-      if (!results.has(pk)) {
-        cache.set(pk, { profile: null, fetchedAt: now });
-        results.set(pk, null);
-      }
-    }
-  } catch (err) {
-    console.warn('fetchProfiles: relay fetch error:', err.message);
-    // Return what we have from cache; don't cache failures
-  } finally {
-    pool.close(profileRelays);
   }
 
   return results;
+}
+
+/**
+ * Drop cached profiles for the given pubkey(s). Called by the kind-0 save path
+ * so a freshly-published profile is re-read on the next request (Finding 1).
+ */
+function invalidateProfileCache(pubkeys) {
+  const list = Array.isArray(pubkeys) ? pubkeys : [pubkeys];
+  for (const pk of list) if (pk) cache.delete(pk);
 }
 
 /**
@@ -149,8 +166,11 @@ async function handleFetchProfiles(req, res) {
     return res.status(400).json({ success: false, error: 'max 50 pubkeys per request' });
   }
 
+  // ?fresh=1 (or true) bypasses the cache — used right after a profile save.
+  const bypassCache = req.query.fresh === '1' || req.query.fresh === 'true';
+
   try {
-    const profileMap = await getProfiles(pubkeys);
+    const profileMap = await getProfiles(pubkeys, { bypassCache });
     const profiles = {};
     for (const [pk, p] of profileMap) {
       profiles[pk] = p;
@@ -162,4 +182,4 @@ async function handleFetchProfiles(req, res) {
   }
 }
 
-module.exports = { handleFetchProfiles };
+module.exports = { handleFetchProfiles, getProfiles, invalidateProfileCache };
