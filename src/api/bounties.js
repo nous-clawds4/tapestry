@@ -8,12 +8,16 @@ const {
   listAllBounties,
   getBounty,
   bountiesByIssuer,
-  bountiesByListCoordinates,
   markFulfilled,
 } = require('../db/bounties');
 const { rank } = require('../lib/trust-rank');
-
-const COORDINATE_RE = /^(\d+):([0-9a-f]{64}):(.+)$/;
+const { normalizeBountyCreatePayload } = require('../lib/bounty-fields');
+const {
+  annotateClaimsWithPaymentState,
+  calculateBountyPaymentState,
+  canAcceptNewClaimFrom,
+  publicPaymentState,
+} = require('../lib/bounty-policy');
 
 function requireAuthed(req, res, next) {
   if (!req.session?.authenticated || !req.session?.pubkey) {
@@ -46,18 +50,28 @@ function parseZapRequestPubkey(receipt) {
   try { return JSON.parse(description).pubkey ?? null; } catch { return null; }
 }
 
-async function isBountyFulfilled(bounty) {
-  const receipts = await scanStrfry({
-    kinds: [9735],
-    '#a': [bounty.list_coordinate],
-  });
-  return receipts.some(r => parseZapRequestPubkey(r) === bounty.issuer_pubkey);
-}
-
-function deriveStatus(bounty, { fulfilled = false, now = Math.floor(Date.now() / 1000) } = {}) {
-  if (fulfilled) return 'fulfilled';
+function deriveStatus(bounty, { paymentState = null, now = Math.floor(Date.now() / 1000) } = {}) {
+  if (paymentState?.fulfilled) return 'fulfilled';
   if (bounty.expiration && bounty.expiration < now) return 'expired';
   return bounty.status;
+}
+
+function bountyForClient(bounty, paymentState, { now = Math.floor(Date.now() / 1000), extra = {} } = {}) {
+  const derivedStatus = deriveStatus(bounty, { paymentState, now });
+  return {
+    ...bounty,
+    ...extra,
+    derivedStatus,
+    paymentState: publicPaymentState(paymentState),
+  };
+}
+
+async function paymentStateForBounty(bounty, options = {}) {
+  const claims = await listClaimsFor(bounty, options);
+  return {
+    claims,
+    paymentState: calculateBountyPaymentState(bounty, claims),
+  };
 }
 
 async function listClaimsFor(bounty, { trustFilter = true } = {}) {
@@ -74,39 +88,23 @@ async function listClaimsFor(bounty, { trustFilter = true } = {}) {
       if (r < 2) continue;
     }
     const receipts = await scanStrfry({ kinds: [9735], '#e': [item.id] });
-    const zapReceipt = receipts.find(r => parseZapRequestPubkey(r) === bounty.issuer_pubkey) ?? receipts[0] ?? null;
+    const zapReceipt = receipts.find(r => parseZapRequestPubkey(r) === bounty.issuer_pubkey) ?? null;
     results.push({ event: item, zapReceipt });
   }
   return results;
 }
 
 async function handleCreateBounty(req, res) {
-  const { listCoordinate, amountSats, criteria, expiration } = req.body || {};
-
-  if (!listCoordinate || !COORDINATE_RE.test(listCoordinate)) {
-    return res.status(400).json({ success: false, error: 'listCoordinate must be <kind>:<pubkey>:<dtag>' });
-  }
-  const amt = Number(amountSats);
-  if (!Number.isInteger(amt) || amt <= 0) {
-    return res.status(400).json({ success: false, error: 'amountSats must be a positive integer' });
-  }
-  if (typeof criteria !== 'string' || !criteria.trim()) {
-    return res.status(400).json({ success: false, error: 'criteria is required' });
-  }
-  let exp = null;
-  if (expiration !== undefined && expiration !== null && expiration !== '') {
-    exp = Number(expiration);
-    if (!Number.isInteger(exp) || exp <= 0) {
-      return res.status(400).json({ success: false, error: 'expiration must be a unix timestamp' });
-    }
+  let payload;
+  try {
+    payload = normalizeBountyCreatePayload(req.body || {});
+  } catch (err) {
+    return res.status(err.statusCode || 400).json({ success: false, error: err.message });
   }
 
   const row = createBounty({
     issuerPubkey: req.session.pubkey,
-    listCoordinate,
-    amountSats: amt,
-    criteria: criteria.trim(),
-    expiration: exp,
+    ...payload,
   });
   res.json({ success: true, bounty: row });
 }
@@ -118,10 +116,15 @@ async function handleListBounties(req, res) {
   const now = Math.floor(Date.now() / 1000);
 
   const enriched = await Promise.all(rows.map(async b => {
-    const fulfilled = await isBountyFulfilled(b);
-    return { ...b, derivedStatus: deriveStatus(b, { fulfilled, now }) };
+    const { paymentState } = await paymentStateForBounty(b, { trustFilter: true });
+    const derivedStatus = deriveStatus(b, { paymentState, now });
+    if (derivedStatus === 'fulfilled' && b.status !== 'fulfilled') markFulfilled(b.id);
+    return bountyForClient(b, paymentState, { now });
   }));
-  res.json({ success: true, bounties: enriched });
+  const filtered = statusFilter === 'open'
+    ? enriched.filter(b => b.derivedStatus === 'open')
+    : enriched;
+  res.json({ success: true, bounties: filtered });
 }
 
 async function handleEligibleBounties(req, res) {
@@ -134,13 +137,21 @@ async function handleEligibleBounties(req, res) {
   }
 
   const open = listOpenBounties({ limit: 500 });
+  const now = Math.floor(Date.now() / 1000);
   const checked = await Promise.all(open.map(async b => {
     const issuerRank = await rank(b.issuer_pubkey, viewer);
-    return { bounty: b, issuerRank };
+    if (issuerRank < 2) return null;
+    const { paymentState } = await paymentStateForBounty(b, { trustFilter: true });
+    const bounty = bountyForClient(b, paymentState, { now, extra: { issuerRank } });
+    if (bounty.derivedStatus === 'fulfilled' && b.status !== 'fulfilled') markFulfilled(b.id);
+    return {
+      bounty,
+      canClaim: bounty.derivedStatus === 'open' && canAcceptNewClaimFrom(paymentState, viewer),
+    };
   }));
   const eligible = checked
-    .filter(({ issuerRank }) => issuerRank >= 2)
-    .map(({ bounty, issuerRank }) => ({ ...bounty, issuerRank }));
+    .filter(result => result?.canClaim)
+    .map(({ bounty }) => bounty);
   res.json({ success: true, bounties: eligible });
 }
 
@@ -148,24 +159,29 @@ async function handleGetBounty(req, res) {
   const b = getBounty(req.params.id);
   if (!b) return res.status(404).json({ success: false, error: 'bounty not found' });
 
-  const fulfilled = await isBountyFulfilled(b);
-  if (fulfilled && b.status !== 'fulfilled') markFulfilled(b.id);
-  const claims = await listClaimsFor(b, { trustFilter: true });
+  const { claims, paymentState } = await paymentStateForBounty(b, { trustFilter: true });
+  const derivedStatus = deriveStatus(b, { paymentState });
+  if (derivedStatus === 'fulfilled' && b.status !== 'fulfilled') markFulfilled(b.id);
   res.json({
     success: true,
-    bounty: { ...b, derivedStatus: deriveStatus(b, { fulfilled }) },
-    claims,
+    bounty: bountyForClient(b, paymentState),
+    claims: annotateClaimsWithPaymentState(claims, paymentState),
   });
 }
 
 async function handlePaymentsDue(req, res) {
   const mine = bountiesByIssuer(req.session.pubkey);
-  const open = mine.filter(b => b.status !== 'expired');
+  const now = Math.floor(Date.now() / 1000);
   const result = [];
-  for (const b of open) {
-    const claims = await listClaimsFor(b, { trustFilter: true });
-    const pending = claims.filter(c => !c.zapReceipt);
-    if (pending.length > 0) result.push({ bounty: b, pendingClaims: pending });
+  for (const b of mine) {
+    const { paymentState } = await paymentStateForBounty(b, { trustFilter: true });
+    const derivedStatus = deriveStatus(b, { paymentState, now });
+    if (derivedStatus === 'fulfilled' && b.status !== 'fulfilled') markFulfilled(b.id);
+    if (derivedStatus !== 'open') continue;
+    const pending = paymentState.payableClaims;
+    if (pending.length > 0) {
+      result.push({ bounty: bountyForClient(b, paymentState, { now }), pendingClaims: pending });
+    }
   }
   res.json({ success: true, items: result });
 }
@@ -219,36 +235,43 @@ async function handlePaymentsToMe(req, res) {
   const trustedPairs = candidatePairs.filter((_, i) => ranks[i] >= 2);
   if (!trustedPairs.length) return res.json(empty);
 
-  // Per-claim receipt scans + per-bounty fulfilled checks. We need both: the
-  // per-claim receipt tells us if THIS user got paid; isBountyFulfilled tells
-  // us if SOME OTHER claim was paid (so the bounty is closed, not pending).
   const uniqueBountiesById = new Map();
   for (const p of trustedPairs) uniqueBountiesById.set(p.bounty.id, p.bounty);
   const uniqueBounties = [...uniqueBountiesById.values()];
 
-  const [receiptResults, fulfilledChecks] = await Promise.all([
-    Promise.all(trustedPairs.map(p => scanStrfry({ kinds: [9735], '#e': [p.claim.id] }))),
-    Promise.all(uniqueBounties.map(b => isBountyFulfilled(b))),
-  ]);
-  const fulfilledByBountyId = new Map(uniqueBounties.map((b, i) => [b.id, fulfilledChecks[i]]));
-
   const now = Math.floor(Date.now() / 1000);
+  const bountyStateEntries = await Promise.all(uniqueBounties.map(async bounty => {
+    const { claims, paymentState } = await paymentStateForBounty(bounty, { trustFilter: true });
+    const derivedStatus = deriveStatus(bounty, { paymentState, now });
+    if (derivedStatus === 'fulfilled' && bounty.status !== 'fulfilled') markFulfilled(bounty.id);
+    const annotatedClaims = annotateClaimsWithPaymentState(claims, paymentState);
+    return [bounty.id, {
+      bounty: bountyForClient(bounty, paymentState, { now }),
+      claimsById: new Map(annotatedClaims.map(claim => [claim.event.id, claim])),
+    }];
+  }));
+  const bountyStates = new Map(bountyStateEntries);
+
   const pastDue = [];
   const pending = [];
   const paid = [];
   const closed = [];
 
-  for (let i = 0; i < trustedPairs.length; i++) {
-    const { bounty, claim } = trustedPairs[i];
-    const receipts = receiptResults[i];
-    const zap = receipts.find(r => parseZapRequestPubkey(r) === bounty.issuer_pubkey) ?? null;
-    const ds = deriveStatus(bounty, { fulfilled: fulfilledByBountyId.get(bounty.id), now });
-    const row = { bounty, claim: { event: claim, zapReceipt: zap } };
+  for (const { bounty, claim } of trustedPairs) {
+    const state = bountyStates.get(bounty.id);
+    if (!state) continue;
+    const annotatedClaim = state.claimsById.get(claim.id) ?? {
+      event: claim,
+      zapReceipt: null,
+      paymentStatus: 'closed',
+      closedReason: 'cap',
+    };
+    const row = { bounty: state.bounty, claim: annotatedClaim };
 
-    if (zap) paid.push(row);
-    else if (ds === 'fulfilled') closed.push(row);
-    else if (ds === 'expired') pastDue.push(row);
-    else pending.push(row);
+    if (annotatedClaim.zapReceipt || annotatedClaim.paymentStatus === 'paid') paid.push(row);
+    else if (state.bounty.derivedStatus === 'expired') pastDue.push(row);
+    else if (annotatedClaim.paymentStatus === 'payable') pending.push(row);
+    else closed.push(row);
   }
 
   const byClaimAgeDesc = (a, b) => b.claim.event.created_at - a.claim.event.created_at;

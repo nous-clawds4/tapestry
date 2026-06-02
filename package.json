@@ -11,6 +11,11 @@
   },
   "scripts": {
     "test": "node test/test.js",
+    "test:receiving": "node test/receiving.test.js",
+    "test:receiving:e2e": "node test/receiving.e2e.js",
+    "test:receiving:probe": "node test/receiving.probe.e2e.js",
+    "receiving": "node bin/receiving.js",
+    "paycode": "node bin/paycode.js",
     "test:playwright": "playwright test",
     "test:playwright:ui": "playwright test --ui",
     "test:playwright:headed": "playwright test --headed",

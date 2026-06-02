@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import Breadcrumbs from '../../components/Breadcrumbs';
 import { childDTag, randomDTag } from '../../utils/dtag';
 import { getBounty } from '../../api/bounties';
+import { capText, maxRewardsText, rewardText } from '../../utils/bountyTerms';
 
 function getTag(event, name, index = 1) {
   const tag = event.tags?.find(t => t[0] === name);
@@ -218,7 +219,10 @@ export default function NewDListItem() {
           <div style={{ fontSize: '0.85rem', opacity: 0.8 }}>
             Issuer: <code>{bountyInfo.bounty.issuer_pubkey.slice(0, 8)}…</code>
             {' · '}
-            Reward: <strong style={{ color: '#f2a134' }}>{bountyInfo.bounty.amount_sats.toLocaleString()} sats</strong>
+            Reward: <strong style={{ color: '#f2a134' }}>{rewardText(bountyInfo.bounty)}</strong>
+            {' · '}
+            {capText(bountyInfo.bounty)}
+            {maxRewardsText(bountyInfo.bounty) && ` / ${maxRewardsText(bountyInfo.bounty)}`}
             {' · '}
             The issuer (or anyone) may zap you if they approve your submission.
           </div>

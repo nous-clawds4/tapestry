@@ -1,17 +1,19 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Breadcrumbs from '../../components/Breadcrumbs';
 import PaymentCode from '../../components/PaymentCode';
 import { useAuth } from '../../context/AuthContext';
 import { getPaymentsDue } from '../../api/bounties';
 import { zapContributor } from '../../utils/zap';
+import { capText, formatSats, maxRewardsText, remainingRewardsText, rewardScopeLabel } from '../../utils/bountyTerms';
 
 function short(pk) { return pk ? pk.slice(0, 8) + '…' : '—'; }
 
-function PendingClaimRow({ claim, bountyAmount }) {
+function PendingClaimRow({ claim, bounty }) {
   const [busy, setBusy] = useState(false);
   const [payment, setPayment] = useState(null);
   const [error, setError] = useState(null);
+  const bountyAmount = claim.paymentAmountSats ?? bounty.amount_sats;
 
   async function handleZap() {
     setBusy(true);
@@ -21,6 +23,7 @@ function PendingClaimRow({ claim, bountyAmount }) {
         recipientPubkeyHex: claim.event.pubkey,
         amountSats: bountyAmount,
         claimEventId: claim.event.id,
+        listCoordinate: bounty.list_coordinate,
       });
       setPayment(result);
     } catch (err) {
@@ -42,7 +45,7 @@ function PendingClaimRow({ claim, bountyAmount }) {
           disabled={busy}
           style={{ padding: '0.35rem 0.8rem', background: '#f2a134', color: '#0d1117', border: 'none', borderRadius: 4, fontWeight: 700, cursor: busy ? 'wait' : 'pointer' }}
         >
-          {busy ? 'Loading…' : `Zap ${bountyAmount}`}
+          {busy ? 'Loading…' : `Zap ${formatSats(bountyAmount)} sats`}
         </button>
       </div>
       {payment && <PaymentCode payment={payment} />}
@@ -57,18 +60,15 @@ export default function PaymentsDue() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const refresh = useCallback(() => {
-    setLoading(true);
-    getPaymentsDue()
-      .then(setItems)
-      .catch(e => setError(e.message))
-      .finally(() => setLoading(false));
-  }, []);
-
   useEffect(() => {
     if (authLoading || !user?.pubkey) return;
-    refresh();
-  }, [authLoading, user?.pubkey, refresh]);
+    let cancelled = false;
+    getPaymentsDue()
+      .then(nextItems => { if (!cancelled) setItems(nextItems); })
+      .catch(e => { if (!cancelled) setError(e.message); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [authLoading, user?.pubkey]);
 
   if (authLoading) return <div className="page"><Breadcrumbs /><p>Loading…</p></div>;
   if (!user?.pubkey) {
@@ -96,10 +96,18 @@ export default function PaymentsDue() {
               </Link>
               <div style={{ fontSize: '0.8rem', opacity: 0.6, fontFamily: 'monospace' }}>{bounty.list_coordinate}</div>
             </div>
-            <div style={{ color: '#f2a134', fontWeight: 700 }}>{bounty.amount_sats.toLocaleString()} sats</div>
+            <div style={{ color: '#f2a134', fontWeight: 700, textAlign: 'right' }}>
+              <div>{formatSats(bounty.amount_sats)} sats</div>
+              <div style={{ fontSize: '0.75rem', opacity: 0.7 }}>{rewardScopeLabel(bounty)}</div>
+            </div>
+          </div>
+          <div style={{ fontSize: '0.8rem', opacity: 0.7, marginBottom: '0.5rem' }}>
+            {capText(bounty)}
+            {remainingRewardsText(bounty) && <span> / {remainingRewardsText(bounty)}</span>}
+            {maxRewardsText(bounty) && <span> / {maxRewardsText(bounty)}</span>}
           </div>
           {pendingClaims.map(c => (
-            <PendingClaimRow key={c.event.id} claim={c} bountyAmount={bounty.amount_sats} />
+            <PendingClaimRow key={c.event.id} claim={c} bounty={bounty} />
           ))}
         </div>
       ))}
