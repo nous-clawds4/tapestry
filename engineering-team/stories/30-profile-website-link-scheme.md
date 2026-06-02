@@ -44,4 +44,4 @@ None open.
 ## Linked artifacts
 - ADR: *(skipped — obvious bug, no design decision)*
 - Test plan: `engineering-team/stories/30-profile-website-link-scheme.test-plan.md`
-- Review: *(filled in after Review)*
+- Review: `engineering-team/reviews/30-profile-website-link-scheme.md` — **PASS** (2026-05-29)
