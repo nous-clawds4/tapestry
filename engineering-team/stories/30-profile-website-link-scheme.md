@@ -1,8 +1,9 @@
 # Story 30: Profile "Website" link broken for scheme-less URLs
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-05-29
 **Type:** Bug
+**Shipped:** 2026-06-02 — fix live on brainstorm.world (PR #233 → staging, promotion #234 → main).
 
 ## Background
 A profile's "Website" link is built from the kind-0 `website` field. When that value has no URL scheme (e.g. `kate-cate.com`), the browser treats the link as **relative** and navigates inside the app (`/user/kate-cate.com`) instead of to the external site. Many nostr users enter a bare domain, so this hits a meaningful share of profiles, and it's live in production.
