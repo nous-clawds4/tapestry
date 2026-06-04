@@ -7,9 +7,9 @@ Product Owner. See `engineering-team/roles/product-owner.md`.
 A classified request from Phase 0 (Intake).
 
 ## Output
-A user story file at `engineering-team/stories/<n>-<slug>.md`, using the `user-story.md` template.
+A user story file at `engineering-team/stories/<epic-slug>/<n>-<slug>.md`, using the `user-story.md` template.
 
-**Picking `<n>`:** scan **both** `engineering-team/stories/` AND `engineering-team/stories/done/` for the highest existing `<n>`; use `n + 1`. Numbers are never reused — `done/` is where shipped stories live. New stories always start with `**Status:** Draft` or `**Status:** Approved` (the reviewer flips to `Done` on PASS — see workflow 5).
+**Scope & numbering:** stories live in an epic folder, `engineering-team/stories/<epic-slug>/`. Pick the epic first (existing one, or create `epics/<epic-slug>.md` + a new folder, or ask the user). Then pick `<n>` by scanning **that epic's folder** (and its `done/<epic-slug>/` counterpart, if present) for the highest existing `<n>`; use `n + 1`. Numbers are unique *within an epic*, not globally — two epics may each have a `#3`, so qualify references as "`<epic>` #<n>". This per-epic scoping is what keeps story numbers from colliding when feature branches merge. New stories start with `**Status:** Draft` or `**Status:** Approved` (the reviewer flips to `Done` on PASS — see workflow 5).
 
 ## Steps
 
@@ -28,4 +28,4 @@ A user story file at `engineering-team/stories/<n>-<slug>.md`, using the `user-s
 - Re-defining concepts that already exist in the Concept Graph. Reference by handle instead.
 
 ## Per-phase commits
-Yes. After the user approves the story, commit it: `git add engineering-team/stories/<file> && git commit -m "story: <slug>"`.
+Yes. After the user approves the story, commit it: `git add engineering-team/stories/<epic-slug>/<file> && git commit -m "story: <slug>"`.
