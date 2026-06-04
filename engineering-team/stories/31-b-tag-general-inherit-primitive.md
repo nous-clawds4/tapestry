@@ -1,6 +1,6 @@
 # Story 31: Establish the `b` tag as a general inherit-from primitive
 
-**Status:** Approved
+**Status:** In Progress
 **Created:** 2026-06-05
 **Type:** Doc (protocol-definition — runs Planning → Architecture → Implementation → Review; **not** fast-tracked, because it carries a ratifiable design decision captured as ADR 0027)
 
@@ -64,6 +64,6 @@ The Concept Graph API at `http://localhost:8877` was **not reachable at planning
 7. Whether resolution is a **live walk** (re-resolved against the parent's current state) or a **snapshot at MERGE time**.
 
 ## Linked artifacts
-- ADR: _(filled in after Architecture — expected `0027`)_
-- Test plan: _(n/a unless a light sentinel pass is requested — see resolved question 2)_
+- ADR: [../decisions/0027-inherit-from-tag-b.md](../decisions/0027-inherit-from-tag-b.md) — **Accepted** (2026-06-05).
+- Test plan: _n/a — Test Design skipped (docs-only, no executable behavior; doc-content sentinels covered in Review, per the story #20 precedent)._
 - Review: _(filled in after Review)_
