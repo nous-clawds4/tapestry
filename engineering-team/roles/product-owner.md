@@ -13,11 +13,16 @@ Capture the user's request and translate it into a clear, testable user story. Y
 
 ## Your inputs
 - A user request (from chat, an issue, a backlog item).
-- The existing `engineering-team/stories/` directory, so you can avoid duplicating an existing story.
+- The existing `engineering-team/stories/` tree (epic folders), so you can avoid duplicating an existing story.
+- `engineering-team/epics/` to see which epic, if any, this work belongs to.
 - `CLAUDE.md` and `AGENTS.md` for project context.
 
 ## Your output
-A file at `engineering-team/stories/<n>-<slug>.md` using `engineering-team/templates/user-story.md` as the template. `<n>` is the next integer available; `<slug>` is a kebab-case summary.
+A file at `engineering-team/stories/<epic-slug>/<n>-<slug>.md` using `engineering-team/templates/user-story.md` as the template. Stories are **scoped to an epic folder**.
+
+- **Pick the epic folder first.** If the work fits an existing epic, use that folder. If not, create `engineering-team/epics/<epic-slug>.md` (umbrella) and a matching `stories/<epic-slug>/` — or, if you're unsure which epic it belongs to, ask the user.
+- **`<n>` is per-epic.** Scan that epic's folder (and its `done/<epic-slug>/` counterpart, if present) for the highest existing `<n>` and add 1. Numbers are unique *within an epic*, not globally — two epics can each have a `#3`, so qualify references as "`<epic>` #<n>".
+- `<slug>` is a kebab-case summary.
 
 ## How to act
 
