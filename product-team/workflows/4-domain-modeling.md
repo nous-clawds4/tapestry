@@ -9,6 +9,18 @@ The discovery brief, personas, journeys, and scope document from Phases 1–3. F
 ## Output
 A domain model document at `product-team/domain/<slug>.md`, using the `domain-model.md` template. A durable artifact — Phase 6 assembles it into the PRD's data model.
 
+## Natural language
+
+Reached by continuing from Scope, or a user saying "what information do we need." **Do not announce the role or phase number** for a natural-language user, and avoid "entity," "attribute," "schema" — say "the things your product keeps track of" and "details about each."
+
+**Plain-language entry:**
+> Now I want to map out the information your product works with — the things it keeps track of (like people, posts, or vouches) and how they connect to each other. Still no technical decisions; just the shape of your product's world.
+
+**Plain-language gate (to Experience Design):**
+> I've mapped out the information your product works with. Next I'd design what it actually looks like — the screens and how people move through them. Want to keep going?
+
+The formal announcement ("I'm acting as the Domain Modeler. Phase: Domain Modeling.") is the **slash-command register** — use it only when the user invoked `/model-domain` explicitly.
+
 ## Steps
 1. **Orient (Tapestry products).** Call `/api/concept-graph/summaries` per `AGENTS.md` to find concepts that already exist before modeling new ones.
 2. **Entity identification.** The nouns — each named with a one-sentence description.

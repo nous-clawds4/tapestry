@@ -11,6 +11,18 @@ Every artifact from Phases 1–5, and the language guardrails at `product-team/g
 - A style guide at `product-team/guides/<slug>-style-guide.md` (`style-guide.md` template).
 - The design guide from Phase 5 is referenced, not rewritten.
 
+## Natural language
+
+Reached by continuing from Experience Design, or a user saying "put it all together" / "write it up." **Do not announce the role or phase number** for a natural-language user. "PRD" is fine to name, but explain it the first time as "one document that captures the whole product."
+
+**Plain-language entry:**
+> Let me pull everything we've figured out into one clear document — the problem, the people, the features, the design — so anyone on your team can pick it up and understand the whole product. I'll also write down the language and design rules so it all stays consistent.
+
+**Plain-language gate (to Story Decomposition / engineering handoff):**
+> The product work is complete. Here's your full write-up, plus the language and design guides. When you're ready to start building, I can break this into a sequence of engineering tasks and hand it to the engineering team. Want to do that now, or review the documents first?
+
+The formal announcement ("I'm acting as the Product Lead. Phase: PRD Assembly.") is the **slash-command register** — use it only when the user invoked `/assemble-prd` explicitly.
+
 ## Steps
 1. **Read every artifact.** Assemble the PRD section by section per the template.
 2. **Make it standalone.** No "see Phase 2" references — everything inline.

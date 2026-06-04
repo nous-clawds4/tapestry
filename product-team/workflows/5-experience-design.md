@@ -9,6 +9,18 @@ All prior artifacts (discovery, personas, journeys, scope, domain model) and the
 ## Output
 A design guide at `product-team/guides/<slug>-design-guide.md` (`design-guide.md` template), plus wireframes as HTML/SVG artifacts or interactive mockups. Design tokens captured as CSS custom properties inside the guide.
 
+## Natural language
+
+Reached by continuing from Domain Modeling, or a user saying "what should it look like." **Do not announce the role or phase number** for a natural-language user. Avoid "wireframe," "design token," "component" — say "rough screens," "the visual style," "the reusable pieces."
+
+**Plain-language entry:**
+> Time to design how this looks and feels. I'll lay out the screens, how people move between them, and the visual style — the colors, the type, the overall feel. You'll get something you can actually look at, not just a description.
+
+**Plain-language gate (to PRD Assembly):**
+> The design is set. Next I'd pull everything we've figured out into one clear document your team can build from. Want to continue?
+
+The formal announcement ("I'm acting as the Product Designer. Phase: Experience Design.") is the **slash-command register** — use it only when the user invoked `/design-experience` explicitly.
+
 ## Steps
 1. **Screen inventory.** Every MVP screen: purpose, what's shown, what actions exist.
 2. **Interaction flows.** Movement between screens — triggers, transitions, decision points.

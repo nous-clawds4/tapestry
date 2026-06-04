@@ -4,6 +4,12 @@ This directory is the harness Claude Code uses for **product discovery and desig
 
 The boundary is clean: **the product team produces markdown. The engineering team writes code.** No source, no file paths, no library choices, no technical solutions cross from product into the artifacts.
 
+## Natural language is the front door
+
+You do not need to know any slash commands to use this flow. **Just describe what you want.** Say "I have an idea for a community feature and I want to figure out what to build," and Claude recognizes the start of product discovery, explains in plain words what it's about to do, and asks if you're ready. Each phase flows into the next through a normal conversation — "Want to continue?" — not a command. You talk in whatever words you have; the harness turns that into structured documents behind the scenes. You'll never be asked to say "persona" or "acceptance criteria," and you'll never see a phase number.
+
+The slash commands below (`/discover`, `/scope`, …) are **shortcuts for people who already know the flow** and want to jump straight to a phase. When you use one, Claude switches to a more technical register (it names the role and phase). When you just talk, it stays in plain language. The routing rules live in `CLAUDE.md` → "Intent Detection," and each workflow file carries the exact plain-language entry and gate wording in its `## Natural language` section.
+
 ## Layout
 
 ```

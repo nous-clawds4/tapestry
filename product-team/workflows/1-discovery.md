@@ -9,6 +9,18 @@ The user's free-form description of what they want — a sentence, a paragraph, 
 ## Output
 A discovery brief at `product-team/discoveries/<slug>.md`, using the `discovery-brief.md` template. **The product slug is chosen in this phase** and reused by every later phase.
 
+## Natural language
+
+This phase is usually entered by a non-technical user speaking naturally — "I have an idea and I want to figure out what to build" — not by typing `/discover`. When that happens, **do not announce the role or phase number.** Open with the plain-language entry, then ask "Ready?" before starting. See `CLAUDE.md` → "Intent Detection" for the register rule.
+
+**Plain-language entry:**
+> That sounds like the start of a product discovery conversation. I'll ask you about the problem you're trying to solve, who it's for, and what already exists today. No code, no technical decisions — just figuring out the *what* and the *why*. Ready to start?
+
+**Plain-language gate (to User Modeling):**
+> I've captured the problem space. Next I'd map out who your users are and what their experience looks like, step by step. Want to continue?
+
+The formal announcement ("I'm acting as the Product Strategist. Phase: Discovery.") is the **slash-command register** — use it only when the user invoked `/discover` explicitly.
+
 ## Steps
 1. **Problem statement.** What's broken, for whom. Restate and confirm.
 2. **User landscape.** The types of people affected, how they cope today, what they hate.

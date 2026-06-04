@@ -9,6 +9,18 @@ The discovery brief, personas, and journeys from Phases 1–2.
 ## Output
 A scope document at `product-team/scope/<slug>.md`, using the `scope.md` template. A durable artifact — Phase 6 assembles it into the PRD.
 
+## Natural language
+
+Reached by continuing from User Modeling, or a user saying "what's in the first version" / "what should we cut." **Do not announce the role or phase number** for a natural-language user. Say "first version" rather than "MVP" unless they use the term first.
+
+**Plain-language entry:**
+> Let's figure out what to build first. I'll help you decide what goes in the first version, what waits for later, and how you'll know it worked. My job here is to help you cut, not pile on — a small first version you can actually ship beats a big one you can't.
+
+**Plain-language gate (to Domain Modeling):**
+> We've drawn the line around the first version. Next I'd map out the information your product keeps track of — the things involved and how they relate. Want to continue?
+
+The formal announcement ("I'm acting as the Product Manager. Phase: Scope & Prioritization.") is the **slash-command register** — use it only when the user invoked `/scope` explicitly.
+
 ## Steps
 1. **Feature extraction.** Every feature implied by the journeys, listed flat.
 2. **Prioritization.** For each: does the MVP deliver core value without it? If yes, deferral candidate.

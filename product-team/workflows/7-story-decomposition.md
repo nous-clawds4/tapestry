@@ -9,6 +9,20 @@ The assembled PRD at `product-team/prd/<slug>.md`.
 ## Output
 A stories queue at `product-team/stories-queue.md` — all story briefs in dependency order, grouped into **epic-aligned blocks**, each brief using the `story-brief.md` template.
 
+## Natural language
+
+Reached by continuing from PRD Assembly, or a user saying "let's start building" / "break it into tasks." **Do not announce the role or phase number** for a natural-language user. Avoid "story," "acceptance criteria," "epic" — say "buildable pieces," "what done looks like," "chunks of work."
+
+**Plain-language entry:**
+> Let me break the product into a sequence of buildable pieces — each one a small, self-contained chunk you can see working — ordered so the team can start with something they can show you early.
+
+**Plain-language gate (engineering handoff):**
+> I've broken it into [N] pieces across [M] chunks of work, in the order I'd build them. From here the engineering side takes over — that part is best run by someone comfortable with the build, or I can walk a technical teammate through it. Want me to hand this to the engineering team now, or pause here so you can review the plan first?
+
+If the user is non-technical and there's no engineer in the loop, say so plainly: the product work and documents are done and ready; building from here needs a technical person (or a session where one drives the engineering flow). Don't start engineering phases on their behalf without that.
+
+The formal announcement ("I'm acting as the Product Lead. Phase: Story Decomposition.") is the **slash-command register** — use it only when the user invoked `/decompose-stories` explicitly.
+
 ## Steps
 1. **Identify story boundaries.** One screen, one feature, or one system capability per story — small enough for a single engineering cycle, large enough to deliver observable change.
 2. **Order by dependency.** Unblocking stories first. The result is a sequenced backlog, not a list.
