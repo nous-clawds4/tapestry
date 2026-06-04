@@ -66,4 +66,4 @@ The Concept Graph API at `http://localhost:8877` was **not reachable at planning
 ## Linked artifacts
 - ADR: [../decisions/0027-inherit-from-tag-b.md](../decisions/0027-inherit-from-tag-b.md) — **Accepted** (2026-06-05).
 - Test plan: _n/a — Test Design skipped (docs-only, no executable behavior; doc-content sentinels covered in Review, per the story #20 precedent)._
-- Review: _(filled in after Review)_
+- Review: [../reviews/31-b-tag-general-inherit-primitive.md](../reviews/31-b-tag-general-inherit-primitive.md) — **PASS** (2026-06-05): 6/6 ACs met, ADR 0027-conformant, 26/26 test suites green, BIBLE-only diff. One non-blocking follow-up (`effectiveCD` definition when the Communities Protocol lands).
