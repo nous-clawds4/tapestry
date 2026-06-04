@@ -12,13 +12,21 @@ engineering-team/
 ├── roles/              role definitions — one file per role
 ├── workflows/          phase definitions — one file per phase
 ├── templates/          document templates (user story, ADR, test plan, review)
-├── decisions/          ADRs accumulate here as <NNNN>-<slug>.md
-├── stories/            user stories accumulate here as <n>-<slug>.md
-│   └── _intake.md      queued-but-unplanned work catalog (see below)
-└── reviews/            review reports accumulate here as <n>-<slug>.md
+├── epics/              one file per epic: <epic-slug>.md — the umbrella for a multi-story feature
+├── stories/            user stories, scoped by epic
+│   ├── <epic-slug>/    in-flight stories for that epic: <n>-<slug>.md (+ .test-plan.md)
+│   └── done/<epic-slug>/   shipped epics — the whole epic folder is moved here at epic close
+├── decisions/          ADRs, scoped by epic: <epic-slug>/<NNNN>-<slug>.md (+ done/<epic-slug>/)
+└── reviews/            review reports, scoped by epic: <epic-slug>/<n>-<slug>.md (+ done/<epic-slug>/)
 ```
 
-**`stories/_intake.md`** is the append-only queue of incoming requests that haven't been formalized as stories yet. Anything a session surfaces that's worth doing but isn't ready for `/plan-feature` lands here first with classification + priority + a sketch of the work. When picking up new work, scan `_intake.md` for queued items before opening a fresh feature request — there's often a relevant entry already triaged. Entries are roughly chronological and dated `## YYYY-MM-DD — <Type>: <slug>`. Filed entries are not auto-pruned when shipped; older entries may be historical.
+## Epic-scoped docs — why the subfolders
+
+Stories, ADRs, and reviews are **scoped to an epic folder** rather than living in one flat namespace. An epic is one feature/branch-sized line of work, described by `epics/<epic-slug>.md`; everything it produces lives under `stories/<epic-slug>/`, `decisions/<epic-slug>/`, and `reviews/<epic-slug>/`.
+
+- **Numbering is per-epic.** `<n>` (and ADR `<NNNN>`) restart inside each epic folder. Two epics can each have a `#3` — that's fine, because their *paths* are disjoint. To refer to a story unambiguously, qualify it: "`<epic>` #3". This per-epic scoping is what makes feature-branch merges collision-free: independent branches never fight over the same integer-at-the-same-path. (Before this, two branches both producing a "Story 8" at `stories/8-*.md` was a guaranteed merge conflict.)
+- **`done/` holds shipped epics.** Everything *outside* `done/` is active, fair-game work that anyone may pick up. When an epic ships, its whole folder moves under `done/<epic-slug>/` in one `git mv` per area (stories / decisions / reviews) — see `workflows/5-review.md` → "Epic close-out". Individual stories are **not** moved one at a time; the reviewer only flips a story's `**Status:**` to `Done` in place.
+- **`stories/_intake.md`** is optional scratch space for queued-but-unformalized notes. The mechanistic flow now favors promoting work into an epic; intake is a free-form catch-all for anyone who wants it, not a required gate.
 
 The Claude Code wiring lives elsewhere:
 
@@ -42,11 +50,11 @@ The Claude Code wiring lives elsewhere:
 ## How the phases connect
 
 ```
-  /plan-feature           → stories/<n>-<slug>.md
-  /design-architecture    → decisions/<NNNN>-<slug>.md
-  /design-tests           → stories/<n>-<slug>.test-plan.md + failing tests
+  /plan-feature           → stories/<epic>/<n>-<slug>.md
+  /design-architecture    → decisions/<epic>/<NNNN>-<slug>.md
+  /design-tests           → stories/<epic>/<n>-<slug>.test-plan.md + failing tests
   /implement-feature      → code changes that make the failing tests pass
-  /review-changes         → reviews/<n>-<slug>.md
+  /review-changes         → reviews/<epic>/<n>-<slug>.md
 ```
 
 The user is the approval gate between phases. After each phase output, Claude asks you to confirm before continuing.
