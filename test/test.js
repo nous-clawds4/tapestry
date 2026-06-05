@@ -62,6 +62,7 @@ const discoverCircles = require('./discover-circles.test.js');
 const resolvedDefinitionResolver = require('./resolved-definition-resolver.test.js');
 const forkACircle = require('./fork-a-circle.test.js');
 const inheritedFieldDisplay = require('./inherited-field-display.test.js');
+const postToCdCircle = require('./post-to-cd-circle.test.js');
 
 async function main() {
   console.log('Running Brainstorm tests...\n');
@@ -185,6 +186,9 @@ async function main() {
   console.log('\ninherited-field-display suite:');
   const inheritedFieldDisplayResult = await inheritedFieldDisplay.run();
 
+  console.log('\npost-to-cd-circle suite:');
+  const postToCdCircleResult = await postToCdCircle.run();
+
   console.log('\nTest Results');
   console.log('-------------');
   console.log(`Configuration Loading:                           ${configOk ? 'PASS' : 'FAIL'}`);
@@ -305,6 +309,9 @@ async function main() {
   console.log(
     `inherited-field-display suite:                   ${inheritedFieldDisplayResult.fail === 0 ? 'PASS' : 'FAIL'} (${inheritedFieldDisplayResult.pass} passed, ${inheritedFieldDisplayResult.fail} failed)`
   );
+  console.log(
+    `post-to-cd-circle suite:                         ${postToCdCircleResult.fail === 0 ? 'PASS' : 'FAIL'} (${postToCdCircleResult.pass} passed, ${postToCdCircleResult.fail} failed)`
+  );
 
   const overallOk =
     configOk &&
@@ -346,7 +353,8 @@ async function main() {
     discoverCirclesResult.fail === 0 &&
     resolvedDefinitionResolverResult.fail === 0 &&
     forkACircleResult.fail === 0 &&
-    inheritedFieldDisplayResult.fail === 0;
+    inheritedFieldDisplayResult.fail === 0 &&
+    postToCdCircleResult.fail === 0;
   console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);
   process.exit(overallOk ? 0 : 1);
 }

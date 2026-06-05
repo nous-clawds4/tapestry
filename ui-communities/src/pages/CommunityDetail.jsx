@@ -112,8 +112,11 @@ export default function CommunityDetail({ slug }) {
   }, [state.community])
 
   const currentCommunity = state.community
+  // Post anchor (NB-1): a Community Declaration is kind-39998; the bespoke
+  // record is kind-39999. Derive the anchor kind from the circle's model so
+  // kind-1111 posts attach to (and read from) the right address per model.
   const communityATag = currentCommunity
-    ? `39999:${currentCommunity.founder || currentCommunity.curator || viewer || ''}:${currentCommunity.slug}`
+    ? `${currentCommunity.model === 'declaration' ? '39998' : '39999'}:${currentCommunity.founder || currentCommunity.curator || viewer || ''}:${currentCommunity.slug}`
     : null
 
   const loadPosts = useCallback(async () => {
