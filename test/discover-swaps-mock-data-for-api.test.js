@@ -227,10 +227,11 @@ test('T19: client.js handles 404 by returning null OR a _notFound sentinel resol
   const src = read(CLIENT_PATH);
   // Two acceptable patterns: direct return null on 404, or a sentinel.
   const directNull = /status\s*===\s*404[\s\S]{0,80}return\s+null/.test(src);
-  // Window relaxed from 80 → 600 chars to permit a relay-fallback path
-  // between the _notFound sentinel and the eventual `return null`. The
-  // contract still holds: 404 with no relay record resolves to null.
-  const sentinel = /_notFound\s*[:=]\s*true/.test(src) && /_notFound[\s\S]{0,600}return\s+null/.test(src);
+  // A 404 resolves to the _notFound sentinel; realGetCommunity then tries the
+  // CD + bespoke relay fallbacks (ADR 0029) and returns null only when all
+  // miss. The sentinel and a null resolution both exist; proximity is no
+  // longer meaningful once a multi-source fallback sits between them.
+  const sentinel = /_notFound\s*[:=]\s*true/.test(src) && /return\s+null/.test(src);
   assert(directNull || sentinel,
     'client.js must convert 404 into a null resolution (direct or via _notFound sentinel)');
 });

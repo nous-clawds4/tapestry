@@ -178,6 +178,82 @@ export async function fetchAllCommunityRecords({
   return records
 }
 
+/* ── Community Declarations (kind 39998 — the "right way" model, ADR 0029) ──
+ * Read beside the bespoke kind-39999 records (strangler coexistence). Marked
+ * by a `t = brainstorm-community` tag so we can filter them apart from the
+ * bespoke DList header and other concept headers. */
+
+const COMMUNITY_TYPE_MARKER = 'brainstorm-community'
+
+export async function fetchCommunityDeclaration({
+  slug,
+  preferredFounder = null,
+  relays = DEFAULT_RELAYS,
+  timeout = FETCH_TIMEOUT_MS,
+}) {
+  if (!slug) throw new Error('fetchCommunityDeclaration: slug is required')
+  const filter = { kinds: [39998], '#d': [slug], '#t': [COMMUNITY_TYPE_MARKER] }
+  const events = new Map()
+  await Promise.all(relays.map(url => collectFromRelay(url, filter, events, timeout)))
+  if (events.size === 0) return null
+  const list = Array.from(events.values())
+  let chosen = preferredFounder ? list.find(e => e.pubkey === preferredFounder) : null
+  if (!chosen) {
+    chosen = list.reduce((best, e) =>
+      best && (e.created_at || 0) <= (best.created_at || 0) ? best : e, null)
+  }
+  return projectDeclaration(chosen)
+}
+
+export async function fetchAllCommunityDeclarations({
+  relays = DEFAULT_RELAYS,
+  timeout = FETCH_TIMEOUT_MS,
+} = {}) {
+  if (USE_MOCK) return []
+  const filter = { kinds: [39998], '#t': [COMMUNITY_TYPE_MARKER] }
+  const events = new Map()
+  await Promise.all(relays.map(url => collectFromRelay(url, filter, events, timeout)))
+  const out = []
+  for (const e of events.values()) {
+    const p = projectDeclaration(e)
+    if (p) { p._createdAt = e.created_at || 0; out.push(p) }
+  }
+  out.sort((a, b) => (b._createdAt || 0) - (a._createdAt || 0))
+  return out
+}
+
+function projectDeclaration(event) {
+  if (!event || !Array.isArray(event.tags)) return null
+  const one = key => { const t = event.tags.find(x => x[0] === key); return t && t[1] ? t[1] : null }
+  const many = key => event.tags.filter(x => x[0] === key && x[1]).map(x => x[1])
+  const bTag = event.tags.find(x => x[0] === 'b')
+  const slug = one('d') || ''
+  return {
+    model: 'declaration',
+    slug,
+    name: one('name') || slug,
+    description: one('description') || '',
+    belongingBar: one('belonging') || '',
+    tags: many('topic'),
+    image: null,
+    accent: null,
+    language: null,
+    memberCount: 0,
+    trustedHere: 0,
+    activity: null,
+    members: [],
+    joined: false,
+    founder: one('founder') || event.pubkey,
+    parent: bTag && bTag[1] ? bTag[1] : null,
+    relays: DEFAULT_RELAYS,
+    weightingModel: null,
+    endorsementThreshold: null,
+    nip72Wrapping: null,
+    posts: [],
+    _source: 'relay',
+  }
+}
+
 function projectCommunityRecord(event) {
   if (!event || !Array.isArray(event.tags)) return null
 

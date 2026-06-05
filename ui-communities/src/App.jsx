@@ -7,6 +7,7 @@ import Discover from './pages/Discover.jsx'
 import CommunityDetail from './pages/CommunityDetail.jsx'
 import MyCircles from './pages/MyCircles.jsx'
 import Create from './pages/Create.jsx'
+import Found from './pages/Found.jsx'
 import Edit from './pages/Edit.jsx'
 import NotFound from './pages/NotFound.jsx'
 import {
@@ -193,6 +194,7 @@ const router = createBrowserRouter([
       { path: 'community/:slug', element: <CommunityDetailRoute /> },
       { path: 'my-circles', element: <MyCircles /> },
       { path: 'create', element: <Create /> },
+      { path: 'found', element: <Found /> },
       { path: 'edit/:slug', element: <EditRoute /> },
       { path: '*', element: <NotFound /> },
     ],

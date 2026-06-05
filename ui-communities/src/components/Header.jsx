@@ -9,7 +9,7 @@ import s from './Header.module.css'
 const NAV_ITEMS = [
   { to: '/', label: 'Discover' },
   { to: '/my-circles', label: 'Your Circles', requiresAuth: true },
-  { to: '/create', label: 'Start a Circle', requiresAuth: true },
+  { to: '/found', label: 'Start a Circle', requiresAuth: true },
 ]
 
 export default function Header({ viewer, signedIn, pathname, onNavigate, onSignIn, onSignOut }) {
@@ -155,7 +155,7 @@ export default function Header({ viewer, signedIn, pathname, onNavigate, onSignI
                   <button
                     type="button"
                     className={s.userItem}
-                    onClick={() => { onNavigate('/create'); setMenuOpen(false) }}
+                    onClick={() => { onNavigate('/found'); setMenuOpen(false) }}
                     role="menuitem"
                   >
                     Start a Circle

@@ -23,7 +23,12 @@ import {
   getCommunityMembers as mockGetCommunityMembers,
   getVoucherNames as mockGetVoucherNames,
 } from '../data/mockData.js'
-import { fetchAllCommunityRecords, fetchCommunityRecord } from '../events/fetch.js'
+import {
+  fetchAllCommunityRecords,
+  fetchCommunityRecord,
+  fetchCommunityDeclaration,
+  fetchAllCommunityDeclarations,
+} from '../events/fetch.js'
 import { fetchProfiles } from '../lib/profiles.js'
 import { npubShort } from '../lib/format.js'
 
@@ -116,19 +121,21 @@ async function realGetCommunity(slug, viewer) {
   const body = await realGet(`/api/communities/${encodeURIComponent(slug)}${buildQuery(viewer)}`)
   // _notFound sentinel from a 404 response — resolve to null per ADR-0007.
   const apiCommunity = body && !body._notFound && body.community ? body.community : null
-  if (apiCommunity) return apiCommunity
+  if (apiCommunity) return { ...apiCommunity, model: apiCommunity.model || 'bespoke' }
 
-  // Client-side relay fallback. The Slice 2 NB-4 dataSources stub
-  // returns null until backend strfry/Neo4j wiring lands, which means
-  // a freshly-published kind-39999 isn't visible via the API. Pull it
-  // back from the relay directly so the just-created circle (and any
-  // other slug a viewer types in) actually renders.
+  // Client-side relay fallback (the Slice 2 NB-4 dataSources stub returns
+  // null). Prefer the new Community Declaration (kind-39998) model; fall back
+  // to a bespoke kind-39999 record so existing circles still resolve
+  // (strangler coexistence, ADR 0029). Each result is tagged with its `model`.
+  const declaration = await fetchCommunityDeclaration({ slug, preferredFounder: viewer })
+  if (declaration) {
+    return { ...declaration, joined: viewer ? declaration.founder === viewer : false }
+  }
   const relayRecord = await fetchCommunityRecord({ slug, preferredCurator: viewer })
   if (!relayRecord) return null
   return {
     ...relayRecord,
-    // Seed-member-includes-viewer is the right proxy for "joined" until
-    // the GR-Community membership read lands. Founder is always a seed.
+    model: 'bespoke',
     joined: viewer ? relayRecord.founder === viewer : false,
   }
 }
@@ -260,10 +267,27 @@ function recordToListEntry(record, viewer) {
 export async function getDiscoverableCommunitiesFromRelay(viewer) {
   if (USE_MOCK) return []
   try {
-    const records = await fetchAllCommunityRecords()
-    return records.map(r => recordToListEntry(r, viewer))
+    // Union the new Declarations (kind-39998) with the bespoke records
+    // (kind-39999); dedupe by slug with the Declaration model winning.
+    const [declarations, records] = await Promise.all([
+      fetchAllCommunityDeclarations().catch(() => []),
+      fetchAllCommunityRecords().catch(() => []),
+    ])
+    const out = []
+    const seen = new Set()
+    for (const d of declarations) {
+      if (!d || !d.slug || seen.has(d.slug)) continue
+      seen.add(d.slug)
+      out.push({ ...recordToListEntry(d, viewer), model: 'declaration' })
+    }
+    for (const r of records) {
+      if (!r || !r.slug || seen.has(r.slug)) continue
+      seen.add(r.slug)
+      out.push({ ...recordToListEntry(r, viewer), model: 'bespoke' })
+    }
+    return out
   } catch (err) {
-    console.warn('[client] fetchAllCommunityRecords failed:', err && err.message)
+    console.warn('[client] discover union failed:', err && err.message)
     return []
   }
 }
