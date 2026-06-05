@@ -113,11 +113,18 @@ export default function CommunityDetail({ slug }) {
 
   const currentCommunity = state.community
   // Post anchor (NB-1): a Community Declaration is kind-39998; the bespoke
-  // record is kind-39999. Derive the anchor kind from the circle's model so
-  // kind-1111 posts attach to (and read from) the right address per model.
-  const communityATag = currentCommunity
-    ? `${currentCommunity.model === 'declaration' ? '39998' : '39999'}:${currentCommunity.founder || currentCommunity.curator || viewer || ''}:${currentCommunity.slug}`
-    : null
+  // record is kind-39999. Derive the anchor kind from the circle's model.
+  // A declaration MUST key on its real founder — never fall back to the viewer
+  // (that would forge an unreadable address); bespoke keeps its prior fallback.
+  const communityATag = (() => {
+    if (!currentCommunity) return null
+    const kind = currentCommunity.model === 'declaration' ? '39998' : '39999'
+    const author = currentCommunity.model === 'declaration'
+      ? currentCommunity.founder
+      : (currentCommunity.founder || currentCommunity.curator || viewer)
+    if (!author) return null
+    return `${kind}:${author}:${currentCommunity.slug}`
+  })()
 
   const loadPosts = useCallback(async () => {
     if (!currentCommunity || !communityATag) return

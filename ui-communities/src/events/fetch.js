@@ -192,6 +192,10 @@ export async function fetchCommunityDeclaration({
   timeout = FETCH_TIMEOUT_MS,
 }) {
   if (!slug) throw new Error('fetchCommunityDeclaration: slug is required')
+  // Dev safety: the client selects mock impls, but direct callers (the
+  // /found fork path, the CommunityDetail resolve effect) reach this fn
+  // straight. Without this guard, dev/mock mode would open a live relay.
+  if (USE_MOCK) return null
   const filter = { kinds: [39998], '#d': [slug], '#t': [COMMUNITY_TYPE_MARKER] }
   const events = new Map()
   await Promise.all(relays.map(url => collectFromRelay(url, filter, events, timeout)))
@@ -226,6 +230,11 @@ function projectDeclaration(event) {
   if (!event || !Array.isArray(event.tags)) return null
   const one = key => { const t = event.tags.find(x => x[0] === key); return t && t[1] ? t[1] : null }
   const many = key => event.tags.filter(x => x[0] === key && x[1]).map(x => x[1])
+  // FENCE (multi-parent deferred): we read only the FIRST `b` tag into a
+  // singular `parent`. The §26 resolver supports multi-parent (`parents` +
+  // first-listed-wins), but until multi-parent fork ships — and the resolver's
+  // shared-visited diamond bug is fixed (see resolveDefinition.js) — we keep
+  // single-parent. To enable: parse ALL `b` tags into `parents`.
   const bTag = event.tags.find(x => x[0] === 'b')
   const slug = one('d') || ''
   return {

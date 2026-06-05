@@ -25,6 +25,14 @@ The queue suggested a separate `communities-inheritance` slug; folded here becau
 
 **Block 2 complete.** Carry-forward: inheritance markers beyond the belonging-bar; resolver caching (ADR 0028); multi-parent fork UI.
 
+### Independent review (Blocks 1/2/4) — findings log (2026-06-05)
+A separate reviewer agent audited the whole MVP diff. **Verdict: no blocking correctness issues for the shipped single-parent MVP; strangler holds.** Actioned + carried-forward:
+- **Fixed now:** `fetchCommunityDeclaration` now has a `USE_MOCK` guard (the `/found` fork path + resolve effect call it directly, bypassing the client mock switch — dev mode would otherwise open a live relay). Post anchor no longer falls back to the *viewer* for declarations (would forge an unreadable address); a declaration with no founder yields a null anchor.
+- **Fenced (must fix before multi-parent ships — Block 3/5 resume):**
+  - `projectDeclaration` reads only the first `b` tag → multi-parent / first-listed-wins in the resolver is currently dead code. To enable: parse all `b` tags into `parents`.
+  - The resolver's shared `visited` set is cycle-safe but **diamond-incorrect** (path-dependent field loss). Switch to per-path tracking + add a real multi-node walk test before enabling multi-parent.
+- **Logged (cosmetic / later):** Discover card vs. detail can show different models on a CD-vs-bespoke slug collision (ADR 0029 said "surface the collision" — not done); a fork can't truly inherit its *name* (slug derives from the field); pre-existing `realGetCommunityMembers` reads a `seedMembers` the projection never sets (bespoke members fallback always `[]`).
+
 ## Dependencies / sequencing
 - Block 1 unblocks everything; it has no upstream dependency.
 - Block 2 (`communities-inheritance` — fork + resolved definition) and Block 3 (`communities-trust-signal`) depend on this block and can run in parallel after it.

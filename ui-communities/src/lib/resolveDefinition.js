@@ -65,6 +65,13 @@ export async function resolveDefinition(circle, fetchByATag, { maxDepth = MAX_DE
   async function walk(node, depth) {
     if (!node) return {}
     const a = aTagOf(node)
+    // FENCE (multi-parent / diamond): `visited` is shared across sibling
+    // branches, which is cycle-safe but NOT diamond-correct — in A→(B,C)→D the
+    // branch resolved first claims D and the other skips it (path-dependent
+    // field loss). Harmless while single-parent (no diamonds can form). Before
+    // enabling multi-parent (see fetch.js projectDeclaration), switch to a
+    // per-path set (pass `path` down, remove on unwind) AND add a multi-node
+    // walk test — the current tests never exercise a real diamond.
     if (a) visited.add(a)
 
     let base = {}
