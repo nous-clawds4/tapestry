@@ -36,6 +36,7 @@
 23. [Class-Thread Membership Tags (`n`, `s`)](#23-class-thread-membership-tags-n-s)
 24. [Task Queue (BullMQ behind /api/run-task)](#24-task-queue-bullmq-behind-apirun-task)
 25. [The Inherit-From Tag (`b`)](#25-the-inherit-from-tag-b)
+26. [Resolved Definition](#26-resolved-definition)
 
 ---
 
@@ -1543,6 +1544,7 @@ docker compose exec tapestry strfry sync wss://dcosl.brainstorm.world \
 | **Grapevine** | The Web of Trust system that determines which curations achieve community consensus. |
 | **IMPORT** | Editorial relationship: "I agree with your concept and want to benefit from your curated elements." |
 | **INHERITS_FROM** | Canonical child→parent definitional-inheritance edge from the `b` tag: "I defer to the parent's definition, live, unless I override." Distinct from IMPORT (absorption; implies IS_A_SUPERSET_OF) and REFERENCES (non-committal stub). No `source`. ADR 0027. See §25. |
+| **Resolved Definition** | The read-side result of the `b`/`INHERITS_FROM` closure: a node's effective fields after following its `b` parents and applying its own overrides. Deterministic (observer-independent), live (re-resolved each read), first-listed-`b`-wins on multi-parent, bounded by `MAX_DEPTH=16` + cycle-guard. Distinct from §22's GrapeRank-weighted definition-*selection*. ADR 0028. See §26. |
 | **concept-graph (header tag)** | Self-describing tag on a kind-39998 ConceptHeader: `["concept-graph","39999:<pubkey>:<d-tag>-concept-graph"]` (computed). Resolution = tag-if-present else compute the same a-tag. Lets a single fetched Header resolve its full concept off-relay. ADR 0007. See §5. |
 | **communityReference** | A firmware-concept pointer `{ headerATag, relayHints[], knownGoodEventId? }` to an external curator's published concept. Resolved at install into a `REFERENCES` placeholder. See §22. |
 | **grapevine → firmware → none** | The community-reference resolution precedence: the user's Grapevine is the correct selector of "the community's definition"; the firmware-baked pointer is only a cold-start default; else nothing. Mirrors Warm Start's `self → owner → cold`. See §22. |
@@ -1679,14 +1681,7 @@ The drift sentinels in `test/entrypoint-template-rendering.test.js` (T7 + T8) tr
 
 **Edge properties.** `INHERITS_FROM` is a **canonical, asserted relationship** (the child published a `b` tag) — so, unlike the concept-level `REFERENCES` stub and like `HAS_ELEMENT`/`IS_A_SUPERSET_OF`, it carries **no `source` property**. It MAY carry a `type` property (default `"inherit"`) mirroring tag element 3.
 
-**Resolution — live, read-time.** A child's **effective definition** is computed on read, never snapshotted:
-```
-effective(node) = merge( effective(parent_via_b), node.statedFields )
-```
-- **Live:** the walk reads each ancestor's *current* state, so a child tracks the parent's future edits ("whatever Alice says"). Only the `INHERITS_FROM` edge is materialized; the definition is not copied into the child. (Same read-time pattern as the Communities Protocol's `effectiveCD`.)
-- **Override = the child's own stated fields.** A field the child states explicitly overrides the inherited value; an omitted field is inherited. An unedited child performs pure inheritance.
-- **Termination:** stop at a root (no `b` tag) or a `maxDepth` guard; a cycle guard (visited-set keyed on a-tag) prevents loops. Reuses the bounded-walk pattern of ADR 0010/0011.
-- **Scope today:** the pattern above plus **field-level (whole-field replace)** override. The **set-valued override algebra** — how a child adds/removes/replaces individual elements of an inherited *set* — is deferred to the first consumer that needs it (the first consumer, CD inheritance, overrides only scalars).
+**Resolution.** A child's *effective definition* — its fields after following the `b`/`INHERITS_FROM` closure and applying overrides — is computed **live, at read time**. That read-side contract (the resolution rule, multi-parent first-listed-wins precedence, the `MAX_DEPTH`/cycle guards, and the determinism boundary against WoT-weighted *selection*) is the **Resolved Definition** primitive — see §26.
 
 **Place in the editorial-relationship family (§6).** `b` is the first editorial relationship encoded as a single-char tag rather than a relationship-descriptor event. It is distinct from the others:
 
@@ -1702,6 +1697,39 @@ effective(node) = merge( effective(parent_via_b), node.statedFields )
 **Direction principle / reserved `B`.** Per §23's convention, lowercase `b` = child-claims-parent. Uppercase **`B`** is **reserved** (not assigned) for a future parent-claims-child / federation inverse — e.g. a parent recognizing a child as "the same community." Do not assign speculatively.
 
 See ADR 0027 for the full rationale, the rejected alternatives (folding into `IMPORT`; multi-char tags), and the deferred design questions.
+
+---
+
+## 26. Resolved Definition
+
+**The read-side companion to the `b` tag (§25).** Where `b` is the *write* primitive ("who I defer to"), the **resolved definition** is the *read* primitive: what a node actually means after following its `INHERITS_FROM` (`b`) closure and applying its own overrides. It is **general concept-graph machinery, not community-specific** — Alice's resolved definition of `dogs` may differ from Bob's by the very same mechanism a Community Declaration resolves (concept↔concept, set↔set, Declaration↔Declaration). Established by ADR 0028 (ADR 0027 lineage).
+
+**Resolution rule (normative).** A node's resolved definition is its own stated fields merged over the resolved definitions of its `b` parents:
+```
+resolved(node, depth=0, visited={}):
+  visited.add(node.aTag)
+  base = {}
+  for parent_aTag in reversed(node.bParents):       # later-listed first…
+    if parent_aTag in visited: continue             # cycle-guard: skip back-edge
+    if depth >= MAX_DEPTH: break                     # depth-guard (MAX_DEPTH = 16)
+    base = merge(base, resolved(parent, depth+1, visited))
+  return merge(base, node.statedFields)             # …so earlier-listed parents — then the node — win
+```
+`merge(a, b)` overlays `b`'s fields onto `a` (per field, `b` wins). **Precedence, highest → lowest:** the node's own stated fields → first-listed `b` parent → later-listed `b` parents → root.
+
+**Multi-parent = first-listed-wins.** When a node carries several `b` tags they resolve in on-wire order; an earlier `b` tag takes precedence over a later one on any field both define. Single-parent is the common case; this rule simply makes multi-parent deterministic.
+
+**Granularity = whole-field replace.** A stated field replaces the inherited value wholesale; an omitted field is inherited; an unedited node performs pure inheritance. The **set-valued override algebra** — adding/removing/replacing individual elements of an inherited *set* — is **deferred to the first consumer that needs it** (v1 consumers override only scalars).
+
+**Live, read-time.** Resolution reads each ancestor's *current* state on every read — a node tracks its parents' future edits ("whatever Alice says"). Only the `INHERITS_FROM` edge is materialized; the resolved definition is never snapshotted into the node. Caching is a consumer/performance concern, not a protocol rule.
+
+**Guards.** `MAX_DEPTH = 16` (consistent with the bounded walks of §23 / ADR 0010/0011). The cycle-guard is a visited-set keyed on a-tag; a revisited ancestor is **truncated** (treated as a leaf for that branch) rather than erroring — read-path resolution degrades gracefully and never throws.
+
+**Determinism boundary (load-bearing).** Field-merge along a node's chosen `b`-chain is **deterministic and observer-independent** — a curator's own resolved definition does not vary by who is looking. This is distinct from the *separate* question of *which* definition the network loosely prefers, which is GrapeRank-weighted per point-of-view (the registry-as-DList / `grapevine-resolved` selection §22 defers as a candidate). **Selecting** a definition across the network is WoT-weighted; **merging** fields within a chosen chain is not. WoT-weighted field resolution was considered and **rejected for v1** — it would make a curator's own definition observer-dependent (surprising), and is unnecessary until a concrete need appears.
+
+**Consumers.** Any curator standing on a trusted definition reads through its resolved definition. The Communities Protocol is the first consumer: a community's membership is later evaluated *against* the community's resolved definition. **The membership model itself — who belongs to a community, trust-weighted vouches, roles — is a separate, downstream layer and is not defined here.** §26 defines only the resolution of definitional fields over the `b` closure.
+
+See §25 (the `b` write tag), §23 (the `n`/`s` bounded walk this reuses), §22 (the candidate registry-selection that would feed on resolved definitions), and ADR 0028 for the full rationale and the rejected WoT-weighting alternative.
 
 ---
 
