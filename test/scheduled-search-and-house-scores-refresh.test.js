@@ -1,6 +1,6 @@
 /**
  * Failing tests for story #4: scheduled task to refresh Meilisearch profiles + House PoV WoT scores.
- * See engineering-team/stories/4-scheduled-search-and-house-scores-refresh.test-plan.md
+ * See engineering-team/stories/search-and-router/4-scheduled-search-and-house-scores-refresh.test-plan.md
  *
  * Each test maps to one or more acceptance criteria. Tests fail on the pre-implementation
  * tree and pass once the Implementer lands the changes described in ADR 0003 (Option A).
