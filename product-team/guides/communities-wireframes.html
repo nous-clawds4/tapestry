@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Communities — MVP Wireframes</title>
+<!--
+  Low-fidelity wireframes for the Communities MVP (Convener + Newcomer).
+  Static reference only — not production code. Uses the binding design tokens
+  from communities-design-guide.md. Screens: #discover #circle #found #fork #signin.
+-->
+<style>
+  :root{
+    --accent:#ba20ba;--accent-hover:#d234d2;--accent-muted:rgba(186,32,186,.12);--accent-glow:rgba(186,32,186,.45);
+    --brand:#662d91;--bg:#0a0612;--bg-surface:#120a1c;--bg-elevated:#1a1126;--bg-hover:#221830;--bg-input:#0f0918;
+    --text:#f4f0fa;--text-secondary:#b8aec9;--text-muted:#8a809a;--text-faint:#5a526a;--text-on-accent:#fff;
+    --success:#3ec98a;--warning:#fbb03b;--error:#e0566b;
+    --space-2:8px;--space-3:12px;--space-4:16px;--space-5:24px;--space-6:32px;
+    --radius-md:10px;--radius-lg:16px;--radius-full:999px;
+    --font-body:'DM Sans',system-ui,sans-serif;--font-display:'MuseoModerno',var(--font-body);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font-body);font-size:15px;line-height:1.5}
+  h1,h2,h3{font-family:var(--font-display);margin:0}
+  a{color:var(--accent);text-decoration:none}
+  .wrap{max-width:1040px;margin:0 auto;padding:var(--space-6) var(--space-5)}
+  .screen{border:1px dashed #2d2440;border-radius:var(--radius-lg);padding:var(--space-5);margin-bottom:var(--space-6);background:var(--bg-surface)}
+  .screen > .tag{display:inline-block;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-faint);margin-bottom:var(--space-4)}
+  .btn{display:inline-flex;align-items:center;gap:6px;background:var(--accent);color:var(--text-on-accent);border:none;border-radius:var(--radius-full);padding:10px 18px;font:inherit;font-weight:600;cursor:pointer;min-height:44px}
+  .btn.ghost{background:transparent;color:var(--accent);border:1px solid var(--accent)}
+  .chip{display:inline-block;background:var(--bg-hover);color:var(--text-secondary);border-radius:var(--radius-full);padding:3px 10px;font-size:12px;margin-right:6px}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--space-4)}
+  @media(max-width:1024px){.grid{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:640px){.grid{grid-template-columns:1fr}}
+  .card{background:var(--bg-elevated);border:1px solid #2d2440;border-radius:var(--radius-md);padding:var(--space-4)}
+  .card:hover{border-color:var(--accent)}
+  .avatars{display:inline-flex}
+  .av{width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,var(--brand),var(--accent));margin-left:-6px;border:2px solid var(--bg-elevated);display:inline-block}
+  .av:first-child{margin-left:0}
+  .trust{margin-top:var(--space-3);font-size:13px;display:flex;align-items:center;gap:8px}
+  .trust .you{color:var(--accent);font-weight:600}
+  .trust .house{color:var(--text-secondary)}
+  .dot{width:8px;height:8px;border-radius:50%;display:inline-block}
+  .dot.t{background:var(--success)}
+  .row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #221830}
+  .muted{color:var(--text-muted)}.faint{color:var(--text-faint)}
+  .input{background:var(--bg-input);border:1px solid #2d2440;border-radius:var(--radius-md);padding:12px 14px;color:var(--text);width:100%;font:inherit}
+  .skel{background:linear-gradient(90deg,#1a1126,#251a36,#1a1126);border-radius:6px;height:12px;margin:8px 0}
+  .state{border-left:3px solid var(--accent);background:var(--accent-muted);padding:10px 14px;border-radius:0 var(--radius-md) var(--radius-md) 0;margin-top:var(--space-3);font-size:13px}
+  .state.err{border-color:var(--error);background:rgba(224,86,107,.1)}
+  .banner{background:var(--accent-muted);border:1px solid var(--accent);border-radius:var(--radius-md);padding:10px 14px;font-size:13px;margin-bottom:var(--space-4)}
+  .steps{display:flex;gap:8px;margin-bottom:var(--space-4)}
+  .step{flex:1;height:4px;border-radius:var(--radius-full);background:var(--bg-hover)}
+  .step.on{background:var(--accent)}
+  label{display:block;font-size:13px;color:var(--text-secondary);margin:var(--space-4) 0 6px}
+  .nav{display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-6)}
+  code{background:var(--bg-input);padding:1px 6px;border-radius:5px;color:var(--text-secondary)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="nav">
+    <h1 style="font-size:22px">Communities — MVP Wireframes</h1>
+    <span class="faint">Convener + Newcomer · read-only first visit</span>
+  </div>
+
+  <!-- DISCOVER -->
+  <section class="screen" id="discover">
+    <span class="tag">Screen · Discover (no account)</span>
+    <h2 style="font-size:28px">Find your circle</h2>
+    <p class="muted">Circles built on trust. The people inside decide who belongs.</p>
+    <div style="margin:16px 0"><input class="input" placeholder="Search circles by interest…" style="max-width:420px"></div>
+    <div class="grid">
+      <div class="card">
+        <h3 style="font-size:18px">Sunset Hikers</h3>
+        <p class="muted" style="font-size:13px">Trail people who chase golden hour.</p>
+        <span class="chip">outdoors</span><span class="chip">local</span>
+        <div class="trust"><span class="avatars"><i class="av"></i><i class="av"></i><i class="av"></i></span>
+          <span class="house">128 established members</span></div>
+        <div class="faint" style="font-size:12px;margin-top:4px">Sign in to see who <em>you</em> trust inside</div>
+      </div>
+      <div class="card">
+        <h3 style="font-size:18px">Code &amp; Coffee</h3>
+        <p class="muted" style="font-size:13px">Builders shipping in public.</p>
+        <span class="chip">dev</span><span class="chip">indie</span>
+        <div class="trust"><span class="avatars"><i class="av"></i><i class="av"></i></span>
+          <span class="house">54 established members</span></div>
+      </div>
+      <!-- loading -->
+      <div class="card" aria-hidden="true">
+        <div class="skel" style="width:60%;height:18px"></div><div class="skel" style="width:90%"></div>
+        <div class="skel" style="width:40%"></div><div class="skel" style="width:50%;margin-top:14px"></div>
+      </div>
+    </div>
+    <div class="state">Empty state: “No circles yet. Start the first one.” → <span class="btn" style="padding:6px 12px;min-height:0">Start a circle</span></div>
+  </section>
+
+  <!-- CIRCLE DETAIL -->
+  <section class="screen" id="circle">
+    <span class="tag">Screen · Circle detail (signed in)</span>
+    <h2 style="font-size:28px">Sunset Hikers</h2>
+    <div class="banner">Based on <a href="#">Bay Area Trails</a> — this circle stands on that definition, with its own tweaks.</div>
+    <div style="display:flex;gap:24px;flex-wrap:wrap">
+      <div style="flex:2;min-width:280px">
+        <h3 style="font-size:16px;margin-bottom:6px">What this circle is</h3>
+        <p class="muted">Golden-hour trail people in the Bay Area. We share routes, carpools, and post-hike tacos.</p>
+        <h3 style="font-size:16px;margin:16px 0 6px">What it takes to belong</h3>
+        <p class="muted">A few current members who trust you vouch you in. <span class="faint">(inherited from Bay Area Trails)</span></p>
+        <h3 style="font-size:16px;margin:16px 0 6px">Conversation</h3>
+        <div class="row"><i class="av"></i><div><b>maya</b> <span class="faint">· 2h</span><div class="muted">Anyone for Mt. Tam Saturday?</div></div></div>
+        <div style="margin-top:12px"><input class="input" placeholder="Share something with the circle…"></div>
+      </div>
+      <div style="flex:1;min-width:220px">
+        <h3 style="font-size:16px;margin-bottom:10px">People</h3>
+        <div class="row"><i class="av"></i><div>maya <span class="dot t" title="trusted"></span><div class="faint" style="font-size:12px">trusted by people you trust</div></div></div>
+        <div class="row"><i class="av"></i><div>devandra<div class="faint" style="font-size:12px">3 people you trust vouch</div></div></div>
+        <div class="row"><i class="av"></i><div>“maya_real” <div class="faint" style="font-size:12px">no one you trust vouches for them</div></div></div>
+        <div class="trust" style="margin-top:14px"><span class="you">12 people you trust are inside</span></div>
+        <div style="margin-top:16px"><button class="btn ghost">Fork this circle</button></div>
+        <div class="state err">If the trust network is unreachable: “Showing names without the trust signal. Retry?”</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOUND -->
+  <section class="screen" id="found">
+    <span class="tag">Screen · Found a circle</span>
+    <h2 style="font-size:24px">Start a circle</h2>
+    <div class="steps"><div class="step on"></div><div class="step on"></div><div class="step"></div><div class="step"></div></div>
+    <label>What it takes to belong</label>
+    <input class="input" placeholder="e.g. a couple of current members who trust you vouch you in">
+    <p class="faint" style="font-size:12px;margin-top:8px">This is the circle’s rule — not a member list. You’re a peer here, not an owner.</p>
+    <div style="margin-top:16px;display:flex;gap:10px"><button class="btn ghost">Back</button><button class="btn">Continue</button></div>
+  </section>
+
+  <!-- FORK -->
+  <section class="screen" id="fork">
+    <span class="tag">Screen · Fork a circle</span>
+    <h2 style="font-size:24px">Stand on “Bay Area Trails”</h2>
+    <div class="banner">Every field starts <b>inherited</b> from Bay Area Trails. Edit only what you want to change — the rest stays linked and updates if they update it.</div>
+    <label>What it takes to belong <span class="faint">— inherited</span></label>
+    <input class="input" value="A few current members who trust you vouch you in">
+    <p class="faint" style="font-size:12px;margin-top:8px">Editing this overrides just this field; you still stand on the rest of their definition.</p>
+    <div style="margin-top:16px"><button class="btn">Review &amp; publish</button></div>
+  </section>
+
+  <!-- SIGN IN -->
+  <section class="screen" id="signin">
+    <span class="tag">Screen · Sign-in prompt (at the moment of acting)</span>
+    <div class="card" style="max-width:380px">
+      <h3 style="font-size:18px">Sign in to publish your circle</h3>
+      <p class="muted" style="font-size:13px">Your identity is portable — it’s how people vouch for you and how your circle stays yours.</p>
+      <div style="margin-top:12px"><button class="btn">Sign in</button> <button class="btn ghost">Back</button></div>
+      <div class="state err">Error copy is specific: “We couldn’t reach the network — try again?” / “Signing cancelled.” Never “something went wrong.”</div>
+    </div>
+  </section>
+</div>
+</body>
+</html>
