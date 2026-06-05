@@ -20,7 +20,7 @@ Roster derivation (Story 44). Writing tags (Story 43). The exact label encoding 
 
 ## Build notes (2026-06-05)
 Four-layer inheritance, all reviewed:
-- **Builder** `ui-communities/src/events/declaration.js` — founding materializes defaults (claims own concept, threshold 1, cutoff 0.5) so the root is self-describing; a fork omits unset fields so they inherit live (§26).
+- **Builder** `ui-communities/src/events/declaration.js` — founding materializes defaults (claims its own tag-element `39999:<founder>:<slug>`, threshold 1, cutoff 0.5) so the root is self-describing; a fork omits unset fields so they inherit live (§26). *Coord corrected 2026-06-05 PM to a kind-39999 tag-element per Vinney's wire shape (ADR-0022); was 39998 — pending his one-line confirm.*
 - **Projection** `ui-communities/src/events/fetch.js` (`projectDeclaration`) — reports the wire faithfully: absent threshold/cutoff → `null` (not a default), claims → `[]`. Defaulting is NOT done here, so a default never masquerades as a stated value.
 - **Resolver** `ui-communities/src/lib/resolveDefinition.js` — `claims`/`membershipThreshold`/`influenceCutoff` added to the folded `DEFINITION_FIELDS`; empty-array/`null` inherit, `0` is a real (overriding) value.
 - **Consumer** `deriveRoster` coalesces `null → default` (single source of truth).

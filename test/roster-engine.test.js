@@ -20,7 +20,7 @@ function loadDerive() {
   return new Function(m[1], m[2]);
 }
 
-const CIRCLE = { claims: ['39998:founder:circle'] };
+const CIRCLE = { claims: ['39999:founder:circle'] };
 const HI = 'asserter-trusted';
 const LO = 'asserter-untrusted';
 // viewer trusts HI (0.9), barely trusts LO (0.1); cutoff 0.5.
@@ -32,14 +32,14 @@ test('T1: exports deriveRoster', () => {
 
 test('T2: a trusted +1 vouch above threshold makes a member', () => {
   const derive = loadDerive();
-  const tags = [{ asserter: HI, target: 'carol', concept: '39998:founder:circle', polarity: 1 }];
+  const tags = [{ asserter: HI, target: 'carol', concept: '39999:founder:circle', polarity: 1 }];
   const { members } = derive(CIRCLE, tags, wot, { cutoff: 0.5, threshold: 0.5 });
   assert(members.some(m => m.pubkey === 'carol'), 'carol should be a member');
 });
 
 test('T3: a self-tag below threshold is an applicant, not a member', () => {
   const derive = loadDerive();
-  const tags = [{ asserter: 'dave', target: 'dave', concept: '39998:founder:circle', polarity: 1 }];
+  const tags = [{ asserter: 'dave', target: 'dave', concept: '39999:founder:circle', polarity: 1 }];
   // dave self-tags; viewer barely trusts dave (0.1 < cutoff) so score ~0 < threshold.
   const w = a => (a === 'dave' ? 0.1 : 0.9);
   const { members, applicants } = derive(CIRCLE, tags, w, { cutoff: 0.5, threshold: 0.5 });
@@ -50,8 +50,8 @@ test('T3: a self-tag below threshold is an applicant, not a member', () => {
 test('T4: an untrusted asserter is weightless — no veto', () => {
   const derive = loadDerive();
   const tags = [
-    { asserter: HI, target: 'carol', concept: '39998:founder:circle', polarity: 1 },   // trusted +1
-    { asserter: LO, target: 'carol', concept: '39998:founder:circle', polarity: -1 },  // untrusted -1
+    { asserter: HI, target: 'carol', concept: '39999:founder:circle', polarity: 1 },   // trusted +1
+    { asserter: LO, target: 'carol', concept: '39999:founder:circle', polarity: -1 },  // untrusted -1
   ];
   const { members } = derive(CIRCLE, tags, wot, { cutoff: 0.5, threshold: 0.5 });
   assert(members.some(m => m.pubkey === 'carol'), 'untrusted -1 must not veto a trusted +1');
@@ -59,19 +59,19 @@ test('T4: an untrusted asserter is weightless — no veto', () => {
 
 test('T5: only tags for a CLAIMED concept count', () => {
   const derive = loadDerive();
-  const tags = [{ asserter: HI, target: 'carol', concept: '39998:other:thing', polarity: 1 }];
+  const tags = [{ asserter: HI, target: 'carol', concept: '39999:other:thing', polarity: 1 }];
   const { members, applicants } = derive(CIRCLE, tags, wot, { cutoff: 0.5, threshold: 0.5 });
   assert(members.length === 0 && applicants.length === 0, 'tags for unclaimed concepts must be ignored');
 });
 
 test('T6: threshold is respected (N≥2 needs two trusted vouches)', () => {
   const derive = loadDerive();
-  const oneVouch = [{ asserter: HI, target: 'carol', concept: '39998:founder:circle', polarity: 1 }];
+  const oneVouch = [{ asserter: HI, target: 'carol', concept: '39999:founder:circle', polarity: 1 }];
   const r1 = derive(CIRCLE, oneVouch, () => 0.9, { cutoff: 0.5, threshold: 1.5 });
   assert(!r1.members.some(m => m.pubkey === 'carol'), 'one 0.9 vouch is below a 1.5 threshold');
   const twoVouch = [
-    { asserter: 'a1', target: 'carol', concept: '39998:founder:circle', polarity: 1 },
-    { asserter: 'a2', target: 'carol', concept: '39998:founder:circle', polarity: 1 },
+    { asserter: 'a1', target: 'carol', concept: '39999:founder:circle', polarity: 1 },
+    { asserter: 'a2', target: 'carol', concept: '39999:founder:circle', polarity: 1 },
   ];
   const r2 = derive(CIRCLE, twoVouch, () => 0.9, { cutoff: 0.5, threshold: 1.5 });
   assert(r2.members.some(m => m.pubkey === 'carol'), 'two 0.9 vouches clear a 1.5 threshold');
@@ -80,8 +80,8 @@ test('T6: threshold is respected (N≥2 needs two trusted vouches)', () => {
 test('T7: a duplicate vouch from the same asserter counts once (no stacking)', () => {
   const derive = loadDerive();
   const dup = [
-    { asserter: HI, target: 'carol', concept: '39998:founder:circle', polarity: 1 },
-    { asserter: HI, target: 'carol', concept: '39998:founder:circle', polarity: 1 }, // accidental re-vouch
+    { asserter: HI, target: 'carol', concept: '39999:founder:circle', polarity: 1 },
+    { asserter: HI, target: 'carol', concept: '39999:founder:circle', polarity: 1 }, // accidental re-vouch
   ];
   // If it stacked, score would be 1.8 ≥ 1.5; deduped it's 0.9 < 1.5.
   const { members } = derive(CIRCLE, dup, () => 0.9, { cutoff: 0.5, threshold: 1.5 });
@@ -90,7 +90,7 @@ test('T7: a duplicate vouch from the same asserter counts once (no stacking)', (
 
 test('T8: an absent polarity is a vouch (+1), never a silent downvote', () => {
   const derive = loadDerive();
-  const tags = [{ asserter: HI, target: 'carol', concept: '39998:founder:circle' }]; // no polarity
+  const tags = [{ asserter: HI, target: 'carol', concept: '39999:founder:circle' }]; // no polarity
   const { members } = derive(CIRCLE, tags, () => 0.9, { cutoff: 0.5, threshold: 0.5 });
   assert(members.some(m => m.pubkey === 'carol'), 'a tag with no polarity should count as a vouch');
 });

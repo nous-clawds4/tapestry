@@ -17,8 +17,13 @@
  *   - tags:     [{ asserter, target, concept, polarity }]  (parsed nostr-user-tags)
  *   - wotScore: (asserterPubkey) => number   GrapeRank from the viewer's PoV
  *
- * The live tag reader + the real wotScore wire in once the nostr-user-tag
- * schema is locked (Story 43) — this function does not change then.
+ * PRODUCTION PATH (ADR 0030, resolved 2026-06-05): the live roster is served by
+ * the brainstorm server's `aggregateProfilesTagged` + `applyDisputesFunction`
+ * over the circle's claimed `#a` coords at the resolved PoV (house in v1) — the
+ * server owns the WoT/Meili scoring (app-as-consumer). This pure function is the
+ * SEMANTIC REFERENCE for that math, the test oracle, and an offline house-PoV
+ * fallback — not the production scorer. A "claim" is a kind-39999 tag-ELEMENT
+ * coord `39999:<tagAuthor>:<slug>`; `t.concept` here is that coord.
  */
 
 export function deriveRoster(circle, tags, wotScore, opts = {}) {

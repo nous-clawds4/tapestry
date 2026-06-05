@@ -44,19 +44,21 @@ function loadProjectDeclaration() {
 const VIEWER = 'founder-pubkey';
 const CIRCLE = { slug: 'climbers', name: 'Climbers', purpose: 'people who climb' };
 
-test('T1: builder emits a default claims tag = the circle\'s own concept', () => {
+test('T1: builder emits a default claims tag = the circle\'s own tag-element (39999)', () => {
   const build = loadExport(DECL, 'buildCommunityDeclaration');
   const ev = build({ viewerPubkey: VIEWER, circle: CIRCLE });
   const claims = ev.tags.filter(t => t[0] === 'claims').map(t => t[1]);
   assert(claims.length === 1, 'exactly one default claims tag');
-  assert(claims[0] === `39998:${VIEWER}:${CIRCLE.slug}`, `default claims its own concept, got ${claims[0]}`);
+  // Per Vinney's wire shape (ADR-0022): a community claims a nostr-user-tag
+  // ELEMENT, coord 39999:<tagAuthor>:<slug> — not the 39998 type concept.
+  assert(claims[0] === `39999:${VIEWER}:${CIRCLE.slug}`, `default claims its own tag-element, got ${claims[0]}`);
 });
 
 test('T2: builder honors explicit claims (many-to-many)', () => {
   const build = loadExport(DECL, 'buildCommunityDeclaration');
-  const ev = build({ viewerPubkey: VIEWER, circle: { ...CIRCLE, claims: ['39998:a:x', '39998:b:y'] } });
+  const ev = build({ viewerPubkey: VIEWER, circle: { ...CIRCLE, claims: ['39999:a:x', '39999:b:y'] } });
   const claims = ev.tags.filter(t => t[0] === 'claims').map(t => t[1]);
-  assert(claims.length === 2 && claims[0] === '39998:a:x' && claims[1] === '39998:b:y',
+  assert(claims.length === 2 && claims[0] === '39999:a:x' && claims[1] === '39999:b:y',
     `should emit both explicit claims, got ${JSON.stringify(claims)}`);
 });
 
@@ -85,15 +87,15 @@ test('T5: projection reads claims (many) + threshold + cutoff back', () => {
       ['d', 'climbers'],
       ['t', 'brainstorm-community'],
       ['name', 'Climbers'],
-      ['claims', '39998:a:x'],
-      ['claims', '39998:b:y'],
+      ['claims', '39999:a:x'],
+      ['claims', '39999:b:y'],
       ['membership_threshold', '2'],
       ['influence_cutoff', '0.7'],
     ],
   };
   const p = project(event);
   assert(Array.isArray(p.claims) && p.claims.length === 2, 'claims read as a list');
-  assert(p.claims[0] === '39998:a:x' && p.claims[1] === '39998:b:y', 'claims preserved in order');
+  assert(p.claims[0] === '39999:a:x' && p.claims[1] === '39999:b:y', 'claims preserved in order');
   assert(p.membershipThreshold === 2, `threshold parsed, got ${p.membershipThreshold}`);
   assert(p.influenceCutoff === 0.7, `cutoff parsed, got ${p.influenceCutoff}`);
 });
@@ -114,14 +116,14 @@ test('T7: builder→projection round-trip is stable', () => {
   const project = loadProjectDeclaration();
   const ev = build({ viewerPubkey: VIEWER, circle: { ...CIRCLE, threshold: 3, cutoff: 0.2 } });
   const p = project(ev);
-  assert(p.claims[0] === `39998:${VIEWER}:${CIRCLE.slug}`, 'round-trip claims');
+  assert(p.claims[0] === `39999:${VIEWER}:${CIRCLE.slug}`, 'round-trip claims');
   assert(p.membershipThreshold === 3 && p.influenceCutoff === 0.2, 'round-trip trust bar');
 });
 
 test('T8: a fork omits unset membership fields so they inherit (§26)', () => {
   const build = loadExport(DECL, 'buildCommunityDeclaration');
   // Fork = parentATag present, convener changed nothing about membership.
-  const ev = build({ viewerPubkey: 'forker', circle: { slug: 'sub' }, parentATag: '39998:a:parent' });
+  const ev = build({ viewerPubkey: 'forker', circle: { slug: 'sub' }, parentATag: '39999:a:parent' });
   const has = k => ev.tags.some(t => t[0] === k);
   assert(!has('claims'), 'fork must omit claims to inherit the parent rule');
   assert(!has('membership_threshold'), 'fork must omit threshold to inherit');
@@ -130,7 +132,7 @@ test('T8: a fork omits unset membership fields so they inherit (§26)', () => {
 
 test('T9: a fork that overrides writes only the overridden field', () => {
   const build = loadExport(DECL, 'buildCommunityDeclaration');
-  const ev = build({ viewerPubkey: 'forker', circle: { slug: 'sub', threshold: 5 }, parentATag: '39998:a:parent' });
+  const ev = build({ viewerPubkey: 'forker', circle: { slug: 'sub', threshold: 5 }, parentATag: '39999:a:parent' });
   const one = k => { const t = ev.tags.find(x => x[0] === k); return t && t[1]; };
   assert(one('membership_threshold') === '5', 'override is written');
   assert(!ev.tags.some(t => t[0] === 'influence_cutoff'), 'unset cutoff still omitted (inherits)');
@@ -154,13 +156,13 @@ test('T10: the §26 resolver inherits a parent\'s membership rule down a fork', 
   // eslint-disable-next-line no-new-func
   const factory = new Function(`${stripped}\nreturn resolveDefinition;`);
   const resolveDefinition = factory();
-  const parent = { slug: 'parent', founder: 'a', name: 'Parent', claims: ['39998:a:parent'], membershipThreshold: 4, influenceCutoff: 0.3 };
-  const child = { slug: 'sub', founder: 'forker', parent: '39998:a:parent', name: 'Sub', claims: [], membershipThreshold: null, influenceCutoff: null };
-  const fetchByATag = async (aTag) => (aTag === '39998:a:parent' ? parent : null);
+  const parent = { slug: 'parent', founder: 'a', name: 'Parent', claims: ['39999:a:parent'], membershipThreshold: 4, influenceCutoff: 0.3 };
+  const child = { slug: 'sub', founder: 'forker', parent: '39999:a:parent', name: 'Sub', claims: [], membershipThreshold: null, influenceCutoff: null };
+  const fetchByATag = async (aTag) => (aTag === '39999:a:parent' ? parent : null);
   const resolved = await resolveDefinition(child, fetchByATag);
   assert(resolved.membershipThreshold === 4, `child inherits parent threshold, got ${resolved.membershipThreshold}`);
   assert(resolved.influenceCutoff === 0.3, `child inherits parent cutoff, got ${resolved.influenceCutoff}`);
-  assert(Array.isArray(resolved.claims) && resolved.claims[0] === '39998:a:parent', 'child inherits parent claims');
+  assert(Array.isArray(resolved.claims) && resolved.claims[0] === '39999:a:parent', 'child inherits parent claims');
 });
 
 test('T11: a fork override beats inheritance in the resolver', async () => {
@@ -172,8 +174,8 @@ test('T11: a fork override beats inheritance in the resolver', async () => {
     .replace(/export function/g, 'function');
   // eslint-disable-next-line no-new-func
   const resolveDefinition = new Function(`${stripped}\nreturn resolveDefinition;`)();
-  const parent = { slug: 'parent', founder: 'a', membershipThreshold: 4, influenceCutoff: 0.3, claims: ['39998:a:parent'] };
-  const child = { slug: 'sub', founder: 'forker', parent: '39998:a:parent', membershipThreshold: 9, influenceCutoff: null, claims: [] };
+  const parent = { slug: 'parent', founder: 'a', membershipThreshold: 4, influenceCutoff: 0.3, claims: ['39999:a:parent'] };
+  const child = { slug: 'sub', founder: 'forker', parent: '39999:a:parent', membershipThreshold: 9, influenceCutoff: null, claims: [] };
   const resolved = await resolveDefinition(child, async () => parent);
   assert(resolved.membershipThreshold === 9, 'child override wins');
   assert(resolved.influenceCutoff === 0.3, 'unset child field still inherits');

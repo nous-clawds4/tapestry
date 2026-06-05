@@ -57,18 +57,22 @@ export function buildCommunityDeclaration({ viewerPubkey, circle, parentATag = n
   // Forward-compatible with forking (Block 2 / §25). Founding never sets it.
   if (parentATag) tags.push(['b', parentATag, 'inherit'])
 
-  // Membership (ADR 0030): the circle CLAIMS kind-39998 concept(s) as its
-  // membership signal — members are people tagged with a claimed concept,
-  // trust-weighted. threshold + cutoff set the trust bar. All three resolve
-  // through b-inheritance (§26), so we follow the same write discipline as the
-  // definition fields above:
+  // Membership (ADR 0030 + Vinney's wire shape, ADR-0022): the circle CLAIMS one
+  // or more nostr-user-tag ELEMENTS as its membership signal — members are people
+  // an assertion attaches to a claimed tag-element, trust-weighted. A tag-element
+  // is addressed by its stable `a` coordinate `39999:<tagAuthor>:<slug>` (the kind
+  // that survives the tag author editing the element; the `e` event-id is only
+  // provenance). threshold + cutoff set the trust bar. All three resolve through
+  // b-inheritance (§26), so we follow the same write discipline as the definition
+  // fields above:
   //   - founding (no parent): MATERIALIZE the default so the root is
-  //     self-describing — claims its own concept, threshold 1, cutoff 0.5.
+  //     self-describing — claims its own tag-element (`39999:<founder>:<slug>`,
+  //     i.e. "tagged into this circle"), threshold 1, cutoff 0.5.
   //   - fork (has parent): write ONLY what the convener set; omit the rest so
   //     it inherits the parent's rule live (the resolver fills it in at read).
   const founding = !parentATag
   const explicitClaims = (Array.isArray(circle.claims) && circle.claims.length) ? circle.claims : null
-  const claims = explicitClaims || (founding ? [`39998:${viewerPubkey}:${circle.slug}`] : [])
+  const claims = explicitClaims || (founding ? [`39999:${viewerPubkey}:${circle.slug}`] : [])
   for (const c of claims) {
     if (c) tags.push(['claims', c])
   }
