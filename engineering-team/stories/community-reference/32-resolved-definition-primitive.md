@@ -54,4 +54,4 @@ Concept Graph API unreachable at planning — Architect to resolve any handles v
 ## Linked artifacts
 - ADR: [../../decisions/community-reference/0028-resolved-definition.md](../../decisions/community-reference/0028-resolved-definition.md) — **Accepted** (2026-06-05).
 - Test plan: _n/a — Test Design skipped (docs-only)._
-- Review: _(filled in after Review)_
+- Review: [../../reviews/community-reference/32-resolved-definition-primitive.md](../../reviews/community-reference/32-resolved-definition-primitive.md) — **PASS** (2026-06-06): 5/5 ACs, ADR 0028-conformant, BIBLE-only diff, story #31's `effectiveCD` ref now closed; 24/24 unaffected suites green (2 pre-existing #236-reorg failures separately tracked in `task_00e94771`).
