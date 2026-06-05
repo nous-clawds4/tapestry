@@ -16,8 +16,11 @@ function loadDerive() {
   const src = read(MOD);
   const m = src.match(/export\s+function\s+deriveRoster\s*\(([^)]*)\)\s*\{([\s\S]*?)^\}/m);
   if (!m) throw new Error('membership.js must export `function deriveRoster(...) { ... }`');
+  // deriveRoster now delegates the gate to isMember (same module); inject it
+  // (the gate itself is covered directly by roster-client T2/T3).
+  const prelude = 'function isMember(a,d,t){t=t==null?1:t;return a>=t&&a>d}\n';
   // eslint-disable-next-line no-new-func
-  return new Function(m[1], m[2]);
+  return new Function(m[1], prelude + m[2]);
 }
 
 const CIRCLE = { claims: ['39999:founder:circle'] };

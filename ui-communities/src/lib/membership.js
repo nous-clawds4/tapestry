@@ -35,6 +35,18 @@
  * coord `39999:<founder>:<slug>`; `t.concept` here is that coord.
  */
 
+/**
+ * The membership gate (ADR 0030 / the server's `applyDisputesFunction`): a
+ * TWO-PART test on trusted counts — `applications ≥ threshold AND applications
+ * > disputes`. NOT net-difference. Shared by the offline oracle (deriveRoster,
+ * below) and the live server-count consumer (lib/roster.js) so the rule has one
+ * definition. `threshold` defaults to 1 (null/undefined coalesce; 0 is valid).
+ */
+export function isMember(applications, disputes, threshold) {
+  const t = threshold == null ? 1 : threshold
+  return applications >= t && applications > disputes
+}
+
 export function deriveRoster(circle, tags, wotScore, opts = {}) {
   // This is the single source of truth for the trust-bar defaults. The wire
   // projection reports an unset threshold/cutoff as null (so §26 can inherit);
@@ -77,7 +89,7 @@ export function deriveRoster(circle, tags, wotScore, opts = {}) {
   const applicants = []
   for (const [pubkey, e] of byCandidate) {
     const row = { pubkey, applications: e.applications, disputes: e.disputes }
-    if (e.applications >= threshold && e.applications > e.disputes) members.push(row)
+    if (isMember(e.applications, e.disputes, threshold)) members.push(row)
     else if (e.selfApplied) applicants.push(row)
   }
   members.sort((a, b) => b.applications - a.applications)

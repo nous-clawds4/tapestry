@@ -1,7 +1,12 @@
 # Story 45: Trust signal + applicant/member display (Block 3)
 
-**Status:** Design-ahead (BLOCKED — rides Story 44's roster engine)
-**Type:** Feature · **Epic:** `communities-membership` · **ADR:** 0030. **This is Block 3 (trust signal), folded here because it reads the same engine.**
+**Status:** Data layer DONE + reviewed (2026-06-05); **UI remains** (the acceptance criteria below are the People-tab + trust-signal surface). Unblocked: the tag core is live on staging and the roster client is built.
+**Type:** Feature · **Epic:** `communities-membership` · **ADR:** 0030 + 0031. **This is Block 3 (trust signal), folded here because it reads the same engine.**
+
+## Data layer (2026-06-05)
+- `ui-communities/src/lib/roster.js` — `getRoster(circle, {wotPov:'house', threshold})` → `{members, viewerAssertions}`: resolves each claimed tag-element coord → current event id → `${VITE_PROFILE_API_BASE}/api/profile-tags/profiles-tagged` → unions across claimed tags → two-part gate (`isMember`, shared with `deriveRoster`). Network seams injected for tests; real defaults use the relay + cross-origin fetch with graceful-empty on CORS/network failure (ADR 0031, Option A). Tests `test/roster-client.test.js` (9/9). Independent review: PASS, no blocking.
+- **v1 = members only.** The count endpoint collapses self-application, so "applicant" isn't derivable — needs a per-row `selfApplied` flag on `profiles-tagged` (a Vinney ask). AC for applicant role is therefore parked until that lands.
+- The UI (ACs below) is the remaining work and the natural review-with-a-human point (copy + visual hard rules apply).
 
 ## Background
 The trust signal and per-member legibility the PRD/design specified, now backed by the real roster: "N people you trust are inside" (signed-in) / "N established members" (house, signed-out); each member shown with their trusted/untrusted standing from the viewer's PoV; impersonators weightless. Plus the applicant→member role on the People tab.

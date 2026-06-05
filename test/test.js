@@ -66,6 +66,7 @@ const postToCdCircle = require('./post-to-cd-circle.test.js');
 const rosterEngine = require('./roster-engine.test.js');
 const cdClaimsField = require('./cd-claims-field.test.js');
 const membershipAssertion = require('./membership-assertion.test.js');
+const rosterClient = require('./roster-client.test.js');
 
 async function main() {
   console.log('Running Brainstorm tests...\n');
@@ -201,6 +202,9 @@ async function main() {
   console.log('\nmembership-assertion suite:');
   const membershipAssertionResult = await membershipAssertion.run();
 
+  console.log('\nroster-client suite:');
+  const rosterClientResult = await rosterClient.run();
+
   console.log('\nTest Results');
   console.log('-------------');
   console.log(`Configuration Loading:                           ${configOk ? 'PASS' : 'FAIL'}`);
@@ -333,6 +337,9 @@ async function main() {
   console.log(
     `membership-assertion suite:                      ${membershipAssertionResult.fail === 0 ? 'PASS' : 'FAIL'} (${membershipAssertionResult.pass} passed, ${membershipAssertionResult.fail} failed)`
   );
+  console.log(
+    `roster-client suite:                             ${rosterClientResult.fail === 0 ? 'PASS' : 'FAIL'} (${rosterClientResult.pass} passed, ${rosterClientResult.fail} failed)`
+  );
 
   const overallOk =
     configOk &&
@@ -378,7 +385,8 @@ async function main() {
     postToCdCircleResult.fail === 0 &&
     rosterEngineResult.fail === 0 &&
     cdClaimsFieldResult.fail === 0 &&
-    membershipAssertionResult.fail === 0;
+    membershipAssertionResult.fail === 0 &&
+    rosterClientResult.fail === 0;
   console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);
   process.exit(overallOk ? 0 : 1);
 }
