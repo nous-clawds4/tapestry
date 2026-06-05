@@ -6,6 +6,8 @@ Product Strategist. See `product-team/roles/product-strategist.md`.
 ## Input
 The user's free-form description of what they want — a sentence, a paragraph, a voice-note transcript, a bullet list.
 
+**If this is the *next* phase of an existing product** (not a cold start), read the engineering team's return edge first: any `engineering-team/audits/<book-slug>/audit.md` (what shipped last cycle) and its `prd-addendum.md` or `prd-seed.md` (where it drifted from plan, and the carry-forward). Open the conversation grounded in that — "here's what got built, here's where it diverged and why, here's what's still open" — rather than from scratch. A `prd-seed.md` means engineering built without a PRD; adopt it as the strawman baseline and validate it here. This is the loop closing: engineering reads the product team's `stories-queue.md`; the product team reads engineering's `audits/`.
+
 ## Output
 A discovery brief at `product-team/discoveries/<slug>.md`, using the `discovery-brief.md` template. **The product slug is chosen in this phase** and reused by every later phase.
 

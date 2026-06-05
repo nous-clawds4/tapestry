@@ -37,6 +37,22 @@ Yes. Commit the review file regardless of verdict. Accumulated reviews are valua
 
 When the verdict is PASS, set `**Status:** Done` at the top of the story file in the same review commit. **That's the whole per-story close-out — do not move individual files.** Retirement happens per-epic, not per-story, so an epic's stories stay together in `stories/<epic-slug>/` while the epic is still in flight (even if some are already Done). Save your review under the epic too: `engineering-team/reviews/<epic-slug>/<n>-<slug>.md`.
 
+## Completion detection — offer to close the book
+
+The moment a *book of work* can become complete is always "the last story just passed review." So after a PASS, check the book this story belongs to (`engineering-team/audits/<book-slug>/book.md`):
+
+- **PRD-backed (structural):** are all stories tracing to the anchor's §sections now `Done` and their epics closed? If yes → the book looks complete.
+- **No-PRD (semantic):** is every bullet of the acceptance frame now satisfied by what shipped? If yes → the book looks complete.
+
+When a book looks complete, **offer — don't auto-run:**
+
+> Your original ask was *<anchor summary>*. What's shipped now covers it: *<evidence, linked to stories>*. This book of work looks complete — want me to close it? I'll generate the build audit and the PRD {addendum|seed}.
+
+- **Yes** → run `/close-book` (Phase 6). The human's "yes" is the invocation.
+- **Not yet / also need X** → extend the acceptance frame (or note the remaining PRD scope), leave the book `Open`, write nothing.
+
+The system never *declares* a book done — it *proposes* done and the human ratifies. That's the safety valve against false-positive completion. A natural-language "I think that's everything" triggers the same offer — see `CLAUDE.md` → "Intent Detection".
+
 ## Epic close-out
 
 When an epic ships (its branch is merged to the shared line), move the epic's whole folders under `done/` — **one `git mv` per area, on the directory, not per file:**
