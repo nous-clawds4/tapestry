@@ -44,7 +44,8 @@ Make the failing tests pass. Write the **minimum** code that satisfies the test 
    - If you change concept definitions in firmware, run `curl -X POST http://localhost:8877/api/firmware/install` after editing.
    - Don't add lint or typecheck tooling without an explicit ADR.
 8. **If something forces you outside the ADR**, stop. Surface it to the user. The Architect needs to amend the ADR before you proceed.
-9. **Hand off:** "Implementation done. Tests green. Run `/review-changes`."
+9. **Log smaller deviations as you go.** Judgment calls too small for an ADR amendment — reading an ambiguous acceptance criterion one way, a minor shape change, an edge case the story didn't name — get one line under a `## Deviations` heading in the story file: what you did and why. The book-close audit harvests these, so un-logged rationale is lost rationale. (Hard deviations still go to step 8; this is for the small stuff that would otherwise vanish.)
+10. **Hand off:** "Implementation done. Tests green. Run `/review-changes`."
 
 ## Per-phase commits
 This project uses per-phase commits. Commit at the end of implementation with a message that references the story and ADR (e.g., `impl: <slug> (story #<n>, ADR <NNNN>)`).

@@ -17,7 +17,9 @@ engineering-team/
 │   ├── <epic-slug>/    in-flight stories for that epic: <n>-<slug>.md (+ .test-plan.md)
 │   └── done/<epic-slug>/   shipped epics — the whole epic folder is moved here at epic close
 ├── decisions/          ADRs, scoped by epic: <epic-slug>/<NNNN>-<slug>.md (+ done/<epic-slug>/)
-└── reviews/            review reports, scoped by epic: <epic-slug>/<n>-<slug>.md (+ done/<epic-slug>/)
+├── reviews/            review reports, scoped by epic: <epic-slug>/<n>-<slug>.md (+ done/<epic-slug>/)
+└── audits/             one folder per book of work: <book-slug>/ — book.md (opened at
+                        kickoff) + audit.md & prd-addendum.md|prd-seed.md (at close); done/<book-slug>/
 ```
 
 ## Epic-scoped docs — why the subfolders
@@ -44,6 +46,7 @@ The Claude Code wiring lives elsewhere:
 | Write tests for a story + ADR | `/design-tests` |
 | Implement a story that has tests | `/implement-feature` |
 | Review a diff before commit | `/review-changes` |
+| Close a finished book of work — audit + product feedback | `/close-book` |
 
 `/discuss` defaults to the **Product Expert** — a read-only thinking partner who knows the domain, stack, and existing decisions. Use `as <role> <topic>` for a different lens, or `roundtable <topic>` for multi-perspective.
 
@@ -58,6 +61,31 @@ The Claude Code wiring lives elsewhere:
 ```
 
 The user is the approval gate between phases. After each phase output, Claude asks you to confirm before continuing.
+
+Phases 1–5 are the **per-story** cycle. Above them sits one **per-book** milestone:
+
+```
+  /close-book             → audits/<book>/audit.md          (as-built record)
+                          → audits/<book>/prd-addendum.md   (PRD-backed: deltas vs the PRD)
+                            …or prd-seed.md                 (no PRD: reconstructed baseline)
+```
+
+## The return edge — closing the loop with the product team
+
+The product team's flow (`product-team/`, see its README) hands work *into* engineering: a PRD and an epic-aware `stories-queue.md`. **Book Close is the edge that hands learning back out.** When a book of work finishes — a PRD, a roadmap phase, or a no-PRD ask captured as an acceptance frame — `/close-book` reconciles what shipped against what was intended and writes two artifacts the product team reads to scope the next phase:
+
+```
+product PRD ─▶ eng epics/stories ─▶ build ─▶ /close-book ─▶ audit.md + prd-addendum.md
+     ▲                                                              │
+     └──────────  product /discover (next phase) ◀─────────────────┘
+```
+
+Two mechanisms make this reliable rather than something a human has to remember:
+
+- **Eager anchor (open bracket).** At intake (`workflows/0-intake.md`), a new book opens a `book.md` recording its intent anchor — the PRD it realizes, or, with no PRD, a short **acceptance frame** (the ask restated and confirmed). The thing you reconcile against at close is the thing you anchored to at open; skipping the anchor just drops the close to lower confidence.
+- **Completion detection (the offer).** After every per-story PASS, the Reviewer checks whether the book now looks complete (computed for PRD-backed books, judged against the frame otherwise) and *offers* to close it — it never auto-runs. The human's "yes" is the invocation. See `workflows/5-review.md` → "Completion detection".
+
+The boundary stays clean and symmetric: each team writes only in its own tree and reads across the line. Engineering reads the product team's `stories-queue.md`; the product team reads engineering's `audits/`. Neither writes into the other.
 
 ## Role isolation
 
