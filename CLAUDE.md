@@ -59,6 +59,7 @@ Between phases the gate is **conversational, never a command**: "I've captured t
 |---|---|
 | "let's implement," "write the code," "build this story" | `/plan-feature` (new story) or `/implement-feature` (story with tests) |
 | "review the code," "is this ready to ship" | `/review-changes` |
+| "I think that's everything," "that's all I needed," "looks done," "we're done" | **Offer to close the book** → `/close-book` (don't auto-run; the user's "yes" is the trigger) |
 
 **Advisory — thinking out loud** (no artifacts):
 
@@ -81,8 +82,10 @@ The harness lives in two places:
 
 - **`engineering-team/`** — roles, workflows, templates, and accumulating decisions/stories/reviews. Source of truth for behavior. Read [engineering-team/README.md](./engineering-team/README.md) for the layout and phase wiring.
 - **`.claude/`** — wiring only:
-  - `.claude/commands/<phase>.md` — slash commands: `/plan-feature`, `/design-architecture`, `/design-tests`, `/implement-feature`, `/review-changes`, `/discuss`.
+  - `.claude/commands/<phase>.md` — slash commands: `/plan-feature`, `/design-architecture`, `/design-tests`, `/implement-feature`, `/review-changes`, `/close-book`, `/discuss`.
   - `.claude/agents/<role>.md` — subagents with role-appropriate tool whitelists. The Architect cannot Edit source. The Reviewer cannot Edit source.
+
+Phases 1–5 are the **per-story** cycle. Above them sits one **per-book** milestone, `/close-book` — see "Books of work and the return edge" below.
 
 ### How to operate
 
@@ -108,6 +111,14 @@ The harness lives in two places:
 | ADRs | enabled |
 | Clean working tree before starting a feature | yes |
 | Commit at each phase boundary | yes |
+
+### Books of work and the return edge
+
+The per-story cycle sits inside a larger unit — a **book of work**: a PRD, one roadmap phase of a PRD, or (with no PRD) a bounded ask. Books bracket the loop back to the product team:
+
+- **Open (eager anchor).** At intake, a new book opens `engineering-team/audits/<book-slug>/book.md` recording its intent anchor — the PRD it realizes, or a short **acceptance frame** (the ask restated and confirmed) when there's no PRD. This is the durable definition of "done"; without it, completion can't be detected across sessions and the close drops to low confidence.
+- **Detect completion (offer, don't auto-run).** After every per-story PASS — or when the user signals "I think that's everything" — check whether the book now looks complete (computed for PRD-backed books; judged against the acceptance frame otherwise). If it does, *offer* to close it. The system never declares done; it proposes done and the user ratifies. Their "yes" is the trigger for `/close-book`.
+- **Close (`/close-book`).** The Reviewer, at book scope, writes two artifacts under `audits/<book-slug>/`: `audit.md` (the as-built record) and either `prd-addendum.md` (PRD-backed — deltas vs the PRD) or `prd-seed.md` (no PRD — a reconstructed baseline). These are the **return edge**: the product team reads them to scope the next phase. Engineering authors them under `engineering-team/` and never writes into `product-team/` — the mirror image of engineering reading the product team's `stories-queue.md`. See [engineering-team/README.md](./engineering-team/README.md) → "The return edge".
 
 ## House rules
 

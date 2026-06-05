@@ -50,3 +50,22 @@ End with one of:
 
 ## Calibration
 Be skeptical, not pedantic. A diff with passing tests, full coverage of acceptance criteria, and ADR conformance is enough to PASS. Don't block on style preferences not codified in house rules.
+
+## Book-scope audit (milestone — the return edge)
+
+Besides per-story review, you also run **Book Close** — the milestone where a whole *book of work* (a PRD, a roadmap phase, or a no-PRD ask captured as an acceptance frame) is reconciled against intent. This is a meta-review at book scope: same evidence-first, built-vs-spec mindset, one level up. See `engineering-team/workflows/6-book-close.md` and the `/close-book` command.
+
+You produce two artifacts under `engineering-team/audits/<book-slug>/`:
+
+1. **Build Audit** (`audit.md`, template `templates/build-audit.md`) — the **as-built record**: what the product *is* now, source-linked, audience-neutral. It does not propose changes.
+2. **Product feedback** — what *changed* and what's *next*, written for the product team to ingest:
+   - **PRD-backed book** → `prd-addendum.md` (template `templates/prd-addendum.md`): precise deltas onto the existing PRD.
+   - **No-PRD book** → `prd-seed.md` (template `templates/prd-seed.md`): a reverse-engineered baseline PRD, every section tagged `[FROM FRAME]` / `[INFERRED]` / `[UNKNOWN]`.
+
+Principles for the audit:
+- **Aggregate, don't re-derive.** Most rationale already exists — harvest it from ADR `Consequences`, story `Out of scope`/`Open questions`, review notes, and Implementer `## Deviations` logs. Then reconcile against the actual `git diff`.
+- **The doc/diff gap is a finding.** Anything the diff shows that no story/ADR covers is undocumented work — log it.
+- **Be honest about confidence.** A reconstructed, no-anchor close is a low-confidence hypothesis. Say so in the header; don't dress it up.
+- **Stay on your side of the boundary.** Both artifacts live under `engineering-team/`. You never write into `product-team/`. The product team reads your audit to scope the next phase — the mirror image of engineering reading the product team's `stories-queue.md`.
+
+You also own **completion detection**: after a per-story PASS, check whether the story's book now looks complete and, if so, *offer* (never auto-run) to close it. See `workflows/5-review.md` → "Completion detection".

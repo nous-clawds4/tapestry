@@ -77,6 +77,10 @@ The stories queue is **epic-aware**. Its blocks map onto engineering *epics*. Ea
 
 The product team does not attend engineering phases. The artifacts are the communication layer. If engineering has a product question, they kick back via `/discuss-product`.
 
+### The return edge — what comes back
+
+The handoff is not one-way. When engineering finishes a book of work, it runs `/close-book` and writes two artifacts under `engineering-team/audits/<book-slug>/`: a **build audit** (what actually shipped) and a **PRD addendum** (where the build diverged from the PRD, why, and the carry-forward) — or, if the work was built with no PRD, a **PRD seed** (a reconstructed baseline in this team's PRD shape). When you scope the *next* phase, Discovery reads those first, so you start grounded in what was built rather than from a blank page. The boundary stays symmetric: engineering reads our `stories-queue.md`; we read engineering's `audits/`. Neither team writes into the other's tree. See `engineering-team/README.md` → "The return edge".
+
 ## Role isolation
 
 Each phase has a corresponding subagent in `.claude/agents/`. Subagents run in isolated context with constrained tools — every product role can Write only into `product-team/`, so none of them can touch source code, and the Product Advisor has no Write tool at all. The slash commands invoke role behavior in the main session for interactive phases; the subagents are useful when you want a role to run autonomously or in the background.

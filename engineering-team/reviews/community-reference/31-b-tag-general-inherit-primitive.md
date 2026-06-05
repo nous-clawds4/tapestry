@@ -3,8 +3,8 @@
 **Reviewer:** Claude (acting as Reviewer)
 **Date:** 2026-06-05
 **Diff:** `git diff staging...HEAD` (commits `6406ef46` story, `dbe96476` adr, `69faaa6d` impl)
-**Story:** `engineering-team/stories/31-b-tag-general-inherit-primitive.md`
-**ADR:** `engineering-team/decisions/0027-inherit-from-tag-b.md` (Accepted)
+**Story:** `engineering-team/stories/community-reference/31-b-tag-general-inherit-primitive.md`
+**ADR:** `engineering-team/decisions/community-reference/0027-inherit-from-tag-b.md` (Accepted)
 **Test plan:** none — Test Design skipped per story resolved-Q2 (docs-only, no executable behavior). Verified by claim-accuracy audit + unchanged test gate, following the story #20 precedent.
 
 ## Quality gates (run by reviewer, not trusted)

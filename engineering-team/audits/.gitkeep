@@ -1,0 +1,6 @@
+# Build audits accumulate here.
+
+One folder per book of work: `audits/<book-slug>/` holding `book.md` (opened at
+kickoff), and at close `audit.md` plus `prd-addendum.md` (PRD-backed) or
+`prd-seed.md` (no PRD). Closed books move to `audits/done/<book-slug>/` once the
+product team has ingested them. See `engineering-team/workflows/6-book-close.md`.
