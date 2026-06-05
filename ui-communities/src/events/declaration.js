@@ -40,11 +40,14 @@ export function buildCommunityDeclaration({ viewerPubkey, circle, parentATag = n
     // Type marker (kept in sync with COMMUNITY_TYPE_MARKER above); inlined as a
     // literal so the pure-function builder stays self-contained.
     ['t', 'brainstorm-community'],
-    ['name', circle.name || ''],
-    ['description', circle.purpose || ''],
-    ['belonging', circle.belongingBar || ''],
     ['founder', viewerPubkey],
   ]
+
+  // Optional definition fields are written only when present. A forked circle
+  // omits unedited fields so they inherit live from the parent (§26).
+  if (circle.name) tags.push(['name', circle.name])
+  if (circle.purpose) tags.push(['description', circle.purpose])
+  if (circle.belongingBar) tags.push(['belonging', circle.belongingBar])
 
   const topics = Array.isArray(circle.topics) ? circle.topics : []
   for (const t of topics) {

@@ -60,6 +60,8 @@ const foundACircle = require('./found-a-circle.test.js');
 const viewACircle = require('./view-a-circle.test.js');
 const discoverCircles = require('./discover-circles.test.js');
 const resolvedDefinitionResolver = require('./resolved-definition-resolver.test.js');
+const forkACircle = require('./fork-a-circle.test.js');
+const inheritedFieldDisplay = require('./inherited-field-display.test.js');
 
 async function main() {
   console.log('Running Brainstorm tests...\n');
@@ -177,6 +179,12 @@ async function main() {
   console.log('\nresolved-definition-resolver suite:');
   const resolvedDefinitionResolverResult = await resolvedDefinitionResolver.run();
 
+  console.log('\nfork-a-circle suite:');
+  const forkACircleResult = await forkACircle.run();
+
+  console.log('\ninherited-field-display suite:');
+  const inheritedFieldDisplayResult = await inheritedFieldDisplay.run();
+
   console.log('\nTest Results');
   console.log('-------------');
   console.log(`Configuration Loading:                           ${configOk ? 'PASS' : 'FAIL'}`);
@@ -288,6 +296,15 @@ async function main() {
   console.log(
     `discover-circles suite:                          ${discoverCirclesResult.fail === 0 ? 'PASS' : 'FAIL'} (${discoverCirclesResult.pass} passed, ${discoverCirclesResult.fail} failed)`
   );
+  console.log(
+    `resolved-definition-resolver suite:              ${resolvedDefinitionResolverResult.fail === 0 ? 'PASS' : 'FAIL'} (${resolvedDefinitionResolverResult.pass} passed, ${resolvedDefinitionResolverResult.fail} failed)`
+  );
+  console.log(
+    `fork-a-circle suite:                             ${forkACircleResult.fail === 0 ? 'PASS' : 'FAIL'} (${forkACircleResult.pass} passed, ${forkACircleResult.fail} failed)`
+  );
+  console.log(
+    `inherited-field-display suite:                   ${inheritedFieldDisplayResult.fail === 0 ? 'PASS' : 'FAIL'} (${inheritedFieldDisplayResult.pass} passed, ${inheritedFieldDisplayResult.fail} failed)`
+  );
 
   const overallOk =
     configOk &&
@@ -327,7 +344,9 @@ async function main() {
     foundACircleResult.fail === 0 &&
     viewACircleResult.fail === 0 &&
     discoverCirclesResult.fail === 0 &&
-    resolvedDefinitionResolverResult.fail === 0;
+    resolvedDefinitionResolverResult.fail === 0 &&
+    forkACircleResult.fail === 0 &&
+    inheritedFieldDisplayResult.fail === 0;
   console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);
   process.exit(overallOk ? 0 : 1);
 }

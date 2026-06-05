@@ -1,29 +1,68 @@
-import { useState } from 'react'
-import { useOutletContext } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { useOutletContext, useSearchParams } from 'react-router-dom'
 import Button from '../components/Button.jsx'
 import FormInput from '../components/FormInput.jsx'
 import StepProgress from '../components/StepProgress.jsx'
 import ViewCallout from '../components/ViewCallout.jsx'
 // The "right way" found flow (ADR 0029): founding writes a Community
 // Declaration (kind 39998), distinct from the frozen bespoke Create flow.
-// New code path, strangler-clean — Create.jsx is left untouched.
+// With `?from=<parent a-tag>` it becomes a FORK — pre-filled from the
+// parent's resolved definition (§26); unedited fields are omitted so they
+// inherit live from the parent.
 import { buildCommunityDeclaration } from '../events/declaration.js'
 import { publishEvent } from '../events/publish.js'
+import { fetchCommunityDeclaration } from '../events/fetch.js'
+import { resolveDefinition } from '../lib/resolveDefinition.js'
 import { publishErrorCopy, signInErrorCopy } from '../lib/errors.js'
 import { slugify } from '../lib/slug.js'
 import s from './Create.module.css'
 
 const STEPS = ['Name', 'Belonging', 'Review']
 
+async function fetchByATag(aTag) {
+  const parts = String(aTag).split(':')
+  const slug = parts[parts.length - 1]
+  const founder = parts.length >= 3 ? parts[1] : null
+  return fetchCommunityDeclaration({ slug, preferredFounder: founder })
+}
+
 export default function Found() {
   const { viewer, signedIn, navigate, onJoin, onSignIn } = useOutletContext()
+  const [searchParams] = useSearchParams()
+  const parentATag = searchParams.get('from') || null
+
   const [step, setStep] = useState(0)
   const [name, setName] = useState('')
   const [purpose, setPurpose] = useState('')
   const [belongingBar, setBelongingBar] = useState('')
+  const [baseline, setBaseline] = useState(null) // parent's resolved definition (fork only)
   const [publishing, setPublishing] = useState(false)
   const [publishError, setPublishError] = useState(null)
   const [signInState, setSignInState] = useState({ status: 'idle', error: null })
+
+  // Fork: pre-fill from the parent's resolved definition.
+  useEffect(() => {
+    if (!parentATag) return
+    let cancelled = false
+    fetchByATag(parentATag)
+      .then(parent => (parent ? resolveDefinition(parent, fetchByATag) : null))
+      .then(resolved => {
+        if (cancelled || !resolved) return
+        setName(resolved.name || '')
+        setPurpose(resolved.description || '')
+        setBelongingBar(resolved.belongingBar || '')
+        setBaseline({
+          name: resolved.name || '',
+          purpose: resolved.description || '',
+          belongingBar: resolved.belongingBar || '',
+        })
+      })
+      .catch(() => { /* parent unreachable — fall back to a blank found */ })
+    return () => { cancelled = true }
+  }, [parentATag])
+
+  const forking = !!parentATag
+  const parentSlug = parentATag ? String(parentATag).split(':').pop() : null
 
   async function handleFound() {
     if (!signedIn || !viewer || publishing) return
@@ -34,19 +73,23 @@ export default function Found() {
     }
     setPublishing(true)
     setPublishError(null)
-    const circle = {
-      slug,
-      name: name.trim(),
-      purpose: purpose.trim(),
-      belongingBar: belongingBar.trim(),
-    }
-    const result = await publishEvent(buildCommunityDeclaration({ viewerPubkey: viewer, circle }))
+
+    // Founding includes every field. Forking includes only fields the user
+    // changed from the parent's resolved baseline — unchanged fields are
+    // omitted so they inherit live from the parent (§26).
+    const changed = (val, base) => (val || '').trim() !== (base || '').trim()
+    const circle = { slug }
+    if (!forking || !baseline || changed(name, baseline.name)) circle.name = name.trim()
+    if (!forking || !baseline || changed(purpose, baseline.purpose)) circle.purpose = purpose.trim()
+    if (!forking || !baseline || changed(belongingBar, baseline.belongingBar)) circle.belongingBar = belongingBar.trim()
+
+    const unsigned = buildCommunityDeclaration({ viewerPubkey: viewer, circle, parentATag })
+    const result = await publishEvent(unsigned)
     setPublishing(false)
     if (!result.ok) {
       setPublishError(publishErrorCopy(result))
       return
     }
-    // The founder is a peer who belongs to the circle they declared.
     onJoin(slug)
     navigate(`/community/${slug}`)
   }
@@ -64,9 +107,16 @@ export default function Found() {
   return (
     <div className={s.page}>
       <header className={s.header}>
-        <h1 className={s.title}>Start a Circle</h1>
+        <h1 className={s.title}>{forking ? 'Fork a Circle' : 'Start a Circle'}</h1>
         <p className={s.subtitle}>Describe what it is and what it takes to belong. You are a peer here.</p>
       </header>
+
+      {forking && (
+        <div className={s.note}>
+          Based on <strong>{parentSlug}</strong>. Every field starts inherited — edit only what you want to
+          change. Unedited fields stay linked and update if the parent updates.
+        </div>
+      )}
 
       <StepProgress steps={STEPS} current={step} />
 
@@ -128,6 +178,9 @@ export default function Found() {
             <div className={s.reviewMeta}>
               <strong>To belong:</strong> {belongingBar || 'Not set'}
             </div>
+            {forking && (
+              <p className={s.relayNote}>Stands on <code>{parentSlug}</code>; unedited fields inherit live.</p>
+            )}
             <p className={s.relayNote}>
               Your circle will live on <code>communities.brainstorm.world</code> for now.
             </p>
@@ -149,7 +202,7 @@ export default function Found() {
                     onClick={handleFound}
                     disabled={publishing || !name.trim()}
                   >
-                    {publishing ? 'Publishing…' : 'Create your circle'}
+                    {publishing ? 'Publishing…' : (forking ? 'Create your fork' : 'Create your circle')}
                   </Button>
                 }
               />

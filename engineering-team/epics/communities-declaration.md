@@ -15,7 +15,15 @@ New Community-Declaration circles are built as **new code paths inside the exist
 - **34 — view-a-circle** (read-only detail: belonging-bar + "Based on ‹parent›"). **Done** (PASS).
 - **35 — discover-circles** (read-only grid; CD discoverability via the Story 33 union). **Done** (PASS).
 
-**Block 1 complete.** Carry-forward: NB-1 (CD conversation post-addressing) → Story 8; parent-name + inherited-field resolution → Story 5.
+**Block 1 complete.** Carry-forward: NB-1 (CD conversation post-addressing) → Story 8.
+
+### Block 2 — Forking & resolved definitions (folded into this epic)
+The queue suggested a separate `communities-inheritance` slug; folded here because the work is tightly coupled to Declarations (same modules, same projection).
+- **36 — resolved-definition-resolver** (client-side §26 resolver — the substrate Block 2 consumes; ADR 0028 code). **Done** (PASS, 7/7).
+- **37 — fork-a-circle** (stand on a parent's resolved definition; `b` tag; live inheritance of unedited fields). **Done** (PASS, 6/6).
+- **38 — inherited-field-display** (show inherited vs overridden, live). **Done** (PASS, 5/5).
+
+**Block 2 complete.** Carry-forward: inheritance markers beyond the belonging-bar; resolver caching (ADR 0028); multi-parent fork UI.
 
 ## Dependencies / sequencing
 - Block 1 unblocks everything; it has no upstream dependency.

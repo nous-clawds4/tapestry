@@ -398,3 +398,9 @@
 
 .parentLink:hover { color: var(--accent-hover); }
 
+.inheritedTag {
+  font-size: var(--text-xs);
+  color: var(--text-faint);
+  font-style: italic;
+}
+

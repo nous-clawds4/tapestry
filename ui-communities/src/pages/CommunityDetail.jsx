@@ -10,10 +10,20 @@ import FetchError from '../components/FetchError.jsx'
 import { getCommunity, getCommunityMembers } from '../api/client.js'
 import { buildCommunityRecord, buildCommunityPost } from '../events/build.js'
 import { publishEvent } from '../events/publish.js'
-import { fetchPostsForCommunity } from '../events/fetch.js'
+import { fetchPostsForCommunity, fetchCommunityDeclaration } from '../events/fetch.js'
+import { resolveDefinition } from '../lib/resolveDefinition.js'
 import { publishErrorCopy } from '../lib/errors.js'
 import { formatCount } from '../lib/format.js'
 import s from './CommunityDetail.module.css'
+
+// Fetch a parent Community Declaration by its a-tag, for §26 resolution.
+async function declFetchByATag(aTag) {
+  const parts = String(aTag).split(':')
+  return fetchCommunityDeclaration({
+    slug: parts[parts.length - 1],
+    preferredFounder: parts.length >= 3 ? parts[1] : null,
+  })
+}
 
 const TABS = [
   { id: 'people', label: 'People' },
@@ -44,6 +54,7 @@ export default function CommunityDetail({ slug }) {
   const [pending, setPending] = useState([])  // optimistic kind-1 posts
   const [composerText, setComposerText] = useState('')
   const [composerSending, setComposerSending] = useState(false)
+  const [resolved, setResolved] = useState(null)  // §26 resolved definition for forked circles
   const conversationLoadedRef = useRef(false)
 
   useEffect(() => {
@@ -84,6 +95,21 @@ export default function CommunityDetail({ slug }) {
   }, [publishError])
 
   const triggerRetry = useCallback(() => setRetryNonce(n => n + 1), [])
+
+  // Resolve the inherited definition for forked circles (§26). Live read.
+  useEffect(() => {
+    const community = state.community
+    if (!community || !community.parent) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setResolved(null)
+      return
+    }
+    let cancelled = false
+    resolveDefinition(community, declFetchByATag)
+      .then(r => { if (!cancelled) setResolved(r) })
+      .catch(() => { /* parent unreachable — show own fields only */ })
+    return () => { cancelled = true }
+  }, [state.community])
 
   const currentCommunity = state.community
   const communityATag = currentCommunity
@@ -252,9 +278,13 @@ export default function CommunityDetail({ slug }) {
           <div className={s.tagRow}>
             {(c.tags || []).map(t => <TagPill key={t} tag={t} small />)}
           </div>
-          {c.belongingBar && (
+          {(c.belongingBar || resolved?.belongingBar) && (
             <p className={s.belongingBar}>
-              <span className={s.belongingLabel}>To belong:</span> {c.belongingBar}
+              <span className={s.belongingLabel}>To belong:</span>{' '}
+              {c.belongingBar || resolved?.belongingBar}
+              {!c.belongingBar && resolved?.belongingBar && (
+                <span className={s.inheritedTag}> (inherited)</span>
+              )}
             </p>
           )}
           {c.parent && (
@@ -301,6 +331,15 @@ export default function CommunityDetail({ slug }) {
             )}
             {publishError && (
               <p className={s.publishError} role="alert">{publishError}</p>
+            )}
+            {c.model === 'declaration' && (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => navigate(`/found?from=39998:${c.founder}:${c.slug}`)}
+              >
+                Fork this circle
+              </Button>
             )}
           </div>
         )}
