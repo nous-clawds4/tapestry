@@ -32,6 +32,10 @@
 19. [Key Design Decisions](#19-key-design-decisions)
 20. [People](#20-people)
 21. [Glossary](#21-glossary)
+22. [Community-Reference Model](#22-community-reference-model)
+23. [Class-Thread Membership Tags (`n`, `s`)](#23-class-thread-membership-tags-n-s)
+24. [Task Queue (BullMQ behind /api/run-task)](#24-task-queue-bullmq-behind-apirun-task)
+25. [The Inherit-From Tag (`b`)](#25-the-inherit-from-tag-b)
 
 ---
 
@@ -208,6 +212,14 @@ Every ListItem has a `z` tag pointing to its parent concept's a-tag:
 ```
 This is the fundamental link between items and concepts.
 
+### Header→ConceptGraph Pointer (`concept-graph` tag)
+
+Every kind-39998 ConceptHeader emitted by `create-concept` carries a self-describing pointer to its Concept Graph core node:
+```json
+["concept-graph", "39999:<pubkey>:<d-tag>-concept-graph"]
+```
+The value is **computed** from the header's own (signing) pubkey + d-tag — not Neo4j-looked-up — so it is correct even before the Concept Graph node exists. **Resolution contract:** to locate a concept's Concept Graph from only its Header, use the `concept-graph` tag **if present, else compute** `39999:<pubkey>:<d-tag>-concept-graph`. The deterministic fallback covers legacy/firmware headers minted before this tag (no mass re-emit needed) and headers from curators who don't carry it. This lets a single fetched Header self-resolve its full concept off-relay, without the (invisible-off-relay) `IS_THE_CONCEPT_GRAPH_FOR` Neo4j edge. ADR 0007, hybrid design C; the consumer is the deferred element/superset materialization stream.
+
 ### Implicit vs. Explicit Relationships
 
 **Most relationships are implicit** — derived by the graph engine from event structure (z-tags, kind numbers, naming conventions). Only editorial/provenance relationships (IMPORT, SUPERCEDES, PROVIDED_THE_TEMPLATE_FOR, ENUMERATES) are explicit nostr events.
@@ -290,6 +302,8 @@ strfry replaces existing events (kind 39999 is replaceable), and Neo4j MERGEs on
 | `IMPORT` | "I agree with your concept definition" — implies IS_A_SUPERSET_OF between supersets |
 | `SUPERCEDES` | "I've evaluated your definition and replaced it with mine" — non-destructive |
 | `PROVIDED_THE_TEMPLATE_FOR` | Provenance link from original to forked node |
+| `REFERENCES` (concept-level) | Deferred non-committal pointer: local Concept Header → an external curator's Concept Header. Neo4j-only, carries `source`. NOT an explicit event, NOT agreement, NOT `IS_A_SUPERSET_OF`. Disambiguate from the tag-level `REFERENCES` (`NostrEventTag → NostrEvent`, every `e`/`a` tag) by endpoint labels + `source`. See §22. |
+| `INHERITS_FROM` | "My definition defers to the parent's, unless I override" — child→parent, live. NOT IMPORT (no absorption), NOT `IS_A_SUPERSET_OF`. Canonical (no `source`). Encoded as the single-char `b` tag, not a descriptor event. See §25. |
 
 #### Infrastructure
 | Relationship | Meaning |
@@ -1100,16 +1114,29 @@ Every owner, admin, and customer has an **assistant** — a server-side nostr id
 
 ### Router Presets
 
-Strfry sync streams are configured in `setup/router-presets.json`. All streams default to disabled. Toggle via `POST /api/strfry/router-toggle` or the UI at `/tapestry/settings/relays`.
+#### Instances are self-contained
+
+Each Tapestry instance's strfry is the **complete source of truth** for that instance. There is no canonical pool that instances must defer to:
+
+- **Headers** (kind 39998) are written to local strfry by `POST /api/firmware/install` — every instance that has run firmware install has its own copy.
+- **Elements** (kind 39999) and other UGC are written to local strfry by `publishEverywhere` (`ui/src/utils/nostrPublish.js`) — they land on the strfry of the instance where the user published, plus any external relays the client also targets.
+
+Nothing in the protocol *requires* an instance to sync with another instance to function. A fresh instance that has run firmware install and accepts its own users' publishes is fully operational on its own. Treat any cross-instance mirror — `dcosl.brainstorm.world`, `dcosl.brainstorm.social`, or another instance's relay — as **just another relay**, not a canonical home.
+
+#### Presets are opt-in cross-instance mirroring
+
+Router presets exist so an operator can *choose* to share or pull state with other relays. Strfry sync streams are configured in `setup/router-presets.json`. All streams default to disabled. Toggle via `POST /api/strfry/router-toggle` or the UI at `/tapestry/settings/relays`.
 
 | Preset | Direction | Kinds | Relays | Purpose |
 |--------|-----------|-------|--------|---------|
-| `dcosl` | both | 9998, 9999, 39998, 39999 | dcosl.brainstorm.world, dcosl.brainstorm.social | DCoSL list events |
-| `dcosl2` | down | 9998, 9999, 39998, 39999 | relay.damus.io | General-purpose relay DCoSL data |
+| `dcosl` | both | 9998, 9999, 39998, 39999 | dcosl.brainstorm.world, dcosl.brainstorm.social | Opt-in mirror of list events with other instances' public relays |
+| `dcosl2` | down | 9998, 9999, 39998, 39999 | relay.damus.io | Pull list events that appeared on a general-purpose relay |
 | `userProfiles` | down | 0 | wot.grapevine.network, profiles.nostr1.com, purplepag.es | Continuous kind 0 profile sync for search |
 | `trustedLists` | both | 30392–30395 | nip85.brainstorm.world, nip85.nostr1.com, nip85.grapevine.network | NIP-85 trusted list events |
 
 > **Important:** Enable the `userProfiles` preset to keep the Meilisearch profile index up to date. Without it, only profiles already in strfry will be searchable.
+
+> **Note on `dcosl` / `dcosl2`:** these are *not* required for an instance to host its own tags, concept graph, or UGC. Enable them only if you want this instance to receive list events that originated elsewhere (down), or republish its own to a shared mirror (up).
 
 ---
 
@@ -1336,7 +1363,8 @@ docker compose exec tapestry strfry scan '{"kinds":[39998]}'
 # Count strfry events by kind (can take minutes on large DBs)
 curl 'http://localhost:8080/api/strfry/scan/count?filter={"kinds":[0]}'
 
-# Sync from DCoSL relay
+# Optional one-shot pull of list events from another instance's relay
+# (only needed if you want that instance's data and aren't running the dcosl preset)
 docker compose exec tapestry strfry sync wss://dcosl.brainstorm.world \
   --filter '{"kinds":[9998,9999,39998,39999]}' --dir down
 ```
@@ -1514,7 +1542,12 @@ docker compose exec tapestry strfry sync wss://dcosl.brainstorm.world \
 | **GrapeRank** | "PageRank for people" — iterative, personalized-per-observer trust scoring. Weighted average of raters' influence × rating × rating confidence, with an attenuation factor on non-observer raters. Converges to a fixed point determined purely by the observer pubkey and the rating graph. |
 | **Grapevine** | The Web of Trust system that determines which curations achieve community consensus. |
 | **IMPORT** | Editorial relationship: "I agree with your concept and want to benefit from your curated elements." |
+| **INHERITS_FROM** | Canonical child→parent definitional-inheritance edge from the `b` tag: "I defer to the parent's definition, live, unless I override." Distinct from IMPORT (absorption; implies IS_A_SUPERSET_OF) and REFERENCES (non-committal stub). No `source`. ADR 0027. See §25. |
+| **concept-graph (header tag)** | Self-describing tag on a kind-39998 ConceptHeader: `["concept-graph","39999:<pubkey>:<d-tag>-concept-graph"]` (computed). Resolution = tag-if-present else compute the same a-tag. Lets a single fetched Header resolve its full concept off-relay. ADR 0007. See §5. |
+| **communityReference** | A firmware-concept pointer `{ headerATag, relayHints[], knownGoodEventId? }` to an external curator's published concept. Resolved at install into a `REFERENCES` placeholder. See §22. |
+| **grapevine → firmware → none** | The community-reference resolution precedence: the user's Grapevine is the correct selector of "the community's definition"; the firmware-baked pointer is only a cold-start default; else nothing. Mirrors Warm Start's `self → owner → cold`. See §22. |
 | **Loose Consensus** | When two users' WoTs overlap enough to converge on the same definition without central coordination. |
+| **REFERENCES (concept-level)** | Neo4j-only deferred stub edge: local Concept Header → an external curator's Concept Header (`source` set). NOT agreement/import. Overloaded with the tag-level `REFERENCES`; disambiguate by endpoint labels + `source`. See §22. |
 | **Meilisearch** | Full-text search engine used for profile search. Runs as a separate Docker container (`nostr-search-meili`). Indexes 2M+ kind 0 profiles with sub-10ms query times. |
 | **NIP-05** | Nostr verification standard. A NIP-05 identifier (e.g., `bob@example.com`) is verified by fetching `https://domain/.well-known/nostr.json?name=bob` and checking the pubkey mapping. |
 | **NIP-07** | Nostr browser extension signing standard. Used for authentication. |
@@ -1531,7 +1564,144 @@ docker compose exec tapestry strfry sync wss://dcosl.brainstorm.world \
 | **Trust Assertions (TAs)** | Kind 30382 nostr events published by a `rankAuthor` that assign trust scores (rank, followers, etc.) to other pubkeys. Synced via negentropy and loaded into Meilisearch for WoT-powered search. |
 | **Warm Start** | An opt-in GrapeRank initialization mode that seeds scorecards from previously-computed scores instead of `[0,0,0,0]`. Three sources in tiered fallback: `self` (customer's own prior scores), `owner` (owner's `NostrUser` scores when the owner is within 3 directed FOLLOWS hops downstream of the customer), and `cold` (no seed available; legacy behavior). Typically cuts customer GrapeRank runtime from ~20 min to ~5 min. |
 | **Word-wrapper** | The canonical JSON format where every node's data includes a `word` section plus type-specific sections. |
+| **b tag** | Single-char inherit-from pointer on a kind-39998/39999 event: `["b","<parent-a-tag>","inherit"]`. Child-claims-parent — "my definition is the parent's, unless I override." Materializes `(child)-[:INHERITS_FROM]->(parent)`. ADR 0027. See §25. |
 | **z-tag** | The `z` tag on a ListItem that points to its parent concept's a-tag. Fundamental parent pointer. |
+
+---
+
+## 22. Community-Reference Model
+
+A firmware concept may carry a `communityReference` — `{ headerATag, relayHints[], knownGoodEventId? }` — a **deferred, non-committal pointer** to an external curator's published concept (a kind-39998 Header). At firmware install, `pass_communityReferences` fetches that Header from `relayHints`, republishes it to local strfry **without re-signing**, **explicitly materializes it as a Neo4j node** (`buildImportCypher`/`executeCypher`), then MERGEs `(localHeader)-[:REFERENCES {source:'firmware-community'}]->(communityHeader)`. Idempotent; fully graceful (any miss → log + continue, never throws; the local concept is unaffected).
+
+**The `REFERENCES` edge is a stub, not an assertion.** It means "this external curator's concept is a recognized reference for my local concept; I *may* later pull from it" — not agreement, not "imported," not `IS_A_SUPERSET_OF`. It is distinct from the (deferred) editorial `IMPORT`. One local concept may `REFERENCES` **many** external concepts (e.g. Miles's *Jazz Musicians* and Dizzy's) — many-to-one via distinct target nodes; provenance per-edge via `source`.
+
+**Collision contract (binding).** `REFERENCES` is overloaded: event ingest builds high-volume `(:NostrEventTag)-[:REFERENCES]->(:NostrEvent)` for every `e`/`a` tag. Concept-level `REFERENCES` is disambiguated by **endpoint labels** (`ListHeader→ListHeader`) **and** `r.source` (tag-level never sets it). Any consumer traversal MUST filter on both; a bare `MATCH ()-[:REFERENCES]->()` is a defect.
+
+**Resolution model.** The *correct* long-term selector of "the community's definition" is the user's Grapevine (WoT loose consensus over published curations). The firmware-baked pointer is a **cold-start default**, not the truth. Precedence: **`grapevine-resolved → firmware-blessed → none`** — mirroring the Warm Start tiered fallback (`self → owner → cold`).
+
+**Accepted compromise (Flaw A) and its exit.** A firmware-baked pointer is a *centralized* editorial choice (the dev team picks the blessed curator pubkey — currently the reference deployment's TA). Accepted **temporarily**; the exit is the **registry-as-DList**: the per-concept pointer itself becomes a community-curated, Grapevine-ranked DList, retiring the hardcoded choice.
+
+**Candidate exit mechanism — the `b` / `INHERITS_FROM` tag (ADR 0027).** A `b` tag (§25) is a published, `#b`-queryable, per-pubkey pointer naming a preferred definition. Aggregating a concept's **incoming `INHERITS_FROM` edges, weighted by each child author's GrapeRank influence from the observer's PoV**, yields "which definition my web of trust loosely agrees on" — exactly the `grapevine-resolved` selector above. This makes `b`-edges a **candidate mechanism** for the registry-as-DList exit. Recorded as candidate only; the registry design is not ratified here (a future ADR in the 0006 line).
+
+**Invariants & principles.**
+1. *Relay invariant:* concept export and `communityReference.relayHints` must target the same relay set (the purpose-built DList relay, not general-purpose relays) or the round-trip cannot close.
+2. *Export is own-authored:* you never re-export another curator's concept under your identity.
+3. *Materialization ≠ derive:* publishing to strfry does not create a Neo4j node — Pass-3 derive only computes `tapestryJSON` for nodes already present; ingesting a foreign event requires the explicit eventSync import path.
+4. *Verification:* structural sentinels cannot prove relay + Neo4j + install round-trips — the local/staging/prod smoke is the authoritative behavioral gate (it caught the materialization defect that all structural tests missed).
+
+**Header→ConceptGraph (implemented — ADR 0007, §5):** the `concept-graph` header tag + tag-else-compute resolution makes a single fetched Header self-resolve its full concept off-relay.
+
+**Superset link, Phase A (implemented — ADR 0008):** at firmware install, `pass_communityReferences` also materializes the community Superset (deterministic `39999:<curatorPk>:<dtag>-superset`), explicitly labels it `:Superset` (`buildImportCypher` gives only `:ListItem` for 39999), and MERGEs the **canonical** `(localSup:Superset)-[:IS_A_SUPERSET_OF]->(communitySup:Superset)` edge — a structural bookmark that participates in class-thread traversals.
+
+**Phase B (implemented — Story #14, ADR 0010 with mechanism amended by ADR 0011):** owner-on-demand class-thread closure pull via `POST /api/concept/:handle/pull-community-class-thread` (NIP-07-gated). Walks the curator's class-thread closure via `#n` + `#s` tag filters (single-char child-claims-parent tags — see §23) from the #11 community Superset anchor; back-compat z-at-Header walk at root depth covers curators that haven't migrated to `n`/`s` tags. Foreign Sets get explicit `:Set` label; canonical `HAS_ELEMENT` / `IS_A_SUPERSET_OF` edges MERGEd between foreign nodes (no `source` property — canonical relationships, not stubs). **Binding invariants:** authorship trust gate (refuses events whose `pubkey !== curatorPk`); no editorial relationships; no election into local class thread; local concept untouched. Idempotent + per-member graceful + visited-set + max-depth + max-fetch budget.
+
+**Deferred (see ADR 0006 / ADR 0011):** privacy tiers; signed/first-class editorial relationship-type; registry-as-DList (flaw-A exit); cutover ADR (deprecate the descriptor-event dual-emit); migration CLI for existing local events; `IS_A_PROPERTY_OF` / `REFERENCES` as single-char tags (reserved-future candidates); election surface; concept-graph fidelity upgrade.
+
+---
+
+## 23. Class-Thread Membership Tags (`n`, `s`)
+
+**Canonical single-char child-claims-parent tags** for the class-thread relationships, defined for kind-39999 only (this section). Single-char ⇒ relay-indexed by default per NIP-01; child-claims-parent direction mirrors `z` tag's pattern and decentralizes naturally (no parent maintains a children-list event). Established by ADR 0011 to collapse Tapestry's prior two-tier encoding (membership via z-tags + structure via separate relationship-descriptor events) into a single tier where the source event carries both.
+
+| Tag | Logical relationship | On-wire (child carries tag) | Neo4j edge written by consumers |
+|---|---|---|---|
+| `n` | HAS_ELEMENT-inverse | child claims parent set / superset | `(parent)-[:HAS_ELEMENT]->(child)` |
+| `s` | IS_A_SUPERSET_OF-inverse | child set/superset claims parent superset | `(parent)-[:IS_A_SUPERSET_OF]->(child)` |
+
+**Tag value format:** parent's a-tag form (`<kind>:<pubkey>:<dtag>`) — same shape as `z` tag values. E.g. `['n', '39999:919ba08a…:the-set-of-paid-nostr-relays']`.
+
+**Multi-parent semantics:** an event may carry multiple `n` tags (member of multiple sets) and multiple `s` tags (subset of multiple supersets — rare but expressible). Same multi-tag pattern as `z`.
+
+**Emission sites (dual-emit policy during back-compat cycle):** `handleCreateSet` emits the new `s` tag on the Set event before signing; `handleAddToSet` emits the new `n` tag via re-publishing the source event (locally-authored items only — foreign-authored items cannot be re-signed; descriptor event still fires for those). Both sites also continue publishing the prior relationship-descriptor events for one full release cycle. A future cutover ADR will deprecate the descriptor emission.
+
+**Trust constraints when consuming `n`/`s` tags from foreign curators (binding):**
+1. **Authorship gate:** materialize events only when `pubkey === curatorPk` (the same TA whose Header anchored the #11 `IS_A_SUPERSET_OF` edge). Prevents cross-instance election (someone publishing an event with `['n', '<myLocalSuperset-uuid>']` cannot trick a consumer into MERGEing edges into the consumer's local class thread).
+2. **Local-graph isolation:** the only cross-pubkey edge allowed in the graph is the #11 `(localSuperset)-[:IS_A_SUPERSET_OF]->(communitySuperset)` anchor, established by firmware install. Phase B's tag walk never MERGEs an edge whose parent endpoint is in the local TA's sub-graph.
+3. **Class-thread only:** consumers walking `n`/`s` MUST MERGE only `HAS_ELEMENT` and `IS_A_SUPERSET_OF` edges (canonical class-thread relationships); no editorial relationship types are inferable from these tags. *(This constraint is specific to `n`/`s`; the editorial inherit-from relationship has its own single-char tag `b` — see §25.)*
+
+**Direction principle (reserved, codified):** lowercase single-char tags encode **child-claims-parent**. Uppercase single-char tags (currently unassigned) would encode **parent-claims-child** for the same logical relationship type if a future ADR adopts the inverse direction. **Do not assign uppercase forms speculatively** — only when a concrete consumer needs the inverse direction AND that inverse cannot be more cleanly expressed as a derived aggregate query (relay filter for `#n=X` already returns all children of X). The inherit-from tag `b` (§25) follows this convention and reserves uppercase **`B`** for a future parent-claims-child / federation inverse.
+
+**Future-candidate relationship tags** (NOT implemented; documented for protocol hygiene so the next ADR-author doesn't accidentally repurpose neighboring letters):
+- `IS_A_PROPERTY_OF` (property tree). Candidate letter TBD. Hot-read-path candidate.
+- `REFERENCES` (Story #8 community-reference; flaw-A exit). Candidate letter TBD. Open question: publishing semantics — consumer-owned tag on consumer's concept Header, or separate "reference manifest" kind-39999 event?
+- Editorial relationships. The inherit-from relationship is now realized as the **`b` tag** → `INHERITS_FROM` (the first editorial single-char tag, also extending the single-char namespace to kind-39998) in **§25** / ADR 0027. Others (`RECOMMENDED_BY`, `ENDORSES`, etc.) remain for a future ADR (trust, provenance, first-class-vs-stub semantics).
+
+---
+
+## 24. Task Queue (BullMQ behind /api/run-task)
+
+Operator-triggered tasks (recalculate scores, refresh search index, sync WoT, etc.) flow through a durable **per-task BullMQ queue** behind `POST /api/run-task`. The queue lives inside the `tapestry` container alongside Express and is backed by the same Redis container the strfry-stream-consumer and session store use (separate keyspaces; no conflict).
+
+**Topology — per-task Queue + Worker.** At brainstorm startup, `bin/control-panel.js` reads `src/manage/taskQueue/taskRegistry.json` and for each registered task constructs one BullMQ `Queue` plus one in-process `Worker`. The Worker's processor (`src/manage/taskQueue/queue/processor.js#processJob`) spawns `launchChildTask.sh` with the right env + args — `pgrep` belt-and-suspenders inside the bash script still guards against concurrent spawns. Job deduplication uses BullMQ's native `jobId`: `${taskName}:${pubkey}` for customer-scoped tasks; `${taskName}` alone for non-customer ones. Concurrent submissions for the same `(taskName, pubkey)` while a previous attempt is in `wait` or `active` join one execution; once the previous attempt finalizes (completed or failed), the next submission creates a fresh execution. The wait/active-only dedup window is enforced by passing `removeOnComplete: true` + `removeOnFail: true` on `queue.add` — see ADR 0022 for the empirical investigation.
+
+**Feature flag — `TASK_QUEUE_ENABLED`.** Boolean knob in `/etc/brainstorm.conf`. When `true` (default since story #17 / ADR 0015), `/api/run-task` enqueues; when `false` (rollback path), the legacy direct-spawn code runs unchanged. Redis-down with the flag on returns HTTP 503 + `{code:"QUEUE_UNAVAILABLE"}` so monitoring distinguishes it from generic 5xx.
+
+**Source-of-truth chain (config flow).** The flag's lifecycle traces back through stories #16 + #17:
+```
+config/brainstorm.conf.template            (repo-tracked source of truth)
+         │  (rendered at container start by tools/render-conf-template.js,
+         │   substituting ${VAR_NAME} against process.env)
+         ▼
+/etc/brainstorm.conf                       (regenerated unconditionally on every restart)
+         │  (sourced by start-brainstorm.sh)
+         ▼
+bin/control-panel.js                       (reads TASK_QUEUE_ENABLED via brainstormConfig.get)
+```
+The drift sentinels in `test/entrypoint-template-rendering.test.js` (T7 + T8) trip CI if a future change reintroduces a `<<CONFEOF` heredoc in `docker/entrypoint.sh` or moves off exactly-one `render-conf-template.js` invocation.
+
+**Operator UI — BullBoard.** When the flag is on, BullBoard mounts at `/admin/queues/` behind a custom `requireOwnerOrAdmin` middleware (story #18 / ADR 0016). The session pubkey must equal `BRAINSTORM_OWNER_PUBKEY` or be in `BRAINSTORM_ADMIN_PUBKEYS`; everyone else gets HTTP 403 with `error: "Owner or admin access required"`. Admin-management endpoints (`/api/admin/list|add|remove`) deliberately stay on the stricter `requireOwnerOnly` — admins cannot promote or remove other admins (privilege-escalation guardrail).
+
+**Cross-task serialization — `neo4j-heavy` resource class.** BullMQ's built-in concurrency cap is per-queue; story #15 / ADR 0013 adds a Redis-backed counted semaphore that gates cross-queue concurrency on registry-tagged tasks. The owner trio (`calculateOwnerHops`, `calculateOwnerPageRank`, `calculateOwnerGrapeRank`) is tagged `resourceClass: "neo4j-heavy"`; default cap = 1 (one heavy operation at a time). Cap configurable per class in `/etc/brainstorm-task-queue.json`. Wait events emit `resource_class_wait_begin` / `resource_class_wait_end` / `resource_class_released` tokens to `events.jsonl` for operator triage. Untagged tasks bypass the semaphore entirely (no overhead).
+
+**Protection model — entry-point tagging is load-bearing** (story #26 / ADR 0023, 2026-05-24). The semaphore wrap lives inside the BullMQ Worker callback, so a tagged task's `resourceClass` only engages when the task is invoked via BullMQ — directly via `/api/run-task` or as a scheduled-tasks entry. When a parent script invokes a child via subshell (`launch_child_task`, `bash $script`, direct executable, or `node $script.js`), the child runs as a forked subprocess outside BullMQ and its tag is dormant on that path. The protection convention is therefore: **every entry-point in a tagged child's invocation chain must itself be tagged** — direct paths engage the wrap natively; subshell-spawned children inherit semaphore-held state from a tagged ancestor's still-running Worker callback. PR #201 + story #26 / ADR 0023 enforce this by tagging orchestrator-level parents (`updateAllScoresForOwner`, `processCustomer`, `processAllActiveCustomers`, `processAllTasks`, `processNpubsUpToMaxNumBlocks`). Dormant child tags are retained intentionally as defense-in-depth: they engage on direct invocation. **Adding a new tagged task means auditing its subshell-spawn parents and tagging any that aren't already.** See ADR 0023's audit-results table in ADR 0013 for the full mapping.
+
+**Discoverability.** The dashboard at `/tapestry` shows an "Admin tools" panel (owner+admin only) with a one-click link to BullBoard — see OPERATIONS.md §10.2 for the operator-side details.
+
+**ADRs:** [0012](engineering-team/decisions/0012-task-queue-phase-1-bullmq.md) (BullMQ phase 1); [0013](engineering-team/decisions/0013-task-queue-neo4j-resource-class.md) (resource-class semaphore); [0014](engineering-team/decisions/0014-entrypoint-template-rendering.md) (template-driven config); [0015](engineering-team/decisions/0015-task-queue-on-by-default.md) (default flipped on); [0016](engineering-team/decisions/0016-bullboard-admin-access.md) (owner-or-admin gate); [0022](engineering-team/decisions/0022-manual-task-retrigger-dedup-fix.md) (wait/active-only dedup window via `removeOnComplete`+`removeOnFail`); [0023](engineering-team/decisions/0023-task-queue-semaphore-protection-audit.md) (entry-point tagging is load-bearing — audit closes subshell-chain coverage gaps); [0024](engineering-team/decisions/0024-scheduled-task-timeout-propagation.md) (scheduled-task timeout propagation fix); [0025](engineering-team/decisions/0025-kill-timeout-orphans-by-default.md) (kill timeout-orphans by default).
+
+---
+
+## 25. The Inherit-From Tag (`b`)
+
+**A general definitional-inheritance primitive.** The `b` tag lets any addressable DList object declare *"my definition is this parent's, unless I state otherwise."* It is the single-char, child-claims-parent sibling of the class-thread tags in §23 — but where `n`/`s` express *structure* (containment), `b` expresses *editorial inheritance* (deference). Established by ADR 0027 (ADR 0006/0011 lineage). The Communities Protocol's participant-affiliation pointer is its first consumer (`affiliation` → `b` with type `inherit`); it is **not** community-specific.
+
+| Tag | Logical relationship | On-wire (child carries tag) | Neo4j edge written by consumers |
+|---|---|---|---|
+| `b` | inherit-from (definitional inheritance with override) | child claims a parent it defers to | `(child)-[:INHERITS_FROM]->(parent)` |
+
+**Wire format:** `["b", "<parent-a-tag>", "<type>"]`. Element 2 is the parent's a-tag (`<kind>:<pubkey>:<dtag>` — same shape as `z`/`n`/`s`; the NIP-01-indexed value). Element 3 is the **affiliation type**, default `"inherit"`, carried as a non-indexed positional element (as NIP-01's `e` tag carries its `root`/`reply` marker). E.g. `['b', '39998:<alice>:dogs', 'inherit']` — "my `dogs` concept defers to Alice's."
+
+**Kinds:** defined for **kind-39998 and kind-39999** — any addressable DList object (concept headers *and* items/sets/Declarations). Broader than `n`/`s`, which are kind-39999-only.
+
+**Multi-parent:** an event may carry multiple `b` tags (inherit from multiple parents — rare; resolution order is a consumer concern, deferred). Same multi-tag pattern as `z`/`n`/`s`.
+
+**Edge direction — child→parent (diverges from `n`/`s`; do NOT flip).** `n`/`s` flip their child-claims-parent encoding into a *parent→child* Neo4j edge because their semantics are containment (the parent owns the child). `b` does **not** flip: it writes `(child)-[:INHERITS_FROM]->(parent)`, because (a) deference reads naturally child→parent, and (b) a parent's **incoming** `INHERITS_FROM` edges are exactly "everyone who defers to this definition" — the trust-weightable query the registry use case (§22) needs. Implementers must not copy the `n`/`s` direction-flip.
+
+**Edge properties.** `INHERITS_FROM` is a **canonical, asserted relationship** (the child published a `b` tag) — so, unlike the concept-level `REFERENCES` stub and like `HAS_ELEMENT`/`IS_A_SUPERSET_OF`, it carries **no `source` property**. It MAY carry a `type` property (default `"inherit"`) mirroring tag element 3.
+
+**Resolution — live, read-time.** A child's **effective definition** is computed on read, never snapshotted:
+```
+effective(node) = merge( effective(parent_via_b), node.statedFields )
+```
+- **Live:** the walk reads each ancestor's *current* state, so a child tracks the parent's future edits ("whatever Alice says"). Only the `INHERITS_FROM` edge is materialized; the definition is not copied into the child. (Same read-time pattern as the Communities Protocol's `effectiveCD`.)
+- **Override = the child's own stated fields.** A field the child states explicitly overrides the inherited value; an omitted field is inherited. An unedited child performs pure inheritance.
+- **Termination:** stop at a root (no `b` tag) or a `maxDepth` guard; a cycle guard (visited-set keyed on a-tag) prevents loops. Reuses the bounded-walk pattern of ADR 0010/0011.
+- **Scope today:** the pattern above plus **field-level (whole-field replace)** override. The **set-valued override algebra** — how a child adds/removes/replaces individual elements of an inherited *set* — is deferred to the first consumer that needs it (the first consumer, CD inheritance, overrides only scalars).
+
+**Place in the editorial-relationship family (§6).** `b` is the first editorial relationship encoded as a single-char tag rather than a relationship-descriptor event. It is distinct from the others:
+
+| Relationship | Posture | Liveness | Override | Implies `IS_A_SUPERSET_OF`? |
+|---|---|---|---|---|
+| `REFERENCES` (concept-level) | non-committal bookmark ("may pull later") | — | — | no |
+| `IMPORT` | absorb the parent's elements; **importer** authoritative | snapshot/pull | agreement, not override | **yes** |
+| `SUPERCEDES` | replace the parent with mine | — | — | no |
+| **`b` / `INHERITS_FROM`** | **defer; parent stays authoritative** | **live (re-resolved each read)** | **first-class "unless stated"** | **no** |
+
+**Trust-coupling (intrinsic to live deference).** Inheriting from a parent means inheriting its *future* edits and trust trajectory — if the parent drifts or is compromised, the child's effective definition drifts silently. The escape hatch is built in: the child's overrides pin what it wants fixed, and re-publishing the `b` tag (a different parent, or a future divergence type) detaches it. PoV/GrapeRank re-gate visibility on every resolution.
+
+**Direction principle / reserved `B`.** Per §23's convention, lowercase `b` = child-claims-parent. Uppercase **`B`** is **reserved** (not assigned) for a future parent-claims-child / federation inverse — e.g. a parent recognizing a child as "the same community." Do not assign speculatively.
+
+See ADR 0027 for the full rationale, the rejected alternatives (folding into `IMPORT`; multi-char tags), and the deferred design questions.
 
 ---
 

@@ -4,6 +4,7 @@
  */
 
 // Import API modules
+const brainstormConfig = require('../utils/brainstormConfig');
 const { getStrfryStatus } = require('./strfry/strfryStatus');
 const { handleRouterStatus } = require('./strfry/routerStatus');
 const { handleUpdateRouterConfig, handleToggleStream, handleGetPresets, handleListPlugins, handleRestartRouter, handleRestoreDefaults, initRouter } = require('./strfry/routerConfig');
@@ -28,6 +29,7 @@ const { handleGetUserClassification } = require('./auth/getUserClassification');
 const { handleSignUpNewCustomer } = require('./auth/signUpNewCustomer');
 const { handleGetOwnerInfo } = require('./owner/ownerInfo');
 const { handleGetGrapevineInteraction } = require('./grapevineInteractions/queries');
+const { handleGetGrapevineFollows } = require('./grapevineInteractions/queries/followsWithMetrics');
 const { handleOldSearchProfiles, handleOldSearchProfilesStream } = require('./search/profiles');
 const { handleKeywordSearchProfiles } = require('./search/profiles/keyword');
 const { handlePrecomputeWhitelistMaps, handlePrecomputeWhitelistStatus } = require('./search/profiles/whitelistPrecompute');
@@ -314,6 +316,8 @@ async function register(app) {
 
     // Grapevine Interactions endpoint
     app.get('/api/get-grapevine-interaction', handleGetGrapevineInteraction);
+    // Follows list with owner-POV metrics (story #29 / ADR 0026)
+    app.get('/api/get-grapevine-follows', handleGetGrapevineFollows);
 
     // Search endpoint
     app.get('/api/search/profiles', handleOldSearchProfiles);
@@ -439,6 +443,11 @@ async function register(app) {
     app.get('/api/scheduled-tasks/status', scheduledTasks.handleStatus);
     app.post('/api/scheduled-tasks/update', scheduledTasks.handleUpdate);
     app.get('/api/scheduled-tasks/history', scheduledTasks.handleHistory);
+    app.get('/api/scheduled-tasks/list', scheduledTasks.handleList);
+    // Story #24 / ADR 0021 — per-entry CRUD + registry-tasks dropdown source.
+    app.post('/api/scheduled-tasks/create', scheduledTasks.handleCreate);
+    app.post('/api/scheduled-tasks/delete', scheduledTasks.handleDelete);
+    app.get('/api/scheduled-tasks/registry-tasks', scheduledTasks.handleRegistryTasks);
 
     // ── Per-Customer Scheduled Tasks API ──
     const customerSchedule = require('./customer-schedule');
@@ -456,9 +465,30 @@ async function register(app) {
     app.post('/api/admin/add', adminApi.requireOwnerOnly, adminApi.handleAddAdmin);
     app.post('/api/admin/remove', adminApi.requireOwnerOnly, adminApi.handleRemoveAdmin);
 
+    // ── BullBoard (task queue operations UI) — owner+admin at /admin/queues ──
+    // Story #13 / ADR 0010 (mount). Story #18 / ADR 0016 widened the gate from
+    // owner-only to owner+admin via requireOwnerOrAdmin. Admin-management
+    // endpoints above (/api/admin/list|add|remove) still use requireOwnerOnly —
+    // see ADR 0016 §Decision §privilege-escalation guardrail.
+    // Mounted only when TASK_QUEUE_ENABLED=true; when the flag is off, the
+    // queue isn't initialized and the route isn't mounted.
+    if (brainstormConfig.get('TASK_QUEUE_ENABLED') === 'true') {
+        try {
+            const taskQueue = require('../manage/taskQueue/queue');
+            const { mountBullBoard } = require('../manage/taskQueue/queue/bullBoardMount');
+            mountBullBoard(app, {
+                queues: taskQueue.getAllQueues(),
+                authMiddleware: adminApi.requireOwnerOrAdmin
+            });
+        } catch (e) {
+            console.warn(`[api] Skipping BullBoard mount: ${e.message}`);
+        }
+    }
+
     // ── Brainstorm Assistant API ──
     const assistantApi = require('./assistant');
     app.post('/api/assistant/publish-profile', assistantApi.handlePublishProfile);
+    app.post('/api/assistant/provision-key', assistantApi.handleProvisionAssistantKey);
     app.get('/api/assistant/status', assistantApi.handleAssistantStatus);
     app.get('/api/assistant/pubkey', assistantApi.handleGetTAPubkey);
 
@@ -491,6 +521,14 @@ async function register(app) {
     app.get('/api/communities', communitiesApi.handleList);
     app.get('/api/communities/:slug', communitiesApi.handleDetail);
     app.get('/api/communities/:slug/members', communitiesApi.handleMembers);
+
+    // ── Concept export (Story #9 / ADR 0004) — owner-only ──
+    const { handleConceptExportSet } = require('./concept/exportSet.js');
+    app.get('/api/concept/:handle/export-set', requireOwner, handleConceptExportSet);
+
+    // ── Phase B pull (Story #14 / ADR 0010, mechanism amended by ADR 0011) — owner-only ──
+    const { handlePullCommunityClassThread } = require('./concept/pullClassThread.js');
+    app.post('/api/concept/:handle/pull-community-class-thread', requireOwner, handlePullCommunityClassThread);
 
     // ── Tapestry Key / LMDB Store API ──
     const { registerTapestryKeyRoutes } = require('./tapestry-key');

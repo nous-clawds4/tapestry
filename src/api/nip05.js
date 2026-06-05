@@ -27,6 +27,8 @@ const { getSettings } = require('../config/settings');
 const NAME_RE = /^[a-z0-9._-]+$/;
 const HEX_PUBKEY_RE = /^[0-9a-f]{64}$/;
 const RELAY_RE = /^wss?:\/\//;
+// NIP-05 identifier: optional `local-part@`, then a dotted domain.
+const NIP05_LOOKUP_RE = /^(?:([\w.+-]+)@)?([\w_-]+(\.[\w_-]+)+)$/;
 
 /**
  * Validate a candidate `nip05` settings sub-object.
@@ -112,12 +114,67 @@ function handleNip05Lookup(req, res) {
   return res.json({ names, relays });
 }
 
+/**
+ * Resolve a NIP-05 identifier against its own domain.
+ * Fetches https://<domain>/.well-known/nostr.json?name=<name> and returns the
+ * hex pubkey the domain attests for that name, or null. 5-second timeout.
+ * (Same shape as the verifyNip05 helpers in src/api/admin and the meili search
+ * proxy — kept local rather than refactored across all three, which is out of
+ * scope for story #6.)
+ */
+async function verifyNip05Identifier(nip05Address) {
+  const match = String(nip05Address || '').match(NIP05_LOOKUP_RE);
+  if (!match) return null;
+  const name = match[1] || '_';
+  const domain = match[2];
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 5000);
+    const resp = await fetch(
+      `https://${domain}/.well-known/nostr.json?name=${encodeURIComponent(name)}`,
+      { signal: controller.signal }
+    );
+    clearTimeout(timer);
+    if (!resp.ok) return null;
+    const json = await resp.json();
+    const pubkey = json.names?.[name] || json.names?.[name.toLowerCase()];
+    if (!pubkey || !HEX_PUBKEY_RE.test(pubkey)) return null;
+    return pubkey;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * GET /api/nip05/verify?nip05=<addr>&pubkey=<hex>
+ * Returns { verified: true } ONLY if the identifier's domain attests the
+ * SAME pubkey as the one supplied. Fail-closed: any missing input, bad
+ * pubkey, lookup error, timeout, or mismatch yields { verified: false }.
+ */
+async function handleNip05Verify(req, res) {
+  res.set('Cache-Control', 'no-store');
+  const nip05 = typeof req.query.nip05 === 'string' ? req.query.nip05 : '';
+  const pubkey = typeof req.query.pubkey === 'string' ? req.query.pubkey.toLowerCase() : '';
+  if (!nip05 || !HEX_PUBKEY_RE.test(pubkey)) {
+    return res.json({ verified: false });
+  }
+  try {
+    const attested = await verifyNip05Identifier(nip05);
+    return res.json({ verified: !!attested && attested.toLowerCase() === pubkey });
+  } catch {
+    return res.json({ verified: false });
+  }
+}
+
 function registerNip05Routes(app) {
   app.get('/.well-known/nostr.json', handleNip05Lookup);
+  app.get('/api/nip05/verify', handleNip05Verify);
 }
 
 module.exports = {
   registerNip05Routes,
   handleNip05Lookup,
+  handleNip05Verify,
+  verifyNip05Identifier,
   validateNip05,
 };

@@ -27,52 +27,62 @@ const tests = [];
 function test(name, fn) { tests.push({ name, fn }); }
 function assert(cond, msg) { if (!cond) throw new Error(msg || 'Assertion failed'); }
 
-// ── AC-2, AC-6: defaults / persistence shape ─────────────────
-test('scheduler DEFAULTS includes refreshSearchIndex with enabled:false and intervalHours:24', () => {
+// ── AC-2, AC-6 — RE-BASELINED for ADR 0019 (supersedes ADR 0003's hardcoded DEFAULTS) ──
+// ADR 0019 retired the hardcoded DEFAULTS task set: ANY registered task is schedulable,
+// validated against the task registry. The intent (refreshSearchIndex + updateAllScoresForOwner
+// remain schedulable) survives — now via the registry rather than a DEFAULTS literal.
+test('refreshSearchIndex + updateAllScoresForOwner are schedulable via the task registry (ADR 0019)', () => {
   const src = fs.readFileSync(SCHEDULER_PATH, 'utf8');
   assert(
-    /refreshSearchIndex\s*:\s*\{[\s\S]{0,200}enabled\s*:\s*false/.test(src),
-    'src/api/scheduled-tasks/index.js DEFAULTS must include `refreshSearchIndex: { enabled: false, intervalHours: 24, intervalDays: 0 }` (per ADR 0003 implementation notes)'
+    /taskRegistry|loadRegistry|isRegisteredTask/.test(src),
+    'scheduled-tasks/index.js must validate schedulable tasks against the task registry (ADR 0019), not a hardcoded DEFAULTS set.'
   );
-  assert(
-    /refreshSearchIndex[\s\S]{0,300}intervalHours\s*:\s*24/.test(src),
-    'refreshSearchIndex default intervalHours must be 24 (mirrors the existing Owner task default)'
-  );
-  assert(
-    /updateAllScoresForOwner\s*:\s*\{/.test(src),
-    'DEFAULTS must still include updateAllScoresForOwner (no regression to the existing task — AC-11)'
-  );
+  const reg = JSON.parse(fs.readFileSync(REGISTRY_PATH, 'utf8'));
+  assert(reg.tasks && reg.tasks.refreshSearchIndex,
+    'taskRegistry.json must contain refreshSearchIndex (registry is the schedulable-task source of truth post-ADR-0019).');
+  assert(reg.tasks && reg.tasks.updateAllScoresForOwner,
+    'taskRegistry.json must contain updateAllScoresForOwner (no regression — still schedulable).');
 });
 
 // ── ADR constraint: handlers route by taskId ─────────────────
-test('scheduler handlers read taskId from req (query/body) — taskId-keyed routing per ADR Option A', () => {
+test('scheduler handlers read entryId from req (query/body) — per-entry routing per ADR 0021 (was taskId per ADR 0003/0019)', () => {
+  // ADR 0021 (story #24) explicitly changes the handler key from taskId to
+  // entryId. The operator approved the API-shape break at the architecture
+  // gate ("OK to break this; no need for a backward-compat shim").
+  // This sentinel is updated to reflect the new contract — the underlying
+  // intent (handlers must require an ID and return 400 when missing)
+  // remains the regression target.
   const src = fs.readFileSync(SCHEDULER_PATH, 'utf8');
   assert(
-    /req\.(query|body|params)\.taskId/.test(src),
-    'scheduler handlers must read taskId from req (e.g. req.query.taskId / req.body.taskId) so /api/scheduled-tasks/* can route per task — per ADR 0003 Option A'
+    /req\.(query|body|params)\.entryId/.test(src),
+    'scheduler handlers must read entryId from req (e.g. req.query.entryId / req.body.entryId) so /api/scheduled-tasks/* can route per scheduled entry — per ADR 0021'
   );
   assert(
-    /(status\(400\)|res\.status\(400\))[\s\S]{0,400}taskId|taskId[\s\S]{0,400}(status\(400\)|res\.status\(400\))/.test(src),
-    'handlers must return HTTP 400 when taskId is missing or unknown (ADR Option A: required, no implicit default)'
-  );
-});
-
-// ── AC-3: 1h minimum still enforced after the refactor ───────
-test('handleUpdate still enforces the ≥1h minimum interval for any taskId', () => {
-  const src = fs.readFileSync(SCHEDULER_PATH, 'utf8');
-  assert(
-    /Minimum interval is 1 hour/i.test(src) || /totalHours\s*<\s*1/.test(src),
-    'handleUpdate must enforce a ≥1h minimum interval (existing validation must survive the taskId refactor — AC-3)'
+    /(status\(400\)|res\.status\(400\))[\s\S]{0,400}entryId|entryId[\s\S]{0,400}(status\(400\)|res\.status\(400\))/.test(src),
+    'handlers must return HTTP 400 when entryId is missing (ADR 0021: required, no implicit default)'
   );
 });
 
-// ── AC-6: cold-start restoration per task ────────────────────
-test('initScheduler iterates per-task IDs so each enabled task is restored after restart', () => {
+// ── AC-3 — RE-BASELINED (inverted) for ADR 0019: the 1-hour floor is REMOVED ──
+// ADR 0019 supersedes ADR 0003 AC-3 — sub-hour cadence is required (reconcileRecent ~10 min),
+// so the old floor must be gone.
+test('handleUpdate no longer enforces a 1-hour minimum interval (ADR 0019 — sub-hour allowed)', () => {
   const src = fs.readFileSync(SCHEDULER_PATH, 'utf8');
-  // The shape isn't prescribed; what matters is that we don't hardcode a single task on startup.
   assert(
-    /initScheduler[\s\S]{0,800}(Object\.keys\(DEFAULTS\)|for\s*\(\s*const\s+taskId|Object\.entries\(DEFAULTS\)|forEach[\s\S]{0,40}taskId)/.test(src),
-    'initScheduler must iterate per-task IDs (e.g. Object.keys(DEFAULTS) or for-of taskIds) so refreshSearchIndex restores independently of updateAllScoresForOwner — AC-6'
+    !/Minimum interval is 1 hour/i.test(src) && !/totalHours\s*<\s*1/.test(src),
+    'scheduled-tasks/index.js must NOT enforce the old 1-hour floor (ADR 0019 supersedes ADR 0003 AC-3).'
+  );
+});
+
+// ── AC-6 — RE-BASELINED for ADR 0019: boot reconcile replaces setInterval initScheduler ──
+// The cold-start-restoration intent survives: a boot reconcile upserts a durable BullMQ Job
+// Scheduler per enabled task (so each restores independently after restart) — now via Redis,
+// not an in-process setInterval.
+test('boot reconcile restores enabled schedules per task after restart (ADR 0019)', () => {
+  const src = fs.readFileSync(SCHEDULER_PATH, 'utf8');
+  assert(
+    /reconcileSchedulesFromConfig/.test(src) && /readConfig\(\)/.test(src),
+    'scheduled-tasks/index.js must expose a boot reconcile (reconcileSchedulesFromConfig) that reads the per-task config and restores enabled schedules — replacing ADR 0003 initScheduler (AC-6 intent preserved).'
   );
 });
 
@@ -149,18 +159,19 @@ test('loadScoresIntoMeilisearch.sh still invokes the .js with no --povPubkey/--d
     `Owner-side loadScoresIntoMeilisearch.sh must NOT pass --povPubkey/--delegatedPubkey (would break the owner default path — AC-11 no regression). Current args after the .js path: "${argsPart}"`);
 });
 
-// ── AC-1, AC-2: new card in UI ───────────────────────────────
-test('RelaySettings.jsx renders a card titled "Refresh Meilisearch profiles & House PoV scores"', () => {
+// ── AC-1, AC-2 — RE-BASELINED for ADR 0019: panel is generalized over registered tasks ──
+// The panel now renders any registered task dynamically from /api/scheduled-tasks/list, so
+// card titles come from the registry `name` rather than hardcoded JSX literals. The
+// refreshSearchIndex title is preserved as its registry name (verified below).
+test('Scheduled Tasks panel is generalized over registered tasks; refreshSearchIndex title comes from the registry (ADR 0019)', () => {
   const src = fs.readFileSync(RELAY_SETTINGS_PATH, 'utf8');
-  assert(
-    /Refresh Meilisearch profiles\s*&(?:amp;|amp;|)?\s*House PoV scores/.test(src),
-    'RelaySettings.jsx must contain the literal title "Refresh Meilisearch profiles & House PoV scores" (AC-1)'
-  );
   assert(/ScheduledTasksPanel/.test(src),
-    'ScheduledTasksPanel must remain the host for both task cards (no parallel panel module)');
-  // Existing card title must remain (AC-11 no regression on the Owner card)
-  assert(/Update All Scores for Owner/.test(src),
-    'Existing "Update All Scores for Owner" card title must remain in RelaySettings.jsx (AC-11)');
+    'ScheduledTasksPanel must remain the host panel.');
+  assert(/scheduled-tasks\/list/.test(src),
+    'The panel must fetch /api/scheduled-tasks/list to render any registered task (ADR 0019 generalization).');
+  const reg = JSON.parse(fs.readFileSync(REGISTRY_PATH, 'utf8'));
+  assert(reg.tasks.refreshSearchIndex && /Refresh Meilisearch profiles\s*&\s*House PoV scores/.test(reg.tasks.refreshSearchIndex.name || ''),
+    'taskRegistry.json refreshSearchIndex.name must carry the user-facing title (now the source of the card title).');
 });
 
 // ── AC-9: pre-run banner ─────────────────────────────────────

@@ -71,11 +71,13 @@ Arrays are **replaced** (not concatenated). Objects are **deep-merged**.
 
 All relay lists are arrays of WebSocket URLs (`wss://` or `ws://`). Changes take effect **immediately** — no restart needed.
 
+> **Each Tapestry instance's strfry is self-contained.** Firmware install populates list headers (kind 39998) locally; users' publishes write list items (kind 39999) to local strfry plus configured external relays via `publishEverywhere`. The relay defaults below are pointers to *other* instances and public relays you might choose to read from or write to — not authoritative external sources your instance depends on. `dcosl.brainstorm.world` is just another instance's public-facing relay; treat it as a convenient cross-instance mirror, not a canonical pool. See [BIBLE.md §14 "Router Presets"](../BIBLE.md#router-presets) for the full architectural framing.
+
 | Key | Default | Kinds | Purpose |
 |-----|---------|-------|---------|
 | `aProfileRelays` | `purplepag.es`, `profiles.nostr1.com` | 0 | Fetch user profiles (name, avatar, etc.) |
 | `aPopularGeneralPurposeRelays` | `relay.damus.io`, `relay.primal.net`, `nos.lol`, `relay.nostr.band` | Various | General-purpose relays for broad reach |
-| `aDListRelays` | `dcosl.brainstorm.world` | 9998, 9999, 39998, 39999 | DList events (headers and items) |
+| `aDListRelays` | `dcosl.brainstorm.world` | 9998, 9999, 39998, 39999 | Optional cross-instance mirror for DList events (headers and items). Local strfry is the source of truth; this list controls *where else* to read/write. |
 | `aWotRelays` | `wot.grapevine.network` | 3, 1984, 1000 | Web of trust signals (follows, reports, mutes) |
 | `aTrustedAssertionRelays` | `nip85.nostr.band`, `nip85.brainstorm.world`, `nip85.nostr1.com` | 30382–30385 | NIP-85 trusted assertions |
 | `aTrustedListRelays` | `nip85.brainstorm.world`, `dcosl.brainstorm.world` | 30392–30396 | NIP-85 trusted lists |

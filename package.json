@@ -51,11 +51,14 @@
   },
   "homepage": "https://github.com/Prett-Good-Freedom-Tech/brainstorm#readme",
   "dependencies": {
+    "@bull-board/api": "^6.21.3",
+    "@bull-board/express": "^6.21.3",
     "@graperank/calculator": "^0.2.2",
     "@nostr-dev-kit/ndk": "^2.12.0",
     "adm-zip": "^0.5.16",
     "ajv": "^8.18.0",
     "archiver": "^7.0.1",
+    "bullmq": "^5.76.10",
     "chart.js": "^4.4.1",
     "chartjs-adapter-date-fns": "^3.0.0",
     "connect-redis": "^7.1.1",
@@ -78,7 +81,8 @@
     "typescript": "^5.8.2",
     "websocket": "^1.0.35",
     "websocket-polyfill": "^0.0.3",
-    "ws": "^8.18.1"
+    "ws": "^8.18.1",
+    "yargs": "^18.0.0"
   },
   "devDependencies": {
     "@playwright/test": "^1.40.0"

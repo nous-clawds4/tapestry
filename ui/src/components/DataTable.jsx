@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 
 /**
  * Reusable sortable data table.
@@ -7,11 +7,19 @@ import { useState, useMemo } from 'react';
  * @param {Array<Object>} props.data
  * @param {Function} props.onRowClick - Optional row click handler
  * @param {string} props.emptyMessage
+ * @param {number} [props.pageSize] - If set, paginate to this many rows per page.
+ * @param {boolean} [props.showFilter=true] - Show the built-in text filter input.
+ *
+ * `pageSize` and `showFilter` are additive/optional; callers that omit them get
+ * the original behavior (no pagination, filter shown). Sorting always applies to
+ * the full (filtered) set before pagination, so the default order and any
+ * header re-sort are correct across all pages, not just the visible one.
  */
-export default function DataTable({ columns, data, onRowClick, emptyMessage = 'No data' }) {
+export default function DataTable({ columns, data, onRowClick, emptyMessage = 'No data', pageSize, showFilter = true }) {
   const [sortKey, setSortKey] = useState(null);
   const [sortDir, setSortDir] = useState('asc');
   const [filter, setFilter] = useState('');
+  const [page, setPage] = useState(0);
 
   const filtered = useMemo(() => {
     if (!filter) return data;
@@ -34,6 +42,15 @@ export default function DataTable({ columns, data, onRowClick, emptyMessage = 'N
     });
   }, [filtered, sortKey, sortDir]);
 
+  // Pagination (opt-in via pageSize). Reset to the first page whenever the
+  // underlying set changes so we never strand the user on a now-empty page.
+  const pageCount = pageSize ? Math.max(1, Math.ceil(sorted.length / pageSize)) : 1;
+  useEffect(() => { setPage(0); }, [filter, sortKey, sortDir, data, pageSize]);
+  const safePage = Math.min(page, pageCount - 1);
+  const visibleRows = pageSize
+    ? sorted.slice(safePage * pageSize, safePage * pageSize + pageSize)
+    : sorted;
+
   function handleSort(key) {
     if (sortKey === key) {
       setSortDir(d => d === 'asc' ? 'desc' : 'asc');
@@ -46,13 +63,15 @@ export default function DataTable({ columns, data, onRowClick, emptyMessage = 'N
   return (
     <div className="data-table-wrapper">
       <div className="table-controls">
-        <input
-          type="text"
-          placeholder="Filter..."
-          value={filter}
-          onChange={e => setFilter(e.target.value)}
-          className="table-filter"
-        />
+        {showFilter && (
+          <input
+            type="text"
+            placeholder="Filter..."
+            value={filter}
+            onChange={e => setFilter(e.target.value)}
+            className="table-filter"
+          />
+        )}
         <span className="table-count">{sorted.length} items</span>
       </div>
       <table className="data-table">
@@ -67,12 +86,12 @@ export default function DataTable({ columns, data, onRowClick, emptyMessage = 'N
           </tr>
         </thead>
         <tbody>
-          {sorted.length === 0 ? (
+          {visibleRows.length === 0 ? (
             <tr><td colSpan={columns.length} className="empty-row">{emptyMessage}</td></tr>
           ) : (
-            sorted.map((row, i) => (
+            visibleRows.map((row, i) => (
               <tr
-                key={row.uuid || row.id || i}
+                key={row.uuid || row.id || row.pubkey || i}
                 onClick={() => onRowClick?.(row)}
                 className={onRowClick ? 'clickable' : ''}
               >
@@ -86,6 +105,21 @@ export default function DataTable({ columns, data, onRowClick, emptyMessage = 'N
           )}
         </tbody>
       </table>
+      {pageSize && pageCount > 1 && (
+        <div className="table-pagination">
+          <button
+            className="table-page-btn"
+            onClick={() => setPage(p => Math.max(0, p - 1))}
+            disabled={safePage === 0}
+          >‹ Prev</button>
+          <span className="table-page-info">Page {safePage + 1} of {pageCount}</span>
+          <button
+            className="table-page-btn"
+            onClick={() => setPage(p => Math.min(pageCount - 1, p + 1))}
+            disabled={safePage >= pageCount - 1}
+          >Next ›</button>
+        </div>
+      )}
     </div>
   );
 }

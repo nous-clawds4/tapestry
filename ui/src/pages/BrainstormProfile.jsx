@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { useParams, useSearchParams } from 'react-router-dom';
+import { useParams, useSearchParams, Link } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
 import { useAuth } from '../context/AuthContext';
 import BrainstormUserMenu from '../components/BrainstormUserMenu';
 import { useProfileActions } from '../hooks/useProfileActions';
 import useUserCounts from '../hooks/useUserCounts';
+import useNip05Verification from '../hooks/useNip05Verification';
 import ConfirmDialog from '../components/ConfirmDialog';
 import ReportModal from '../components/ReportModal';
+import { toExternalUrl } from '../utils/url';
 
 /* ── Helpers ──────────────────────────────────────────── */
 
@@ -90,6 +92,7 @@ export default function BrainstormProfile() {
   const showActions = user && user.pubkey !== pubkey;
 
   const { data: userCounts, loading: userCountsLoading } = useUserCounts(pubkey);
+  const nip05Verified = useNip05Verification(pubkey, profile?.nip05);
   const followingCount = userCounts?.followingCount ?? null;
   const fmtCount = (n) => (n == null ? '—' : new Intl.NumberFormat().format(n));
 
@@ -225,17 +228,17 @@ export default function BrainstormProfile() {
               )}
               <div className="bsp-header-info">
                 <h1 className="bsp-name">{displayName}</h1>
-                {profile?.nip05 && <div className="bsp-nip05">✅ {profile.nip05}</div>}
+                {profile?.nip05 && <div className="bsp-nip05">{nip05Verified && '✅ '}{profile.nip05}</div>}
                 {profileAge && <span className="bsp-age">Updated {profileAge}</span>}
               </div>
             </div>
 
             {/* Following count */}
             <div className={`bsp-counts ${userCountsLoading ? 'bsp-counts-loading' : ''}`}>
-              <span className="bsp-count">
+              <Link to={`/user/${pubkey}/follows`} className="bsp-count bsp-count-link">
                 <span className="bsp-count-value">{fmtCount(followingCount)}</span>
                 <span className="bsp-count-label">Following</span>
-              </span>
+              </Link>
             </div>
 
             {/* Action buttons */}
@@ -300,7 +303,7 @@ export default function BrainstormProfile() {
                 {profile?.website && (
                   <div className="bsp-id-row">
                     <span className="bsp-id-label">Website</span>
-                    <a href={profile.website} target="_blank" rel="noopener noreferrer" className="bsp-id-link">
+                    <a href={toExternalUrl(profile.website)} target="_blank" rel="noopener noreferrer" className="bsp-id-link">
                       {profile.website.replace(/^https?:\/\//, '').replace(/\/$/, '')}
                     </a>
                   </div>

@@ -3,7 +3,7 @@
 > **Audience:** the active team running this fork at `brainstorm.world`.
 > **Prerequisite reading:** [BIBLE.md](./BIBLE.md) — what tapestry *is* and how it works. This file documents the specifics of *our* deployment that aren't useful to other operators forking the codebase.
 
-**Last updated:** 2026-04-26
+**Last updated:** 2026-05-15
 
 ---
 
@@ -14,15 +14,18 @@
 3. [CI/CD workflows](#3-cicd-workflows)
 4. [Branch protection ruleset](#4-branch-protection-ruleset)
 5. [Droplets and empirical measurements](#5-droplets-and-empirical-measurements)
-6. [Active team and branch ownership](#6-active-team-and-branch-ownership)
-7. [Active tracking issues](#7-active-tracking-issues)
-8. [Operational gotchas we've hit](#8-operational-gotchas-weve-hit)
+6. [Spinning up a new sandbox droplet](#6-spinning-up-a-new-sandbox-droplet)
+7. [Active team and branch ownership](#7-active-team-and-branch-ownership)
+8. [Active tracking issues](#8-active-tracking-issues)
+9. [Operational gotchas we've hit](#9-operational-gotchas-weve-hit)
+10. [Task queue (BullMQ behind /api/run-task)](#10-task-queue-bullmq-behind-apirun-task)
+11. [Conf templates are the source of truth for fresh containers](#11-conf-templates-are-the-source-of-truth-for-fresh-containers)
 
 ---
 
 ## 1. Deploy targets
 
-Four long-lived branches, four Digital Ocean droplets, four CI/CD workflows:
+Six long-lived branches, six Digital Ocean droplets, six CI/CD workflows:
 
 | Branch | Workflow | Target | Purpose |
 |--------|----------|--------|---------|
@@ -30,8 +33,10 @@ Four long-lived branches, four Digital Ocean droplets, four CI/CD workflows:
 | `staging` | `deploy-staging.yml` | `staging.brainstorm.world` | Pre-production verification. PRs from feature branches land here first. |
 | `feature-magic-carpet` | `deploy-magic-carpet.yml` | `magic-carpet.brainstorm.world` | Long-lived sandbox for Matthias's bounty-system work. |
 | `feat/pubkey-tagging-target` | `deploy-tags.yml` | `tags.brainstorm.world` | Long-lived sandbox for the pubkey-tagging feature work (NIP-85 profile-tagging UX). |
+| `feat/communities` | `deploy-communities.yml` | `communities.brainstorm.world` | Long-lived sandbox for the communities / decentralized-lists feature work (brainstorm-community concept, DList NIP-aware tag schema). |
+| `feat/curate` | `deploy-curate.yml` | `curate.brainstorm.world` | Long-lived sandbox for Avi's feature work; scope TBD by Avi. |
 
-Each workflow uses repo secrets named `DEPLOY_HOST_<NAME>`, `DEPLOY_USER_<NAME>`, `DEPLOY_SSH_KEY_<NAME>` where `<NAME>` is `BRAINSTORM`, `STAGING`, `MAGIC_CARPET`, or `TAGS`.
+Each workflow uses repo secrets named `DEPLOY_HOST_<NAME>`, `DEPLOY_USER_<NAME>`, `DEPLOY_SSH_KEY_<NAME>` where `<NAME>` is `BRAINSTORM`, `STAGING`, `MAGIC_CARPET`, `TAGS`, `COMMUNITIES`, or `CURATE`.
 
 ### Standard branch promotion flow
 
@@ -43,7 +48,7 @@ feat/foo (off staging)
     → source feature branch auto-deleted
 ```
 
-**Long-lived sandbox branches** (currently `feature-magic-carpet` and `feat/pubkey-tagging-target`, plus any future additions) follow the same convention: fork from `staging`, deploy to their own droplet via a dedicated `deploy-<name>.yml` workflow, and eventually merge back via the standard `<branch> → staging → main` path. New sandboxes get a row added to the deploy-target table above when they're stood up, plus a row in [§5 "Droplets and empirical measurements"](#5-droplets-and-empirical-measurements).
+**Long-lived sandbox branches** (currently `feature-magic-carpet`, `feat/pubkey-tagging-target`, `feat/communities`, and `feat/curate`, plus any future additions) follow the same convention: fork from `staging`, deploy to their own droplet via a dedicated `deploy-<name>.yml` workflow, and eventually merge back via the standard `<branch> → staging → main` path. New sandboxes get a row added to the deploy-target table above when they're stood up, plus a row in [§5 "Droplets and empirical measurements"](#5-droplets-and-empirical-measurements).
 
 For Matthias's sandbox: he PRs from his fork's `magic-carpet` branch into our `feature-magic-carpet`. Merging deploys to `magic-carpet.brainstorm.world`. Code on `feature-magic-carpet` is **not** intended for production until promoted via the standard `feature-magic-carpet → staging → main` path.
 
@@ -112,6 +117,18 @@ Short-lived feature branches (`feat/*`, `fix/*`, `chore/*`) are NOT protected; t
 - Behind host nginx + Certbot SSL; Docker stack binds to `127.0.0.1:8080`
 - Stood up 2026-05-12; first CI/CD deploy via `deploy-tags.yml` ran successfully against PR #119.
 
+### Sandbox: `communities.brainstorm.world`
+
+- (specs to be filled in — entrypoint dynamic-config reports 32 GB RAM, 8 vCPU)
+- Behind host nginx + Certbot SSL; Docker stack binds to `127.0.0.1:8080`
+- Stood up 2026-05-14; first CI/CD attempt failed at the SSH handshake due to brute-force saturation of `MaxStartups` (see §9.9), succeeded on retry after fail2ban + `PasswordAuthentication no` were applied 2026-05-15.
+
+### Sandbox: `curate.brainstorm.world`
+
+- (specs to be filled in)
+- Behind host nginx + Certbot SSL; Docker stack binds to `127.0.0.1:8080`
+- Stood up 2026-05-15; first CI/CD deploy via `deploy-curate.yml` ran successfully on first push ([run 25901626052](https://github.com/nous-clawds4/tapestry/actions/runs/25901626052), 1m8s) — droplet was hardened per §6.3 step 2 before the deploy SSH key was generated, so §9.9's first-deploy failure didn't recur.
+
 ### Empirical RAM/disk on production (April 2026)
 
 2.6M profiles, 30M FOLLOWS relationships:
@@ -131,7 +148,126 @@ The dynamic allocation formula in `docker/entrypoint.sh` is universal — see [B
 
 ---
 
-## 6. Active team and branch ownership
+## 6. Spinning up a new sandbox droplet
+
+End-to-end procedure for adding a new long-lived sandbox to the deploy fleet. The reference walk-through is `feat/communities` → `communities.brainstorm.world` on 2026-05-14; sub-sections call out gotchas hit during that run.
+
+### 6.1. Pre-flight (off-droplet)
+
+1. **DNS** — add an `A` record for `<name>.brainstorm.world` → droplet IP **first**. Certbot won't issue until the name resolves, and propagation can take minutes.
+2. **Branch** — the long-lived branch you'll deploy from should already exist on origin, forked from `staging` per §1.
+3. **Droplet** — provision the DO instance. Size to purpose: sandboxes that load the full WoT graph need ~32 GB; lightweight feature work can run smaller. Ubuntu 24.04 LTS.
+
+### 6.2. GitHub setup
+
+1. **Workflow file** — add `.github/workflows/deploy-<name>.yml` on the target branch. Mirror `deploy-tags.yml` and substitute the branch name, secret suffix, and droplet-name comment. Do **not** push yet — pushing triggers the first deploy, which fails until secrets are set and the droplet is ready.
+2. **Repo secrets** — prepare three placeholders in Settings → Secrets (values filled in from the droplet in §6.3 step 2):
+   - `DEPLOY_HOST_<NAME>` — droplet IP or hostname
+   - `DEPLOY_USER_<NAME>` — typically `root`
+   - `DEPLOY_SSH_KEY_<NAME>` — the **private** key generated on the droplet
+
+### 6.3. On the droplet
+
+1. **System packages.** Use Docker's official `docker-ce` only — **do not** also install Ubuntu's `docker.io`. Mixing the two breaks Docker daemon DNS in unpredictable ways (symptoms: `EAI_AGAIN` on npm installs inside containers, `sudo: unable to resolve host <container-id>`).
+   ```bash
+   apt update && apt upgrade -y
+   install -m 0755 -d /etc/apt/keyrings
+   curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+   chmod a+r /etc/apt/keyrings/docker.asc
+   echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" > /etc/apt/sources.list.d/docker.list
+   apt update
+   apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin nginx certbot python3-certbot-nginx git
+   ```
+
+2. **SSH hardening.** Do this **before** generating the deploy key. Within minutes of a fresh droplet booting, brute-force bots find port 22 and start saturating sshd. Default `MaxStartups 10:30:100` then randomly drops new unauth'd connections — including legitimate ones from GitHub Actions deploys (see §9.9).
+   ```bash
+   # Disable password auth (deploys and humans both use keys)
+   cat > /etc/ssh/sshd_config.d/99-disable-password.conf <<'EOF'
+   PasswordAuthentication no
+   KbdInteractiveAuthentication no
+   EOF
+   sshd -t && systemctl reload ssh
+
+   # Install fail2ban with a basic SSH jail
+   apt install -y fail2ban
+   cat > /etc/fail2ban/jail.d/sshd.local <<'EOF'
+   [sshd]
+   enabled = true
+   port = 22
+   maxretry = 5
+   findtime = 10m
+   bantime = 1h
+   EOF
+   systemctl enable --now fail2ban
+   ```
+
+3. **Deploy SSH key.**
+   ```bash
+   ssh-keygen -t ed25519 -f ~/.ssh/tapestry_<name> -N ""
+   cat ~/.ssh/tapestry_<name>.pub >> ~/.ssh/authorized_keys
+   cat ~/.ssh/tapestry_<name>       # paste into DEPLOY_SSH_KEY_<NAME>
+   ```
+   Now fill in the three `DEPLOY_*_<NAME>` secrets in GitHub.
+
+4. **Clone and check out the target branch.**
+   ```bash
+   git clone https://github.com/nous-clawds4/tapestry.git /opt/tapestry
+   cd /opt/tapestry
+   git checkout <branch>
+   ```
+
+5. **`.env` file** — all three vars from `.env.example` are required. Skipping any of them causes silent runtime failures rather than a hard stop:
+   ```
+   OWNER_PUBKEY=<your_hex_pubkey>
+   NEO4J_PASSWORD=<strong_password>
+   ADMIN_PUBKEYS=<your_hex_pubkey>     # same as OWNER_PUBKEY by convention
+   DOMAIN_NAME=<name>.brainstorm.world
+   ```
+   `ADMIN_PUBKEYS` only emits a `WARN` from docker-compose when missing — don't take that as benign.
+
+6. **Nginx + SSL.**
+   ```bash
+   cat > /etc/nginx/sites-available/<name>.brainstorm.world <<'EOF'
+   server {
+       listen 80;
+       server_name <name>.brainstorm.world;
+       location / {
+           proxy_pass http://127.0.0.1:8080;
+           proxy_set_header Host $host;
+           proxy_set_header X-Real-IP $remote_addr;
+           proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+           proxy_set_header X-Forwarded-Proto $scheme;
+       }
+   }
+   EOF
+   ln -sf /etc/nginx/sites-available/<name>.brainstorm.world /etc/nginx/sites-enabled/
+   rm -f /etc/nginx/sites-enabled/default
+   nginx -t && systemctl reload nginx
+   certbot --nginx -d <name>.brainstorm.world
+   ```
+
+7. **Port remap, then first start.** The `sed` is **required** before the first `docker compose up`. Nginx already owns `:80`, so without the remap Docker can't bind and containers stay in "Created" state — neo4j and brainstorm never start, nginx returns 502. The CI/CD workflow runs this `sed` on every deploy (idempotent), but the first manual bring-up is on you:
+   ```bash
+   sed -i 's/"80:80"/"127.0.0.1:8080:80"/' docker-compose.yml
+   docker compose up -d --build
+   ```
+   First build takes 5–15 minutes (strfry's C++/Redis patch compiles from scratch). Subsequent CI/CD deploys warm-cache to ~80 seconds.
+
+### 6.4. Verify and finalize
+
+1. **Service health.** All four services should report `Up`:
+   ```bash
+   docker compose ps                            # tapestry, tapestry-redis, nostr-search-meili, nostr-search-api
+   curl -sI https://<name>.brainstorm.world     # expect 200, briefly 502 if Express is still booting — see §9.5
+   ```
+
+2. **Push the workflow.** `deploy-<name>.yml` lives only on the target branch (Actions on non-default branches only run for pushes to that branch). Pushing the workflow file *is* a push to the branch, which triggers the first CI/CD deploy. That run is the validation: it should idempotently re-pull, re-`sed`, and reach the same healthy state in ~80 seconds.
+
+3. **Update this document.** Add rows to §1 (deploy targets) and §5 (droplets and empirical measurements). Per §1's note this is a documented convention.
+
+---
+
+## 7. Active team and branch ownership
 
 | Person | GitHub | Role | Active branches |
 |--------|--------|------|-----------------|
@@ -143,15 +279,15 @@ Universal credits and contributor list lives in [BIBLE.md §20 "People"](./BIBLE
 
 ---
 
-## 7. Active tracking issues
+## 8. Active tracking issues
 
 - **#63 — Meilisearch upgrade.** Currently pinned at `getmeili/meilisearch:v1.12` (v1.12.8). Panics on certain queries (`q=primal`, `q=prima`) due to a milli interner u16 overflow. Workaround in place at `nostr-search/src/search.js` (catches the panic and returns a friendly notice in place of a 500). Real fix is a Meilisearch upgrade — verify index compatibility, plan a reindex from strfry, and remove the workaround. Deferred until time for the Docker rebuild and reindex window.
 
 ---
 
-## 8. Operational gotchas we've hit
+## 9. Operational gotchas we've hit
 
-### 8.1. `gh` CLI defaults to the upstream fork
+### 9.1. `gh` CLI defaults to the upstream fork
 
 This local checkout has two remotes:
 - `origin` → `nous-clawds4/tapestry` (our fork — what we actually push to)
@@ -161,7 +297,7 @@ This local checkout has two remotes:
 
 **Fix:** always pass `--repo nous-clawds4/tapestry` to every `gh` command, or run `gh repo set-default nous-clawds4/tapestry` once to fix it permanently.
 
-### 8.2. 2026-04-24: auto-delete-head-branches deleted `staging`
+### 9.2. 2026-04-24: auto-delete-head-branches deleted `staging`
 
 After merging a `staging → main` promotion PR, GitHub's "Automatically delete head branches" setting kicked in and deleted `staging` (the PR's head branch).
 
@@ -169,7 +305,7 @@ After merging a `staging → main` promotion PR, GitHub's "Automatically delete 
 
 **Permanent fix:** the `restrict-deletions` ruleset added in the same session (see §4 above) prevents recurrence on long-lived branches. Even with auto-delete enabled at the repo level, GitHub honors the ruleset.
 
-### 8.3. 2026-04-25: NIP-05 prod registration confused volume vs. host filesystem
+### 9.3. 2026-04-25: NIP-05 prod registration confused volume vs. host filesystem
 
 When first registering `brainstorm@brainstorm.world` via the NIP-05 endpoint added in PR #50/#51, David edited `/var/lib/brainstorm/settings.json` *on the droplet host* — but the brainstorm process inside the container reads from the `tapestry-data` Docker named volume mounted at `/var/lib/brainstorm/` *inside the container*. Different filesystems entirely.
 
@@ -177,7 +313,7 @@ When first registering `brainstorm@brainstorm.world` via the NIP-05 endpoint add
 
 **Documented for future maintainers:** [BIBLE.md §15 "Editing settings.json on a deployed droplet"](./BIBLE.md#editing-settingsjson-on-a-deployed-droplet) was added in response to this incident — the gotcha pattern is universal even though we hit it specifically while registering `brainstorm@brainstorm.world`.
 
-### 8.4. GitHub PR head-ref stuck state after retargeting base
+### 9.4. GitHub PR head-ref stuck state after retargeting base
 
 After retargeting a PR's base branch via `gh pr edit --base <new>`, subsequent pushes to the head branch can fail to sync with the PR — GitHub's `refs/pull/<N>/head` stays at the pre-retarget SHA. Symptoms: branch ref on origin updates correctly, but `gh api pulls/<N>` shows stale `head.sha`, `mergeable=false`, `mergeable_state=dirty`. No `synchronize` events fire in the PR timeline. `gh pr update-branch`, close/reopen, retargeting again — none of these recover it.
 
@@ -185,7 +321,7 @@ After retargeting a PR's base branch via `gh pr edit --base <new>`, subsequent p
 
 Hit this on PR #29 → replaced with PR #35 on 2026-04-19.
 
-### 8.5. Post-deploy 502 flicker until brainstorm Express binds
+### 9.5. Post-deploy 502 flicker until brainstorm Express binds
 
 Both `deploy-staging.yml` and `deploy-brainstorm.yml` run `docker compose up -d --build` and exit as soon as the compose command returns. That means CI reports "deploy succeeded" the moment the **container** starts — not when the brainstorm Node process inside it has finished booting (Neo4j driver init, Redis connection, Express middleware, etc., add a few seconds).
 
@@ -209,7 +345,7 @@ For human users hitting the site immediately after a deploy: refresh once or twi
 
 **Long-term fix candidate:** the deploy script could `curl --retry` an API endpoint as a final step before exiting, so CI doesn't report success until brainstorm is actually serving. Not yet done — left as a separate operational improvement.
 
-### 8.6. 2026-05-03: SESSION_SECRET rotated on every container start, invalidating all cookies
+### 9.6. 2026-05-03: SESSION_SECRET rotated on every container start, invalidating all cookies
 
 While verifying the Redis-backed session store landed in #90, we noticed users were still being logged out on every deploy — even though Redis correctly persisted session data across container rebuilds. The actual root cause: `docker/entrypoint.sh` regenerated `SESSION_SECRET="$(openssl rand -hex 32)"` unconditionally on every container start. Each `docker compose up -d --build` recreates the brainstorm container; `entrypoint.sh` re-ran; secret rotated; every existing user cookie failed signed-validation; express-session treated cookies as absent → users logged out, despite Redis still holding the session data.
 
@@ -217,10 +353,361 @@ While verifying the Redis-backed session store landed in #90, we noticed users w
 
 **Lesson:** when fixing a "session persistence" UX, both the *store* (where data lives) and the *secret* (which validates cookies referencing that data) need to survive container rebuilds. Either alone is insufficient.
 
-### 8.7. 2026-05-13: engineering-team scaffolding on main but not on staging
+### 9.7. 2026-05-13: engineering-team scaffolding on main but not on staging
 
 While preparing a new 5-phase engineering-team flow off `staging`, we discovered `engineering-team/` (templates, roles, workflows, README), `AGENTS.md`, and the engineering-team section of `CLAUDE.md` existed on `main` but not on `staging` — about 850 lines of agent-workflow scaffolding silently absent from the pre-production branch. Tracing it back: [PR #111](https://github.com/nous-clawds4/tapestry/pull/111) (commit `4acbe321` — "Add claude 'engineering team' concept") was merged directly to `main`, bypassing staging. All subsequent `staging → main` promotions carried staging's diff *into* main but never the reverse direction — git merges are one-way — so the two branches drifted by exactly that scaffolding.
 
 **Recovery:** one-shot sync PR — branch off `main`, PR back into `staging`, merge. The diff was purely additive on the staging side (main had files staging didn't), so no conflicts. ([PR #122](https://github.com/nous-clawds4/tapestry/pull/122) recorded this for the first occurrence; `deploy-staging.yml` runs but the redeploy is a no-op for running services since only docs/scaffolding moved.)
 
 **Mechanism for prevention:** all changes — *even docs and scaffolding* — should go through the standard `staging → main` flow. The cycle-staging and cycle-prod skills assume parity between the two long-lived branches; landing directly on main breaks that assumption silently. If parity drift is suspected, `git diff --stat origin/main origin/staging` from a fresh checkout reveals it immediately.
+
+### 9.8. 2026-05-14: sandbox instance had list headers but no items
+
+On `tags.brainstorm.world` we noticed the DLists/Concepts for `tag` and `nostr-user-tag` (kind 39998 headers) were present, but no elements (kind 39999) — the UI showed empty lists. The droplet had run firmware install (so headers were correct), but element events published from users on *other* instances (`brainstorm.world`, local dev, etc.) never reached this droplet's strfry.
+
+**Why:** each Tapestry instance's strfry is self-contained. `publishEverywhere` writes to the publishing instance's local strfry plus configured external relays — it does **not** broadcast into every other instance's strfry. A sandbox instance only sees UGC originating on itself unless it opts in to cross-instance mirroring.
+
+**Fix options:**
+- One-shot: `docker compose exec tapestry strfry sync wss://dcosl.brainstorm.world --filter '{"kinds":[9998,9999,39998,39999]}' --dir down`
+- Continuous: enable the `dcosl` router preset in `/tapestry/settings/relays` (both-direction, kinds 9998/9999/39998/39999).
+
+**Mental model:** see [BIBLE.md §14 "Router Presets"](./BIBLE.md#router-presets). `dcosl.brainstorm.world` is *not* a canonical pool — it's just another instance's public-facing relay that's a convenient pull target if you want shared list state across our deployments.
+
+### 9.9. 2026-05-15: SSH brute-force bots starved CI/CD on the new communities droplet
+
+Avi's first push to `feat/communities` triggered the deploy workflow, but `appleboy/ssh-action` failed at the SSH handshake with `read: connection reset by peer`. Not an auth failure — the connection was being **reset by sshd before authentication ran**.
+
+The droplet was being swarmed by SSH brute-force bots from minutes after boot. With sshd's default `MaxStartups 10:30:100`, once 10 unauthenticated connections are in-flight, sshd starts dropping new ones randomly. The auth log was full of `Invalid user dbus-helper`, `Invalid user pakchoi`, `Connection reset by authenticating user root`, plus repeated `error: beginning MaxStartups throttling` / `drop connection #N from [...] past MaxStartups`. Fail2ban was not installed (`systemctl is-active fail2ban` returned `inactive`). The GitHub Actions deploy connection had the bad luck of arriving during a throttle window and was dropped.
+
+**Recovery for this droplet:** install fail2ban, disable password auth — the same steps now baked into [§6.3 step 2](#63-on-the-droplet). Within minutes fail2ban's banlist grew, MaxStartups throttling stopped firing, and the next deploy ran cleanly.
+
+**Lesson:** any droplet on the public internet on port 22 will be swarmed within minutes of boot. Manual `ssh` retries hide the problem (a person retries until they get lucky); CI/CD has no retry, so it surfaces it. Hardening must happen **before** the deploy SSH key is generated, not after — otherwise the first CI/CD run after key setup is the lottery ticket. The other deploy droplets (prod, staging, magic-carpet, tags) escaped this so far either because they were stood up before the current bot pressure, or because they had hardening applied ad-hoc; the audit checklist below confirms which.
+
+**Audit checklist for existing droplets.** Run this once across all four existing deploy droplets (`brainstorm.world`, `staging.brainstorm.world`, `magic-carpet.brainstorm.world`, `tags.brainstorm.world`) to catch any that are missing the hardening now baked into §6.3 step 2.
+
+On each droplet:
+
+```bash
+# 1. Status check — three signals, all should pass
+echo "=== $(hostname) ==="
+echo "fail2ban: $(systemctl is-active fail2ban 2>/dev/null)"
+sshd -T | grep -E "^(passwordauthentication|kbdinteractiveauthentication)"
+echo "Recent SSH abuse signals (last 1 hour):"
+journalctl -u ssh --since "1 hour ago" --no-pager 2>/dev/null \
+  | grep -cE "MaxStartups|Invalid user" || true
+```
+
+A droplet passes if:
+- `fail2ban: active`
+- `passwordauthentication no` and `kbdinteractiveauthentication no`
+- The MaxStartups/Invalid-user count is low (single digits/hour is background noise; hundreds/hour means the droplet is currently saturated)
+
+If a droplet **fails** one of the first two checks, apply the hardening from §6.3 step 2 — the exact same commands work on a running droplet (they take effect on `systemctl reload ssh` and `systemctl enable --now fail2ban`). No reboot or downtime needed. Verify with the same script afterward.
+
+If a droplet shows high abuse counts in the third check but the first two pass, fail2ban is doing its job — the abuse traffic is being banned faster than it can saturate sshd. No action needed.
+
+**Tracking:** add a row to §8 "Active tracking issues" when starting the audit; remove it once all four droplets pass. The audit doesn't need to be scheduled — it's a one-time backfill; new droplets are protected by §6.3 step 2 going forward.
+
+---
+
+## 10. Task queue (BullMQ behind /api/run-task)
+
+**Story #13 / ADR 0010.** Phase 1 of a multi-phase migration that routes `/api/run-task` through a real durable queue. Feature-flagged off by default in this phase — flip on per deployment after smoke confirms.
+
+### 10.1 Feature flag
+
+`TASK_QUEUE_ENABLED` in `/etc/brainstorm.conf` controls whether `/api/run-task` enqueues jobs through BullMQ or runs the legacy direct-spawn path.
+
+- `TASK_QUEUE_ENABLED=true` (default since story #17 / ADR 0015) — `/api/run-task` enqueues per-task BullMQ jobs; in-process Workers consume them; `launchChildTask.sh` still spawns the work (its pgrep guard remains as belt-and-suspenders). BullBoard UI mounts at `/admin/queues` (owner-only).
+- `TASK_QUEUE_ENABLED=false` — legacy direct-spawn. Zero queue dependency. **This is the rollback path** — flip the flag in the template (or, for an in-container hotfix, in `/etc/brainstorm.conf`), `supervisorctl restart brainstorm`, and the queue is out of the picture.
+
+When the flag is on and Redis is unreachable, `/api/run-task` returns `503` with body `{success: false, error: "task queue (Redis) unreachable", code: "QUEUE_UNAVAILABLE"}` so monitoring can distinguish this failure from 4xx client errors or 5xx unhandled exceptions.
+
+### 10.2 BullBoard UI (operator queue inspector)
+
+When the flag is on, BullBoard is mounted at `https://<host>/admin/queues` behind **owner-or-admin auth** (story #18 / ADR 0016, widened from owner-only in story #13). The owner and any pubkey listed in `BRAINSTORM_ADMIN_PUBKEYS` get full access — view queues, retry / remove / **pause** jobs. The board shows per-task queues with active / waiting / completed / failed counts.
+
+The admin-management endpoints (`/api/admin/list|add|remove`) deliberately use a stricter owner-only gate; admins cannot promote or remove other admins. Only the owner can change the admin list.
+
+> **Be careful.** Retry / remove / pause directly affect running calculations. The board title says "Owner + Admin" as a reminder; the auth gate prevents access by non-owner / non-admin sessions but does NOT prevent admins from making destructive choices.
+
+**Dashboard shortcut** (story #19 / ADR 0017). The Tapestry dashboard at `/tapestry` displays an "🛠️ Admin tools" panel for owner + admin sessions, with one-click links to BullBoard (`/admin/queues/`) and the Neo4j Browser (env-aware URL from `/api/status:neo4jBrowserUrl`). The panel is hidden entirely for non-owner / non-admin / unauthenticated visitors. BullBoard's own header also carries a `← Tapestry Dashboard` back-link, closing the navigation loop. Operators don't need to type `/admin/queues/` directly anymore.
+
+### 10.3 Per-task concurrency config
+
+Server-side file at `/etc/brainstorm-task-queue.json`:
+
+```json
+{
+  "defaultConcurrency": 1,
+  "concurrencyByTask": {
+    "calculateCustomerGrapeRank": 1
+  }
+}
+```
+
+Unset = `defaultConcurrency`. Phase 1 ships with everything at `1` to match today's effective serial behavior; the operator tunes upward task-by-task after observing real load.
+
+A future sibling story will introduce a shared "Neo4j-heavy class" concurrency cap across multiple task types (cross-task serialization) — that's tracked separately and out of scope for phase 1.
+
+### 10.4 Drain / pause for maintenance
+
+To pause all incoming jobs during planned maintenance (e.g., a Neo4j restart):
+
+1. Open BullBoard at `/admin/queues`.
+2. Click each queue's **Pause** button. Jobs in `active` complete; new submissions land in `waiting` and don't dispatch.
+3. Perform maintenance.
+4. Click each queue's **Resume** button. Queued jobs dispatch in order.
+
+To drain a queue (kill all waiting jobs for one task without affecting active ones), use the queue's "Clear waiting" button in BullBoard.
+
+A faster alternative for full deployments: flip `TASK_QUEUE_ENABLED=false`, `supervisorctl restart brainstorm`. The legacy direct-spawn path absorbs new submissions; the queued jobs remain in Redis (AOF-persisted) and resume when the flag flips back on.
+
+### 10.5 Redis persistence
+
+`docker-compose.yml` runs Redis with `--appendonly yes --appendfsync everysec`. Queued jobs survive `docker restart tapestry-redis` and container updates. No adverse interaction with the strfry-stream-consumer (which uses `blpop` on `strfry:events`) — AOF only adds an on-disk append per list operation.
+
+### 10.6 Cross-task resource-class concurrency caps
+
+**Story #15 / ADR 0013.** Story #13 introduced per-task queues with per-task concurrency caps — sufficient to serialize against same-task contention but not across different task names. Triggering `calculateOwnerGrapeRank` and `calculateOwnerPageRank` back-to-back will still run them concurrently because they live in different per-task queues. This subsection covers the additional cross-task layer.
+
+Requires `TASK_QUEUE_ENABLED=true` (§10.1). When the flag is off, the legacy direct-spawn path runs and resource-class tags have no effect.
+
+#### The `resourceClass` registry tag
+
+Tasks in `src/manage/taskQueue/taskRegistry.json` opt into cross-task serialization by adding a top-level `resourceClass` string, e.g.:
+
+```json
+{
+  "name": "Calculate Owner GrapeRank",
+  "resourceClass": "neo4j-heavy",
+  "categories": ["algorithms", "owner"],
+  ...
+}
+```
+
+Tasks without the tag are unaffected — they continue to use story #13's per-task concurrency only.
+
+The **initial tag set** shipped with this story is the owner trio:
+- `calculateOwnerHops`
+- `calculateOwnerPageRank`
+- `calculateOwnerGrapeRank`
+
+These are the three Neo4j-heavy tasks the operator demonstrated the cross-task pain with on `brainstorm.world`. Extend the set operationally by editing the registry and restarting the control panel.
+
+#### The `resourceClassCaps` config key
+
+Per-class concurrency caps live in `/etc/brainstorm-task-queue.json` as a sibling key to story #13's `concurrencyByTask`:
+
+```json
+{
+  "defaultConcurrency": 1,
+  "concurrencyByTask": {},
+  "resourceClassCaps": {
+    "neo4j-heavy": 1
+  }
+}
+```
+
+Cap default for `neo4j-heavy` is **1** — one Neo4j-heavy task at a time, the strictest interpretation matching the demonstrated pain. Raise to `2` (or higher) per environment if Neo4j proves it can handle concurrent heavy ops; lower to `0` (after a future enhancement) is not currently supported — a missing cap entry treats the class as cap=1 with a warning.
+
+#### Tagging a new task
+
+1. Edit `src/manage/taskQueue/taskRegistry.json`. Add `"resourceClass": "<class-name>"` to the entry.
+2. If `<class-name>` is new, edit `/etc/brainstorm-task-queue.json` and add an entry to `resourceClassCaps` with a numeric cap. (Untagged class = warning + cap=1 fallback.)
+3. `supervisorctl restart brainstorm`.
+4. Trigger the task. Inspect `/var/log/brainstorm/taskQueue/events.jsonl` for `phase=resource_class_*` events to confirm the wrap is active.
+
+#### Observability — `events.jsonl` phase tokens
+
+Resource-class lifecycle events are written to the same `events.jsonl` that bash `emit_task_event` uses (Node-side equivalent at `src/utils/structuredEvents.js`). Three phase tokens to grep for:
+
+- `resource_class_wait_begin` — task waiting for a slot. Metadata: `resourceClass`, `cap`, `jobId`.
+- `resource_class_wait_end` — wait resolved. Metadata: `resourceClass`, `wait_seconds`, `outcome` (`"acquired"` or `"timeout"`), `jobId`.
+- `resource_class_released` — task done, slot returned. Metadata: `resourceClass`, `held_seconds`, `jobId`.
+
+Quick operator check: "why hasn't my task started?" →
+```bash
+tail -f /var/log/brainstorm/taskQueue/events.jsonl | grep resource_class
+```
+
+#### The `RESOURCE_CLASS_WAIT_TIMEOUT` failure mode
+
+If a task waits longer than the configured `acquireTimeoutMs` (default **4 hours** — longer than any single heavy-task expected duration), the wait rejects with an Error whose `.code === 'RESOURCE_CLASS_WAIT_TIMEOUT'`. BullMQ marks the job failed; the job appears in BullBoard's `failed` tab with the error message containing `RESOURCE_CLASS_WAIT_TIMEOUT`. The corresponding `events.jsonl` entry is a `TASK_ERROR` event with `metadata.outcome: "timeout"`.
+
+This should be rare. If it fires, something upstream is stuck (e.g., a single heavy task running for >4 hours). Operator action: investigate the holder, manually clear the Redis hash if needed: `docker exec tapestry-redis redis-cli DEL taskQueue:resource-class:neo4j-heavy:holders`.
+
+#### Composes additively with story #13
+
+- Per-`(taskName, pubkey)` jobId dedup → unchanged.
+- Per-task concurrency from `concurrencyByTask` → unchanged.
+- Resource-class semaphore wraps the Worker callback BEFORE `processor.processJob` runs.
+
+For a tagged task with `concurrencyByTask: 2` and `resourceClassCaps.neo4j-heavy: 1`: the **effective** concurrency is the more restrictive of the two (here, 1 — one per class regardless of per-task budget).
+
+## 11. Conf templates are the source of truth for fresh containers
+
+Story #16 / ADR 0014. Until 2026-05-21 the Docker entrypoint regenerated `/etc/brainstorm.conf` from an 80-line heredoc embedded in `docker/entrypoint.sh`. `config/brainstorm.conf.template` was consulted only by the bare-metal install path and had silently drifted to be missing ~25 of the variables the heredoc carried — including story #13's `TASK_QUEUE_ENABLED=false`, which never reached any fresh Docker container until an operator manually added the line.
+
+After story #16, the contract for fresh containers is:
+
+> **`config/brainstorm.conf.template` is the single source of truth for `/etc/brainstorm.conf`.** The entrypoint renders the template via `tools/render-conf-template.js` at every container start; the heredoc is gone.
+
+### What this means for the operator
+
+- **Adding a new feature flag or env var.** Edit `config/brainstorm.conf.template`, commit, rebuild the image. The next container that starts gets the new line in `/etc/brainstorm.conf` automatically — no entrypoint.sh edit needed.
+- **The renderer fails the boot loudly on a missing env var.** If the template references `${SOME_NEW_VAR}` and the entrypoint never exports it, the container's boot fails with `RenderError: missing env vars in brainstorm.conf.template: SOME_NEW_VAR`. This is by design — better than silently emitting `SOME_NEW_VAR=""` and discovering it at runtime. When adding a template variable, also add the corresponding `export` to `docker/entrypoint.sh` (currently exports `OWNER_PUBKEY`, `ADMIN_PUBKEYS`, `NEO4J_PASSWORD`, `DOMAIN_NAME`, `RELAY_URL`, `BRAINSTORM_MODULE_BASE_DIR`, `BRAINSTORM_NODE_BIN`, `SESSION_SECRET`, `OWNER_NPUB`).
+- **`brainstorm-task-queue.json` follows the conditional-copy pattern.** Its template at `config/brainstorm-task-queue.json.template` is copied to `/etc/brainstorm-task-queue.json` only if the destination does not already exist. Operator edits to the live JSON survive container restarts (unlike `/etc/brainstorm.conf`, which is regenerated unconditionally on every boot).
+
+### The trap — edits inside a running container are lost on restart
+
+The entrypoint **unconditionally overwrites** `/etc/brainstorm.conf` on every container start. This matches the prior heredoc behavior; story #16 did not change it.
+
+If you `docker exec tapestry sed -i ... /etc/brainstorm.conf` to flip a flag (the pattern used during story #15's `TASK_QUEUE_ENABLED` rollout — see §10.1), your edit lasts **until the next container restart**. To make an edit persist:
+
+1. **Repo-level (recommended).** Edit `config/brainstorm.conf.template`, commit, rebuild the image. Fresh containers and restarts both pick it up.
+2. **Operator-level (long-running containers).** Use the `if grep -q ...; else docker exec ... >> ...` recipe below for an in-container append, then **also** update the template so the next deploy doesn't reintroduce the old value.
+
+```bash
+# Append-if-absent recipe (use inside a running container):
+docker exec tapestry bash -c '
+  if grep -q "^export FOO=" /etc/brainstorm.conf; then
+    echo "FOO already set"
+  else
+    echo "export FOO=value" >> /etc/brainstorm.conf
+    echo "appended FOO"
+  fi
+'
+# This wins only until the next restart, when the template re-renders.
+```
+
+### Drift sentinels
+
+`test/entrypoint-template-rendering.test.js` carries two drift sentinels that fail npm test if:
+- A `<<CONFEOF` heredoc reappears in `docker/entrypoint.sh` (T7 — re-introducing a second source of truth).
+- The `render-conf-template.js` invocation count moves off exactly one (T8 — second write-path, or lost integration).
+
+A future reviewer who sees these tests fail should stop and ask whether the change is reintroducing the very drift class story #16 closed.
+
+## 12. Reconciliation — four independent tasks (story #23 / ADR 0020)
+
+Reconciliation repairs drift between strfry (canonical nostr event store) and the Neo4j social graph (FOLLOWS / MUTES / REPORTS from kind 3 / 10000 / 1984). Story #23 **superseded** the single `reconciliation.sh --mode` engine — whose eager full-graph `DISTINCT u.pubkey ... ORDER BY u.pubkey SKIP/LIMIT` rater-pagination hit Neo4j's `transaction.total.max` and crashed `reconcileAll` at 32M edges — with **four independent task scripts**, each tuned to its own guarantee. The legacy `reconciliation` registry key was **removed**.
+
+| Task | Script | Scope | Mechanism | `neo4j-heavy`? |
+|---|---|---|---|---|
+| `reconcileRecent` | `reconcileRecent.sh` | authors with an event in a bounded, overridable recency window (default 6h) | streamed parameterized `WHERE u.pubkey IN $list` over the recent set | yes |
+| `reconcileNetwork` | `reconcileNetwork.sh` | a parameterized trusted network (`influence ≥ cutoff` and/or `hops ≤ N`) | full strfry dump → converter `--filterAuthorsFile` (network set from Neo4j) → streamed extractor | yes |
+| `reconcileAll` | `reconcileAll.sh` | **truly all** (~32M FOLLOWS edges) | reactive-streamed Neo4j → TSV + Node strfry→TSV + `LC_ALL=C sort -u` + `comm` **merge-join** + APOC apply | yes |
+| `reconcileAuthor` | `reconcileAuthor.sh` | one author (`--pubkey <hex>`) | streamed one-element `IN` query | **no** (stays responsive for interactive triggers) |
+
+All four reuse the existing diff (`calculate{Mutes,Reports,Follows}Updates.js`) and APOC apply commands. Each emits structured events under its **own** `taskName` (fixes #22 OBS-2 — `/api/scheduled-tasks/history?taskId=reconcileX` resolves per task) with a `trap`-based terminal-on-failure (fixes #22 OBS-1 — a crash never reads as perpetually "running"). The three bulk sweeps serialize via the `neo4j-heavy` semaphore (ADR 0013).
+
+### 12.1 `reconcileRecent` — bounded recency window
+
+```bash
+RECONCILE_RECENT_MAX_RECENCY_SECONDS=21600   # default 6h (env / brainstorm.conf)
+reconcileRecent.sh --recency 3600            # per-run override (1h)
+```
+
+Lookback = `min(now − watermark + RECONCILIATION_OVERLAP_SECONDS, max_recency)`. **No watermark ⇒ just the max-recency window; NEVER a bootstrap full pass** (the previous engine's runaway). Drift older than the window is `reconcileNetwork`'s / `reconcileAll`'s job.
+
+Watermark at `/var/lib/brainstorm/pipeline/reconciliation/state.json`; advanced on success only.
+
+### 12.2 `reconcileNetwork` — parameterized trusted network
+
+Reconciles a configurable **trusted network**, defined by a Neo4j property predicate. Two parameters; both ANDed when both given:
+
+```bash
+reconcileNetwork.sh                             # default: influence ≥ 0.05 (verified)
+reconcileNetwork.sh --influence 0.05            # verified
+reconcileNetwork.sh --hops 3                    # within 3 follow-hops of the owner
+reconcileNetwork.sh --influence 0.1 --hops 2    # both, ANDed
+```
+
+The default cutoff reads `VERIFIED_FOLLOWERS_INFLUENCE_CUTOFF` from `/etc/graperank.conf` (default `0.05`) — the same threshold the rest of the system uses for "verified."
+
+**SAFETY GUARDS** (enforced in the script regardless of caller): refuses `influence ≤ 0` (selects every user), `hops ≥ 999` (the disconnected sentinel — also selects every user), or no substantive constraint. Without those, the predicate would degenerate into an unconstrained full scan — the exact workload that crashed `reconcileAll`.
+
+### 12.3 `reconcileAll` — truly all, sorted merge-join
+
+The complete oracle / incident-recovery sweep. **Mutes/reports** use the per-pubkey path (bounded by their small scale, ~190k/170k). **Follows** uses a **sorted merge-join** at 32M-edge scale:
+
+1. `extractFollowsToTSV.js` streams the full Neo4j FOLLOWS to a TSV via reactive `subscribe` (no eager operator, bounded transaction memory).
+2. `strfryToKind3Events.sh` dumps all kind-3; `kind3EventsToFollowsTSV.js` streams events to a parallel TSV (`rater\tratee` per p-tag, lowercased, 64-hex-filtered).
+3. `LC_ALL=C sort -u -T ${BASE_DIR}` external-sorts both files.
+4. `comm -23` emits adds (strfry-only); `comm -13` emits deletes (Neo4j-only).
+5. `awk` converts to APOC apply JSON; existing apply commands run.
+
+**Bounded memory regardless of graph size.** Target: **< 1h** at 32M edges; staging-measured runtime after the jq → Node converter optimization: **~14 minutes**. Schedule weekly in a low-traffic window (registry timeout is 8h safety margin).
+
+For incident recovery (drift the incremental sweep wouldn't catch — partial write, botched migration, direct Neo4j surgery), trigger `reconcileAll` manually.
+
+### 12.4 `reconcileAuthor` — single author
+
+```bash
+reconcileAuthor.sh --pubkey <64-hex>
+```
+
+Scope is exactly one author. **No watermark, no GDS reprojection** (single-author change doesn't warrant either). Intentionally **NOT `neo4j-heavy`** — a tiny point repair that stays responsive for interactive triggers and never queues behind a sweep. (The profile-page / API trigger surfaces are a separate follow-up story; the engine is delivered here.)
+
+### 12.5 Config (`/etc/brainstorm.conf`)
+
+- `RECONCILIATION_OVERLAP_SECONDS` (default `3600`) — safety window re-scanned on top of `reconcileRecent`'s watermark. Re-scanning is idempotent.
+- `RECONCILE_RECENT_MAX_RECENCY_SECONDS` (default `21600` = 6h) — the bounded cap.
+
+### 12.6 Observability
+
+Per-task structured events in `${BRAINSTORM_LOG_DIR}/taskQueue/events.jsonl`:
+- `TASK_START` / `TASK_END` / `TASK_ERROR` under each task's **own** `taskName` (OBS-2 fix).
+- `TASK_ERROR` on **every** non-zero exit path via a script-level `trap` (OBS-1 fix).
+- Per-phase `PROGRESS` with `added`, `deleted`, `edge_counts_before`/`after`, `duration`.
+
+Human log: `${BRAINSTORM_LOG_DIR}/reconciliation.log` (per-phase + extractor/converter step traces).
+
+### 12.7 Deprecated / removed (story #23)
+
+- The legacy `reconciliation` registry task key was **removed**. Use the four explicit task keys.
+- The `reconciliation.sh --mode` engine is **superseded** by the four scripts; the file remains on disk as dead code (clean-removal is a tracked follow-up).
+- The `getCurrentFollowsFromNeo4j_working.js` / `_working2.js` cruft variants are **removed**.
+- The eager-pagination `getRaterCount()` / `getRaters()` functions are **removed** from all three Neo4j extractors; `--authorsFromDir` is now required.
+- The host `systemd/reconcile.timer` remains **deprecated** (bypasses queue + semaphore); confirm `systemctl is-enabled reconcile.timer` is disabled. Unit-file removal is a tracked follow-up.
+
+## 13. Task scheduling — generalized scheduler (story #22 / ADR 0019)
+
+Recurring task scheduling is served by **BullMQ Job Schedulers** attached to each task's queue — not an in-process `setInterval` (which was retired). **Any** task in the registry can be scheduled; schedules are durable (persisted in Redis, survive a control-panel restart) and every fire routes through the queue, so the `neo4j-heavy` semaphore, per-task concurrency, and BullBoard all apply.
+
+### 13.1 Configuring a schedule
+
+Manage schedules from the **Scheduled Tasks** panel (Relay Settings → Scheduled Tasks) or via the API:
+- `GET /api/scheduled-tasks/list` — every schedulable (registered) task + its current schedule + next/last run.
+- `GET /api/scheduled-tasks/status?taskId=…`, `POST /api/scheduled-tasks/update`, `GET /api/scheduled-tasks/history?taskId=…`.
+
+Schedule shape in `/var/lib/brainstorm/scheduled-tasks.json` — the **source of truth** (Job Schedulers in Redis are the execution layer, reconciled from this file on boot and on every update):
+
+```json
+{ "reconcileRecent":    { "enabled": true, "intervalMinutes": 10 },
+  "reconcileAll":       { "enabled": true, "cron": "0 4 * * 0" },
+  "refreshSearchIndex": { "enabled": true, "intervalHours": 24 } }
+```
+
+- **Interval**: `intervalDays` + `intervalHours` + `intervalMinutes` (summed). **Sub-hour is allowed** — the old 1-hour floor is gone, so `intervalMinutes: 10` is valid.
+- **Cron**: a `cron` expression takes precedence over the interval fields — pin a heavy run to a low-traffic window.
+
+### 13.2 Durability & missed-fire policy
+
+Schedules live in Redis as BullMQ Job Schedulers, so they survive a control-panel restart (unlike the retired `setInterval`). **Missed-fire policy: skip-and-resume, no backfill** — a fire missed while the process was down is not replayed; the next future occurrence runs normally. For `reconcileRecent` this is harmless — the next run's watermark window simply spans the gap.
+
+### 13.3 Kill-switch
+
+Set `"scheduler": false` in `/etc/brainstorm-task-queue.json` and restart the control-panel to halt ALL scheduling (the boot reconcile upserts nothing and removes managed Job Schedulers). Default is on. Per-task `enabled: false` is the finer-grained control.
+
+### 13.4 Scheduling reconciliation
+
+Suggested cadence:
+
+- `reconcileRecent` — every ~10 minutes (`intervalMinutes: 10`). Bounded by the recency window; cost is proportional to recent activity, not graph size.
+- `reconcileNetwork` — every few hours (`intervalHours: 6`) or daily. Cost bounded by the network predicate; staging-measured runtime on the verified set: ~9 min.
+- `reconcileAll` — weekly via cron at a low-traffic hour (e.g. `cron: "0 4 * * 0"`). Holds `neo4j-heavy` for ~15 min on the staging-scale 32M-edge graph; blocks GrapeRank/PageRank meanwhile.
+- `reconcileAuthor` — on-demand, not scheduled.
+
+**No seed-first runbook needed** (story #23): the bounded `reconcileRecent` cannot bootstrap into a full pass on a missing watermark, so the previous "run `reconcileAll` first" caveat is obsolete.

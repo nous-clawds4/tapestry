@@ -271,12 +271,43 @@ app.use(authMiddleware);
 
 // Register API modules (async — loads TA key from secure storage) then start server
 (async () => {
+  // Initialize the BullMQ task queue (story #13 / ADR 0010) BEFORE api.register
+  // so the BullBoard mount inside api/index.js sees a populated queue list
+  // (getAllQueues() returns the in-flight Queues, not []).
+  // Gated on TASK_QUEUE_ENABLED — when off, the queue is never constructed
+  // and the legacy direct-spawn path in /api/run-task runs unchanged
+  // (that IS the rollback path).
+  const taskQueueEnabled = getConfigFromFile('TASK_QUEUE_ENABLED', 'false') === 'true';
+  if (taskQueueEnabled) {
+    try {
+      const taskQueue = require('../src/manage/taskQueue/queue');
+      await taskQueue.initTaskQueue();
+      console.log('Task queue initialized (TASK_QUEUE_ENABLED=true)');
+    } catch (e) {
+      console.error(`Failed to initialize task queue: ${e.message}`);
+      console.error('Continuing without queue — /api/run-task will return 503 QUEUE_UNAVAILABLE');
+    }
+  } else {
+    console.log('Task queue disabled (TASK_QUEUE_ENABLED=false) — legacy direct-spawn path active');
+  }
+
   await api.register(app);
   console.log('API routes registered');
 
-  // Initialize the scheduled tasks timer (restores schedule from config if enabled)
-  const scheduledTasks = require('../src/api/scheduled-tasks');
-  scheduledTasks.initScheduler();
+  // Reconcile recurring schedules into BullMQ Job Schedulers (story #22 / ADR 0019).
+  // Replaces the in-process setInterval scheduler. Requires the queue, so it is
+  // gated on TASK_QUEUE_ENABLED and runs after initTaskQueue + api.register.
+  if (taskQueueEnabled) {
+    try {
+      const scheduledTasks = require('../src/api/scheduled-tasks');
+      await scheduledTasks.reconcileSchedulesFromConfig();
+      console.log('Scheduled tasks reconciled into BullMQ Job Schedulers');
+    } catch (e) {
+      console.error(`Failed to reconcile scheduled tasks: ${e.message}`);
+    }
+  } else {
+    console.log('Task queue disabled — recurring scheduler not started (scheduling requires the queue)');
+  }
 
   // Host-aware SPA catch-all: any route that didn't match a static file, API endpoint, or
   // legacy page gets served the appropriate React app's index.html so client-side routing

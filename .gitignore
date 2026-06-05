@@ -110,13 +110,26 @@ Thumbs.db
 dist/
 
 # misc — gitignore Claude Code's per-user state and worktrees, but commit
-# project-level skills and engineering-team harness commands so they ship
-# with the repo for other sessions.
-# Note: must use `.claude/*` (not `.claude/`) so the un-ignore for skills/
-# and commands/ can re-enter the directory; git doesn't traverse
+# project-level skills and engineering-team harness wiring (commands +
+# agents) so they ship with the repo for other sessions.
+# Note: must use `.claude/*` (not `.claude/`) so the un-ignores for skills/,
+# commands/, and agents/ can re-enter the directory; git doesn't traverse
 # fully-excluded dirs.
 .claude/*
 !.claude/skills/
 !.claude/commands/
+!.claude/agents/
 
 .pi/
+
+# Reconciliation pipeline runtime output (story #21 / ADR 0018) — regenerated each run
+src/pipeline/reconciliation/currentRelationshipsFromNeo4j/
+src/pipeline/reconciliation/currentRelationshipsFromStrfry/
+src/pipeline/reconciliation/allKind*EventsStripped.json
+src/pipeline/reconciliation/currentFollowsFromStrfry.json
+src/pipeline/reconciliation/currentMutesFromStrfry.json
+src/pipeline/reconciliation/currentReportsFromStrfry.json
+src/pipeline/reconciliation/json/*.json
+
+# reconcileNetwork runtime output (Story #23)
+src/pipeline/reconciliation/network-authors.txt
