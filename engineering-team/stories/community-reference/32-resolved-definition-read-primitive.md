@@ -66,7 +66,7 @@ The Concept Graph API at `http://localhost:8877` is being brought up during this
 7. **Pseudocode placement** — whether the merge/walk is specified as pseudocode in §26, only in ADR 0028, or both.
 
 ## Linked artifacts
-- ADR: `../../decisions/community-reference/0028-resolved-definition.md` — *to be written in Phase 2 (Architecture)*.
+- ADR: [`../../decisions/community-reference/0028-resolved-definition.md`](../../decisions/community-reference/0028-resolved-definition.md) — **Proposed** (2026-06-05, Phase 2). First-listed-wins multi-parent; WoT-field-weighting rejected for v1; guards `MAX_DEPTH=16` + cycle truncate-and-continue; §25 condensed to a pointer; substrate-only (no membership).
 - Test plan: _n/a — Test Design skipped (docs-only, no executable behavior; doc-content sentinels covered in Review)._
 - Review: `../../reviews/community-reference/32-resolved-definition-read-primitive.md` — *Phase 5*.
 - Related: story 31 (`b` write primitive, Done); `docs/COMMUNITIES_PROTOCOL_DESIGN_HANDOFF.md` §2 (source design); ADR 0027.
