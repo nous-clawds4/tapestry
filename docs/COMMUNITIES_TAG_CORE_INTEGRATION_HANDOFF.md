@@ -1,6 +1,8 @@
 # Handoff: Communities ↔ nostr-user-tag core integration contract
 
-**Status:** 🔴 OPEN — contract confirmed by static read of `chore/carve-nostr-user-tag-core`; **not yet wired** (carve must reach `staging` first). When it does, this is the build sheet for the live membership wiring (Stories 43/44-live/45/47).
+**Status:** 🟡 LIVE ON STAGING (PR #246 merged + firmware installed 2026-06-05) — **not yet wired into the app**. Build sheet for the live membership wiring (Stories 45 + live 43/44 + 47). Topology decided in ADR 0031 (Option A / dual-publish, house PoV, consume via `VITE_PROFILE_API_BASE`→staging).
+
+**Staging smoke (2026-06-05, verified):** ✅ concepts `tag`/`nostr-user-tag`/`tag-pinning` registered; ✅ `GET /api/profile-tags/available-tags` → `{success:true,tags:[],count:0}`; ✅ `GET /api/profile-tags/index` → `{success:true,povSuffix:"a1420e44",minRank:null,…,rows:[]}`; ✅ `GET /api/profile-tags/profiles-tagged` → 400 "tagEventId is required". ⚠️ **`minRank: null`** → staging's house PoV has a delegated pubkey but no `filters.rank.min`, so the WoT gate currently **bypasses (all assertions count, no trust filter)**. Documented degradation; ops must set `grapevine.searchPreferences.filters.rank.min` for real gating. Not a code blocker.
 **Date:** 2026-06-05 (rev. PM — Vinney's Claude confirmed/corrected the contract)
 **Source:** Vinney's `chore/carve-nostr-user-tag-core` branch (off `staging`) + its `VERIFY_TAG_CORE.md`. Confirmed against `src/api/profile-tags/index.js`, `src/api/_shared/pov.js`, `src/api/trustedList/refreshPinnedTags.js`. No local Docker bring-up was run (static verify, by decision).
 **Related:** ADR 0030 (membership), ADR-0022 (Vinney's hybrid `e`+`a` wire shape), ADR-0015 (legacy z-tag pubkey).
