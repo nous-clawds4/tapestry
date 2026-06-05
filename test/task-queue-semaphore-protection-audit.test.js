@@ -44,7 +44,7 @@ const path = require('path');
 const ROOT = path.resolve(__dirname, '..');
 
 const TASK_REGISTRY = path.join(ROOT, 'src/manage/taskQueue/taskRegistry.json');
-const ADR_0013      = path.join(ROOT, 'engineering-team/decisions/0013-task-queue-neo4j-resource-class.md');
+const ADR_0013      = path.join(ROOT, 'engineering-team/decisions/task-queue-scheduler/0013-task-queue-neo4j-resource-class.md');
 const BIBLE_MD      = path.join(ROOT, 'BIBLE.md');
 
 function readSafe(p) {
