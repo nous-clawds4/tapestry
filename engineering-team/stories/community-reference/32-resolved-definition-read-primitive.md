@@ -1,6 +1,6 @@
 # Story 32: Establish "Resolved Definition" as the read-side resolution of the `b` tag (§26)
 
-**Status:** Draft (Planning)
+**Status:** Done
 **Created:** 2026-06-05
 **Type:** Doc (protocol-definition — runs Planning → Architecture → Implementation → Review; Test Design skipped, mirroring story 31; carries a ratifiable decision captured as ADR 0028 in the 0027 lineage)
 
@@ -68,5 +68,5 @@ The Concept Graph API at `http://localhost:8877` is being brought up during this
 ## Linked artifacts
 - ADR: [`../../decisions/community-reference/0028-resolved-definition.md`](../../decisions/community-reference/0028-resolved-definition.md) — **Proposed** (2026-06-05, Phase 2). First-listed-wins multi-parent; WoT-field-weighting rejected for v1; guards `MAX_DEPTH=16` + cycle truncate-and-continue; §25 condensed to a pointer; substrate-only (no membership).
 - Test plan: _n/a — Test Design skipped (docs-only, no executable behavior; doc-content sentinels covered in Review)._
-- Review: `../../reviews/community-reference/32-resolved-definition-read-primitive.md` — *Phase 5*.
+- Review: [`../../reviews/community-reference/32-resolved-definition-read-primitive.md`](../../reviews/community-reference/32-resolved-definition-read-primitive.md) — **PASS** (2026-06-05): 8/8 ACs met, ADR 0028-conformant, BIBLE-only diff, zero new test failures. 4 non-blocking notes (NB-2 = diamond semantics for the future resolver-impl story).
 - Related: story 31 (`b` write primitive, Done); `docs/COMMUNITIES_PROTOCOL_DESIGN_HANDOFF.md` §2 (source design); ADR 0027.
