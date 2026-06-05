@@ -1,0 +1,17 @@
+{
+  "word": {
+    "slug": "concept-header-for-the-concept-of-tag-pinnings",
+    "name": "concept header for the concept of tag pinnings",
+    "title": "Concept Header for the Concept of Tag Pinnings",
+    "wordTypes": ["word", "conceptHeader"]
+  },
+  "conceptHeader": {
+    "description": "A tag-pinning is an assertion by a nostr user that they personally pin a specific tag — i.e., they opt that tag into their personal curated set, to be used as the basis for downstream features such as periodic Trusted List publication (Story 12) and 'most pinned' aggregation (Story 13). Each element links the pinning user (event author) to a tag event id and carries a curation-method describing how the user wants the eventual Trusted List computed. Pinning is permissionless: any user may pin any tag; unpinning is performed by publishing a NIP-09 kind-5 deletion targeting the pin event.",
+    "oNames": { "singular": "tag pinning", "plural": "tag pinnings" },
+    "oSlugs": { "singular": "tag-pinning", "plural": "tag-pinnings" },
+    "oKeys":  { "singular": "tagPinning", "plural": "tagPinnings" },
+    "oTitles":{ "singular": "Tag Pinning", "plural": "Tag Pinnings" },
+    "oLabels":{ "singular": "TagPinning", "plural": "TagPinnings" },
+    "x-tapestry": { "neo4j": { "nodeLabelRequired": true } }
+  }
+}
