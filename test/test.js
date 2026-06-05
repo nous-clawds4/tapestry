@@ -59,6 +59,7 @@ const profileWebsiteLink = require('./profile-website-link.test.js');
 const foundACircle = require('./found-a-circle.test.js');
 const viewACircle = require('./view-a-circle.test.js');
 const discoverCircles = require('./discover-circles.test.js');
+const resolvedDefinitionResolver = require('./resolved-definition-resolver.test.js');
 
 async function main() {
   console.log('Running Brainstorm tests...\n');
@@ -172,6 +173,9 @@ async function main() {
 
   console.log('\ndiscover-circles suite:');
   const discoverCirclesResult = await discoverCircles.run();
+
+  console.log('\nresolved-definition-resolver suite:');
+  const resolvedDefinitionResolverResult = await resolvedDefinitionResolver.run();
 
   console.log('\nTest Results');
   console.log('-------------');
@@ -322,7 +326,8 @@ async function main() {
     profileWebsiteLinkResult.fail === 0 &&
     foundACircleResult.fail === 0 &&
     viewACircleResult.fail === 0 &&
-    discoverCirclesResult.fail === 0;
+    discoverCirclesResult.fail === 0 &&
+    resolvedDefinitionResolverResult.fail === 0;
   console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);
   process.exit(overallOk ? 0 : 1);
 }
