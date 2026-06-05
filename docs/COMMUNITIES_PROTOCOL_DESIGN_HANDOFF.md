@@ -1,6 +1,6 @@
 # Communities Protocol — Design Handoff
 
-**Status:** 🔴 OPEN — foundations settled; two big questions open (identity, membership). **Not yet in the BIBLE.**
+**Status:** 🔴 OPEN — foundations settled; **identity resolved** (§3 → "Identity"); **membership** is the one remaining big question. **Not yet in the BIBLE.**
 
 **Created:** 2026-06-05, from a `/discuss` (Product Expert) scoping session.
 **Builds on:** story #31 / ADR 0027 / BIBLE §25 — the `b` / inherit-from tag.
@@ -60,6 +60,15 @@ Built **on top of** the general primitive above. The throughline: **a community 
   - So: author a CD with no Tag (an observer with opinions, not a member); or hold a Tag with no CD (vouched in, never published a definition — the site resolves a default view).
 - **A CD needs no `b` tag** — a `b`-less CD is a standalone definition (a "root" with zero special status). Plural roots are normal.
 
+### Identity — RESOLVED (2026-06-05): identity = concept identity
+
+Community identity is **concept identity, inherited wholesale** — no new mechanism. "Which LFO is *the* LFO" is the same question as "which `dogs` is *the* dogs," and §22 grapevine-resolution already answers it.
+
+- **The shared referent is an ordinary community concept** (kind-39998, e.g. `39998:somebody:lfo`) — forkable, WoT-ranked, **powerless**, exactly like `dogs`. Members are its trust-weighted **elements**; CDs are its **definitions**. There is no privileged node *above* the definitions.
+- **Bootstrap:** a newcomer becomes comparable by *pointing at that concept* — tag against it (enter the **population**) and/or `b`-defer to a CD in its cluster (adopt a **ruleset**). First-mover gets only a forkable **naming** advantage, **zero protocol power** — a Schelling edge that's forkable isn't durable.
+- **Safety property — keep population (Tags/elements) separate from ruleset (CDs).** Load-bearing, not tidiness: a captured definition-hub can drift *cutoffs/roles* for its voluntary deferrers, but it **cannot retag people** — it can't add or remove members. The *who's-in* layer does not move with a rogue rule-hub.
+- **Live-`b` caveat** (the §25 trust-coupling cost, now load-bearing): because deference tracks future edits, the dominant CD holds a *retroactive editorial lever* over live deferrers, and a compromised mid-chain CD can drift a deferrer's identity (closure shift). Blunted by (1) the population/ruleset split above, and (2) **distance-weighted** closure overlap (nearer shared ancestors count more) — the concrete reason to make the overlap metric distance-aware when refined.
+
 ---
 
 ## 4. Naming
@@ -73,7 +82,7 @@ Built **on top of** the general primitive above. The throughline: **a community 
 
 ## 5. Open questions (where we paused)
 
-1. **Identity / the shared referent** *(foundational)*. Closure-*overlap* needs a shared thing to overlap *on*. Is the Schelling referent a concept everyone **references**, or a CD everyone **defers to**? How does a brand-new CD become comparable to a cluster at all? This is the bootstrap of the whole identity story. (Leaning: a Schelling-point *concept* with naming advantage but zero protocol power — fully forkable; "which X is *the* X" is the §22 grapevine-resolution question.)
+1. ~~**Identity / the shared referent**~~ — **RESOLVED 2026-06-05.** Community identity = concept identity (an ordinary forkable, WoT-ranked community concept; members = elements, CDs = definitions; first-mover powerless). See §3 → "Identity".
 2. **The membership half** *(largest unexplored territory)*. The Tag's wire shape (self-tag vs vouch); how Tags + resolved-definition + PoV compute a roster; roles-as-predicates (applicant/member); disputes as trust-weighted negatives. **Hard external constraint:** reconcile the membership Tag with the `feat/pubkey-tagging-target` work — a *view* over those pubkey-tag events is preferred over a second parallel schema.
 3. **Mechanical leftovers**: membership threshold (1 vouch vs N ≥ 2 for a safe space); the CD-term name; the eventual ADR/BIBLE section split.
 
@@ -85,7 +94,7 @@ The user explicitly agreed to both:
 1. **Promote "Resolved Definition + the resolution rule" to a general primitive** (BIBLE near §25 + an ADR), with Communities as the thin application on top.
 2. **`first-listed-wins`** as the multi-parent conflict heuristic for now (refine — possibly WoT-weighted — later).
 
-The founding tenet (§1) and the foundations (§3) are agreed in substance; they await formal ADR capture once identity + membership are settled enough to write the Communities BIBLE section.
+The founding tenet (§1), the foundations (§3), and **identity** (§3 → "Identity") are agreed in substance; they await formal ADR capture once **membership** is settled enough to write the Communities BIBLE section.
 
 ---
 
@@ -105,5 +114,5 @@ What survives from the draft: the Tag-vs-CD split (now sharpened as membership-v
 ## Next steps
 
 1. **(A) Extract Resolved Definition into the BIBLE** — new §26 + an ADR in the 0027 lineage, via the proven story-#31 path (thin story → ADR → BIBLE → review; Test Design skipped). Closes story #31's `effectiveCD` follow-up.
-2. **(B) Resume `/discuss`** on the open questions — **identity first** (you can't be an "element of" a community until the referent is pinned), then the **membership half**.
+2. **(B) Resume `/discuss`** on the **membership half** — identity is resolved (§3); membership is the last big question (Tag wire shape, roster computation, roles, disputes, + `feat/pubkey-tagging-target` reconciliation).
 3. **Later:** the Communities Protocol's own BIBLE section(s), layered on §26, once identity + membership settle. Then flip this doc's Status to ✅ SUPERSEDED.
