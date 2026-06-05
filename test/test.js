@@ -57,6 +57,8 @@ const taskQueueSemaphoreProtectionAudit = require('./task-queue-semaphore-protec
 const profileFollowsList = require('./profile-follows-list.test.js');
 const profileWebsiteLink = require('./profile-website-link.test.js');
 const foundACircle = require('./found-a-circle.test.js');
+const viewACircle = require('./view-a-circle.test.js');
+const discoverCircles = require('./discover-circles.test.js');
 
 async function main() {
   console.log('Running Brainstorm tests...\n');
@@ -165,6 +167,12 @@ async function main() {
   console.log('\nfound-a-circle suite:');
   const foundACircleResult = await foundACircle.run();
 
+  console.log('\nview-a-circle suite:');
+  const viewACircleResult = await viewACircle.run();
+
+  console.log('\ndiscover-circles suite:');
+  const discoverCirclesResult = await discoverCircles.run();
+
   console.log('\nTest Results');
   console.log('-------------');
   console.log(`Configuration Loading:                           ${configOk ? 'PASS' : 'FAIL'}`);
@@ -270,6 +278,12 @@ async function main() {
   console.log(
     `found-a-circle suite:                            ${foundACircleResult.fail === 0 ? 'PASS' : 'FAIL'} (${foundACircleResult.pass} passed, ${foundACircleResult.fail} failed)`
   );
+  console.log(
+    `view-a-circle suite:                             ${viewACircleResult.fail === 0 ? 'PASS' : 'FAIL'} (${viewACircleResult.pass} passed, ${viewACircleResult.fail} failed)`
+  );
+  console.log(
+    `discover-circles suite:                          ${discoverCirclesResult.fail === 0 ? 'PASS' : 'FAIL'} (${discoverCirclesResult.pass} passed, ${discoverCirclesResult.fail} failed)`
+  );
 
   const overallOk =
     configOk &&
@@ -306,7 +320,9 @@ async function main() {
     taskQueueSemaphoreProtectionAuditResult.fail === 0 &&
     profileFollowsListResult.fail === 0 &&
     profileWebsiteLinkResult.fail === 0 &&
-    foundACircleResult.fail === 0;
+    foundACircleResult.fail === 0 &&
+    viewACircleResult.fail === 0 &&
+    discoverCirclesResult.fail === 0;
   console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);
   process.exit(overallOk ? 0 : 1);
 }

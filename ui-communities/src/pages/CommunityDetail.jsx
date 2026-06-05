@@ -252,6 +252,23 @@ export default function CommunityDetail({ slug }) {
           <div className={s.tagRow}>
             {(c.tags || []).map(t => <TagPill key={t} tag={t} small />)}
           </div>
+          {c.belongingBar && (
+            <p className={s.belongingBar}>
+              <span className={s.belongingLabel}>To belong:</span> {c.belongingBar}
+            </p>
+          )}
+          {c.parent && (
+            <p className={s.basedOn}>
+              Based on{' '}
+              <button
+                type="button"
+                className={s.parentLink}
+                onClick={() => navigate(`/community/${String(c.parent).split(':').pop()}`)}
+              >
+                {String(c.parent).split(':').pop()}
+              </button>
+            </p>
+          )}
         </div>
         {signedIn && (
           <div className={s.actions}>
@@ -430,7 +447,7 @@ function About() {
         />
         <AboutBlock
           title="No central authority"
-          text="There is no admin who can rug-pull. If someone behaves badly, members can raise a concern. When enough do, the algorithm responds."
+          text="There is no central authority who can rug-pull. If someone behaves badly, members can raise a concern. When enough do, the algorithm responds."
         />
       </div>
     </div>
