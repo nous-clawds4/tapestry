@@ -508,6 +508,10 @@ async function register(app) {
     const trustedList = require('./trustedList');
     trustedList.register(app);
 
+    // ── Profile Tags API (nostr-user-tag read + per-POV WoT scoring) ──
+    const { registerProfileTagsRoutes } = require('./profile-tags');
+    registerProfileTagsRoutes(app);
+
     // ── Tapestry I/O (Import/Export) API ──
     const { registerIORoutes } = require('./io');
     registerIORoutes(app);
