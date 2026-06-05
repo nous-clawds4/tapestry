@@ -67,7 +67,11 @@ Carry both: `a` for stable identity, `e` for the applied version.
 **Backward compatibility — additive, does not break existing assertions:**
 - Old assertions carry `e` only; new ones carry `e`+`a`. Adding `a` breaks nothing already published.
 - Read paths that scan `#e` (as today) match old and new events identically — **no read breakage**.
-- A consumer that scans `#a` (Communities) will not see `e`-only legacy events. Resolve either by (a) unioning `#a` + known legacy `#e` ids during a transition, or (b) a one-pass **backfill**: re-emit each legacy assertion with `a` added and the *same* `d`-tag — because the assertion is a slug-keyed parameterized-replaceable, this cleanly *replaces* the old event (no dupes, no orphans). Backfill volume is small and instance-local (feature is ~weeks old; per OPERATIONS.md each instance's strfry is self-contained, so there is no single large global set).
+- A consumer that scans `#a` (Communities) will not see `e`-only legacy events. **There is no TA/server-run backfill** — assertions are signed by each *individual asserter* (the `d`-tag is keyed to the asserter's pubkey), and a parameterized-replaceable can only be replaced by its **original author**. Re-emitting others' assertions would forge signatures and destroy the "who asserted" trust signal. The realistic paths:
+  - **(a) Born with `#a` going forward.** The moment the writer change ships, every *new* assertion carries `#a`. So any tag created afterward — including all Communities circle tag-elements and their member assertions — is pure-`#a` with **no legacy set at all**. This covers the Communities v1 case completely.
+  - **(b) Lazy client self-re-emit** for pre-change assertions on *pre-existing* tags: each user's client re-signs *their own* old assertion with `a` added on next interaction (a valid self-replace). Migrates over time; volume is small and instance-local (feature is ~weeks old; per OPERATIONS.md each strfry is self-contained).
+  - **(c) Bounded union** only where a consumer needs instant completeness over a pre-existing claimed tag: scan `#a` ∪ that tag's legacy `#e` ids during the transition.
+  - Our own UI is unaffected throughout — it keeps scanning `#e` and sees old + new.
 
 **Constrains / debt:**
 - Write code now needs the tag-element **author pubkey** at publish time to build the coord (it currently only has `{eventId, slug}`).
@@ -81,10 +85,10 @@ Carry both: `a` for stable identity, `e` for the applied version.
 - **Callers** (`ui/src/hooks/useProfileTags.js`, Tag page apply/dispute, `ui/src/components/TagPageRow.jsx` etc.) — thread the tag-element's author pubkey (the `.pubkey` of the kind-39999 tag-element event, already available where `availableTags` are fetched) into the `tag` object.
 - **Firmware `firmware/versions/v1.0.0/concepts/nostr-user-tag/json-schema.json`** — add an **optional** `tagAddress` property (string, the `39999:<author>:<slug>` coord) alongside the existing `tagEventId`. Keep `tagEventId` **required** so legacy `e`-only events still validate. Reinstall firmware.
 - **Read/score `src/api/profile-tags/index.js`** — current `#e`-based scans keep working; no forced change. Where stable-identity grouping is wanted (and for the consumer-facing endpoints Communities will hit), add support to scan/group by `#a` (`aggregateProfilesTagged` and friends), preferring `a` and falling back to `e` for legacy events during the transition.
-- **(Optional, separate) backfill script** — enumerate existing `nostr-user-tag` assertions per instance, re-emit each with `a` added + same `d`-tag. Not required to land the hybrid; do it when `#a`-completeness over historical assertions is needed.
+- **Lazy client self-re-emit (NOT a server backfill)** — assertions are user-signed and only the original author can replace one, so there is no TA/server script that migrates the legacy set. Instead, on next interaction the user's own client re-signs *their* `e`-only assertions with `a` added (same `d`-tag → valid self-replace). Optional, eventual; new assertions are born with `#a` regardless.
 
 ## Out of scope
 - Changing the assertion's **own** `d`-tag (stays slug-keyed — already addressable).
-- Executing the backfill (separate, cheap, optional — gated on when `#a`-completeness over legacy data is needed).
+- The lazy client self-re-emit migration (separate, optional, eventual — and the *only* viable way to add `a` to pre-change assertions, since they're user-signed; there is no server backfill).
 - Extending the firmware schema engine to source fields from event-tags (still out, per ADR-0001).
 - Any community-specific coupling on the tag — the tag stays general, person-scoped, community-agnostic (Communities *claims* tags; the tag never points at a community).
