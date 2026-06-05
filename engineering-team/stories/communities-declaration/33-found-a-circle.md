@@ -56,5 +56,5 @@ Architect should orient via `/api/concept-graph/summaries` (local stack is up on
 ## Linked artifacts
 - PRD: `product-team/prd/communities.md` §5.3 · Design guide: `product-team/guides/communities-design-guide.md` (Found/Fork stepper, §5.3 screen) · Style guide: `communities-style-guide.md` (peer-not-owner copy, specific errors).
 - ADR: [`../../decisions/communities-declaration/0029-community-declaration-shape-and-coexistence.md`](../../decisions/communities-declaration/0029-community-declaration-shape-and-coexistence.md) — **Proposed** (2026-06-05). CD = kind-39998 concept (not a 39999 item); strangler coexistence via a normalized `Circle` projection; no firmware change for founding; forward-compatible with `b`/§26 fork.
-- Test plan: (filled in after Test Design phase)
+- Test plan: [`33-found-a-circle.test-plan.md`](33-found-a-circle.test-plan.md) + `test/found-a-circle.test.js` — 10 tests, 9 failing for the right reasons (T5 strangler-guard green from the start). Covers all 7 ACs.
 - Review: (filled in after Review phase)
