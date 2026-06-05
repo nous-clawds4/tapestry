@@ -10,10 +10,10 @@ The membership layer (Block 5) and the trust signal that reads its roster (Block
 ## Model (David's correction)
 A community **claims** tags; the tag never points at the community. `nostr-user-tag` stays general and person-scoped (Vinney's primitive). A Community Declaration declares **which tag-label(s) it consumes** as its membership signal. Membership is **derived per viewer**: gather people carrying a claimed label → weight each asserter by GrapeRank from the viewer's PoV → net polarity → gate by an influence cutoff + threshold. Many-to-many: one community claims several tags; one tag feeds several communities.
 
-## Dependencies (the blockers)
-1. **`nostr-user-tag` core on `staging`** — the event kind/schema + read/WoT-score code (Vinney's `feat/pubkey-tagging-target`).
-2. **Open: what a tag's target/label references** — the shared label a CD claims (David's question; must settle before the ADR is Accepted).
-3. The per-PoV WoT score lookup (function/endpoint).
+## Dependencies
+1. **`nostr-user-tag` core on `staging`** — the event kind/schema + read/WoT-score code (Vinney's `feat/pubkey-tagging-target`). **← the one remaining blocker.**
+2. ~~What a tag's target/label references~~ — **RESOLVED (Vinney, 2026-06-05): a kind-39998 concept.** A CD `claims` one or more kind-39998 concept a-tags. ADR 0030 is now **Accepted** (design); only the merge remains.
+3. The per-PoV WoT score lookup (function/endpoint) — build-time confirm, not a design blocker.
 
 ## Stories (`stories/communities-membership/`) — design-ahead
 - **42 — CD claims membership tag(s)** (the CD declares which labels + threshold/cutoff). *Design-ahead.*

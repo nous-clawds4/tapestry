@@ -1,6 +1,6 @@
 # ADR 0030: Community membership = claimed tags, trust-weighted per viewer
 
-**Status:** Proposed — blocked on (a) the `nostr-user-tag` core reaching `staging`, and (b) Open Question #1 (what a tag's target references). Do not implement until both clear.
+**Status:** Accepted (design ratified 2026-06-05; **Open Question #1 resolved by Vinney — a tag's target is a kind-39998 concept**). **Implementation still blocked** on the one remaining dependency: the `nostr-user-tag` core reaching `staging`. The remaining open items (Q2 WoT lookup, Q3 cold-start, Q4 threshold) are build-time choices, not design blockers.
 **Date:** 2026-06-05
 **Story:** epic `communities-membership` (Block 5 + Block 3)
 **Builds on:** `docs/COMMUNITIES_PROTOCOL_DESIGN_HANDOFF.md` §3 (membership design); **David's correction** (Community-claims-Tag, many-to-many — supersedes the handoff's `['e', community]` framing); ADR 0029 (Community Declaration); BIBLE §26 (resolved definition — the CD's `claims` field resolves through inheritance like any other field).
@@ -41,12 +41,14 @@ The **trust signal (Block 3)** is a read of the same engine: "N people you trust
 - **Negative/risk:** per-read computation cost (caching deferred); correctness depends on the WoT lookup + the cold-start answer; first-listed/diamond resolver fences (from the Blocks 1/2/4 review) must be cleared before the CD's `claims` field inherits through multi-parent.
 - **Neutral:** existing bespoke endorsement members do **not** auto-convert (different primitive) — documented, no migration.
 
-## Forwarded / open questions (resolve before Accepted)
-1. **What a tag's target/label references** (David) — the shared concept/label a CD `claims`. The connecting joint of the whole model. **Blocking for Accept.**
-2. **The per-PoV WoT score lookup** — the function/endpoint for `GrapeRank(V → A)` and the influence cutoff (the branch's `wotScore.js` / namespaced meili `wot_<metric>_<suffix>`).
+## Resolved
+1. **What a tag's target/label references** → **RESOLVED (Vinney, 2026-06-05): a kind-39998 concept.** A `nostr-user-tag` attaches a person to a kind-39998 concept (a general label). A Community Declaration's **`claims`** field is therefore **one or more kind-39998 concept a-tags** (`39998:<pubkey>:<slug>`). Many-to-many: a concept can be claimed by many circles; a circle can claim several concepts. Stays decoupled per David — the tag targets a *label* concept, never the community.
+5. **How the CD encodes `claims`** → **RESOLVED: a list of kind-39998 concept a-tag(s)** (follows from #1).
+
+## Open (build-time choices, not design blockers)
+2. **The per-PoV WoT score lookup** — the function/endpoint for `GrapeRank(V → A)` and the influence cutoff (the branch's `wotScore.js` / namespaced meili `wot_<metric>_<suffix>`). Confirm when the core lands.
 3. **Cold-start first vouch** — founder-granted initial vouches vs time-bounded provisional standing vs invite-carries-a-vouch (Story 46).
 4. **Threshold default** — 1 vouch vs N ≥ 2 (a "safe space" wants ≥ 2).
-5. **How the CD encodes `claims`** — tag-label strings vs concept a-tags; single vs multiple.
 
 ## Out of scope / deferred
 - **All code** — blocked on the dependency; this is design-ahead only.
