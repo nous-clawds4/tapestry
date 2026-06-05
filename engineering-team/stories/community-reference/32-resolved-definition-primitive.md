@@ -1,6 +1,6 @@
 # Story 32: Define the Resolved Definition primitive (read-side of the `b` tag)
 
-**Status:** Approved
+**Status:** In Progress
 **Created:** 2026-06-05
 **Type:** Doc (protocol-definition — runs Planning → Architecture → Implementation → Review; **not** fast-tracked; carries a ratifiable design decision = an ADR. Sibling/continuation of `community-reference` #31 / ADR 0027.)
 
@@ -52,6 +52,6 @@ Concept Graph API unreachable at planning — Architect to resolve any handles v
 4. Exact ADR number (expected **0028**, `decisions/community-reference/`); whether the §25 amendment is specified in that ADR or folded into Implementation notes; confirm §26 is the right section slot.
 
 ## Linked artifacts
-- ADR: _(filled in after Architecture — expected `0028`, community-reference epic)_
+- ADR: [../../decisions/community-reference/0028-resolved-definition.md](../../decisions/community-reference/0028-resolved-definition.md) — **Accepted** (2026-06-05).
 - Test plan: _n/a — Test Design skipped (docs-only)._
 - Review: _(filled in after Review)_
