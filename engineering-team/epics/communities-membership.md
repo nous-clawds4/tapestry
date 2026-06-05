@@ -17,7 +17,7 @@ A community **claims** tags; the tag never points at the community. `nostr-user-
 
 ## Stories (`stories/communities-membership/`)
 - **42 — CD claims membership tag(s)** (the CD declares which labels + threshold/cutoff). ✅ **Definition side DONE + reviewed (2026-06-05)** — wire format, projection, §26 inheritance across 4 layers. Convener UI deferred to the Story 45 display batch.
-- **43 — membership assertion + vouch** (publish a self-tag / vouch via the nostr-user-tag primitive). *Blocked on Vinney's core.*
+- **43 — membership assertion + vouch** (publish a self-tag / vouch via the nostr-user-tag primitive). ✅ **Writer DONE + reviewed (2026-06-05)** — pure builders in `events/assertion.js`, born-hybrid (`a`+`e`). UI actions deferred to the Story 45 batch. (Unblocked early: the carve is read-only, so the writer is ours.)
 - **44 — per-PoV roster engine** (the GrapeRank-weighted tally + cutoff/threshold → roster). ✅ **DONE + reviewed (2026-06-05)** — pure engine, inputs injected; live wire-in blocked on the tag reader + WoT scorer.
 - **45 — trust signal + applicant/member display** (Block 3: "N people you trust are inside" + per-member legibility + roles). *Deferred — build WITH the schema-locked batch so we don't surface a hollow signal over empty data.*
 - **46 — cold-start first vouch** (a path for a true outsider to earn vouch #1). *Blocked.*

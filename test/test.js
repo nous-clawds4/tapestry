@@ -65,6 +65,7 @@ const inheritedFieldDisplay = require('./inherited-field-display.test.js');
 const postToCdCircle = require('./post-to-cd-circle.test.js');
 const rosterEngine = require('./roster-engine.test.js');
 const cdClaimsField = require('./cd-claims-field.test.js');
+const membershipAssertion = require('./membership-assertion.test.js');
 
 async function main() {
   console.log('Running Brainstorm tests...\n');
@@ -197,6 +198,9 @@ async function main() {
   console.log('\ncd-claims-field suite:');
   const cdClaimsFieldResult = await cdClaimsField.run();
 
+  console.log('\nmembership-assertion suite:');
+  const membershipAssertionResult = await membershipAssertion.run();
+
   console.log('\nTest Results');
   console.log('-------------');
   console.log(`Configuration Loading:                           ${configOk ? 'PASS' : 'FAIL'}`);
@@ -326,6 +330,9 @@ async function main() {
   console.log(
     `cd-claims-field suite:                           ${cdClaimsFieldResult.fail === 0 ? 'PASS' : 'FAIL'} (${cdClaimsFieldResult.pass} passed, ${cdClaimsFieldResult.fail} failed)`
   );
+  console.log(
+    `membership-assertion suite:                      ${membershipAssertionResult.fail === 0 ? 'PASS' : 'FAIL'} (${membershipAssertionResult.pass} passed, ${membershipAssertionResult.fail} failed)`
+  );
 
   const overallOk =
     configOk &&
@@ -370,7 +377,8 @@ async function main() {
     inheritedFieldDisplayResult.fail === 0 &&
     postToCdCircleResult.fail === 0 &&
     rosterEngineResult.fail === 0 &&
-    cdClaimsFieldResult.fail === 0;
+    cdClaimsFieldResult.fail === 0 &&
+    membershipAssertionResult.fail === 0;
   console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);
   process.exit(overallOk ? 0 : 1);
 }
