@@ -30,69 +30,103 @@ test('T1: exports deriveRoster', () => {
   assert(/export\s+function\s+deriveRoster\b/.test(read(MOD)), 'must export deriveRoster');
 });
 
-test('T2: a trusted +1 vouch above threshold makes a member', () => {
+test('T2: a trusted apply at/above threshold makes a member', () => {
   const derive = loadDerive();
   const tags = [{ asserter: HI, target: 'carol', concept: '39999:founder:circle', polarity: 1 }];
-  const { members } = derive(CIRCLE, tags, wot, { cutoff: 0.5, threshold: 0.5 });
-  assert(members.some(m => m.pubkey === 'carol'), 'carol should be a member');
+  const { members } = derive(CIRCLE, tags, wot, { cutoff: 0.5, threshold: 1 });
+  const carol = members.find(m => m.pubkey === 'carol');
+  assert(carol, 'carol should be a member');
+  assert(carol.applications === 1 && carol.disputes === 0, 'roster row carries counts, not a score');
 });
 
-test('T3: a self-tag below threshold is an applicant, not a member', () => {
+test('T3: a self-apply below threshold is an applicant, not a member', () => {
   const derive = loadDerive();
   const tags = [{ asserter: 'dave', target: 'dave', concept: '39999:founder:circle', polarity: 1 }];
-  // dave self-tags; viewer barely trusts dave (0.1 < cutoff) so score ~0 < threshold.
+  // dave self-applies; viewer barely trusts dave (0.1 < cutoff) → 0 trusted apps.
   const w = a => (a === 'dave' ? 0.1 : 0.9);
-  const { members, applicants } = derive(CIRCLE, tags, w, { cutoff: 0.5, threshold: 0.5 });
-  assert(!members.some(m => m.pubkey === 'dave'), 'dave should not be a member');
-  assert(applicants.some(m => m.pubkey === 'dave'), 'dave should be an applicant (self-tagged, below threshold)');
+  const { members, applicants } = derive(CIRCLE, tags, w, { cutoff: 0.5, threshold: 1 });
+  assert(!members.some(m => m.pubkey === 'dave'), 'dave should not be a member (no trusted apps)');
+  assert(applicants.some(m => m.pubkey === 'dave'), 'dave should be an applicant (self-applied, below threshold)');
 });
 
-test('T4: an untrusted asserter is weightless — no veto', () => {
+test('T4: an untrusted disputer is uncounted — no veto', () => {
   const derive = loadDerive();
   const tags = [
-    { asserter: HI, target: 'carol', concept: '39999:founder:circle', polarity: 1 },   // trusted +1
-    { asserter: LO, target: 'carol', concept: '39999:founder:circle', polarity: -1 },  // untrusted -1
+    { asserter: HI, target: 'carol', concept: '39999:founder:circle', polarity: 1 },   // trusted apply
+    { asserter: LO, target: 'carol', concept: '39999:founder:circle', polarity: -1 },  // untrusted dispute
   ];
-  const { members } = derive(CIRCLE, tags, wot, { cutoff: 0.5, threshold: 0.5 });
-  assert(members.some(m => m.pubkey === 'carol'), 'untrusted -1 must not veto a trusted +1');
+  const { members } = derive(CIRCLE, tags, wot, { cutoff: 0.5, threshold: 1 });
+  const carol = members.find(m => m.pubkey === 'carol');
+  assert(carol, 'untrusted dispute must not veto a trusted apply');
+  assert(carol.disputes === 0, 'the untrusted dispute is not counted');
 });
 
 test('T5: only tags for a CLAIMED concept count', () => {
   const derive = loadDerive();
   const tags = [{ asserter: HI, target: 'carol', concept: '39999:other:thing', polarity: 1 }];
-  const { members, applicants } = derive(CIRCLE, tags, wot, { cutoff: 0.5, threshold: 0.5 });
+  const { members, applicants } = derive(CIRCLE, tags, wot, { cutoff: 0.5, threshold: 1 });
   assert(members.length === 0 && applicants.length === 0, 'tags for unclaimed concepts must be ignored');
 });
 
-test('T6: threshold is respected (N≥2 needs two trusted vouches)', () => {
+test('T6: threshold is an integer count (N≥2 needs two trusted applies)', () => {
   const derive = loadDerive();
-  const oneVouch = [{ asserter: HI, target: 'carol', concept: '39999:founder:circle', polarity: 1 }];
-  const r1 = derive(CIRCLE, oneVouch, () => 0.9, { cutoff: 0.5, threshold: 1.5 });
-  assert(!r1.members.some(m => m.pubkey === 'carol'), 'one 0.9 vouch is below a 1.5 threshold');
-  const twoVouch = [
+  const oneApply = [{ asserter: HI, target: 'carol', concept: '39999:founder:circle', polarity: 1 }];
+  const r1 = derive(CIRCLE, oneApply, () => 0.9, { cutoff: 0.5, threshold: 2 });
+  assert(!r1.members.some(m => m.pubkey === 'carol'), 'one apply is below a threshold of 2');
+  const twoApply = [
     { asserter: 'a1', target: 'carol', concept: '39999:founder:circle', polarity: 1 },
     { asserter: 'a2', target: 'carol', concept: '39999:founder:circle', polarity: 1 },
   ];
-  const r2 = derive(CIRCLE, twoVouch, () => 0.9, { cutoff: 0.5, threshold: 1.5 });
-  assert(r2.members.some(m => m.pubkey === 'carol'), 'two 0.9 vouches clear a 1.5 threshold');
+  const r2 = derive(CIRCLE, twoApply, () => 0.9, { cutoff: 0.5, threshold: 2 });
+  assert(r2.members.some(m => m.pubkey === 'carol'), 'two applies clear a threshold of 2');
 });
 
-test('T7: a duplicate vouch from the same asserter counts once (no stacking)', () => {
+test('T7: a duplicate apply from the same asserter counts once (no stacking)', () => {
   const derive = loadDerive();
   const dup = [
     { asserter: HI, target: 'carol', concept: '39999:founder:circle', polarity: 1 },
-    { asserter: HI, target: 'carol', concept: '39999:founder:circle', polarity: 1 }, // accidental re-vouch
+    { asserter: HI, target: 'carol', concept: '39999:founder:circle', polarity: 1 }, // accidental re-apply
   ];
-  // If it stacked, score would be 1.8 ≥ 1.5; deduped it's 0.9 < 1.5.
-  const { members } = derive(CIRCLE, dup, () => 0.9, { cutoff: 0.5, threshold: 1.5 });
-  assert(!members.some(m => m.pubkey === 'carol'), 'a re-vouch must supersede, not stack');
+  // If it stacked, applications would be 2 ≥ 2; deduped it's 1 < 2.
+  const r = derive(CIRCLE, dup, () => 0.9, { cutoff: 0.5, threshold: 2 });
+  assert(!r.members.some(m => m.pubkey === 'carol'), 'a re-apply must supersede, not stack');
+  const r1 = derive(CIRCLE, dup, () => 0.9, { cutoff: 0.5, threshold: 1 });
+  assert(r1.members.find(m => m.pubkey === 'carol').applications === 1, 'counted once');
 });
 
-test('T8: an absent polarity is a vouch (+1), never a silent downvote', () => {
+test('T8: an absent polarity is an apply, never a silent dispute', () => {
   const derive = loadDerive();
   const tags = [{ asserter: HI, target: 'carol', concept: '39999:founder:circle' }]; // no polarity
-  const { members } = derive(CIRCLE, tags, () => 0.9, { cutoff: 0.5, threshold: 0.5 });
-  assert(members.some(m => m.pubkey === 'carol'), 'a tag with no polarity should count as a vouch');
+  const { members } = derive(CIRCLE, tags, () => 0.9, { cutoff: 0.5, threshold: 1 });
+  const carol = members.find(m => m.pubkey === 'carol');
+  assert(carol && carol.applications === 1 && carol.disputes === 0, 'no polarity should count as an apply');
+});
+
+test('T9: membership is two-part — applications > disputes is required', () => {
+  const derive = loadDerive();
+  // 2 trusted applies, 2 trusted disputes, threshold 1: 2≥1 but NOT 2>2 → not a member.
+  const tied = [
+    { asserter: 'a1', target: 'carol', concept: '39999:founder:circle', polarity: 1 },
+    { asserter: 'a2', target: 'carol', concept: '39999:founder:circle', polarity: 1 },
+    { asserter: 'd1', target: 'carol', concept: '39999:founder:circle', polarity: -1 },
+    { asserter: 'd2', target: 'carol', concept: '39999:founder:circle', polarity: -1 },
+  ];
+  const rTied = derive(CIRCLE, tied, () => 0.9, { cutoff: 0.5, threshold: 1 });
+  assert(!rTied.members.some(m => m.pubkey === 'carol'), 'tied apps==disputes must not be a member');
+});
+
+test('T10: two-part gate is NOT net-difference (apps=3,disputes=2,threshold=2 → member)', () => {
+  const derive = loadDerive();
+  const tags = [
+    { asserter: 'a1', target: 'carol', concept: '39999:founder:circle', polarity: 1 },
+    { asserter: 'a2', target: 'carol', concept: '39999:founder:circle', polarity: 1 },
+    { asserter: 'a3', target: 'carol', concept: '39999:founder:circle', polarity: 1 },
+    { asserter: 'd1', target: 'carol', concept: '39999:founder:circle', polarity: -1 },
+    { asserter: 'd2', target: 'carol', concept: '39999:founder:circle', polarity: -1 },
+  ];
+  // ours: 3≥2 AND 3>2 → member. net-difference (3−2=1 ≥ 2) → would reject.
+  const r = derive(CIRCLE, tags, () => 0.9, { cutoff: 0.5, threshold: 2 });
+  assert(r.members.some(m => m.pubkey === 'carol'), 'two-part gate admits where net-difference would not');
 });
 
 async function run() {

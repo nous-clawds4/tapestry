@@ -22,7 +22,8 @@ Caching/perf. Display (Story 45). The WoT lookup *source* (injected; confirmed i
 ## Build notes (2026-06-05)
 - `ui-communities/src/lib/membership.js` — `deriveRoster(...)`, pure. Tests: `test/roster-engine.test.js` (8/8). Trust-bar defaults (cutoff 0.5 / threshold 1) live here as the single source of truth (`== null` coalesce, so `0` is a real value).
 - Independent review: **PASS, no blocking issues.** Two pre-wire traps hardened on review feedback: (a) a re-vouch from the same asserter now supersedes instead of stacking — last-writer-wins per `asserter|target|concept`; (b) an absent polarity counts as a vouch (+1), never a silent downvote.
-- **Production path (ADR 0030, resolved 2026-06-05 PM):** the live roster is served by the brainstorm server's `aggregateProfilesTagged` + `applyDisputesFunction` over the circle's claimed `#a` coords at the resolved PoV (house in v1) — the server owns WoT/Meili scoring. `deriveRoster` is retained as the semantic reference, test oracle, and offline house-PoV fallback, not the production scorer.
+- **Production path (ADR 0030, resolved 2026-06-05 PM):** the live roster is served by the brainstorm server's `aggregateProfilesTagged` + `applyDisputesFunction` over the circle's claimed coords at the resolved PoV (house in v1) — the server owns WoT/Meili scoring. `deriveRoster` is retained as the semantic reference, test oracle, and offline house-PoV fallback, not the production scorer.
+- **Rule realigned (2026-06-05 PM)** to Vinney's confirmed model: count-based, binary WoT gate, **two-part membership gate `applications ≥ threshold AND applications > disputes`** (mirrors `applyDisputesFunction`; NOT a weighted sum and NOT net-difference). Tests `test/roster-engine.test.js` now 10/10 incl. the two-part / non-net-difference cases. See `docs/COMMUNITIES_TAG_CORE_INTEGRATION_HANDOFF.md`.
 
 ## Linked artifacts
 ADR 0030; live wire-in BLOCKED on the nostr-user-tag reader + the WoT lookup (Q#2).

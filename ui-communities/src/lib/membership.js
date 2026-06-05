@@ -1,17 +1,26 @@
 /*
  * §Block-5 membership engine (ADR 0030) — pure, per-viewer roster derivation.
  *
- * Membership is "people carrying a tag for a concept this circle claims,"
- * weighted by how much the VIEWER trusts each asserter. Nothing is stored;
- * the roster is computed per viewer.
+ * Membership is "people an assertion attaches to a tag-element this circle
+ * claims," counted among asserters the VIEWER trusts. Nothing is stored; the
+ * roster is computed per viewer. The model is COUNT-based, mirroring the
+ * server's `aggregateProfilesTagged` + `applyDisputesFunction` exactly
+ * (confirmed by Vinney 2026-06-05 — the system is valence-naive by design; it
+ * counts trusted asserters, it does NOT sum WoT weight):
  *
- *   score(candidate) = Σ over asserters A of [ wotScore(A) × polarity ]
- *                      counting only A whose wotScore ≥ cutoff
- *   member    iff score ≥ threshold
- *   applicant iff self-tagged but below threshold
+ *   applications(C) = # asserters A with wotScore(A) ≥ cutoff who APPLY a
+ *                     claimed tag-element to C    (presence/+polarity = apply)
+ *   disputes(C)     = # such asserters who DISPUTE (explicit −polarity)
+ *   member    iff applications ≥ threshold AND applications > disputes
+ *   applicant iff self-applied but not a member
  *
- * "No veto" falls out: a −1 from an untrusted asserter (wotScore < cutoff)
- * contributes 0.
+ *   - `cutoff`    = the WoT gate (binary; mirrors the server PoV's `minRank` —
+ *                   asserters below it don't count). "No veto" falls out: a
+ *                   dispute from an untrusted asserter is simply not counted.
+ *   - `threshold` = the minimum trusted APPLICATIONS for membership (mirrors
+ *                   `applyDisputesFunction`'s `cutoff`; integer; 1 vs N≥2 per Q4).
+ *   NB the two-part gate is NOT net-difference: apps=5,disputes=4,threshold=2 →
+ *   MEMBER here (5≥2 and 5>4), whereas apps−disputes≥2 would reject it.
  *
  * Inputs are injected so this is pure + testable without the network:
  *   - tags:     [{ asserter, target, concept, polarity }]  (parsed nostr-user-tags)
@@ -19,11 +28,11 @@
  *
  * PRODUCTION PATH (ADR 0030, resolved 2026-06-05): the live roster is served by
  * the brainstorm server's `aggregateProfilesTagged` + `applyDisputesFunction`
- * over the circle's claimed `#a` coords at the resolved PoV (house in v1) — the
+ * over the circle's claimed tag-elements at the resolved PoV (house in v1) — the
  * server owns the WoT/Meili scoring (app-as-consumer). This pure function is the
  * SEMANTIC REFERENCE for that math, the test oracle, and an offline house-PoV
  * fallback — not the production scorer. A "claim" is a kind-39999 tag-ELEMENT
- * coord `39999:<tagAuthor>:<slug>`; `t.concept` here is that coord.
+ * coord `39999:<founder>:<slug>`; `t.concept` here is that coord.
  */
 
 export function deriveRoster(circle, tags, wotScore, opts = {}) {
@@ -45,27 +54,33 @@ export function deriveRoster(circle, tags, wotScore, opts = {}) {
     latest.set(`${t.asserter}|${t.target}|${t.concept}`, t)
   }
 
-  const byCandidate = new Map() // target pubkey -> { score, selfTagged }
+  // Per target: COUNT trusted applications vs disputes (binary WoT gate),
+  // mirroring the server's count primitive — not a weighted sum.
+  const byCandidate = new Map() // target -> { applications, disputes, selfApplied }
   for (const t of latest.values()) {
-    const entry = byCandidate.get(t.target) || { score: 0, selfTagged: false }
+    const entry = byCandidate.get(t.target) || { applications: 0, disputes: 0, selfApplied: false }
     const w = wotScore ? wotScore(t.asserter) : 0
+    // The presence of a tag is an apply. Only an EXPLICIT negative polarity is a
+    // dispute — an absent/zero polarity must never silently become a dispute.
+    const isApply = !(t.polarity < 0)
     if (typeof w === 'number' && w >= cutoff) {
-      // The presence of a tag is a vouch (+1). Only an EXPLICIT negative
-      // polarity is a dispute — an absent/zero polarity must never silently
-      // flip a vouch into a downvote.
-      entry.score += w * (t.polarity < 0 ? -1 : 1)
+      if (isApply) entry.applications += 1
+      else entry.disputes += 1
     }
-    if (t.asserter === t.target) entry.selfTagged = true
+    // Applicant standing tracks self-application regardless of trust weight, so
+    // an untrusted outsider who self-tags still surfaces as an applicant.
+    if (t.asserter === t.target && isApply) entry.selfApplied = true
     byCandidate.set(t.target, entry)
   }
 
   const members = []
   const applicants = []
   for (const [pubkey, e] of byCandidate) {
-    if (e.score >= threshold) members.push({ pubkey, score: e.score })
-    else if (e.selfTagged) applicants.push({ pubkey, score: e.score })
+    const row = { pubkey, applications: e.applications, disputes: e.disputes }
+    if (e.applications >= threshold && e.applications > e.disputes) members.push(row)
+    else if (e.selfApplied) applicants.push(row)
   }
-  members.sort((a, b) => b.score - a.score)
-  applicants.sort((a, b) => b.score - a.score)
+  members.sort((a, b) => b.applications - a.applications)
+  applicants.sort((a, b) => b.applications - a.applications)
   return { members, applicants }
 }
