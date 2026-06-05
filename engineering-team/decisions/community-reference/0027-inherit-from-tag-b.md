@@ -2,7 +2,7 @@
 
 **Status:** Accepted
 **Date:** 2026-06-05
-**Story:** `engineering-team/stories/31-b-tag-general-inherit-primitive.md`
+**Story:** `engineering-team/stories/community-reference/31-b-tag-general-inherit-primitive.md`
 **Builds on:** ADR 0011 (class-thread single-char tags `n`/`s`; this ADR realizes that ADR's Reserved-Future "editorial relationships" candidate), ADR 0006 (community-reference theory; this ADR advances its deferred "registry-as-DList" Flaw-A exit as a *candidate*, not a ratification), ADR 0008 (community Superset anchor).
 **Supersedes:** nothing. It amends the *scope wording* of BIBLE §23 (single-char tags are no longer "class-thread only") but does not contradict ADR 0011's decision — ADR 0011 explicitly invited this follow-up.
 
