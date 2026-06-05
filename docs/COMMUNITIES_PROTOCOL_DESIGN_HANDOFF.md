@@ -1,0 +1,109 @@
+# Communities Protocol — Design Handoff
+
+**Status:** 🔴 OPEN — foundations settled; two big questions open (identity, membership). **Not yet in the BIBLE.**
+
+**Created:** 2026-06-05, from a `/discuss` (Product Expert) scoping session.
+**Builds on:** story #31 / ADR 0027 / BIBLE §25 — the `b` / inherit-from tag.
+**Related:** `engineering-team/stories/_intake.md` → "2026-06-05 — Tapestry Communities Protocol (full draft → BIBLE)".
+**Supersedes (in spirit):** the founder-centric framing of the original Communities Protocol draft — see [§ What changed from the draft](#what-changed-from-the-original-draft).
+
+> **Why this doc exists.** Scoping the Communities Protocol produced a stack of foundational decisions, most of which turned out to be *general concept-graph machinery*, not community-specific. This doc preserves that reasoning so it survives between sessions. The **general** piece (Resolved Definition) is ready to extract into the BIBLE; the **community-specific** foundations are settled but the protocol is incomplete, so they live here until they graduate.
+
+---
+
+## 1. The founding tenet — no privileged center
+
+Every Community Declaration (CD) is **its author's own view, resolved from their own PoV**. There is no protocol-level founder, leader, anchor, or canonical roster — and crucially, **no default field for any of those**, because a slot for "leader" makes centralization read as expected.
+
+- Centralization is always a **hard opt-in**, expressed in your own CD via the `b` tag ("I defer to X"), and **revocable** (re-publish without it). No one can stop you; no one is nudged into it.
+- "Canonical" membership is **emergent**, never imposed: when many people happen to `b`-defer to the same CD *and* their webs of trust overlap, their resolved rosters converge — and that convergence *is* the community. Any of them can defer out tomorrow.
+- Disagreement is **native**: "Alice and Bob agree today, disagree tomorrow about leadership" → Alice keeps `b`→X, Bob drops it or points `b`→Y. They diverge; the protocol just reflects it. There is no global leadership to dispute, so no dispute machinery is needed.
+
+**Principle (ADR-worthy as the protocol's foundational tenet):** *No privileged center. Every CD is its author's own view from their own PoV; deference (`b`) is the only path to shared definition, and it is always a personal, revocable opt-in — never a default field. Centralization must be built by participants, never assumed by the protocol.*
+
+---
+
+## 2. The general primitive — Resolved Definition  ✅ READY to extract
+
+**This is general concept-graph machinery, not community machinery.** Alice has a resolved definition of "dog" that may or may not equal Bob's — same mechanism as a community.
+
+**Resolved Definition = the read-side companion to the `b` tag (§25).** `b` is the *write* primitive ("I defer to X"); the resolved definition is the *read* primitive ("what I actually mean by X, after following my deferences").
+
+- **Closure.** From a node, trace `b` / `INHERITS_FROM` transitively → the set of all CDs/concepts it defers to (the **Declaration Closure** for CDs). The closure is a derived query (`MATCH (n)-[:INHERITS_FROM*0..]->(x)`), not stored.
+- **The closure is not a DAG.** Dense mutual deference *will* create cycles (Alice `b`→Bob, Bob `b`→Alice). That's fine — see the resolution rule's visited-set.
+- **Resolution rule** (produces the resolved definition by merging the closure):
+  1. **Your own stated fields win** (child overrides ancestors — ADR 0027). So any conflict can always be settled by stating the field yourself; conflicts only bite for fields you left unstated.
+  2. **For unstated conflicts among multiple `b` parents, first-listed `b` tag wins.** You order your `b` tags, so you control precedence — deterministic, no PoV-dependence. Walk depth-first in listed order; first value to land sticks.
+  3. **Visited-set (keyed on a-tag) bounds cycles** (carried from ADR 0027). The walk always terminates and always yields *an* answer — never "ambiguous → undefined."
+- **Multi-parent is allowed**, and therefore **multiple roots are possible** (a closure can reach several `b`-less CDs). Roots are powerless, so root-count doesn't matter.
+- This **formally fills the multi-parent resolution order that ADR 0027 deferred** ("resolution order is a consumer concern") and **defines the general `effectiveX`** that §25 forward-referenced as `effectiveCD` — i.e. extracting this **closes story #31's one open review follow-up**.
+
+**Status:** settled. Destined for a new BIBLE section (≈ §26 "Resolved Definition", next to §25) + an ADR in the 0027 lineage. Heuristic note: first-listed-wins is "good enough for now"; WoT-weighted field resolution was explicitly *rejected for v1* (it would make your own definition vary by observer — surprising, not worth it yet).
+
+---
+
+## 3. Communities foundations (settled; protocol still incomplete)
+
+Built **on top of** the general primitive above. The throughline: **a community is just a concept.**
+
+- **community = concept; member = element; CD = concept-definition; `b` = definition-inheritance.** The Communities Protocol is a thin reading of the existing concept graph, not its own thing.
+- **Declaration Closure does double duty**: as a *set* it gives **identity**; as an *ordered DAG* it gives the **resolved definition** (§2).
+- **"Same community" is two orthogonal axes** — both per-observer, both graded:
+  1. **Definition overlap** — graded similarity over closures (overlap coefficient / Jaccard). `0` = unrelated, `1` = identical. (Replaces the earlier binary "overlap > 0".)
+  2. **Mutual membership** — each is actually a member (below).
+  You need the **conjunction**. Overlap alone = "talking about the same thing"; membership alone = "each in *a* community."
+  - Consequence (a *feature*, but state it): overlap-based sameness is **non-transitive** → communities overlap and bleed; they do **not** partition people into disjoint buckets. Any *gating* feature must therefore pick a *specific* closure/definition to gate against (the enforcer's own); there is no global roster.
+- **Membership = trust-weighted element-of-concept**, and it is **orthogonal to authoring a CD**:
+  - A **CD** is a *definition* (your view + rules + `b`-deferences). Authoring one makes you a **definer**, not a member (the zoologist who defines "dog" is not a dog).
+  - A **membership Tag** is the *assertion of belonging* — self-tag ("I'm in") or vouch ("they're in"). It is literally "this pubkey is an **element** of the community concept," but *earned through trust-weighted vouches*, not a bare self-claim.
+  - **Membership is derived**: Tags evaluated against the resolved definition, from a PoV, GrapeRank-weighted.
+  - So: author a CD with no Tag (an observer with opinions, not a member); or hold a Tag with no CD (vouched in, never published a definition — the site resolves a default view).
+- **A CD needs no `b` tag** — a `b`-less CD is a standalone definition (a "root" with zero special status). Plural roots are normal.
+
+---
+
+## 4. Naming
+
+- **Declaration Closure** for the `b`-closure of a CD. **Avoid "Set"** (collides with Tapestry's existing `Set` node — a subset of a superset, BIBLE §6). **Avoid "Array"** (implies order, but *identity* is a set-overlap operation). "Deference Lineage" / "Definition Lineage" are acceptable alternatives.
+- **"Resolved Definition"** for the merged read-side result (general).
+- **CD term itself — OPEN.** "Declaration" vs "Definition" undecided; this doc uses *Declaration* (CD).
+- **"House PoV" leaves the protocol** — it survives only as a *site rendering default* (which PoV to show a PoV-less visitor), never a community/protocol property.
+
+---
+
+## 5. Open questions (where we paused)
+
+1. **Identity / the shared referent** *(foundational)*. Closure-*overlap* needs a shared thing to overlap *on*. Is the Schelling referent a concept everyone **references**, or a CD everyone **defers to**? How does a brand-new CD become comparable to a cluster at all? This is the bootstrap of the whole identity story. (Leaning: a Schelling-point *concept* with naming advantage but zero protocol power — fully forkable; "which X is *the* X" is the §22 grapevine-resolution question.)
+2. **The membership half** *(largest unexplored territory)*. The Tag's wire shape (self-tag vs vouch); how Tags + resolved-definition + PoV compute a roster; roles-as-predicates (applicant/member); disputes as trust-weighted negatives. **Hard external constraint:** reconcile the membership Tag with the `feat/pubkey-tagging-target` work — a *view* over those pubkey-tag events is preferred over a second parallel schema.
+3. **Mechanical leftovers**: membership threshold (1 vouch vs N ≥ 2 for a safe space); the CD-term name; the eventual ADR/BIBLE section split.
+
+---
+
+## 6. Decisions explicitly ratified for capture
+
+The user explicitly agreed to both:
+1. **Promote "Resolved Definition + the resolution rule" to a general primitive** (BIBLE near §25 + an ADR), with Communities as the thin application on top.
+2. **`first-listed-wins`** as the multi-parent conflict heuristic for now (refine — possibly WoT-weighted — later).
+
+The founding tenet (§1) and the foundations (§3) are agreed in substance; they await formal ADR capture once identity + membership are settled enough to write the Communities BIBLE section.
+
+---
+
+## What changed from the original draft
+
+The original Communities Protocol draft was founder-centric; this design **replaces** those parts:
+
+- Draft §3.2 "a community *requires* a first author; that author is the founder" → **deleted.** No required founder; many powerless roots.
+- Draft §5.1 "House PoV (default; canonical), seed = founding author" → **deleted.** No canonical seed; default is per-observer; "House PoV" is only a site rendering default.
+- Draft §5.3 "canonical membership" as a recommended default → **replaced** by emergent convergence (deference clusters) + the two-axis fuzzy "same community."
+- The draft's `affiliation` tag → already generalized to the `b` tag (story #31 / ADR 0027 / §25). The draft's `effectiveCD` → generalized to **Resolved Definition** (§2).
+
+What survives from the draft: the Tag-vs-CD split (now sharpened as membership-vs-definition / element-vs-concept), roles-as-predicates, trust-weighted disputes (no veto), GrapeRank-gated membership, and the LFO (Les Femmes Orange) safe-space worked example.
+
+---
+
+## Next steps
+
+1. **(A) Extract Resolved Definition into the BIBLE** — new §26 + an ADR in the 0027 lineage, via the proven story-#31 path (thin story → ADR → BIBLE → review; Test Design skipped). Closes story #31's `effectiveCD` follow-up.
+2. **(B) Resume `/discuss`** on the open questions — **identity first** (you can't be an "element of" a community until the referent is pinned), then the **membership half**.
+3. **Later:** the Communities Protocol's own BIBLE section(s), layered on §26, once identity + membership settle. Then flip this doc's Status to ✅ SUPERSEDED.
