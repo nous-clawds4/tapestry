@@ -1,6 +1,6 @@
 /**
  * Story #29: Follows list on the primary profile page (v1 — owner POV only).
- * ADR 0026. See engineering-team/stories/29-profile-follows-list.test-plan.md
+ * ADR 0026. See engineering-team/stories/profile/29-profile-follows-list.test-plan.md
  *
  * v1 ships a standalone /user/:pubkey/follows React page backed by a NEW
  * endpoint GET /api/get-grapevine-follows that lists who <observee> follows
