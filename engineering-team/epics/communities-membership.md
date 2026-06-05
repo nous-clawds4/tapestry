@@ -15,13 +15,16 @@ A community **claims** tags; the tag never points at the community. `nostr-user-
 2. ~~What a tag's target/label references~~ — **RESOLVED (Vinney, 2026-06-05): a kind-39998 concept.** A CD `claims` one or more kind-39998 concept a-tags. ADR 0030 is now **Accepted** (design); only the merge remains.
 3. The per-PoV WoT score lookup (function/endpoint) — build-time confirm, not a design blocker.
 
-## Stories (`stories/communities-membership/`) — design-ahead
-- **42 — CD claims membership tag(s)** (the CD declares which labels + threshold/cutoff). *Design-ahead.*
-- **43 — membership assertion + vouch** (publish a self-tag / vouch via the nostr-user-tag primitive). *Blocked.*
-- **44 — per-PoV roster engine** (the GrapeRank-weighted tally + cutoff/threshold → roster). *Blocked.*
-- **45 — trust signal + applicant/member display** (Block 3: "N people you trust are inside" + per-member legibility + roles). *Blocked.*
+## Stories (`stories/communities-membership/`)
+- **42 — CD claims membership tag(s)** (the CD declares which labels + threshold/cutoff). ✅ **Definition side DONE + reviewed (2026-06-05)** — wire format, projection, §26 inheritance across 4 layers. Convener UI deferred to the Story 45 display batch.
+- **43 — membership assertion + vouch** (publish a self-tag / vouch via the nostr-user-tag primitive). *Blocked on Vinney's core.*
+- **44 — per-PoV roster engine** (the GrapeRank-weighted tally + cutoff/threshold → roster). ✅ **DONE + reviewed (2026-06-05)** — pure engine, inputs injected; live wire-in blocked on the tag reader + WoT scorer.
+- **45 — trust signal + applicant/member display** (Block 3: "N people you trust are inside" + per-member legibility + roles). *Deferred — build WITH the schema-locked batch so we don't surface a hollow signal over empty data.*
 - **46 — cold-start first vouch** (a path for a true outsider to earn vouch #1). *Blocked.*
 - **47 — retire the interim posting gate** (swap `signedIn && joined` for trust-based membership). *Blocked.*
+
+### Progress (2026-06-05)
+The two genuinely zero-dependency stories (42 definition-side, 44 engine) are built, tested, and independently reviewed — no blocking issues. Everything else needs Vinney's `nostr-user-tag` core on `staging` (the tag writer #43, cold-start #46, gate retirement #47, and the live wiring of 44/45). The roster engine is pure and will not change when the source lands.
 
 ## ADR
 `decisions/communities-membership/0030-membership-from-tags.md` — **Proposed** (pending dep #1 + open #2).

@@ -57,6 +57,26 @@ export function buildCommunityDeclaration({ viewerPubkey, circle, parentATag = n
   // Forward-compatible with forking (Block 2 / §25). Founding never sets it.
   if (parentATag) tags.push(['b', parentATag, 'inherit'])
 
+  // Membership (ADR 0030): the circle CLAIMS kind-39998 concept(s) as its
+  // membership signal — members are people tagged with a claimed concept,
+  // trust-weighted. threshold + cutoff set the trust bar. All three resolve
+  // through b-inheritance (§26), so we follow the same write discipline as the
+  // definition fields above:
+  //   - founding (no parent): MATERIALIZE the default so the root is
+  //     self-describing — claims its own concept, threshold 1, cutoff 0.5.
+  //   - fork (has parent): write ONLY what the convener set; omit the rest so
+  //     it inherits the parent's rule live (the resolver fills it in at read).
+  const founding = !parentATag
+  const explicitClaims = (Array.isArray(circle.claims) && circle.claims.length) ? circle.claims : null
+  const claims = explicitClaims || (founding ? [`39998:${viewerPubkey}:${circle.slug}`] : [])
+  for (const c of claims) {
+    if (c) tags.push(['claims', c])
+  }
+  if (circle.threshold != null) tags.push(['membership_threshold', String(circle.threshold)])
+  else if (founding) tags.push(['membership_threshold', '1'])
+  if (circle.cutoff != null) tags.push(['influence_cutoff', String(circle.cutoff)])
+  else if (founding) tags.push(['influence_cutoff', '0.5'])
+
   return {
     kind: 39998,
     tags,

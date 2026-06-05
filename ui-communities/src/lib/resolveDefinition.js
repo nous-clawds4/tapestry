@@ -15,7 +15,11 @@
 
 export const MAX_DEPTH = 16
 
-const DEFINITION_FIELDS = ['name', 'description', 'belongingBar', 'topics']
+// Definition fields + the membership rule (ADR 0030): claims/threshold/cutoff
+// inherit down a fork chain exactly like name/description — a fork inherits the
+// parent's membership rule unless it overrides. `claims` is set-valued (empty =
+// inherit); threshold/cutoff are scalar (null = inherit, 0 is a real value).
+const DEFINITION_FIELDS = ['name', 'description', 'belongingBar', 'topics', 'claims', 'membershipThreshold', 'influenceCutoff']
 
 /** A non-empty child field overrides the base; an empty/absent one inherits. */
 export function mergeDefinition(base, child) {
@@ -36,6 +40,9 @@ function statedFields(node) {
     description: node.description,
     belongingBar: node.belongingBar,
     topics: node.topics,
+    claims: node.claims,
+    membershipThreshold: node.membershipThreshold,
+    influenceCutoff: node.influenceCutoff,
   }
 }
 

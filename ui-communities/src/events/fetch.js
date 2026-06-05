@@ -243,6 +243,14 @@ function projectDeclaration(event) {
     name: one('name') || slug,
     description: one('description') || '',
     belongingBar: one('belonging') || '',
+    // Membership (ADR 0030): claimed concept(s) + the trust bar. Reported as
+    // stated — an absent threshold/cutoff is `null`, not a default, so the §26
+    // resolver can inherit a parent's value. The final fallback (cutoff 0.5,
+    // threshold 1) lives in the consumer (deriveRoster), not here, so defaults
+    // aren't applied twice and never masquerade as a stated value.
+    claims: many('claims'),
+    membershipThreshold: Number.isFinite(parseFloat(one('membership_threshold'))) ? parseFloat(one('membership_threshold')) : null,
+    influenceCutoff: Number.isFinite(parseFloat(one('influence_cutoff'))) ? parseFloat(one('influence_cutoff')) : null,
     tags: many('topic'),
     image: null,
     accent: null,
