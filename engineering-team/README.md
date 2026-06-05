@@ -50,6 +50,8 @@ The Claude Code wiring lives elsewhere:
 
 `/discuss` defaults to the **Product Expert** — a read-only thinking partner who knows the domain, stack, and existing decisions. Use `as <role> <topic>` for a different lens, or `roundtable <topic>` for multi-perspective.
 
+For **big-picture protocol/spec changes** — evolving `BIBLE.md` + ADRs rather than code — use the lightweight **Protocol-Spec Workflow** (`/discuss` to scope → a living design doc to capture → the per-story cycle in *docs-mode* to ratify). See [workflows/protocol-spec-workflow.md](./workflows/protocol-spec-workflow.md).
+
 ## How the phases connect
 
 ```

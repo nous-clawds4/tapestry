@@ -87,6 +87,8 @@ The harness lives in two places:
 
 Phases 1–5 are the **per-story** cycle. Above them sits one **per-book** milestone, `/close-book` — see "Books of work and the return edge" below.
 
+**Protocol-spec variant (docs-mode).** For big-picture *protocol* changes — evolving the BIBLE spec and its ADRs rather than writing code — use the lightweight **Protocol-Spec Workflow**: `/discuss` to scope → a living design doc to capture → the per-story cycle in *docs-mode* (Test Design skipped, Implementer authors BIBLE prose, Reviewer audits accuracy) to ratify into BIBLE + ADRs. See [engineering-team/workflows/protocol-spec-workflow.md](./engineering-team/workflows/protocol-spec-workflow.md).
+
 ### How to operate
 
 1. **Classify the request.** Ask: "Is this a new feature, a bug fix, a refactor, or a doc/typo change?" That answer determines which phases apply (Standard strictness):
