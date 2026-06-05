@@ -14,6 +14,65 @@ Before starting work, read all four:
 - [`docs/*HANDOFF*.md`](./docs/) — session continuity notes. Each handoff doc starts with a `**Status:**` line: `🔴 OPEN` = work hasn't been picked up; `✅ ADDRESSED / SUPERSEDED` = the follow-on work has shipped (the body is preserved for historical context, no action needed). Always scan for `OPEN` handoffs before starting fresh work — a previous session may have left specific instructions for the new one.
 - [`engineering-team/stories/_intake.md`](./engineering-team/stories/_intake.md) — queued-but-unplanned work catalog. See [engineering-team/README.md](./engineering-team/README.md) for the format. Scan before opening a fresh feature request — there's often a relevant entry already triaged.
 
+## Product Team Mode (upstream — optional)
+
+*Before* a feature is engineered, a product can be **discovered and designed** through a parallel harness in `product-team/`. It runs upstream of Engineering Team Mode and is optional: use it when starting a new product or a substantial feature area where the requirements aren't yet clear. A non-technical user describes what they want in natural language; the product team iterates through structured phases; the output is markdown artifacts the engineering team consumes.
+
+The boundary is clean: **the product team produces markdown (PRD, guides, story queue). The engineering team writes code.** No source, no file paths, no library choices cross into the product artifacts.
+
+- **`product-team/`** — roles, workflows, templates, guardrails, and accumulating discoveries/personas/journeys/scope/domain/prd/guides. Source of truth for product behavior. Read [product-team/README.md](./product-team/README.md) for the layout.
+- **`.claude/`** — wiring only:
+  - `.claude/commands/<phase>.md` — slash commands: `/discover`, `/model-users`, `/scope`, `/model-domain`, `/design-experience`, `/assemble-prd`, `/decompose-stories`, `/discuss-product`.
+  - `.claude/agents/<role>.md` — product subagents; each can Write only into `product-team/`, and the Product Advisor cannot Write at all.
+
+The seven phases — **Discovery → User Modeling → Scope → Domain Modeling → Experience Design → PRD Assembly → Story Decomposition** — each have a human approval gate and write a durable artifact. The flow ends by emitting `product-team/stories-queue.md`, an epic-aware backlog. **The handoff is doc-driven and one-directional:** the engineering Product Owner reads that queue, creates the matching epics under `engineering-team/`, and promotes each brief via `/plan-feature`. The product flow never writes into `engineering-team/`. See [product-team/README.md](./product-team/README.md) → "Handoff to the engineering team".
+
+## Intent Detection (natural language is the primary interface)
+
+Most people who use the product flow will never type a slash command. **Natural language is the default way in; slash commands are shortcuts for people who already know the flow.** Claude reads what the user says, infers which phase they mean, confirms it in plain language, and proceeds. The non-technical user never needs to know slash commands exist.
+
+### Register — who am I talking to?
+
+- **User spoke naturally** (no slash command) → treat them as non-technical. Enter the phase with the **plain-language entry message** from that phase's workflow file (its `## Natural language` section). Do **not** say "I'm acting as the UX Researcher. Phase 2: User Modeling" — role labels and phase numbers are internal machinery. Say what you're about to do in plain words, then ask "Ready?" before starting. Never use jargon like "persona," "acceptance criteria," or "entity" with this user — translate their words into structure silently.
+- **User typed a slash command** → treat them as technical. Use the formal role announcement ("I'm acting as the Product Strategist. Phase: Discovery.") exactly as the command file specifies.
+
+Between phases the gate is **conversational, never a command**: "I've captured the problem space. Next I'd map out who your users are and what their experience looks like. Want to continue?" The user says yes; the next phase begins. No `/model-users` required.
+
+### Routing table
+
+**Product flow — figuring out *what* to build** (enter the phase, confirm in plain language):
+
+| The user says something like… | Phase to enter |
+|---|---|
+| "I have an idea," "I want to build," "what should we build," "help me figure out what to make" | Discovery (`/discover`) |
+| "who are the users," "who is this for" | User Modeling (`/model-users`) |
+| "what's in the first version," "what should we cut," "what's the scope" | Scope (`/scope`) |
+| "what information do we need," "what are the things involved" | Domain Modeling (`/model-domain`) |
+| "what should it look like," "design the screens" | Experience Design (`/design-experience`) |
+| "put it all together," "write it up," "write the PRD" | PRD Assembly (`/assemble-prd`) |
+| "break it into tasks," "what does engineering need" | Story Decomposition (`/decompose-stories`) |
+| "let's start building," "hand off to engineering," "ready to build" | Story Decomposition → engineering handoff |
+
+**Engineering flow — figuring out *how* to build it** (technical audience; formal announcements are fine here):
+
+| The user says something like… | Where to go |
+|---|---|
+| "let's implement," "write the code," "build this story" | `/plan-feature` (new story) or `/implement-feature` (story with tests) |
+| "review the code," "is this ready to ship" | `/review-changes` |
+
+**Advisory — thinking out loud** (no artifacts):
+
+| The user says something like… | Where to go |
+|---|---|
+| "what do you think about," "help me think through" (product / users) | `/discuss-product` |
+| "what do you think about," "help me think through" (stack / feasibility) | `/discuss` |
+
+**When in doubt, ask one question:** "Are you exploring a product idea (figuring out *what* to build) or ready to start engineering (*how* to build it)?" Then route.
+
+### The non-technical journey, end to end
+
+A product person opens Claude Code and says *"I have an idea for a community feature and I want to figure out what to build."* Claude confirms it's the start of product discovery, explains in plain words that it'll ask about the problem, the people, and what exists today, and asks "Ready?" From there each phase flows into the next through conversational gates. The user talks in whatever words they have — *"the women in the community need a way to vouch for each other"* — and the harness translates that into structured artifacts behind the scenes. When the product work is done, Claude presents the PRD and guides and offers to break the work into engineering tasks. If the user says "let's start building," Claude decomposes the stories and either hands to the engineering flow or notes that the engineering side is best run by (or with) a technical teammate. The user never types a slash command, never hears "persona" or "acceptance criteria," and never sees a phase number.
+
 ## Engineering Team Mode
 
 This project runs every change through a **Product Owner → Architect → Tester → Implementer → Reviewer** harness with explicit human approval gates between phases. Pattern adapted from Rob Conery's *Eliminate Crappy Slop Code* (https://bigmachine.io/articles/video/eliminate-crappy-slop-code/).

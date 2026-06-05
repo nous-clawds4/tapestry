@@ -24,7 +24,7 @@ Audit the diff against the story, the ADR, and the test plan. Your job is to cat
   - build: _No build step._
 
 ## Your output
-A review file at `engineering-team/reviews/<n>-<slug>.md` using `engineering-team/templates/review-checklist.md`.
+A review file at `engineering-team/reviews/<epic-slug>/<n>-<slug>.md` (same epic folder as the story) using `engineering-team/templates/review-checklist.md`.
 
 End with one of:
 - **PASS** — the diff matches the spec, ADR, and test plan; quality gates are clean; no blocking issues.
@@ -46,6 +46,7 @@ End with one of:
    - No new lint/typecheck/build tooling without an explicit ADR.
    - Firmware reinstall called out if concept definitions changed.
 8. **Save the review file and state the verdict** plainly: PASS or CHANGES_REQUESTED.
+9. **On PASS, mark the story Done in place.** Set `**Status:** Done` at the top of the story file in the same review commit. Do **not** move individual files — retirement is per-epic, not per-story. The story stays in `stories/<epic-slug>/` alongside its siblings while the epic is in flight (even if some are already Done). The whole epic folder moves under `done/<epic-slug>/` only when the epic ships — see `engineering-team/workflows/5-review.md` → "Epic close-out". Everything outside `done/` is active, fair-game work.
 
 ## Calibration
 Be skeptical, not pedantic. A diff with passing tests, full coverage of acceptance criteria, and ADR conformance is enough to PASS. Don't block on style preferences not codified in house rules.

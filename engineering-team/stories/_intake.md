@@ -618,3 +618,28 @@ Today the `forceKill: false` override masks the impact (wrapper declares timeout
 - Part B (bug): properly-scoped story + ADR (the right duration value is an architectural choice that affects operator expectations + may have a follow-on on auto-tune Track B).
 
 **Classification:** Mixed (cleanup + bug). **Priority:** Medium — incomplete coverage of story #28's intended fix; cosmetic + 2 latent bugs.
+
+---
+
+## 2026-06-05 — Feature: Tapestry Communities Protocol (full draft → BIBLE)
+
+**Surfaced during:** the story #31 planning conversation (the `b` / inherit-from primitive). Story #31 carves out and ratifies just the general `b` tag; the broader protocol it came from is deferred here at the operator's request ("I do want to address the broader Communities Protocol, but we can do that after"). **Depends on story #31 landing first** — the affiliation pointer is now the general `b` primitive #31 defines.
+
+**Scope:** Land the Tapestry Communities Protocol (Draft v1). A community is *computed*, per resolution, from **Tags + a Community Declaration (CD) + a Point of View (PoV)** → roster; no hand-kept membership state. The CD is an editable kind-39999 event; a founding author publishes the root CD (House PoV = founder), and participants publish child CDs that defer to a parent via the `b` tag (story #31) under "accept the parent unless otherwise stated." Membership is GrapeRank-gated (author influence ≥ role cutoff from the PoV); roles are predicates (v1: `applicant` = self-tag, `member` = vouched by an existing member who clears the cutoff; `admin` off). Disputes are trust-weighted negatives, never a one-person veto. The community survives the founding author going inactive (every participant CD still resolves against the last known parent state). Reuses existing primitives only — no new infra (GrapeRank scorecards, influence cutoffs, PoV selection already exist).
+
+**Open §11 ratification items carried from the draft (decide during Planning/Architecture):**
+1. Affiliation tag → now `b` per story #31 (largely settled; confirm wire form `["b", "<parent-cd-a-tag>", "inherit"]`, type in element 3).
+2. **Canonical membership:** House-PoV roster is authoritative for a safe space; Personalized PoV is a *lens* (how a viewer sees/orders the community via their affiliated CD), not a private redefinition of who is a member. Must be decided explicitly, not left to whatever the resolver does first.
+3. Single-root v1; multi-root federation deferred (reserve uppercase `B` for the parent-claims-child inverse per #31).
+4. **Tag wire format** — reconcile the community input-Tag with the `feat/pubkey-tagging-target` work; a view over those pubkey-tag events is preferred over a second parallel schema.
+5. Membership threshold (1 qualifying vouch vs N≥2 for a safe space) — growth rate vs ease of entry.
+6. CD term: "Declaration" vs "Definition" (draft uses *Declaration*).
+
+**Deferred within the protocol (not v1 gaps — deliberate later steps):** Admin/community-curator role; affiliation *types* beyond `inherit`; multi-root federation; per-viewer membership forking (only if §5.3 is decided against the safe-space recommendation); full tags-as-rating-edges GrapeRank (v1 may ship the simpler reachability-plus-cutoff form).
+
+**Worked example to preserve:** Les Femmes Orange (LFO), a membership / safe-space community, used throughout the draft.
+
+**Classification:** Feature (protocol + likely resolver + UI/API). **Large — expect to split** into multiple stories, e.g.: (a) CD event shape + effective-CD merge-walk resolver; (b) the input Tag primitive + reconciliation with `feat/pubkey-tagging-target`; (c) PoV resolution + roster computation; (d) trust-weighted disputes; (e) onboarding / cross-site (House vs Personalized PoV) flow.
+**Strictness:** Standard.
+**Phase path:** `/discuss` to settle the §11 decisions and the story split → then Planning → Architecture → Test Design → Implementation → Review per sub-story.
+**Priority:** Medium — operator wants it next, after story #31. **Depends on:** story #31 (the `b` inherit-from primitive).

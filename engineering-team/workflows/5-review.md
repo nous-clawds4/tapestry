@@ -8,7 +8,7 @@ Reviewer. See `engineering-team/roles/reviewer.md`.
 - The story, ADR, and test plan that the diff is supposed to satisfy.
 
 ## Output
-A review file at `engineering-team/reviews/<n>-<slug>.md` ending in **PASS** or **CHANGES_REQUESTED**.
+A review file at `engineering-team/reviews/<epic-slug>/<n>-<slug>.md` (same epic folder as the story) ending in **PASS** or **CHANGES_REQUESTED**.
 
 ## Steps
 
@@ -32,3 +32,19 @@ Be skeptical, not pedantic. PASS means the diff is mergeable as-is. CHANGES_REQU
 
 ## Per-phase commits
 Yes. Commit the review file regardless of verdict. Accumulated reviews are valuable signal over time.
+
+## On PASS — mark the story Done
+
+When the verdict is PASS, set `**Status:** Done` at the top of the story file in the same review commit. **That's the whole per-story close-out — do not move individual files.** Retirement happens per-epic, not per-story, so an epic's stories stay together in `stories/<epic-slug>/` while the epic is still in flight (even if some are already Done). Save your review under the epic too: `engineering-team/reviews/<epic-slug>/<n>-<slug>.md`.
+
+## Epic close-out
+
+When an epic ships (its branch is merged to the shared line), move the epic's whole folders under `done/` — **one `git mv` per area, on the directory, not per file:**
+
+- `engineering-team/stories/<epic-slug>/`     → `engineering-team/stories/done/<epic-slug>/`
+- `engineering-team/decisions/<epic-slug>/`   → `engineering-team/decisions/done/<epic-slug>/`
+- `engineering-team/reviews/<epic-slug>/`     → `engineering-team/reviews/done/<epic-slug>/`
+
+Because each epic owns a disjoint folder, these moves never collide across branches, and the relative paths *inside* the folder (story ↔ test-plan ↔ ADR ↔ review) stay intact — no link-rewriting needed. Set `**Status:** Done` on the epic file (`epics/<epic-slug>.md`). Everything outside `done/` is active, fair-game work; everything under `done/` is shipped and read-only by convention.
+
+> **Numbering note (Phase 1):** story numbers are scoped per epic folder — scan the epic's own folder (and its `done/<epic-slug>/` counterpart) for the highest `<n>`. Numbers are unique within an epic, not globally.
