@@ -1,6 +1,6 @@
 # Story 33: Found a circle by declaring its definition
 
-**Status:** Draft (Planning)
+**Status:** Done
 **Created:** 2026-06-05
 **Type:** Feature
 **Epic:** `communities-declaration` · **Product source:** PRD §5.3 / stories-queue Block 1, Story 1 (Convener).
@@ -57,4 +57,4 @@ Architect should orient via `/api/concept-graph/summaries` (local stack is up on
 - PRD: `product-team/prd/communities.md` §5.3 · Design guide: `product-team/guides/communities-design-guide.md` (Found/Fork stepper, §5.3 screen) · Style guide: `communities-style-guide.md` (peer-not-owner copy, specific errors).
 - ADR: [`../../decisions/communities-declaration/0029-community-declaration-shape-and-coexistence.md`](../../decisions/communities-declaration/0029-community-declaration-shape-and-coexistence.md) — **Proposed** (2026-06-05). CD = kind-39998 concept (not a 39999 item); strangler coexistence via a normalized `Circle` projection; no firmware change for founding; forward-compatible with `b`/§26 fork.
 - Test plan: [`33-found-a-circle.test-plan.md`](33-found-a-circle.test-plan.md) + `test/found-a-circle.test.js` — 10 tests, 9 failing for the right reasons (T5 strangler-guard green from the start). Covers all 7 ACs.
-- Review: (filled in after Review phase)
+- Review: [`../../reviews/communities-declaration/33-found-a-circle.md`](../../reviews/communities-declaration/33-found-a-circle.md) — **PASS** (2026-06-05): 7/7 ACs, ADR 0029-conformant, full suite green. 4 non-blocking notes (NB-1 = CD post addressing → carry into Story 8).
