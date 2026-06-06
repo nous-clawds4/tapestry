@@ -1,6 +1,6 @@
 # Story 34: Followers list on the primary profile page
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-06-06
 **Type:** Feature
 **Epic:** profile
@@ -84,4 +84,4 @@ None open.
 ## Linked artifacts
 - ADR: `engineering-team/decisions/profile/0030-profile-followers-list.md` (Accepted 2026-06-06)
 - Test plan: `engineering-team/stories/profile/34-profile-followers-list.test-plan.md` (27 tests — 23 failing T + 4 regression sentinels; confirmed failing 2026-06-06; also inverts #33's T5 plain→link)
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/profile/34-profile-followers-list.md` (PASS 2026-06-06)
