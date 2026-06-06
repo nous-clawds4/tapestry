@@ -50,6 +50,7 @@ const taskQueueSemaphoreProtectionAudit = require('./task-queue-semaphore-protec
 const profileFollowsList = require('./profile-follows-list.test.js');
 const profileWebsiteLink = require('./profile-website-link.test.js');
 const profileVerifiedFollowersCount = require('./profile-verified-followers-count.test.js');
+const profileFollowersList = require('./profile-followers-list.test.js');
 
 async function main() {
   console.log('Running Brainstorm tests...\n');
@@ -138,6 +139,9 @@ async function main() {
   console.log('\nprofile-verified-followers-count suite:');
   const profileVerifiedFollowersCountResult = await profileVerifiedFollowersCount.run();
 
+  console.log('\nprofile-followers-list suite:');
+  const profileFollowersListResult = await profileFollowersList.run();
+
   console.log('\nTest Results');
   console.log('-------------');
   console.log(`Configuration Loading:                           ${configOk ? 'PASS' : 'FAIL'}`);
@@ -222,6 +226,9 @@ async function main() {
   console.log(
     `profile-verified-followers-count suite:          ${profileVerifiedFollowersCountResult.fail === 0 ? 'PASS' : 'FAIL'} (${profileVerifiedFollowersCountResult.pass} passed, ${profileVerifiedFollowersCountResult.fail} failed)`
   );
+  console.log(
+    `profile-followers-list suite:                    ${profileFollowersListResult.fail === 0 ? 'PASS' : 'FAIL'} (${profileFollowersListResult.pass} passed, ${profileFollowersListResult.fail} failed)`
+  );
 
   const overallOk =
     configOk &&
@@ -251,7 +258,8 @@ async function main() {
     taskQueueSemaphoreProtectionAuditResult.fail === 0 &&
     profileFollowsListResult.fail === 0 &&
     profileWebsiteLinkResult.fail === 0 &&
-    profileVerifiedFollowersCountResult.fail === 0;
+    profileVerifiedFollowersCountResult.fail === 0 &&
+    profileFollowersListResult.fail === 0;
   console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);
   process.exit(overallOk ? 0 : 1);
 }

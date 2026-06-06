@@ -74,16 +74,19 @@ test('T4: the new counter formats its value via the existing fmtCount helper (AC
     'the new counter must format its value through the existing `fmtCount` helper (a 2nd `fmtCount(...)` call beside the Following one). fmtCount returns "—" for null/undefined (AC5) and "0" for 0 (AC6).');
 });
 
-// AC7 — the new counter is a PLAIN element, not a link; no premature followers-table link.
-test('T5: the "Verified Followers" counter is plain (not a <Link>); the followers table is deferred (AC7)', () => {
+// AC7 — UPDATED by story #34. #33 shipped this counter PLAIN ("plain until the followers
+// table ships"); story #34 ships that table (/user/:pubkey/followers), so the counter becomes
+// a same-tab <Link>. This assertion now tracks the current intended behavior — it fails until
+// #34's count→link lands, then passes. (See engineering-team/stories/profile/34-*.)
+test('T5: the "Verified Followers" counter links to /user/${pubkey}/followers (updated by story #34; was plain in #33)', () => {
   const src = safeRead(PROFILE_PAGE);
   assert(src.length > 0, 'BrainstormProfile.jsx missing — unexpected.');
   assert(countOf(src, /bsp-count-value/g) >= 2,
-    'the new counter must exist (expected >=2 `bsp-count-value` spans; only "Following" has one pre-implementation).');
-  assert(countOf(src, /bsp-count-link/g) === 1,
-    'exactly ONE `bsp-count-link` must remain (the existing "Following" link). The new "Verified Followers" counter must be a PLAIN element (e.g. `<div className="bsp-count">`), NOT a <Link>/bsp-count-link — AC7, non-link until the followers table ships.');
-  assert(!/\/user\/\$\{pubkey\}\/followers/.test(src),
-    'the counter must NOT link to `/user/${pubkey}/followers` — that page is sub-feature 2 (deferred). The count is a plain number for now.');
+    'the Verified Followers counter must still exist beside Following (>=2 `bsp-count-value` spans).');
+  assert(/\/user\/\$\{pubkey\}\/followers/.test(src),
+    'story #34: the Verified Followers counter must link to `/user/${pubkey}/followers` (the followers table). It shipped plain in #33; #34 makes it a <Link>.');
+  assert(countOf(src, /bsp-count-link/g) >= 2,
+    'both prominent counters are now links: Following → /follows and Verified Followers → /followers (expected >=2 `bsp-count-link`).');
 });
 
 // Regression — the existing "Following" count is untouched (added beside, not replaced).
