@@ -71,6 +71,7 @@ const foundingPublishesTagElement = require('./founding-publishes-tag-element.te
 const uiPeopleRoster = require('./ui-people-roster.test.js');
 const postingGate = require('./posting-gate.test.js');
 const replyToAPost = require('./reply-to-a-post.test.js');
+const reactToAPost = require('./react-to-a-post.test.js');
 
 async function main() {
   console.log('Running Brainstorm tests...\n');
@@ -221,6 +222,9 @@ async function main() {
   console.log('\nreply-to-a-post suite:');
   const replyToAPostResult = await replyToAPost.run();
 
+  console.log('\nreact-to-a-post suite:');
+  const reactToAPostResult = await reactToAPost.run();
+
   console.log('\nTest Results');
   console.log('-------------');
   console.log(`Configuration Loading:                           ${configOk ? 'PASS' : 'FAIL'}`);
@@ -368,6 +372,9 @@ async function main() {
   console.log(
     `reply-to-a-post suite:                           ${replyToAPostResult.fail === 0 ? 'PASS' : 'FAIL'} (${replyToAPostResult.pass} passed, ${replyToAPostResult.fail} failed)`
   );
+  console.log(
+    `react-to-a-post suite:                           ${reactToAPostResult.fail === 0 ? 'PASS' : 'FAIL'} (${reactToAPostResult.pass} passed, ${reactToAPostResult.fail} failed)`
+  );
 
   const overallOk =
     configOk &&
@@ -418,7 +425,8 @@ async function main() {
     foundingPublishesTagElementResult.fail === 0 &&
     uiPeopleRosterResult.fail === 0 &&
     postingGateResult.fail === 0 &&
-    replyToAPostResult.fail === 0;
+    replyToAPostResult.fail === 0 &&
+    reactToAPostResult.fail === 0;
   console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);
   process.exit(overallOk ? 0 : 1);
 }
