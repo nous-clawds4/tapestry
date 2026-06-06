@@ -66,6 +66,7 @@ import Dashboard from './pages/Dashboard';
 import BrainstormSearch from './pages/BrainstormSearch';
 import BrainstormProfile from './pages/BrainstormProfile';
 import BrainstormFollows from './pages/BrainstormFollows';
+import BrainstormFollowers from './pages/BrainstormFollowers';
 import BrainstormSettings from './pages/BrainstormSettings';
 import BrainstormPersonalization from './pages/BrainstormPersonalization';
 import BrainstormHowSearchWorks from './pages/BrainstormHowSearchWorks';
@@ -84,6 +85,10 @@ const router = createBrowserRouter([
   {
     path: '/user/:pubkey/follows',
     element: <BrainstormFollows />,
+  },
+  {
+    path: '/user/:pubkey/followers',
+    element: <BrainstormFollowers />,
   },
   {
     path: '/settings',
