@@ -69,6 +69,7 @@ const membershipAssertion = require('./membership-assertion.test.js');
 const rosterClient = require('./roster-client.test.js');
 const foundingPublishesTagElement = require('./founding-publishes-tag-element.test.js');
 const uiPeopleRoster = require('./ui-people-roster.test.js');
+const postingGate = require('./posting-gate.test.js');
 
 async function main() {
   console.log('Running Brainstorm tests...\n');
@@ -213,6 +214,9 @@ async function main() {
   console.log('\nui-people-roster suite:');
   const uiPeopleRosterResult = await uiPeopleRoster.run();
 
+  console.log('\nposting-gate suite:');
+  const postingGateResult = await postingGate.run();
+
   console.log('\nTest Results');
   console.log('-------------');
   console.log(`Configuration Loading:                           ${configOk ? 'PASS' : 'FAIL'}`);
@@ -354,6 +358,9 @@ async function main() {
   console.log(
     `ui-people-roster suite:                          ${uiPeopleRosterResult.fail === 0 ? 'PASS' : 'FAIL'} (${uiPeopleRosterResult.pass} passed, ${uiPeopleRosterResult.fail} failed)`
   );
+  console.log(
+    `posting-gate suite:                              ${postingGateResult.fail === 0 ? 'PASS' : 'FAIL'} (${postingGateResult.pass} passed, ${postingGateResult.fail} failed)`
+  );
 
   const overallOk =
     configOk &&
@@ -402,7 +409,8 @@ async function main() {
     membershipAssertionResult.fail === 0 &&
     rosterClientResult.fail === 0 &&
     foundingPublishesTagElementResult.fail === 0 &&
-    uiPeopleRosterResult.fail === 0;
+    uiPeopleRosterResult.fail === 0 &&
+    postingGateResult.fail === 0;
   console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);
   process.exit(overallOk ? 0 : 1);
 }

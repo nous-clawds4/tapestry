@@ -21,7 +21,7 @@ A community **claims** tags; the tag never points at the community. `nostr-user-
 - **44 — per-PoV roster engine** (the GrapeRank-weighted tally + cutoff/threshold → roster). ✅ **DONE + reviewed (2026-06-05)** — pure engine, inputs injected; live wire-in blocked on the tag reader + WoT scorer.
 - **45 — trust signal + applicant/member display** (Block 3: "N people you trust are inside" + per-member legibility + roles). ✅ **Largely DONE + reviewed (2026-06-05)** — `lib/roster.js` + the detail People-tab UI (TrustSignal, RosterRow, "I'm in"/Vouch via the writer, degraded state). Follow-ups: discovery-grid trust signal; applicant role (needs `selfApplied`). Lights up with real data once the ops items land.
 - **46 — cold-start first vouch** (a path for a true outsider to earn vouch #1). *Blocked.*
-- **47 — retire the interim posting gate** (swap `signedIn && joined` for trust-based membership). *Blocked.*
+- **47 — retire the interim posting gate** (swap `signedIn && joined` for trust-based membership). ✅ **DONE (2026-06-05)** — declaration circles gate the composer on real roster membership; bespoke keep the flag. Peer-framed prompt points at the membership path.
 
 ### Progress (2026-06-05)
 The two genuinely zero-dependency stories (42 definition-side, 44 engine) are built, tested, and independently reviewed — no blocking issues. Everything else needs Vinney's `nostr-user-tag` core on `staging` (the tag writer #43, cold-start #46, gate retirement #47, and the live wiring of 44/45). The roster engine is pure and will not change when the source lands.

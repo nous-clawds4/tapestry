@@ -333,7 +333,18 @@ export default function CommunityDetail({ slug }) {
 
   const realPosts = postsState.items
   const allPosts = [...pending, ...realPosts]
-  const canCompose = signedIn && joined
+  // Posting gate (Story 47): declaration circles gate on REAL membership derived
+  // from the roster (the viewer is a member from the PoV), retiring the interim
+  // `joined` local flag. Bespoke circles keep the interim flag (no roster).
+  const viewerIsMember = isDeclaration && !!viewer && rosterState.members.some(m => m.pubkey === viewer)
+  const canCompose = isDeclaration ? (signedIn && viewerIsMember) : (signedIn && joined)
+  // Peer-framed prompt when the viewer can't post yet — points at the membership
+  // path (the People tab's "I'm in" / Vouch), never "approve/admit".
+  const composePrompt = !signedIn
+    ? 'Sign in to post.'
+    : isDeclaration
+      ? 'Members post here. Add yourself on the People tab, or earn a vouch.'
+      : 'Join this circle to post.'
 
   return (
     <div className={s.page} style={{ '--community-accent': c.accent || 'var(--accent)' }}>
@@ -541,7 +552,7 @@ export default function CommunityDetail({ slug }) {
               </form>
             ) : (
               <div className={s.joinPrompt}>
-                <span>Join this circle to post.</span>
+                <span>{composePrompt}</span>
               </div>
             )}
 
