@@ -1,6 +1,6 @@
 # Story 33: Verified-followers count on the profile page
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-06-06
 **Type:** Feature
 **Epic:** profile
@@ -51,4 +51,4 @@ None outstanding. Resolved during planning:
 ## Linked artifacts
 - ADR: `engineering-team/decisions/profile/0029-profile-verified-followers-count.md` (Accepted 2026-06-06)
 - Test plan: `engineering-team/stories/profile/33-profile-verified-followers-count.test-plan.md` (5 failing T-tests + 1 regression sentinel; confirmed failing 2026-06-06)
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/profile/33-profile-verified-followers-count.md` (PASS 2026-06-06)
