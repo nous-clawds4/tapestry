@@ -163,6 +163,14 @@ export default function Header({ viewer, signedIn, pathname, onNavigate, onSignI
                   <button
                     type="button"
                     className={s.userItem}
+                    onClick={() => { onNavigate('/settings'); setMenuOpen(false) }}
+                    role="menuitem"
+                  >
+                    Notification settings
+                  </button>
+                  <button
+                    type="button"
+                    className={s.userItem}
                     onClick={handleCopyNpub}
                     role="menuitem"
                   >

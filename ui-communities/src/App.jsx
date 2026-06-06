@@ -9,6 +9,7 @@ import MyCircles from './pages/MyCircles.jsx'
 import Create from './pages/Create.jsx'
 import Found from './pages/Found.jsx'
 import Edit from './pages/Edit.jsx'
+import NotificationSettings from './pages/NotificationSettings.jsx'
 import NotFound from './pages/NotFound.jsx'
 import {
   clearStoredViewerPubkey,
@@ -196,6 +197,7 @@ const router = createBrowserRouter([
       { path: 'create', element: <Create /> },
       { path: 'found', element: <Found /> },
       { path: 'edit/:slug', element: <EditRoute /> },
+      { path: 'settings', element: <NotificationSettings /> },
       { path: '*', element: <NotFound /> },
     ],
   },
