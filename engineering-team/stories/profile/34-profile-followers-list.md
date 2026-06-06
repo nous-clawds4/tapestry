@@ -82,6 +82,6 @@ None open.
 - Reuse the shared table component + #29's persistence / search / pagination patterns; the deltas are direction (inbound) + the verified-only filter. This is a **large story** (parity with #29's ~16 criteria); you may propose phasing the implementation (data path before UI) within one ADR.
 
 ## Linked artifacts
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/profile/0030-profile-followers-list.md` (Accepted 2026-06-06)
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
