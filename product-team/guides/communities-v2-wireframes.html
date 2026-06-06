@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Communities — Phase 2 Wireframes</title>
+<!--
+  Low-fidelity wireframes for Communities Phase 2 ("Make it live, honestly").
+  Static reference only — not production code. Extends communities-wireframes.html
+  with the same binding tokens. New screens: #alive #inbox #prefs #invite #accept
+  #standing #retire. Honors design-guide Phase 2 principles 7–11 (sovereignty).
+-->
+<style>
+  :root{
+    --accent:#ba20ba;--accent-hover:#d234d2;--accent-muted:rgba(186,32,186,.12);--accent-glow:rgba(186,32,186,.45);
+    --brand:#662d91;--bg:#0a0612;--bg-surface:#120a1c;--bg-elevated:#1a1126;--bg-hover:#221830;--bg-input:#0f0918;
+    --text:#f4f0fa;--text-secondary:#b8aec9;--text-muted:#8a809a;--text-faint:#5a526a;--text-on-accent:#fff;
+    --success:#3ec98a;--warning:#fbb03b;--error:#e0566b;
+    --space-2:8px;--space-3:12px;--space-4:16px;--space-5:24px;--space-6:32px;
+    --radius-md:10px;--radius-lg:16px;--radius-full:999px;
+    --font-body:'DM Sans',system-ui,sans-serif;--font-display:'MuseoModerno',var(--font-body);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:var(--font-body);font-size:15px;line-height:1.5}
+  h1,h2,h3{font-family:var(--font-display);margin:0}
+  a{color:var(--accent);text-decoration:none}
+  .wrap{max-width:1040px;margin:0 auto;padding:var(--space-6) var(--space-5)}
+  .screen{border:1px dashed #2d2440;border-radius:var(--radius-lg);padding:var(--space-5);margin-bottom:var(--space-6);background:var(--bg-surface)}
+  .screen > .tag{display:inline-block;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-faint);margin-bottom:var(--space-4)}
+  .btn{display:inline-flex;align-items:center;gap:6px;background:var(--accent);color:var(--text-on-accent);border:none;border-radius:var(--radius-full);padding:10px 18px;font:inherit;font-weight:600;cursor:pointer;min-height:44px}
+  .btn.ghost{background:transparent;color:var(--accent);border:1px solid var(--accent)}
+  .chip{display:inline-block;background:var(--bg-hover);color:var(--text-secondary);border-radius:var(--radius-full);padding:3px 10px;font-size:12px;margin-right:6px}
+  .card{background:var(--bg-elevated);border:1px solid #2d2440;border-radius:var(--radius-md);padding:var(--space-4)}
+  .av{width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,var(--brand),var(--accent));border:2px solid var(--bg-elevated);display:inline-block;flex:none}
+  .dot{width:8px;height:8px;border-radius:50%;display:inline-block}
+  .dot.t{background:var(--success)}
+  .dot.new{background:var(--accent)}
+  .row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #221830}
+  .muted{color:var(--text-muted)}.faint{color:var(--text-faint)}.you{color:var(--accent);font-weight:600}
+  .input{background:var(--bg-input);border:1px solid #2d2440;border-radius:var(--radius-md);padding:12px 14px;color:var(--text);width:100%;font:inherit}
+  .skel{background:linear-gradient(90deg,#1a1126,#251a36,#1a1126);border-radius:6px;height:12px;margin:8px 0}
+  .state{border-left:3px solid var(--accent);background:var(--accent-muted);padding:10px 14px;border-radius:0 var(--radius-md) var(--radius-md) 0;margin-top:var(--space-3);font-size:13px}
+  .state.err{border-color:var(--error);background:rgba(224,86,107,.1)}
+  .banner{background:var(--accent-muted);border:1px solid var(--accent);border-radius:var(--radius-md);padding:10px 14px;font-size:13px;margin-bottom:var(--space-4)}
+  .nav{display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-6)}
+  .life{color:var(--text-muted);font-size:12px;margin-top:6px}
+  /* conversation */
+  .post{padding:10px 0;border-bottom:1px solid #221830}
+  .reply{margin-left:var(--space-4);border-left:2px solid var(--bg-hover);padding-left:var(--space-4)}
+  .reacts{display:flex;gap:6px;margin-top:6px}
+  .react{display:inline-flex;align-items:center;gap:5px;background:var(--bg-hover);color:var(--text-secondary);border:1px solid transparent;border-radius:var(--radius-full);padding:2px 9px;font-size:12px;cursor:pointer;min-height:28px}
+  .react.mine{border-color:var(--accent);color:var(--text)}
+  .newpill{display:inline-block;background:var(--accent-muted);color:var(--accent);border-radius:var(--radius-full);padding:5px 14px;font-size:13px;font-weight:600;cursor:pointer}
+  /* toggle */
+  .pref{display:flex;align-items:center;justify-content:space-between;background:var(--bg-input);border:1px solid #2d2440;border-radius:var(--radius-md);padding:12px 14px;margin-bottom:10px}
+  .tog{display:inline-flex;align-items:center;gap:8px;font-size:13px;color:var(--text-secondary)}
+  .sw{width:42px;height:24px;border-radius:var(--radius-full);background:var(--bg-hover);position:relative;flex:none}
+  .sw.on{background:var(--accent)}
+  .sw i{position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff}
+  .sw.on i{left:21px}
+  /* standing bar */
+  .bar{height:10px;border-radius:var(--radius-full);background:var(--bg-hover);overflow:hidden;margin:10px 0}
+  .bar i{display:block;height:100%;background:var(--accent)}
+  code{background:var(--bg-input);padding:1px 6px;border-radius:5px;color:var(--text-secondary)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="nav">
+    <h1 style="font-size:22px">Communities — Phase 2 Wireframes</h1>
+    <span class="faint">Make it live, honestly · sovereignty-first</span>
+  </div>
+
+  <!-- ALIVE: threaded conversation + reactions + live pill + signs of life + degraded composer -->
+  <section class="screen" id="alive">
+    <span class="tag">Screen · Circle detail — alive</span>
+    <h2 style="font-size:28px">Sunset Hikers</h2>
+    <p class="muted">Golden-hour trail people in the Bay Area.</p>
+    <div class="life">Active today · 6 posts this week</div>
+
+    <div style="text-align:center;margin:16px 0"><span class="newpill" tabindex="0">3 new</span></div>
+
+    <div class="post">
+      <div class="row" style="border:0;padding:0"><i class="av"></i><div><b>maya</b> <span class="faint">· 2h</span>
+        <div class="muted">Anyone for Mt. Tam Saturday?</div>
+        <div class="reacts"><span class="react mine">▲ 3</span><span class="react">★ 1</span><span class="react faint">Reply</span></div>
+      </div></div>
+    </div>
+    <div class="post reply">
+      <div class="row" style="border:0;padding:0"><i class="av"></i><div><b>devandra</b> <span class="faint">· 1h</span>
+        <div class="muted">In. I can carpool from Oakland.</div>
+        <div class="reacts"><span class="react">▲ 2</span><span class="react faint">Reply</span></div>
+      </div></div>
+    </div>
+
+    <div class="state">Degraded composer (trust source unreachable): “We can’t reach the trust network right now, so we can’t confirm membership. You can still post.”</div>
+    <div style="margin-top:10px"><input class="input" placeholder="Share something with the circle…"></div>
+    <div class="faint" style="font-size:12px;margin-top:8px">Live updates are <b>offered, never forced</b> — new posts wait behind the “3 new” pill (principle 7). One level of reply nesting only.</div>
+  </section>
+
+  <!-- INBOX: calm notification list -->
+  <section class="screen" id="inbox">
+    <span class="tag">Screen · Notification inbox</span>
+    <h2 style="font-size:24px">Updates <span class="dot new" title="new updates" style="vertical-align:middle"></span> <span class="faint" style="font-size:13px;font-family:var(--font-body)">new (a dot, never a count badge)</span></h2>
+    <div class="row"><i class="av"></i><div><b>maya</b> vouched for you in <b>Sunset Hikers</b> <span class="faint">· 2h</span></div></div>
+    <div class="row"><i class="av"></i><div>New posts in <b>Code &amp; Coffee</b> <span class="faint">· 1d</span></div></div>
+    <div class="row" aria-hidden="true"><div class="skel" style="width:70%"></div></div>
+    <div class="state">Empty: “Nothing new. When someone vouches for you or a circle you’re in gets active, it shows up here.”</div>
+    <div class="state err">Error: “We couldn’t load your updates. Retry?”</div>
+    <p class="faint" style="font-size:12px;margin-top:10px">No urgency engineering: no numeric badge, no red dot to pull you back, no nag.</p>
+  </section>
+
+  <!-- PREFS: the sovereignty control -->
+  <section class="screen" id="prefs">
+    <span class="tag">Screen · Notification preferences (the sovereignty control)</span>
+    <h2 style="font-size:24px">Choose what you hear about</h2>
+    <p class="muted" style="font-size:13px">Everything here is off until you turn it on. You can turn any of it off again.</p>
+    <div class="pref"><span>Someone vouches for you</span><span class="tog"><span>On</span><span class="sw on"><i></i></span></span></div>
+    <div class="pref"><span>New posts in your circles</span><span class="tog"><span>Off</span><span class="sw"><i></i></span></span></div>
+    <div class="pref"><span>Replies to you</span><span class="tog"><span>Off</span><span class="sw"><i></i></span></span></div>
+    <div class="state">Saves immediately: a quiet “Saved”. No master “turn on everything” switch.</div>
+    <div class="state err">Error on save: “Couldn’t save that change. Retry?” (toggle reverts to last saved position).</div>
+    <p class="faint" style="font-size:12px;margin-top:10px">State shown by switch position <b>and</b> the On/Off label — never color alone.</p>
+  </section>
+
+  <!-- INVITE: founder/member extends a foothold -->
+  <section class="screen" id="invite">
+    <span class="tag">Screen · Foothold invite</span>
+    <h2 style="font-size:24px">Invite someone in</h2>
+    <p class="muted">Your invite vouches for them. They can join even if no one else here knows them yet.</p>
+    <label style="display:block;font-size:13px;color:var(--text-secondary);margin:16px 0 6px">Who are you inviting? <span class="faint">(optional — or just share the link)</span></label>
+    <input class="input" placeholder="A name or note to remember who this is for" style="max-width:420px">
+    <div style="margin-top:16px"><button class="btn">Create invite</button></div>
+    <div class="state">Reminder, calm: “Your vouch stands behind this person.”</div>
+    <div class="state">Empty: “You haven’t invited anyone yet. An invite is how a new person gets their first foothold.”</div>
+    <div class="state err">Error: “Couldn’t create the invite. Retry?”</div>
+  </section>
+
+  <!-- ACCEPT: the outsider's first foothold -->
+  <section class="screen" id="accept">
+    <span class="tag">Screen · Onboarding accept (true outsider)</span>
+    <div class="card" style="max-width:420px">
+      <h3 style="font-size:18px">maya invited you into Sunset Hikers</h3>
+      <p class="muted" style="font-size:13px">Her vouch is your way in. You’ll start as a new member, and you belong more fully as people here get to know you.</p>
+      <div style="margin-top:12px"><button class="btn">Accept &amp; create your identity</button></div>
+      <p class="faint" style="font-size:12px;margin-top:10px">Your identity is portable — it’s how people vouch for you.</p>
+      <div class="state err">Expired: “This invite has expired. Ask whoever shared it for a new one.” (a path, never a dead end)</div>
+    </div>
+  </section>
+
+  <!-- STANDING: legible founder head-start decay -->
+  <section class="screen" id="standing">
+    <span class="tag">Screen · Founder standing (founder-only, read-only)</span>
+    <h2 style="font-size:24px">Your standing here</h2>
+    <div class="card" style="max-width:480px">
+      <p>14 members now vouch for each other. The circle runs on its own trust, not on you.</p>
+      <div class="bar"><i style="width:18%"></i></div>
+      <p class="faint" style="font-size:12px">Your share of the circle’s trust, shrinking on purpose as it grows.</p>
+      <div class="state">Just founded: “It’s just you so far. As people join and vouch for each other, your head start fades on purpose.”</div>
+    </div>
+    <p class="faint" style="font-size:12px;margin-top:10px">Principle 9: the no-owner promise is inspectable. Not shown to other members. Hidden (not broken) if the figure can’t load.</p>
+  </section>
+
+  <!-- RETIRE: caretaking as a community act -->
+  <section class="screen" id="retire">
+    <span class="tag">Screen · Retire a circle (caretaking)</span>
+    <h2 style="font-size:24px">Retire this circle</h2>
+    <div class="card" style="max-width:480px">
+      <p class="muted">Retiring asks the people who vouched here to release it. A retired circle stops appearing in discovery. Its history stays on the network. Nothing is erased.</p>
+      <div class="banner" style="margin:14px 0 0">Confirm: “Retire Sunset Hikers? It will stop appearing in discovery. Its posts and history stay on the network.”</div>
+      <div style="margin-top:14px;display:flex;gap:10px"><button class="btn ghost">Cancel</button><button class="btn">Retire circle</button></div>
+      <div class="state err">Error: “Couldn’t retire the circle. Retry?”</div>
+    </div>
+    <p class="faint" style="font-size:12px;margin-top:10px">Worded as a community act, never an owner delete (principle 10). Same surface clears the 3 legacy test circles. Retired view: “This circle has been retired. Its history is still here.”</p>
+  </section>
+</div>
+</body>
+</html>
