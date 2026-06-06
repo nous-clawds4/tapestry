@@ -203,24 +203,35 @@ export function buildEndorsementSignal({
  * uppercase tag-name capture ensures replies show up alongside
  * top-level posts in the same conversation.
  */
-export function buildCommunityPost({ viewerPubkey, communityATag, content }) {
+export function buildCommunityPost({ viewerPubkey, communityATag, content, parent = null }) {
   if (!viewerPubkey) throw new Error('buildCommunityPost: viewerPubkey is required')
   if (!communityATag) throw new Error('buildCommunityPost: communityATag is required')
   if (!content || !content.trim()) throw new Error('buildCommunityPost: content is required')
+  // A reply (ADR-0033) parents the post it answers; require its id + author.
+  if (parent && (!parent.id || !parent.author)) {
+    throw new Error('buildCommunityPost: parent requires id and author')
+  }
 
   // a-tag format: "<kind>:<curator-pubkey>:<slug>" — split to derive
   // the root-kind and root-author tags NIP-22 requires.
   const [rootKind, rootAuthor] = communityATag.split(':')
 
+  // Uppercase A/K/P always reference the community root — this keeps replies in
+  // the same `#A` conversation and scoped to the circle (no timeline leakage).
   const tags = [
     ['A', communityATag],
     ['K', rootKind || '39999'],
-    ['a', communityATag],
-    ['k', rootKind || '39999'],
   ]
-  if (rootAuthor) {
-    tags.splice(2, 0, ['P', rootAuthor])
-    tags.push(['p', rootAuthor])
+  if (rootAuthor) tags.push(['P', rootAuthor])
+
+  // Lowercase parent: the community itself for a top-level post, or the parent
+  // comment for a reply (lowercase e + k=1111 + p=parent author). One-level
+  // threading is enforced upstream by re-parenting replies to the top-level post.
+  if (parent) {
+    tags.push(['e', parent.id, '', parent.author], ['k', '1111'], ['p', parent.author])
+  } else {
+    tags.push(['a', communityATag], ['k', rootKind || '39999'])
+    if (rootAuthor) tags.push(['p', rootAuthor])
   }
 
   return {

@@ -18,7 +18,7 @@ import s from './PostCard.module.css'
  * `pending` flips the post into a soft, slightly-dimmed state with a
  * "Sending…" indicator; `error` shows an inline retry affordance.
  */
-export default function PostCard({ post, pending = false, error = null, onRetry = null }) {
+export default function PostCard({ post, pending = false, error = null, onRetry = null, onReply = null, replyHint = null }) {
   if (!post) return null
   const content = post.content || post.text || ''
   const timeLabel =
@@ -49,6 +49,15 @@ export default function PostCard({ post, pending = false, error = null, onRetry 
         )}
       </header>
       <p className={s.body}>{content}</p>
+      {(onReply || replyHint) && (
+        <div className={s.actions}>
+          {onReply ? (
+            <button type="button" className={s.replyBtn} onClick={onReply}>Reply</button>
+          ) : (
+            <span className={s.replyHint}>{replyHint}</span>
+          )}
+        </div>
+      )}
       {error && (
         <div className={s.errorRow} role="alert">
           <span className={s.errorText}>{error}</span>

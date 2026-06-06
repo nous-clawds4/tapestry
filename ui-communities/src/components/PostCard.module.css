@@ -84,6 +84,30 @@
   background: var(--bg-hover);
 }
 
+/* Reply affordance (ADR-0033) */
+.actions {
+  margin-top: var(--space-2);
+}
+
+.replyBtn {
+  background: transparent;
+  border: none;
+  padding: 2px 0;
+  font: inherit;
+  font-size: var(--text-sm);
+  color: var(--accent);
+  cursor: pointer;
+}
+
+.replyBtn:hover {
+  text-decoration: underline;
+}
+
+.replyHint {
+  font-size: var(--text-sm);
+  color: var(--text-faint);
+}
+
 @media (max-width: 520px) {
   .body { padding-left: 0; }
   .errorRow { padding-left: 0; }

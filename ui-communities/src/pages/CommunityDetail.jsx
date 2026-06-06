@@ -61,9 +61,14 @@ export default function CommunityDetail({ slug }) {
     items: [],
     error: null,
   })
-  const [pending, setPending] = useState([])  // optimistic kind-1 posts
+  const [pending, setPending] = useState([])  // optimistic kind-1111 posts + replies
   const [composerText, setComposerText] = useState('')
   const [composerSending, setComposerSending] = useState(false)
+  // Reply composer (ADR-0033). replyTarget is always a TOP-LEVEL post {id, author}
+  // so replies stay one level deep (re-parented from any reply that was clicked).
+  const [replyTarget, setReplyTarget] = useState(null)
+  const [replyText, setReplyText] = useState('')
+  const [replySending, setReplySending] = useState(false)
   const [resolved, setResolved] = useState(null)  // §26 resolved definition for forked circles
   const conversationLoadedRef = useRef(false)
 
@@ -269,11 +274,64 @@ export default function CommunityDetail({ slug }) {
     loadPosts()
   }
 
+  // Send a reply to a top-level post (ADR-0033). replyTarget is always the
+  // top-level post, so the reply parents it and stays one level deep.
+  async function handleSendReply() {
+    if (!signedIn || !viewer || !communityATag || !replyTarget) return
+    const text = replyText.trim()
+    if (!text || replySending) return
+
+    const localId = (typeof crypto !== 'undefined' && crypto.randomUUID)
+      ? crypto.randomUUID()
+      : `local-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+    const parent = { id: replyTarget.id, author: replyTarget.author }
+
+    setReplySending(true)
+    setPending(prev => [
+      {
+        id: localId,
+        author: viewer,
+        content: text,
+        createdAt: Math.floor(Date.now() / 1000),
+        parentId: parent.id,
+        _localId: localId,
+        _status: 'pending',
+      },
+      ...prev,
+    ])
+    setReplyText('')
+    setReplyTarget(null)
+
+    const unsigned = buildCommunityPost({ viewerPubkey: viewer, communityATag, content: text, parent })
+    const result = await publishEvent(unsigned)
+    setReplySending(false)
+
+    if (!result.ok) {
+      const errorCopy = result.error === 'rejected-by-relay'
+        ? "The relay didn't recognize you yet. Try again in a moment."
+        : publishErrorCopy(result)
+      setPending(prev => prev.map(p => p._localId === localId
+        ? { ...p, _status: 'error', _error: errorCopy, _text: text, _parent: parent }
+        : p))
+      return
+    }
+
+    setPending(prev => prev.filter(p => p._localId !== localId))
+    loadPosts()
+  }
+
   function handleRetryPending(localId) {
     const entry = pending.find(p => p._localId === localId)
     if (!entry || !entry._text) return
     setPending(prev => prev.filter(p => p._localId !== localId))
-    setComposerText(entry._text)
+    // A failed reply reopens the reply composer to its top-level parent;
+    // a failed top-level post refills the main composer.
+    if (entry._parent) {
+      setReplyTarget(entry._parent)
+      setReplyText(entry._text)
+    } else {
+      setComposerText(entry._text)
+    }
   }
 
   async function handleJoinClick() {
@@ -333,6 +391,20 @@ export default function CommunityDetail({ slug }) {
 
   const realPosts = postsState.items
   const allPosts = [...pending, ...realPosts]
+  // One-level threading (ADR-0033): top-level posts keep the existing newest-first
+  // order; replies group under their parentId, oldest-first within a thread.
+  const topLevelIds = new Set(allPosts.filter(p => !p.parentId).map(p => p.id))
+  // A reply whose parent isn't present renders as top-level (ADR-0033 graceful
+  // degradation) rather than vanishing — near-impossible under Option A, but a
+  // dropped post would be invisible data loss.
+  const topLevelPosts = allPosts.filter(p => !p.parentId || !topLevelIds.has(p.parentId))
+  const repliesByParent = allPosts.reduce((acc, p) => {
+    if (p.parentId && topLevelIds.has(p.parentId)) (acc[p.parentId] = acc[p.parentId] || []).push(p)
+    return acc
+  }, {})
+  for (const id of Object.keys(repliesByParent)) {
+    repliesByParent[id].sort((a, b) => a.createdAt - b.createdAt)
+  }
   // Posting gate (Story 47): declaration circles gate on REAL membership derived
   // from the roster (the viewer is a member from the PoV), retiring the interim
   // `joined` local flag. Bespoke circles keep the interim flag (no roster).
@@ -583,14 +655,53 @@ export default function CommunityDetail({ slug }) {
               <FetchError onRetry={loadPosts} />
             )}
 
-            {allPosts.map(p => (
-              <PostCard
-                key={p.id || p._localId}
-                post={p}
-                pending={p._status === 'pending'}
-                error={p._status === 'error' ? p._error : null}
-                onRetry={p._status === 'error' ? () => handleRetryPending(p._localId) : null}
-              />
+            {topLevelPosts.map(p => (
+              <div key={p.id || p._localId} className={s.thread}>
+                <PostCard
+                  post={p}
+                  pending={p._status === 'pending'}
+                  error={p._status === 'error' ? p._error : null}
+                  onRetry={p._status === 'error' ? () => handleRetryPending(p._localId) : null}
+                  onReply={canCompose && !p._status ? () => { setReplyTarget({ id: p.id, author: p.author }); setReplyText('') } : null}
+                  replyHint={!signedIn ? 'Sign in to reply' : null}
+                />
+
+                {replyTarget && replyTarget.id === p.id && (
+                  <form
+                    className={`${s.composer} ${s.replyComposer}`}
+                    onSubmit={e => { e.preventDefault(); handleSendReply() }}
+                  >
+                    <textarea
+                      className={s.composerTextarea}
+                      rows={2}
+                      placeholder="Write a reply"
+                      value={replyText}
+                      onChange={e => setReplyText(e.target.value)}
+                      disabled={replySending}
+                      aria-label="Write a reply"
+                    />
+                    <div className={s.composerActions}>
+                      <Button variant="secondary" size="md" onClick={() => { setReplyTarget(null); setReplyText('') }}>
+                        Cancel
+                      </Button>
+                      <Button variant="primary" size="md" onClick={handleSendReply} disabled={replySending || !replyText.trim()}>
+                        {replySending ? 'Sending…' : 'Reply'}
+                      </Button>
+                    </div>
+                  </form>
+                )}
+
+                {(repliesByParent[p.id] || []).map(r => (
+                  <div key={r.id || r._localId} className={s.reply}>
+                    <PostCard
+                      post={r}
+                      pending={r._status === 'pending'}
+                      error={r._status === 'error' ? r._error : null}
+                      onRetry={r._status === 'error' ? () => handleRetryPending(r._localId) : null}
+                    />
+                  </div>
+                ))}
+              </div>
             ))}
 
             {postsState.status === 'ready' && allPosts.length === 0 && (

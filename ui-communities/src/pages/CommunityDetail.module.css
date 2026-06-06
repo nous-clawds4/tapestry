@@ -198,6 +198,27 @@
   border-bottom: 1px solid var(--border);
 }
 
+/* One-level reply threading (ADR-0033) */
+.thread {
+  margin-bottom: var(--space-2);
+}
+
+.reply {
+  margin-left: var(--space-4);
+  padding-left: var(--space-3);
+  border-left: 2px solid var(--bg-hover);
+}
+
+.replyComposer {
+  margin-left: var(--space-4);
+  border-bottom: none;
+}
+
+@media (max-width: 640px) {
+  .reply,
+  .replyComposer { margin-left: var(--space-3); }
+}
+
 .composerTextarea {
   width: 100%;
   background: var(--bg-elevated);

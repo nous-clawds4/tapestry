@@ -92,11 +92,15 @@ async function collectFromRelay(url, filter, events, timeoutMs) {
 }
 
 function projectRealEvent(ev) {
+  // The lowercase `e` tag points at the parent comment for a reply (ADR-0033);
+  // top-level posts have no `e` (their parent is the community `a`), so null.
+  const eTag = Array.isArray(ev.tags) ? ev.tags.find(t => t[0] === 'e') : null
   return {
     id: ev.id,
     author: ev.pubkey,
     content: ev.content || '',
     createdAt: typeof ev.created_at === 'number' ? ev.created_at : 0,
+    parentId: (eTag && eTag[1]) || null,
   }
 }
 
