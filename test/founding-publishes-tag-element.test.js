@@ -38,7 +38,7 @@ test('T2: MEMBERSHIP_WRITE_RELAYS falls back to DEFAULT_RELAYS when unset (pure 
 
 test('T3: founding publishes a tag-element, guarded to non-fork, on the membership relays', () => {
   const src = read(FOUND);
-  assert(/import \{ buildTagElement \} from '\.\.\/events\/assertion\.js'/.test(src), 'imports buildTagElement');
+  assert(/import \{ buildTagElement[\s\S]*?\} from '\.\.\/events\/assertion\.js'/.test(src), 'imports buildTagElement');
   assert(/MEMBERSHIP_WRITE_RELAYS/.test(src), 'imports/uses the membership relay set');
   assert(/if \(!forking\)/.test(src), 'tag-element publish is guarded to founding (a fork inherits the parent claim)');
   // buildTagElement(...) is called and its result published.
@@ -52,6 +52,15 @@ test('T4: a failed tag-element publish does not abort the found (best-effort)', 
   assert(/console\.warn\('\[found\] tag-element publish failed:/.test(src), 'tag-element failure is logged, not thrown');
   // navigate/onJoin still run after the tag-element attempt.
   assert(/onJoin\(slug\)[\s\S]*?navigate\(`\/community\/\$\{slug\}`\)/.test(src), 'found completes regardless of tag-element result');
+});
+
+test('T5: founding auto-self-tags the founder so they belong immediately', () => {
+  const src = read(FOUND);
+  assert(/import \{ buildTagElement, buildMembershipAssertion, tagElementCoord \}/.test(src), 'imports the assertion writer + coord helper');
+  // The self-tag is published only after the tag-element succeeds, referencing its id.
+  assert(/buildMembershipAssertion\(\{[\s\S]*?viewerPubkey:\s*viewer,[\s\S]*?target:\s*viewer,[\s\S]*?tagElement:\s*\{\s*eventId:\s*tagResult\.eventId,\s*aCoord:\s*tagElementCoord\(viewer,\s*slug\),\s*slug\s*\}[\s\S]*?polarity:\s*1/.test(src),
+    'founder self-tags (+1) against the just-published tag-element');
+  assert(/console\.warn\('\[found\] founder self-tag failed:/.test(src), 'self-tag failure is best-effort (logged, not thrown)');
 });
 
 async function run() {

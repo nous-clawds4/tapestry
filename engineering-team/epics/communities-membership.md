@@ -20,7 +20,7 @@ A community **claims** tags; the tag never points at the community. `nostr-user-
 - **43 — membership assertion + vouch** (publish a self-tag / vouch via the nostr-user-tag primitive). ✅ **Writer DONE + reviewed (2026-06-05)** — pure builders in `events/assertion.js`, born-hybrid (`a`+`e`). UI actions deferred to the Story 45 batch. (Unblocked early: the carve is read-only, so the writer is ours.)
 - **44 — per-PoV roster engine** (the GrapeRank-weighted tally + cutoff/threshold → roster). ✅ **DONE + reviewed (2026-06-05)** — pure engine, inputs injected; live wire-in blocked on the tag reader + WoT scorer.
 - **45 — trust signal + applicant/member display** (Block 3: "N people you trust are inside" + per-member legibility + roles). ✅ **Largely DONE + reviewed (2026-06-05)** — `lib/roster.js` + the detail People-tab UI (TrustSignal, RosterRow, "I'm in"/Vouch via the writer, degraded state). Follow-ups: discovery-grid trust signal; applicant role (needs `selfApplied`). Lights up with real data once the ops items land.
-- **46 — cold-start first vouch** (a path for a true outsider to earn vouch #1). *Blocked.*
+- **46 — cold-start first vouch** (a path for a true outsider to earn vouch #1). ⏸️ **DEFERRED for MVP (2026-06-05)** — house-PoV self-tagging bootstraps the common case; revisit when an entirely-outside-WoT cold-start is a real need (+ Q#3 mechanism). Not a book-close blocker.
 - **47 — retire the interim posting gate** (swap `signedIn && joined` for trust-based membership). ✅ **DONE (2026-06-05)** — declaration circles gate the composer on real roster membership; bespoke keep the flag. Peer-framed prompt points at the membership path.
 
 ### Progress (2026-06-05)

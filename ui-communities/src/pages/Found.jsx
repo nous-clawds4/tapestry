@@ -10,7 +10,7 @@ import ViewCallout from '../components/ViewCallout.jsx'
 // parent's resolved definition (§26); unedited fields are omitted so they
 // inherit live from the parent.
 import { buildCommunityDeclaration } from '../events/declaration.js'
-import { buildTagElement } from '../events/assertion.js'
+import { buildTagElement, buildMembershipAssertion, tagElementCoord } from '../events/assertion.js'
 import { publishEvent, MEMBERSHIP_WRITE_RELAYS } from '../events/publish.js'
 import { fetchCommunityDeclaration } from '../events/fetch.js'
 import { resolveDefinition } from '../lib/resolveDefinition.js'
@@ -108,6 +108,20 @@ export default function Found() {
       const tagResult = await publishEvent(tagEl, { relays: MEMBERSHIP_WRITE_RELAYS })
       if (!tagResult.ok) {
         console.warn('[found] tag-element publish failed:', tagResult.error, tagResult.message)
+      } else {
+        // Auto-self-tag the founder so they belong to their own circle from the
+        // start (no manual "I'm in" needed). References the tag-element just
+        // published. Best-effort, like the element publish above.
+        const selfTag = buildMembershipAssertion({
+          viewerPubkey: viewer,
+          target: viewer,
+          tagElement: { eventId: tagResult.eventId, aCoord: tagElementCoord(viewer, slug), slug },
+          polarity: 1,
+        })
+        const selfResult = await publishEvent(selfTag, { relays: MEMBERSHIP_WRITE_RELAYS })
+        if (!selfResult.ok) {
+          console.warn('[found] founder self-tag failed:', selfResult.error, selfResult.message)
+        }
       }
     }
 

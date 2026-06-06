@@ -19,7 +19,7 @@ As a **member**, I want to post because I belong (trust-derived), not because of
 - Tests `test/posting-gate.test.js` (6/6, pure-eval of the gate + source-guard); full suite green; eslint + `vite build` clean.
 
 ## Out of scope
-Reply threads. Reactions. Moderation (Phase 3). Auto-self-tagging the founder on founding (small follow-up so a founder belongs to their own circle without a manual "I'm in").
+Reply threads. Reactions. Moderation (Phase 3). (Auto-self-tagging the founder on founding — done alongside this in `Found.jsx`, so a founder belongs to their own circle without a manual "I'm in".)
 
 ## Linked artifacts
 ADR 0030; Stories 44 (roster) + 43 (assertions).
