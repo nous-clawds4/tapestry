@@ -74,6 +74,7 @@ const replyToAPost = require('./reply-to-a-post.test.js');
 const reactToAPost = require('./react-to-a-post.test.js');
 const offeredLiveUpdates = require('./offered-live-updates.test.js');
 const signsOfLife = require('./signs-of-life.test.js');
+const notificationPreferences = require('./notification-preferences.test.js');
 
 async function main() {
   console.log('Running Brainstorm tests...\n');
@@ -233,6 +234,9 @@ async function main() {
   console.log('\nsigns-of-life suite:');
   const signsOfLifeResult = await signsOfLife.run();
 
+  console.log('\nnotification-preferences suite:');
+  const notificationPreferencesResult = await notificationPreferences.run();
+
   console.log('\nTest Results');
   console.log('-------------');
   console.log(`Configuration Loading:                           ${configOk ? 'PASS' : 'FAIL'}`);
@@ -389,6 +393,9 @@ async function main() {
   console.log(
     `signs-of-life suite:                             ${signsOfLifeResult.fail === 0 ? 'PASS' : 'FAIL'} (${signsOfLifeResult.pass} passed, ${signsOfLifeResult.fail} failed)`
   );
+  console.log(
+    `notification-preferences suite:                  ${notificationPreferencesResult.fail === 0 ? 'PASS' : 'FAIL'} (${notificationPreferencesResult.pass} passed, ${notificationPreferencesResult.fail} failed)`
+  );
 
   const overallOk =
     configOk &&
@@ -442,7 +449,8 @@ async function main() {
     replyToAPostResult.fail === 0 &&
     reactToAPostResult.fail === 0 &&
     offeredLiveUpdatesResult.fail === 0 &&
-    signsOfLifeResult.fail === 0;
+    signsOfLifeResult.fail === 0 &&
+    notificationPreferencesResult.fail === 0;
   console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);
   process.exit(overallOk ? 0 : 1);
 }
