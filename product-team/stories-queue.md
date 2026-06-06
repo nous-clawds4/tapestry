@@ -1,172 +1,244 @@
-# Stories Queue: Communities
+# Stories Queue: Communities (Phase 2 — "Make it live, honestly")
 
-**Slug:** communities
-**Date:** 2026-06-05
-**Source PRD:** `product-team/prd/communities.md` · **Guides:** `guides/communities-design-guide.md`, `guides/communities-style-guide.md`
+**Slug:** communities-v2
+**Date:** 2026-06-06
+**Source PRD:** `product-team/prd/communities-v2.md` · **Guides:** `guides/communities-v2-design-guide.md`, `guides/communities-v2-style-guide.md` (each extends its V1 counterpart)
 
-> Epic-aware backlog. Each block maps onto an engineering epic (suggested `epic-slug` per brief). Dependency-ordered: the first block proves the product end-to-end. The engineering Product Owner promotes each block into `engineering-team/epics/<epic-slug>.md` + `engineering-team/stories/<epic-slug>/`, then runs `/plan-feature` per story. Stories are behavior, not implementation.
+> Epic-aware backlog for Communities Phase 2. Supersedes the V1 queue for engineering pickup; the V1 queue (blocks 1–6, all shipped or carried) is preserved in git history and in `engineering-team/audits/communities/audit.md`. Dependency-ordered: Block A proves the product live end-to-end. The engineering Product Owner promotes each block into `engineering-team/epics/<epic-slug>.md` + `engineering-team/stories/<epic-slug>/`, then runs `/plan-feature` per story. Stories are behavior, not implementation.
+>
+> **Cross-team reality:** several stories depend on platform-side work (the trust-scoring core promotion and config) and on decisions in the PRD's §11 open questions. Each affected story names what must be resolved first. Do not start a blocked story until its named open question is decided.
 
 ## Blocks (dependency order)
 
-1. **Circles as definitions** → `communities-declaration` — found, view, discover. *(MVP, end-to-end proof.)*
-2. **Forking & resolved definitions** → `communities-inheritance` — fork, inherited-field display. *(MVP; first consumer of the §25/§26 substrate.)*
-3. **Trust legibility** → `communities-trust-signal` — point-of-view trust signal + per-member legibility. *(MVP.)*
-4. **Participation** → `communities-participation` — post to a circle (interim gate). *(MVP.)*
-5. **Belonging earned by trust** → `communities-membership` — *Phase 2, blocked* (named below, not decomposed).
-6. **Emergent & portable** → `communities-emergent` — *Phase 3* (named below).
+- **A — Lights on** → `communities-go-live` *(makes the already-built membership surface real in production; unblocks conversation).* 
+- **B — A circle that feels alive** → `communities-aliveness` *(conversation texture + signs of life; independent of the trust engine).*
+- **C — Awareness on your terms** → `communities-notifications` *(sovereign notifications).*
+- **D — A way in for a stranger** → `communities-coldstart` *(the cold-start foothold; depends on A).*
+- **E — Tending without owning** → `communities-caretaking` *(founder standing + retire; depends on A).*
+
+**Order:** A → (B ∥ C) → D → E. B and C depend only on A's posting fallback (B) or on events existing (C), and can run in parallel. D and E depend on A's "lights on".
 
 ---
 
-## Block 1 — Circles as definitions  (`communities-declaration`)
+## Block A — Lights on  (`communities-go-live`)
 
-### Story 1: Found a circle by declaring its definition
-**PRD section(s):** §5.3, §6 · **Persona(s):** Convener · **Block:** Circles as definitions · **Suggested epic-slug:** `communities-declaration`
+### Story 1: Membership surface shows real data in production
+**PRD section(s):** §5.10, §7 · **Persona(s):** Convener, Newcomer, Belonger · **Block:** Lights on · **Suggested epic-slug:** `communities-go-live`
 
-**Description:** A signed-in person declares a new circle (name, purpose, belonging-bar) and lands in it — the end-to-end proof that a circle exists as a definition.
-
-**Acceptance criteria:**
-- [ ] A signed-in user completes a stepper (name, purpose, belonging-bar) and publishes a circle.
-- [ ] After publish, the new circle exists and the founder lands on its read-only detail.
-- [ ] The founder is shown as a peer; no "owner," "admin," or "moderator" label appears.
-- [ ] The belonging-bar is captured as prose (a rule), not as a member list.
-- [ ] Sign-in is requested only at the publish step, and typed state survives it.
-- [ ] A publish failure shows specific copy (network / signing cancelled), never "something went wrong."
-
-**Dependencies:** none.
-**Notes for engineering:** A circle is a definition-bearing concept that maps to the existing `brainstorm-community` concept, evolving it from the owner/signal shape to a declaration shape. No owner semantics. This is the demo milestone for Block 1.
-
-### Story 2: View a circle's definition (read-only)
-**PRD section(s):** §5.2 · **Persona(s):** Newcomer · **Block:** Circles as definitions · **Suggested epic-slug:** `communities-declaration`
-
-**Description:** Any visitor, with no account, can open a circle and read what it is and what it takes to belong.
+**Description:** Turn on the already-built roster and trust signal so a circle on the production site shows real members instead of an empty surface.
 
 **Acceptance criteria:**
-- [ ] A visitor with no account opens a circle and sees its name, purpose, and belonging-bar as prose.
-- [ ] If the circle stands on a parent, a "Based on ‹parent›" link is shown.
-- [ ] Loading shows a shimmer placeholder, not a bare spinner.
-- [ ] A fetch failure shows an error that says what to do, with retry.
-- [ ] No "owner/admin/moderator" language appears anywhere on the page.
+- [ ] On the production site, opening a circle that has members shows a roster of real members, not an empty list.
+- [ ] The house trust signal renders on the circle detail with a real count ("N established members").
+- [ ] A self-tag ("I'm in") and a vouch made on production are reflected in the roster a reader sees.
+- [ ] When the trust source is configured but a circle genuinely has no members, the designed empty state shows, not an error.
+- [ ] No regression: discovery, found, fork, and read-only viewing still work on production.
 
-**Dependencies:** Story 1 (a circle must exist to view).
-**Notes for engineering:** Read-only for everyone. Founder sees an edit affordance later; not in this story.
+**Dependencies:** none in this queue, but **blocked on cross-team work** (see notes).
+**Notes for engineering:** This is a release-gate / configuration-and-verification story, not a feature build. Resolve PRD §11 Q7 first. Cross-team asks: the trust-scoring core promoted staging → prod; deploy config set (the profile API base, the dual-publish relay, CORS for the profile-tags read path, and a house point-of-view rank floor); confirm the dual-publish relay URL with the platform team. Until this lands, the membership surface stays dark and Story 2 governs conversation. Verify on production, not just locally.
 
-### Story 3: Discover circles (read-only)
-**PRD section(s):** §5.1 · **Persona(s):** Newcomer · **Block:** Circles as definitions · **Suggested epic-slug:** `communities-declaration`
+### Story 2: Conversation stays open when the trust source is unreachable
+**PRD section(s):** §5.2 · **Persona(s):** Convener · **Block:** Lights on · **Suggested epic-slug:** `communities-go-live`
 
-**Description:** A visitor with no account browses and searches circles.
+**Description:** When the trust/roster source can't be reached, a signed-in person (including a founder in a brand-new circle) can still post, instead of conversation being locked.
 
 **Acceptance criteria:**
-- [ ] A visitor with no account sees a grid of circle cards (name, purpose, topics).
-- [ ] A search field filters circles by interest.
-- [ ] An empty grid shows "No circles yet. Start the first one." with a start action.
-- [ ] Loading shows card skeletons.
-- [ ] A fetch failure shows an error with retry.
+- [ ] When the roster source is unreachable, a signed-in viewer sees a usable composer, not a disabled or absent one.
+- [ ] A calm note above the composer states the trust network can't be reached, membership can't be confirmed, and they can still post.
+- [ ] A founder in a brand-new circle with an empty/unreachable roster can post.
+- [ ] When the source recovers, the normal trust-based gate resumes and the note disappears.
+- [ ] The degraded note never reads as an error ("something went wrong" is absent).
 
-**Dependencies:** Story 1.
-**Notes for engineering:** The trust signal on each card is added in Block 3; this story renders the card without it.
+**Dependencies:** none. Can ship before Story 1 and resolves the current posting-lock immediately.
+**Notes for engineering:** This is the graceful fallback for the known posting-lock gotcha (the composer gate in the circle detail). Falls back to a signed-in gate when the roster is degraded/unreachable. Ships value even while the surface is still dark, so sequence it early.
 
 ---
 
-## Block 2 — Forking & resolved definitions  (`communities-inheritance`)
+## Block B — A circle that feels alive  (`communities-aliveness`)
 
-### Story 4: Fork a circle (stand on a parent's definition)
-**PRD section(s):** §5.4, §7 · **Persona(s):** Convener · **Block:** Forking & resolved definitions · **Suggested epic-slug:** `communities-inheritance`
+### Story 3: Reply to a post
+**PRD section(s):** §5.1 · **Persona(s):** Belonger, Convener · **Block:** A circle that feels alive · **Suggested epic-slug:** `communities-aliveness`
 
-**Description:** A signed-in person creates a new circle that stands on an existing one, overriding only the fields they change.
-
-**Acceptance criteria:**
-- [ ] From a circle, a signed-in user starts a fork pre-filled with the parent's resolved definition.
-- [ ] Every field is marked "inherited — edit to override."
-- [ ] Editing a field overrides only that field; unedited fields stay linked to the parent.
-- [ ] Publishing creates a new circle whose parent is the source circle.
-- [ ] A persistent "Based on ‹parent›" banner is shown throughout the flow.
-- [ ] Sign-in is requested at publish, with state preserved.
-
-**Dependencies:** Story 1 (circles must exist to fork).
-**Notes for engineering:** First real consumer of the inherit-from + Resolved Definition substrate (BIBLE §25/§26, ADR 0027/0028). "Resolved definition" = the parent chain merged with child overrides; the resolver itself is a substrate implementation story this consumes.
-
-### Story 5: Show inherited vs overridden fields on a forked circle
-**PRD section(s):** §5.2, §7 · **Persona(s):** Newcomer, Convener · **Block:** Forking & resolved definitions · **Suggested epic-slug:** `communities-inheritance`
-
-**Description:** A forked circle's detail makes clear what it inherits and what it changed, and stays live with its parent.
+**Description:** A signed-in member can reply to a post, and the reply shows nested one level under it.
 
 **Acceptance criteria:**
-- [ ] A forked circle's detail shows a "Based on ‹parent›" link that opens the parent.
-- [ ] Inherited fields are visually marked as inherited; overridden fields show the child's value.
-- [ ] When the parent updates an inherited field, the child reflects the new value.
-- [ ] A circle with no parent shows none of the inheritance affordances.
+- [ ] A signed-in member can reply to a post and the reply appears nested one level beneath the parent.
+- [ ] A reply shows author, body, and relative time.
+- [ ] Replies do not nest beyond one level (a reply to a reply attaches at the same single level).
+- [ ] Signed out, the reply action is replaced by a "sign in to reply" prompt, not a disabled control.
+- [ ] A failed reply shows an inline error with retry; the parent post stays visible.
 
-**Dependencies:** Story 4, Story 2.
-**Notes for engineering:** This is the read-side of §26 made visible to users. Live resolution (not a snapshot) is the intended behavior.
+**Dependencies:** Story 2 (posting must be reliable, including the degraded path).
+**Notes for engineering:** Posting already exists. Threading is the new behavior. One level only is a deliberate design constraint for mobile readability (design guide). Reuse the existing composer scoped to the parent.
+
+### Story 4: React to a post
+**PRD section(s):** §5.1 · **Persona(s):** Belonger · **Block:** A circle that feels alive · **Suggested epic-slug:** `communities-aliveness`
+
+**Description:** A signed-in member can add or remove a lightweight reaction to a post, with an honest visible count.
+
+**Acceptance criteria:**
+- [ ] A signed-in member can add a reaction to a post and see the count increase.
+- [ ] Tapping their own reaction again removes it and the count decreases.
+- [ ] The viewer's own reaction is visually distinct from others'.
+- [ ] Reaction counts are exact (not rounded or inflated).
+- [ ] Signed out, reactions are visible but the add action prompts sign-in.
+
+**Dependencies:** Story 3 (shares the post-interaction surface).
+**Notes for engineering:** Counts must be honest and small — no vanity inflation (design principle 7 / style guide). Optimistic toggle is fine; reconcile on failure.
+
+### Story 5: New posts are offered, not forced
+**PRD section(s):** §5.1 · **Persona(s):** Belonger · **Block:** A circle that feels alive · **Suggested epic-slug:** `communities-aliveness`
+
+**Description:** When new posts arrive while a member is reading, a single "N new" affordance appears that they tap to load, rather than content being injected into their view.
+
+**Acceptance criteria:**
+- [ ] When new posts arrive while the conversation is open, a single "N new" affordance appears at the top.
+- [ ] New content loads only when the member taps the affordance; nothing is injected automatically.
+- [ ] The content the member is currently reading does not jump or shift when new posts are available.
+- [ ] When there is nothing new, no affordance is shown.
+- [ ] If the live channel drops, the affordance simply stops appearing and a manual reload still loads new posts.
+
+**Dependencies:** Story 3 (a conversation to update).
+**Notes for engineering:** This is the design's sovereignty constraint made concrete (principle 7): live updates are offered, never auto-played. The "N new" pill is the only live surface. Announce the pill politely to assistive tech (non-interrupting).
+
+### Story 6: Signs of life on a circle
+**PRD section(s):** §5.1, §5.8 · **Persona(s):** Newcomer · **Block:** A circle that feels alive · **Suggested epic-slug:** `communities-aliveness`
+
+**Description:** A circle shows a plain, read-only line that tells a visitor whether it is active or quiet, on both the detail page and discovery cards.
+
+**Acceptance criteria:**
+- [ ] A circle with recent activity shows a concrete line (e.g. "Active today · 6 posts this week") with no account.
+- [ ] A dormant circle shows a plain line (e.g. "Quiet lately · last post 3 weeks ago"), stated calmly.
+- [ ] A brand-new circle shows "New circle · founded today".
+- [ ] The line appears on the circle detail and on discovery cards.
+- [ ] If activity data can't be loaded, the line is omitted rather than shown wrong.
+
+**Dependencies:** Story 3, Story 4 (activity is derived from posts, replies, and reactions).
+**Notes for engineering:** Read-only, no account. Honest about quiet — no "hot"/"trending"/urgency styling (design principle 11). Derived from recent posts/reactions/assertions.
 
 ---
 
-## Block 3 — Trust legibility  (`communities-trust-signal`)
+## Block C — Awareness on your terms  (`communities-notifications`)
 
-### Story 6: Trust signal on discovery and circle detail
-**PRD section(s):** §5.1, §5.2, §7 · **Persona(s):** Newcomer · **Block:** Trust legibility · **Suggested epic-slug:** `communities-trust-signal`
+### Story 7: Notification preferences (the sovereignty control)
+**PRD section(s):** §5.6 · **Persona(s):** Belonger · **Block:** Awareness on your terms · **Suggested epic-slug:** `communities-notifications`
 
-**Description:** Circles show a point-of-view trust signal that works before any account exists.
-
-**Acceptance criteria:**
-- [ ] Signed out, each circle shows "N established members" labeled as the house view, with a "sign in to see who you trust" hint.
-- [ ] Signed in, the signal re-resolves to "N people you trust are inside."
-- [ ] The signal renders with no account (read-only first visit holds).
-- [ ] Loading shows a shimmer.
-- [ ] If the trust network is unreachable, members show without the signal, with retry.
-
-**Dependencies:** Story 2, Story 3.
-**Notes for engineering:** Maps to the existing `web-of-trust` / `graperank` capability. Trust is per point-of-view; the signed-out house view re-resolves to the personal view on sign-in.
-
-### Story 7: Per-member trust legibility
-**PRD section(s):** §5.2, §7 · **Persona(s):** Newcomer · **Block:** Trust legibility · **Suggested epic-slug:** `communities-trust-signal`
-
-**Description:** Each member is shown with how much the viewer's trust vouches for them, so impersonators read as weightless.
+**Description:** A person controls which occasions may reach them, with everything off by default and individually turn-off-able.
 
 **Acceptance criteria:**
-- [ ] A member trusted by people the viewer trusts shows a trusted label paired with a color cue.
-- [ ] An untrusted/impersonator member shows "no one you trust vouches for them," with no alarm styling.
-- [ ] Trust state is conveyed by text and color together, never color alone.
-- [ ] Signed out, rows show the house view.
-- [ ] If trust is unreachable, rows degrade to plain names.
+- [ ] A person sees independent toggles for each occasion (someone vouches for you; new posts in your circles; replies to you).
+- [ ] Every occasion is off by default for a new person.
+- [ ] Turning a toggle on or off saves immediately with a quiet confirmation.
+- [ ] There is no master "turn on everything" control.
+- [ ] Toggle state is conveyed by switch position and an on/off text label, not color alone.
+- [ ] A failed save reverts the toggle to its last saved position and shows an inline retry.
 
-**Dependencies:** Story 6.
-**Notes for engineering:** Calm treatment per the style guide — no "fake/scam/warning" copy. Accessibility: color-independence is a hard requirement.
+**Dependencies:** none (defaults must exist before any notification is sent, so this ships before Story 8).
+**Notes for engineering:** Resolve PRD §11 Q6 (which channels at launch) before building — the toggles must reflect the actual launch channel set, defaulting conservative. This is the enforcement point for the sovereignty principle; defaults off is non-negotiable.
+
+### Story 8: Notification inbox
+**PRD section(s):** §5.5 · **Persona(s):** Belonger, Convener · **Block:** Awareness on your terms · **Suggested epic-slug:** `communities-notifications`
+
+**Description:** A person can open a calm list of things that happened involving them, reached from a quiet new-marker.
+
+**Acceptance criteria:**
+- [ ] A person sees a new-marker (a quiet dot, not a numeric count) when there is something new, respecting their preferences.
+- [ ] Opening the inbox shows one plain sentence per item with actor, occasion, circle, and relative time.
+- [ ] Opening the inbox clears the new-marker; each item links to its source.
+- [ ] Occasions the person has turned off do not appear.
+- [ ] An empty inbox shows the designed empty state; a load failure shows an error with retry.
+
+**Dependencies:** Story 7 (preferences gate what appears here).
+**Notes for engineering:** No numeric badge, no nag, no urgency styling (style guide forbidden list). The new-marker needs a text equivalent for assistive tech. Derive items from vouch/reply/new-activity events filtered by the person's preferences.
 
 ---
 
-## Block 4 — Participation  (`communities-participation`)
+## Block D — A way in for a stranger  (`communities-coldstart`)
 
-### Story 8: Post to a circle (interim gate)
-**PRD section(s):** §5.2, §5.5 · **Persona(s):** Convener, Newcomer · **Block:** Participation · **Suggested epic-slug:** `communities-participation`
+### Story 9: Extend a foothold invite
+**PRD section(s):** §5.3 · **Persona(s):** Convener · **Block:** A way in for a stranger · **Suggested epic-slug:** `communities-coldstart`
 
-**Description:** A signed-in viewer posts to a circle's conversation.
+**Description:** A founder or member can create an invite that carries their vouch, so an outsider can join even with no existing trust.
 
 **Acceptance criteria:**
-- [ ] A signed-in viewer posts to a circle and sees the post appear with author, body, and relative time.
-- [ ] Signed out, a "sign in to post" prompt replaces the composer (no disabled-button tease).
-- [ ] An empty conversation shows "No posts yet. Start the conversation."
-- [ ] Loading shows post skeletons.
-- [ ] A post failure shows an inline error with retry.
+- [ ] A signed-in member can create an invite from a circle and receive a shareable link.
+- [ ] The invite flow states plainly that the invite vouches for the recipient and that the issuer's vouch stands behind them.
+- [ ] An issuer can see the invites they have created.
+- [ ] An empty state explains what an invite is for before any exist.
+- [ ] A failed invite creation shows an inline error with retry.
 
-**Dependencies:** Story 2.
-**Notes for engineering:** Posts already use the standard note format in the existing app. **PRD Open Question #5** must be resolved first: the MVP posting gate is interim (open to any signed-in viewer vs. founder-seeded). Trust-based gating replaces it in Block 5 (Phase 2).
+**Dependencies:** Story 1 (membership must be live for a carried vouch to mean anything).
+**Notes for engineering:** Resolve PRD §11 Q1 (cold-start mechanism) before building — the design assumes the invite carries a vouch; founder-grant and provisional standing are the named fallbacks. Worded as a personal act of trust, never an approval (style guide).
+
+### Story 10: Accept a foothold and enter as a newcomer
+**PRD section(s):** §5.4 · **Persona(s):** Newcomer · **Block:** A way in for a stranger · **Suggested epic-slug:** `communities-coldstart`
+
+**Description:** A true outsider opens an invite, creates a portable identity, and enters the circle through the carried vouch.
+
+**Acceptance criteria:**
+- [ ] An invited outsider sees who invited them and which circle, in plain prose, before signing in.
+- [ ] Accepting creates a portable identity and the carried vouch takes effect, so they appear as a new member.
+- [ ] After accepting, the path from "just arrived" to fuller belonging is stated.
+- [ ] An expired invite shows a path forward ("ask whoever shared it for a new one"), never a dead end.
+- [ ] Intended state survives the identity step; a signing failure shows specific copy, not "something went wrong".
+
+**Dependencies:** Story 9 (an invite must exist to accept).
+**Notes for engineering:** This is the cold-start payoff — entry through a person's extended trust, not an admin approval. Reuse the V1 sign-in/identity prompt pattern and copy stance. Verify the accepted vouch produces membership a reader can see (ties to Story 1).
 
 ---
 
-## Block 5 — Belonging earned by trust  (`communities-membership`) — Phase 2, BLOCKED
+## Block E — Tending without owning  (`communities-caretaking`)
 
-Not decomposed here. Activates the Belonger persona's full loop: join, vouch, the trust-weighted per-viewer roster, applicant → member, weightless disputes, and the cold-start first-vouch path. **Blocked** on the portable trust-assertion capability landing on the mainline (PRD Open Question #1 — the cross-team reconciliation). When unblocked, decompose into: assert membership, vouch for a member, compute the per-viewer roster, applicant→member progression, weightless-dispute handling, retire the interim posting gate, and a cold-start first-vouch path (PRD Open Question #3).
+### Story 11: Founder sees their head start fade
+**PRD section(s):** §5.7 · **Persona(s):** Convener · **Block:** Tending without owning · **Suggested epic-slug:** `communities-caretaking`
 
-## Block 6 — Emergent & portable  (`communities-emergent`) — Phase 3
+**Description:** A founder sees a legible, founder-only panel showing their share of the circle's trust shrinking as the circle grows.
 
-Not decomposed here. Convergent canonical communities (overlapping rosters), portable belonging across surfaces, and the no-central-admin moderation/safety stance (PRD Open Question #4).
+**Acceptance criteria:**
+- [ ] A founder sees a founder-only panel stating the circle's current state in concrete terms and a proportion of their standing.
+- [ ] In a just-founded circle, the panel explains the head start fades on purpose as people join and vouch.
+- [ ] As the circle's internal trust grows, the founder's shown share decreases.
+- [ ] The panel is not shown to non-founders.
+- [ ] If the figure can't load, the panel is hidden rather than shown broken.
+
+**Dependencies:** Story 1 (trust data must be live to compute and show the share).
+**Notes for engineering:** Resolve PRD §11 Q2 (the legible decay rule) before building — the rule must be explainable in one plain sentence to the founder. This makes the no-owner promise inspectable (design principle 9). Read-only, no action.
+
+### Story 12: Founder auto-belong, confirmed
+**PRD section(s):** §11 Q4 · **Persona(s):** Convener · **Block:** Tending without owning · **Suggested epic-slug:** `communities-caretaking`
+
+**Description:** Founding a circle makes the founder a member, ratified as intended behavior so a new circle is never empty of its founder.
+
+**Acceptance criteria:**
+- [ ] Founding a circle results in the founder appearing as a member of it.
+- [ ] The founder is shown as a peer member, with no owner/admin/moderator label.
+- [ ] The behavior holds for both newly founded and forked circles.
+
+**Dependencies:** Story 1 (membership must be live to observe the founder as a member).
+**Notes for engineering:** The founder auto-self-tag already ships (it landed under the V1 work). This story ratifies and verifies it against PRD §11 Q4 — confirm it is the intended product behavior and that it reads correctly once the surface is live. If the decision is to separate founding from belonging, this story flips to that instead.
+
+### Story 13: Retire a circle
+**PRD section(s):** §5.9 · **Persona(s):** Convener · **Block:** Tending without owning · **Suggested epic-slug:** `communities-caretaking`
+
+**Description:** A circle can be retired as a trust-consistent act so it stops appearing in discovery while its history is kept, and this is used to clear the three legacy test circles.
+
+**Acceptance criteria:**
+- [ ] A founder can retire a circle through a flow worded as a community act, with a confirm step that restates the outcome.
+- [ ] A retired circle no longer appears in discovery.
+- [ ] A direct link to a retired circle resolves to a clearly-marked retired view stating its history is still present.
+- [ ] The three legacy test circles are retired and gone from production discovery.
+- [ ] A failed retirement shows an inline error with retry.
+
+**Dependencies:** none (can build independently; uses the live site to clear the test circles).
+**Notes for engineering:** Resolve PRD §11 Q5 (retirement mechanism, and one-off vs durable feature) before building — the design assumes a durable feature. Copy must never imply unilateral owner authority (style guide forbidden list). First enumerate the three legacy test circles on the live relay (their slugs, author pubkeys, and kind) before retiring them.
 
 ---
 
 ## Handoff notes for the engineering Product Owner
 
-- **Order:** Block 1 → (Block 2 ∥ Block 3) → Block 4. Blocks 2 and 3 both depend only on Block 1 and can run in parallel. Block 4 depends on Block 1.
-- **Substrate already ratified:** the §25 inherit-from tag and §26 Resolved Definition (ADR 0027/0028) are in the BIBLE. Block 2 consumes them; the *resolver implementation* is a substrate engineering story Block 2 depends on (the BIBLE defines the contract; no code exists yet).
-- **Resolve before building:** PRD Open Question #5 (MVP posting gate) gates Story 8; Open Question #2 (evolve vs parallel surface) shapes how Block 1 relates to the existing community surface.
-- **Existing surface:** a frozen owner-style community app exists. Per PRD Open Question #2, run it in parallel during transition rather than a hard cutover.
+- **Order:** Block A first (it is the demo milestone — a live circle with a real roster you can post in). Then Blocks B and C in parallel (neither needs the trust engine beyond posting). Then D and E (both need A's "lights on").
+- **First demoable moment:** after Story 1 + Story 2, a founder can open a circle on production, see a real roster and trust signal, and hold a conversation. That is the proof the product is alive.
+- **Resolve-before-building (PRD §11):** Q7 gates Story 1; Q6 gates Story 7; Q1 gates Story 9; Q2 gates Story 11; Q4 shapes Story 12; Q5 gates Story 13. Q3 (default belonging threshold) is a configuration decision that should be settled before launch but does not block a specific story.
+- **Cross-team asks to relay:** platform team — promote the trust-scoring core to production, add the per-row self-applied flag (unblocks the deferred applicant role in Phase 3), confirm the dual-publish relay URL. Ops — set the deploy config (profile API base, dual-publish relay, CORS for the profile-tags path, house point-of-view rank floor).
+- **Engineering carry-forward (not stories here; from the close audit):** the ADR refolder execution, the multi-parent fork diamond fence before multi-parent claims inheritance, and the decision on a per-call rank override for the roster read. Route these through the engineering harness as housekeeping.
+- **Deferred to later phases (do not build now):** per-viewer trust signal, discovery-grid trust signal, applicant-role surfacing, member profiles/directory, richer discovery → Phase 3. Full moderation/dispute-resolution, bespoke→declaration migration, portable belonging, emergent canonical communities → Phase 4.
