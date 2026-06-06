@@ -6,6 +6,8 @@ const fs = require('fs');
 const path = require('path');
 const ROOT = path.resolve(__dirname, '..');
 const DETAIL = path.join(ROOT, 'ui-communities/src/pages/CommunityDetail.jsx');
+// ADR-0036 factored the anchor derivation into the shared circleATag helper.
+const CIRCLE = path.join(ROOT, 'ui-communities/src/lib/circle.js');
 
 const tests = [];
 function test(name, fn) { tests.push({ name, fn }); }
@@ -13,9 +15,13 @@ function assert(cond, msg) { if (!cond) throw new Error(msg || 'Assertion failed
 function read(p) { try { return fs.readFileSync(p, 'utf8'); } catch (e) { throw new Error(`failed to read ${path.relative(ROOT, p)}: ${e.message}`); } }
 
 test('T1: post anchor derives from the circle model (39998 for declaration, else 39999)', () => {
+  // The anchor ternary lives in the shared circleATag helper (ADR-0036)...
+  const circleSrc = read(CIRCLE);
+  assert(/model\s*===\s*['"]declaration['"]\s*\?\s*['"]39998['"]\s*:\s*['"]39999['"]/.test(circleSrc),
+    'circleATag must pick 39998 for declaration circles, 39999 otherwise');
+  // ...and CommunityDetail derives its anchor through it.
   const src = read(DETAIL);
-  assert(/model\s*===\s*['"]declaration['"]\s*\?\s*['"]39998['"]\s*:\s*['"]39999['"]/.test(src),
-    'communityATag must pick 39998 for declaration circles, 39999 otherwise');
+  assert(/circleATag\s*\(/.test(src), 'CommunityDetail derives communityATag via circleATag');
 });
 
 test('T2: posting wiring intact — buildCommunityPost + publishEvent (no regression)', () => {
