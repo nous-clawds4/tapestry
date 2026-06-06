@@ -20,6 +20,16 @@ const USE_MOCK = import.meta.env.VITE_USE_MOCK_DATA === 'true'
 // host URL connects to the HTTP root and never upgrades to a websocket.
 export const DEFAULT_RELAYS = ['wss://communities.brainstorm.world/relay']
 
+// Membership writes — tag-elements + assertions — must also reach the host that
+// runs the read+score engine (ADR 0031, A1 dual-publish), so its strfry sees
+// them and the roster resolves. The extra target is env-driven (VITE_TAG_RELAY)
+// rather than hardcoded; unset → communities relay only (a relay mirror, A2,
+// can cover the gap instead). CDs and conversation events do NOT fan out here.
+const TAG_RELAY = (import.meta.env.VITE_TAG_RELAY || '').trim()
+export const MEMBERSHIP_WRITE_RELAYS = TAG_RELAY
+  ? [...DEFAULT_RELAYS, TAG_RELAY]
+  : DEFAULT_RELAYS
+
 const DEFAULT_TIMEOUT_MS = 10000
 
 /**

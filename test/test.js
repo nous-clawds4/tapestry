@@ -67,6 +67,8 @@ const rosterEngine = require('./roster-engine.test.js');
 const cdClaimsField = require('./cd-claims-field.test.js');
 const membershipAssertion = require('./membership-assertion.test.js');
 const rosterClient = require('./roster-client.test.js');
+const foundingPublishesTagElement = require('./founding-publishes-tag-element.test.js');
+const uiPeopleRoster = require('./ui-people-roster.test.js');
 
 async function main() {
   console.log('Running Brainstorm tests...\n');
@@ -205,6 +207,12 @@ async function main() {
   console.log('\nroster-client suite:');
   const rosterClientResult = await rosterClient.run();
 
+  console.log('\nfounding-publishes-tag-element suite:');
+  const foundingPublishesTagElementResult = await foundingPublishesTagElement.run();
+
+  console.log('\nui-people-roster suite:');
+  const uiPeopleRosterResult = await uiPeopleRoster.run();
+
   console.log('\nTest Results');
   console.log('-------------');
   console.log(`Configuration Loading:                           ${configOk ? 'PASS' : 'FAIL'}`);
@@ -340,6 +348,12 @@ async function main() {
   console.log(
     `roster-client suite:                             ${rosterClientResult.fail === 0 ? 'PASS' : 'FAIL'} (${rosterClientResult.pass} passed, ${rosterClientResult.fail} failed)`
   );
+  console.log(
+    `founding-publishes-tag-element suite:            ${foundingPublishesTagElementResult.fail === 0 ? 'PASS' : 'FAIL'} (${foundingPublishesTagElementResult.pass} passed, ${foundingPublishesTagElementResult.fail} failed)`
+  );
+  console.log(
+    `ui-people-roster suite:                          ${uiPeopleRosterResult.fail === 0 ? 'PASS' : 'FAIL'} (${uiPeopleRosterResult.pass} passed, ${uiPeopleRosterResult.fail} failed)`
+  );
 
   const overallOk =
     configOk &&
@@ -386,7 +400,9 @@ async function main() {
     rosterEngineResult.fail === 0 &&
     cdClaimsFieldResult.fail === 0 &&
     membershipAssertionResult.fail === 0 &&
-    rosterClientResult.fail === 0;
+    rosterClientResult.fail === 0 &&
+    foundingPublishesTagElementResult.fail === 0 &&
+    uiPeopleRosterResult.fail === 0;
   console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);
   process.exit(overallOk ? 0 : 1);
 }

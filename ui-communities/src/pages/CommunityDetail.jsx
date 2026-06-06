@@ -7,10 +7,13 @@ import PostCard from '../components/PostCard.jsx'
 import PostSkeleton from '../components/PostSkeleton.jsx'
 import BrainstormMark from '../components/BrainstormMark.jsx'
 import FetchError from '../components/FetchError.jsx'
+import TrustSignal from '../components/TrustSignal.jsx'
 import { getCommunity, getCommunityMembers } from '../api/client.js'
 import { buildCommunityRecord, buildCommunityPost } from '../events/build.js'
-import { publishEvent } from '../events/publish.js'
+import { buildMembershipAssertion } from '../events/assertion.js'
+import { publishEvent, MEMBERSHIP_WRITE_RELAYS } from '../events/publish.js'
 import { fetchPostsForCommunity, fetchCommunityDeclaration } from '../events/fetch.js'
+import { getRoster, resolveTagElement } from '../lib/roster.js'
 import { resolveDefinition } from '../lib/resolveDefinition.js'
 import { publishErrorCopy } from '../lib/errors.js'
 import { formatCount } from '../lib/format.js'
@@ -43,6 +46,13 @@ export default function CommunityDetail({ slug }) {
   })
   const [publishError, setPublishError] = useState(null)
   const [publishing, setPublishing] = useState(false)
+
+  // Live, per-viewer member roster for declaration-model circles (Story 45).
+  // Bespoke circles keep the getCommunityMembers path (state.members).
+  const [rosterState, setRosterState] = useState({
+    status: 'idle', members: [], degraded: false,
+  })
+  const [actionTarget, setActionTarget] = useState(null) // pubkey mid-assertion ('self' = the viewer)
 
   // Conversation tab state — lazy fetch on first tab open, re-fetch
   // after Send. See ADR-0010 for the one-shot vs live decision.
@@ -110,6 +120,55 @@ export default function CommunityDetail({ slug }) {
       .catch(() => { /* parent unreachable — show own fields only */ })
     return () => { cancelled = true }
   }, [state.community])
+
+  // Load the live roster for declaration circles. House PoV in v1 (per-viewer
+  // PoV needs WoT provisioning on the read host; ADR 0031). getRoster never
+  // throws — it returns `degraded:true` when the trust network was unreachable,
+  // which the People tab distinguishes from a genuinely empty circle.
+  useEffect(() => {
+    const community = state.community
+    if (!community || community.model !== 'declaration') {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setRosterState({ status: 'idle', members: [], degraded: false })
+      return
+    }
+    let cancelled = false
+    setRosterState(prev => ({ ...prev, status: 'loading' }))
+    getRoster(community, { wotPov: 'house' })
+      .then(r => {
+        if (cancelled) return
+        setRosterState({ status: 'ready', members: r.members, degraded: r.degraded })
+      })
+      .catch(() => {
+        if (cancelled) return
+        setRosterState({ status: 'ready', members: [], degraded: true })
+      })
+    return () => { cancelled = true }
+  }, [state.community, retryNonce])
+
+  // Publish a membership assertion: "I'm in" (target = the viewer, +1) or a
+  // vouch for another member (+1). Resolves the circle's first claimed
+  // tag-element, signs via NIP-07, dual-publishes, then re-fetches the roster.
+  async function handleAssert(target, polarity) {
+    if (!signedIn || !viewer || !currentCommunity || actionTarget) return
+    // Writes target the FIRST claimed tag-element; reads (getRoster) union across
+    // all claims. Fine in v1 — founding only emits the single default claim, so
+    // multi-claim circles aren't UI-creatable yet. Revisit if/when they are.
+    const coord = (currentCommunity.claims && currentCommunity.claims[0]) || null
+    if (!coord) { setPublishError("This circle hasn't set up membership yet."); return }
+    setActionTarget(target === viewer ? 'self' : target)
+    setPublishError(null)
+    try {
+      const tagEl = await resolveTagElement(coord)
+      if (!tagEl) { setPublishError("Couldn't reach this circle's membership tag. Try again in a moment."); return }
+      const unsigned = buildMembershipAssertion({ viewerPubkey: viewer, target, tagElement: tagEl, polarity })
+      const result = await publishEvent(unsigned, { relays: MEMBERSHIP_WRITE_RELAYS })
+      if (!result.ok) { setPublishError(publishErrorCopy(result)); return }
+      triggerRetry() // re-fetch the roster (propagation may lag a beat)
+    } finally {
+      setActionTarget(null)
+    }
+  }
 
   const currentCommunity = state.community
   // Post anchor (NB-1): a Community Declaration is kind-39998; the bespoke
@@ -269,6 +328,8 @@ export default function CommunityDetail({ slug }) {
   const c = state.community
   const members = state.members
   const joined = joinedSet.has(c.slug)
+  const isDeclaration = c.model === 'declaration'
+  const peopleCount = isDeclaration ? rosterState.members.length : members.length
 
   const realPosts = postsState.items
   const allPosts = [...pending, ...realPosts]
@@ -370,13 +431,65 @@ export default function CommunityDetail({ slug }) {
             onClick={() => setTab(t.id)}
             aria-current={tab === t.id ? 'true' : undefined}
           >
-            {t.id === 'people' ? `${t.label} (${members.length})` : t.label}
+            {t.id === 'people' ? `${t.label} (${peopleCount})` : t.label}
           </button>
         ))}
       </nav>
 
       <section className={s.body}>
-        {tab === 'people' && (
+        {tab === 'people' && isDeclaration && (
+          <div className={s.peoplePanel}>
+            <TrustSignal members={rosterState.members} personalPov={false} signedIn={signedIn} />
+
+            {signedIn && (
+              <div className={s.belongActions}>
+                <Button
+                  size="sm"
+                  variant="primary"
+                  onClick={() => handleAssert(viewer, 1)}
+                  disabled={actionTarget === 'self'}
+                >
+                  {actionTarget === 'self' ? 'Sending…' : "I'm in"}
+                </Button>
+                {publishError && <p className={s.publishError} role="alert">{publishError}</p>}
+              </div>
+            )}
+
+            {rosterState.status === 'loading' && (
+              <div className={s.rosterShimmer} aria-hidden="true">
+                <div className={s.shimmerRow} />
+                <div className={s.shimmerRow} />
+              </div>
+            )}
+
+            {rosterState.status === 'ready' && (
+              <ul className={s.peopleList}>
+                {rosterState.members.map(m => (
+                  <li key={m.pubkey}>
+                    <RosterRow
+                      member={m}
+                      isSelf={m.pubkey === viewer}
+                      canVouch={signedIn && m.pubkey !== viewer}
+                      pending={actionTarget === m.pubkey}
+                      onVouch={() => handleAssert(m.pubkey, 1)}
+                    />
+                  </li>
+                ))}
+                {rosterState.members.length === 0 && !rosterState.degraded && (
+                  <li className={s.emptyPosts}>No established members yet — be the first to belong.</li>
+                )}
+                {rosterState.members.length === 0 && rosterState.degraded && (
+                  <li className={s.emptyPosts}>
+                    We couldn&rsquo;t reach the trust network.{' '}
+                    <button type="button" className={s.parentLink} onClick={triggerRetry}>Retry</button>
+                  </li>
+                )}
+              </ul>
+            )}
+          </div>
+        )}
+
+        {tab === 'people' && !isDeclaration && (
           <ul className={s.peopleList}>
             {members.map(m => (
               <li key={m.id || m.pubkey}>
@@ -462,6 +575,38 @@ export default function CommunityDetail({ slug }) {
 
         {tab === 'about' && <About />}
       </section>
+    </div>
+  )
+}
+
+function RosterRow({ member, isSelf, canVouch, pending, onVouch }) {
+  // A surfaced member cleared the trust gate, so they read as trusted from the
+  // (house) PoV. The untrusted variant is data-driven for when applicant/0-app
+  // rows surface later (needs the endpoint's selfApplied flag).
+  const trusted = (member.applications || 0) > 0
+  const name = member.displayName || `${String(member.pubkey).slice(0, 8)}…`
+  return (
+    <div className={s.rosterRow}>
+      <span className={s.rosterAvatar} aria-hidden="true">
+        {member.picture
+          ? <img src={member.picture} alt="" className={s.rosterAvatarImg} loading="lazy" />
+          : <span className={s.rosterAvatarFallback}>{name.slice(0, 2).toUpperCase()}</span>}
+      </span>
+      <span className={s.rosterIdentity}>
+        <span className={s.rosterName}>
+          {name}
+          {isSelf && <span className={s.rosterYou}> (you)</span>}
+        </span>
+        <span className={trusted ? s.standingTrusted : s.standingUntrusted}>
+          {trusted && <span className={s.trustDot} aria-hidden="true" />}
+          {trusted ? 'trusted by people you trust' : 'no one you trust vouches for them'}
+        </span>
+      </span>
+      {canVouch && (
+        <Button size="sm" variant="ghost" onClick={onVouch} disabled={pending}>
+          {pending ? 'Sending…' : 'Vouch'}
+        </Button>
+      )}
     </div>
   )
 }

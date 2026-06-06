@@ -28,6 +28,11 @@ function loadExport(name, { async: isAsync = false } = {}) {
   // helpers' own correctness is covered against source by T1-T5.
   const prelude = `
     const USE_MOCK = false;
+    function parseClaimCoord(coord) {
+      if (typeof coord !== 'string') return null;
+      const m = coord.match(/^39999:([0-9a-f]{64}):(.+)$/);
+      return m ? { author: m[1], slug: m[2] } : null;
+    }
     function isMember(a, d, t) { t = t == null ? 1 : t; return a >= t && a > d; }
     function mergeRows(sets) {
       const m = new Map();
@@ -150,6 +155,26 @@ test('T9: getRoster unions a shared target across two resolved claims', async ()
   const { members } = await getRoster(circle, { resolveEventId, fetchCounts, threshold: 2 });
   assert(members.length === 1 && members[0].pubkey === 'shared' && members[0].applications === 2,
     'applications sum across both claimed tags through getRoster (1+1 ≥ threshold 2)');
+});
+
+test('T10: resolveTagElement builds {eventId, aCoord, slug} via injected resolver', async () => {
+  const resolveTagElement = loadExport('resolveTagElement', { async: true });
+  const coord = `39999:${'a'.repeat(64)}:climbers`;
+  const out = await resolveTagElement(coord, { resolveEventId: async () => 'e'.repeat(64) });
+  assert(out && out.eventId === 'e'.repeat(64) && out.aCoord === coord && out.slug === 'climbers', 'descriptor built');
+  assert((await resolveTagElement('not-a-coord', { resolveEventId: async () => 'x' })) === null, 'malformed coord → null');
+  assert((await resolveTagElement(coord, { resolveEventId: async () => null })) === null, 'no element on relay → null');
+});
+
+test('T11: getRoster flags degraded when a fetch reports ok:false', async () => {
+  const getRoster = loadExport('getRoster', { async: true });
+  const circle = { claims: [`39999:${'a'.repeat(64)}:c`] };
+  const { degraded, members } = await getRoster(circle, {
+    resolveEventId: async () => 'e'.repeat(64),
+    fetchCounts: async () => ({ rows: [], viewerAssertions: {}, ok: false }),
+  });
+  assert(degraded === true, 'degraded true when a fetch failed');
+  assert(members.length === 0, 'no members on a failed fetch');
 });
 
 async function run() {

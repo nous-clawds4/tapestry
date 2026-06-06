@@ -10,7 +10,8 @@ import ViewCallout from '../components/ViewCallout.jsx'
 // parent's resolved definition (§26); unedited fields are omitted so they
 // inherit live from the parent.
 import { buildCommunityDeclaration } from '../events/declaration.js'
-import { publishEvent } from '../events/publish.js'
+import { buildTagElement } from '../events/assertion.js'
+import { publishEvent, MEMBERSHIP_WRITE_RELAYS } from '../events/publish.js'
 import { fetchCommunityDeclaration } from '../events/fetch.js'
 import { resolveDefinition } from '../lib/resolveDefinition.js'
 import { publishErrorCopy, signInErrorCopy } from '../lib/errors.js'
@@ -85,11 +86,32 @@ export default function Found() {
 
     const unsigned = buildCommunityDeclaration({ viewerPubkey: viewer, circle, parentATag })
     const result = await publishEvent(unsigned)
-    setPublishing(false)
     if (!result.ok) {
+      setPublishing(false)
       setPublishError(publishErrorCopy(result))
       return
     }
+
+    // Founding also publishes the circle's own tag-element (kind-39999) so its
+    // default claim `39999:<founder>:<slug>` resolves to a real event for the
+    // roster read (ADR 0030/0031). Dual-published so the read engine's host sees
+    // it. A fork inherits the parent's claim, so it skips this. Best-effort:
+    // the circle already exists (the CD published); a failed tag-element only
+    // delays membership, so we log rather than fail the whole found.
+    if (!forking) {
+      const tagEl = buildTagElement({
+        viewerPubkey: viewer,
+        slug,
+        name: circle.name || slug,
+        description: circle.purpose || '',
+      })
+      const tagResult = await publishEvent(tagEl, { relays: MEMBERSHIP_WRITE_RELAYS })
+      if (!tagResult.ok) {
+        console.warn('[found] tag-element publish failed:', tagResult.error, tagResult.message)
+      }
+    }
+
+    setPublishing(false)
     onJoin(slug)
     navigate(`/community/${slug}`)
   }

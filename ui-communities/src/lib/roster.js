@@ -115,20 +115,37 @@ async function collectFromRelay(url, filter, events, timeoutMs) {
   })
 }
 
-/** Fetch WoT-gated counts for one tag-element from the read engine (cross-origin). */
+/**
+ * Resolve a claimed coord to a tag-element descriptor `{ eventId, aCoord, slug }`
+ * for the assertion writer (which needs the current event id + the stable coord).
+ * Returns null if the coord is malformed or no element is on the relay yet.
+ */
+export async function resolveTagElement(coord, opts = {}) {
+  const parsed = parseClaimCoord(coord)
+  if (!parsed) return null
+  const resolve = opts.resolveEventId || defaultResolveEventId
+  const eventId = await resolve(coord)
+  return eventId ? { eventId, aCoord: coord, slug: parsed.slug } : null
+}
+
+/**
+ * Fetch WoT-gated counts for one tag-element from the read engine (cross-origin).
+ * `ok` distinguishes a real failure (CORS/network/server) from a genuinely empty
+ * tag, so getRoster can surface "trust network unreachable" vs "no members yet".
+ */
 async function defaultFetchCounts(tagEventId, wotPov = 'house') {
   const url = `${API_BASE}/api/profile-tags/profiles-tagged?tagEventId=${encodeURIComponent(tagEventId)}&wotPov=${encodeURIComponent(wotPov)}`
   try {
     const resp = await fetch(url)
-    if (!resp.ok) return { rows: [], viewerAssertions: {} }
+    if (!resp.ok) return { rows: [], viewerAssertions: {}, ok: false }
     const body = await resp.json()
-    if (!body || body.success === false) return { rows: [], viewerAssertions: {} }
-    return { rows: body.rows || [], viewerAssertions: body.viewerAssertions || {} }
+    if (!body || body.success === false) return { rows: [], viewerAssertions: {}, ok: false }
+    return { rows: body.rows || [], viewerAssertions: body.viewerAssertions || {}, ok: true }
   } catch (err) {
-    // Graceful empty — same posture as lib/profiles.js (CORS/network failures
-    // show an empty roster rather than crashing the People tab).
+    // Graceful — same posture as lib/profiles.js (CORS/network failures show an
+    // empty roster rather than crashing the People tab), but flagged degraded.
     console.warn('[roster] profiles-tagged failed:', (err && err.message) || err)
-    return { rows: [], viewerAssertions: {} }
+    return { rows: [], viewerAssertions: {}, ok: false }
   }
 }
 
@@ -153,19 +170,21 @@ export async function getRoster(circle, opts = {}) {
     ? opts.threshold
     : (circle && circle.membershipThreshold != null ? circle.membershipThreshold : undefined)
 
-  if (USE_MOCK) return { members: [], viewerAssertions: {} }
+  if (USE_MOCK) return { members: [], viewerAssertions: {}, degraded: false }
 
   const claims = (circle && Array.isArray(circle.claims)) ? circle.claims : []
   const rowSets = []
   const viewerAssertions = {}
+  let degraded = false
   for (const coord of claims) {
     const eventId = await resolveEventId(coord)
     if (!eventId) continue
-    const { rows, viewerAssertions: va } = await fetchCounts(eventId, wotPov)
-    rowSets.push(rows || [])
-    Object.assign(viewerAssertions, va || {})
+    const res = await fetchCounts(eventId, wotPov)
+    if (res && res.ok === false) degraded = true
+    rowSets.push((res && res.rows) || [])
+    Object.assign(viewerAssertions, (res && res.viewerAssertions) || {})
   }
 
   const { members } = rosterFromCounts(mergeRows(rowSets), { threshold })
-  return { members, viewerAssertions }
+  return { members, viewerAssertions, degraded }
 }
