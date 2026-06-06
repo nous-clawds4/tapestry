@@ -49,6 +49,6 @@ None outstanding. Resolved during planning:
 - **Label** → **"Verified Followers"** (not bare "Followers"), so the deliberately verified-only figure is not misread as a raw follower total.
 
 ## Linked artifacts
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/profile/0029-profile-verified-followers-count.md` (Accepted 2026-06-06)
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
