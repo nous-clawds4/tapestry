@@ -239,12 +239,12 @@ export default function BrainstormProfile() {
                 <span className="bsp-count-value">{fmtCount(followingCount)}</span>
                 <span className="bsp-count-label">Following</span>
               </Link>
-              {/* Verified Followers: plain (non-link) until the followers table ships (story #33, ADR 0029).
-                  Value rides the PoV-resolved trustScores; `??` keeps a genuine 0 from being dropped. */}
-              <div className="bsp-count">
+              {/* Verified Followers → followers table (story #34, ADR 0030). Value rides the
+                  PoV-resolved trustScores; `??` keeps a genuine 0 from being dropped. */}
+              <Link to={`/user/${pubkey}/followers`} className="bsp-count bsp-count-link">
                 <span className="bsp-count-value">{fmtCount(trustScores?.verifiedFollowerCount ?? trustScores?.followers)}</span>
                 <span className="bsp-count-label">Verified Followers</span>
-              </div>
+              </Link>
             </div>
 
             {/* Action buttons */}
