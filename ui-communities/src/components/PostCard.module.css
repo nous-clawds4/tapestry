@@ -84,9 +84,37 @@
   background: var(--bg-hover);
 }
 
-/* Reply affordance (ADR-0033) */
+/* Reply + reaction affordances (ADR-0033 / ADR-0034) */
 .actions {
   margin-top: var(--space-2);
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+/* Reaction (ADR-0034) — single like; viewer's own reaction is accent-outlined. */
+.reactBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  background: var(--bg-hover);
+  border: 1px solid transparent;
+  border-radius: var(--radius-full);
+  padding: 2px 10px;
+  font: inherit;
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  cursor: pointer;
+  min-height: 28px;
+}
+
+.reactBtn:hover {
+  color: var(--text);
+}
+
+.reactMine {
+  border-color: var(--accent);
+  color: var(--text);
 }
 
 .replyBtn {

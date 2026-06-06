@@ -243,6 +243,31 @@ export function buildCommunityPost({ viewerPubkey, communityATag, content, paren
   }
 }
 
+/**
+ * Build a NIP-25 kind-7 reaction to a circle post (ADR-0034). Single reaction
+ * type: content '+' (active) or '-' (removed) under the latest-per-reactor model.
+ * Uppercase A scopes the reaction to the circle (mirrors posts); e/p/k target the
+ * reacted kind-1111 comment.
+ */
+export function buildReaction({ viewerPubkey, communityATag, post, active = true }) {
+  if (!viewerPubkey) throw new Error('buildReaction: viewerPubkey is required')
+  if (!communityATag) throw new Error('buildReaction: communityATag is required')
+  if (!post || !post.id || !post.author) throw new Error('buildReaction: post requires id and author')
+
+  return {
+    kind: 7,
+    tags: [
+      ['A', communityATag],
+      ['e', post.id, '', post.author],
+      ['p', post.author],
+      ['k', '1111'],
+    ],
+    content: active ? '+' : '-',
+    created_at: nowSec(),
+    pubkey: viewerPubkey,
+  }
+}
+
 export const CONSTANTS = {
   COMMUNITIES_DLIST_DTAG,
   ENDORSEMENTS_DLIST_DTAG,

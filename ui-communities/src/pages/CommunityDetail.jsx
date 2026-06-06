@@ -9,10 +9,11 @@ import BrainstormMark from '../components/BrainstormMark.jsx'
 import FetchError from '../components/FetchError.jsx'
 import TrustSignal from '../components/TrustSignal.jsx'
 import { getCommunity, getCommunityMembers } from '../api/client.js'
-import { buildCommunityRecord, buildCommunityPost } from '../events/build.js'
+import { buildCommunityRecord, buildCommunityPost, buildReaction } from '../events/build.js'
 import { buildMembershipAssertion } from '../events/assertion.js'
 import { publishEvent, MEMBERSHIP_WRITE_RELAYS } from '../events/publish.js'
-import { fetchPostsForCommunity, fetchCommunityDeclaration } from '../events/fetch.js'
+import { fetchPostsForCommunity, fetchReactionsForCommunity, fetchCommunityDeclaration } from '../events/fetch.js'
+import { summarizeReactions } from '../lib/reactions.js'
 import { getRoster, resolveTagElement } from '../lib/roster.js'
 import { resolveDefinition } from '../lib/resolveDefinition.js'
 import { publishErrorCopy } from '../lib/errors.js'
@@ -34,8 +35,24 @@ const TABS = [
   { id: 'about', label: 'How this works' },
 ]
 
+// Build an optimistic local reaction marker (ADR-0034). Module-scope so the
+// id/timestamp generation lives outside the component (the impure now/random
+// calls would otherwise be flagged by react-hooks/purity in render scope).
+function makeOptimisticReaction(targetId, reactor, active) {
+  const localId = (typeof crypto !== 'undefined' && crypto.randomUUID)
+    ? crypto.randomUUID()
+    : `rx-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+  return {
+    targetId,
+    reactor,
+    content: active ? '+' : '-',
+    createdAt: Math.floor(Date.now() / 1000),
+    _localId: localId,
+  }
+}
+
 export default function CommunityDetail({ slug }) {
-  const { viewer, signedIn, joinedSet, vouchedSet, onJoin, onLeave, onVouch, onOpenDrawer, navigate } = useOutletContext()
+  const { viewer, signedIn, joinedSet, vouchedSet, onJoin, onLeave, onVouch, onOpenDrawer, onSignIn, navigate } = useOutletContext()
   const [tab, setTab] = useState('people')
   const [retryNonce, setRetryNonce] = useState(0)
   const [state, setState] = useState({
@@ -69,6 +86,11 @@ export default function CommunityDetail({ slug }) {
   const [replyTarget, setReplyTarget] = useState(null)
   const [replyText, setReplyText] = useState('')
   const [replySending, setReplySending] = useState(false)
+  // Reactions (ADR-0034): fetched events + optimistic local toggles. Counts are
+  // derived (summarizeReactions dedupes by reactor, so optimistic + real don't
+  // double-count). Optimistic entries revert on publish failure.
+  const [reactions, setReactions] = useState([])
+  const [optimisticReactions, setOptimisticReactions] = useState([])
   const [resolved, setResolved] = useState(null)  // §26 resolved definition for forked circles
   const conversationLoadedRef = useRef(false)
 
@@ -193,6 +215,11 @@ export default function CommunityDetail({ slug }) {
   const loadPosts = useCallback(async () => {
     if (!currentCommunity || !communityATag) return
     setPostsState({ status: 'loading', items: [], error: null })
+    // Reactions load alongside posts; a reaction-fetch failure is non-fatal
+    // (the conversation still renders, just without counts).
+    fetchReactionsForCommunity({ communityATag })
+      .then(rx => setReactions(rx))
+      .catch(() => setReactions([]))
     try {
       const items = await fetchPostsForCommunity({
         communityATag,
@@ -320,6 +347,27 @@ export default function CommunityDetail({ slug }) {
     loadPosts()
   }
 
+  // Toggle the viewer's reaction on a post (ADR-0034). Optimistic; reverts on
+  // failure (non-blocking — the post stays readable). Signed-out prompts sign-in.
+  async function handleToggleReaction(post) {
+    if (!signedIn || !viewer) { if (onSignIn) onSignIn(); return }
+    if (!canCompose || !post || !post.id || !post.author) return
+    const summary = summarizeReactions([...reactions, ...optimisticReactions], viewer)
+    const mine = !!(summary[post.id] && summary[post.id].mine)
+    const active = !mine
+    const local = makeOptimisticReaction(post.id, viewer, active)
+    const localId = local._localId
+    setOptimisticReactions(prev => [...prev, local])
+
+    const unsigned = buildReaction({ viewerPubkey: viewer, communityATag, post: { id: post.id, author: post.author }, active })
+    const result = await publishEvent(unsigned)
+    if (!result.ok) {
+      setOptimisticReactions(prev => prev.filter(x => x._localId !== localId))
+      return
+    }
+    loadPosts()
+  }
+
   function handleRetryPending(localId) {
     const entry = pending.find(p => p._localId === localId)
     if (!entry || !entry._text) return
@@ -405,6 +453,9 @@ export default function CommunityDetail({ slug }) {
   for (const id of Object.keys(repliesByParent)) {
     repliesByParent[id].sort((a, b) => a.createdAt - b.createdAt)
   }
+  // Per-post reaction summary (ADR-0034): optimistic toggles overlay fetched
+  // reactions; summarizeReactions dedupes by reactor, so they never double-count.
+  const reactionSummary = summarizeReactions([...reactions, ...optimisticReactions], viewer)
   // Posting gate (Story 47): declaration circles gate on REAL membership derived
   // from the roster (the viewer is a member from the PoV), retiring the interim
   // `joined` local flag. Bespoke circles keep the interim flag (no roster).
@@ -664,6 +715,10 @@ export default function CommunityDetail({ slug }) {
                   onRetry={p._status === 'error' ? () => handleRetryPending(p._localId) : null}
                   onReply={canCompose && !p._status ? () => { setReplyTarget({ id: p.id, author: p.author }); setReplyText('') } : null}
                   replyHint={!signedIn ? 'Sign in to reply' : null}
+                  reactionCount={p._status ? 0 : ((reactionSummary[p.id] || {}).count || 0)}
+                  reactionMine={!p._status && !!(reactionSummary[p.id] || {}).mine}
+                  canReact={canCompose}
+                  onToggleReaction={!p._status ? () => handleToggleReaction(p) : null}
                 />
 
                 {replyTarget && replyTarget.id === p.id && (
@@ -698,6 +753,10 @@ export default function CommunityDetail({ slug }) {
                       pending={r._status === 'pending'}
                       error={r._status === 'error' ? r._error : null}
                       onRetry={r._status === 'error' ? () => handleRetryPending(r._localId) : null}
+                      reactionCount={r._status ? 0 : ((reactionSummary[r.id] || {}).count || 0)}
+                      reactionMine={!r._status && !!(reactionSummary[r.id] || {}).mine}
+                      canReact={canCompose}
+                      onToggleReaction={!r._status ? () => handleToggleReaction(r) : null}
                     />
                   </div>
                 ))}

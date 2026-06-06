@@ -18,7 +18,10 @@ import s from './PostCard.module.css'
  * `pending` flips the post into a soft, slightly-dimmed state with a
  * "Sending…" indicator; `error` shows an inline retry affordance.
  */
-export default function PostCard({ post, pending = false, error = null, onRetry = null, onReply = null, replyHint = null }) {
+export default function PostCard({
+  post, pending = false, error = null, onRetry = null, onReply = null, replyHint = null,
+  reactionCount = 0, reactionMine = false, canReact = false, onToggleReaction = null,
+}) {
   if (!post) return null
   const content = post.content || post.text || ''
   const timeLabel =
@@ -49,12 +52,24 @@ export default function PostCard({ post, pending = false, error = null, onRetry 
         )}
       </header>
       <p className={s.body}>{content}</p>
-      {(onReply || replyHint) && (
+      {(onToggleReaction || onReply || replyHint) && (
         <div className={s.actions}>
+          {onToggleReaction && (
+            <button
+              type="button"
+              className={reactionMine ? `${s.reactBtn} ${s.reactMine}` : s.reactBtn}
+              onClick={onToggleReaction}
+              aria-pressed={reactionMine}
+              title={canReact ? (reactionMine ? 'Remove your reaction' : 'React') : 'React'}
+              aria-label={`${reactionCount} like reaction${reactionCount === 1 ? '' : 's'}${reactionMine ? ', you reacted' : ''}`}
+            >
+              <span aria-hidden="true">▲</span> {reactionCount}
+            </button>
+          )}
           {onReply ? (
             <button type="button" className={s.replyBtn} onClick={onReply}>Reply</button>
           ) : (
-            <span className={s.replyHint}>{replyHint}</span>
+            replyHint && <span className={s.replyHint}>{replyHint}</span>
           )}
         </div>
       )}

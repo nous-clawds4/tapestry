@@ -105,6 +105,39 @@ function projectRealEvent(ev) {
 }
 
 /**
+ * Fetch NIP-25 kind-7 reactions for a community (ADR-0034). Scoped by the
+ * uppercase `#A` community tag, same posture as posts. Returns projected
+ * reactions { targetId, reactor, content, createdAt }; aggregation is done by
+ * `lib/reactions.js#summarizeReactions`.
+ */
+export async function fetchReactionsForCommunity({
+  communityATag,
+  relays = DEFAULT_RELAYS,
+  timeout = FETCH_TIMEOUT_MS,
+}) {
+  if (!communityATag) throw new Error('fetchReactionsForCommunity: communityATag is required')
+  if (USE_MOCK) return []
+
+  const filter = { kinds: [7], '#A': [communityATag] }
+  const events = new Map()
+  await Promise.all(
+    relays.map(url => collectFromRelay(url, filter, events, timeout)),
+  )
+  return Array.from(events.values()).map(projectReaction).filter(Boolean)
+}
+
+function projectReaction(ev) {
+  const eTag = Array.isArray(ev.tags) ? ev.tags.find(t => t[0] === 'e') : null
+  if (!eTag || !eTag[1]) return null
+  return {
+    targetId: eTag[1],
+    reactor: ev.pubkey,
+    content: ev.content || '',
+    createdAt: typeof ev.created_at === 'number' ? ev.created_at : 0,
+  }
+}
+
+/**
  * Fetch a community-record (kind 39999) by slug, directly from the
  * relay. Used as a client-side fallback when the backend API's
  * loadCommunityRecord stub returns null — without this, the user's
