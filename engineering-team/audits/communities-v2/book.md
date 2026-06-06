@@ -20,7 +20,7 @@ Companion product artifacts (read for context, do not edit — one-directional s
 ## Open questions that gate stories (from PRD §11)
 These must be decided before the named story is planned. Several need cross-team input.
 - **Q7 cross-team dependency timing** → gates Story 1 (`go-live`). Needs the trust-scoring core promoted staging→prod + deploy config.
-- **Q6 notification channels at launch** → gates Story 7 (`notifications`).
+- **Q6 notification channels at launch** → ✅ **RESOLVED 2026-06-06: in-app only** for launch (no email/push). Story 7's preference toggles reflect in-app occasions only; the Preference model keeps room for future channels but launch ships none. Story 7 (`notifications`) is now unblocked.
 - **Q1 cold-start mechanism** → gates Story 9 (`coldstart`). Design assumes invite-carries-a-vouch.
 - **Q2 head-start decay rule** → gates Story 11 (`caretaking`).
 - **Q4 founder auto-belong** → shapes Story 12 (`caretaking`).

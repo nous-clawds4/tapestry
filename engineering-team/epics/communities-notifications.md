@@ -1,6 +1,6 @@
 # Epic: Communities — Awareness On Your Terms (Phase 2, Block C)
 
-**Status:** Ready to plan — Story 7 gated on PRD §11 Q6 (launch channels)
+**Status:** Ready to plan — Q6 resolved (in-app only, 2026-06-06); Story 7 unblocked
 **Created:** 2026-06-06
 **Book:** `engineering-team/audits/communities-v2/book.md`
 **Source:** PRD `product-team/prd/communities-v2.md` §5.5, §5.6 + `stories-queue.md` Block C. Design: `guides/communities-v2-design-guide.md` principles 7 & 8 (the sovereignty control).
