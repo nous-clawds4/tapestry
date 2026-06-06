@@ -243,6 +243,18 @@
   font-size: var(--text-sm);
 }
 
+/* ADR-0032: calm note above the composer when posting is allowed only because
+   the trust source is unreachable. Accent-tinted, not the error color. */
+.degradedNote {
+  padding: var(--space-3) var(--space-4);
+  background: var(--bg-elevated);
+  border-left: 3px solid var(--accent);
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  margin-bottom: var(--space-3);
+}
+
 /* ── About tab ───────────────────────────────────────────── */
 
 .about {

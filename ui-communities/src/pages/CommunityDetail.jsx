@@ -337,7 +337,15 @@ export default function CommunityDetail({ slug }) {
   // from the roster (the viewer is a member from the PoV), retiring the interim
   // `joined` local flag. Bespoke circles keep the interim flag (no roster).
   const viewerIsMember = isDeclaration && !!viewer && rosterState.members.some(m => m.pubkey === viewer)
-  const canCompose = isDeclaration ? (signedIn && viewerIsMember) : (signedIn && joined)
+  // ADR-0032: when the roster source is unreachable (degraded), declaration posting
+  // falls back to the interim gate extended to the founder, so conversation is never
+  // dead during the dark window. A healthy-but-empty roster (degraded === false) is
+  // untouched and stays gated — an outage must not silently open the room to all.
+  const isFounder = isDeclaration && !!viewer && viewer === c.founder
+  const rosterDegraded = isDeclaration && rosterState.degraded
+  const canCompose = isDeclaration
+    ? (signedIn && (viewerIsMember || (rosterDegraded && (joined || isFounder))))
+    : (signedIn && joined)
   // Peer-framed prompt when the viewer can't post yet — points at the membership
   // path (the People tab's "I'm in" / Vouch), never "approve/admit".
   const composePrompt = !signedIn
@@ -345,6 +353,10 @@ export default function CommunityDetail({ slug }) {
     : isDeclaration
       ? 'Members post here. Add yourself on the People tab, or earn a vouch.'
       : 'Join this circle to post.'
+  // Calm note shown above the composer when posting is allowed only because the
+  // trust source is unreachable. Stated as a situation, never an error (no
+  // "something went wrong"). String literal keeps the apostrophes out of JSX text.
+  const DEGRADED_NOTE = "We can't reach the trust network right now, so we can't confirm membership. You can still post."
 
   return (
     <div className={s.page} style={{ '--community-accent': c.accent || 'var(--accent)' }}>
@@ -522,6 +534,9 @@ export default function CommunityDetail({ slug }) {
 
         {tab === 'conversation' && (
           <div className={s.conversation}>
+            {rosterDegraded && canCompose && (
+              <div className={s.degradedNote}>{DEGRADED_NOTE}</div>
+            )}
             {canCompose ? (
               <form
                 className={s.composer}
