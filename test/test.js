@@ -72,6 +72,7 @@ const uiPeopleRoster = require('./ui-people-roster.test.js');
 const postingGate = require('./posting-gate.test.js');
 const replyToAPost = require('./reply-to-a-post.test.js');
 const reactToAPost = require('./react-to-a-post.test.js');
+const offeredLiveUpdates = require('./offered-live-updates.test.js');
 
 async function main() {
   console.log('Running Brainstorm tests...\n');
@@ -225,6 +226,9 @@ async function main() {
   console.log('\nreact-to-a-post suite:');
   const reactToAPostResult = await reactToAPost.run();
 
+  console.log('\noffered-live-updates suite:');
+  const offeredLiveUpdatesResult = await offeredLiveUpdates.run();
+
   console.log('\nTest Results');
   console.log('-------------');
   console.log(`Configuration Loading:                           ${configOk ? 'PASS' : 'FAIL'}`);
@@ -375,6 +379,9 @@ async function main() {
   console.log(
     `react-to-a-post suite:                           ${reactToAPostResult.fail === 0 ? 'PASS' : 'FAIL'} (${reactToAPostResult.pass} passed, ${reactToAPostResult.fail} failed)`
   );
+  console.log(
+    `offered-live-updates suite:                      ${offeredLiveUpdatesResult.fail === 0 ? 'PASS' : 'FAIL'} (${offeredLiveUpdatesResult.pass} passed, ${offeredLiveUpdatesResult.fail} failed)`
+  );
 
   const overallOk =
     configOk &&
@@ -426,7 +433,8 @@ async function main() {
     uiPeopleRosterResult.fail === 0 &&
     postingGateResult.fail === 0 &&
     replyToAPostResult.fail === 0 &&
-    reactToAPostResult.fail === 0;
+    reactToAPostResult.fail === 0 &&
+    offeredLiveUpdatesResult.fail === 0;
   console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);
   process.exit(overallOk ? 0 : 1);
 }
