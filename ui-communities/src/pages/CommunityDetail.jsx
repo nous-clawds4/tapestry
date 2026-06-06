@@ -14,6 +14,7 @@ import { buildMembershipAssertion } from '../events/assertion.js'
 import { publishEvent, MEMBERSHIP_WRITE_RELAYS } from '../events/publish.js'
 import { fetchPostsForCommunity, fetchReactionsForCommunity, fetchCommunityDeclaration } from '../events/fetch.js'
 import { summarizeReactions } from '../lib/reactions.js'
+import { countNewPosts } from '../lib/liveUpdates.js'
 import { getRoster, resolveTagElement } from '../lib/roster.js'
 import { resolveDefinition } from '../lib/resolveDefinition.js'
 import { publishErrorCopy } from '../lib/errors.js'
@@ -91,6 +92,10 @@ export default function CommunityDetail({ slug }) {
   // double-count). Optimistic entries revert on publish failure.
   const [reactions, setReactions] = useState([])
   const [optimisticReactions, setOptimisticReactions] = useState([])
+  // Offered live updates (ADR-0035): a poll detects new posts and sets this
+  // count; the displayed conversation is never touched until the member taps.
+  const [newCount, setNewCount] = useState(0)
+  const displayedIdsRef = useRef(new Set())
   const [resolved, setResolved] = useState(null)  // §26 resolved definition for forked circles
   const conversationLoadedRef = useRef(false)
 
@@ -226,6 +231,9 @@ export default function CommunityDetail({ slug }) {
         slug: currentCommunity.slug,
       })
       setPostsState({ status: 'ready', items, error: null })
+      // A load (tap or post-send) refreshes the displayed list, so any pending
+      // "new" count is now stale — clear it.
+      setNewCount(0)
     } catch (error) {
       console.error('[CommunityDetail] fetchKind1 failed:', error)
       setPostsState({ status: 'error', items: [], error })
@@ -242,6 +250,33 @@ export default function CommunityDetail({ slug }) {
     loadPosts()
   }, [tab, currentCommunity, loadPosts])
 
+  // Keep a ref of currently-displayed post ids for the poll (avoids stale
+  // closures in the interval and avoids re-arming the poll on every fetch).
+  useEffect(() => {
+    displayedIdsRef.current = new Set(postsState.items.map(p => p.id))
+  }, [postsState.items])
+
+  // Offered live updates (ADR-0035): while the conversation is open and the page
+  // is visible, poll for new posts and set a count. The poll NEVER writes
+  // postsState, so the displayed conversation can't shift — new posts load only
+  // when the member taps the pill. A failed poll is silent (no error chrome).
+  useEffect(() => {
+    if (tab !== 'conversation' || !currentCommunity || !communityATag) return
+    let cancelled = false
+    const tick = async () => {
+      if (typeof document !== 'undefined' && document.hidden) return
+      try {
+        const fresh = await fetchPostsForCommunity({ communityATag, slug: currentCommunity.slug })
+        if (cancelled) return
+        setNewCount(countNewPosts(fresh, displayedIdsRef.current, viewer))
+      } catch {
+        /* silent — no affordance, manual reload still works */
+      }
+    }
+    const id = setInterval(tick, 25000)
+    return () => { cancelled = true; clearInterval(id) }
+  }, [tab, currentCommunity, communityATag, viewer])
+
   // Reset conversation-tab state when the slug changes. The React 19
   // rule flags the idiomatic "reset state on prop change" pattern;
   // a key-based remount is out of scope for Slice 6.
@@ -251,6 +286,7 @@ export default function CommunityDetail({ slug }) {
     setPostsState({ status: 'idle', items: [], error: null })
     setPending([])
     setComposerText('')
+    setNewCount(0)
   }, [slug])
 
   async function handleSendPost() {
@@ -704,6 +740,19 @@ export default function CommunityDetail({ slug }) {
 
             {postsState.status === 'error' && (
               <FetchError onRetry={loadPosts} />
+            )}
+
+            {newCount > 0 && (
+              <div className={s.newPillRow}>
+                <button
+                  type="button"
+                  className={s.newPill}
+                  onClick={() => { loadPosts(); setNewCount(0) }}
+                  aria-label={`Load ${newCount} new post${newCount === 1 ? '' : 's'}`}
+                >
+                  {newCount} new
+                </button>
+              </div>
             )}
 
             {topLevelPosts.map(p => (

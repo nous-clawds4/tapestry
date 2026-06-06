@@ -219,6 +219,30 @@
   .replyComposer { margin-left: var(--space-3); }
 }
 
+/* Offered live updates pill (ADR-0035) — the only "live" surface; tap to load. */
+.newPillRow {
+  display: flex;
+  justify-content: center;
+  padding: var(--space-2) 0;
+}
+
+.newPill {
+  background: var(--accent-muted);
+  color: var(--accent);
+  border: 1px solid transparent;
+  border-radius: var(--radius-full);
+  padding: 5px 14px;
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+  min-height: 32px;
+}
+
+.newPill:hover {
+  border-color: var(--accent);
+}
+
 .composerTextarea {
   width: 100%;
   background: var(--bg-elevated);
