@@ -4,7 +4,7 @@ import StackedAvatars from './StackedAvatars.jsx'
 import { formatCount } from '../lib/format.js'
 import s from './CommunityCard.module.css'
 
-export default function CommunityCard({ community, joined, index = 0 }) {
+export default function CommunityCard({ community, joined, index = 0, activityLine = null }) {
   const navigate = useNavigate()
   const trustedMembers = community.members.slice(0, 4)
   return (
@@ -49,6 +49,7 @@ export default function CommunityCard({ community, joined, index = 0 }) {
           </span>
           <span className={s.peopleCount}>{formatCount(community.memberCount)} people</span>
         </footer>
+        {activityLine && <p className={s.activity}>{activityLine}</p>}
       </div>
     </article>
   )

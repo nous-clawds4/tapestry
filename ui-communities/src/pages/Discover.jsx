@@ -12,6 +12,9 @@ import {
   getJoinedCommunitySummaries,
 } from '../api/client.js'
 import { tags } from '../data/mockData.js'
+import { fetchActivityForCircles } from '../events/fetch.js'
+import { circleATag } from '../lib/circle.js'
+import { describeActivity } from '../lib/activity.js'
 import s from './Discover.module.css'
 
 const SKELETON_COUNT = 8
@@ -22,6 +25,9 @@ export default function Discover() {
   const [activeTag, setActiveTag] = useState(null)
   const [retryNonce, setRetryNonce] = useState(0)
   const [state, setState] = useState({ status: 'loading', communities: [], error: null })
+  // Signs of life (ADR-0036): one batched activity fetch keyed per circle's
+  // coordinate, plus the fetch-time `now` used to describe recency in render.
+  const [activity, setActivity] = useState({ map: new Map(), now: 0 })
 
   // Snapshot joinedSet for the dep array — Set identity flips on every
   // mutation but we only want to refetch when the contents change.
@@ -57,6 +63,13 @@ export default function Discover() {
           }
         }
         setState({ status: 'ready', communities: merged, error: null })
+
+        // One batched signs-of-life fetch for the whole grid (not N per card).
+        // A failure is non-fatal — cards render, lines just fall back/omit.
+        const aTags = merged.map(c => circleATag(c)).filter(Boolean)
+        fetchActivityForCircles({ aTags })
+          .then(map => { if (!cancelled) setActivity({ map, now: Math.floor(Date.now() / 1000) }) })
+          .catch(() => { if (!cancelled) setActivity({ map: new Map(), now: 0 }) })
       })
       .catch(error => {
         if (cancelled) return
@@ -132,6 +145,11 @@ export default function Discover() {
             community={c}
             joined={joinedSet.has(c.slug)}
             index={i}
+            activityLine={describeActivity({
+              postTimes: activity.map.get(circleATag(c)) || [],
+              foundedAt: c._createdAt || null,
+              now: activity.now || null,
+            })}
           />
         ))}
 

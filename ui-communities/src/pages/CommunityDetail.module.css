@@ -243,6 +243,13 @@
   border-color: var(--accent);
 }
 
+/* Signs of life (ADR-0036) — calm, plain; recency carried by the phrase. */
+.activityLine {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
 .composerTextarea {
   width: 100%;
   background: var(--bg-elevated);

@@ -12,9 +12,11 @@ import { getCommunity, getCommunityMembers } from '../api/client.js'
 import { buildCommunityRecord, buildCommunityPost, buildReaction } from '../events/build.js'
 import { buildMembershipAssertion } from '../events/assertion.js'
 import { publishEvent, MEMBERSHIP_WRITE_RELAYS } from '../events/publish.js'
-import { fetchPostsForCommunity, fetchReactionsForCommunity, fetchCommunityDeclaration } from '../events/fetch.js'
+import { fetchPostsForCommunity, fetchReactionsForCommunity, fetchActivityForCircles, fetchCommunityDeclaration } from '../events/fetch.js'
 import { summarizeReactions } from '../lib/reactions.js'
 import { countNewPosts } from '../lib/liveUpdates.js'
+import { circleATag } from '../lib/circle.js'
+import { describeActivity } from '../lib/activity.js'
 import { getRoster, resolveTagElement } from '../lib/roster.js'
 import { resolveDefinition } from '../lib/resolveDefinition.js'
 import { publishErrorCopy } from '../lib/errors.js'
@@ -96,6 +98,9 @@ export default function CommunityDetail({ slug }) {
   // count; the displayed conversation is never touched until the member taps.
   const [newCount, setNewCount] = useState(0)
   const displayedIdsRef = useRef(new Set())
+  // Signs of life (ADR-0036): a small per-circle activity fetch on load,
+  // independent of the conversation tab. `now` is stamped at fetch time.
+  const [detailActivity, setDetailActivity] = useState({ postTimes: [], now: 0 })
   const [resolved, setResolved] = useState(null)  // §26 resolved definition for forked circles
   const conversationLoadedRef = useRef(false)
 
@@ -207,15 +212,7 @@ export default function CommunityDetail({ slug }) {
   // record is kind-39999. Derive the anchor kind from the circle's model.
   // A declaration MUST key on its real founder — never fall back to the viewer
   // (that would forge an unreadable address); bespoke keeps its prior fallback.
-  const communityATag = (() => {
-    if (!currentCommunity) return null
-    const kind = currentCommunity.model === 'declaration' ? '39998' : '39999'
-    const author = currentCommunity.model === 'declaration'
-      ? currentCommunity.founder
-      : (currentCommunity.founder || currentCommunity.curator || viewer)
-    if (!author) return null
-    return `${kind}:${author}:${currentCommunity.slug}`
-  })()
+  const communityATag = circleATag(currentCommunity, viewer)
 
   const loadPosts = useCallback(async () => {
     if (!currentCommunity || !communityATag) return
@@ -276,6 +273,16 @@ export default function CommunityDetail({ slug }) {
     const id = setInterval(tick, 25000)
     return () => { cancelled = true; clearInterval(id) }
   }, [tab, currentCommunity, communityATag, viewer])
+
+  // Signs of life: fetch this circle's recent activity on load (not tab-gated).
+  useEffect(() => {
+    if (!currentCommunity || !communityATag) return
+    let cancelled = false
+    fetchActivityForCircles({ aTags: [communityATag] })
+      .then(map => { if (!cancelled) setDetailActivity({ postTimes: map.get(communityATag) || [], now: Math.floor(Date.now() / 1000) }) })
+      .catch(() => { if (!cancelled) setDetailActivity({ postTimes: [], now: 0 }) })
+    return () => { cancelled = true }
+  }, [currentCommunity, communityATag])
 
   // Reset conversation-tab state when the slug changes. The React 19
   // rule flags the idiomatic "reset state on prop change" pattern;
@@ -472,6 +479,12 @@ export default function CommunityDetail({ slug }) {
   const joined = joinedSet.has(c.slug)
   const isDeclaration = c.model === 'declaration'
   const peopleCount = isDeclaration ? rosterState.members.length : members.length
+  // Signs of life (ADR-0036): null when no data / not yet loaded → omit.
+  const signsOfLife = describeActivity({
+    postTimes: detailActivity.postTimes,
+    foundedAt: c._createdAt || null,
+    now: detailActivity.now || null,
+  })
 
   const realPosts = postsState.items
   const allPosts = [...pending, ...realPosts]
@@ -531,6 +544,7 @@ export default function CommunityDetail({ slug }) {
           <div className={s.tagRow}>
             {(c.tags || []).map(t => <TagPill key={t} tag={t} small />)}
           </div>
+          {signsOfLife && <p className={s.activityLine}>{signsOfLife}</p>}
           {(c.belongingBar || resolved?.belongingBar) && (
             <p className={s.belongingBar}>
               <span className={s.belongingLabel}>To belong:</span>{' '}

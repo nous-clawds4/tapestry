@@ -138,6 +138,34 @@ function projectReaction(ev) {
 }
 
 /**
+ * Batched "signs of life" fetch (ADR-0036). One query for recent kind-1111
+ * posts across many circles (by their uppercase `#A` coordinates), bucketed
+ * per circle into post-time arrays. The discovery grid calls this once for all
+ * cards (not N times); the detail calls it with a single coordinate.
+ * Returns Map<aTag, number[]> of post created_at values.
+ */
+export async function fetchActivityForCircles({ aTags, relays = DEFAULT_RELAYS, timeout = FETCH_TIMEOUT_MS }) {
+  const tags = Array.isArray(aTags) ? aTags.filter(Boolean) : []
+  const map = new Map()
+  if (!tags.length || USE_MOCK) return map
+
+  const filter = { kinds: [1111], '#A': tags, limit: 300 }
+  const events = new Map()
+  await Promise.all(
+    relays.map(url => collectFromRelay(url, filter, events, timeout)),
+  )
+  for (const ev of events.values()) {
+    const aTag = Array.isArray(ev.tags) ? ev.tags.find(t => t[0] === 'A') : null
+    const key = aTag && aTag[1]
+    if (!key) continue
+    const arr = map.get(key) || []
+    arr.push(typeof ev.created_at === 'number' ? ev.created_at : 0)
+    map.set(key, arr)
+  }
+  return map
+}
+
+/**
  * Fetch a community-record (kind 39999) by slug, directly from the
  * relay. Used as a client-side fallback when the backend API's
  * loadCommunityRecord stub returns null — without this, the user's

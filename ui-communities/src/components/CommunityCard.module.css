@@ -144,3 +144,11 @@
   color: var(--text-faint);
   font-variant-numeric: tabular-nums;
 }
+
+/* Signs of life (ADR-0036) — calm, plain; no urgency styling. Uses --text-muted
+   to match the detail surface + the design guide (consistent across surfaces). */
+.activity {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+}
