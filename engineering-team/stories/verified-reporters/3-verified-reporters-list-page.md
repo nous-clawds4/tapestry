@@ -1,6 +1,6 @@
 # Story 3: Verified Reporters list page
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-06-07
 **Type:** Feature
 **Epic:** `verified-reporters` · **Book:** `engineering-team/audits/verified-reporters/book.md`
@@ -42,4 +42,4 @@ Testable from the outside (input → expected behavior).
 - PRD: `product-team/prd/verified-reporters.md` (§5.2, §5.3); design guide `product-team/guides/verified-reporters-design-guide.md`; style guide `product-team/guides/verified-reporters-style-guide.md` (use the title, description, point-of-view lines, empty-state, error, and "About this data" copy verbatim).
 - ADR: `engineering-team/decisions/verified-reporters/0003-verified-reporters-list-page.md` (Accepted)
 - Test plan: `engineering-team/stories/verified-reporters/3-verified-reporters-list-page.test-plan.md` (suite `test/verified-reporters-list-page.test.js` + Playwright `tests/brainstorm/profile-verified-reporters-list.spec.js`)
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/verified-reporters/3-verified-reporters-list-page.md` — **PASS** (2026-06-07)
