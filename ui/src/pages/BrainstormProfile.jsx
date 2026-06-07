@@ -95,9 +95,12 @@ export default function BrainstormProfile() {
   const nip05Verified = useNip05Verification(pubkey, profile?.nip05);
   const followingCount = userCounts?.followingCount ?? null;
   const fmtCount = (n) => (n == null ? '—' : new Intl.NumberFormat().format(n));
-  // Verified Reporters count rides the PoV-resolved trustScores (same source as
-  // Verified Followers). `?? null` distinguishes a genuine 0 from "not loaded".
-  const verifiedReporterCount = trustScores?.verifiedReporterCount ?? null;
+  // Verified Followers + Verified Reporters counts come from the Owner-PoV source
+  // (Neo4j via get-user-counts → useUserCounts) — same definition as the /followers and
+  // /reporters tables, NOT Meili (ADR 0031). `?? null` keeps a genuine 0 distinct from
+  // "not loaded" → "—"; never a raw-follower substitution.
+  const verifiedFollowerCount = userCounts?.verifiedFollowerCount ?? null;
+  const verifiedReporterCount = userCounts?.verifiedReporterCount ?? null;
 
   const npub = useMemo(() => {
     try { return nip19.npubEncode(pubkey); } catch { return null; }
@@ -242,10 +245,10 @@ export default function BrainstormProfile() {
                 <span className="bsp-count-value">{fmtCount(followingCount)}</span>
                 <span className="bsp-count-label">Following</span>
               </Link>
-              {/* Verified Followers → followers table (story #34, ADR 0030). Value rides the
-                  PoV-resolved trustScores; `??` keeps a genuine 0 from being dropped. */}
+              {/* Verified Followers → followers table (story #34, ADR 0030). Value is the
+                  Owner-PoV count from useUserCounts (ADR 0031), same source as the table. */}
               <Link to={`/user/${pubkey}/followers`} className="bsp-count bsp-count-link">
-                <span className="bsp-count-value">{fmtCount(trustScores?.verifiedFollowerCount ?? trustScores?.followers)}</span>
+                <span className="bsp-count-value">{fmtCount(verifiedFollowerCount)}</span>
                 <span className="bsp-count-label">Verified Followers</span>
               </Link>
               {/* Verified Reporters → reporters list (verified-reporters epic, ADR 0001). A
@@ -262,7 +265,7 @@ export default function BrainstormProfile() {
                   <span className="bsp-count-label">Verified Reporters</span>
                 </Link>
               ) : (
-                <span className={`bsp-count${trustLoading ? ' bsp-count-loading' : ''}`}>
+                <span className={`bsp-count${userCountsLoading ? ' bsp-count-loading' : ''}`}>
                   <span className="bsp-count-value">{fmtCount(verifiedReporterCount)}</span>
                   <span className="bsp-count-label">Verified Reporters</span>
                 </span>

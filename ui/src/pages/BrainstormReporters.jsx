@@ -177,8 +177,8 @@ export default function BrainstormReporters() {
           >ⓘ</button>
         </div>
         <p className="bsp-follows-subtitle">Verified users who have reported this account.</p>
-        {/* v1 membership is House-only, so the House point of view is the honest attribution. */}
-        <p className="bsp-follows-pov">Relative to the House (default) web of trust. Sign in and build your network to see your own view.</p>
+        {/* v1 data is Owner-PoV (Neo4j), so the owner's web of trust is the honest attribution (ADR 0031). */}
+        <p className="bsp-follows-pov">Relative to the owner's web of trust.</p>
 
         {/* Controls: search + columns toggle */}
         <div className="bsp-follows-controls">

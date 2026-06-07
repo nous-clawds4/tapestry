@@ -44,6 +44,11 @@ Testable from the outside.
 - **Owner-PoV copy:** the exact wording for the `/reporters` point-of-view line (and whether the profile badge itself needs any PoV label) — settle with the style guide.
 - **Supersession:** this changes the count *source* chosen in ADR 0001 (Verified Reporters count from Meili `trustScores`) and the analogous Verified Followers decision (story #33 / ADR 0029). The Architect's ADR should **explicitly supersede/amend** those source choices rather than silently contradict them.
 
+## Deviations
+- **Backend logic inlined in `handleGetUserCounts`** (not an extracted helper): the test plan slices the handler body, and the codebase pattern is cypher-in-handler — so the Neo4j node-property read + count-only fallback live inside the handler. ([userdata.js](../../../src/api/export/users/queries/userdata.js))
+- **`useUserCounts.js`: docstring-only change** — the hook already passes `json.data` through wholesale, so the two new fields surface with no code change (only the docstring was updated for accuracy). ([useUserCounts.js](../../../ui/src/hooks/useUserCounts.js))
+- **Updated obsoleted assertions in prior committed suites** (user-approved Tester amendment, 2026-06-08): superseding ADR 0029/0001's count-source and relabeling the PoV line broke three assertions that pinned the old behavior — `profile-verified-followers-count` T2, `profile-verified-reporters-count` T2 (both repointed `trustScores.*` → `userCounts.*`), and `verified-reporters-list-page` T7 (House line → Owner line). Also refreshed `profile-verified-followers-count` T3's now-stale prose (the removed `?? followers` fallback). Each carries an ADR 0031 reference. `npm test` is fully green after.
+
 ## Linked artifacts
 - Design doc: `docs/POV_RESOLUTION_DESIGN_HANDOFF.md` (§7.4 — the decision this story implements; §9 — related ops/data findings).
 - Prior ADRs to supersede on count-source: `engineering-team/decisions/verified-reporters/0001-verified-reporters-count.md`, `engineering-team/decisions/profile/0029-profile-verified-followers-count.md`.

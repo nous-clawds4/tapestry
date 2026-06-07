@@ -97,11 +97,13 @@ test('T6: selecting a reporter row navigates to that reporter\'s /user/<pubkey> 
 });
 
 // AC5 — House PoV line, verbatim
-test('T7: the page shows the House point-of-view line (AC5)', () => {
+test('T7: the page shows the Owner point-of-view line (AC5; relabeled by ADR 0031)', () => {
   const src = safeRead(PAGE);
   assert(src.length > 0, 'BrainstormReporters.jsx does not exist yet.');
-  assert(/Relative to the House \(default\) web of trust\./.test(src),
-    'the page must show the House PoV line "Relative to the House (default) web of trust. Sign in and build your network to see your own view." (style guide; v1 membership is House-only, so the House line is the honest attribution).');
+  assert(/Relative to the owner/i.test(src),
+    'the page must show the Owner PoV line (e.g. "Relative to the owner\'s web of trust.") — the data is Owner-PoV (Neo4j), so the owner is the honest attribution. ADR 0031 relabeled this from the original "House" wording.');
+  assert(!/Relative to the House \(default\) web of trust/.test(src),
+    'the old "House (default) web of trust" line must be gone (it mislabeled Owner-PoV data as House).');
 });
 
 // AC5 — extended About-this-data popover (local + no-global-view)
