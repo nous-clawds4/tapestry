@@ -250,6 +250,53 @@
   color: var(--text-muted);
 }
 
+/* Foothold invite (ADR-0039) — issue an invite that carries your vouch. */
+.invitePanel {
+  margin-top: var(--space-5);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border);
+}
+
+.inviteHeading {
+  font-size: var(--text-md);
+  margin: 0 0 var(--space-2);
+}
+
+.inviteLede {
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  margin: 0 0 var(--space-3);
+}
+
+.inviteLinkInput {
+  width: 100%;
+  margin-top: var(--space-3);
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--space-2) var(--space-3);
+  color: var(--text);
+  font-size: var(--text-sm);
+}
+
+.inviteList {
+  list-style: none;
+  margin: var(--space-3) 0 0;
+  padding: 0;
+}
+
+.inviteItem {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  padding: var(--space-1) 0;
+}
+
+.inviteEmpty {
+  margin: var(--space-3) 0 0;
+  font-size: var(--text-sm);
+  color: var(--text-faint);
+}
+
 .composerTextarea {
   width: 100%;
   background: var(--bg-elevated);

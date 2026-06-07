@@ -1,3 +1,5 @@
+import { LEGACY_Z_TAG_PUBKEY } from './assertion.js'
+
 /*
  * Pure-function event builders.
  *
@@ -263,6 +265,32 @@ export function buildReaction({ viewerPubkey, communityATag, post, active = true
       ['k', '1111'],
     ],
     content: active ? '+' : '-',
+    created_at: nowSec(),
+    pubkey: viewerPubkey,
+  }
+}
+
+/**
+ * Build a foothold invite (ADR-0039) — a kind-39999 event, addressable by code
+ * (`d = invite-<code>`), that records a member's offer of a first foothold into a
+ * circle. The carried vouch is fulfilled later by the issuer's client on
+ * redemption (Story 10). The `z` marker is an app convention the roster engine
+ * ignores (it counts only `…:nostr-user-tag` assertions).
+ */
+export function buildFootholdInvite({ viewerPubkey, communityATag, code }) {
+  if (!viewerPubkey) throw new Error('buildFootholdInvite: viewerPubkey is required')
+  if (!communityATag) throw new Error('buildFootholdInvite: communityATag is required')
+  if (!code) throw new Error('buildFootholdInvite: code is required')
+
+  return {
+    kind: 39999,
+    tags: [
+      ['a', communityATag],
+      ['d', `invite-${code}`],
+      ['p', viewerPubkey],
+      ['z', `39998:${LEGACY_Z_TAG_PUBKEY}:foothold-invite`],
+    ],
+    content: '',
     created_at: nowSec(),
     pubkey: viewerPubkey,
   }

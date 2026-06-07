@@ -126,6 +126,28 @@ export async function fetchReactionsForCommunity({
   return Array.from(events.values()).map(projectReaction).filter(Boolean)
 }
 
+/**
+ * Fetch foothold invites a member has issued for a circle (ADR-0039). kind-39999
+ * by author + `#a`, filtered to the foothold-invite `z` marker. Returns
+ * { code, createdAt, id } newest-first.
+ */
+export async function fetchFootholdInvites({ communityATag, issuer, relays = DEFAULT_RELAYS, timeout = FETCH_TIMEOUT_MS }) {
+  if (!communityATag || !issuer || USE_MOCK) return []
+  const filter = { kinds: [39999], '#a': [communityATag], authors: [issuer] }
+  const events = new Map()
+  await Promise.all(
+    relays.map(url => collectFromRelay(url, filter, events, timeout)),
+  )
+  const out = []
+  for (const ev of events.values()) {
+    const z = (Array.isArray(ev.tags) ? (ev.tags.find(t => t[0] === 'z') || []) : [])[1] || ''
+    if (!z.endsWith(':foothold-invite')) continue
+    const d = (ev.tags.find(t => t[0] === 'd') || [])[1] || ''
+    out.push({ code: d.startsWith('invite-') ? d.slice('invite-'.length) : d, createdAt: ev.created_at || 0, id: ev.id })
+  }
+  return out.sort((a, b) => b.createdAt - a.createdAt)
+}
+
 function projectReaction(ev) {
   const eTag = Array.isArray(ev.tags) ? ev.tags.find(t => t[0] === 'e') : null
   if (!eTag || !eTag[1]) return null

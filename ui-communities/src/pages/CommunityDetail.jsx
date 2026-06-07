@@ -9,10 +9,10 @@ import BrainstormMark from '../components/BrainstormMark.jsx'
 import FetchError from '../components/FetchError.jsx'
 import TrustSignal from '../components/TrustSignal.jsx'
 import { getCommunity, getCommunityMembers } from '../api/client.js'
-import { buildCommunityRecord, buildCommunityPost, buildReaction } from '../events/build.js'
+import { buildCommunityRecord, buildCommunityPost, buildReaction, buildFootholdInvite } from '../events/build.js'
 import { buildMembershipAssertion } from '../events/assertion.js'
 import { publishEvent, MEMBERSHIP_WRITE_RELAYS } from '../events/publish.js'
-import { fetchPostsForCommunity, fetchReactionsForCommunity, fetchActivityForCircles, fetchCommunityDeclaration } from '../events/fetch.js'
+import { fetchPostsForCommunity, fetchReactionsForCommunity, fetchActivityForCircles, fetchFootholdInvites, fetchCommunityDeclaration } from '../events/fetch.js'
 import { summarizeReactions } from '../lib/reactions.js'
 import { countNewPosts } from '../lib/liveUpdates.js'
 import { circleATag } from '../lib/circle.js'
@@ -41,6 +41,13 @@ const TABS = [
 // Build an optimistic local reaction marker (ADR-0034). Module-scope so the
 // id/timestamp generation lives outside the component (the impure now/random
 // calls would otherwise be flagged by react-hooks/purity in render scope).
+// Random invite code (ADR-0039). Module-scope so the impure crypto/random call
+// lives outside the component (react-hooks/purity).
+function makeInviteCode() {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID().replace(/-/g, '').slice(0, 16)
+  return `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`
+}
+
 function makeOptimisticReaction(targetId, reactor, active) {
   const localId = (typeof crypto !== 'undefined' && crypto.randomUUID)
     ? crypto.randomUUID()
@@ -101,6 +108,9 @@ export default function CommunityDetail({ slug }) {
   // Signs of life (ADR-0036): a small per-circle activity fetch on load,
   // independent of the conversation tab. `now` is stamped at fetch time.
   const [detailActivity, setDetailActivity] = useState({ postTimes: [], now: 0 })
+  // Foothold invites (ADR-0039, Story 9 — issuing side).
+  const [issuedInvites, setIssuedInvites] = useState([])
+  const [inviteState, setInviteState] = useState({ creating: false, link: null, error: null })
   const [resolved, setResolved] = useState(null)  // §26 resolved definition for forked circles
   const conversationLoadedRef = useRef(false)
 
@@ -284,6 +294,16 @@ export default function CommunityDetail({ slug }) {
     return () => { cancelled = true }
   }, [currentCommunity, communityATag])
 
+  // Foothold invites the viewer has issued for this circle (ADR-0039).
+  useEffect(() => {
+    if (!currentCommunity || !communityATag || !viewer) return
+    let cancelled = false
+    fetchFootholdInvites({ communityATag, issuer: viewer })
+      .then(list => { if (!cancelled) setIssuedInvites(list) })
+      .catch(() => { if (!cancelled) setIssuedInvites([]) })
+    return () => { cancelled = true }
+  }, [currentCommunity, communityATag, viewer])
+
   // Reset conversation-tab state when the slug changes. The React 19
   // rule flags the idiomatic "reset state on prop change" pattern;
   // a key-based remount is out of scope for Slice 6.
@@ -409,6 +429,28 @@ export default function CommunityDetail({ slug }) {
       return
     }
     loadPosts()
+  }
+
+  // Create a foothold invite (ADR-0039) — publish the invite event, surface a
+  // shareable link. The carried vouch is fulfilled on redemption (Story 10).
+  async function handleCreateInvite() {
+    if (!signedIn || !viewer || !communityATag || inviteState.creating) return
+    setInviteState({ creating: true, link: null, error: null })
+    const code = makeInviteCode()
+    try {
+      const unsigned = buildFootholdInvite({ viewerPubkey: viewer, communityATag, code })
+      const result = await publishEvent(unsigned, { relays: MEMBERSHIP_WRITE_RELAYS })
+      if (!result.ok) {
+        setInviteState({ creating: false, link: null, error: publishErrorCopy(result) })
+        return
+      }
+      const origin = typeof location !== 'undefined' ? location.origin : ''
+      const link = `${origin}/community/${currentCommunity.slug}?invite=${code}`
+      setInviteState({ creating: false, link, error: null })
+      setIssuedInvites(prev => [{ code, createdAt: Math.floor(Date.now() / 1000), id: code }, ...prev])
+    } catch {
+      setInviteState({ creating: false, link: null, error: "Couldn't create the invite. Retry?" })
+    }
   }
 
   function handleRetryPending(localId) {
@@ -650,6 +692,43 @@ export default function CommunityDetail({ slug }) {
                 {publishError && <p className={s.publishError} role="alert">{publishError}</p>}
               </div>
             )}
+
+            {/* Foothold invite (ADR-0039) — issue an invite that carries your vouch. */}
+            {canCompose ? (
+              <div className={s.invitePanel}>
+                <h3 className={s.inviteHeading}>Invite someone in</h3>
+                <p className={s.inviteLede}>Your invite vouches for them. They can join even if no one else here knows them yet.</p>
+                <Button size="sm" variant="ghost" onClick={handleCreateInvite} disabled={inviteState.creating}>
+                  {inviteState.creating ? 'Creating…' : 'Create invite'}
+                </Button>
+                {inviteState.error && (
+                  <p className={s.publishError} role="alert">
+                    {inviteState.error}{' '}
+                    <button type="button" className={s.parentLink} onClick={handleCreateInvite}>Retry</button>
+                  </p>
+                )}
+                {inviteState.link && (
+                  <input
+                    className={s.inviteLinkInput}
+                    readOnly
+                    value={inviteState.link}
+                    aria-label="Invite link"
+                    onFocus={e => e.target.select()}
+                  />
+                )}
+                {issuedInvites.length > 0 ? (
+                  <ul className={s.inviteList}>
+                    {issuedInvites.map(inv => (
+                      <li key={inv.id} className={s.inviteItem}>Invite · {inv.code.slice(0, 8)}…</li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className={s.inviteEmpty}>You haven&rsquo;t invited anyone yet. An invite is how a new person gets their first foothold.</p>
+                )}
+              </div>
+            ) : !signedIn ? (
+              <button type="button" className={s.parentLink} onClick={onSignIn}>Sign in to invite someone in</button>
+            ) : null}
 
             {rosterState.status === 'loading' && (
               <div className={s.rosterShimmer} aria-hidden="true">
