@@ -21,11 +21,11 @@ Companion product artifacts (read for context, do not edit — one-directional s
 These must be decided before the named story is planned. Several need cross-team input.
 - **Q7 cross-team dependency timing** → gates Story 1 (`go-live`). Needs the trust-scoring core promoted staging→prod + deploy config.
 - **Q6 notification channels at launch** → ✅ **RESOLVED 2026-06-06: in-app only** for launch (no email/push). Story 7's preference toggles reflect in-app occasions only; the Preference model keeps room for future channels but launch ships none. Story 7 (`notifications`) is now unblocked.
-- **Q1 cold-start mechanism** → gates Story 9 (`coldstart`). Design assumes invite-carries-a-vouch.
-- **Q2 head-start decay rule** → gates Story 11 (`caretaking`).
-- **Q4 founder auto-belong** → shapes Story 12 (`caretaking`).
-- **Q5 retirement mechanism + one-off vs durable** → gates Story 13 (`caretaking`).
-- **Q3 default belonging threshold** → settle before launch; blocks no single story.
+- **Q1 cold-start mechanism** → ✅ **RESOLVED 2026-06-06: invite-carries-a-vouch.** Gates Stories 9/10 (`coldstart`) — buildable now; full end-to-end verification (carried vouch → visible membership) lights up with Story 1.
+- **Q2 head-start decay rule** → ✅ **RESOLVED 2026-06-06: trust-density based** ("your share shrinks as members vouch for each other"). Gates Story 11 — but computing/showing the share needs live trust data, so Story 11 still waits on Story 1.
+- **Q4 founder auto-belong** → ✅ **RESOLVED 2026-06-06: ratified** (founding makes you a peer member; already the code's behavior). Story 12 = verify-when-live (needs Story 1 to observe).
+- **Q5 retirement** → ✅ **RESOLVED 2026-06-06 (split):** (a) the 3 legacy test circles get a **one-off cleanup outside any pattern** (easiest path — enumerate, then delete via author kind-5 or strfry-side removal); (b) the **durable "retire a circle" feature pattern is deferred** — settle later. So Story 13's durable build stays blocked on the pattern decision; only the one-off cleanup is greenlit.
+- **Q3 default belonging threshold** → ✅ **RESOLVED 2026-06-06: default 1 vouch, founder-configurable at declaration.** A small founding-flow enhancement; no Story-1 dependency.
 
 ## Cross-team asks to relay (from the product queue handoff)
 - **Platform team (Vinney):** promote the trust-scoring core to production; add the per-row self-applied flag (unblocks the Phase 3 applicant role); confirm the dual-publish relay URL.
