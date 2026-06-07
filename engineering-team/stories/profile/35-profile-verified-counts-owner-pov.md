@@ -1,6 +1,6 @@
 # Story 35: Profile Verified Followers/Reporters counts from Neo4j (Owner PoV)
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-06-07
 **Type:** Bug / Refactor
 **Epic:** `profile`
@@ -55,4 +55,4 @@ Testable from the outside.
 - Prior ADRs to supersede on count-source: `engineering-team/decisions/verified-reporters/0001-verified-reporters-count.md`, `engineering-team/decisions/profile/0029-profile-verified-followers-count.md`.
 - ADR: `engineering-team/decisions/profile/0031-profile-verified-counts-owner-pov.md` (Accepted; supersedes the count-source of ADR 0029 + ADR 0001)
 - Test plan: `engineering-team/stories/profile/35-profile-verified-counts-owner-pov.test-plan.md` (suite `test/profile-verified-counts-owner-pov.test.js`)
-- Review: `engineering-team/reviews/profile/35-profile-verified-counts-owner-pov.md` — **CHANGES REQUESTED** (2026-06-08): the `/reporters` "About this data" popover (BrainstormReporters.jsx:69) still describes a per-viewer/House model, contradicting the new Owner PoV line (AC5 only partially met). Fix popover copy + add a guard test.
+- Review: `engineering-team/reviews/profile/35-profile-verified-counts-owner-pov.md` — initial **CHANGES REQUESTED**, then **PASS** on re-review (2026-06-08) after the popover was reconciled to Owner PoV + guard test T8 added.

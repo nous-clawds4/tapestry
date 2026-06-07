@@ -43,5 +43,17 @@
 1. **`ui/src/pages/BrainstormReporters.jsx` popover vs the three-PoV future** — when the per-viewer model ships, this copy may become correct again; coordinate the final wording with the style guide under the three-PoV standard (`docs/POV_RESOLUTION_DESIGN_HANDOFF.md`). For now, v1 accuracy wins.
 2. **`userdata.js` — `neo4j.driver()`/`driver.session()` are created *outside* the inner `try`.** If either threw synchronously, the async `exec` callback would reject unhandled and the request would hang (no `res.json`). Low likelihood (driver/session creation is lazy), and the original handler had no outer try either — but moving driver/session creation inside the `try` (or wrapping the callback body) would be more defensive. Optional.
 
-## Verdict
+## Verdict (initial review)
 **CHANGES REQUESTED** — one blocking issue: the `/reporters` "About this data" popover (`BrainstormReporters.jsx:69`) still claims a per-viewer/House model, contradicting the page's new Owner PoV line and leaving AC5 only partially met. Everything else is correct and green — the handler, the badge re-sourcing, the removed raw fallback, the untouched Reputation grid, and the faithful supersession test updates. Fix the popover copy (+ a guard test) and this is a PASS.
+
+## Re-review (2026-06-08) — fix-up commit `7f8fc3af`
+The blocking issue is resolved, verified directly:
+- **Popover reconciled** ([BrainstormReporters.jsx:69]): ¶2 now reads "These counts reflect this instance owner's web of trust — a point of view. There is no single global number." — the per-viewer / "House (default) view is shown" claims are gone (0 × `House (default)`, 0 × "personal to each viewer" in the file), the page no longer self-contradicts about whose PoV it shows, and the true no-global sentence is retained so `verified-reporters-list-page` T8 stays valid (that suite still 17/17).
+- **Guard added** — `profile-verified-counts-owner-pov` **T8** asserts `!/House (default)/` anywhere in `BrainstormReporters.jsx` (broader than T7's PoV-line check), so the popover can't silently regress. Meaningful and correctly scoped.
+- **No collateral regression:** the `3f52bfbc..HEAD` diff touches only the popover ¶2 + T8; everything PASSed in the initial review is untouched.
+- **Gate:** `npm test` → Overall PASS, no FAIL suites (new suite 12/12). AC5 now fully met.
+
+The two earlier non-blocking notes stand as optional follow-ups (final popover wording to be ratified with the three-PoV style guide; `neo4j.driver()`/`session()` created just outside the inner `try`).
+
+## Verdict
+**PASS** — all five ACs met, ADR 0031 conformant (handler, Owner-PoV badge re-sourcing, removed raw fallback, untouched Reputation grid, faithful supersession updates, and now the reconciled popover), gate fully green. No blocking issues.
