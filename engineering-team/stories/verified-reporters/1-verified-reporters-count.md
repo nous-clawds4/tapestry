@@ -41,6 +41,9 @@ Testable from the outside. Each gets at least one test.
 ## Open questions
 - **Placement parity (for the Architect, PRD §11 decision 1 — does not block approval):** the count must match Verified Followers' treatment *as it exists on this branch*. The decision is to match the staging reference (a count-link in the counts row). The Architect should confirm against the actual profile component on `feat/verified-reporters` (off `staging`) whether Verified Followers is currently a count-link or a trust card, and place Verified Reporters to match — elevating Verified Followers itself is out of scope.
 
+## Deviations
+- ADR 0001 enumerated four display states (loading / unavailable / zero / >0) as distinct branches. Implemented as a single `verifiedReporterCount > 0 ? <Link…> : <span…>` ternary: the non-link `<span>` covers loading, unavailable, and zero, because `fmtCount(verifiedReporterCount)` already renders `—` for null (loading/unavailable) and `0` for zero, and the `bsp-count-loading` dim is added to that span only when `trustLoading`. Same observable behavior as the ADR's four states, with less branching. ([ui/src/pages/BrainstormProfile.jsx](../../../ui/src/pages/BrainstormProfile.jsx))
+
 ## Linked artifacts
 - PRD: `product-team/prd/verified-reporters.md` (§5.1, §5.3, §11); design guide `product-team/guides/verified-reporters-design-guide.md`; style guide `product-team/guides/verified-reporters-style-guide.md` (canonical copy — use the count label and accessible-name strings verbatim).
 - ADR: `engineering-team/decisions/verified-reporters/0001-verified-reporters-count.md` (Accepted)

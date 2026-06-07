@@ -3405,6 +3405,15 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
 .bsp-counts-loading .bsp-count-value {
   opacity: 0.4;
 }
+/* Verified Reporters: negative signal (the app encodes "report" as red). */
+.bsp-count-value-negative {
+  color: var(--red);
+}
+/* Per-count loading dim — the reporters count rides trustScores (trustLoading),
+   not the row-level userCounts loading, so it dims on its own. */
+.bsp-count-loading .bsp-count-value {
+  opacity: 0.4;
+}
 
 /* Sections */
 .bsp-section {
