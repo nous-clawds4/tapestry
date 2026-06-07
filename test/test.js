@@ -77,6 +77,7 @@ const signsOfLife = require('./signs-of-life.test.js');
 const notificationPreferences = require('./notification-preferences.test.js');
 const notificationInbox = require('./notification-inbox.test.js');
 const footholdInvite = require('./foothold-invite.test.js');
+const acceptFoothold = require('./accept-foothold.test.js');
 
 async function main() {
   console.log('Running Brainstorm tests...\n');
@@ -245,6 +246,9 @@ async function main() {
   console.log('\nfoothold-invite suite:');
   const footholdInviteResult = await footholdInvite.run();
 
+  console.log('\naccept-foothold suite:');
+  const acceptFootholdResult = await acceptFoothold.run();
+
   console.log('\nTest Results');
   console.log('-------------');
   console.log(`Configuration Loading:                           ${configOk ? 'PASS' : 'FAIL'}`);
@@ -410,6 +414,9 @@ async function main() {
   console.log(
     `foothold-invite suite:                           ${footholdInviteResult.fail === 0 ? 'PASS' : 'FAIL'} (${footholdInviteResult.pass} passed, ${footholdInviteResult.fail} failed)`
   );
+  console.log(
+    `accept-foothold suite:                           ${acceptFootholdResult.fail === 0 ? 'PASS' : 'FAIL'} (${acceptFootholdResult.pass} passed, ${acceptFootholdResult.fail} failed)`
+  );
 
   const overallOk =
     configOk &&
@@ -466,7 +473,8 @@ async function main() {
     signsOfLifeResult.fail === 0 &&
     notificationPreferencesResult.fail === 0 &&
     notificationInboxResult.fail === 0 &&
-    footholdInviteResult.fail === 0;
+    footholdInviteResult.fail === 0 &&
+    acceptFootholdResult.fail === 0;
   console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);
   process.exit(overallOk ? 0 : 1);
 }
