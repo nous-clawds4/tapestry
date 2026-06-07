@@ -148,6 +148,48 @@ export async function fetchFootholdInvites({ communityATag, issuer, relays = DEF
   return out.sort((a, b) => b.createdAt - a.createdAt)
 }
 
+/**
+ * Resolve a single foothold invite by its code (ADR-0040). Returns the issuer +
+ * circle coordinate so the accept page can show who invited and which circle,
+ * or null if unresolvable/expired.
+ */
+export async function fetchFootholdInvite({ code, relays = DEFAULT_RELAYS, timeout = FETCH_TIMEOUT_MS }) {
+  if (!code || USE_MOCK) return null
+  const filter = { kinds: [39999], '#d': [`invite-${code}`] }
+  const events = new Map()
+  await Promise.all(relays.map(url => collectFromRelay(url, filter, events, timeout)))
+  for (const ev of events.values()) {
+    const z = (Array.isArray(ev.tags) ? (ev.tags.find(t => t[0] === 'z') || []) : [])[1] || ''
+    if (!z.endsWith(':foothold-invite')) continue
+    return {
+      issuer: (ev.tags.find(t => t[0] === 'p') || [])[1] || ev.pubkey,
+      communityATag: (ev.tags.find(t => t[0] === 'a') || [])[1] || null,
+      id: ev.id,
+      createdAt: ev.created_at || 0,
+    }
+  }
+  return null
+}
+
+/**
+ * Fetch redemptions of an issuer's invites for a circle (ADR-0040). The issuer
+ * fulfills the carried vouch for each. Returns { code, recipient, createdAt }.
+ */
+export async function fetchRedemptions({ issuer, communityATag, relays = DEFAULT_RELAYS, timeout = FETCH_TIMEOUT_MS }) {
+  if (!issuer || !communityATag || USE_MOCK) return []
+  const filter = { kinds: [39999], '#p': [issuer], '#a': [communityATag] }
+  const events = new Map()
+  await Promise.all(relays.map(url => collectFromRelay(url, filter, events, timeout)))
+  const out = []
+  for (const ev of events.values()) {
+    const z = (Array.isArray(ev.tags) ? (ev.tags.find(t => t[0] === 'z') || []) : [])[1] || ''
+    if (!z.endsWith(':foothold-redemption')) continue
+    const d = (ev.tags.find(t => t[0] === 'd') || [])[1] || ''
+    out.push({ code: d.startsWith('redeem-') ? d.slice('redeem-'.length) : d, recipient: ev.pubkey, createdAt: ev.created_at || 0 })
+  }
+  return out
+}
+
 function projectReaction(ev) {
   const eTag = Array.isArray(ev.tags) ? ev.tags.find(t => t[0] === 'e') : null
   if (!eTag || !eTag[1]) return null

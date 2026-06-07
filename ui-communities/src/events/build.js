@@ -296,6 +296,33 @@ export function buildFootholdInvite({ viewerPubkey, communityATag, code }) {
   }
 }
 
+/**
+ * Build an invite redemption (ADR-0040) — the recipient's signal that they
+ * accepted invite `<code>`. kind-39999, addressable by code (`d=redeem-<code>`),
+ * `p=issuer` so the issuer can find it, authored by the recipient. The issuer's
+ * client fulfills the carried vouch when it sees this. The `z` marker is an app
+ * convention the roster engine ignores.
+ */
+export function buildInviteRedemption({ viewerPubkey, issuer, code, communityATag }) {
+  if (!viewerPubkey) throw new Error('buildInviteRedemption: viewerPubkey is required')
+  if (!issuer) throw new Error('buildInviteRedemption: issuer is required')
+  if (!code) throw new Error('buildInviteRedemption: code is required')
+  if (!communityATag) throw new Error('buildInviteRedemption: communityATag is required')
+
+  return {
+    kind: 39999,
+    tags: [
+      ['a', communityATag],
+      ['d', `redeem-${code}`],
+      ['p', issuer],
+      ['z', `39998:${LEGACY_Z_TAG_PUBKEY}:foothold-redemption`],
+    ],
+    content: '',
+    created_at: nowSec(),
+    pubkey: viewerPubkey,
+  }
+}
+
 export const CONSTANTS = {
   COMMUNITIES_DLIST_DTAG,
   ENDORSEMENTS_DLIST_DTAG,

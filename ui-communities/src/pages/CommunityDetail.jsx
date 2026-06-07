@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useOutletContext } from 'react-router-dom'
+import { useOutletContext, useSearchParams } from 'react-router-dom'
 import Button from '../components/Button.jsx'
 import TagPill from '../components/TagPill.jsx'
 import MemberRow from '../components/MemberRow.jsx'
@@ -9,10 +9,11 @@ import BrainstormMark from '../components/BrainstormMark.jsx'
 import FetchError from '../components/FetchError.jsx'
 import TrustSignal from '../components/TrustSignal.jsx'
 import { getCommunity, getCommunityMembers } from '../api/client.js'
-import { buildCommunityRecord, buildCommunityPost, buildReaction, buildFootholdInvite } from '../events/build.js'
+import { buildCommunityRecord, buildCommunityPost, buildReaction, buildFootholdInvite, buildInviteRedemption } from '../events/build.js'
 import { buildMembershipAssertion } from '../events/assertion.js'
 import { publishEvent, MEMBERSHIP_WRITE_RELAYS } from '../events/publish.js'
-import { fetchPostsForCommunity, fetchReactionsForCommunity, fetchActivityForCircles, fetchFootholdInvites, fetchCommunityDeclaration } from '../events/fetch.js'
+import { fetchPostsForCommunity, fetchReactionsForCommunity, fetchActivityForCircles, fetchFootholdInvites, fetchFootholdInvite, fetchRedemptions, fetchCommunityDeclaration } from '../events/fetch.js'
+import { pendingRedemptions, loadFulfilled, markFulfilled } from '../lib/invites.js'
 import { summarizeReactions } from '../lib/reactions.js'
 import { countNewPosts } from '../lib/liveUpdates.js'
 import { circleATag } from '../lib/circle.js'
@@ -20,7 +21,7 @@ import { describeActivity } from '../lib/activity.js'
 import { getRoster, resolveTagElement } from '../lib/roster.js'
 import { resolveDefinition } from '../lib/resolveDefinition.js'
 import { publishErrorCopy } from '../lib/errors.js'
-import { formatCount } from '../lib/format.js'
+import { formatCount, npubShort } from '../lib/format.js'
 import s from './CommunityDetail.module.css'
 
 // Fetch a parent Community Declaration by its a-tag, for §26 resolution.
@@ -111,6 +112,12 @@ export default function CommunityDetail({ slug }) {
   // Foothold invites (ADR-0039, Story 9 — issuing side).
   const [issuedInvites, setIssuedInvites] = useState([])
   const [inviteState, setInviteState] = useState({ creating: false, link: null, error: null })
+  // Accept-a-foothold (ADR-0040, Story 10). The ?invite=<code> link resolves to
+  // the inviter + circle; accepting self-tags + records a redemption.
+  const [searchParams] = useSearchParams()
+  const inviteCode = searchParams.get('invite')
+  const [inviteContext, setInviteContext] = useState(null)   // { code, issuer, status }
+  const [acceptState, setAcceptState] = useState({ accepting: false, accepted: false, error: null })
   const [resolved, setResolved] = useState(null)  // §26 resolved definition for forked circles
   const conversationLoadedRef = useRef(false)
 
@@ -304,6 +311,43 @@ export default function CommunityDetail({ slug }) {
     return () => { cancelled = true }
   }, [currentCommunity, communityATag, viewer])
 
+  // Resolve an ?invite=<code> link to its inviter + circle (ADR-0040, accept).
+  useEffect(() => {
+    if (!inviteCode) return
+    let cancelled = false
+    fetchFootholdInvite({ code: inviteCode })
+      .then(inv => { if (!cancelled) setInviteContext(inv ? { code: inviteCode, issuer: inv.issuer, status: 'ready' } : { code: inviteCode, status: 'expired' }) })
+      .catch(() => { if (!cancelled) setInviteContext({ code: inviteCode, status: 'expired' }) })
+    return () => { cancelled = true }
+  }, [inviteCode])
+
+  // Issuer-side fulfillment (ADR-0040): when the issuer views their circle, vouch
+  // for anyone who redeemed an invite, once each (standard assertion the roster
+  // counts). Non-issuers fetch nothing here (no redemptions name them).
+  useEffect(() => {
+    if (!signedIn || !viewer || !currentCommunity || !communityATag) return
+    let cancelled = false
+    ;(async () => {
+      try {
+        const reds = await fetchRedemptions({ issuer: viewer, communityATag })
+        if (cancelled || !reds.length) return
+        const unfulfilled = pendingRedemptions(reds, loadFulfilled(viewer))
+        if (!unfulfilled.length) return
+        const coord = (currentCommunity.claims && currentCommunity.claims[0]) || null
+        const tagEl = coord ? await resolveTagElement(coord) : null
+        if (!tagEl || cancelled) return
+        for (const r of unfulfilled) {
+          if (cancelled) break
+          const vouch = buildMembershipAssertion({ viewerPubkey: viewer, target: r.recipient, tagElement: tagEl, polarity: 1 })
+          const res = await publishEvent(vouch, { relays: MEMBERSHIP_WRITE_RELAYS })
+          if (res.ok) markFulfilled(viewer, r.code)
+        }
+        if (!cancelled) triggerRetry()
+      } catch { /* silent — fulfillment retries on next visit */ }
+    })()
+    return () => { cancelled = true }
+  }, [signedIn, viewer, currentCommunity, communityATag, triggerRetry])
+
   // Reset conversation-tab state when the slug changes. The React 19
   // rule flags the idiomatic "reset state on prop change" pattern;
   // a key-based remount is out of scope for Slice 6.
@@ -450,6 +494,23 @@ export default function CommunityDetail({ slug }) {
       setIssuedInvites(prev => [{ code, createdAt: Math.floor(Date.now() / 1000), id: code }, ...prev])
     } catch {
       setInviteState({ creating: false, link: null, error: "Couldn't create the invite. Retry?" })
+    }
+  }
+
+  // Accept a foothold invite (ADR-0040): self-tag in + record a redemption so the
+  // issuer's client can fulfill the carried vouch. Two-step with sign-in so the
+  // viewer pubkey is settled before we publish (the ?invite= param survives it).
+  async function handleAcceptInvite() {
+    if (!signedIn || !viewer || !inviteContext || inviteContext.status !== 'ready' || acceptState.accepting) return
+    setAcceptState({ accepting: true, accepted: false, error: null })
+    try {
+      await handleAssert(viewer, 1)   // self-tag (reuse the existing "I'm in" flow)
+      const redemption = buildInviteRedemption({ viewerPubkey: viewer, issuer: inviteContext.issuer, code: inviteContext.code, communityATag })
+      const res = await publishEvent(redemption, { relays: MEMBERSHIP_WRITE_RELAYS })
+      if (!res.ok) { setAcceptState({ accepting: false, accepted: false, error: publishErrorCopy(res) }); return }
+      setAcceptState({ accepting: false, accepted: true, error: null })
+    } catch {
+      setAcceptState({ accepting: false, accepted: false, error: "Couldn't accept the invite. Try again." })
     }
   }
 
@@ -675,6 +736,34 @@ export default function CommunityDetail({ slug }) {
       </nav>
 
       <section className={s.body}>
+        {/* Accept-a-foothold banner (ADR-0040) — shown when arriving via an
+            ?invite= link and not already a member. */}
+        {inviteCode && inviteContext && !viewerIsMember && (
+          acceptState.accepted ? (
+            <div className={s.inviteBanner}>
+              <p>You&rsquo;re in. Welcome — your standing grows as people here vouch for you.</p>
+            </div>
+          ) : inviteContext.status === 'expired' ? (
+            <div className={s.inviteBanner}>
+              <p>This invite has expired. Ask whoever shared it for a new one.</p>
+            </div>
+          ) : (
+            <div className={s.inviteBanner}>
+              <p>
+                <strong>{npubShort(inviteContext.issuer)}</strong> invited you into {c.name}. Their vouch is your way in — you&rsquo;ll start as a new member and belong more fully as people here get to know you.
+              </p>
+              {!signedIn ? (
+                <Button variant="primary" size="sm" onClick={onSignIn}>Sign in to accept</Button>
+              ) : (
+                <Button variant="primary" size="sm" onClick={handleAcceptInvite} disabled={acceptState.accepting}>
+                  {acceptState.accepting ? 'Joining…' : 'Accept invite'}
+                </Button>
+              )}
+              {acceptState.error && <p className={s.publishError} role="alert">{acceptState.error}</p>}
+            </div>
+          )
+        )}
+
         {tab === 'people' && isDeclaration && (
           <div className={s.peoplePanel}>
             <TrustSignal members={rosterState.members} personalPov={false} signedIn={signedIn} />
