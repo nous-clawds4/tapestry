@@ -41,5 +41,5 @@ Testable from the outside (input → expected behavior).
 ## Linked artifacts
 - PRD: `product-team/prd/verified-reporters.md` (§5.2, §5.3); design guide `product-team/guides/verified-reporters-design-guide.md`; style guide `product-team/guides/verified-reporters-style-guide.md` (use the title, description, point-of-view lines, empty-state, error, and "About this data" copy verbatim).
 - ADR: `engineering-team/decisions/verified-reporters/0003-verified-reporters-list-page.md` (Accepted)
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/verified-reporters/3-verified-reporters-list-page.test-plan.md` (suite `test/verified-reporters-list-page.test.js` + Playwright `tests/brainstorm/profile-verified-reporters-list.spec.js`)
 - Review: (filled in after Review phase)
