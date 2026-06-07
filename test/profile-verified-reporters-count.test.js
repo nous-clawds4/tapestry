@@ -57,12 +57,12 @@ test('T1: BrainstormProfile.jsx renders a "Verified Reporters" count in the bsp-
     'the new counter must be labeled "Verified Reporters" via a `bsp-count-label` span. (Pre-implementation the only Reporters string is the TRUST_METRICS label \'Reporters\', rendered as bsp-trust-card-label in the Reputation grid — not the prominent counter, and not the text "Verified Reporters".)');
 });
 
-// AC1 (PoV) — value sourced from the PoV-resolved trustScores, NOT a separate fetch.
-test('T2: the new counter sources its value from trustScores.verifiedReporterCount (PoV-resolved) (AC1)', () => {
+// AC1 — value sourced from the Owner-PoV userCounts (Neo4j), NOT Meili (ADR 0031).
+test('T2: the new counter sources its value from userCounts.verifiedReporterCount (Owner PoV, ADR 0031)', () => {
   const src = safeRead(PROFILE_PAGE);
   assert(src.length > 0, 'BrainstormProfile.jsx missing — unexpected.');
-  assert(/trustScores\s*\??\.\s*verifiedReporterCount/.test(src),
-    'the counter must read `verifiedReporterCount` directly off the PoV-resolved `trustScores` object (e.g. `trustScores?.verifiedReporterCount`). Pre-implementation verifiedReporterCount only appears as a TRUST_METRICS tag string and is read as `trustScores[metric.tag]` in the Reputation grid. Reading trustScores ties the count to the existing ?pov= / House-default resolution (AC1), and NOT to the owner-POV useUserCounts.');
+  assert(/userCounts\s*\??\.\s*verifiedReporterCount/.test(src),
+    'the counter must read `verifiedReporterCount` off the Owner-PoV `userCounts` object (e.g. `userCounts?.verifiedReporterCount`) — the same source the /reporters table uses, NOT Meili `trustScores`. ADR 0031 superseded the original Meili source (this ADR 0001 decision).');
 });
 
 // AC2 — when >0 the counter links to the reporters list.

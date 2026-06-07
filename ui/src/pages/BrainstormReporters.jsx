@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import BrainstormUserMenu from '../components/BrainstormUserMenu';
 import DataTable from '../components/DataTable';
 import useGrapevineReporters from '../hooks/useGrapevineReporters';
+import VerificationInfo from '../components/VerificationInfo';
 
 /* ── Helpers ──────────────────────────────────────────── */
 
@@ -54,28 +55,6 @@ function loadVisible() {
 // so profile lookups are batched at PROFILE_CHUNK and merged chunk-by-chunk as they arrive.
 const PROFILE_CHUNK = 50;
 
-/* ── Local-data disclosure popover (tap to open; mobile-friendly) ── */
-
-function InfoPopover({ open, onClose }) {
-  if (!open) return null;
-  return (
-    <div className="bsp-confirm-overlay" onClick={onClose}>
-      <div className="bsp-confirm-box bsp-follows-info" onClick={e => e.stopPropagation()}>
-        <h3 className="bsp-confirm-title">About this data</h3>
-        <p className="bsp-confirm-message">
-          All data on this page is computed locally by this Tapestry instance and is not imported via NIP-85.
-        </p>
-        <p className="bsp-confirm-message">
-          Counts are personal to each viewer's web of trust. There is no single global number. When you have no calculated web of trust, the House (default) view is shown.
-        </p>
-        <div className="bsp-confirm-buttons">
-          <button className="bsp-confirm-ok" onClick={onClose}>Got it</button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 /* ── Main component ──────────────────────────────────── */
 
 export default function BrainstormReporters() {
@@ -89,7 +68,6 @@ export default function BrainstormReporters() {
   const [search, setSearch] = useState('');
   const [visible, setVisible] = useState(loadVisible);
   const [showCols, setShowCols] = useState(false);
-  const [showInfo, setShowInfo] = useState(false);
 
   // Persist column show/hide choices across reloads/sessions.
   useEffect(() => {
@@ -168,17 +146,11 @@ export default function BrainstormReporters() {
         <div className="bsp-follows-header">
           <Link to={`/user/${pubkey}`} className="bsp-back-link">← Back to profile</Link>
           <h1 className="bsp-follows-title">Verified Reporters</h1>
-          <button
-            type="button"
-            className="bsp-info-btn"
-            aria-label="About this data"
-            title="About this data"
-            onClick={() => setShowInfo(true)}
-          >ⓘ</button>
+          <VerificationInfo />
         </div>
         <p className="bsp-follows-subtitle">Verified users who have reported this account.</p>
-        {/* v1 membership is House-only, so the House point of view is the honest attribution. */}
-        <p className="bsp-follows-pov">Relative to the House (default) web of trust. Sign in and build your network to see your own view.</p>
+        {/* v1 data is Owner-PoV (Neo4j), so the owner's web of trust is the honest attribution (ADR 0031). */}
+        <p className="bsp-follows-pov">Relative to the owner's web of trust.</p>
 
         {/* Controls: search + columns toggle */}
         <div className="bsp-follows-controls">
@@ -245,8 +217,6 @@ export default function BrainstormReporters() {
           />
         )}
       </div>
-
-      <InfoPopover open={showInfo} onClose={() => setShowInfo(false)} />
     </div>
   );
 }

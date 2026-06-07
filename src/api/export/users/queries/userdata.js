@@ -324,7 +324,7 @@ function handleGetUserCounts(req, res) {
   const filter = JSON.stringify({ kinds: [3], authors: [pubkey], limit: 1 });
   const cmd = `strfry scan '${filter}'`;
 
-  exec(cmd, { maxBuffer: 16 * 1024 * 1024 }, (error, stdout) => {
+  exec(cmd, { maxBuffer: 16 * 1024 * 1024 }, async (error, stdout) => {
     if (error) {
       console.error('handleGetUserCounts strfry scan error:', error.message);
       return res.status(500).json({ success: false, message: error.message });
@@ -344,9 +344,78 @@ function handleGetUserCounts(req, res) {
       }
     }
 
+    // Owner-PoV verified counts from Neo4j (ADR 0031, the "hybrid" this endpoint's
+    // docstring anticipated). Prefer the precomputed NostrUser node property (O(1));
+    // when null, fall back to a count-only live query bounded by NEO4J_QUERY_TIMEOUT_MS
+    // → null on timeout/error (renders "—"), NEVER raw followers. Same edges + cutoffs
+    // as the /followers and /reporters tables, so badge ≡ table definition.
+    let verifiedFollowerCount = null;
+    let verifiedReporterCount = null;
+    const neo4jUri = getConfigFromFile('NEO4J_URI', 'bolt://localhost:7687');
+    const neo4jUser = getConfigFromFile('NEO4J_USER', 'neo4j');
+    const neo4jPassword = getConfigFromFile('NEO4J_PASSWORD', 'neo4j');
+    const queryTimeoutMs = parseInt(getConfigFromFile('NEO4J_QUERY_TIMEOUT_MS', 15000), 10);
+    const vfCutoff = parseFloat(getConfigFromFile('VERIFIED_FOLLOWERS_INFLUENCE_CUTOFF', 0.05));
+    const vrCutoff = parseFloat(getConfigFromFile('VERIFIED_REPORTERS_INFLUENCE_CUTOFF', 0.05));
+    const toInt = (v) => {
+      if (v == null) return null;
+      if (typeof v.toNumber === 'function') return v.toNumber();
+      if (typeof v === 'object' && typeof v.low === 'number') return v.low;
+      const n = parseInt(v.toString(), 10);
+      return Number.isNaN(n) ? null : n;
+    };
+    const driver = neo4j.driver(neo4jUri, neo4j.auth.basic(neo4jUser, neo4jPassword));
+    const session = driver.session();
+    try {
+      // 1) Precomputed Owner node properties (cheap, O(1)).
+      const propRes = await session.run(
+        'MATCH (u:NostrUser {pubkey: $pubkey}) RETURN u.verifiedFollowerCount AS vfc, u.verifiedReporterCount AS vrc',
+        { pubkey },
+        { timeout: queryTimeoutMs }
+      );
+      if (propRes.records.length > 0) {
+        verifiedFollowerCount = toInt(propRes.records[0].get('vfc'));
+        verifiedReporterCount = toInt(propRes.records[0].get('vrc'));
+      }
+      // 2) Count-only live fallback when a property is absent (deadline-bounded; null on
+      //    timeout/error so the badge shows "—" — never a raw/other-metric substitution).
+      if (verifiedFollowerCount == null) {
+        try {
+          const vfRes = await session.run(
+            'MATCH (f:NostrUser)-[:FOLLOWS]->(u:NostrUser {pubkey: $pubkey}) WHERE f.influence > $cutoff RETURN count(f) AS c',
+            { pubkey, cutoff: vfCutoff },
+            { timeout: queryTimeoutMs }
+          );
+          verifiedFollowerCount = vfRes.records.length ? toInt(vfRes.records[0].get('c')) : 0;
+        } catch (e) {
+          console.error('handleGetUserCounts verifiedFollowerCount fallback failed:', e.message);
+          verifiedFollowerCount = null;
+        }
+      }
+      if (verifiedReporterCount == null) {
+        try {
+          const vrRes = await session.run(
+            'MATCH (u:NostrUser {pubkey: $pubkey})<-[:REPORTS]-(r:NostrUser) WHERE r.influence > $cutoff RETURN count(r) AS c',
+            { pubkey, cutoff: vrCutoff },
+            { timeout: queryTimeoutMs }
+          );
+          verifiedReporterCount = vrRes.records.length ? toInt(vrRes.records[0].get('c')) : 0;
+        } catch (e) {
+          console.error('handleGetUserCounts verifiedReporterCount fallback failed:', e.message);
+          verifiedReporterCount = null;
+        }
+      }
+    } catch (e) {
+      console.error('handleGetUserCounts Neo4j read failed:', e.message);
+      // Leave verified counts null → "—"; Following (strfry) is still returned.
+    } finally {
+      await session.close();
+      await driver.close();
+    }
+
     res.status(200).json({
       success: true,
-      data: { pubkey, followingCount }
+      data: { pubkey, followingCount, verifiedFollowerCount, verifiedReporterCount }
     });
   });
 }

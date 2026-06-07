@@ -97,23 +97,19 @@ test('T6: selecting a reporter row navigates to that reporter\'s /user/<pubkey> 
 });
 
 // AC5 — House PoV line, verbatim
-test('T7: the page shows the House point-of-view line (AC5)', () => {
+test('T7: the page shows the Owner point-of-view line (AC5; relabeled by ADR 0031)', () => {
   const src = safeRead(PAGE);
   assert(src.length > 0, 'BrainstormReporters.jsx does not exist yet.');
-  assert(/Relative to the House \(default\) web of trust\./.test(src),
-    'the page must show the House PoV line "Relative to the House (default) web of trust. Sign in and build your network to see your own view." (style guide; v1 membership is House-only, so the House line is the honest attribution).');
+  assert(/Relative to the owner/i.test(src),
+    'the page must show the Owner PoV line (e.g. "Relative to the owner\'s web of trust.") — the data is Owner-PoV (Neo4j), so the owner is the honest attribution. ADR 0031 relabeled this from the original "House" wording.');
+  assert(!/Relative to the House \(default\) web of trust/.test(src),
+    'the old "House (default) web of trust" line must be gone (it mislabeled Owner-PoV data as House).');
 });
 
-// AC5 — extended About-this-data popover (local + no-global-view)
-test('T8: the "About this data" popover states local computation AND the no-global-view sentence (AC5)', () => {
-  const src = safeRead(PAGE);
-  assert(src.length > 0, 'BrainstormReporters.jsx does not exist yet.');
-  assert(/About this data/.test(src), 'the page must keep the "About this data" disclosure.');
-  assert(/comput(e|ed)\s+locally|locally by this|this Tapestry instance/i.test(src) && /NIP-?85/i.test(src),
-    'the popover must keep the local/NIP-85 sentence.');
-  assert(/There is no single global number/.test(src),
-    'the popover must be EXTENDED with the no-global-view sentence "There is no single global number" (style guide / PRD §11).');
-});
+// AC5 — popover: RETIRED. The "About this data" popover was replaced by the shared
+// VerificationInfo ("What does \"verification\" mean?") popover in profile #36 / ADR 0032
+// (it no longer carries the local/NIP-85 or "no single global number" copy). The new
+// popover is covered by the profile-verified-counts-explainer-and-alarm suite (T4/T5).
 
 // AC6 — empty state, verbatim
 test('T9: the empty state uses the style-guide copy (AC6)', () => {

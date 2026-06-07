@@ -48,22 +48,22 @@ test('T1: BrainstormProfile.jsx renders a "Verified Followers" count in the bsp-
     'the new counter must be labeled "Verified Followers" via a `bsp-count-label` span. (The existing "Verified Followers" strings are TRUST_METRICS labels rendered as bsp-trust-card-label in the Reputation grid, not the prominent counter.)');
 });
 
-// AC2 (+ AC3/AC4 at source level) — value from the verified score on the PoV-resolved trustScores.
-test('T2: the new counter sources its value from trustScores.verifiedFollowerCount (verified score, PoV-resolved) (AC2; AC3/AC4 source)', () => {
+// AC2 — value from the Owner-PoV count (userCounts), NOT Meili (superseded to Neo4j by ADR 0031).
+test('T2: the new counter sources its value from userCounts.verifiedFollowerCount (Owner PoV, ADR 0031)', () => {
   const src = safeRead(PROFILE_PAGE);
   assert(src.length > 0, 'BrainstormProfile.jsx missing — unexpected.');
-  assert(/trustScores\s*\??\.\s*verifiedFollowerCount/.test(src),
-    'the counter must read `verifiedFollowerCount` directly off the PoV-resolved `trustScores` object (e.g. `trustScores?.verifiedFollowerCount`). Pre-implementation trustScores is only read as `trustScores[metric.tag]` in the Reputation grid. Reading trustScores ties the count to the existing House-default / ?pov= resolution (AC3/AC4) and to the VERIFIED score, not the raw follower total (AC2).');
+  assert(/userCounts\s*\??\.\s*verifiedFollowerCount/.test(src),
+    'the counter must read `verifiedFollowerCount` off the Owner-PoV `userCounts` object (e.g. `userCounts?.verifiedFollowerCount`) — the same source the /followers table uses, NOT Meili `trustScores`. ADR 0031 superseded the original Meili source (this ADR 0029 decision) after it surfaced a raw-follower count mislabeled as verified.');
 });
 
-// AC6 + zero-preservation — nullish-coalescing fallback so a genuine 0 shows "0".
-test('T3: the verifiedFollowerCount->followers fallback uses ?? (not ||) so a real 0 is preserved (AC6)', () => {
+// AC6 + zero-preservation — nullish-coalescing so a genuine 0 shows "0" (no raw-follower fallback; ADR 0031).
+test('T3: the verified-follower count uses ?? (not ||) so a real 0 is preserved (AC6)', () => {
   const src = safeRead(PROFILE_PAGE);
   assert(src.length > 0, 'BrainstormProfile.jsx missing — unexpected.');
   assert(/verifiedFollowerCount\s*\?\?/.test(src),
-    'the count must fall back with nullish-coalescing: `trustScores?.verifiedFollowerCount ?? trustScores?.followers`. (Pre-implementation `verifiedFollowerCount` only appears as a TRUST_METRICS tag string, never followed by `??`.)');
+    'the count must use nullish-coalescing (`userCounts?.verifiedFollowerCount ?? null`) so a genuine 0 is kept, not dropped. ADR 0031 REMOVED the old `?? trustScores?.followers` raw-follower fallback (it showed raw followers mislabeled as verified).');
   assert(!/verifiedFollowerCount\s*\|\|/.test(src),
-    'do NOT use `||` for the fallback — `verifiedFollowerCount || followers` treats a genuine 0 as falsy and drops it (showing the followers value or "—" instead of "0"). Use `??`.');
+    'do NOT use `||` — it treats a genuine 0 as falsy and drops it. Use `??`.');
 });
 
 // AC5/AC6 display — the value is formatted through the existing fmtCount helper (null -> "—", 0 -> "0").

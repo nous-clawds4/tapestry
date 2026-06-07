@@ -54,6 +54,8 @@ const profileFollowersList = require('./profile-followers-list.test.js');
 const profileVerifiedReportersCount = require('./profile-verified-reporters-count.test.js');
 const verifiedReportersMembershipData = require('./verified-reporters-membership-data.test.js');
 const verifiedReportersListPage = require('./verified-reporters-list-page.test.js');
+const profileVerifiedCountsOwnerPov = require('./profile-verified-counts-owner-pov.test.js');
+const profileVerifiedCountsExplainerAndAlarm = require('./profile-verified-counts-explainer-and-alarm.test.js');
 
 async function main() {
   console.log('Running Brainstorm tests...\n');
@@ -154,6 +156,12 @@ async function main() {
   console.log('\nverified-reporters-list-page suite:');
   const verifiedReportersListPageResult = await verifiedReportersListPage.run();
 
+  console.log('\nprofile-verified-counts-owner-pov suite:');
+  const profileVerifiedCountsOwnerPovResult = await profileVerifiedCountsOwnerPov.run();
+
+  console.log('\nprofile-verified-counts-explainer-and-alarm suite:');
+  const profileVerifiedCountsExplainerAndAlarmResult = await profileVerifiedCountsExplainerAndAlarm.run();
+
   console.log('\nTest Results');
   console.log('-------------');
   console.log(`Configuration Loading:                           ${configOk ? 'PASS' : 'FAIL'}`);
@@ -250,6 +258,12 @@ async function main() {
   console.log(
     `verified-reporters-list-page suite:              ${verifiedReportersListPageResult.fail === 0 ? 'PASS' : 'FAIL'} (${verifiedReportersListPageResult.pass} passed, ${verifiedReportersListPageResult.fail} failed)`
   );
+  console.log(
+    `profile-verified-counts-owner-pov suite:         ${profileVerifiedCountsOwnerPovResult.fail === 0 ? 'PASS' : 'FAIL'} (${profileVerifiedCountsOwnerPovResult.pass} passed, ${profileVerifiedCountsOwnerPovResult.fail} failed)`
+  );
+  console.log(
+    `profile-verified-counts-explainer-and-alarm suite: ${profileVerifiedCountsExplainerAndAlarmResult.fail === 0 ? 'PASS' : 'FAIL'} (${profileVerifiedCountsExplainerAndAlarmResult.pass} passed, ${profileVerifiedCountsExplainerAndAlarmResult.fail} failed)`
+  );
 
   const overallOk =
     configOk &&
@@ -283,7 +297,9 @@ async function main() {
     profileFollowersListResult.fail === 0 &&
     profileVerifiedReportersCountResult.fail === 0 &&
     verifiedReportersMembershipDataResult.fail === 0 &&
-    verifiedReportersListPageResult.fail === 0;
+    verifiedReportersListPageResult.fail === 0 &&
+    profileVerifiedCountsOwnerPovResult.fail === 0 &&
+    profileVerifiedCountsExplainerAndAlarmResult.fail === 0;
   console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);
   process.exit(overallOk ? 0 : 1);
 }
