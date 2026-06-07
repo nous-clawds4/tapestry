@@ -1,6 +1,6 @@
 # Story 36: Verification explainer popover + dynamic Verified-Reporters alarm
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-06-08
 **Type:** Feature
 **Epic:** `profile`
@@ -55,4 +55,4 @@ For the Architect:
 - Design handoff: `docs/POV_RESOLUTION_DESIGN_HANDOFF.md` (Owner PoV; the broader three-PoV future).
 - ADR: `engineering-team/decisions/profile/0032-verified-counts-explainer-and-alarm.md` (Accepted; partially supersedes ADR 0001 + the prior popover)
 - Test plan: `engineering-team/stories/profile/36-verified-counts-explainer-and-alarm.test-plan.md` (suite `test/profile-verified-counts-explainer-and-alarm.test.js`; retired the obsolete `verified-reporters-list-page` T8)
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/profile/36-verified-counts-explainer-and-alarm.md` — **PASS** (2026-06-08)
