@@ -47,6 +47,6 @@ For the Architect:
 ## Linked artifacts
 - ADRs (context / partial supersession): `engineering-team/decisions/verified-reporters/0001-verified-reporters-count.md` (negative-signal rule), `engineering-team/decisions/profile/0031-profile-verified-counts-owner-pov.md` (Owner-PoV counts via `userCounts`, which supply VF + VR client-side).
 - Design handoff: `docs/POV_RESOLUTION_DESIGN_HANDOFF.md` (Owner PoV; the broader three-PoV future).
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/profile/0032-verified-counts-explainer-and-alarm.md` (Accepted; partially supersedes ADR 0001 + the prior popover)
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
