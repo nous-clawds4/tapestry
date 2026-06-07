@@ -1,9 +1,9 @@
 # Book of Work: Verified Reporters
 
 **Slug:** verified-reporters
-**Status:** Open
+**Status:** Closed
 **Opened:** 2026-06-07
-**Closed:** —
+**Closed:** 2026-06-07
 
 ## Intent anchor
 **PRD-backed** — `product-team/prd/verified-reporters.md` §8.1 (In Scope / MVP). Completion is *computed*: every story tracing to these sections is `Done` and the `verified-reporters` epic is closed.
@@ -15,7 +15,7 @@ The feature: a point-of-view-filtered "Verified Reporters" count on the user pro
 
 ## Provenance
 - **Mode:** PRD-backed
-- **Confidence at close:** (to be set at close)
+- **Confidence at close:** high — anchored to the PRD at kickoff; all three stories Done with PASS reviews; every shipped file traces to a story + ADR.
 
 ## Close artifacts *(filled by `/close-book`)*
 - Build audit: `engineering-team/audits/verified-reporters/audit.md`
