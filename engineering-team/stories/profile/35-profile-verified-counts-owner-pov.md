@@ -48,5 +48,5 @@ Testable from the outside.
 - Design doc: `docs/POV_RESOLUTION_DESIGN_HANDOFF.md` (§7.4 — the decision this story implements; §9 — related ops/data findings).
 - Prior ADRs to supersede on count-source: `engineering-team/decisions/verified-reporters/0001-verified-reporters-count.md`, `engineering-team/decisions/profile/0029-profile-verified-followers-count.md`.
 - ADR: `engineering-team/decisions/profile/0031-profile-verified-counts-owner-pov.md` (Accepted; supersedes the count-source of ADR 0029 + ADR 0001)
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/profile/35-profile-verified-counts-owner-pov.test-plan.md` (suite `test/profile-verified-counts-owner-pov.test.js`)
 - Review: (filled in after Review phase)
