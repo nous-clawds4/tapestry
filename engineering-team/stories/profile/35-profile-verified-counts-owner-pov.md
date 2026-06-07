@@ -54,4 +54,4 @@ Testable from the outside.
 - Prior ADRs to supersede on count-source: `engineering-team/decisions/verified-reporters/0001-verified-reporters-count.md`, `engineering-team/decisions/profile/0029-profile-verified-followers-count.md`.
 - ADR: `engineering-team/decisions/profile/0031-profile-verified-counts-owner-pov.md` (Accepted; supersedes the count-source of ADR 0029 + ADR 0001)
 - Test plan: `engineering-team/stories/profile/35-profile-verified-counts-owner-pov.test-plan.md` (suite `test/profile-verified-counts-owner-pov.test.js`)
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/profile/35-profile-verified-counts-owner-pov.md` — **CHANGES REQUESTED** (2026-06-08): the `/reporters` "About this data" popover (BrainstormReporters.jsx:69) still describes a per-viewer/House model, contradicting the new Owner PoV line (AC5 only partially met). Fix popover copy + add a guard test.
