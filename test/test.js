@@ -51,6 +51,7 @@ const profileFollowsList = require('./profile-follows-list.test.js');
 const profileWebsiteLink = require('./profile-website-link.test.js');
 const profileVerifiedFollowersCount = require('./profile-verified-followers-count.test.js');
 const profileFollowersList = require('./profile-followers-list.test.js');
+const profileVerifiedReportersCount = require('./profile-verified-reporters-count.test.js');
 
 async function main() {
   console.log('Running Brainstorm tests...\n');
@@ -142,6 +143,9 @@ async function main() {
   console.log('\nprofile-followers-list suite:');
   const profileFollowersListResult = await profileFollowersList.run();
 
+  console.log('\nprofile-verified-reporters-count suite:');
+  const profileVerifiedReportersCountResult = await profileVerifiedReportersCount.run();
+
   console.log('\nTest Results');
   console.log('-------------');
   console.log(`Configuration Loading:                           ${configOk ? 'PASS' : 'FAIL'}`);
@@ -229,6 +233,9 @@ async function main() {
   console.log(
     `profile-followers-list suite:                    ${profileFollowersListResult.fail === 0 ? 'PASS' : 'FAIL'} (${profileFollowersListResult.pass} passed, ${profileFollowersListResult.fail} failed)`
   );
+  console.log(
+    `profile-verified-reporters-count suite:          ${profileVerifiedReportersCountResult.fail === 0 ? 'PASS' : 'FAIL'} (${profileVerifiedReportersCountResult.pass} passed, ${profileVerifiedReportersCountResult.fail} failed)`
+  );
 
   const overallOk =
     configOk &&
@@ -259,7 +266,8 @@ async function main() {
     profileFollowsListResult.fail === 0 &&
     profileWebsiteLinkResult.fail === 0 &&
     profileVerifiedFollowersCountResult.fail === 0 &&
-    profileFollowersListResult.fail === 0;
+    profileFollowersListResult.fail === 0 &&
+    profileVerifiedReportersCountResult.fail === 0;
   console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);
   process.exit(overallOk ? 0 : 1);
 }
