@@ -12,7 +12,7 @@ const NAV_ITEMS = [
   { to: '/found', label: 'Start a Circle', requiresAuth: true },
 ]
 
-export default function Header({ viewer, signedIn, pathname, onNavigate, onSignIn, onSignOut }) {
+export default function Header({ viewer, signedIn, pathname, onNavigate, onSignIn, onSignOut, notificationsHasNew = false }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [signInState, setSignInState] = useState({ status: 'idle', error: null })
   const [copied, setCopied] = useState(false)
@@ -159,6 +159,20 @@ export default function Header({ viewer, signedIn, pathname, onNavigate, onSignI
                     role="menuitem"
                   >
                     Start a Circle
+                  </button>
+                  <button
+                    type="button"
+                    className={s.userItem}
+                    onClick={() => { onNavigate('/notifications'); setMenuOpen(false) }}
+                    role="menuitem"
+                  >
+                    Notifications
+                    {notificationsHasNew && (
+                      <>
+                        <span className={s.notifDot} aria-hidden="true" />
+                        <span className={s.srOnly}> new updates</span>
+                      </>
+                    )}
                   </button>
                   <button
                     type="button"

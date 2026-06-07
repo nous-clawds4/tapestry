@@ -10,7 +10,9 @@ import Create from './pages/Create.jsx'
 import Found from './pages/Found.jsx'
 import Edit from './pages/Edit.jsx'
 import NotificationSettings from './pages/NotificationSettings.jsx'
+import NotificationInbox from './pages/NotificationInbox.jsx'
 import NotFound from './pages/NotFound.jsx'
+import { useNotifications } from './hooks/useNotifications.js'
 import {
   clearStoredViewerPubkey,
   getStoredViewerPubkey,
@@ -139,10 +141,17 @@ function AppShell() {
     window.scrollTo({ top: 0, behavior: 'instant' })
   }, [location.pathname])
 
+  const notif = useNotifications({ viewer, signedIn, joinedSlugs: Array.from(joinedSet) })
+
   const ctx = {
     viewer,
     signedIn,
     joinedSet,
+    notifications: notif.items,
+    notificationsHasNew: notif.hasNew,
+    notificationsStatus: notif.status,
+    markNotificationsSeen: notif.markSeen,
+    reloadNotifications: notif.reload,
     vouchedSet,
     setJoinedSet,
     setVouchedSet,
@@ -165,6 +174,7 @@ function AppShell() {
         onNavigate={navigate}
         onSignIn={handleSignIn}
         onSignOut={handleSignOut}
+        notificationsHasNew={notif.hasNew}
       />
       <main>
         <Outlet context={ctx} />
@@ -198,6 +208,7 @@ const router = createBrowserRouter([
       { path: 'found', element: <Found /> },
       { path: 'edit/:slug', element: <EditRoute /> },
       { path: 'settings', element: <NotificationSettings /> },
+      { path: 'notifications', element: <NotificationInbox /> },
       { path: '*', element: <NotFound /> },
     ],
   },

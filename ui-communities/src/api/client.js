@@ -301,6 +301,11 @@ export async function getJoinedCommunitySummaries(slugs, viewer) {
     slug: c.slug,
     name: c.name,
     description: c.description,
+    // model/founder/curator are required to build the circle's `A` coordinate
+    // (circleATag) — used by signs-of-life and the notification inbox.
+    model: c.model || null,
+    founder: c.founder || null,
+    curator: c.curator || null,
     tags: Array.isArray(c.tags) ? c.tags : [],
     image: c.image || null,
     accent: c.accent || null,

@@ -18,9 +18,9 @@ import { Relay } from 'nostr-tools/relay'
 import { DEFAULT_RELAYS } from './publish.js'
 import { communities } from '../data/mockData.js'
 
-const USE_MOCK = import.meta.env.VITE_USE_MOCK_DATA === 'true'
+export const USE_MOCK = import.meta.env.VITE_USE_MOCK_DATA === 'true'
 
-const FETCH_TIMEOUT_MS = 5000
+export const FETCH_TIMEOUT_MS = 5000
 
 /**
  * Fetch NIP-22 kind-1111 comments for a community.
@@ -60,7 +60,7 @@ export async function fetchPostsForCommunity({
     .sort((a, b) => b.createdAt - a.createdAt)
 }
 
-async function collectFromRelay(url, filter, events, timeoutMs) {
+export async function collectFromRelay(url, filter, events, timeoutMs) {
   let relay
   try {
     relay = await Relay.connect(url)
