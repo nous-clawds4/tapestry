@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Verified Reporters — Wireframes</title>
+<style>
+  /* ── Real app tokens (ui/src/styles.css :root) ── */
+  :root{
+    --bg:#0d1117; --bg-secondary:#161b22; --bg-tertiary:#21262d;
+    --border:#30363d; --text:#e6edf3; --text-muted:#8b949e;
+    --accent:#58a6ff; --accent-hover:#79c0ff;
+    --green:#3fb950; --orange:#d29922; --red:#f85149; --radius:8px;
+    --font:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:#05070a;color:var(--text);font-family:var(--font);line-height:1.5;padding:32px}
+  h2.section{font-size:1.1rem;letter-spacing:.04em;text-transform:uppercase;color:var(--accent);
+    border-bottom:1px solid var(--border);padding-bottom:8px;margin:48px 0 8px}
+  h2.section:first-of-type{margin-top:0}
+  .note{color:var(--text-muted);font-size:.85rem;margin:0 0 20px;max-width:760px}
+  .frame-label{color:var(--text-muted);font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;margin:24px 0 6px}
+  .device{background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:20px;max-width:760px;margin-bottom:8px}
+  .device.mobile{max-width:380px}
+
+  /* ── Profile shell bits ── */
+  .bsp-header{display:flex;gap:14px;align-items:center;margin-bottom:6px}
+  .bsp-avatar{width:56px;height:56px;border-radius:50%;background:var(--bg-tertiary);
+    display:flex;align-items:center;justify-content:center;font-size:1.4rem;color:var(--text-muted)}
+  .bsp-name{font-size:1.3rem;margin:0}
+  .bsp-nip05{color:var(--text-muted);font-size:.85rem}
+
+  /* ── Counts row (mirrors .bsp-counts / .bsp-count) ── */
+  .bsp-counts{display:flex;align-items:baseline;flex-wrap:wrap;gap:.9rem;margin:.5rem 0 .25rem;font-size:.9rem}
+  .bsp-count{display:inline-flex;align-items:baseline;gap:.35rem;text-decoration:none;color:inherit}
+  .bsp-count-value{font-weight:600;color:var(--text)}
+  .bsp-count-label{opacity:.6}
+  a.bsp-count-link{cursor:pointer}
+  a.bsp-count-link:hover .bsp-count-value{text-decoration:underline}
+  /* negative-signal variant */
+  .bsp-count-value.neg{color:var(--red)}
+  .pov-chip{font-size:.62rem;font-weight:600;letter-spacing:.03em;color:var(--orange);
+    border:1px solid var(--orange);border-radius:999px;padding:0 .4em;opacity:.9;margin-left:.15rem}
+  .loading .bsp-count-value{opacity:.4}
+  .cap{color:var(--text-muted);font-size:.72rem;margin-top:6px}
+
+  /* ── List page (mirrors .bsp-follows-*) ── */
+  .bsp-follows-header{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:4px}
+  .bsp-back-link{font-size:.85rem;opacity:.75;text-decoration:none;color:var(--text)}
+  .bsp-back-link:hover{opacity:1;text-decoration:underline}
+  .bsp-follows-title{margin:0;font-size:1.4rem}
+  .bsp-info-btn{width:22px;height:22px;border-radius:50%;border:1px solid var(--border);
+    background:transparent;color:var(--text-muted);cursor:pointer;font-size:.75rem;line-height:1}
+  .subtitle{color:var(--text-muted);font-size:.9rem;margin:2px 0 0}
+  .pov-line{font-size:.82rem;margin:6px 0 0;color:var(--text-muted)}
+  .pov-line.house{color:var(--orange)}
+  .controls{display:flex;gap:10px;margin:16px 0 12px;flex-wrap:wrap}
+  .search{flex:1;min-width:160px;background:var(--bg-tertiary);border:1px solid var(--border);
+    color:var(--text);border-radius:6px;padding:8px 10px;font-size:.9rem}
+  .colbtn{background:var(--bg-tertiary);border:1px solid var(--border);color:var(--text);
+    border-radius:6px;padding:8px 12px;font-size:.9rem;cursor:pointer}
+
+  table{width:100%;border-collapse:collapse;font-size:.9rem}
+  th{text-align:left;color:var(--text-muted);font-weight:600;font-size:.78rem;text-transform:uppercase;
+    letter-spacing:.04em;padding:8px 10px;border-bottom:1px solid var(--border)}
+  td{padding:10px;border-bottom:1px solid rgba(255,255,255,.06)}
+  tr.row{cursor:pointer}
+  tr.row:hover td{background:rgba(255,255,255,.03)}
+  .av{width:30px;height:30px;border-radius:50%;background:var(--bg-tertiary);display:inline-flex;
+    align-items:center;justify-content:center;color:var(--text-muted);font-size:.8rem}
+  .rank{font-weight:600}
+  .rank.hi{color:var(--green)}
+  code{color:var(--text-muted);font-size:.8rem}
+
+  /* states */
+  .bsp-empty{padding:2rem;text-align:center;opacity:.7}
+  .bsp-empty .big{font-size:1.6rem;display:block;margin-bottom:.4rem}
+  .bsp-unavailable{display:flex;gap:.5rem;align-items:center;padding:1rem;background:rgba(248,81,73,.08);
+    border:1px solid rgba(248,81,73,.25);border-radius:var(--radius);color:#fca5a5}
+  .retry{margin-left:auto;background:transparent;border:1px solid var(--red);color:#fca5a5;
+    border-radius:6px;padding:4px 10px;cursor:pointer;font-size:.82rem}
+  .sk{height:30px;border-radius:6px;background:linear-gradient(90deg,rgba(255,255,255,.04),rgba(255,255,255,.09),rgba(255,255,255,.04));
+    background-size:200% 100%;animation:sh 1.2s infinite}
+  .sk.av{width:30px;height:30px;border-radius:50%}
+  @keyframes sh{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+  /* popover */
+  .pop{background:var(--bg-secondary);border:1px solid var(--border);border-radius:var(--radius);
+    padding:18px;max-width:420px;margin-top:8px}
+  .pop h3{margin:0 0 8px;font-size:1rem}
+  .pop p{margin:0 0 10px;color:var(--text-muted);font-size:.88rem}
+  .pop .ok{background:var(--accent);border:none;color:#06121f;border-radius:6px;padding:6px 14px;cursor:pointer;font-weight:600}
+  .legend{max-width:760px;color:var(--text-muted);font-size:.82rem;border-left:2px solid var(--accent);padding-left:12px;margin:6px 0 0}
+</style>
+</head>
+<body>
+
+<h2 class="section">§A · Profile — counts row</h2>
+<p class="note">The new <strong>Verified Reporters</strong> count sits in the existing <code>.bsp-counts</code> row, parallel to Following and Verified Followers. Value uses <code>--red</code> only when &gt; 0. Three numeric states: <strong>&gt;0</strong> (red, linked) · <strong>0</strong> (neutral, not linked) · <strong>unavailable</strong> (—).</p>
+
+<div class="frame-label">A1 · Personal PoV, count &gt; 0 (default happy path)</div>
+<div class="device">
+  <div class="bsp-header"><div class="bsp-avatar">A</div>
+    <div><h1 class="bsp-name">alice</h1><div class="bsp-nip05">✅ alice@example.com</div></div></div>
+  <div class="bsp-counts">
+    <a class="bsp-count bsp-count-link" href="#"><span class="bsp-count-value">1,204</span><span class="bsp-count-label">Following</span></a>
+    <a class="bsp-count bsp-count-link" href="#"><span class="bsp-count-value">312</span><span class="bsp-count-label">Verified Followers</span></a>
+    <a class="bsp-count bsp-count-link" href="#" title="3 verified reporters in your web of trust — view list">
+      <span class="bsp-count-value neg">3</span><span class="bsp-count-label">Verified Reporters</span></a>
+  </div>
+  <div class="cap">↑ red value + linked. aria-label states number <em>and</em> PoV.</div>
+</div>
+
+<div class="frame-label">A2 · Zero (reassurance, not warning — neutral, NOT a link)</div>
+<div class="device">
+  <div class="bsp-counts">
+    <a class="bsp-count bsp-count-link" href="#"><span class="bsp-count-value">1,204</span><span class="bsp-count-label">Following</span></a>
+    <a class="bsp-count bsp-count-link" href="#"><span class="bsp-count-value">312</span><span class="bsp-count-label">Verified Followers</span></a>
+    <span class="bsp-count" title="No verified reporters in your web of trust">
+      <span class="bsp-count-value">0</span><span class="bsp-count-label">Verified Reporters</span></span>
+  </div>
+  <div class="cap">↑ "0" is neutral (not red), not clickable — this is the count's empty state.</div>
+</div>
+
+<div class="frame-label">A3 · House PoV fallback (never silent — "House" chip + tooltip)</div>
+<div class="device">
+  <div class="bsp-counts">
+    <a class="bsp-count bsp-count-link" href="#"><span class="bsp-count-value">1,204</span><span class="bsp-count-label">Following</span></a>
+    <a class="bsp-count bsp-count-link" href="#"><span class="bsp-count-value">312</span><span class="bsp-count-label">Verified Followers</span></a>
+    <a class="bsp-count bsp-count-link" href="#" title="2 verified reporters in the House (default) web of trust — view list">
+      <span class="bsp-count-value neg">2</span><span class="bsp-count-label">Verified Reporters</span><span class="pov-chip">House</span></a>
+  </div>
+  <div class="cap">↑ logged-out / no personal WoT → "House" qualifier so the fallback is visible at a glance.</div>
+</div>
+
+<div class="frame-label">A4 · Loading · A5 · Unavailable</div>
+<div class="device">
+  <div class="bsp-counts loading" style="margin-bottom:14px">
+    <span class="bsp-count"><span class="bsp-count-value">312</span><span class="bsp-count-label">Verified Followers</span></span>
+    <span class="bsp-count"><span class="bsp-count-value">8</span><span class="bsp-count-label">Verified Reporters</span></span>
+  </div>
+  <div class="bsp-counts">
+    <span class="bsp-count"><span class="bsp-count-value">312</span><span class="bsp-count-label">Verified Followers</span></span>
+    <span class="bsp-count"><span class="bsp-count-value">—</span><span class="bsp-count-label">Verified Reporters</span></span>
+  </div>
+  <div class="cap">↑ loading: value dimmed (.bsp-counts-loading). unavailable/not-computed: "—", muted, not a link.</div>
+</div>
+
+<h2 class="section">§B · Verified Reporters list — <code>/user/:pubkey/reporters</code></h2>
+<p class="note">Clone of the Following page. Default sort = <strong>Rank ↓</strong> (most credible reporters first — answers "is this flagged by people who matter?"). Rows link to the reporter's profile so the observer can vet them. PoV attribution is the primary job of this page.</p>
+
+<div class="frame-label">B1 · Populated · Personal PoV</div>
+<div class="device">
+  <div class="bsp-follows-header">
+    <a class="bsp-back-link" href="#">← Back to profile</a>
+    <h1 class="bsp-follows-title">Verified Reporters</h1>
+    <button class="bsp-info-btn" aria-label="About this data">ⓘ</button>
+  </div>
+  <p class="subtitle">Verified users who have reported this account.</p>
+  <p class="pov-line">Relative to your web of trust.</p>
+  <div class="controls"><input class="search" placeholder="Search by name or npub…" /><button class="colbtn">Columns ▾</button></div>
+  <table>
+    <thead><tr><th></th><th>Name</th><th>Rank ▾</th></tr></thead>
+    <tbody>
+      <tr class="row"><td><span class="av">D</span></td><td>dan.well-known</td><td><span class="rank hi">94</span></td></tr>
+      <tr class="row"><td><span class="av">E</span></td><td>erin</td><td><span class="rank hi">81</span></td></tr>
+      <tr class="row"><td><span class="av">F</span></td><td>finn</td><td><span class="rank">63</span></td></tr>
+      <tr class="row"><td><span class="av">G</span></td><td>gwen</td><td><span class="rank">40</span></td></tr>
+    </tbody>
+  </table>
+  <div class="cap">Default cols: Picture · Name · Rank. Hidden (Columns ▾): npub · Hops · Verified Followers/Muters/Reporters.</div>
+</div>
+
+<div class="frame-label">B2 · House PoV fallback (attribution always present)</div>
+<div class="device">
+  <div class="bsp-follows-header">
+    <a class="bsp-back-link" href="#">← Back to profile</a>
+    <h1 class="bsp-follows-title">Verified Reporters</h1>
+    <button class="bsp-info-btn" aria-label="About this data">ⓘ</button>
+  </div>
+  <p class="subtitle">Verified users who have reported this account.</p>
+  <p class="pov-line house">Relative to the House (default) web of trust. Sign in and build your network to see your own view.</p>
+  <div class="cap">↑ same page, House variant of the PoV line (amber, never hidden).</div>
+</div>
+
+<div class="frame-label">B3 · "About this data" popover (extended with the no-global-view sentence)</div>
+<div class="pop">
+  <h3>About this data</h3>
+  <p>All data on this page is computed locally by this Tapestry instance and is not imported via NIP-85.</p>
+  <p><strong>Counts are personal to each viewer's web of trust — there is no single global number.</strong> When you have no calculated web of trust, the House (default) view is shown.</p>
+  <button class="ok">Got it</button>
+</div>
+
+<div class="frame-label">B4 · Empty (zero reporters)</div>
+<div class="device">
+  <div class="bsp-follows-header"><a class="bsp-back-link" href="#">← Back to profile</a><h1 class="bsp-follows-title">Verified Reporters</h1><button class="bsp-info-btn" aria-label="About this data">ⓘ</button></div>
+  <p class="pov-line">Relative to your web of trust.</p>
+  <div class="bsp-empty"><span class="big">🚩</span>No verified reporters.<br/>No one in this web of trust has reported this account.</div>
+</div>
+
+<div class="frame-label">B5 · Loading (skeleton, not a bare spinner)</div>
+<div class="device">
+  <div class="bsp-follows-header"><a class="bsp-back-link" href="#">← Back to profile</a><h1 class="bsp-follows-title">Verified Reporters</h1></div>
+  <p class="pov-line">Relative to your web of trust.</p>
+  <table style="margin-top:12px"><thead><tr><th></th><th>Name</th><th>Rank</th></tr></thead><tbody>
+    <tr><td><div class="sk av"></div></td><td><div class="sk" style="width:60%"></div></td><td><div class="sk" style="width:30px"></div></td></tr>
+    <tr><td><div class="sk av"></div></td><td><div class="sk" style="width:45%"></div></td><td><div class="sk" style="width:30px"></div></td></tr>
+    <tr><td><div class="sk av"></div></td><td><div class="sk" style="width:70%"></div></td><td><div class="sk" style="width:30px"></div></td></tr>
+  </tbody></table>
+</div>
+
+<div class="frame-label">B6 · Error (helpful + retry — never "Something went wrong")</div>
+<div class="device">
+  <div class="bsp-follows-header"><a class="bsp-back-link" href="#">← Back to profile</a><h1 class="bsp-follows-title">Verified Reporters</h1></div>
+  <div class="bsp-unavailable" style="margin-top:14px"><span>🔒</span><span>Couldn't load reporters — trust scores are still computing for this view. Try again in a moment.</span><button class="retry">Try again</button></div>
+</div>
+
+<div class="frame-label">B7 · Mobile (≤600px) — defaults keep it narrow, row ≥44px touch target</div>
+<div class="device mobile">
+  <div class="bsp-follows-header"><a class="bsp-back-link" href="#">← Back</a><h1 class="bsp-follows-title" style="font-size:1.2rem">Verified Reporters</h1></div>
+  <p class="pov-line">Relative to your web of trust.</p>
+  <input class="search" style="width:100%;margin:12px 0" placeholder="Search by name or npub…" />
+  <table><thead><tr><th></th><th>Name</th><th>Rank</th></tr></thead><tbody>
+    <tr class="row"><td><span class="av">D</span></td><td>dan.well-known</td><td><span class="rank hi">94</span></td></tr>
+    <tr class="row"><td><span class="av">E</span></td><td>erin</td><td><span class="rank hi">81</span></td></tr>
+  </tbody></table>
+</div>
+
+<p class="legend">Tokens, classes, and the route shape are taken verbatim from <code>ui/src/pages/BrainstormProfile.jsx</code>, <code>ui/src/pages/BrainstormFollows.jsx</code>, and <code>ui/src/styles.css</code>. This wireframe introduces no new visual identity — only the negative-signal application of <code>--red</code> and the PoV attribution surfaces.</p>
+
+</body>
+</html>
