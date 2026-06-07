@@ -1,11 +1,11 @@
 ---
 name: cycle-local
-description: Build, deploy, and smoke-test code changes against the local Docker stack (`http://localhost:8080`) for the tapestry/brainstorm repo. Use this whenever the user wants to test a change locally before committing or pushing — they say things like "test it locally," "run it on 8080," "smoke-test this," or "see if it works before I push." Stops at local verification. Does NOT commit, push, open a PR, or touch staging or production.
+description: Build, deploy, and smoke-test code changes against the local Docker stack (`http://localhost:7778`) for the tapestry/brainstorm repo. Use this whenever the user wants to test a change locally before committing or pushing — they say things like "test it locally," "run it on 8080," "smoke-test this," or "see if it works before I push." Stops at local verification. Does NOT commit, push, open a PR, or touch staging or production.
 ---
 
 # Cycle: local
 
-Build a code change, deploy it into the running local Docker container, smoke-test on `http://localhost:8080`, and report. Stops there — no commit, no PR, no remote anything.
+Build a code change, deploy it into the running local Docker container, smoke-test on `http://localhost:7778`, and report. Stops there — no commit, no PR, no remote anything.
 
 ## When to use
 
@@ -56,13 +56,13 @@ The full `docker compose up -d --build` rebuild path is heavier — skip it for 
 Run the smoke test as defined in [docs/SMOKE_TEST.md](../../../docs/SMOKE_TEST.md), but with two adjustments for local:
 
 - **Skip Tier 1** (stability poll). Local doesn't have the same post-deploy 502 flicker — the supervisorctl restart is fast and predictable.
-- **Use `http://localhost:8080` as the base URL.**
+- **Use `http://localhost:7778` as the base URL.**
 
 Tier 2 sanity, Tier 3 PR-specific, Tier 4 Chrome (if UI changed), Tier 5 regression all apply.
 
 The known-active pubkey for parameter-bearing tests is `04c915daefee38317fa734444acee390a8269fe5810b2241e5e6dd343dfbecc9`. The local Neo4j may be empty or sparsely populated, so endpoints like `/api/get-user-data` may return `{success:false, message:"No profile data found"}` for many pubkeys — that's a data state, not a code regression. The strfry-backed `/api/get-user-counts` is more likely to return real data because local strfry is typically populated.
 
-For Chrome visual: if the worktree's MCP-tool tab isn't on `localhost:8080`, navigate it there explicitly before reading page text or console.
+For Chrome visual: if the worktree's MCP-tool tab isn't on `localhost:7778`, navigate it there explicitly before reading page text or console.
 
 ## Report
 
