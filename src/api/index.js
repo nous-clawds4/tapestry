@@ -31,6 +31,7 @@ const { handleGetOwnerInfo } = require('./owner/ownerInfo');
 const { handleGetGrapevineInteraction } = require('./grapevineInteractions/queries');
 const { handleGetGrapevineFollows } = require('./grapevineInteractions/queries/followsWithMetrics');
 const { handleGetGrapevineFollowers } = require('./grapevineInteractions/queries/followersWithMetrics');
+const { handleGetGrapevineReporters } = require('./grapevineInteractions/queries/reportersWithMetrics');
 const { handleOldSearchProfiles, handleOldSearchProfilesStream } = require('./search/profiles');
 const { handleKeywordSearchProfiles } = require('./search/profiles/keyword');
 const { handlePrecomputeWhitelistMaps, handlePrecomputeWhitelistStatus } = require('./search/profiles/whitelistPrecompute');
@@ -321,6 +322,8 @@ async function register(app) {
     app.get('/api/get-grapevine-follows', handleGetGrapevineFollows);
     // Followers list (verified, owner-POV metrics) (story #34 / ADR 0030)
     app.get('/api/get-grapevine-followers', handleGetGrapevineFollowers);
+    // Verified reporters list (owner/House-POV metrics) (verified-reporters #2 / ADR 0002)
+    app.get('/api/get-grapevine-reporters', handleGetGrapevineReporters);
 
     // Search endpoint
     app.get('/api/search/profiles', handleOldSearchProfiles);

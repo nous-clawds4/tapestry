@@ -95,6 +95,9 @@ export default function BrainstormProfile() {
   const nip05Verified = useNip05Verification(pubkey, profile?.nip05);
   const followingCount = userCounts?.followingCount ?? null;
   const fmtCount = (n) => (n == null ? '—' : new Intl.NumberFormat().format(n));
+  // Verified Reporters count rides the PoV-resolved trustScores (same source as
+  // Verified Followers). `?? null` distinguishes a genuine 0 from "not loaded".
+  const verifiedReporterCount = trustScores?.verifiedReporterCount ?? null;
 
   const npub = useMemo(() => {
     try { return nip19.npubEncode(pubkey); } catch { return null; }
@@ -233,7 +236,7 @@ export default function BrainstormProfile() {
               </div>
             </div>
 
-            {/* Following + Verified Followers counts */}
+            {/* Following + Verified Followers + Verified Reporters counts */}
             <div className={`bsp-counts ${userCountsLoading ? 'bsp-counts-loading' : ''}`}>
               <Link to={`/user/${pubkey}/follows`} className="bsp-count bsp-count-link">
                 <span className="bsp-count-value">{fmtCount(followingCount)}</span>
@@ -245,6 +248,25 @@ export default function BrainstormProfile() {
                 <span className="bsp-count-value">{fmtCount(trustScores?.verifiedFollowerCount ?? trustScores?.followers)}</span>
                 <span className="bsp-count-label">Verified Followers</span>
               </Link>
+              {/* Verified Reporters → reporters list (verified-reporters epic, ADR 0001). A
+                  negative signal: only a <Link> when >0; a genuine 0 is neutral and not a
+                  link; "—" when unavailable; dimmed "—" while the PoV scores load. The list
+                  page (/user/:pubkey/reporters) ships in story #3. */}
+              {verifiedReporterCount > 0 ? (
+                <Link
+                  to={`/user/${pubkey}/reporters`}
+                  className="bsp-count bsp-count-link"
+                  aria-label={`${verifiedReporterCount} verified reporters. View list.`}
+                >
+                  <span className="bsp-count-value bsp-count-value-negative">{fmtCount(verifiedReporterCount)}</span>
+                  <span className="bsp-count-label">Verified Reporters</span>
+                </Link>
+              ) : (
+                <span className={`bsp-count${trustLoading ? ' bsp-count-loading' : ''}`}>
+                  <span className="bsp-count-value">{fmtCount(verifiedReporterCount)}</span>
+                  <span className="bsp-count-label">Verified Reporters</span>
+                </span>
+              )}
             </div>
 
             {/* Action buttons */}

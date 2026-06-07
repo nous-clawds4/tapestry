@@ -51,6 +51,9 @@ const profileFollowsList = require('./profile-follows-list.test.js');
 const profileWebsiteLink = require('./profile-website-link.test.js');
 const profileVerifiedFollowersCount = require('./profile-verified-followers-count.test.js');
 const profileFollowersList = require('./profile-followers-list.test.js');
+const profileVerifiedReportersCount = require('./profile-verified-reporters-count.test.js');
+const verifiedReportersMembershipData = require('./verified-reporters-membership-data.test.js');
+const verifiedReportersListPage = require('./verified-reporters-list-page.test.js');
 
 async function main() {
   console.log('Running Brainstorm tests...\n');
@@ -142,6 +145,15 @@ async function main() {
   console.log('\nprofile-followers-list suite:');
   const profileFollowersListResult = await profileFollowersList.run();
 
+  console.log('\nprofile-verified-reporters-count suite:');
+  const profileVerifiedReportersCountResult = await profileVerifiedReportersCount.run();
+
+  console.log('\nverified-reporters-membership-data suite:');
+  const verifiedReportersMembershipDataResult = await verifiedReportersMembershipData.run();
+
+  console.log('\nverified-reporters-list-page suite:');
+  const verifiedReportersListPageResult = await verifiedReportersListPage.run();
+
   console.log('\nTest Results');
   console.log('-------------');
   console.log(`Configuration Loading:                           ${configOk ? 'PASS' : 'FAIL'}`);
@@ -229,6 +241,15 @@ async function main() {
   console.log(
     `profile-followers-list suite:                    ${profileFollowersListResult.fail === 0 ? 'PASS' : 'FAIL'} (${profileFollowersListResult.pass} passed, ${profileFollowersListResult.fail} failed)`
   );
+  console.log(
+    `profile-verified-reporters-count suite:          ${profileVerifiedReportersCountResult.fail === 0 ? 'PASS' : 'FAIL'} (${profileVerifiedReportersCountResult.pass} passed, ${profileVerifiedReportersCountResult.fail} failed)`
+  );
+  console.log(
+    `verified-reporters-membership-data suite:        ${verifiedReportersMembershipDataResult.fail === 0 ? 'PASS' : 'FAIL'} (${verifiedReportersMembershipDataResult.pass} passed, ${verifiedReportersMembershipDataResult.fail} failed)`
+  );
+  console.log(
+    `verified-reporters-list-page suite:              ${verifiedReportersListPageResult.fail === 0 ? 'PASS' : 'FAIL'} (${verifiedReportersListPageResult.pass} passed, ${verifiedReportersListPageResult.fail} failed)`
+  );
 
   const overallOk =
     configOk &&
@@ -259,7 +280,10 @@ async function main() {
     profileFollowsListResult.fail === 0 &&
     profileWebsiteLinkResult.fail === 0 &&
     profileVerifiedFollowersCountResult.fail === 0 &&
-    profileFollowersListResult.fail === 0;
+    profileFollowersListResult.fail === 0 &&
+    profileVerifiedReportersCountResult.fail === 0 &&
+    verifiedReportersMembershipDataResult.fail === 0 &&
+    verifiedReportersListPageResult.fail === 0;
   console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);
   process.exit(overallOk ? 0 : 1);
 }

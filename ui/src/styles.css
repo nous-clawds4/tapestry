@@ -3405,6 +3405,15 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
 .bsp-counts-loading .bsp-count-value {
   opacity: 0.4;
 }
+/* Verified Reporters: negative signal (the app encodes "report" as red). */
+.bsp-count-value-negative {
+  color: var(--red);
+}
+/* Per-count loading dim — the reporters count rides trustScores (trustLoading),
+   not the row-level userCounts loading, so it dims on its own. */
+.bsp-count-loading .bsp-count-value {
+  opacity: 0.4;
+}
 
 /* Sections */
 .bsp-section {
@@ -4160,6 +4169,9 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
 .bsp-back-link { font-size: 0.85rem; opacity: 0.75; text-decoration: none; }
 .bsp-back-link:hover { opacity: 1; text-decoration: underline; }
 .bsp-follows-title { margin: 0; font-size: 1.4rem; }
+/* Reporters list: description + point-of-view attribution lines (verified-reporters #3). */
+.bsp-follows-subtitle { margin: 0.35rem 0 0; font-size: 0.9rem; opacity: 0.7; }
+.bsp-follows-pov { margin: 0.4rem 0 0; font-size: 0.82rem; opacity: 0.6; }
 .bsp-info-btn {
   margin-left: auto;
   border: 1px solid rgba(127, 127, 127, 0.4);
@@ -4238,6 +4250,20 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
 }
 .bsp-follows-npub { font-size: 0.8rem; opacity: 0.85; }
 .bsp-empty { padding: 2rem; text-align: center; opacity: 0.7; }
+/* Skeleton loader for list pages (verified-reporters #3 / ADR 0003) — a designed
+   placeholder, never a bare spinner. */
+.bsp-skeleton-row {
+  height: 2.25rem;
+  border-radius: 6px;
+  background: linear-gradient(90deg, rgba(255,255,255,.04), rgba(255,255,255,.09), rgba(255,255,255,.04));
+  background-size: 200% 100%;
+  animation: bsp-shimmer 1.2s infinite;
+  margin-bottom: 0.5rem;
+}
+@keyframes bsp-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
 
 .table-pagination {
   display: flex;
