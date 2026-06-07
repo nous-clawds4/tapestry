@@ -1,6 +1,6 @@
 # Story 2: Verified reporters membership data
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-06-07
 **Type:** Feature
 **Epic:** `verified-reporters` · **Book:** `engineering-team/audits/verified-reporters/book.md`
@@ -46,4 +46,4 @@ Testable from the outside (input → expected behavior).
 - PRD: `product-team/prd/verified-reporters.md` (§5.2, §6, §7)
 - ADR: `engineering-team/decisions/verified-reporters/0002-verified-reporters-membership-data.md` (Accepted)
 - Test plan: `engineering-team/stories/verified-reporters/2-verified-reporters-membership-data.test-plan.md` (suite `test/verified-reporters-membership-data.test.js`)
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/verified-reporters/2-verified-reporters-membership-data.md` — **PASS** (2026-06-07)
