@@ -43,6 +43,6 @@ Testable from the outside. Each gets at least one test.
 
 ## Linked artifacts
 - PRD: `product-team/prd/verified-reporters.md` (§5.1, §5.3, §11); design guide `product-team/guides/verified-reporters-design-guide.md`; style guide `product-team/guides/verified-reporters-style-guide.md` (canonical copy — use the count label and accessible-name strings verbatim).
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/verified-reporters/0001-verified-reporters-count.md` (Accepted)
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
