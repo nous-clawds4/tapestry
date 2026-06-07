@@ -45,5 +45,5 @@ Testable from the outside (input → expected behavior).
 ## Linked artifacts
 - PRD: `product-team/prd/verified-reporters.md` (§5.2, §6, §7)
 - ADR: `engineering-team/decisions/verified-reporters/0002-verified-reporters-membership-data.md` (Accepted)
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/verified-reporters/2-verified-reporters-membership-data.test-plan.md` (suite `test/verified-reporters-membership-data.test.js`)
 - Review: (filled in after Review phase)
