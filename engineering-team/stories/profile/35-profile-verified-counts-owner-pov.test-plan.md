@@ -20,7 +20,7 @@ This story is mostly *change/removal* of existing behavior, so several assertion
 | AC2 — unavailable → "—", never raw followers | T6 (`?? trustScores?.followers` removed; badge values off `trustScores`), T4 (fallback deadline-bounded → "—") | source-regex |
 | AC3 — badge ≡ table definition | T3 (`[:FOLLOWS]`/`[:REPORTS]` + the matching `VERIFIED_*_INFLUENCE_CUTOFF`), T4 (count-only) | source-regex |
 | AC4 — Following unchanged | R1 (strfry kind-3 in the handler), R2 (profile reads `userCounts.followingCount` → `/follows`) | source-regex |
-| AC5 — `/reporters` PoV "House" → "Owner" | T7 | source-regex |
+| AC5 — `/reporters` PoV "House" → "Owner" | T7 (PoV line), T8 (no `House (default)` anywhere — incl. popover) | source-regex |
 | Regression — Reputation grid stays on Meili | R3 | source-regex |
 | Regression — hook passthrough (no hook change needed) | R4 | source-regex |
 

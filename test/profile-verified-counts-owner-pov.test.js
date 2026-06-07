@@ -123,6 +123,17 @@ test('T7: the /reporters PoV line is relabeled from "House" to Owner (AC5)', () 
     'the old "Relative to the House (default) web of trust…" line must be removed (it mislabeled Owner-PoV data as House).');
 });
 
+test('T8: BrainstormReporters has NO "House (default)" anywhere — incl. the "About this data" popover (AC5)', () => {
+  const src = safeRead(REPORTERS);
+  assert(src.length > 0, 'BrainstormReporters.jsx missing — unexpected.');
+  // Broader than T7 (which only checks the PoV line): the "About this data" popover also
+  // claimed a per-viewer/House model. With v1 Owner-PoV, NO "House (default)" reference may
+  // remain on the page (PoV line OR popover) — else the page self-contradicts about whose
+  // point of view it shows. (Review CHANGES REQUESTED caught the popover slipping past T7.)
+  assert(!/House \(default\)/.test(src),
+    'no "House (default)" reference may remain in BrainstormReporters.jsx (the popover\'s "the House (default) view is shown" contradicted the Owner PoV line — reconcile the popover to Owner-PoV v1).');
+});
+
 // ===========================================================================
 // REGRESSION SENTINELS (must PASS before AND after implementation)
 // ===========================================================================

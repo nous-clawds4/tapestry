@@ -66,7 +66,7 @@ function InfoPopover({ open, onClose }) {
           All data on this page is computed locally by this Tapestry instance and is not imported via NIP-85.
         </p>
         <p className="bsp-confirm-message">
-          Counts are personal to each viewer's web of trust. There is no single global number. When you have no calculated web of trust, the House (default) view is shown.
+          These counts reflect this instance owner's web of trust — a point of view. There is no single global number.
         </p>
         <div className="bsp-confirm-buttons">
           <button className="bsp-confirm-ok" onClick={onClose}>Got it</button>
