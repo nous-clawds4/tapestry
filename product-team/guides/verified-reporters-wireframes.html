@@ -39,8 +39,6 @@
   a.bsp-count-link:hover .bsp-count-value{text-decoration:underline}
   /* negative-signal variant */
   .bsp-count-value.neg{color:var(--red)}
-  .pov-chip{font-size:.62rem;font-weight:600;letter-spacing:.03em;color:var(--orange);
-    border:1px solid var(--orange);border-radius:999px;padding:0 .4em;opacity:.9;margin-left:.15rem}
   .loading .bsp-count-value{opacity:.4}
   .cap{color:var(--text-muted);font-size:.72rem;margin-top:6px}
 
@@ -122,15 +120,15 @@
   <div class="cap">↑ "0" is neutral (not red), not clickable — this is the count's empty state.</div>
 </div>
 
-<div class="frame-label">A3 · House PoV fallback (never silent — "House" chip + tooltip)</div>
+<div class="frame-label">A3 · House PoV fallback (no per-count marker — count is identical to A1; PoV attributed on the list)</div>
 <div class="device">
   <div class="bsp-counts">
     <a class="bsp-count bsp-count-link" href="#"><span class="bsp-count-value">1,204</span><span class="bsp-count-label">Following</span></a>
     <a class="bsp-count bsp-count-link" href="#"><span class="bsp-count-value">312</span><span class="bsp-count-label">Verified Followers</span></a>
-    <a class="bsp-count bsp-count-link" href="#" title="2 verified reporters in the House (default) web of trust — view list">
-      <span class="bsp-count-value neg">2</span><span class="bsp-count-label">Verified Reporters</span><span class="pov-chip">House</span></a>
+    <a class="bsp-count bsp-count-link" href="#" title="2 verified reporters. View list.">
+      <span class="bsp-count-value neg">2</span><span class="bsp-count-label">Verified Reporters</span></a>
   </div>
-  <div class="cap">↑ logged-out / no personal WoT → "House" qualifier so the fallback is visible at a glance.</div>
+  <div class="cap">↑ Under the House fallback the count is visually identical to A1. The fallback applies to all three counts at once, so a per-count "House" chip is intentionally omitted. PoV is attributed on the list page (§B2). <strong>Deferred (PRD §8.3):</strong> a single, tap-friendly row-level PoV indicator for Following + Verified Followers + Verified Reporters together.</div>
 </div>
 
 <div class="frame-label">A4 · Loading · A5 · Unavailable</div>

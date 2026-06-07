@@ -31,7 +31,7 @@ The minimum feature set that delivers core value to the primary persona (the Vet
 - [ ] A **Verified Reporters count** on the profile, placed parallel to Following / Verified Followers.
 - [ ] Count is **PoV-filtered** — only verified reporters (inside the observer's WoT) are counted.
 - [ ] Count is computed against the observer's **effective PoV**: personal WoT if available, else **House PoV fallback** (the platform's standard fallback — reused, not reinvented).
-- [ ] **Whose PoV is in effect is attributed** (personal vs House), reusing the existing pattern from Verified Followers — so the number is never read as a global truth.
+- [ ] **Whose PoV is in effect is attributed on the list page** (personal vs House) — so the number is never read as a global truth. (Count-level / counts-row PoV indication is deferred; see below.)
 - [ ] Count is **clickable → a dedicated Verified Reporters list page** (the primary persona will not tolerate a number with no way to see who is behind it — the list is core, not optional).
 - [ ] The list shows the **verified users who reported** the observed user, with enough identity to judge credibility.
 - [ ] **Count = list length** under the same PoV/filter (internal consistency).
@@ -47,6 +47,7 @@ Each deferred item names its phase. No item is deferred without a phase.
 - Self-view retaliation mitigation and reporter-identity visibility controls → **Phase 4**
 - Inheritor surfaces (moderator bulk triage, transaction-vetting consumers) → **Phase 5**
 - Richer fallback education/onboarding beyond the minimal PoV label → **Phase 4**
+- Counts-row PoV indicator shared across Following / Verified Followers / Verified Reporters (a single, tap-friendly indicator for the whole row) → **Phase 4** (cross-cutting session; the House fallback applies to all three counts at once, so it is solved once for the shared row, not three times here)
 
 ## Phase roadmap
 Each phase has a theme.

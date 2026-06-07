@@ -21,7 +21,7 @@ Non-negotiable; enforced in engineering review.
 
 1. **Parallel, not novel.** The Verified Reporters count and list reuse the exact components, classes, spacing, and route shape of Following / Verified Followers. A reviewer should not be able to tell the two features were built at different times.
 2. **Negative signal by color, meaning by word.** The count is marked negative with the existing **`--red`** semantic (the app already encodes "report" as red). Color never carries the meaning *alone* — the label word "Reporters" carries it; red reinforces. (Accessibility + the warning reading both hold.)
-3. **No silent global numbers.** Every surface that shows the count states whose PoV produced it. Personal PoV is the default and needs no shouting; **House fallback is always labeled**, never silent.
+3. **No silent global numbers — at the investigation surface.** The Verified Reporters *list* always states whose PoV produced it (personal or House). The *count* carries no per-count PoV marker: the House fallback applies to all three counts (Following, Verified Followers, Verified Reporters) at once, so a single counts-row-level indicator is the right home — deferred to a cross-cutting session rather than stamped three times here. The principle holds where it is load-bearing (the list, where a viewer could be misled); the glance-only count defers to it one tap away.
 4. **Zero is reassurance, not a warning.** A real "0" renders neutral (not red) and is visually distinct from "—" (not computed / unavailable). Three distinct states: `> 0` (red, linked), `0` (neutral, not linked), `unavailable` (`—`, muted).
 5. **Every state is designed.** Empty, loading (skeleton, not a bare spinner), and error (helpful, with a retry) are first-class for both the count and the list.
 6. **Tokens only.** No hex or px literals in components — reference the CSS custom properties below. (Note: the existing Report button hardcodes `#ef4444`; the count should use the `--red` token instead.)
@@ -63,8 +63,8 @@ This feature adds **no new tokens**. If a negative-surface tint is ever needed, 
 
 ### Verified Reporters count (on the profile)
 - **Visual:** a `.bsp-count` inside the existing `.bsp-counts` row, placed parallel to Following / Verified Followers. Structure: `<value> <label>`. Label: **"Verified Reporters"**. When `> 0`, the value uses `--red` and the whole item is a `.bsp-count-link` (`<Link>` to `/user/:pubkey/reporters`); hover underlines the value (existing rule).
-- **Behavior:** clicking navigates to the Verified Reporters list. Accessible name conveys PoV, e.g. `title`/`aria-label`: *"3 verified reporters in your web of trust — view list"* (personal) or *"…in the House (default) web of trust…"* (fallback).
-- **PoV attribution (lightweight):** when the **House fallback** is active, append a small muted **"House"** qualifier chip to the label so the fallback is never silent even at a glance. Personal PoV shows no chip (it is the expected default). Full attribution lives on the list page.
+- **Behavior:** clicking navigates to the Verified Reporters list. Accessible name states the number and the destination, e.g. `aria-label`: *"3 verified reporters. View list."* PoV is conveyed on the list page, not duplicated per count.
+- **PoV attribution:** none at the count level in this release — no per-count "House" chip. Whose view produced the number is stated on the list page (one tap away). A single counts-row-level indicator covering all three counts is deferred to a cross-cutting session (see Grounding note and PRD §8.3 / §11 decision 5). Rationale: the fallback applies to Following, Verified Followers, and Verified Reporters together; three chips crowd the row, and a hover-only tooltip fails on touch devices. Accepted tradeoff: a glance-only viewer on the House fallback sees an unlabeled count, attributed fully on the list.
 - **States:**
   - **`> 0`:** red value, linked. (`3 Verified Reporters`)
   - **Zero:** neutral value (inherits `--text`), **not** a link — there is nothing to inspect. (`0 Verified Reporters`) This *is* the count's empty state.
@@ -105,4 +105,4 @@ This feature adds **no new tokens**. If a negative-surface tint is ever needed, 
 - **Color is never the only signal:** the label word "Verified Reporters" and the numeric value carry meaning independent of red; the House qualifier is a word, not a color.
 - **Keyboard:** the count is a real `<Link>` (focusable, Enter-activates); the ⓘ button and rows are keyboard-operable (existing behavior).
 - **Touch targets:** ≥ 44×44px for the count link, the ⓘ button, and table rows.
-- **Screen readers:** the count's `aria-label` states the number *and* the PoV; the PoV line is real text in the DOM, not an icon.
+- **Screen readers:** the count's `aria-label` states the number and the destination; the PoV is conveyed as real DOM text on the list page (the point-of-view line), not as an icon and not duplicated per count.
