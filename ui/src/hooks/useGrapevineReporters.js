@@ -11,6 +11,7 @@ export default function useGrapevineReporters(observee) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [reloadNonce, setReloadNonce] = useState(0);
 
   useEffect(() => {
     if (!observee) {
@@ -44,7 +45,11 @@ export default function useGrapevineReporters(observee) {
       });
 
     return () => controller.abort();
-  }, [observee]);
+  }, [observee, reloadNonce]);
 
-  return { data, loading, error };
+  // Backward-compatible retry (story #3): bump the nonce to re-run the fetch
+  // (wired to the list page's "Try again" control on error).
+  const refetch = () => setReloadNonce(n => n + 1);
+
+  return { data, loading, error, refetch };
 }
