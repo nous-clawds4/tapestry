@@ -44,6 +44,12 @@ For the Architect:
 - **Popover supersedes the prior one:** the new copy replaces the "About this data" popover (Story 3 + the #35 review fix-up) and **drops** the "computed locally / not NIP-85" and "no single global number" lines (confirmed intended). This will require updating the popover assertions in the `verified-reporters-list-page` and `profile-verified-counts-owner-pov` suites — flag for the Tester.
 - **Alarm styling + icon** and the exact popover wording (incl. the cutoff phrasing) — coordinate with the style guide; the `3`/`750` thresholds should be named constants (config-tunable a possible later note).
 
+## Deviations
+- `VerificationInfo` is **self-contained** (owns its open/close state + ⓘ trigger), rather than the parent passing `open`/`onClose` like the old `InfoPopover`. Cleaner for a shared component used on two pages; same `bsp-info-btn`/`bsp-confirm-*` visuals. ([VerificationInfo.jsx](../../../ui/src/components/VerificationInfo.jsx))
+- Owner avatar reuses the existing `bsp-follows-avatar`/`-ph` classes; added two small CSS rules (`.bsp-verification-owner` row, `.bsp-count-alarm-icon` spacing). No new tokens.
+- `useVerificationInfo` takes no args (instance-level) and tolerates a missing owner kind-0 (falls back to a short npub).
+- No prior-suite cascade: the `/reporters` popover supersession was pre-handled in Test Design (retired `verified-reporters-list-page` T8), so `npm test` was green on the first run after impl.
+
 ## Linked artifacts
 - ADRs (context / partial supersession): `engineering-team/decisions/verified-reporters/0001-verified-reporters-count.md` (negative-signal rule), `engineering-team/decisions/profile/0031-profile-verified-counts-owner-pov.md` (Owner-PoV counts via `userCounts`, which supply VF + VR client-side).
 - Design handoff: `docs/POV_RESOLUTION_DESIGN_HANDOFF.md` (Owner PoV; the broader three-PoV future).
