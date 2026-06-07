@@ -1,6 +1,6 @@
 # Story 1: Verified Reporters count on the profile
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-06-07
 **Type:** Feature
 **Epic:** `verified-reporters` · **Book:** `engineering-team/audits/verified-reporters/book.md`
@@ -48,4 +48,4 @@ Testable from the outside. Each gets at least one test.
 - PRD: `product-team/prd/verified-reporters.md` (§5.1, §5.3, §11); design guide `product-team/guides/verified-reporters-design-guide.md`; style guide `product-team/guides/verified-reporters-style-guide.md` (canonical copy — use the count label and accessible-name strings verbatim).
 - ADR: `engineering-team/decisions/verified-reporters/0001-verified-reporters-count.md` (Accepted)
 - Test plan: `engineering-team/stories/verified-reporters/1-verified-reporters-count.test-plan.md` (suite `test/profile-verified-reporters-count.test.js` + Playwright `tests/brainstorm/profile-verified-reporters-count.spec.js`)
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/verified-reporters/1-verified-reporters-count.md` — **PASS** (2026-06-07)
