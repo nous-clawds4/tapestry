@@ -37,12 +37,13 @@ Testable from the outside (input → expected behavior).
 - Splitting or filtering by NIP-56 report type — all types counted/listed together (Phase 2).
 - Pile-on detection / discounting of pile-on-prone reporters (Phase 3).
 - Arbitrary third-party observer selection beyond the viewer's own point of view or the House fallback (mirrors the follows v1 deferral).
+- **Personalized / customer point-of-view membership (deferred to v2, per ADR 0002, ratified 2026-06-07).** v1 is **House/owner PoV only** — the same deferral follows (ADR 0026) and followers (ADR 0030) made. AC1/AC3 are therefore scoped to the House PoV for v1; AC4 (House fallback) is the v1 path. For a personalized-PoV viewer, Story 1's profile count (a possibly customer-PoV Meili value) and this House-PoV list may differ — accepted v1 limitation.
 
 ## Open questions
-- **Count = list-length invariant (for the Architect):** the membership must be derived from the **same** "verified within this point of view" definition that already produces the verified-reporter *count* shown in Story 1, so the two cannot disagree. The Architect should confirm the membership query and the existing count come from one source of truth (same threshold, same point-of-view resolution), and call out if they cannot, since AC3 depends on it.
+- **Count = list-length invariant — RESOLVED (2026-06-07, ADR 0002).** The membership is the literal inverse of the count computation (`(reporter)-[:REPORTS]->(reported)` with `reporter.influence > VERIFIED_REPORTERS_INFLUENCE_CUTOFF`), so `count === data.length` exactly within the capability, and it equals the House-PoV count algo in steady state. It is **not** a hard real-time guarantee against Story 1's *precomputed Meili* profile badge (refresh skew) — Story 3 displays its own live count as the list header, and tests must not assert real-time equality with the profile badge.
 
 ## Linked artifacts
 - PRD: `product-team/prd/verified-reporters.md` (§5.2, §6, §7)
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/verified-reporters/0002-verified-reporters-membership-data.md` (Accepted)
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
