@@ -1,6 +1,6 @@
 # Story 1: Ratify the three-PoV resolution standard into the spec
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-06-08
 **Type:** Doc
 **Epic:** `pov-resolution`
@@ -87,4 +87,4 @@ Testable from the outside (doc-level inspection).
 - Design handoff: `docs/POV_RESOLUTION_DESIGN_HANDOFF.md` (flipped to ✅ SUPERSEDED → BIBLE §27)
 - ADR: `engineering-team/decisions/pov-resolution/0033-three-pov-resolution-standard.md` (Accepted)
 - Test plan: N/A (docs-mode — Test Design skipped)
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/pov-resolution/1-ratify-three-pov-standard.md` — **PASS** (2026-06-08)
