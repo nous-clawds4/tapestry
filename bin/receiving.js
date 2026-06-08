@@ -5,11 +5,11 @@
  *
  * Subcommands:
  *   set <method> [value]   set your receiving method on your own kind 0
- *                          methods: npub-cash | address <lud16> | bolt12 <lno1…> | lnurl <lnurl1…>
- *   show <pubkey>          resolve the ACTIVE method (bolt12→lud16 precedence),
+ *                          methods: npub-cash | address <lud16> | wos <lud16> | fedimint <lud16> | lnurl <lnurl1…>
+ *   show <pubkey>          resolve the ACTIVE method (lud16 → lnurl precedence),
  *                          newest across local strfry + profile relays
  *   resolve <pubkey>       run the issuer-side payout decision headlessly:
- *                          BOLT12 (untracked) vs BOLT11-via-LNURL (tracked)
+ *                          BOLT11-via-LNURL (tracked iff the LNURL allows Nostr zaps)
  *
  * Signing key (set only): --nsec <nsec1…|hex>, else $NOSTR_NSEC. The key is the
  * user's own, supplied by them, used locally — never logged or persisted.
@@ -26,7 +26,6 @@
  * Examples:
  *   node bin/receiving.js set npub-cash --nsec nsec1...
  *   node bin/receiving.js set address alice@walletofsatoshi.com --nsec nsec1...
- *   node bin/receiving.js set bolt12 'bitcoin:?lno=lno1...' --nsec nsec1...
  *   node bin/receiving.js set lnurl lnurl1dp68... --nsec nsec1...
  *   node bin/receiving.js show <pubkey-hex>
  *   node bin/receiving.js resolve <pubkey-hex> --amount 1000
@@ -116,7 +115,7 @@ async function cmdSet(positionals, flags) {
   const method = positionals[0];
   const value = positionals[1];
   if (!method) {
-    die('usage: receiving set <npub-cash|address|bolt12|lnurl> [value] --nsec <key>');
+    die('usage: receiving set <npub-cash|address|wos|fedimint|lnurl> [value] --nsec <key>');
   }
 
   const { privBytes, pubkey } = loadSigningKey(flags);
@@ -262,13 +261,6 @@ async function cmdResolve(positionals, flags) {
   let human;
   if (payment.type === 'none') {
     human = `no payout possible: ${payment.error}`;
-  } else if (payment.type === 'bolt12') {
-    human = [
-      `payout: BOLT12 static offer — UNTRACKED`,
-      `payload: ${payment.payload}`,
-      `note: no zap receipt; a cap-tracked bounty won't auto-mark this paid or free the slot.`,
-      amount ? `amount: ${amount} sats (offer is amountless; payer chooses)` : null,
-    ].filter(Boolean).join('\n');
   } else {
     const viaLnurl = payment.via === 'lnurl';
     let status;
@@ -308,7 +300,6 @@ set methods:
   address <lud16>        a name@domain Lightning address              → lud16
   wos <lud16>            Wallet of Satoshi address (non-U.S./existing) → lud16
   fedimint <lud16>       a federation-backed Lightning address        → lud16  (NOT a fed11… invite code)
-  bolt12 <lno1…>         a static BOLT12 offer (untracked)            → bolt12
   lnurl <lnurl1…>        a static LNURL-pay code (e.g. a paycode)      → lud06  (tracked only if it allows Nostr; --probe)
 
 flags:

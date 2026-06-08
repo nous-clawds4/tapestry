@@ -10,15 +10,14 @@
  *   - strip server-derived event metadata that must never live in content
  *
  * This guarantees that after a switch there is exactly one active receiving
- * identifier, so a lingering BOLT12 can't shadow a freshly-set Lightning
- * address (zap.js reads bolt12 before lud16).
+ * identifier, so a lingering legacy BOLT12 can't shadow a freshly-set Lightning
+ * address. BOLT12 is clear-only: it is scrubbed here but never written back.
  */
 
 const {
   ALL_RECEIVING_FIELDS,
   getOption,
   validateLud16,
-  extractBolt12,
   extractLnurl,
   npubCashAddress,
 } = require('./walletOptions');
@@ -47,8 +46,8 @@ function mergeReceivingField(existingProfile, field, value) {
  *
  * @param {object} args
  * @param {object|null} args.profile existing parsed kind-0 content
- * @param {string} args.method option id: 'npub-cash' | 'address' | 'wos' | 'bolt12' | 'fedimint'
- * @param {string} [args.value] user-supplied value (lud16 or lno1… offer); ignored for derived methods
+ * @param {string} args.method option id: 'npub-cash' | 'address' | 'wos' | 'fedimint' | 'lnurl'
+ * @param {string} [args.value] user-supplied value (lud16 address or lnurl1… code); ignored for derived methods
  * @param {string} args.pubkeyHex target pubkey hex (used to derive npub.cash)
  * @returns {{ content: object, field: string, value: string, cleared: string[], replaced: boolean }}
  * @throws if the method is unknown or the value is missing/invalid
@@ -56,7 +55,7 @@ function mergeReceivingField(existingProfile, field, value) {
 function buildReceivingContent({ profile, method, value, pubkeyHex }) {
   const option = getOption(method);
   if (!option) {
-    throw new Error(`Unknown receiving method: ${method}. Use one of: npub-cash, address, wos, fedimint, bolt12, lnurl.`);
+    throw new Error(`Unknown receiving method: ${method}. Use one of: npub-cash, address, wos, fedimint, lnurl.`);
   }
 
   let field = option.field;
@@ -65,12 +64,6 @@ function buildReceivingContent({ profile, method, value, pubkeyHex }) {
   if (option.derivesFromPubkey) {
     if (!pubkeyHex) throw new Error(`${method} requires a target pubkey to derive the address`);
     finalValue = npubCashAddress(pubkeyHex);
-  } else if (field === 'bolt12') {
-    const offer = extractBolt12(value);
-    if (!offer) {
-      throw new Error('Expected a BOLT12 offer (lno1…, lightning:lno1…, or bitcoin:?lno=lno1…)');
-    }
-    finalValue = offer;
   } else if (field === 'lud06') {
     // LNURL-pay code (lnurl1…). Stored bech32 in lud06 (NIP convention).
     const lnurl = extractLnurl(value);

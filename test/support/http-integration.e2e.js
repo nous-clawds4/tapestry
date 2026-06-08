@@ -22,6 +22,10 @@ const sk = generateSecretKey();
 const pk = getPublicKey(sk);
 const nowS = Math.floor(Date.now() / 1000);
 
+// Canonical LUD-01 LNURL example (decodes to an https URL); used to prove a
+// lud16 → lud06 LNURL switch busts the profile cache (LNURL-only; no bolt12).
+const GOOD_LNURL = 'lnurl1dp68gurn8ghj7um9wfmxjcm99e3k7mf0v9cxj0m385ekvcenxc6r2c35xvukxefcv5mkvv34x5ekzd3ev56nyd3hxqurzepexejxxepnxscrvwfnv9nxzcn9xq6xyefhvgcxxcmyxymnserxfq5fns';
+
 function kind0(content, createdAt) {
   return finalizeEvent({ kind: 0, created_at: createdAt, tags: [], content: JSON.stringify(content) }, sk);
 }
@@ -68,17 +72,18 @@ function cleanup() {
   assert.strictEqual(profCached.lud16, 'http-a@example.com', 'cache-populate read mismatch');
   console.log('3) GET (no fresh) populates cache →', JSON.stringify(profCached));
 
-  // 4) Publish a NEWER kind-0 switching to bolt12 (REPLACE). The handler must invalidate the cache.
-  const ev2 = kind0({ name: 'HTTPTest', bolt12: 'lno1pqps7sjqpgtyzm3qv4uxzmtsd3jjqer9wd3hy' }, nowS + 5);
+  // 4) Publish a NEWER kind-0 switching to an LNURL code in lud06 (REPLACE — no
+  //    lud16). The handler must invalidate the cache.
+  const ev2 = kind0({ name: 'HTTPTest', lud06: GOOD_LNURL }, nowS + 5);
   const p2 = await publish(ev2);
   assert.ok(p2.body.success, `publish 2 not success: ${JSON.stringify(p2.body)}`);
-  console.log('4) publish bolt12 (newer) → success; fan-out:', JSON.stringify(p2.body.profileRelays));
+  console.log('4) publish lud06 LNURL (newer) → success; fan-out:', JSON.stringify(p2.body.profileRelays));
 
-  // 5) THE key assertion: a plain read (no ?fresh) now returns the NEW profile (bolt12, no lud16).
+  // 5) THE key assertion: a plain read (no ?fresh) now returns the NEW profile (lud06, no lud16).
   //    If the publish handler had NOT busted the cache, step-3's cached lud16 would still return.
   const prof2 = await getProfile(false);
-  assert.ok(prof2 && prof2.bolt12 && !prof2.lud16,
-    `cache-bust failed — expected bolt12 & no lud16 on a NON-fresh read, got ${JSON.stringify(prof2)}`);
+  assert.ok(prof2 && prof2.lud06 && !prof2.lud16,
+    `cache-bust failed — expected lud06 & no lud16 on a NON-fresh read, got ${JSON.stringify(prof2)}`);
   console.log('5) GET (no fresh) after switch → cache was busted →', JSON.stringify(prof2));
 
   cleanup();

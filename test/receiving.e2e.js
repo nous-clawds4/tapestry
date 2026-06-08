@@ -98,16 +98,29 @@ async function main() {
     assert.ok(r.json.createdAt > NOW - 100000, 'resolved event should be the fresh one');
   });
 
-  // 3) Finding 2: switch BOLT12 → address sticks even though the old offer event lingers on the relay.
+  // 3) LNURL-only: `set bolt12` is rejected (dropped from the catalog). A legacy
+  //    bolt12 already on a profile resolves as UNSUPPORTED (untracked) and is
+  //    cleared the moment the user sets any real method.
   const skB = hex(generateSecretKey());
-  const pkB = getPublicKey(Uint8Array.from(Buffer.from(skB, 'hex')));
-  await check('set bolt12 then show reports it untracked (Finding 3)', async () => {
-    const set = await runCli(['set', 'bolt12', 'bitcoin:?lno=lno1pqps7sjqpgtyzm3qv4uxzmtsd3jjqer9wd3hy6tsw35k7msjz', '--nsec', skB, ...R, '--json']);
-    assert.strictEqual(set.code, 0, `set bolt12 exit ${set.code}; stderr=${set.stderr}`);
-    assert.strictEqual(set.json.field, 'bolt12');
-    const show = await runCli(['show', pkB, ...R, '--json']);
+  await check('set bolt12 is rejected (LNURL-only)', async () => {
+    const set = await runCli(['set', 'bolt12', 'bitcoin:?lno=lno1pqps7sjqpgtyzm3qv4uxzmtsd3jjqer9wd3hy6tsw35k7msjz', '--nsec', skB, ...R]);
+    assert.notStrictEqual(set.code, 0, 'expected non-zero exit for the removed bolt12 method');
+    assert.ok(/Unknown receiving method/i.test(set.stderr), `expected unknown-method error; stderr=${set.stderr}`);
+  });
+
+  // Seed a legacy bolt12-only profile directly on the relay (not via the CLI) and
+  // prove show/resolve report it as unsupported.
+  const skLegacy = hex(generateSecretKey());
+  const pkLegacy = getPublicKey(Uint8Array.from(Buffer.from(skLegacy, 'hex')));
+  relay.events.push(signKind0(skLegacy, { name: 'Legacy', bolt12: 'lno1legacyofferxxxxxxxx' }, NOW - 20000));
+  await check('a legacy bolt12-only profile resolves as unsupported (untracked)', async () => {
+    const show = await runCli(['show', pkLegacy, ...R, '--json']);
     assert.strictEqual(show.json.method.method, 'bolt12');
-    assert.strictEqual(show.json.method.tracked, false, 'bolt12 must report untracked');
+    assert.strictEqual(show.json.method.tracked, false, 'legacy bolt12 must report untracked');
+    assert.strictEqual(show.json.method.unsupported, true, 'legacy bolt12 must report unsupported');
+    const res = await runCli(['resolve', pkLegacy, ...R, '--json']);
+    assert.strictEqual(res.json.payment.type, 'none');
+    assert.strictEqual(res.json.payment.unsupported, true);
   });
 
   // A fresh key with a STALE bolt12 already lingering on the relay (older created_at),
@@ -153,18 +166,11 @@ async function main() {
   //  don't re-set the same key here, which would collide on created_at within the
   //  same wall-clock second and make newest-wins ambiguous.)
 
-  // 4) resolve mirrors the issuer-side payout decision.
-  await check('resolve reports BOLT12 untracked and BOLT11/LNURL tracked (Finding 3)', async () => {
+  // 4) resolve mirrors the issuer-side payout decision: a lud16 → tracked bolt11.
+  await check('resolve reports a tracked BOLT11/LNURL payout for a lud16 (Finding 3)', async () => {
     const rA = await runCli(['resolve', pkA, '--amount', '1000', ...R, '--json']);
     assert.strictEqual(rA.json.payment.type, 'bolt11', 'pkA set npub-cash → lud16 → bolt11');
     assert.strictEqual(rA.json.payment.tracked, true);
-
-    const skC = hex(generateSecretKey());
-    const pkC = getPublicKey(Uint8Array.from(Buffer.from(skC, 'hex')));
-    await runCli(['set', 'bolt12', 'lno1pqps7sjqpgtyzm3qv4uxzmtsd3jjqer9wd3hy', '--nsec', skC, ...R, '--json']);
-    const rC = await runCli(['resolve', pkC, ...R, '--json']);
-    assert.strictEqual(rC.json.payment.type, 'bolt12');
-    assert.strictEqual(rC.json.payment.tracked, false, 'bolt12 payout must be untracked');
   });
 
   // 5) Finding 6: a --nsec whose pubkey ≠ --pubkey is rejected before publishing.

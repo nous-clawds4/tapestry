@@ -1,15 +1,15 @@
 /**
  * Active receiving-method resolution — the issuer-side payout decision.
  *
- * Pure (no I/O). Mirrors the precedence in ui/src/utils/zap.js exactly:
- * a BOLT12 offer (bolt12 / lud12 / lightning_offer) wins over a Lightning
- * address (lud16 / lud06). The point of proving this in the CLI is that
- * `receiving resolve` makes the *same* decision the issuer UI's zap button
- * makes — including reporting whether the result is tracked.
+ * Pure (no I/O). LNURL-only: a real Lightning address (lud16) wins, then a
+ * static LNURL-pay code (lud06). A profile carrying *only* a legacy BOLT12
+ * offer (bolt12 / lud12 / lightning_offer) resolves to an UNSUPPORTED verdict —
+ * BOLT12 is no longer a payable method here, so payout is "none" and the UI
+ * tells the recipient to set a Lightning address. `receiving resolve` makes the
+ * same decision the issuer UI's zap button makes.
  *
  * "tracked" = produces a NIP-57 zap receipt (kind 9735) the bounty cap logic
- * can key off (bounty-policy.js). BOLT12 static offers do not, so they are
- * reported untracked (rev. 2, Finding 3).
+ * can key off (bounty-policy.js).
  */
 
 const { extractBolt12, extractLnurl, isLnurl, BOLT12_FIELDS, LUD16_FIELDS } = require('./walletOptions');
@@ -51,22 +51,13 @@ function readLnurl(profile) {
 
 /**
  * @param {object|null} profile parsed kind-0 content
- * @returns {{method:'bolt12'|'lud16'|'lnurl', field:string, value:string, tracked:boolean|null, trackedReason:string} | null}
+ * @returns {{method:'lud16'|'lnurl'|'bolt12', field:string, value:string, tracked:boolean|null, unsupported?:boolean, trackedReason:string} | null}
  */
 function resolveReceivingMethod(profile) {
-  const bolt12 = readBolt12(profile);
-  if (bolt12) {
-    return {
-      method: 'bolt12',
-      field: bolt12.field,
-      value: bolt12.value,
-      tracked: false,
-      trackedReason: 'static BOLT12 offer — no zap receipt; cap slot won\'t auto-free',
-    };
-  }
-  // Precedence: a real Lightning address beats a static LNURL code (an address's
-  // LNURL is fetched fresh per-payment and usually allows Nostr; a static code
-  // like a Fedimint paycode usually does not).
+  // LNURL-only precedence: a real Lightning address beats a static LNURL code
+  // (an address's LNURL is fetched fresh per-payment and usually allows Nostr;
+  // a static code like a Fedimint paycode often does not). A legacy BOLT12
+  // offer is considered last and only to *report* it as unsupported.
   const lud16 = readLud16Address(profile);
   if (lud16) {
     return {
@@ -92,6 +83,17 @@ function resolveReceivingMethod(profile) {
       trackedReason: 'static LNURL-pay code — tracked only if its LNURL allows Nostr zaps (verify via probe)',
     };
   }
+  const bolt12 = readBolt12(profile);
+  if (bolt12) {
+    return {
+      method: 'bolt12',
+      field: bolt12.field,
+      value: bolt12.value,
+      tracked: false,
+      unsupported: true,
+      trackedReason: 'legacy BOLT12 offer — no longer supported; set a Lightning address or LNURL',
+    };
+  }
   return null;
 }
 
@@ -101,15 +103,21 @@ function resolveReceivingMethod(profile) {
  * the framework-free half of zapContributor()'s branch decision.
  *
  * @param {object|null} profile
- * @returns {{type:'bolt12'|'bolt11'|'none', tracked:boolean|null, payload?:string, lud16?:string, via?:string, source?:string, static?:boolean, error?:string}}
+ * @returns {{type:'bolt11'|'none', tracked:boolean|null, lud16?:string, via?:string, source?:string, unsupported?:boolean, error?:string}}
  */
 function resolvePayment(profile) {
   const resolved = resolveReceivingMethod(profile);
   if (!resolved) {
-    return { type: 'none', tracked: false, error: 'Recipient has no Lightning address, LNURL code, or BOLT12 offer' };
+    return { type: 'none', tracked: false, error: 'Recipient has no Lightning address or LNURL code' };
   }
   if (resolved.method === 'bolt12') {
-    return { type: 'bolt12', payload: resolved.value, static: true, tracked: false };
+    // Legacy offer only — no longer payable here (LNURL-only).
+    return {
+      type: 'none',
+      tracked: false,
+      unsupported: true,
+      error: 'Recipient has only a legacy BOLT12 offer, which is no longer supported — ask them to set a Lightning address or LNURL',
+    };
   }
   if (resolved.method === 'lnurl') {
     // A static LNURL: decode → fetch → request an invoice. Without allowsNostr it

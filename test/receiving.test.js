@@ -158,17 +158,22 @@ function testReplaceSemantics() {
     assert.deepStrictEqual(cleared.sort(), ['bolt12', 'lightning_offer', 'lud12']);
   }) && ok;
 
-  ok = run('setting bolt12 clears lud16/lud06 (and vice versa)', () => {
+  ok = run('bolt12 is no longer a settable method (legacy: clear-only), but a supported method clears prior fields', () => {
+    // LNURL-only: setting bolt12 is rejected (it was dropped from the catalog).
+    assert.throws(
+      () => buildReceivingContent({ profile: {}, method: 'bolt12', value: 'lno1pqps7sjqpgtyzm3q', pubkeyHex: A }),
+      /Unknown receiving method/,
+    );
+    // A supported method still clears every other receiving field (replace semantics).
     const existing = { lud16: 'alice@x.com', lud06: 'LNURL...', picture: 'http://img' };
     const { content, field, cleared } = buildReceivingContent({
-      profile: existing, method: 'bolt12', value: 'lno1pqps7sjqpgtyzm3q', pubkeyHex: A,
+      profile: existing, method: 'npub-cash', pubkeyHex: A,
     });
-    assert.strictEqual(field, 'bolt12');
-    assert.strictEqual(content.bolt12, 'lno1pqps7sjqpgtyzm3q');
-    assert.strictEqual(content.lud16, undefined);
+    assert.strictEqual(field, 'lud16');
+    assert.ok(content.lud16.endsWith('@npub.cash'));
     assert.strictEqual(content.lud06, undefined);
     assert.strictEqual(content.picture, 'http://img');
-    assert.deepStrictEqual(cleared.sort(), ['lud06', 'lud16']);
+    assert.ok(cleared.includes('lud06'), `expected lud06 cleared, got ${JSON.stringify(cleared)}`);
   }) && ok;
 
   ok = run('npub-cash derives lud16 and clears any prior bolt12', () => {
@@ -201,7 +206,8 @@ function testReplaceSemantics() {
   ok = run('unknown method / invalid value throw', () => {
     assert.throws(() => buildReceivingContent({ profile: {}, method: 'nope', pubkeyHex: A }));
     assert.throws(() => buildReceivingContent({ profile: {}, method: 'address', value: 'bad', pubkeyHex: A }));
-    assert.throws(() => buildReceivingContent({ profile: {}, method: 'bolt12', value: 'notanoffer', pubkeyHex: A }));
+    // bolt12 is now unknown (removed from the catalog), so a valid-looking offer throws too.
+    assert.throws(() => buildReceivingContent({ profile: {}, method: 'bolt12', value: 'lno1pqps7sjqpgtyzm3q', pubkeyHex: A }), /Unknown receiving method/);
   }) && ok;
 
   return ok;
@@ -238,10 +244,16 @@ function testFedimint() {
 
 function testPrecedence() {
   let ok = true;
-  ok = run('bolt12 wins over lud16 (matches zap.js), reported untracked', () => {
+  ok = run('lud16 wins over a legacy bolt12 (LNURL-only)', () => {
     const m = resolveReceivingMethod({ bolt12: 'lno1pqps7sjqpgtyzm3q', lud16: 'a@b.com' });
+    assert.strictEqual(m.method, 'lud16');
+    assert.strictEqual(m.tracked, true);
+  }) && ok;
+  ok = run('a legacy bolt12 alone resolves as unsupported (untracked)', () => {
+    const m = resolveReceivingMethod({ bolt12: 'lno1pqps7sjqpgtyzm3q' });
     assert.strictEqual(m.method, 'bolt12');
     assert.strictEqual(m.tracked, false);
+    assert.strictEqual(m.unsupported, true);
   }) && ok;
   ok = run('lud16 alone resolves tracked', () => {
     const m = resolveReceivingMethod({ lud16: 'a@b.com' });
@@ -253,8 +265,10 @@ function testPrecedence() {
     assert.strictEqual(resolveReceivingMethod(null), null);
   }) && ok;
   ok = run('resolvePayment mirrors the issuer decision', () => {
-    assert.deepStrictEqual(resolvePayment({ bolt12: 'lno1pqps7sjqpgtyzm3q' }),
-      { type: 'bolt12', payload: 'lno1pqps7sjqpgtyzm3q', static: true, tracked: false });
+    // A legacy-only bolt12 is no longer payable here.
+    const legacy = resolvePayment({ bolt12: 'lno1pqps7sjqpgtyzm3q' });
+    assert.strictEqual(legacy.type, 'none');
+    assert.strictEqual(legacy.unsupported, true);
     assert.deepStrictEqual(resolvePayment({ lud16: 'a@b.com' }),
       { type: 'bolt11', lud16: 'a@b.com', tracked: true });
     assert.strictEqual(resolvePayment({}).type, 'none');
@@ -286,11 +300,11 @@ function testLnurlReceiving() {
     assert.throws(() => buildReceivingContent({ profile: {}, method: 'lnurl', value: 'alice@x.com', pubkeyHex: A }), /LNURL-pay code/);
   }) && ok;
 
-  ok = run('setting bolt12 later clears a prior lud06 LNURL', () => {
+  ok = run('setting another method later clears a prior lud06 LNURL', () => {
     const { content, cleared } = buildReceivingContent({
-      profile: { lud06: GOOD_LNURL }, method: 'bolt12', value: 'lno1pqps7sjqpgtyzm3q', pubkeyHex: A,
+      profile: { lud06: GOOD_LNURL }, method: 'address', value: 'a@b.com', pubkeyHex: A,
     });
-    assert.strictEqual(content.bolt12, 'lno1pqps7sjqpgtyzm3q');
+    assert.strictEqual(content.lud16, 'a@b.com');
     assert.strictEqual(content.lud06, undefined);
     assert.ok(cleared.includes('lud06'));
   }) && ok;
@@ -303,9 +317,9 @@ function testLnurlReceiving() {
     assert.strictEqual(m.tracked, null);             // not assumable from the code alone
   }) && ok;
 
-  ok = run('precedence: bolt12 wins over an LNURL', () => {
+  ok = run('precedence: an LNURL wins over a legacy bolt12', () => {
     const m = resolveReceivingMethod({ bolt12: 'lno1pqps7sjqpgtyzm3q', lud06: GOOD_LNURL });
-    assert.strictEqual(m.method, 'bolt12');
+    assert.strictEqual(m.method, 'lnurl');
   }) && ok;
 
   ok = run('precedence: a real lud16 address wins over an LNURL in lud06', () => {
@@ -359,9 +373,10 @@ function testNewest() {
 
 function testCatalog() {
   let ok = true;
-  ok = run('catalog: exactly one default; bolt12 untracked; npub-cash tracked', () => {
+  ok = run('catalog: exactly one default; bolt12 removed; npub-cash tracked', () => {
     assert.strictEqual(WALLET_OPTIONS.filter(o => o.isDefault).length, 1);
-    assert.strictEqual(getOption('bolt12').tracked, false);
+    assert.strictEqual(getOption('bolt12'), null, 'bolt12 must not be a settable option');
+    assert.ok(!WALLET_OPTIONS.some(o => o.id === 'bolt12'), 'WALLET_OPTIONS must not include bolt12');
     assert.strictEqual(getOption('npub-cash').tracked, true);
     assert.strictEqual(getOption('npub-cash').isDefault, true);
   }) && ok;

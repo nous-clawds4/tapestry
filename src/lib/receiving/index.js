@@ -3,9 +3,10 @@
  *
  * Pure modules (walletOptions, mergeKind0, newest, resolveMethod) carry the
  * hard logic — option catalog, validators, kind-0 REPLACE merge, newest-wins
- * selection, bolt12→lud16 precedence. I/O modules (publish, resolveProfile)
- * wrap relays + local strfry. The CLI (bin/receiving.js) drives all of it; the
- * web UI is meant to import the same modules later (Phase 2).
+ * selection, LNURL-only resolution (lud16 → lnurl; legacy bolt12 is reported
+ * unsupported). I/O modules (publish, resolveProfile) wrap relays + local
+ * strfry. Both the CLI (bin/receiving.js) and the web API (src/api/receiving)
+ * drive these modules.
  */
 
 module.exports = {
