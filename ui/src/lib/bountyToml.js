@@ -136,7 +136,7 @@ function normalizeOne(table) {
 }
 
 /** Pull TOML out of a ```toml fenced block if the paste includes Claude's prose. */
-function stripCodeFence(text) {
+export function stripCodeFence(text) {
   const fenced = text.match(/```(?:toml)?\s*\n([\s\S]*?)```/i);
   return (fenced ? fenced[1] : text).trim();
 }
