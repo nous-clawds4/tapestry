@@ -127,6 +127,8 @@ export default function BountyDetail() {
   }
 
   const listHref = `/tapestry/lists/${encodeURIComponent(bounty.list_coordinate)}`;
+  const addItemHref = `${listHref}/items/new`;
+  const isOpen = derived === 'open';
 
   return (
     <div className="page">
@@ -151,11 +153,28 @@ export default function BountyDetail() {
         <div style={{ fontSize: '0.85rem', marginTop: '0.3rem' }}>
           target list: <Link to={listHref} style={{ fontFamily: 'monospace' }}>{bounty.list_coordinate}</Link>
         </div>
+
+        {isOpen && (
+          <div style={{ marginTop: '0.9rem' }}>
+            <Link
+              to={addItemHref}
+              style={{ display: 'inline-block', padding: '0.5rem 1rem', background: '#1f6feb', color: '#fff', borderRadius: 4, textDecoration: 'none', fontWeight: 600 }}
+            >
+              + Submit an item to this list →
+            </Link>
+            <div style={{ fontSize: '0.78rem', opacity: 0.55, marginTop: '0.35rem' }}>
+              Add a list item to claim this bounty. It appears below once you’re trusted by the issuer at rank ≥ 2.
+            </div>
+          </div>
+        )}
       </div>
 
       <h2 style={{ fontSize: '1.2rem', marginTop: '1.5rem' }}>Claims ({claims.length})</h2>
       {claims.length === 0 && (
-        <p style={{ opacity: 0.6 }}>No claims yet. Trusted contributors submitting list items will appear here.</p>
+        <p style={{ opacity: 0.6 }}>
+          No claims yet. Trusted contributors submitting list items will appear here.{' '}
+          <Link to={addItemHref}>Add an item →</Link>
+        </p>
       )}
       {claims.map(c => (
         <ClaimRow key={c.event.id} claim={c} bounty={bounty} onZap={onZap} />
