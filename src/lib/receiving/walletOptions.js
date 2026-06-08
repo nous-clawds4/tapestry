@@ -7,15 +7,19 @@
  * pure bech32 — no network.
  *
  * A kind-0 profile can carry receiving identifiers under several historical
- * field names. We group them into two mutually-exclusive *families*:
+ * field names. We group them into two families:
  *
- *   BOLT12 family: bolt12 / lud12 / lightning_offer   (static offer, untracked)
- *   LUD16  family: lud16  / lud06                      (Lightning address, tracked)
+ *   BOLT12 family: bolt12 / lud12 / lightning_offer   (LEGACY — clear-only)
+ *   LUD16  family: lud16  / lud06                      (Lightning address / LNURL, tracked-capable)
+ *
+ * BOLT12 is no longer a supported set-method (LNURL-only from now on). Its
+ * fields stay in ALL_RECEIVING_FIELDS so a stale offer is always *cleared* on
+ * the next save — but nothing ever *writes* them again (there is no bolt12
+ * catalog option and buildReceivingContent has no bolt12 branch).
  *
  * "Replace semantics" (rev. 2, Finding 2): setting a method writes exactly one
  * field and clears every other receiving field across BOTH families, so a
- * stale BOLT12 can never shadow a freshly-set Lightning address (zap.js reads
- * bolt12 before lud16).
+ * stale legacy BOLT12 can never shadow a freshly-set Lightning address.
  */
 
 // Tolerant nostr-tools loader: plain require resolves from the repo's
@@ -154,13 +158,14 @@ function npubCashAddress(pubkeyHexOrNpub) {
 }
 
 /**
- * Curated option catalog (revised copy from the plan). `field` is the kind-0
- * field a chosen option writes. `tracked` reflects whether payments yield a
- * NIP-57 zap receipt (kind 9735) — BOLT12 static offers do not, so a
- * cap-tracked bounty won't auto-mark them paid (rev. 2, Finding 3).
+ * Curated option catalog (LNURL-only). `field` is the kind-0 field a chosen
+ * option writes. `tracked` reflects whether payments yield a NIP-57 zap receipt
+ * (kind 9735) — which, for every method here, comes down to whether the LNURL
+ * allows Nostr zaps (the probe verifies it).
  *
- * The CLI exposes three set-methods directly (npub-cash, address, bolt12);
- * `wos` and `fedimint` are address sources documented here for the UI.
+ * BOLT12 is intentionally absent: static offers produce no zap receipt, so a
+ * cap-tracked bounty can't auto-mark them paid. A legacy bolt12 already on a
+ * profile is cleared on the next save, never re-written.
  */
 const WALLET_OPTIONS = [
   {
@@ -188,14 +193,6 @@ const WALLET_OPTIONS = [
     tracked: true,
     needsValue: true,
     note: 'Non-U.S. / existing users only (exited U.S. 2023). Custodial, not by us.',
-  },
-  {
-    id: 'bolt12',
-    label: 'BOLT12 offer (untracked)',
-    field: 'bolt12',
-    tracked: false,
-    needsValue: true,
-    note: 'Static lno1… offer. Self-custodial. No zap receipt — manual / untracked, won\'t auto-free a cap slot.',
   },
   {
     id: 'lnurl',

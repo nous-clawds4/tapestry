@@ -499,6 +499,10 @@ async function register(app) {
     const bountiesApi = require('./bounties');
     bountiesApi.register(app);
 
+    // ── Receiving-method setup API (Magic Carpet v2) ──
+    const receivingApi = require('./receiving');
+    receivingApi.register(app);
+
     // Initialize router state (presets → state file → strfry config)
     await initRouter();
 

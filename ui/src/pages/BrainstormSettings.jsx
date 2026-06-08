@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import BrainstormUserMenu, { useHouseProfile } from '../components/BrainstormUserMenu';
+import ReceivingSetup from '../components/ReceivingSetup';
 
 /* ── Helpers ──────────────────────────────────────────── */
 
@@ -490,6 +491,16 @@ export default function BrainstormSettings() {
               <div className="bss-profile-pubkey">{user.pubkey.slice(0, 16)}…{user.pubkey.slice(-8)}</div>
             </div>
           </div>
+        </div>
+
+        {/* Receiving method — how you get paid for bounty claims (LNURL-only) */}
+        <div className="bss-card">
+          <div className="bss-card-header">💰 Receiving</div>
+          <p className="bss-card-desc">
+            Choose how you get paid when an issuer pays out a bounty claim. Payments that allow
+            Nostr zaps are <strong>tracked</strong> — they auto-mark your claim paid.
+          </p>
+          <ReceivingSetup pubkey={user.pubkey} />
         </div>
 
         {/* WoT Status */}

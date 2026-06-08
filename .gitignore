@@ -102,3 +102,7 @@ dist/
 .claude/
 
 .pi/
+
+# Scratch / working dir for in-progress feature dev (issue drafts, demo servers,
+# impl notes, throwaway run scripts + secrets). Never meant to be committed.
+.fallow/

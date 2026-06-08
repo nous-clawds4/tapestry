@@ -6,8 +6,9 @@
  * mirrors that component's label + helper text so a CLI preview is faithful to
  * what a payer would actually see and scan.
  *
- * Accepts a BOLT11 invoice (lnbc…), a BOLT12 offer (lno1…), or a BIP-21/lightning:
- * URI. Classification matches readBolt12()/PaymentCode's bolt12-vs-bolt11 split.
+ * Accepts a BOLT11 invoice (lnbc…) or any Lightning payment payload and renders
+ * it as a QR. Payouts are one-time BOLT11 invoices (LNURL-only); anything else
+ * is rendered generically.
  *
  *   node bin/paycode.js <payload> [--png <path>] [--html <path>] [--no-term] [--json]
  *   echo "<payload>" | node bin/paycode.js --png /tmp/code.png
@@ -22,12 +23,9 @@ function loadDep(name) {
 }
 const QRCode = loadDep('qrcode');
 
-// Mirror of PaymentCode.jsx labels.
+// Mirror of PaymentCode.jsx labels (LNURL-only → BOLT11 one-time invoices).
 function classify(payload) {
   const s = String(payload).trim();
-  if (/lno1[a-z0-9]{8,}/i.test(s)) {
-    return { type: 'bolt12', label: 'BOLT12 offer (static, reusable)', wallet: 'Scan with Phoenix / Zeus / CLN, or paste into a BOLT12-aware wallet — pay any amount.' };
-  }
   if (/ln(bc|tb|bcrt)[0-9]/i.test(s)) {
     return { type: 'bolt11', label: 'BOLT11 invoice (one-time)', wallet: 'Scan or paste into your Lightning wallet to pay this exact amount.' };
   }
@@ -64,7 +62,7 @@ function htmlDoc({ payload, info, dataUrl }) {
 </section>
 <section><p style="opacity:.7;font-size:.85rem">Raw code (copy/paste if you can't scan):</p>
 <pre style="white-space:pre-wrap;word-break:break-all;background:#161b22;border:1px solid #30363d;border-radius:6px;padding:10px;font-size:.7rem">${payload.replace(/[<&]/g, c => ({ '<': '&lt;', '&': '&amp;' }[c]))}</pre></section>
-<footer><p style="opacity:.6;font-size:.8rem">Rendered by <code>bin/paycode.js</code> — a faithful CLI mirror of the app's <code>PaymentCode</code> component. ${info.type === 'bolt11' ? 'One-time invoice: pay exactly once.' : info.type === 'bolt12' ? 'Static offer: reusable, payer chooses the amount (BOLT12-aware wallet required).' : ''}</p></footer>
+<footer><p style="opacity:.6;font-size:.8rem">Rendered by <code>bin/paycode.js</code> — a faithful CLI mirror of the app's <code>PaymentCode</code> component. ${info.type === 'bolt11' ? 'One-time invoice: pay exactly once.' : ''}</p></footer>
 </body></html>`;
 }
 
@@ -72,7 +70,7 @@ async function main() {
   const { pos, flags } = parseArgs(process.argv.slice(2));
   const payload = (pos[0] || readStdin() || '').trim();
   if (!payload) {
-    console.error('usage: paycode <bolt11|bolt12|lightning:|bitcoin:?lno=> [--png path] [--html path] [--no-term] [--json]');
+    console.error('usage: paycode <bolt11|lightning:|payload> [--png path] [--html path] [--no-term] [--json]');
     process.exit(1);
   }
   const info = classify(payload);

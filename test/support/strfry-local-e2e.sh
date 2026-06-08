@@ -63,14 +63,15 @@ node bin/receiving.js resolve "$PUB" --amount 1000 --no-external --json \
   || fail "resolve did not produce a tracked bolt11 decision"
 
 echo ""
-echo "--- switch: import a newer bolt12; strfry replaces the kind-0 (replaceable), offer wins ---"
+echo "--- switch: import a newer lud06 LNURL; strfry replaces the kind-0 (replaceable), LNURL wins ---"
 sleep 1.1   # ensure a strictly-greater created_at so the new event wins (no same-second tie)
-node bin/receiving.js set bolt12 'bitcoin:?lno=lno1pqps7sjqpgtyzm3qv4uxzmtsd3jjqer9wd3hy6tsw35k7msjz' --nsec "$PRIV" --relays ',' --no-external --no-probe --json >/dev/null
+LNURL='lnurl1dp68gurn8ghj7um9wfmxjcm99e3k7mf0v9cxj0m385ekvcenxc6r2c35xvukxefcv5mkvv34x5ekzd3ev56nyd3hxqurzepexejxxepnxscrvwfnv9nxzcn9xq6xyefhvgcxxcmyxymnserxfq5fns'
+node bin/receiving.js set lnurl "$LNURL" --nsec "$PRIV" --relays ',' --no-external --no-probe --json >/dev/null
 POST2=$(count '{"kinds":[0]}')
 echo "kind-0 count after second import (replaceable → stays 1): $POST2"
 SHOW2=$(node bin/receiving.js show "$PUB" --no-external --json)
-echo "$SHOW2" | node -e 'const o=JSON.parse(require("fs").readFileSync(0));const m=o.method;console.log("  resolved now:",m&&m.method,"tracked:",m&&m.tracked);process.exit(m&&m.method==="bolt12"&&m.tracked===false?0:1)' \
-  || fail "after importing a newer bolt12, show should resolve bolt12 (untracked)"
+echo "$SHOW2" | node -e 'const o=JSON.parse(require("fs").readFileSync(0));const m=o.method;console.log("  resolved now:",m&&m.method,"field:",m&&m.field,"tracked:",m&&m.tracked);process.exit(m&&m.method==="lnurl"&&m.field==="lud06"&&m.tracked===null?0:1)' \
+  || fail "after importing a newer LNURL, show should resolve lnurl (lud06, tracked unknown)"
 
 # cleanup temp db
 rm -rf "$DBDIR" "$CONF"

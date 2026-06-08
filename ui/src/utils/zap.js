@@ -1,19 +1,15 @@
 /**
- * Client-side zap flow with BOLT12 + NIP-57 (BOLT11/LNURL) support.
+ * Client-side zap flow — NIP-57 (LNURL → BOLT11) only.
  *
  * zapContributor({ recipientPubkeyHex, amountSats, claimEventId, listCoordinate })
- *   -> { type: 'bolt12', payload: '<lno1...>', static: true }
- *      or { type: 'bolt11', payload: '<lnbc1...>' }
+ *   -> { type: 'bolt11', payload: '<lnbc1...>' }
  *
- * BOLT12 offers (static, reusable) take precedence — no LNURL server, no
- * per-payment signing, just a payment code the issuer pastes/scans into a
- * BOLT12-aware wallet (Phoenix, Zeus, CLN, lnd via plugin, etc.). The offer
- * is read from the recipient's kind-0 profile (`bolt12` field, with
- * `lud12` / `lightning_offer` as aliases).
- *
- * Falls back to the existing NIP-57 LNURL/BOLT11 flow if no BOLT12 offer is
- * configured. Throws if neither is available so callers can surface a
- * "recipient has no Lightning address or BOLT12 offer" message.
+ * LNURL-only: the recipient's Lightning address (lud16, with lud06 as an alias)
+ * is read from their kind-0 profile, its LNURL-pay endpoint is fetched, a NIP-57
+ * zap request (kind 9734) is signed, and the callback returns a one-time BOLT11
+ * invoice. Throws if no Lightning address is configured so callers can surface a
+ * "recipient has no Lightning address" message. (BOLT12 was removed — a legacy
+ * offer on a profile is ignored here and cleared on the recipient's next save.)
  */
 
 async function fetchProfileEntry(pubkeyHex) {
@@ -22,20 +18,6 @@ async function fetchProfileEntry(pubkeyHex) {
   const payload = await resp.json();
   const profiles = payload?.profiles ?? payload;
   return Array.isArray(profiles) ? profiles[0] : profiles?.[pubkeyHex] ?? null;
-}
-
-// Accept bare offers, lightning: prefixes, and BIP-21 unified URIs from
-// wallets like Phoenix (`bitcoin:?lno=lno1...`). We return the *original*
-// string when it contains a valid offer so the QR encodes whatever form
-// the recipient stored — the unified URI in particular is recognized by
-// the broadest set of wallets.
-export function readBolt12(profileEntry) {
-  if (!profileEntry) return null;
-  const raw = profileEntry.bolt12 ?? profileEntry.lud12 ?? profileEntry.lightning_offer ?? null;
-  if (!raw || typeof raw !== 'string') return null;
-  const trimmed = raw.trim();
-  if (!/lno1[a-z0-9]{8,}/i.test(trimmed)) return null;
-  return trimmed;
 }
 
 function readLud16(profileEntry) {
@@ -71,13 +53,8 @@ export async function zapContributor({ recipientPubkeyHex, amountSats, claimEven
 
   const profile = await fetchProfileEntry(recipientPubkeyHex);
 
-  const bolt12 = readBolt12(profile);
-  if (bolt12) {
-    return { type: 'bolt12', payload: bolt12, static: true };
-  }
-
   const lud16 = readLud16(profile);
-  if (!lud16) throw new Error('Recipient has no Lightning address or BOLT12 offer');
+  if (!lud16) throw new Error('Recipient has no Lightning address');
   if (!window.nostr) throw new Error('No NIP-07 signer (nos2x / Alby) detected');
   if (!claimEventId) throw new Error('claimEventId is required');
 

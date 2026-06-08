@@ -21,11 +21,8 @@ export default function PaymentCode({ payment }) {
     } catch {}
   }
 
-  const isOffer = payment.type === 'bolt12';
-  const label = isOffer ? 'BOLT12 offer (static, reusable)' : 'BOLT11 invoice (one-time)';
-  const wallet = isOffer
-    ? 'Scan with Phoenix / Zeus / CLN, or paste into a BOLT12-aware wallet — pay any amount.'
-    : 'Scan or paste into your Lightning wallet to pay this exact amount.';
+  const label = 'BOLT11 invoice (one-time)';
+  const wallet = 'Scan or paste into your Lightning wallet to pay this exact amount.';
 
   return (
     <div style={{ marginTop: 8, padding: '0.6rem', background: '#010409', border: '1px solid #30363d', borderRadius: 4 }}>

@@ -12,6 +12,7 @@
   "scripts": {
     "test": "node test/test.js",
     "test:receiving": "node test/receiving.test.js",
+    "test:receiving:api": "node test/receiving.api.test.js",
     "test:receiving:e2e": "node test/receiving.e2e.js",
     "test:receiving:probe": "node test/receiving.probe.e2e.js",
     "receiving": "node bin/receiving.js",
