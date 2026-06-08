@@ -76,6 +76,6 @@ Testable from the outside (doc-level inspection).
 
 ## Linked artifacts
 - Design handoff: `docs/POV_RESOLUTION_DESIGN_HANDOFF.md` (to be flipped to SUPERSEDED)
-- ADR: (filled in after Architecture phase — 0033)
+- ADR: `engineering-team/decisions/pov-resolution/0033-three-pov-resolution-standard.md` (Accepted)
 - Test plan: N/A (docs-mode — Test Design skipped)
 - Review: (filled in after Review phase)
