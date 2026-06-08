@@ -207,8 +207,12 @@ export function buildClaudePrompt(lists = [], request = '') {
         'Here is what I want:',
         trimmedRequest,
         '',
-        'If that is enough, reply with the TOML now. If a list, amount, or rule is ambiguous,',
-        'ask me one or two quick questions first, then give me the TOML.',
+        'Draft the TOML now — do NOT ask me questions. I review and adjust every value in a',
+        'form before anything is published, so make reasonable choices and hand me a complete',
+        'block. Pick the list whose name best matches my request; if I have only one list, use',
+        'it. For anything I did not specify, use these defaults: base_reward_sats = 1000,',
+        'bounty_cap_sats = 10000, reward_per_item = false. Write a one-line criteria from my',
+        'request. Keep any prose to a sentence — the TOML is what matters.',
       ]
     : [
         '',
