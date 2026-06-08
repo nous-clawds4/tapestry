@@ -74,8 +74,17 @@ Testable from the outside (doc-level inspection).
 - Which sub-pieces are **normative** ("MUST/standard") vs **aspirational** ("target") — the
   Architect draws that line in ADR 0033.
 
+## Deviations
+- None. Implemented exactly per ADR 0033 (Option B structural split): BIBLE §27 with four
+  blocks (The standard / Status today / Target direction / Open questions) + TOC entry; the
+  handoff doc flipped to ✅ SUPERSEDED with a BIBLE §27 pointer, body preserved.
+- Optional §11/§14 cross-refs were **skipped** (ADR marked them optional; kept the diff focused).
+- `npm test` Overall PASS, no suite regressed (docs-only change; no tests touched). Note: this
+  branch was cut from `staging` before profile #35/#36 merged, so its suite counts predate
+  those stories' #36 updates — irrelevant to this docs change.
+
 ## Linked artifacts
-- Design handoff: `docs/POV_RESOLUTION_DESIGN_HANDOFF.md` (to be flipped to SUPERSEDED)
+- Design handoff: `docs/POV_RESOLUTION_DESIGN_HANDOFF.md` (flipped to ✅ SUPERSEDED → BIBLE §27)
 - ADR: `engineering-team/decisions/pov-resolution/0033-three-pov-resolution-standard.md` (Accepted)
 - Test plan: N/A (docs-mode — Test Design skipped)
 - Review: (filled in after Review phase)

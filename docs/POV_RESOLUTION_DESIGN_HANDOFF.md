@@ -1,6 +1,7 @@
 # Point of View (PoV) Resolution — Design Handoff
 
-**Status:** 🔴 OPEN
+**Status:** ✅ SUPERSEDED
+**Superseded by:** **`BIBLE.md` §27 (Point of View (PoV) Resolution)** — the canonical home for this standard (ratified via ADR 0033, pov-resolution story #1). Body preserved below for history.
 **Created:** 2026-06-07
 **Provenance:** Scoped via `/discuss` (Product Expert lens) during the verified-reporters book close, after a staging smoke found the *same* trust metric showing three different values across sources. This is the **Capture** step of the Protocol-Spec Workflow (`engineering-team/workflows/protocol-spec-workflow.md`): settled decisions + open questions, captured so nothing lives only in the transcript. Ratify settled pieces into `BIBLE.md` + ADRs in docs-mode; flip this to ✅ SUPERSEDED once they land.
 

@@ -37,6 +37,7 @@
 24. [Task Queue (BullMQ behind /api/run-task)](#24-task-queue-bullmq-behind-apirun-task)
 25. [The Inherit-From Tag (`b`)](#25-the-inherit-from-tag-b)
 26. [Resolved Definition](#26-resolved-definition)
+27. [Point of View (PoV) Resolution](#27-point-of-view-pov-resolution)
 
 ---
 
@@ -1740,6 +1741,61 @@ merge_walk(node, visited):
 **Scope (v1).** Field-level override only — a stated field replaces the inherited one wholesale. The **set-valued override algebra** (how a child adds/removes/replaces individual elements of an inherited *set*) **remains deferred** (ADR 0027), to the first consumer that needs it.
 
 See ADR 0028 for the rationale and the rejected alternative (WoT-weighted field resolution, which would make a node's own definition vary by observer).
+
+---
+
+## 27. Point of View (PoV) Resolution
+
+**Every trust metric in Tapestry is computed relative to a Point of View — and there are exactly three of them.** A "trust metric" is any count, score, or list derived from the web of trust (verified-follower counts, GrapeRank influence/rank, verified-reporter lists, search ranking). The same metric reads differently depending on *whose* web of trust answers it, so a surface that mixes sources can show the *same* number three different ways. This section is the canonical definition of the three PoVs, which source is authoritative for each, and the (target) model for selecting between them. Established by ADR 0033, ratifying the design captured in `docs/POV_RESOLUTION_DESIGN_HANDOFF.md`.
+
+The section is split deliberately: **The standard** is normative and true today; **Status today** is what's actually wired; **Target direction** is direction, not yet built; **Open questions** are undecided. Do not read a target as a present-tense guarantee.
+
+### The standard (ratified)
+
+Every trust metric is computed relative to exactly one of three Points of View:
+
+| PoV | Whose web of trust | Source of truth | Availability |
+|---|---|---|---|
+| **Owner** | the local Brainstorm instance's owner | **Neo4j** — `NostrUser` node properties (`influence`, `verified*Count`, `hops`) + live traversals | always locally available (the instance computes it) |
+| **House** | the deployment's "house" web of trust | **kind 30382 Trusted Assertions** → Meili `wot_*_<houseSuffix>` | only if House assertions are published/imported |
+| **Personalized** | the end-user's own web of trust | **kind 30382** per-user → Meili `wot_*_<userSuffix>` | only if that user's assertions exist |
+
+Two normative rules accompany the table:
+
+- **Following stays on strfry, non-PoV.** The Following count is read from strfry (kind-3 `p`-tags). It is **not** a trust metric and has **no** PoV — it is the freshest, cheapest count and is immune to the GrapeRank batch. (When the Owner scoring batch died mid-run on 2026-06-07, Following stayed correct while the PoV-derived counts went stale — evidence it must never be folded into the PoV machinery.)
+- **Neo4j-sourced grapevine data is the Owner PoV — not "House."** Earlier copy and docs labeled Neo4j-sourced counts/lists "House (default)"; that was a **mislabel**. Anything read from Neo4j node properties or live traversals is the **Owner** PoV. "House" is specifically the kind-30382 → Meili `wot_*_<houseSuffix>` read.
+
+### Status today
+
+What each surface actually uses right now:
+
+| Surface | Datum | Source today |
+|---|---|---|
+| Profile | Following count | strfry (`get-user-counts`) — non-PoV |
+| Profile | Verified Followers / Verified Reporters counts | **Owner (Neo4j)** — shipped in profile #35/#36 (ADR 0031/0032); badge value agrees with the list table |
+| `/follows`, `/followers`, `/reporters` tables | rows + count | **Owner** (live Neo4j) |
+| Search page | ranking / scores | Meili, with a 2-way **House ↔ Personalized** toggle |
+
+### Target direction (not yet built)
+
+The following is the intended direction. **None of it is implemented yet** — it is recorded here so future work builds toward one model, not so surfaces can claim the behavior today.
+
+- **Selection + persistence.** One **selected PoV** per end-user at a time (Owner / House / Personalized), **stored** (session and/or backend) and **sticky across pages** — change it on one page and it applies everywhere. A **3-way selector** UI: the search page's current 2-way House↔Personalized toggle gains **Owner**, and the same selector eventually appears on the profile, with the choice remembered when navigating back to search.
+- **Fallback.** A surface always **attempts the selected PoV**; if the datum for that PoV is **unavailable**, it falls back along a **feature-specific chain** — the right fallback differs for the search bar vs a profile badge vs a list table vs future surfaces, so the chain is defined per feature, not globally.
+- **Freshness is part of availability.** A PoV's data can be present-but-stale or mid-recompute (e.g. the interrupted Owner batch). "Available" is not just present/absent — stale/partial is a **state**, to be surfaced ("computing… / as of \<time\>") rather than silently shown as degraded numbers. A naïve "absent → fall back" rule is insufficient.
+
+### Open questions
+
+Undecided; each is a candidate for a future `pov-resolution` story (carried from the design handoff):
+
+1. **Default selected PoV** for a new/anonymous user — Owner (always available) or House (richer, if present)?
+2. **Resolver shape** — one unified PoV-aware endpoint vs a shared server module each endpoint calls (determines how many new endpoints exist).
+3. **Freshness signaling** — how is "stale/partial" detected (batch run-state, timestamps on node props, a computed-at field), and do surfaces show a health indicator?
+4. **Per-feature fallback chains** — enumerate them (search bar, profile badges, tables, future) across the three PoVs plus the raw/strfry primitives.
+5. **Personalized source** — kind-30382-only, or also a local per-customer calculation?
+6. **count = list-length guarantee** per PoV — exact (single live source) vs steady-state (precomputed badge + live table).
+
+See ADR 0033 for the ratification decision (the normative/aspirational split) and the open questions it deliberately left undecided.
 
 ---
 
