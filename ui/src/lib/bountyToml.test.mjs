@@ -106,4 +106,14 @@ test('deep link round-trips the prompt and includes list coordinates', () => {
   assert.strictEqual(decodeURIComponent(link.split('?q=')[1]), prompt);
 });
 
+test('a query/request is embedded in the prompt when provided', () => {
+  const req = 'a bounty on my kettlebell list, 500 sats each';
+  const withReq = buildClaudePrompt([{ coordinate: coord(), name: 'Kettlebell' }], req);
+  assert.match(withReq, /Here is what I want:/);
+  assert.ok(withReq.includes(req));
+  const without = buildClaudePrompt([{ coordinate: coord(), name: 'Kettlebell' }]);
+  assert.doesNotMatch(without, /Here is what I want:/);
+  assert.match(without, /Ask me what bounties I want/);
+});
+
 console.log(`\n${passed} passed`);

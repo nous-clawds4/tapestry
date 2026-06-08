@@ -186,10 +186,12 @@ export function parseBountyToml(text) {
 
 /**
  * Build the prompt Claude opens with: the TOML spec + your lists as a name→coordinate
- * lookup, then an instruction to converse and emit one ```toml block.
+ * lookup, then an instruction to emit one ```toml block. When `request` is given
+ * (what you typed in the query box) it is embedded so Claude can answer right away.
  * @param {{ coordinate: string, name: string }[]} lists your addressable (kind 39998) lists
+ * @param {string} [request] your plain-English description of the bounty you want
  */
-export function buildClaudePrompt(lists = []) {
+export function buildClaudePrompt(lists = [], request = '') {
   const shown = lists.slice(0, MAX_PROMPT_LISTS);
   const truncated = lists.length > shown.length;
 
@@ -198,15 +200,30 @@ export function buildClaudePrompt(lists = []) {
       + (truncated ? `\n  (… ${lists.length - shown.length} more not shown — paste a coordinate directly if you need one of them)` : '')
     : '  (none found — paste a coordinate of the form 39998:<pubkey>:<d-tag>)';
 
+  const trimmedRequest = (request || '').trim();
+  const requestLines = trimmedRequest
+    ? [
+        '',
+        'Here is what I want:',
+        trimmedRequest,
+        '',
+        'If that is enough, reply with the TOML now. If a list, amount, or rule is ambiguous,',
+        'ask me one or two quick questions first, then give me the TOML.',
+      ]
+    : [
+        '',
+        'Ask me what bounties I want (which list, how many sats, the rules), then give me the TOML.',
+      ];
+
   return [
     'You are helping me configure Nostr "bounties" on Tapestry. A bounty attaches a sats',
     'reward to one of my lists; people I trust (web-of-trust rank >= 2) submit items to earn it.',
     '',
     'Here are my lists. Use the COORDINATE (not the name) in your output:',
     listLines,
+    ...requestLines,
     '',
-    'Ask me what bounties I want (which list, how many sats, the rules), then output exactly ONE',
-    '```toml code block I can paste back. Schema — one [[bounty]] table per bounty:',
+    'Output exactly ONE ```toml code block I can paste back. Schema — one [[bounty]] table per bounty:',
     '',
     '```toml',
     '[[bounty]]',

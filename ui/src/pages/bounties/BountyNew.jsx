@@ -50,6 +50,7 @@ export default function BountyNew() {
 
   // Claude/TOML drop-in state
   const [myLists, setMyLists] = useState([]);
+  const [query, setQuery] = useState('');           // plain-English request baked into the deep link
   const [tomlText, setTomlText] = useState('');
   const [parsed, setParsed] = useState(null);        // { bounties, errors } from the last Load
   const [copied, setCopied] = useState(false);
@@ -89,7 +90,7 @@ export default function BountyNew() {
     return () => { cancelled = true; };
   }, [user]);
 
-  const prompt = buildClaudePrompt(myLists);
+  const prompt = buildClaudePrompt(myLists, query);
   const deepLink = buildClaudeDeepLink(prompt);
 
   const amount = Number(amountSats);
@@ -201,12 +202,21 @@ export default function BountyNew() {
           ⚡ Set up with Claude — describe it, paste the TOML
         </summary>
         <p style={{ opacity: 0.7, fontSize: '0.9rem', marginTop: '0.75rem' }}>
-          Open Claude pre-loaded with your lists and every bounty option. Tell it what you want,
-          paste the <code>toml</code> block it gives you below, and hit Load. Set up several at once
-          with multiple <code>[[bounty]]</code> tables.
+          Describe the bounty you want, open Claude pre-loaded with your lists and your request,
+          then paste the <code>toml</code> it gives back and hit Load. Set up several at once with
+          multiple <code>[[bounty]]</code> tables.
         </p>
 
-        <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap', margin: '0.75rem 0' }}>
+        {/* Step 1 — describe it, then send it to Claude */}
+        <div style={{ fontWeight: 600, fontSize: '0.85rem', marginTop: '0.75rem' }}>1. Describe it</div>
+        <textarea
+          rows={2}
+          value={query}
+          onChange={e => setQuery(e.target.value)}
+          placeholder="e.g. a bounty on my kettlebell routines list, 500 sats each, cap 5000, max 3 per person"
+          style={{ ...inputStyle, marginTop: '0.35rem' }}
+        />
+        <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap', margin: '0.6rem 0' }}>
           <a
             href={deepLink}
             target="_blank"
@@ -227,12 +237,14 @@ export default function BountyNew() {
           </span>
         </div>
 
+        {/* Step 2 — paste back what Claude gives you */}
+        <div style={{ fontWeight: 600, fontSize: '0.85rem', marginTop: '0.5rem' }}>2. Paste Claude’s TOML</div>
         <textarea
           rows={6}
           value={tomlText}
           onChange={e => setTomlText(e.target.value)}
-          placeholder={'Paste the ```toml block from Claude here…'}
-          style={{ ...inputStyle, fontFamily: 'monospace', fontSize: '0.85rem' }}
+          placeholder={'Paste the ```toml block Claude gives you here…'}
+          style={{ ...inputStyle, fontFamily: 'monospace', fontSize: '0.85rem', marginTop: '0.35rem' }}
         />
         <div style={{ marginTop: '0.6rem' }}>
           <button
