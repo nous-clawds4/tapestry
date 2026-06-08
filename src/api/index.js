@@ -30,6 +30,8 @@ const { handleSignUpNewCustomer } = require('./auth/signUpNewCustomer');
 const { handleGetOwnerInfo } = require('./owner/ownerInfo');
 const { handleGetGrapevineInteraction } = require('./grapevineInteractions/queries');
 const { handleGetGrapevineFollows } = require('./grapevineInteractions/queries/followsWithMetrics');
+const { handleGetGrapevineFollowers } = require('./grapevineInteractions/queries/followersWithMetrics');
+const { handleGetGrapevineReporters } = require('./grapevineInteractions/queries/reportersWithMetrics');
 const { handleOldSearchProfiles, handleOldSearchProfilesStream } = require('./search/profiles');
 const { handleKeywordSearchProfiles } = require('./search/profiles/keyword');
 const { handlePrecomputeWhitelistMaps, handlePrecomputeWhitelistStatus } = require('./search/profiles/whitelistPrecompute');
@@ -318,6 +320,10 @@ async function register(app) {
     app.get('/api/get-grapevine-interaction', handleGetGrapevineInteraction);
     // Follows list with owner-POV metrics (story #29 / ADR 0026)
     app.get('/api/get-grapevine-follows', handleGetGrapevineFollows);
+    // Followers list (verified, owner-POV metrics) (story #34 / ADR 0030)
+    app.get('/api/get-grapevine-followers', handleGetGrapevineFollowers);
+    // Verified reporters list (owner/House-POV metrics) (verified-reporters #2 / ADR 0002)
+    app.get('/api/get-grapevine-reporters', handleGetGrapevineReporters);
 
     // Search endpoint
     app.get('/api/search/profiles', handleOldSearchProfiles);
@@ -507,6 +513,10 @@ async function register(app) {
     // ── Trusted List API ──
     const trustedList = require('./trustedList');
     trustedList.register(app);
+
+    // ── Profile Tags API (nostr-user-tag read + per-POV WoT scoring) ──
+    const { registerProfileTagsRoutes } = require('./profile-tags');
+    registerProfileTagsRoutes(app);
 
     // ── Tapestry I/O (Import/Export) API ──
     const { registerIORoutes } = require('./io');

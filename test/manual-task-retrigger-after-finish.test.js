@@ -34,7 +34,7 @@ const ROOT = path.resolve(__dirname, '..');
 
 const QUEUE_MODULE     = path.join(ROOT, 'src/manage/taskQueue/queue/index.js');
 const SCHEDULER_MODULE = path.join(ROOT, 'src/manage/taskQueue/queue/scheduler.js');
-const ADR_0012         = path.join(ROOT, 'engineering-team/decisions/0012-task-queue-phase-1-bullmq.md');
+const ADR_0012         = path.join(ROOT, 'engineering-team/decisions/task-queue-scheduler/0012-task-queue-phase-1-bullmq.md');
 const PROBE_SCRIPT     = path.join(ROOT, 'test/probe-bullmq-removeOnComplete-immediate.js');
 
 function readSafe(p) {

@@ -1,0 +1,47 @@
+{
+  "word": {
+    "slug": "json-schema-for-the-concept-of-tag-pinnings",
+    "name": "JSON schema for the concept of tag pinnings",
+    "title": "JSON Schema for the Concept of Tag Pinnings",
+    "description": "the json schema for the concept of tag pinnings",
+    "wordTypes": ["word", "jsonSchema"],
+    "coreMemberOf": [
+      { "slug": "concept-header-for-the-concept-of-tag-pinnings", "uuid": "<uuid>" }
+    ]
+  },
+  "jsonSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "name": "tag pinning",
+    "title": "Tag Pinning",
+    "description": "JSON Schema for the concept of tag pinnings",
+    "required": ["tagPinning"],
+    "definitions": {},
+    "properties": {
+      "tagPinning": {
+        "type": "object",
+        "name": "tag pinning",
+        "title": "Tag Pinning",
+        "slug": "tag-pinning",
+        "description": "data about this tag-pinning assertion",
+        "required": ["tagEventId"],
+        "properties": {
+          "tagEventId": {
+            "type": "string",
+            "name": "tagEventId",
+            "title": "Tag Event ID",
+            "slug": "tag-event-id",
+            "description": "The event ID of the kind 39999 tag element being pinned. Mirrors the event's `e` tag."
+          },
+          "curationMethod": {
+            "type": "object",
+            "name": "curationMethod",
+            "title": "Curation Method",
+            "slug": "curation-method",
+            "description": "Parameters describing how the eventual Trusted List for this pinned tag should be computed. Mirrors the event's `curation-method` event-tag (which carries the stringified form). v1 fields: observer (hex pubkey), method ('nip85:rank' | 'follows' | 'trust-everyone' | 'trusted-list'), trustedList (optional a-tag ref when method='trusted-list'), cutoff (integer), includeScoreInTL (boolean)."
+          }
+        }
+      }
+    }
+  }
+}

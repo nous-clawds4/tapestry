@@ -645,3 +645,30 @@ Today the `forceKill: false` override masks the impact (wrapper declares timeout
 **Strictness:** Standard.
 **Phase path:** `/discuss` to settle the §11 decisions and the story split → then Planning → Architecture → Test Design → Implementation → Review per sub-story.
 **Priority:** Medium — operator wants it next, after story #31. **Depends on:** story #31 (the `b` inherit-from primitive).
+
+---
+
+## 2026-06-06 — Profile follows/followers follow-ups (from stories #33/#34)
+
+Surfaced shipping the verified-followers count (#33) + followers table (#34) to staging. Full context: [`docs/PROFILE_FOLLOWERS_HANDOFF_2026-06-06.md`](../../docs/PROFILE_FOLLOWERS_HANDOFF_2026-06-06.md). None block #33/#34 (both PASS, on staging).
+
+1. **Followers table 504s for the very largest accounts.** Inbound traversal for ~23k+ verified followers hits the 15s `NEO4J_QUERY_TIMEOUT_MS` (Jack: intermittent 504; jb55 15k / fiatjaf 19k complete). Graceful. Fix: raise this endpoint's timeout, OR server-side pagination, OR a precomputed/indexed verified-followers set. **NOT** lazy name-hydration (that's the name-storm, item 7). **Priority: medium.**
+2. **Verified-cutoff inconsistency.** graperank.conf live `0.01` vs in-code fallback `0.05` (cypherQueries.js / followersWithMetrics.js) vs BIBLE "consolidated 0.05" vs customer `0.01` vs the profile UI's "Verification Score > 2" text. One source of truth; clarify owner-vs-customer default. **Priority: medium.**
+3. **Count-vs-list divergence.** ✅ **RESOLVED (2026-06-08, profile #35 + BIBLE §27).** Profile verified-followers count (Meili-precomputed) vs followers-table length (live Neo4j) diverged (Jack 26,711 vs 22,981) — fixed by sourcing the profile counts from Neo4j (Owner PoV), the same source as the tables, and dropping the `?? followers` raw fallback (ADR `profile/0031`); badge==table on staging. Underlying cutoff-source inconsistency stays open as item 2.
+4. **Duplicate "Verified Followers" rows** in `ui/src/pages/BrainstormProfile.jsx` TRUST_METRICS (`followers` :36 + `verifiedFollowerCount` :43 both render as "Verified Followers"). Drop one. **Priority: low.**
+5. **All-followers (unverified) view** for the followers table — v1 is verified-only. **Priority: low-medium.**
+6. **Personalized/customer PoV** for the follows + followers tables — both owner/House-only v1 (the `NostrUserWotMetricsCard` branch deferred since ADR 0026). The #33 *count* honors `?pov=` but the tables don't yet (consistency gap). **Priority: low-medium.**
+7. **DRY `<GrapevineList>` refactor** — `BrainstormFollowers.jsx` ≈ `BrainstormFollows.jsx`; two endpoints share shape (ADR 0030's accepted mirror-not-generalize duplication). Extract a shared component + cypher builder. **Priority: low.**
+8. **Playwright harness broken** — `tests/global-setup.js:16` reads `config.use` (undefined in the installed Playwright) → `npm run test:playwright` aborts in global-setup, blocking ALL e2e specs (#29/#30/#33/#34). Fix: read baseURL from `config.projects[0].use` / env. **Priority: medium** (e2e coverage dark until fixed).
+
+**Classification:** mixed (perf + cleanup + deferred features + harness bug). **Phase paths:** per item — item 1 needs `/discuss` → Architecture (real design choice); items 4/7/8 likely fast-track; items 5/6 full feature stories.
+
+---
+
+## 2026-06-08 — Owner scoring batch is not deploy-safe (ops bug)
+
+Surfaced during the PoV-resolution work (`docs/POV_RESOLUTION_DESIGN_HANDOFF.md` §9, now BIBLE §27). A redeploy can interrupt a running `updateAllScoresForOwner` mid-`processOwnerFollowsMutesReports`, leaving Owner `influence` partial — which made staging Owner numbers unreliable until a full re-run (hours-long at prod scale, ~32M FOLLOWS). The operator is currently mitigating **manually** (disable scheduled tasks before promoting to staging/main), so this does not block, but the manual step is easy to forget and the failure is silent + expensive.
+
+**Want:** make long scoring jobs **deploy-safe** — resumable (checkpoint mid-`processOwnerFollowsMutesReports` so a restart continues rather than abandons), or **drained on deploy** (the deploy waits for / cleanly pauses an in-flight batch), or at minimum a **guard** that refuses/warns on deploy while a scoring batch is running. Task-queue-scheduler territory.
+
+**Classification:** Bug / infra hardening (task-queue-scheduler). **Phase path:** `/discuss` → Architecture (resumable-vs-drain-vs-guard is a real design choice) → Test Design → Implementation → Review. **Priority:** Medium — operator has a manual workaround; automate before it bites unattended. **Related:** the three-PoV standard (BIBLE §27) depends on Owner data being trustworthy; `docs/POV_RESOLUTION_DESIGN_HANDOFF.md` §9.

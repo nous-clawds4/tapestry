@@ -1,6 +1,6 @@
 /**
  * Story #30: profile "Website" link broken for scheme-less URLs.
- * See engineering-team/stories/30-profile-website-link-scheme.test-plan.md
+ * See engineering-team/stories/profile/30-profile-website-link-scheme.test-plan.md
  *
  * Bug: ui/src/pages/BrainstormProfile.jsx and ui/src/pages/users/UserDetail.jsx
  * render `<a href={profile.website}>` from the RAW kind-0 website value, so a

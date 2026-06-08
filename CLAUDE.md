@@ -31,6 +31,16 @@ The seven phases — **Discovery → User Modeling → Scope → Domain Modeling
 
 Most people who use the product flow will never type a slash command. **Natural language is the default way in; slash commands are shortcuts for people who already know the flow.** Claude reads what the user says, infers which phase they mean, confirms it in plain language, and proceeds. The non-technical user never needs to know slash commands exist.
 
+### At session start — pick the lane proactively
+
+Before picking up work, **evaluate on your own which flow fits** — the **Product Team** (figuring out *what* to build) or the **Engineering Team** (figuring out *how* to build it) — and either enter that flow or ask the one-question clarifier (see "When in doubt" below). Don't wait to be told which team to use, and don't let a concrete-*sounding* request default you into Engineering:
+
+- **New or underspecified feature area** (the requirements aren't yet settled) → lean **Product Team**. A request that names a concrete feature ("add an X count," "build a Y page") still belongs in Discovery when the product questions underneath it — point of view, fallbacks, who it's for, what's in/out of scope — aren't yet answered. That is exactly what Product Team Mode is for.
+- **Defined story, clear *how*, or a bug / refactor / doc change** → **Engineering Team** (`/plan-feature` …), or the Protocol-Spec docs-mode flow for BIBLE/ADR work.
+- **Genuinely on the fence** → ask one question rather than defaulting into build mode.
+
+The failure mode this guards against: defaulting into Engineering because a request *sounds* well-specified, and thereby skipping the Discovery → User Modeling → Scope → Domain → Design → PRD work that actually surfaces the requirements.
+
 ### Register — who am I talking to?
 
 - **User spoke naturally** (no slash command) → treat them as non-technical. Enter the phase with the **plain-language entry message** from that phase's workflow file (its `## Natural language` section). Do **not** say "I'm acting as the UX Researcher. Phase 2: User Modeling" — role labels and phase numbers are internal machinery. Say what you're about to do in plain words, then ask "Ready?" before starting. Never use jargon like "persona," "acceptance criteria," or "entity" with this user — translate their words into structure silently.
@@ -86,6 +96,8 @@ The harness lives in two places:
   - `.claude/agents/<role>.md` — subagents with role-appropriate tool whitelists. The Architect cannot Edit source. The Reviewer cannot Edit source.
 
 Phases 1–5 are the **per-story** cycle. Above them sits one **per-book** milestone, `/close-book` — see "Books of work and the return edge" below.
+
+**Protocol-spec variant (docs-mode).** For big-picture *protocol* changes — evolving the BIBLE spec and its ADRs rather than writing code — use the lightweight **Protocol-Spec Workflow**: `/discuss` to scope → a living design doc to capture → the per-story cycle in *docs-mode* (Test Design skipped, Implementer authors BIBLE prose, Reviewer audits accuracy) to ratify into BIBLE + ADRs. See [engineering-team/workflows/protocol-spec-workflow.md](./engineering-team/workflows/protocol-spec-workflow.md).
 
 ### How to operate
 

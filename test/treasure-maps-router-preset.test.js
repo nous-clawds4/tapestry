@@ -1,6 +1,6 @@
 /**
  * Failing tests for story #2: treasureMaps router preset + 10040 to Negentropy Sync.
- * See engineering-team/stories/2-treasure-maps-router-preset.test-plan.md
+ * See engineering-team/stories/search-and-router/2-treasure-maps-router-preset.test-plan.md
  *
  * Each test maps to one or more acceptance criteria. Tests are designed to fail
  * on the pre-implementation tree and pass once the Implementer lands the changes

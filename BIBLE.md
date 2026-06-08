@@ -36,6 +36,8 @@
 23. [Class-Thread Membership Tags (`n`, `s`)](#23-class-thread-membership-tags-n-s)
 24. [Task Queue (BullMQ behind /api/run-task)](#24-task-queue-bullmq-behind-apirun-task)
 25. [The Inherit-From Tag (`b`)](#25-the-inherit-from-tag-b)
+26. [Resolved Definition](#26-resolved-definition)
+27. [Point of View (PoV) Resolution](#27-point-of-view-pov-resolution)
 
 ---
 
@@ -1440,6 +1442,9 @@ docker compose exec tapestry strfry sync wss://dcosl.brainstorm.world \
 - ✅ `/cycle-*` slash commands and `docs/SMOKE_TEST.md` (2026-05-04) — four user-invocable skills at `.claude/skills/cycle-{local,staging,prod,full}/SKILL.md` encoding the deploy patterns: build → docker cp → `:8080`, push → PR → staging, promotion → main, and the chained version with halt-on-failure and explicit prod-merge gate. Companion `docs/SMOKE_TEST.md` is the canonical five-tier smoke-test definition (pipeline readiness, sanity reachability, PR-specific, Chrome visual, regression sweep). The `.gitignore` was switched from `.claude/` to `.claude/*` + `!.claude/skills/` so per-user state stays ignored but project skills ship with the repo.
 - ✅ `CLAUDE.md` root pointer (2026-05-03) — short index file at the repo root pointing AI coding tools at BIBLE.md and OPERATIONS.md as the two canonical onboarding docs.
 - ✅ Preferences audit (`docs/PREFERENCES_AUDIT.md`, 2026-05-03) — comprehensive inventory of every preference-shaped value across the codebase (5 storage planes, 5 fragmentation patterns) with a sequenced cleanup plan. §6.1 quick wins all shipped (this batch). §6.2 partially closed (verified-cutoffs unified at 0.05). §6.3 (owner ↔ customer parallel planes) is the open architectural question.
+- ✅ Verified-followers count + followers table on `/user/:pubkey` (2026-06-06, staging) — the profile counter row now shows a **Verified Followers** count beside Following (#33; reads the PoV-resolved Meili `wot_verifiedFollowerCount`/`followers`, House PoV default + `?pov=`), and that count links to a new **`/user/:pubkey/followers`** table (#34) — the inbound mirror of the follows list (#29), backed by `GET /api/get-grapevine-followers` (owner-POV; inbound `(follower)-[:FOLLOWS]->(observee)` filtered to verified `influence > VERIFIED_FOLLOWERS_INFLUENCE_CUTOFF`; whole-set + client 50/page; per-query 504 deadline). ADRs `engineering-team/decisions/profile/0029` + `0030`. On staging; prod held. Known limit: the inbound traversal for the very largest accounts (~23k+ verified) can hit the 15s deadline → intermittent graceful 504 (optimization deferred — see `docs/PROFILE_FOLLOWERS_HANDOFF_2026-06-06.md`).
+- ✅ Verified-reporters count + reporters list on `/user/:pubkey` (2026-06-07, staging) — the profile counter row shows a **Verified Reporters** count beside Verified Followers (the NIP-56 report mirror of the followers count; verified-reporters #1), linking to a new **`/user/:pubkey/reporters`** table (#3) backed by `GET /api/get-grapevine-reporters` (#2; `(reporter)-[:REPORTS]->(observee)` filtered to verified, Owner PoV). ADRs `engineering-team/decisions/verified-reporters/0001`–`0003`.
+- ✅ Profile verified counts moved to **Owner PoV** + verification explainer + dynamic reporter alarm (2026-06-08, staging) — the profile **Verified Followers / Verified Reporters** counts now read from Neo4j (Owner PoV) so the badge agrees with its list table, dropping the broken raw-follower Meili fallback (#35, ADR `profile/0031`); a shared **"What does verification mean?"** popover (profile + `/reporters`) shows the configured cutoff ×100 + owner name/avatar, and the Verified Reporters badge shows a red 🚩 alarm only past a popularity-adjusted threshold (`vr ≥ 3 + floor(vf/750)`) (#36, ADR `profile/0032`). The point-of-view model these counts use is the three-PoV standard ratified in **§27** (ADR `pov-resolution/0033`). On staging; prod held.
 
 ### CLI (tapestry-cli repo)
 
@@ -1555,7 +1560,7 @@ docker compose exec tapestry strfry sync wss://dcosl.brainstorm.world \
 | **nip50-proxy** | Service inside the tapestry container (port 7780) that sits between nginx and strfry, intercepting search REQs and routing them through Meilisearch. |
 | **Normalization** | The process of ensuring the concept graph follows structural rules. |
 | **nostr-search-api** | Separate Docker container (port 3069) that handles live profile ingestion from strfry and proxies search queries to Meilisearch. |
-| **POV (Point of View)** | The WoT perspective used for filtering/sorting search results. Either `house` (instance default) or `user` (personalized). Determines which `povSuffix` is used. |
+| **POV (Point of View)** | The web-of-trust perspective a trust metric is computed relative to. There are exactly **three** — **Owner** (the instance owner's WoT, from Neo4j), **House** (the deployment's house WoT, kind-30382 → Meili), and **Personalized** (the end-user's own WoT). The search page's `house`/`user` toggle + `povSuffix` is the House↔Personalized pair; **Owner** is the Neo4j-sourced perspective (e.g. the profile verified counts + grapevine tables). See **§27 (Point of View (PoV) Resolution)** for the full standard, source map, and selection/fallback model. |
 | **povSuffix** | 8-character prefix of the delegated pubkey (`rankAuthor.slice(0, 8)`). Used to namespace WoT score fields in Meilisearch (e.g., `wot_followers_78ed0837`). |
 | **rankAuthor** | The hex pubkey of the delegated trust authority whose Trust Assertions (kind 30382) provide WoT scores for a given POV. Stored in user prefs. |
 | **SUPERCEDES** | Editorial relationship: "I've evaluated your definition and chosen to replace it with mine." Non-destructive. |
@@ -1673,7 +1678,7 @@ The drift sentinels in `test/entrypoint-template-rendering.test.js` (T7 + T8) tr
 
 **Kinds:** defined for **kind-39998 and kind-39999** — any addressable DList object (concept headers *and* items/sets/Declarations). Broader than `n`/`s`, which are kind-39999-only.
 
-**Multi-parent:** an event may carry multiple `b` tags (inherit from multiple parents — rare; resolution order is a consumer concern, deferred). Same multi-tag pattern as `z`/`n`/`s`.
+**Multi-parent:** an event may carry multiple `b` tags (inherit from multiple parents — rare; resolution order is **defined in §26 (Resolved Definition)** — first-listed `b` wins). Same multi-tag pattern as `z`/`n`/`s`.
 
 **Edge direction — child→parent (diverges from `n`/`s`; do NOT flip).** `n`/`s` flip their child-claims-parent encoding into a *parent→child* Neo4j edge because their semantics are containment (the parent owns the child). `b` does **not** flip: it writes `(child)-[:INHERITS_FROM]->(parent)`, because (a) deference reads naturally child→parent, and (b) a parent's **incoming** `INHERITS_FROM` edges are exactly "everyone who defers to this definition" — the trust-weightable query the registry use case (§22) needs. Implementers must not copy the `n`/`s` direction-flip.
 
@@ -1683,7 +1688,7 @@ The drift sentinels in `test/entrypoint-template-rendering.test.js` (T7 + T8) tr
 ```
 effective(node) = merge( effective(parent_via_b), node.statedFields )
 ```
-- **Live:** the walk reads each ancestor's *current* state, so a child tracks the parent's future edits ("whatever Alice says"). Only the `INHERITS_FROM` edge is materialized; the definition is not copied into the child. (Same read-time pattern as the Communities Protocol's `effectiveCD`.)
+- **Live:** the walk reads each ancestor's *current* state, so a child tracks the parent's future edits ("whatever Alice says"). Only the `INHERITS_FROM` edge is materialized; the definition is not copied into the child. (This live read-time merge is the general **Resolved Definition** primitive — see §26; the Communities Protocol's `effectiveCD` is a named instance of it.)
 - **Override = the child's own stated fields.** A field the child states explicitly overrides the inherited value; an omitted field is inherited. An unedited child performs pure inheritance.
 - **Termination:** stop at a root (no `b` tag) or a `maxDepth` guard; a cycle guard (visited-set keyed on a-tag) prevents loops. Reuses the bounded-walk pattern of ADR 0010/0011.
 - **Scope today:** the pattern above plus **field-level (whole-field replace)** override. The **set-valued override algebra** — how a child adds/removes/replaces individual elements of an inherited *set* — is deferred to the first consumer that needs it (the first consumer, CD inheritance, overrides only scalars).
@@ -1702,6 +1707,97 @@ effective(node) = merge( effective(parent_via_b), node.statedFields )
 **Direction principle / reserved `B`.** Per §23's convention, lowercase `b` = child-claims-parent. Uppercase **`B`** is **reserved** (not assigned) for a future parent-claims-child / federation inverse — e.g. a parent recognizing a child as "the same community." Do not assign speculatively.
 
 See ADR 0027 for the full rationale, the rejected alternatives (folding into `IMPORT`; multi-char tags), and the deferred design questions.
+
+---
+
+## 26. Resolved Definition
+
+**The read-side of the `b` tag (§25).** Where `b` is the *write* primitive ("I defer to X"), the **resolved definition** is the *read* primitive: *what a node's definition actually resolves to after following its `b` deferences.* It is **general** — Alice's resolved definition of `dogs` versus Bob's is the same mechanism as a Community Declaration — so every consumer (the Communities Protocol included) reads *through* it. Established by ADR 0028, the read-side companion to ADR 0027.
+
+**The closure.** From a node, trace `b` / `INHERITS_FROM` transitively → the set of all nodes it defers to (a derived query, `MATCH (n)-[:INHERITS_FROM*0..]->(x)`; **not stored**). The closure is **not guaranteed acyclic** — dense mutual deference (Alice `b`→Bob, Bob `b`→Alice) creates cycles; the resolution rule's visited-set handles them.
+
+**Resolution rule** — the merge that produces the resolved definition:
+
+1. **The node's own stated fields win** (a child overrides its ancestors — carried from §25 / ADR 0027). Any conflict is settlable by stating the field yourself; conflicts only bite for fields you leave unstated.
+2. **For unstated conflicts among multiple `b` parents, first-listed `b` wins** — walk depth-first in the order the `b` tags are listed on the event; the first value to land sticks. Precedence is **author-controlled** (you order your `b` tags), deterministic, and **observer-independent** (a node's own definition does not change based on who resolves it).
+3. **A visited-set keyed on a-tag bounds cycles** (carried from ADR 0027). The walk always terminates and always yields *an* answer — never "ambiguous → undefined."
+
+```
+resolved(node):
+  visited = {}
+  return merge_walk(node, visited)
+
+merge_walk(node, visited):
+  if node.a-tag in visited: return {}            # cycle guard
+  visited.add(node.a-tag)
+  result = {}
+  for parent in node.b-tags (in listed order):   # ancestors; first-listed wins
+    result = fill_unset(result, merge_walk(resolve(parent), visited))
+  return overlay(result, node.statedFields)       # the node's own fields always win
+```
+
+**Live, read-time.** A resolved definition is computed **on read**, against ancestors' *current* state — so it tracks their future edits (§25's live-`b` semantics, "whatever Alice says"). The `INHERITS_FROM` edge is the only materialized artifact; the definition is never snapshotted into the node. (Caching is a consumer/performance concern, out of scope.)
+
+**What it settles.** This **defines the multi-parent resolution order that ADR 0027 deferred** (§25's multi-parent note now points here), and it **is the general `effectiveX`** that §25 forward-referenced as the Communities Protocol's `effectiveCD` — which is simply a *named instance* of Resolved Definition. §22's grapevine-resolution (which definition a web of trust converges on) selects among nodes' resolved definitions.
+
+**Scope (v1).** Field-level override only — a stated field replaces the inherited one wholesale. The **set-valued override algebra** (how a child adds/removes/replaces individual elements of an inherited *set*) **remains deferred** (ADR 0027), to the first consumer that needs it.
+
+See ADR 0028 for the rationale and the rejected alternative (WoT-weighted field resolution, which would make a node's own definition vary by observer).
+
+---
+
+## 27. Point of View (PoV) Resolution
+
+**Every trust metric in Tapestry is computed relative to a Point of View — and there are exactly three of them.** A "trust metric" is any count, score, or list derived from the web of trust (verified-follower counts, GrapeRank influence/rank, verified-reporter lists, search ranking). The same metric reads differently depending on *whose* web of trust answers it, so a surface that mixes sources can show the *same* number three different ways. This section is the canonical definition of the three PoVs, which source is authoritative for each, and the (target) model for selecting between them. Established by ADR 0033, ratifying the design captured in `docs/POV_RESOLUTION_DESIGN_HANDOFF.md`.
+
+The section is split deliberately: **The standard** is normative and true today; **Status today** is what's actually wired; **Target direction** is direction, not yet built; **Open questions** are undecided. Do not read a target as a present-tense guarantee.
+
+### The standard (ratified)
+
+Every trust metric is computed relative to exactly one of three Points of View:
+
+| PoV | Whose web of trust | Source of truth | Availability |
+|---|---|---|---|
+| **Owner** | the local Brainstorm instance's owner | **Neo4j** — `NostrUser` node properties (`influence`, `verified*Count`, `hops`) + live traversals | always locally available (the instance computes it) |
+| **House** | the deployment's "house" web of trust | **kind 30382 Trusted Assertions** → Meili `wot_*_<houseSuffix>` | only if House assertions are published/imported |
+| **Personalized** | the end-user's own web of trust | **kind 30382** per-user → Meili `wot_*_<userSuffix>` | only if that user's assertions exist |
+
+Two normative rules accompany the table:
+
+- **Following stays on strfry, non-PoV.** The Following count is read from strfry (kind-3 `p`-tags). It is **not** a trust metric and has **no** PoV — it is the freshest, cheapest count and is immune to the GrapeRank batch. (When the Owner scoring batch died mid-run on 2026-06-07, Following stayed correct while the PoV-derived counts went stale — evidence it must never be folded into the PoV machinery.)
+- **Neo4j-sourced grapevine data is the Owner PoV — not "House."** Earlier copy and docs labeled Neo4j-sourced counts/lists "House (default)"; that was a **mislabel**. Anything read from Neo4j node properties or live traversals is the **Owner** PoV. "House" is specifically the kind-30382 → Meili `wot_*_<houseSuffix>` read.
+
+### Status today
+
+What each surface actually uses right now:
+
+| Surface | Datum | Source today |
+|---|---|---|
+| Profile | Following count | strfry (`get-user-counts`) — non-PoV |
+| Profile | Verified Followers / Verified Reporters counts | **Owner (Neo4j)** — shipped in profile #35/#36 (ADR 0031/0032); badge value agrees with the list table |
+| `/follows`, `/followers`, `/reporters` tables | rows + count | **Owner** (live Neo4j) |
+| Search page | ranking / scores | Meili, with a 2-way **House ↔ Personalized** toggle |
+
+### Target direction (not yet built)
+
+The following is the intended direction. **None of it is implemented yet** — it is recorded here so future work builds toward one model, not so surfaces can claim the behavior today.
+
+- **Selection + persistence.** One **selected PoV** per end-user at a time (Owner / House / Personalized), **stored** (session and/or backend) and **sticky across pages** — change it on one page and it applies everywhere. A **3-way selector** UI: the search page's current 2-way House↔Personalized toggle gains **Owner**, and the same selector eventually appears on the profile, with the choice remembered when navigating back to search.
+- **Fallback.** A surface always **attempts the selected PoV**; if the datum for that PoV is **unavailable**, it falls back along a **feature-specific chain** — the right fallback differs for the search bar vs a profile badge vs a list table vs future surfaces, so the chain is defined per feature, not globally.
+- **Freshness is part of availability.** A PoV's data can be present-but-stale or mid-recompute (e.g. the interrupted Owner batch). "Available" is not just present/absent — stale/partial is a **state**, to be surfaced ("computing… / as of \<time\>") rather than silently shown as degraded numbers. A naïve "absent → fall back" rule is insufficient.
+
+### Open questions
+
+Undecided; each is a candidate for a future `pov-resolution` story (carried from the design handoff):
+
+1. **Default selected PoV** for a new/anonymous user — Owner (always available) or House (richer, if present)?
+2. **Resolver shape** — one unified PoV-aware endpoint vs a shared server module each endpoint calls (determines how many new endpoints exist).
+3. **Freshness signaling** — how is "stale/partial" detected (batch run-state, timestamps on node props, a computed-at field), and do surfaces show a health indicator?
+4. **Per-feature fallback chains** — enumerate them (search bar, profile badges, tables, future) across the three PoVs plus the raw/strfry primitives.
+5. **Personalized source** — kind-30382-only, or also a local per-customer calculation?
+6. **count = list-length guarantee** per PoV — exact (single live source) vs steady-state (precomputed badge + live table).
+
+See ADR 0033 for the ratification decision (the normative/aspirational split) and the open questions it deliberately left undecided.
 
 ---
 
