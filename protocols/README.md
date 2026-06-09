@@ -45,10 +45,10 @@ Spec headers also record: **canonical external URL** (naddr for NostrHub Custom 
 
 Migration is in progress — specs land here story by story (see the [design handoff](../docs/PROTOCOLS_DIRECTORY_DESIGN_HANDOFF.md) §8 for the plan). Until a spec's migration story has run, **its listed source location remains the source of truth** and the planned file does not exist yet.
 
-| Spec | Planned file | Status | Content lives today | Migration |
+| Spec | File | Status | Content lives today | Migration |
 |---|---|---|---|---|
-| Decentralized Lists (base NIP) | `nips/decentralized-lists.md` | 🚀 published (update pending) | Published: [NostrHub](https://nostrhub.io/naddr1qvzqqqrcvypzpef89h53f0fsza2ugwdc3e54nfpun5nxfqclpy79r6w8nxsk5yp0qythwumn8ghj7erpwe5kgtnwdaehgu339e3k7mf0qqfkgetrv4h8gunpd35h5ety94kxjum5wv4px7v6) (kind 30817, 2026-02-26). Newer local draft: `feat/communities:DECENTRALIZED_LISTS.md` | story 2 — pending |
-| DList Cross-NIP Compatibility (companion) | `drafts/decentralized-lists-compat.md` | 🧪 pre-NIP (publish-ready) | `feat/communities:DECENTRALIZED_LISTS_COMPAT.md` | story 2 — pending |
+| Decentralized Lists (base NIP) | [nips/decentralized-lists.md](./nips/decentralized-lists.md) | 🚀 published (update pending) | **Working copy here.** The [NostrHub](https://nostrhub.io/naddr1qvzqqqrcvypzpef89h53f0fsza2ugwdc3e54nfpun5nxfqclpy79r6w8nxsk5yp0qythwumn8ghj7erpwe5kgtnwdaehgu339e3k7mf0qqfkgetrv4h8gunpd35h5ety94kxjum5wv4px7v6) version (kind 30817, 2026-02-26) is behind until the author republishes | story 2 ✅ |
+| DList Cross-NIP Compatibility (companion) | [drafts/decentralized-lists-compat.md](./drafts/decentralized-lists-compat.md) | 🧪 pre-NIP (publish-ready) | **Working copy here** | story 2 ✅ |
 | Tapestry Concepts (DList extensions) | `drafts/tapestry-concepts.md` | 📝 pre-NIP | [BIBLE §5](../BIBLE.md#5-the-tapestry-protocol) (kinds, addressing, `z`, `concept-graph` tag), [§8](../BIBLE.md#8-word-wrapper-json-format) (word-wrapper JSON), [§9](../BIBLE.md#9-core-nodes-of-a-concept) (core nodes) | story 3 — pending |
 | Class-Thread Membership Tags (`n`, `s`) | `drafts/class-thread-tags.md` | 📝 pre-NIP | [BIBLE §23](../BIBLE.md#23-class-thread-membership-tags-n-s) + ADR 0011 (community-reference line) | story 4 — pending |
 | Inherit-From & Resolved Definition (`b`) | `drafts/inherit-from.md` | 📝 pre-NIP | [BIBLE §25](../BIBLE.md#25-the-inherit-from-tag-b) + [§26](../BIBLE.md#26-resolved-definition), ADRs 0027/0028 | story 5 — pending |
