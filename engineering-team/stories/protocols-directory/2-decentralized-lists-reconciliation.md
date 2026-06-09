@@ -1,6 +1,6 @@
 # Story 2: Decentralized Lists reconciliation
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-06-10
 **Type:** Doc
 **Epic:** protocols-directory — realizes `docs/PROTOCOLS_DIRECTORY_DESIGN_HANDOFF.md` (§5 findings, §8 story 2)
@@ -49,4 +49,4 @@ None in the concept-graph sense (docs-only; no events published, no firmware). T
 - Design record: `docs/PROTOCOLS_DIRECTORY_DESIGN_HANDOFF.md` §5 (reconciliation findings + plan)
 - ADR: (recommended skipped — see open questions)
 - Test plan: skipped (docs-mode)
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/protocols-directory/2-decentralized-lists-reconciliation.md` — PASS
