@@ -42,13 +42,13 @@ Tagging events carry `polarity` `"1"` (apply) or `"-1"` (dispute); v1 semantics 
 
 Tagging and pin events reference the tag they apply/pin by `e` (event id — pins a specific version) and/or `a` (address — survives the author's edits). The tags branch flagged this choice for re-evaluation in its own follow-ups: replaceable events make `e`-references go stale, while `a`-references change meaning under the author's later edits. **Which reference (or which combination, with what precedence) should the spec mandate, and does the answer differ for taggings vs. pins?**
 
-**Refs:** tags-branch ADRs 0001/0009 + follow-ups; the same question shape appears in the DList compat companion (`a` mandated for kind-34550 items because they're replaceable).
+**Refs:** tags-branch ADRs 0001/0009 + follow-ups; the same question shape appears in the DList compat companion (Method 2 mandates `a` for items pointing at kind-34550 events because they're replaceable; Method 3 rides on `z` tags instead).
 
 ## W5 — `REFERENCES` publishing semantics
 
 **Status:** Open · raised 2026-06-09
 
-The concept-level `REFERENCES` relationship (a non-committal "may pull later" bookmark between concepts) has no settled wire form. BIBLE §23 records the open question: **is it a consumer-owned tag on the consumer's own concept Header, or a separate "reference manifest" kind-39999 event?** Interacts with W2 (it's a candidate for a single-char letter) and with the registry exit in W1 (BIBLE §22 lists it on the flaw-A exit path).
+The concept-level `REFERENCES` relationship (a non-committal "may pull later" bookmark between concepts) has no settled wire form. BIBLE §23 records the open question: **is it a consumer-owned tag on the consumer's own concept Header, or a separate "reference manifest" kind-39999 event?** Interacts with W2 (it's a candidate for a single-char letter) and with the registry exit in W1 (BIBLE §23 ties it to the flaw-A exit; §22's deferred list carries it only as a reserved-future candidate).
 
 **Refs:** BIBLE §22 (deferred list), §23 (future-candidate relationship tags); ADR 0006 line.
 
