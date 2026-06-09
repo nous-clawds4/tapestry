@@ -2,7 +2,7 @@
 
 **Reviewer:** Claude (acting as Reviewer)
 **Date:** 2026-06-10
-**Diff:** commit `b29df49d` (3 files, +134/-0: `protocols/README.md`, `protocols/worksheet.md`, `CLAUDE.md`)
+**Diff:** commit `8640ca8c` (3 files, +134/-0: `protocols/README.md`, `protocols/worksheet.md`, `CLAUDE.md`)
 **Mode:** docs-mode (Protocol-Spec workflow). Architecture skipped per approved story — design record is `docs/PROTOCOLS_DIRECTORY_DESIGN_HANDOFF.md`. Test Design skipped.
 **Method note:** the implementation was authored in this same session, so the accuracy audit was fanned out to 12 independent agents across five dimensions (acceptance criteria, README facts, worksheet facts, link/anchor integrity, handoff consistency), with every non-note finding adversarially verified. Quality gates were run directly by the Reviewer.
 
@@ -13,7 +13,7 @@
 - [x] _Lint not configured — skipped._
 - [x] _Typecheck not configured — skipped._
 - [x] _Build not configured — skipped._
-- [x] `BIBLE.md` byte-identical — `git diff b29df49d~1 b29df49d -- BIBLE.md` is empty (hard story criterion)
+- [x] `BIBLE.md` byte-identical — `git diff 8640ca8c~1 8640ca8c -- BIBLE.md` is empty (hard story criterion)
 - [x] Diff scope — exactly the three intended files; no code, firmware, or tooling
 
 ## Spec adherence (acceptance criteria, audited independently)
@@ -61,6 +61,6 @@ Audit produced 8 raw findings; adversarial verification confirmed 5, refuted 2, 
 
 Initial verdict CHANGES_REQUESTED — solely for Blocking #1, a one-phrase citation fix in `protocols/worksheet.md` (W5: §22 → §23). Everything else passed: all seven acceptance criteria met, quality gates green, BIBLE untouched, factual claims verified at source.
 
-## Re-review (2026-06-10, commit `764c5a90`)
+## Re-review (2026-06-10, commit `08c4570a`)
 
 Blocking #1 fixed as asked: W5 now cites §23 (BIBLE.md:1631) for the flaw-A-exit linkage, with §22's deferred list correctly characterized as carrying REFERENCES only as a reserved-future candidate. Non-blocking #1 folded in: W4 now scopes the `a`-tag mandate to Method 2 and notes Method 3's `z`-tag form. Diff verified to touch only the two phrases asked; `npm test` re-run green. Per the initial verdict's terms, the review converts to **PASS**.
