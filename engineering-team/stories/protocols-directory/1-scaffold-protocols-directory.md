@@ -1,6 +1,6 @@
 # Story 1: Scaffold the protocols/ directory
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-06-09
 **Type:** Doc
 **Epic:** protocols-directory — realizes `docs/PROTOCOLS_DIRECTORY_DESIGN_HANDOFF.md`
@@ -47,4 +47,4 @@ None. Docs-only scaffold; no events, kinds, or concept handles are defined or mo
 - Design record: `docs/PROTOCOLS_DIRECTORY_DESIGN_HANDOFF.md` (this epic's capture doc)
 - ADR: (recommended skipped — see open questions)
 - Test plan: skipped (docs-mode)
-- Review: `engineering-team/reviews/protocols-directory/1-scaffold-protocols-directory.md` — CHANGES_REQUESTED (one citation fix), converts to PASS on fix
+- Review: `engineering-team/reviews/protocols-directory/1-scaffold-protocols-directory.md` — PASS (after one-citation kickback, fixed in `764c5a90`)

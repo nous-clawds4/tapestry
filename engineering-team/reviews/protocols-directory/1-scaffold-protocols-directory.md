@@ -57,4 +57,10 @@ Audit produced 8 raw findings; adversarial verification confirmed 5, refuted 2, 
 
 ## Verdict
 
-**CHANGES_REQUESTED** — solely for Blocking #1, a one-phrase citation fix in `protocols/worksheet.md` (W5: §22 → §23). Everything else passes: all seven acceptance criteria met, quality gates green, BIBLE untouched, factual claims verified at source. On the fix landing, this review converts to PASS without re-running the full audit (the fix is itself the audited correction).
+~~**CHANGES_REQUESTED**~~ → **PASS** (see re-review below)
+
+Initial verdict CHANGES_REQUESTED — solely for Blocking #1, a one-phrase citation fix in `protocols/worksheet.md` (W5: §22 → §23). Everything else passed: all seven acceptance criteria met, quality gates green, BIBLE untouched, factual claims verified at source.
+
+## Re-review (2026-06-10, commit `764c5a90`)
+
+Blocking #1 fixed as asked: W5 now cites §23 (BIBLE.md:1631) for the flaw-A-exit linkage, with §22's deferred list correctly characterized as carrying REFERENCES only as a reserved-future candidate. Non-blocking #1 folded in: W4 now scopes the `a`-tag mandate to Method 2 and notes Method 3's `z`-tag form. Diff verified to touch only the two phrases asked; `npm test` re-run green. Per the initial verdict's terms, the review converts to **PASS**.
