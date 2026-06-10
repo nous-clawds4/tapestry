@@ -95,6 +95,12 @@ Every word-wrapper JSON has:
    - `coreNodesGraph` — for core nodes graph nodes
    - `propertyTreeGraph` — for property tree graph nodes
 
+Field notes:
+
+- Wherever a `uuid` field appears in a word-wrapper payload, it carries the referenced node's a-tag address (see "Addressing" above).
+- `wordTypes` lists the node's roles, drawn from the same vocabulary as the type-specific section keys and beginning with `word`; a node may also list broader roles it plays (e.g. a superset node carries `["word", "set", "superset"]`). The full value set and its constraints are not yet formalized.
+- `coreMemberOf` is carried by a concept's core nodes and points back at the concept they belong to. The Concept Header itself — the node the others are core members *of* — omits it, as the first example below shows.
+
 ### Example: Concept Header
 
 ```json
@@ -180,6 +186,8 @@ Every kind-39998 ConceptHeader carries a self-describing pointer to its Concept 
 The value is **computed** from the header's own (signing) pubkey + d-tag — not looked up — so it is correct even before the Concept Graph node exists.
 
 **Resolution contract:** to locate a concept's Concept Graph from only its Header, use the `concept-graph` tag **if present, else compute** `39999:<pubkey>:<d-tag>-concept-graph`. The deterministic fallback covers headers minted before this tag existed (no mass re-emit needed) and headers from curators who don't carry it. This lets a single fetched Header self-resolve its full concept off-relay.
+
+This tag is defined here for kind-39998 headers. The compute fallback is phrased for any header (it derives from the header's own pubkey and d-tag); whether a kind-39999 event functioning as a concept (see "Kind unification") carries a `concept-graph` tag is **not yet specified**.
 
 ## Derived vs. explicit relationships
 
