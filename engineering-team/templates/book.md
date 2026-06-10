@@ -20,6 +20,9 @@ How "done" is defined for this book. One of:
 ## Epics in this book
 - `<epic-slug>` — <one line>
 
+## Direction mode (experiment) — pre-registered
+*(Optional — only for books run autonomously under the Director harness; delete otherwise. Required fields: the hypothesis; an `### Arming` subsection with **Armed** / **Deadline** / **Baseline** / **Pinned governing versions** lines; the autonomy ceiling; decisions reserved for the operator; budgets/stopping rules; delegated open questions (exhaustive); success, failure, and outcome classification; the rollback procedure. Field semantics and the Armed-line format the skill parses: see `engineering-team/roles/director.md` and the worked example in `audits/task-timeline/book.md`.)*
+
 ## Provenance
 - **Mode:** PRD-backed | Acceptance-frame | Reconstructed *(no anchor captured at kickoff — intent inferred from `_intake.md` + git at close)*
 - **Confidence at close:** high | medium | low
