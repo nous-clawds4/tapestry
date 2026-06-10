@@ -1,6 +1,6 @@
 # Story 4: Class-Thread Membership Tags (`n`, `s`) extraction
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-06-10
 **Type:** Doc
 **Epic:** protocols-directory — realizes `docs/PROTOCOLS_DIRECTORY_DESIGN_HANDOFF.md` (§4 spec #4, §8 story 4)
@@ -52,4 +52,4 @@ None in the concept-graph sense (no events, no firmware, no reinstall). The spec
 - Design record: `docs/PROTOCOLS_DIRECTORY_DESIGN_HANDOFF.md` §2/§4; pattern: `engineering-team/decisions/protocols-directory/0001-tapestry-concepts-extraction.md`
 - ADR: `engineering-team/decisions/protocols-directory/0002-class-thread-tags-extraction.md` (`protocols-directory` ADR 0002, thin) — Accepted
 - Test plan: skipped (docs-mode)
-- Review: `engineering-team/reviews/protocols-directory/4-class-thread-tags-extraction.md` — CHANGES_REQUESTED (one stale W5 parenthetical), converts to PASS on fix
+- Review: `engineering-team/reviews/protocols-directory/4-class-thread-tags-extraction.md` — PASS (after one-sentence W5 kickback, fixed in `0a5b4e7a`)

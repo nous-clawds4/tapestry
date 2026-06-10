@@ -46,4 +46,10 @@ Audit: 1 confirmed blocker, 1 refuted, 19 notes (all confirmatory).
 
 ## Verdict
 
-**CHANGES_REQUESTED** — solely for the W5 parenthetical (one sentence, one already-touched file). Everything else clean on first audit: skeleton, split both directions, both generalizations traceability-verified, boundary sweep spotless, gates green. Converts to PASS on the fix with a targeted re-check of W5 (no re-audit).
+~~**CHANGES_REQUESTED**~~ → **PASS** (see re-review below)
+
+Initial verdict CHANGES_REQUESTED — solely for the W5 parenthetical. Everything else clean on first audit: skeleton, split both directions, both generalizations traceability-verified, boundary sweep spotless, gates green.
+
+## Re-review (2026-06-10, commit `0a5b4e7a`)
+
+Targeted re-check of W5: the parenthetical now reads "the REFERENCES↔flaw-A-exit linkage, formerly noted in BIBLE §23, is now recorded here; §22's deferred list still carries REFERENCES as a reserved-future candidate" — W5 owns the claim, no reference to content §23 no longer carries, and the §22 statement remains true of the current BIBLE. One line changed, nothing else touched; `npm test` re-run green. The review converts to **PASS**.
