@@ -95,6 +95,6 @@ tags) on my own schedule without surprising existing API consumers.
 
 ## Linked artifacts
 
-- ADR: (after Architecture)
+- ADR: `engineering-team/decisions/search-api-result-controls/0001-search-api-result-type-settings.md`
 - Test plan: (after Test Design)
 - Review: (after Review)
