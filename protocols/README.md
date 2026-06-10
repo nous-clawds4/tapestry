@@ -52,7 +52,7 @@ Migration is in progress — specs land here story by story (see the [design han
 | Tapestry Concepts (DList extensions) | [drafts/tapestry-concepts.md](./drafts/tapestry-concepts.md) | 📝 pre-NIP | **Working copy here** (BIBLE §5/§8/§9 hold implementation detail + pointers) | story 3 ✅ |
 | Class-Thread Membership Tags (`n`, `s`) | [drafts/class-thread-tags.md](./drafts/class-thread-tags.md) | 📝 pre-NIP | **Working copy here** (BIBLE §23 holds implementation + pointer) | story 4 ✅ |
 | Inherit-From & Resolved Definition (`b`) | [drafts/inherit-from.md](./drafts/inherit-from.md) | 📝 pre-NIP | **Working copy here** (BIBLE §25/§26 hold implementation + pointers) | story 5 ✅ |
-| Communities | `drafts/communities.md` | 📝 pre-NIP | [BIBLE §22](../BIBLE.md#22-community-reference-model), `feat/communities:COMMUNITY_RECORDS_DLIST.md`, `feat/communities:COMMUNITY_ENDORSEMENTS_DLIST.md`, communities ADR line | story 6 — pending |
+| Communities | [drafts/communities.md](./drafts/communities.md) | 📝 pre-NIP | **Working copy here** (in-flight feature; BIBLE §22 untouched — see ADR 0004; `COMMUNITY_ENDORSEMENTS_DLIST.md` superseded for membership per ADR 0004 D1) | story 6 ✅ |
 | Tags & Taggings | `drafts/tags.md` | 📝 pre-NIP | `feat/pubkey-tagging-target` branch: ADRs 0001 (profile-tag architecture), 0009 (pin-a-tag); firmware concepts `tag` / `nostr-user-tag` / `tag-pinning` | story 7 — pending |
 
 Branch-path notation: `branch:path` means the file exists at that path on the named (unmerged) branch — read it with `git show <branch>:<path>`. Migration **copies** content from those branches; it never implies merging them.
