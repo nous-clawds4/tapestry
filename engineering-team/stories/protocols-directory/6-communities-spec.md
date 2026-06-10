@@ -1,6 +1,6 @@
 # Story 6: Communities pre-NIP (synthesis)
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-06-10
 **Type:** Doc
 **Epic:** protocols-directory — realizes `docs/PROTOCOLS_DIRECTORY_DESIGN_HANDOFF.md` (§4 spec #6, §8 story 6)
@@ -55,4 +55,4 @@ None in the concept-graph sense (no events published, no firmware change, no rei
 - Design record: `docs/PROTOCOLS_DIRECTORY_DESIGN_HANDOFF.md` §4/§8; design authority: `docs/COMMUNITIES_PROTOCOL_DESIGN_HANDOFF.md` (§1–§6 settled); pattern: `protocols-directory` ADRs 0001–0003
 - ADR: `engineering-team/decisions/protocols-directory/0004-communities-spec.md` (`protocols-directory` ADR 0004, full) — Accepted; disagreement findings D1–D5
 - Test plan: skipped (docs-mode)
-- Review: `engineering-team/reviews/protocols-directory/6-communities-spec.md` — CHANGES_REQUESTED (three one-line definitional/consistency fixes), converts to PASS on fix
+- Review: `engineering-team/reviews/protocols-directory/6-communities-spec.md` — PASS (after three one-line fixes in `cee2ed54`)

@@ -65,4 +65,16 @@ Audit: 5 non-note findings raised → 4 confirmed (all minor), 1 refuted, 0 unve
 
 ## Verdict
 
-**CHANGES_REQUESTED** — solely for the three one-line definitional/consistency fixes above (items 2–4; one file, additive; same species as stories 3 and 5, now caught by the dedicated term-coverage dimension as intended). Everything structural passed on first audit: skeleton, all five D-resolutions in substance, exact assertion-shape fidelity, boundary spotless, zero BIBLE diff, references clean. Converts to PASS on the fix with a targeted re-check.
+~~**CHANGES_REQUESTED**~~ → **PASS** (see re-review below)
+
+Initial verdict CHANGES_REQUESTED — solely for the three one-line fixes (items 2–4). Everything structural passed on first audit: skeleton, all five D-resolutions in substance, exact assertion-shape fidelity, boundary spotless, zero BIBLE diff, references clean.
+
+## Re-review (2026-06-10, commit `cee2ed54`)
+
+Targeted re-check of the three passages (+4/−2 lines, one file):
+
+2. Pending marker at Membership intro now matches the ADR's fixed form ("specified by the Tags & Taggings pre-NIP (story 7, pending; until then the latest wire word is…)"). Fixed as asked.
+3. *tag-element* / *a-coordinate* defined in one sourced sentence directly under the assertion block, grounding both in Tapestry Concepts addressing. Fixed as asked.
+4. *influence cutoff* defined inline at its first roster use, deployment-neutral, with preset values left as deployment policy (W8 carriage untouched). Fixed as asked.
+
+`npm test` re-run green. The review converts to **PASS**.
