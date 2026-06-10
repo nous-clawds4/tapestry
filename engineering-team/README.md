@@ -19,7 +19,8 @@ engineering-team/
 ├── decisions/          ADRs, scoped by epic: <epic-slug>/<NNNN>-<slug>.md (+ done/<epic-slug>/)
 ├── reviews/            review reports, scoped by epic: <epic-slug>/<n>-<slug>.md (+ done/<epic-slug>/)
 └── audits/             one folder per book of work: <book-slug>/ — book.md (opened at
-                        kickoff) + audit.md & prd-addendum.md|prd-seed.md (at close); done/<book-slug>/
+                        kickoff) + audit.md & prd-addendum.md|prd-seed.md (at close); journal.md
+                        (Direction-mode books only — the Director's decision log); done/<book-slug>/
 ```
 
 ## Epic-scoped docs — why the subfolders
@@ -62,7 +63,7 @@ For **big-picture protocol/spec changes** — evolving `BIBLE.md` + ADRs rather 
   /review-changes         → reviews/<epic>/<n>-<slug>.md
 ```
 
-The user is the approval gate between phases. After each phase output, Claude asks you to confirm before continuing.
+The user is the approval gate between phases. After each phase output, Claude asks you to confirm before continuing. *Sole exception:* a Direction-mode book with an armed pre-registration — gates are answered by the Director under blinded-judge rubrics, never skipped; see [roles/director.md](./roles/director.md).
 
 Phases 1–5 are the **per-story** cycle. Above them sits one **per-book** milestone:
 

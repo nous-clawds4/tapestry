@@ -189,53 +189,11 @@ Client ──wss://relay──→ nginx ──→ nip50-proxy ──search──
 
 ## 5. The Tapestry Protocol
 
-### Event Kinds
+**The wire format is specified in [protocols/drafts/tapestry-concepts.md](protocols/drafts/tapestry-concepts.md) — normative:** event kinds, a-tag addressing, the `z` parent pointer, kind unification, `json`-tag data storage, the `concept-graph` header tag and its tag-else-compute resolution contract, and the derived-vs-explicit relationships principle. This section covers how this codebase implements it.
 
-| Kind | Type | Description |
-|------|------|-------------|
-| **39998** | Replaceable ListHeader | Defines a concept/list. Addressable via a-tag (`39998:<pubkey>:<d-tag>`). Preferred for new headers. |
-| **39999** | Replaceable ListItem | An element of a concept/list. Addressable via a-tag (`39999:<pubkey>:<d-tag>`). Preferred for all new events. |
-| **9998** | Non-replaceable ListHeader | Legacy. Same purpose as 39998 but immutable. |
-| **9999** | Non-replaceable ListItem | Legacy. Same purpose as 39999 but immutable. |
-
-### Key Insight: Kind Unification
-
-What makes something a concept is **not its event kind** — it's its **position in the graph**. A node becomes a concept when other nodes reference it via their `z` tag. A kind 39999 ListItem can function as a concept if other items point to it. The preferred practice is to use kind 39999 for everything, including concept definitions.
-
-### Addressing (a-tag / UUID)
-
-Every replaceable event has a stable address: `<kind>:<pubkey>:<d-tag>`. This is stored as the `uuid` property on Neo4j nodes and is the primary identifier throughout the system.
-
-### Parent Pointer (z-tag)
-
-Every ListItem has a `z` tag pointing to its parent concept's a-tag:
-```json
-["z", "39998:<pubkey>:<d-tag>"]
-```
-This is the fundamental link between items and concepts.
-
-### Header→ConceptGraph Pointer (`concept-graph` tag)
-
-Every kind-39998 ConceptHeader emitted by `create-concept` carries a self-describing pointer to its Concept Graph core node:
-```json
-["concept-graph", "39999:<pubkey>:<d-tag>-concept-graph"]
-```
-The value is **computed** from the header's own (signing) pubkey + d-tag — not Neo4j-looked-up — so it is correct even before the Concept Graph node exists. **Resolution contract:** to locate a concept's Concept Graph from only its Header, use the `concept-graph` tag **if present, else compute** `39999:<pubkey>:<d-tag>-concept-graph`. The deterministic fallback covers legacy/firmware headers minted before this tag (no mass re-emit needed) and headers from curators who don't carry it. This lets a single fetched Header self-resolve its full concept off-relay, without the (invisible-off-relay) `IS_THE_CONCEPT_GRAPH_FOR` Neo4j edge. ADR 0007, hybrid design C; the consumer is the deferred element/superset materialization stream.
-
-### Implicit vs. Explicit Relationships
-
-**Most relationships are implicit** — derived by the graph engine from event structure (z-tags, kind numbers, naming conventions). Only editorial/provenance relationships (IMPORT, SUPERCEDES, PROVIDED_THE_TEMPLATE_FOR, ENUMERATES) are explicit nostr events.
-
-Do not create explicit relationship events unless the relationship has editorial significance. Do not expect a nostr event for every Neo4j relationship.
-
-### JSON Data Storage
-
-Element data is stored in a `json` tag (not `content`):
-```json
-["json", "{\"dog\":{\"name\":\"Fido\",\"breed\":\"Golden Retriever\"}}"]
-```
-
-The JSON is namespaced by concept slug — a single element can carry data from multiple concepts simultaneously. The `content` field is for human-readable text.
+- **Addressing:** the a-tag address is stored as the `uuid` property on Neo4j nodes — the primary identifier throughout the system.
+- **`concept-graph` tag:** emitted by `create-concept` on every kind-39998 ConceptHeader. The off-relay resolution contract exists because the `IS_THE_CONCEPT_GRAPH_FOR` Neo4j edge is invisible off-relay. ADR 0007, hybrid design C; the consumer is the deferred element/superset materialization stream.
+- **Derived relationships:** the graph engine materializes derived (implicit) relationships as Neo4j edges from event structure — see §6 for the data model and relationship inventory.
 
 ---
 
@@ -387,112 +345,13 @@ Triggered via the Dashboard "Install Tapestry firmware" button or `POST /api/fir
 
 ## 8. Word-Wrapper JSON Format
 
-All core nodes and firmware concepts use the **word-wrapper JSON format**. This is the canonical structure for the `json` tag on any tapestry node:
-
-```json
-{
-  "word": {
-    "slug": "superset-for-the-concept-of-dogs",
-    "name": "superset for the concept of dogs",
-    "title": "Superset for the Concept of Dogs",
-    "wordTypes": ["word", "set", "superset"],
-    "coreMemberOf": [{ "slug": "concept-header-for-the-concept-of-dogs", "uuid": "39998:..." }]
-  },
-  "<type-specific-key>": {
-    // ... type-specific properties
-  }
-}
-```
-
-### Structure
-
-Every word-wrapper JSON has:
-1. **`word`** — universal metadata (slug, name, title, wordTypes, coreMemberOf)
-2. **One or more type-specific sections** keyed by the node's role:
-   - `conceptHeader` — for concept headers
-   - `superset` — for superset nodes
-   - `set` — for set nodes
-   - `property` — for property nodes
-   - `primaryProperty` — for primary property nodes
-   - `graph` — for any graph node (contains nodes, relationshipTypes, relationships, imports)
-   - `conceptGraph` — for concept graph nodes
-   - `coreNodesGraph` — for core nodes graph nodes
-   - `propertyTreeGraph` — for property tree graph nodes
-
-### Example: Concept Header
-
-```json
-{
-  "word": {
-    "slug": "concept-header-for-the-concept-of-dogs",
-    "name": "concept header for the concept of dogs",
-    "title": "Concept Header for the Concept of Dogs",
-    "wordTypes": ["word", "conceptHeader"]
-  },
-  "conceptHeader": {
-    "description": "Dog is a concept.",
-    "oNames": { "singular": "dog", "plural": "dogs" },
-    "oSlugs": { "singular": "dog", "plural": "dogs" },
-    "oKeys": { "singular": "dog", "plural": "dogs" },
-    "oTitles": { "singular": "Dog", "plural": "Dogs" },
-    "oLabels": { "singular": "Dog", "plural": "Dogs" }
-  }
-}
-```
-
-### Example: Graph Node (Core Nodes Graph)
-
-```json
-{
-  "word": {
-    "slug": "core-nodes-graph-for-the-concept-of-dogs",
-    "name": "core nodes graph for the concept of dogs",
-    "title": "Core Nodes Graph for the Concept of Dogs",
-    "wordTypes": ["word", "graph", "coreNodesGraph"],
-    "coreMemberOf": [{ "slug": "concept-header-for-the-concept-of-dogs", "uuid": "..." }]
-  },
-  "graph": {
-    "nodes": [{ "slug": "...", "uuid": "..." }, ...],
-    "relationshipTypes": [{ "slug": "CLASS_THREAD_INITIATION" }, ...],
-    "relationships": [{ "nodeFrom": { "slug": "..." }, "relationshipType": { "slug": "..." }, "nodeTo": { "slug": "..." } }, ...],
-    "imports": []
-  },
-  "coreNodesGraph": {
-    "description": "the set of core nodes for the concept of dogs",
-    "constituents": {
-      "conceptHeader": "<uuid>",
-      "superset": "<uuid>",
-      "jsonSchema": "<uuid>",
-      "primaryProperty": "<uuid>",
-      "propertyTreeGraph": "<uuid>",
-      "conceptGraph": "<uuid>",
-      "coreNodesGraph": "<uuid>"
-    }
-  }
-}
-```
+**The format is specified in [protocols/drafts/tapestry-concepts.md](protocols/drafts/tapestry-concepts.md) → "The word-wrapper format" — normative** (structure, the `word` block, type-specific keys, worked examples). In this codebase, all core nodes and firmware concepts carry word-wrapper JSON in their `json` tag; firmware schemas validate it at install time (§7).
 
 ---
 
 ## 9. Core Nodes of a Concept
 
-Every fully-formed concept has **8 core nodes**:
-
-| # | Node | Role | z-tag concept |
-|---|------|------|---------------|
-| 1 | **Concept Header** | The concept definition itself (the ListHeader or ListItem that IS the concept) | varies |
-| 2 | **Superset** | "The superset of all X" — root of the class thread | `superset` |
-| 3 | **JSON Schema** | Validates the structure of elements | `json-schema` |
-| 4 | **Primary Property** | The main property key for this concept's namespace in element JSON | `primary-property` |
-| 5 | **Properties Set** | Collection of all properties | `properties-set` |
-| 6 | **Property Tree Graph** | Graph of schema → properties relationships | `property-tree-graph` |
-| 7 | **Concept Graph** | Graph of the class thread (supersets, sets, elements) | `concept-graph` |
-| 8 | **Core Nodes Graph** | Graph showing all 8 core nodes and their wiring | `core-nodes-graph` |
-
-Each core node (except the Concept Header itself) is a kind 39999 event with:
-- A `z` tag pointing to its firmware concept's UUID
-- A `json` tag in word-wrapper format
-- Wiring relationships back to the Concept Header
+**The 8-core-node scheme and the core-node wire shape are specified in [protocols/drafts/tapestry-concepts.md](protocols/drafts/tapestry-concepts.md) → "Core nodes of a concept" — normative.** In this deployment the well-known core-node concepts (`superset`, `json-schema`, `primary-property`, `properties-set`, `property-tree-graph`, `concept-graph`, `core-nodes-graph`) are firmware-published (§7), and core-node `z` tags point at those firmware concept handles.
 
 ### Health Audit
 
