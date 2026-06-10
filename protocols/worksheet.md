@@ -48,7 +48,7 @@ Tagging and pin events reference the tag they apply/pin by `e` (event id — pin
 
 **Status:** Open · raised 2026-06-09
 
-The concept-level `REFERENCES` relationship (a non-committal "may pull later" bookmark between concepts) has no settled wire form. The open question — formerly recorded in BIBLE §23, now homed here (the [class-thread-tags spec](./drafts/class-thread-tags.md) points at this entry): **is it a consumer-owned tag on the consumer's own concept Header, or a separate "reference manifest" kind-39999 event?** Interacts with W2 (it's a candidate for a single-char letter) and with the registry exit in W1 (BIBLE §23 ties it to the flaw-A exit; §22's deferred list carries it only as a reserved-future candidate).
+The concept-level `REFERENCES` relationship (a non-committal "may pull later" bookmark between concepts) has no settled wire form. The open question — formerly recorded in BIBLE §23, now homed here (the [class-thread-tags spec](./drafts/class-thread-tags.md) points at this entry): **is it a consumer-owned tag on the consumer's own concept Header, or a separate "reference manifest" kind-39999 event?** Interacts with W2 (it's a candidate for a single-char letter) and with the registry exit in W1 (the REFERENCES↔flaw-A-exit linkage, formerly noted in BIBLE §23, is now recorded here; §22's deferred list still carries REFERENCES as a reserved-future candidate).
 
 **Refs:** BIBLE §22 (deferred list); [class-thread-tags spec](./drafts/class-thread-tags.md) § "Direction principle and reserved letters" (ex-BIBLE §23); ADR 0006 line.
 
