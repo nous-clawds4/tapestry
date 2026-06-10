@@ -60,6 +60,10 @@ merge_walk(node, visited):
   return overlay(result, node.statedFields)       # the node's own fields always win
 ```
 
+In the pseudocode, `parent` ranges over the node's `b` tags in listed order; `resolve(parent)` fetches the node at the a-tag carried in that tag's second element.
+
+A node's *stated fields* are the fields its own definition states. The precise binding of definition fields to the payload encoding — which parts of a node's `json`-tag payload participate in resolution — is **not yet formalized**.
+
 ## Scope (v1)
 
 Field-level override only — a stated field replaces the inherited one wholesale. The **set-valued override algebra** — how a child adds/removes/replaces individual *elements* of an inherited set — is explicitly deferred to the first consumer that needs it, tracked as worksheet [W6](../worksheet.md#w6--set-valued-override-algebra-for-resolved-definition).
