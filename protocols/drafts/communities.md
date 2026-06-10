@@ -60,7 +60,7 @@ Overlap alone means "talking about the same thing"; membership alone means "each
 
 ## Membership
 
-Membership is **the pubkey-tagging primitive, consumed** — not a community-specific schema. A membership assertion is a kind 39999 event (wire format owned by the Tags & Taggings pre-NIP, story 7 pending; shape per `feat/communities` ADR 0030's a-primary correction):
+Membership is **the pubkey-tagging primitive, consumed** — not a community-specific schema. A membership assertion is a kind 39999 event — specified by the Tags & Taggings pre-NIP (story 7, pending; until then the latest wire word is `feat/communities` ADR 0030's a-primary correction):
 
 ```
 ["p", "<targetPubkey>"]                    the person being tagged
@@ -70,10 +70,12 @@ Membership is **the pubkey-tagging primitive, consumed** — not a community-spe
 ["polarity", "1" | "-1"]                   apply / dispute
 ```
 
+A *tag-element* is the kind-39999 tag event itself, addressed by its a-tag form (`39999:<author>:<slug>` — addressing per [Tapestry Concepts](./tapestry-concepts.md)); its *a-coordinate* is that address.
+
 - **The community claims the tag, not the reverse.** A CD's `claims` field lists the tag-element a-coordinates (`39999:<tagAuthor>:<slug>`) that count as its membership signal. Many-to-many: one community may claim several tag-elements; one tag-element may feed several communities. The tag itself stays general — no community pointer is baked into it. A newly founded community conventionally auto-claims its founder's own tag-element.
 - **Self-tag vs. vouch** = whether the assertion's author equals its `p` target. **Disputes** = `polarity: -1`.
 - **Roster (v1, as deployed):** candidates are pubkeys carrying any claimed tag-element; the gate is count-based — `applications ≥ cutoff AND applications > disputes`.
-- **Roster (as designed):** per-observer and trust-weighted — `score = Σ over asserters of (observer's trust in asserter × polarity)`, counting only asserters above an influence cutoff, then gated by the resolved definition's threshold. Disputes are weighted, not counted, so "no veto" falls out automatically.
+- **Roster (as designed):** per-observer and trust-weighted — `score = Σ over asserters of (observer's trust in asserter × polarity)`, counting only asserters above an *influence cutoff* — the minimum trust an asserter must hold, from the evaluating observer's point of view, for their assertions to count; preset values are deployment policy — then gated by the resolved definition's threshold. Disputes are weighted, not counted, so "no veto" falls out automatically.
 - *The two roster rules are **not yet reconciled** — tracked as worksheet [W9](../worksheet.md#w9--roster-rule-reconciliation).* Membership is **derived on read** in either rule, never stored.
 - **Roles are predicates over the roster**, defined in the resolved definition: *applicant* (self-tagged, below threshold), *member* (cleared threshold). Admin is **off** in v1. Authoring a CD makes you a definer, not a member — the zoologist who defines "dog" is not a dog.
 
