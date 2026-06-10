@@ -251,3 +251,42 @@ follow. (If a story is ever backfilled, link ADR 0021 into it.)
 - ADR: `engineering-team/decisions/0021-login-failure-surfacing-and-tag-result-collapse.md`
 - Test plan: `engineering-team/stories/login-failure-and-tag-collapse.test-plan.md`
 - Review (PASS): `engineering-team/reviews/0021-login-failure-surfacing-and-tag-result-collapse.md`
+
+---
+
+## 2026-06-10 — Admin control over result types in the public search API (backfill)
+
+**Raw request (verbatim):**
+
+> there was an old task to add a setting in the admin for controlling which
+> results are included in search API results, so that we can merge this tags
+> feature to main (with search API settings defaulted to the settings that
+> match what main currently returns to API consumers) without risking serving
+> different, confusing, tag-including results to existing API consumers. [...]
+> feat/pubkey-tagging-target is really far behind staging and main and we want
+> to get it both updated AND add this defensive feature with the defaults set
+> to safety so that we can merge to main without risk
+
+**Origin (recovered):** first voiced ~2026-06-05 during the nostr-user-tag
+carve-out verification ("we wanted to add an API setting to hide tags from
+search API results — is that necessary here, or is this safe to merge to
+main, too?"). The carve was verified search-safe, so the setting was deferred
+— and never written down as a story/intake/follow-up until this backfill.
+
+**Clarifications captured (Q&A, 2026-06-10):**
+
+- New epic folder `search-api-result-controls` (first story to use the
+  per-epic layout on this branch).
+- **Per-result-type controls** (profiles, tags, future types), not a
+  tags-only boolean. Defaults = main's current behavior (tags OFF).
+- Disabling profiles is allowed, with a warning on the settings surface.
+- **Sequencing:** catch `feat/pubkey-tagging-target` up with staging/main
+  FIRST (mechanical task, outside the story), then run Architecture against
+  current code. Branch caveat: pushing it auto-deploys tags.brainstorm.world.
+
+**Classification:** Feature
+**Strictness:** Standard
+**Phase path:** Planning → Architecture → Test Design → Implementation → Review
+**Artifacts:**
+- Epic: `engineering-team/epics/search-api-result-controls.md`
+- Story: `engineering-team/stories/search-api-result-controls/1-search-api-result-type-settings.md`
