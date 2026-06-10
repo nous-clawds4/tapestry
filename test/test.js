@@ -87,6 +87,7 @@ const verifiedReportersMembershipData = require('./verified-reporters-membership
 const verifiedReportersListPage = require('./verified-reporters-list-page.test.js');
 const profileVerifiedCountsOwnerPov = require('./profile-verified-counts-owner-pov.test.js');
 const profileVerifiedCountsExplainerAndAlarm = require('./profile-verified-counts-explainer-and-alarm.test.js');
+const searchApiResultTypeSettings = require('./search-api-result-type-settings.test.js');
 
 async function main() {
   console.log('Running Brainstorm tests...');
@@ -223,6 +224,8 @@ async function main() {
 
   console.log('\nprofile-verified-counts-explainer-and-alarm suite:');
   const profileVerifiedCountsExplainerAndAlarmResult = await profileVerifiedCountsExplainerAndAlarm.run();
+
+  const searchApiResultTypeSettingsResult = await searchApiResultTypeSettings.run();
 
   console.log('\nTest Results');
   console.log('-------------');
@@ -377,6 +380,9 @@ async function main() {
   console.log(
     `profile-verified-counts-explainer-and-alarm suite: ${profileVerifiedCountsExplainerAndAlarmResult.fail === 0 ? 'PASS' : 'FAIL'} (${profileVerifiedCountsExplainerAndAlarmResult.pass} passed, ${profileVerifiedCountsExplainerAndAlarmResult.fail} failed)`
   );
+  console.log(
+    `search-api-result-type-settings suite:           ${searchApiResultTypeSettingsResult.fail === 0 ? 'PASS' : 'FAIL'} (${searchApiResultTypeSettingsResult.pass} passed, ${searchApiResultTypeSettingsResult.fail} failed${searchApiResultTypeSettingsResult.skipped ? `, ${searchApiResultTypeSettingsResult.skipped} skipped` : ''})`
+  );
 
   const overallOk =
     configOk &&
@@ -441,7 +447,8 @@ async function main() {
     verifiedReportersMembershipDataResult.fail === 0 &&
     verifiedReportersListPageResult.fail === 0 &&
     profileVerifiedCountsOwnerPovResult.fail === 0 &&
-    profileVerifiedCountsExplainerAndAlarmResult.fail === 0;
+    profileVerifiedCountsExplainerAndAlarmResult.fail === 0 &&
+    searchApiResultTypeSettingsResult.fail === 0;
   console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);
   process.exit(overallOk ? 0 : 1);
 }
