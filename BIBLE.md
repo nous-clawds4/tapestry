@@ -1508,81 +1508,22 @@ The drift sentinels in `test/entrypoint-template-rendering.test.js` (T7 + T8) tr
 
 ## 25. The Inherit-From Tag (`b`)
 
-**A general definitional-inheritance primitive.** The `b` tag lets any addressable DList object declare *"my definition is this parent's, unless I state otherwise."* It is the single-char, child-claims-parent sibling of the class-thread tags in §23 — but where `n`/`s` express *structure* (containment), `b` expresses *editorial inheritance* (deference). Established by ADR 0027 (ADR 0006/0011 lineage). The Communities Protocol's participant-affiliation pointer is its first consumer (`affiliation` → `b` with type `inherit`); it is **not** community-specific.
+**The wire format and resolution semantics are specified in [protocols/drafts/inherit-from.md](protocols/drafts/inherit-from.md) — normative:** the `b` tag (three-element form, kinds 39998/39999), multi-parent semantics, the `INHERITS_FROM` derived relationship and its no-flip direction, the resolution algorithm, trust-coupling, and the editorial-relationship family contrast. Established by ADR 0027 (ADR 0006/0011 lineage). This section covers how this codebase implements it.
 
-| Tag | Logical relationship | On-wire (child carries tag) | Neo4j edge written by consumers |
-|---|---|---|---|
-| `b` | inherit-from (definitional inheritance with override) | child claims a parent it defers to | `(child)-[:INHERITS_FROM]->(parent)` |
-
-**Wire format:** `["b", "<parent-a-tag>", "<type>"]`. Element 2 is the parent's a-tag (`<kind>:<pubkey>:<dtag>` — same shape as `z`/`n`/`s`; the NIP-01-indexed value). Element 3 is the **affiliation type**, default `"inherit"`, carried as a non-indexed positional element (as NIP-01's `e` tag carries its `root`/`reply` marker). E.g. `['b', '39998:<alice>:dogs', 'inherit']` — "my `dogs` concept defers to Alice's."
-
-**Kinds:** defined for **kind-39998 and kind-39999** — any addressable DList object (concept headers *and* items/sets/Declarations). Broader than `n`/`s`, which are kind-39999-only.
-
-**Multi-parent:** an event may carry multiple `b` tags (inherit from multiple parents — rare; resolution order is **defined in §26 (Resolved Definition)** — first-listed `b` wins). Same multi-tag pattern as `z`/`n`/`s`.
-
-**Edge direction — child→parent (diverges from `n`/`s`; do NOT flip).** `n`/`s` flip their child-claims-parent encoding into a *parent→child* Neo4j edge because their semantics are containment (the parent owns the child). `b` does **not** flip: it writes `(child)-[:INHERITS_FROM]->(parent)`, because (a) deference reads naturally child→parent, and (b) a parent's **incoming** `INHERITS_FROM` edges are exactly "everyone who defers to this definition" — the trust-weightable query the registry use case (§22) needs. Implementers must not copy the `n`/`s` direction-flip.
-
-**Edge properties.** `INHERITS_FROM` is a **canonical, asserted relationship** (the child published a `b` tag) — so, unlike the concept-level `REFERENCES` stub and like `HAS_ELEMENT`/`IS_A_SUPERSET_OF`, it carries **no `source` property**. It MAY carry a `type` property (default `"inherit"`) mirroring tag element 3.
-
-**Resolution — live, read-time.** A child's **effective definition** is computed on read, never snapshotted:
-```
-effective(node) = merge( effective(parent_via_b), node.statedFields )
-```
-- **Live:** the walk reads each ancestor's *current* state, so a child tracks the parent's future edits ("whatever Alice says"). Only the `INHERITS_FROM` edge is materialized; the definition is not copied into the child. (This live read-time merge is the general **Resolved Definition** primitive — see §26; the Communities Protocol's `effectiveCD` is a named instance of it.)
-- **Override = the child's own stated fields.** A field the child states explicitly overrides the inherited value; an omitted field is inherited. An unedited child performs pure inheritance.
-- **Termination:** stop at a root (no `b` tag) or a `maxDepth` guard; a cycle guard (visited-set keyed on a-tag) prevents loops. Reuses the bounded-walk pattern of ADR 0010/0011.
-- **Scope today:** the pattern above plus **field-level (whole-field replace)** override. The **set-valued override algebra** — how a child adds/removes/replaces individual elements of an inherited *set* — is deferred to the first consumer that needs it (the first consumer, CD inheritance, overrides only scalars).
-
-**Place in the editorial-relationship family (§6).** `b` is the first editorial relationship encoded as a single-char tag rather than a relationship-descriptor event. It is distinct from the others:
-
-| Relationship | Posture | Liveness | Override | Implies `IS_A_SUPERSET_OF`? |
-|---|---|---|---|---|
-| `REFERENCES` (concept-level) | non-committal bookmark ("may pull later") | — | — | no |
-| `IMPORT` | absorb the parent's elements; **importer** authoritative | snapshot/pull | agreement, not override | **yes** |
-| `SUPERCEDES` | replace the parent with mine | — | — | no |
-| **`b` / `INHERITS_FROM`** | **defer; parent stays authoritative** | **live (re-resolved each read)** | **first-class "unless stated"** | **no** |
-
-**Trust-coupling (intrinsic to live deference).** Inheriting from a parent means inheriting its *future* edits and trust trajectory — if the parent drifts or is compromised, the child's effective definition drifts silently. The escape hatch is built in: the child's overrides pin what it wants fixed, and re-publishing the `b` tag (a different parent, or a future divergence type) detaches it. PoV/GrapeRank re-gate visibility on every resolution.
-
-**Direction principle / reserved `B`.** Per §23's convention, lowercase `b` = child-claims-parent. Uppercase **`B`** is **reserved** (not assigned) for a future parent-claims-child / federation inverse — e.g. a parent recognizing a child as "the same community." Do not assign speculatively.
-
-See ADR 0027 for the full rationale, the rejected alternatives (folding into `IMPORT`; multi-char tags), and the deferred design questions.
+- **Neo4j edge:** `(child)-[:INHERITS_FROM]->(parent)` — a canonical, asserted relationship: unlike the concept-level `REFERENCES` stub and like `HAS_ELEMENT`/`IS_A_SUPERSET_OF`, it carries **no `source` property**; it MAY carry a `type` property (default `"inherit"`) mirroring tag element 3. See §6 for the editorial-relationship family in the data model.
+- **First consumer:** the Communities Protocol's participant-affiliation pointer (`affiliation` → `b` with type `inherit`); the primitive is **not** community-specific.
+- **Trust gating:** PoV/GrapeRank re-gate visibility on every resolution.
+- **Walk mechanics:** the bounded-walk pattern (maxDepth, visited-set) reuses ADR 0010/0011. See ADR 0027 for the full rationale, the rejected alternatives (folding into `IMPORT`; multi-char tags), and the deferred design questions.
 
 ---
 
 ## 26. Resolved Definition
 
-**The read-side of the `b` tag (§25).** Where `b` is the *write* primitive ("I defer to X"), the **resolved definition** is the *read* primitive: *what a node's definition actually resolves to after following its `b` deferences.* It is **general** — Alice's resolved definition of `dogs` versus Bob's is the same mechanism as a Community Declaration — so every consumer (the Communities Protocol included) reads *through* it. Established by ADR 0028, the read-side companion to ADR 0027.
+**The resolution algorithm is specified in [protocols/drafts/inherit-from.md](protocols/drafts/inherit-from.md) → "Resolution: the resolved definition" — normative** (own-fields-win; first-listed-wins for unstated conflicts; visited-set cycle guard; live read-time, observer-independent). Established by ADR 0028, the read-side companion to ADR 0027; it defines the multi-parent resolution order that ADR 0027 deferred. This section covers how this codebase implements it.
 
-**The closure.** From a node, trace `b` / `INHERITS_FROM` transitively → the set of all nodes it defers to (a derived query, `MATCH (n)-[:INHERITS_FROM*0..]->(x)`; **not stored**). The closure is **not guaranteed acyclic** — dense mutual deference (Alice `b`→Bob, Bob `b`→Alice) creates cycles; the resolution rule's visited-set handles them.
-
-**Resolution rule** — the merge that produces the resolved definition:
-
-1. **The node's own stated fields win** (a child overrides its ancestors — carried from §25 / ADR 0027). Any conflict is settlable by stating the field yourself; conflicts only bite for fields you leave unstated.
-2. **For unstated conflicts among multiple `b` parents, first-listed `b` wins** — walk depth-first in the order the `b` tags are listed on the event; the first value to land sticks. Precedence is **author-controlled** (you order your `b` tags), deterministic, and **observer-independent** (a node's own definition does not change based on who resolves it).
-3. **A visited-set keyed on a-tag bounds cycles** (carried from ADR 0027). The walk always terminates and always yields *an* answer — never "ambiguous → undefined."
-
-```
-resolved(node):
-  visited = {}
-  return merge_walk(node, visited)
-
-merge_walk(node, visited):
-  if node.a-tag in visited: return {}            # cycle guard
-  visited.add(node.a-tag)
-  result = {}
-  for parent in node.b-tags (in listed order):   # ancestors; first-listed wins
-    result = fill_unset(result, merge_walk(resolve(parent), visited))
-  return overlay(result, node.statedFields)       # the node's own fields always win
-```
-
-**Live, read-time.** A resolved definition is computed **on read**, against ancestors' *current* state — so it tracks their future edits (§25's live-`b` semantics, "whatever Alice says"). The `INHERITS_FROM` edge is the only materialized artifact; the definition is never snapshotted into the node. (Caching is a consumer/performance concern, out of scope.)
-
-**What it settles.** This **defines the multi-parent resolution order that ADR 0027 deferred** (§25's multi-parent note now points here), and it **is the general `effectiveX`** that §25 forward-referenced as the Communities Protocol's `effectiveCD` — which is simply a *named instance* of Resolved Definition. §22's grapevine-resolution (which definition a web of trust converges on) selects among nodes' resolved definitions.
-
-**Scope (v1).** Field-level override only — a stated field replaces the inherited one wholesale. The **set-valued override algebra** (how a child adds/removes/replaces individual elements of an inherited *set*) **remains deferred** (ADR 0027), to the first consumer that needs it.
-
-See ADR 0028 for the rationale and the rejected alternative (WoT-weighted field resolution, which would make a node's own definition vary by observer).
+- **Closure as a derived query:** `MATCH (n)-[:INHERITS_FROM*0..]->(x)` — computed on read, never stored.
+- **Named instance:** the Communities Protocol's `effectiveCD` is simply a named instance of Resolved Definition; §22's grapevine-resolution (which definition a web of trust converges on) selects among nodes' resolved definitions.
+- **Caching** is a consumer/performance concern, out of scope here. See ADR 0028 for the rationale and the rejected alternative (WoT-weighted field resolution, which would make a node's own definition vary by observer).
 
 ---
 

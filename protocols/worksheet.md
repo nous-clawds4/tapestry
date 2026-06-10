@@ -16,9 +16,9 @@ Known candidate directions, none ratified:
 
 - **Firmware-blessed pointer** — the current cold-start compromise (BIBLE §22, "Flaw A"): centralized editorial choice, accepted temporarily.
 - **Registry-as-DList** — the per-concept pointer becomes a community-curated, Grapevine-ranked DList (BIBLE §22's named exit from Flaw A).
-- **`b`-edge aggregation** — a concept's incoming `INHERITS_FROM` edges, weighted by each child author's GrapeRank influence from the observer's PoV, yield "which definition my web of trust agrees on" (ADR 0027; BIBLE §25). Candidate mechanism for the registry exit.
+- **`b`-edge aggregation** — a concept's incoming `INHERITS_FROM` edges, weighted by each child author's GrapeRank influence from the observer's PoV, yield "which definition my web of trust agrees on" (ADR 0027; [inherit-from spec](./drafts/inherit-from.md)). Candidate mechanism for the registry exit.
 
-**Refs:** BIBLE §22 (community-reference model, Flaw A + exit), §25 (`b` tag); ADRs 0027/0028; tags-branch ADR 0015 (the legacy-literal incident that exposed the problem); handoff doc §2.
+**Refs:** BIBLE §22 (community-reference model, Flaw A + exit); [inherit-from spec](./drafts/inherit-from.md) (`b` tag; ex-BIBLE §25); ADRs 0027/0028; tags-branch ADR 0015 (the legacy-literal incident that exposed the problem); handoff doc §2.
 
 ## W2 — Single-char tag namespace registry
 
@@ -26,7 +26,7 @@ Known candidate directions, none ratified:
 
 Our specs are steadily claiming single-char (NIP-01 relay-indexed) tag letters: `z` (parent pointer), `n` (HAS_ELEMENT-inverse), `s` (IS_A_SUPERSET_OF-inverse), `b` (inherit-from). The direction principle ([class-thread-tags spec](./drafts/class-thread-tags.md), ex-BIBLE §23): lowercase = child-claims-parent; uppercase forms are reserved for parent-claims-child inverses (`B` explicitly reserved, unassigned) and must not be assigned speculatively. Candidate letters for `IS_A_PROPERTY_OF` and `REFERENCES` are TBD. **One registry table is needed across all our specs so future ADRs don't collide letters** — and to decide how it composes with letters other NIPs already use.
 
-**Refs:** [class-thread-tags spec](./drafts/class-thread-tags.md) (direction principle, candidate letters; ex-BIBLE §23), BIBLE §25 (`b`/`B`); ADRs 0011, 0027.
+**Refs:** [class-thread-tags spec](./drafts/class-thread-tags.md) (direction principle, candidate letters; ex-BIBLE §23) and [inherit-from spec](./drafts/inherit-from.md) (`b`; ex-BIBLE §25); ADRs 0011, 0027.
 
 ## W3 — Polarity valence arc
 
@@ -56,9 +56,9 @@ The concept-level `REFERENCES` relationship (a non-committal "may pull later" bo
 
 **Status:** Open · raised 2026-06-09
 
-Resolved Definition (BIBLE §26) is field-level in v1: a child's stated field replaces the inherited one wholesale. **How a child adds/removes/replaces individual *elements* of an inherited set** (e.g. "Alice's `dogs` minus Fido plus Rex") is explicitly deferred — by ADRs 0027 and 0028 — to the first consumer that needs it. When that consumer appears, the algebra belongs in the inherit-from spec.
+Resolved Definition ([inherit-from spec](./drafts/inherit-from.md) § "Scope (v1)", ex-BIBLE §26) is field-level in v1: a child's stated field replaces the inherited one wholesale. **How a child adds/removes/replaces individual *elements* of an inherited set** (e.g. "Alice's `dogs` minus Fido plus Rex") is explicitly deferred — by ADRs 0027 and 0028 — to the first consumer that needs it. When that consumer appears, the algebra belongs in the [inherit-from spec](./drafts/inherit-from.md)'s Scope section.
 
-**Refs:** BIBLE §25 (scope note), §26 (Scope v1); ADRs 0027/0028.
+**Refs:** [inherit-from spec](./drafts/inherit-from.md) § "Scope (v1)" (ex-BIBLE §25/§26); ADRs 0027/0028.
 
 ## W7 — `item-kind` interplay with concept headers
 
