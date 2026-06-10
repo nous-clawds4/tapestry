@@ -1,6 +1,6 @@
 # Story 5: Inherit-From (`b`) & Resolved Definition extraction
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-06-10
 **Type:** Doc
 **Epic:** protocols-directory — realizes `docs/PROTOCOLS_DIRECTORY_DESIGN_HANDOFF.md` (§4 spec #5, §8 story 5)
@@ -56,4 +56,4 @@ None in the concept-graph sense (no events, no firmware, no reinstall). The spec
 - Design record: `docs/PROTOCOLS_DIRECTORY_DESIGN_HANDOFF.md` §2/§4; pattern: `protocols-directory` ADR 0001; predecessor: ADR 0002
 - ADR: `engineering-team/decisions/protocols-directory/0003-inherit-from-extraction.md` (`protocols-directory` ADR 0003, thin) — Accepted
 - Test plan: skipped (docs-mode)
-- Review: `engineering-team/reviews/protocols-directory/5-inherit-from-extraction.md` — CHANGES_REQUESTED (two pseudocode-adjacent definitional gaps), converts to PASS on fix
+- Review: `engineering-team/reviews/protocols-directory/5-inherit-from-extraction.md` — PASS (after two-definition kickback, fixed in `3f916f9f`)

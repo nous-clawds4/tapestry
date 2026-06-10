@@ -47,4 +47,15 @@ Both are stranger-readability gaps in the Resolution pseudocode's surrounding de
 
 ## Verdict
 
-**CHANGES_REQUESTED** — solely for the two-definition kickback above (one file, additive). Everything structural passed: skeleton, all six ADR calls, lossless resolution merge, boundary spotless, the proactive worksheet sweep held (no stale-ref blocker for the first time since story 2), gates green. Converts to PASS on the fix with a targeted re-check of the two passages.
+~~**CHANGES_REQUESTED**~~ → **PASS** (see re-review below)
+
+Initial verdict CHANGES_REQUESTED — solely for the two-definition kickback. Everything structural passed: skeleton, all six ADR calls, lossless resolution merge, boundary spotless, the proactive worksheet sweep held (no stale-ref blocker for the first time since story 2), gates green.
+
+## Re-review (2026-06-10, commit `3f916f9f`)
+
+Targeted re-check of the two passages (+4 lines, one file, nothing else touched):
+
+1. `resolve(parent)` — defined in a sentence directly under the pseudocode: `parent` ranges over the node's `b` tags in listed order; `resolve` fetches the node at the a-tag in the tag's second element. Mechanically sourceable from the wire format; the pseudocode itself stays verbatim-to-source. Fixed as asked.
+2. `field`/`statedFields` — the honest-gap treatment applied: stated fields defined as the fields the node's own definition states, with the definition-fields-to-payload binding explicitly marked "**not yet formalized**". The inherited gap is now visible for the publication pass instead of silent. Fixed as asked.
+
+`npm test` re-run green. The review converts to **PASS**.
