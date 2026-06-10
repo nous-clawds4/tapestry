@@ -50,6 +50,6 @@ None in the concept-graph sense (no events, no firmware, no reinstall). The spec
 ## Linked artifacts
 
 - Design record: `docs/PROTOCOLS_DIRECTORY_DESIGN_HANDOFF.md` §2/§4; pattern: `engineering-team/decisions/protocols-directory/0001-tapestry-concepts-extraction.md`
-- ADR: (pending — see open questions)
+- ADR: `engineering-team/decisions/protocols-directory/0002-class-thread-tags-extraction.md` (`protocols-directory` ADR 0002, thin) — Accepted
 - Test plan: skipped (docs-mode)
 - Review: (filled in after Review phase)
