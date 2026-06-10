@@ -1,6 +1,6 @@
 # Story 3: Tapestry Concepts extraction
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-06-10
 **Type:** Doc
 **Epic:** protocols-directory — realizes `docs/PROTOCOLS_DIRECTORY_DESIGN_HANDOFF.md` (§4 spec #3, §8 story 3)
@@ -50,4 +50,4 @@ None in the concept-graph sense (no events published, no firmware change, no rei
 - Design record: `docs/PROTOCOLS_DIRECTORY_DESIGN_HANDOFF.md` §2 (boundary rule), §4 (spec #3)
 - ADR: `engineering-team/decisions/protocols-directory/0001-tapestry-concepts-extraction.md` (`protocols-directory` ADR 0001) — Accepted
 - Test plan: skipped (docs-mode)
-- Review: `engineering-team/reviews/protocols-directory/3-tapestry-concepts-extraction.md` — CHANGES_REQUESTED (four definitional gaps in the spec), converts to PASS on fix
+- Review: `engineering-team/reviews/protocols-directory/3-tapestry-concepts-extraction.md` — PASS (after four-definition kickback, fixed in `aea8701b`)

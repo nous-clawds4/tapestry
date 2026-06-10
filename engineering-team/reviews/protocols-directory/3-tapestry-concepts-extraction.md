@@ -53,4 +53,17 @@ All four are stranger-readability gaps in `protocols/drafts/tapestry-concepts.md
 
 ## Verdict
 
-**CHANGES_REQUESTED** — solely for the four-definition kickback above, all in one file, all additive sentences under the traceability constraint. Everything structural passed clean on first audit: ADR conformance, boundary discipline, traceability, references, gates. On the fix landing with the constraint honored, this converts to PASS with a targeted re-check of the four passages (no full re-audit).
+~~**CHANGES_REQUESTED**~~ → **PASS** (see re-review below)
+
+Initial verdict CHANGES_REQUESTED — solely for the four-definition kickback above, all in one file, all additive sentences under the traceability constraint. Everything structural passed clean on first audit: ADR conformance, boundary discipline, traceability, references, gates.
+
+## Re-review (2026-06-10, commit `aea8701b`)
+
+Targeted re-check of the four passages, per the initial verdict's terms (+8 lines, one file, nothing else touched):
+
+1. `uuid` — defined in the new "Field notes" block as the referenced node's a-tag address, pointing at "Addressing". Sourced; fixed as asked.
+2. `wordTypes` — described as the node's roles drawn from the type-specific-key vocabulary, `word` first, with the broader-roles example from the canonical sourced payload; value constraints explicitly marked "not yet formalized". Traceability constraint honored.
+3. `coreMemberOf` — conditionality stated (core nodes carry it pointing back at their concept; the Concept Header omits it), matching the sourced examples. Fixed as asked.
+4. `concept-graph` kind scope — sourced scope stated (defined for kind-39998 headers; compute fallback phrased for any header) and 39999-as-concept tagging explicitly marked "**not yet specified**". The honest-gap treatment asked for; the open point remains visible for the eventual publication pass.
+
+`npm test` re-run green. The review converts to **PASS**.
