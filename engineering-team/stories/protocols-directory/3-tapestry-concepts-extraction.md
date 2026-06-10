@@ -50,4 +50,4 @@ None in the concept-graph sense (no events published, no firmware change, no rei
 - Design record: `docs/PROTOCOLS_DIRECTORY_DESIGN_HANDOFF.md` §2 (boundary rule), §4 (spec #3)
 - ADR: `engineering-team/decisions/protocols-directory/0001-tapestry-concepts-extraction.md` (`protocols-directory` ADR 0001) — Accepted
 - Test plan: skipped (docs-mode)
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/protocols-directory/3-tapestry-concepts-extraction.md` — CHANGES_REQUESTED (four definitional gaps in the spec), converts to PASS on fix
