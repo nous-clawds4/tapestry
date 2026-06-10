@@ -1465,30 +1465,11 @@ A firmware concept may carry a `communityReference` — `{ headerATag, relayHint
 
 ## 23. Class-Thread Membership Tags (`n`, `s`)
 
-**Canonical single-char child-claims-parent tags** for the class-thread relationships, defined for kind-39999 only (this section). Single-char ⇒ relay-indexed by default per NIP-01; child-claims-parent direction mirrors `z` tag's pattern and decentralizes naturally (no parent maintains a children-list event). Established by ADR 0011 to collapse Tapestry's prior two-tier encoding (membership via z-tags + structure via separate relationship-descriptor events) into a single tier where the source event carries both.
+**The wire format is specified in [protocols/drafts/class-thread-tags.md](protocols/drafts/class-thread-tags.md) — normative:** the `n`/`s` tag definitions and direction flip, value format, multi-parent semantics, retrieval, the consumer security considerations, and the direction principle with reserved letters. Established by ADR 0011. This section covers how this codebase implements it.
 
-| Tag | Logical relationship | On-wire (child carries tag) | Neo4j edge written by consumers |
-|---|---|---|---|
-| `n` | HAS_ELEMENT-inverse | child claims parent set / superset | `(parent)-[:HAS_ELEMENT]->(child)` |
-| `s` | IS_A_SUPERSET_OF-inverse | child set/superset claims parent superset | `(parent)-[:IS_A_SUPERSET_OF]->(child)` |
-
-**Tag value format:** parent's a-tag form (`<kind>:<pubkey>:<dtag>`) — same shape as `z` tag values. E.g. `['n', '39999:919ba08a…:the-set-of-paid-nostr-relays']`.
-
-**Multi-parent semantics:** an event may carry multiple `n` tags (member of multiple sets) and multiple `s` tags (subset of multiple supersets — rare but expressible). Same multi-tag pattern as `z`.
-
-**Emission sites (dual-emit policy during back-compat cycle):** `handleCreateSet` emits the new `s` tag on the Set event before signing; `handleAddToSet` emits the new `n` tag via re-publishing the source event (locally-authored items only — foreign-authored items cannot be re-signed; descriptor event still fires for those). Both sites also continue publishing the prior relationship-descriptor events for one full release cycle. A future cutover ADR will deprecate the descriptor emission.
-
-**Trust constraints when consuming `n`/`s` tags from foreign curators (binding):**
-1. **Authorship gate:** materialize events only when `pubkey === curatorPk` (the same TA whose Header anchored the #11 `IS_A_SUPERSET_OF` edge). Prevents cross-instance election (someone publishing an event with `['n', '<myLocalSuperset-uuid>']` cannot trick a consumer into MERGEing edges into the consumer's local class thread).
-2. **Local-graph isolation:** the only cross-pubkey edge allowed in the graph is the #11 `(localSuperset)-[:IS_A_SUPERSET_OF]->(communitySuperset)` anchor, established by firmware install. Phase B's tag walk never MERGEs an edge whose parent endpoint is in the local TA's sub-graph.
-3. **Class-thread only:** consumers walking `n`/`s` MUST MERGE only `HAS_ELEMENT` and `IS_A_SUPERSET_OF` edges (canonical class-thread relationships); no editorial relationship types are inferable from these tags. *(This constraint is specific to `n`/`s`; the editorial inherit-from relationship has its own single-char tag `b` — see §25.)*
-
-**Direction principle (reserved, codified):** lowercase single-char tags encode **child-claims-parent**. Uppercase single-char tags (currently unassigned) would encode **parent-claims-child** for the same logical relationship type if a future ADR adopts the inverse direction. **Do not assign uppercase forms speculatively** — only when a concrete consumer needs the inverse direction AND that inverse cannot be more cleanly expressed as a derived aggregate query (relay filter for `#n=X` already returns all children of X). The inherit-from tag `b` (§25) follows this convention and reserves uppercase **`B`** for a future parent-claims-child / federation inverse.
-
-**Future-candidate relationship tags** (NOT implemented; documented for protocol hygiene so the next ADR-author doesn't accidentally repurpose neighboring letters):
-- `IS_A_PROPERTY_OF` (property tree). Candidate letter TBD. Hot-read-path candidate.
-- `REFERENCES` (Story #8 community-reference; flaw-A exit). Candidate letter TBD. Open question: publishing semantics — consumer-owned tag on consumer's concept Header, or separate "reference manifest" kind-39999 event?
-- Editorial relationships. The inherit-from relationship is now realized as the **`b` tag** → `INHERITS_FROM` (the first editorial single-char tag, also extending the single-char namespace to kind-39998) in **§25** / ADR 0027. Others (`RECOMMENDED_BY`, `ENDORSES`, etc.) remain for a future ADR (trust, provenance, first-class-vs-stub semantics).
+- **Emission sites (dual-emit policy during back-compat cycle):** `handleCreateSet` emits the new `s` tag on the Set event before signing; `handleAddToSet` emits the new `n` tag via re-publishing the source event (locally-authored items only — foreign-authored items cannot be re-signed; descriptor event still fires for those). Both sites also continue publishing the prior relationship-descriptor events for one full release cycle. A future cutover ADR will deprecate the descriptor emission.
+- **Trust-gate wiring (the spec's security considerations, concretely):** the authorship gate is `pubkey === curatorPk` — the TA whose Header anchored the #11 `(localSuperset)-[:IS_A_SUPERSET_OF]->(communitySuperset)` edge (firmware install; see §22). Phase B's tag walk never MERGEs an edge whose parent endpoint is in the local TA's sub-graph; that anchor is the only cross-pubkey edge in the graph.
+- **Materialization:** consumers' derived relationships are MERGEd as Neo4j `HAS_ELEMENT` / `IS_A_SUPERSET_OF` edges — see §6 for the data model. For the editorial inherit-from tag (`b`) see §25.
 
 ---
 
