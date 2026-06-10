@@ -10,7 +10,7 @@ A lightweight flow for evolving the **protocol / spec** — `BIBLE.md` and its A
 |---|---|---|
 | **Product Team** (`product-team/`) | figuring out *what* to build | product docs, story queue |
 | **Engineering Team** (`engineering-team/`) | building *code* for a defined story | source + tests |
-| **Protocol-Spec** (this) | evolving *how the protocol works* | BIBLE sections + ADRs |
+| **Protocol-Spec** (this) | evolving *how the protocol works* | `protocols/` specs + BIBLE pointers + ADRs |
 
 Reach for this when a protocol/architecture idea (a new tag, relationship, resolution rule…) needs thinking-through and then writing into the BIBLE, the design isn't settled, and there's no executable behavior to test yet. If the design is already settled and you just need code, use the Engineering Team flow directly.
 
@@ -25,11 +25,13 @@ As decisions settle, write them into a **living design/handoff doc** — `docs/<
 ### 3. Ratify — settled piece → BIBLE + ADR (Engineering Team flow, docs-mode)
 When a piece is settled, run it through the Engineering Team flow **in docs-mode**:
 
-`/plan-feature` (thin story) → `/design-architecture` (ADR) → **skip Test Design** → `/implement-feature` (write the BIBLE section) → `/review-changes` (accuracy/consistency audit) → `cycle-staging`.
+`/plan-feature` (thin story) → `/design-architecture` (ADR) → **skip Test Design** → `/implement-feature` (author the spec + BIBLE pointer section) → `/review-changes` (accuracy/consistency audit) → `cycle-staging`.
+
+**Where the spec lands (amended by `protocols-directory` ADR 0001):** ratified wire-format specs land under `protocols/` — `drafts/` or `nips/` per the status ladder in [protocols/README.md](../../protocols/README.md) — and the affected BIBLE section keeps its number and title but becomes a short normative pointer plus the Tapestry-specific implementation detail. Each wire format is normative in exactly one place. (Before the protocols/ directory existed, ratified spec prose landed directly in the BIBLE; §25/§26 predate this and migrate via the protocols-directory epic.)
 
 **Docs-mode rules** (how the eng-team roles adapt):
 - **Test Design: skipped** — no executable behavior; flag it in the story's open questions.
-- **Implementer writes BIBLE prose**, not code. "Smallest change consistent with the ADR" = exactly the spec edits the ADR specifies. Mirror the working-doc spec; don't duplicate ADR rationale (point to the ADR).
+- **Implementer authors the spec under `protocols/` plus the BIBLE pointer section**, not code. "Smallest change consistent with the ADR" = exactly the spec edits the ADR specifies. Mirror the working-doc spec; don't duplicate ADR rationale (point to the ADR).
 - **Reviewer audits accuracy + consistency**, not coverage: are the claims true? do cross-references resolve (TOC anchors, §-links)? internally consistent + ADR-conformant? — *and* run `npm test` to confirm the docs change caused **no regression**.
 - **Quality gate:** BIBLE/docs only; `npm test` stays green; no new tooling.
 
