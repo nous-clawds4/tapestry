@@ -34,7 +34,7 @@ Our specs are steadily claiming single-char (NIP-01 relay-indexed) tag letters: 
 
 Tagging events carry `polarity` `"1"` (apply) or `"-1"` (dispute); v1 semantics bucket `>= 0.5` as applied and `<= -0.5` as disputed, deliberately reserving the open interval `(-0.5, 0.5)` for a future graded-valence arc (GrapeRank-style weights in `[-1, +1]`). **The graded semantics are undesigned**: what does a 0.3 mean, who interprets it, and does the bucketing rule belong in the Tags spec or in trust-metric-interpreter territory?
 
-**Refs:** tags-branch ADR 0001 (polarity wire format + v1 buckets); tags-branch follow-ups (valence arc deferred); handoff doc §6.
+**Refs:** [tags spec](./drafts/tags.md) § "Polarity"; tags-branch ADR 0001 (polarity wire format + v1 buckets); tags-branch follow-ups (valence arc deferred); handoff doc §6.
 
 ## W4 — `e` vs. `a` for parent-tag references
 
@@ -42,7 +42,7 @@ Tagging events carry `polarity` `"1"` (apply) or `"-1"` (dispute); v1 semantics 
 
 Tagging and pin events reference the tag they apply/pin by `e` (event id — pins a specific version) and/or `a` (address — survives the author's edits). The tags branch flagged this choice for re-evaluation in its own follow-ups: replaceable events make `e`-references go stale, while `a`-references change meaning under the author's later edits. **Which reference (or which combination, with what precedence) should the spec mandate, and does the answer differ for taggings vs. pins?**
 
-**Refs:** tags-branch ADRs 0001/0009 + follow-ups; the same question shape appears in the DList compat companion (Method 2 mandates `a` for items pointing at kind-34550 events because they're replaceable; Method 3 rides on `z` tags instead).
+**Refs:** [tags spec](./drafts/tags.md) § "Taggings (assertions)" / § "Pins"; tags-branch ADRs 0001/0009 + follow-ups; the same question shape appears in the DList compat companion (Method 2 mandates `a` for items pointing at kind-34550 events because they're replaceable; Method 3 rides on `z` tags instead).
 
 ## W5 — `REFERENCES` publishing semantics
 
@@ -83,3 +83,11 @@ Brainstorm Communities' membership engine needs configuration: seed pubkeys, a w
 Two membership roster rules exist for Brainstorm Communities: the **deployed v1 rule** (count-based: `applications ≥ cutoff AND applications > disputes`, single PoV) and the **designed rule** (per-observer, trust-weighted: net assert-vs-dispute weighted by the observer's trust in each asserter, influence-cutoff-gated, threshold from the resolved definition — "no veto" falls out). Reconciling them — and settling threshold mechanics (1 vouch vs. N ≥ 2 for safe spaces, capture doc §5) — is open. The security stakes are real: the no-veto property holds only under the weighted rule.
 
 **Refs:** [communities spec](./drafts/communities.md) § "Membership" / § "Security considerations"; `feat/communities` ADR 0030 (both rules); `docs/COMMUNITIES_PROTOCOL_DESIGN_HANDOFF.md` §3/§5; protocols-directory ADR 0004 (finding D5).
+
+## W10 — Taggings family naming & expansion
+
+**Status:** Open · raised 2026-06-10
+
+The taggings family ([tags spec](./drafts/tags.md) § "The taggings family") has one deployed member and a ratified direction, recorded from the protocol author at story 7's gate: *"we will have a parent concept of taggings, with nostr-user-tag (should we change it to nostr-user-tagging?) and nostr-event-tag as sibling concepts; maybe even dlist-tag as a subset of nostr-event-tag, with dlist-tag being something we would very much like to start using."* Open: (1) the **rename** of `nostr-user-tag` — wire-impactful, since the slug rides in `z` handles on user-signed history (a concept migration, same class as the W1 legacy-literal lessons); (2) the **handles and hierarchy** for `nostr-event-tag` and `dlist-tag` (parent/sibling/subset structure as concepts); (3) sequencing against the event-tagging rollout (kinds 39998/39999 targets first, per the epic handoff §6).
+
+**Refs:** [tags spec](./drafts/tags.md) § "The taggings family" / § "Event tagging (planned)"; story 7 gate record (`engineering-team/stories/protocols-directory/7-tags-spec.md` § Open questions); `docs/PROTOCOLS_DIRECTORY_DESIGN_HANDOFF.md` §6.
