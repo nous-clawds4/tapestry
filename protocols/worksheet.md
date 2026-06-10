@@ -24,9 +24,9 @@ Known candidate directions, none ratified:
 
 **Status:** Open · raised 2026-06-09
 
-Our specs are steadily claiming single-char (NIP-01 relay-indexed) tag letters: `z` (parent pointer), `n` (HAS_ELEMENT-inverse), `s` (IS_A_SUPERSET_OF-inverse), `b` (inherit-from). The direction principle (BIBLE §23): lowercase = child-claims-parent; uppercase forms are reserved for parent-claims-child inverses (`B` explicitly reserved, unassigned) and must not be assigned speculatively. Candidate letters for `IS_A_PROPERTY_OF` and `REFERENCES` are TBD. **One registry table is needed across all our specs so future ADRs don't collide letters** — and to decide how it composes with letters other NIPs already use.
+Our specs are steadily claiming single-char (NIP-01 relay-indexed) tag letters: `z` (parent pointer), `n` (HAS_ELEMENT-inverse), `s` (IS_A_SUPERSET_OF-inverse), `b` (inherit-from). The direction principle ([class-thread-tags spec](./drafts/class-thread-tags.md), ex-BIBLE §23): lowercase = child-claims-parent; uppercase forms are reserved for parent-claims-child inverses (`B` explicitly reserved, unassigned) and must not be assigned speculatively. Candidate letters for `IS_A_PROPERTY_OF` and `REFERENCES` are TBD. **One registry table is needed across all our specs so future ADRs don't collide letters** — and to decide how it composes with letters other NIPs already use.
 
-**Refs:** BIBLE §23 (direction principle, future-candidate tags), §25 (`b`/`B`); ADRs 0011, 0027.
+**Refs:** [class-thread-tags spec](./drafts/class-thread-tags.md) (direction principle, candidate letters; ex-BIBLE §23), BIBLE §25 (`b`/`B`); ADRs 0011, 0027.
 
 ## W3 — Polarity valence arc
 
@@ -48,9 +48,9 @@ Tagging and pin events reference the tag they apply/pin by `e` (event id — pin
 
 **Status:** Open · raised 2026-06-09
 
-The concept-level `REFERENCES` relationship (a non-committal "may pull later" bookmark between concepts) has no settled wire form. BIBLE §23 records the open question: **is it a consumer-owned tag on the consumer's own concept Header, or a separate "reference manifest" kind-39999 event?** Interacts with W2 (it's a candidate for a single-char letter) and with the registry exit in W1 (BIBLE §23 ties it to the flaw-A exit; §22's deferred list carries it only as a reserved-future candidate).
+The concept-level `REFERENCES` relationship (a non-committal "may pull later" bookmark between concepts) has no settled wire form. The open question — formerly recorded in BIBLE §23, now homed here (the [class-thread-tags spec](./drafts/class-thread-tags.md) points at this entry): **is it a consumer-owned tag on the consumer's own concept Header, or a separate "reference manifest" kind-39999 event?** Interacts with W2 (it's a candidate for a single-char letter) and with the registry exit in W1 (BIBLE §23 ties it to the flaw-A exit; §22's deferred list carries it only as a reserved-future candidate).
 
-**Refs:** BIBLE §22 (deferred list), §23 (future-candidate relationship tags); ADR 0006 line.
+**Refs:** BIBLE §22 (deferred list); [class-thread-tags spec](./drafts/class-thread-tags.md) § "Direction principle and reserved letters" (ex-BIBLE §23); ADR 0006 line.
 
 ## W6 — Set-valued override algebra for Resolved Definition
 
@@ -66,4 +66,4 @@ Resolved Definition (BIBLE §26) is field-level in v1: a child's stated field re
 
 The DList compat companion introduces `item-kind` on list headers to declare which foreign event kinds a list accepts (e.g. kind 34550 NIP-72 communities as list items). Tapestry's concept headers carry their own conventions (`concept-graph` pointer, firmware schemas, `required`/`allowed` declarations). **Do these compose or compete?** E.g.: should Tapestry concept headers declare `item-kind`? Does a foreign-kind item participate in class threads (`n`/`s`) and inheritance (`b`)? Does the firmware JSON-schema mechanism subsume the header's schema-declaration tags or duplicate them?
 
-**Refs:** `feat/communities:DECENTRALIZED_LISTS_COMPAT.md` (`item-kind`, Methods 2/3); BIBLE §5 (concept-graph tag), §7 (firmware schemas), §23 (`n`/`s` trust constraints).
+**Refs:** `feat/communities:DECENTRALIZED_LISTS_COMPAT.md` (`item-kind`, Methods 2/3); BIBLE §5 (concept-graph tag), §7 (firmware schemas); [class-thread-tags spec](./drafts/class-thread-tags.md) § "Security considerations" (ex-BIBLE §23).
