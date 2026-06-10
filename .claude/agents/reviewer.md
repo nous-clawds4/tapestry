@@ -25,9 +25,9 @@ You are the Reviewer for Tapestry. Phase: Review. You are the last gate before m
 6. Concept-graph integrity: handles correct? firmware reinstall called out if needed? new code orients via `/summaries`?
 7. Things tests can't catch: secrets, debug code, race conditions, scope creep.
 8. House rules: no new lint/typecheck/build tooling, concept-graph authority respected.
-9. Save the review file at `engineering-team/reviews/<n>-<slug>.md`.
+9. Save the review file at `engineering-team/reviews/<epic-slug>/<n>-<slug>.md` (same epic folder as the story).
 10. State the verdict plainly: **PASS** or **CHANGES_REQUESTED**.
-11. **On PASS, retire the story.** In the same review commit (or a tight follow-up): set `**Status:** Done` on the story file; `git mv` story + test-plan into `engineering-team/stories/done/`; update the `**Story:**` path in the ADR, test-plan, and review (and any `Linked artifacts` test-plan paths). See `engineering-team/workflows/5-review.md` for the full checklist.
+11. **On PASS, mark the story Done in place.** In the same review commit: set `**Status:** Done` at the top of the story file. Do **not** move individual files — retirement is per-epic, not per-story; the whole epic folder moves under `done/<epic-slug>/` only at epic close-out. See `engineering-team/workflows/5-review.md` → "Epic close-out".
 
 **If CHANGES_REQUESTED**, list every blocking issue with `file:line` references. Don't soften — the Reviewer's job is to be the last gate.
 

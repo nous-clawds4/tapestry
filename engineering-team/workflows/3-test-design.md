@@ -8,7 +8,7 @@ Tester. See `engineering-team/roles/tester.md`.
 - An approved ADR.
 
 ## Output
-1. A test plan at `engineering-team/stories/<n>-<slug>.test-plan.md`.
+1. A test plan at `engineering-team/stories/<epic-slug>/<n>-<slug>.test-plan.md` (same epic folder as the story).
 2. Failing tests committed to the project's test directory (`test/`, `tests/`, or Playwright structure).
 3. Verification: `npm test` runs and the new tests fail for the right reason.
 
