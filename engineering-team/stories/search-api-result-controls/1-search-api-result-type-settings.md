@@ -1,7 +1,7 @@
 # Story 1: Admin control over result types in the public search API
 
 **Epic:** search-api-result-controls
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-06-10
 **Type:** Feature
 
@@ -97,4 +97,4 @@ tags) on my own schedule without surprising existing API consumers.
 
 - ADR: `engineering-team/decisions/search-api-result-controls/0001-search-api-result-type-settings.md`
 - Test plan: `engineering-team/stories/search-api-result-controls/1-search-api-result-type-settings.test-plan.md`
-- Review: (after Review)
+- Review: `engineering-team/reviews/search-api-result-controls/1-search-api-result-type-settings.md` (PASS)
