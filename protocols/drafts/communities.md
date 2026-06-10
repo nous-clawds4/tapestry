@@ -23,7 +23,7 @@ Centralization must be built by participants, never assumed by the protocol.
 
 ## Relationship to other specs
 
-Communities ride entirely on primitives defined upstream: the addressable kinds and `z` conventions of [Decentralized Lists](../nips/decentralized-lists.md) and [Tapestry Concepts](./tapestry-concepts.md); definitional deference and the resolution algorithm of [Inherit-From & Resolved Definition](./inherit-from.md); and the membership signal of the pubkey-tagging wire format — **specified by the Tags & Taggings pre-NIP (story 7, pending; until then the latest wire word is `feat/communities` ADR 0030's a-primary correction, quoted under "Membership")**. This spec adds only the thin community-specific layer on top.
+Communities ride entirely on primitives defined upstream: the addressable kinds and `z` conventions of [Decentralized Lists](../nips/decentralized-lists.md) and [Tapestry Concepts](./tapestry-concepts.md); definitional deference and the resolution algorithm of [Inherit-From & Resolved Definition](./inherit-from.md); and the membership signal of the pubkey-tagging wire format — specified by [Tags & Taggings](./tags.md). This spec adds only the thin community-specific layer on top.
 
 ## A community is a concept
 
@@ -60,7 +60,7 @@ Overlap alone means "talking about the same thing"; membership alone means "each
 
 ## Membership
 
-Membership is **the pubkey-tagging primitive, consumed** — not a community-specific schema. A membership assertion is a kind 39999 event — specified by the Tags & Taggings pre-NIP (story 7, pending; until then the latest wire word is `feat/communities` ADR 0030's a-primary correction):
+Membership is **the pubkey-tagging primitive, consumed** — not a community-specific schema. A membership assertion is a kind 39999 event — specified by [Tags & Taggings](./tags.md) (deployed-variant status noted there); the shape consumed here:
 
 ```
 ["p", "<targetPubkey>"]                    the person being tagged

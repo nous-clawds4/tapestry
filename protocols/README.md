@@ -43,7 +43,7 @@ Spec headers also record: **canonical external URL** (naddr for NostrHub Custom 
 
 ## Spec index
 
-Migration is in progress — specs land here story by story (see the [design handoff](../docs/PROTOCOLS_DIRECTORY_DESIGN_HANDOFF.md) §8 for the plan). Until a spec's migration story has run, **its listed source location remains the source of truth** and the planned file does not exist yet.
+The initial migration (protocols-directory epic, stories 1–7) is **complete** — every spec below lives here as its working copy. The Status column tracks each spec's publication state; "Content lives today" records provenance and any external divergence (e.g. a published NostrHub version pending republication).
 
 | Spec | File | Status | Content lives today | Migration |
 |---|---|---|---|---|
@@ -53,7 +53,7 @@ Migration is in progress — specs land here story by story (see the [design han
 | Class-Thread Membership Tags (`n`, `s`) | [drafts/class-thread-tags.md](./drafts/class-thread-tags.md) | 📝 pre-NIP | **Working copy here** (BIBLE §23 holds implementation + pointer) | story 4 ✅ |
 | Inherit-From & Resolved Definition (`b`) | [drafts/inherit-from.md](./drafts/inherit-from.md) | 📝 pre-NIP | **Working copy here** (BIBLE §25/§26 hold implementation + pointers) | story 5 ✅ |
 | Communities | [drafts/communities.md](./drafts/communities.md) | 📝 pre-NIP | **Working copy here** (in-flight feature; BIBLE §22 untouched — see ADR 0004; `COMMUNITY_ENDORSEMENTS_DLIST.md` superseded for membership per ADR 0004 D1) | story 6 ✅ |
-| Tags & Taggings | `drafts/tags.md` | 📝 pre-NIP | `feat/pubkey-tagging-target` branch: ADRs 0001 (profile-tag architecture), 0009 (pin-a-tag); firmware concepts `tag` / `nostr-user-tag` / `tag-pinning` | story 7 — pending |
+| Tags & Taggings | [drafts/tags.md](./drafts/tags.md) | 📝 pre-NIP | **Working copy here** (in-flight feature on `feat/pubkey-tagging-target`) | story 7 ✅ |
 
 Branch-path notation: `branch:path` means the file exists at that path on the named (unmerged) branch — read it with `git show <branch>:<path>`. Migration **copies** content from those branches; it never implies merging them.
 
