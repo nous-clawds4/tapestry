@@ -65,6 +65,9 @@ import ImportPage from './pages/io/ImportPage';
 import Dashboard from './pages/Dashboard';
 import BrainstormSearch from './pages/BrainstormSearch';
 import BrainstormProfile from './pages/BrainstormProfile';
+import BrainstormFollows from './pages/BrainstormFollows';
+import BrainstormFollowers from './pages/BrainstormFollowers';
+import BrainstormReporters from './pages/BrainstormReporters';
 import BrainstormSettings from './pages/BrainstormSettings';
 import BrainstormPersonalization from './pages/BrainstormPersonalization';
 import BrainstormHowSearchWorks from './pages/BrainstormHowSearchWorks';
@@ -103,6 +106,18 @@ const router = createBrowserRouter([
   {
     path: '/pin/:dTag',
     element: <PinRedirect />,
+  },
+  {
+    path: '/user/:pubkey/follows',
+    element: <BrainstormFollows />,
+  },
+  {
+    path: '/user/:pubkey/followers',
+    element: <BrainstormFollowers />,
+  },
+  {
+    path: '/user/:pubkey/reporters',
+    element: <BrainstormReporters />,
   },
   {
     path: '/settings',
@@ -289,6 +304,7 @@ const router = createBrowserRouter([
           { path: 'databases', handle: { crumb: 'Databases' } },
           { path: 'uuids', handle: { crumb: 'Concept UUIDs' } },
           { path: 'firmware', handle: { crumb: 'Firmware' } },
+          { path: 'assistant', handle: { crumb: 'Assistant Profile' } },
           { path: 'auditing', handle: { crumb: 'Auditing Tools' } },
           { path: '*', element: <Navigate to="/tapestry/settings/relays" replace /> },
         ],

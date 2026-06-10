@@ -38,7 +38,7 @@
       "failure": {
         "timeout": {
           "duration": 1800000,
-          "forceKill": false,
+          "forceKill": true,
           "restart": true,
           "maxRetries": 3,
           "parentNextStep": "nextTaskInQueue"
@@ -59,6 +59,7 @@
 
   "tasks": {
     "processAllTasks": {
+      "resourceClass": "neo4j-heavy",
       "name": "Process All Tasks",
       "categories": ["orchestrator"],
       "description": "Legacy sequential orchestrator for all background tasks",
@@ -106,8 +107,7 @@
           "failure": {
             "timeout": {
               "comments": "21600000 = 6 hours - generous timeout to accommodate all child tasks including long-running reconciliation (1.5h), syncWoT (1h), and customer processing",
-              "duration": 21600000,
-              "forceKill": false
+              "duration": 21600000
             }
           }
         }
@@ -185,6 +185,7 @@
     },
 
     "neo4jConstraintsAndIndexes": {
+      "resourceClass": "neo4j-heavy",
       "name": "Neo4j Constraints and Indexes",
       "categories": ["maintenance"],
       "description": "Sets up database constraints and indexes",
@@ -286,8 +287,7 @@
           "failure": {
             "timeout": {
               "comments": "3600000 = 1 hour",
-              "duration": 3600000,
-              "forceKill": false
+              "duration": 3600000
             }
           }
         }
@@ -314,37 +314,129 @@
       "notes": "Phase 2 structured events not yet implemented"
     },
 
-    "reconciliation": {
-      "name": "Data Reconciliation",
+    "reconcileRecent": {
+      "name": "Reconcile (recent)",
       "categories": ["network"],
-      "description": "Reconciles neo4j with strfry, taking strfry as source of truth",
+      "description": "Recent-window reconciliation: only authors with a relevant event inside a bounded, overridable recency window (default 6h). Never a full pass / bootstrap. The routine sweep — schedule ~every 10 minutes.",
       "scripts": [
-        "$BRAINSTORM_MODULE_SRC_DIR/pipeline/reconciliation/reconciliation.sh"
+        "$BRAINSTORM_MODULE_SRC_DIR/pipeline/reconciliation/reconcileRecent.sh"
       ],
-      "script": "$BRAINSTORM_MODULE_SRC_DIR/pipeline/reconciliation/reconciliation.sh",
-      "script_relative_path": "pipeline/reconciliation/reconciliation.sh",
+      "script": "$BRAINSTORM_MODULE_SRC_DIR/pipeline/reconciliation/reconcileRecent.sh",
+      "script_relative_path": "pipeline/reconciliation/reconcileRecent.sh",
+      "staticArgs": "",
       "arguments": false,
       "parent": "processAllTasks",
       "scope": "system",
       "priority": "medium",
-      "frequency": "daily",
+      "frequency": "frequent",
+      "status": "active",
+      "structuredLogging": true,
+      "resourceClass": "neo4j-heavy",
+      "options": {
+        "completion": {
+          "failure": {
+            "timeout": {
+              "comments": "1800000 = 30 minutes (incremental run is minutes; generous ceiling)",
+              "duration": 1800000
+            }
+          }
+        }
+      },
+      "notes": "Story #23 / ADR 0020. Own script (reconcileRecent.sh); bounded overridable recency window, no bootstrap; streamed single-query extraction; neo4j-heavy (serializes via ADR 0013)."
+    },
+
+    "reconcileAll": {
+      "name": "Reconcile (full)",
+      "categories": ["network"],
+      "description": "Full reconciliation over the ENTIRE graph (truly all). The complete oracle / incident-recovery sweep. Mutes/reports use approach B (no filter); follows uses a sorted merge-join (bounded memory at 32M edges). Schedule weekly; <1h target.",
+      "scripts": [
+        "$BRAINSTORM_MODULE_SRC_DIR/pipeline/reconciliation/reconcileAll.sh"
+      ],
+      "script": "$BRAINSTORM_MODULE_SRC_DIR/pipeline/reconciliation/reconcileAll.sh",
+      "script_relative_path": "pipeline/reconciliation/reconcileAll.sh",
+      "staticArgs": "",
+      "arguments": false,
+      "scope": "system",
+      "priority": "medium",
+      "frequency": "weekly",
+      "status": "active",
+      "structuredLogging": true,
+      "resourceClass": "neo4j-heavy",
+      "options": {
+        "completion": {
+          "failure": {
+            "timeout": {
+              "comments": "28800000 = 8 hours (full graph sweep)",
+              "duration": 28800000
+            }
+          }
+        }
+      },
+      "notes": "Story #23 / ADR 0020. Own script (reconcileAll.sh); mutes/reports approach B + follows sorted merge-join via extractFollowsToTSV.js + jq + sort + comm + awk; bounded memory at 32M edges; neo4j-heavy. <1h target, not gate."
+    },
+
+    "reconcileAuthor": {
+      "name": "Reconcile (single author)",
+      "categories": ["network"],
+      "description": "Reconcile a single author's relationships on demand. Requires --pubkey <hex>. NOT neo4j-heavy: a tiny point write that stays responsive for interactive triggers (does not queue behind a sweep). Trigger surfaces (profile button, API, customer scheduling) are a follow-up story.",
+      "scripts": [
+        "$BRAINSTORM_MODULE_SRC_DIR/pipeline/reconciliation/reconcileAuthor.sh"
+      ],
+      "script": "$BRAINSTORM_MODULE_SRC_DIR/pipeline/reconciliation/reconcileAuthor.sh",
+      "script_relative_path": "pipeline/reconciliation/reconcileAuthor.sh",
+      "staticArgs": "",
+      "arguments": false,
+      "scope": "system",
+      "priority": "medium",
+      "frequency": "manual",
       "status": "active",
       "structuredLogging": true,
       "options": {
         "completion": {
           "failure": {
             "timeout": {
-              "comments": "5400000 = 1.5 hours",
-              "duration": 5400000,
-              "forceKill": false
+              "comments": "600000 = 10 minutes (single author)",
+              "duration": 600000
             }
           }
         }
       },
-      "notes": "Phase 2 structured logging implemented - comprehensive 3-phase reconciliation tracking with TASK_START/END, detailed PROGRESS events for each phase (A: mutes, B: follows, C: reports), operation-specific tracking with timing and status"
+      "notes": "Story #23 / ADR 0020. Own script (reconcileAuthor.sh); requires --pubkey <hex>; intentionally NOT neo4j-heavy (stays responsive for interactive triggers, never queues behind a sweep). The --pubkey value is supplied by the trigger surface (follow-up story)."
+    },
+
+    "reconcileNetwork": {
+      "name": "Reconcile (network)",
+      "categories": ["network"],
+      "description": "Reconcile a configurable TRUSTED NETWORK defined by a Neo4j property predicate: influence >= cutoff (default 0.05 from graperank.conf VERIFIED_FOLLOWERS_INFLUENCE_CUTOFF) and/or hops <= N. At least one SUBSTANTIVE constraint is required — the script refuses influence<=0, hops>=999, or no constraint (those select the whole graph). With no args it defaults to the verified network (influence >= cutoff).",
+      "scripts": [
+        "$BRAINSTORM_MODULE_SRC_DIR/pipeline/reconciliation/reconcileNetwork.sh"
+      ],
+      "script": "$BRAINSTORM_MODULE_SRC_DIR/pipeline/reconciliation/reconcileNetwork.sh",
+      "script_relative_path": "pipeline/reconciliation/reconcileNetwork.sh",
+      "staticArgs": "",
+      "arguments": false,
+      "parent": "processAllTasks",
+      "scope": "system",
+      "priority": "medium",
+      "frequency": "frequent",
+      "status": "active",
+      "structuredLogging": true,
+      "resourceClass": "neo4j-heavy",
+      "options": {
+        "completion": {
+          "failure": {
+            "timeout": {
+              "comments": "3600000 = 60 minutes (bounded by the network predicate; <1h target)",
+              "duration": 3600000
+            }
+          }
+        }
+      },
+      "notes": "Story #23 / ADR 0020. Own script (reconcileNetwork.sh); parameterized influence/hops predicate with substantive-constraint guards; approach B (full strfry dump + converter author-filter + streamed extractor); neo4j-heavy. The influence/hops trigger PROMPT is Phase 2b; with no args it defaults to the verified network."
     },
 
     "processNpubsUpToMaxNumBlocks": {
+      "resourceClass": "neo4j-heavy",
       "name": "Process Npubs Up To Max Blocks",
       "categories": ["maintenance"],
       "description": "Processes npub generation up to maximum number of blocks",
@@ -365,6 +457,7 @@
     },
 
     "processAllActiveCustomers": {
+      "resourceClass": "neo4j-heavy",
       "name": "Process All Active Customers",
       "categories": ["orchestrator", "customer"],
       "description": "Processes all active customers by calling processCustomer.sh for each",
@@ -396,6 +489,7 @@
     },
 
     "processCustomer": {
+      "resourceClass": "neo4j-heavy",
       "name": "Process Customer",
       "categories": ["customer"],
       "description": "Complete processing pipeline for a single customer",
@@ -425,11 +519,21 @@
       "status": "active",
       "estimatedDuration": "20-60 minutes",
       "structuredLogging": true,
-      "options":{},
+      "options": {
+        "completion": {
+          "failure": {
+            "timeout": {
+              "comments": "5400000 = 90 minutes. Covers the 20-60 min estimatedDuration with headroom. Empirical staging+prod evidence post story #27 (2026-05-25): held_seconds=1805 confirmed this task exceeds the 30-min options_default ceiling on prod-scale graphs.",
+              "duration": 5400000
+            }
+          }
+        }
+      },
       "notes": "Phase 1 structured events implemented"
     },
 
     "prepareNeo4jForCustomerData": {
+      "resourceClass": "neo4j-heavy",
       "name": "Prepare Neo4j For Customer Data",
       "categories": ["customer", "maintenance"],
       "description": "Preliminary steps for customer data processing, common to all customers",
@@ -452,6 +556,7 @@
     },
 
     "updateAllScoresForOwner": {
+      "resourceClass": "neo4j-heavy",
       "name": "Update All Scores For Owner",
       "categories": ["owner", "algorithms"],
       "description": "Updates all trust scores for the owner",
@@ -477,7 +582,16 @@
       "timeout": "4 hours",
       "retries": 3,
       "structuredLogging": true,
-      "options":{},
+      "options": {
+        "completion": {
+          "failure": {
+            "timeout": {
+              "comments": "14400000 = 4 hours. Honors the legacy `timeout: \"4 hours\"` decorative field above (the string form was never actually parsed by resolveTaskTimeout). Task orchestrates 8 children including syncWoT-class work; 4h is the long-standing operator expectation.",
+              "duration": 14400000
+            }
+          }
+        }
+      },
       "notes":"Phase 2 structured events implemented - emits TASK_START/END, CHILD_TASK_START/END/ERROR for all 5 child tasks"
     },
 
@@ -518,6 +632,7 @@
     },
 
     "updateAllScoresForSingleCustomer": {
+      "resourceClass": "neo4j-heavy",
       "name": "Update All Scores For Single Customer",
       "categories": ["customer", "algorithms"],
       "description": "Updates all trust scores for a single customer",
@@ -551,12 +666,22 @@
       "timeout": "4 hours",
       "retries": 3,
       "structuredLogging": true,
-      "options":{},
+      "options": {
+        "completion": {
+          "failure": {
+            "timeout": {
+              "comments": "14400000 = 4 hours. Matches updateAllScoresForOwner's override; honors the legacy `timeout: \"4 hours\"` decorative field above (never actually parsed pre-fix). Per-customer scope means it can run frequently — per-fire timeout protection is load-bearing.",
+              "duration": 14400000
+            }
+          }
+        }
+      },
       "notes":"Phase 2 structured events implemented - emits TASK_START/END, CHILD_TASK_START/END/ERROR for all 5 child tasks"
     },
 
     "calculateOwnerGrapeRank": {
       "name": "Calculate Owner GrapeRank",
+      "resourceClass": "neo4j-heavy",
       "categories": ["algorithms", "owner"],
       "description": "Calculates personalized GrapeRank scores for the instance owner",
       "scripts": [
@@ -579,6 +704,7 @@
     },
 
     "calculateCustomerGrapeRank": {
+      "resourceClass": "neo4j-heavy",
       "name": "Calculate Customer GrapeRank",
       "categories": ["algorithms", "customer"],
       "description": "Calculates personalized GrapeRank scores for a specific customer",
@@ -610,6 +736,7 @@
 
     "calculateOwnerPageRank": {
       "name": "Calculate Owner PageRank",
+      "resourceClass": "neo4j-heavy",
       "categories": ["algorithms", "owner"],
       "description": "Calculates personalized PageRank scores for the instance owner",
       "scripts": [
@@ -629,6 +756,7 @@
     },
 
     "calculateCustomerPageRank": {
+      "resourceClass": "neo4j-heavy",
       "name": "Calculate Customer PageRank",
       "categories": ["algorithms", "customer"],
       "description": "Calculates personalized PageRank scores for a customer",
@@ -653,6 +781,7 @@
 
     "calculateOwnerHops": {
       "name": "Calculate Owner Hops (Frontier)",
+      "resourceClass": "neo4j-heavy",
       "categories": ["algorithms", "owner"],
       "description": "Calculates hop distances from the instance owner using frontier-based BFS — only scans each hop level's edges, not the entire graph",
       "scripts": [
@@ -673,6 +802,7 @@
     },
 
     "calculateCustomerHops": {
+      "resourceClass": "neo4j-heavy",
       "name": "Calculate Customer Hops",
       "categories": ["algorithms", "customer"],
       "description": "Calculates hop distances for a specific customer",
@@ -695,6 +825,7 @@
     },
 
     "processCustomerFollowsMutesReports": {
+      "resourceClass": "neo4j-heavy",
       "name": "Process Customer Follows Mutes Reports",
       "categories": ["algorithms", "customer"],
       "description": "Processes follows, mutes, and reports data for a specific customer",
@@ -725,6 +856,7 @@
     },
 
     "calculateVerifiedFollowerCounts": {
+      "resourceClass": "neo4j-heavy",
       "name": "Calculate Verified Follower Counts",
       "categories": ["algorithms", "customer"],
       "description": "Calculates verified follower counts for a specific customer",
@@ -748,6 +880,7 @@
     },
 
     "calculateVerifiedMuterCounts": {
+      "resourceClass": "neo4j-heavy",
       "name": "Calculate Verified Muter Counts",
       "categories": ["algorithms", "customer"],
       "description": "Calculates verified muter counts for a specific customer",
@@ -771,6 +904,7 @@
     },
 
     "calculateVerifiedReporterCounts": {
+      "resourceClass": "neo4j-heavy",
       "name": "Calculate Verified Reporter Counts",
       "categories": ["algorithms", "customer"],
       "description": "Calculates verified reporter counts for a specific customer",
@@ -794,6 +928,7 @@
     },
 
     "calculateFollowerInputs": {
+      "resourceClass": "neo4j-heavy",
       "name": "Calculate Follower Inputs",
       "categories": ["algorithms", "customer"],
       "description": "Calculates follower inputs for a specific customer",
@@ -817,6 +952,7 @@
     },
 
     "calculateMuterInputs": {
+      "resourceClass": "neo4j-heavy",
       "name": "Calculate Muter Inputs",
       "categories": ["algorithms", "customer"],
       "description": "Calculates muter inputs for a specific customer",
@@ -840,6 +976,7 @@
     },
 
     "calculateReporterInputs": {
+      "resourceClass": "neo4j-heavy",
       "name": "Calculate Reporter Inputs",
       "categories": ["algorithms", "customer"],
       "description": "Calculates reporter inputs for a specific customer",
@@ -863,6 +1000,7 @@
     },
 
     "processOwnerFollowsMutesReports": {
+      "resourceClass": "neo4j-heavy",
       "name": "Process Owner Follows Mutes Reports",
       "categories": ["algorithms", "owner"],
       "description": "Processes follows, mutes, and reports data for the instance owner",
@@ -883,6 +1021,7 @@
     },
 
     "calculateReportScores": {
+      "resourceClass": "neo4j-heavy",
       "name": "Calculate Report Scores",
       "categories": ["algorithms", "owner"],
       "description": "Calculates report scores for the system",
@@ -1026,6 +1165,7 @@
     },
 
     "npubManager": {
+      "resourceClass": "neo4j-heavy",
       "name": "Npub Manager",
       "categories": ["maintenance"],
       "description": "Ensures all NostrUser nodes have npub properties",
@@ -1087,6 +1227,7 @@
     },
 
     "updateNpubsInNeo4j": {
+      "resourceClass": "neo4j-heavy",
       "name": "Update Npubs In Neo4j",
       "categories": ["maintenance"],
       "description": "Updates Neo4j nodes with generated npubs",
@@ -1300,8 +1441,7 @@
         "completion": {
           "failure": {
             "timeout": {
-              "duration": 600000,
-              "forceKill": false
+              "duration": 600000
             }
           }
         }
@@ -1329,8 +1469,7 @@
         "completion": {
           "failure": {
             "timeout": {
-              "duration": 600000,
-              "forceKill": false
+              "duration": 600000
             }
           }
         }
@@ -1358,8 +1497,7 @@
         "completion": {
           "failure": {
             "timeout": {
-              "duration": 600000,
-              "forceKill": false
+              "duration": 600000
             }
           }
         }

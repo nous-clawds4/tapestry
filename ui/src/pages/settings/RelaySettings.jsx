@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import AddOrEditEntryModal from './scheduledTasks/AddOrEditEntryModal.jsx';
 
 const RELAY_GROUPS = [
   { key: 'aProfileRelays', label: 'Profile Relays', hint: 'Kind 0 profiles (purplepag.es, etc.)', restart: false },
@@ -1385,51 +1386,55 @@ function HousePovUnconfiguredBanner() {
   );
 }
 
-// Reusable card for one taskId. Renders toggle + days/hours inputs +
-// timer status + recent-runs table, all scoped to the given task.
-function ScheduledTaskCard({ taskId, title, hint, banner = null }) {
-  const [status, setStatus] = useState(null);
+// Per-entry card (story #24 / ADR 0021): renames from ScheduledTaskCard
+// and takes the full `entry` object instead of just a taskId. Multi-entry-
+// per-task UX — Alice and Bob each get their own card on the processCustomer
+// queue.
+function ScheduledEntryCard({ entry, displayTitle, onEdit, onDelete, banner = null }) {
+  const taskId = entry.taskId;
+  const title = displayTitle || entry.label || taskId;
   const [runs, setRuns] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loadingHistory, setLoadingHistory] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState(null);
   const [error, setError] = useState(null);
-  const [enabled, setEnabled] = useState(false);
-  const [days, setDays] = useState(0);
-  const [hours, setHours] = useState(24);
+  const [enabled, setEnabled] = useState(entry.enabled);
+  const [days, setDays] = useState(entry.intervalDays || 0);
+  const [hours, setHours] = useState(entry.intervalHours || 0);
+  const [minutes, setMinutes] = useState(entry.intervalMinutes || 0);
+  const [cron, setCron] = useState(entry.cron || '');
+  const [timer, setTimer] = useState(entry.timer || { active: false, nextRunAt: null, lastRunAt: null });
 
   function flash(msg) { setMessage(msg); setTimeout(() => setMessage(null), 4000); }
   function flashError(msg) { setError(msg); setTimeout(() => setError(null), 5000); }
 
-  const fetchStatus = useCallback(async () => {
-    try {
-      const res = await fetch(`/api/scheduled-tasks/status?taskId=${encodeURIComponent(taskId)}`);
-      const data = await res.json();
-      if (data.success) {
-        setStatus(data);
-        setEnabled(data.schedule.enabled);
-        setDays(data.schedule.intervalDays);
-        setHours(data.schedule.intervalHours);
-      }
-    } catch (err) { flashError(err.message); }
-  }, [taskId]);
-
   const fetchHistory = useCallback(async () => {
     try {
-      const res = await fetch(`/api/scheduled-tasks/history?taskId=${encodeURIComponent(taskId)}`);
+      const res = await fetch(`/api/scheduled-tasks/history?entryId=${encodeURIComponent(entry.id)}`);
       const data = await res.json();
       if (data.success) setRuns(data.runs);
     } catch (err) { console.error('Error fetching history:', err); }
-  }, [taskId]);
+  }, [entry.id]);
 
   useEffect(() => {
-    Promise.all([fetchStatus(), fetchHistory()]).finally(() => setLoading(false));
-  }, [fetchStatus, fetchHistory]);
+    fetchHistory().finally(() => setLoadingHistory(false));
+  }, [fetchHistory]);
+
+  // Refresh local form state when the parent passes in a refreshed entry
+  // (e.g., after a successful modal save → list refetch).
+  useEffect(() => {
+    setEnabled(entry.enabled);
+    setDays(entry.intervalDays || 0);
+    setHours(entry.intervalHours || 0);
+    setMinutes(entry.intervalMinutes || 0);
+    setCron(entry.cron || '');
+    setTimer(entry.timer || { active: false, nextRunAt: null, lastRunAt: null });
+  }, [entry]);
 
   async function handleSave() {
-    const totalHours = (parseInt(days) || 0) * 24 + (parseInt(hours) || 0);
-    if (enabled && totalHours < 1) {
-      flashError('Minimum interval is 1 hour');
+    const totalMin = (parseInt(days) || 0) * 1440 + (parseInt(hours) || 0) * 60 + (parseInt(minutes) || 0);
+    if (enabled && !cron.trim() && totalMin <= 0) {
+      flashError('Enabled schedule needs a cron expression or a positive interval');
       return;
     }
     setSaving(true);
@@ -1437,12 +1442,18 @@ function ScheduledTaskCard({ taskId, title, hint, banner = null }) {
       const res = await fetch('/api/scheduled-tasks/update', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ taskId, enabled, intervalDays: parseInt(days) || 0, intervalHours: parseInt(hours) || 0 }),
+        body: JSON.stringify({
+          entryId: entry.id, enabled,
+          intervalDays: parseInt(days) || 0,
+          intervalHours: parseInt(hours) || 0,
+          intervalMinutes: parseInt(minutes) || 0,
+          cron: cron.trim(),
+        }),
       });
       const data = await res.json();
       if (data.success) {
         flash(data.message);
-        setStatus({ schedule: data.schedule, timer: data.timer });
+        if (data.timer) setTimer(data.timer);
       } else {
         flashError(data.error || 'Failed to update');
       }
@@ -1467,8 +1478,6 @@ function ScheduledTaskCard({ taskId, title, hint, banner = null }) {
     return new Date(iso).toLocaleString();
   }
 
-  if (loading) return <div style={{ padding: '2rem', textAlign: 'center', color: '#888' }}>Loading {title}…</div>;
-
   return (
     <>
       {message && (
@@ -1486,9 +1495,45 @@ function ScheduledTaskCard({ taskId, title, hint, banner = null }) {
 
       {/* Schedule Control */}
       <div className="settings-group" style={{ padding: '1rem', marginBottom: '1rem' }}>
-        <h3 style={{ margin: '0 0 0.75rem', fontSize: '1rem' }}>{title}</h3>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem', gap: '0.5rem', flexWrap: 'wrap' }}>
+          <h3 style={{ margin: 0, fontSize: '1rem' }}>{title}</h3>
+          <div style={{ display: 'flex', gap: '0.4rem' }}>
+            {onEdit && (
+              <button className="btn-small" onClick={() => onEdit(entry)} style={{ fontSize: '0.8rem', padding: '0.2rem 0.5rem' }}>
+                Edit
+              </button>
+            )}
+            {onDelete && (
+              <button className="btn-small" onClick={() => onDelete(entry)} style={{ fontSize: '0.8rem', padding: '0.2rem 0.5rem' }}>
+                Delete
+              </button>
+            )}
+          </div>
+        </div>
 
-        {hint && <p style={{ fontSize: '0.85rem', color: '#aaa', margin: '0 0 0.75rem' }}>{hint}</p>}
+        {/* Args summary — story #24 AC-5 "Each entry has a recognizable label that exposes its arguments". */}
+        {entry.args && Object.keys(entry.args).length > 0 && (
+          <div style={{ fontSize: '0.8rem', color: '#aaa', marginBottom: '0.5rem' }}>
+            <strong>Args:</strong>{' '}
+            {Object.entries(entry.args).map(([k, v]) => {
+              if (k === 'customer' && typeof v === 'string' && v.length === 64) {
+                return `${k}=${v.slice(0, 8)}…${v.slice(-4)}`;
+              }
+              return `${k}=${v}`;
+            }).join(', ')}
+          </div>
+        )}
+
+        {/* lastError banner — story #24 AC-10 "Deleted-customer warning". Surfaces
+            entry.lastError set by entryResolver.disableEntryWithError on auto-disable. */}
+        {entry.lastError && (
+          <div style={{ padding: '0.5rem 0.75rem', marginBottom: '0.5rem', borderRadius: '4px',
+            backgroundColor: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', color: '#ef4444', fontSize: '0.8rem' }}>
+            ⚠️ <strong>{entry.lastError.code}</strong>: {entry.lastError.message}
+            {entry.lastError.code === 'CUSTOMER_NOT_FOUND' && <> — Customer no longer exists. Edit this entry to pick a new customer, or delete it.</>}
+          </div>
+        )}
+
         {banner}
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '0.75rem' }}>
@@ -1514,36 +1559,56 @@ function ScheduledTaskCard({ taskId, title, hint, banner = null }) {
                 backgroundColor: 'rgba(0,0,0,0.3)', color: '#e0e0e0', fontSize: '0.85rem', textAlign: 'center' }} />
             <span style={{ fontSize: '0.85rem', color: '#aaa' }}>hours</span>
           </label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+            <input type="number" min="0" max="59" value={minutes}
+              onChange={e => setMinutes(e.target.value)}
+              style={{ width: '3.5rem', padding: '0.3rem 0.5rem', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.15)',
+                backgroundColor: 'rgba(0,0,0,0.3)', color: '#e0e0e0', fontSize: '0.85rem', textAlign: 'center' }} />
+            <span style={{ fontSize: '0.85rem', color: '#aaa' }}>min</span>
+          </label>
           <button className="btn-small" onClick={handleSave} disabled={saving}
             style={{ padding: '0.3rem 0.75rem', fontSize: '0.85rem' }}>
             {saving ? 'Saving...' : 'Save'}
           </button>
         </div>
 
-        {/* Timer status */}
+        {/* Cron (overrides the interval when set) */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem', flexWrap: 'wrap' }}>
+          <span style={{ fontSize: '0.85rem', color: '#aaa' }}>or cron:</span>
+          <input type="text" value={cron} placeholder="e.g. 0 4 * * 0"
+            onChange={e => setCron(e.target.value)}
+            style={{ width: '12rem', padding: '0.3rem 0.5rem', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.15)',
+              backgroundColor: 'rgba(0,0,0,0.3)', color: '#e0e0e0', fontSize: '0.85rem' }} />
+          <span style={{ fontSize: '0.75rem', color: '#777' }}>(cron overrides the interval)</span>
+        </div>
+
+        {/* Timer status — per-entry (story #24 AC-13). */}
         <div style={{ fontSize: '0.85rem', color: '#888', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
           <div>
             <span style={{ width: 10, height: 10, borderRadius: '50%', display: 'inline-block', marginRight: '0.4rem',
-              backgroundColor: status?.timer?.active ? '#22c55e' : '#666' }} />
-            {status?.timer?.active
-              ? <>Scheduler active — next run: <strong style={{ color: '#e0e0e0' }}>{formatTime(status.timer.nextRunAt)}</strong></>
+              backgroundColor: timer.active ? '#22c55e' : '#666' }} />
+            {timer.active
+              ? <>Scheduler active — next run: <strong style={{ color: '#e0e0e0' }}>{formatTime(timer.nextRunAt)}</strong></>
               : 'Scheduler not active'}
           </div>
-          {status?.timer?.lastRunAt && (
+          {timer.lastRunAt && (
             <div style={{ marginLeft: '1.1rem' }}>
-              Last triggered: <strong style={{ color: '#e0e0e0' }}>{formatTime(status.timer.lastRunAt)}</strong>
+              Last triggered: <strong style={{ color: '#e0e0e0' }}>{formatTime(timer.lastRunAt)}</strong>
             </div>
           )}
         </div>
       </div>
 
-      {/* Execution History */}
+      {/* Execution History — task-keyed; multi-entry-per-task entries share this list (ADR 0021 documented constraint). */}
       <div className="settings-group" style={{ padding: '1rem', marginBottom: '1rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
           <h3 style={{ margin: 0, fontSize: '1rem' }}>Recent Runs ({title})</h3>
           <button className="btn-small" onClick={fetchHistory} style={{ fontSize: '0.8rem', padding: '0.2rem 0.5rem' }}>
             Refresh
           </button>
+        </div>
+        <div style={{ fontSize: '0.75rem', color: '#888', marginBottom: '0.5rem', fontStyle: 'italic' }}>
+          Note: history is reported per task, not per entry. Entries sharing a taskId share this list.
         </div>
 
         {runs.length === 0 ? (
@@ -1586,32 +1651,182 @@ function ScheduledTaskCard({ taskId, title, hint, banner = null }) {
   );
 }
 
+// Story #4 continuity: preserve the exact UI titles for the two migrated
+// legacy entries. The auto-generated label from registry.tasks[taskId].name
+// would otherwise drift from the established operator-facing copy.
+const LEGACY_TITLE_OVERRIDES = {
+  'legacy:updateAllScoresForOwner': 'Update All Scores for Owner',
+  'legacy:refreshSearchIndex':      'Refresh Meilisearch profiles & House PoV scores',
+};
+
+// Per-entry panel (story #24 / ADR 0021). Lists every scheduled entry from
+// /api/scheduled-tasks/list, with the option to add new ones via the
+// AddOrEditEntryModal. Cross-references /api/get-customers at render time
+// to (a) derive fresh display labels for customer-task entries when the
+// operator hasn't customized the label (Q4), and (b) flag orphan entries
+// whose customer was deleted (Q2 — render-time UI badge, complementing
+// the fire-time auto-disable in entryResolver).
 function ScheduledTasksPanel() {
+  const [entries, setEntries] = useState(null);
+  const [customers, setCustomers] = useState([]);
+  const [error, setError] = useState(null);
+  const [editingEntry, setEditingEntry] = useState(null); // null | 'new' | <entry object>
+
+  const fetchList = useCallback(async () => {
+    try {
+      const res = await fetch('/api/scheduled-tasks/list');
+      const data = await res.json();
+      if (data.success) setEntries(data.entries || []);
+      else setError(data.error || 'Failed to load scheduled entries');
+    } catch (e) {
+      setError(e.message);
+    }
+  }, []);
+
+  // Fetch the customer list for client-side display-label derivation +
+  // deleted-customer badge cross-check (story #24 AC-5 + AC-10; T33).
+  const fetchCustomers = useCallback(async () => {
+    try {
+      const res = await fetch('/api/get-customers');
+      const data = await res.json();
+      setCustomers(Array.isArray(data.customers) ? data.customers : []);
+    } catch (e) {
+      console.error('ScheduledTasksPanel: /api/get-customers failed:', e);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchList();
+    fetchCustomers();
+  }, [fetchList, fetchCustomers]);
+
+  // Build a pubkey → customer lookup for fast cross-checks.
+  const customerByPubkey = customers.reduce((acc, c) => {
+    if (c && c.pubkey) acc[c.pubkey] = c;
+    return acc;
+  }, {});
+
+  // Display-label derivation per ADR 0021 §Q4. Order of precedence:
+  //   1. LEGACY_TITLE_OVERRIDES (story #4 continuity for the two migrated entries)
+  //   2. Operator-customized entry.label — anything different from the
+  //      auto-default task name (which is what handleCreate stores when the
+  //      operator didn't type a label). ADR §Q4: "the stored entry.label
+  //      is only used when the operator explicitly set it."
+  //   3. Auto-derived "<task name> — <current customer name>" from the live
+  //      customer list — so renames surface on next refresh.
+  //   4. entry.label fallback (the auto-default task name) when the customer
+  //      isn't in the customer list (orphan / not-yet-loaded — the orphan
+  //      badge surfaces this case separately).
+  //   5. entry.taskId as last resort.
+  function computeDisplayTitle(entry) {
+    if (LEGACY_TITLE_OVERRIDES[entry.id]) return LEGACY_TITLE_OVERRIDES[entry.id];
+    const taskName = entry.taskName || entry.taskId;
+    // Operator-customized: entry.label exists AND doesn't match the default
+    // auto-fill that handleCreate writes (which is registry.tasks[taskId].name).
+    const isCustomLabel = entry.label && entry.label !== taskName;
+    if (isCustomLabel) return entry.label;
+    if (entry.args && entry.args.customer && customerByPubkey[entry.args.customer]) {
+      return `${taskName} — ${customerByPubkey[entry.args.customer].name}`;
+    }
+    return entry.label || entry.taskId;
+  }
+
+  // Render-time orphan check (T33). True when a customer-task entry's
+  // pubkey doesn't appear in the live customer list.
+  function isOrphanCustomer(entry) {
+    return !!(entry.args && entry.args.customer && customers.length > 0 && !customerByPubkey[entry.args.customer]);
+  }
+
+  function renderBannerFor(entry) {
+    const banners = [];
+    if (entry.taskId === 'refreshSearchIndex') {
+      banners.push(<HousePovUnconfiguredBanner key="house-pov" />);
+    }
+    if (isOrphanCustomer(entry) && !entry.lastError) {
+      banners.push(
+        <div key="orphan" style={{
+          padding: '0.5rem 0.75rem', marginBottom: '0.75rem', borderRadius: '6px',
+          backgroundColor: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)',
+          color: '#f59e0b', fontSize: '0.85rem',
+        }}>
+          ⚠️ Customer no longer exists in /api/get-customers — this entry will auto-disable on its next fire. Edit to pick a new customer or delete it.
+        </div>
+      );
+    }
+    return banners.length > 0 ? <>{banners}</> : null;
+  }
+
+  async function handleDelete(entry) {
+    const force = !!entry.enabled;
+    const msg = force
+      ? `Entry "${entry.label || entry.taskId}" is enabled — force-delete anyway?`
+      : `Delete entry "${entry.label || entry.taskId}"?`;
+    if (typeof window !== 'undefined' && !window.confirm(msg)) return;
+    try {
+      const res = await fetch('/api/scheduled-tasks/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ entryId: entry.id, force }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        fetchList();
+      } else if (typeof window !== 'undefined') {
+        window.alert(data.error || 'Failed to delete');
+      }
+    } catch (e) {
+      if (typeof window !== 'undefined') window.alert(e.message);
+    }
+  }
+
+  if (error) {
+    return <div className="settings-section"><h2>📅 Scheduled Tasks</h2>
+      <div style={{ color: '#ef4444', fontSize: '0.85rem' }}>{error}</div></div>;
+  }
+  if (entries === null) {
+    return <div className="settings-section"><h2>📅 Scheduled Tasks</h2>
+      <div style={{ color: '#888', padding: '1rem' }}>Loading scheduled entries…</div></div>;
+  }
+
   return (
     <div className="settings-section">
       <h2>📅 Scheduled Tasks</h2>
       <p className="settings-hint">
-        Configure recurring background tasks. Each task below has its own enable toggle and schedule.
+        Schedule any parameterized task — including <code>processCustomer</code> per customer on independent cadences.
+        Each entry has its own enable toggle, schedule (interval or cron, down to minutes), and arguments.
       </p>
 
-      <ScheduledTaskCard
-        taskId="updateAllScoresForOwner"
-        title="Update All Scores for Owner"
-        hint={<>Run the full WoT score update pipeline (<code>updateAllScoresForOwner</code>) on a recurring schedule. Includes GrapeRank, PageRank, follower/muter/reporter counts, and kind 30382 event publishing.</>}
-      />
+      <div style={{ marginBottom: '1rem' }}>
+        <button className="btn-small" onClick={() => setEditingEntry('new')}
+          style={{ padding: '0.4rem 0.75rem', fontSize: '0.9rem' }}>
+          + Add Scheduled Entry
+        </button>
+      </div>
 
-      <ScheduledTaskCard
-        taskId="refreshSearchIndex"
-        title="Refresh Meilisearch profiles & House PoV scores"
-        hint={<>Refresh kind-0 profile data in Meilisearch and, when House PoV is configured, reload House's WoT scores from the latest kind 30382 Trusted Assertions.</>}
-        banner={<HousePovUnconfiguredBanner />}
-      />
+      {entries.length === 0 ? (
+        <p style={{ color: '#888', fontSize: '0.85rem' }}>
+          No scheduled entries yet — use “Add Scheduled Entry” above to create one.
+        </p>
+      ) : (
+        entries.map((entry) => (
+          <ScheduledEntryCard
+            key={entry.id}
+            entry={entry}
+            displayTitle={computeDisplayTitle(entry)}
+            onEdit={() => setEditingEntry(entry)}
+            onDelete={() => handleDelete(entry)}
+            banner={renderBannerFor(entry)}
+          />
+        ))
+      )}
 
-      <ScheduledTaskCard
-        taskId="refreshPinnedTagTLs"
-        title="Pinned-tag Trusted List refresh"
-        hint={<>Periodically generate a NIP-85 Trusted List (kind 30392) for every pinned tag, computed under that pin's observer POV using the pin's curation-method. v1 supports <code>nip85:rank</code> only; other methods are skipped.</>}
-      />
+      {editingEntry && (
+        <AddOrEditEntryModal
+          entry={editingEntry === 'new' ? null : editingEntry}
+          onClose={() => setEditingEntry(null)}
+          onSaved={() => { setEditingEntry(null); fetchList(); }}
+        />
+      )}
     </div>
   );
 }

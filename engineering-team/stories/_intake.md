@@ -70,6 +70,608 @@ Append-only log of incoming requests, raw, with classification and chosen phase 
 
 ---
 
+## 2026-05-17 — Bug: unauthenticated NIP-05 verification is a constrained SSRF surface
+
+**Raw request (verbatim):**
+
+> Repo: /Users/clawds4/repos/nous-clawds4/tapestry (Tapestry / brainstorm.world). This is a security follow-up surfaced during the Story #6 review (engineering-team/reviews/6-nip05-checkmark-verification.md, "Non-blocking #1").
+>
+> Problem: NIP-05 verification fetches `https://<domain>/.well-known/nostr.json` where `<domain>` is parsed from user-supplied input by the regex `/^(?:([\w.+-]+)@)?([\w_-]+(\.[\w_-]+)+)$/`. That domain group matches IP literals and internal names (e.g. `169.254.169.254`, `10.0.0.5`, `db.internal`), so the server can be induced to make requests to internal/link-local/loopback hosts — a Server-Side Request Forgery surface.
+>
+> There are THREE byte-identical copies of this fetch logic: (1) `src/api/nip05.js` `verifyNip05Identifier()` via the NEW unauthenticated `GET /api/nip05/verify`; (2) `src/api/search/profiles/meili/index.js` `verifyNip05()` via the public search path; (3) `src/api/admin/index.js` `verifyNip05()`, owner-gated.
+>
+> Current partial mitigations: scheme hardcoded `https://`, 5s timeout, fetched body never returned (boolean / resolved pubkey only). Still a constrained SSRF/oracle.
+>
+> Asks: (1) one shared SSRF guard imported by all three call sites, rejecting BEFORE fetch when the domain resolves to a private/link-local/loopback/non-public address — resolve the hostname and check resolved IP(s), fail closed. (2) Decide+implement whether `GET /api/nip05/verify` should be rate-limited; follow an existing repo pattern or note explicitly none exists rather than invent one. (3) `npm test` + a focused test asserting the guard rejects an internal/link-local host (hand-rolled runner). (4) Treat as a Bug; follow harness phases (PO → Tester → Implementer → Reviewer; Architecture skippable if obvious) with human approval gates; branch off `staging` (`fix/* → staging → main`); do NOT bundle with Story #6's `fix/nip05-verification`.
+
+**Pre-intake findings captured during triage:**
+
+- `origin/staging` already contains Story #6's merged fix (PR #154, `27f009a9`); the three NIP-05 files are byte-identical between `origin/staging` and `fix/nip05-verification`. Branching `fix/nip05-ssrf-guard` off `origin/staging` bases this on the merged #6 work without bundling into #6's branch.
+- **No rate-limiting infrastructure exists anywhere in the repo**: no `express-rate-limit`/`express-slow-down`/`axios`/`got` dependency (only `express`), and no `rate.?limit` / `429` / `throttl` reference in `src/`. Every other public endpoint (`/.well-known/nostr.json`, `/api/search/profiles/meili`, the unauthenticated `/api/auth/*`) is unthrottled.
+- `undici` is **not** a resolvable direct dependency; Node is v22 with working core `dns.promises` + `net.isIP`.
+
+**Architect's call (recorded inline — Architecture phase skipped per Standard/Bug, well-known guard pattern, no ADR):**
+
+1. **Guard mechanism (no new deps).** New shared helper `src/utils/ssrfGuard.js` (sibling to the existing cross-cutting `src/utils/taskTimeout.js`). It takes the parsed `domain` and, *before* any fetch: if the host is an IP literal (`net.isIP > 0`), classify it directly; otherwise `dns.promises.lookup(host, { all: true })` and inspect every resolved address. Reject (the helper's failure return) if the host is empty, unresolvable, or any address falls in a non-public range — IPv4 `0/8 10/8 100.64/10 127/8 169.254/16 172.16/12 192.0.0/24 192.0.2/24 192.168/16 198.18/15 198.51.100/24 203.0.113/24 224/4 240/4 255.255.255.255`; IPv6 `:: ::1 fe80::/10 fc00::/7 ff00::/8`, plus IPv4-mapped (`::ffff:a.b.c.d`) unwrapped and re-checked. Fail closed: any error/empty → reject, mirroring the existing `catch { return null }` contract so each call site's downstream semantics (`verified:false` / lookup-failed) are unchanged.
+2. **Consolidate only the guard, not the whole helper.** The three `verifyNip05*` copies stay where they are (consolidating them is a larger refactor, out of scope and explicitly resisted in the #6 review); each gains one early call to the shared guard before its `fetch`.
+3. **Residual DNS-rebinding TOCTOU — accepted, documented, NOT scope-crept.** Resolve-then-fetch leaves a re-resolution gap (guard sees a public IP; `fetch` re-resolves to an internal one). Closing it airtight requires pinning the vetted IP into the socket via a custom `undici` dispatcher = a **new dependency** + larger change. Decision: out of scope here. The gap stays materially constrained by the *unchanged* existing mitigations (https-only scheme, 5s timeout, body never returned → at most a boolean existence/timing oracle, never content exfiltration) — i.e. exactly the "constrained oracle" posture the #6 review already accepted as non-blocking. The guard still removes the *entire* trivial direct-literal / stable-internal-name SSRF (`169.254.169.254`, `10.0.0.5`, `db.internal`), which is the actual ask. Recommend the pinned-resolution hardening (evaluate an `undici` dep) as a **separate** follow-up; flag candidly at the Planning gate.
+4. **Rate limiting (ask #2) — decision: do NOT add; note explicitly.** No rate-limiting pattern exists repo-wide to follow, and the task instruction is explicit: "if none exists, note that explicitly rather than inventing one." Adding a new throttling middleware/dependency is a cross-cutting concern (every unauthenticated endpoint shares the gap, not just this one) that, by the spirit of the "no new tooling without an ADR" house rule and the user's standing anti-scope-bundling preference, must be ratified separately rather than folded into an SSRF bugfix. The SSRF guard itself removes the *amplification-into-internal-targets* value of hammering the endpoint. Recommend a separate follow-up story for org-wide public-endpoint rate limiting; surface this as a resolved-at-approval open question in the story for the user to ratify or redirect at the Planning gate.
+
+**Scope confirmed (from the request):**
+
+- Branch `fix/nip05-ssrf-guard` off `origin/staging`; do not touch `fix/nip05-verification`.
+- Full Bug chain minus Architecture: Planning → Test Design → Implementation → Review, human gate at each phase boundary. Architecture skipped, Architect's call recorded inline above (precedent: strfry-router-first-boot, story #5).
+- New shared helper + 3 one-line call-site additions. One behavioral unit test in `test/`, registered in `test/test.js`.
+
+**Classification:** Bug
+**Strictness:** Standard
+**Phase path:** Planning → Test Design → Implementation → Review (Architecture skipped — well-known SSRF-guard pattern, unambiguous root cause; intake captures the Architect's call inline above. Unlike the strfry-router Bug this one keeps Planning + Test Design: 3 call sites + a new shared helper + a security contract warrant a story and a real behavioral test, and the user explicitly requested the PO→Tester→Implementer→Reviewer chain.)
+
+---
+
+## 2026-05-19 — Bug: graperank shared CSV race blocks concurrent customer recalcs
+
+**Raw request (verbatim, distilled from multi-turn conversation):**
+
+> Eventually, I am going to want to schedule routine tasks, such as recalculation of graperank scores for multiple customers, and we need to deal with the scenario of multiple tasks being scheduled at the same or almost the same time. For this, I think we need a task queue.
+>
+> [After audit of trigger surfaces, concurrency guard, and queue absence:] Yes, ready to write both of those specs. [Phase 1 first; per-customer key = pubkey; graperank race goes first as a separate spec since fixing the race independently de-risks phase 1.]
+
+**Pre-intake findings:**
+
+- Audit identified four task-trigger surfaces (Scheduled Tasks UI, legacy Task Explorer, direct `/api/run-task`, systemd `.timer` units) all converging on `launchChildTask.sh`. Concurrency is enforced only by a `pgrep` + per-task `killPreexisting`/`launchNew` policy. No durable queue.
+- Initial assumption was that `src/algos/personalizedGrapeRank/calculatePersonalizedGrapeRank.sh` was the relevant graperank script. Correction during intake: that script is owner-scoped (takes no args, hardcoded to `BRAINSTORM_OWNER_PUBKEY`). The customer-aware script — `src/algos/customers/personalizedGrapeRank/personalizedGrapeRank.sh`, registered as `calculateCustomerGrapeRank` in `taskRegistry.json` — is the one that will be scheduled per-customer.
+- Customer-specific outputs (scorecards, Neo4j writes scoped by `observer_pubkey`, logs under `/var/lib/brainstorm/customers/<CUSTOMER_NAME>/`) are already correctly namespaced.
+- The race is narrowly scoped to the **first phase** of the customer-aware script (lines 78–146), which deliberately shares CSV files at `/var/lib/brainstorm/algos/personalizedGrapeRank/tmp/` across all customer runs with a "files exist → skip init" check. Two concurrent customer runs can either both init at the same time, or one can read partially-written CSVs.
+- The legacy owner-scoped script writes to the same shared paths and `rm -rf`s them at the end. Its lifecycle interleaves with the customer-aware version and is therefore in-scope for this story (fix or retire — Architect's call).
+- The fix is sequenced **before** the BullMQ queue work (story #13) because phase 1's value depends on safely running concurrent per-customer jobs, which the race blocks.
+
+**Clarifications captured in the pre-intake conversation:**
+
+- Per-customer key = customer pubkey (validated by `validateCustomerArguments` in `runTask.js`).
+- Staging strategy: graperank race fix first (small, standalone); BullMQ phase 1 second; phases 2 & 3 deferred to separate stories.
+- The legacy owner-scoped graperank script's status (still in use? retire?) flagged as an open question to resolve before approval.
+
+**Classification:** Bug
+**Strictness:** Standard
+**Phase path:** Planning → Architecture → Test Design → Implementation → Review (Architecture NOT skipped — the fix has real design choices: per-customer CSV paths vs shared-with-lock vs separate refresh task. ADR warranted.)
+
+---
+
+## 2026-05-21 — Cleanup: per-request /etc/brainstorm.conf re-read spam in brainstorm.log
+
+**Surfaced during:** Story #17's staging+prod verification, when checking the BullBoard mount via `docker exec tapestry cat /var/log/supervisor/brainstorm.log`. The tail window was dominated by hundreds of repeated lines:
+
+```
+Reading config for BRAINSTORM_OWNER_PUBKEY from /etc/brainstorm.conf
+Found BRAINSTORM_OWNER_PUBKEY=<64-hex> (quoted)
+```
+
+— two lines per request, fired every time control-panel.js needs the owner pubkey (which appears to be on most authenticated endpoints).
+
+**Symptoms:**
+- Fills `brainstorm.log` with low-signal noise; makes operator debugging harder (real signals get buried).
+- Likely causes a small but unnecessary I/O cost on every authenticated request (parse /etc/brainstorm.conf to extract one value).
+- Pre-existing behavior — observed during story #17 work but **not introduced by stories #13 / #15 / #16 / #17**. The re-read pattern predates the task queue.
+
+**Two plausible fixes (Architect to weigh):**
+1. **Cache the parsed config** in-process on first read; invalidate on SIGHUP or on explicit reload. Eliminates the I/O and the log lines on the hot path.
+2. **Downgrade the logging to debug level** so the lines only appear when explicitly opted into. Keeps the re-read semantics; just stops the noise.
+
+Option 1 is structurally cleaner; option 2 is a one-line fix. Architect's call.
+
+**Out of scope for the immediate triage:**
+- Re-architecting how control-panel.js consumes config more broadly. Just this one variable's read pattern.
+- Touching `lib/config.js` or `brainstormConfig` semantics for any other consumer.
+
+**Classification:** Refactor (cosmetic / log-hygiene; no behavior change for the user, no API contract change)
+**Strictness:** Standard
+**Phase path:** Planning → Architecture (likely brief) → (Test Design optional — if option 2, just a sentinel that the log line isn't emitted at info level; if option 1, a sentinel that `/etc/brainstorm.conf` is parsed at most once per process lifetime) → Implementation → Review
+**Priority:** Low. Captured during the operator's 2026-05-21 plan-of-plans (steps 1 + 2 done, step 3 — this — deliberately deferred). Pick up when operator-experience polish is in season; no urgency.
+
+---
+
+## 2026-05-21 — UX: /relay public HTTP landing page is unhelpful plain-text (+ NIP-11 merge silently incomplete)
+
+**Surfaced during:** Story #19 planning chat. Operator asked why `https://staging.brainstorm.world/relay` shows "Tapestry NIP-50 Relay Proxy - connect via WebSocket" instead of the more useful HTML landing page that most strfry deployments show (e.g., the older Tapestry instance at `wss://straycat.brainstorm.social/relay`).
+
+**Architectural background:**
+- `/relay` routes (via nginx) to a custom NIP-50 search proxy at `nip50-proxy/src/index.js`, NOT directly to strfry. The proxy translates `REQ` messages containing NIP-50 search filters into Meilisearch queries with WoT scoring, and forwards everything else through to strfry on `127.0.0.1:7777`.
+- This proxy is a real differentiator — straycat doesn't have it, so its `/relay` goes straight to strfry's native HTTP face (which serves a default HTML landing page when no `Accept: application/nostr+json` header is present).
+- The current Tapestry proxy was built primarily for WebSocket clients; the HTTP/browser GET case was treated as low-priority. The fallback at [`nip50-proxy/src/index.js:74`](nip50-proxy/src/index.js#L74) just returns plain text.
+
+**Two related issues (one bug + one UX):**
+
+1. **Bug: NIP-11 merge silently drops strfry's native fields.**
+   - `nip50-proxy/src/nip11.js:18-38` fetches strfry's NIP-11 via HTTP to `127.0.0.1:7777` and is supposed to spread its fields into the merged response. But the production response carries ONLY the NIP-50-added fields (`software`, `supported_nips`, `search_capabilities`) — no `name`, `pubkey`, `contact`, `description`, `limitation`, etc.
+   - Direct comparison: straycat's `/relay` NIP-11 includes all the strfry-side fields (e.g., `"contact": "nostr: npub1...", "description": "Brainstorm: a personalized WoT relay featuring the Grapevine", "limitation": { "max_limit": 500, ... }`). Tapestry's `/relay` NIP-11 is missing all of those.
+   - Likely cause: either strfry's HTTP face isn't reachable on `127.0.0.1:7777` from inside the proxy's process, OR the request is silently failing and `fetchStrfryInfo()` falls through to its empty-object fallback at line 37. The function catches errors and logs a warning; check `nip50-proxy.log` for `[nip11] Failed to fetch strfry NIP-11 info` to confirm.
+   - Nostr clients that fetch relay info via NIP-11 currently see an incomplete document. Worth fixing regardless of the UX work.
+
+2. **UX: HTML browser landing page is bare plaintext.**
+   - When a browser GETs `/relay` (i.e., Accept header is `text/html`), the proxy returns one line: `"Tapestry NIP-50 Relay Proxy - connect via WebSocket"`.
+   - A more useful response would be a small HTML page showing: relay name, WebSocket endpoint URL (with copy-to-clipboard hint), supported NIPs (with friendly descriptions especially for the WoT-scored NIP-50 extension Tapestry adds), and possibly a discreet "About this relay" link.
+   - Straycat shows this is the natural expectation — older Tapestry instances inherited strfry's default HTML landing page; the NIP-50 proxy regressed it.
+
+**Out of scope for the immediate triage:**
+- Rewriting the proxy's WebSocket path (works fine).
+- Reorganizing how nginx routes `/relay` (the proxy is the right home; only the HTTP responses need work).
+- Multi-relay or multi-tenant relay-info documents.
+
+**Two plausible fixes for the future story (Architect to weigh):**
+1. **Minimum viable**: fix the NIP-11 merge bug (issue 1) so clients see the full document. Keep the plain-text browser fallback. Stops the bleeding for Nostr clients; punts on the UX work.
+2. **Full UX rebuild**: fix the merge bug AND replace the plain-text fallback with a proper HTML landing page (showing the NIP-11 data in a human-readable form). More work but ships a complete public-facing surface.
+
+The Architect picks the scope when the story gets planned. (1) is genuinely minimum; (2) is the "do it right" path.
+
+**Classification:** Bug (NIP-11 merge) + UX improvement (HTML landing page). Both surfaces are public — anyone on the internet hitting `/relay` sees the result. Not gated to operators.
+**Strictness:** Standard
+**Phase path:** Planning → Architecture → Test Design → Implementation → Review (the merge bug alone might fast-track if the cause is mechanical, but the combined story warrants full harness)
+**Priority:** Low-medium. No Nostr clients are broken (NIP-11 partial document still parses); the relay still works via WebSocket. Worth fixing for relay-discovery hygiene + visitor first-impression, but not blocking any operator workflow.
+
+## 2026-05-21 — Feature: generalized Task Scheduler (BullMQ repeatable jobs) — task-queue phase 2
+
+Replace the in-process `setInterval` scheduler (`src/api/scheduled-tasks/index.js`) with a durable, generalized scheduler built on **BullMQ repeatable/cron jobs**. This is the documented phase 2 of the task queue (story #13).
+
+Why now: story #21 built three manually-triggerable reconciliation tasks (`reconcileRecent`/`reconcileAll`/`reconcileAuthor`) and deliberately did NOT wire any cadence — because the current scheduler can't serve them. Limitations of `src/api/scheduled-tasks/index.js` this would remove:
+- **1-hour minimum interval** (`index.js:258`) — can't do sub-hour.
+- **Hardcoded task set** (`DEFAULTS` = `updateAllScoresForOwner`, `refreshSearchIndex`) — can't schedule arbitrary registered tasks without code edits.
+- **In-process `setInterval`** — dies with the control-panel process; a missed fire is silently skipped (flagged in story #13 background).
+- The only existing sub-hour workaround is a host `systemd` timer, which bypasses the BullMQ queue and the `neo4j-heavy` semaphore.
+
+Target: any registered task schedulable by interval/cron; durable in Redis (survives restarts); routes through the queue (semaphore + BullBoard observability for free); sub-hour intervals. The three reconcile tasks then slot in with no bespoke per-task code — the tasks are already frequency-agnostic by design.
+
+Out of scope: event/dependency-driven triggers (`processAllTasks` already handles chaining); per-customer fan-out scheduling (separate concern).
+
+**Classification:** Feature (task-queue phase 2)
+**Strictness:** Standard
+**Phase path:** Planning → Architecture → Test Design → Implementation → Review
+**Priority:** Medium. Unblocks automated reconciliation cadence and generalizes scheduling for all tasks; until then reconciliation is manual.
+
+## 2026-05-21 — Cleanup: deprecate legacy `reconciliation` task + `reconcile.timer` (superseded by story #21)
+
+Story #21 replaced the single `reconciliation` flow with three explicit task keys. Two now-superseded mechanisms remain for back-compat and should be removed once the new tasks are in routine use:
+
+1. **Legacy `reconciliation` registry key** — retained because `processAllTasks.sh:152` still calls it (now defaults to `--mode recent`). Removal requires deciding whether reconciliation stays in the `processAllTasks` chain (repoint `:152` → `reconcileRecent`) or is decoupled and scheduled independently via the generalized scheduler. Ordering dependency to preserve: reconciliation should run before the owner score calcs so they operate on a synced graph.
+2. **`systemd/reconcile.timer` + `reconcile.service`** — runs `reconciliation.sh` directly every 5 min, bypassing the queue and the `neo4j-heavy` semaphore. Operator reports it has been disabled for a long time. Full removal touches: the unit files; control-panel references (`src/api/export/services/commands/control.js:40`, `queries/status.js:35`); and the sudoers grant (`setup/configure-control-panel-sudo.sh:68-71`).
+
+**Classification:** Refactor / cleanup (removing superseded mechanisms; no new user-facing behavior)
+**Strictness:** Standard
+**Phase path:** Architecture (the `processAllTasks` decoupling decision) → Implementation → Review; the timer-file removal alone could fast-track.
+**Priority:** Low-medium. No correctness issue today; hygiene to avoid two reconciliation paths drifting. Best done alongside or after the generalized scheduler.
+
+## 2026-05-21 — Feature: `reconcileAuthor` trigger surfaces (profile button + API + per-customer scheduling)
+
+Story #21 / ADR 0018 built the `reconcileAuthor` engine mode (`reconciliation.sh --mode author --pubkey <hex>`) but explicitly deferred its trigger surfaces. This story delivers them:
+- A profile-page "reconcile this user" button (frontend).
+- An API endpoint to trigger a single-author reconcile by pubkey (the `--pubkey` value is supplied here; today the registry entry carries only `--mode author`).
+- Optional per-customer scheduling (reconcile customers' authors periodically but not the whole network) — follows the existing `calculateCustomer*` customer-scoped pattern.
+
+Note: `reconcileAuthor` is intentionally NOT `neo4j-heavy` so an interactive trigger stays responsive (never queues behind a sweep).
+
+**Classification:** Feature (UI + API + scheduling)
+**Strictness:** Standard
+**Phase path:** Planning → Architecture → Test Design → Implementation → Review
+**Priority:** Low-medium. The engine works; this is the operator/user-facing surface.
+
+---
+
+## 2026-05-24 — Architecture: `launch_child_task` subshell pattern bypasses BullMQ + `neo4j-heavy` semaphore
+
+**Surfaced during:** story #24 follow-up diagnosis — operator triggered `calculateOwnerPageRank` while `processCustomer` was running and expected the semaphore to serialize them. Neither task appeared in BullBoard's active/waiting states; events.jsonl showed they ran anyway.
+
+**Mechanism (confirmed):** parent task scripts (e.g., `updateAllScoresForOwner.sh`) `source "$BRAINSTORM_MODULE_MANAGE_DIR/taskQueue/launchChildTask.sh"` and call `launch_child_task "<child>" "<parent>" ...` as a shell function. That function runs the child's script directly as a subshell inside the parent's process tree — it does NOT enqueue via BullMQ. So:
+
+- The child's BullMQ Worker callback never runs for parent-driven invocations.
+- The `neo4j-heavy` semaphore wrap (which lives in the Worker callback per `src/manage/taskQueue/queue/index.js:118-131`) is never invoked.
+- Tags on child tasks are dormant on parent-driven paths; they only engage when the child is independently scheduled or manually triggered via `/api/run-task`.
+
+**Practical consequence:** ADR 0013's cross-task serialization is only complete when the **directly-scheduled or `/api/run-task`-triggered** task itself is tagged. Story #24 PR #201 closed this for the immediate operator-reported bug by tagging the orchestrator-level parents (`updateAllScoresForOwner`, `processCustomer`, `processAllActiveCustomers`, etc.) so their wraps hold the semaphore for the whole subshell chain. But the underlying architectural property — "tagging children is dormant on parent-driven paths" — remains.
+
+**Open question for next session:** is the right path forward to (a) accept the current architecture and document it (parent-tag is load-bearing, child-tags are safety nets for ad-hoc runs); (b) refactor parent scripts to invoke children via `/api/run-task` so children flow through BullMQ and get their own Worker callbacks; or (c) something else (e.g., have `launch_child_task` itself acquire the semaphore directly via Redis)? Each option has trade-offs around correctness, structured-logging fidelity, and dev ergonomics.
+
+**Classification:** Architectural follow-up (not a bug per se — the system works correctly, but the semaphore's protection model is more nuanced than ADR 0013's wording suggests).
+**Strictness:** Standard.
+**Phase path:** `/discuss` first to triage the architectural options; then Planning → Architecture → impl as warranted.
+**Priority:** Medium. No active incident; surfaces every time an operator schedules a child task or expects subshell-invoked children to be serialized.
+
+---
+
+## 2026-05-24 — Architecture: BullMQ `jobId` dedup silently blocks manual re-triggers of completed tasks
+
+**Surfaced during:** story #24 follow-up diagnosis — operator manually triggered `calculateOwnerPageRank` via the legacy task explorer expecting BullMQ to enqueue a new job; the queue's only entry was a 3-day-old completed job, no new execution happened.
+
+**Mechanism (confirmed):** per ADR 0012, `jobId = ${taskName}` for non-customer tasks and `${taskName}:${pubkey}` for customer tasks. BullMQ's `queue.add(name, data, { jobId })` semantics are stricter than ADR 0012's text suggested: BullMQ dedups by `jobId` across ALL states including `completed` and `failed`, not just `wait`/`active`. So once a non-customer task has any completed job in the queue with that `jobId`, subsequent `/api/run-task` triggers silently return the existing completed job without creating a new execution. Reproduced live on staging + prod against `calculateOwnerPageRank` (only completed job dates from 2026-05-21 despite multiple subsequent runs visible in `events.jsonl` from subshell invocations).
+
+**Practical consequence:** the runs the operator sees in the legacy task explorer for these tasks today are all subshell invocations from parent scripts (Intake A above); the manual `/api/run-task` path is effectively dead for re-runs of any task that's ever completed via BullMQ. ADR 0012's "dedup is only during wait/active" wording was an incorrect interpretation of BullMQ's actual behavior.
+
+**Three remediation options identified:**
+
+1. **`removeOnComplete: <N>`** (or `true`) on `queue.add` — completed jobs are removed automatically, freeing the jobId for re-add. Recommend `removeOnComplete: 10` so the last 10 stay visible in BullBoard for inspection but re-triggers work. Smallest diff.
+2. **Unique `jobId` per attempt** (e.g., `${taskName}:${Date.now()}` for non-customer, append-suffix for customer). Eliminates dedup entirely. Trade-off: loses the intentional dedup-of-concurrent-identical-fires that ADR 0012 cared about for customer tasks.
+3. **Hybrid** — keep stable jobId during `wait`/`active` (so concurrent identical fires dedup), but compute a fresh jobId once the previous attempt is in `completed`. Requires a small precheck before `queue.add`.
+
+**Classification:** Bug — ADR 0012's documented contract doesn't match observed behavior; operators expect manual re-triggers to work. Likely a small fix (1 ADR amendment + a one-line change to `queue/index.js`).
+**Strictness:** Standard.
+**Phase path:** Architect amends ADR 0012 picking one of the three options; Implementer + Reviewer.
+**Priority:** Medium-high. Limits operator's ability to re-run tasks ad hoc on demand — affects debugging, recovery from failures, and any "I want to fire X now" workflow.
+
+---
+
+## 2026-05-24 — Feature: unified all-tasks timeline UI (cross-queue past + present + future)
+
+**Surfaced during:** `/discuss` triage of Intake B on 2026-05-24. Operator asked: "I'd like to have a single, compact timeline that shows all tasks past, present, and future. Ideally one that I can scroll up and down if there is a lot of data on it. Of course, there will need to be a limit on how long we keep tasks in our logs. But why does BullBoard not have this feature?"
+
+**Mechanism (why the gap exists):** BullBoard's data model is per-queue — list of queues → click into one → see jobs by `wait`/`active`/`completed`/`failed`/`delayed`. With ADR 0012 Option A's per-task-queue topology (54 queues at full enrollment), operators have to click through 54 queues to know "what's been happening." BullBoard's UI was built for the common case of a handful of larger queues; it doesn't accommodate fleets of small per-task queues well, and it has no built-in cross-queue chronological view.
+
+**Existing partial solution to extend or reference:** `src/api/neo4j-health/getTaskTimeline.js` (`GET /api/neo4j-health/task-timeline?hours=24`) already reads `events.jsonl`, builds a chronological timeline, returns it to the Neo4j Performance Metrics dashboard. Currently scoped to ~22 hardcoded "DB-intensive" tasks plotted as colored markers — its purpose is Neo4j context, not general-purpose task visibility. The general-purpose version would generalize this pattern.
+
+**Data sources to merge for the unified view:**
+- **Past** — `events.jsonl` (TASK_START + TASK_END pairs; already structured; bounded by rotation at `BRAINSTORM_EVENTS_MAX_SIZE`).
+- **Present** — across all 54 queues, BullMQ `wait` + `active` lists (one multi-pipelined Redis query keyed by `bull:<task>:*`).
+- **Future** — BullMQ Job Scheduler `delayed` jobs (ADR 0021 already persists these to Redis; per-entry schedulers keyed `sched:${entry.id}`).
+
+**Out of scope for the immediate triage:**
+- Replacing BullBoard. BullBoard stays as the *interactive* surface (pause / retry / inspect / remove a specific queue's state). The new view is the *observation* surface for "what's happening overall."
+- Reverting ADR 0012's per-task-queue topology to single-queue (rejected at the time for good reasons; cross-queue UI is the right answer, not topology change).
+- Subshell-invoked children visibility (overlaps Intake A 2026-05-24 — children that bypass BullMQ won't appear in the "present" view but WILL appear in the "past" view via events.jsonl; this is intentional and Intake A is the right place to triage the root cause).
+
+**Open questions for Planning:**
+1. **Retention policy.** events.jsonl rotates at `BRAINSTORM_EVENTS_MAX_SIZE`; is that the right anchor for "how far back the timeline shows," or should the UI cap at a fixed window (e.g., 7 days) regardless of file size?
+2. **Filtering.** With 54 tasks, even a compact timeline gets busy. Per-task and per-category filters (orchestrator / graph-calc / ranking / monitoring / customer) are likely required; default-on filters worth picking in Planning.
+3. **Where it lives.** Three candidates: (a) new top-level "Admin Tools → Task Activity" page, (b) new tab inside the existing Scheduled Tasks panel, (c) extend the Neo4j Performance Metrics dashboard's timeline (least disruptive but conflates Neo4j context with general visibility). Probably (a).
+4. **Live vs poll.** events.jsonl is append-only on disk; the simplest implementation polls every N seconds. A future SSE/websocket push is nice-to-have but adds infra (gate behind whether polling is operator-visibly laggy).
+
+**Classification:** Feature (operator-experience UI; consolidates several partial surfaces into one).
+**Strictness:** Standard.
+**Phase path:** Planning → Architecture → Test Design → Implementation → Review (all five — UI + new API + cross-source data merge each have real design choices).
+**Priority:** Medium-low. No operator workflow is blocked today (data is reachable via grep + BullBoard + Neo4j Performance dashboard), but the friction is real and recurring. Worth doing once Intake B's task-queue hygiene is settled.
+
+---
+
+## 2026-05-24 — Cleanup: scheduled-fire job retention (`upsertJobScheduler` opts)
+
+**Surfaced during:** story #25 / ADR 0022 implementation on 2026-05-24, as the stretch goal the ADR called out. The Implementer deferred it per the ADR's "Defer if" criteria (the empirical probe + the tester's plan were both scoped to the manual-trigger path; bundling would require extending both).
+
+**Mechanism:** `src/manage/taskQueue/queue/scheduler.js` calls `queue.upsertJobScheduler(schedulerId, repeatOpts, jobTemplate)` (line 91-98) with a `jobTemplate` of `{ name, data }` — no `opts` field. Each scheduled fire is therefore created with BullMQ defaults (`removeOnComplete: false` → `{count: -1}` → keep forever). Unlike the manual-trigger path (story #25's dedup bug), this is NOT a correctness issue — each scheduled fire gets a unique generated jobId (`repeat:<schedulerId>:<timestamp>` or similar), so dedup doesn't bite. But every fire leaves a per-job hash in Redis indefinitely, so memory grows unbounded over months of operation.
+
+**Fix shape (per ADR 0022 §Stretch goal):**
+```js
+await queue.upsertJobScheduler(
+  schedulerId(entry.id),
+  toRepeatOpts(entry),
+  {
+    name: entry.taskId,
+    data: { taskName: entry.taskId, entryId: entry.id, timeoutMs },
+    opts: { removeOnComplete: true, removeOnFail: true },  // <-- add this
+  }
+);
+```
+
+**Verification needed before this lands:**
+1. **Empirical probe extension** — confirm `opts` on `upsertJobScheduler`'s job template is the right BullMQ surface for per-fire options on the installed `bullmq@5.76.10`. Possible probe: create a scheduler, wait for two fires, assert the first fire's hash is gone after the second fires. The story #25 probe at `test/probe-bullmq-removeOnComplete-immediate.js` is the natural sibling to extend.
+2. **Regression test** — add a sentinel that scheduler.js's `upsertJobScheduler` call passes `opts: { removeOnComplete: true, removeOnFail: true }`.
+
+**Trade-off (same as story #25):** BullBoard's `completed`/`failed` tabs become empty for scheduled-fire jobs too. `events.jsonl` remains the durable history surface. Same out-of-scope clause from story #25 applies.
+
+**Out of scope:** the same items as story #25 (Intake A subshell bypass, unified all-tasks timeline UI, etc.) — this is a strictly mechanical follow-up.
+
+**Classification:** Cleanup (Redis-memory hygiene; no correctness issue today).
+**Strictness:** Standard.
+**Phase path:** Architecture (brief — same Option A pattern as ADR 0022 applied to a sibling code path) → Test Design (one sentinel + one probe extension) → Implementation → Review. Architecture could potentially fast-track since the design rationale is verbatim ADR 0022.
+**Priority:** Low. Slow-growing Redis bloat; no operator workflow blocked today. Worth doing for hygiene before the next major task-queue work or if Redis memory becomes a concern.
+
+---
+
+## 2026-05-24 — Architecture: legacy API handlers `child_process.exec` tagged-task scripts directly, bypassing BullMQ + semaphore
+
+**Surfaced during:** the Implementer's audit pass for story #26 / ADR 0023 on 2026-05-24. Halted implementation per ADR 0023's Outcome contract ("stop and re-open ADR 0023 if the audit surfaces a new spawn pattern not enumerated... or any other novelty"). ADR 0023's amendment scopes the JS-exec pattern OUT and files this intake.
+
+**Mechanism:** five registered API endpoints in `src/api/index.js` route to JS handlers that use `child_process.exec` to spawn bash scripts directly. The spawned scripts map to neo4j-heavy tagged tasks in the registry, but the exec path completely bypasses BullMQ — no Worker callback runs, no semaphore acquire happens. Parent-tag inheritance (the mechanism story #26 ships for the subshell pattern) does not apply because there's no parent in a BullMQ Worker callback chain; the handler IS the entry point.
+
+**Confirmed handler-to-tagged-task mappings:**
+
+| Endpoint | Handler | Tagged task |
+|---|---|---|
+| `POST /api/process-all-active-customers` | `process-all-active-customers.js:21` | processAllActiveCustomers |
+| `POST /api/generate-pagerank` | `algos/pagerank/commands/generate.js:21` | calculateOwnerPageRank |
+| `POST /api/generate-reports` | `algos/reports/commands/generate.js:21` | calculateReportScores |
+| `POST /api/generate-verified-followers` | `algos/verifiedFollowers/commands/generate.js:21` | calculateVerifiedFollowerCounts |
+| `GET /api/calculate-hops`-ish | `algos/hops/commands/calculate.js:31` | calculateCustomerHops |
+
+Also flagged: `algos/graperank/commands/generate.js` spawns `calculatePersonalizedGrapeRank.sh` (not in registry — possibly superseded by `/api/run-task?taskName=calculateOwnerGrapeRank`), `pipeline/reconcile/commands/execute.js` spawns `reconciliation.sh` (deprecated path per OPERATIONS.md). These two probably want deprecation rather than refactor.
+
+**Three remediation options (Architect to triage):**
+
+1. **Refactor JS handlers to enqueue via BullMQ.** Replace the `exec` call with a call to `taskQueue.enqueueTask` (or an internal `/api/run-task` HTTP call). Job goes through Worker callback, semaphore engages, BullBoard sees it. Closest to ADR 0012's intent. Trade-off: ~5 handler files to touch + behavioral migration (sync vs async semantics, response shape).
+2. **Deprecate the legacy endpoints.** These handlers predate `/api/run-task` (story #13 / ADR 0012, 2026-05-20). Confirm no live consumers (UI, scripts, cron); if clear, remove the endpoint + handler; document `/api/run-task?taskName=<task>` as the replacement. Smallest diff if no consumers; can't ship if consumers exist.
+3. **Accept + document.** Add a warning to each handler comment + OPERATIONS.md noting these bypass the semaphore. Punts the gap. Probably unacceptable for the live `/api/generate-pagerank` and `/api/process-all-active-customers` endpoints — they run heavy Neo4j work.
+
+**Classification:** Bug — public API endpoints bypass the documented ADR 0013 protection model. Same neo4j-heavy serialization concern as Intake A but via different URLs.
+**Strictness:** Standard.
+**Phase path:** `/discuss` first to triage the three options (especially: which endpoints have live consumers? which to refactor vs deprecate?), then Planning → Architecture → Test Design → Implementation → Review.
+**Priority:** Medium-high. Operator-triggerable, currently unprotected on prod. Same severity as Intake B was before story #25 closed it.
+
+---
+
+## 2026-05-24 — Bug: `neo4j-heavy` semaphore released ~5s after acquire while tagged work runs unprotected for hours
+
+**PICKED UP 2026-05-25** — Captured as [story #27](27-scheduled-task-timeout-propagation.md). The /discuss + source-only inspection + empirical staging evidence (18 hourly `CHILD_TASK_ERROR` events with `timeout_duration: 0, elapsed_time: 5000` across `refreshSearchIndex`, `processCustomer`, `updateAllScoresForOwner`) revealed the actual root cause is a three-bug conspiracy in the scheduled-task timeout propagation path, NOT the candidate hypotheses listed below. Story #27's framing is "scheduled tasks bypass configured timeouts (semaphore release is the downstream symptom)." The probe described in the Method section was not needed — source-only inspection located the bug and the staging logs confirmed it.
+
+**Surfaced during:** Review-phase operator triage on story #26 / ADR 0023. Operator noticed a "Running" task in the Scheduled Tasks panel with no matching TASK_END for 1.5 hours; investigation revealed `held_seconds: 6` on `resource_class_released` events across MULTIPLE tagged tasks (`processCustomer`, `updateAllScoresForOwner` confirmed; pattern likely universal). See ADR 0023's 2026-05-24 (later) amendment for the full evidence table.
+
+**The bug:** The BullMQ Worker callback at `src/manage/taskQueue/queue/index.js:118-131` is `await processor.processJob(...)` then `await release()`. processor.processJob spawns `bash launchChildTask.sh ...` and resolves on `child.on('close')`. Empirically, that close event fires ~5-6 seconds after spawn EVEN WHEN the underlying task script (e.g., processCustomer.sh) is still running and will continue running for hours. As a result, the semaphore releases ~5-6s after acquire, and the actual heavy Neo4j work runs concurrently with any other heavy work — defeating ADR 0013's cap=1 serialization contract.
+
+**Investigation required:** what causes `child.on('close')` on the launchChildTask.sh bash process to fire within 5-6 seconds when the backgrounded child it spawned is still running? Candidate hypotheses (unverified):
+1. `launchChildTask.sh:380-390`'s `while ps -p $child_pid` monitor loop exits prematurely — possibly the captured PID from `bash $child_script &` corresponds to a short-lived intermediate.
+2. BullMQ stalled-job recovery (default 30s `stalledInterval` × `maxStalledCount`=1) fires and moves the job, triggering the `finally` block.
+3. Bash subshell semantics with `&` + `set -e`/`set -o pipefail` cause the wrapper to exit unexpectedly.
+4. Something else.
+
+**Method:** write a deterministic reproduction probe (similar in shape to story #25's `probe-bullmq-removeOnComplete-immediate.js`). Steps:
+1. Create a synthetic tagged task whose script sleeps for N=120 seconds.
+2. Wire it through the actual `initTaskQueue` machinery (real BullMQ Worker, real semaphore wrap, real processor.js → launchChildTask.sh path).
+3. Trigger via `enqueueTask` or scheduler.
+4. Observe and log: Worker callback entry time, semaphore acquire time, bash subprocess spawn time, every `ps -p $child_pid` check result in launchChildTask.sh, `child.on('close')` fire time, semaphore release time, bash subprocess actual end time.
+5. Identify exactly which event fires at T+~5s that causes the close to fire while the work continues.
+
+**Once root cause identified, design the fix.** Possible fix shapes (architect chooses after the probe finishes):
+- **Fix launchChildTask.sh's PID tracking** so the monitor loop waits for the actual long-running process, not an intermediate.
+- **Fix the spawn pattern in processor.js** to use `child_process.spawn` with options that don't background-detach the subprocess.
+- **Refactor the semaphore wrap location** to be inside launchChildTask.sh itself (using Redis directly) so it covers the full subprocess lifetime regardless of Node-side timing.
+- **Refactor to a poll/lease model** where the Worker periodically checks if the bash subprocess is still running and re-acquires/renews the semaphore lease.
+- **Bigger refactor:** Option B from `/discuss` (refactor parents to enqueue children via /api/run-task) — children flow through their own BullMQ Workers, semaphore engages on each.
+
+**Impact on story #26:** That story's tag-additions are functionally moot pending this fix. They can be: (a) reverted, (b) kept as "no-op-but-documented" with the BIBLE.md / ADR amendments updated to reflect the actual broken state, or (c) carried forward into the investigation story and shipped together with the real fix. Architect/PO call.
+
+**Impact on PR #201's tagging:** Same. PR #201's value was always "defense-in-depth on the BullMQ-direct path" — that part still works (when a tagged task is fired via `/api/run-task` directly, the Worker callback wraps the few seconds of setup with the semaphore). But the "protect the subshell chain" intent is empty.
+
+**Classification:** Bug — high severity (load-bearing assumption violated, ADR 0013's documented contract not enforced, multiple shipped stories built on this assumption).
+**Strictness:** Standard.
+**Phase path:** `/discuss` first to align on the investigation scope, then Planning (probe + investigation story), then Architecture (fix design after probe results), then Test Design / Implementation / Review.
+**Priority:** **HIGH.** Architecture's stated contract has been functionally absent for the entire life of the resource-class semaphore (story #15, 2026-05-20 onward). Each new Neo4j-heavy task added since then has been relying on a protection that doesn't actually engage. Investigation deserves immediate attention.
+
+---
+
+## 2026-05-24 — Meta: origin-sync check at PO + Architect phase entry
+
+**Surfaced during:** the 2026-05-24 session start. A chip was spawned proposing this same idea (a pre-flight check that verifies the local branch is in sync with origin before any PO or Architect work begins). The chip was never picked up. Filed here as a proper intake so the work doesn't depend on the chip persisting.
+
+**Background:** during the work-up to story #25, the session started on a branch (`main`) that was *behind* `origin/staging`. The drift wasn't caught until pushing time, costing a small but real debugging cycle. This is a recurring class of bug at session boundaries when the operator switches between machines / branches across sessions.
+
+**Goal:** Make this drift impossible (or at least loud) at the *start* of a session. Specifically, the Product Owner and Architect phases of `engineering-team/` should refuse to proceed (or warn aggressively) if `git fetch` would reveal divergence from the configured base branch.
+
+**Where to look:**
+- `engineering-team/roles/product-owner.md`
+- `engineering-team/roles/architect.md`
+- `engineering-team/workflows/1-planning.md`
+- `engineering-team/workflows/2-architecture.md`
+- Any pre-flight check pattern already in `.claude/agents/*.md` or `.claude/commands/*.md`
+
+**Decision points to triage:**
+1. Should this be a hard fail (refuse to plan/design) or just a loud warning?
+2. Should the check fetch automatically, or just compare `HEAD` vs the cached `origin/<base>`?
+3. Which base branch? Likely `origin/staging` for this project per `OPERATIONS.md`, but the check should probably read from a config rather than hardcode.
+4. Should this apply to all five phases or just the two upstream ones (PO + Architect)?
+
+**Classification:** Meta-tooling (engineering-team harness improvement; no production code impact).
+**Strictness:** Standard.
+**Phase path:** `/discuss` first to settle the four decision points; then likely Implementation + Review (Architecture and Test Design probably skippable — small mechanical change with no ADR-worthy design choice).
+**Priority:** Low. Quality-of-life improvement for the harness. No correctness issue today.
+
+---
+
+## 2026-05-25 — Follow-up: per-task timeout overrides for long-running `neo4j-heavy` tasks + (long-term) auto-tune from observed average runtimes
+
+**Surfaced during:** Cycle-staging verification of story #27 / ADR 0024 (scheduled-task timeout propagation fix). Once the fix correctly propagated `options_default.completion.failure.timeout.duration: 1800000` (30 min) through the chain, the `resource_class_released` events on staging revealed that `processCustomer` consistently hits that 30-min ceiling: two back-to-back fires at 08:43:03Z and 11:43:04Z both reported `held_seconds: 1805/1806` (= 1800s timeout + ~5s monitor-tick overhead). The actual `processCustomer.sh` work runtime exceeds 30 min on the prod-scale staging graph (~32M FOLLOWS); pre-story-#27, this was hidden because the semaphore was releasing at 6s anyway.
+
+Post-fix steady state: the semaphore is held for the first 30 min of `processCustomer`, then releases (because the wrapper script declares timeout). Because `forceKill: false` is hardcoded in `src/manage/taskQueue/queue/processor.js:118-126` (deliberately preserved per story #27 §"Out of scope"), the backgrounded `processCustomer.sh` keeps running orphaned beyond that. Strictly better than pre-fix (6s protected vs ~hours unprotected), but the "30 min" ceiling is too short — `processCustomer` should hold the semaphore for its actual full duration (~30-60 min on the prod-scale graph; longer on prod itself).
+
+`updateAllScoresForOwner` is expected to exhibit the same shape (the per-handoff data showed it had the same `held_seconds: 6` symptom pre-fix, so it presumably also runs longer than 30 min on prod-scale). Confirm empirically once a full post-fix fire of it completes on staging.
+
+**Short-term (mechanical fix):** add per-task `options.completion.failure.timeout.duration` overrides to long-running `neo4j-heavy` tasks in `src/manage/taskQueue/taskRegistry.json`. Candidate task list (verify each empirically before committing to a value):
+
+| Task | Today's `options` | Proposed override (subject to empirical refinement) |
+|---|---|---|
+| `processCustomer` | `{}` | 5400000 ms (90 min) |
+| `updateAllScoresForOwner` | `{}` | 7200000 ms (2 hr) |
+| `processNpubsUpToMaxNumBlocks` | TBD | TBD — run once, observe |
+| `reconcileAll` | already has explicit ✓ | n/a — confirmed working at 798–979s on staging |
+| Others tagged `neo4j-heavy` with `"options": {}` | various | audit & decide |
+
+The override mechanism is already supported by `resolveTaskTimeout` Priority 1 (verified by story #27's AC #7 test U2) — no code change required, only registry edits.
+
+**Long-term (auto-tune feature):** track average successful-run durations per task, periodically (or on operator command) propose / apply per-task timeout overrides sized to e.g. `2× p95(actualDuration)` or similar safety factor. Several inputs already exist:
+
+- `CHILD_TASK_END` events in `/var/log/brainstorm/taskQueue/events.jsonl` carry `child_task_id` + start/end timestamps — durations are computable.
+- `taskRegistry.json` already has an `averageDuration` field on some entries (e.g., `processCustomer: 564500`, `updateAllScoresForOwner: averageDuration not yet set`); `resolveTaskTimeout` Priority 3 already falls through to `averageDuration × 2` when no explicit timeout is set. The auto-tune feature would *populate* and *maintain* `averageDuration` (and/or push an explicit `options.completion.failure.timeout.duration`) based on observed runs.
+- Already-shipped Scheduled Tasks panel + Task Explorer surface task history; the auto-tune could be a separate background task or a control-panel-admin action.
+
+Open design questions for the long-term feature:
+1. **Trigger model:** background task on a cadence (e.g., daily), or on-command via an admin endpoint, or both?
+2. **Safety factor:** `2× p95`, `2× max`, `1.5× rolling-30-day-p99`, …?
+3. **What gets updated:** `averageDuration` (passive — feeds resolveTaskTimeout's Priority 3 fallback) or explicit `options.completion.failure.timeout.duration` (active — overrides Priority 1)?
+4. **Persistence model:** edit `taskRegistry.json` in place? Or maintain a separate runtime-stats file that resolveTaskTimeout consults? (Editing the registry in place creates a git churn surface; a separate stats file is cleaner.)
+5. **Bounds enforcement:** `resolveTaskTimeout` already clamps to 5 min / 24 hr. Should the auto-tune respect or override those bounds?
+6. **`forceKill` interaction:** if the auto-tune raises the timeout high enough that timeouts ~never fire, the `forceKill: false` hardcode becomes moot. If kept low for safety, `forceKill: false` keeps the "orphaned-child" risk live. Consider revisiting (separate ADR if pursued).
+
+**Classification:** Feature (auto-tune) + Bug-adjacent housekeeping (per-task overrides for the currently-broken-shaped tasks).
+**Strictness:** Standard.
+**Phase path:** Two-track.
+- **Track A (short-term, can ship immediately):** mechanical registry edits + cycle-staging + cycle-prod. Probably Implementer + Reviewer only (one-line registry edits per task; no Architecture-worthy design choice). Could even fast-track without a story since it's a 5-minute change once the values are chosen.
+- **Track B (long-term, separate story):** `/discuss` to settle the 6 design questions, then full Plan / Architect / Test / Implement / Review.
+**Priority:**
+- Track A: **Medium.** Visible operator-experience issue (CHILD_TASK_ERROR events firing on every long-task completion); strictly better than pre-fix but the new false-positive-timeouts are noise.
+- Track B: **Low-medium.** Quality-of-life improvement; not load-bearing for correctness.
+
+**Empirical staging evidence (cite in future story):**
+```
+processCustomer 2026-05-25 08:43:03Z → held_seconds: 1805
+processCustomer 2026-05-25 11:43:04Z → held_seconds: 1806
+reconcileAll    2026-05-25 07:51:43Z → held_seconds:  798  (baseline — already had explicit timeout)
+```
+
+**PICKED UP 2026-05-25** — Track A shipped as PR #216 (staging) + PR #217 (prod). Explicit per-task overrides added for `processCustomer` (90 min), `updateAllScoresForOwner` (4 hr), `updateAllScoresForSingleCustomer` (4 hr). Verified end-to-end on prod via the post-deploy fresh tick at 20:23:04Z showing `resolved_options.failure.timeout.duration: 5400000`. Track B (auto-tune) remains open — captured separately as the long-term feature, not yet started.
+
+---
+
+## 2026-05-25 — Bug: BullMQ Job Scheduler stalled-recovered ticks use pre-deploy `job.data`
+
+**Surfaced during:** prod verification of Track A (PR #217). Investigation thread documented inline in the Track A cycle-prod conversation; the conclusive evidence came from `HGETALL bull:processCustomer:repeat:sched:entry-...:1779729784143` showing `data:{...,"timeoutMs":1800000}` on a tick whose master scheduler template had been updated to `timeoutMs:5400000` post-deploy.
+
+**Mechanism:** BullMQ Job Schedulers snapshot the master `data` template into each per-tick job at JOB-GENERATION time (typically at previous-tick completion). When the container restarts mid-fire (deploy), any in-flight job is killed; BullMQ's stalled-job recovery moves it from `active` back to `wait` for re-pickup by the next Worker — **with its original `data` payload intact**. The recovered job runs to completion with whatever data was current when the tick was generated, not what's current at execution time. So a `taskRegistry.json` or scheduler-config change shipped in a deploy does NOT retroactively apply to any pre-deploy tick that gets recovered after the deploy. The downstream code path (`processor.js → launchChildTask.sh`) sees the stale `timeoutMs` in `job.data` and propagates it.
+
+**Concrete impact observed (2026-05-25 prod):**
+| Event | Timestamp | Source data |
+|---|---|---|
+| Track A deploy | 17:36:38Z | (no impact on tick data — only updates registry + master template) |
+| Pre-deploy tick generated | 14:23:04Z | `timeoutMs: 1800000` (correct for that era) |
+| Pre-deploy tick became active | 17:23:04Z | (running normally) |
+| Container restart kills active job | ~17:38:00Z | (BullMQ Worker reconnects, sees the active job, marks stalled) |
+| Stalled job recovered to wait | ~17:38:39Z | (data intact: `timeoutMs: 1800000` — stale) |
+| Worker picks up recovered job | 17:38:39Z | (semaphore wait, ran for 3h 45min waiting on semaphore held by ANOTHER stalled-recovered job) |
+| Wrapper spawned + ran 30-min timeout | 21:23:04Z | logged `(timeout: 1800s)` — stale data propagated end-to-end |
+| Worker callback completes | 21:53:09Z | emitted `CHILD_TASK_ERROR error_type=timeout elapsed_time=1800000` |
+
+**Why this isn't a Track A regression:** Track A (and story #27 before it) deliberately scoped only the propagation chain for NEW ticks. The fact that stalled-recovered ticks bypass `resolveTaskTimeout` is a BullMQ property + our deploy pattern interaction; nothing in story #27 or Track A pretends to address it. Future readers of the prod evidence will need to distinguish "still-broken Track A" from "stalled-recovered cutover artifact" — this intake makes that distinction crisp.
+
+**Cutover window:** typically clears within a few ticks (one or two scheduler periods). For `processCustomer` (3h cadence), within ~6 hours of deploy. After that, all live ticks have fresh data.
+
+**Possible fixes (Architect to triage when picked up):**
+1. **Re-derive `data` from current master template at job-pickup time.** Modify the BullMQ Worker callback (in `src/manage/taskQueue/queue/index.js:118-131`) to re-read the Job Scheduler's master template and merge fresh values into `job.data` before passing to `processor.processJob`. Low-impact change; recovers cleanly from any pre-deploy data drift.
+2. **Force-drain BullMQ active jobs before deploy.** Add a pre-deploy hook that waits for active jobs to complete (or fails them explicitly) so no stalled recovery is needed. Higher operational impact; would lengthen deploy windows during a heavy `processCustomer` run.
+3. **Accept and document.** This is a known BullMQ behavior with bounded cutover impact. The diagnostic pattern (HGETALL the master template + per-tick keys) is now established. Just document the operator playbook for distinguishing cutover noise from real regressions in `OPERATIONS.md`.
+
+**Classification:** Bug (subtle data-staleness on deploy boundary). Not user-facing under normal operation.
+**Strictness:** Standard.
+**Phase path:** `/discuss` to triage the three fix shapes (the trade-offs are real), then Planning if a fix is chosen. Option 3 (just document) might be the right call — needs operator input.
+**Priority:** **Low.** Only manifests at deploy moments, only affects in-flight jobs at that moment, only causes a few stale-data ticks before the system stabilizes. The bigger concern is the *combination* of this + the orphan-prevention issue below — together they can suppress a meaningful number of scheduled fires across a cutover.
+
+---
+
+## 2026-05-25 — Bug: `forceKill: false` timeout orphans suppress subsequent scheduled fires via `check_task_already_running`
+
+**Surfaced during:** prod verification of Track A (PR #217), specifically the post-deploy 20:23:04Z processCustomer tick at 22:06:32Z which logged `LAUNCHCHILDTASK_RESULT: {"launch_action":"prevented","existing_pid":195788,"launch_new":false}`. The 195788 PID came from the PREVIOUS fire (the stalled-recovered 17:23:04Z tick) whose wrapper had declared timeout at 21:53:09Z but — per the `forceKill: false` hardcode in `processor.js` — did NOT kill the backgrounded `processCustomer.sh`. The orphan was still running when the next scheduled tick fired, and the wrapper's standard `check_task_already_running` logic (`src/manage/taskQueue/launchChildTask.sh:25-67`) found it and prevented the new launch under the default `launchNew: false` policy.
+
+**Mechanism (full chain):**
+1. A wrapper-script timeout fires (genuine or spurious). `forceKill: false` (hardcoded in `processor.js:117-127`; deliberately preserved per story #27 §"Out of scope") means the script declares timeout and exits without killing the backgrounded child.
+2. The Node `child.on('close')` fires, Worker callback's `finally { await release() }` releases the semaphore.
+3. The backgrounded `processCustomer.sh` (or other tagged-task script) keeps running orphaned — could be minutes to hours of additional runtime depending on actual workload.
+4. The next scheduled fire of the same task fires its tick → Worker → processor → wrapper.
+5. Wrapper's `check_task_already_running` calls `pgrep -f "$script_relative_path"`, finds the orphan PID.
+6. Wrapper consults `options_default.launch.processAlreadyRunning.withoutError = { killPreexisting: false, launchNew: false }`. **Decides NOT to launch the new fire**, emits `TASK_LAUNCH_PREVENTED`, returns success (LAUNCHCHILDTASK_RESULT.launch_action="prevented").
+7. From BullMQ's perspective, the job completed successfully. The scheduled fire was effectively SKIPPED.
+
+**Concrete impact observed (2026-05-25 prod):** the post-deploy fresh tick at 20:23:04Z had its launch prevented at 22:06:32 because the prior stale tick's orphan (PID 195788) was still running. **The fresh tick's actual neo4j-heavy work did not run at all** — silently skipped.
+
+**Severity of skipping:** previously hidden. A single timeout firing on a long-running task could cascade-skip multiple subsequent scheduled fires for as long as the orphan persists. Pre-Track-A on prod (post-story-#27), every `processCustomer` fire was hitting the 30-min ceiling and orphaning — meaning the system was probably skipping a meaningful fraction of `processCustomer` runs cumulatively. Track A reduces the frequency of timeouts (90 min vs 30 min for `processCustomer`), but doesn't fix the underlying interaction.
+
+**Why story #27 / Track A didn't address it:** story #27 explicitly scoped out `forceKill` reconsideration. Track A only changes timeout VALUES; it doesn't change the orphan-prevention interaction. Both were correct scopes for their stories; this intake captures the next layer of the onion now that we have empirical evidence.
+
+**Strong argument for `forceKill: true` as the default:** with `forceKill: false`, a timed-out task creates an orphan that blocks subsequent fires. With `forceKill: true`, the orphan is killed at timeout, the next scheduled fire runs cleanly. The cost of `forceKill: true` is "an actually-still-doing-useful-work task gets killed at its timeout" — but with appropriately-sized per-task timeouts (which Track A + the auto-tune Track B trend toward), legitimate work shouldn't be hitting the timeout in the first place.
+
+**Possible fixes (Architect to triage):**
+1. **Flip `forceKill: false` → `true`** as the global default in `taskRegistry.json:options_default.completion.failure.timeout.forceKill`. Per-task overrides remain available. Easiest fix.
+2. **Smarter `check_task_already_running` policy:** detect that an "existing" PID is the orphan from a prior timed-out run (e.g., compare PID's parent process or runtime) and treat as "kill orphan + launch new." More logic, more accurate.
+3. **Change `processAlreadyRunning.withoutError.launchNew` default to `true`:** lets the next fire run concurrently with the orphan, accepting the doubled neo4j-heavy load for that window. Probably wrong — defeats the dedup purpose for legitimately-overlapping tasks.
+4. **Auto-tune timeouts** (Track B from intake `eb2df679`) so timeouts almost never fire. Doesn't solve the issue when they DO fire.
+5. **Combine #1 + #4:** `forceKill: true` as a backstop, but tune timeouts high enough that the backstop rarely engages.
+
+**Classification:** Bug — silent suppression of scheduled fires under post-timeout conditions. Production-impacting (cumulative work loss).
+**Strictness:** Standard.
+**Phase path:** `/discuss` to settle the design choice (especially `forceKill: true` vs the smarter `check_task_already_running` logic). Then Planning → Architecture → Test Design → Implementation → Review.
+**Priority:** **Medium-high.** Production has been silently skipping scheduled fires since story #15 shipped (~2026-05-20) whenever timeouts fired. Track A reduces the frequency but doesn't fix the mechanism. Worth surfacing before the operator builds operational habits around the current behavior.
+
+---
+
+## 2026-05-25 — Cleanup + Bug: per-task `forceKill: false` overrides after story #28's default-flip
+
+**Surfaced during:** Architect-phase audit for story #28 / ADR 0025 (2026-05-25). The audit of all 11 per-task `forceKill: false` overrides in `taskRegistry.json` found two distinct concerns that story #28's narrow scope (flip the global default) deliberately did not address.
+
+**Part A — Cleanup: 9 redundant overrides.** The following 9 entries have a `forceKill: false` override that appears to be a copy-paste artifact rather than a deliberate choice (no `comments` field justifying the choice; durations are reasonable for the work):
+
+| Line | Task | Duration |
+|---|---|---|
+| 110 | processAllTasks | 6h |
+| 291 | callBatchTransfer | 1h |
+| 342 | reconcileRecent | 30min |
+| 373 | reconcileAll | 8h |
+| 403 | reconcileAuthor | 10min |
+| 435 | reconcileNetwork | 60min |
+| 1431 | applicationHealthMonitor | 10min |
+| 1460 | neo4jPerformanceMonitor | 10min |
+| 1489 | externalNetworkConnectivityMonitor | 10min |
+
+Deleting just the `"forceKill": false` line from each (preserving `duration`/`comments` if present) would let these tasks inherit the new `forceKill: true` global default. Each is independently low-risk (durations are generous; if the kill bites, it bites for a real reason).
+
+**Part B — Bug: 2 mis-sized timeout durations.** The following 2 entries carry a 60-second timeout that's clearly wrong for tasks with `estimatedDuration: "30-60 minutes"` and `averageDuration: 44500` (44.5s average — many runs exceed):
+
+| Line | Task | Duration | Comment |
+|---|---|---|---|
+| 231 | syncWoT | 60s | `estimatedDuration: "30-60 minutes"`, `averageDuration: 44500` |
+| 262 | syncProfiles | 60s | same |
+
+Today the `forceKill: false` override masks the impact (wrapper declares timeout, bash continues unprotected, work eventually completes). If we drop the override without fixing the duration, work gets killed at 60s every time a sync runs slow. The right sequence is: investigate the correct duration value (probably 30-60 min matching the estimatedDuration with headroom) FIRST, then drop the override.
+
+**Suggested phase path:**
+- Part A (cleanup): one fast-track story or part of a story. Standard 5-phase if bundled with Part B.
+- Part B (bug): properly-scoped story + ADR (the right duration value is an architectural choice that affects operator expectations + may have a follow-on on auto-tune Track B).
+
+**Classification:** Mixed (cleanup + bug). **Priority:** Medium — incomplete coverage of story #28's intended fix; cosmetic + 2 latent bugs.
+
+---
+
+## 2026-06-05 — Feature: Tapestry Communities Protocol (full draft → BIBLE)
+
+> **⚠️ Design has substantially evolved (2026-06-05) — read [`docs/COMMUNITIES_PROTOCOL_DESIGN_HANDOFF.md`](../../docs/COMMUNITIES_PROTOCOL_DESIGN_HANDOFF.md), the current source of truth, NOT the framing below.** A `/discuss` redesign **superseded the founder-centric model** in this entry: no founder, no House-PoV-canonical roster, no single-root (so "House PoV = founder", and §11 items #2 "canonical membership" and #3 "single-root" are **dropped**). Current model: *no privileged center; identity = concept identity; membership = consume the `feat/pubkey-tagging-target` nostr-user-tag, gated by a resolved definition.* Remaining open item is the **three-branch reconciliation** (staging / `feat/pubkey-tagging-target` [Vinney] / `feat/communities` [Avi]). Original triage preserved below for history.
+
+**Surfaced during:** the story #31 planning conversation (the `b` / inherit-from primitive). Story #31 carves out and ratifies just the general `b` tag; the broader protocol it came from is deferred here at the operator's request ("I do want to address the broader Communities Protocol, but we can do that after"). **Depends on story #31 landing first** — the affiliation pointer is now the general `b` primitive #31 defines.
+
+**Scope:** Land the Tapestry Communities Protocol (Draft v1). A community is *computed*, per resolution, from **Tags + a Community Declaration (CD) + a Point of View (PoV)** → roster; no hand-kept membership state. The CD is an editable kind-39999 event; a founding author publishes the root CD (House PoV = founder), and participants publish child CDs that defer to a parent via the `b` tag (story #31) under "accept the parent unless otherwise stated." Membership is GrapeRank-gated (author influence ≥ role cutoff from the PoV); roles are predicates (v1: `applicant` = self-tag, `member` = vouched by an existing member who clears the cutoff; `admin` off). Disputes are trust-weighted negatives, never a one-person veto. The community survives the founding author going inactive (every participant CD still resolves against the last known parent state). Reuses existing primitives only — no new infra (GrapeRank scorecards, influence cutoffs, PoV selection already exist).
+
+**Open §11 ratification items carried from the draft (decide during Planning/Architecture):**
+1. Affiliation tag → now `b` per story #31 (largely settled; confirm wire form `["b", "<parent-cd-a-tag>", "inherit"]`, type in element 3).
+2. **Canonical membership:** House-PoV roster is authoritative for a safe space; Personalized PoV is a *lens* (how a viewer sees/orders the community via their affiliated CD), not a private redefinition of who is a member. Must be decided explicitly, not left to whatever the resolver does first.
+3. Single-root v1; multi-root federation deferred (reserve uppercase `B` for the parent-claims-child inverse per #31).
+4. **Tag wire format** — reconcile the community input-Tag with the `feat/pubkey-tagging-target` work; a view over those pubkey-tag events is preferred over a second parallel schema.
+5. Membership threshold (1 qualifying vouch vs N≥2 for a safe space) — growth rate vs ease of entry.
+6. CD term: "Declaration" vs "Definition" (draft uses *Declaration*).
+
+**Deferred within the protocol (not v1 gaps — deliberate later steps):** Admin/community-curator role; affiliation *types* beyond `inherit`; multi-root federation; per-viewer membership forking (only if §5.3 is decided against the safe-space recommendation); full tags-as-rating-edges GrapeRank (v1 may ship the simpler reachability-plus-cutoff form).
+
+**Worked example to preserve:** Les Femmes Orange (LFO), a membership / safe-space community, used throughout the draft.
+
+**Classification:** Feature (protocol + likely resolver + UI/API). **Large — expect to split** into multiple stories, e.g.: (a) CD event shape + effective-CD merge-walk resolver; (b) the input Tag primitive + reconciliation with `feat/pubkey-tagging-target`; (c) PoV resolution + roster computation; (d) trust-weighted disputes; (e) onboarding / cross-site (House vs Personalized PoV) flow.
+**Strictness:** Standard.
+**Phase path:** `/discuss` to settle the §11 decisions and the story split → then Planning → Architecture → Test Design → Implementation → Review per sub-story.
+**Priority:** Medium — operator wants it next, after story #31. **Depends on:** story #31 (the `b` inherit-from primitive).
+
+---
+
+## 2026-06-06 — Profile follows/followers follow-ups (from stories #33/#34)
+
+Surfaced shipping the verified-followers count (#33) + followers table (#34) to staging. Full context: [`docs/PROFILE_FOLLOWERS_HANDOFF_2026-06-06.md`](../../docs/PROFILE_FOLLOWERS_HANDOFF_2026-06-06.md). None block #33/#34 (both PASS, on staging).
+
+1. **Followers table 504s for the very largest accounts.** Inbound traversal for ~23k+ verified followers hits the 15s `NEO4J_QUERY_TIMEOUT_MS` (Jack: intermittent 504; jb55 15k / fiatjaf 19k complete). Graceful. Fix: raise this endpoint's timeout, OR server-side pagination, OR a precomputed/indexed verified-followers set. **NOT** lazy name-hydration (that's the name-storm, item 7). **Priority: medium.**
+2. **Verified-cutoff inconsistency.** graperank.conf live `0.01` vs in-code fallback `0.05` (cypherQueries.js / followersWithMetrics.js) vs BIBLE "consolidated 0.05" vs customer `0.01` vs the profile UI's "Verification Score > 2" text. One source of truth; clarify owner-vs-customer default. **Priority: medium.**
+3. **Count-vs-list divergence.** ✅ **RESOLVED (2026-06-08, profile #35 + BIBLE §27).** Profile verified-followers count (Meili-precomputed) vs followers-table length (live Neo4j) diverged (Jack 26,711 vs 22,981) — fixed by sourcing the profile counts from Neo4j (Owner PoV), the same source as the tables, and dropping the `?? followers` raw fallback (ADR `profile/0031`); badge==table on staging. Underlying cutoff-source inconsistency stays open as item 2.
+4. **Duplicate "Verified Followers" rows** in `ui/src/pages/BrainstormProfile.jsx` TRUST_METRICS (`followers` :36 + `verifiedFollowerCount` :43 both render as "Verified Followers"). Drop one. **Priority: low.**
+5. **All-followers (unverified) view** for the followers table — v1 is verified-only. **Priority: low-medium.**
+6. **Personalized/customer PoV** for the follows + followers tables — both owner/House-only v1 (the `NostrUserWotMetricsCard` branch deferred since ADR 0026). The #33 *count* honors `?pov=` but the tables don't yet (consistency gap). **Priority: low-medium.**
+7. **DRY `<GrapevineList>` refactor** — `BrainstormFollowers.jsx` ≈ `BrainstormFollows.jsx`; two endpoints share shape (ADR 0030's accepted mirror-not-generalize duplication). Extract a shared component + cypher builder. **Priority: low.**
+8. **Playwright harness broken** — `tests/global-setup.js:16` reads `config.use` (undefined in the installed Playwright) → `npm run test:playwright` aborts in global-setup, blocking ALL e2e specs (#29/#30/#33/#34). Fix: read baseURL from `config.projects[0].use` / env. **Priority: medium** (e2e coverage dark until fixed).
+
+**Classification:** mixed (perf + cleanup + deferred features + harness bug). **Phase paths:** per item — item 1 needs `/discuss` → Architecture (real design choice); items 4/7/8 likely fast-track; items 5/6 full feature stories.
+
+---
+
+## 2026-06-08 — Owner scoring batch is not deploy-safe (ops bug)
+
+Surfaced during the PoV-resolution work (`docs/POV_RESOLUTION_DESIGN_HANDOFF.md` §9, now BIBLE §27). A redeploy can interrupt a running `updateAllScoresForOwner` mid-`processOwnerFollowsMutesReports`, leaving Owner `influence` partial — which made staging Owner numbers unreliable until a full re-run (hours-long at prod scale, ~32M FOLLOWS). The operator is currently mitigating **manually** (disable scheduled tasks before promoting to staging/main), so this does not block, but the manual step is easy to forget and the failure is silent + expensive.
+
+**Want:** make long scoring jobs **deploy-safe** — resumable (checkpoint mid-`processOwnerFollowsMutesReports` so a restart continues rather than abandons), or **drained on deploy** (the deploy waits for / cleanly pauses an in-flight batch), or at minimum a **guard** that refuses/warns on deploy while a scoring batch is running. Task-queue-scheduler territory.
+
+**Classification:** Bug / infra hardening (task-queue-scheduler). **Phase path:** `/discuss` → Architecture (resumable-vs-drain-vs-guard is a real design choice) → Test Design → Implementation → Review. **Priority:** Medium — operator has a manual workaround; automate before it bites unattended. **Related:** the three-PoV standard (BIBLE §27) depends on Owner data being trustworthy; `docs/POV_RESOLUTION_DESIGN_HANDOFF.md` §9.
 ## 2026-05-14 — Profile-tag polish bundle: omni-search popup + POV correctness (next story: #7)
 
 **Context:** Stories 1–5 of the profile-tag stack shipped and are retired to `engineering-team/stories/done/`. Story 6 (tag-ux-polish) is open but mostly shipped via commit `1e5b3044`; only AC-5 (search-placeholder text mentions "tag") and possibly AC-4 (asserter list scrolls within max-height) remain. The user wants to "button up the feature" with a single bundle covering small fixes, polish, and a few correctness gaps surfaced during /discuss.

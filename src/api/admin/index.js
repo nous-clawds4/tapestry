@@ -6,7 +6,7 @@
  * Admins cannot manage other admins — only the owner can.
  */
 
-const { getConfigFromFile, getAdminPubkeys } = require('../../utils/config');
+const { getConfigFromFile, getAdminPubkeys, isAdminPubkey } = require('../../utils/config');
 const { getSettings, updateOverrides } = require('../../config/settings');
 const { nip19 } = require('nostr-tools');
 
@@ -82,6 +82,12 @@ async function resolveIdentifier(identifier) {
 
 /**
  * Middleware: require owner ONLY (not admin).
+ *
+ * Used by endpoints where admins must not have access — specifically the
+ * admin-management endpoints (/api/admin/list, /api/admin/add,
+ * /api/admin/remove). Allowing admins to manage the admin list itself
+ * would be a privilege-escalation surface (an admin could promote or
+ * remove other admins). See story #18 / ADR 0016 §Decision.
  */
 function requireOwnerOnly(req, res, next) {
   if (!req.session?.pubkey) {
@@ -92,6 +98,35 @@ function requireOwnerOnly(req, res, next) {
     return res.status(403).json({ success: false, error: 'Owner access required' });
   }
   next();
+}
+
+/**
+ * Middleware: require owner OR admin.
+ *
+ * Used by endpoints that trusted admins are allowed to operate — currently
+ * the BullBoard mount at /admin/queues (story #18 / ADR 0016). Admin list
+ * is resolved via isAdminPubkey() from utils/config, which consults
+ * settings.json first and falls back to BRAINSTORM_ADMIN_PUBKEYS in
+ * brainstorm.conf — the same source-of-truth used by admin checks
+ * elsewhere in the app.
+ *
+ * Admin-management endpoints (/api/admin/add etc.) deliberately do NOT use
+ * this middleware; they stay on requireOwnerOnly to preserve the
+ * privilege-escalation guardrail.
+ */
+function requireOwnerOrAdmin(req, res, next) {
+  if (!req.session?.pubkey) {
+    return res.status(401).json({ success: false, error: 'Not authenticated' });
+  }
+  const sessionPubkey = req.session.pubkey;
+  const ownerPubkey = getConfigFromFile('BRAINSTORM_OWNER_PUBKEY');
+  if (ownerPubkey && sessionPubkey === ownerPubkey) {
+    return next();
+  }
+  if (isAdminPubkey(sessionPubkey)) {
+    return next();
+  }
+  return res.status(403).json({ success: false, error: 'Owner or admin access required' });
 }
 
 /**
@@ -211,4 +246,5 @@ module.exports = {
   handleAddAdmin,
   handleRemoveAdmin,
   requireOwnerOnly,
+  requireOwnerOrAdmin,
 };

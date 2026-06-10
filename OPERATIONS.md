@@ -18,7 +18,11 @@
 7. [Active team and branch ownership](#7-active-team-and-branch-ownership)
 8. [Active tracking issues](#8-active-tracking-issues)
 9. [Operational gotchas we've hit](#9-operational-gotchas-weve-hit)
-10. [Local dev loop (inside-container source edits)](#10-local-dev-loop-inside-container-source-edits)
+10. [Task queue (BullMQ behind /api/run-task)](#10-task-queue-bullmq-behind-apirun-task)
+11. [Conf templates are the source of truth for fresh containers](#11-conf-templates-are-the-source-of-truth-for-fresh-containers)
+12. [Reconciliation — four independent tasks (story #23 / ADR 0020)](#12-reconciliation--four-independent-tasks-story-23--adr-0020)
+13. [Task scheduling — generalized scheduler (story #22 / ADR 0019)](#13-task-scheduling--generalized-scheduler-story-22--adr-0019)
+14. [Local dev loop (inside-container source edits)](#14-local-dev-loop-inside-container-source-edits)
 
 ---
 
@@ -409,7 +413,308 @@ If a droplet shows high abuse counts in the third check but the first two pass, 
 
 ---
 
-## 10. Local dev loop (inside-container source edits)
+## 10. Task queue (BullMQ behind /api/run-task)
+
+**Story #13 / ADR 0010.** Phase 1 of a multi-phase migration that routes `/api/run-task` through a real durable queue. Feature-flagged off by default in this phase — flip on per deployment after smoke confirms.
+
+### 10.1 Feature flag
+
+`TASK_QUEUE_ENABLED` in `/etc/brainstorm.conf` controls whether `/api/run-task` enqueues jobs through BullMQ or runs the legacy direct-spawn path.
+
+- `TASK_QUEUE_ENABLED=true` (default since story #17 / ADR 0015) — `/api/run-task` enqueues per-task BullMQ jobs; in-process Workers consume them; `launchChildTask.sh` still spawns the work (its pgrep guard remains as belt-and-suspenders). BullBoard UI mounts at `/admin/queues` (owner-only).
+- `TASK_QUEUE_ENABLED=false` — legacy direct-spawn. Zero queue dependency. **This is the rollback path** — flip the flag in the template (or, for an in-container hotfix, in `/etc/brainstorm.conf`), `supervisorctl restart brainstorm`, and the queue is out of the picture.
+
+When the flag is on and Redis is unreachable, `/api/run-task` returns `503` with body `{success: false, error: "task queue (Redis) unreachable", code: "QUEUE_UNAVAILABLE"}` so monitoring can distinguish this failure from 4xx client errors or 5xx unhandled exceptions.
+
+### 10.2 BullBoard UI (operator queue inspector)
+
+When the flag is on, BullBoard is mounted at `https://<host>/admin/queues` behind **owner-or-admin auth** (story #18 / ADR 0016, widened from owner-only in story #13). The owner and any pubkey listed in `BRAINSTORM_ADMIN_PUBKEYS` get full access — view queues, retry / remove / **pause** jobs. The board shows per-task queues with active / waiting / completed / failed counts.
+
+The admin-management endpoints (`/api/admin/list|add|remove`) deliberately use a stricter owner-only gate; admins cannot promote or remove other admins. Only the owner can change the admin list.
+
+> **Be careful.** Retry / remove / pause directly affect running calculations. The board title says "Owner + Admin" as a reminder; the auth gate prevents access by non-owner / non-admin sessions but does NOT prevent admins from making destructive choices.
+
+**Dashboard shortcut** (story #19 / ADR 0017). The Tapestry dashboard at `/tapestry` displays an "🛠️ Admin tools" panel for owner + admin sessions, with one-click links to BullBoard (`/admin/queues/`) and the Neo4j Browser (env-aware URL from `/api/status:neo4jBrowserUrl`). The panel is hidden entirely for non-owner / non-admin / unauthenticated visitors. BullBoard's own header also carries a `← Tapestry Dashboard` back-link, closing the navigation loop. Operators don't need to type `/admin/queues/` directly anymore.
+
+### 10.3 Per-task concurrency config
+
+Server-side file at `/etc/brainstorm-task-queue.json`:
+
+```json
+{
+  "defaultConcurrency": 1,
+  "concurrencyByTask": {
+    "calculateCustomerGrapeRank": 1
+  }
+}
+```
+
+Unset = `defaultConcurrency`. Phase 1 ships with everything at `1` to match today's effective serial behavior; the operator tunes upward task-by-task after observing real load.
+
+A future sibling story will introduce a shared "Neo4j-heavy class" concurrency cap across multiple task types (cross-task serialization) — that's tracked separately and out of scope for phase 1.
+
+### 10.4 Drain / pause for maintenance
+
+To pause all incoming jobs during planned maintenance (e.g., a Neo4j restart):
+
+1. Open BullBoard at `/admin/queues`.
+2. Click each queue's **Pause** button. Jobs in `active` complete; new submissions land in `waiting` and don't dispatch.
+3. Perform maintenance.
+4. Click each queue's **Resume** button. Queued jobs dispatch in order.
+
+To drain a queue (kill all waiting jobs for one task without affecting active ones), use the queue's "Clear waiting" button in BullBoard.
+
+A faster alternative for full deployments: flip `TASK_QUEUE_ENABLED=false`, `supervisorctl restart brainstorm`. The legacy direct-spawn path absorbs new submissions; the queued jobs remain in Redis (AOF-persisted) and resume when the flag flips back on.
+
+### 10.5 Redis persistence
+
+`docker-compose.yml` runs Redis with `--appendonly yes --appendfsync everysec`. Queued jobs survive `docker restart tapestry-redis` and container updates. No adverse interaction with the strfry-stream-consumer (which uses `blpop` on `strfry:events`) — AOF only adds an on-disk append per list operation.
+
+### 10.6 Cross-task resource-class concurrency caps
+
+**Story #15 / ADR 0013.** Story #13 introduced per-task queues with per-task concurrency caps — sufficient to serialize against same-task contention but not across different task names. Triggering `calculateOwnerGrapeRank` and `calculateOwnerPageRank` back-to-back will still run them concurrently because they live in different per-task queues. This subsection covers the additional cross-task layer.
+
+Requires `TASK_QUEUE_ENABLED=true` (§10.1). When the flag is off, the legacy direct-spawn path runs and resource-class tags have no effect.
+
+#### The `resourceClass` registry tag
+
+Tasks in `src/manage/taskQueue/taskRegistry.json` opt into cross-task serialization by adding a top-level `resourceClass` string, e.g.:
+
+```json
+{
+  "name": "Calculate Owner GrapeRank",
+  "resourceClass": "neo4j-heavy",
+  "categories": ["algorithms", "owner"],
+  ...
+}
+```
+
+Tasks without the tag are unaffected — they continue to use story #13's per-task concurrency only.
+
+The **initial tag set** shipped with this story is the owner trio:
+- `calculateOwnerHops`
+- `calculateOwnerPageRank`
+- `calculateOwnerGrapeRank`
+
+These are the three Neo4j-heavy tasks the operator demonstrated the cross-task pain with on `brainstorm.world`. Extend the set operationally by editing the registry and restarting the control panel.
+
+#### The `resourceClassCaps` config key
+
+Per-class concurrency caps live in `/etc/brainstorm-task-queue.json` as a sibling key to story #13's `concurrencyByTask`:
+
+```json
+{
+  "defaultConcurrency": 1,
+  "concurrencyByTask": {},
+  "resourceClassCaps": {
+    "neo4j-heavy": 1
+  }
+}
+```
+
+Cap default for `neo4j-heavy` is **1** — one Neo4j-heavy task at a time, the strictest interpretation matching the demonstrated pain. Raise to `2` (or higher) per environment if Neo4j proves it can handle concurrent heavy ops; lower to `0` (after a future enhancement) is not currently supported — a missing cap entry treats the class as cap=1 with a warning.
+
+#### Tagging a new task
+
+1. Edit `src/manage/taskQueue/taskRegistry.json`. Add `"resourceClass": "<class-name>"` to the entry.
+2. If `<class-name>` is new, edit `/etc/brainstorm-task-queue.json` and add an entry to `resourceClassCaps` with a numeric cap. (Untagged class = warning + cap=1 fallback.)
+3. `supervisorctl restart brainstorm`.
+4. Trigger the task. Inspect `/var/log/brainstorm/taskQueue/events.jsonl` for `phase=resource_class_*` events to confirm the wrap is active.
+
+#### Observability — `events.jsonl` phase tokens
+
+Resource-class lifecycle events are written to the same `events.jsonl` that bash `emit_task_event` uses (Node-side equivalent at `src/utils/structuredEvents.js`). Three phase tokens to grep for:
+
+- `resource_class_wait_begin` — task waiting for a slot. Metadata: `resourceClass`, `cap`, `jobId`.
+- `resource_class_wait_end` — wait resolved. Metadata: `resourceClass`, `wait_seconds`, `outcome` (`"acquired"` or `"timeout"`), `jobId`.
+- `resource_class_released` — task done, slot returned. Metadata: `resourceClass`, `held_seconds`, `jobId`.
+
+Quick operator check: "why hasn't my task started?" →
+```bash
+tail -f /var/log/brainstorm/taskQueue/events.jsonl | grep resource_class
+```
+
+#### The `RESOURCE_CLASS_WAIT_TIMEOUT` failure mode
+
+If a task waits longer than the configured `acquireTimeoutMs` (default **4 hours** — longer than any single heavy-task expected duration), the wait rejects with an Error whose `.code === 'RESOURCE_CLASS_WAIT_TIMEOUT'`. BullMQ marks the job failed; the job appears in BullBoard's `failed` tab with the error message containing `RESOURCE_CLASS_WAIT_TIMEOUT`. The corresponding `events.jsonl` entry is a `TASK_ERROR` event with `metadata.outcome: "timeout"`.
+
+This should be rare. If it fires, something upstream is stuck (e.g., a single heavy task running for >4 hours). Operator action: investigate the holder, manually clear the Redis hash if needed: `docker exec tapestry-redis redis-cli DEL taskQueue:resource-class:neo4j-heavy:holders`.
+
+#### Composes additively with story #13
+
+- Per-`(taskName, pubkey)` jobId dedup → unchanged.
+- Per-task concurrency from `concurrencyByTask` → unchanged.
+- Resource-class semaphore wraps the Worker callback BEFORE `processor.processJob` runs.
+
+For a tagged task with `concurrencyByTask: 2` and `resourceClassCaps.neo4j-heavy: 1`: the **effective** concurrency is the more restrictive of the two (here, 1 — one per class regardless of per-task budget).
+
+## 11. Conf templates are the source of truth for fresh containers
+
+Story #16 / ADR 0014. Until 2026-05-21 the Docker entrypoint regenerated `/etc/brainstorm.conf` from an 80-line heredoc embedded in `docker/entrypoint.sh`. `config/brainstorm.conf.template` was consulted only by the bare-metal install path and had silently drifted to be missing ~25 of the variables the heredoc carried — including story #13's `TASK_QUEUE_ENABLED=false`, which never reached any fresh Docker container until an operator manually added the line.
+
+After story #16, the contract for fresh containers is:
+
+> **`config/brainstorm.conf.template` is the single source of truth for `/etc/brainstorm.conf`.** The entrypoint renders the template via `tools/render-conf-template.js` at every container start; the heredoc is gone.
+
+### What this means for the operator
+
+- **Adding a new feature flag or env var.** Edit `config/brainstorm.conf.template`, commit, rebuild the image. The next container that starts gets the new line in `/etc/brainstorm.conf` automatically — no entrypoint.sh edit needed.
+- **The renderer fails the boot loudly on a missing env var.** If the template references `${SOME_NEW_VAR}` and the entrypoint never exports it, the container's boot fails with `RenderError: missing env vars in brainstorm.conf.template: SOME_NEW_VAR`. This is by design — better than silently emitting `SOME_NEW_VAR=""` and discovering it at runtime. When adding a template variable, also add the corresponding `export` to `docker/entrypoint.sh` (currently exports `OWNER_PUBKEY`, `ADMIN_PUBKEYS`, `NEO4J_PASSWORD`, `DOMAIN_NAME`, `RELAY_URL`, `BRAINSTORM_MODULE_BASE_DIR`, `BRAINSTORM_NODE_BIN`, `SESSION_SECRET`, `OWNER_NPUB`).
+- **`brainstorm-task-queue.json` follows the conditional-copy pattern.** Its template at `config/brainstorm-task-queue.json.template` is copied to `/etc/brainstorm-task-queue.json` only if the destination does not already exist. Operator edits to the live JSON survive container restarts (unlike `/etc/brainstorm.conf`, which is regenerated unconditionally on every boot).
+
+### The trap — edits inside a running container are lost on restart
+
+The entrypoint **unconditionally overwrites** `/etc/brainstorm.conf` on every container start. This matches the prior heredoc behavior; story #16 did not change it.
+
+If you `docker exec tapestry sed -i ... /etc/brainstorm.conf` to flip a flag (the pattern used during story #15's `TASK_QUEUE_ENABLED` rollout — see §10.1), your edit lasts **until the next container restart**. To make an edit persist:
+
+1. **Repo-level (recommended).** Edit `config/brainstorm.conf.template`, commit, rebuild the image. Fresh containers and restarts both pick it up.
+2. **Operator-level (long-running containers).** Use the `if grep -q ...; else docker exec ... >> ...` recipe below for an in-container append, then **also** update the template so the next deploy doesn't reintroduce the old value.
+
+```bash
+# Append-if-absent recipe (use inside a running container):
+docker exec tapestry bash -c '
+  if grep -q "^export FOO=" /etc/brainstorm.conf; then
+    echo "FOO already set"
+  else
+    echo "export FOO=value" >> /etc/brainstorm.conf
+    echo "appended FOO"
+  fi
+'
+# This wins only until the next restart, when the template re-renders.
+```
+
+### Drift sentinels
+
+`test/entrypoint-template-rendering.test.js` carries two drift sentinels that fail npm test if:
+- A `<<CONFEOF` heredoc reappears in `docker/entrypoint.sh` (T7 — re-introducing a second source of truth).
+- The `render-conf-template.js` invocation count moves off exactly one (T8 — second write-path, or lost integration).
+
+A future reviewer who sees these tests fail should stop and ask whether the change is reintroducing the very drift class story #16 closed.
+
+## 12. Reconciliation — four independent tasks (story #23 / ADR 0020)
+
+Reconciliation repairs drift between strfry (canonical nostr event store) and the Neo4j social graph (FOLLOWS / MUTES / REPORTS from kind 3 / 10000 / 1984). Story #23 **superseded** the single `reconciliation.sh --mode` engine — whose eager full-graph `DISTINCT u.pubkey ... ORDER BY u.pubkey SKIP/LIMIT` rater-pagination hit Neo4j's `transaction.total.max` and crashed `reconcileAll` at 32M edges — with **four independent task scripts**, each tuned to its own guarantee. The legacy `reconciliation` registry key was **removed**.
+
+| Task | Script | Scope | Mechanism | `neo4j-heavy`? |
+|---|---|---|---|---|
+| `reconcileRecent` | `reconcileRecent.sh` | authors with an event in a bounded, overridable recency window (default 6h) | streamed parameterized `WHERE u.pubkey IN $list` over the recent set | yes |
+| `reconcileNetwork` | `reconcileNetwork.sh` | a parameterized trusted network (`influence ≥ cutoff` and/or `hops ≤ N`) | full strfry dump → converter `--filterAuthorsFile` (network set from Neo4j) → streamed extractor | yes |
+| `reconcileAll` | `reconcileAll.sh` | **truly all** (~32M FOLLOWS edges) | reactive-streamed Neo4j → TSV + Node strfry→TSV + `LC_ALL=C sort -u` + `comm` **merge-join** + APOC apply | yes |
+| `reconcileAuthor` | `reconcileAuthor.sh` | one author (`--pubkey <hex>`) | streamed one-element `IN` query | **no** (stays responsive for interactive triggers) |
+
+All four reuse the existing diff (`calculate{Mutes,Reports,Follows}Updates.js`) and APOC apply commands. Each emits structured events under its **own** `taskName` (fixes #22 OBS-2 — `/api/scheduled-tasks/history?taskId=reconcileX` resolves per task) with a `trap`-based terminal-on-failure (fixes #22 OBS-1 — a crash never reads as perpetually "running"). The three bulk sweeps serialize via the `neo4j-heavy` semaphore (ADR 0013).
+
+### 12.1 `reconcileRecent` — bounded recency window
+
+```bash
+RECONCILE_RECENT_MAX_RECENCY_SECONDS=21600   # default 6h (env / brainstorm.conf)
+reconcileRecent.sh --recency 3600            # per-run override (1h)
+```
+
+Lookback = `min(now − watermark + RECONCILIATION_OVERLAP_SECONDS, max_recency)`. **No watermark ⇒ just the max-recency window; NEVER a bootstrap full pass** (the previous engine's runaway). Drift older than the window is `reconcileNetwork`'s / `reconcileAll`'s job.
+
+Watermark at `/var/lib/brainstorm/pipeline/reconciliation/state.json`; advanced on success only.
+
+### 12.2 `reconcileNetwork` — parameterized trusted network
+
+Reconciles a configurable **trusted network**, defined by a Neo4j property predicate. Two parameters; both ANDed when both given:
+
+```bash
+reconcileNetwork.sh                             # default: influence ≥ 0.05 (verified)
+reconcileNetwork.sh --influence 0.05            # verified
+reconcileNetwork.sh --hops 3                    # within 3 follow-hops of the owner
+reconcileNetwork.sh --influence 0.1 --hops 2    # both, ANDed
+```
+
+The default cutoff reads `VERIFIED_FOLLOWERS_INFLUENCE_CUTOFF` from `/etc/graperank.conf` (default `0.05`) — the same threshold the rest of the system uses for "verified."
+
+**SAFETY GUARDS** (enforced in the script regardless of caller): refuses `influence ≤ 0` (selects every user), `hops ≥ 999` (the disconnected sentinel — also selects every user), or no substantive constraint. Without those, the predicate would degenerate into an unconstrained full scan — the exact workload that crashed `reconcileAll`.
+
+### 12.3 `reconcileAll` — truly all, sorted merge-join
+
+The complete oracle / incident-recovery sweep. **Mutes/reports** use the per-pubkey path (bounded by their small scale, ~190k/170k). **Follows** uses a **sorted merge-join** at 32M-edge scale:
+
+1. `extractFollowsToTSV.js` streams the full Neo4j FOLLOWS to a TSV via reactive `subscribe` (no eager operator, bounded transaction memory).
+2. `strfryToKind3Events.sh` dumps all kind-3; `kind3EventsToFollowsTSV.js` streams events to a parallel TSV (`rater\tratee` per p-tag, lowercased, 64-hex-filtered).
+3. `LC_ALL=C sort -u -T ${BASE_DIR}` external-sorts both files.
+4. `comm -23` emits adds (strfry-only); `comm -13` emits deletes (Neo4j-only).
+5. `awk` converts to APOC apply JSON; existing apply commands run.
+
+**Bounded memory regardless of graph size.** Target: **< 1h** at 32M edges; staging-measured runtime after the jq → Node converter optimization: **~14 minutes**. Schedule weekly in a low-traffic window (registry timeout is 8h safety margin).
+
+For incident recovery (drift the incremental sweep wouldn't catch — partial write, botched migration, direct Neo4j surgery), trigger `reconcileAll` manually.
+
+### 12.4 `reconcileAuthor` — single author
+
+```bash
+reconcileAuthor.sh --pubkey <64-hex>
+```
+
+Scope is exactly one author. **No watermark, no GDS reprojection** (single-author change doesn't warrant either). Intentionally **NOT `neo4j-heavy`** — a tiny point repair that stays responsive for interactive triggers and never queues behind a sweep. (The profile-page / API trigger surfaces are a separate follow-up story; the engine is delivered here.)
+
+### 12.5 Config (`/etc/brainstorm.conf`)
+
+- `RECONCILIATION_OVERLAP_SECONDS` (default `3600`) — safety window re-scanned on top of `reconcileRecent`'s watermark. Re-scanning is idempotent.
+- `RECONCILE_RECENT_MAX_RECENCY_SECONDS` (default `21600` = 6h) — the bounded cap.
+
+### 12.6 Observability
+
+Per-task structured events in `${BRAINSTORM_LOG_DIR}/taskQueue/events.jsonl`:
+- `TASK_START` / `TASK_END` / `TASK_ERROR` under each task's **own** `taskName` (OBS-2 fix).
+- `TASK_ERROR` on **every** non-zero exit path via a script-level `trap` (OBS-1 fix).
+- Per-phase `PROGRESS` with `added`, `deleted`, `edge_counts_before`/`after`, `duration`.
+
+Human log: `${BRAINSTORM_LOG_DIR}/reconciliation.log` (per-phase + extractor/converter step traces).
+
+### 12.7 Deprecated / removed (story #23)
+
+- The legacy `reconciliation` registry task key was **removed**. Use the four explicit task keys.
+- The `reconciliation.sh --mode` engine is **superseded** by the four scripts; the file remains on disk as dead code (clean-removal is a tracked follow-up).
+- The `getCurrentFollowsFromNeo4j_working.js` / `_working2.js` cruft variants are **removed**.
+- The eager-pagination `getRaterCount()` / `getRaters()` functions are **removed** from all three Neo4j extractors; `--authorsFromDir` is now required.
+- The host `systemd/reconcile.timer` remains **deprecated** (bypasses queue + semaphore); confirm `systemctl is-enabled reconcile.timer` is disabled. Unit-file removal is a tracked follow-up.
+
+## 13. Task scheduling — generalized scheduler (story #22 / ADR 0019)
+
+Recurring task scheduling is served by **BullMQ Job Schedulers** attached to each task's queue — not an in-process `setInterval` (which was retired). **Any** task in the registry can be scheduled; schedules are durable (persisted in Redis, survive a control-panel restart) and every fire routes through the queue, so the `neo4j-heavy` semaphore, per-task concurrency, and BullBoard all apply.
+
+### 13.1 Configuring a schedule
+
+Manage schedules from the **Scheduled Tasks** panel (Relay Settings → Scheduled Tasks) or via the API:
+- `GET /api/scheduled-tasks/list` — every schedulable (registered) task + its current schedule + next/last run.
+- `GET /api/scheduled-tasks/status?taskId=…`, `POST /api/scheduled-tasks/update`, `GET /api/scheduled-tasks/history?taskId=…`.
+
+Schedule shape in `/var/lib/brainstorm/scheduled-tasks.json` — the **source of truth** (Job Schedulers in Redis are the execution layer, reconciled from this file on boot and on every update):
+
+```json
+{ "reconcileRecent":    { "enabled": true, "intervalMinutes": 10 },
+  "reconcileAll":       { "enabled": true, "cron": "0 4 * * 0" },
+  "refreshSearchIndex": { "enabled": true, "intervalHours": 24 } }
+```
+
+- **Interval**: `intervalDays` + `intervalHours` + `intervalMinutes` (summed). **Sub-hour is allowed** — the old 1-hour floor is gone, so `intervalMinutes: 10` is valid.
+- **Cron**: a `cron` expression takes precedence over the interval fields — pin a heavy run to a low-traffic window.
+
+### 13.2 Durability & missed-fire policy
+
+Schedules live in Redis as BullMQ Job Schedulers, so they survive a control-panel restart (unlike the retired `setInterval`). **Missed-fire policy: skip-and-resume, no backfill** — a fire missed while the process was down is not replayed; the next future occurrence runs normally. For `reconcileRecent` this is harmless — the next run's watermark window simply spans the gap.
+
+### 13.3 Kill-switch
+
+Set `"scheduler": false` in `/etc/brainstorm-task-queue.json` and restart the control-panel to halt ALL scheduling (the boot reconcile upserts nothing and removes managed Job Schedulers). Default is on. Per-task `enabled: false` is the finer-grained control.
+
+### 13.4 Scheduling reconciliation
+
+Suggested cadence:
+
+- `reconcileRecent` — every ~10 minutes (`intervalMinutes: 10`). Bounded by the recency window; cost is proportional to recent activity, not graph size.
+- `reconcileNetwork` — every few hours (`intervalHours: 6`) or daily. Cost bounded by the network predicate; staging-measured runtime on the verified set: ~9 min.
+- `reconcileAll` — weekly via cron at a low-traffic hour (e.g. `cron: "0 4 * * 0"`). Holds `neo4j-heavy` for ~15 min on the staging-scale 32M-edge graph; blocks GrapeRank/PageRank meanwhile.
+- `reconcileAuthor` — on-demand, not scheduled.
+
+**No seed-first runbook needed** (story #23): the bounded `reconcileRecent` cannot bootstrap into a full pass on a missing watermark, so the previous "run `reconcileAll` first" caveat is obsolete.
+## 14. Local dev loop (inside-container source edits)
 
 When you're iterating on UI or server code and want to see changes on `http://localhost:7778` *without* a full image rebuild (which is what `/cycle-local` does), you have to do it by hand. The local-loop friction is real and counter-intuitive — write it down once so the next person doesn't waste an hour.
 

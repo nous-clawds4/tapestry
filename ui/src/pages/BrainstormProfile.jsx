@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { useParams, useSearchParams } from 'react-router-dom';
+import { useParams, useSearchParams, Link } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
 import { useAuth } from '../context/AuthContext';
 import TopBar from '../components/TopBar';
@@ -11,6 +11,15 @@ import ReportModal from '../components/ReportModal';
 import ProfileTagsSection from '../components/ProfileTagsSection';
 import AuthoredTaggingSection from '../components/AuthoredTaggingSection';
 import { timeAgo } from '../utils/timeAgo';
+import { toExternalUrl } from '../utils/url';
+import VerificationInfo from '../components/VerificationInfo';
+
+/* ── Verified Reporters alarm thresholds (ADR 0032) ──────
+   Alarm (red + icon) only when verifiedReporterCount >= BASE + one "freebie" per
+   FREEBIE_PER verified followers — so popular accounts aren't red-flagged for the
+   handful of verified reporters they naturally accrue. */
+const REPORTER_ALARM_BASE = 3;
+const REPORTER_ALARM_FREEBIE_PER = 750;
 
 /* ── Helpers ──────────────────────────────────────────── */
 
@@ -85,6 +94,17 @@ export default function BrainstormProfile() {
   const nip05Verified = useNip05Verification(pubkey, profile?.nip05);
   const followingCount = userCounts?.followingCount ?? null;
   const fmtCount = (n) => (n == null ? '—' : new Intl.NumberFormat().format(n));
+  // Verified Followers + Verified Reporters counts come from the Owner-PoV source
+  // (Neo4j via get-user-counts → useUserCounts) — same definition as the /followers and
+  // /reporters tables, NOT Meili (ADR 0031). `?? null` keeps a genuine 0 distinct from
+  // "not loaded" → "—"; never a raw-follower substitution.
+  const verifiedFollowerCount = userCounts?.verifiedFollowerCount ?? null;
+  const verifiedReporterCount = userCounts?.verifiedReporterCount ?? null;
+  // Dynamic alarm: red + icon only past a popularity-adjusted threshold (ADR 0032).
+  // No alarm when either count is unavailable (no crying wolf on incomplete data).
+  const reporterAlarm =
+    verifiedReporterCount != null && verifiedFollowerCount != null &&
+    verifiedReporterCount >= REPORTER_ALARM_BASE + Math.floor(verifiedFollowerCount / REPORTER_ALARM_FREEBIE_PER);
 
   const npub = useMemo(() => {
     try { return nip19.npubEncode(pubkey); } catch { return null; }
@@ -215,12 +235,39 @@ export default function BrainstormProfile() {
               </div>
             </div>
 
-            {/* Following count */}
+            {/* Following + Verified Followers + Verified Reporters counts */}
             <div className={`bsp-counts ${userCountsLoading ? 'bsp-counts-loading' : ''}`}>
-              <span className="bsp-count">
+              <Link to={`/user/${pubkey}/follows`} className="bsp-count bsp-count-link">
                 <span className="bsp-count-value">{fmtCount(followingCount)}</span>
                 <span className="bsp-count-label">Following</span>
-              </span>
+              </Link>
+              {/* Verified Followers → followers table (story #34, ADR 0030). Value is the
+                  Owner-PoV count from useUserCounts (ADR 0031), same source as the table. */}
+              <Link to={`/user/${pubkey}/followers`} className="bsp-count bsp-count-link">
+                <span className="bsp-count-value">{fmtCount(verifiedFollowerCount)}</span>
+                <span className="bsp-count-label">Verified Followers</span>
+              </Link>
+              {/* Verified Reporters → /user/:pubkey/reporters. Always a <Link> when >0; a
+                  genuine 0 is neutral and not a link; "—" when unavailable; dimmed "—" while
+                  loading. The red + 🚩 alarm shows ONLY past the dynamic threshold
+                  (reporterAlarm, ADR 0032) — a benign count looks neutral. */}
+              {verifiedReporterCount > 0 ? (
+                <Link
+                  to={`/user/${pubkey}/reporters`}
+                  className="bsp-count bsp-count-link"
+                  aria-label={`${verifiedReporterCount} verified reporters. View list.`}
+                >
+                  <span className={`bsp-count-value${reporterAlarm ? ' bsp-count-value-negative' : ''}`}>{fmtCount(verifiedReporterCount)}</span>
+                  {reporterAlarm && <span className="bsp-count-alarm-icon" aria-hidden="true">🚩</span>}
+                  <span className="bsp-count-label">Verified Reporters</span>
+                </Link>
+              ) : (
+                <span className={`bsp-count${userCountsLoading ? ' bsp-count-loading' : ''}`}>
+                  <span className="bsp-count-value">{fmtCount(verifiedReporterCount)}</span>
+                  <span className="bsp-count-label">Verified Reporters</span>
+                </span>
+              )}
+              <VerificationInfo />
             </div>
 
             {/* Action buttons */}
@@ -289,7 +336,7 @@ export default function BrainstormProfile() {
                 {profile?.website && (
                   <div className="bsp-id-row">
                     <span className="bsp-id-label">Website</span>
-                    <a href={profile.website} target="_blank" rel="noopener noreferrer" className="bsp-id-link">
+                    <a href={toExternalUrl(profile.website)} target="_blank" rel="noopener noreferrer" className="bsp-id-link">
                       {profile.website.replace(/^https?:\/\//, '').replace(/\/$/, '')}
                     </a>
                   </div>

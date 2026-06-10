@@ -382,7 +382,7 @@ launchChildTask() {
         sleep $check_interval
         elapsed=$((elapsed + check_interval))
         
-        if [[ $elapsed -ge $timeout_seconds ]]; then
+        if [[ $timeout_seconds -gt 0 && $elapsed -ge $timeout_seconds ]]; then
             echo "$(date): Process $child_pid timed out after ${elapsed}s" >> ${LOG_FILE}
             timed_out=true
             break
@@ -400,7 +400,7 @@ launchChildTask() {
         error_type="timeout"
         
         # Check if we should force kill
-        local force_kill=$(echo "$resolved_options" | jq -r '.failure.timeout.forceKill // false')
+        local force_kill=$(echo "$resolved_options" | jq -r '.failure.timeout.forceKill // true')
         echo "$(date): Task timed out, force_kill=$force_kill" >> ${LOG_FILE}
         if [[ "$force_kill" == "true" ]]; then
             # Try to force kill the process with cross-user compatibility

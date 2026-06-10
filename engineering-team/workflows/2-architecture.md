@@ -7,7 +7,7 @@ Architect. See `engineering-team/roles/architect.md`.
 An approved user story.
 
 ## Output
-An ADR at `engineering-team/decisions/<NNNN>-<slug>.md` (numbering: zero-padded sequential, e.g., `0007-add-stripe-webhook-handler.md`), using the `adr.md` template.
+An ADR at `engineering-team/decisions/<epic-slug>/<NNNN>-<slug>.md` (numbering: zero-padded sequential per epic, e.g., `0007-add-stripe-webhook-handler.md`), using the `adr.md` template.
 
 ADRs are **enabled** for this project.
 

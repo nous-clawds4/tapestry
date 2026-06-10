@@ -1,28 +1,59 @@
-#!/bin/bash
-# Brainstorm Configuration File
-# This file should be installed at /etc/brainstorm.conf
-# with proper permissions: chmod 640 /etc/brainstorm.conf
-# and ownership: chown root:brainstorm /etc/brainstorm.conf
+# Brainstorm Configuration (Docker)
+#
+# This template is rendered by tools/render-conf-template.js into
+# /etc/brainstorm.conf at container start. Curly-brace env-var references are
+# substituted against the entrypoint's process env (see docker/entrypoint.sh).
+# Literal values are emitted as-is. Edits to this template propagate to fresh
+# containers on the next image build — operator-level edits to a running
+# container's /etc/brainstorm.conf are LOST on restart.
+#
+# Story #16 / ADR 0014. The previous "bare-metal install" copy of this file
+# was selectively maintained and dropped most of the variables the Docker
+# heredoc carried; story #16 backfills it to be the single source of truth.
 
-# ==========================================
-# SENSITIVE CONFIGURATION - KEEP SECURE
-# ==========================================
+BRAINSTORM_NODE_BIN="${BRAINSTORM_NODE_BIN}"
+export BRAINSTORM_NODE_BIN
 
-export STRFRY_DOMAIN="your.relay.com"
+# File paths
+BRAINSTORM_MODULE_BASE_DIR="${BRAINSTORM_MODULE_BASE_DIR}"
+BRAINSTORM_MODULE_SRC_DIR="${BRAINSTORM_MODULE_BASE_DIR}src/"
+BRAINSTORM_MODULE_ALGOS_DIR="${BRAINSTORM_MODULE_BASE_DIR}src/algos"
+BRAINSTORM_EXPORT_DIR="${BRAINSTORM_MODULE_BASE_DIR}src/export"
+BRAINSTORM_MODULE_MANAGE_DIR="${BRAINSTORM_MODULE_BASE_DIR}src/manage"
+BRAINSTORM_NIP85_DIR="${BRAINSTORM_MODULE_BASE_DIR}src/algos/nip85"
+BRAINSTORM_MODULE_PIPELINE_DIR="${BRAINSTORM_MODULE_BASE_DIR}src/pipeline"
+STRFRY_PLUGINS_BASE="/usr/local/lib/strfry/plugins/"
+STRFRY_PLUGINS_DATA="/usr/local/lib/strfry/plugins/data/"
+BRAINSTORM_LOG_DIR="/var/log/brainstorm"
+BRAINSTORM_BASE_DIR="/var/lib/brainstorm"
 
-# Relay configuration
-export BRAINSTORM_RELAY_URL="wss://your.relay.com"
-export BRAINSTORM_RELAY_PUBKEY="your-relay-pubkey"
-export BRAINSTORM_RELAY_PRIVKEY="your-relay-private-key"
+export BRAINSTORM_MODULE_BASE_DIR
+export BRAINSTORM_MODULE_SRC_DIR
+export BRAINSTORM_MODULE_ALGOS_DIR
+export BRAINSTORM_EXPORT_DIR
+export BRAINSTORM_MODULE_MANAGE_DIR
+export BRAINSTORM_NIP85_DIR
+export STRFRY_PLUGINS_BASE
+export STRFRY_PLUGINS_DATA
+export BRAINSTORM_LOG_DIR
+export BRAINSTORM_BASE_DIR
 
-# Neo4j configuration
-export NEO4J_URI="bolt://localhost:7687"
-export NEO4J_USER="neo4j"
-export NEO4J_PASSWORD="neo4j"
+# WoT relays
+export BRAINSTORM_DEFAULT_WOT_RELAYS='wss://wot.grapevine.network,wss://wot.brainstorm.social,wss://profiles.nostr1.com,wss://relay.hasenpfeffr.com'
+export BRAINSTORM_WOT_RELAYS='wss://wot.grapevine.network,wss://wot.brainstorm.social,wss://profiles.nostr1.com,wss://relay.hasenpfeffr.com'
 
-# ==========================================
-# GENERAL CONFIGURATION
-# ==========================================
+# NIP-85 relays
+export BRAINSTORM_DEFAULT_NIP85_RELAYS='wss://nip85.brainstorm.world,wss://nip85.nostr1.com'
+export BRAINSTORM_NIP85_RELAYS='wss://nip85.brainstorm.world,wss://nip85.nostr1.com'
+export BRAINSTORM_DEFAULT_NIP85_HOME_RELAY='wss://nip85.brainstorm.world'
+export BRAINSTORM_NIP85_HOME_RELAY='wss://nip85.brainstorm.world'
+
+# Popular general purpose relays
+export BRAINSTORM_DEFAULT_POPULAR_GENERAL_PURPOSE_RELAYS='wss://relay.nostr.band,wss://relay.damus.io,wss://relay.primal.net'
+export BRAINSTORM_POPULAR_GENERAL_PURPOSE_RELAYS='wss://relay.nostr.band,wss://relay.damus.io,wss://relay.primal.net'
+
+# NIP-85 configuration
+export BRAINSTORM_30382_LIMIT="250000"
 
 # Performance tuning
 export BRAINSTORM_BATCH_SIZE="100"
@@ -31,9 +62,39 @@ export BRAINSTORM_DELAY_BETWEEN_EVENTS="50"
 export BRAINSTORM_MAX_RETRIES="3"
 export BRAINSTORM_MAX_CONCURRENT_CONNECTIONS="5"
 
-# File paths
-export BRAINSTORM_INPUT_FILE="/usr/local/lib/node_modules/brainstorm/src/algos/nip85.json"
-export BRAINSTORM_KEYS_FILE="/usr/local/lib/node_modules/brainstorm/src/nostr/keys/brainstorm_relay_keys"
+# Relay configuration
+export BRAINSTORM_RELAY_URL="${RELAY_URL}"
 
-# Control panel configuration
-export CONTROL_PANEL_PORT="7778"
+# Neo4j configuration
+export BRAINSTORM_NEO4J_BROWSER_URL="http://${DOMAIN_NAME}:7474"
+export NEO4J_URI="bolt://localhost:7687"
+export NEO4J_USER="neo4j"
+export NEO4J_PASSWORD="${NEO4J_PASSWORD}"
+
+# Strfry configuration
+export STRFRY_DOMAIN="${DOMAIN_NAME}"
+
+# Owner
+export BRAINSTORM_OWNER_PUBKEY="${OWNER_PUBKEY}"
+export BRAINSTORM_OWNER_NPUB="${OWNER_NPUB}"
+export BRAINSTORM_MANAGER_PUBKEYS=""
+export BRAINSTORM_ADMIN_PUBKEYS="${ADMIN_PUBKEYS}"
+
+# Security
+export SESSION_SECRET="${SESSION_SECRET}"
+
+# Process all tasks interval
+export BRAINSTORM_PROCESS_ALL_TASKS_INTERVAL="12hours"
+
+# Actions
+export BRAINSTORM_SEND_EMAIL_UPDATES=0
+export BRAINSTORM_ACCESS=0
+export BRAINSTORM_CREATED_CONSTRAINTS_AND_INDEXES=0
+
+# Task queue (story #13 / ADR 0012; default flipped from false to true in
+# story #17 / ADR 0015 after the queue path matured in production). When
+# true, /api/run-task enqueues jobs through BullMQ and BullBoard mounts at
+# /admin/queues (owner-only). When false, the legacy direct-spawn path runs
+# unchanged — that's the rollback path. Requires Redis (already a runtime
+# dependency for sessions and the strfry-stream-consumer).
+export TASK_QUEUE_ENABLED=true

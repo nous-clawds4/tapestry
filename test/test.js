@@ -61,6 +61,32 @@ const nip51ListExportPublish = require('./nip51-list-export-from-pins-publish.te
 const pinDetailIntoTagTab = require('./pin-detail-into-tag-pinned-tab.test.js');
 const collapseIntoExport = require('./collapse-into-export-concept.test.js');
 const loginFailureAndTagCollapse = require('./login-failure-and-tag-collapse.test.js');
+const headerConceptGraphTag = require('./header-conceptgraph-tag.test.js');
+const communityReferenceSupersetLink = require('./community-reference-superset-link.test.js');
+const graperankSharedCsvRace = require('./graperank-shared-csv-race.test.js');
+const communityClassThreadPull = require('./community-class-thread-pull.test.js');
+const taskQueueBullmq = require('./task-queue-bullmq.test.js');
+const taskQueueNeo4jResourceClass = require('./task-queue-neo4j-resource-class.test.js');
+const entrypointTemplateRendering = require('./entrypoint-template-rendering.test.js');
+const bullboardAdminAccess = require('./bullboard-admin-access.test.js');
+const adminToolsDashboardPanel = require('./admin-tools-dashboard-panel.test.js');
+const reconciliationIncrementalMode = require('./reconciliation-incremental-mode.test.js');
+const generalizedTaskScheduler = require('./generalized-task-scheduler.test.js');
+const reconciliationRearchitecture = require('./reconciliation-rearchitecture.test.js');
+const scheduledTasksWithArguments = require('./scheduled-tasks-with-arguments.test.js');
+const manualTaskRetriggerAfterFinish = require('./manual-task-retrigger-after-finish.test.js');
+const scheduledTaskTimeoutPropagation = require('./scheduled-task-timeout-propagation.test.js');
+const killTimeoutOrphansByDefault = require('./kill-timeout-orphans-by-default.test.js');
+const taskQueueSemaphoreProtectionAudit = require('./task-queue-semaphore-protection-audit.test.js');
+const profileFollowsList = require('./profile-follows-list.test.js');
+const profileWebsiteLink = require('./profile-website-link.test.js');
+const profileVerifiedFollowersCount = require('./profile-verified-followers-count.test.js');
+const profileFollowersList = require('./profile-followers-list.test.js');
+const profileVerifiedReportersCount = require('./profile-verified-reporters-count.test.js');
+const verifiedReportersMembershipData = require('./verified-reporters-membership-data.test.js');
+const verifiedReportersListPage = require('./verified-reporters-list-page.test.js');
+const profileVerifiedCountsOwnerPov = require('./profile-verified-counts-owner-pov.test.js');
+const profileVerifiedCountsExplainerAndAlarm = require('./profile-verified-counts-explainer-and-alarm.test.js');
 
 async function main() {
   console.log('Running Brainstorm tests...');
@@ -119,6 +145,84 @@ async function main() {
   const pinDetailIntoTagTabResult = await pinDetailIntoTagTab.run();
   const collapseIntoExportResult = await collapseIntoExport.run();
   const loginFailureAndTagCollapseResult = await loginFailureAndTagCollapse.run();
+
+  console.log('\nheader-conceptgraph-tag suite:');
+  const headerConceptGraphTagResult = await headerConceptGraphTag.run();
+
+  console.log('\ncommunity-reference-superset-link suite:');
+  const communityReferenceSupersetLinkResult = await communityReferenceSupersetLink.run();
+
+  console.log('\ngraperank-shared-csv-race suite:');
+  const graperankSharedCsvRaceResult = await graperankSharedCsvRace.run();
+
+  console.log('\ncommunity-class-thread-pull suite:');
+  const communityClassThreadPullResult = await communityClassThreadPull.run();
+
+  console.log('\ntask-queue-bullmq suite:');
+  const taskQueueBullmqResult = await taskQueueBullmq.run();
+
+  console.log('\ntask-queue-neo4j-resource-class suite:');
+  const taskQueueNeo4jResourceClassResult = await taskQueueNeo4jResourceClass.run();
+
+  console.log('\nentrypoint-template-rendering suite:');
+  const entrypointTemplateRenderingResult = await entrypointTemplateRendering.run();
+
+  console.log('\nbullboard-admin-access suite:');
+  const bullboardAdminAccessResult = await bullboardAdminAccess.run();
+
+  console.log('\nadmin-tools-dashboard-panel suite:');
+  const adminToolsDashboardPanelResult = await adminToolsDashboardPanel.run();
+
+  console.log('\nreconciliation-incremental-mode suite:');
+  const reconciliationIncrementalModeResult = await reconciliationIncrementalMode.run();
+
+  console.log('\ngeneralized-task-scheduler suite:');
+  const generalizedTaskSchedulerResult = await generalizedTaskScheduler.run();
+
+  console.log('\nreconciliation-rearchitecture suite:');
+  const reconciliationRearchitectureResult = await reconciliationRearchitecture.run();
+
+  console.log('\nscheduled-tasks-with-arguments suite:');
+  const scheduledTasksWithArgumentsResult = await scheduledTasksWithArguments.run();
+
+  console.log('\nmanual-task-retrigger-after-finish suite:');
+  const manualTaskRetriggerAfterFinishResult = await manualTaskRetriggerAfterFinish.run();
+
+  console.log('\nscheduled-task-timeout-propagation suite:');
+  const scheduledTaskTimeoutPropagationResult = await scheduledTaskTimeoutPropagation.run();
+
+  console.log('\nkill-timeout-orphans-by-default suite:');
+  const killTimeoutOrphansByDefaultResult = await killTimeoutOrphansByDefault.run();
+
+  console.log('\ntask-queue-semaphore-protection-audit suite:');
+  const taskQueueSemaphoreProtectionAuditResult = await taskQueueSemaphoreProtectionAudit.run();
+
+  console.log('\nprofile-follows-list suite:');
+  const profileFollowsListResult = await profileFollowsList.run();
+
+  console.log('\nprofile-website-link suite:');
+  const profileWebsiteLinkResult = await profileWebsiteLink.run();
+
+  console.log('\nprofile-verified-followers-count suite:');
+  const profileVerifiedFollowersCountResult = await profileVerifiedFollowersCount.run();
+
+  console.log('\nprofile-followers-list suite:');
+  const profileFollowersListResult = await profileFollowersList.run();
+
+  console.log('\nprofile-verified-reporters-count suite:');
+  const profileVerifiedReportersCountResult = await profileVerifiedReportersCount.run();
+
+  console.log('\nverified-reporters-membership-data suite:');
+  const verifiedReportersMembershipDataResult = await verifiedReportersMembershipData.run();
+
+  console.log('\nverified-reporters-list-page suite:');
+  const verifiedReportersListPageResult = await verifiedReportersListPage.run();
+
+  console.log('\nprofile-verified-counts-owner-pov suite:');
+  const profileVerifiedCountsOwnerPovResult = await profileVerifiedCountsOwnerPov.run();
+
+  console.log('\nprofile-verified-counts-explainer-and-alarm suite:');
+  const profileVerifiedCountsExplainerAndAlarmResult = await profileVerifiedCountsExplainerAndAlarm.run();
 
   console.log('\nTest Results');
   console.log('-------------');
@@ -195,44 +299,149 @@ async function main() {
   console.log(`pin-detail-into-tag-pinned-tab suite:            ${pinDetailIntoTagTabResult.fail === 0 ? 'PASS' : 'FAIL'} (${pinDetailIntoTagTabResult.pass} passed, ${pinDetailIntoTagTabResult.fail} failed)`);
   console.log(`collapse-into-export-concept suite:              ${collapseIntoExportResult.fail === 0 ? 'PASS' : 'FAIL'} (${collapseIntoExportResult.pass} passed, ${collapseIntoExportResult.fail} failed)`);
   console.log(`login-failure-and-tag-collapse suite:            ${loginFailureAndTagCollapseResult.fail === 0 ? 'PASS' : 'FAIL'} (${loginFailureAndTagCollapseResult.pass} passed, ${loginFailureAndTagCollapseResult.fail} failed)`);
+  console.log(
+    `header-conceptgraph-tag suite:                   ${headerConceptGraphTagResult.fail === 0 ? 'PASS' : 'FAIL'} (${headerConceptGraphTagResult.pass} passed, ${headerConceptGraphTagResult.fail} failed)`
+  );
+  console.log(
+    `community-reference-superset-link suite:         ${communityReferenceSupersetLinkResult.fail === 0 ? 'PASS' : 'FAIL'} (${communityReferenceSupersetLinkResult.pass} passed, ${communityReferenceSupersetLinkResult.fail} failed)`
+  );
+  console.log(
+    `graperank-shared-csv-race suite:                 ${graperankSharedCsvRaceResult.fail === 0 ? 'PASS' : 'FAIL'} (${graperankSharedCsvRaceResult.pass} passed, ${graperankSharedCsvRaceResult.fail} failed)`
+  );
+  console.log(
+    `community-class-thread-pull suite:               ${communityClassThreadPullResult.fail === 0 ? 'PASS' : 'FAIL'} (${communityClassThreadPullResult.pass} passed, ${communityClassThreadPullResult.fail} failed)`
+  );
+  console.log(
+    `task-queue-bullmq suite:                         ${taskQueueBullmqResult.fail === 0 ? 'PASS' : 'FAIL'} (${taskQueueBullmqResult.pass} passed, ${taskQueueBullmqResult.fail} failed)`
+  );
+  console.log(
+    `task-queue-neo4j-resource-class suite:           ${taskQueueNeo4jResourceClassResult.fail === 0 ? 'PASS' : 'FAIL'} (${taskQueueNeo4jResourceClassResult.pass} passed, ${taskQueueNeo4jResourceClassResult.fail} failed)`
+  );
+  console.log(
+    `entrypoint-template-rendering suite:             ${entrypointTemplateRenderingResult.fail === 0 ? 'PASS' : 'FAIL'} (${entrypointTemplateRenderingResult.pass} passed, ${entrypointTemplateRenderingResult.fail} failed)`
+  );
+  console.log(
+    `bullboard-admin-access suite:                    ${bullboardAdminAccessResult.fail === 0 ? 'PASS' : 'FAIL'} (${bullboardAdminAccessResult.pass} passed, ${bullboardAdminAccessResult.fail} failed)`
+  );
+  console.log(
+    `admin-tools-dashboard-panel suite:               ${adminToolsDashboardPanelResult.fail === 0 ? 'PASS' : 'FAIL'} (${adminToolsDashboardPanelResult.pass} passed, ${adminToolsDashboardPanelResult.fail} failed)`
+  );
+  console.log(
+    `reconciliation-incremental-mode suite:           ${reconciliationIncrementalModeResult.fail === 0 ? 'PASS' : 'FAIL'} (${reconciliationIncrementalModeResult.pass} passed, ${reconciliationIncrementalModeResult.fail} failed)`
+  );
+  console.log(
+    `generalized-task-scheduler suite:                ${generalizedTaskSchedulerResult.fail === 0 ? 'PASS' : 'FAIL'} (${generalizedTaskSchedulerResult.pass} passed, ${generalizedTaskSchedulerResult.fail} failed)`
+  );
+  console.log(
+    `reconciliation-rearchitecture suite:             ${reconciliationRearchitectureResult.fail === 0 ? 'PASS' : 'FAIL'} (${reconciliationRearchitectureResult.pass} passed, ${reconciliationRearchitectureResult.fail} failed)`
+  );
+  console.log(
+    `scheduled-tasks-with-arguments suite:            ${scheduledTasksWithArgumentsResult.fail === 0 ? 'PASS' : 'FAIL'} (${scheduledTasksWithArgumentsResult.pass} passed, ${scheduledTasksWithArgumentsResult.fail} failed)`
+  );
+  console.log(
+    `manual-task-retrigger-after-finish suite:        ${manualTaskRetriggerAfterFinishResult.fail === 0 ? 'PASS' : 'FAIL'} (${manualTaskRetriggerAfterFinishResult.pass} passed, ${manualTaskRetriggerAfterFinishResult.fail} failed)`
+  );
+  console.log(
+    `scheduled-task-timeout-propagation suite:        ${scheduledTaskTimeoutPropagationResult.fail === 0 ? 'PASS' : 'FAIL'} (${scheduledTaskTimeoutPropagationResult.pass} passed, ${scheduledTaskTimeoutPropagationResult.fail} failed)`
+  );
+  console.log(
+    `kill-timeout-orphans-by-default suite:           ${killTimeoutOrphansByDefaultResult.fail === 0 ? 'PASS' : 'FAIL'} (${killTimeoutOrphansByDefaultResult.pass} passed, ${killTimeoutOrphansByDefaultResult.fail} failed)`
+  );
+  console.log(
+    `task-queue-semaphore-protection-audit suite:     ${taskQueueSemaphoreProtectionAuditResult.fail === 0 ? 'PASS' : 'FAIL'} (${taskQueueSemaphoreProtectionAuditResult.pass} passed, ${taskQueueSemaphoreProtectionAuditResult.fail} failed)`
+  );
+  console.log(
+    `profile-follows-list suite:                      ${profileFollowsListResult.fail === 0 ? 'PASS' : 'FAIL'} (${profileFollowsListResult.pass} passed, ${profileFollowsListResult.fail} failed)`
+  );
+  console.log(
+    `profile-website-link suite:                      ${profileWebsiteLinkResult.fail === 0 ? 'PASS' : 'FAIL'} (${profileWebsiteLinkResult.pass} passed, ${profileWebsiteLinkResult.fail} failed)`
+  );
+  console.log(
+    `profile-verified-followers-count suite:          ${profileVerifiedFollowersCountResult.fail === 0 ? 'PASS' : 'FAIL'} (${profileVerifiedFollowersCountResult.pass} passed, ${profileVerifiedFollowersCountResult.fail} failed)`
+  );
+  console.log(
+    `profile-followers-list suite:                    ${profileFollowersListResult.fail === 0 ? 'PASS' : 'FAIL'} (${profileFollowersListResult.pass} passed, ${profileFollowersListResult.fail} failed)`
+  );
+  console.log(
+    `profile-verified-reporters-count suite:          ${profileVerifiedReportersCountResult.fail === 0 ? 'PASS' : 'FAIL'} (${profileVerifiedReportersCountResult.pass} passed, ${profileVerifiedReportersCountResult.fail} failed)`
+  );
+  console.log(
+    `verified-reporters-membership-data suite:        ${verifiedReportersMembershipDataResult.fail === 0 ? 'PASS' : 'FAIL'} (${verifiedReportersMembershipDataResult.pass} passed, ${verifiedReportersMembershipDataResult.fail} failed)`
+  );
+  console.log(
+    `verified-reporters-list-page suite:              ${verifiedReportersListPageResult.fail === 0 ? 'PASS' : 'FAIL'} (${verifiedReportersListPageResult.pass} passed, ${verifiedReportersListPageResult.fail} failed)`
+  );
+  console.log(
+    `profile-verified-counts-owner-pov suite:         ${profileVerifiedCountsOwnerPovResult.fail === 0 ? 'PASS' : 'FAIL'} (${profileVerifiedCountsOwnerPovResult.pass} passed, ${profileVerifiedCountsOwnerPovResult.fail} failed)`
+  );
+  console.log(
+    `profile-verified-counts-explainer-and-alarm suite: ${profileVerifiedCountsExplainerAndAlarmResult.fail === 0 ? 'PASS' : 'FAIL'} (${profileVerifiedCountsExplainerAndAlarmResult.pass} passed, ${profileVerifiedCountsExplainerAndAlarmResult.fail} failed)`
+  );
 
-  const overallOk = configOk
-    && profileTagsResult.fail === 0
-    && publishResult.fail === 0
-    && tagDetailResult.fail === 0
-    && tagDetailPublishResult.fail === 0
-    && tagDetailWriteResult.fail === 0
-    && tagDetailWritePublishResult.fail === 0
-    && tagIndexResult.fail === 0
-    && tagIndexPublishResult.fail === 0
-    && authoredTaggingResult.fail === 0
-    && authoredTaggingPublishResult.fail === 0
-    && profileTagPolishResult.fail === 0
-    && profileTagPolishPublishResult.fail === 0
-    && searchResultParityResult.fail === 0
-    && searchResultsUrlResult.fail === 0
-    && pinATagResult.fail === 0
-    && pinATagPublishResult.fail === 0
-    && tlPubFromPinsResult.fail === 0
-    && tlPubFromPinsPublishResult.fail === 0
-    && customizePinCurationPublishResult.fail === 0
-    && mostPinnedTagIndexResult.fail === 0
-    && mostPinnedTagIndexPublishResult.fail === 0
-    && tagDetailCuratedResult.fail === 0
-    && tagDetailCuratedPublishResult.fail === 0
-    && restoreHistoricalDataAndTlFilterResult.fail === 0
-    && treasureMapsResult.fail === 0
-    && scheduledRefreshResult.fail === 0
-    && strfryRouterFirstBootResult.fail === 0
-    && perQueryNeo4jTimeoutResult.fail === 0
-    && nip05CheckmarkVerificationResult.fail === 0
-    && publishExportConceptResult.fail === 0
-    && communityReferenceStubResult.fail === 0
-    && nip51ListExportResult.fail === 0
-    && nip51ListExportPublishResult.fail === 0
-    && pinDetailIntoTagTabResult.fail === 0
-    && collapseIntoExportResult.fail === 0
-    && loginFailureAndTagCollapseResult.fail === 0;
+  const overallOk =
+    configOk &&
+    profileTagsResult.fail === 0 &&
+    publishResult.fail === 0 &&
+    tagDetailResult.fail === 0 &&
+    tagDetailPublishResult.fail === 0 &&
+    tagDetailWriteResult.fail === 0 &&
+    tagDetailWritePublishResult.fail === 0 &&
+    tagIndexResult.fail === 0 &&
+    tagIndexPublishResult.fail === 0 &&
+    authoredTaggingResult.fail === 0 &&
+    authoredTaggingPublishResult.fail === 0 &&
+    profileTagPolishResult.fail === 0 &&
+    profileTagPolishPublishResult.fail === 0 &&
+    searchResultParityResult.fail === 0 &&
+    searchResultsUrlResult.fail === 0 &&
+    pinATagResult.fail === 0 &&
+    pinATagPublishResult.fail === 0 &&
+    tlPubFromPinsResult.fail === 0 &&
+    tlPubFromPinsPublishResult.fail === 0 &&
+    customizePinCurationPublishResult.fail === 0 &&
+    mostPinnedTagIndexResult.fail === 0 &&
+    mostPinnedTagIndexPublishResult.fail === 0 &&
+    tagDetailCuratedResult.fail === 0 &&
+    tagDetailCuratedPublishResult.fail === 0 &&
+    restoreHistoricalDataAndTlFilterResult.fail === 0 &&
+    nip51ListExportResult.fail === 0 &&
+    nip51ListExportPublishResult.fail === 0 &&
+    pinDetailIntoTagTabResult.fail === 0 &&
+    collapseIntoExportResult.fail === 0 &&
+    loginFailureAndTagCollapseResult.fail === 0 &&
+    treasureMapsResult.fail === 0 &&
+    scheduledRefreshResult.fail === 0 &&
+    strfryRouterFirstBootResult.fail === 0 &&
+    perQueryNeo4jTimeoutResult.fail === 0 &&
+    nip05CheckmarkVerificationResult.fail === 0 &&
+    publishExportConceptResult.fail === 0 &&
+    communityReferenceStubResult.fail === 0 &&
+    headerConceptGraphTagResult.fail === 0 &&
+    communityReferenceSupersetLinkResult.fail === 0 &&
+    graperankSharedCsvRaceResult.fail === 0 &&
+    communityClassThreadPullResult.fail === 0 &&
+    taskQueueBullmqResult.fail === 0 &&
+    taskQueueNeo4jResourceClassResult.fail === 0 &&
+    entrypointTemplateRenderingResult.fail === 0 &&
+    bullboardAdminAccessResult.fail === 0 &&
+    adminToolsDashboardPanelResult.fail === 0 &&
+    reconciliationIncrementalModeResult.fail === 0 &&
+    generalizedTaskSchedulerResult.fail === 0 &&
+    reconciliationRearchitectureResult.fail === 0 &&
+    scheduledTasksWithArgumentsResult.fail === 0 &&
+    manualTaskRetriggerAfterFinishResult.fail === 0 &&
+    scheduledTaskTimeoutPropagationResult.fail === 0 &&
+    killTimeoutOrphansByDefaultResult.fail === 0 &&
+    taskQueueSemaphoreProtectionAuditResult.fail === 0 &&
+    profileFollowsListResult.fail === 0 &&
+    profileWebsiteLinkResult.fail === 0 &&
+    profileVerifiedFollowersCountResult.fail === 0 &&
+    profileFollowersListResult.fail === 0 &&
+    profileVerifiedReportersCountResult.fail === 0 &&
+    verifiedReportersMembershipDataResult.fail === 0 &&
+    verifiedReportersListPageResult.fail === 0 &&
+    profileVerifiedCountsOwnerPovResult.fail === 0 &&
+    profileVerifiedCountsExplainerAndAlarmResult.fail === 0;
   console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);
   process.exit(overallOk ? 0 : 1);
 }

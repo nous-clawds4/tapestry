@@ -10,7 +10,8 @@ function shortPubkey(pk) {
 }
 
 export default function Neo4jOverview() {
-  const { taPubkey: TA_PUBKEY, ownerPubkey } = useConfig();
+  const { taPubkey: TA_PUBKEY, ownerPubkey, neo4jBrowserUrl } = useConfig();
+  const browserHref = neo4jBrowserUrl ? `${neo4jBrowserUrl}/browser/preview/` : null;
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -82,9 +83,10 @@ export default function Neo4jOverview() {
           <p className="subtitle">Overview of data stored in the Neo4j knowledge graph.</p>
         </div>
         <a
-          href="http://localhost:8080/browser/preview/"
+          href={browserHref || '#'}
           target="_blank"
           rel="noopener noreferrer"
+          onClick={browserHref ? undefined : (e) => e.preventDefault()}
           style={{
             display: 'inline-flex',
             alignItems: 'center',
@@ -98,7 +100,10 @@ export default function Neo4jOverview() {
             fontWeight: 600,
             whiteSpace: 'nowrap',
             marginTop: '0.5rem',
+            opacity: browserHref ? 1 : 0.5,
+            cursor: browserHref ? 'pointer' : 'default',
           }}
+          title={browserHref ? 'Open Neo4j Browser in a new tab' : 'Neo4j Browser URL is loading…'}
         >
           🔗 Open Neo4j Browser
         </a>

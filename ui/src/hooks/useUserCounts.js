@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 
 /**
- * Hook: fetch a NostrUser's precomputed counts from `/api/get-user-counts`.
- * Owner POV (NostrUser node properties). Lightweight — no graph traversals.
- * Returns { data, loading, error }.
+ * Hook: fetch a NostrUser's counts from `/api/get-user-counts` (Owner PoV).
+ * `data` is passed through wholesale, so it carries whatever the endpoint returns:
+ * `followingCount` (strfry, kind-3) plus `verifiedFollowerCount` / `verifiedReporterCount`
+ * (Neo4j node property, count-only live fallback — ADR 0031). Returns { data, loading, error }.
  */
 export default function useUserCounts(pubkey) {
   const [data, setData] = useState(null);

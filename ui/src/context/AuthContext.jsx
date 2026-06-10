@@ -58,6 +58,7 @@ export function AuthProvider({ children }) {
         setUser({
           pubkey: data.pubkey,
           classification: classData.classification || 'guest',
+          assistantPubkey: classData.assistantPubkey || null,
           profile,
         });
       } else {

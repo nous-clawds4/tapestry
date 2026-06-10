@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useConfig } from '../context/ConfigContext';
 import BrainstormUserMenu, { useHouseProfile } from '../components/BrainstormUserMenu';
+import AssistantProfileEditor from '../components/AssistantProfileEditor';
 
 /* ── Helpers ──────────────────────────────────────────── */
 
@@ -494,6 +495,11 @@ export default function BrainstormSettings() {
             Browse and manage the tags you've pinned to your personal curated set.
           </p>
           <a href="/pins" className="bss-link-btn">📌 Open your pins</a>
+        </div>
+
+        {/* Assistant profile card */}
+        <div className="bss-card">
+          <AssistantProfileEditor customerPubkey={user.pubkey} />
         </div>
 
         {/* WoT Status */}
