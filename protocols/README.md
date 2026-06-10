@@ -51,7 +51,7 @@ Migration is in progress — specs land here story by story (see the [design han
 | DList Cross-NIP Compatibility (companion) | [drafts/decentralized-lists-compat.md](./drafts/decentralized-lists-compat.md) | 🧪 pre-NIP (publish-ready) | **Working copy here** | story 2 ✅ |
 | Tapestry Concepts (DList extensions) | [drafts/tapestry-concepts.md](./drafts/tapestry-concepts.md) | 📝 pre-NIP | **Working copy here** (BIBLE §5/§8/§9 hold implementation detail + pointers) | story 3 ✅ |
 | Class-Thread Membership Tags (`n`, `s`) | [drafts/class-thread-tags.md](./drafts/class-thread-tags.md) | 📝 pre-NIP | **Working copy here** (BIBLE §23 holds implementation + pointer) | story 4 ✅ |
-| Inherit-From & Resolved Definition (`b`) | `drafts/inherit-from.md` | 📝 pre-NIP | [BIBLE §25](../BIBLE.md#25-the-inherit-from-tag-b) + [§26](../BIBLE.md#26-resolved-definition), ADRs 0027/0028 | story 5 — pending |
+| Inherit-From & Resolved Definition (`b`) | [drafts/inherit-from.md](./drafts/inherit-from.md) | 📝 pre-NIP | **Working copy here** (BIBLE §25/§26 hold implementation + pointers) | story 5 ✅ |
 | Communities | `drafts/communities.md` | 📝 pre-NIP | [BIBLE §22](../BIBLE.md#22-community-reference-model), `feat/communities:COMMUNITY_RECORDS_DLIST.md`, `feat/communities:COMMUNITY_ENDORSEMENTS_DLIST.md`, communities ADR line | story 6 — pending |
 | Tags & Taggings | `drafts/tags.md` | 📝 pre-NIP | `feat/pubkey-tagging-target` branch: ADRs 0001 (profile-tag architecture), 0009 (pin-a-tag); firmware concepts `tag` / `nostr-user-tag` / `tag-pinning` | story 7 — pending |
 
