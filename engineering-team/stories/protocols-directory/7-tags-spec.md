@@ -1,6 +1,6 @@
 # Story 7: Tags & Taggings pre-NIP (synthesis — epic finale)
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-06-10
 **Type:** Doc
 **Epic:** protocols-directory — realizes `docs/PROTOCOLS_DIRECTORY_DESIGN_HANDOFF.md` (§4 spec #7, §6, §8 story 7)
@@ -54,4 +54,4 @@ None modified (no events, no firmware change, no reinstall). The spec *describes
 - Design record: `docs/PROTOCOLS_DIRECTORY_DESIGN_HANDOFF.md` §4/§6/§8; inherited instruction: `protocols-directory` ADR 0004 finding D4; pattern: ADRs 0001–0004
 - ADR: `engineering-team/decisions/protocols-directory/0005-tags-spec.md` (`protocols-directory` ADR 0005, full) — Accepted
 - Test plan: skipped (docs-mode)
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/protocols-directory/7-tags-spec.md` — PASS (first-pass, no kickback)
