@@ -137,36 +137,48 @@ t('POST /api/trusted-list/refresh-pinned-tags-for-viewer rejects malformed viewe
   assert(status !== 404, 'refresh-pinned-tags-for-viewer endpoint must exist (not 404)');
 });
 
-/* ─── scheduled-tasks taskId ─── */
+/* ─── scheduled-tasks recognition ───
+ * Updated 2026-06-10: the staging merge replaced the fixed per-task
+ * scheduler (DEFAULTS + ?taskId= status/history) with the generalized
+ * per-entry scheduler (story #24 / ADR 0021, task-queue-scheduler epic):
+ * tasks come from src/manage/taskQueue/taskRegistry.json, operators
+ * create entries, and status/history are keyed by entryId. "The
+ * scheduler recognizes refreshPinnedTagTLs" now means: the registry
+ * offers it as a schedulable task, and the per-entry endpoints enforce
+ * their documented contract. (We deliberately don't POST /create here —
+ * mutating the live instance's schedule from a test is out of bounds.)
+ */
 
-t('scheduled-tasks recognizes refreshPinnedTagTLs (status returns the documented schedule shape)', async () => {
+t('scheduled-tasks recognizes refreshPinnedTagTLs (registry-tasks offers it as schedulable)', async () => {
   const { status, json } = await fetchJson(
-    `${CONTROL_PANEL_BASE}/api/scheduled-tasks/status?taskId=refreshPinnedTagTLs`
+    `${CONTROL_PANEL_BASE}/api/scheduled-tasks/registry-tasks`
   );
-  assertEqual(status, 200, `scheduled-tasks/status?taskId=refreshPinnedTagTLs status (got ${status} body=${JSON.stringify(json)})`);
+  assertEqual(status, 200, 'scheduled-tasks/registry-tasks status');
   assert(json && json.success === true,
-    `scheduled-tasks status.success must be true; got ${JSON.stringify(json)}`);
-  assertEqual(json.taskId, 'refreshPinnedTagTLs', 'scheduled-tasks status.taskId echoes the request');
-  assert(json.schedule && typeof json.schedule.enabled === 'boolean',
-    `scheduled-tasks status.schedule.enabled must be a boolean; got ${JSON.stringify(json.schedule)}`);
+    `scheduled-tasks registry-tasks success must be true; got ${JSON.stringify(json)}`);
+  const task = (json.tasks || []).find((entry) => entry.taskId === 'refreshPinnedTagTLs');
+  assert(task,
+    'registry-tasks must include refreshPinnedTagTLs (from src/manage/taskQueue/taskRegistry.json) — ' +
+      'this is how the generalized scheduler "recognizes" the TL-refresh task');
+  assert(typeof task.name === 'string' && task.name.length > 0,
+    `registry-tasks entry for refreshPinnedTagTLs must carry a display name; got ${JSON.stringify(task)}`);
 });
 
-t('scheduled-tasks recognizes refreshPinnedTagTLs (history endpoint 200s with taskId echoed)', async () => {
-  const { status, json } = await fetchJson(
-    `${CONTROL_PANEL_BASE}/api/scheduled-tasks/history?taskId=refreshPinnedTagTLs`
-  );
-  assertEqual(status, 200, `scheduled-tasks/history?taskId=refreshPinnedTagTLs status`);
-  assert(json && json.success === true,
-    `scheduled-tasks history.success must be true; got ${JSON.stringify(json)}`);
-  // The generalized scheduler (per ADR 0003) echoes taskId in the
-  // response. The OLD hardcoded handler (currently in the running container)
-  // does NOT include this field — so this assertion fails meaningfully
-  // until the Implementer redeploys the up-to-date scheduled-tasks module
-  // AND adds refreshPinnedTagTLs to DEFAULTS (otherwise the handler 400s).
-  assertEqual(json.taskId, 'refreshPinnedTagTLs',
-    'scheduled-tasks history.taskId must echo the request');
-  assert(Array.isArray(json.runs),
-    `scheduled-tasks history.runs must be an array; got ${JSON.stringify(json?.runs)}`);
+t('scheduled-tasks per-entry endpoints enforce the entryId contract (status + history + list)', async () => {
+  const statusResp = await fetchJson(`${CONTROL_PANEL_BASE}/api/scheduled-tasks/status`);
+  assertEqual(statusResp.status, 400, 'status without entryId must 400 (per-entry contract)');
+  assert(/entryId/.test(statusResp.json?.error || ''),
+    `status 400 must name entryId as the missing param; got ${JSON.stringify(statusResp.json)}`);
+
+  const historyResp = await fetchJson(`${CONTROL_PANEL_BASE}/api/scheduled-tasks/history`);
+  assertEqual(historyResp.status, 400, 'history without entryId must 400 (per-entry contract)');
+  assert(/entryId/.test(historyResp.json?.error || ''),
+    `history 400 must name entryId as the missing param; got ${JSON.stringify(historyResp.json)}`);
+
+  const listResp = await fetchJson(`${CONTROL_PANEL_BASE}/api/scheduled-tasks/list`);
+  assertEqual(listResp.status, 200, 'scheduled-tasks/list status');
+  assert(listResp.json?.success === true && Array.isArray(listResp.json.entries),
+    `scheduled-tasks/list must return an entries array; got ${JSON.stringify(listResp.json)}`);
 });
 
 /* ─── /api/profile-tags/pins additive change: tlStatus on every row ─── */

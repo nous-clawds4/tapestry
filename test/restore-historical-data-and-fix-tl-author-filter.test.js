@@ -303,13 +303,16 @@ t('Caller: ui/src/pages/Tag.jsx pinTag(...) call no longer passes taPubkey', () 
     'Caller: cannot find any `pinTag(...)` call in Tag.jsx — has the file been restructured?');
 });
 
-t('Caller: ui/src/pages/Pins.jsx pinTag(...) call no longer passes taPubkey', () => {
+// Updated 2026-06-10: Story 20 / ADR 0018 removed the pinTag(...) call from
+// Pins.jsx entirely (re-pin now happens on the tag page's Pinned tab), so
+// the original "must find a pinTag call" guard no longer applies. The
+// ADR-0015 protection this test exists for — no caller resurrects the
+// taPubkey parameter — is preserved as a file-wide negative assertion.
+t('Caller: ui/src/pages/Pins.jsx does not reference taPubkey (pinTag caller contract, ADR 0015)', () => {
   const src = readSafe(CLIENT_PINS_PAGE);
   const callRe = /\bpinTag\s*\(\s*\{([^}]*)\}\s*\)/g;
   let match;
-  let foundAny = false;
   while ((match = callRe.exec(src)) !== null) {
-    foundAny = true;
     const args = match[1];
     assert(
       !/\btaPubkey\b/.test(args),
@@ -317,8 +320,11 @@ t('Caller: ui/src/pages/Pins.jsx pinTag(...) call no longer passes taPubkey', ()
         `Found call with args: "${args.trim()}".`
     );
   }
-  assert(foundAny,
-    'Caller: cannot find any `pinTag(...)` call in Pins.jsx — has the file been restructured?');
+  assert(
+    !/\btaPubkey\b/.test(src),
+    'Caller: Pins.jsx must not reference `taPubkey` at all (per ADR 0015 — the parameter is removed; ' +
+      'Story 20 removed the pinTag call from this page entirely).'
+  );
 });
 
 // ──────────────────────────────────────────────────────────────────

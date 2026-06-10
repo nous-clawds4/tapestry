@@ -290,11 +290,15 @@ t('AC-7: styles.css makes .bs-tag-row-counts visually secondary (smaller font + 
 
 // ------------------------------------------------------------------
 // AC-8 — Hover-only buttons in curated mode. TagPageRow.jsx
-// accepts a `showActionsOnHover` prop and emits an `is-revealed`
-// class state when the row is tap-revealed on touch.
+// accepts a `showActionsOnHover` prop and emits an `is-expanded-mode`
+// class for the always-on Expanded view.
+// Updated 2026-06-10: Story 18 / ADR 0016 removed the `is-revealed`
+// touch-tap row-wide reveal (touch UX is now the ⋯ overflow menu — see
+// the styles.css comment above .bs-tag-row-actions). The surviving
+// Story-17 contract is the prop plus the is-expanded-mode class.
 // ------------------------------------------------------------------
 
-t('AC-8: TagPageRow.jsx accepts showActionsOnHover prop and emits is-revealed state class', () => {
+t('AC-8: TagPageRow.jsx accepts showActionsOnHover prop and emits is-expanded-mode state class', () => {
   const src = readSafe(TAG_PAGE_ROW);
   assert(
     /showActionsOnHover/.test(src),
@@ -302,9 +306,10 @@ t('AC-8: TagPageRow.jsx accepts showActionsOnHover prop and emits is-revealed st
       'can toggle hover-only vs always-on action buttons. Prop name not found.'
   );
   assert(
-    /is-revealed/.test(src),
-    'AC-8: TagPageRow.jsx must conditionally apply the `is-revealed` class to enable touch-tap reveal of ' +
-      'action buttons (per ADR Decision 3). Class name not found.'
+    /is-expanded-mode/.test(src),
+    'AC-8 (as amended by ADR 0016): TagPageRow.jsx must conditionally apply the `is-expanded-mode` class ' +
+      '(always-on actions in the Expanded view). The legacy `is-revealed` touch reveal was removed by ' +
+      'Story 18; touch access to row actions is the ⋯ overflow menu. Class name not found.'
   );
 });
 
@@ -558,23 +563,22 @@ t('AC-16: TagSomeoneModal.jsx wires Escape key + backdrop click to onClose', () 
 // Native title attribute is sufficient per ADR Decision 10.
 // ------------------------------------------------------------------
 
-t('AC-17: TagPinAffordance.jsx Pin button carries an explanatory `title="..."` tooltip', () => {
+// Updated 2026-06-10: Story 18 / ADR 0016 migrated tooltips from the
+// native `title=` attribute to the project's fast-onset `data-bs-tooltip`
+// mechanism (ADR 0016 "Tooltip onset"; reaffirmed by ADR 0018 for this
+// button). The AC's intent — an explanatory tooltip on the Pin button —
+// is unchanged; only the carrier attribute moved.
+t('AC-17: TagPinAffordance.jsx Pin button carries an explanatory data-bs-tooltip', () => {
   const src = readSafe(TAG_PIN_AFFORDANCE);
-  // Look for a title attribute on a <button containing "Pin"
-  // explanation copy. We don't pin the exact wording — assert presence
-  // of `title="..."` whose content mentions Trusted List or kind-30392
-  // (per the suggested copy in ADR Decision 10).
-  const buttonBlock = src.match(/<button[^>]*\btitle=["'][^"']{20,}["'][^>]*>/);
   assert(
-    buttonBlock,
-    'AC-17: TagPinAffordance.jsx must add a `title="..."` attribute (at least 20 chars of explanatory copy) ' +
-      'to the Pin button (per ADR Decision 10). No <button ... title="..."> found.'
+    /<button[^>]*\bdata-bs-tooltip=/s.test(src) || /data-bs-tooltip=\{/.test(src),
+    'AC-17 (as amended by ADR 0016/0018): TagPinAffordance.jsx must carry a `data-bs-tooltip` attribute ' +
+      'on the Pin button (fast-onset tooltip; replaced the native title= attribute). Attribute not found.'
   );
   assert(
-    /Trusted List|kind-30392|30392|Other Nostr apps/i.test(buttonBlock[0]),
-    'AC-17: the Pin button title attribute should explain pinning briefly — referencing Trusted List, ' +
-      'kind-30392, or "Other Nostr apps". Suggested copy from ADR Decision 10 is the baseline. ' +
-      `Got: ${buttonBlock[0]}`
+    /Trusted List|kind-30392|30392|Other Nostr apps/i.test(src),
+    'AC-17: the Pin button tooltip copy should explain pinning briefly — referencing Trusted List, ' +
+      'kind-30392, or "Other Nostr apps" (baseline copy from ADR 0014 Decision 10).'
   );
 });
 
