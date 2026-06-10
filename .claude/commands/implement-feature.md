@@ -11,8 +11,8 @@ You are entering **Phase 4: Implementation** of the Tapestry engineering team ha
 **Workflow:** Follow [engineering-team/workflows/4-implementation.md](engineering-team/workflows/4-implementation.md).
 
 **Inputs:**
-- The approved story at `engineering-team/stories/<n>-<slug>.md`
-- The approved ADR at `engineering-team/decisions/<NNNN>-<slug>.md`
+- The approved story at `engineering-team/stories/<epic-slug>/<n>-<slug>.md`
+- The approved ADR at `engineering-team/decisions/<epic-slug>/<NNNN>-<slug>.md`
 - The approved test plan + failing tests
 
 **House rules:**
