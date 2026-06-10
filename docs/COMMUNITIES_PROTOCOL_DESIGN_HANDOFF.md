@@ -1,6 +1,6 @@
 # Communities Protocol — Design Handoff
 
-**Status:** 🔴 OPEN — protocol *design* settled (foundations + identity + membership); the remaining open item is **delivery: three-branch reconciliation** (§7), an org decision for the user + Avi + Vinney. **Not yet in the BIBLE.**
+**Status:** 🔴 OPEN — protocol *design* (§1–§6) **ratified into [`protocols/drafts/communities.md`](../protocols/drafts/communities.md)** (protocols-directory story 6, ADR 0004; Resolved Definition extracted earlier via story 5). The remaining open item is **delivery: three-branch reconciliation** (§7), an org decision for the user + Avi + Vinney.
 
 **Created:** 2026-06-05, from a `/discuss` (Product Expert) scoping session.
 **Builds on:** story #31 / ADR 0027 / BIBLE §25 — the `b` / inherit-from tag.
