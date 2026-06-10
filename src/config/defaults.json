@@ -41,6 +41,12 @@
       "nip85Relay": null
     }
   },
+  "search": {
+    "resultTypes": {
+      "profiles": true,
+      "tags": false
+    }
+  },
   "nip05": {
     "names": {},
     "relays": {}

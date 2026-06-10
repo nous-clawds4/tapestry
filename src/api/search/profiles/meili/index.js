@@ -19,6 +19,28 @@ const { computeTagMatches, findTagsByNameSubstring, meiliFetchProfilesByPubkey }
 const TAG_HITS_LIMIT_DEFAULT = 5;
 const TAG_HITS_LIMIT_MAX = 50;
 const { resolvePov } = require('../../../_shared/pov');
+const { getSettings } = require('../../../../config/settings');
+
+/**
+ * Per-result-type inclusion gate (epic search-api-result-controls, ADR 0001).
+ *
+ * Instance-level API-contract control, read from the two-layer settings
+ * system PER REQUEST (settings.json changes take effect without a restart).
+ * Shipped defaults reproduce main's pre-tag response contract exactly:
+ * profiles on, tags off. The hard fallback below keeps stale settings.json
+ * files (no `search` section) on the safe defaults.
+ */
+function getResultTypes() {
+  try {
+    const rt = (getSettings().search || {}).resultTypes || {};
+    return {
+      profiles: rt.profiles !== false,
+      tags: rt.tags === true,
+    };
+  } catch {
+    return { profiles: true, tags: false };
+  }
+}
 
 // ── NIP-05 verification ──────────────────────────────────────────
 const NIP05_REGEX = /^(?:([\w.+-]+)@)?([\w_-]+(\.[\w_-]+)+)$/;
@@ -90,9 +112,14 @@ async function handleMeiliSearchProfiles(req, res) {
   }
 
   try {
+    // ── Result-type gate (ADR 0001, search-api-result-controls) ──
+    // Read per request so admin changes apply without a restart (AC-4).
+    const resultTypes = getResultTypes();
+
     // ── Direct pubkey lookup (bypasses WoT filtering/sorting entirely) ──
+    // Profile-type result: suppressed when profiles are disabled.
     const pubkeyLookup = req.query.pubkeyLookup;
-    if (pubkeyLookup && /^[0-9a-f]{64}$/.test(pubkeyLookup)) {
+    if (resultTypes.profiles && pubkeyLookup && /^[0-9a-f]{64}$/.test(pubkeyLookup)) {
       const document = await fetchMeiliDocument(pubkeyLookup);
       return res.json({
         success: true,
@@ -105,8 +132,9 @@ async function handleMeiliSearchProfiles(req, res) {
     }
 
     // ── NIP-05 lookup (runs in parallel with normal search) ──
+    // Profile-type result: suppressed when profiles are disabled.
     const nip05Lookup = req.query.nip05Lookup;
-    const nip05Promise = (nip05Lookup && NIP05_REGEX.test(nip05Lookup))
+    const nip05Promise = (resultTypes.profiles && nip05Lookup && NIP05_REGEX.test(nip05Lookup))
       ? verifyNip05(nip05Lookup).then(pubkey => pubkey ? fetchMeiliDocument(pubkey) : null)
       : Promise.resolve(null);
 
@@ -151,42 +179,55 @@ async function handleMeiliSearchProfiles(req, res) {
     // lookups; it filters by the active POV's WoT (see CLAUDE.md → "Filter
     // at view time"). When povSuffix or rank filter is unset, tag-match
     // returns all positive assertions.
+    // Tag-match decorates/appends PROFILE hits because of tag assertions, so
+    // it needs both types enabled; tag-hits (tag elements) needs only tags.
     const minRankFromFilters = filters?.rank?.min;
-    const tagMatchPromise = computeTagMatches({
-      q: q.trim(),
-      povSuffix,
-      minRank: typeof minRankFromFilters === 'number' ? minRankFromFilters : null,
-    }).catch((err) => {
-      console.error(`[meili-proxy] tag-match failed: ${err.message}`);
-      return { matches: [] };
-    });
+    const tagMatchPromise = (resultTypes.tags && resultTypes.profiles)
+      ? computeTagMatches({
+        q: q.trim(),
+        povSuffix,
+        minRank: typeof minRankFromFilters === 'number' ? minRankFromFilters : null,
+      }).catch((err) => {
+        console.error(`[meili-proxy] tag-match failed: ${err.message}`);
+        return { matches: [] };
+      })
+      : Promise.resolve({ matches: [] });
 
     // Story 7 / ADR-0006: surface tag-elements as a result type in the
     // response (separate from profile hits). Same query, different output
     // — `findTagsByNameSubstring` returns the tag elements themselves.
-    const tagHitsPromise = findTagsByNameSubstring(q.trim()).catch((err) => {
-      console.error(`[meili-proxy] findTagsByNameSubstring failed: ${err.message}`);
-      return [];
-    });
+    // Gated by the tags result type (ADR 0001): when disabled, the
+    // tagHits/tagHitsHasMore keys are omitted from the response entirely.
+    const tagHitsPromise = resultTypes.tags
+      ? findTagsByNameSubstring(q.trim()).catch((err) => {
+        console.error(`[meili-proxy] findTagsByNameSubstring failed: ${err.message}`);
+        return [];
+      })
+      : Promise.resolve(null);
 
     const [searchResponse, nip05Doc, tagMatchResult, allTagMatches] = await Promise.all([
-      fetch(url.toString()),
+      resultTypes.profiles ? fetch(url.toString()) : Promise.resolve(null),
       nip05Promise.catch(() => null),
       tagMatchPromise,
       tagHitsPromise,
     ]);
 
-    if (!searchResponse.ok) {
-      const text = await searchResponse.text();
-      console.error(`[meili-proxy] nostr-search-api returned ${searchResponse.status}: ${text.slice(0, 300)}`);
-      return res.status(502).json({
-        success: false,
-        error: 'Search service unavailable',
-        detail: `nostr-search-api returned ${searchResponse.status}`,
-      });
+    let data;
+    if (searchResponse) {
+      if (!searchResponse.ok) {
+        const text = await searchResponse.text();
+        console.error(`[meili-proxy] nostr-search-api returned ${searchResponse.status}: ${text.slice(0, 300)}`);
+        return res.status(502).json({
+          success: false,
+          error: 'Search service unavailable',
+          detail: `nostr-search-api returned ${searchResponse.status}`,
+        });
+      }
+      data = await searchResponse.json();
+    } else {
+      // Profiles disabled: keep the response shape stable with empty hits.
+      data = { hits: [], estimatedTotalHits: 0, processingTimeMs: 0, query: q.trim() };
     }
-
-    const data = await searchResponse.json();
 
     // Deduplicate: remove NIP-05 profile from normal results if present
     const nip05Result = nip05Doc ? { ...nip05Doc, _nip05Verified: true } : null;
@@ -234,26 +275,30 @@ async function handleMeiliSearchProfiles(req, res) {
     // Count how many hits have scores for this POV
     const wotCount = data.hits ? data.hits.filter(h => h[`wot_rank_${povSuffix}`] != null).length : 0;
 
-    // Story 7 / ADR-0006: apply tagLimit (default 5, clamped to max 50) and
-    // emit tagHitsHasMore so the popup can render the "Show more tags →"
-    // affordance accurately.
-    const tagLimitRaw = parseInt(req.query.tagLimit, 10);
-    const tagLimit = Number.isFinite(tagLimitRaw) && tagLimitRaw > 0
-      ? Math.min(tagLimitRaw, TAG_HITS_LIMIT_MAX)
-      : TAG_HITS_LIMIT_DEFAULT;
-    const tagHits = (allTagMatches || []).slice(0, tagLimit);
-    const tagHitsHasMore = (allTagMatches || []).length > tagLimit;
-
-    return res.json({
+    const responsePayload = {
       success: true,
       povSuffix,
       nip05Result,
       _wotCount: wotCount,
       _filtered: !!(filters && povSuffix),
       ...data,
-      tagHits,
-      tagHitsHasMore,
-    });
+    };
+
+    // Story 7 / ADR-0006: apply tagLimit (default 5, clamped to max 50) and
+    // emit tagHitsHasMore so the popup can render the "Show more tags →"
+    // affordance accurately. ADR 0001: only when the tags result type is
+    // enabled — disabled means the keys are omitted (byte-compatible with
+    // main's pre-tag contract); enabled-but-empty still emits tagHits: [].
+    if (resultTypes.tags) {
+      const tagLimitRaw = parseInt(req.query.tagLimit, 10);
+      const tagLimit = Number.isFinite(tagLimitRaw) && tagLimitRaw > 0
+        ? Math.min(tagLimitRaw, TAG_HITS_LIMIT_MAX)
+        : TAG_HITS_LIMIT_DEFAULT;
+      responsePayload.tagHits = (allTagMatches || []).slice(0, tagLimit);
+      responsePayload.tagHitsHasMore = (allTagMatches || []).length > tagLimit;
+    }
+
+    return res.json(responsePayload);
   } catch (err) {
     console.error(`[meili-proxy] Failed to reach nostr-search-api: ${err.message}`);
     return res.status(503).json({
