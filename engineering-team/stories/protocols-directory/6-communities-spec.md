@@ -53,6 +53,6 @@ None in the concept-graph sense (no events published, no firmware change, no rei
 ## Linked artifacts
 
 - Design record: `docs/PROTOCOLS_DIRECTORY_DESIGN_HANDOFF.md` §4/§8; design authority: `docs/COMMUNITIES_PROTOCOL_DESIGN_HANDOFF.md` (§1–§6 settled); pattern: `protocols-directory` ADRs 0001–0003
-- ADR: (pending — full run)
+- ADR: `engineering-team/decisions/protocols-directory/0004-communities-spec.md` (`protocols-directory` ADR 0004, full) — Accepted; disagreement findings D1–D5
 - Test plan: skipped (docs-mode)
 - Review: (filled in after Review phase)
