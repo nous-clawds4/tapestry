@@ -48,6 +48,6 @@ None in the concept-graph sense (no events published, no firmware change, no rei
 ## Linked artifacts
 
 - Design record: `docs/PROTOCOLS_DIRECTORY_DESIGN_HANDOFF.md` §2 (boundary rule), §4 (spec #3)
-- ADR: (recommended skipped — see open questions)
+- ADR: `engineering-team/decisions/protocols-directory/0001-tapestry-concepts-extraction.md` (`protocols-directory` ADR 0001) — Accepted
 - Test plan: skipped (docs-mode)
 - Review: (filled in after Review phase)
