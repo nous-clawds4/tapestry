@@ -52,6 +52,6 @@ None modified (no events, no firmware change, no reinstall). The spec *describes
 ## Linked artifacts
 
 - Design record: `docs/PROTOCOLS_DIRECTORY_DESIGN_HANDOFF.md` §4/§6/§8; inherited instruction: `protocols-directory` ADR 0004 finding D4; pattern: ADRs 0001–0004
-- ADR: (pending — full run)
+- ADR: `engineering-team/decisions/protocols-directory/0005-tags-spec.md` (`protocols-directory` ADR 0005, full) — Accepted
 - Test plan: skipped (docs-mode)
 - Review: (filled in after Review phase)
