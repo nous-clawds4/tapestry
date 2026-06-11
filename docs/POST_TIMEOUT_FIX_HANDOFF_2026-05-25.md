@@ -29,7 +29,7 @@
 
 All five 5-phase engineering-team artifacts for story #27 live in the repo:
 - Story: `engineering-team/stories/27-scheduled-task-timeout-propagation.md`
-- ADR: `engineering-team/decisions/0024-scheduled-task-timeout-propagation.md`
+- ADR: `engineering-team/decisions/task-queue-scheduler/0024-scheduled-task-timeout-propagation.md`
 - Test plan: `engineering-team/stories/27-scheduled-task-timeout-propagation.test-plan.md`
 - Tests + probe: `test/scheduled-task-timeout-propagation.test.js` + `test/probe-scheduled-task-timeout-propagation.js`
 - Review: `engineering-team/reviews/27-scheduled-task-timeout-propagation.md` (verdict PASS)
