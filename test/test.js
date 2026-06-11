@@ -40,6 +40,8 @@ function testBountyFieldValidation() {
     assert.strictEqual(base.bountyCapSats, 1000);
     assert.strictEqual(base.rewardPerItem, false);
     assert.strictEqual(base.maxRewardsPerNpub, null);
+    assert.strictEqual(base.autoPay, false);
+    assert.strictEqual(base.autoPayMinRank, 3);
 
     const perItem = normalizeBountyCreatePayload({
       listCoordinate,
@@ -47,10 +49,14 @@ function testBountyFieldValidation() {
       bountyCapSats: 5000,
       rewardPerItem: true,
       maxRewardsPerNpub: 3,
+      autoPay: true,
+      autoPayMinRank: 4,
       criteria: 'Useful list items',
     });
     assert.strictEqual(perItem.rewardPerItem, true);
     assert.strictEqual(perItem.maxRewardsPerNpub, 3);
+    assert.strictEqual(perItem.autoPay, true);
+    assert.strictEqual(perItem.autoPayMinRank, 4);
 
     assert.throws(() => normalizeBountyCreatePayload({
       listCoordinate,

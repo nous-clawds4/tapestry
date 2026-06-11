@@ -10,8 +10,16 @@ const {
   bountiesByIssuer,
   markFulfilled,
 } = require('../db/bounties');
+const {
+  dailyLimitStatus,
+  getDelegate,
+  listAutoPaymentsByClaimIds,
+  listRecentAutoPayments,
+  rowToClient,
+} = require('../db/autoPay');
 const { rank } = require('../lib/trust-rank');
 const { normalizeBountyCreatePayload } = require('../lib/bounty-fields');
+const { getOwnerPubkey, isAdminPubkey } = require('../utils/config');
 const {
   annotateClaimsWithPaymentState,
   calculateBountyPaymentState,
@@ -50,6 +58,29 @@ function parseZapRequestPubkey(receipt) {
   try { return JSON.parse(description).pubkey ?? null; } catch { return null; }
 }
 
+function csvPubkeys(value) {
+  return String(value || '')
+    .split(',')
+    .map(s => s.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+function isAutoPayAuthorized(pubkey) {
+  const key = String(pubkey || '').toLowerCase();
+  if (!key) return false;
+  const ownerPubkey = String(getOwnerPubkey() || '').toLowerCase();
+  if (ownerPubkey && key === ownerPubkey) return true;
+  if (isAdminPubkey(key)) return true;
+  return csvPubkeys(process.env.AUTO_PAY_ALLOWLIST_PUBKEYS).includes(key);
+}
+
+function acceptedZapPubkeysForBounty(bounty) {
+  const accepted = new Set([String(bounty.issuer_pubkey || '').toLowerCase()]);
+  const delegate = getDelegate(bounty.issuer_pubkey);
+  if (delegate?.delegate_pubkey) accepted.add(String(delegate.delegate_pubkey).toLowerCase());
+  return accepted;
+}
+
 function deriveStatus(bounty, { paymentState = null, now = Math.floor(Date.now() / 1000) } = {}) {
   if (paymentState?.fulfilled) return 'fulfilled';
   if (bounty.expiration && bounty.expiration < now) return 'expired';
@@ -66,6 +97,21 @@ function bountyForClient(bounty, paymentState, { now = Math.floor(Date.now() / 1
   };
 }
 
+function annotateAutoPayBlockReason(bounty, claim) {
+  if (!bounty?.auto_pay || claim?.paymentStatus !== 'payable') return claim;
+  try {
+    const limit = dailyLimitStatus({ amountSats: claim.paymentAmountSats ?? bounty.amount_sats });
+    if (limit.ok) return claim;
+    return {
+      ...claim,
+      autoPayBlockedReason: limit.reason,
+      autoPayDailyLimit: limit,
+    };
+  } catch {
+    return claim;
+  }
+}
+
 async function paymentStateForBounty(bounty, options = {}) {
   const claims = await listClaimsFor(bounty, options);
   return {
@@ -80,6 +126,8 @@ async function listClaimsFor(bounty, { trustFilter = true } = {}) {
     '#z': [bounty.list_coordinate],
     since: bounty.created_at,
   });
+  const autoPayments = listAutoPaymentsByClaimIds(items.map(item => item.id));
+  const acceptedZapPubkeys = acceptedZapPubkeysForBounty(bounty);
 
   const results = [];
   for (const item of items) {
@@ -88,8 +136,8 @@ async function listClaimsFor(bounty, { trustFilter = true } = {}) {
       if (r < 2) continue;
     }
     const receipts = await scanStrfry({ kinds: [9735], '#e': [item.id] });
-    const zapReceipt = receipts.find(r => parseZapRequestPubkey(r) === bounty.issuer_pubkey) ?? null;
-    results.push({ event: item, zapReceipt });
+    const zapReceipt = receipts.find(r => acceptedZapPubkeys.has(String(parseZapRequestPubkey(r) || '').toLowerCase())) ?? null;
+    results.push({ event: item, zapReceipt, autoPayment: rowToClient(autoPayments.get(item.id)) });
   }
   return results;
 }
@@ -100,6 +148,12 @@ async function handleCreateBounty(req, res) {
     payload = normalizeBountyCreatePayload(req.body || {});
   } catch (err) {
     return res.status(err.statusCode || 400).json({ success: false, error: err.message });
+  }
+  if (payload.autoPay && !isAutoPayAuthorized(req.session.pubkey)) {
+    return res.status(403).json({
+      success: false,
+      error: 'Owner, admin, or server allowlist access required to enable auto-pay',
+    });
   }
 
   const row = createBounty({
@@ -162,10 +216,12 @@ async function handleGetBounty(req, res) {
   const { claims, paymentState } = await paymentStateForBounty(b, { trustFilter: true });
   const derivedStatus = deriveStatus(b, { paymentState });
   if (derivedStatus === 'fulfilled' && b.status !== 'fulfilled') markFulfilled(b.id);
+  const annotatedClaims = annotateClaimsWithPaymentState(claims, paymentState)
+    .map(claim => annotateAutoPayBlockReason(b, claim));
   res.json({
     success: true,
     bounty: bountyForClient(b, paymentState),
-    claims: annotateClaimsWithPaymentState(claims, paymentState),
+    claims: annotatedClaims,
   });
 }
 
@@ -178,12 +234,30 @@ async function handlePaymentsDue(req, res) {
     const derivedStatus = deriveStatus(b, { paymentState, now });
     if (derivedStatus === 'fulfilled' && b.status !== 'fulfilled') markFulfilled(b.id);
     if (derivedStatus !== 'open') continue;
-    const pending = paymentState.payableClaims;
-    if (pending.length > 0) {
-      result.push({ bounty: bountyForClient(b, paymentState, { now }), pendingClaims: pending });
+    const pending = paymentState.payableClaims.map(claim => annotateAutoPayBlockReason(b, claim));
+    const reconciliation = paymentState.reconciliationClaims;
+    if (pending.length > 0 || reconciliation.length > 0) {
+      result.push({
+        bounty: bountyForClient(b, paymentState, { now }),
+        pendingClaims: pending,
+        reconciliationClaims: reconciliation,
+      });
     }
   }
   res.json({ success: true, items: result });
+}
+
+async function handleAutoPayStatus(req, res) {
+  if (!isAutoPayAuthorized(req.session.pubkey)) {
+    return res.status(403).json({ success: false, error: 'Owner, admin, or auto-pay allowlist access required' });
+  }
+  res.json({
+    success: true,
+    enabled: process.env.AUTO_PAY_ENABLED === 'true',
+    authorized: true,
+    dailyLimitSats: 5000,
+    recentPayments: listRecentAutoPayments({ limit: 50 }).map(rowToClient),
+  });
 }
 
 async function handlePaymentsToMe(req, res) {
@@ -289,9 +363,15 @@ function register(app) {
   app.get('/api/bounties/eligible', requireAuthed, handleEligibleBounties);
   app.get('/api/bounties/mine/payments-due', requireAuthed, handlePaymentsDue);
   app.get('/api/bounties/mine/payments-to-me', requireAuthed, handlePaymentsToMe);
+  app.get('/api/bounties/auto-pay/status', requireAuthed, handleAutoPayStatus);
   app.post('/api/bounties', requireAuthed, handleCreateBounty);
   app.get('/api/bounties', handleListBounties);
   app.get('/api/bounties/:id', handleGetBounty);
 }
 
-module.exports = { register };
+module.exports = {
+  isAutoPayAuthorized,
+  listClaimsFor,
+  paymentStateForBounty,
+  register,
+};

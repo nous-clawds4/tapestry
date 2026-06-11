@@ -71,6 +71,16 @@ function normalizeBountyCreatePayload(body = {}) {
     throw new BountyValidationError('maxRewardsPerNpub only applies when rewardPerItem is true');
   }
 
+  const autoPay = optionalBoolean(
+    readField(body, 'autoPay', 'auto_pay'),
+    'autoPay',
+    false
+  );
+  const rawAutoPayMinRank = readField(body, 'autoPayMinRank', 'auto_pay_min_rank');
+  const autoPayMinRank = rawAutoPayMinRank === undefined || rawAutoPayMinRank === null || rawAutoPayMinRank === ''
+    ? 3
+    : requiredPositiveInteger(rawAutoPayMinRank, 'autoPayMinRank');
+
   const criteria = body.criteria;
   if (typeof criteria !== 'string' || !criteria.trim()) {
     throw new BountyValidationError('criteria is required');
@@ -82,6 +92,8 @@ function normalizeBountyCreatePayload(body = {}) {
     bountyCapSats,
     rewardPerItem,
     maxRewardsPerNpub,
+    autoPay,
+    autoPayMinRank,
     criteria: criteria.trim(),
     expiration: optionalUnixTimestamp(body.expiration),
   };

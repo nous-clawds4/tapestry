@@ -49,7 +49,31 @@ function PendingClaimRow({ claim, bounty }) {
         </button>
       </div>
       {payment && <PaymentCode payment={payment} />}
+      {claim.autoPayBlockedReason === 'daily_cap_exceeded' && (
+        <div style={{ color: '#d29922', fontSize: '0.8rem', marginTop: 4 }}>
+          Auto-pay daily cap reached; manual Zap is still available.
+        </div>
+      )}
       {error && <div style={{ color: '#f85149', fontSize: '0.8rem', marginTop: 4 }}>{error}</div>}
+    </div>
+  );
+}
+
+function ReconciliationClaimRow({ claim }) {
+  return (
+    <div style={{ padding: '0.75rem', background: '#0d1117', border: '1px solid #8b6f2a', borderRadius: 4, marginBottom: '0.4rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem' }}>
+        <div style={{ flex: 1, fontFamily: 'monospace', fontSize: '0.85rem' }}>
+          <div><code>{short(claim.event.pubkey)}</code></div>
+          <div style={{ opacity: 0.8 }}>{claim.event.content?.slice(0, 80) || claim.event.id?.slice(0, 16)}</div>
+        </div>
+        <span style={{ padding: '0.25rem 0.55rem', background: '#8b6f2a', color: '#fff', borderRadius: 4, fontSize: '0.78rem', fontWeight: 700 }}>
+          Reconciliation
+        </span>
+      </div>
+      <div style={{ fontSize: '0.8rem', color: '#d29922', marginTop: '0.35rem' }}>
+        Auto-pay paid this invoice, but no zap receipt has landed yet. The normal Zap button is hidden to prevent a duplicate payment.
+      </div>
     </div>
   );
 }
@@ -87,7 +111,7 @@ export default function PaymentsDue() {
         <p style={{ opacity: 0.6 }}>All caught up. No pending claims on your bounties.</p>
       )}
 
-      {items.map(({ bounty, pendingClaims }) => (
+      {items.map(({ bounty, pendingClaims, reconciliationClaims = [] }) => (
         <div key={bounty.id} style={{ marginBottom: '1.25rem', padding: '0.9rem', background: '#161b22', border: '1px solid #30363d', borderRadius: 6 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '0.6rem' }}>
             <div>
@@ -108,6 +132,9 @@ export default function PaymentsDue() {
           </div>
           {pendingClaims.map(c => (
             <PendingClaimRow key={c.event.id} claim={c} bounty={bounty} />
+          ))}
+          {reconciliationClaims.map(c => (
+            <ReconciliationClaimRow key={c.event.id} claim={c} bounty={bounty} />
           ))}
         </div>
       ))}

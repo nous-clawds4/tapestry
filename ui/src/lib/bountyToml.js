@@ -23,6 +23,8 @@ const FIELD_ALIASES = {
   bountyCapSats: ['bounty_cap_sats', 'bountyCapSats', 'cap_sats', 'cap'],
   rewardPerItem: ['reward_per_item', 'rewardPerItem', 'reward_each_item'],
   maxRewardsPerNpub: ['max_rewards_per_npub', 'maxRewardsPerNpub', 'max_rewards_per_contributor', 'max_rewards'],
+  autoPay: ['auto_pay', 'autoPay', 'auto_pay_claims'],
+  autoPayMinRank: ['auto_pay_min_rank', 'autoPayMinRank', 'minimum_auto_pay_rank'],
   criteria: ['criteria', 'description'],
   expiration: ['expiration', 'expires', 'expires_at', 'expiry'],
 };
@@ -108,6 +110,21 @@ function normalizeOne(table) {
     }
   }
 
+  const rawAutoPay = pick(table, 'autoPay');
+  const autoPay = rawAutoPay === undefined ? false : asBoolean(rawAutoPay);
+  if (autoPay === undefined) {
+    return { error: 'auto_pay must be true or false' };
+  }
+
+  const rawAutoPayMinRank = pick(table, 'autoPayMinRank');
+  let autoPayMinRank = 3;
+  if (rawAutoPayMinRank !== undefined) {
+    autoPayMinRank = asInteger(rawAutoPayMinRank);
+    if (!Number.isInteger(autoPayMinRank) || autoPayMinRank <= 0) {
+      return { error: 'auto_pay_min_rank must be a positive integer' };
+    }
+  }
+
   const criteria = pick(table, 'criteria');
   if (typeof criteria !== 'string' || !criteria.trim()) {
     return { error: 'criteria is required' };
@@ -129,6 +146,8 @@ function normalizeOne(table) {
       bountyCapSats,
       rewardPerItem,
       maxRewardsPerNpub,
+      autoPay,
+      autoPayMinRank,
       criteria: criteria.trim(),
       expiration,
     },
@@ -232,6 +251,8 @@ export function buildClaudePrompt(lists = [], request = '') {
     'bounty_cap_sats     = 5000                      # total budget before it closes; >= base_reward_sats',
     'reward_per_item     = false                     # false = at most one reward per contributor',
     'max_rewards_per_npub = 3                        # optional; ONLY when reward_per_item = true',
+    'auto_pay           = false                      # optional; owner/admin only, server wallet spend',
+    'auto_pay_min_rank  = 3                          # optional; only used when auto_pay = true',
     'criteria            = "What earns the reward."  # required',
     'expiration          = 2026-07-01T00:00:00Z      # optional ISO-8601 datetime, or omit',
     '```',

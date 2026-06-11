@@ -10,7 +10,8 @@
     "brainstorm-init-db": "./bin/init-db.sh"
   },
   "scripts": {
-    "test": "node test/test.js",
+    "test": "node test/test.js && node test/auto-pay.test.js",
+    "test:auto-pay": "node test/auto-pay.test.js",
     "test:receiving": "node test/receiving.test.js",
     "test:receiving:api": "node test/receiving.api.test.js",
     "test:receiving:e2e": "node test/receiving.e2e.js",
@@ -75,6 +76,7 @@
     "fs": "^0.0.1-security",
     "ioredis": "^5.10.1",
     "js-yaml": "^4.1.1",
+    "light-bolt11-decoder": "^3.2.0",
     "lmdb": "^3.5.2",
     "multer": "^1.4.5-lts.1",
     "neo4j-driver": "^5.28.1",

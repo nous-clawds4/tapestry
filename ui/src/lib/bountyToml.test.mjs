@@ -27,6 +27,8 @@ test('valid array of two bounties, fenced, with defaults', () => {
     'bounty_cap_sats = 5000',
     'reward_per_item = true',
     'max_rewards_per_npub = 3',
+    'auto_pay = true',
+    'auto_pay_min_rank = 4',
     'criteria = "Sleepy dwarfs"',
     'expiration = 2026-07-01T00:00:00Z',
     '',
@@ -42,6 +44,8 @@ test('valid array of two bounties, fenced, with defaults', () => {
   assert.strictEqual(bounties[0].amountSats, 1000);
   assert.strictEqual(bounties[0].rewardPerItem, true);
   assert.strictEqual(bounties[0].maxRewardsPerNpub, 3);
+  assert.strictEqual(bounties[0].autoPay, true);
+  assert.strictEqual(bounties[0].autoPayMinRank, 4);
   assert.strictEqual(typeof bounties[0].expiration, 'number');
   // cap defaults to base reward when omitted
   assert.strictEqual(bounties[1].bountyCapSats, 500);
@@ -54,6 +58,8 @@ test('bare top-level table with API-name aliases', () => {
   assert.strictEqual(bounties[0].amountSats, 7);
   assert.strictEqual(bounties[0].bountyCapSats, 7);
   assert.strictEqual(bounties[0].rewardPerItem, false);
+  assert.strictEqual(bounties[0].autoPay, false);
+  assert.strictEqual(bounties[0].autoPayMinRank, 3);
 });
 
 test('quoted ISO-8601 expiration string parses to unix seconds', () => {
@@ -77,6 +83,11 @@ test('rejects cap below base reward', () => {
 test('rejects max_rewards_per_npub without reward_per_item', () => {
   const { errors } = parseBountyToml(`[[bounty]]\nlist_coordinate = "${coord()}"\nbase_reward_sats = 1\nmax_rewards_per_npub = 2\ncriteria = "x"`);
   assert.match(errors[0], /only applies when reward_per_item/);
+});
+
+test('rejects invalid auto_pay_min_rank', () => {
+  const { errors } = parseBountyToml(`[[bounty]]\nlist_coordinate = "${coord()}"\nbase_reward_sats = 1\nauto_pay = true\nauto_pay_min_rank = 0\ncriteria = "x"`);
+  assert.match(errors[0], /auto_pay_min_rank/);
 });
 
 test('requires criteria', () => {

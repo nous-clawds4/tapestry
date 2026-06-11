@@ -35,6 +35,7 @@ function ClaimRow({ claim, bounty, onZap }) {
   const paymentStatus = claim.paymentStatus || (claim.zapReceipt ? 'paid' : 'payable');
   const paid = paymentStatus === 'paid' || !!claim.zapReceipt;
   const payable = paymentStatus === 'payable';
+  const reconciliation = paymentStatus === 'paid_unreceipted';
   const bountyAmount = claim.paymentAmountSats ?? bounty.amount_sats;
 
   async function handleZap() {
@@ -68,6 +69,10 @@ function ClaimRow({ claim, bounty, onZap }) {
             <span style={{ background: '#2ea043', color: '#fff', padding: '0.2rem 0.5rem', borderRadius: 3, fontSize: '0.75rem' }}>
               Paid
             </span>
+          ) : reconciliation ? (
+            <span style={{ background: '#8b6f2a', color: '#fff', padding: '0.2rem 0.5rem', borderRadius: 3, fontSize: '0.75rem' }}>
+              Reconciliation
+            </span>
           ) : payable ? (
             <button
               onClick={handleZap}
@@ -83,6 +88,16 @@ function ClaimRow({ claim, bounty, onZap }) {
           )}
         </div>
       </div>
+      {reconciliation && (
+        <div style={{ color: '#d29922', marginTop: '0.4rem', fontSize: '0.85rem' }}>
+          Auto-pay paid this invoice, but no zap receipt has landed yet. Normal zapping is hidden to prevent a duplicate payment.
+        </div>
+      )}
+      {claim.autoPayBlockedReason === 'daily_cap_exceeded' && (
+        <div style={{ color: '#d29922', marginTop: '0.4rem', fontSize: '0.85rem' }}>
+          Auto-pay daily cap reached; manual Zap is still available.
+        </div>
+      )}
       {payment && <PaymentCode payment={payment} />}
       {error && <div style={{ color: '#f85149', marginTop: '0.4rem', fontSize: '0.85rem' }}>{error}</div>}
     </div>
