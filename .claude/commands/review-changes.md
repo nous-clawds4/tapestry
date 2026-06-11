@@ -10,7 +10,7 @@ You are entering **Phase 5: Review** of the Tapestry engineering team harness.
 
 **Workflow:** Follow [engineering-team/workflows/5-review.md](engineering-team/workflows/5-review.md).
 
-**Template:** Use [engineering-team/templates/review-checklist.md](engineering-team/templates/review-checklist.md). Save the report as `engineering-team/reviews/<n>-<slug>.md`.
+**Template:** Use [engineering-team/templates/review-checklist.md](engineering-team/templates/review-checklist.md). Save the report as `engineering-team/reviews/<epic-slug>/<n>-<slug>.md` (epic-scoped, numbered per epic — see [engineering-team/README.md](engineering-team/README.md) § "Epic-scoped docs").
 
 **Inputs:**
 - The approved story, ADR, test plan

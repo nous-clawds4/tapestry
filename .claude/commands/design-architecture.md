@@ -10,9 +10,9 @@ You are entering **Phase 2: Architecture** of the Tapestry engineering team harn
 
 **Workflow:** Follow [engineering-team/workflows/2-architecture.md](engineering-team/workflows/2-architecture.md).
 
-**Template:** Use [engineering-team/templates/adr.md](engineering-team/templates/adr.md). Save the ADR as `engineering-team/decisions/<NNNN>-<slug>.md` where `<NNNN>` is the next zero-padded integer.
+**Template:** Use [engineering-team/templates/adr.md](engineering-team/templates/adr.md). Save the ADR as `engineering-team/decisions/<epic-slug>/<NNNN>-<slug>.md` where `<epic-slug>` is the story's epic folder and `<NNNN>` is the next zero-padded integer *within that epic folder* (numbering restarts per epic — see [engineering-team/README.md](engineering-team/README.md) § "Epic-scoped docs").
 
-**Input:** The approved story file at `engineering-team/stories/<n>-<slug>.md`. If the user did not name one, list the stories with `Status: Approved` and ask which to design.
+**Input:** The approved story file at `engineering-team/stories/<epic-slug>/<n>-<slug>.md`. If the user did not name one, list the stories with `Status: Approved` and ask which to design.
 
 **House rules:**
 - Concept Graph: orient via `http://localhost:8877/api/concept-graph/summaries` per [AGENTS.md](AGENTS.md) before reading source. If the local stack is not running, ask the user whether to bring it up before proceeding — concept-graph lookups are how this project surfaces existing concept handles for cross-referencing.

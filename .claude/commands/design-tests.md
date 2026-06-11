@@ -10,11 +10,11 @@ You are entering **Phase 3: Test Design** of the Tapestry engineering team harne
 
 **Workflow:** Follow [engineering-team/workflows/3-test-design.md](engineering-team/workflows/3-test-design.md).
 
-**Template:** Use [engineering-team/templates/test-plan.md](engineering-team/templates/test-plan.md). Save the test plan as `engineering-team/stories/<n>-<slug>.test-plan.md` alongside its parent story.
+**Template:** Use [engineering-team/templates/test-plan.md](engineering-team/templates/test-plan.md). Save the test plan as `engineering-team/stories/<epic-slug>/<n>-<slug>.test-plan.md` alongside its parent story (paths are epic-scoped with per-epic numbering — see [engineering-team/README.md](engineering-team/README.md) § "Epic-scoped docs").
 
 **Inputs:**
-- The approved story at `engineering-team/stories/<n>-<slug>.md`
-- The approved ADR at `engineering-team/decisions/<NNNN>-<slug>.md`
+- The approved story at `engineering-team/stories/<epic-slug>/<n>-<slug>.md`
+- The approved ADR at `engineering-team/decisions/<epic-slug>/<NNNN>-<slug>.md`
 
 **House rules:**
 - One test per acceptance criterion, at minimum. Cover happy path AND the edge cases the AC implies.
