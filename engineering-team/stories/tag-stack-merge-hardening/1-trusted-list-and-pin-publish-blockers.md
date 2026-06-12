@@ -87,6 +87,6 @@ deployment.
 
 ## Linked artifacts
 
-- ADR: (after Architecture)
+- ADR: `engineering-team/decisions/tag-stack-merge-hardening/0001-trusted-list-and-pin-publish-blockers.md`
 - Test plan: (after Test Design)
 - Review: (after Review)
