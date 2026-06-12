@@ -15,7 +15,7 @@
 
 ## Spec adherence (acceptance criteria, audited against final file states)
 
-- [ ] **AC1 — type registry incl. the one-question decision rubric: PARTIAL → blocking.** `protocols/drafts/inherit-from.md:24–29` defines the two-value registry (`"pointer"` correspondence/locator, no deference/resolution/trust-coupling; `"inherit"` live deference, must be explicit) and notes the W5-option-(a) lineage (`:29`). **But the one-question decision rubric — "when they edit their list, should the meaning of yours change?" — appears nowhere in the spec** (or in any ratified document; it survives only in `docs/B_TAG_AFFILIATION_DESIGN_HANDOFF.md:84`). The criterion names it explicitly ("including the one-question decision rubric"). See Blocking finding 1.
+- [ ] **AC1 — type registry incl. the one-question decision rubric: PARTIAL → blocking.** `protocols/drafts/inherit-from.md:24–29` defines the two-value registry (`"pointer"` correspondence/locator, no deference/resolution/trust-coupling; `"inherit"` live deference, must be explicit) and notes the W5-option-(a) lineage (`:29`). **But the one-question decision rubric — "when they edit their list, should the meaning of yours change?" — appears nowhere in the spec** (or in any ratified document; it survives only in `docs/B_TAG_AFFILIATION_DESIGN_HANDOFF.md:84`). The criterion names it explicitly ("including the one-question decision rubric"). See Blocking finding 1. *(Resolved on re-review — see below.)*
 - [x] **AC2 — fail-safe default.** `inherit-from.md:26`: absent element 3 reads as `"pointer"`, least-commitment, "an underspecified tag never grants live deference." Supersession recorded in ADR 0029 §Decision-1 and the ADR 0027 Amended-by header.
 - [x] **AC3 — resolution walks inherit-typed only.** Walk (`inherit-from.md:48`), closure (`:50`), first-listed-wins over the inherit subset (`:55`), root redefinition (`:56`), pseudocode filter `where type == "inherit"` (`:67`), and the explicit-inherit (never "not pointer") polarity stated twice (`:39`, `:73`).
 - [x] **AC4 — type-gated edge derivation.** `inherit-from.md:39–42`: inherit → `INHERITS_FROM` (canonical, no `source`); pointer/untyped → `REFERENCES {source:'b-tag'}`, child→target, no flip (`:44`), deferring to BIBLE §22's collision contract. BIBLE §22 (`BIBLE.md:1442`) names the producer class and widens the endpoint clause (39998/39999).
@@ -28,7 +28,7 @@
 - [x] **AC11 — communities.md explicit inherit type.** All nine sites updated (`communities.md:18`, `:19`, `:30`, `:33`, `:47`, `:48`, `:50`, `:56`, `:104`); no reliance on the old default remains; the `b`-less/pointer-only CD is a standalone root (`:50`); the downgrade-to-pointer mitigation added (`:104`).
 - [x] **AC12 — worksheet updated.** W5 → Graduated → inherit-from spec, resolution recorded as option (a) with the pointer rename rationale (`protocols/worksheet.md:47–55`); W1 (`:19/:21`) and W2 (`:27/:29`) reflect the registry and drop `REFERENCES` from candidate letters; W6 (`:59–63`) notes inherit-only closure + reduced pressure ("inheritance is now opt-in and rarer"); W11 appended (`:97–103`). The "Graduated" status fits the ledger's stated format (`worksheet.md:5`).
 - [x] **AC13 — `npm test` green.** Verified above.
-- [ ] No criterion is silently dropped — **one is** (AC1's rubric clause; Blocking 1).
+- [ ] No criterion is silently dropped — **one is** (AC1's rubric clause; Blocking 1). *(Resolved on re-review — see below.)*
 - [x] No behavior added that isn't in the story.
 
 ## ADR adherence (edit-site inventory vs actual diff)
@@ -67,14 +67,52 @@
 
 ### Blocking
 
-1. **`protocols/drafts/inherit-from.md:24–29` — the one-question decision rubric is missing.** Story AC1 requires the inherit-from spec's type-registry definition to include the rubric: *"when they edit their list, should the meaning of yours change?"* (yes → `"inherit"`; no, just connected/corresponding → `"pointer"`). It appears nowhere in any ratified document — only in the design handoff (`docs/B_TAG_AFFILIATION_DESIGN_HANDOFF.md:84`), which is slated to flip to SUPERSEDED once P1–P4 land, at which point the rubric would be lost from the living corpus. (Root cause: ADR 0029's edit-site inventory omitted it; the Implementer followed the inventory faithfully — but the story is the acceptance contract, and adding the rubric contradicts nothing in the ADR.) **Asked change:** add the rubric to the registry definition in `inherit-from.md` (the natural seam is the end of the wire-format registry block, around `:27–29`), phrased as author-facing guidance for choosing between the two types — one or two sentences mirroring the handoff's settled wording.
+1. **`protocols/drafts/inherit-from.md:24–29` — the one-question decision rubric is missing.** Story AC1 requires the inherit-from spec's type-registry definition to include the rubric: *"when they edit their list, should the meaning of yours change?"* (yes → `"inherit"`; no, just connected/corresponding → `"pointer"`). It appears nowhere in any ratified document — only in the design handoff (`docs/B_TAG_AFFILIATION_DESIGN_HANDOFF.md:84`), which is slated to flip to SUPERSEDED once P1–P4 land, at which point the rubric would be lost from the living corpus. (Root cause: ADR 0029's edit-site inventory omitted it; the Implementer followed the inventory faithfully — but the story is the acceptance contract, and adding the rubric contradicts nothing in the ADR.) **Asked change:** add the rubric to the registry definition in `inherit-from.md` (the natural seam is the end of the wire-format registry block, around `:27–29`), phrased as author-facing guidance for choosing between the two types — one or two sentences mirroring the handoff's settled wording. *(Resolved on re-review — see below.)*
 
 ### Non-blocking
 
-1. **`engineering-team/stories/community-reference/33-b-type-registry.md:62`** — the "Review:" linked-artifact line still reads "(filled in after Review phase)". Fill it with this file's path on the fix pass.
+1. **`engineering-team/stories/community-reference/33-b-type-registry.md:62`** — the "Review:" linked-artifact line still reads "(filled in after Review phase)". Fill it with this file's path on the fix pass. *(Done in `adf77abf` — see re-review.)*
 2. **`docs/COMMUNITIES_PROTOCOL_DESIGN_HANDOFF.md:19–37`** — describes pre-0029 untyped `b` deference. No action: it is a historical session record whose protocol design is marked ratified into `communities.md` (which is updated); recorded here so a future reader doesn't mistake it for drift.
 3. **`engineering-team/epics/community-reference.md:10`** — story 33 will need its "— Done" marker when it eventually passes (31/32 carry one).
 
 ## Verdict
 
-**CHANGES_REQUESTED** — one blocking issue (Blocking 1). Everything else audited clean: all 9 files conform to the ADR's edit-site inventory, immutable records untouched beyond the two header pointers, every cross-reference and worksheet anchor resolves, no old-semantics survivors in mutable docs, the rewritten spec is internally coherent, and `npm test` is green. The fix is one or two sentences in `inherit-from.md`; re-review should be quick.
+**PASS** — flipped on re-review, 2026-06-13; see "Re-review (2026-06-13) — delta audit" below. *Initial verdict (preserved verbatim):* **CHANGES_REQUESTED** — one blocking issue (Blocking 1). Everything else audited clean: all 9 files conform to the ADR's edit-site inventory, immutable records untouched beyond the two header pointers, every cross-reference and worksheet anchor resolves, no old-semantics survivors in mutable docs, the rewritten spec is internally coherent, and `npm test` is green. The fix is one or two sentences in `inherit-from.md`; re-review should be quick.
+
+---
+
+## Re-review (2026-06-13) — delta audit
+
+**Reviewer:** Claude (acting as Reviewer)
+**Scope:** delta only — `git diff cabac834..HEAD` (the two commits since the initial review: `adf77abf` story-link fill, `67011660` rubric fix). Not a re-audit of the clean items above.
+
+### Delta integrity
+
+- [x] `git diff cabac834..HEAD` touches exactly two files, 3 insertions / 1 deletion, matching the two commits' stated intent — **nothing else moved**:
+  - `engineering-team/stories/community-reference/33-b-type-registry.md:62` — the Review linked-artifact line filled (initial review's non-blocking finding 1).
+  - `protocols/drafts/inherit-from.md:29` (+ a blank line) — the rubric inserted into the registry block.
+- [x] Working tree clean at re-review time; branch `docs/b-type-registry`.
+
+### Blocking finding 1 — verified resolved (AC1 now satisfied)
+
+`protocols/drafts/inherit-from.md:29` now reads:
+
+> **Choosing the type — one question:** *when they edit their list, should the meaning of yours change?* Yes → `"inherit"`; no — just connected/corresponding → `"pointer"`.
+
+- **Present:** the rubric AC1 names is now in the ratified spec; it no longer lives only in the handoff.
+- **Faithful:** mirrors the handoff's settled wording (`docs/B_TAG_AFFILIATION_DESIGN_HANDOFF.md:84` — *"when they edit their list, should the meaning of yours change?" Yes → `"inherit"` … No, just connected/corresponding → `"reference"`*) with the one substitution the story mandates: the planning-gate rename `"reference"` → `"pointer"` (story §Open-questions resolution 1). No semantic drift.
+- **Coherently placed:** at the end of the wire-format registry block — between the two type definitions (`:26–27`) and the non-indexed-element note (`:31`) — exactly the seam the asked change named. Phrased as author-facing guidance; contradicts nothing: consistent with absent-reads-as-pointer (`:26`), must-be-explicit inherit (`:27`), and the derivation polarity rule (`:41`).
+
+### Quality gate (re-run by reviewer)
+
+- [x] `npm test` — **PASS** (exit 0; all 29 suites green, incl. profile-follows-list 27/27, scheduled-tasks-with-arguments 37/37; `Overall: PASS`).
+
+### Deferred follow-ups (out of this re-review's write scope — story/spec files intentionally untouched)
+
+1. **Story `Status:` flip to Done** (`stories/community-reference/33-b-type-registry.md:3`) — normally done in the review commit per `workflows/5-review.md`; deferred to the orchestrating agent per this re-review's no-story-edit constraint.
+2. **Story `:62` parenthetical** now stale ("CHANGES REQUESTED … re-review pending") — update to reflect PASS when flipping Status.
+3. **Epic index "— Done" marker** for story 33 (`epics/community-reference.md:10`) — initial review's non-blocking finding 3, now actionable.
+
+### Re-review verdict
+
+**PASS** — the single blocking ask is satisfied exactly as specified, nothing else changed, and the gate is green. Mergeable as-is.
