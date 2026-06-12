@@ -1,64 +1,57 @@
-const DEFAULT_TIMEOUT_MS = 10000;
+const { execFile } = require('child_process');
+const path = require('path');
 
-function phoenixConfig() {
-  return {
-    url: (process.env.PHOENIXD_URL || '').replace(/\/+$/, ''),
-    password: process.env.PHOENIXD_PASSWORD || '',
-  };
+// The agent-wallet CLI auto-starts its daemon (up to ~30s cold start), so
+// timeouts cover daemon boot plus the operation itself. `send` additionally
+// polls internally for up to 2 minutes before reporting a terminal status.
+const DEFAULT_BALANCE_TIMEOUT_MS = 45_000;
+const DEFAULT_SEND_TIMEOUT_MS = 160_000;
+
+function walletCliPath() {
+  return process.env.MDK_WALLET_BIN
+    || path.resolve(__dirname, '..', '..', 'node_modules', '.bin', 'agent-wallet');
 }
 
-function requirePhoenixConfig(config = phoenixConfig()) {
-  if (!config.url) throw new Error('PHOENIXD_URL is not configured');
-  if (!config.password) throw new Error('PHOENIXD_PASSWORD is not configured');
-  return config;
-}
-
-function authHeader(password) {
-  return `Basic ${Buffer.from(`:${password}`).toString('base64')}`;
-}
-
-async function phoenixFetch(path, { method = 'GET', body = null, timeoutMs = DEFAULT_TIMEOUT_MS, fetchImpl = fetch } = {}) {
-  const config = requirePhoenixConfig();
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
-  try {
-    const resp = await fetchImpl(`${config.url}${path}`, {
-      method,
-      signal: ctrl.signal,
-      headers: {
-        Authorization: authHeader(config.password),
-        ...(body ? { 'Content-Type': 'application/x-www-form-urlencoded' } : {}),
-      },
-      body,
-    });
-    const text = await resp.text();
-    let payload = null;
-    try { payload = text ? JSON.parse(text) : null; } catch { payload = text; }
-    if (!resp.ok) {
-      const detail = typeof payload === 'string' ? payload : payload?.error || payload?.message;
-      throw new Error(`phoenixd ${path} failed (${resp.status})${detail ? `: ${detail}` : ''}`);
-    }
-    return payload;
-  } catch (err) {
-    if (err.name === 'AbortError') throw new Error('phoenixd request timed out');
-    throw err;
-  } finally {
-    clearTimeout(timer);
+// JSON results arrive on stdout, errors on stderr as {"error": msg}; both can
+// be preceded by log noise, so scan lines from the end for the JSON payload.
+function parseJsonLine(text) {
+  const lines = String(text || '').trim().split('\n').filter(Boolean);
+  for (let i = lines.length - 1; i >= 0; i -= 1) {
+    try { return JSON.parse(lines[i]); } catch { /* not this line */ }
   }
+  return null;
 }
 
+function runWalletCli(args, { timeoutMs, execFileImpl = execFile } = {}) {
+  return new Promise((resolve, reject) => {
+    execFileImpl(walletCliPath(), args, { timeout: timeoutMs, killSignal: 'SIGKILL' }, (err, stdout, stderr) => {
+      if (err) {
+        if (err.killed) return reject(new Error(`agent-wallet ${args[0]} timed out`));
+        const detail = parseJsonLine(stderr)?.error || parseJsonLine(stdout)?.error || err.message;
+        return reject(new Error(`agent-wallet ${args[0]} failed${detail ? `: ${detail}` : ''}`));
+      }
+      const payload = parseJsonLine(stdout);
+      if (!payload) return reject(new Error(`agent-wallet ${args[0]} returned no JSON output`));
+      resolve(payload);
+    });
+  });
+}
+
+// Returns {"balance_sats": <number>}.
 async function getBalance(opts = {}) {
-  return phoenixFetch('/getbalance', opts);
+  return runWalletCli(['balance'], { timeoutMs: DEFAULT_BALANCE_TIMEOUT_MS, ...opts });
 }
 
+// Returns {"payment_id", "payment_hash", "status": "completed", "preimage"}.
+// The CLI exits nonzero when the payment fails or is still pending after its
+// internal poll window, so a resolved call means the payment completed.
 async function payBolt11(invoice, opts = {}) {
   if (typeof invoice !== 'string' || !invoice.trim()) throw new Error('invoice is required');
-  const body = new URLSearchParams({ invoice: invoice.trim() }).toString();
-  return phoenixFetch('/payinvoice', { ...opts, method: 'POST', body });
+  return runWalletCli(['send', invoice.trim()], { timeoutMs: DEFAULT_SEND_TIMEOUT_MS, ...opts });
 }
 
 module.exports = {
   getBalance,
   payBolt11,
-  phoenixConfig,
+  walletCliPath,
 };
