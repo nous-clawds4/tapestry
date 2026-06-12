@@ -57,6 +57,6 @@ None remaining — the four gate flags carried from the handoff were resolved by
 ## Linked artifacts
 
 - Design source: [docs/B_TAG_AFFILIATION_DESIGN_HANDOFF.md](../../../docs/B_TAG_AFFILIATION_DESIGN_HANDOFF.md) (D2, D3, D1 rev 2, H2, §3 worksheet ledger, §5 P1)
-- ADR: (filled in after Architecture phase)
+- ADR: [engineering-team/decisions/community-reference/0029-b-type-registry.md](../../decisions/community-reference/0029-b-type-registry.md)
 - Test plan: skipped (docs-mode)
 - Review: (filled in after Review phase)
