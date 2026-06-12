@@ -1,6 +1,6 @@
 const { randomUUID } = require('crypto');
 const { db } = require('./bounties');
-const SecureKeyStorage = require('../utils/secureKeyStorage');
+const { SecureKeyStorage } = require('../utils/secureKeyStorage');
 
 const AUTO_PAY_DAILY_LIMIT_SATS = 5000;
 const AUTO_PAY_WINDOW_SECONDS = 24 * 60 * 60;

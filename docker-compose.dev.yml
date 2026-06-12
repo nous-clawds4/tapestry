@@ -8,6 +8,16 @@
 
 services:
   tapestry:
+    environment:
+      # Auto-pay bounty payouts (values come from .env; all default to off/empty)
+      - AUTO_PAY_ENABLED=${AUTO_PAY_ENABLED:-false}
+      - AUTO_PAY_ALLOWLIST_PUBKEYS=${AUTO_PAY_ALLOWLIST_PUBKEYS:-}
+      - AUTO_PAY_MAX_SATS=${AUTO_PAY_MAX_SATS:-5000}
+      - AUTO_PAY_INTERVAL_MS=${AUTO_PAY_INTERVAL_MS:-30000}
+      - AUTO_PAY_ZAP_RELAYS=${AUTO_PAY_ZAP_RELAYS:-wss://localhost:7777}
+      - MDK_WALLET_MNEMONIC=${MDK_WALLET_MNEMONIC:-}
+      - DEV_SKIP_TRUST_CHECK=${DEV_SKIP_TRUST_CHECK:-false}
+      - RELAY_KEY_MASTER_KEY=${RELAY_KEY_MASTER_KEY:-}
     volumes:
       # Bind-mount local repo over the baked-in code
       - .:/usr/local/lib/node_modules/brainstorm
