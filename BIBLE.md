@@ -189,7 +189,7 @@ Client ──wss://relay──→ nginx ──→ nip50-proxy ──search──
 
 ## 5. The Tapestry Protocol
 
-**The wire format is specified in [protocols/drafts/tapestry-concepts.md](protocols/drafts/tapestry-concepts.md) — normative:** event kinds, a-tag addressing, the `z` parent pointer, kind unification, `json`-tag data storage, the `concept-graph` header tag and its tag-else-compute resolution contract, and the derived-vs-explicit relationships principle. This section covers how this codebase implements it.
+**The wire format is specified in [protocols/drafts/tapestry-concepts.md](protocols/drafts/tapestry-concepts.md) — normative:** event kinds, a-tag addressing, the `z` parent pointer and the Tapestry-layer multi-`z` stamping position (deliberately-published items MAY carry multiple `z` stamps — `community-reference` ADR 0029; the base NIP permits multi-`z` and only *recommends* one per event), kind unification, `json`-tag data storage, the `concept-graph` header tag and its tag-else-compute resolution contract, and the derived-vs-explicit relationships principle. This section covers how this codebase implements it.
 
 - **Addressing:** the a-tag address is stored as the `uuid` property on Neo4j nodes — the primary identifier throughout the system.
 - **`concept-graph` tag:** emitted by `create-concept` on every kind-39998 ConceptHeader. The off-relay resolution contract exists because the `IS_THE_CONCEPT_GRAPH_FOR` Neo4j edge is invisible off-relay. ADR 0007, hybrid design C; the consumer is the deferred element/superset materialization stream.
@@ -262,8 +262,8 @@ strfry replaces existing events (kind 39999 is replaceable), and Neo4j MERGEs on
 | `IMPORT` | "I agree with your concept definition" — implies IS_A_SUPERSET_OF between supersets |
 | `SUPERCEDES` | "I've evaluated your definition and replaced it with mine" — non-destructive |
 | `PROVIDED_THE_TEMPLATE_FOR` | Provenance link from original to forked node |
-| `REFERENCES` (concept-level) | Deferred non-committal pointer: local Concept Header → an external curator's Concept Header. Neo4j-only, carries `source`. NOT an explicit event, NOT agreement, NOT `IS_A_SUPERSET_OF`. Disambiguate from the tag-level `REFERENCES` (`NostrEventTag → NostrEvent`, every `e`/`a` tag) by endpoint labels + `source`. See §22. |
-| `INHERITS_FROM` | "My definition defers to the parent's, unless I override" — child→parent, live. NOT IMPORT (no absorption), NOT `IS_A_SUPERSET_OF`. Canonical (no `source`). Encoded as the single-char `b` tag, not a descriptor event. See §25. |
+| `REFERENCES` (concept-level) | Non-committal pointer with **two producers**: the firmware-install stub (local Concept Header → an external curator's Concept Header; Neo4j-only, `source:'firmware-community'`) and pointer-typed `b` tags (asserted, wire-derived, `source:'b-tag'`, kinds 39998/39999 — `community-reference` ADR 0029). NOT agreement, NOT `IS_A_SUPERSET_OF`. Disambiguate from the tag-level `REFERENCES` (`NostrEventTag → NostrEvent`, every `e`/`a` tag) by `source` + endpoint labels. See §22. |
+| `INHERITS_FROM` | "My definition defers to the parent's, unless I override" — child→parent, live. NOT IMPORT (no absorption), NOT `IS_A_SUPERSET_OF`. Canonical (no `source`). Encoded as the **inherit-typed** single-char `b` tag (`["b",…,"inherit"]` — explicit; pointer-typed or untyped `b` derives `REFERENCES` instead, `community-reference` ADR 0029), not a descriptor event. See §25. |
 
 #### Infrastructure
 | Relationship | Meaning |
@@ -372,7 +372,7 @@ Full rules are documented in `tapestry-cli/docs/NORMALIZATION.md`. Summary:
 | Rule | Description |
 |------|-------------|
 | **1** | Every concept MUST have a Superset |
-| **2** | Every ListItem MUST have a valid parent pointer (z-tag) |
+| **2** | Every ListItem MUST have at least one valid parent pointer (z-tag) |
 | **3** | Every element MUST be reachable via a class thread |
 | **4** | Elements MUST validate against their concept's JSON Schema |
 | **5** | Superset nodes MUST reference the canonical superset concept |
@@ -1406,12 +1406,12 @@ docker compose exec tapestry strfry sync wss://dcosl.brainstorm.world \
 | **GrapeRank** | "PageRank for people" — iterative, personalized-per-observer trust scoring. Weighted average of raters' influence × rating × rating confidence, with an attenuation factor on non-observer raters. Converges to a fixed point determined purely by the observer pubkey and the rating graph. |
 | **Grapevine** | The Web of Trust system that determines which curations achieve community consensus. |
 | **IMPORT** | Editorial relationship: "I agree with your concept and want to benefit from your curated elements." |
-| **INHERITS_FROM** | Canonical child→parent definitional-inheritance edge from the `b` tag: "I defer to the parent's definition, live, unless I override." Distinct from IMPORT (absorption; implies IS_A_SUPERSET_OF) and REFERENCES (non-committal stub). No `source`. ADR 0027. See §25. |
+| **INHERITS_FROM** | Canonical child→parent definitional-inheritance edge from **inherit-typed** `b` tags only (`["b",…,"inherit"]` — explicit; an absent type reads as `"pointer"` and derives no INHERITS_FROM): "I defer to the parent's definition, live, unless I override." Distinct from IMPORT (absorption; implies IS_A_SUPERSET_OF) and REFERENCES (non-committal pointer). No `source`. ADR 0027 as amended by `community-reference` ADR 0029. See §25. |
 | **concept-graph (header tag)** | Self-describing tag on a kind-39998 ConceptHeader: `["concept-graph","39999:<pubkey>:<d-tag>-concept-graph"]` (computed). Resolution = tag-if-present else compute the same a-tag. Lets a single fetched Header resolve its full concept off-relay. ADR 0007. See §5. |
 | **communityReference** | A firmware-concept pointer `{ headerATag, relayHints[], knownGoodEventId? }` to an external curator's published concept. Resolved at install into a `REFERENCES` placeholder. See §22. |
 | **grapevine → firmware → none** | The community-reference resolution precedence: the user's Grapevine is the correct selector of "the community's definition"; the firmware-baked pointer is only a cold-start default; else nothing. Mirrors Warm Start's `self → owner → cold`. See §22. |
 | **Loose Consensus** | When two users' WoTs overlap enough to converge on the same definition without central coordination. |
-| **REFERENCES (concept-level)** | Neo4j-only deferred stub edge: local Concept Header → an external curator's Concept Header (`source` set). NOT agreement/import. Overloaded with the tag-level `REFERENCES`; disambiguate by endpoint labels + `source`. See §22. |
+| **REFERENCES (concept-level)** | Non-committal pointer edge, two producers: the firmware-install stub (local Concept Header → an external curator's Header; Neo4j-only, `source:'firmware-community'`) and pointer-typed `b` tags (asserted, wire-derived, `source:'b-tag'` — `community-reference` ADR 0029). NOT agreement/import. Overloaded with the tag-level `REFERENCES`; disambiguate by `source` + endpoint labels. See §22. |
 | **Meilisearch** | Full-text search engine used for profile search. Runs as a separate Docker container (`nostr-search-meili`). Indexes 2M+ kind 0 profiles with sub-10ms query times. |
 | **NIP-05** | Nostr verification standard. A NIP-05 identifier (e.g., `bob@example.com`) is verified by fetching `https://domain/.well-known/nostr.json?name=bob` and checking the pubkey mapping. |
 | **NIP-07** | Nostr browser extension signing standard. Used for authentication. |
@@ -1428,8 +1428,8 @@ docker compose exec tapestry strfry sync wss://dcosl.brainstorm.world \
 | **Trust Assertions (TAs)** | Kind 30382 nostr events published by a `rankAuthor` that assign trust scores (rank, followers, etc.) to other pubkeys. Synced via negentropy and loaded into Meilisearch for WoT-powered search. |
 | **Warm Start** | An opt-in GrapeRank initialization mode that seeds scorecards from previously-computed scores instead of `[0,0,0,0]`. Three sources in tiered fallback: `self` (customer's own prior scores), `owner` (owner's `NostrUser` scores when the owner is within 3 directed FOLLOWS hops downstream of the customer), and `cold` (no seed available; legacy behavior). Typically cuts customer GrapeRank runtime from ~20 min to ~5 min. |
 | **Word-wrapper** | The canonical JSON format where every node's data includes a `word` section plus type-specific sections. |
-| **b tag** | Single-char inherit-from pointer on a kind-39998/39999 event: `["b","<parent-a-tag>","inherit"]`. Child-claims-parent — "my definition is the parent's, unless I override." Materializes `(child)-[:INHERITS_FROM]->(parent)`. ADR 0027. See §25. |
-| **z-tag** | The `z` tag on a ListItem that points to its parent concept's a-tag. Fundamental parent pointer. |
+| **b tag** | Single-char **typed** pointer on a kind-39998/39999 event: `["b","<target-a-tag>","<type>"]`, type registry `"pointer"` \| `"inherit"` (absent type = `"pointer"`, fail-safe). Child-claims-parent. `"inherit"` — "my definition is the parent's, unless I override" → `(child)-[:INHERITS_FROM]->(parent)`; `"pointer"` — correspondence only, no deference → `REFERENCES {source:'b-tag'}`. ADR 0027 as amended by `community-reference` ADR 0029. See §25. |
+| **z-tag** | The `z` tag on a ListItem that points to its parent concept's a-tag. Fundamental parent pointer. Deliberately-published items MAY carry multiple `z` stamps (Tapestry-layer position vs the base NIP's one-`z` recommendation — `community-reference` ADR 0029; see §5 and the tapestry-concepts spec). |
 
 ---
 
@@ -1439,13 +1439,13 @@ A firmware concept may carry a `communityReference` — `{ headerATag, relayHint
 
 **The `REFERENCES` edge is a stub, not an assertion.** It means "this external curator's concept is a recognized reference for my local concept; I *may* later pull from it" — not agreement, not "imported," not `IS_A_SUPERSET_OF`. It is distinct from the (deferred) editorial `IMPORT`. One local concept may `REFERENCES` **many** external concepts (e.g. Miles's *Jazz Musicians* and Dizzy's) — many-to-one via distinct target nodes; provenance per-edge via `source`.
 
-**Collision contract (binding).** `REFERENCES` is overloaded: event ingest builds high-volume `(:NostrEventTag)-[:REFERENCES]->(:NostrEvent)` for every `e`/`a` tag. Concept-level `REFERENCES` is disambiguated by **endpoint labels** (`ListHeader→ListHeader`) **and** `r.source` (tag-level never sets it). Any consumer traversal MUST filter on both; a bare `MATCH ()-[:REFERENCES]->()` is a defect.
+**Collision contract (binding).** `REFERENCES` is overloaded: event ingest builds high-volume `(:NostrEventTag)-[:REFERENCES]->(:NostrEvent)` for every `e`/`a` tag. Concept-level `REFERENCES` now has **two producers** — the firmware-community install stub (`source:'firmware-community'`, above) and pointer-typed `b` tags (`source:'b-tag'`, the first *asserted, wire-derived* producer — `community-reference` ADR 0029, §25). It is disambiguated by **`r.source`** (tag-level never sets it) **and** endpoint labels — noting the `b`-derived variant widens endpoints beyond `ListHeader→ListHeader`, since `b` rides on kinds 39998 *and* 39999. Any consumer traversal MUST filter on `source` (presence and value); a bare `MATCH ()-[:REFERENCES]->()` is a defect.
 
 **Resolution model.** The *correct* long-term selector of "the community's definition" is the user's Grapevine (WoT loose consensus over published curations). The firmware-baked pointer is a **cold-start default**, not the truth. Precedence: **`grapevine-resolved → firmware-blessed → none`** — mirroring the Warm Start tiered fallback (`self → owner → cold`).
 
 **Accepted compromise (Flaw A) and its exit.** A firmware-baked pointer is a *centralized* editorial choice (the dev team picks the blessed curator pubkey — currently the reference deployment's TA). Accepted **temporarily**; the exit is the **registry-as-DList**: the per-concept pointer itself becomes a community-curated, Grapevine-ranked DList, retiring the hardcoded choice.
 
-**Candidate exit mechanism — the `b` / `INHERITS_FROM` tag (ADR 0027).** A `b` tag (§25) is a published, `#b`-queryable, per-pubkey pointer naming a preferred definition. Aggregating a concept's **incoming `INHERITS_FROM` edges, weighted by each child author's GrapeRank influence from the observer's PoV**, yields "which definition my web of trust loosely agrees on" — exactly the `grapevine-resolved` selector above. This makes `b`-edges a **candidate mechanism** for the registry-as-DList exit. Recorded as candidate only; the registry design is not ratified here (a future ADR in the 0006 line).
+**Candidate exit mechanism — the `b` / `INHERITS_FROM` tag (ADR 0027).** A `b` tag (§25) is a published, `#b`-queryable, per-pubkey pointer naming a preferred definition. Aggregating a concept's **incoming `INHERITS_FROM` edges, weighted by each child author's GrapeRank influence from the observer's PoV**, yields "which definition my web of trust loosely agrees on" — exactly the `grapevine-resolved` selector above. This makes `b`-edges a **candidate mechanism** for the registry-as-DList exit. Recorded as candidate only; the registry design is not ratified here (a future ADR in the 0006 line). Per `community-reference` ADR 0029, this consensus aggregation counts **inherit-typed** edges only — pointer-typed `b` tags derive `REFERENCES`, not `INHERITS_FROM`, and carry zero consensus weight in v1; discovery walks (enumerating correspondents, not deferrers) include both types.
 
 **Invariants & principles.**
 1. *Relay invariant:* concept export and `communityReference.relayHints` must target the same relay set (the purpose-built DList relay, not general-purpose relays) or the round-trip cannot close.
@@ -1459,7 +1459,7 @@ A firmware concept may carry a `communityReference` — `{ headerATag, relayHint
 
 **Phase B (implemented — Story #14, ADR 0010 with mechanism amended by ADR 0011):** owner-on-demand class-thread closure pull via `POST /api/concept/:handle/pull-community-class-thread` (NIP-07-gated). Walks the curator's class-thread closure via `#n` + `#s` tag filters (single-char child-claims-parent tags — see §23) from the #11 community Superset anchor; back-compat z-at-Header walk at root depth covers curators that haven't migrated to `n`/`s` tags. Foreign Sets get explicit `:Set` label; canonical `HAS_ELEMENT` / `IS_A_SUPERSET_OF` edges MERGEd between foreign nodes (no `source` property — canonical relationships, not stubs). **Binding invariants:** authorship trust gate (refuses events whose `pubkey !== curatorPk`); no editorial relationships; no election into local class thread; local concept untouched. Idempotent + per-member graceful + visited-set + max-depth + max-fetch budget.
 
-**Deferred (see ADR 0006 / ADR 0011):** privacy tiers; signed/first-class editorial relationship-type; registry-as-DList (flaw-A exit); cutover ADR (deprecate the descriptor-event dual-emit); migration CLI for existing local events; `IS_A_PROPERTY_OF` / `REFERENCES` as single-char tags (reserved-future candidates); election surface; concept-graph fidelity upgrade.
+**Deferred (see ADR 0006 / ADR 0011):** privacy tiers; signed/first-class editorial relationship-type; registry-as-DList (flaw-A exit); cutover ADR (deprecate the descriptor-event dual-emit); migration CLI for existing local events; `IS_A_PROPERTY_OF` as a single-char tag (reserved-future candidate; `REFERENCES` no longer needs a letter — it rides the `b` tag's `"pointer"` type, `community-reference` ADR 0029); election surface; concept-graph fidelity upgrade.
 
 ---
 
@@ -1508,20 +1508,20 @@ The drift sentinels in `test/entrypoint-template-rendering.test.js` (T7 + T8) tr
 
 ## 25. The Inherit-From Tag (`b`)
 
-**The wire format and resolution semantics are specified in [protocols/drafts/inherit-from.md](protocols/drafts/inherit-from.md) — normative:** the `b` tag (three-element form, kinds 39998/39999), multi-parent semantics, the `INHERITS_FROM` derived relationship and its no-flip direction, the resolution algorithm, trust-coupling, and the editorial-relationship family contrast. Established by ADR 0027 (ADR 0006/0011 lineage). This section covers how this codebase implements it.
+**The wire format and resolution semantics are specified in [protocols/drafts/inherit-from.md](protocols/drafts/inherit-from.md) — normative:** the `b` tag (three-element form, kinds 39998/39999), the element-3 **type registry** (`"pointer"` \| `"inherit"`; absent type reads as `"pointer"`, fail-safe), type-gated derivation, multi-parent semantics, the `INHERITS_FROM` derived relationship and its no-flip direction, the resolution algorithm, trust-coupling, and the editorial-relationship family contrast. Established by ADR 0027 (ADR 0006/0011 lineage), as amended by `community-reference` ADR 0029 (type registry). This section covers how this codebase implements it.
 
-- **Neo4j edge:** `(child)-[:INHERITS_FROM]->(parent)` — a canonical, asserted relationship: unlike the concept-level `REFERENCES` stub and like `HAS_ELEMENT`/`IS_A_SUPERSET_OF`, it carries **no `source` property**; it MAY carry a `type` property (default `"inherit"`) mirroring tag element 3. See §6 for the editorial-relationship family in the data model.
-- **First consumer:** the Communities Protocol's participant-affiliation pointer (`affiliation` → `b` with type `inherit`); the primitive is **not** community-specific.
+- **Neo4j edges (type-gated, ADR 0029):** an explicitly **inherit-typed** `b` tag derives `(child)-[:INHERITS_FROM]->(parent)` — a canonical, asserted relationship: unlike the concept-level `REFERENCES` variants and like `HAS_ELEMENT`/`IS_A_SUPERSET_OF`, it carries **no `source` property**. A **pointer-typed** (or untyped) `b` tag derives `(child)-[:REFERENCES {source:'b-tag'}]->(target)` instead — asserted and wire-derived, subject to §22's collision contract. See §6 for the editorial-relationship family in the data model.
+- **First consumer:** the Communities Protocol's participant-affiliation pointer (`affiliation` → `b` with type `inherit`); the primitive is **not** community-specific. The explicit `inherit` type is **load-bearing** — an absent type reads as `"pointer"` and confers no deference. Affiliation = membership in the inherit-only deference closure; a pointer-typed link breaks the chain (ADR 0029).
 - **Trust gating:** PoV/GrapeRank re-gate visibility on every resolution.
-- **Walk mechanics:** the bounded-walk pattern (maxDepth, visited-set) reuses ADR 0010/0011. See ADR 0027 for the full rationale, the rejected alternatives (folding into `IMPORT`; multi-char tags), and the deferred design questions.
+- **Walk mechanics:** the bounded-walk pattern (maxDepth, visited-set) reuses ADR 0010/0011; resolution walks traverse inherit-typed `b` tags only, while discovery walks include both types (ADR 0029). See ADR 0027 for the full rationale, the rejected alternatives (folding into `IMPORT`; multi-char tags), and the deferred design questions.
 
 ---
 
 ## 26. Resolved Definition
 
-**The resolution algorithm is specified in [protocols/drafts/inherit-from.md](protocols/drafts/inherit-from.md) → "Resolution: the resolved definition" — normative** (own-fields-win; first-listed-wins for unstated conflicts; visited-set cycle guard; live read-time, observer-independent). Established by ADR 0028, the read-side companion to ADR 0027; it defines the multi-parent resolution order that ADR 0027 deferred. This section covers how this codebase implements it.
+**The resolution algorithm is specified in [protocols/drafts/inherit-from.md](protocols/drafts/inherit-from.md) → "Resolution: the resolved definition" — normative** (own-fields-win; first-listed-wins among inherit-typed `b` tags for unstated conflicts; visited-set cycle guard; live read-time, observer-independent). Established by ADR 0028, the read-side companion to ADR 0027, as amended by `community-reference` ADR 0029 (the walk ranges over explicitly inherit-typed `b` tags only). This section covers how this codebase implements it.
 
-- **Closure as a derived query:** `MATCH (n)-[:INHERITS_FROM*0..]->(x)` — computed on read, never stored.
+- **Closure as a derived query:** `MATCH (n)-[:INHERITS_FROM*0..]->(x)` — computed on read, never stored. The query stays valid under ADR 0029 *because* derivation is type-gated: pointer-typed `b` never becomes `INHERITS_FROM`, so the closure is inherit-only by construction.
 - **Named instance:** the Communities Protocol's `effectiveCD` is simply a named instance of Resolved Definition; §22's grapevine-resolution (which definition a web of trust converges on) selects among nodes' resolved definitions.
 - **Caching** is a consumer/performance concern, out of scope here. See ADR 0028 for the rationale and the rejected alternative (WoT-weighted field resolution, which would make a node's own definition vary by observer).
 
