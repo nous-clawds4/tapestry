@@ -15,8 +15,8 @@ This NIP defines **communities** as a thin reading of the concept graph specifie
 
 Every Community Declaration is **its author's own view, resolved from their own point of view**. There is no protocol-level founder, leader, anchor, or canonical roster — and no default field for any of those, because a slot for "leader" makes centralization read as expected.
 
-- Centralization is always a **hard opt-in**, expressed in your own declaration via the `b` tag ("I defer to X"), and **revocable** (re-publish without it).
-- "Canonical" membership is **emergent, never imposed**: when many participants `b`-defer to the same declaration *and* their webs of trust overlap, their resolved rosters converge — and that convergence *is* the community. Any of them can defer out tomorrow.
+- Centralization is always a **hard opt-in**, expressed in your own declaration via an **inherit-typed** `b` tag (`["b", …, "inherit"]` — "I defer to X"; an absent type reads as `"pointer"` and confers no deference, per the [Inherit-From spec](./inherit-from.md)), and **revocable** (re-publish without it, or downgrade the type to `"pointer"`).
+- "Canonical" membership is **emergent, never imposed**: when many participants defer (inherit-typed `b`) to the same declaration *and* their webs of trust overlap, their resolved rosters converge — and that convergence *is* the community. Any of them can defer out tomorrow.
 - Disagreement is **native**: participants who diverge simply keep, drop, or re-point their deference. There is no global leadership to dispute, so no dispute machinery exists.
 
 Centralization must be built by participants, never assumed by the protocol.
@@ -27,10 +27,10 @@ Communities ride entirely on primitives defined upstream: the addressable kinds 
 
 ## A community is a concept
 
-**community = concept; member = element; Community Declaration = concept-definition; `b` = definition-inheritance.**
+**community = concept; member = element; Community Declaration = concept-definition; `b` (type `"inherit"`) = definition-inheritance.**
 
 - **Identity is concept identity, inherited wholesale.** "Which *LFO* is *the* LFO" is the same question as "which `dogs` is *the* dogs." The shared referent is an ordinary community concept (kind 39998) — forkable, trust-rankable, and **powerless**, exactly like any concept. There is no privileged node above the definitions. How independent deployments select a *canonical* concept identity is the open problem tracked as worksheet [W1](../worksheet.md#w1--cross-deployment-concept-identity).
-- **Bootstrap:** a newcomer becomes comparable by pointing at the concept — tagging against it (entering the **population**) and/or `b`-deferring to a declaration in its cluster (adopting a **ruleset**). A first mover gets only a forkable naming advantage: zero protocol power.
+- **Bootstrap:** a newcomer becomes comparable by pointing at the concept — tagging against it (entering the **population**) and/or deferring (inherit-typed `b`) to a declaration in its cluster (adopting a **ruleset**). A first mover gets only a forkable naming advantage: zero protocol power.
 - **Safety property — population and ruleset stay separate.** This is load-bearing, not tidiness: a captured definition-hub can drift cutoffs and roles for its voluntary deferrers, but it **cannot retag people** — the who's-in layer does not move with a rogue rule-hub.
 
 ## The Community Declaration
@@ -44,16 +44,16 @@ A Community Declaration (CD) is a **kind 39998 concept event**, `d` = community 
 | topic | topical tag (repeatable) |
 | founder | **informational only** — MUST NOT confer any algorithmic privilege (see the founding tenet) |
 | type marker | a `z` reference identifying the event as a community declaration, distinguishing it from other kind-39998 headers |
-| `b` | optional deference to a parent declaration ([Inherit-From](./inherit-from.md)) — forking and convergence ride on this |
-| claims | the tag-element coordinates this community consumes as its membership signal (see "Membership"), plus the membership threshold and influence-cutoff preset; resolves through `b`-inheritance like any other definitional field |
+| `b` | optional deference to a parent declaration ([Inherit-From](./inherit-from.md)) — **inherit-typed**, explicitly: `["b", …, "inherit"]` (an absent type reads as `"pointer"` and confers no deference, per `community-reference` ADR 0029); forking and convergence ride on this |
+| claims | the tag-element coordinates this community consumes as its membership signal (see "Membership"), plus the membership threshold and influence-cutoff preset; resolves through inherit-typed `b`-inheritance like any other definitional field |
 
-*The exact tag spelling of these fields is **not yet formalized** on the wire — the sources fix the field set and semantics but not the byte-level encoding.* A declaration needs no `b` tag: a `b`-less CD is a standalone definition (a root with zero special status); plural roots are normal, and multi-parent deference resolves per the [resolution rule](./inherit-from.md).
+*The exact tag spelling of these fields is **not yet formalized** on the wire — the sources fix the field set and semantics but not the byte-level encoding.* A declaration needs no `b` tag: a CD with none — or with only pointer-typed `b` tags — is a standalone definition for deference purposes (a root with zero special status); plural roots are normal, and multi-parent deference resolves over the inherit-typed subset per the [resolution rule](./inherit-from.md).
 
 ## Sameness: two axes
 
 "Same community" is two orthogonal, per-observer, graded measures — and you need the **conjunction**:
 
-1. **Definition overlap** — graded similarity over deference closures (e.g. overlap coefficient), from `0` (unrelated) to `1` (identical).
+1. **Definition overlap** — graded similarity over deference closures (e.g. overlap coefficient), from `0` (unrelated) to `1` (identical). Closures are computed over inherit-typed `b` chains only — a pointer-typed `b` breaks the chain ([Inherit-From](./inherit-from.md), per `community-reference` ADR 0029).
 2. **Mutual membership** — each party actually a member (below).
 
 Overlap alone means "talking about the same thing"; membership alone means "each in *a* community." Consequence (a feature, stated plainly): overlap-based sameness is **non-transitive** — communities overlap and bleed; they do not partition people into disjoint buckets. Any gating feature must therefore gate against a *specific* declaration's resolved definition (the enforcer's own); there is no global roster.
@@ -101,7 +101,7 @@ A member may extend a **foothold** to a newcomer:
 
 ## Security considerations
 
-- **The live-`b` retroactive lever.** Deference tracks future edits ([trust-coupling](./inherit-from.md)), so a dominant declaration holds a retroactive editorial lever over its live deferrers, and a compromised mid-chain declaration can drift a deferrer's community identity (closure shift). Mitigations: (1) the population/ruleset split — a rogue rule-hub cannot retag anyone; (2) making closure-overlap **distance-weighted** (nearer shared ancestors count more) when the sameness metric is refined.
+- **The live-`b` retroactive lever.** Deference (inherit-typed `b` only — a pointer-typed `b` carries no trust-coupling) tracks future edits ([trust-coupling](./inherit-from.md)), so a dominant declaration holds a retroactive editorial lever over its live deferrers, and a compromised mid-chain declaration can drift a deferrer's community identity (closure shift). Mitigations: (1) the population/ruleset split — a rogue rule-hub cannot retag anyone; (2) making closure-overlap **distance-weighted** (nearer shared ancestors count more) when the sameness metric is refined; (3) downgrading the tag's type from `"inherit"` to `"pointer"` (per `community-reference` ADR 0029) keeps the correspondence while severing the lever.
 - **No veto by construction** (designed rule): disputes are trust-weighted, so no single hostile disputer can eject a member; under the deployed count-based rule this property is weaker — one of the W9 reconciliation stakes.
 
 ## Open questions
