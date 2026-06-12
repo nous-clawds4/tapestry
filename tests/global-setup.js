@@ -12,8 +12,13 @@ async function globalSetup(config) {
   const page = await context.newPage();
   
   try {
-    // Check if Brainstorm server is accessible
-    const baseURL = config.use.baseURL;
+    // Check if Brainstorm server is accessible. Newer Playwright exposes `use`
+    // per-project rather than at the top of the FullConfig, so resolve baseURL
+    // defensively (top-level use → first project's use → env → default).
+    const baseURL = config?.use?.baseURL
+      || config?.projects?.[0]?.use?.baseURL
+      || process.env.BRAINSTORM_BASE_URL
+      || 'http://localhost:7778';
     console.log(`📡 Checking Brainstorm server accessibility at ${baseURL}`);
     
     const response = await page.goto(baseURL, { waitUntil: 'networkidle' });

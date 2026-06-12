@@ -1386,7 +1386,7 @@ docker compose exec tapestry strfry sync wss://dcosl.brainstorm.world \
 | **Jon Gordon** | NosFabrica co-founder. | — |
 | **Vitor (Pamplona?)** | NosFabrica co-founder. NIP-82 medical data. | — |
 | **Vinney** | Active DList contributor (Real Paid Gigs, Food Experts). | — |
-| **Matthias DeBernardini** | Platform Engineer at AnchorWatch. WoT tooling. | `npub137wy27rlz7djjjtq3l724ea88dd86y4y45cft9xz5gp8xcq6uu8s53ked7` |
+| **Matthias Debernardini** | Platform Engineer at AnchorWatch. WoT tooling. | `npub137wy27rlz7djjjtq3l724ea88dd86y4y45cft9xz5gp8xcq6uu8s53ked7` |
 
 ---
 
