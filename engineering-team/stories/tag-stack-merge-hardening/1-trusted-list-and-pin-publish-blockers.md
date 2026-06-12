@@ -1,7 +1,7 @@
 # Story 1: Trusted-list & pin-publish security and data-loss blockers
 
 **Epic:** tag-stack-merge-hardening
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-06-12
 **Type:** Bug
 
@@ -89,4 +89,4 @@ deployment.
 
 - ADR: `engineering-team/decisions/tag-stack-merge-hardening/0001-trusted-list-and-pin-publish-blockers.md`
 - Test plan: `engineering-team/stories/tag-stack-merge-hardening/1-trusted-list-and-pin-publish-blockers.test-plan.md`
-- Review: (after Review)
+- Review: `engineering-team/reviews/tag-stack-merge-hardening/1-trusted-list-and-pin-publish-blockers.md` (PASS)
