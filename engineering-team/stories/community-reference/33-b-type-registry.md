@@ -1,6 +1,6 @@
 # Story 33: `b`-tag type registry and type-gated semantics
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-06-12
 **Type:** Doc (docs-mode — Protocol-Spec workflow; P1 of the b-tag affiliation design)
 
@@ -59,4 +59,4 @@ None remaining — the four gate flags carried from the handoff were resolved by
 - Design source: [docs/B_TAG_AFFILIATION_DESIGN_HANDOFF.md](../../../docs/B_TAG_AFFILIATION_DESIGN_HANDOFF.md) (D2, D3, D1 rev 2, H2, §3 worksheet ledger, §5 P1)
 - ADR: [engineering-team/decisions/community-reference/0029-b-type-registry.md](../../decisions/community-reference/0029-b-type-registry.md)
 - Test plan: skipped (docs-mode)
-- Review: [engineering-team/reviews/community-reference/33-b-type-registry.md](../../reviews/community-reference/33-b-type-registry.md) (CHANGES REQUESTED 2026-06-13 — one blocking ask; re-review pending)
+- Review: [engineering-team/reviews/community-reference/33-b-type-registry.md](../../reviews/community-reference/33-b-type-registry.md) (PASS 2026-06-13, after one CHANGES-REQUESTED round — rubric added to the spec)
