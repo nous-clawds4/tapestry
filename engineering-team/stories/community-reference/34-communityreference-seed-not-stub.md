@@ -57,6 +57,6 @@ None remaining — the three gate items were resolved by the protocol author at 
 
 - Design source: [docs/B_TAG_AFFILIATION_DESIGN_HANDOFF.md](../../../docs/B_TAG_AFFILIATION_DESIGN_HANDOFF.md) (D4, D5, §5 P2)
 - Builds on: [ADR 0029](../../decisions/community-reference/0029-b-type-registry.md) (story #33, ratified)
-- ADR: (filled in after Architecture phase)
+- ADR: [engineering-team/decisions/community-reference/0030-communityreference-seed-not-stub.md](../../decisions/community-reference/0030-communityreference-seed-not-stub.md)
 - Test plan: skipped (docs-mode)
 - Review: (filled in after Review phase)
