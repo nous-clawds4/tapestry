@@ -26,6 +26,8 @@ The `b` tag rides on the addressable kinds defined by [Decentralized Lists](../n
 - **`"pointer"`** — a correspondence/locator claim: "my object corresponds to that one." No deference, no resolution semantics, no trust-coupling. **An absent element 3 reads as `"pointer"`** — the fail-safe, least-commitment reading: an underspecified tag never grants live deference. E.g. `["b", "39998:<community>:dogs", "pointer"]` — "my `dogs` concept corresponds to the community's."
 - **`"inherit"`** — live definitional deference: "my definition is this parent's, unless I state otherwise." Must be explicit. E.g. `["b", "39998:<alice>:dogs", "inherit"]` — "my `dogs` concept defers to Alice's."
 
+**Choosing the type — one question:** *when they edit their list, should the meaning of yours change?* Yes → `"inherit"`; no — just connected/corresponding → `"pointer"`.
+
 The type is carried as a non-indexed positional element (as NIP-01's `e` tag carries its `root`/`reply` marker) — so relays cannot filter `#b` results by type; consumers fetch and filter locally. Future type values (e.g. ADR 0027's anticipated deliberate-divergence marker) require a new ADR. The `"pointer"` type realizes the concept-level `REFERENCES` posture on the wire — it resolves what worksheet [W5](../worksheet.md#w5--references-publishing-semantics) tracked as option (a), a consumer-owned tag on the consumer's own header.
 
 **Kinds:** defined for **kind 39998 and kind 39999** — any addressable DList object (concept headers *and* items/sets/declarations). Broader than the [class-thread tags](./class-thread-tags.md), which are kind-39999-only.
