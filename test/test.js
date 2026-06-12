@@ -88,6 +88,7 @@ const verifiedReportersListPage = require('./verified-reporters-list-page.test.j
 const profileVerifiedCountsOwnerPov = require('./profile-verified-counts-owner-pov.test.js');
 const profileVerifiedCountsExplainerAndAlarm = require('./profile-verified-counts-explainer-and-alarm.test.js');
 const searchApiResultTypeSettings = require('./search-api-result-type-settings.test.js');
+const trustedListPinPublishBlockers = require('./trusted-list-pin-publish-blockers.test.js');
 
 async function main() {
   console.log('Running Brainstorm tests...');
@@ -226,6 +227,8 @@ async function main() {
   const profileVerifiedCountsExplainerAndAlarmResult = await profileVerifiedCountsExplainerAndAlarm.run();
 
   const searchApiResultTypeSettingsResult = await searchApiResultTypeSettings.run();
+
+  const trustedListPinPublishBlockersResult = await trustedListPinPublishBlockers.run();
 
   console.log('\nTest Results');
   console.log('-------------');
@@ -383,6 +386,9 @@ async function main() {
   console.log(
     `search-api-result-type-settings suite:           ${searchApiResultTypeSettingsResult.fail === 0 ? 'PASS' : 'FAIL'} (${searchApiResultTypeSettingsResult.pass} passed, ${searchApiResultTypeSettingsResult.fail} failed${searchApiResultTypeSettingsResult.skipped ? `, ${searchApiResultTypeSettingsResult.skipped} skipped` : ''})`
   );
+  console.log(
+    `trusted-list-pin-publish-blockers suite:         ${trustedListPinPublishBlockersResult.fail === 0 ? 'PASS' : 'FAIL'} (${trustedListPinPublishBlockersResult.pass} passed, ${trustedListPinPublishBlockersResult.fail} failed${trustedListPinPublishBlockersResult.skipped ? `, ${trustedListPinPublishBlockersResult.skipped} skipped` : ''})`
+  );
 
   const overallOk =
     configOk &&
@@ -448,7 +454,8 @@ async function main() {
     verifiedReportersListPageResult.fail === 0 &&
     profileVerifiedCountsOwnerPovResult.fail === 0 &&
     profileVerifiedCountsExplainerAndAlarmResult.fail === 0 &&
-    searchApiResultTypeSettingsResult.fail === 0;
+    searchApiResultTypeSettingsResult.fail === 0 &&
+    trustedListPinPublishBlockersResult.fail === 0;
   console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);
   process.exit(overallOk ? 0 : 1);
 }
