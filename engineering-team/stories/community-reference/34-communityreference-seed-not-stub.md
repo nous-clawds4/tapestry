@@ -1,6 +1,6 @@
 # Story 34: `communityReference` v2 — seed, not stub
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-06-13
 **Type:** Doc (docs-mode — Protocol-Spec workflow; P2 of the b-tag affiliation design)
 
@@ -59,4 +59,4 @@ None remaining — the three gate items were resolved by the protocol author at 
 - Builds on: [ADR 0029](../../decisions/community-reference/0029-b-type-registry.md) (story #33, ratified)
 - ADR: [engineering-team/decisions/community-reference/0030-communityreference-seed-not-stub.md](../../decisions/community-reference/0030-communityreference-seed-not-stub.md)
 - Test plan: skipped (docs-mode)
-- Review: (filled in after Review phase)
+- Review: [engineering-team/reviews/community-reference/34-communityreference-seed-not-stub.md](../../reviews/community-reference/34-communityreference-seed-not-stub.md) (PASS 2026-06-13, first round)
