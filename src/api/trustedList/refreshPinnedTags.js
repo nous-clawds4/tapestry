@@ -213,7 +213,11 @@ async function runOnePin(pinEvent) {
       memberCount: members.length,
     };
   } catch (err) {
-    return { status: 'error', errorReason: `publish failed: ${err.message}` };
+    // ADR tag-stack-merge-hardening/0001 (B4a): return the already-computed
+    // dTag so refreshAllPinnedTags keeps it in currentDTags and
+    // retractStaleTLs does NOT treat this pin's existing (healthy) TL as
+    // stale — a transient publish failure must never wipe a live TL.
+    return { status: 'error', errorReason: `publish failed: ${err.message}`, dTag };
   }
 }
 

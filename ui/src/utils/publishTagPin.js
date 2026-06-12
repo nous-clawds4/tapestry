@@ -249,6 +249,16 @@ export async function publishNip51ExportForPin({ pinEventId, title, writeRelays,
   }
   const { unsigned, dTag, memberCount } = prepareData;
 
+  // ADR tag-stack-merge-hardening/0001 (B2): never publish an empty
+  // follow-set. memberCount === 0 means either the TL doesn't exist yet
+  // (first-pin race) or the tag genuinely has no qualifying members —
+  // either way, signing+publishing an empty kind-30000 under the user's
+  // key to public relays is wrong. Skip before any NIP-07 prompt.
+  const hasMembers = (unsigned?.tags || []).some((t) => t[0] === 'p');
+  if (memberCount === 0 || !hasMembers) {
+    return { skipped: true, memberCount: 0, dTag };
+  }
+
   const userWriteRelays = Array.isArray(writeRelays)
     ? writeRelays
     : await fetchUserWriteRelays();

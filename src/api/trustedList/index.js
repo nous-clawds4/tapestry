@@ -71,17 +71,37 @@ function signAndFinalize(template) {
 }
 
 async function publishToStrfry(event) {
-  const { exec } = require('child_process');
+  // ADR tag-stack-merge-hardening/0001 (B4b): feed the signed event to
+  // `strfry import` via STDIN, not as a shell argument. The old
+  // `echo '<json>' | strfry import` form put the whole event JSON on the
+  // command line, so any event over the 128 KiB MAX_ARG_STRLEN cap (TLs
+  // above ~600–700 members) always failed to publish — which in turn
+  // triggered the empty-membership retraction (B4a). stdin has no such cap.
+  const { spawn } = require('child_process');
   return new Promise((resolve, reject) => {
-    const escaped = JSON.stringify(event).replace(/'/g, "'\\''");
-    const child = exec(
-      `echo '${escaped}' | /usr/local/bin/strfry import --no-verify`,
-      { timeout: 5000 },
-      (err, stdout) => {
-        if (err) reject(err);
-        else resolve(stdout);
-      }
-    );
+    const child = spawn('/usr/local/bin/strfry', ['import', '--no-verify']);
+    let stdout = '';
+    let stderr = '';
+    let settled = false;
+    const finish = (fn, arg) => { if (!settled) { settled = true; fn(arg); } };
+
+    const timer = setTimeout(() => {
+      child.kill('SIGKILL');
+      finish(reject, new Error('strfry import timed out after 5000ms'));
+    }, 5000);
+
+    child.stdout.on('data', (d) => { stdout += d; });
+    child.stderr.on('data', (d) => { stderr += d; });
+    child.on('error', (err) => { clearTimeout(timer); finish(reject, err); });
+    child.on('close', (code) => {
+      clearTimeout(timer);
+      if (code === 0) finish(resolve, stdout);
+      else finish(reject, new Error(`strfry import exited ${code}: ${stderr.trim()}`));
+    });
+
+    child.stdin.on('error', (err) => { clearTimeout(timer); finish(reject, err); });
+    child.stdin.write(JSON.stringify(event) + '\n');
+    child.stdin.end();
   });
 }
 
@@ -160,18 +180,41 @@ async function handlePublishTrustedList(req, res) {
 /* ── Story 11: refresh-pinned-tag endpoints (ADR 0010) ─────────────────── */
 
 function requireAuth(req, res) {
+  // ADR tag-stack-merge-hardening/0001 (B1): require a signature-verified
+  // session, not merely a supplied pubkey. `POST /api/auth/verify-user`
+  // sets session.pubkey for any pubkey with no signature; only the signed
+  // challenge sets session.authenticated (auth.js:157). Without this check
+  // anyone could impersonate any pubkey against the refresh/export endpoints.
   const pubkey = req.session?.pubkey;
-  if (!pubkey || !/^[0-9a-f]{64}$/.test(pubkey)) {
+  if (req.session?.authenticated !== true || !pubkey || !/^[0-9a-f]{64}$/.test(pubkey)) {
     res.status(401).json({ success: false, error: 'authentication required' });
     return null;
   }
   return pubkey;
 }
 
+/**
+ * ADR tag-stack-merge-hardening/0001 (B3): a request is loopback-trusted iff
+ * it arrived on a loopback socket AND carries no reverse-proxy headers. The
+ * cron caller curls http://127.0.0.1:$PORT directly (no proxy headers); an
+ * internet request reaches Express via nginx, which always appends
+ * X-Forwarded-For. Both conditions must hold.
+ */
+function isLoopbackRequest(req) {
+  const addr = req.socket?.remoteAddress || '';
+  const isLoopback = addr === '127.0.0.1' || addr === '::1' || addr === '::ffff:127.0.0.1';
+  const headers = req.headers || {};
+  const hasProxyHeader = !!(headers['x-forwarded-for'] || headers['x-real-ip']);
+  return isLoopback && !hasProxyHeader;
+}
+
 async function handleRefreshAllPinnedTags(req, res) {
-  // No auth gate: cron-side endpoint, expected to be called from loopback
-  // by the orchestrator script (same convention as updateAllScoresForOwner
-  // and refreshSearchIndex's underlying API calls).
+  // Loopback-only: this triggers a prod-scale recompute + TA-signed
+  // publishes. The cron script calls it from 127.0.0.1; nginx-proxied
+  // internet requests carry X-Forwarded-For and are rejected before any work.
+  if (!isLoopbackRequest(req)) {
+    return res.status(403).json({ success: false, error: 'loopback only' });
+  }
   try {
     const { refreshAllPinnedTags } = require('./refreshPinnedTags');
     const result = await refreshAllPinnedTags();
@@ -389,4 +432,10 @@ function register(app) {
   app.post('/api/trusted-list/prepare-nip51-export', handlePrepareNip51Export);
 }
 
-module.exports = { register, buildAndPublishTL };
+module.exports = {
+  register,
+  buildAndPublishTL,
+  // Exported for tests (ADR tag-stack-merge-hardening/0001 testability):
+  requireAuth,
+  isLoopbackRequest,
+};

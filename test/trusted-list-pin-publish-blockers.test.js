@@ -166,22 +166,29 @@ t('AC-3a: Tag.jsx awaits the refresh-pinned-tag call before the NIP-51 export', 
   assert(/await\s+fetch\(\s*['"]\/api\/trusted-list\/refresh-pinned-tag/.test(src),
     'Tag.jsx must AWAIT the /api/trusted-list/refresh-pinned-tag call (so the kind-30392 exists) before exporting — ' +
     'currently fire-and-forget, racing the export against a not-yet-created list');
+  // Scope to the CALL site (with paren), not the top-of-file import.
   const refreshIdx = src.indexOf('refresh-pinned-tag');
-  const exportIdx = src.indexOf('publishNip51ExportForPin');
-  assert(refreshIdx !== -1 && exportIdx !== -1 && refreshIdx < exportIdx,
-    'the refresh call must precede the publishNip51ExportForPin call in publishWithCuration');
+  const exportCallIdx = src.search(/publishNip51ExportForPin\s*\(/);
+  assert(refreshIdx !== -1 && exportCallIdx !== -1 && refreshIdx < exportCallIdx,
+    'the refresh call must precede the publishNip51ExportForPin(...) call in publishWithCuration');
 });
 
 t('AC-3b: publishNip51ExportForPin refuses to publish an empty member set', () => {
   const src = readSrc('ui/src/utils/publishTagPin.js');
+  // Scope to the publishNip51ExportForPin function body — the file has
+  // three signEvent call sites across different exported functions.
+  const startIdx = src.search(/export\s+async\s+function\s+publishNip51ExportForPin/);
+  assert(startIdx !== -1, 'could not locate publishNip51ExportForPin in publishTagPin.js');
+  const after = src.slice(startIdx);
+  const nextExportRel = after.slice(1).search(/\n(export|async function)\b/);
+  const body = nextExportRel === -1 ? after : after.slice(0, nextExportRel + 1);
   // The util must short-circuit when the prepared list has zero members,
   // BEFORE signing/publishing — so no empty kind-30000 is ever published.
-  assert(/memberCount\s*===\s*0|memberCount\s*<\s*1|!\s*memberCount/.test(src),
-    'publishNip51ExportForPin must guard on memberCount === 0 and skip publishing an empty follow-set (AC-3)');
-  // The guard must sit before the signEvent call (return/skip early).
-  const guardIdx = src.search(/memberCount\s*===\s*0|memberCount\s*<\s*1|!\s*memberCount/);
-  const signIdx = src.indexOf('signEvent');
-  assert(guardIdx !== -1 && signIdx !== -1 && guardIdx < signIdx,
+  const guardIdx = body.search(/memberCount\s*===\s*0|memberCount\s*<\s*1|!\s*hasMembers/);
+  assert(guardIdx !== -1,
+    'publishNip51ExportForPin must guard on memberCount === 0 (and/or no p-tags) and skip publishing an empty follow-set (AC-3)');
+  const signIdx = body.indexOf('signEvent');
+  assert(signIdx !== -1 && guardIdx < signIdx,
     'the zero-member guard must come BEFORE window.nostr.signEvent so an empty list is never signed/published');
 });
 
@@ -191,13 +198,15 @@ t('AC-3b: publishNip51ExportForPin refuses to publish an empty member set', () =
 
 t('AC-5: runOnePin returns the computed dTag on its publish-error path', () => {
   const src = readSrc('src/api/trustedList/refreshPinnedTags.js');
-  // The catch around buildAndPublishTL must carry dTag back, so
-  // refreshAllPinnedTags keeps the pin's dTag in currentDTags and
-  // retractStaleTLs does NOT publish an empty-membership replacement.
-  const catchBlock = src.match(/catch\s*\(\s*err\s*\)\s*\{\s*return\s*\{\s*status:\s*['"]error['"][^}]*\}/);
-  assert(catchBlock,
-    'could not locate the publish-error catch returning a status:error object in refreshPinnedTags.js — has it moved?');
-  assert(/\bdTag\b/.test(catchBlock[0]),
+  // The publish-failed return must carry dTag back, so refreshAllPinnedTags
+  // keeps the pin's dTag in currentDTags and retractStaleTLs does NOT
+  // publish an empty-membership replacement. Match the `publish failed`
+  // error return specifically (the early validation errors have no dTag and
+  // are out of AC-5 scope) and assert dTag is part of that same return.
+  const publishErr = src.match(/return\s*\{[\s\S]*?publish failed[\s\S]*?\};/);
+  assert(publishErr,
+    'could not locate the publish-failed error return in refreshPinnedTags.js — has it moved?');
+  assert(/\bdTag\b/.test(publishErr[0]),
     'runOnePin\'s publish-error return must include `dTag` (computed before the publish) so retractStaleTLs ' +
     'does not treat the errored pin\'s TL as stale and wipe it (AC-5)');
 });
@@ -211,10 +220,13 @@ t('AC-6: publishToStrfry feeds the event via stdin, not a shell argument', () =>
   const fn = src.match(/async function publishToStrfry[\s\S]*?\n\}/);
   assert(fn, 'could not locate publishToStrfry in src/api/trustedList/index.js');
   const body = fn[0];
-  assert(!/echo\s+'/.test(body),
-    'publishToStrfry must NOT put the signed event on the command line via `echo \'<json>\'` ' +
+  // The defect was `exec(\`echo '${json}' | strfry import\`)` — the event
+  // JSON on the command line. Match the CODE pattern (template interpolation
+  // piped into a command), which won't appear in an explanatory comment.
+  assert(!/echo\s+'\$\{/.test(body) && !/exec\s*\([\s\S]*?strfry/.test(body),
+    'publishToStrfry must NOT put the signed event on the command line via `echo \'${json}\' | strfry import` ' +
     '(128 KiB MAX_ARG_STRLEN cap makes TLs >~600 members always fail to publish — AC-6)');
-  assert(/spawn\s*\(/.test(body) && /stdin/.test(body),
+  assert(/spawn\s*\(/.test(body) && /\.stdin\b/.test(body),
     'publishToStrfry must spawn strfry and write the event to the child\'s stdin (no argv size limit)');
 });
 

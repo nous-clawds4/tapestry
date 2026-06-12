@@ -34,6 +34,24 @@ const fs = require('fs');
 const path = require('path');
 
 const CONTROL_PANEL_BASE = process.env.BRAINSTORM_BASE_URL || 'http://localhost:7778';
+// ADR tag-stack-merge-hardening/0001: /api/trusted-list/refresh-all-pinned-tags
+// is loopback-only — it can only be triggered from INSIDE the container, the
+// way the cron (refreshPinnedTagTLs.sh) does. A host HTTP call now correctly
+// 403s, so these live-integration suites drive it via docker exec.
+const { execSync: _execSync } = require('child_process');
+const _TAPESTRY_CONTAINER = process.env.TAPESTRY_CONTAINER || 'tapestry';
+async function refreshAllViaLoopback() {
+  try {
+    const out = _execSync(
+      `docker exec ${_TAPESTRY_CONTAINER} curl -s -X POST http://127.0.0.1:7778/api/trusted-list/refresh-all-pinned-tags`,
+      { encoding: 'utf8', timeout: 300000 }
+    );
+    let json = null; try { json = JSON.parse(out); } catch (_e) {}
+    return { status: json && json.success ? 200 : 500, json };
+  } catch (e) {
+    return { status: 0, json: null, error: e.message };
+  }
+}
 const MEILI_BASE = process.env.MEILI_URL_HOST || 'http://localhost:7700';
 const MEILI_INDEX = process.env.MEILI_INDEX || 'profiles';
 const TA_PUBKEY = '82b75e474dda005e912bcbb910391c60c2b89cc7faf5d3c30b7c59a324973833';
@@ -299,7 +317,7 @@ async function findLatestTL(dTag) {
 
 tBasic('refresh-all-pinned-tags publishes a kind-30392 TL for the supported pin (AC-1)', async () => {
   const { tag, viewerPk } = basicCtx;
-  const { status, json } = await postJson(`${CONTROL_PANEL_BASE}/api/trusted-list/refresh-all-pinned-tags`);
+  const { status, json } = await refreshAllViaLoopback();
   assert(status === 200, `refresh-all-pinned-tags status ${status} body=${JSON.stringify(json)}`);
   assert(json?.success === true, `refresh-all-pinned-tags success; got ${JSON.stringify(json)}`);
   await sleep(PROPAGATION_MS);
@@ -372,7 +390,7 @@ tBasic('refreshing the same pin twice replaces the TL in place — same d-tag, l
 
   // Sleep so created_at changes deterministically.
   await sleep(1100);
-  const { status } = await postJson(`${CONTROL_PANEL_BASE}/api/trusted-list/refresh-all-pinned-tags`);
+  const { status } = await refreshAllViaLoopback();
   assert(status === 200, `second refresh status ${status}`);
   await sleep(PROPAGATION_MS);
 
@@ -441,7 +459,7 @@ tBasic('unpinning + refresh-all produces an empty-membership replacement with [s
 
   // Cron tick (manual trigger of the refresh-all endpoint).
   await sleep(1100); // ensure created_at advances past prior TL
-  const { status } = await postJson(`${CONTROL_PANEL_BASE}/api/trusted-list/refresh-all-pinned-tags`);
+  const { status } = await refreshAllViaLoopback();
   assert(status === 200, `refresh-all status ${status}`);
   await sleep(PROPAGATION_MS);
 
@@ -587,7 +605,7 @@ async function teardownPovSuite() {
 tPov('AC-5 disputes function: target with 2 WoT-trusted endorsements / 0 disputes makes the TL under cutoff=2', async () => {
   const { tag, viewerPk, targetClearMember } = povCtx;
   // Trigger a refresh now that the POV is configured.
-  const { status } = await postJson(`${CONTROL_PANEL_BASE}/api/trusted-list/refresh-all-pinned-tags`);
+  const { status } = await refreshAllViaLoopback();
   assert(status === 200, `refresh-all status ${status}`);
   await sleep(PROPAGATION_MS);
 

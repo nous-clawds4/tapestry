@@ -120,7 +120,12 @@ export default function Tag() {
         p.set('tab', 'pinned');
         return p;
       }, { replace: true });
-      fetch('/api/trusted-list/refresh-pinned-tag', {
+      // ADR tag-stack-merge-hardening/0001 (B2): AWAIT the refresh so the
+      // kind-30392 TL exists before the export reads it. Previously this was
+      // fire-and-forget, racing the export against a not-yet-created list →
+      // on a first pin the export read 0 members and published an EMPTY
+      // kind-30000 under the user's key to public relays.
+      await fetch('/api/trusted-list/refresh-pinned-tag', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ pinEventId: signed.id }),
@@ -130,7 +135,8 @@ export default function Tag() {
       // discoverable in any nostr client. Fire-and-forget; failure
       // (user rejects the second NIP-07 prompt, no kind-10002, etc.)
       // is recoverable via the /pins Export button later — the pin
-      // itself already landed.
+      // itself already landed. publishNip51ExportForPin itself skips
+      // publishing when the prepared list has zero members (B2).
       publishNip51ExportForPin({ pinEventId: signed.id })
         .catch(() => { /* swallow — user can re-export from /pins */ });
     } catch (e) {

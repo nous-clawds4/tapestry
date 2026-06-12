@@ -23,6 +23,24 @@
  */
 
 const CONTROL_PANEL_BASE = process.env.BRAINSTORM_BASE_URL || 'http://localhost:7778';
+// ADR tag-stack-merge-hardening/0001: /api/trusted-list/refresh-all-pinned-tags
+// is loopback-only — it can only be triggered from INSIDE the container, the
+// way the cron (refreshPinnedTagTLs.sh) does. A host HTTP call now correctly
+// 403s, so these live-integration suites drive it via docker exec.
+const { execSync: _execSync } = require('child_process');
+const _TAPESTRY_CONTAINER = process.env.TAPESTRY_CONTAINER || 'tapestry';
+async function refreshAllViaLoopback() {
+  try {
+    const out = _execSync(
+      `docker exec ${_TAPESTRY_CONTAINER} curl -s -X POST http://127.0.0.1:7778/api/trusted-list/refresh-all-pinned-tags`,
+      { encoding: 'utf8', timeout: 300000 }
+    );
+    let json = null; try { json = JSON.parse(out); } catch (_e) {}
+    return { status: json && json.success ? 200 : 500, json };
+  } catch (e) {
+    return { status: 0, json: null, error: e.message };
+  }
+}
 
 function assert(cond, msg) {
   if (!cond) throw new Error(msg);
@@ -61,7 +79,7 @@ t('POST /api/trusted-list/refresh-all-pinned-tags exists and returns the documen
   // Cron-side endpoint: no auth gate (loopback convention). When no pins
   // exist for any user on the instance, this must 200 with {success:true,
   // pins:[]} — same envelope shape as /api/profile-tags/pins.
-  const { status, json } = await postJson(`${CONTROL_PANEL_BASE}/api/trusted-list/refresh-all-pinned-tags`);
+  const { status, json } = await refreshAllViaLoopback();
   assertEqual(status, 200, 'refresh-all-pinned-tags status');
   assert(json && json.success === true,
     `refresh-all-pinned-tags response.success must be true; got ${JSON.stringify(json)}`);
