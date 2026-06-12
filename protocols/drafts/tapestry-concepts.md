@@ -48,6 +48,8 @@ This is the fundamental link between items and concepts.
 
 The base NIP permits `z` values in three forms (a header event id, the a-tag form, or a bare human-readable list name). Tapestry Concepts constrains this: the `z` value is the parent's **a-tag form**. Per kind unification (below), the parent may itself be a kind `39999` event, in which case the `z` value is its `39999:<pubkey>:<d-tag>` address.
 
+**Multi-`z` stamping (Tapestry-layer position — `community-reference` ADR 0029).** A deliberately-published item MAY carry multiple `z` tags: its personal parent pointer plus stamps naming the shared/community concepts it joins. The base NIP explicitly permits multi-`z` items while *recommending* one `z` per event as practice; Tapestry takes the multi-stamp position for items published for community visibility, because read-side derivation cannot reach items whose personal headers are unpublished (local-first publication: most personal headers never leave their local relay, so a published item must be self-contained to be discoverable). The stamping practice itself — which handles, how many, cloud formation and rotation — is open, tracked as worksheet [W11](../worksheet.md#w11--cloud-formation--multi-z-stamping-rules).
+
 ## Kind unification
 
 What makes something a concept is **not its event kind** — it's its **position in the graph**. A node becomes a concept when other nodes reference it via their `z` tag. A kind 39999 ListItem can function as a concept if other items point to it. The preferred practice is to use kind 39999 for everything, including concept definitions.

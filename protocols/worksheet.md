@@ -16,17 +16,17 @@ Known candidate directions, none ratified:
 
 - **Firmware-blessed pointer** — the current cold-start compromise (BIBLE §22, "Flaw A"): centralized editorial choice, accepted temporarily.
 - **Registry-as-DList** — the per-concept pointer becomes a community-curated, Grapevine-ranked DList (BIBLE §22's named exit from Flaw A).
-- **`b`-edge aggregation** — a concept's incoming `INHERITS_FROM` edges, weighted by each child author's GrapeRank influence from the observer's PoV, yield "which definition my web of trust agrees on" (ADR 0027; [inherit-from spec](./drafts/inherit-from.md)). Candidate mechanism for the registry exit.
+- **`b`-edge aggregation** — a concept's incoming `INHERITS_FROM` edges, weighted by each child author's GrapeRank influence from the observer's PoV, yield "which definition my web of trust agrees on" (ADR 0027; [inherit-from spec](./drafts/inherit-from.md)). Candidate mechanism for the registry exit. Scoped by `community-reference` ADR 0029: the consensus signal counts **inherit-typed** edges only — pointer-typed `b` derives `REFERENCES` and carries zero consensus weight in v1; discovery walks include both types.
 
-**Refs:** BIBLE §22 (community-reference model, Flaw A + exit); [inherit-from spec](./drafts/inherit-from.md) (`b` tag; ex-BIBLE §25); ADRs 0027/0028; tags-branch ADR 0015 (the legacy-literal incident that exposed the problem); handoff doc §2.
+**Refs:** BIBLE §22 (community-reference model, Flaw A + exit); [inherit-from spec](./drafts/inherit-from.md) (`b` tag; ex-BIBLE §25); ADRs 0027/0028/0029 (community-reference); tags-branch ADR 0015 (the legacy-literal incident that exposed the problem); handoff doc §2; `docs/B_TAG_AFFILIATION_DESIGN_HANDOFF.md` (D5: dev fiat → registry → grapevine trajectory).
 
 ## W2 — Single-char tag namespace registry
 
 **Status:** Open · raised 2026-06-09
 
-Our specs are steadily claiming single-char (NIP-01 relay-indexed) tag letters: `z` (parent pointer), `n` (HAS_ELEMENT-inverse), `s` (IS_A_SUPERSET_OF-inverse), `b` (inherit-from). The direction principle ([class-thread-tags spec](./drafts/class-thread-tags.md), ex-BIBLE §23): lowercase = child-claims-parent; uppercase forms are reserved for parent-claims-child inverses (`B` explicitly reserved, unassigned) and must not be assigned speculatively. Candidate letters for `IS_A_PROPERTY_OF` and `REFERENCES` are TBD. **One registry table is needed across all our specs so future ADRs don't collide letters** — and to decide how it composes with letters other NIPs already use.
+Our specs are steadily claiming single-char (NIP-01 relay-indexed) tag letters: `z` (parent pointer), `n` (HAS_ELEMENT-inverse), `s` (IS_A_SUPERSET_OF-inverse), `b` (inherit-from / pointer — element-3 typed, per `community-reference` ADR 0029). The direction principle ([class-thread-tags spec](./drafts/class-thread-tags.md), ex-BIBLE §23): lowercase = child-claims-parent; uppercase forms are reserved for parent-claims-child inverses (`B` explicitly reserved, unassigned) and must not be assigned speculatively. The candidate letter for `IS_A_PROPERTY_OF` is TBD (`REFERENCES` no longer needs a letter — it rides `b`'s `"pointer"` type, ADR 0029). **One registry table is needed across all our specs so future ADRs don't collide letters** — and to decide how it composes with letters other NIPs already use.
 
-**Refs:** [class-thread-tags spec](./drafts/class-thread-tags.md) (direction principle, candidate letters; ex-BIBLE §23) and [inherit-from spec](./drafts/inherit-from.md) (`b`; ex-BIBLE §25); ADRs 0011, 0027.
+**Refs:** [class-thread-tags spec](./drafts/class-thread-tags.md) (direction principle, candidate letters; ex-BIBLE §23) and [inherit-from spec](./drafts/inherit-from.md) (`b`; ex-BIBLE §25); ADRs 0011, 0027, 0029 (community-reference).
 
 ## W3 — Polarity valence arc
 
@@ -46,19 +46,21 @@ Tagging and pin events reference the tag they apply/pin by `e` (event id — pin
 
 ## W5 — `REFERENCES` publishing semantics
 
-**Status:** Open · raised 2026-06-09
+**Status:** Graduated → [inherit-from spec](./drafts/inherit-from.md) · raised 2026-06-09 · resolved 2026-06-12
 
-The concept-level `REFERENCES` relationship (a non-committal "may pull later" bookmark between concepts) has no settled wire form. The open question — formerly recorded in BIBLE §23, now homed here (the [class-thread-tags spec](./drafts/class-thread-tags.md) points at this entry): **is it a consumer-owned tag on the consumer's own concept Header, or a separate "reference manifest" kind-39999 event?** Interacts with W2 (it's a candidate for a single-char letter) and with the registry exit in W1 (the REFERENCES↔flaw-A-exit linkage, formerly noted in BIBLE §23, is now recorded here; §22's deferred list still carries REFERENCES as a reserved-future candidate).
+The concept-level `REFERENCES` relationship (a non-committal "may pull later" bookmark between concepts) had no settled wire form; the open question was: **is it a consumer-owned tag on the consumer's own concept Header, or a separate "reference manifest" kind-39999 event?**
 
-**Refs:** BIBLE §22 (deferred list); [class-thread-tags spec](./drafts/class-thread-tags.md) § "Direction principle and reserved letters" (ex-BIBLE §23); ADR 0006 line.
+**Resolution (`community-reference` ADR 0029):** option (a), realized as the **pointer-typed `b` tag** — `["b", "<target-a-tag>", "pointer"]` (the type value renamed from "reference" to avoid colliding with the legacy REFERENCES vocabulary), a consumer-owned tag on the consumer's own header (or item — kinds 39998/39999), deriving `(child)-[REFERENCES {source:'b-tag'}]->(target)` under BIBLE §22's collision contract. No single-char letter was spent (W2 updated); the W1 linkage is preserved with the consensus/discovery split recorded there. Wire form now normative in the [inherit-from spec](./drafts/inherit-from.md).
+
+**Refs:** [inherit-from spec](./drafts/inherit-from.md) (resolving authority); `community-reference` ADR 0029; BIBLE §22 (collision contract, deferred list updated); [class-thread-tags spec](./drafts/class-thread-tags.md) § "Direction principle and reserved letters" (ex-BIBLE §23); ADR 0006 line.
 
 ## W6 — Set-valued override algebra for Resolved Definition
 
 **Status:** Open · raised 2026-06-09
 
-Resolved Definition ([inherit-from spec](./drafts/inherit-from.md) § "Scope (v1)", ex-BIBLE §26) is field-level in v1: a child's stated field replaces the inherited one wholesale. **How a child adds/removes/replaces individual *elements* of an inherited set** (e.g. "Alice's `dogs` minus Fido plus Rex") is explicitly deferred — by ADRs 0027 and 0028 — to the first consumer that needs it. When that consumer appears, the algebra belongs in the [inherit-from spec](./drafts/inherit-from.md)'s Scope section.
+Resolved Definition ([inherit-from spec](./drafts/inherit-from.md) § "Scope (v1)", ex-BIBLE §26) is field-level in v1: a child's stated field replaces the inherited one wholesale. **How a child adds/removes/replaces individual *elements* of an inherited set** (e.g. "Alice's `dogs` minus Fido plus Rex") is explicitly deferred — by ADRs 0027/0028, unchanged by 0029 — to the first consumer that needs it. When that consumer appears, the algebra belongs in the [inherit-from spec](./drafts/inherit-from.md)'s Scope section and operates over the inherit-typed deference closure only (pointer-typed `b` tags never participate). Note: ADR 0029's pointer-by-default reduces this entry's pressure — inheritance is now opt-in and rarer.
 
-**Refs:** [inherit-from spec](./drafts/inherit-from.md) § "Scope (v1)" (ex-BIBLE §25/§26); ADRs 0027/0028.
+**Refs:** [inherit-from spec](./drafts/inherit-from.md) § "Scope (v1)" (ex-BIBLE §25/§26); ADRs 0027/0028/0029 (community-reference).
 
 ## W7 — `item-kind` interplay with concept headers
 
@@ -91,3 +93,11 @@ Two membership roster rules exist for Brainstorm Communities: the **deployed v1 
 The taggings family ([tags spec](./drafts/tags.md) § "The taggings family") has one deployed member and a ratified direction, recorded from the protocol author at story 7's gate: *"we will have a parent concept of taggings, with nostr-user-tag (should we change it to nostr-user-tagging?) and nostr-event-tag as sibling concepts; maybe even dlist-tag as a subset of nostr-event-tag, with dlist-tag being something we would very much like to start using."* Open: (1) the **rename** of `nostr-user-tag` — wire-impactful, since the slug rides in `z` handles on user-signed history (a concept migration, same class as the W1 legacy-literal lessons); (2) the **handles and hierarchy** for `nostr-event-tag` and `dlist-tag` (parent/sibling/subset structure as concepts); (3) sequencing against the event-tagging rollout (kinds 39998/39999 targets first, per the epic handoff §6).
 
 **Refs:** [tags spec](./drafts/tags.md) § "The taggings family" / § "Event tagging (planned)"; story 7 gate record (`engineering-team/stories/protocols-directory/7-tags-spec.md` § Open questions); `docs/PROTOCOLS_DIRECTORY_DESIGN_HANDOFF.md` §6.
+
+## W11 — Cloud formation & multi-z stamping rules
+
+**Status:** Open · raised 2026-06-12
+
+`community-reference` ADR 0029 ratified the *position* that deliberately-published list items MAY carry multiple `z` stamps — the personal parent pointer plus stamps naming the shared/community concepts the item joins (normative home: [tapestry-concepts spec](./drafts/tapestry-concepts.md) § "The parent pointer"), diverging from the base NIP's one-`z`-per-event *recommendation* (multi-`z` is explicitly permitted there). The *practice* is undesigned: **what constitutes cloud membership** (mutual pointer-typed `b` edges among respected headers? a trust threshold? curator designation? the top-k of W1's consensus signal?); **who rotates members in/out and how clients detect rotation**; **the stamping rule** (how many handles — ~5? — which ones when the cloud is larger, whether the personal `z` is required on public items); and **the re-stamp protocol** on full rotation (lazy author re-emit?). The motivating constraint is local-first publication: most personal headers never reach public relays, so public aggregation cannot depend on them — the stamps make a published item self-contained.
+
+**Refs:** `docs/B_TAG_AFFILIATION_DESIGN_HANDOFF.md` (D1 rev 2, O11/O12, the local-first constraint); `community-reference` ADR 0029; [tapestry-concepts spec](./drafts/tapestry-concepts.md) § "The parent pointer (z tag)"; base NIP [decentralized-lists](./nips/decentralized-lists.md) § Item declaration (multi-`z` permitted, one-`z` recommended).
