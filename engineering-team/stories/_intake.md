@@ -892,3 +892,85 @@ main, too?"). The carve was verified search-safe, so the setting was deferred
 **Artifacts:**
 - Epic: `engineering-team/epics/search-api-result-controls.md`
 - Story: `engineering-team/stories/search-api-result-controls/1-search-api-result-type-settings.md`
+
+---
+
+## 2026-06-12 — Tag-stack merge-hardening (expert AI review of feat/pubkey-tagging-target)
+
+**Source:** Multi-agent expert review of the full 22-story tag stack on
+`feat/pubkey-tagging-target`, run against the post-merge state (after the
+2026-06-10 staging catch-up + search-api-result-controls). 48 findings
+survived adversarial verification. Reviewer verdict: clean merge mechanically,
+well-built bulk, but NOT merge-ready until a small set of blockers close.
+None of the blockers are in the search-api-result-controls work (that story
+reviewed clean); all are in the pre-existing trusted-list / pin-publish code
+(Stories 11/19). Six load-bearing claims re-verified locally before triage.
+
+**Blockers (all verified against current code) — fix before any merge:**
+1. **Auth bypass** — `src/api/trustedList/index.js:162` `requireAuth` trusts
+   `session.pubkey` but never checks `session.authenticated`; the public,
+   signature-free `POST /api/auth/verify-user` (`src/middleware/auth.js:519`)
+   sets `session.pubkey` for any supplied pubkey. Anyone can impersonate any
+   pubkey against refresh-pinned-tag / refresh-pinned-tags-for-viewer /
+   prepare-nip51-export. Fix: also require `session.authenticated === true`.
+2. **Empty Follow Set on first pin** — `ui/src/pages/Tag.jsx:122-135`
+   `publishWithCuration` fires the kind-30392 refresh and the NIP-51 export
+   concurrently; first pin reads a not-yet-existing 30392 → `memberPubkeys:[]`
+   → user signs+publishes an empty kind-30000 to their write relays + 5 public
+   relays. Fix: await-then-export (pattern already in `ExportModal.handleConfirm`).
+3. **Open `refresh-all-pinned-tags`** — `src/api/trustedList/index.js:171`
+   "expected from loopback" but nothing enforces it; nginx proxies the path.
+   Internet-triggerable prod-scale recompute + TA-signed publish (DoS + widens
+   #4's race). Fix: enforce loopback or owner-auth.
+4. **TL self-wipe (two interlocking bugs)** —
+   (a) `src/api/trustedList/refreshPinnedTags.js:216` error path returns
+   `{status:'error'}` with no `dTag`, so `retractStaleTLs()` publishes an
+   empty-membership replacement of the pin's healthy TL.
+   (b) `src/api/trustedList/index.js:73` pipes signed event JSON through
+   `echo '...' | strfry import` (MAX_ARG_STRLEN 128 KiB), so TLs above
+   ~600–700 members ALWAYS fail to publish → triggers (a). A moderately
+   popular tag wipes its own TL. Fix: return the computed `dTag` on the error
+   path AND move publish off the shell arg (stdin/temp file).
+
+**Decisions (Q&A 2026-06-12):**
+- Blockers → ONE bugfix story through the full harness (Planning → Architecture
+  → Test Design → Implementation → Review); security + data-loss get regression
+  tests; nothing merges until PASS.
+- **ADR-0022 hybrid e+a writer → FIX PRE-MERGE** (separate story). Writer is
+  currently e-only (`ui/src/utils/publishProfileTag.js:56`); ADR-0022 is
+  Accepted and ships in this PR, so every e-only event grows the
+  un-backfillable legacy set the ADR exists to stop. Add the `a` tag
+  (39999:<tagAuthor>:<slug>) to the writer + union the read path. Interacts
+  with ADR-0015 legacy-pubkey pinning — Architect to reconcile.
+- **Tag UI ships visible to prod** on the main promotion (only the search API
+  is gated) — confirmed intended scope.
+
+**Fast-follows (Tier 3 — post-merge cleanup, do NOT block merge):**
+`publishOrThrow` dead-code / silent publish failures everywhere
+(`Promise.race` over nostr-tools v2 `pool.publish()` array resolves instantly
+— verified `ui/src/utils/nostrPublish.js:73`); d-tag/slug wire edge cases
+(same-second apply→dispute drop, orphan-stub wrong-slug d-tags, same-slug
+cross-author collision, same-slug re-create orphans all assertions); Story-9
+search-URL regressions (stale `?q=` dead-ends re-submit; POV written but never
+read back); prod-scale search perf (3 strfry scans + unbounded per-pubkey Meili
+GETs per keystroke; appended tag hits ignore `limit` at meili/index.js:185;
+unthrottled /tags filter); Pins UX papercuts (unreachable empty-state, declined
+export masks later success, Export confirm clickable while relay lookup pending).
+
+**Tier 4 hygiene (cheap; bundle with blockers or a doc pass):**
+- No default schedule ENTRY for the pinned-TL refresh on fresh deploy — registry
+  has `refreshPinnedTagTLs` as schedulable but nothing creates an entry, so
+  periodic refresh + stale-TL retraction never run. (Note: ties to blocker #4 —
+  don't auto-enable retraction until #4 is fixed.)
+- Delete `deploy-tags.yml` test-free direct-deploy channel once #112 closes.
+- Doc pass: flat vs epic-scoped `decisions/` namespace (ADR-0022 at two paths
+  post-merge); OPERATIONS.md §14 vs CLAUDE.md bind-mount house rule;
+  `protocols/README.md` "in-flight on unmerged branch" wording goes stale at merge.
+- Structural: no test gate on the merge (only the SSH deploy workflow); suite
+  can't pass on a clean checkout by design. Known, not fixed here.
+
+**Classification:** Bug (blockers) + Feature (ADR-0022 writer); pre-merge.
+**Strictness:** Standard.
+**Proposed epic:** `tag-stack-merge-hardening` (pre-merge stories);
+fast-follows → `engineering-team/follow-ups.md` or a post-merge cleanup epic.
+**Phase path:** full harness for both pre-merge stories.
