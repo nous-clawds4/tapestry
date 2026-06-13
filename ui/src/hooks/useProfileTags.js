@@ -120,7 +120,10 @@ export default function useProfileTags(targetPubkey, viewerPubkey) {
       const signed = await window.nostr.signEvent(unsigned);
       await publishOrThrow(signed);
       refetch();
-      return { eventId: signed.id, slug, name, description: description || '' };
+      // ADR tag-stack-merge-hardening/0002: a freshly created tag's author is
+      // the current user (signed.pubkey). Return it so an immediate apply can
+      // build the `a` coordinate (39999:<authorPubkey>:<slug>).
+      return { eventId: signed.id, slug, name, description: description || '', authorPubkey: signed.pubkey };
     },
     [refetch]
   );
