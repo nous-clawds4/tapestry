@@ -65,6 +65,33 @@ This conveys all required content, stays general (does not name the active PoV),
 **Implementer choices noted:** (1) Placement — chose the zero-CSS right-aligned ⓘ (left `.bsp-info-btn { margin-left:auto }` in effect), the ADR-authorized default, rationale = matches the Verified ⓘ's existing right-aligned behavior; visual consistency with the frame's "consistent with the Verified control" bullet will be confirmed at Stage-2 local smoke / Tier-4 evidence and is the Reviewer's to audit. (2) The Implementer added a `## Deviations` section to the story (not in `templates/story.md`) recording that placement call. Accepted: additive, transparent, no change to ACs/scope; a net-positive audit note. Included in the impl commit. Deadline `2026-06-16T23:01:56Z` not passed; origin/staging drift 0 (`3a167ab8`).
 **Next:** Stage 1, Review — spawn `reviewer` (fresh context); Gate 5 judged.
 
+## 2026-06-13T23:53:23Z — Review produced — PASS (committing review; Gate 5 judge next)
+**Story/Phase:** reputation-info-popup #1 / Review (pre-Gate-5)
+**Decision:** INFO
+**Judge:** n/a yet — Gate 5 judge audits the review artifact next.
+**Why:** Fresh-context `reviewer` (not the Implementer) produced a PASS review at `engineering-team/reviews/reputation-info-popup/1-reputation-section-pov-explainer-popup.md`, with its OWN `npm test` run (34/34 green, the new suite 16/16 — not the Implementer's quoted run) and each checklist section demonstrated with file:line refs: spec check (all 6 ACs), ADR check (Option A faithful), house-rules/concept-graph integrity (no new tooling; data path + `VerificationInfo`/`useVerificationInfo`/`BrainstormReporters` absent from the diff; ADR 0033 §27 boundary holds — no `House (default)` label), things-tests-can't-catch sweep (no secrets/debug/console; ⓘ is a focusable button with aria-label), scope-creep sweep (profile-followers follow-ups untouched). Non-blocking note: the ~25-line popup-skeleton duplication is acknowledged deferred debt per ADR 0034. Per workflow 5, I commit the review file regardless of verdict before judging. Status flip to Done is deferred to a post-APPROVE "story: close out" commit (repo convention), authored by the Reviewer (outside my edit lane). Deadline not passed; origin/staging drift 0 (`3a167ab8`).
+**Next:** Commit `review: … — PASS`; spawn the Gate-5 `gate-judge` to audit the review artifact.
+
+## 2026-06-13T23:58:22Z — Gate 5 (Review audit) — KICK_BACK (binding)
+**Story/Phase:** reputation-info-popup #1 / Gate 5 (Review)
+**Decision:** KICK_BACK (judge verdict is binding; I cannot override)
+**Judge:** KICK_BACK, blinding intact. Prior verdict's rubric-item findings (verbatim, carried for the re-judge):
+  1. (DECISIVE — FAIL) "Verdict explicit; PASS only if mergeable as-is; on PASS the story's **Status:** Done is flipped in the same review commit and no files moved — FAIL. The review verdict is PASS, but the story still reads **Status:** Approved (engineering-team/stories/reputation-info-popup/1-reputation-section-pov-explainer-popup.md:3), not Done. The review commit 76b4dd8d changed only journal.md and the review file. The rubric's PASS precondition (Status: Done flipped in the same review commit) is unmet."
+  2. (SECONDARY, non-decisive; that rubric item passed) "the review's in-component line refs for ReputationInfo.jsx drift 1–3 lines off the actual file (review cites export :9/useState :10/button :13-23/copy :28-32/Got it :33; actual export :11, useState :12, button :16-22, copy :27-32, Got it :34). Substance correct, cited file:line evidence imprecise."
+  Items that PASSED: review follows the checklist with demonstrated sweeps; Reviewer's own npm test run reproduced by the judge (34/34, 16/16); spec/ADR/concept-graph/scope-creep sections present with (page-level) refs.
+**Why:** This is my procedural error: I told the Reviewer not to flip the Status (intending to flip it myself at the gate), but the flip is outside my edit lane and the pinned Gate-5 rubric requires it in the review commit. The blinded judge correctly enforced the goalpost over my convenience sequencing. Note: the repo's prior practice used a *separate* "story: close out — Done on review PASS" commit, but the pinned rubric says "same review commit," and the pinned rubric governs. Addressing: the owning role (`reviewer`) flips Status → Done and corrects the line refs; I amend the review commit (local, unpushed) so the flip is literally in the review commit; then a fresh judge re-judges with these findings. 1st KICK_BACK at Gate 5 (stopping rule 2 = 3 consecutive).
+**Next:** Spawn `reviewer` to flip story Status → Done + fix the ReputationInfo.jsx line refs; amend the review commit; re-spawn fresh Gate-5 judge with the findings above.
+
+## 2026-06-14T00:00:45Z — Gate 5 kick-back addressed; review commit amended
+**Story/Phase:** reputation-info-popup #1 / Gate 5 (re-judge prep)
+**Decision:** INFO
+**Judge:** n/a (re-judge next)
+**Why:** The owning role (`reviewer`) addressed both findings: (1) story Status flipped Approved→Done (story:3); (2) the `ReputationInfo.jsx` line refs in the review corrected to land precisely (verified against source). I folded these into the review commit via `git commit --amend` (local, unpushed branch — safe; not a shared-history rewrite) so the story's Status: Done flip is now literally in the review commit, resolving the decisive Gate-5 item. The PASS verdict and all review findings are otherwise unchanged.
+**Next:** Re-spawn a fresh Gate-5 `gate-judge` with the prior findings verbatim; confirm each resolved.
+
+
+
+
 
 
 

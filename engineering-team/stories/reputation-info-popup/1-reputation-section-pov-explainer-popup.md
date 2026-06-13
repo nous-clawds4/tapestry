@@ -1,6 +1,6 @@
 # Story 1: Reputation section point-of-view explainer popup
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-06-14
 **Type:** Feature
 
