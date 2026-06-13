@@ -33,10 +33,10 @@ This book runs under the Director harness — [`/direct-feature`](../../../.clau
 
 Arming is **one commit on the `staging` branch whose diff touches only this subsection**, filling in:
 
-- **Armed:** No *(→ `Yes — <ISO-8601 UTC datetime>`)*
-- **Deadline:** — *(→ the arming instant plus a window of the operator's choosing, as an ISO-8601 UTC datetime; the arming commit's timestamp is the tiebreaker if prose and git disagree. The task-timeline precedent used +168 h; for a feature this small +48–72 h is ample while still tolerating CI waits / a sleeping laptop)*
-- **Baseline:** — *(→ the `origin/staging` SHA at arming. No stories, ADRs, or source changes for the `reputation-info-popup` epic may exist at that SHA — pre-existing work voids the run. The book file and the intake entry are pre-registration setup, not epic work, and do not count as contamination)*
-- **Pinned governing versions:** — *(→ the commit SHAs of `engineering-team/roles/director.md`, `.claude/skills/direct-feature/SKILL.md`, and `.claude/agents/gate-judge.md` at arming. Scoring uses the pinned versions; any mid-run diff to the rubrics, judge protocol, stopping rules, or the judge agent is a goalpost amendment by definition)*
+- **Armed:** Yes — 2026-06-13T23:01:56Z
+- **Deadline:** 2026-06-16T23:01:56Z
+- **Baseline:** 19c542f972f35a39ca9b38735ca5ef1e94e656a2
+- **Pinned governing versions:** director.md 3a2657b2 · direct-feature SKILL.md 3a2657b2 · gate-judge.md 3a2657b2
 
 A missing or ambiguous Armed/Deadline line means the book is not armed; the Director must refuse to run.
 
