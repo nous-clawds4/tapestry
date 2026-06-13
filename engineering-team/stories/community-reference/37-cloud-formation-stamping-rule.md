@@ -62,4 +62,4 @@ None remaining — the design was settled in the 2026-06-13 scope conversation; 
 - Builds on: [ADR 0029](../../decisions/community-reference/0029-b-type-registry.md) (the `b` type registry / consensus aggregation) and BIBLE §22 (the trajectory)
 - ADR: [engineering-team/decisions/community-reference/0033-cloud-formation-stamping-rule.md](../../decisions/community-reference/0033-cloud-formation-stamping-rule.md)
 - Test plan: skipped (docs-mode)
-- Review: (filled in after Review phase)
+- Review: [engineering-team/reviews/community-reference/37-cloud-formation-stamping-rule.md](../../reviews/community-reference/37-cloud-formation-stamping-rule.md) (PASS 2026-06-13, first round)

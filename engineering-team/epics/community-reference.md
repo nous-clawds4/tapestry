@@ -7,7 +7,7 @@
 The community-reference stack (relay stub, superset link, class-thread pull), concept publish/export, the conceptgraph header tag, and the GrapeRank shared-CSV coordination work.
 
 ## Stories
-`stories/community-reference/` — 8 (community-reference-nostr-relay-stub), 9 (publish-export-a-concept), 10 (header-conceptgraph-tag), 11 (community-reference-superset-link), 12 (graperank-shared-csv-race), 14 (community-class-thread-pull), 31 (b-tag-general-inherit-primitive — Done), 32 (resolved-definition-primitive — Done), 33 (b-type-registry — Done), 34 (communityreference-seed-not-stub — Done), 35 (dual-author-headers-ta-discovery — Done), 36 (resolved-definition-cache-design — Done).
+`stories/community-reference/` — 8 (community-reference-nostr-relay-stub), 9 (publish-export-a-concept), 10 (header-conceptgraph-tag), 11 (community-reference-superset-link), 12 (graperank-shared-csv-race), 14 (community-class-thread-pull), 31 (b-tag-general-inherit-primitive — Done), 32 (resolved-definition-primitive — Done), 33 (b-type-registry — Done), 34 (communityreference-seed-not-stub — Done), 35 (dual-author-headers-ta-discovery — Done), 36 (resolved-definition-cache-design — Done), 37 (cloud-formation-stamping-rule — Done).
 
 ## ADRs
-`decisions/community-reference/` — 0004–0011, 0027 (inherit-from tag `b`), 0028 (resolved definition), 0029 (b-tag type registry — amends 0027/0028), 0030 (communityReference seed-not-stub), 0031 (dual-author headers + 10040 TA discovery), 0032 (resolved-definition cache design — fills 0028's caching deferral).
+`decisions/community-reference/` — 0004–0011, 0027 (inherit-from tag `b`), 0028 (resolved definition), 0029 (b-tag type registry — amends 0027/0028), 0030 (communityReference seed-not-stub), 0031 (dual-author headers + 10040 TA discovery), 0032 (resolved-definition cache design — fills 0028's caching deferral), 0033 (cloud formation + multi-z stamping — graduates W11).
