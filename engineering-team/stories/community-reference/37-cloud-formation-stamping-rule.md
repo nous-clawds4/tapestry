@@ -1,6 +1,6 @@
 # Story 37: Cloud formation & multi-z stamping rule (W11)
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-06-13
 **Type:** Doc (docs-mode — Protocol-Spec workflow; W11, design-only, frame-only)
 
