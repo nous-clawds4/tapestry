@@ -56,6 +56,7 @@ const verifiedReportersMembershipData = require('./verified-reporters-membership
 const verifiedReportersListPage = require('./verified-reporters-list-page.test.js');
 const profileVerifiedCountsOwnerPov = require('./profile-verified-counts-owner-pov.test.js');
 const profileVerifiedCountsExplainerAndAlarm = require('./profile-verified-counts-explainer-and-alarm.test.js');
+const reputationInfoPopup = require('./reputation-info-popup.test.js');
 
 async function main() {
   console.log('Running Brainstorm tests...\n');
@@ -162,6 +163,9 @@ async function main() {
   console.log('\nprofile-verified-counts-explainer-and-alarm suite:');
   const profileVerifiedCountsExplainerAndAlarmResult = await profileVerifiedCountsExplainerAndAlarm.run();
 
+  console.log('\nreputation-info-popup suite:');
+  const reputationInfoPopupResult = await reputationInfoPopup.run();
+
   console.log('\nTest Results');
   console.log('-------------');
   console.log(`Configuration Loading:                           ${configOk ? 'PASS' : 'FAIL'}`);
@@ -264,6 +268,9 @@ async function main() {
   console.log(
     `profile-verified-counts-explainer-and-alarm suite: ${profileVerifiedCountsExplainerAndAlarmResult.fail === 0 ? 'PASS' : 'FAIL'} (${profileVerifiedCountsExplainerAndAlarmResult.pass} passed, ${profileVerifiedCountsExplainerAndAlarmResult.fail} failed)`
   );
+  console.log(
+    `reputation-info-popup suite:                     ${reputationInfoPopupResult.fail === 0 ? 'PASS' : 'FAIL'} (${reputationInfoPopupResult.pass} passed, ${reputationInfoPopupResult.fail} failed)`
+  );
 
   const overallOk =
     configOk &&
@@ -299,7 +306,8 @@ async function main() {
     verifiedReportersMembershipDataResult.fail === 0 &&
     verifiedReportersListPageResult.fail === 0 &&
     profileVerifiedCountsOwnerPovResult.fail === 0 &&
-    profileVerifiedCountsExplainerAndAlarmResult.fail === 0;
+    profileVerifiedCountsExplainerAndAlarmResult.fail === 0 &&
+    reputationInfoPopupResult.fail === 0;
   console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);
   process.exit(overallOk ? 0 : 1);
 }

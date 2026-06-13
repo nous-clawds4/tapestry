@@ -40,4 +40,22 @@ Append-only. Every gate decision, answered question, judge verdict, and halt. Di
 **Decision (convention):** ADR written as `Status: Proposed`; every ratified ADR in the repo is `Status: Accepted` and Gate 2 has accepted this one. Correct end-state is `Accepted`. The ADR is outside my edit lane (`audits/<book-slug>/` only), so I route a surgical one-line status flip to the `architect` (no substantive change → no re-judge needed) before committing the ADR in its accepted state.
 **Next:** Spawn `architect` to flip ADR 0034 Status → Accepted; then commit `adr: …` + journal; then Stage 1 Test Design.
 
+## 2026-06-13T23:43:13Z — Gate 3 (Test plan + failing tests) — APPROVE
+**Story/Phase:** reputation-info-popup #1 / Gate 3 (Test Design)
+**Decision:** APPROVE
+**Judge:** APPROVE, blinding intact (fresh `gate-judge`). All six Gate-3 rubric items pass; the judge ran `npm test` itself: T1–T9 fail because `ui/src/components/ReputationInfo.jsx` is genuinely absent (test module loads clean — not a typo/import error), all 33 pre-existing suites PASS, and the seven regression sentinels (R1–R7) pass against real current source.
+**Why:** I also ran `npm test` (didn't trust the claim) and confirmed the new suite fails for the right reason (feature-missing) with the AC6 regression boundary intact. Test plan at the correct path, every AC maps to ≥1 test, source-sentinel idiom (no new framework), copy sentinels anchor on required tokens not a verbatim string. Deadline `2026-06-16T23:01:56Z` not passed; origin/staging drift 0 (`3a167ab8`).
+**Next:** Commit `test: failing tests …`; then resolve the Director-owned popup copy (below) and spawn `implementer`.
+
+## 2026-06-13T23:43:13Z — Director-delegated decision: the popup's verbatim copy
+**Story/Phase:** reputation-info-popup #1 / Implementation input (book-delegated)
+**Decision:** ANSWER (the one open design decision the book delegates to the Director)
+**Judge:** n/a
+**Why:** The book delegates the popup's exact user-facing wording to the Director, to be the simplest copy that satisfies the frame's accuracy constraints (WoT point of view; either House (default) or Personalized depending on selection, general; bounded to the Reputation scores; no claim about the Following / Verified Followers / Verified Reporters counts). Finalized now, at the point of consumption (Implementation). Chosen copy, to be rendered verbatim by the Implementer:
+- **Title:** `Where do these scores come from?`
+- **Body:** `These reputation scores reflect a Web of Trust — a point of view on who is trustworthy. The numbers show either the House point of view (this Tapestry instance's default) or your Personalized point of view, depending on which is currently selected.`
+This conveys all required content, stays general (does not name the active PoV), names none of the top-of-page counts, and satisfies the Tester's T6/T7/T8 token sentinels. It is product copy (book-delegated) — not code/design — so providing it to the Implementer is within role bounds.
+**Next:** Commit Gate 3; spawn `implementer` with this copy.
+
+
 
