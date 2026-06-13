@@ -90,8 +90,8 @@ tag edits — without breaking any read path that scans `e` today.
 
 ## Linked artifacts
 
-- ADR: ADR-0022 (`engineering-team/decisions/0022-nostr-user-tag-hybrid-ea-reference.md`)
-  — already Accepted; Architecture phase will confirm scope/placement rather
-  than redesign.
+- ADR: `engineering-team/decisions/tag-stack-merge-hardening/0002-nostr-user-tag-hybrid-ea-writer.md`
+  (Story-2 implementation decisions) — under governing ADR-0022
+  (`engineering-team/decisions/0022-nostr-user-tag-hybrid-ea-reference.md`, Accepted).
 - Test plan: (after Test Design)
 - Review: (after Review)
