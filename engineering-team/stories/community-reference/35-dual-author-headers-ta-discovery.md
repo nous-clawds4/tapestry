@@ -62,4 +62,4 @@ None remaining — the three gate items were resolved by the protocol author at 
 - Builds on: [ADR 0029](../../decisions/community-reference/0029-b-type-registry.md) (the `b` type registry — the inherit-typed delegation path) and [ADR 0030](../../decisions/community-reference/0030-communityreference-seed-not-stub.md) (TA-authored header seeding — the dual-author premise in action)
 - ADR: [engineering-team/decisions/community-reference/0031-dual-author-headers-ta-discovery.md](../../decisions/community-reference/0031-dual-author-headers-ta-discovery.md)
 - Test plan: skipped (docs-mode)
-- Review: (filled in after Review phase)
+- Review: [engineering-team/reviews/community-reference/35-dual-author-headers-ta-discovery.md](../../reviews/community-reference/35-dual-author-headers-ta-discovery.md) (PASS 2026-06-13, first round)
