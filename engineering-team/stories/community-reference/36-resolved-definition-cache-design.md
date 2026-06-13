@@ -1,6 +1,6 @@
 # Story 36: Resolved-definition cache — deployment-side materialization design
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-06-13
 **Type:** Doc (docs-mode — Protocol-Spec workflow; P4 of the b-tag affiliation design — design-only)
 
