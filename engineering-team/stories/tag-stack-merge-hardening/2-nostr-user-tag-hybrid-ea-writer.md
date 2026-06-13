@@ -93,5 +93,5 @@ tag edits — without breaking any read path that scans `e` today.
 - ADR: `engineering-team/decisions/tag-stack-merge-hardening/0002-nostr-user-tag-hybrid-ea-writer.md`
   (Story-2 implementation decisions) — under governing ADR-0022
   (`engineering-team/decisions/0022-nostr-user-tag-hybrid-ea-reference.md`, Accepted).
-- Test plan: (after Test Design)
+- Test plan: `engineering-team/stories/tag-stack-merge-hardening/2-nostr-user-tag-hybrid-ea-writer.test-plan.md`
 - Review: (after Review)
