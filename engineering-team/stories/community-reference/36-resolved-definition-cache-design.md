@@ -58,4 +58,4 @@ None remaining — the three gate items were resolved by the protocol author at 
 - Builds on / supersedes the punt of: [ADR 0028](../../decisions/community-reference/0028-resolved-definition.md) (resolved definition — "caching … out of scope"); related [ADR 0029](../../decisions/community-reference/0029-b-type-registry.md) (the inherit-typed trigger)
 - ADR: [engineering-team/decisions/community-reference/0032-resolved-definition-cache-design.md](../../decisions/community-reference/0032-resolved-definition-cache-design.md)
 - Test plan: skipped (docs-mode)
-- Review: (filled in after Review phase)
+- Review: [engineering-team/reviews/community-reference/36-resolved-definition-cache-design.md](../../reviews/community-reference/36-resolved-definition-cache-design.md) (PASS 2026-06-13, first round)
