@@ -60,6 +60,6 @@ None remaining — the design was settled in the 2026-06-13 scope conversation; 
 - Design source: [docs/B_TAG_AFFILIATION_DESIGN_HANDOFF.md](../../../docs/B_TAG_AFFILIATION_DESIGN_HANDOFF.md) (D1 rev 2, O11, O12, the local-first constraint) + the 2026-06-13 scope conversation
 - Resolves: [worksheet W11](../../../protocols/worksheet.md#w11--cloud-formation--multi-z-stamping-rules)
 - Builds on: [ADR 0029](../../decisions/community-reference/0029-b-type-registry.md) (the `b` type registry / consensus aggregation) and BIBLE §22 (the trajectory)
-- ADR: (filled in after Architecture phase)
+- ADR: [engineering-team/decisions/community-reference/0033-cloud-formation-stamping-rule.md](../../decisions/community-reference/0033-cloud-formation-stamping-rule.md)
 - Test plan: skipped (docs-mode)
 - Review: (filled in after Review phase)
