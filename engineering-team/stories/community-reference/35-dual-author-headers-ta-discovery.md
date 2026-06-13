@@ -60,6 +60,6 @@ None remaining — the three gate items were resolved by the protocol author at 
 
 - Design source: [docs/B_TAG_AFFILIATION_DESIGN_HANDOFF.md](../../../docs/B_TAG_AFFILIATION_DESIGN_HANDOFF.md) (D7, D8, O2, O3, §5 P3)
 - Builds on: [ADR 0029](../../decisions/community-reference/0029-b-type-registry.md) (the `b` type registry — the inherit-typed delegation path) and [ADR 0030](../../decisions/community-reference/0030-communityreference-seed-not-stub.md) (TA-authored header seeding — the dual-author premise in action)
-- ADR: (filled in after Architecture phase)
+- ADR: [engineering-team/decisions/community-reference/0031-dual-author-headers-ta-discovery.md](../../decisions/community-reference/0031-dual-author-headers-ta-discovery.md)
 - Test plan: skipped (docs-mode)
 - Review: (filled in after Review phase)
