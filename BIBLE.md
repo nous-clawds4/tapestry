@@ -973,6 +973,8 @@ Every owner, admin, and customer has an **assistant** — a server-side nostr id
 - Uses the same NIP-07 publish flow as `customer.html`: `POST /api/create-unsigned-kind10040` → NIP-07 sign → `POST /api/publish-signed-kind10040`.
 - The `create-unsigned-kind10040` endpoint defaults to the session pubkey when no explicit pubkey is provided, so the owner doesn't need to pass one.
 
+**TA designation on kind 10040 (target — `community-reference` ADR 0031; not yet wired).** A user's kind-10040 event MAY carry a `["39998:dlist-header", "<TA-pubkey>", "<relayURL>"]` entry designating their Tapestry Assistant as the authoring provider for their kind-39998 DList/concept headers — the npub-rooted way to discover a user's TA pubkey. The normative wire form, backward-compat, and the **dual-author header precedence rule** (personal-authored header wins; else the TA-authored header; never recency; freshness via an inherit-typed `b` delegation) are specified in [protocols/drafts/assistant-designation.md](protocols/drafts/assistant-designation.md). **Status today:** the 10040 generators do not yet emit this entry (they rebuild the full tag list from config; a merge-preserve fix is required) and no resolver applies the precedence rule — both are future engineering stories.
+
 ### Router Presets
 
 #### Instances are self-contained

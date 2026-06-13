@@ -46,6 +46,8 @@ Every ListItem has a `z` tag pointing to its parent concept's a-tag:
 
 This is the fundamental link between items and concepts.
 
+A concept/DList header (kind 39998) for a given user may be authored by either the user's own key or their Tapestry Assistant. Which of the two candidate headers governs for a user and concept slug is specified by the **dual-author precedence rule** in [Tapestry Assistant Designation & Dual-Author Header Resolution](./assistant-designation.md) (personal-authored header wins; else the TA-authored header, discovered via the user's kind-10040; never by recency).
+
 The base NIP permits `z` values in three forms (a header event id, the a-tag form, or a bare human-readable list name). Tapestry Concepts constrains this: the `z` value is the parent's **a-tag form**. Per kind unification (below), the parent may itself be a kind `39999` event, in which case the `z` value is its `39999:<pubkey>:<d-tag>` address.
 
 **Multi-`z` stamping (Tapestry-layer position — `community-reference` ADR 0029).** A deliberately-published item MAY carry multiple `z` tags: its personal parent pointer plus stamps naming the shared/community concepts it joins. The base NIP explicitly permits multi-`z` items while *recommending* one `z` per event as practice; Tapestry takes the multi-stamp position for items published for community visibility, because read-side derivation cannot reach items whose personal headers are unpublished (local-first publication: most personal headers never leave their local relay, so a published item must be self-contained to be discoverable). The stamping practice itself — which handles, how many, cloud formation and rotation — is open, tracked as worksheet [W11](../worksheet.md#w11--cloud-formation--multi-z-stamping-rules).

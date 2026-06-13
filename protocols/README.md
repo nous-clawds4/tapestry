@@ -54,6 +54,7 @@ The initial migration (protocols-directory epic, stories 1–7) is **complete** 
 | Inherit-From & Resolved Definition (`b`) | [drafts/inherit-from.md](./drafts/inherit-from.md) | 📝 pre-NIP | **Working copy here** (BIBLE §25/§26 hold implementation + pointers) | story 5 ✅ |
 | Communities | [drafts/communities.md](./drafts/communities.md) | 📝 pre-NIP | **Working copy here** (in-flight feature; BIBLE §22 untouched — see ADR 0004; `COMMUNITY_ENDORSEMENTS_DLIST.md` superseded for membership per ADR 0004 D1) | story 6 ✅ |
 | Tags & Taggings | [drafts/tags.md](./drafts/tags.md) | 📝 pre-NIP | **Working copy here** (in-flight feature on `feat/pubkey-tagging-target`) | story 7 ✅ |
+| Tapestry Assistant Designation & Dual-Author Header Resolution (companion to NIP-85) | [drafts/assistant-designation.md](./drafts/assistant-designation.md) | 📝 pre-NIP | **Working copy here** (BIBLE §953 Assistant Keys holds the pointer) | `community-reference` #35 |
 
 Branch-path notation: `branch:path` means the file exists at that path on the named (unmerged) branch — read it with `git show <branch>:<path>`. Migration **copies** content from those branches; it never implies merging them.
 
