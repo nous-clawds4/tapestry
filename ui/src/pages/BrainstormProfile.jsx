@@ -10,6 +10,7 @@ import ConfirmDialog from '../components/ConfirmDialog';
 import ReportModal from '../components/ReportModal';
 import { toExternalUrl } from '../utils/url';
 import VerificationInfo from '../components/VerificationInfo';
+import ReputationInfo from '../components/ReputationInfo';
 
 /* ── Verified Reporters alarm thresholds (ADR 0032) ──────
    Alarm (red + icon) only when verifiedReporterCount >= BASE + one "freebie" per
@@ -365,7 +366,7 @@ export default function BrainstormProfile() {
 
             {/* Reputation */}
             <div className="bsp-section">
-              <h3>Reputation</h3>
+              <h3>Reputation<ReputationInfo /></h3>
 
               {trustLoading && (
                 <div className="bsp-trust-loading">Loading reputation data…</div>

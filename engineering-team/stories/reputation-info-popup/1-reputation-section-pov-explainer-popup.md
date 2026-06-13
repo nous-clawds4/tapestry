@@ -62,6 +62,9 @@ Anything the PO doesn't yet know. Resolve before approving the story.
 
 - The exact user-facing wording of the popup (its title and body sentences) is intentionally left to be settled during the cycle, within the accuracy constraints above: it must convey that the scores reflect either the House or the Personalized point of view depending on which is selected, and it must not assert a point of view for the Following / Verified Followers / Verified Reporters counts. (Per the book, this is the one design decision delegated to the Director; it is not a blocker on approving the story.)
 
+## Deviations
+- Placement of the Reputation ⓘ: left the shared `.bsp-info-btn { margin-left: auto }` rule in effect (no CSS override added) so the Reputation ⓘ right-aligns at the heading edge — matching the behavior of the existing Verified ⓘ, which is also right-aligned in its `.bsp-counts` row. This maximizes "visually and behaviorally consistent with the existing Verified control" (AC1) and keeps the change zero-CSS. The optional `.bsp-section h3 .bsp-info-btn { margin-left: 0 }` snug-placement override (authorized by ADR 0034) was therefore NOT added.
+
 ## Linked artifacts
 - ADR: (filled in after Architecture phase)
 - Test plan: (filled in after Test Design phase)

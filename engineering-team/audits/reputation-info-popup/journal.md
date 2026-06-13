@@ -57,5 +57,14 @@ Append-only. Every gate decision, answered question, judge verdict, and halt. Di
 This conveys all required content, stays general (does not name the active PoV), names none of the top-of-page counts, and satisfies the Tester's T6/T7/T8 token sentinels. It is product copy (book-delegated) — not code/design — so providing it to the Implementer is within role bounds.
 **Next:** Commit Gate 3; spawn `implementer` with this copy.
 
+## 2026-06-13T23:47:42Z — Gate 4 (Implementation) — PASS (mechanical, no judge)
+**Story/Phase:** reputation-info-popup #1 / Gate 4 (Implementation)
+**Decision:** APPROVE (mechanical)
+**Judge:** n/a — Gate 4 is mechanical; the Director verifies.
+**Why:** I ran all four mechanical checks myself. (A) `git diff d9de4aea -- test/` is empty — no test weakened. (B) Identical Stage-0 command `npm test` → `Overall: PASS`: the new `reputation-info-popup` suite is 16/16 (T1–T9 now pass, R1–R7 still pass) and every pre-existing suite still passes. (C) No concept-definition/firmware files touched → no firmware reinstall. (D) Implementer reports it was NOT forced outside the ADR (placement was an ADR-authorized bounded choice). I also confirmed `ReputationInfo.jsx` renders the Director-owned copy verbatim and clones the `bsp-info-btn`/`bsp-confirm-overlay`/`bsp-confirm-box`/`bsp-confirm-ok` pattern, prop-free/hook-free, leaving the Reputation data path and `VerificationInfo` untouched.
+**Implementer choices noted:** (1) Placement — chose the zero-CSS right-aligned ⓘ (left `.bsp-info-btn { margin-left:auto }` in effect), the ADR-authorized default, rationale = matches the Verified ⓘ's existing right-aligned behavior; visual consistency with the frame's "consistent with the Verified control" bullet will be confirmed at Stage-2 local smoke / Tier-4 evidence and is the Reviewer's to audit. (2) The Implementer added a `## Deviations` section to the story (not in `templates/story.md`) recording that placement call. Accepted: additive, transparent, no change to ACs/scope; a net-positive audit note. Included in the impl commit. Deadline `2026-06-16T23:01:56Z` not passed; origin/staging drift 0 (`3a167ab8`).
+**Next:** Stage 1, Review — spawn `reviewer` (fresh context); Gate 5 judged.
+
+
 
 
