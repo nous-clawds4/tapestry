@@ -672,3 +672,34 @@ Surfaced during the PoV-resolution work (`docs/POV_RESOLUTION_DESIGN_HANDOFF.md`
 **Want:** make long scoring jobs **deploy-safe** — resumable (checkpoint mid-`processOwnerFollowsMutesReports` so a restart continues rather than abandons), or **drained on deploy** (the deploy waits for / cleanly pauses an in-flight batch), or at minimum a **guard** that refuses/warns on deploy while a scoring batch is running. Task-queue-scheduler territory.
 
 **Classification:** Bug / infra hardening (task-queue-scheduler). **Phase path:** `/discuss` → Architecture (resumable-vs-drain-vs-guard is a real design choice) → Test Design → Implementation → Review. **Priority:** Medium — operator has a manual workaround; automate before it bites unattended. **Related:** the three-PoV standard (BIBLE §27) depends on Owner data being trustworthy; `docs/POV_RESOLUTION_DESIGN_HANDOFF.md` §9.
+
+---
+
+## 2026-06-14 — Feature: Reputation info popup on the profile page (House vs Personalized PoV explainer)
+
+**Raw request (verbatim):**
+
+> Currently, there is an informational popup (an `i` in a circle) that explains what "Verified" means. I would like a similar informational popup, also an `i` in a circle, associated to the word Reputation, that explains where the reputational scores come from, i.e. that they reflect either the House PoV or the Personalized PoV (whichever is selected).
+
+Reference profile: `https://staging.brainstorm.world/user/c4eabae1be3cf657bc1855ee05e69de9f059cb7a059227168b80b89761cbc4e0?pov=a1420e44`.
+
+**Pre-intake findings (control-panel UI audit, 2026-06-14):**
+
+- The existing "Verified" popup is a self-contained, reusable React component — [`ui/src/components/VerificationInfo.jsx`](../../ui/src/components/VerificationInfo.jsx) + the [`ui/src/hooks/useVerificationInfo.js`](../../ui/src/hooks/useVerificationInfo.js) data hook — built on the generic `bsp-info-btn` / `bsp-confirm-overlay` / `bsp-confirm-box` patterns (ADR `profile/0032`). Already reused on the profile (`BrainstormProfile.jsx:287`) and `/reporters` (`BrainstormReporters.jsx:145`). The Reputation popup is a near-exact clone of this pattern.
+- The word "Reputation" is the `<h3>` heading of the Reputation section at `ui/src/pages/BrainstormProfile.jsx:368`. That section renders the **Meilisearch** trust-metric grid (`TRUST_METRICS` over the Meili document) — i.e. the House-PoV or Personalized-PoV scores selected by the `?pov=` query param (resolved at `BrainstormProfile.jsx:84,149-158`). House PoV is the default (instance `delegatedPubkey`); the Personalized PoV is the viewer's own when a `pov` is selected.
+- **PoV-accuracy caveat:** the counts ABOVE the Reputation section (Following, Verified Followers, Verified Reporters at `:256-288`) come from *different* sources (strfry + Neo4j Owner-PoV per BIBLE §27), NOT the Meili House/Personalized PoV. The popup must therefore be bounded to the Reputation-section scores and must not assert a PoV for those counts.
+- **Scope decision (operator, 2026-06-14):** the popup is a **static explanation** ("scores reflect either the House or the Personalized point of view, depending on which is selected") — it does **not** dynamically name which PoV is active. The dynamic variant (which would require promoting the resolved `povSuffix` from the fetch effect into render state) is explicitly out of scope.
+- **Testing:** profile UI in this repo is tested via the `test/test.js` Node runner with **source-regex sentinels** (e.g. `test/profile-verified-counts-explainer-and-alarm.test.js`, which already sentinels the VerificationInfo popover's copy), NOT Playwright. The Playwright e2e harness is currently broken (this catalog's 2026-06-06 item 8) but is **irrelevant** to this feature — the established source-sentinel pattern covers it. Baseline `npm test` green as of 2026-06-14.
+
+**Out of scope (the regression boundary):**
+
+- The Reputation grid's data path — the Meili document fetch and the `TRUST_METRICS` grid — stays untouched (additive, presentational change only).
+- The open profile-followers follow-ups on the same file (this catalog's **2026-06-06** entry, `docs/PROFILE_FOLLOWERS_HANDOFF_2026-06-06.md`, still 🔴 OPEN): item 4 (the duplicate `Verified Followers` `TRUST_METRICS` row) and item 6 (Personalized/customer PoV for the follows/followers *tables*) are adjacent in the same component but are **not** part of this work. This feature touches only the Reputation-section heading + a new popup; it does not modify `TRUST_METRICS` contents or the follows/followers tables.
+- Dynamically displaying which PoV is currently active; any backend/API change; promoting `povSuffix` to component state; adding the popup to other pages.
+
+**Classification:** Feature (frontend-only, additive UI)
+**Strictness:** Standard
+**Phase path:** Planning → Architecture → Test Design → Implementation → Review (all five phases — **run autonomously under the Director harness**; see the book `engineering-team/audits/reputation-info-popup/book.md`).
+**Priority:** Low (intended primarily as a low-risk shakedown of the Direction-mode autonomous run).
+
+---
