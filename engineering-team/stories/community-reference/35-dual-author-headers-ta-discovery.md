@@ -1,6 +1,6 @@
 # Story 35: Dual-author headers + Tapestry-Assistant discovery (kind 10040)
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-06-13
 **Type:** Doc (docs-mode — Protocol-Spec workflow; P3 of the b-tag affiliation design)
 
