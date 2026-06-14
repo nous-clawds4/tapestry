@@ -96,6 +96,15 @@ This conveys all required content, stays general (does not name the active PoV),
 **Why:** I concur. The KICK_BACK (my procedural error on flip placement) is fully addressed and a fresh judge confirmed it. Gate 5 passes. The per-story cycle (Gates 1–5) is complete; story #1 is Done. 1 KICK_BACK total at Gate 5 (well under the 3-consecutive halt). Deadline `2026-06-16T23:01:56Z` not passed; origin/staging drift 0 (`3a167ab8`); branch 6 commits ahead, clean.
 **Next:** Stage 2 — deploy. `/cycle-local` (build + local smoke at http://localhost:7778) → then `/cycle-staging` (PR to staging, merge, watch deploy-staging.yml, five-tier smoke on staging.brainstorm.world). Staging is the ceiling.
 
+## 2026-06-14T00:12:18Z — Stage 2.1 (/cycle-local) — PASS
+**Story/Phase:** reputation-info-popup #1 / Stage 2 deploy (local)
+**Decision:** INFO (operational deploy gate, not judged)
+**Judge:** n/a
+**Why:** Built UI (`vite build` → `dist/`, 25.4s; the chunk-size warning is pre-existing, unrelated). Deployed `docker cp dist/. → tapestry:/usr/local/lib/node_modules/brainstorm/dist/` (Express serves static from disk; no restart). Container serves the new bundle `index-DVyPDYLk.js` (referenced by the served index.html), which contains the feature copy. Smoke: Tier 2 — `/`, `/user/<pub>`, `/api/assistant/pubkey`, `/api/get-user-counts` all 200. Tier 4 (visual, vite dev render of the ODELL profile, `/api` proxied to the container): the new Reputation ⓘ renders INSIDE the `<h3>Reputation</h3>` heading (right-aligned, consistent with the Verified ⓘ above it); clicking it opens the popup with the verbatim Director copy ("Where do these scores come from?" + Web of Trust / House / Personalized / "either … or … depending on which is currently selected"); "Got it" dismisses it; exactly 2 ⓘ on the page (Verified untouched + new Reputation); **no console errors**. Tier 5 — full `npm test` 34/34 green (Gate 4). Working tree clean (`dist/` gitignored).
+**Caveat:** local Meili is sparse → the Reputation grid shows "No trust scores available" for the test pubkey; the ⓘ renders regardless (it lives in the heading, independent of score data). The definitive Tier-4 with populated scores is the book's mandatory staging evidence (frame bullet 6).
+**Next:** Stage 2.2 — `/cycle-staging`: push `feat/reputation-info-popup`, PR → staging, plain merge, watch `deploy-staging.yml`, five-tier smoke on `staging.brainstorm.world`. Staging is the ceiling; I do not go past it.
+
+
 
 
 
