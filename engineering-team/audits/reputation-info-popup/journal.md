@@ -104,6 +104,52 @@ This conveys all required content, stays general (does not name the active PoV),
 **Caveat:** local Meili is sparse → the Reputation grid shows "No trust scores available" for the test pubkey; the ⓘ renders regardless (it lives in the heading, independent of score data). The definitive Tier-4 with populated scores is the book's mandatory staging evidence (frame bullet 6).
 **Next:** Stage 2.2 — `/cycle-staging`: push `feat/reputation-info-popup`, PR → staging, plain merge, watch `deploy-staging.yml`, five-tier smoke on `staging.brainstorm.world`. Staging is the ceiling; I do not go past it.
 
+## 2026-06-14T00:14:00Z — Stage 2.2 (/cycle-staging) — merged to staging; deploy in progress
+**Story/Phase:** reputation-info-popup #1 / Stage 2 deploy (staging)
+**Decision:** INFO (operational deploy gate, not judged)
+**Judge:** n/a
+**Why:** Preconditions clean (on `feat/reputation-info-popup`, tree clean, 8 commits vs origin/staging). Pushed the branch. Opened PR #287 (https://github.com/nous-clawds4/tapestry/pull/287, base `staging`). Merged with a plain merge (authorized — staging is the ceiling; the Director's reserved boundary is *past* staging, not staging itself). Merge commit `e8b9182e`, mergedAt 2026-06-14T00:14:00Z, state MERGED. `deploy-staging.yml` run `27483210200` (headSha `e8b9182e`) is in progress — watching to completion before the five-tier smoke. This is a frontend-only change; no `neo4j-heavy`/`reconcileAll` task is triggered (read-only smoke only). Note: post-merge journal entries continue to accrue on `feat/`; staging holds the audit trail through the merge commit.
+**Next:** On deploy success → five-tier smoke on staging.brainstorm.world (Tier 4 = the book's MANDATORY Tier-4 evidence: authenticated 200 on a profile URL + screenshot/DOM extract showing the ⓘ beside "Reputation" and the opened popup naming House + Personalized). Then Stage 3 completion report + final judge + offer. Deadline `2026-06-16T23:01:56Z` not passed.
+
+## 2026-06-14T00:21:28Z — Stage 2.2 staging deploy + five-tier smoke — PASS
+**Story/Phase:** reputation-info-popup #1 / Stage 2 deploy (staging)
+**Decision:** INFO (operational deploy gate, not judged)
+**Judge:** n/a
+**Why:** `deploy-staging.yml` run `27483210200` (merge `e8b9182e`) succeeded (conclusion success, 1m14s; "Deploy via SSH" clean). origin/staging now at `e8b9182e` (Merge PR #287). Five-tier smoke on https://staging.brainstorm.world:
+- **Tier 1 (stability):** 3 consecutive 200s on `/`.
+- **Tier 2 (sanity):** `/` 200, `/api/assistant/pubkey` 200, `/user/<c4eabae1>` 200.
+- **Tier 3 (PR-specific):** staging serves the new bundle `index-DVyPDYLk.js`; it contains the Reputation popup title and the House/Personalized copy.
+- **Tier 4 (rendered UI — the book's MANDATORY evidence):** rendered the live staging profile of c4eabae1 (jack mallers) at `?pov=a1420e44` in a real browser. Real reputation scores present (Verification Score 97, Verified Followers 20688). The new ⓘ renders beside the "Reputation" heading; clicking it opens the popup with the **verbatim** copy — DOM extract captured: *"Where do these scores come from? These reputation scores reflect a Web of Trust — a point of view on who is trustworthy. The numbers show either the House point of view (this Tapestry instance's default) or your Personalized point of view, depending on which is currently selected. Got it"*; "Got it" dismisses it (dialog confirmed absent post-click). **No console errors.** AC5 boundary visibly correct: the top-of-page counts (Verified Followers 17,584 — Owner PoV) differ from the Reputation grid (20688 — Meili House/Personalized), and the popup makes no claim about the top counts. Screenshots captured (open popup over the populated Reputation section).
+- **Tier 5 (regression):** the Verified popup copy ("What does \"verification\" mean?") still present in the staging bundle; Verified ⓘ + Reputation grid intact; no console errors.
+All five tiers PASS. **Frame bullet 6 satisfied.**
+**Next:** Stage 3 — write the completion report (bullet-by-bullet frame evidence), spawn the final `gate-judge` to audit it against the acceptance frame, then make the completion offer to the operator (staging is the ceiling — I do not promote to prod or ratify the book).
+
+## 2026-06-14T00:25:39Z — Stage 3: final completion-report judge — APPROVE; completion offered
+**Story/Phase:** reputation-info-popup #1 / Stage 3 (completion)
+**Decision:** APPROVE (completion-report gate) → completion OFFERED (not ratified — operator's call)
+**Judge:** APPROVE, blinding intact (fresh `gate-judge`). Audited the completion report bullet-by-bullet against the acceptance frame and verified each independently: ran `npm test` itself (34/34 suites, new suite 16/16, all pre-existing unchanged); confirmed PR #287 state MERGED at `e8b9182e`; deploy run `27483210200` conclusion success; `https://staging.brainstorm.world/` 200 serving `index-DVyPDYLk.js`, the bundle contains the full Reputation popup copy AND preserves the Verified popup copy (Tier-5 regression intact); the report's quoted DOM extract is verbatim-faithful to source. All six frame bullets pass with verified evidence.
+**Why:** Every acceptance-frame bullet is satisfied and verified on staging by an independent judge plus my own checks; the run is clean (4 judged gates APPROVE + Gate 4 mechanical PASS, 1 Gate-5 kick-back resolved, 0 stopping rules tripped). Per the ceiling, I do NOT promote past staging and I do NOT ratify the book — I offer completion and stop; the operator ratifies via `/close-book`. Audit trail (journal + completion report) pushed to `origin/feat/reputation-info-popup` for durability (post-merge commits weren't in PR #287). Deadline `2026-06-16T23:01:56Z` not passed.
+**Next:** Await operator ratification (`/close-book`). No further Director action; staging is the ceiling.
+
+## 2026-06-14T08:55:30Z — POST-RUN (operator-directed): promoted to production
+**Story/Phase:** reputation-info-popup #1 / post-run promotion
+**Decision:** INFO — **operator-directed, outside the Direction-mode run.** Not a Director action (the Director's ceiling is staging). The operator explicitly instructed prod promotion and gave explicit merge confirmation; I executed it as a normal assistant with the operator as the gate.
+**Judge:** n/a (deploy gates are operational, not judged)
+**Why:** Scope pre-check: `origin/main..origin/staging` carried only the reputation-info-popup feature (nothing unrelated). Opened PR #288 (`staging → main`, https://github.com/nous-clawds4/tapestry/pull/288); paused for explicit confirmation; on the operator's "Ready to merge to main," merged (merge commit `b4699d58`, mergedAt 2026-06-14T08:51:26Z). `deploy-brainstorm.yml` run `27493772719` succeeded (1m22s). Passive five-tier smoke on https://brainstorm.world: Tier 1 stable (3×200); Tier 2 sanity (/, /api/assistant/pubkey, /user/<pub> all 200); Tier 3 prod serves `index-DVyPDYLk.js` containing the Reputation popup copy; Tier 4 rendered live on the c4eabae1 profile (real scores; ⓘ beside "Reputation"; popup with verbatim House/Personalized copy; DOM extract captured; no console errors); Tier 5 regression (Verified popup copy intact). Read-only verification only — no prod mutation.
+**Next:** Re-offer book ratification/close (`/close-book`) to the operator. The feature is now live on staging AND production.
+
+## 2026-06-14T09:40:14Z — Book closed (Reviewer at book scope, operator-ratified)
+**Story/Phase:** reputation-info-popup / Book Close (post-run, normal mode — not a Director action)
+**Decision:** INFO — book ratified Closed by the operator.
+**Judge:** n/a (book-close is human-gated, not judge-gated)
+**Why:** Operator ratified the completion offer and ran `/close-book`. Wrote `audit.md` (as-built record — all six frame bullets satisfied; three documented interpretation/deferral choices; close gate `npm test` PASS, 34 suites) and `prd-seed.md` (reverse-engineered baseline for the product team, confidence high). Flipped `book.md` → `Status: Closed` (Confidence at close: high). Provenance: Acceptance-frame. The return edge to the product team is in place.
+**Carry-forward (see audit §6):** dynamic "which PoV is active" variant; extract a shared `InfoPopover` on a third explainer; PoV consistency across the follows/followers tables (open intake 2026-06-06 item 6); copy ownership by product. **Harness process amendment (goalpost-class, post-run, operator-ratified):** clarify that the Reviewer authors the Gate-5 `Status: Done` flip and reconcile "same review commit" vs the `story: close out` convention — to be drafted and committed separately (not in the book-close commit).
+**Next:** Commit `book-close: reputation-info-popup`; then draft the harness clarification for operator review.
+
+
+
+
+
 
 
 

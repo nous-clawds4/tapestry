@@ -1,9 +1,9 @@
 # Book of Work: Reputation info popup (profile page)
 
 **Slug:** reputation-info-popup
-**Status:** Open
+**Status:** Closed
 **Opened:** 2026-06-14
-**Closed:** —
+**Closed:** 2026-06-14
 
 ## Intent anchor
 **Acceptance frame (no PRD)** — the operator's ask, restated and confirmed at kickoff. Completion is *judged* against the bullets below.
@@ -87,7 +87,7 @@ Executed **only on the operator's explicit instruction** after reviewing the HAL
 
 ## Provenance
 - **Mode:** Acceptance-frame
-- **Confidence at close:** *(to be filled by `/close-book`)*
+- **Confidence at close:** high
 
 ## Close artifacts *(filled by `/close-book`)*
 - Build audit: `engineering-team/audits/reputation-info-popup/audit.md`
