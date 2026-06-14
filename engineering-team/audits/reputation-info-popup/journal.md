@@ -131,6 +131,14 @@ All five tiers PASS. **Frame bullet 6 satisfied.**
 **Why:** Every acceptance-frame bullet is satisfied and verified on staging by an independent judge plus my own checks; the run is clean (4 judged gates APPROVE + Gate 4 mechanical PASS, 1 Gate-5 kick-back resolved, 0 stopping rules tripped). Per the ceiling, I do NOT promote past staging and I do NOT ratify the book — I offer completion and stop; the operator ratifies via `/close-book`. Audit trail (journal + completion report) pushed to `origin/feat/reputation-info-popup` for durability (post-merge commits weren't in PR #287). Deadline `2026-06-16T23:01:56Z` not passed.
 **Next:** Await operator ratification (`/close-book`). No further Director action; staging is the ceiling.
 
+## 2026-06-14T08:55:30Z — POST-RUN (operator-directed): promoted to production
+**Story/Phase:** reputation-info-popup #1 / post-run promotion
+**Decision:** INFO — **operator-directed, outside the Direction-mode run.** Not a Director action (the Director's ceiling is staging). The operator explicitly instructed prod promotion and gave explicit merge confirmation; I executed it as a normal assistant with the operator as the gate.
+**Judge:** n/a (deploy gates are operational, not judged)
+**Why:** Scope pre-check: `origin/main..origin/staging` carried only the reputation-info-popup feature (nothing unrelated). Opened PR #288 (`staging → main`, https://github.com/nous-clawds4/tapestry/pull/288); paused for explicit confirmation; on the operator's "Ready to merge to main," merged (merge commit `b4699d58`, mergedAt 2026-06-14T08:51:26Z). `deploy-brainstorm.yml` run `27493772719` succeeded (1m22s). Passive five-tier smoke on https://brainstorm.world: Tier 1 stable (3×200); Tier 2 sanity (/, /api/assistant/pubkey, /user/<pub> all 200); Tier 3 prod serves `index-DVyPDYLk.js` containing the Reputation popup copy; Tier 4 rendered live on the c4eabae1 profile (real scores; ⓘ beside "Reputation"; popup with verbatim House/Personalized copy; DOM extract captured; no console errors); Tier 5 regression (Verified popup copy intact). Read-only verification only — no prod mutation.
+**Next:** Re-offer book ratification/close (`/close-book`) to the operator. The feature is now live on staging AND production.
+
+
 
 
 
