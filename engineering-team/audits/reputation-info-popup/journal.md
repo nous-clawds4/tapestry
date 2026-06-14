@@ -138,6 +138,14 @@ All five tiers PASS. **Frame bullet 6 satisfied.**
 **Why:** Scope pre-check: `origin/main..origin/staging` carried only the reputation-info-popup feature (nothing unrelated). Opened PR #288 (`staging → main`, https://github.com/nous-clawds4/tapestry/pull/288); paused for explicit confirmation; on the operator's "Ready to merge to main," merged (merge commit `b4699d58`, mergedAt 2026-06-14T08:51:26Z). `deploy-brainstorm.yml` run `27493772719` succeeded (1m22s). Passive five-tier smoke on https://brainstorm.world: Tier 1 stable (3×200); Tier 2 sanity (/, /api/assistant/pubkey, /user/<pub> all 200); Tier 3 prod serves `index-DVyPDYLk.js` containing the Reputation popup copy; Tier 4 rendered live on the c4eabae1 profile (real scores; ⓘ beside "Reputation"; popup with verbatim House/Personalized copy; DOM extract captured; no console errors); Tier 5 regression (Verified popup copy intact). Read-only verification only — no prod mutation.
 **Next:** Re-offer book ratification/close (`/close-book`) to the operator. The feature is now live on staging AND production.
 
+## 2026-06-14T09:40:14Z — Book closed (Reviewer at book scope, operator-ratified)
+**Story/Phase:** reputation-info-popup / Book Close (post-run, normal mode — not a Director action)
+**Decision:** INFO — book ratified Closed by the operator.
+**Judge:** n/a (book-close is human-gated, not judge-gated)
+**Why:** Operator ratified the completion offer and ran `/close-book`. Wrote `audit.md` (as-built record — all six frame bullets satisfied; three documented interpretation/deferral choices; close gate `npm test` PASS, 34 suites) and `prd-seed.md` (reverse-engineered baseline for the product team, confidence high). Flipped `book.md` → `Status: Closed` (Confidence at close: high). Provenance: Acceptance-frame. The return edge to the product team is in place.
+**Carry-forward (see audit §6):** dynamic "which PoV is active" variant; extract a shared `InfoPopover` on a third explainer; PoV consistency across the follows/followers tables (open intake 2026-06-06 item 6); copy ownership by product. **Harness process amendment (goalpost-class, post-run, operator-ratified):** clarify that the Reviewer authors the Gate-5 `Status: Done` flip and reconcile "same review commit" vs the `story: close out` convention — to be drafted and committed separately (not in the book-close commit).
+**Next:** Commit `book-close: reputation-info-popup`; then draft the harness clarification for operator review.
+
 
 
 
