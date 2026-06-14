@@ -111,6 +111,20 @@ This conveys all required content, stays general (does not name the active PoV),
 **Why:** Preconditions clean (on `feat/reputation-info-popup`, tree clean, 8 commits vs origin/staging). Pushed the branch. Opened PR #287 (https://github.com/nous-clawds4/tapestry/pull/287, base `staging`). Merged with a plain merge (authorized — staging is the ceiling; the Director's reserved boundary is *past* staging, not staging itself). Merge commit `e8b9182e`, mergedAt 2026-06-14T00:14:00Z, state MERGED. `deploy-staging.yml` run `27483210200` (headSha `e8b9182e`) is in progress — watching to completion before the five-tier smoke. This is a frontend-only change; no `neo4j-heavy`/`reconcileAll` task is triggered (read-only smoke only). Note: post-merge journal entries continue to accrue on `feat/`; staging holds the audit trail through the merge commit.
 **Next:** On deploy success → five-tier smoke on staging.brainstorm.world (Tier 4 = the book's MANDATORY Tier-4 evidence: authenticated 200 on a profile URL + screenshot/DOM extract showing the ⓘ beside "Reputation" and the opened popup naming House + Personalized). Then Stage 3 completion report + final judge + offer. Deadline `2026-06-16T23:01:56Z` not passed.
 
+## 2026-06-14T00:21:28Z — Stage 2.2 staging deploy + five-tier smoke — PASS
+**Story/Phase:** reputation-info-popup #1 / Stage 2 deploy (staging)
+**Decision:** INFO (operational deploy gate, not judged)
+**Judge:** n/a
+**Why:** `deploy-staging.yml` run `27483210200` (merge `e8b9182e`) succeeded (conclusion success, 1m14s; "Deploy via SSH" clean). origin/staging now at `e8b9182e` (Merge PR #287). Five-tier smoke on https://staging.brainstorm.world:
+- **Tier 1 (stability):** 3 consecutive 200s on `/`.
+- **Tier 2 (sanity):** `/` 200, `/api/assistant/pubkey` 200, `/user/<c4eabae1>` 200.
+- **Tier 3 (PR-specific):** staging serves the new bundle `index-DVyPDYLk.js`; it contains the Reputation popup title and the House/Personalized copy.
+- **Tier 4 (rendered UI — the book's MANDATORY evidence):** rendered the live staging profile of c4eabae1 (jack mallers) at `?pov=a1420e44` in a real browser. Real reputation scores present (Verification Score 97, Verified Followers 20688). The new ⓘ renders beside the "Reputation" heading; clicking it opens the popup with the **verbatim** copy — DOM extract captured: *"Where do these scores come from? These reputation scores reflect a Web of Trust — a point of view on who is trustworthy. The numbers show either the House point of view (this Tapestry instance's default) or your Personalized point of view, depending on which is currently selected. Got it"*; "Got it" dismisses it (dialog confirmed absent post-click). **No console errors.** AC5 boundary visibly correct: the top-of-page counts (Verified Followers 17,584 — Owner PoV) differ from the Reputation grid (20688 — Meili House/Personalized), and the popup makes no claim about the top counts. Screenshots captured (open popup over the populated Reputation section).
+- **Tier 5 (regression):** the Verified popup copy ("What does \"verification\" mean?") still present in the staging bundle; Verified ⓘ + Reputation grid intact; no console errors.
+All five tiers PASS. **Frame bullet 6 satisfied.**
+**Next:** Stage 3 — write the completion report (bullet-by-bullet frame evidence), spawn the final `gate-judge` to audit it against the acceptance frame, then make the completion offer to the operator (staging is the ceiling — I do not promote to prod or ratify the book).
+
+
 
 
 
