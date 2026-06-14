@@ -25,6 +25,6 @@ Run **`/whats-open`** (or `bash scripts/whats-open.sh`) for the unified roll-up 
 
 | # | Type | Item | Opened | Status | Done | Pointer |
 |---|---|---|---|---|---|---|
-| 1 | cleanup | Review/flip the stale handoff status: `docs/POST_TIMEOUT_FIX_COMPLETION_HANDOFF_2026-05-26.md` is still `🔴 OPEN`, but its "24–48h passive-verification window" (late May 2026) is long past — confirm the verification held and flip to `✅ ADDRESSED`, or capture whatever remains. | 2026-06-14 | OPEN | — | the handoff doc |
+| 1 | cleanup | Review/flip the stale handoff status: `docs/POST_TIMEOUT_FIX_COMPLETION_HANDOFF_2026-05-26.md` is still `🔴 OPEN`, but its "24–48h passive-verification window" (late May 2026) is long past — confirm the verification held and flip to `✅ ADDRESSED`, or capture whatever remains. | 2026-06-14 | DONE | 2026-06-14 | Flipped to ✅ ADDRESSED: timeout series shipped (6 prod PRs), no regression in the ~2.5 wks since, residuals tracked in `_intake.md`; held branch `fix/launch-child-task-protection-audit` retained by design as the ADR 0023 audit trail. |
 | 2 | cleanup | Delete the merged branches `feat/reputation-info-popup` and `chore/clarify-gate5-status-flip`. | 2026-06-14 (reputation-info-popup) | DONE | 2026-06-14 | branches deleted; remotes were auto-deleted on merge |
 | 3 | docs | Decide whether BIBLE needs a `reputation-info-popup` entry. | 2026-06-14 (reputation-info-popup) | DONE | 2026-06-14 | No — it's a UI explainer, not architecture / protocol / data-model / API; out of BIBLE's scope. Recorded here so the judgment isn't lost. |
