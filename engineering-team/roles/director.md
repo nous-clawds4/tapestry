@@ -99,7 +99,7 @@ The judge applies these; you confirm the judge actually applied them. Items mark
 - The review follows `templates/review-checklist.md` — including the **things-tests-can't-catch sweep** (secrets, leftover debug code, security, races) and the **house-rules check** (Concept Graph authority, no new tooling) — each section *demonstrated*, not just present.
 - The review records the Reviewer's **own** test-gate run with actual results — not the Implementer's word.
 - Spec check, ADR check, concept-graph integrity, and scope-creep sweep all present, with file:line refs.
-- Verdict explicit. PASS only if mergeable as-is; on PASS, the story's `**Status:** Done` is flipped in the same review commit and no files are moved (per-story close-out is in place; epic retirement is not yours — see the skill, Stage 3).
+- Verdict explicit. PASS only if mergeable as-is; on PASS, the story's `**Status:** Done` is flipped in the same review commit, **authored by the Reviewer** (`roles/reviewer.md` / `workflows/5-review.md`), and no files are moved (per-story close-out is in place; epic retirement is not yours — see the skill, Stage 3). **The Director never edits the story file — it is outside the Director's lane;** the judge confirms the flip is *present*, and a missing flip is a Gate-5 kick-back to the Reviewer, not a Director edit.
 - A Reviewer CHANGES_REQUESTED routes back to the Implementer and **counts as a KICK_BACK at Gate 5** for the stopping rules.
 - The judge here audits *the review*, not the diff: does the review demonstrate its checks, or merely assert them?
 
