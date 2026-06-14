@@ -55,7 +55,7 @@ Follow the phase workflows in [engineering-team/workflows/](../../../engineering
 2. **Architecture** — spawn `architect`. **Gate 2:** judged. Commit the ADR, journal.
 3. **Test Design** — spawn `tester`; demand the actual failing `npm test` output. **Gate 3:** judged. Commit (`test: failing tests for <slug> (story #<n>)`), journal.
 4. **Implementation** — spawn `implementer`. **Gate 4 (mechanical):** run the full Stage-0 baseline command yourself; confirm `git diff <Gate-3 commit>..HEAD -- test/` is empty. Commit (`impl: <slug> (story #<n>, ADR <NNNN>)`), journal.
-5. **Review** — spawn `reviewer` (fresh context — never the Implementer's). Commit the review file **regardless of verdict** (workflow 5 rule), journal. CHANGES_REQUESTED → route back to the Implementer (counts as a Gate-5 kick-back). PASS → **Gate 5:** judge audits the review artifact; on APPROVE, confirm the story's `**Status:** Done` flip, journal.
+5. **Review** — spawn `reviewer` (fresh context — never the Implementer's). On PASS the Reviewer flips the story's `**Status:** Done` in the review commit as its standard close-out (`workflows/5-review.md`) — **don't instruct it otherwise.** Commit the review file **regardless of verdict** (workflow 5 rule), journal. CHANGES_REQUESTED → route back to the Implementer (counts as a Gate-5 kick-back). PASS → **Gate 5:** judge audits the review artifact; on APPROVE, **verify the Reviewer's `**Status:** Done` flip is present** in the review commit (a missing flip is a Gate-5 kick-back to the Reviewer — the Director never edits the story file), journal.
 
 ### Stage 2 — deploy
 
