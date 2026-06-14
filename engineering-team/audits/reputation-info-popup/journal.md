@@ -89,6 +89,14 @@ This conveys all required content, stays general (does not name the active PoV),
 **Why:** The owning role (`reviewer`) addressed both findings: (1) story Status flipped Approved→Done (story:3); (2) the `ReputationInfo.jsx` line refs in the review corrected to land precisely (verified against source). I folded these into the review commit via `git commit --amend` (local, unpushed branch — safe; not a shared-history rewrite) so the story's Status: Done flip is now literally in the review commit, resolving the decisive Gate-5 item. The PASS verdict and all review findings are otherwise unchanged.
 **Next:** Re-spawn a fresh Gate-5 `gate-judge` with the prior findings verbatim; confirm each resolved.
 
+## 2026-06-14T00:04:38Z — Gate 5 (Review audit) RE-JUDGE — APPROVE; per-story cycle complete
+**Story/Phase:** reputation-info-popup #1 / Gate 5 (re-judge)
+**Decision:** APPROVE
+**Judge:** APPROVE, blinding intact (fresh `gate-judge`). Both prior findings RESOLVED: (1) decisive — story Status: Done is flipped in the review commit `ed3d0b63` (judge ran `git show`, confirmed the Approved→Done flip + review file together, no file moves); (2) line-ref drift corrected (judge verified each `ReputationInfo.jsx` citation matches source). Fresh-judged all rubric items: reproduced the Reviewer's own `npm test` (34/34, 16/16, exit 0), re-ran the secrets/debug sweep, independently confirmed concept-graph integrity (34 nodes, no PoV node) and the purely-additive nine-file scope — checks demonstrated, not asserted.
+**Why:** I concur. The KICK_BACK (my procedural error on flip placement) is fully addressed and a fresh judge confirmed it. Gate 5 passes. The per-story cycle (Gates 1–5) is complete; story #1 is Done. 1 KICK_BACK total at Gate 5 (well under the 3-consecutive halt). Deadline `2026-06-16T23:01:56Z` not passed; origin/staging drift 0 (`3a167ab8`); branch 6 commits ahead, clean.
+**Next:** Stage 2 — deploy. `/cycle-local` (build + local smoke at http://localhost:7778) → then `/cycle-staging` (PR to staging, merge, watch deploy-staging.yml, five-tier smoke on staging.brainstorm.world). Staging is the ceiling.
+
+
 
 
 
