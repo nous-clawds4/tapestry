@@ -104,6 +104,14 @@ This conveys all required content, stays general (does not name the active PoV),
 **Caveat:** local Meili is sparse → the Reputation grid shows "No trust scores available" for the test pubkey; the ⓘ renders regardless (it lives in the heading, independent of score data). The definitive Tier-4 with populated scores is the book's mandatory staging evidence (frame bullet 6).
 **Next:** Stage 2.2 — `/cycle-staging`: push `feat/reputation-info-popup`, PR → staging, plain merge, watch `deploy-staging.yml`, five-tier smoke on `staging.brainstorm.world`. Staging is the ceiling; I do not go past it.
 
+## 2026-06-14T00:14:00Z — Stage 2.2 (/cycle-staging) — merged to staging; deploy in progress
+**Story/Phase:** reputation-info-popup #1 / Stage 2 deploy (staging)
+**Decision:** INFO (operational deploy gate, not judged)
+**Judge:** n/a
+**Why:** Preconditions clean (on `feat/reputation-info-popup`, tree clean, 8 commits vs origin/staging). Pushed the branch. Opened PR #287 (https://github.com/nous-clawds4/tapestry/pull/287, base `staging`). Merged with a plain merge (authorized — staging is the ceiling; the Director's reserved boundary is *past* staging, not staging itself). Merge commit `e8b9182e`, mergedAt 2026-06-14T00:14:00Z, state MERGED. `deploy-staging.yml` run `27483210200` (headSha `e8b9182e`) is in progress — watching to completion before the five-tier smoke. This is a frontend-only change; no `neo4j-heavy`/`reconcileAll` task is triggered (read-only smoke only). Note: post-merge journal entries continue to accrue on `feat/`; staging holds the audit trail through the merge commit.
+**Next:** On deploy success → five-tier smoke on staging.brainstorm.world (Tier 4 = the book's MANDATORY Tier-4 evidence: authenticated 200 on a profile URL + screenshot/DOM extract showing the ⓘ beside "Reputation" and the opened popup naming House + Personalized). Then Stage 3 completion report + final judge + offer. Deadline `2026-06-16T23:01:56Z` not passed.
+
+
 
 
 
