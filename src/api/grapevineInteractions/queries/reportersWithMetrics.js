@@ -5,7 +5,8 @@
  *
  * Lists the VERIFIED users who NIP-56-reported <observee>, with the owner's
  * GrapeRank metrics read straight from each reporter's NostrUser node: influence
- * (→ rank), hops, and the three verified counts. v1 is OWNER/HOUSE POV ONLY.
+ * (→ rank), hops, and the three verified counts — plus each REPORTS edge's own
+ * report_type + timestamp (story #4 / ADR 0004). v1 is OWNER/HOUSE POV ONLY.
  * Customer observers are deferred: their scores live on NostrUserWotMetricsCard
  * (see ADR 0026 §Decision and userdata.js:40-85), so a non-owner `observer` is 400.
  *
@@ -91,15 +92,21 @@ function handleGetGrapevineReporters(req, res) {
     // Owner/House POV: the metrics ARE each reporter's own NostrUser node GrapeRank
     // properties. Only VERIFIED reporters (influence above the cutoff) are returned —
     // the inverse of the count query. No NostrUserWotMetricsCard join in v1.
+    // Bind the REPORTS edge (rel) so its per-report properties — report_type and
+    // timestamp — come back alongside the reporter's node metrics (story #4 / ADR 0004).
+    // One row per REPORTS edge (no de-duplication / aggregation here), so a reporter who
+    // filed more than one report type appears once per report — report-centric, by design.
     const cypherQuery = `
-      MATCH (observee:NostrUser {pubkey: $observee})<-[:REPORTS]-(reporter:NostrUser)
+      MATCH (observee:NostrUser {pubkey: $observee})<-[rel:REPORTS]-(reporter:NostrUser)
       WHERE reporter.influence > $cutoff
       RETURN reporter.pubkey AS pubkey,
              reporter.influence AS influence,
              reporter.hops AS hops,
              reporter.verifiedFollowerCount AS verifiedFollowerCount,
              reporter.verifiedMuterCount AS verifiedMuterCount,
-             reporter.verifiedReporterCount AS verifiedReporterCount
+             reporter.verifiedReporterCount AS verifiedReporterCount,
+             rel.report_type AS reportType,
+             rel.timestamp AS timestamp
     `;
 
     const queryStartMs = Date.now();
@@ -112,7 +119,9 @@ function handleGetGrapevineReporters(req, res) {
             hops: toInt(r.get('hops')),
             verifiedFollowerCount: toInt(r.get('verifiedFollowerCount')),
             verifiedMuterCount: toInt(r.get('verifiedMuterCount')),
-            verifiedReporterCount: toInt(r.get('verifiedReporterCount'))
+            verifiedReporterCount: toInt(r.get('verifiedReporterCount')),
+            reportType: r.get('reportType') ?? null,
+            timestamp: toInt(r.get('timestamp'))
           }))
           .filter(row => row.pubkey);
 

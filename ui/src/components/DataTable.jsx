@@ -3,7 +3,11 @@ import { useState, useMemo, useEffect } from 'react';
 /**
  * Reusable sortable data table.
  * @param {Object} props
- * @param {Array<{key: string, label: string, render?: Function}>} props.columns
+ * @param {Array<{key: string, label: string, render?: Function, sortValue?: Function}>} props.columns
+ *   A column may declare an optional `sortValue(row)` accessor: when present, that
+ *   column sorts by the returned raw value (numerically), decoupled from what `render`
+ *   displays, with missing values (null/undefined) always sorted last in both
+ *   directions. Columns without it keep the default string/localeCompare sort.
  * @param {Array<Object>} props.data
  * @param {Function} props.onRowClick - Optional row click handler
  * @param {string} props.emptyMessage
@@ -34,13 +38,27 @@ export default function DataTable({ columns, data, onRowClick, emptyMessage = 'N
 
   const sorted = useMemo(() => {
     if (!sortKey) return filtered;
+    const col = columns.find(c => c.key === sortKey);
+    const accessor = col && typeof col.sortValue === 'function' ? col.sortValue : null;
+    if (accessor) {
+      // Opt-in: sort by a raw value (e.g. a unix timestamp) decoupled from what the
+      // cell renders, with missing values always last regardless of direction.
+      return [...filtered].sort((a, b) => {
+        const av = accessor(a);
+        const bv = accessor(b);
+        if (av == null && bv == null) return 0;
+        if (av == null) return 1;
+        if (bv == null) return -1;
+        return sortDir === 'asc' ? av - bv : bv - av;
+      });
+    }
     return [...filtered].sort((a, b) => {
       const av = a[sortKey] ?? '';
       const bv = b[sortKey] ?? '';
       const cmp = String(av).localeCompare(String(bv), undefined, { numeric: true });
       return sortDir === 'asc' ? cmp : -cmp;
     });
-  }, [filtered, sortKey, sortDir]);
+  }, [filtered, sortKey, sortDir, columns]);
 
   // Pagination (opt-in via pageSize). Reset to the first page whenever the
   // underlying set changes so we never strand the user on a now-empty page.
