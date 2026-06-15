@@ -1,7 +1,7 @@
 # Story 2: nostr-user-tag writer emits hybrid e+a parent reference
 
 **Epic:** tag-stack-merge-hardening
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-06-12
 **Type:** Feature
 
@@ -94,4 +94,4 @@ tag edits — without breaking any read path that scans `e` today.
   (Story-2 implementation decisions) — under governing ADR-0022
   (`engineering-team/decisions/0022-nostr-user-tag-hybrid-ea-reference.md`, Accepted).
 - Test plan: `engineering-team/stories/tag-stack-merge-hardening/2-nostr-user-tag-hybrid-ea-writer.test-plan.md`
-- Review: (after Review)
+- Review: `engineering-team/reviews/tag-stack-merge-hardening/2-nostr-user-tag-hybrid-ea-writer.md` (PASS)
