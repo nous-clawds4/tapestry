@@ -190,6 +190,20 @@ code the frame protects. We trade away a small amount of duplicated local kind-0
 (vs. Option C's risky shared refactor) and accept best-effort "50 most recent" semantics under
 relay timeout (vs. a guaranteed exact-50, which a recent-window feed does not need).
 
+**Amendment (2026-06-15, post-Gate-2, pre-Gate-3 — testability seam).** `buildFeed`
+accepts its four I/O boundaries as **optional injected dependencies**, each **defaulting
+to the real helper** when not supplied. The boundaries are: House-PoV read
+(`getSettings`), local-strfry scan for kind-3/kind-0 (`scanStrfry`, i.e. the `exec`/
+`execSync` `strfry scan` wrapper), relay-set resolution (`runCypher`), and external kind-1
+fetch (`querySync`, i.e. the `SimplePool.querySync` wrapper). Production callers — Story 2's
+page via `handleGetFeed` — invoke `buildFeed({ sessionPubkey })` with **no deps** and get
+the real helpers unchanged; tests pass in-memory fakes to drive the four outcomes, ordering,
+the 50-cap, kind-1-only filtering, and the set-vs-fallback discriminator without live
+strfry / Neo4j / relays. This is a **pure wiring seam**: it changes none of the chosen
+option, behavior, the four-outcome contract, the item shape, the relay set/fallback logic,
+or the read-only posture — it only makes the design's existing testability explicit and
+obligates the Implementer to honor injected deps.
+
 ## Consequences
 
 - **Enables:** Story 2 (`/feed` page) consumes one endpoint whose response already encodes all
@@ -257,6 +271,21 @@ Concrete targets for the Implementer.
   absolute container path `/usr/local/lib/node_modules/brainstorm/node_modules/...` and the
   `globalThis.WebSocket` shim. Reuse that exact convention in `feedReadPath.js`.
 - **No new dependency, no lint/build tooling, no concept/firmware change.**
+- **Injectable dependency seam (amendment 2026-06-15).** `buildFeed(options)` reads its four
+  I/O boundaries from `options`, each **defaulting to the real helper** when absent. Accept the
+  fakes either spread onto the options object **or** under an `options.deps` key (read
+  `options.deps?.X ?? options.X ?? <realHelper>` for each); the test harness passes both shapes.
+  The four injectable keys and their real-helper defaults:
+  - `getSettings` → default `require('src/config/settings.js').getSettings` (House-PoV read in `resolveSource`).
+  - `scanStrfry(filter) → events[]` → default the local `strfry scan` `exec`/`execSync` wrapper
+    used by `getLocalFollows` (kind-3) and `enrichAuthors` (kind-0), per `src/api/strfry/queries/scan.js`.
+  - `runCypher(cypher, params) → rows[]` → default `require('src/lib/neo4j-driver.js').runCypher`
+    (relay-set resolution in `resolveGeneralPurposeRelays`).
+  - `querySync(relays, filter) → events[]` → default the `SimplePool.querySync` wrapper from
+    `src/api/relay/fetchEvents.js` (external kind-1 fetch in `fetchNotes`).
+  `handleGetFeed` continues to call `buildFeed({ sessionPubkey: req.session?.pubkey })` with no
+  injected deps — production behavior is unchanged. No new dependency or tooling; the seam is
+  parameter wiring only.
 
 ## Out of scope
 
