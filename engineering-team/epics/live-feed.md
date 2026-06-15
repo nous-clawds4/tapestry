@@ -27,7 +27,7 @@ ranking/scoring, or firmware. With `/feed` removed, the rest of the app behaves 
    plus the three defined edge outcomes (no source identity / follow list not in local strfry
    / follow list present but no notes), as observable data. One subsystem (read path);
    self-contained, testable without the page. *(this story — drafted now)*
-2. **feed-page** *(scope only — drafted at its own Planning phase)* — the public,
+2. **feed-page** (`stories/live-feed/2-feed-page.md` — drafted) — the public,
    bookmarkable, login-free `/feed` page that renders Story 1's output: the "Live Feed"
    heading, each note's author display name + avatar + timestamp + text (newest first), the
    "Showing the most recent 50 notes" recent-window indicator, and the three canonical
