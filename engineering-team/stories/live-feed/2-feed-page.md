@@ -1,6 +1,6 @@
 # Story 2: Live Feed page (`/feed`)
 
-**Status:** Draft
+**Status:** Done
 **Created:** 2026-06-15
 **Type:** Feature
 
@@ -88,6 +88,6 @@ None — product intent (scope, acceptance frame, and all on-page copy) was oper
 at intake.
 
 ## Linked artifacts
-- ADR: (filled in after Architecture phase)
-- Test plan: (filled in after Test Design phase)
-- Review: (filled in after Review phase)
+- ADR: `engineering-team/decisions/live-feed/0002-feed-page.md`
+- Test plan: `engineering-team/stories/live-feed/2-feed-page.test-plan.md`
+- Review: `engineering-team/reviews/live-feed/2-feed-page.md` (PASS — 2026-06-15)
