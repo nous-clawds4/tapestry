@@ -46,5 +46,5 @@ Testable from the outside (input → expected behavior).
 
 ## Linked artifacts
 - ADR: `engineering-team/decisions/verified-reporters/0004-reporters-report-type-and-timestamp-columns.md` (Accepted)
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/verified-reporters/4-reporters-report-type-and-timestamp-columns.test-plan.md` (suite `test/verified-reporters-report-columns.test.js` + Playwright `tests/brainstorm/profile-verified-reporters-columns.spec.js`)
 - Review: (filled in after Review phase)
