@@ -45,6 +45,6 @@ Testable from the outside (input → expected behavior).
 - None blocking. (Cardinality of `REPORTS` edges is intentionally not gated on — the table mirrors whatever the graph returns. Membership-endpoint behavior confirmed: binding the relationship to return its properties adds per-report fields without changing which reporters appear.)
 
 ## Linked artifacts
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/verified-reporters/0004-reporters-report-type-and-timestamp-columns.md` (Accepted)
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
