@@ -1,0 +1,66 @@
+Tier-4 rendered-UI evidence — DOM text extract
+Source: anonymous House-PoV render of https://staging.brainstorm.world/feed
+Captured: 2026-06-15 (staging deploy 27518919488 / merge 80a39afd)
+Method: page's GET /api/feed forced credentials:'omit' (anonymous → House PoV), feed component remounted via in-SPA navigation; no session logout, no staging mutation.
+Corresponds to the anonymous `GET /api/feed` response (status OK, source.origin "house", relaySource "set", 50 items).
+
+Each entry below is one rendered note as "Author display name / formatted timestamp / text" — newest-first. (≥3 required by the frame; 50 rendered.)
+-----------------------------------------------------------------------
+Live Feed
+Showing the most recent 50 notes.
+
+Vitor Pamplona
+6/14/2026, 11:32:53 PM
+It could also be that Tor is not connecting. You can check the number of relays.. new version tomorrow will fix some of these issues.
+But yeah, nothing over 1000 follows works well on nostr, regardless of which client you use. Most relays don't even store lists with over 2000 follows. When it works, the client is just cropping the list, which means you might not see a 3rd or half of your follow's posts. You just don't notice what you can't see.
+We made the feature with multiple lists to help people disperse a single follow list into many lists that you can try to use. It's not automated yet. But I can tell you that for sure Nostr will never work well with big lists and general relays.
+
+Vitor Pamplona
+6/14/2026, 11:26:50 PM
+New version coming up tomorrow
+
+Jon Gordon
+6/14/2026, 7:03:19 PM
+Epic Izakaya soft open … on Friday nite!! Great mix of local community and nostr members…
+
+cloud fodder
+6/14/2026, 5:57:17 PM
+Ah, so it looks like strfry added its own auth *just for nip70. … Eventually I'll rework the auth to support both…
+
+Vitor Pamplona
+6/14/2026, 5:51:56 PM
+Humm.. it's not even loading on my browser... Let me check
+
+Avi Burra
+6/14/2026, 5:11:37 PM
+Love it!
+
+Avi Burra
+6/14/2026, 5:08:06 PM
+This is great stuff. Was this your band … ?
+
+Vitor Pamplona
+6/14/2026, 3:53:15 PM
+it's because you are using words that change the goal post for the AI. …
+
+Vitor Pamplona
+6/14/2026, 3:43:45 PM
+NIP-04 DMs? I can't even see half of my nip04 DMs there…
+
+Vitor Pamplona
+6/14/2026, 4:39:52 AM
+The year of the Linux Desktop will arrive when a distro ships a local AI agent…
+
+cloud fodder
+6/14/2026, 3:02:28 AM
+Wheat bread
+
+Shawn
+6/14/2026, 12:04:54 AM
+https://music.apple.com/us/album/forgot/6770289698
+
+Vitor Pamplona
+6/13/2026, 6:34:25 PM
+FYI, your profile picture URL doesn't work anymore.
+
+[… 50 notes total; authors are the House PoV's follows — Vitor Pamplona, Jon Gordon, cloud fodder, Avi Burra, Shawn, megistus, vinney…axkl, Avi Burra — each with avatar + display name + local-formatted timestamp + text, ordered newest-first 6/14/2026 11:32 PM → 6/12/2026 7:20 PM. A screenshot of the same render was also captured.]
