@@ -1,6 +1,6 @@
 # Story 1: Live-feed read path — recent notes from the source identity's follows
 
-**Status:** Draft
+**Status:** Done
 **Created:** 2026-06-15
 **Type:** Feature
 
@@ -97,4 +97,4 @@ None outstanding for this story.
 ## Linked artifacts
 - ADR: `engineering-team/decisions/live-feed/0001-feed-read-path-endpoint.md`
 - Test plan: `engineering-team/stories/live-feed/1-feed-read-path.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/live-feed/1-feed-read-path.md` (PASS — 2026-06-15)
