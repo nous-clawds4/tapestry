@@ -113,6 +113,14 @@ These are suggested canonical strings; exact punctuation is non-binding so long 
 **Why:** I concur. The Tester correctly **verified** (not assumed) that the ADR's floated `renderToStaticMarkup` is unrunnable here and adopted the established no-tooling convention — *without* a needless Architect kick-back (the ADR delegates the level to the Tester) and without adding tooling. It was honest about the Node/Tier-4 split: source-level coverage in the Node suite; the runtime properties (anonymous 200, *actually rendered* ≥3 notes, no-scrollbar @1280px) explicitly deferred to the **frame-mandated Tier-4 staging evidence** — not over-claimed. **This Gate-3 commit is Story 2's Gate-4 baseline.**
 **Next:** Story 2, Implementation — spawn `implementer` to make the failing tests pass with minimum code honoring story #2 + ADR 0002 (new `BrainstormFeed.jsx` + `useFeed.js` + `/feed` route + `bsp-feed-*` CSS), touching no test file; then Gate 4 (mechanical: full `npm test` + empty test-dir diff). Note Stage-2 deploy will require a **UI rebuild** (`npm run build` in `ui/`) and a control-panel restart (so `/api/feed` registers) per ADR 0002 Consequences.
 
+## 2026-06-15T04:55:00Z — Gate 4 (Implementation) — story #2, mechanical, verified by Director
+**Story/Phase:** live-feed #2 (feed-page) / Gate 4 (Implementation — mechanical)
+**Decision:** APPROVE
+**Judge:** n/a (mechanical — Director verifies).
+**Why:** I ran every check. **4.1** Full `npm test` → **Overall PASS, 434 tests** (416 + 18 new); `live-feed-feed-page` 18/18 and `live-feed-read-path` 23/23 both green, all pre-existing suites PASS. **4.2** `git diff 4af32635..HEAD -- test/` and the working-tree `test/` status are **both empty** — no test weakened. **4.3** Source diff is **UI-only/additive** — 2 new files (`ui/src/hooks/useFeed.js`, `ui/src/pages/BrainstormFeed.jsx`) + 2 edits (`ui/src/App.jsx` route+import, `ui/src/styles.css` `bsp-feed-*` block); no concept-definition/firmware files → **no firmware reinstall**; no `package.json`/lock change at root or `ui/` → **no new dependency**. **4.5** Implementer reported **no ADR deviation**. Minimal, additive, reversible: pure exported `renderFeedState` over the four states + defensive case, `FEED_COPY` constants, `formatTimestamp` (no date lib), array-order preserved, capped-width+wrap CSS.
+**Next:** Story 2, Review — spawn `reviewer` (fresh context) to audit the diff against story #2 + ADR 0002 + test plan and run quality gates; on PASS the Reviewer flips story #2 `**Status:** Done`. Then Gate 5 (judged). After Story 2's Gate 5, both stories are complete → **Stage 2 deploy** (`/cycle-local`, then `/cycle-staging`; UI rebuild + control-panel restart required).
+
+
 
 
 

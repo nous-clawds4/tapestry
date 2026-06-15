@@ -73,6 +73,7 @@ import BrainstormPersonalization from './pages/BrainstormPersonalization';
 import BrainstormHowSearchWorks from './pages/BrainstormHowSearchWorks';
 import BrainstormAbout from './pages/BrainstormAbout';
 import BrainstormDevelopers from './pages/BrainstormDevelopers';
+import BrainstormFeed from './pages/BrainstormFeed';
 import NotFound from './pages/NotFound';
 const router = createBrowserRouter([
   {
@@ -110,6 +111,10 @@ const router = createBrowserRouter([
   {
     path: '/about',
     element: <BrainstormAbout />,
+  },
+  {
+    path: '/feed',
+    element: <BrainstormFeed />,
   },
   {
     path: '/developers',
