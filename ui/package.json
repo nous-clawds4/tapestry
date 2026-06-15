@@ -8,7 +8,7 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test": "node src/lib/bountyToml.test.mjs && node src/lib/listToml.test.mjs"
+    "test": "node src/lib/bountyToml.test.mjs && node src/lib/listToml.test.mjs && node src/lib/listItemToml.test.mjs"
   },
   "dependencies": {
     "jsonjoy-builder": "^0.3.2",

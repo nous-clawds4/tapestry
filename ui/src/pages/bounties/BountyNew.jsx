@@ -43,6 +43,8 @@ export default function BountyNew() {
   const [bountyCapSats, setBountyCapSats] = useState(1000);
   const [rewardPerItem, setRewardPerItem] = useState(false);
   const [maxRewardsPerNpub, setMaxRewardsPerNpub] = useState('');
+  const [autoPay, setAutoPay] = useState(false);
+  const [autoPayMinRank, setAutoPayMinRank] = useState(3);
   const [criteria, setCriteria] = useState('');
   const [expiration, setExpiration] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -96,10 +98,13 @@ export default function BountyNew() {
   const amount = Number(amountSats);
   const cap = Number(bountyCapSats);
   const maxRewards = Number(maxRewardsPerNpub);
+  const minRank = Number(autoPayMinRank);
+  const canEnableAutoPay = user?.classification === 'owner' || user?.classification === 'admin';
   const valid = COORDINATE_RE.test(listCoordinate)
     && Number.isInteger(amount) && amount > 0
     && Number.isInteger(cap) && cap >= amount
     && (!rewardPerItem || maxRewardsPerNpub === '' || (Number.isInteger(maxRewards) && maxRewards > 0))
+    && (!autoPay || (canEnableAutoPay && Number.isInteger(minRank) && minRank > 0))
     && criteria.trim().length > 0;
 
   function handleAmountChange(value) {
@@ -117,6 +122,8 @@ export default function BountyNew() {
     setBountyCapSats(b.bountyCapSats);
     setRewardPerItem(b.rewardPerItem);
     setMaxRewardsPerNpub(b.maxRewardsPerNpub ?? '');
+    setAutoPay(canEnableAutoPay && !!b.autoPay);
+    setAutoPayMinRank(b.autoPayMinRank ?? 3);
     setCriteria(b.criteria);
     setExpiration(unixToLocalInput(b.expiration));
     setError(null);
@@ -170,6 +177,8 @@ export default function BountyNew() {
         bountyCapSats: cap,
         rewardPerItem,
         maxRewardsPerNpub: rewardPerItem && maxRewardsPerNpub !== '' ? maxRewards : undefined,
+        autoPay,
+        autoPayMinRank: autoPay ? minRank : undefined,
         criteria: criteria.trim(),
         expiration: expiration ? Math.floor(new Date(expiration).getTime() / 1000) : undefined,
       });
@@ -410,6 +419,37 @@ export default function BountyNew() {
               style={inputStyle}
             />
           </label>
+        )}
+
+        {canEnableAutoPay && (
+          <>
+            <label style={{ display: 'flex', gap: '0.6rem', alignItems: 'flex-start' }}>
+              <input
+                type="checkbox"
+                checked={autoPay}
+                onChange={e => setAutoPay(e.target.checked)}
+                style={{ marginTop: '0.2rem' }}
+              />
+              <span>
+                <span style={{ display: 'block', fontWeight: 600 }}>Auto-pay eligible claims</span>
+                <small style={{ opacity: 0.6 }}>Uses the server wallet and is limited by the instance spend cap.</small>
+              </span>
+            </label>
+
+            {autoPay && (
+              <label>
+                <div style={{ marginBottom: 4, fontWeight: 600 }}>Minimum rank for auto-pay</div>
+                <input
+                  type="number"
+                  min={1}
+                  step={1}
+                  value={autoPayMinRank}
+                  onChange={e => setAutoPayMinRank(e.target.value)}
+                  style={inputStyle}
+                />
+              </label>
+            )}
+          </>
         )}
 
         <label>

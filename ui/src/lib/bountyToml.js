@@ -23,6 +23,8 @@ const FIELD_ALIASES = {
   bountyCapSats: ['bounty_cap_sats', 'bountyCapSats', 'cap_sats', 'cap'],
   rewardPerItem: ['reward_per_item', 'rewardPerItem', 'reward_each_item'],
   maxRewardsPerNpub: ['max_rewards_per_npub', 'maxRewardsPerNpub', 'max_rewards_per_contributor', 'max_rewards'],
+  autoPay: ['auto_pay', 'autoPay', 'auto_pay_claims'],
+  autoPayMinRank: ['auto_pay_min_rank', 'autoPayMinRank', 'minimum_auto_pay_rank'],
   criteria: ['criteria', 'description'],
   expiration: ['expiration', 'expires', 'expires_at', 'expiry'],
 };
@@ -108,6 +110,21 @@ function normalizeOne(table) {
     }
   }
 
+  const rawAutoPay = pick(table, 'autoPay');
+  const autoPay = rawAutoPay === undefined ? false : asBoolean(rawAutoPay);
+  if (autoPay === undefined) {
+    return { error: 'auto_pay must be true or false' };
+  }
+
+  const rawAutoPayMinRank = pick(table, 'autoPayMinRank');
+  let autoPayMinRank = 3;
+  if (rawAutoPayMinRank !== undefined) {
+    autoPayMinRank = asInteger(rawAutoPayMinRank);
+    if (!Number.isInteger(autoPayMinRank) || autoPayMinRank <= 0) {
+      return { error: 'auto_pay_min_rank must be a positive integer' };
+    }
+  }
+
   const criteria = pick(table, 'criteria');
   if (typeof criteria !== 'string' || !criteria.trim()) {
     return { error: 'criteria is required' };
@@ -129,6 +146,8 @@ function normalizeOne(table) {
       bountyCapSats,
       rewardPerItem,
       maxRewardsPerNpub,
+      autoPay,
+      autoPayMinRank,
       criteria: criteria.trim(),
       expiration,
     },
@@ -207,12 +226,8 @@ export function buildClaudePrompt(lists = [], request = '') {
         'Here is what I want:',
         trimmedRequest,
         '',
-        'Draft the TOML now — do NOT ask me questions. I review and adjust every value in a',
-        'form before anything is published, so make reasonable choices and hand me a complete',
-        'block. Pick the list whose name best matches my request; if I have only one list, use',
-        'it. For anything I did not specify, use these defaults: base_reward_sats = 1000,',
-        'bounty_cap_sats = 10000, reward_per_item = false. Write a one-line criteria from my',
-        'request. Keep any prose to a sentence — the TOML is what matters.',
+        'If that is enough, reply with the TOML now. If a list, amount, or rule is ambiguous,',
+        'ask me one or two quick questions first, then give me the TOML.',
       ]
     : [
         '',
@@ -236,6 +251,8 @@ export function buildClaudePrompt(lists = [], request = '') {
     'bounty_cap_sats     = 5000                      # total budget before it closes; >= base_reward_sats',
     'reward_per_item     = false                     # false = at most one reward per contributor',
     'max_rewards_per_npub = 3                        # optional; ONLY when reward_per_item = true',
+    'auto_pay           = false                      # optional; owner/admin only, server wallet spend',
+    'auto_pay_min_rank  = 3                          # optional; only used when auto_pay = true',
     'criteria            = "What earns the reward."  # required',
     'expiration          = 2026-07-01T00:00:00Z      # optional ISO-8601 datetime, or omit',
     '```',
