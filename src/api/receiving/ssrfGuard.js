@@ -40,15 +40,6 @@ function extractTarget(value) {
   return { kind: 'lud16', host: parts.domain.replace(/:\d+$/, ''), scheme: 'https' };
 }
 
-function extractUrlTarget(value, kind = 'url') {
-  let u;
-  try { u = new URL(value); } catch { return { error: 'invalid URL' }; }
-  if (u.protocol !== 'https:' && u.protocol !== 'http:') {
-    return { error: 'only http(s) URLs are allowed' };
-  }
-  return { kind, host: u.hostname, scheme: u.protocol.replace(/:$/, '') };
-}
-
 /** True if an IPv4 dotted-quad falls in a loopback / private / reserved range. */
 function ipv4Blocked(ip) {
   const o = ip.split('.').map(Number);
@@ -101,8 +92,9 @@ function lookupAll(host) {
  * @param {boolean} [opts.allowPrivate] override the NODE_ENV gate (tests)
  * @returns {Promise<{ok:true, host:string, kind:string, addresses:string[]} | {ok:false, error:string, status:number}>}
  */
-async function checkTarget(t, opts = {}) {
+async function checkReceivingTarget(value, opts = {}) {
   const allowPrivate = opts.allowPrivate ?? !isProd();
+  const t = extractTarget(value);
   if (t.error) return { ok: false, error: t.error, status: 400 };
   if (!allowPrivate && t.scheme !== 'https') {
     return { ok: false, error: 'only https LNURL endpoints are allowed', status: 400 };
@@ -119,19 +111,4 @@ async function checkTarget(t, opts = {}) {
   return { ok: true, host: t.host, kind: t.kind, addresses };
 }
 
-async function checkReceivingTarget(value, opts = {}) {
-  return checkTarget(extractTarget(value), opts);
-}
-
-async function checkUrlTarget(url, opts = {}) {
-  return checkTarget(extractUrlTarget(url, opts.kind || 'url'), opts);
-}
-
-module.exports = {
-  checkReceivingTarget,
-  checkUrlTarget,
-  extractTarget,
-  extractUrlTarget,
-  ipv4Blocked,
-  isBlockedAddress,
-};
+module.exports = { checkReceivingTarget, isBlockedAddress, ipv4Blocked, extractTarget };

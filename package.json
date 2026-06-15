@@ -10,9 +10,7 @@
     "brainstorm-init-db": "./bin/init-db.sh"
   },
   "scripts": {
-    "test": "node test/test.js && node test/auto-pay.test.js && node test/wallet.test.js",
-    "test:auto-pay": "node test/auto-pay.test.js",
-    "test:wallet": "node test/wallet.test.js",
+    "test": "node test/test.js",
     "test:receiving": "node test/receiving.test.js",
     "test:receiving:api": "node test/receiving.api.test.js",
     "test:receiving:e2e": "node test/receiving.e2e.js",
@@ -22,7 +20,6 @@
     "test:playwright": "playwright test",
     "test:playwright:ui": "playwright test --ui",
     "test:playwright:headed": "playwright test --headed",
-    "test:bounties": "BOUNTY_E2E=1 playwright test tests/bounties/bounty-payment.spec.js --project=chromium --headed",
     "publish": "node --expose-gc --max-old-space-size=4096 bin/publish.js",
     "control-panel": "node bin/control-panel.js",
     "install-brainstorm": "node bin/install.js",
@@ -61,7 +58,6 @@
   "homepage": "https://github.com/Prett-Good-Freedom-Tech/brainstorm#readme",
   "dependencies": {
     "@graperank/calculator": "^0.2.2",
-    "@moneydevkit/agent-wallet": "^0.20.0",
     "@nostr-dev-kit/ndk": "^2.12.0",
     "adm-zip": "^0.5.16",
     "ajv": "^8.18.0",
@@ -79,7 +75,6 @@
     "fs": "^0.0.1-security",
     "ioredis": "^5.10.1",
     "js-yaml": "^4.1.1",
-    "light-bolt11-decoder": "^3.2.0",
     "lmdb": "^3.5.2",
     "multer": "^1.4.5-lts.1",
     "neo4j-driver": "^5.28.1",

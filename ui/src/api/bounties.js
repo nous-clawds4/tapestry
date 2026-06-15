@@ -22,8 +22,6 @@ export async function createBounty({
   bountyCapSats,
   rewardPerItem,
   maxRewardsPerNpub,
-  autoPay,
-  autoPayMinRank,
   criteria,
   expiration,
 }) {
@@ -37,8 +35,6 @@ export async function createBounty({
       bountyCapSats,
       rewardPerItem,
       maxRewardsPerNpub,
-      autoPay,
-      autoPayMinRank,
       criteria,
       expiration,
     }),

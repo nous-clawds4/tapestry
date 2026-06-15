@@ -46,14 +46,6 @@ function claimCreatedAt(claim) {
   return Number(claim?.event?.created_at) || 0;
 }
 
-function autoPaymentState(claim) {
-  return claim?.autoPayment?.state ?? null;
-}
-
-function suppressesDuplicatePayment(claim) {
-  return ['attempting', 'paid', 'settled', 'paid_unreceipted'].includes(autoPaymentState(claim));
-}
-
 function compareClaims(a, b) {
   const byCreatedAt = claimCreatedAt(a) - claimCreatedAt(b);
   if (byCreatedAt !== 0) return byCreatedAt;
@@ -72,10 +64,8 @@ function publicPaymentState(state) {
     maxRewardsPerNpub: Number.isFinite(state.maxRewardsPerNpub) ? state.maxRewardsPerNpub : null,
     totalRewardSlots: state.totalRewardSlots,
     paidRewardCount: state.paidRewardCount,
-    heldRewardCount: state.heldRewardCount,
     remainingRewardSlots: state.remainingRewardSlots,
     payableRewardCount: state.payableClaims.length,
-    reconciliationRewardCount: state.reconciliationClaims.length,
     openRewardSlots: state.openRewardSlots,
     fulfilled: state.fulfilled,
   };
@@ -85,8 +75,6 @@ function calculateBountyPaymentState(bounty, claims = []) {
   const policy = bountyPolicy(bounty);
   const sortedClaims = [...claims].sort(compareClaims);
   const paidClaims = [];
-  const heldClaims = [];
-  const reconciliationClaims = [];
   const unpaidClaims = [];
   const paidByPubkey = new Map();
 
@@ -94,19 +82,13 @@ function calculateBountyPaymentState(bounty, claims = []) {
     if (claim.zapReceipt) {
       paidClaims.push(claim);
       increment(paidByPubkey, claimPubkey(claim));
-    } else if (suppressesDuplicatePayment(claim)) {
-      heldClaims.push(claim);
-      if (autoPaymentState(claim) === 'paid_unreceipted') reconciliationClaims.push(claim);
-      increment(paidByPubkey, claimPubkey(claim));
     } else {
       unpaidClaims.push(claim);
     }
   }
 
   const paidRewardCount = paidClaims.length;
-  const heldRewardCount = heldClaims.length;
-  const consumedRewardSlots = paidRewardCount + heldRewardCount;
-  const remainingRewardSlots = Math.max(0, policy.totalRewardSlots - consumedRewardSlots);
+  const remainingRewardSlots = Math.max(0, policy.totalRewardSlots - paidRewardCount);
   let openRewardSlots = remainingRewardSlots;
   const reservedByPubkey = new Map(paidByPubkey);
   const payableClaims = [];
@@ -141,13 +123,10 @@ function calculateBountyPaymentState(bounty, claims = []) {
     maxRewardsPerNpub: policy.maxRewardsPerNpub,
     totalRewardSlots: policy.totalRewardSlots,
     paidRewardCount,
-    heldRewardCount,
     remainingRewardSlots,
     openRewardSlots,
     fulfilled: policy.totalRewardSlots > 0 && paidRewardCount >= policy.totalRewardSlots,
     paidClaims,
-    heldClaims,
-    reconciliationClaims,
     payableClaims,
     closedClaims,
     paidByPubkey,
@@ -163,16 +142,6 @@ function annotateClaimsWithPaymentState(claims = [], state) {
     const id = claimId(claim);
     if (claim.zapReceipt) {
       return { ...claim, paymentStatus: 'paid', paymentAmountSats: state.rewardAmountSats };
-    }
-    if (suppressesDuplicatePayment(claim)) {
-      const autoState = autoPaymentState(claim);
-      return {
-        ...claim,
-        paymentStatus: autoState,
-        paymentAmountSats: state.rewardAmountSats,
-        duplicatePaymentSuppressed: true,
-        reconciliationRequired: autoState === 'paid_unreceipted',
-      };
     }
     const payable = payableById.get(id);
     if (payable) return payable;
@@ -194,10 +163,8 @@ function canAcceptNewClaimFrom(state, pubkey) {
 
 module.exports = {
   annotateClaimsWithPaymentState,
-  autoPaymentState,
   bountyPolicy,
   calculateBountyPaymentState,
   canAcceptNewClaimFrom,
   publicPaymentState,
-  suppressesDuplicatePayment,
 };

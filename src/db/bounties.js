@@ -31,8 +31,6 @@ db.exec(`
     bounty_cap_sats INTEGER NOT NULL CHECK (bounty_cap_sats > 0),
     reward_per_item INTEGER NOT NULL DEFAULT 0 CHECK (reward_per_item IN (0,1)),
     max_rewards_per_npub INTEGER CHECK (max_rewards_per_npub IS NULL OR max_rewards_per_npub > 0),
-    auto_pay       INTEGER NOT NULL DEFAULT 0 CHECK (auto_pay IN (0,1)),
-    auto_pay_min_rank INTEGER NOT NULL DEFAULT 3 CHECK (auto_pay_min_rank > 0),
     criteria        TEXT NOT NULL,
     expiration      INTEGER,
     created_at      INTEGER NOT NULL,
@@ -51,32 +49,22 @@ function ensureBountyColumn(name, alterSql) {
 ensureBountyColumn('bounty_cap_sats', 'ALTER TABLE bounties ADD COLUMN bounty_cap_sats INTEGER');
 ensureBountyColumn('reward_per_item', 'ALTER TABLE bounties ADD COLUMN reward_per_item INTEGER NOT NULL DEFAULT 0');
 ensureBountyColumn('max_rewards_per_npub', 'ALTER TABLE bounties ADD COLUMN max_rewards_per_npub INTEGER');
-ensureBountyColumn('auto_pay', 'ALTER TABLE bounties ADD COLUMN auto_pay INTEGER NOT NULL DEFAULT 0');
-ensureBountyColumn('auto_pay_min_rank', 'ALTER TABLE bounties ADD COLUMN auto_pay_min_rank INTEGER NOT NULL DEFAULT 3');
 db.exec('UPDATE bounties SET bounty_cap_sats = amount_sats WHERE bounty_cap_sats IS NULL');
 
 const insertStmt = db.prepare(`
   INSERT INTO bounties (
     id, issuer_pubkey, list_coordinate, amount_sats, bounty_cap_sats,
-    reward_per_item, max_rewards_per_npub, auto_pay, auto_pay_min_rank,
-    criteria, expiration, created_at, status
+    reward_per_item, max_rewards_per_npub, criteria, expiration, created_at, status
   )
   VALUES (
     @id, @issuer_pubkey, @list_coordinate, @amount_sats, @bounty_cap_sats,
-    @reward_per_item, @max_rewards_per_npub, @auto_pay, @auto_pay_min_rank,
-    @criteria, @expiration, @created_at, 'open'
+    @reward_per_item, @max_rewards_per_npub, @criteria, @expiration, @created_at, 'open'
   )
 `);
 const selectOpenStmt = db.prepare(`
   SELECT * FROM bounties
   WHERE status = 'open' AND (expiration IS NULL OR expiration > @now)
   ORDER BY amount_sats DESC
-  LIMIT @limit
-`);
-const selectAutoPayOpenStmt = db.prepare(`
-  SELECT * FROM bounties
-  WHERE status = 'open' AND auto_pay = 1 AND (expiration IS NULL OR expiration > @now)
-  ORDER BY created_at ASC
   LIMIT @limit
 `);
 const selectAllStmt = db.prepare(`SELECT * FROM bounties ORDER BY amount_sats DESC LIMIT @limit`);
@@ -91,8 +79,6 @@ function createBounty({
   bountyCapSats,
   rewardPerItem = false,
   maxRewardsPerNpub = null,
-  autoPay = false,
-  autoPayMinRank = 3,
   criteria,
   expiration,
 }) {
@@ -105,8 +91,6 @@ function createBounty({
     bounty_cap_sats: bountyCapSats ?? amountSats,
     reward_per_item: rewardPerItem ? 1 : 0,
     max_rewards_per_npub: rewardPerItem ? maxRewardsPerNpub : null,
-    auto_pay: autoPay ? 1 : 0,
-    auto_pay_min_rank: autoPay ? autoPayMinRank : 3,
     criteria,
     expiration: expiration ?? null,
     created_at: Math.floor(Date.now() / 1000),
@@ -118,11 +102,6 @@ function createBounty({
 function listOpenBounties({ limit = 100 } = {}) {
   const now = Math.floor(Date.now() / 1000);
   return selectOpenStmt.all({ now, limit });
-}
-
-function listAutoPayOpenBounties({ limit = 100 } = {}) {
-  const now = Math.floor(Date.now() / 1000);
-  return selectAutoPayOpenStmt.all({ now, limit });
 }
 
 function listAllBounties({ limit = 100 } = {}) {
@@ -153,7 +132,6 @@ module.exports = {
   db,
   dbPath,
   createBounty,
-  listAutoPayOpenBounties,
   listOpenBounties,
   listAllBounties,
   getBounty,

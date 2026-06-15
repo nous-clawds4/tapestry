@@ -498,12 +498,6 @@ async function register(app) {
     // ── Bounties API (Magic Carpet v2) ──
     const bountiesApi = require('./bounties');
     bountiesApi.register(app);
-    const { startAutoPayWatcher } = require('../services/autoPayWatcher');
-    startAutoPayWatcher();
-
-    // ── Receiving-method setup API (Magic Carpet v2) ──
-    const receivingApi = require('./receiving');
-    receivingApi.register(app);
 
     // ── Receiving-method setup API (Magic Carpet v2) ──
     const receivingApi = require('./receiving');
