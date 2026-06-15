@@ -1,6 +1,6 @@
 # Story 4: Report Type and Timestamp columns on the Verified Reporters list
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-06-15
 **Type:** Feature
 **Epic:** `verified-reporters` · **Book:** `engineering-team/audits/verified-reporters/book.md`
@@ -50,4 +50,4 @@ Testable from the outside (input → expected behavior).
 ## Linked artifacts
 - ADR: `engineering-team/decisions/verified-reporters/0004-reporters-report-type-and-timestamp-columns.md` (Accepted)
 - Test plan: `engineering-team/stories/verified-reporters/4-reporters-report-type-and-timestamp-columns.test-plan.md` (suite `test/verified-reporters-report-columns.test.js` + Playwright `tests/brainstorm/profile-verified-reporters-columns.spec.js`)
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/verified-reporters/4-reporters-report-type-and-timestamp-columns.md` — **PASS** (2026-06-15)
