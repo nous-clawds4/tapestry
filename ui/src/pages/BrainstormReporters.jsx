@@ -6,6 +6,8 @@ import BrainstormUserMenu from '../components/BrainstormUserMenu';
 import DataTable from '../components/DataTable';
 import useGrapevineReporters from '../hooks/useGrapevineReporters';
 import VerificationInfo from '../components/VerificationInfo';
+import { formatTimeAgo } from '../utils/timeAgo';
+import { humanizeReportType } from '../utils/reportType';
 
 /* ── Helpers ──────────────────────────────────────────── */
 
@@ -22,7 +24,8 @@ const PAGE_SIZE = 50;
 // the pages do not clobber each other's column-visibility prefs.
 const STORAGE_KEY = 'bsp-reporters-columns';
 
-// Column definitions + default visibility (pic/name/rank shown; the rest hidden).
+// Column definitions + default visibility (pic/report-type/rank shown; the rest hidden).
+// Report Type and Reported are report-only (NIP-56) — they have no follows/mutes analogue.
 const ALL_COLUMNS = [
   { key: 'picture', label: '', sortable: false, render: (_v, row) => (
     row.picture
@@ -30,7 +33,11 @@ const ALL_COLUMNS = [
       : <div className="bsp-follows-avatar bsp-follows-avatar-ph">{(row.name || '?')[0].toUpperCase()}</div>
   ) },
   { key: 'name', label: 'Name', render: v => v || '—' },
+  { key: 'reportType', label: 'Report Type', render: v => humanizeReportType(v) },
   { key: 'rank', label: 'Rank', render: v => (v == null ? '—' : v) },
+  // Displays relative "ago" text but sorts by the raw unix integer (sortValue);
+  // a missing timestamp renders an empty cell and sorts last in both directions.
+  { key: 'timestamp', label: 'Reported', sortValue: row => row.timestamp, render: v => (v == null ? '' : formatTimeAgo(v)) },
   { key: 'npub', label: 'npub', render: v => <code className="bsp-follows-npub">{shortNpub(v)}</code> },
   { key: 'hops', label: 'Hops', render: v => (v == null ? '—' : v) },
   { key: 'verifiedFollowerCount', label: 'Verified Followers', render: v => (v == null ? '—' : v) },
@@ -38,7 +45,8 @@ const ALL_COLUMNS = [
   { key: 'verifiedReporterCount', label: 'Verified Reporters', render: v => (v == null ? '—' : v) },
 ];
 const DEFAULT_VISIBLE = {
-  picture: true, name: true, rank: true,
+  picture: true, reportType: true, rank: true,
+  name: false, timestamp: false,
   npub: false, hops: false,
   verifiedFollowerCount: false, verifiedMuterCount: false, verifiedReporterCount: false,
 };
@@ -109,6 +117,8 @@ export default function BrainstormReporters() {
         verifiedFollowerCount: f.verifiedFollowerCount,
         verifiedMuterCount: f.verifiedMuterCount,
         verifiedReporterCount: f.verifiedReporterCount,
+        reportType: f.reportType ?? null,
+        timestamp: f.timestamp == null ? null : Number(f.timestamp),
       };
     });
     // Default sort: Rank (credibility), descending — most credible reporters first.
@@ -128,6 +138,13 @@ export default function BrainstormReporters() {
   }, [rows, search]);
 
   const columns = useMemo(() => ALL_COLUMNS.filter(c => visible[c.key]), [visible]);
+
+  // Report-centric summary: each row is one report, so the row count is the number of
+  // reports while distinct pubkeys are the number of reporters. Showing both ("8
+  // reporters, 10 reports") explains why the row count can exceed the profile badge.
+  // Derived from the full row set, independent of the search box.
+  const reportCount = rows.length;
+  const reporterCount = useMemo(() => new Set(rows.map(r => r.pubkey)).size, [rows]);
 
   return (
     <div className="bsp-page">
@@ -151,6 +168,11 @@ export default function BrainstormReporters() {
         <p className="bsp-follows-subtitle">Verified users who have reported this account.</p>
         {/* v1 data is Owner-PoV (Neo4j), so the owner's web of trust is the honest attribution (ADR 0031). */}
         <p className="bsp-follows-pov">Relative to the owner's web of trust.</p>
+        {rows.length > 0 && (
+          <p className="bsp-follows-summary">
+            {reporterCount} {reporterCount === 1 ? 'reporter' : 'reporters'}, {reportCount} {reportCount === 1 ? 'report' : 'reports'}
+          </p>
+        )}
 
         {/* Controls: search + columns toggle */}
         <div className="bsp-follows-controls">

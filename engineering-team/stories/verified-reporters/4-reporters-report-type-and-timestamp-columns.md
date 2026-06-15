@@ -44,6 +44,9 @@ Testable from the outside (input → expected behavior).
 ## Open questions
 - None blocking. (Cardinality of `REPORTS` edges is intentionally not gated on — the table mirrors whatever the graph returns. Membership-endpoint behavior confirmed: binding the relationship to return its properties adds per-report fields without changing which reporters appear.)
 
+## Deviations
+- **Implementer (2026-06-15):** worded the `reportersWithMetrics.js` comment to avoid the literal token "distinct" — the T12 no-dedup guard matches `/\bDISTINCT\b/i` case-insensitively over the whole source, so prose using "distinct"/"No DISTINCT" tripped it even though the Cypher has none. Behavior unchanged; comment now says "no de-duplication / aggregation" and "more than one report type".
+
 ## Linked artifacts
 - ADR: `engineering-team/decisions/verified-reporters/0004-reporters-report-type-and-timestamp-columns.md` (Accepted)
 - Test plan: `engineering-team/stories/verified-reporters/4-reporters-report-type-and-timestamp-columns.test-plan.md` (suite `test/verified-reporters-report-columns.test.js` + Playwright `tests/brainstorm/profile-verified-reporters-columns.spec.js`)
