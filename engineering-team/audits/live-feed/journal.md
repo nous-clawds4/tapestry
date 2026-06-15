@@ -64,6 +64,14 @@ These are suggested canonical strings; exact punctuation is non-binding so long 
 **Why:** I concur. The tests pin the story's externally-observable contract and fail for exactly the right reason. **This Gate-3 commit is the baseline for the Gate-4 mechanical check** — `git diff <this-commit>..HEAD -- test/` must be empty after Implementation (no test weakening). SHA recorded immediately below.
 **Next:** Story 1, Implementation — spawn `implementer` to make the 23 tests pass with minimum code honoring the story + amended ADR; then Gate 4 (mechanical: I rerun the full `npm test` + verify the test-dir diff is empty).
 
+## 2026-06-15T02:05:00Z — Gate 4 (Implementation) — mechanical, verified by Director
+**Story/Phase:** live-feed #1 (feed-read-path) / Gate 4 (Implementation — mechanical)
+**Decision:** APPROVE
+**Judge:** n/a (Gate 4 is mechanical — no judge; the Director verifies).
+**Why:** I ran every check myself. **4.1** Full `npm test` (identical Stage-0 baseline command) → **Overall PASS**, **416 tests** (393 baseline + 23 new); `live-feed-read-path` PASS 23/23, all 34 pre-existing suites still PASS. **4.2** `git diff 9c5a0035..HEAD -- test/` (Gate-3 baseline `9c5a0035`) and the working-tree `test/` diff are **both empty** — no test weakened in any intermediate commit. **4.3** No concept definitions changed (source diff is only `src/api/index.js` + new `src/api/feed/feedReadPath.js`) → **no firmware reinstall** needed; `package.json`/`package-lock.json` untouched → **no new dependency**. **4.5** Implementer reported **no ADR deviation** (design satisfied all 23 tests as specified; nothing to route back to the Architect → no contribution to Stopping rule 3). Implementation is minimal and additive: `buildFeed`/`handleGetFeed` honoring the four-outcome union + `relaySource` discriminator + injectable-deps seam, route registered alongside `/api/profiles` and `/api/relay/external`; read-only, reversible.
+**Next:** Story 1, Review — spawn `reviewer` (fresh context, never the Implementer's) to audit the diff against story + amended ADR + test plan and run the quality gates; on PASS the Reviewer flips the story `**Status:** Done` in the review commit. Then Gate 5 (judged).
+
+
 
 
 
