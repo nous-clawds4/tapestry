@@ -95,6 +95,6 @@ Resolved at Planning by the operator's acceptance frame and two pre-resolved dec
 None outstanding for this story.
 
 ## Linked artifacts
-- ADR: (filled in after Architecture phase)
-- Test plan: (filled in after Test Design phase)
+- ADR: `engineering-team/decisions/live-feed/0001-feed-read-path-endpoint.md`
+- Test plan: `engineering-team/stories/live-feed/1-feed-read-path.test-plan.md`
 - Review: (filled in after Review phase)
