@@ -139,9 +139,10 @@ export default function BrainstormReporters() {
 
   const columns = useMemo(() => ALL_COLUMNS.filter(c => visible[c.key]), [visible]);
 
-  // Report-centric summary: each row is one report, so the row count is the number of
-  // reports while distinct pubkeys are the number of reporters. Showing both ("8
-  // reporters, 10 reports") explains why the row count can exceed the profile badge.
+  // Report-centric summary: each row is one report (one REPORTS edge). reportCount (M) is
+  // the number of reports; reporterCount (N) is the number of distinct reporters, so N <= M.
+  // The profile badge also counts edges, so it tracks M (≈ the row count, modulo Meili/Neo4j
+  // refresh skew) — showing "N reporters, M reports" makes the people-vs-reports gap explicit.
   // Derived from the full row set, independent of the search box.
   const reportCount = rows.length;
   const reporterCount = useMemo(() => new Set(rows.map(r => r.pubkey)).size, [rows]);
