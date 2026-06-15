@@ -1,9 +1,9 @@
 # Book of Work: Live feed (kind-1 notes from follows)
 
 **Slug:** live-feed
-**Status:** Open
+**Status:** Closed
 **Opened:** 2026-06-14
-**Closed:** —
+**Closed:** 2026-06-15
 
 ## Intent anchor
 **Acceptance frame (no PRD)** — the operator's ask, restated and confirmed at kickoff. Completion is *judged* against the bullets below.
@@ -94,7 +94,7 @@ Executed **only on the operator's explicit instruction** after reviewing the HAL
 
 ## Provenance
 - **Mode:** Acceptance-frame
-- **Confidence at close:** *(to be filled by `/close-book`)*
+- **Confidence at close:** **high** — all 8 acceptance-frame bullets met and independently re-verified on staging (final blinded gate-judge APPROVE; PR #296 / deploy `27518919488`). Built end-to-end through the per-story harness under Direction mode: 2 stories, 11 judged-gate APPROVEs + 2 mechanical PASSes, 1 gate-judge KICK_BACK (Gate 2 story #2 — resolved on re-judge), 1 ADR amendment (story #1 testability seam), 0 ceiling breaches; deadline not reached.
 
 ## Close artifacts *(filled by `/close-book`)*
 - Build audit: `engineering-team/audits/live-feed/audit.md`
