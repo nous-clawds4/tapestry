@@ -49,8 +49,8 @@ For the Architect:
 ## Linked artifacts
 - Design context: [`docs/PROFILE_IA_REVIEW_2026-06-16.md`](../../../docs/PROFILE_IA_REVIEW_2026-06-16.md) (the deferred "Story B" sibling).
 - Related ADRs (pattern precedent): `engineering-team/decisions/profile/0032-verified-counts-explainer-and-alarm.md` (the shared information-popover pattern this should stay consistent with), `engineering-team/decisions/profile/0030-profile-website-link-scheme.md` (the website link behavior that must be preserved).
-- ADR: `engineering-team/decisions/profile/0033-identity-details-popover.md` (Proposed)
-- Test plan: (filled in after Test Design phase)
+- ADR: `engineering-team/decisions/profile/0033-identity-details-popover.md` (Accepted)
+- Test plan: `engineering-team/stories/profile/37-identity-details-popover.test-plan.md` (suite `test/profile-identity-details-popover.test.js`, wired into `test/test.js`)
 - Review: (filled in after Review phase)
 
 ## House constraints (carried from intake)

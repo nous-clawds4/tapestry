@@ -1,6 +1,6 @@
 # ADR 0033: Profile identity details popover
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-06-16
 **Story:** `engineering-team/stories/profile/37-identity-details-popover.md`
 **Epic:** `profile`

@@ -60,6 +60,7 @@ const reputationInfoPopup = require('./reputation-info-popup.test.js');
 const liveFeedReadPath = require('./live-feed-read-path.test.js');
 const liveFeedFeedPage = require('./live-feed-feed-page.test.js');
 const verifiedReportersReportColumns = require('./verified-reporters-report-columns.test.js');
+const profileIdentityDetailsPopover = require('./profile-identity-details-popover.test.js');
 
 async function main() {
   console.log('Running Brainstorm tests...\n');
@@ -178,6 +179,9 @@ async function main() {
   console.log('\nverified-reporters-report-columns suite:');
   const verifiedReportersReportColumnsResult = await verifiedReportersReportColumns.run();
 
+  console.log('\nprofile-identity-details-popover suite:');
+  const profileIdentityDetailsPopoverResult = await profileIdentityDetailsPopover.run();
+
   console.log('\nTest Results');
   console.log('-------------');
   console.log(`Configuration Loading:                           ${configOk ? 'PASS' : 'FAIL'}`);
@@ -292,6 +296,9 @@ async function main() {
   console.log(
     `verified-reporters-report-columns suite:         ${verifiedReportersReportColumnsResult.fail === 0 ? 'PASS' : 'FAIL'} (${verifiedReportersReportColumnsResult.pass} passed, ${verifiedReportersReportColumnsResult.fail} failed)`
   );
+  console.log(
+    `profile-identity-details-popover suite:          ${profileIdentityDetailsPopoverResult.fail === 0 ? 'PASS' : 'FAIL'} (${profileIdentityDetailsPopoverResult.pass} passed, ${profileIdentityDetailsPopoverResult.fail} failed)`
+  );
 
   const overallOk =
     configOk &&
@@ -331,7 +338,8 @@ async function main() {
     reputationInfoPopupResult.fail === 0 &&
     liveFeedReadPathResult.fail === 0 &&
     liveFeedFeedPageResult.fail === 0 &&
-    verifiedReportersReportColumnsResult.fail === 0;
+    verifiedReportersReportColumnsResult.fail === 0 &&
+    profileIdentityDetailsPopoverResult.fail === 0;
   console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);
   process.exit(overallOk ? 0 : 1);
 }
