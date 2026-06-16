@@ -59,5 +59,5 @@ These were decided by the requester this session and the Architect should honor 
 
 ## Linked artifacts
 - ADR: `engineering-team/decisions/profile/0034-profile-follows-hops.md`
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/profile/38-profile-follows-hops.test-plan.md`
 - Review: (filled in after Review phase)

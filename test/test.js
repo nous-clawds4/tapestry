@@ -95,6 +95,7 @@ const liveFeedReadPath = require('./live-feed-read-path.test.js');
 const liveFeedFeedPage = require('./live-feed-feed-page.test.js');
 const verifiedReportersReportColumns = require('./verified-reporters-report-columns.test.js');
 const profileIdentityDetailsPopover = require('./profile-identity-details-popover.test.js');
+const profileFollowsHops = require('./profile-follows-hops.test.js');
 
 async function main() {
   console.log('Running Brainstorm tests...');
@@ -252,6 +253,9 @@ async function main() {
 
   console.log('\nprofile-identity-details-popover suite:');
   const profileIdentityDetailsPopoverResult = await profileIdentityDetailsPopover.run();
+
+  console.log('\nprofile-follows-hops suite:');
+  const profileFollowsHopsResult = await profileFollowsHops.run();
 
   console.log('\nTest Results');
   console.log('-------------');
@@ -430,6 +434,9 @@ async function main() {
   console.log(
     `profile-identity-details-popover suite:          ${profileIdentityDetailsPopoverResult.fail === 0 ? 'PASS' : 'FAIL'} (${profileIdentityDetailsPopoverResult.pass} passed, ${profileIdentityDetailsPopoverResult.fail} failed)`
   );
+  console.log(
+    `profile-follows-hops suite:                      ${profileFollowsHopsResult.fail === 0 ? 'PASS' : 'FAIL'} (${profileFollowsHopsResult.pass} passed, ${profileFollowsHopsResult.fail} failed)`
+  );
 
   const overallOk =
     configOk &&
@@ -502,7 +509,8 @@ async function main() {
     liveFeedReadPathResult.fail === 0 &&
     liveFeedFeedPageResult.fail === 0 &&
     verifiedReportersReportColumnsResult.fail === 0 &&
-    profileIdentityDetailsPopoverResult.fail === 0;
+    profileIdentityDetailsPopoverResult.fail === 0 &&
+    profileFollowsHopsResult.fail === 0;
   console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);
   process.exit(overallOk ? 0 : 1);
 }
