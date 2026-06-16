@@ -11,15 +11,16 @@ The credible negative trust signal on the profile: a point-of-view-filtered coun
 ## Stories
 `stories/verified-reporters/` — dependency-ordered (see `product-team/stories-queue.md`):
 
-1. **verified-reporters-count** — elevate the existing per-PoV count into a clickable, negative-signal count in the profile counts row, linking to the list. *(this story; uses data that already exists)*
-2. **verified-reporters-membership-data** — the net-new data capability: the identities of the verified reporters under the viewer's PoV (so the list and count agree). *(queued)*
-3. **verified-reporters-list-page** — the `/user/:pubkey/reporters` page, mirroring the follows list, sorted by Rank desc, with PoV attribution. *(queued; depends on #2)*
+1. **verified-reporters-count** — elevate the existing per-PoV count into a clickable, negative-signal count in the profile counts row, linking to the list. *(done)*
+2. **verified-reporters-membership-data** — the net-new data capability: the identities of the verified reporters under the viewer's PoV (so the list and count agree). *(done)*
+3. **verified-reporters-list-page** — the `/user/:pubkey/reporters` page, mirroring the follows list, sorted by Rank desc, with PoV attribution. *(done)*
+4. **reporters-report-type-and-timestamp-columns** — add **Report Type** + **Reported** (timestamp) columns to the reporters table, sourced from the `REPORTS` edge's `report_type`/`timestamp`; default columns → Picture/Report Type/Rank; Reported displays "ago" text but sorts by the raw unix integer; "N reporters, M reports" summary; report-centric (one row per edge, no de-dup). *(done — 2026-06-15, prod; ADR 0004)*
 
 ## ADRs
-`decisions/verified-reporters/` — none yet.
+`decisions/verified-reporters/` — 0001 (count), 0002 (membership data), 0003 (list page), 0004 (report-type + timestamp columns).
 
 ## Related
 - The `profile` epic (story 29, `profile-follows-list`) established the follows list + `DataTable` + "About this data" pattern this epic mirrors for the reporters list.
 
 ## Deferred (later phases, not this epic)
-Report-type breakdown (Phase 2); pile-on resistance (Phase 3); self-view privacy controls, web-of-trust education, and the shared counts-row PoV indicator (Phase 4); moderator / transaction-vetting surfaces (Phase 5).
+Report-type breakdown (Phase 2) — **partially shipped in #4**: each report's type + timestamp now surface per row; per-type filtering/grouping/breakdown UI is still deferred. Pile-on resistance (Phase 3); self-view privacy controls, web-of-trust education, and the shared counts-row PoV indicator (Phase 4); moderator / transaction-vetting surfaces (Phase 5).
