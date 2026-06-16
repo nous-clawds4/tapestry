@@ -1,0 +1,45 @@
+# Search-quality evaluation gate (story #7, ADR 0004).
+#
+# DELIBERATELY NON-REQUIRED in v1. This workflow runs and reports, but is NOT a
+# merge-blocking required check. Promoting it to a required gate is a
+# process-contract decision tracked in the separate, independently-ratifiable
+# harness-contract ADR — not bundled into this feature. (Authorized as net-new
+# tooling by ADR 0004 per the CLAUDE.md "no new tooling without an ADR" rule.)
+name: search-eval
+
+on:
+  pull_request:
+    paths:
+      - 'nostr-search/**'
+      - 'src/api/search/**'
+
+jobs:
+  search-eval:
+    runs-on: ubuntu-latest
+    services:
+      meilisearch:
+        # Pinned to v1.12.8 to match docker-compose.yml (ADR 0004 — the engine
+        # version is part of what the harness measures against).
+        image: getmeili/meilisearch:v1.12.8
+        env:
+          MEILI_NO_ANALYTICS: 'true'
+          MEILI_ENV: development
+        ports:
+          - 7700:7700
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # Hermetic unit suite — always meaningful, no live stack required.
+      - name: Unit suite (includes the search-eval pure tests)
+        run: npm test
+
+      # Full eval run against the pinned Meilisearch service + fixture corpus.
+      # continue-on-error keeps this informational in v1 (non-required).
+      - name: Search-quality eval (informational)
+        continue-on-error: true
+        env:
+          MEILI_URL: http://localhost:7700
+        run: node nostr-search/eval/runner.js

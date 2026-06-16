@@ -1,0 +1,7 @@
+{
+  "metric": "recall@10+mrr",
+  "k": 10,
+  "baseline": null,
+  "tolerance": 0.0,
+  "_note": "baseline is null until the first full run on the calibrated gold set produces numbers (story #7 Open Questions). evaluateGate treats a null baseline as 0, so the gate is non-blocking (always PASS) until a real baseline is committed. Setting the number is a deliberate post-Implementation step, not code."
+}

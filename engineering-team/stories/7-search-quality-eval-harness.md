@@ -90,5 +90,5 @@ Non-blocking for story approval; flagged so they aren't lost:
 - ADR: `engineering-team/decisions/0004-search-quality-eval-harness.md` — Accepted 2026-05-17
 - Separate harness-contract ADR: tracked independently of this story; not a
   blocker for it
-- Test plan: (filled after Test Design phase)
+- Test plan: `engineering-team/stories/7-search-quality-eval-harness.test-plan.md`
 - Review: (filled after Review phase)

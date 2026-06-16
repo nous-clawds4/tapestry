@@ -1,0 +1,31 @@
+[
+  {
+    "id": "1111111111111111111111111111111111111111111111111111111111111111",
+    "pubkey": "1111111111111111111111111111111111111111111111111111111111111111",
+    "name": "alice",
+    "display_name": "Alice Researcher",
+    "nip05": "alice@example.com",
+    "about": "Web of trust researcher and nostr builder.",
+    "created_at": 1700000000,
+    "indexed_at": 1700000000
+  },
+  {
+    "id": "2222222222222222222222222222222222222222222222222222222222222222",
+    "pubkey": "2222222222222222222222222222222222222222222222222222222222222222",
+    "name": "alice_imposter",
+    "display_name": "Alice (not really)",
+    "about": "Unrelated account that also matches the query alice.",
+    "created_at": 1700000000,
+    "indexed_at": 1700000000
+  },
+  {
+    "id": "3333333333333333333333333333333333333333333333333333333333333333",
+    "pubkey": "3333333333333333333333333333333333333333333333333333333333333333",
+    "name": "bob",
+    "display_name": "Bob Curator",
+    "nip05": "bob@example.com",
+    "about": "Curator of trusted lists.",
+    "created_at": 1700000000,
+    "indexed_at": 1700000000
+  }
+]

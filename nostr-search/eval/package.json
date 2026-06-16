@@ -1,0 +1,6 @@
+{
+  "name": "nostr-search-eval",
+  "private": true,
+  "type": "commonjs",
+  "description": "Offline search-quality evaluation harness (story #7, ADR 0004). CommonJS scope marker: the hand-rolled test/test.js runner require()s these modules, while the parent nostr-search package is ESM."
+}

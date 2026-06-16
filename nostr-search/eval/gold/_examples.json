@@ -1,0 +1,31 @@
+[
+  {
+    "id": "example-exact-name",
+    "query": "alice",
+    "observer": { "wotPov": "house" },
+    "judgments": [
+      { "pubkey": "1111111111111111111111111111111111111111111111111111111111111111", "relevant": true },
+      { "pubkey": "2222222222222222222222222222222222222222222222222222222222222222", "relevant": false }
+    ],
+    "_note": "ILLUSTRATIVE ONLY — shows entry shape. Not part of the calibrated set."
+  },
+  {
+    "id": "example-nip05",
+    "query": "bob@example.com",
+    "observer": { "wotPov": "house" },
+    "judgments": [
+      { "pubkey": "3333333333333333333333333333333333333333333333333333333333333333", "relevant": true }
+    ],
+    "_note": "ILLUSTRATIVE ONLY."
+  },
+  {
+    "id": "example-layered-ready",
+    "query": "trust researcher",
+    "observer": { "wotPov": "house" },
+    "judgments": [
+      { "pubkey": "1111111111111111111111111111111111111111111111111111111111111111", "relevant": true }
+    ],
+    "layered": { "tagLayer": { "expectTags": ["#wot"] }, "dlistLayer": { "expectItems": [] } },
+    "_note": "ILLUSTRATIVE ONLY — demonstrates a layered-ready entry; v1 accepts and ignores `layered`."
+  }
+]
