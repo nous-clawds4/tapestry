@@ -1,6 +1,6 @@
 # Story 37: Profile identity details popover (move npub + pubkey behind a name-adjacent control)
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-06-16
 **Type:** Feature
 **Epic:** `profile`
@@ -54,7 +54,7 @@ For the Architect:
 - Related ADRs (pattern precedent): `engineering-team/decisions/profile/0032-verified-counts-explainer-and-alarm.md` (the shared information-popover pattern this should stay consistent with), `engineering-team/decisions/profile/0030-profile-website-link-scheme.md` (the website link behavior that must be preserved).
 - ADR: `engineering-team/decisions/profile/0033-identity-details-popover.md` (Accepted)
 - Test plan: `engineering-team/stories/profile/37-identity-details-popover.test-plan.md` (suite `test/profile-identity-details-popover.test.js`, wired into `test/test.js`)
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/profile/37-identity-details-popover.md` — **PASS** (2026-06-16)
 
 ## House constraints (carried from intake)
 - JS-without-build; **tokens-only** styling (`bsp-*` classes + existing CSS custom properties); **no new icon library**, lint, typecheck, or build tooling (would require its own ADR).
