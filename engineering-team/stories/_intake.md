@@ -712,7 +712,7 @@ Reference profile: `https://staging.brainstorm.world/user/c4eabae1be3cf657bc1855
 - Created a new **`search-quality`** epic and relocated the artifacts into it, renumbered from the pre-epic-scoping flat paths: `stories/7-…` → `stories/search-quality/1-search-quality-eval-harness.md`; `decisions/0004-…` → `decisions/search-quality/0001-search-quality-eval-harness.md`.
 - **Re-validated** the ADR against current `main`: the meili proxy (`…/profiles/meili/index.js` → `handleMeiliSearchProfiles`, still "SINGLE AUTHORITY"), the `nostr-search/src/{search,ingest,startup}.js` seams, the `test-data/` fixture precedent, the all-deploy-only `.github/workflows/` premise, and the `test/test.js` runner all still hold. Two small drifts corrected inline: Meili tag `v1.12.8` → `v1.12` (per current `docker-compose.yml`); test file renamed to the slug convention (`test/search-quality-eval-harness.test.js`).
 
-**Status:** Planning + Architecture ratified (revived/re-validated). **Implementation not started.**
+**Status:** Planning + Architecture ratified (revived/re-validated). **Correction (2026-06-16):** a Test Design + Implementation **scaffold** was subsequently found uncommitted in the `feat-search-eval-harness` worktree and backed up on `feat/search-eval-harness` (`e66a3fed`) — **unfinished** (≥30-query gold set incomplete) and **unmerged/unverified**. See the epic's "Implementation status".
 **Classification:** Feature
 **Strictness:** Standard
-**Phase path:** Test Design → Implementation → Review (Planning + Architecture done — see `epics/search-quality.md` + ADR `search-quality/0001`). **Resume on operator confirmation.**
+**Phase path:** Test Design (scaffold drafted, on the branch) → finish gold set → run/verify → Implementation → Review (Planning + Architecture done — see `epics/search-quality.md` + ADR `search-quality/0001`). **Resume on operator confirmation.**

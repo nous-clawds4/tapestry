@@ -5,7 +5,7 @@
 **Type:** Feature
 **Epic:** `search-quality`
 
-> **Provenance & revival.** Authored 2026-05-17 by the `Clawds4` agent identity on the operator's machine and committed to the local-only branch `feat/search-eval-harness` — **never pushed**, so it existed nowhere else. Revived 2026-06-16 into the `search-quality` epic (renumbered from the pre-epic-scoping flat `stories/7-…`). **Re-validated against current `main` on 2026-06-16:** the proxy seam, the two `nostr-search` search seams, the `test-data/` fixture precedent, and the all-deploy-only `.github/workflows/` premise all still hold (see ADR 0001 for the file-by-file recheck). Planning + Architecture are ratified; **implementation has not begun** — resume at Test Design only on operator confirmation.
+> **Provenance & revival.** Authored 2026-05-17 by the `Clawds4` agent identity on the operator's machine and committed to the local-only branch `feat/search-eval-harness` — **never pushed**, so it existed nowhere else. Revived 2026-06-16 into the `search-quality` epic (renumbered from the pre-epic-scoping flat `stories/7-…`). **Re-validated against current `main` on 2026-06-16:** the proxy seam, the two `nostr-search` search seams, the `test-data/` fixture precedent, and the all-deploy-only `.github/workflows/` premise all still hold (see ADR 0001 for the file-by-file recheck). Planning + Architecture are ratified. **Correction (2026-06-16):** a Test Design + Implementation **scaffold** also exists — found uncommitted in the worktree and backed up on `feat/search-eval-harness` (`e66a3fed`). It is **unfinished** (the ≥30-query gold set is incomplete) and **unmerged/unverified**. See the epic's "Implementation status" for what's done vs. left and how to resume.
 
 ## Background
 Search quality in this project is currently judged by human eyeball — there is
@@ -90,5 +90,6 @@ Non-blocking for story approval; flagged so they aren't lost:
 - Intake: `engineering-team/stories/_intake.md` — original 2026-05-17 entry + the 2026-06-16 revival entry.
 - ADR: `engineering-team/decisions/search-quality/0001-search-quality-eval-harness.md` — Accepted 2026-05-17 (revived/re-validated 2026-06-16).
 - Separate harness-contract ADR: tracked independently of this story; not a blocker for it.
-- Test plan: (filled after Test Design phase)
+- Test plan: a draft exists on `feat/search-eval-harness` (`engineering-team/stories/7-search-quality-eval-harness.test-plan.md`) — to be relocated to `stories/search-quality/1-…test-plan.md` when the work resumes.
+- Implementation (WIP, unmerged): scaffold on `feat/search-eval-harness` (`e66a3fed`) — `nostr-search/eval/`, `test/7-…test.js`, `.github/workflows/search-eval.yml`. See the epic's "Implementation status".
 - Review: (filled after Review phase)

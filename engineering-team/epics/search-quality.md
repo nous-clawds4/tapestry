@@ -8,7 +8,14 @@ The **measurement substrate for search**: an automated, repeatable way to score 
 
 ## Stories
 `stories/search-quality/`:
-1. **search-quality-eval-harness** — the offline eval harness: a hand-judged gold set (≥30 queries) + a hand-rolled scorer (recall@k + MRR) driven through the real `/api/search/profiles/meili` proxy against a version-pinned fixture corpus; a PASS/FAIL regression gate (non-zero exit + names the regressed queries) and an auditable per-query report; ships a **non-required** PR-triggered CI workflow. *(Planning + Architecture done — revived/ratified 2026-05-17, re-validated 2026-06-16; next phase: Test Design, on operator confirmation.)*
+1. **search-quality-eval-harness** — the offline eval harness: a hand-judged gold set (≥30 queries) + a hand-rolled scorer (recall@k + MRR) driven through the real `/api/search/profiles/meili` proxy against a version-pinned fixture corpus; a PASS/FAIL regression gate (non-zero exit + names the regressed queries) and an auditable per-query report; ships a **non-required** PR-triggered CI workflow. *(Planning + Architecture ratified; a Test Design + Implementation **scaffold** also exists, backed up on `feat/search-eval-harness` — see "Implementation status" below. Unfinished and unmerged.)*
+
+## Implementation status — WIP backed up, NOT finished (2026-06-16)
+A substantial Test Design + Implementation **scaffold** for this story already exists, **backed up on branch `feat/search-eval-harness`** (`origin`, commit `e66a3fed`). It was found *uncommitted* in the worktree `tapestry-worktrees/feat-search-eval-harness` during a branch-hygiene pass and committed+pushed so it can't be lost. **It is not merged and not finished** — do not assume the feature works.
+
+- **Done (on the branch):** `nostr-search/eval/` (runner + scorer `recall@k`/`MRR` + gold-entry schema + fixture corpus + `baseline.json`), `test/7-search-quality-eval-harness.test.js` (215-line hermetic suite), a full test plan, `.github/workflows/search-eval.yml`, and the `test/test.js` wiring.
+- **Left to do:** the **≥30-query hand-judged gold set** (only seed files `_examples`/`_candidates` exist — the labor-intensive part); then run/verify the suite against current `main`; renumber onto this epic's paths (`test/search-quality-eval-harness.test.js`, `stories/search-quality/1-…test-plan.md`); and pass Review before any merge.
+- **To resume:** `git checkout feat/search-eval-harness` (or use its worktree) and pick up at the gold set — or re-run the engineering flow from Test Design with these artifacts as the starting point. The branch is also surfaced by `/whats-open` (unmerged branches).
 
 ## ADRs
 `decisions/search-quality/` — 0001 (search-quality-eval-harness).
