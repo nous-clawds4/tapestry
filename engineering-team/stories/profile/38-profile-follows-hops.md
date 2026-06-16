@@ -1,6 +1,6 @@
 # Story 38: Follows-hops to this profile
 
-**Status:** Draft
+**Status:** Done
 **Created:** 2026-06-17
 **Type:** Feature
 
@@ -60,4 +60,4 @@ These were decided by the requester this session and the Architect should honor 
 ## Linked artifacts
 - ADR: `engineering-team/decisions/profile/0034-profile-follows-hops.md`
 - Test plan: `engineering-team/stories/profile/38-profile-follows-hops.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/profile/38-profile-follows-hops.md` — **PASS** (2026-06-17)
