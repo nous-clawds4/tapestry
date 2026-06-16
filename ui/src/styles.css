@@ -3371,6 +3371,11 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   margin: 0;
   line-height: 1.2;
 }
+.bsp-name-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
 .bsp-nip05 {
   font-size: 0.85rem;
   opacity: 0.6;
