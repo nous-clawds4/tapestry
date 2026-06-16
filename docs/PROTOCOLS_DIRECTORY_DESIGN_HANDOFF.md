@@ -1,6 +1,6 @@
 # Protocols Directory — Design Handoff
 
-**Status:** 🔴 OPEN
+**Status:** ✅ ADDRESSED — all seven stories of the protocols-directory epic shipped (2026-06-10); [`protocols/`](../protocols/README.md) is live with every spec as its working copy. Body preserved for historical context. Residuals tracked elsewhere: the NostrHub republish (the author's act — see the DLists row in `protocols/README.md`), worksheet W1–W10, and the three-branch reconciliation (`docs/COMMUNITIES_PROTOCOL_DESIGN_HANDOFF.md` §7).
 **Date:** 2026-06-09
 **Origin:** Planning session with the project owner (author of the Decentralized Lists Custom NIP). Scoped via `/discuss`-style conversation; execution is Protocol-Spec docs-mode work (see `engineering-team/workflows/protocol-spec-workflow.md`).
 **Owner sign-offs so far:** repo-root location ✅ · directory structure ✅ · the migration map below reviewed in conversation ✅ (final ratification happens per-story).

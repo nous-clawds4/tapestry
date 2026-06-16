@@ -90,6 +90,10 @@ const profileVerifiedCountsExplainerAndAlarm = require('./profile-verified-count
 const searchApiResultTypeSettings = require('./search-api-result-type-settings.test.js');
 const trustedListPinPublishBlockers = require('./trusted-list-pin-publish-blockers.test.js');
 const nostrUserTagHybridEaWriter = require('./nostr-user-tag-hybrid-ea-writer.test.js');
+const reputationInfoPopup = require('./reputation-info-popup.test.js');
+const liveFeedReadPath = require('./live-feed-read-path.test.js');
+const liveFeedFeedPage = require('./live-feed-feed-page.test.js');
+const verifiedReportersReportColumns = require('./verified-reporters-report-columns.test.js');
 
 async function main() {
   console.log('Running Brainstorm tests...');
@@ -232,6 +236,18 @@ async function main() {
   const trustedListPinPublishBlockersResult = await trustedListPinPublishBlockers.run();
 
   const nostrUserTagHybridEaWriterResult = await nostrUserTagHybridEaWriter.run();
+
+  console.log('\nreputation-info-popup suite:');
+  const reputationInfoPopupResult = await reputationInfoPopup.run();
+
+  console.log('\nlive-feed-read-path suite:');
+  const liveFeedReadPathResult = await liveFeedReadPath.run();
+
+  console.log('\nlive-feed-feed-page suite:');
+  const liveFeedFeedPageResult = await liveFeedFeedPage.run();
+
+  console.log('\nverified-reporters-report-columns suite:');
+  const verifiedReportersReportColumnsResult = await verifiedReportersReportColumns.run();
 
   console.log('\nTest Results');
   console.log('-------------');
@@ -395,6 +411,18 @@ async function main() {
   console.log(
     `nostr-user-tag-hybrid-ea-writer suite:           ${nostrUserTagHybridEaWriterResult.fail === 0 ? 'PASS' : 'FAIL'} (${nostrUserTagHybridEaWriterResult.pass} passed, ${nostrUserTagHybridEaWriterResult.fail} failed)`
   );
+  console.log(
+    `reputation-info-popup suite:                     ${reputationInfoPopupResult.fail === 0 ? 'PASS' : 'FAIL'} (${reputationInfoPopupResult.pass} passed, ${reputationInfoPopupResult.fail} failed)`
+  );
+  console.log(
+    `live-feed-read-path suite:                       ${liveFeedReadPathResult.fail === 0 ? 'PASS' : 'FAIL'} (${liveFeedReadPathResult.pass} passed, ${liveFeedReadPathResult.fail} failed)`
+  );
+  console.log(
+    `live-feed-feed-page suite:                       ${liveFeedFeedPageResult.fail === 0 ? 'PASS' : 'FAIL'} (${liveFeedFeedPageResult.pass} passed, ${liveFeedFeedPageResult.fail} failed)`
+  );
+  console.log(
+    `verified-reporters-report-columns suite:         ${verifiedReportersReportColumnsResult.fail === 0 ? 'PASS' : 'FAIL'} (${verifiedReportersReportColumnsResult.pass} passed, ${verifiedReportersReportColumnsResult.fail} failed)`
+  );
 
   const overallOk =
     configOk &&
@@ -462,7 +490,11 @@ async function main() {
     profileVerifiedCountsExplainerAndAlarmResult.fail === 0 &&
     searchApiResultTypeSettingsResult.fail === 0 &&
     trustedListPinPublishBlockersResult.fail === 0 &&
-    nostrUserTagHybridEaWriterResult.fail === 0;
+    nostrUserTagHybridEaWriterResult.fail === 0 &&
+    reputationInfoPopupResult.fail === 0 &&
+    liveFeedReadPathResult.fail === 0 &&
+    liveFeedFeedPageResult.fail === 0 &&
+    verifiedReportersReportColumnsResult.fail === 0;
   console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);
   process.exit(overallOk ? 0 : 1);
 }

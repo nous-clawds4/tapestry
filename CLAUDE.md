@@ -9,8 +9,9 @@ Before starting work, read all four:
 - [BIBLE.md](./BIBLE.md) — architecture, protocol, data model, API, design decisions (universal, fork-agnostic)
 - [OPERATIONS.md](./OPERATIONS.md) — brainstorm.world deployment: branches, CI/CD, droplets, gotchas
 
-**Also check at session start:**
+**Also check at session start** — or just run **`/whats-open`** (alias: `bash scripts/whats-open.sh`) for a unified roll-up of everything still open across sessions, derived from all the surfaces below plus the ledger:
 
+- [`OPEN.md`](./OPEN.md) — the single ledger for **small / cross-cutting open items that have no other surface** (one-off cleanups, "does BIBLE need a note about what we just built?" decisions, follow-ups too small for a handoff doc, a branch to delete). The surfaces below hold the larger triaged work; `/whats-open` rolls them all together. **Write discipline:** whenever you end a session with such a loose end, add a row here (and flip it to `DONE` when handled) so the next session — any session — sees it.
 - [`docs/*HANDOFF*.md`](./docs/) — session continuity notes. Each handoff doc starts with a `**Status:**` line: `🔴 OPEN` = work hasn't been picked up; `✅ ADDRESSED / SUPERSEDED` = the follow-on work has shipped (the body is preserved for historical context, no action needed). Always scan for `OPEN` handoffs before starting fresh work — a previous session may have left specific instructions for the new one.
 - [`engineering-team/stories/_intake.md`](./engineering-team/stories/_intake.md) — queued-but-unplanned work catalog. See [engineering-team/README.md](./engineering-team/README.md) for the format. Scan before opening a fresh feature request — there's often a relevant entry already triaged.
 - [`protocols/README.md`](./protocols/README.md) — index of every protocol spec we author (published Custom NIPs, local pre-NIPs) with per-spec status, plus [`protocols/worksheet.md`](./protocols/worksheet.md) for open protocol problems. Check before any protocol/NIP/wire-format work — the spec's status and current source of truth are recorded there.

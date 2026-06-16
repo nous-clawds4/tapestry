@@ -10,7 +10,7 @@ You are entering **Phase 1: Planning** of the Tapestry engineering team harness.
 
 **Workflow:** Follow [engineering-team/workflows/1-planning.md](engineering-team/workflows/1-planning.md).
 
-**Template:** Use [engineering-team/templates/user-story.md](engineering-team/templates/user-story.md). Save the final story as `engineering-team/stories/<n>-<slug>.md` where `<n>` is the next integer available and `<slug>` is a kebab-case summary.
+**Template:** Use [engineering-team/templates/user-story.md](engineering-team/templates/user-story.md). Save the final story as `engineering-team/stories/<epic-slug>/<n>-<slug>.md` where `<epic-slug>` is the story's epic folder, `<n>` is the next integer available *within that epic folder* (numbering restarts per epic — see [engineering-team/README.md](engineering-team/README.md) § "Epic-scoped docs"), and `<slug>` is a kebab-case summary.
 
 **Inputs:**
 - If the user just provided a new feature request, restate it to confirm.
@@ -30,7 +30,7 @@ Do not auto-advance. Hand off to `/design-architecture` only on explicit user ap
 **Per-phase commit:** After approval, commit the story file:
 
 ```
-git add engineering-team/stories/<file>
+git add engineering-team/stories/<epic-slug>/<file>
 git commit -m "story: <slug>"
 ```
 

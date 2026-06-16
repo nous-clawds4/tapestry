@@ -974,3 +974,47 @@ export masks later success, Export confirm clickable while relay lookup pending)
 **Proposed epic:** `tag-stack-merge-hardening` (pre-merge stories);
 fast-follows → `engineering-team/follow-ups.md` or a post-merge cleanup epic.
 **Phase path:** full harness for both pre-merge stories.
+
+---
+
+## 2026-06-14 — Feature: Reputation info popup on the profile page (House vs Personalized PoV explainer)
+
+**Raw request (verbatim):**
+
+> Currently, there is an informational popup (an `i` in a circle) that explains what "Verified" means. I would like a similar informational popup, also an `i` in a circle, associated to the word Reputation, that explains where the reputational scores come from, i.e. that they reflect either the House PoV or the Personalized PoV (whichever is selected).
+
+Reference profile: `https://staging.brainstorm.world/user/c4eabae1be3cf657bc1855ee05e69de9f059cb7a059227168b80b89761cbc4e0?pov=a1420e44`.
+
+**Pre-intake findings (control-panel UI audit, 2026-06-14):**
+
+- The existing "Verified" popup is a self-contained, reusable React component — [`ui/src/components/VerificationInfo.jsx`](../../ui/src/components/VerificationInfo.jsx) + the [`ui/src/hooks/useVerificationInfo.js`](../../ui/src/hooks/useVerificationInfo.js) data hook — built on the generic `bsp-info-btn` / `bsp-confirm-overlay` / `bsp-confirm-box` patterns (ADR `profile/0032`). Already reused on the profile (`BrainstormProfile.jsx:287`) and `/reporters` (`BrainstormReporters.jsx:145`). The Reputation popup is a near-exact clone of this pattern.
+- The word "Reputation" is the `<h3>` heading of the Reputation section at `ui/src/pages/BrainstormProfile.jsx:368`. That section renders the **Meilisearch** trust-metric grid (`TRUST_METRICS` over the Meili document) — i.e. the House-PoV or Personalized-PoV scores selected by the `?pov=` query param (resolved at `BrainstormProfile.jsx:84,149-158`). House PoV is the default (instance `delegatedPubkey`); the Personalized PoV is the viewer's own when a `pov` is selected.
+- **PoV-accuracy caveat:** the counts ABOVE the Reputation section (Following, Verified Followers, Verified Reporters at `:256-288`) come from *different* sources (strfry + Neo4j Owner-PoV per BIBLE §27), NOT the Meili House/Personalized PoV. The popup must therefore be bounded to the Reputation-section scores and must not assert a PoV for those counts.
+- **Scope decision (operator, 2026-06-14):** the popup is a **static explanation** ("scores reflect either the House or the Personalized point of view, depending on which is selected") — it does **not** dynamically name which PoV is active. The dynamic variant (which would require promoting the resolved `povSuffix` from the fetch effect into render state) is explicitly out of scope.
+- **Testing:** profile UI in this repo is tested via the `test/test.js` Node runner with **source-regex sentinels** (e.g. `test/profile-verified-counts-explainer-and-alarm.test.js`, which already sentinels the VerificationInfo popover's copy), NOT Playwright. The Playwright e2e harness is currently broken (this catalog's 2026-06-06 item 8) but is **irrelevant** to this feature — the established source-sentinel pattern covers it. Baseline `npm test` green as of 2026-06-14.
+
+**Out of scope (the regression boundary):**
+
+- The Reputation grid's data path — the Meili document fetch and the `TRUST_METRICS` grid — stays untouched (additive, presentational change only).
+- The open profile-followers follow-ups on the same file (this catalog's **2026-06-06** entry, `docs/PROFILE_FOLLOWERS_HANDOFF_2026-06-06.md`, still 🔴 OPEN): item 4 (the duplicate `Verified Followers` `TRUST_METRICS` row) and item 6 (Personalized/customer PoV for the follows/followers *tables*) are adjacent in the same component but are **not** part of this work. This feature touches only the Reputation-section heading + a new popup; it does not modify `TRUST_METRICS` contents or the follows/followers tables.
+- Dynamically displaying which PoV is currently active; any backend/API change; promoting `povSuffix` to component state; adding the popup to other pages.
+
+**Classification:** Feature (frontend-only, additive UI)
+**Strictness:** Standard
+**Phase path:** Planning → Architecture → Test Design → Implementation → Review (all five phases — **run autonomously under the Director harness**; see the book `engineering-team/audits/reputation-info-popup/book.md`).
+**Priority:** Low (intended primarily as a low-risk shakedown of the Direction-mode autonomous run).
+
+---
+
+## 2026-06-16 — Feature (REVIVED): offline search-quality evaluation harness
+
+**Not a new request — a revival.** Planning + Architecture for an offline search-quality eval harness were found on the local-only branch `feat/search-eval-harness` during a 2026-06-16 branch-hygiene pass: a story + ADR authored 2026-05-17 by the `Clawds4` agent identity on the operator's machine, committed locally and **never pushed** (existed nowhere else). Git forensics confirmed provenance — authored locally on the operator's machine, not teammate work, not a sync artifact. The original raw request is the **2026-05-17** entry above ("…something that Vinney can evaluate and use himself…"). Revived at the operator's direction.
+
+**What the revival did:**
+- Created a new **`search-quality`** epic and relocated the artifacts into it, renumbered from the pre-epic-scoping flat paths: `stories/7-…` → `stories/search-quality/1-search-quality-eval-harness.md`; `decisions/0004-…` → `decisions/search-quality/0001-search-quality-eval-harness.md`.
+- **Re-validated** the ADR against current `main`: the meili proxy (`…/profiles/meili/index.js` → `handleMeiliSearchProfiles`, still "SINGLE AUTHORITY"), the `nostr-search/src/{search,ingest,startup}.js` seams, the `test-data/` fixture precedent, the all-deploy-only `.github/workflows/` premise, and the `test/test.js` runner all still hold. Two small drifts corrected inline: Meili tag `v1.12.8` → `v1.12` (per current `docker-compose.yml`); test file renamed to the slug convention (`test/search-quality-eval-harness.test.js`).
+
+**Status:** Planning + Architecture ratified (revived/re-validated). **Correction (2026-06-16):** a Test Design + Implementation **scaffold** was subsequently found uncommitted in the `feat-search-eval-harness` worktree and backed up on `feat/search-eval-harness` (`e66a3fed`) — **unfinished** (≥30-query gold set incomplete) and **unmerged/unverified**. See the epic's "Implementation status".
+**Classification:** Feature
+**Strictness:** Standard
+**Phase path:** Test Design (scaffold drafted, on the branch) → finish gold set → run/verify → Implementation → Review (Planning + Architecture done — see `epics/search-quality.md` + ADR `search-quality/0001`). **Resume on operator confirmation.**

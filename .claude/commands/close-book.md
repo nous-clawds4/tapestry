@@ -24,10 +24,10 @@ You are entering **Book Close** — a milestone phase of the Tapestry engineerin
 - Be honest about confidence. A reconstructed, no-anchor close is a low-confidence hypothesis — say so in the header, don't dress it up.
 - Engineering authors both artifacts under `engineering-team/`. Never write into `product-team/`.
 
-**Gate (mandatory):** After writing both artifacts and flipping the book to Closed, ask:
+**Gate (mandatory):** After writing both artifacts, flipping the book to Closed, and sweeping any small / cross-cutting loose ends into the root [`OPEN.md`](OPEN.md) ledger (workflow step 9), ask:
 
 > Book closed. Audit + {addendum|seed} are ready for the product team to scope the next phase. Anything to correct before I commit?
 
-**Per-phase commit:** Commit audit + feedback doc + updated `book.md` together: `git commit -m "book-close: <book-slug>"`.
+**Per-phase commit:** Commit audit + feedback doc + updated `book.md` + any `OPEN.md` rows together: `git add engineering-team/audits/<book-slug> OPEN.md && git commit -m "book-close: <book-slug>"`.
 
 $ARGUMENTS

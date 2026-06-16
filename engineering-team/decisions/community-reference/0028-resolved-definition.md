@@ -5,6 +5,7 @@
 **Story:** `engineering-team/stories/community-reference/32-resolved-definition-primitive.md`
 **Builds on:** ADR 0027 (the `b` / inherit-from tag — the *write* primitive). This ADR is its read-side companion.
 **Amends:** ADR 0027's deferral — 0027 left "multi-parent `b` resolution order" as a deferred "consumer concern" and assumed "the first consumers are single-parent." This ADR **resolves that order** and retires the single-parent assumption. It does not contradict any 0027 decision; it completes one.
+**Amended by:** `community-reference` ADR 0029 — the resolution walk and deference closure range over explicitly inherit-typed `b` tags only (an absent type reads as `"pointer"`); first-listed-wins applies over the inherit-typed subset. **And ADR 0032** — fills this ADR's deferred "caching … out of scope" punt with the deployment-side resolved-definition cache design (optional MAY; semantically transparent; never on-wire).
 
 ## Context
 

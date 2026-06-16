@@ -33,10 +33,11 @@ Both are **engineering-authored and live under `engineering-team/`.** The produc
 6. **Write the feedback doc** (addendum or seed) — promote deviations and the carry-forward register into product-facing framing. Recommendations are *input*, not decisions.
 7. **Run the gate** at close: `npm test`; record the result in the audit.
 8. **Flip the book to Closed.** Set `**Status:** Closed`, fill the close-artifact links and confidence in `book.md`.
-9. **Gate:** "Book closed. Audit + {addendum|seed} written to `audits/<book-slug>/`. Ready for the product team to scope the next phase. Anything to correct?"
+9. **Sweep loose ends to `OPEN.md`.** Any small / cross-cutting follow-up this book leaves that has no other home — a one-off cleanup, a "does BIBLE need a note?" decision, a branch to delete — gets a row in the root [`OPEN.md`](../../OPEN.md) ledger so it isn't lost. (Larger deferred scope already lives in the audit's §6 carry-forward; link it, don't duplicate it.)
+10. **Gate:** "Book closed. Audit + {addendum|seed} written to `audits/<book-slug>/`. Ready for the product team to scope the next phase. Anything to correct?"
 
 ## Per-phase commit
-Commit the audit, feedback doc, and updated `book.md` together: `git add engineering-team/audits/<book-slug> && git commit -m "book-close: <book-slug>"`.
+Commit the audit, feedback doc, updated `book.md`, and any `OPEN.md` ledger rows together: `git add engineering-team/audits/<book-slug> OPEN.md && git commit -m "book-close: <book-slug>"`.
 
 ## Book retirement
 Like epics, a closed book's folder moves under `audits/done/<book-slug>/` once the next phase has ingested it (one `git mv` on the directory). Everything outside `done/` is live; everything under it is shipped and read-only by convention.

@@ -1,0 +1,334 @@
+/**
+ * Story live-feed #2: the public, login-free `/feed` page (front-end only).
+ * ADR live-feed/0002. See engineering-team/stories/live-feed/2-feed-page.test-plan.md
+ *
+ * ADR 0002 chose Option A: a top-level public React SPA route `/feed` in ui/src/App.jsx
+ * (beside /about), a new ui/src/pages/BrainstormFeed.jsx modeled on BrainstormAbout.jsx's
+ * plain public shell, and a new ui/src/hooks/useFeed.js modeled on useGrapevineFollows.js,
+ * with the body rendered by a PURE, named-exported renderFeedState / <FeedBody> that maps
+ * the read path's { status, items, … } result (status ∈ {OK, EMPTY, NO_SOURCE,
+ * FOLLOW_LIST_UNAVAILABLE}) to exactly one of the four story states, plus a transient
+ * loading line and a defensive "couldn't load" case. Copy lives in an exported FEED_COPY.
+ *
+ * TEST LEVEL — source assertion, not runtime render (see test-plan §"Test level decision").
+ * The Node harness (`node test/test.js`) has NO JSX transpile, and `react-dom/server` is not
+ * resolvable from the repo root (react-dom lives only in the ui/ Vite workspace). So the
+ * `renderToStaticMarkup` path the ADR *floats* is not runnable here, and adding a transpile
+ * would be new tooling (forbidden, JS-without-build house rule). We therefore assert on the
+ * `ui/src/*.jsx` SOURCE TEXT — the exact convention of the profile-follows-list /
+ * profile-followers-list / verified-reporters-list-page / reputation-info-popup suites. The
+ * page/hook/route/CSS do not exist pre-implementation, so T1–T16 FAIL now and PASS once built.
+ * R1–R2 are regression sentinels — PASS before AND after (additive change; read path untouched).
+ *
+ * The runtime properties the source level cannot prove — anonymous GET /feed returning 200,
+ * and a browser actually rendering ≥3 notes with no 1280px horizontal scrollbar — are the
+ * book's MANDATORY Tier-4 staging smoke (curl + DOM extract/screenshot), gathered by the
+ * Director, NOT this suite. This suite proves the page is built-to-render those four states
+ * and wired-to-be reachable + non-overflowing; it makes no runtime-rendering claim.
+ *
+ * COPY NOTE: per the story, the empty-state copy is operator-delegated and "punctuation is
+ * non-binding so long as each message conveys its frame meaning." The copy sentinels therefore
+ * assert the load-bearing MEANING tokens of each message (anchored on the exported FEED_COPY
+ * constants), not a byte-for-byte sentence — so they hold the meaning without over-constraining
+ * punctuation the story explicitly frees.
+ */
+
+const fs = require('fs');
+const path = require('path');
+
+const PAGE   = path.resolve(__dirname, '../ui/src/pages/BrainstormFeed.jsx');
+const HOOK   = path.resolve(__dirname, '../ui/src/hooks/useFeed.js');
+const APP    = path.resolve(__dirname, '../ui/src/App.jsx');
+const STYLES = path.resolve(__dirname, '../ui/src/styles.css');
+const READ_PATH = path.resolve(__dirname, '../src/api/feed/feedReadPath.js');
+
+const tests = [];
+function test(name, fn) { tests.push({ name, fn }); }
+function assert(cond, msg) { if (!cond) throw new Error(msg || 'Assertion failed'); }
+function safeRead(p) { try { return fs.readFileSync(p, 'utf8'); } catch { return ''; } }
+
+// Slice the body-helper function (renderFeedState OR FeedBody) out of the page source so the
+// branch sentinels match logic *inside* the pure helper, not anywhere on the page. Returns the
+// whole page source if the helper can't be located by name (so missing-helper still fails loudly
+// on the export sentinel T14, and the branch sentinels fail on absent copy/branches rather than
+// silently passing against unrelated text).
+function bodyHelper(src) {
+  const m = src.match(/function\s+(renderFeedState|FeedBody)\s*\(/);
+  if (!m) return src;
+  return src.slice(m.index);
+}
+
+// ===========================================================================
+// AC-1 — public reachability: route registered in the top-level public group
+// (the 200 + no-login-wall RUNTIME proof is the Tier-4 staging curl; here we
+//  prove the route is wired into the public group so the SPA fallback serves it)
+// ===========================================================================
+
+test('T1: registers a top-level public /feed route mapped to BrainstormFeed (AC-1 reachability)', () => {
+  const src = safeRead(APP);
+  assert(src.length > 0, 'ui/src/App.jsx missing — unexpected.');
+  assert(/path:\s*['"]\/feed['"]/.test(src),
+    "App.jsx must declare a route with path '/feed' (the bookmarkable public page). Absent pre-implementation.");
+  assert(/BrainstormFeed/.test(src),
+    'App.jsx must import and map the /feed route to the BrainstormFeed page component.');
+  // The route must sit in the TOP-LEVEL public group (beside /about, /how-search-works,
+  // /developers) — NOT nested under the /tapestry admin Layout or the /user/:pubkey profiles,
+  // so it is public-by-construction. Assert /feed appears before the /tapestry admin block.
+  const feedIdx = src.search(/path:\s*['"]\/feed['"]/);
+  const tapestryIdx = src.search(/path:\s*['"]\/tapestry['"]/);
+  assert(feedIdx !== -1 && tapestryIdx !== -1 && feedIdx < tapestryIdx,
+    'the /feed route must live in the top-level public router array (before the /tapestry admin group), not nested under an admin Layout or a pubkey-scoped profile route — so anonymous clients reach it (AC-1).');
+});
+
+// ===========================================================================
+// AC-2 — populated feed: heading, window indicator, per-note content, order
+// ===========================================================================
+
+test('T2: exports the exact heading copy "Live Feed" (AC-2 heading)', () => {
+  const src = safeRead(PAGE);
+  assert(src.length > 0, 'ui/src/pages/BrainstormFeed.jsx does not exist yet — the Implementer must create the feed page (ADR 0002 Option A).');
+  assert(/FEED_COPY/.test(src),
+    'BrainstormFeed.jsx must define the exported FEED_COPY copy constants (so the copy is pinned and the Implementer cannot drift it).');
+  assert(/HEADING\s*:\s*['"]Live Feed['"]/.test(src),
+    'FEED_COPY.HEADING must be exactly "Live Feed" — the populated-feed heading (AC-2).');
+});
+
+test('T3: exports the exact recent-window indicator "Showing the most recent 50 notes." (AC-2 indicator)', () => {
+  const src = safeRead(PAGE);
+  assert(src.length > 0, 'BrainstormFeed.jsx does not exist yet.');
+  assert(/INDICATOR\s*:\s*['"]Showing the most recent 50 notes\.['"]/.test(src),
+    'FEED_COPY.INDICATOR must be exactly "Showing the most recent 50 notes." — the recent-window indicator the page shows on the populated feed (AC-2). The number 50 is the read path\'s FEED_CAP.');
+});
+
+test('T4: the OK branch renders the indicator then maps items in ARRAY ORDER without re-sorting (AC-2 order)', () => {
+  const src = safeRead(PAGE);
+  assert(src.length > 0, 'BrainstormFeed.jsx does not exist yet.');
+  const body = bodyHelper(src);
+  assert(/status\s*===?\s*['"]OK['"]/.test(body),
+    "the body helper must branch on status === 'OK' (the populated feed). Absent pre-implementation.");
+  assert(/\bitems\b[\s\S]{0,40}\.map\s*\(/.test(body) || /\.map\s*\(\s*(\(?\s*item)/.test(body),
+    'the OK branch must render one entry per note via items.map(...) (AC-2: one entry per note).');
+  // The read path already delivers items newest-first (FEED_CAP, created_at desc); the page must
+  // NOT re-sort — re-sorting would be re-derivation (ADR §No re-derivation) and could break order.
+  assert(!/\bitems\b[\s\S]{0,8}\.sort\s*\(/.test(body) && !/\.sort\s*\([\s\S]{0,40}createdAt/.test(src),
+    'the page must render items in the array order the read path delivered (already newest-first); it must NOT re-sort them (ADR §No re-derivation / AC-2 newest-first is owned by #1).');
+});
+
+test('T5: each note entry shows author display name + avatar (with placeholder fallback) + timestamp + text (AC-2 content)', () => {
+  const src = safeRead(PAGE);
+  assert(src.length > 0, 'BrainstormFeed.jsx does not exist yet.');
+  // Per-note content fields off the contract item { author:{ displayName, avatar }, createdAt, content }.
+  assert(/author[\s\S]{0,12}displayName|displayName/.test(src),
+    "each entry must show the author display name (item.author.displayName) (AC-2).");
+  assert(/bsp-avatar/.test(src),
+    'each entry must show the author avatar using the shared bsp-avatar image class (AC-2).');
+  assert(/bsp-avatar-placeholder/.test(src),
+    'a null author.avatar must fall back to the bsp-avatar-placeholder (so an avatar-less author still renders, no broken image) (AC-2 / edge case).');
+  assert(/createdAt/.test(src),
+    "each entry must show the note timestamp derived from item.createdAt (AC-2).");
+  assert(/\.content\b|item\.content|\bcontent\b/.test(src),
+    "each entry must show the note text (item.content) (AC-2).");
+});
+
+test('T6: derives the per-note timestamp from createdAt via a local formatTimestamp helper, with no date library (AC-2 timestamp)', () => {
+  const src = safeRead(PAGE);
+  assert(src.length > 0, 'BrainstormFeed.jsx does not exist yet.');
+  assert(/formatTimestamp/.test(src),
+    'the page must define a local formatTimestamp helper that turns the Unix-seconds createdAt into a human timestamp (ADR §Impl: a tiny local helper, no date library).');
+  // ADR/house rule: no new dependency — must not import a date library (moment/dayjs/date-fns/luxon).
+  assert(!/from\s+['"](moment|dayjs|date-fns|luxon)['"]/.test(src) && !/require\(\s*['"](moment|dayjs|date-fns|luxon)['"]/.test(src),
+    'formatTimestamp must NOT pull in a date library (moment/dayjs/date-fns/luxon) — no new dependency (ADR §Constraints / house rules). Use the built-in Date.');
+});
+
+// ===========================================================================
+// AC-3 / AC-4 / AC-5 — the three empty states, each its own exact-meaning copy
+// and ZERO note entries
+// ===========================================================================
+
+test('T7: empty state 6a — NO_SOURCE renders the "no House point-of-view selected" copy and no entries (AC-3)', () => {
+  const src = safeRead(PAGE);
+  assert(src.length > 0, 'BrainstormFeed.jsx does not exist yet.');
+  // Meaning tokens (punctuation non-binding per the story): names the House point-of-view and that
+  // there is no feed/none selected yet.
+  assert(/NO_SOURCE\s*:\s*["'][^"']*House[^"']*["']/.test(src),
+    'FEED_COPY.NO_SOURCE must name the **House point-of-view** as the missing source (AC-3, frame 6a meaning) — e.g. "No House point-of-view is selected — there\'s no feed to show yet."');
+  assert(/(point[\s-]?of[\s-]?view|PoV)[\s\S]{0,80}(no\s+feed|nothing|selected|yet)/i.test(src) ||
+         /(no\s+feed|nothing|selected|yet)[\s\S]{0,80}(point[\s-]?of[\s-]?view|PoV)/i.test(src),
+    'the 6a message must convey that, with no House point-of-view selected, there is no feed to show yet (AC-3 meaning).');
+  const body = bodyHelper(src);
+  assert(/status\s*===?\s*['"]NO_SOURCE['"]/.test(body),
+    "the body helper must branch on status === 'NO_SOURCE' and render FEED_COPY.NO_SOURCE — with no items.map (no note entries) (AC-3).");
+});
+
+test('T8: empty state 6b — FOLLOW_LIST_UNAVAILABLE renders the "follow list not available locally" copy and no entries (AC-4)', () => {
+  const src = safeRead(PAGE);
+  assert(src.length > 0, 'BrainstormFeed.jsx does not exist yet.');
+  assert(/FOLLOW_UNAVAIL\s*:\s*["'][^"']*(follow list|follow-list)[^"']*["']/i.test(src),
+    "FEED_COPY.FOLLOW_UNAVAIL must say the identity's follow list isn't available locally yet (AC-4, frame 6b meaning).");
+  assert(/(follow[\s-]?list)[\s\S]{0,60}(local|isn't available|not available|unavailable)/i.test(src) ||
+         /(local|isn't available|not available|unavailable)[\s\S]{0,60}(follow[\s-]?list)/i.test(src),
+    'the 6b message must convey that the follow list is not available locally (yet) (AC-4 meaning).');
+  const body = bodyHelper(src);
+  assert(/status\s*===?\s*['"]FOLLOW_LIST_UNAVAILABLE['"]/.test(body),
+    "the body helper must branch on status === 'FOLLOW_LIST_UNAVAILABLE' and render FEED_COPY.FOLLOW_UNAVAIL — with no note entries (AC-4).");
+});
+
+test('T9: empty state 6c — EMPTY renders the "no recent notes from accounts this identity follows" copy and no entries (AC-5)', () => {
+  const src = safeRead(PAGE);
+  assert(src.length > 0, 'BrainstormFeed.jsx does not exist yet.');
+  assert(/NO_NOTES\s*:\s*["'][^"']*(recent notes|no .*notes|notes)[^"']*["']/i.test(src),
+    "FEED_COPY.NO_NOTES must convey there are no recent notes from the accounts this identity follows (AC-5, frame 6c meaning).");
+  assert(/(no recent notes|no .*notes)[\s\S]{0,80}(follow|accounts)/i.test(src),
+    'the 6c message must convey there are no recent notes from the accounts this identity follows (AC-5 meaning).');
+  const body = bodyHelper(src);
+  assert(/status\s*===?\s*['"]EMPTY['"]/.test(body),
+    "the body helper must branch on status === 'EMPTY' and render FEED_COPY.NO_NOTES — with no note entries (AC-5).");
+});
+
+// ===========================================================================
+// Supporting — the data hook (consumes #1's /api/feed, passes the result through)
+// ===========================================================================
+
+test('T10: useFeed fetches /api/feed and surfaces a transport failure as `error` (supporting AC-1/AC-2 plumbing)', () => {
+  const src = safeRead(HOOK);
+  assert(src.length > 0, 'ui/src/hooks/useFeed.js does not exist yet — the Implementer must create the data hook (ADR 0002 §Impl, mirroring useGrapevineFollows.js).');
+  assert(/fetch\(\s*['"]\/api\/feed['"]/.test(src),
+    "useFeed.js must call the read path's endpoint: fetch('/api/feed', { signal }) (the page renders #1's output; it adds no read logic).");
+  assert(/success/.test(src),
+    'useFeed.js must gate on the response body\'s `success` flag (ADR 0001 returns { success:true, ...result }).');
+  assert(/setError|error/.test(src),
+    'useFeed.js must set an `error` on a non-success / transport failure (drives the page\'s defensive "couldn\'t load" branch).');
+});
+
+// ===========================================================================
+// AC-1 (no overflow) — the capped-width column + wrapping CSS mechanism
+// (the *rendered* no-scrollbar @1280px is Tier-4; here we prove the mechanism exists)
+// ===========================================================================
+
+test('T11: note text wraps so a long token cannot overflow 1280px (overflow-wrap / word-break) (AC-1 no overflow)', () => {
+  const css = safeRead(STYLES);
+  assert(css.length > 0, 'ui/src/styles.css missing — unexpected.');
+  // A new feed-item / feed-text class must wrap long content/URLs. Anchor on a bsp-feed-* rule
+  // (none exist pre-implementation) carrying overflow-wrap/word-break.
+  const block = css.match(/\.bsp-feed[\w-]*\s*\{[^}]*\}/g);
+  assert(block && block.length > 0,
+    'styles.css must define at least one new bsp-feed-* rule for the feed items (none exist pre-implementation).');
+  const joined = block.join('\n');
+  assert(/overflow-wrap\s*:\s*(anywhere|break-word)|word-break\s*:\s*(break-word|break-all)/.test(joined),
+    'a bsp-feed-* rule must wrap note text (overflow-wrap:anywhere / word-break) so a long URL or unbroken token cannot extend past the column / 1280px (AC-1 no horizontal overflow).');
+});
+
+test('T12: the feed column is width-capped with box-sizing:border-box so content cannot exceed 1280px (AC-1 no overflow)', () => {
+  const src = safeRead(PAGE);
+  const css = safeRead(STYLES);
+  assert(src.length > 0, 'BrainstormFeed.jsx does not exist yet.');
+  assert(css.length > 0, 'ui/src/styles.css missing — unexpected.');
+  // The column must be capped (a max-width token / inline maxWidth, as BrainstormAbout does) and
+  // box-sizing:border-box so padding doesn't push the box past its cap. Accept the cap on the page
+  // (inline maxWidth, the BrainstormAbout pattern) OR in a bsp-feed-* CSS rule.
+  const cappedOnPage = /maxWidth\s*:\s*\d/.test(src);
+  const feedRules = (css.match(/\.bsp-feed[\w-]*\s*\{[^}]*\}/g) || []).join('\n');
+  const cappedInCss = /max-width\s*:\s*\d/.test(feedRules);
+  assert(cappedOnPage || cappedInCss,
+    'the feed column must be width-capped — an inline maxWidth on the bsp-content column (the BrainstormAbout pattern) or a max-width on a bsp-feed-* rule — so the page does not stretch unbounded (AC-1 no overflow @1280px).');
+  assert(/box-sizing\s*:\s*border-box/.test(feedRules) || /box-sizing\s*:\s*border-box/.test(css),
+    'the feed item/column must use box-sizing:border-box so its padding is inside the capped width and cannot push content past 1280px (AC-1).');
+});
+
+// ===========================================================================
+// Testability contract (the property the ADR rests the per-story level on) +
+// defensive case + the reused public shell
+// ===========================================================================
+
+test('T13: useFeed mirrors the hook convention — returns { data, loading, error } and aborts on unmount (supporting)', () => {
+  const src = safeRead(HOOK);
+  assert(src.length > 0, 'useFeed.js does not exist yet.');
+  assert(/return\s*\{[\s\S]{0,120}data[\s\S]{0,120}loading[\s\S]{0,120}error[\s\S]{0,40}\}/.test(src),
+    'useFeed must return { data, loading, error } (the established hook shape, mirroring useGrapevineFollows.js).');
+  assert(/AbortController/.test(src) && /\.abort\(\)/.test(src),
+    'useFeed must abort the fetch on unmount via AbortController (the useGrapevineFollows.js convention — no setState-after-unmount).');
+});
+
+test('T14: the body is a PURE, named-exported renderFeedState/FeedBody of {data,loading,error}, free of fetch/auth/router/browser globals (ADR testability)', () => {
+  const src = safeRead(PAGE);
+  assert(src.length > 0, 'BrainstormFeed.jsx does not exist yet.');
+  // The decisive testability property (ADR §Testability #1): the state→view mapping is an isolated,
+  // importable pure unit. We can't runtime-render it here, but we can pin that it IS that unit.
+  assert(/export\s+(function\s+(renderFeedState|FeedBody)|const\s+(renderFeedState|FeedBody)\s*=)/.test(src),
+    'BrainstormFeed.jsx must NAMED-export a pure body helper (renderFeedState or FeedBody) so the four states are an isolated, testable unit (ADR §Testability #1 — the property the per-story level rests on).');
+  const body = bodyHelper(src);
+  // Inside the helper: no fetch, no useAuth, no router hooks, no window/document — it is a pure
+  // function of its args. (useFeed/useAuth belong in the page wrapper, not the helper.)
+  for (const banned of ['fetch(', 'useAuth(', 'useFeed(', 'useNavigate(', 'useParams(', 'window.', 'document.']) {
+    assert(!body.includes(banned),
+      `the pure body helper must not call ${banned} — it must be a pure function of { data, loading, error } (data fetching/auth/routing live in the page wrapper, ADR §Testability #1).`);
+  }
+});
+
+test('T15: a transport/error or unknown status renders a neutral "couldn\'t load" line, never a raw error or blank (defensive case)', () => {
+  const src = safeRead(PAGE);
+  assert(src.length > 0, 'BrainstormFeed.jsx does not exist yet.');
+  const body = bodyHelper(src);
+  assert(/\berror\b/.test(body),
+    'the body helper must handle the `error` arg — the defensive transport-failure case (ADR §Context: a 5th presentation case beyond the four read-path states).');
+  assert(/couldn'?t load|could not load|unable to load|try again|something went wrong/i.test(src),
+    'the defensive branch must show a neutral "Couldn\'t load the feed right now." line — never a raw error/stack or a blank page (ADR §Impl defensive branch; AC "never an error").');
+});
+
+test('T16: the page reuses the plain public shell (bsp-page/bsp-top-bar/bsp-content + BrainstormUserMenu) and useAuth, so the logged-out case is safe (AC-1 no login wall)', () => {
+  const src = safeRead(PAGE);
+  assert(src.length > 0, 'BrainstormFeed.jsx does not exist yet.');
+  assert(/bsp-page/.test(src) && /bsp-top-bar/.test(src) && /bsp-content/.test(src),
+    'BrainstormFeed.jsx must reuse the plain public shell classes (bsp-page → bsp-top-bar → bsp-content), modeled on BrainstormAbout.jsx (ADR §Impl).');
+  assert(/BrainstormUserMenu/.test(src),
+    'BrainstormFeed.jsx must render the shared <BrainstormUserMenu> (the public top bar), as BrainstormAbout does.');
+  assert(/useAuth\s*\(\s*\)/.test(src),
+    'BrainstormFeed.jsx must use useAuth() — which initializes user=null and tolerates the anonymous case, so the page renders with no logged-in user (AC-1: no login wall).');
+});
+
+// ===========================================================================
+// REGRESSION SENTINELS (must PASS before AND after implementation)
+// ===========================================================================
+
+test('R1: App.jsx still registers the existing public + profile routes — /feed is ADDED beside them, nothing removed (additive)', () => {
+  const src = safeRead(APP);
+  assert(src.length > 0, 'ui/src/App.jsx missing — unexpected.');
+  for (const route of ['/about', '/how-search-works', '/developers']) {
+    assert(new RegExp("path:\\s*['\"]" + route.replace('/', '\\/') + "['\"]").test(src),
+      `the existing top-level public route '${route}' must remain (the /feed route is added beside it, not in place of it).`);
+  }
+  assert(/path:\s*['"]\/['"]/.test(src) && /BrainstormSearch/.test(src),
+    'the root "/" search route must remain registered (additive change — the rest of the app is unchanged).');
+});
+
+test('R2: this story re-derives nothing — the read-path module src/api/feed/feedReadPath.js is NOT modified by the page (the #1/#2 split)', () => {
+  const src = safeRead(READ_PATH);
+  assert(src.length > 0, 'src/api/feed/feedReadPath.js missing — unexpected (ADR 0001 / #1 owns it).');
+  // #1 owns resolution/order/cap; #2 only renders its output. The read path must still expose the
+  // discriminated four-status contract this page maps over. If this sentinel breaks, the page
+  // edited #1's logic (forbidden — re-derivation; ADR §Out of scope / §No re-derivation).
+  assert(/FEED_CAP\s*=\s*50/.test(src),
+    'the read path must keep FEED_CAP = 50 (the 50-cap is #1\'s; the page only *displays* "most recent 50 notes", it does not change the cap).');
+  for (const status of ['NO_SOURCE', 'FOLLOW_LIST_UNAVAILABLE', 'EMPTY', 'OK']) {
+    assert(new RegExp("status:\\s*['\"]" + status + "['\"]").test(src),
+      `the read path must still return the '${status}' status (the four-outcome contract this page maps over — owned by #1, untouched by this story).`);
+  }
+});
+
+async function run() {
+  let pass = 0, fail = 0;
+  for (const t of tests) {
+    try {
+      await t.fn();
+      console.log(`  ✓ ${t.name}`);
+      pass++;
+    } catch (err) {
+      console.log(`  ✗ ${t.name}`);
+      console.log(`      ${err.message}`);
+      fail++;
+    }
+  }
+  return { pass, fail };
+}
+
+module.exports = { run };

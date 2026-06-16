@@ -7057,6 +7057,8 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
 /* Reporters list: description + point-of-view attribution lines (verified-reporters #3). */
 .bsp-follows-subtitle { margin: 0.35rem 0 0; font-size: 0.9rem; opacity: 0.7; }
 .bsp-follows-pov { margin: 0.4rem 0 0; font-size: 0.82rem; opacity: 0.6; }
+/* Reporter/report tally — "8 reporters, 10 reports" (verified-reporters #4). */
+.bsp-follows-summary { margin: 0.4rem 0 0; font-size: 0.82rem; opacity: 0.75; }
 /* Verification explainer popover: owner identity row (profile #36 / ADR 0032). */
 .bsp-verification-owner { display: flex; align-items: center; gap: 0.5rem; margin: 0.25rem 0 0.5rem; }
 /* Verified Reporters alarm icon (shown only above the dynamic threshold). */
@@ -7152,6 +7154,70 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
 @keyframes bsp-shimmer {
   0% { background-position: 200% 0; }
   100% { background-position: -200% 0; }
+}
+
+/* Live Feed page (story live-feed #2 / ADR live-feed/0002).
+   The column is width-capped and box-sizing:border-box so its padding stays inside
+   the cap, and note text wraps (overflow-wrap:anywhere) so a long URL or unbroken
+   token cannot push content past the column / 1280px (AC-1 no horizontal overflow). */
+.bsp-feed-content {
+  max-width: 700px;
+  width: 100%;
+  box-sizing: border-box;
+}
+.bsp-feed-heading {
+  font-size: 1.5rem;
+  margin: 0 0 1rem;
+}
+.bsp-feed-indicator {
+  font-size: 0.85rem;
+  opacity: 0.6;
+  margin-bottom: 1rem;
+}
+.bsp-feed-loading {
+  padding: 2rem;
+  text-align: center;
+  opacity: 0.6;
+}
+.bsp-feed-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+.bsp-feed-item {
+  max-width: 100%;
+  box-sizing: border-box;
+  padding: 1rem;
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 10px;
+}
+.bsp-feed-item-head {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.6rem;
+}
+.bsp-feed-avatar {
+  width: 40px;
+  height: 40px;
+}
+.bsp-feed-item-meta {
+  min-width: 0;
+}
+.bsp-feed-name {
+  font-size: 0.95rem;
+  overflow-wrap: anywhere;
+}
+.bsp-feed-time {
+  font-size: 0.75rem;
+  opacity: 0.5;
+}
+.bsp-feed-text {
+  font-size: 0.9rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .table-pagination {
