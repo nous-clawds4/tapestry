@@ -46,6 +46,9 @@ For the Architect:
 - **Glyph choice:** ellipsis vs chevron (or another neutral "more"/"details" glyph) — pick one consistent with existing iconography. House rule: no new icon library; use an existing unicode glyph.
 - **Empty-Identity-section handling:** confirm the section collapses cleanly when only website/lightning remain and both are absent (see the corresponding acceptance criterion).
 
+## Deviations
+- **Trigger pinned to the far-right edge** (operator preference, 2026-06-16) rather than immediately adjacent to the name (ADR 0033's chosen sub-option). Implemented by adding `flex: 1` to `.bsp-header-info` so `.bsp-name-row` spans the header width and the existing `.bsp-info-btn { margin-left: auto }` floats the `⋯` to the right edge — matching the two `ⓘ` icons. ADR 0033 explicitly listed far-right as the alternative, so this is a sanctioned switch, not a contradiction.
+
 ## Linked artifacts
 - Design context: [`docs/PROFILE_IA_REVIEW_2026-06-16.md`](../../../docs/PROFILE_IA_REVIEW_2026-06-16.md) (the deferred "Story B" sibling).
 - Related ADRs (pattern precedent): `engineering-team/decisions/profile/0032-verified-counts-explainer-and-alarm.md` (the shared information-popover pattern this should stay consistent with), `engineering-team/decisions/profile/0030-profile-website-link-scheme.md` (the website link behavior that must be preserved).
