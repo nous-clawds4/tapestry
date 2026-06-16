@@ -14,6 +14,7 @@ import { timeAgo } from '../utils/timeAgo';
 import { toExternalUrl } from '../utils/url';
 import VerificationInfo from '../components/VerificationInfo';
 import ReputationInfo from '../components/ReputationInfo';
+import IdentityDetails from '../components/IdentityDetails';
 
 /* ── Verified Reporters alarm thresholds (ADR 0032) ──────
    Alarm (red + icon) only when verifiedReporterCount >= BASE + one "freebie" per
@@ -44,26 +45,6 @@ const TRUST_METRICS = [
   { tag: 'verifiedMuterCount',             label: 'Muters',          icon: '🔇', description: 'Users who muted this profile' },
   { tag: 'verifiedReporterCount',          label: 'Reporters',       icon: '🚩', description: 'Users who reported this profile' },
 ];
-
-/* ── Copy Button ─────────────────────────────────────── */
-
-function CopyButton({ value }) {
-  const [copied, setCopied] = useState(false);
-  return (
-    <button
-      className="bsp-copy-btn"
-      onClick={() => {
-        navigator.clipboard.writeText(value).then(() => {
-          setCopied(true);
-          setTimeout(() => setCopied(false), 1500);
-        });
-      }}
-      title="Copy to clipboard"
-    >
-      {copied ? '✓' : '📋'}
-    </button>
-  );
-}
 
 /* ── Main Component ──────────────────────────────────── */
 
@@ -230,7 +211,10 @@ export default function BrainstormProfile() {
                 </div>
               )}
               <div className="bsp-header-info">
-                <h1 className="bsp-name">{displayName}</h1>
+                <div className="bsp-name-row">
+                  <h1 className="bsp-name">{displayName}</h1>
+                  <IdentityDetails pubkey={pubkey} npub={npub} />
+                </div>
                 {profile?.nip05 && <div className="bsp-nip05">{nip05Verified && '✅ '}{profile.nip05}</div>}
                 {profileAge && <span className="bsp-age">Updated {profileAge}</span>}
               </div>
@@ -318,38 +302,29 @@ export default function BrainstormProfile() {
               </div>
             )}
 
-            {/* Identity */}
-            <div className="bsp-section">
-              <h3>Identity</h3>
-              <div className="bsp-id-grid">
-                <div className="bsp-id-row">
-                  <span className="bsp-id-label">Pubkey (hex)</span>
-                  <code className="bsp-id-value">{shortPubkey(pubkey)}</code>
-                  <CopyButton value={pubkey} />
+            {/* Identity — Website + Lightning. Pubkey/npub live in the IdentityDetails drawer
+                by the name (ADR profile/0033); the section renders only when it has content. */}
+            {(profile?.website || profile?.lud16) && (
+              <div className="bsp-section">
+                <h3>Identity</h3>
+                <div className="bsp-id-grid">
+                  {profile?.website && (
+                    <div className="bsp-id-row">
+                      <span className="bsp-id-label">Website</span>
+                      <a href={toExternalUrl(profile.website)} target="_blank" rel="noopener noreferrer" className="bsp-id-link">
+                        {profile.website.replace(/^https?:\/\//, '').replace(/\/$/, '')}
+                      </a>
+                    </div>
+                  )}
+                  {profile?.lud16 && (
+                    <div className="bsp-id-row">
+                      <span className="bsp-id-label">Lightning</span>
+                      <span className="bsp-id-value">⚡ {profile.lud16}</span>
+                    </div>
+                  )}
                 </div>
-                {npub && (
-                  <div className="bsp-id-row">
-                    <span className="bsp-id-label">npub</span>
-                    <code className="bsp-id-value">{npub.slice(0, 20)}…{npub.slice(-8)}</code>
-                    <CopyButton value={npub} />
-                  </div>
-                )}
-                {profile?.website && (
-                  <div className="bsp-id-row">
-                    <span className="bsp-id-label">Website</span>
-                    <a href={toExternalUrl(profile.website)} target="_blank" rel="noopener noreferrer" className="bsp-id-link">
-                      {profile.website.replace(/^https?:\/\//, '').replace(/\/$/, '')}
-                    </a>
-                  </div>
-                )}
-                {profile?.lud16 && (
-                  <div className="bsp-id-row">
-                    <span className="bsp-id-label">Lightning</span>
-                    <span className="bsp-id-value">⚡ {profile.lud16}</span>
-                  </div>
-                )}
               </div>
-            </div>
+            )}
 
             {/* Reputation */}
             <div className="bsp-section">

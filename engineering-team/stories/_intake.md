@@ -1018,3 +1018,25 @@ Reference profile: `https://staging.brainstorm.world/user/c4eabae1be3cf657bc1855
 **Classification:** Feature
 **Strictness:** Standard
 **Phase path:** Test Design (scaffold drafted, on the branch) → finish gold set → run/verify → Implementation → Review (Planning + Architecture done — see `epics/search-quality.md` + ADR `search-quality/0001`). **Resume on operator confirmation.**
+
+---
+
+## 2026-06-16 — Feature (DEFERRED — needs discussion): Profile page information-architecture reorder
+
+**Captured, set aside by operator.** Came out of the 2026-06-16 profile-page conversation as "Story B" (sibling to "Story A", the npub/pubkey details-drawer popover, which is being built now under the `profile` epic). Operator: *"Story B will need significantly further discussion before running with it… capture Story B and set it aside for later."* **Do not start without a `/discuss` pass.**
+
+Full verified review (the dominant finding, the per-move verdicts, the open decisions, and the complete constraint list mined from ADRs): **[`docs/PROFILE_IA_REVIEW_2026-06-16.md`](../../docs/PROFILE_IA_REVIEW_2026-06-16.md).** Produced by a multi-lens UX review with each significant move adversarially pressure-tested against the existing profile ADRs.
+
+**The gist:**
+- The product's trust verdict (the 0–100 **Verification Score**) is buried at the very bottom as tile #1 of an 11-card grid. The high-value move is to **promote it to a headline** and **lift the Reputation section up** (after About), with the technical GrapeRank/PageRank internals behind a **default-collapsed disclosure**.
+- **⚠️ PoV gotcha:** the counts row is **Owner-PoV (Neo4j)** while the rank is **Meili, `?pov=`-dependent (House/Personalized)** — so the score hero must stay **inside the Reputation section** (under the `ReputationInfo` framing), **not** floated under the counts row, or it can silently contradict the counts. Grid data path stays the regression boundary; hero reads existing `trustScores['rank']`, rounded.
+- Grid cleanups: drop **one** (not both) duplicate "Verified Followers" card (this **absorbs the 2026-06-06 item 4** above); remove the inert grid "Reporters" card — **but** that requires updating regression sentinel **R3** in `test/profile-verified-reporters-count.test.js:156–160` and noting the ADR `verified-reporters/0001` retention reversal, else `npm test` goes red.
+- The "Identity"→"Links" relabel is **gated on Story A** shipping; do **not** bury Website/Lightning at the page bottom (a website is a human-legible trust signal).
+
+**Open decisions to settle first:** contact-links placement; Hops above-the-fold vs in the disclosure; bottom-block heading wording; confirm Story A sequencing. (Details in the doc.)
+
+**Classification:** Feature (frontend reorder; needs an ADR — touches reputation presentation, the PoV boundary, and a ratified test sentinel).
+**Strictness:** Standard.
+**Phase path:** `/discuss` (settle the open decisions + PoV-safe headline placement) → Planning → Architecture (ADR) → Test Design → Implementation → Review.
+**Priority:** Medium — real UX win, but **deferred pending operator discussion**; not a fast-track change.
+**Depends on:** Story A (pubkey/npub details drawer) for the Identity→Links relabel; otherwise independent. **Related:** 2026-06-06 item 4 (absorbed); ADRs `profile/0029–0032`, `verified-reporters/0001`.
