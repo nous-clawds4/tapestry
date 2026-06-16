@@ -73,6 +73,10 @@ import BrainstormPersonalization from './pages/BrainstormPersonalization';
 import BrainstormHowSearchWorks from './pages/BrainstormHowSearchWorks';
 import BrainstormAbout from './pages/BrainstormAbout';
 import BrainstormDevelopers from './pages/BrainstormDevelopers';
+import Tag from './pages/Tag';
+import Tags from './pages/Tags';
+import Pins from './pages/Pins';
+import PinRedirect from './components/PinRedirect';
 import BrainstormFeed from './pages/BrainstormFeed';
 import NotFound from './pages/NotFound';
 const router = createBrowserRouter([
@@ -83,6 +87,26 @@ const router = createBrowserRouter([
   {
     path: '/user/:pubkey',
     element: <BrainstormProfile />,
+  },
+  {
+    path: '/tag/:tagId',
+    element: <Tag />,
+  },
+  {
+    path: '/tag/:slug/:tagId',
+    element: <Tag />,
+  },
+  {
+    path: '/tags',
+    element: <Tags />,
+  },
+  {
+    path: '/pins',
+    element: <Pins />,
+  },
+  {
+    path: '/pin/:dTag',
+    element: <PinRedirect />,
   },
   {
     path: '/user/:pubkey/follows',

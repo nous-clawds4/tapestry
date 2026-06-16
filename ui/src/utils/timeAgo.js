@@ -1,9 +1,31 @@
 /**
  * Relative "time ago" formatting. Pure — no DOM/React imports (kept unit-testable
- * from node; the verified-reporters #4 suite imports it directly).
+ * from node; the verified-reporters #4 suite imports formatTimeAgo directly).
+ *
+ * Two exports, different consumers (merged from staging + the tag-stack branch):
+ *   - `timeAgo`       — single-unit compact string ("3d ago"); tag-stack UI
+ *                       (BrainstormProfile, AuthoredTaggingSection, ExportModal).
+ *   - `formatTimeAgo` — multi-unit string ("3d, 4h, 12m ago"); verified-reporters.
  */
 
-const MIN = 60, HOUR = 3600, DAY = 86400, YEAR = 365 * DAY;
+const MIN = 60, HOUR = 3600, DAY = 86400, MONTH = 30 * DAY, YEAR = 365 * DAY;
+
+/**
+ * Single-unit relative string. Returns null for missing/zero input.
+ * @param {number} unixSeconds - unix SECONDS (nostr created_at)
+ * @returns {string|null} e.g. "just now" / "5m ago" / "3d ago" / "2y ago"
+ */
+export function timeAgo(unixSeconds) {
+  if (!unixSeconds) return null;
+  const now = Date.now() / 1000;
+  const diff = now - unixSeconds;
+  if (diff < MIN) return 'just now';
+  if (diff < HOUR) return `${Math.floor(diff / MIN)}m ago`;
+  if (diff < DAY) return `${Math.floor(diff / HOUR)}h ago`;
+  if (diff < MONTH) return `${Math.floor(diff / DAY)}d ago`;
+  if (diff < YEAR) return `${Math.floor(diff / MONTH)}mo ago`;
+  return `${Math.floor(diff / YEAR)}y ago`;
+}
 
 /**
  * Format a unix timestamp (SECONDS) as a compact, multi-unit relative string,

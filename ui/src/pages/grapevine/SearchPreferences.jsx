@@ -80,6 +80,131 @@ function parseMetrics(event) {
   return metrics;
 }
 
+/**
+ * Search API result types — instance-level contract control (epic
+ * search-api-result-controls, ADR 0001). Per-result-type inclusion on the
+ * public search API. Distinct from the House POV defaults above: this is
+ * NOT per-viewer ranking config, it decides what the API returns at all.
+ *
+ * Reads/writes settings.search.resultTypes via the owner/admin-gated
+ * /api/settings endpoints; rendered only for owner/admin.
+ */
+function SearchApiResultTypesCard({ sectionStyle }) {
+  const [resultTypes, setResultTypes] = useState(null); // null = loading
+  const [saveError, setSaveError] = useState(null);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const resp = await fetch('/api/settings');
+        const data = await resp.json();
+        if (cancelled) return;
+        const rt = data?.settings?.search?.resultTypes || data?.search?.resultTypes || {};
+        setResultTypes({
+          profiles: rt.profiles !== false,
+          tags: rt.tags === true,
+        });
+      } catch {
+        if (!cancelled) setResultTypes({ profiles: true, tags: false });
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  const toggleType = useCallback(async (type) => {
+    setSaveError(null);
+    const next = { ...resultTypes, [type]: !resultTypes[type] };
+    setResultTypes(next); // optimistic — server reads per request, no restart needed
+    setSaving(true);
+    try {
+      const resp = await fetch('/api/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ search: { resultTypes: next } }),
+      });
+      const data = await resp.json().catch(() => null);
+      if (!resp.ok || data?.success === false) {
+        setResultTypes(resultTypes); // revert
+        setSaveError(data?.error || `Save failed (${resp.status})`);
+      }
+    } catch (err) {
+      setResultTypes(resultTypes);
+      setSaveError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  }, [resultTypes]);
+
+  const TYPES = [
+    { key: 'profiles', label: 'Profiles', hint: 'Profile documents (name/bio matches, NIP-05 lookups, direct pubkey lookups).' },
+    { key: 'tags', label: 'Tags', hint: 'Tag elements as results, plus tag-based profile matching and tag chips on profile hits.' },
+  ];
+
+  return (
+    <div style={sectionStyle}>
+      <label style={{ fontWeight: 600, fontSize: '0.85rem', display: 'block', marginBottom: '0.5rem' }}>
+        Search API result types
+      </label>
+      <p style={{ fontSize: '0.8rem', opacity: 0.6, margin: '0 0 0.75rem' }}>
+        Which result types this instance's public search API includes. Changes
+        apply to the next request — no restart. Defaults match production's
+        pre-tag contract (profiles on, tags off), so existing API consumers see
+        no change until you opt in.
+      </p>
+      {resultTypes === null ? (
+        <p style={{ opacity: 0.5, fontSize: '0.85rem' }}>Loading…</p>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+          {TYPES.map(({ key, label, hint }) => (
+            <label
+              key={key}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '0.75rem',
+                padding: '0.5rem 0.75rem', borderRadius: '6px',
+                backgroundColor: resultTypes[key] ? 'rgba(88, 166, 255, 0.1)' : 'transparent',
+                border: `1px solid ${resultTypes[key] ? '#58a6ff' : 'var(--border, #444)'}`,
+                cursor: saving ? 'wait' : 'pointer',
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={resultTypes[key]}
+                disabled={saving}
+                onChange={() => toggleType(key)}
+              />
+              <div>
+                <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>{label}</div>
+                <div style={{ fontSize: '0.75rem', opacity: 0.5 }}>{hint}</div>
+              </div>
+            </label>
+          ))}
+        </div>
+      )}
+      {resultTypes && resultTypes.profiles === false && (
+        <div style={{
+          marginTop: '0.75rem', padding: '0.75rem 1rem',
+          border: '1px solid #d29922', borderRadius: '8px',
+          backgroundColor: 'rgba(210, 153, 34, 0.08)', color: '#d29922', fontSize: '0.85rem',
+        }}>
+          ⚠️ Profiles are excluded — search responses will contain no profile
+          results for any consumer of this instance's API.
+        </div>
+      )}
+      {saveError && (
+        <div style={{
+          marginTop: '0.75rem', padding: '0.75rem 1rem',
+          border: '1px solid #f85149', borderRadius: '8px',
+          backgroundColor: 'rgba(248, 81, 73, 0.08)', color: '#f85149', fontSize: '0.85rem',
+        }}>
+          {saveError}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function SearchPreferences() {
   const [povInput, setPovInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -818,6 +943,9 @@ export default function SearchPreferences() {
           </pre>
         </details>
       )}
+
+      {/* Search API result types (instance contract control — ADR 0001, search-api-result-controls) */}
+      {isOwnerOrAdmin && <SearchApiResultTypesCard sectionStyle={sectionStyle} />}
     </div>
   );
 }

@@ -3,7 +3,7 @@
 > **Audience:** the active team running this fork at `brainstorm.world`.
 > **Prerequisite reading:** [BIBLE.md](./BIBLE.md) — what tapestry *is* and how it works. This file documents the specifics of *our* deployment that aren't useful to other operators forking the codebase.
 
-**Last updated:** 2026-05-15
+**Last updated:** 2026-05-18
 
 ---
 
@@ -20,6 +20,9 @@
 9. [Operational gotchas we've hit](#9-operational-gotchas-weve-hit)
 10. [Task queue (BullMQ behind /api/run-task)](#10-task-queue-bullmq-behind-apirun-task)
 11. [Conf templates are the source of truth for fresh containers](#11-conf-templates-are-the-source-of-truth-for-fresh-containers)
+12. [Reconciliation — four independent tasks (story #23 / ADR 0020)](#12-reconciliation--four-independent-tasks-story-23--adr-0020)
+13. [Task scheduling — generalized scheduler (story #22 / ADR 0019)](#13-task-scheduling--generalized-scheduler-story-22--adr-0019)
+14. [Local dev loop (inside-container source edits)](#14-local-dev-loop-inside-container-source-edits)
 
 ---
 
@@ -711,3 +714,74 @@ Suggested cadence:
 - `reconcileAuthor` — on-demand, not scheduled.
 
 **No seed-first runbook needed** (story #23): the bounded `reconcileRecent` cannot bootstrap into a full pass on a missing watermark, so the previous "run `reconcileAll` first" caveat is obsolete.
+## 14. Local dev loop (inside-container source edits)
+
+When you're iterating on UI or server code and want to see changes on `http://localhost:7778` *without* a full image rebuild (which is what `/cycle-local` does), you have to do it by hand. The local-loop friction is real and counter-intuitive — write it down once so the next person doesn't waste an hour.
+
+### Why the obvious thing doesn't work
+
+The `tapestry` container's source tree at `/usr/local/lib/node_modules/brainstorm/` is **a snapshot baked into the Docker image at image-build time**. It is *not* a bind-mount of your host's repo. So if you only run:
+
+```sh
+docker exec tapestry sh -c 'cd /usr/local/lib/node_modules/brainstorm/ui && npm run build'
+```
+
+…that succeeds, but it rebuilds whatever source was in the image when it was last built — i.e., your edits aren't there. The emitted bundle looks identical to the prior one.
+
+### UI changes (React / CSS / anything under `ui/src/`)
+
+```sh
+# 1. Sync the edited source from host → container.
+#    Whole tree (safer when you don't track exactly what changed):
+docker exec tapestry sh -c 'rm -rf /usr/local/lib/node_modules/brainstorm/ui/src && \
+  mkdir -p /usr/local/lib/node_modules/brainstorm/ui/src'
+docker cp /home/<user>/src/tapestry/ui/src/. \
+  tapestry:/usr/local/lib/node_modules/brainstorm/ui/src/
+
+# …or just the file(s) you touched (faster, no churn):
+docker cp /home/<user>/src/tapestry/ui/src/styles.css \
+  tapestry:/usr/local/lib/node_modules/brainstorm/ui/src/styles.css
+
+# 2. Build inside the container. Vite writes to ui/dist/ on disk.
+docker exec tapestry sh -c \
+  'cd /usr/local/lib/node_modules/brainstorm/ui && npm run build'
+
+# 3. Verify the served HTML references a NEW bundle hash.
+curl -s http://localhost:7778/ | grep -oE 'src="[^"]*index[^"]*"' | head -1
+```
+
+**No control-panel restart is needed for UI changes** — the Express server serves static files from `ui/dist/` directly. A hard-refresh in the browser picks up the new bundle as soon as `npm run build` finishes.
+
+### Server changes (anything under `src/api/`, `bin/control-panel.js`, etc.)
+
+The control-panel process keeps loaded modules in memory, so file edits alone don't take effect:
+
+```sh
+# 1. Copy the edited file into the container.
+docker cp /home/<user>/src/tapestry/src/api/profile-tags/index.js \
+  tapestry:/usr/local/lib/node_modules/brainstorm/src/api/profile-tags/index.js
+
+# 2. HUP the control-panel process so it re-`require`s on next request.
+docker exec tapestry sh -c 'pkill -HUP -f control-panel.js'
+sleep 2  # give it a moment to relisten on :7778
+
+# 3. Probe a known endpoint to confirm.
+curl -s -o /dev/null -w "%{http_code}\n" http://localhost:7778/api/profile-tags/...
+```
+
+The HUP-and-relisten approach is faster than `docker compose restart tapestry`, which would tear down strfry, neo4j proxies, and supervisor's child processes too.
+
+### Caveats
+
+- **Nothing in this loop survives a container rebuild.** The next `docker compose up --build` or `/cycle-local` invocation reverts every in-container edit to whatever's in the freshly-built image. The proper way to land changes durably is to **commit + push** (so CI builds a new image) or **run `/cycle-local`** (which builds a new image locally and restarts the stack).
+- **Source files baked into the image come from `npm install` at image-build time**, not from a `COPY` of `ui/src/`. So if you add a *new* source file to your host tree, even `/cycle-local` won't pick it up unless the `package.json` / `npm publish` flow includes it. (This is the same bear-trap that bit us when Story 5's new component files weren't in the container at first — the existing container was built before Stories 2/3/4 added their files.)
+- **CSS-only changes still require a `npm run build`** — there is no separate `npm run build:css`. Vite handles CSS as part of the JS bundle/asset graph. Plan a ~15–20s build cycle per CSS tweak.
+
+### Known friction — candidates for improvement
+
+The current loop turns a one-line CSS tweak into a six-step shell ritual. Two tracked candidates for fixing it:
+
+1. **Add a dev-mode bind-mount.** A `docker-compose.dev.yml` overlay that mounts `./src` and `./ui/src` from the host into the container at the same paths would eliminate step 1 of both loops above. Vite has a `--watch` mode that would then rebuild the UI on file change. Not yet implemented; would need careful thought about HMR vs. Express's static-file serving.
+2. **A `make sync-css` (or equivalent) one-liner.** Stop-gap until #1 lands: a script that wraps the `docker cp` + `npm run build` + bundle-hash check above. Bash version is ~10 lines; could live in `bin/dev-sync-ui.sh`.
+
+Both tracked as candidates; bandwidth-permitting.

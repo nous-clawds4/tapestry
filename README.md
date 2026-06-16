@@ -155,6 +155,24 @@ npx vite --host
 
 This starts a dev server at [http://localhost:5173/kg/](http://localhost:5173/kg/) with hot module replacement. API requests are proxied to the Docker container on port 8080.
 
+### Running the Playwright tests
+
+Browser-level tests live in `tests/brainstorm/` and run via:
+
+```bash
+BRAINSTORM_SERVER_ACCESSIBLE=true npm run test:playwright
+```
+
+Ubuntu / macOS dev boxes: `npx playwright install --with-deps` once, then the command above works.
+
+NixOS dev boxes: the prebuilt browsers Playwright downloads are linked against Ubuntu shared libraries and won't launch. Use the bundled `shell.nix` instead:
+
+```bash
+nix-shell --run 'BRAINSTORM_SERVER_ACCESSIBLE=true npm run test:playwright'
+```
+
+The shell wires `PLAYWRIGHT_BROWSERS_PATH` to a NixOS-compatible build of the same browser version pinned in `package.json`. If you bump `@playwright/test`, bump the nixpkgs `playwright-driver` correspondingly (or pin npm back to match nix).
+
 ---
 
 ## Architecture

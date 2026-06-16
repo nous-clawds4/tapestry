@@ -2,12 +2,15 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useSearchParams, Link } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
 import { useAuth } from '../context/AuthContext';
-import BrainstormUserMenu from '../components/BrainstormUserMenu';
+import TopBar from '../components/TopBar';
 import { useProfileActions } from '../hooks/useProfileActions';
 import useUserCounts from '../hooks/useUserCounts';
 import useNip05Verification from '../hooks/useNip05Verification';
 import ConfirmDialog from '../components/ConfirmDialog';
 import ReportModal from '../components/ReportModal';
+import ProfileTagsSection from '../components/ProfileTagsSection';
+import AuthoredTaggingSection from '../components/AuthoredTaggingSection';
+import { timeAgo } from '../utils/timeAgo';
 import { toExternalUrl } from '../utils/url';
 import VerificationInfo from '../components/VerificationInfo';
 import ReputationInfo from '../components/ReputationInfo';
@@ -20,18 +23,6 @@ const REPORTER_ALARM_BASE = 3;
 const REPORTER_ALARM_FREEBIE_PER = 750;
 
 /* ── Helpers ──────────────────────────────────────────── */
-
-function timeAgo(unixSeconds) {
-  if (!unixSeconds) return null;
-  const now = Date.now() / 1000;
-  const diff = now - unixSeconds;
-  if (diff < 60) return 'just now';
-  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-  if (diff < 2592000) return `${Math.floor(diff / 86400)}d ago`;
-  if (diff < 31536000) return `${Math.floor(diff / 2592000)}mo ago`;
-  return `${Math.floor(diff / 31536000)}y ago`;
-}
 
 function shortPubkey(pk) {
   if (!pk) return '—';
@@ -211,15 +202,7 @@ export default function BrainstormProfile() {
 
   return (
     <div className="bsp-page">
-      {/* Top bar */}
-      <div className="bsp-top-bar">
-        <a href="/" className="bsp-logo">
-          <img src="/brainstorm.svg" alt="" className="bsp-logo-img" />
-        </a>
-        <div className="bsp-auth">
-          <BrainstormUserMenu user={user} login={login} logout={logout} />
-        </div>
-      </div>
+      <TopBar />
 
       {/* Profile content */}
       <div className="bsp-content">
@@ -322,6 +305,10 @@ export default function BrainstormProfile() {
                 {actionError && <div className="bsp-action-error">{actionError}</div>}
               </div>
             )}
+
+            <ProfileTagsSection targetPubkey={pubkey} viewerPubkey={user?.pubkey} />
+
+            <AuthoredTaggingSection profilePubkey={pubkey} viewerPubkey={user?.pubkey} />
 
             {/* About */}
             {profile?.about && (

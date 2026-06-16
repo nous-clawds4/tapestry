@@ -13,7 +13,7 @@ async function globalSetup(config) {
   
   try {
     // Check if Brainstorm server is accessible
-    const baseURL = config.use.baseURL;
+    const baseURL = config?.use?.baseURL || process.env.BRAINSTORM_BASE_URL || 'http://localhost:7778';
     console.log(`📡 Checking Brainstorm server accessibility at ${baseURL}`);
     
     const response = await page.goto(baseURL, { waitUntil: 'networkidle' });

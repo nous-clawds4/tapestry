@@ -23,6 +23,32 @@ function testConfigLoading() {
   }
 }
 
+// Tag-stack suites (from feat/pubkey-tagging-target)
+const profileTags = require('./profile-tags.test.js');
+const profileTagsPublish = require('./profile-tags-publish.test.js');
+const tagDetail = require('./tag-detail.test.js');
+const tagDetailPublish = require('./tag-detail-publish.test.js');
+const tagDetailWrite = require('./tag-detail-write.test.js');
+const tagDetailWritePublish = require('./tag-detail-write-publish.test.js');
+const tagIndex = require('./tag-index.test.js');
+const tagIndexPublish = require('./tag-index-publish.test.js');
+const authoredTagging = require('./authored-tagging.test.js');
+const authoredTaggingPublish = require('./authored-tagging-publish.test.js');
+const profileTagPolish = require('./profile-tag-polish.test.js');
+const profileTagPolishPublish = require('./profile-tag-polish-publish.test.js');
+const searchResultParity = require('./search-result-parity.test.js');
+const searchResultsUrl = require('./search-results-url.test.js');
+const pinATag = require('./pin-a-tag.test.js');
+const pinATagPublish = require('./pin-a-tag-publish.test.js');
+const tlPubFromPins = require('./tl-publication-from-pins.test.js');
+const tlPubFromPinsPublish = require('./tl-publication-from-pins-publish.test.js');
+const customizePinCurationPublish = require('./customize-pin-curation-publish.test.js');
+const mostPinnedTagIndex = require('./most-pinned-tag-index.test.js');
+const mostPinnedTagIndexPublish = require('./most-pinned-tag-index-publish.test.js');
+const tagDetailCurated = require('./tag-detail-curated-view-and-pin-polish.test.js');
+const tagDetailCuratedPublish = require('./tag-detail-curated-view-and-pin-polish-publish.test.js');
+const restoreHistoricalDataAndTlFilter = require('./restore-historical-data-and-fix-tl-author-filter.test.js');
+// Suites added on main since this branch forked
 const treasureMaps = require('./treasure-maps-router-preset.test.js');
 const scheduledRefresh = require('./scheduled-search-and-house-scores-refresh.test.js');
 const strfryRouterFirstBoot = require('./strfry-router-first-boot-config.test.js');
@@ -30,6 +56,11 @@ const perQueryNeo4jTimeout = require('./per-query-neo4j-timeout-safety-net.test.
 const nip05CheckmarkVerification = require('./nip05-checkmark-verification.test.js');
 const publishExportConcept = require('./publish-export-a-concept.test.js');
 const communityReferenceStub = require('./community-reference-nostr-relay-stub.test.js');
+const nip51ListExport = require('./nip51-list-export-from-pins.test.js');
+const nip51ListExportPublish = require('./nip51-list-export-from-pins-publish.test.js');
+const pinDetailIntoTagTab = require('./pin-detail-into-tag-pinned-tab.test.js');
+const collapseIntoExport = require('./collapse-into-export-concept.test.js');
+const loginFailureAndTagCollapse = require('./login-failure-and-tag-collapse.test.js');
 const headerConceptGraphTag = require('./header-conceptgraph-tag.test.js');
 const communityReferenceSupersetLink = require('./community-reference-superset-link.test.js');
 const graperankSharedCsvRace = require('./graperank-shared-csv-race.test.js');
@@ -56,26 +87,53 @@ const verifiedReportersMembershipData = require('./verified-reporters-membership
 const verifiedReportersListPage = require('./verified-reporters-list-page.test.js');
 const profileVerifiedCountsOwnerPov = require('./profile-verified-counts-owner-pov.test.js');
 const profileVerifiedCountsExplainerAndAlarm = require('./profile-verified-counts-explainer-and-alarm.test.js');
+const searchApiResultTypeSettings = require('./search-api-result-type-settings.test.js');
+const trustedListPinPublishBlockers = require('./trusted-list-pin-publish-blockers.test.js');
+const nostrUserTagHybridEaWriter = require('./nostr-user-tag-hybrid-ea-writer.test.js');
 const reputationInfoPopup = require('./reputation-info-popup.test.js');
 const liveFeedReadPath = require('./live-feed-read-path.test.js');
 const liveFeedFeedPage = require('./live-feed-feed-page.test.js');
 const verifiedReportersReportColumns = require('./verified-reporters-report-columns.test.js');
 
 async function main() {
-  console.log('Running Brainstorm tests...\n');
+  console.log('Running Brainstorm tests...');
 
   const configOk = testConfigLoading();
-  console.log(`\nConfiguration Loading: ${configOk ? 'PASS' : 'FAIL'}\n`);
+  console.log(`Configuration Loading: ${configOk ? 'PASS' : 'FAIL'}`);
 
-  console.log('treasure-maps-router-preset suite:');
+  const profileTagsResult = await profileTags.run();
+  const publishResult = await profileTagsPublish.run();
+  const tagDetailResult = await tagDetail.run();
+  const tagDetailPublishResult = await tagDetailPublish.run();
+  const tagDetailWriteResult = await tagDetailWrite.run();
+  const tagDetailWritePublishResult = await tagDetailWritePublish.run();
+  const tagIndexResult = await tagIndex.run();
+  const tagIndexPublishResult = await tagIndexPublish.run();
+  const authoredTaggingResult = await authoredTagging.run();
+  const authoredTaggingPublishResult = await authoredTaggingPublish.run();
+  const profileTagPolishResult = await profileTagPolish.run();
+  const profileTagPolishPublishResult = await profileTagPolishPublish.run();
+  const searchResultParityResult = await searchResultParity.run();
+  const searchResultsUrlResult = await searchResultsUrl.run();
+  const pinATagResult = await pinATag.run();
+  const pinATagPublishResult = await pinATagPublish.run();
+  const tlPubFromPinsResult = await tlPubFromPins.run();
+  const tlPubFromPinsPublishResult = await tlPubFromPinsPublish.run();
+  const customizePinCurationPublishResult = await customizePinCurationPublish.run();
+  const mostPinnedTagIndexResult = await mostPinnedTagIndex.run();
+  const mostPinnedTagIndexPublishResult = await mostPinnedTagIndexPublish.run();
+  const tagDetailCuratedResult = await tagDetailCurated.run();
+  const tagDetailCuratedPublishResult = await tagDetailCuratedPublish.run();
+  const restoreHistoricalDataAndTlFilterResult = await restoreHistoricalDataAndTlFilter.run();
+
+  // Main-side suites — these don't print their own banner, so we announce
+  // each one before running.
+  console.log('\ntreasure-maps-router-preset suite:');
   const treasureMapsResult = await treasureMaps.run();
-
   console.log('\nscheduled-search-and-house-scores-refresh suite:');
   const scheduledRefreshResult = await scheduledRefresh.run();
-
   console.log('\nstrfry-router-first-boot-config suite:');
   const strfryRouterFirstBootResult = await strfryRouterFirstBoot.run();
-
   console.log('\nper-query-neo4j-timeout-safety-net suite:');
   const perQueryNeo4jTimeoutResult = await perQueryNeo4jTimeout.run();
 
@@ -87,6 +145,13 @@ async function main() {
 
   console.log('\ncommunity-reference-nostr-relay-stub suite:');
   const communityReferenceStubResult = await communityReferenceStub.run();
+
+  const nip51ListExportResult = await nip51ListExport.run();
+  console.log('\nnip51-list-export-from-pins publish-flow suite:');
+  const nip51ListExportPublishResult = await nip51ListExportPublish.run();
+  const pinDetailIntoTagTabResult = await pinDetailIntoTagTab.run();
+  const collapseIntoExportResult = await collapseIntoExport.run();
+  const loginFailureAndTagCollapseResult = await loginFailureAndTagCollapse.run();
 
   console.log('\nheader-conceptgraph-tag suite:');
   const headerConceptGraphTagResult = await headerConceptGraphTag.run();
@@ -166,6 +231,12 @@ async function main() {
   console.log('\nprofile-verified-counts-explainer-and-alarm suite:');
   const profileVerifiedCountsExplainerAndAlarmResult = await profileVerifiedCountsExplainerAndAlarm.run();
 
+  const searchApiResultTypeSettingsResult = await searchApiResultTypeSettings.run();
+
+  const trustedListPinPublishBlockersResult = await trustedListPinPublishBlockers.run();
+
+  const nostrUserTagHybridEaWriterResult = await nostrUserTagHybridEaWriter.run();
+
   console.log('\nreputation-info-popup suite:');
   const reputationInfoPopupResult = await reputationInfoPopup.run();
 
@@ -181,27 +252,78 @@ async function main() {
   console.log('\nTest Results');
   console.log('-------------');
   console.log(`Configuration Loading:                           ${configOk ? 'PASS' : 'FAIL'}`);
-  console.log(
-    `treasure-maps-router-preset suite:               ${treasureMapsResult.fail === 0 ? 'PASS' : 'FAIL'} (${treasureMapsResult.pass} passed, ${treasureMapsResult.fail} failed)`
-  );
-  console.log(
-    `scheduled-search-and-house-scores-refresh suite: ${scheduledRefreshResult.fail === 0 ? 'PASS' : 'FAIL'} (${scheduledRefreshResult.pass} passed, ${scheduledRefreshResult.fail} failed)`
-  );
-  console.log(
-    `strfry-router-first-boot-config suite:           ${strfryRouterFirstBootResult.fail === 0 ? 'PASS' : 'FAIL'} (${strfryRouterFirstBootResult.pass} passed, ${strfryRouterFirstBootResult.fail} failed)`
-  );
-  console.log(
-    `per-query-neo4j-timeout-safety-net suite:        ${perQueryNeo4jTimeoutResult.fail === 0 ? 'PASS' : 'FAIL'} (${perQueryNeo4jTimeoutResult.pass} passed, ${perQueryNeo4jTimeoutResult.fail} failed)`
-  );
-  console.log(
-    `nip05-checkmark-verification suite:              ${nip05CheckmarkVerificationResult.fail === 0 ? 'PASS' : 'FAIL'} (${nip05CheckmarkVerificationResult.pass} passed, ${nip05CheckmarkVerificationResult.fail} failed)`
-  );
-  console.log(
-    `publish-export-a-concept suite:                  ${publishExportConceptResult.fail === 0 ? 'PASS' : 'FAIL'} (${publishExportConceptResult.pass} passed, ${publishExportConceptResult.fail} failed)`
-  );
-  console.log(
-    `community-reference-nostr-relay-stub suite:      ${communityReferenceStubResult.fail === 0 ? 'PASS' : 'FAIL'} (${communityReferenceStubResult.pass} passed, ${communityReferenceStubResult.fail} failed)`
-  );
+  console.log(`profile-tags suite:                              ${profileTagsResult.fail === 0 ? 'PASS' : 'FAIL'} (${profileTagsResult.pass} passed, ${profileTagsResult.fail} failed)`);
+  const publishLine = publishResult.skipped
+    ? `SKIP (${publishResult.skipped} tests; preconditions not met)`
+    : `${publishResult.fail === 0 ? 'PASS' : 'FAIL'} (${publishResult.pass} passed, ${publishResult.fail} failed)`;
+  console.log(`profile-tags-publish suite:                      ${publishLine}`);
+  console.log(`tag-detail suite:                                ${tagDetailResult.fail === 0 ? 'PASS' : 'FAIL'} (${tagDetailResult.pass} passed, ${tagDetailResult.fail} failed)`);
+  const tdpLine = tagDetailPublishResult.skipped
+    ? `SKIP (${tagDetailPublishResult.skipped} tests; preconditions not met)`
+    : `${tagDetailPublishResult.fail === 0 ? 'PASS' : 'FAIL'} (${tagDetailPublishResult.pass} passed, ${tagDetailPublishResult.fail} failed)`;
+  console.log(`tag-detail-publish suite:                        ${tdpLine}`);
+  console.log(`tag-detail-write suite:                          ${tagDetailWriteResult.fail === 0 ? 'PASS' : 'FAIL'} (${tagDetailWriteResult.pass} passed, ${tagDetailWriteResult.fail} failed)`);
+  const tdwpLine = tagDetailWritePublishResult.skipped
+    ? `SKIP (${tagDetailWritePublishResult.skipped} tests; preconditions not met)`
+    : `${tagDetailWritePublishResult.fail === 0 ? 'PASS' : 'FAIL'} (${tagDetailWritePublishResult.pass} passed, ${tagDetailWritePublishResult.fail} failed)`;
+  console.log(`tag-detail-write-publish suite:                  ${tdwpLine}`);
+  console.log(`tag-index suite:                                 ${tagIndexResult.fail === 0 ? 'PASS' : 'FAIL'} (${tagIndexResult.pass} passed, ${tagIndexResult.fail} failed)`);
+  const tipLine = tagIndexPublishResult.skipped
+    ? `SKIP (${tagIndexPublishResult.skipped} tests; preconditions not met)`
+    : `${tagIndexPublishResult.fail === 0 ? 'PASS' : 'FAIL'} (${tagIndexPublishResult.pass} passed, ${tagIndexPublishResult.fail} failed)`;
+  console.log(`tag-index-publish suite:                         ${tipLine}`);
+  console.log(`authored-tagging suite:                          ${authoredTaggingResult.fail === 0 ? 'PASS' : 'FAIL'} (${authoredTaggingResult.pass} passed, ${authoredTaggingResult.fail} failed)`);
+  const atpLine = authoredTaggingPublishResult.skipped
+    ? `SKIP (${authoredTaggingPublishResult.skipped} tests; preconditions not met)`
+    : `${authoredTaggingPublishResult.fail === 0 ? 'PASS' : 'FAIL'} (${authoredTaggingPublishResult.pass} passed, ${authoredTaggingPublishResult.fail} failed)`;
+  console.log(`authored-tagging-publish suite:                  ${atpLine}`);
+  console.log(`profile-tag-polish suite:                        ${profileTagPolishResult.fail === 0 ? 'PASS' : 'FAIL'} (${profileTagPolishResult.pass} passed, ${profileTagPolishResult.fail} failed)`);
+  const ptppLine = profileTagPolishPublishResult.skipped
+    ? `SKIP (${profileTagPolishPublishResult.skipped} tests; preconditions not met)`
+    : `${profileTagPolishPublishResult.fail === 0 ? 'PASS' : 'FAIL'} (${profileTagPolishPublishResult.pass} passed, ${profileTagPolishPublishResult.fail} failed)`;
+  console.log(`profile-tag-polish-publish suite:                ${ptppLine}`);
+  console.log(`search-result-parity suite:                      ${searchResultParityResult.fail === 0 ? 'PASS' : 'FAIL'} (${searchResultParityResult.pass} passed, ${searchResultParityResult.fail} failed)`);
+  console.log(`search-results-url suite:                        ${searchResultsUrlResult.fail === 0 ? 'PASS' : 'FAIL'} (${searchResultsUrlResult.pass} passed, ${searchResultsUrlResult.fail} failed)`);
+  console.log(`pin-a-tag suite:                                 ${pinATagResult.fail === 0 ? 'PASS' : 'FAIL'} (${pinATagResult.pass} passed, ${pinATagResult.fail} failed)`);
+  const patpLine = pinATagPublishResult.skipped
+    ? `SKIP (${pinATagPublishResult.skipped} tests; preconditions not met)`
+    : `${pinATagPublishResult.fail === 0 ? 'PASS' : 'FAIL'} (${pinATagPublishResult.pass} passed, ${pinATagPublishResult.fail} failed)`;
+  console.log(`pin-a-tag-publish suite:                         ${patpLine}`);
+  console.log(`tl-publication-from-pins suite:                  ${tlPubFromPinsResult.fail === 0 ? 'PASS' : 'FAIL'} (${tlPubFromPinsResult.pass} passed, ${tlPubFromPinsResult.fail} failed)`);
+  const tlppLine = tlPubFromPinsPublishResult.skipped
+    ? `SKIP (${tlPubFromPinsPublishResult.skipped} tests; preconditions not met)`
+    : `${tlPubFromPinsPublishResult.fail === 0 ? 'PASS' : 'FAIL'} (${tlPubFromPinsPublishResult.pass} passed, ${tlPubFromPinsPublishResult.fail} failed)`;
+  console.log(`tl-publication-from-pins-publish suite:          ${tlppLine}`);
+  const cpcLine = customizePinCurationPublishResult.skipped
+    ? `SKIP (${customizePinCurationPublishResult.skipped} tests; preconditions not met)`
+    : `${customizePinCurationPublishResult.fail === 0 ? 'PASS' : 'FAIL'} (${customizePinCurationPublishResult.pass} passed, ${customizePinCurationPublishResult.fail} failed)`;
+  console.log(`customize-pin-curation-publish suite:            ${cpcLine}`);
+  console.log(`most-pinned-tag-index suite:                     ${mostPinnedTagIndexResult.fail === 0 ? 'PASS' : 'FAIL'} (${mostPinnedTagIndexResult.pass} passed, ${mostPinnedTagIndexResult.fail} failed)`);
+  const mptpLine = mostPinnedTagIndexPublishResult.skipped
+    ? `SKIP (${mostPinnedTagIndexPublishResult.skipped} tests; preconditions not met)`
+    : `${mostPinnedTagIndexPublishResult.fail === 0 ? 'PASS' : 'FAIL'} (${mostPinnedTagIndexPublishResult.pass} passed, ${mostPinnedTagIndexPublishResult.fail} failed)`;
+  console.log(`most-pinned-tag-index-publish suite:             ${mptpLine}`);
+  console.log(`tag-detail-curated-view-and-pin-polish suite:    ${tagDetailCuratedResult.fail === 0 ? 'PASS' : 'FAIL'} (${tagDetailCuratedResult.pass} passed, ${tagDetailCuratedResult.fail} failed)`);
+  const tdcpLine = tagDetailCuratedPublishResult.skipped
+    ? `SKIP (${tagDetailCuratedPublishResult.skipped} tests; preconditions not met)`
+    : `${tagDetailCuratedPublishResult.fail === 0 ? 'PASS' : 'FAIL'} (${tagDetailCuratedPublishResult.pass} passed, ${tagDetailCuratedPublishResult.fail} failed)`;
+  console.log(`tag-detail-curated-view-and-pin-polish-publish suite: ${tdcpLine}`);
+  console.log(`restore-historical-data-and-fix-tl-author-filter suite: ${restoreHistoricalDataAndTlFilterResult.fail === 0 ? 'PASS' : 'FAIL'} (${restoreHistoricalDataAndTlFilterResult.pass} passed, ${restoreHistoricalDataAndTlFilterResult.fail} failed)`);
+  console.log(`treasure-maps-router-preset suite:               ${treasureMapsResult.fail === 0 ? 'PASS' : 'FAIL'} (${treasureMapsResult.pass} passed, ${treasureMapsResult.fail} failed)`);
+  console.log(`scheduled-search-and-house-scores-refresh suite: ${scheduledRefreshResult.fail === 0 ? 'PASS' : 'FAIL'} (${scheduledRefreshResult.pass} passed, ${scheduledRefreshResult.fail} failed)`);
+  console.log(`strfry-router-first-boot-config suite:           ${strfryRouterFirstBootResult.fail === 0 ? 'PASS' : 'FAIL'} (${strfryRouterFirstBootResult.pass} passed, ${strfryRouterFirstBootResult.fail} failed)`);
+  console.log(`per-query-neo4j-timeout-safety-net suite:        ${perQueryNeo4jTimeoutResult.fail === 0 ? 'PASS' : 'FAIL'} (${perQueryNeo4jTimeoutResult.pass} passed, ${perQueryNeo4jTimeoutResult.fail} failed)`);
+  console.log(`nip05-checkmark-verification suite:              ${nip05CheckmarkVerificationResult.fail === 0 ? 'PASS' : 'FAIL'} (${nip05CheckmarkVerificationResult.pass} passed, ${nip05CheckmarkVerificationResult.fail} failed)`);
+  console.log(`publish-export-a-concept suite:                  ${publishExportConceptResult.fail === 0 ? 'PASS' : 'FAIL'} (${publishExportConceptResult.pass} passed, ${publishExportConceptResult.fail} failed)`);
+  console.log(`community-reference-nostr-relay-stub suite:      ${communityReferenceStubResult.fail === 0 ? 'PASS' : 'FAIL'} (${communityReferenceStubResult.pass} passed, ${communityReferenceStubResult.fail} failed)`);
+  console.log(`nip51-list-export-from-pins suite:               ${nip51ListExportResult.fail === 0 ? 'PASS' : 'FAIL'} (${nip51ListExportResult.pass} passed, ${nip51ListExportResult.fail} failed)`);
+  const nleLine = nip51ListExportPublishResult.skipped
+    ? `SKIP (${nip51ListExportPublishResult.skipped} tests; preconditions not met)`
+    : `${nip51ListExportPublishResult.fail === 0 ? 'PASS' : 'FAIL'} (${nip51ListExportPublishResult.pass} passed, ${nip51ListExportPublishResult.fail} failed)`;
+  console.log(`nip51-list-export-from-pins-publish suite:       ${nleLine}`);
+  console.log(`pin-detail-into-tag-pinned-tab suite:            ${pinDetailIntoTagTabResult.fail === 0 ? 'PASS' : 'FAIL'} (${pinDetailIntoTagTabResult.pass} passed, ${pinDetailIntoTagTabResult.fail} failed)`);
+  console.log(`collapse-into-export-concept suite:              ${collapseIntoExportResult.fail === 0 ? 'PASS' : 'FAIL'} (${collapseIntoExportResult.pass} passed, ${collapseIntoExportResult.fail} failed)`);
+  console.log(`login-failure-and-tag-collapse suite:            ${loginFailureAndTagCollapseResult.fail === 0 ? 'PASS' : 'FAIL'} (${loginFailureAndTagCollapseResult.pass} passed, ${loginFailureAndTagCollapseResult.fail} failed)`);
   console.log(
     `header-conceptgraph-tag suite:                   ${headerConceptGraphTagResult.fail === 0 ? 'PASS' : 'FAIL'} (${headerConceptGraphTagResult.pass} passed, ${headerConceptGraphTagResult.fail} failed)`
   );
@@ -281,6 +403,15 @@ async function main() {
     `profile-verified-counts-explainer-and-alarm suite: ${profileVerifiedCountsExplainerAndAlarmResult.fail === 0 ? 'PASS' : 'FAIL'} (${profileVerifiedCountsExplainerAndAlarmResult.pass} passed, ${profileVerifiedCountsExplainerAndAlarmResult.fail} failed)`
   );
   console.log(
+    `search-api-result-type-settings suite:           ${searchApiResultTypeSettingsResult.fail === 0 ? 'PASS' : 'FAIL'} (${searchApiResultTypeSettingsResult.pass} passed, ${searchApiResultTypeSettingsResult.fail} failed${searchApiResultTypeSettingsResult.skipped ? `, ${searchApiResultTypeSettingsResult.skipped} skipped` : ''})`
+  );
+  console.log(
+    `trusted-list-pin-publish-blockers suite:         ${trustedListPinPublishBlockersResult.fail === 0 ? 'PASS' : 'FAIL'} (${trustedListPinPublishBlockersResult.pass} passed, ${trustedListPinPublishBlockersResult.fail} failed${trustedListPinPublishBlockersResult.skipped ? `, ${trustedListPinPublishBlockersResult.skipped} skipped` : ''})`
+  );
+  console.log(
+    `nostr-user-tag-hybrid-ea-writer suite:           ${nostrUserTagHybridEaWriterResult.fail === 0 ? 'PASS' : 'FAIL'} (${nostrUserTagHybridEaWriterResult.pass} passed, ${nostrUserTagHybridEaWriterResult.fail} failed)`
+  );
+  console.log(
     `reputation-info-popup suite:                     ${reputationInfoPopupResult.fail === 0 ? 'PASS' : 'FAIL'} (${reputationInfoPopupResult.pass} passed, ${reputationInfoPopupResult.fail} failed)`
   );
   console.log(
@@ -295,6 +426,35 @@ async function main() {
 
   const overallOk =
     configOk &&
+    profileTagsResult.fail === 0 &&
+    publishResult.fail === 0 &&
+    tagDetailResult.fail === 0 &&
+    tagDetailPublishResult.fail === 0 &&
+    tagDetailWriteResult.fail === 0 &&
+    tagDetailWritePublishResult.fail === 0 &&
+    tagIndexResult.fail === 0 &&
+    tagIndexPublishResult.fail === 0 &&
+    authoredTaggingResult.fail === 0 &&
+    authoredTaggingPublishResult.fail === 0 &&
+    profileTagPolishResult.fail === 0 &&
+    profileTagPolishPublishResult.fail === 0 &&
+    searchResultParityResult.fail === 0 &&
+    searchResultsUrlResult.fail === 0 &&
+    pinATagResult.fail === 0 &&
+    pinATagPublishResult.fail === 0 &&
+    tlPubFromPinsResult.fail === 0 &&
+    tlPubFromPinsPublishResult.fail === 0 &&
+    customizePinCurationPublishResult.fail === 0 &&
+    mostPinnedTagIndexResult.fail === 0 &&
+    mostPinnedTagIndexPublishResult.fail === 0 &&
+    tagDetailCuratedResult.fail === 0 &&
+    tagDetailCuratedPublishResult.fail === 0 &&
+    restoreHistoricalDataAndTlFilterResult.fail === 0 &&
+    nip51ListExportResult.fail === 0 &&
+    nip51ListExportPublishResult.fail === 0 &&
+    pinDetailIntoTagTabResult.fail === 0 &&
+    collapseIntoExportResult.fail === 0 &&
+    loginFailureAndTagCollapseResult.fail === 0 &&
     treasureMapsResult.fail === 0 &&
     scheduledRefreshResult.fail === 0 &&
     strfryRouterFirstBootResult.fail === 0 &&
@@ -328,6 +488,9 @@ async function main() {
     verifiedReportersListPageResult.fail === 0 &&
     profileVerifiedCountsOwnerPovResult.fail === 0 &&
     profileVerifiedCountsExplainerAndAlarmResult.fail === 0 &&
+    searchApiResultTypeSettingsResult.fail === 0 &&
+    trustedListPinPublishBlockersResult.fail === 0 &&
+    nostrUserTagHybridEaWriterResult.fail === 0 &&
     reputationInfoPopupResult.fail === 0 &&
     liveFeedReadPathResult.fail === 0 &&
     liveFeedFeedPageResult.fail === 0 &&

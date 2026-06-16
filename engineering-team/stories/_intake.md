@@ -672,6 +672,308 @@ Surfaced during the PoV-resolution work (`docs/POV_RESOLUTION_DESIGN_HANDOFF.md`
 **Want:** make long scoring jobs **deploy-safe** — resumable (checkpoint mid-`processOwnerFollowsMutesReports` so a restart continues rather than abandons), or **drained on deploy** (the deploy waits for / cleanly pauses an in-flight batch), or at minimum a **guard** that refuses/warns on deploy while a scoring batch is running. Task-queue-scheduler territory.
 
 **Classification:** Bug / infra hardening (task-queue-scheduler). **Phase path:** `/discuss` → Architecture (resumable-vs-drain-vs-guard is a real design choice) → Test Design → Implementation → Review. **Priority:** Medium — operator has a manual workaround; automate before it bites unattended. **Related:** the three-PoV standard (BIBLE §27) depends on Owner data being trustworthy; `docs/POV_RESOLUTION_DESIGN_HANDOFF.md` §9.
+## 2026-05-14 — Profile-tag polish bundle: omni-search popup + POV correctness (next story: #7)
+
+**Context:** Stories 1–5 of the profile-tag stack shipped and are retired to `engineering-team/stories/done/`. Story 6 (tag-ux-polish) is open but mostly shipped via commit `1e5b3044`; only AC-5 (search-placeholder text mentions "tag") and possibly AC-4 (asserter list scrolls within max-height) remain. The user wants to "button up the feature" with a single bundle covering small fixes, polish, and a few correctness gaps surfaced during /discuss.
+
+**Scope agreed (intake conversation):**
+
+- **A — Tags as a result type in the root search LIVE POPUP** (NOT the Enter-results page; that goes to story #8 below). Click → `/tag/:slug/:tagId`. The data-plumbing exists (`computeTagMatches` in `src/api/profile-tags/index.js`); this story wires it into the autocomplete UI as a new result-row variant.
+- **D — Search placeholder text mentions "tag"** (inherits Story 6 AC-5: `"Search by name, bio, tag, NIP-05, website…"` or equivalent).
+- **E — WoT-author filter on `tags-for-profile`** (POV-correctness fix; documented in `engineering-team/follow-ups.md` as "WoT-author filter on profile TAGS chips"). The chip-row counts on profile pages are currently NOT POV-scoped — violates CLAUDE.md POV-first invariants.
+- **F — POV sweep across other read endpoints.** While fixing E, audit every remaining read endpoint in `src/api/profile-tags/index.js` and adjacent for POV-naive author counts. `wot-tags` is the obvious next candidate. Fix any others found; document any deferred.
+- **G — POV selector reachable from the upper-right avatar menu** — *conditional*. Only ship if pre-verified that switching POV from any page correctly re-derives all POV-dependent state (search filters, tag-detail rows, tagging-activity rows, post-E chip counts). If verification surfaces gaps, drop the AC and file the gaps as follow-ups. User context: "the POV selector below the main search field works properly. it could probably use a bit of a loading state, but otherwise is functional. only thing that could be good to add is putting it in the upper-right avatar menu, so you could switch pov from any page - as long as it actually works correctly everywhere when changed on the fly."
+- **Story 6 AC-4 verification.** Verify the asserter list in the chip popover scrolls within max-height on a profile with lots of asserters; surface as CHANGES_REQUESTED if not. (AC-1/2/3 already done via commit `1e5b3044`.)
+
+**Story 6 disposition:** When AC-5 ships via story #7, close out Story 6 (move to `stories/done/`).
+
+**Out of scope (deliberate; documented):**
+
+- Tag results in the Enter-results page → story #8 (next entry below).
+- Sort order coherence between popup and Enter-results page → story #8.
+- POV selector loading state → either story #8 or a tail-end fix-PR.
+- Agree/disagree framing UX normalization across tag surfaces → punted, remains in `engineering-team/follow-ups.md`.
+- `e` vs `a` wire-shape decision for nostr-user-tag → punted, remains in `engineering-team/follow-ups.md`.
+
+**Classification:** Feature
+**Strictness:** Standard
+**Phase path:** Planning → Architecture → Test Design → Implementation → Review (all five — bundle has multiple ACs, one of which (G) is architecturally non-trivial).
+
+---
+
+## 2026-05-14 — Search-result parity: popup ↔ Enter-results page (queued story: #8)
+
+**Context:** Tabled for after story #7 lands. The user wants the root search's live popup and its Enter-results page to be coherent: same results, same sort order, same affordances. Currently they diverge (different fetch paths / debounce / ranking — needs audit during Architect phase).
+
+**Scope agreed (intake conversation):**
+
+- **B — Live popup vs Enter-results page parity.** Same set of results in both surfaces; no divergence based on which path the user took. Tag results (added to the popup in story #7) carry over to the Enter-results page here.
+- **C — Sort order coherent across both surfaces.** Whatever ranking the popup uses, the results page uses identically.
+- **POV selector loading state polish.** Nice-to-have addition flagged in story #7's intake.
+
+**Architectural meat:** B is the biggest piece. Depending on what causes the divergence today (separate fetch paths? different debounce/threshold? different ranking algorithm? different POV resolution?), this may justify its own ADR that supersedes whichever earlier ADR set up the divergent paths. Architect phase will figure out the shape.
+
+**Out of scope:**
+
+- New result types beyond tags + profiles (NIP-05, etc.) — current set stays.
+- Pagination changes — orthogonal.
+
+**Classification:** Feature
+**Strictness:** Standard
+**Phase path:** Planning → Architecture → Test Design → Implementation → Review (all five — architectural change with parity guarantees that need test coverage).
+
+---
+
+## Session-handoff note (2026-05-14)
+
+If a fresh PO session sees this: the two entries above are the next two stories in order. Plan story #7 first (the bundle); story #8 follows after #7 ships. Story #8 is **already tabled** — its scope is captured here but no story file has been written yet. The user explicitly said "let's `/plan-feature` on 8 now, table it, and then `/plan-feature` on 7 and actually start on it" — so the intended order if you're picking up cold is: plan 8 → save 8 → plan 7 → drive 7 through phases → ship 7 → come back for 8.
+
+Also surfaced during the same session (parked, not for these stories): a `bin/dev-sync-ui.sh` one-liner for the local dev loop (see `engineering-team/follow-ups.md` "Local dev-loop polish"). And: a question about whether to use `e` vs `a` for the parent-tag reference in `nostr-user-tag` events (also in follow-ups).
+
+## 2026-05-20 — Bug: hardcoded TA pubkey in pinning + TL stack breaks every non-local deployment
+
+**Raw observation:**
+
+> on tags.brainstorm.world, pinned tags show "No TL yet" even after a manual refresh, despite the tag's profile-tag activity meeting the pin's cutoff.
+
+**Root cause:**
+
+The Pin/TL stack (Stories 10–12) hardcoded the local-dev TA pubkey
+literal in `ui/src/utils/publishTagPin.js` and `src/api/profile-tags/index.js`.
+The TL signer reads the actual on-disk TA private key via
+`getOwnerAssistantKeys()` → signs the kind-30392 with `tags.brainstorm.world`'s
+real TA pubkey. The READERS filter `authors: [hardcoded literal]`.
+Mismatch → readers never find the freshly-published TL → status
+stays `'never'` forever.
+
+The broader Story-1 stack has the SAME class of error in
+`ui/src/utils/publishProfileTag.js` and `ui/src/hooks/useProfileTags.js`,
+where the PUBLISHERS hardcode the same literal. Pre-fix, the reader
+in `src/api/profile-tags/index.js` ALSO hardcoded the same literal,
+so both sides matched the wrong handle and everything appeared to
+work.
+
+**First fix attempt (commit `d3a2640a` — REVERTED):**
+
+Only addressed the Pin/TL reader path in `src/api/profile-tags/index.js`,
+not the broader Story-1 publisher path. Deployed to
+`feat/pubkey-tagging-target` → triggered CI deploy → tags.brainstorm.world's
+/tags index went empty ("No tags in the selected POV" across every POV)
+because the still-hardcoded publishers were emitting events under
+`39998:<dev-TA>:nostr-user-tag` while the fixed reader scanned under
+`39998:<prod-TA>:nostr-user-tag`. Mismatch → no rows.
+
+**Recovery (commit `4b82a739`):**
+
+Reverted `d3a2640a` on `feat/pubkey-tagging-target`. tags.brainstorm.world
+returns to the all-hardcoded matching-pair state. "No TL yet" bug
+returns as a known trade-off.
+
+**The proper fix (Option B) is a planned migration**, deferred:
+
+1. Convert EVERY hardcoded TA-pubkey site (server + client, Story-1
+   stack + Story-10/11/12 stack) to runtime lookup in ONE coherent
+   change.
+2. Announce the data-loss on tags.brainstorm.world. After the fix
+   deploys, every historical tag event AND every historical
+   nostr-user-tag assertion AND every historical pin event on that
+   instance is orphaned (z-tag references the dev TA's concept, but
+   readers now look under the prod TA's concept). Users must
+   recreate.
+3. **Optional:** migration script that scans the orphaned events,
+   re-signs them under the prod TA's handle, re-publishes. Preserves
+   historical content. Significantly more complex.
+4. Land the docs cleanup so the CLAUDE.md "Known violations" list
+   becomes empty.
+
+**Classification:** Bug → blocked by migration design
+**Strictness:** Standard
+**Phase path:** the proper fix should run through Planning →
+Architecture → Test Design → Implementation → Review (it's a
+data-affecting cross-cutting change; deserves the full harness).
+
+---
+
+## 2026-05-30 — Add a "Follow Packs" (kind-39089) export target
+
+**Raw request (verbatim):**
+
+> Need to add one more option to the "What will be exported?" collapse:
+> "Follow Packs", which are 39089 - here is the snippet from the NIP:
+> Starter packs 39089 a named set of profiles to be shared around with
+> the goal of being followed together "p" (pubkeys). have this one
+> UNCHECKED by default. But add it's mention to any copy that mentions
+> the 30000 and TL.
+
+**Follow-up (verbatim):**
+
+> we can do it incrementally like this, but make sure to capture this in
+> ADRs and any other engineering-team docs as we usually do.
+
+**Classification:** Feature (incremental extension of Story 21 / ADR 0019).
+**Strictness:** Standard — done incrementally (direct implementation)
+with the artifacts captured at the user's direction: Story 22 + ADR 0020.
+Tests are an incremental extension of Story 21's
+`collapse-into-export-concept` coverage rather than a fresh failing-test
+phase (the new target reuses the existing prepare/publish path; the only
+new wire difference is the event `kind`).
+**Phase path:** Planning + Architecture captured as Story 22 / ADR 0020;
+Implementation landed in the same change; Review pending.
+**Artifacts:**
+- Story: `engineering-team/stories/22-follow-pack-export-target.md`
+- ADR: `engineering-team/decisions/0020-follow-pack-export-target.md`
+
+---
+
+## 2026-06-01 — Two UI bugs: silent login failure + mobile tag crowding
+
+**Raw request (verbatim):**
+
+> Two bugs:
+> - when someone clicks login button but has no nip-07, nothing happens.
+>   We need to show an indication of why login failed and what to do
+> - when searching on mobile and lots of tags show up, they crowd out the
+>   user profiles. [...] maybe we have a "show more" collapse for tags after
+>   the first n on Mobile? want it to be clear at a glance that the search
+>   results are a mix of things - if you only see the tags you don't realize
+>   there may be profiles lower down
+
+**UX decisions captured with the user (via Q&A):** vendor-neutral copy (no
+named extensions); handle ALL login failure modes (no signer / declined /
+server-rejected); tag fix is collapse-only (no section labels), all viewports,
+show first 3 then a toggle.
+
+**Classification:** Two bugs, batched on `bugfixes`. Non-obvious enough that the
+user requested an explicit Architecture pass ("design these fixes properly").
+**Strictness:** Standard.
+**Phase path:** Architecture done as ADR 0021. **No Product Owner story** — the
+user elected to proceed without one. Test Design → Implementation → Review to
+follow. (If a story is ever backfilled, link ADR 0021 into it.)
+**Artifacts:**
+- ADR: `engineering-team/decisions/0021-login-failure-surfacing-and-tag-result-collapse.md`
+- Test plan: `engineering-team/stories/login-failure-and-tag-collapse.test-plan.md`
+- Review (PASS): `engineering-team/reviews/0021-login-failure-surfacing-and-tag-result-collapse.md`
+
+---
+
+## 2026-06-10 — Admin control over result types in the public search API (backfill)
+
+**Raw request (verbatim):**
+
+> there was an old task to add a setting in the admin for controlling which
+> results are included in search API results, so that we can merge this tags
+> feature to main (with search API settings defaulted to the settings that
+> match what main currently returns to API consumers) without risking serving
+> different, confusing, tag-including results to existing API consumers. [...]
+> feat/pubkey-tagging-target is really far behind staging and main and we want
+> to get it both updated AND add this defensive feature with the defaults set
+> to safety so that we can merge to main without risk
+
+**Origin (recovered):** first voiced ~2026-06-05 during the nostr-user-tag
+carve-out verification ("we wanted to add an API setting to hide tags from
+search API results — is that necessary here, or is this safe to merge to
+main, too?"). The carve was verified search-safe, so the setting was deferred
+— and never written down as a story/intake/follow-up until this backfill.
+
+**Clarifications captured (Q&A, 2026-06-10):**
+
+- New epic folder `search-api-result-controls` (first story to use the
+  per-epic layout on this branch).
+- **Per-result-type controls** (profiles, tags, future types), not a
+  tags-only boolean. Defaults = main's current behavior (tags OFF).
+- Disabling profiles is allowed, with a warning on the settings surface.
+- **Sequencing:** catch `feat/pubkey-tagging-target` up with staging/main
+  FIRST (mechanical task, outside the story), then run Architecture against
+  current code. Branch caveat: pushing it auto-deploys tags.brainstorm.world.
+
+**Classification:** Feature
+**Strictness:** Standard
+**Phase path:** Planning → Architecture → Test Design → Implementation → Review
+**Artifacts:**
+- Epic: `engineering-team/epics/search-api-result-controls.md`
+- Story: `engineering-team/stories/search-api-result-controls/1-search-api-result-type-settings.md`
+
+---
+
+## 2026-06-12 — Tag-stack merge-hardening (expert AI review of feat/pubkey-tagging-target)
+
+**Source:** Multi-agent expert review of the full 22-story tag stack on
+`feat/pubkey-tagging-target`, run against the post-merge state (after the
+2026-06-10 staging catch-up + search-api-result-controls). 48 findings
+survived adversarial verification. Reviewer verdict: clean merge mechanically,
+well-built bulk, but NOT merge-ready until a small set of blockers close.
+None of the blockers are in the search-api-result-controls work (that story
+reviewed clean); all are in the pre-existing trusted-list / pin-publish code
+(Stories 11/19). Six load-bearing claims re-verified locally before triage.
+
+**Blockers (all verified against current code) — fix before any merge:**
+1. **Auth bypass** — `src/api/trustedList/index.js:162` `requireAuth` trusts
+   `session.pubkey` but never checks `session.authenticated`; the public,
+   signature-free `POST /api/auth/verify-user` (`src/middleware/auth.js:519`)
+   sets `session.pubkey` for any supplied pubkey. Anyone can impersonate any
+   pubkey against refresh-pinned-tag / refresh-pinned-tags-for-viewer /
+   prepare-nip51-export. Fix: also require `session.authenticated === true`.
+2. **Empty Follow Set on first pin** — `ui/src/pages/Tag.jsx:122-135`
+   `publishWithCuration` fires the kind-30392 refresh and the NIP-51 export
+   concurrently; first pin reads a not-yet-existing 30392 → `memberPubkeys:[]`
+   → user signs+publishes an empty kind-30000 to their write relays + 5 public
+   relays. Fix: await-then-export (pattern already in `ExportModal.handleConfirm`).
+3. **Open `refresh-all-pinned-tags`** — `src/api/trustedList/index.js:171`
+   "expected from loopback" but nothing enforces it; nginx proxies the path.
+   Internet-triggerable prod-scale recompute + TA-signed publish (DoS + widens
+   #4's race). Fix: enforce loopback or owner-auth.
+4. **TL self-wipe (two interlocking bugs)** —
+   (a) `src/api/trustedList/refreshPinnedTags.js:216` error path returns
+   `{status:'error'}` with no `dTag`, so `retractStaleTLs()` publishes an
+   empty-membership replacement of the pin's healthy TL.
+   (b) `src/api/trustedList/index.js:73` pipes signed event JSON through
+   `echo '...' | strfry import` (MAX_ARG_STRLEN 128 KiB), so TLs above
+   ~600–700 members ALWAYS fail to publish → triggers (a). A moderately
+   popular tag wipes its own TL. Fix: return the computed `dTag` on the error
+   path AND move publish off the shell arg (stdin/temp file).
+
+**Decisions (Q&A 2026-06-12):**
+- Blockers → ONE bugfix story through the full harness (Planning → Architecture
+  → Test Design → Implementation → Review); security + data-loss get regression
+  tests; nothing merges until PASS.
+- **ADR-0022 hybrid e+a writer → FIX PRE-MERGE** (separate story). Writer is
+  currently e-only (`ui/src/utils/publishProfileTag.js:56`); ADR-0022 is
+  Accepted and ships in this PR, so every e-only event grows the
+  un-backfillable legacy set the ADR exists to stop. Add the `a` tag
+  (39999:<tagAuthor>:<slug>) to the writer + union the read path. Interacts
+  with ADR-0015 legacy-pubkey pinning — Architect to reconcile.
+- **Tag UI ships visible to prod** on the main promotion (only the search API
+  is gated) — confirmed intended scope.
+
+**Fast-follows (Tier 3 — post-merge cleanup, do NOT block merge):**
+`publishOrThrow` dead-code / silent publish failures everywhere
+(`Promise.race` over nostr-tools v2 `pool.publish()` array resolves instantly
+— verified `ui/src/utils/nostrPublish.js:73`); d-tag/slug wire edge cases
+(same-second apply→dispute drop, orphan-stub wrong-slug d-tags, same-slug
+cross-author collision, same-slug re-create orphans all assertions); Story-9
+search-URL regressions (stale `?q=` dead-ends re-submit; POV written but never
+read back); prod-scale search perf (3 strfry scans + unbounded per-pubkey Meili
+GETs per keystroke; appended tag hits ignore `limit` at meili/index.js:185;
+unthrottled /tags filter); Pins UX papercuts (unreachable empty-state, declined
+export masks later success, Export confirm clickable while relay lookup pending).
+
+**Tier 4 hygiene (cheap; bundle with blockers or a doc pass):**
+- No default schedule ENTRY for the pinned-TL refresh on fresh deploy — registry
+  has `refreshPinnedTagTLs` as schedulable but nothing creates an entry, so
+  periodic refresh + stale-TL retraction never run. (Note: ties to blocker #4 —
+  don't auto-enable retraction until #4 is fixed.)
+- Delete `deploy-tags.yml` test-free direct-deploy channel once #112 closes.
+- Doc pass: flat vs epic-scoped `decisions/` namespace (ADR-0022 at two paths
+  post-merge); OPERATIONS.md §14 vs CLAUDE.md bind-mount house rule;
+  `protocols/README.md` "in-flight on unmerged branch" wording goes stale at merge.
+- Structural: no test gate on the merge (only the SSH deploy workflow); suite
+  can't pass on a clean checkout by design. Known, not fixed here.
+
+**Classification:** Bug (blockers) + Feature (ADR-0022 writer); pre-merge.
+**Strictness:** Standard.
+**Proposed epic:** `tag-stack-merge-hardening` (pre-merge stories);
+fast-follows → `engineering-team/follow-ups.md` or a post-merge cleanup epic.
+**Phase path:** full harness for both pre-merge stories.
 
 ---
 
