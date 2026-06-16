@@ -58,6 +58,6 @@ These were decided by the requester this session and the Architect should honor 
 - **Tooltip names:** display name when available, else a shortened npub.
 
 ## Linked artifacts
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/profile/0034-profile-follows-hops.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
