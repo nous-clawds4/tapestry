@@ -197,6 +197,7 @@ async function register(app) {
     app.get('/api/get-nip56-profiles', users.handleGetNip56Profiles);
     app.get('/api/get-user-data', users.handleGetUserData);
     app.get('/api/get-user-counts', users.handleGetUserCounts);
+    app.get('/api/get-follows-hops', users.handleGetFollowsHops);
     app.get('/api/get-network-proximity', users.handleGetNetworkProximity);
     app.get('/api/get-npub-from-pubkey', users.handleGetNpubFromPubkey);
     app.get('/api/get-pubkey-from-npub', users.handleGetPubkeyFromNpub);

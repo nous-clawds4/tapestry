@@ -3,8 +3,10 @@ import { useParams, useSearchParams, Link } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
 import { useAuth } from '../context/AuthContext';
 import TopBar from '../components/TopBar';
+import { useConfig } from '../context/ConfigContext';
 import { useProfileActions } from '../hooks/useProfileActions';
 import useUserCounts from '../hooks/useUserCounts';
+import useFollowsHops from '../hooks/useFollowsHops';
 import useNip05Verification from '../hooks/useNip05Verification';
 import ConfirmDialog from '../components/ConfirmDialog';
 import ReportModal from '../components/ReportModal';
@@ -52,6 +54,7 @@ export default function BrainstormProfile() {
   const { pubkey } = useParams();
   const [searchParams] = useSearchParams();
   const { user, login, logout } = useAuth();
+  const { ownerPubkey } = useConfig();
 
   // POV suffix can be passed as ?pov=<8char> from the search page
   const povParam = searchParams.get('pov');
@@ -74,6 +77,11 @@ export default function BrainstormProfile() {
 
   const { data: userCounts, loading: userCountsLoading } = useUserCounts(pubkey);
   const nip05Verified = useNip05Verification(pubkey, profile?.nip05);
+  // Follows-hops: live shortestPath from the viewer (or the Owner when logged out)
+  // to this profile (story #38, ADR 0034). Its own hook — loads independently of
+  // the page and the other counts, so it never blocks render.
+  const hopsSource = user?.pubkey || ownerPubkey;
+  const { hops: followsHops, noPath: followsNoPath, loading: followsHopsLoading, error: followsHopsError } = useFollowsHops(hopsSource, pubkey);
   const followingCount = userCounts?.followingCount ?? null;
   const fmtCount = (n) => (n == null ? '—' : new Intl.NumberFormat().format(n));
   // Verified Followers + Verified Reporters counts come from the Owner-PoV source
@@ -93,6 +101,29 @@ export default function BrainstormProfile() {
   }, [pubkey]);
   const displayName = profile?.display_name || profile?.name || shortPubkey(pubkey);
   const profileAge = timeAgo(profile?.created_at);
+
+  // Follows-hops display (story #38, ADR 0034): number | ∞ (confirmed no path) |
+  // "—" (lookup error / loading). ∞ is keyed on the hook's `noPath`, NOT on an
+  // error, so a failed/timed-out lookup never shows a false ∞.
+  const hopsSourceName = (() => {
+    if (user && hopsSource === user.pubkey) {
+      const n = user.profile?.display_name || user.profile?.name;
+      if (n) return n;
+    }
+    try { return nip19.npubEncode(hopsSource).slice(0, 12) + '…'; } catch { return 'the source'; }
+  })();
+  let hopsDisplay = '—';
+  let hopsTitle = 'Hop distance…';
+  if (followsHopsError) {
+    hopsDisplay = '—';
+    hopsTitle = 'Hop distance unavailable.';
+  } else if (followsNoPath) {
+    hopsDisplay = '∞';
+    hopsTitle = `There is no follow path from ${hopsSourceName} to ${displayName}.`;
+  } else if (followsHops != null) {
+    hopsDisplay = fmtCount(followsHops);
+    hopsTitle = `${displayName} is ${followsHops} hop${followsHops === 1 ? '' : 's'} away from ${hopsSourceName} by follows.`;
+  }
 
   // Fetch profile from API
   useEffect(() => {
@@ -232,6 +263,13 @@ export default function BrainstormProfile() {
                 <span className="bsp-count-value">{fmtCount(verifiedFollowerCount)}</span>
                 <span className="bsp-count-label">Verified Followers</span>
               </Link>
+              {/* Follows-hops (story #38, ADR 0034): live shortestPath source→profile, cap 20.
+                  Non-link for now — the destination page is deferred. ∞ = no path within cap;
+                  "—" = unavailable (error/timeout) or loading; keyed on the hook's noPath. */}
+              <span className={`bsp-count${followsHopsLoading ? ' bsp-count-loading' : ''}`} title={hopsTitle}>
+                <span className="bsp-count-value">{hopsDisplay}</span>
+                <span className="bsp-count-label">Hops</span>
+              </span>
               {/* Verified Reporters → /user/:pubkey/reporters. Always a <Link> when >0; a
                   genuine 0 is neutral and not a link; "—" when unavailable; dimmed "—" while
                   loading. The red + 🚩 alarm shows ONLY past the dynamic threshold
