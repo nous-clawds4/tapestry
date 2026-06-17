@@ -342,11 +342,23 @@ async function handleWotTags(req, res) {
 /**
  * Find tag-element events whose tag.name contains `query` as a case-insensitive
  * substring. Returns minimal metadata for each match.
+ *
+ * LOCAL-ONLY BY DESIGN. Both callers are on the search path — `computeTagMatches`
+ * (`/api/profile-tags/match`) and the meili search proxy (returns tag elements as
+ * search results). Per the ratified principle "search is always local-only — for
+ * tags and everything else" (tag-federation ADR 0001, Out-of-scope), this scan
+ * does NOT federate: Meili can only rank locally-indexed content, and federating
+ * the name lookup while the assertion lookup (`computeTagMatches`, below) stays
+ * local would (a) put a live remote round-trip on the hot search path and (b)
+ * surface federated-only tags whose targets are local-only/absent, with an
+ * event-id keying hazard across sources. Federated tags become *searchable* only
+ * by hoarding into local strfry via the router. Browse/visibility surfaces (the
+ * `/tags` index, profile chips) federate elsewhere via `federatedScan`.
  */
 async function findTagsByNameSubstring(query) {
   if (!query || !query.trim()) return [];
   const q = query.trim().toLowerCase();
-  const events = await federatedScan({ kinds: [39999], '#z': [TAG_Z_TAG] });
+  const events = await strfryScan({ kinds: [39999], '#z': [TAG_Z_TAG] });
   const deduped = dedupeReplaceable(events);
   const out = [];
   for (const ev of deduped) {

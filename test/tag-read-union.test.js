@@ -148,16 +148,33 @@ t('OPT-IN: federatedScan with default config (no relays) equals local-only', asy
 
 t('AC-1 (wiring): the visibility read paths scan via federatedScan, not bare strfryScan', () => {
   const src = readSrc(SRC);
-  // findTagsByNameSubstring is the canonical tag-element visibility scan (#z:[TAG_Z_TAG]).
-  const fn = src.match(/async function findTagsByNameSubstring[\s\S]*?\n\}/);
-  assert(fn, 'could not locate findTagsByNameSubstring');
-  assert(/federatedScan\s*\(/.test(fn[0]),
-    'findTagsByNameSubstring must use federatedScan for its tag-element scan (so DList tags surface)');
-  // aggregateProfilesTagged drives the /tags index aggregation.
+  // aggregateProfilesTagged drives the /tags index aggregation (a browse/visibility surface).
   const agg = src.match(/async function aggregateProfilesTagged[\s\S]*?\n\}/);
   assert(agg, 'could not locate aggregateProfilesTagged');
   assert(/federatedScan\s*\(/.test(agg[0]),
     'aggregateProfilesTagged must use federatedScan for its assertion scan (AC-1/AC-2)');
+  // handleAvailableTags + handleTagsForProfile are the other browse/visibility surfaces.
+  const avail = src.match(/async function handleAvailableTags[\s\S]*?\n\}/);
+  assert(avail && /federatedScan\s*\(/.test(avail[0]),
+    'handleAvailableTags must use federatedScan (browse/visibility surface)');
+});
+
+t('SEARCH-IS-LOCAL: findTagsByNameSubstring does NOT federate (both callers are search; ADR 0001 ratified principle)', () => {
+  const src = readSrc(SRC);
+  // findTagsByNameSubstring feeds ONLY the search path (computeTagMatches + the meili
+  // proxy). Per "search is always local-only" (tag-federation ADR 0001), it must NOT
+  // federate — otherwise flipping search.resultTypes.tags=true with federation on puts a
+  // live remote round-trip on the hot search path and creates a name/assertion asymmetry.
+  const fn = src.match(/async function findTagsByNameSubstring[\s\S]*?\n\}/);
+  assert(fn, 'could not locate findTagsByNameSubstring');
+  assert(!/federatedScan\s*\(/.test(fn[0]),
+    'findTagsByNameSubstring must NOT use federatedScan — search is always local-only (ADR 0001)');
+  assert(/strfryScan\s*\(/.test(fn[0]),
+    'findTagsByNameSubstring must scan local strfry only (search path is local; federate browse surfaces instead)');
+  // And the assertion lookup in computeTagMatches stays local too (symmetric).
+  const cm = src.match(/async function computeTagMatches[\s\S]*?\n\}/);
+  assert(cm && !/federatedScan\s*\(/.test(cm[0]),
+    'computeTagMatches must not federate — its tag-name and assertion lookups are both local (search-is-local)');
 });
 
 t('admin config: defaults.json ships aRelays.aTagFederationRelays = [] (default-empty opt-in)', () => {
