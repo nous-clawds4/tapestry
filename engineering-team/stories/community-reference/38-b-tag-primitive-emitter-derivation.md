@@ -61,6 +61,6 @@ _(Architect: orient via `http://localhost:8877/api/concept-graph/summaries` to c
 - Governing ADRs: `engineering-team/decisions/community-reference/0027-inherit-from-tag-b.md`, `…/0029-b-type-registry.md`, `…/0030-communityreference-seed-not-stub.md`.
 - Wire spec: `protocols/drafts/inherit-from.md`.
 - Predecessor (the stub being retired): `engineering-team/stories/community-reference/8-community-reference-nostr-relay-stub.md` + ADR 0005.
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/community-reference/0034-b-tag-primitive-emitter-derivation.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
