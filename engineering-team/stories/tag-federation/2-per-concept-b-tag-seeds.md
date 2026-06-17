@@ -1,7 +1,7 @@
 # Story 2: Seed the pointer-`b` map on the tag concepts (apply the primitive)
 
 **Epic:** tag-federation (Half 2 — Part A)
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-06-17
 **Type:** Feature
 
@@ -53,4 +53,4 @@ As an **operator running any `*.brainstorm.world` instance**, I want my instance
 - Epic: `engineering-team/epics/tag-federation.md`. Handoff: `docs/B_TAG_HALF_2_HANDOFF.md` (§4 Story 3, Part 2). Prereq: `engineering-team/stories/community-reference/38-b-tag-primitive-emitter-derivation.md` (Done).
 - ADR: `engineering-team/decisions/tag-federation/0002-per-concept-b-tag-seeds.md`
 - Test plan: `engineering-team/stories/tag-federation/2-per-concept-b-tag-seeds.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/tag-federation/2-per-concept-b-tag-seeds.md` (PASS)
