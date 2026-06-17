@@ -1,6 +1,6 @@
 # Story 39: Follows-hops path page + HOPS link activation
 
-**Status:** Draft
+**Status:** Done
 **Created:** 2026-06-17
 **Type:** Feature
 
@@ -60,5 +60,5 @@ Resolved during planning:
 ## Linked artifacts
 - ADR: `engineering-team/decisions/profile/0035-profile-hops-path.md`
 - Test plan: `engineering-team/stories/profile/39-profile-hops-path.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/profile/39-profile-hops-path.md` — **PASS** (2026-06-17)
 - Depends on: `engineering-team/stories/profile/38-profile-follows-hops.md` (HOPS stat + `/api/get-follows-hops`), ADR 0034.
