@@ -59,6 +59,6 @@ Resolved during planning:
 
 ## Linked artifacts
 - ADR: `engineering-team/decisions/profile/0035-profile-hops-path.md`
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/profile/39-profile-hops-path.test-plan.md`
 - Review: (filled in after Review phase)
 - Depends on: `engineering-team/stories/profile/38-profile-follows-hops.md` (HOPS stat + `/api/get-follows-hops`), ADR 0034.
