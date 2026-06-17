@@ -58,7 +58,7 @@ Resolved during planning:
 - **Card order:** source at top, target at bottom.
 
 ## Linked artifacts
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/profile/0035-profile-hops-path.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
 - Depends on: `engineering-team/stories/profile/38-profile-follows-hops.md` (HOPS stat + `/api/get-follows-hops`), ADR 0034.
