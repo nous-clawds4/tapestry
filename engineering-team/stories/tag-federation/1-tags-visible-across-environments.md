@@ -45,6 +45,6 @@ As a **user on any `*.brainstorm.world` instance**, I want to see and use the ta
 ## Linked artifacts
 
 - Epic: `engineering-team/epics/tag-federation.md`. Half-2 handoff: `docs/B_TAG_HALF_2_HANDOFF.md`. Context: `docs/B_TAG_SHAPE_STATE_AND_PLAN.md`.
-- ADR: (after Architecture)
+- ADR: `engineering-team/decisions/tag-federation/0001-tag-read-union-local-and-dcosl.md`
 - Test plan: (after Test Design)
 - Review: (after Review)
