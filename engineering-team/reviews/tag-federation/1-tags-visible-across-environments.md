@@ -29,14 +29,14 @@
 
 ## ADR adherence
 
-- [x] Files match the (revised) ADR exactly. The operator-steered **opt-in / default-empty / admin-UI** revision is recorded in the ADR's Decision with its rationale (live-user safety + the observed junk-pollution + "don't bake dev topology").
+- [x] Files match the (revised) ADR exactly. The operator-steered **opt-in / default-empty / admin-UI** revision is recorded in the ADR's Decision with its rationale (operator-choice / "don't bake dev topology"). _Correction (2026-06-17): an earlier version of this review cited "always-on dumps ~1572 birb junk from dcosl" as the clinching reason — that was a misattribution; see the Findings note below and the ADR's Correction. dcosl is clean; the rationale is operator-choice, not a dcosl-pollution scare._
 - [x] No new dependencies — `SimplePool` reuses the existing `fetchEvents.js` path; the admin UI reuses the existing `RelayGroup` editor.
 - [x] Search gate / writer / firmware / manifest untouched — consistent with "Half 1, additive with Half 2."
 
 ## Things tests can't catch
 
 - [x] **Topology not baked.** `dcosl` appears in **no** structural code — federation reads `aRelays.aTagFederationRelays` (operator config); the default ships empty. Arbitrary operators and live users get today's behavior until they opt in.
-- [x] **Live-user safety.** The clinching reason for opt-in: a live test showed always-on read-union dumped ~1572 `birb-test` junk events from the shared relay into `available-tags`. Default-OFF means no live instance's API changes without an explicit operator action against a relay *they* trust.
+- [x] **Don't-bake-topology + live-user safety.** "Always-on" would require shipping a default relay list pointed at our dev relay (`dcosl`) — baking dev topology into every deployment's default. Default-empty avoids that: no live instance's API changes without an explicit operator action against a relay *they* trust. _Correction (2026-06-17): an earlier version claimed always-on dumped ~1572 `birb-test` junk from dcosl. Verified false — dcosl is clean (2 events under `TAG_Z_TAG`, 0 birb; opt-in adds +1). The ~138 birb events are in **local** strfry (this dev box's automated-test artifacts), already in the 1590 baseline. The opt-in decision rests on operator-choice / don't-bake-topology, not a dcosl scare._
 - [x] **`federatedScan` race-safety** — local leg unwrapped (its rejection propagates via `Promise.all`); remote leg wrapped in `.catch(()=>[])` so a remote throw can't reject the union or surface unhandled. Correct.
 - [x] **No secrets, no debug logging, no dead code.** Comments cite the ADR and explain the opt-in.
 
@@ -46,7 +46,7 @@
 None.
 
 ### Non-blocking
-1. **DList content hygiene (not this code).** `dcosl` is polluted with `birb-test-…` load-test events. This is exactly why the opt-in design points operators at *trusted/clean* relays — but if/when we opt our own envs in, we should federate a clean relay (or clean dcosl) so the surfaced tags aren't junk. Ops concern, tracked here.
+1. **Content hygiene — junk is real, but it's LOCAL not dcosl (corrected 2026-06-17).** Verified live: `dcosl` is clean under `TAG_Z_TAG` (2 events, 0 birb). The ~138 `birb-test-…` events are in **this dev box's local strfry** — automated-test artifacts already counted in the local 1590 baseline. So the general lesson holds (relay content can be junk → operators federate only relays they trust → opt-in is the right posture), but the specific "dcosl is polluted" claim was wrong. When we opt our own envs in, dcosl is a fine clean target for tag content; the cleanup that's actually wanted is purging the local birb test-junk on dev boxes. Ops/hygiene concern, tracked here.
 2. **Read cost.** Each federated read (when opted in) does a live SimplePool round-trip per request. The ADR defers caching to measurement; revisit if it bites at prod scale.
 3. **Ops content-federation still required for the end-to-end goal.** Surfacing tags.brainstorm.world's *real* tags on staging needs the router to federate that content onto the relay staging reads — outside this code story (story Open Q2). The code is correct and verified against available content; the full user-facing outcome depends on that router/ops step.
 
