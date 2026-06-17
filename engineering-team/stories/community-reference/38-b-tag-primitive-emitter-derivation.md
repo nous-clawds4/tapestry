@@ -1,6 +1,6 @@
 # Story 38: Build the shared b-tag primitive — emitter + edge derivation + stub retirement
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-06-17
 **Type:** Feature
 
@@ -63,4 +63,4 @@ _(Architect: orient via `http://localhost:8877/api/concept-graph/summaries` to c
 - Predecessor (the stub being retired): `engineering-team/stories/community-reference/8-community-reference-nostr-relay-stub.md` + ADR 0005.
 - ADR: `engineering-team/decisions/community-reference/0034-b-tag-primitive-emitter-derivation.md`
 - Test plan: `engineering-team/stories/community-reference/38-b-tag-primitive-emitter-derivation.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/community-reference/38-b-tag-primitive-emitter-derivation.md` (PASS)
