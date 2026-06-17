@@ -35,6 +35,8 @@ sleep 5
 
 If a request right after stability returns 502, retry once before treating it as a real failure.
 
+Likewise, **HTTP readiness ≠ Neo4j readiness**: Neo4j inside the container binds slower than the Express upstream, so a Cypher-backed endpoint can return JSON `{success:false}` with `ECONNREFUSED …:7687` for up to ~90s *after* the poll's 200s (the poll endpoint answers `followingCount` from strfry, so it 200s before Neo4j is up). Retry Neo4j-backed Tier-3 checks once after a short wait before treating it as a real failure (observed during the profile-hops-path deploy, 2026-06-17).
+
 ### Tier 2 — Sanity reachability (always)
 
 Confirm the basic surface area is up. All should HTTP 200:
