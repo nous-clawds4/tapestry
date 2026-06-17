@@ -7146,6 +7146,17 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   font-weight: 600;
 }
 .bsp-follows-npub { font-size: 0.8rem; opacity: 0.85; }
+/* Follows-hops path page (story #39, ADR 0035): a vertical chain of profile cards. */
+.bsp-hops-path { display: flex; flex-direction: column; gap: 0.5rem; max-width: 480px; }
+.bsp-hops-card {
+  display: flex; align-items: center; gap: 0.75rem;
+  padding: 0.6rem 0.85rem; border-radius: 10px;
+  background: rgba(127, 127, 127, 0.08); text-decoration: none; color: inherit;
+}
+.bsp-hops-card:hover { background: rgba(127, 127, 127, 0.16); }
+.bsp-hops-card-name { flex: 1; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bsp-hops-card-rank { opacity: 0.8; font-variant-numeric: tabular-nums; }
+.bsp-hops-reroll { margin-top: 1rem; }
 .bsp-empty { padding: 2rem; text-align: center; opacity: 0.7; }
 /* Skeleton loader for list pages (verified-reporters #3 / ADR 0003) — a designed
    placeholder, never a bare spinner. */
