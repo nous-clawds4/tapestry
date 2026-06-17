@@ -98,6 +98,7 @@ const profileIdentityDetailsPopover = require('./profile-identity-details-popove
 const profileFollowsHops = require('./profile-follows-hops.test.js');
 const profileHopsPath = require('./profile-hops-path.test.js');
 const tagReadUnion = require('./tag-read-union.test.js');
+const bTagPrimitive = require('./b-tag-primitive.test.js');
 
 async function main() {
   console.log('Running Brainstorm tests...');
@@ -263,6 +264,9 @@ async function main() {
   const profileHopsPathResult = await profileHopsPath.run();
 
   const tagReadUnionResult = await tagReadUnion.run();
+
+  console.log('\nb-tag-primitive suite:');
+  const bTagPrimitiveResult = await bTagPrimitive.run();
 
   console.log('\nTest Results');
   console.log('-------------');
@@ -450,6 +454,9 @@ async function main() {
   console.log(
     `tag-read-union suite:                            ${tagReadUnionResult.fail === 0 ? 'PASS' : 'FAIL'} (${tagReadUnionResult.pass} passed, ${tagReadUnionResult.fail} failed)`
   );
+  console.log(
+    `b-tag-primitive suite:                           ${bTagPrimitiveResult.fail === 0 ? 'PASS' : 'FAIL'} (${bTagPrimitiveResult.pass} passed, ${bTagPrimitiveResult.fail} failed)`
+  );
 
   const overallOk =
     configOk &&
@@ -525,7 +532,8 @@ async function main() {
     profileIdentityDetailsPopoverResult.fail === 0 &&
     profileFollowsHopsResult.fail === 0 &&
     profileHopsPathResult.fail === 0 &&
-    tagReadUnionResult.fail === 0;
+    tagReadUnionResult.fail === 0 &&
+    bTagPrimitiveResult.fail === 0;
   console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);
   process.exit(overallOk ? 0 : 1);
 }

@@ -62,5 +62,5 @@ _(Architect: orient via `http://localhost:8877/api/concept-graph/summaries` to c
 - Wire spec: `protocols/drafts/inherit-from.md`.
 - Predecessor (the stub being retired): `engineering-team/stories/community-reference/8-community-reference-nostr-relay-stub.md` + ADR 0005.
 - ADR: `engineering-team/decisions/community-reference/0034-b-tag-primitive-emitter-derivation.md`
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/community-reference/38-b-tag-primitive-emitter-derivation.test-plan.md`
 - Review: (filled in after Review phase)
