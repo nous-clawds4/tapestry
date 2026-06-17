@@ -8,6 +8,7 @@ const { handleGetProfileScores } = require('./queries/get-profile-scores');
 const { handleGetNip56Profiles } = require('./queries/nip56-profiles');
 const { handleGetUserData, handleGetUserCounts } = require('./queries/userdata');
 const { handleGetFollowsHops } = require('./queries/follows-hops');
+const { handleGetFollowsHopsPaths } = require('./queries/follows-hops-paths');
 const { handleGetNetworkProximity } = require('./queries/proximity');
 const { handleGetNpubFromPubkey } = require('./queries/get-npub-from-pubkey');
 const { handleGetPubkeyFromNpub } = require('./queries/get-pubkey-from-npub');
@@ -22,6 +23,7 @@ module.exports = {
     handleGetUserData,
     handleGetUserCounts,
     handleGetFollowsHops,
+    handleGetFollowsHopsPaths,
     handleGetNetworkProximity,
     handleGetNpubFromPubkey,
     handleGetPubkeyFromNpub

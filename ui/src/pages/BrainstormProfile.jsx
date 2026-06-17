@@ -263,13 +263,13 @@ export default function BrainstormProfile() {
                 <span className="bsp-count-value">{fmtCount(verifiedFollowerCount)}</span>
                 <span className="bsp-count-label">Verified Followers</span>
               </Link>
-              {/* Follows-hops (story #38, ADR 0034): live shortestPath source→profile, cap 20.
-                  Non-link for now — the destination page is deferred. ∞ = no path within cap;
-                  "—" = unavailable (error/timeout) or loading; keyed on the hook's noPath. */}
-              <span className={`bsp-count${followsHopsLoading ? ' bsp-count-loading' : ''}`} title={hopsTitle}>
+              {/* Follows-hops (story #38, ADR 0034; link activated #39, ADR 0035): live
+                  shortestPath source→profile, cap 20. Links to the path page in ALL states.
+                  ∞ = no path within cap; "—" = unavailable (error/timeout) or loading. */}
+              <Link to={`/user/${pubkey}/follows-hops`} className={`bsp-count bsp-count-link${followsHopsLoading ? ' bsp-count-loading' : ''}`} title={hopsTitle}>
                 <span className="bsp-count-value">{hopsDisplay}</span>
                 <span className="bsp-count-label">Hops</span>
-              </span>
+              </Link>
               {/* Verified Reporters → /user/:pubkey/reporters. Always a <Link> when >0; a
                   genuine 0 is neutral and not a link; "—" when unavailable; dimmed "—" while
                   loading. The red + 🚩 alarm shows ONLY past the dynamic threshold
