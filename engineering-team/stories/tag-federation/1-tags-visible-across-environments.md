@@ -46,5 +46,5 @@ As a **user on any `*.brainstorm.world` instance**, I want to see and use the ta
 
 - Epic: `engineering-team/epics/tag-federation.md`. Half-2 handoff: `docs/B_TAG_HALF_2_HANDOFF.md`. Context: `docs/B_TAG_SHAPE_STATE_AND_PLAN.md`.
 - ADR: `engineering-team/decisions/tag-federation/0001-tag-read-union-local-and-dcosl.md`
-- Test plan: (after Test Design)
+- Test plan: `engineering-team/stories/tag-federation/1-tags-visible-across-environments.test-plan.md`
 - Review: (after Review)
