@@ -255,6 +255,27 @@ function buildImportCypher(event) {
           `MERGE (t)-[:REFERENCES]->(ref)`
         );
       }
+    } else if (tag[0] === 'b' && tag[1]) {
+      // "b" tag — the shared affiliation primitive (ADR 0034, epic community-reference).
+      // CRITICAL: this edge is HEADER-LEVEL — `child` is the event's OWN node (its uuid),
+      // NOT the t${i} tag node (the e/a branches above build tag-level edges; do NOT copy
+      // that shape). Type-gate on the EXPLICIT 'inherit' string only; absent/'pointer'/
+      // anything-else → REFERENCES{source:'b-tag'} (wire spec :41, ADR 0029 §2).
+      const targetUuid = tag[1];
+      const isInherit = tag[2] === 'inherit';
+      if (isInherit) {
+        refStatements.push(
+          `MATCH (child:NostrEvent {uuid: '${esc(uuid)}'}) ` +
+          `MERGE (parent:NostrEvent {uuid: '${esc(targetUuid)}'}) ` +
+          `MERGE (child)-[:INHERITS_FROM]->(parent)`
+        );
+      } else {
+        refStatements.push(
+          `MATCH (child:NostrEvent {uuid: '${esc(uuid)}'}) ` +
+          `MERGE (target:NostrEvent {uuid: '${esc(targetUuid)}'}) ` +
+          `MERGE (child)-[r:REFERENCES]->(target) SET r.source = 'b-tag'`
+        );
+      }
     }
   }
   if (tagParts.length > 0) statements.push(tagParts.join(' '));
