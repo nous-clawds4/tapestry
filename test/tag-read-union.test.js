@@ -116,15 +116,32 @@ t('federatedScan still rejects when the LOCAL scan fails (do not mask a broken l
   assert(threw, 'a local-scan failure must propagate (only the remote leg is swallowed)');
 });
 
-/* ─── dlistFetch: graceful + config-driven (AC-4) ─── */
+/* ─── dlistFetch: opt-in (default-empty) + graceful (AC-4, AC-8 opt-in) ─── */
 
-t('dlistFetch is exported and returns [] (never throws) when no DList relay is configured', async () => {
+t('dlistFetch is exported and returns [] (never throws) when no federation relay is configured', async () => {
   const m = loadMod();
   assert(typeof m.dlistFetch === 'function', 'dlistFetch must be exported (ADR testability)');
-  // With injectable relay list = [] (no DList relay), it must short-circuit to [].
+  // Explicit empty relay list → short-circuit to [].
   const out = await m.dlistFetch({ kinds: [39999] }, { relays: [] });
   assert(Array.isArray(out) && out.length === 0,
-    'dlistFetch with no configured DList relay must return [] (degrade to local), never throw');
+    'dlistFetch with no configured federation relay must return [] (degrade to local), never throw');
+});
+
+t('OPT-IN: by default (no aTagFederationRelays configured) dlistFetch is a no-op []', async () => {
+  const m = loadMod();
+  // No opts → reads config (defaults.json aRelays.aTagFederationRelays === []) → no remote query.
+  const out = await m.dlistFetch({ kinds: [39999] });
+  assert(Array.isArray(out) && out.length === 0,
+    'federation is OPT-IN: with the default-empty aTagFederationRelays, dlistFetch must return [] ' +
+    '(no SimplePool query at all) so behavior is identical to local-only until an operator opts in');
+});
+
+t('OPT-IN: federatedScan with default config (no relays) equals local-only', async () => {
+  const m = loadMod();
+  const local = [ev('L1', 39999, 'pk1', 'a', 100), ev('L2', 39999, 'pk2', 'b', 100)];
+  // Inject only localScan; let remoteScan default to dlistFetch (which reads empty config → []).
+  const out = await m.federatedScan({ kinds: [39999] }, { localScan: async () => local });
+  assertEqual(out.length, 2, 'with no federation relays configured, federatedScan returns exactly the local set');
 });
 
 /* ─── source-contract: visibility handlers union; search path untouched ─── */
@@ -141,6 +158,21 @@ t('AC-1 (wiring): the visibility read paths scan via federatedScan, not bare str
   assert(agg, 'could not locate aggregateProfilesTagged');
   assert(/federatedScan\s*\(/.test(agg[0]),
     'aggregateProfilesTagged must use federatedScan for its assertion scan (AC-1/AC-2)');
+});
+
+t('admin config: defaults.json ships aRelays.aTagFederationRelays = [] (default-empty opt-in)', () => {
+  const defaults = JSON.parse(readSrc('src/config/defaults.json'));
+  const list = defaults.aRelays && defaults.aRelays.aTagFederationRelays;
+  assert(Array.isArray(list), 'defaults.json must declare aRelays.aTagFederationRelays as an array');
+  assertEqual(list.length, 0, 'the shipped default must be EMPTY (federation off until opted in)');
+});
+
+t('admin UI: RelaySettings exposes an aTagFederationRelays editor (admin configures the union relays)', () => {
+  const src = readSrc('ui/src/pages/settings/RelaySettings.jsx');
+  assert(/aTagFederationRelays/.test(src),
+    'RelaySettings.jsx must include an aTagFederationRelays relay-group so an admin can configure the federation read-relays');
+  assert(/read-union|Federation/i.test(src),
+    'the admin card should label the federation read-union relays clearly');
 });
 
 t('AC-7: the search/meili tag-match path is NOT changed to federate (search gate untouched)', () => {

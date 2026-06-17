@@ -35,7 +35,13 @@ A new helper unions `strfryScan(filter)` (local) with a DList-relay fetch (Simpl
 
 ## Decision
 
-**Option A.** Introduce `federatedScan(filter)` = local `strfryScan` ∪ DList-relay fetch, replaceable-deduped, graceful on DList failure; swap it in at the tag-visibility scan sites only. Always-on against the configured DList relay; no new setting.
+**Option A**, with a **Revision (2026-06-17, operator-steering)**: make the read-union **opt-in and default-OFF**, configured per-operator via an **admin UI**.
+
+Introduce `federatedScan(filter)` = local `strfryScan` ∪ federation-relay fetch, replaceable-deduped, graceful on remote failure; swap it in at the tag-visibility scan sites only.
+
+**Why opt-in (supersedes the original "always-on, no new setting"):** federation strategy is an *operator* decision in the final product (this software is run by anyone; some hoard via the strfry-router, some read-union live), and the dev-env relay topology (`dcosl`) must not be baked into structural code. Decisively: a live test showed always-on read-union dumps the shared relay's pollution (~1572 `birb-test-…` junk events) into every instance's tag API — unacceptable for the real users now on these environments. So:
+- A dedicated, **default-empty** relay list `aRelays.aTagFederationRelays`. Empty ⇒ `dlistFetch` short-circuits to `[]` ⇒ no remote query at all ⇒ behavior **identical to today's local-only** for everyone who hasn't opted in.
+- An **admin UI** (a relay-group on the Relay Settings page) lets the operator list the trusted relays to federate over. Our environments opt in explicitly, against a clean relay; arbitrary operators get local-only until they choose otherwise. The strfry-router remains the other (hoard) lever — operators pick.
 
 ## Consequences
 
@@ -47,9 +53,12 @@ A new helper unions `strfryScan(filter)` (local) with a DList-relay fetch (Simpl
 
 ## Implementation notes
 
+- **`src/config/defaults.json`**: add `aRelays.aTagFederationRelays: []` (default-empty — federation off).
+- **`ui/src/pages/settings/RelaySettings.jsx`**: add an `aTagFederationRelays` entry to `RELAY_GROUPS` — the existing generic `RelayGroup` editor renders the add/remove/save card (saves via `onSave({ aRelays: { aTagFederationRelays: urls } })` → `PUT /api/settings`, owner/admin). One-line admin UI.
 - **`src/api/profile-tags/index.js`**:
-  - Add `dlistFetch(filter)` — SimplePool fetch (reuse the `fetchEvents.js` pattern / its `NOSTR_TOOLS_PATH`) against `getSettings().aRelays?.aDListRelays || []`; bounded timeout (~5s); `catch → []`; returns parsed events. If no DList relay configured, returns `[]` (degrades to local).
-  - Add `federatedScan(filter)` — `const [local, remote] = await Promise.all([strfryScan(filter), dlistFetch(filter)])`; concat; `dedupeReplaceable([...local, ...remote])` (and id-dedupe). Local failure still rejects (don't mask a broken local scan); remote failure is swallowed inside `dlistFetch`.
+  - `getTagFederationRelays()` — reads `getSettings().aRelays?.aTagFederationRelays`, returns `[]` on absence (opt-in default).
+  - `dlistFetch(filter, opts)` — SimplePool fetch (reuse `fetchEvents.js` `NOSTR_TOOLS_PATH`/`querySync`) against `opts.relays ?? getTagFederationRelays()`; **`if (relays.length === 0) return []`** (opt-in short-circuit — no remote query when unconfigured); bounded timeout (~5s); `catch → []`.
+  - `federatedScan(filter, opts)` — `Promise.all([localScan(filter), <remote wrapped in .catch(()=>[]) >])`; concat; `dedupeReplaceable`. Injectable `localScan`/`remoteScan` for tests. Local failure rejects (don't mask a broken local scan); remote failure swallowed.
   - Swap `strfryScan → federatedScan` at the **visibility** scan sites only: the tag-element scan in `findTagsByNameSubstring` (`#z:[TAG_Z_TAG]`, ~line 293), the available-tags scan, the index/aggregation assertion scan(s), and the `tags-for-profile` scans (the `#z`/`#p`-keyed tag-element + assertion reads feeding those handlers). **Leave** id-keyed (`ids:[…]`), pin (`tag-pinning` z), TL (`kind:30392`), export, and owner scans on local `strfryScan`.
 - **Dedupe contract:** `federatedScan` must apply the same replaceable-dedupe the module already uses, so a replaceable present in both sources counts once (latest `created_at`). POV aggregation consumes the deduped list unchanged.
 - **No change** to: the meili search proxy / `computeTagMatches` (search gate untouched — AC-7), the writer, firmware, the manifest, any concept definition.

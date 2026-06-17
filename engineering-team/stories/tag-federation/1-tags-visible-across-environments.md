@@ -24,6 +24,8 @@ As a **user on any `*.brainstorm.world` instance**, I want to see and use the ta
 - [ ] **AC-5 (dedupe / no double-count):** Given the same replaceable event is present in both local strfry and the shared relay, when results are merged, then it is counted once (latest `created_at` wins), so aggregations/counts are not inflated.
 - [ ] **AC-6 (POV degradation preserved):** Given asserters whose events come from the shared relay and who are outside the viewing instance's WoT, when tag aggregations compute, then they degrade per the existing POV rules (visibility preserved; trust-weighting POV-scoped) — the read-union does not change POV semantics.
 - [ ] **AC-7 (search gate untouched):** The search-API result-type gate is unchanged — staging's `/api/search/*` still excludes tags by default; this story only affects the `/api/profile-tags/*` read surfaces.
+- [ ] **AC-8 (opt-in, default-OFF):** Given a deployment with default settings (no federation relays configured), when the tag surfaces load, then behavior is identical to today's local-only reads — no remote query is made. Federation engages only when an operator configures relays.
+- [ ] **AC-9 (admin-configurable):** Given an owner/admin on the Relay Settings page, when they view it, then there is a "Tag Federation Relays" editor where they add/remove the relays the tag reads union over, persisted to settings — so each operator chooses their own federation (or none).
 
 ## Concepts touched
 

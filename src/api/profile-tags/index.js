@@ -82,6 +82,62 @@ function strfryScan(filter) {
   });
 }
 
+// ── Federation read-union (ADR tag-federation/0001) ──────────────────────
+// OPT-IN read-union: tag-visibility reads scan local strfry AND the operator-
+// configured federation relays (`aRelays.aTagFederationRelays`, admin-editable
+// on the Relay Settings page). **Default is EMPTY ⇒ local-only, no remote query
+// at all** — federation is off until an operator opts in by listing trusted
+// relays. The remote leg is graceful (failure → []) so an outage degrades to
+// local-only; the local leg's failure still propagates.
+const NOSTR_TOOLS_PATH = '/usr/local/lib/node_modules/brainstorm/node_modules/nostr-tools';
+const WS_PATH = '/usr/local/lib/node_modules/brainstorm/node_modules/ws';
+
+function getTagFederationRelays() {
+  try {
+    const { getSettings } = require('../../config/settings');
+    const r = getSettings().aRelays && getSettings().aRelays.aTagFederationRelays;
+    return Array.isArray(r) ? r : [];
+  } catch { return []; }
+}
+
+async function dlistFetch(filter, opts = {}) {
+  const relays = Array.isArray(opts.relays) ? opts.relays : getTagFederationRelays();
+  if (relays.length === 0) return []; // opt-in: no federation relays configured → local-only
+  try {
+    if (typeof globalThis.WebSocket === 'undefined') globalThis.WebSocket = require(WS_PATH);
+    const { SimplePool } = require(NOSTR_TOOLS_PATH);
+    const pool = new SimplePool();
+    try {
+      const events = await Promise.race([
+        pool.querySync(relays, filter),
+        new Promise((resolve) => setTimeout(() => resolve([]), opts.timeoutMs || 5000)),
+      ]);
+      return Array.isArray(events) ? events : [];
+    } finally {
+      try { pool.close(relays); } catch {}
+    }
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Read-union scan: local strfry ∪ DList relay, replaceable-deduped.
+ * `opts.localScan` / `opts.remoteScan` are injectable for tests; they default
+ * to the real `strfryScan` / `dlistFetch`. The remote leg is swallowed to [] on
+ * failure (graceful); the LOCAL leg's failure propagates (never mask a broken
+ * local read). Used at the tag-visibility scan sites only.
+ */
+async function federatedScan(filter, opts = {}) {
+  const localScan = opts.localScan || strfryScan;
+  const remoteScan = opts.remoteScan || ((f) => dlistFetch(f));
+  const [local, remote] = await Promise.all([
+    localScan(filter),
+    Promise.resolve().then(() => remoteScan(filter)).catch(() => []),
+  ]);
+  return dedupeReplaceable([...(local || []), ...(remote || [])]);
+}
+
 function readPolarity(event) {
   const t = (event.tags || []).find((x) => x[0] === 'polarity');
   if (!t || t[1] == null) return 1;
@@ -118,7 +174,7 @@ function dedupeReplaceable(events) {
 
 async function handleAvailableTags(req, res) {
   try {
-    const events = await strfryScan({
+    const events = await federatedScan({
       kinds: [39999],
       '#z': [TAG_Z_TAG],
     });
@@ -176,7 +232,7 @@ async function handleTagsForProfile(req, res) {
     });
     const wotFiltering = !!povSuffix && Number.isFinite(minRank);
 
-    const events = await strfryScan({
+    const events = await federatedScan({
       kinds: [39999],
       '#z': [NOSTR_USER_TAG_Z_TAG],
       '#p': [pubkey],
@@ -245,7 +301,7 @@ async function handleWotTags(req, res) {
     });
     const wotFiltering = !!povSuffix && Number.isFinite(minRank);
 
-    const events = await strfryScan({
+    const events = await federatedScan({
       kinds: [39999],
       '#z': [NOSTR_USER_TAG_Z_TAG],
     });
@@ -290,7 +346,7 @@ async function handleWotTags(req, res) {
 async function findTagsByNameSubstring(query) {
   if (!query || !query.trim()) return [];
   const q = query.trim().toLowerCase();
-  const events = await strfryScan({ kinds: [39999], '#z': [TAG_Z_TAG] });
+  const events = await federatedScan({ kinds: [39999], '#z': [TAG_Z_TAG] });
   const deduped = dedupeReplaceable(events);
   const out = [];
   for (const ev of deduped) {
@@ -503,7 +559,7 @@ function parsePinTagEventId(ev) {
 async function aggregateProfilesTagged({ tagEventId, povSuffix, minRank }) {
   const wotFiltering = !!povSuffix && Number.isFinite(minRank);
 
-  const events = await strfryScan({
+  const events = await federatedScan({
     kinds: [39999],
     '#z': [NOSTR_USER_TAG_Z_TAG],
     '#e': [tagEventId],
@@ -1598,6 +1654,10 @@ module.exports = {
   meiliFetchProfilesByPubkey,
   aggregateProfilesTagged,
   aggregateTagPins,
+  // Read-union (ADR tag-federation/0001) — exported for tests:
+  federatedScan,
+  dlistFetch,
+  dedupeReplaceable,
   parseTagPayload,
   parseCurationMethod,
   parsePinTagEventId,
