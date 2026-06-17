@@ -328,30 +328,38 @@ t('OQ-1: the local-header b seed is reachable even when the community fetch fail
 });
 
 /* ════════════════════════════════════════════════════════════════════════
-   AC-8 — no manifest change: tag / nostr-user-tag / tag-pinning gain no
-   communityReference (the stub-trap guard). Only nostr-relay carries one.
-   SOURCE-CONTRACT: parse firmware/active/manifest.json.
+   AC-8 — TRANSITIONED (Story 38 stub-trap guard → exited by Story 2).
+   Story 38's AC-8 asserted the tag concepts carried NO communityReference:
+   adding one against PRE-primitive install code would deploy the legacy stub,
+   not the b. That guard was correct WHILE the emitter did not yet exist.
+   It now exists on this branch (Story 38, this very suite's subject), so
+   `tag-federation` Story 2 (ADR 0002) deliberately added the three seeds —
+   the sanctioned exit from the stub trap. These two tests are updated to the
+   post-Story-2 truth; the EXACT seed contents (headerATag/relayHints/pin) are
+   owned by `test/b-tag-seeds.test.js`. SOURCE-CONTRACT: parse manifest.json.
    ════════════════════════════════════════════════════════════════════════ */
 
-t('AC-8: tag / nostr-user-tag / tag-pinning carry NO communityReference (stub-trap guard)', () => {
+t('AC-8 (post-Story-2): tag / nostr-user-tag / tag-pinning NOW carry a communityReference (stub trap exited — emitter present)', () => {
   const manifest = JSON.parse(readSrc(MANIFEST));
   const concepts = manifest.concepts || [];
   const find = (slug) => concepts.find((c) => c.slug === slug);
   for (const slug of ['tag', 'nostr-user-tag', 'tag-pinning']) {
     const c = find(slug);
     assert(c, `manifest must still contain the ${slug} concept`);
-    assert(!('communityReference' in c),
-      `${slug} must NOT gain a communityReference in this story — adding one against pre-primitive install code ` +
-      `deploys the STUB, not the b (the stub trap; manifest edits are Story 3, AC-8).`);
+    assert('communityReference' in c,
+      `${slug} must carry a communityReference as of tag-federation Story 2 (ADR 0002) — safe because the b-tag ` +
+      `emitter (this suite's subject, Story 38) is present, so install seeds the pointer-b, not the legacy stub. ` +
+      `Exact contents are asserted in test/b-tag-seeds.test.js.`);
   }
 });
 
-t('AC-8: nostr-relay remains the ONLY concept carrying a communityReference (no new ones added)', () => {
+t('AC-8 (post-Story-2): exactly nostr-relay + the three tag concepts carry a communityReference', () => {
   const manifest = JSON.parse(readSrc(MANIFEST));
-  const withCR = (manifest.concepts || []).filter((c) => 'communityReference' in c).map((c) => c.slug);
-  assert(withCR.length === 1 && withCR[0] === 'nostr-relay',
-    `exactly one concept (nostr-relay, the dev-ground pilot) may carry a communityReference; ` +
-    `found: ${JSON.stringify(withCR)}. This story adds none (AC-8).`);
+  const withCR = (manifest.concepts || []).filter((c) => 'communityReference' in c).map((c) => c.slug).sort();
+  const expected = ['nostr-relay', 'nostr-user-tag', 'tag', 'tag-pinning'];
+  assert(JSON.stringify(withCR) === JSON.stringify(expected),
+    `the four concepts carrying a communityReference must be exactly ${JSON.stringify(expected)} ` +
+    `(nostr-relay = the original pilot; the three tag concepts = Story 2's seeds). Found: ${JSON.stringify(withCR)}.`);
 });
 
 /* ─── Run ─── */
