@@ -52,5 +52,5 @@ As an **operator running any `*.brainstorm.world` instance**, I want my instance
 
 - Epic: `engineering-team/epics/tag-federation.md`. Handoff: `docs/B_TAG_HALF_2_HANDOFF.md` (§4 Story 3, Part 2). Prereq: `engineering-team/stories/community-reference/38-b-tag-primitive-emitter-derivation.md` (Done).
 - ADR: `engineering-team/decisions/tag-federation/0002-per-concept-b-tag-seeds.md`
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/tag-federation/2-per-concept-b-tag-seeds.test-plan.md`
 - Review: (filled in after Review phase)
