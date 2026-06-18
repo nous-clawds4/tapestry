@@ -1,7 +1,7 @@
 # Story 3: Dual-z writer — new tags/taggings carry both canonical and local z (W11)
 
 **Epic:** tag-federation (Half 2 — Part B)
-**Status:** Draft
+**Status:** Approved
 **Created:** 2026-06-17
 **Type:** Feature
 
