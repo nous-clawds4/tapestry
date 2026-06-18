@@ -42,6 +42,6 @@ Testable from the outside (input → observable behavior).
 - **Note source: relays vs local strfry — deferred to Architecture (a *how*, not a *what*).** The product intent is the user's *actual* recent notes as published to the network. The existing feed fetches kind-1 from the instance's general-purpose relays (local strfry on these instances is not a full kind-1 archive), so relays is the expected source — but whether local strfry holds enough kind-1 to serve locally is an **Architecture** determination (the feed precedent plus a quick local-coverage check settle it). If relays are used, the resolved-set-with-fallback behavior should mirror the feed's. This is a sourcing mechanism, not a blocking product question, so it does not gate story approval.
 
 ## Linked artifacts
-- ADR: (filled in after Architecture)
+- ADR: `engineering-team/decisions/note-surfaces/0001-by-author-notes-read-path.md`
 - Test plan: (filled in after Test Design)
 - Review: (filled in after Review)

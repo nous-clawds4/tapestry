@@ -43,6 +43,6 @@ Testable from the outside.
 None — route (`/user/:pubkey/notes`), the 50 cap, and the empty-state intent were operator-resolved at Planning.
 
 ## Linked artifacts
-- ADR: (filled in after Architecture)
+- ADR: `engineering-team/decisions/note-surfaces/0002-note-surfaces-ui.md`
 - Test plan: (filled in after Test Design)
 - Review: (filled in after Review)

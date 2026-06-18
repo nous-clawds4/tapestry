@@ -43,6 +43,6 @@ Testable from the outside.
 None — placement (bottom / last section), label ("Content"), single-note count, empty-state intent, and the link target (`/user/:pubkey/notes`) were operator-resolved at Planning.
 
 ## Linked artifacts
-- ADR: (filled in after Architecture)
+- ADR: `engineering-team/decisions/note-surfaces/0002-note-surfaces-ui.md`
 - Test plan: (filled in after Test Design)
 - Review: (filled in after Review)
