@@ -46,6 +46,6 @@ No new concept-graph concepts. Existing machinery the Architect will lean on (re
 - **Story size** — 7 acceptance criteria, but one cohesive module (the document + one endpoint + shared conventions). If the Architect judges it too large, the conventions+document and the stats endpoint may split — but they must still **ship together** so the document never advertises a dead endpoint.
 
 ## Linked artifacts
-- ADR: (filled in after Architecture phase)
-- Test plan: (filled in after Test Design phase)
+- ADR: `engineering-team/decisions/open-ranking/0001-ore-provider-and-stats.md` (Accepted; amended 2026-06-18 for the testability seam)
+- Test plan: `engineering-team/stories/open-ranking/1-ore-provider-and-stats.test-plan.md` (20 failing tests, `test/open-ranking-stats.test.js`)
 - Review: (filled in after Review phase)
