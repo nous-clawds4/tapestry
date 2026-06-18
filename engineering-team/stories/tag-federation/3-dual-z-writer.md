@@ -1,7 +1,7 @@
 # Story 3: Dual-z writer — new tags/taggings carry both canonical and local z (W11)
 
 **Epic:** tag-federation (Half 2 — Part B)
-**Status:** Draft
+**Status:** Done
 **Created:** 2026-06-17
 **Type:** Feature
 
@@ -21,13 +21,13 @@ As a **user tagging people on my instance**, I want the tags and taggings I crea
 
 ## Acceptance criteria
 
-- [ ] **AC-1 (tag element dual-z):** When a new tag element is created, the published event carries **two** `z` tags: the canonical `39998:82b75e47…:<slug>` **and** the local `39998:<thisInstanceTA>:<slug>`.
-- [ ] **AC-2 (tagging dual-z):** When a new tagging assertion is published, the event carries the same two `z` tags (canonical + local) for its concept.
-- [ ] **AC-3 (composes with hybrid e+a):** The dual-z event still carries the ADR-0022 hybrid `e`+`a` reference shape unchanged — no regression to that wire format; the second z is additive.
-- [ ] **AC-4 (local list populates):** Given a user publishes a new tagging on instance X, when instance X's local concept list (`39998:<X's TA>:nostr-user-tag`) is loaded, then that tagging appears in it — and (per Half 1) it remains visible network-wide as well.
-- [ ] **AC-5 (no migration / no regression to old events):** Existing single-z events are not rewritten; they stay canonical-z-only and remain network-visible. No backfill.
-- [ ] **AC-6 (runtime local TA pubkey):** The local z's `<thisInstanceTA>` is resolved at runtime (never hardcoded) — correct per-deployment on every instance.
-- [ ] **AC-7 (David verification breadcrumb):** The PR carries the explicit "one pointer-`b` per header / two z per event" note to David + the reversal breadcrumb (consistent with Story 2).
+- [x] **AC-1 (tag element dual-z):** When a new tag element is created, the published event carries **two** `z` tags: the canonical `39998:82b75e47…:<slug>` **and** the local `39998:<thisInstanceTA>:<slug>`.
+- [x] **AC-2 (tagging dual-z):** When a new tagging assertion is published, the event carries the same two `z` tags (canonical + local) for its concept.
+- [x] **AC-3 (composes with hybrid e+a):** The dual-z event still carries the ADR-0022 hybrid `e`+`a` reference shape unchanged — no regression to that wire format; the second z is additive.
+- [~] **AC-4 (local list populates):** Given a user publishes a new tagging on instance X, when instance X's local concept list (`39998:<X's TA>:nostr-user-tag`) is loaded, then that tagging appears in it — and (per Half 1) it remains visible network-wide as well. *(Deferred to deployed-env verification — live-only; see review.)*
+- [x] **AC-5 (no migration / no regression to old events):** Existing single-z events are not rewritten; they stay canonical-z-only and remain network-visible. No backfill.
+- [x] **AC-6 (runtime local TA pubkey):** The local z's `<thisInstanceTA>` is resolved at runtime (never hardcoded) — correct per-deployment on every instance.
+- [~] **AC-7 (David verification breadcrumb):** The PR carries the explicit "one pointer-`b` per header / two z per event" note to David + the reversal breadcrumb (consistent with Story 2). *(PR-description deliverable — outstanding for the eventual PR.)*
 
 ## Concepts touched
 
@@ -51,6 +51,6 @@ As a **user tagging people on my instance**, I want the tags and taggings I crea
 
 - Epic: `engineering-team/epics/tag-federation.md`. Handoff: `docs/B_TAG_HALF_2_HANDOFF.md` (§4 Story 3, Part 1 — W11). Worksheet: `protocols/worksheet.md` (W11).
 - Depends on: `engineering-team/stories/tag-federation/2-per-concept-b-tag-seeds.md` and `…/community-reference/38-…` (Done).
-- ADR: (filled in after Architecture phase — **the W11 stamping design**)
-- Test plan: (filled in after Test Design phase)
-- Review: (filled in after Review phase)
+- ADR: `engineering-team/decisions/tag-federation/0003-dual-z-writer.md`
+- Test plan: `engineering-team/stories/tag-federation/3-dual-z-writer.test-plan.md`
+- Review: `engineering-team/reviews/tag-federation/3-dual-z-writer.md` (PASS, 2026-06-17)
