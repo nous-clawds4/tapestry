@@ -131,15 +131,19 @@ test('S1: src/api/open-ranking/index.js exists and exports the builders + Expres
   }
 });
 
-test('S2: src/api/index.js registers /.well-known/open-ranking.json and /stats/pubkey via the ORE module (ADR §Implementation notes)', () => {
-  const src = safeRead(API_INDEX);
-  assert(src.length > 0, 'src/api/index.js missing — unexpected.');
-  assert(/['"]\/\.well-known\/open-ranking\.json['"]/.test(src),
-    "src/api/index.js must register the public route '/.well-known/open-ranking.json' (alongside registerNip05Routes).");
-  assert(/['"]\/stats\/pubkey['"]/.test(src),
-    "src/api/index.js must register the public route '/stats/pubkey' (bare path, off the /api/ prefix so it is auto-public).");
-  assert(/registerOpenRankingRoutes|open-ranking/.test(src),
+test('S2: src/api/index.js wires the ORE module, which registers /.well-known/open-ranking.json and /stats/pubkey (ADR §Implementation notes)', () => {
+  // ADR 0001 uses the self-registering module pattern (registerOpenRankingRoutes,
+  // like registerNip05Routes), so the route strings live in the ORE module and
+  // src/api/index.js carries only the wiring.
+  const idx = safeRead(API_INDEX);
+  assert(idx.length > 0, 'src/api/index.js missing — unexpected.');
+  assert(/registerOpenRankingRoutes|['"]\.\/open-ranking['"]/.test(idx),
     'src/api/index.js must wire the ORE routes via registerOpenRankingRoutes from ./open-ranking.');
+  const mod = safeRead(MODULE_PATH);
+  assert(/['"]\/\.well-known\/open-ranking\.json['"]/.test(mod),
+    "src/api/open-ranking/index.js must register the public route '/.well-known/open-ranking.json'.");
+  assert(/['"]\/stats\/pubkey['"]/.test(mod),
+    "src/api/open-ranking/index.js must register the public route '/stats/pubkey' (bare path → auto-public).");
 });
 
 // ===========================================================================

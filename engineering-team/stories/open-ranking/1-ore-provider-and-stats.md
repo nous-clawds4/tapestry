@@ -45,6 +45,13 @@ No new concept-graph concepts. Existing machinery the Architect will lean on (re
 - **`reports` / `reporters` mapping** — which NIP-56 aggregates map to ORE's `reports` (count against the key) and `reporters` (distinct reporters): verified vs. raw counts. Architect/ADR decision.
 - **Story size** — 7 acceptance criteria, but one cohesive module (the document + one endpoint + shared conventions). If the Architect judges it too large, the conventions+document and the stats endpoint may split — but they must still **ship together** so the document never advertises a dead endpoint.
 
+## Deviations
+- **S2 test corrected (test defect).** The Tester's `S2` asserted the route strings lived in `src/api/index.js`, but ADR 0001's self-registering module pattern (`registerOpenRankingRoutes`, like `registerNip05Routes`) places them in `src/api/open-ranking/index.js`. `S2` now asserts the *wiring* in `src/api/index.js` and the route strings in the ORE module.
+- **AC-2 preflight read as 2xx.** Per ADR 0001's CORS decision (confirmed at the Test-Design gate), actual responses carry `Access-Control-Allow-Origin: *`; the `OPTIONS` preflight is handled by the platform's global `cors()` (returns 204), verified at staging smoke — not unit-tested. The strict-200 shim remains a deferred follow-up.
+- **`isPovProvisioned` uses the shared `src/lib/neo4j-driver` `runCypher` (parameterized)**, not a per-request driver — cleaner than `get-profile-scores`' inline driver, behaviour-equivalent for the existence check.
+- **`get-profile-scores` refactor** extracted `queryProfileScores` + `fetchProfileScores`; the HTTP handler's response shape (`{success, profileFound, data:{cypherQuery, profileData}}`) and both Cypher queries are preserved unchanged.
+- **Worktree `node_modules` symlink** to the main checkout (repo convention, matches `feat-note-surfaces`) so host-side `node test` resolves deps; gitignored, never committed.
+
 ## Linked artifacts
 - ADR: `engineering-team/decisions/open-ranking/0001-ore-provider-and-stats.md` (Accepted; amended 2026-06-18 for the testability seam)
 - Test plan: `engineering-team/stories/open-ranking/1-ore-provider-and-stats.test-plan.md` (20 failing tests, `test/open-ranking-stats.test.js`)

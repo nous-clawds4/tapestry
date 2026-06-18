@@ -100,6 +100,11 @@ async function register(app) {
     // ── NIP-05 server endpoint (.well-known/nostr.json, public, CORS open) ──
     registerNip05Routes(app);
 
+    // ── Open-Ranking (ORE) provider: .well-known/open-ranking.json + /stats/pubkey ──
+    //    Public, off the /api/ prefix → auto-public via the auth middleware. See ADR open-ranking/0001.
+    const { registerOpenRankingRoutes } = require('./open-ranking');
+    registerOpenRankingRoutes(app);
+
     app.get('/api/algos/config/get/graperank', handleGetGrapeRankConfig);
     app.post('/api/algos/config/update/graperank', handleUpdateGrapeRankConfig);
 
