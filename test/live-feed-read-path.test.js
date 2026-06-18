@@ -650,6 +650,30 @@ test('M5 (mentions/robustness): the local kind-0 lookup is capped so a ref-stuff
     `the kind-0 lookup must be capped (≤1000 — authors + bounded mentions) so a ref-stuffed note can't overflow the scan argument; got ${scanAuthors.length}.`);
 });
 
+test('E1 (shared seam): enrichNotes is reusable — exported from _shared, turns raw notes into the enriched item shape via the injected local scan', async () => {
+  let mod;
+  try { mod = require('../src/api/_shared/noteEnrichment'); } catch { mod = null; }
+  assert(mod && typeof mod.enrichNotes === 'function',
+    'src/api/_shared/noteEnrichment.js must export enrichNotes(notes, scanStrfry) — the shared seam the feed and the future profile/user-notes read paths all use.');
+  const A = HEX('1');
+  const scanStrfry = (filter) => {
+    const f = typeof filter === 'string' ? JSON.parse(filter) : filter;
+    if (Array.isArray(f.kinds) && f.kinds.includes(0)) {
+      return [{ id: 'k0', kind: 0, pubkey: A, created_at: 10, tags: [], content: JSON.stringify({ name: 'Ann', picture: 'p.png' }) }];
+    }
+    return [];
+  };
+  const items = await mod.enrichNotes([kind1('x', A, 100, 'hi')], scanStrfry);
+  assert(items.length === 1, 'one raw note in → one enriched item out.');
+  const it = items[0];
+  assert(it.id === 'x' && it.pubkey === A && it.createdAt === 100 && it.content === 'hi',
+    'enrichNotes must preserve id/pubkey/createdAt/content (createdAt mapped from created_at).');
+  assert(it.author && it.author.displayName === 'Ann' && it.author.avatar === 'p.png',
+    'enrichNotes must resolve the author name/avatar from the injected LOCAL kind-0 scan.');
+  assert(it.mentions && typeof it.mentions === 'object',
+    'each enriched item must carry a mentions map (empty when the note has no nostr: refs).');
+});
+
 async function run() {
   let pass = 0, fail = 0;
   for (const t of tests) {

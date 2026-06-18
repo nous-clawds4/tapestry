@@ -45,6 +45,7 @@ const READ_PATH = path.resolve(__dirname, '../src/api/feed/feedReadPath.js');
 const TIMEAGO = path.resolve(__dirname, '../ui/src/utils/timeAgo.js');
 const NOSTR_ENTITIES = path.resolve(__dirname, '../ui/src/utils/nostrEntities.js');
 const COMPONENT_NOTE_CONTENT = path.resolve(__dirname, '../ui/src/components/NoteContent.jsx');
+const NOTE_CARD = path.resolve(__dirname, '../ui/src/components/NoteCard.jsx');
 
 const tests = [];
 function test(name, fn) { tests.push({ name, fn }); }
@@ -127,8 +128,9 @@ test('T4: the OK branch renders the indicator then maps items in ARRAY ORDER wit
 });
 
 test('T5: each note entry shows author display name + avatar (with placeholder fallback) + timestamp + text (AC-2 content)', () => {
-  const src = safeRead(PAGE);
-  assert(src.length > 0, 'BrainstormFeed.jsx does not exist yet.');
+  // The per-note card is now the shared NoteCard component (extracted from the page).
+  const src = safeRead(NOTE_CARD);
+  assert(src.length > 0, 'ui/src/components/NoteCard.jsx must exist — the shared per-note card unit.');
   // Per-note content fields off the contract item { author:{ displayName, avatar }, createdAt, content }.
   assert(/author[\s\S]{0,12}displayName|displayName/.test(src),
     "each entry must show the author display name (item.author.displayName) (AC-2).");
@@ -143,10 +145,10 @@ test('T5: each note entry shows author display name + avatar (with placeholder f
 });
 
 test('T6: derives the per-note timestamp from createdAt via a local formatTimestamp helper, with no date library (AC-2 timestamp)', () => {
-  const src = safeRead(PAGE);
-  assert(src.length > 0, 'BrainstormFeed.jsx does not exist yet.');
+  const src = safeRead(NOTE_CARD);
+  assert(src.length > 0, 'ui/src/components/NoteCard.jsx must exist.');
   assert(/formatTimestamp/.test(src),
-    'the page must define a local formatTimestamp helper that turns the Unix-seconds createdAt into a human timestamp (ADR §Impl: a tiny local helper, no date library).');
+    'NoteCard must define a local formatTimestamp helper that turns the Unix-seconds createdAt into a human timestamp (a tiny local helper, no date library).');
   // ADR/house rule: no new dependency — must not import a date library (moment/dayjs/date-fns/luxon).
   assert(!/from\s+['"](moment|dayjs|date-fns|luxon)['"]/.test(src) && !/require\(\s*['"](moment|dayjs|date-fns|luxon)['"]/.test(src),
     'formatTimestamp must NOT pull in a date library (moment/dayjs/date-fns/luxon) — no new dependency (ADR §Constraints / house rules). Use the built-in Date.');
@@ -355,15 +357,15 @@ test('T18: formatTimeAgo DEFAULTS are unchanged (3 units, comma separator) — v
   assert(mod.formatTimeAgo(TA_NOW - 30, TA_NOW) === '0m ago', 'default sub-minute must still be "0m ago".');
 });
 
-test('T19: the page reuses formatTimeAgo, renders "just now" for sub-minute, and keeps the exact time on hover (title)', () => {
-  const src = safeRead(PAGE);
-  assert(src.length > 0, 'BrainstormFeed.jsx does not exist yet.');
+test('T19: NoteCard reuses formatTimeAgo, renders "just now" for sub-minute, and keeps the exact time on hover (title)', () => {
+  const src = safeRead(NOTE_CARD);
+  assert(src.length > 0, 'ui/src/components/NoteCard.jsx must exist.');
   assert(/from\s+['"]\.\.\/utils\/timeAgo['"]/.test(src) && /formatTimeAgo/.test(src),
-    'BrainstormFeed.jsx must import + use formatTimeAgo from ../utils/timeAgo (reuse, not a third time-format copy).');
+    'NoteCard must import + use formatTimeAgo from ../utils/timeAgo (reuse, not a third time-format copy).');
   assert(/just now/.test(src),
     'formatTimestamp must render "just now" for the sub-minute case (the smallest unit is the minute).');
   assert(/maxUnits\s*:\s*2/.test(src),
-    'the feed must request the two-unit form via formatTimeAgo(..., { maxUnits: 2, ... }).');
+    'the card must request the two-unit form via formatTimeAgo(..., { maxUnits: 2, ... }).');
   assert(/bsp-feed-time[^>]*title=/.test(src) || /title=\{[^}]*absoluteTimestamp/.test(src),
     'the timestamp element must carry a title (hover) with the exact local time so no precision is lost.');
 });
@@ -433,21 +435,26 @@ test('T23: the user-provided real example strings decode to a profile and an eve
   assert(eseg && eseg.href.startsWith('/event?nevent=nevent1'), `the nevent example must resolve to /event?nevent=…, got ${eseg && eseg.href}`);
 });
 
-test('T24: the feed renders note content through NoteContent (NIP-21 entity links), not as a raw string', () => {
+test('T24: the feed renders each note via the shared NoteCard, which renders content through NoteContent (NIP-21 entity links)', () => {
   const page = safeRead(PAGE);
+  const card = safeRead(NOTE_CARD);
   const comp = safeRead(COMPONENT_NOTE_CONTENT);
-  assert(page.length > 0 && comp.length > 0, 'BrainstormFeed.jsx and NoteContent.jsx must exist.');
-  assert(/<NoteContent\s+content=\{item\.content\}/.test(page),
-    'the feed item must render its text via <NoteContent content={item.content} /> (the entity-linkifying renderer), not {item.content} verbatim.');
+  assert(page.length > 0 && card.length > 0 && comp.length > 0, 'BrainstormFeed.jsx, NoteCard.jsx and NoteContent.jsx must exist.');
+  // The page delegates each item to the shared card unit (so the two new locations + future
+  // per-note improvements reuse one component) — it does not inline the card markup.
+  assert(/<NoteCard\b[^>]*\bitem=\{item\}/.test(page) && /import NoteCard/.test(page),
+    'the feed must render each note via <NoteCard item={item} /> (the shared per-note card), not inline card markup.');
+  assert(/<NoteContent\s+content=\{item\.content\}/.test(card),
+    'NoteCard must render the note text via <NoteContent content={item.content} /> (the entity-linkifying renderer), not {item.content} verbatim.');
   assert(/parseNostrContent/.test(comp) && /react-router-dom/.test(comp),
     'NoteContent must map parseNostrContent segments to react-router <Link>s.');
 });
 
-test('T25: the feed passes the resolved mentions map and NoteContent renders "@name" over the raw npub', () => {
-  const page = safeRead(PAGE);
+test('T25: NoteCard passes the resolved mentions map and NoteContent renders "@name" over the raw npub', () => {
+  const card = safeRead(NOTE_CARD);
   const comp = safeRead(COMPONENT_NOTE_CONTENT);
-  assert(/<NoteContent\b[^>]*\bmentions=\{item\.mentions\}/.test(page),
-    'BrainstormFeed must pass the read path\'s resolved mentions map: <NoteContent content={item.content} mentions={item.mentions} />.');
+  assert(/<NoteContent\b[^>]*\bmentions=\{item\.mentions\}/.test(card),
+    'NoteCard must pass the read path\'s resolved mentions map: <NoteContent content={item.content} mentions={item.mentions} />.');
   assert(/mentions\[seg\.pubkey\]/.test(comp) && /@\$\{name\}/.test(comp),
     'NoteContent must look up mentions[seg.pubkey] and render "@${name}" when the display name is resolved (falling back to the npub otherwise).');
 });
