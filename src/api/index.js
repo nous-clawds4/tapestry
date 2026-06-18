@@ -82,6 +82,7 @@ const { handleFetchProfiles } = require('./profiles/fetchProfiles.js');
 const { handleFetchExternalReactions } = require('./reactions/fetchReactions.js');
 const { handleFetchExternalEvents } = require('./relay/fetchEvents.js');
 const { handleGetFeed } = require('./feed/feedReadPath.js');
+const { handleGetUserNotes } = require('./notes/userNotesReadPath.js');
 const { requireOwner, handleGetSettings, handleGetDefaults, handleGetOverrides, handleUpdateSettings, handleResetSetting } = require('./settings/settingsApi.js');
 const { handleGetGrapevinePreferences, handleUpdateGrapevinePreferences } = require('./settings/grapevinePrefApi.js');
 const { handleGetUserPrefs, handleUpdateUserPrefs } = require('./settings/userPrefsApi.js');
@@ -300,6 +301,9 @@ async function register(app) {
 
     // Live-feed read path (public, read-only) — Story live-feed #1, ADR live-feed/0001
     app.get('/api/feed', handleGetFeed);
+
+    // By-author notes read path (public, read-only) — Story note-surfaces #1, ADR note-surfaces/0001
+    app.get('/api/user/:pubkey/notes', handleGetUserNotes);
 
     // Settings endpoints (owner-only except GET merged)
     // /api/grapevine/preferences writes to the HOUSE config (settings.grapevine.searchPreferences)
