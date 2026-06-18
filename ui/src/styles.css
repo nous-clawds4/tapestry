@@ -7236,6 +7236,20 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   overflow-wrap: anywhere;
   word-break: break-word;
 }
+/* NIP-21 nostr: entity references rendered inside note text (mentions + event links). */
+.bsp-note-mention,
+.bsp-note-entity {
+  color: #a5b4fc;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+  word-break: break-all;
+}
+.bsp-note-mention:hover,
+.bsp-note-entity:hover {
+  text-decoration: underline;
+  text-decoration-color: rgba(165, 180, 252, 0.5);
+  text-underline-offset: 2px;
+}
 /* Author avatar/name link to the author's profile (/user/<pubkey>). */
 .bsp-feed-author-link {
   display: inline-flex;

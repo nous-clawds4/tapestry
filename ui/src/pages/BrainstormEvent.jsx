@@ -14,8 +14,10 @@ export default function BrainstormEvent() {
   const { user, login, logout } = useAuth();
   const [params] = useSearchParams();
   const nevent = params.get('nevent');
+  const naddr = params.get('naddr');
   const id = params.get('id');
-  const identifier = nevent || id || null;
+  const identifier = nevent || naddr || id || null;
+  const identifierLabel = nevent ? 'nevent' : naddr ? 'naddr' : 'event id';
 
   return (
     <div className="bsp-page">
@@ -36,7 +38,7 @@ export default function BrainstormEvent() {
         </p>
         {identifier && (
           <p className="bsp-event-identifier">
-            <span className="bsp-event-identifier-label">{nevent ? 'nevent' : 'event id'}:</span>{' '}
+            <span className="bsp-event-identifier-label">{identifierLabel}:</span>{' '}
             <code className="bsp-event-identifier-value">{identifier}</code>
           </p>
         )}

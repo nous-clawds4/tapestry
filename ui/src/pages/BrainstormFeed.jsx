@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import BrainstormUserMenu from '../components/BrainstormUserMenu';
 import NoteActionsMenu from '../components/NoteActionsMenu';
+import NoteContent from '../components/NoteContent';
 import { formatTimeAgo } from '../utils/timeAgo';
 import useFeed from '../hooks/useFeed';
 
@@ -109,7 +110,7 @@ function FeedItem({ item }) {
         {/* Per-note actions (copy link / id, tag) — floats to the top-right of the entry. */}
         <NoteActionsMenu item={item} />
       </div>
-      <div className="bsp-feed-text">{item.content}</div>
+      <div className="bsp-feed-text"><NoteContent content={item.content} /></div>
     </div>
   );
 }
