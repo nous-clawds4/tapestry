@@ -7236,6 +7236,24 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   overflow-wrap: anywhere;
   word-break: break-word;
 }
+/* Author avatar/name link to the author's profile (/user/<pubkey>). */
+.bsp-feed-author-link {
+  display: inline-flex;
+  flex: none;
+  border-radius: 50%;
+}
+.bsp-feed-author-link:hover {
+  opacity: 0.85;
+}
+.bsp-feed-name-link {
+  color: inherit;
+  text-decoration: none;
+}
+.bsp-feed-name-link:hover {
+  text-decoration: underline;
+  text-decoration-color: rgba(165, 180, 252, 0.5);
+  text-underline-offset: 2px;
+}
 
 .table-pagination {
   display: flex;

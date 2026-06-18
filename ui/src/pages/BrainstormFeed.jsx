@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import BrainstormUserMenu from '../components/BrainstormUserMenu';
 import useFeed from '../hooks/useFeed';
@@ -57,23 +58,38 @@ export default function BrainstormFeed() {
 }
 
 // One note entry: avatar (placeholder fallback) + author display name + timestamp + text.
+// The avatar and the display name link to the author's profile (/user/<pubkey>) — an
+// in-app SPA <Link>, the same target the search/follows lists use. When the note has no
+// pubkey (defensive; OK items always carry one) the avatar/name render unlinked so we
+// never emit a /user/ link to nowhere.
 function FeedItem({ item }) {
   const author = item.author || {};
   const displayName = author.displayName || (item.pubkey ? `${item.pubkey.slice(0, 8)}…` : 'Unknown');
   const avatar = author.avatar;
+  const profileHref = item.pubkey ? `/user/${item.pubkey}` : null;
+
+  const avatarEl = avatar ? (
+    <img className="bsp-avatar bsp-feed-avatar" src={avatar} alt="" />
+  ) : (
+    <div className="bsp-avatar bsp-avatar-placeholder bsp-feed-avatar">
+      {displayName.charAt(0).toUpperCase()}
+    </div>
+  );
 
   return (
     <div className="bsp-feed-item">
       <div className="bsp-feed-item-head">
-        {avatar ? (
-          <img className="bsp-avatar bsp-feed-avatar" src={avatar} alt="" />
-        ) : (
-          <div className="bsp-avatar bsp-avatar-placeholder bsp-feed-avatar">
-            {displayName.charAt(0).toUpperCase()}
-          </div>
-        )}
+        {profileHref ? (
+          <Link to={profileHref} className="bsp-feed-author-link" aria-label={`View ${displayName}'s profile`}>
+            {avatarEl}
+          </Link>
+        ) : avatarEl}
         <div className="bsp-feed-item-meta">
-          <div className="bsp-name bsp-feed-name">{displayName}</div>
+          {profileHref ? (
+            <Link to={profileHref} className="bsp-name bsp-feed-name bsp-feed-name-link">{displayName}</Link>
+          ) : (
+            <div className="bsp-name bsp-feed-name">{displayName}</div>
+          )}
           <div className="bsp-feed-time">{formatTimestamp(item.createdAt)}</div>
         </div>
       </div>
