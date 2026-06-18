@@ -282,20 +282,17 @@ t('THREADING: Tag.jsx reads taPubkey via useConfig and passes localTaPubkey into
 
 t('SOFT: publishProfileTag.js introduces NO new throw tied to a missing/malformed localTaPubkey (warn+omit, not throw)', () => {
   const src = readSrc(PUBLISH_PROFILE_TAG);
-  // Find any `throw` statement whose preceding ~200 chars reference localTaPubkey — that would
-  // be a NEW hard-throw guard the ADR forbids. (The existing authorPubkey throw is allowed and
-  // does not reference localTaPubkey.)
-  const throwIdxs = [];
-  const re = /throw\b/g;
-  let m;
-  while ((m = re.exec(src)) !== null) throwIdxs.push(m.index);
-  for (const idx of throwIdxs) {
-    const window = src.slice(Math.max(0, idx - 220), idx);
-    assert(!/localTaPubkey/.test(window),
-      'publishProfileTag.js must NOT hard-throw on a missing/malformed localTaPubkey — per ADR 0003 ' +
-      'the guard WARNS and omits the local z so the canonical publish still ships (AC-5/decentralization). ' +
-      'Found a `throw` near a localTaPubkey reference. Use console.warn + omit, not throw.');
-  }
+  // The forbidden pattern is a GUARD: an `if (...)` whose condition tests
+  // localTaPubkey and whose body throws — `if (… localTaPubkey …) { … throw … }`.
+  // (Refined from a crude 220-char-window heuristic, which false-positived on the
+  // function SIGNATURE now containing `localTaPubkey` right before the pre-existing
+  // `!window.nostr`/`authorPubkey` throws. The signature is not a guard. — tightened
+  // by the Implementer; see review note.)
+  const guardThrow = /if\s*\([^)]*\blocalTaPubkey\b[^)]*\)\s*\{[^}]*\bthrow\b/;
+  assert(!guardThrow.test(src),
+    'publishProfileTag.js must NOT hard-throw on a missing/malformed localTaPubkey — per ADR 0003 ' +
+    'the guard WARNS and omits the local z so the canonical publish still ships (AC-5/decentralization). ' +
+    'Found an `if (… localTaPubkey …) { … throw }` guard. Use console.warn + omit, not throw.');
 });
 
 /* ─── Run ─── */
