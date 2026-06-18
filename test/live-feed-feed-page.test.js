@@ -43,6 +43,8 @@ const APP    = path.resolve(__dirname, '../ui/src/App.jsx');
 const STYLES = path.resolve(__dirname, '../ui/src/styles.css');
 const READ_PATH = path.resolve(__dirname, '../src/api/feed/feedReadPath.js');
 const TIMEAGO = path.resolve(__dirname, '../ui/src/utils/timeAgo.js');
+const NOSTR_ENTITIES = path.resolve(__dirname, '../ui/src/utils/nostrEntities.js');
+const COMPONENT_NOTE_CONTENT = path.resolve(__dirname, '../ui/src/components/NoteContent.jsx');
 
 const tests = [];
 function test(name, fn) { tests.push({ name, fn }); }
@@ -364,6 +366,81 @@ test('T19: the page reuses formatTimeAgo, renders "just now" for sub-minute, and
     'the feed must request the two-unit form via formatTimeAgo(..., { maxUnits: 2, ... }).');
   assert(/bsp-feed-time[^>]*title=/.test(src) || /title=\{[^}]*absoluteTimestamp/.test(src),
     'the timestamp element must carry a title (hover) with the exact local time so no precision is lost.');
+});
+
+// ===========================================================================
+// NIP-21 nostr: ENTITY PARSING — note content turns `nostr:<entity>` references
+// into in-app links (the standard nostr-client treatment). EXECUTES the real pure
+// parser (ui ESM via dynamic import); fixtures are minted with nostr-tools so the
+// asserted pubkey/id is self-validating, not hardcoded.
+// ===========================================================================
+
+const { nip19 } = require('nostr-tools');
+const TA_PK = 'a'.repeat(64);  // a deterministic 32-byte hex pubkey for fixtures
+const TA_ID = 'b'.repeat(64);  // a deterministic 32-byte hex event id
+
+function segsOfType(segs, t) { return segs.filter(s => s.type === t); }
+
+test('T20: parseNostrContent links npub/nprofile → /user/<pubkey> and note/nevent/naddr → /event?…', async () => {
+  const mod = await loadEsm(NOSTR_ENTITIES);
+  assert(mod && typeof mod.parseNostrContent === 'function',
+    'ui/src/utils/nostrEntities.js must export parseNostrContent — the feed reuses it to render note content.');
+  const p = mod.parseNostrContent;
+
+  const npub = nip19.npubEncode(TA_PK);
+  const nprofile = nip19.nprofileEncode({ pubkey: TA_PK });
+  const note = nip19.noteEncode(TA_ID);
+  const nevent = nip19.neventEncode({ id: TA_ID, author: TA_PK });
+  const naddr = nip19.naddrEncode({ identifier: 'x', pubkey: TA_PK, kind: 39998 });
+
+  const [pn] = segsOfType(p(`hi nostr:${npub} there`), 'profile');
+  assert(pn && pn.href === `/user/${TA_PK}` && pn.label.startsWith('@'), `npub → profile mention /user/<pubkey>, got ${JSON.stringify(pn)}`);
+  assert(segsOfType(p(`nostr:${nprofile}`), 'profile')[0]?.href === `/user/${TA_PK}`, 'nprofile → /user/<pubkey>');
+  assert(segsOfType(p(`nostr:${note}`), 'event')[0]?.href === `/event?id=${TA_ID}`, 'note → /event?id=<hex>');
+  assert(segsOfType(p(`nostr:${nevent}`), 'event')[0]?.href === `/event?nevent=${nevent}`, 'nevent → /event?nevent=<nevent>');
+  assert(segsOfType(p(`nostr:${naddr}`), 'event')[0]?.href === `/event?naddr=${naddr}`, 'naddr → /event?naddr=<naddr>');
+});
+
+test('T21: parseNostrContent preserves surrounding text in order (text / entity / text)', async () => {
+  const mod = await loadEsm(NOSTR_ENTITIES);
+  const nevent = nip19.neventEncode({ id: TA_ID });
+  const segs = mod.parseNostrContent(`before nostr:${nevent} after`);
+  assert(segs.length === 3, `expected 3 segments (text,event,text), got ${segs.length}`);
+  assert(segs[0].type === 'text' && segs[0].text === 'before ', 'leading text preserved');
+  assert(segs[1].type === 'event', 'middle segment is the event link');
+  assert(segs[2].type === 'text' && segs[2].text === ' after', 'trailing text preserved');
+});
+
+test('T22: parseNostrContent NEVER linkifies nsec, and keeps an undecodable entity as plain text (security + robustness)', async () => {
+  const mod = await loadEsm(NOSTR_ENTITIES);
+  const nsec = nip19.nsecEncode(new Uint8Array(32).fill(7));
+  const nsecSegs = mod.parseNostrContent(`leak? nostr:${nsec} end`);
+  assert(segsOfType(nsecSegs, 'profile').length === 0 && segsOfType(nsecSegs, 'event').length === 0,
+    'an nsec must NEVER be turned into a link — a private key stays as plain text.');
+  assert(nsecSegs.map(s => s.text || '').join('').includes(nsec), 'the nsec text itself is preserved verbatim (not dropped).');
+  // Undecodable (bad checksum) → kept as the original "nostr:…" text, never a broken link.
+  const bad = mod.parseNostrContent('nostr:nevent1qqsbadchecksumzzzz');
+  assert(segsOfType(bad, 'event').length === 0, 'an undecodable entity must not become an event link.');
+});
+
+test('T23: the user-provided real example strings decode to a profile and an event reference', async () => {
+  const mod = await loadEsm(NOSTR_ENTITIES);
+  const profileEx = 'nostr:nprofile1qqszv6q4uryjzr06xfxxew34wwc5hmjfmfpqn229d72gfegsdn2q3fgpz3mhxue69uhhyetvv9ujuerpd46hxtnfduq32amnwvaz7tmjv4kxz7fwv3sk6atn9e5k7tc6khtzt';
+  const eventEx = 'nostr:nevent1qqsz56926mefn8mj05mutplk4em3e8qypp9gmmkx6hq8yv5s3w0yqtsupa5xa';
+  const pseg = segsOfType(mod.parseNostrContent(profileEx), 'profile')[0];
+  assert(pseg && /^\/user\/[0-9a-f]{64}$/.test(pseg.href), `the nprofile example must resolve to /user/<64-hex>, got ${pseg && pseg.href}`);
+  const eseg = segsOfType(mod.parseNostrContent(eventEx), 'event')[0];
+  assert(eseg && eseg.href.startsWith('/event?nevent=nevent1'), `the nevent example must resolve to /event?nevent=…, got ${eseg && eseg.href}`);
+});
+
+test('T24: the feed renders note content through NoteContent (NIP-21 entity links), not as a raw string', () => {
+  const page = safeRead(PAGE);
+  const comp = safeRead(COMPONENT_NOTE_CONTENT);
+  assert(page.length > 0 && comp.length > 0, 'BrainstormFeed.jsx and NoteContent.jsx must exist.');
+  assert(/<NoteContent\s+content=\{item\.content\}/.test(page),
+    'the feed item must render its text via <NoteContent content={item.content} /> (the entity-linkifying renderer), not {item.content} verbatim.');
+  assert(/parseNostrContent/.test(comp) && /react-router-dom/.test(comp),
+    'NoteContent must map parseNostrContent segments to react-router <Link>s.');
 });
 
 async function run() {
