@@ -29,15 +29,18 @@ export function timeAgo(unixSeconds) {
 
 /**
  * Format a unix timestamp (SECONDS) as a compact, multi-unit relative string,
- * e.g. "3d, 4h, 12m ago". Shows the 3 most-significant non-zero units among
+ * e.g. "3d, 4h, 12m ago". Shows the most-significant non-zero units among
  * years / days / hours / minutes (minute is the smallest unit); zero-valued units
  * are dropped. Sub-minute and future timestamps render "0m ago".
  *
  * @param {number} unixSeconds - report time as unix SECONDS (nostr created_at)
  * @param {number} [now] - current time in unix seconds (injectable for tests)
+ * @param {Object} [opts]
+ * @param {number} [opts.maxUnits=3] - how many of the most-significant non-zero units to show
+ * @param {string} [opts.separator=', '] - string joining the units (e.g. ' ' → "4h 53m ago")
  * @returns {string} e.g. "2y, 14d, 3h ago" / "45m ago" / "0m ago"; "" for missing/invalid input
  */
-export function formatTimeAgo(unixSeconds, now = Math.floor(Date.now() / 1000)) {
+export function formatTimeAgo(unixSeconds, now = Math.floor(Date.now() / 1000), { maxUnits = 3, separator = ', ' } = {}) {
   if (unixSeconds == null || !Number.isFinite(Number(unixSeconds))) return '';
 
   let rem = Math.max(0, Math.floor(now - Number(unixSeconds)));
@@ -49,8 +52,8 @@ export function formatTimeAgo(unixSeconds, now = Math.floor(Date.now() / 1000)) 
 
   const parts = units
     .filter(([, v]) => v > 0)   // drop zero-valued units
-    .slice(0, 3)                // 3 most-significant remaining
+    .slice(0, maxUnits)         // the most-significant remaining
     .map(([u, v]) => `${v}${u}`);
 
-  return `${parts.length ? parts.join(', ') : '0m'} ago`;
+  return `${parts.length ? parts.join(separator) : '0m'} ago`;
 }
