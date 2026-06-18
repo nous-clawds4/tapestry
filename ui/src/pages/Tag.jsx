@@ -7,6 +7,7 @@ import TagViewControls from '../components/TagViewControls';
 import TagSomeoneModal from '../components/TagSomeoneModal';
 import PinnedListPanel from '../components/PinnedListPanel';
 import { useAuth } from '../context/AuthContext';
+import { useConfig } from '../context/ConfigContext';
 import { publishProfileTagAssertion } from '../utils/publishProfileTag';
 import { pinTag, defaultCurationMethod, publishNip51ExportForPin, syncPinnedExportsForTag } from '../utils/publishTagPin';
 import useTagDetail from '../hooks/useTagDetail';
@@ -39,6 +40,8 @@ export default function Tag() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { user, login } = useAuth();
+  // W11 / tag-federation ADR 0003 — the runtime instance TA for the local z.
+  const { taPubkey } = useConfig();
   const {
     tag, viewerPin, rows, viewerAssertions, povSuffix, sort, setSort,
     headerLoading, rowsLoading, headerError, rowsError,
@@ -92,13 +95,13 @@ export default function Tag() {
 
   const handleApply = async (targetPubkey) => {
     if (!tag) return;
-    await publishProfileTagAssertion({ tag, targetPubkey, polarity: 1 });
+    await publishProfileTagAssertion({ tag, targetPubkey, polarity: 1, localTaPubkey: taPubkey });
     refetchRows();
     reexportAfterAssertion();
   };
   const handleDispute = async (targetPubkey) => {
     if (!tag) return;
-    await publishProfileTagAssertion({ tag, targetPubkey, polarity: -1 });
+    await publishProfileTagAssertion({ tag, targetPubkey, polarity: -1, localTaPubkey: taPubkey });
     refetchRows();
     reexportAfterAssertion();
   };

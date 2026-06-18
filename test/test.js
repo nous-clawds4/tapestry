@@ -97,6 +97,10 @@ const verifiedReportersReportColumns = require('./verified-reporters-report-colu
 const profileIdentityDetailsPopover = require('./profile-identity-details-popover.test.js');
 const profileFollowsHops = require('./profile-follows-hops.test.js');
 const profileHopsPath = require('./profile-hops-path.test.js');
+const tagReadUnion = require('./tag-read-union.test.js');
+const bTagPrimitive = require('./b-tag-primitive.test.js');
+const bTagSeeds = require('./b-tag-seeds.test.js');
+const dualZWriter = require('./dual-z-writer.test.js');
 
 async function main() {
   console.log('Running Brainstorm tests...');
@@ -260,6 +264,17 @@ async function main() {
 
   console.log('\nprofile-hops-path suite:');
   const profileHopsPathResult = await profileHopsPath.run();
+
+  const tagReadUnionResult = await tagReadUnion.run();
+
+  console.log('\nb-tag-primitive suite:');
+  const bTagPrimitiveResult = await bTagPrimitive.run();
+
+  console.log('\nb-tag-seeds suite:');
+  const bTagSeedsResult = await bTagSeeds.run();
+
+  console.log('\ndual-z-writer suite:');
+  const dualZWriterResult = await dualZWriter.run();
 
   console.log('\nTest Results');
   console.log('-------------');
@@ -444,6 +459,18 @@ async function main() {
   console.log(
     `profile-hops-path suite:                         ${profileHopsPathResult.fail === 0 ? 'PASS' : 'FAIL'} (${profileHopsPathResult.pass} passed, ${profileHopsPathResult.fail} failed)`
   );
+  console.log(
+    `tag-read-union suite:                            ${tagReadUnionResult.fail === 0 ? 'PASS' : 'FAIL'} (${tagReadUnionResult.pass} passed, ${tagReadUnionResult.fail} failed)`
+  );
+  console.log(
+    `b-tag-primitive suite:                           ${bTagPrimitiveResult.fail === 0 ? 'PASS' : 'FAIL'} (${bTagPrimitiveResult.pass} passed, ${bTagPrimitiveResult.fail} failed)`
+  );
+  console.log(
+    `b-tag-seeds suite:                               ${bTagSeedsResult.fail === 0 ? 'PASS' : 'FAIL'} (${bTagSeedsResult.pass} passed, ${bTagSeedsResult.fail} failed)`
+  );
+  console.log(
+    `dual-z-writer suite:                             ${dualZWriterResult.fail === 0 ? 'PASS' : 'FAIL'} (${dualZWriterResult.pass} passed, ${dualZWriterResult.fail} failed)`
+  );
 
   const overallOk =
     configOk &&
@@ -518,7 +545,11 @@ async function main() {
     verifiedReportersReportColumnsResult.fail === 0 &&
     profileIdentityDetailsPopoverResult.fail === 0 &&
     profileFollowsHopsResult.fail === 0 &&
-    profileHopsPathResult.fail === 0;
+    profileHopsPathResult.fail === 0 &&
+    tagReadUnionResult.fail === 0 &&
+    bTagPrimitiveResult.fail === 0 &&
+    bTagSeedsResult.fail === 0 &&
+    dualZWriterResult.fail === 0;
   console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);
   process.exit(overallOk ? 0 : 1);
 }

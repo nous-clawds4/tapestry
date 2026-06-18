@@ -42,7 +42,7 @@ export async function publishOrThrow(signed) {
  * @param {1 | -1} args.polarity — +1 = apply; -1 = dispute.
  * @returns {Promise<object>} the signed event.
  */
-export async function publishProfileTagAssertion({ tag, targetPubkey, polarity }) {
+export async function publishProfileTagAssertion({ tag, targetPubkey, polarity, localTaPubkey }) {
   if (!window.nostr) {
     throw new Error('No NIP-07 extension detected. Install one to publish tags.');
   }
@@ -59,6 +59,15 @@ export async function publishProfileTagAssertion({ tag, targetPubkey, polarity }
   // Hybrid e+a parent reference (ADR-0022): `a` = stable tag identity
   // (consume by #a), `e` = applied-version provenance (retained).
   const tagAddress = `39999:${tag.authorPubkey}:${tag.slug}`;
+  // W11 / tag-federation ADR 0003 — the LOCAL z lands this assertion in the
+  // publishing instance's own concept list. Composed from the RUNTIME instance
+  // TA (never hardcoded; the canonical z keeps the ADR-0015 literal). Non-fatal:
+  // a missing/malformed local TA omits the local z (the canonical z still ships)
+  // and warns — it must NEVER block the publish.
+  const hasLocalTa = /^[0-9a-f]{64}$/.test(localTaPubkey || '');
+  if (!hasLocalTa) {
+    console.warn('[publishProfileTagAssertion] local TA pubkey missing/malformed — local z omitted (canonical z still published)');
+  }
   const unsigned = {
     kind: 39999,
     pubkey: authorPk,
@@ -68,7 +77,8 @@ export async function publishProfileTagAssertion({ tag, targetPubkey, polarity }
       ['p', targetPubkey],
       ['a', tagAddress],
       ['e', tag.eventId],
-      ['z', NOSTR_USER_TAG_HANDLE],
+      ['z', NOSTR_USER_TAG_HANDLE],                       // canonical (ADR-0015 literal) — unchanged
+      ...(hasLocalTa ? [['z', `39998:${localTaPubkey}:nostr-user-tag`]] : []), // local (runtime TA) — W11
       ['polarity', String(polarity)],
     ],
     content: JSON.stringify({

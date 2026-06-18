@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useConfig } from '../context/ConfigContext';
 import { publishProfileTagAssertion, publishOrThrow } from '../utils/publishProfileTag';
 import { syncPinnedExportsForTag } from '../utils/publishTagPin';
 
@@ -20,6 +21,8 @@ async function nip07Pubkey() {
 
 export default function useProfileTags(targetPubkey, viewerPubkey) {
   const { user, loading: authLoading } = useAuth();
+  // W11 / tag-federation ADR 0003 — the runtime instance TA for the local z.
+  const { taPubkey } = useConfig();
   const [availableTags, setAvailableTags] = useState([]);
   const [applications, setApplications] = useState([]);
   const [disputes, setDisputes] = useState([]);
@@ -69,8 +72,8 @@ export default function useProfileTags(targetPubkey, viewerPubkey) {
   }, [targetPubkey, reloadKey, authLoading, user?.pubkey]);
 
   const buildAndPublishAssertion = useCallback(
-    (tag, polarity) => publishProfileTagAssertion({ tag, targetPubkey, polarity }),
-    [targetPubkey]
+    (tag, polarity) => publishProfileTagAssertion({ tag, targetPubkey, polarity, localTaPubkey: taPubkey }),
+    [targetPubkey, taPubkey]
   );
 
   // Story 21 / ADR 0019 — if the viewer has pinned this tag, keep its
@@ -105,13 +108,22 @@ export default function useProfileTags(targetPubkey, viewerPubkey) {
       const authorPk = await nip07Pubkey();
       const slug = slugify(name);
       if (!slug) throw new Error('Tag name must contain at least one alphanumeric character.');
+      // W11 / tag-federation ADR 0003 — the LOCAL z (runtime instance TA) lands the
+      // new tag element in this instance's own concept list; the canonical z stays
+      // the ADR-0015 literal. Non-fatal: a missing/malformed local TA omits the
+      // local z (canonical still ships) and warns — never blocks the publish.
+      const hasLocalTa = /^[0-9a-f]{64}$/.test(taPubkey || '');
+      if (!hasLocalTa) {
+        console.warn('[useProfileTags.createTag] local TA pubkey missing/malformed — local z omitted (canonical z still published)');
+      }
       const unsigned = {
         kind: 39999,
         pubkey: authorPk,
         created_at: Math.floor(Date.now() / 1000),
         tags: [
           ['d', slug],
-          ['z', TAG_HANDLE],
+          ['z', TAG_HANDLE],                                  // canonical (ADR-0015 literal) — unchanged
+          ...(hasLocalTa ? [['z', `39998:${taPubkey}:tag`]] : []), // local (runtime TA) — W11
         ],
         content: JSON.stringify({
           tag: { slug, name, description: description || '' },
@@ -125,7 +137,7 @@ export default function useProfileTags(targetPubkey, viewerPubkey) {
       // build the `a` coordinate (39999:<authorPubkey>:<slug>).
       return { eventId: signed.id, slug, name, description: description || '', authorPubkey: signed.pubkey };
     },
-    [refetch]
+    [refetch, taPubkey]
   );
 
   const revoke = useCallback(

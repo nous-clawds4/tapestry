@@ -1,6 +1,7 @@
 > **Repo metadata — not part of the spec text.**
 > **Status:** 📝 pre-NIP
 > **Canonical:** not yet published
+> **Implementation (reference deployment):** the **`b` write-primitive** (firmware emitter, `pointer`-typed seed) and the **type-gated edge derivation** (`pointer`/absent → `REFERENCES {source:'b-tag'}`, `inherit` → `INHERITS_FROM`) are **implemented** — `community-reference` ADR 0034 (emitter in `pass_communityReferences`, derivation in `buildImportCypher`) and applied to the tag concepts via `tag-federation` ADR 0002. The **resolved-definition read primitive** (the live inherit-typed merge/closure walk, §"Resolution") is **not** implemented (firmware seeds only `pointer`, which doesn't participate in resolution).
 > **Sources:** BIBLE.md §25/§26 (extracted per protocols-directory story 5, `protocols-directory` ADR 0003) and ADRs 0027/0028, as amended by `community-reference` ADR 0029 (the element-3 type registry); extraction pattern: `protocols-directory` ADR 0001
 
 ---
