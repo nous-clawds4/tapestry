@@ -6,60 +6,91 @@
  * If observerPubkey is set, then fetch most calculated results from NostrUserWotMetricsCard
  * In either case, some results are fetched from NostrUser: npub, followerCount, etc
  * /api/get-profile-scores?pubkey=<pubkey>&observerPubkey=<observerPubkey>
+ *
+ * The core query is extracted into `queryProfileScores` / `fetchProfileScores`
+ * so other surfaces (the Open-Ranking provider, ADR open-ranking/0001) can reuse
+ * the exact same owner-vs-card score lookup without going through the HTTP handler.
  */
 
 const neo4j = require('neo4j-driver');
 const { getConfigFromFile } = require('../../../../utils/config');
 
+// The zeroed default returned when no NostrUser node / metrics card matches.
+function zeroedProfile(pubkey) {
+  return {
+    pubkey,
+    npub: '',
+    personalizedPageRank: 0,
+    hops: 999,
+    influence: 0,
+    average: 0,
+    confidence: 0,
+    input: 0,
+    followerCount: 0,
+    followingCount: 0,
+    muterCount: 0,
+    mutingCount: 0,
+    reporterCount: 0,
+    reportingCount: 0,
+    verifiedFollowerCount: 0,
+    verifiedMuterCount: 0,
+    verifiedReporterCount: 0,
+    followerInput: 0,
+    muterInput: 0,
+    reporterInput: 0,
+    latestContentEventCreatedAt: 0,
+  };
+}
+
+function mapRecord(record) {
+  return {
+    pubkey: record.get('pubkey'),
+    npub: record.get('npub'),
+    personalizedPageRank: record.get('personalizedPageRank') ? parseFloat(record.get('personalizedPageRank').toString()) : 0,
+    hops: record.get('hops') ? parseInt(record.get('hops').toString()) : 999,
+    influence: record.get('influence') ? parseFloat(record.get('influence').toString()) : 0,
+    average: record.get('average') ? parseFloat(record.get('average').toString()) : 0,
+    confidence: record.get('confidence') ? parseFloat(record.get('confidence').toString()) : 0,
+    input: record.get('input') ? parseFloat(record.get('input').toString()) : 0,
+    followerCount: record.get('followerCount') ? parseInt(record.get('followerCount').toString()) : 0,
+    followingCount: record.get('followingCount') ? parseInt(record.get('followingCount').toString()) : 0,
+    muterCount: record.get('muterCount') ? parseInt(record.get('muterCount').toString()) : 0,
+    mutingCount: record.get('mutingCount') ? parseInt(record.get('mutingCount').toString()) : 0,
+    reporterCount: record.get('reporterCount') ? parseInt(record.get('reporterCount').toString()) : 0,
+    reportingCount: record.get('reportingCount') ? parseInt(record.get('reportingCount').toString()) : 0,
+    verifiedFollowerCount: record.get('verifiedFollowerCount') ? parseInt(record.get('verifiedFollowerCount').toString()) : 0,
+    verifiedMuterCount: record.get('verifiedMuterCount') ? parseInt(record.get('verifiedMuterCount').toString()) : 0,
+    verifiedReporterCount: record.get('verifiedReporterCount') ? parseInt(record.get('verifiedReporterCount').toString()) : 0,
+    followerInput: record.get('followerInput') ? parseFloat(record.get('followerInput').toString()) : 0,
+    muterInput: record.get('muterInput') ? parseFloat(record.get('muterInput').toString()) : 0,
+    reporterInput: record.get('reporterInput') ? parseFloat(record.get('reporterInput').toString()) : 0,
+    latestContentEventCreatedAt: record.get('latestContentEventCreatedAt') ? parseInt(record.get('latestContentEventCreatedAt').toString()) : 0,
+  };
+}
+
 /**
- * Get user profiles with pagination and filtering
- * @param {Object} req - Express request object
- * @param {Object} res - Express response object
+ * Core score lookup. Returns { profileData, profileFound, cypherQuery }.
+ * @param {{pubkey:string, observerPubkey?:string}} args
  */
-function handleGetProfileScores(req, res) {
-  try {
-    const ownerPubkey = getConfigFromFile('BRAINSTORM_OWNER_PUBKEY', '');
+async function queryProfileScores({ pubkey, observerPubkey }) {
+  observerPubkey = observerPubkey || 'owner';
+  const observer = (observerPubkey && observerPubkey !== 'owner') ? 'customer' : 'owner';
 
-    // optional get observer pubkey from query parameter
-    const pubkey = req.query.pubkey;
-    const observerPubkey = req.query.observerPubkey || 'owner';
+  const neo4jUri = getConfigFromFile('NEO4J_URI', 'bolt://localhost:7687');
+  const neo4jUser = getConfigFromFile('NEO4J_USER', 'neo4j');
+  const neo4jPassword = getConfigFromFile('NEO4J_PASSWORD', 'neo4j');
 
-    let observer = 'owner';
-    if (observerPubkey && observerPubkey != 'owner') {
-      observer = 'customer';
-    }
-    
-    // Create Neo4j driver
-    const neo4jUri = getConfigFromFile('NEO4J_URI', 'bolt://localhost:7687');
-    const neo4jUser = getConfigFromFile('NEO4J_USER', 'neo4j');
-    const neo4jPassword = getConfigFromFile('NEO4J_PASSWORD', 'neo4j');
-    
-    const driver = neo4j.driver(
-      neo4jUri,
-      neo4j.auth.basic(neo4jUser, neo4jPassword)
-    );
-    
-    const session = driver.session();
-    
-    let query = '';
-    // Build the Cypher query with filters
-    // TODO: option to exclude null values for influence, etc.
-    // Maybe add a checkbox for each filter to exclude null values
-    if (observer == "owner") {
-      query = `
+  const driver = neo4j.driver(neo4jUri, neo4j.auth.basic(neo4jUser, neo4jPassword));
+  const session = driver.session();
+
+  let query = '';
+  if (observer === 'owner') {
+    query = `
         MATCH (u:NostrUser {pubkey: '${pubkey}'})
         WHERE u.pubkey IS NOT NULL
       `;
-    } else {
-      query = `
-        MATCH (c:NostrUserWotMetricsCard {observee_pubkey: '${pubkey}', observer_pubkey: '${observerPubkey}'})<-[:SPECIFIC_INSTANCE]-(f:SetOfNostrUserWotMetricsCards)<-[:WOT_METRICS_CARDS]-(n:NostrUser)
-        WHERE n.pubkey = c.observee_pubkey
-      `;
-    }
-    
-    if (observer == "owner") {
-      query += `
-        RETURN u.pubkey as pubkey, 
+    query += `
+        RETURN u.pubkey as pubkey,
             COALESCE(u.npub, '') as npub,
             COALESCE(u.latestContentEventCreatedAt, 0) as latestContentEventCreatedAt,
             COALESCE(u.personalizedPageRank, 0) as personalizedPageRank,
@@ -81,8 +112,12 @@ function handleGetProfileScores(req, res) {
             COALESCE(u.verifiedReporterCount, 0) as verifiedReporterCount,
             COALESCE(u.reporterInput, 0) as reporterInput
         `;
-    } else {
-      query += `
+  } else {
+    query = `
+        MATCH (c:NostrUserWotMetricsCard {observee_pubkey: '${pubkey}', observer_pubkey: '${observerPubkey}'})<-[:SPECIFIC_INSTANCE]-(f:SetOfNostrUserWotMetricsCards)<-[:WOT_METRICS_CARDS]-(n:NostrUser)
+        WHERE n.pubkey = c.observee_pubkey
+      `;
+    query += `
         RETURN c.observee_pubkey as pubkey,
             COALESCE(n.npub, '') as npub,
             COALESCE(n.latestContentEventCreatedAt, 0) as latestContentEventCreatedAt,
@@ -105,100 +140,67 @@ function handleGetProfileScores(req, res) {
             COALESCE(c.muterInput, 0) as muterInput,
             COALESCE(c.reporterInput, 0) as reporterInput
       `;
+  }
+
+  try {
+    const result = await session.run(query);
+    const cypherQuery = query.replaceAll('\n', ' ').replaceAll('\t', ' ').replaceAll('  ', ' ');
+    if (result.records && result.records.length > 0) {
+      return { profileData: mapRecord(result.records[0]), profileFound: true, cypherQuery };
     }
-        
-    // Get the total count (unfiltered)
-    return session.run(query)
-      .then(result => {
-        const profileData = result.records.map(record => {
-          return {
-            pubkey: record.get('pubkey'),
-            npub: record.get('npub'),
-            personalizedPageRank: record.get('personalizedPageRank') ? parseFloat(record.get('personalizedPageRank').toString()) : 0,
-            hops: record.get('hops') ? parseInt(record.get('hops').toString()) : 999,
-            influence: record.get('influence') ? parseFloat(record.get('influence').toString()) : 0,
-            average: record.get('average') ? parseFloat(record.get('average').toString()) : 0,
-            confidence: record.get('confidence') ? parseFloat(record.get('confidence').toString()) : 0,
-            input: record.get('input') ? parseFloat(record.get('input').toString()) : 0,
-            followerCount: record.get('followerCount') ? parseInt(record.get('followerCount').toString()) : 0,
-            followingCount: record.get('followingCount') ? parseInt(record.get('followingCount').toString()) : 0,
-            muterCount: record.get('muterCount') ? parseInt(record.get('muterCount').toString()) : 0,
-            mutingCount: record.get('mutingCount') ? parseInt(record.get('mutingCount').toString()) : 0,
-            reporterCount: record.get('reporterCount') ? parseInt(record.get('reporterCount').toString()) : 0,
-            reportingCount: record.get('reportingCount') ? parseInt(record.get('reportingCount').toString()) : 0,
-            verifiedFollowerCount: record.get('verifiedFollowerCount') ? parseInt(record.get('verifiedFollowerCount').toString()) : 0,
-            verifiedMuterCount: record.get('verifiedMuterCount') ? parseInt(record.get('verifiedMuterCount').toString()) : 0,
-            verifiedReporterCount: record.get('verifiedReporterCount') ? parseInt(record.get('verifiedReporterCount').toString()) : 0,
-            followerInput: record.get('followerInput') ? parseFloat(record.get('followerInput').toString()) : 0,
-            muterInput: record.get('muterInput') ? parseFloat(record.get('muterInput').toString()) : 0,
-            reporterInput: record.get('reporterInput') ? parseFloat(record.get('reporterInput').toString()) : 0,
-            latestContentEventCreatedAt: record.get('latestContentEventCreatedAt') ? parseInt(record.get('latestContentEventCreatedAt').toString()) : 0
-          };
+    return { profileData: zeroedProfile(pubkey), profileFound: false, cypherQuery };
+  } finally {
+    await session.close();
+    await driver.close();
+  }
+}
+
+/**
+ * Reusable score lookup that returns just the flat profileData object (or the
+ * zeroed default for an unknown pubkey). This is the seam the Open-Ranking
+ * provider injects as a dependency.
+ */
+async function fetchProfileScores({ pubkey, observerPubkey }) {
+  const { profileData } = await queryProfileScores({ pubkey, observerPubkey });
+  return profileData;
+}
+
+/**
+ * Get user profiles with pagination and filtering
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+function handleGetProfileScores(req, res) {
+  try {
+    const pubkey = req.query.pubkey;
+    const observerPubkey = req.query.observerPubkey || 'owner';
+
+    queryProfileScores({ pubkey, observerPubkey })
+      .then(({ profileData, profileFound, cypherQuery }) => {
+        res.json({
+          success: true,
+          profileFound,
+          data: { cypherQuery, profileData },
         });
-        
-        // Send the response
-        if (profileData && profileData.length > 0) {
-          res.json({
-            success: true,
-            profileFound: true,
-            data: {
-              cypherQuery: query.replaceAll("\n", " ").replaceAll("\t", " ").replaceAll("  ", " "),
-              profileData: profileData[0]
-            }
-          });
-        } else {
-          res.json({
-            success: true,
-            profileFound: false,
-            data: {
-              cypherQuery: query.replaceAll("\n", " ").replaceAll("\t", " ").replaceAll("  ", " "),
-              profileData: {
-                "pubkey": pubkey,
-                "npub": "",
-                "personalizedPageRank": 0,
-                "hops": 999,
-                "influence": 0,
-                "average": 0,
-                "confidence": 0,
-                "input": 0,
-                "followerCount": 0,
-                "followingCount": 0,
-                "muterCount": 0,
-                "mutingCount": 0,
-                "reporterCount": 0,
-                "reportingCount": 0,
-                "verifiedFollowerCount": 0,
-                "verifiedMuterCount": 0,
-                "verifiedReporterCount": 0,
-                "followerInput": 0,
-                "muterInput": 0,
-                "reporterInput": 0,
-                "latestContentEventCreatedAt": 0
-              }
-            }
-          });
-        }
       })
       .catch(error => {
         console.error('Error fetching profiles:', error);
         res.status(500).json({
           success: false,
-          message: 'Error fetching profiles from database'
+          message: 'Error fetching profiles from database',
         });
-      })
-      .finally(() => {
-        session.close();
-        driver.close();
       });
   } catch (error) {
     console.error('Error in handleGetProfileScores:', error);
     res.status(500).json({
       success: false,
-      message: 'Internal server error'
+      message: 'Internal server error',
     });
   }
 }
 
 module.exports = {
-  handleGetProfileScores
+  handleGetProfileScores,
+  queryProfileScores,
+  fetchProfileScores,
 };
