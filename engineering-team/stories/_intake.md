@@ -1040,3 +1040,51 @@ Full verified review (the dominant finding, the per-move verdicts, the open deci
 **Phase path:** `/discuss` (settle the open decisions + PoV-safe headline placement) → Planning → Architecture (ADR) → Test Design → Implementation → Review.
 **Priority:** Medium — real UX win, but **deferred pending operator discussion**; not a fast-track change.
 **Depends on:** Story A (pubkey/npub details drawer) for the Identity→Links relabel; otherwise independent. **Related:** 2026-06-06 item 4 (absorbed); ADRs `profile/0029–0032`, `verified-reporters/0001`.
+
+---
+
+## 2026-06-18 — Feature: profile "latest note" on `/user/:pubkey` (reuses the shared note module)
+
+**Raw request (verbatim, from the feed session):**
+
+> I want to show kind 1 events in two new locations: first, on the user profile page, where I want to show the user's most recent kind 1 event …
+
+**Context / why now:** the 2026-06-18 feed session extracted the shared note seams precisely so this lands once (see BIBLE §13 "Shared note rendering (kind-1)" + review `reviews/live-feed/6-notecard-refactor.md`). The building blocks already exist on staging:
+- **Client:** `<NoteCard item={...} />` (`ui/src/components/NoteCard.jsx`) — drop-in, surface-neutral `bsp-note-card-*` styling, no data logic.
+- **Server:** `enrichNotes(notes, scanStrfry)` (`src/api/_shared/noteEnrichment.js`) — produces the item shape `{ id, pubkey, createdAt, content, author:{displayName,avatar}, mentions }`.
+
+**Scope sketch (settle in Planning):** a small read path that **selects** the single most-recent kind-1 by the viewed pubkey (by-author, limit 1) and runs it through `enrichNotes`; a hook + placement on `ui/src/pages/BrainstormProfile.jsx` rendering one `<NoteCard>`. Mirror the feed read path's local-vs-relay sourcing decision (Planning to confirm: local strfry only, or relays like `/api/feed`?). **Likely the first `NoteCard` variant** (compact / maybe hide the actions menu) — per the review, add an explicit variant prop to `NoteCard`, do **not** fork it.
+
+**Classification:** Feature (read path + UI). **Strictness:** Standard.
+**Phase path:** `/discuss` or Planning (source + variant decisions) → Architecture → Test Design → Implementation → Review.
+**Priority:** Medium — operator-requested; cheap given the seams exist.
+**Depends on:** the shared note module (shipped to staging 2026-06-18; promote that batch to prod first or build atop staging).
+
+---
+
+## 2026-06-18 — Feature: per-user notes page (50 most recent kind-1 from a given user)
+
+**Raw request (verbatim, from the feed session):**
+
+> … secondly, on a page that shows the 50 most recent events from just a given user.
+
+**Context / why now:** second consumer of the shared note module (same building blocks as the profile-latest-note entry above). A new public page + read path; renders a list of `<NoteCard>`.
+
+**Scope sketch (settle in Planning):** a read path that **selects** the 50 most-recent kind-1 by a given pubkey (by-author, limit 50) and runs `enrichNotes`; a new route + page (likely `/user/:pubkey/notes`, beside the existing `/user/:pubkey/{follows,followers,reporters,follows-hops}` sub-pages) mapping items to `<NoteCard>`. **Caller-contract reminder (from the review):** `enrichNotes` caps the kind-0 **scan argument** at `PROFILE_LOOKUP_CAP` (1000) but does not cap the work — this page selects ≤50 notes by one author so it's safely under, but any future many-author variant must pre-cap (see `noteEnrichment.js` header).
+
+**Classification:** Feature (read path + new page + route). **Strictness:** Standard.
+**Phase path:** Planning (source + route shape) → Architecture → Test Design → Implementation → Review.
+**Priority:** Medium — operator-requested; cheap given the seams exist.
+**Depends on:** the shared note module (shipped to staging 2026-06-18). **Related:** profile "latest note" entry above (sibling; shares the by-author selection logic — consider one read-path helper parameterized by limit).
+
+---
+
+## 2026-06-18 — Deferred (note-module follow-ups, from the refactor review)
+
+Small future-readiness items the 2026-06-18 multi-lens review (`reviews/live-feed/6-notecard-refactor.md`) flagged as NICE_TO_HAVE/NIT and deliberately deferred — best handled **inside** the two surface stories above when the need is concrete, not as standalone work:
+
+- **`NoteCard` layout-variant prop** — the first surface that needs a compact card / hidden actions menu adds an explicit prop to `NoteCard` rather than branching at the call site or forking.
+- **`enrichNotes` options arg for POV-dependent decorations** — the first POV-aware per-note feature (e.g. "reply author in my WoT", repost attribution) should add a trailing options arg (`enrichNotes(notes, scanStrfry, opts)`); additive/non-breaking, so it can wait.
+- **`NoteCard` execution/render test** — the no-pubkey/unlinked + placeholder-avatar branches are source-text + browser-verified only (the node harness can't transpile JSX). If a render-test path is ever added, cover these edges.
+
+**Classification:** Cleanup/hardening. **Priority:** Low — fold into the surface stories.
