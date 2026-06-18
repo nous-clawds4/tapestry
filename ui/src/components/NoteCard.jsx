@@ -11,9 +11,14 @@ import { formatTimeAgo } from '../utils/timeAgo';
  * the card. No data fetching, no read logic — the page/parent supplies the item.
  *
  * Used by the live feed today; the profile "latest note" and per-user notes page are
- * expected to reuse it next. Future per-note improvements (reposts, reply indicator,
- * event tags) belong HERE so every location gets them at once. Layout variants should
- * arrive as explicit props (kept few and intentional), not forks of this component.
+ * expected to reuse it next. Its markup uses surface-neutral `bsp-note-card-*` classes
+ * (not feed-specific ones) precisely so those non-feed surfaces can reuse it without
+ * inheriting feed styling or forking. Future per-note improvements (reposts, reply
+ * indicator, event tags) belong HERE so every location gets them at once.
+ *
+ * Layout variants (e.g. a compact profile latest-note, or hiding the actions menu)
+ * should arrive as explicit props — there is no variant prop yet; the first consumer
+ * that needs one should add it here rather than branching at the call site or forking.
  *
  * The avatar + display name link to the author's profile (/user/<pubkey>); when the note
  * has no pubkey (defensive; enriched OK items always carry one) they render unlinked so
@@ -45,33 +50,33 @@ export default function NoteCard({ item }) {
   const profileHref = item.pubkey ? `/user/${item.pubkey}` : null;
 
   const avatarEl = avatar ? (
-    <img className="bsp-avatar bsp-feed-avatar" src={avatar} alt="" />
+    <img className="bsp-avatar bsp-note-card-avatar" src={avatar} alt="" />
   ) : (
-    <div className="bsp-avatar bsp-avatar-placeholder bsp-feed-avatar">
+    <div className="bsp-avatar bsp-avatar-placeholder bsp-note-card-avatar">
       {displayName.charAt(0).toUpperCase()}
     </div>
   );
 
   return (
-    <div className="bsp-feed-item">
-      <div className="bsp-feed-item-head">
+    <div className="bsp-note-card">
+      <div className="bsp-note-card-head">
         {profileHref ? (
-          <Link to={profileHref} className="bsp-feed-author-link" aria-label={`View ${displayName}'s profile`}>
+          <Link to={profileHref} className="bsp-note-card-author-link" aria-label={`View ${displayName}'s profile`}>
             {avatarEl}
           </Link>
         ) : avatarEl}
-        <div className="bsp-feed-item-meta">
+        <div className="bsp-note-card-meta">
           {profileHref ? (
-            <Link to={profileHref} className="bsp-name bsp-feed-name bsp-feed-name-link">{displayName}</Link>
+            <Link to={profileHref} className="bsp-name bsp-note-card-name bsp-note-card-name-link">{displayName}</Link>
           ) : (
-            <div className="bsp-name bsp-feed-name">{displayName}</div>
+            <div className="bsp-name bsp-note-card-name">{displayName}</div>
           )}
-          <div className="bsp-feed-time" title={absoluteTimestamp(item.createdAt)}>{formatTimestamp(item.createdAt)}</div>
+          <div className="bsp-note-card-time" title={absoluteTimestamp(item.createdAt)}>{formatTimestamp(item.createdAt)}</div>
         </div>
         {/* Per-note actions (copy link / id, tag) — floats to the top-right of the entry. */}
         <NoteActionsMenu item={item} />
       </div>
-      <div className="bsp-feed-text"><NoteContent content={item.content} mentions={item.mentions} /></div>
+      <div className="bsp-note-card-text"><NoteContent content={item.content} mentions={item.mentions} /></div>
     </div>
   );
 }

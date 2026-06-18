@@ -222,14 +222,15 @@ test('T10: useFeed fetches /api/feed and surfaces a transport failure as `error`
 test('T11: note text wraps so a long token cannot overflow 1280px (overflow-wrap / word-break) (AC-1 no overflow)', () => {
   const css = safeRead(STYLES);
   assert(css.length > 0, 'ui/src/styles.css missing — unexpected.');
-  // A new feed-item / feed-text class must wrap long content/URLs. Anchor on a bsp-feed-* rule
-  // (none exist pre-implementation) carrying overflow-wrap/word-break.
-  const block = css.match(/\.bsp-feed[\w-]*\s*\{[^}]*\}/g);
+  // The shared note-card text class must wrap long content/URLs. Anchor on a bsp-note-card-*
+  // rule carrying overflow-wrap/word-break (the protection now travels with the card to every
+  // surface that reuses it, not just the feed).
+  const block = css.match(/\.bsp-note-card[\w-]*\s*\{[^}]*\}/g);
   assert(block && block.length > 0,
-    'styles.css must define at least one new bsp-feed-* rule for the feed items (none exist pre-implementation).');
+    'styles.css must define the shared bsp-note-card-* rules for the note card.');
   const joined = block.join('\n');
   assert(/overflow-wrap\s*:\s*(anywhere|break-word)|word-break\s*:\s*(break-word|break-all)/.test(joined),
-    'a bsp-feed-* rule must wrap note text (overflow-wrap:anywhere / word-break) so a long URL or unbroken token cannot extend past the column / 1280px (AC-1 no horizontal overflow).');
+    'a bsp-note-card-* rule must wrap note text (overflow-wrap:anywhere / word-break) so a long URL or unbroken token cannot extend past the column / 1280px (AC-1 no horizontal overflow).');
 });
 
 test('T12: the feed column is width-capped with box-sizing:border-box so content cannot exceed 1280px (AC-1 no overflow)', () => {
@@ -239,14 +240,14 @@ test('T12: the feed column is width-capped with box-sizing:border-box so content
   assert(css.length > 0, 'ui/src/styles.css missing — unexpected.');
   // The column must be capped (a max-width token / inline maxWidth, as BrainstormAbout does) and
   // box-sizing:border-box so padding doesn't push the box past its cap. Accept the cap on the page
-  // (inline maxWidth, the BrainstormAbout pattern) OR in a bsp-feed-* CSS rule.
+  // (inline maxWidth, the BrainstormAbout pattern) OR in a shared bsp-note-card-* CSS rule.
   const cappedOnPage = /maxWidth\s*:\s*\d/.test(src);
-  const feedRules = (css.match(/\.bsp-feed[\w-]*\s*\{[^}]*\}/g) || []).join('\n');
-  const cappedInCss = /max-width\s*:\s*\d/.test(feedRules);
+  const cardRules = (css.match(/\.bsp-note-card[\w-]*\s*\{[^}]*\}/g) || []).join('\n');
+  const cappedInCss = /max-width\s*:\s*\d/.test(cardRules);
   assert(cappedOnPage || cappedInCss,
-    'the feed column must be width-capped — an inline maxWidth on the bsp-content column (the BrainstormAbout pattern) or a max-width on a bsp-feed-* rule — so the page does not stretch unbounded (AC-1 no overflow @1280px).');
-  assert(/box-sizing\s*:\s*border-box/.test(feedRules) || /box-sizing\s*:\s*border-box/.test(css),
-    'the feed item/column must use box-sizing:border-box so its padding is inside the capped width and cannot push content past 1280px (AC-1).');
+    'the column must be width-capped — an inline maxWidth on the bsp-content column (the BrainstormAbout pattern) or a max-width on a bsp-note-card-* rule — so the page does not stretch unbounded (AC-1 no overflow @1280px).');
+  assert(/box-sizing\s*:\s*border-box/.test(cardRules) || /box-sizing\s*:\s*border-box/.test(css),
+    'the note card/column must use box-sizing:border-box so its padding is inside the capped width and cannot push content past 1280px (AC-1).');
 });
 
 // ===========================================================================
@@ -366,7 +367,7 @@ test('T19: NoteCard reuses formatTimeAgo, renders "just now" for sub-minute, and
     'formatTimestamp must render "just now" for the sub-minute case (the smallest unit is the minute).');
   assert(/maxUnits\s*:\s*2/.test(src),
     'the card must request the two-unit form via formatTimeAgo(..., { maxUnits: 2, ... }).');
-  assert(/bsp-feed-time[^>]*title=/.test(src) || /title=\{[^}]*absoluteTimestamp/.test(src),
+  assert(/bsp-note-card-time[^>]*title=/.test(src) || /title=\{[^}]*absoluteTimestamp/.test(src),
     'the timestamp element must carry a title (hover) with the exact local time so no precision is lost.');
 });
 

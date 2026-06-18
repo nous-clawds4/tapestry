@@ -27,10 +27,13 @@
 // mention resolution simply no-ops — it never breaks a read path.
 const NOSTR_TOOLS_PATH = '/usr/local/lib/node_modules/brainstorm/node_modules/nostr-tools';
 
-// Upper bound on pubkeys passed to a single local kind-0 scan (authors + mentions).
-// Authors are bounded by the read path's own cap; this bounds the mention set so a note
-// stuffed with thousands of refs can't push the `strfry scan` argument past the OS
-// arg-length limit. Excess mentions simply keep their npub fallback in the UI.
+// Upper bound on pubkeys passed to a single local kind-0 scan (authors + mentions,
+// authors first). This bounds the scan *argument* so a note stuffed with thousands of
+// refs can't push the `strfry scan` command past the OS arg-length limit; excess
+// mentions simply keep their npub fallback in the UI. CALLER CONTRACT: enrichNotes
+// bounds only the scan argument, not the work — a read path serving more than ~1000
+// distinct authors must itself cap/page its note set before calling, or author profiles
+// past the cap fall back to null name/avatar. (The feed caps at 50 via FEED_CAP.)
 const PROFILE_LOOKUP_CAP = 1000;
 
 let _nip19;
