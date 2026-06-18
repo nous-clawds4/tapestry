@@ -544,6 +544,112 @@ test('B21 (resolution): with no login but a House PoV configured, the House iden
   }
 });
 
+// ===========================================================================
+// MENTIONS — a note's nostr:npub/nprofile references are resolved to LOCAL
+// display names (so the UI can show "@name", not a raw npub), drawn from the
+// SAME local kind-0 scan as the authors. Never an external fetch.
+// ===========================================================================
+
+test('M1 (mentions): a nostr:npub mention resolves to the mentioned profile\'s LOCAL display name (same local kind-0 scan)', async () => {
+  const mod = loadModule();
+  const { nip19 } = require('nostr-tools');
+  const MENTIONED = HEX('5');
+  const npub = nip19.npubEncode(MENTIONED);
+  const deps = makeDeps({
+    scanStrfry: (filter) => {
+      const f = typeof filter === 'string' ? JSON.parse(filter) : filter;
+      if (Array.isArray(f.kinds) && f.kinds.includes(3)) return [kind3(SOURCE, [FOLLOW_1])];
+      if (Array.isArray(f.kinds) && f.kinds.includes(0)) {
+        assert(Array.isArray(f.authors) && f.authors.includes(MENTIONED),
+          'the local kind-0 scan must include the mentioned pubkey so its name resolves in the same pass (no separate/external fetch).');
+        return [{ id: 'k0-m', kind: 0, pubkey: MENTIONED, created_at: 60, tags: [],
+          content: JSON.stringify({ display_name: 'Bob Mentioned', name: 'bob' }) }];
+      }
+      return [];
+    },
+    querySync: async (relays, filter) => {
+      const f = filter || {};
+      assert(!(Array.isArray(f.kinds) && f.kinds.includes(0)),
+        'mentioned-profile (kind-0) data must come from LOCAL strfry, never the external relays.');
+      return [kind1('n1', FOLLOW_1, 200, `hey nostr:${npub} welcome`)];
+    },
+  });
+  const r = await callBuildFeed(mod, { sessionPubkey: SOURCE, deps });
+  assert(r && r.status === 'OK', `expected OK; got ${JSON.stringify(r && r.status)}.`);
+  const item = r.items.find((it) => it.id === 'n1');
+  assert(item && item.mentions && typeof item.mentions === 'object', 'each item must carry a `mentions` map (pubkey → displayName).');
+  assert(item.mentions[MENTIONED] === 'Bob Mentioned',
+    `the npub mention must resolve to the local display name; got ${JSON.stringify(item.mentions[MENTIONED])}.`);
+});
+
+test('M2 (mentions): an nprofile mention resolves via its pubkey; a mention with no local kind-0 is omitted (UI falls back to npub)', async () => {
+  const mod = loadModule();
+  const { nip19 } = require('nostr-tools');
+  const KNOWN = HEX('5');     // has a local kind-0
+  const UNKNOWN = HEX('6');   // no local kind-0
+  const nprofile = nip19.nprofileEncode({ pubkey: KNOWN });
+  const npubUnknown = nip19.npubEncode(UNKNOWN);
+  const deps = makeDeps({
+    scanStrfry: (filter) => {
+      const f = typeof filter === 'string' ? JSON.parse(filter) : filter;
+      if (Array.isArray(f.kinds) && f.kinds.includes(3)) return [kind3(SOURCE, [FOLLOW_1])];
+      if (Array.isArray(f.kinds) && f.kinds.includes(0)) {
+        return [{ id: 'k0-k', kind: 0, pubkey: KNOWN, created_at: 60, tags: [], content: JSON.stringify({ name: 'Carol' }) }];
+      }
+      return [];
+    },
+    querySync: async () => [kind1('n1', FOLLOW_1, 200, `cc nostr:${nprofile} and nostr:${npubUnknown}`)],
+  });
+  const r = await callBuildFeed(mod, { sessionPubkey: SOURCE, deps });
+  const item = r.items.find((it) => it.id === 'n1');
+  assert(item.mentions[KNOWN] === 'Carol', `nprofile mention must resolve via its pubkey to "Carol"; got ${JSON.stringify(item.mentions[KNOWN])}.`);
+  assert(!(UNKNOWN in item.mentions),
+    'a mention with no local kind-0 must be OMITTED from mentions (the UI then falls back to the truncated npub).');
+});
+
+test('M3 (mentions): a note with no nostr: mentions carries an empty mentions map (stable shape, no crash)', async () => {
+  const mod = loadModule();
+  const deps = makeDeps({ querySync: async () => [kind1('n1', FOLLOW_1, 200, 'just plain text, no mentions here')] });
+  const r = await callBuildFeed(mod, { sessionPubkey: SOURCE, deps });
+  const item = r.items.find((it) => it.id === 'n1');
+  assert(item.mentions && typeof item.mentions === 'object' && Object.keys(item.mentions).length === 0,
+    `a mention-free note must carry an empty mentions object; got ${JSON.stringify(item.mentions)}.`);
+});
+
+test('M4 (mentions/security): an nsec reference is NEVER treated as a mention (no resolution, no crash)', async () => {
+  const mod = loadModule();
+  const { nip19 } = require('nostr-tools');
+  const nsec = nip19.nsecEncode(new Uint8Array(32).fill(3));
+  const deps = makeDeps({ querySync: async () => [kind1('n1', FOLLOW_1, 200, `oops nostr:${nsec} end`)] });
+  const r = await callBuildFeed(mod, { sessionPubkey: SOURCE, deps });
+  const item = r.items.find((it) => it.id === 'n1');
+  assert(item.mentions && Object.keys(item.mentions).length === 0,
+    'an nsec is a private key, never a profile reference — it must never be resolved as a mention.');
+});
+
+test('M5 (mentions/robustness): the local kind-0 lookup is capped so a ref-stuffed note cannot overflow the scan arg', async () => {
+  const mod = loadModule();
+  const { nip19 } = require('nostr-tools');
+  const many = [];
+  for (let i = 1; i <= 1010; i++) many.push('nostr:' + nip19.npubEncode(i.toString(16).padStart(64, '0')));
+  const content = 'spam ' + many.join(' ');
+  let scanAuthors = null;
+  const deps = makeDeps({
+    scanStrfry: (filter) => {
+      const f = typeof filter === 'string' ? JSON.parse(filter) : filter;
+      if (Array.isArray(f.kinds) && f.kinds.includes(3)) return [kind3(SOURCE, [FOLLOW_1])];
+      if (Array.isArray(f.kinds) && f.kinds.includes(0)) { scanAuthors = f.authors || []; return []; }
+      return [];
+    },
+    querySync: async () => [kind1('n1', FOLLOW_1, 200, content)],
+  });
+  const r = await callBuildFeed(mod, { sessionPubkey: SOURCE, deps });
+  assert(r && r.status === 'OK', `expected OK; got ${JSON.stringify(r && r.status)}.`);
+  assert(Array.isArray(scanAuthors), 'the local kind-0 scan must have been called.');
+  assert(scanAuthors.length <= 1000,
+    `the kind-0 lookup must be capped (≤1000 — authors + bounded mentions) so a ref-stuffed note can't overflow the scan argument; got ${scanAuthors.length}.`);
+});
+
 async function run() {
   let pass = 0, fail = 0;
   for (const t of tests) {

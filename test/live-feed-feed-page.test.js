@@ -443,6 +443,15 @@ test('T24: the feed renders note content through NoteContent (NIP-21 entity link
     'NoteContent must map parseNostrContent segments to react-router <Link>s.');
 });
 
+test('T25: the feed passes the resolved mentions map and NoteContent renders "@name" over the raw npub', () => {
+  const page = safeRead(PAGE);
+  const comp = safeRead(COMPONENT_NOTE_CONTENT);
+  assert(/<NoteContent\b[^>]*\bmentions=\{item\.mentions\}/.test(page),
+    'BrainstormFeed must pass the read path\'s resolved mentions map: <NoteContent content={item.content} mentions={item.mentions} />.');
+  assert(/mentions\[seg\.pubkey\]/.test(comp) && /@\$\{name\}/.test(comp),
+    'NoteContent must look up mentions[seg.pubkey] and render "@${name}" when the display name is resolved (falling back to the npub otherwise).');
+});
+
 async function run() {
   let pass = 0, fail = 0;
   for (const t of tests) {

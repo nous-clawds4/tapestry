@@ -110,7 +110,7 @@ function FeedItem({ item }) {
         {/* Per-note actions (copy link / id, tag) — floats to the top-right of the entry. */}
         <NoteActionsMenu item={item} />
       </div>
-      <div className="bsp-feed-text"><NoteContent content={item.content} /></div>
+      <div className="bsp-feed-text"><NoteContent content={item.content} mentions={item.mentions} /></div>
     </div>
   );
 }
