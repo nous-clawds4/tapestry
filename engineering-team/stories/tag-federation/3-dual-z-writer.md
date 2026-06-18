@@ -51,6 +51,6 @@ As a **user tagging people on my instance**, I want the tags and taggings I crea
 
 - Epic: `engineering-team/epics/tag-federation.md`. Handoff: `docs/B_TAG_HALF_2_HANDOFF.md` (§4 Story 3, Part 1 — W11). Worksheet: `protocols/worksheet.md` (W11).
 - Depends on: `engineering-team/stories/tag-federation/2-per-concept-b-tag-seeds.md` and `…/community-reference/38-…` (Done).
-- ADR: (filled in after Architecture phase — **the W11 stamping design**)
+- ADR: `engineering-team/decisions/tag-federation/0003-dual-z-writer.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
