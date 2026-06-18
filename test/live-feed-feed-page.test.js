@@ -35,17 +35,27 @@
 
 const fs = require('fs');
 const path = require('path');
+const { pathToFileURL } = require('url');
 
 const PAGE   = path.resolve(__dirname, '../ui/src/pages/BrainstormFeed.jsx');
 const HOOK   = path.resolve(__dirname, '../ui/src/hooks/useFeed.js');
 const APP    = path.resolve(__dirname, '../ui/src/App.jsx');
 const STYLES = path.resolve(__dirname, '../ui/src/styles.css');
 const READ_PATH = path.resolve(__dirname, '../src/api/feed/feedReadPath.js');
+const TIMEAGO = path.resolve(__dirname, '../ui/src/utils/timeAgo.js');
 
 const tests = [];
 function test(name, fn) { tests.push({ name, fn }); }
 function assert(cond, msg) { if (!cond) throw new Error(msg || 'Assertion failed'); }
 function safeRead(p) { try { return fs.readFileSync(p, 'utf8'); } catch { return ''; } }
+async function loadEsm(absPath) {
+  try { return await import(pathToFileURL(absPath).href); }
+  catch { return null; }
+}
+
+// Fixed "now" so the relative-time assertions are deterministic.
+const TA_NOW = 1_700_000_000;
+const TA_MIN = 60, TA_HOUR = 3600, TA_DAY = 86400, TA_YEAR = 365 * TA_DAY;
 
 // Slice the body-helper function (renderFeedState OR FeedBody) out of the page source so the
 // branch sentinels match logic *inside* the pure helper, not anywhere on the page. Returns the
@@ -313,6 +323,47 @@ test('R2: this story re-derives nothing — the read-path module src/api/feed/fe
     assert(new RegExp("status:\\s*['\"]" + status + "['\"]").test(src),
       `the read path must still return the '${status}' status (the four-outcome contract this page maps over — owned by #1, untouched by this story).`);
   }
+});
+
+// ===========================================================================
+// RELATIVE TIMESTAMP — the feed shows a compact "time ago" label (max two
+// y/d/h/m units, space-separated), delegating the unit math to the shared
+// formatTimeAgo helper. These EXECUTE the real ui ESM (dynamic import).
+// ===========================================================================
+
+test('T17: formatTimeAgo({maxUnits:2, separator:" "}) renders the feed two-unit space format', async () => {
+  const mod = await loadEsm(TIMEAGO);
+  assert(mod && typeof mod.formatTimeAgo === 'function',
+    'ui/src/utils/timeAgo.js must export formatTimeAgo — the feed reuses it for its relative label.');
+  const fmt = (sec) => mod.formatTimeAgo(TA_NOW - sec, TA_NOW, { maxUnits: 2, separator: ' ' });
+  assert(fmt(2 * TA_MIN) === '2m ago', `2m → "2m ago", got "${fmt(2 * TA_MIN)}"`);
+  assert(fmt(4 * TA_HOUR + 53 * TA_MIN) === '4h 53m ago', `4h53m → "4h 53m ago", got "${fmt(4 * TA_HOUR + 53 * TA_MIN)}"`);
+  assert(fmt(1 * TA_YEAR + 213 * TA_DAY) === '1y 213d ago', `1y213d → "1y 213d ago", got "${fmt(1 * TA_YEAR + 213 * TA_DAY)}"`);
+  // The third unit is dropped — at most two units (the story's "1y, 23d, 4h" → "1y 23d").
+  assert(fmt(1 * TA_YEAR + 23 * TA_DAY + 4 * TA_HOUR) === '1y 23d ago',
+    `1y23d4h → "1y 23d ago" (3rd unit dropped), got "${fmt(1 * TA_YEAR + 23 * TA_DAY + 4 * TA_HOUR)}"`);
+});
+
+test('T18: formatTimeAgo DEFAULTS are unchanged (3 units, comma separator) — verified-reporters untouched (regression)', async () => {
+  const mod = await loadEsm(TIMEAGO);
+  assert(mod && typeof mod.formatTimeAgo === 'function', 'ui/src/utils/timeAgo.js must export formatTimeAgo.');
+  // No opts → must still be the 3-unit comma format the verified-reporters suite pins.
+  const got = mod.formatTimeAgo(TA_NOW - (3 * TA_DAY + 4 * TA_HOUR + 12 * TA_MIN), TA_NOW);
+  assert(got === '3d, 4h, 12m ago', `default 3-unit comma format must be preserved; got "${got}"`);
+  assert(mod.formatTimeAgo(TA_NOW - 30, TA_NOW) === '0m ago', 'default sub-minute must still be "0m ago".');
+});
+
+test('T19: the page reuses formatTimeAgo, renders "just now" for sub-minute, and keeps the exact time on hover (title)', () => {
+  const src = safeRead(PAGE);
+  assert(src.length > 0, 'BrainstormFeed.jsx does not exist yet.');
+  assert(/from\s+['"]\.\.\/utils\/timeAgo['"]/.test(src) && /formatTimeAgo/.test(src),
+    'BrainstormFeed.jsx must import + use formatTimeAgo from ../utils/timeAgo (reuse, not a third time-format copy).');
+  assert(/just now/.test(src),
+    'formatTimestamp must render "just now" for the sub-minute case (the smallest unit is the minute).');
+  assert(/maxUnits\s*:\s*2/.test(src),
+    'the feed must request the two-unit form via formatTimeAgo(..., { maxUnits: 2, ... }).');
+  assert(/bsp-feed-time[^>]*title=/.test(src) || /title=\{[^}]*absoluteTimestamp/.test(src),
+    'the timestamp element must carry a title (hover) with the exact local time so no precision is lost.');
 });
 
 async function run() {

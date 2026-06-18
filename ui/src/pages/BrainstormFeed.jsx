@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import BrainstormUserMenu from '../components/BrainstormUserMenu';
 import NoteActionsMenu from '../components/NoteActionsMenu';
+import { formatTimeAgo } from '../utils/timeAgo';
 import useFeed from '../hooks/useFeed';
 
 /**
@@ -28,8 +29,20 @@ export const FEED_COPY = {
   COULDNT_LOAD: "Couldn't load the feed right now.",
 };
 
-// Unix seconds → a human-readable local timestamp. Tiny local helper, no date library.
+// Unix seconds → a compact relative "time ago" label: the two most-significant
+// non-zero units among years/days/hours/minutes, space-separated (e.g. "2m ago",
+// "4h 53m ago", "1y 213d ago"). Sub-minute renders "just now". Delegates the unit
+// math to the shared formatTimeAgo helper (no date library).
 export function formatTimestamp(createdAt) {
+  if (typeof createdAt !== 'number' || !Number.isFinite(createdAt)) return '';
+  const now = Math.floor(Date.now() / 1000);
+  if (now - createdAt < 60) return 'just now';
+  return formatTimeAgo(createdAt, now, { maxUnits: 2, separator: ' ' });
+}
+
+// The exact local date/time, shown on hover (title) so the relative label keeps
+// its precision a click away. Built-in Date only — no date library.
+export function absoluteTimestamp(createdAt) {
   if (typeof createdAt !== 'number' || !Number.isFinite(createdAt)) return '';
   return new Date(createdAt * 1000).toLocaleString();
 }
@@ -91,7 +104,7 @@ function FeedItem({ item }) {
           ) : (
             <div className="bsp-name bsp-feed-name">{displayName}</div>
           )}
-          <div className="bsp-feed-time">{formatTimestamp(item.createdAt)}</div>
+          <div className="bsp-feed-time" title={absoluteTimestamp(item.createdAt)}>{formatTimestamp(item.createdAt)}</div>
         </div>
         {/* Per-note actions (copy link / id, tag) — floats to the top-right of the entry. */}
         <NoteActionsMenu item={item} />

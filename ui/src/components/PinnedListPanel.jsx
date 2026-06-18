@@ -9,6 +9,7 @@ import {
   pinTag, unpinTag, computeTLDTag,
   syncPinnedExportsForTag, WELL_KNOWN_FALLBACK_RELAYS,
 } from '../utils/publishTagPin';
+import { copyText } from '../utils/clipboard';
 
 /**
  * Story 20 / ADR 0018 — the "Pinned" tab body on the tag-detail page.
@@ -46,29 +47,6 @@ function timeAgoShort(unixSeconds) {
   if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
   if (diff < 2592000) return `${Math.floor(diff / 86400)}d ago`;
   return `${Math.floor(diff / 2592000)}mo ago`;
-}
-
-/** Copy text to the clipboard, with a fallback for non-secure contexts
- *  (http:// on a LAN IP) and older browsers where navigator.clipboard is
- *  unavailable. Resolves on success, rejects if every path fails. */
-function copyText(text) {
-  if (navigator.clipboard && window.isSecureContext) {
-    return navigator.clipboard.writeText(text);
-  }
-  return new Promise((resolve, reject) => {
-    try {
-      const ta = document.createElement('textarea');
-      ta.value = text;
-      ta.setAttribute('readonly', '');
-      ta.style.position = 'fixed';
-      ta.style.top = '-9999px';
-      document.body.appendChild(ta);
-      ta.select();
-      const ok = document.execCommand('copy');
-      document.body.removeChild(ta);
-      if (ok) resolve(); else reject(new Error('copy command rejected'));
-    } catch (e) { reject(e); }
-  });
 }
 
 /** A naddr metadata row: a truncated id (first-5…last-4) that expands on
