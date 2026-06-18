@@ -15,7 +15,7 @@ const { runCypher } = require('../../lib/neo4j-driver');
 const { getConfigFromFile } = require('../../utils/config');
 const { fetchProfileScores } = require('../export/users/queries/get-profile-scores');
 const { resolveAlgorithm } = require('./capabilities');
-const { ORE_STATS_TTL, isValidHexPubkey, oreHeaders, errorTriple } = require('./shared');
+const { ORE_STATS_TTL, isValidHexPubkey, oreHeaders, errorTriple, applyTriple } = require('./shared');
 
 function getOwnerPubkey() {
   return getConfigFromFile('BRAINSTORM_OWNER_PUBKEY', '');
@@ -91,7 +91,6 @@ async function buildStats(input, deps) {
 
 // Thin Express wrapper: build the real deps, run the orchestrator, apply the triple.
 async function handleStatsPubkey(req, res) {
-  const { applyTriple } = require('./shared');
   const ownerPubkey = getOwnerPubkey();
   const deps = {
     ownerPubkey,

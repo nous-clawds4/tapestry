@@ -1,6 +1,6 @@
 # Story 1: ORE provider surface + ORE-02 `/stats/pubkey` (walking skeleton)
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-06-18
 **Type:** Feature
 
