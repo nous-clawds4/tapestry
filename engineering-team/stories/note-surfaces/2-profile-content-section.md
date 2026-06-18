@@ -44,5 +44,5 @@ None — placement (bottom / last section), label ("Content"), single-note count
 
 ## Linked artifacts
 - ADR: `engineering-team/decisions/note-surfaces/0002-note-surfaces-ui.md`
-- Test plan: (filled in after Test Design)
+- Test plan: `engineering-team/stories/note-surfaces/2-profile-content-section.test-plan.md`
 - Review: (filled in after Review)

@@ -43,5 +43,5 @@ Testable from the outside (input → observable behavior).
 
 ## Linked artifacts
 - ADR: `engineering-team/decisions/note-surfaces/0001-by-author-notes-read-path.md`
-- Test plan: (filled in after Test Design)
+- Test plan: `engineering-team/stories/note-surfaces/1-by-author-notes-read-path.test-plan.md`
 - Review: (filled in after Review)
