@@ -650,6 +650,57 @@ test('M5 (mentions/robustness): the local kind-0 lookup is capped so a ref-stuff
     `the kind-0 lookup must be capped (≤1000 — authors + bounded mentions) so a ref-stuffed note can't overflow the scan argument; got ${scanAuthors.length}.`);
 });
 
+test('E1 (shared seam): enrichNotes is reusable — exported from _shared, turns raw notes into the enriched item shape via the injected local scan', async () => {
+  let mod;
+  try { mod = require('../src/api/_shared/noteEnrichment'); } catch { mod = null; }
+  assert(mod && typeof mod.enrichNotes === 'function',
+    'src/api/_shared/noteEnrichment.js must export enrichNotes(notes, scanStrfry) — the shared seam the feed and the future profile/user-notes read paths all use.');
+  const A = HEX('1');
+  const scanStrfry = (filter) => {
+    const f = typeof filter === 'string' ? JSON.parse(filter) : filter;
+    if (Array.isArray(f.kinds) && f.kinds.includes(0)) {
+      return [{ id: 'k0', kind: 0, pubkey: A, created_at: 10, tags: [], content: JSON.stringify({ name: 'Ann', picture: 'p.png' }) }];
+    }
+    return [];
+  };
+  const items = await mod.enrichNotes([kind1('x', A, 100, 'hi')], scanStrfry);
+  assert(items.length === 1, 'one raw note in → one enriched item out.');
+  const it = items[0];
+  assert(it.id === 'x' && it.pubkey === A && it.createdAt === 100 && it.content === 'hi',
+    'enrichNotes must preserve id/pubkey/createdAt/content (createdAt mapped from created_at).');
+  assert(it.author && it.author.displayName === 'Ann' && it.author.avatar === 'p.png',
+    'enrichNotes must resolve the author name/avatar from the injected LOCAL kind-0 scan.');
+  assert(it.mentions && typeof it.mentions === 'object',
+    'each enriched item must carry a mentions map (empty when the note has no nostr: refs).');
+});
+
+test('E2 (shared seam): the direct-import contract the two new read paths depend on — extractMentionPubkeys, PROFILE_LOOKUP_CAP, and direct mention resolution', async () => {
+  const mod = require('../src/api/_shared/noteEnrichment');
+  const { nip19 } = require('nostr-tools');
+  // The cap the future per-user notes page must respect (it calls enrichNotes directly).
+  assert(mod.PROFILE_LOOKUP_CAP === 1000, `PROFILE_LOOKUP_CAP must be exported and === 1000; got ${mod.PROFILE_LOOKUP_CAP}.`);
+  // extractMentionPubkeys: npub/nprofile → pubkey; nsec/junk → [] (never a private key).
+  assert(typeof mod.extractMentionPubkeys === 'function', 'noteEnrichment must export extractMentionPubkeys.');
+  const M = HEX('5');
+  assert(JSON.stringify(mod.extractMentionPubkeys(`hi nostr:${nip19.npubEncode(M)} x`)) === JSON.stringify([M]),
+    'extractMentionPubkeys must decode a nostr:npub mention to its pubkey.');
+  assert(mod.extractMentionPubkeys(`k nostr:${nip19.nsecEncode(new Uint8Array(32).fill(9))} z`).length === 0,
+    'extractMentionPubkeys must NEVER return anything for an nsec (a private key is not a mention).');
+  // enrichNotes called DIRECTLY (not via buildFeed): a resolvable mention → name; unknown → omitted.
+  const KNOWN = HEX('5'), UNKNOWN = HEX('6');
+  const content = `cc nostr:${nip19.npubEncode(KNOWN)} & nostr:${nip19.npubEncode(UNKNOWN)}`;
+  const scanStrfry = (filter) => {
+    const f = typeof filter === 'string' ? JSON.parse(filter) : filter;
+    if (Array.isArray(f.kinds) && f.kinds.includes(0)) {
+      return [{ id: 'k0', kind: 0, pubkey: KNOWN, created_at: 10, tags: [], content: JSON.stringify({ name: 'Cara' }) }];
+    }
+    return [];
+  };
+  const [it] = await mod.enrichNotes([kind1('n', HEX('1'), 100, content)], scanStrfry);
+  assert(it.mentions[KNOWN] === 'Cara', `direct enrichNotes must resolve a known mention to its name; got ${JSON.stringify(it.mentions[KNOWN])}.`);
+  assert(!(UNKNOWN in it.mentions), 'an unresolved mention must be omitted (UI falls back to the npub).');
+});
+
 async function run() {
   let pass = 0, fail = 0;
   for (const t of tests) {

@@ -35,13 +35,12 @@
 const NOSTR_TOOLS_PATH = '/usr/local/lib/node_modules/brainstorm/node_modules/nostr-tools';
 const WS_PATH = '/usr/local/lib/node_modules/brainstorm/node_modules/ws';
 
+// Shared note enrichment (author + mention display names from local kind-0). Extracted
+// so the profile "latest note" and per-user notes read paths reuse the same logic/shape.
+const { enrichNotes } = require('../_shared/noteEnrichment');
+
 const FETCH_TIMEOUT_MS = 8000;
 const FEED_CAP = 50;
-// Upper bound on pubkeys passed to a single local kind-0 scan (authors + mentions).
-// Authors are ≤ FEED_CAP; this bounds the mention set so a note stuffed with thousands
-// of refs can't push the `strfry scan` argument past the OS arg-length limit. Excess
-// mentions simply keep their npub fallback.
-const PROFILE_LOOKUP_CAP = 1000;
 const FALLBACK_RELAYS = ['wss://relay.damus.io', 'wss://relay.primal.net', 'wss://nos.lol'];
 const RELAY_SET_SLUG = 'the-set-of-general-purpose-relays';
 
@@ -180,97 +179,6 @@ async function fetchNotes(followPubkeys, relays, querySync) {
   return notes.slice(0, FEED_CAP);
 }
 
-// nip19 (for decoding NIP-21 mention references) loaded the same lazy, path-tolerant
-// way as the other nostr-tools usage: the container's absolute path first, then a bare
-// require (which resolves in test/CI and from brainstorm's node_modules). If neither
-// loads, mention resolution simply no-ops — it never breaks the feed.
-let _nip19;
-function loadNip19() {
-  if (_nip19 !== undefined) return _nip19;
-  try { _nip19 = require(NOSTR_TOOLS_PATH).nip19; }
-  catch {
-    try { _nip19 = require('nostr-tools').nip19; }
-    catch { _nip19 = null; }
-  }
-  return _nip19;
-}
-
-// The pubkeys referenced by `nostr:npub…` / `nostr:nprofile…` mentions in a note's
-// text (NIP-21). Used to resolve mentioned-profile display names from LOCAL kind-0,
-// so the UI can show "@name" rather than a raw npub. Undecodable refs are skipped;
-// nsec/event refs are never matched.
-function extractMentionPubkeys(content) {
-  if (typeof content !== 'string' || content.length === 0) return [];
-  const nip19 = loadNip19();
-  if (!nip19) return [];
-  const re = /nostr:((?:npub|nprofile)1[02-9ac-hj-np-z]+)/g;
-  const out = [];
-  let m;
-  while ((m = re.exec(content)) !== null) {
-    try {
-      const dec = nip19.decode(m[1]);
-      if (dec.type === 'npub' && dec.data) out.push(dec.data);
-      else if (dec.type === 'nprofile' && dec.data && dec.data.pubkey) out.push(dec.data.pubkey);
-    } catch { /* undecodable ref → skip */ }
-  }
-  return out;
-}
-
-/**
- * Attach author display name + avatar, and resolved mention display names, from LOCAL
- * kind-0 profile data only. Missing author profile ⇒ { displayName: null, avatar: null }.
- * `mentions` maps each `nostr:npub…/nprofile…` pubkey in the note to its local display
- * name (only those we can resolve; the UI falls back to a truncated npub otherwise).
- * Never an external fetch — the mentioned profiles are resolved from the SAME local
- * kind-0 scan as the authors (one scan covers both sets of pubkeys).
- */
-async function enrichAuthors(notes, scanStrfry) {
-  const mentionsByNote = notes.map(n => extractMentionPubkeys(n.content));
-  // Authors (≤ FEED_CAP) are always looked up; mentioned pubkeys fill the rest up to
-  // PROFILE_LOOKUP_CAP so a ref-stuffed note can't overflow the local scan argument.
-  const authorPubkeys = [...new Set(notes.map(n => n.pubkey))];
-  const mentionedPubkeys = [...new Set(mentionsByNote.flat())].filter(pk => !authorPubkeys.includes(pk));
-  const lookup = [...authorPubkeys, ...mentionedPubkeys].slice(0, PROFILE_LOOKUP_CAP);
-  const profiles = new Map();
-  if (lookup.length > 0) {
-    let events = [];
-    try {
-      events = (await scanStrfry({ kinds: [0], authors: lookup })) || [];
-    } catch { events = []; }
-    for (const ev of events) {
-      if (!ev || ev.kind !== 0) continue;
-      const prev = profiles.get(ev.pubkey);
-      if (prev && prev.created_at >= ev.created_at) continue;
-      let parsed = {};
-      try { parsed = JSON.parse(ev.content) || {}; } catch { parsed = {}; }
-      profiles.set(ev.pubkey, {
-        created_at: ev.created_at,
-        displayName: parsed.display_name || parsed.name || null,
-        avatar: parsed.picture || null,
-      });
-    }
-  }
-  return notes.map((n, i) => {
-    const p = profiles.get(n.pubkey);
-    const mentions = {};
-    for (const pk of mentionsByNote[i]) {
-      const mp = profiles.get(pk);
-      if (mp && mp.displayName) mentions[pk] = mp.displayName;
-    }
-    return {
-      id: n.id,
-      pubkey: n.pubkey,
-      createdAt: n.created_at,
-      content: n.content,
-      author: {
-        displayName: p ? p.displayName : null,
-        avatar: p ? p.avatar : null,
-      },
-      mentions,
-    };
-  });
-}
-
 // ─── Orchestrator ───────────────────────────────────────────────────────────────
 
 /**
@@ -300,7 +208,7 @@ async function buildFeed(options = {}) {
 
   // 4. Fetch + filter + order + cap, then enrich from local profiles.
   const notes = await fetchNotes(followResult.follows, relays, querySync);
-  const items = await enrichAuthors(notes, scanStrfry);
+  const items = await enrichNotes(notes, scanStrfry);
 
   if (items.length === 0) {
     return { status: 'EMPTY', source, relaySource, items: [] };

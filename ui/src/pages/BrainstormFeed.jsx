@@ -1,9 +1,6 @@
-import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import BrainstormUserMenu from '../components/BrainstormUserMenu';
-import NoteActionsMenu from '../components/NoteActionsMenu';
-import NoteContent from '../components/NoteContent';
-import { formatTimeAgo } from '../utils/timeAgo';
+import NoteCard from '../components/NoteCard';
 import useFeed from '../hooks/useFeed';
 
 /**
@@ -30,24 +27,6 @@ export const FEED_COPY = {
   COULDNT_LOAD: "Couldn't load the feed right now.",
 };
 
-// Unix seconds → a compact relative "time ago" label: the two most-significant
-// non-zero units among years/days/hours/minutes, space-separated (e.g. "2m ago",
-// "4h 53m ago", "1y 213d ago"). Sub-minute renders "just now". Delegates the unit
-// math to the shared formatTimeAgo helper (no date library).
-export function formatTimestamp(createdAt) {
-  if (typeof createdAt !== 'number' || !Number.isFinite(createdAt)) return '';
-  const now = Math.floor(Date.now() / 1000);
-  if (now - createdAt < 60) return 'just now';
-  return formatTimeAgo(createdAt, now, { maxUnits: 2, separator: ' ' });
-}
-
-// The exact local date/time, shown on hover (title) so the relative label keeps
-// its precision a click away. Built-in Date only — no date library.
-export function absoluteTimestamp(createdAt) {
-  if (typeof createdAt !== 'number' || !Number.isFinite(createdAt)) return '';
-  return new Date(createdAt * 1000).toLocaleString();
-}
-
 export default function BrainstormFeed() {
   const { user, login, logout } = useAuth();
   const { data, loading, error } = useFeed();
@@ -68,49 +47,6 @@ export default function BrainstormFeed() {
         <h1 className="bsp-feed-heading">{FEED_COPY.HEADING}</h1>
         {renderFeedState({ data, loading, error })}
       </div>
-    </div>
-  );
-}
-
-// One note entry: avatar (placeholder fallback) + author display name + timestamp + text.
-// The avatar and the display name link to the author's profile (/user/<pubkey>) — an
-// in-app SPA <Link>, the same target the search/follows lists use. When the note has no
-// pubkey (defensive; OK items always carry one) the avatar/name render unlinked so we
-// never emit a /user/ link to nowhere.
-function FeedItem({ item }) {
-  const author = item.author || {};
-  const displayName = author.displayName || (item.pubkey ? `${item.pubkey.slice(0, 8)}…` : 'Unknown');
-  const avatar = author.avatar;
-  const profileHref = item.pubkey ? `/user/${item.pubkey}` : null;
-
-  const avatarEl = avatar ? (
-    <img className="bsp-avatar bsp-feed-avatar" src={avatar} alt="" />
-  ) : (
-    <div className="bsp-avatar bsp-avatar-placeholder bsp-feed-avatar">
-      {displayName.charAt(0).toUpperCase()}
-    </div>
-  );
-
-  return (
-    <div className="bsp-feed-item">
-      <div className="bsp-feed-item-head">
-        {profileHref ? (
-          <Link to={profileHref} className="bsp-feed-author-link" aria-label={`View ${displayName}'s profile`}>
-            {avatarEl}
-          </Link>
-        ) : avatarEl}
-        <div className="bsp-feed-item-meta">
-          {profileHref ? (
-            <Link to={profileHref} className="bsp-name bsp-feed-name bsp-feed-name-link">{displayName}</Link>
-          ) : (
-            <div className="bsp-name bsp-feed-name">{displayName}</div>
-          )}
-          <div className="bsp-feed-time" title={absoluteTimestamp(item.createdAt)}>{formatTimestamp(item.createdAt)}</div>
-        </div>
-        {/* Per-note actions (copy link / id, tag) — floats to the top-right of the entry. */}
-        <NoteActionsMenu item={item} />
-      </div>
-      <div className="bsp-feed-text"><NoteContent content={item.content} mentions={item.mentions} /></div>
     </div>
   );
 }
@@ -153,7 +89,7 @@ export function renderFeedState({ data, loading, error }) {
     <>
       <div className="bsp-feed-indicator">{FEED_COPY.INDICATOR}</div>
       <div className="bsp-feed-list">
-        {items.map(item => <FeedItem key={item.id} item={item} />)}
+        {items.map(item => <NoteCard key={item.id} item={item} />)}
       </div>
     </>
   );

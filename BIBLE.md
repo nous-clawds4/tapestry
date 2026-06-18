@@ -658,6 +658,8 @@ Legacy Brainstorm HTML pages are served at `/legacy/` (not part of the React SPA
 ├── about                         Brainstorm + NosFabrica overview, links to nostr
 ├── how-search-works              Mechanics: Meilisearch + Verification (GrapeRank)
 ├── personalization               POV explainer (House vs My Point of View)
+├── feed                          Live Feed — public kind-1 notes from the source identity's follows
+├── event                         Single-event view (placeholder; reads ?id= / ?nevent= / ?naddr=)
 └── developers                    NIP-50 developer integration docs
 
 /tapestry/                        Dashboard (Getting Started + stats)
@@ -720,6 +722,9 @@ Legacy Brainstorm HTML pages are served at `/legacy/` (not part of the React SPA
 |-----------|----------|---------|
 | `DataTable` | `components/DataTable.jsx` | Reusable sortable table with row click |
 | `AuthorCell` | `components/AuthorCell.jsx` | Author display with avatar + name |
+| `NoteCard` | `components/NoteCard.jsx` | **Shared kind-1 note unit** — avatar + author link + relative time + actions menu + content. Reused by every note surface (see "Shared note rendering"). |
+| `NoteContent` | `components/NoteContent.jsx` | Renders note text, linkifying NIP-21 `nostr:` entities (mentions → `/user/<pk>`, events → `/event?…`) |
+| `NoteActionsMenu` | `components/NoteActionsMenu.jsx` | Per-note `⋯` menu (copy link / nevent / event id; tag stub) |
 | `Breadcrumbs` | `components/Breadcrumbs.jsx` | Auto-generated from route handles |
 | `Layout` | `components/Layout.jsx` | Sidebar navigation + main content |
 | `Header` | `components/Header.jsx` | Auth UI + user dropdown |
@@ -737,6 +742,44 @@ Legacy Brainstorm HTML pages are served at `/legacy/` (not part of the React SPA
 - **Dark theme** — CSS variables in `styles.css` (`--bg-primary`, `--text`, `--accent`)
 - **No markdown tables in Discord/WhatsApp** — bullet lists instead
 - **API clients** in `ui/src/api/` (relay.js, cypher.js, normalize.js, audit.js)
+
+### Shared note rendering (kind-1)
+
+Every surface that shows kind-1 notes composes **one** rendering unit and **one** server
+enrichment, so a per-note improvement is made once instead of per-surface. This split is
+the load-bearing decision — honor it when adding new note surfaces.
+
+- **Client — `NoteCard` (`components/NoteCard.jsx`).** Pure presentational: it takes an
+  already-enriched note `item` and renders the whole card (avatar + author-profile link +
+  relative timestamp w/ exact time on hover + `NoteActionsMenu` + `NoteContent`). No data
+  fetching, no read logic. Markup uses surface-neutral `bsp-note-card-*` classes (not
+  `bsp-feed-*`) so non-feed surfaces reuse it without inheriting feed styling. Layout
+  variants arrive as explicit props, never forks.
+- **Server — `enrichNotes(notes, scanStrfry)` (`src/api/_shared/noteEnrichment.js`).**
+  Turns raw kind-1 events into the item shape every read path serves, resolving author +
+  mention display names from **local kind-0 only** (one scan covers both; bounded by
+  `PROFILE_LOOKUP_CAP`). Read paths differ only in how they **select** raw events; they
+  all call `enrichNotes`.
+
+**The enriched note item shape (the contract):**
+
+```
+{ id, pubkey, createdAt, content,
+  author:   { displayName, avatar },          // local kind-0; null when not held locally
+  mentions: { <pubkey>: <displayName> } }       // resolved nostr:npub/nprofile refs (others omit → UI shows truncated npub)
+```
+
+**POV boundary.** Display names are self-asserted kind-0 metadata — **not** POV-dependent —
+so `enrichNotes` resolves them globally (mirrors author enrichment, consistent with the
+WoT-score namespacing rule above where only `wot_*_<suffix>` columns are POV-scoped). A
+*POV-dependent* decoration (e.g. "is this mentioned/replied-to author in **my** WoT?") must
+take the POV/source as a parameter and compute per-view — never bake a global answer into
+the shape. See the architecture invariants in `CLAUDE.md` (POV-first; filter at view time).
+
+**Today:** the Live Feed (`/feed`) is the only consumer. The profile "latest note" and a
+per-user notes page are planned to reuse both seams (a new read path that selects by author
++ `<NoteCard>`); future per-note features (reposts, reply indicators, event tags) extend
+`NoteCard` + `enrichNotes` once.
 
 ### Brainstorm Search Features
 
@@ -1312,6 +1355,7 @@ docker compose exec tapestry strfry sync wss://dcosl.brainstorm.world \
 - ✅ Profile verified counts moved to **Owner PoV** + verification explainer + dynamic reporter alarm (2026-06-08, staging) — the profile **Verified Followers / Verified Reporters** counts now read from Neo4j (Owner PoV) so the badge agrees with its list table, dropping the broken raw-follower Meili fallback (#35, ADR `profile/0031`); a shared **"What does verification mean?"** popover (profile + `/reporters`) shows the configured cutoff ×100 + owner name/avatar, and the Verified Reporters badge shows a red 🚩 alarm only past a popularity-adjusted threshold (`vr ≥ 3 + floor(vf/750)`) (#36, ADR `profile/0032`). The point-of-view model these counts use is the three-PoV standard ratified in **§27** (ADR `pov-resolution/0033`). On staging; later promoted to prod.
 - ✅ Report Type + Reported columns on `/user/:pubkey/reporters` (2026-06-15, prod) — the reporters table now surfaces each NIP-56 report's `report_type` (humanized label) and `timestamp`, read from the `REPORTS` edge (`GET /api/get-grapevine-reporters` extended to return `rel.report_type` + `rel.timestamp` per edge). Default columns → **Picture / Report Type / Rank**; the **Reported** column shows relative "Xd, Yh ago" text but sorts by the **raw unix integer** (new opt-in `sortValue(row)` accessor on the shared `DataTable`, missing values sorted last in both directions — the existing string/`localeCompare` path is unchanged for all other consumers); a **"N reporters, M reports"** summary distinguishes distinct reporters from reports. Report-centric — one row per `REPORTS` edge, no client-side de-duplication (so duplicate-edge bugs stay visible). verified-reporters #4, ADR `verified-reporters/0004`.
 - ✅ Live Feed at `/feed` (2026-06-15, prod) — a public, login-free, read-only feed of the most recent (≤50) kind-1 notes from the accounts the **source identity** follows (the logged-in user, else the House PoV identity), newest first. Follow list (kind-3) read from local strfry; followed authors' notes from the configured general-purpose relays; author name/avatar from local kind-0/Meilisearch. Additive and read-only — adds `GET /api/feed` (the read path) + the `/feed` page; no writes/publishes, no firmware/ranking/search changes. Intended as the host surface for a later tagging book. Direction-mode book; ADRs `live-feed/0001` (read path) + `0002` (page).
+- ✅ Live Feed enhancements + shared note module (2026-06-18, staging) — a batch of additive `/feed` improvements, all behind the read path's existing contract: (1) author name/avatar link to `/user/<pubkey>`; (2) a per-note `⋯` actions menu (copy note link / nevent / event id; tag-event stub) + a placeholder `/event` page (`?id=`/`?nevent=`/`?naddr=`); (3) relative "time ago" timestamps (two y/d/h/m units, "just now" sub-minute, exact time on hover) reusing a parameterized `formatTimeAgo`; (4) NIP-21 `nostr:` entity linkification in note text (`npub/nprofile`→`/user`, `note/nevent/naddr`→`/event`; `nsec` never linkified); (5) mention **display-name** resolution (`@alice`, not `@npub1…`) resolved server-side in the read path from local kind-0. Then a **behavior-preserving refactor** extracted the shared seams so the two planned new note surfaces and future per-note features land once: client `NoteCard` + server `enrichNotes` (`src/api/_shared/noteEnrichment.js`) — see §13 "Shared note rendering". Staging only; prod promotion not yet done.
 - ✅ Follows-hops **HOPS** stat on `/user/:pubkey` (2026-06-17, staging) — the profile counter row shows a **HOPS** value between Verified Followers and Verified Reporters: the **live, directed** FOLLOWS shortest-path distance from the source (logged-in viewer, else the **Owner** — not the House PoV) to the viewed profile. Computed on demand via `shortestPath((src)-[:FOLLOWS*..20]->(tgt))` through the pooled Bolt driver (~2.5s timeout, pubkeys bound) — **no** precomputed value, deliberately not reconciled with the owner-rooted `hops` property (§ Graph Algorithms). Loads async (own hook); renders **∞** for no-path-within-cap, **0** for self-view, and a non-misleading "—" on lookup error/timeout (never a false ∞). New public `GET /api/get-follows-hops`. profile #38, ADR `profile/0034`. On staging; **prod promotion held** (co-promotes with the tags bundle). Note: a second "Hops" figure also exists in the Reputation grid (precomputed, owner-rooted) — PoV reconciliation deferred (`OPEN.md` #7).
 - ✅ Follows-hops **path page** + HOPS link activation (2026-06-17, staging) — the HOPS stat becomes a link to a new **`/user/:pubkey/follows-hops`** page showing one shortest follow-path as a vertical chain of profile cards (picture, name, Owner-PoV rank = `round(influence×100)`), ordered source→target, with a **re-roll** button that swaps in a random one of the equally-short paths (shown only when >1 exists). Backed by new public `GET /api/get-follows-hops-paths` (`allShortestPaths`, cap 20, `LIMIT 25`, returning up to 25 ordered `[{pubkey,influence}]` paths + a `truncated` flag); the client re-rolls client-side over the returned set. profile #39, ADR `profile/0035`. On staging; held with #38.
 
