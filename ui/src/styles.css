@@ -7254,6 +7254,77 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   text-decoration-color: rgba(165, 180, 252, 0.5);
   text-underline-offset: 2px;
 }
+/* Per-note actions menu (the "⋯" kebab + dropdown), top-right of each feed entry. */
+.bsp-note-menu {
+  position: relative;
+  margin-left: auto;
+  flex: none;
+  align-self: flex-start;
+}
+.bsp-note-menu-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted, #94a3b8);
+  cursor: pointer;
+  font-size: 1.25rem;
+  line-height: 1;
+  padding: 0.1rem 0.5rem;
+  border-radius: 6px;
+}
+.bsp-note-menu-btn:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-primary, #e2e8f0);
+}
+.bsp-note-menu-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  min-width: 210px;
+  background: var(--bg-secondary, #1a1a2e);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  z-index: 50;
+  padding: 0.25rem;
+  display: flex;
+  flex-direction: column;
+}
+.bsp-note-menu-item {
+  background: none;
+  border: none;
+  color: var(--text-primary, #e2e8f0);
+  text-align: left;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+.bsp-note-menu-item:hover {
+  background: rgba(99, 102, 241, 0.15);
+}
+.bsp-note-menu-flash {
+  font-size: 0.75rem;
+  color: #a5b4fc;
+  padding: 0.45rem 0.75rem 0.3rem;
+  margin-top: 0.25rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+/* /event placeholder — the echoed identifier line. */
+.bsp-event-identifier {
+  margin-top: 1.25rem;
+  font-size: 0.85rem;
+  opacity: 0.7;
+}
+.bsp-event-identifier-label {
+  opacity: 0.8;
+}
+.bsp-event-identifier-value {
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 0.8rem;
+  word-break: break-all;
+  overflow-wrap: anywhere;
+}
 
 .table-pagination {
   display: flex;
