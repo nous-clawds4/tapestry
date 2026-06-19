@@ -689,7 +689,7 @@ async function handleTagById(req, res) {
     });
   }
   try {
-    const events = await strfryScan({ kinds: [39999], ids: [tagEventId] });
+    const events = await federatedScan({ kinds: [39999], ids: [tagEventId] });
     if (events.length === 0) {
       return res.status(404).json({ success: false, error: 'tag not found' });
     }
@@ -959,7 +959,7 @@ async function handleTagIndex(req, res) {
     });
     const wotFiltering = !!povSuffix && Number.isFinite(minRank);
 
-    const assertions = await strfryScan({
+    const assertions = await federatedScan({
       kinds: [39999],
       '#z': [NOSTR_USER_TAG_Z_TAG],
     });
@@ -1029,7 +1029,7 @@ async function handleTagIndex(req, res) {
 
     // Batch-scan tag-elements for every referenced tagEventId.
     const tagEventIds = Array.from(byTag.keys());
-    const tagEvents = await strfryScan({ kinds: [39999], ids: tagEventIds });
+    const tagEvents = await federatedScan({ kinds: [39999], ids: tagEventIds });
     const tagByEventId = new Map();
     for (const ev of tagEvents) {
       const payload = parseTagPayload(ev);
@@ -1175,7 +1175,7 @@ async function handleAuthoredBy(req, res) {
     const wotFiltering = !!povSuffix && Number.isFinite(minRank);
 
     // Step 1: pull every nostr-user-tag assertion authored by the profile owner.
-    const ownerEvents = await strfryScan({
+    const ownerEvents = await federatedScan({
       kinds: [39999],
       '#z': [NOSTR_USER_TAG_Z_TAG],
       authors: [authorPubkey],
@@ -1242,7 +1242,7 @@ async function handleAuthoredBy(req, res) {
     // Step 4: parent-tag enrichment. Drop rows whose parent tag-element isn't
     // locally available or fails to parse.
     const tagEventIds = Array.from(new Set(surviving.map((c) => c.tagEventId)));
-    const tagElementEvents = await strfryScan({ kinds: [39999], ids: tagEventIds });
+    const tagElementEvents = await federatedScan({ kinds: [39999], ids: tagEventIds });
     const tagByEventId = new Map();
     for (const ev of tagElementEvents) {
       const payload = parseTagPayload(ev);
@@ -1265,7 +1265,7 @@ async function handleAuthoredBy(req, res) {
     // Step 5: parent-tag scan — yields BOTH parent-tag aggregate counts
     // (Reading A) AND per-(tag, target) peer counts (Reading B) in one walk.
     const remainingTagIds = Array.from(new Set(surviving2.map((c) => c.tagEventId)));
-    const parentAssertions = await strfryScan({
+    const parentAssertions = await federatedScan({
       kinds: [39999],
       '#z': [NOSTR_USER_TAG_Z_TAG],
       '#e': remainingTagIds,
