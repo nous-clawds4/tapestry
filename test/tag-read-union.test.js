@@ -159,6 +159,33 @@ t('AC-1 (wiring): the visibility read paths scan via federatedScan, not bare str
     'handleAvailableTags must use federatedScan (browse/visibility surface)');
 });
 
+t('REGRESSION (blank detail/index/authored-by): the remaining browse/visibility handlers federate too', () => {
+  // Bugfix fix/tag-federation-detail-index: the original read-union landing only
+  // wired federatedScan into available-tags / tags-for-profile / wot-tags /
+  // aggregateProfilesTagged — the PROFILE-page path. The tag DETAIL (handleTagById),
+  // tag INDEX (handleTagIndex), and AUTHORED-BY (handleAuthoredBy) handlers stayed
+  // local-only, so on a deployment whose tags live on remote relays those pages
+  // were blank (handleTagById 404'd "tag not found"; handleTagIndex returned []).
+  // These are browse/visibility surfaces (NOT search), so they MUST federate.
+  const src = readSrc(SRC);
+  for (const fn of ['handleTagById', 'handleTagIndex', 'handleAuthoredBy']) {
+    const body = src.match(new RegExp(`async function ${fn}[\\s\\S]*?\\n\\}`));
+    assert(body, `could not locate ${fn}`);
+    assert(/federatedScan\s*\(/.test(body[0]),
+      `${fn} must use federatedScan for its tag/assertion visibility scans (blank-page bugfix) — ` +
+      'detail/index/authored-by are browse surfaces and must union the remote leg');
+  }
+});
+
+t('SEARCH-IS-LOCAL stays intact after the detail/index fix (computeTagMatches not federated)', () => {
+  // Guard the boundary: the blank-page fix federates browse surfaces only and must
+  // NOT have leaked federation into the search path (ADR 0001 search-is-local).
+  const src = readSrc(SRC);
+  const cm = src.match(/async function computeTagMatches[\s\S]*?\n\}/);
+  assert(cm && !/federatedScan\s*\(/.test(cm[0]),
+    'computeTagMatches must remain local-only (search-is-local) even after the browse-surface fix');
+});
+
 t('SEARCH-IS-LOCAL: findTagsByNameSubstring does NOT federate (both callers are search; ADR 0001 ratified principle)', () => {
   const src = readSrc(SRC);
   // findTagsByNameSubstring feeds ONLY the search path (computeTagMatches + the meili
