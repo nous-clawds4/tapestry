@@ -1670,4 +1670,50 @@ See ADR 0033 for the ratification decision (the normative/aspirational split) an
 
 ---
 
+## 28. Open Ranking (ORE) Provider
+
+Brainstorm exposes its web of trust over **[Open Ranking](https://github.com/Open-Ranking/protocol)** (ORE) — an external, MIT-licensed HTTP/JSON protocol for reputation/ranking/discovery on nostr. ORE is a **second, complementary export** alongside the NIP-85 (kind 30382/10040) publication: the *same* underlying GrapeRank / Neo4j / Meili data, but a **pull, request/response HTTP interface** for clients that don't speak the nostr relay protocol. It does **not** replace NIP-85 (which stays the signed, relay-native, independently-verifiable channel); ORE adds ad-hoc query patterns NIP-85 structurally can't serve (search by text; stats for an arbitrary pubkey). ORE is an external spec we *consume*, so it's documented here (per `protocols/README.md`'s boundary rule), not as a `protocols/` pre-NIP. Established by ADRs `open-ranking/0001` (provider + stats) and `open-ranking/0002` (search); book `engineering-team/audits/open-ranking/`.
+
+### Surface (as-built)
+
+Public, read-only, **unauthenticated, unsigned**. All routes live **off the `/api/` prefix** (so `src/middleware/auth.js` auto-exempts them) and are served by the control panel from `src/api/open-ranking/`, registered next to NIP-05 in `src/api/index.js`. No firmware/schema/pipeline/nginx change; with the module unregistered the rest of the app is unchanged.
+
+| Method | Path | ORE | Returns |
+|---|---|---|---|
+| GET | `/.well-known/open-ranking.json` | ORE-01 | Capability document — a JSON object keyed by endpoint path → arrays of Algorithm Objects (first element = default). |
+| POST | `/stats/pubkey` | ORE-02 | `{ pubkey, rank, follows, followers, mutes, muters, reporters, ttl }` for one pubkey. |
+| POST | `/search/pubkeys` | ORE-05 | `{ results: [{ pubkey, rank }], ttl }` — free-text profile search, ranked desc, capped at `limit`. |
+
+Each endpoint advertises a **global** algorithm `grapevine` (`pov:false`, the default); `/stats/pubkey` additionally advertises a **personalized** `grapevine-personalized` (`pov:true`). Personalized *search* is deferred (below).
+
+### PoV mapping (ties to §27)
+
+ORE's `pov` is §27's PoV machinery. The **global `grapevine`** is the instance's **owner-anchored** view, but it is read from a different store per endpoint:
+
+- **Stats** → **Neo4j**: `fetchProfileScores(pubkey, observerPubkey:'owner')` reads the `NostrUser` node — the **Owner PoV** (§27) — with `rank = round(influence × 100)`.
+- **Search** → **Meili**: ranks by the owner's `wot_rank_<ownerSuffix>` column (`ownerSuffix = getOwnerAssistantPubkey().slice(0,8)` — the runtime TA helper, never hardcoded) via `nostr-search-api` with `sort=wot_rank_<ownerSuffix>:desc`; `rank` floors to 0 for unscored profiles. This is the kind-30382 → Meili read of §27, keyed to the owner's own delegated suffix.
+
+The two stores key a PoV by **different pubkeys** — Neo4j cards by the human's **main pubkey** (`observer_pubkey`), Meili columns by the **delegated-key suffix** — which is the open seam recorded in worksheet **W13**.
+
+**Personalized `grapevine-personalized`** (stats only): the request `pov` is used directly as the Neo4j `observer_pubkey`, served **only for a provisioned PoV** — `isPovProvisioned(pov)` = (`pov === owner`) OR a `NostrUserWotMetricsCard {observer_pubkey: pov}` exists. An unprovisioned `pov` returns **`422` + `X-Reason: pov not provisioned`**, never a silent fallback to the owner view (the architecture-invariant rule: a global answer must not be presented as the caller's personal one).
+
+### Conventions (ORE-00, as-built)
+
+64-char-lowercase-hex pubkeys (npub rejected → `422`); `application/json` in/out; `Access-Control-Allow-Origin: *` on every response incl. errors; errors via HTTP status (`400` malformed JSON, `422` validation/algorithm/pov) + a human-readable `X-Reason` header; `ttl` advisory cache hint (stats 3600, search 300); a `pov` sent to a global algorithm is **ignored**. Reads are synchronous → success is always `200` (no `202`/`Retry-After`). **`OPTIONS` preflight returns a `2xx` (204) via the platform's global CORS**, not a strict ORE-00 `200` — a documented cosmetic deviation (a strict-200 shim is a deferred follow-up). The outbound search call is bounded by `AbortSignal.timeout(5000)`.
+
+### Security — personalized-stats enumeration oracle
+
+The `grapevine-personalized` **stats** path is an **unauthenticated provisioning-enumeration oracle**: a caller distinguishes provisioned (`200`) from unprovisioned (`422`) POVs, enumerating the instance's customer set. Acceptable on staging (test data); **it MUST be gated (ORE-A/NWT auth or a self-only check) before any production promotion.** Tracked in worksheet **W12**. The global algorithms and the global-only search carry no such oracle.
+
+### Deferred
+
+- **Personalized search** (`grapevine-personalized` on `/search/pubkeys`) — needs a server-side **main→delegated PoV resolver** to bridge the two stores (worksheet **W13**); planned as `open-ranking` Story 3.
+- **ORE-A / Nostr Web Token (kind 27519) auth**; the other ORE endpoints (`/rank/pubkeys`, `/recommend/pubkeys`, `/followers`, `/muters`, `/compromised/pubkeys`); a standard PoV-availability mechanism / upstream ORE proposal (W12).
+
+### Deployment
+
+Live on **`staging.brainstorm.world`**: ORE-01 + ORE-02 via [apps#318](https://github.com/nous-clawds4/tapestry/pull/318) (2026-06-18); ORE-05 via [apps#322](https://github.com/nous-clawds4/tapestry/pull/322) (2026-06-19). **Not on production** (the personalized-stats gate above must be resolved first). Sources: ADRs `engineering-team/decisions/open-ranking/0001`–`0002`; book `engineering-team/audits/open-ranking/`; worksheet W12/W13.
+
+---
+
 *This document is maintained by the development team. When making significant architectural changes, update this file.*
