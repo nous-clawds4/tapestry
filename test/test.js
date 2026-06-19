@@ -106,6 +106,7 @@ const bTagPrimitive = require('./b-tag-primitive.test.js');
 const bTagSeeds = require('./b-tag-seeds.test.js');
 const dualZWriter = require('./dual-z-writer.test.js');
 const openRankingStats = require('./open-ranking-stats.test.js');
+const openRankingSearch = require('./open-ranking-search.test.js');
 
 async function main() {
   console.log('Running Brainstorm tests...');
@@ -295,6 +296,9 @@ async function main() {
 
   console.log('\nopen-ranking-stats suite:');
   const openRankingStatsResult = await openRankingStats.run();
+
+  console.log('\nopen-ranking-search suite:');
+  const openRankingSearchResult = await openRankingSearch.run();
 
   console.log('\nTest Results');
   console.log('-------------');
@@ -506,6 +510,9 @@ async function main() {
   console.log(
     `open-ranking-stats suite:                        ${openRankingStatsResult.fail === 0 ? 'PASS' : 'FAIL'} (${openRankingStatsResult.pass} passed, ${openRankingStatsResult.fail} failed)`
   );
+  console.log(
+    `open-ranking-search suite:                       ${openRankingSearchResult.fail === 0 ? 'PASS' : 'FAIL'} (${openRankingSearchResult.pass} passed, ${openRankingSearchResult.fail} failed)`
+  );
 
   const overallOk =
     configOk &&
@@ -589,7 +596,8 @@ async function main() {
     bTagPrimitiveResult.fail === 0 &&
     bTagSeedsResult.fail === 0 &&
     dualZWriterResult.fail === 0 &&
-    openRankingStatsResult.fail === 0;
+    openRankingStatsResult.fail === 0 &&
+    openRankingSearchResult.fail === 0;
   console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);
   process.exit(overallOk ? 0 : 1);
 }
