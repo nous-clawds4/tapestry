@@ -192,6 +192,8 @@ test('B6 (AC by-author): returns the newest VERIFIED kind-1 by the author — sk
   assert(r && r.status === 'OK', `expected OK; got ${JSON.stringify(r && r.status)}.`);
   assert(r.item.content === 'the one' && r.item.pubkey === PK,
     `must pick the newest VERIFIED kind-1 by the requested author (skip unverified-newer + foreign); got ${JSON.stringify(r.item && { c: r.item.content, pk: r.item.pubkey.slice(0, 6) })}.`);
+  assert(r.item && r.items === undefined,
+    'by-author OK must carry a SINGLE `item` (the latest note), not an `items` array.');
 });
 
 test('B7 (AC by-author): an author with no verifiable kind-1 yields NO_AUTHOR_NOTE', async () => {
@@ -268,6 +270,29 @@ test('B12 (AC item shape): an OK item is the feed shape with author name from LO
   assert(it.author && it.author.displayName === 'Alice Local' && it.author.avatar === 'https://local/a.png',
     `author name/avatar must come from the LOCAL kind-0 scan; got ${JSON.stringify(it.author)}.`);
   assert(it.mentions && typeof it.mentions === 'object', 'item must carry a mentions map (feed shape).');
+});
+
+test('B13 (AC relay union, by-id): a by-id request carrying an author hint (e.g. from an nevent) ALSO consults that author\'s outbox', async () => {
+  const mod = loadModule();
+  const ev = signed(SK, { kind: 1, created_at: 100, content: 'x' });
+  const outbox = kind10002(PK, [['r', 'wss://outbox-write.example']], 5);
+  const { deps, calls } = makeDeps({ mainEvents: [ev], kind10002s: [outbox] });
+  const r = await callBuildEvent(mod, { id: ev.id, author: PK, relays: ['wss://hint.example'] }, deps);
+  assert(r && r.status === 'OK', `expected OK; got ${JSON.stringify(r && r.status)}.`);
+  const set = new Set(mainCall(calls).relays);
+  assert(set.has('wss://outbox-write.example'),
+    `a by-id request with an author hint must include the author's outbox write relay in the union; got ${JSON.stringify(mainCall(calls).relays)}.`);
+  assert(set.has('wss://hint.example'), 'the supplied hint must also be in the union.');
+});
+
+test('B14 (AC by-id, verify): among events sharing the target id, a VERIFYING one wins over a co-located bad-sig event', async () => {
+  const mod = loadModule();
+  const ev = signed(SK, { kind: 1, created_at: 200, content: 'authentic' });
+  const spoof = badSig(ev); // same id, broken signature
+  const { deps } = makeDeps({ mainEvents: [spoof, ev] }); // the bad copy arrives first
+  const r = await callBuildEvent(mod, { id: ev.id }, deps);
+  assert(r && r.status === 'OK', `a verifying copy must win over a co-located spoof → OK (not INVALID_EVENT); got ${JSON.stringify(r && r.status)}.`);
+  assert(r.item && r.item.content === 'authentic', 'the verifying event must be the one returned.');
 });
 
 // ===========================================================================

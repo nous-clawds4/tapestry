@@ -129,6 +129,15 @@ test('U6 (#2 naddr + search wiring): naddr → "unsupported kind" branch; no val
   assert(/resolveEventParams/.test(src) && /useEventResolve/.test(src), 'the page must use resolveEventParams (decode) + useEventResolve (fetch id/author).');
 });
 
+test('U11 (#1 review): the page forwards the (nevent) author to the read path so the by-id outbox leg is engaged', () => {
+  const src = safeRead(PAGE);
+  assert(src.length > 0, 'BrainstormEvent.jsx does not exist yet.');
+  // An nevent is an id-mode target but carries an author whose outbox the server should consult.
+  // fetchArg must forward target.author regardless of mode (review finding #1) — not gate it on author-mode.
+  assert(/author:\s*target\.author/.test(src),
+    'fetchArg must forward `author: target.author` so an nevent target sends its embedded author (→ server consults the author outbox); gating it on author-mode drops it.');
+});
+
 test('U7 (#2 testability): renderResolvedEvent is a named-exported PURE function (no fetch/hook/router/globals)', () => {
   const src = safeRead(PAGE);
   assert(src.length > 0, 'BrainstormEvent.jsx does not exist yet.');

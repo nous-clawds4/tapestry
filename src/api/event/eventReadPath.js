@@ -25,7 +25,7 @@
  */
 
 const {
-  resolveGeneralPurposeRelays, realQuerySync, realScanStrfry, realRunCypher, NOSTR_TOOLS_PATH,
+  resolveGeneralPurposeRelays, realScanStrfry, realRunCypher, NOSTR_TOOLS_PATH, WS_PATH, FETCH_TIMEOUT_MS,
 } = require('../_shared/relaySource');
 const { enrichNotes } = require('../_shared/noteEnrichment');
 
@@ -53,6 +53,30 @@ function unionRelays(...lists) {
     for (const r of onlyWs(list)) { if (!seen.has(r)) { seen.add(r); out.push(r); } }
   }
   return out;
+}
+
+/**
+ * External fetch for the event path — deliberately a NO-VERIFY SimplePool, so signature-failing
+ * events are delivered to buildEvent (whose own verify() is then the sole gate). This is what
+ * makes the distinct INVALID_EVENT ("does not validate") outcome reachable in production: the
+ * default verifying pool drops bad-sig events at relay-receive, folding them into NOT_FOUND.
+ * Safety is unchanged — buildEvent never returns an unverified event as OK. (The shared
+ * _shared/relaySource.realQuerySync stays verifying for the feed, which has no other gate.)
+ */
+async function realQuerySync(relays, filter) {
+  if (typeof globalThis.WebSocket === 'undefined') {
+    globalThis.WebSocket = require(WS_PATH);
+  }
+  const { SimplePool } = require(NOSTR_TOOLS_PATH);
+  const pool = new SimplePool({ verifyEvent: () => true });
+  try {
+    return await Promise.race([
+      pool.querySync(relays, filter),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), FETCH_TIMEOUT_MS)),
+    ]);
+  } finally {
+    try { pool.close(relays); } catch { /* ignore */ }
+  }
 }
 
 /**
@@ -105,9 +129,13 @@ async function buildEvent(options = {}) {
 
   if (validId) {
     const events = (await querySync(union, { ids: [id] })) || [];
-    const ev = events.find(e => e && e.id === id);
-    if (!ev) return { status: 'NOT_FOUND', relaySource };
-    if (!verify(ev)) return { status: 'INVALID_EVENT', relaySource };
+    const matching = events.filter(e => e && e.id === id);
+    if (matching.length === 0) return { status: 'NOT_FOUND', relaySource };
+    // The fetch isn't verified at the relay layer, so a bad-sig event with the target id is
+    // delivered (→ distinct INVALID_EVENT, not NOT_FOUND). Prefer a VERIFYING match — a valid
+    // copy wins over a co-located spoofed one; only if no match verifies is it INVALID_EVENT.
+    const ev = matching.find(verify);
+    if (!ev) return { status: 'INVALID_EVENT', relaySource };
     if (ev.kind !== 1) return { status: 'UNSUPPORTED_KIND', kind: ev.kind, relaySource };
     const [item] = await enrichNotes([ev], scanStrfry);
     return { status: 'OK', relaySource, item };

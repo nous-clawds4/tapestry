@@ -42,7 +42,9 @@ export default function BrainstormEvent() {
   const fetchArg = target && (target.mode === 'id' || target.mode === 'author')
     ? {
         id: target.mode === 'id' ? target.id : undefined,
-        author: target.mode === 'author' ? target.author : undefined,
+        // Forward the author whenever it's known: for an nevent (id-mode) this is the embedded
+        // author, so the server also consults that author's outbox in the relay union (review #1).
+        author: target.author || undefined,
         relays: target.relays,
       }
     : {};

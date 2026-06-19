@@ -2,8 +2,9 @@
  * Shared relay-sourcing primitives — extracted (ADR event-page/0001, Option A) so the
  * THIRD consumer of this logic (the event read path) doesn't add a third inline copy.
  *
- * These are copied verbatim from src/api/feed/feedReadPath.js (the original home). The
- * feed and per-user-notes read paths still carry their own private copies for now;
+ * These are adapted from src/api/feed/feedReadPath.js (the original home) — same logic; the
+ * FALLBACK_RELAYS array lists the same relays in a different order (order is irrelevant — the
+ * union dedups). The feed and per-user-notes read paths still carry their own private copies;
  * re-pointing them here and deleting those copies is a tracked, behavior-preserving
  * follow-up (engineering-team/follow-ups.md) — deliberately deferred to keep the
  * event-page epic additive (it touches no shipped read path).
