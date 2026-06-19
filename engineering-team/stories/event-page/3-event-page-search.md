@@ -38,4 +38,4 @@ None — the trigger condition (no valid parameter), the six accepted formats, t
 ## Linked artifacts
 - ADR: `engineering-team/decisions/event-page/0002-event-page-ui.md`
 - Test plan: `engineering-team/stories/event-page/3-event-page-search.test-plan.md`
-- Review: (filled in after Review)
+- Review: `engineering-team/reviews/event-page/1-event-page-implementation.md` (CHANGES_REQUESTED — 2026-06-18)
