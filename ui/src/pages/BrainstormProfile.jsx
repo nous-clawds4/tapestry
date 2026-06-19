@@ -17,6 +17,7 @@ import { toExternalUrl } from '../utils/url';
 import VerificationInfo from '../components/VerificationInfo';
 import ReputationInfo from '../components/ReputationInfo';
 import IdentityDetails from '../components/IdentityDetails';
+import ProfileContentSection from '../components/ProfileContentSection';
 
 /* ── Verified Reporters alarm thresholds (ADR 0032) ──────
    Alarm (red + icon) only when verifiedReporterCount >= BASE + one "freebie" per
@@ -404,6 +405,9 @@ export default function BrainstormProfile() {
                 </div>
               )}
             </div>
+
+            {/* Content — the user's latest kind-1 note + link to all (note-surfaces #2) */}
+            <ProfileContentSection pubkey={pubkey} />
 
           </>
         )}

@@ -93,6 +93,8 @@ const nostrUserTagHybridEaWriter = require('./nostr-user-tag-hybrid-ea-writer.te
 const reputationInfoPopup = require('./reputation-info-popup.test.js');
 const liveFeedReadPath = require('./live-feed-read-path.test.js');
 const liveFeedFeedPage = require('./live-feed-feed-page.test.js');
+const noteSurfacesReadPath = require('./note-surfaces-read-path.test.js');
+const noteSurfacesUi = require('./note-surfaces-ui.test.js');
 const verifiedReportersReportColumns = require('./verified-reporters-report-columns.test.js');
 const profileIdentityDetailsPopover = require('./profile-identity-details-popover.test.js');
 const profileFollowsHops = require('./profile-follows-hops.test.js');
@@ -253,6 +255,12 @@ async function main() {
 
   console.log('\nlive-feed-feed-page suite:');
   const liveFeedFeedPageResult = await liveFeedFeedPage.run();
+
+  console.log('\nnote-surfaces-read-path suite:');
+  const noteSurfacesReadPathResult = await noteSurfacesReadPath.run();
+
+  console.log('\nnote-surfaces-ui suite:');
+  const noteSurfacesUiResult = await noteSurfacesUi.run();
 
   console.log('\nverified-reporters-report-columns suite:');
   const verifiedReportersReportColumnsResult = await verifiedReportersReportColumns.run();
@@ -452,6 +460,12 @@ async function main() {
     `live-feed-feed-page suite:                       ${liveFeedFeedPageResult.fail === 0 ? 'PASS' : 'FAIL'} (${liveFeedFeedPageResult.pass} passed, ${liveFeedFeedPageResult.fail} failed)`
   );
   console.log(
+    `note-surfaces-read-path suite:                   ${noteSurfacesReadPathResult.fail === 0 ? 'PASS' : 'FAIL'} (${noteSurfacesReadPathResult.pass} passed, ${noteSurfacesReadPathResult.fail} failed)`
+  );
+  console.log(
+    `note-surfaces-ui suite:                          ${noteSurfacesUiResult.fail === 0 ? 'PASS' : 'FAIL'} (${noteSurfacesUiResult.pass} passed, ${noteSurfacesUiResult.fail} failed)`
+  );
+  console.log(
     `verified-reporters-report-columns suite:         ${verifiedReportersReportColumnsResult.fail === 0 ? 'PASS' : 'FAIL'} (${verifiedReportersReportColumnsResult.pass} passed, ${verifiedReportersReportColumnsResult.fail} failed)`
   );
   console.log(
@@ -549,6 +563,8 @@ async function main() {
     reputationInfoPopupResult.fail === 0 &&
     liveFeedReadPathResult.fail === 0 &&
     liveFeedFeedPageResult.fail === 0 &&
+    noteSurfacesReadPathResult.fail === 0 &&
+    noteSurfacesUiResult.fail === 0 &&
     verifiedReportersReportColumnsResult.fail === 0 &&
     profileIdentityDetailsPopoverResult.fail === 0 &&
     profileFollowsHopsResult.fail === 0 &&
