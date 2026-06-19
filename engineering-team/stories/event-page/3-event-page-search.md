@@ -36,6 +36,6 @@ Testable from the outside.
 None — the trigger condition (no valid parameter), the six accepted formats, the resolve-as-parameter behavior, and the not-recognized notice were operator-resolved at Planning.
 
 ## Linked artifacts
-- ADR: (filled in after Architecture)
+- ADR: `engineering-team/decisions/event-page/0002-event-page-ui.md`
 - Test plan: (filled in after Test Design)
 - Review: (filled in after Review)

@@ -44,6 +44,6 @@ Testable from the outside (input → observable outcome).
 - **Source-of-fetch mechanism (relays vs anything local) and the outbox-resolution bootstrap are an Architecture concern**, not product intent. Product intent: look in the union above; return the distinct outcomes. (Local strfry is not a kind-1 archive — established in `note-surfaces` #1 — so events come from relays; enrichment stays local.) Not blocking story approval.
 
 ## Linked artifacts
-- ADR: (filled in after Architecture)
+- ADR: `engineering-team/decisions/event-page/0001-event-read-path.md`
 - Test plan: (filled in after Test Design)
 - Review: (filled in after Review)

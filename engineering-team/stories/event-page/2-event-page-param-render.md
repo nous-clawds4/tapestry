@@ -45,6 +45,6 @@ Testable from the outside.
 None — the six parameters, precedence, invalid-vs-unsupported handling, naddr-as-unsupported-kind, and the kind-1 render were operator-resolved at Planning.
 
 ## Linked artifacts
-- ADR: (filled in after Architecture)
+- ADR: `engineering-team/decisions/event-page/0002-event-page-ui.md`
 - Test plan: (filled in after Test Design)
 - Review: (filled in after Review)
