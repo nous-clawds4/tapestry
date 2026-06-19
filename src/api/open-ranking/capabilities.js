@@ -23,6 +23,15 @@ const CAPABILITIES = {
       description: 'Web-of-trust rank from the supplied point-of-view pubkey. Requires a provisioned POV.',
     },
   ],
+  '/search/pubkeys': [
+    {
+      id: 'grapevine',
+      name: 'Grapevine',
+      pov: false,
+      description: "Global web-of-trust-ranked profiles for a free-text query, ranked by this instance's grapevine.",
+    },
+    // grapevine-personalized (pov:true) deferred to Story 3 (worksheet W13).
+  ],
 };
 
 // A fresh deep copy so callers can't mutate the registry.

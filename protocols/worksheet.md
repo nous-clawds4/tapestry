@@ -115,3 +115,18 @@ Open questions: **(1)** Is a non-ORE, Tapestry-namespaced **availability probe**
 **Review finding (open-ranking #1, 2026-06-18):** the shipped `grapevine-personalized` `/stats/pubkey` algorithm is *itself* this oracle — an unauthenticated caller distinguishes provisioned (`200`) from unprovisioned (`422` `pov not provisioned`) POVs, enumerating the customer set. Acceptable on **staging** (test data); a **hard gate before any prod promotion** — gate the `pov:true` path behind ORE-A/NWT auth or a self-only check (open question 1, option A/B) first.
 
 **Refs:** `engineering-team/audits/open-ranking/book.md` (acceptance frame; the `422` decision); ORE-01 + ORE-00 (capability doc + conventions, `github.com/Open-Ranking/protocol`); `src/api/_shared/pov.js` (POV→delegate→suffix resolution); `src/algos/nip85/loadScoresIntoMeilisearch.js` + `src/algos/customers/nip85/` (the three POV loaders); the `pov-resolution` epic; BIBLE NIP-85 publishing tables.
+
+## W13 — Cross-store POV identity: main pubkey (Neo4j cards) vs delegated-key suffix (Meili columns)
+
+**Status:** Open · raised 2026-06-19
+
+A single POV is keyed by **two different pubkeys** depending on the store, which blocks a uniform `pov` identifier across ORE endpoints:
+
+- **Neo4j `NostrUserWotMetricsCard`** (backs ORE-02 `/stats/pubkey`) is keyed by `observer_pubkey` = the human's **main pubkey** (`CUSTOMER_PUBKEY`; owner uses the `NostrUser` node directly).
+- **Meili `wot_<metric>_<suffix>` columns** (back ORE-05 `/search/pubkeys`) are keyed by `suffix = delegatedPubkey.slice(0,8)`, where `delegatedPubkey` is a **delegated key** — the **TA** for the owner (`getOwnerAssistantPubkey()`, `src/algos/nip85/loadScoresIntoMeilisearch.js:38,49`) and the **relay key** for a customer (`getCustomerRelayKeys(main).pubkey`, `src/algos/customers/nip85/loadScoresIntoMeilisearch.js:35-36`).
+
+So `/stats/pubkey` personalized (Story 1, shipped) takes `pov` = main pubkey; a naive `/search/pubkeys` personalized would need the delegated suffix, and the search proxy's only main→delegated bridge today is the per-user prefs file (`rankAuthor`, `src/api/_shared/pov.js`), which external ORE callers don't have → it **silently falls back to the house POV** (violates the `422`-honesty rule).
+
+**Resolution direction (planned for `open-ranking` Story 3 — `search-personalized`):** keep ORE `pov` = the human's **main pubkey everywhere**, and add a server-side resolver `resolveProvisionedDelegate(mainPubkey)` → owner-TA (config) / customer-relay-key (`getCustomerRelayKeys`) / `null`. `/stats/pubkey` already uses the main pubkey directly; `/search/pubkeys` personalized resolves main→delegated→suffix, checks the Meili columns exist (readiness check), and `422`s when unprovisioned — no prefs-file dependency, consistent semantics. Open sub-questions: how to treat inactive / mid-provisioning customers; whether the "global" algorithm should rank under the **owner TA suffix** (to match Story 1's owner-baseline global stats) vs the configurable **house delegate** the search proxy defaults to for logged-out users.
+
+**Refs:** `engineering-team/epics/open-ranking.md` (Story 3); `src/api/export/users/queries/get-profile-scores.js` (card keying = main pubkey); `src/api/search/profiles/meili/index.js:142` (proxy `resolvePov`, prefs-based) + `src/api/_shared/pov.js`; the two Meili loaders above; `getCustomerRelayKeys` (`src/api/customers/`); related: W12 (the personalized-endpoint enumeration oracle).
