@@ -95,6 +95,8 @@ const liveFeedReadPath = require('./live-feed-read-path.test.js');
 const liveFeedFeedPage = require('./live-feed-feed-page.test.js');
 const noteSurfacesReadPath = require('./note-surfaces-read-path.test.js');
 const noteSurfacesUi = require('./note-surfaces-ui.test.js');
+const eventPageReadPath = require('./event-page-read-path.test.js');
+const eventPageUi = require('./event-page-ui.test.js');
 const verifiedReportersReportColumns = require('./verified-reporters-report-columns.test.js');
 const profileIdentityDetailsPopover = require('./profile-identity-details-popover.test.js');
 const profileFollowsHops = require('./profile-follows-hops.test.js');
@@ -261,6 +263,12 @@ async function main() {
 
   console.log('\nnote-surfaces-ui suite:');
   const noteSurfacesUiResult = await noteSurfacesUi.run();
+
+  console.log('\nevent-page-read-path suite:');
+  const eventPageReadPathResult = await eventPageReadPath.run();
+
+  console.log('\nevent-page-ui suite:');
+  const eventPageUiResult = await eventPageUi.run();
 
   console.log('\nverified-reporters-report-columns suite:');
   const verifiedReportersReportColumnsResult = await verifiedReportersReportColumns.run();
@@ -466,6 +474,12 @@ async function main() {
     `note-surfaces-ui suite:                          ${noteSurfacesUiResult.fail === 0 ? 'PASS' : 'FAIL'} (${noteSurfacesUiResult.pass} passed, ${noteSurfacesUiResult.fail} failed)`
   );
   console.log(
+    `event-page-read-path suite:                      ${eventPageReadPathResult.fail === 0 ? 'PASS' : 'FAIL'} (${eventPageReadPathResult.pass} passed, ${eventPageReadPathResult.fail} failed)`
+  );
+  console.log(
+    `event-page-ui suite:                             ${eventPageUiResult.fail === 0 ? 'PASS' : 'FAIL'} (${eventPageUiResult.pass} passed, ${eventPageUiResult.fail} failed)`
+  );
+  console.log(
     `verified-reporters-report-columns suite:         ${verifiedReportersReportColumnsResult.fail === 0 ? 'PASS' : 'FAIL'} (${verifiedReportersReportColumnsResult.pass} passed, ${verifiedReportersReportColumnsResult.fail} failed)`
   );
   console.log(
@@ -565,6 +579,8 @@ async function main() {
     liveFeedFeedPageResult.fail === 0 &&
     noteSurfacesReadPathResult.fail === 0 &&
     noteSurfacesUiResult.fail === 0 &&
+    eventPageReadPathResult.fail === 0 &&
+    eventPageUiResult.fail === 0 &&
     verifiedReportersReportColumnsResult.fail === 0 &&
     profileIdentityDetailsPopoverResult.fail === 0 &&
     profileFollowsHopsResult.fail === 0 &&

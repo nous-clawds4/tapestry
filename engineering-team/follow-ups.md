@@ -127,3 +127,13 @@ Story 20 retired `ui/src/pages/PinDetail.jsx`; `/pin/:dTag` now redirects (via `
 3. Verify the export-section assertion against the **changed pin-row match key**: `PinnedListPanel` matches the export row by `p.pinEventId === viewerPin.pinEventId` (old `PinDetail` matched by tag identity). The `mockPinsRoute` row uses `pinEventId: PIN_EVENT_ID`, so it aligns iff the mocked `viewerPin.pinEventId` is also `PIN_EVENT_ID`.
 
 **To resume:** re-run `/review-changes` after the spec is fixed → expect PASS → then retire Story 20 (Status: Done, `git mv` story + test-plan to `stories/done/`, update path refs) and ship via the deploy chain. Full detail in `engineering-team/reviews/20-pin-detail-into-tag-pinned-tab.md` (Blocking #1) and its non-blocking notes (orphan `tabpanel` ARIA when unpinned; `PinnedListPanel` fetch-while-hidden; pre-existing "default 2" string in `PinsMemberCountHint`).
+
+## Consolidate relay-sourcing into `_shared/relaySource.js` (re-point the shipped read paths)
+
+**Surfaced during:** `note-surfaces` Architecture (ADR 0001, 2026-06-18, deferred) and again at `event-page` Architecture (ADR `event-page/0001`, 2026-06-18) — the **3rd consumer** of the relay-sourcing helpers (`resolveGeneralPurposeRelays` / `realQuerySync` / `realScanStrfry` / `resolveGeneralPurposeRelays` + fallback).
+
+**State now:** `src/api/_shared/relaySource.js` exists (created by the `event-page` epic; `eventReadPath.js` consumes it). But `src/api/feed/feedReadPath.js` and `src/api/notes/userNotesReadPath.js` **still carry their own private copies** of those helpers — Option A deliberately left them byte-unchanged so each epic stayed additive and didn't entangle the feed's prod-promotion sequencing.
+
+**The fix:** re-point `feedReadPath.js` + `userNotesReadPath.js` to import the sourcing primitives from `_shared/relaySource.js` and delete their private copies. Behavior-preserving; guarded by the existing `live-feed-read-path` + `note-surfaces-read-path` suites + a staging re-smoke of `/feed` and `/user/:pubkey/notes`.
+
+**Caveat for whoever does it:** `_shared/relaySource.realQuerySync` is the **verifying** SimplePool (the feed's only verification gate). The **event** path intentionally uses its *own* NO-VERIFY `querySync` (so `buildEvent`'s `verify()` can surface the distinct `INVALID_EVENT` outcome) — do **not** unify those two `querySync` variants, or the feed/user-notes would start returning unverified events.

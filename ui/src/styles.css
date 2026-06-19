@@ -7379,6 +7379,70 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   overflow-wrap: anywhere;
 }
 
+/* /event single-event view (BrainstormEvent.jsx) — event-page epic. The kind-1 is rendered
+   by the shared NoteCard (already wraps + bsp-content is width-capped, so no 1280px overflow);
+   only layout tokens for the heading, search field, and notices here. */
+.bsp-event-content {
+  max-width: 700px;
+  width: 100%;
+  box-sizing: border-box;
+}
+.bsp-event-heading {
+  font-size: 1.5rem;
+  margin: 0 0 1rem;
+}
+.bsp-event-loading {
+  padding: 2rem;
+  text-align: center;
+  opacity: 0.6;
+}
+.bsp-event-invalid {
+  margin-bottom: 1rem;
+  opacity: 0.75;
+}
+.bsp-event-search {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin-top: 0.5rem;
+}
+.bsp-event-search-label {
+  font-size: 0.9rem;
+  opacity: 0.75;
+}
+.bsp-event-search-row {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+.bsp-event-search-input {
+  flex: 1 1 18rem;
+  min-width: 0;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 8px;
+  background: rgba(255,255,255,0.03);
+  color: inherit;
+  font-size: 0.9rem;
+  box-sizing: border-box;
+}
+.bsp-event-search-btn {
+  padding: 0.55rem 1.1rem;
+  border-radius: 8px;
+  border: 1px solid rgba(165,180,252,0.4);
+  background: rgba(165,180,252,0.12);
+  color: inherit;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+.bsp-event-search-btn:hover {
+  background: rgba(165,180,252,0.2);
+}
+.bsp-event-search-notice {
+  margin-top: 0.25rem;
+  text-align: left;
+}
+
 .table-pagination {
   display: flex;
   align-items: center;
