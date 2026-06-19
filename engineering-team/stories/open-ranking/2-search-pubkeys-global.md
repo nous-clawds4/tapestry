@@ -1,6 +1,6 @@
 # Story 2: ORE-05 /search/pubkeys (global only)
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-06-19
 **Type:** Feature
 

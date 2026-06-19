@@ -21,6 +21,7 @@ const NOSTR_SEARCH_URL = process.env.NOSTR_SEARCH_URL || 'http://nostr-search-ap
 const QUERY_MAX = 512;     // ORE-05 client SHOULD NOT exceed; we enforce as provider max.
 const LIMIT_DEFAULT = 20;
 const LIMIT_MAX = 200;     // matches the Meili proxy's internal cap.
+const SEARCH_TIMEOUT_MS = 5000;  // bound the outbound call so a hung search-api can't pin a worker.
 
 /**
  * Real search dependency: query the profiles index under the owner POV's rank
@@ -32,7 +33,7 @@ async function searchProfiles(query, limit, ownerSuffix) {
   url.searchParams.set('q', query);
   url.searchParams.set('limit', String(limit));
   if (ownerSuffix) url.searchParams.set('sort', `wot_rank_${ownerSuffix}:desc`);
-  const resp = await fetch(url.toString());
+  const resp = await fetch(url.toString(), { signal: AbortSignal.timeout(SEARCH_TIMEOUT_MS) });
   if (!resp.ok) throw new Error(`nostr-search-api returned ${resp.status}`);
   const data = await resp.json();
   return Array.isArray(data.hits) ? data.hits : [];
@@ -77,7 +78,10 @@ async function buildSearch(input, deps) {
   }
 
   const hits = await deps.searchProfiles(query, limit, deps.ownerSuffix);
-  const results = (hits || []).map((h) => mapHitToResult(h, deps.ownerSuffix));
+  // Drop any malformed hit lacking both pubkey and id — every ORE-05 result MUST carry a pubkey.
+  const results = (hits || [])
+    .map((h) => mapHitToResult(h, deps.ownerSuffix))
+    .filter((r) => r.pubkey);
   return { httpStatus: 200, headers: oreHeaders(), body: { results, ttl: ORE_SEARCH_TTL } };
 }
 

@@ -245,6 +245,20 @@ test('B12 (AC: ttl): the search ttl hint is 300 (ADR 0002)', async () => {
   assert(body.ttl === 300, 'search ttl must be 300.');
 });
 
+test('B13 (AC: profiles only): a hit lacking both pubkey and id is excluded from results', async () => {
+  const mod = loadModule();
+  const deps = makeSearchDeps({ searchProfiles: async () => [
+    { name: 'malformed-no-id', [RANK_FIELD]: 50 },
+    hit({ pubkey: HEX('7'), [RANK_FIELD]: 10 }),
+  ] });
+  const { body } = await callBuildSearch(mod, { query: 'x' }, deps);
+  assert(body.results.length === 1, 'the malformed (id-less) hit must be dropped.');
+  assert(body.results[0].pubkey === HEX('7'), 'only the valid hit remains.');
+  for (const r of body.results) {
+    assert(typeof r.pubkey === 'string' && r.pubkey.length > 0, 'every result carries a non-empty pubkey.');
+  }
+});
+
 // ===========================================================================
 // ERROR MIDDLEWARE (shared, now covering the new path)
 // ===========================================================================
