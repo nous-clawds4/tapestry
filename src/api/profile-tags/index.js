@@ -631,7 +631,7 @@ async function aggregateProfilesTagged({ tagEventId, povSuffix, minRank }) {
 async function aggregateTagPins({ povSuffix, minRank, viewerPubkey }) {
   const wotFiltering = !!povSuffix && Number.isFinite(minRank);
 
-  const pinEvents = await strfryScan({
+  const pinEvents = await federatedScan({
     kinds: [39999],
     '#z': [TAG_PINNING_Z_TAG],
   });
@@ -717,7 +717,7 @@ async function handleTagById(req, res) {
     let viewerPin = null;
     if (isHexPubkey(viewerPubkey)) {
       try {
-        const pinEvents = await strfryScan({
+        const pinEvents = await federatedScan({
           kinds: [39999],
           '#z': [TAG_PINNING_Z_TAG],
           authors: [viewerPubkey],
@@ -1378,7 +1378,7 @@ async function handlePins(req, res) {
     });
   }
   try {
-    const pinEvents = await strfryScan({
+    const pinEvents = await federatedScan({
       kinds: [39999],
       '#z': [TAG_PINNING_Z_TAG],
       authors: [viewerPubkey],
@@ -1398,7 +1398,7 @@ async function handlePins(req, res) {
     const uniqueTagIds = [...new Set(pinsWithTagIds.map((p) => p.tagEventId))];
     let tagEventsById = new Map();
     if (uniqueTagIds.length > 0) {
-      const tagEvents = await strfryScan({ kinds: [39999], ids: uniqueTagIds });
+      const tagEvents = await federatedScan({ kinds: [39999], ids: uniqueTagIds });
       for (const ev of tagEvents) tagEventsById.set(ev.id, ev);
     }
 
