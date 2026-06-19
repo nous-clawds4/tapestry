@@ -10,6 +10,9 @@
 // Client cache hint (seconds) on /stats/pubkey responses. Advisory only (ORE-02).
 const ORE_STATS_TTL = 3600;
 
+// Client cache hint (seconds) on /search/pubkeys responses. Advisory only (ORE-05).
+const ORE_SEARCH_TTL = 300;
+
 // ORE-00: pubkeys are 64-char lowercase hex; npub/bech32 is rejected.
 function isValidHexPubkey(s) {
   return typeof s === 'string' && /^[0-9a-f]{64}$/.test(s);
@@ -36,4 +39,4 @@ function applyTriple(res, triple) {
   res.status(httpStatus).json(body);
 }
 
-module.exports = { ORE_STATS_TTL, isValidHexPubkey, oreHeaders, errorTriple, applyTriple };
+module.exports = { ORE_STATS_TTL, ORE_SEARCH_TTL, isValidHexPubkey, oreHeaders, errorTriple, applyTriple };

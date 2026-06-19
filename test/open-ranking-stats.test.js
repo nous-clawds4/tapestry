@@ -150,16 +150,16 @@ test('S2: src/api/index.js wires the ORE module, which registers /.well-known/op
 // ORE-01 — Capability document (AC: capability doc shape + headers)
 // ===========================================================================
 
-test('C1: the capability document advertises ONLY /stats/pubkey in Story 1 (AC-1)', () => {
+test('C1: the capability document advertises /stats/pubkey with its two algorithms (AC-1)', () => {
+  // Updated by open-ranking #2: the doc now also advertises /search/pubkeys, so
+  // this no longer asserts /stats/pubkey is the ONLY endpoint — just that it
+  // remains advertised with its two algorithm objects.
   const mod = loadModule();
   assert(mod && typeof mod.buildCapabilityResponse === 'function', 'buildCapabilityResponse missing — feature absent.');
   const { body } = mod.buildCapabilityResponse();
   assert(body && typeof body === 'object', 'capability body must be a JSON object keyed by endpoint path.');
-  const keys = Object.keys(body);
-  assert(keys.length === 1 && keys[0] === '/stats/pubkey',
-    `Story 1's capability document must advertise exactly one endpoint, '/stats/pubkey' (search is Story 2); got keys ${JSON.stringify(keys)}.`);
   assert(Array.isArray(body['/stats/pubkey']) && body['/stats/pubkey'].length === 2,
-    'the /stats/pubkey value must be a non-empty array of exactly two Algorithm Objects (global + personalized).');
+    'the /stats/pubkey value must be an array of exactly two Algorithm Objects (global + personalized).');
 });
 
 test('C2: the default (first) algorithm is global "grapevine" (pov:false); the second is "grapevine-personalized" (pov:true) (AC-1)', () => {

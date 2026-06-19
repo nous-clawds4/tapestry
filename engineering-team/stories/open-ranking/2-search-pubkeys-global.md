@@ -42,7 +42,12 @@ No new concept-graph concepts. Existing machinery (reference, do not re-define):
 - **Min-rank filtering.** Whether to apply any WoT min-rank filter (e.g. the house `filters.rank.min`) or return all query matches ranked. Default: no extra filter in v1 (the owner-POV sort provides ordering + rank).
 - **`limit` default + max** (e.g. default 20, max 200 to match the proxy's internal cap) and **`ttl`** value (e.g. 300, per the ORE-05 example).
 
+## Deviations
+- **Story-1 `C1` test updated (stale assertion).** Story 1's `C1` asserted the capability document advertises *only* `/stats/pubkey`. Story 2 legitimately adds `/search/pubkeys`, so `C1` was relaxed to assert `/stats/pubkey` is still advertised with its two algorithm objects (no longer "the only endpoint"). Not a behavior change.
+- **`searchProfiles` uses global `fetch`** (Node 18+) and `NOSTR_SEARCH_URL` (default `http://nostr-search-api:3069`), mirroring the existing Meili proxy's downstream call exactly.
+- **`limit` over max → 422** (not silent clamp), per ORE-05's "exceeds provider max → 422"; provider max = 200 (matches the proxy cap), default 20.
+
 ## Linked artifacts
-- ADR: (filled in after Architecture phase)
-- Test plan: (filled in after Test Design phase)
+- ADR: `engineering-team/decisions/open-ranking/0002-search-pubkeys-global.md` (Accepted)
+- Test plan: `engineering-team/stories/open-ranking/2-search-pubkeys-global.test-plan.md` (`test/open-ranking-search.test.js`, 17 tests)
 - Review: (filled in after Review phase)

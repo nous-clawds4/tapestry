@@ -12,10 +12,11 @@
 
 const { buildCapabilityDocument, buildCapabilityResponse } = require('./capabilities');
 const { buildStats, handleStatsPubkey } = require('./stats');
+const { buildSearch, handleSearchPubkeys } = require('./search');
 const { isValidHexPubkey, oreHeaders, applyTriple } = require('./shared');
 
 // The bare paths this provider owns (used by the error handler below).
-const ORE_PATHS = new Set(['/stats/pubkey', '/.well-known/open-ranking.json']);
+const ORE_PATHS = new Set(['/stats/pubkey', '/search/pubkeys', '/.well-known/open-ranking.json']);
 
 function handleCapabilityDoc(req, res) {
   applyTriple(res, buildCapabilityResponse());
@@ -39,6 +40,7 @@ function oreJsonErrorHandler(err, req, res, next) {
 function registerOpenRankingRoutes(app) {
   app.get('/.well-known/open-ranking.json', handleCapabilityDoc);
   app.post('/stats/pubkey', handleStatsPubkey);
+  app.post('/search/pubkeys', handleSearchPubkeys);
   app.use(oreJsonErrorHandler);
 }
 
@@ -50,5 +52,7 @@ module.exports = {
   buildCapabilityDocument,
   buildCapabilityResponse,
   buildStats,
+  buildSearch,
+  handleSearchPubkeys,
   isValidHexPubkey,
 };
