@@ -1,6 +1,6 @@
 # Story 2: `/event` page — resolve a URL parameter and render the event (or the precise outcome)
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-06-18
 **Type:** Feature
 
@@ -47,4 +47,4 @@ None — the six parameters, precedence, invalid-vs-unsupported handling, naddr-
 ## Linked artifacts
 - ADR: `engineering-team/decisions/event-page/0002-event-page-ui.md`
 - Test plan: `engineering-team/stories/event-page/2-event-page-param-render.test-plan.md`
-- Review: `engineering-team/reviews/event-page/1-event-page-implementation.md` (CHANGES_REQUESTED — 2026-06-18)
+- Review: `engineering-team/reviews/event-page/1-event-page-implementation.md` (PASS — 2026-06-18)

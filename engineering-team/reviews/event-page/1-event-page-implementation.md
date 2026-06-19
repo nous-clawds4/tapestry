@@ -41,5 +41,17 @@
 6. **Story #2 1280px-no-overflow AC** has no automated test (deferred to the staging capstone, by design — `bsp-content` is width-capped + `bsp-note-card-text` wraps). Acceptable.
 7. **Story #3 search "resolves like the URL param" loop** is verified at source level (classify is executed; the navigate→re-render→resolve loop is the staging capstone). Acceptable.
 
+## Verdict (initial)
+**CHANGES_REQUESTED** — two real (non-blocking) correctness items (#1 `nevent`-author/outbox; #2 unreachable does-not-validate) + log the deferred follow-up (#3). All other gates pass.
+
+## Re-review (post-fix) — 2026-06-18, commit `f227fa22`
+Operator chose "deliver the distinct outcome." The Implementer applied:
+- **#1 resolved.** `BrainstormEvent.jsx` `fetchArg` now forwards `author: target.author` regardless of mode → an `nevent`'s embedded author reaches the read path, so `buildEvent` consults that author's **outbox** in the by-id relay union. Covered by new tests **B13** (by-id+author → outbox in union) and **U11** (page forwards the author).
+- **#2 resolved (delivered).** The event path now fetches via a **no-verify `SimplePool`** (`new SimplePool({ verifyEvent: () => true })`) so `buildEvent`'s own `verify()` is the sole gate — a bad-sig event located by id now surfaces as the distinct **`INVALID_EVENT`** ("does not validate") instead of folding into `NOT_FOUND`. The by-id branch was hardened to pick the **verifying** match among id-collisions (new test **B14**). `_shared/relaySource.realQuerySync` stays verifying (the feed's only gate) — the two `querySync` variants are intentionally distinct (documented in code + the follow-up).
+- **#3 resolved.** The consolidation follow-up is now logged in `engineering-team/follow-ups.md` ("Consolidate relay-sourcing into `_shared/relaySource.js`"), including the don't-unify-the-two-querySync caveat.
+- Nits #4 (single-item assert) and #7 (comment) applied; #5/#6 (1280px + search e2e) remain the staging capstone, by design.
+
+Re-verification: `event-page-read-path` **23/23**, `event-page-ui` **13/13** (the +3 new tests pass); all changed files compile (`node --check` + esbuild). The fix touches only event-page files (feed/note-surfaces read none of them) → no regression; their suites stay green.
+
 ## Verdict
-**CHANGES_REQUESTED** — two real (non-blocking) correctness items: #1 (forward the `nevent` author so the by-id outbox leg works — a one-line UI fix + a test) and #2 (the operator-specified "does not validate" outcome, currently unreachable in production — needs an operator decision: deliver via a no-verify event fetch, or document the fold). Plus logging the deferred follow-up (#3). All quality gates otherwise pass; POV-first and no-TA-hardcode invariants honored; strictly additive (`feedReadPath`/`userNotesReadPath`/`NoteCard` byte-unchanged).
+**PASS** — all acceptance criteria covered by passing tests; ADR-conformant (Option A; `feedReadPath`/`userNotesReadPath`/`NoteCard` byte-unchanged); architecture invariants (POV-first, no TA hardcode) honored; the two real findings fixed and re-verified, the operator-specified does-not-validate outcome now delivered. Ready for the deploy chain (`cycle-staging`).
