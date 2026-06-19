@@ -1060,6 +1060,8 @@ Full verified review (the dominant finding, the per-move verdicts, the open deci
 **Priority:** Medium — operator-requested; cheap given the seams exist.
 **Depends on:** the shared note module (shipped to staging 2026-06-18; promote that batch to prod first or build atop staging).
 
+**✅ BUILT (2026-06-19) — `note-surfaces` #2.** Profile **"Content"** section (the single most-recent kind-1 + an empty state + a link to the notes page) shipped to **staging** (PR #319, merge `da269ba8`), atop the by-author read path `GET /api/user/:pubkey/notes`. Decisions: labelled **"Content"** (kind-1 only, future-proofed name); **`NoteCard` reused as-is — no variant prop** (the compact-variant idea was deferred, not needed). Close-book: `engineering-team/audits/note-surfaces/`. **Staging only; prod not yet promoted.**
+
 ---
 
 ## 2026-06-18 — Feature: per-user notes page (50 most recent kind-1 from a given user)
@@ -1076,6 +1078,8 @@ Full verified review (the dominant finding, the per-move verdicts, the open deci
 **Phase path:** Planning (source + route shape) → Architecture → Test Design → Implementation → Review.
 **Priority:** Medium — operator-requested; cheap given the seams exist.
 **Depends on:** the shared note module (shipped to staging 2026-06-18). **Related:** profile "latest note" entry above (sibling; shares the by-author selection logic — consider one read-path helper parameterized by limit).
+
+**✅ BUILT (2026-06-19) — `note-surfaces` #3.** The **`/user/:pubkey/notes`** page (50 most-recent kind-1) shipped to **staging** (PR #319, merge `da269ba8`), backed by `GET /api/user/:pubkey/notes?limit=50` (`note-surfaces` #1 — one read-path helper parameterized by limit, exactly as the "consider" note suggested; the profile Content section reuses it at limit 1). Close-book: `engineering-team/audits/note-surfaces/`. **Staging only; prod not yet promoted.**
 
 ---
 
