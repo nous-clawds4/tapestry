@@ -25,6 +25,7 @@ export default function useUserNotes(pubkey, limit) {
     const controller = new AbortController();
     setLoading(true);
     setError(null);
+    setData(null); // clear the prior result on pubkey/limit change so the loading line shows, not stale notes
 
     fetch(`/api/user/${pubkey}/notes?limit=${limit}`, { signal: controller.signal })
       .then(r => r.json())

@@ -41,12 +41,14 @@ export default function BrainstormUserNotes() {
   useEffect(() => {
     if (!pubkey) return;
     let cancelled = false;
+    setSubjectName(null); // clear the prior user's name on a param-only navigation (A/notes → B/notes)
     fetch(`/api/profiles?pubkeys=${pubkey}`)
       .then(r => r.json())
       .then(d => {
         if (cancelled) return;
         const p = d?.profiles?.[pubkey];
-        if (p) setSubjectName(p.display_name || p.name || null);
+        // Set unconditionally so a user with no local kind-0 resolves to null → npub fallback engages.
+        setSubjectName(p ? (p.display_name || p.name || null) : null);
       })
       .catch(() => {});
     return () => { cancelled = true; };
