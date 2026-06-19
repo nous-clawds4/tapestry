@@ -507,6 +507,16 @@ Identifiers are managed via `PUT /api/settings` (owner-only — see below). The 
 | GET | `/api/owner-info` | Owner pubkey plus npub and domain name. Public. Pre-existing endpoint kept alongside the more focused `/api/owner/pubkey`. |
 | GET | `/api/relays` | The configured `aRelays` object from settings. Public. UI components read this via `ConfigContext` instead of hardcoding relay arrays. |
 
+### Notes & Events (read paths)
+
+Public, read-only kind-1 read paths sharing the `enrichNotes` item shape (§13) and the general-purpose relay-set sourcing (slug-from-TA, hardcoded fallback). All additive; no writes.
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/feed` | Live Feed read path — recent kind-1 from the source identity's follows (see changelog / `feedReadPath.js`). `status` ∈ {OK, EMPTY, NO_SOURCE, FOLLOW_LIST_UNAVAILABLE} + `relaySource`. Public. |
+| GET | `/api/user/:pubkey/notes?limit=<n>` | The N most-recent kind-1 authored by `:pubkey`, newest-first (cap 50), fetched from the general-purpose relays, enriched from local kind-0. `status` ∈ {OK, EMPTY, INVALID}; INVALID (malformed pubkey) → 400. Backs the profile **Content** section (limit 1) and the **`/user/:pubkey/notes`** page (limit 50). `src/api/notes/userNotesReadPath.js`. Public. |
+| GET | `/api/event?id=<hex>&author=<hex>&relays=<csv>` | Resolve a single kind-1 by event `id`, or (by `author`) the author's most-recent kind-1, across a relay **union** = supplied hints + the author's NIP-65 (kind-10002) outbox write relays + the well-known set/fallback. `verifyEvent` + kind-gate. `status` ∈ {OK, UNSUPPORTED_KIND, INVALID_EVENT, NOT_FOUND, NO_AUTHOR_NOTE, INVALID}; INVALID → 400. Backs the **`/event`** view (the client decodes the six nevent/id/naddr/pubkey/npub/nprofile formats and passes id/author + hints). `src/api/event/eventReadPath.js`. Public. |
+
 ### API Documentation
 
 Swagger UI is served at `/docs` — interactive OpenAPI documentation for all REST endpoints. Publicly accessible (no auth required).
@@ -659,7 +669,8 @@ Legacy Brainstorm HTML pages are served at `/legacy/` (not part of the React SPA
 ├── how-search-works              Mechanics: Meilisearch + Verification (GrapeRank)
 ├── personalization               POV explainer (House vs My Point of View)
 ├── feed                          Live Feed — public kind-1 notes from the source identity's follows
-├── event                         Single-event view (placeholder; reads ?id= / ?nevent= / ?naddr=)
+├── user/:pubkey/notes            Per-user notes — the 50 most-recent kind-1 by that user
+├── event                         Single-event view (kind-1) — nevent/id/naddr/pubkey/npub/nprofile + search fallback
 └── developers                    NIP-50 developer integration docs
 
 /tapestry/                        Dashboard (Getting Started + stats)
@@ -776,10 +787,18 @@ WoT-score namespacing rule above where only `wot_*_<suffix>` columns are POV-sco
 take the POV/source as a parameter and compute per-view — never bake a global answer into
 the shape. See the architecture invariants in `CLAUDE.md` (POV-first; filter at view time).
 
-**Today:** the Live Feed (`/feed`) is the only consumer. The profile "latest note" and a
-per-user notes page are planned to reuse both seams (a new read path that selects by author
-+ `<NoteCard>`); future per-note features (reposts, reply indicators, event tags) extend
-`NoteCard` + `enrichNotes` once.
+**Consumers (all reuse `NoteCard` + `enrichNotes`):** the Live Feed (`/feed`); the profile
+**"Content"** section (the viewed user's most-recent kind-1, at the bottom of `/user/:pubkey`);
+the per-user **`/user/:pubkey/notes`** page (their 50 most-recent); and the single-event
+**`/event`** view. The latter three select raw events *by author* / *by id* rather than by a
+follow list, but run the same `enrichNotes` and render the same `<NoteCard>`. Their read paths
+(`src/api/notes/userNotesReadPath.js`, `src/api/event/eventReadPath.js`) share the
+general-purpose relay-set sourcing via `src/api/_shared/relaySource.js` (the `/event` path adds a
+NIP-65 outbox leg + on-fetch `verifyEvent`); see the API Reference "Notes & Events" rows and the
+changelog. Future per-note features (reposts, reply indicators, event tags) extend `NoteCard` +
+`enrichNotes` once. *(Note: `feedReadPath.js` and `userNotesReadPath.js` still carry private
+copies of the relay-sourcing helpers pending the consolidation tracked in
+`engineering-team/follow-ups.md`.)*
 
 ### Brainstorm Search Features
 
@@ -1358,6 +1377,8 @@ docker compose exec tapestry strfry sync wss://dcosl.brainstorm.world \
 - ✅ Live Feed enhancements + shared note module (2026-06-18, staging) — a batch of additive `/feed` improvements, all behind the read path's existing contract: (1) author name/avatar link to `/user/<pubkey>`; (2) a per-note `⋯` actions menu (copy note link / nevent / event id; tag-event stub) + a placeholder `/event` page (`?id=`/`?nevent=`/`?naddr=`); (3) relative "time ago" timestamps (two y/d/h/m units, "just now" sub-minute, exact time on hover) reusing a parameterized `formatTimeAgo`; (4) NIP-21 `nostr:` entity linkification in note text (`npub/nprofile`→`/user`, `note/nevent/naddr`→`/event`; `nsec` never linkified); (5) mention **display-name** resolution (`@alice`, not `@npub1…`) resolved server-side in the read path from local kind-0. Then a **behavior-preserving refactor** extracted the shared seams so the two planned new note surfaces and future per-note features land once: client `NoteCard` + server `enrichNotes` (`src/api/_shared/noteEnrichment.js`) — see §13 "Shared note rendering". Staging only; prod promotion not yet done.
 - ✅ Follows-hops **HOPS** stat on `/user/:pubkey` (2026-06-17, staging) — the profile counter row shows a **HOPS** value between Verified Followers and Verified Reporters: the **live, directed** FOLLOWS shortest-path distance from the source (logged-in viewer, else the **Owner** — not the House PoV) to the viewed profile. Computed on demand via `shortestPath((src)-[:FOLLOWS*..20]->(tgt))` through the pooled Bolt driver (~2.5s timeout, pubkeys bound) — **no** precomputed value, deliberately not reconciled with the owner-rooted `hops` property (§ Graph Algorithms). Loads async (own hook); renders **∞** for no-path-within-cap, **0** for self-view, and a non-misleading "—" on lookup error/timeout (never a false ∞). New public `GET /api/get-follows-hops`. profile #38, ADR `profile/0034`. On staging; **prod promotion held** (co-promotes with the tags bundle). Note: a second "Hops" figure also exists in the Reputation grid (precomputed, owner-rooted) — PoV reconciliation deferred (`OPEN.md` #7).
 - ✅ Follows-hops **path page** + HOPS link activation (2026-06-17, staging) — the HOPS stat becomes a link to a new **`/user/:pubkey/follows-hops`** page showing one shortest follow-path as a vertical chain of profile cards (picture, name, Owner-PoV rank = `round(influence×100)`), ordered source→target, with a **re-roll** button that swaps in a random one of the equally-short paths (shown only when >1 exists). Backed by new public `GET /api/get-follows-hops-paths` (`allShortestPaths`, cap 20, `LIMIT 25`, returning up to 25 ordered `[{pubkey,influence}]` paths + a `truncated` flag); the client re-rolls client-side over the returned set. profile #39, ADR `profile/0035`. On staging; held with #38.
+- ✅ Note surfaces — profile "Content" section + per-user `/user/:pubkey/notes` (2026-06-19, staging) — two read-only surfaces showing a *viewed user's own* kind-1 notes (no follow list, no PoV), reusing the shared `NoteCard` + `enrichNotes` seam (§13): a **"Content"** section at the bottom of `/user/:pubkey` showing the single most-recent note (empty state when none located) + a link, and a **`/user/:pubkey/notes`** page showing the 50 most-recent. New by-author read path **`GET /api/user/:pubkey/notes?limit=`** (`src/api/notes/userNotesReadPath.js`; `status` OK/EMPTY/INVALID; notes from the general-purpose relays, enriched from local kind-0). Additive; no firmware/ranking/search change. epic `note-surfaces`, ADRs `note-surfaces/0001` (read path) + `0002` (surfaces). Staging only; prod promotion not yet done.
+- ✅ Event page — working `/event` single-event view (2026-06-19, staging) — replaces the placeholder. Resolves **kind-1** from six identifier formats (**nevent, id, naddr, pubkey, npub, nprofile**; precedence in that order), with a search-field fallback when no valid param. `nevent`/`id` → fetch the event (non-kind-1 → "kind N not yet supported"; fails verification → "does not validate"; valid → render like `/feed`); `pubkey`/`npub`/`nprofile` → the author's most-recent kind-1; `naddr` → "kind N not yet supported" from the coordinate (no fetch). New **`GET /api/event`** (`src/api/event/eventReadPath.js`): relay **union** = embedded hints + the author's NIP-65 (kind-10002) **outbox** write relays + well-known set/fallback; on-fetch `verifyEvent` (via a no-verify pool so the distinct does-not-validate outcome is reachable) + kind-gate; reuses `enrichNotes`. Introduced `src/api/_shared/relaySource.js` (extracted relay-sourcing; feed/user-notes re-point deferred — `follow-ups.md`). Additive; no firmware change. epic `event-page`, ADRs `event-page/0001` (read path) + `0002` (page UI). Staging only; prod promotion not yet done.
 
 ### CLI (tapestry-cli repo)
 
