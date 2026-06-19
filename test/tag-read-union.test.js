@@ -177,6 +177,38 @@ t('REGRESSION (blank detail/index/authored-by): the remaining browse/visibility 
   }
 });
 
+t('PINS (Piece 1): the pin read paths federate so pins + most-pinned work cross-deployment', () => {
+  // Bugfix fix/tag-federation-pins: a viewer's pins (kind-39999 z=tag-pinning) and the
+  // all-author pin counts ("most-pinned" sort) were local-only, so pins published on one
+  // deployment didn't surface on another (dcosl mirrors 39999, so the events ARE reachable
+  // — the read just wasn't unioning). handlePins (viewer's own pins) and aggregateTagPins
+  // (all-author counts, WoT-filtered → powers most-pinned) must federate.
+  const src = readSrc(SRC);
+  for (const fn of ['handlePins', 'aggregateTagPins']) {
+    const body = src.match(new RegExp(`async function ${fn}[\\s\\S]*?\\n\\}`));
+    assert(body, `could not locate ${fn}`);
+    assert(/federatedScan\s*\(/.test(body[0]),
+      `${fn} must use federatedScan — pins (39999) are mirrored to the federation relays; ` +
+      'local-only made pins blank and most-pinned wrong on non-publishing deployments');
+  }
+});
+
+t('PIECE 2 BOUNDARY: NIP-51 export / TL status enrichment stays local (kind 30000/30382 not on dcosl)', () => {
+  // The export-status badges read kind-30000 (NIP-51) / kind-30382 (TL), which the dcosl
+  // mirror does NOT carry (it mirrors 9998/9999/39998/39999). Federating them to dcosl
+  // would not help; surfacing them cross-deployment needs the viewer's per-user NIP-65
+  // write-relays — a separate, larger change (Piece 2, tracked in _intake.md). Until then
+  // these enrichment scans deliberately stay local. This test guards that boundary.
+  const src = readSrc(SRC);
+  for (const fn of ['enrichRowsWithTLStatus', 'enrichRowsWithNip51ExportStatus']) {
+    const body = src.match(new RegExp(`async function ${fn}[\\s\\S]*?\\n\\}`));
+    assert(body, `could not locate ${fn}`);
+    assert(!/federatedScan\s*\(/.test(body[0]),
+      `${fn} must stay local-only (Piece 2) — kind 30000/30382 are not on the dcosl mirror; ` +
+      'federating to dcosl is a no-op and the real fix needs the viewer NIP-65 write-relays');
+  }
+});
+
 t('SEARCH-IS-LOCAL stays intact after the detail/index fix (computeTagMatches not federated)', () => {
   // Guard the boundary: the blank-page fix federates browse surfaces only and must
   // NOT have leaked federation into the search path (ADR 0001 search-is-local).

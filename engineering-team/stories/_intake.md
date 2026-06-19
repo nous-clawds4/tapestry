@@ -1092,3 +1092,22 @@ Small future-readiness items the 2026-06-18 multi-lens review (`reviews/live-fee
 - **`NoteCard` execution/render test** — the no-pubkey/unlinked + placeholder-avatar branches are source-text + browser-verified only (the node harness can't transpile JSX). If a render-test path is ever added, cover these edges.
 
 **Classification:** Cleanup/hardening. **Priority:** Low — fold into the surface stories.
+
+---
+
+## 2026-06-19 — Piece 2: federate pin export-status (NIP-51 / TL) across deployments
+
+**Raw context (verbatim intent):**
+
+> On staging, a user's pins now appear (Piece 1 federated the pin reads), but their "exported / ok-fresh" NIP-51 export-status badges don't reflect reality — exports made on another deployment show as not-exported. Pins (kind-39999) are mirrored to dcosl so they federate; the export/TL events are NOT.
+
+**Findings (confirmed 2026-06-19, empirically):**
+
+- The pin events (kind-39999 `z=tag-pinning`) **are** mirrored to dcosl (the `aTagFederationRelays` target), so Piece 1 (`fix/tag-federation-pins`) federated the pin read paths — `handlePins`, `aggregateTagPins` (most-pinned), the per-tag viewer-pin check, and the pinned-tag name lookup — and pins + most-pinned now work cross-deployment.
+- The **export-status enrichment** reads **kind-30000 (NIP-51)** and **kind-30382 (TL)**, which the **dcosl mirror does not carry** (it mirrors 9998/9999/39998/39999 only). Verified: `kind:30000 authors:[user]` on dcosl → **0 events**. So `enrichRowsWithTLStatus` and `enrichRowsWithNip51ExportStatus` were deliberately **left local** in Piece 1 (a `federatedScan`→dcosl swap would be a no-op).
+
+**Why it's a separate, larger change:** surfacing export status cross-deployment needs reading the **viewer's per-user NIP-65 write-relays + the well-known fallback relays** (where `publishNip51ExportForPin` actually sends kind-30000), which is a **per-viewer relay set**, not the global `aTagFederationRelays`. That's a new read shape (resolve viewer NIP-65 → query those relays for kind-30000/30382 → enrich), distinct from the `strfryScan`→`federatedScan` swap pattern.
+
+**Boundary guard in place:** `test/tag-read-union.test.js` ("PIECE 2 BOUNDARY") asserts the two enrichment scans stay local until this is designed, so a future contributor doesn't naively point them at dcosl.
+
+**Classification:** Feature/enhancement. **Priority:** Medium (cosmetic-but-misleading: pins show, badges lie). **Phase path:** needs Planning → Architecture (per-viewer relay-read design) at minimum; not a one-liner.
