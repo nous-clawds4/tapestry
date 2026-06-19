@@ -1,6 +1,6 @@
 # Story 3: Per-user notes page (`/user/:pubkey/notes`)
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-06-18
 **Type:** Feature
 
@@ -45,4 +45,4 @@ None — route (`/user/:pubkey/notes`), the 50 cap, and the empty-state intent w
 ## Linked artifacts
 - ADR: `engineering-team/decisions/note-surfaces/0002-note-surfaces-ui.md`
 - Test plan: `engineering-team/stories/note-surfaces/3-per-user-notes-page.test-plan.md`
-- Review: `engineering-team/reviews/note-surfaces/1-note-surfaces-implementation.md` (CHANGES_REQUESTED — 2026-06-18)
+- Review: `engineering-team/reviews/note-surfaces/1-note-surfaces-implementation.md` (PASS — 2026-06-18)

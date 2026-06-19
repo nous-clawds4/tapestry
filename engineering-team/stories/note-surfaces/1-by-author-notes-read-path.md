@@ -1,6 +1,6 @@
 # Story 1: By-author notes read path — a user's own recent kind-1 notes
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-06-18
 **Type:** Feature
 
@@ -44,4 +44,4 @@ Testable from the outside (input → observable behavior).
 ## Linked artifacts
 - ADR: `engineering-team/decisions/note-surfaces/0001-by-author-notes-read-path.md`
 - Test plan: `engineering-team/stories/note-surfaces/1-by-author-notes-read-path.test-plan.md`
-- Review: `engineering-team/reviews/note-surfaces/1-note-surfaces-implementation.md` (CHANGES_REQUESTED — 2026-06-18)
+- Review: `engineering-team/reviews/note-surfaces/1-note-surfaces-implementation.md` (PASS — 2026-06-18)

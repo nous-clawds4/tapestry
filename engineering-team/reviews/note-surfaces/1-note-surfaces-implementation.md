@@ -56,7 +56,15 @@
 - **1280px no-overflow tested only at the CSS-mechanism level (not a rendered scrollbar assertion)** — *not a defect:* this is exactly ADR 0002 §Testability's plan (rendered proof = staging capstone); the node harness can't render.
 - **500 path returns raw `err.message` to the client** — *not a defect this change introduces:* byte-identical to the shipped `feedReadPath.js:227`; a pre-existing cross-cutting consideration, not a regression here.
 
-## Verdict
-**CHANGES_REQUESTED** — a single small required fix (finding #1: a real wrong-data bug against Story #3's "whose notes" AC; one-line fix, zero risk). Recommend folding in #2 (same root cause). Everything else is optional. All quality gates otherwise pass; the change is clean, additive, ADR-conformant, and invariant-safe.
+## Verdict (initial)
+**CHANGES_REQUESTED** — a single small required fix (finding #1: a real wrong-data bug against Story #3's "whose notes" AC). Recommend folding in #2 (same root cause). Everything else optional; all other gates pass.
 
-> Operator override available: given #1's narrow reachability and that it mirrors an existing shipped latent pattern, PASS-and-log-#1-as-a-follow-up is defensible. Reviewer's recommendation is to fix it now (cheap + correct) before staging.
+## Re-review (post-fix) — 2026-06-18, commit `80443ba5`
+Operator chose "fix now." The Implementer applied the minimal, same-root-cause fix:
+- **Finding #1 (required) — resolved.** `BrainstormUserNotes.jsx` now `setSubjectName(null)` on `pubkey` change and sets it **unconditionally** from the response (`p ? (display_name||name||null) : null`) — so a param-only A→B navigation clears the prior name and the npub fallback engages for users with no local kind-0. "Whose notes" now holds in every case.
+- **Finding #2 (recommended) — resolved.** `useUserNotes.js` now `setData(null)` on `[pubkey, limit]` change — the loading line shows during re-fetch instead of the previous user's notes.
+
+Re-verification: `note-surfaces-ui` **19/19** and `note-surfaces-read-path` **28/28** still green; both edited files compile (`node --check` + esbuild JSX transform). The fix touches only these two files, which only the `note-surfaces-ui` suite reads — so the full-suite delta is unchanged (12 pre-existing environmental + my 2 green). Remaining nits (#3 redundant-but-ADR-prescribed EMPTY branch, #4 `<div>` vs ADR's `<section>`, #5 untested 500 path mirroring the feed) accepted as-is — optional, non-blocking.
+
+## Verdict
+**PASS** — all acceptance criteria covered by passing tests; ADR-conformant; architecture invariants (POV-first, no TA hardcode) honored; strictly additive (`feedReadPath.js`/`NoteCard.jsx` unchanged); the one real finding fixed and re-verified. Ready for the deploy chain (`cycle-staging`).
