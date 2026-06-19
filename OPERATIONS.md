@@ -35,7 +35,7 @@ Six long-lived branches, six Digital Ocean droplets, six CI/CD workflows:
 | `main` | `deploy-brainstorm.yml` | `brainstorm.world` | Production. PRs merge here only after staging verification. |
 | `staging` | `deploy-staging.yml` | `staging.brainstorm.world` | Pre-production verification. PRs from feature branches land here first. |
 | `feature-magic-carpet` | `deploy-magic-carpet.yml` | `magic-carpet.brainstorm.world` | Long-lived sandbox for Matthias's bounty-system work. |
-| `feat/pubkey-tagging-target` | `deploy-tags.yml` | `tags.brainstorm.world` | Long-lived sandbox for the pubkey-tagging feature work (NIP-85 profile-tagging UX). |
+| `feat/tags` | `deploy-tags.yml` | `tags.brainstorm.world` | Long-lived sandbox for the tagging feature work (NIP-85 profile-tagging UX). Succeeds the retired `feat/pubkey-tagging-target` (re-forked from `staging` 2026-06-19). |
 | `feat/communities` | `deploy-communities.yml` | `communities.brainstorm.world` | Long-lived sandbox for the communities / decentralized-lists feature work (brainstorm-community concept, DList NIP-aware tag schema). |
 | `feat/curate` | `deploy-curate.yml` | `curate.brainstorm.world` | Long-lived sandbox for Avi's feature work; scope TBD by Avi. |
 
@@ -51,7 +51,7 @@ feat/foo (off staging)
     → source feature branch auto-deleted
 ```
 
-**Long-lived sandbox branches** (currently `feature-magic-carpet`, `feat/pubkey-tagging-target`, `feat/communities`, and `feat/curate`, plus any future additions) follow the same convention: fork from `staging`, deploy to their own droplet via a dedicated `deploy-<name>.yml` workflow, and eventually merge back via the standard `<branch> → staging → main` path. New sandboxes get a row added to the deploy-target table above when they're stood up, plus a row in [§5 "Droplets and empirical measurements"](#5-droplets-and-empirical-measurements).
+**Long-lived sandbox branches** (currently `feature-magic-carpet`, `feat/tags`, `feat/communities`, and `feat/curate`, plus any future additions) follow the same convention: fork from `staging`, deploy to their own droplet via a dedicated `deploy-<name>.yml` workflow, and eventually merge back via the standard `<branch> → staging → main` path. New sandboxes get a row added to the deploy-target table above when they're stood up, plus a row in [§5 "Droplets and empirical measurements"](#5-droplets-and-empirical-measurements).
 
 For Matthias's sandbox: he PRs from his fork's `magic-carpet` branch into our `feature-magic-carpet`. Merging deploys to `magic-carpet.brainstorm.world`. Code on `feature-magic-carpet` is **not** intended for production until promoted via the standard `feature-magic-carpet → staging → main` path.
 
@@ -70,6 +70,7 @@ In addition to the four deploy-target branches:
 
 - `refactor-paths` — was the dev/prod branch before the 2026-04-20 reorg. Deleted; its content lives in `main`.
 - `brainstorm-search` — was the dev/prod branch for the retired `nous-clawds4.tapestry.ninja` instance. Deleted.
+- `feat/pubkey-tagging-target` — original sandbox branch for the tagging feature, deployed to `tags.brainstorm.world`. Retired 2026-06-19 in favor of `feat/tags` (re-forked clean from `staging`); fully merged into `staging` at retirement (0 unique commits), so nothing was lost. `deploy-tags.yml` was repointed to `feat/tags`.
 - `develop` — Vinney's pre-reorg integration branch. Deleted 2026-04-26 after confirming with Vinney; its only unique content vs `main` was a redundant `.pi/` gitignore entry that `main` already had. The role it once served (integration branch) is now filled by `staging`.
 
 ---
@@ -119,6 +120,7 @@ Short-lived feature branches (`feat/*`, `fix/*`, `chore/*`) are NOT protected; t
 - (specs to be filled in)
 - Behind host nginx + Certbot SSL; Docker stack binds to `127.0.0.1:8080`
 - Stood up 2026-05-12; first CI/CD deploy via `deploy-tags.yml` ran successfully against PR #119.
+- 2026-06-19: deploy source repointed from `feat/pubkey-tagging-target` to `feat/tags` (re-forked from `staging`). Same droplet/secrets; `deploy-tags.yml` gained a `git fetch origin` so the existing `/opt/tapestry` checkout could switch to the never-before-fetched branch under `set -e`.
 
 ### Sandbox: `communities.brainstorm.world`
 

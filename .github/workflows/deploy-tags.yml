@@ -2,7 +2,7 @@ name: Deploy to Tags
 
 on:
   push:
-    branches: [feat/pubkey-tagging-target]
+    branches: [feat/tags]
 
 jobs:
   deploy:
@@ -26,8 +26,13 @@ jobs:
             set -euo pipefail
             cd /opt/tapestry
             git checkout -- docker-compose.yml 2>/dev/null || true
-            git checkout feat/pubkey-tagging-target 2>/dev/null || git checkout -b feat/pubkey-tagging-target origin/feat/pubkey-tagging-target
-            git pull origin feat/pubkey-tagging-target
+            # Fetch first: the droplet was cloned/checked-out on the old
+            # feat/pubkey-tagging-target branch and has never seen feat/tags,
+            # so origin/feat/tags must be fetched before the checkout below can
+            # create the local tracking branch (would otherwise abort under set -e).
+            git fetch origin
+            git checkout feat/tags 2>/dev/null || git checkout -b feat/tags origin/feat/tags
+            git pull origin feat/tags
             # Tags droplet uses host nginx on port 80, so Docker must bind to 8080 on localhost only
             sed -i 's/"80:80"/"127.0.0.1:8080:80"/' docker-compose.yml
             docker compose up -d --build
