@@ -46,5 +46,5 @@ None — the six parameters, precedence, invalid-vs-unsupported handling, naddr-
 
 ## Linked artifacts
 - ADR: `engineering-team/decisions/event-page/0002-event-page-ui.md`
-- Test plan: (filled in after Test Design)
+- Test plan: `engineering-team/stories/event-page/2-event-page-param-render.test-plan.md`
 - Review: (filled in after Review)

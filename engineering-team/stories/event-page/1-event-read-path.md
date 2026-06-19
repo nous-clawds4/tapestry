@@ -45,5 +45,5 @@ Testable from the outside (input → observable outcome).
 
 ## Linked artifacts
 - ADR: `engineering-team/decisions/event-page/0001-event-read-path.md`
-- Test plan: (filled in after Test Design)
+- Test plan: `engineering-team/stories/event-page/1-event-read-path.test-plan.md`
 - Review: (filled in after Review)
