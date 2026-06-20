@@ -121,11 +121,11 @@ test('C1: capability doc now advertises /search/pubkeys and keeps /stats/pubkey 
     "'/stats/pubkey' must remain advertised with its two algorithms.");
 });
 
-test('C2: /search/pubkeys default is global grapevine (pov:false); no personalized search algo in v1 (AC-1)', () => {
+test('C2: /search/pubkeys default is global graperank (pov:false); no personalized search algo in v1 (AC-1)', () => {
   const mod = loadModule();
   const algos = mod.buildCapabilityDocument()['/search/pubkeys'];
-  assert(algos[0].id === 'grapevine', "the first/default search algorithm must be 'grapevine'.");
-  assert(algos[0].pov === false || algos[0].pov === undefined, "search 'grapevine' must be global (pov:false).");
+  assert(algos[0].id === 'graperank', "the first/default search algorithm must be 'graperank'.");
+  assert(algos[0].pov === false || algos[0].pov === undefined, "search 'graperank' must be global (pov:false).");
   assert(!algos.some((a) => a.pov === true), 'no pov:true (personalized) search algorithm in v1 — deferred to Story 3.');
 });
 
@@ -217,7 +217,7 @@ test('B8 (AC: conventions): unsupported algorithm -> 422 + X-Reason, search not 
 test('B9 (AC: conventions): a pov sent to the global search algorithm is ignored -> 200', async () => {
   const mod = loadModule();
   const deps = makeSearchDeps();
-  const { httpStatus } = await callBuildSearch(mod, { query: 'x', algorithm: 'grapevine', pov: HEX('b') }, deps);
+  const { httpStatus } = await callBuildSearch(mod, { query: 'x', algorithm: 'graperank', pov: HEX('b') }, deps);
   assert(httpStatus === 200, 'a pov on the global algorithm is ignored, returns 200.');
   assert(deps._searchCalls.length === 1, 'search is still performed.');
 });

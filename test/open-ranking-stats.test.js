@@ -162,17 +162,17 @@ test('C1: the capability document advertises /stats/pubkey with its two algorith
     'the /stats/pubkey value must be an array of exactly two Algorithm Objects (global + personalized).');
 });
 
-test('C2: the default (first) algorithm is global "grapevine" (pov:false); the second is "grapevine-personalized" (pov:true) (AC-1)', () => {
+test('C2: the default (first) algorithm is global "graperank" (pov:false); the second is "graperank-personalized" (pov:true) (AC-1)', () => {
   const mod = loadModule();
   assert(mod && typeof mod.buildCapabilityResponse === 'function', 'buildCapabilityResponse missing — feature absent.');
   const { body } = mod.buildCapabilityResponse();
   const algos = body['/stats/pubkey'];
-  assert(algos[0].id === 'grapevine',
-    `the FIRST element is the default algorithm and must be id 'grapevine'; got ${JSON.stringify(algos[0].id)}.`);
+  assert(algos[0].id === 'graperank',
+    `the FIRST element is the default algorithm and must be id 'graperank'; got ${JSON.stringify(algos[0].id)}.`);
   assert(algos[0].pov === false || algos[0].pov === undefined,
-    `the default 'grapevine' must be global (pov:false / absent) so a no-pov request never 422s; got pov=${JSON.stringify(algos[0].pov)}.`);
-  assert(algos[1].id === 'grapevine-personalized' && algos[1].pov === true,
-    `the second algorithm must be id 'grapevine-personalized' with pov===true; got ${JSON.stringify(algos[1])}.`);
+    `the default 'graperank' must be global (pov:false / absent) so a no-pov request never 422s; got pov=${JSON.stringify(algos[0].pov)}.`);
+  assert(algos[1].id === 'graperank-personalized' && algos[1].pov === true,
+    `the second algorithm must be id 'graperank-personalized' with pov===true; got ${JSON.stringify(algos[1])}.`);
 });
 
 test('C3: the capability response is 200 with application/json and Access-Control-Allow-Origin: * (ORE-00)', () => {
@@ -201,18 +201,22 @@ test('B1 (AC: global stats): a valid hex pubkey with no algorithm uses the globa
     `the global algorithm must read scores under the owner baseline (observerPubkey 'owner'); got ${JSON.stringify(deps._fetchCalls)}.`);
 });
 
-test('B2 (AC: field mapping): follows/followers/mutes/muters/reporters map from the score fields; reports and first_seen_at are omitted; ttl is present', async () => {
+test('B2 (AC: field mapping, ADR 0003): inbound counts (followers/muters/reporters) are VERIFIED; outbound (follows/mutes) are exact; hops included; reports/first_seen_at omitted; ttl present', async () => {
   const mod = loadModule();
   const r = await callBuildStats(mod, { pubkey: TARGET }, makeDeps());
   assert(r.httpStatus === 200, `expected 200; got ${r.httpStatus}.`);
   const b = r.body;
-  assert(b.follows === 320, `follows must map from followingCount (320); got ${b.follows}.`);
-  assert(b.followers === 1400, `followers must map from followerCount (1400); got ${b.followers}.`);
-  assert(b.mutes === 5, `mutes must map from mutingCount (5); got ${b.mutes}.`);
-  assert(b.muters === 12, `muters must map from muterCount (12); got ${b.muters}.`);
-  assert(b.reporters === 3, `reporters must map from reporterCount (3); got ${b.reporters}.`);
-  assert(!('reports' in b), 'ADR omits `reports` in v1 (no raw report-event count on this path) — it must be absent.');
-  assert(!('first_seen_at' in b), 'ADR omits `first_seen_at` in v1 (only a latest-activity ts exists) — it must be absent.');
+  // Inbound = VERIFIED (ADR 0003): "total" inbound is unknowable; verified is the well-defined line.
+  assert(b.followers === 100, `followers must map from verifiedFollowerCount (100); got ${b.followers}.`);
+  assert(b.muters === 2, `muters must map from verifiedMuterCount (2); got ${b.muters}.`);
+  assert(b.reporters === 1, `reporters must map from verifiedReporterCount (1); got ${b.reporters}.`);
+  // Outbound = exact (the target's own list sizes).
+  assert(b.follows === 320, `follows must map from followingCount (320, exact); got ${b.follows}.`);
+  assert(b.mutes === 5, `mutes must map from mutingCount (5, exact); got ${b.mutes}.`);
+  // hops included (ADR 0003).
+  assert(b.hops === 2, `hops must map from the hops field (2); got ${b.hops}.`);
+  assert(!('reports' in b), '`reports` is omitted in v1 — it must be absent.');
+  assert(!('first_seen_at' in b), '`first_seen_at` is omitted in v1 — it must be absent.');
   assert(b.ttl === 3600, `ttl must be the fixed hint 3600; got ${b.ttl}.`);
 });
 
@@ -223,10 +227,10 @@ test('B3 (AC: rank): influence is rounded to the nearest integer ×100 (0.915 ->
   assert(r.body.rank === 92, `rank must be round(0.915*100) = 92; got ${JSON.stringify(r.body.rank)}.`);
 });
 
-test('B4 (AC: personalized provisioned): grapevine-personalized with a provisioned pov returns 200 and reads scores under that pov', async () => {
+test('B4 (AC: personalized provisioned): graperank-personalized with a provisioned pov returns 200 and reads scores under that pov', async () => {
   const mod = loadModule();
   const deps = makeDeps();
-  const r = await callBuildStats(mod, { pubkey: TARGET, algorithm: 'grapevine-personalized', pov: PROV_POV }, deps);
+  const r = await callBuildStats(mod, { pubkey: TARGET, algorithm: 'graperank-personalized', pov: PROV_POV }, deps);
   assert(r.httpStatus === 200, `a provisioned pov must return 200; got ${r.httpStatus}.`);
   assert(deps._provisionedCalls.includes(PROV_POV), 'isPovProvisioned must be consulted for a pov:true algorithm.');
   assert(deps._fetchCalls.length === 1 && deps._fetchCalls[0].observerPubkey === PROV_POV,
@@ -236,17 +240,17 @@ test('B4 (AC: personalized provisioned): grapevine-personalized with a provision
 test('B5 (AC: personalized unprovisioned -> 422): an unprovisioned pov returns 422 + X-Reason, with NO house fallback (scores never fetched)', async () => {
   const mod = loadModule();
   const deps = makeDeps();
-  const r = await callBuildStats(mod, { pubkey: TARGET, algorithm: 'grapevine-personalized', pov: UNPROV_POV }, deps);
+  const r = await callBuildStats(mod, { pubkey: TARGET, algorithm: 'graperank-personalized', pov: UNPROV_POV }, deps);
   assert(r.httpStatus === 422, `an unprovisioned pov on a pov:true algorithm must return 422; got ${r.httpStatus}.`);
   assert(hget(r.headers, 'X-Reason'), 'a 422 must carry a human-readable X-Reason header (ORE-00).');
   assert(deps._fetchCalls.length === 0,
     'an unprovisioned pov must NOT fall back to the house view — scores must not be fetched (POV invariant).');
 });
 
-test('B6 (AC: conventions): grapevine-personalized with NO pov returns 422 + X-Reason', async () => {
+test('B6 (AC: conventions): graperank-personalized with NO pov returns 422 + X-Reason', async () => {
   const mod = loadModule();
   const deps = makeDeps();
-  const r = await callBuildStats(mod, { pubkey: TARGET, algorithm: 'grapevine-personalized' }, deps);
+  const r = await callBuildStats(mod, { pubkey: TARGET, algorithm: 'graperank-personalized' }, deps);
   assert(r.httpStatus === 422, `a pov:true algorithm with no pov must return 422; got ${r.httpStatus}.`);
   assert(hget(r.headers, 'X-Reason'), 'the missing-pov 422 must carry an X-Reason header.');
   assert(deps._fetchCalls.length === 0, 'a missing required pov must short-circuit before fetching scores.');
@@ -255,7 +259,7 @@ test('B6 (AC: conventions): grapevine-personalized with NO pov returns 422 + X-R
 test('B7 (AC: conventions): a pov sent to the GLOBAL algorithm is IGNORED — 200, read under owner, provisioning never checked', async () => {
   const mod = loadModule();
   const deps = makeDeps();
-  const r = await callBuildStats(mod, { pubkey: TARGET, algorithm: 'grapevine', pov: UNPROV_POV }, deps);
+  const r = await callBuildStats(mod, { pubkey: TARGET, algorithm: 'graperank', pov: UNPROV_POV }, deps);
   assert(r.httpStatus === 200, `a pov on a global algorithm must be ignored, not rejected; got ${r.httpStatus}.`);
   assert(deps._provisionedCalls.length === 0, 'a global algorithm must never consult isPovProvisioned.');
   assert(deps._fetchCalls[0].observerPubkey === 'owner', `the ignored pov must not change the POV; expected owner, got ${deps._fetchCalls[0].observerPubkey}.`);
@@ -300,10 +304,17 @@ test('B11 (ORE-00 CORS): both 200 and 422 responses carry Access-Control-Allow-O
 test('B12 (AC: personalized with the owner pubkey): pov === owner is treated as provisioned and read under owner', async () => {
   const mod = loadModule();
   const deps = makeDeps();
-  const r = await callBuildStats(mod, { pubkey: TARGET, algorithm: 'grapevine-personalized', pov: OWNER }, deps);
+  const r = await callBuildStats(mod, { pubkey: TARGET, algorithm: 'graperank-personalized', pov: OWNER }, deps);
   assert(r.httpStatus === 200, `the owner is always a provisioned POV; got ${r.httpStatus}.`);
   assert(deps._fetchCalls[0].observerPubkey === 'owner' || deps._fetchCalls[0].observerPubkey === OWNER,
     `pov===owner must read the owner baseline; got ${deps._fetchCalls[0].observerPubkey}.`);
+});
+
+test('B13 (AC: hops, ADR 0003): a missing / non-finite hops maps to the 999 unreachable sentinel', async () => {
+  const mod = loadModule();
+  const deps = makeDeps({ fetchProfileScores: async ({ pubkey }) => { const s = scores({ pubkey }); delete s.hops; return s; } });
+  const r = await callBuildStats(mod, { pubkey: TARGET }, deps);
+  assert(r.body.hops === 999, `a missing hops must map to the 999 unreachable sentinel; got ${r.body.hops}.`);
 });
 
 // ===========================================================================

@@ -1,9 +1,9 @@
 # Book of Work: Open Ranking (ORE) provider
 
 **Slug:** open-ranking
-**Status:** Closed
+**Status:** Open
 **Opened:** 2026-06-18
-**Closed:** 2026-06-19
+**Closed:** — (was closed 2026-06-19; **reopened** same day for the ADR 0003 field-set + naming amendment — re-close after staging verify)
 
 ## Intent anchor
 **Acceptance frame (no PRD)** — the operator's ask, restated and confirmed at kickoff. Completion is *judged* against the bullets below. Standard human-gated mode (not Direction mode).

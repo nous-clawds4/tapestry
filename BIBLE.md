@@ -1681,21 +1681,21 @@ Public, read-only, **unauthenticated, unsigned**. All routes live **off the `/ap
 | Method | Path | ORE | Returns |
 |---|---|---|---|
 | GET | `/.well-known/open-ranking.json` | ORE-01 | Capability document — a JSON object keyed by endpoint path → arrays of Algorithm Objects (first element = default). |
-| POST | `/stats/pubkey` | ORE-02 | `{ pubkey, rank, follows, followers, mutes, muters, reporters, ttl }` for one pubkey. |
+| POST | `/stats/pubkey` | ORE-02 | `{ pubkey, rank, hops, followers, muters, reporters, follows, mutes, ttl }` — inbound counts (followers/muters/reporters) are **verified**; `follows`/`mutes` are exact. |
 | POST | `/search/pubkeys` | ORE-05 | `{ results: [{ pubkey, rank }], ttl }` — free-text profile search, ranked desc, capped at `limit`. |
 
-Each endpoint advertises a **global** algorithm `grapevine` (`pov:false`, the default); `/stats/pubkey` additionally advertises a **personalized** `grapevine-personalized` (`pov:true`). Personalized *search* is deferred (below).
+Each endpoint advertises a **global** algorithm `graperank` (`pov:false`, the default); `/stats/pubkey` additionally advertises a **personalized** `graperank-personalized` (`pov:true`). Personalized *search* is deferred (below). (Algorithm ids were renamed `grapevine`→`graperank` by ADR 0003, to match the GrapeRank algorithm and the kind-30382 metric vocabulary.)
 
 ### PoV mapping (ties to §27)
 
-ORE's `pov` is §27's PoV machinery. The **global `grapevine`** is the instance's **owner-anchored** view, but it is read from a different store per endpoint:
+ORE's `pov` is §27's PoV machinery. The **global `graperank`** is the instance's **owner-anchored** view, but it is read from a different store per endpoint:
 
-- **Stats** → **Neo4j**: `fetchProfileScores(pubkey, observerPubkey:'owner')` reads the `NostrUser` node — the **Owner PoV** (§27) — with `rank = round(influence × 100)`.
+- **Stats** → **Neo4j**: `fetchProfileScores(pubkey, observerPubkey:'owner')` reads the `NostrUser` node — the **Owner PoV** (§27) — with `rank = round(influence × 100)`. The response also carries `hops` and the **verified** inbound counts (`followers`=verifiedFollowerCount, `muters`=verifiedMuterCount, `reporters`=verifiedReporterCount), mirroring the kind-30382 metric set; `follows`/`mutes` are the target's exact outbound list sizes (ADR 0003 — "total" inbound is unknowable, so verified is the well-defined line).
 - **Search** → **Meili**: ranks by the owner's `wot_rank_<ownerSuffix>` column (`ownerSuffix = getOwnerAssistantPubkey().slice(0,8)` — the runtime TA helper, never hardcoded) via `nostr-search-api` with `sort=wot_rank_<ownerSuffix>:desc`; `rank` floors to 0 for unscored profiles. This is the kind-30382 → Meili read of §27, keyed to the owner's own delegated suffix.
 
 The two stores key a PoV by **different pubkeys** — Neo4j cards by the human's **main pubkey** (`observer_pubkey`), Meili columns by the **delegated-key suffix** — which is the open seam recorded in worksheet **W13**.
 
-**Personalized `grapevine-personalized`** (stats only): the request `pov` is used directly as the Neo4j `observer_pubkey`, served **only for a provisioned PoV** — `isPovProvisioned(pov)` = (`pov === owner`) OR a `NostrUserWotMetricsCard {observer_pubkey: pov}` exists. An unprovisioned `pov` returns **`422` + `X-Reason: pov not provisioned`**, never a silent fallback to the owner view (the architecture-invariant rule: a global answer must not be presented as the caller's personal one).
+**Personalized `graperank-personalized`** (stats only): the request `pov` is used directly as the Neo4j `observer_pubkey`, served **only for a provisioned PoV** — `isPovProvisioned(pov)` = (`pov === owner`) OR a `NostrUserWotMetricsCard {observer_pubkey: pov}` exists. An unprovisioned `pov` returns **`422` + `X-Reason: pov not provisioned`**, never a silent fallback to the owner view (the architecture-invariant rule: a global answer must not be presented as the caller's personal one).
 
 ### Conventions (ORE-00, as-built)
 
