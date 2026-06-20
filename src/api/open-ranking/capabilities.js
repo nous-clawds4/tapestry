@@ -14,7 +14,7 @@ const CAPABILITIES = {
       id: 'graperank',
       name: 'GrapeRank',
       pov: false,
-      description: "Global GrapeRank web-of-trust rank (influence ×100). The response also carries verified follower/muter/reporter counts and hops.",
+      description: "Global GrapeRank web-of-trust rank (influence ×100). The response also carries hops, pagerank, verified inbound counts (followers/muters/reporters) and outbound totals (follows/mutes/reporting).",
     },
     {
       id: 'graperank-personalized',

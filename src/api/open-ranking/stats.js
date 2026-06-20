@@ -15,7 +15,7 @@ const { runCypher } = require('../../lib/neo4j-driver');
 const { getConfigFromFile } = require('../../utils/config');
 const { fetchProfileScores } = require('../export/users/queries/get-profile-scores');
 const { resolveAlgorithm } = require('./capabilities');
-const { ORE_STATS_TTL, isValidHexPubkey, oreHeaders, errorTriple, applyTriple } = require('./shared');
+const { isValidHexPubkey, oreHeaders, errorTriple, applyTriple } = require('./shared');
 
 function getOwnerPubkey() {
   return getConfigFromFile('BRAINSTORM_OWNER_PUBKEY', '');
@@ -49,11 +49,16 @@ function mapScoresToOre(pubkey, s) {
     followers: Number(s.verifiedFollowerCount) || 0,
     muters: Number(s.verifiedMuterCount) || 0,
     reporters: Number(s.verifiedReporterCount) || 0,
-    // Outbound counts are exact (the target's own kind-3 / mute-list sizes).
+    // Outbound counts are exact totals (the target's own kind-3 / mute / report lists).
     follows: Number(s.followingCount) || 0,
     mutes: Number(s.mutingCount) || 0,
-    ttl: ORE_STATS_TTL,
-    // `reports` and `first_seen_at` intentionally omitted (ADR 0001/0003 §field mapping).
+    // `reporting` = reports the pubkey ISSUED (outbound). Deliberately NOT named `reports`: ORE-02's
+    // `reports` is INBOUND ("against this key"), so overloading it would invert a safety signal (ADR 0004).
+    reporting: Number(s.reportingCount) || 0,
+    // PageRank under the active POV (owner-seeded for global, pov-seeded for personalized), raw/unrounded.
+    // Non-standard ORE field, included by operator decision (ADR 0004); generic clients ignore unknown fields.
+    pagerank: Number(s.personalizedPageRank) || 0,
+    // `ttl` dropped (ADR 0004); `reports`/`first_seen_at` not emitted.
   };
 }
 
