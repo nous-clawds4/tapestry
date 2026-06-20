@@ -13,7 +13,7 @@
 
 const { getOwnerAssistantPubkey } = require('../../utils/assistantKeys');
 const { resolveAlgorithm } = require('./capabilities');
-const { ORE_SEARCH_TTL, oreHeaders, errorTriple, applyTriple } = require('./shared');
+const { oreHeaders, errorTriple, applyTriple } = require('./shared');
 
 // Same backend the Meili proxy forwards to (src/api/search/profiles/meili/index.js).
 const NOSTR_SEARCH_URL = process.env.NOSTR_SEARCH_URL || 'http://nostr-search-api:3069';
@@ -82,7 +82,7 @@ async function buildSearch(input, deps) {
   const results = (hits || [])
     .map((h) => mapHitToResult(h, deps.ownerSuffix))
     .filter((r) => r.pubkey);
-  return { httpStatus: 200, headers: oreHeaders(), body: { results, ttl: ORE_SEARCH_TTL } };
+  return { httpStatus: 200, headers: oreHeaders(), body: { results } };
 }
 
 // Thin Express wrapper: build the real deps, run the orchestrator, apply the triple.

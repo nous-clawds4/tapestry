@@ -68,10 +68,10 @@ function scores(overrides = {}) {
     npub: '',
     influence: 0.91,
     average: 0.8, confidence: 0.9, input: 50,
-    personalizedPageRank: 0.0001, hops: 2,
+    personalizedPageRank: 0.0123, hops: 2,
     followingCount: 320, followerCount: 1400,
     mutingCount: 5, muterCount: 12,
-    reporterCount: 3, reportingCount: 0,
+    reporterCount: 3, reportingCount: 7,
     verifiedFollowerCount: 100, verifiedMuterCount: 2, verifiedReporterCount: 1,
     followerInput: 1, muterInput: 1, reporterInput: 1,
     latestContentEventCreatedAt: 1700000000,
@@ -201,23 +201,26 @@ test('B1 (AC: global stats): a valid hex pubkey with no algorithm uses the globa
     `the global algorithm must read scores under the owner baseline (observerPubkey 'owner'); got ${JSON.stringify(deps._fetchCalls)}.`);
 });
 
-test('B2 (AC: field mapping, ADR 0003): inbound counts (followers/muters/reporters) are VERIFIED; outbound (follows/mutes) are exact; hops included; reports/first_seen_at omitted; ttl present', async () => {
+test('B2 (AC: field mapping, ADR 0003/0004): inbound counts VERIFIED; outbound (follows/mutes/reporting) exact totals; hops + pagerank included; reports/first_seen_at/ttl absent', async () => {
   const mod = loadModule();
   const r = await callBuildStats(mod, { pubkey: TARGET }, makeDeps());
   assert(r.httpStatus === 200, `expected 200; got ${r.httpStatus}.`);
   const b = r.body;
-  // Inbound = VERIFIED (ADR 0003): "total" inbound is unknowable; verified is the well-defined line.
+  // Inbound = VERIFIED (ADR 0003).
   assert(b.followers === 100, `followers must map from verifiedFollowerCount (100); got ${b.followers}.`);
   assert(b.muters === 2, `muters must map from verifiedMuterCount (2); got ${b.muters}.`);
   assert(b.reporters === 1, `reporters must map from verifiedReporterCount (1); got ${b.reporters}.`);
-  // Outbound = exact (the target's own list sizes).
-  assert(b.follows === 320, `follows must map from followingCount (320, exact); got ${b.follows}.`);
-  assert(b.mutes === 5, `mutes must map from mutingCount (5, exact); got ${b.mutes}.`);
-  // hops included (ADR 0003).
+  // Outbound = exact totals (ADR 0003/0004).
+  assert(b.follows === 320, `follows must map from followingCount (320); got ${b.follows}.`);
+  assert(b.mutes === 5, `mutes must map from mutingCount (5); got ${b.mutes}.`);
+  assert(b.reporting === 7, `reporting (outbound reports issued) must map from reportingCount (7); got ${b.reporting}.`);
+  // hops + pagerank (ADR 0003/0004).
   assert(b.hops === 2, `hops must map from the hops field (2); got ${b.hops}.`);
-  assert(!('reports' in b), '`reports` is omitted in v1 — it must be absent.');
-  assert(!('first_seen_at' in b), '`first_seen_at` is omitted in v1 — it must be absent.');
-  assert(b.ttl === 3600, `ttl must be the fixed hint 3600; got ${b.ttl}.`);
+  assert(b.pagerank === 0.0123, `pagerank must map from personalizedPageRank, raw/unrounded (0.0123); got ${b.pagerank}.`);
+  // Deliberately absent.
+  assert(!('reports' in b), '`reports` must be absent — the outbound count is named `reporting` (ADR 0004); ORE `reports` is inbound.');
+  assert(!('first_seen_at' in b), '`first_seen_at` must be absent.');
+  assert(!('ttl' in b), '`ttl` must be absent (ADR 0004 dropped it).');
 });
 
 test('B3 (AC: rank): influence is rounded to the nearest integer ×100 (0.915 -> 92)', async () => {

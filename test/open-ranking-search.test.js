@@ -139,7 +139,7 @@ test('B1 (AC: search happy path): non-empty query, no algorithm -> 200 {results,
   const { httpStatus, body } = await callBuildSearch(mod, { query: 'jack' }, deps);
   assert(httpStatus === 200, 'expected 200.');
   assert(Array.isArray(body.results), 'body.results must be an array.');
-  assert(typeof body.ttl === 'number', 'body.ttl must be present.');
+  assert(!('ttl' in body), 'body must not carry ttl (ADR 0004 dropped it).');
   assert(deps._searchCalls.length === 1, 'searchProfiles must be called exactly once.');
   assert(deps._searchCalls[0].query === 'jack', 'query forwarded to searchProfiles.');
   assert(deps._searchCalls[0].limit === 20, 'default limit 20 forwarded.');
@@ -239,10 +239,10 @@ test('B11 (AC: rank): wot_rank value is rounded to the nearest integer', async (
   assert(body.results[0].rank === 42, 'rank rounded to nearest integer.');
 });
 
-test('B12 (AC: ttl): the search ttl hint is 300 (ADR 0002)', async () => {
+test('B12 (AC: no ttl, ADR 0004): the search response carries no ttl', async () => {
   const mod = loadModule();
   const { body } = await callBuildSearch(mod, { query: 'x' }, makeSearchDeps());
-  assert(body.ttl === 300, 'search ttl must be 300.');
+  assert(!('ttl' in body), 'search response must not carry ttl (ADR 0004).');
 });
 
 test('B13 (AC: profiles only): a hit lacking both pubkey and id is excluded from results', async () => {
