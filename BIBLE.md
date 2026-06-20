@@ -1682,7 +1682,7 @@ Public, read-only, **unauthenticated, unsigned**. All routes live **off the `/ap
 |---|---|---|---|
 | GET | `/.well-known/open-ranking.json` | ORE-01 | Capability document — a JSON object keyed by endpoint path → arrays of Algorithm Objects (first element = default). |
 | POST | `/stats/pubkey` | ORE-02 | `{ pubkey, rank, hops, followers, muters, reporters, follows, mutes, reporting, pagerank }` — inbound (followers/muters/reporters) **verified**; outbound (follows/mutes/`reporting`) exact totals; `pagerank` raw; no `ttl`. |
-| POST | `/search/pubkeys` | ORE-05 | `{ results: [{ pubkey, rank }], ttl }` — free-text profile search, ranked desc, capped at `limit`. |
+| POST | `/search/pubkeys` | ORE-05 | `{ results: [{ pubkey, rank }] }` — free-text profile search, ranked desc, capped at `limit` (no `ttl`). |
 
 Each endpoint advertises a **global** algorithm `graperank` (`pov:false`, the default); `/stats/pubkey` additionally advertises a **personalized** `graperank-personalized` (`pov:true`). Personalized *search* is deferred (below). (Algorithm ids were renamed `grapevine`→`graperank` by ADR 0003, to match the GrapeRank algorithm and the kind-30382 metric vocabulary.)
 
@@ -1703,11 +1703,11 @@ The two stores key a PoV by **different pubkeys** — Neo4j cards by the human's
 
 ### Security — personalized-stats enumeration oracle
 
-The `grapevine-personalized` **stats** path is an **unauthenticated provisioning-enumeration oracle**: a caller distinguishes provisioned (`200`) from unprovisioned (`422`) POVs, enumerating the instance's customer set. Acceptable on staging (test data); **it MUST be gated (ORE-A/NWT auth or a self-only check) before any production promotion.** Tracked in worksheet **W12**. The global algorithms and the global-only search carry no such oracle.
+The `graperank-personalized` **stats** path is an **unauthenticated provisioning-enumeration oracle**: a caller distinguishes provisioned (`200`) from unprovisioned (`422`) POVs, enumerating the instance's customer set. Acceptable on staging (test data); **it MUST be gated (ORE-A/NWT auth or a self-only check) before any production promotion.** Tracked in worksheet **W12**. The global algorithms and the global-only search carry no such oracle.
 
 ### Deferred
 
-- **Personalized search** (`grapevine-personalized` on `/search/pubkeys`) — needs a server-side **main→delegated PoV resolver** to bridge the two stores (worksheet **W13**); planned as `open-ranking` Story 3.
+- **Personalized search** (`graperank-personalized` on `/search/pubkeys`) — needs a server-side **main→delegated PoV resolver** to bridge the two stores (worksheet **W13**); planned as `open-ranking` Story 3.
 - **ORE-A / Nostr Web Token (kind 27519) auth**; the other ORE endpoints (`/rank/pubkeys`, `/recommend/pubkeys`, `/followers`, `/muters`, `/compromised/pubkeys`); a standard PoV-availability mechanism / upstream ORE proposal (W12).
 
 ### Deployment
