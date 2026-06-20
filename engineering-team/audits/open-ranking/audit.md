@@ -62,3 +62,19 @@ A public, read-only HTTP interface to Brainstorm's web of trust, conformant to t
 - [ ] **Upstream**: decide whether to propose a standard POV-availability/declared-POV mechanism to ORE, or stay conformant-without-it (W12).
 - [ ] **Minor**: strict-200 `OPTIONS` shim; `reports`/`first_seen_at` population if a data source appears; house-vs-owner global unification.
 - [ ] **Hygiene**: ship the close artifacts + BIBLE §28 to staging (docs-only PR) and delete `feat/open-ranking` after (OPEN.md #11).
+
+## 7. Post-close amendment (ADR 0003 + 0004) — staging-verified 2026-06-19
+
+A book-close design review reshaped the ORE stats surface (book reopened, then re-closed). Shipped to staging via [apps#326](https://github.com/nous-clawds4/tapestry/pull/326) and smoke-verified:
+
+- **Algorithm ids renamed** `grapevine`→`graperank` (+`-personalized`) — ADR 0003.
+- **`/stats/pubkey` final body:** `{ pubkey, rank, hops, followers, muters, reporters, follows, mutes, reporting, pagerank }` (no `ttl`) —
+  - inbound `followers`/`muters`/`reporters` = **verified** counts (ADR 0003);
+  - outbound `follows`/`mutes`/`reporting` = exact totals (`reporting` = reports *issued*; named `reporting`, **not** ORE's inbound `reports`, to avoid inverting a safety signal — ADR 0004);
+  - `pagerank` = raw `personalizedPageRank` bundle field; `hops` added.
+- **`ttl` dropped** from both endpoints (ADR 0004).
+- All sourced from the existing `get-profile-scores` (already returns `reportingCount` + `personalizedPageRank`) — no `get-user-data`, no shared-query change; `/api/get-profile-scores` + UI unaffected.
+
+**Staging evidence:** capability doc advertises `graperank`/`graperank-personalized` (stats) + `graperank` (search); `/stats/pubkey` returns the new body (e.g. jack: `followers` 19,470 *verified* vs ~153k raw, `reporting` 23, raw `pagerank`); personalized `422` gate intact; search carries no `ttl`; `/api/get-profile-scores` unchanged. *(One transient `500` immediately post-deploy on a Neo4j-backed call — the documented HTTP-ready-before-Neo4j warmup window; cleared on retry, not a feature fault.)*
+
+This **supersedes §4 deviation #3** (`reports`/`first_seen_at` omitted): `reports` is intentionally replaced by the outbound `reporting`; `first_seen_at` stays omitted. The earlier raw-vs-verified inconsistency is **resolved** (verified). ADRs: `open-ranking/0003`, `0004`.
