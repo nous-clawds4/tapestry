@@ -39,16 +39,21 @@ async function isPovProvisioned(pov, ownerPubkey) {
 // Map a get-profile-scores result into the ORE-02 response body.
 function mapScoresToOre(pubkey, s) {
   s = s || {};
+  const hops = Number(s.hops);
   return {
     pubkey,
     rank: Math.round((Number(s.influence) || 0) * 100),
+    hops: Number.isFinite(hops) ? hops : 999,        // degrees of separation from the POV (999 = unreachable)
+    // Inbound counts are VERIFIED (ADR 0003): "total" inbound is unknowable (we never hold every kind-3
+    // in existence), so the well-defined line is the WoT-verified count — consistent with kind-30382.
+    followers: Number(s.verifiedFollowerCount) || 0,
+    muters: Number(s.verifiedMuterCount) || 0,
+    reporters: Number(s.verifiedReporterCount) || 0,
+    // Outbound counts are exact (the target's own kind-3 / mute-list sizes).
     follows: Number(s.followingCount) || 0,
-    followers: Number(s.followerCount) || 0,
     mutes: Number(s.mutingCount) || 0,
-    muters: Number(s.muterCount) || 0,
-    reporters: Number(s.reporterCount) || 0,
     ttl: ORE_STATS_TTL,
-    // NOTE: `reports` and `first_seen_at` intentionally omitted (ADR 0001 §field mapping).
+    // `reports` and `first_seen_at` intentionally omitted (ADR 0001/0003 §field mapping).
   };
 }
 

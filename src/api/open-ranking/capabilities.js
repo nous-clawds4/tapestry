@@ -11,26 +11,26 @@ const { oreHeaders } = require('./shared');
 const CAPABILITIES = {
   '/stats/pubkey': [
     {
-      id: 'grapevine',
-      name: 'Grapevine',
+      id: 'graperank',
+      name: 'GrapeRank',
       pov: false,
-      description: "Global web-of-trust rank from this instance's grapevine (GrapeRank influence ×100).",
+      description: "Global GrapeRank web-of-trust rank (influence ×100). The response also carries verified follower/muter/reporter counts and hops.",
     },
     {
-      id: 'grapevine-personalized',
-      name: 'Personalized Grapevine',
+      id: 'graperank-personalized',
+      name: 'Personalized GrapeRank',
       pov: true,
-      description: 'Web-of-trust rank from the supplied point-of-view pubkey. Requires a provisioned POV.',
+      description: 'GrapeRank from the supplied point-of-view pubkey. Requires a provisioned POV.',
     },
   ],
   '/search/pubkeys': [
     {
-      id: 'grapevine',
-      name: 'Grapevine',
+      id: 'graperank',
+      name: 'GrapeRank',
       pov: false,
-      description: "Global web-of-trust-ranked profiles for a free-text query, ranked by this instance's grapevine.",
+      description: "Profiles matching a free-text query, ranked by this instance's global GrapeRank.",
     },
-    // grapevine-personalized (pov:true) deferred to Story 3 (worksheet W13).
+    // graperank-personalized (pov:true) deferred to Story 3 (worksheet W13).
   ],
 };
 
