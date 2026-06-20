@@ -74,7 +74,9 @@ import BrainstormSettings from './pages/BrainstormSettings';
 import BrainstormPersonalization from './pages/BrainstormPersonalization';
 import BrainstormHowSearchWorks from './pages/BrainstormHowSearchWorks';
 import BrainstormAbout from './pages/BrainstormAbout';
-import BrainstormDevelopers from './pages/BrainstormDevelopers';
+import DevelopersHub from './pages/developers/Hub';
+import DevelopersNip50 from './pages/developers/Nip50';
+import DevelopersOpenRanking from './pages/developers/OpenRanking';
 import Tag from './pages/Tag';
 import Tags from './pages/Tags';
 import Pins from './pages/Pins';
@@ -157,7 +159,15 @@ const router = createBrowserRouter([
   },
   {
     path: '/developers',
-    element: <BrainstormDevelopers />,
+    element: <DevelopersHub />,
+  },
+  {
+    path: '/developers/nip-50',
+    element: <DevelopersNip50 />,
+  },
+  {
+    path: '/developers/open-ranking',
+    element: <DevelopersOpenRanking />,
   },
   {
     path: '/tapestry',
