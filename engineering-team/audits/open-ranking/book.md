@@ -3,7 +3,7 @@
 **Slug:** open-ranking
 **Status:** Open
 **Opened:** 2026-06-18
-**Closed:** —
+**Closed:** — (was closed 2026-06-19; **reopened** same day for the ADR 0003 field-set + naming amendment — re-close after staging verify)
 
 ## Intent anchor
 **Acceptance frame (no PRD)** — the operator's ask, restated and confirmed at kickoff. Completion is *judged* against the bullets below. Standard human-gated mode (not Direction mode).
@@ -40,7 +40,7 @@ Scoping conversation of 2026-06-18 established that **ORE-01 is the capability-d
 
 ## Provenance
 - **Mode:** Acceptance-frame
-- **Confidence at close:** *(filled by `/close-book`)*
+- **Confidence at close:** **high** — both endpoints (ORE-01 + ORE-02 + ORE-05 global) are live on `staging.brainstorm.world` and independently smoke-verified ([#318](https://github.com/nous-clawds4/tapestry/pull/318), [#322](https://github.com/nous-clawds4/tapestry/pull/322)); all stories PASS. Personalized search deferred to Story 3 (W13); personalized-stats pre-prod gate W12. See `audit.md` + `prd-seed.md`.
 
 ## Close artifacts *(filled by `/close-book`)*
 - Build audit: `engineering-team/audits/open-ranking/audit.md`

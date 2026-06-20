@@ -121,11 +121,11 @@ test('C1: capability doc now advertises /search/pubkeys and keeps /stats/pubkey 
     "'/stats/pubkey' must remain advertised with its two algorithms.");
 });
 
-test('C2: /search/pubkeys default is global grapevine (pov:false); no personalized search algo in v1 (AC-1)', () => {
+test('C2: /search/pubkeys default is global graperank (pov:false); no personalized search algo in v1 (AC-1)', () => {
   const mod = loadModule();
   const algos = mod.buildCapabilityDocument()['/search/pubkeys'];
-  assert(algos[0].id === 'grapevine', "the first/default search algorithm must be 'grapevine'.");
-  assert(algos[0].pov === false || algos[0].pov === undefined, "search 'grapevine' must be global (pov:false).");
+  assert(algos[0].id === 'graperank', "the first/default search algorithm must be 'graperank'.");
+  assert(algos[0].pov === false || algos[0].pov === undefined, "search 'graperank' must be global (pov:false).");
   assert(!algos.some((a) => a.pov === true), 'no pov:true (personalized) search algorithm in v1 — deferred to Story 3.');
 });
 
@@ -139,7 +139,7 @@ test('B1 (AC: search happy path): non-empty query, no algorithm -> 200 {results,
   const { httpStatus, body } = await callBuildSearch(mod, { query: 'jack' }, deps);
   assert(httpStatus === 200, 'expected 200.');
   assert(Array.isArray(body.results), 'body.results must be an array.');
-  assert(typeof body.ttl === 'number', 'body.ttl must be present.');
+  assert(!('ttl' in body), 'body must not carry ttl (ADR 0004 dropped it).');
   assert(deps._searchCalls.length === 1, 'searchProfiles must be called exactly once.');
   assert(deps._searchCalls[0].query === 'jack', 'query forwarded to searchProfiles.');
   assert(deps._searchCalls[0].limit === 20, 'default limit 20 forwarded.');
@@ -217,7 +217,7 @@ test('B8 (AC: conventions): unsupported algorithm -> 422 + X-Reason, search not 
 test('B9 (AC: conventions): a pov sent to the global search algorithm is ignored -> 200', async () => {
   const mod = loadModule();
   const deps = makeSearchDeps();
-  const { httpStatus } = await callBuildSearch(mod, { query: 'x', algorithm: 'grapevine', pov: HEX('b') }, deps);
+  const { httpStatus } = await callBuildSearch(mod, { query: 'x', algorithm: 'graperank', pov: HEX('b') }, deps);
   assert(httpStatus === 200, 'a pov on the global algorithm is ignored, returns 200.');
   assert(deps._searchCalls.length === 1, 'search is still performed.');
 });
@@ -239,10 +239,10 @@ test('B11 (AC: rank): wot_rank value is rounded to the nearest integer', async (
   assert(body.results[0].rank === 42, 'rank rounded to nearest integer.');
 });
 
-test('B12 (AC: ttl): the search ttl hint is 300 (ADR 0002)', async () => {
+test('B12 (AC: no ttl, ADR 0004): the search response carries no ttl', async () => {
   const mod = loadModule();
   const { body } = await callBuildSearch(mod, { query: 'x' }, makeSearchDeps());
-  assert(body.ttl === 300, 'search ttl must be 300.');
+  assert(!('ttl' in body), 'search response must not carry ttl (ADR 0004).');
 });
 
 test('B13 (AC: profiles only): a hit lacking both pubkey and id is excluded from results', async () => {
