@@ -90,6 +90,7 @@ export default function BrainstormProfile() {
   // /reporters tables, NOT Meili (ADR 0031). `?? null` keeps a genuine 0 distinct from
   // "not loaded" → "—"; never a raw-follower substitution.
   const verifiedFollowerCount = userCounts?.verifiedFollowerCount ?? null;
+  const verifiedMuterCount = userCounts?.verifiedMuterCount ?? null;
   const verifiedReporterCount = userCounts?.verifiedReporterCount ?? null;
   // Dynamic alarm: red + icon only past a popularity-adjusted threshold (ADR 0032).
   // No alarm when either count is unavailable (no crying wolf on incomplete data).
@@ -270,6 +271,17 @@ export default function BrainstormProfile() {
               <Link to={`/user/${pubkey}/follows-hops`} className={`bsp-count bsp-count-link${followsHopsLoading ? ' bsp-count-loading' : ''}`} title={hopsTitle}>
                 <span className="bsp-count-value">{hopsDisplay}</span>
                 <span className="bsp-count-label">Hops</span>
+              </Link>
+              {/* Line break (verified-muters #2, ADR 0002): forces the "bad" indicators
+                  below onto the next flex line, away from the good ones above. */}
+              <span className="bsp-count-break" aria-hidden="true" />
+              {/* Verified Muters → /user/:pubkey/muters. Neutral, like Verified Followers:
+                  always a plain <Link>, no alarm icon and no negative styling — "bad" is
+                  conveyed only via the line break (ADR 0002). Owner-PoV count from
+                  useUserCounts, same source as the /muters table. */}
+              <Link to={`/user/${pubkey}/muters`} className="bsp-count bsp-count-link">
+                <span className="bsp-count-value">{fmtCount(verifiedMuterCount)}</span>
+                <span className="bsp-count-label">Verified Muters</span>
               </Link>
               {/* Verified Reporters → /user/:pubkey/reporters. Always a <Link> when >0; a
                   genuine 0 is neutral and not a link; "—" when unavailable; dimmed "—" while
