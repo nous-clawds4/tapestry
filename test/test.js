@@ -108,6 +108,7 @@ const dualZWriter = require('./dual-z-writer.test.js');
 const openRankingStats = require('./open-ranking-stats.test.js');
 const openRankingSearch = require('./open-ranking-search.test.js');
 const verifiedMutersReadApi = require('./verified-muters-read-api.test.js');
+const verifiedMutersProfileSurface = require('./verified-muters-profile-surface.test.js');
 
 async function main() {
   console.log('Running Brainstorm tests...');
@@ -303,6 +304,9 @@ async function main() {
 
   console.log('\nverified-muters-read-api suite:');
   const verifiedMutersReadApiResult = await verifiedMutersReadApi.run();
+
+  console.log('\nverified-muters-profile-surface suite:');
+  const verifiedMutersProfileSurfaceResult = await verifiedMutersProfileSurface.run();
 
   console.log('\nTest Results');
   console.log('-------------');
@@ -520,6 +524,9 @@ async function main() {
   console.log(
     `verified-muters-read-api suite:                  ${verifiedMutersReadApiResult.fail === 0 ? 'PASS' : 'FAIL'} (${verifiedMutersReadApiResult.pass} passed, ${verifiedMutersReadApiResult.fail} failed)`
   );
+  console.log(
+    `verified-muters-profile-surface suite:           ${verifiedMutersProfileSurfaceResult.fail === 0 ? 'PASS' : 'FAIL'} (${verifiedMutersProfileSurfaceResult.pass} passed, ${verifiedMutersProfileSurfaceResult.fail} failed)`
+  );
 
   const overallOk =
     configOk &&
@@ -605,7 +612,8 @@ async function main() {
     dualZWriterResult.fail === 0 &&
     openRankingStatsResult.fail === 0 &&
     openRankingSearchResult.fail === 0 &&
-    verifiedMutersReadApiResult.fail === 0;
+    verifiedMutersReadApiResult.fail === 0 &&
+    verifiedMutersProfileSurfaceResult.fail === 0;
   console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);
   process.exit(overallOk ? 0 : 1);
 }
