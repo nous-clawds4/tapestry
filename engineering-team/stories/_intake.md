@@ -1111,3 +1111,47 @@ Small future-readiness items the 2026-06-18 multi-lens review (`reviews/live-fee
 **Boundary guard in place:** `test/tag-read-union.test.js` ("PIECE 2 BOUNDARY") asserts the two enrichment scans stay local until this is designed, so a future contributor doesn't naively point them at dcosl.
 
 **Classification:** Feature/enhancement. **Priority:** Medium (cosmetic-but-misleading: pins show, badges lie). **Phase path:** needs Planning → Architecture (per-viewer relay-read design) at minimum; not a one-liner.
+
+---
+
+## 2026-06-21 — Feature: Verified Muters profile metric (mirror of Verified Followers) — Direction-mode book
+
+**Raw request (verbatim):**
+
+> Currently, the main Tapestry profile page [...] shows Following, Verified Followers, Hops, and Verified Reporters. Each of these acts as a link to a separate page with extra information. I would like to add one additional piece of information: Verified Muters. It should be placed after Hops, before Verified Reporters. From a technical standpoint, it should be most similar to Verified Followers. Verified will be determined in the same way, and the associated information page should have the same columns (i.e. it does not have extra columns like reportType). A note on the positioning: Following, Verified Followers, and Hops are all "good" indicators, whereas Verified Muters and Verified Reporters are "bad" indicators. Therefore, I would like to see that there is a line break between Hops and Verified Muters.
+
+**Confirmed design decisions (operator, 2026-06-21):**
+
+- **Badge styling:** neutral, like Verified Followers — always a clickable link, **no** red alarm icon, no negative/red styling. (Explicitly NOT the Verified Reporters red-alarm treatment.) Its "bad indicator" status is conveyed only by the line break.
+- **Positioning:** after Hops, before Verified Reporters, with a visual line break between Hops and Verified Muters (good indicators on one line; Verified Muters + Verified Reporters on the next).
+- **List page columns:** the same set as the Verified Followers list page — NO report-specific columns (no "Report Type", no "Reported" timestamp).
+- **Verification bar:** the same mechanism as Verified Followers/Reporters.
+- **POV:** owner/House-POV only, matching the existing siblings (no per-POV muter count in this book).
+- **Process:** run autonomously through the engineering harness under **Direction mode** (`/direct-feature`), book `verified-muters`.
+
+**Pre-intake findings (survey, 2026-06-21 — the mute data layer already exists end-to-end; this is a surfacing/wiring feature, not a pipeline build):**
+
+- **Ingestion is already symmetric with follows/reports.** kind-10000 (mute lists) are pulled in the same strfry sync filters as kind-3/kind-1984 (`setup/strfry-router.config`, `bin/negentropy-sync.sh`), write-accepted (`plugins/whitelist_kinds_acceptAll.json`), routed strfry→Redis (`patches/strfry-redis/apply-patches.sh` `REDIS_ALLOW_KINDS` = 3,10000,1984), and projected into Neo4j as a first-class `:MUTES` relationship (`src/pipeline/stream/redis-consumer.js` `processMutes()`, replaceable-event semantics), with a full reconciliation toolchain under `src/pipeline/reconciliation/`. Documented in BIBLE.md / OPERATIONS.md as FOLLOWS / MUTES / REPORTS ↔ kind 3 / 10000 / 1984.
+- **`verifiedMuterCount` is already precomputed** per `NostrUser` node by `src/algos/follows-mutes-reports/calculateVerifiedMuterCounts.sh` (identical to the follower script; edge `:MUTES`, cutoff `VERIFIED_MUTERS_INFLUENCE_CUTOFF`, default 0.05 in `customers/default/preferences/graperank.conf`), already wired into `processFollowsMutesReports.sh`. A per-POV/customer variant exists too. It is already published in kind-30382 (`src/algos/customers/nip85/publish_kind30382.js`).
+- **The "verified" definition is identical to followers/reporters:** GrapeRank `influence > cutoff`, precomputed onto the node then re-applied at query time so list length == count. The muter cutoff knob already exists.
+- **The list-page query already exists:** `src/api/grapevineInteractions/queries/cypherQueries.js` already defines `mutes` / `muters` / `verifiedMuters` interaction types (the `verifiedMuters` query is the 1:1 inverse-`:MUTES` + influence-cutoff analogue of `verifiedFollowers` / `verifiedReporters`). The existing Verified Followers and Verified Reporters list tables already render a `verifiedMuterCount` column.
+
+**What the run needs to build (the wiring — the Architect owns the design + decomposition; this is background, not an ADR):**
+
+1. **Profile badge count gap.** `handleGetUserCounts` (`src/api/export/users/queries/userdata.js`) currently returns `{ pubkey, followingCount, verifiedFollowerCount, verifiedReporterCount }` and omits `verifiedMuterCount` — even though the same file's `handleGetUserData` already selects/returns it. The counts handler needs to read `u.verifiedMuterCount` (with a count-only `:MUTES` live fallback mirroring the existing REPORTS fallback) and add it to the response.
+2. **Detail-list endpoint.** No `get-grapevine-muters` endpoint exists yet. The two existing detail endpoints are standalone query modules (`followersWithMetrics.js`, `reportersWithMetrics.js`, registered in `src/api/index.js`), owner-POV-only (they 400 non-owner observers). A muters endpoint mirrors **`followersWithMetrics.js`** (the cleaner template — followers, unlike reporters, has no per-edge sub-type/timestamp to bind). NB there are two detail-query patterns in the tree (the standalone `*WithMetrics.js` modules vs. the `cypherQueries.js` interaction-type registry); reconciling which to use is an Architect call.
+3. **Frontend.** The four metrics live in one `.bsp-counts` flex row in `ui/src/pages/BrainstormProfile.jsx`; the list pages (`BrainstormFollowers.jsx`, `BrainstormReporters.jsx`) are separate hand-written components sharing the `DataTable` primitive + a per-page hook. A Verified Muters surface = a new list page modeled on `BrainstormFollowers.jsx` (same generic identity+WoT columns; nothing report-specific to drop because there is none), a new `useGrapevine*` hook, a new route in `ui/src/App.jsx`, the new badge in the counts row, and the line break. The counts row is `flex-wrap: wrap`, so the line break can be a zero-size `flex-basis:100%` spacer between Hops and the bad indicators (or a split container) — low-risk, no layout refactor. Note `BrainstormProfile.jsx` already carries a `verifiedMuterCount`/"Muters" descriptor in its separate lower "Reputation" trust-card grid (different data source — Meili), which confirms naming but is NOT the counts-row metric.
+
+**Out of scope (respect at every gate):**
+
+- Per-POV / customer muter counts (owner/House-POV only, matching the siblings; per-POV is the same deferred direction the followers/reporters detail endpoints already document).
+- Any muter **alarm threshold** / red-flag styling (the operator explicitly chose neutral-like-followers; do NOT port the Verified Reporters red-alarm treatment).
+- Report-specific columns on the muters list (no Report Type, no Reported timestamp).
+- Any change to the existing Following / Verified Followers / Hops / Verified Reporters metrics or their list pages.
+- Any change to mute ingestion, the `:MUTES` projection, the `verifiedMuterCount` precompute, or graperank config.
+- Promotion past staging (prod is the operator's, outside this book's ceiling).
+
+**Classification:** Feature.
+**Strictness:** Standard — but run under **Direction mode**, where **all five phases and all judged gates apply regardless** (the bug/refactor shortcuts do not apply).
+**Phase path:** Planning → Architecture → Test Design → Implementation → Review, per story, under `/direct-feature`.
+**Book:** `engineering-team/audits/verified-muters/book.md` (acceptance frame + pre-registration). Operator-reserved gates: arming + completion ratification + rollback.
