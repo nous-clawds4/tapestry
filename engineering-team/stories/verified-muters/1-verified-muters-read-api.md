@@ -42,6 +42,6 @@ Testable from the outside (input → expected behavior). Each gets at least one 
 - None blocking. The count = list-length invariant follows the verified-reporters precedent (the list is the literal inverse of the count computation, so they agree within the read path); as with the siblings, this is not a hard real-time guarantee against any separately-precomputed value, and tests should not assert real-time equality across distinct data sources.
 
 ## Linked artifacts
-- ADR: (filled in after Architecture phase)
-- Test plan: (filled in after Test Design phase)
+- ADR: `engineering-team/decisions/verified-muters/0001-verified-muters-read-api.md`
+- Test plan: `engineering-team/stories/verified-muters/1-verified-muters-read-api.test-plan.md`
 - Review: (filled in after Review phase)
