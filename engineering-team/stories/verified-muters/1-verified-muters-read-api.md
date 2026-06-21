@@ -1,6 +1,6 @@
 # Story 1: Verified Muters read API
 
-**Status:** Draft
+**Status:** Done
 **Created:** 2026-06-21
 **Type:** Feature
 **Epic:** `verified-muters` · **Book:** `engineering-team/audits/verified-muters/book.md`
@@ -44,4 +44,4 @@ Testable from the outside (input → expected behavior). Each gets at least one 
 ## Linked artifacts
 - ADR: `engineering-team/decisions/verified-muters/0001-verified-muters-read-api.md`
 - Test plan: `engineering-team/stories/verified-muters/1-verified-muters-read-api.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/verified-muters/1-verified-muters-read-api.md` — **PASS** (2026-06-21)
