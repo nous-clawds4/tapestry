@@ -33,14 +33,26 @@ This book runs under the Director harness — [`/direct-feature`](../../../.clau
 
 ### Arming (operator only — the Director may not arm)
 
-Arming is **one commit on the `staging` branch whose diff touches only this subsection**, filling in:
+> **Un-armed 2026-06-21 pending re-arm**, after the *Test baseline* amendment below. The original arming (PR #330, `Armed: Yes — 2026-06-21T14:31:30Z`) is superseded: the run halted twice at Stage 0 because this environment cannot produce the fully-green `npm test` baseline the original pre-registration assumed (the failures are pre-existing, unrelated tag/pin/TL/search suites — see `journal.md`). Re-arming on the amended pre-registration ratifies the new baseline definition.
 
-- **Armed:** Yes — 2026-06-21T14:31:30Z
-- **Deadline:** 2026-06-25T14:31:30Z *(arming instant + 96 hours)*
-- **Baseline:** `d1954c382d1c44783f310b182ac1415d10debde1` *(origin/staging at arming — the PR #329 merge; no `verified-muters` epic stories/ADRs/source exist at this SHA)*
-- **Pinned governing versions:** `engineering-team/roles/director.md` f314bbba · `.claude/skills/direct-feature/SKILL.md` f314bbba · `.claude/agents/gate-judge.md` 3a2657b2
+Arming is **one commit on the `staging` branch whose diff touches only the four bullets below**, filling in:
+
+- **Armed:** No *(→ `Yes — <ISO-8601 UTC datetime>` at re-arm)*
+- **Deadline:** — *(→ re-arming instant + 96 hours, as an ISO-8601 UTC datetime)*
+- **Baseline:** — *(→ the `origin/staging` SHA at re-arming, which must include this amendment. No `verified-muters` epic stories, ADRs, or source may exist at that SHA; `book.md`, its `_intake.md` entry, and the Director `journal.md` are anchor/audit inputs, not epic work.)*
+- **Pinned governing versions:** — *(→ the commit SHAs of `engineering-team/roles/director.md`, `.claude/skills/direct-feature/SKILL.md`, and `.claude/agents/gate-judge.md` at re-arming.)*
 
 A missing or ambiguous Armed/Deadline line means the book is not armed; the Director must refuse to run.
+
+### Test baseline (book-specific — amended 2026-06-21)
+
+The Stage-0 green-baseline and the Gate-4 "clean full suite" expectations are **defined for this book** as below, because this local environment carries pre-existing, unrelated test failures the book does not own (see `journal.md`, 2026-06-21 HALT entries). Re-arming the book ratifies this definition.
+
+- **Command (unchanged):** `npm test` (`node test/test.js`), no filters — the identical command at Stage 0 and Gate 4.
+- **Documented pre-existing failures (excluded from this book's baseline):** the **tag / pin / Trusted-List / search** suites only — `profile-tags`, `profile-tags-publish`, `profile-tag-polish`, `tag-detail-publish`, `tag-index-publish`, `pin-a-tag-publish`, `tl-publication-from-pins`, `tl-publication-from-pins-publish`, `customize-pin-curation-publish`, `most-pinned-tag-index-publish`, `tag-detail-curated-view-and-pin-polish-publish`. Root cause: `strfry-router` FATAL (a separate known first-boot bug) + an un-configured House POV / absent pin-TL-search fixtures. None touch this book; the set is environment-driven and somewhat unstable run-to-run.
+- **This book's green baseline = every OTHER suite passes** — in particular every suite this book extends: `profile-verified-followers-count`, `profile-followers-list`, `profile-verified-reporters-count`, `verified-reporters-membership-data`, `verified-reporters-list-page`, `profile-verified-counts-owner-pov`, `profile-verified-counts-explainer-and-alarm`, `verified-reporters-report-columns`, `profile-follows-hops`, `profile-hops-path`, `profile-follows-list`, `profile-website-link`, `profile-identity-details-popover`.
+- **Gate-4 check (suite-level, robust to the flaky reds):** at re-arm Stage 0 the Director records the exact set of **passing** suites. Gate 3 adds the new muter test(s) and shows them failing for the right reason with no previously-passing suite regressing. Gate 4 passes iff **every suite that passed at the re-arm baseline still passes** (suite-level, not failure-count) and the new muter suite is now green. A previously-green suite going red is a Gate-4 failure; a flake within the already-documented set is not.
+- **Out of scope (unchanged):** the Director must NOT "fix" `strfry-router`, configure a POV, or seed pin/TL fixtures to chase those reds — unrelated infra outside this book.
 
 ### Autonomy ceiling — staging
 
