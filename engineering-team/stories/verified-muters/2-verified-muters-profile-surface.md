@@ -1,6 +1,6 @@
 # Story 2: Verified Muters profile surface
 
-**Status:** Draft
+**Status:** Done
 **Created:** 2026-06-21
 **Type:** Feature
 **Epic:** `verified-muters` · **Book:** `engineering-team/audits/verified-muters/book.md`
@@ -49,4 +49,4 @@ The book delegates these small choices to be resolved by **mirroring the Verifie
 ## Linked artifacts
 - ADR: (filled in after Architecture phase)
 - Test plan: (filled in after Test Design phase)
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/verified-muters/2-verified-muters-profile-surface.md` — **PASS** (2026-06-21)
