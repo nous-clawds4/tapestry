@@ -37,10 +37,10 @@ This book runs under the Director harness — [`/direct-feature`](../../../.clau
 
 Arming is **one commit on the `staging` branch whose diff touches only the four bullets below**, filling in:
 
-- **Armed:** No *(→ `Yes — <ISO-8601 UTC datetime>` at re-arm)*
-- **Deadline:** — *(→ re-arming instant + 96 hours, as an ISO-8601 UTC datetime)*
-- **Baseline:** — *(→ the `origin/staging` SHA at re-arming, which must include this amendment. No `verified-muters` epic stories, ADRs, or source may exist at that SHA; `book.md`, its `_intake.md` entry, and the Director `journal.md` are anchor/audit inputs, not epic work.)*
-- **Pinned governing versions:** — *(→ the commit SHAs of `engineering-team/roles/director.md`, `.claude/skills/direct-feature/SKILL.md`, and `.claude/agents/gate-judge.md` at re-arming.)*
+- **Armed:** Yes — 2026-06-21T15:40:33Z
+- **Deadline:** 2026-06-25T15:40:33Z *(re-arming instant + 96 hours)*
+- **Baseline:** `70ed1f7a2a5e74e6c300c98813221e4a2944b297` *(origin/staging at re-arm, incl. the #331 amendment. No `verified-muters` epic stories/ADRs/reviews exist, and none of this book's deliverables exist — the muters list endpoint (`mutersWithMetrics.js` / `get-grapevine-muters`), `BrainstormMuters.jsx` / `useGrapevineMuters.js`, and the `verifiedMuterCount` wiring into `handleGetUserCounts` are all absent. The pre-existing `calculate*MuterCounts.sh` data-layer scripts and the `verifiedMuterCount` already returned by `handleGetUserData` are foundation this book surfaces, NOT epic work — do not mistake them for contamination at Stage 0.)*
+- **Pinned governing versions:** `engineering-team/roles/director.md` f314bbba · `.claude/skills/direct-feature/SKILL.md` f314bbba · `.claude/agents/gate-judge.md` 3a2657b2
 
 A missing or ambiguous Armed/Deadline line means the book is not armed; the Director must refuse to run.
 
