@@ -35,10 +35,10 @@ This book runs under the Director harness — [`/direct-feature`](../../../.clau
 
 Arming is **one commit on the `staging` branch whose diff touches only this subsection**, filling in:
 
-- **Armed:** No *(→ `Yes — <ISO-8601 UTC datetime>`)*
-- **Deadline:** — *(→ arming instant + 96 hours, as an ISO-8601 UTC datetime; the arming commit's timestamp is the tiebreaker if prose and git disagree. 96h is the recommended window for a feature this small; the operator may set another value at arming.)*
-- **Baseline:** — *(→ the `origin/staging` SHA at arming. No stories, ADRs, or source changes for the `verified-muters` epic may exist at that SHA — pre-existing work voids the run. This `book.md` and its `_intake.md` entry are anchor inputs, not epic work, and are expected to be present at the baseline.)*
-- **Pinned governing versions:** — *(→ the commit SHAs of `engineering-team/roles/director.md`, `.claude/skills/direct-feature/SKILL.md`, and `.claude/agents/gate-judge.md` at arming. Scoring uses the pinned versions; any mid-run diff to the rubrics, judge protocol, stopping rules, or the judge agent is a goalpost amendment by definition.)*
+- **Armed:** Yes — 2026-06-21T14:31:30Z
+- **Deadline:** 2026-06-25T14:31:30Z *(arming instant + 96 hours)*
+- **Baseline:** `d1954c382d1c44783f310b182ac1415d10debde1` *(origin/staging at arming — the PR #329 merge; no `verified-muters` epic stories/ADRs/source exist at this SHA)*
+- **Pinned governing versions:** `engineering-team/roles/director.md` f314bbba · `.claude/skills/direct-feature/SKILL.md` f314bbba · `.claude/agents/gate-judge.md` 3a2657b2
 
 A missing or ambiguous Armed/Deadline line means the book is not armed; the Director must refuse to run.
 
