@@ -117,3 +117,12 @@ Append-only. Every gate decision, answered question, judge verdict, and halt.
 **Why:** I concur. Reviewer verdict PASS with no blocking findings (2 non-blocking: per-request cutoff read = the ADR's intended bound form; 4th duplicate helper set = the deferred DRY follow-up). I independently confirmed the Status flip Draft→Done is in commit `61780728` (only `A` review + `M` story, no renames). Cypher fully parameterized, no hardcoded TA pubkey, no secrets. **Completion detection: NOT YET** — Story 1 is the backend only; the acceptance frame's UI bullets (1 positioning, 3 link/route, 5 neutral badge, 6 line break, 8 staging rendered-UI evidence) require Story 2 (frontend). A Direction-mode "not yet" does not extend the frame. Deadline re-checked (2026-06-25T15:40:33Z, ~94h left).
 **Gate tally so far:** Gate 1: 1 KICK_BACK (blinding breach, my prompt) + APPROVE; Gates 2,3,5 APPROVE first try; Gate 4 mechanical PASS. Stories: 1/2 done.
 **Next:** Story 2 — the frontend surface (BrainstormMuters page + hook + route, the counts-row badge after Hops/before Verified Reporters, the line break). Stage 1 Planning: spawn `product-owner` for story #2; then Gate 1 (judged, frame extract).
+
+---
+
+## 2026-06-21T17:42:23Z — Story 2 Planning + Gate 1: APPROVE
+**Story/Phase:** verified-muters #2 / Gate 1
+**Decision:** APPROVE
+**Judge:** APPROVE (fresh, **blinding intact**) — all six items pass: 5 externally-testable UI criteria, one subsystem (the frontend profile surface), no solutioning, concepts by valid handles, correct per-epic path/Status + epic exists/lists #2, traces to frame bullets (1)/(3)/(5)/(6)/(4) with the backend, per-POV, and staging-Tier-4 concerns correctly placed in out-of-scope.
+**Why:** I concur. PO wrote `stories/verified-muters/2-verified-muters-profile-surface.md`: the counts-row Verified Muters badge (after Hops / before Verified Reporters, neutral like Verified Followers — no alarm), the visual line break between Hops and the bad indicators, and the list page mirroring Verified Followers (same columns/sort, no report fields, normal empty state). Delegated micro-decisions (title/empty-copy, default columns/sort, URL segment) folded in as "mirror Verified Followers" — relayed by me as the user per the book's delegation. Out-of-scope honors the intake. Deadline re-checked (2026-06-25T15:40:33Z).
+**Next:** Commit `story: verified-muters-profile-surface (story #2)`. Stage 1 step 2 — Architecture: spawn `architect`; Gate 2 (judged).
