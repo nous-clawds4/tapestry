@@ -350,12 +350,14 @@ function handleGetUserCounts(req, res) {
     // → null on timeout/error (renders "—"), NEVER raw followers. Same edges + cutoffs
     // as the /followers and /reporters tables, so badge ≡ table definition.
     let verifiedFollowerCount = null;
+    let verifiedMuterCount = null;
     let verifiedReporterCount = null;
     const neo4jUri = getConfigFromFile('NEO4J_URI', 'bolt://localhost:7687');
     const neo4jUser = getConfigFromFile('NEO4J_USER', 'neo4j');
     const neo4jPassword = getConfigFromFile('NEO4J_PASSWORD', 'neo4j');
     const queryTimeoutMs = parseInt(getConfigFromFile('NEO4J_QUERY_TIMEOUT_MS', 15000), 10);
     const vfCutoff = parseFloat(getConfigFromFile('VERIFIED_FOLLOWERS_INFLUENCE_CUTOFF', 0.05));
+    const vmCutoff = parseFloat(getConfigFromFile('VERIFIED_MUTERS_INFLUENCE_CUTOFF', 0.05));
     const vrCutoff = parseFloat(getConfigFromFile('VERIFIED_REPORTERS_INFLUENCE_CUTOFF', 0.05));
     const toInt = (v) => {
       if (v == null) return null;
@@ -369,12 +371,13 @@ function handleGetUserCounts(req, res) {
     try {
       // 1) Precomputed Owner node properties (cheap, O(1)).
       const propRes = await session.run(
-        'MATCH (u:NostrUser {pubkey: $pubkey}) RETURN u.verifiedFollowerCount AS vfc, u.verifiedReporterCount AS vrc',
+        'MATCH (u:NostrUser {pubkey: $pubkey}) RETURN u.verifiedFollowerCount AS vfc, u.verifiedMuterCount AS vmc, u.verifiedReporterCount AS vrc',
         { pubkey },
         { timeout: queryTimeoutMs }
       );
       if (propRes.records.length > 0) {
         verifiedFollowerCount = toInt(propRes.records[0].get('vfc'));
+        verifiedMuterCount = toInt(propRes.records[0].get('vmc'));
         verifiedReporterCount = toInt(propRes.records[0].get('vrc'));
       }
       // 2) Count-only live fallback when a property is absent (deadline-bounded; null on
@@ -390,6 +393,19 @@ function handleGetUserCounts(req, res) {
         } catch (e) {
           console.error('handleGetUserCounts verifiedFollowerCount fallback failed:', e.message);
           verifiedFollowerCount = null;
+        }
+      }
+      if (verifiedMuterCount == null) {
+        try {
+          const vmRes = await session.run(
+            'MATCH (m:NostrUser)-[:MUTES]->(u:NostrUser {pubkey: $pubkey}) WHERE m.influence > $cutoff RETURN count(m) AS c',
+            { pubkey, cutoff: vmCutoff },
+            { timeout: queryTimeoutMs }
+          );
+          verifiedMuterCount = vmRes.records.length ? toInt(vmRes.records[0].get('c')) : 0;
+        } catch (e) {
+          console.error('handleGetUserCounts verifiedMuterCount fallback failed:', e.message);
+          verifiedMuterCount = null;
         }
       }
       if (verifiedReporterCount == null) {
@@ -415,7 +431,7 @@ function handleGetUserCounts(req, res) {
 
     res.status(200).json({
       success: true,
-      data: { pubkey, followingCount, verifiedFollowerCount, verifiedReporterCount }
+      data: { pubkey, followingCount, verifiedFollowerCount, verifiedMuterCount, verifiedReporterCount }
     });
   });
 }
