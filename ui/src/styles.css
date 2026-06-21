@@ -3485,6 +3485,13 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
 .bsp-count-loading .bsp-count-value {
   opacity: 0.4;
 }
+/* Forces the "bad" indicators (Verified Muters, Verified Reporters) onto the next
+   flex line, grouping them visually away from the good ones (verified-muters #2). */
+.bsp-count-break {
+  flex-basis: 100%;
+  height: 0;
+  margin: 0;
+}
 
 /* Sections */
 .bsp-section {
