@@ -1,9 +1,9 @@
 # Book of Work: Verified Muters
 
 **Slug:** verified-muters
-**Status:** Open
+**Status:** Closed
 **Opened:** 2026-06-21
-**Closed:** —
+**Closed:** 2026-06-21
 
 ## Intent anchor
 **Acceptance frame (no PRD)** — the operator's ask, restated and confirmed at kickoff. Completion is *judged* against the bullets below.
@@ -108,8 +108,8 @@ Executed **only on the operator's explicit instruction** after reviewing the HAL
 
 ## Provenance
 - **Mode:** Acceptance-frame
-- **Confidence at close:** *(to be filled by `/close-book`)*
+- **Confidence at close:** high — a tight, operator-confirmed acceptance frame plus direct live staging evidence (count 72 == 72 list rows, followers columns with no report fields, owner-PoV 400) and a full per-story gate trail; both stories Done, both Reviewer verdicts PASS.
 
-## Close artifacts *(filled by `/close-book`)*
+## Close artifacts (filled by `/close-book` 2026-06-21)
 - Build audit: `engineering-team/audits/verified-muters/audit.md`
-- Product feedback: `engineering-team/audits/verified-muters/prd-seed.md`
+- Product feedback (seed): `engineering-team/audits/verified-muters/prd-seed.md`
