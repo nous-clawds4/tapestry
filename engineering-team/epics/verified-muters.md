@@ -1,6 +1,6 @@
 # Epic: Verified Muters
 
-**Status:** Active
+**Status:** Done
 **Book:** `engineering-team/audits/verified-muters/book.md` (acceptance-frame, Direction mode)
 
 ## What this is
@@ -9,7 +9,7 @@ A fifth point-of-view-filtered profile metric — **Verified Muters** — mirror
 This epic has two stories: **(1)** the backend read API — surfacing the verified-muter count through the same profile-counts endpoint that already serves verified-follower and verified-reporter counts, plus a verified-muters list read path parallel to the existing follower/reporter list endpoints; and **(2, later)** the frontend surface — the profile counts-row badge (neutral styling, positioned after Hops and before Verified Reporters), the list page, and the visual line break separating the good indicators from the bad ones.
 
 ## Stories
-`stories/verified-muters/` — dependency-ordered:
+`stories/done/verified-muters/` — dependency-ordered (epic retired at book close):
 
 1. **verified-muters-read-api** — the backend: the verified-muter count on the profile-counts endpoint and the verified-muters list read path. *(this story)*
 2. **verified-muters-profile-surface** — the frontend badge, list page, and line break. *(later)*
