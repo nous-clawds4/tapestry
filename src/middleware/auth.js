@@ -8,6 +8,24 @@ const fs = require('fs');
 const { getConfigFromFile, getAdminPubkeys } = require('../utils/config');
 const CustomerManager = require('../utils/customerManager');
 
+// Schnorr signature verification for the kind-22242 login challenge. Without it,
+// the challenge handshake only echoes the pubkey + challenge the caller already
+// holds, so any pubkey (incl. owner/admin) could be impersonated unsigned.
+// Resolve nostr-tools defensively (bare in dev/most contexts; absolute fallback
+// for the container layout some scripts hit), lazily, and fail CLOSED.
+let _verifyEvent;
+function verifyLoginEvent(event) {
+  try {
+    if (!_verifyEvent) {
+      try { _verifyEvent = require('nostr-tools').verifyEvent; }
+      catch { _verifyEvent = require('/usr/local/lib/node_modules/brainstorm/node_modules/nostr-tools').verifyEvent; }
+    }
+    return _verifyEvent(event) === true;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Verify if a pubkey belongs to the system owner
  */
@@ -147,15 +165,20 @@ function handleAuthLogin(req, res) {
         }
         
         if (!challengeFound) {
-            return res.json({ 
-                success: false, 
-                message: 'Challenge verification failed' 
+            return res.json({
+                success: false,
+                message: 'Challenge verification failed'
             });
         }
-        
+
+        // Cryptographically verify the event is actually signed by event.pubkey.
+        if (!verifyLoginEvent(event)) {
+            return res.json({ success: false, message: 'Invalid event signature' });
+        }
+
         // Set session as authenticated
         req.session.authenticated = true;
-        
+
         // Store nsec in session if provided
         if (nsec) {
             req.session.nsec = nsec;
@@ -567,7 +590,13 @@ function handleAuthLoginUser(req, res) {
         if (!challengeTag || challengeTag[1] !== sessionChallenge) {
             return res.status(400).json({ success: false, message: 'Invalid challenge in signed event' });
         }
-        
+
+        // Cryptographically verify the event is actually signed by event.pubkey
+        // (the pubkey + challenge checks above are caller-controlled without this).
+        if (!verifyLoginEvent(event)) {
+            return res.status(400).json({ success: false, message: 'Invalid event signature' });
+        }
+
         // If we get here, authentication is successful
         req.session.authenticated = true;
         req.session.userPubkey = sessionPubkey;
