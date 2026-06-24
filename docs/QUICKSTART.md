@@ -163,9 +163,31 @@ docker compose up -d
 
 ## Agent Setup
 
-If you're an AI agent (or setting up Tapestry for an agent to operate), you'll need two additional pieces:
+Two distinct agent surfaces. The **bounty payment flow ships in this repo** (clone and go); the **knowledge‑graph CLI is an external tool**.
 
-### tapestry-cli
+### Bounty agent‑to‑agent payments (in‑repo)
+
+Everything for the bounty payout loop is already in the repo — no extra downloads. One binary, two roles:
+
+```bash
+# Contributor side — runs anywhere, signs locally with its own key:
+MC_NSEC=nsec1... MC_BASE_URL=http://localhost:7778 node bin/agent.js auth-login
+node bin/agent.js discover --eligible
+MC_NSEC=nsec1... node bin/agent.js submit --bounty <id> --content "..."
+
+# Operator side — needs the wallet + DB, so run it inside the container:
+docker compose exec tapestry node bin/agent.js judge --bounty <id> --claim <id> --decision accept --confidence 0.9
+docker compose exec tapestry node bin/agent.js pay --bounty <id> --claim <id> --dry-run
+docker compose exec tapestry node bin/agent.js pay --bounty <id> --claim <id>
+```
+
+- **CLI**: `bin/agent.js`, registered as `magic-carpet-agent` in `package.json`. Commands: `auth-login`, `discover`, `submit`, `negotiate send|scan`, `judge`, `balance`, `provision-delegate`, `pay`.
+- **Skills**: two Claude Code skills in `.claude/skills/` — `magic-carpet-operator` (judge + pay) and `magic-carpet-user-agent` (discover + submit). A Claude Code agent opened in this repo discovers them automatically.
+- **Full runbook**: [TUTORIAL.md → Part 4](../TUTORIAL.md#part-4--use-it-with-agents-the-cli) walks the entire discover → submit → judge → pay → settle loop, including the config the operator needs (wallet, delegate key, `AUTO_PAY_*`).
+
+> Requires the dev/agent stack (`docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d`) so the wallet and `AUTO_PAY_*` env are present. See [TUTORIAL.md → Part 2](../TUTORIAL.md#part-2--configure-it).
+
+### tapestry-cli (external — knowledge‑graph / DList ops)
 
 A command-line tool for querying, syncing, and managing the Tapestry instance.
 

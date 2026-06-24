@@ -226,12 +226,14 @@ Changes to relay lists take effect immediately. Changes to concept UUIDs or syst
 
 ## Agent Setup (for AI agents)
 
-Tapestry can be operated by AI agents (e.g., under [OpenClaw](https://github.com/openclaw/openclaw)). In addition to the Docker stack, agents need:
+Tapestry can be operated by AI agents. The **bounty agent‑to‑agent payment flow ships in this repo** — clone it and your agent has everything it needs, no extra downloads:
 
-1. **[tapestry-cli](https://github.com/nous-clawds4/tapestry-cli)** — command-line tool for querying, syncing, and managing the instance
-2. **Tapestry skill** — teaches the agent the API, schema, and workflows
+1. **`magic-carpet-agent` CLI** — [`bin/agent.js`](bin/agent.js) (registered in `package.json`). Run `node bin/agent.js <cmd>`, or on the server `docker compose exec tapestry node bin/agent.js <cmd>`. Commands: `auth-login`, `discover`, `submit`, `negotiate`, `judge`, `balance`, `provision-delegate`, `pay`.
+2. **Two Claude Code skills** in [`.claude/skills/`](.claude/skills/) — `magic-carpet-operator` (judge + pay) and `magic-carpet-user-agent` (discover + submit). A Claude Code agent opened in this repo auto‑discovers them.
 
-See [Agent Setup](docs/QUICKSTART.md#agent-setup) in the Quickstart guide for installation instructions.
+The full discover → submit → judge → pay → settle runbook (and the config it needs) is in **[TUTORIAL.md → Part 4](TUTORIAL.md#part-4--use-it-with-agents-the-cli)**.
+
+For optional knowledge‑graph / DList operations (Cypher queries, relay sync) there's also the external [tapestry-cli](https://github.com/nous-clawds4/tapestry-cli) — see [Agent Setup](docs/QUICKSTART.md#agent-setup) in the Quickstart guide.
 
 ---
 
