@@ -498,6 +498,16 @@ async function register(app) {
     // ── Bounties API (Magic Carpet v2) ──
     const bountiesApi = require('./bounties');
     bountiesApi.register(app);
+    // Auto-pay is opt-in and must never crash boot: requiring the watcher eager-
+    // loads the wallet/zap deps, and a missing binary/dep here 502'd prod once
+    // (notes-deploy-incident). Load + start only when enabled, and fail open.
+    if (process.env.AUTO_PAY_ENABLED === 'true') {
+      try {
+        require('../services/autoPayWatcher').startAutoPayWatcher();
+      } catch (err) {
+        console.error('[auto-pay] disabled — failed to start watcher:', err.message);
+      }
+    }
 
     // ── Receiving-method setup API (Magic Carpet v2) ──
     const receivingApi = require('./receiving');
