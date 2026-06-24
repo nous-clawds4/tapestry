@@ -17,6 +17,19 @@ services:
       - ADMIN_PUBKEYS=${ADMIN_PUBKEYS}
       - NEO4J_PASSWORD=${NEO4J_PASSWORD}
       - DOMAIN_NAME=${DOMAIN_NAME:-localhost}
+      # Auto-pay bounty payouts. OFF by default — the watcher only starts when
+      # AUTO_PAY_ENABLED=true, and paying needs MDK_WALLET_MNEMONIC (the float)
+      # and RELAY_KEY_MASTER_KEY (to decrypt the issuer's delegate key). Set
+      # these in the host .env to enable in prod; leave unset for a plain stack.
+      # NOTE: DEV_SKIP_TRUST_CHECK is deliberately NOT here — trust gating stays
+      # enforced in prod; that bypass lives only in docker-compose.dev.yml.
+      - AUTO_PAY_ENABLED=${AUTO_PAY_ENABLED:-false}
+      - AUTO_PAY_ALLOWLIST_PUBKEYS=${AUTO_PAY_ALLOWLIST_PUBKEYS:-}
+      - AUTO_PAY_MAX_SATS=${AUTO_PAY_MAX_SATS:-5000}
+      - AUTO_PAY_INTERVAL_MS=${AUTO_PAY_INTERVAL_MS:-30000}
+      - AUTO_PAY_ZAP_RELAYS=${AUTO_PAY_ZAP_RELAYS:-wss://localhost:7777}
+      - MDK_WALLET_MNEMONIC=${MDK_WALLET_MNEMONIC:-}
+      - RELAY_KEY_MASTER_KEY=${RELAY_KEY_MASTER_KEY:-}
     volumes:
       - tapestry-neo4j:/var/lib/neo4j/data
       - tapestry-strfry:/var/lib/strfry
