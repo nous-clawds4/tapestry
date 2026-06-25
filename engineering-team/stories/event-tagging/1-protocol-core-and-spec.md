@@ -60,5 +60,5 @@ Testable from the outside (input → exact event/filter JSON). Throughout, `<TA>
 
 ## Linked artifacts
 - ADR: `engineering-team/decisions/event-tagging/0001-protocol-core-and-spec.md`
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/event-tagging/1-protocol-core-and-spec.test-plan.md` (suites: `test/event-tagging-core.test.js`, `test/event-tagging-spec.test.js`)
 - Review: (filled in after Review phase)
