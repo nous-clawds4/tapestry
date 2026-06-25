@@ -59,6 +59,6 @@ Testable from the outside (input → exact event/filter JSON). Throughout, `<TA>
 - The draft uses an `a` target in its worked example (tagging a tag). Confirm the kind-1 path uses `e` and that the core selects `e`-vs-`a` from the target form. *(resolved here: kind-1 → `e`; Architect verifies against header allowed/recommended)*
 
 ## Linked artifacts
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/event-tagging/0001-protocol-core-and-spec.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
