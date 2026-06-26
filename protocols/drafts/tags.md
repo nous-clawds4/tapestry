@@ -91,9 +91,9 @@ with a content payload mirroring them (`{"tagPinning":{"tagEventId":…,"curatio
 
 Unpinning is a standard NIP-09 kind-`5` deletion of the pin event. Reader semantics are existence-based: a live pin event means pinned; its absence (or deletion) means not pinned.
 
-## Event tagging (planned)
+## Event tagging
 
-Tagging **events** — beginning with kinds 39998/39999, i.e. DList headers and items — is the family's next step (see "The taggings family"). Its wire format is **not yet specified**: target reference form, concept handles, and polarity carriage for event targets are all open until the `nostr-event-tag` design lands. This section exists so the family's direction is visible; nothing here is normative.
+Tagging **events** — beginning with kind-1 notes and the addressable kinds 39998/39999 (DList headers and items) — is the family's `nostr-event-tag` member. Its wire format is specified in **[Event Taggings](./event-taggings.md)**: the target stays in the `e`/`a` slot and the descriptor is referenced indirectly via a `z`-tag pointing at a per-tag *tagging header*. That spec settles, for event targets, the `e`-vs-`a` reference question this document tracks as [W4](../worksheet.md#w4--e-vs-a-for-parent-tag-references) (`a` preferred, `e` allowed).
 
 ## Open questions
 

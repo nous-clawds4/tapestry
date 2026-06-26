@@ -1,223 +1,231 @@
-This protocol defines how to tag Nostr events in Tapestry.
+> **Repo metadata — not part of the spec text.**
+> **Status:** 📝 pre-NIP
+> **Canonical:** not yet published
+> **Sources:** the protocol author's draft (PR #325); event-tagging epic ADR 0001 (`engineering-team/decisions/event-tagging/0001-protocol-core-and-spec.md`); the dependency-free reference implementation at `src/lib/event-tagging/`; the sibling family spec [Tags & Taggings](./tags.md) and [Decentralized Lists](../nips/decentralized-lists.md).
 
-## The Problem
+---
 
-When tagging a Nostr user, we use the `p` tag to refer to the subject being tagged and either the `e` or the `a` tag to refer to the event that defines the tag being applied.
+Event Taggings
+==============
 
-When tagging a Nostr event, the naive but flawed approach would be to use the `e` or the `a` tag to refer to the event being tagged. The problem is that this creates ambiguity: we are using the `e` or `a`tag to refer to two different things - the event being tagged and the event that defines the tag being applied.
+This protocol defines how to tag Nostr **events** (as opposed to pubkeys). Taggings are ordinary kind-`39999` [Decentralized-List](../nips/decentralized-lists.md) items distinguished by which concepts their `z` tags reference. It is the `nostr-event-tag` member of the taggings family introduced in [Tags & Taggings](./tags.md), which specifies tagging **pubkeys**; this document specifies tagging **events**, beginning with kind-1 notes and the addressable kinds 39998/39999 (DList headers and items).
 
-This problem is most stark when we consider tagging a tag. For tags in general, the `a` tag (rather than the `e` tag) will be the standard point of reference. For example, suppose we have two tags: `Awesome Tag` and `Useful Tag`. Alice wants to tag `Awesome Tag` as a `Useful Tag`, while Bob wants to the reverse: tag `Useful Tag` as an `Awesome Tag`. How do we disambiguate which is the target and which is the descriptor?
+Throughout, `<TA_pubkey>` denotes a deployment's **Tapestry-Assistant** pubkey — the identity that seeds the firmware concept headers. It differs per deployment and is never hardcoded by implementations; handles are composed from the runtime value.
+
+## The problem
+
+When tagging a Nostr user, we use the `p` tag to refer to the subject being tagged and either the `e` or the `a` tag to refer to the event that defines the tag being applied. Because target (`p`) and descriptor (`a`) occupy different tag slots, there is no ambiguity.
+
+When tagging a Nostr event, the naive approach would be to use the `e` or the `a` tag to refer to the event being tagged. The problem is that this creates ambiguity: we would be using the `e`/`a` tag to refer to two different things — the event being tagged and the event that defines the tag being applied.
+
+This is most stark when tagging a tag. For tags, the `a` tag (rather than `e`) is the standard point of reference. Suppose we have two tags, `Awesome Tag` and `Useful Tag`. Alice wants to tag `Awesome Tag` as a `Useful Tag`; Bob wants the reverse. With both references in `a` tags, there is no way to disambiguate which is the target and which is the descriptor.
 
 ## Solution 1: extra a-tag fields (rejected)
 
-One solution would be to use extra fields in the a-tag to disambiguate. For example, we could use a `target` field to refer to the event being tagged and a `descriptor` field to refer to the event that defines the tag being applied. According to this strategy, Alice would create an event like this: 
+One option is to disambiguate with extra positional fields on the a-tag — a `target` field for the event being tagged and a `descriptor` field for the tag being applied:
 
 ```json
 {
   "kind": 39999,
   "tags": [
-    ...
-    ["a", "<awesome-tag-id>", "target"],
-    ["a", "<useful-tag-id>", "descriptor"]
+    ["a", "<awesome-tag-coord>", "target"],
+    ["a", "<useful-tag-coord>", "descriptor"]
   ]
 }
 ```
 
-Wheareas Bob would create an event like this:
+But to collect all instances of a particular tag being used we would want a single relay filter:
 
 ```json
-{
-  "kind": 39999,
-  "tags": [
-    ...
-    ["a", "<useful-tag-id>", "target"],
-    ["a", "<awesome-tag-id>", "descriptor"]
-  ]
-}
+{"kinds": [39999], "#a": ["<descriptor-coord>"]}
 ```
 
-However, this approach adds an extra complication when trying to collect all instances of a particular tag being used. Ideally, we would want a simple filter: 
-
-```json
-{"kinds": [39999], "#a": ["<a-tag-of-descriptor>"]}
-```
-
-But the above solution would require us to iterate through all events and accept or reject events based on the third field as being "target" versus "descriptor", and this introduces significant performance concerns.
+The positional-field approach defeats that: relays index single-letter tags by value, not by a third positional field, so a consumer would have to fetch every `#a` match and re-filter on the `target`/`descriptor` marker client-side. Rejected on relay-filterability.
 
 ## Solution 2: new tags (rejected)
 
-A second solution would be to introduce new tags to disambiguate. For example, we could use a `target` tag to refer to the event being tagged and a `descriptor` tag to refer to the event that defines the tag being applied. According to this strategy, Alice would create an event like this: 
+A second option introduces custom tag names — a `target` tag and a `descriptor` tag:
 
 ```json
 {
   "kind": 39999,
   "tags": [
-    ["e", "<target-event-id>"],
     ["target", "<target-event-id>"],
-    ["descriptor", "<descriptor-event-id>"],
-    ...
+    ["descriptor", "<descriptor-event-id>"]
   ]
 }
 ```
 
-However, this has the performance concern that nostr relays do not natively support filtering by custom tags like `target` and `descriptor`, which would require more complex server-side processing.
+Nostr relays (NIP-01) only index **single-letter** tags, so `#target` / `#descriptor` filters are not natively supported. Rejected on the same relay-filterability grounds.
 
-## The Proposed Solution: Indirect Tagging
+## The proposed solution: indirect tagging
 
-We will harness the power of z-tags to disambiguate the event being tagged versus the event that defines the Tag. Essentially, we will continue to use the `e` tag or the `a` tag to refer to the event being tagged, but we will use a z-tag to refer to the event that defines the tag being applied.
+We use a **z-tag** to disambiguate. The `e`/`a` tag continues to refer to **the event being tagged** (the target); a **z-tag** refers to **the tag being applied** (the descriptor), indirectly, by pointing at a per-tag *tagging header* (defined below).
 
-A note regarding z-tags: there is no prohibition against using multiple z-tags in a single event. Indeed, it is quite natural to do so. The event for "Rover" belongs on the list of dogs, but also on the list of animals (dogs being a subset of animals). As such, Rover can credibly include two z-tags, one pointing to the "dogs" list and one pointing to the "animals" list.
+A tagging genuinely *is* "an item on the list of things tagged X", which is exactly what z-tags model. And there is no prohibition on multiple z-tags in one event — indeed it is natural: an event for "Rover" belongs on the list of dogs *and* the list of animals, so it may carry a z-tag for each. An event-tagging carries two z-tags: one naming it a *nostr event tagging* in general, and one naming *which tag* it applies.
 
-## Example
+## Worked example
 
-As an example, we will consider the case of a Tag: "Good Tag", authored by Charlie, that Alice will tag as an "Awesome Tag" (which was previously defined by Jack).
+We tag a Tag — "Good Tag", authored by Charlie — as an "Awesome Tag" (previously defined by Jack). (Tagging a tag is the hardest case; tagging a kind-1 note is the same shape with the target carried in `e` instead of `a` — see "Targets" below.)
 
-Here is the Good Tag tag, authored by Charlie:
+**The tag-elements.** A tag is a kind-`39999` event joining the deployment's `tag` concept; its slug is its `d` tag and its display fields live in `content` (see [Tags & Taggings](./tags.md) § "Tag definitions"). The tag-element is addressable at `39999:<author>:<slug>`.
 
 ```json
 {
-  "content": "",
-  "created_at": 1678886400,
-  "id": "<good-tag-tag-id>",
   "kind": 39999,
   "pubkey": "<pubkey_charlie>",
-  "sig": "<sig_charlie>",
+  "content": "{\"tag\":{\"slug\":\"good-tag\",\"name\":\"Good Tag\",\"description\":\"Marks tags that people consider good.\"}}",
   "tags": [
-    ["z", "39998:<pubkey_vinney_tapestry_assistant>:tag"],
-    ["name", "Good Tag"],
-    ["description", "This tag is used to mark tags that people consider to be good."],
-    ["d", "good-tag-tag"]
+    ["d", "good-tag"],
+    ["z", "39998:<TA_pubkey>:tag"]
   ]
 }
 ```
 
-Here is the Tag called "Awesome Tag", declared by Jack:
-
 ```json
 {
-  "content": "",
-  "created_at": 1678886400,
-  "id": "<awesome-tag-tag-id>",
   "kind": 39999,
   "pubkey": "<pubkey_jack>",
-  "sig": "<sig_jack>",
+  "content": "{\"tag\":{\"slug\":\"awesome-tag\",\"name\":\"Awesome Tag\",\"description\":\"Marks tags that people consider awesome.\"}}",
   "tags": [
-    ["z", "39998:<pubkey_vinney_tapestry_assistant>:tag"],
-    ["name", "Awesome Tag"],
-    ["description", "This tag is used to mark tags that people consider to be awesome."],
-    ["d", "awesome-tag-tag"]
+    ["d", "awesome-tag"],
+    ["z", "39998:<TA_pubkey>:tag"]
   ]
 }
 ```
 
-Here is the DList Header for the list of nostr event Taggings, authored by Vinney's Tapestry Assistant and referenced by firmware:
+**The `nostr-event-tag` list header** — the firmware-seeded DList of all event taggings, authored by the deployment TA:
 
 ```json
 {
-  "content": "",
-  "created_at": 1678886400,
-  "id": "nostr-event-taggings-id",
   "kind": 39998,
-  "pubkey": "<pubkey_vinney_tapestry_assistant>",
-  "sig": "<sig_vinney_tapestry_assistant>",
+  "pubkey": "<TA_pubkey>",
+  "content": "",
   "tags": [
     ["d", "nostr-event-tag"],
     ["names", "nostr event tagging", "nostr event taggings"],
-    ["description", "A Nostr Event Tagging is an event that applies a specific Tag to a specific event (e or a)."]
+    ["description", "An event that applies a specific Tag to a specific event (referenced by e or a)."]
   ]
 }
 ```
 
-Here is the DList Header for the list of Awesome Tag Taggings. It points to the "Awesome Tag" tag declaration using the a-tag, also authored by Jack at the same time that he authored the Awesome Tag Tag. 
-
-Note that this event is _simultaneously_ a DList Header (so it needs names, description, and d-tag; but it's not kind 39998) and a List Item (so it needs a z-tag and is kind 39999). Note that the Decentralized Lists NIP specifically mentions that list headers can be (3)9999 events and are not limited to being (3)9998 events, provided that they meet the criteria for being a list header, such as having names and description tags. The reason this particular DList needs to be a kind 39999 event is that we require it to be an item on another DList, one that indicates that either the `e` tag or the `a` tag must be present, and which defines the interpretation of that tag.
+**The `tagging-with-specific-tag` list header** — the firmware-seeded DList *type* whose members are the per-tag tagging headers. Each member must carry an `a` (preferred) or `e` tag pointing at the tag-element it is "for":
 
 ```json
 {
-  "content": "",
-  "created_at": 1678886400,
-  "id": "awesome-tag-tagging-id",
-  "kind": 39999,
-  "pubkey": "<pubkey_jack>",
-  "sig": "<sig_jack>",
-  "tags": [
-    ["z", "39998:<pubkey_vinney_tapestry_assistant>:tagging-with-specific-tag"],
-    ["names", "Tagging of an event as an Awesome Tag", "Taggings of events as Awesome Tags"],
-    ["description", "This is a Tagging that applies the Awesome Tag Tag to an event."],
-    ["a", "39999:<pubkey_jack>:awesome-tag-tag"],
-    ["d", "tagging:awesome-tag-tagging"]
-  ]
-}
-```
-
-Here is the DList Header for taggings that use a specific tag, which, very significantly, requires an a-tag to point to the Tag Declaration in question, and a description that states as such:
-
-```json
-{
-  "content": "",
-  "created_at": 1678886400,
-  "id": "tagging-with-specific-tag-id",
   "kind": 39998,
-  "pubkey": "<pubkey_vinney_tapestry_assistant>",
-  "sig": "<sig_vinney_tapestry_assistant>",
+  "pubkey": "<TA_pubkey>",
+  "content": "",
   "tags": [
-    ["description", "This is a DList Header for taggings that use a specific Tag. Each item in the list requires either an e-tag or an a-tag to point to the Tag being used, with the a-tag being preferred."],
-    ["names", "tagging with specific tag", "taggings with specific tags"],
     ["d", "tagging-with-specific-tag"],
+    ["names", "tagging with specific tag", "taggings with specific tags"],
+    ["description", "A DList header for taggings that use a specific Tag. Each item points to the Tag being used via an a-tag (preferred) or e-tag."],
     ["recommended", "a"],
     ["allowed", "e"]
   ]
 }
 ```
 
-Here is the final Tagging event, authored by Alice:
+**The per-tag tagging header** — "taggings of events as an Awesome Tag", authored by Jack alongside the Awesome Tag tag-element. It is *simultaneously* a DList header (it carries `names`, `description`, `d`) **and** a DList item (it carries a `z` joining `tagging-with-specific-tag`, and is kind-`39999`). [Decentralized Lists](../nips/decentralized-lists.md) permits a kind-`39999` event to act as a list header when it meets the header criteria; this one must be kind-`39999` precisely so it can be an item on the `tagging-with-specific-tag` list. Its `a` tag points at the tag-element it applies:
 
 ```json
 {
-  "content": "",
-  "created_at": 1678886400,
-  "id": "alice-tagging-id",
   "kind": 39999,
-  "pubkey": "<pubkey_alice>",
-  "sig": "<sig_alice>",
+  "pubkey": "<pubkey_jack>",
+  "content": "",
   "tags": [
-    ["z", "39998:<pubkey_vinney_tapestry_assistant>:nostr-event-tag"],
-    ["z", "39999:<pubkey_jack>:tagging:awesome-tag-tagging"],
-    ["a", "39999:<pubkey_charlie>:good-tag-tag"], // the event being tagged
-    ["polarity", "1"],
-    ["d", "<standardized-d-tag>"] // e.g. `event-tag-<descriptor>-<target8>-<asserter8>`
+    ["d", "tagging:awesome-tag-tagging"],
+    ["names", "Tagging of an event as an Awesome Tag", "Taggings of events as Awesome Tags"],
+    ["description", "Applies the Awesome Tag to an event."],
+    ["z", "39998:<TA_pubkey>:tagging-with-specific-tag"],
+    ["a", "39999:<pubkey_jack>:awesome-tag"]
   ]
 }
 ```
 
-## Indirect Tags: Discovery
+**The tagging assertion** — Alice tags Charlie's "Good Tag" as an "Awesome Tag". The target (`Good Tag`) is in the `a` tag; the descriptor is referenced **indirectly** through Jack's tagging header in a `z` tag:
 
-### Was addressible event X tagged as an Awesome Tag?
+```json
+{
+  "kind": 39999,
+  "pubkey": "<pubkey_alice>",
+  "content": "",
+  "tags": [
+    ["d", "event-tag-awesome-tag-<pubkey_charlie[0:8]>-<pubkey_alice[0:8]>"],
+    ["a", "39999:<pubkey_charlie>:good-tag"],
+    ["z", "39998:<TA_pubkey>:nostr-event-tag"],
+    ["z", "39999:<pubkey_jack>:tagging:awesome-tag-tagging"],
+    ["polarity", "1"]
+  ]
+}
+```
 
-`{"kinds":[39999], "#z":["39999:<pubkey_jack>:tagging:awesome-tag-tagging"], "#a":["<X>"]}`
+## Targets
 
-### To discover all tags of a given event, whether direct or indirect:
+The target event is carried in the `a`/`e` slot per the `tagging-with-specific-tag` header's `recommended a` / `allowed e` rule:
 
-Given an event with a-tag: `39999:<pubkey_jack>:awesome-tag-tag`
+- **Addressable target** (a tag, a DList, any replaceable/addressable event): an `a` tag with the target's coordinate `<kind>:<author>:<d>`, as above.
+- **Non-addressable target** (a **kind-1 note**, or any plain event): an `e` tag with the target event id. Everything else about the assertion is identical.
 
-Run this filter:
+## Polarity
 
-`{"kinds":[39999], "#a":["39999:<pubkey_jack>:awesome-tag-tag"]}`
+`polarity` is `"1"` (apply) or `"-1"` (dispute); an **absent** `polarity` tag means apply. v1 interpretation buckets values: `≥ 0.5` counts as applied, `≤ −0.5` as disputed, and the open interval between is reserved for a future graded-valence arc (worksheet [W3](../worksheet.md)) and not counted in v1. Because `polarity` is a multi-letter tag, it is **not relay-filterable**; excluding disputes is therefore a read-time operation (see "Reading is per-POV").
 
-_Indirect tagging_: For any returned result `event_0`, if the z-tag references an `event_0_z_Tag` that is an item on the DList of `39998:<pubkey_vinney_tapestry_assistant>:tagging-with-specific-tag`, then the event `event_0_z_Tag` is a Tagging event that tags the event with the a-tag in `event_0_z_Tag`.
+## The assertion d-tag (normative)
 
-_Direct tagging_: Should not be possible, due to the disambiguation described above.
+An assertion's `d` tag is deterministic, giving each asserter exactly one live stance per (descriptor, target): republishing at the same address replaces the prior assertion, including flips between apply and dispute.
 
-### To discover all items that were tagged as an `Awesome Tag`:
+```
+d = event-tag-<descriptor>-<target8>-<asserter8>
+```
 
-There are two ways to do this: directly and indirectly.
+- `<descriptor>` — the applied tag's slug (e.g. `awesome-tag`).
+- `<target8>` — the first 8 characters of the target's identifier: the **event id** for an `e` target, or the **author-pubkey segment of the coordinate** (`<coord>.split(":")[1][0:8]`) for an `a` target.
+- `<asserter8>` — the first 8 characters of the asserting pubkey.
 
-Indirect tagging:
+The per-tag tagging header's `d` is likewise deterministic: `tagging:<slug>-tagging`.
 
-`{"kinds":[39999], "#z":["39999:<pubkey_jack>:tagging:awesome-tag-tagging"]}`
+## Discovery
 
-Direct tagging:
+The filters below return **candidate** events. Whether each candidate counts is a read-time, per-POV decision (see the next section) — the filters are how you *find* taggings, not how you decide which are true.
 
-`{"kinds":[39999], "#a":["39999:<pubkey_jack>:awesome-tag-tag"]}`
+**All taggings that apply a given tag** (forward) — a single `#z` over the tag's tagging header:
 
-However, note that `events` should not be tagged directly. Only `pubkeys` or strings (`t` tag) should be tagged directly.
+```json
+{"kinds":[39999], "#z":["39999:<pubkey_jack>:tagging:awesome-tag-tagging"]}
+```
+
+**Was a specific event tagged as an Awesome Tag?** — add the target to the forward filter (`#a` for an addressable target, `#e` for a note):
+
+```json
+{"kinds":[39999], "#z":["39999:<pubkey_jack>:tagging:awesome-tag-tagging"], "#a":["39999:<pubkey_charlie>:good-tag"]}
+```
+
+**All tags applied to a given event** (reverse) — scan candidate taggings whose target is the event, then resolve each candidate's descriptor:
+
+```json
+{"kinds":[39999], "#a":["39999:<pubkey_charlie>:good-tag"]}
+```
+
+(for a kind-1 note, use `{"kinds":[39999], "#e":["<note-id>"]}` instead). For each returned candidate, read its descriptor `z` tag and confirm that the referenced header is itself a member of `39998:<TA_pubkey>:tagging-with-specific-tag` — i.e. a legitimate tagging header. That membership test is a per-result resolve; the descriptor headers are bounded and cacheable.
+
+**Which tags is a given tag-element event-taggable as / who has set it up** — the per-tag headers that exist for a tag:
+
+```json
+{"kinds":[39999], "#a":["39999:<pubkey_jack>:awesome-tag"], "#z":["39998:<TA_pubkey>:tagging-with-specific-tag"]}
+```
+
+Events are tagged **only indirectly** (through a `z`-referenced tagging header). A `z`-less `a`/`e` reference to an event is undefined under this protocol and MUST NOT be interpreted as a tagging.
+
+## Reading is per-POV (candidates, not truth)
+
+Publication is permissionless: anyone may publish a tagging asserting anything. The discovery filters above therefore yield **candidates**, not a global membership set. Whether a given tagging *counts* — and thus whether an event "is" tagged as X — is computed from a specific point of view (POV) at **read time**, by applying that POV's web-of-trust scoring to the asserters and bucketing by `polarity`. There is no global "the event is tagged X"; different POVs may legitimately disagree, and the same filter result is interpreted differently per POV. Consumers MUST NOT treat a raw filter hit as established truth.
+
+## Firmware seeding
+
+The two list headers `39998:<TA_pubkey>:nostr-event-tag` and `39998:<TA_pubkey>:tagging-with-specific-tag` are authored by the deployment's Tapestry Assistant and established at deployment time (in this implementation, via firmware). Implementations compose these handles from the **runtime** TA pubkey; the literal differs per deployment and is never hardcoded. The tag-elements and per-tag tagging headers are user-authored and permissionless — anyone may create them.
+
+## Relationship to other specs
+
+- **[Tags & Taggings](./tags.md)** — defines tag-elements and the taggings family. This spec is its `nostr-event-tag` member; the tag-element shape (`d = <slug>`, `z` → the deployment's `tag` concept, display fields in `content`) is defined there and reused here unchanged. The `tagging-with-specific-tag` header makes concrete the `e`-vs-`a` parent-reference question that spec tracks as worksheet [W4](../worksheet.md) (here: `a` preferred, `e` allowed). The family's naming and expansion are worksheet [W10](../worksheet.md).
+- **[Decentralized Lists](../nips/decentralized-lists.md)** — the kind-39998/39999 list mechanics, including the kind-39999-as-list-header allowance the per-tag tagging header relies on.

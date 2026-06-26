@@ -171,6 +171,29 @@ t('assertion rejects bad polarity and malformed pubkeys', () => {
   assert(threw, 'malformed asserterPubkey must throw (no silent fallback)');
 });
 
+// ─── Review fix: handle-composing author pubkeys must be guarded too ───
+t('builders reject malformed handle-composing author pubkeys (no silent orphan)', () => {
+  const c = load();
+  // headerAuthorPubkey composes the descriptor z-coordinate in the assertion.
+  for (const bad of ['', undefined, 'npub1xxx', 'ABC', '1111']) {
+    let threw = false;
+    try {
+      c.buildEventTaggingAssertion({
+        headerAuthorPubkey: bad, slug: SLUG, target: { id: NOTE_ID }, polarity: 1, asserterPubkey: ALICE, taPubkey: TA,
+      });
+    } catch { threw = true; }
+    assert(threw, `malformed headerAuthorPubkey (${JSON.stringify(bad)}) must throw — else it mints an undiscoverable assertion`);
+  }
+  // tagAuthorPubkey composes the `a` coordinate in the header.
+  for (const bad of ['', undefined, 'npub1xxx', 'ABC', '1111']) {
+    let threw = false;
+    try {
+      c.buildTaggingHeader({ tagAuthorPubkey: bad, slug: SLUG, names: ['X'], description: 'd', taPubkey: TA });
+    } catch { threw = true; }
+    assert(threw, `malformed tagAuthorPubkey (${JSON.stringify(bad)}) must throw — else it mints an undiscoverable header`);
+  }
+});
+
 // ─── AC-8 (determinism): pure, no time/pubkey leakage ───
 t('builders are deterministic and emit no pubkey/created_at', () => {
   const c = load();
