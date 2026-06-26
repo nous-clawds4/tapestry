@@ -16,7 +16,7 @@ This NIP defines **tags** (community-creatable categories — "Podcaster is a ta
 A *tagging* is an assertion that a **target** belongs to a tag. The family is organized by target type:
 
 - **`nostr-user-tag`** — targets are **pubkeys**. The deployed instance, and the only member specified in this document.
-- **`nostr-event-tag`** *(planned)* — targets are **events**, beginning with kinds 39998/39999 (DList headers and items).
+- **`nostr-event-tag`** — targets are **events** (kind-1 notes and the addressable kinds 39998/39999, i.e. DList headers and items). Specified in [Event Taggings](./event-taggings.md).
 - **`dlist-tag`** *(envisioned)* — a subset of `nostr-event-tag` for DList objects specifically; an actively desired next step.
 
 This family tree is ratified design direction (the protocol author's, recorded in this epic's story 7); only the deployed instance below is normative. Whether the deployed concept should be *renamed* (e.g. `nostr-user-tag` → `nostr-user-tagging`) is open — and **wire-impactful**, since the concept slug is embedded in `z` handles on user-signed history; renames are concept migrations, never documentation edits. The family's naming and expansion are tracked as worksheet [W10](../worksheet.md#w10--taggings-family-naming--expansion).

@@ -47,8 +47,12 @@ function buildTagElement({ name, description, taPubkey }) {
 /**
  * Build a per-tag "tagging-with-specific-tag" header. Simultaneously a DList
  * header (names/description/d) and a DList item (z + a) — exactly per the spec.
- * `names` is an array (e.g. [singular, plural]); `slug` is the resolved
- * tag-element's slug (the builder does not re-slug it).
+ *
+ * @param {string}   tagAuthorPubkey  64-hex author of the tag-element this header is for.
+ * @param {string}   slug             the resolved tag-element's slug (NOT re-slugged here).
+ * @param {string[]} names            display names, e.g. [singular, plural]; spread into the `names` tag.
+ * @param {string}   description
+ * @param {string}   taPubkey         runtime Tapestry-Assistant pubkey (composes the `z` concept handle).
  */
 function buildTaggingHeader({ tagAuthorPubkey, slug, names, description, taPubkey }) {
   // tagAuthorPubkey composes the `a` coordinate (39999:<author>:<slug>). A
@@ -74,6 +78,7 @@ function buildTaggingHeader({ tagAuthorPubkey, slug, names, description, taPubke
  *
  * @param target  { id } for a non-addressable event (e.g. a kind-1 note → `e`),
  *                or { address } for an addressable target (a-coordinate → `a`).
+ *                If both are supplied, `id` takes precedence.
  * @param polarity 1 (apply) or -1 (dispute).
  */
 function buildEventTaggingAssertion({ headerAuthorPubkey, slug, target, polarity, asserterPubkey, taPubkey }) {
