@@ -528,6 +528,10 @@ async function register(app) {
     const relaysApi = require('./relays');
     app.get('/api/relays', relaysApi.handleGetRelays);
 
+    // ── Public publish policy (external-publish guard; event-tagging ADR 0002) ──
+    const publishPolicyApi = require('./publish-policy');
+    app.get('/api/publish-policy', publishPolicyApi.handleGetPublishPolicy);
+
     // ── Tapestry Property API ──
     const { registerPropertyRoutes } = require('./property');
     registerPropertyRoutes(app);

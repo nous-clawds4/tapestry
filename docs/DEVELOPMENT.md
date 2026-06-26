@@ -16,6 +16,25 @@ This bind-mounts the repo at `/usr/local/lib/node_modules/brainstorm` inside the
 docker compose exec tapestry supervisorctl restart brainstorm
 ```
 
+### Keep dev publishes off the live network (recommended)
+
+By default the app publishes signed events to **public relays** as well as your local strfry — so anything you publish while testing (tags, follows, pins, notes) is signed with **your dev key** and lands on the live network, where others can pick it up. Irreversible.
+
+Turn on the **local-only guard** so every publish stays on your local relay. In `docker-compose.override.yml` (gitignored, per-machine) under the `tapestry` service:
+
+```yaml
+    environment:
+      - BRAINSTORM_PUBLISH_LOCAL_ONLY=true
+```
+
+Recreate (`docker compose up -d`) and **verify** (the client fails open, so confirm rather than assume):
+
+```bash
+curl -s localhost:7778/api/publish-policy   # -> {"success":true,"allowExternalPublish":false}
+```
+
+Default (unset) publishes externally like production; this only affects machines that set it. Full reference: [CONFIGURATION.md → Publish policy](./CONFIGURATION.md#publish-policy-external-publish-guard).
+
 ### When a new dep lands
 
 If a teammate adds a dependency to `package.json` and a fresh `docker compose ... up -d` crash-loops brainstorm with `Error: Cannot find module 'X'`, the named volume `tapestry-node-modules` is stale. The dev override bind-mounts the local repo over `/usr/local/lib/node_modules/brainstorm` and then overlays the preserved named volume on its `node_modules/` — so the container sees the new `package.json` from your checkout but an older `node_modules/` from the last container build. Reinstall inside the container against the live `package.json`, then restart:

@@ -292,6 +292,15 @@ Universal credits and contributor list lives in [BIBLE.md §20 "People"](./BIBLE
 
 ## 9. Operational gotchas we've hit
 
+### 9.0. Publish policy — external-publish guard (`BRAINSTORM_PUBLISH_LOCAL_ONLY`)
+
+The app publishes signed events to public relays by default. A per-deployment opt-in guard (event-tagging ADR 0002) can force **local-relay-only** publishing:
+
+- **Default (flag unset): publishes externally — unchanged.** Production, staging, and every sandbox keep working with no action. There is **no migration**; you do not need to set anything to preserve current behaviour.
+- **`BRAINSTORM_PUBLISH_LOCAL_ONLY=true`** (in a deployment's `brainstorm.conf`, or the container env): every publish path stays on that deployment's local strfry — nothing reaches public relays. Use only for a deployment you deliberately want isolated.
+- **Check a deployment's posture:** `curl -s <host>/api/publish-policy` → `allowExternalPublish:false` means the guard is on.
+- The guard is **client-side and fail-open** (an unreadable policy publishes externally), so it is a convenience/safety switch, not a hard egress control. Local-dev usage and the full reference live in [docs/CONFIGURATION.md → Publish policy](./docs/CONFIGURATION.md#publish-policy-external-publish-guard).
+
 ### 9.1. `gh` CLI defaults to the upstream fork
 
 This local checkout has two remotes:

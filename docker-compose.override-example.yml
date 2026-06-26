@@ -7,3 +7,10 @@ services:
       - "7474:7474"
       - "7687:7687"
       - "8687:8687"
+    environment:
+      # RECOMMENDED for local dev: keep ALL Nostr publishing on the local relay
+      # only, so your dev key never reaches public relays (event-tagging ADR 0002).
+      # Default (omit this) publishes externally, exactly like production.
+      # Verify after `docker compose up -d`: curl -s localhost:7778/api/publish-policy
+      #   -> {"success":true,"allowExternalPublish":false}
+      - BRAINSTORM_PUBLISH_LOCAL_ONLY=true
