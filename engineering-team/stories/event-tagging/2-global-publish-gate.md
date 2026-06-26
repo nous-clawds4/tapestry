@@ -54,4 +54,4 @@ None — this is publish-infrastructure / deployment configuration, not a concep
 ## Linked artifacts
 - ADR: `engineering-team/decisions/event-tagging/0002-global-publish-gate.md`
 - Test plan: `engineering-team/stories/event-tagging/2-global-publish-gate.test-plan.md` (suite: `test/global-publish-gate.test.js`)
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/event-tagging/2-global-publish-gate.md` — **PASS** (2 non-blocking doc nits)
