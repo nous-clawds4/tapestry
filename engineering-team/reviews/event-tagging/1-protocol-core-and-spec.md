@@ -61,5 +61,14 @@
 ## What's right (so the kickback is scoped)
 Everything else conforms: exact wire shapes + tag ordering (ADR-faithful, tested), the three discovery filters, determinism (no wall-clock, no `pubkey`/`created_at`), zero coupling, and a spec that faithfully preserves David's indirect per-tag-header structure while gaining the metadata header, normative polarity/d-tag, read-time/POV "candidates" framing, firmware-seeding note, relationship section, and corrected queries. The kickback is **one guard + one test**.
 
+## Re-review (2026-06-26)
+
+Blocking #1 addressed:
+- `src/lib/event-tagging/builders.js:58` — `buildTaggingHeader` now `requireHex64(tagAuthorPubkey, …)`.
+- `src/lib/event-tagging/builders.js:86` — `buildEventTaggingAssertion` now `requireHex64(headerAuthorPubkey, …)` alongside the existing `asserterPubkey` guard. `taPubkey` left unguarded by design (runtime-config sourced, non-fatal), documented in-comment.
+- `test/event-tagging-core.test.js` — new test `builders reject malformed handle-composing author pubkeys` exercises `''`, `undefined`, `npub1…`, uppercase, and truncated values against both builders.
+
+Re-run independently: **event-tagging-core 13/13**, **event-tagging-spec 5/5**. Purity guard still green (new comments introduce no banned substrings). Non-blocking items (tags.md `(planned)`, JSDoc nits) remain optional and untaken.
+
 ## Verdict
-**CHANGES_REQUESTED** — single blocking item (Blocking #1): make pubkey-format validation match the ADR's mirrored guard by validating the handle-composing author pubkeys, with a test. Non-blocking items optional.
+**PASS** — Blocking #1 resolved; the single ask (symmetric author-pubkey validation + test) is in. Originally CHANGES_REQUESTED (see above); now PASS.

@@ -61,4 +61,4 @@ Testable from the outside (input → exact event/filter JSON). Throughout, `<TA>
 ## Linked artifacts
 - ADR: `engineering-team/decisions/event-tagging/0001-protocol-core-and-spec.md`
 - Test plan: `engineering-team/stories/event-tagging/1-protocol-core-and-spec.test-plan.md` (suites: `test/event-tagging-core.test.js`, `test/event-tagging-spec.test.js`)
-- Review: `engineering-team/reviews/event-tagging/1-protocol-core-and-spec.md` — **CHANGES_REQUESTED** (pubkey-validation symmetry)
+- Review: `engineering-team/reviews/event-tagging/1-protocol-core-and-spec.md` — **PASS** (CHANGES_REQUESTED → fixed: symmetric author-pubkey validation + test)
