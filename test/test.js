@@ -112,6 +112,7 @@ const verifiedMutersProfileSurface = require('./verified-muters-profile-surface.
 // epic: event-tagging — Story 1 (protocol core + spec)
 const eventTaggingCore = require('./event-tagging-core.test.js');
 const eventTaggingSpec = require('./event-tagging-spec.test.js');
+const globalPublishGate = require('./global-publish-gate.test.js');
 
 async function main() {
   console.log('Running Brainstorm tests...');
@@ -315,6 +316,8 @@ async function main() {
   const eventTaggingCoreResult = await eventTaggingCore.run();
   console.log('\nevent-tagging-spec suite:');
   const eventTaggingSpecResult = await eventTaggingSpec.run();
+  console.log('\nglobal-publish-gate suite:');
+  const globalPublishGateResult = await globalPublishGate.run();
 
   console.log('\nTest Results');
   console.log('-------------');
@@ -623,7 +626,8 @@ async function main() {
     verifiedMutersReadApiResult.fail === 0 &&
     verifiedMutersProfileSurfaceResult.fail === 0 &&
     eventTaggingCoreResult.fail === 0 &&
-    eventTaggingSpecResult.fail === 0;
+    eventTaggingSpecResult.fail === 0 &&
+    globalPublishGateResult.fail === 0;
   console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);
   process.exit(overallOk ? 0 : 1);
 }
