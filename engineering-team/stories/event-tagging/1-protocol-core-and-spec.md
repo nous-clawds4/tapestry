@@ -1,9 +1,11 @@
 # Story 1: Event-tagging protocol spec + dependency-free core library
 
-**Status:** Draft
+**Status:** Done — **amended 2026-06-26** (federation)
 **Created:** 2026-06-25
 **Type:** Feature
 **Epic:** event-tagging
+
+> **Amendment 2026-06-26 (federation).** During Story 3 architecture we decided event-tagging concepts should federate across deployments like pubkey-tags. The core's builders therefore take a **`taPubkeys` list** (concept namespaces) and emit **one concept `z` per namespace** (deduped) — `[canonical, local]` to federate, `[own]` to splinter. The generic core embeds **no** canonical literal (it's an app-policy constant). The AC wording below that says "a `z` to `39998:<TA>:nostr-event-tag`" now means "one such `z` per supplied namespace." Core + spec + tests updated; suite green (15/15). See ADR 0001 (amended) + ADR 0003 (firmware/community-reference half).
 
 ## Background
 

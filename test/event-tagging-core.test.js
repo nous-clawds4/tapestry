@@ -34,7 +34,8 @@ function load() {
 }
 
 // ─── fixtures (fixed, fake-but-valid 64-hex) ───
-const TA     = '82b75e474dda005e912bcbb910391c60c2b89cc7faf5d3c30b7c59a324973833';
+const TA     = '82b75e474dda005e912bcbb910391c60c2b89cc7faf5d3c30b7c59a324973833'; // canonical namespace
+const LOCAL  = '5555555555555555555555555555555555555555555555555555555555555555'; // local (runtime) namespace
 const JACK   = '1111111111111111111111111111111111111111111111111111111111111111'; // tag-element + header author
 const ALICE  = '2222222222222222222222222222222222222222222222222222222222222222'; // asserter
 const CHARLIE= '3333333333333333333333333333333333333333333333333333333333333333'; // addressable-target author
@@ -70,10 +71,10 @@ t('slug: byte-identical to src/lib/dtag.js slug incl. diacritics', () => {
 // ─── AC-1: tag-element ───
 t('buildTagElement: exact kind/tags/content for a named tag', () => {
   const c = load();
-  const ev = c.buildTagElement({ name: 'Awesome Tag', description: 'marks awesome things', taPubkey: TA });
+  const ev = c.buildTagElement({ name: 'Awesome Tag', description: 'marks awesome things', taPubkeys: [TA, LOCAL] });
   jsonEq(Object.keys(ev).sort(), ['content', 'kind', 'tags'], 'tag-element must have exactly {kind,tags,content}');
   jsonEq(ev.kind, 39999, 'tag-element kind');
-  jsonEq(ev.tags, [['d', 'awesome-tag'], ['z', `39998:${TA}:tag`]], 'tag-element tags');
+  jsonEq(ev.tags, [['d', 'awesome-tag'], ['z', `39998:${TA}:tag`], ['z', `39998:${LOCAL}:tag`]], 'tag-element tags (dual-z: canonical + local)');
   jsonEq(JSON.parse(ev.content), { tag: { slug: 'awesome-tag', name: 'Awesome Tag', description: 'marks awesome things' } }, 'tag-element content');
 });
 
@@ -81,15 +82,16 @@ t('buildTagElement: exact kind/tags/content for a named tag', () => {
 t('buildTaggingHeader: header+item shape, d=tagging:<slug>-tagging, a=tag-element', () => {
   const c = load();
   const names = ['Tagging of an event as an Awesome Tag', 'Taggings of events as Awesome Tags'];
-  const ev = c.buildTaggingHeader({ tagAuthorPubkey: JACK, slug: SLUG, names, description: 'applies the Awesome Tag to an event', taPubkey: TA });
+  const ev = c.buildTaggingHeader({ tagAuthorPubkey: JACK, slug: SLUG, names, description: 'applies the Awesome Tag to an event', taPubkeys: [TA, LOCAL] });
   jsonEq(ev.kind, 39999, 'header kind');
   jsonEq(ev.tags, [
     ['d', 'tagging:awesome-tag-tagging'],
     ['names', names[0], names[1]],
     ['description', 'applies the Awesome Tag to an event'],
     ['z', `39998:${TA}:tagging-with-specific-tag`],
+    ['z', `39998:${LOCAL}:tagging-with-specific-tag`],
     ['a', `39999:${JACK}:awesome-tag`],
-  ], 'header tags (simultaneously list-header + list-item)');
+  ], 'header tags (dual-z: canonical + local; simultaneously list-header + list-item)');
   jsonEq(ev.content, '', 'header content empty per spec');
 });
 
@@ -97,7 +99,7 @@ t('buildTaggingHeader: header+item shape, d=tagging:<slug>-tagging, a=tag-elemen
 t('buildEventTaggingAssertion: kind-1 note target uses e, dual z, polarity, d-tag', () => {
   const c = load();
   const ev = c.buildEventTaggingAssertion({
-    headerAuthorPubkey: JACK, slug: SLUG, target: { id: NOTE_ID }, polarity: 1, asserterPubkey: ALICE, taPubkey: TA,
+    headerAuthorPubkey: JACK, slug: SLUG, target: { id: NOTE_ID }, polarity: 1, asserterPubkey: ALICE, taPubkeys: [TA, LOCAL],
   });
   jsonEq(Object.keys(ev).sort(), ['content', 'kind', 'tags'], 'assertion must have exactly {kind,tags,content} (no pubkey/created_at)');
   jsonEq(ev.kind, 39999, 'assertion kind');
@@ -105,9 +107,10 @@ t('buildEventTaggingAssertion: kind-1 note target uses e, dual z, polarity, d-ta
     ['d', 'event-tag-awesome-tag-44444444-22222222'],
     ['e', NOTE_ID],
     ['z', `39998:${TA}:nostr-event-tag`],
+    ['z', `39998:${LOCAL}:nostr-event-tag`],
     ['z', `39999:${JACK}:tagging:awesome-tag-tagging`],
     ['polarity', '1'],
-  ], 'assertion tags (kind-1 target carried in e)');
+  ], 'assertion tags (kind-1 target in e; dual concept-z then the user-rooted header z)');
 });
 
 // ─── AC-4: assertion, addressable target ({address} → a) ───
@@ -115,15 +118,16 @@ t('buildEventTaggingAssertion: addressable target uses a, target8 from coord pub
   const c = load();
   const address = `39999:${CHARLIE}:good-tag-tag`;
   const ev = c.buildEventTaggingAssertion({
-    headerAuthorPubkey: JACK, slug: SLUG, target: { address }, polarity: -1, asserterPubkey: ALICE, taPubkey: TA,
+    headerAuthorPubkey: JACK, slug: SLUG, target: { address }, polarity: -1, asserterPubkey: ALICE, taPubkeys: [TA, LOCAL],
   });
   jsonEq(ev.tags, [
     ['d', 'event-tag-awesome-tag-33333333-22222222'], // target8 = CHARLIE.slice(0,8), NOT "39999:"
     ['a', address],
     ['z', `39998:${TA}:nostr-event-tag`],
+    ['z', `39998:${LOCAL}:nostr-event-tag`],
     ['z', `39999:${JACK}:tagging:awesome-tag-tagging`],
     ['polarity', '-1'],
-  ], 'assertion tags (addressable target carried in a; dispute polarity)');
+  ], 'assertion tags (addressable target in a; dual concept-z; dispute polarity)');
 });
 
 // ─── AC-5: filter — all taggings using a tag ───
@@ -161,7 +165,7 @@ t('filterTaggingHeadersForTag: #a tag-element + #z tagging-with-specific-tag', (
 // ─── AC: polarity / pubkey guards ───
 t('assertion rejects bad polarity and malformed pubkeys', () => {
   const c = load();
-  const good = { headerAuthorPubkey: JACK, slug: SLUG, target: { id: NOTE_ID }, polarity: 1, asserterPubkey: ALICE, taPubkey: TA };
+  const good = { headerAuthorPubkey: JACK, slug: SLUG, target: { id: NOTE_ID }, polarity: 1, asserterPubkey: ALICE, taPubkeys: [TA] };
   let threw;
   threw = false; try { c.buildEventTaggingAssertion({ ...good, polarity: 0 }); } catch { threw = true; }
   assert(threw, 'polarity 0 must throw (only 1/-1 allowed)');
@@ -179,7 +183,7 @@ t('builders reject malformed handle-composing author pubkeys (no silent orphan)'
     let threw = false;
     try {
       c.buildEventTaggingAssertion({
-        headerAuthorPubkey: bad, slug: SLUG, target: { id: NOTE_ID }, polarity: 1, asserterPubkey: ALICE, taPubkey: TA,
+        headerAuthorPubkey: bad, slug: SLUG, target: { id: NOTE_ID }, polarity: 1, asserterPubkey: ALICE, taPubkeys: [TA],
       });
     } catch { threw = true; }
     assert(threw, `malformed headerAuthorPubkey (${JSON.stringify(bad)}) must throw — else it mints an undiscoverable assertion`);
@@ -188,7 +192,7 @@ t('builders reject malformed handle-composing author pubkeys (no silent orphan)'
   for (const bad of ['', undefined, 'npub1xxx', 'ABC', '1111']) {
     let threw = false;
     try {
-      c.buildTaggingHeader({ tagAuthorPubkey: bad, slug: SLUG, names: ['X'], description: 'd', taPubkey: TA });
+      c.buildTaggingHeader({ tagAuthorPubkey: bad, slug: SLUG, names: ['X'], description: 'd', taPubkeys: [TA] });
     } catch { threw = true; }
     assert(threw, `malformed tagAuthorPubkey (${JSON.stringify(bad)}) must throw — else it mints an undiscoverable header`);
   }
@@ -197,12 +201,34 @@ t('builders reject malformed handle-composing author pubkeys (no silent orphan)'
 // ─── AC-8 (determinism): pure, no time/pubkey leakage ───
 t('builders are deterministic and emit no pubkey/created_at', () => {
   const c = load();
-  const args = { headerAuthorPubkey: JACK, slug: SLUG, target: { id: NOTE_ID }, polarity: 1, asserterPubkey: ALICE, taPubkey: TA };
+  const args = { headerAuthorPubkey: JACK, slug: SLUG, target: { id: NOTE_ID }, polarity: 1, asserterPubkey: ALICE, taPubkeys: [TA] };
   const a = c.buildEventTaggingAssertion(args);
   const b = c.buildEventTaggingAssertion(args);
   jsonEq(a, b, 'same inputs must yield deep-equal output (no Date.now variance)');
   assert(!('created_at' in a), 'core must not set created_at');
   assert(!('pubkey' in a), 'core must not set top-level pubkey');
+});
+
+// ─── Federation: multi-z is parameterized (canonical + local), deduped, validated ───
+t('federation: taPubkeys emits one concept-z per namespace, deduped; splinter = single namespace', () => {
+  const c = load();
+  // Splinter (own island): a single namespace → single concept-z.
+  const solo = c.buildTagElement({ name: 'Awesome Tag', description: '', taPubkeys: [LOCAL] });
+  jsonEq(solo.tags, [['d', 'awesome-tag'], ['z', `39998:${LOCAL}:tag`]], 'single namespace → single concept-z (own island)');
+  // Dedup: identical canonical+local (e.g. on the legacy deployment where runtime TA == canonical) → one z, not two.
+  const dup = c.buildTagElement({ name: 'Awesome Tag', description: '', taPubkeys: [TA, TA] });
+  jsonEq(dup.tags, [['d', 'awesome-tag'], ['z', `39998:${TA}:tag`]], 'duplicate namespaces must dedup to a single concept-z');
+});
+
+t('federation: empty or malformed taPubkeys throws (no hardcoded fallback)', () => {
+  const c = load();
+  let threw;
+  threw = false; try { c.buildTagElement({ name: 'X', description: '', taPubkeys: [] }); } catch { threw = true; }
+  assert(threw, 'empty taPubkeys must throw — the core embeds no default/canonical namespace');
+  threw = false; try { c.buildTagElement({ name: 'X', description: '', taPubkeys: [TA, 'not-hex'] }); } catch { threw = true; }
+  assert(threw, 'a malformed taPubkeys entry must throw (would compose an undiscoverable concept handle)');
+  threw = false; try { c.buildTagElement({ name: 'X', description: '' }); } catch { threw = true; }
+  assert(threw, 'missing taPubkeys must throw');
 });
 
 // ─── AC-8 (purity/coupling): source-contract over the module files ───

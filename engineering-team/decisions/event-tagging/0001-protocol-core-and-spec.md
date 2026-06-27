@@ -1,6 +1,6 @@
 # ADR 0001: Event-tagging protocol core library + spec finalization
 
-**Status:** Proposed
+**Status:** Accepted — **amended 2026-06-26** (concept `z`-tags parameterized to a `taPubkeys` list for cross-deployment federation; see the "Federation" note in Implementation; firmware half in ADR 0003)
 **Date:** 2026-06-25
 **Story:** `engineering-team/stories/event-tagging/1-protocol-core-and-spec.md`
 
@@ -77,21 +77,23 @@ All builders return a **partial unsigned event** `{ kind, tags, content }` (no t
 
 **`slug.js`** — `slug(name)` byte-identical to `src/lib/dtag.js:slug` (lowercase, NFD diacritic strip, non-alnum→`-`, trim). Self-contained copy (no `require` of dtag) so the module is extractable.
 
-**`builders.js`:**
-- `buildTagElement({ name, description, taPubkey })` → `{ kind:39999, tags:[ ['d', slug(name)], ['z', conceptTag(taPubkey)] ], content: JSON.stringify({ tag:{ slug:slug(name), name, description: description||'' } }) }`. (Mirrors the existing tag-element shape; content is required by the `tag` concept's processors.)
-- `buildTaggingHeader({ tagAuthorPubkey, slug, name, description, taPubkey })` → `{ kind:39999, tags:[ ['d', `tagging:${slug}-tagging`], ['names', name, <plural?>], ['description', description], ['z', conceptTaggingWithSpecificTag(taPubkey)], ['a', tagElementAddr(tagAuthorPubkey, slug)] ], content:'' }`. (Simultaneously a list header — `names`/`description`/`d` — and a list item — `z`+`a` — exactly per the draft's "Awesome Tag Taggings" header. Caller passes `slug` of the already-resolved tag-element; the builder does not re-slug.)
-- `buildEventTaggingAssertion({ headerAuthorPubkey, slug, target, polarity, asserterPubkey, taPubkey })` where `target` is `{ id }` (kind-1 note → emits `['e', id]`) **or** `{ address }` (addressable → emits `['a', address]`). Returns:
+**Federation — concept `z`-tags are parameterized (amended 2026-06-26).** The TA-rooted concept `z`-tags accept a **list** `taPubkeys` (the concept namespaces to join), and the builder emits one concept `z` per pubkey — deduped (order preserved), each validated. This is the wire half of cross-deployment federation, matching the existing pubkey-tag dual-z writer (`publishProfileTag.js:80–81`): a deployment passes `[<canonical>, <own>]` to federate, `[<own>]` to splinter. **The generic core embeds no canonical literal** — the canonical pubkey is a caller (app) policy decision (the app supplies the legacy/canonical constant, the way `publishProfileTag.js:15` holds `LEGACY_TA_PUBKEY`). The user-rooted per-tag header `z` (`39999:<author>:tagging:<slug>-tagging`) stays singular. See ADR 0003 for the firmware/community-reference half; the cross-deployment-identity choice is worksheet W1.
+
+**`builders.js`** (all take `taPubkeys: string[]` for the concept namespaces):
+- `buildTagElement({ name, description, taPubkeys })` → `{ kind:39999, tags:[ ['d', slug(name)], ...taPubkeys.map(pk => ['z', conceptTag(pk)]) ], content: JSON.stringify({ tag:{ slug:slug(name), name, description: description||'' } }) }`. (Mirrors the existing tag-element shape; content is required by the `tag` concept's processors.)
+- `buildTaggingHeader({ tagAuthorPubkey, slug, names, description, taPubkeys })` → `{ kind:39999, tags:[ ['d', `tagging:${slug}-tagging`], ['names', ...names], ['description', description], ...taPubkeys.map(pk => ['z', conceptTaggingWithSpecificTag(pk)]), ['a', tagElementAddr(tagAuthorPubkey, slug)] ], content:'' }`. (`names` is a string array. Simultaneously a list header and a list item — exactly per the draft's "Awesome Tag Taggings" header. Caller passes `slug` of the already-resolved tag-element; the builder does not re-slug.)
+- `buildEventTaggingAssertion({ headerAuthorPubkey, slug, target, polarity, asserterPubkey, taPubkeys })` where `target` is `{ id }` (kind-1 note → emits `['e', id]`) **or** `{ address }` (addressable → emits `['a', address]`). Returns:
   ```
   { kind:39999, tags:[
       ['d', `event-tag-${slug}-${target8}-${asserterPubkey.slice(0,8)}`],
       [targetTag…],                                   // ['e', id] | ['a', address]
-      ['z', conceptNostrEventTag(taPubkey)],
-      ['z', taggingHeaderAddr(headerAuthorPubkey, slug)],
+      ...taPubkeys.map(pk => ['z', conceptNostrEventTag(pk)]),  // one per namespace, deduped
+      ['z', taggingHeaderAddr(headerAuthorPubkey, slug)],       // user-rooted, singular
       ['polarity', String(polarity)] ],
     content:'' }
   ```
   - `target8` = `id.slice(0,8)` for `{ id }`; `address.split(':')[1].slice(0,8)` (the author-pubkey segment) for `{ address }`. Deterministic, no crypto. Defined normatively in the spec.
-  - Validate `polarity ∈ {1,-1}` and pubkeys match `/^[0-9a-f]{64}$/`; throw on malformed (mirrors `publishProfileTag.js:54`). No e-only/silent fallbacks.
+  - Validate `polarity ∈ {1,-1}`, the author pubkeys, **and every `taPubkeys` entry** match `/^[0-9a-f]{64}$/`; throw on malformed, and on an empty `taPubkeys` (mirrors `publishProfileTag.js:54`). No silent fallbacks. The "non-fatal omit a missing local TA" policy lives in the *app* caller (it filters its list before calling); the core takes a clean list.
 
 **`filters.js`** (return plain filter objects; results are **candidates**, POV-filtered at read time in Story 4):
 - `filterTaggingsUsingTag({ headerAuthorPubkey, slug })` → `{ kinds:[39999], '#z':[ taggingHeaderAddr(headerAuthorPubkey, slug) ] }`

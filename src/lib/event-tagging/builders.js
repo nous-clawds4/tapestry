@@ -7,6 +7,13 @@
  * adds those at sign time. This keeps the core pure and deterministic (no
  * wall-clock time), so output is a function of its inputs alone. No I/O, no signing.
  *
+ * FEDERATION (parameterized, never hardcoded): the TA-rooted concept `z`-tags
+ * accept a LIST of namespaces — `taPubkeys`. The builder emits one concept `z`
+ * per pubkey (deduped, order preserved). A deployment federating with a shared
+ * canonical namespace passes `[<canonical>, <own>]` (dual-z); a deployment going
+ * it alone passes `[<own>]` (its own island). The canonical pubkey is a caller
+ * policy decision — this generic core embeds NO deployment identity.
+ *
  * Dependency-free: the only imports are sibling modules in this folder.
  */
 
@@ -28,17 +35,41 @@ function requireHex64(value, label) {
 }
 
 /**
- * Build a tag-element (the descriptor). Joins the deployment's `tag` concept.
+ * Compose the concept `z`-tags for a namespace list: one `['z', conceptFn(pk)]`
+ * per pubkey, validated and deduped (order preserved). The caller decides the
+ * list — typically `[canonical, local]` to federate, or `[local]` to splinter.
+ * Each entry is validated (fail loud): a malformed TA pubkey would compose an
+ * undiscoverable concept handle. Callers that want a "non-fatal, omit a missing
+ * local TA" policy filter their list BEFORE calling — the core takes a clean list.
+ */
+function conceptZTags(taPubkeys, conceptFn, label) {
+  if (!Array.isArray(taPubkeys) || taPubkeys.length === 0) {
+    throw new Error(`event-tagging: ${label} must be a non-empty array of TA pubkeys (the concept namespaces to join)`);
+  }
+  const seen = new Set();
+  const out = [];
+  for (const pk of taPubkeys) {
+    requireHex64(pk, `${label}[] entry`);
+    const handle = conceptFn(pk);
+    if (!seen.has(handle)) { seen.add(handle); out.push(['z', handle]); }
+  }
+  return out;
+}
+
+/**
+ * Build a tag-element (the descriptor). Joins the `tag` concept namespace(s).
  * `d` is the slug of the name — the SAME shape the existing tag concept uses
  * (39999:<author>:<slug>), so event-taggings reference real tag-elements.
+ *
+ * @param {string[]} taPubkeys  concept namespaces to join (e.g. [canonical, local]).
  */
-function buildTagElement({ name, description, taPubkey }) {
+function buildTagElement({ name, description, taPubkeys }) {
   const slug = toSlug(name);
   return {
     kind: 39999,
     tags: [
       ['d', slug],
-      ['z', conceptTag(taPubkey)],
+      ...conceptZTags(taPubkeys, conceptTag, 'taPubkeys'),
     ],
     content: JSON.stringify({ tag: { slug, name, description: description || '' } }),
   };
@@ -52,13 +83,12 @@ function buildTagElement({ name, description, taPubkey }) {
  * @param {string}   slug             the resolved tag-element's slug (NOT re-slugged here).
  * @param {string[]} names            display names, e.g. [singular, plural]; spread into the `names` tag.
  * @param {string}   description
- * @param {string}   taPubkey         runtime Tapestry-Assistant pubkey (composes the `z` concept handle).
+ * @param {string[]} taPubkeys        concept namespaces to join (e.g. [canonical, local]).
  */
-function buildTaggingHeader({ tagAuthorPubkey, slug, names, description, taPubkey }) {
+function buildTaggingHeader({ tagAuthorPubkey, slug, names, description, taPubkeys }) {
   // tagAuthorPubkey composes the `a` coordinate (39999:<author>:<slug>). A
   // malformed value silently yields an undiscoverable header, so fail loud here
-  // rather than mint an orphan (mirrors publishProfileTag.js:54). taPubkey is
-  // intentionally NOT guarded — it is runtime-config sourced and non-fatal.
+  // rather than mint an orphan (mirrors publishProfileTag.js:54).
   requireHex64(tagAuthorPubkey, 'tagAuthorPubkey');
   return {
     kind: 39999,
@@ -66,7 +96,7 @@ function buildTaggingHeader({ tagAuthorPubkey, slug, names, description, taPubke
       ['d', `tagging:${slug}-tagging`],
       ['names', ...names],
       ['description', description],
-      ['z', conceptTaggingWithSpecificTag(taPubkey)],
+      ...conceptZTags(taPubkeys, conceptTaggingWithSpecificTag, 'taPubkeys'),
       ['a', tagElementAddr(tagAuthorPubkey, slug)],
     ],
     content: '',
@@ -76,17 +106,20 @@ function buildTaggingHeader({ tagAuthorPubkey, slug, names, description, taPubke
 /**
  * Build an event-tagging assertion (apply/dispute a tag on an event).
  *
+ * @param {string}   headerAuthorPubkey  64-hex author of the per-tag tagging header.
  * @param target  { id } for a non-addressable event (e.g. a kind-1 note → `e`),
  *                or { address } for an addressable target (a-coordinate → `a`).
  *                If both are supplied, `id` takes precedence.
  * @param polarity 1 (apply) or -1 (dispute).
+ * @param {string}   asserterPubkey  64-hex asserting pubkey (forms the d-tag identity).
+ * @param {string[]} taPubkeys       concept namespaces to join (e.g. [canonical, local]).
  */
-function buildEventTaggingAssertion({ headerAuthorPubkey, slug, target, polarity, asserterPubkey, taPubkey }) {
+function buildEventTaggingAssertion({ headerAuthorPubkey, slug, target, polarity, asserterPubkey, taPubkeys }) {
   // Both pubkeys end up as permanent, signed, published coordinates: asserterPubkey
   // into the deterministic d-tag (replaceability key), headerAuthorPubkey into the
   // descriptor z-coordinate (39999:<author>:tagging:<slug>-tagging). A malformed
   // either one mints an orphan event signed with the user's real key, so fail loud
-  // (mirrors publishProfileTag.js:54). taPubkey stays unguarded (runtime-config, non-fatal).
+  // (mirrors publishProfileTag.js:54). taPubkeys entries are validated in conceptZTags.
   requireHex64(asserterPubkey, 'asserterPubkey');
   requireHex64(headerAuthorPubkey, 'headerAuthorPubkey');
 
@@ -114,7 +147,7 @@ function buildEventTaggingAssertion({ headerAuthorPubkey, slug, target, polarity
     tags: [
       ['d', dTag],
       targetTag,
-      ['z', conceptNostrEventTag(taPubkey)],
+      ...conceptZTags(taPubkeys, conceptNostrEventTag, 'taPubkeys'),
       ['z', taggingHeaderAddr(headerAuthorPubkey, slug)],
       ['polarity', String(p)],
     ],

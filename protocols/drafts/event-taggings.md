@@ -221,9 +221,21 @@ Events are tagged **only indirectly** (through a `z`-referenced tagging header).
 
 Publication is permissionless: anyone may publish a tagging asserting anything. The discovery filters above therefore yield **candidates**, not a global membership set. Whether a given tagging *counts* — and thus whether an event "is" tagged as X — is computed from a specific point of view (POV) at **read time**, by applying that POV's web-of-trust scoring to the asserters and bucketing by `polarity`. There is no global "the event is tagged X"; different POVs may legitimately disagree, and the same filter result is interpreted differently per POV. Consumers MUST NOT treat a raw filter hit as established truth.
 
+## Concept namespaces & federation
+
+The two TA-rooted concepts — `39998:<TA>:nostr-event-tag` and `39998:<TA>:tagging-with-specific-tag` — are **namespaced by an authority pubkey** `<TA>` (in this protocol, a deployment's designated assistant). The per-tag tagging header, by contrast, is rooted in the *user's* own pubkey (`39999:<author>:tagging:<slug>-tagging`) and so is the same everywhere.
+
+A tagging assertion (and a tagging header, and a tag-element) **MAY carry more than one concept `z`-tag for the same concept** — one per authority namespace it wishes to join. This is the federation primitive:
+
+- **Federate:** publish both a shared/canonical namespace's `z` and your own namespace's `z` (e.g. `z = 39998:<canonical>:nostr-event-tag` **and** `z = 39998:<own>:nostr-event-tag`). The event then aggregates in both — consumers reading either namespace see it.
+- **Splinter:** publish only your own namespace's `z`. The event lives solely on your island.
+- **Partial:** any subset of namespaces a publisher chooses.
+
+Federation is therefore **opt-in and unenforced** — which authority namespace(s) an implementation joins is a deployment policy, not a fixed part of the wire format. A reader likewise chooses which namespace(s) to scan and may union across them at read time (still subject to the per-POV interpretation above). How independent deployments agree on a shared canonical namespace is the open cross-deployment-identity question tracked in [Tags & Taggings](./tags.md) (worksheet W1); this spec only fixes the *mechanism* (repeatable concept `z`-tags), not the choice of canonical authority.
+
 ## Firmware seeding
 
-The two list headers `39998:<TA_pubkey>:nostr-event-tag` and `39998:<TA_pubkey>:tagging-with-specific-tag` are authored by the deployment's Tapestry Assistant and established at deployment time (in this implementation, via firmware). Implementations compose these handles from the **runtime** TA pubkey; the literal differs per deployment and is never hardcoded. The tag-elements and per-tag tagging headers are user-authored and permissionless — anyone may create them.
+Each TA-rooted concept (`nostr-event-tag`, `tagging-with-specific-tag`) is established under its authority pubkey at deployment time (in this implementation, via firmware). A deployment composes its **own** namespace handle from its runtime authority pubkey — never a hardcoded literal — and, to federate, additionally references a shared canonical namespace (which may bridge to it via a community-reference pointer). The tag-elements and per-tag tagging headers are user-authored and permissionless — anyone may create them.
 
 ## Relationship to other specs
 
