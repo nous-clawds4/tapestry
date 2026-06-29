@@ -59,4 +59,4 @@ Testable from the outside. `<TA>` is the deployment's runtime Tapestry-Assistant
 ## Linked artifacts
 - ADR: `engineering-team/decisions/event-tagging/0003-firmware-seed-event-tagging-concepts.md`
 - Test plan: `engineering-team/stories/event-tagging/3-firmware-seed-event-tagging-concepts.test-plan.md` (suite: `test/event-tagging-firmware-seed.test.js`)
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/event-tagging/3-firmware-seed-event-tagging-concepts.md` — **PASS**
