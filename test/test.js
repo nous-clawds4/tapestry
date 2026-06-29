@@ -113,6 +113,7 @@ const verifiedMutersProfileSurface = require('./verified-muters-profile-surface.
 const eventTaggingCore = require('./event-tagging-core.test.js');
 const eventTaggingSpec = require('./event-tagging-spec.test.js');
 const globalPublishGate = require('./global-publish-gate.test.js');
+const eventTaggingFirmwareSeed = require('./event-tagging-firmware-seed.test.js');
 
 async function main() {
   console.log('Running Brainstorm tests...');
@@ -318,6 +319,8 @@ async function main() {
   const eventTaggingSpecResult = await eventTaggingSpec.run();
   console.log('\nglobal-publish-gate suite:');
   const globalPublishGateResult = await globalPublishGate.run();
+  console.log('\nevent-tagging-firmware-seed suite:');
+  const eventTaggingFirmwareSeedResult = await eventTaggingFirmwareSeed.run();
 
   console.log('\nTest Results');
   console.log('-------------');
@@ -627,7 +630,8 @@ async function main() {
     verifiedMutersProfileSurfaceResult.fail === 0 &&
     eventTaggingCoreResult.fail === 0 &&
     eventTaggingSpecResult.fail === 0 &&
-    globalPublishGateResult.fail === 0;
+    globalPublishGateResult.fail === 0 &&
+    eventTaggingFirmwareSeedResult.fail === 0;
   console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);
   process.exit(overallOk ? 0 : 1);
 }
