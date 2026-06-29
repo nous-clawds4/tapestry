@@ -248,6 +248,17 @@ A tagging assertion (and a tagging header, and a tag-element) **MAY carry more t
 
 Federation is therefore **opt-in and unenforced** — which authority namespace(s) an implementation joins is a deployment policy, not a fixed part of the wire format. A reader likewise chooses which namespace(s) to scan and may union across them at read time (still subject to the per-POV interpretation above). How independent deployments agree on a shared canonical namespace is the open cross-deployment-identity question tracked in [Tags & Taggings](./tags.md) (worksheet W1); this spec only fixes the *mechanism* (repeatable concept `z`-tags), not the choice of canonical authority.
 
+## Reading: which taggings count is reader-determined
+
+Two reader-side parameters decide whether a candidate tagging counts. The protocol fixes **neither** — both are the reader's choice:
+
+1. **Trust (per-POV).** Asserters are scored by the reader's POV web-of-trust; an out-of-trust asserter does not count for that reader (above).
+2. **Legitimacy authority.** A candidate counts as a *tagging* only if its descriptor `z` resolves to a header that is a member of a `tagging-with-specific-tag` namespace the reader **honors**. The set of honored authority namespaces is a **reader parameter** (e.g. a shared canonical namespace, the reader's own, or both) — not a single value baked into the protocol or hardcoded by a consumer. Because the candidate scan keys on the **target** (`#e`/`#a`), which is namespace-agnostic, a tagging published under *any* authority is always **present** in the candidate set; only whether it **counts** depends on the honored set. A reader honoring a different or additional authority therefore sees taggings that a canonical-only reader would not.
+
+**Unverifiable ≠ illegitimate.** A candidate whose header is **not resolvable** on the data the reader has (e.g. it has not propagated) is **unverifiable** — distinct from a header that resolves and is confirmed *not* a member of the honored authority (**illegitimate**). Implementations SHOULD surface this distinction rather than silently dropping unverifiable candidates: "cannot determine" is not "not a tagging."
+
+Consequently, disagreement is expressible at several independent layers, none of which requires permission from — or is foreclosed by — any canonical authority: distrust the asserters (POV scoring); publish a counter-assertion or use a different tag (both permissionless); honor a different legitimacy authority (reader parameter); or run a separate deployment that seeds/federates its own authority (the most complete form). An implementation that hardcodes a single legitimacy authority collapses these layers and removes the per-POV property invariant #1 requires.
+
 ## Firmware seeding
 
 Each TA-rooted concept (`nostr-event-tag`, `tagging-with-specific-tag`) is established under its authority pubkey at deployment time (in this implementation, via firmware). A deployment composes its **own** namespace handle from its runtime authority pubkey — never a hardcoded literal — and, to federate, additionally references a shared canonical namespace (which may bridge to it via a community-reference pointer). The tag-elements and per-tag tagging headers are user-authored and permissionless — anyone may create them.

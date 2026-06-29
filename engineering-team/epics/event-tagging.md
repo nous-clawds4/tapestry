@@ -25,6 +25,8 @@ It follows the **`event-taggings.md` protocol literally**: indirect tagging via 
 
 **SDK foresight (operator requirement):** the wire-construction and discovery logic is built as **framework-agnostic, dependency-free, copy-pasteable core modules** that map 1:1 to a generic NIP-style spec in `protocols/`. Another developer adding kind-1 tagging to their own app must be able to lift the core wholesale, with no dependency on Tapestry's stack. The React/server code are thin adapters over that core.
 
+**No hardcoded authority (sovereignty — applies to every read in this epic).** Whether a tagging "counts" is a *reader-side* decision on two axes, and neither is fixed by us: (1) trust — the reader's POV web-of-trust scores the asserters; (2) legitimacy authority — *which* `tagging-with-specific-tag` namespace(s) define a real tagging header is a per-POV/reader parameter (default canonical + local, overridable), not a hardcoded canonical. The candidate scan keys on the target (`#e`/`#a`), which is namespace-agnostic, so a divergent publisher's taggings are always *present*; only "counts" depends on the reader's chosen authority. This keeps disagreement a gradient (distrust → counter-assert → different tag → different authority → own deployment) rather than "comply or leave." Implementers MUST NOT collapse this to a single hardcoded authority — see `protocols/drafts/event-taggings.md` § "Reading: which taggings count is reader-determined" and Story 4's "Legitimacy authority is a POV choice" AC.
+
 ## Stories (proposed decomposition)
 
 `stories/event-tagging/`:
