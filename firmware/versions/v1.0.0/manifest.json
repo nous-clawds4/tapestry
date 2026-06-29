@@ -345,6 +345,38 @@
                 ],
                 "knownGoodEventId": "69d36397d92c086b5c184840f5af91ad89ab2f7718fcc674418a0b80074c1eef"
             }
+        },
+        {
+            "slug": "nostr-event-tag",
+            "dir": "./concepts/nostr-event-tag/",
+            "conceptHeader": "concept-header.json",
+            "jsonSchema": "json-schema.json",
+            "categories": [
+                "tag",
+                "nostr"
+            ],
+            "communityReference": {
+                "headerATag": "39998:82b75e474dda005e912bcbb910391c60c2b89cc7faf5d3c30b7c59a324973833:nostr-event-tag",
+                "relayHints": [
+                    "wss://dcosl.brainstorm.world"
+                ]
+            }
+        },
+        {
+            "slug": "tagging-with-specific-tag",
+            "dir": "./concepts/tagging-with-specific-tag/",
+            "conceptHeader": "concept-header.json",
+            "jsonSchema": "json-schema.json",
+            "categories": [
+                "tag",
+                "nostr"
+            ],
+            "communityReference": {
+                "headerATag": "39998:82b75e474dda005e912bcbb910391c60c2b89cc7faf5d3c30b7c59a324973833:tagging-with-specific-tag",
+                "relayHints": [
+                    "wss://dcosl.brainstorm.world"
+                ]
+            }
         }
     ],
     "enumerations": {

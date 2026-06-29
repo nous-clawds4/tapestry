@@ -1,0 +1,25 @@
+{
+  "word": {
+    "slug": "json-schema-for-the-concept-of-taggings-with-specific-tags",
+    "name": "JSON schema for the concept of taggings with specific tags",
+    "title": "JSON Schema for the Concept of Taggings with Specific Tags",
+    "description": "the json schema for the concept of taggings with specific tags",
+    "wordTypes": ["word", "jsonSchema"],
+    "coreMemberOf": [
+      {
+        "slug": "concept-header-for-the-concept-of-taggings-with-specific-tags",
+        "uuid": "<uuid>"
+      }
+    ]
+  },
+  "jsonSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "name": "tagging with specific tag",
+    "title": "Tagging With Specific Tag",
+    "description": "JSON Schema for the concept of taggings with specific tags. Permissive: members are per-tag tagging headers whose payload is empty (the rule + reference live in tags), so no content payload is required.",
+    "required": [],
+    "definitions": {},
+    "properties": {}
+  }
+}

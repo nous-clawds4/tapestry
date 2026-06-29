@@ -1,0 +1,25 @@
+{
+  "word": {
+    "slug": "concept-header-for-the-concept-of-taggings-with-specific-tags",
+    "name": "concept header for the concept of taggings with specific tags",
+    "title": "Concept Header for the Concept of Taggings with Specific Tags",
+    "wordTypes": ["word", "conceptHeader"]
+  },
+  "conceptHeader": {
+    "description": "A tagging-with-specific-tag is the type whose members are per-tag tagging headers — one per Tag, declaring how events are tagged as that Tag. Each member points at the Tag it is for via an a-tag (preferred) or an e-tag. The member has no target, so the a/e slot is free for the Tag reference (unlike a tagging assertion, where a/e holds the target and the Tag is reached indirectly via a z-tag).",
+    "oNames": { "singular": "tagging with specific tag", "plural": "taggings with specific tags" },
+    "oSlugs": { "singular": "tagging-with-specific-tag", "plural": "taggings-with-specific-tags" },
+    "oKeys": { "singular": "taggingWithSpecificTag", "plural": "taggingsWithSpecificTags" },
+    "oTitles": { "singular": "Tagging With Specific Tag", "plural": "Taggings With Specific Tags" },
+    "oLabels": { "singular": "TaggingWithSpecificTag", "plural": "TaggingsWithSpecificTags" },
+    "x-tapestry": {
+      "neo4j": {
+        "nodeLabelRequired": true
+      }
+    },
+    "headerTags": [
+      ["recommended", "a"],
+      ["allowed", "e"]
+    ]
+  }
+}
