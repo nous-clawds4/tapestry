@@ -56,6 +56,6 @@ Testable from the outside. POV params and polarity bucketing mirror `tags-for-pr
 3. ~~Header-membership namespace~~ — **resolved into the "Legitimacy authority is a POV choice" AC above:** the authority namespace(s) are a per-POV parameter (default canonical + local, overridable). The Architect designs *how* the parameter is expressed/defaulted, but not *whether* it exists — it must. Ties to W1.
 
 ## Linked artifacts
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/event-tagging/0004-event-tagging-read-api.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
