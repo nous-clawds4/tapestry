@@ -26,9 +26,10 @@ Testable from the outside. `<TA>` is the deployment's runtime Tapestry-Assistant
 
 - [ ] **`nostr-event-tag` is in the graph.** After a firmware reinstall, the concept graph resolves the handle `39998:<TA>:nostr-event-tag` (e.g. it appears in `/api/concept-graph/summaries` and `/api/concept-graph/node/<handle>` returns it), with a description identifying it as the list of nostr **event** taggings (an event that applies a specific Tag to a specific event, referenced by `e` or `a`).
 - [ ] **`tagging-with-specific-tag` is in the graph.** After reinstall, the concept graph resolves `39998:<TA>:tagging-with-specific-tag`, described as the type whose members are per-tag tagging headers, each pointing at a specific Tag.
-- [ ] **The member-reference rule is recorded.** The `tagging-with-specific-tag` concept carries the spec's `recommended: a` / `allowed: e` semantics (a member must point at its Tag via an `a` tag, preferred, or an `e` tag) in whatever form the firmware concept format expresses it — so a consumer can learn the rule from the seeded concept, not just the prose spec.
+- [ ] **The member-reference rule is on the wire (spec fidelity).** The published `tagging-with-specific-tag` kind-39998 header event carries literal `["recommended","a"]` and `["allowed","e"]` tags — exactly as the spec's example shows — so any third-party implementation reads the rule straight off the event, not from Tapestry-stack-internal metadata. (Asserted against the actual published event.)
 - [ ] **Authored by the deployment's own TA.** Both handles resolve under the **runtime** TA pubkey of whatever deployment installed the firmware — not a hardcoded identity. On a fresh deployment with a different TA, the handles are composed from that deployment's TA.
 - [ ] **A fresh install includes them.** The firmware manifest lists both new concepts, so installing firmware from scratch (not just an incremental reinstall) establishes them.
+- [ ] **The concepts federate (added 2026-06-26).** Each new concept is registered with a `communityReference` pointing at the canonical authority (mirroring `nostr-user-tag`), so a non-canonical deployment's local concept bridges to the shared canonical one — event-taggings aggregate around the same authority as pubkey-tags, rather than forming a per-deployment island. (The wire half — dual-z on published events — is the amended ADR 0001.)
 - [ ] **Existing concepts are unaffected.** After the reinstall, `tag`, `nostr-user-tag`, `tag-pinning`, and the other existing concepts still resolve unchanged (regression).
 - [ ] **The names/slugs match the protocol.** The seeded concepts use the slugs `nostr-event-tag` and `tagging-with-specific-tag` exactly (these slugs are embedded in published `z` handles by the wire protocol and the Story-1 core), with human names matching the spec ("nostr event tagging(s)", "tagging with specific tag(s)").
 
@@ -56,6 +57,6 @@ Testable from the outside. `<TA>` is the deployment's runtime Tapestry-Assistant
 3. **json-schema per concept.** Existing concepts ship a `json-schema.json`; confirm whether these two need one and what it constrains. *(Architecture)*
 
 ## Linked artifacts
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/event-tagging/0003-firmware-seed-event-tagging-concepts.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
