@@ -160,9 +160,24 @@ We tag a Tag — "Good Tag", authored by Charlie — as an "Awesome Tag" (previo
 }
 ```
 
+## Tag references: `z` is membership; `a`/`e` name a specific thing
+
+These three tags play distinct roles, and conflating them is the easiest mistake to make here:
+
+- **`z`** means *membership* — "this event is an element of that list/concept." It never means "which tag."
+- **`a`** names *which addressable thing* — e.g. a tag-element at its coordinate `39999:<author>:<slug>`, and it tracks that thing through edits.
+- **`e`** names *one specific event version* by id.
+
+Consequently the two event types reference their tag **differently**:
+
+- A **tagging header** names its tag with a direct **`a`** tag (`["a","39999:<author>:<slug>"]`, as in the header above). It has no target, so the `a` slot is free. (A `z` here would be wrong — it would assert the header is itself *a thing tagged X*, instead of the machinery *for* tagging things as X.) The `tagging-with-specific-tag` header's `recommended a` / `allowed e` rule governs **exactly this** reference — the header→tag pointer — preferring the stable `a` coordinate over a frozen `e` version.
+- A **tagging assertion** cannot use `a`/`e` for its tag, because those slots are occupied by the **target** event. So it reaches its tag **indirectly**, via a `z` to the per-tag header. This indirection exists *only* to free `a`/`e` for the target — it is the entire reason the per-tag header exists.
+
+This mirrors pubkey-tagging, where the target is a `p` tag, leaving `a`/`e` free to name the tag directly — no indirection needed.
+
 ## Targets
 
-The target event is carried in the `a`/`e` slot per the `tagging-with-specific-tag` header's `recommended a` / `allowed e` rule:
+The target event is carried in the `a`/`e` slot, chosen by the **target's own kind** (independent of the `tagging-with-specific-tag` rule above, which is about a *header's* reference to its tag, not the assertion's reference to its target):
 
 - **Addressable target** (a tag, a DList, any replaceable/addressable event): an `a` tag with the target's coordinate `<kind>:<author>:<d>`, as above.
 - **Non-addressable target** (a **kind-1 note**, or any plain event): an `e` tag with the target event id. Everything else about the assertion is identical.
