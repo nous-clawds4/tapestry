@@ -17,6 +17,24 @@ import { useState, useEffect, useCallback } from 'react';
  */
 const HEX64 = /^[0-9a-f]{64}$/;
 
+// Shared, TTL-cached available-tags fetch. Every NoteCard's NoteTags needs the same
+// tag catalogue (for names + search); without sharing, a list of N notes fires N
+// identical requests. Cached as a single promise within a short window (so a note
+// list = 1 request) that refreshes after the TTL (so a newly-created tag appears
+// within ~a minute, not only on reload).
+const AVAIL_TAGS_TTL_MS = 60000;
+let _availTags = { promise: null, at: 0 };
+function fetchAvailableTags() {
+  const now = Date.now();
+  if (!_availTags.promise || now - _availTags.at > AVAIL_TAGS_TTL_MS) {
+    _availTags = {
+      at: now,
+      promise: fetch('/api/profile-tags/available-tags').then((r) => r.json()).catch(() => ({})),
+    };
+  }
+  return _availTags.promise;
+}
+
 export function useEventTags(eventId, viewerPubkey) {
   const [tags, setTags] = useState([]);
   const [mine, setMine] = useState([]);
@@ -39,7 +57,7 @@ export function useEventTags(eventId, viewerPubkey) {
         if (HEX64.test(viewerPubkey || '')) params.set('viewerPubkey', viewerPubkey);
         const [forEvent, avail] = await Promise.all([
           fetch(`/api/event-tags/for-event?${params}`).then((r) => r.json()).catch(() => ({})),
-          fetch('/api/profile-tags/available-tags').then((r) => r.json()).catch(() => ({})),
+          fetchAvailableTags(), // shared/cached across all note cards (not re-fetched per note)
         ]);
         if (cancelled) return;
 

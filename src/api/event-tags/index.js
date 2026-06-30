@@ -35,6 +35,13 @@ const CANONICAL_AUTHORITY = '82b75e474dda005e912bcbb910391c60c2b89cc7faf5d3c30b7
 // Cap the notes view to the most-recently-tagged N (Story 8). Bounds the relay
 // `ids` fetch + the client-side per-note fan-out; pagination is a follow-up.
 const NOTES_CAP = 50;
+// Short-TTL response cache for the notes-for-tag read. The dominant cost is the
+// external relay round-trip (~seconds); re-visiting the same tag within the TTL
+// returns instantly. Per (tag, viewer, authorities). Small staleness window — a new
+// tagging may not appear for FOR_TAG_TTL_MS. Bounded size (evict-all when large).
+const FOR_TAG_TTL_MS = 30000;
+const FOR_TAG_CACHE_MAX = 200;
+const forTagCache = new Map(); // key -> { body, expires }
 const MEILI_URL = process.env.MEILI_URL || 'http://nostr-search-meili:7700';
 const MEILI_INDEX = process.env.MEILI_INDEX || 'profiles';
 const DESCRIPTOR_RE = /^39999:[0-9a-f]{64}:tagging:.+-tagging$/;
@@ -205,6 +212,11 @@ async function handleForTag(req, res) {
     const authorities = resolveAuthorities(req);
     const viewerPubkey = isHexPubkey(req.query.viewerPubkey) ? req.query.viewerPubkey : undefined;
 
+    // Short-TTL cache: re-visiting the same tag skips the slow relay fetch.
+    const cacheKey = `${tagAuthor}|${slug}|${viewerPubkey || ''}|${authorities.join(',')}`;
+    const cached = forTagCache.get(cacheKey);
+    if (cached && cached.expires > Date.now()) return res.json(cached.body);
+
     // 1. Discover the tag's legitimate headers (any author, per honored authority).
     const foundHeaders = [];
     for (const authority of authorities) {
@@ -249,8 +261,18 @@ async function handleForTag(req, res) {
 
     let notes = [];
     if (noteIds.length) {
-      const { relays } = await resolveGeneralPurposeRelays(realRunCypher);
-      const rawNotes = (await realQuerySync(relays, { kinds: [1], ids: noteIds })) || [];
+      // Local-first: scan local strfry for the target notes; only pay the slow
+      // external relay round-trip for the ones still missing.
+      let localNotes = [];
+      try { localNotes = realScanStrfry({ kinds: [1], ids: noteIds }); } catch { localNotes = []; }
+      const haveIds = new Set(localNotes.map((n) => n.id));
+      const missing = noteIds.filter((id) => !haveIds.has(id));
+      let externalNotes = [];
+      if (missing.length) {
+        const { relays } = await resolveGeneralPurposeRelays(realRunCypher);
+        externalNotes = (await realQuerySync(relays, { kinds: [1], ids: missing })) || [];
+      }
+      const rawNotes = [...localNotes, ...externalNotes];
       const enriched = await enrichNotes(rawNotes, realScanStrfry);
       notes = enriched
         .map((n) => ({
@@ -263,7 +285,10 @@ async function handleForTag(req, res) {
         .sort((a, b) => (latestByNote.get(b.id) || 0) - (latestByNote.get(a.id) || 0));
     }
 
-    return res.json({ success: true, tagAuthor, slug, authorities, povSuffix, minRank, notes, mine, total, truncated, limit: NOTES_CAP });
+    const body = { success: true, tagAuthor, slug, authorities, povSuffix, minRank, notes, mine, total, truncated, limit: NOTES_CAP };
+    if (forTagCache.size >= FOR_TAG_CACHE_MAX) forTagCache.clear();
+    forTagCache.set(cacheKey, { body, expires: Date.now() + FOR_TAG_TTL_MS });
+    return res.json(body);
   } catch (err) {
     return res.status(500).json({ success: false, error: err.message });
   }

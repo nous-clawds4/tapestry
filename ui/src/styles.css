@@ -7530,3 +7530,8 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
 .bs-tag-notes-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.75rem; }
 .bs-tag-notes-item { width: 100%; }
 .bs-tag-notes-truncation { font-size: 0.8rem; color: var(--text-muted, #94a3b8); margin: 0 0 0.5rem; }
+.bs-tag-notes-controls { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem; }
+.bs-tag-notes-viewopts { background: transparent; border: none; color: var(--text-muted, #94a3b8); font-size: 0.82rem; font-weight: 600; cursor: pointer; padding: 0.2rem 0; }
+.bs-tag-notes-sort { display: inline-flex; gap: 0.25rem; }
+.bs-tag-notes-sort button { background: var(--surface-2, #1e293b); border: none; color: var(--text-muted, #94a3b8); border-radius: 999px; padding: 0.2rem 0.7rem; font-size: 0.8rem; cursor: pointer; }
+.bs-tag-notes-sort button.is-active { background: var(--surface, #0f172a); color: var(--text-primary, #e2e8f0); }

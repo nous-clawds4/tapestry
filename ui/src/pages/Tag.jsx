@@ -58,8 +58,10 @@ export default function Tag() {
   // Story 17 new state.
   const [viewOptionsExpanded, setViewOptionsExpanded] = useState(false);
   const [filterText, setFilterText] = useState('');
-  // Story 8 — Profiles | Notes content switch on the tag page.
+  // Story 8 — Profiles | Notes content switch on the tag page. `notesOpened`
+  // keeps the Notes view mounted after first open so toggling back doesn't re-fetch.
   const [notesMode, setNotesMode] = useState('profiles');
+  const [notesOpened, setNotesOpened] = useState(false);
   const [tagSomeoneOpen, setTagSomeoneOpen] = useState(false);
 
   // Story 20 / ADR 0018 — the "Pinned" tab. It exists only when the
@@ -285,16 +287,21 @@ export default function Tag() {
                   role="tab"
                   aria-selected={notesMode === 'notes'}
                   className={`bs-tag-view-switch-btn${notesMode === 'notes' ? ' is-active' : ''}`}
-                  onClick={() => setNotesMode('notes')}
+                  onClick={() => { setNotesMode('notes'); setNotesOpened(true); }}
                 >
                   Notes
                 </button>
               </div>
 
-              {notesMode === 'notes' ? (
-                <TagNotesView tag={tag} viewerPubkey={user?.pubkey} />
-              ) : (
-                <>
+              {/* Notes view — lazily mounted on first open, then kept mounted
+                  (hidden) so re-toggling doesn't re-fetch. */}
+              {notesOpened && (
+                <div hidden={notesMode !== 'notes'}>
+                  <TagNotesView tag={tag} viewerPubkey={user?.pubkey} />
+                </div>
+              )}
+
+              <div hidden={notesMode !== 'profiles'}>
                   <TagViewControls
                     sort={sort}
                     onSortChange={setSort}
@@ -341,8 +348,7 @@ export default function Tag() {
                       ))}
                     </ul>
                   )}
-                </>
-              )}
+              </div>
             </section>
 
             {/* Pinned tab — the viewer's kind-30392 Trusted List view. */}
