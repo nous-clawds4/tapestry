@@ -65,4 +65,4 @@ Testable from the outside (what the viewer sees / what gets published, given a s
 ## Linked artifacts
 - ADR: `engineering-team/decisions/event-tagging/0006-event-tag-affordance-on-note-surfaces.md`
 - Test plan: `engineering-team/stories/event-tagging/6-event-tag-affordance-on-note-surfaces.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/event-tagging/6-event-tag-affordance-on-note-surfaces.md` — **PASS** (2026-06-30)
