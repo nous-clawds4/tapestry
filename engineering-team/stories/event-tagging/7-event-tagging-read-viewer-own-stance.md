@@ -55,6 +55,6 @@ Testable from the outside (given a starting state of published assertions + an i
 
 ## Linked artifacts
 - ADR: `engineering-team/decisions/event-tagging/0007-event-tagging-read-viewer-own-stance.md`
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/event-tagging/7-event-tagging-read-viewer-own-stance.test-plan.md`
 - Review: (filled in after Review phase)
 - **Unblocks:** `engineering-team/stories/event-tagging/6-event-tag-affordance-on-note-surfaces.md` (BLOCKED on this story).

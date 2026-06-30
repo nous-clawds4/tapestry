@@ -116,6 +116,7 @@ const globalPublishGate = require('./global-publish-gate.test.js');
 const eventTaggingFirmwareSeed = require('./event-tagging-firmware-seed.test.js');
 const eventTaggingReadApi = require('./event-tagging-read-api.test.js');
 const eventTaggingWritePath = require('./event-tagging-write-path.test.js');
+const eventTaggingReadViewerStance = require('./event-tagging-read-viewer-stance.test.js');
 
 async function main() {
   console.log('Running Brainstorm tests...');
@@ -327,6 +328,8 @@ async function main() {
   const eventTaggingReadApiResult = await eventTaggingReadApi.run();
   console.log('\nevent-tagging-write-path suite:');
   const eventTaggingWritePathResult = await eventTaggingWritePath.run();
+  console.log('\nevent-tagging-read-viewer-stance suite:');
+  const eventTaggingReadViewerStanceResult = await eventTaggingReadViewerStance.run();
 
   console.log('\nTest Results');
   console.log('-------------');
@@ -639,7 +642,8 @@ async function main() {
     globalPublishGateResult.fail === 0 &&
     eventTaggingFirmwareSeedResult.fail === 0 &&
     eventTaggingReadApiResult.fail === 0 &&
-    eventTaggingWritePathResult.fail === 0;
+    eventTaggingWritePathResult.fail === 0 &&
+    eventTaggingReadViewerStanceResult.fail === 0;
   console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);
   process.exit(overallOk ? 0 : 1);
 }
