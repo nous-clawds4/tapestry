@@ -1155,3 +1155,18 @@ Small future-readiness items the 2026-06-18 multi-lens review (`reviews/live-fee
 **Strictness:** Standard — but run under **Direction mode**, where **all five phases and all judged gates apply regardless** (the bug/refactor shortcuts do not apply).
 **Phase path:** Planning → Architecture → Test Design → Implementation → Review, per story, under `/direct-feature`.
 **Book:** `engineering-team/audits/verified-muters/book.md` (acceptance frame + pre-registration). Operator-reserved gates: arming + completion ratification + rollback.
+
+---
+
+## 2026-06-30 — Feature (deferred): surface *unverifiable* event-taggings in the note UI
+
+**Raw request (verbatim):**
+
+> make sure we log the unverifiable tagging feature though so we don't lose it.
+
+**Context:** Deferred out of event-tagging **Story 6** (`stories/event-tagging/6-event-tag-affordance-on-note-surfaces.md`, PO resolution 2026-06-30). Story 6's note affordance displays only the **counted** tag set. The Story-4 read API (`/api/event-tags/for-event`) already returns a distinct **`unverifiable`** bucket — taggings whose descriptor header can't be locally resolved (per the protocol, these are *surfaced, not dropped*: see `classifyEventTaggings` and `protocols/drafts/event-taggings.md`). This entry is the follow-up to give that bucket a UI treatment.
+
+**Scope (rough):** decide and build how an unverifiable tagging appears on a note (distinct affordance/label, e.g. "tag whose header isn't resolvable from here"), distinct from counted tags and from illegitimate (excluded) ones. Read layer already provides the data — this is presentation + product decision only. Honors the same local-only build invariant while the epic's invariant is in force.
+
+**Classification:** Feature (UI). Belongs to the **event-tagging** epic, after Story 6.
+**Phase path:** Planning → (Design) → Architecture → Test Design → Implementation → Review when promoted. Not yet planned.
