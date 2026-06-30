@@ -1189,3 +1189,21 @@ Small future-readiness items the 2026-06-18 multi-lens review (`reviews/live-fee
 **Classification:** Feature (read API + UI). **Phase path:** Planning → Architecture → Test Design → Implementation → Review when promoted. Not yet planned.
 
 **Related decision (deferred):** the event-tag chip currently links to the (profiles-only) tag page; left as-is for now since it becomes correct once this Notes view lands.
+
+---
+
+## 2026-06-30 — Scaling: for-tag pagination + kill the per-note read fan-out (event-tagging follow-up)
+
+**Raw request (verbatim):**
+
+> if 10,000 notes were tagged with drivechain … what would this UI do? choke to death? does the relay-side query work properly? what about the display? paginated?
+
+**Context:** Story 8's `/api/event-tags/for-tag` now caps to the **most-recently-tagged 50 notes** (`NOTES_CAP`, returns `total`/`truncated`) — a defensive bound that prevents the unbounded relay `ids` fetch (relays reject/time-out huge filters → silent empty) and the unbounded client render. But it's a **hard cap with no pagination**, and the deeper cost remains.
+
+**Scope (rough), two parts:**
+1. **Pagination / "load more"** for `for-tag` (cursor or offset by tagging-recency) so a tag with >50 notes is fully browsable, not silently capped.
+2. **Kill the per-note read fan-out** — every rendered `NoteCard` mounts Story-6's `NoteTags`, which fires its own `/api/event-tags/for-event` + `/api/profile-tags/available-tags`. So N cards → ~2N requests. Needs a **batch `for-events` read** (already noted as a Story-6 follow-up: lift `available-tags` to a shared cache + a batched tags-for-many-notes endpoint) so a list of notes doesn't melt the browser/server. This batch read benefits the feed and all note-list surfaces, not just the tag page.
+
+**Also consider:** the local strfry tagging scan (`filterTaggingsUsingTag`) has no `LIMIT` — bounded only by the 20MB exec buffer (~30-40k events). A very hot tag could overflow it → add a scan limit / streaming.
+
+**Belongs to:** the **event-tagging** epic, performance hardening. Not yet planned.
