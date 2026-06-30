@@ -138,13 +138,16 @@ async function handleForEvent(req, res) {
     }
     const dedupedHeaders = dedupeReplaceable(headers);
 
-    // 3. POV trust predicate, then classify.
+    // 3. POV trust predicate, then classify. `viewerPubkey` (hex-validated;
+    //    malformed → absent) surfaces the viewer's OWN stance in `mine`,
+    //    trust-unfiltered, without affecting the counted `tags` (ADR 0007).
+    const viewerPubkey = isHexPubkey(req.query.viewerPubkey) ? req.query.viewerPubkey : undefined;
     const { isAsserterTrusted, povSuffix, minRank } = await buildTrustPredicate(req, candidates.map((c) => c.pubkey));
-    const { tags, unverifiable } = core.classifyEventTaggings({
-      candidates, headers: dedupedHeaders, honoredAuthorities: authorities, isAsserterTrusted,
+    const { tags, unverifiable, mine } = core.classifyEventTaggings({
+      candidates, headers: dedupedHeaders, honoredAuthorities: authorities, isAsserterTrusted, viewerPubkey,
     });
 
-    return res.json({ success: true, target, povSuffix, minRank, authorities, tags, unverifiable });
+    return res.json({ success: true, target, povSuffix, minRank, authorities, tags, unverifiable, mine });
   } catch (err) {
     return res.status(500).json({ success: false, error: err.message });
   }

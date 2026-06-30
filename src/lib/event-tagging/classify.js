@@ -42,10 +42,19 @@ function bucketize(polarity) {
  * @param {object[]} args.headers            resolved per-tag tagging header events (whatever the caller fetched).
  * @param {string[]} args.honoredAuthorities TA pubkeys whose tagging-with-specific-tag namespace is honored.
  * @param {(pubkey:string)=>boolean} args.isAsserterTrusted  POV trust predicate (default: trust all).
+ * @param {string} [args.viewerPubkey]  the logged-in viewer. When set, their OWN
+ *   legitimate stance is surfaced in `mine` regardless of trust (the counted `tags`
+ *   are unaffected) — see ADR event-tagging/0007. Absent → `mine: []`.
  * @returns {{ tags: Array<{tag:{authorPubkey:string,slug:string}, applications:object[], disputes:object[]}>,
- *             unverifiable: Array<{eventId,authorPubkey,descriptor,createdAt}> }}
+ *             unverifiable: Array<{eventId,authorPubkey,descriptor,createdAt}>,
+ *             mine: Array<{tag:{authorPubkey:string,slug:string}, stance:'apply'|'dispute', eventId:string, createdAt:number}> }}
+ *
+ * NOTE on latest-wins: `mine` reflects the single (deduped) latest candidate per
+ * (tag, target, viewer). The apply↔dispute collapse is done UPSTREAM by the caller's
+ * dedupe (an assertion's d-tag is deterministic per (slug, target, asserter)); this
+ * function reflects whichever single candidate survives.
  */
-function classifyEventTaggings({ candidates = [], headers = [], honoredAuthorities = [], isAsserterTrusted } = {}) {
+function classifyEventTaggings({ candidates = [], headers = [], honoredAuthorities = [], isAsserterTrusted, viewerPubkey } = {}) {
   const trusted = typeof isAsserterTrusted === 'function' ? isAsserterTrusted : () => true;
   const honored = new Set(honoredAuthorities);
 
@@ -57,6 +66,7 @@ function classifyEventTaggings({ candidates = [], headers = [], honoredAuthoriti
   }
 
   const tagsMap = new Map(); // `${tagAuthor}|${slug}` -> { tag, applications, disputes }
+  const mineMap = new Map(); // `${tagAuthor}|${slug}` -> { tag, stance, eventId, createdAt }  (viewer's own, latest)
   const unverifiable = [];
 
   for (const c of candidates) {
@@ -86,12 +96,26 @@ function classifyEventTaggings({ candidates = [], headers = [], honoredAuthoriti
     const tagAuthor = am[1];
     const slug = am[2];
 
-    if (!trusted(c.pubkey)) continue; // POV trust filter
-
+    // Polarity bucket is computed BEFORE the trust filter so it gates both the
+    // counted set and the viewer's-own `mine` channel (a neutral assertion is
+    // neither apply nor dispute for either).
     const bucket = bucketize(readPolarity(c));
     if (bucket === 'neutral') continue;
-
     const key = `${tagAuthor}|${slug}`;
+
+    // `mine` — the viewer's OWN legitimate stance, surfaced regardless of trust
+    // (so a just-applied tag never appears to vanish when the POV doesn't count
+    // them). Legitimacy-gated (we are past the header/honored/tag-identity gates);
+    // trust-unfiltered. Keep the latest by createdAt (defensive; upstream dedupes).
+    if (viewerPubkey && c.pubkey === viewerPubkey) {
+      const existing = mineMap.get(key);
+      if (!existing || c.created_at > existing.createdAt) {
+        mineMap.set(key, { tag: { authorPubkey: tagAuthor, slug }, stance: bucket, eventId: c.id, createdAt: c.created_at });
+      }
+    }
+
+    if (!trusted(c.pubkey)) continue; // POV trust filter — counted set only
+
     if (!tagsMap.has(key)) tagsMap.set(key, { tag: { authorPubkey: tagAuthor, slug }, applications: [], disputes: [] });
     const grp = tagsMap.get(key);
     const entry = { ...base, polarity: readPolarity(c) };
@@ -99,7 +123,7 @@ function classifyEventTaggings({ candidates = [], headers = [], honoredAuthoriti
     else grp.disputes.push(entry);
   }
 
-  return { tags: Array.from(tagsMap.values()), unverifiable };
+  return { tags: Array.from(tagsMap.values()), unverifiable, mine: Array.from(mineMap.values()) };
 }
 
 module.exports = { classifyEventTaggings };
