@@ -54,7 +54,7 @@ Testable from the outside (given a starting state of published assertions + an i
 2. **How the viewer is identified to the read.** Whether the viewer's identity rides on the existing read or a related mechanism — left to the Architect (the profile-tagging read is the precedent). *(Architecture)*
 
 ## Linked artifacts
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/event-tagging/0007-event-tagging-read-viewer-own-stance.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
 - **Unblocks:** `engineering-team/stories/event-tagging/6-event-tag-affordance-on-note-surfaces.md` (BLOCKED on this story).
