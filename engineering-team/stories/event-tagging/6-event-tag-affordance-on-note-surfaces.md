@@ -1,9 +1,11 @@
 # Story 6: Event-tag affordance on note surfaces
 
-**Status:** Draft
+**Status:** Approved — **BLOCKED on Story 7** (read enhancement; see below)
 **Created:** 2026-06-30
 **Type:** Feature
 **Epic:** event-tagging
+
+> **Depends on Story 7 (event-tagging read: viewer's own stance / `mine` channel).** Architecture (ADR 0006) surfaced a POV-first gap: `for-event` POV-trust-filters every asserter with no viewer carve-out, so a logged-in viewer the house POV doesn't trust would see their own just-applied tag **vanish on reload**. The durable fix (mirroring profile-tagging's `myApplications`/`myDisputes`) needs a trust-unfiltered "mine" channel on `for-event`, which is a separate small read story. Build Story 7 first, then resume this one.
 
 ## Background
 
@@ -61,6 +63,6 @@ Testable from the outside (what the viewer sees / what gets published, given a s
 2. **Search-existing UX reuse.** How much of the profile-tag search-existing interaction is reused vs. note-specific. *(Design / Architecture)*
 
 ## Linked artifacts
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/event-tagging/0006-event-tag-affordance-on-note-surfaces.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
