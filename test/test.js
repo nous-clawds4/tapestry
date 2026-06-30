@@ -117,6 +117,7 @@ const eventTaggingFirmwareSeed = require('./event-tagging-firmware-seed.test.js'
 const eventTaggingReadApi = require('./event-tagging-read-api.test.js');
 const eventTaggingWritePath = require('./event-tagging-write-path.test.js');
 const eventTaggingReadViewerStance = require('./event-tagging-read-viewer-stance.test.js');
+const eventTagNoteAffordanceUi = require('./event-tag-note-affordance-ui.test.js');
 
 async function main() {
   console.log('Running Brainstorm tests...');
@@ -330,6 +331,8 @@ async function main() {
   const eventTaggingWritePathResult = await eventTaggingWritePath.run();
   console.log('\nevent-tagging-read-viewer-stance suite:');
   const eventTaggingReadViewerStanceResult = await eventTaggingReadViewerStance.run();
+  console.log('\nevent-tag-note-affordance-ui suite:');
+  const eventTagNoteAffordanceUiResult = await eventTagNoteAffordanceUi.run();
 
   console.log('\nTest Results');
   console.log('-------------');
@@ -643,7 +646,8 @@ async function main() {
     eventTaggingFirmwareSeedResult.fail === 0 &&
     eventTaggingReadApiResult.fail === 0 &&
     eventTaggingWritePathResult.fail === 0 &&
-    eventTaggingReadViewerStanceResult.fail === 0;
+    eventTaggingReadViewerStanceResult.fail === 0 &&
+    eventTagNoteAffordanceUiResult.fail === 0;
   console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);
   process.exit(overallOk ? 0 : 1);
 }
