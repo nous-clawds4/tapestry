@@ -1170,3 +1170,22 @@ Small future-readiness items the 2026-06-18 multi-lens review (`reviews/live-fee
 
 **Classification:** Feature (UI). Belongs to the **event-tagging** epic, after Story 6.
 **Phase path:** Planning → (Design) → Architecture → Test Design → Implementation → Review when promoted. Not yet planned.
+
+---
+
+## 2026-06-30 — Feature: tag detail page — "Notes tagged with this tag" (event-tagging Story 8)
+
+**Raw request (verbatim):**
+
+> when i click the tag to go to the tag page, it seems like it's still configured to show only profiles with that tag. maybe we need to add view options to this page to show taggings for profiles vs taggings for kind-1?
+
+**Context:** Surfaced during Story-6 browser testing (the event-tag affordance on note cards). Clicking an event-tag chip navigates to the tag detail page (`ui/src/pages/Tag.jsx`), which fetches `/api/profile-tags/profiles-tagged` — it is the **pubkey-tagging** page and lists only **profiles** tagged with the tag. It has no notion of kind-1 **event-taggings**, so a note you just tagged doesn't appear there. (Confirmed NOT a POV artifact — the page never queries for note-taggings at all.)
+
+**Scope (rough):** Give the tag detail page a **Notes** view alongside **Profiles** (a toggle / two sections) showing the kind-1 notes tagged with this tag, POV-filtered like the rest of the epic. Two parts:
+1. **Read endpoint (new):** "notes tagged with this tag" — the **forward** discovery Story 4 did not build (it built `for-event` = tags ON a note, and `headers-for-tag`). The core primitive already exists: `filterTaggingsUsingTag({headerAuthorPubkey, slug})` (`src/lib/event-tagging/filters.js:17`, `#z` over the tagging-header coord). Needs a handler that scans it, resolves the target note ids, dedupes, and POV-filters (reuse `classifyEventTaggings` / the trust predicate where it fits). Likely also wants the viewer's-own `mine` channel (Story 7) for consistency.
+2. **UI (Tag.jsx):** a Profiles | Notes view; the Notes list renders the shared `NoteCard` (so each note also carries the Story-6 affordance).
+
+**Belongs to:** the **event-tagging** epic, after Stories 6 + 7. Honors the local-only build invariant while in force.
+**Classification:** Feature (read API + UI). **Phase path:** Planning → Architecture → Test Design → Implementation → Review when promoted. Not yet planned.
+
+**Related decision (deferred):** the event-tag chip currently links to the (profiles-only) tag page; left as-is for now since it becomes correct once this Notes view lands.
