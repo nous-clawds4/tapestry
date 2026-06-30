@@ -58,4 +58,4 @@ Testable from the outside. POV params and polarity bucketing mirror `tags-for-pr
 ## Linked artifacts
 - ADR: `engineering-team/decisions/event-tagging/0004-event-tagging-read-api.md`
 - Test plan: `engineering-team/stories/event-tagging/4-event-tagging-read-api.test-plan.md` (suite: `test/event-tagging-read-api.test.js`)
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/event-tagging/4-event-tagging-read-api.md` — **PASS**
