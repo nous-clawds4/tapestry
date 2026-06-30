@@ -63,6 +63,6 @@ Testable from the outside by observing the sequence of signed/published events f
 3. **Partial-failure surfacing.** If the header publishes but the assertion fails, the header is harmless/reusable and left in place; confirm the caller is told what succeeded vs failed (so Story 6 can show the right state). *(Architecture / PO)*
 
 ## Linked artifacts
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/event-tagging/0005-event-tagging-write-path.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
