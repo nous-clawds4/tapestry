@@ -64,5 +64,5 @@ Testable from the outside by observing the sequence of signed/published events f
 
 ## Linked artifacts
 - ADR: `engineering-team/decisions/event-tagging/0005-event-tagging-write-path.md`
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/event-tagging/5-event-tagging-write-path.test-plan.md`
 - Review: (filled in after Review phase)
