@@ -57,7 +57,7 @@ Testable from the outside (given published taggings + a viewer, what the tag pag
 4. **Disputed notes.** How a note that's been disputed more than applied is treated in the notes view (shown, de-emphasized, hidden behind an expanded view) — mirror the profiles view unless there's reason to differ. *(Design / Architecture)*
 
 ## Linked artifacts
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/event-tagging/0008-tag-page-notes-tagged-with-tag.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
 - **Source:** intake entry `engineering-team/stories/_intake.md` (2026-06-30), surfaced during Story-6 browser testing.
