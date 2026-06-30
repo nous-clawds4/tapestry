@@ -36,6 +36,10 @@ export default function TagChip({
   applications,
   disputes,
   viewerPubkey,
+  myStance, // optional: the viewer's own stance from a SEPARATE source (event-tagging
+            // `mine`, Story 7) — drives the chip highlight without inflating the
+            // community applications/disputes count. Absent → derived from the arrays
+            // (profile-tagging behavior, unchanged).
   busy,
   onApply,
   onDispute,
@@ -72,7 +76,7 @@ export default function TagChip({
     };
   }, [open, closeIfOutside, handleKey]);
 
-  const myAssertion = [...applications, ...disputes].find((a) => a.authorPubkey === viewerPubkey);
+  const myAssertion = myStance || [...applications, ...disputes].find((a) => a.authorPubkey === viewerPubkey);
   const hasDisputes = disputes.length > 0;
 
   // Popover persistence (Story 6 AC-1): the popover opens on hover/focus and

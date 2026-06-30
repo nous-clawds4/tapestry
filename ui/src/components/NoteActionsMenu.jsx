@@ -12,7 +12,8 @@ import { copyText } from '../utils/clipboard';
  *                            carrying the note's nevent (?nevent=<nevent>).
  *  - Copy Note ID (nevent) → the bech32 nevent (id + author), portable across clients.
  *  - Copy Note ID (event id) → the raw 32-byte hex event id.
- *  - Tag Event             → not yet wired; shows a transient "not yet supported" line.
+ *
+ * (Tagging the note lives in <NoteTags> on the card itself — Story 6 — not here.)
  *
  * Self-contained: derives the nevent client-side from item.id (+ item.pubkey as the
  * author hint) and copies via the shared clipboard helper. Renders nothing if the
@@ -88,9 +89,6 @@ export default function NoteActionsMenu({ item }) {
           </button>
           <button type="button" className="bsp-note-menu-item" role="menuitem" onClick={() => doCopy(eventId, 'Event ID')}>
             Copy Note ID (event id)
-          </button>
-          <button type="button" className="bsp-note-menu-item" role="menuitem" onClick={() => flashMsg('Tag Event is not yet supported')}>
-            Tag Event
           </button>
           {flash && <div className="bsp-note-menu-flash" role="status">{flash}</div>}
         </div>

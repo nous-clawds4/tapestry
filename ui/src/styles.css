@@ -7473,3 +7473,33 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   .bsp-follows-colpanel { right: auto; left: 0; }
 }
 
+
+/* ── Event-tag affordance on note cards (Story 6) — mirrors .bsp-tags layout ── */
+.bsp-note-tags {
+  margin-top: 0.6rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border, #1e293b);
+}
+.bsp-note-tags-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: center;
+}
+.bsp-note-tags-add {
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  border: 1px dashed var(--border, #334155);
+  background: transparent;
+  color: var(--text-muted, #94a3b8);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.bsp-note-tags-add:hover { border-color: #6366f1; color: #a5b4fc; }
+.bsp-note-tags-add:disabled { opacity: 0.5; cursor: default; }
+.bsp-note-tags-error {
+  margin-bottom: 0.4rem;
+  font-size: 0.8rem;
+  color: #fca5a5;
+}

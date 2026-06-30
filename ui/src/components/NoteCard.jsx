@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import NoteActionsMenu from './NoteActionsMenu';
 import NoteContent from './NoteContent';
+import NoteTags from './NoteTags';
 import { formatTimeAgo } from '../utils/timeAgo';
 
 /**
@@ -77,6 +78,9 @@ export default function NoteCard({ item }) {
         <NoteActionsMenu item={item} />
       </div>
       <div className="bsp-note-card-text"><NoteContent content={item.content} mentions={item.mentions} /></div>
+      {/* Event-tag affordance (Story 6) — rendered here so every note surface
+          (feed, /event, /user/:pk/notes, profile content) inherits it at once. */}
+      <NoteTags item={item} />
     </div>
   );
 }
