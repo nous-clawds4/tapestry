@@ -1,11 +1,11 @@
 # Story 6: Event-tag affordance on note surfaces
 
-**Status:** Approved — **BLOCKED on Story 7** (read enhancement; see below)
+**Status:** Approved — **UNBLOCKED** (Story 7 shipped; resuming at Test Design)
 **Created:** 2026-06-30
 **Type:** Feature
 **Epic:** event-tagging
 
-> **Depends on Story 7 (event-tagging read: viewer's own stance / `mine` channel).** Architecture (ADR 0006) surfaced a POV-first gap: `for-event` POV-trust-filters every asserter with no viewer carve-out, so a logged-in viewer the house POV doesn't trust would see their own just-applied tag **vanish on reload**. The durable fix (mirroring profile-tagging's `myApplications`/`myDisputes`) needs a trust-unfiltered "mine" channel on `for-event`, which is a separate small read story. Build Story 7 first, then resume this one.
+> **Story 7 dependency RESOLVED (2026-06-30).** The POV-first gap (a logged-in viewer the house POV doesn't trust would see their own just-applied tag **vanish on reload**) is fixed: Story 7 added the durable, trust-unfiltered **`mine`** channel to `for-event` (impl `db752c9c`, review PASS `ce413761`). `GET /api/event-tags/for-event?eventId=…&viewerPubkey=<hex>` now returns `mine: [{ tag:{authorPubkey,slug}, stance:'apply'|'dispute', eventId, createdAt }]` alongside the POV-counted `tags`. This story consumes it.
 
 ## Background
 

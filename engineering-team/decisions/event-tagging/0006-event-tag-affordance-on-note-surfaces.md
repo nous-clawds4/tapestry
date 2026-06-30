@@ -1,10 +1,10 @@
 # ADR 0006: Event-tag affordance on note surfaces
 
-**Status:** Proposed — **BLOCKED on a prerequisite read enhancement (new Story 7)**; see "Dependency" below
+**Status:** Accepted — prerequisite (Story 7) shipped; see "Dependency (RESOLVED)" below
 **Date:** 2026-06-30
 **Story:** `engineering-team/stories/event-tagging/6-event-tag-affordance-on-note-surfaces.md`
 
-> **Dependency (added 2026-06-30, after review).** A POV-first gap surfaced during architecture: `for-event` (`src/api/event-tags/index.js:88-103`) POV-trust-filters every asserter with **no carve-out for the viewer**, so a logged-in viewer whom the house POV doesn't rank ≥ `minRank` would NOT see their own just-applied tag after a reload (it would vanish — optimistic UI masks it only until refetch). The robust fix mirrors the profile-tagging precedent (`useProfileTags` returns `myApplications`/`myDisputes`, read durably and **unfiltered by trust**, distinct from the POV-counted set). `for-event` has no such "mine" channel. Per the story's scope rule ("if a gap is found, kick back rather than widening here"), the operator chose to **kick back**: a small new **Story 7 — event-tagging read: viewer's own stance ("mine" channel)** must add it to `for-event` first. Story 6 then consumes it. This ADR's UI design stands; its read-shape details (below) finalize once Story 7 fixes the `mine` response shape.
+> **Dependency — RESOLVED 2026-06-30.** A POV-first gap surfaced during architecture: `for-event` (`src/api/event-tags/index.js`) POV-trust-filters every asserter with **no carve-out for the viewer**, so a logged-in viewer whom the house POV doesn't rank ≥ `minRank` would NOT see their own just-applied tag after a reload (it would vanish — optimistic UI masks it only until refetch). Per the story's scope rule, the operator **kicked back** to a small **Story 7** that added a durable, trust-unfiltered **`mine`** channel (ADR 0007; impl `db752c9c`, review PASS `ce413761`). The `mine` response shape is now **concrete**: `for-event?eventId=…&viewerPubkey=<hex>` returns `mine: [{ tag:{authorPubkey,slug}, stance:'apply'|'dispute', eventId, createdAt }]`. The implementation notes below (the `useEventTags` `mine` field) now bind to that shape. Story 6 proceeds.
 
 ## Context
 
