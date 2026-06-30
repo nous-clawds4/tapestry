@@ -19,6 +19,7 @@ const handles = require('./handles');
 const builders = require('./builders');
 const filters = require('./filters');
 const classify = require('./classify');
+const apply = require('./apply');
 
 module.exports = {
   slug,
@@ -26,4 +27,5 @@ module.exports = {
   ...builders,
   ...filters,
   ...classify,
+  ...apply,
 };
