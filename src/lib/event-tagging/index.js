@@ -18,10 +18,12 @@ const { slug } = require('./slug');
 const handles = require('./handles');
 const builders = require('./builders');
 const filters = require('./filters');
+const classify = require('./classify');
 
 module.exports = {
   slug,
   ...handles,
   ...builders,
   ...filters,
+  ...classify,
 };

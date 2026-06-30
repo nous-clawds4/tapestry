@@ -544,6 +544,11 @@ async function register(app) {
     const { registerProfileTagsRoutes } = require('./profile-tags');
     registerProfileTagsRoutes(app);
 
+    // ── Event-tagging read API (event-tagging epic, ADR 0004) ──
+    const eventTags = require('./event-tags');
+    app.get('/api/event-tags/for-event', eventTags.handleForEvent);
+    app.get('/api/event-tags/headers-for-tag', eventTags.handleHeadersForTag);
+
     // ── Tapestry I/O (Import/Export) API ──
     const { registerIORoutes } = require('./io');
     registerIORoutes(app);
