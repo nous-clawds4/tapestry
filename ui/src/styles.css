@@ -7503,3 +7503,30 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   font-size: 0.8rem;
   color: #fca5a5;
 }
+
+/* ── Tag page: Profiles | Notes view switch (Story 8) ── */
+.bs-tag-view-switch {
+  display: inline-flex;
+  gap: 0.25rem;
+  margin-bottom: 0.75rem;
+  background: var(--surface-2, #1e293b);
+  border-radius: 999px;
+  padding: 0.2rem;
+}
+.bs-tag-view-switch-btn {
+  border: none;
+  background: transparent;
+  color: var(--text-muted, #94a3b8);
+  padding: 0.3rem 0.9rem;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.bs-tag-view-switch-btn.is-active {
+  background: var(--surface, #0f172a);
+  color: var(--text-primary, #e2e8f0);
+}
+.bs-tag-notes-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.75rem; }
+.bs-tag-notes-item { width: 100%; }
+.bs-tag-notes-truncation { font-size: 0.8rem; color: var(--text-muted, #94a3b8); margin: 0 0 0.5rem; }

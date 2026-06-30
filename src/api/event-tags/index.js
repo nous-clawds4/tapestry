@@ -24,10 +24,17 @@ const { exec } = require('child_process');
 const core = require('../../lib/event-tagging');
 const { resolvePov } = require('../_shared/pov');
 const { getOwnerAssistantPubkey } = require('../../utils/assistantKeys');
+// By-tag notes view (Story 8 / ADR 0008): reuse the feed/event note-read machinery
+// to fetch + enrich the target kind-1 notes from the relay set.
+const { resolveGeneralPurposeRelays, realQuerySync, realScanStrfry, realRunCypher } = require('../_shared/relaySource');
+const { enrichNotes } = require('../_shared/noteEnrichment');
 
 // ADR-0015 legacy literal — used ONLY as a DEFAULT honored authority (overridable
 // via ?authorities=), not as a hardcoded gate. See ADR 0004 "sovereignty".
 const CANONICAL_AUTHORITY = '82b75e474dda005e912bcbb910391c60c2b89cc7faf5d3c30b7c59a324973833';
+// Cap the notes view to the most-recently-tagged N (Story 8). Bounds the relay
+// `ids` fetch + the client-side per-note fan-out; pagination is a follow-up.
+const NOTES_CAP = 50;
 const MEILI_URL = process.env.MEILI_URL || 'http://nostr-search-meili:7700';
 const MEILI_INDEX = process.env.MEILI_INDEX || 'profiles';
 const DESCRIPTOR_RE = /^39999:[0-9a-f]{64}:tagging:.+-tagging$/;
@@ -177,4 +184,89 @@ async function handleHeadersForTag(req, res) {
   }
 }
 
-module.exports = { handleForEvent, handleHeadersForTag };
+/**
+ * GET /api/event-tags/for-tag?tagAuthor=<hex>&slug=<slug>
+ *   [&viewerPubkey=<hex>] [&authorities=<csv>] [&wotPov=…&userPubkey=…]
+ *
+ * The notes tagged with a tag (the forward direction; Story 8 / ADR 0008). Composes:
+ * discover the tag's legitimate headers (across honored authorities) → scan the
+ * taggings referencing each header → group BY TARGET (POV-filtered counted set +
+ * the viewer's own `mine`, trust-unfiltered) → fetch + enrich the target kind-1
+ * notes from the relay set. Returns NoteCard-ready items (union of counted + mine),
+ * newest first, each annotated with apply/dispute counts + the viewer's stance.
+ */
+async function handleForTag(req, res) {
+  try {
+    const tagAuthor = typeof req.query.tagAuthor === 'string' ? req.query.tagAuthor.trim() : '';
+    const slug = typeof req.query.slug === 'string' ? req.query.slug.trim() : '';
+    if (!isHexPubkey(tagAuthor)) return res.status(400).json({ success: false, error: 'tagAuthor must be a 64-char hex pubkey.' });
+    if (!slug) return res.status(400).json({ success: false, error: 'slug is required.' });
+
+    const authorities = resolveAuthorities(req);
+    const viewerPubkey = isHexPubkey(req.query.viewerPubkey) ? req.query.viewerPubkey : undefined;
+
+    // 1. Discover the tag's legitimate headers (any author, per honored authority).
+    const foundHeaders = [];
+    for (const authority of authorities) {
+      foundHeaders.push(...await strfryScan(core.filterTaggingHeadersForTag({ tagAuthorPubkey: tagAuthor, slug, taPubkey: authority })));
+    }
+    const headers = dedupeReplaceable(foundHeaders);
+
+    // 2. Scan the taggings referencing each header; union (multi-header — ADR Q1).
+    const candidateEvents = [];
+    for (const h of headers) {
+      candidateEvents.push(...await strfryScan(core.filterTaggingsUsingTag({ headerAuthorPubkey: h.pubkey, slug })));
+    }
+    const candidates = dedupeReplaceable(candidateEvents);
+
+    // 3. Group by target note: POV-filtered counted set + trust-unfiltered `mine`.
+    const { isAsserterTrusted, povSuffix, minRank } = await buildTrustPredicate(req, candidates.map((c) => c.pubkey));
+    const { targets, mine } = core.groupTaggingsByTarget({
+      candidates, headers, honoredAuthorities: authorities, isAsserterTrusted, viewerPubkey,
+      tag: { authorPubkey: tagAuthor, slug },
+    });
+
+    // 4. Resolve target note ids (`e`-targets), bounded to the most-recently-tagged
+    //    NOTES_CAP. The bound is REQUIRED: an unbounded `ids` filter would be rejected
+    //    by relays / time out (→ silent empty), and an unbounded result would spawn
+    //    one Story-6 per-note read per card client-side. Pagination is a follow-up.
+    const countByTarget = new Map(targets.map((t) => [t.target.id, t]).filter(([id]) => id));
+    const mineByTarget = new Map(mine.map((m) => [m.target.id, m]).filter(([id]) => id));
+    // Per-note latest tagging time (union counted + mine) → recency cap key.
+    const latestByNote = new Map();
+    const bump = (id, ts) => { if (id) latestByNote.set(id, Math.max(latestByNote.get(id) || 0, ts || 0)); };
+    for (const t of targets) {
+      if (!t.target.id) continue;
+      for (const e of t.applications) bump(t.target.id, e.createdAt);
+      for (const e of t.disputes) bump(t.target.id, e.createdAt);
+    }
+    for (const m of mine) bump(m.target.id, m.createdAt);
+
+    const rankedIds = Array.from(latestByNote.keys()).sort((a, b) => latestByNote.get(b) - latestByNote.get(a));
+    const total = rankedIds.length;
+    const noteIds = rankedIds.slice(0, NOTES_CAP);
+    const truncated = total > noteIds.length;
+
+    let notes = [];
+    if (noteIds.length) {
+      const { relays } = await resolveGeneralPurposeRelays(realRunCypher);
+      const rawNotes = (await realQuerySync(relays, { kinds: [1], ids: noteIds })) || [];
+      const enriched = await enrichNotes(rawNotes, realScanStrfry);
+      notes = enriched
+        .map((n) => ({
+          ...n,
+          applications: (countByTarget.get(n.id)?.applications || []).length,
+          disputes: (countByTarget.get(n.id)?.disputes || []).length,
+          mine: mineByTarget.has(n.id) ? mineByTarget.get(n.id).stance : null,
+        }))
+        // keep the most-recently-tagged order (matches the cap)
+        .sort((a, b) => (latestByNote.get(b.id) || 0) - (latestByNote.get(a.id) || 0));
+    }
+
+    return res.json({ success: true, tagAuthor, slug, authorities, povSuffix, minRank, notes, mine, total, truncated, limit: NOTES_CAP });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+}
+
+module.exports = { handleForEvent, handleHeadersForTag, handleForTag };

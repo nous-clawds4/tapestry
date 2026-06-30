@@ -548,6 +548,7 @@ async function register(app) {
     const eventTags = require('./event-tags');
     app.get('/api/event-tags/for-event', eventTags.handleForEvent);
     app.get('/api/event-tags/headers-for-tag', eventTags.handleHeadersForTag);
+    app.get('/api/event-tags/for-tag', eventTags.handleForTag);
 
     // ── Tapestry I/O (Import/Export) API ──
     const { registerIORoutes } = require('./io');

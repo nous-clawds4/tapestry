@@ -1,0 +1,52 @@
+import { useState, useEffect } from 'react';
+
+/**
+ * Story 8 — the notes tagged with a tag (forward discovery). Reads
+ * `/api/event-tags/for-tag` (ADR 0008): POV-counted notes UNION the viewer's own
+ * (`mine`, trust-unfiltered, Story-7 analogue), enriched and ready for NoteCard.
+ *
+ * @param {string} tagAuthorPubkey  the tag-element author (`tag.authorPubkey`).
+ * @param {string} slug             the tag slug.
+ * @param {string} [viewerPubkey]   the logged-in viewer (so their own tagged notes show).
+ * @returns {{ notes: object[], total: number, truncated: boolean, loading: boolean, error: string|null }}
+ */
+const HEX64 = /^[0-9a-f]{64}$/;
+
+export function useNotesForTag(tagAuthorPubkey, slug, viewerPubkey) {
+  const [notes, setNotes] = useState([]);
+  const [total, setTotal] = useState(0);
+  const [truncated, setTruncated] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    if (!HEX64.test(tagAuthorPubkey || '') || !slug) { setNotes([]); return undefined; }
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+
+    (async () => {
+      try {
+        const params = new URLSearchParams({ tagAuthor: tagAuthorPubkey, slug });
+        if (HEX64.test(viewerPubkey || '')) params.set('viewerPubkey', viewerPubkey);
+        const r = await fetch(`/api/event-tags/for-tag?${params}`);
+        const j = await r.json().catch(() => ({}));
+        if (cancelled) return;
+        if (!j.success) throw new Error(j.error || 'Failed to load notes for this tag.');
+        setNotes(Array.isArray(j.notes) ? j.notes : []);
+        setTotal(typeof j.total === 'number' ? j.total : (j.notes || []).length);
+        setTruncated(!!j.truncated);
+      } catch (e) {
+        if (!cancelled) setError(e?.message || String(e));
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [tagAuthorPubkey, slug, viewerPubkey]);
+
+  return { notes, total, truncated, loading, error };
+}
+
+export default useNotesForTag;
