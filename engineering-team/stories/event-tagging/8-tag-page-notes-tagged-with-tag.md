@@ -58,6 +58,6 @@ Testable from the outside (given published taggings + a viewer, what the tag pag
 
 ## Linked artifacts
 - ADR: `engineering-team/decisions/event-tagging/0008-tag-page-notes-tagged-with-tag.md`
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/event-tagging/8-tag-page-notes-tagged-with-tag.test-plan.md`
 - Review: (filled in after Review phase)
 - **Source:** intake entry `engineering-team/stories/_intake.md` (2026-06-30), surfaced during Story-6 browser testing.
