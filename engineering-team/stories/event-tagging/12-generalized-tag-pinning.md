@@ -46,7 +46,14 @@ Testable from the outside (given a tag with note-taggings + a pin action, what l
 2. **List kind for notes.** kind-30003 (bookmark set) vs another NIP-51 curation kind — confirm the right element/kind for a "list of notes." *(Architecture)*
 3. **Default note curation.** What "curated members" means for notes at pin time (net-applied, most-applied, recency). *(Design / PO)*
 
+## Architecture decisions (operator, 2026-07-01) — see ADR 0015
+1. **Generalize via the registry (multi-projection)** — per-member `nip51ListKind`/`nip51ElementTag`/`curationMethods`; one pin → one list per target type present (profiles→30000, notes→30003). Not a parallel stack.
+2. **Export-time target-type selection** — profiles / notes / both (checkboxes, default both), so you can emit a follow-pack, a bookmark list, or both.
+3. **Two note-curation options** — `notes:net-endorsed` (default) or `notes:most-applied`.
+4. **Export-only depth for v1** — user-signed kind-30003 from `for-tag`; **no** TA-signed note-TL now → deferred to **GitHub issue #336** (important fast-follow).
+
 ## Linked artifacts
-- ADR: `engineering-team/decisions/event-tagging/0009-unified-taggings-normalization.md` + design `engineering-team/designs/unified-taggings.md` (generalized-pinning extension). A dedicated ADR may be added at its Architecture phase.
+- ADR: `engineering-team/decisions/event-tagging/0015-generalized-target-typed-pinning.md` (this story) + 0009 (registry) + design `engineering-team/designs/unified-taggings.md`.
+- Deferral: GitHub issue #336 (TA-signed kind-30392 note-TL).
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
