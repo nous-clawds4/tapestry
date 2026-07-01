@@ -1,4 +1,5 @@
 import { nip19 } from 'nostr-tools';
+import { projectionFor, curateNotes } from '@tapestry/event-tagging';
 import { publishOrThrow } from './publishProfileTag';
 import { publishEverywhere, fetchFromRelays, PUBLISH_RELAYS } from './nostrPublish';
 
@@ -85,6 +86,13 @@ export function defaultCurationMethod(viewerPubkey) {
     method: 'nip85:rank',
     cutoff: 1,
     includeScoreInTL: true,
+    // Story 12 / ADR 0015 — target-typed pinning. `targetTypes` selects which
+    // of the tag's target types get materialized (default both); `noteMethod`
+    // is the note-list curation (`notes:net-endorsed` | `notes:most-applied`).
+    // Profiles project to a kind-30000 follow set (unchanged); notes to a
+    // kind-30003 bookmark set.
+    targetTypes: ['profile', 'note'],
+    noteMethod: 'notes:net-endorsed',
   };
 }
 
@@ -295,6 +303,85 @@ export async function publishNip51ExportForPin({ pinEventId, title, writeRelays,
     writeRelays: userWriteRelays,     // user's own (for UI display)
     publishRelays,                     // actual final target set (deduped)
   };
+}
+
+/**
+ * Compose the kind-30003 note-bookmark-set `d`-tag for a note-tag pin export.
+ * Target-type-qualified (`notes-pin-…`) so a tag's note export never collides
+ * with its profile follow-set export (`tl-pin-…`).
+ */
+export function computeNoteBookmarkDTag({ viewerPubkey, tagAuthorPubkey, tagSlug }) {
+  return `notes-pin-${viewerPubkey.slice(0, 8)}-${tagAuthorPubkey.slice(0, 8)}-${tagSlug}`;
+}
+
+/**
+ * Story 12 / ADR 0015 — the NOTE analog of publishNip51ExportForPin: materialize
+ * a note-tag's curated members into a user-signed **kind-30003 bookmark set**
+ * (elements are `e` tags, per the registry projection). Export-only depth (v1):
+ * membership is computed client-side from `/api/event-tags/for-tag` at pin time
+ * (a point-in-time snapshot); there is no TA-signed note-TL yet (issue #336).
+ *
+ * @param {object} args
+ * @param {{authorPubkey:string, slug:string, name?:string}} args.tag
+ * @param {string} args.viewerPubkey
+ * @param {string} [args.noteMethod='notes:net-endorsed'] curation (see curateNotes)
+ * @param {string} [args.title]
+ * @param {string[]} [args.writeRelays]
+ * @returns {Promise<{signed, naddr, dTag, memberCount} | {skipped:true, memberCount:0, dTag}>}
+ */
+export async function publishNoteBookmarkSetForPin({ tag, viewerPubkey, noteMethod = 'notes:net-endorsed', title, writeRelays } = {}) {
+  if (!window.nostr) {
+    throw new Error('No NIP-07 extension detected. Install one to export lists.');
+  }
+  if (!tag?.authorPubkey || !tag?.slug || !viewerPubkey) {
+    throw new Error('publishNoteBookmarkSetForPin needs { tag:{authorPubkey,slug}, viewerPubkey }.');
+  }
+
+  // Membership: the tag's curated notes at pin time (POV = the viewer).
+  const params = new URLSearchParams({ tagAuthor: tag.authorPubkey, slug: tag.slug, viewerPubkey });
+  const resp = await fetch(`/api/event-tags/for-tag?${params}`);
+  const data = await resp.json().catch(() => null);
+  if (!resp.ok || !data?.success) {
+    throw new Error(data?.error || `for-tag failed: status ${resp.status}`);
+  }
+  const curated = curateNotes(data.notes || [], noteMethod);
+  const dTag = computeNoteBookmarkDTag({ viewerPubkey, tagAuthorPubkey: tag.authorPubkey, tagSlug: tag.slug });
+
+  // Never publish an empty bookmark set (mirrors the follow-set empty-guard).
+  if (curated.length === 0) {
+    return { skipped: true, memberCount: 0, dTag };
+  }
+
+  // Registry-driven element tag: notes → `e` (kind-30003).
+  const { listKind, elementTag } = projectionFor('event');
+  const listTitle = title || `${tag.name || tag.slug} — notes`;
+  const unsigned = {
+    kind: listKind,
+    pubkey: viewerPubkey,
+    created_at: Math.floor(Date.now() / 1000),
+    tags: [
+      ['d', dTag],
+      ['z', TAG_PINNING_HANDLE],
+      ['title', listTitle],
+      ['description', `Notes tagged "${tag.name || tag.slug}", pinned by ${viewerPubkey.slice(0, 8)}…`],
+      ...curated.map((n) => [elementTag, n.id]),
+    ],
+    content: '',
+  };
+
+  const userWriteRelays = Array.isArray(writeRelays) ? writeRelays : await fetchUserWriteRelays();
+  const publishRelays = Array.from(new Set([...userWriteRelays, ...WELL_KNOWN_FALLBACK_RELAYS]));
+
+  const signed = await window.nostr.signEvent(unsigned);
+  const result = await publishEverywhere(signed, publishRelays);
+  const localOk = result?.local?.success;
+  const externalOk = (result?.external?.successes?.length || 0) > 0;
+  if (!localOk && !externalOk) {
+    throw new Error(result?.local?.error || 'Publish failed on every relay.');
+  }
+
+  const naddr = nip19.naddrEncode({ kind: listKind, pubkey: signed.pubkey, identifier: dTag, relays: publishRelays });
+  return { signed, naddr, dTag, memberCount: curated.length, writeRelays: userWriteRelays, publishRelays };
 }
 
 /**

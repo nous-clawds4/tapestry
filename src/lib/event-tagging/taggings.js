@@ -53,6 +53,8 @@ const nostrUserTagMember = {
     const p = tagVal(ev, 'p');
     return p ? { type: 'profile', ref: p } : null;
   },
+  // NIP-51 projection (ADR 0015): a profile-tag pin snapshots into a follow set.
+  projections: { profile: { listKind: 30000, elementTag: 'p' } },
 };
 
 /** nostr-event-tag (notes/addressables): `e`/`a` target + indirect tag ref via header. */
@@ -82,9 +84,55 @@ const nostrEventTagMember = {
     if (a) return { type: 'address', ref: a };
     return null;
   },
+  // NIP-51 projection (ADR 0015): a note-tag pin snapshots into a kind-30003
+  // bookmark set (`e` for a plain note, `a` for an addressable target).
+  projections: {
+    event: { listKind: 30003, elementTag: 'e' },
+    address: { listKind: 30003, elementTag: 'a' },
+  },
 };
 
 const taggingMembers = [nostrUserTagMember, nostrEventTagMember];
+
+// ── NIP-51 projection + note curation (ADR 0015) ─────────────────────────────
+
+/**
+ * Resolve a target type ('profile' | 'event' | 'address') to its NIP-51
+ * projection `{ listKind, elementTag }` by scanning the registry members'
+ * `projections`. The single source of truth for "how does target type X
+ * materialize into a list": a new tagging member gets pinning by declaring its
+ * projection, no new pin stack. Returns null for an unknown/unprojected type.
+ */
+function projectionFor(targetType, members = taggingMembers) {
+  for (const m of members) {
+    const proj = m.projections && m.projections[targetType];
+    if (proj) return { listKind: proj.listKind, elementTag: proj.elementTag };
+  }
+  return null;
+}
+
+/**
+ * Curate a note-tag's members for a pin snapshot (ADR 0015 decision 3). Pure —
+ * returns a NEW ordered array, never mutates the input. Operates on the `for-tag`
+ * note shape `{ id, applications, disputes, createdAt }` (counts are numbers).
+ *
+ *  - 'notes:net-endorsed' (default): the net-endorsed set (applications > disputes),
+ *    recency-ordered — the Notes-tab curated default; mirrors the profile TL's
+ *    endorsements>disputes cutoff.
+ *  - 'notes:most-applied': every tagged note, ordered by application count desc
+ *    (recency tiebreak) — contested notes kept.
+ */
+function curateNotes(notes = [], method = 'notes:net-endorsed') {
+  const arr = Array.isArray(notes) ? notes.slice() : [];
+  const app = (n) => n.applications || 0;
+  const dis = (n) => n.disputes || 0;
+  const rec = (a, b) => (b.createdAt || 0) - (a.createdAt || 0);
+  if (method === 'notes:most-applied') {
+    return arr.sort((a, b) => (app(b) - app(a)) || rec(a, b));
+  }
+  // default: net-endorsed
+  return arr.filter((n) => app(n) > dis(n)).sort(rec);
+}
 
 // ── Normalization ──────────────────────────────────────────────────────────
 
@@ -171,4 +219,4 @@ function taggingsByAsserter(taggings = [], asserterPubkey) {
   return taggings.filter((tg) => tg.asserter === asserterPubkey);
 }
 
-module.exports = { taggingMembers, normalizeTaggings, indexByTag, taggingsByAsserter };
+module.exports = { taggingMembers, normalizeTaggings, indexByTag, taggingsByAsserter, projectionFor, curateNotes };

@@ -10,7 +10,7 @@ import PinnedListPanel from '../components/PinnedListPanel';
 import { useAuth } from '../context/AuthContext';
 import { useConfig } from '../context/ConfigContext';
 import { publishProfileTagAssertion } from '../utils/publishProfileTag';
-import { pinTag, defaultCurationMethod, publishNip51ExportForPin, syncPinnedExportsForTag } from '../utils/publishTagPin';
+import { pinTag, defaultCurationMethod, publishNip51ExportForPin, publishNoteBookmarkSetForPin, syncPinnedExportsForTag } from '../utils/publishTagPin';
 import useTagDetail from '../hooks/useTagDetail';
 
 /**
@@ -145,8 +145,22 @@ export default function Tag() {
       // is recoverable via the /pins Export button later — the pin
       // itself already landed. publishNip51ExportForPin itself skips
       // publishing when the prepared list has zero members (B2).
-      publishNip51ExportForPin({ pinEventId: signed.id })
-        .catch(() => { /* swallow — user can re-export from /pins */ });
+      const curation = customCuration || defaultCurationMethod(user.pubkey);
+      const targetTypes = curation.targetTypes || ['profile', 'note'];
+      if (targetTypes.includes('profile')) {
+        publishNip51ExportForPin({ pinEventId: signed.id })
+          .catch(() => { /* swallow — user can re-export from /pins */ });
+      }
+      // Story 12 / ADR 0015 — also materialize the note bookmark set (kind-30003)
+      // when notes are selected. Export-only: computes membership from for-tag at
+      // pin time. Skips itself when the tag has no curated notes. Fire-and-forget.
+      if (targetTypes.includes('note')) {
+        publishNoteBookmarkSetForPin({
+          tag: { authorPubkey: tag.authorPubkey, slug: tag.slug, name: tag.name },
+          viewerPubkey: user.pubkey,
+          noteMethod: curation.noteMethod,
+        }).catch(() => { /* swallow — user can re-export from /pins */ });
+      }
     } catch (e) {
       setPinError(e.message || 'Pin failed');
       throw e;
