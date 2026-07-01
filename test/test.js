@@ -119,6 +119,7 @@ const eventTaggingWritePath = require('./event-tagging-write-path.test.js');
 const eventTaggingReadViewerStance = require('./event-tagging-read-viewer-stance.test.js');
 const eventTagNoteAffordanceUi = require('./event-tag-note-affordance-ui.test.js');
 const eventTaggingForTag = require('./event-tagging-for-tag.test.js');
+const unifiedTagIndex = require('./unified-tag-index.test.js');
 
 async function main() {
   console.log('Running Brainstorm tests...');
@@ -336,6 +337,8 @@ async function main() {
   const eventTagNoteAffordanceUiResult = await eventTagNoteAffordanceUi.run();
   console.log('\nevent-tagging-for-tag suite:');
   const eventTaggingForTagResult = await eventTaggingForTag.run();
+  console.log('\nunified-tag-index suite:');
+  const unifiedTagIndexResult = await unifiedTagIndex.run();
 
   console.log('\nTest Results');
   console.log('-------------');
@@ -651,7 +654,8 @@ async function main() {
     eventTaggingWritePathResult.fail === 0 &&
     eventTaggingReadViewerStanceResult.fail === 0 &&
     eventTagNoteAffordanceUiResult.fail === 0 &&
-    eventTaggingForTagResult.fail === 0;
+    eventTaggingForTagResult.fail === 0 &&
+    unifiedTagIndexResult.fail === 0;
   console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);
   process.exit(overallOk ? 0 : 1);
 }

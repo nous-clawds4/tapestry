@@ -54,6 +54,6 @@ Testable from the outside (given published taggings + a POV, what `/tags` return
 
 ## Linked artifacts
 - ADR: `engineering-team/decisions/event-tagging/0009-unified-taggings-normalization.md` (this story is its **first consumer** — the unified `taggings` normalization core + registry + `indexByTag`, then `/tags` on top). Design: `engineering-team/designs/unified-taggings.md`.
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/event-tagging/9-unified-tag-index-notes-and-profiles.test-plan.md`
 - Review: (filled in after Review phase)
 - **Source:** parity audit (two Explore agents), 2026-06-30, prompted by Story-8 testing.
