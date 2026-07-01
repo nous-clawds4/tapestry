@@ -8,7 +8,7 @@ import useTLDetail from '../hooks/useTLDetail';
 import usePinnedNotes from '../hooks/usePinnedNotes';
 import NoteCard from './NoteCard';
 import {
-  pinTag, unpinTag, computeTLDTag, publishNoteBookmarkSetForPin,
+  pinTag, unpinTag, computeTLDTag, publishNoteBookmarkSetForPin, computeNoteBookmarkDTag,
   syncPinnedExportsForTag, WELL_KNOWN_FALLBACK_RELAYS,
 } from '../utils/publishTagPin';
 import { copyText } from '../utils/clipboard';
@@ -235,6 +235,24 @@ export default function PinnedListPanel({ tag, viewerPin, onChanged, exportSync 
     } catch { return null; }
   }, [dTag, user?.pubkey]);
 
+  // kind-30003 naddr (user-signed note Bookmark Set) — a DIFFERENT d-tag from
+  // the profile lists (`notes-pin-…`, not `tl-pin-…`). Only meaningful once a
+  // note bookmark set has been published (pinnedNotes).
+  const noteBookmarkDTag = useMemo(() => {
+    if (!tag || !user?.pubkey) return null;
+    try { return computeNoteBookmarkDTag({ viewerPubkey: user.pubkey, tagAuthorPubkey: tag.authorPubkey, tagSlug: tag.slug }); }
+    catch { return null; }
+  }, [tag, user?.pubkey]);
+  const naddr30003 = useMemo(() => {
+    if (!noteBookmarkDTag || !user?.pubkey) return null;
+    try {
+      return nip19.naddrEncode({
+        kind: 30003, pubkey: user.pubkey, identifier: noteBookmarkDTag,
+        relays: WELL_KNOWN_FALLBACK_RELAYS,
+      });
+    } catch { return null; }
+  }, [noteBookmarkDTag, user?.pubkey]);
+
   const canManage = !!user && !!pinEventId;
   const nip51 = pinRow?.nip51ExportStatus;
   const hasFollowSet = !!nip51 && nip51.status !== 'never-exported';
@@ -406,6 +424,15 @@ export default function PinnedListPanel({ tag, viewerPin, onChanged, exportSync 
             label="Follow Pack (naddr)"
             naddr={naddr39089}
             help="Others can follow the whole set at once from this address."
+          />
+        )}
+        {/* Story 12 — the note Bookmark Set row appears once a kind-30003 has
+            been published (i.e. the tag was pinned with notes). */}
+        {pinnedNotes && naddr30003 && (
+          <NaddrRow
+            label="Bookmark Set (naddr)"
+            naddr={naddr30003}
+            help="A NIP-51 bookmark set of the curated notes; open it in any client that supports bookmark lists."
           />
         )}
       </dl>
