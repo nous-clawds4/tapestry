@@ -164,4 +164,11 @@ function indexByTag(taggings = [], { isAsserterTrusted, viewerPubkey } = {}) {
   return { rows };
 }
 
-module.exports = { taggingMembers, normalizeTaggings, indexByTag };
+/** An asserter-scoped view over the normalized stream — the taggings authored by
+ *  one pubkey (Story 11 / ADR 0010). Pure. */
+function taggingsByAsserter(taggings = [], asserterPubkey) {
+  if (!asserterPubkey) return [];
+  return taggings.filter((tg) => tg.asserter === asserterPubkey);
+}
+
+module.exports = { taggingMembers, normalizeTaggings, indexByTag, taggingsByAsserter };

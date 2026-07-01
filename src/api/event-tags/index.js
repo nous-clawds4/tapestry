@@ -356,4 +356,66 @@ async function handleTagIndex(req, res) {
   }
 }
 
-module.exports = { handleForEvent, handleHeadersForTag, handleForTag, handleTagIndex };
+/**
+ * GET /api/event-tags/notes-by-author?authorPubkey=<hex> [&viewerPubkey=][&authorities=]
+ *   [&wotPov=&userPubkey=]
+ *
+ * A profile's NOTE-taggings (Story 11 / ADR 0010): the kind-1 notes this author has
+ * tagged, each with the tag(s) they applied — an asserter-filtered view over the
+ * normalized stream, enriched for NoteCard (reuses the for-tag note-read: local-first
+ * + relay + NOTES_CAP). The live profiles-side /api/profile-tags/authored-by is
+ * untouched (ADR 0009 Phase 1).
+ */
+async function handleNotesByAuthor(req, res) {
+  try {
+    const authorPubkey = typeof req.query.authorPubkey === 'string' ? req.query.authorPubkey.trim() : '';
+    if (!isHexPubkey(authorPubkey)) return res.status(400).json({ success: false, error: 'authorPubkey must be a 64-char hex pubkey.' });
+    const authorities = resolveAuthorities(req);
+
+    // Scan this author's event-taggings, resolve their headers, normalize.
+    const memberZs = authorities.map((a) => core.conceptNostrEventTag(a));
+    const assertions = dedupeReplaceable(await strfryScan({ kinds: [39999], authors: [authorPubkey], '#z': memberZs }));
+    const descriptors = new Set();
+    for (const c of assertions) for (const tg of (c.tags || [])) if (tg[0] === 'z' && DESCRIPTOR_RE.test(tg[1] || '')) descriptors.add(tg[1]);
+    const headerEvents = [];
+    for (const coord of descriptors) { const m = /^39999:([0-9a-f]{64}):(.+)$/.exec(coord); if (m) headerEvents.push(...await strfryScan({ kinds: [39999], authors: [m[1]], '#d': [m[2]] })); }
+    const headers = dedupeReplaceable(headerEvents);
+
+    const mine = core.taggingsByAsserter(core.normalizeTaggings({ assertions, headers, honoredAuthorities: authorities }), authorPubkey)
+      .filter((tg) => tg.target.type === 'event');
+
+    // Group by target note, most-recently-tagged first, capped.
+    const byNote = new Map();
+    for (const tg of mine) {
+      const id = tg.target.ref;
+      if (!id) continue;
+      let e = byNote.get(id);
+      if (!e) { e = { id, taggedWith: [], latest: 0 }; byNote.set(id, e); }
+      e.taggedWith.push({ authorPubkey: tg.tag.authorPubkey, slug: tg.tag.slug, stance: tg.stance });
+      if (tg.createdAt > e.latest) e.latest = tg.createdAt;
+    }
+    const ranked = Array.from(byNote.values()).sort((a, b) => b.latest - a.latest);
+    const total = ranked.length;
+    const capped = ranked.slice(0, NOTES_CAP);
+
+    let notes = [];
+    const noteIds = capped.map((n) => n.id);
+    if (noteIds.length) {
+      let local = [];
+      try { local = realScanStrfry({ kinds: [1], ids: noteIds }); } catch { local = []; }
+      const have = new Set(local.map((n) => n.id));
+      const missing = noteIds.filter((id) => !have.has(id));
+      let ext = [];
+      if (missing.length) { const { relays } = await resolveGeneralPurposeRelays(realRunCypher); ext = (await realQuerySync(relays, { kinds: [1], ids: missing })) || []; }
+      const enriched = await enrichNotes([...local, ...ext], realScanStrfry);
+      const twById = new Map(capped.map((n) => [n.id, n.taggedWith]));
+      const latestById = new Map(capped.map((n) => [n.id, n.latest]));
+      notes = enriched.map((n) => ({ ...n, taggedWith: twById.get(n.id) || [] })).sort((a, b) => (latestById.get(b.id) || 0) - (latestById.get(a.id) || 0));
+    }
+    return res.json({ success: true, authorPubkey, notes, total, truncated: total > capped.length, limit: NOTES_CAP });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+}
+
+module.exports = { handleForEvent, handleHeadersForTag, handleForTag, handleTagIndex, handleNotesByAuthor };
