@@ -1,6 +1,6 @@
 # Story 13: Unified `/tags` directory (UI + endpoint controls)
 
-**Status:** Approved
+**Status:** Approved — DONE + REVIEWED PASS (impl a1db7918)
 **Created:** 2026-06-30
 **Type:** Feature
 **Epic:** event-tagging · **Book:** unified-tagging-ui
@@ -43,5 +43,5 @@ As someone browsing `/tags`, I want the directory to reflect the whole tag unive
 
 ## Linked artifacts
 - ADR: `engineering-team/decisions/event-tagging/0012-unified-tags-directory-ui.md`
-- Test plan / Review: (filled in later)
+- Test plan: `test/unified-tags-directory.test.js` (source-contract + HTTP; UI manual). Review: `engineering-team/reviews/event-tagging/13-unified-tags-directory-ui.md` — **PASS** (2026-06-30)
 - Built on: ADR 0009 (`/api/tags/index`), book `engineering-team/audits/unified-tagging-ui/book.md`.

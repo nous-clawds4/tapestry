@@ -11,7 +11,7 @@
 - Pure core: `normalizeTaggings` + `taggingMembers` registry + `indexByTag` + `taggingsByAsserter`.
 
 ## Decomposition (build order — lowest-risk / highest-value first; ship at the end)
-1. **Story 13 — Unified `/tags` directory (UI + endpoint controls).** Wire `Tags.jsx` to `/api/tags/index`; extend the endpoint with the controls the page needs so nothing regresses (pinnedCount + used/endorsed/most-pinned sorts + authoredBy/pinnedByMe filters), now spanning notes + profiles. Directly fixes the original `/tags`-is-confusing complaint. *(No pin-affordance change → no confusion.)*
+1. ✅ **Story 13 — Unified `/tags` directory (UI + endpoint controls).** Wire `Tags.jsx` to `/api/tags/index`; extend the endpoint with the controls the page needs so nothing regresses (pinnedCount + used/endorsed/most-pinned sorts + authoredBy/pinnedByMe filters), now spanning notes + profiles. Directly fixes the original `/tags`-is-confusing complaint. *(No pin-affordance change → no confusion.)*
 2. **Story 14 — Profile "Tagging Activity" spans notes (UI).** Wire `AuthoredTaggingSection` to `/api/event-tags/notes-by-author` (Story 11's held UI): show the notes a person has tagged.
 3. **Story 12 — Generalized (target-typed) pinning.** The note-pin affordance + a kind-30003 bookmark-set materializer (note analog of the kind-30392 TL / kind-30000 export), reusing `for-tag` + the registry projection. Removes the "pinning only works for profiles" confusion. Biggest; write + UI.
 4. **Ship** — local → staging → (explicit go) prod.
