@@ -37,3 +37,24 @@ export function assertSignerMatches(activePubkey, expectedPubkey) {
     throw new SignerMismatchError(activePubkey, expectedPubkey);
   }
 }
+
+// Module-level mirror of the signed-in session pubkey, published by AuthContext
+// (setSessionPubkey on login/status/logout). Lets the plain-util write paths
+// (profile tags, pins, NIP-51 exports) self-guard without threading the session
+// pubkey through every function + caller. Null when logged out → guard is a
+// no-op (anonymous has no session identity to contradict). Issue #335.
+let _sessionPubkey = null;
+export function setSessionPubkey(pk) { _sessionPubkey = pk || null; }
+export function getSessionPubkey() { return _sessionPubkey; }
+
+/**
+ * Fetch the extension's active signer pubkey and assert it matches the signed-in
+ * session (getSessionPubkey). Use at the top of any user-initiated signed write.
+ * Throws SignerMismatchError on drift; returns the active pubkey otherwise.
+ */
+export async function getActiveSignerOrThrow(expected = getSessionPubkey()) {
+  if (!window.nostr) throw new Error('No NIP-07 extension detected.');
+  const active = await window.nostr.getPublicKey();
+  assertSignerMatches(active, expected);
+  return active;
+}

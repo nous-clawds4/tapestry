@@ -1,6 +1,7 @@
 import { nip19 } from 'nostr-tools';
 import { projectionFor, curateNotes } from '@tapestry/event-tagging';
 import { publishOrThrow } from './publishProfileTag';
+import { getActiveSignerOrThrow } from './signerGuard';
 import { publishEverywhere, fetchFromRelays, PUBLISH_RELAYS } from './nostrPublish';
 
 // Story 19 / ADR 0017 Amendment III — publish targets for the
@@ -111,7 +112,7 @@ export async function pinTag({ tag, curationMethod }) {
   if (!window.nostr) {
     throw new Error('No NIP-07 extension detected. Install one to pin tags.');
   }
-  const authorPk = await window.nostr.getPublicKey();
+  const authorPk = await getActiveSignerOrThrow(); // issue #335 — guard drifted signer
   const curation = curationMethod || defaultCurationMethod(authorPk);
   const dTag = computePinEventDTag({
     tagSlug: tag.slug,
@@ -278,6 +279,7 @@ export async function publishNip51ExportForPin({ pinEventId, title, writeRelays,
   // PUBLISH_RELAYS.
   const publishRelays = Array.from(new Set([...userWriteRelays, ...WELL_KNOWN_FALLBACK_RELAYS]));
 
+  await getActiveSignerOrThrow(); // issue #335 — don't export under a drifted signer
   const signed = await window.nostr.signEvent(unsigned);
 
   // Publish to local strfry + the union of user + well-known relays.
@@ -372,6 +374,9 @@ export async function publishNoteBookmarkSetForPin({ tag, viewerPubkey, noteMeth
   const userWriteRelays = Array.isArray(writeRelays) ? writeRelays : await fetchUserWriteRelays();
   const publishRelays = Array.from(new Set([...userWriteRelays, ...WELL_KNOWN_FALLBACK_RELAYS]));
 
+  // Guard against the active signer having drifted from the list's author
+  // (issue #335) — otherwise the signed pubkey wouldn't match the d-tag author.
+  await getActiveSignerOrThrow(viewerPubkey);
   const signed = await window.nostr.signEvent(unsigned);
   const result = await publishEverywhere(signed, publishRelays);
   const localOk = result?.local?.success;
@@ -395,7 +400,7 @@ export async function unpinTag({ pinEventId }) {
   if (!window.nostr) {
     throw new Error('No NIP-07 extension detected.');
   }
-  const authorPk = await window.nostr.getPublicKey();
+  const authorPk = await getActiveSignerOrThrow(); // issue #335
   const unsigned = {
     kind: 5,
     pubkey: authorPk,
