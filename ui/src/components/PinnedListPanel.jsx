@@ -168,6 +168,9 @@ export default function PinnedListPanel({ tag, viewerPin, onChanged, exportSync 
   // Issue #2 — Profiles|Notes sub-switch inside the Pinned tab (mirrors the
   // tag-detail default tab), so a big profile list and the note list don't stack.
   const [pinnedView, setPinnedView] = useState('profiles');
+  // Recompute the note drift each time the Notes sub-tab is opened, so a note
+  // tagged since mount is reflected without a full page refresh.
+  useEffect(() => { if (pinnedView === 'notes') refetchPinnedNotes(); }, [pinnedView, refetchPinnedNotes]);
   const handleRepinNotes = useCallback(async () => {
     if (!tag || !user || repinningNotes) return;
     setRepinningNotes(true);

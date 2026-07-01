@@ -44,16 +44,23 @@ export default function usePinnedNotes(tag, viewerPubkey, noteMethod = 'notes:ne
       try {
         const dTag = computeNoteBookmarkDTag({ viewerPubkey, tagAuthorPubkey: tag.authorPubkey, tagSlug: tag.slug });
 
-        // 1. The published kind-30003 snapshot (the viewer's own).
+        // 1. The published kind-30003 snapshot (the viewer's own). This is FAST
+        //    (a strfry scan) and determines whether the Notes sub-tab exists — so
+        //    surface `pinned` immediately, before the slow for-tag step, so the
+        //    Profiles|Notes switch doesn't pop in seconds later.
         const filter = JSON.stringify({ kinds: [30003], authors: [viewerPubkey], '#d': [dTag] });
         const r = await fetch(`/api/strfry/scan?filter=${encodeURIComponent(filter)}`);
         const j = await r.json().catch(() => ({}));
         if (cancelled) return;
         const ev = (j?.events || []).sort((a, b) => b.created_at - a.created_at)[0] || null;
         const snapshotIds = ev ? (ev.tags || []).filter((t) => t[0] === 'e' && t[1]).map((t) => t[1]) : [];
+        setPinned(ev ? { eventId: ev.id, createdAt: ev.created_at, ids: snapshotIds } : null);
+        if (!ev) { setNotes([]); setDrift(null); setLoading(false); return; }
 
-        // 2. Live curated set (one for-tag call) — enriches the snapshot + drives the diff.
-        const params = new URLSearchParams({ tagAuthor: tag.authorPubkey, slug: tag.slug, viewerPubkey });
+        // 2. Live curated set (one for-tag call) — enriches the snapshot + drives
+        //    the diff. `nocache=1`: drift must reflect the CURRENT taggings, not a
+        //    stale 30s-cached set, or a just-tagged note reads as "up to date".
+        const params = new URLSearchParams({ tagAuthor: tag.authorPubkey, slug: tag.slug, viewerPubkey, nocache: '1' });
         const fr = await fetch(`/api/event-tags/for-tag?${params}`);
         const fj = await fr.json().catch(() => ({}));
         if (cancelled) return;
@@ -68,9 +75,8 @@ export default function usePinnedNotes(tag, viewerPubkey, noteMethod = 'notes:ne
         const snapshotNotes = snapshotIds.map((id) => byId.get(id)).filter(Boolean);
 
         if (cancelled) return;
-        setPinned(ev ? { eventId: ev.id, createdAt: ev.created_at, ids: snapshotIds } : null);
         setNotes(snapshotNotes);
-        setDrift(ev ? { added, removed } : null);
+        setDrift({ added, removed });
       } catch (e) {
         if (!cancelled) setError(e?.message || String(e));
       } finally {
