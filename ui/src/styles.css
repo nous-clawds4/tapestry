@@ -5993,6 +5993,24 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
 }
 .bs-pindetail-members { list-style: none; padding: 0; margin: 0; }
 .bs-pindetail-member { margin-bottom: 0.5rem; }
+
+/* Story 12 item #3 — the pinned NOTE bookmark set section in the Pinned tab. */
+.bs-pinned-notes { margin-top: 1.75rem; padding-top: 1rem; border-top: 1px solid var(--border, #1e293b); }
+.bs-pinned-notes-head { display: flex; align-items: baseline; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 0.75rem; }
+.bs-pinned-notes-title { font-size: 1.1rem; margin: 0; }
+.bs-pinned-notes-drift { font-size: 0.8rem; }
+.bs-pinned-notes-drift.is-fresh { color: #86efac; }
+.bs-pinned-notes-drift.is-stale { color: #fcd34d; }
+.bs-pinned-notes-update {
+  font: inherit; font-size: 0.85rem; margin-bottom: 0.75rem;
+  padding: 0.35rem 0.9rem; border-radius: 6px;
+  border: 1px solid var(--border, #334155); background: rgba(252, 211, 77, 0.12);
+  color: #fcd34d; cursor: pointer;
+}
+.bs-pinned-notes-update:disabled { opacity: 0.6; cursor: not-allowed; }
+.bs-pinned-notes-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.75rem; }
+.bs-pinned-notes-item { width: 100%; }
+.bs-pinned-notes-empty { color: var(--text-tertiary, #64748b); font-size: 0.9rem; }
 .bs-pindetail-member-link {
   display: flex;
   align-items: center;

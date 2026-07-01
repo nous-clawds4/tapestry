@@ -5,8 +5,10 @@ import CurationMethodDialog from './CurationMethodDialog';
 import { useAuth } from '../context/AuthContext';
 import { useConfig } from '../context/ConfigContext';
 import useTLDetail from '../hooks/useTLDetail';
+import usePinnedNotes from '../hooks/usePinnedNotes';
+import NoteCard from './NoteCard';
 import {
-  pinTag, unpinTag, computeTLDTag,
+  pinTag, unpinTag, computeTLDTag, publishNoteBookmarkSetForPin,
   syncPinnedExportsForTag, WELL_KNOWN_FALLBACK_RELAYS,
 } from '../utils/publishTagPin';
 import { copyText } from '../utils/clipboard';
@@ -152,6 +154,31 @@ export default function PinnedListPanel({ tag, viewerPin, onChanged, exportSync 
     } catch { setPinRow(null); }
   }, [user, pinEventId]);
   useEffect(() => { let on = true; (async () => { if (on) await loadPinRow(); })(); return () => { on = false; }; }, [loadPinRow]);
+
+  // Story 12 item #3 — the viewer's pinned NOTE bookmark set (kind-30003) + its
+  // drift vs the live curated set. Curated with the same method the pin used.
+  const noteMethod = pinRow?.curationMethod?.noteMethod
+    || viewerPin?.curationMethod?.noteMethod
+    || 'notes:net-endorsed';
+  const {
+    pinned: pinnedNotes, notes: pinnedNoteItems, drift: noteDrift,
+    loading: pinnedNotesLoading, refetch: refetchPinnedNotes,
+  } = usePinnedNotes(tag, user?.pubkey, noteMethod);
+  const [repinningNotes, setRepinningNotes] = useState(false);
+  const handleRepinNotes = useCallback(async () => {
+    if (!tag || !user || repinningNotes) return;
+    setRepinningNotes(true);
+    try {
+      await publishNoteBookmarkSetForPin({
+        tag: { authorPubkey: tag.authorPubkey, slug: tag.slug, name: tag.name },
+        viewerPubkey: user.pubkey,
+        noteMethod,
+      });
+      await refetchPinnedNotes();
+    } catch { /* best-effort; drift line stays until it succeeds */ }
+    finally { setRepinningNotes(false); }
+  }, [tag, user, repinningNotes, noteMethod, refetchPinnedNotes]);
+  const noteDriftStale = !!noteDrift && (noteDrift.added > 0 || noteDrift.removed > 0);
 
   // AC-19 — when a tag-page-driven re-export settles ('exporting' →
   // 'idle'/'declined'), refetch so the status line + naddr rows revert to
@@ -427,6 +454,54 @@ export default function PinnedListPanel({ tag, viewerPin, onChanged, exportSync 
             </li>
           ))}
         </ul>
+      )}
+
+      {/* Story 12 item #3 — the viewer's pinned NOTE bookmark set (kind-30003),
+          rendered as a second section below the profile Trusted List, with a
+          drift indicator vs the live curated set (the note analog of the profile
+          export's diffVsTL). Shown only once a note bookmark set exists. */}
+      {pinnedNotes && (
+        <section className="bs-pinned-notes">
+          <div className="bs-pinned-notes-head">
+            <h4 className="bs-pinned-notes-title">Pinned notes</h4>
+            {noteDrift && (
+              noteDriftStale ? (
+                <span className="bs-pinned-notes-drift is-stale">
+                  {noteDrift.added ? `${noteDrift.added} new` : ''}
+                  {noteDrift.added && noteDrift.removed ? ' · ' : ''}
+                  {noteDrift.removed ? `${noteDrift.removed} removed` : ''} since you pinned
+                </span>
+              ) : (
+                <span className="bs-pinned-notes-drift is-fresh">✓ Up to date</span>
+              )
+            )}
+          </div>
+
+          {noteDriftStale && (
+            <button
+              type="button"
+              className="bs-pinned-notes-update"
+              onClick={handleRepinNotes}
+              disabled={repinningNotes}
+            >
+              {repinningNotes ? 'Updating…' : 'Update pinned notes'}
+            </button>
+          )}
+
+          {pinnedNoteItems.length > 0 ? (
+            <ul className="bs-pinned-notes-list">
+              {pinnedNoteItems.map((n) => (
+                <li key={n.id} className="bs-pinned-notes-item"><NoteCard item={n} /></li>
+              ))}
+            </ul>
+          ) : pinnedNotesLoading ? (
+            <p className="bs-pinned-notes-empty">Loading pinned notes…</p>
+          ) : (
+            <p className="bs-pinned-notes-empty">
+              The notes in this pin are no longer resolvable{noteDrift?.removed ? ` (${noteDrift.removed} removed)` : ''}.
+            </p>
+          )}
+        </section>
       )}
 
       {editing && user && (
