@@ -312,6 +312,10 @@ async function handleTagIndex(req, res) {
     const q = (typeof req.query.q === 'string' ? req.query.q : '').trim().toLowerCase();
     const limit = Math.max(1, Math.min(parseInt(req.query.limit, 10) || 100, 200));
     const offset = Math.max(0, parseInt(req.query.offset, 10) || 0);
+    const VALID_SORTS = ['used', 'endorsed', 'divisive', 'most-pinned'];
+    const sort = VALID_SORTS.includes(req.query.sort) ? req.query.sort : 'used';
+    const authoredBy = isHexPubkey(req.query.authoredBy) ? req.query.authoredBy : null;
+    const pinnedByMe = req.query.pinnedByMe === 'true' && !!viewerPubkey;
 
     // 1. Scan every family member's assertions under the honored authorities.
     const memberZs = [];
@@ -345,12 +349,31 @@ async function handleTagIndex(req, res) {
     }
     rows = rows.map((r) => {
       const md = meta.get(`${r.tag.authorPubkey}:${r.tag.slug}`) || {};
-      return { ...r, name: md.name || r.tag.slug, description: md.description || '', tagEventId: md.eventId || null };
+      return { ...r, authorPubkey: r.tag.authorPubkey, slug: r.tag.slug, name: md.name || r.tag.slug, description: md.description || '', tagEventId: md.eventId || null };
     });
-    if (q) rows = rows.filter((r) => (r.name || '').toLowerCase().includes(q) || r.tag.slug.toLowerCase().includes(q) || (r.description || '').toLowerCase().includes(q));
+
+    // Pins (Story 13 / ADR 0012) — reuse the profile-curation aggregate, joined on
+    // tagEventId. Read-only; a note-pin affordance is Story 12.
+    try {
+      const { aggregateTagPins } = require('../profile-tags');
+      const { pinCountByTagEventId, viewerPinnedSet } = await aggregateTagPins({ povSuffix, minRank, viewerPubkey });
+      rows = rows.map((r) => ({ ...r, pinnedCount: r.tagEventId ? (pinCountByTagEventId.get(r.tagEventId) || 0) : 0, viewerPinned: r.tagEventId ? viewerPinnedSet.has(r.tagEventId) : false }));
+    } catch { rows = rows.map((r) => ({ ...r, pinnedCount: 0, viewerPinned: false })); }
+
+    if (q) rows = rows.filter((r) => (r.name || '').toLowerCase().includes(q) || r.slug.toLowerCase().includes(q) || (r.description || '').toLowerCase().includes(q));
+    if (authoredBy) rows = rows.filter((r) => r.authorPubkey === authoredBy);
+    if (pinnedByMe) rows = rows.filter((r) => r.viewerPinned);
+
+    const SORTERS = {
+      used: (a, b) => ((b.applications + b.disputes) - (a.applications + a.disputes)) || (b.applications - a.applications),
+      endorsed: (a, b) => (b.applications - a.applications) || (b.disputes - a.disputes),
+      divisive: (a, b) => (Math.min(b.applications, b.disputes) - Math.min(a.applications, a.disputes)) || (b.applications - a.applications),
+      'most-pinned': (a, b) => ((b.pinnedCount || 0) - (a.pinnedCount || 0)) || (b.applications - a.applications),
+    };
+    rows.sort(SORTERS[sort]);
 
     const total = rows.length;
-    return res.json({ success: true, authorities, povSuffix, minRank, rows: rows.slice(offset, offset + limit), total, offset, limit });
+    return res.json({ success: true, authorities, povSuffix, minRank, sort, rows: rows.slice(offset, offset + limit), total, offset, limit });
   } catch (err) {
     return res.status(500).json({ success: false, error: err.message });
   }

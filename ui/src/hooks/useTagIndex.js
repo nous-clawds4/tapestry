@@ -7,8 +7,9 @@ import { useAuth } from '../context/AuthContext';
  * Manages sort/q/offset state, accumulates `rows` across "Load more" clicks,
  * and resets the row accumulator when sort or q changes.
  *
- * Fetches `/api/profile-tags/index`. Gates on auth bootstrap so a fresh load
- * of /tags resolves the active POV correctly (same pattern as useTagDetail).
+ * Fetches the unified `/api/tags/index` (notes + profiles; Story 13 / ADR 0012).
+ * Gates on auth bootstrap so a fresh load of /tags resolves the active POV
+ * correctly (same pattern as useTagDetail).
  */
 const PAGE_SIZE = 50;
 
@@ -81,7 +82,8 @@ export default function useTagIndex() {
       params.set('pinnedByMe', 'true');
     }
 
-    fetch(`/api/profile-tags/index?${params}`)
+    // Unified tag directory across notes + profiles (Story 13 / ADR 0012).
+    fetch(`/api/tags/index?${params}`)
       .then(async (r) => {
         const data = await r.json().catch(() => null);
         if (cancelled || mySeq !== liveSeqRef.current) return;

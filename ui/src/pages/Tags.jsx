@@ -160,6 +160,11 @@ export default function Tags() {
                       <span className="bs-tagindex-count bs-tagindex-count-pinned" title="Pins by people in your POV's WoT">
                         📌{row.pinnedCount ?? 0}
                       </span>
+                      {(row.byType?.event?.applications > 0 || row.byType?.event?.disputes > 0) && (
+                        <span className="bs-tagindex-count bs-tagindex-count-notes" title="Used on notes (applications) in your POV's WoT">
+                          📝{row.byType.event.applications || 0}
+                        </span>
+                      )}
                     </div>
                   </Link>
                 </li>
