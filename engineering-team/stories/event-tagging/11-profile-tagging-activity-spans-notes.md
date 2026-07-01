@@ -1,6 +1,6 @@
 # Story 11: Profile "Tagging Activity" spans notes
 
-**Status:** Draft
+**Status:** Approved — server/core DONE + REVIEWED PASS (impl eae1285f); UI held for the unified-UI pass
 **Created:** 2026-06-30
 **Type:** Feature
 **Epic:** event-tagging
@@ -43,5 +43,5 @@ Testable from the outside (given a person's published taggings, what their activ
 
 ## Linked artifacts
 - ADR: `engineering-team/decisions/event-tagging/0009-unified-taggings-normalization.md` (built on the unified core)
-- Test plan: (filled in after Test Design phase)
-- Review: (filled in after Review phase)
+- Test plan: covered by `test/event-tagging-notes-by-author.test.js` (core + source-contract + HTTP; UI held)
+- Review: `engineering-team/reviews/event-tagging/11-profile-tagging-activity-spans-notes.md` — **PASS (server/core)** (2026-06-30)
