@@ -1,6 +1,6 @@
 # Story 12: Generalized (target-typed) tag pinning
 
-**Status:** Draft
+**Status:** Queued → folded into the UNIFIED-UI/WRITE PASS (operator decision 2026-06-30). Pinning is write+UI (publish a pin + a kind-30003 bookmark set via NIP-07); build it there with its consumer — the note-pin affordance + publish flow — reusing for-tag for the note set + the registry projection (nip51ListKind/targetToListTag). Not a standalone read-core slice.
 **Created:** 2026-06-30
 **Type:** Feature
 **Epic:** event-tagging

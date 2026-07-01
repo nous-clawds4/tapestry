@@ -128,7 +128,7 @@ member.targetToListTag(target) // profile → ['p', pubkey] ; event → ['e', id
 member.defaultCuration         // per-type default (rank for people; net-endorsed/recency for notes)
 ```
 
-Then "pin tag X" = take the normalized taggings for X (grouped by target, POV-filtered / curated) and materialize the member's NIP-51 list kind under the user's key — reusing the existing pin / Trusted-List / export plumbing (`refresh-pinned-tag`, `publishNip51ExportForPin`), generalized. Without unification this would be a third parallel pin stack; with it, it's "register the projection." → **Story 12.**
+Then "pin tag X" = take the normalized taggings for X (grouped by target, POV-filtered / curated) and materialize the member's NIP-51 list kind under the user's key — reusing the existing pin / Trusted-List / export plumbing (`refresh-pinned-tag`, `publishNip51ExportForPin`), generalized. Without unification this would be a third parallel pin stack; with it, it's "register the projection." → **Story 12.** Built in the unified-UI/write pass (operator, 2026-06-30) — pinning is write+UI, so it lands with its consumer, not as a standalone read-core slice.
 
 ## Rollout / UI sequencing (operator decision, 2026-06-30)
 
