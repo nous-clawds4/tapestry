@@ -1,9 +1,15 @@
 # Story 10: Unified tag search — find tags across the whole universe
 
-**Status:** Draft
+**Status:** ✅ SUPERSEDED by Story 9 (2026-06-30) — the unified index endpoint `GET /api/tags/index?q=` already delivers unified, usage-aware, POV-filtered tag search by name. Not built separately (see disposition below).
 **Created:** 2026-06-30
 **Type:** Feature
 **Epic:** event-tagging
+
+> **Disposition (Architect, 2026-06-30): superseded, no separate build.** During Story 9's architecture the search need turned out to be already met:
+> - `/api/tags/index?q=<substr>` filters the unified rows by tag **name / slug / description**, POV-filtered, spanning notes + profiles. Live-verified: `q=drive` → `drivechain` (a note-only tag).
+> - The legacy profile `/api/profile-tags/match` endpoint has **no UI consumer** (grep-clean).
+> - The only tag-search surfaces are the `/tags` filter box (→ the `q` param) and `AddTagDialog` (client-side over the already-shared `available-tags` catalogue).
+> A dedicated `searchTags` primitive + `/api/tags/search` endpoint would be **consumer-less, speculative code** (YAGNI / against ADR-0009 Phase-1 "don't build UI-less"). So Story 10 is closed as delivered-by-9. If a distinct usage-aware autocomplete consumer emerges later, revisit as a thin `searchTags` view over the normalized stream (the ADR-0009 seam is ready). The original story text is preserved below for the record.
 
 ## Background
 
