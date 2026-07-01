@@ -351,6 +351,8 @@ export default function PinnedListPanel({ tag, viewerPin, onChanged, exportSync 
               followPackStatus={followPack}
               variant="full"
               onExported={handleExported}
+              noteExport={pinnedNotes ? { tag, viewerPubkey: user?.pubkey, noteMethod } : null}
+              onNoteExported={refetchPinnedNotes}
             />
           )}
           {canManage && (
