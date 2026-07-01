@@ -285,6 +285,19 @@ async function handleForTag(req, res) {
     const noteIds = rankedIds.slice(0, NOTES_CAP);
     const truncated = total > noteIds.length;
 
+    // Deterministic membership (ids + counts), computed from the taggings BEFORE
+    // any kind-1 resolution. Consumers that need a stable set — e.g. pin curation
+    // and the pinned-notes drift — must use THIS, not the resolved `notes` array
+    // (whose contents depend on flaky external relay fetches, making drift jump
+    // around). `createdAt` here is the latest tagging time (recency key).
+    const members = noteIds.map((id) => ({
+      id,
+      applications: (countByTarget.get(id)?.applications || []).length,
+      disputes: (countByTarget.get(id)?.disputes || []).length,
+      createdAt: latestByNote.get(id) || 0,
+      mine: mineByTarget.has(id) ? mineByTarget.get(id).stance : null,
+    }));
+
     let notes = [];
     if (noteIds.length) {
       // Local-first: scan local strfry for the target notes; only pay the slow
@@ -334,7 +347,7 @@ async function handleForTag(req, res) {
         });
     }
 
-    const body = { success: true, tagAuthor, slug, authorities, povSuffix, minRank, sort, notes, mine, total, truncated, limit: NOTES_CAP };
+    const body = { success: true, tagAuthor, slug, authorities, povSuffix, minRank, sort, notes, members, mine, total, truncated, limit: NOTES_CAP };
     if (forTagCache.size >= FOR_TAG_CACHE_MAX) forTagCache.clear();
     forTagCache.set(cacheKey, { body, expires: Date.now() + FOR_TAG_TTL_MS });
     return res.json(body);

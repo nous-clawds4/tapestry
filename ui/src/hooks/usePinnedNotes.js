@@ -64,9 +64,13 @@ export default function usePinnedNotes(tag, viewerPubkey, noteMethod = 'notes:ne
         const fr = await fetch(`/api/event-tags/for-tag?${params}`);
         const fj = await fr.json().catch(() => ({}));
         if (cancelled) return;
+        // Drift uses the DETERMINISTIC membership (ids + counts, resolution-
+        // independent) so the count doesn't jump around with flaky note fetches.
+        // Rendering the snapshot still uses the resolved `notes`.
+        const members = Array.isArray(fj.members) ? fj.members : [];
         const live = Array.isArray(fj.notes) ? fj.notes : [];
         const byId = new Map(live.map((n) => [n.id, n]));
-        const liveCuratedIds = curateNotes(live, noteMethod).map((n) => n.id);
+        const liveCuratedIds = curateNotes(members, noteMethod).map((n) => n.id);
 
         const snapSet = new Set(snapshotIds);
         const liveSet = new Set(liveCuratedIds);

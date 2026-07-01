@@ -346,7 +346,9 @@ export async function publishNoteBookmarkSetForPin({ tag, viewerPubkey, noteMeth
   if (!resp.ok || !data?.success) {
     throw new Error(data?.error || `for-tag failed: status ${resp.status}`);
   }
-  const curated = curateNotes(data.notes || [], noteMethod);
+  // Curate the DETERMINISTIC membership (ids + counts), not the resolved notes —
+  // so the pinned set matches what the drift diff computes (both use `members`).
+  const curated = curateNotes(data.members || data.notes || [], noteMethod);
   const dTag = computeNoteBookmarkDTag({ viewerPubkey, tagAuthorPubkey: tag.authorPubkey, tagSlug: tag.slug });
 
   // Never publish an empty bookmark set (mirrors the follow-set empty-guard).
