@@ -113,6 +113,31 @@ Non-negotiable: don't break the live profile-tagging reads.
 - **Story 11 — Profile "Tagging Activity" spans notes** (the same normalizer, filtered by asserter).
 - **(later) Cleanup** — migrate the existing per-type endpoints onto the normalizer.
 
+## Extension: generalized (target-typed) pinning
+
+Pinning a tag is **the same concept regardless of target type**: freeze a point-in-time snapshot of a tag's curated members into a portable NIP-51 list. The only per-type difference is the **list's element type**:
+
+- profile-tag pin → a list of **pubkeys** → kind-30000 follow-set / the kind-30392 Trusted List (elements are `p`).
+- note-tag pin → a list of **note ids** → kind-30003 **bookmark set** (elements are `e`).
+
+Today pinning exists only on the profile side — historical, not conceptual (event-tagging was built create→read first). The unified model absorbs it cleanly: **pinning is another projection over the normalized tagging stream.** Each family member gains its list projection:
+
+```
+member.nip51ListKind          // 30000 (profiles) | 30003 (notes) | …
+member.targetToListTag(target) // profile → ['p', pubkey] ; event → ['e', id]
+member.defaultCuration         // per-type default (rank for people; net-endorsed/recency for notes)
+```
+
+Then "pin tag X" = take the normalized taggings for X (grouped by target, POV-filtered / curated) and materialize the member's NIP-51 list kind under the user's key — reusing the existing pin / Trusted-List / export plumbing (`refresh-pinned-tag`, `publishNip51ExportForPin`), generalized. Without unification this would be a third parallel pin stack; with it, it's "register the projection." → **Story 12.**
+
+## Rollout / UI sequencing (operator decision, 2026-06-30)
+
+**Do not ship a partially-unified UI.** A `/tags` (or tag page) that shows the merged universe but keeps pins working only for profiles — or drops pins entirely — is *more* confusing, not less. So:
+
+- **Build the unified server/core first** across the read-parity stories (9 index, 10 search, 11 activity) **and generalized pinning (12)** — all as additive core/endpoints over the normalized stream, live per-type endpoints untouched.
+- **Then wire the UI as one coherent pass** — the unified `/tags` list, note-side pins, tag-detail parity — so the app goes from "profile-only" to "unified" in a single, non-confusing step.
+- The epic is all-local/unpushed, so this is purely a **sequencing** decision: no unified UI is merged (and nothing ships to staging/prod) until the model is complete. Story 9's server + endpoint are done and tested; its `Tags.jsx` wiring is **held** for the unified UI pass.
+
 ## Open risks
 
 - Profile-tag's exact tag-reference shape (the ADR-0022 hybrid `e`+`a`) must be read correctly by its extractor — verify against the live wire.

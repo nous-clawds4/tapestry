@@ -1,6 +1,6 @@
 # Story 9: Unified tag index — /tags counts notes, not just profiles
 
-**Status:** Approved
+**Status:** Approved — server/core DONE (commit 67d81a8c); **`Tags.jsx` UI wiring HELD** for the unified-UI pass (design rollout decision 2026-06-30 — don't ship a partially-unified UI)
 **Created:** 2026-06-30
 **Type:** Feature
 **Epic:** event-tagging
