@@ -551,16 +551,25 @@ export default function PinnedListPanel({ tag, viewerPin, onChanged, exportSync 
           )}
 
           {pinnedNoteItems.length > 0 ? (
-            <ul className="bs-pinned-notes-list">
-              {pinnedNoteItems.map((n) => (
-                <li key={n.id} className="bs-pinned-notes-item"><NoteCard item={n} /></li>
-              ))}
-            </ul>
+            <>
+              <ul className="bs-pinned-notes-list">
+                {pinnedNoteItems.map((n) => (
+                  <li key={n.id} className="bs-pinned-notes-item"><NoteCard item={n} /></li>
+                ))}
+              </ul>
+              {/* Honest signal: the snapshot has more notes than resolved — the
+                  rest live on relays we couldn't reach this load, not gone. */}
+              {!pinnedNotesLoading && pinnedNotes.ids.length > pinnedNoteItems.length && (
+                <p className="bs-pinned-notes-unresolved">
+                  <em>Some notes on distant relays may not have resolved…</em>
+                </p>
+              )}
+            </>
           ) : pinnedNotesLoading ? (
             <p className="bs-pinned-notes-empty">Loading pinned notes…</p>
           ) : (
             <p className="bs-pinned-notes-empty">
-              The notes in this pin are no longer resolvable{noteDrift?.removed ? ` (${noteDrift.removed} removed)` : ''}.
+              The notes in this pin are on relays we couldn’t reach this load — try again shortly.
             </p>
           )}
         </section>
