@@ -1,6 +1,11 @@
 # Story 15: Tag-detail "Notes" tab — View Options at full parity with "Profiles"
 
-**Status:** Draft · **Created:** 2026-07-01 · **Type:** Feature · **Epic:** event-tagging · **Book:** unified-tagging-ui
+**Status:** ✅ IMPLEMENTED (2026-07-01) — pending manual UI verify. ADR 0013. Notes tab now uses the
+shared `TagViewControls` (same disclosure/curated-vs-expanded/text-filter), with server-side sort on
+`for-tag`. Operator decisions: sort set = `recent`(default)/`applied`/`disputed`/`divisive` (Profiles'
+3 + recent; `most-backed` omitted — ≈ `applied` for notes); sort scope = server-side over the full
+set before the 50-cap. Profiles tab unchanged.
+· **Created:** 2026-07-01 · **Type:** Feature · **Epic:** event-tagging · **Book:** unified-tagging-ui
 
 ## Background
 On the tag-detail page (`ui/src/pages/Tag.jsx`), the **Profiles** tab uses `TagViewControls`
@@ -50,3 +55,5 @@ default for notes.
 
 ## Linked artifacts
 - Built on Story 8 (Notes tab) + ADR 0009. Book: `engineering-team/audits/unified-tagging-ui/book.md`.
+- ADR: `engineering-team/decisions/event-tagging/0013-notes-tab-view-options-parity.md`.
+- Review: `engineering-team/reviews/event-tagging/15-notes-tab-view-options-parity.md` — **CHANGES REQUESTED** (2026-07-01): impl + refinements meet all ACs; two tests need updating (F1 AC-5 static placeholder assertion in `tag-detail-curated-view-and-pin-polish.test.js`; F2 stale `profile-authored-notes-ui.test.js` from the Story-14 rework).
