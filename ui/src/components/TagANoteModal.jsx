@@ -71,7 +71,13 @@ export default function TagANoteModal({ open, onClose, tag, viewerPubkey, onTagg
     setPublishing(which); setActionError(null);
     try {
       const fn = polarity > 0 ? applyTag : disputeTag;
-      const result = await fn({ authorPubkey: tag.authorPubkey, slug: tag.slug }, { id: resolveArg.id });
+      // Forward the pasted nevent's relay hints so the tagging's e-tag carries a
+      // NIP-01 hint — read paths (for-tag) can then fetch this external note
+      // on-demand from where it lives, without persisting it locally.
+      const result = await fn(
+        { authorPubkey: tag.authorPubkey, slug: tag.slug },
+        { id: resolveArg.id, relays: resolveArg.relays },
+      );
       if (result && result.failedAt) {
         setActionError(`Tagging didn't fully complete (stopped at kind ${result.failedAt.kind}). Replaceable — safe to retry.`);
       } else {

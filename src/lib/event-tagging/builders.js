@@ -132,6 +132,14 @@ function buildEventTaggingAssertion({ headerAuthorPubkey, slug, target, polarity
   let target8;
   if (target && typeof target.id === 'string') {
     targetTag = ['e', target.id];
+    // NIP-01 relay hint — lets read paths fetch an EXTERNAL target note on-demand
+    // (view-time) from where it actually lives, instead of persisting other
+    // people's notes into the local relay. Emitted only when the caller supplies
+    // one (e.g. the "+ Tag a Note" modal forwards the pasted nevent's hints).
+    const hint = Array.isArray(target.relays)
+      ? target.relays.find((r) => typeof r === 'string' && /^wss?:\/\//.test(r))
+      : null;
+    if (hint) targetTag.push(hint);
     target8 = target.id.slice(0, 8);
   } else if (target && typeof target.address === 'string') {
     targetTag = ['a', target.address];

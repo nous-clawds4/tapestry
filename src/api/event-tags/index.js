@@ -296,7 +296,21 @@ async function handleForTag(req, res) {
       let externalNotes = [];
       if (missing.length) {
         const { relays } = await resolveGeneralPurposeRelays(realRunCypher);
-        externalNotes = (await realQuerySync(relays, { kinds: [1], ids: missing })) || [];
+        // NIP-01 relay hints: an external target note (e.g. a fiatjaf post) won't
+        // be on our general-purpose relays. Collect the `["e", id, relay]` hints
+        // the taggings carry and fetch the missing notes from THERE too — a
+        // view-time fetch, nothing persisted (Story 12 follow-up).
+        const hintRelays = new Set();
+        const missingSet = new Set(missing);
+        for (const c of candidates) {
+          for (const t of (c.tags || [])) {
+            if (t[0] === 'e' && missingSet.has(t[1]) && typeof t[2] === 'string' && /^wss?:\/\//.test(t[2])) {
+              hintRelays.add(t[2]);
+            }
+          }
+        }
+        const fetchRelays = Array.from(new Set([...relays, ...hintRelays]));
+        externalNotes = (await realQuerySync(fetchRelays, { kinds: [1], ids: missing })) || [];
       }
       const rawNotes = [...localNotes, ...externalNotes];
       const enriched = await enrichNotes(rawNotes, realScanStrfry);
@@ -464,7 +478,19 @@ async function handleNotesByAuthor(req, res) {
       const have = new Set(local.map((n) => n.id));
       const missing = noteIds.filter((id) => !have.has(id));
       let ext = [];
-      if (missing.length) { const { relays } = await resolveGeneralPurposeRelays(realRunCypher); ext = (await realQuerySync(relays, { kinds: [1], ids: missing })) || []; }
+      if (missing.length) {
+        const { relays } = await resolveGeneralPurposeRelays(realRunCypher);
+        // NIP-01 relay hints from the author's taggings → fetch external targets
+        // on-demand (view-time), nothing persisted. Mirrors handleForTag.
+        const missingSet = new Set(missing);
+        const hintRelays = new Set();
+        for (const c of assertions) {
+          for (const t of (c.tags || [])) {
+            if (t[0] === 'e' && missingSet.has(t[1]) && typeof t[2] === 'string' && /^wss?:\/\//.test(t[2])) hintRelays.add(t[2]);
+          }
+        }
+        ext = (await realQuerySync(Array.from(new Set([...relays, ...hintRelays])), { kinds: [1], ids: missing })) || [];
+      }
       const enriched = await enrichNotes([...local, ...ext], realScanStrfry);
       const twById = new Map(capped.map((n) => [n.id, n.taggedWith]));
       const latestById = new Map(capped.map((n) => [n.id, n.latest]));
