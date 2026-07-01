@@ -12,6 +12,7 @@ import ConfirmDialog from '../components/ConfirmDialog';
 import ReportModal from '../components/ReportModal';
 import ProfileTagsSection from '../components/ProfileTagsSection';
 import AuthoredTaggingSection from '../components/AuthoredTaggingSection';
+import AuthoredNotesSection from '../components/AuthoredNotesSection';
 import { timeAgo } from '../utils/timeAgo';
 import { toExternalUrl } from '../utils/url';
 import VerificationInfo from '../components/VerificationInfo';
@@ -344,6 +345,9 @@ export default function BrainstormProfile() {
             <ProfileTagsSection targetPubkey={pubkey} viewerPubkey={user?.pubkey} />
 
             <AuthoredTaggingSection profilePubkey={pubkey} viewerPubkey={user?.pubkey} />
+
+            {/* Story 14 — the notes this person has tagged (event-taggings). */}
+            <AuthoredNotesSection profilePubkey={pubkey} viewerPubkey={user?.pubkey} />
 
             {/* About */}
             {profile?.about && (
