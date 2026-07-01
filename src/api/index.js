@@ -549,6 +549,8 @@ async function register(app) {
     app.get('/api/event-tags/for-event', eventTags.handleForEvent);
     app.get('/api/event-tags/headers-for-tag', eventTags.handleHeadersForTag);
     app.get('/api/event-tags/for-tag', eventTags.handleForTag);
+    // Unified tag directory across all tagging family members (Story 9 / ADR 0009).
+    app.get('/api/tags/index', eventTags.handleTagIndex);
 
     // ── Tapestry I/O (Import/Export) API ──
     const { registerIORoutes } = require('./io');

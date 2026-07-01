@@ -20,6 +20,7 @@ const builders = require('./builders');
 const filters = require('./filters');
 const classify = require('./classify');
 const apply = require('./apply');
+const taggings = require('./taggings');
 
 module.exports = {
   slug,
@@ -28,4 +29,5 @@ module.exports = {
   ...filters,
   ...classify,
   ...apply,
+  ...taggings,
 };

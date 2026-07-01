@@ -294,4 +294,66 @@ async function handleForTag(req, res) {
   }
 }
 
-module.exports = { handleForEvent, handleHeadersForTag, handleForTag };
+/**
+ * GET /api/tags/index — the UNIFIED tag directory (Story 9 / ADR 0009).
+ *   [?viewerPubkey=<hex>] [?authorities=<csv>] [?q=<substr>] [?limit=&offset=] [?wotPov=&userPubkey=]
+ *
+ * One tag universe: scans every family member's assertions (nostr-user-tag +
+ * nostr-event-tag + any future members) under honored authorities, normalizes them
+ * to the unified stream (read-only; no wire/write change), and groups BY TAG across
+ * ALL target types — so a note-only tag appears and a shared tag reflects both. POV-
+ * filtered counted totals + per-target-type breakdown + the viewer's own `mine`.
+ * The live per-type endpoints are untouched (ADR 0009 Phase 1).
+ */
+async function handleTagIndex(req, res) {
+  try {
+    const authorities = resolveAuthorities(req);
+    const viewerPubkey = isHexPubkey(req.query.viewerPubkey) ? req.query.viewerPubkey : undefined;
+    const q = (typeof req.query.q === 'string' ? req.query.q : '').trim().toLowerCase();
+    const limit = Math.max(1, Math.min(parseInt(req.query.limit, 10) || 100, 200));
+    const offset = Math.max(0, parseInt(req.query.offset, 10) || 0);
+
+    // 1. Scan every family member's assertions under the honored authorities.
+    const memberZs = [];
+    for (const a of authorities) for (const m of core.taggingMembers) memberZs.push(m.conceptZ(a));
+    const assertions = dedupeReplaceable(await strfryScan({ kinds: [39999], '#z': memberZs }));
+
+    // 2. Resolve the tagging headers the event-tag members need.
+    const descriptors = new Set();
+    for (const c of assertions) for (const t of (c.tags || [])) if (t[0] === 'z' && DESCRIPTOR_RE.test(t[1] || '')) descriptors.add(t[1]);
+    const headerEvents = [];
+    for (const coord of descriptors) {
+      const m = /^39999:([0-9a-f]{64}):(.+)$/.exec(coord);
+      if (m) headerEvents.push(...await strfryScan({ kinds: [39999], authors: [m[1]], '#d': [m[2]] }));
+    }
+    const headers = dedupeReplaceable(headerEvents);
+
+    // 3. Normalize → POV predicate → index by tag coordinate.
+    const { isAsserterTrusted, povSuffix, minRank } = await buildTrustPredicate(req, assertions.map((c) => c.pubkey));
+    const taggings = core.normalizeTaggings({ assertions, headers, honoredAuthorities: authorities });
+    let { rows } = core.indexByTag(taggings, { isAsserterTrusted, viewerPubkey });
+
+    // 4. Enrich tag display (name/description/eventId) from the shared tag-elements; optional q filter.
+    const tagEls = dedupeReplaceable(await strfryScan({ kinds: [39999], '#z': authorities.map((a) => core.conceptTag(a)) }));
+    const meta = new Map();
+    for (const el of tagEls) {
+      const d = dTagOf(el);
+      if (!d) continue;
+      let name = d; let description = '';
+      try { const c = JSON.parse(el.content || '{}'); if (c.tag) { name = c.tag.name || d; description = c.tag.description || ''; } } catch { /* slug fallback */ }
+      meta.set(`${el.pubkey}:${d}`, { name, description, eventId: el.id });
+    }
+    rows = rows.map((r) => {
+      const md = meta.get(`${r.tag.authorPubkey}:${r.tag.slug}`) || {};
+      return { ...r, name: md.name || r.tag.slug, description: md.description || '', tagEventId: md.eventId || null };
+    });
+    if (q) rows = rows.filter((r) => (r.name || '').toLowerCase().includes(q) || r.tag.slug.toLowerCase().includes(q) || (r.description || '').toLowerCase().includes(q));
+
+    const total = rows.length;
+    return res.json({ success: true, authorities, povSuffix, minRank, rows: rows.slice(offset, offset + limit), total, offset, limit });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+}
+
+module.exports = { handleForEvent, handleHeadersForTag, handleForTag, handleTagIndex };
