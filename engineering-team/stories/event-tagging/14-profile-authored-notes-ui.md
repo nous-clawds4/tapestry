@@ -1,8 +1,14 @@
 # Story 14: Profile "Tagging Activity" spans notes (intermixed)
 
-**Status:** ⚠️ NEEDS REWORK — approach changed (operator, 2026-07-01). The first impl (a
-separate `AuthoredNotesSection`) is **superseded**: notes must be **folded into the existing
-"Tagging Activity" toggle**, intermixed with profile-taggings, hidden by default. See below.
+**Status:** ✅ REWORK IMPLEMENTED (2026-07-01) — pending manual UI verification. Notes are now
+folded into the existing collapsed "Tagging Activity" toggle, intermixed with profile-taggings.
+`AuthoredNotesSection` deleted; `AuthoredTaggingSection` now fetches both endpoints, merges, and
+renders profile rows (`AuthoredTagRow`) + note rows (`AuthoredNoteRow`) in one list. Server exposes
+`taggedAt` per note (notes-by-author) so note rows intermix by tagging recency.
+
+_Original rework brief (operator, 2026-07-01): the first impl (a separate `AuthoredNotesSection`)
+was **superseded** — notes must be **folded into the existing "Tagging Activity" toggle**,
+intermixed with profile-taggings, hidden by default. See below._
 **Created:** 2026-06-30 · **Type:** Feature · **Epic:** event-tagging · **Book:** unified-tagging-ui
 
 ## Background

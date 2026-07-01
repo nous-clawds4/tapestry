@@ -433,7 +433,7 @@ async function handleNotesByAuthor(req, res) {
       const enriched = await enrichNotes([...local, ...ext], realScanStrfry);
       const twById = new Map(capped.map((n) => [n.id, n.taggedWith]));
       const latestById = new Map(capped.map((n) => [n.id, n.latest]));
-      notes = enriched.map((n) => ({ ...n, taggedWith: twById.get(n.id) || [] })).sort((a, b) => (latestById.get(b.id) || 0) - (latestById.get(a.id) || 0));
+      notes = enriched.map((n) => ({ ...n, taggedWith: twById.get(n.id) || [], taggedAt: latestById.get(n.id) || 0 })).sort((a, b) => (latestById.get(b.id) || 0) - (latestById.get(a.id) || 0));
     }
     return res.json({ success: true, authorPubkey, notes, total, truncated: total > capped.length, limit: NOTES_CAP });
   } catch (err) {

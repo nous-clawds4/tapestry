@@ -2,7 +2,9 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
 import SortToggle from './SortToggle';
+import NoteCard from './NoteCard';
 import useAuthoredTagging from '../hooks/useAuthoredTagging';
+import { useNotesByAuthor } from '../hooks/useNotesByAuthor';
 import { timeAgo } from '../utils/timeAgo';
 
 const SORT_LABELS = [
@@ -79,16 +81,43 @@ function AuthoredTagRow({ row }) {
   );
 }
 
+// A note this person has tagged — the note-target analog of AuthoredTagRow. Renders the
+// tag(s) they applied (with polarity) above the target note, so a note-tagging is legibly
+// distinct from a profile-tagging row while living in the SAME intermixed list.
+function AuthoredNoteRow({ note }) {
+  return (
+    <li className="bsp-authored-row bsp-authored-note-row">
+      {note.taggedWith?.length > 0 && (
+        <div className="bsp-authored-note-tags">
+          {note.taggedWith.map((tw, i) => (
+            <span
+              key={`${tw.authorPubkey}:${tw.slug}:${i}`}
+              className={`bsp-authored-note-tag ${tw.stance === 'dispute' ? 'is-dispute' : 'is-apply'}`}
+            >
+              {tw.stance === 'dispute' ? '−' : '+'} {tw.slug}
+            </span>
+          ))}
+        </div>
+      )}
+      <NoteCard item={note} />
+    </li>
+  );
+}
+
 export default function AuthoredTaggingSection({ profilePubkey, viewerPubkey }) {
   const { rows, sort, setSort, povSuffix, loading, error } = useAuthoredTagging(profilePubkey);
+  const { notes, loading: notesLoading, error: notesError } = useNotesByAuthor(profilePubkey, viewerPubkey);
   // Collapsed by default — the section was noisy on initial profile view.
   // The header is a click target that toggles open/closed; chevron rotates
   // visually to match.
   const [collapsed, setCollapsed] = useState(true);
 
+  const anyLoading = loading || notesLoading;
+  const total = rows.length + notes.length;
+
   // Loading placeholder so the section doesn't pop in/out during the first
   // auth-bootstrap → fetch cycle.
-  if (loading && rows.length === 0) {
+  if (anyLoading && total === 0) {
     return (
       <section className="bsp-authored" aria-label="Tagging activity">
         <p className="bsp-authored-loading">Loading tagging activity…</p>
@@ -96,12 +125,29 @@ export default function AuthoredTaggingSection({ profilePubkey, viewerPubkey }) 
     );
   }
 
-  // AC-6: hidden entirely when zero rows render.
-  if (!loading && !error && rows.length === 0) return null;
+  // Hidden entirely when this person has tagged nothing at all (neither
+  // profiles nor notes).
+  if (!anyLoading && !error && !notesError && total === 0) return null;
 
   const showAboutMe = !!viewerPubkey && viewerPubkey !== profilePubkey;
   const aboutMe = showAboutMe ? rows.filter((r) => r.targetPubkey === viewerPubkey) : [];
-  const others  = showAboutMe ? rows.filter((r) => r.targetPubkey !== viewerPubkey) : rows;
+  const otherProfiles = showAboutMe ? rows.filter((r) => r.targetPubkey !== viewerPubkey) : rows;
+
+  // Intermix profile-taggings and note-taggings into ONE list. Profile rows sort by
+  // their assertion time; note rows by when they were tagged (taggedAt, exposed by
+  // notes-by-author). The default 'recent' sort interleaves both by time; other sorts
+  // keep the server-ordered profile rows and append notes (which lack peer metrics) in
+  // recency order — see Story 15 for full server-side note sort parity on the tag page.
+  const profileItems = otherProfiles.map((r) => ({
+    kind: 'profile', key: `p:${r.assertionEventId}`, ts: r.createdAt || 0, row: r,
+  }));
+  const noteItems = notes.map((n) => ({
+    kind: 'note', key: `n:${n.id}`, ts: n.taggedAt || n.createdAt || 0, note: n,
+  }));
+  const byTsDesc = (a, b) => b.ts - a.ts;
+  const merged = sort === 'recent'
+    ? [...profileItems, ...noteItems].sort(byTsDesc)
+    : [...profileItems, ...noteItems.sort(byTsDesc)];
 
   return (
     <section className="bsp-authored" aria-label="Tagging activity">
@@ -114,7 +160,7 @@ export default function AuthoredTaggingSection({ profilePubkey, viewerPubkey }) 
       >
         <h3 className="bsp-authored-title">
           TAGGING ACTIVITY
-          <span className="bsp-authored-count">({rows.length})</span>
+          <span className="bsp-authored-count">({total})</span>
         </h3>
         <span
           className={`bsp-authored-chevron${collapsed ? '' : ' is-open'}`}
@@ -135,6 +181,7 @@ export default function AuthoredTaggingSection({ profilePubkey, viewerPubkey }) 
             />
           </div>
           {error && <p className="bsp-authored-error">⚠️ {error}</p>}
+          {notesError && <p className="bsp-authored-error">⚠️ {notesError}</p>}
           {aboutMe.length > 0 && (
             <div className="bsp-authored-aboutme">
               <h4 className="bsp-authored-subhead">Tags they&apos;ve placed on YOU</h4>
@@ -143,9 +190,13 @@ export default function AuthoredTaggingSection({ profilePubkey, viewerPubkey }) 
               </ul>
             </div>
           )}
-          {others.length > 0 && (
+          {merged.length > 0 && (
             <ul className="bsp-authored-list">
-              {others.map((r) => <AuthoredTagRow key={r.assertionEventId} row={r} />)}
+              {merged.map((item) => (
+                item.kind === 'note'
+                  ? <AuthoredNoteRow key={item.key} note={item.note} />
+                  : <AuthoredTagRow key={item.key} row={item.row} />
+              ))}
             </ul>
           )}
           {povSuffix && (
