@@ -1,26 +1,50 @@
-# Story 14: Profile "Tagging Activity" — notes tagged (UI)
+# Story 14: Profile "Tagging Activity" spans notes (intermixed)
 
-**Status:** Approved — DONE + REVIEWED PASS · **Created:** 2026-06-30 · **Type:** Feature · **Epic:** event-tagging · **Book:** unified-tagging-ui
+**Status:** ⚠️ NEEDS REWORK — approach changed (operator, 2026-07-01). The first impl (a
+separate `AuthoredNotesSection`) is **superseded**: notes must be **folded into the existing
+"Tagging Activity" toggle**, intermixed with profile-taggings, hidden by default. See below.
+**Created:** 2026-06-30 · **Type:** Feature · **Epic:** event-tagging · **Book:** unified-tagging-ui
 
 ## Background
-A profile's "Tagging Activity" (`AuthoredTaggingSection`) shows only the **profiles** that person tagged. Story 11 built the read (`/api/event-tags/notes-by-author`); this story surfaces it on the profile: the **notes** the person has tagged, alongside the existing profile-tagging section. Additive — the existing section is untouched (no regression); a new section is added.
+`AuthoredTaggingSection` (`ui/src/components/AuthoredTaggingSection.jsx`) is the profile's "Tagging
+Activity" — a **collapsed-by-default** `<section>` (its `collapsed` state defaults `true`, header
+chevron toggles) that, when expanded, shows a `SortToggle` + rows (`AuthoredTagRow`) of the
+**profile**-taggings this person authored (from `/api/profile-tags/authored-by`, via
+`useAuthoredTagging`). Currently split into "About me" (targets === viewer) + "others".
 
-## User-facing description
-As a viewer on someone's profile, I want to see the **notes** they've tagged (with the tags they applied), not just the profiles — the full picture of how this person tags.
+The endpoint for the person's **note**-taggings already exists: `/api/event-tags/notes-by-author`
+(Story 11 / ADR 0010) → `{ notes: [ enriched + taggedWith:[{authorPubkey,slug,stance}] ] }`.
+
+## Requirement (the rework)
+**Do not** ship a separate "NOTES TAGGED" section. Instead, **fold the note-taggings into
+`AuthoredTaggingSection`'s existing toggle**, intermixed with the profile-taggings in the same
+expandable list, hidden by default (the section already is). One "Tagging Activity" that shows
+*everything this person has tagged* — people and notes together.
+
+- Delete `ui/src/components/AuthoredNotesSection.jsx` + its render in `BrainstormProfile.jsx`
+  (added in the superseded impl). Keep/adapt `ui/src/hooks/useNotesByAuthor.js`.
+- `AuthoredTaggingSection` fetches **both** `authored-by` (profiles) and `notes-by-author` (notes),
+  merges into one list, and renders each row by target type: a **profile** row (existing
+  `AuthoredTagRow`) or a **note** row (renders the target note — a compact `NoteCard` or a note
+  reference — with the tag(s) applied + polarity).
+- Intermix + sort together (see Story 15's sort parity — the same sort controls apply here too;
+  at minimum default to recency across both).
 
 ## Acceptance criteria
-- [ ] **Notes they tagged appear.** Given a person who has tagged notes, their profile shows those notes (rendered as note cards) with the tag(s) they applied.
-- [ ] **Profile-tagging section unchanged.** The existing "Tagging Activity" (profiles) renders exactly as before (backward compatible).
-- [ ] **Own view.** Consistent with the epic's `mine`/POV model (the endpoint already handles it).
-- [ ] **Empty state.** A person who has tagged no notes shows a clear empty/absent state, not an error.
+- [ ] **One section, intermixed.** Expanding "Tagging Activity" shows both the profiles and the
+  notes this person has tagged, in one list — no separate notes section.
+- [ ] **Hidden by default.** Unchanged: the section stays collapsed by default.
+- [ ] **Note rows are legible.** A note-tagging row shows the target note + the tag(s) applied and
+  the stance (apply/dispute), distinct from a profile-tagging row.
+- [ ] **Profiles rows unchanged.** Existing profile-tagging rows/behavior are preserved.
+- [ ] **Empty/POV/own-view** behave sensibly (section hidden when the person has tagged nothing).
 
-## Concepts touched
-- `39998:<TA>:nostr-event-tag`, `39998:<TA>:nostr-event` — the taggings + note targets.
-
-## Out of scope
-- The endpoint — Story 11 (consumed). The profiles-side section / migrating authored-by — unchanged.
-- Note-pin affordance — Story 12.
+## Key files
+- `ui/src/components/AuthoredTaggingSection.jsx` (extend), `ui/src/hooks/useAuthoredTagging.js`,
+  `ui/src/hooks/useNotesByAuthor.js` (keep), `ui/src/components/NoteCard.jsx` (note rendering),
+  `ui/src/pages/BrainstormProfile.jsx` (remove the separate section render).
+- Endpoints (built): `/api/profile-tags/authored-by`, `/api/event-tags/notes-by-author`.
 
 ## Linked artifacts
-- ADR: `engineering-team/decisions/event-tagging/0010-profile-tagging-activity-spans-notes.md` (endpoint; this story is its UI). Book: `engineering-team/audits/unified-tagging-ui/book.md`.
-- Test: `test/profile-authored-notes-ui.test.js` (source-contract; render manual). Review: `engineering-team/reviews/event-tagging/14-profile-authored-notes-ui.md` — **PASS**.
+- ADR: 0010 (endpoint). Superseded impl: commits 6be3dc17 / prior (separate section). Book:
+  `engineering-team/audits/unified-tagging-ui/book.md`.
