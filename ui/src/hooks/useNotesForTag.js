@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 /**
  * Story 8 — the notes tagged with a tag (forward discovery). Reads
@@ -20,8 +20,10 @@ export function useNotesForTag(tagAuthorPubkey, slug, viewerPubkey, sort = 'rece
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   // Story 16 — bump to force a re-fetch (e.g. after "+ Tag a Note" publishes,
-  // so the freshly-tagged note appears in the list).
+  // so the freshly-tagged note appears in the list). refetch() busts the server's
+  // 30s for-tag cache on that one fetch so the new tag shows live, not after TTL.
   const [nonce, setNonce] = useState(0);
+  const bustNextRef = useRef(false);
 
   useEffect(() => {
     if (!HEX64.test(tagAuthorPubkey || '') || !slug) { setNotes([]); return undefined; }
@@ -34,6 +36,9 @@ export function useNotesForTag(tagAuthorPubkey, slug, viewerPubkey, sort = 'rece
         const params = new URLSearchParams({ tagAuthor: tagAuthorPubkey, slug });
         if (HEX64.test(viewerPubkey || '')) params.set('viewerPubkey', viewerPubkey);
         if (sort) params.set('sort', sort);
+        // Only the refetch-triggered fetch bypasses the cache; normal loads
+        // (mount, sort/filter changes) stay cached.
+        if (bustNextRef.current) { params.set('nocache', '1'); bustNextRef.current = false; }
         const r = await fetch(`/api/event-tags/for-tag?${params}`);
         const j = await r.json().catch(() => ({}));
         if (cancelled) return;
@@ -51,7 +56,7 @@ export function useNotesForTag(tagAuthorPubkey, slug, viewerPubkey, sort = 'rece
     return () => { cancelled = true; };
   }, [tagAuthorPubkey, slug, viewerPubkey, sort, nonce]);
 
-  const refetch = () => setNonce((n) => n + 1);
+  const refetch = () => { bustNextRef.current = true; setNonce((n) => n + 1); };
   return { notes, total, truncated, loading, error, refetch };
 }
 

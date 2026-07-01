@@ -221,9 +221,13 @@ async function handleForTag(req, res) {
     const sort = FOR_TAG_SORTS.includes(req.query.sort) ? req.query.sort : 'recent';
 
     // Short-TTL cache: re-visiting the same tag skips the slow relay fetch.
+    // `nocache=1` skips the READ (used right after a publish so the just-tagged
+    // note appears live instead of waiting out the TTL); the fresh result is
+    // still written back, so subsequent normal reads are warm.
+    const noCache = req.query.nocache === '1' || req.query.nocache === 'true';
     const cacheKey = `${tagAuthor}|${slug}|${viewerPubkey || ''}|${authorities.join(',')}|${sort}`;
     const cached = forTagCache.get(cacheKey);
-    if (cached && cached.expires > Date.now()) return res.json(cached.body);
+    if (!noCache && cached && cached.expires > Date.now()) return res.json(cached.body);
 
     // 1. Discover the tag's legitimate headers (any author, per honored authority).
     const foundHeaders = [];
