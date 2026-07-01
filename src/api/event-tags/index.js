@@ -35,6 +35,9 @@ const CANONICAL_AUTHORITY = '82b75e474dda005e912bcbb910391c60c2b89cc7faf5d3c30b7
 // Cap the notes view to the most-recently-tagged N (Story 8). Bounds the relay
 // `ids` fetch + the client-side per-note fan-out; pagination is a follow-up.
 const NOTES_CAP = 50;
+// Story 15 — the note sorts for-tag accepts, at parity with the Profiles tab
+// (applied/disputed/divisive) plus 'recent' (the natural note default).
+const FOR_TAG_SORTS = ['recent', 'applied', 'disputed', 'divisive'];
 // Short-TTL response cache for the notes-for-tag read. The dominant cost is the
 // external relay round-trip (~seconds); re-visiting the same tag within the TTL
 // returns instantly. Per (tag, viewer, authorities). Small staleness window — a new
@@ -211,9 +214,14 @@ async function handleForTag(req, res) {
 
     const authorities = resolveAuthorities(req);
     const viewerPubkey = isHexPubkey(req.query.viewerPubkey) ? req.query.viewerPubkey : undefined;
+    // Story 15 / ADR: server-side note sort at parity with the Profiles tab. The
+    // ranking runs over the FULL candidate set BEFORE the NOTES_CAP, so a
+    // non-recency sort reflects the whole tagged universe, not just the 50
+    // most-recently-tagged. 'recent' is the natural default for notes.
+    const sort = FOR_TAG_SORTS.includes(req.query.sort) ? req.query.sort : 'recent';
 
     // Short-TTL cache: re-visiting the same tag skips the slow relay fetch.
-    const cacheKey = `${tagAuthor}|${slug}|${viewerPubkey || ''}|${authorities.join(',')}`;
+    const cacheKey = `${tagAuthor}|${slug}|${viewerPubkey || ''}|${authorities.join(',')}|${sort}`;
     const cached = forTagCache.get(cacheKey);
     if (cached && cached.expires > Date.now()) return res.json(cached.body);
 
@@ -254,7 +262,21 @@ async function handleForTag(req, res) {
     }
     for (const m of mine) bump(m.target.id, m.createdAt);
 
-    const rankedIds = Array.from(latestByNote.keys()).sort((a, b) => latestByNote.get(b) - latestByNote.get(a));
+    // Rank ALL tagged notes by the requested sort, THEN cap — so the top-N
+    // reflects the whole set (Story 15). Per-note trusted counts already exist
+    // in countByTarget (mine-only notes have no trusted backers → 0/0). recency
+    // is the universal tiebreak (and the whole key for 'recent').
+    const appliedOf  = (id) => (countByTarget.get(id)?.applications || []).length;
+    const disputedOf = (id) => (countByTarget.get(id)?.disputes || []).length;
+    const recencyOf  = (id) => latestByNote.get(id) || 0;
+    const idComparators = {
+      recent:   (a, b) => recencyOf(b) - recencyOf(a),
+      applied:  (a, b) => (appliedOf(b) - appliedOf(a)) || (recencyOf(b) - recencyOf(a)),
+      disputed: (a, b) => (disputedOf(b) - disputedOf(a)) || (recencyOf(b) - recencyOf(a)),
+      divisive: (a, b) => (Math.min(appliedOf(b), disputedOf(b)) - Math.min(appliedOf(a), disputedOf(a)))
+                          || (appliedOf(b) - appliedOf(a)) || (recencyOf(b) - recencyOf(a)),
+    };
+    const rankedIds = Array.from(latestByNote.keys()).sort(idComparators[sort]);
     const total = rankedIds.length;
     const noteIds = rankedIds.slice(0, NOTES_CAP);
     const truncated = total > noteIds.length;
@@ -281,11 +303,20 @@ async function handleForTag(req, res) {
           disputes: (countByTarget.get(n.id)?.disputes || []).length,
           mine: mineByTarget.has(n.id) ? mineByTarget.get(n.id).stance : null,
         }))
-        // keep the most-recently-tagged order (matches the cap)
-        .sort((a, b) => (latestByNote.get(b.id) || 0) - (latestByNote.get(a.id) || 0));
+        // Order the resolved page by the same sort used for the cap (Story 15).
+        .sort((a, b) => {
+          const rec = (latestByNote.get(b.id) || 0) - (latestByNote.get(a.id) || 0);
+          if (sort === 'applied') return (b.applications - a.applications) || rec;
+          if (sort === 'disputed') return (b.disputes - a.disputes) || rec;
+          if (sort === 'divisive') {
+            return (Math.min(b.applications, b.disputes) - Math.min(a.applications, a.disputes))
+              || (b.applications - a.applications) || rec;
+          }
+          return rec;
+        });
     }
 
-    const body = { success: true, tagAuthor, slug, authorities, povSuffix, minRank, notes, mine, total, truncated, limit: NOTES_CAP };
+    const body = { success: true, tagAuthor, slug, authorities, povSuffix, minRank, sort, notes, mine, total, truncated, limit: NOTES_CAP };
     if (forTagCache.size >= FOR_TAG_CACHE_MAX) forTagCache.clear();
     forTagCache.set(cacheKey, { body, expires: Date.now() + FOR_TAG_TTL_MS });
     return res.json(body);

@@ -16,7 +16,7 @@ import AddTagDialog from './AddTagDialog';
  * the viewer applied shows (and is highlighted as theirs) even when the POV doesn't
  * count them — distinct from the POV-counted applications/disputes shown in the chip.
  */
-export default function NoteTags({ item }) {
+export default function NoteTags({ item, showScores = false }) {
   const { user } = useAuth();
   const viewerPubkey = user?.pubkey || null;
   const { tags, mine, availableTags, error, refetch } = useEventTags(item?.id, viewerPubkey);
@@ -113,6 +113,7 @@ export default function NoteTags({ item }) {
               busy={busy}
               onApply={handleApply}
               onDispute={handleDispute}
+              showScores={showScores}
             />
           );
         })}

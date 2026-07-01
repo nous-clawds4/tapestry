@@ -2,7 +2,7 @@
 
 **Reviewer:** Reviewer (Phase 5)
 **Date:** 2026-07-01
-**Verdict:** ⚠️ **CHANGES REQUESTED**
+**Verdict:** ✅ **PASS** (after re-review — see "Re-review" at bottom; original verdict was CHANGES REQUESTED)
 **Story:** `engineering-team/stories/event-tagging/15-notes-tab-view-options-parity.md`
 **ADR:** `engineering-team/decisions/event-tagging/0013-notes-tab-view-options-parity.md`
 **Book:** `engineering-team/audits/unified-tagging-ui/book.md`
@@ -54,3 +54,16 @@ Ran the tag/event/pin/note suite with changes vs. stashed baseline (HEAD = Story
 2. **F2** — retire/rework `profile-authored-notes-ui.test.js` for the Story-14 intermixed section.
 
 No source-behavior changes required. Re-run the tag/event suite to green (modulo the documented pre-existing/flaky failures), then this is a PASS.
+
+## Re-review (2026-07-01) — ✅ PASS
+
+Both asks addressed (Implementer kickback, test-only — no source-behavior change):
+
+- **F1 fixed** — `test/tag-detail-curated-view-and-pin-polish.test.js` AC-5 now accepts the parameterized placeholder (inline literal **or** `{filterPlaceholder}`) and separately asserts the default copy still mentions "filter". **PASS.**
+- **F2 fixed** — `test/profile-authored-notes-ui.test.js` reworked to the intermixed contract: asserts `AuthoredTaggingSection` folds notes in via `useNotesByAuthor` + `NoteCard` + `taggedWith`, and that the separate `AuthoredNotesSection` is deleted/un-referenced. 4/4 **PASS.**
+
+Verification (isolation, deterministic):
+- Green: `event-tagging-for-tag` (15), `event-tagging-read-api` (11), `tag-detail-curated-view-and-pin-polish`, `profile-authored-notes-ui` (4), `event-tag-note-affordance-ui`, `event-tagging-notes-by-author`, `pin-detail-into-tag-pinned-tab`.
+- The remaining batch-only failures are **not regressions**: `most-pinned-tag-index`, `unified-tags-directory`, `tl-publication-from-pins` each **pass in isolation** (shared-strfry test-ordering flakiness); the community-reference failures are pre-existing/known (project memory) on surfaces this book does not touch.
+
+Implementation (already `/cycle-local`-verified and deployed) unchanged. **Story 15 PASS** — ready to commit and proceed to Story 16.

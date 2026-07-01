@@ -43,6 +43,11 @@ export default function TagChip({
   busy,
   onApply,
   onDispute,
+  showScores = false, // Story 15: when true, render an always-visible net/+applied/
+                      // −disputed trio BELOW the chip (mirrors the Profiles tab's
+                      // inline tally). Off everywhere except the Notes tab's
+                      // expanded View options; the counts otherwise live in the
+                      // hover popover only.
 }) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef(null);
@@ -79,13 +84,19 @@ export default function TagChip({
   const myAssertion = myStance || [...applications, ...disputes].find((a) => a.authorPubkey === viewerPubkey);
   const hasDisputes = disputes.length > 0;
 
+  // Story 15 — the inline scoring trio shown below the chip when showScores.
+  const appCount = applications.length;
+  const disCount = disputes.length;
+  const net = appCount - disCount;
+  const netClass = net > 0 ? 'is-positive' : net < 0 ? 'is-negative' : 'is-zero';
+
   // Popover persistence (Story 6 AC-1): the popover opens on hover/focus and
   // stays open while the cursor moves chip→popover (the bug the story
   // exists to fix). The CSS hover-bridge (.ptc-popover::before) covers the
   // visual gap so mouseleave doesn't fire mid-traversal. mouseleave still
   // closes when the cursor genuinely leaves the chip+popover subtree —
   // otherwise hovering multiple chips in a row would stack their popovers.
-  return (
+  const chip = (
     <span
       ref={containerRef}
       className="ptc"
@@ -178,6 +189,24 @@ export default function TagChip({
           )}
         </div>
       )}
+    </span>
+  );
+
+  if (!showScores) return chip;
+
+  return (
+    <span className="ptc-scored">
+      {chip}
+      <span
+        className="ptc-scoretrio"
+        aria-label={`Net ${net > 0 ? `+${net}` : net}, ${appCount} applied, ${disCount} disputed in your POV's WoT`}
+      >
+        <span className={`ptc-score-net ${netClass}`}>
+          {net > 0 ? `+${net}` : net < 0 ? `${net}` : '0'}
+        </span>
+        <span className="ptc-score-count ptc-score-apply" data-bs-tooltip="Applications in your POV's WoT">+{appCount}</span>
+        <span className="ptc-score-count ptc-score-dispute" data-bs-tooltip="Disputes in your POV's WoT">−{disCount}</span>
+      </span>
     </span>
   );
 }

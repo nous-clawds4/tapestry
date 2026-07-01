@@ -3810,6 +3810,38 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   position: relative;
   display: inline-block;
 }
+/* Story 15 — a chip plus its inline net/applied/disputed trio (Notes tab, View
+   options expanded). Column so the trio sits BELOW the chip (avoids line-break
+   weirdness when a note carries many tags on a narrow screen). The popover stays
+   anchored to .ptc (its top:100% is the chip height, not the trio). */
+.ptc-scored {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.15rem;
+  vertical-align: top;
+}
+.ptc-scoretrio {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.3rem;
+  padding-left: 0.3rem;
+  font-size: 0.72rem;
+  line-height: 1;
+}
+/* Net reads first — larger than the two secondary counts (mirrors the Profiles
+   tab, where .bs-tag-row-net is ~1.35x the de-saturated +N/−M counts). */
+.ptc-score-net {
+  font-weight: 700;
+  font-size: 0.98rem;
+  font-variant-numeric: tabular-nums;
+}
+.ptc-score-net.is-positive { color: #86efac; }
+.ptc-score-net.is-negative { color: #fca5a5; }
+.ptc-score-net.is-zero { color: var(--text-muted, #94a3b8); }
+.ptc-score-count { color: var(--text-muted, #94a3b8); opacity: 0.7; }
+.ptc-score-apply { color: #86efac; }
+.ptc-score-dispute { color: #fca5a5; }
 .ptc-chip {
   display: inline-flex;
   align-items: center;
@@ -6396,6 +6428,11 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   justify-content: space-between;
   gap: 0.75rem;
 }
+/* Story 15 — Notes tab hides the primary ("Tag someone") button, so keep the
+   View-options disclosure right-aligned instead of drifting to the left. */
+.bs-tag-view-controls-row.is-no-primary {
+  justify-content: flex-end;
+}
 .bs-tag-view-tagsomeone {
   font: inherit;
   font-size: 0.9rem;
@@ -7484,7 +7521,7 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   display: flex;
   flex-wrap: wrap;
   gap: 0.4rem;
-  align-items: center;
+  align-items: flex-start;
 }
 .bsp-note-tags-add {
   padding: 0.2rem 0.6rem;
@@ -7530,11 +7567,8 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
 .bs-tag-notes-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.75rem; }
 .bs-tag-notes-item { width: 100%; }
 .bs-tag-notes-truncation { font-size: 0.8rem; color: var(--text-muted, #94a3b8); margin: 0 0 0.5rem; }
-.bs-tag-notes-controls { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem; }
-.bs-tag-notes-viewopts { background: transparent; border: none; color: var(--text-muted, #94a3b8); font-size: 0.82rem; font-weight: 600; cursor: pointer; padding: 0.2rem 0; }
-.bs-tag-notes-sort { display: inline-flex; gap: 0.25rem; }
-.bs-tag-notes-sort button { background: var(--surface-2, #1e293b); border: none; color: var(--text-muted, #94a3b8); border-radius: 999px; padding: 0.2rem 0.7rem; font-size: 0.8rem; cursor: pointer; }
-.bs-tag-notes-sort button.is-active { background: var(--surface, #0f172a); color: var(--text-primary, #e2e8f0); }
+/* Story 15 — the Notes tab now uses the shared TagViewControls (bs-tag-view-*).
+   The bespoke .bs-tag-notes-controls/-viewopts/-sort control was retired. */
 
 /* Notes tagged section on profile (Story 14) */
 /* Story 14 — a note-tagging row inside the intermixed "Tagging Activity" list.

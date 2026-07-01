@@ -246,7 +246,9 @@ export default function Tag() {
                   className={`bs-tag-tab${activeTab === 'default' ? ' is-active' : ''}`}
                   onClick={() => switchTab('default')}
                 >
-                  Tagged profiles
+                  {/* Story 15 — this tab holds the Profiles|Notes switch, so it
+                      spans all taggings, not just profiles. (Pins: later.) */}
+                  Taggings
                 </button>
                 <button
                   type="button"

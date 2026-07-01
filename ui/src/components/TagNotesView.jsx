@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useNotesForTag } from '../hooks/useNotesForTag';
+import TagViewControls from './TagViewControls';
 import NoteCard from './NoteCard';
 
 /**
@@ -7,73 +8,91 @@ import NoteCard from './NoteCard';
  * this tag, rendered via the shared NoteCard (so each note carries the Story-6
  * tagging affordance). Reads `/api/event-tags/for-tag`. ADR 0008.
  *
- * Mirrors the profiles view's View-options pattern (Tag.jsx): the CURATED default
- * (collapsed) shows only net-endorsed notes (applications > disputes) plus the
- * viewer's own; EXPANDED shows every tagged note with a sort control.
+ * Story 15 — this tab now uses the SAME control as the Profiles tab
+ * (`TagViewControls`): same "View options" disclosure, same curated-default vs
+ * expanded behavior, same text filter, and full sort parity (recent / applied /
+ * disputed / divisive). Sorting is server-side over the whole tagged set (a
+ * `sort` param on for-tag), so non-recency sorts aren't limited to the
+ * recency-capped page. The "+ Tag someone" button is Profiles-only here
+ * (`hidePrimary`); the Notes-tab "+ Tag a Note" arrives in Story 16.
  */
-export default function TagNotesView({ tag, viewerPubkey }) {
-  const { notes, total, truncated, loading, error } = useNotesForTag(tag?.authorPubkey, tag?.slug, viewerPubkey);
-  const [expanded, setExpanded] = useState(false);
-  const [sort, setSort] = useState('recent'); // 'recent' | 'applied'
+const NOTE_SORT_OPTIONS = [
+  { key: 'recent', label: 'Most recent' },
+  { key: 'applied', label: 'Most applied' },
+  { key: 'disputed', label: 'Most disputed' },
+  { key: 'divisive', label: 'Most divisive' },
+];
 
+function noteMatchesFilter(note, text) {
+  if (!text) return true;
+  const needle = text.trim().toLowerCase();
+  if (!needle) return true;
+  const fields = [note.content, note.author?.displayName, note.author?.name];
+  for (const f of fields) {
+    if (f && String(f).toLowerCase().includes(needle)) return true;
+  }
+  return false;
+}
+
+export default function TagNotesView({ tag, viewerPubkey }) {
+  const [sort, setSort] = useState('recent');
+  const [expanded, setExpanded] = useState(false);
+  const [filterText, setFilterText] = useState('');
+  const { notes, total, truncated, loading, error } = useNotesForTag(
+    tag?.authorPubkey, tag?.slug, viewerPubkey, sort,
+  );
+
+  // Text filter → curated filter (when collapsed) → displayed notes. Mirrors
+  // Tag.jsx's `displayedRows` for Profiles: curated keeps net-endorsed notes
+  // (applications > disputes) plus the viewer's own (the `mine` durability
+  // principle — a note you tagged is never hidden). Ordering comes from the
+  // server (the chosen sort); no client-side re-sort.
   const shown = useMemo(() => {
-    // Curated default: net-endorsed (applications > disputes) OR the viewer's own
-    // (so a note you tagged is never hidden — the `mine` durability principle).
-    let list = expanded
-      ? notes
-      : notes.filter((n) => ((n.applications || 0) - (n.disputes || 0)) >= 1 || !!n.mine);
-    list = [...list].sort(
-      sort === 'applied'
-        ? (a, b) => (b.applications || 0) - (a.applications || 0)
-        : (a, b) => (b.createdAt || 0) - (a.createdAt || 0)
-    );
-    return list;
-  }, [notes, expanded, sort]);
+    const byText = filterText ? notes.filter((n) => noteMatchesFilter(n, filterText)) : notes;
+    if (expanded) return byText;
+    return byText.filter((n) => ((n.applications || 0) - (n.disputes || 0)) >= 1 || !!n.mine);
+  }, [notes, filterText, expanded]);
 
   if (loading) return <p className="bs-tag-loading">Loading notes…</p>;
   if (error) return <p className="bs-tag-error">⚠️ {error}</p>;
-  if (!notes.length) {
-    return (
-      <p className="bs-tag-empty">
-        No notes have been tagged with <strong>{tag?.name || tag?.slug}</strong> yet.
-      </p>
-    );
-  }
 
   return (
     <>
-      <div className="bs-tag-notes-controls">
-        <button
-          type="button"
-          className="bs-tag-notes-viewopts"
-          aria-expanded={expanded}
-          onClick={() => setExpanded((v) => !v)}
-        >
-          {expanded ? '▾ View options' : '▸ View options'}
-        </button>
-        {expanded && (
-          <div className="bs-tag-notes-sort" role="group" aria-label="Sort notes">
-            <button type="button" className={sort === 'recent' ? 'is-active' : ''} onClick={() => setSort('recent')}>Recent</button>
-            <button type="button" className={sort === 'applied' ? 'is-active' : ''} onClick={() => setSort('applied')}>Most applied</button>
-          </div>
-        )}
-      </div>
+      <TagViewControls
+        sort={sort}
+        onSortChange={setSort}
+        expanded={expanded}
+        onToggleExpand={setExpanded}
+        filterText={filterText}
+        onFilterChange={setFilterText}
+        hidePrimary
+        sortOptions={NOTE_SORT_OPTIONS}
+        sortAriaLabel="Sort tagged notes"
+        filterPlaceholder="Filter these notes…"
+        filterAriaLabel="Filter the list of tagged notes"
+      />
 
       {truncated && (
         <p className="bs-tag-notes-truncation">
-          Showing the {notes.length} most recently tagged of {total} notes.
+          Showing the top {notes.length} of {total} tagged notes.
         </p>
       )}
 
-      {shown.length === 0 ? (
+      {notes.length === 0 ? (
         <p className="bs-tag-empty">
-          No notes meet the Curated threshold yet. Open <strong>View options</strong> to see all tagged notes.
+          No notes have been tagged with <strong>{tag?.name || tag?.slug}</strong> yet.
+        </p>
+      ) : shown.length === 0 ? (
+        <p className="bs-tag-empty">
+          {filterText
+            ? `No tagged notes match "${filterText}".`
+            : 'No notes meet the Curated threshold yet. Open View options to see all tagged notes.'}
         </p>
       ) : (
         <ul className="bs-tag-notes-list">
           {shown.map((n) => (
             <li key={n.id} className="bs-tag-notes-item">
-              <NoteCard item={n} />
+              <NoteCard item={n} showTagScores={expanded} />
             </li>
           ))}
         </ul>

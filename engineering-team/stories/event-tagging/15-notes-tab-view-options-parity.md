@@ -1,6 +1,6 @@
 # Story 15: Tag-detail "Notes" tab — View Options at full parity with "Profiles"
 
-**Status:** ✅ IMPLEMENTED (2026-07-01) — pending manual UI verify. ADR 0013. Notes tab now uses the
+**Status:** ✅ DONE — PASS (2026-07-01, review re-run after test fixes). ADR 0013. Notes tab now uses the
 shared `TagViewControls` (same disclosure/curated-vs-expanded/text-filter), with server-side sort on
 `for-tag`. Operator decisions: sort set = `recent`(default)/`applied`/`disputed`/`divisive` (Profiles'
 3 + recent; `most-backed` omitted — ≈ `applied` for notes); sort scope = server-side over the full

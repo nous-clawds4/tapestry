@@ -8,11 +8,12 @@ import { useState, useEffect } from 'react';
  * @param {string} tagAuthorPubkey  the tag-element author (`tag.authorPubkey`).
  * @param {string} slug             the tag slug.
  * @param {string} [viewerPubkey]   the logged-in viewer (so their own tagged notes show).
+ * @param {string} [sort]           server-side sort (Story 15): recent|applied|disputed|divisive.
  * @returns {{ notes: object[], total: number, truncated: boolean, loading: boolean, error: string|null }}
  */
 const HEX64 = /^[0-9a-f]{64}$/;
 
-export function useNotesForTag(tagAuthorPubkey, slug, viewerPubkey) {
+export function useNotesForTag(tagAuthorPubkey, slug, viewerPubkey, sort = 'recent') {
   const [notes, setNotes] = useState([]);
   const [total, setTotal] = useState(0);
   const [truncated, setTruncated] = useState(false);
@@ -29,6 +30,7 @@ export function useNotesForTag(tagAuthorPubkey, slug, viewerPubkey) {
       try {
         const params = new URLSearchParams({ tagAuthor: tagAuthorPubkey, slug });
         if (HEX64.test(viewerPubkey || '')) params.set('viewerPubkey', viewerPubkey);
+        if (sort) params.set('sort', sort);
         const r = await fetch(`/api/event-tags/for-tag?${params}`);
         const j = await r.json().catch(() => ({}));
         if (cancelled) return;
@@ -44,7 +46,7 @@ export function useNotesForTag(tagAuthorPubkey, slug, viewerPubkey) {
     })();
 
     return () => { cancelled = true; };
-  }, [tagAuthorPubkey, slug, viewerPubkey]);
+  }, [tagAuthorPubkey, slug, viewerPubkey, sort]);
 
   return { notes, total, truncated, loading, error };
 }

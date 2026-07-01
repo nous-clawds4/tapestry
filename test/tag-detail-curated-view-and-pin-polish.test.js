@@ -162,14 +162,22 @@ t('AC-5 (UI): TagViewControls.jsx renders a text-filter input with a "filter"-me
     throw new Error('AC-5: TagViewControls.jsx not present yet — cannot assert filter-input shape.');
   }
   const src = readSafe(TAG_VIEW_CONTROLS);
-  // The filter input is an <input type="text" ...> with a placeholder
-  // that contains the substring "ilter" (matches "Filter…" / "filter"
-  // — Architect picks exact copy).
-  const filterInputRe = /<input[^>]*type=["']text["'][^>]*placeholder=["'][^"']*[Ff]ilter[^"']*["']/;
+  // The filter input is an <input type="text" ...> with a placeholder that
+  // mentions "filter". Story 15 parameterized the copy (Notes tab passes its own),
+  // so the placeholder may be an inline literal OR the `filterPlaceholder` prop —
+  // accept either, and separately assert the DEFAULT placeholder still says "filter"
+  // (behavior preserved for the Profiles tab).
+  const filterInputRe = /<input[^>]*type=["']text["'][^>]*placeholder=(?:["'][^"']*[Ff]ilter[^"']*["']|\{filterPlaceholder\b)/;
   assert(
     filterInputRe.test(src),
-    'AC-5: TagViewControls.jsx must render a <input type="text" ... placeholder="...Filter..."> for the ' +
-      'client-side row filter. No matching input found in TagViewControls.jsx.'
+    'AC-5: TagViewControls.jsx must render a <input type="text" ... placeholder="...Filter..." | ' +
+      '{filterPlaceholder}> for the client-side row filter. No matching input found in TagViewControls.jsx.'
+  );
+  const filterDefaultRe = /placeholder=["'][^"']*[Ff]ilter[^"']*["']|filterPlaceholder\s*=\s*["'][^"']*[Ff]ilter[^"']*["']/;
+  assert(
+    filterDefaultRe.test(src),
+    'AC-5: the default filter placeholder must still mention "filter" (inline or via the filterPlaceholder ' +
+      'default). Parameterizing the copy must not drop the Profiles-tab default.'
   );
 });
 
