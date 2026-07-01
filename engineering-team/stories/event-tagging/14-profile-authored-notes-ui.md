@@ -1,6 +1,6 @@
 # Story 14: Profile "Tagging Activity" — notes tagged (UI)
 
-**Status:** Approved · **Created:** 2026-06-30 · **Type:** Feature · **Epic:** event-tagging · **Book:** unified-tagging-ui
+**Status:** Approved — DONE + REVIEWED PASS · **Created:** 2026-06-30 · **Type:** Feature · **Epic:** event-tagging · **Book:** unified-tagging-ui
 
 ## Background
 A profile's "Tagging Activity" (`AuthoredTaggingSection`) shows only the **profiles** that person tagged. Story 11 built the read (`/api/event-tags/notes-by-author`); this story surfaces it on the profile: the **notes** the person has tagged, alongside the existing profile-tagging section. Additive — the existing section is untouched (no regression); a new section is added.
@@ -23,4 +23,4 @@ As a viewer on someone's profile, I want to see the **notes** they've tagged (wi
 
 ## Linked artifacts
 - ADR: `engineering-team/decisions/event-tagging/0010-profile-tagging-activity-spans-notes.md` (endpoint; this story is its UI). Book: `engineering-team/audits/unified-tagging-ui/book.md`.
-- Test: `test/profile-authored-notes-ui.test.js` (source-contract; render manual). Review: (later).
+- Test: `test/profile-authored-notes-ui.test.js` (source-contract; render manual). Review: `engineering-team/reviews/event-tagging/14-profile-authored-notes-ui.md` — **PASS**.
