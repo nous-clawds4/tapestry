@@ -6001,6 +6001,7 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
 .bs-pinned-notes-drift { font-size: 0.8rem; }
 .bs-pinned-notes-drift.is-fresh { color: #86efac; }
 .bs-pinned-notes-drift.is-stale { color: #fcd34d; }
+.bs-pinned-notes-drift.is-loading { color: var(--text-muted, #94a3b8); font-style: italic; }
 .bs-pinned-notes-update {
   font: inherit; font-size: 0.85rem; margin-bottom: 0.75rem;
   padding: 0.35rem 0.9rem; border-radius: 6px;

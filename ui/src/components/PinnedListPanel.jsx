@@ -494,7 +494,12 @@ export default function PinnedListPanel({ tag, viewerPin, onChanged, exportSync 
         <section className="bs-pinned-notes" hidden={pinnedView !== 'notes'}>
           <div className="bs-pinned-notes-head">
             <h4 className="bs-pinned-notes-title">Pinned notes</h4>
-            {noteDrift && (
+            {/* While (re)computing, show a loading chip rather than the stale
+                verdict — otherwise a just-tagged note reads as "up to date" for
+                the seconds for-tag takes to resolve. */}
+            {pinnedNotesLoading ? (
+              <span className="bs-pinned-notes-drift is-loading">Checking for changes…</span>
+            ) : noteDrift ? (
               noteDriftStale ? (
                 <span className="bs-pinned-notes-drift is-stale">
                   {noteDrift.added ? `${noteDrift.added} new` : ''}
@@ -504,10 +509,10 @@ export default function PinnedListPanel({ tag, viewerPin, onChanged, exportSync 
               ) : (
                 <span className="bs-pinned-notes-drift is-fresh">✓ Up to date</span>
               )
-            )}
+            ) : null}
           </div>
 
-          {noteDriftStale && (
+          {!pinnedNotesLoading && noteDriftStale && (
             <button
               type="button"
               className="bs-pinned-notes-update"
