@@ -165,6 +165,9 @@ export default function PinnedListPanel({ tag, viewerPin, onChanged, exportSync 
     loading: pinnedNotesLoading, refetch: refetchPinnedNotes,
   } = usePinnedNotes(tag, user?.pubkey, noteMethod);
   const [repinningNotes, setRepinningNotes] = useState(false);
+  // Issue #2 — Profiles|Notes sub-switch inside the Pinned tab (mirrors the
+  // tag-detail default tab), so a big profile list and the note list don't stack.
+  const [pinnedView, setPinnedView] = useState('profiles');
   const handleRepinNotes = useCallback(async () => {
     if (!tag || !user || repinningNotes) return;
     setRepinningNotes(true);
@@ -415,6 +418,30 @@ export default function PinnedListPanel({ tag, viewerPin, onChanged, exportSync 
         </p>
       )}
 
+      {/* Issue #2 — Profiles|Notes sub-switch. Only shown once a note bookmark
+          set exists; otherwise the panel is profiles-only as before. */}
+      {pinnedNotes && (
+        <div className="bs-tag-view-switch" role="tablist" aria-label="Pinned content">
+          <button
+            type="button" role="tab"
+            aria-selected={pinnedView === 'profiles'}
+            className={`bs-tag-view-switch-btn${pinnedView === 'profiles' ? ' is-active' : ''}`}
+            onClick={() => setPinnedView('profiles')}
+          >
+            Profiles ({members.length})
+          </button>
+          <button
+            type="button" role="tab"
+            aria-selected={pinnedView === 'notes'}
+            className={`bs-tag-view-switch-btn${pinnedView === 'notes' ? ' is-active' : ''}`}
+            onClick={() => setPinnedView('notes')}
+          >
+            Notes ({pinnedNoteItems.length})
+          </button>
+        </div>
+      )}
+
+      <div hidden={!!pinnedNotes && pinnedView !== 'profiles'}>
       <h3 className="bs-pindetail-members-heading">
         Members ({members.length})
       </h3>
@@ -455,13 +482,13 @@ export default function PinnedListPanel({ tag, viewerPin, onChanged, exportSync 
           ))}
         </ul>
       )}
+      </div>
 
       {/* Story 12 item #3 — the viewer's pinned NOTE bookmark set (kind-30003),
-          rendered as a second section below the profile Trusted List, with a
-          drift indicator vs the live curated set (the note analog of the profile
-          export's diffVsTL). Shown only once a note bookmark set exists. */}
+          in the Notes sub-tab, with a drift indicator vs the live curated set
+          (the note analog of the profile export's diffVsTL). */}
       {pinnedNotes && (
-        <section className="bs-pinned-notes">
+        <section className="bs-pinned-notes" hidden={pinnedView !== 'notes'}>
           <div className="bs-pinned-notes-head">
             <h4 className="bs-pinned-notes-title">Pinned notes</h4>
             {noteDrift && (
