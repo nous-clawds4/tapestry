@@ -42,10 +42,19 @@ export default function TagViewControls({
   filterPlaceholder = 'Filter this list…',
   filterAriaLabel = 'Filter the list of tagged profiles',
   hidePrimary = false,
+  // Story 16 — the primary (left) button is configurable so the Notes tab can
+  // show "+ Tag a Note" in the SAME slot Profiles uses for "+ Tag someone".
+  // Defaults preserve the Profiles behavior + its onTagSomeoneClick handler.
+  onPrimaryClick,
+  primaryLabel = '➕ Tag someone',
+  primaryLabelSignedOut = '🔒 Sign in to tag someone',
+  primaryAriaLabel = 'Tag someone',
+  primaryAriaLabelSignedOut = 'Sign in to tag someone',
 }) {
   const handleDetailsToggle = (e) => {
     if (onToggleExpand) onToggleExpand(e.currentTarget.open);
   };
+  const primaryClick = onPrimaryClick || onTagSomeoneClick;
 
   return (
     <div className="bs-tag-view-controls">
@@ -54,12 +63,12 @@ export default function TagViewControls({
           <button
             type="button"
             className={`bs-tag-view-tagsomeone${signedIn ? '' : ' is-disabled'}`}
-            onClick={signedIn ? onTagSomeoneClick : undefined}
+            onClick={signedIn ? primaryClick : undefined}
             disabled={!signedIn}
-            data-bs-tooltip={signedIn ? undefined : 'Sign in to tag someone'}
-            aria-label={signedIn ? 'Tag someone' : 'Sign in to tag someone'}
+            data-bs-tooltip={signedIn ? undefined : primaryAriaLabelSignedOut}
+            aria-label={signedIn ? primaryAriaLabel : primaryAriaLabelSignedOut}
           >
-            {signedIn ? '➕ Tag someone' : '🔒 Sign in to tag someone'}
+            {signedIn ? primaryLabel : primaryLabelSignedOut}
           </button>
         )}
 

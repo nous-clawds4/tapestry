@@ -1,6 +1,14 @@
 # Story 16: "+ Tag a Note" — Event-ID search modal on the Notes tab
 
-**Status:** Draft · **Created:** 2026-07-01 · **Type:** Feature · **Epic:** event-tagging · **Book:** unified-tagging-ui
+**Status:** ✅ DONE (2026-07-01) — operator-verified (manual UI review found + directed the post-verify
+fixes below; approved). ADR 0014. Post-verify: honest modal feedback (re-key NoteCard + read-back
+count) and a NIP-07 signer/session guard (`signerGuard.js` in `useEventTagging`). Extending the guard
+to the profile-tag + pin write paths is tracked in GitHub issue #335.
+Operator decisions: (Q1) identifier scope = nevent + note1 + 64-hex id (reject npub/nprofile/naddr
+with a message); (Q2) combination UX = full `NoteCard` (existing chips visible) **plus** a dedicated
+Apply/Dispute for the current tag outside the card. New `TagANoteModal`; `TagViewControls` primary
+button generalized (Profiles unchanged); `useNotesForTag` gains `refetch`; `eventParam` gains `note1`.
+· **Created:** 2026-07-01 · **Type:** Feature · **Epic:** event-tagging · **Book:** unified-tagging-ui
 
 ## Background
 The Profiles tab has a **"+ Tag someone"** button that opens `TagSomeoneModal`

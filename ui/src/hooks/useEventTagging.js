@@ -1,5 +1,7 @@
 import { useCallback } from 'react';
 import { useConfig } from '../context/ConfigContext';
+import { useAuth } from '../context/AuthContext';
+import { assertSignerMatches } from '../utils/signerGuard';
 import { publishOrThrow } from '../utils/publishProfileTag';
 // Single source of truth for the event-tagging wire shape + publish sequence:
 // the dependency-free CJS core, imported through the Vite alias (see
@@ -27,12 +29,17 @@ const HEX64 = /^[0-9a-f]{64}$/;
  */
 export function useEventTagging() {
   const { taPubkey } = useConfig();
+  // The signed-in session identity — used to guard against the extension's
+  // active account having drifted away from it (see signerGuard.js).
+  const { user } = useAuth();
 
   const run = useCallback(async (tagInput, target, polarity) => {
     if (!window.nostr) {
       throw new Error('No NIP-07 extension detected. Install one to apply tags.');
     }
     const asserterPubkey = await window.nostr.getPublicKey();
+    // Refuse to publish as a different account than the one shown as signed in.
+    assertSignerMatches(asserterPubkey, user?.pubkey);
 
     // Dual-z: canonical + the runtime local TA. A missing/malformed local TA is
     // non-fatal — the canonical z still ships (mirrors createTag / publishProfileTag).
@@ -57,7 +64,7 @@ export function useEventTagging() {
         now: () => Math.floor(Date.now() / 1000),
       },
     });
-  }, [taPubkey]);
+  }, [taPubkey, user?.pubkey]);
 
   const applyTag = useCallback((tagInput, target) => run(tagInput, target, 1), [run]);
   const disputeTag = useCallback((tagInput, target) => run(tagInput, target, -1), [run]);

@@ -6589,6 +6589,50 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
 .tsm-results {
   margin-top: 0.5rem;
 }
+/* Story 16 — "+ Tag a Note" modal (reuses the .tsm-* shell). */
+.tan-search-form {
+  display: flex;
+  gap: 0.5rem;
+  align-items: stretch;
+}
+.tan-search-form .tsm-search-input { flex: 1 1 auto; }
+.tan-resolve-btn {
+  font: inherit;
+  font-size: 0.9rem;
+  padding: 0.5rem 0.9rem;
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,0.18);
+  background: rgba(255,255,255,0.06);
+  color: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.tan-resolve-btn:hover { background: rgba(255,255,255,0.12); }
+.tan-apply-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  margin: 0.85rem 0 0.5rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: 8px;
+  border: 1px solid var(--border, #334155);
+  background: rgba(148, 163, 184, 0.06);
+}
+.tan-apply-label { font-size: 0.9rem; font-weight: 600; }
+.tan-apply-actions { display: inline-flex; gap: 0.4rem; margin-left: auto; }
+.tan-apply, .tan-dispute {
+  font: inherit;
+  font-size: 0.85rem;
+  padding: 0.3rem 0.8rem;
+  border-radius: 999px;
+  border: 1px solid var(--border, #334155);
+  cursor: pointer;
+}
+.tan-apply { background: rgba(134, 239, 172, 0.12); color: #86efac; }
+.tan-dispute { background: rgba(252, 165, 165, 0.12); color: #fca5a5; }
+.tan-apply:disabled, .tan-dispute:disabled { opacity: 0.5; cursor: not-allowed; }
+.tan-note { margin-top: 0.5rem; }
 
 /* CurationMethodDialog intro paragraph (Story 17 / ADR 0014 Decision 9). */
 .pcd-intro {

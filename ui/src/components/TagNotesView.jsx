@@ -1,6 +1,8 @@
 import { useState, useMemo } from 'react';
 import { useNotesForTag } from '../hooks/useNotesForTag';
+import { useAuth } from '../context/AuthContext';
 import TagViewControls from './TagViewControls';
+import TagANoteModal from './TagANoteModal';
 import NoteCard from './NoteCard';
 
 /**
@@ -35,12 +37,21 @@ function noteMatchesFilter(note, text) {
 }
 
 export default function TagNotesView({ tag, viewerPubkey }) {
+  const { user, login } = useAuth();
   const [sort, setSort] = useState('recent');
   const [expanded, setExpanded] = useState(false);
   const [filterText, setFilterText] = useState('');
-  const { notes, total, truncated, loading, error } = useNotesForTag(
+  const [tagANoteOpen, setTagANoteOpen] = useState(false);
+  const { notes, total, truncated, loading, error, refetch } = useNotesForTag(
     tag?.authorPubkey, tag?.slug, viewerPubkey, sort,
   );
+
+  // Story 16 — "+ Tag a Note" mirrors Profiles' "+ Tag someone": gate the click
+  // through login when logged out, else open the Event-ID modal.
+  const handleTagANoteClick = async () => {
+    if (!user) { try { await login(); } catch { /* user dismissed */ } return; }
+    setTagANoteOpen(true);
+  };
 
   // Text filter → curated filter (when collapsed) → displayed notes. Mirrors
   // Tag.jsx's `displayedRows` for Profiles: curated keeps net-endorsed notes
@@ -53,9 +64,6 @@ export default function TagNotesView({ tag, viewerPubkey }) {
     return byText.filter((n) => ((n.applications || 0) - (n.disputes || 0)) >= 1 || !!n.mine);
   }, [notes, filterText, expanded]);
 
-  if (loading) return <p className="bs-tag-loading">Loading notes…</p>;
-  if (error) return <p className="bs-tag-error">⚠️ {error}</p>;
-
   return (
     <>
       <TagViewControls
@@ -65,38 +73,59 @@ export default function TagNotesView({ tag, viewerPubkey }) {
         onToggleExpand={setExpanded}
         filterText={filterText}
         onFilterChange={setFilterText}
-        hidePrimary
+        signedIn={!!user}
+        onPrimaryClick={handleTagANoteClick}
+        primaryLabel="➕ Tag a Note"
+        primaryLabelSignedOut="🔒 Sign in to tag a note"
+        primaryAriaLabel="Tag a note"
+        primaryAriaLabelSignedOut="Sign in to tag a note"
         sortOptions={NOTE_SORT_OPTIONS}
         sortAriaLabel="Sort tagged notes"
         filterPlaceholder="Filter these notes…"
         filterAriaLabel="Filter the list of tagged notes"
       />
 
-      {truncated && (
-        <p className="bs-tag-notes-truncation">
-          Showing the top {notes.length} of {total} tagged notes.
-        </p>
+      {loading ? (
+        <p className="bs-tag-loading">Loading notes…</p>
+      ) : error ? (
+        <p className="bs-tag-error">⚠️ {error}</p>
+      ) : (
+        <>
+          {truncated && (
+            <p className="bs-tag-notes-truncation">
+              Showing the top {notes.length} of {total} tagged notes.
+            </p>
+          )}
+
+          {notes.length === 0 ? (
+            <p className="bs-tag-empty">
+              No notes have been tagged with <strong>{tag?.name || tag?.slug}</strong> yet.
+            </p>
+          ) : shown.length === 0 ? (
+            <p className="bs-tag-empty">
+              {filterText
+                ? `No tagged notes match "${filterText}".`
+                : 'No notes meet the Curated threshold yet. Open View options to see all tagged notes.'}
+            </p>
+          ) : (
+            <ul className="bs-tag-notes-list">
+              {shown.map((n) => (
+                <li key={n.id} className="bs-tag-notes-item">
+                  <NoteCard item={n} showTagScores={expanded} />
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
       )}
 
-      {notes.length === 0 ? (
-        <p className="bs-tag-empty">
-          No notes have been tagged with <strong>{tag?.name || tag?.slug}</strong> yet.
-        </p>
-      ) : shown.length === 0 ? (
-        <p className="bs-tag-empty">
-          {filterText
-            ? `No tagged notes match "${filterText}".`
-            : 'No notes meet the Curated threshold yet. Open View options to see all tagged notes.'}
-        </p>
-      ) : (
-        <ul className="bs-tag-notes-list">
-          {shown.map((n) => (
-            <li key={n.id} className="bs-tag-notes-item">
-              <NoteCard item={n} showTagScores={expanded} />
-            </li>
-          ))}
-        </ul>
-      )}
+      <TagANoteModal
+        open={tagANoteOpen}
+        onClose={() => setTagANoteOpen(false)}
+        tag={tag}
+        viewerPubkey={user?.pubkey || null}
+        onTagged={refetch}
+      />
     </>
   );
 }

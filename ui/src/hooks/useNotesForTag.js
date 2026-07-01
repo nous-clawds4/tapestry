@@ -19,6 +19,9 @@ export function useNotesForTag(tagAuthorPubkey, slug, viewerPubkey, sort = 'rece
   const [truncated, setTruncated] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  // Story 16 — bump to force a re-fetch (e.g. after "+ Tag a Note" publishes,
+  // so the freshly-tagged note appears in the list).
+  const [nonce, setNonce] = useState(0);
 
   useEffect(() => {
     if (!HEX64.test(tagAuthorPubkey || '') || !slug) { setNotes([]); return undefined; }
@@ -46,9 +49,10 @@ export function useNotesForTag(tagAuthorPubkey, slug, viewerPubkey, sort = 'rece
     })();
 
     return () => { cancelled = true; };
-  }, [tagAuthorPubkey, slug, viewerPubkey, sort]);
+  }, [tagAuthorPubkey, slug, viewerPubkey, sort, nonce]);
 
-  return { notes, total, truncated, loading, error };
+  const refetch = () => setNonce((n) => n + 1);
+  return { notes, total, truncated, loading, error, refetch };
 }
 
 export default useNotesForTag;

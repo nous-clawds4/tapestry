@@ -14,7 +14,7 @@ import { nip19 } from 'nostr-tools';
  */
 
 const HEX64 = /^[0-9a-f]{64}$/i;
-const ORDER = ['nevent', 'id', 'naddr', 'pubkey', 'npub', 'nprofile'];
+const ORDER = ['nevent', 'note', 'id', 'naddr', 'pubkey', 'npub', 'nprofile'];
 
 // Decode a single (paramName, value) into a target, or null if malformed / wrong type.
 function decodeOne(name, value) {
@@ -29,6 +29,12 @@ function decodeOne(name, value) {
         const d = nip19.decode(value);
         if (d.type !== 'nevent' || !d.data || !d.data.id) return null;
         return { mode: 'id', id: d.data.id, author: d.data.author || null, relays: d.data.relays || [] };
+      }
+      case 'note': {
+        // Bare note1 (kind-1 event id, no author/relay hints).
+        const d = nip19.decode(value);
+        if (d.type !== 'note' || typeof d.data !== 'string') return null;
+        return { mode: 'id', id: d.data };
       }
       case 'npub': {
         const d = nip19.decode(value);
@@ -80,7 +86,7 @@ export function resolveEventParams(searchParams) {
 export function classifyEventInput(raw) {
   const str = (raw || '').trim();
   if (!str) return null;
-  const prefixes = [['nevent1', 'nevent'], ['naddr1', 'naddr'], ['nprofile1', 'nprofile'], ['npub1', 'npub']];
+  const prefixes = [['nevent1', 'nevent'], ['note1', 'note'], ['naddr1', 'naddr'], ['nprofile1', 'nprofile'], ['npub1', 'npub']];
   for (const [prefix, name] of prefixes) {
     if (str.startsWith(prefix)) {
       return decodeOne(name, str) ? { paramName: name, value: str } : null;
