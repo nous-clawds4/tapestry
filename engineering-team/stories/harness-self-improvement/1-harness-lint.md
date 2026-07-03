@@ -52,6 +52,13 @@ None — this story is harness tooling only. No concept-graph handles, no firmwa
 1. **L1 verdict parsing — RESOLVED:** *the last verdict-shaped line in the file wins.* (Validated against all 57 existing reviews during the Appendix A sweep, including #22's PASS-then-CHANGES_REQUESTED history.)
 2. **L9 threshold — RESOLVED:** keep the check, 14-day threshold. (Deleting the manual headers is a BIBLE/OPERATIONS edit outside this story.)
 
+## Deviations *(Implementer, 2026-07-02 — judgment calls below ADR-amendment scale)*
+
+1. **The ratified last-token verdict rule has a real edge case, hit on first run:** review task-queue-scheduler #22 ends with an addendum whose phrasing "**PASS stands** … the gate **cannot pass**" makes the last uppercase token PASS, while the human meaning is prod-blocked (superseded by #23). Resolved with a cited L1 waiver, not a rule change (the operator ratified the rule; changing it is a future amendment). This is a concrete argument for the declined alternative — a machine-readable `**Verdict:**` final line — worth revisiting via the loop (harness-friction datum #1).
+2. **ADR's suggested AGENTS.md L5 waiver is unnecessary** — AGENTS.md isn't in the L5 scan set (it's the port's single home by design), so no waiver row was shipped for it; shipping one would have been immediately STALE.
+3. **Two L5 hits beyond the pre-scout** — `direct-feature/SKILL.md` and `roles/director.md` restated cycle-local's base URL. Fixed by pointing at cycle-local (the constant's owner) rather than waivering — the de-dup rule, applied. No armed Direction run exists, so editing these files is safe (pinned-version rule not in play).
+4. **L9 bootstrap:** the stale `Last updated:` headers (BIBLE 47d, OPERATIONS 23d behind) were set to 2026-07-02 — the date of the header-refresh commit itself — because setting them to the last *content* date would re-trip L9 as soon as the fix commit became the file's newest git date. BIBLE's header notes the distinction inline.
+
 ## Linked artifacts
 
 - ADR: `engineering-team/decisions/harness-self-improvement/0001-harness-lint.md` (Accepted 2026-07-02)

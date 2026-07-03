@@ -104,7 +104,7 @@ The judge applies these; you confirm the judge actually applied them. Items mark
 - The judge here audits *the review*, not the diff: does the review demonstrate its checks, or merely assert them?
 
 ### Deploy gates (you run these — operational, not judged; the completion report that summarizes them IS judged)
-- Local: `/cycle-local` semantics clean before any push — build, deploy to the local stack at `http://localhost:7778`, smoke per [`docs/SMOKE_TEST.md`](../../docs/SMOKE_TEST.md).
+- Local: `/cycle-local` semantics clean before any push — build, deploy to the local stack (base URL per the cycle-local skill), smoke per [`docs/SMOKE_TEST.md`](../../docs/SMOKE_TEST.md).
 - Staging: `/cycle-staging` semantics — PR to `staging`, plain merge, watch `deploy-staging.yml`, full five-tier smoke on `staging.brainstorm.world`. Every `gh` command carries `--repo nous-clawds4/tapestry`.
 - ⚙ Never trigger heavy tasks on staging as "verification" — forbidden set: any task whose `src/manage/taskQueue/taskRegistry.json` entry carries `resourceClass: "neo4j-heavy"`, plus `reconcileAll`. Read-only smoke only. Staging is shared and prod-scale.
 - **Any code change after a story's Gate-5 PASS reopens that story at Implementation:** Gate 4 and a fresh Gate-5 review + judge are required before any redeploy. Fix-forward never lands on staging through zero judged gates.

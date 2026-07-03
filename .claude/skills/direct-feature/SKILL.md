@@ -59,7 +59,7 @@ Follow the phase workflows in [engineering-team/workflows/](../../../engineering
 
 ### Stage 2 — deploy
 
-1. Local: follow [`/cycle-local`](../cycle-local/SKILL.md) — base URL `http://localhost:7778`; derive worktree paths, don't copy literals.
+1. Local: follow [`/cycle-local`](../cycle-local/SKILL.md) — it owns the local base URL; derive worktree paths, don’t copy literals.
 2. Staging: follow [`/cycle-staging`](../cycle-staging/SKILL.md) — push `feat/<book-slug>`, PR to `staging`, plain merge, watch `deploy-staging.yml`, five-tier smoke on `staging.brainstorm.world`. Every `gh` command includes `--repo nous-clawds4/tapestry`.
 3. On failure at any point: surface, journal, and fix forward through the per-story cycle — a fix is a story or a kick-back, never a hot patch outside the harness. **Any code change after a story's Gate-5 PASS reopens that story at Implementation: Gate 4 and a fresh Gate-5 review + judge before any redeploy.** Your own commits never author anything outside `engineering-team/audits/<book-slug>/` — CI and deploy config included; those changes come from a role, inside the cycle. Reverts to staging go through a normal revert PR, journaled; never force-push.
 

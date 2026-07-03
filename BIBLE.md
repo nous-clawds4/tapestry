@@ -5,7 +5,7 @@
 >
 > Specifics of the reference deployment at `brainstorm.world` (deploy targets, droplet specs, CI/CD workflows, branch protection ruleset, active team, tracking issues, operational gotchas we've hit) live in a sibling document: [OPERATIONS.md](./OPERATIONS.md). If you're forking this repo to run your own instance, BIBLE is the doc you want — OPERATIONS describes someone else's running instance.
 
-**Last updated:** 2026-05-04 (preferences audit §6.1 + §6.2; session persistence; user-counts; cycle-* skills)
+**Last updated:** 2026-07-02 (header refresh; content last changed 2026-06-20 — preferences audit §6.1 + §6.2; session persistence; user-counts; cycle-* skills)
 
 ---
 

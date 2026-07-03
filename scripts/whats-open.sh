@@ -130,6 +130,15 @@ for f in engineering-team/audits/*/prd-addendum.md; do
 done
 [ "$any" = 0 ] && echo "  (nothing pending on the product side)"
 
+hr "Harness invariants — scripts/harness-lint.sh"
+if [ -f scripts/harness-lint.sh ]; then
+  # Informational here (the roll-up always exits 0); run the script directly
+  # or via a hook for the real exit code.
+  bash scripts/harness-lint.sh 2>&1 | sed 's/^/  /'
+else
+  echo "  (harness-lint.sh not found)"
+fi
+
 hr "Open PRs"
 if command -v gh >/dev/null 2>&1; then
   gh pr list --repo "$REPO" --state open --json number,title,baseRefName \
