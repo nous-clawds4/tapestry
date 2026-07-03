@@ -1,6 +1,8 @@
+import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import BrainstormUserMenu from '../components/BrainstormUserMenu';
 import NoteCard from '../components/NoteCard';
+import SortToggle from '../components/SortToggle';
 import useFeed from '../hooks/useFeed';
 
 /**
@@ -25,11 +27,22 @@ export const FEED_COPY = {
   NO_NOTES: 'No recent notes from the accounts this identity follows.',
   LOADING: 'Loading the feed…',
   COULDNT_LOAD: "Couldn't load the feed right now.",
+  REPLY_ONLY: 'No top-level notes to show — switch to Notes + Replies to see replies.',
 };
+
+// The two toggle states (feed-usability Story 1 / ADR feed-usability/0001):
+// 'notes' = top-level only (the default view), 'all' = notes + replies (the old view).
+const MODE_OPTIONS = [
+  { key: 'notes', label: 'Notes' },
+  { key: 'all', label: 'Notes + Replies' },
+];
 
 export default function BrainstormFeed() {
   const { user, login, logout } = useAuth();
   const { data, loading, error } = useFeed();
+  // Client-only toggle state — switching re-filters the already-delivered items;
+  // no refetch, no navigation. Not persisted (story: out of scope).
+  const [mode, setMode] = useState('notes');
 
   return (
     <div className="bsp-page">
@@ -45,7 +58,16 @@ export default function BrainstormFeed() {
 
       <div className="bsp-content bsp-feed-content">
         <h1 className="bsp-feed-heading">{FEED_COPY.HEADING}</h1>
-        {renderFeedState({ data, loading, error })}
+        {data?.status === 'OK' && (
+          <SortToggle
+            className="bsp-feed-filter"
+            ariaLabel="Filter notes"
+            options={MODE_OPTIONS}
+            value={mode}
+            onChange={setMode}
+          />
+        )}
+        {renderFeedState({ data, loading, error, mode })}
       </div>
     </div>
   );
@@ -59,7 +81,7 @@ export default function BrainstormFeed() {
  * so it stays a pure function of its args — no fetch, no auth, no router, no
  * browser globals (ADR §Testability #1).
  */
-export function renderFeedState({ data, loading, error }) {
+export function renderFeedState({ data, loading, error, mode }) {
   if (loading && !data) {
     return <div className="bsp-feed-loading">{FEED_COPY.LOADING}</div>;
   }
@@ -82,9 +104,17 @@ export function renderFeedState({ data, loading, error }) {
     return <div className="bsp-empty">{FEED_COPY.NO_NOTES}</div>;
   }
 
-  // status === 'OK' — render the indicator, then one entry per note IN ARRAY ORDER
-  // (already newest-first from the read path; the page does NOT re-sort).
-  const items = data.items || [];
+  // status === 'OK' — filter by the toggle mode, then render the indicator and one
+  // entry per note IN ARRAY ORDER (already newest-first from the read path; the page
+  // does NOT re-sort). 'notes' (the default) drops replies via the item's server-computed
+  // isReply flag; 'all' keeps everything (feed-usability Story 1).
+  const all = data.items || [];
+  const items = mode === 'all' ? all : all.filter(it => !it.isReply);
+  if (all.length > 0 && items.length === 0) {
+    // Everything in the batch is a reply and the toggle is on Notes — an explicit
+    // message, never a blank list (AC-5).
+    return <div className="bsp-empty">{FEED_COPY.REPLY_ONLY}</div>;
+  }
   return (
     <>
       <div className="bsp-feed-indicator">{FEED_COPY.INDICATOR}</div>

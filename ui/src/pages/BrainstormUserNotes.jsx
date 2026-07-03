@@ -4,6 +4,7 @@ import { nip19 } from 'nostr-tools';
 import { useAuth } from '../context/AuthContext';
 import BrainstormUserMenu from '../components/BrainstormUserMenu';
 import NoteCard from '../components/NoteCard';
+import SortToggle from '../components/SortToggle';
 import useUserNotes from '../hooks/useUserNotes';
 
 /**
@@ -23,7 +24,15 @@ export const NOTES_COPY = {
   INDICATOR: 'Showing the most recent 50 notes.',
   EMPTY: 'No kind-1 events could be located for this user.',
   LOADING: 'Loading notes…',
+  REPLY_ONLY: 'No top-level notes to show — switch to Notes + Replies to see replies.',
 };
+
+// The two toggle states (feed-usability Story 1 / ADR feed-usability/0001):
+// 'notes' = top-level only (the default view), 'all' = notes + replies (the old view).
+const MODE_OPTIONS = [
+  { key: 'notes', label: 'Notes' },
+  { key: 'all', label: 'Notes + Replies' },
+];
 
 function shortNpub(pubkey) {
   try { return nip19.npubEncode(pubkey).slice(0, 12) + '…'; }
@@ -34,6 +43,9 @@ export default function BrainstormUserNotes() {
   const { pubkey } = useParams();
   const { user, login, logout } = useAuth();
   const { data, loading, error } = useUserNotes(pubkey, 50);
+  // Client-only toggle state — switching re-filters the already-delivered items;
+  // no refetch, no navigation. Not persisted (story: out of scope).
+  const [mode, setMode] = useState('notes');
 
   // Subject display name for the header — so the page identifies WHOSE notes even when empty
   // (the /api/profiles?pubkeys= convention from BrainstormProfile.jsx). Falls back to a short npub.
@@ -76,7 +88,16 @@ export default function BrainstormUserNotes() {
         </div>
         <div className="bsp-notes-subtitle">{displayName}</div>
 
-        {renderUserNotesState({ data, loading, error })}
+        {data?.status === 'OK' && (
+          <SortToggle
+            className="bsp-notes-filter"
+            ariaLabel="Filter notes"
+            options={MODE_OPTIONS}
+            value={mode}
+            onChange={setMode}
+          />
+        )}
+        {renderUserNotesState({ data, loading, error, mode })}
       </div>
     </div>
   );
@@ -88,7 +109,7 @@ export default function BrainstormUserNotes() {
  * (status EMPTY / a transport failure / an unknown status), and a transient loading line. Never a
  * raw error or a blank surface. Defined last so it stays a pure function of its args.
  */
-export function renderUserNotesState({ data, loading, error }) {
+export function renderUserNotesState({ data, loading, error, mode }) {
   if (loading && !data) {
     return <div className="bsp-feed-loading">{NOTES_COPY.LOADING}</div>;
   }
@@ -99,9 +120,17 @@ export function renderUserNotesState({ data, loading, error }) {
   if (status === 'EMPTY') {
     return <div className="bsp-empty">{NOTES_COPY.EMPTY}</div>;
   }
-  // status === 'OK' — the indicator, then one entry per note IN ARRAY ORDER (already newest-first
-  // from the read path; the page does NOT re-sort).
-  const items = data.items || [];
+  // status === 'OK' — filter by the toggle mode, then the indicator and one entry per
+  // note IN ARRAY ORDER (already newest-first from the read path; the page does NOT
+  // re-sort). 'notes' (the default) drops replies via the item's server-computed isReply
+  // flag; 'all' keeps everything (feed-usability Story 1).
+  const all = data.items || [];
+  const items = mode === 'all' ? all : all.filter(it => !it.isReply);
+  if (all.length > 0 && items.length === 0) {
+    // Everything located is a reply and the toggle is on Notes — an explicit message,
+    // never a blank list (AC-5).
+    return <div className="bsp-empty">{NOTES_COPY.REPLY_ONLY}</div>;
+  }
   return (
     <>
       <div className="bsp-notes-indicator">{NOTES_COPY.INDICATOR}</div>

@@ -5321,6 +5321,32 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   cursor: pointer;
 }
 
+/* ── Feed / user-notes "Notes | Notes + Replies" filter (feed-usability Story 1) ──
+ * Per-page wrappers on the shared SortToggle, mirroring the .bs-tag-sort treatment. */
+.bsp-feed-filter,
+.bsp-notes-filter {
+  margin-bottom: 1rem;
+}
+.bsp-feed-filter .bs-sort-toggle-btn,
+.bsp-notes-filter .bs-sort-toggle-btn {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: var(--text-primary, #e0e0e0);
+  padding: 0.4rem 0.9rem;
+  border-radius: 18px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: background 0.15s, border-color 0.15s;
+}
+.bsp-feed-filter .bs-sort-toggle-btn:hover,
+.bsp-notes-filter .bs-sort-toggle-btn:hover { background: rgba(255,255,255,0.08); }
+.bsp-feed-filter .bs-sort-toggle-btn.is-active,
+.bsp-notes-filter .bs-sort-toggle-btn.is-active {
+  background: rgba(165,180,252,0.15);
+  border-color: rgba(165,180,252,0.4);
+  color: #c7d2fe;
+}
+
 /* ── Authored-tagging section (Story 5 / ADR-0005) ── */
 .bsp-authored {
   margin: 1rem 0 1.25rem;
