@@ -83,6 +83,6 @@ None — default state ("Notes"), the two surfaces, and the flat (non-threaded) 
 were operator-resolved at Planning, 2026-07-03.
 
 ## Linked artifacts
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/feed-usability/0001-notes-replies-toggle.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
