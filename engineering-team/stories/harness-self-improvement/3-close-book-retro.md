@@ -1,7 +1,8 @@
 # Story 3: close-book-retro — every process lesson ends somewhere
 
-**Status:** Draft
+**Status:** Approved
 **Created:** 2026-07-02
+**Approved:** 2026-07-02 (operator, in-session gate — all three recommendations ratified: docs-mode w/ light ADR + no Test Design; 3-column terminal-state table; warn-and-surface preflight)
 **Type:** Feature (docs-mode deliverable — workflow/template/role prose; no runtime code)
 
 ## Background
@@ -45,9 +46,11 @@ Docs-mode adaptation of the Feature path, mirroring the protocol-spec variant: *
 
 ## Open questions
 
-1. **Classification** — ratify the docs-mode adaptation above (skip Test Design; keep a light ADR)? *(Recommend: yes — precedent: task-queue #20 and the protocols-directory stories.)*
-2. **Terminal-state record shape** — a three-column table in the audit's "Process findings" section (finding · source · terminal state + pointer)? *(Recommend: yes — table rows match the house ledger idiom and are greppable by story 5.)*
-3. **Preflight strictness** — warn-and-surface in the human-gated flow (the operator decides whether to rebase first), hard-halt stays Direction-only? *(Recommend: warn-and-surface — the human gate IS the halt mechanism.)*
+*All resolved at the Planning gate (2026-07-02, operator):*
+
+1. **Classification — RESOLVED:** docs-mode adaptation; Test Design skipped; light ADR kept.
+2. **Terminal-state record shape — RESOLVED:** three-column table (finding · source · terminal state + pointer).
+3. **Preflight strictness — RESOLVED:** warn-and-surface in the human-gated flow; hard-halt stays Direction-only.
 
 ## Linked artifacts
 
