@@ -123,6 +123,8 @@ const unifiedTagIndex = require('./unified-tag-index.test.js');
 const eventTaggingNotesByAuthor = require('./event-tagging-notes-by-author.test.js');
 const unifiedTagsDirectory = require('./unified-tags-directory.test.js');
 const profileAuthoredNotesUi = require('./profile-authored-notes-ui.test.js');
+// epic: feed-usability — Story 1 (notes/replies toggle)
+const notesRepliesToggle = require('./notes-replies-toggle.test.js');
 
 async function main() {
   console.log('Running Brainstorm tests...');
@@ -348,6 +350,8 @@ async function main() {
   const unifiedTagsDirectoryResult = await unifiedTagsDirectory.run();
   console.log('\nprofile-authored-notes-ui suite:');
   const profileAuthoredNotesUiResult = await profileAuthoredNotesUi.run();
+  console.log('\nnotes-replies-toggle suite:');
+  const notesRepliesToggleResult = await notesRepliesToggle.run();
 
   console.log('\nTest Results');
   console.log('-------------');
@@ -667,7 +671,8 @@ async function main() {
     unifiedTagIndexResult.fail === 0 &&
     eventTaggingNotesByAuthorResult.fail === 0 &&
     unifiedTagsDirectoryResult.fail === 0 &&
-    profileAuthoredNotesUiResult.fail === 0;
+    profileAuthoredNotesUiResult.fail === 0 &&
+    notesRepliesToggleResult.fail === 0;
   console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);
   process.exit(overallOk ? 0 : 1);
 }
