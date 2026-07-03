@@ -113,6 +113,8 @@ export default function useFeed() {
       });
   }, [loading, loadingMore, exhausted]);
 
-  const data = { status, items, relaySource };
+  // `data` is null until page 1 resolves (status set), so the page's `loading && !data`
+  // gate shows the loading line rather than falling through to the empty state.
+  const data = status == null ? null : { status, items, relaySource };
   return { data, loading, error, loadingMore, exhausted, loadMore };
 }

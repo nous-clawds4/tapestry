@@ -196,6 +196,16 @@ test('H2: useUserNotes accumulates pages via an `until` cursor with loadMore/loa
   hookChecks(safeRead(NOTES_HOOK), 'useUserNotes.js', 'until=\\$\\{');
 });
 
+test('H3: both hooks return data=null until page 1 resolves (so the loading gate `loading && !data` fires, not the empty state)', () => {
+  // Regression guard: the accumulating hooks must NOT hand the page an always-truthy `data`
+  // object before the first response, or the page shows "no notes" instead of the loading line.
+  for (const [p, label] of [[FEED_HOOK, 'useFeed.js'], [NOTES_HOOK, 'useUserNotes.js']]) {
+    const src = safeRead(p);
+    assert(/data\s*=\s*[^;\n]*\bstatus\b[^;\n]*\?\s*null/.test(src),
+      `${label}: the returned \`data\` must be gated to null until page 1 resolves (e.g. \`status == null ? null : { … }\`), so the page's \`loading && !data\` shows the loading line and does not fall through to the empty state.`);
+  }
+});
+
 // ===========================================================================
 // UI — the virtualized render + Footer + truthful indicator (AC "bounded live
 // content", "control appears", "exhaustion", "indicator truthful")
