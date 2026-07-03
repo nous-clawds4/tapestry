@@ -1,6 +1,6 @@
 # Harness Review — Evaluation & Recommendations
 
-**Status:** 🔴 OPEN — recommendations awaiting triage; nothing here has been applied. The quick-win sweep (Appendix A) and the self-improvement loop (§5) are the two actionable units.
+**Status:** 🔴 OPEN — **Appendix A (the mechanical sweep) was executed 2026-07-02 on PR #337** (checkboxes below; one deliberate hold: live-feed epic retirement → OPEN.md row 16). Still open: the §5 recursive self-improvement loop (harness-lint, CHANGELOG, close-book retro, meta escalation, stats), the §4.1 enforcement items (settings.json/hooks R-E1, honesty rewording R-E2, CI test job R-E3 → OPEN.md row 13), and the §4.4 session-start restructure (R-S1–S4). Flip to ✅ when the §5 loop ships.
 **Date:** 2026-07-02
 **Scope:** The full process harness — `CLAUDE.md`, `AGENTS.md`, `BIBLE.md`, `ROADMAP.md`, `OPERATIONS.md`, `OPEN.md`, `engineering-team/`, `product-team/`, `protocols/`, `.claude/` (agents, commands, skills), `scripts/whats-open.sh` — evaluated against ~6 weeks of real usage history (448 commits, 5 books, 57 reviews).
 
@@ -218,21 +218,21 @@ Judging whether a lesson is goalpost-class, drafting harness prose, ratifying ch
 
 ## Appendix A — one-time backfill sweep (checklist)
 
-- [ ] Replace `localhost:8877` in all 39 harness files with "discover per AGENTS.md §1" (fix AGENTS.md §1's template pointer: canonical default is `bin/control-panel.js:109`)
-- [ ] Flip every PASS-reviewed story to `**Status:** Done` (scripted: match reviews ↔ stories per epic)
-- [ ] Retire the 4 main-closed books' epics: Status → Done, `git mv` under `done/` (per README's own rule; verified-muters on staging is the one worked example of the step running)
-- [ ] `/review-changes` command: two-valued verdict enum; add Done-flip + completion-offer lines to its gate block and `templates/review-checklist.md`
-- [ ] Repoint `agents/architect.md`, `tester.md`, `implementer.md` to epic-scoped paths (mirror the 6b3c0bf command edits); fix `roles/architect.md`, `roles/tester.md`, `templates/adr.md`, `templates/test-plan.md` flat paths
-- [ ] `cycle-full` `:8080`→`:7778` (or "per cycle-local"); `cycle-local` `WT=$(git rev-parse --show-toplevel)`; delete session residue from `cycle-staging`
-- [ ] Fix `tests/global-setup.js:16` (e2e gate dark ~a month; fix is specified in the 2026-06-06 handoff)
-- [ ] `whats-open.sh`: worksheet Status-line parsing (W5/W11 false positives); audit §6 scan; product-team greps; branch keep-list → data file
-- [ ] Docs-mode paragraph in `implement-feature`/`review-changes` commands + agents
-- [ ] Strictness table: 0-intake.md becomes normative (fix its Doc row to "Implementer + Reviewer"), CLAUDE.md + product-owner.md link to it
-- [ ] Flip `prd/verified-reporters.md` Status; stamp `stories-queue.md` consumed; sweep the 22 stale `_intake.md` entries with `PICKED UP`/`RESOLVED` markers; document the marker in 0-intake.md
-- [ ] Add dated post-close addendum to `audits/verified-reporters/{audit,prd-addendum}.md` covering story #4; record task-timeline's parked state
-- [ ] Retroactively file a one-paragraph intake note for the Assistant Profile feature (2026-05-24, 4 commits, no provenance)
-- [ ] File OPEN.md rows: test B9 hermeticity gap; OPERATIONS.md four/six-branch reconciliation + ruleset verification; ROADMAP.md refresh
-- [ ] Fix README.md Quickstart's dead `concept-graph` checkout; drop the `~/.pi/` origin pointer
+- [x] Replace `localhost:8877` in all 39 harness files with "discover per AGENTS.md §1" (fix AGENTS.md §1's template pointer: canonical default is `bin/control-panel.js:109`)
+- [x] Flip every PASS-reviewed story to `**Status:** Done` — 22 flipped; task-queue #22 deliberately NOT flipped (final review verdict is CHANGES REQUESTED; superseded by #23).
+- [x] Retire the closed books' epics — **3 of 4 done** (verified-reporters, reputation-info-popup, protocols-directory + retroactive epic file). **live-feed deliberately held:** reviews #3–6 landed post-close with no story files → OPEN.md row 16.
+- [x] `/review-changes` command: two-valued verdict enum; add Done-flip + completion-offer lines to its gate block and `templates/review-checklist.md`
+- [x] Repoint `agents/architect.md`, `tester.md`, `implementer.md` to epic-scoped paths (mirror the 6b3c0bf command edits); fix `roles/architect.md`, `roles/tester.md`, `templates/adr.md`, `templates/test-plan.md` flat paths
+- [x] `cycle-full` `:8080`→`:7778` (or "per cycle-local"); `cycle-local` `WT=$(git rev-parse --show-toplevel)`; delete session residue from `cycle-staging`
+- [x] Fix `tests/global-setup.js:16` (e2e gate dark ~a month; fix is specified in the 2026-06-06 handoff)
+- [x] `whats-open.sh`: worksheet Status-line parsing (W5/W11 false positives); audit §6 scan; product-team greps; branch keep-list → data file
+- [x] Docs-mode paragraph in `implement-feature`/`review-changes` commands + agents
+- [x] Strictness table: 0-intake.md becomes normative (fix its Doc row to "Implementer + Reviewer"), CLAUDE.md + product-owner.md link to it
+- [x] Flip `prd/verified-reporters.md` Status; stamp `stories-queue.md` consumed; sweep the 22 stale `_intake.md` entries with `PICKED UP`/`RESOLVED` markers; document the marker in 0-intake.md
+- [x] Add dated post-close addendum to `audits/verified-reporters/{audit,prd-addendum}.md` covering story #4; record task-timeline's parked state
+- [x] Retroactively file a one-paragraph intake note for the Assistant Profile feature (2026-05-24, 4 commits, no provenance)
+- [x] File OPEN.md rows: test B9 hermeticity gap; OPERATIONS.md four/six-branch reconciliation + ruleset verification; ROADMAP.md refresh
+- [x] Fix README.md Quickstart's dead `concept-graph` checkout; drop the `~/.pi/` origin pointer
 
 ## Appendix B — verified non-problems
 

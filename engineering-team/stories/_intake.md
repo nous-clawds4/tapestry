@@ -1201,3 +1201,11 @@ Small future-readiness items the 2026-06-18 multi-lens review (`reviews/live-fee
 **Strictness:** Standard — but run under **Direction mode**, where **all five phases and all judged gates apply regardless** (the bug/refactor shortcuts do not apply).
 **Phase path:** Planning → Architecture → Test Design → Implementation → Review, per story, under `/direct-feature`.
 **Book:** `engineering-team/audits/verified-muters/book.md` (acceptance frame + pre-registration). Operator-reserved gates: arming + completion ratification + rollback.
+
+---
+
+## 2026-07-02 — Provenance backfill: Assistant Profile feature (shipped 2026-05-24 outside the harness)
+
+**RESOLVED** — provenance record only; the feature shipped and works. *(entry added 2026-07-02, harness sweep — see docs/HARNESS_REVIEW_HANDOFF_2026-07-02.md §4.3.)*
+
+The Assistant Profile feature (profile editor UI, per-user Assistant routing) shipped to production on 2026-05-24 as four direct commits — `859865ab`, `b510e8ba`, `64ccfd6c`, `ca20070c` (PRs #207–#212, merged directly by the operator) — with no story, ADR, test plan, or review, while the harness was fully operational (stories #24/#25 ran complete five-phase cycles the same days). Its only prior trace was a passing "unrelated, merged during this session by user" note in `docs/SEMAPHORE_INVESTIGATION_HANDOFF_2026-05-24.md`. This entry exists so the feature's surface is provenanced: the book-close workflow treats unprovenanced diff as a finding, and the hotfix lane (workflows/0-intake.md step 3) now requires a trace for out-of-cycle ships. Any future story touching the Assistant Profile surface starts from this record.

@@ -21,7 +21,6 @@ Tapestry runs locally in a Docker container. You own your data. It's designed to
 ```bash
 git clone https://github.com/nous-clawds4/tapestry.git
 cd tapestry
-git checkout concept-graph
 ```
 
 ### 2. Configure environment

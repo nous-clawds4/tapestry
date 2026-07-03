@@ -45,3 +45,12 @@ Engineering's read — input, not decision:
 1. **Personalized-PoV membership priority:** is per-viewer list membership the next phase, or do report-type breakdown / pile-on resistance come first? — options: PoV-first / granularity-first.
 2. **House-view labeling:** is "Relative to the House (default) web of trust…" the right standing copy for logged-in users with a personal network (until personalized membership ships), or should the page suppress the list for them rather than show a House view? — options: show House + label / gate behind personalized PoV.
 3. **Count vs list-length expectation:** ratify "consistent in steady state at House PoV" (not real-time-identical to the profile badge) as the product's stated guarantee. — options: ratify / require real-time parity (would force the count off Meili onto a live query).
+
+---
+
+## Post-close addendum — 2026-07-02
+
+*Appended during the harness-review sweep. The addendum above was written at book close (2026-06-07); one delta landed afterwards.*
+
+- **Story #4 shipped post-close (2026-06-15, prod):** per-row **Report Type** (NIP-56 kind) and **Reported** (timestamp) columns on the `/reporters` list. This partially delivers PRD Phase 2 ("report-type breakdown") — row-level granularity shipped; filtering/grouping/aggregate breakdown remain open scope for the next phase.
+- The §5 open questions above remain unconsumed by a product-team cycle as of 2026-07-02.

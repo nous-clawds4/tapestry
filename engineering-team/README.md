@@ -48,6 +48,7 @@ The Claude Code wiring lives elsewhere:
 | Implement a story that has tests | `/implement-feature` |
 | Review a diff before commit | `/review-changes` |
 | Close a finished book of work — audit + product feedback | `/close-book` |
+| Direct a pre-registered Direction-mode book autonomously | `/direct-feature` (requires an **armed** `book.md` Direction section) |
 
 `/discuss` defaults to the **Product Expert** — a read-only thinking partner who knows the domain, stack, and existing decisions. Use `as <role> <topic>` for a different lens, or `roundtable <topic>` for multi-perspective.
 
@@ -102,4 +103,4 @@ Edit role files in `roles/` to change how each role behaves. Edit workflow files
 
 Pattern adapted from Rob Conery's *Eliminate Crappy Slop Code* (https://bigmachine.io/articles/video/eliminate-crappy-slop-code/) and the broader "agentic Scrum" idea: structural guardrails matter more than model intelligence for output quality.
 
-This is a Claude Code adaptation of the pi harness documented at `~/.pi/engineering-team-mode.md`.
+This began as a Claude Code adaptation of an earlier local "pi harness" experiment (historical; no longer available as a reference).
