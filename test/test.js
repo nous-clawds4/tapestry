@@ -110,6 +110,7 @@ const openRankingSearch = require('./open-ranking-search.test.js');
 const verifiedMutersReadApi = require('./verified-muters-read-api.test.js');
 const verifiedMutersProfileSurface = require('./verified-muters-profile-surface.test.js');
 const harnessLint = require('./harness-lint.test.js');
+const harnessStats = require('./harness-stats.test.js');
 
 async function main() {
   console.log('Running Brainstorm tests...');
@@ -311,6 +312,9 @@ async function main() {
 
   console.log('\nharness-lint suite:');
   const harnessLintResult = await harnessLint.run();
+
+  console.log('\nharness-stats suite:');
+  const harnessStatsResult = await harnessStats.run();
 
   console.log('\nTest Results');
   console.log('-------------');
@@ -534,6 +538,9 @@ async function main() {
   console.log(
     `harness-lint suite:                              ${harnessLintResult.fail === 0 ? 'PASS' : 'FAIL'} (${harnessLintResult.pass} passed, ${harnessLintResult.fail} failed)`
   );
+  console.log(
+    `harness-stats suite:                             ${harnessStatsResult.fail === 0 ? 'PASS' : 'FAIL'} (${harnessStatsResult.pass} passed, ${harnessStatsResult.fail} failed)`
+  );
 
   const overallOk =
     configOk &&
@@ -621,7 +628,8 @@ async function main() {
     openRankingSearchResult.fail === 0 &&
     verifiedMutersReadApiResult.fail === 0 &&
     verifiedMutersProfileSurfaceResult.fail === 0 &&
-    harnessLintResult.fail === 0;
+    harnessLintResult.fail === 0 &&
+    harnessStatsResult.fail === 0;
   console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);
   process.exit(overallOk ? 0 : 1);
 }
