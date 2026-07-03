@@ -5321,6 +5321,31 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   cursor: pointer;
 }
 
+/* ── Feed / user-notes "Load more" pagination footer (feed-usability Story 2) ── */
+.bsp-loadmore-wrap {
+  display: flex;
+  justify-content: center;
+  padding: 1rem 0 1.5rem;
+}
+.bsp-loadmore {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: var(--text-primary, #e0e0e0);
+  padding: 0.5rem 1.4rem;
+  border-radius: 18px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background 0.15s, border-color 0.15s;
+}
+.bsp-loadmore:hover:not(:disabled) { background: rgba(255,255,255,0.08); }
+.bsp-loadmore:disabled { opacity: 0.5; cursor: default; }
+.bsp-loadmore-end {
+  text-align: center;
+  padding: 1rem 0 1.5rem;
+  opacity: 0.6;
+  font-size: 0.85rem;
+}
+
 /* ── Feed / user-notes "Notes | Notes + Replies" filter (feed-usability Story 1) ──
  * Per-page wrappers on the shared SortToggle, mirroring the .bs-tag-sort treatment. */
 .bsp-feed-filter,
