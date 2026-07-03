@@ -1,8 +1,9 @@
 # Story 1: harness-lint — the harness checks its own invariants
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-07-02
 **Approved:** 2026-07-02 (operator, in-session gate)
+**Done:** 2026-07-02 (review PASS — `reviews/harness-self-improvement/1-harness-lint.md`)
 **Type:** Feature
 
 ## Background
@@ -63,4 +64,4 @@ None — this story is harness tooling only. No concept-graph handles, no firmwa
 
 - ADR: `engineering-team/decisions/harness-self-improvement/0001-harness-lint.md` (Accepted 2026-07-02)
 - Test plan: (filled in after Test Design phase)
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/harness-self-improvement/1-harness-lint.md` (PASS, 2026-07-02)
