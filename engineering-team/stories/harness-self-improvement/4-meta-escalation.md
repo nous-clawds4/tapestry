@@ -1,7 +1,8 @@
 # Story 4: meta-escalation — the capture inbox can't silt up
 
-**Status:** Draft
+**Status:** Approved
 **Created:** 2026-07-02
+**Approved:** 2026-07-02 (operator, in-session gate — approved as drafted incl. all three recommendations + the classification note)
 **Type:** Feature (script section + ledger/command/CLAUDE.md prose)
 
 ## Background
@@ -41,9 +42,11 @@ Feature; **Test Design skipped** per whats-open precedent (display/roll-up logic
 
 ## Open questions
 
-1. **Which signals count** — OPEN.md `meta` rows **plus** un-marked intake `Meta:` entries (the five-week intake item is the motivating casualty), or OPEN.md rows only? *(Recommend: both.)*
-2. **Banner placement** — top of the whats-open report (a pre-pass computes the condition before sections print), or inside the meta section only? *(Recommend: top — the review's design says "at the top of the report"; a buried escalation defeats itself.)*
-3. **Age source** — parse the ISO date from the row's Opened column (already conventionally `YYYY-MM-DD (context)`), skipping rows with no parseable date rather than guessing? *(Recommend: yes — same skip-don't-guess rule the worksheet parser uses.)*
+*All resolved at the Planning gate (2026-07-02, operator):*
+
+1. **Which signals count — RESOLVED:** both OPEN.md `meta` rows and un-marked intake `Meta:` entries.
+2. **Banner placement — RESOLVED:** top of the report, via a pre-pass.
+3. **Age source — RESOLVED:** first ISO date in the Opened column; skip-don't-guess on unparseable rows.
 
 ## Linked artifacts
 
