@@ -1,7 +1,8 @@
 # Story 5: harness-stats — the retro runs on measurement, not anecdote
 
-**Status:** Draft
+**Status:** Approved
 **Created:** 2026-07-02
+**Approved:** 2026-07-02 (operator, in-session gate — approved as drafted incl. all three recommendations)
 **Type:** Feature
 
 ## Background
@@ -37,9 +38,11 @@ None — harness tooling only. (Stack not required.)
 
 ## Open questions
 
-1. **Verdict-parser sharing mechanism** — extract the last-token awk into a small shared file (e.g., `scripts/lib/review-verdict.awk`) consumed by both harness-lint and harness-stats, vs duplicating it? *(Recommend: extract — the book's single-source principle applied to its own tooling; the parser is ~10 lines and already operator-ratified.)*
-2. **Cycle-time matching heuristic** — match phase commits to stories via the conventional message patterns (`(… #<n>…)` / epic-slug + number mentions), honest coverage line for the rest? *(Recommend: yes — an honest 70% beats a silent 100%.)*
-3. **Classification** — full cycle *including* Test Design (unlike stories 3–4, this is parseable logic with real edge cases worth fixtures)? *(Recommend: yes — keep Test Design.)*
+*All resolved at the Planning gate (2026-07-02, operator):*
+
+1. **Verdict-parser sharing — RESOLVED:** extract to a shared file consumed by both scripts.
+2. **Cycle-time matching — RESOLVED:** conventional-pattern matching with an honest coverage line.
+3. **Classification — RESOLVED:** full cycle including Test Design.
 
 ## Linked artifacts
 
