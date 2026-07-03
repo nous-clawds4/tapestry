@@ -94,6 +94,6 @@ and the numeric bound are the Architect's to choose; the bound's existence and t
 restored-on-return behavior are the product requirements.
 
 ## Linked artifacts
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/feed-usability/0002-feed-pagination.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
