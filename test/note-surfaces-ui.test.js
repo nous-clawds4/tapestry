@@ -177,8 +177,10 @@ test('U11 (#3 AC order): the OK branch maps items in ARRAY ORDER (newest-first f
   assert(src.length > 0, 'BrainstormUserNotes.jsx does not exist yet.');
   const body = helperBody(src, ['renderUserNotesState']);
   assert(/status\s*===?\s*['"]OK['"]/.test(body), "the body helper must branch on status === 'OK' (the populated list).");
-  assert(/\bitems\b[\s\S]{0,40}\.map\s*\(/.test(body) || /\.map\s*\(\s*\(?\s*(it|item|n)\b/.test(body),
-    'the OK branch must render one entry per note via items.map(...) (#3 AC: one entry per note).');
+  // feed-usability/0002 virtualized the notes list: one entry per note via items.map(...) OR
+  // react-virtuoso's itemContent (windowed) — both satisfy "one entry per note".
+  assert(/\bitems\b[\s\S]{0,40}\.map\s*\(/.test(body) || /\.map\s*\(\s*\(?\s*(it|item|n)\b/.test(body) || /itemContent=\{/.test(body),
+    'the OK branch must render one entry per note — via items.map(...) or a virtualized <Virtuoso itemContent> (#3 AC / ADR feed-usability/0002).');
   assert(!/\bitems\b[\s\S]{0,8}\.sort\s*\(/.test(body) && !/\.sort\s*\([\s\S]{0,40}createdAt/.test(src),
     'the page must render items in the array order the read path delivered (already newest-first); it must NOT re-sort (re-derivation; ADR §No re-derivation).');
 });

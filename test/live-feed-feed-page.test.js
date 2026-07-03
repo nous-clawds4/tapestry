@@ -106,11 +106,14 @@ test('T2: exports the exact heading copy "Live Feed" (AC-2 heading)', () => {
     'FEED_COPY.HEADING must be exactly "Live Feed" — the populated-feed heading (AC-2).');
 });
 
-test('T3: exports the exact recent-window indicator "Showing the most recent 50 notes." (AC-2 indicator)', () => {
+test('T3: shows a populated-feed indicator (feed-usability/0002: now a truthful COUNT, not the fixed "most recent 50")', () => {
   const src = safeRead(PAGE);
   assert(src.length > 0, 'BrainstormFeed.jsx does not exist yet.');
-  assert(/INDICATOR\s*:\s*['"]Showing the most recent 50 notes\.['"]/.test(src),
-    'FEED_COPY.INDICATOR must be exactly "Showing the most recent 50 notes." — the recent-window indicator the page shows on the populated feed (AC-2). The number 50 is the read path\'s FEED_CAP.');
+  // ADR feed-usability/0002 replaced the fixed "Showing the most recent 50 notes." with a
+  // truthful, count-derived indicator (pagination loads past 50; the toggle filters). We
+  // pin that the indicator element exists; its exact wording is owned by feed-pagination.test.js.
+  assert(/bsp-feed-indicator/.test(src),
+    'BrainstormFeed.jsx must render the populated-feed indicator (bsp-feed-indicator). Its truthful count wording is asserted by the feed-pagination suite (ADR feed-usability/0002).');
 });
 
 test('T4: the OK branch renders the indicator then maps items in ARRAY ORDER without re-sorting (AC-2 order)', () => {
@@ -119,8 +122,10 @@ test('T4: the OK branch renders the indicator then maps items in ARRAY ORDER wit
   const body = bodyHelper(src);
   assert(/status\s*===?\s*['"]OK['"]/.test(body),
     "the body helper must branch on status === 'OK' (the populated feed). Absent pre-implementation.");
-  assert(/\bitems\b[\s\S]{0,40}\.map\s*\(/.test(body) || /\.map\s*\(\s*(\(?\s*item)/.test(body),
-    'the OK branch must render one entry per note via items.map(...) (AC-2: one entry per note).');
+  // feed-usability/0002 virtualized the list: the OK branch renders one entry per note via
+  // items.map(...) OR react-virtuoso's itemContent (windowed) — both are "one entry per note".
+  assert(/\bitems\b[\s\S]{0,40}\.map\s*\(/.test(body) || /\.map\s*\(\s*(\(?\s*item)/.test(body) || /itemContent=\{/.test(body),
+    'the OK branch must render one entry per note — via items.map(...) or a virtualized <Virtuoso itemContent> (ADR feed-usability/0002).');
   // The read path already delivers items newest-first (FEED_CAP, created_at desc); the page must
   // NOT re-sort — re-sorting would be re-derivation (ADR §No re-derivation) and could break order.
   assert(!/\bitems\b[\s\S]{0,8}\.sort\s*\(/.test(body) && !/\.sort\s*\([\s\S]{0,40}createdAt/.test(src),

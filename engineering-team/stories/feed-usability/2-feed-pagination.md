@@ -95,5 +95,5 @@ restored-on-return behavior are the product requirements.
 
 ## Linked artifacts
 - ADR: `engineering-team/decisions/feed-usability/0002-feed-pagination.md`
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/feed-usability/2-feed-pagination.test-plan.md`
 - Review: (filled in after Review phase)
