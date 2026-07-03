@@ -1,6 +1,6 @@
 # Epic: Open Ranking (ORE) provider
 
-**Status:** Active
+**Status:** Done (epic retired 2026-07-02 — OPEN.md row 17 disposition, ratified at the harness-self-improvement story-1 Review gate)
 **Book:** `engineering-team/audits/open-ranking/book.md` (acceptance-frame, standard gated mode)
 **Provenance:** Operator request 2026-06-18 ("implement ORE-01 on staging") + same-day scoping conversation. No `_intake.md` entry — greenfield. ORE has zero prior mention in this repo.
 

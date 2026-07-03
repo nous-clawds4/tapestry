@@ -3,8 +3,5 @@
 # A waiver matching nothing prints STALE-WAIVER — remove or update it then.
 L4	engineering-team/reviews/live-feed/[3-6]-*.md	OPEN.md row 16 — post-close reviews without stories; disposition pending
 L2	engineering-team/epics/live-feed.md	OPEN.md row 16 — retirement held until the post-close reviews are dispositioned
-L2	engineering-team/epics/event-page.md	OPEN.md row 17 — book Closed, retirement pending disposition (story 1 Review gate)
-L2	engineering-team/epics/note-surfaces.md	OPEN.md row 17 — book Closed, retirement pending disposition (story 1 Review gate)
-L2	engineering-team/epics/open-ranking.md	OPEN.md row 17 — book Closed, retirement pending disposition (story 1 Review gate)
 L1	engineering-team/stories/task-queue-scheduler/22-generalized-task-scheduler.md	review 22's addendum supersedes its PASS for prod promotion (S5 unmet; superseded by #23 / ADR 0020) — the last-token verdict rule misreads its "**PASS stands** ... cannot pass" phrasing; story correctly not Done
 L5	.claude/skills/cycle-local/SKILL.md	cycle-local owns the local base-URL constant :7778 (discovery documented in AGENTS.md §1); other files must point here, not restate it
