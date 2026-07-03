@@ -45,6 +45,10 @@ export default function useUserNotes(pubkey, limit) {
     const controller = new AbortController();
     setLoading(true); setError(null); setExhausted(false);
     setStatus(null); setItems([]);
+    // Also clear loadingMore: a pubkey change mid-"Load more" leaves the prior fetch's
+    // finally guarded out (stale seq), so without this the new profile's button would stay
+    // stuck on the disabled "Loading…" state.
+    setLoadingMore(false);
     idsRef.current = new Set();
     cursorRef.current = null;
     inFlightRef.current = false;
