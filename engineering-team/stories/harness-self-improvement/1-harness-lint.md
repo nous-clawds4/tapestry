@@ -1,7 +1,8 @@
 # Story 1: harness-lint — the harness checks its own invariants
 
-**Status:** Draft
+**Status:** Approved
 **Created:** 2026-07-02
+**Approved:** 2026-07-02 (operator, in-session gate)
 **Type:** Feature
 
 ## Background
@@ -46,8 +47,10 @@ None — this story is harness tooling only. No concept-graph handles, no firmwa
 
 ## Open questions
 
-1. **L1 verdict parsing:** reviews express the final verdict as prose ("**PASS.**", "### Final verdict", "Revised verdict — … CHANGES REQUESTED"). Proposed rule for the Architect to ratify: *the last verdict-shaped line in the file wins* (the sweep used the same rule and it matched all 57 reviews, including #22's PASS-then-CHANGES_REQUESTED history). Alternative: require a machine-readable `**Verdict:**` line going forward and grandfather old reviews via waiver.
-2. **L9 threshold:** 14 days proposed; or drop the manual headers entirely (the review's alternative) and delete the check — Architect's call.
+*Both resolved at the Planning gate (2026-07-02, operator):*
+
+1. **L1 verdict parsing — RESOLVED:** *the last verdict-shaped line in the file wins.* (Validated against all 57 existing reviews during the Appendix A sweep, including #22's PASS-then-CHANGES_REQUESTED history.)
+2. **L9 threshold — RESOLVED:** keep the check, 14-day threshold. (Deleting the manual headers is a BIBLE/OPERATIONS edit outside this story.)
 
 ## Linked artifacts
 
