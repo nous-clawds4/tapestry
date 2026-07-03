@@ -90,5 +90,5 @@ honest empty state; their activity remains one click away on the notes page).
 
 ## Linked artifacts
 - ADR: `engineering-team/decisions/feed-usability/0003-profile-content-card.md`
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/feed-usability/3-profile-content-card.test-plan.md`
 - Review: (filled in after Review phase)
