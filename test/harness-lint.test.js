@@ -57,7 +57,27 @@ function cleanFiles() {
     'AGENTS.md': 'Discover the port here. Use `localhost:$TAPESTRY_PORT`.\n',
     'engineering-team/README.md': 'See [roles/reviewer.md](roles/reviewer.md).\n',
     'product-team/README.md': 'Product side.\n',
+    // story 2 (ADR 0002): the ratified-change record + the shared def-path set.
+    // The single fixture commit touches def paths AND the changelog, so L10 is
+    // satisfied by construction for every story-1 fixture.
+    'engineering-team/CHANGELOG.md':
+      '# Harness Changelog\n\n| Date | Change | Why | Origin |\n|---|---|---|---|\n| 2026-07-02 | fixture seed | test | fixture |\n',
+    'scripts/harness-def-paths.txt':
+      '# harness-definition paths (fixture)\nengineering-team/roles\n.claude/commands\nengineering-team/CHANGELOG.md\nscripts/harness-def-paths.txt\n',
   };
+}
+
+/** Add a follow-up commit to an existing fixture (for L10's latest-commit checks). */
+function addCommit(dir, files, msg = 'follow-up') {
+  for (const [rel, content] of Object.entries(files)) {
+    const p = path.join(dir, rel);
+    fs.mkdirSync(path.dirname(p), { recursive: true });
+    fs.writeFileSync(p, content);
+  }
+  execSync(
+    `git add -A && git -c user.email=fixture@test -c user.name=fixture commit -qm '${msg}'`,
+    { cwd: dir, shell: '/bin/bash' }
+  );
 }
 
 function makeFixture(files, { git = true } = {}) {
@@ -240,6 +260,74 @@ test('a waiver that matches nothing is flagged STALE-WAIVER (non-fatal)', () => 
   const { code, out } = lint(dir);
   assert.strictEqual(code, 0, out);
   assert.match(out, /STALE-WAIVER .*999-nothing/, out);
+});
+
+test('L10: the latest commit touching a def path without touching the CHANGELOG is a violation', () => {
+  const dir = withClean({});
+  addCommit(dir, {
+    'engineering-team/roles/reviewer.md':
+      'Verdict: **PASS** or **CHANGES_REQUESTED**. Amended rule.\n',
+  }, 'harness change without changelog');
+  const { code, out } = lint(dir);
+  assert.strictEqual(code, 1, out);
+  assert.match(out, /VIOLATION L10 commit:[0-9a-f]+/, out);
+});
+
+test('L10 is quiet when the same commit touches both the def path and the CHANGELOG', () => {
+  const dir = withClean({});
+  addCommit(dir, {
+    'engineering-team/roles/reviewer.md':
+      'Verdict: **PASS** or **CHANGES_REQUESTED**. Amended rule.\n',
+    'engineering-team/CHANGELOG.md':
+      '# Harness Changelog\n\n| Date | Change | Why | Origin |\n|---|---|---|---|\n| 2026-07-02 | fixture seed | test | fixture |\n| 2026-07-02 | amended rule | test | fixture |\n',
+  }, 'harness change with changelog row');
+  const { code, out } = lint(dir);
+  assert.strictEqual(code, 0, out);
+  assert.doesNotMatch(out, /VIOLATION L10/, out);
+});
+
+test('L10: a missing CHANGELOG.md (while def paths exist) is itself a violation', () => {
+  const files = { ...cleanFiles() };
+  delete files['engineering-team/CHANGELOG.md'];
+  const { code, out } = lint(makeFixture(files));
+  assert.strictEqual(code, 1, out);
+  assert.match(out, /VIOLATION L10 engineering-team\/CHANGELOG\.md/, out);
+});
+
+test('L10 waiver: a commit:<sha> waiver suppresses the violation visibly', () => {
+  const dir = withClean({
+    'scripts/harness-lint-waivers.txt':
+      'L10\tcommit:*\tOPEN.md row 99 (test) — historical commit predates the convention\n',
+  });
+  addCommit(dir, {
+    'engineering-team/roles/reviewer.md':
+      'Verdict: **PASS** or **CHANGES_REQUESTED**. Amended rule.\n',
+  }, 'harness change without changelog');
+  const { code, out } = lint(dir);
+  assert.strictEqual(code, 0, out);
+  assert.match(out, /WAIVED L10 commit:[0-9a-f]+/, out);
+});
+
+test('L10 is skipped silently when the tree has no git history', () => {
+  const files = { ...cleanFiles() };
+  delete files['engineering-team/CHANGELOG.md'];   // would violate if checked
+  const { code, out } = lint(makeFixture(files, { git: false }));
+  assert.strictEqual(code, 0, out);
+  assert.doesNotMatch(out, /VIOLATION L10/, out);
+});
+
+test('L10 reports INFO and skips when the def-paths data file is missing', () => {
+  const files = { ...cleanFiles() };
+  delete files['scripts/harness-def-paths.txt'];
+  const dir = makeFixture(files);
+  addCommit(dir, {
+    'engineering-team/roles/reviewer.md':
+      'Verdict: **PASS** or **CHANGES_REQUESTED**. Amended rule.\n',
+  }, 'harness change, no def-path file');
+  const { code, out } = lint(dir);
+  assert.strictEqual(code, 0, out);
+  assert.match(out, /INFO .*harness-def-paths/, out);
+  assert.doesNotMatch(out, /VIOLATION L10/, out);
 });
 
 test('the script needs no network or stack: it succeeds with no env beyond PATH/HOME', () => {
