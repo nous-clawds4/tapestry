@@ -1,8 +1,9 @@
 # Story 4: meta-escalation — the capture inbox can't silt up
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-07-02
 **Approved:** 2026-07-02 (operator, in-session gate — approved as drafted incl. all three recommendations + the classification note)
+**Done:** 2026-07-02 (review PASS — `reviews/harness-self-improvement/4-meta-escalation.md`)
 **Type:** Feature (script section + ledger/command/CLAUDE.md prose)
 
 ## Background
@@ -52,4 +53,4 @@ Feature; **Test Design skipped** per whats-open precedent (display/roll-up logic
 
 - ADR: `engineering-team/decisions/harness-self-improvement/0004-meta-escalation.md` (Accepted 2026-07-02)
 - Test plan: n/a — reviewer-run verification (see Classification note)
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/harness-self-improvement/4-meta-escalation.md` (PASS, 2026-07-02)
