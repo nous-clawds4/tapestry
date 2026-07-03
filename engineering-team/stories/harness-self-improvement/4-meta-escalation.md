@@ -50,6 +50,6 @@ Feature; **Test Design skipped** per whats-open precedent (display/roll-up logic
 
 ## Linked artifacts
 
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/harness-self-improvement/0004-meta-escalation.md` (Accepted 2026-07-02)
 - Test plan: n/a — reviewer-run verification (see Classification note)
 - Review: (filled in after Review phase)

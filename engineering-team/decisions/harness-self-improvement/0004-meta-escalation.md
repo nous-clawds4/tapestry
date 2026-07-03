@@ -1,6 +1,6 @@
 # ADR 0004: meta-escalation — one pre-pass in whats-open, banner before sections, judgment stays in the command
 
-**Status:** Proposed
+**Status:** Accepted (gate passed 2026-07-02, operator — Option A)
 **Date:** 2026-07-02
 **Story:** `engineering-team/stories/harness-self-improvement/4-meta-escalation.md`
 
