@@ -99,6 +99,8 @@ Each phase has a corresponding **subagent** in `.claude/agents/`. Subagents run 
 
 Edit role files in `roles/` to change how each role behaves. Edit workflow files in `workflows/` to change phase rules. The slash commands and subagents in `.claude/` only orchestrate — the source of truth for behavior is in this directory.
 
+**Every harness change is a recorded event.** A diff touching the harness-definition paths (the single list lives in [`scripts/harness-def-paths.txt`](../scripts/harness-def-paths.txt) — roles, workflows, templates, wiring, orientation docs, harness scripts) also adds a row to [`CHANGELOG.md`](./CHANGELOG.md): date, change, why, and **origin** (the incident/ledger row/journal entry/review finding that prompted it). One row per logical change, appended at the bottom. `scripts/harness-lint.sh` (check L10) flags forgotten rows at session start, and `/whats-open` shows any session which harness changes its branch predates — so process changes are announced, auditable obligations instead of silent ones.
+
 ## Origin
 
 Pattern adapted from Rob Conery's *Eliminate Crappy Slop Code* (https://bigmachine.io/articles/video/eliminate-crappy-slop-code/) and the broader "agentic Scrum" idea: structural guardrails matter more than model intelligence for output quality.

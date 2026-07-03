@@ -130,6 +130,34 @@ for f in engineering-team/audits/*/prd-addendum.md; do
 done
 [ "$any" = 0 ] && echo "  (nothing pending on the product side)"
 
+hr "Harness definition changes since your branch diverged"
+# Commits on the shared line (origin/staging, else origin/main) touching the
+# harness-definition paths (scripts/harness-def-paths.txt) that this branch's
+# merge-base predates — new obligations to read before relying on stale rules.
+if [ -f scripts/harness-def-paths.txt ]; then
+  def_paths=()
+  while IFS= read -r p; do
+    case "$p" in \#*|"") continue ;; esac
+    def_paths+=("$p")
+  done < scripts/harness-def-paths.txt
+  shared_ref=""
+  git rev-parse --verify -q origin/staging >/dev/null 2>&1 && shared_ref="origin/staging"
+  [ -z "$shared_ref" ] && git rev-parse --verify -q origin/main >/dev/null 2>&1 && shared_ref="origin/main"
+  if [ -n "$shared_ref" ] && base=$(git merge-base HEAD "$shared_ref" 2>/dev/null); then
+    changes=$(git log --oneline "$base".."$shared_ref" -- "${def_paths[@]}" 2>/dev/null | head -15)
+    if [ -n "$changes" ]; then
+      echo "$changes" | sed 's/^/  /'
+      echo "  → read engineering-team/CHANGELOG.md for what changed and why"
+    else
+      echo "  (none — your branch has current harness definitions)"
+    fi
+  else
+    echo "  (no shared-line remote ref — skipped)"
+  fi
+else
+  echo "  (scripts/harness-def-paths.txt not found — skipped)"
+fi
+
 hr "Harness invariants — scripts/harness-lint.sh"
 if [ -f scripts/harness-lint.sh ]; then
   # Informational here (the roll-up always exits 0); run the script directly

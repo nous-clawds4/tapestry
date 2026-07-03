@@ -18,6 +18,10 @@
 #   L7 verdict-enum      verdict-bearing files use PASS | CHANGES_REQUESTED only
 #   L8 dead-links        relative markdown links in wiring/orientation docs resolve
 #   L9 stale-headers     hand-maintained "Last updated:" within 14 days of git
+#   L10 changelog-touch  latest commit touching harness-definition paths (per
+#                        scripts/harness-def-paths.txt) also touches
+#                        engineering-team/CHANGELOG.md; a missing CHANGELOG is
+#                        itself a violation; waiver shape: commit:<short-sha>
 #
 # Review verdicts (L1/L4): the LAST verdict-shaped token in the file wins —
 # a token is PASS or CHANGES_REQUESTED appearing on a heading line or inside
@@ -228,6 +232,31 @@ check_L9() {
   done
 }
 
+# ---------- L10: harness-definition commits carry a CHANGELOG row ----------
+DEF_PATHS_FILE="scripts/harness-def-paths.txt"
+CHANGELOG="engineering-team/CHANGELOG.md"
+check_L10() {
+  git rev-parse --git-dir >/dev/null 2>&1 || return 0   # fixture tolerance, as L9
+  if [ ! -f "$DEF_PATHS_FILE" ]; then
+    echo "INFO $DEF_PATHS_FILE missing — L10 (changelog-touch) skipped; the convention isn't adopted in this tree"
+    return 0
+  fi
+  local def_paths=() p latest
+  while IFS= read -r p; do
+    case "$p" in \#*|"") continue ;; esac
+    [ -e "$p" ] && def_paths+=("$p")
+  done < "$DEF_PATHS_FILE"
+  [ "${#def_paths[@]}" -gt 0 ] || return 0
+  if [ ! -f "$CHANGELOG" ]; then
+    violation L10 "$CHANGELOG" "harness-definition paths exist but the changelog is missing (the touch-rule can't be satisfied)"
+    return 0
+  fi
+  latest=$(git log -1 --no-merges --format=%h -- "${def_paths[@]}" 2>/dev/null)
+  [ -n "$latest" ] || return 0
+  git show --name-only --format= "$latest" 2>/dev/null | grep -qx "$CHANGELOG" \
+    || violation L10 "commit:$latest" "latest harness-definition commit ($(git show -s --format=%s "$latest" | cut -c1-60)…) did not touch $CHANGELOG — add the row (one per logical change)"
+}
+
 # ---------- run ----------
 check_reviews
 check_L2
@@ -236,6 +265,7 @@ check_L5_L6
 check_L7
 check_L8
 check_L9
+check_L10
 
 # stale waivers — visible, non-fatal (same bash-3.2 empty-array guard as violation())
 if [ "${#W_IDS[@]}" -gt 0 ]; then
