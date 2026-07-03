@@ -38,4 +38,4 @@ A file at `engineering-team/stories/<epic-slug>/<n>-<slug>.md` using `engineerin
 - Don't propose adding lint or typecheck infrastructure — this project is intentionally without those gates.
 
 ## Strictness
-This project is **Standard**. Under Standard, every change gets a story *unless* it's a typo, doc fix, or one-line bugfix — those can fast-track to Implementer + Reviewer.
+This project is **Standard**. Under Standard, every change gets a story *unless* it's a typo, doc fix, or one-line bugfix — those can fast-track to Implementer + Reviewer. The normative strictness table lives in `engineering-team/workflows/0-intake.md` step 3.
