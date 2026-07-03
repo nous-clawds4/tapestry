@@ -14,6 +14,7 @@ Human-ratified. Engineering **offers** to close; the human's "yes" is the invoca
 - The anchor: the PRD §sections, or the acceptance frame.
 - All stories / ADRs / reviews under the book's epics, plus their incremental `## Deviations` logs.
 - The book diff: `git diff <base>..<head>` across the book's epics.
+- **For the post-mortem (step 7):** the book's `journal.md` (Direction-mode books), the "Harness friction" sections of the book's reviews, and the book's OPEN.md `meta` rows.
 
 ## Output
 Two artifacts under `engineering-team/audits/<book-slug>/`:
@@ -31,10 +32,11 @@ Both are **engineering-authored and live under `engineering-team/`.** The produc
 4. **Build the deviation log.** For each gap between anchor and as-built: Specified / Built / Type / Rationale (sourced) / Product impact / Carry-forward.
 5. **Write the Build Audit** (`audit.md`).
 6. **Write the feedback doc** (addendum or seed) — promote deviations and the carry-forward register into product-facing framing. Recommendations are *input*, not decisions.
-7. **Run the gate** at close: `npm test`; record the result in the audit.
-8. **Flip the book to Closed.** Set `**Status:** Closed`, fill the close-artifact links and confidence in `book.md`.
-9. **Sweep loose ends to `OPEN.md`.** Any small / cross-cutting follow-up this book leaves that has no other home — a one-off cleanup, a "does BIBLE need a note?" decision, a branch to delete — gets a row in the root [`OPEN.md`](../../OPEN.md) ledger so it isn't lost. (Larger deferred scope already lives in the audit's §6 carry-forward; link it, don't duplicate it.)
-10. **Gate:** "Book closed. Audit + {addendum|seed} written to `audits/<book-slug>/`. Ready for the product team to scope the next phase. Anything to correct?"
+7. **Post-mortem / harness retro.** *(This is "the post-mortem" the Director role routes proposed amendments to.)* Harvest every process note, harness-friction line, and proposed amendment from the step-7 inputs (journal.md, review "Harness friction" sections, the book's `meta` rows) plus the Implementer `## Deviations` entries that are process- rather than product-shaped. For **each** finding, record in the audit's §7 table exactly one terminal state — **operator-ratified harness commit (SHA) · OPEN.md `meta` row (#) · declined (reason)** — **no fourth state**: a lesson with no recorded disposition is a step-7 failure, not an option. Ask per finding: *does this port to the other flow (Direction ↔ human-gated)?* Cite `scripts/harness-stats.sh` output when available, so the retro runs on measurement rather than anecdote. Ratification is the operator's; this step only forces the decision to happen.
+8. **Run the gate** at close: `npm test`; record the result in the audit.
+9. **Flip the book to Closed.** Set `**Status:** Closed`, fill the close-artifact links and confidence in `book.md`.
+10. **Sweep loose ends to `OPEN.md`.** Any small / cross-cutting follow-up this book leaves that has no other home — a one-off cleanup, a "does BIBLE need a note?" decision, a branch to delete — gets a row in the root [`OPEN.md`](../../OPEN.md) ledger so it isn't lost. (Larger deferred scope already lives in the audit's §6 carry-forward; link it, don't duplicate it. Harness lessons were already dispositioned in step 7 — don't re-sweep them here.)
+11. **Gate:** "Book closed. Audit + {addendum|seed} written to `audits/<book-slug>/`. Retro dispositions recorded in audit §7. Ready for the product team to scope the next phase. Anything to correct?"
 
 ## Per-phase commit
 Commit the audit, feedback doc, updated `book.md`, and any `OPEN.md` ledger rows together: `git add engineering-team/audits/<book-slug> OPEN.md && git commit -m "book-close: <book-slug>"`.

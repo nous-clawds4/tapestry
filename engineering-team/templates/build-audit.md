@@ -45,3 +45,10 @@ The heart of the audit. Every place the built product differs from the anchor (P
 The consolidated list of everything the next phase should consider — deferred scope, new debt, opened questions. This is the bridge into the addendum/seed.
 
 - [ ] <item> (from §4 #<n> / story #<n> Open questions)
+
+## 7. Process findings (harness)
+The post-mortem/retro record (`workflows/6-book-close.md` step 7 holds the rule): every process lesson this book surfaced — journal notes, review "Harness friction" lines, proposed amendments, process-shaped deviations — with exactly one terminal state each. **No fourth state.**
+
+| Finding | Source (journal / review / deviation / meta row) | Terminal state (commit `<sha>` · OPEN.md row <n> · declined: <reason>) |
+|---|---|---|
+| <what surfaced> | <pointer> | <one of the three, with pointer> |

@@ -13,6 +13,7 @@ ADRs are **enabled** for this project.
 
 ## Steps
 
+0. **Origin-drift preflight.** `git fetch origin staging` (quietly; tolerate offline). If the working base is behind `origin/staging` (else `origin/main`), surface the behind-count and ask whether to rebase/re-branch before designing against stale code — **warn-and-surface**; the hard halt stays Direction-only. *Why: an ADR designed against a stale base collides with shipped decisions (story #24 / ADR 0019 incident, intake 2026-05-24).*
 1. **Read the story.** Quote the acceptance criteria back.
 2. **Orient via the Concept Graph.** For any concept named in the story, call `/api/concept-graph/summaries` then `/neighbors` for the relevant handles before reading source files.
 3. **Read the relevant code.** Identify which modules will change.

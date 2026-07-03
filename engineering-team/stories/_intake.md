@@ -451,6 +451,8 @@ Also flagged: `algos/graperank/commands/generate.js` spawns `calculatePersonaliz
 
 ## 2026-05-24 — Meta: origin-sync check at PO + Architect phase entry
 
+**PICKED UP** 2026-07-02 → `engineering-team/stories/harness-self-improvement/3-close-book-retro.md` (origin-drift preflight now step 0 of workflows 1–2; warn-and-surface, hard halt stays Direction-only). *(Open 5+ weeks while Direction Stage-0 independently implemented the same check — cited by the harness review as the propagation-gap case study.)*
+
 **Surfaced during:** the 2026-05-24 session start. A chip was spawned proposing this same idea (a pre-flight check that verifies the local branch is in sync with origin before any PO or Architect work begins). The chip was never picked up. Filed here as a proper intake so the work doesn't depend on the chip persisting.
 
 **Background:** during the work-up to story #25, the session started on a branch (`main`) that was *behind* `origin/staging`. The drift wasn't caught until pushing time, costing a small but real debugging cycle. This is a recurring class of bug at session boundaries when the operator switches between machines / branches across sessions.

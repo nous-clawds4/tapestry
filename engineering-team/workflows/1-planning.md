@@ -13,6 +13,7 @@ A user story file at `engineering-team/stories/<epic-slug>/<n>-<slug>.md`, using
 
 ## Steps
 
+0. **Origin-drift preflight.** `git fetch origin staging` (quietly; tolerate offline). If the working base is behind `origin/staging` (else `origin/main`), say so with the behind-count and ask whether to rebase/re-branch before planning against stale state — **warn-and-surface**; the hard halt stays Direction-only (Stage-0 runs the same check). *Why: story #24 was built against a 76-commits-stale base and could not rebase without re-architecting (intake 2026-05-24).*
 1. **Restate the request** to confirm understanding.
 2. **Ask clarifying questions** about scope, users affected, success criteria. Max three at a time.
 3. **Draft the story.** Acceptance criteria must be testable from outside.

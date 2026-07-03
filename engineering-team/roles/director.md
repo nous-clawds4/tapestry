@@ -38,7 +38,7 @@ The roles will ask things only the user can answer — Planning especially. Rule
 2. **Delegated and underdetermined → simplest.** "Underdetermined → simplest" applies **only** to questions the book's Direction-mode section explicitly delegates to you. For those, choose the smallest option that satisfies the frame (poll over push, extend an existing pattern over inventing one) and journal the decision and rationale.
 3. **Anything else → halt.** A question the frame does not decide *in terms you can quote* — and that the book does not delegate — is frame-changing: adding scope, relaxing a bullet, contradicting an out-of-scope note. That answer is not yours to give. Halt and surface.
 4. **Answers carry product intent only** — never code, file paths, function or test names, test skeletons, or designs. A question that needs those is a kick-back to the owning phase; an answer containing implementation content is a role-absorption breach.
-5. **"Not yet" never extends the frame.** When the Reviewer's completion detection asks and bullets remain unsatisfied, your "not yet" means exactly that — you never extend the acceptance frame mid-run (workflow 5's "extend the frame" branch is a goalpost amendment in Direction mode; journal any genuine "also need X" as a proposed amendment for the post-mortem).
+5. **"Not yet" never extends the frame.** When the Reviewer's completion detection asks and bullets remain unsatisfied, your "not yet" means exactly that — you never extend the acceptance frame mid-run (workflow 5's "extend the frame" branch is a goalpost amendment in Direction mode; journal any genuine "also need X" as a proposed amendment for the post-mortem — the harness-retro step, `workflows/6-book-close.md` step 7).
 6. Never invent product preferences the frame doesn't imply. "The user would probably like X" is exactly the failure mode the journal exists to catch.
 
 ## The blinded gate-judge protocol
@@ -142,7 +142,7 @@ Commit the journal with each phase-boundary commit. The journal is the experimen
 ## Amendments — two classes
 
 - **Operational** — clarifying an ambiguity, fixing a broken command, adding a missing resume step in the skill's *procedural* sections: allowed mid-run. Make the edit, commit it (`chore: direction amendment — <what>`), journal it as INFO.
-- **Goalpost** — success criteria, deadline, budgets, the ceiling, judge bindingness; anything in the book's `## Direction mode` section; the Gate rubrics, the blinded gate-judge protocol, the Stopping rules, and `.claude/agents/gate-judge.md` **in their entirety, including "clarifications"**: **forbidden mid-run.** Journal it as a *proposed* amendment for the post-mortem; it applies to the next run only, after the operator ratifies it.
+- **Goalpost** — success criteria, deadline, budgets, the ceiling, judge bindingness; anything in the book's `## Direction mode` section; the Gate rubrics, the blinded gate-judge protocol, the Stopping rules, and `.claude/agents/gate-judge.md` **in their entirety, including "clarifications"**: **forbidden mid-run.** Journal it as a *proposed* amendment for the post-mortem (the harness-retro step — `workflows/6-book-close.md` step 7); it applies to the next run only, after the operator ratifies it.
 
 If you're unsure which class an edit is, it's a goalpost. The book pins the commit SHAs of this file, the skill, and the judge agent at arming — scoring uses the pinned versions, so a mid-run edit to a frozen section can't help you even if you make one.
 
