@@ -1,6 +1,6 @@
 # ADR 0001: harness-lint — a bash sibling of whats-open.sh with per-invariant checks, visible waivers, and fixture-driven tests
 
-**Status:** Proposed
+**Status:** Accepted (gate passed 2026-07-02, operator)
 **Date:** 2026-07-02
 **Story:** `engineering-team/stories/harness-self-improvement/1-harness-lint.md`
 

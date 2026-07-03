@@ -54,6 +54,6 @@ None — this story is harness tooling only. No concept-graph handles, no firmwa
 
 ## Linked artifacts
 
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/harness-self-improvement/0001-harness-lint.md` (Accepted 2026-07-02)
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
