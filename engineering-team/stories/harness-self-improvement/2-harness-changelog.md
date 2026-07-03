@@ -1,7 +1,8 @@
 # Story 2: harness-changelog — every harness change has a recorded origin
 
-**Status:** Draft
+**Status:** Approved
 **Created:** 2026-07-02
+**Approved:** 2026-07-02 (operator, in-session gate — all three recommendations ratified)
 **Type:** Feature
 
 ## Background
@@ -36,9 +37,11 @@ None — harness tooling and docs only. No concept-graph handles, no firmware, n
 
 ## Open questions
 
-1. **Row granularity** — proposed: one row per logical change (a migration, a rule, a mode, a sweep), listing its commit(s); not one row per commit. *(Recommend: yes.)*
-2. **Divergence base for the whats-open notice** — proposed: merge-base with `origin/staging` (the shared integration line), falling back to `origin/main` when staging is absent. *(Recommend: yes.)*
-3. **L10 scope** — proposed v1: check the **latest** commit that touched harness-definition paths (cheap, catches drift by the next session start); the stricter "every commit since the last CHANGELOG touch" variant is a future tightening if latest-only proves gameable. *(Recommend: latest-only.)*
+*All resolved at the Planning gate (2026-07-02, operator):*
+
+1. **Row granularity — RESOLVED:** one row per logical change, listing its commit(s).
+2. **Divergence base — RESOLVED:** merge-base with `origin/staging`, falling back to `origin/main`.
+3. **L10 scope — RESOLVED:** latest harness-touching commit only (v1); stricter variant is a future tightening.
 
 ## Linked artifacts
 
