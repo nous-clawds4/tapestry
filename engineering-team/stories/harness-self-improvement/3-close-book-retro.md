@@ -54,6 +54,6 @@ Docs-mode adaptation of the Feature path, mirroring the protocol-spec variant: *
 
 ## Linked artifacts
 
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/harness-self-improvement/0003-close-book-retro.md` (Accepted 2026-07-02)
 - Test plan: n/a — docs-mode (see Classification note)
 - Review: (filled in after Review phase)

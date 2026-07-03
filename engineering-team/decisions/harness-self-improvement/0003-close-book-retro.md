@@ -1,6 +1,6 @@
 # ADR 0003: close-book-retro — the post-mortem as a numbered book-close step, an audit §7, and pointer-only mirrors
 
-**Status:** Proposed
+**Status:** Accepted (gate passed 2026-07-02, operator — Option A)
 **Date:** 2026-07-02
 **Story:** `engineering-team/stories/harness-self-improvement/3-close-book-retro.md`
 
