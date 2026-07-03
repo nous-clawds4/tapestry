@@ -46,6 +46,6 @@ None — harness tooling only. (Stack not required.)
 
 ## Linked artifacts
 
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/harness-self-improvement/0005-harness-stats.md` (Accepted 2026-07-02)
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)

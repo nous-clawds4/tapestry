@@ -1,6 +1,6 @@
 # ADR 0005: harness-stats — a shared verdict library, slug-based story matching, and an always-zero exit
 
-**Status:** Proposed
+**Status:** Accepted (gate passed 2026-07-02, operator — Option A)
 **Date:** 2026-07-02
 **Story:** `engineering-team/stories/harness-self-improvement/5-harness-stats.md`
 
