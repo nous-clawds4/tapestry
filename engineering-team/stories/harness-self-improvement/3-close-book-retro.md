@@ -1,8 +1,9 @@
 # Story 3: close-book-retro — every process lesson ends somewhere
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-07-02
 **Approved:** 2026-07-02 (operator, in-session gate — all three recommendations ratified: docs-mode w/ light ADR + no Test Design; 3-column terminal-state table; warn-and-surface preflight)
+**Done:** 2026-07-02 (review PASS — `reviews/harness-self-improvement/3-close-book-retro.md`)
 **Type:** Feature (docs-mode deliverable — workflow/template/role prose; no runtime code)
 
 ## Background
@@ -56,4 +57,4 @@ Docs-mode adaptation of the Feature path, mirroring the protocol-spec variant: *
 
 - ADR: `engineering-team/decisions/harness-self-improvement/0003-close-book-retro.md` (Accepted 2026-07-02)
 - Test plan: n/a — docs-mode (see Classification note)
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/harness-self-improvement/3-close-book-retro.md` (PASS, 2026-07-02)
