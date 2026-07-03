@@ -89,6 +89,6 @@ reply (rationale: a context-free reply fragment misrepresents the user more than
 honest empty state; their activity remains one click away on the notes page).
 
 ## Linked artifacts
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/feed-usability/0003-profile-content-card.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
