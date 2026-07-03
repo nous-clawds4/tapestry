@@ -56,13 +56,17 @@ fi
 
 violation() { # <id> <path> <msg>
   local id="$1" p="$2" msg="$3" i
-  for i in "${!W_IDS[@]}"; do
-    if [ "${W_IDS[$i]}" = "$id" ] && [[ "$p" == ${W_GLOBS[$i]} ]]; then
-      W_USED[$i]=1
-      echo "WAIVED $id $p (${W_CITES[$i]})"
-      return
-    fi
-  done
+  # ${!arr[@]} on an EMPTY array trips `set -u` on bash < 4.4 (macOS ships 3.2),
+  # so guard on the length, which is safe everywhere.
+  if [ "${#W_IDS[@]}" -gt 0 ]; then
+    for i in "${!W_IDS[@]}"; do
+      if [ "${W_IDS[$i]}" = "$id" ] && [[ "$p" == ${W_GLOBS[$i]} ]]; then
+        W_USED[$i]=1
+        echo "WAIVED $id $p (${W_CITES[$i]})"
+        return
+      fi
+    done
+  fi
   echo "VIOLATION $id $p — $msg"
   violations=$((violations + 1))
 }
@@ -233,11 +237,13 @@ check_L7
 check_L8
 check_L9
 
-# stale waivers — visible, non-fatal
-for i in "${!W_IDS[@]}"; do
-  [ "${W_USED[$i]}" = 0 ] \
-    && echo "STALE-WAIVER ${W_IDS[$i]} ${W_GLOBS[$i]} (${W_CITES[$i]}) — matches nothing; remove or update"
-done
+# stale waivers — visible, non-fatal (same bash-3.2 empty-array guard as violation())
+if [ "${#W_IDS[@]}" -gt 0 ]; then
+  for i in "${!W_IDS[@]}"; do
+    [ "${W_USED[$i]}" = 0 ] \
+      && echo "STALE-WAIVER ${W_IDS[$i]} ${W_GLOBS[$i]} (${W_CITES[$i]}) — matches nothing; remove or update"
+  done
+fi
 
 if [ "$violations" -eq 0 ]; then
   echo "harness-lint: clean (0 violations)"
