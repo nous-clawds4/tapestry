@@ -11,8 +11,10 @@ The control panel API runs on a port set by `CONTROL_PANEL_PORT` in `/etc/brains
 ```bash
 # Preferred — the running config
 grep -E '^export CONTROL_PANEL_PORT=' /etc/brainstorm.conf 2>/dev/null \
-  || grep -E '^export CONTROL_PANEL_PORT=' config/brainstorm.conf.template
+  || grep -E 'CONTROL_PANEL_PORT' bin/control-panel.js   # code default: 7778
 ```
+
+(`config/brainstorm.conf.template` does not set `CONTROL_PANEL_PORT`; the code default lives in `bin/control-panel.js`.)
 
 Set it as an env var for the rest of the session so the examples below work:
 

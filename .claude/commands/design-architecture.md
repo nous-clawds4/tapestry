@@ -15,7 +15,7 @@ You are entering **Phase 2: Architecture** of the Tapestry engineering team harn
 **Input:** The approved story file at `engineering-team/stories/<epic-slug>/<n>-<slug>.md`. If the user did not name one, list the stories with `Status: Approved` and ask which to design.
 
 **House rules:**
-- Concept Graph: orient via `http://localhost:8877/api/concept-graph/summaries` per [AGENTS.md](AGENTS.md) before reading source. If the local stack is not running, ask the user whether to bring it up before proceeding — concept-graph lookups are how this project surfaces existing concept handles for cross-referencing.
+- Concept Graph: orient via `http://localhost:$TAPESTRY_PORT/api/concept-graph/summaries` per [AGENTS.md](AGENTS.md) before reading source. If the local stack is not running, ask the user whether to bring it up before proceeding — concept-graph lookups are how this project surfaces existing concept handles for cross-referencing.
 - Do not add lint/typecheck infrastructure (per [CLAUDE.md](CLAUDE.md) — this project is intentionally JS-without-build).
 - Reference existing concepts/files by path with line numbers when relevant.
 

@@ -23,7 +23,7 @@ You are the Implementer for Tapestry. Phase: Implementation.
 5. Run `npm test` again. Must be green.
 6. (Lint/typecheck/build are not configured for this project — skip those gates unless the ADR introduced them.)
 
-**If you change concept definitions in firmware**, run `curl -X POST http://localhost:8877/api/firmware/install` after editing.
+**If you change concept definitions in firmware**, run `curl -X POST http://localhost:$TAPESTRY_PORT/api/firmware/install` after editing (discover `$TAPESTRY_PORT` per AGENTS.md §1; if the stack isn't running, record the pending reinstall in OPEN.md instead).
 
 **If you find yourself needing to break the ADR**, stop. Surface it to the user. The Architect needs to amend the ADR before you continue. Don't just "make it work" outside the design.
 

@@ -33,7 +33,7 @@ A file at `engineering-team/stories/<epic-slug>/<n>-<slug>.md` using `engineerin
 5. **Save the file** and explicitly hand off: "Story saved to `<path>`. Run `/design-architecture` when you're ready."
 
 ## House rules
-- The Concept Graph API at `http://localhost:8877` is the authoritative source for domain concepts. When a story references a concept, name it by handle if you know it (kind:pubkey:slug).
+- The Concept Graph API at `http://localhost:$TAPESTRY_PORT` (port per AGENTS.md §1) is the authoritative source for domain concepts. When a story references a concept, name it by handle if you know it (kind:pubkey:slug).
 - Stories should reference existing concepts in the graph where applicable rather than re-defining them.
 - Don't propose adding lint or typecheck infrastructure — this project is intentionally without those gates.
 

@@ -16,7 +16,7 @@ Tester. See `engineering-team/roles/tester.md`.
 
 1. **Map every acceptance criterion to at least one test.** If a criterion can't be tested, push back to PO/Architect.
 2. **Decide test levels.**
-   - Concept-graph behavior → integration tests against the live API at `localhost:8877`.
+   - Concept-graph behavior → integration tests against the live API at `localhost:$TAPESTRY_PORT` (port per AGENTS.md §1) when the stack is running; otherwise dependency-injected tests (the pattern recent stories actually use), with skipped live suites noted in the plan.
    - Pure functions/utilities → unit tests in `test/`.
    - Browser/UI flows → Playwright tests via `playwright.config.js`.
 3. **Use the project's testing approach:** Node's built-in runner + Playwright. No new test frameworks without an ADR.

@@ -13,7 +13,7 @@ Explore the problem space through structured conversation. Draw out the user's u
 
 ## Your inputs
 - The user's free-form description of what they want, in whatever form they have it.
-- For products built on Tapestry: the Concept Graph API at `localhost:8877` and the ecosystem context (Nostr, Web of Trust) if relevant. Use WebSearch to ground a claim about the competitive landscape.
+- For products built on Tapestry: the Concept Graph API at `localhost:$TAPESTRY_PORT` (port per AGENTS.md §1) and the ecosystem context (Nostr, Web of Trust) if relevant. Use WebSearch to ground a claim about the competitive landscape.
 
 ## Your output
 A discovery brief at `product-team/discoveries/<slug>.md`, using `product-team/templates/discovery-brief.md`. **You choose the product slug here** — kebab-case, short, memorable. Every later phase reuses it. Confirm the slug with the user before saving.

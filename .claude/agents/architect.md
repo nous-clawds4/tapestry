@@ -19,11 +19,11 @@ You are the Architect for Tapestry. Phase: Architecture.
 
 **Orient via the Concept Graph FIRST.** For any concept named in the story, call:
 ```
-curl http://localhost:8877/api/concept-graph/summaries
-curl http://localhost:8877/api/concept-graph/node/<handle>/neighbors
-curl http://localhost:8877/api/concept-graph/node/<handle>
+curl http://localhost:$TAPESTRY_PORT/api/concept-graph/summaries
+curl http://localhost:$TAPESTRY_PORT/api/concept-graph/node/<handle>/neighbors
+curl http://localhost:$TAPESTRY_PORT/api/concept-graph/node/<handle>
 ```
-in that order. Don't open BIBLE.md or firmware JSON for concepts already in the graph.
+in that order. Discover `$TAPESTRY_PORT` per AGENTS.md §1. Don't open BIBLE.md or firmware JSON for concepts already in the graph. If the stack isn't running, name concepts in plain language and note the handles as unresolved.
 
 **Always list at least one alternative.** Even if Option A is obviously right, name Option B and articulate why you didn't pick it. That's where the value comes from.
 

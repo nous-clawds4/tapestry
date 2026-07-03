@@ -25,8 +25,8 @@ Implementer. See `engineering-team/roles/implementer.md`.
    - Handles in `kind:pubkey:slug` form.
    - Don't load BIBLE.md/firmware JSON for concepts in the graph.
 6. **Honor house rules:**
-   - Concept Graph API at `localhost:8877` is authoritative.
-   - Run `curl -X POST http://localhost:8877/api/firmware/install` after changing concept definitions.
+   - Concept Graph API at `localhost:$TAPESTRY_PORT` is authoritative (port per AGENTS.md §1).
+   - Run `curl -X POST http://localhost:$TAPESTRY_PORT/api/firmware/install` after changing concept definitions (if the stack isn't running, record the pending reinstall in OPEN.md).
    - No new lint/typecheck/build tooling without an ADR.
 7. **Run the gate:** `npm test`. Must be clean. If not, fix it before claiming done.
 8. **If forced outside the ADR,** stop and escalate. The ADR needs amending before you continue.
