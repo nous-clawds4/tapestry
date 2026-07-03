@@ -20,6 +20,7 @@ Run **`/whats-open`** (or `bash scripts/whats-open.sh`) for the unified roll-up 
 - Flip **Status** to `DONE` (don't delete) when handled — the closed rows are the audit trail.
 - **Type:** `bug` · `feature` · `protocol` · `docs` · `cleanup` · `meta`.
 - **Opened / Done:** ISO date + the session/book/PR that raised or resolved it.
+- **Meta escalation:** `meta` rows are harness lessons (a doc that misled a session, a process defect, a proposed amendment). `/whats-open` lists them with their age and — at the thresholds the script defines (any item aged past ~a month, or several open at once) — prints an escalation banner: at triage, group the related items and **propose a concrete harness story** (title + the items it closes) rather than letting the inbox silt up. See `.claude/commands/whats-open.md` step 2.
 
 ## Items
 

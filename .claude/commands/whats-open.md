@@ -14,6 +14,7 @@ You are producing a **unified "what's still open" report** across the whole repo
 
 2. Add the judgment the script can't:
    - **Triage the intake heuristic.** The script flags intake entries lacking a done-marker, but some are partially done or stale. Open `engineering-team/stories/_intake.md` for any that look ambiguous and say what's actually open.
+   - **Escalate meta items.** The script lists open harness lessons (`meta` rows + un-marked intake `Meta:` entries) with ages, and banners when they cluster (≥3) or age (>30d). Your half is the judgment: group the *related* ones, and when the banner fires — or ≥3 items are related even without it — **propose a concrete harness story** (title + the items it would close) at the top of your report, instead of re-listing the items.
    - **Cross-reference.** If an `OPEN.md` ledger row or an open book is already covered by a handoff or PR, note it once, not twice.
    - **Flag stale.** Anything whose context implies it should already be closed (e.g. a handoff whose verification window has long passed) — call it out as "review status."
 

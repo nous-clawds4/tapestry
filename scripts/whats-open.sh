@@ -15,11 +15,62 @@ REPO="nous-clawds4/tapestry"
 KEEPLIST="scripts/long-lived-branches.txt"
 hr() { printf '\n──────── %s ────────\n' "$1"; }
 
+# ---------- meta escalation pre-pass (ADR harness-self-improvement/0004) ----------
+# Collect open harness lessons ONCE, before any section prints: the top banner
+# and the "Meta items" section both consume this. The thresholds (>30d age, ≥3
+# open items) live HERE only — OPEN.md's rule text quotes them, never restates.
+# Escalation is advisory by construction: it never affects an exit code.
+META_LINES=""
+META_COUNT=0
+META_MAX_AGE=0
+collect_meta() {
+  local row opened age heading
+  if [ -f OPEN.md ]; then
+    while IFS= read -r row; do
+      opened=$(printf '%s' "$row" | awk -F'|' '{print $5}' | grep -oE '20[0-9]{2}-[0-9]{2}-[0-9]{2}' | head -1)
+      age="?"
+      if [ -n "$opened" ] && date -d "$opened" +%s >/dev/null 2>&1; then
+        age=$(( ( $(date +%s) - $(date -d "$opened" +%s) ) / 86400 ))
+        [ "$age" -gt "$META_MAX_AGE" ] && META_MAX_AGE=$age
+      fi
+      META_COUNT=$((META_COUNT + 1))
+      META_LINES="${META_LINES}  [${age}d] $(printf '%s' "$row" | cut -c1-150)"$'\n'
+    done < <(grep -E '^\|' OPEN.md | awk -F'|' '$3 ~ /meta/ && $6 ~ /OPEN/')
+  fi
+  # Un-marked intake "Meta:" entries count too (the 5-week origin-sync item is
+  # the motivating casualty); age from the ISO date in the heading itself.
+  while IFS= read -r heading; do
+    opened=$(printf '%s' "$heading" | grep -oE '20[0-9]{2}-[0-9]{2}-[0-9]{2}' | head -1)
+    age="?"
+    if [ -n "$opened" ] && date -d "$opened" +%s >/dev/null 2>&1; then
+      age=$(( ( $(date +%s) - $(date -d "$opened" +%s) ) / 86400 ))
+      [ "$age" -gt "$META_MAX_AGE" ] && META_MAX_AGE=$age
+    fi
+    META_COUNT=$((META_COUNT + 1))
+    META_LINES="${META_LINES}  [${age}d] intake: ${heading#  }"$'\n'
+  done < <(awk '
+    /^## 20[0-9][0-9]-/ { if (h != "" && !d) print "  " h; h=$0; d=0 }
+    /PICKED UP|RESOLVED/ { d=1 }
+    END { if (h != "" && !d) print "  " h }
+  ' engineering-team/stories/_intake.md 2>/dev/null | grep '— Meta:')
+}
+collect_meta
+if [ "$META_COUNT" -ge 3 ] || [ "$META_MAX_AGE" -gt 30 ]; then
+  printf '\n⚠ META ESCALATION — %s open harness lesson(s), oldest %sd (trigger: ≥3 open or >30d): propose a harness story at triage — group related items, name the story, list what it closes. See OPEN.md § "How to use this ledger".\n' "$META_COUNT" "$META_MAX_AGE"
+fi
+
 hr "OPEN.md ledger — small / cross-cutting items (the homeless ones)"
 if [ -f OPEN.md ]; then
   grep -E '^\|' OPEN.md | grep -iE '\|[[:space:]]*OPEN[[:space:]]*\|' || echo "  (no OPEN rows in the ledger)"
 else
   echo "  (OPEN.md not found)"
+fi
+
+hr "Meta items (harness lessons) — escalates at ≥3 open or >30d"
+if [ "$META_COUNT" -gt 0 ]; then
+  printf '%s' "$META_LINES"
+else
+  echo "  (none open — the inbox is clear)"
 fi
 
 hr "🔴 OPEN handoffs — docs/*HANDOFF*.md"
