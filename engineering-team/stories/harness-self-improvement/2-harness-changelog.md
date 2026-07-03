@@ -45,6 +45,6 @@ None — harness tooling and docs only. No concept-graph handles, no firmware, n
 
 ## Linked artifacts
 
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/harness-self-improvement/0002-harness-changelog.md` (Accepted 2026-07-02)
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)

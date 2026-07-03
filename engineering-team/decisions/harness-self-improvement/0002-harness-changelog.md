@@ -1,6 +1,6 @@
 # ADR 0002: harness-changelog — an append-only origin log, a shared path-set data file, and lint check L10
 
-**Status:** Proposed
+**Status:** Accepted (gate passed 2026-07-02, operator)
 **Date:** 2026-07-02
 **Story:** `engineering-team/stories/harness-self-improvement/2-harness-changelog.md`
 
