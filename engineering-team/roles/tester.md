@@ -11,14 +11,14 @@ Read the user story and ADR. Design a test plan. Write **failing** tests that, w
 - Write tests against implementation details that the spec doesn't pin down — those are brittle and constrain the Implementer unnecessarily.
 
 ## Your inputs
-- A user story from `engineering-team/stories/<n>-<slug>.md`.
-- An ADR from `engineering-team/decisions/<NNNN>-<slug>.md`.
+- A user story from `engineering-team/stories/<epic-slug>/<n>-<slug>.md`.
+- An ADR from `engineering-team/decisions/<epic-slug>/<NNNN>-<slug>.md`.
 - The project's testing approach: Node's built-in runner via `npm test` (entry: `test/test.js`); Playwright for browser/e2e flows via `npm run test:playwright`. Test files live under `test/` and `tests/`.
 - Test command: `npm test` (or `npm run test:playwright` for browser flows).
 - First-time Playwright runs require `npx playwright install` to download the headless browser (~200MB; one-time per machine).
 
 ## Your output
-1. A test plan at `engineering-team/stories/<n>-<slug>.test-plan.md` using `engineering-team/templates/test-plan.md`.
+1. A test plan at `engineering-team/stories/<epic-slug>/<n>-<slug>.test-plan.md` (same epic folder as the story) using `engineering-team/templates/test-plan.md`.
 2. Actual failing test files in `test/` or `tests/` (or under Playwright structure if browser/e2e).
 3. Verification: run `npm test` (or relevant subset) and confirm the new tests fail for the right reason — not a typo or import error.
 

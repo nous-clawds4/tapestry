@@ -1,7 +1,7 @@
 # Test Plan: Story <n> — <title>
 
-**Story:** `engineering-team/stories/<n>-<slug>.md`
-**ADR:** `engineering-team/decisions/<NNNN>-<slug>.md`
+**Story:** `engineering-team/stories/<epic-slug>/<n>-<slug>.md`
+**ADR:** `engineering-team/decisions/<epic-slug>/<NNNN>-<slug>.md`
 **Date:** <DATE>
 
 ## Coverage map
