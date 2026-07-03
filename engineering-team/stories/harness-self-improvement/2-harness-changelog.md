@@ -1,8 +1,9 @@
 # Story 2: harness-changelog — every harness change has a recorded origin
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-07-02
 **Approved:** 2026-07-02 (operator, in-session gate — all three recommendations ratified)
+**Done:** 2026-07-02 (review PASS — `reviews/harness-self-improvement/2-harness-changelog.md`)
 **Type:** Feature
 
 ## Background
@@ -47,4 +48,4 @@ None — harness tooling and docs only. No concept-graph handles, no firmware, n
 
 - ADR: `engineering-team/decisions/harness-self-improvement/0002-harness-changelog.md` (Accepted 2026-07-02)
 - Test plan: `engineering-team/stories/harness-self-improvement/2-harness-changelog.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/harness-self-improvement/2-harness-changelog.md` (PASS, 2026-07-02)
