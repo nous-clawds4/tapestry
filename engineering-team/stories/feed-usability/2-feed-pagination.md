@@ -1,6 +1,6 @@
 # Story 2: "Load more" pagination on the feed surfaces
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-07-03
 **Type:** Feature
 
@@ -96,4 +96,4 @@ restored-on-return behavior are the product requirements.
 ## Linked artifacts
 - ADR: `engineering-team/decisions/feed-usability/0002-feed-pagination.md`
 - Test plan: `engineering-team/stories/feed-usability/2-feed-pagination.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/feed-usability/1-2-toggle-and-pagination.md` (PASS — 2026-07-03)

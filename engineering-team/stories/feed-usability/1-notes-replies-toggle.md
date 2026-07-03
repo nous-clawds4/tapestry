@@ -1,6 +1,6 @@
 # Story 1: "Notes" | "Notes + Replies" toggle on the feed surfaces
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-07-03
 **Type:** Feature
 
@@ -85,4 +85,4 @@ were operator-resolved at Planning, 2026-07-03.
 ## Linked artifacts
 - ADR: `engineering-team/decisions/feed-usability/0001-notes-replies-toggle.md`
 - Test plan: `engineering-team/stories/feed-usability/1-notes-replies-toggle.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/feed-usability/1-2-toggle-and-pagination.md` (PASS — 2026-07-03)
