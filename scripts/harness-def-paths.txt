@@ -28,6 +28,8 @@ product-team/guardrails
 .claude/skills
 scripts/whats-open.sh
 scripts/harness-lint.sh
+scripts/harness-stats.sh
+scripts/lib
 scripts/harness-lint-waivers.txt
 scripts/harness-def-paths.txt
 scripts/long-lived-branches.txt

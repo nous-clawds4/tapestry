@@ -77,17 +77,12 @@ violation() { # <id> <path> <msg>
 
 # ---------- L1 + L4: reviews vs stories ----------
 # Final verdict = last PASS / CHANGES_REQUESTED token on a heading or bold line.
+# The rule lives ONCE in scripts/lib/review-verdict.awk (shared with
+# harness-stats.sh — ADR 0005); resolved relative to THIS script's location so
+# fixture working directories can't break the lookup.
+VERDICT_LIB="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/review-verdict.awk"
 review_verdict() { # <file> -> PASS | CR | NONE
-  awk '
-    /^#/ || /\*\*/ {
-      line = $0
-      while (match(line, /CHANGES[ _]?REQUESTED|PASS/)) {
-        v = (substr(line, RSTART, 2) == "PA") ? "PASS" : "CR"
-        line = substr(line, RSTART + RLENGTH)
-      }
-    }
-    END { print (v == "") ? "NONE" : v }
-  ' "$1"
+  awk -f "$VERDICT_LIB" "$1"
 }
 
 check_reviews() {
