@@ -1,7 +1,8 @@
 # Story 7: session-start-restructure — orientation that fits in the window
 
-**Status:** Draft
+**Status:** Approved
 **Created:** 2026-07-04
+**Approved:** 2026-07-04 (operator, in-session gate — approved incl. all three recommendations)
 **Type:** Feature
 
 ## Background
@@ -37,9 +38,11 @@ None — orientation/wiring only. (Stack not required; the ladder exists precise
 
 ## Open questions
 
-1. **Cap semantics:** exact post-restructure line counts as the caps (R-S4's letter — "capped at their current sizes"), or small headroom (e.g., +5%)? *Recommendation: exact counts — headroom is how budgets erode; a future story that needs a line must free a line.*
-2. **Onboarding location:** rewrite README.md's Quickstart in place as the one-page path, or add `docs/ONBOARDING.md`? *Recommendation: in place — the review's own critic flagged surface proliferation; a broken Quickstart fixed is better than a new doc beside a broken Quickstart.*
-3. **Orientation-card placement:** in CLAUDE.md's pointer table region, or as the top of AGENTS.md's ladder? *Recommendation: AGENTS.md — the card is the stack-absent branch of orientation, which is the ladder's job; CLAUDE.md should shrink, not trade one block for another.*
+*All resolved at the Planning gate (2026-07-04, operator — recommendations ratified):*
+
+1. **Cap semantics — RESOLVED:** exact post-restructure line counts; no headroom. A future story that needs a line must free a line.
+2. **Onboarding location — RESOLVED:** README.md Quickstart rewritten in place; no new doc.
+3. **Orientation-card placement — RESOLVED:** AGENTS.md, as the stack-absent branch of the ladder; CLAUDE.md shrinks.
 
 ## Linked artifacts
 
