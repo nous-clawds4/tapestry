@@ -1,7 +1,7 @@
 # ADR 0007: session-start-restructure — pointer table, normative ladder, and a budgets data file
 
-**Status:** Proposed
-**Date:** 2026-07-04
+**Status:** Accepted
+**Date:** 2026-07-04 (accepted same day, operator, in-session gate)
 **Story:** `engineering-team/stories/harness-self-improvement/7-session-start-restructure.md`
 
 ## Context
