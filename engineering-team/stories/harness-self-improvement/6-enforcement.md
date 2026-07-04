@@ -1,7 +1,8 @@
 # Story 6: enforcement — the claims and the tools finally agree
 
-**Status:** Draft
+**Status:** Approved
 **Created:** 2026-07-02
+**Approved:** 2026-07-02 (operator, in-session gate — approved as drafted incl. all three recommendations; the digest reading of the frame's hook clause is the ratified interpretation)
 **Type:** Feature
 
 ## Background
@@ -39,9 +40,11 @@ None — harness wiring only. (Stack not required; the probe *checks* for it.)
 
 ## Open questions
 
-1. **Hook payload size** — the book frame says the hook runs "whats-open + lint + probe"; injecting the full whats-open roll-up (200+ lines) at every session start works against the very context economics story 7 exists to fix. Proposed interpretation: the hook runs a **compact digest** (lint result + meta banner + stack mode + one-line counts + "run `/whats-open` for the full roll-up") — the frame's *surfacing* intent honored, the budget respected, recorded here as the ratified frame reading. *(Recommend: digest.)*
-2. **gate-judge Bash** — drop it too, or keep? Its rubric work verifies SHAs, baselines, and gate evidence (git reads); it is also a pinned Direction-governing file where minimal-touch has value. *(Recommend: keep Bash for gate-judge; note it as trust-based in the rewording; revisit at the retro.)*
-3. **Out-of-tree write behavior for product agents** — `ask` (interactive approval; blocks in headless runs) rather than hard `deny` (which would break legitimate edge cases silently)? *(Recommend: ask — visible friction beats silent failure, and the approval is itself an audit event.)*
+*All resolved at the Planning gate (2026-07-02, operator):*
+
+1. **Hook payload — RESOLVED:** compact digest (lint + meta banner + stack mode + counts + `/whats-open` pointer); recorded as the ratified reading of the frame's hook clause.
+2. **gate-judge Bash — RESOLVED:** keep, labeled trust-based; revisit at the retro.
+3. **Out-of-tree writes — RESOLVED:** ask, not deny.
 
 ## Linked artifacts
 
