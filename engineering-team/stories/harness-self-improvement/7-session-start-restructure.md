@@ -47,5 +47,5 @@ None — orientation/wiring only. (Stack not required; the ladder exists precise
 ## Linked artifacts
 
 - ADR: `engineering-team/decisions/harness-self-improvement/0007-session-start-restructure.md` (Accepted 2026-07-04)
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/harness-self-improvement/7-session-start-restructure.test-plan.md`
 - Review: (filled in after Review phase)

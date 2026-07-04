@@ -330,6 +330,47 @@ test('L10 reports INFO and skips when the def-paths data file is missing', () =>
   assert.doesNotMatch(out, /VIOLATION L10/, out);
 });
 
+// ---------- L11: line budgets (story 7, ADR 0007) ----------
+// scripts/harness-budgets.txt caps the always-loaded files (CLAUDE.md,
+// AGENTS.md) at their post-restructure sizes. Over-cap → violation quoting the
+// R-S4 rule; at-cap → clean (exact caps, no headroom — gate decision 1);
+// missing budgets file → INFO skip (L10's missing-def-file semantics). The
+// shared cleanFiles() tree deliberately has NO budgets file, so every
+// pre-existing fixture doubles as the missing-file path.
+
+test('L11: a file over its line budget is a violation naming the cap; a file exactly at its cap is not', () => {
+  const { code, out } = lint(withClean({
+    'scripts/harness-budgets.txt':
+      '# line budgets (fixture): <path>\\t<max-lines>\nCLAUDE.md\t2\nAGENTS.md\t1\n',
+    'CLAUDE.md': 'one\ntwo\nthree\nfour\nfive\n', // 5 lines, cap 2 → violation
+    // AGENTS.md stays the 1-line cleanFiles() default: exactly at cap 1 → clean
+  }));
+  assert.strictEqual(code, 1, out);
+  assert.match(out, /VIOLATION L11 CLAUDE\.md/, out);
+  assert.match(out, /5 lines.*cap 2/, 'message must name the measured count and the cap\n' + out);
+  assert.match(out, /harness-budgets\.txt/, 'message must point at the rule source\n' + out);
+  assert.doesNotMatch(out, /VIOLATION L11 AGENTS\.md/, 'at-cap is not over-cap\n' + out);
+});
+
+test('L11 reports INFO and skips when the budgets data file is missing', () => {
+  const { code, out } = lint(withClean({}));
+  assert.strictEqual(code, 0, out);
+  assert.match(out, /INFO .*harness-budgets/, out);
+  assert.doesNotMatch(out, /VIOLATION L11/, out);
+});
+
+test('the real repo declares budgets for CLAUDE.md and AGENTS.md, and both hold', () => {
+  const budgets = fs.readFileSync(path.join(REPO_ROOT, 'scripts', 'harness-budgets.txt'), 'utf8');
+  for (const name of ['CLAUDE.md', 'AGENTS.md']) {
+    const row = budgets.split('\n').find((l) => l.startsWith(`${name}\t`));
+    assert.ok(row, `no budget row for ${name}`);
+    const cap = parseInt(row.split('\t')[1], 10);
+    assert.ok(Number.isInteger(cap) && cap > 0, `unparseable cap for ${name}: ${row}`);
+    const lines = fs.readFileSync(path.join(REPO_ROOT, name), 'utf8').split('\n').length - 1;
+    assert.ok(lines <= cap, `${name} is ${lines} lines, over its declared cap ${cap}`);
+  }
+});
+
 test('the script needs no network or stack: it succeeds with no env beyond PATH/HOME', () => {
   const res = spawnSync('bash', [SCRIPT], {
     cwd: withClean({}),
