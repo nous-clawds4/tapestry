@@ -2,19 +2,18 @@
 
 Decentralized knowledge-graph protocol and search engine on nostr. Reference deployment runs at brainstorm.world.
 
-Before starting work, read all four:
+**Read for your task — don't bulk-read.** The SessionStart digest (`scripts/session-start.sh`) auto-runs the harness health check; `/whats-open` gives the full roll-up. Line budgets on this file and AGENTS.md are lint-enforced (`scripts/harness-budgets.txt` — free lines before adding any).
 
-- [AGENTS.md](./AGENTS.md) — concept-graph orientation pattern. Read this BEFORE touching code.
-- [ROADMAP.md](./ROADMAP.md) — product vision, principles, and the strategic roadmap for Brainstorm Search
-- [BIBLE.md](./BIBLE.md) — architecture, protocol, data model, API, design decisions (universal, fork-agnostic)
-- [OPERATIONS.md](./OPERATIONS.md) — brainstorm.world deployment: branches, CI/CD, droplets, gotchas
-
-**Also check at session start** — or just run **`/whats-open`** (alias: `bash scripts/whats-open.sh`) for a unified roll-up of everything still open across sessions, derived from all the surfaces below plus the ledger:
-
-- [`OPEN.md`](./OPEN.md) — the single ledger for **small / cross-cutting open items that have no other surface** (one-off cleanups, "does BIBLE need a note?" decisions, follow-ups too small for a handoff doc, a branch to delete). The surfaces below hold the larger triaged work; `/whats-open` rolls them all together. **Write discipline:** end-of-session loose ends get a row here (flip to `DONE` when handled) so any next session sees them — and an orientation doc that misled you, or any harness defect you observed, gets a `meta` row before the session ends (`/whats-open` escalates aged/clustered `meta` items).
-- [`docs/*HANDOFF*.md`](./docs/) — session continuity notes. Each handoff doc starts with a `**Status:**` line: `🔴 OPEN` = work hasn't been picked up; `✅ ADDRESSED / SUPERSEDED` = the follow-on work has shipped (the body is preserved for historical context, no action needed). Always scan for `OPEN` handoffs before starting fresh work — a previous session may have left specific instructions for the new one.
-- [`engineering-team/stories/_intake.md`](./engineering-team/stories/_intake.md) — queued-but-unplanned work catalog. See [engineering-team/README.md](./engineering-team/README.md) for the format. Scan before opening a fresh feature request — there's often a relevant entry already triaged.
-- [`protocols/README.md`](./protocols/README.md) — index of every protocol spec we author (published Custom NIPs, local pre-NIPs) with per-spec status, plus [`protocols/worksheet.md`](./protocols/worksheet.md) for open protocol problems. Check before any protocol/NIP/wire-format work — the spec's status and current source of truth are recorded there.
+| Task | Read first |
+|---|---|
+| Touching code | [AGENTS.md](./AGENTS.md) — orientation ladder (stack-present *or* -absent) + port/TA-pubkey discovery, BEFORE code. Then [BIBLE.md](./BIBLE.md) sections via its ToC as needed (architecture, protocol, data model, API — universal, fork-agnostic). |
+| Deploying / ops | [OPERATIONS.md](./OPERATIONS.md) — brainstorm.world deployment: branches, CI/CD, droplets, gotchas. |
+| Product direction | [ROADMAP.md](./ROADMAP.md) — vision, principles, and the strategic roadmap for Brainstorm Search. |
+| Protocol / NIP / wire format | [protocols/README.md](./protocols/README.md) — per-spec status + current source of truth; open problems in [protocols/worksheet.md](./protocols/worksheet.md). Check before any wire-format work. |
+| What's still open | **`/whats-open`** (alias: `bash scripts/whats-open.sh`) — unified roll-up across sessions: the ledger + every surface below. |
+| Small / cross-cutting items | [`OPEN.md`](./OPEN.md) — the single ledger for items with no other surface. **Write discipline:** end-of-session loose ends get a row (flip to `DONE` when handled) — and an orientation doc that misled you, or any harness defect, gets a `meta` row before the session ends (escalation + full rules: OPEN.md § "How to use this ledger"). |
+| Session continuity | [`docs/*HANDOFF*.md`](./docs/) — scan the `**Status:**` line before fresh work: `🔴 OPEN` = not picked up (a previous session may have left instructions); `✅ ADDRESSED / SUPERSEDED` = shipped, body kept for history. |
+| Queued-but-unplanned work | [`engineering-team/stories/_intake.md`](./engineering-team/stories/_intake.md) — scan before opening a fresh feature request; there's often a triaged entry already (format: [engineering-team/README.md](./engineering-team/README.md)). |
 
 ## ⚠️ Architecture invariants — read every session
 

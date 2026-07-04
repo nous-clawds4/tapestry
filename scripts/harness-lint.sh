@@ -252,6 +252,28 @@ check_L10() {
     || violation L10 "commit:$latest" "latest harness-definition commit ($(git show -s --format=%s "$latest" | cut -c1-60)…) did not touch $CHANGELOG — add the row (one per logical change)"
 }
 
+# ---------- L11: always-loaded files hold their line budgets ----------
+# Caps + the R-S4 rule prose live in scripts/harness-budgets.txt ONLY (ADR
+# harness-self-improvement/0007). Exact caps, no headroom: a change that needs
+# lines must free lines. Cap changes are def-path diffs → L10-recorded events.
+BUDGETS_FILE="scripts/harness-budgets.txt"
+check_L11() {
+  if [ ! -f "$BUDGETS_FILE" ]; then
+    echo "INFO $BUDGETS_FILE (harness-budgets) missing — L11 (line-budget) skipped; the convention isn't adopted in this tree"
+    return 0
+  fi
+  local bpath cap n
+  while IFS=$'\t' read -r bpath cap _; do
+    case "$bpath" in \#*|"") continue ;; esac
+    [ -f "$bpath" ] || continue
+    case "$cap" in ''|*[!0-9]*) continue ;; esac   # unparseable cap → skip row
+    n=$(wc -l < "$bpath" | tr -d ' ')
+    [ "$n" -gt "$cap" ] \
+      && violation L11 "$bpath" "$n lines, cap $cap — free lines or move behavior on-demand (command/skill/script/hook); rule: $BUDGETS_FILE"
+  done < "$BUDGETS_FILE"
+  return 0
+}
+
 # ---------- run ----------
 check_reviews
 check_L2
@@ -261,6 +283,7 @@ check_L7
 check_L8
 check_L9
 check_L10
+check_L11
 
 # stale waivers — visible, non-fatal (same bash-3.2 empty-array guard as violation())
 if [ "${#W_IDS[@]}" -gt 0 ]; then
