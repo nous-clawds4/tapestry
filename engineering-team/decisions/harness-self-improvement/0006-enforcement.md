@@ -1,7 +1,7 @@
 # ADR 0006: enforcement — a shared meta-state lib, an allow-plus-default-ask permission shape, and a digest hook
 
-**Status:** Proposed
-**Date:** 2026-07-02
+**Status:** Accepted
+**Date:** 2026-07-02 (accepted 2026-07-04, operator, in-session gate)
 **Story:** `engineering-team/stories/harness-self-improvement/6-enforcement.md`
 
 ## Context
