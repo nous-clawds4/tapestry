@@ -49,5 +49,5 @@ None — harness wiring only. (Stack not required; the probe *checks* for it.)
 ## Linked artifacts
 
 - ADR: `engineering-team/decisions/harness-self-improvement/0006-enforcement.md` (Accepted 2026-07-04)
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/harness-self-improvement/6-enforcement.test-plan.md`
 - Review: (filled in after Review phase)
