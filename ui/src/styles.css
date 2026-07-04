@@ -7393,6 +7393,20 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   opacity: 0.6;
   padding: 0.5rem 0;
 }
+/* "Pinned" badge above the chosen note (feed-usability #3). */
+.bsp-content-pinned {
+  display: inline-block;
+  margin-bottom: 0.4rem;
+  padding: 0.15rem 0.55rem;
+  border-radius: 12px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  background: rgba(165,180,252,0.15);
+  border: 1px solid rgba(165,180,252,0.4);
+  color: #c7d2fe;
+}
 .bsp-content-viewall {
   display: inline-block;
   margin-top: 0.75rem;

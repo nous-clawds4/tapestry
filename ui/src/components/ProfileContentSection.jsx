@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import NoteCard from './NoteCard';
-import useUserNotes from '../hooks/useUserNotes';
+import useProfileContent from '../hooks/useProfileContent';
 
 /**
  * Story note-surfaces #2 / ADR note-surfaces/0002: the profile "Content" section.
@@ -19,13 +19,15 @@ import useUserNotes from '../hooks/useUserNotes';
 // Operator-delegated copy (story #2). Punctuation is non-binding; meaning is exact.
 export const CONTENT_COPY = {
   HEADING: 'Content',
+  PINNED_LABEL: 'Pinned',
+  NO_TOPLEVEL: 'No top-level notes to feature yet.',
   EMPTY: 'No kind-1 events could be located for this user.',
   VIEW_ALL: 'View all notes →',
   LOADING: 'Loading…',
 };
 
 export default function ProfileContentSection({ pubkey }) {
-  const { data, loading, error } = useUserNotes(pubkey, 1);
+  const { data, loading, error } = useProfileContent(pubkey);
 
   return (
     <div className="bsp-section bsp-content-section">
@@ -38,16 +40,26 @@ export default function ProfileContentSection({ pubkey }) {
 
 /**
  * Pure state→view mapping for the Content section. A function only of its args. Renders the
- * single latest note (items[0]) on OK; the operator-delegated "no kind-1 events could be
- * located" message on EMPTY / a transport failure / an unknown status — never a card on an
- * error and never a raw error. Defined last so it stays a pure function of its args.
+ * single selected note (data.item — pinned or latest top-level, feed-usability #3) on OK, with
+ * a "Pinned" badge when it was chosen from the user's pin list; an explicit "no top-level notes
+ * to feature" message on NO_TOPLEVEL; the operator-delegated "no kind-1 events could be located"
+ * message on EMPTY / a transport failure / an unknown status. Never a card on an error, never a
+ * raw error. Defined last so it stays a pure function of its args.
  */
 export function renderContentBody({ data, loading, error }) {
   if (loading && !data) {
     return <div className="bsp-content-loading">{CONTENT_COPY.LOADING}</div>;
   }
-  if (!error && data && data.status === 'OK' && data.items && data.items[0]) {
-    return <NoteCard item={data.items[0]} />;
+  if (!error && data && data.status === 'OK' && data.item) {
+    return (
+      <>
+        {data.pinned && <div className="bsp-content-pinned">{CONTENT_COPY.PINNED_LABEL}</div>}
+        <NoteCard item={data.item} />
+      </>
+    );
+  }
+  if (!error && data && data.status === 'NO_TOPLEVEL') {
+    return <div className="bsp-empty">{CONTENT_COPY.NO_TOPLEVEL}</div>;
   }
   return <div className="bsp-empty">{CONTENT_COPY.EMPTY}</div>;
 }

@@ -84,6 +84,7 @@ const { handleFetchExternalReactions } = require('./reactions/fetchReactions.js'
 const { handleFetchExternalEvents } = require('./relay/fetchEvents.js');
 const { handleGetFeed } = require('./feed/feedReadPath.js');
 const { handleGetUserNotes } = require('./notes/userNotesReadPath.js');
+const { handleGetProfileContent } = require('./notes/profileContentReadPath.js');
 const { handleGetEvent } = require('./event/eventReadPath.js');
 const { requireOwner, handleGetSettings, handleGetDefaults, handleGetOverrides, handleUpdateSettings, handleResetSetting } = require('./settings/settingsApi.js');
 const { handleGetGrapevinePreferences, handleUpdateGrapevinePreferences } = require('./settings/grapevinePrefApi.js');
@@ -311,6 +312,9 @@ async function register(app) {
 
     // By-author notes read path (public, read-only) — Story note-surfaces #1, ADR note-surfaces/0001
     app.get('/api/user/:pubkey/notes', handleGetUserNotes);
+
+    // Profile "Content" card read path (public, read-only) — Story feed-usability #3, ADR feed-usability/0003
+    app.get('/api/user/:pubkey/content', handleGetProfileContent);
 
     // Event read path (public, read-only) — Story event-page #1, ADR event-page/0001
     app.get('/api/event', handleGetEvent);
