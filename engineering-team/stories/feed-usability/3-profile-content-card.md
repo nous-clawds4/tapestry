@@ -1,6 +1,6 @@
 # Story 3: Pinned-note-aware profile "Content" card
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-07-03
 **Type:** Feature
 
@@ -91,4 +91,4 @@ honest empty state; their activity remains one click away on the notes page).
 ## Linked artifacts
 - ADR: `engineering-team/decisions/feed-usability/0003-profile-content-card.md`
 - Test plan: `engineering-team/stories/feed-usability/3-profile-content-card.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/feed-usability/3-profile-content-card.md` (PASS — 2026-07-03)
