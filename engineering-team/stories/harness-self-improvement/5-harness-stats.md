@@ -1,8 +1,9 @@
 # Story 5: harness-stats — the retro runs on measurement, not anecdote
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-07-02
 **Approved:** 2026-07-02 (operator, in-session gate — approved as drafted incl. all three recommendations)
+**Done:** 2026-07-02 (review PASS — `reviews/harness-self-improvement/5-harness-stats.md`)
 **Type:** Feature
 
 ## Background
@@ -48,4 +49,4 @@ None — harness tooling only. (Stack not required.)
 
 - ADR: `engineering-team/decisions/harness-self-improvement/0005-harness-stats.md` (Accepted 2026-07-02)
 - Test plan: `engineering-team/stories/harness-self-improvement/5-harness-stats.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/harness-self-improvement/5-harness-stats.md` (PASS, 2026-07-02)
