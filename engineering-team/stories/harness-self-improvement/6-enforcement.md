@@ -1,8 +1,9 @@
 # Story 6: enforcement — the claims and the tools finally agree
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-07-02
 **Approved:** 2026-07-02 (operator, in-session gate — approved as drafted incl. all three recommendations; the digest reading of the frame's hook clause is the ratified interpretation)
+**Done:** 2026-07-04 (review PASS — `reviews/harness-self-improvement/6-enforcement.md`)
 **Type:** Feature
 
 ## Background
@@ -50,4 +51,4 @@ None — harness wiring only. (Stack not required; the probe *checks* for it.)
 
 - ADR: `engineering-team/decisions/harness-self-improvement/0006-enforcement.md` (Accepted 2026-07-04)
 - Test plan: `engineering-team/stories/harness-self-improvement/6-enforcement.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/harness-self-improvement/6-enforcement.md` (PASS, 2026-07-04)
