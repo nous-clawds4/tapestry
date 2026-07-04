@@ -1,8 +1,9 @@
 # Story 7: session-start-restructure — orientation that fits in the window
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-07-04
 **Approved:** 2026-07-04 (operator, in-session gate — approved incl. all three recommendations)
+**Done:** 2026-07-04 (review PASS — `reviews/harness-self-improvement/7-session-start-restructure.md`)
 **Type:** Feature
 
 ## Background
@@ -48,4 +49,4 @@ None — orientation/wiring only. (Stack not required; the ladder exists precise
 
 - ADR: `engineering-team/decisions/harness-self-improvement/0007-session-start-restructure.md` (Accepted 2026-07-04)
 - Test plan: `engineering-team/stories/harness-self-improvement/7-session-start-restructure.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/harness-self-improvement/7-session-start-restructure.md` (PASS, 2026-07-04)
