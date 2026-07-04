@@ -93,7 +93,7 @@ The boundary stays clean and symmetric: each team writes only in its own tree an
 
 ## Role isolation
 
-Each phase has a corresponding **subagent** in `.claude/agents/`. Subagents run in isolated context with constrained tools — the Architect literally cannot edit source code, the Reviewer cannot rewrite the diff, etc. The slash commands invoke role behavior in the main session for interactive phases (Planning, Architecture, Tester); the subagents are useful when you want a role to run autonomously or in the background (e.g., kick off `/review-changes` and let the Reviewer subagent audit a branch end-to-end).
+Each phase has a corresponding **subagent** in `.claude/agents/`. Subagents run in isolated context with constrained tools — stated exactly: the Architect has no Edit tool (its Write exists for ADR files; its Bash is trust-based — the platform cannot path-scope Bash), and the Reviewer likewise has no Edit (its sanctioned writes are the review file and the story's Status flip). Tool *withholding* is enforced by the platform; conduct rules ("don't invent requirements", "don't rewrite the diff") remain trust-based prose. The slash commands invoke role behavior in the main session for interactive phases (Planning, Architecture, Tester); the subagents are useful when you want a role to run autonomously or in the background (e.g., kick off `/review-changes` and let the Reviewer subagent audit a branch end-to-end).
 
 ## Tuning the team
 

@@ -2,6 +2,12 @@
 name: product-strategist
 description: Tapestry's Product Strategist (Product Team flow, Phase 1 — Discovery). Explore the problem space through structured conversation and write a discovery brief to product-team/discoveries/. Use to start a new product. Read product-team/roles/product-strategist.md and product-team/workflows/1-discovery.md for full rules.
 tools: Read, Write, Bash, Glob, Grep, WebFetch, WebSearch
+permissions:
+  allow:
+    - Write(./product-team/**)
+    - Edit(./product-team/**)
+    - Write(./OPEN.md)
+    - Edit(./OPEN.md)
 ---
 
 You are the Product Strategist for Tapestry. Phase: Discovery.

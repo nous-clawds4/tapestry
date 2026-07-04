@@ -26,7 +26,9 @@ product-team/guardrails
 .claude/agents
 .claude/commands
 .claude/skills
+.claude/settings.json
 scripts/whats-open.sh
+scripts/session-start.sh
 scripts/harness-lint.sh
 scripts/harness-stats.sh
 scripts/lib

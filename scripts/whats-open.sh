@@ -15,48 +15,15 @@ REPO="nous-clawds4/tapestry"
 KEEPLIST="scripts/long-lived-branches.txt"
 hr() { printf '\n──────── %s ────────\n' "$1"; }
 
-# ---------- meta escalation pre-pass (ADR harness-self-improvement/0004) ----------
+# ---------- meta escalation pre-pass (ADRs harness-self-improvement/0004 + 0006) ----------
 # Collect open harness lessons ONCE, before any section prints: the top banner
-# and the "Meta items" section both consume this. The thresholds (>30d age, ≥3
-# open items) live HERE only — OPEN.md's rule text quotes them, never restates.
-# Escalation is advisory by construction: it never affects an exit code.
-META_LINES=""
-META_COUNT=0
-META_MAX_AGE=0
-collect_meta() {
-  local row opened age heading
-  if [ -f OPEN.md ]; then
-    while IFS= read -r row; do
-      opened=$(printf '%s' "$row" | awk -F'|' '{print $5}' | grep -oE '20[0-9]{2}-[0-9]{2}-[0-9]{2}' | head -1)
-      age="?"
-      if [ -n "$opened" ] && date -d "$opened" +%s >/dev/null 2>&1; then
-        age=$(( ( $(date +%s) - $(date -d "$opened" +%s) ) / 86400 ))
-        [ "$age" -gt "$META_MAX_AGE" ] && META_MAX_AGE=$age
-      fi
-      META_COUNT=$((META_COUNT + 1))
-      META_LINES="${META_LINES}  [${age}d] $(printf '%s' "$row" | cut -c1-150)"$'\n'
-    done < <(grep -E '^\|' OPEN.md | awk -F'|' '$3 ~ /meta/ && $6 ~ /OPEN/')
-  fi
-  # Un-marked intake "Meta:" entries count too (the 5-week origin-sync item is
-  # the motivating casualty); age from the ISO date in the heading itself.
-  while IFS= read -r heading; do
-    opened=$(printf '%s' "$heading" | grep -oE '20[0-9]{2}-[0-9]{2}-[0-9]{2}' | head -1)
-    age="?"
-    if [ -n "$opened" ] && date -d "$opened" +%s >/dev/null 2>&1; then
-      age=$(( ( $(date +%s) - $(date -d "$opened" +%s) ) / 86400 ))
-      [ "$age" -gt "$META_MAX_AGE" ] && META_MAX_AGE=$age
-    fi
-    META_COUNT=$((META_COUNT + 1))
-    META_LINES="${META_LINES}  [${age}d] intake: ${heading#  }"$'\n'
-  done < <(awk '
-    /^## 20[0-9][0-9]-/ { if (h != "" && !d) print "  " h; h=$0; d=0 }
-    /PICKED UP|RESOLVED/ { d=1 }
-    END { if (h != "" && !d) print "  " h }
-  ' engineering-team/stories/_intake.md 2>/dev/null | grep '— Meta:')
-}
+# and the "Meta items" section both consume this. The collector, the thresholds,
+# and the banner wording live in scripts/lib/collect-meta.sh — shared with the
+# session-start digest; never restate them here.
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/collect-meta.sh"
 collect_meta
-if [ "$META_COUNT" -ge 3 ] || [ "$META_MAX_AGE" -gt 30 ]; then
-  printf '\n⚠ META ESCALATION — %s open harness lesson(s), oldest %sd (trigger: ≥3 open or >30d): propose a harness story at triage — group related items, name the story, list what it closes. See OPEN.md § "How to use this ledger".\n' "$META_COUNT" "$META_MAX_AGE"
+if meta_escalation_fires; then
+  meta_banner
 fi
 
 hr "OPEN.md ledger — small / cross-cutting items (the homeless ones)"
@@ -194,7 +161,11 @@ if [ -f scripts/harness-def-paths.txt ]; then
   shared_ref=""
   git rev-parse --verify -q origin/staging >/dev/null 2>&1 && shared_ref="origin/staging"
   [ -z "$shared_ref" ] && git rev-parse --verify -q origin/main >/dev/null 2>&1 && shared_ref="origin/main"
-  if [ -n "$shared_ref" ] && base=$(git merge-base HEAD "$shared_ref" 2>/dev/null); then
+  # bash-3.2 + set -u: expanding an empty array errors — guard the length first
+  # (same discipline as harness-lint's waiver loops; story-2 review carry-over).
+  if [ "${#def_paths[@]}" -eq 0 ]; then
+    echo "  (def-paths file lists nothing — skipped)"
+  elif [ -n "$shared_ref" ] && base=$(git merge-base HEAD "$shared_ref" 2>/dev/null); then
     changes=$(git log --oneline "$base".."$shared_ref" -- "${def_paths[@]}" 2>/dev/null | head -15)
     if [ -n "$changes" ]; then
       echo "$changes" | sed 's/^/  /'

@@ -2,6 +2,12 @@
 name: domain-modeler
 description: Tapestry's Domain Modeler (Product Team flow, Phase 4 — Domain Modeling). Define entities, attributes, relationships, and lifecycles (no database terms); write the domain model to product-team/domain/. Maps entities onto existing concept-graph handles for Tapestry products. Read product-team/roles/domain-modeler.md and product-team/workflows/4-domain-modeling.md for full rules.
 tools: Read, Write, Bash, Glob, Grep, WebFetch
+permissions:
+  allow:
+    - Write(./product-team/**)
+    - Edit(./product-team/**)
+    - Write(./OPEN.md)
+    - Edit(./OPEN.md)
 ---
 
 You are the Domain Modeler for Tapestry. Phase: Domain Modeling.
