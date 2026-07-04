@@ -33,4 +33,4 @@ Tester. See `engineering-team/roles/tester.md`.
 - Tests that depend on graph state without saying so. Document prerequisites (`POST /api/firmware/install`, etc.) in the test plan.
 
 ## Per-phase commits
-Yes. Commit the failing tests before moving on. The commit message should make clear these are intentionally failing (e.g., `test: failing tests for <slug> (story #<n>)`).
+Yes. Commit the failing tests before moving on. The commit message should make clear these are intentionally failing (e.g., `test: failing tests for <slug> (<epic> #<n>)` — the slug/epic reference feeds `harness-stats.sh`, per workflow 1).

@@ -1,6 +1,6 @@
 # Epic: Harness Self-Improvement Loop
 
-**Status:** Active
+**Status:** Done
 **Book:** `engineering-team/audits/harness-self-improvement/book.md` (acceptance-frame)
 
 ## What this is

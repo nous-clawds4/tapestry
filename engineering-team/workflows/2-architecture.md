@@ -36,4 +36,4 @@ ADRs are **enabled** for this project.
 - Schema/concept changes that don't call out the firmware reinstall step.
 
 ## Per-phase commits
-Yes. Commit the ADR before moving on.
+Yes. Commit the ADR before moving on (e.g., `adr: <NNNN> <slug> (<epic> #<n>)` — the slug/epic reference feeds `harness-stats.sh` cycle-time matching, per workflow 1).

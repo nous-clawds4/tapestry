@@ -29,4 +29,4 @@ A user story file at `engineering-team/stories/<epic-slug>/<n>-<slug>.md`, using
 - Re-defining concepts that already exist in the Concept Graph. Reference by handle instead.
 
 ## Per-phase commits
-Yes. After the user approves the story, commit it: `git add engineering-team/stories/<epic-slug>/<file> && git commit -m "story: <slug>"`.
+Yes. After the user approves the story, commit it: `git add engineering-team/stories/<epic-slug>/<file> && git commit -m "story: <slug> (<epic> #<n>)"`. The slug + `(<epic> #<n>)` reference is the convention every phase commit carries — it is what `scripts/harness-stats.sh` matches for cycle-time coverage (the pre-convention history is the unmatchable gap in its coverage line).

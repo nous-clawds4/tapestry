@@ -39,4 +39,4 @@ Implementer. See `engineering-team/roles/implementer.md`.
 - Forgetting the firmware reinstall after a concept-definition change.
 
 ## Per-phase commits
-Yes. Commit when the test gate is clean. Reference the story and ADR in the commit message (e.g., `impl: <slug> (story #<n>, ADR <NNNN>)`).
+Yes. Commit when the test gate is clean. Reference the story and ADR in the commit message (e.g., `impl: <slug> (<epic> #<n>, ADR <NNNN>)` — the slug/epic reference feeds `harness-stats.sh`, per workflow 1).

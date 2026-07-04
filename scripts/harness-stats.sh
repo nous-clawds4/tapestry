@@ -65,7 +65,6 @@ hr "Review verdicts (shared last-token rule — scripts/lib/review-verdict.awk)"
 PASS_N=0; CR_N=0; NONE_N=0; KB_HIST=0; CHURN=0
 for rf in engineering-team/reviews/*/[0-9]*-*.md engineering-team/reviews/done/*/[0-9]*-*.md; do
   [ -e "$rf" ] || continue
-  case "$rf" in engineering-team/reviews/done/*) ;; engineering-team/reviews/*/*) ;; esac
   v=$(awk -f "$VERDICT_LIB" "$rf" 2>/dev/null || echo NONE)
   case "$v" in
     PASS) PASS_N=$((PASS_N + 1)) ;;
@@ -162,7 +161,7 @@ hr "──── summary ────"
 echo "  phase commits: $TOTAL_PHASE"
 echo "  reviews decided: $TOTAL_R · kick-back rate: $KB_RATE · churn: $CHURN"
 echo "  books — open: $B_OPEN · closed: $B_CLOSED"
-echo "  cycle time median: $MEDIAN · matched $MATCHED of $TOTAL_S stories"
+echo "  cycle time median: $MEDIAN (0d = same-day) · matched $MATCHED of $TOTAL_S stories"
 echo "  (instrument, not gate — thresholds and judgment belong to the retro)"
 
 exit 0
