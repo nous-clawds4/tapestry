@@ -40,7 +40,7 @@ Verified strengths, so that improvement work doesn't accidentally regress them:
 - **The product↔engineering seam worked end-to-end on its first use.** verified-reporters: queue promoted 1:1 into an epic, persona vocabulary propagated into stories, the return edge honestly recorded a real divergence.
 - **Handoff discipline is real** (7 of 10 status lines correctly maintained, closure narratives read like audit trails), and **OPEN.md rows record judgments, not just tasks** ("No — out of BIBLE's scope. Recorded here so the judgment isn't lost.").
 - **The wiring has no dead links.** Every command, agent, skill, role, workflow, template, and cross-referenced section named by CLAUDE.md and the two READMEs exists and resolves. (Preserve this with the harness-lint dead-link check.)
-- **The harness has already self-improved ~5 times** — epic-scoped numbering after merge collisions, the Gate-5 status-flip clarification (f314bbb), the Docker house rule, OPEN.md + `/whats-open` themselves. The loop exists culturally; it just has no defined mechanism (§5).
+- **The harness has already been improved ~5 times — each operator-directed** — epic-scoped numbering after merge collisions, the Gate-5 status-flip clarification (f314bbb), the Docker house rule, OPEN.md + `/whats-open` themselves. The loop exists culturally (humans notice → humans direct → the session implements); what's missing is a defined mechanism (§5). *(Wording corrected per PR #337 review — vcavallo: the harness didn't improve itself, we told it to.)*
 
 ---
 
@@ -195,7 +195,7 @@ The phase-prefixed commits and canonical verdict strings make the harness self-m
 
 ### What stays human
 
-Judging whether a lesson is goalpost-class, drafting harness prose, ratifying changes, and deciding "are these meta items related" remain prompt- and human-level — the loop's *scripts* only count, age, lint, and surface. This mirrors the harness's existing philosophy: the system proposes; the human ratifies. Recursive self-improvement here does not mean the harness rewrites itself unsupervised; it means **no lesson can die silently, and drift cannot outlive the next session start.**
+Judging whether a lesson is goalpost-class, drafting harness prose, ratifying changes, and deciding "are these meta items related" remain prompt- and human-level — the loop's *scripts* only count, age, lint, and surface. This mirrors the harness's existing philosophy: the system proposes; the human ratifies. Recursive self-improvement here does not mean the harness rewrites itself unsupervised; it means **no lesson can die silently, and drift cannot outlive the next session start undetected** — the machinery surfaces; acting stays human. *(One word added per PR #337 review — vcavallo, correctly: the unqualified form was itself a prose overclaim.)*
 
 ### Claude Code primitives this design uses (verified against current docs)
 

@@ -10,7 +10,7 @@
 
 ## 1. Product vision
 
-`[FROM FRAME]` A development harness that improves as it is used: no process lesson can die silently (every one terminates in a ratified change, a tracked inbox row, or a recorded decline), drift cannot outlive the next session start (a hook runs the invariant lint before any work), and process claims are checkable numbers instead of impressions. `[FROM FRAME]` Constraint honored throughout: **no new lesson surfaces** — one inbox (OPEN.md `meta`), one change record (CHANGELOG), one guard (lint).
+`[FROM FRAME]` A development harness that improves as it is used: no process lesson can die silently (every one terminates in a ratified change, a tracked inbox row, or a recorded decline), drift cannot outlive the next session start undetected (a hook runs the invariant lint before any work; acting on it stays human), and process claims are checkable numbers instead of impressions. `[FROM FRAME]` Constraint honored throughout: **no new lesson surfaces** — one inbox (OPEN.md `meta`), one change record (CHANGELOG), one guard (lint).
 
 ## 2. Personas
 
