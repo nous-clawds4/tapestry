@@ -110,7 +110,7 @@ Same as the staging cycle, with `H=https://brainstorm.world`. Run all five tiers
 - Tier 4 Chrome visual (if any UI changed)
 - Tier 5 regression sweep
 
-For Chrome on production, the user's main browsing tab and the MCP-tool tab share cookies. If the user is signed in via NIP-07 to brainstorm.world, the MCP tab inherits — confirmed empirically multiple times in this session.
+For Chrome on production, the user's main browsing tab and the MCP-tool tab share cookies when they share a Chrome profile. If the user is signed in via NIP-07 to brainstorm.world, the MCP tab typically inherits the session — but don't assume; read what's actually rendered.
 
 ### 7. Report
 

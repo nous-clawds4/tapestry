@@ -19,13 +19,13 @@ Push the current feature branch to origin, open a PR against `staging`, merge it
 - The change is already merged to staging and the user wants to promote to prod → use `/cycle-prod`.
 - The user wants the full chain → use `/cycle-full`.
 
-## Critical gotcha: gh CLI defaults to upstream
+## Critical gotcha: gh CLI may default to upstream
 
-This local checkout has two remotes:
+Check the remote layout first (`git remote -v`) — it varies per checkout. Some contributor checkouts carry two remotes:
 - `origin` → `nous-clawds4/tapestry` (the actual deploy target)
 - `upstream` → `Pretty-Good-Freedom-Tech/brainstorm` (the original project)
 
-`gh` resolves the repo to the upstream by default, so commands silently target the wrong repo. **Every `gh` command in this skill must include `--repo nous-clawds4/tapestry`.** No exceptions.
+When an `upstream` remote exists, `gh` resolves the repo to it by default, so commands silently target the wrong repo. **Always pass `--repo nous-clawds4/tapestry` on every `gh` command in this skill**, regardless of layout — it's harmless on single-remote checkouts and load-bearing on two-remote ones.
 
 ## Procedure
 

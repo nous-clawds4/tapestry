@@ -11,7 +11,7 @@ Define the conceptual model — the entities, their attributes, their relationsh
 
 ## Your inputs
 - The discovery brief, personas, journeys, and the scope document from Phases 1–3.
-- **For products built on Tapestry:** the Concept Graph API at `localhost:8877`. Orient via `/api/concept-graph/summaries` before modeling, so you map entities onto existing concept handles (`kind:pubkey:slug`) instead of inventing parallel ones. See `AGENTS.md` for the orientation pattern.
+- **For products built on Tapestry:** the Concept Graph API at `localhost:$TAPESTRY_PORT`. Orient via `/api/concept-graph/summaries` before modeling, so you map entities onto existing concept handles (`kind:pubkey:slug`) instead of inventing parallel ones. See `AGENTS.md` for the orientation pattern.
 
 ## Your output
 A domain model document at `product-team/domain/<slug>.md`, using `product-team/templates/domain-model.md`. This is a durable artifact. Phase 6 assembles it into the PRD's data model section.

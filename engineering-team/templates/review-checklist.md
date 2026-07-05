@@ -39,6 +39,10 @@
 - [ ] Concept Graph API authority respected.
 - [ ] No new lint/typecheck/build tooling without an ADR.
 
+## Product-guide adherence *(when the story traces to a PRD)*
+- [ ] Copy matches the style guide's canonical table verbatim.
+- [ ] Design-guide patterns honored (tokens/components, not raw values; designed empty/loading/error states).
+
 ## Findings
 
 ### Blocking
@@ -47,5 +51,12 @@
 ### Non-blocking
 1. **<file>:<line>** — <observation>. Optional improvement: <suggestion>.
 
+### Harness friction *(anything the process itself got wrong this story — stale doc, wrong port/path, contradictory instruction; each becomes an OPEN.md row, type `meta`)*
+1. <or "none">
+
 ## Verdict
 **PASS** | **CHANGES_REQUESTED**
+
+## On PASS (same commit)
+- [ ] Story `**Status:**` flipped to `Done` in place.
+- [ ] Completion detection run: book checked; `/close-book` offered if the book looks complete.

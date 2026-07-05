@@ -1,0 +1,38 @@
+# Harness-definition paths — the single definition of "what constitutes the harness".
+# One file or directory per line. Read by scripts/harness-lint.sh (L10: a commit
+# touching these must also touch engineering-team/CHANGELOG.md) and by
+# scripts/whats-open.sh (the "harness definition changed since your branch
+# diverged" section). Referenced from engineering-team/README.md § "Tuning the
+# team" and engineering-team/CHANGELOG.md.
+#
+# DEFINITION vs RECORDS: these paths define behavior that binds every session.
+# Records of work — stories/, reviews/, decisions/, audits/, OPEN.md, handoffs —
+# are deliberately NOT listed; changing a record is not a harness change.
+#
+# This file lists itself: adding a new harness surface without registering it
+# here is L10-visible on the next lint run.
+CLAUDE.md
+AGENTS.md
+engineering-team/README.md
+engineering-team/roles
+engineering-team/workflows
+engineering-team/templates
+engineering-team/CHANGELOG.md
+product-team/README.md
+product-team/roles
+product-team/workflows
+product-team/templates
+product-team/guardrails
+.claude/agents
+.claude/commands
+.claude/skills
+.claude/settings.json
+scripts/whats-open.sh
+scripts/session-start.sh
+scripts/harness-lint.sh
+scripts/harness-stats.sh
+scripts/lib
+scripts/harness-lint-waivers.txt
+scripts/harness-budgets.txt
+scripts/harness-def-paths.txt
+scripts/long-lived-branches.txt

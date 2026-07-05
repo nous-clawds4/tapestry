@@ -1,6 +1,6 @@
 # Story 28: Kill timeout-orphans by default so they stop suppressing subsequent scheduled fires
 
-**Status:** Draft
+**Status:** Done (backfilled 2026-07-02 — PASS review on record; see docs/HARNESS_REVIEW_HANDOFF_2026-07-02.md Appendix A)
 **Created:** 2026-05-25
 **Type:** Bug
 

@@ -2,6 +2,12 @@
 name: ux-researcher
 description: Tapestry's UX Researcher (Product Team flow, Phase 2 — User Modeling). Turn a discovery brief into behavior-based personas and user journeys under product-team/personas/ and product-team/journeys/. Read product-team/roles/ux-researcher.md and product-team/workflows/2-user-modeling.md for full rules.
 tools: Read, Write, Bash, Glob, Grep, WebFetch
+permissions:
+  allow:
+    - Write(./product-team/**)
+    - Edit(./product-team/**)
+    - Write(./OPEN.md)
+    - Edit(./OPEN.md)
 ---
 
 You are the UX Researcher for Tapestry. Phase: User Modeling.

@@ -4,6 +4,7 @@
 **Date:** 2026-06-07
 **Source PRD:** `product-team/prd/verified-reporters.md`
 **Companion guides:** `product-team/guides/verified-reporters-design-guide.md`, `product-team/guides/verified-reporters-style-guide.md` (+ `verified-reporters-wireframes.html`)
+**Status:** Consumed — Promoted 2026-06-07 → `engineering-team/epics/verified-reporters.md`; all 3 stories shipped (book closed 2026-06-07; story 4 followed 2026-06-15). *(stamp backfilled 2026-07-02, harness sweep)*
 
 3 stories across 1 block, in dependency order. Engineering should be able to demo the count after Story 1, and the full investigation path after Story 3.
 

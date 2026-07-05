@@ -1,0 +1,17 @@
+# Long-lived / keep-by-design branches — one per line: <branch> <tab-or-spaces> <reason>
+# Read by scripts/whats-open.sh: these are excluded from "candidate cleanup" and
+# printed in their own "held by design" section; the script WARNS when a branch
+# listed here no longer exists on origin (drift detector for the branch model).
+#
+# Keep in sync with OPERATIONS.md §1 (deploy targets), §2 (parked/sandbox
+# branches). When a long-lived branch is created, renamed, or retired, update
+# this file in the same commit (OPERATIONS §6 spin-up checklist).
+main	default branch / production deploy target
+staging	shared integration branch / staging deploy target
+feature-magic-carpet	sandbox deploy target (OPERATIONS §1)
+feat/communities	sandbox deploy target (OPERATIONS §1)
+feat/curate	sandbox deploy target (OPERATIONS §1)
+feat/tags	sandbox deploy target (OPERATIONS §1; renamed from feat/pubkey-tagging-target)
+feature-relay-discovery	parked — Vinney's relay-discovery rework (OPERATIONS §2)
+feature-tapestry-discovery	parked — stacked on feature-relay-discovery, PR #32 (OPERATIONS §2)
+fix/launch-child-task-protection-audit	retained by design — ADR 0023 audit trail (OPEN.md row 1)
