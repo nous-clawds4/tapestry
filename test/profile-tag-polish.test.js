@@ -36,6 +36,13 @@ async function fetchJson(url) {
   return { status: res.status, json, text };
 }
 
+async function controlPanelReachable() {
+  try {
+    const r = await fetch(`${CONTROL_PANEL_BASE}/api/auth/user-classification`, { signal: AbortSignal.timeout(2000) });
+    return r.ok;
+  } catch { return false; }
+}
+
 const tests = [];
 function t(name, fn) { tests.push([name, fn]); }
 
@@ -149,6 +156,11 @@ t('GET /api/search/profiles/meili clamps tagLimit to server-side max (<= 50)', a
 
 async function run() {
   console.log('\n--- profile-tag-polish tests (Story 7) ---');
+  if (!(await controlPanelReachable())) {
+    const skipped = tests.length;
+    console.log(`  - SKIP: control panel not reachable at ${CONTROL_PANEL_BASE} — live-API suite needs the local stack (${skipped} tests skipped)`);
+    return { pass: 0, fail: 0, skipped };
+  }
   let pass = 0, fail = 0;
   const failures = [];
   for (const [name, fn] of tests) {

@@ -38,6 +38,13 @@ async function fetchJson(url) {
   return { status: r.status, json, text };
 }
 
+async function controlPanelReachable() {
+  try {
+    const r = await fetch(`${CONTROL_PANEL_BASE}/api/auth/user-classification`, { signal: AbortSignal.timeout(2000) });
+    return r.ok;
+  } catch { return false; }
+}
+
 const tests = [];
 function t(name, fn) { tests.push([name, fn]); }
 
@@ -164,6 +171,11 @@ t('viewerPubkey valid + pinnedByMe omitted: viewerPinned populated, no filter', 
 
 async function run() {
   console.log('\n--- most-pinned-tag-index tests (Story 13) ---');
+  if (!(await controlPanelReachable())) {
+    const skipped = tests.length;
+    console.log(`  - SKIP: control panel not reachable at ${CONTROL_PANEL_BASE} — live-API suite needs the local stack (${skipped} tests skipped)`);
+    return { pass: 0, fail: 0, skipped };
+  }
   let pass = 0, fail = 0;
   for (const [name, fn] of tests) {
     try {
