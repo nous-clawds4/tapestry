@@ -83,6 +83,6 @@ Testable from the outside.
 - Whether the note read is reused via `handleForTag`'s core or a small extracted helper — Architecture.
 
 ## Linked artifacts
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/event-tagging/0016-ta-signed-note-trusted-list.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
