@@ -91,6 +91,6 @@ tagging/assertion. The two z strings are exactly `tag-for-nostr-pubkey` and `tag
 - One list per target type (two lists total) — confirmed, not per-type concept DLists.
 
 ## Linked artifacts
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/tag-applicability/0001-type-hints-and-applicability-lists.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
