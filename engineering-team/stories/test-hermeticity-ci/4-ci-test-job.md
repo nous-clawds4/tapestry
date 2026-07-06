@@ -1,6 +1,6 @@
 # Story 4: The first CI test gate — every PR to staging/main proves the stack-free suite green
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-07-06
 **Type:** Feature
 
@@ -48,4 +48,4 @@ None for Planning — the trigger shape, version pinning, caching, install-scrip
 
 - ADR: `engineering-team/decisions/test-hermeticity-ci/0001-ci-test-job.md` (Accepted, 2026-07-06)
 - Test plan: `engineering-team/stories/test-hermeticity-ci/4-ci-test-job.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/test-hermeticity-ci/4-ci-test-job.md` (PASS, 2026-07-06)
