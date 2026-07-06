@@ -3,7 +3,7 @@
 > **Audience:** the active team running this fork at `brainstorm.world`.
 > **Prerequisite reading:** [BIBLE.md](./BIBLE.md) — what tapestry *is* and how it works. This file documents the specifics of *our* deployment that aren't useful to other operators forking the codebase.
 
-**Last updated:** 2026-07-02
+**Last updated:** 2026-07-06
 
 ---
 
@@ -23,6 +23,7 @@
 12. [Reconciliation — four independent tasks (story #23 / ADR 0020)](#12-reconciliation--four-independent-tasks-story-23--adr-0020)
 13. [Task scheduling — generalized scheduler (story #22 / ADR 0019)](#13-task-scheduling--generalized-scheduler-story-22--adr-0019)
 14. [Local dev loop (inside-container source edits)](#14-local-dev-loop-inside-container-source-edits)
+15. [CI test gate (PRs to staging/main)](#15-ci-test-gate-prs-to-stagingmain)
 
 ---
 
@@ -85,6 +86,8 @@ GitHub Actions workflows in `.github/workflows/`. All four follow the same SSH-a
 5. Prune old images
 
 The first deploy to a new droplet takes 5–15 minutes (the strfry C++ Redis patch builds from scratch). Subsequent deploys take ~80 seconds on a warm Docker layer cache.
+
+These are the **deploy** workflows (push-triggered). The one non-deploy workflow is the pull-request **test gate** — see [§15](#15-ci-test-gate-prs-to-stagingmain).
 
 ---
 
@@ -785,3 +788,19 @@ The current loop turns a one-line CSS tweak into a six-step shell ritual. Two tr
 2. **A `make sync-css` (or equivalent) one-liner.** Stop-gap until #1 lands: a script that wraps the `docker cp` + `npm run build` + bundle-hash check above. Bash version is ~10 lines; could live in `bin/dev-sync-ui.sh`.
 
 Both tracked as candidates; bandwidth-permitting.
+
+---
+
+## 15. CI test gate (PRs to staging/main)
+
+`.github/workflows/test.yml` (story `test-hermeticity-ci` #4, ADR 0001). The first CI job in this repo that runs *tests* rather than deploying — the enforcement surface for "`npm test` must be clean," which was prose-only until now.
+
+**What runs.** On every `pull_request` targeting `staging` or `main`, a single job on a clean `ubuntu-latest` runner: `npm ci` (from the lockfile) then `npm test`. Node 22, matching the production Dockerfile. No Docker stack is provisioned — the suite is stack-free by construction (stories #1–#3): the ~24 live-API suites detect the absent control panel and **self-skip**, visibly and counted, so the run's `Total skipped:` line reports exactly how much of the gate stood down. Full git history (`fetch-depth: 0`) so the harness-lint L9/L10 checks stay live in CI. A newer push to the same PR cancels the older in-flight run; a 15-minute timeout guards against hangs.
+
+**What is deliberately excluded.** e2e/Playwright and anything relay-touching. That path has a heavy dependency setup and pollutes shared relay state (hundreds of test tags accumulate on a dev relay), and the "where does CI get a throwaway relay?" question is unanswered. Both are a **deferred later phase**, not part of this gate. The job never invokes `npm run test:playwright`.
+
+**No-retry policy.** There is no retry, rerun-on-failure, or retry-until-green anywhere in the job — the first run's exit code is the verdict. This is deliberate: the stack-free suite has a **zero recorded-flake history** (all documented nondeterminism lives in the excluded live `*-publish` class), so a red run is signal by construction. Auto-retry would launder a real regression into a "probably a flake," which is exactly the habit this gate exists to break. (`playwright.config.js` sets `retries: 2` in CI — another reason that path stays out of this job.)
+
+**First-flake waiver pattern.** If a stack-free suite ever *does* flake, the response is not a retry but a **cited quarantine entry**, mirroring `scripts/harness-lint-waivers.txt`: a tab-separated `<suite>  <citation>` file where every row cites an OPEN.md row explaining the known flake. That file **does not exist today** — deliberately. Its very creation is the surfaced-flake signal: the first entry means a real flake was found, tracked, and is visible on every run, rather than silently retried away. Do not pre-seed it (the excluded live suites are excluded by class, not waived).
+
+**Required-check status — an operator decision, not taken here.** This check is **advisory** on both branches as shipped: `main` requires PRs but enforces no required status checks, and `staging` permits direct pushes. Making `test / stack-free` a **required** check in the GitHub branch rulesets (§4) is a deliberate, separate operator decision that this story does **not** take — flip it once the gate has proven stable across real PRs. Note that a required check on `staging` would also require closing the direct-push path there.
