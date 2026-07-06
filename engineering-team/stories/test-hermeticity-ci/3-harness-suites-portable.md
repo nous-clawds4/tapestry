@@ -50,5 +50,5 @@ None — the hook content is ratified (previous book, ADR 0006), the date-fallba
 ## Linked artifacts
 
 - ADR: — (Architecture skipped per the ratified book plan; design records: row 19's sketched fallback, row 20's fix direction, ADR 0006 for the hook content)
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/test-hermeticity-ci/3-harness-suites-portable.test-plan.md`
 - Review: (filled in after Review phase)

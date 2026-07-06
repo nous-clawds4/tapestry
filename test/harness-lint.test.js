@@ -231,6 +231,17 @@ test('L9: a Last-updated header more than 14 days behind git history is a violat
   assert.match(out, /VIOLATION L9 .*BIBLE\.md/, out);
 });
 
+test('L12: a def-path row naming a file that does not exist is a violation naming the path (story test-hermeticity-ci #3 — the blind spot that hid the unshipped hook, OPEN.md row 20)', () => {
+  const { code, out } = lint(withClean({
+    'scripts/harness-def-paths.txt':
+      '# harness-definition paths (fixture)\nengineering-team/roles\n.claude/commands\nengineering-team/CHANGELOG.md\nscripts/harness-def-paths.txt\nscripts/ghost-not-here.sh\n',
+  }));
+  assert.notStrictEqual(code, 0,
+    `a def-path row whose file is missing must FAIL the lint — silently dropping it is how a gitignored enforcement artifact stayed invisible (OPEN.md row 20)\n${out}`);
+  assert.match(out, /VIOLATION L12 .*ghost-not-here\.sh/,
+    'the violation must name the missing path so the drift is actionable\n' + out);
+});
+
 test('L9 is skipped silently when the tree has no git history', () => {
   const { code, out } = lint(withClean(
     { 'BIBLE.md': '# BIBLE\n\n**Last updated:** 2020-01-01\n' },
