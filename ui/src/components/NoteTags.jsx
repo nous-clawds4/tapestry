@@ -22,7 +22,7 @@ export default function NoteTags({ item, showScores = false }) {
   const viewerPubkey = user?.pubkey || null;
   const { tags, mine, availableTags, error, refetch } = useEventTags(item?.id, viewerPubkey);
   // Type-aware picker (tag-applicability #2): event-context applicable tags, viewer-inclusive.
-  const { applicableKeys } = useTagApplicability('event', viewerPubkey);
+  const { applicableKeys, contextsByKey } = useTagApplicability('event', viewerPubkey);
   const { applyTag, disputeTag } = useEventTagging();
 
   const [busy, setBusy] = useState(false);
@@ -139,6 +139,7 @@ export default function NoteTags({ item, showScores = false }) {
           availableTags={availableTags}
           appliedTagEventIds={appliedTagEventIds}
           applicableKeys={applicableKeys}
+          contextsByKey={contextsByKey}
           busy={busy}
           onClose={() => setDialogOpen(false)}
           onSelectExisting={handleSelectExisting}

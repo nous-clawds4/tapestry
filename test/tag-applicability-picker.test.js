@@ -153,56 +153,67 @@ test('S3: computeTagUsageRows accepts alsoTrust and always-trusts that pubkey', 
 });
 
 // ===========================================================================
-// U — the picker: hard-filtered browse + search-all escape
+// U — the picker: scoped browse + scoped search + "Show other results" escape + hints
+// (reshaped 2026-07-06 — David's scoped-search direction; Story 3's same-slug affordance folded in)
 // ===========================================================================
 
-test('U1: useTagApplicability(type, viewer) fetches the typed+viewer endpoint and returns applicableKeys', () => {
+test('U1: useTagApplicability(type, viewer) fetches BOTH type lists and returns applicableKeys + contextsByKey', () => {
   const src = safeRead(HOOK);
   assert(src.length > 0, 'ui/src/hooks/useTagApplicability.js must exist (ADR 0002).');
   assert(/useTagApplicability\s*\(\s*type/.test(src), 'useTagApplicability must take (type, viewerPubkey?).');
   assert(/\/api\/tags\/applicability\?type=/.test(src), 'must fetch /api/tags/applicability?type=…');
-  assert(/viewerPubkey/.test(src), 'must include the viewerPubkey (for viewer-inclusive graduation).');
-  assert(/applicableKeys/.test(src) && /authorPubkey|:\$\{|:'/.test(src),
-    'must return applicableKeys as `authorPubkey:slug` strings.');
+  assert(/event/.test(src) && /pubkey/.test(src),
+    'must fetch BOTH ?type=event AND ?type=pubkey (for the current-context scoping AND the cross-context hints/other-results).');
+  assert(/viewerPubkey/.test(src), 'must include viewerPubkey (viewer-inclusive graduation).');
+  assert(/applicableKeys/.test(src) && /contextsByKey/.test(src),
+    'must return applicableKeys (current type) AND contextsByKey (key → {people, content}) for hints + cross-context detection.');
   assert(/AbortController/.test(src), 'must abort on unmount.');
 });
 
-test('U2: AddTagDialog BROWSE (no-query) is hard-filtered to applicableKeys', () => {
+test('U2: AddTagDialog BROWSE (no-query) is scoped to applicableKeys', () => {
   const src = safeRead(DIALOG);
   assert(/applicableKeys/.test(src), 'AddTagDialog must accept an applicableKeys prop (ADR 0002).');
-  // The no-query branch must restrict to applicableKeys membership (by authorPubkey:slug).
-  assert(/applicableKeys[\s\S]{0,200}(includes|has|Set|indexOf)/.test(src),
-    'the no-query browse must keep only candidates whose authorPubkey:slug ∈ applicableKeys (hard filter).');
+  assert(/applicableKeys[\s\S]{0,200}(includes|has|Set|indexOf|order)/.test(src),
+    'browse must keep only candidates whose authorPubkey:slug ∈ applicableKeys (scoped to context).');
 });
 
-test('U3 (SAFETY): SEARCH (query branch) still spans ALL availableTags — the anti-re-mint escape', () => {
+test('U3 (SAFETY): SEARCH is scoped, with a "Show other results" escape for cross-context matches', () => {
   const src = safeRead(DIALOG);
-  // The query branch must filter availableTags by name/slug/description WITHOUT intersecting
-  // applicableKeys — so typing `funny` finds a cross-context tag and prevents re-minting.
-  const qBranch = src.match(/if\s*\(\s*!q\s*\)[\s\S]{0,600}/);
-  assert(qBranch, 'AddTagDialog must keep its query branch.');
-  assert(/\.includes\(q\)/.test(src),
-    'the search branch must still match name/slug/description across availableTags (full-universe search).');
-  // Guard: the applicableKeys filter must NOT also gate the query branch. Use [^}] so the match
-  // can't cross the useMemo body's closing brace into its dependency array (listing applicableKeys
-  // as a React dep is not search-gating — that would be a false positive).
-  assert(!/includes\(q\)[^}]{0,140}applicableKeys/.test(src) && !/applicableKeys[^}]{0,140}includes\(q\)/.test(src),
-    'the applicableKeys hard-filter must apply to BROWSE only — search must reach every tag (the escape that prevents re-minting, the funny bug).');
+  // David 2026-07-06: search is scoped to the context list; the escape is a "Show other results"
+  // affordance that surfaces cross-context (esp. same-slug) matches so an existing tag is adopted,
+  // not re-minted. This replaces the old "search spans all" behavior AND folds in Story 3.
+  assert(/show other results|other results|showOther|otherHits|otherResults/i.test(src),
+    'AddTagDialog must render a "Show other results" affordance (the same-slug anti-re-mint escape; folds Story 3).');
+  // The "other results" set must be tags matching the query that are NOT in applicableKeys (i.e.
+  // cross-context) — so it is derived from availableTags minus the scoped set.
+  assert(/availableTags[\s\S]{0,400}applicableKeys|applicableKeys[\s\S]{0,400}(otherHits|other)/i.test(src),
+    'the "other results" must be availableTags matching the query but OUTSIDE applicableKeys (cross-context) — so a same-slug tag in the other context is reachable.');
+  // The exact-slug case (typing "LFO" when "LFO" exists elsewhere) must be handled.
+  assert(/slug\s*===|=== *q|=== *query|toLowerCase\(\)\s*===/.test(src),
+    'an exact same-slug match should be detected (the primary anti-fork trigger).');
 });
 
 test('U4: absent/empty applicableKeys ⇒ browse does not blank (graceful fallback)', () => {
   const src = safeRead(DIALOG);
   assert(/applicableKeys\s*&&|applicableKeys\?\.|applicableKeys\.length|!applicableKeys/.test(src),
-    'AddTagDialog must guard applicableKeys (absent/empty ⇒ fall back to the current browse, never an empty picker).');
+    'AddTagDialog must guard applicableKeys (absent/empty ⇒ fall back to the full browse, never blank).');
 });
 
-test('U5: the two mounts wire useTagApplicability with their type + pass applicableKeys', () => {
+test('U5: usage-context hint is rendered from contextsByKey (people / content / both)', () => {
+  const src = safeRead(DIALOG);
+  assert(/contextsByKey/.test(src),
+    'AddTagDialog must accept contextsByKey and render a per-row usage-context hint (David: disambiguate by usage — "LFO · people & content").');
+  assert(/people|content|profile|event/i.test(src),
+    'the hint must convey the usage context(s) (people / content).');
+});
+
+test('U6: the two mounts wire useTagApplicability + pass applicableKeys + contextsByKey', () => {
   const prof = safeRead(PROFILE_SEC);
   const note = safeRead(NOTE_TAGS);
-  assert(/useTagApplicability\s*\(\s*['"]pubkey['"]/.test(prof) && /applicableKeys=/.test(prof),
-    "ProfileTagsSection must call useTagApplicability('pubkey', …) and pass applicableKeys to AddTagDialog.");
-  assert(/useTagApplicability\s*\(\s*['"]event['"]/.test(note) && /applicableKeys=/.test(note),
-    "NoteTags must call useTagApplicability('event', …) and pass applicableKeys to AddTagDialog.");
+  assert(/useTagApplicability\s*\(\s*['"]pubkey['"]/.test(prof) && /applicableKeys=/.test(prof) && /contextsByKey=/.test(prof),
+    "ProfileTagsSection must call useTagApplicability('pubkey', …) and pass applicableKeys + contextsByKey.");
+  assert(/useTagApplicability\s*\(\s*['"]event['"]/.test(note) && /applicableKeys=/.test(note) && /contextsByKey=/.test(note),
+    "NoteTags must call useTagApplicability('event', …) and pass applicableKeys + contextsByKey.");
 });
 
 // ===========================================================================

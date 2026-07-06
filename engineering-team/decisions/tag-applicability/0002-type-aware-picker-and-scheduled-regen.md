@@ -14,11 +14,15 @@ Story 2 makes the tag picker type-aware and schedules the Story-1 list regenerat
 
 1. **Browse is hard-filtered to the context** — the picker's default view shows **only** the
    current context's tags (super simple), NOT a "relevant-first + all-tags" section list.
-2. **Search still reaches every tag** — typing a name matches across all tags, so an existing
-   cross-context tag (`funny`) surfaces and is picked instead of re-minted. This exact-name search
-   is the escape hatch; a deliberate cross-context *browse* ("choose a tag out of field") is
-   deferred as advanced UX. This preserves the anti-re-mint safety the brief's §3b hard-requirement
-   demands, in a simpler form.
+2. **Search is scoped to the context, with a same-slug "Show other results" escape** *(David,
+   2026-07-06 — supersedes the earlier "search reaches all" note)*. Typing filters **within** the
+   current context's list. When the query matches a tag **outside** the context — in particular an
+   **identical slug** (typing "LFO" for an event while "LFO" exists on pubkeys) — the picker shows a
+   **"Show other results"** link that expands to reveal those cross-context matches, so the user
+   adopts the existing tag instead of minting a duplicate. This escape **folds in Story 3** (the
+   same-slug anti-fork affordance) and is what keeps scoped search safe from the `funny` re-mint.
+   Each row carries a small **usage-context hint** ("LFO · people & content") derived from list
+   membership, so a cross-context pick is knowing.
 3. **The picker computes HINT ∪ USAGE _live_ and _viewer-inclusive_** — so a tag you just applied
    in a context **graduates into that context's browse immediately** (next open), not after the
    published-list regeneration. "Search once → apply → it's in browse thereafter." (The published
@@ -64,14 +68,20 @@ from `available-tags`. **The picker does not read the published TL** — computi
 graduation and is simpler (no TL parse). *(This is the deliberate deviation from the brief's
 "read the TL with live fallback": the operative membership rule is identical; only freshness differs.)*
 
-**Client:**
-- `useTagApplicability(type, viewerPubkey)` → fetches the endpoint → ordered `applicableKeys`
-  (`authorPubkey:slug`). One-shot, re-runs on type/viewer change, aborts on unmount.
-- `AddTagDialog` gains an optional `applicableKeys` prop. **No-query (browse) branch: show ONLY the
-  tags whose `authorPubkey:slug` ∈ `applicableKeys`, in that order** (hard filter). **Query (search)
-  branch: unchanged — filter the whole `availableTags` universe** (the escape). Create-new unchanged.
+**Client** (reshaped 2026-07-06 — scoped search + "Show other results" + hints; the server
+endpoint is unchanged — the hook just fetches BOTH type lists):
+- `useTagApplicability(type, viewerPubkey)` fetches **both** `?type=event` and `?type=pubkey`
+  (viewer-inclusive) and returns `{ applicableKeys, contextsByKey, loading }` — `applicableKeys` =
+  the CURRENT type's ordered `authorPubkey:slug` keys (scoping); `contextsByKey` = `key →
+  {people, content}` from each list's membership (for the hints + cross-context detection).
+- `AddTagDialog` gains `applicableKeys` + `contextsByKey`. **Browse (no query): show ONLY tags whose
+  key ∈ `applicableKeys`, ordered.** **Search (query): filter WITHIN `applicableKeys`** (scoped) —
+  NOT the whole universe. Separately compute **other results** = `availableTags` matching the query
+  but whose key ∉ `applicableKeys` (esp. an exact-slug match); if any, render a **"Show other
+  results (N)"** toggle that reveals them. Each row shows a context hint from `contextsByKey[key]`
+  ("· people & content"). Absent/empty `applicableKeys` ⇒ fall back to the full browse.
 - `ProfileTagsSection` → `useTagApplicability('pubkey', viewer)`; `NoteTags` →
-  `useTagApplicability('event', viewer)`; each passes `applicableKeys` into its `AddTagDialog`.
+  `useTagApplicability('event', viewer)`; each passes `applicableKeys` + `contextsByKey`.
 
 **Scheduler:** register `refreshApplicabilityLists` in `taskRegistry.json` (copy `refreshPinnedTagTLs`;
 **no `resourceClass`**; `frequency:"timer-based"`), add `src/algos/refreshApplicabilityLists.sh`
@@ -129,16 +139,22 @@ already apply the correct a-coordinate version).
   `members = buildMembers(usageRows, hintEls, type==='pubkey'?'profile':'event')` (require both from
   their modules); return `{success, type, source:'live', viewerIncluded:!!viewer, members}`. Register
   `app.get('/api/tags/applicability', …)` beside `/api/tags/index` (`src/api/index.js:557`). Public.
-- **`ui/src/hooks/useTagApplicability.js`** (new) — `fetch(\`/api/tags/applicability?type=${type}${viewer?…:''}\`)`;
-  return `{ applicableKeys: members.map(m=>`${m.authorPubkey}:${m.slug}`), loading }`; abort on unmount.
-- **`ui/src/components/AddTagDialog.jsx`** — accept optional `applicableKeys`. In the **no-query**
-  path, replace `candidates.slice(0,20)` with: keep only candidates whose `${authorPubkey}:${slug}` ∈
-  `applicableKeys`, ordered by the `applicableKeys` index, then `.slice(0,20)`. **Query path
-  unchanged** (searches all `availableTags`). If `applicableKeys` is absent/empty, fall back to
-  current behavior (don't blank the browse). Keep a tiny hint that search reaches more (e.g. empty-
-  browse copy "Search to find any tag").
-- **`ProfileTagsSection.jsx` / `NoteTags.jsx`** — `useTagApplicability('pubkey'|'event', viewerPubkey)`;
-  pass `applicableKeys` to `<AddTagDialog>`.
+- **`ui/src/hooks/useTagApplicability.js`** — fetch BOTH `?type=event` and `?type=pubkey`
+  (viewer-inclusive) in parallel; return `{ applicableKeys, contextsByKey, loading }`:
+  `applicableKeys` = the current `type`'s ordered `authorPubkey:slug`; `contextsByKey[key] =
+  { people: pubkeyList.has(key), content: eventList.has(key) }` over the union of both lists. Abort
+  on unmount.
+- **`ui/src/components/AddTagDialog.jsx`** — accept `applicableKeys` + `contextsByKey`.
+  - **Browse (no query):** candidates whose key ∈ `applicableKeys`, ordered; `.slice(0,20)`.
+  - **Search (query):** filter **within** `applicableKeys` (scoped) by name/slug/description.
+  - **Other results:** `otherHits` = candidates matching the query whose key ∉ `applicableKeys`
+    (prioritize an exact `slug === query` match). If `otherHits.length`, render a **"Show other
+    results (N)"** button (`useState` expanded flag) that lists them below the scoped results.
+  - **Row hint:** for each shown tag, render a small context label from `contextsByKey[key]`
+    (people / content / both) so a cross-context pick is knowing.
+  - Absent/empty `applicableKeys` ⇒ browse falls back to the full list (never blank).
+- **`ProfileTagsSection.jsx` / `NoteTags.jsx`** — `useTagApplicability('pubkey'|'event', viewer)`;
+  pass `applicableKeys` + `contextsByKey` to `<AddTagDialog>`.
 - **Scheduler** — `taskRegistry.json` `refreshApplicabilityLists` (copy `refreshPinnedTagTLs`, no
   `resourceClass`); `src/algos/refreshApplicabilityLists.sh` (copy `refreshPinnedTagTLs.sh`, curl
   `…/refresh-applicability-lists`); disabled seed in `scheduled-tasks` `freshInstallEntries`.

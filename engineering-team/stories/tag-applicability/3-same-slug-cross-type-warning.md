@@ -1,8 +1,14 @@
 # Story 3: Same-slug cross-type duplicate warning (fast-follow)
 
-**Status:** Draft
+**Status:** Superseded — folded into `tag-applicability` #2 (2026-07-06)
 **Created:** 2026-07-06
 **Type:** Feature
+
+> **Superseded 2026-07-06.** David's "scoped search + Show other results" direction merges this
+> same-slug anti-fork affordance directly into the picker (Story 2): when the search query matches
+> a same-slug tag outside the current context, a "Show other results" link reveals it so the user
+> adopts it instead of minting a duplicate. That IS this story's intent, delivered inside the
+> picker rather than as a separate create-time warning. Body preserved below for history.
 
 ## Background
 Story 2 makes the picker type-aware with a full-search escape. This fast-follow adds the

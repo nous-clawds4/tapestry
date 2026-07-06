@@ -26,36 +26,45 @@ their own.
 Testable from the outside.
 
 - [ ] **Type-relevant tags first.** Given a user opens the picker to tag an **event**, when the
-  preexisting-tags list renders, then it is sourced from the "Tags for Nostr Events" Trusted
-  List and those tags are shown first / by default; correspondingly, tagging a **pubkey** sources
-  the "Tags for Nostr Pubkeys" list.
+  preexisting-tags list renders, then it is sourced from the "Tags for Nostr Events" applicability
+  list (HINT ∪ USAGE); correspondingly, tagging a **pubkey** sources the "Tags for Nostr Pubkeys"
+  list. Membership rule (David, 2026-07-06): the list for a context = (tags with that context's
+  z-hint) ∪ (tags used on that context's targets). Computed live + viewer-inclusive.
 
-- [ ] **Fallback when the list is unavailable.** Given the appropriate Trusted List cannot be
-  loaded, when the picker renders, then it falls back to the live `/api/tags/index` filtered by
-  usage type — never an empty or broken picker.
+- [ ] **Search is scoped to the context.** Given the user types a query, then the results are
+  filtered **within** the current context's applicability list (searching event tags does not mix
+  in pubkey-only tags) — matching David's "search from a list of tags-for-events."
 
-- [ ] **Full search always reachable (hard requirement).** Given the picker is open in either
-  type context, then the **full tag universe** is reachable from the same dialog — search across
-  all tags is one tap/toggle away, never buried, and the picker **never** hard-filters to the
-  type-scoped set with no escape.
+- [ ] **Same-slug escape — "Show other results" (folds Story 3).** Given the user's query matches
+  a tag that exists **outside** the current context (in particular an **identical slug** — e.g.
+  typing "LFO" when tagging an event while "LFO" exists only on pubkeys), then the picker surfaces
+  a **"Show other results"** affordance that expands to reveal those cross-context matches, so the
+  user **adopts the existing tag instead of minting a duplicate**. This is the anti-fork escape
+  that makes scoped search safe (it replaces the standalone Story-3 same-slug create warning).
 
-- [ ] **All three surfaces.** The type-aware behavior applies on the shared **AddTagDialog**
-  (profile tagging via `ProfileTagsSection`, note tagging via `NoteTags`), **TagSomeoneModal**,
-  and **TagANoteModal**.
+- [ ] **Usage-hint descriptions.** Given a tag's usage context is known, then its picker row shows
+  a small hint of which context(s) it belongs to (e.g. **"LFO · used on people & content"**),
+  derived from applicability-list membership — so a cross-context tag is chosen knowingly.
 
-- [ ] **Scheduled regeneration.** Given the scheduler is registered, then the two Trusted Lists
-  regenerate on a modest, operator-tunable cadence (e.g. 10–30 min) via the existing task-queue
-  pattern (`taskRegistry.json` + the per-task Queue/Worker convention).
+- [ ] **Both picker surfaces.** The type-aware behavior applies on the shared **AddTagDialog**
+  in its two mount contexts: profile tagging via `ProfileTagsSection` (pubkey) and note tagging via
+  `NoteTags` (event). *(`TagSomeoneModal`/`TagANoteModal` are target selectors, not tag pickers —
+  they already apply the correct tag by a-coordinate; out of scope.)*
+
+- [ ] **Scheduled regeneration.** Given the scheduler is registered, then the two applicability
+  Trusted Lists regenerate on a modest, operator-tunable cadence via the existing task-queue.
 
 - [ ] **No regression.** Existing tagging flows still work end-to-end; no existing read path is
-  removed or weakened; a tag reachable before is still reachable.
+  removed or weakened; a tag reachable before is still reachable (via scoped search or "Show other
+  results").
 
 ## Concepts touched
 - `39998:<TA>:tag` — the shared vocabulary the picker draws from.
 - `39998:<TA>:nostr-user-tag`, `39998:<TA>:nostr-event-tag` — the two type contexts.
 
 ## Out of scope
-- The same-slug cross-type create warning — Story 3.
+- ~~The same-slug cross-type create warning — Story 3.~~ **Folded into this story** (2026-07-06):
+  the "Show other results" same-slug escape *is* the anti-fork affordance; Story 3 is superseded.
 - Changing the derivation rule or the TL shape (owned by Story 1).
 - Ranking beyond what the TL/usage data already provides.
 - Any push/deploy without operator approval.

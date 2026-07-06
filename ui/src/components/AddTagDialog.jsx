@@ -4,6 +4,7 @@ export default function AddTagDialog({
   availableTags,
   appliedTagEventIds,
   applicableKeys,
+  contextsByKey,
   busy,
   onClose,
   onSelectExisting,
@@ -13,9 +14,23 @@ export default function AddTagDialog({
   const [view, setView] = useState('search'); // 'search' | 'create'
   const [newName, setNewName] = useState('');
   const [newDesc, setNewDesc] = useState('');
+  const [showOther, setShowOther] = useState(false); // "Show other results" (cross-context) expander
   const [error, setError] = useState(null);
   const inputRef = useRef(null);
   const dialogRef = useRef(null);
+
+  const keyOf = (t) => `${t.authorPubkey}:${t.slug}`;
+  const scoped = Array.isArray(applicableKeys) && applicableKeys.length > 0;
+  const inScope = (t) => !scoped || applicableKeys.includes(keyOf(t));
+  // Usage-context hint ("people" / "content" / "people & content") from list membership.
+  const ctxLabel = (t) => {
+    const c = contextsByKey && contextsByKey[keyOf(t)];
+    if (!c) return null;
+    const parts = [];
+    if (c.people) parts.push('people');
+    if (c.content) parts.push('content');
+    return parts.length ? parts.join(' & ') : null;
+  };
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -26,32 +41,40 @@ export default function AddTagDialog({
     return () => document.removeEventListener('keydown', onKey);
   }, [onClose]);
 
+  const matchesQuery = (t, q) =>
+    t.name.toLowerCase().includes(q) ||
+    t.slug.toLowerCase().includes(q) ||
+    (t.description || '').toLowerCase().includes(q);
+
+  // The IN-CONTEXT results: browse = the scoped list (ordered); search = scoped list filtered by q.
+  // Search is deliberately SCOPED to the context (David 2026-07-06) — cross-context matches are
+  // surfaced separately via "Show other results" below, never mixed in.
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const candidates = availableTags.filter((t) => !appliedTagEventIds.has(t.eventId));
+    const candidates = availableTags.filter((t) => !appliedTagEventIds.has(t.eventId) && inScope(t));
     if (!q) {
-      // BROWSE (no query): hard-filter to the current context's applicable tags, ordered by
-      // the list (tag-applicability #2). Search (below) still spans EVERY tag — the escape that
-      // lets a cross-context tag be picked instead of re-minted. Absent/empty applicableKeys ⇒
-      // fall back to the full browse (never a blank picker).
-      if (Array.isArray(applicableKeys) && applicableKeys.length > 0) {
+      if (scoped) {
         const order = new Map(applicableKeys.map((k, i) => [k, i]));
         return candidates
-          .filter((t) => order.has(`${t.authorPubkey}:${t.slug}`))
-          .sort((a, b) => order.get(`${a.authorPubkey}:${a.slug}`) - order.get(`${b.authorPubkey}:${b.slug}`))
+          .sort((a, b) => (order.get(keyOf(a)) ?? 0) - (order.get(keyOf(b)) ?? 0))
           .slice(0, 20);
       }
       return candidates.slice(0, 20);
     }
-    // SEARCH: the whole universe, never gated by the browse filter (anti-re-mint escape).
-    return candidates
-      .filter((t) =>
-        t.name.toLowerCase().includes(q) ||
-        t.slug.toLowerCase().includes(q) ||
-        (t.description || '').toLowerCase().includes(q)
-      )
+    return candidates.filter((t) => matchesQuery(t, q)).slice(0, 20);
+  }, [availableTags, appliedTagEventIds, applicableKeys, contextsByKey, query]);
+
+  // OTHER results: query-matching tags OUTSIDE the current context (the same-slug anti-fork escape;
+  // folds Story 3). Exact same-slug matches first, so typing "LFO" for an event surfaces the
+  // existing pubkey "LFO" to adopt instead of minting a duplicate.
+  const otherHits = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q || !scoped) return [];
+    return availableTags
+      .filter((t) => !appliedTagEventIds.has(t.eventId) && !inScope(t) && matchesQuery(t, q))
+      .sort((a, b) => (b.slug.toLowerCase() === q ? 1 : 0) - (a.slug.toLowerCase() === q ? 1 : 0))
       .slice(0, 20);
-  }, [availableTags, appliedTagEventIds, applicableKeys, query]);
+  }, [availableTags, appliedTagEventIds, applicableKeys, contextsByKey, query]);
 
   const exactMatchExists = useMemo(
     () => availableTags.some((t) => t.name.toLowerCase() === query.trim().toLowerCase()),
@@ -160,12 +183,38 @@ export default function AddTagDialog({
                       onClick={() => handleSelect(t)}
                     >
                       <strong>{t.name}</strong>
+                      {ctxLabel(t) && <span className="ptd-result-ctx"> · {ctxLabel(t)}</span>}
                       {t.description && <span className="ptd-result-desc"> — {t.description}</span>}
                     </button>
                   </li>
                 ))
               )}
             </ul>
+            {/* "Show other results" — cross-context (esp. same-slug) matches the scoped search
+                hides. The anti-fork escape (folds Story 3): adopt an existing tag from the other
+                context instead of minting a duplicate. */}
+            {query && otherHits.length > 0 && (
+              showOther ? (
+                <>
+                  <div className="ptd-other-head">Also used elsewhere</div>
+                  <ul className="ptd-results ptd-results-other" role="listbox">
+                    {otherHits.map((t) => (
+                      <li key={t.eventId} className="ptd-result" role="option">
+                        <button type="button" className="ptd-result-btn" disabled={busy} onClick={() => handleSelect(t)}>
+                          <strong>{t.name}</strong>
+                          {ctxLabel(t) && <span className="ptd-result-ctx"> · {ctxLabel(t)}</span>}
+                          {t.description && <span className="ptd-result-desc"> — {t.description}</span>}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              ) : (
+                <button type="button" className="ptd-link ptd-show-other" onClick={() => setShowOther(true)}>
+                  Show other results ({otherHits.length})
+                </button>
+              )
+            )}
             {query && !exactMatchExists && filtered.length > 0 && (
               <div className="ptd-create-hint">
                 Don't see what you want?{' '}

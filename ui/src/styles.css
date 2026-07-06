@@ -4136,6 +4136,25 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
 .ptd-result-desc {
   color: var(--text-muted, #94a3b8);
 }
+/* Usage-context hint + "Show other results" (tag-applicability #2). */
+.ptd-result-ctx {
+  color: var(--accent, #a5b4fc);
+  font-size: 0.78rem;
+  font-weight: 500;
+}
+.ptd-show-other {
+  display: inline-block;
+  margin: 0.35rem 0 0.15rem;
+  font-size: 0.85rem;
+}
+.ptd-other-head {
+  margin-top: 0.5rem;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  opacity: 0.6;
+}
+.ptd-results-other .ptd-result-btn { opacity: 0.9; }
 .ptd-empty,
 .ptd-create-hint {
   padding: 0.5rem 0;

@@ -7,7 +7,7 @@ import ManageTagsDialog from './ManageTagsDialog';
 
 export default function ProfileTagsSection({ targetPubkey, viewerPubkey }) {
   // Type-aware picker (tag-applicability #2): pubkey-context applicable tags, viewer-inclusive.
-  const { applicableKeys } = useTagApplicability('pubkey', viewerPubkey);
+  const { applicableKeys, contextsByKey } = useTagApplicability('pubkey', viewerPubkey);
   const {
     availableTags,
     applications,
@@ -151,6 +151,7 @@ export default function ProfileTagsSection({ targetPubkey, viewerPubkey }) {
           availableTags={availableTags}
           appliedTagEventIds={appliedTagEventIds}
           applicableKeys={applicableKeys}
+          contextsByKey={contextsByKey}
           busy={busy}
           onClose={() => setDialog(null)}
           onSelectExisting={handleSelectExisting}
