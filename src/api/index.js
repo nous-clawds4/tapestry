@@ -555,6 +555,8 @@ async function register(app) {
     app.get('/api/event-tags/for-tag', eventTags.handleForTag);
     // Unified tag directory across all tagging family members (Story 9 / ADR 0009).
     app.get('/api/tags/index', eventTags.handleTagIndex);
+    // Type-aware picker's live HINT ∪ USAGE context list (tag-applicability #2 / ADR 0002).
+    app.get('/api/tags/applicability', eventTags.handleTagApplicability);
     app.get('/api/event-tags/notes-by-author', eventTags.handleNotesByAuthor);
 
     // ── Tapestry I/O (Import/Export) API ──

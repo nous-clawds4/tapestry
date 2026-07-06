@@ -630,6 +630,23 @@
       "options": {},
       "notes": "Story #11 / ADR 0010. v1 supports curation-method.method='nip85:rank' only; other methods are skipped silently."
     },
+    "refreshApplicabilityLists": {
+      "name": "Refresh Tag-applicability Trusted Lists",
+      "categories": ["algorithms", "export"],
+      "description": "Derive and publish the two kind-30393 tag-applicability Trusted Lists (Tags for Nostr Pubkeys / Tags for Nostr Events, HINT ∪ USAGE) to local strfry. Scheduled via /api/scheduled-tasks (taskId=refreshApplicabilityLists).",
+      "scripts": [
+        "$BRAINSTORM_MODULE_SRC_DIR/algos/refreshApplicabilityLists.sh"
+      ],
+      "script": "$BRAINSTORM_MODULE_SRC_DIR/algos/refreshApplicabilityLists.sh",
+      "script_relative_path": "algos/refreshApplicabilityLists.sh",
+      "scope": "house",
+      "priority": "normal",
+      "frequency": "timer-based",
+      "status": "active",
+      "structuredLogging": true,
+      "options": {},
+      "notes": "tag-applicability Story 1 (derivation) + Story 2 (scheduled) / ADR tag-applicability/0002. strfry scan + publish; no neo4j resource class."
+    },
 
     "updateAllScoresForSingleCustomer": {
       "resourceClass": "neo4j-heavy",

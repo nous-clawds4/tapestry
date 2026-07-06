@@ -183,8 +183,10 @@ test('U3 (SAFETY): SEARCH (query branch) still spans ALL availableTags — the a
   assert(qBranch, 'AddTagDialog must keep its query branch.');
   assert(/\.includes\(q\)/.test(src),
     'the search branch must still match name/slug/description across availableTags (full-universe search).');
-  // Guard: the applicableKeys filter must NOT also gate the query branch.
-  assert(!/includes\(q\)[\s\S]{0,120}applicableKeys/.test(src) && !/applicableKeys[\s\S]{0,120}includes\(q\)/.test(src),
+  // Guard: the applicableKeys filter must NOT also gate the query branch. Use [^}] so the match
+  // can't cross the useMemo body's closing brace into its dependency array (listing applicableKeys
+  // as a React dep is not search-gating — that would be a false positive).
+  assert(!/includes\(q\)[^}]{0,140}applicableKeys/.test(src) && !/applicableKeys[^}]{0,140}includes\(q\)/.test(src),
     'the applicableKeys hard-filter must apply to BROWSE only — search must reach every tag (the escape that prevents re-minting, the funny bug).');
 });
 

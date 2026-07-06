@@ -2,6 +2,7 @@ import { useState, useMemo, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useEventTags } from '../hooks/useEventTags';
 import { useEventTagging } from '../hooks/useEventTagging';
+import useTagApplicability from '../hooks/useTagApplicability';
 import TagChip from './TagChip';
 import AddTagDialog from './AddTagDialog';
 
@@ -20,6 +21,8 @@ export default function NoteTags({ item, showScores = false }) {
   const { user } = useAuth();
   const viewerPubkey = user?.pubkey || null;
   const { tags, mine, availableTags, error, refetch } = useEventTags(item?.id, viewerPubkey);
+  // Type-aware picker (tag-applicability #2): event-context applicable tags, viewer-inclusive.
+  const { applicableKeys } = useTagApplicability('event', viewerPubkey);
   const { applyTag, disputeTag } = useEventTagging();
 
   const [busy, setBusy] = useState(false);
@@ -135,6 +138,7 @@ export default function NoteTags({ item, showScores = false }) {
         <AddTagDialog
           availableTags={availableTags}
           appliedTagEventIds={appliedTagEventIds}
+          applicableKeys={applicableKeys}
           busy={busy}
           onClose={() => setDialogOpen(false)}
           onSelectExisting={handleSelectExisting}

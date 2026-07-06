@@ -3,6 +3,7 @@ import { useState, useMemo, useRef, useEffect } from 'react';
 export default function AddTagDialog({
   availableTags,
   appliedTagEventIds,
+  applicableKeys,
   busy,
   onClose,
   onSelectExisting,
@@ -28,7 +29,21 @@ export default function AddTagDialog({
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     const candidates = availableTags.filter((t) => !appliedTagEventIds.has(t.eventId));
-    if (!q) return candidates.slice(0, 20);
+    if (!q) {
+      // BROWSE (no query): hard-filter to the current context's applicable tags, ordered by
+      // the list (tag-applicability #2). Search (below) still spans EVERY tag — the escape that
+      // lets a cross-context tag be picked instead of re-minted. Absent/empty applicableKeys ⇒
+      // fall back to the full browse (never a blank picker).
+      if (Array.isArray(applicableKeys) && applicableKeys.length > 0) {
+        const order = new Map(applicableKeys.map((k, i) => [k, i]));
+        return candidates
+          .filter((t) => order.has(`${t.authorPubkey}:${t.slug}`))
+          .sort((a, b) => order.get(`${a.authorPubkey}:${a.slug}`) - order.get(`${b.authorPubkey}:${b.slug}`))
+          .slice(0, 20);
+      }
+      return candidates.slice(0, 20);
+    }
+    // SEARCH: the whole universe, never gated by the browse filter (anti-re-mint escape).
     return candidates
       .filter((t) =>
         t.name.toLowerCase().includes(q) ||
@@ -36,7 +51,7 @@ export default function AddTagDialog({
         (t.description || '').toLowerCase().includes(q)
       )
       .slice(0, 20);
-  }, [availableTags, appliedTagEventIds, query]);
+  }, [availableTags, appliedTagEventIds, applicableKeys, query]);
 
   const exactMatchExists = useMemo(
     () => availableTags.some((t) => t.name.toLowerCase() === query.trim().toLowerCase()),

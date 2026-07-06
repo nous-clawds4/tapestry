@@ -1,10 +1,13 @@
 import { useState, useMemo } from 'react';
 import useProfileTags from '../hooks/useProfileTags';
+import useTagApplicability from '../hooks/useTagApplicability';
 import TagChip from './TagChip';
 import AddTagDialog from './AddTagDialog';
 import ManageTagsDialog from './ManageTagsDialog';
 
 export default function ProfileTagsSection({ targetPubkey, viewerPubkey }) {
+  // Type-aware picker (tag-applicability #2): pubkey-context applicable tags, viewer-inclusive.
+  const { applicableKeys } = useTagApplicability('pubkey', viewerPubkey);
   const {
     availableTags,
     applications,
@@ -147,6 +150,7 @@ export default function ProfileTagsSection({ targetPubkey, viewerPubkey }) {
         <AddTagDialog
           availableTags={availableTags}
           appliedTagEventIds={appliedTagEventIds}
+          applicableKeys={applicableKeys}
           busy={busy}
           onClose={() => setDialog(null)}
           onSelectExisting={handleSelectExisting}

@@ -374,7 +374,7 @@ async function handleForTag(req, res) {
  * the tag-index machinery rather than re-deriving. Each row: { tag:{authorPubkey,slug},
  * applications, disputes, byType:{ profile?:{applications,disputes}, event?:{…} } }.
  */
-async function computeTagUsageRows({ wotPov = 'house', userPubkey = null } = {}) {
+async function computeTagUsageRows({ wotPov = 'house', userPubkey = null, alsoTrust = null } = {}) {
   const req = { query: { wotPov, ...(userPubkey ? { userPubkey } : {}) } };
   const authorities = resolveAuthorities(req);
   const memberZs = [];
@@ -389,9 +389,37 @@ async function computeTagUsageRows({ wotPov = 'house', userPubkey = null } = {})
   }
   const headers = dedupeReplaceable(headerEvents);
   const { isAsserterTrusted } = await buildTrustPredicate(req, assertions.map((c) => c.pubkey));
+  // Viewer-inclusive (tag-applicability/0002): the viewer's OWN taggings always count, so a tag
+  // they just applied graduates into that context's picker immediately, regardless of WoT rank.
+  const trusted = (isHexPubkey(alsoTrust))
+    ? (pk) => pk === alsoTrust || isAsserterTrusted(pk)
+    : isAsserterTrusted;
   const taggings = core.normalizeTaggings({ assertions, headers, honoredAuthorities: authorities });
-  const { rows } = core.indexByTag(taggings, { isAsserterTrusted });
+  const { rows } = core.indexByTag(taggings, { isAsserterTrusted: trusted });
   return rows;
+}
+
+/**
+ * GET /api/tags/applicability?type=pubkey|event&viewerPubkey= — the type-aware picker's LIVE
+ * context list (tag-applicability/0002). Delegates to the shared `applicabilityMembers`.
+ */
+async function handleTagApplicability(req, res) {
+  try {
+    const type = req.query.type;
+    if (type !== 'pubkey' && type !== 'event') {
+      return res.status(400).json({ success: false, error: "type must be 'pubkey' or 'event'" });
+    }
+    const viewerPubkey = isHexPubkey(req.query.viewerPubkey) ? req.query.viewerPubkey : undefined;
+    const { applicabilityMembers } = require('../trustedList/refreshApplicabilityLists');
+    const r = await applicabilityMembers({
+      type,
+      viewerPubkey,
+      deps: { computeUsageRows: ({ wotPov = 'house', alsoTrust } = {}) => computeTagUsageRows({ wotPov, alsoTrust }) },
+    });
+    return res.json({ success: true, source: 'live', ...r });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
 }
 
 async function handleTagIndex(req, res) {
@@ -542,4 +570,4 @@ async function handleNotesByAuthor(req, res) {
   }
 }
 
-module.exports = { handleForEvent, handleHeadersForTag, handleForTag, handleTagIndex, handleNotesByAuthor, computeTagUsageRows };
+module.exports = { handleForEvent, handleHeadersForTag, handleForTag, handleTagIndex, handleNotesByAuthor, computeTagUsageRows, handleTagApplicability };

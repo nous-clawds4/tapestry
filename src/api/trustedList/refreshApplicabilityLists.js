@@ -102,4 +102,43 @@ async function refreshApplicabilityLists({ deps } = {}) {
   return { lists: out };
 }
 
-module.exports = { refreshApplicabilityLists, buildMembers, KIND, D_PUBKEY, D_EVENT };
+/**
+ * LIVE picker read (Story 2 / ADR tag-applicability/0002): compute one context's HINT ∪ USAGE
+ * members fresh — the same union `refreshApplicabilityLists` publishes, but served live (no wait
+ * on the published snapshot) and viewer-inclusive (the viewer's own usage counts, via alsoTrust),
+ * so a just-applied tag graduates into that context's browse immediately.
+ *
+ * @param {Object} o
+ * @param {'pubkey'|'event'} o.type
+ * @param {string} [o.viewerPubkey]  hex; when set, the viewer's own usage is always trusted.
+ * @param {Object} [o.deps]  { computeUsageRows({wotPov,alsoTrust}) → rows, scanStrfry(filter) → events[] }
+ * @returns {Promise<{type, viewerIncluded, members:[{authorPubkey, slug, applications}]}>}
+ */
+const A_COORD_RE = /^39999:([0-9a-f]{64}):(.+)$/;
+async function applicabilityMembers(o = {}) {
+  const { type, viewerPubkey, deps } = o;
+  const computeUsageRows = deps?.computeUsageRows ?? o.computeUsageRows ?? (async () => {
+    const { computeTagUsageRows } = require('../event-tags');
+    return computeTagUsageRows({ wotPov: 'house', alsoTrust: viewerPubkey || null });
+  });
+  const scanStrfry = deps?.scanStrfry ?? o.scanStrfry ?? realScanStrfry;
+
+  const byTypeKey = type === 'pubkey' ? 'profile' : 'event';
+  const hintZ = type === 'pubkey' ? TAG_FOR_NOSTR_PUBKEY_Z : TAG_FOR_NOSTR_EVENT_Z;
+
+  const usageRows = (await computeUsageRows({ wotPov: 'house', alsoTrust: viewerPubkey || undefined })) || [];
+  const hintEls = (await scanStrfry({ kinds: [39999], '#z': [hintZ] })) || [];
+
+  // Reuse Story 1's exact union+dedup+order (one definition of the rule), then split the
+  // a-coordinate back into { authorPubkey, slug }.
+  const members = buildMembers(usageRows, hintEls, byTypeKey)
+    .map((m) => {
+      const mt = A_COORD_RE.exec(m.a);
+      return mt ? { authorPubkey: mt[1], slug: mt[2], applications: m.applications } : null;
+    })
+    .filter(Boolean);
+
+  return { type, viewerIncluded: !!viewerPubkey, members };
+}
+
+module.exports = { refreshApplicabilityLists, buildMembers, applicabilityMembers, KIND, D_PUBKEY, D_EVENT };
