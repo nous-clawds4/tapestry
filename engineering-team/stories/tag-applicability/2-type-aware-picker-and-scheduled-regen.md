@@ -1,6 +1,6 @@
 # Story 2: Type-aware tag picker + scheduled Trusted List regeneration
 
-**Status:** Draft
+**Status:** Approved
 **Created:** 2026-07-06
 **Type:** Feature
 
