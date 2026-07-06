@@ -131,6 +131,8 @@ const feedPagination = require('./feed-pagination.test.js');
 const profileContentCard = require('./profile-content-card.test.js');
 // epic: tag-applicability — Story 1 (z-hints + applicability TLs)
 const tagApplicability = require('./tag-applicability.test.js');
+// epic: tag-applicability — Story 2 (type-aware picker + scheduled regen)
+const tagApplicabilityPicker = require('./tag-applicability-picker.test.js');
 
 async function main() {
   console.log('Running Brainstorm tests...');
@@ -364,6 +366,8 @@ async function main() {
   const profileContentCardResult = await profileContentCard.run();
   console.log('\ntag-applicability suite:');
   const tagApplicabilityResult = await tagApplicability.run();
+  console.log('\ntag-applicability-picker suite:');
+  const tagApplicabilityPickerResult = await tagApplicabilityPicker.run();
 
   console.log('\nTest Results');
   console.log('-------------');
@@ -687,7 +691,8 @@ async function main() {
     notesRepliesToggleResult.fail === 0 &&
     feedPaginationResult.fail === 0 &&
     profileContentCardResult.fail === 0 &&
-    tagApplicabilityResult.fail === 0;
+    tagApplicabilityResult.fail === 0 &&
+    tagApplicabilityPickerResult.fail === 0;
   console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);
   process.exit(overallOk ? 0 : 1);
 }

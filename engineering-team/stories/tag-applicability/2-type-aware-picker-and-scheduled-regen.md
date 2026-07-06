@@ -68,5 +68,5 @@ Testable from the outside.
 
 ## Linked artifacts
 - ADR: `engineering-team/decisions/tag-applicability/0002-type-aware-picker-and-scheduled-regen.md`
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/tag-applicability/2-type-aware-picker-and-scheduled-regen.test-plan.md`
 - Review: (filled in after Review phase)
