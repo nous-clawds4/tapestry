@@ -1,7 +1,7 @@
 # Epic: Test Hermeticity + CI
 
-**Status:** Active
-**Book:** `engineering-team/audits/test-hermeticity-ci/book.md` (acceptance-frame)
+**Status:** Done
+**Book:** `engineering-team/audits/test-hermeticity-ci/book.md` (acceptance-frame, Closed 2026-07-06)
 
 ## What this is
 
