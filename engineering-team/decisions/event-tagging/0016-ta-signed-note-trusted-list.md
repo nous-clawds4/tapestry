@@ -113,9 +113,14 @@ and the kind-30003 export are untouched.
 - **Firmware reinstall?** No.
 
 ## Implementation notes
-- **`src/api/event-tags/index.js`** — extract `async function aggregateNotesTagged({ tagAuthor, slug, authorities, povSuffix, minRank })`
-  returning `[{ id, applications, disputes, createdAt }]` (the deterministic membership `handleForTag`
-  computes pre-kind-1-resolution). Re-point `handleForTag` to call it. Export `aggregateNotesTagged`.
+- **`src/api/event-tags/index.js`** — extract `async function aggregateNotesTagged({ tagAuthor, slug, authorities, povSuffix, minRank, viewerPubkey, sort })`
+  returning **`{ members, mine, candidates, countByTarget, mineByTarget, latestByNote, noteIds, total,
+  truncated, povSuffix, minRank }`** — `.members` is the deterministic membership
+  `[{ id, applications, disputes, createdAt, mine }]`; the rest is returned so `handleForTag`'s kind-1
+  resolution + response body stay **byte-identical** after the extraction (it only replaces the
+  membership-computation block with this call). `runOneNotePin` reads only `.members`. Factor
+  `trustPredicateFor(povSuffix, minRank, pubkeys)` out of `buildTrustPredicate` (shared predicate).
+  Export `aggregateNotesTagged`.
 - **`src/api/trustedList/refreshPinnedTags.js`** — add `runOneNotePin(pinEvent)` (import `aggregateNotesTagged`
   from `../event-tags` + `curateNotes` from `@tapestry/event-tagging`; reuse `lookupTagEvent`, `computeTLDTag`-style
   d-tag with a `notes` segment, `buildAndPublishTL`). Add note d-tag collection + a kind-parameterized

@@ -24,6 +24,7 @@ const { exec } = require('child_process');
 const profileTags = require('../profile-tags');
 const { buildAndPublishTL } = require('./index');
 const { resolvePov } = require('../_shared/pov');
+const { curateNotes } = require('../../lib/event-tagging');
 
 const TA_PUBKEY = profileTags.TA_PUBKEY;
 const TAG_PINNING_Z_TAG = profileTags.TAG_PINNING_Z_TAG;
@@ -246,12 +247,12 @@ async function refreshOnePinnedTagById({ pinEventId, sessionPubkey }) {
  * retracted via an empty-membership replacement. Idempotent — already-
  * retracted slots are skipped via the marker check.
  */
-async function retractStaleTLs(currentDTags) {
+async function retractStaleTLs(currentDTags, { kind = 30392, dPrefix = 'tl-pin-' } = {}) {
   const wanted = new Set(currentDTags);
-  const tls = await strfryScan({ kinds: [30392], authors: [TA_PUBKEY] });
+  const tls = await strfryScan({ kinds: [kind], authors: [TA_PUBKEY] });
   for (const tl of tls) {
     const dTag = dTagOf(tl);
-    if (!dTag || !dTag.startsWith('tl-pin-')) continue;
+    if (!dTag || !dTag.startsWith(dPrefix)) continue;
     if (wanted.has(dTag)) continue;
     const alreadyRetracted = (tl.tags || []).some(
       (t) => t[0] === 'status' && t[1] === 'retracted'
@@ -264,7 +265,7 @@ async function retractStaleTLs(currentDTags) {
     );
     try {
       await buildAndPublishTL({
-        kind: 30392,
+        kind,
         dTag,
         items: [],
         extraTags: [...carryOver, ['status', 'retracted']],
@@ -277,6 +278,76 @@ async function retractStaleTLs(currentDTags) {
 }
 
 /**
+ * event-tagging #17 / ADR 0016 — the note twin of `runOnePin`. For a pin whose tag targets NOTES,
+ * publish a TA-signed **kind-30393** Trusted List of the trusted-tagged notes (e-tag members),
+ * curated by the pin's `noteMethod` (`curateNotes`), under the observer POV. `d-tag`
+ * `tl-pin-notes-<obs8>-<tagAuthor8>-<slug>`, metric `pinned-tag-notes`. Empty curated set ⇒
+ * empty-membership replacement. Injectable deps ({ lookupTag, aggregateNotesTagged, publishTL })
+ * for hermetic tests; defaults hit the real stack.
+ */
+async function runOneNotePin(pinEvent, options = {}) {
+  const deps = options.deps || options;
+  const lookupTag = deps.lookupTag || lookupTagEvent;
+  const aggregateNotesTagged = deps.aggregateNotesTagged || ((args) => require('../event-tags').aggregateNotesTagged(args));
+  const publishTL = deps.publishTL || buildAndPublishTL;
+
+  const curation = profileTags.parseCurationMethod(pinEvent);
+  if (!curation || curation.method !== 'nip85:rank') {
+    return { status: 'unsupported', errorReason: 'curation method not supported in v1' };
+  }
+  const observer = curation.observer;
+  if (!isHexPubkey(observer)) {
+    return { status: 'error', errorReason: 'observer pubkey missing or malformed' };
+  }
+  // Note-targeting gate: build a note TL only when the pin targets notes. Absent
+  // targetTypes ⇒ ADR-0015 default (['profile','note']) ⇒ include notes.
+  const targetTypes = Array.isArray(curation.targetTypes) ? curation.targetTypes : ['profile', 'note'];
+  if (!targetTypes.includes('note')) {
+    return { status: 'skipped', errorReason: 'pin does not target notes' };
+  }
+  const tagEventId = profileTags.parsePinTagEventId(pinEvent);
+  if (!tagEventId) {
+    return { status: 'error', errorReason: 'pin event has no referenced tag event id' };
+  }
+  const tag = await lookupTag(tagEventId);
+  if (!tag) {
+    return { status: 'error', errorReason: 'referenced tag event missing from local strfry' };
+  }
+
+  // Observer POV (same cascade as runOnePin) → the aggregation's trust filter.
+  const { povSuffix, minRank } = resolvePov({ wotPov: 'user', userPubkey: observer });
+  const noteMethod = curation.noteMethod || 'notes:net-endorsed';
+  // Align the NOTES_CAP ranking with the curation so the cap keeps the notes the
+  // method would surface (inherits the NOTES_CAP window; ADR 0015 follow-up).
+  const sort = noteMethod === 'notes:most-applied' ? 'applied' : 'recent';
+  const { members } = await aggregateNotesTagged({
+    tagAuthor: tag.authorPubkey, slug: tag.slug, authorities: [TA_PUBKEY],
+    povSuffix, minRank, viewerPubkey: undefined, sort,
+  });
+  const curated = curateNotes(members || [], noteMethod);
+  const dTag = `tl-pin-notes-${observer.slice(0, 8)}-${tag.authorPubkey.slice(0, 8)}-${tag.slug}`;
+
+  try {
+    const { event, uuid } = await publishTL({
+      kind: 30393,
+      dTag,
+      title: tag.name,
+      metric: 'pinned-tag-notes',
+      items: curated.map((n) => ({ tag: 'e', value: n.id })),
+      extraTags: [
+        ['observer', observer],
+        ['source-tag', tag.eventId, tag.authorPubkey, tag.slug],
+        ['curation-method', noteMethod],
+      ],
+      content: JSON.stringify({ notes: curated.map((n) => ({ id: n.id, applications: n.applications, disputes: n.disputes })) }),
+    });
+    return { status: 'ok', dTag, memberCount: curated.length, uuid: uuid || (event && event.id) };
+  } catch (err) {
+    return { status: 'error', dTag, errorReason: err.message };
+  }
+}
+
+/**
  * Refresh every pin event in local strfry (cron path).
  * Returns { pins: [{ pinEventId, status, ... }] }
  */
@@ -284,12 +355,17 @@ async function refreshAllPinnedTags() {
   const pins = await enumeratePinnedTags();
   const results = [];
   const currentDTags = [];
+  const currentNoteDTags = [];
   for (const pin of pins) {
     const result = await runOnePin(pin);
-    results.push({ pinEventId: pin.id, ...result });
+    // event-tagging #17: the note TL is refreshed alongside the pubkey TL for every note-targeting pin.
+    const noteResult = await runOneNotePin(pin);
+    results.push({ pinEventId: pin.id, ...result, noteTL: { status: noteResult.status, dTag: noteResult.dTag, memberCount: noteResult.memberCount } });
     if (result.dTag) currentDTags.push(result.dTag);
+    if (noteResult.dTag && noteResult.status === 'ok') currentNoteDTags.push(noteResult.dTag);
   }
   await retractStaleTLs(currentDTags);
+  await retractStaleTLs(currentNoteDTags, { kind: 30393, dPrefix: 'tl-pin-notes-' });
   return { pins: results };
 }
 
@@ -303,7 +379,8 @@ async function refreshPinnedTagsForViewer(viewerPubkey) {
   const results = [];
   for (const pin of pins) {
     const result = await runOnePin(pin);
-    results.push({ pinEventId: pin.id, ...result });
+    const noteResult = await runOneNotePin(pin);
+    results.push({ pinEventId: pin.id, ...result, noteTL: { status: noteResult.status, dTag: noteResult.dTag, memberCount: noteResult.memberCount } });
   }
   return { pins: results };
 }
@@ -314,6 +391,7 @@ module.exports = {
   refreshOnePinnedTagById,
   // Exported for tests:
   runOnePin,
+  runOneNotePin,
   computeTLDTag,
   applyDisputesFunction,
 };

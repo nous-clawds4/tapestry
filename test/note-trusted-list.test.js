@@ -59,7 +59,8 @@ function makeDeps({ notes = [], tag } = {}) {
     publishCalls,
     deps: {
       lookupTag: async () => tag || { eventId: TAG_EVENT_ID, slug: 'funny', name: 'funny', authorPubkey: TAGAUTHOR },
-      aggregateNotesTagged: async () => notes,
+      // aggregateNotesTagged returns the full computed state ({ members, ... }); runOneNotePin reads .members.
+      aggregateNotesTagged: async () => ({ members: notes }),
       publishTL: async (args) => { publishCalls.push(args); return { event: { id: 'tl-1' }, uuid: `30393:x:${args.dTag}` }; },
     },
   };

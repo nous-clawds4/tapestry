@@ -103,22 +103,31 @@ function resolveAuthorities(req) {
 }
 
 /** Build the POV trust predicate from wotPov/userPubkey (mirrors profile-tags). */
+// The asserter-trust predicate for an already-resolved POV over a candidate set. Factored out of
+// buildTrustPredicate (ADR event-tagging/0016) so both the req-based read path and the observer-POV
+// aggregateNotesTagged share one definition. Not WoT-filtering (no povSuffix / non-finite minRank)
+// ⇒ everyone counts.
+async function trustPredicateFor(povSuffix, minRank, candidatePubkeys) {
+  const wotFiltering = !!povSuffix && Number.isFinite(minRank);
+  if (!wotFiltering) return () => true;
+  const docs = await meiliFetchProfilesByPubkey(candidatePubkeys);
+  const rankField = `wot_rank_${povSuffix}`;
+  return (pk) => {
+    const doc = docs.get(pk);
+    if (!doc) return false;
+    const r = doc[rankField];
+    return typeof r === 'number' && r >= minRank;
+  };
+}
+
 async function buildTrustPredicate(req, candidatePubkeys) {
   const { povSuffix, minRank } = resolvePov({
     wotPov: req.query.wotPov || 'house',
     userPubkey: req.query.userPubkey || null,
   });
   const wotFiltering = !!povSuffix && Number.isFinite(minRank);
-  if (!wotFiltering) return { isAsserterTrusted: () => true, povSuffix: povSuffix || null, minRank: null };
-  const docs = await meiliFetchProfilesByPubkey(candidatePubkeys);
-  const rankField = `wot_rank_${povSuffix}`;
-  const isAsserterTrusted = (pk) => {
-    const doc = docs.get(pk);
-    if (!doc) return false;
-    const r = doc[rankField];
-    return typeof r === 'number' && r >= minRank;
-  };
-  return { isAsserterTrusted, povSuffix, minRank };
+  const isAsserterTrusted = await trustPredicateFor(povSuffix, minRank, candidatePubkeys);
+  return { isAsserterTrusted, povSuffix: povSuffix || null, minRank: wotFiltering ? minRank : null };
 }
 
 async function handleForEvent(req, res) {
@@ -195,15 +204,109 @@ async function handleHeadersForTag(req, res) {
 }
 
 /**
+ * Shared note-tagging aggregation (event-tagging #17 / ADR 0016). Scan a tag's legitimate headers
+ * (across honored authorities) → scan the taggings referencing each → POV-filter → produce the
+ * deterministic per-note membership `{ id, applications, disputes, createdAt, mine }`, ranked by
+ * `sort` and capped to NOTES_CAP. Pure of req/res.
+ *
+ * Used by BOTH `handleForTag` (the for-tag read) and `runOneNotePin` (the TA-signed note TL), so a
+ * tag's trusted-note set is computed one way. Returns the full computed state (counts maps, `mine`,
+ * `candidates`, totals, normalized POV) so `handleForTag`'s kind-1 resolution + response stay
+ * byte-identical after the extraction; the note TL uses only `.members`.
+ *
+ * @param {Object} o
+ * @param {string} o.tagAuthor  tag author hex pubkey
+ * @param {string} o.slug       tag slug
+ * @param {string[]} o.authorities  honored authorities (TA pubkeys)
+ * @param {string|null} o.povSuffix  resolved POV suffix (raw resolvePov output)
+ * @param {number|null} o.minRank    resolved POV min-rank (raw resolvePov output)
+ * @param {string} [o.viewerPubkey]  the viewer, for the trust-unfiltered `mine` channel
+ * @param {'recent'|'applied'|'disputed'|'divisive'} [o.sort='recent']  cap ranking
+ */
+async function aggregateNotesTagged({ tagAuthor, slug, authorities, povSuffix, minRank, viewerPubkey, sort = 'recent' }) {
+  // 1. Discover the tag's legitimate headers (any author, per honored authority).
+  const foundHeaders = [];
+  for (const authority of authorities) {
+    foundHeaders.push(...await strfryScan(core.filterTaggingHeadersForTag({ tagAuthorPubkey: tagAuthor, slug, taPubkey: authority })));
+  }
+  const headers = dedupeReplaceable(foundHeaders);
+
+  // 2. Scan the taggings referencing each header; union (multi-header — ADR Q1).
+  const candidateEvents = [];
+  for (const h of headers) {
+    candidateEvents.push(...await strfryScan(core.filterTaggingsUsingTag({ headerAuthorPubkey: h.pubkey, slug })));
+  }
+  const candidates = dedupeReplaceable(candidateEvents);
+
+  // 3. Group by target note: POV-filtered counted set + trust-unfiltered `mine`.
+  const isAsserterTrusted = await trustPredicateFor(povSuffix, minRank, candidates.map((c) => c.pubkey));
+  const { targets, mine } = core.groupTaggingsByTarget({
+    candidates, headers, honoredAuthorities: authorities, isAsserterTrusted, viewerPubkey,
+    tag: { authorPubkey: tagAuthor, slug },
+  });
+
+  // 4. Resolve target note ids (`e`-targets), bounded to the most-recently-tagged
+  //    NOTES_CAP. The bound is REQUIRED: an unbounded `ids` filter would be rejected
+  //    by relays / time out (→ silent empty), and an unbounded result would spawn
+  //    one Story-6 per-note read per card client-side. Pagination is a follow-up.
+  const countByTarget = new Map(targets.map((t) => [t.target.id, t]).filter(([id]) => id));
+  const mineByTarget = new Map(mine.map((m) => [m.target.id, m]).filter(([id]) => id));
+  // Per-note latest tagging time (union counted + mine) → recency cap key.
+  const latestByNote = new Map();
+  const bump = (id, ts) => { if (id) latestByNote.set(id, Math.max(latestByNote.get(id) || 0, ts || 0)); };
+  for (const t of targets) {
+    if (!t.target.id) continue;
+    for (const e of t.applications) bump(t.target.id, e.createdAt);
+    for (const e of t.disputes) bump(t.target.id, e.createdAt);
+  }
+  for (const m of mine) bump(m.target.id, m.createdAt);
+
+  // Rank ALL tagged notes by the requested sort, THEN cap — so the top-N
+  // reflects the whole set (Story 15). Per-note trusted counts already exist
+  // in countByTarget (mine-only notes have no trusted backers → 0/0). recency
+  // is the universal tiebreak (and the whole key for 'recent').
+  const appliedOf  = (id) => (countByTarget.get(id)?.applications || []).length;
+  const disputedOf = (id) => (countByTarget.get(id)?.disputes || []).length;
+  const recencyOf  = (id) => latestByNote.get(id) || 0;
+  const idComparators = {
+    recent:   (a, b) => recencyOf(b) - recencyOf(a),
+    applied:  (a, b) => (appliedOf(b) - appliedOf(a)) || (recencyOf(b) - recencyOf(a)),
+    disputed: (a, b) => (disputedOf(b) - disputedOf(a)) || (recencyOf(b) - recencyOf(a)),
+    divisive: (a, b) => (Math.min(appliedOf(b), disputedOf(b)) - Math.min(appliedOf(a), disputedOf(a)))
+                        || (appliedOf(b) - appliedOf(a)) || (recencyOf(b) - recencyOf(a)),
+  };
+  const rankedIds = Array.from(latestByNote.keys()).sort(idComparators[sort] || idComparators.recent);
+  const total = rankedIds.length;
+  const noteIds = rankedIds.slice(0, NOTES_CAP);
+  const truncated = total > noteIds.length;
+
+  // Deterministic membership (ids + counts), computed from the taggings BEFORE
+  // any kind-1 resolution. Consumers that need a stable set — e.g. pin curation,
+  // the note TL, and the pinned-notes drift — must use THIS, not the resolved
+  // `notes` array (whose contents depend on flaky external relay fetches).
+  const members = noteIds.map((id) => ({
+    id,
+    applications: (countByTarget.get(id)?.applications || []).length,
+    disputes: (countByTarget.get(id)?.disputes || []).length,
+    createdAt: latestByNote.get(id) || 0,
+    mine: mineByTarget.has(id) ? mineByTarget.get(id).stance : null,
+  }));
+
+  const wotFiltering = !!povSuffix && Number.isFinite(minRank);
+  return {
+    members, mine, candidates, countByTarget, mineByTarget, latestByNote, noteIds, total, truncated,
+    povSuffix: povSuffix || null, minRank: wotFiltering ? minRank : null,
+  };
+}
+
+/**
  * GET /api/event-tags/for-tag?tagAuthor=<hex>&slug=<slug>
  *   [&viewerPubkey=<hex>] [&authorities=<csv>] [&wotPov=…&userPubkey=…]
  *
- * The notes tagged with a tag (the forward direction; Story 8 / ADR 0008). Composes:
- * discover the tag's legitimate headers (across honored authorities) → scan the
- * taggings referencing each header → group BY TARGET (POV-filtered counted set +
- * the viewer's own `mine`, trust-unfiltered) → fetch + enrich the target kind-1
- * notes from the relay set. Returns NoteCard-ready items (union of counted + mine),
- * newest first, each annotated with apply/dispute counts + the viewer's stance.
+ * The notes tagged with a tag (the forward direction; Story 8 / ADR 0008). Composes the shared
+ * `aggregateNotesTagged` (deterministic membership) → fetch + enrich the target kind-1 notes from
+ * the relay set. Returns NoteCard-ready items (union of counted + mine), newest first, each
+ * annotated with apply/dispute counts + the viewer's stance.
  */
 async function handleForTag(req, res) {
   try {
@@ -229,74 +332,18 @@ async function handleForTag(req, res) {
     const cached = forTagCache.get(cacheKey);
     if (!noCache && cached && cached.expires > Date.now()) return res.json(cached.body);
 
-    // 1. Discover the tag's legitimate headers (any author, per honored authority).
-    const foundHeaders = [];
-    for (const authority of authorities) {
-      foundHeaders.push(...await strfryScan(core.filterTaggingHeadersForTag({ tagAuthorPubkey: tagAuthor, slug, taPubkey: authority })));
-    }
-    const headers = dedupeReplaceable(foundHeaders);
-
-    // 2. Scan the taggings referencing each header; union (multi-header — ADR Q1).
-    const candidateEvents = [];
-    for (const h of headers) {
-      candidateEvents.push(...await strfryScan(core.filterTaggingsUsingTag({ headerAuthorPubkey: h.pubkey, slug })));
-    }
-    const candidates = dedupeReplaceable(candidateEvents);
-
-    // 3. Group by target note: POV-filtered counted set + trust-unfiltered `mine`.
-    const { isAsserterTrusted, povSuffix, minRank } = await buildTrustPredicate(req, candidates.map((c) => c.pubkey));
-    const { targets, mine } = core.groupTaggingsByTarget({
-      candidates, headers, honoredAuthorities: authorities, isAsserterTrusted, viewerPubkey,
-      tag: { authorPubkey: tagAuthor, slug },
+    // Aggregate the tag's taggings into deterministic per-note membership (ADR event-tagging/0016
+    // — the SAME aggregation the TA-signed note TL uses). resolvePov here so the response reports
+    // the identical POV; aggregateNotesTagged returns the full computed state so the kind-1
+    // resolution + response body below stay byte-identical to before the extraction.
+    const { povSuffix: rawPovSuffix, minRank: rawMinRank } = resolvePov({
+      wotPov: req.query.wotPov || 'house',
+      userPubkey: req.query.userPubkey || null,
     });
-
-    // 4. Resolve target note ids (`e`-targets), bounded to the most-recently-tagged
-    //    NOTES_CAP. The bound is REQUIRED: an unbounded `ids` filter would be rejected
-    //    by relays / time out (→ silent empty), and an unbounded result would spawn
-    //    one Story-6 per-note read per card client-side. Pagination is a follow-up.
-    const countByTarget = new Map(targets.map((t) => [t.target.id, t]).filter(([id]) => id));
-    const mineByTarget = new Map(mine.map((m) => [m.target.id, m]).filter(([id]) => id));
-    // Per-note latest tagging time (union counted + mine) → recency cap key.
-    const latestByNote = new Map();
-    const bump = (id, ts) => { if (id) latestByNote.set(id, Math.max(latestByNote.get(id) || 0, ts || 0)); };
-    for (const t of targets) {
-      if (!t.target.id) continue;
-      for (const e of t.applications) bump(t.target.id, e.createdAt);
-      for (const e of t.disputes) bump(t.target.id, e.createdAt);
-    }
-    for (const m of mine) bump(m.target.id, m.createdAt);
-
-    // Rank ALL tagged notes by the requested sort, THEN cap — so the top-N
-    // reflects the whole set (Story 15). Per-note trusted counts already exist
-    // in countByTarget (mine-only notes have no trusted backers → 0/0). recency
-    // is the universal tiebreak (and the whole key for 'recent').
-    const appliedOf  = (id) => (countByTarget.get(id)?.applications || []).length;
-    const disputedOf = (id) => (countByTarget.get(id)?.disputes || []).length;
-    const recencyOf  = (id) => latestByNote.get(id) || 0;
-    const idComparators = {
-      recent:   (a, b) => recencyOf(b) - recencyOf(a),
-      applied:  (a, b) => (appliedOf(b) - appliedOf(a)) || (recencyOf(b) - recencyOf(a)),
-      disputed: (a, b) => (disputedOf(b) - disputedOf(a)) || (recencyOf(b) - recencyOf(a)),
-      divisive: (a, b) => (Math.min(appliedOf(b), disputedOf(b)) - Math.min(appliedOf(a), disputedOf(a)))
-                          || (appliedOf(b) - appliedOf(a)) || (recencyOf(b) - recencyOf(a)),
-    };
-    const rankedIds = Array.from(latestByNote.keys()).sort(idComparators[sort]);
-    const total = rankedIds.length;
-    const noteIds = rankedIds.slice(0, NOTES_CAP);
-    const truncated = total > noteIds.length;
-
-    // Deterministic membership (ids + counts), computed from the taggings BEFORE
-    // any kind-1 resolution. Consumers that need a stable set — e.g. pin curation
-    // and the pinned-notes drift — must use THIS, not the resolved `notes` array
-    // (whose contents depend on flaky external relay fetches, making drift jump
-    // around). `createdAt` here is the latest tagging time (recency key).
-    const members = noteIds.map((id) => ({
-      id,
-      applications: (countByTarget.get(id)?.applications || []).length,
-      disputes: (countByTarget.get(id)?.disputes || []).length,
-      createdAt: latestByNote.get(id) || 0,
-      mine: mineByTarget.has(id) ? mineByTarget.get(id).stance : null,
-    }));
+    const {
+      members, mine, candidates, countByTarget, mineByTarget, latestByNote, noteIds, total, truncated,
+      povSuffix, minRank,
+    } = await aggregateNotesTagged({ tagAuthor, slug, authorities, povSuffix: rawPovSuffix, minRank: rawMinRank, viewerPubkey, sort });
 
     let notes = [];
     if (noteIds.length) {
@@ -570,4 +617,4 @@ async function handleNotesByAuthor(req, res) {
   }
 }
 
-module.exports = { handleForEvent, handleHeadersForTag, handleForTag, handleTagIndex, handleNotesByAuthor, computeTagUsageRows, handleTagApplicability };
+module.exports = { handleForEvent, handleHeadersForTag, handleForTag, handleTagIndex, handleNotesByAuthor, computeTagUsageRows, handleTagApplicability, aggregateNotesTagged };
