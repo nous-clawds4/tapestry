@@ -1,9 +1,9 @@
 # Book of Work: Test Hermeticity + CI
 
 **Slug:** test-hermeticity-ci
-**Status:** Open
+**Status:** Closed
 **Opened:** 2026-07-05
-**Closed:** —
+**Closed:** 2026-07-06
 
 ## Intent anchor
 **Acceptance frame (no PRD)** — the operator's ask, restated and confirmed at kickoff. Completion is *judged* against the bullets below.
@@ -25,7 +25,7 @@ Design constraints carried over from the source (reviewer vcavallo, PR #337, tra
 
 ## Provenance
 - **Mode:** Acceptance-frame
-- **Confidence at close:** high | medium | low
+- **Confidence at close:** **high** — all 4 frame bullets judged satisfied (5 deviations recorded in `audit.md` §4, all interpretation/as-specified, none blocking); AC-5 proven live (CI run 28821124841 green on this book's own PR #338); close gate `npm test` stack-free PASS on macOS + Linux; the retro's no-fourth-state rule held for its second live run.
 
 ## Close artifacts *(filled by `/close-book`)*
 - Build audit: `engineering-team/audits/test-hermeticity-ci/audit.md`
