@@ -269,6 +269,23 @@ async function handleRefreshApplicabilityLists(req, res) {
   }
 }
 
+// The debounced applicability-refresh scheduler singleton (ADR tag-applicability/0003). The client
+// fires notify-applicability on every tag mutation; this coalesces the bursts into one diff-guarded
+// republish. Lazy require of refreshApplicabilityLists avoids a load-time cycle.
+const { createApplicabilityScheduler } = require('./applicabilityScheduler');
+const applicabilityScheduler = createApplicabilityScheduler({
+  refresh: () => require('./refreshApplicabilityLists').refreshApplicabilityLists(),
+});
+
+// User-authed (like refresh-pinned-tag): a logged-in client notifies after creating/applying a tag.
+// Fire-and-forget on the client; here we just schedule the debounced refresh and return 202.
+async function handleNotifyApplicability(req, res) {
+  const sessionPubkey = requireAuth(req, res);
+  if (!sessionPubkey) return;
+  applicabilityScheduler.schedule();
+  return res.status(202).json({ success: true, scheduled: true });
+}
+
 async function handleRefreshForViewer(req, res) {
   const sessionPubkey = requireAuth(req, res);
   if (!sessionPubkey) return;
@@ -451,6 +468,7 @@ function register(app) {
   app.post('/api/trusted-list/refresh-pinned-tag', handleRefreshOnePinnedTag);
   app.post('/api/trusted-list/refresh-pinned-tags-for-viewer', handleRefreshForViewer);
   app.post('/api/trusted-list/refresh-applicability-lists', handleRefreshApplicabilityLists);
+  app.post('/api/trusted-list/notify-applicability', handleNotifyApplicability);
   app.post('/api/trusted-list/prepare-nip51-export', handlePrepareNip51Export);
 }
 

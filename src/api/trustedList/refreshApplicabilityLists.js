@@ -77,9 +77,25 @@ async function retractLegacyKind({ scanStrfry, publishTL }) {
   return retracted;
 }
 
+// Diff-guard support (ADR 0003). The currently-published list's member a-coordinates (latest event
+// at that d-tag), or null if none is published yet.
+async function currentMemberSet(scanStrfry, dTag) {
+  let evs = [];
+  try { evs = (await scanStrfry({ kinds: [KIND], '#d': [dTag] })) || []; } catch { return null; }
+  if (!evs.length) return null;
+  const latest = evs.slice().sort((a, b) => (b.created_at || 0) - (a.created_at || 0))[0];
+  return (latest.tags || []).filter((t) => t[0] === 'a').map((t) => t[1]);
+}
+function sameSet(a, b) {
+  if (a.length !== b.length) return false;
+  const sa = [...a].sort(); const sb = [...b].sort();
+  return sa.every((v, i) => v === sb[i]);
+}
+
 /**
- * Derive and publish both applicability lists (kind-30394). Returns
- * { lists: [{ type, dTag, memberCount, uuid }], retractedLegacy: [dTag] }.
+ * Derive and publish both applicability lists (kind-30394). Republishes a list only when its member
+ * SET changed vs the currently-published one (diff-guard). Returns
+ * { lists: [{ type, dTag, memberCount, republished, uuid? }], retractedLegacy: [dTag] }.
  */
 async function refreshApplicabilityLists({ deps } = {}) {
   const loadUsageRows = deps?.loadUsageRows ?? realLoadUsageRows;
@@ -99,9 +115,17 @@ async function refreshApplicabilityLists({ deps } = {}) {
     { type: 'pubkey', dTag: D_PUBKEY, title: TITLE_PUBKEY, members: pubkeyMembers },
   ]) {
     const items = spec.members.map((m) => ({ tag: 'a', value: m.a }));
+    // Diff-guard (ADR tag-applicability/0003): republish only when the member SET changed vs the
+    // currently-published kind-30394 list. Makes every caller (event trigger + backstop) churn-free;
+    // usage-count reordering does NOT republish (membership is the signal). Skips only on a real match.
+    const current = await currentMemberSet(scanStrfry, spec.dTag);
+    if (current && sameSet(current, items.map((i) => i.value))) {
+      out.push({ type: spec.type, dTag: spec.dTag, memberCount: items.length, republished: false });
+      continue;
+    }
     const content = JSON.stringify({ members: spec.members });
     const r = await publishTL({ kind: KIND, dTag: spec.dTag, title: spec.title, metric: METRIC, items, content });
-    out.push({ type: spec.type, dTag: spec.dTag, memberCount: items.length, uuid: r && r.uuid });
+    out.push({ type: spec.type, dTag: spec.dTag, memberCount: items.length, uuid: r && r.uuid, republished: true });
   }
   // Migrate off the legacy kind: retract the old 30393 a-tag lists in place.
   const retractedLegacy = await retractLegacyKind({ scanStrfry, publishTL });

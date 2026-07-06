@@ -3,6 +3,7 @@ import { useConfig } from '../context/ConfigContext';
 import { useAuth } from '../context/AuthContext';
 import { assertSignerMatches } from '../utils/signerGuard';
 import { publishOrThrow } from '../utils/publishProfileTag';
+import notifyTagApplicability from '../utils/notifyTagApplicability';
 // Single source of truth for the event-tagging wire shape + publish sequence:
 // the dependency-free CJS core, imported through the Vite alias (see
 // ui/vite.config.js). The hook never re-inlines the wire shape — it only
@@ -66,7 +67,13 @@ export function useEventTagging() {
     });
   }, [taPubkey, user?.pubkey]);
 
-  const applyTag = useCallback((tagInput, target) => run(tagInput, target, 1), [run]);
+  const applyTag = useCallback(async (tagInput, target) => {
+    const r = await run(tagInput, target, 1);
+    // Creating a tag or first-applying it to an event may graduate it into the event
+    // applicability list — nudge the server to republish (debounced + diff-guarded). ADR 0003.
+    notifyTagApplicability();
+    return r;
+  }, [run]);
   const disputeTag = useCallback((tagInput, target) => run(tagInput, target, -1), [run]);
 
   return { applyTag, disputeTag };

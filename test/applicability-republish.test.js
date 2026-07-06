@@ -174,7 +174,7 @@ test('CL1: notifyTagApplicability util exists (fire-and-forget) and is called fr
 
 test('BK1: freshInstallEntries seeds refreshApplicabilityLists as a DISABLED hourly backstop', () => {
   const src = safeRead(SCHED_TASKS);
-  const fn = src.match(/function freshInstallEntries[\s\S]{0,900}?\n}/);
+  const fn = src.match(/function freshInstallEntries[\s\S]{0,1800}?\n}/);
   assert(fn, 'scheduled-tasks must define freshInstallEntries.');
   const body = fn[0];
   assert(/refreshApplicabilityLists/.test(body),

@@ -4,6 +4,7 @@ import { useConfig } from '../context/ConfigContext';
 import { publishProfileTagAssertion, publishOrThrow } from '../utils/publishProfileTag';
 import { syncPinnedExportsForTag } from '../utils/publishTagPin';
 import { TAG_FOR_NOSTR_PUBKEY_Z } from '@tapestry/event-tagging';
+import notifyTagApplicability from '../utils/notifyTagApplicability';
 
 const TA_PUBKEY = '82b75e474dda005e912bcbb910391c60c2b89cc7faf5d3c30b7c59a324973833';
 const TAG_HANDLE = `39998:${TA_PUBKEY}:tag`;
@@ -91,6 +92,7 @@ export default function useProfileTags(targetPubkey, viewerPubkey) {
       await buildAndPublishAssertion(tag, 1);
       refetch();
       reexportAfterAssertion(tag);
+      notifyTagApplicability(); // first pubkey-use may graduate the tag into the applicability list (ADR 0003)
     },
     [buildAndPublishAssertion, refetch, reexportAfterAssertion]
   );
@@ -136,6 +138,7 @@ export default function useProfileTags(targetPubkey, viewerPubkey) {
       const signed = await window.nostr.signEvent(unsigned);
       await publishOrThrow(signed);
       refetch();
+      notifyTagApplicability(); // a new tag with the pubkey hint enters the applicability list (ADR 0003)
       // ADR tag-stack-merge-hardening/0002: a freshly created tag's author is
       // the current user (signed.pubkey). Return it so an immediate apply can
       // build the `a` coordinate (39999:<authorPubkey>:<slug>).
