@@ -67,6 +67,6 @@ Testable from the outside.
   publish job); apply the entry-point tagging audit rule (BIBLE §24) if a tagged parent spawns it.
 
 ## Linked artifacts
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/tag-applicability/0002-type-aware-picker-and-scheduled-regen.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
