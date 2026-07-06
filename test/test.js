@@ -92,6 +92,7 @@ const trustedListPinPublishBlockers = require('./trusted-list-pin-publish-blocke
 const nostrUserTagHybridEaWriter = require('./nostr-user-tag-hybrid-ea-writer.test.js');
 const reputationInfoPopup = require('./reputation-info-popup.test.js');
 const liveFeedReadPath = require('./live-feed-read-path.test.js');
+const stackFreeNpmTest = require('./stack-free-npm-test.test.js');
 const liveFeedFeedPage = require('./live-feed-feed-page.test.js');
 const noteSurfacesReadPath = require('./note-surfaces-read-path.test.js');
 const noteSurfacesUi = require('./note-surfaces-ui.test.js');
@@ -319,6 +320,9 @@ async function main() {
 
   console.log('\nsession-start suite:');
   const sessionStartResult = await sessionStart.run();
+
+  console.log('\nstack-free-npm-test suite:');
+  const stackFreeNpmTestResult = await stackFreeNpmTest.run();
 
   console.log('\nTest Results');
   console.log('-------------');
@@ -548,6 +552,9 @@ async function main() {
   console.log(
     `session-start suite:                             ${sessionStartResult.fail === 0 ? 'PASS' : 'FAIL'} (${sessionStartResult.pass} passed, ${sessionStartResult.fail} failed)`
   );
+  console.log(
+    `stack-free-npm-test suite:                       ${stackFreeNpmTestResult.fail === 0 ? 'PASS' : 'FAIL'} (${stackFreeNpmTestResult.pass} passed, ${stackFreeNpmTestResult.fail} failed${stackFreeNpmTestResult.skipped ? `, ${stackFreeNpmTestResult.skipped} skipped` : ''})`
+  );
 
   const overallOk =
     configOk &&
@@ -637,7 +644,8 @@ async function main() {
     verifiedMutersProfileSurfaceResult.fail === 0 &&
     harnessLintResult.fail === 0 &&
     harnessStatsResult.fail === 0 &&
-    sessionStartResult.fail === 0;
+    sessionStartResult.fail === 0 &&
+    stackFreeNpmTestResult.fail === 0;
   console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);
   process.exit(overallOk ? 0 : 1);
 }

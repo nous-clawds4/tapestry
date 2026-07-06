@@ -49,5 +49,5 @@ None — the guard pattern, its timeout discipline, and its reporting shape all 
 ## Linked artifacts
 
 - ADR: — (Architecture skipped per the ratified book plan; the pattern being extended is the in-repo precedent)
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/test-hermeticity-ci/2-stack-free-npm-test.test-plan.md`
 - Review: (filled in after Review phase)
