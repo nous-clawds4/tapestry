@@ -616,7 +616,7 @@
     "refreshPinnedTagTLs": {
       "name": "Refresh Pinned-tag Trusted Lists",
       "categories": ["algorithms", "export"],
-      "description": "Generate or refresh kind-30392 Trusted List events for every Pin event in local strfry, computed under each pin's observer POV using the pin's curation-method. Publishes to local strfry only. Scheduled via /api/scheduled-tasks (taskId=refreshPinnedTagTLs).",
+      "description": "Generate or refresh the pinned-tag Trusted Lists for every Pin event in local strfry — the kind-30392 pubkey TL and, for note-targeting pins, the kind-30393 note TL (event-tagging #17) — computed under each pin's observer POV using the pin's curation-method. Publishes to local strfry only. Scheduled via /api/scheduled-tasks (taskId=refreshPinnedTagTLs).",
       "scripts": [
         "$BRAINSTORM_MODULE_SRC_DIR/algos/refreshPinnedTagTLs.sh"
       ],
