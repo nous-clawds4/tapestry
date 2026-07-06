@@ -22,7 +22,7 @@ As an operator reading server logs, I want the feed's fallback-to-default-relays
 
 ## Acceptance criteria
 
-- [ ] Given a bare copy of the repo (no `node_modules`, located outside any `node_modules`-bearing ancestor — explicitly not a `.claude/worktrees/` worktree, which inherits the parent's modules), when the live-feed read-path suite runs, then every test in it passes (23/23 today, B9 included).
+- [ ] Given a bare copy of the repo (no `node_modules`, located outside any `node_modules`-bearing ancestor — explicitly not a `.claude/worktrees/` worktree, which inherits the parent's modules), when the live-feed read-path suite runs, then the suite reports **zero failures** — B9 **passes** (it does not skip), and only tests whose fixtures require installed npm packages may skip, each visibly and with a reason. *(Amended at Test Design 2026-07-05: the suite empirically has 30 tests, not the recon's 23; five are fixture-bound to `nostr-tools` and can never pass bare — see the test plan's bare-copy verification.)*
 - [ ] Given the suite's injected test doubles, when B9, B10, and B11 run, then each double is observably exercised — the suite fails, rather than passes, if a double is bypassed (no more vacuous green).
 - [ ] Given a production-shaped call (no injected dependencies) in which relay-set resolution fails for any reason (missing module, driver load failure, query error), when the feed degrades to fallback relays, then the server log carries the underlying error's message/code alongside the fallback decision — never a silent degrade.
 - [ ] Given a normal installed checkout (deps present; stack absent or present), when the full suite runs, then live-feed results are unchanged from today (still stack-free, still green), and the live-feed suite's output no longer contains host-config fallback noise (today it prints "Config file /etc/brainstorm.conf not found … Using default value for BRAINSTORM_RELAY_PUBKEY: null" — evidence the tests currently read host paths).
@@ -46,5 +46,5 @@ None — the fix direction was ratified at book open; the remaining choices (exa
 ## Linked artifacts
 
 - ADR: — (Architecture skipped per the ratified book plan; the durable design record is this story's Background + book frame bullet 1)
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/test-hermeticity-ci/1-feed-hermeticity.test-plan.md`
 - Review: (filled in after Review phase)
