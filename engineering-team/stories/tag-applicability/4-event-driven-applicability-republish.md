@@ -80,4 +80,4 @@ Testable from the outside.
 ## Linked artifacts
 - ADR: `engineering-team/decisions/tag-applicability/0003-event-driven-applicability-republish.md`
 - Test plan: `engineering-team/stories/tag-applicability/4-event-driven-applicability-republish.test-plan.md`
-- Review: (after Review)
+- Review: `engineering-team/reviews/tag-applicability/4-event-driven-applicability-republish.md` (PASS, 2026-07-06)
