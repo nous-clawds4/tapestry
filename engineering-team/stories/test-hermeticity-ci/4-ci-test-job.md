@@ -47,5 +47,5 @@ None for Planning — the trigger shape, version pinning, caching, install-scrip
 ## Linked artifacts
 
 - ADR: `engineering-team/decisions/test-hermeticity-ci/0001-ci-test-job.md` (Accepted, 2026-07-06)
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/test-hermeticity-ci/4-ci-test-job.test-plan.md`
 - Review: (filled in after Review phase)

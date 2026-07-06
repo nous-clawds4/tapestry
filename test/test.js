@@ -93,6 +93,7 @@ const nostrUserTagHybridEaWriter = require('./nostr-user-tag-hybrid-ea-writer.te
 const reputationInfoPopup = require('./reputation-info-popup.test.js');
 const liveFeedReadPath = require('./live-feed-read-path.test.js');
 const stackFreeNpmTest = require('./stack-free-npm-test.test.js');
+const ciTestJob = require('./ci-test-job.test.js');
 const liveFeedFeedPage = require('./live-feed-feed-page.test.js');
 const noteSurfacesReadPath = require('./note-surfaces-read-path.test.js');
 const noteSurfacesUi = require('./note-surfaces-ui.test.js');
@@ -323,6 +324,9 @@ async function main() {
 
   console.log('\nstack-free-npm-test suite:');
   const stackFreeNpmTestResult = await stackFreeNpmTest.run();
+
+  console.log('\nci-test-job suite:');
+  const ciTestJobResult = await ciTestJob.run();
 
   console.log('\nTest Results');
   console.log('-------------');
@@ -591,6 +595,9 @@ async function main() {
   console.log(
     `stack-free-npm-test suite:                       ${stackFreeNpmTestResult.fail === 0 ? 'PASS' : 'FAIL'} (${stackFreeNpmTestResult.pass} passed, ${stackFreeNpmTestResult.fail} failed${stackFreeNpmTestResult.skipped ? `, ${stackFreeNpmTestResult.skipped} skipped` : ''})`
   );
+  console.log(
+    `ci-test-job suite:                               ${ciTestJobResult.fail === 0 ? 'PASS' : 'FAIL'} (${ciTestJobResult.pass} passed, ${ciTestJobResult.fail} failed)`
+  );
 
   const overallOk =
     configOk &&
@@ -681,7 +688,8 @@ async function main() {
     harnessLintResult.fail === 0 &&
     harnessStatsResult.fail === 0 &&
     sessionStartResult.fail === 0 &&
-    stackFreeNpmTestResult.fail === 0;
+    stackFreeNpmTestResult.fail === 0 &&
+    ciTestJobResult.fail === 0;
   // Aggregate skip visibility (story test-hermeticity-ci #2, reviewer
   // constraint: skips are counted, never silent). Purely informational —
   // overallOk above never consults .skipped.
@@ -708,6 +716,7 @@ async function main() {
     tagReadUnionResult, bTagPrimitiveResult, bTagSeedsResult, dualZWriterResult,
     openRankingStatsResult, openRankingSearchResult, verifiedMutersReadApiResult, verifiedMutersProfileSurfaceResult,
     harnessLintResult, harnessStatsResult, sessionStartResult, stackFreeNpmTestResult,
+    ciTestJobResult,
   ].reduce((sum, r) => sum + ((r && r.skipped) || 0), 0);
   console.log(`Total skipped:                                   ${totalSkipped}`);
   console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);
