@@ -1,6 +1,6 @@
 # Story 2: `npm test` is honest without the stack — guarded live suites, counted skips
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-07-05
 **Type:** Bug
 
@@ -50,4 +50,4 @@ None — the guard pattern, its timeout discipline, and its reporting shape all 
 
 - ADR: — (Architecture skipped per the ratified book plan; the pattern being extended is the in-repo precedent)
 - Test plan: `engineering-team/stories/test-hermeticity-ci/2-stack-free-npm-test.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/test-hermeticity-ci/2-stack-free-npm-test.md` (PASS, 2026-07-06)
