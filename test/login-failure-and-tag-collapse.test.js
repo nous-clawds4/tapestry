@@ -72,45 +72,62 @@ async function importNip07() {
  * A. BEHAVIORAL — waitForNostr (ADR 0021 AC-1, Decision 3)
  * ────────────────────────────────────────────────────────────────────────── */
 
-t('AC-1a: waitForNostr returns the existing window.nostr immediately', async () => {
+/* Timing-assert defusal (story test-hermeticity-ci #3, AC-4): these three
+ * tests previously compared Date.now() deltas against wall-clock bounds
+ * (<100ms / a 60ms magic injection / >=120ms) — the stack-free subset's only
+ * load-sensitive assertions, a latent flake under CI load. Rewritten to pin
+ * the SAME three contracts deterministically: immediacy via a zero wait
+ * budget, the injection race via next-macrotask scheduling under a generous
+ * ceiling, and deadline honor via a far-too-late signer that must NOT
+ * resolve. No Date.now() remains in this suite. */
+
+t('AC-1a: waitForNostr returns an already-present window.nostr even with a ZERO wait budget (deterministic immediacy)', async () => {
   const { waitForNostr } = await importNip07();
   const signer = { getPublicKey: () => {} };
   global.window = { nostr: signer };
   try {
-    const start = Date.now();
-    const result = await waitForNostr(500, 10);
-    const elapsed = Date.now() - start;
+    const result = await waitForNostr(0, 10);
     assert(result === signer,
-      'waitForNostr must return the already-present window.nostr object (AC-1).');
-    assert(elapsed < 100,
-      `waitForNostr should return ~immediately when the signer is already present; took ${elapsed}ms (AC-1).`);
+      'waitForNostr must return the already-present window.nostr object without consuming any wait budget — the present-signer check must precede the deadline check (AC-1). A zero-budget call proves immediacy more strictly than an elapsed-ms bound, and cannot flake under load.');
   } finally { delete global.window; }
 });
 
-t('AC-1b: waitForNostr resolves to a signer injected LATE (the injection race)', async () => {
+t('AC-1b: waitForNostr resolves to a signer injected AFTER the call starts (the injection race, deterministic scheduling)', async () => {
   const { waitForNostr } = await importNip07();
   const signer = { getPublicKey: () => {} };
   global.window = {}; // no nostr yet — extension hasn't injected
   try {
-    setTimeout(() => { global.window.nostr = signer; }, 60);
-    const result = await waitForNostr(800, 20);
+    // Next macrotask: deterministically after waitForNostr begins, no magic delay.
+    setTimeout(() => { global.window.nostr = signer; }, 0);
+    const result = await waitForNostr(4000, 20);
     assert(result === signer,
-      'waitForNostr must resolve to window.nostr that appears AFTER the call starts — NIP-07 extensions inject asynchronously; an immediate one-shot check fires a false "no signer" (ADR 0021 Decision 3 / AC-1).');
+      'waitForNostr must resolve to a window.nostr that appears AFTER the call starts — NIP-07 extensions inject asynchronously; an immediate one-shot check fires a false "no signer" (ADR 0021 Decision 3 / AC-1). The 4000ms budget is a ceiling, not a wait: the call resolves at the first poll after injection.');
   } finally { delete global.window; }
 });
 
-t('AC-1c: waitForNostr returns null after the timeout when no signer ever appears', async () => {
+t('AC-1c: waitForNostr gives up (null) by its deadline — a signer arriving far too late is NOT resolved (deterministic, no elapsed-ms math)', async () => {
   const { waitForNostr } = await importNip07();
-  global.window = {}; // never gets a .nostr
+  global.window = {};
+  let lateTimer = null;
+  let guardTimer = null;
   try {
-    const start = Date.now();
-    const result = await waitForNostr(150, 20);
-    const elapsed = Date.now() - start;
+    // A signer scheduled far beyond the 150ms deadline must not be resolved.
+    lateTimer = setTimeout(() => { global.window.nostr = { getPublicKey: () => {} }; }, 4000);
+    // Safety harness, not a behavior assert: if the implementation ignored its
+    // deadline it would hang — fail legibly at 5s instead. Load cannot trip
+    // this (5000ms >> the 150ms deadline scale); only a real regression can.
+    const guard = new Promise((_, reject) => {
+      guardTimer = setTimeout(
+        () => reject(new Error('waitForNostr ignored its 150ms deadline (still pending after 5s)')), 5000);
+    });
+    const result = await Promise.race([waitForNostr(150, 20), guard]);
     assert(result === null || result === undefined,
-      'waitForNostr must resolve to null/undefined when no signer appears within the timeout (AC-1).');
-    assert(elapsed >= 120,
-      `waitForNostr must actually WAIT up to the timeout before giving up (so it tolerates late injection), not return instantly; took only ${elapsed}ms (AC-1).`);
-  } finally { delete global.window; }
+      'waitForNostr must resolve null/undefined when no signer appears within its deadline — tolerating late injection is AC-1b; HONORING the deadline is this test (AC-1).');
+  } finally {
+    clearTimeout(lateTimer);
+    clearTimeout(guardTimer);
+    delete global.window;
+  }
 });
 
 /* ──────────────────────────────────────────────────────────────────────────

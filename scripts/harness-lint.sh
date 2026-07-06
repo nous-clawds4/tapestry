@@ -22,6 +22,8 @@
 #                        scripts/harness-def-paths.txt) also touches
 #                        engineering-team/CHANGELOG.md; a missing CHANGELOG is
 #                        itself a violation; waiver shape: commit:<short-sha>
+#   L11 line-budgets     always-loaded files hold the caps in scripts/harness-budgets.txt
+#   L12 def-paths-exist  every def-path row names something present on disk
 #
 # Review verdicts (L1/L4): the LAST verdict-shaped token in the file wins —
 # a token is PASS or CHANGES_REQUESTED appearing on a heading line or inside
@@ -34,10 +36,10 @@
 # affect the exit code. A waiver that matches nothing prints "STALE-WAIVER".
 #
 # Known limits: L8 covers plain inline relative links only (no reference-style
-# links or HTML anchors — the wiring uses none). L9 needs GNU `date -d`; on
-# systems without it (stock macOS) the check is skipped silently, matching
-# whats-open.sh's date handling.
+# links or HTML anchors — the wiring uses none). L9's date math is portable
+# (GNU + BSD) via scripts/lib/date-epoch.sh (story test-hermeticity-ci #3).
 set -uo pipefail
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/date-epoch.sh"
 cd "$(git rev-parse --show-toplevel 2>/dev/null || echo .)"
 
 WAIVER_FILE="scripts/harness-lint-waivers.txt"
@@ -211,7 +213,6 @@ check_L8() {
 # ---------- L9: hand-maintained freshness headers ----------
 check_L9() {
   git rev-parse --git-dir >/dev/null 2>&1 || return 0
-  date -d 2020-01-01 +%s >/dev/null 2>&1 || return 0   # needs GNU date; else skip
   local f hdr gitd hs gs days
   for f in BIBLE.md OPERATIONS.md; do
     [ -f "$f" ] || continue
@@ -219,8 +220,8 @@ check_L9() {
     [ -n "$hdr" ] || continue
     gitd=$(git log -1 --format=%ad --date=short -- "$f" 2>/dev/null)
     [ -n "$gitd" ] || continue
-    hs=$(date -d "$hdr" +%s 2>/dev/null) || continue
-    gs=$(date -d "$gitd" +%s 2>/dev/null) || continue
+    hs=$(date_to_epoch "$hdr") || continue
+    gs=$(date_to_epoch "$gitd") || continue
     days=$(( (gs - hs) / 86400 ))
     [ "$days" -gt 14 ] \
       && violation L9 "$f" "'Last updated: $hdr' lags the last git change ($gitd) by ${days}d (>14)"
@@ -250,6 +251,22 @@ check_L10() {
   [ -n "$latest" ] || return 0
   git show --name-only --format= "$latest" 2>/dev/null | grep -qx "$CHANGELOG" \
     || violation L10 "commit:$latest" "latest harness-definition commit ($(git show -s --format=%s "$latest" | cut -c1-60)…) did not touch $CHANGELOG — add the row (one per logical change)"
+}
+
+# ---------- L12: every def-path row names something that exists ----------
+# A def-paths row whose file is missing is invisible drift: the harness
+# definition claims a surface no checkout has. That is exactly how the
+# gitignored SessionStart hook stayed undetected (OPEN.md row 20) — L10's
+# [ -e ] walker filter above legitimately needs existing paths for git log,
+# but the miss itself must report. (story test-hermeticity-ci #3)
+check_L12() {
+  [ -f "$DEF_PATHS_FILE" ] || return 0
+  local p
+  while IFS= read -r p; do
+    case "$p" in \#*|"") continue ;; esac
+    [ -e "$p" ] \
+      || violation L12 "$p" "listed in $DEF_PATHS_FILE but does not exist on disk — the harness definition names a surface no checkout has (ship it, or remove the row)"
+  done < "$DEF_PATHS_FILE"
 }
 
 # ---------- L11: always-loaded files hold their line budgets ----------
@@ -284,6 +301,7 @@ check_L8
 check_L9
 check_L10
 check_L11
+check_L12
 
 # stale waivers — visible, non-fatal (same bash-3.2 empty-array guard as violation())
 if [ "${#W_IDS[@]}" -gt 0 ]; then

@@ -92,6 +92,8 @@ const trustedListPinPublishBlockers = require('./trusted-list-pin-publish-blocke
 const nostrUserTagHybridEaWriter = require('./nostr-user-tag-hybrid-ea-writer.test.js');
 const reputationInfoPopup = require('./reputation-info-popup.test.js');
 const liveFeedReadPath = require('./live-feed-read-path.test.js');
+const stackFreeNpmTest = require('./stack-free-npm-test.test.js');
+const ciTestJob = require('./ci-test-job.test.js');
 const liveFeedFeedPage = require('./live-feed-feed-page.test.js');
 const noteSurfacesReadPath = require('./note-surfaces-read-path.test.js');
 const noteSurfacesUi = require('./note-surfaces-ui.test.js');
@@ -320,47 +322,77 @@ async function main() {
   console.log('\nsession-start suite:');
   const sessionStartResult = await sessionStart.run();
 
+  console.log('\nstack-free-npm-test suite:');
+  const stackFreeNpmTestResult = await stackFreeNpmTest.run();
+
+  console.log('\nci-test-job suite:');
+  const ciTestJobResult = await ciTestJob.run();
+
   console.log('\nTest Results');
   console.log('-------------');
   console.log(`Configuration Loading:                           ${configOk ? 'PASS' : 'FAIL'}`);
-  console.log(`profile-tags suite:                              ${profileTagsResult.fail === 0 ? 'PASS' : 'FAIL'} (${profileTagsResult.pass} passed, ${profileTagsResult.fail} failed)`);
+  const profileTagsLine = profileTagsResult.skipped
+    ? `SKIP (${profileTagsResult.skipped} tests; control panel not reachable)`
+    : `${profileTagsResult.fail === 0 ? 'PASS' : 'FAIL'} (${profileTagsResult.pass} passed, ${profileTagsResult.fail} failed)`;
+  console.log(`profile-tags suite:                              ${profileTagsLine}`);
   const publishLine = publishResult.skipped
     ? `SKIP (${publishResult.skipped} tests; preconditions not met)`
     : `${publishResult.fail === 0 ? 'PASS' : 'FAIL'} (${publishResult.pass} passed, ${publishResult.fail} failed)`;
   console.log(`profile-tags-publish suite:                      ${publishLine}`);
-  console.log(`tag-detail suite:                                ${tagDetailResult.fail === 0 ? 'PASS' : 'FAIL'} (${tagDetailResult.pass} passed, ${tagDetailResult.fail} failed)`);
+  const tagDetailLine = tagDetailResult.skipped
+    ? `SKIP (${tagDetailResult.skipped} tests; control panel not reachable)`
+    : `${tagDetailResult.fail === 0 ? 'PASS' : 'FAIL'} (${tagDetailResult.pass} passed, ${tagDetailResult.fail} failed)`;
+  console.log(`tag-detail suite:                                ${tagDetailLine}`);
   const tdpLine = tagDetailPublishResult.skipped
     ? `SKIP (${tagDetailPublishResult.skipped} tests; preconditions not met)`
     : `${tagDetailPublishResult.fail === 0 ? 'PASS' : 'FAIL'} (${tagDetailPublishResult.pass} passed, ${tagDetailPublishResult.fail} failed)`;
   console.log(`tag-detail-publish suite:                        ${tdpLine}`);
-  console.log(`tag-detail-write suite:                          ${tagDetailWriteResult.fail === 0 ? 'PASS' : 'FAIL'} (${tagDetailWriteResult.pass} passed, ${tagDetailWriteResult.fail} failed)`);
+  const tagDetailWriteLine = tagDetailWriteResult.skipped
+    ? `SKIP (${tagDetailWriteResult.skipped} tests; control panel not reachable)`
+    : `${tagDetailWriteResult.fail === 0 ? 'PASS' : 'FAIL'} (${tagDetailWriteResult.pass} passed, ${tagDetailWriteResult.fail} failed)`;
+  console.log(`tag-detail-write suite:                          ${tagDetailWriteLine}`);
   const tdwpLine = tagDetailWritePublishResult.skipped
     ? `SKIP (${tagDetailWritePublishResult.skipped} tests; preconditions not met)`
     : `${tagDetailWritePublishResult.fail === 0 ? 'PASS' : 'FAIL'} (${tagDetailWritePublishResult.pass} passed, ${tagDetailWritePublishResult.fail} failed)`;
   console.log(`tag-detail-write-publish suite:                  ${tdwpLine}`);
-  console.log(`tag-index suite:                                 ${tagIndexResult.fail === 0 ? 'PASS' : 'FAIL'} (${tagIndexResult.pass} passed, ${tagIndexResult.fail} failed)`);
+  const tagIndexLine = tagIndexResult.skipped
+    ? `SKIP (${tagIndexResult.skipped} tests; control panel not reachable)`
+    : `${tagIndexResult.fail === 0 ? 'PASS' : 'FAIL'} (${tagIndexResult.pass} passed, ${tagIndexResult.fail} failed)`;
+  console.log(`tag-index suite:                                 ${tagIndexLine}`);
   const tipLine = tagIndexPublishResult.skipped
     ? `SKIP (${tagIndexPublishResult.skipped} tests; preconditions not met)`
     : `${tagIndexPublishResult.fail === 0 ? 'PASS' : 'FAIL'} (${tagIndexPublishResult.pass} passed, ${tagIndexPublishResult.fail} failed)`;
   console.log(`tag-index-publish suite:                         ${tipLine}`);
-  console.log(`authored-tagging suite:                          ${authoredTaggingResult.fail === 0 ? 'PASS' : 'FAIL'} (${authoredTaggingResult.pass} passed, ${authoredTaggingResult.fail} failed)`);
+  const authoredTaggingLine = authoredTaggingResult.skipped
+    ? `SKIP (${authoredTaggingResult.skipped} tests; control panel not reachable)`
+    : `${authoredTaggingResult.fail === 0 ? 'PASS' : 'FAIL'} (${authoredTaggingResult.pass} passed, ${authoredTaggingResult.fail} failed)`;
+  console.log(`authored-tagging suite:                          ${authoredTaggingLine}`);
   const atpLine = authoredTaggingPublishResult.skipped
     ? `SKIP (${authoredTaggingPublishResult.skipped} tests; preconditions not met)`
     : `${authoredTaggingPublishResult.fail === 0 ? 'PASS' : 'FAIL'} (${authoredTaggingPublishResult.pass} passed, ${authoredTaggingPublishResult.fail} failed)`;
   console.log(`authored-tagging-publish suite:                  ${atpLine}`);
-  console.log(`profile-tag-polish suite:                        ${profileTagPolishResult.fail === 0 ? 'PASS' : 'FAIL'} (${profileTagPolishResult.pass} passed, ${profileTagPolishResult.fail} failed)`);
+  const profileTagPolishLine = profileTagPolishResult.skipped
+    ? `SKIP (${profileTagPolishResult.skipped} tests; control panel not reachable)`
+    : `${profileTagPolishResult.fail === 0 ? 'PASS' : 'FAIL'} (${profileTagPolishResult.pass} passed, ${profileTagPolishResult.fail} failed)`;
+  console.log(`profile-tag-polish suite:                        ${profileTagPolishLine}`);
   const ptppLine = profileTagPolishPublishResult.skipped
     ? `SKIP (${profileTagPolishPublishResult.skipped} tests; preconditions not met)`
     : `${profileTagPolishPublishResult.fail === 0 ? 'PASS' : 'FAIL'} (${profileTagPolishPublishResult.pass} passed, ${profileTagPolishPublishResult.fail} failed)`;
   console.log(`profile-tag-polish-publish suite:                ${ptppLine}`);
   console.log(`search-result-parity suite:                      ${searchResultParityResult.fail === 0 ? 'PASS' : 'FAIL'} (${searchResultParityResult.pass} passed, ${searchResultParityResult.fail} failed)`);
   console.log(`search-results-url suite:                        ${searchResultsUrlResult.fail === 0 ? 'PASS' : 'FAIL'} (${searchResultsUrlResult.pass} passed, ${searchResultsUrlResult.fail} failed)`);
-  console.log(`pin-a-tag suite:                                 ${pinATagResult.fail === 0 ? 'PASS' : 'FAIL'} (${pinATagResult.pass} passed, ${pinATagResult.fail} failed)`);
+  const pinATagLine = pinATagResult.skipped
+    ? `SKIP (${pinATagResult.skipped} tests; control panel not reachable)`
+    : `${pinATagResult.fail === 0 ? 'PASS' : 'FAIL'} (${pinATagResult.pass} passed, ${pinATagResult.fail} failed)`;
+  console.log(`pin-a-tag suite:                                 ${pinATagLine}`);
   const patpLine = pinATagPublishResult.skipped
     ? `SKIP (${pinATagPublishResult.skipped} tests; preconditions not met)`
     : `${pinATagPublishResult.fail === 0 ? 'PASS' : 'FAIL'} (${pinATagPublishResult.pass} passed, ${pinATagPublishResult.fail} failed)`;
   console.log(`pin-a-tag-publish suite:                         ${patpLine}`);
-  console.log(`tl-publication-from-pins suite:                  ${tlPubFromPinsResult.fail === 0 ? 'PASS' : 'FAIL'} (${tlPubFromPinsResult.pass} passed, ${tlPubFromPinsResult.fail} failed)`);
+  const tlPubFromPinsLine = tlPubFromPinsResult.skipped
+    ? `SKIP (${tlPubFromPinsResult.skipped} tests; control panel not reachable)`
+    : `${tlPubFromPinsResult.fail === 0 ? 'PASS' : 'FAIL'} (${tlPubFromPinsResult.pass} passed, ${tlPubFromPinsResult.fail} failed)`;
+  console.log(`tl-publication-from-pins suite:                  ${tlPubFromPinsLine}`);
   const tlppLine = tlPubFromPinsPublishResult.skipped
     ? `SKIP (${tlPubFromPinsPublishResult.skipped} tests; preconditions not met)`
     : `${tlPubFromPinsPublishResult.fail === 0 ? 'PASS' : 'FAIL'} (${tlPubFromPinsPublishResult.pass} passed, ${tlPubFromPinsPublishResult.fail} failed)`;
@@ -369,17 +401,26 @@ async function main() {
     ? `SKIP (${customizePinCurationPublishResult.skipped} tests; preconditions not met)`
     : `${customizePinCurationPublishResult.fail === 0 ? 'PASS' : 'FAIL'} (${customizePinCurationPublishResult.pass} passed, ${customizePinCurationPublishResult.fail} failed)`;
   console.log(`customize-pin-curation-publish suite:            ${cpcLine}`);
-  console.log(`most-pinned-tag-index suite:                     ${mostPinnedTagIndexResult.fail === 0 ? 'PASS' : 'FAIL'} (${mostPinnedTagIndexResult.pass} passed, ${mostPinnedTagIndexResult.fail} failed)`);
+  const mostPinnedTagIndexLine = mostPinnedTagIndexResult.skipped
+    ? `SKIP (${mostPinnedTagIndexResult.skipped} tests; control panel not reachable)`
+    : `${mostPinnedTagIndexResult.fail === 0 ? 'PASS' : 'FAIL'} (${mostPinnedTagIndexResult.pass} passed, ${mostPinnedTagIndexResult.fail} failed)`;
+  console.log(`most-pinned-tag-index suite:                     ${mostPinnedTagIndexLine}`);
   const mptpLine = mostPinnedTagIndexPublishResult.skipped
     ? `SKIP (${mostPinnedTagIndexPublishResult.skipped} tests; preconditions not met)`
     : `${mostPinnedTagIndexPublishResult.fail === 0 ? 'PASS' : 'FAIL'} (${mostPinnedTagIndexPublishResult.pass} passed, ${mostPinnedTagIndexPublishResult.fail} failed)`;
   console.log(`most-pinned-tag-index-publish suite:             ${mptpLine}`);
-  console.log(`tag-detail-curated-view-and-pin-polish suite:    ${tagDetailCuratedResult.fail === 0 ? 'PASS' : 'FAIL'} (${tagDetailCuratedResult.pass} passed, ${tagDetailCuratedResult.fail} failed)`);
+  const tagDetailCuratedLine = tagDetailCuratedResult.skipped
+    ? `SKIP (${tagDetailCuratedResult.skipped} tests; control panel not reachable)`
+    : `${tagDetailCuratedResult.fail === 0 ? 'PASS' : 'FAIL'} (${tagDetailCuratedResult.pass} passed, ${tagDetailCuratedResult.fail} failed)`;
+  console.log(`tag-detail-curated-view-and-pin-polish suite:    ${tagDetailCuratedLine}`);
   const tdcpLine = tagDetailCuratedPublishResult.skipped
     ? `SKIP (${tagDetailCuratedPublishResult.skipped} tests; preconditions not met)`
     : `${tagDetailCuratedPublishResult.fail === 0 ? 'PASS' : 'FAIL'} (${tagDetailCuratedPublishResult.pass} passed, ${tagDetailCuratedPublishResult.fail} failed)`;
   console.log(`tag-detail-curated-view-and-pin-polish-publish suite: ${tdcpLine}`);
-  console.log(`restore-historical-data-and-fix-tl-author-filter suite: ${restoreHistoricalDataAndTlFilterResult.fail === 0 ? 'PASS' : 'FAIL'} (${restoreHistoricalDataAndTlFilterResult.pass} passed, ${restoreHistoricalDataAndTlFilterResult.fail} failed)`);
+  const restoreHistoricalLine = restoreHistoricalDataAndTlFilterResult.skipped
+    ? `SKIP (${restoreHistoricalDataAndTlFilterResult.skipped} tests; control panel not reachable)`
+    : `${restoreHistoricalDataAndTlFilterResult.fail === 0 ? 'PASS' : 'FAIL'} (${restoreHistoricalDataAndTlFilterResult.pass} passed, ${restoreHistoricalDataAndTlFilterResult.fail} failed)`;
+  console.log(`restore-historical-data-and-fix-tl-author-filter suite: ${restoreHistoricalLine}`);
   console.log(`treasure-maps-router-preset suite:               ${treasureMapsResult.fail === 0 ? 'PASS' : 'FAIL'} (${treasureMapsResult.pass} passed, ${treasureMapsResult.fail} failed)`);
   console.log(`scheduled-search-and-house-scores-refresh suite: ${scheduledRefreshResult.fail === 0 ? 'PASS' : 'FAIL'} (${scheduledRefreshResult.pass} passed, ${scheduledRefreshResult.fail} failed)`);
   console.log(`strfry-router-first-boot-config suite:           ${strfryRouterFirstBootResult.fail === 0 ? 'PASS' : 'FAIL'} (${strfryRouterFirstBootResult.pass} passed, ${strfryRouterFirstBootResult.fail} failed)`);
@@ -387,7 +428,10 @@ async function main() {
   console.log(`nip05-checkmark-verification suite:              ${nip05CheckmarkVerificationResult.fail === 0 ? 'PASS' : 'FAIL'} (${nip05CheckmarkVerificationResult.pass} passed, ${nip05CheckmarkVerificationResult.fail} failed)`);
   console.log(`publish-export-a-concept suite:                  ${publishExportConceptResult.fail === 0 ? 'PASS' : 'FAIL'} (${publishExportConceptResult.pass} passed, ${publishExportConceptResult.fail} failed)`);
   console.log(`community-reference-nostr-relay-stub suite:      ${communityReferenceStubResult.fail === 0 ? 'PASS' : 'FAIL'} (${communityReferenceStubResult.pass} passed, ${communityReferenceStubResult.fail} failed)`);
-  console.log(`nip51-list-export-from-pins suite:               ${nip51ListExportResult.fail === 0 ? 'PASS' : 'FAIL'} (${nip51ListExportResult.pass} passed, ${nip51ListExportResult.fail} failed)`);
+  const nip51ListExportLine = nip51ListExportResult.skipped
+    ? `SKIP (${nip51ListExportResult.skipped} tests; control panel not reachable)`
+    : `${nip51ListExportResult.fail === 0 ? 'PASS' : 'FAIL'} (${nip51ListExportResult.pass} passed, ${nip51ListExportResult.fail} failed)`;
+  console.log(`nip51-list-export-from-pins suite:               ${nip51ListExportLine}`);
   const nleLine = nip51ListExportPublishResult.skipped
     ? `SKIP (${nip51ListExportPublishResult.skipped} tests; preconditions not met)`
     : `${nip51ListExportPublishResult.fail === 0 ? 'PASS' : 'FAIL'} (${nip51ListExportPublishResult.pass} passed, ${nip51ListExportPublishResult.fail} failed)`;
@@ -548,6 +592,12 @@ async function main() {
   console.log(
     `session-start suite:                             ${sessionStartResult.fail === 0 ? 'PASS' : 'FAIL'} (${sessionStartResult.pass} passed, ${sessionStartResult.fail} failed)`
   );
+  console.log(
+    `stack-free-npm-test suite:                       ${stackFreeNpmTestResult.fail === 0 ? 'PASS' : 'FAIL'} (${stackFreeNpmTestResult.pass} passed, ${stackFreeNpmTestResult.fail} failed${stackFreeNpmTestResult.skipped ? `, ${stackFreeNpmTestResult.skipped} skipped` : ''})`
+  );
+  console.log(
+    `ci-test-job suite:                               ${ciTestJobResult.fail === 0 ? 'PASS' : 'FAIL'} (${ciTestJobResult.pass} passed, ${ciTestJobResult.fail} failed)`
+  );
 
   const overallOk =
     configOk &&
@@ -637,7 +687,38 @@ async function main() {
     verifiedMutersProfileSurfaceResult.fail === 0 &&
     harnessLintResult.fail === 0 &&
     harnessStatsResult.fail === 0 &&
-    sessionStartResult.fail === 0;
+    sessionStartResult.fail === 0 &&
+    stackFreeNpmTestResult.fail === 0 &&
+    ciTestJobResult.fail === 0;
+  // Aggregate skip visibility (story test-hermeticity-ci #2, reviewer
+  // constraint: skips are counted, never silent). Purely informational —
+  // overallOk above never consults .skipped.
+  const totalSkipped = [
+    profileTagsResult, publishResult, tagDetailResult, tagDetailPublishResult,
+    tagDetailWriteResult, tagDetailWritePublishResult, tagIndexResult, tagIndexPublishResult,
+    authoredTaggingResult, authoredTaggingPublishResult, profileTagPolishResult, profileTagPolishPublishResult,
+    searchResultParityResult, searchResultsUrlResult, pinATagResult, pinATagPublishResult,
+    tlPubFromPinsResult, tlPubFromPinsPublishResult, customizePinCurationPublishResult, mostPinnedTagIndexResult,
+    mostPinnedTagIndexPublishResult, tagDetailCuratedResult, tagDetailCuratedPublishResult, restoreHistoricalDataAndTlFilterResult,
+    treasureMapsResult, scheduledRefreshResult, strfryRouterFirstBootResult, perQueryNeo4jTimeoutResult,
+    nip05CheckmarkVerificationResult, publishExportConceptResult, communityReferenceStubResult, nip51ListExportResult,
+    nip51ListExportPublishResult, pinDetailIntoTagTabResult, collapseIntoExportResult, loginFailureAndTagCollapseResult,
+    headerConceptGraphTagResult, communityReferenceSupersetLinkResult, graperankSharedCsvRaceResult, communityClassThreadPullResult,
+    taskQueueBullmqResult, taskQueueNeo4jResourceClassResult, entrypointTemplateRenderingResult, bullboardAdminAccessResult,
+    adminToolsDashboardPanelResult, reconciliationIncrementalModeResult, generalizedTaskSchedulerResult, reconciliationRearchitectureResult,
+    scheduledTasksWithArgumentsResult, manualTaskRetriggerAfterFinishResult, scheduledTaskTimeoutPropagationResult, killTimeoutOrphansByDefaultResult,
+    taskQueueSemaphoreProtectionAuditResult, profileFollowsListResult, profileWebsiteLinkResult, profileVerifiedFollowersCountResult,
+    profileFollowersListResult, profileVerifiedReportersCountResult, verifiedReportersMembershipDataResult, verifiedReportersListPageResult,
+    profileVerifiedCountsOwnerPovResult, profileVerifiedCountsExplainerAndAlarmResult, searchApiResultTypeSettingsResult, trustedListPinPublishBlockersResult,
+    nostrUserTagHybridEaWriterResult, reputationInfoPopupResult, liveFeedReadPathResult, liveFeedFeedPageResult,
+    noteSurfacesReadPathResult, noteSurfacesUiResult, eventPageReadPathResult, eventPageUiResult,
+    verifiedReportersReportColumnsResult, profileIdentityDetailsPopoverResult, profileFollowsHopsResult, profileHopsPathResult,
+    tagReadUnionResult, bTagPrimitiveResult, bTagSeedsResult, dualZWriterResult,
+    openRankingStatsResult, openRankingSearchResult, verifiedMutersReadApiResult, verifiedMutersProfileSurfaceResult,
+    harnessLintResult, harnessStatsResult, sessionStartResult, stackFreeNpmTestResult,
+    ciTestJobResult,
+  ].reduce((sum, r) => sum + ((r && r.skipped) || 0), 0);
+  console.log(`Total skipped:                                   ${totalSkipped}`);
   console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);
   process.exit(overallOk ? 0 : 1);
 }

@@ -1211,3 +1211,15 @@ Small future-readiness items the 2026-06-18 multi-lens review (`reviews/live-fee
 **RESOLVED** — provenance record only; the feature shipped and works. *(entry added 2026-07-02, harness sweep — see docs/HARNESS_REVIEW_HANDOFF_2026-07-02.md §4.3.)*
 
 The Assistant Profile feature (profile editor UI, per-user Assistant routing) shipped to production on 2026-05-24 as four direct commits — `859865ab`, `b510e8ba`, `64ccfd6c`, `ca20070c` (PRs #207–#212, merged directly by the operator) — with no story, ADR, test plan, or review, while the harness was fully operational (stories #24/#25 ran complete five-phase cycles the same days). Its only prior trace was a passing "unrelated, merged during this session by user" note in `docs/SEMAPHORE_INVESTIGATION_HANDOFF_2026-05-24.md`. This entry exists so the feature's surface is provenanced: the book-close workflow treats unprovenanced diff as a finding, and the hotfix lane (workflows/0-intake.md step 3) now requires a trace for out-of-cycle ships. Any future story touching the Assistant Profile surface starts from this record.
+
+---
+
+## 2026-07-05 — Cleanup: cross-module clones of the non-injected TA read + silent relay-set catch
+
+**Source:** review NB3, `engineering-team/reviews/test-hermeticity-ci/1-feed-hermeticity.md` (story #1 fixed the class in `src/api/feed/feedReadPath.js` only).
+
+**Raw finding:** `src/api/_shared/relaySource.js:66–86` and `src/api/notes/userNotesReadPath.js:116` still carry the pre-fix pattern — a non-injected `require` of `utils/assistantKeys` inside a blanket try/catch that silently degrades to fallback relays (`eventReadPath` consumes the `_shared` copy). Same hazard class as OPEN.md row 13(a): a missing/broken install is indistinguishable from an empty relay set, and any future executable test of these modules inherits the bare-checkout trap.
+
+**Classification:** Refactor (mechanical port of story #1's seam + legible-degrade pattern)
+**Strictness:** Standard — Refactor; tests are the behavior here, so mirror story #1's H-block shape per module.
+**Phase path:** candidate fold-in to the `test-hermeticity-ci` book if the operator extends the frame; otherwise the deferred legibility pass. Recorded so the clones don't slip through the book unnoticed.
