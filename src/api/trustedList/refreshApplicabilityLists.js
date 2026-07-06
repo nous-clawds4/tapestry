@@ -16,7 +16,7 @@
  *   - publishTL({kind,dTag,title,metric,items,content}) → { uuid }
  */
 
-const { TAG_FOR_NOSTR_PUBKEY_Z, TAG_FOR_NOSTR_EVENT_Z } = require('../../lib/event-tagging');
+const { TAG_FOR_NOSTR_PUBKEY_Z, TAG_FOR_NOSTR_EVENT_Z, buildMembers } = require('../../lib/event-tagging');
 
 const KIND = 30393;
 const METRIC = 'tag-applicability';
@@ -24,8 +24,6 @@ const D_PUBKEY = 'tag-applicability-nostr-pubkey';
 const D_EVENT = 'tag-applicability-nostr-event';
 const TITLE_PUBKEY = 'Tags for Nostr Pubkeys';
 const TITLE_EVENT = 'Tags for Nostr Events';
-
-function aCoord(authorPubkey, slug) { return `39999:${authorPubkey}:${slug}`; }
 
 // ── Real dep defaults ───────────────────────────────────────────────────────────
 function realLoadUsageRows() {
@@ -49,30 +47,9 @@ function realPublishTL(args) {
   return buildAndPublishTL(args);
 }
 
-function dTagOf(ev) { const t = (ev.tags || []).find((x) => x[0] === 'd'); return t ? t[1] : null; }
-
-/**
- * Build one type's ordered, deduped a-coordinate member set from usage rows + hint elements.
- * @param usageRows rows whose `byType[type].applications > 0` count as USAGE for this type.
- * @param hintEls   tag-elements carrying this type's hint z (the HINT half).
- * @returns [{ a, applications }] ordered by usage desc (hint-only, zero-usage, last).
- */
-function buildMembers(usageRows, hintEls, type) {
-  const byCoord = new Map(); // aCoord → applications
-  for (const r of usageRows || []) {
-    const apps = r && r.byType && r.byType[type] && r.byType[type].applications;
-    if (apps > 0) byCoord.set(aCoord(r.tag.authorPubkey, r.tag.slug), apps);
-  }
-  for (const el of hintEls || []) {
-    const d = dTagOf(el);
-    if (!el || !el.pubkey || !d) continue;
-    const coord = aCoord(el.pubkey, d);
-    if (!byCoord.has(coord)) byCoord.set(coord, 0); // hint-only → zero usage, listed last
-  }
-  return Array.from(byCoord.entries())
-    .sort((a, b) => (b[1] - a[1]) || a[0].localeCompare(b[0]))
-    .map(([a, applications]) => ({ a, applications }));
-}
+// `buildMembers` (the HINT ∪ USAGE union) now lives in the portable core
+// (src/lib/event-tagging/applicability.js) so a third-party kind-1 client derives compatible
+// context lists; imported above and re-exported below for API stability.
 
 /**
  * Derive and publish both applicability lists. Returns { lists: [{ type, dTag, memberCount, uuid }] }.

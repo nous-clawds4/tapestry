@@ -299,6 +299,50 @@ test('Rt1: a loopback-guarded POST /api/trusted-list/refresh-applicability-lists
     'the refresh endpoint must be loopback-guarded (TA-signed publish, like refresh-all-pinned-tags).');
 });
 
+// ===========================================================================
+// LIB — the PORTABLE applicability API in the event-tagging core (a third-party
+// kind-1 client imports these to produce context data compatible with ours).
+// ===========================================================================
+
+test('LIB1: core exports the portable applicability API (deriveApplicabilityMembers, applicabilityHintFilter, …)', () => {
+  const core = require('../src/lib/event-tagging');
+  for (const fn of ['deriveApplicabilityMembers', 'applicabilityHintFilter', 'buildMembers', 'hintZForContext']) {
+    assert(typeof core[fn] === 'function', `event-tagging core must export ${fn} (portable derivation for third-party kind-1 clients).`);
+  }
+});
+
+test('LIB2: applicabilityHintFilter(context) yields the tag-element hint scan filter', () => {
+  const core = require('../src/lib/event-tagging');
+  const ev = core.applicabilityHintFilter('event');
+  assert(Array.isArray(ev.kinds) && ev.kinds[0] === 39999 && ev['#z'][0] === 'tag-for-nostr-event',
+    `event hint filter must be {kinds:[39999], '#z':['tag-for-nostr-event']}; got ${JSON.stringify(ev)}.`);
+  const pk = core.applicabilityHintFilter('pubkey');
+  assert(pk['#z'][0] === 'tag-for-nostr-pubkey', 'pubkey hint filter must scan for the pubkey hint z.');
+});
+
+test('LIB3: deriveApplicabilityMembers({usageRows,hintEls,context}) = HINT ∪ USAGE (context→byType, enriched, deduped)', () => {
+  const core = require('../src/lib/event-tagging');
+  const A = '1'.repeat(64), B = '2'.repeat(64);
+  const usageRows = [
+    { tag: { authorPubkey: A, slug: 'podcaster' }, byType: { event: { applications: 3 } } },
+    { tag: { authorPubkey: B, slug: 'vegan' }, byType: { profile: { applications: 2 } } },
+  ];
+  const eventHints = [{ kind: 39999, pubkey: A, tags: [['d', 'newtag']] }];
+  // context 'event' → byType.event ∪ event hint scan; enriched { a, authorPubkey, slug, applications }.
+  const evMembers = core.deriveApplicabilityMembers({ usageRows, hintEls: eventHints, context: 'event' });
+  const evKeys = evMembers.map((m) => `${m.authorPubkey}:${m.slug}`);
+  assert(evKeys.includes(`${A}:podcaster`), 'event-usage tag must be in the event members.');
+  assert(evKeys.includes(`${A}:newtag`), 'hint-only tag must be in the event members (cold-start).');
+  assert(!evKeys.includes(`${B}:vegan`), 'profile-usage-only must NOT be in the event members.');
+  assert(evMembers[0].applications === 3 && evMembers[0].slug === 'podcaster', 'ordered by usage desc; enriched shape.');
+  // context 'pubkey' → byType.profile.
+  const pkMembers = core.deriveApplicabilityMembers({ usageRows, hintEls: [], context: 'pubkey' });
+  assert(pkMembers.map((m) => `${m.authorPubkey}:${m.slug}`).includes(`${B}:vegan`),
+    "context 'pubkey' must read byType.profile.");
+  assert(core.deriveApplicabilityMembers({ usageRows: [], hintEls: [], context: 'event' }).length === 0,
+    'empty inputs ⇒ empty members (no crash).');
+});
+
 async function run() {
   let pass = 0, fail = 0;
   for (const t of tests) {
