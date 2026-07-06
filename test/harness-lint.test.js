@@ -322,6 +322,12 @@ test('L10 waiver: a commit:<sha> waiver suppresses the violation visibly', () =>
 test('L10 is skipped silently when the tree has no git history', () => {
   const files = { ...cleanFiles() };
   delete files['engineering-team/CHANGELOG.md'];   // would violate if checked
+  // Fixture reconciliation (story test-hermeticity-ci #3): L12 now rightly
+  // flags def-path rows whose file is missing, so this git-gate fixture must
+  // not LIST the deliberately-deleted changelog — L10's own missing-changelog
+  // branch still would-fire-if-checked (def paths remain non-empty).
+  files['scripts/harness-def-paths.txt'] =
+    '# harness-definition paths (fixture)\nengineering-team/roles\n.claude/commands\nscripts/harness-def-paths.txt\n';
   const { code, out } = lint(makeFixture(files, { git: false }));
   assert.strictEqual(code, 0, out);
   assert.doesNotMatch(out, /VIOLATION L10/, out);

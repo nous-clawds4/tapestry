@@ -17,11 +17,12 @@
 # principle — it can never poison a hook, a test gate, or a pipeline). Parse
 # failures degrade to "n/a". Needs bash + git + coreutils only; no network,
 # no stack. Slug matching is heuristic by design — trust the coverage line,
-# not the vibe. Ages need GNU `date -d`; without it they print as "?".
+# not the vibe. Date math is portable (GNU + BSD) via scripts/lib/date-epoch.sh.
 set -uo pipefail
 cd "$(git rev-parse --show-toplevel 2>/dev/null || echo .)" || true
 
 VERDICT_LIB="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/review-verdict.awk"
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib/date-epoch.sh"
 hr() { printf '\n──────── %s ────────\n' "$1"; }
 
 HAS_GIT=0
@@ -106,16 +107,16 @@ for bf in engineering-team/audits/*/book.md engineering-team/audits/done/*/book.
     Closed*)
       B_CLOSED=$((B_CLOSED + 1))
       dur="n/a"
-      if [ -n "$opened" ] && [ -n "$closed" ] && date -d "$opened" +%s >/dev/null 2>&1; then
-        dur="$(days_between "$(date -d "$opened" +%s)" "$(date -d "$closed" +%s)")d"
+      if [ -n "$opened" ] && [ -n "$closed" ] && oe=$(date_to_epoch "$opened") && ce=$(date_to_epoch "$closed"); then
+        dur="$(days_between "$oe" "$ce")d"
       fi
       echo "  $slug: closed, $dur open→close"
       ;;
     Open*)
       B_OPEN=$((B_OPEN + 1))
       age="?"
-      if [ -n "$opened" ] && date -d "$opened" +%s >/dev/null 2>&1; then
-        age="$(days_between "$(date -d "$opened" +%s)" "$(date +%s)")d"
+      if [ -n "$opened" ] && oe=$(date_to_epoch "$opened"); then
+        age="$(days_between "$oe" "$(date +%s)")d"
       fi
       echo "  $slug: open, $age"
       ;;

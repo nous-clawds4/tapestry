@@ -12,18 +12,22 @@
 # meta_banner() the canonical wording. Callers decide WHEN to render.
 # Escalation is advisory by construction: it never affects an exit code.
 
+# Portable date→epoch (GNU + BSD) — sibling lib, single source (story
+# test-hermeticity-ci #3, OPEN.md row 19: the age trigger was dead on macOS).
+. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/date-epoch.sh"
+
 META_LINES=""
 META_COUNT=0
 META_MAX_AGE=0
 collect_meta() {
-  local row opened age heading
+  local row opened age heading ep
   if [ -f OPEN.md ]; then
     while IFS= read -r row; do
       opened=$(printf '%s' "$row" | awk -F'|' '{print $5}' | grep -oE '20[0-9]{2}-[0-9]{2}-[0-9]{2}' | head -1)
       age="?"
-      if [ -n "$opened" ] && date -d "$opened" +%s >/dev/null 2>&1; then
-        age=$(( ( $(date +%s) - $(date -d "$opened" +%s) ) / 86400 ))
-        [ "$age" -gt "$META_MAX_AGE" ] && META_MAX_AGE=$age
+      if [ -n "$opened" ] && ep=$(date_to_epoch "$opened"); then
+        age=$(( ( $(date +%s) - ep ) / 86400 ))
+        if [ "$age" -gt "$META_MAX_AGE" ]; then META_MAX_AGE=$age; fi
       fi
       META_COUNT=$((META_COUNT + 1))
       META_LINES="${META_LINES}  [${age}d] $(printf '%s' "$row" | cut -c1-150)"$'\n'
@@ -34,9 +38,9 @@ collect_meta() {
   while IFS= read -r heading; do
     opened=$(printf '%s' "$heading" | grep -oE '20[0-9]{2}-[0-9]{2}-[0-9]{2}' | head -1)
     age="?"
-    if [ -n "$opened" ] && date -d "$opened" +%s >/dev/null 2>&1; then
-      age=$(( ( $(date +%s) - $(date -d "$opened" +%s) ) / 86400 ))
-      [ "$age" -gt "$META_MAX_AGE" ] && META_MAX_AGE=$age
+    if [ -n "$opened" ] && ep=$(date_to_epoch "$opened"); then
+      age=$(( ( $(date +%s) - ep ) / 86400 ))
+      if [ "$age" -gt "$META_MAX_AGE" ]; then META_MAX_AGE=$age; fi
     fi
     META_COUNT=$((META_COUNT + 1))
     META_LINES="${META_LINES}  [${age}d] intake: ${heading#  }"$'\n'
