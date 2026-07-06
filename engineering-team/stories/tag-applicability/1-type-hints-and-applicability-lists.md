@@ -92,5 +92,5 @@ tagging/assertion. The two z strings are exactly `tag-for-nostr-pubkey` and `tag
 
 ## Linked artifacts
 - ADR: `engineering-team/decisions/tag-applicability/0001-type-hints-and-applicability-lists.md`
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/tag-applicability/1-type-hints-and-applicability-lists.test-plan.md`
 - Review: (filled in after Review phase)

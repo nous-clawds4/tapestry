@@ -129,6 +129,8 @@ const notesRepliesToggle = require('./notes-replies-toggle.test.js');
 const feedPagination = require('./feed-pagination.test.js');
 // epic: feed-usability — Story 3 (pinned-note-aware Content card)
 const profileContentCard = require('./profile-content-card.test.js');
+// epic: tag-applicability — Story 1 (z-hints + applicability TLs)
+const tagApplicability = require('./tag-applicability.test.js');
 
 async function main() {
   console.log('Running Brainstorm tests...');
@@ -360,6 +362,8 @@ async function main() {
   const feedPaginationResult = await feedPagination.run();
   console.log('\nprofile-content-card suite:');
   const profileContentCardResult = await profileContentCard.run();
+  console.log('\ntag-applicability suite:');
+  const tagApplicabilityResult = await tagApplicability.run();
 
   console.log('\nTest Results');
   console.log('-------------');
@@ -682,7 +686,8 @@ async function main() {
     profileAuthoredNotesUiResult.fail === 0 &&
     notesRepliesToggleResult.fail === 0 &&
     feedPaginationResult.fail === 0 &&
-    profileContentCardResult.fail === 0;
+    profileContentCardResult.fail === 0 &&
+    tagApplicabilityResult.fail === 0;
   console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);
   process.exit(overallOk ? 0 : 1);
 }
