@@ -133,6 +133,8 @@ const profileContentCard = require('./profile-content-card.test.js');
 const tagApplicability = require('./tag-applicability.test.js');
 // epic: tag-applicability — Story 2 (type-aware picker + scheduled regen)
 const tagApplicabilityPicker = require('./tag-applicability-picker.test.js');
+// epic: event-tagging — Story 17 (TA-signed note Trusted List, issue #336)
+const noteTrustedList = require('./note-trusted-list.test.js');
 
 async function main() {
   console.log('Running Brainstorm tests...');
@@ -368,11 +370,14 @@ async function main() {
   const tagApplicabilityResult = await tagApplicability.run();
   console.log('\ntag-applicability-picker suite:');
   const tagApplicabilityPickerResult = await tagApplicabilityPicker.run();
+  console.log('\nnote-trusted-list suite:');
+  const noteTrustedListResult = await noteTrustedList.run();
 
   console.log('\nTest Results');
   console.log('-------------');
   console.log(`Configuration Loading:                           ${configOk ? 'PASS' : 'FAIL'}`);
   console.log(`profile-tags suite:                              ${profileTagsResult.fail === 0 ? 'PASS' : 'FAIL'} (${profileTagsResult.pass} passed, ${profileTagsResult.fail} failed)`);
+  console.log(`note-trusted-list suite:                         ${noteTrustedListResult.fail === 0 ? 'PASS' : 'FAIL'} (${noteTrustedListResult.pass} passed, ${noteTrustedListResult.fail} failed)`);
   const publishLine = publishResult.skipped
     ? `SKIP (${publishResult.skipped} tests; preconditions not met)`
     : `${publishResult.fail === 0 ? 'PASS' : 'FAIL'} (${publishResult.pass} passed, ${publishResult.fail} failed)`;

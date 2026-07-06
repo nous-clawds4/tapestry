@@ -84,5 +84,5 @@ Testable from the outside.
 
 ## Linked artifacts
 - ADR: `engineering-team/decisions/event-tagging/0016-ta-signed-note-trusted-list.md`
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/event-tagging/17-ta-signed-note-trusted-list.test-plan.md`
 - Review: (filled in after Review phase)
