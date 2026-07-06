@@ -79,5 +79,5 @@ Testable from the outside.
 
 ## Linked artifacts
 - ADR: `engineering-team/decisions/tag-applicability/0003-event-driven-applicability-republish.md`
-- Test plan: (after Test Design)
+- Test plan: `engineering-team/stories/tag-applicability/4-event-driven-applicability-republish.test-plan.md`
 - Review: (after Review)
