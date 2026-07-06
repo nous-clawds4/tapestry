@@ -1,6 +1,6 @@
 # Story 1: Live-feed read path — hermetic tests, legible degrade
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-07-05
 **Type:** Bug
 
@@ -47,4 +47,4 @@ None — the fix direction was ratified at book open; the remaining choices (exa
 
 - ADR: — (Architecture skipped per the ratified book plan; the durable design record is this story's Background + book frame bullet 1)
 - Test plan: `engineering-team/stories/test-hermeticity-ci/1-feed-hermeticity.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/test-hermeticity-ci/1-feed-hermeticity.md` (PASS, 2026-07-05)
