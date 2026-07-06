@@ -1,6 +1,6 @@
 # Story 3: The harness suites are portable — the hook ships, dates work everywhere, no wall-clock asserts
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-07-06
 **Type:** Bug
 
@@ -51,4 +51,4 @@ None — the hook content is ratified (previous book, ADR 0006), the date-fallba
 
 - ADR: — (Architecture skipped per the ratified book plan; design records: row 19's sketched fallback, row 20's fix direction, ADR 0006 for the hook content)
 - Test plan: `engineering-team/stories/test-hermeticity-ci/3-harness-suites-portable.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/test-hermeticity-ci/3-harness-suites-portable.md` (PASS, 2026-07-06)
