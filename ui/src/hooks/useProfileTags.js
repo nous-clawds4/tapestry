@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { useConfig } from '../context/ConfigContext';
 import { publishProfileTagAssertion, publishOrThrow } from '../utils/publishProfileTag';
 import { syncPinnedExportsForTag } from '../utils/publishTagPin';
+import { TAG_FOR_NOSTR_PUBKEY_Z } from '@tapestry/event-tagging';
 
 const TA_PUBKEY = '82b75e474dda005e912bcbb910391c60c2b89cc7faf5d3c30b7c59a324973833';
 const TAG_HANDLE = `39998:${TA_PUBKEY}:tag`;
@@ -124,6 +125,9 @@ export default function useProfileTags(targetPubkey, viewerPubkey) {
           ['d', slug],
           ['z', TAG_HANDLE],                                  // canonical (ADR-0015 literal) — unchanged
           ...(hasLocalTa ? [['z', `39998:${taPubkey}:tag`]] : []), // local (runtime TA) — W11
+          // Additive tag-type hint: this new tag is born in the pubkey-tagging flow
+          // (tag-applicability Story 1). Pubkey-free, inert to existing readers.
+          ['z', TAG_FOR_NOSTR_PUBKEY_Z],
         ],
         content: JSON.stringify({
           tag: { slug, name, description: description || '' },

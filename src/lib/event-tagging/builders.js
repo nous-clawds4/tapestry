@@ -62,15 +62,19 @@ function conceptZTags(taPubkeys, conceptFn, label) {
  * (39999:<author>:<slug>), so event-taggings reference real tag-elements.
  *
  * @param {string[]} taPubkeys  concept namespaces to join (e.g. [canonical, local]).
+ * @param {string} [applicabilityZ]  optional pubkey-free tag-type hint z appended
+ *   additively AFTER the concept-z (tag-applicability Story 1). Omit ⇒ no hint.
  */
-function buildTagElement({ name, description, taPubkeys }) {
+function buildTagElement({ name, description, taPubkeys, applicabilityZ }) {
   const slug = toSlug(name);
+  const tags = [
+    ['d', slug],
+    ...conceptZTags(taPubkeys, conceptTag, 'taPubkeys'),
+  ];
+  if (applicabilityZ) tags.push(['z', applicabilityZ]);
   return {
     kind: 39999,
-    tags: [
-      ['d', slug],
-      ...conceptZTags(taPubkeys, conceptTag, 'taPubkeys'),
-    ],
+    tags,
     content: JSON.stringify({ tag: { slug, name, description: description || '' } }),
   };
 }

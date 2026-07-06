@@ -27,6 +27,7 @@ const {
   buildTaggingHeader,
   buildEventTaggingAssertion,
 } = require('./builders');
+const { TAG_FOR_NOSTR_EVENT_Z } = require('./applicability');
 
 const HEX64 = /^[0-9a-f]{64}$/;
 
@@ -119,7 +120,8 @@ async function applyEventTagging({ tagInput, target, polarity, asserterPubkey, t
     headerAuthor = asserterPubkey;
     const displayName = tagInput.name;
     const description = tagInput.description || '';
-    wrap(buildTagElement({ name: tagInput.name, description, taPubkeys }), asserterPubkey);
+    // This is the event-tagging (note) flow — the new tag is born tagging an event.
+    wrap(buildTagElement({ name: tagInput.name, description, taPubkeys, applicabilityZ: TAG_FOR_NOSTR_EVENT_Z }), asserterPubkey);
     wrap(buildTaggingHeader({
       tagAuthorPubkey: asserterPubkey, slug, names: headerNames(displayName),
       description: headerDescription(displayName), taPubkeys,

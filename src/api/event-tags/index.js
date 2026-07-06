@@ -367,6 +367,33 @@ async function handleForTag(req, res) {
  * filtered counted totals + per-target-type breakdown + the viewer's own `mine`.
  * The live per-type endpoints are untouched (ADR 0009 Phase 1).
  */
+/**
+ * Compute the core per-tag USAGE rows for a POV — the scan + normalize + POV-trust index that
+ * `handleTagIndex` builds on, WITHOUT the display/pin enrichment or sort. Reused by the
+ * tag-applicability derivation (ADR tag-applicability/0001) so the applicability lists build on
+ * the tag-index machinery rather than re-deriving. Each row: { tag:{authorPubkey,slug},
+ * applications, disputes, byType:{ profile?:{applications,disputes}, event?:{…} } }.
+ */
+async function computeTagUsageRows({ wotPov = 'house', userPubkey = null } = {}) {
+  const req = { query: { wotPov, ...(userPubkey ? { userPubkey } : {}) } };
+  const authorities = resolveAuthorities(req);
+  const memberZs = [];
+  for (const a of authorities) for (const m of core.taggingMembers) memberZs.push(m.conceptZ(a));
+  const assertions = dedupeReplaceable(await strfryScan({ kinds: [39999], '#z': memberZs }));
+  const descriptors = new Set();
+  for (const c of assertions) for (const t of (c.tags || [])) if (t[0] === 'z' && DESCRIPTOR_RE.test(t[1] || '')) descriptors.add(t[1]);
+  const headerEvents = [];
+  for (const coord of descriptors) {
+    const m = /^39999:([0-9a-f]{64}):(.+)$/.exec(coord);
+    if (m) headerEvents.push(...await strfryScan({ kinds: [39999], authors: [m[1]], '#d': [m[2]] }));
+  }
+  const headers = dedupeReplaceable(headerEvents);
+  const { isAsserterTrusted } = await buildTrustPredicate(req, assertions.map((c) => c.pubkey));
+  const taggings = core.normalizeTaggings({ assertions, headers, honoredAuthorities: authorities });
+  const { rows } = core.indexByTag(taggings, { isAsserterTrusted });
+  return rows;
+}
+
 async function handleTagIndex(req, res) {
   try {
     const authorities = resolveAuthorities(req);
@@ -515,4 +542,4 @@ async function handleNotesByAuthor(req, res) {
   }
 }
 
-module.exports = { handleForEvent, handleHeadersForTag, handleForTag, handleTagIndex, handleNotesByAuthor };
+module.exports = { handleForEvent, handleHeadersForTag, handleForTag, handleTagIndex, handleNotesByAuthor, computeTagUsageRows };

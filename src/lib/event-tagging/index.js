@@ -21,6 +21,7 @@ const filters = require('./filters');
 const classify = require('./classify');
 const apply = require('./apply');
 const taggings = require('./taggings');
+const applicability = require('./applicability');
 
 module.exports = {
   slug,
@@ -30,4 +31,5 @@ module.exports = {
   ...classify,
   ...apply,
   ...taggings,
+  ...applicability,
 };
