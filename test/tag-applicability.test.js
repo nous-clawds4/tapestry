@@ -8,7 +8,7 @@
  *  - additive emit at the two existing sites (note-core buildTagElement via an
  *    optional `applicabilityZ`; profile-hook createTag);
  *  - a new refreshApplicabilityLists() deriving two lists (HINT ∪ USAGE) and
- *    publishing them TA-signed as kind-30393 (members = `a`-coordinates), reusing
+ *    publishing them TA-signed as kind-30394 (addressable-member TL; members = `a`-coordinates), reusing
  *    buildAndPublishTL (extended with an `a` item branch);
  *  - the extra z is INERT to every existing reader.
  *
@@ -162,7 +162,7 @@ test('P1: useProfileTags.createTag appends the pubkey hint from the shared core 
 });
 
 // ===========================================================================
-// D — the derivation: HINT ∪ USAGE → two kind-30393 TA lists (executes the module)
+// D — the derivation: HINT ∪ USAGE → two kind-30394 TA lists (executes the module)
 // ===========================================================================
 
 // A tag-index row shape (subset the derivation reads): tag identity + per-type usage.
@@ -246,7 +246,7 @@ test('D5: HINT ∪ USAGE is deduped by a-coordinate (hint + usage for the same t
   assert(coords.length === 1, `a tag present via BOTH hint and usage must appear once; got ${coords.length}.`);
 });
 
-test('D6: exactly two lists, kind-30393, correct d-tags + metric + title + a-coordinate members', async () => {
+test('D6: exactly two lists, kind-30394, correct d-tags + metric + title + a-coordinate members', async () => {
   const d = loadDerive();
   const { deps, calls } = makeDeps({
     usage: [usageRow(ALICE, 'e', { event: { applications: 1 } }), usageRow(BOB, 'p', { profile: { applications: 1 } })],
@@ -254,7 +254,7 @@ test('D6: exactly two lists, kind-30393, correct d-tags + metric + title + a-coo
   await d.refreshApplicabilityLists({ deps });
   assert(calls.length === 2, `exactly two lists must be published (one per target type); got ${calls.length}.`);
   for (const call of calls) {
-    assert(call.kind === 30393, `applicability TLs must be kind-30393 (ADR); got ${call.kind}.`);
+    assert(call.kind === 30394, `applicability TLs must be kind-30394 (addressable-member TL, NIP-85 30384 +10; protocols/drafts/trusted-lists.md); got ${call.kind}.`);
     assert(call.metric === 'tag-applicability', `metric must be "tag-applicability"; got ${JSON.stringify(call.metric)}.`);
     assert(Array.isArray(call.items) && call.items.every(i => i.tag === 'a'),
       'members must be encoded as a-coordinate items (tag:"a") — stable identity per §2.');
@@ -263,6 +263,32 @@ test('D6: exactly two lists, kind-30393, correct d-tags + metric + title + a-coo
   assert(ev && /tag-applicability-nostr-event/.test(ev.dTag), `event list d-tag must be "tag-applicability-nostr-event"; got ${ev && ev.dTag}.`);
   assert(pk && /tag-applicability-nostr-pubkey/.test(pk.dTag), `pubkey list d-tag must be "tag-applicability-nostr-pubkey"; got ${pk && pk.dTag}.`);
   assert(/event/i.test(ev.title) && /pubkey/i.test(pk.title), 'titles must name the target type ("Tags for Nostr Events" / "…Pubkeys").');
+});
+
+test('D8: migration — retracts the legacy kind-30393 applicability lists in place (idempotent)', async () => {
+  const d = loadDerive();
+  const publishCalls = [];
+  // A live (non-retracted) legacy 30393 list at the event d-tag; the pubkey one is absent.
+  const legacyEvent = { kind: d.LEGACY_KIND, pubkey: TA, tags: [['d', d.D_EVENT]], content: '' };
+  const deps = {
+    loadUsageRows: async () => [],
+    scanStrfry: async (filter) => {
+      if (filter && Array.isArray(filter.kinds) && filter.kinds.includes(d.LEGACY_KIND) && filter['#d']) {
+        return filter['#d'].includes(d.D_EVENT) ? [legacyEvent] : [];
+      }
+      return [];
+    },
+    publishTL: async (args) => { publishCalls.push(args); return { uuid: 'x' }; },
+  };
+  const res = await d.refreshApplicabilityLists({ deps });
+  const retractions = publishCalls.filter((c) => c.kind === d.LEGACY_KIND);
+  assert(retractions.length === 1, `only the PRESENT legacy list must be retracted (idempotent/absent-skip); got ${retractions.length}.`);
+  const r = retractions[0];
+  assert(r.dTag === d.D_EVENT, `retraction must target the legacy d-tag; got ${r.dTag}.`);
+  assert(Array.isArray(r.items) && r.items.length === 0, 'legacy retraction must carry empty membership.');
+  assert((r.extraTags || []).some((t) => t[0] === 'status' && t[1] === 'retracted'), 'legacy retraction must carry ["status","retracted"].');
+  assert(res.retractedLegacy && res.retractedLegacy.includes(d.D_EVENT), 'result must report the retracted legacy d-tag.');
+  assert(publishCalls.some((c) => c.kind === 30394), 'the current lists must still be published on kind-30394.');
 });
 
 test('D7: members are ordered by usage count desc (hint-only, zero-usage tags last)', async () => {

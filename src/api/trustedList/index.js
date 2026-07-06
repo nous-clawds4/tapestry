@@ -3,7 +3,7 @@
  *
  * POST /api/trusted-list/publish
  *   Body: {
- *     kind: 30392 | 30393,
+ *     kind: 30392 | 30393 | 30394 | 30395,  // p / e / a / i members (protocols/drafts/trusted-lists.md)
  *     dTag: string,
  *     title: string,
  *     metric?: string,

@@ -15,7 +15,8 @@
  *     context's z-hint UNION tags observed applied to that context's targets. `deriveApplicabilityMembers`
  *     computes it purely from data the consumer already has (usage rows from `indexByTag`, plus a
  *     relay scan of hint tag-elements). This is the SAME union the reference deployment publishes
- *     as its kind-30393 Trusted Lists, so a consumer computing it here stays compatible.
+ *     as its kind-30394 Trusted Lists (addressable-member kind; protocols/drafts/trusted-lists.md),
+ *     so a consumer computing it here stays compatible.
  */
 
 const TAG_FOR_NOSTR_PUBKEY_Z = 'tag-for-nostr-pubkey';

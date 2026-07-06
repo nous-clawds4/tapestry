@@ -2,8 +2,11 @@
  * Tag-applicability derivation (Story 1 / ADR tag-applicability/0001).
  *
  * Derives the two applicability lists — "Tags for Nostr Pubkeys" / "Tags for Nostr Events" —
- * with membership = HINT ∪ USAGE, and publishes each as a TA-signed kind-30393 Trusted List
- * whose members are tag a-coordinates (39999:<author>:<slug>):
+ * with membership = HINT ∪ USAGE, and publishes each as a TA-signed **kind-30394** Trusted List
+ * whose members are tag a-coordinates (39999:<author>:<slug>). kind-30394 is the addressable-member
+ * Trusted List kind (protocols/drafts/trusted-lists.md — the +10 list analog of NIP-85's kind-30384
+ * addressable Trusted Assertion). The lists shipped on 30393 first and were migrated here; the
+ * legacy 30393 lists are retracted in place (see `retractLegacyKind`).
  *   - USAGE  = house-POV trusted taggings, from the tag-index byType computation
  *              (reuses `computeTagUsageRows` — builds on the machinery, no fresh scan of logic).
  *   - HINT   = tag-elements carrying the pubkey-free type z (`tag-for-nostr-pubkey` /
@@ -18,7 +21,8 @@
 
 const { TAG_FOR_NOSTR_PUBKEY_Z, TAG_FOR_NOSTR_EVENT_Z, buildMembers } = require('../../lib/event-tagging');
 
-const KIND = 30393;
+const KIND = 30394; // addressable-member TL (NIP-85 30384 +10); protocols/drafts/trusted-lists.md
+const LEGACY_KIND = 30393; // where the applicability lists shipped first; retracted in place on migration
 const METRIC = 'tag-applicability';
 const D_PUBKEY = 'tag-applicability-nostr-pubkey';
 const D_EVENT = 'tag-applicability-nostr-event';
@@ -52,7 +56,30 @@ function realPublishTL(args) {
 // context lists; imported above and re-exported below for API stability.
 
 /**
- * Derive and publish both applicability lists. Returns { lists: [{ type, dTag, memberCount, uuid }] }.
+ * Migration (protocols/drafts/trusted-lists.md): the applicability lists shipped on kind-30393 (the
+ * event/e-tag kind) before the addressable-member kind existed. They now live on kind-30394; retract
+ * the legacy 30393 lists **in place** — an empty-membership replacement carrying ["status","retracted"]
+ * at the same d-tags — so no stale wrong-kind a-tag list lingers for federating readers. Idempotent:
+ * a d-tag with no legacy list, or one already retracted, is skipped.
+ */
+async function retractLegacyKind({ scanStrfry, publishTL }) {
+  const retracted = [];
+  for (const s of [{ dTag: D_EVENT, title: TITLE_EVENT }, { dTag: D_PUBKEY, title: TITLE_PUBKEY }]) {
+    let existing = [];
+    try { existing = (await scanStrfry({ kinds: [LEGACY_KIND], '#d': [s.dTag] })) || []; } catch { existing = []; }
+    const live = existing.find((e) => !(e.tags || []).some((t) => t[0] === 'status' && t[1] === 'retracted'));
+    if (!live) continue; // absent or already retracted
+    try {
+      await publishTL({ kind: LEGACY_KIND, dTag: s.dTag, title: s.title, metric: METRIC, items: [], extraTags: [['status', 'retracted']], content: '' });
+      retracted.push(s.dTag);
+    } catch { /* best-effort; a failed retraction retries next run */ }
+  }
+  return retracted;
+}
+
+/**
+ * Derive and publish both applicability lists (kind-30394). Returns
+ * { lists: [{ type, dTag, memberCount, uuid }], retractedLegacy: [dTag] }.
  */
 async function refreshApplicabilityLists({ deps } = {}) {
   const loadUsageRows = deps?.loadUsageRows ?? realLoadUsageRows;
@@ -76,7 +103,9 @@ async function refreshApplicabilityLists({ deps } = {}) {
     const r = await publishTL({ kind: KIND, dTag: spec.dTag, title: spec.title, metric: METRIC, items, content });
     out.push({ type: spec.type, dTag: spec.dTag, memberCount: items.length, uuid: r && r.uuid });
   }
-  return { lists: out };
+  // Migrate off the legacy kind: retract the old 30393 a-tag lists in place.
+  const retractedLegacy = await retractLegacyKind({ scanStrfry, publishTL });
+  return { lists: out, retractedLegacy };
 }
 
 /**
@@ -118,4 +147,4 @@ async function applicabilityMembers(o = {}) {
   return { type, viewerIncluded: !!viewerPubkey, members };
 }
 
-module.exports = { refreshApplicabilityLists, buildMembers, applicabilityMembers, KIND, D_PUBKEY, D_EVENT };
+module.exports = { refreshApplicabilityLists, retractLegacyKind, buildMembers, applicabilityMembers, KIND, LEGACY_KIND, D_PUBKEY, D_EVENT };

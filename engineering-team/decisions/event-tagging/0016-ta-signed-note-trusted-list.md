@@ -91,9 +91,12 @@ Mirror the pubkey side exactly:
   vs `tl-pin-notes-…`; retraction scopes to the `tl-pin-notes-` prefix), and one can argue tags are
   addressable events so an a-tag list of tags is still an "event list." **But it's worth a decision**
   (surfaced to the operator): keep applicability on 30393 (event-list, a-tag encoding) or move it,
-  since 30393 is conventionally the e-tag kind. **Resolved 2026-07-06 (operator): applicability
-  stays on kind-30393** (tags are addressable events; a-tag encoding coexists with the note TL's
-  e-tag encoding, disambiguated by `#d`). Not blocking this story.
+  since 30393 is conventionally the e-tag kind. **Resolved 2026-07-06 (operator): match the NIP-85
+  convention — applicability migrated 30393 → kind-30394** (addressable-member TL, the +10 analog of
+  NIP-85's kind-30384 addressable Trusted Assertion; see `protocols/drafts/trusted-lists.md`). The
+  note TL (e-tags) keeps 30393; applicability (a-tags) moves to 30394 — the two are now on cleanly
+  separate, convention-correct kinds, so the coexistence concern is moot. (Supersedes the earlier
+  "stays on 30393" note.)
 - **Extract-and-re-point `handleForTag`** over duplicating the aggregation — DRY; guarded by tests.
 
 ## Decision

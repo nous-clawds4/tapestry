@@ -56,6 +56,7 @@ The initial migration (protocols-directory epic, stories 1–7) is **complete** 
 | Tags & Taggings | [drafts/tags.md](./drafts/tags.md) | 📝 pre-NIP | **Working copy here** (in-flight feature on `feat/pubkey-tagging-target`) | story 7 ✅ |
 | Event Taggings (`nostr-event-tag`) | [drafts/event-taggings.md](./drafts/event-taggings.md) | 📝 pre-NIP | **Working copy here** (in-flight `event-tagging` epic; reference impl `src/lib/event-tagging/`) | `event-tagging` #1 |
 | Tapestry Assistant Designation & Dual-Author Header Resolution (companion to NIP-85) | [drafts/assistant-designation.md](./drafts/assistant-designation.md) | 📝 pre-NIP | **Working copy here** (BIBLE §953 Assistant Keys holds the pointer) | `community-reference` #35 |
+| Trusted Lists — kind family & member-type convention (list analog of NIP-85) | [drafts/trusted-lists.md](./drafts/trusted-lists.md) | 📝 pre-NIP | **Working copy here** (publishers in `src/api/trustedList/`; BIBLE holds the pipeline) | `event-tagging` #17 / applicability 30393→30394 |
 
 Branch-path notation: `branch:path` means the file exists at that path on the named (unmerged) branch — read it with `git show <branch>:<path>`. Migration **copies** content from those branches; it never implies merging them.
 
