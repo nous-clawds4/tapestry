@@ -78,6 +78,6 @@ Testable from the outside.
   timer at an hours cadence (operator-tunable), seeded per the deployment convention.
 
 ## Linked artifacts
-- ADR: (after Architecture)
+- ADR: `engineering-team/decisions/tag-applicability/0003-event-driven-applicability-republish.md`
 - Test plan: (after Test Design)
 - Review: (after Review)
