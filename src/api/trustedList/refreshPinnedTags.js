@@ -28,6 +28,10 @@ const { curateNotes } = require('../../lib/event-tagging');
 
 const TA_PUBKEY = profileTags.TA_PUBKEY;
 const TAG_PINNING_Z_TAG = profileTags.TAG_PINNING_Z_TAG;
+// Max note members carried in a single kind-30393 note TL (ADR event-tagging/0017). Conservative —
+// ~1000 e-tags ≈ 75KB, under typical strfry max-event-size limits. Exceeding it publishes the top N
+// and marks the TL partial (a SIGNALED bound, never a silent small cap). Operator-tunable per relay.
+const NOTE_TL_MEMBER_CAP = 1000;
 
 function isHexPubkey(v) {
   return typeof v === 'string' && /^[0-9a-f]{64}$/.test(v);
@@ -317,14 +321,19 @@ async function runOneNotePin(pinEvent, options = {}) {
   // Observer POV (same cascade as runOnePin) → the aggregation's trust filter.
   const { povSuffix, minRank } = resolvePov({ wotPov: 'user', userPubkey: observer });
   const noteMethod = curation.noteMethod || 'notes:net-endorsed';
-  // Align the NOTES_CAP ranking with the curation so the cap keeps the notes the
-  // method would surface (inherits the NOTES_CAP window; ADR 0015 follow-up).
   const sort = noteMethod === 'notes:most-applied' ? 'applied' : 'recent';
-  const { members } = await aggregateNotesTagged({
+  // A durable list must be COMPLETE (ADR event-tagging/0017): use the uncapped `fullMembers`, not the
+  // 50-capped `members` (that cap is only for the UI's note-body fetch). Curate the full set, then bound
+  // by an explicit, SIGNALED ceiling — never a silent small cap.
+  const { fullMembers, scanTruncated, total } = await aggregateNotesTagged({
     tagAuthor: tag.authorPubkey, slug: tag.slug, authorities: [TA_PUBKEY],
     povSuffix, minRank, viewerPubkey: undefined, sort,
   });
-  const curated = curateNotes(members || [], noteMethod);
+  const curated = curateNotes(fullMembers || [], noteMethod);
+  const published = curated.slice(0, NOTE_TL_MEMBER_CAP);
+  const totalTrusted = Number.isFinite(total) ? total : curated.length;
+  // Partial when the taggings scan was bounded, or the curated set exceeds what one event can carry.
+  const partial = !!scanTruncated || curated.length > NOTE_TL_MEMBER_CAP;
   const dTag = `tl-pin-notes-${observer.slice(0, 8)}-${tag.authorPubkey.slice(0, 8)}-${tag.slug}`;
 
   try {
@@ -333,7 +342,7 @@ async function runOneNotePin(pinEvent, options = {}) {
       dTag,
       title: tag.name,
       metric: 'pinned-tag-notes',
-      items: curated.map((n) => ({ tag: 'e', value: n.id })),
+      items: published.map((n) => ({ tag: 'e', value: n.id })),
       extraTags: [
         ['observer', observer],
         ['source-tag', tag.eventId, tag.authorPubkey, tag.slug],
@@ -342,10 +351,15 @@ async function runOneNotePin(pinEvent, options = {}) {
         //   #a → find every note TL for a tag across observers;  #p → find every note TL for an observer.
         ['a', `39999:${tag.authorPubkey}:${tag.slug}`],
         ['p', observer],
+        // Partial signal: present ⇒ the list is NOT exhaustive; the value is the true total. Absent ⇒ complete.
+        ...(partial ? [['truncated', String(totalTrusted)]] : []),
       ],
-      content: JSON.stringify({ notes: curated.map((n) => ({ id: n.id, applications: n.applications, disputes: n.disputes })) }),
+      content: JSON.stringify({
+        notes: published.map((n) => ({ id: n.id, applications: n.applications, disputes: n.disputes })),
+        ...(partial ? { partial: true, total: totalTrusted } : {}),
+      }),
     });
-    return { status: 'ok', dTag, memberCount: curated.length, uuid: uuid || (event && event.id) };
+    return { status: 'ok', dTag, memberCount: published.length, partial, uuid: uuid || (event && event.id) };
   } catch (err) {
     return { status: 'error', dTag, errorReason: err.message };
   }
@@ -396,6 +410,7 @@ module.exports = {
   // Exported for tests:
   runOnePin,
   runOneNotePin,
+  NOTE_TL_MEMBER_CAP,
   computeTLDTag,
   applyDisputesFunction,
 };

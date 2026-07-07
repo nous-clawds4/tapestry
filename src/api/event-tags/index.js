@@ -35,6 +35,10 @@ const CANONICAL_AUTHORITY = '82b75e474dda005e912bcbb910391c60c2b89cc7faf5d3c30b7
 // Cap the notes view to the most-recently-tagged N (Story 8). Bounds the relay
 // `ids` fetch + the client-side per-note fan-out; pagination is a follow-up.
 const NOTES_CAP = 50;
+// Explicit bound on each taggings scan (ADR event-tagging/0017) — well below the ~30-40k events the
+// 20MB strfryScan buffer holds, so a hot tag's scan is deterministically limited instead of silently
+// overflowing. A scan returning >= this ⇒ `scanTruncated` (the durable note TL is then marked partial).
+const TAGGING_SCAN_LIMIT = 20000;
 // Story 15 — the note sorts for-tag accepts, at parity with the Profiles tab
 // (applied/disputed/divisive) plus 'recent' (the natural note default).
 const FOR_TAG_SORTS = ['recent', 'applied', 'disputed', 'divisive'];
@@ -231,10 +235,16 @@ async function aggregateNotesTagged({ tagAuthor, slug, authorities, povSuffix, m
   }
   const headers = dedupeReplaceable(foundHeaders);
 
-  // 2. Scan the taggings referencing each header; union (multi-header — ADR Q1).
+  // 2. Scan the taggings referencing each header; union (multi-header — ADR Q1). Each scan carries an
+  //    explicit limit (ADR event-tagging/0017) so it is deterministically bounded and never silently
+  //    overflows the 20MB process buffer. A scan that returns >= its limit ⇒ the taggings (hence the
+  //    membership) may be incomplete → surfaced as `scanTruncated` for the durable note-TL partial signal.
   const candidateEvents = [];
+  let scanTruncated = false;
   for (const h of headers) {
-    candidateEvents.push(...await strfryScan(core.filterTaggingsUsingTag({ headerAuthorPubkey: h.pubkey, slug })));
+    const scanned = await strfryScan({ ...core.filterTaggingsUsingTag({ headerAuthorPubkey: h.pubkey, slug }), limit: TAGGING_SCAN_LIMIT });
+    if (scanned.length >= TAGGING_SCAN_LIMIT) scanTruncated = true;
+    candidateEvents.push(...scanned);
   }
   const candidates = dedupeReplaceable(candidateEvents);
 
@@ -284,18 +294,23 @@ async function aggregateNotesTagged({ tagAuthor, slug, authorities, povSuffix, m
   // any kind-1 resolution. Consumers that need a stable set — e.g. pin curation,
   // the note TL, and the pinned-notes drift — must use THIS, not the resolved
   // `notes` array (whose contents depend on flaky external relay fetches).
-  const members = noteIds.map((id) => ({
+  const memberOf = (id) => ({
     id,
     applications: (countByTarget.get(id)?.applications || []).length,
     disputes: (countByTarget.get(id)?.disputes || []).length,
     createdAt: latestByNote.get(id) || 0,
     mine: mineByTarget.has(id) ? mineByTarget.get(id).stance : null,
-  }));
+  });
+  const members = noteIds.map(memberOf);
+  // `fullMembers` is the COMPLETE trusted-tagged set (all ranked ids + counts) — no NOTES_CAP slice.
+  // The durable note TL (runOneNotePin) publishes this; the UI read keeps the capped `members`/`noteIds`.
+  // Bounded only by the explicit tagging-scan limit above (→ scanTruncated when hit).
+  const fullMembers = rankedIds.map(memberOf);
 
   const wotFiltering = !!povSuffix && Number.isFinite(minRank);
   return {
-    members, mine, candidates, countByTarget, mineByTarget, latestByNote, noteIds, total, truncated,
-    povSuffix: povSuffix || null, minRank: wotFiltering ? minRank : null,
+    members, fullMembers, scanTruncated, mine, candidates, countByTarget, mineByTarget, latestByNote,
+    noteIds, total, truncated, povSuffix: povSuffix || null, minRank: wotFiltering ? minRank : null,
   };
 }
 
