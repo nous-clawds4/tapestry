@@ -80,6 +80,6 @@ Testable from the outside.
   is real, not moved to a silent scan ceiling.
 
 ## Linked artifacts
-- ADR: (after Architecture)
+- ADR: `engineering-team/decisions/event-tagging/0017-uncap-note-trusted-list.md`
 - Test plan: (after Test Design)
 - Review: (after Review)
