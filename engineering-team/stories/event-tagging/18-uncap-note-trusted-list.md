@@ -81,5 +81,5 @@ Testable from the outside.
 
 ## Linked artifacts
 - ADR: `engineering-team/decisions/event-tagging/0017-uncap-note-trusted-list.md`
-- Test plan: (after Test Design)
+- Test plan: `engineering-team/stories/event-tagging/18-uncap-note-trusted-list.test-plan.md`
 - Review: (after Review)

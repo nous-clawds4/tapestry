@@ -53,18 +53,22 @@ function makeNotePin({ observer = OBSERVER, tagEventId = TAG_EVENT_ID, noteMetho
 // note membership shape (from aggregateNotesTagged): { id, applications, disputes, createdAt }
 function note(id, applications, disputes, createdAt) { return { id, applications, disputes, createdAt }; }
 
-function makeDeps({ notes = [], tag } = {}) {
+function makeDeps({ notes = [], fullMembers, scanTruncated = false, total, tag } = {}) {
   const publishCalls = [];
+  // ADR 0017: aggregateNotesTagged returns BOTH `members` (capped, for the UI read — runOneNotePin must
+  // NOT use it) and `fullMembers` (the complete set the durable note TL publishes) + `scanTruncated`.
+  const full = fullMembers || notes;
   return {
     publishCalls,
     deps: {
       lookupTag: async () => tag || { eventId: TAG_EVENT_ID, slug: 'funny', name: 'funny', authorPubkey: TAGAUTHOR },
-      // aggregateNotesTagged returns the full computed state ({ members, ... }); runOneNotePin reads .members.
-      aggregateNotesTagged: async () => ({ members: notes }),
+      aggregateNotesTagged: async () => ({ members: notes, fullMembers: full, scanTruncated, total: total ?? full.length }),
       publishTL: async (args) => { publishCalls.push(args); return { event: { id: 'tl-1' }, uuid: `30393:x:${args.dTag}` }; },
     },
   };
 }
+// N distinct trusted (app>dis) notes so net-endorsed curation keeps them all.
+function manyNotes(n) { return Array.from({ length: n }, (_, i) => note(String(i).padStart(64, '0'), 1, 0, n - i)); }
 async function run1(mod, pin, scenario) {
   assert(mod && typeof mod.runOneNotePin === 'function',
     'refreshPinnedTags.js must export runOneNotePin(pinEvent, {deps}) — absent pre-implementation (ADR 0016).');
@@ -173,6 +177,63 @@ test('N6: absent targetTypes ⇒ defaults to include note (ADR-0015 default) ⇒
   const mod = loadRefresh();
   const { publishCalls } = await run1(mod, makeNotePin({ targetTypes: undefined }), { notes: [note(N1, 1, 0, 1)] });
   assert(publishCalls.length === 1, 'a pin with no targetTypes must default to including notes and publish a note TL.');
+});
+
+// ===========================================================================
+// C — completeness (event-tagging #18 / ADR 0017): the durable note TL is NOT
+//     silently capped at 50; it publishes the full set, signals when partial.
+// ===========================================================================
+
+test('C1 (uncap): runOneNotePin publishes fullMembers (complete set), NOT the capped members', async () => {
+  const mod = loadRefresh();
+  // members (capped) = 1 note; fullMembers = 60. Must publish 60 → proves it uses fullMembers.
+  const { publishCalls } = await run1(mod, makeNotePin({ targetTypes: ['note'] }),
+    { notes: [note(N1, 1, 0, 1)], fullMembers: manyNotes(60), total: 60 });
+  const es = eTagValues(publishCalls[0]);
+  assert(es.length === 60,
+    `the note TL must publish the FULL trusted-tagged set (fullMembers=60), not the capped members; got ${es.length}.`);
+  assert(!extra(publishCalls[0], 'truncated'),
+    'a complete set (scan not truncated, under the ceiling) must carry NO "truncated" marker.');
+});
+
+test('C2 (scan-truncated ⇒ partial signal): a truncated scan marks the TL partial with the total', async () => {
+  const mod = loadRefresh();
+  const { publishCalls } = await run1(mod, makeNotePin({ targetTypes: ['note'] }),
+    { fullMembers: manyNotes(10), scanTruncated: true, total: 999 });
+  const t = extra(publishCalls[0], 'truncated');
+  assert(t && t[1] === '999',
+    `when the taggings scan was truncated, the TL must carry ["truncated","<total>"] (999); got ${JSON.stringify(t)}.`);
+});
+
+test('C3 (ceiling ⇒ capped + partial signal): beyond NOTE_TL_MEMBER_CAP, publish the cap + mark partial', async () => {
+  const mod = loadRefresh();
+  const cap = mod.NOTE_TL_MEMBER_CAP;
+  assert(Number.isInteger(cap) && cap > 50,
+    'refreshPinnedTags must export NOTE_TL_MEMBER_CAP (a high, event-size-principled ceiling > 50).');
+  const total = cap + 50;
+  const { publishCalls } = await run1(mod, makeNotePin({ targetTypes: ['note'] }),
+    { fullMembers: manyNotes(total), total });
+  const es = eTagValues(publishCalls[0]);
+  assert(es.length === cap, `beyond the ceiling the TL must publish exactly NOTE_TL_MEMBER_CAP members; got ${es.length}.`);
+  const t = extra(publishCalls[0], 'truncated');
+  assert(t && t[1] === String(total), `exceeding the ceiling must add ["truncated","<total>"] (${total}); got ${JSON.stringify(t)}.`);
+});
+
+test('C4 (complete ⇒ no marker): a modest complete set publishes all with no "truncated" marker', async () => {
+  const mod = loadRefresh();
+  const { publishCalls } = await run1(mod, makeNotePin({ targetTypes: ['note'] }),
+    { fullMembers: manyNotes(7), scanTruncated: false, total: 7 });
+  assert(eTagValues(publishCalls[0]).length === 7, 'a complete 7-note set must publish all 7.');
+  assert(!extra(publishCalls[0], 'truncated'), 'a complete set must NOT carry a "truncated" marker.');
+});
+
+test('S4 (aggregateNotesTagged): returns fullMembers + scanTruncated, and the taggings scan is explicitly bounded', () => {
+  const src = safeRead(EVENT_TAGS);
+  assert(/fullMembers/.test(src), 'aggregateNotesTagged must compute + return fullMembers (the uncapped membership).');
+  assert(/scanTruncated/.test(src), 'aggregateNotesTagged must return scanTruncated (whether a bounded scan hit its limit).');
+  // The taggings scan must carry an explicit limit (not rely on the silent 20MB buffer ceiling).
+  assert(/filterTaggingsUsingTag[\s\S]{0,160}limit|TAGGING_SCAN_LIMIT/.test(src),
+    'the filterTaggingsUsingTag scan must pass an explicit limit (TAGGING_SCAN_LIMIT) so it never silently overflows.');
 });
 
 async function run() {
