@@ -25,19 +25,24 @@ not a sub-story of `event-tagging`.
 ## Stories
 
 `stories/tag-applicability/`:
-1. **type-hints-and-applicability-lists** — emit the two additive z-hints on newly-created
-   tag-elements (pubkey-flow / event-flow), and derive + publish the two **HINT ∪ USAGE**
-   Trusted Lists ("Tags for Nostr Pubkeys" / "Tags for Nostr Events"), TA-signed. The data
-   substrate. *(steps 1+2)*
-2. **type-aware-picker-and-scheduled-regen** — the three tag pickers become type-aware
-   (type-relevant tags first, full-search always one tap away), and the TL regeneration runs on
-   the existing task-queue schedule. The visible layer + freshness. *(steps 3+4)*
-3. **same-slug-cross-type-warning** *(fast-follow)* — when creating a new tag whose slug already
-   exists in the other type's usage set, surface it and offer to adopt it instead of minting a
-   duplicate. The primary anti-fork affordance.
+1. **type-hints-and-applicability-lists** — ✅ **DONE** (live). Emits the two additive z-hints on
+   newly-created tag-elements (pubkey-flow / event-flow) and derives + publishes the two
+   **HINT ∪ USAGE** Trusted Lists ("Tags for Nostr Pubkeys" / "Tags for Nostr Events"), TA-signed.
+   Kind **30394** (addressable-member TL per `protocols/drafts/trusted-lists.md`; shipped on 30393,
+   migrated 2026-07-06 with the legacy lists retracted in place). *(steps 1+2)*
+2. **type-aware-picker-and-scheduled-regen** — ✅ **DONE** (live). The pickers are type-aware with
+   **scoped search + a same-slug "Show other results" cross-context escape + usage-context hints**
+   (reshaped 2026-07-06 to David's direction; the picker computes HINT ∪ USAGE live via
+   `/api/tags/applicability`, viewer-inclusive — the published TLs serve external consumers). *(steps 3+4)*
+3. **same-slug-cross-type-warning** — 🚫 **SUPERSEDED — folded into #2** (2026-07-06): the picker's
+   same-slug "Show other results" escape *is* the anti-fork affordance; no standalone create-time
+   warning ships.
+4. **event-driven-applicability-republish** — ✅ **DONE** (PASS 2026-07-06). Diff-guard (republish only
+   on membership change) + debounced, user-authed `notify-applicability` trigger fired best-effort from
+   the tagging hooks + a disabled-by-default hourly backstop seed — keeps the *published* lists fresh
+   for external consumers without a busy timer.
 
-**Dependency order:** #1 → #2 (the picker consumes #1's lists; it falls back to live
-`/api/tags/index` when a list is unavailable). #3 builds on #2's create flow.
+**Dependency order:** #1 → #2 (the picker consumes #1's derivation); #4 builds on #1's publisher.
 
 ## Out of scope (whole epic — reject at the gate)
 

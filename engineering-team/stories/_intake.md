@@ -1207,3 +1207,63 @@ Small future-readiness items the 2026-06-18 multi-lens review (`reviews/live-fee
 **Also consider:** the local strfry tagging scan (`filterTaggingsUsingTag`) has no `LIMIT` — bounded only by the 20MB exec buffer (~30-40k events). A very hot tag could overflow it → add a scan limit / streaming.
 
 **Belongs to:** the **event-tagging** epic, performance hardening. Not yet planned.
+
+---
+
+## 2026-07-06 — POV-selectable tag surfaces (event-tags/taggings/applicability are house-POV-only)
+
+**Raw request (verbatim, operator, paraphrasing a design discussion):**
+
+> is tags.b.w's house POV going to become LFO's, or will LFO be one of several POVs? … we do plan on
+> having them as one of several PoVs. that is central to how brainstorm works — you choose from a few
+> offered PoVs or you use your own (by logging in, becoming a customer, and having it calculated).
+
+**The gap (from a code audit, 2026-07-06):** Brainstorm's core model is *pick from a few offered POVs, or
+your own*. **Search already implements this** — `UserMenu` offers `house` / `nosfabrica` / `user`,
+persists it (`bs_pov_*` localStorage), and threads it into the search reads (`BrainstormSearch.jsx:834`
+→ `&wotPov=…`). **The tag surfaces do not consume it — they are hardcoded to house POV:**
+
+- `useEventTags` → `/api/event-tags/for-event` and the tag pages → `/api/event-tags/for-tag` pass only
+  `viewerPubkey` (which feeds the trust-*unfiltered* `mine` channel), **not** `wotPov`/`userPubkey` — so
+  every in-app tag read runs under **house** POV. There is no POV selector on the tag surfaces.
+- `/api/tags/applicability` + `useTagApplicability` (the "which tags are for events" picker) are
+  **house-POV hardcoded** (`computeTagUsageRows({wotPov:'house'})`).
+- **Footgun:** `buildTrustPredicate` (event-tags/index.js) falls back to `isAsserterTrusted = () => true`
+  — i.e. **counts everyone, no filtering** — whenever the POV lacks a `povSuffix` *or* a finite `minRank`.
+  So a POV that's *selected but not provisioned* silently shows all authors, rather than hiding non-members.
+
+The **backend read API is already POV-parameterized** (`for-tag`/`for-event`/`tags/index` accept
+`wotPov=user&userPubkey=…`) — the gap is (a) the UI not threading a selectable POV into the tag reads,
+(b) applicability being house-hardcoded, and (c) the silent unprovisioned-POV fallback.
+
+**Why it matters:** without this, "select the LFO POV → only LFO members' taggings show" does not work —
+the tag UI always shows house-POV-counted taggings, and the applicability/picker is always house. This
+blocks the multi-POV story for tags (and the LFO integration — see
+`docs/INTEGRATION_GUIDE_event-tagging-for-external-clients.md`, which currently routes Gaby around it via
+client-side filtering).
+
+**Scope (rough), likely an epic:**
+1. **Thread the selected POV** (the existing `UserMenu`/`pov` selection) into the tag reads —
+   `useEventTags`, the `for-tag` tag pages, `useTagIndex`, etc. — passing `wotPov`/`userPubkey` (or the
+   resolved delegated pubkey), mirroring `BrainstormSearch.jsx`.
+2. **Make `/api/tags/applicability` POV-aware** (accept a POV; `useTagApplicability` passes it) — pending
+   the design question below.
+3. **Provisioning + fallback UX:** a selected-but-unprovisioned POV must show an explicit
+   "computing/unavailable" state, **not** silently count everyone (fix/guard the `buildTrustPredicate`
+   fallback for the selectable-POV case).
+4. **Register "offered POVs"** (e.g. add an LFO POV to the offered set) and ensure its `wot_rank_<suffix>`
+   columns are computed on the instance — ties to the Trust-Determination / customer-POV provisioning
+   (incl. the "member-TL-as-scoring-method" path, currently unwired).
+
+**Open design questions:**
+- **Is "which tags are for events" a per-POV view or a global vocabulary?** POV-first (invariant #1) argues
+  per-POV (only my trusted authors' usage counts); cold-start/discovery argues for a broad global fallback.
+  Affects whether the published applicability TL (kind-30394, currently one house pair) must multiply per
+  POV (denormalization — weigh against invariant #3, prefer the live per-POV endpoint).
+- **How are offered POVs provisioned** on a shared instance (added to the selector + scores computed)?
+- Interaction with the note/pin TLs (already per-observer-POV) — keep consistent.
+
+**Related:** POV-first architecture invariants (CLAUDE.md); the LFO integration guide; the unwired
+"member-TL → LFO POV Trust Determination" path.
+
+**Classification:** Feature (probably an epic). **Not yet planned.**
