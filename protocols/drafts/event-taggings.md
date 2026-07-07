@@ -263,7 +263,17 @@ Consequently, disagreement is expressible at several independent layers, none of
 
 Each TA-rooted concept (`nostr-event-tag`, `tagging-with-specific-tag`) is established under its authority pubkey at deployment time (in this implementation, via firmware). A deployment composes its **own** namespace handle from its runtime authority pubkey — never a hardcoded literal — and, to federate, additionally references a shared canonical namespace (which may bridge to it via a community-reference pointer). The tag-elements and per-tag tagging headers are user-authored and permissionless — anyone may create them.
 
+## Applicability hint on new tag-elements
+
+When the event-tagging flow **mints a brand-new tag-element** (the 3-publish sequence), the
+tag-element SHOULD additionally carry the additive, pubkey-free hint `["z", "tag-for-nostr-event"]` —
+recording that the tag was born in an event-tagging context. Normative rules for the hint (additive
+only; hint-never-gate; the operative source is the derived HINT ∪ USAGE applicability view) are in
+[Tags & Taggings → Applicability hints](./tags.md#applicability-hints-optional-additive). The
+reference implementation's `applyEventTagging` emits it automatically; assertions and per-tag
+headers never carry it.
+
 ## Relationship to other specs
 
-- **[Tags & Taggings](./tags.md)** — defines tag-elements and the taggings family. This spec is its `nostr-event-tag` member; the tag-element shape (`d = <slug>`, `z` → the deployment's `tag` concept, display fields in `content`) is defined there and reused here unchanged. The `tagging-with-specific-tag` header makes concrete the `e`-vs-`a` parent-reference question that spec tracks as worksheet [W4](../worksheet.md) (here: `a` preferred, `e` allowed). The family's naming and expansion are worksheet [W10](../worksheet.md).
+- **[Tags & Taggings](./tags.md)** — defines tag-elements and the taggings family. This spec is its `nostr-event-tag` member; the tag-element shape (`d = <slug>`, `z` → the deployment's `tag` concept, display fields in `content`) is defined there and reused here unchanged — including the optional **applicability hint** `z` (above). The `tagging-with-specific-tag` header makes concrete the `e`-vs-`a` parent-reference question that spec tracks as worksheet [W4](../worksheet.md) (here: `a` preferred, `e` allowed). The family's naming and expansion are worksheet [W10](../worksheet.md).
 - **[Decentralized Lists](../nips/decentralized-lists.md)** — the kind-39998/39999 list mechanics, including the kind-39999-as-list-header allowance the per-tag tagging header relies on.

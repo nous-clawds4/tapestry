@@ -42,6 +42,34 @@ A tag is created as a kind `39999` event joining the deployment's `tag` concept:
 
 `d` is the tag's slug (e.g. `podcaster`); the content payload mirrors it with the display name and description. The tag event — the **tag-element** — is addressable at `39999:<author>:<slug>` (its *a-coordinate*); anyone may create tags, and tags by different authors with the same slug are distinct elements.
 
+### Applicability hints (optional, additive)
+
+A tag-element MAY carry one or both of two **pubkey-free hint `z` values** recording the target
+context the author created it for (shipped 2026-07-06, tag-applicability epic):
+
+```json
+["z", "tag-for-nostr-pubkey"]   // born in a pubkey-tagging flow
+["z", "tag-for-nostr-event"]    // born in an event-tagging flow
+```
+
+Normative rules:
+
+- **Additive only.** The hint rides *alongside* the concept-membership `z` (which is unchanged and
+  still required); it never replaces it. A tag-element carrying a hint is processed identically by
+  every reader that doesn't understand hints (the strings match no concept-handle pattern).
+- **Hint, never gate.** The hint states the *author's* intent. Readers MUST NOT require it for a tag
+  to function in any context, and MUST NOT treat its absence as "not applicable." The doctrine:
+  *topic is the identity of the Tag; target-type is a property of the Tagging; applicability is a
+  derived, per-POV view.*
+- **The operative applicability source is derived**, not declared: a context's applicable tags =
+  **HINT ∪ USAGE** — tags carrying that context's hint UNION tags *observed applied* to targets of
+  that type. The reference deployment publishes this union as its kind-30394 applicability Trusted
+  Lists (see [Trusted Lists](./trusted-lists.md)); the hint's role is cold-start signal for
+  brand-new, usage-less tags.
+- The strings are the **lowest rung of the z-tag ladder** (human-readable, no pubkey — permitted by
+  the DList NIP). Do NOT compose them from a TA pubkey. A future graduation to a-tag handles is
+  anticipated and will be bridged by a pointer-typed `b` tag; committed direction, not yet wire.
+
 ## Taggings (assertions)
 
 A tagging is a kind `39999` event asserting that a pubkey belongs to a tag. **Normative shape** (a-primary, per the 2026-06-05 correction):
