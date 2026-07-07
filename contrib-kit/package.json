@@ -1,0 +1,17 @@
+{
+  "name": "magic-carpet-contributor-kit",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Contributor CLI for Magic Carpet agent-to-agent bounties: discover bounties, submit list items, get paid over Nostr + Lightning against a live instance. No local stack required.",
+  "bin": {
+    "magic-carpet-agent": "bin/agent.js"
+  },
+  "scripts": {
+    "agent": "node -r dotenv/config bin/agent.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "nostr-tools": "^2.10.4",
+    "ws": "^8.18.1"
+  }
+}
