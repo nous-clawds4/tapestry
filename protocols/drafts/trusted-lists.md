@@ -75,6 +75,18 @@ A Tapestry TL (any kind in the family) carries:
 
 Signer: the deployment's **Tapestry Assistant**, resolved at runtime (never hardcoded; see CLAUDE.md).
 
+## Completeness & the partial signal
+
+A **published Trusted List an integrator relies on must be complete** — or explicitly signal that it
+isn't. A durable list MUST NOT silently truncate to a small fixed number. Where a list cannot carry its
+full membership (a single addressable event has a practical size ceiling), the publisher includes an
+explicit **`["truncated", "<total>"]`** tag — its presence means "this list is **not** exhaustive" and
+its value is the true total member count; its **absence means complete**. The content JSON mirrors this
+with `partial: true` + `total` when truncated. (The pinned-tag note TL uses this: it publishes the full
+trusted-tagged set up to a high, operator-tunable ceiling, marking `truncated` beyond it or when its
+underlying scan was itself bounded — ADR event-tagging/0017. Consumers should treat a missing
+`truncated` tag as authoritative-complete and a present one as a cue to reconcile from raw taggings.)
+
 ## Current members of the family (Tapestry deployments)
 
 | List | Kind | Members | Publisher |
