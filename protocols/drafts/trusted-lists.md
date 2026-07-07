@@ -63,6 +63,11 @@ A Tapestry TL (any kind in the family) carries:
   carry optional trailing fields (relay hint, author, score) per the publisher.
 - optional provenance tags — e.g. `["observer", <pubkey>]`, `["source-tag", <eventId> <author> <slug>]`,
   `["cutoff", <n>]`, `["min-rank", <n>]`.
+- optional **relay-filterable discovery tags** — single-letter tags carrying *what the list is about*
+  (distinct from the member tags), so consumers can find lists by axis rather than only by exact `d`-tag.
+  The pinned-tag note TL (below) carries `["a", "39999:<tagAuthor>:<slug>"]` (find every note TL for a
+  tag, across observers: `{kinds:[30393], "#a":[coord]}`) and `["p", <observer>]` (find every note TL for
+  an observer: `#p`). These are metadata, **not members** — the note TL's members remain its `e` tags.
 - `["status", "retracted"]` on an **empty-membership replacement** — the retraction convention: a
   list that no longer has members (or is being migrated off a kind) is replaced in place by an empty
   event carrying this marker, rather than deleted.

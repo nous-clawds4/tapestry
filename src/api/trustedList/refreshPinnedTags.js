@@ -338,6 +338,10 @@ async function runOneNotePin(pinEvent, options = {}) {
         ['observer', observer],
         ['source-tag', tag.eventId, tag.authorPubkey, tag.slug],
         ['curation-method', noteMethod],
+        // Relay-filterable discovery tags (metadata, NOT members — members are the e-tags above):
+        //   #a → find every note TL for a tag across observers;  #p → find every note TL for an observer.
+        ['a', `39999:${tag.authorPubkey}:${tag.slug}`],
+        ['p', observer],
       ],
       content: JSON.stringify({ notes: curated.map((n) => ({ id: n.id, applications: n.applications, disputes: n.disputes })) }),
     });

@@ -126,6 +126,20 @@ test('N2: d-tag is tl-pin-notes-<obs8>-<tagAuthor8>-<slug>; metric pinned-tag-no
   assert(extra(c, 'source-tag'), 'must carry a source-tag extraTag (tagEventId/author/slug provenance).');
 });
 
+test('N2b: carries relay-filterable discovery tags — #a (the tag coordinate) and #p (the observer)', async () => {
+  const mod = loadRefresh();
+  const { publishCalls } = await run1(mod, makeNotePin({ targetTypes: ['note'] }), { notes: [note(N1, 1, 0, 1)] });
+  const c = publishCalls[0];
+  const aTag = extra(c, 'a');
+  assert(aTag && aTag[1] === `39999:${TAGAUTHOR}:funny`,
+    `must carry an #a tag = the source tag's a-coordinate (find all note TLs for a tag); got ${aTag && aTag[1]}.`);
+  const pTag = extra(c, 'p');
+  assert(pTag && pTag[1] === OBSERVER,
+    `must carry a #p tag = the observer (find all note TLs for an observer); got ${pTag && pTag[1]}.`);
+  // The e-tags remain the MEMBERS; a/p are metadata, not members.
+  assert((c.items || []).every((i) => i.tag === 'e'), 'members must still be e-tags only (a/p are metadata extraTags).');
+});
+
 test('N3: members are curated by the pin noteMethod (net-endorsed drops disputed>=applied; most-applied keeps + orders)', async () => {
   const mod = loadRefresh();
   const notes = [note(N1, 3, 0, 100), note(N2, 1, 5, 200), note(N3, 2, 0, 50)];
