@@ -65,7 +65,7 @@
 ### Non-blocking (unchanged, optional)
 
 1. **`ui/src/components/ProfileTagsSection.jsx:59` / `ManageTagsDialog.jsx:62`** — unresolvable-tag fallback renders `key.slice(0,8)` where `key` may be a full `a`-coordinate, so the placeholder shows `39999:78…`. Rare fallback path; cosmetic only.
-2. **Live browser check deferred** — the coordinator rebuilt the bundle (compiles clean) but could not open both dialogs in a live Chrome (no extension in env). The crash is now structurally impossible and locked by S7/S7b; recommend a quick manual open-both-dialogs pass at next `cycle-local` as belt-and-suspenders, but not blocking given the empty-Set default and the sentinel coverage.
+2. **Live browser check — DONE (operator, 2026-07-08).** The coordinator could not open both dialogs in a live Chrome (no extension in env), but the **operator manually confirmed on the local stack that both the note Add-tag dialog and the profile Add-tag dialog open cleanly** post-fix. The crash surface (the note dialog) is verified working end-to-end. Carry-forward closed.
 
 ## Verdict
 **PASS**
