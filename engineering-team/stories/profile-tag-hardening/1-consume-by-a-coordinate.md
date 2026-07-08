@@ -1,6 +1,6 @@
 # Story 1: Profile-tag reads resolve by the stable a-coordinate (consume-by-#a)
 
-**Status:** Draft
+**Status:** Done
 **Created:** 2026-07-07
 **Type:** Bug (correctness / hardening)
 **Provenance:** OPEN.md #16 — sharpened as a **contract violation**, not just fragility. Live-repro'd
