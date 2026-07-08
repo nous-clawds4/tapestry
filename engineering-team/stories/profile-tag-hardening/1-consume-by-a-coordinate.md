@@ -89,6 +89,7 @@ aggregation (integrator-facing correctness) could be split from the UI display (
 share the same mechanism, so a split mainly adds coordination cost.
 
 ## Linked artifacts
-- ADR: (after Architecture)
-- Test plan: (after Test Design)
+- ADR: `engineering-team/decisions/profile-tag-hardening/0001-consume-profile-tags-by-a-coordinate.md`
+- Test plan: `engineering-team/stories/profile-tag-hardening/1-consume-by-a-coordinate.test-plan.md`
+- Tests: `test/profile-tag-consume-by-a-coordinate.test.js` (wired into `test/test.js`)
 - Review: (after Review)
