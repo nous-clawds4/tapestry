@@ -172,6 +172,34 @@ function dedupeReplaceable(events) {
   return Array.from(byKey.values());
 }
 
+// The stable a-coordinate for a tag-element: `39999:<authorPubkey>:<slug>`. This
+// is the tag's identity across replacement — re-minting/editing the same
+// (author, slug) produces a NEW event-id at the SAME coordinate. Consume-by-#a:
+// reads resolve a tagging to its tag by this coordinate, not by the fragile
+// applied-version event-id. (ADR profile-tag-hardening/0001.)
+function tagCoordinate({ authorPubkey, slug }) {
+  return `39999:${authorPubkey}:${slug}`;
+}
+
+// Resolve a nostr-user-tag ASSERTION to its canonical tag coordinate:
+//   1. Prefer the assertion's own ["a", coord] tag (hybrid write, ADR profile/0022)
+//      — this spans tag-element versions, since every version shares the coordinate.
+//   2. Fall back to the ["e", eventId] provenance tag resolved through `tagById`
+//      (Map<eventId, {authorPubkey, slug}>) — legacy pre-hybrid assertions.
+//   3. Return null when neither resolves; the caller then falls back to a
+//      per-assertion key + the existing truncated-id render (unchanged behavior).
+// The #a path UNIONS with, never replaces, the #e path (AC-3).
+function assertionTagCoordinate(assertionEv, { tagById } = {}) {
+  const aTag = (assertionEv.tags || []).find((t) => t[0] === 'a');
+  if (aTag && aTag[1]) return aTag[1];
+  const eTag = (assertionEv.tags || []).find((t) => t[0] === 'e');
+  if (eTag && eTag[1] && tagById) {
+    const el = tagById.get(eTag[1]);
+    if (el && el.authorPubkey && el.slug) return tagCoordinate(el);
+  }
+  return null;
+}
+
 async function handleAvailableTags(req, res) {
   try {
     const events = await federatedScan({
@@ -199,6 +227,9 @@ async function handleAvailableTags(req, res) {
         // by its stable (authorPubkey, slug) identity.
         authorPubkey: ev.pubkey,
         slug: t.slug,
+        // Consume-by-#a (ADR profile-tag-hardening/0001): the explicit,
+        // unambiguous coordinate join key for grouping taggings by tag.
+        tagAddress: tagCoordinate({ authorPubkey: ev.pubkey, slug: t.slug }),
         name: t.name || t.slug,
         description: t.description || '',
       });
@@ -259,7 +290,13 @@ async function handleTagsForProfile(req, res) {
       if (!authorAllowed(ev.pubkey)) continue;
       const eTag = (ev.tags || []).find((t) => t[0] === 'e');
       const tagEventId = eTag ? eTag[1] : null;
-      if (!tagEventId) continue;
+      // Consume-by-#a (ADR profile-tag-hardening/0001): expose the assertion's
+      // own a-coordinate so the UI can group by stable identity (spans version
+      // replacement). Keep tagEventId for provenance/back-compat. Retain the
+      // entry if it carries EITHER reference.
+      const aTag = (ev.tags || []).find((t) => t[0] === 'a');
+      const tagAddress = aTag ? aTag[1] : null;
+      if (!tagEventId && !tagAddress) continue;
 
       const polarity = readPolarity(ev);
       const bucket = bucketize(polarity);
@@ -267,6 +304,7 @@ async function handleTagsForProfile(req, res) {
         eventId: ev.id,
         authorPubkey: ev.pubkey,
         tagEventId,
+        tagAddress,
         polarity,
         createdAt: ev.created_at,
       };
@@ -371,7 +409,9 @@ async function findTagsByNameSubstring(query) {
     if (!t || !t.slug) continue;
     const name = t.name || t.slug;
     if (!name.toLowerCase().includes(q)) continue;
-    out.push({ eventId: ev.id, slug: t.slug, name, description: t.description || '' });
+    // authorPubkey (ev.pubkey) lets callers build the stable a-coordinate
+    // (consume-by-#a, ADR profile-tag-hardening/0001).
+    out.push({ eventId: ev.id, authorPubkey: ev.pubkey, slug: t.slug, name, description: t.description || '' });
   }
   return out;
 }
@@ -438,13 +478,29 @@ async function computeTagMatches({ q, povSuffix, minRank }) {
     return { query: q, povSuffix: suffix, minRank: minRankN, matches: [] };
   }
   const tagById = new Map(tagMatches.map((t) => [t.eventId, t]));
+  // Canonical tag per coordinate — the join target once assertions resolve by
+  // coordinate rather than by (possibly stale) applied-version event-id.
+  const tagByCoord = new Map(
+    tagMatches.map((t) => [tagCoordinate({ authorPubkey: t.authorPubkey, slug: t.slug }), t])
+  );
 
-  const assertionEvents = await strfryScan({
-    kinds: [39999],
-    '#z': [NOSTR_USER_TAG_Z_TAG],
-    '#e': tagMatches.map((t) => t.eventId),
-  });
-  const deduped = dedupeReplaceable(assertionEvents);
+  // Consume-by-#a (ADR profile-tag-hardening/0001): union the #e provenance
+  // scan (legacy) with the #a stable-identity scan (all versions) so search
+  // results span tag-element replacement. BOTH legs stay on strfryScan —
+  // search is always local-only (SEARCH-IS-LOCAL, tag-federation ADR 0001).
+  const [byE, byA] = await Promise.all([
+    strfryScan({
+      kinds: [39999],
+      '#z': [NOSTR_USER_TAG_Z_TAG],
+      '#e': tagMatches.map((t) => t.eventId),
+    }),
+    strfryScan({
+      kinds: [39999],
+      '#z': [NOSTR_USER_TAG_Z_TAG],
+      '#a': Array.from(tagByCoord.keys()),
+    }),
+  ]);
+  const deduped = dedupeReplaceable([...byE, ...byA]);
   const positive = deduped.filter((ev) => bucketize(readPolarity(ev)) === 'apply');
 
   let authorAllowed = () => true;
@@ -464,11 +520,15 @@ async function computeTagMatches({ q, povSuffix, minRank }) {
   for (const ev of positive) {
     if (!authorAllowed(ev.pubkey)) continue;
     const pTag = (ev.tags || []).find((t) => t[0] === 'p');
-    const eTag = (ev.tags || []).find((t) => t[0] === 'e');
-    if (!pTag?.[1] || !eTag?.[1]) continue;
-    const targetPk = pTag[1];
-    const tagInfo = tagById.get(eTag[1]);
+    if (!pTag?.[1]) continue;
+    // Resolve to the matched tag by COORDINATE (spans versions); legacy e-only
+    // assertions resolve via tagById. Key matchedTags by the canonical tag's
+    // CURRENT eventId so the external response shape is unchanged.
+    const coord = assertionTagCoordinate(ev, { tagById });
+    if (!coord) continue;
+    const tagInfo = tagByCoord.get(coord);
     if (!tagInfo) continue;
+    const targetPk = pTag[1];
     let entry = byTarget.get(targetPk);
     if (!entry) {
       entry = { pubkey: targetPk, matchedTags: new Map() };
@@ -571,12 +631,24 @@ function parsePinTagEventId(ev) {
 async function aggregateProfilesTagged({ tagEventId, povSuffix, minRank }) {
   const wotFiltering = !!povSuffix && Number.isFinite(minRank);
 
-  const events = await federatedScan({
-    kinds: [39999],
-    '#z': [NOSTR_USER_TAG_Z_TAG],
-    '#e': [tagEventId],
-  });
-  const deduped = dedupeReplaceable(events);
+  // Consume-by-#a (ADR profile-tag-hardening/0001): union the applied-version
+  // provenance scan (#e, legacy) with the stable-identity scan (#a, all
+  // versions) so assertions referencing a REPLACED tag-element still count —
+  // this is what makes the kind-30392 pubkey TL span versions (AC-2). Resolve
+  // the passed event-id to its coordinate; fall back to #e-only when it isn't
+  // locally resolvable (strict superset preserved).
+  const scanFilters = [{ kinds: [39999], '#z': [NOSTR_USER_TAG_Z_TAG], '#e': [tagEventId] }];
+  const [tagEl] = await federatedScan({ kinds: [39999], ids: [tagEventId] });
+  const tagPayload = tagEl ? parseTagPayload(tagEl) : null;
+  if (tagEl && tagPayload?.slug) {
+    scanFilters.push({
+      kinds: [39999],
+      '#z': [NOSTR_USER_TAG_Z_TAG],
+      '#a': [tagCoordinate({ authorPubkey: tagEl.pubkey, slug: tagPayload.slug })],
+    });
+  }
+  const scanned = await Promise.all(scanFilters.map((f) => federatedScan(f)));
+  const deduped = dedupeReplaceable(scanned.flat());
 
   let authorAllowed = () => true;
   if (wotFiltering) {
@@ -1244,10 +1316,14 @@ async function handleAuthoredBy(req, res) {
     const tagEventIds = Array.from(new Set(surviving.map((c) => c.tagEventId)));
     const tagElementEvents = await federatedScan({ kinds: [39999], ids: tagEventIds });
     const tagByEventId = new Map();
+    const elById = new Map();            // eventId → {authorPubkey, slug} for legacy #e resolution
+    const coordByTagEventId = new Map(); // eventId → stable a-coordinate (consume-by-#a)
     for (const ev of tagElementEvents) {
       const payload = parseTagPayload(ev);
       if (!payload) continue;
       tagByEventId.set(ev.id, payload);
+      elById.set(ev.id, { authorPubkey: ev.pubkey, slug: payload.slug });
+      coordByTagEventId.set(ev.id, tagCoordinate({ authorPubkey: ev.pubkey, slug: payload.slug }));
     }
     const surviving2 = surviving.filter((c) => tagByEventId.has(c.tagEventId));
 
@@ -1264,13 +1340,20 @@ async function handleAuthoredBy(req, res) {
 
     // Step 5: parent-tag scan — yields BOTH parent-tag aggregate counts
     // (Reading A) AND per-(tag, target) peer counts (Reading B) in one walk.
+    // Consume-by-#a (ADR profile-tag-hardening/0001): union the #e provenance
+    // scan (legacy) with the #a stable-identity scan (all versions) so the
+    // parent/peer counts span tag-element replacement.
     const remainingTagIds = Array.from(new Set(surviving2.map((c) => c.tagEventId)));
-    const parentAssertions = await federatedScan({
-      kinds: [39999],
-      '#z': [NOSTR_USER_TAG_Z_TAG],
-      '#e': remainingTagIds,
-    });
-    const parentDeduped = dedupeReplaceable(parentAssertions);
+    const remainingCoords = Array.from(
+      new Set(remainingTagIds.map((id) => coordByTagEventId.get(id)).filter(Boolean))
+    );
+    const [parentByE, parentByA] = await Promise.all([
+      federatedScan({ kinds: [39999], '#z': [NOSTR_USER_TAG_Z_TAG], '#e': remainingTagIds }),
+      remainingCoords.length
+        ? federatedScan({ kinds: [39999], '#z': [NOSTR_USER_TAG_Z_TAG], '#a': remainingCoords })
+        : Promise.resolve([]),
+    ]);
+    const parentDeduped = dedupeReplaceable([...parentByE, ...parentByA]);
 
     let parentAuthorAllowed = () => true;
     if (wotFiltering) {
@@ -1285,21 +1368,23 @@ async function handleAuthoredBy(req, res) {
       };
     }
 
-    const parentCounts = new Map(); // tagEventId → { applications, disputes }
-    const peerCounts = new Map();   // `${tagEventId}|${targetPubkey}` → { applications, disputes }
+    const parentCounts = new Map(); // tagCoordinate → { applications, disputes }
+    const peerCounts = new Map();   // `${tagCoordinate}|${targetPubkey}` → { applications, disputes }
     for (const ev of parentDeduped) {
       if (!parentAuthorAllowed(ev.pubkey)) continue;
-      const eTag = (ev.tags || []).find((t) => t[0] === 'e');
-      if (!eTag?.[1]) continue;
+      // Key counts by the stable a-coordinate so assertions on different
+      // versions of the same tag collapse together (consume-by-#a).
+      const coord = assertionTagCoordinate(ev, { tagById: elById });
+      if (!coord) continue;
       const pTag = (ev.tags || []).find((t) => t[0] === 'p');
       const bucket = bucketize(readPolarity(ev));
       if (bucket === 'neutral') continue;
 
       // Parent-tag aggregate (Reading A) — include all WoT-allowed authors.
-      let pEntry = parentCounts.get(eTag[1]);
+      let pEntry = parentCounts.get(coord);
       if (!pEntry) {
         pEntry = { applications: 0, disputes: 0 };
-        parentCounts.set(eTag[1], pEntry);
+        parentCounts.set(coord, pEntry);
       }
       if (bucket === 'apply') pEntry.applications += 1;
       else if (bucket === 'dispute') pEntry.disputes += 1;
@@ -1308,7 +1393,7 @@ async function handleAuthoredBy(req, res) {
       // peer count; the owner doesn't count themselves as a peer.
       if (ev.pubkey === authorPubkey) continue;
       if (!pTag?.[1]) continue;
-      const peerKey = `${eTag[1]}|${pTag[1]}`;
+      const peerKey = `${coord}|${pTag[1]}`;
       let peerEntry = peerCounts.get(peerKey);
       if (!peerEntry) {
         peerEntry = { applications: 0, disputes: 0 };
@@ -1321,9 +1406,10 @@ async function handleAuthoredBy(req, res) {
     // Step 6: compose rows.
     const rows = surviving2.map((c) => {
       const tagInfo = tagByEventId.get(c.tagEventId);
+      const coord = coordByTagEventId.get(c.tagEventId);
       const targetDoc = targetDocs.get(c.targetPubkey);
-      const parent = parentCounts.get(c.tagEventId);
-      const peer = peerCounts.get(`${c.tagEventId}|${c.targetPubkey}`);
+      const parent = parentCounts.get(coord);
+      const peer = peerCounts.get(`${coord}|${c.targetPubkey}`);
       return {
         assertionEventId: c.assertionEventId,
         polarity: c.polarity,
@@ -1670,6 +1756,9 @@ module.exports = {
   federatedScan,
   dlistFetch,
   dedupeReplaceable,
+  // Consume-by-#a (ADR profile-tag-hardening/0001) — exported for tests:
+  tagCoordinate,
+  assertionTagCoordinate,
   parseTagPayload,
   parseCurationMethod,
   parsePinTagEventId,

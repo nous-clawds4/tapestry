@@ -2,7 +2,7 @@ import { useState, useMemo, useRef, useEffect } from 'react';
 
 export default function AddTagDialog({
   availableTags,
-  appliedTagEventIds,
+  appliedTagKeys,
   applicableKeys,
   contextsByKey,
   busy,
@@ -10,6 +10,10 @@ export default function AddTagDialog({
   onSelectExisting,
   onCreateNew,
 }) {
+  // Consume-by-#a (ADR profile-tag-hardening/0001): "already applied" is tested
+  // by the tag's STABLE coordinate (tagAddress), so a tag applied through a
+  // prior version is correctly recognised as already-applied.
+  const isApplied = (t) => appliedTagKeys.has(t.tagAddress || t.eventId);
   const [query, setQuery] = useState('');
   const [view, setView] = useState('search'); // 'search' | 'create'
   const [newName, setNewName] = useState('');
@@ -51,7 +55,7 @@ export default function AddTagDialog({
   // surfaced separately via "Show other results" below, never mixed in.
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const candidates = availableTags.filter((t) => !appliedTagEventIds.has(t.eventId) && inScope(t));
+    const candidates = availableTags.filter((t) => !isApplied(t) && inScope(t));
     if (!q) {
       if (scoped) {
         const order = new Map(applicableKeys.map((k, i) => [k, i]));
@@ -62,7 +66,7 @@ export default function AddTagDialog({
       return candidates.slice(0, 20);
     }
     return candidates.filter((t) => matchesQuery(t, q)).slice(0, 20);
-  }, [availableTags, appliedTagEventIds, applicableKeys, contextsByKey, query]);
+  }, [availableTags, appliedTagKeys, applicableKeys, contextsByKey, query]);
 
   // OTHER results: query-matching tags OUTSIDE the current context (the same-slug anti-fork escape;
   // folds Story 3). Exact same-slug matches first, so typing "LFO" for an event surfaces the
@@ -71,10 +75,10 @@ export default function AddTagDialog({
     const q = query.trim().toLowerCase();
     if (!q || !scoped) return [];
     return availableTags
-      .filter((t) => !appliedTagEventIds.has(t.eventId) && !inScope(t) && matchesQuery(t, q))
+      .filter((t) => !isApplied(t) && !inScope(t) && matchesQuery(t, q))
       .sort((a, b) => (b.slug.toLowerCase() === q ? 1 : 0) - (a.slug.toLowerCase() === q ? 1 : 0))
       .slice(0, 20);
-  }, [availableTags, appliedTagEventIds, applicableKeys, contextsByKey, query]);
+  }, [availableTags, appliedTagKeys, applicableKeys, contextsByKey, query]);
 
   const exactMatchExists = useMemo(
     () => availableTags.some((t) => t.name.toLowerCase() === query.trim().toLowerCase()),

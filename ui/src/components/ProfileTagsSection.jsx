@@ -26,31 +26,53 @@ export default function ProfileTagsSection({ targetPubkey, viewerPubkey }) {
   const [dialog, setDialog] = useState(null); // 'add' | 'manage' | null
   const [actionError, setActionError] = useState(null);
 
-  const { displayedTags, appsByTagId, disputesByTagId, appliedTagEventIds } = useMemo(() => {
+  const { displayedTags, appsByTagId, disputesByTagId, appliedTagKeys } = useMemo(() => {
+    // Consume-by-#a (ADR profile-tag-hardening/0001): group taggings by the
+    // tag's STABLE coordinate (tagAddress), not the fragile applied-version
+    // event-id — so two event-ids of the same tag collapse onto one chip.
+    const byAddress = new Map();
+    const byEventId = new Map();
+    for (const t of availableTags) {
+      if (t.tagAddress) byAddress.set(t.tagAddress, t);
+      byEventId.set(t.eventId, t);
+    }
+    // Resolve an assertion to its canonical tag + grouping key. Prefer the
+    // assertion's own coordinate; fall back to its (legacy) event-id. When the
+    // tag is unknown, fall back to a per-assertion key + truncated-id render.
+    const resolve = (a) => {
+      const tag = (a.tagAddress && byAddress.get(a.tagAddress)) || byEventId.get(a.tagEventId) || null;
+      const key = tag ? (tag.tagAddress || tag.eventId) : (a.tagAddress || a.tagEventId);
+      return { key, tag };
+    };
     const apps = new Map();
     const disp = new Map();
-    for (const a of applications) {
-      const arr = apps.get(a.tagEventId) || [];
+    const tagByKey = new Map();
+    const record = (map, a) => {
+      const { key, tag } = resolve(a);
+      if (!key) return;
+      const arr = map.get(key) || [];
       arr.push(a);
-      apps.set(a.tagEventId, arr);
-    }
-    for (const d of disputes) {
-      const arr = disp.get(d.tagEventId) || [];
-      arr.push(d);
-      disp.set(d.tagEventId, arr);
-    }
-    const tagIds = new Set([...apps.keys(), ...disp.keys()]);
-    const tagsById = new Map(availableTags.map((t) => [t.eventId, t]));
+      map.set(key, arr);
+      if (!tagByKey.has(key)) {
+        tagByKey.set(
+          key,
+          tag || { eventId: a.tagEventId || key, slug: key.slice(0, 8), name: key.slice(0, 8), description: '' }
+        );
+      }
+    };
+    for (const a of applications) record(apps, a);
+    for (const d of disputes) record(disp, d);
+    const keys = new Set([...apps.keys(), ...disp.keys()]);
     // Render only tags that have at least one application or dispute on this
     // profile. Order alphabetically by name for stability.
-    const tagsToShow = [...tagIds]
-      .map((id) => tagsById.get(id) || { eventId: id, slug: id.slice(0, 8), name: id.slice(0, 8), description: '' })
-      .sort((a, b) => a.name.localeCompare(b.name));
+    const tagsToShow = [...keys]
+      .map((key) => ({ key, tag: tagByKey.get(key) }))
+      .sort((a, b) => a.tag.name.localeCompare(b.tag.name));
     return {
       displayedTags: tagsToShow,
       appsByTagId: apps,
       disputesByTagId: disp,
-      appliedTagEventIds: tagIds,
+      appliedTagKeys: keys,
     };
   }, [availableTags, applications, disputes]);
 
@@ -112,12 +134,12 @@ export default function ProfileTagsSection({ targetPubkey, viewerPubkey }) {
 
       {!loading && !error && (
         <div className="bsp-tags-row">
-          {displayedTags.map((t) => (
+          {displayedTags.map(({ key, tag }) => (
             <TagChip
-              key={t.eventId}
-              tag={t}
-              applications={appsByTagId.get(t.eventId) || []}
-              disputes={disputesByTagId.get(t.eventId) || []}
+              key={key}
+              tag={tag}
+              applications={appsByTagId.get(key) || []}
+              disputes={disputesByTagId.get(key) || []}
               viewerPubkey={viewerPubkey}
               busy={busy}
               onApply={handleApply}
@@ -149,7 +171,7 @@ export default function ProfileTagsSection({ targetPubkey, viewerPubkey }) {
       {dialog === 'add' && (
         <AddTagDialog
           availableTags={availableTags}
-          appliedTagEventIds={appliedTagEventIds}
+          appliedTagKeys={appliedTagKeys}
           applicableKeys={applicableKeys}
           contextsByKey={contextsByKey}
           busy={busy}
