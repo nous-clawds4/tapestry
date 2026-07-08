@@ -92,4 +92,4 @@ share the same mechanism, so a split mainly adds coordination cost.
 - ADR: `engineering-team/decisions/profile-tag-hardening/0001-consume-profile-tags-by-a-coordinate.md`
 - Test plan: `engineering-team/stories/profile-tag-hardening/1-consume-by-a-coordinate.test-plan.md`
 - Tests: `test/profile-tag-consume-by-a-coordinate.test.js` (wired into `test/test.js`)
-- Review: (after Review)
+- Review: `engineering-team/reviews/profile-tag-hardening/1-consume-by-a-coordinate.md` (PASS)
