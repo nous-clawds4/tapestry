@@ -12,8 +12,10 @@ export default function AddTagDialog({
 }) {
   // Consume-by-#a (ADR profile-tag-hardening/0001): "already applied" is tested
   // by the tag's STABLE coordinate (tagAddress), so a tag applied through a
-  // prior version is correctly recognised as already-applied.
-  const isApplied = (t) => appliedTagKeys.has(t.tagAddress || t.eventId);
+  // prior version is correctly recognised as already-applied. Default to an
+  // empty set so a caller that omits the prop can't crash the dialog on mount.
+  const applied = appliedTagKeys || new Set();
+  const isApplied = (t) => applied.has(t.tagAddress || t.eventId);
   const [query, setQuery] = useState('');
   const [view, setView] = useState('search'); // 'search' | 'create'
   const [newName, setNewName] = useState('');

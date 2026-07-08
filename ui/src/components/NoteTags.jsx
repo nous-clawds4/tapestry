@@ -53,8 +53,10 @@ export default function NoteTags({ item, showScores = false }) {
     return Array.from(byCoord.values()).sort((a, b) => a.name.localeCompare(b.name));
   }, [tags, mine]);
 
-  const appliedTagEventIds = useMemo(
-    () => new Set(displayedTags.map((t) => t.eventId)),
+  // Keyed the same way AddTagDialog resolves "already applied" (coordinate when
+  // present, else eventId) so the shared dialog treats note tags correctly.
+  const appliedTagKeys = useMemo(
+    () => new Set(displayedTags.map((t) => t.tagAddress || t.eventId)),
     [displayedTags]
   );
 
@@ -137,7 +139,7 @@ export default function NoteTags({ item, showScores = false }) {
       {dialogOpen && (
         <AddTagDialog
           availableTags={availableTags}
-          appliedTagEventIds={appliedTagEventIds}
+          appliedTagKeys={appliedTagKeys}
           applicableKeys={applicableKeys}
           contextsByKey={contextsByKey}
           busy={busy}

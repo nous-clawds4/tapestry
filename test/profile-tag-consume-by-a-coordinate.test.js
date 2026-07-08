@@ -184,6 +184,27 @@ t('S6b: AddTagDialog.jsx joins already-applied by coordinate (references tagAddr
     'prior version is correctly shown as already-applied');
 });
 
+t('S7: EVERY AddTagDialog consumer passes appliedTagKeys — the shared prop rename is complete (regression)', () => {
+  // AddTagDialog is SHARED by the profile stack (ProfileTagsSection) AND the note/event-tag
+  // stack (NoteTags). Renaming its prop and updating only one caller leaves the other passing
+  // the old name → appliedTagKeys is undefined → `undefined.has(...)` crashes the dialog on mount.
+  for (const f of ['ui/src/components/ProfileTagsSection.jsx', 'ui/src/components/NoteTags.jsx']) {
+    const src = readSrc(f);
+    assert(/appliedTagKeys=\{/.test(src),
+      `${f} must pass appliedTagKeys to AddTagDialog (shared-prop contract)`);
+    assert(!/appliedTagEventIds=\{/.test(src),
+      `${f} must NOT pass the removed appliedTagEventIds prop to AddTagDialog`);
+  }
+});
+
+t('S7b: AddTagDialog guards a missing appliedTagKeys so an omitting caller cannot crash it on mount', () => {
+  const src = readSrc('ui/src/components/AddTagDialog.jsx');
+  // The membership check must not call .has directly on the raw prop.
+  assert(!/appliedTagKeys\.has\s*\(/.test(src),
+    'AddTagDialog must not call appliedTagKeys.has(...) directly — default the prop (e.g. `|| new Set()`) ' +
+    'so a caller that omits it cannot throw a TypeError on mount');
+});
+
 /* ─── Run ─── */
 async function run() {
   console.log('\n--- profile-tag consume-by-#a tests (epic profile-tag-hardening, Story 1) ---');
