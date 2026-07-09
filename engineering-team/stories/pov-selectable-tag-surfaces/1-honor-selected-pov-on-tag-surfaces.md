@@ -109,6 +109,7 @@ POV the instance hasn't computed. Story 1 delivers value without Story 2; Story 
 threading being in place.
 
 ## Linked artifacts
-- ADR: (after Architecture)
-- Test plan: (after Test Design)
+- ADR: `engineering-team/decisions/pov-selectable-tag-surfaces/0001-shared-selected-pov-resolver-for-tag-surfaces.md`
+- Test plan: `engineering-team/stories/pov-selectable-tag-surfaces/1-honor-selected-pov-on-tag-surfaces.test-plan.md`
+- Tests: `test/pov-selectable-tag-surfaces.test.js` (wired into `test/test.js`)
 - Review: (after Review)
