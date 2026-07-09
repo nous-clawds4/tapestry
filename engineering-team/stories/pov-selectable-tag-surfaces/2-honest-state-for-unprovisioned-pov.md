@@ -112,6 +112,7 @@ resolution-status signal computed where the trust predicate is built, disclosed 
 surfaces Story 1 already threads.
 
 ## Linked artifacts
-- ADR: (after Architecture)
-- Test plan: (after Test Design)
+- ADR: `engineering-team/decisions/pov-selectable-tag-surfaces/0002-per-read-pov-resolution-status.md` (Accepted, with gate amendment)
+- Test plan: `engineering-team/stories/pov-selectable-tag-surfaces/2-honest-state-for-unprovisioned-pov.test-plan.md`
+- Tests: `test/pov-resolution-status.test.js` (wired into `test/test.js`)
 - Review: (after Review)

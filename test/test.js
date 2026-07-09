@@ -137,6 +137,7 @@ const tagApplicabilityPicker = require('./tag-applicability-picker.test.js');
 const noteTrustedList = require('./note-trusted-list.test.js');
 const profileTagConsumeByA = require('./profile-tag-consume-by-a-coordinate.test.js');
 const povSelectableTagSurfaces = require('./pov-selectable-tag-surfaces.test.js');
+const povResolutionStatus = require('./pov-resolution-status.test.js');
 // epic: tag-applicability — Story 4 (event-driven applicability republish)
 const applicabilityRepublish = require('./applicability-republish.test.js');
 
@@ -380,6 +381,8 @@ async function main() {
   const profileTagConsumeByAResult = await profileTagConsumeByA.run();
   console.log('\npov-selectable-tag-surfaces suite:');
   const povSelectableTagSurfacesResult = await povSelectableTagSurfaces.run();
+  console.log('\npov-resolution-status suite:');
+  const povResolutionStatusResult = await povResolutionStatus.run();
   console.log('\napplicability-republish suite:');
   const applicabilityRepublishResult = await applicabilityRepublish.run();
 
@@ -390,6 +393,7 @@ async function main() {
   console.log(`note-trusted-list suite:                         ${noteTrustedListResult.fail === 0 ? 'PASS' : 'FAIL'} (${noteTrustedListResult.pass} passed, ${noteTrustedListResult.fail} failed)`);
   console.log(`profile-tag-consume-by-a-coordinate suite:       ${profileTagConsumeByAResult.fail === 0 ? 'PASS' : 'FAIL'} (${profileTagConsumeByAResult.pass} passed, ${profileTagConsumeByAResult.fail} failed)`);
   console.log(`pov-selectable-tag-surfaces suite:               ${povSelectableTagSurfacesResult.fail === 0 ? 'PASS' : 'FAIL'} (${povSelectableTagSurfacesResult.pass} passed, ${povSelectableTagSurfacesResult.fail} failed)`);
+  console.log(`pov-resolution-status suite:                     ${povResolutionStatusResult.fail === 0 ? 'PASS' : 'FAIL'} (${povResolutionStatusResult.pass} passed, ${povResolutionStatusResult.fail} failed)`);
   console.log(`applicability-republish suite:                   ${applicabilityRepublishResult.fail === 0 ? 'PASS' : 'FAIL'} (${applicabilityRepublishResult.pass} passed, ${applicabilityRepublishResult.fail} failed)`);
   const publishLine = publishResult.skipped
     ? `SKIP (${publishResult.skipped} tests; preconditions not met)`
@@ -688,6 +692,7 @@ async function main() {
     tagReadUnionResult.fail === 0 &&
     profileTagConsumeByAResult.fail === 0 &&
     povSelectableTagSurfacesResult.fail === 0 &&
+    povResolutionStatusResult.fail === 0 &&
     bTagPrimitiveResult.fail === 0 &&
     bTagSeedsResult.fail === 0 &&
     dualZWriterResult.fail === 0 &&
