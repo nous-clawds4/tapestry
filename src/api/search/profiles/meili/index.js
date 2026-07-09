@@ -19,6 +19,7 @@ const { computeTagMatches, findTagsByNameSubstring, meiliFetchProfilesByPubkey }
 const TAG_HITS_LIMIT_DEFAULT = 5;
 const TAG_HITS_LIMIT_MAX = 50;
 const { resolvePov } = require('../../../_shared/pov');
+const { resolvePovWithStatus } = require('../../../_shared/povStatus');
 const { getSettings } = require('../../../../config/settings');
 
 /**
@@ -139,7 +140,7 @@ async function handleMeiliSearchProfiles(req, res) {
       : Promise.resolve(null);
 
     // ── POV resolution (extracted to src/api/_shared/pov.js per ADR-0002) ──
-    const { povSuffix, filters, sort } = resolvePov({
+    const { povSuffix, filters, sort, povResolution } = await resolvePovWithStatus({
       wotPov: req.query.wotPov || 'house',
       userPubkey: req.query.userPubkey || null,
     });
@@ -278,6 +279,7 @@ async function handleMeiliSearchProfiles(req, res) {
     const responsePayload = {
       success: true,
       povSuffix,
+      povResolution,
       nip05Result,
       _wotCount: wotCount,
       _filtered: !!(filters && povSuffix),

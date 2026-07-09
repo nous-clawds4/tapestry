@@ -111,6 +111,11 @@ consistent). The three degraded modes are one story because they are one mechani
 resolution-status signal computed where the trust predicate is built, disclosed uniformly by the
 surfaces Story 1 already threads.
 
+## Deviations
+- `useNotesForTag`/`usePinnedNotes` thread the selected POV (gate amendment) but do NOT expose
+  `povResolution` — the ADR designates the `useTagDetail` page-level banner as the single Tag-page
+  disclosure surface, so a second per-notes signal would be redundant. Threading only, as specified.
+
 ## Linked artifacts
 - ADR: `engineering-team/decisions/pov-selectable-tag-surfaces/0002-per-read-pov-resolution-status.md` (Accepted, with gate amendment)
 - Test plan: `engineering-team/stories/pov-selectable-tag-surfaces/2-honest-state-for-unprovisioned-pov.test-plan.md`

@@ -256,8 +256,8 @@ async function handleTagsForProfile(req, res) {
     // When a POV is configured, the WoT filter keeps only assertions whose
     // author has wot_rank_<suffix> >= minRank. When no POV is configured,
     // the filter is a no-op (backward-compat).
-    const { resolvePov } = require('../_shared/pov');
-    const { povSuffix, minRank } = resolvePov({
+    const { resolvePovWithStatus } = require('../_shared/povStatus');
+    const { povSuffix, minRank, povResolution } = await resolvePovWithStatus({
       wotPov: req.query.wotPov || 'house',
       userPubkey: req.query.userPubkey || null,
     });
@@ -318,6 +318,7 @@ async function handleTagsForProfile(req, res) {
       pubkey,
       povSuffix: povSuffix || null,
       minRank: Number.isFinite(minRank) ? minRank : null,
+      povResolution,
       applications,
       disputes,
     });
@@ -332,8 +333,8 @@ async function handleWotTags(req, res) {
   // the read stack. Endpoint has no current consumers; the swap is for
   // symmetry with the other POV-aware endpoints.
   try {
-    const { resolvePov } = require('../_shared/pov');
-    const { povSuffix, minRank } = resolvePov({
+    const { resolvePovWithStatus } = require('../_shared/povStatus');
+    const { povSuffix, minRank, povResolution } = await resolvePovWithStatus({
       wotPov: req.query.wotPov || 'house',
       userPubkey: req.query.userPubkey || null,
     });
@@ -369,6 +370,7 @@ async function handleWotTags(req, res) {
       success: true,
       povSuffix: povSuffix || null,
       minRank: Number.isFinite(minRank) ? minRank : null,
+      povResolution,
       tagEventIds: Array.from(tagEventIds),
       count: tagEventIds.size,
     });
@@ -883,8 +885,8 @@ async function handleProfilesTagged(req, res) {
   const viewerPubkey = /^[0-9a-f]{64}$/.test(viewerPubkeyRaw) ? viewerPubkeyRaw : null;
 
   try {
-    const { resolvePov } = require('../_shared/pov');
-    const { povSuffix, minRank } = resolvePov({
+    const { resolvePovWithStatus } = require('../_shared/povStatus');
+    const { povSuffix, minRank, povResolution } = await resolvePovWithStatus({
       wotPov: req.query.wotPov || 'house',
       userPubkey: req.query.userPubkey || null,
     });
@@ -950,6 +952,7 @@ async function handleProfilesTagged(req, res) {
       success: true,
       povSuffix: povSuffix || null,
       minRank: Number.isFinite(minRank) ? minRank : null,
+      povResolution,
       sort,
       viewerAssertions,
       rows,
@@ -1024,8 +1027,8 @@ async function handleTagIndex(req, res) {
   const pinnedByMe = pinnedByMeRaw === 'true' && !!viewerPubkey;
 
   try {
-    const { resolvePov } = require('../_shared/pov');
-    const { povSuffix, minRank } = resolvePov({
+    const { resolvePovWithStatus } = require('../_shared/povStatus');
+    const { povSuffix, minRank, povResolution } = await resolvePovWithStatus({
       wotPov: req.query.wotPov || 'house',
       userPubkey: req.query.userPubkey || null,
     });
@@ -1087,6 +1090,7 @@ async function handleTagIndex(req, res) {
         success: true,
         povSuffix: povSuffix || null,
         minRank: Number.isFinite(minRank) ? minRank : null,
+        povResolution,
         sort,
         q,
         authoredBy: authoredBy || null,
@@ -1161,6 +1165,7 @@ async function handleTagIndex(req, res) {
       success: true,
       povSuffix: povSuffix || null,
       minRank: Number.isFinite(minRank) ? minRank : null,
+      povResolution,
       sort,
       q,
       authoredBy: authoredBy || null,
@@ -1239,8 +1244,8 @@ async function handleAuthoredBy(req, res) {
   }
 
   try {
-    const { resolvePov } = require('../_shared/pov');
-    const { povSuffix, minRank } = resolvePov({
+    const { resolvePovWithStatus } = require('../_shared/povStatus');
+    const { povSuffix, minRank, povResolution } = await resolvePovWithStatus({
       wotPov: req.query.wotPov || 'house',
       userPubkey: req.query.userPubkey || null,
     });
@@ -1277,6 +1282,7 @@ async function handleAuthoredBy(req, res) {
         success: true,
         povSuffix: povSuffix || null,
         minRank: Number.isFinite(minRank) ? minRank : null,
+        povResolution,
         sort,
         authorPubkey,
         rows: [],
@@ -1305,6 +1311,7 @@ async function handleAuthoredBy(req, res) {
         success: true,
         povSuffix: povSuffix || null,
         minRank: Number.isFinite(minRank) ? minRank : null,
+        povResolution,
         sort,
         authorPubkey,
         rows: [],
@@ -1332,6 +1339,7 @@ async function handleAuthoredBy(req, res) {
         success: true,
         povSuffix: povSuffix || null,
         minRank: Number.isFinite(minRank) ? minRank : null,
+        povResolution,
         sort,
         authorPubkey,
         rows: [],
@@ -1434,6 +1442,7 @@ async function handleAuthoredBy(req, res) {
       success: true,
       povSuffix: povSuffix || null,
       minRank: Number.isFinite(minRank) ? minRank : null,
+      povResolution,
       sort,
       authorPubkey,
       rows,

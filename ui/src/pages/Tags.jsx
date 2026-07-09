@@ -4,6 +4,7 @@ import { nip19 } from 'nostr-tools';
 import TopBar from '../components/TopBar';
 import SearchInput from '../components/SearchInput';
 import SortToggle from '../components/SortToggle';
+import PovStatusNotice from '../components/PovStatusNotice';
 import useTagIndex from '../hooks/useTagIndex';
 
 function shortNpub(pk) {
@@ -30,7 +31,7 @@ const SORT_LABELS = [
 
 export default function Tags() {
   const {
-    rows, total, povSuffix,
+    rows, total, povSuffix, povResolution,
     sort, setSort,
     q, setQ,
     mineOnly, setMineOnly,
@@ -56,6 +57,8 @@ export default function Tags() {
             {povSuffix && <span className="bs-tagindex-pov"> POV: <code>{povSuffix}</code></span>}
           </p>
         </header>
+
+        <PovStatusNotice status={povResolution} variant="banner" />
 
         <div className="bs-tagindex-controls">
           <SearchInput

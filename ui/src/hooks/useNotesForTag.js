@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { usePov } from '../context/PovContext';
 
 /**
  * Story 8 — the notes tagged with a tag (forward discovery). Reads
@@ -14,6 +15,7 @@ import { useState, useEffect, useRef } from 'react';
 const HEX64 = /^[0-9a-f]{64}$/;
 
 export function useNotesForTag(tagAuthorPubkey, slug, viewerPubkey, sort = 'recent') {
+  const { povParams } = usePov();
   const [notes, setNotes] = useState([]);
   const [total, setTotal] = useState(0);
   const [truncated, setTruncated] = useState(false);
@@ -34,6 +36,10 @@ export function useNotesForTag(tagAuthorPubkey, slug, viewerPubkey, sort = 'rece
     (async () => {
       try {
         const params = new URLSearchParams({ tagAuthor: tagAuthorPubkey, slug });
+        // Gate amendment (ADR pov-selectable-tag-surfaces/0002): thread the
+        // selected POV into the notes read so the tag page's notes are POV-filtered
+        // in step with its profiles (Story-1 completeness), not house-only.
+        Object.entries(povParams).forEach(([k, v]) => params.set(k, v));
         if (HEX64.test(viewerPubkey || '')) params.set('viewerPubkey', viewerPubkey);
         if (sort) params.set('sort', sort);
         // Only the refetch-triggered fetch bypasses the cache; normal loads
@@ -54,7 +60,7 @@ export function useNotesForTag(tagAuthorPubkey, slug, viewerPubkey, sort = 'rece
     })();
 
     return () => { cancelled = true; };
-  }, [tagAuthorPubkey, slug, viewerPubkey, sort, nonce]);
+  }, [tagAuthorPubkey, slug, viewerPubkey, sort, nonce, povParams.wotPov, povParams.userPubkey]);
 
   const refetch = () => { bustNextRef.current = true; setNonce((n) => n + 1); };
   return { notes, total, truncated, loading, error, refetch };

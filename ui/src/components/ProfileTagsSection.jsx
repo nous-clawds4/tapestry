@@ -4,6 +4,7 @@ import useTagApplicability from '../hooks/useTagApplicability';
 import TagChip from './TagChip';
 import AddTagDialog from './AddTagDialog';
 import ManageTagsDialog from './ManageTagsDialog';
+import PovStatusNotice from './PovStatusNotice';
 
 export default function ProfileTagsSection({ targetPubkey, viewerPubkey }) {
   // Type-aware picker (tag-applicability #2): pubkey-context applicable tags, viewer-inclusive.
@@ -12,6 +13,7 @@ export default function ProfileTagsSection({ targetPubkey, viewerPubkey }) {
     availableTags,
     applications,
     disputes,
+    povResolution,
     myApplications,
     myDisputes,
     loading,
@@ -131,6 +133,8 @@ export default function ProfileTagsSection({ targetPubkey, viewerPubkey }) {
       {loading && <div className="bsp-tags-loading">Loading tags…</div>}
       {error && <div className="bsp-tags-error">⚠️ {error}</div>}
       {actionError && <div className="bsp-tags-error">⚠️ {actionError}</div>}
+
+      {!loading && !error && <PovStatusNotice status={povResolution} variant="compact" />}
 
       {!loading && !error && (
         <div className="bsp-tags-row">

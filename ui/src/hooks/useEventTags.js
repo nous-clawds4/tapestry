@@ -41,6 +41,7 @@ export function useEventTags(eventId, viewerPubkey) {
   const [tags, setTags] = useState([]);
   const [mine, setMine] = useState([]);
   const [availableTags, setAvailableTags] = useState([]);
+  const [povResolution, setPovResolution] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [nonce, setNonce] = useState(0);
@@ -95,6 +96,7 @@ export function useEventTags(eventId, viewerPubkey) {
         setAvailableTags(list);
         setTags(counted);
         setMine(mineEnriched);
+        setPovResolution(forEvent.povResolution || null);
       } catch (e) {
         if (!cancelled) setError(e?.message || String(e));
       } finally {
@@ -105,7 +107,7 @@ export function useEventTags(eventId, viewerPubkey) {
     return () => { cancelled = true; };
   }, [eventId, viewerPubkey, nonce, povParams.wotPov, povParams.userPubkey]);
 
-  return { tags, mine, availableTags, loading, error, refetch };
+  return { tags, mine, availableTags, povResolution, loading, error, refetch };
 }
 
 export default useEventTags;

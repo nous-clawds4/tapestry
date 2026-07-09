@@ -7641,6 +7641,26 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   text-align: left;
 }
 
+/* POV-honesty disclosure (pov-selectable-tag-surfaces Story 2 / ADR 0002). A
+   muted amber notice — it discloses a degraded POV state, it is not an error. */
+.bs-pov-notice {
+  margin: 0.4rem 0;
+  padding: 0.4rem 0.6rem;
+  font-size: 0.8rem;
+  line-height: 1.35;
+  color: var(--text-muted, #94a3b8);
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  border-radius: 6px;
+}
+.bs-pov-notice--compact {
+  display: inline-block;
+  margin: 0.25rem 0;
+  padding: 0.1rem 0.4rem;
+  font-size: 0.75rem;
+  cursor: help;
+}
+
 .table-pagination {
   display: flex;
   align-items: center;

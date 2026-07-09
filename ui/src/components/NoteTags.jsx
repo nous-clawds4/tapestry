@@ -5,6 +5,7 @@ import { useEventTagging } from '../hooks/useEventTagging';
 import useTagApplicability from '../hooks/useTagApplicability';
 import TagChip from './TagChip';
 import AddTagDialog from './AddTagDialog';
+import PovStatusNotice from './PovStatusNotice';
 
 /**
  * Story 6 — the event-tag affordance for a single kind-1 note. Rendered once
@@ -20,7 +21,7 @@ import AddTagDialog from './AddTagDialog';
 export default function NoteTags({ item, showScores = false }) {
   const { user } = useAuth();
   const viewerPubkey = user?.pubkey || null;
-  const { tags, mine, availableTags, error, refetch } = useEventTags(item?.id, viewerPubkey);
+  const { tags, mine, availableTags, povResolution, error, refetch } = useEventTags(item?.id, viewerPubkey);
   // Type-aware picker (tag-applicability #2): event-context applicable tags, viewer-inclusive.
   const { applicableKeys, contextsByKey } = useTagApplicability('event', viewerPubkey);
   const { applyTag, disputeTag } = useEventTagging();
@@ -100,6 +101,13 @@ export default function NoteTags({ item, showScores = false }) {
     <div className="bsp-note-tags" aria-label="Tags on this note">
       {error && <div className="bsp-note-tags-error">⚠️ {error}</div>}
       {actionError && <div className="bsp-note-tags-error">⚠️ {actionError}</div>}
+
+      {/* Disclose a degraded POV only when the card shows counted tags, or when
+          the selected POV has no computed scores here (silent-emptiness per card,
+          ADR 0002) — so unfiltered dev feeds don't spam every untagged note. */}
+      {(tags.length > 0 || povResolution?.mode === 'not-computed') && (
+        <PovStatusNotice status={povResolution} variant="compact" />
+      )}
 
       <div className="bsp-note-tags-row">
         {displayedTags.map((t) => {

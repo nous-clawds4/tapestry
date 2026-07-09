@@ -15,6 +15,7 @@ export default function useAuthoredTagging(profilePubkey) {
   const [sort, setSort] = useState('recent');
   const [rows, setRows] = useState([]);
   const [povSuffix, setPovSuffix] = useState(null);
+  const [povResolution, setPovResolution] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -35,6 +36,7 @@ export default function useAuthoredTagging(profilePubkey) {
         if (r.ok && data?.success) {
           setRows(data.rows || []);
           setPovSuffix(data.povSuffix || null);
+          setPovResolution(data.povResolution || null);
         } else {
           setError(data?.error || `status ${r.status}`);
         }
@@ -45,5 +47,5 @@ export default function useAuthoredTagging(profilePubkey) {
     return () => { cancelled = true; };
   }, [profilePubkey, sort, authLoading, user?.pubkey, povParams.wotPov, povParams.userPubkey]);
 
-  return { rows, sort, setSort, povSuffix, loading, error };
+  return { rows, sort, setSort, povSuffix, povResolution, loading, error };
 }

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import SearchInput from './SearchInput';
 import TagPageRow from './TagPageRow';
+import PovStatusNotice from './PovStatusNotice';
 import { usePov } from '../context/PovContext';
 
 /**
@@ -27,6 +28,7 @@ export default function TagPageSearch({
   const { povParams } = usePov();
   const [q, setQ] = useState('');
   const [hits, setHits] = useState([]);
+  const [povResolution, setPovResolution] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -60,6 +62,7 @@ export default function TagPageSearch({
           if (mySeq !== seqRef.current) return; // stale
           if (r.ok && data?.hits) {
             setHits(data.hits);
+            setPovResolution(data.povResolution || null);
           } else {
             setError(data?.error || `status ${r.status}`);
           }
@@ -100,6 +103,7 @@ export default function TagPageSearch({
           </button>
         )}
       </SearchInput>
+      <PovStatusNotice status={povResolution} variant="compact" />
       {hasQuery && loading && (
         <p className="bs-tag-loading">Searching…</p>
       )}

@@ -28,6 +28,7 @@ export default function useTagIndex() {
   const [rows, setRows] = useState([]);
   const [total, setTotal] = useState(0);
   const [povSuffix, setPovSuffix] = useState(null);
+  const [povResolution, setPovResolution] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -88,6 +89,7 @@ export default function useTagIndex() {
         if (r.ok && data?.success) {
           setTotal(data.total || 0);
           setPovSuffix(data.povSuffix || null);
+          setPovResolution(data.povResolution || null);
           // offset === 0 → replace; else → append.
           setRows((prev) => (offset === 0 ? (data.rows || []) : [...prev, ...(data.rows || [])]));
         } else {
@@ -107,7 +109,7 @@ export default function useTagIndex() {
   }, [loading, rows.length, total]);
 
   return {
-    rows, total, povSuffix,
+    rows, total, povSuffix, povResolution,
     sort, setSort,
     q, setQ,
     mineOnly, setMineOnly,

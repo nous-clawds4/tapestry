@@ -23,6 +23,7 @@
 const { exec } = require('child_process');
 const core = require('../../lib/event-tagging');
 const { resolvePov } = require('../_shared/pov');
+const { resolvePovWithStatus } = require('../_shared/povStatus');
 const { getOwnerAssistantPubkey } = require('../../utils/assistantKeys');
 // By-tag notes view (Story 8 / ADR 0008): reuse the feed/event note-read machinery
 // to fetch + enrich the target kind-1 notes from the relay set.
@@ -125,13 +126,13 @@ async function trustPredicateFor(povSuffix, minRank, candidatePubkeys) {
 }
 
 async function buildTrustPredicate(req, candidatePubkeys) {
-  const { povSuffix, minRank } = resolvePov({
+  const { povSuffix, minRank, povResolution } = await resolvePovWithStatus({
     wotPov: req.query.wotPov || 'house',
     userPubkey: req.query.userPubkey || null,
   });
   const wotFiltering = !!povSuffix && Number.isFinite(minRank);
   const isAsserterTrusted = await trustPredicateFor(povSuffix, minRank, candidatePubkeys);
-  return { isAsserterTrusted, povSuffix: povSuffix || null, minRank: wotFiltering ? minRank : null };
+  return { isAsserterTrusted, povSuffix: povSuffix || null, minRank: wotFiltering ? minRank : null, povResolution };
 }
 
 async function handleForEvent(req, res) {
@@ -172,12 +173,12 @@ async function handleForEvent(req, res) {
     //    malformed → absent) surfaces the viewer's OWN stance in `mine`,
     //    trust-unfiltered, without affecting the counted `tags` (ADR 0007).
     const viewerPubkey = isHexPubkey(req.query.viewerPubkey) ? req.query.viewerPubkey : undefined;
-    const { isAsserterTrusted, povSuffix, minRank } = await buildTrustPredicate(req, candidates.map((c) => c.pubkey));
+    const { isAsserterTrusted, povSuffix, minRank, povResolution } = await buildTrustPredicate(req, candidates.map((c) => c.pubkey));
     const { tags, unverifiable, mine } = core.classifyEventTaggings({
       candidates, headers: dedupedHeaders, honoredAuthorities: authorities, isAsserterTrusted, viewerPubkey,
     });
 
-    return res.json({ success: true, target, povSuffix, minRank, authorities, tags, unverifiable, mine });
+    return res.json({ success: true, target, povSuffix, minRank, povResolution, authorities, tags, unverifiable, mine });
   } catch (err) {
     return res.status(500).json({ success: false, error: err.message });
   }
@@ -343,7 +344,11 @@ async function handleForTag(req, res) {
     // note appears live instead of waiting out the TTL); the fresh result is
     // still written back, so subsequent normal reads are warm.
     const noCache = req.query.nocache === '1' || req.query.nocache === 'true';
-    const cacheKey = `${tagAuthor}|${slug}|${viewerPubkey || ''}|${authorities.join(',')}|${sort}`;
+    // Normalized POV params — MUST be in the key so a cached povResolution can never
+    // describe another POV's read (ADR 0002; behavior-preserving for current callers).
+    const wotPov = req.query.wotPov || 'house';
+    const userPubkey = req.query.userPubkey || '';
+    const cacheKey = `${tagAuthor}|${slug}|${viewerPubkey || ''}|${authorities.join(',')}|${sort}|${wotPov}|${userPubkey}`;
     const cached = forTagCache.get(cacheKey);
     if (!noCache && cached && cached.expires > Date.now()) return res.json(cached.body);
 
@@ -351,9 +356,9 @@ async function handleForTag(req, res) {
     // — the SAME aggregation the TA-signed note TL uses). resolvePov here so the response reports
     // the identical POV; aggregateNotesTagged returns the full computed state so the kind-1
     // resolution + response body below stay byte-identical to before the extraction.
-    const { povSuffix: rawPovSuffix, minRank: rawMinRank } = resolvePov({
-      wotPov: req.query.wotPov || 'house',
-      userPubkey: req.query.userPubkey || null,
+    const { povSuffix: rawPovSuffix, minRank: rawMinRank, povResolution } = await resolvePovWithStatus({
+      wotPov,
+      userPubkey: userPubkey || null,
     });
     const {
       members, mine, candidates, countByTarget, mineByTarget, latestByNote, noteIds, total, truncated,
@@ -409,7 +414,7 @@ async function handleForTag(req, res) {
         });
     }
 
-    const body = { success: true, tagAuthor, slug, authorities, povSuffix, minRank, sort, notes, members, mine, total, truncated, limit: NOTES_CAP };
+    const body = { success: true, tagAuthor, slug, authorities, povSuffix, minRank, povResolution, sort, notes, members, mine, total, truncated, limit: NOTES_CAP };
     if (forTagCache.size >= FOR_TAG_CACHE_MAX) forTagCache.clear();
     forTagCache.set(cacheKey, { body, expires: Date.now() + FOR_TAG_TTL_MS });
     return res.json(body);
@@ -512,7 +517,7 @@ async function handleTagIndex(req, res) {
     const headers = dedupeReplaceable(headerEvents);
 
     // 3. Normalize → POV predicate → index by tag coordinate.
-    const { isAsserterTrusted, povSuffix, minRank } = await buildTrustPredicate(req, assertions.map((c) => c.pubkey));
+    const { isAsserterTrusted, povSuffix, minRank, povResolution } = await buildTrustPredicate(req, assertions.map((c) => c.pubkey));
     const taggings = core.normalizeTaggings({ assertions, headers, honoredAuthorities: authorities });
     let { rows } = core.indexByTag(taggings, { isAsserterTrusted, viewerPubkey });
 
@@ -552,7 +557,7 @@ async function handleTagIndex(req, res) {
     rows.sort(SORTERS[sort]);
 
     const total = rows.length;
-    return res.json({ success: true, authorities, povSuffix, minRank, sort, rows: rows.slice(offset, offset + limit), total, offset, limit });
+    return res.json({ success: true, authorities, povSuffix, minRank, povResolution, sort, rows: rows.slice(offset, offset + limit), total, offset, limit });
   } catch (err) {
     return res.status(500).json({ success: false, error: err.message });
   }

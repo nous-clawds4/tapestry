@@ -7,6 +7,7 @@ import TagViewControls from '../components/TagViewControls';
 import TagSomeoneModal from '../components/TagSomeoneModal';
 import TagNotesView from '../components/TagNotesView';
 import PinnedListPanel from '../components/PinnedListPanel';
+import PovStatusNotice from '../components/PovStatusNotice';
 import { useAuth } from '../context/AuthContext';
 import { useConfig } from '../context/ConfigContext';
 import { publishProfileTagAssertion } from '../utils/publishProfileTag';
@@ -44,7 +45,7 @@ export default function Tag() {
   // W11 / tag-federation ADR 0003 — the runtime instance TA for the local z.
   const { taPubkey } = useConfig();
   const {
-    tag, viewerPin, rows, viewerAssertions, povSuffix, sort, setSort,
+    tag, viewerPin, rows, viewerAssertions, povSuffix, povResolution, sort, setSort,
     headerLoading, rowsLoading, headerError, rowsError,
     refetchRows, refetchHeader,
   } = useTagDetail(tagId);
@@ -247,6 +248,8 @@ export default function Tag() {
                 <p className="bs-tag-error">⚠️ {headerError}</p>
               )}
             </header>
+
+            <PovStatusNotice status={povResolution} variant="banner" />
 
             {/* Story 20 / ADR 0018 — tab strip only when the viewer has pinned. */}
             {isPinned && (

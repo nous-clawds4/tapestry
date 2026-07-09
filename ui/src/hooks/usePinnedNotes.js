@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { curateNotes } from '@tapestry/event-tagging';
 import { computeNoteBookmarkDTag } from '../utils/publishTagPin';
+import { usePov } from '../context/PovContext';
 
 /**
  * Story 12 item #3 — read back the viewer's OWN published note bookmark set
@@ -22,6 +23,7 @@ import { computeNoteBookmarkDTag } from '../utils/publishTagPin';
 const HEX64 = /^[0-9a-f]{64}$/;
 
 export default function usePinnedNotes(tag, viewerPubkey, noteMethod = 'notes:net-endorsed') {
+  const { povParams } = usePov();
   const [pinned, setPinned] = useState(null);
   const [notes, setNotes] = useState([]);
   const [drift, setDrift] = useState(null);
@@ -61,6 +63,10 @@ export default function usePinnedNotes(tag, viewerPubkey, noteMethod = 'notes:ne
         //    the diff. `nocache=1`: drift must reflect the CURRENT taggings, not a
         //    stale 30s-cached set, or a just-tagged note reads as "up to date".
         const params = new URLSearchParams({ tagAuthor: tag.authorPubkey, slug: tag.slug, viewerPubkey, nocache: '1' });
+        // Gate amendment (ADR pov-selectable-tag-surfaces/0002): the live curated set
+        // the drift compares against must be read under the selected POV, in step with
+        // the tag page's profiles — not house-only.
+        Object.entries(povParams).forEach(([k, v]) => params.set(k, v));
         const fr = await fetch(`/api/event-tags/for-tag?${params}`);
         const fj = await fr.json().catch(() => ({}));
         if (cancelled) return;
@@ -89,7 +95,7 @@ export default function usePinnedNotes(tag, viewerPubkey, noteMethod = 'notes:ne
     })();
 
     return () => { cancelled = true; };
-  }, [tag?.authorPubkey, tag?.slug, viewerPubkey, noteMethod, reloadKey]);
+  }, [tag?.authorPubkey, tag?.slug, viewerPubkey, noteMethod, reloadKey, povParams.wotPov, povParams.userPubkey]);
 
   return { pinned, notes, drift, loading, error, refetch };
 }

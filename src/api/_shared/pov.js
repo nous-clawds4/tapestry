@@ -43,21 +43,31 @@ function loadHousePrefs() {
   } catch { return {}; }
 }
 
-function resolvePov({ wotPov, userPubkey }) {
-  const housePrefs = loadHousePrefs();
+function resolvePov({ wotPov, userPubkey }, deps = {}) {
+  const readUserPrefsImpl = deps.readUserPrefsImpl || readUserPrefs;
+  const loadHousePrefsImpl = deps.loadHousePrefsImpl || loadHousePrefs;
+  const housePrefs = loadHousePrefsImpl();
 
   let delegatedPubkey = null;
   let filters = null;
   let sort = null;
+  // Which cascade step supplied the delegate (additive, ADR 0002 provenance).
+  let delegateSource = 'none';
+
+  const requestedPov = (wotPov === 'user' && userPubkey) ? 'user' : 'house';
 
   if (wotPov === 'user' && userPubkey) {
-    const userPrefs = readUserPrefs(userPubkey);
+    const userPrefs = readUserPrefsImpl(userPubkey);
     delegatedPubkey = userPrefs.rankAuthor || null;
+    if (delegatedPubkey) delegateSource = 'user-prefs';
     filters = userPrefs.filters || null;
     sort = userPrefs.sortConfig || null;
   }
 
-  if (!delegatedPubkey) delegatedPubkey = housePrefs.delegatedPubkey || null;
+  if (!delegatedPubkey) {
+    delegatedPubkey = housePrefs.delegatedPubkey || null;
+    if (delegatedPubkey) delegateSource = 'house-prefs';
+  }
   if (!filters) filters = housePrefs.filters || null;
   if (!sort) sort = housePrefs.sort || null;
 
@@ -67,7 +77,7 @@ function resolvePov({ wotPov, userPubkey }) {
     ? minRankRaw
     : null;
 
-  return { delegatedPubkey, povSuffix, filters, sort, minRank };
+  return { delegatedPubkey, povSuffix, filters, sort, minRank, requestedPov, delegateSource };
 }
 
 module.exports = { resolvePov, readUserPrefs };

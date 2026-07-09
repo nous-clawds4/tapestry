@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
 import SortToggle from './SortToggle';
 import NoteCard from './NoteCard';
+import PovStatusNotice from './PovStatusNotice';
 import useAuthoredTagging from '../hooks/useAuthoredTagging';
 import { useNotesByAuthor } from '../hooks/useNotesByAuthor';
 import { timeAgo } from '../utils/timeAgo';
@@ -105,7 +106,7 @@ function AuthoredNoteRow({ note }) {
 }
 
 export default function AuthoredTaggingSection({ profilePubkey, viewerPubkey }) {
-  const { rows, sort, setSort, povSuffix, loading, error } = useAuthoredTagging(profilePubkey);
+  const { rows, sort, setSort, povSuffix, povResolution, loading, error } = useAuthoredTagging(profilePubkey);
   const { notes, loading: notesLoading, error: notesError } = useNotesByAuthor(profilePubkey, viewerPubkey);
   // Collapsed by default — the section was noisy on initial profile view.
   // The header is a click target that toggles open/closed; chevron rotates
@@ -180,6 +181,7 @@ export default function AuthoredTaggingSection({ profilePubkey, viewerPubkey }) 
               className="bsp-authored-sort"
             />
           </div>
+          <PovStatusNotice status={povResolution} variant="banner" />
           {error && <p className="bsp-authored-error">⚠️ {error}</p>}
           {notesError && <p className="bsp-authored-error">⚠️ {notesError}</p>}
           {aboutMe.length > 0 && (

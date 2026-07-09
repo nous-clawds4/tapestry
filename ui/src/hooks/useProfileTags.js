@@ -30,6 +30,7 @@ export default function useProfileTags(targetPubkey, viewerPubkey) {
   const [availableTags, setAvailableTags] = useState([]);
   const [applications, setApplications] = useState([]);
   const [disputes, setDisputes] = useState([]);
+  const [povResolution, setPovResolution] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [reloadKey, setReloadKey] = useState(0);
@@ -60,6 +61,7 @@ export default function useProfileTags(targetPubkey, viewerPubkey) {
         setAvailableTags(tagsResp.tags || []);
         setApplications(profileResp.applications || []);
         setDisputes(profileResp.disputes || []);
+        setPovResolution(profileResp.povResolution || null);
       } catch (err) {
         if (!cancelled) setError(err.message);
       } finally {
@@ -169,6 +171,7 @@ export default function useProfileTags(targetPubkey, viewerPubkey) {
     availableTags,
     applications,
     disputes,
+    povResolution,
     myApplications,
     myDisputes,
     loading,

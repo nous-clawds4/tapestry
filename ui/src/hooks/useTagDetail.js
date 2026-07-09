@@ -30,6 +30,7 @@ export default function useTagDetail(tagId) {
   const [rows, setRows] = useState([]);
   const [viewerAssertions, setViewerAssertions] = useState({});
   const [povSuffix, setPovSuffix] = useState(null);
+  const [povResolution, setPovResolution] = useState(null);
   const [sort, setSort] = useState('applied');
   const [rowsLoading, setRowsLoading] = useState(false);
   const [rowsError, setRowsError] = useState(null);
@@ -89,6 +90,7 @@ export default function useTagDetail(tagId) {
           setRows(data.rows || []);
           setViewerAssertions(data.viewerAssertions || {});
           setPovSuffix(data.povSuffix || null);
+          setPovResolution(data.povResolution || null);
         } else {
           setRowsError(data?.error || `status ${r.status}`);
         }
@@ -100,7 +102,7 @@ export default function useTagDetail(tagId) {
   }, [tagId, sort, authLoading, user?.pubkey, rowsReloadKey, povParams.wotPov, povParams.userPubkey]);
 
   return {
-    tag, author, viewerPin, rows, viewerAssertions, povSuffix,
+    tag, author, viewerPin, rows, viewerAssertions, povSuffix, povResolution,
     sort, setSort,
     headerLoading, rowsLoading,
     headerError, rowsError,
