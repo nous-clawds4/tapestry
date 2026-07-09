@@ -1,6 +1,6 @@
 # Story 3: The POV rank threshold actually applies (resolvePov reads the stored key)
 
-**Status:** Draft
+**Status:** Done
 **Created:** 2026-07-09
 **Type:** Bug (correctness — Story-1 completeness)
 **Provenance:** Live-found 2026-07-09 during Story-2 testing. The operator selected "My WoT" with a
@@ -83,4 +83,4 @@ read filters is the output).
 - ADR: none (obvious bug; approach captured above).
 - Test plan: `engineering-team/stories/pov-selectable-tag-surfaces/3-resolvepov-reads-rank-threshold-key.test-plan.md`
 - Tests: `test/pov-rank-threshold-key.test.js`
-- Review: (after Review)
+- Review: `engineering-team/reviews/pov-selectable-tag-surfaces/3-resolvepov-reads-rank-threshold-key.md` (PASS)
