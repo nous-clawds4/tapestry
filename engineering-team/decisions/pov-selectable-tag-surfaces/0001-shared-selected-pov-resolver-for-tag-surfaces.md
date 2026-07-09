@@ -1,6 +1,6 @@
 # ADR 0001: One shared selected-POV resolver governs every tag surface
 
-**Status:** Proposed
+**Status:** Accepted
 **Date:** 2026-07-08
 **Story:** `engineering-team/stories/pov-selectable-tag-surfaces/1-honor-selected-pov-on-tag-surfaces.md`
 
