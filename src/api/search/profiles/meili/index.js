@@ -140,7 +140,7 @@ async function handleMeiliSearchProfiles(req, res) {
       : Promise.resolve(null);
 
     // ── POV resolution (extracted to src/api/_shared/pov.js per ADR-0002) ──
-    const { povSuffix, filters, sort, povResolution } = await resolvePovWithStatus({
+    const { povSuffix, filters, sort, minRank, povResolution } = await resolvePovWithStatus({
       wotPov: req.query.wotPov || 'house',
       userPubkey: req.query.userPubkey || null,
     });
@@ -182,12 +182,14 @@ async function handleMeiliSearchProfiles(req, res) {
     // returns all positive assertions.
     // Tag-match decorates/appends PROFILE hits because of tag assertions, so
     // it needs both types enabled; tag-hits (tag elements) needs only tags.
-    const minRankFromFilters = filters?.rank?.min;
+    // Use the threshold resolvePov already computed (reads the correct
+    // rank-cutoff key) so tag-match filters consistently with the tag stacks —
+    // Story 3. (Previously re-derived a phantom key that nothing writes → null.)
     const tagMatchPromise = (resultTypes.tags && resultTypes.profiles)
       ? computeTagMatches({
         q: q.trim(),
         povSuffix,
-        minRank: typeof minRankFromFilters === 'number' ? minRankFromFilters : null,
+        minRank: Number.isFinite(minRank) ? minRank : null,
       }).catch((err) => {
         console.error(`[meili-proxy] tag-match failed: ${err.message}`);
         return { matches: [] };

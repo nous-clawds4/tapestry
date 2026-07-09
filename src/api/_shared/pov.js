@@ -72,10 +72,19 @@ function resolvePov({ wotPov, userPubkey }, deps = {}) {
   if (!sort) sort = housePrefs.sort || null;
 
   const povSuffix = delegatedPubkey ? delegatedPubkey.slice(0, 8) : null;
-  const minRankRaw = filters?.rank?.min;
-  const minRank = (typeof minRankRaw === 'number' && Number.isFinite(minRankRaw))
-    ? minRankRaw
-    : null;
+  // The trust threshold is persisted by the search-preferences UI as
+  // `filters.rank.cutoff` gated by `filters.rank.enabled` (verified in live
+  // user-prefs). Read that first (when enabled); fall back to a legacy
+  // `filters.rank.min` if some old config carries one. Nothing writes `.min`
+  // today, so reading only `.min` (as before) left minRank always null and the
+  // POV never actually filtered — pov-selectable-tag-surfaces Story 3.
+  const rankFilter = filters?.rank || null;
+  let minRank = null;
+  if (rankFilter && rankFilter.enabled !== false && Number.isFinite(rankFilter.cutoff)) {
+    minRank = rankFilter.cutoff;
+  } else if (Number.isFinite(rankFilter?.min)) {
+    minRank = rankFilter.min;
+  }
 
   return { delegatedPubkey, povSuffix, filters, sort, minRank, requestedPov, delegateSource };
 }
