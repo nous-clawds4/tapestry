@@ -12,9 +12,12 @@
  *   2. Fall back to house prefs (settings.grapevine.searchPreferences) for
  *      anything still unresolved.
  *
- * Returns: { delegatedPubkey, povSuffix, filters, sort, minRank }.
+ * Returns: { delegatedPubkey, povSuffix, filters, sort, minRank, requestedPov, delegateSource }.
  *   - povSuffix is delegatedPubkey.slice(0,8) or null.
- *   - minRank is filters?.rank?.min when finite-numeric; otherwise null.
+ *   - minRank is filters.rank.cutoff when the rank filter is enabled and finite
+ *     (falling back to a legacy filters.rank.min); otherwise null.
+ *   - requestedPov ('user'|'house') and delegateSource ('user-prefs'|'house-prefs'|'none')
+ *     expose which cascade branch ran (pov-selectable-tag-surfaces Story 2).
  */
 
 const fs = require('fs');
