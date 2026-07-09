@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { usePov } from '../context/PovContext';
 import { useConfig } from '../context/ConfigContext';
 import { publishProfileTagAssertion, publishOrThrow } from '../utils/publishProfileTag';
 import { syncPinnedExportsForTag } from '../utils/publishTagPin';
@@ -23,6 +24,7 @@ async function nip07Pubkey() {
 
 export default function useProfileTags(targetPubkey, viewerPubkey) {
   const { user, loading: authLoading } = useAuth();
+  const { povParams } = usePov();
   // W11 / tag-federation ADR 0003 — the runtime instance TA for the local z.
   const { taPubkey } = useConfig();
   const [availableTags, setAvailableTags] = useState([]);
@@ -42,13 +44,9 @@ export default function useProfileTags(targetPubkey, viewerPubkey) {
     setError(null);
 
     // POV-aware fetch per ADR-0006: chip-row counts are now WoT-filtered.
+    // Selected-POV read params (ADR pov-selectable-tag-surfaces/0001).
     const tagsForProfileParams = new URLSearchParams({ pubkey: targetPubkey });
-    if (user?.pubkey) {
-      tagsForProfileParams.set('wotPov', 'user');
-      tagsForProfileParams.set('userPubkey', user.pubkey);
-    } else {
-      tagsForProfileParams.set('wotPov', 'house');
-    }
+    Object.entries(povParams).forEach(([k, v]) => tagsForProfileParams.set(k, v));
 
     (async () => {
       try {
@@ -71,7 +69,7 @@ export default function useProfileTags(targetPubkey, viewerPubkey) {
     return () => {
       cancelled = true;
     };
-  }, [targetPubkey, reloadKey, authLoading, user?.pubkey]);
+  }, [targetPubkey, reloadKey, authLoading, user?.pubkey, povParams.wotPov, povParams.userPubkey]);
 
   const buildAndPublishAssertion = useCallback(
     (tag, polarity) => publishProfileTagAssertion({ tag, targetPubkey, polarity, localTaPubkey: taPubkey }),

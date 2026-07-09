@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { usePov } from '../context/PovContext';
 
 /**
  * Hook for the authored-tagging section on profile pages
@@ -9,6 +10,7 @@ import { useAuth } from '../context/AuthContext';
  */
 export default function useAuthoredTagging(profilePubkey) {
   const { user, loading: authLoading } = useAuth();
+  const { povParams } = usePov();
 
   const [sort, setSort] = useState('recent');
   const [rows, setRows] = useState([]);
@@ -23,12 +25,8 @@ export default function useAuthoredTagging(profilePubkey) {
     setError(null);
 
     const params = new URLSearchParams({ authorPubkey: profilePubkey, sort });
-    if (user?.pubkey) {
-      params.set('wotPov', 'user');
-      params.set('userPubkey', user.pubkey);
-    } else {
-      params.set('wotPov', 'house');
-    }
+    // Selected-POV read params (ADR pov-selectable-tag-surfaces/0001).
+    Object.entries(povParams).forEach(([k, v]) => params.set(k, v));
 
     fetch(`/api/profile-tags/authored-by?${params}`)
       .then(async (r) => {
@@ -45,7 +43,7 @@ export default function useAuthoredTagging(profilePubkey) {
       .finally(() => { if (!cancelled) setLoading(false); });
 
     return () => { cancelled = true; };
-  }, [profilePubkey, sort, authLoading, user?.pubkey]);
+  }, [profilePubkey, sort, authLoading, user?.pubkey, povParams.wotPov, povParams.userPubkey]);
 
   return { rows, sort, setSort, povSuffix, loading, error };
 }

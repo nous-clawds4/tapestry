@@ -108,6 +108,19 @@ provisioned house/named/own POVs); Story 2 is the *honesty* guard that matters o
 POV the instance hasn't computed. Story 1 delivers value without Story 2; Story 2 depends on Story 1's
 threading being in place.
 
+## Deviations
+
+- **Persist effect split (not a full "move into PovProvider").** The ADR says the
+  UserMenu prefs load/persist effects move into `PovProvider` persisting `PUT { pov }`.
+  A literal move is impossible — the persist effect also wrote `rankAuthor`/`rankRelay`,
+  which are UserMenu-local WoT-pipeline state, and `resolvePov` (`src/api/_shared/pov.js:55`)
+  reads `rankAuthor` from the prefs file to resolve the viewer's own delegate for
+  `wotPov=user` search. Dropping that write would silently regress "my POV" search to
+  house. So: POV selection load/persist moved to `PovContext` (`PUT { pov }`, per ADR);
+  the `rankAuthor`/`rankRelay` persistence stays as a dedicated UserMenu effect (keyed on
+  `[user, wotStatus.rankAuthor, wotStatus.rankRelay]`). The server-side PUT merges, so the
+  net prefs file is byte-identical to before — search behavior preserved.
+
 ## Linked artifacts
 - ADR: `engineering-team/decisions/pov-selectable-tag-surfaces/0001-shared-selected-pov-resolver-for-tag-surfaces.md`
 - Test plan: `engineering-team/stories/pov-selectable-tag-surfaces/1-honor-selected-pov-on-tag-surfaces.test-plan.md`

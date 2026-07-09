@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { usePov } from '../context/PovContext';
 
 /**
  * Story 6 — read a kind-1 note's event-tags for display.
@@ -36,6 +37,7 @@ function fetchAvailableTags() {
 }
 
 export function useEventTags(eventId, viewerPubkey) {
+  const { povParams } = usePov();
   const [tags, setTags] = useState([]);
   const [mine, setMine] = useState([]);
   const [availableTags, setAvailableTags] = useState([]);
@@ -54,6 +56,9 @@ export function useEventTags(eventId, viewerPubkey) {
     (async () => {
       try {
         const params = new URLSearchParams({ eventId });
+        // Selected-POV read params (ADR pov-selectable-tag-surfaces/0001).
+        Object.entries(povParams).forEach(([k, v]) => params.set(k, v));
+        // viewerPubkey drives the durable, trust-unfiltered `mine` channel.
         if (HEX64.test(viewerPubkey || '')) params.set('viewerPubkey', viewerPubkey);
         const [forEvent, avail] = await Promise.all([
           fetch(`/api/event-tags/for-event?${params}`).then((r) => r.json()).catch(() => ({})),
@@ -98,7 +103,7 @@ export function useEventTags(eventId, viewerPubkey) {
     })();
 
     return () => { cancelled = true; };
-  }, [eventId, viewerPubkey, nonce]);
+  }, [eventId, viewerPubkey, nonce, povParams.wotPov, povParams.userPubkey]);
 
   return { tags, mine, availableTags, loading, error, refetch };
 }

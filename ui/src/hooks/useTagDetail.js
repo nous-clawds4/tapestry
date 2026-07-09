@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { usePov } from '../context/PovContext';
 
 /**
  * Hook for the Tag-detail page (Story 2 / ADR-0002, extended by Story 3 /
@@ -17,6 +18,7 @@ import { useAuth } from '../context/AuthContext';
  */
 export default function useTagDetail(tagId) {
   const { user, loading: authLoading } = useAuth();
+  const { povParams } = usePov();
 
   const [tag, setTag] = useState(null);
   const [author, setAuthor] = useState(null);
@@ -74,13 +76,10 @@ export default function useTagDetail(tagId) {
     setRowsError(null);
 
     const params = new URLSearchParams({ tagEventId: tagId, sort });
-    if (user?.pubkey) {
-      params.set('wotPov', 'user');
-      params.set('userPubkey', user.pubkey);
-      params.set('viewerPubkey', user.pubkey);
-    } else {
-      params.set('wotPov', 'house');
-    }
+    // Selected-POV read params (ADR pov-selectable-tag-surfaces/0001).
+    Object.entries(povParams).forEach(([k, v]) => params.set(k, v));
+    // viewerPubkey drives the viewer-union rows + per-row viewer flags (ADR-0004).
+    if (user?.pubkey) params.set('viewerPubkey', user.pubkey);
 
     fetch(`/api/profile-tags/profiles-tagged?${params}`)
       .then(async (r) => {
@@ -98,7 +97,7 @@ export default function useTagDetail(tagId) {
       .finally(() => { if (!cancelled) setRowsLoading(false); });
 
     return () => { cancelled = true; };
-  }, [tagId, sort, authLoading, user?.pubkey, rowsReloadKey]);
+  }, [tagId, sort, authLoading, user?.pubkey, rowsReloadKey, povParams.wotPov, povParams.userPubkey]);
 
   return {
     tag, author, viewerPin, rows, viewerAssertions, povSuffix,

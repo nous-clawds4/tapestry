@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { usePov } from '../context/PovContext';
 
 /**
  * Hook for the Tag-index page (Story 4 / ADR-0003).
@@ -15,6 +16,7 @@ const PAGE_SIZE = 50;
 
 export default function useTagIndex() {
   const { user, loading: authLoading } = useAuth();
+  const { povParams } = usePov();
 
   const [sort, setSortState] = useState('used');
   const [q, setQState] = useState('');
@@ -64,14 +66,10 @@ export default function useTagIndex() {
       offset: String(offset),
     });
     if (q) params.set('q', q);
-    if (user?.pubkey) {
-      params.set('wotPov', 'user');
-      params.set('userPubkey', user.pubkey);
-      // Story 13 / ADR 0012 — viewerPubkey drives per-row viewerPinned.
-      params.set('viewerPubkey', user.pubkey);
-    } else {
-      params.set('wotPov', 'house');
-    }
+    // Selected-POV read params (ADR pov-selectable-tag-surfaces/0001).
+    Object.entries(povParams).forEach(([k, v]) => params.set(k, v));
+    // Story 13 / ADR 0012 — viewerPubkey drives per-row viewerPinned.
+    if (user?.pubkey) params.set('viewerPubkey', user.pubkey);
     // "Only show mine" filters to tags authored by the logged-in user.
     // Silently inactive when not logged in (toggle is hidden in the UI).
     if (mineOnly && user?.pubkey) {
@@ -100,7 +98,7 @@ export default function useTagIndex() {
       .finally(() => { if (!cancelled) setLoading(false); });
 
     return () => { cancelled = true; };
-  }, [authLoading, user?.pubkey, sort, q, mineOnly, pinnedByMe, offset]);
+  }, [authLoading, user?.pubkey, sort, q, mineOnly, pinnedByMe, offset, povParams.wotPov, povParams.userPubkey]);
 
   const loadMore = useCallback(() => {
     if (loading) return;
