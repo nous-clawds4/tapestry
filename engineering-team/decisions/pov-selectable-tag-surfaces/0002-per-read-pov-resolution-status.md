@@ -379,3 +379,27 @@ the POV-aware `forTagCache` key), the threading fix rides along:
 
 This is a **threading** fix (Story-1 doctrine), not new disclosure scope; it is included so the
 "consistency across every tag surface" AC is true of the tag page's notes as well as its profiles.
+
+## Amendment 2 (2026-07-09, after live testing) — unfiltered wording split + testable message util
+
+Live testing surfaced that the single `unfiltered` message ("this instance has no point of view
+configured") is inaccurate when a **delegate resolved but no rank threshold is set** (`povSuffix`
+present, `minRank` null). The two unfiltered causes are already distinguishable from `povResolution`
+(`povSuffix` present ⇒ a delegate resolved), so the wording must reflect them. No status-shape change
+is needed (`povSuffix` already carries the distinction). Changes:
+
+- **New `ui/src/utils/povNoticeText.js`** — a **pure** `povNoticeText(status)` returning
+  `{ full, short }` or `null` (same "extract the pure rule for tests" convention as
+  `povReadParams.js` / `computePovStatus`). It owns the whole wording matrix, now split by
+  `!!status.povSuffix` within each unfiltered branch:
+  - `unfiltered`, delegate absent (`!povSuffix`): "…this instance has no point of view configured."
+  - `unfiltered`, delegate present (`povSuffix`): "…the selected point of view has no trust threshold set."
+  - the `fellBackToHouse` unfiltered variants split the same way (house delegate present vs none).
+- **`PovStatusNotice.jsx`** — imports `povNoticeText` and renders its output (null-render rule
+  unchanged: null status or `filtered && !fellBackToHouse`). The `.jsx` keeps only the presentation;
+  the testable wording logic lives in the plain-`.js` util (the Node harness can't parse JSX, but can
+  dynamic-`import()` the util — same as `povReadParams`).
+- Tests: behavioral over `povNoticeText` (all matrix rows incl. the new split + the two null cases);
+  source-contract that `PovStatusNotice` delegates to it.
+
+Still additive/disclosure-only; no filtering change, no status-shape change.

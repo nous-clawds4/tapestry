@@ -223,14 +223,17 @@ t('S4 (boundary sentinel): the TL publishers stay on bare resolvePov — not res
     'refreshPinnedTags must NOT adopt resolvePovWithStatus — TLs are publishers, not read responses; their honesty channel is the partial-signal doctrine');
 });
 
-t('S5: one shared PovStatusNotice — null for healthy, wording for each degraded mode (AC-6)', () => {
+t('S5: one shared PovStatusNotice delegating to the pure povNoticeText util (AC-6)', () => {
+  // Amendment 2 (2026-07-09): the wording matrix moved to the pure ui/src/utils/povNoticeText.js
+  // (unit-tested in pov-notice-text.test.js, incl. the no-delegate vs no-threshold split). The
+  // component is presentation only — it must delegate, render null when the util returns null, and
+  // still support both variants.
   const src = readSrc('ui/src/components/PovStatusNotice.jsx');
-  assert(/return null/.test(src), 'PovStatusNotice renders nothing when there is nothing to disclose');
-  assert(/filtered/.test(src) && /fellBackToHouse/.test(src),
-    'the null-render rule keys on (mode===filtered && !fellBackToHouse) — provisioned POVs show nothing (AC-5)');
-  assert(/not[\s-]*trust[\s-]*filtered/i.test(src), 'the unfiltered disclosure wording exists (AC-2)');
-  assert(/house/i.test(src), 'the house-fallback disclosure wording exists (AC-1)');
-  assert(/not?[\s-]*comput|no computed/i.test(src), 'the not-computed disclosure wording exists (AC-3)');
+  assert(/povNoticeText/.test(src),
+    'PovStatusNotice must delegate its wording to the shared povNoticeText util (single wording source)');
+  assert(/return null/.test(src), 'PovStatusNotice renders nothing when the util yields no text (AC-5)');
+  assert(/variant/.test(src) && /compact/.test(src),
+    'PovStatusNotice still supports the banner + compact variants');
 });
 
 t('S6: every Story-1 surface hook exposes povResolution from its own read (AC-4/AC-6)', () => {

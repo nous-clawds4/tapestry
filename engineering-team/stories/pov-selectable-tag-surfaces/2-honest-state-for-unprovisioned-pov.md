@@ -76,6 +76,14 @@ is the observable output).
   one definition of "provisioned," derived from the scoring machinery itself, not a hand-maintained
   list.
 
+- [ ] **Unfiltered wording distinguishes no-delegate from no-threshold.** *(Added 2026-07-09, after
+  live testing.)* Given the read is `unfiltered`, when a **delegate resolved but no rank threshold is
+  set** (`povSuffix` present, `minRank` null — e.g. the rank filter is off), then the disclosure says
+  the point of view has **no trust threshold set** — NOT "this instance has no point of view
+  configured" (which must only appear when no delegate resolved, `povSuffix` null). The two unfiltered
+  causes are already distinguishable from the `povResolution` the read returns (`povSuffix`), so the
+  wording must reflect them.
+
 ## Concepts touched
 (Plain-language; the Architect resolves specifics.)
 - The trust-predicate/POV resolution shared by the tag reads (event-tag + profile-tag stacks).
