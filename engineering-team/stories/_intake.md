@@ -1347,3 +1347,67 @@ documents that `resolvePov` is two-branch and its PovContext anticipates named P
 
 **Classification:** Epic ("external/named POV provisioning via NIP-85" — mostly operate-the-existing-
 machine + close gaps a–f). **Not yet planned.**
+
+## 2026-07-09 — Event-tags in search: notes as a search result type (post-POV-threading epic)
+
+**Raw request (operator, verbatim):**
+
+> Our current event tagging feature branch doesn't touch meili search. I'm realizing this is a huge
+> gap. … essentially the event-tag tags should show up in the search. And clicking them would have the
+> same result as clicking a profile tag. That is, you go to the tag page for the event tag (and see the
+> notes). But also, what we'll have to figure out is if it's feasible to also surface the kind one
+> notes that were tagged with that tag. Similar to how we show profiles if you search a tag name, we
+> show the profile in the search result with the tag icon visible, so you understand why it's
+> appearing. We could potentially do something similar with kind ones, but we don't have a local cache
+> of those notes…
+
+**Verified current state (2026-07-09) — parts of this already exist:**
+
+1. **Tag elements already surface in search, both stacks.** `findTagsByNameSubstring` scans the
+   SHARED tag catalogue (`#z` = tag; event-tags and profile-tags mint into the same catalogue), and
+   the meili proxy exposes them as `tagHits` (Story 7 / ADR-0006, gated by the search result-type
+   controls). So an event-created tag should already appear as a tag result → **verify in planning**,
+   don't rebuild.
+2. **Clicking a tag → tag page with notes already works.** `ui/src/pages/Tag.jsx` + `useNotesForTag`
+   (event-tagging epic) show the tagged notes on the tag page.
+3. **The real gap: notes as a search RESULT type.** `computeTagMatches` decorates/appends PROFILE
+   hits from `nostr-user-tag` assertions only. There is no note analog: searching a tag name never
+   surfaces the kind-1 notes tagged with it. This is the new work.
+4. **"We don't have a local cache of those notes" is only half-true.** Taggings (kind-39999) are
+   always in local strfry. And the `for-tag` read path ALREADY hydrates note content local-first with
+   an external fallback: `realScanStrfry({kinds:[1], ids})` → for the missing ids, query the
+   general-purpose relays PLUS the NIP-01 relay hints carried on the taggings' `["e", id, relay]`
+   tags (`src/api/event-tags/index.js:360-395`; view-time, nothing persisted). The hydration
+   machinery exists; the question is only where it may run.
+
+**The design tension (the "feasible?" question):** the ratified **SEARCH-IS-LOCAL** doctrine
+(tag-federation ADR 0001; re-affirmed in profile-tag-hardening 0001) forbids live remote round-trips
+on the search hot path. Options to weigh in planning:
+
+- **(a) Hoard tagged notes into local strfry** — event-driven: when a note-tagging arrives, fetch the
+  referenced kind-1 (id + relay hint are ON the tagging) and store it locally. Bounded corpus (only
+  tagged notes), decentralized-clean (public notes), mirrors the existing "federated tags become
+  searchable by hoarding" precedent, and search then hydrates local-only. Could ride the same
+  event-driven trigger as the applicability republish (tag-applicability #4).
+- **(b) Unhydrated note hits** — search returns note ids + tag/count metadata; the client hydrates
+  lazily off the hot path (the tag page already does this pattern).
+- **(c) Local-only hydration** — surface only notes already in local strfry; a "see all on the tag
+  page" affordance covers the rest. Degrades gracefully with (a) over time.
+
+**Explicitly bigger, separate call:** indexing note CONTENT into Meili (full-text note search, per-POV
+columns on notes). Not needed for the ask (tag-NAME → tagged notes); park unless planning decides
+otherwise.
+
+**POV note:** the notes result type must be POV-filtered like `computeTagMatches` is (trust predicate
+over the taggings' authors) — and since this lands AFTER the pov-selectable-tag-surfaces epic, it
+should honor the SELECTED POV (PovContext) from day one, not the login-binary pattern.
+
+**UX sketch (operator):** note results appear like tag-matched profile results do — with the tag icon
+visible so you understand why the note is in the results.
+
+**Sequencing:** after the current `pov-selectable-tag-surfaces` epic. Related: the search-API
+result-type controls epic (in flight — "notes" becomes a third gated result type behind its
+controls); event-tagging epic's for-tag read; SEARCH-IS-LOCAL doctrine; OPEN #17.
+
+**Classification:** Epic (planning session with operator required — the (a)/(b)/(c) hydration call is
+the crux). **Not yet planned.**
