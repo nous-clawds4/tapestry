@@ -22,7 +22,6 @@
 
 const { exec } = require('child_process');
 const core = require('../../lib/event-tagging');
-const { resolvePov } = require('../_shared/pov');
 const { resolvePovWithStatus } = require('../_shared/povStatus');
 const { getOwnerAssistantPubkey } = require('../../utils/assistantKeys');
 // By-tag notes view (Story 8 / ADR 0008): reuse the feed/event note-read machinery

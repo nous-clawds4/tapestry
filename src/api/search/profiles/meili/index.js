@@ -18,7 +18,6 @@ const { computeTagMatches, findTagsByNameSubstring, meiliFetchProfilesByPubkey }
 // pass different `tagLimit` values; the server clamps to TAG_HITS_LIMIT_MAX.
 const TAG_HITS_LIMIT_DEFAULT = 5;
 const TAG_HITS_LIMIT_MAX = 50;
-const { resolvePov } = require('../../../_shared/pov');
 const { resolvePovWithStatus } = require('../../../_shared/povStatus');
 const { getSettings } = require('../../../../config/settings');
 
