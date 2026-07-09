@@ -1,6 +1,6 @@
 # Story 2: Tag surfaces are honest when the selected POV can't actually filter
 
-**Status:** Draft
+**Status:** Done
 **Created:** 2026-07-09
 **Type:** Feature (epic: pov-selectable-tag-surfaces; Story 2 of 2)
 **Provenance:** OPEN.md #17 / the epic's scope note in Story 1; ADR 0001's "NIP-85 alignment" note
