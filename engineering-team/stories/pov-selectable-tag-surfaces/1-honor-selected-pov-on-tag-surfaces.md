@@ -1,6 +1,6 @@
 # Story 1: Tag surfaces honor the explicitly-selected POV
 
-**Status:** Draft
+**Status:** Done
 **Created:** 2026-07-08
 **Type:** Feature (epic: pov-selectable-tag-surfaces)
 **Provenance:** OPEN.md #17 / `engineering-team/stories/_intake.md` 2026-07-06 "POV-selectable tag surfaces."
