@@ -80,7 +80,10 @@ observable output).
   own design.
 - **Provisioning new offered POVs** (e.g. adding an LFO POV to the selector + computing its scores).
   MVP wires only the POVs the selector already offers; new-POV provisioning ties to
-  Trust-Determination / customer-POV work and is a separate epic.
+  Trust-Determination / customer-POV work and is a separate epic — now concretely scoped as
+  **"external/named POV provisioning via NIP-85"** (`_intake.md` 2026-07-09 entry): the per-customer
+  kind-30382 pipeline already exists; the remaining gaps are narrow (intake gaps a–f). This story's
+  threading is the same `wotPov`/`userPubkey` plumbing that epic will ride.
 - **Changing the tag write path** or any backend read API (the reads already accept a POV parameter).
 
 ## Open questions (for Architecture)

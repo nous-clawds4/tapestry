@@ -1267,3 +1267,83 @@ client-side filtering).
 "member-TL → LFO POV Trust Determination" path.
 
 **Classification:** Feature (probably an epic). **Not yet planned.**
+
+## 2026-07-09 — NIP-85 is the POV interop layer; the per-customer pipeline already exists (external-POV provisioning, LFO)
+
+**Raw request (operator):** during pov-selectable-tag-surfaces #1 architecture, asked "when LFO builds
+their tag-feed app against our API/relay, can they use a POV we calculate and maintain for them?" —
+then: "i forgot about Trusted Assertions NIP-85 — those are the interop. … it is of central importance
+to all PoV and WoT work!"
+
+**The blind spot (now corrected):** we'd been reasoning about POV access as if the HTTP API were the
+only channel and "the relay carries no POV." Wrong once NIP-85 is in view: **a POV's computed trust is
+itself published as signed nostr events**, so the relay IS the POV interop surface. NIP-85 recap:
+
+- **kind 30382/30383/30384/30385** — Trusted Assertions about a pubkey / event / addressable /
+  external-id; addressable, `["d","<subject>"]`, scores as tags (e.g. `["rank","0..100"]`).
+- **kind 10040** — the user's designation: `["30382:rank","<service_pubkey>","<relay_hint>"]` = "for
+  this assertion type I trust this authority." Portable, nostr-native POV *choice*.
+- **Consumer flow:** read 10040 → fetch the authority's 3038x from the hinted relay → apply
+  client-side. Fully decentralized; no proprietary API needed. Authorities use a **distinct service
+  key per algorithm/personalization**.
+- Our Trusted Lists (30392–30395, `protocols/drafts/trusted-lists.md`) are the deliberate **+10
+  aggregate analog** — same interop layer, list-shaped.
+
+**What ALREADY exists in this repo (verified 2026-07-09 — more turnkey than assumed):**
+
+1. **Owner NIP-85 publisher** — `src/algos/nip85/publishNip85.sh` publishes the owner POV's WoT as
+   kind-30382 to the relay.
+2. **Per-customer pipeline** (the "POV we calculate and maintain for them" machine):
+   - onboarding: `src/api/auth/signUpNewCustomer.js`, `src/api/customers/commands/add-new-customer.js`
+   - per-customer **service key** auto-created (`src/algos/customers/nip85/relayPubkey/…`,
+     `CUSTOMER_<pk>_RELAY_*` in brainstorm.conf) — exactly NIP-85's per-personalization key
+   - per-customer score computation: `src/algos/customers/updateAllScoresForSingleCustomer.sh`
+   - **interop publish:** `src/algos/customers/nip85/publish_kind30382.js` — 30382s signed by the
+     customer's service key → relay
+   - **API-path columns:** `src/algos/customers/nip85/loadScoresIntoMeilisearch.js` — reads those
+     30382s back from strfry and loads `wot_rank_<suffix>` where **suffix = service-key
+     pubkey.slice(0,8)** (NOT the customer pubkey)
+   - **maintenance:** `src/api/customer-schedule/index.js` — per-customer recurring processing
+   - **kind-10040 export command:** `src/api/export/nip85/commands/kind10040.js`
+3. **Tag TLs are already observer-POV-parameterized** — `refreshPinnedTags` computes 30392/30393
+   under `resolvePov({wotPov:'user', userPubkey: observer})`.
+
+**The ACTUAL remaining gaps (narrow; verified):**
+
+- **(a) `resolvePov` user-prefs wiring for API consumers.** The HTTP path
+  (`wotPov=user&userPubkey=<X>`) resolves via `/var/lib/brainstorm/user-prefs/<X>.json` →
+  `rankAuthor`. Customer signup does **not** appear to write `rankAuthor` (only the settings/prefs
+  APIs do), so an onboarded customer's POV may be reachable via NIP-85/Meili columns but not yet via
+  `wotPov=user&userPubkey=<customer>` until their prefs file carries `rankAuthor=<service pubkey>`
+  (+ a `filters.rank.min`). Small wiring; verify + close.
+- **(b) No named-POV branch in `resolvePov`** (`wotPov=lfo` etc.) — named→delegate map; ergonomics
+  only, since (a) covers it with a hex param.
+- **(c) Offered-POV registry in the UI selector** — house/nosfabrica/user are the only choices; no
+  way to *offer* a provisioned customer POV in-app (ties to pov-selectable-tag-surfaces epic's
+  PovContext, which was designed to accept new named values without consumer rework).
+- **(d) Turnkey-ness on tags.brainstorm.world unverified** — the pipeline exists in code; whether
+  customer processing is enabled/exercised on that deployment is an operational check (first task of
+  the epic: onboard a test customer end-to-end and watch 30382s + Meili columns appear).
+- **(e) member-TL-as-scoring-method** for a group POV like LFO (WoT seeded from a membership list
+  rather than a follow graph) — known-unwired path, separate design question.
+- **(f) kind-10040 designation for customers** — command exists; wire into onboarding so the POV
+  choice is discoverable/portable.
+
+**The LFO answer this yields (two channels, same computed scores):**
+- **NIP-85 channel (preferred, decentralized):** onboard LFO as a customer → 30382s under LFO's
+  service key on `wss://tags.brainstorm.world/relay` → their app reads + applies client-side; plus
+  the pinned-tag TLs (30392/30393) published under LFO-as-observer for ready-made per-POV tag
+  membership. Supersedes the integration guide's "filter client-side against a member list" workaround
+  (`docs/INTEGRATION_GUIDE_event-tagging-for-external-clients.md` — update it when this ships).
+- **HTTP-API channel (convenience):** `?wotPov=user&userPubkey=<LFO>` once gap (a) is closed.
+
+**Why it matters (operator):** NIP-85 is *"of central importance to all PoV and WoT work"* — every
+future POV feature should treat published Trusted Assertions/Lists as the interop contract, with the
+HTTP API as convenience on top. Decentralized-first (CLAUDE.md invariant #2) applied to trust itself.
+
+**Related:** OPEN #17 / `pov-selectable-tag-surfaces` epic (in-app selection threading; its ADR 0001
+documents that `resolvePov` is two-branch and its PovContext anticipates named POVs); the
+2026-07-06 intake entry above; `protocols/drafts/trusted-lists.md`; the LFO integration guide.
+
+**Classification:** Epic ("external/named POV provisioning via NIP-85" — mostly operate-the-existing-
+machine + close gaps a–f). **Not yet planned.**
