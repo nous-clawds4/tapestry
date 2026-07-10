@@ -34,12 +34,18 @@ t('S1 (the clobber fix): PovContext guards its persist effect with a hydration r
 });
 
 t('S2 (single writer): only PovContext persists the pov selection to /api/user-prefs', () => {
-  // The settings + menu must delegate — they must NOT keep their own local pov useState default.
+  // The settings + menu must delegate — they must NOT keep their own local pov useState default,
+  // NOR an independent single-field `{ pov }` PUT (a stray unguarded persist effect re-introduces
+  // the mount clobber — the exact defect this story kills). A bulk save that INCLUDES pov alongside
+  // other fields (savePrefs) is fine: it writes the live shared value, merge-safe.
   for (const f of ['ui/src/pages/BrainstormSettings.jsx', 'ui/src/components/BrainstormUserMenu.jsx']) {
     const src = readSrc(f);
     assert(!/useState\(\s*['"]nosfabrica['"]\s*\)/.test(src),
       `${f.split('/').pop()} must NOT own a local pov useState('nosfabrica') — it must consume the shared ` +
       'selection via usePov() (a second writer is what caused the clobber/inconsistency)');
+    assert(!/JSON\.stringify\(\s*\{\s*pov\s*\}\s*\)/.test(src),
+      `${f.split('/').pop()} must NOT PUT a single-field { pov } to /api/user-prefs — POV persistence ` +
+      'is owned solely by PovContext (an independent unguarded { pov } PUT re-clobbers a saved pov on mount)');
   }
 });
 

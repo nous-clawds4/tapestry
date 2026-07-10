@@ -383,15 +383,9 @@ export default function BrainstormSettings() {
     }
   }
 
-  // Persist POV changes
-  useEffect(() => {
-    if (!user || !pov) return;
-    fetch('/api/user-prefs', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pov }),
-    }).catch(() => {});
-  }, [user, pov]);
+  // (Story 4) POV persistence is owned solely by PovContext's guarded effect —
+  // this page's setPov(...) writes through the shared selection. A local persist
+  // here (unguarded) would PUT the default on mount and re-clobber a saved pov.
 
   const myWotReady = wotStatus.has10040 && wotStatus.hasRankTag && wotStatus.hasTAs && scoresReady;
   const houseProfile = useHouseProfile();
