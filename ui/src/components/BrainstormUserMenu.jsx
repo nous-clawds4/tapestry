@@ -1,12 +1,18 @@
 import { useState, useEffect, useRef } from 'react';
+import { usePov } from '../context/PovContext';
 
 /**
  * Compact user avatar + dropdown menu for Brainstorm Search pages.
- * Shows avatar, welcome, POV indicator with house profile, settings link, and sign out.
+ * Shows avatar, welcome, a POV SWITCH (House ⇄ My WoT) writing through the shared
+ * PovContext selection (pov-selectable-tag-surfaces Story 4), settings link, sign out.
  */
 export default function BrainstormUserMenu({ user, login, logout }) {
   const [open, setOpen] = useState(false);
-  const [pov, setPov] = useState('nosfabrica');
+  // The POV selection is the single shared PovContext value — not local state
+  // (Story 4: one writer, so changing it here reflects everywhere).
+  const { selectedPov, setSelectedPov } = usePov() || {};
+  const pov = selectedPov || 'nosfabrica';
+  const [hasDelegate, setHasDelegate] = useState(false); // "My WoT" offered only when a delegate is configured
   const [houseProfile, setHouseProfile] = useState(null); // { pubkey, name, picture }
   const menuRef = useRef(null);
 
@@ -23,11 +29,12 @@ export default function BrainstormUserMenu({ user, login, logout }) {
   useEffect(() => {
     if (!user) return;
     (async () => {
-      // Load user POV preference
+      // "My WoT" is offered only when the viewer has a delegate configured
+      // (rankAuthor). The selection itself comes from PovContext, not here.
       try {
         const resp = await fetch('/api/user-prefs');
         const data = await resp.json();
-        if (data.success && data.preferences?.pov) setPov(data.preferences.pov);
+        if (data.success && data.preferences?.rankAuthor) setHasDelegate(true);
       } catch {}
 
       // Fetch house POV pubkey and profile
@@ -107,18 +114,29 @@ export default function BrainstormUserMenu({ user, login, logout }) {
           </div>
 
           <div className="bs-usermenu-section">
-            <div className="bs-usermenu-pov-indicator">
-              Searching as:{' '}
-              {pov === 'user' ? (
-                <strong>My WoT</strong>
-              ) : (
-                <a href={houseProfile ? `/user/${houseProfile.pubkey}` : '#'} className="bs-usermenu-pov-link" onClick={() => setOpen(false)}>
+            <div className="bs-usermenu-pov-switch" role="group" aria-label="Point of view">
+              <span className="bs-usermenu-pov-switch-label">Searching as</span>
+              <div className="bs-usermenu-pov-switch-btns">
+                <button
+                  type="button"
+                  className={`bs-usermenu-pov-btn${pov !== 'user' ? ' is-active' : ''}`}
+                  onClick={() => setSelectedPov && setSelectedPov('nosfabrica')}
+                >
                   {houseProfile?.picture && (
                     <img src={houseProfile.picture} alt="" className="bs-usermenu-pov-avatar" onError={e => { e.target.style.display = 'none'; }} />
                   )}
-                  <strong>{houseName}</strong>
-                </a>
-              )}
+                  {houseName}
+                </button>
+                <button
+                  type="button"
+                  className={`bs-usermenu-pov-btn${pov === 'user' ? ' is-active' : ''}`}
+                  disabled={!hasDelegate}
+                  title={hasDelegate ? 'Use your personal Web of Trust' : 'Set up your Web of Trust in Settings to use My WoT'}
+                  onClick={() => hasDelegate && setSelectedPov && setSelectedPov('user')}
+                >
+                  My WoT
+                </button>
+              </div>
             </div>
           </div>
 

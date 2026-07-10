@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { useAuth } from './AuthContext';
 import { resolvePovReadParams } from '../utils/povReadParams';
 
@@ -27,12 +27,18 @@ export function usePov() {
 export function PovProvider({ children }) {
   const { user } = useAuth();
   const [selectedPov, setSelectedPov] = useState('nosfabrica');
+  // Hydration guard: the persist effect must NOT write until the saved value has
+  // been loaded — otherwise, on mount, it PUTs the default 'nosfabrica' over a
+  // saved pov:'user' before the load resolves (the Story-4 mount clobber). Only
+  // user-initiated changes (after hydration) persist.
+  const hydratedRef = useRef(false);
 
   // Restore selection: localStorage fast-path, then server (source of truth).
   useEffect(() => {
     if (!user) return;
+    hydratedRef.current = false; // re-hydrate on account switch
     const cached = localStorage.getItem(POV_STORAGE_PREFIX + user.pubkey);
-    if (cached === 'user' || cached === 'nosfabrica') setSelectedPov(cached);
+    setSelectedPov(cached === 'user' || cached === 'nosfabrica' ? cached : 'nosfabrica');
     (async () => {
       try {
         const resp = await fetch('/api/user-prefs');
@@ -42,13 +48,18 @@ export function PovProvider({ children }) {
           if (p.pov === 'user' || p.pov === 'nosfabrica') setSelectedPov(p.pov);
         }
       } catch {}
+      finally {
+        // Hydration complete — from here on, real selection changes persist.
+        hydratedRef.current = true;
+      }
     })();
   }, [user?.pubkey]);
 
   // Persist selection to both localStorage and server (merge-safe: PUT { pov }
-  // preserves rankAuthor/filters/sortConfig written by other paths).
+  // preserves rankAuthor/filters/sortConfig written by other paths). Guarded by
+  // hydration so the default is never written over a saved value on mount.
   useEffect(() => {
-    if (!user || !selectedPov) return;
+    if (!user || !selectedPov || !hydratedRef.current) return;
     localStorage.setItem(POV_STORAGE_PREFIX + user.pubkey, selectedPov);
     fetch('/api/user-prefs', {
       method: 'PUT',

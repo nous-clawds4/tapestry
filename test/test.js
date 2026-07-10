@@ -140,6 +140,7 @@ const povSelectableTagSurfaces = require('./pov-selectable-tag-surfaces.test.js'
 const povResolutionStatus = require('./pov-resolution-status.test.js');
 const povRankThresholdKey = require('./pov-rank-threshold-key.test.js');
 const povNoticeText = require('./pov-notice-text.test.js');
+const povStateUnification = require('./pov-state-unification.test.js');
 // epic: tag-applicability — Story 4 (event-driven applicability republish)
 const applicabilityRepublish = require('./applicability-republish.test.js');
 
@@ -389,6 +390,8 @@ async function main() {
   const povRankThresholdKeyResult = await povRankThresholdKey.run();
   console.log('\npov-notice-text suite:');
   const povNoticeTextResult = await povNoticeText.run();
+  console.log('\npov-state-unification suite:');
+  const povStateUnificationResult = await povStateUnification.run();
   console.log('\napplicability-republish suite:');
   const applicabilityRepublishResult = await applicabilityRepublish.run();
 
@@ -402,6 +405,7 @@ async function main() {
   console.log(`pov-resolution-status suite:                     ${povResolutionStatusResult.fail === 0 ? 'PASS' : 'FAIL'} (${povResolutionStatusResult.pass} passed, ${povResolutionStatusResult.fail} failed)`);
   console.log(`pov-rank-threshold-key suite:                      ${povRankThresholdKeyResult.fail === 0 ? 'PASS' : 'FAIL'} (${povRankThresholdKeyResult.pass} passed, ${povRankThresholdKeyResult.fail} failed)`);
   console.log(`pov-notice-text suite:                            ${povNoticeTextResult.fail === 0 ? 'PASS' : 'FAIL'} (${povNoticeTextResult.pass} passed, ${povNoticeTextResult.fail} failed)`);
+  console.log(`pov-state-unification suite:                      ${povStateUnificationResult.fail === 0 ? 'PASS' : 'FAIL'} (${povStateUnificationResult.pass} passed, ${povStateUnificationResult.fail} failed)`);
   console.log(`applicability-republish suite:                   ${applicabilityRepublishResult.fail === 0 ? 'PASS' : 'FAIL'} (${applicabilityRepublishResult.pass} passed, ${applicabilityRepublishResult.fail} failed)`);
   const publishLine = publishResult.skipped
     ? `SKIP (${publishResult.skipped} tests; preconditions not met)`
@@ -703,6 +707,7 @@ async function main() {
     povResolutionStatusResult.fail === 0 &&
     povRankThresholdKeyResult.fail === 0 &&
     povNoticeTextResult.fail === 0 &&
+    povStateUnificationResult.fail === 0 &&
     bTagPrimitiveResult.fail === 0 &&
     bTagSeedsResult.fail === 0 &&
     dualZWriterResult.fail === 0 &&

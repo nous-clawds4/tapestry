@@ -1,12 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { usePov } from '../context/PovContext';
 import { useConfig } from '../context/ConfigContext';
 import BrainstormUserMenu, { useHouseProfile } from '../components/BrainstormUserMenu';
 import AssistantProfileEditor from '../components/AssistantProfileEditor';
 
 /* ── Helpers ──────────────────────────────────────────── */
-
-const POV_STORAGE_PREFIX = 'bs_pov_';
 
 function timeAgoShort(unixSeconds) {
   if (!unixSeconds) return null;
@@ -53,32 +52,14 @@ export default function BrainstormSettings() {
   const [loadStatus, setLoadStatus] = useState(null);
   const [scoresReady, setScoresReady] = useState(false);
 
-  // Preferences
-  const [pov, setPov] = useState('nosfabrica');
+  // Preferences. The POV selection is the ONE shared PovContext value (Story 4:
+  // single writer). Aliased to pov/setPov so the rest of this page is unchanged;
+  // PovContext owns loading + persisting it (no local pov state, no clobber).
+  const { selectedPov: pov, setSelectedPov: setPov } = usePov() || {};
   const [selectedMetrics, setSelectedMetrics] = useState(new Set());
   const [filters, setFilters] = useState({});
   const [sortConfig, setSortConfig] = useState({ metric: null, direction: 'desc' });
   const [filterSortDirty, setFilterSortDirty] = useState(false);
-
-  // ── Read persisted POV on mount (mirrors BrainstormSearch logic) ──
-  useEffect(() => {
-    if (!user) return;
-    // Fast: localStorage first
-    const cached = localStorage.getItem(POV_STORAGE_PREFIX + user.pubkey);
-    if (cached === 'user' || cached === 'nosfabrica') setPov(cached);
-  }, [user]);
-
-  // ── Persist POV changes immediately (mirrors BrainstormSearch logic) ──
-  useEffect(() => {
-    if (!user || !pov) return;
-    localStorage.setItem(POV_STORAGE_PREFIX + user.pubkey, pov);
-    // Save to server (best effort, non-blocking)
-    fetch('/api/user-prefs', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pov }),
-    }).catch(() => {});
-  }, [user, pov]);
 
   // ── Helpers ──
   async function countLocalTAs(delegatedPubkey) {

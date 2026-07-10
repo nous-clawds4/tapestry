@@ -2594,6 +2594,48 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   border-radius: 50%;
   object-fit: cover;
 }
+/* POV switch in the global user menu (Story 4) */
+.bs-usermenu-pov-switch {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  align-items: center;
+}
+.bs-usermenu-pov-switch-label {
+  font-size: 0.72rem;
+  opacity: 0.55;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.bs-usermenu-pov-switch-btns {
+  display: inline-flex;
+  gap: 0.25rem;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 8px;
+  padding: 2px;
+}
+.bs-usermenu-pov-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.3rem 0.6rem;
+  font-size: 0.8rem;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  opacity: 0.6;
+  cursor: pointer;
+}
+.bs-usermenu-pov-btn.is-active {
+  background: rgba(165, 180, 252, 0.18);
+  color: #a5b4fc;
+  opacity: 1;
+}
+.bs-usermenu-pov-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
 .bs-usermenu-settings-btn,
 .bs-usermenu-pins-btn {
   display: block;
