@@ -1,6 +1,6 @@
 # Story 4: Unify POV selection state — one writer, no mount clobber, global switcher
 
-**Status:** Draft
+**Status:** Done
 **Created:** 2026-07-09
 **Type:** Bug + Enhancement (Story-1 completeness)
 **Provenance:** Live-found 2026-07-09. Operator set "My WoT" in Settings, hard-refreshed a tag page,
