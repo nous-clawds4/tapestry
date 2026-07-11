@@ -39,8 +39,8 @@ export default function BrainstormPersonalization() {
             <li>
               <strong>My Point of View</strong> — Your personalized perspective. Uses trust scores{' '}
               derived from <em>your</em> extended community, calculated and made available to platforms
-              like <a href="https://brainstorm.world" >brainstorm.world</a> by a
-              service such as the one at <a href="https://brainstorm.nosfabrica.com" target="_blank">brainstorm.nosfabrica.com</a>.
+              like this one by a
+              service such as the one at <a href="https://brainstorm.world" target="_blank">brainstorm.world</a>.
               Or if you prefer, you can be your own trust scores service provider by running the{' '}
               <a href="https://github.com/nosfabrica" target="_blank">open source code</a>.
             </li>
