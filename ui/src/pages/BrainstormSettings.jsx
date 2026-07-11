@@ -488,6 +488,15 @@ export default function BrainstormSettings() {
           </div>
         </div>
 
+        {/* Pinned tags */}
+        <div className="bss-card">
+          <div className="bss-card-header">Your pinned tags</div>
+          <p className="bss-card-body">
+            Browse and manage the tags you've pinned to your personal curated set.
+          </p>
+          <a href="/pins" className="bss-link-btn">📌 Open your pins</a>
+        </div>
+
         {/* Assistant profile card */}
         <div className="bss-card">
           <AssistantProfileEditor customerPubkey={user.pubkey} />

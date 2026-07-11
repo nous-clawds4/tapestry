@@ -10,20 +10,28 @@
  *   - buildFeed(options)   — the orchestrator, returns a discriminated `status`
  *     union { OK, EMPTY, NO_SOURCE, FOLLOW_LIST_UNAVAILABLE } plus, on OK/EMPTY,
  *     a `relaySource` discriminator { set, fallback } and an `items` array shaped
- *       { id, pubkey, createdAt, content, author: { displayName, avatar } }.
+ *       { id, pubkey, createdAt, content, author: { displayName, avatar },
+ *         mentions: { <pubkey>: <displayName> } }.
+ *     `mentions` resolves the note's `nostr:npub…/nprofile…` references to local
+ *     display names (so the UI shows "@name" not a raw npub); empty when none resolve.
  *   - handleGetFeed(req, res) — the public GET /api/feed Express handler.
  *
- * Injectable dependency seam (ADR amendment 2026-06-15). buildFeed reads its four
- * I/O boundaries from `options`, each defaulting to the real helper when absent.
+ * Injectable dependency seam (ADR amendment 2026-06-15; fifth boundary added by
+ * story test-hermeticity-ci #1, 2026-07-05). buildFeed reads its five I/O
+ * boundaries from `options`, each defaulting to the real helper when absent.
  * Fakes may be spread onto the options object OR live under `options.deps`
  * (read `options.deps?.X ?? options.X ?? <realHelper>`):
  *   - getSettings()          — House-PoV read (resolveSource)
  *   - scanStrfry(filter)     — local strfry scan for kind-3 / kind-0
  *   - runCypher(cypher,prms) — general-purpose relay-set resolution
  *   - querySync(relays,flt)  — external kind-1 fetch
+ *   - getTaPubkey()          — TA pubkey for the relay-set handle (runtime-
+ *     resolved via utils/assistantKeys: env → brainstorm.conf → secure storage;
+ *     never hardcoded — CLAUDE.md house rule)
  * Production callers invoke buildFeed({ sessionPubkey }) with no deps and get the
  * real helpers unchanged. The seam is parameter wiring only — no new dependency,
- * no behavior change, no firmware change.
+ * no behavior change, no firmware change. Relay-set degrade is LEGIBLE: any
+ * resolution failure logs its cause alongside the fallback decision.
  */
 
 // nostr-tools / ws are required via the container's absolute module path, the
@@ -31,6 +39,10 @@
 // real querySync helper so the module loads in test/CI where the path is absent.
 const NOSTR_TOOLS_PATH = '/usr/local/lib/node_modules/brainstorm/node_modules/nostr-tools';
 const WS_PATH = '/usr/local/lib/node_modules/brainstorm/node_modules/ws';
+
+// Shared note enrichment (author + mention display names from local kind-0). Extracted
+// so the profile "latest note" and per-user notes read paths reuse the same logic/shape.
+const { enrichNotes } = require('../_shared/noteEnrichment');
 
 const FETCH_TIMEOUT_MS = 8000;
 const FEED_CAP = 50;
@@ -64,6 +76,11 @@ function realScanStrfry(filter) {
 /** Default relay-set resolution via Neo4j. */
 function realRunCypher(cypher, params) {
   return require('../../lib/neo4j-driver').runCypher(cypher, params);
+}
+
+/** Default TA-pubkey read — lazy + runtime-resolved (never hardcoded). */
+function realGetTaPubkey() {
+  return require('../../utils/assistantKeys').getOwnerAssistantPubkey();
 }
 
 /** Default external kind-1 fetch via SimplePool. */
@@ -124,13 +141,32 @@ async function getLocalFollows(pubkey, scanStrfry) {
   return { follows };
 }
 
+/** One legible line naming why the relay set degraded (see module header). */
+function logRelaySetDegrade(stage, err) {
+  const detail = err ? `${err.message}${err.code ? ` [${err.code}]` : ''}` : 'no TA pubkey resolvable';
+  console.error(`[feed] relay-set resolution failed (${stage}: ${detail}); using fallback relays`);
+}
+
 /**
  * Resolve the general-purpose relay set by slug-from-TA. Empty / error ⇒ the
  * hardcoded fallback relays. → { relays: string[], source: 'set' | 'fallback' }.
+ * The TA read and the query are guarded separately so a packaging/install
+ * failure (e.g. MODULE_NOT_FOUND) is never silently indistinguishable from an
+ * empty relay set; a null TA short-circuits (no 39999:null:… handle is queried).
  */
-async function resolveGeneralPurposeRelays(runCypher) {
+async function resolveGeneralPurposeRelays(runCypher, getTaPubkey) {
+  let ta;
   try {
-    const ta = require('../../utils/assistantKeys').getOwnerAssistantPubkey();
+    ta = getTaPubkey();
+  } catch (err) {
+    logRelaySetDegrade('TA pubkey read', err);
+    return { relays: FALLBACK_RELAYS.slice(), source: 'fallback' };
+  }
+  if (!ta) {
+    logRelaySetDegrade('TA pubkey read', null);
+    return { relays: FALLBACK_RELAYS.slice(), source: 'fallback' };
+  }
+  try {
     const handle = `39999:${ta}:${RELAY_SET_SLUG}`;
     const rows = await runCypher(
       'MATCH (s:Set {uuid:$h})-[:HAS_ELEMENT]->(m:ListItem) WHERE NOT m:Superset ' +
@@ -147,7 +183,9 @@ async function resolveGeneralPurposeRelays(runCypher) {
       } catch { /* skip unparseable member */ }
     }
     if (relays.length > 0) return { relays, source: 'set' };
-  } catch { /* fall through to fallback */ }
+  } catch (err) {
+    logRelaySetDegrade('set query', err);
+  }
   return { relays: FALLBACK_RELAYS.slice(), source: 'fallback' };
 }
 
@@ -172,46 +210,6 @@ async function fetchNotes(followPubkeys, relays, querySync) {
   return notes.slice(0, FEED_CAP);
 }
 
-/**
- * Attach author display name + avatar from LOCAL kind-0 profile data only.
- * Missing profile ⇒ { displayName: null, avatar: null }. Never an external fetch.
- */
-async function enrichAuthors(notes, scanStrfry) {
-  const authors = [...new Set(notes.map(n => n.pubkey))];
-  const profiles = new Map();
-  if (authors.length > 0) {
-    let events = [];
-    try {
-      events = (await scanStrfry({ kinds: [0], authors })) || [];
-    } catch { events = []; }
-    for (const ev of events) {
-      if (!ev || ev.kind !== 0) continue;
-      const prev = profiles.get(ev.pubkey);
-      if (prev && prev.created_at >= ev.created_at) continue;
-      let parsed = {};
-      try { parsed = JSON.parse(ev.content) || {}; } catch { parsed = {}; }
-      profiles.set(ev.pubkey, {
-        created_at: ev.created_at,
-        displayName: parsed.display_name || parsed.name || null,
-        avatar: parsed.picture || null,
-      });
-    }
-  }
-  return notes.map(n => {
-    const p = profiles.get(n.pubkey);
-    return {
-      id: n.id,
-      pubkey: n.pubkey,
-      createdAt: n.created_at,
-      content: n.content,
-      author: {
-        displayName: p ? p.displayName : null,
-        avatar: p ? p.avatar : null,
-      },
-    };
-  });
-}
-
 // ─── Orchestrator ───────────────────────────────────────────────────────────────
 
 /**
@@ -225,6 +223,7 @@ async function buildFeed(options = {}) {
   const scanStrfry = deps?.scanStrfry ?? options.scanStrfry ?? realScanStrfry;
   const runCypher = deps?.runCypher ?? options.runCypher ?? realRunCypher;
   const querySync = deps?.querySync ?? options.querySync ?? realQuerySync;
+  const getTaPubkey = deps?.getTaPubkey ?? options.getTaPubkey ?? realGetTaPubkey;
 
   // 1. Source identity. None ⇒ NO_SOURCE (no relays queried).
   const source = resolveSource(sessionPubkey, getSettings);
@@ -237,11 +236,11 @@ async function buildFeed(options = {}) {
   }
 
   // 3. Relay set (slug-from-TA) with fallback.
-  const { relays, source: relaySource } = await resolveGeneralPurposeRelays(runCypher);
+  const { relays, source: relaySource } = await resolveGeneralPurposeRelays(runCypher, getTaPubkey);
 
   // 4. Fetch + filter + order + cap, then enrich from local profiles.
   const notes = await fetchNotes(followResult.follows, relays, querySync);
-  const items = await enrichAuthors(notes, scanStrfry);
+  const items = await enrichNotes(notes, scanStrfry);
 
   if (items.length === 0) {
     return { status: 'EMPTY', source, relaySource, items: [] };

@@ -613,6 +613,24 @@
       "notes": "Story #4 / ADR 0003. Profile resync runs unconditionally; House score-load runs only when grapevine.searchPreferences.povPubkey and .delegatedPubkey are both set."
     },
 
+    "refreshPinnedTagTLs": {
+      "name": "Refresh Pinned-tag Trusted Lists",
+      "categories": ["algorithms", "export"],
+      "description": "Generate or refresh kind-30392 Trusted List events for every Pin event in local strfry, computed under each pin's observer POV using the pin's curation-method. Publishes to local strfry only. Scheduled via /api/scheduled-tasks (taskId=refreshPinnedTagTLs).",
+      "scripts": [
+        "$BRAINSTORM_MODULE_SRC_DIR/algos/refreshPinnedTagTLs.sh"
+      ],
+      "script": "$BRAINSTORM_MODULE_SRC_DIR/algos/refreshPinnedTagTLs.sh",
+      "script_relative_path": "algos/refreshPinnedTagTLs.sh",
+      "scope": "house",
+      "priority": "normal",
+      "frequency": "timer-based",
+      "status": "active",
+      "structuredLogging": true,
+      "options": {},
+      "notes": "Story #11 / ADR 0010. v1 supports curation-method.method='nip85:rank' only; other methods are skipped silently."
+    },
+
     "updateAllScoresForSingleCustomer": {
       "resourceClass": "neo4j-heavy",
       "name": "Update All Scores For Single Customer",

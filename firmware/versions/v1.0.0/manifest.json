@@ -304,7 +304,14 @@
             "jsonSchema": "json-schema.json",
             "categories": [
                 "tag"
-            ]
+            ],
+            "communityReference": {
+                "headerATag": "39998:82b75e474dda005e912bcbb910391c60c2b89cc7faf5d3c30b7c59a324973833:tag",
+                "relayHints": [
+                    "wss://dcosl.brainstorm.world"
+                ],
+                "knownGoodEventId": "6f38f7b7748cbece9f75d131f0c79392cc01fc24cac8a7bdd11a9fc9f24e6fd0"
+            }
         },
         {
             "slug": "nostr-user-tag",
@@ -314,7 +321,14 @@
             "categories": [
                 "tag",
                 "nostr"
-            ]
+            ],
+            "communityReference": {
+                "headerATag": "39998:82b75e474dda005e912bcbb910391c60c2b89cc7faf5d3c30b7c59a324973833:nostr-user-tag",
+                "relayHints": [
+                    "wss://dcosl.brainstorm.world"
+                ],
+                "knownGoodEventId": "7df925f78f7f416429b52d558712f1a33d018170a3558706024140199dfe7893"
+            }
         },
         {
             "slug": "tag-pinning",
@@ -323,7 +337,14 @@
             "jsonSchema": "json-schema.json",
             "categories": [
                 "tag"
-            ]
+            ],
+            "communityReference": {
+                "headerATag": "39998:82b75e474dda005e912bcbb910391c60c2b89cc7faf5d3c30b7c59a324973833:tag-pinning",
+                "relayHints": [
+                    "wss://dcosl.brainstorm.world"
+                ],
+                "knownGoodEventId": "69d36397d92c086b5c184840f5af91ad89ab2f7718fcc674418a0b80074c1eef"
+            }
         }
     ],
     "enumerations": {

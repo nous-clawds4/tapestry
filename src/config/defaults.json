@@ -27,6 +27,7 @@
       "wss://profiles.nostr1.com"
     ],
     "aOutboxRelays": [],
+    "aTagFederationRelays": [],
     "safeModeRelays": [
       "wss://nip85.brainstorm.world",
       "wss://dcosl.brainstorm.world",
@@ -40,6 +41,15 @@
       "delegatedPubkey": null,
       "nip85Relay": null
     }
+  },
+  "search": {
+    "resultTypes": {
+      "profiles": true,
+      "tags": false
+    }
+  },
+  "openRanking": {
+    "personalizedStats": false
   },
   "nip05": {
     "names": {},

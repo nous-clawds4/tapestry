@@ -48,13 +48,15 @@ function getDriver() {
  *
  * @param {string} cypher - Cypher query string
  * @param {Object} [params={}] - Query parameters
+ * @param {Object} [txConfig] - Optional transaction config (e.g. { timeout: ms })
+ *   forwarded to session.run; omit for the default (no per-query deadline).
  * @returns {Promise<Array<Object>>}
  */
-async function runCypher(cypher, params = {}) {
+async function runCypher(cypher, params = {}, txConfig) {
   const driver = getDriver();
   const session = driver.session({ defaultAccessMode: neo4j.session.READ });
   try {
-    const result = await session.run(cypher, params);
+    const result = await session.run(cypher, params, txConfig);
     return result.records.map(record => {
       const obj = {};
       for (const key of record.keys) {

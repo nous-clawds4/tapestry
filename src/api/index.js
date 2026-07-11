@@ -32,6 +32,7 @@ const { handleGetGrapevineInteraction } = require('./grapevineInteractions/queri
 const { handleGetGrapevineFollows } = require('./grapevineInteractions/queries/followsWithMetrics');
 const { handleGetGrapevineFollowers } = require('./grapevineInteractions/queries/followersWithMetrics');
 const { handleGetGrapevineReporters } = require('./grapevineInteractions/queries/reportersWithMetrics');
+const { handleGetGrapevineMuters } = require('./grapevineInteractions/queries/mutersWithMetrics');
 const { handleOldSearchProfiles, handleOldSearchProfilesStream } = require('./search/profiles');
 const { handleKeywordSearchProfiles } = require('./search/profiles/keyword');
 const { handlePrecomputeWhitelistMaps, handlePrecomputeWhitelistStatus } = require('./search/profiles/whitelistPrecompute');
@@ -82,6 +83,8 @@ const { handleFetchProfiles } = require('./profiles/fetchProfiles.js');
 const { handleFetchExternalReactions } = require('./reactions/fetchReactions.js');
 const { handleFetchExternalEvents } = require('./relay/fetchEvents.js');
 const { handleGetFeed } = require('./feed/feedReadPath.js');
+const { handleGetUserNotes } = require('./notes/userNotesReadPath.js');
+const { handleGetEvent } = require('./event/eventReadPath.js');
 const { requireOwner, handleGetSettings, handleGetDefaults, handleGetOverrides, handleUpdateSettings, handleResetSetting } = require('./settings/settingsApi.js');
 const { handleGetGrapevinePreferences, handleUpdateGrapevinePreferences } = require('./settings/grapevinePrefApi.js');
 const { handleGetUserPrefs, handleUpdateUserPrefs } = require('./settings/userPrefsApi.js');
@@ -99,6 +102,11 @@ async function register(app) {
 
     // ── NIP-05 server endpoint (.well-known/nostr.json, public, CORS open) ──
     registerNip05Routes(app);
+
+    // ── Open-Ranking (ORE) provider: .well-known/open-ranking.json + /stats/pubkey ──
+    //    Public, off the /api/ prefix → auto-public via the auth middleware. See ADR open-ranking/0001.
+    const { registerOpenRankingRoutes } = require('./open-ranking');
+    registerOpenRankingRoutes(app);
 
     app.get('/api/algos/config/get/graperank', handleGetGrapeRankConfig);
     app.post('/api/algos/config/update/graperank', handleUpdateGrapeRankConfig);
@@ -197,6 +205,8 @@ async function register(app) {
     app.get('/api/get-nip56-profiles', users.handleGetNip56Profiles);
     app.get('/api/get-user-data', users.handleGetUserData);
     app.get('/api/get-user-counts', users.handleGetUserCounts);
+    app.get('/api/get-follows-hops', users.handleGetFollowsHops);
+    app.get('/api/get-follows-hops-paths', users.handleGetFollowsHopsPaths);
     app.get('/api/get-network-proximity', users.handleGetNetworkProximity);
     app.get('/api/get-npub-from-pubkey', users.handleGetNpubFromPubkey);
     app.get('/api/get-pubkey-from-npub', users.handleGetPubkeyFromNpub);
@@ -299,6 +309,12 @@ async function register(app) {
     // Live-feed read path (public, read-only) — Story live-feed #1, ADR live-feed/0001
     app.get('/api/feed', handleGetFeed);
 
+    // By-author notes read path (public, read-only) — Story note-surfaces #1, ADR note-surfaces/0001
+    app.get('/api/user/:pubkey/notes', handleGetUserNotes);
+
+    // Event read path (public, read-only) — Story event-page #1, ADR event-page/0001
+    app.get('/api/event', handleGetEvent);
+
     // Settings endpoints (owner-only except GET merged)
     // /api/grapevine/preferences writes to the HOUSE config (settings.grapevine.searchPreferences)
     // which cascades to all users who haven't set their own override. GET stays public so
@@ -328,6 +344,8 @@ async function register(app) {
     app.get('/api/get-grapevine-followers', handleGetGrapevineFollowers);
     // Verified reporters list (owner/House-POV metrics) (verified-reporters #2 / ADR 0002)
     app.get('/api/get-grapevine-reporters', handleGetGrapevineReporters);
+    // Verified muters list (owner/House-POV metrics) (verified-muters #1 / ADR 0001)
+    app.get('/api/get-grapevine-muters', handleGetGrapevineMuters);
 
     // Search endpoint
     app.get('/api/search/profiles', handleOldSearchProfiles);

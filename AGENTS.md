@@ -11,8 +11,10 @@ The control panel API runs on a port set by `CONTROL_PANEL_PORT` in `/etc/brains
 ```bash
 # Preferred — the running config
 grep -E '^export CONTROL_PANEL_PORT=' /etc/brainstorm.conf 2>/dev/null \
-  || grep -E '^export CONTROL_PANEL_PORT=' config/brainstorm.conf.template
+  || grep -E 'CONTROL_PANEL_PORT' bin/control-panel.js   # code default: 7778
 ```
+
+(`config/brainstorm.conf.template` does not set `CONTROL_PANEL_PORT`; the code default lives in `bin/control-panel.js`.)
 
 Set it as an env var for the rest of the session so the examples below work:
 
@@ -30,15 +32,19 @@ The TA is per-deployment — created at first container startup by `setup/create
 
 ---
 
-## 2. Orient yourself with the Concept Graph API first
+## 2. Orient: probe the graph, then follow the ladder
 
-Before reading source files or BIBLE.md, call the summaries endpoint. It gives you a compact picture of the entire domain in ~3k tokens:
+**The card (works with no stack):** Tapestry = strfry (nostr events) + Neo4j (concept graph + WoT) + Meilisearch (search docs) + a Node control panel (API + UI), all in Docker. Domain knowledge lives in the **concept graph** when the stack is up, and in `firmware/*.json` + BIBLE.md when it isn't. Key directories: `src/` (server), `ui/` (React), `engineering-team/` + `product-team/` (process harness), `protocols/` (specs), `scripts/` (harness tooling). Process rules: CLAUDE.md's pointer table.
+
+**Probe once (≤2s)** — before reading source files or BIBLE.md:
 
 ```bash
-curl http://localhost:$TAPESTRY_PORT/api/concept-graph/summaries
+curl -sf -m 2 http://localhost:$TAPESTRY_PORT/api/concept-graph/summaries
 ```
 
-Each entry has: `handle`, `name`, `description` (~1 sentence), `elementCount`, `setCount`. Scan these to identify which concepts are relevant to your task. Then stop — do not load more until you need it.
+**Probe succeeds — stack present:** the summaries are a compact picture of the entire domain in ~3k tokens. Each entry has: `handle`, `name`, `description` (~1 sentence), `elementCount`, `setCount`. Scan these to identify the 1–3 concepts relevant to your task. Then stop — do not load more until you need it. Continue with §3; the "don't load BIBLE.md / firmware" rule (§4) applies **only on this branch**.
+
+**Probe fails — stack absent (web/remote/CI sessions):** fall back down the ladder: orient from `firmware/*.json` (the concept definitions the graph is built from), then BIBLE.md §5–§9 via its table of contents for architecture context. **Unavailable this session:** firmware install (§6), `/cycle-local` smoke tests, anything else needing `localhost:$TAPESTRY_PORT`. State which branch you're on early — don't guess at graph state you can't see.
 
 ---
 
@@ -68,7 +74,7 @@ Full node content including the `json` tag (word-wrapper format with schema, pro
 
 **Don't use `/subgraph` with depth > 1** unless you specifically need a nested tree structure. Depth 2 pulls in hundreds of nodes and is almost always more than you need.
 
-**Don't load BIBLE.md or firmware JSON files** to understand a concept that's already in the graph. The graph is the authoritative, queryable form of that knowledge.
+**Don't load BIBLE.md or firmware JSON files** to understand a concept that's already in the graph — *when the graph is reachable* (§2's success branch). The graph is the authoritative, queryable form of that knowledge. On the stack-absent branch, firmware + BIBLE **are** the sanctioned path.
 
 **Don't call `/neighbors` on every node you encounter.** Follow the handle only when a neighbor is relevant to your task.
 

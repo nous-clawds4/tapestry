@@ -35,17 +35,30 @@
 
 const fs = require('fs');
 const path = require('path');
+const { pathToFileURL } = require('url');
 
 const PAGE   = path.resolve(__dirname, '../ui/src/pages/BrainstormFeed.jsx');
 const HOOK   = path.resolve(__dirname, '../ui/src/hooks/useFeed.js');
 const APP    = path.resolve(__dirname, '../ui/src/App.jsx');
 const STYLES = path.resolve(__dirname, '../ui/src/styles.css');
 const READ_PATH = path.resolve(__dirname, '../src/api/feed/feedReadPath.js');
+const TIMEAGO = path.resolve(__dirname, '../ui/src/utils/timeAgo.js');
+const NOSTR_ENTITIES = path.resolve(__dirname, '../ui/src/utils/nostrEntities.js');
+const COMPONENT_NOTE_CONTENT = path.resolve(__dirname, '../ui/src/components/NoteContent.jsx');
+const NOTE_CARD = path.resolve(__dirname, '../ui/src/components/NoteCard.jsx');
 
 const tests = [];
 function test(name, fn) { tests.push({ name, fn }); }
 function assert(cond, msg) { if (!cond) throw new Error(msg || 'Assertion failed'); }
 function safeRead(p) { try { return fs.readFileSync(p, 'utf8'); } catch { return ''; } }
+async function loadEsm(absPath) {
+  try { return await import(pathToFileURL(absPath).href); }
+  catch { return null; }
+}
+
+// Fixed "now" so the relative-time assertions are deterministic.
+const TA_NOW = 1_700_000_000;
+const TA_MIN = 60, TA_HOUR = 3600, TA_DAY = 86400, TA_YEAR = 365 * TA_DAY;
 
 // Slice the body-helper function (renderFeedState OR FeedBody) out of the page source so the
 // branch sentinels match logic *inside* the pure helper, not anywhere on the page. Returns the
@@ -115,8 +128,9 @@ test('T4: the OK branch renders the indicator then maps items in ARRAY ORDER wit
 });
 
 test('T5: each note entry shows author display name + avatar (with placeholder fallback) + timestamp + text (AC-2 content)', () => {
-  const src = safeRead(PAGE);
-  assert(src.length > 0, 'BrainstormFeed.jsx does not exist yet.');
+  // The per-note card is now the shared NoteCard component (extracted from the page).
+  const src = safeRead(NOTE_CARD);
+  assert(src.length > 0, 'ui/src/components/NoteCard.jsx must exist — the shared per-note card unit.');
   // Per-note content fields off the contract item { author:{ displayName, avatar }, createdAt, content }.
   assert(/author[\s\S]{0,12}displayName|displayName/.test(src),
     "each entry must show the author display name (item.author.displayName) (AC-2).");
@@ -131,10 +145,10 @@ test('T5: each note entry shows author display name + avatar (with placeholder f
 });
 
 test('T6: derives the per-note timestamp from createdAt via a local formatTimestamp helper, with no date library (AC-2 timestamp)', () => {
-  const src = safeRead(PAGE);
-  assert(src.length > 0, 'BrainstormFeed.jsx does not exist yet.');
+  const src = safeRead(NOTE_CARD);
+  assert(src.length > 0, 'ui/src/components/NoteCard.jsx must exist.');
   assert(/formatTimestamp/.test(src),
-    'the page must define a local formatTimestamp helper that turns the Unix-seconds createdAt into a human timestamp (ADR §Impl: a tiny local helper, no date library).');
+    'NoteCard must define a local formatTimestamp helper that turns the Unix-seconds createdAt into a human timestamp (a tiny local helper, no date library).');
   // ADR/house rule: no new dependency — must not import a date library (moment/dayjs/date-fns/luxon).
   assert(!/from\s+['"](moment|dayjs|date-fns|luxon)['"]/.test(src) && !/require\(\s*['"](moment|dayjs|date-fns|luxon)['"]/.test(src),
     'formatTimestamp must NOT pull in a date library (moment/dayjs/date-fns/luxon) — no new dependency (ADR §Constraints / house rules). Use the built-in Date.');
@@ -208,14 +222,15 @@ test('T10: useFeed fetches /api/feed and surfaces a transport failure as `error`
 test('T11: note text wraps so a long token cannot overflow 1280px (overflow-wrap / word-break) (AC-1 no overflow)', () => {
   const css = safeRead(STYLES);
   assert(css.length > 0, 'ui/src/styles.css missing — unexpected.');
-  // A new feed-item / feed-text class must wrap long content/URLs. Anchor on a bsp-feed-* rule
-  // (none exist pre-implementation) carrying overflow-wrap/word-break.
-  const block = css.match(/\.bsp-feed[\w-]*\s*\{[^}]*\}/g);
+  // The shared note-card text class must wrap long content/URLs. Anchor on a bsp-note-card-*
+  // rule carrying overflow-wrap/word-break (the protection now travels with the card to every
+  // surface that reuses it, not just the feed).
+  const block = css.match(/\.bsp-note-card[\w-]*\s*\{[^}]*\}/g);
   assert(block && block.length > 0,
-    'styles.css must define at least one new bsp-feed-* rule for the feed items (none exist pre-implementation).');
+    'styles.css must define the shared bsp-note-card-* rules for the note card.');
   const joined = block.join('\n');
   assert(/overflow-wrap\s*:\s*(anywhere|break-word)|word-break\s*:\s*(break-word|break-all)/.test(joined),
-    'a bsp-feed-* rule must wrap note text (overflow-wrap:anywhere / word-break) so a long URL or unbroken token cannot extend past the column / 1280px (AC-1 no horizontal overflow).');
+    'a bsp-note-card-* rule must wrap note text (overflow-wrap:anywhere / word-break) so a long URL or unbroken token cannot extend past the column / 1280px (AC-1 no horizontal overflow).');
 });
 
 test('T12: the feed column is width-capped with box-sizing:border-box so content cannot exceed 1280px (AC-1 no overflow)', () => {
@@ -225,14 +240,14 @@ test('T12: the feed column is width-capped with box-sizing:border-box so content
   assert(css.length > 0, 'ui/src/styles.css missing — unexpected.');
   // The column must be capped (a max-width token / inline maxWidth, as BrainstormAbout does) and
   // box-sizing:border-box so padding doesn't push the box past its cap. Accept the cap on the page
-  // (inline maxWidth, the BrainstormAbout pattern) OR in a bsp-feed-* CSS rule.
+  // (inline maxWidth, the BrainstormAbout pattern) OR in a shared bsp-note-card-* CSS rule.
   const cappedOnPage = /maxWidth\s*:\s*\d/.test(src);
-  const feedRules = (css.match(/\.bsp-feed[\w-]*\s*\{[^}]*\}/g) || []).join('\n');
-  const cappedInCss = /max-width\s*:\s*\d/.test(feedRules);
+  const cardRules = (css.match(/\.bsp-note-card[\w-]*\s*\{[^}]*\}/g) || []).join('\n');
+  const cappedInCss = /max-width\s*:\s*\d/.test(cardRules);
   assert(cappedOnPage || cappedInCss,
-    'the feed column must be width-capped — an inline maxWidth on the bsp-content column (the BrainstormAbout pattern) or a max-width on a bsp-feed-* rule — so the page does not stretch unbounded (AC-1 no overflow @1280px).');
-  assert(/box-sizing\s*:\s*border-box/.test(feedRules) || /box-sizing\s*:\s*border-box/.test(css),
-    'the feed item/column must use box-sizing:border-box so its padding is inside the capped width and cannot push content past 1280px (AC-1).');
+    'the column must be width-capped — an inline maxWidth on the bsp-content column (the BrainstormAbout pattern) or a max-width on a bsp-note-card-* rule — so the page does not stretch unbounded (AC-1 no overflow @1280px).');
+  assert(/box-sizing\s*:\s*border-box/.test(cardRules) || /box-sizing\s*:\s*border-box/.test(css),
+    'the note card/column must use box-sizing:border-box so its padding is inside the capped width and cannot push content past 1280px (AC-1).');
 });
 
 // ===========================================================================
@@ -313,6 +328,136 @@ test('R2: this story re-derives nothing — the read-path module src/api/feed/fe
     assert(new RegExp("status:\\s*['\"]" + status + "['\"]").test(src),
       `the read path must still return the '${status}' status (the four-outcome contract this page maps over — owned by #1, untouched by this story).`);
   }
+});
+
+// ===========================================================================
+// RELATIVE TIMESTAMP — the feed shows a compact "time ago" label (max two
+// y/d/h/m units, space-separated), delegating the unit math to the shared
+// formatTimeAgo helper. These EXECUTE the real ui ESM (dynamic import).
+// ===========================================================================
+
+test('T17: formatTimeAgo({maxUnits:2, separator:" "}) renders the feed two-unit space format', async () => {
+  const mod = await loadEsm(TIMEAGO);
+  assert(mod && typeof mod.formatTimeAgo === 'function',
+    'ui/src/utils/timeAgo.js must export formatTimeAgo — the feed reuses it for its relative label.');
+  const fmt = (sec) => mod.formatTimeAgo(TA_NOW - sec, TA_NOW, { maxUnits: 2, separator: ' ' });
+  assert(fmt(2 * TA_MIN) === '2m ago', `2m → "2m ago", got "${fmt(2 * TA_MIN)}"`);
+  assert(fmt(4 * TA_HOUR + 53 * TA_MIN) === '4h 53m ago', `4h53m → "4h 53m ago", got "${fmt(4 * TA_HOUR + 53 * TA_MIN)}"`);
+  assert(fmt(1 * TA_YEAR + 213 * TA_DAY) === '1y 213d ago', `1y213d → "1y 213d ago", got "${fmt(1 * TA_YEAR + 213 * TA_DAY)}"`);
+  // The third unit is dropped — at most two units (the story's "1y, 23d, 4h" → "1y 23d").
+  assert(fmt(1 * TA_YEAR + 23 * TA_DAY + 4 * TA_HOUR) === '1y 23d ago',
+    `1y23d4h → "1y 23d ago" (3rd unit dropped), got "${fmt(1 * TA_YEAR + 23 * TA_DAY + 4 * TA_HOUR)}"`);
+});
+
+test('T18: formatTimeAgo DEFAULTS are unchanged (3 units, comma separator) — verified-reporters untouched (regression)', async () => {
+  const mod = await loadEsm(TIMEAGO);
+  assert(mod && typeof mod.formatTimeAgo === 'function', 'ui/src/utils/timeAgo.js must export formatTimeAgo.');
+  // No opts → must still be the 3-unit comma format the verified-reporters suite pins.
+  const got = mod.formatTimeAgo(TA_NOW - (3 * TA_DAY + 4 * TA_HOUR + 12 * TA_MIN), TA_NOW);
+  assert(got === '3d, 4h, 12m ago', `default 3-unit comma format must be preserved; got "${got}"`);
+  assert(mod.formatTimeAgo(TA_NOW - 30, TA_NOW) === '0m ago', 'default sub-minute must still be "0m ago".');
+});
+
+test('T19: NoteCard reuses formatTimeAgo, renders "just now" for sub-minute, and keeps the exact time on hover (title)', () => {
+  const src = safeRead(NOTE_CARD);
+  assert(src.length > 0, 'ui/src/components/NoteCard.jsx must exist.');
+  assert(/from\s+['"]\.\.\/utils\/timeAgo['"]/.test(src) && /formatTimeAgo/.test(src),
+    'NoteCard must import + use formatTimeAgo from ../utils/timeAgo (reuse, not a third time-format copy).');
+  assert(/just now/.test(src),
+    'formatTimestamp must render "just now" for the sub-minute case (the smallest unit is the minute).');
+  assert(/maxUnits\s*:\s*2/.test(src),
+    'the card must request the two-unit form via formatTimeAgo(..., { maxUnits: 2, ... }).');
+  assert(/bsp-note-card-time[^>]*title=/.test(src) || /title=\{[^}]*absoluteTimestamp/.test(src),
+    'the timestamp element must carry a title (hover) with the exact local time so no precision is lost.');
+});
+
+// ===========================================================================
+// NIP-21 nostr: ENTITY PARSING — note content turns `nostr:<entity>` references
+// into in-app links (the standard nostr-client treatment). EXECUTES the real pure
+// parser (ui ESM via dynamic import); fixtures are minted with nostr-tools so the
+// asserted pubkey/id is self-validating, not hardcoded.
+// ===========================================================================
+
+const { nip19 } = require('nostr-tools');
+const TA_PK = 'a'.repeat(64);  // a deterministic 32-byte hex pubkey for fixtures
+const TA_ID = 'b'.repeat(64);  // a deterministic 32-byte hex event id
+
+function segsOfType(segs, t) { return segs.filter(s => s.type === t); }
+
+test('T20: parseNostrContent links npub/nprofile → /user/<pubkey> and note/nevent/naddr → /event?…', async () => {
+  const mod = await loadEsm(NOSTR_ENTITIES);
+  assert(mod && typeof mod.parseNostrContent === 'function',
+    'ui/src/utils/nostrEntities.js must export parseNostrContent — the feed reuses it to render note content.');
+  const p = mod.parseNostrContent;
+
+  const npub = nip19.npubEncode(TA_PK);
+  const nprofile = nip19.nprofileEncode({ pubkey: TA_PK });
+  const note = nip19.noteEncode(TA_ID);
+  const nevent = nip19.neventEncode({ id: TA_ID, author: TA_PK });
+  const naddr = nip19.naddrEncode({ identifier: 'x', pubkey: TA_PK, kind: 39998 });
+
+  const [pn] = segsOfType(p(`hi nostr:${npub} there`), 'profile');
+  assert(pn && pn.href === `/user/${TA_PK}` && pn.label.startsWith('@'), `npub → profile mention /user/<pubkey>, got ${JSON.stringify(pn)}`);
+  assert(segsOfType(p(`nostr:${nprofile}`), 'profile')[0]?.href === `/user/${TA_PK}`, 'nprofile → /user/<pubkey>');
+  assert(segsOfType(p(`nostr:${note}`), 'event')[0]?.href === `/event?id=${TA_ID}`, 'note → /event?id=<hex>');
+  assert(segsOfType(p(`nostr:${nevent}`), 'event')[0]?.href === `/event?nevent=${nevent}`, 'nevent → /event?nevent=<nevent>');
+  assert(segsOfType(p(`nostr:${naddr}`), 'event')[0]?.href === `/event?naddr=${naddr}`, 'naddr → /event?naddr=<naddr>');
+});
+
+test('T21: parseNostrContent preserves surrounding text in order (text / entity / text)', async () => {
+  const mod = await loadEsm(NOSTR_ENTITIES);
+  const nevent = nip19.neventEncode({ id: TA_ID });
+  const segs = mod.parseNostrContent(`before nostr:${nevent} after`);
+  assert(segs.length === 3, `expected 3 segments (text,event,text), got ${segs.length}`);
+  assert(segs[0].type === 'text' && segs[0].text === 'before ', 'leading text preserved');
+  assert(segs[1].type === 'event', 'middle segment is the event link');
+  assert(segs[2].type === 'text' && segs[2].text === ' after', 'trailing text preserved');
+});
+
+test('T22: parseNostrContent NEVER linkifies nsec, and keeps an undecodable entity as plain text (security + robustness)', async () => {
+  const mod = await loadEsm(NOSTR_ENTITIES);
+  const nsec = nip19.nsecEncode(new Uint8Array(32).fill(7));
+  const nsecSegs = mod.parseNostrContent(`leak? nostr:${nsec} end`);
+  assert(segsOfType(nsecSegs, 'profile').length === 0 && segsOfType(nsecSegs, 'event').length === 0,
+    'an nsec must NEVER be turned into a link — a private key stays as plain text.');
+  assert(nsecSegs.map(s => s.text || '').join('').includes(nsec), 'the nsec text itself is preserved verbatim (not dropped).');
+  // Undecodable (bad checksum) → kept as the original "nostr:…" text, never a broken link.
+  const bad = mod.parseNostrContent('nostr:nevent1qqsbadchecksumzzzz');
+  assert(segsOfType(bad, 'event').length === 0, 'an undecodable entity must not become an event link.');
+});
+
+test('T23: the user-provided real example strings decode to a profile and an event reference', async () => {
+  const mod = await loadEsm(NOSTR_ENTITIES);
+  const profileEx = 'nostr:nprofile1qqszv6q4uryjzr06xfxxew34wwc5hmjfmfpqn229d72gfegsdn2q3fgpz3mhxue69uhhyetvv9ujuerpd46hxtnfduq32amnwvaz7tmjv4kxz7fwv3sk6atn9e5k7tc6khtzt';
+  const eventEx = 'nostr:nevent1qqsz56926mefn8mj05mutplk4em3e8qypp9gmmkx6hq8yv5s3w0yqtsupa5xa';
+  const pseg = segsOfType(mod.parseNostrContent(profileEx), 'profile')[0];
+  assert(pseg && /^\/user\/[0-9a-f]{64}$/.test(pseg.href), `the nprofile example must resolve to /user/<64-hex>, got ${pseg && pseg.href}`);
+  const eseg = segsOfType(mod.parseNostrContent(eventEx), 'event')[0];
+  assert(eseg && eseg.href.startsWith('/event?nevent=nevent1'), `the nevent example must resolve to /event?nevent=…, got ${eseg && eseg.href}`);
+});
+
+test('T24: the feed renders each note via the shared NoteCard, which renders content through NoteContent (NIP-21 entity links)', () => {
+  const page = safeRead(PAGE);
+  const card = safeRead(NOTE_CARD);
+  const comp = safeRead(COMPONENT_NOTE_CONTENT);
+  assert(page.length > 0 && card.length > 0 && comp.length > 0, 'BrainstormFeed.jsx, NoteCard.jsx and NoteContent.jsx must exist.');
+  // The page delegates each item to the shared card unit (so the two new locations + future
+  // per-note improvements reuse one component) — it does not inline the card markup.
+  assert(/<NoteCard\b[^>]*\bitem=\{item\}/.test(page) && /import NoteCard/.test(page),
+    'the feed must render each note via <NoteCard item={item} /> (the shared per-note card), not inline card markup.');
+  assert(/<NoteContent\s+content=\{item\.content\}/.test(card),
+    'NoteCard must render the note text via <NoteContent content={item.content} /> (the entity-linkifying renderer), not {item.content} verbatim.');
+  assert(/parseNostrContent/.test(comp) && /react-router-dom/.test(comp),
+    'NoteContent must map parseNostrContent segments to react-router <Link>s.');
+});
+
+test('T25: NoteCard passes the resolved mentions map and NoteContent renders "@name" over the raw npub', () => {
+  const card = safeRead(NOTE_CARD);
+  const comp = safeRead(COMPONENT_NOTE_CONTENT);
+  assert(/<NoteContent\b[^>]*\bmentions=\{item\.mentions\}/.test(card),
+    'NoteCard must pass the read path\'s resolved mentions map: <NoteContent content={item.content} mentions={item.mentions} />.');
+  assert(/mentions\[seg\.pubkey\]/.test(comp) && /@\$\{name\}/.test(comp),
+    'NoteContent must look up mentions[seg.pubkey] and render "@${name}" when the display name is resolved (falling back to the npub otherwise).');
 });
 
 async function run() {

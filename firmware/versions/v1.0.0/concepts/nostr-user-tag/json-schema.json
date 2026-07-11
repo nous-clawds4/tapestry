@@ -42,6 +42,13 @@
             "title": "Tag Event ID",
             "slug": "tag-event-id",
             "description": "The event ID of the kind 39999 tag element being applied. Mirrors the event's `e` tag."
+          },
+          "tagAddress": {
+            "type": "string",
+            "name": "tagAddress",
+            "title": "Tag Address",
+            "slug": "tag-address",
+            "description": "Optional. The addressable coordinate `39999:<tagAuthorPubkey>:<slug>` of the tag element being applied (its stable identity). Mirrors the event's `a` tag (ADR-0022 hybrid e+a). Absent on legacy e-only assertions."
           }
         }
       }

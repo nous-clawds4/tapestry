@@ -1,6 +1,6 @@
 # Story 25: Manual task re-triggers should work after the previous attempt finishes
 
-**Status:** Draft
+**Status:** Done (backfilled 2026-07-02 — PASS review on record; see docs/HARNESS_REVIEW_HANDOFF_2026-07-02.md Appendix A)
 **Created:** 2026-05-24
 **Type:** Bug
 

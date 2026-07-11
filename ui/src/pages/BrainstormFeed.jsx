@@ -1,5 +1,6 @@
 import { useAuth } from '../context/AuthContext';
 import BrainstormUserMenu from '../components/BrainstormUserMenu';
+import NoteCard from '../components/NoteCard';
 import useFeed from '../hooks/useFeed';
 
 /**
@@ -26,12 +27,6 @@ export const FEED_COPY = {
   COULDNT_LOAD: "Couldn't load the feed right now.",
 };
 
-// Unix seconds → a human-readable local timestamp. Tiny local helper, no date library.
-export function formatTimestamp(createdAt) {
-  if (typeof createdAt !== 'number' || !Number.isFinite(createdAt)) return '';
-  return new Date(createdAt * 1000).toLocaleString();
-}
-
 export default function BrainstormFeed() {
   const { user, login, logout } = useAuth();
   const { data, loading, error } = useFeed();
@@ -52,32 +47,6 @@ export default function BrainstormFeed() {
         <h1 className="bsp-feed-heading">{FEED_COPY.HEADING}</h1>
         {renderFeedState({ data, loading, error })}
       </div>
-    </div>
-  );
-}
-
-// One note entry: avatar (placeholder fallback) + author display name + timestamp + text.
-function FeedItem({ item }) {
-  const author = item.author || {};
-  const displayName = author.displayName || (item.pubkey ? `${item.pubkey.slice(0, 8)}…` : 'Unknown');
-  const avatar = author.avatar;
-
-  return (
-    <div className="bsp-feed-item">
-      <div className="bsp-feed-item-head">
-        {avatar ? (
-          <img className="bsp-avatar bsp-feed-avatar" src={avatar} alt="" />
-        ) : (
-          <div className="bsp-avatar bsp-avatar-placeholder bsp-feed-avatar">
-            {displayName.charAt(0).toUpperCase()}
-          </div>
-        )}
-        <div className="bsp-feed-item-meta">
-          <div className="bsp-name bsp-feed-name">{displayName}</div>
-          <div className="bsp-feed-time">{formatTimestamp(item.createdAt)}</div>
-        </div>
-      </div>
-      <div className="bsp-feed-text">{item.content}</div>
     </div>
   );
 }
@@ -120,7 +89,7 @@ export function renderFeedState({ data, loading, error }) {
     <>
       <div className="bsp-feed-indicator">{FEED_COPY.INDICATOR}</div>
       <div className="bsp-feed-list">
-        {items.map(item => <FeedItem key={item.id} item={item} />)}
+        {items.map(item => <NoteCard key={item.id} item={item} />)}
       </div>
     </>
   );

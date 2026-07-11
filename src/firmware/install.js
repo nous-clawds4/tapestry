@@ -28,6 +28,9 @@ const firmware = require('../api/normalize/firmware');
 // strfry→Neo4j import primitive; Pass-3 derive does NOT do this — see
 // ADR 0005 Rev 2). Precedent: src/api/io.js single-event import.
 const { buildImportCypher, executeCypher } = require('../api/neo4j/eventSync');
+// TA signer for the b-tag emitter (ADR 0034): re-sign the local TA header
+// through the existing runtime TA key path — never a hardcoded key.
+const { loadTAKey, signAndFinalize } = require('../api/normalize/helpers');
 // Relationship type aliases used by concept manifests
 const REL = {
   CLASS_THREAD_INITIATION: firmware.relAlias('CLASS_THREAD_INITIATION') || 'IS_THE_CONCEPT_FOR',
@@ -1027,6 +1030,45 @@ async function pass_communityReferences(opts = {}) {
         continue;
       }
 
+      // ── b-tag emitter (Story 38 / ADR 0034) ────────────────────
+      // Seed a pointer-`b` on the TA's own local header so the affiliation is
+      // published on-wire and the graph derives the edge from it (replacing the
+      // Neo4j-only firmware-community stub). OQ-1: this seed is INDEPENDENT of
+      // the community-header fetch below — it runs even when that fetch misses
+      // or pin-mismatches, because it needs only the manifest `headerATag`
+      // literal + the local TA header. It therefore sits BEFORE the fetch and
+      // its `continue`s. Pointer ONLY — never `inherit` (ADR key-constraint 1).
+      let seededB = false;
+      try {
+        const localScan = await apiGet('/api/strfry/scan', {
+          filter: JSON.stringify({ kinds: [39998], authors: [taPubkey], '#d': [slug] }),
+        });
+        const localHeader = localScan && Array.isArray(localScan.events) ? localScan.events[0] : null;
+        if (!localHeader) {
+          console.log(`  ⚠️  ${slug}: local TA header not found — b seed skipped (graceful)`);
+        } else {
+          // Never-clobber: ANY existing `b` (any type, any target) suppresses the
+          // seed — the published live state outranks the static firmware default
+          // (AC-6). This is ALSO the idempotency mechanism (AC-5): a second
+          // install sees the `b` it wrote on the first and suppresses.
+          const hasB = Array.isArray(localHeader.tags) && localHeader.tags.some(t => t[0] === 'b');
+          if (hasB) {
+            seededB = true;
+            console.log(`  ⏭️  ${slug}: b already present — seed suppressed (never-clobber)`);
+          } else {
+            const newTags = [...localHeader.tags, ['b', cr.headerATag, 'pointer']];
+            await loadTAKey();
+            const signed = signAndFinalize({ kind: 39998, content: localHeader.content || '', tags: newTags });
+            await apiPost('/api/strfry/publish', { event: signed });
+            await executeCypher(buildImportCypher(signed));
+            seededB = true;
+            console.log(`  ✅ ${slug}: pointer-b seeded on local header → REFERENCES{source:'b-tag'} derived`);
+          }
+        }
+      } catch (seedErr) {
+        console.log(`  ⚠️  ${slug}: b seed failed — ${seedErr.message} (graceful — continuing)`);
+      }
+
       const fetched = await apiGet('/api/relay/external', {
         filter: JSON.stringify(filter),
         relays,
@@ -1095,6 +1137,7 @@ async function pass_communityReferences(opts = {}) {
         to: cr.headerATag,
         supersetFrom: `39999:${taPubkey}:${slug}-superset`,
         supersetTo, // null if Superset materialization skipped/failed (graceful)
+        seededB, // true if the header now carries a `b` — gates the legacy stub MERGE (AC-4)
       });
       console.log(`  ✅ ${slug}: community Header published + materialized → REFERENCES pending`);
     } catch (err) {
@@ -1215,7 +1258,13 @@ async function install(opts = {}) {
           { to: link.to }
         );
         const present = ((found && found.data) || [])[0]?.cnt || 0;
-        if (!present) {
+        if (link.seededB) {
+          // AC-4 / ADR 0034 §3: the header now carries a `b`, so the REFERENCES
+          // edge derives from the published event as source:'b-tag' (via
+          // buildImportCypher). Skip the legacy firmware-community stub MERGE.
+          // Pre-existing firmware-community edges are NOT removed (AC-7).
+          console.log(`  ⏭️  ${link.slug}: REFERENCES derives from published b-tag — firmware-community stub skipped`);
+        } else if (!present) {
           console.log(`  ⏭️  ${link.slug}: community Header ${link.to} not present yet — REFERENCES deferred (graceful)`);
         } else {
           await runCypherApi(

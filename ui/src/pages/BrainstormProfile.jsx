@@ -2,15 +2,22 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useSearchParams, Link } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
 import { useAuth } from '../context/AuthContext';
-import BrainstormUserMenu from '../components/BrainstormUserMenu';
+import TopBar from '../components/TopBar';
+import { useConfig } from '../context/ConfigContext';
 import { useProfileActions } from '../hooks/useProfileActions';
 import useUserCounts from '../hooks/useUserCounts';
+import useFollowsHops from '../hooks/useFollowsHops';
 import useNip05Verification from '../hooks/useNip05Verification';
 import ConfirmDialog from '../components/ConfirmDialog';
 import ReportModal from '../components/ReportModal';
+import ProfileTagsSection from '../components/ProfileTagsSection';
+import AuthoredTaggingSection from '../components/AuthoredTaggingSection';
+import { timeAgo } from '../utils/timeAgo';
 import { toExternalUrl } from '../utils/url';
 import VerificationInfo from '../components/VerificationInfo';
 import ReputationInfo from '../components/ReputationInfo';
+import IdentityDetails from '../components/IdentityDetails';
+import ProfileContentSection from '../components/ProfileContentSection';
 
 /* ── Verified Reporters alarm thresholds (ADR 0032) ──────
    Alarm (red + icon) only when verifiedReporterCount >= BASE + one "freebie" per
@@ -20,18 +27,6 @@ const REPORTER_ALARM_BASE = 3;
 const REPORTER_ALARM_FREEBIE_PER = 750;
 
 /* ── Helpers ──────────────────────────────────────────── */
-
-function timeAgo(unixSeconds) {
-  if (!unixSeconds) return null;
-  const now = Date.now() / 1000;
-  const diff = now - unixSeconds;
-  if (diff < 60) return 'just now';
-  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-  if (diff < 2592000) return `${Math.floor(diff / 86400)}d ago`;
-  if (diff < 31536000) return `${Math.floor(diff / 2592000)}mo ago`;
-  return `${Math.floor(diff / 31536000)}y ago`;
-}
 
 function shortPubkey(pk) {
   if (!pk) return '—';
@@ -54,32 +49,13 @@ const TRUST_METRICS = [
   { tag: 'verifiedReporterCount',          label: 'Reporters',       icon: '🚩', description: 'Users who reported this profile' },
 ];
 
-/* ── Copy Button ─────────────────────────────────────── */
-
-function CopyButton({ value }) {
-  const [copied, setCopied] = useState(false);
-  return (
-    <button
-      className="bsp-copy-btn"
-      onClick={() => {
-        navigator.clipboard.writeText(value).then(() => {
-          setCopied(true);
-          setTimeout(() => setCopied(false), 1500);
-        });
-      }}
-      title="Copy to clipboard"
-    >
-      {copied ? '✓' : '📋'}
-    </button>
-  );
-}
-
 /* ── Main Component ──────────────────────────────────── */
 
 export default function BrainstormProfile() {
   const { pubkey } = useParams();
   const [searchParams] = useSearchParams();
   const { user, login, logout } = useAuth();
+  const { ownerPubkey } = useConfig();
 
   // POV suffix can be passed as ?pov=<8char> from the search page
   const povParam = searchParams.get('pov');
@@ -102,6 +78,11 @@ export default function BrainstormProfile() {
 
   const { data: userCounts, loading: userCountsLoading } = useUserCounts(pubkey);
   const nip05Verified = useNip05Verification(pubkey, profile?.nip05);
+  // Follows-hops: live shortestPath from the viewer (or the Owner when logged out)
+  // to this profile (story #38, ADR 0034). Its own hook — loads independently of
+  // the page and the other counts, so it never blocks render.
+  const hopsSource = user?.pubkey || ownerPubkey;
+  const { hops: followsHops, noPath: followsNoPath, loading: followsHopsLoading, error: followsHopsError } = useFollowsHops(hopsSource, pubkey);
   const followingCount = userCounts?.followingCount ?? null;
   const fmtCount = (n) => (n == null ? '—' : new Intl.NumberFormat().format(n));
   // Verified Followers + Verified Reporters counts come from the Owner-PoV source
@@ -109,6 +90,7 @@ export default function BrainstormProfile() {
   // /reporters tables, NOT Meili (ADR 0031). `?? null` keeps a genuine 0 distinct from
   // "not loaded" → "—"; never a raw-follower substitution.
   const verifiedFollowerCount = userCounts?.verifiedFollowerCount ?? null;
+  const verifiedMuterCount = userCounts?.verifiedMuterCount ?? null;
   const verifiedReporterCount = userCounts?.verifiedReporterCount ?? null;
   // Dynamic alarm: red + icon only past a popularity-adjusted threshold (ADR 0032).
   // No alarm when either count is unavailable (no crying wolf on incomplete data).
@@ -121,6 +103,29 @@ export default function BrainstormProfile() {
   }, [pubkey]);
   const displayName = profile?.display_name || profile?.name || shortPubkey(pubkey);
   const profileAge = timeAgo(profile?.created_at);
+
+  // Follows-hops display (story #38, ADR 0034): number | ∞ (confirmed no path) |
+  // "—" (lookup error / loading). ∞ is keyed on the hook's `noPath`, NOT on an
+  // error, so a failed/timed-out lookup never shows a false ∞.
+  const hopsSourceName = (() => {
+    if (user && hopsSource === user.pubkey) {
+      const n = user.profile?.display_name || user.profile?.name;
+      if (n) return n;
+    }
+    try { return nip19.npubEncode(hopsSource).slice(0, 12) + '…'; } catch { return 'the source'; }
+  })();
+  let hopsDisplay = '—';
+  let hopsTitle = 'Hop distance…';
+  if (followsHopsError) {
+    hopsDisplay = '—';
+    hopsTitle = 'Hop distance unavailable.';
+  } else if (followsNoPath) {
+    hopsDisplay = '∞';
+    hopsTitle = `There is no follow path from ${hopsSourceName} to ${displayName}.`;
+  } else if (followsHops != null) {
+    hopsDisplay = fmtCount(followsHops);
+    hopsTitle = `${displayName} is ${followsHops} hop${followsHops === 1 ? '' : 's'} away from ${hopsSourceName} by follows.`;
+  }
 
   // Fetch profile from API
   useEffect(() => {
@@ -211,15 +216,7 @@ export default function BrainstormProfile() {
 
   return (
     <div className="bsp-page">
-      {/* Top bar */}
-      <div className="bsp-top-bar">
-        <a href="/" className="bsp-logo">
-          <img src="/brainstorm.svg" alt="" className="bsp-logo-img" />
-        </a>
-        <div className="bsp-auth">
-          <BrainstormUserMenu user={user} login={login} logout={logout} />
-        </div>
-      </div>
+      <TopBar />
 
       {/* Profile content */}
       <div className="bsp-content">
@@ -247,7 +244,10 @@ export default function BrainstormProfile() {
                 </div>
               )}
               <div className="bsp-header-info">
-                <h1 className="bsp-name">{displayName}</h1>
+                <div className="bsp-name-row">
+                  <h1 className="bsp-name">{displayName}</h1>
+                  <IdentityDetails pubkey={pubkey} npub={npub} />
+                </div>
                 {profile?.nip05 && <div className="bsp-nip05">{nip05Verified && '✅ '}{profile.nip05}</div>}
                 {profileAge && <span className="bsp-age">Updated {profileAge}</span>}
               </div>
@@ -264,6 +264,24 @@ export default function BrainstormProfile() {
               <Link to={`/user/${pubkey}/followers`} className="bsp-count bsp-count-link">
                 <span className="bsp-count-value">{fmtCount(verifiedFollowerCount)}</span>
                 <span className="bsp-count-label">Verified Followers</span>
+              </Link>
+              {/* Follows-hops (story #38, ADR 0034; link activated #39, ADR 0035): live
+                  shortestPath source→profile, cap 20. Links to the path page in ALL states.
+                  ∞ = no path within cap; "—" = unavailable (error/timeout) or loading. */}
+              <Link to={`/user/${pubkey}/follows-hops`} className={`bsp-count bsp-count-link${followsHopsLoading ? ' bsp-count-loading' : ''}`} title={hopsTitle}>
+                <span className="bsp-count-value">{hopsDisplay}</span>
+                <span className="bsp-count-label">Hops</span>
+              </Link>
+              {/* Line break (verified-muters #2, ADR 0002): forces the "bad" indicators
+                  below onto the next flex line, away from the good ones above. */}
+              <span className="bsp-count-break" aria-hidden="true" />
+              {/* Verified Muters → /user/:pubkey/muters. Neutral, like Verified Followers:
+                  always a plain <Link>, no alarm icon and no negative styling — "bad" is
+                  conveyed only via the line break (ADR 0002). Owner-PoV count from
+                  useUserCounts, same source as the /muters table. */}
+              <Link to={`/user/${pubkey}/muters`} className="bsp-count bsp-count-link">
+                <span className="bsp-count-value">{fmtCount(verifiedMuterCount)}</span>
+                <span className="bsp-count-label">Verified Muters</span>
               </Link>
               {/* Verified Reporters → /user/:pubkey/reporters. Always a <Link> when >0; a
                   genuine 0 is neutral and not a link; "—" when unavailable; dimmed "—" while
@@ -323,6 +341,10 @@ export default function BrainstormProfile() {
               </div>
             )}
 
+            <ProfileTagsSection targetPubkey={pubkey} viewerPubkey={user?.pubkey} />
+
+            <AuthoredTaggingSection profilePubkey={pubkey} viewerPubkey={user?.pubkey} />
+
             {/* About */}
             {profile?.about && (
               <div className="bsp-section">
@@ -331,38 +353,29 @@ export default function BrainstormProfile() {
               </div>
             )}
 
-            {/* Identity */}
-            <div className="bsp-section">
-              <h3>Identity</h3>
-              <div className="bsp-id-grid">
-                <div className="bsp-id-row">
-                  <span className="bsp-id-label">Pubkey (hex)</span>
-                  <code className="bsp-id-value">{shortPubkey(pubkey)}</code>
-                  <CopyButton value={pubkey} />
+            {/* Identity — Website + Lightning. Pubkey/npub live in the IdentityDetails drawer
+                by the name (ADR profile/0033); the section renders only when it has content. */}
+            {(profile?.website || profile?.lud16) && (
+              <div className="bsp-section">
+                <h3>Identity</h3>
+                <div className="bsp-id-grid">
+                  {profile?.website && (
+                    <div className="bsp-id-row">
+                      <span className="bsp-id-label">Website</span>
+                      <a href={toExternalUrl(profile.website)} target="_blank" rel="noopener noreferrer" className="bsp-id-link">
+                        {profile.website.replace(/^https?:\/\//, '').replace(/\/$/, '')}
+                      </a>
+                    </div>
+                  )}
+                  {profile?.lud16 && (
+                    <div className="bsp-id-row">
+                      <span className="bsp-id-label">Lightning</span>
+                      <span className="bsp-id-value">⚡ {profile.lud16}</span>
+                    </div>
+                  )}
                 </div>
-                {npub && (
-                  <div className="bsp-id-row">
-                    <span className="bsp-id-label">npub</span>
-                    <code className="bsp-id-value">{npub.slice(0, 20)}…{npub.slice(-8)}</code>
-                    <CopyButton value={npub} />
-                  </div>
-                )}
-                {profile?.website && (
-                  <div className="bsp-id-row">
-                    <span className="bsp-id-label">Website</span>
-                    <a href={toExternalUrl(profile.website)} target="_blank" rel="noopener noreferrer" className="bsp-id-link">
-                      {profile.website.replace(/^https?:\/\//, '').replace(/\/$/, '')}
-                    </a>
-                  </div>
-                )}
-                {profile?.lud16 && (
-                  <div className="bsp-id-row">
-                    <span className="bsp-id-label">Lightning</span>
-                    <span className="bsp-id-value">⚡ {profile.lud16}</span>
-                  </div>
-                )}
               </div>
-            </div>
+            )}
 
             {/* Reputation */}
             <div className="bsp-section">
@@ -404,6 +417,9 @@ export default function BrainstormProfile() {
                 </div>
               )}
             </div>
+
+            {/* Content — the user's latest kind-1 note + link to all (note-surfaces #2) */}
+            <ProfileContentSection pubkey={pubkey} />
 
           </>
         )}

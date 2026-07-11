@@ -1,6 +1,6 @@
 ---
 name: cycle-full
-description: Run the full local → staging → main deploy chain for the tapestry/brainstorm repo. Build locally, smoke-test on `:8080`, push and merge to staging, smoke-test `staging.brainstorm.world`, then on explicit user approval promote to main and smoke-test `brainstorm.world`. Use this whenever the user wants the entire deploy chain in one command — they say things like "ship the full thing," "all the way to prod," "local through to production." Halts on failure at any stage. Pauses between staging and prod for explicit confirmation; production is a shared system.
+description: Run the full local → staging → main deploy chain for the tapestry/brainstorm repo. Build locally, smoke-test locally (per cycle-local), push and merge to staging, smoke-test `staging.brainstorm.world`, then on explicit user approval promote to main and smoke-test `brainstorm.world`. Use this whenever the user wants the entire deploy chain in one command — they say things like "ship the full thing," "all the way to prod," "local through to production." Halts on failure at any stage. Pauses between staging and prod for explicit confirmation; production is a shared system.
 ---
 
 # Cycle: full
@@ -33,7 +33,7 @@ Follow [`.claude/skills/cycle-local/SKILL.md`](../cycle-local/SKILL.md):
 
 1. Determine what changed (`git diff --name-only HEAD` or against the last commit).
 2. Build / docker cp / restart as appropriate for the change type.
-3. Smoke test on `http://localhost:8080` per [docs/SMOKE_TEST.md](../../../docs/SMOKE_TEST.md) (skip Tier 1).
+3. Smoke test on the local base URL per cycle-local (it owns that constant) and [docs/SMOKE_TEST.md](../../../docs/SMOKE_TEST.md) (skip Tier 1).
 4. Brief report.
 
 If anything fails at this stage, **stop**. Surface the failure and let the user decide whether to fix or abandon.

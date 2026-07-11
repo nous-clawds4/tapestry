@@ -5,7 +5,7 @@
 >
 > Specifics of the reference deployment at `brainstorm.world` (deploy targets, droplet specs, CI/CD workflows, branch protection ruleset, active team, tracking issues, operational gotchas we've hit) live in a sibling document: [OPERATIONS.md](./OPERATIONS.md). If you're forking this repo to run your own instance, BIBLE is the doc you want — OPERATIONS describes someone else's running instance.
 
-**Last updated:** 2026-05-04 (preferences audit §6.1 + §6.2; session persistence; user-counts; cycle-* skills)
+**Last updated:** 2026-07-02 (header refresh; content last changed 2026-06-20 — preferences audit §6.1 + §6.2; session persistence; user-counts; cycle-* skills)
 
 ---
 
@@ -501,9 +501,21 @@ Identifiers are managed via `PUT /api/settings` (owner-only — see below). The 
 |--------|----------|-------------|
 | GET | `/api/get-user-data?pubkey=<x>&observerPubkey=<y>` | Detailed per-user data including `followingCount`, `followerCount`, `verifiedFollowerCount`, GrapeRank scores, and observer-relative graph metrics (frenCount, mutualFollowerCount, recommendation counts, etc.). Owner POV by default. Slow on populated graphs (~10s+) due to multiple `OPTIONAL MATCH` traversals. |
 | GET | `/api/get-user-counts?pubkey=<x>` | Lightweight: returns just `{ followingCount }` from the user's most recent kind 3 event in strfry. No Neo4j traversal. Sub-second. Used by the profile page's Following count display. |
+| GET | `/api/get-follows-hops?source=<x>&target=<y>` | Live **directed** FOLLOWS shortest-path hop distance from `source` to `target` (`shortestPath`, cap 20) via the pooled Bolt driver with a ~2.5s query timeout. `{ success, hops }` where `hops` is `0..20`, or `null` when no path within the cap. `400` on a non-64-hex pubkey. Public. Pubkeys bound as params. Backs the profile **HOPS** stat (#38). |
+| GET | `/api/get-follows-hops-paths?source=<x>&target=<y>` | Up to 25 equally-short directed FOLLOWS paths (`allShortestPaths`, cap 20, `LIMIT 25`), each an ordered node list `[{ pubkey, influence }]` (Owner-PoV `influence` → per-card rank). `{ success, hops, paths, truncated }`; `{ hops:null, paths:[] }` when unreachable; self-view → a single-node path with `hops:0`. Public. Backs the follows-hops path page (#39). |
 | GET | `/api/owner/pubkey` | The instance owner's hex pubkey. Public, no auth. Mirrors `/api/assistant/pubkey` for the TA. Read at app mount via `ConfigContext`. |
 | GET | `/api/owner-info` | Owner pubkey plus npub and domain name. Public. Pre-existing endpoint kept alongside the more focused `/api/owner/pubkey`. |
 | GET | `/api/relays` | The configured `aRelays` object from settings. Public. UI components read this via `ConfigContext` instead of hardcoding relay arrays. |
+
+### Notes & Events (read paths)
+
+Public, read-only kind-1 read paths sharing the `enrichNotes` item shape (§13) and the general-purpose relay-set sourcing (slug-from-TA, hardcoded fallback). All additive; no writes.
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/feed` | Live Feed read path — recent kind-1 from the source identity's follows (see changelog / `feedReadPath.js`). `status` ∈ {OK, EMPTY, NO_SOURCE, FOLLOW_LIST_UNAVAILABLE} + `relaySource`. Public. |
+| GET | `/api/user/:pubkey/notes?limit=<n>` | The N most-recent kind-1 authored by `:pubkey`, newest-first (cap 50), fetched from the general-purpose relays, enriched from local kind-0. `status` ∈ {OK, EMPTY, INVALID}; INVALID (malformed pubkey) → 400. Backs the profile **Content** section (limit 1) and the **`/user/:pubkey/notes`** page (limit 50). `src/api/notes/userNotesReadPath.js`. Public. |
+| GET | `/api/event?id=<hex>&author=<hex>&relays=<csv>` | Resolve a single kind-1 by event `id`, or (by `author`) the author's most-recent kind-1, across a relay **union** = supplied hints + the author's NIP-65 (kind-10002) outbox write relays + the well-known set/fallback. `verifyEvent` + kind-gate. `status` ∈ {OK, UNSUPPORTED_KIND, INVALID_EVENT, NOT_FOUND, NO_AUTHOR_NOTE, INVALID}; INVALID → 400. Backs the **`/event`** view (the client decodes the six nevent/id/naddr/pubkey/npub/nprofile formats and passes id/author + hints). `src/api/event/eventReadPath.js`. Public. |
 
 ### API Documentation
 
@@ -656,6 +668,9 @@ Legacy Brainstorm HTML pages are served at `/legacy/` (not part of the React SPA
 ├── about                         Brainstorm + NosFabrica overview, links to nostr
 ├── how-search-works              Mechanics: Meilisearch + Verification (GrapeRank)
 ├── personalization               POV explainer (House vs My Point of View)
+├── feed                          Live Feed — public kind-1 notes from the source identity's follows
+├── user/:pubkey/notes            Per-user notes — the 50 most-recent kind-1 by that user
+├── event                         Single-event view (kind-1) — nevent/id/naddr/pubkey/npub/nprofile + search fallback
 └── developers                    NIP-50 developer integration docs
 
 /tapestry/                        Dashboard (Getting Started + stats)
@@ -718,6 +733,9 @@ Legacy Brainstorm HTML pages are served at `/legacy/` (not part of the React SPA
 |-----------|----------|---------|
 | `DataTable` | `components/DataTable.jsx` | Reusable sortable table with row click |
 | `AuthorCell` | `components/AuthorCell.jsx` | Author display with avatar + name |
+| `NoteCard` | `components/NoteCard.jsx` | **Shared kind-1 note unit** — avatar + author link + relative time + actions menu + content. Reused by every note surface (see "Shared note rendering"). |
+| `NoteContent` | `components/NoteContent.jsx` | Renders note text, linkifying NIP-21 `nostr:` entities (mentions → `/user/<pk>`, events → `/event?…`) |
+| `NoteActionsMenu` | `components/NoteActionsMenu.jsx` | Per-note `⋯` menu (copy link / nevent / event id; tag stub) |
 | `Breadcrumbs` | `components/Breadcrumbs.jsx` | Auto-generated from route handles |
 | `Layout` | `components/Layout.jsx` | Sidebar navigation + main content |
 | `Header` | `components/Header.jsx` | Auth UI + user dropdown |
@@ -735,6 +753,52 @@ Legacy Brainstorm HTML pages are served at `/legacy/` (not part of the React SPA
 - **Dark theme** — CSS variables in `styles.css` (`--bg-primary`, `--text`, `--accent`)
 - **No markdown tables in Discord/WhatsApp** — bullet lists instead
 - **API clients** in `ui/src/api/` (relay.js, cypher.js, normalize.js, audit.js)
+
+### Shared note rendering (kind-1)
+
+Every surface that shows kind-1 notes composes **one** rendering unit and **one** server
+enrichment, so a per-note improvement is made once instead of per-surface. This split is
+the load-bearing decision — honor it when adding new note surfaces.
+
+- **Client — `NoteCard` (`components/NoteCard.jsx`).** Pure presentational: it takes an
+  already-enriched note `item` and renders the whole card (avatar + author-profile link +
+  relative timestamp w/ exact time on hover + `NoteActionsMenu` + `NoteContent`). No data
+  fetching, no read logic. Markup uses surface-neutral `bsp-note-card-*` classes (not
+  `bsp-feed-*`) so non-feed surfaces reuse it without inheriting feed styling. Layout
+  variants arrive as explicit props, never forks.
+- **Server — `enrichNotes(notes, scanStrfry)` (`src/api/_shared/noteEnrichment.js`).**
+  Turns raw kind-1 events into the item shape every read path serves, resolving author +
+  mention display names from **local kind-0 only** (one scan covers both; bounded by
+  `PROFILE_LOOKUP_CAP`). Read paths differ only in how they **select** raw events; they
+  all call `enrichNotes`.
+
+**The enriched note item shape (the contract):**
+
+```
+{ id, pubkey, createdAt, content,
+  author:   { displayName, avatar },          // local kind-0; null when not held locally
+  mentions: { <pubkey>: <displayName> } }       // resolved nostr:npub/nprofile refs (others omit → UI shows truncated npub)
+```
+
+**POV boundary.** Display names are self-asserted kind-0 metadata — **not** POV-dependent —
+so `enrichNotes` resolves them globally (mirrors author enrichment, consistent with the
+WoT-score namespacing rule above where only `wot_*_<suffix>` columns are POV-scoped). A
+*POV-dependent* decoration (e.g. "is this mentioned/replied-to author in **my** WoT?") must
+take the POV/source as a parameter and compute per-view — never bake a global answer into
+the shape. See the architecture invariants in `CLAUDE.md` (POV-first; filter at view time).
+
+**Consumers (all reuse `NoteCard` + `enrichNotes`):** the Live Feed (`/feed`); the profile
+**"Content"** section (the viewed user's most-recent kind-1, at the bottom of `/user/:pubkey`);
+the per-user **`/user/:pubkey/notes`** page (their 50 most-recent); and the single-event
+**`/event`** view. The latter three select raw events *by author* / *by id* rather than by a
+follow list, but run the same `enrichNotes` and render the same `<NoteCard>`. Their read paths
+(`src/api/notes/userNotesReadPath.js`, `src/api/event/eventReadPath.js`) share the
+general-purpose relay-set sourcing via `src/api/_shared/relaySource.js` (the `/event` path adds a
+NIP-65 outbox leg + on-fetch `verifyEvent`); see the API Reference "Notes & Events" rows and the
+changelog. Future per-note features (reposts, reply indicators, event tags) extend `NoteCard` +
+`enrichNotes` once. *(Note: `feedReadPath.js` and `userNotesReadPath.js` still carry private
+copies of the relay-sourcing helpers pending the consolidation tracked in
+`engineering-team/follow-ups.md`.)*
 
 ### Brainstorm Search Features
 
@@ -833,6 +897,8 @@ Three versions are retained for comparison/fallback:
 - `calculateHopsFrontier.sh` — current default (frontier BFS, fastest)
 - `calculateHopsGDS.sh` — GDS-based attempt (GDS BFS doesn't provide hop distances directly; retained for reference)
 - `calculateHops.sh` — legacy iterative Cypher (slowest but simplest)
+
+> **Precomputed (above) vs. live, on-demand distance.** The `hops` node property is owner-rooted and batch-computed. Separately, the public profile UI computes **live** directed-FOLLOWS distance between an *arbitrary* `(source, target)` pair on demand — `shortestPath` for the count (HOPS stat #38, `GET /api/get-follows-hops`) and `allShortestPaths` (cap 20, `LIMIT 25`) for the path page (#39, `GET /api/get-follows-hops-paths`) — both via the pooled Bolt driver with a short query timeout and the pubkeys bound as parameters. The source is the logged-in viewer (else the owner). This live distance is independent of — and deliberately **not** reconciled with — the precomputed owner-rooted `hops` property above (the profile surfaces both; see the changelog and `OPEN.md` #7).
 
 **Personalized PageRank** (`src/algos/calculatePersonalizedPageRank.sh`): Uses `gds.pageRank.write()` with the owner as source node. Projects the FOLLOWS graph, runs PageRank with dampingFactor=0.85, writes results back as `personalizedPageRank` property.
 
@@ -1308,6 +1374,11 @@ docker compose exec tapestry strfry sync wss://dcosl.brainstorm.world \
 - ✅ Profile verified counts moved to **Owner PoV** + verification explainer + dynamic reporter alarm (2026-06-08, staging) — the profile **Verified Followers / Verified Reporters** counts now read from Neo4j (Owner PoV) so the badge agrees with its list table, dropping the broken raw-follower Meili fallback (#35, ADR `profile/0031`); a shared **"What does verification mean?"** popover (profile + `/reporters`) shows the configured cutoff ×100 + owner name/avatar, and the Verified Reporters badge shows a red 🚩 alarm only past a popularity-adjusted threshold (`vr ≥ 3 + floor(vf/750)`) (#36, ADR `profile/0032`). The point-of-view model these counts use is the three-PoV standard ratified in **§27** (ADR `pov-resolution/0033`). On staging; later promoted to prod.
 - ✅ Report Type + Reported columns on `/user/:pubkey/reporters` (2026-06-15, prod) — the reporters table now surfaces each NIP-56 report's `report_type` (humanized label) and `timestamp`, read from the `REPORTS` edge (`GET /api/get-grapevine-reporters` extended to return `rel.report_type` + `rel.timestamp` per edge). Default columns → **Picture / Report Type / Rank**; the **Reported** column shows relative "Xd, Yh ago" text but sorts by the **raw unix integer** (new opt-in `sortValue(row)` accessor on the shared `DataTable`, missing values sorted last in both directions — the existing string/`localeCompare` path is unchanged for all other consumers); a **"N reporters, M reports"** summary distinguishes distinct reporters from reports. Report-centric — one row per `REPORTS` edge, no client-side de-duplication (so duplicate-edge bugs stay visible). verified-reporters #4, ADR `verified-reporters/0004`.
 - ✅ Live Feed at `/feed` (2026-06-15, prod) — a public, login-free, read-only feed of the most recent (≤50) kind-1 notes from the accounts the **source identity** follows (the logged-in user, else the House PoV identity), newest first. Follow list (kind-3) read from local strfry; followed authors' notes from the configured general-purpose relays; author name/avatar from local kind-0/Meilisearch. Additive and read-only — adds `GET /api/feed` (the read path) + the `/feed` page; no writes/publishes, no firmware/ranking/search changes. Intended as the host surface for a later tagging book. Direction-mode book; ADRs `live-feed/0001` (read path) + `0002` (page).
+- ✅ Live Feed enhancements + shared note module (2026-06-18, staging) — a batch of additive `/feed` improvements, all behind the read path's existing contract: (1) author name/avatar link to `/user/<pubkey>`; (2) a per-note `⋯` actions menu (copy note link / nevent / event id; tag-event stub) + a placeholder `/event` page (`?id=`/`?nevent=`/`?naddr=`); (3) relative "time ago" timestamps (two y/d/h/m units, "just now" sub-minute, exact time on hover) reusing a parameterized `formatTimeAgo`; (4) NIP-21 `nostr:` entity linkification in note text (`npub/nprofile`→`/user`, `note/nevent/naddr`→`/event`; `nsec` never linkified); (5) mention **display-name** resolution (`@alice`, not `@npub1…`) resolved server-side in the read path from local kind-0. Then a **behavior-preserving refactor** extracted the shared seams so the two planned new note surfaces and future per-note features land once: client `NoteCard` + server `enrichNotes` (`src/api/_shared/noteEnrichment.js`) — see §13 "Shared note rendering". Staging only; prod promotion not yet done.
+- ✅ Follows-hops **HOPS** stat on `/user/:pubkey` (2026-06-17, staging) — the profile counter row shows a **HOPS** value between Verified Followers and Verified Reporters: the **live, directed** FOLLOWS shortest-path distance from the source (logged-in viewer, else the **Owner** — not the House PoV) to the viewed profile. Computed on demand via `shortestPath((src)-[:FOLLOWS*..20]->(tgt))` through the pooled Bolt driver (~2.5s timeout, pubkeys bound) — **no** precomputed value, deliberately not reconciled with the owner-rooted `hops` property (§ Graph Algorithms). Loads async (own hook); renders **∞** for no-path-within-cap, **0** for self-view, and a non-misleading "—" on lookup error/timeout (never a false ∞). New public `GET /api/get-follows-hops`. profile #38, ADR `profile/0034`. On staging; **prod promotion held** (co-promotes with the tags bundle). Note: a second "Hops" figure also exists in the Reputation grid (precomputed, owner-rooted) — PoV reconciliation deferred (`OPEN.md` #7).
+- ✅ Follows-hops **path page** + HOPS link activation (2026-06-17, staging) — the HOPS stat becomes a link to a new **`/user/:pubkey/follows-hops`** page showing one shortest follow-path as a vertical chain of profile cards (picture, name, Owner-PoV rank = `round(influence×100)`), ordered source→target, with a **re-roll** button that swaps in a random one of the equally-short paths (shown only when >1 exists). Backed by new public `GET /api/get-follows-hops-paths` (`allShortestPaths`, cap 20, `LIMIT 25`, returning up to 25 ordered `[{pubkey,influence}]` paths + a `truncated` flag); the client re-rolls client-side over the returned set. profile #39, ADR `profile/0035`. On staging; held with #38.
+- ✅ Note surfaces — profile "Content" section + per-user `/user/:pubkey/notes` (2026-06-19, staging) — two read-only surfaces showing a *viewed user's own* kind-1 notes (no follow list, no PoV), reusing the shared `NoteCard` + `enrichNotes` seam (§13): a **"Content"** section at the bottom of `/user/:pubkey` showing the single most-recent note (empty state when none located) + a link, and a **`/user/:pubkey/notes`** page showing the 50 most-recent. New by-author read path **`GET /api/user/:pubkey/notes?limit=`** (`src/api/notes/userNotesReadPath.js`; `status` OK/EMPTY/INVALID; notes from the general-purpose relays, enriched from local kind-0). Additive; no firmware/ranking/search change. epic `note-surfaces`, ADRs `note-surfaces/0001` (read path) + `0002` (surfaces). Staging only; prod promotion not yet done.
+- ✅ Event page — working `/event` single-event view (2026-06-19, staging) — replaces the placeholder. Resolves **kind-1** from six identifier formats (**nevent, id, naddr, pubkey, npub, nprofile**; precedence in that order), with a search-field fallback when no valid param. `nevent`/`id` → fetch the event (non-kind-1 → "kind N not yet supported"; fails verification → "does not validate"; valid → render like `/feed`); `pubkey`/`npub`/`nprofile` → the author's most-recent kind-1; `naddr` → "kind N not yet supported" from the coordinate (no fetch). New **`GET /api/event`** (`src/api/event/eventReadPath.js`): relay **union** = embedded hints + the author's NIP-65 (kind-10002) **outbox** write relays + well-known set/fallback; on-fetch `verifyEvent` (via a no-verify pool so the distinct does-not-validate outcome is reachable) + kind-gate; reuses `enrichNotes`. Introduced `src/api/_shared/relaySource.js` (extracted relay-sourcing; feed/user-notes re-point deferred — `follow-ups.md`). Additive; no firmware change. epic `event-page`, ADRs `event-page/0001` (read path) + `0002` (page UI). Staging only; prod promotion not yet done.
 
 ### CLI (tapestry-cli repo)
 
@@ -1412,7 +1483,7 @@ docker compose exec tapestry strfry sync wss://dcosl.brainstorm.world \
 | **IMPORT** | Editorial relationship: "I agree with your concept and want to benefit from your curated elements." |
 | **INHERITS_FROM** | Canonical child→parent definitional-inheritance edge from **inherit-typed** `b` tags only (`["b",…,"inherit"]` — explicit; an absent type reads as `"pointer"` and derives no INHERITS_FROM): "I defer to the parent's definition, live, unless I override." Distinct from IMPORT (absorption; implies IS_A_SUPERSET_OF) and REFERENCES (non-committal pointer). No `source`. ADR 0027 as amended by `community-reference` ADR 0029. See §25. |
 | **concept-graph (header tag)** | Self-describing tag on a kind-39998 ConceptHeader: `["concept-graph","39999:<pubkey>:<d-tag>-concept-graph"]` (computed). Resolution = tag-if-present else compute the same a-tag. Lets a single fetched Header resolve its full concept off-relay. ADR 0007. See §5. |
-| **communityReference** | A firmware-concept field `{ headerATag, relayHints[], knownGoodEventId? }` naming an external curator's published concept — the **seed** of the deployment's affiliation. Target (`community-reference` ADR 0030): install seeds a `"pointer"`-typed `b` on the TA-authored header (never-clobber). Today: resolved at install into a `REFERENCES {source:'firmware-community'}` placeholder, one concept. See §22. |
+| **communityReference** | A firmware-concept field `{ headerATag, relayHints[], knownGoodEventId? }` naming an external curator's published concept — the **seed** of the deployment's affiliation. As of `community-reference` ADR 0034 / `tag-federation` ADR 0002: install **seeds** a `"pointer"`-typed `b` on the TA-authored header (re-signed; never-clobber within a run) and the graph derives `REFERENCES {source:'b-tag'}`; the legacy `firmware-community` stub is skipped for `b`-carrying headers. Applied to `nostr-relay` + `tag`/`nostr-user-tag`/`tag-pinning`. See §22. |
 | **grapevine → firmware → none** | The community-reference resolution precedence: the user's Grapevine is the correct selector of "the community's definition"; the firmware-baked pointer is only a cold-start default; else nothing. Mirrors Warm Start's `self → owner → cold`. See §22. |
 | **Loose Consensus** | When two users' WoTs overlap enough to converge on the same definition without central coordination. |
 | **REFERENCES (concept-level)** | Non-committal pointer edge, two producers: the firmware-install stub (local Concept Header → an external curator's Header; Neo4j-only, `source:'firmware-community'`) and pointer-typed `b` tags (asserted, wire-derived, `source:'b-tag'` — `community-reference` ADR 0029). NOT agreement/import. Overloaded with the tag-level `REFERENCES`; disambiguate by `source` + endpoint labels. See §22. |
@@ -1441,9 +1512,9 @@ docker compose exec tapestry strfry sync wss://dcosl.brainstorm.world \
 
 A firmware concept may carry a `communityReference` — `{ headerATag, relayHints[], knownGoodEventId? }` — the firmware's **seed** for the deployment's community affiliation (`community-reference` ADR 0030, amending the original stub design of ADR 0005). Its four retained functions: the boundary-rule-sanctioned home for hardcoded handle literals (bootstrap), the fetch path (`relayHints`), optional install-time pin-verification (`knownGoodEventId`), and driving the Phase-A superset link (ADR 0008, below).
 
-**Target (ratified — `community-reference` ADR 0030; not yet wired):** at firmware install, for each manifest concept carrying a `communityReference`: fetch the community Header from `relayHints` → pin-verify when `knownGoodEventId` is present (mismatch → log + skip the seed, never throw) → **if the TA-authored local header carries no `b` tag of any type**, republish it with `["b", "<headerATag>", "pointer"]` appended (TA-signed; pointer-typed per ADR 0029, so the seed is a bookmark, never deference). Any existing `b` — any type, seeded or operator-set — suppresses the seed: the published live state outranks the static default (**never-clobber**; the precedence below applied at install time; a deployment that re-points and later wants the default back removes its `b` manually). The graph edge then derives from the published event (`REFERENCES {source:'b-tag'}`) like every other tag-derived relationship. Idempotent. **The general principle: the manifest seeds published tags; the graph derives from published events; Neo4j-only stubs were the interim form.**
+**Ratified semantics (`community-reference` ADR 0030; implemented — see Status today):** at firmware install, for each manifest concept carrying a `communityReference`: fetch the community Header from `relayHints` → pin-verify when `knownGoodEventId` is present (mismatch → log + skip the *foreign-node materialization*, never throw) → **if the TA-authored local header carries no `b` tag of any type**, republish it with `["b", "<headerATag>", "pointer"]` appended (TA-signed; pointer-typed per ADR 0029, so the seed is a bookmark, never deference). Any existing `b` — any type, seeded or operator-set — suppresses the seed within that run (**never-clobber**; see the reinstall caveat in Status today). The graph edge then derives from the published event (`REFERENCES {source:'b-tag'}`) like every other tag-derived relationship. **The general principle: the manifest seeds published tags; the graph derives from published events; Neo4j-only stubs were the interim form.**
 
-**Status today (deployed):** `pass_communityReferences` fetches that Header from `relayHints`, republishes it to local strfry **without re-signing**, **explicitly materializes it as a Neo4j node** (`buildImportCypher`/`executeCypher`), then MERGEs `(localHeader)-[:REFERENCES {source:'firmware-community'}]->(communityHeader)` — the **interim stub form**, live for exactly one concept (`nostr-relay`); no seeding code exists. Idempotent; fully graceful (any miss → log + continue, never throws; the local concept is unaffected). Under the target semantics no `firmware-community` stub is MERGEd for a `b`-carrying header; pre-existing stub edges remain valid-but-legacy until the seeding story ships cleanup — harmless meanwhile, because every concept-level `REFERENCES` consumer filters on `source` (the collision contract below). *This paragraph is the designated flip site for the seeding code story (gated on the three-branch reconciliation).*
+**Status today (implemented — `community-reference` Story 38 / ADR 0034 + `tag-federation` Story 2 / ADR 0002):** `pass_communityReferences` **seeds**: for each manifest concept carrying a `communityReference`, it scans the TA-authored local header (`39998:<localTA>:<slug>`) and — if it carries no `b` — appends `["b","<headerATag>","pointer"]`, **re-signs it with the TA key** (`signAndFinalize`/`loadTAKey`), republishes to local strfry, and imports it; the derivation (`buildImportCypher`) then materializes `(localHeader)-[:REFERENCES {source:'b-tag'}]->(target)` — and `(child)-[:INHERITS_FROM]->(parent)` for an inherit-typed `b`, registry-correct though firmware seeds only `pointer`. The legacy `(localHeader)-[:REFERENCES {source:'firmware-community'}]->(communityHeader)` stub MERGE is **skipped** for a `b`-carrying header (the edge derives from the published event); pre-existing stub edges remain valid-but-legacy (consumers filter on `source`). Applied to `nostr-relay` + `tag` / `nostr-user-tag` / `tag-pinning` (live-verified at install: the seed, the derived `source:'b-tag'` edge, the stub-skip, and the Superset link intact). Idempotent in **outcome** (exactly one `b`, one edge per concept). Fully graceful: the local pointer-`b` seeds from the manifest `headerATag` literal **even when the community-header fetch or pin-verify fails** — the pointer carries zero consensus weight (ADR 0029), so only the *foreign-node materialization + Superset link* gate on a successful pin, never the local seed. **Never-clobber is within-run-only:** firmware `pass1`/`pass2` rebuild the TA header from the static concept definition (no `b`) *before* `pass_communityReferences` runs, so a **reinstall re-seeds the firmware-default `b`** — an operator's manual re-point does **not** survive a reinstall (accepted; restore-firmware-defaults is the intended reinstall semantics; tracked for a future "firmware update" path). **Remaining debt:** a sweep of pre-existing `firmware-community` stub edges (harmless meanwhile under the collision contract below).
 
 **The `REFERENCES` edge — stub or `b`-derived — is a bookmark, not agreement.** It means "this external curator's concept is a recognized reference for my local concept; I *may* later pull from it" — not agreement, not "imported," not `IS_A_SUPERSET_OF`. It is distinct from the (deferred) editorial `IMPORT`. One local concept may `REFERENCES` **many** external concepts (e.g. Miles's *Jazz Musicians* and Dizzy's) — many-to-one via distinct target nodes; provenance per-edge via `source`.
 
@@ -1518,7 +1589,7 @@ The drift sentinels in `test/entrypoint-template-rendering.test.js` (T7 + T8) tr
 
 **The wire format and resolution semantics are specified in [protocols/drafts/inherit-from.md](protocols/drafts/inherit-from.md) — normative:** the `b` tag (three-element form, kinds 39998/39999), the element-3 **type registry** (`"pointer"` \| `"inherit"`; absent type reads as `"pointer"`, fail-safe), type-gated derivation, multi-parent semantics, the `INHERITS_FROM` derived relationship and its no-flip direction, the resolution algorithm, trust-coupling, and the editorial-relationship family contrast. Established by ADR 0027 (ADR 0006/0011 lineage), as amended by `community-reference` ADR 0029 (type registry). This section covers how this codebase implements it.
 
-- **Neo4j edges (type-gated, ADR 0029):** an explicitly **inherit-typed** `b` tag derives `(child)-[:INHERITS_FROM]->(parent)` — a canonical, asserted relationship: unlike the concept-level `REFERENCES` variants and like `HAS_ELEMENT`/`IS_A_SUPERSET_OF`, it carries **no `source` property**. A **pointer-typed** (or untyped) `b` tag derives `(child)-[:REFERENCES {source:'b-tag'}]->(target)` instead — asserted and wire-derived, subject to §22's collision contract. See §6 for the editorial-relationship family in the data model.
+- **Neo4j edges (type-gated, ADR 0029; implemented — `community-reference` ADR 0034):** an explicitly **inherit-typed** `b` tag derives `(child)-[:INHERITS_FROM]->(parent)` — a canonical, asserted relationship: unlike the concept-level `REFERENCES` variants and like `HAS_ELEMENT`/`IS_A_SUPERSET_OF`, it carries **no `source` property**. A **pointer-typed** (or untyped) `b` tag derives `(child)-[:REFERENCES {source:'b-tag'}]->(target)` instead — asserted and wire-derived, subject to §22's collision contract. Both are materialized in `buildImportCypher` (the strfry→Neo4j import chokepoint, so derivation runs on install *and* ongoing sync); the type-gate keys on the explicit string `"inherit"` (never "not pointer"). See §6 for the editorial-relationship family in the data model.
 - **First consumer:** the Communities Protocol's participant-affiliation pointer (`affiliation` → `b` with type `inherit`); the primitive is **not** community-specific. The explicit `inherit` type is **load-bearing** — an absent type reads as `"pointer"` and confers no deference. Affiliation = membership in the inherit-only deference closure; a pointer-typed link breaks the chain (ADR 0029).
 - **Trust gating:** PoV/GrapeRank re-gate visibility on every resolution.
 - **Walk mechanics:** the bounded-walk pattern (maxDepth, visited-set) reuses ADR 0010/0011; resolution walks traverse inherit-typed `b` tags only, while discovery walks include both types (ADR 0029). See ADR 0027 for the full rationale, the rejected alternatives (folding into `IMPORT`; multi-char tags), and the deferred design questions.
@@ -1533,7 +1604,7 @@ The drift sentinels in `test/entrypoint-template-rendering.test.js` (T7 + T8) tr
 - **Named instance:** the Communities Protocol's `effectiveCD` is simply a named instance of Resolved Definition; §22's grapevine-resolution (which definition a web of trust converges on) selects among nodes' resolved definitions.
 - **Rejected alternative:** WoT-weighted field resolution (which would make a node's own definition vary by observer) — see ADR 0028.
 
-**Caching the resolved definition (Target — design; `community-reference` ADR 0032).** *Not wired:* no resolver and no cache exist (the merge-walk is itself a future implementation story — ADR 0028 §"Out of scope"); this is the ratified design, gated on the resolver and on-wire `b`-tags (in turn gated on the three-branch reconciliation). A deployment **MAY** maintain a **deployment-side materialized resolved definition** (Neo4j) to meet the "read one event, no repeated re-resolution" goal — with **zero wire change**.
+**Caching the resolved definition (Target — design; `community-reference` ADR 0032).** *Not wired:* no resolver and no cache exist (the merge-walk is itself a future implementation story — ADR 0028 §"Out of scope"). On-wire `b`-tags now exist (the `pointer`-typed firmware seed — ADR 0034), and pointer/inherit derivation is implemented (§25), but the *resolved-definition read* half needs **inherit-typed** `b`-tags in the wild plus the merge-walk resolver — both still future (firmware seeds only `pointer`, which doesn't participate in resolution). A deployment **MAY** maintain a **deployment-side materialized resolved definition** (Neo4j) to meet the "read one event, no repeated re-resolution" goal — with **zero wire change**.
 
 - **Semantic transparency (cardinal).** The cache MUST NOT change what any node resolves to. On-read live resolution (above) stays authoritative; a cold, missing, or stale entry can never yield a different answer than a fresh walk. Equivalently: a conforming deployment could drop the entire cache at any instant with no observable effect but latency — pure on-read resolution is always valid, which is why the cache is a MAY, not a requirement.
 - **Trigger:** maintained only for nodes carrying an **inherit-typed** `b` (the only nodes non-trivially resolved). Pointer-typed `b` derives `REFERENCES`, never enters the closure, and triggers nothing.
@@ -1572,6 +1643,7 @@ What each surface actually uses right now:
 |---|---|---|
 | Profile | Following count | strfry (`get-user-counts`) — non-PoV |
 | Profile | Verified Followers / Verified Reporters counts | **Owner (Neo4j)** — shipped in profile #35/#36 (ADR 0031/0032); badge value agrees with the list table |
+| Profile | HOPS stat + `/follows-hops` path | **Viewer→target, live** (logged-in viewer, else Owner) for the distance/path; per-card **rank is Owner PoV**. Shipped in profile #38/#39 (ADR 0034/0035) |
 | `/follows`, `/followers`, `/reporters` tables | rows + count | **Owner** (live Neo4j) |
 | Search page | ranking / scores | Meili, with a 2-way **House ↔ Personalized** toggle |
 
@@ -1595,6 +1667,52 @@ Undecided; each is a candidate for a future `pov-resolution` story (carried from
 6. **count = list-length guarantee** per PoV — exact (single live source) vs steady-state (precomputed badge + live table).
 
 See ADR 0033 for the ratification decision (the normative/aspirational split) and the open questions it deliberately left undecided.
+
+---
+
+## 28. Open Ranking (ORE) Provider
+
+Brainstorm exposes its web of trust over **[Open Ranking](https://github.com/Open-Ranking/protocol)** (ORE) — an external, MIT-licensed HTTP/JSON protocol for reputation/ranking/discovery on nostr. ORE is a **second, complementary export** alongside the NIP-85 (kind 30382/10040) publication: the *same* underlying GrapeRank / Neo4j / Meili data, but a **pull, request/response HTTP interface** for clients that don't speak the nostr relay protocol. It does **not** replace NIP-85 (which stays the signed, relay-native, independently-verifiable channel); ORE adds ad-hoc query patterns NIP-85 structurally can't serve (search by text; stats for an arbitrary pubkey). ORE is an external spec we *consume*, so it's documented here (per `protocols/README.md`'s boundary rule), not as a `protocols/` pre-NIP. Established by ADRs `open-ranking/0001` (provider + stats) and `open-ranking/0002` (search); book `engineering-team/audits/open-ranking/`.
+
+### Surface (as-built)
+
+Public, read-only, **unauthenticated, unsigned**. All routes live **off the `/api/` prefix** (so `src/middleware/auth.js` auto-exempts them) and are served by the control panel from `src/api/open-ranking/`, registered next to NIP-05 in `src/api/index.js`. No firmware/schema/pipeline/nginx change; with the module unregistered the rest of the app is unchanged.
+
+| Method | Path | ORE | Returns |
+|---|---|---|---|
+| GET | `/.well-known/open-ranking.json` | ORE-01 | Capability document — a JSON object keyed by endpoint path → arrays of Algorithm Objects (first element = default). |
+| POST | `/stats/pubkey` | ORE-02 | `{ pubkey, rank, hops, followers, muters, reporters, follows, mutes, reporting, pagerank }` — inbound (followers/muters/reporters) **verified**; outbound (follows/mutes/`reporting`) exact totals; `pagerank` raw; no `ttl`. |
+| POST | `/search/pubkeys` | ORE-05 | `{ results: [{ pubkey, rank }] }` — free-text profile search, ranked desc, capped at `limit` (no `ttl`). |
+
+Each endpoint advertises a **global** algorithm `graperank` (`pov:false`, the default); `/stats/pubkey` additionally advertises a **personalized** `graperank-personalized` (`pov:true`). Personalized *search* is deferred (below). (Algorithm ids were renamed `grapevine`→`graperank` by ADR 0003, to match the GrapeRank algorithm and the kind-30382 metric vocabulary.)
+
+### PoV mapping (ties to §27)
+
+ORE's `pov` is §27's PoV machinery. The **global `graperank`** is the instance's **owner-anchored** view, but it is read from a different store per endpoint:
+
+- **Stats** → **Neo4j**: `fetchProfileScores(pubkey, observerPubkey:'owner')` reads the `NostrUser` node — the **Owner PoV** (§27) — with `rank = round(influence × 100)`. The response also carries `hops`, raw `pagerank` (personalizedPageRank under the active POV), the **verified** inbound counts (`followers`=verifiedFollowerCount, `muters`=verifiedMuterCount, `reporters`=verifiedReporterCount, mirroring kind-30382), and the exact **outbound** totals `follows`/`mutes`/`reporting` (ADR 0003/0004 — "total" inbound is unknowable, so verified is the line; the outbound report count is named `reporting`, not ORE's *inbound* `reports`).
+- **Search** → **Meili**: ranks by the owner's `wot_rank_<ownerSuffix>` column (`ownerSuffix = getOwnerAssistantPubkey().slice(0,8)` — the runtime TA helper, never hardcoded) via `nostr-search-api` with `sort=wot_rank_<ownerSuffix>:desc`; `rank` floors to 0 for unscored profiles. This is the kind-30382 → Meili read of §27, keyed to the owner's own delegated suffix.
+
+The two stores key a PoV by **different pubkeys** — Neo4j cards by the human's **main pubkey** (`observer_pubkey`), Meili columns by the **delegated-key suffix** — which is the open seam recorded in worksheet **W13**.
+
+**Personalized `graperank-personalized`** (stats only): the request `pov` is used directly as the Neo4j `observer_pubkey`, served **only for a provisioned PoV** — `isPovProvisioned(pov)` = (`pov === owner`) OR a `NostrUserWotMetricsCard {observer_pubkey: pov}` exists. An unprovisioned `pov` returns **`422` + `X-Reason: pov not provisioned`**, never a silent fallback to the owner view (the architecture-invariant rule: a global answer must not be presented as the caller's personal one).
+
+### Conventions (ORE-00, as-built)
+
+64-char-lowercase-hex pubkeys (npub rejected → `422`); `application/json` in/out; `Access-Control-Allow-Origin: *` on every response incl. errors; errors via HTTP status (`400` malformed JSON, `422` validation/algorithm/pov) + a human-readable `X-Reason` header; no `ttl` (dropped, ADR 0004); a `pov` sent to a global algorithm is **ignored**. Reads are synchronous → success is always `200` (no `202`/`Retry-After`). **`OPTIONS` preflight returns a `2xx` (204) via the platform's global CORS**, not a strict ORE-00 `200` — a documented cosmetic deviation (a strict-200 shim is a deferred follow-up). The outbound search call is bounded by `AbortSignal.timeout(5000)`.
+
+### Security — personalized-stats enumeration oracle
+
+The `graperank-personalized` **stats** path is an **unauthenticated provisioning-enumeration oracle**: a caller distinguishes provisioned (`200`) from unprovisioned (`422`) POVs, enumerating the instance's customer set. Acceptable on staging (test data); **it MUST be gated (ORE-A/NWT auth or a self-only check) before any production promotion.** Tracked in worksheet **W12**. The global algorithms and the global-only search carry no such oracle.
+
+### Deferred
+
+- **Personalized search** (`graperank-personalized` on `/search/pubkeys`) — needs a server-side **main→delegated PoV resolver** to bridge the two stores (worksheet **W13**); planned as `open-ranking` Story 3.
+- **ORE-A / Nostr Web Token (kind 27519) auth**; the other ORE endpoints (`/rank/pubkeys`, `/recommend/pubkeys`, `/followers`, `/muters`, `/compromised/pubkeys`); a standard PoV-availability mechanism / upstream ORE proposal (W12).
+
+### Deployment
+
+Live on **`staging.brainstorm.world`**: ORE-01 + ORE-02 via [apps#318](https://github.com/nous-clawds4/tapestry/pull/318) (2026-06-18); ORE-05 via [apps#322](https://github.com/nous-clawds4/tapestry/pull/322) (2026-06-19). **Not on production** (the personalized-stats gate above must be resolved first). Sources: ADRs `engineering-team/decisions/open-ranking/0001`–`0002`; book `engineering-team/audits/open-ranking/`; worksheet W12/W13.
 
 ---
 

@@ -29,7 +29,6 @@ Tapestry is designed to be operated by **humans** and **AI agents** alike. Every
 ```bash
 git clone https://github.com/nous-clawds4/tapestry.git
 cd tapestry
-git checkout concept-graph
 ```
 
 ## Step 2: Configure

@@ -17,7 +17,7 @@ You are entering **Phase 1: Planning** of the Tapestry engineering team harness.
 - Otherwise, look at `engineering-team/stories/_intake.md` for the most recent intake entry and proceed from there.
 
 **House rules:**
-- Concepts: reference by handle (`kind:pubkey:slug`) when known. If the Concept Graph API at `http://localhost:8877` is reachable, orient via `/api/concept-graph/summaries` per [AGENTS.md](AGENTS.md). If not, name concepts in plain language and note that the Architect should resolve handles.
+- Concepts: reference by handle (`kind:pubkey:slug`) when known. If the Concept Graph API at `http://localhost:$TAPESTRY_PORT` is reachable, orient via `/api/concept-graph/summaries` per [AGENTS.md](AGENTS.md). If not, name concepts in plain language and note that the Architect should resolve handles.
 - Avoid duplicating existing stories — scan `engineering-team/stories/` first.
 - Acceptance criteria must be testable from outside (input → expected behavior).
 

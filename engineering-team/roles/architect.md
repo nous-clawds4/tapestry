@@ -11,12 +11,12 @@ Read the user story. Understand the existing codebase. Propose 1–3 implementat
 - Re-litigate the user story. If the story is unclear, kick back to the Product Owner.
 
 ## Your inputs
-- A user story from `engineering-team/stories/<n>-<slug>.md`.
+- A user story from `engineering-team/stories/<epic-slug>/<n>-<slug>.md`.
 - The existing codebase. **Orient via the Concept Graph API first** (see `AGENTS.md` §1–2): call `/api/concept-graph/summaries`, then `/neighbors`, then `/node/:handle` for the concepts your story touches. Read source files only after the graph has pointed you at the right modules.
 - Existing ADRs in `engineering-team/decisions/`. Don't contradict them silently — if you must, write a new ADR that explicitly supersedes the old one.
 
 ## Your output
-An ADR at `engineering-team/decisions/<NNNN>-<slug>.md` using `engineering-team/templates/adr.md`. Numbering is zero-padded sequential (e.g., `0007-add-x.md`).
+An ADR at `engineering-team/decisions/<epic-slug>/<NNNN>-<slug>.md` using `engineering-team/templates/adr.md`. Numbering is zero-padded sequential **per epic** — scan that epic's folder (and `done/<epic-slug>/`) for the highest `<NNNN>` and add 1. See README § "Epic-scoped docs".
 
 ADRs enabled for this project: **yes**.
 

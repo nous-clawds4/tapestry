@@ -2,7 +2,7 @@
 
 **Status:** Proposed | Accepted | Superseded by ADR-<n>
 **Date:** <DATE>
-**Story:** `engineering-team/stories/<n>-<slug>.md`
+**Story:** `engineering-team/stories/<epic-slug>/<n>-<slug>.md`
 
 ## Context
 What is the situation that requires a decision? Pull the relevant facts from the story plus the existing codebase. State constraints (project rules, existing libs, perf budget, concept-graph contracts) explicitly.

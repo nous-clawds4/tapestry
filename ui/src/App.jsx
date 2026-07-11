@@ -68,12 +68,22 @@ import BrainstormProfile from './pages/BrainstormProfile';
 import BrainstormFollows from './pages/BrainstormFollows';
 import BrainstormFollowers from './pages/BrainstormFollowers';
 import BrainstormReporters from './pages/BrainstormReporters';
+import BrainstormMuters from './pages/BrainstormMuters';
+import BrainstormFollowsHops from './pages/BrainstormFollowsHops';
+import BrainstormUserNotes from './pages/BrainstormUserNotes';
 import BrainstormSettings from './pages/BrainstormSettings';
 import BrainstormPersonalization from './pages/BrainstormPersonalization';
 import BrainstormHowSearchWorks from './pages/BrainstormHowSearchWorks';
 import BrainstormAbout from './pages/BrainstormAbout';
-import BrainstormDevelopers from './pages/BrainstormDevelopers';
+import DevelopersHub from './pages/developers/Hub';
+import DevelopersNip50 from './pages/developers/Nip50';
+import DevelopersOpenRanking from './pages/developers/OpenRanking';
+import Tag from './pages/Tag';
+import Tags from './pages/Tags';
+import Pins from './pages/Pins';
+import PinRedirect from './components/PinRedirect';
 import BrainstormFeed from './pages/BrainstormFeed';
+import BrainstormEvent from './pages/BrainstormEvent';
 import NotFound from './pages/NotFound';
 const router = createBrowserRouter([
   {
@@ -83,6 +93,26 @@ const router = createBrowserRouter([
   {
     path: '/user/:pubkey',
     element: <BrainstormProfile />,
+  },
+  {
+    path: '/tag/:tagId',
+    element: <Tag />,
+  },
+  {
+    path: '/tag/:slug/:tagId',
+    element: <Tag />,
+  },
+  {
+    path: '/tags',
+    element: <Tags />,
+  },
+  {
+    path: '/pins',
+    element: <Pins />,
+  },
+  {
+    path: '/pin/:dTag',
+    element: <PinRedirect />,
   },
   {
     path: '/user/:pubkey/follows',
@@ -95,6 +125,18 @@ const router = createBrowserRouter([
   {
     path: '/user/:pubkey/reporters',
     element: <BrainstormReporters />,
+  },
+  {
+    path: '/user/:pubkey/muters',
+    element: <BrainstormMuters />,
+  },
+  {
+    path: '/user/:pubkey/follows-hops',
+    element: <BrainstormFollowsHops />,
+  },
+  {
+    path: '/user/:pubkey/notes',
+    element: <BrainstormUserNotes />,
   },
   {
     path: '/settings',
@@ -117,8 +159,20 @@ const router = createBrowserRouter([
     element: <BrainstormFeed />,
   },
   {
+    path: '/event',
+    element: <BrainstormEvent />,
+  },
+  {
     path: '/developers',
-    element: <BrainstormDevelopers />,
+    element: <DevelopersHub />,
+  },
+  {
+    path: '/developers/nip-50',
+    element: <DevelopersNip50 />,
+  },
+  {
+    path: '/developers/open-ranking',
+    element: <DevelopersOpenRanking />,
   },
   {
     path: '/tapestry',

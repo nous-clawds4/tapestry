@@ -649,16 +649,6 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
 .signin-button:hover { background: var(--accent-hover); }
 .signin-button:disabled { opacity: 0.6; cursor: wait; }
 
-.signin-error {
-  cursor: help;
-  font-size: 0.8em;
-  color: var(--orange);
-  max-width: 300px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 /* User button */
 .header-user { position: relative; }
 
@@ -2394,6 +2384,36 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   opacity: 0.5;
   flex-shrink: 0;
 }
+
+/* Matched-tag chips (search results — typeahead + ResultCard) */
+.bs-matched-tags {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-top: 0.2rem;
+}
+.bs-matched-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  background: rgba(245, 158, 11, 0.08);
+  color: #fbbf24;
+  font-size: 0.7rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.bs-matched-tag.bs-matched-tag-hit {
+  border-color: rgba(245, 158, 11, 0.7);
+  background: rgba(245, 158, 11, 0.15);
+  color: #fcd34d;
+  font-weight: 600;
+}
+.bs-result-matched-tags {
+  margin-top: 0.35rem;
+}
 .bs-suggest-footer {
   padding: 0.4rem 1rem;
   font-size: 0.72rem;
@@ -2574,7 +2594,8 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   border-radius: 50%;
   object-fit: cover;
 }
-.bs-usermenu-settings-btn {
+.bs-usermenu-settings-btn,
+.bs-usermenu-pins-btn {
   display: block;
   width: 100%;
   padding: 0.5rem;
@@ -2588,8 +2609,12 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   cursor: pointer;
   transition: background 0.15s;
 }
-.bs-usermenu-settings-btn:hover {
+.bs-usermenu-settings-btn:hover,
+.bs-usermenu-pins-btn:hover {
   background: rgba(99,102,241,0.15);
+}
+.bs-usermenu-pins-btn {
+  margin-bottom: 0.4rem;
 }
 .bs-usermenu-signout {
   width: 100%;
@@ -2981,6 +3006,22 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
 .bs-search-box-results {
   flex: 1;
   max-width: 560px;
+  /* Lay out the search icon + input + any optional children (autocomplete
+     dropdown) on one row. The original results-mode JSX had only an
+     <input>; the shared <SearchInput> component (ADR-0003) adds the icon,
+     so the box now needs to be a flex container. */
+  display: flex;
+  align-items: center;
+  position: relative;
+  gap: 0.5rem;
+  background: rgba(255,255,255,0.04);
+  border-radius: 20px;
+  padding: 0 0.85rem;
+}
+.bs-search-box-results .bs-search-input-results {
+  border: none;
+  background: transparent;
+  padding: 0.5rem 0;
 }
 .bs-search-input-results {
   width: 100%;
@@ -3272,6 +3313,12 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   padding: 0.75rem 1.5rem;
   border-bottom: 1px solid rgba(255,255,255,0.06);
   gap: 1rem;
+  /* BrainstormSearch's landing layout uses .bs-landing with `margin-top: -4rem`
+     to optically center its hero above midpoint — that negative margin
+     overlaps the top-bar and intercepts clicks on the auth area. Lift the
+     bar above .bs-landing so the sign-in button stays clickable. */
+  position: relative;
+  z-index: 2;
 }
 .bsp-back-btn {
   background: none;
@@ -3303,6 +3350,24 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   gap: 0.5rem;
   font-size: 0.8rem;
 }
+.bsp-top-nav {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-left: auto;
+  margin-right: 1rem;
+}
+.bsp-top-link {
+  color: var(--text-primary, #e2e8f0);
+  opacity: 0.6;
+  text-decoration: none;
+  font-size: 0.85rem;
+  padding: 0.3rem 0.2rem;
+  transition: opacity 0.12s;
+}
+.bsp-top-link:hover { opacity: 1; }
+.bsp-top-link.is-active { opacity: 1; }
+
 .bsp-user-name {
   opacity: 0.6;
 }
@@ -3364,12 +3429,18 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
 }
 .bsp-header-info {
   min-width: 0;
+  flex: 1;
 }
 .bsp-name {
   font-size: 1.5rem;
   font-weight: 600;
   margin: 0;
   line-height: 1.2;
+}
+.bsp-name-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 .bsp-nip05 {
   font-size: 0.85rem;
@@ -3413,6 +3484,13 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
    not the row-level userCounts loading, so it dims on its own. */
 .bsp-count-loading .bsp-count-value {
   opacity: 0.4;
+}
+/* Forces the "bad" indicators (Verified Muters, Verified Reporters) onto the next
+   flex line, grouping them visually away from the good ones (verified-muters #2). */
+.bsp-count-break {
+  flex-basis: 100%;
+  height: 0;
+  margin: 0;
 }
 
 /* Sections */
@@ -3661,6 +3739,445 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   color: #f87171;
   font-size: 0.8rem;
   margin-top: 0.25rem;
+}
+
+/* ── Profile Tags Section ── */
+
+.bsp-tags {
+  margin: 1rem 0 1.25rem;
+}
+.bsp-tags-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 0.5rem;
+}
+.bsp-tags-title {
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  color: var(--text-muted, #94a3b8);
+  text-transform: uppercase;
+  margin: 0;
+}
+.bsp-tags-manage {
+  font-size: 0.8rem;
+  background: transparent;
+  border: none;
+  color: var(--text-muted, #94a3b8);
+  cursor: pointer;
+  padding: 0;
+}
+.bsp-tags-manage:hover {
+  color: var(--text-primary, #e2e8f0);
+}
+.bsp-tags-loading,
+.bsp-tags-error {
+  font-size: 0.85rem;
+  color: var(--text-muted, #94a3b8);
+}
+.bsp-tags-error {
+  color: #f87171;
+}
+.bsp-tags-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: center;
+}
+.bsp-tags-add {
+  padding: 0.3rem 0.7rem;
+  border-radius: 999px;
+  border: 1px dashed var(--border, #334155);
+  background: transparent;
+  color: var(--text-muted, #94a3b8);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.bsp-tags-add:hover {
+  border-color: #6366f1;
+  color: #a5b4fc;
+}
+.bsp-tags-add-empty {
+  border-style: solid;
+  padding: 0.4rem 0.9rem;
+  color: var(--text-primary, #e2e8f0);
+}
+
+/* Tag chip */
+.ptc {
+  position: relative;
+  display: inline-block;
+}
+.ptc-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.25rem 0.7rem;
+  border-radius: 999px;
+  border: 1px solid var(--border, #334155);
+  background: rgba(148, 163, 184, 0.05);
+  color: var(--text-primary, #e2e8f0);
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+.ptc-chip:hover,
+.ptc-chip:focus-visible {
+  border-color: #6366f1;
+}
+.ptc-chip.ptc-chip-mine-apply {
+  border-color: rgba(34, 197, 94, 0.5);
+  background: rgba(34, 197, 94, 0.08);
+}
+.ptc-chip.ptc-chip-mine-dispute {
+  border-color: rgba(239, 68, 68, 0.5);
+  background: rgba(239, 68, 68, 0.08);
+}
+.ptc-warn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.1em;
+  height: 1.1em;
+  border-radius: 999px;
+  background: rgba(239, 68, 68, 0.2);
+  color: #fca5a5;
+  font-size: 0.7em;
+  font-weight: 700;
+}
+.ptc-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 10;
+  min-width: 240px;
+  max-width: 320px;
+  padding: 0.75rem;
+  border-radius: 8px;
+  border: 1px solid var(--border, #334155);
+  background: var(--bg-elev, #1e293b);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  font-size: 0.85rem;
+}
+/* Story-6 AC-1 hover bridge: an invisible region covering the chip→popover
+   visual gap so the cursor stays inside the chip's hit area as it traverses,
+   keeping mouseleave from firing mid-move. Without this, the popover
+   dismisses before the cursor reaches it. */
+.ptc-popover::before {
+  content: '';
+  position: absolute;
+  top: -8px;
+  left: 0;
+  right: 0;
+  height: 8px;
+  background: transparent;
+}
+.ptc-popover-name {
+  font-size: 0.95rem;
+  display: inline;
+}
+/* Tag name in popover is a link to the tag-detail page (opens in a new
+ * tab). Discoverability fix for users who didn't realize the chip itself
+ * navigates. */
+.ptc-popover-name-link {
+  text-decoration: underline;
+  text-decoration-color: rgba(165, 180, 252, 0.4);
+  text-underline-offset: 2px;
+  color: var(--text-primary, #e2e8f0);
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.25rem;
+}
+.ptc-popover-name-link:hover {
+  text-decoration-color: #c7d2fe;
+  color: #c7d2fe;
+}
+.ptc-popover-name-icon {
+  font-size: 0.75rem;
+  color: var(--text-muted, #94a3b8);
+  line-height: 1;
+}
+.ptc-popover-name-link:hover .ptc-popover-name-icon {
+  color: #c7d2fe;
+}
+.ptc-popover-desc {
+  margin: 0.25rem 0 0;
+  color: var(--text-muted, #94a3b8);
+  font-size: 0.8rem;
+}
+.ptc-section {
+  margin-top: 0.6rem;
+}
+.ptc-section-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted, #94a3b8);
+  margin-bottom: 0.25rem;
+}
+.ptc-section-dispute .ptc-section-label {
+  color: #fca5a5;
+}
+.ptc-asserters {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  /* Story-6 AC-4: cap the rows list so a tag with many asserters doesn't
+     stretch the popover off-screen. Each section (applied / disputed) caps
+     independently so both stay visible. */
+  max-height: 12rem;
+  overflow-y: auto;
+}
+.ptc-asserter {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.8rem;
+}
+.ptc-asserter-link {
+  text-decoration: none;
+  color: inherit;
+  padding: 0.2rem 0.3rem;
+  border-radius: 4px;
+  transition: background 0.12s;
+}
+.ptc-asserter-link:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+.ptc-asserter-avatar {
+  width: 1.4em;
+  height: 1.4em;
+  border-radius: 999px;
+  background: rgba(99, 102, 241, 0.2);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7em;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+.ptc-asserter-avatar-img {
+  background: transparent;
+  object-fit: cover;
+}
+.ptc-asserter-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ptc-popover-actions {
+  display: flex;
+  gap: 0.4rem;
+  margin-top: 0.75rem;
+}
+.ptc-btn {
+  flex: 1;
+  padding: 0.4rem 0.6rem;
+  border-radius: 6px;
+  border: 1px solid var(--border, #334155);
+  background: transparent;
+  color: var(--text-primary, #e2e8f0);
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+.ptc-btn-apply {
+  border-color: #f59e0b;
+  color: #fbbf24;
+}
+.ptc-btn-apply:hover:not(:disabled) {
+  background: rgba(245, 158, 11, 0.1);
+}
+.ptc-btn-dispute {
+  border-color: rgba(239, 68, 68, 0.5);
+  color: #fca5a5;
+}
+.ptc-btn-dispute:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.1);
+}
+.ptc-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.ptc-hint {
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
+  color: var(--text-muted, #94a3b8);
+}
+
+/* Add / Manage dialogs */
+.ptd-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+.ptd {
+  width: min(440px, 90vw);
+  max-height: 80vh;
+  overflow: auto;
+  background: var(--bg-elev, #1e293b);
+  border: 1px solid var(--border, #334155);
+  border-radius: 10px;
+  padding: 1rem;
+  color: var(--text-primary, #e2e8f0);
+}
+.ptd-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.6rem;
+}
+.ptd-title {
+  margin: 0;
+  font-size: 1rem;
+}
+.ptd-close {
+  background: transparent;
+  border: none;
+  color: var(--text-muted, #94a3b8);
+  font-size: 1.4rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.ptd-tabs {
+  display: flex;
+  gap: 0.4rem;
+  margin-bottom: 0.6rem;
+}
+.ptd-tab {
+  flex: 1;
+  padding: 0.4rem;
+  border-radius: 6px;
+  border: 1px solid var(--border, #334155);
+  background: transparent;
+  color: var(--text-muted, #94a3b8);
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.ptd-tab.ptd-tab-active {
+  background: rgba(99, 102, 241, 0.15);
+  border-color: #6366f1;
+  color: #a5b4fc;
+}
+.ptd-input,
+.ptd-textarea {
+  width: 100%;
+  padding: 0.5rem;
+  border-radius: 6px;
+  border: 1px solid var(--border, #334155);
+  background: transparent;
+  color: var(--text-primary, #e2e8f0);
+  font-size: 0.9rem;
+  box-sizing: border-box;
+}
+.ptd-textarea {
+  font-family: inherit;
+  resize: vertical;
+}
+.ptd-results {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+.ptd-result-btn {
+  width: 100%;
+  text-align: left;
+  padding: 0.5rem 0.6rem;
+  border-radius: 6px;
+  border: 1px solid var(--border, #334155);
+  background: transparent;
+  color: var(--text-primary, #e2e8f0);
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.ptd-result-btn:hover:not(:disabled) {
+  border-color: #6366f1;
+  background: rgba(99, 102, 241, 0.08);
+}
+.ptd-result-desc {
+  color: var(--text-muted, #94a3b8);
+}
+.ptd-empty,
+.ptd-create-hint {
+  padding: 0.5rem 0;
+  color: var(--text-muted, #94a3b8);
+  font-size: 0.85rem;
+}
+.ptd-link {
+  background: transparent;
+  border: none;
+  color: #a5b4fc;
+  cursor: pointer;
+  padding: 0;
+  font-size: inherit;
+  text-decoration: underline;
+}
+.ptd-create {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+.ptd-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+.ptd-field-label {
+  font-size: 0.75rem;
+  color: var(--text-muted, #94a3b8);
+}
+.ptd-btn {
+  padding: 0.5rem 0.8rem;
+  border-radius: 6px;
+  border: 1px solid var(--border, #334155);
+  background: transparent;
+  color: var(--text-primary, #e2e8f0);
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.ptd-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.ptd-btn-create {
+  border-color: #6366f1;
+  color: #a5b4fc;
+}
+.ptd-btn-revoke {
+  border-color: rgba(239, 68, 68, 0.5);
+  color: #fca5a5;
+}
+.ptd-mine {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+.ptd-mine-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0.6rem;
+  border-radius: 6px;
+  border: 1px solid var(--border, #334155);
+  font-size: 0.85rem;
+}
+.ptd-error {
+  margin-bottom: 0.5rem;
+  padding: 0.4rem 0.6rem;
+  border-radius: 6px;
+  background: rgba(239, 68, 68, 0.08);
+  color: #fca5a5;
+  font-size: 0.8rem;
 }
 
 /* ── Confirm Dialog ── */
@@ -4155,6 +4672,2387 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   .bss-top-bar { padding: 0.5rem 1rem; flex-wrap: wrap; }
 }
 
+/* ── Tag detail page (Story 2 / ADR-0002) ───────────────────── */
+
+.bs-tag-header {
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+.bs-tag-name {
+  font-size: 2rem;
+  font-weight: 700;
+  margin: 0 0 0.4rem;
+  letter-spacing: -0.01em;
+}
+.bs-tag-desc {
+  margin: 0 0 0.75rem;
+  opacity: 0.85;
+  font-size: 1rem;
+  line-height: 1.5;
+}
+.bs-tag-author {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+  font-size: 0.85rem;
+  opacity: 0.65;
+}
+.bs-tag-author-avatar {
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 50%;
+  object-fit: cover;
+}
+.bs-tag-author-name { font-weight: 500; }
+
+.bs-tag-rows { margin-top: 1rem; }
+.bs-tag-sort {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+.bs-tag-sort .bs-sort-toggle-btn {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: var(--text-primary, #e0e0e0);
+  padding: 0.4rem 0.9rem;
+  border-radius: 18px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: background 0.15s, border-color 0.15s;
+}
+.bs-tag-sort .bs-sort-toggle-btn:hover { background: rgba(255,255,255,0.08); }
+.bs-tag-sort .bs-sort-toggle-btn.is-active {
+  background: rgba(165,180,252,0.15);
+  border-color: rgba(165,180,252,0.4);
+  color: #c7d2fe;
+}
+
+.bs-tag-loading,
+.bs-tag-empty,
+.bs-tag-error {
+  margin: 1rem 0;
+  opacity: 0.75;
+  font-size: 0.9rem;
+}
+.bs-tag-error { color: #fca5a5; }
+
+.bs-tag-row-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.bs-tag-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+.bs-tag-row > .bs-tag-row-link { flex: 1 1 auto; min-width: 0; }
+.bs-tag-row-link {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 0.5rem;
+  text-decoration: none;
+  color: inherit;
+  border-radius: 6px;
+  transition: background 0.12s;
+}
+.bs-tag-row-link:hover { background: rgba(255,255,255,0.04); }
+.bs-tag-row-avatar {
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+.bs-tag-row-avatar-placeholder {
+  display: inline-block;
+  background: rgba(255,255,255,0.08);
+}
+.bs-tag-row-name {
+  flex: 1;
+  font-weight: 500;
+  font-size: 0.95rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bs-tag-row-counts {
+  display: flex;
+  gap: 0.5rem;
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+  /* Story 17 / ADR 0014 AC-7 — de-saturate small counts so the Net score
+     reads first. Was implicitly 1; explicit 0.55 deprioritizes them. */
+  opacity: 0.55;
+}
+.bs-tag-count-apply { color: #86efac; }
+.bs-tag-count-dispute { color: #fca5a5; }
+
+/* Story 17 / ADR 0014 — three-slot row layout + Net score + hover-reveal.
+
+   The row is a flex container with three slots:
+     [link (flex:1)] [actions (reserved-width)] [scores]
+
+   The actions slot reserves `min-width` permanently so toggling its
+   `visibility` between hidden/visible does not shift the row's other
+   contents — no jiggle (AC-9). */
+.bs-tag-row-scores {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.bs-tag-row-net {
+  font-size: 1.05rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  min-width: 2.2rem;
+  text-align: right;
+}
+.bs-tag-row-net.is-positive { color: #4ade80; }   /* green */
+.bs-tag-row-net.is-negative { color: #f87171; }   /* red */
+.bs-tag-row-net.is-zero     { color: #fcd34d; }   /* yellow — contested */
+.bs-tag-row-verif {
+  font-size: 0.9rem;
+  color: #d4b675;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Story 3 / ADR-0004 — per-row Apply/Dispute, viewer-only badge, page-search.
+   Story 17 / ADR 0014 — visibility:hidden by default with a reserved
+   min-width; reveal selectors flip to visibility:visible on hover, when
+   `is-expanded-mode` is set (Expanded view: always-on), or on
+   :focus-within (keyboard). Story 18 removed `is-revealed` (the
+   touch-tap row-wide reveal) — touch UX is now the ⋯ menu. */
+.bs-tag-row-actions {
+  display: flex;
+  gap: 0.4rem;
+  margin-right: 0.5rem;
+  flex-shrink: 0;
+  min-width: 9.5rem;          /* reserved width — Apply + Dispute combined */
+  visibility: hidden;          /* default state: occupied but invisible */
+}
+.bs-tag-row:hover .bs-tag-row-actions,
+.bs-tag-row.is-expanded-mode .bs-tag-row-actions,
+.bs-tag-row:focus-within .bs-tag-row-actions {
+  visibility: visible;
+}
+/* Story 18 / ADR 0016 — scores join the hover-reveal cohort in the
+   collapsed Curated view. Expanded mode keeps them always-visible via
+   the is-expanded-mode override. The reserved slot width on
+   .bs-tag-row-scores (min-width below) plus the existing flex-shrink:0
+   guarantee no layout shift on appear/disappear. */
+.bs-tag-row:not(.is-expanded-mode) .bs-tag-row-scores {
+  visibility: hidden;
+  min-width: 5rem;
+}
+.bs-tag-row:hover .bs-tag-row-scores,
+.bs-tag-row.is-expanded-mode .bs-tag-row-scores,
+.bs-tag-row.is-scores-pinned .bs-tag-row-scores,
+.bs-tag-row:focus-within .bs-tag-row-scores {
+  visibility: visible;
+}
+/* Story 18 — search-result rows (TagSomeoneModal) pin the scores so
+   the Verification Score is always readable; it's as important as
+   the avatar/name for triage. Pinned rows ignore the collapsed
+   Curated visibility:hidden default. */
+.bs-tag-row.is-scores-pinned .bs-tag-row-scores {
+  min-width: 0;
+}
+/* Inside the touch overflow menu, both slots are always shown
+   regardless of inherited hover state OR the mobile
+   `display: none` override applied to inline `.bs-tag-row-actions`.
+   The menu IS the reveal. */
+.bs-tag-row-overflow-menu .bs-tag-row-actions {
+  display: flex !important;
+  visibility: visible !important;
+}
+.bs-tag-row-overflow-menu .bs-tag-row-scores {
+  visibility: visible !important;
+}
+
+/* Story 18 / ADR 0016 — overflow trigger + popover.
+
+   Width-based switch: ⋯ shows on narrow viewports (≤ 768px CSS
+   pixels), hides on wider ones where the Story-17 inline +
+   hover-reveal is the right affordance. The earlier "always show"
+   was debugging a different bug (logged-out gating the trigger,
+   since fixed) and is no longer needed. */
+.bs-tag-row-overflow {
+  display: inline-flex;
+  position: relative;
+  margin-left: 0.25rem;
+  flex-shrink: 0;
+}
+@media (max-width: 768px) {
+  .bs-tag-row > .bs-tag-row-actions { display: none; }
+}
+@media (min-width: 769px) {
+  .bs-tag-row-overflow { display: none; }
+}
+.bs-tag-row-overflow-trigger {
+  font: inherit;
+  font-size: 1.1rem;
+  line-height: 1;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,0.18);
+  background: rgba(255,255,255,0.04);
+  color: inherit;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.bs-tag-row-overflow-trigger:hover:not([disabled]) {
+  background: rgba(255,255,255,0.08);
+}
+.bs-tag-row-overflow-menu {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  margin-top: 0.25rem;
+  z-index: 30;
+  min-width: 13rem;
+  max-height: 60vh;
+  overflow-y: auto;
+  background: #1f2937;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 8px;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.45);
+  padding: 0.6rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+/* Desktop default: the anchored popover uses the document-level outside-tap
+   listener; the full-screen backdrop element is mobile-only. (Base rule must
+   precede the @media override below so source order resolves correctly.) */
+.bs-tag-row-overflow-backdrop { display: none; }
+/* On narrow viewports, render the menu as a bottom-sheet using
+   `position: fixed`. Fixed positioning ignores parent overflow
+   clipping, so the sheet displays correctly even when the row lives
+   inside an `overflow: hidden` container (e.g. TagSomeoneModal). A
+   sheet-style menu is also more idiomatic for mobile than an anchored
+   popover. The backdrop dims the rest of the viewport so the sheet
+   reads as a focused surface. */
+@media (max-width: 768px) {
+  .bs-tag-row-overflow-menu {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    top: auto;
+    margin: 0;
+    width: auto;
+    min-width: 0;
+    max-height: 70vh;
+    border-radius: 12px 12px 0 0;
+    box-shadow: 0 -8px 24px rgba(0,0,0,0.55);
+    padding: 1rem 1rem calc(1rem + env(safe-area-inset-bottom));
+    z-index: 1100;       /* above TagSomeoneModal's 1000 */
+    gap: 0.75rem;
+  }
+  /* Real backdrop element (see TagPageRow): pointer-events:auto so a tap
+     anywhere outside the sheet dismisses it on every platform — iOS does
+     not fire mouse events on non-interactive areas, so the old
+     pointer-events:none ::before relied on a listener that never ran. */
+  .bs-tag-row-overflow-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.35);
+    z-index: 1099;
+  }
+}
+.bs-tag-row-overflow-menu .bs-tag-row-actions {
+  /* The reserved-width invariant doesn't matter inside the menu;
+     give the buttons room to breathe instead. */
+  min-width: 0;
+  margin-right: 0;
+}
+/* Story 18 / ADR 0016 — brief inline help for mobile users who
+   can't reach hover-tooltips on the score nodes. */
+.bs-tag-row-overflow-help {
+  margin: 0;
+  font-size: 0.75rem;
+  line-height: 1.35;
+  color: rgba(255, 255, 255, 0.55);
+}
+/* Story 18 — "View profile" link inside the menu (search context).
+   When the tap-on-row no longer navigates, this is the way out. */
+.bs-tag-row-overflow-visit {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.7rem;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.04);
+  color: inherit;
+  text-decoration: none;
+  font-size: 0.85rem;
+}
+.bs-tag-row-overflow-visit:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+.bs-tag-row-apply,
+.bs-tag-row-dispute {
+  font: inherit;
+  font-size: 0.82rem;
+  padding: 0.32rem 0.7rem;
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,0.18);
+  background: rgba(255,255,255,0.04);
+  color: inherit;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+}
+.bs-tag-row-apply:hover:not([disabled]) {
+  background: rgba(134, 239, 172, 0.12);
+  border-color: rgba(134, 239, 172, 0.45);
+}
+.bs-tag-row-dispute:hover:not([disabled]) {
+  background: rgba(252, 165, 165, 0.12);
+  border-color: rgba(252, 165, 165, 0.45);
+}
+.bs-tag-row-apply.is-applied {
+  background: rgba(134, 239, 172, 0.18);
+  border-color: rgba(134, 239, 172, 0.6);
+  color: #86efac;
+}
+.bs-tag-row-dispute.is-disputed {
+  background: rgba(252, 165, 165, 0.18);
+  border-color: rgba(252, 165, 165, 0.6);
+  color: #fca5a5;
+}
+.bs-tag-row-apply[disabled],
+.bs-tag-row-dispute[disabled] {
+  cursor: default;
+  opacity: 0.85;
+}
+.bs-tag-row-badge {
+  display: inline-block;
+  margin-left: 0.6rem;
+  padding: 0.1rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 400;
+  border-radius: 999px;
+  background: rgba(250, 204, 21, 0.12);
+  color: #fcd34d;
+  border: 1px solid rgba(250, 204, 21, 0.35);
+  white-space: nowrap;
+  vertical-align: middle;
+}
+.bs-tag-row-error {
+  flex-basis: 100%;
+  margin: 0 0 0.5rem;
+  font-size: 0.85rem;
+  color: #fca5a5;
+}
+.bs-tag-search {
+  margin: 1rem 0 0.5rem;
+}
+.bs-tag-search-results {
+  margin-top: 0.5rem;
+}
+.bs-tag-search-clear {
+  font: inherit;
+  font-size: 1.1rem;
+  line-height: 1;
+  width: 1.5rem;
+  height: 1.5rem;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.08);
+  color: rgba(255,255,255,0.7);
+  cursor: pointer;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: background 0.12s, color 0.12s;
+}
+.bs-tag-search-clear:hover {
+  background: rgba(255,255,255,0.16);
+  color: #fff;
+}
+
+.bs-tag-notfound {
+  text-align: center;
+  padding: 3rem 1rem;
+}
+.bs-tag-notfound h1 {
+  font-size: 1.5rem;
+  margin: 0 0 0.5rem;
+}
+.bs-tag-link {
+  color: #a5b4fc;
+  text-decoration: none;
+}
+.bs-tag-link:hover { text-decoration: underline; }
+.bs-tag-breadcrumb {
+  display: inline-block;
+  color: #a5b4fc;
+  text-decoration: none;
+  font-size: 0.85rem;
+  opacity: 0.7;
+  margin-bottom: 1rem;
+  transition: opacity 0.12s;
+}
+.bs-tag-breadcrumb:hover { opacity: 1; }
+
+/* ── Tag index page (Story 4 / ADR-0003) ───────────────────── */
+
+.bs-tagindex-main { max-width: 900px; }
+.bs-tagindex-header {
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+.bs-tagindex-title {
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin: 0 0 0.4rem;
+  letter-spacing: -0.01em;
+}
+.bs-tagindex-sub {
+  margin: 0;
+  opacity: 0.75;
+  font-size: 0.9rem;
+}
+.bs-tagindex-pov code {
+  background: rgba(255,255,255,0.06);
+  padding: 0.05rem 0.35rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+}
+.bs-tagindex-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+.bs-tagindex-sort {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+.bs-tagindex-sort .bs-sort-toggle-btn {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: var(--text-primary, #e0e0e0);
+  padding: 0.4rem 0.85rem;
+  border-radius: 18px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: background 0.15s, border-color 0.15s;
+}
+.bs-tagindex-sort .bs-sort-toggle-btn:hover { background: rgba(255,255,255,0.08); }
+.bs-tagindex-sort .bs-sort-toggle-btn.is-active {
+  background: rgba(165,180,252,0.15);
+  border-color: rgba(165,180,252,0.4);
+  color: #c7d2fe;
+}
+.bs-tagindex-mineonly {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0 0 1rem;
+  font-size: 0.85rem;
+  opacity: 0.85;
+  cursor: pointer;
+  user-select: none;
+}
+.bs-tagindex-mineonly input { cursor: pointer; }
+.bs-tagindex-loading,
+.bs-tagindex-error,
+.bs-tagindex-empty {
+  margin: 1rem 0;
+  opacity: 0.85;
+  font-size: 0.9rem;
+}
+.bs-tagindex-error { color: #fca5a5; }
+.bs-tagindex-empty p { margin: 0 0 0.5rem; }
+.bs-tagindex-empty-cta { font-size: 0.9rem; }
+.bs-tagindex-link {
+  color: #a5b4fc;
+  text-decoration: none;
+}
+.bs-tagindex-link:hover { text-decoration: underline; }
+.bs-tagindex-clear-btn {
+  background: none;
+  border: 1px solid rgba(255,255,255,0.15);
+  color: var(--text-primary, #e0e0e0);
+  padding: 0.35rem 0.85rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+.bs-tagindex-clear-btn:hover { background: rgba(255,255,255,0.06); }
+.bs-tagindex-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.bs-tagindex-row {
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+.bs-tagindex-row-link {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem 0.5rem;
+  text-decoration: none;
+  color: inherit;
+  border-radius: 6px;
+  transition: background 0.12s;
+}
+.bs-tagindex-row-link:hover { background: rgba(255,255,255,0.04); }
+.bs-tagindex-row-main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+  flex: 1;
+}
+.bs-tagindex-row-name {
+  font-weight: 600;
+  font-size: 1rem;
+}
+.bs-tagindex-row-desc {
+  font-size: 0.85rem;
+  opacity: 0.75;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.bs-tagindex-row-author {
+  font-size: 0.75rem;
+  opacity: 0.55;
+}
+.bs-tagindex-row-counts {
+  display: flex;
+  gap: 0.6rem;
+  font-size: 0.9rem;
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+.bs-tagindex-count-apply { color: #86efac; }
+.bs-tagindex-count-dispute { color: #fca5a5; }
+.bs-tagindex-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid rgba(255,255,255,0.05);
+}
+.bs-tagindex-count-summary {
+  font-size: 0.85rem;
+  opacity: 0.6;
+}
+.bs-tagindex-loadmore {
+  background: rgba(165,180,252,0.12);
+  border: 1px solid rgba(165,180,252,0.3);
+  color: #c7d2fe;
+  padding: 0.5rem 1.1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background 0.15s;
+}
+.bs-tagindex-loadmore:hover:not(:disabled) { background: rgba(165,180,252,0.2); }
+.bs-tagindex-loadmore:disabled { opacity: 0.5; cursor: default; }
+
+/* ── Shared SortToggle base (Story 5 / ADR-0005) ── */
+/* Conservative defaults — per-page treatment lives under each consumer's
+ * wrapper class (.bs-tag-sort, .bs-tagindex-sort, .bsp-authored-sort). */
+.bs-sort-toggle {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+.bs-sort-toggle-btn {
+  cursor: pointer;
+}
+
+/* ── Authored-tagging section (Story 5 / ADR-0005) ── */
+.bsp-authored {
+  margin: 1rem 0 1.25rem;
+}
+.bsp-authored-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.5rem;
+}
+/* The header is a button so the whole row toggles collapsed/expanded. */
+.bsp-authored-head-toggle {
+  width: 100%;
+  background: transparent;
+  border: none;
+  padding: 0.25rem 0;
+  cursor: pointer;
+  text-align: left;
+}
+.bsp-authored-head-toggle:hover .bsp-authored-title {
+  color: var(--text-primary, #e2e8f0);
+}
+.bsp-authored-title {
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  color: var(--text-muted, #94a3b8);
+  text-transform: uppercase;
+  margin: 0;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.4rem;
+}
+.bsp-authored-count {
+  font-size: 0.7rem;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  color: var(--text-muted, #94a3b8);
+  text-transform: none;
+  opacity: 0.7;
+}
+.bsp-authored-chevron {
+  display: inline-block;
+  font-size: 0.85rem;
+  color: var(--text-muted, #94a3b8);
+  transition: transform 0.15s ease;
+  transform: rotate(-90deg); /* points right when collapsed */
+}
+.bsp-authored-chevron.is-open {
+  transform: rotate(0deg); /* points down when expanded */
+}
+.bsp-authored-sort-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 0.5rem;
+}
+.bsp-authored-sort .bs-sort-toggle-btn {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: var(--text-primary, #e0e0e0);
+  padding: 0.3rem 0.7rem;
+  border-radius: 16px;
+  font-size: 0.78rem;
+  transition: background 0.15s, border-color 0.15s;
+}
+.bsp-authored-sort .bs-sort-toggle-btn:hover { background: rgba(255,255,255,0.08); }
+.bsp-authored-sort .bs-sort-toggle-btn.is-active {
+  background: rgba(165,180,252,0.15);
+  border-color: rgba(165,180,252,0.4);
+  color: #c7d2fe;
+}
+.bsp-authored-loading,
+.bsp-authored-error {
+  font-size: 0.85rem;
+  color: var(--text-muted, #94a3b8);
+  margin: 0.5rem 0;
+}
+.bsp-authored-error { color: #f87171; }
+.bsp-authored-aboutme {
+  background: rgba(165,180,252,0.06);
+  border: 1px solid rgba(165,180,252,0.2);
+  border-radius: 8px;
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 0.75rem;
+}
+.bsp-authored-subhead {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  color: #c7d2fe;
+  text-transform: uppercase;
+  margin: 0 0 0.4rem;
+}
+.bsp-authored-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.bsp-authored-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.45rem 0;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  font-size: 0.9rem;
+}
+.bsp-authored-row:last-child { border-bottom: none; }
+.bsp-authored-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.3rem;
+  height: 1.3rem;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 1rem;
+  line-height: 1;
+  /* Padding-bottom shrinks the flex area at the bottom, shifting the
+   * centered glyph UP to the visual midpoint (compensates for + and −
+   * glyph metrics in our font stack). */
+  padding-bottom: 4px;
+}
+.bsp-authored-applied {
+  background: rgba(34,197,94,0.18);
+  color: #86efac;
+}
+.bsp-authored-disputed {
+  background: rgba(239,68,68,0.18);
+  color: #fca5a5;
+}
+.bsp-authored-tag-link {
+  color: #a5b4fc;
+  text-decoration: none;
+  font-weight: 500;
+}
+.bsp-authored-tag-link:hover { text-decoration: underline; }
+.bsp-authored-arrow {
+  color: var(--text-muted, #94a3b8);
+  font-size: 0.95rem;
+  line-height: 1;
+  margin: 0 0.1rem;
+}
+.bsp-authored-target-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  color: var(--text-primary, #e2e8f0);
+  text-decoration: none;
+}
+.bsp-authored-target-link:hover { color: #c7d2fe; }
+.bsp-authored-target-avatar {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+.bsp-authored-target-name {
+  font-weight: 500;
+}
+.bsp-authored-time {
+  color: var(--text-muted, #94a3b8);
+  font-size: 0.78rem;
+}
+.bsp-authored-peer {
+  font-size: 0.78rem;
+  color: var(--text-muted, #94a3b8);
+  margin-left: auto;
+  white-space: nowrap;
+}
+.bsp-authored-peer .is-agree { color: #86efac; }
+.bsp-authored-peer .is-disagree { color: #fca5a5; }
+.bsp-authored-peer-sep { opacity: 0.5; }
+.bsp-authored-pov-hint {
+  margin: 0.75rem 0 0;
+  font-size: 0.78rem;
+  color: var(--text-muted, #94a3b8);
+  font-style: italic;
+}
+
+/* ── Tag-result rows in search (Story 7 / ADR-0006) ── */
+.bs-tag-result-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 0.75rem;
+  text-decoration: none;
+  color: var(--text-primary, #e2e8f0);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  transition: background 0.1s;
+}
+.bs-tag-result-row:hover {
+  background: rgba(165, 180, 252, 0.08);
+}
+.bs-tag-result-row:last-child {
+  border-bottom: none;
+}
+.bs-tag-result-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.4rem;
+  height: 1.4rem;
+  border-radius: 4px;
+  background: rgba(165, 180, 252, 0.18);
+  color: #c7d2fe;
+  font-weight: 700;
+  font-size: 0.85rem;
+  flex-shrink: 0;
+}
+.bs-tag-result-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+.bs-tag-result-name {
+  font-weight: 500;
+  color: var(--text-primary, #e2e8f0);
+  font-size: 0.9rem;
+}
+.bs-tag-result-desc {
+  font-size: 0.75rem;
+  color: var(--text-muted, #94a3b8);
+  margin-top: 0.15rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bs-tag-result-type {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #a5b4fc;
+  background: rgba(165, 180, 252, 0.12);
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+.bs-tag-result-row-results {
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  border: 1px solid rgba(165, 180, 252, 0.18);
+  background: rgba(165, 180, 252, 0.04);
+  margin-bottom: 0.5rem;
+}
+.bs-results-taghits {
+  margin: 0.5rem 0 1rem;
+}
+.bs-tag-result-more {
+  display: block;
+  padding: 0.5rem 0.75rem;
+  text-align: center;
+  font-size: 0.8rem;
+  color: #a5b4fc;
+  text-decoration: none;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  cursor: pointer;
+}
+.bs-tag-result-more:hover {
+  background: rgba(165, 180, 252, 0.08);
+}
+/* ADR 0021: collapse tag hits after the first few so they don't bury profiles. */
+.bs-taghits-toggle {
+  display: block;
+  width: 100%;
+  padding: 0.45rem 0.75rem;
+  text-align: left;
+  font-size: 0.8rem;
+  color: #a5b4fc;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+.bs-taghits-toggle:hover {
+  background: rgba(165, 180, 252, 0.08);
+}
+
+/* ── Story 10: Pin a tag (ADR 0009) ─────────────────────────────── */
+
+.bs-tag-pin-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-top: 0.5rem;
+}
+/* Story 20 / ADR 0018 — tag-detail tab strip (default vs Pinned). */
+.bs-tag-tablist {
+  display: flex;
+  gap: 0.25rem;
+  margin: 1rem 0 0.75rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.bs-tag-tab {
+  font: inherit;
+  font-size: 0.9rem;
+  padding: 0.5rem 0.9rem;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--text-secondary, #94a3b8);
+  cursor: pointer;
+}
+.bs-tag-tab:hover {
+  color: var(--text-primary, #e2e8f0);
+}
+.bs-tag-tab.is-active {
+  color: var(--text-primary, #e2e8f0);
+  border-bottom-color: #818cf8;
+}
+.bs-tag-pin-wrap {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+.bs-tag-pin {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.75rem;
+  border: 1px solid rgba(99, 102, 241, 0.35);
+  border-radius: 8px;
+  background: rgba(99, 102, 241, 0.08);
+  color: #a5b4fc;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.bs-tag-pin:hover {
+  background: rgba(99, 102, 241, 0.18);
+}
+.bs-tag-pin.is-pinned {
+  background: rgba(99, 102, 241, 0.25);
+  border-color: rgba(99, 102, 241, 0.6);
+  color: #c7d2fe;
+}
+/* Story 20 / ADR 0018 — the pinned-state button label is driven by
+   React state (📌 Pinned ↔ ← Back to Tag) based on the active tab, not
+   a CSS hover swap. The old .bs-tag-pin-label-hover swap rules were
+   removed: they hid the only rendered label on hover, collapsing the
+   button. */
+.bs-tag-pin[disabled] {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+.bs-tag-pin-error {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #fda4af;
+}
+.bs-tag-pins-link {
+  font-size: 0.85rem;
+  color: #a5b4fc;
+  text-decoration: none;
+}
+.bs-tag-pins-link:hover {
+  text-decoration: underline;
+}
+
+/* /pins page */
+.bs-pins-page {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 1rem;
+}
+.bs-pins-heading {
+  font-size: 1.5rem;
+  margin-bottom: 1rem;
+}
+.bs-pins-empty,
+.bs-pins-loading,
+.bs-pins-error {
+  font-size: 0.95rem;
+  color: var(--text-secondary, #94a3b8);
+}
+.bs-pins-error { color: #fda4af; }
+.bs-pins-browse-link {
+  color: #a5b4fc;
+  text-decoration: none;
+}
+.bs-pins-browse-link:hover {
+  text-decoration: underline;
+}
+.bs-pins-signin-btn {
+  margin-top: 0.75rem;
+  padding: 0.5rem 1rem;
+  border: 1px solid rgba(99, 102, 241, 0.35);
+  border-radius: 8px;
+  background: rgba(99, 102, 241, 0.08);
+  color: #a5b4fc;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+.bs-pins-signin-btn:hover {
+  background: rgba(99, 102, 241, 0.18);
+}
+.bs-pins-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.bs-pins-row {
+  margin: 0;
+  padding: 0;
+}
+.bs-pins-row-link {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 0.75rem;
+  margin-bottom: 0.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  text-decoration: none;
+  color: inherit;
+  transition: background 0.15s, border-color 0.15s;
+}
+.bs-pins-row-link:hover {
+  background: rgba(99, 102, 241, 0.06);
+  border-color: rgba(99, 102, 241, 0.25);
+}
+.bs-pins-row-name {
+  font-weight: 600;
+  color: var(--text-primary, #e2e8f0);
+}
+.bs-pins-row-desc {
+  font-size: 0.85rem;
+  color: var(--text-secondary, #94a3b8);
+}
+
+/* Settings link button */
+.bss-card-body {
+  margin: 0 0 0.75rem;
+  font-size: 0.9rem;
+  color: var(--text-secondary, #94a3b8);
+}
+.bss-link-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 0.9rem;
+  border: 1px solid rgba(99, 102, 241, 0.35);
+  border-radius: 8px;
+  background: rgba(99, 102, 241, 0.08);
+  color: #a5b4fc;
+  font-size: 0.9rem;
+  text-decoration: none;
+  cursor: pointer;
+}
+.bss-link-btn:hover {
+  background: rgba(99, 102, 241, 0.18);
+}
+
+/* ── Story 11: Pinned-tag TL refresh (ADR 0010) ─────────────────── */
+
+/* Story 20 / ADR 0018 — /pins rows are plain links with a right-edge
+   chevron (always visible, so the row reads as tappable on touch). */
+.bs-pins-row-link {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.75rem;
+}
+.bs-pins-row-main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.bs-pins-row-chevron {
+  flex: 0 0 auto;
+  font-size: 1.4rem;
+  line-height: 1;
+  color: var(--text-tertiary, #64748b);
+}
+.bs-pins-row-status {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 0.75rem;
+  color: var(--text-tertiary, #64748b);
+}
+.bs-pins-row-status.is-ok { color: #86efac; }
+.bs-pins-row-status.is-never { color: var(--text-tertiary, #64748b); }
+.bs-pins-row-status.is-retracted { color: #fda4af; }
+.bs-pins-row-status.is-unsupported { color: #fcd34d; }
+.bs-pins-row-refresh {
+  padding: 0.4rem 0.7rem;
+  border: 1px solid rgba(99, 102, 241, 0.35);
+  border-radius: 6px;
+  background: rgba(99, 102, 241, 0.08);
+  color: #a5b4fc;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+.bs-pins-row-refresh:hover:not([disabled]) {
+  background: rgba(99, 102, 241, 0.18);
+}
+.bs-pins-row-refresh[disabled] {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.bs-pins-row-error {
+  font-size: 0.8rem;
+  color: #fda4af;
+}
+.bs-pins-refresh-all-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+.bs-pins-refresh-all {
+  padding: 0.5rem 0.9rem;
+  border: 1px solid rgba(99, 102, 241, 0.35);
+  border-radius: 8px;
+  background: rgba(99, 102, 241, 0.12);
+  color: #a5b4fc;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.bs-pins-refresh-all:hover:not([disabled]) {
+  background: rgba(99, 102, 241, 0.22);
+}
+.bs-pins-refresh-all[disabled] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.bs-pins-intro {
+  margin: 0 0 1.5rem;
+  padding: 0.75rem 1rem;
+  border-left: 3px solid rgba(99, 102, 241, 0.5);
+  background: rgba(99, 102, 241, 0.05);
+  border-radius: 4px;
+}
+.bs-pins-intro p {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: var(--text-secondary, #94a3b8);
+}
+.bs-pins-intro p + p {
+  margin-top: 0.6rem;
+}
+.bs-pins-intro code,
+.bs-pins-member-hint code {
+  font-size: 0.85em;
+  padding: 0.1em 0.35em;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 3px;
+}
+.bs-pins-member-hint {
+  margin: 1rem 0 0;
+  padding: 0.6rem 0.9rem;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: var(--text-tertiary, #64748b);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* ── Story 11 follow-up: TL share button ───────────────────── */
+.bs-tl-share {
+  border: 1px solid rgba(99, 102, 241, 0.35);
+  border-radius: 6px;
+  background: rgba(99, 102, 241, 0.08);
+  color: #a5b4fc;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.05s;
+}
+.bs-tl-share:hover { background: rgba(99, 102, 241, 0.18); }
+.bs-tl-share:active { transform: scale(0.97); }
+.bs-tl-share.is-copied {
+  background: rgba(134, 239, 172, 0.15);
+  border-color: rgba(134, 239, 172, 0.5);
+  color: #86efac;
+}
+.bs-tl-share-compact {
+  padding: 0.3rem 0.45rem;
+  font-size: 0.95rem;
+  line-height: 1;
+}
+.bs-tl-share-full {
+  padding: 0.4rem 0.8rem;
+  font-size: 0.85rem;
+}
+
+/* ── Story 11 follow-up: PinDetail page ─────────────────────── */
+.bs-pindetail-page {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 1rem;
+}
+.bs-pindetail-breadcrumb {
+  display: inline-block;
+  margin-bottom: 0.75rem;
+  font-size: 0.85rem;
+  color: #a5b4fc;
+  text-decoration: none;
+}
+.bs-pindetail-breadcrumb:hover { text-decoration: underline; }
+.bs-pindetail-header {
+  margin-bottom: 1rem;
+}
+.bs-pindetail-title {
+  margin: 0;
+  font-size: 1.6rem;
+}
+.bs-pindetail-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin-top: 0.5rem;
+}
+.bs-pindetail-refresh {
+  padding: 0.4rem 0.8rem;
+  border: 1px solid rgba(99, 102, 241, 0.35);
+  border-radius: 6px;
+  background: rgba(99, 102, 241, 0.08);
+  color: #a5b4fc;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.bs-pindetail-refresh:hover:not([disabled]) { background: rgba(99, 102, 241, 0.18); }
+.bs-pindetail-refresh[disabled] { opacity: 0.4; cursor: not-allowed; }
+.bs-pindetail-retracted {
+  margin: 0.5rem 0 0;
+  padding: 0.5rem 0.75rem;
+  border-radius: 4px;
+  background: rgba(252, 211, 77, 0.08);
+  border-left: 3px solid rgba(252, 211, 77, 0.5);
+  color: #fcd34d;
+  font-size: 0.85rem;
+}
+.bs-pindetail-meta {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.4rem 1rem;
+  margin: 1rem 0;
+  padding: 0.75rem 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 6px;
+  font-size: 0.85rem;
+}
+.bs-pindetail-meta dt {
+  color: var(--text-tertiary, #64748b);
+  margin: 0;
+}
+.bs-pindetail-meta dd {
+  margin: 0;
+  color: var(--text-primary, #e2e8f0);
+}
+.bs-pindetail-meta a { color: #a5b4fc; text-decoration: none; }
+.bs-pindetail-meta a:hover { text-decoration: underline; }
+.bs-pindetail-meta code {
+  font-size: 0.85em;
+  padding: 0.1em 0.35em;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 3px;
+}
+.bs-pindetail-members-heading {
+  font-size: 1.1rem;
+  margin: 1.5rem 0 0.75rem;
+}
+.bs-pindetail-empty {
+  color: var(--text-tertiary, #64748b);
+  font-size: 0.9rem;
+}
+.bs-pindetail-members { list-style: none; padding: 0; margin: 0; }
+.bs-pindetail-member { margin-bottom: 0.5rem; }
+.bs-pindetail-member-link {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  text-decoration: none;
+  color: inherit;
+  transition: background 0.15s, border-color 0.15s;
+}
+.bs-pindetail-member-link:hover {
+  background: rgba(99, 102, 241, 0.06);
+  border-color: rgba(99, 102, 241, 0.25);
+}
+.bs-pindetail-member-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex: 0 0 auto;
+}
+.bs-pindetail-member-avatar-placeholder {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(99, 102, 241, 0.12);
+  font-size: 1rem;
+}
+.bs-pindetail-member-info {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+.bs-pindetail-member-name {
+  font-weight: 600;
+  color: var(--text-primary, #e2e8f0);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.bs-pindetail-member-nip05 {
+  font-size: 0.78rem;
+  color: var(--text-tertiary, #64748b);
+}
+.bs-pindetail-member-counts {
+  font-size: 0.8rem;
+  color: #86efac;
+  flex: 0 0 auto;
+}
+.bs-pindetail-loading, .bs-pindetail-error {
+  margin: 1rem 0;
+  font-size: 0.9rem;
+  color: var(--text-secondary, #94a3b8);
+}
+.bs-pindetail-error { color: #fda4af; }
+
+/* ── Story 11 follow-up: PinnedTagChips ─────────────────────── */
+.bs-pin-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: center;
+  margin: 0.6rem 0 0;
+  padding: 0.4rem 0;
+  font-size: 0.8rem;
+}
+.bs-pin-chips-label {
+  font-size: 0.75rem;
+  color: var(--text-tertiary, #64748b);
+  margin-right: 0.25rem;
+}
+.bs-pin-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.25rem 0.6rem;
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  border-radius: 999px;
+  background: rgba(99, 102, 241, 0.06);
+  color: var(--text-secondary, #94a3b8);
+  font-size: 0.78rem;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.bs-pin-chip:hover:not(.is-disabled) {
+  background: rgba(99, 102, 241, 0.15);
+  color: #a5b4fc;
+}
+.bs-pin-chip.is-active {
+  background: rgba(99, 102, 241, 0.3);
+  color: #c7d2fe;
+  border-color: rgba(99, 102, 241, 0.7);
+}
+.bs-pin-chip.is-disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+.bs-pin-chip-count {
+  display: inline-block;
+  padding: 0 0.35rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  font-size: 0.7rem;
+  color: var(--text-tertiary, #64748b);
+}
+.bs-pin-chip.is-active .bs-pin-chip-count {
+  background: rgba(255, 255, 255, 0.18);
+  color: #c7d2fe;
+}
+.bs-pin-chip-clear {
+  margin-left: 0.5rem;
+  padding: 0.25rem 0.6rem;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-tertiary, #64748b);
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+.bs-pin-chip-clear:hover { color: #fda4af; }
+.bs-results-chips-row {
+  padding: 0 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+/* ── Story 11 follow-up: in-popup chip row ───────────────── */
+.bs-suggest-chips {
+  padding: 0.4rem 0.75rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+.bs-suggest-chips .bs-pin-chips {
+  margin: 0;
+  padding: 0;
+}
+
+.bs-pindetail-id {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+.bs-pindetail-id code {
+  display: block;
+  word-break: break-all;
+  font-size: 0.78em;
+  padding: 0.3em 0.5em;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 4px;
+  user-select: all;
+}
+.bs-pindetail-id-hint {
+  font-size: 0.7rem;
+  color: var(--text-tertiary, #64748b);
+  font-style: italic;
+}
+
+/* ── Story 12: CurationMethodDialog (pcd-*) ─────────────── */
+.pcd-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+.pcd {
+  background: var(--bg-secondary, #1a1a2e);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  width: 100%;
+  max-width: 520px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+}
+/* Narrow viewport: backdrop drops to almost-zero padding so the dialog
+   has the full width, and the action row wraps when buttons no longer
+   fit side-by-side (Unpin + Cancel + Save changes on a 360px phone). */
+@media (max-width: 480px) {
+  .pcd-backdrop { padding: 0.5rem; }
+  .pcd-head { padding: 0.75rem 0.9rem; }
+  .pcd-tag-info { padding: 0.5rem 0.9rem; }
+  .pcd-body { padding: 0.85rem 0.9rem; }
+  .pcd-actions {
+    flex-wrap: wrap;
+    row-gap: 0.5rem;
+  }
+  .pcd-actions-spacer { display: none; }
+  .pcd-cancel,
+  .pcd-submit,
+  .pcd-unpin {
+    flex: 1 1 auto;
+  }
+}
+.pcd-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.9rem 1.1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.pcd-title {
+  margin: 0;
+  font-size: 1.05rem;
+  color: var(--text-primary, #e2e8f0);
+}
+.pcd-close {
+  background: transparent;
+  border: none;
+  color: var(--text-tertiary, #64748b);
+  font-size: 1.5rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 0.3rem;
+}
+.pcd-close:hover { color: #fda4af; }
+.pcd-tag-info {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.6rem 1.1rem;
+  font-size: 0.85rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+.pcd-tag-label { color: var(--text-tertiary, #64748b); }
+.pcd-tag-name { color: var(--text-primary, #e2e8f0); font-weight: 600; }
+.pcd-body { padding: 1rem 1.1rem; }
+.pcd-field { margin-bottom: 1rem; }
+.pcd-label {
+  display: block;
+  margin-bottom: 0.3rem;
+  font-size: 0.85rem;
+  color: var(--text-secondary, #94a3b8);
+}
+.pcd-input,
+.pcd-select {
+  width: 100%;
+  padding: 0.5rem 0.7rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.2);
+  color: var(--text-primary, #e2e8f0);
+  font-size: 0.9rem;
+  font-family: inherit;
+}
+.pcd-input:focus,
+.pcd-select:focus {
+  outline: none;
+  border-color: rgba(99, 102, 241, 0.6);
+}
+.pcd-input[aria-invalid="true"] { border-color: rgba(252, 113, 122, 0.6); }
+.pcd-toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  cursor: pointer;
+  font-size: 0.9rem;
+  color: var(--text-primary, #e2e8f0);
+}
+.pcd-toggle input[type="checkbox"] {
+  margin-top: 0.2rem;
+}
+.pcd-helper {
+  margin: 0.3rem 0 0;
+  font-size: 0.75rem;
+  color: var(--text-tertiary, #64748b);
+  line-height: 1.4;
+}
+.pcd-error {
+  margin: 0.3rem 0 0;
+  font-size: 0.78rem;
+  color: #fda4af;
+}
+.pcd-form-error {
+  margin: 0.5rem 0;
+  padding: 0.5rem 0.7rem;
+  border-left: 3px solid rgba(252, 113, 122, 0.6);
+  background: rgba(252, 113, 122, 0.08);
+  color: #fda4af;
+  font-size: 0.8rem;
+  border-radius: 4px;
+}
+.pcd-advanced {
+  margin: 1rem 0;
+  padding: 0.5rem 0.7rem;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 6px;
+}
+.pcd-advanced > summary {
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: var(--text-secondary, #94a3b8);
+  list-style: revert;
+}
+.pcd-advanced > summary:hover { color: #a5b4fc; }
+.pcd-advanced[open] > summary { margin-bottom: 0.6rem; }
+.pcd-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+/* Story 18 / ADR 0016 — destructive Unpin lives on the left. The
+   spacer pushes Cancel/Submit to the right so the destructive button
+   is visually separate from the confirmation pair. */
+.pcd-actions-spacer { flex: 1; }
+.pcd-unpin {
+  padding: 0.5rem 0.9rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  font-family: inherit;
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.45);
+  color: #fca5a5;
+}
+.pcd-unpin:hover:not([disabled]) {
+  background: rgba(239, 68, 68, 0.22);
+  border-color: rgba(239, 68, 68, 0.7);
+}
+.pcd-unpin.is-confirming {
+  background: rgba(239, 68, 68, 0.35);
+  border-color: rgba(239, 68, 68, 0.85);
+  color: #fff;
+}
+.pcd-unpin[disabled] { opacity: 0.5; cursor: not-allowed; }
+.pcd-cancel,
+.pcd-submit {
+  padding: 0.5rem 0.9rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  font-family: inherit;
+}
+.pcd-cancel {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--text-secondary, #94a3b8);
+}
+.pcd-cancel:hover:not([disabled]) {
+  background: rgba(255, 255, 255, 0.06);
+}
+.pcd-submit {
+  background: rgba(99, 102, 241, 0.25);
+  border: 1px solid rgba(99, 102, 241, 0.6);
+  color: #c7d2fe;
+}
+.pcd-submit:hover:not([disabled]) {
+  background: rgba(99, 102, 241, 0.35);
+}
+.pcd-submit[disabled],
+.pcd-cancel[disabled] { opacity: 0.5; cursor: not-allowed; }
+.pcd code {
+  font-size: 0.85em;
+  padding: 0.05em 0.3em;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 3px;
+}
+
+/* Edit buttons on /pins and PinDetail */
+.bs-pins-row-edit {
+  padding: 0.4rem 0.6rem;
+  border: 1px solid rgba(99, 102, 241, 0.35);
+  border-radius: 6px;
+  background: rgba(99, 102, 241, 0.08);
+  color: #a5b4fc;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+.bs-pins-row-edit:hover:not([disabled]) {
+  background: rgba(99, 102, 241, 0.18);
+}
+.bs-pins-row-edit[disabled] { opacity: 0.4; cursor: not-allowed; }
+
+.bs-pindetail-edit {
+  padding: 0.4rem 0.8rem;
+  border: 1px solid rgba(99, 102, 241, 0.35);
+  border-radius: 6px;
+  background: rgba(99, 102, 241, 0.08);
+  color: #a5b4fc;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.bs-pindetail-edit:hover:not([disabled]) {
+  background: rgba(99, 102, 241, 0.18);
+}
+.bs-pindetail-edit[disabled] { opacity: 0.4; cursor: not-allowed; }
+
+/* ── Story 13: pin-aware tag index (ADR 0012) ─────────────── */
+.bs-tagindex-count-pinned {
+  /* Same base shape as .bs-tagindex-count-apply / .-dispute, but a
+     distinct hue so the pin signal reads as separate from the
+     endorsement/dispute counts. */
+  background: rgba(168, 85, 247, 0.12);
+  border: 1px solid rgba(168, 85, 247, 0.35);
+  color: #d8b4fe;
+}
+.bs-tagindex-own-pin {
+  display: inline-block;
+  margin-left: 0.4rem;
+  font-size: 0.8em;
+  vertical-align: middle;
+  opacity: 0.85;
+}
+.bs-tagindex-pinnedonly {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.4rem;
+  font-size: 0.85rem;
+  color: var(--text-secondary, #94a3b8);
+  cursor: pointer;
+}
+.bs-tagindex-pinnedonly input[type="checkbox"] {
+  margin: 0;
+}
+
+/* ────────────────────────────────────────────────────────────────────────
+   Story 17 / ADR 0014 — TagViewControls (toolbar above the row list) +
+   TagSomeoneModal (separated search dialog).
+   ──────────────────────────────────────────────────────────────────────── */
+.bs-tag-view-controls {
+  margin: 0.75rem 0 0.5rem;
+}
+.bs-tag-view-controls-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+.bs-tag-view-tagsomeone {
+  font: inherit;
+  font-size: 0.9rem;
+  padding: 0.4rem 0.9rem;
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,0.18);
+  background: rgba(255,255,255,0.04);
+  color: inherit;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+}
+/* Story 18 — disabled (logged-out) state. Greyed-out, non-interactive,
+   no hover/active feedback. Self-explanatory label ("🔒 Sign in to
+   tag someone") covers for the unreachable touch tooltip. */
+.bs-tag-view-tagsomeone:disabled,
+.bs-tag-view-tagsomeone.is-disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: transparent;
+  border-color: rgba(255,255,255,0.08);
+  color: rgba(255,255,255,0.55);
+}
+.bs-tag-view-tagsomeone:disabled:hover,
+.bs-tag-view-tagsomeone:disabled:active,
+.bs-tag-view-tagsomeone.is-disabled:hover,
+.bs-tag-view-tagsomeone.is-disabled:active {
+  background: transparent;
+  border-color: rgba(255,255,255,0.08);
+}
+.bs-tag-view-tagsomeone:hover:not(:disabled):not(.is-disabled) {
+  background: rgba(255,255,255,0.08);
+  border-color: rgba(255,255,255,0.3);
+}
+.bs-tag-view-options {
+  /* The <details> element itself; we style its <summary> below.
+     Hide the default disclosure marker — we render our own chevron. */
+}
+.bs-tag-view-options > summary {
+  list-style: none;
+  cursor: pointer;
+}
+.bs-tag-view-options > summary::-webkit-details-marker { display: none; }
+.bs-tag-view-options-summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.9rem;
+  color: var(--text-secondary, #94a3b8);
+  padding: 0.3rem 0.4rem;
+  border-radius: 6px;
+}
+.bs-tag-view-options-summary:hover {
+  background: rgba(255,255,255,0.04);
+  color: inherit;
+}
+.bs-tag-view-options-chevron {
+  display: inline-block;
+  transition: transform 0.15s;
+}
+.bs-tag-view-options[open] .bs-tag-view-options-chevron {
+  transform: rotate(180deg);
+}
+.bs-tag-view-options-panel {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 0;
+  margin-top: 0.3rem;
+  border-top: 1px solid rgba(255,255,255,0.06);
+}
+.bs-tag-view-filter {
+  flex: 1 1 14rem;
+  font: inherit;
+  font-size: 0.9rem;
+  padding: 0.35rem 0.6rem;
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,0.18);
+  background: rgba(255,255,255,0.04);
+  color: inherit;
+  min-width: 10rem;
+}
+.bs-tag-view-filter::placeholder { color: rgba(255,255,255,0.4); }
+
+/* TagSomeoneModal — modal chrome + body. Namespaced under .tsm-* so it
+   stays independent of the curation dialog's .pcd-* namespace, even though
+   the visual shape is similar. */
+.tsm-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.55);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 4rem 1rem 1rem;
+  z-index: 1000;
+}
+.tsm-dialog {
+  background: var(--bg-elev, #1b2333);
+  color: inherit;
+  border-radius: 10px;
+  box-shadow: 0 16px 48px rgba(0,0,0,0.45);
+  width: 100%;
+  max-width: 38rem;
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 6rem);
+  overflow: hidden;
+}
+.tsm-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.9rem 1rem;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+.tsm-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+.tsm-close {
+  background: none;
+  border: none;
+  color: inherit;
+  font-size: 1.4rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 0.4rem;
+  opacity: 0.7;
+}
+.tsm-close:hover { opacity: 1; }
+.tsm-body {
+  padding: 0.9rem 1rem 1rem;
+  overflow-y: auto;
+}
+.tsm-search-input {
+  width: 100%;
+  font: inherit;
+  font-size: 0.95rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,0.18);
+  background: rgba(255,255,255,0.04);
+  color: inherit;
+  box-sizing: border-box;
+}
+.tsm-status {
+  margin: 0.75rem 0 0;
+  font-size: 0.9rem;
+  color: var(--text-secondary, #94a3b8);
+}
+.tsm-status.tsm-error { color: #fca5a5; }
+.tsm-results {
+  margin-top: 0.5rem;
+}
+
+/* CurationMethodDialog intro paragraph (Story 17 / ADR 0014 Decision 9). */
+.pcd-intro {
+  margin: 0.5rem 1rem 0.75rem;
+  padding: 0.65rem 0.85rem;
+  border-radius: 6px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.06);
+}
+.pcd-intro p {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.45;
+  color: var(--text-secondary, #94a3b8);
+}
+.pcd-intro strong { color: inherit; }
+
+/* ── Story 18 / ADR 0016 — global affordances ───────────────────────
+
+   1. `.bs-sr-only`: visually-hidden text that remains in the
+      accessibility tree. Used by TagPageRow to mirror score values
+      when the visual slot is `visibility: hidden` under the
+      collapsed Curated view (AC-19).
+   2. `[data-bs-tooltip]`: pure-CSS tooltip pattern with a fast,
+      tunable onset. Replaces native `title=` on Story-18-touched
+      surfaces so the tooltip feels attached to the cursor instead
+      of arriving 1–2s late. The text comes from the attribute
+      value; an `aria-label` (or `aria-describedby`) on the same
+      node is required so screen-reader behavior is preserved (the
+      ::after pseudo-element is not in the accessibility tree).
+      Tune `--bs-tooltip-onset` to change the show-delay globally. */
+
+:root { --bs-tooltip-onset: 200ms; }
+
+.bs-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+[data-bs-tooltip] { position: relative; }
+[data-bs-tooltip]::after {
+  content: attr(data-bs-tooltip);
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  background: #1f2937;
+  color: #f3f4f6;
+  padding: 0.3rem 0.55rem;
+  border-radius: 4px;
+  font-size: 0.78rem;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 80ms ease;
+  transition-delay: 0s;       /* immediate on hide */
+  z-index: 50;
+}
+[data-bs-tooltip]:hover::after,
+[data-bs-tooltip]:focus-visible::after {
+  opacity: 1;
+  transition-delay: var(--bs-tooltip-onset);
+}
+/* Multi-line / long-copy variant — opt-in via data attr. */
+[data-bs-tooltip][data-bs-tooltip-wrap="true"]::after {
+  white-space: normal;
+  max-width: 22rem;
+  width: max-content;
+}
+/* Hover-driven tooltips are noise on touch; suppress on hover-none
+   viewports where the CSS pseudo-tooltip can't be dismissed. */
+@media (hover: none) {
+  [data-bs-tooltip]::after { display: none; }
+}
+
+
+/* ── Story 19 / ADR 0017: NIP-51 kind-30000 export — TLExportButton ── */
+.bs-tl-export-wrap {
+  position: relative;
+  display: inline-block;
+}
+.bs-tl-export {
+  border: 1px solid rgba(244, 114, 182, 0.35);
+  border-radius: 6px;
+  background: rgba(244, 114, 182, 0.08);
+  color: #f9a8d4;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.05s;
+}
+.bs-tl-export:hover:not(:disabled) { background: rgba(244, 114, 182, 0.18); }
+.bs-tl-export:active:not(:disabled) { transform: scale(0.97); }
+.bs-tl-export:disabled { opacity: 0.5; cursor: not-allowed; }
+.bs-tl-export.is-copied {
+  background: rgba(134, 239, 172, 0.15);
+  border-color: rgba(134, 239, 172, 0.5);
+  color: #86efac;
+}
+.bs-tl-export-compact {
+  padding: 0.3rem 0.45rem;
+  font-size: 0.95rem;
+  line-height: 1;
+}
+.bs-tl-export-full {
+  padding: 0.4rem 0.8rem;
+  font-size: 0.85rem;
+}
+/* Backdrop wraps the popover and centers it in the viewport so it
+   never falls off-screen near the edge (the previous anchored
+   `position: absolute; right: 0` overflowed on narrow viewports and
+   near the right edge of wide ones). */
+.bs-tl-export-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+.bs-tl-export-popover {
+  position: relative;
+  width: 100%;
+  max-width: 32rem;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 0.85rem 1rem;
+  background: #181d2f;
+  border: 1px solid rgba(244, 114, 182, 0.35);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+@media (max-width: 768px) {
+  .bs-tl-export-backdrop {
+    align-items: flex-end;
+    padding: 0;
+  }
+  .bs-tl-export-popover {
+    max-width: 100vw;
+    max-height: 85vh;
+    border-radius: 12px 12px 0 0;
+    padding: 1rem 1rem calc(1rem + env(safe-area-inset-bottom));
+  }
+}
+/* Shared login-failure modal (LoginErrorModal, ADR 0021). */
+.bs-login-error-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 1300;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+.bs-login-error-modal {
+  position: relative;
+  width: 100%;
+  max-width: 26rem;
+  padding: 1.25rem 1.35rem;
+  background: #181d2f;
+  border: 1px solid rgba(244, 114, 182, 0.35);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+.bs-login-error-title {
+  margin: 0 0 0.5rem;
+  font-size: 1.1rem;
+  color: #fff;
+}
+.bs-login-error-message {
+  margin: 0 0 1.1rem;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: #c9d1e0;
+}
+.bs-login-error-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+.bs-login-error-btn {
+  padding: 0.45rem 1.1rem;
+  font-size: 0.9rem;
+  color: #fff;
+  background: #f472b6;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.bs-login-error-btn:hover {
+  background: #ec4899;
+}
+@media (max-width: 600px) {
+  .bs-login-error-backdrop {
+    align-items: flex-end;
+    padding: 0;
+  }
+  .bs-login-error-modal {
+    max-width: 100vw;
+    border-radius: 12px 12px 0 0;
+    padding: 1.25rem 1.25rem calc(1.25rem + env(safe-area-inset-bottom));
+  }
+}
+
+.bs-tl-export-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-bottom: 0.6rem;
+}
+.bs-tl-export-label {
+  font-size: 0.8rem;
+  color: #cbd5e1;
+}
+.bs-tl-export-input {
+  padding: 0.4rem 0.6rem;
+  background: #0f1322;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  border-radius: 4px;
+  color: #e5e7eb;
+  font-size: 0.9rem;
+}
+.bs-tl-export-preview {
+  padding: 0.6rem 0.8rem;
+  margin-bottom: 0.6rem;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+.bs-tl-export-preview.is-ok {
+  background: rgba(56, 189, 248, 0.06);
+  border: 1px solid rgba(56, 189, 248, 0.18);
+  color: #cbd5e1;
+}
+.bs-tl-export-preview.is-warn {
+  background: rgba(251, 191, 36, 0.08);
+  border: 1px solid rgba(251, 191, 36, 0.3);
+  color: #fbbf24;
+}
+.bs-tl-export-preview-lead { margin: 0 0 0.4rem 0; }
+.bs-tl-export-preview-list {
+  margin: 0 0 0.4rem 0;
+  padding-left: 1.2rem;
+}
+.bs-tl-export-preview-list li code {
+  font-size: 0.78rem;
+  color: #a5b4fc;
+}
+.bs-tl-export-preview-foot {
+  margin: 0;
+  font-size: 0.75rem;
+  color: #94a3b8;
+}
+.bs-tl-export-error {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.8rem;
+  color: #fda4af;
+}
+.bs-tl-export-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+.bs-tl-export-cancel,
+.bs-tl-export-confirm {
+  padding: 0.35rem 0.8rem;
+  font-size: 0.85rem;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.bs-tl-export-cancel {
+  background: transparent;
+  color: #94a3b8;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+}
+.bs-tl-export-confirm {
+  background: rgba(244, 114, 182, 0.18);
+  color: #f9a8d4;
+  border: 1px solid rgba(244, 114, 182, 0.35);
+}
+.bs-tl-export-confirm:disabled,
+.bs-tl-export-cancel:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Per-row export status line on /pins (Story 19). */
+.bs-pins-row-export-status {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 0.75rem;
+  color: #94a3b8;
+}
+.bs-pins-row-export-status.is-never { color: #94a3b8; }
+.bs-pins-row-export-status.is-fresh { color: #86efac; }
+.bs-pins-row-export-status.is-stale { color: #fbbf24; }
+
+/* PinDetail Export-for-other-clients section (Story 19). */
+.bs-pindetail-export {
+  margin: 1.5rem 0 1rem 0;
+  padding: 1rem 1.1rem;
+  border: 1px solid rgba(244, 114, 182, 0.22);
+  background: rgba(244, 114, 182, 0.04);
+  border-radius: 8px;
+}
+.bs-pindetail-export-heading {
+  margin: 0 0 0.4rem 0;
+  font-size: 1rem;
+  color: #f9a8d4;
+}
+.bs-pindetail-export-help {
+  margin: 0 0 0.7rem 0;
+  font-size: 0.85rem;
+  color: #cbd5e1;
+  line-height: 1.5;
+}
+.bs-pindetail-export-row {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  flex-wrap: wrap;
+}
+.bs-pindetail-export-status {
+  font-size: 0.8rem;
+  color: #94a3b8;
+}
+.bs-pindetail-export-status.is-fresh { color: #86efac; }
+.bs-pindetail-export-status.is-stale { color: #fbbf24; }
+
+/* Story 19 ADR Amendment III — TLExportButton preview sub-sections. */
+.bs-tl-export-preview-subhead {
+  margin: 0.5rem 0 0.2rem 0;
+  font-size: 0.78rem;
+  color: #cbd5e1;
+}
+.bs-tl-export-preview-source {
+  color: #94a3b8;
+  font-weight: normal;
+}
+.bs-tl-export-preview-warn-inline {
+  margin: 0.4rem 0;
+  padding: 0.5rem 0.7rem;
+  background: rgba(251, 191, 36, 0.08);
+  border-left: 3px solid rgba(251, 191, 36, 0.5);
+  border-radius: 3px;
+  font-size: 0.78rem;
+  color: #fbbf24;
+  line-height: 1.45;
+}
+
+/* ── Story 21 / ADR 0019: collapsed Export modal + sync status + naddr rows ── */
+
+/* "What will be exported?" disclosure inside the Export modal. */
+.bs-export-what {
+  margin: 0.5rem 0;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  border-radius: 6px;
+  padding: 0.4rem 0.6rem;
+  background: rgba(148, 163, 184, 0.06);
+}
+.bs-export-what-summary {
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: #94a3b8;
+  user-select: none;
+}
+.bs-export-what-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.55rem;
+}
+.bs-export-target {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+.bs-export-target input[type="checkbox"] { margin-top: 0.2rem; }
+
+/* Two-line sync status under the Pinned-tab header. */
+.bs-pindetail-sync { margin: 0.4rem 0 0.2rem; }
+.bs-pindetail-sync-when {
+  margin: 0;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #cbd5e1;
+}
+.bs-pindetail-sync-status {
+  margin: 0.1rem 0 0;
+  font-size: 0.78rem;
+  color: #94a3b8;
+}
+.bs-pindetail-sync.is-ok .bs-pindetail-sync-status { color: #4ade80; }
+.bs-pindetail-sync.is-pending .bs-pindetail-sync-status { color: #fbbf24; }
+.bs-pindetail-sync.is-stale .bs-pindetail-sync-status { color: #fbbf24; }
+
+/* "Details and List IDs" collapse around the metadata list. */
+.bs-pindetail-details { margin: 1rem 0; }
+.bs-pindetail-details > summary {
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: #94a3b8;
+  user-select: none;
+  padding: 0.3rem 0;
+}
+.bs-pindetail-details > summary:hover { color: #cbd5e1; }
+/* the dl inside the disclosure drops its own outer margin */
+.bs-pindetail-details .bs-pindetail-meta { margin: 0.3rem 0 0; }
+
+/* Grid cells must be allowed to shrink, else a long id blows out the 1fr
+   column and pushes the help text off-screen. */
+.bs-pindetail-meta dd { min-width: 0; }
+
+/* naddr copy rows: truncated id (first-5…last-4) + copy + help line. */
+.bs-pindetail-naddr { min-width: 0; }
+.bs-pindetail-naddr-line {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+.bs-pindetail-naddr-toggle {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  color: inherit;
+  min-width: 0;
+}
+.bs-pindetail-naddr-toggle code { word-break: break-all; text-align: left; }
+.bs-pindetail-naddr-showall {
+  font-size: 0.68rem;
+  color: #818cf8;
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+.bs-pindetail-naddr-toggle:hover .bs-pindetail-naddr-showall { opacity: 1; }
+/* Expanded id: plain, user-selectable so manual copy works as a fallback. */
+.bs-pindetail-naddr-full {
+  word-break: break-all;
+  user-select: text;
+  -webkit-user-select: text;
+  cursor: text;
+}
+.bs-pindetail-naddr-hide {
+  flex: none;
+  background: none;
+  border: none;
+  color: #818cf8;
+  cursor: pointer;
+  font-size: 0.68rem;
+  padding: 0;
+}
+.bs-pindetail-naddr-hide:hover { text-decoration: underline; }
+.bs-pindetail-copy {
+  flex: none;
+  background: rgba(129, 140, 248, 0.14);
+  border: 1px solid rgba(129, 140, 248, 0.3);
+  border-radius: 4px;
+  color: #c7d2fe;
+  cursor: pointer;
+  padding: 0.15rem 0.5rem;
+  font-size: 0.72rem;
+  white-space: nowrap;
+}
+.bs-pindetail-copy:hover { background: rgba(129, 140, 248, 0.24); }
+.bs-pindetail-naddr-help {
+  margin: 0.15rem 0 0;
+  font-size: 0.72rem;
+  color: #94a3b8;
+  line-height: 1.4;
+}
+
+/* Mobile: make the curation + tag-someone modals width-respecting bottom
+   trays, matching the Export modal (.bs-tl-export-popover) pattern. */
+@media (max-width: 768px) {
+  .pcd-backdrop, .tsm-backdrop {
+    align-items: flex-end;
+    padding: 0;
+  }
+  .pcd, .tsm-dialog {
+    width: 100%;
+    max-width: 100vw;
+    max-height: 85vh;
+    border-radius: 12px 12px 0 0;
+  }
+}
 /* ── Follows list page (story #29 / ADR 0026) ──────────── */
 .bsp-count-link { cursor: pointer; text-decoration: none; color: inherit; }
 .bsp-count-link:hover .bsp-count-value { text-decoration: underline; }
@@ -4255,6 +7153,17 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   font-weight: 600;
 }
 .bsp-follows-npub { font-size: 0.8rem; opacity: 0.85; }
+/* Follows-hops path page (story #39, ADR 0035): a vertical chain of profile cards. */
+.bsp-hops-path { display: flex; flex-direction: column; gap: 0.5rem; max-width: 480px; }
+.bsp-hops-card {
+  display: flex; align-items: center; gap: 0.75rem;
+  padding: 0.6rem 0.85rem; border-radius: 10px;
+  background: rgba(127, 127, 127, 0.08); text-decoration: none; color: inherit;
+}
+.bsp-hops-card:hover { background: rgba(127, 127, 127, 0.16); }
+.bsp-hops-card-name { flex: 1; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bsp-hops-card-rank { opacity: 0.8; font-variant-numeric: tabular-nums; }
+.bsp-hops-reroll { margin-top: 1rem; }
 .bsp-empty { padding: 2rem; text-align: center; opacity: 0.7; }
 /* Skeleton loader for list pages (verified-reporters #3 / ADR 0003) — a designed
    placeholder, never a bare spinner. */
@@ -4299,40 +7208,246 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   flex-direction: column;
   gap: 1rem;
 }
-.bsp-feed-item {
+/* Per-user notes page (BrainstormUserNotes.jsx) + profile "Content" section
+   (ProfileContentSection.jsx) — note-surfaces epic. Reuse the shared note-card unit; only
+   layout tokens here. The note-card text already wraps and bsp-content is width-capped, so
+   neither surface overflows 1280px. */
+.bsp-notes-subtitle {
+  font-size: 0.95rem;
+  opacity: 0.7;
+  margin-bottom: 1rem;
+  overflow-wrap: anywhere;
+}
+.bsp-notes-indicator {
+  font-size: 0.85rem;
+  opacity: 0.6;
+  margin-bottom: 1rem;
+}
+.bsp-notes-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+.bsp-content-section {
+  margin-top: 1rem;
+}
+.bsp-content-loading {
+  opacity: 0.6;
+  padding: 0.5rem 0;
+}
+.bsp-content-viewall {
+  display: inline-block;
+  margin-top: 0.75rem;
+  font-size: 0.9rem;
+  color: #a5b4fc;
+  text-decoration: none;
+}
+.bsp-content-viewall:hover {
+  text-decoration: underline;
+}
+/* Shared note-card unit (NoteCard.jsx) — surface-neutral so the feed, profile
+   "latest note", and per-user notes page all reuse it without feed-specific styling. */
+.bsp-note-card {
   max-width: 100%;
   box-sizing: border-box;
   padding: 1rem;
   border: 1px solid rgba(255,255,255,0.06);
   border-radius: 10px;
 }
-.bsp-feed-item-head {
+.bsp-note-card-head {
   display: flex;
   align-items: center;
   gap: 0.75rem;
   margin-bottom: 0.6rem;
 }
-.bsp-feed-avatar {
+.bsp-note-card-avatar {
   width: 40px;
   height: 40px;
 }
-.bsp-feed-item-meta {
+.bsp-note-card-meta {
   min-width: 0;
 }
-.bsp-feed-name {
+.bsp-note-card-name {
   font-size: 0.95rem;
   overflow-wrap: anywhere;
 }
-.bsp-feed-time {
+.bsp-note-card-time {
   font-size: 0.75rem;
   opacity: 0.5;
 }
-.bsp-feed-text {
+.bsp-note-card-text {
   font-size: 0.9rem;
   line-height: 1.5;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   word-break: break-word;
+}
+/* NIP-21 nostr: entity references rendered inside note text (mentions + event links). */
+.bsp-note-mention,
+.bsp-note-entity {
+  color: #a5b4fc;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+  word-break: break-all;
+}
+.bsp-note-mention:hover,
+.bsp-note-entity:hover {
+  text-decoration: underline;
+  text-decoration-color: rgba(165, 180, 252, 0.5);
+  text-underline-offset: 2px;
+}
+/* Author avatar/name link to the author's profile (/user/<pubkey>). */
+.bsp-note-card-author-link {
+  display: inline-flex;
+  flex: none;
+  border-radius: 50%;
+}
+.bsp-note-card-author-link:hover {
+  opacity: 0.85;
+}
+.bsp-note-card-name-link {
+  color: inherit;
+  text-decoration: none;
+}
+.bsp-note-card-name-link:hover {
+  text-decoration: underline;
+  text-decoration-color: rgba(165, 180, 252, 0.5);
+  text-underline-offset: 2px;
+}
+/* Per-note actions menu (the "⋯" kebab + dropdown), top-right of each feed entry. */
+.bsp-note-menu {
+  position: relative;
+  margin-left: auto;
+  flex: none;
+  align-self: flex-start;
+}
+.bsp-note-menu-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted, #94a3b8);
+  cursor: pointer;
+  font-size: 1.25rem;
+  line-height: 1;
+  padding: 0.1rem 0.5rem;
+  border-radius: 6px;
+}
+.bsp-note-menu-btn:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-primary, #e2e8f0);
+}
+.bsp-note-menu-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  min-width: 210px;
+  background: var(--bg-secondary, #1a1a2e);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  z-index: 50;
+  padding: 0.25rem;
+  display: flex;
+  flex-direction: column;
+}
+.bsp-note-menu-item {
+  background: none;
+  border: none;
+  color: var(--text-primary, #e2e8f0);
+  text-align: left;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+.bsp-note-menu-item:hover {
+  background: rgba(99, 102, 241, 0.15);
+}
+.bsp-note-menu-flash {
+  font-size: 0.75rem;
+  color: #a5b4fc;
+  padding: 0.45rem 0.75rem 0.3rem;
+  margin-top: 0.25rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+/* /event placeholder — the echoed identifier line. */
+.bsp-event-identifier {
+  margin-top: 1.25rem;
+  font-size: 0.85rem;
+  opacity: 0.7;
+}
+.bsp-event-identifier-label {
+  opacity: 0.8;
+}
+.bsp-event-identifier-value {
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 0.8rem;
+  word-break: break-all;
+  overflow-wrap: anywhere;
+}
+
+/* /event single-event view (BrainstormEvent.jsx) — event-page epic. The kind-1 is rendered
+   by the shared NoteCard (already wraps + bsp-content is width-capped, so no 1280px overflow);
+   only layout tokens for the heading, search field, and notices here. */
+.bsp-event-content {
+  max-width: 700px;
+  width: 100%;
+  box-sizing: border-box;
+}
+.bsp-event-heading {
+  font-size: 1.5rem;
+  margin: 0 0 1rem;
+}
+.bsp-event-loading {
+  padding: 2rem;
+  text-align: center;
+  opacity: 0.6;
+}
+.bsp-event-invalid {
+  margin-bottom: 1rem;
+  opacity: 0.75;
+}
+.bsp-event-search {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin-top: 0.5rem;
+}
+.bsp-event-search-label {
+  font-size: 0.9rem;
+  opacity: 0.75;
+}
+.bsp-event-search-row {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+.bsp-event-search-input {
+  flex: 1 1 18rem;
+  min-width: 0;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 8px;
+  background: rgba(255,255,255,0.03);
+  color: inherit;
+  font-size: 0.9rem;
+  box-sizing: border-box;
+}
+.bsp-event-search-btn {
+  padding: 0.55rem 1.1rem;
+  border-radius: 8px;
+  border: 1px solid rgba(165,180,252,0.4);
+  background: rgba(165,180,252,0.12);
+  color: inherit;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+.bsp-event-search-btn:hover {
+  background: rgba(165,180,252,0.2);
+}
+.bsp-event-search-notice {
+  margin-top: 0.25rem;
+  text-align: left;
 }
 
 .table-pagination {

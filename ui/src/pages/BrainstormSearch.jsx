@@ -1,8 +1,19 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useConfig } from '../context/ConfigContext';
 import { useHouseProfile } from '../components/BrainstormUserMenu';
+import TopBar from '../components/TopBar';
+import SearchInput from '../components/SearchInput';
+import TagResultRow from '../components/TagResultRow';
+import PinnedTagChips from '../components/PinnedTagChips';
+import useTagMemberSets from '../hooks/useTagMemberSets';
+import { getWotScore } from '../utils/wotScore';
 import { nip19 } from 'nostr-tools';
+
+// How many tag hits to show before collapsing the rest behind a toggle, so a
+// long tag list doesn't push the profile results out of view (all viewports).
+const TAG_COLLAPSE_LIMIT = 3;
 
 /* ── Nostr identity detection ──────────────────────────── */
 
@@ -483,7 +494,7 @@ function UserMenu({ user, login, logout, pov, setPov, filters, setFilters, sortC
   }, [myWotReady, onWotReady]);
 
   if (!user) {
-    return <button className="bs-link-btn" onClick={login}>Sign in with nostr</button>;
+    return <button className="bs-link-btn" onClick={() => login().catch(() => {})}>Sign in with nostr</button>;
   }
 
   const displayName = user.profile?.name || user.pubkey.slice(0, 8) + '…';
@@ -599,21 +610,67 @@ function timeAgo(unixSeconds) {
 
 const RESULTS_PER_PAGE = 40;
 
-/* ── POV-aware score helper ───────────────────────────── */
-
-/** Extract a wot score from a hit, trying namespaced field first, then legacy */
-function getWotScore(hit, metric, povSuffix) {
-  if (povSuffix) {
-    const val = hit[`wot_${metric}_${povSuffix}`];
-    if (val != null) return val;
+/**
+ * Bucket profile hits so the popup reads, in order:
+ *   1. Name matches    — query is a case-insensitive substring of name or display_name.
+ *   2. Tag matches     — hit was surfaced via a matched tag (`_matchedTags` is non-empty)
+ *                        AND wasn't already classified as a name match.
+ *   3. Description matches — everything else (Meilisearch surfaced it for
+ *                        some other field, typically `about`).
+ *
+ * A hit that falls into multiple buckets goes into the highest-priority one
+ * (name beats tag beats description). Within each bucket, Meilisearch's
+ * relative order is preserved. Story-7 post-ship sort-order fix.
+ */
+function sortPopupHits(hits, queryStr) {
+  const q = (queryStr || '').toLowerCase().trim();
+  if (!q || !Array.isArray(hits) || hits.length === 0) return hits || [];
+  const nameMatches = [];
+  const tagMatches = [];
+  const descMatches = [];
+  for (const hit of hits) {
+    const haystack = `${hit.name || ''} ${hit.display_name || ''}`.toLowerCase();
+    if (haystack.includes(q)) {
+      nameMatches.push(hit);
+    } else if (Array.isArray(hit._matchedTags) && hit._matchedTags.length > 0) {
+      tagMatches.push(hit);
+    } else {
+      descMatches.push(hit);
+    }
   }
-  // Legacy fallback
-  return hit[`wot_${metric}`] ?? null;
+  return [...nameMatches, ...tagMatches, ...descMatches];
 }
 
 /* ── Result Card ──────────────────────────────────────── */
 
-function ResultCard({ hit, povSuffix }) {
+/**
+ * Render a small set of "matched tag" chips when this hit was surfaced
+ * because someone in the active PoV's WoT tagged the profile with a tag
+ * whose name matched the search query. Chips that contain the query
+ * substring are highlighted; others appear in a muted style.
+ */
+function MatchedTagChips({ matchedTags, query, className }) {
+  if (!matchedTags || matchedTags.length === 0) return null;
+  const q = (query || '').trim().toLowerCase();
+  return (
+    <span className={`bs-matched-tags ${className || ''}`}>
+      {matchedTags.map((t) => {
+        const hits = q && t.name.toLowerCase().includes(q);
+        return (
+          <span
+            key={t.eventId}
+            className={`bs-matched-tag ${hits ? 'bs-matched-tag-hit' : ''}`}
+            title={t.description || ''}
+          >
+            🏷 {t.name}
+          </span>
+        );
+      })}
+    </span>
+  );
+}
+
+function ResultCard({ hit, povSuffix, query }) {
   const name = hit.name || hit.display_name || 'Unknown';
   const picture = hit.picture;
   const banner = hit.banner;
@@ -653,6 +710,7 @@ function ResultCard({ hit, povSuffix }) {
                 </span>
               )}
             </div>
+            <MatchedTagChips matchedTags={hit._matchedTags} query={query} className="bs-result-matched-tags" />
             {nip05 && <div className="bs-result-nip05">{nip05}</div>}
             <div className="bs-result-pubkey">
               {npub ? `${npub.slice(0, 20)}…${npub.slice(-8)}` : `${(hit.pubkey || '').slice(0, 16)}…${(hit.pubkey || '').slice(-8)}`}
@@ -692,7 +750,30 @@ const SUGGEST_LIMIT = 6;
 export default function BrainstormSearch() {
   const { user, login, logout } = useAuth();
   const houseProfile = useHouseProfile();
-  const [query, setQuery] = useState('');
+  // Story 9 / ADR-0008: URL is the source of truth for the committed
+  // query and POV. `useSearchParams` exposes URL search params; pushes
+  // via setSearchParams create history entries.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const urlQuery = searchParams.get('q') || '';
+  // Initialize the input-box state from the URL so a direct navigation
+  // to /?q=alice loads with "alice" in the box on first paint (no flash
+  // of empty input before the hydration effect runs).
+  const [query, setQuery] = useState(() => searchParams.get('q') || '');
+  // Story 11 follow-up — TL filter chip state. When non-null, results are
+  // narrowed (client-side) to members of the selected pinned tag's TL.
+  const [activePinId, setActivePinId] = useState(null);
+  // Pinned-tag TL member sets, fetched once when the viewer is known.
+  // Declared AFTER activePinId so the derived helpers below don't trigger
+  // a temporal-dead-zone error.
+  const { sets: tagMemberSets } = useTagMemberSets(user?.pubkey);
+  const activeMemberSet = activePinId
+    ? tagMemberSets.find((s) => s.pinEventId === activePinId)?.memberPubkeys || null
+    : null;
+  const applyPinFilter = (arr) => {
+    if (!activeMemberSet) return arr;
+    return (arr || []).filter((hit) => activeMemberSet.has(hit.pubkey || hit.id));
+  };
   const [results, setResults] = useState(null);
   const [meta, setMeta] = useState(null);
   const [searchNotice, setSearchNotice] = useState(null); // friendly message in place of "No results found" (e.g. when Meilisearch panics on too-broad queries — see nostr-search/src/search.js)
@@ -703,6 +784,11 @@ export default function BrainstormSearch() {
   const [pov, setPov] = useState('nosfabrica');
   const [myWotReady, setMyWotReady] = useState(false);
   const [showPovPicker, setShowPovPicker] = useState(false);
+  // Story 8 / ADR-0007: indicator state for the in-flight POV switch.
+  // Set to true when the user changes POV; cleared by either of the
+  // fetch-response handlers OR by the user-prefs write callback (handles
+  // the empty-query case where neither fetch path fires).
+  const [povSwitching, setPovSwitching] = useState(false);
   const [activePovSuffix, setActivePovSuffix] = useState(null); // returned by server after search
   // Filter/sort state (used by UserMenu Settings panel — no longer sent in search queries)
   const [filters, setFilters] = useState({});
@@ -711,6 +797,14 @@ export default function BrainstormSearch() {
   const [suggestions, setSuggestions] = useState(null);
   const [suggestLoading, setSuggestLoading] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  // Story 7 / ADR-0006: tag-elements as a first-class result type in both
+  // the live popup and the Enter-results page.
+  const [popupTagHits, setPopupTagHits] = useState([]);
+  const [popupTagHitsHasMore, setPopupTagHitsHasMore] = useState(false);
+  const [resultsTagHits, setResultsTagHits] = useState([]);
+  // Tag hits render above profiles; a long tag list can bury the people below.
+  // Collapse to the first few and let the user expand. Reset on each new search.
+  const [tagsExpanded, setTagsExpanded] = useState(false);
   const suggestRef = useRef(null); // ref for click-outside detection
   const debounceRef = useRef(null);
   const inputRef = useRef(null);
@@ -720,7 +814,7 @@ export default function BrainstormSearch() {
   // Build the search URL — single function used by both doSearch and fetchSuggestions.
   // The server proxy is the single authority on filters, sort, and field naming.
   // Client only sends: q, limit, offset, wotPov, userPubkey.
-  function buildSearchUrl(queryStr, limit, offset) {
+  function buildSearchUrl(queryStr, limit, offset, opts = {}) {
     let url = `/api/search/profiles/meili?q=${encodeURIComponent(queryStr)}&limit=${limit}&offset=${offset}`;
 
     // Direct lookup: if query is a nostr identity (npub, hex pubkey, nprofile),
@@ -741,8 +835,30 @@ export default function BrainstormSearch() {
     if (pov === 'user' && user?.pubkey) {
       url += `&userPubkey=${user.pubkey}`;
     }
+
+    // Story 7 / ADR-0006: callers can ask the proxy for a larger tag-hits
+    // slice. Popup omits → server default of 5; results page passes 25.
+    if (typeof opts.tagLimit === 'number') {
+      url += `&tagLimit=${opts.tagLimit}`;
+    }
     return url;
   }
+
+  // Story 9 / ADR-0008: submit pathway pushes the URL. The mount-side
+  // hydration effect (keyed on urlQuery) picks up the new URL and fires
+  // the actual fetch. `replace: true` is used for as-you-type updates on
+  // the results page (avoids history pollution); Enter-submits push.
+  const submitSearch = useCallback((q, opts = {}) => {
+    const trimmed = (q || '').trim();
+    if (!trimmed) return;
+    const params = new URLSearchParams();
+    params.set('q', trimmed);
+    if (pov === 'user' && user?.pubkey) {
+      params.set('wotPov', 'user');
+      params.set('userPubkey', user.pubkey);
+    }
+    setSearchParams(params, opts.replace ? { replace: true } : undefined);
+  }, [pov, user, setSearchParams]);
 
   // Full search (transitions to results view)
   const doSearch = useCallback(async (q, offset = 0) => {
@@ -764,7 +880,8 @@ export default function BrainstormSearch() {
     }
 
     try {
-      const url = buildSearchUrl(trimmed, RESULTS_PER_PAGE, offset);
+      // Results page asks for a larger tag-hits slice than the popup default.
+      const url = buildSearchUrl(trimmed, RESULTS_PER_PAGE, offset, { tagLimit: 25 });
       const resp = await fetch(url);
       const data = await resp.json();
 
@@ -786,11 +903,27 @@ export default function BrainstormSearch() {
       // server side gracefully degrades (e.g. Meilisearch interner panic).
       setSearchNotice(data._searchTooBroad ? data._notice : null);
 
+      // Story 8 / ADR-0007: apply the same bucket-sort the popup uses so
+      // both surfaces order the same way (name > tag > description). The
+      // pagination-append branch sorts each page-slice independently —
+      // documented trade-off in ADR-0007 (resort-on-every-load-more would
+      // reorder already-visible rows on each click).
       if (offset === 0) {
-        setResults(data.hits || []);
+        setResults(sortPopupHits(data.hits || [], trimmed));
+        // Story 7 / ADR-0006: tag-results on the Enter-results page.
+        setResultsTagHits(data.tagHits || []);
+        setTagsExpanded(false); // collapse tags again for each fresh result set
       } else {
-        setResults(prev => [...(prev || []), ...(data.hits || [])]);
+        setResults(prev => {
+          const newSlice = sortPopupHits(data.hits || [], trimmed);
+          return prev ? [...prev, ...newSlice] : newSlice;
+        });
+        // tag-results don't paginate (their full set fits within tagLimit);
+        // keep what we already had.
       }
+      // Story 8 / ADR-0007: clear the in-flight indicator once the
+      // results have arrived (idempotent — clearing twice is fine).
+      setPovSwitching(false);
       setMeta({
         estimatedTotalHits: data.estimatedTotalHits || 0,
         processingTimeMs: data.processingTimeMs || 0,
@@ -810,6 +943,8 @@ export default function BrainstormSearch() {
     if (trimmed.length < 2) {
       setSuggestions(null);
       setShowSuggestions(false);
+      setPopupTagHits([]);
+      setPopupTagHitsHasMore(false);
       return;
     }
     setSuggestLoading(true);
@@ -824,9 +959,20 @@ export default function BrainstormSearch() {
         const filtered = nip05
           ? data.hits.filter(h => (h.pubkey || h.id) !== (nip05.pubkey || nip05.id))
           : data.hits;
-        setSuggestions(nip05 ? [{ ...nip05, _nip05Verified: true }, ...filtered] : filtered);
+        // Bucket the profile hits so the popup reads: NIP-05 (if any) →
+        // name matches → tag-matched profiles → description matches. Within
+        // each bucket, preserve Meilisearch's relative order. Story-7
+        // post-ship polish.
+        const sorted = sortPopupHits(filtered, trimmed);
+        setSuggestions(nip05 ? [{ ...nip05, _nip05Verified: true }, ...sorted] : sorted);
         setShowSuggestions(true);
         if (data.povSuffix) setActivePovSuffix(data.povSuffix);
+        // Story 7 / ADR-0006: capture tag-results for the popup.
+        setPopupTagHits(data.tagHits || []);
+        setPopupTagHitsHasMore(!!data.tagHitsHasMore);
+        // Story 8 / ADR-0007: clear the in-flight POV indicator once the
+        // popup-side response that reflects the new POV has arrived.
+        setPovSwitching(false);
       }
     } catch {
       // silently fail suggestions
@@ -841,9 +987,11 @@ export default function BrainstormSearch() {
     if (debounceRef.current) clearTimeout(debounceRef.current);
 
     if (isResultsView) {
-      // Results view: search-as-you-type with full results
+      // Results view: search-as-you-type with full results.
+      // Story 9 / ADR-0008: replace (not push) so as-you-type doesn't
+      // pollute history. URL still stays in sync; only Enter-submits push.
       if (value.trim().length >= 2) {
-        debounceRef.current = setTimeout(() => doSearch(value), 300);
+        debounceRef.current = setTimeout(() => submitSearch(value, { replace: true }), 300);
       } else if (value.trim().length === 0) {
         setResults(null);
         setMeta(null);
@@ -884,18 +1032,56 @@ export default function BrainstormSearch() {
     prevPovRef.current = pov;
   }, [pov]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Story 8 / ADR-0007: mirror the results-page POV-change effect for the
+  // popup. When POV flips while the user is in landing-mode mid-typing,
+  // re-fetch suggestions so the popup doesn't go stale.
+  const prevPovPopupRef = useRef(pov);
+  useEffect(() => {
+    if (prevPovPopupRef.current !== pov && !hasResults && query.trim().length >= 2) {
+      fetchSuggestions(query);
+    }
+    prevPovPopupRef.current = pov;
+  }, [pov]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Story 8 / ADR-0007: clear povSwitching for the empty-query case (no
+  // fetch path fires to clear it via response). Short timeout fallback so
+  // the indicator never sticks; fetch-response clears land much sooner.
+  useEffect(() => {
+    if (!povSwitching) return undefined;
+    const t = setTimeout(() => setPovSwitching(false), 1500);
+    return () => clearTimeout(t);
+  }, [povSwitching]);
+
+  // Story 9 / ADR-0008: mount-side hydration. When the URL's `q` param
+  // changes (initial mount with /?q=..., URL push from submit, browser
+  // back/forward), trigger a search. Guarded by prevQueryRef so the
+  // effect doesn't loop when doSearch updates meta.query downstream.
+  const prevQueryRef = useRef('');
+  useEffect(() => {
+    if (urlQuery && urlQuery !== prevQueryRef.current) {
+      setQuery(urlQuery);
+      doSearch(urlQuery);
+      prevQueryRef.current = urlQuery;
+    } else if (!urlQuery && prevQueryRef.current) {
+      // URL went from results back to landing (e.g., back button).
+      setResults(null);
+      setMeta(null);
+      setError(null);
+      prevQueryRef.current = '';
+    }
+  }, [urlQuery]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const hasMore = results && meta && results.length < meta.estimatedTotalHits;
 
   // Landing view (no full results yet — suggestions may be showing)
   if (!hasResults && !loading && !error) {
     return (
       <div className="bs-page">
-        {/* Top-left: About */}
-        <a href="/about" className="bs-top-link">About</a>
-        {/* Top-right auth area */}
-        <div className="bs-top-bar">
-          <UserMenu user={user} login={login} logout={logout} pov={pov} setPov={setPov} filters={filters} setFilters={setFilters} sortConfig={sortConfig} setSortConfig={setSortConfig} onWotReady={setMyWotReady} />
-        </div>
+        <TopBar
+          authMenu={
+            <UserMenu user={user} login={login} logout={logout} pov={pov} setPov={setPov} filters={filters} setFilters={setFilters} sortConfig={sortConfig} setSortConfig={setSortConfig} onWotReady={setMyWotReady} />
+          }
+        />
 
         {/* Centered landing */}
         <div className="bs-landing">
@@ -905,30 +1091,67 @@ export default function BrainstormSearch() {
           </h1>
           <p className="bs-tagline">Search across millions of nostr profiles</p>
 
-          <div className="bs-search-box-landing" ref={suggestRef}>
-            <span className="bs-search-icon">🔍</span>
-            <input
-              ref={inputRef}
-              type="text"
-              className="bs-search-input-landing"
-              value={query}
-              onChange={e => handleInputChange(e.target.value, false)}
-              onKeyDown={e => {
-                if (e.key === 'Enter') {
-                  setShowSuggestions(false);
-                  doSearch();
-                }
-                if (e.key === 'Escape') setShowSuggestions(false);
-              }}
-              onFocus={() => { if (suggestions?.length) setShowSuggestions(true); }}
-              placeholder="Search by name, bio, NIP-05, website…"
-              autoFocus
-            />
-
+          <SearchInput
+            variant="landing"
+            boxRef={suggestRef}
+            inputRef={inputRef}
+            value={query}
+            onChange={(v) => handleInputChange(v, false)}
+            onKeyDown={e => {
+              if (e.key === 'Enter') {
+                setShowSuggestions(false);
+                // Story 9 / ADR-0008: push URL; hydration effect fires doSearch.
+                submitSearch(query);
+              }
+              if (e.key === 'Escape') setShowSuggestions(false);
+            }}
+            onFocus={() => { if (suggestions?.length) setShowSuggestions(true); }}
+            placeholder="Search by name, bio, tag, NIP-05, website…"
+            autoFocus
+          >
             {/* Autocomplete dropdown */}
-            {showSuggestions && suggestions && suggestions.length > 0 && (
+            {showSuggestions && ((suggestions && suggestions.length > 0) || popupTagHits.length > 0) && (
               <div className="bs-suggest-dropdown">
-                {suggestions.map(hit => {
+                {/* Story 7 / ADR-0006: tag-results render first (above
+                    profiles). Click → tag-detail page. */}
+                {popupTagHits.map((tag) => (
+                  <TagResultRow
+                    key={tag.eventId}
+                    tag={tag}
+                    onClick={() => setShowSuggestions(false)}
+                    variant="popup"
+                  />
+                ))}
+                {popupTagHitsHasMore && (
+                  <a
+                    href="#"
+                    className="bs-tag-result-more"
+                    onMouseDown={(e) => {
+                      // Route to the Enter-results page for the current query.
+                      // Story 9 / ADR-0008: push URL; hydration effect fires
+                      // doSearch downstream.
+                      e.preventDefault();
+                      setShowSuggestions(false);
+                      submitSearch(query);
+                    }}
+                  >
+                    Show more tags →
+                  </a>
+                )}
+                {/* Story 11 follow-up — chips inside the dropdown so the
+                    user can adjust the active filter without dismissing
+                    the popup. onMouseDown stops the SearchInput's blur
+                    from firing first and hiding the dropdown. */}
+                {user && tagMemberSets.length > 0 && (
+                  <div className="bs-suggest-chips" onMouseDown={(e) => e.preventDefault()}>
+                    <PinnedTagChips
+                      sets={tagMemberSets}
+                      activePinId={activePinId}
+                      onChange={setActivePinId}
+                    />
+                  </div>
+                )}
+                {suggestions && applyPinFilter(suggestions).map(hit => {
                   const name = hit.name || hit.display_name || 'Unknown';
                   const nip05 = hit.nip05;
                   return (
@@ -956,6 +1179,7 @@ export default function BrainstormSearch() {
                       <div className="bs-suggest-info">
                         <span className="bs-suggest-name">{name}</span>
                         {nip05 && <span className="bs-suggest-nip05">{nip05}</span>}
+                        <MatchedTagChips matchedTags={hit._matchedTags} query={query} />
                       </div>
                       {getWotScore(hit, 'rank', activePovSuffix) != null && (
                         <span className="bs-suggest-rank">🏅 {getWotScore(hit, 'rank', activePovSuffix)}</span>
@@ -973,7 +1197,20 @@ export default function BrainstormSearch() {
                 <div className="bs-suggest-loading">Searching…</div>
               </div>
             )}
-          </div>
+          </SearchInput>
+
+          {/* Story 11 follow-up — pinned-tag filter chips. Renders only
+              when the viewer has pinned tags AND the popup is closed
+              (a duplicate chip row inside the dropdown handles the
+              popup-open case so the user can change the filter
+              mid-query without dismissing the popup). */}
+          {user && tagMemberSets.length > 0 && !showSuggestions && (
+            <PinnedTagChips
+              sets={tagMemberSets}
+              activePinId={activePinId}
+              onChange={setActivePinId}
+            />
+          )}
 
           {/* Personalization indicator */}
           <div className="bs-personalization">
@@ -983,7 +1220,11 @@ export default function BrainstormSearch() {
               role="button"
               tabIndex={0}
             >
-              {pov === 'user' && myWotReady ? (
+              {povSwitching ? (
+                /* Story 8 / ADR-0007: in-flight indicator while POV-change
+                   propagates to the active search surface. */
+                <span className="bs-personalization-switching">Updating POV…</span>
+              ) : pov === 'user' && myWotReady ? (
                 <span className="bs-personalized">✓ Personalized</span>
               ) : (
                 <span className="bs-not-personalized">Not Personalized</span>
@@ -999,7 +1240,20 @@ export default function BrainstormSearch() {
                 {/* House POV option */}
                 <button
                   className={`bs-pov-option ${pov !== 'user' || !myWotReady ? 'active' : ''}`}
-                  onClick={() => { setPov('nosfabrica'); setShowPovPicker(false); }}
+                  onClick={() => {
+                    // Story 8 / ADR-0007: signal in-flight POV change.
+                    if (pov !== 'nosfabrica') setPovSwitching(true);
+                    setPov('nosfabrica');
+                    setShowPovPicker(false);
+                    // Story 9 / ADR-0008: when a query is active, push the
+                    // POV change to URL so the link is shareable as-viewed.
+                    if (urlQuery) {
+                      const params = new URLSearchParams(searchParams);
+                      params.delete('wotPov');
+                      params.delete('userPubkey');
+                      setSearchParams(params);
+                    }
+                  }}
                 >
                   {houseProfile?.picture && (
                     <img src={houseProfile.picture} alt="" className="bs-pov-option-avatar" onError={e => { e.target.style.display = 'none'; }} />
@@ -1021,7 +1275,20 @@ export default function BrainstormSearch() {
                 ) : (
                   <button
                     className={`bs-pov-option ${pov === 'user' && myWotReady ? 'active' : ''}`}
-                    onClick={() => { setPov('user'); setShowPovPicker(false); }}
+                    onClick={() => {
+                      // Story 8 / ADR-0007: signal in-flight POV change.
+                      if (pov !== 'user') setPovSwitching(true);
+                      setPov('user');
+                      setShowPovPicker(false);
+                      // Story 9 / ADR-0008: when a query is active, push the
+                      // POV change to URL so the link is shareable as-viewed.
+                      if (urlQuery) {
+                        const params = new URLSearchParams(searchParams);
+                        params.set('wotPov', 'user');
+                        if (user?.pubkey) params.set('userPubkey', user.pubkey);
+                        setSearchParams(params);
+                      }
+                    }}
                   >
                     {user.profile?.picture && (
                       <img src={user.profile.picture} alt="" className="bs-pov-option-avatar" onError={e => { e.target.style.display = 'none'; }} />
@@ -1063,17 +1330,16 @@ export default function BrainstormSearch() {
           >
             <img src="/brainstorm.svg" alt="Brainstorm" className="bs-results-logo-img" />
           </a>
-          <div className="bs-search-box-results">
-            <input
-              ref={inputRef}
-              type="text"
-              className="bs-search-input-results"
-              value={query}
-              onChange={e => handleInputChange(e.target.value, true)}
-              onKeyDown={e => e.key === 'Enter' && doSearch()}
-              placeholder="Search profiles…"
-            />
-          </div>
+          <SearchInput
+            variant="results"
+            inputRef={inputRef}
+            value={query}
+            onChange={(v) => handleInputChange(v, true)}
+            onKeyDown={e => {
+              if (e.key === 'Enter') submitSearch(query); // Story 9 / ADR-0008
+            }}
+            placeholder="Search profiles…"
+          />
         </div>
         <div className="bs-results-header-right">
           {/* Compact personalization indicator */}
@@ -1084,7 +1350,11 @@ export default function BrainstormSearch() {
               role="button"
               tabIndex={0}
             >
-              {pov === 'user' && myWotReady ? (
+              {povSwitching ? (
+                /* Story 8 / ADR-0007: in-flight indicator while POV-change
+                   propagates to the active search surface. */
+                <span className="bs-personalization-switching">Updating POV…</span>
+              ) : pov === 'user' && myWotReady ? (
                 <span className="bs-personalized">✓ Personalized</span>
               ) : (
                 <span className="bs-not-personalized">Not Personalized</span>
@@ -1095,7 +1365,20 @@ export default function BrainstormSearch() {
               <div className="bs-pov-picker bs-pov-picker-right">
                 <button
                   className={`bs-pov-option ${pov !== 'user' || !myWotReady ? 'active' : ''}`}
-                  onClick={() => { setPov('nosfabrica'); setShowPovPicker(false); }}
+                  onClick={() => {
+                    // Story 8 / ADR-0007: signal in-flight POV change.
+                    if (pov !== 'nosfabrica') setPovSwitching(true);
+                    setPov('nosfabrica');
+                    setShowPovPicker(false);
+                    // Story 9 / ADR-0008: when a query is active, push the
+                    // POV change to URL so the link is shareable as-viewed.
+                    if (urlQuery) {
+                      const params = new URLSearchParams(searchParams);
+                      params.delete('wotPov');
+                      params.delete('userPubkey');
+                      setSearchParams(params);
+                    }
+                  }}
                 >
                   {houseProfile?.picture && (
                     <img src={houseProfile.picture} alt="" className="bs-pov-option-avatar" onError={e => { e.target.style.display = 'none'; }} />
@@ -1116,7 +1399,20 @@ export default function BrainstormSearch() {
                 ) : (
                   <button
                     className={`bs-pov-option ${pov === 'user' && myWotReady ? 'active' : ''}`}
-                    onClick={() => { setPov('user'); setShowPovPicker(false); }}
+                    onClick={() => {
+                      // Story 8 / ADR-0007: signal in-flight POV change.
+                      if (pov !== 'user') setPovSwitching(true);
+                      setPov('user');
+                      setShowPovPicker(false);
+                      // Story 9 / ADR-0008: when a query is active, push the
+                      // POV change to URL so the link is shareable as-viewed.
+                      if (urlQuery) {
+                        const params = new URLSearchParams(searchParams);
+                        params.set('wotPov', 'user');
+                        if (user?.pubkey) params.set('userPubkey', user.pubkey);
+                        setSearchParams(params);
+                      }
+                    }}
                   >
                     {user.profile?.picture && (
                       <img src={user.profile.picture} alt="" className="bs-pov-option-avatar" onError={e => { e.target.style.display = 'none'; }} />
@@ -1131,6 +1427,17 @@ export default function BrainstormSearch() {
           <UserMenu user={user} login={login} logout={logout} pov={pov} setPov={setPov} filters={filters} setFilters={setFilters} sortConfig={sortConfig} setSortConfig={setSortConfig} onWotReady={setMyWotReady} />
         </div>
       </div>
+
+      {/* Story 11 follow-up — pinned-tag filter chips, results view. */}
+      {user && tagMemberSets.length > 0 && (
+        <div className="bs-results-chips-row">
+          <PinnedTagChips
+            sets={tagMemberSets}
+            activePinId={activePinId}
+            onChange={setActivePinId}
+          />
+        </div>
+      )}
 
       {/* Results area */}
       <div className="bs-results-body">
@@ -1159,15 +1466,37 @@ export default function BrainstormSearch() {
             {nip05Result && (
               <div className="bs-nip05-pinned">
                 <div className="bs-nip05-badge">✅ NIP-05 Verified</div>
-                <ResultCard hit={nip05Result} povSuffix={activePovSuffix} />
+                <ResultCard hit={nip05Result} povSuffix={activePovSuffix} query={query} />
+              </div>
+            )}
+
+            {/* Story 7 / ADR-0006: tag-results render above profiles on the
+                Enter-results page. Sort coherence with the popup is Story 8. */}
+            {resultsTagHits.length > 0 && (
+              <div className="bs-results-taghits">
+                {(tagsExpanded ? resultsTagHits : resultsTagHits.slice(0, TAG_COLLAPSE_LIMIT)).map((tag) => (
+                  <TagResultRow key={tag.eventId} tag={tag} variant="results" />
+                ))}
+                {resultsTagHits.length > TAG_COLLAPSE_LIMIT && (
+                  <button
+                    type="button"
+                    className="bs-taghits-toggle"
+                    onClick={() => setTagsExpanded(v => !v)}
+                    aria-expanded={tagsExpanded}
+                  >
+                    {tagsExpanded
+                      ? 'Show fewer tags'
+                      : `▸ Show ${resultsTagHits.length - TAG_COLLAPSE_LIMIT} more tags`}
+                  </button>
+                )}
               </div>
             )}
 
             <div className="bs-results-list">
-              {results
+              {applyPinFilter(results)
                 .filter(hit => !nip05Result || (hit.pubkey || hit.id) !== (nip05Result.pubkey || nip05Result.id))
                 .map(hit => (
-                  <ResultCard key={hit.pubkey || hit.id} hit={hit} povSuffix={activePovSuffix} />
+                  <ResultCard key={hit.pubkey || hit.id} hit={hit} povSuffix={activePovSuffix} query={query} />
                 ))}
             </div>
 

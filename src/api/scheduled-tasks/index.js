@@ -28,8 +28,31 @@ const brainstormConfig = require('../../utils/brainstormConfig');
 const { migrateConfigIfNeeded } = require('./migration');
 const { validateEntry } = require('./validation');
 
-const CONFIG_PATH = '/var/lib/brainstorm/scheduled-tasks.json';
+// Env-overridable for tests (mirror of settings.js's TAPESTRY_SETTINGS_PATH).
+const CONFIG_PATH = process.env.SCHEDULED_TASKS_CONFIG_PATH
+  || '/var/lib/brainstorm/scheduled-tasks.json';
 const EVENTS_PATH = '/var/log/brainstorm/taskQueue/events.jsonl';
+
+// ADR tag-stack-merge-hardening/0001 (AC-7): a fresh deployment ships these
+// schedule entries, DISABLED. Matches every other scheduled task's default
+// (operator opts in) and keeps stale-TL retraction dormant until enabled.
+// Seeded only when the config file does not yet exist — never resurrected
+// after a user deletes entries.
+function freshInstallEntries(registry) {
+  const taskId = 'refreshPinnedTagTLs';
+  const label = (registry && registry.tasks && registry.tasks[taskId] && registry.tasks[taskId].name) || taskId;
+  return [{
+    id: `seed:${taskId}`,
+    taskId,
+    label,
+    args: {},
+    enabled: false,
+    intervalDays: 1,
+    intervalHours: 0,
+    intervalMinutes: 0,
+    cron: '',
+  }];
+}
 
 // ── Registry access ───────────────────────────────────────────────────
 
@@ -64,8 +87,12 @@ function scheduler() {
 
 function readConfig() {
   let parsed = null;
+  let fileExisted = false;
   try {
-    if (fs.existsSync(CONFIG_PATH)) parsed = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
+    if (fs.existsSync(CONFIG_PATH)) {
+      fileExisted = true;
+      parsed = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
+    }
   } catch (e) {
     console.error('[scheduled-tasks] Error reading config:', e.message);
   }
@@ -73,7 +100,14 @@ function readConfig() {
   // upgrades v1 (ADR 0019 per-task shape) on first read.
   let registry = null;
   try { registry = loadRegistry(); } catch (_e) { /* registry may be unavailable in test contexts */ }
-  return migrateConfigIfNeeded(parsed, registry);
+  const config = migrateConfigIfNeeded(parsed, registry);
+  // ADR tag-stack-merge-hardening/0001 (AC-7): fresh install only (file
+  // absent) → seed the default-disabled entries. Existing files pass
+  // through untouched, so a user-deleted entry is never resurrected.
+  if (!fileExisted && Array.isArray(config.entries) && config.entries.length === 0) {
+    config.entries = freshInstallEntries(registry);
+  }
+  return config;
 }
 
 function writeConfig(config) {

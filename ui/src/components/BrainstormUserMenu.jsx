@@ -72,7 +72,7 @@ export default function BrainstormUserMenu({ user, login, logout }) {
   }, [user]);
 
   if (!user) {
-    return <button className="bs-link-btn" onClick={login}>Sign in with nostr</button>;
+    return <button className="bs-link-btn" onClick={() => login().catch(() => {})}>Sign in with nostr</button>;
   }
 
   const displayName = user.profile?.name || user.pubkey.slice(0, 8) + '…';
@@ -123,6 +123,13 @@ export default function BrainstormUserMenu({ user, login, logout }) {
           </div>
 
           <div className="bs-usermenu-footer">
+            <a
+              href="/pins"
+              className="bs-usermenu-pins-btn"
+              onClick={() => setOpen(false)}
+            >
+              📌 Your pins
+            </a>
             <a
               href="/settings"
               className="bs-usermenu-settings-btn"

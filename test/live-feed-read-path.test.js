@@ -36,6 +36,17 @@
  *                     filtering + relay discriminator.
  *
  * ALL tests FAIL pre-implementation (module absent) and must PASS post.
+ *
+ * ─── Story test-hermeticity-ci #1 (2026-07-05) ─────────────────────────────
+ * The relay-set resolution crosses a FIFTH I/O boundary the original seam
+ * missed: the TA-pubkey read (env → brainstorm.conf → secure-key storage).
+ * Un-injected, it (a) makes "hermetic" runs read host config, and (b) shares
+ * a silent catch with runCypher, so in a bare checkout B9 fails blaming relay
+ * logic while B10/B11 pass without their doubles ever running. The H-block
+ * below pins `getTaPubkey` as the fifth injectable dep (same seam contract)
+ * and requires the degrade path to name its cause. Tests whose FIXTURES need
+ * nostr-tools (nip19 encoding) skip visibly when it isn't installed — the
+ * module under test itself must need no npm deps at feed-assembly time.
  */
 
 const fs = require('fs');
@@ -66,7 +77,46 @@ function loadModule() {
 }
 
 // ---------------------------------------------------------------------------
-// Fixtures: pubkeys, kind-3/kind-1/kind-0 events, and the four injectable fakes.
+// Story test-hermeticity-ci #1 helpers: fixture-dep skips + console capture.
+// ---------------------------------------------------------------------------
+
+/** Resolve an npm package a test FIXTURE needs, or null if not installed. */
+function requireFixtureDep(name) {
+  try { return require(name); } catch (err) {
+    if (err && err.code === 'MODULE_NOT_FOUND') return null;
+    throw err;
+  }
+}
+
+/** Mark the current test as skipped (the runner counts + prints it). */
+function skip(reason) {
+  throw Object.assign(new Error(reason), { skipped: true });
+}
+
+/** nip19 for fixture encoding — or a visible skip in a bare checkout. */
+function requireNip19OrSkip() {
+  const nt = requireFixtureDep('nostr-tools');
+  if (!nt) skip('fixture dep nostr-tools not installed (bare checkout); the module under test needs no npm deps — B-tests still run');
+  return nt.nip19;
+}
+
+/** Run fn with console.log/warn/error captured; always restores. */
+async function withCapturedConsole(fn) {
+  const lines = [];
+  const orig = { log: console.log, warn: console.warn, error: console.error };
+  console.log = console.warn = console.error = (...args) => {
+    lines.push(args.map((a) => (typeof a === 'string' ? a : String(a))).join(' '));
+  };
+  try {
+    const result = await fn();
+    return { result, lines };
+  } finally {
+    console.log = orig.log; console.warn = orig.warn; console.error = orig.error;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Fixtures: pubkeys, kind-3/kind-1/kind-0 events, and the five injectable fakes.
 // ---------------------------------------------------------------------------
 
 const HEX = (c) => c.repeat(64);
@@ -94,7 +144,8 @@ function kind1(id, author, createdAt, content) {
 }
 
 /**
- * Build the four injectable fakes. Any of these can be overridden per-test.
+ * Build the injectable fakes (the original four + getTaPubkey, story
+ * test-hermeticity-ci #1). Any of these can be overridden per-test.
  *  - getSettings   : returns { grapevine: { searchPreferences: { povPubkey } } }
  *  - scanStrfry    : (filter) => events[]   (fake local strfry: kind-3 + kind-0)
  *  - runCypher     : (cypher, params) => rows[]  (fake relay-set resolution)
@@ -104,6 +155,9 @@ function kind1(id, author, createdAt, content) {
  */
 function makeDeps(overrides = {}) {
   return {
+    // Fifth boundary (story test-hermeticity-ci #1): the TA-pubkey read. A fake
+    // here keeps "hermetic" runs off the host config chain entirely.
+    getTaPubkey: () => HEX('c'),
     getSettings: () => ({ grapevine: { searchPreferences: { povPubkey: null } } }),
     // Default local strfry: SOURCE follows FOLLOW_1 + FOLLOW_2; no kind-0 profiles.
     scanStrfry: (filter) => {
@@ -544,20 +598,286 @@ test('B21 (resolution): with no login but a House PoV configured, the House iden
   }
 });
 
+// ===========================================================================
+// MENTIONS — a note's nostr:npub/nprofile references are resolved to LOCAL
+// display names (so the UI can show "@name", not a raw npub), drawn from the
+// SAME local kind-0 scan as the authors. Never an external fetch.
+// ===========================================================================
+
+test('M1 (mentions): a nostr:npub mention resolves to the mentioned profile\'s LOCAL display name (same local kind-0 scan)', async () => {
+  const mod = loadModule();
+  const nip19 = requireNip19OrSkip();
+  const MENTIONED = HEX('5');
+  const npub = nip19.npubEncode(MENTIONED);
+  const deps = makeDeps({
+    scanStrfry: (filter) => {
+      const f = typeof filter === 'string' ? JSON.parse(filter) : filter;
+      if (Array.isArray(f.kinds) && f.kinds.includes(3)) return [kind3(SOURCE, [FOLLOW_1])];
+      if (Array.isArray(f.kinds) && f.kinds.includes(0)) {
+        assert(Array.isArray(f.authors) && f.authors.includes(MENTIONED),
+          'the local kind-0 scan must include the mentioned pubkey so its name resolves in the same pass (no separate/external fetch).');
+        return [{ id: 'k0-m', kind: 0, pubkey: MENTIONED, created_at: 60, tags: [],
+          content: JSON.stringify({ display_name: 'Bob Mentioned', name: 'bob' }) }];
+      }
+      return [];
+    },
+    querySync: async (relays, filter) => {
+      const f = filter || {};
+      assert(!(Array.isArray(f.kinds) && f.kinds.includes(0)),
+        'mentioned-profile (kind-0) data must come from LOCAL strfry, never the external relays.');
+      return [kind1('n1', FOLLOW_1, 200, `hey nostr:${npub} welcome`)];
+    },
+  });
+  const r = await callBuildFeed(mod, { sessionPubkey: SOURCE, deps });
+  assert(r && r.status === 'OK', `expected OK; got ${JSON.stringify(r && r.status)}.`);
+  const item = r.items.find((it) => it.id === 'n1');
+  assert(item && item.mentions && typeof item.mentions === 'object', 'each item must carry a `mentions` map (pubkey → displayName).');
+  assert(item.mentions[MENTIONED] === 'Bob Mentioned',
+    `the npub mention must resolve to the local display name; got ${JSON.stringify(item.mentions[MENTIONED])}.`);
+});
+
+test('M2 (mentions): an nprofile mention resolves via its pubkey; a mention with no local kind-0 is omitted (UI falls back to npub)', async () => {
+  const mod = loadModule();
+  const nip19 = requireNip19OrSkip();
+  const KNOWN = HEX('5');     // has a local kind-0
+  const UNKNOWN = HEX('6');   // no local kind-0
+  const nprofile = nip19.nprofileEncode({ pubkey: KNOWN });
+  const npubUnknown = nip19.npubEncode(UNKNOWN);
+  const deps = makeDeps({
+    scanStrfry: (filter) => {
+      const f = typeof filter === 'string' ? JSON.parse(filter) : filter;
+      if (Array.isArray(f.kinds) && f.kinds.includes(3)) return [kind3(SOURCE, [FOLLOW_1])];
+      if (Array.isArray(f.kinds) && f.kinds.includes(0)) {
+        return [{ id: 'k0-k', kind: 0, pubkey: KNOWN, created_at: 60, tags: [], content: JSON.stringify({ name: 'Carol' }) }];
+      }
+      return [];
+    },
+    querySync: async () => [kind1('n1', FOLLOW_1, 200, `cc nostr:${nprofile} and nostr:${npubUnknown}`)],
+  });
+  const r = await callBuildFeed(mod, { sessionPubkey: SOURCE, deps });
+  const item = r.items.find((it) => it.id === 'n1');
+  assert(item.mentions[KNOWN] === 'Carol', `nprofile mention must resolve via its pubkey to "Carol"; got ${JSON.stringify(item.mentions[KNOWN])}.`);
+  assert(!(UNKNOWN in item.mentions),
+    'a mention with no local kind-0 must be OMITTED from mentions (the UI then falls back to the truncated npub).');
+});
+
+test('M3 (mentions): a note with no nostr: mentions carries an empty mentions map (stable shape, no crash)', async () => {
+  const mod = loadModule();
+  const deps = makeDeps({ querySync: async () => [kind1('n1', FOLLOW_1, 200, 'just plain text, no mentions here')] });
+  const r = await callBuildFeed(mod, { sessionPubkey: SOURCE, deps });
+  const item = r.items.find((it) => it.id === 'n1');
+  assert(item.mentions && typeof item.mentions === 'object' && Object.keys(item.mentions).length === 0,
+    `a mention-free note must carry an empty mentions object; got ${JSON.stringify(item.mentions)}.`);
+});
+
+test('M4 (mentions/security): an nsec reference is NEVER treated as a mention (no resolution, no crash)', async () => {
+  const mod = loadModule();
+  const nip19 = requireNip19OrSkip();
+  const nsec = nip19.nsecEncode(new Uint8Array(32).fill(3));
+  const deps = makeDeps({ querySync: async () => [kind1('n1', FOLLOW_1, 200, `oops nostr:${nsec} end`)] });
+  const r = await callBuildFeed(mod, { sessionPubkey: SOURCE, deps });
+  const item = r.items.find((it) => it.id === 'n1');
+  assert(item.mentions && Object.keys(item.mentions).length === 0,
+    'an nsec is a private key, never a profile reference — it must never be resolved as a mention.');
+});
+
+test('M5 (mentions/robustness): the local kind-0 lookup is capped so a ref-stuffed note cannot overflow the scan arg', async () => {
+  const mod = loadModule();
+  const nip19 = requireNip19OrSkip();
+  const many = [];
+  for (let i = 1; i <= 1010; i++) many.push('nostr:' + nip19.npubEncode(i.toString(16).padStart(64, '0')));
+  const content = 'spam ' + many.join(' ');
+  let scanAuthors = null;
+  const deps = makeDeps({
+    scanStrfry: (filter) => {
+      const f = typeof filter === 'string' ? JSON.parse(filter) : filter;
+      if (Array.isArray(f.kinds) && f.kinds.includes(3)) return [kind3(SOURCE, [FOLLOW_1])];
+      if (Array.isArray(f.kinds) && f.kinds.includes(0)) { scanAuthors = f.authors || []; return []; }
+      return [];
+    },
+    querySync: async () => [kind1('n1', FOLLOW_1, 200, content)],
+  });
+  const r = await callBuildFeed(mod, { sessionPubkey: SOURCE, deps });
+  assert(r && r.status === 'OK', `expected OK; got ${JSON.stringify(r && r.status)}.`);
+  assert(Array.isArray(scanAuthors), 'the local kind-0 scan must have been called.');
+  assert(scanAuthors.length <= 1000,
+    `the kind-0 lookup must be capped (≤1000 — authors + bounded mentions) so a ref-stuffed note can't overflow the scan argument; got ${scanAuthors.length}.`);
+});
+
+test('E1 (shared seam): enrichNotes is reusable — exported from _shared, turns raw notes into the enriched item shape via the injected local scan', async () => {
+  let mod;
+  try { mod = require('../src/api/_shared/noteEnrichment'); } catch { mod = null; }
+  assert(mod && typeof mod.enrichNotes === 'function',
+    'src/api/_shared/noteEnrichment.js must export enrichNotes(notes, scanStrfry) — the shared seam the feed and the future profile/user-notes read paths all use.');
+  const A = HEX('1');
+  const scanStrfry = (filter) => {
+    const f = typeof filter === 'string' ? JSON.parse(filter) : filter;
+    if (Array.isArray(f.kinds) && f.kinds.includes(0)) {
+      return [{ id: 'k0', kind: 0, pubkey: A, created_at: 10, tags: [], content: JSON.stringify({ name: 'Ann', picture: 'p.png' }) }];
+    }
+    return [];
+  };
+  const items = await mod.enrichNotes([kind1('x', A, 100, 'hi')], scanStrfry);
+  assert(items.length === 1, 'one raw note in → one enriched item out.');
+  const it = items[0];
+  assert(it.id === 'x' && it.pubkey === A && it.createdAt === 100 && it.content === 'hi',
+    'enrichNotes must preserve id/pubkey/createdAt/content (createdAt mapped from created_at).');
+  assert(it.author && it.author.displayName === 'Ann' && it.author.avatar === 'p.png',
+    'enrichNotes must resolve the author name/avatar from the injected LOCAL kind-0 scan.');
+  assert(it.mentions && typeof it.mentions === 'object',
+    'each enriched item must carry a mentions map (empty when the note has no nostr: refs).');
+});
+
+test('E2 (shared seam): the direct-import contract the two new read paths depend on — extractMentionPubkeys, PROFILE_LOOKUP_CAP, and direct mention resolution', async () => {
+  const mod = require('../src/api/_shared/noteEnrichment');
+  const nip19 = requireNip19OrSkip();
+  // The cap the future per-user notes page must respect (it calls enrichNotes directly).
+  assert(mod.PROFILE_LOOKUP_CAP === 1000, `PROFILE_LOOKUP_CAP must be exported and === 1000; got ${mod.PROFILE_LOOKUP_CAP}.`);
+  // extractMentionPubkeys: npub/nprofile → pubkey; nsec/junk → [] (never a private key).
+  assert(typeof mod.extractMentionPubkeys === 'function', 'noteEnrichment must export extractMentionPubkeys.');
+  const M = HEX('5');
+  assert(JSON.stringify(mod.extractMentionPubkeys(`hi nostr:${nip19.npubEncode(M)} x`)) === JSON.stringify([M]),
+    'extractMentionPubkeys must decode a nostr:npub mention to its pubkey.');
+  assert(mod.extractMentionPubkeys(`k nostr:${nip19.nsecEncode(new Uint8Array(32).fill(9))} z`).length === 0,
+    'extractMentionPubkeys must NEVER return anything for an nsec (a private key is not a mention).');
+  // enrichNotes called DIRECTLY (not via buildFeed): a resolvable mention → name; unknown → omitted.
+  const KNOWN = HEX('5'), UNKNOWN = HEX('6');
+  const content = `cc nostr:${nip19.npubEncode(KNOWN)} & nostr:${nip19.npubEncode(UNKNOWN)}`;
+  const scanStrfry = (filter) => {
+    const f = typeof filter === 'string' ? JSON.parse(filter) : filter;
+    if (Array.isArray(f.kinds) && f.kinds.includes(0)) {
+      return [{ id: 'k0', kind: 0, pubkey: KNOWN, created_at: 10, tags: [], content: JSON.stringify({ name: 'Cara' }) }];
+    }
+    return [];
+  };
+  const [it] = await mod.enrichNotes([kind1('n', HEX('1'), 100, content)], scanStrfry);
+  assert(it.mentions[KNOWN] === 'Cara', `direct enrichNotes must resolve a known mention to its name; got ${JSON.stringify(it.mentions[KNOWN])}.`);
+  assert(!(UNKNOWN in it.mentions), 'an unresolved mention must be omitted (UI falls back to the npub).');
+});
+
+// ===========================================================================
+// Story test-hermeticity-ci #1 — the H-block: hermetic seam for the TA-pubkey
+// read + legible degrade. Pins the fifth injectable dep `getTaPubkey` (read
+// like its four peers: options.deps?.getTaPubkey ?? options.getTaPubkey ??
+// the real runtime-resolved helper) and the rule that the relay-set degrade
+// path names its cause. ALL of H1–H6 FAIL pre-implementation; H7 is a
+// standing guard (passes pre and post — it pins the no-hardcoded-TA rule).
+// ===========================================================================
+
+const TA_INJECTED = HEX('d'); // distinct from makeDeps' default HEX('c')
+
+test('H1 (AC-2): an injected getTaPubkey is honored — the relay-set query is built from the INJECTED TA pubkey and the runCypher double runs', async () => {
+  const mod = loadModule();
+  const queries = [];
+  const deps = makeDeps({
+    getTaPubkey: () => TA_INJECTED,
+    runCypher: async (cypher, params) => {
+      queries.push(String(cypher) + ' ' + JSON.stringify(params || {}));
+      return [{ json: JSON.stringify({ nostrRelay: { websocketUrl: 'wss://set-relay-a.example' } }) }];
+    },
+  });
+  const r = await callBuildFeed(mod, { sessionPubkey: SOURCE, deps });
+  assert(r && (r.status === 'OK' || r.status === 'EMPTY'), `expected OK/EMPTY; got ${JSON.stringify(r && r.status)}.`);
+  assert(queries.length >= 1,
+    'the injected runCypher double must actually run during relay-set resolution — today a non-injected TA-pubkey require can throw first and bypass it (the vacuous-green bug).');
+  const handle = `39999:${TA_INJECTED}:the-set-of-general-purpose-relays`;
+  assert(queries.some((q) => q.includes(handle)),
+    `the relay-set query must be built from the INJECTED TA pubkey (handle 39999:${TA_INJECTED.slice(0, 8)}…:the-set-of-general-purpose-relays) — buildFeed must read getTaPubkey from its injectable seam, not require() the real helper; got: ${queries.map((q) => q.slice(0, 140)).join(' | ') || '(no queries)'}.`);
+  assert(r.relaySource === 'set', `with one resolvable member, relaySource must be 'set'; got ${JSON.stringify(r.relaySource)}.`);
+});
+
+test('H2 (AC-2): on the empty-set path BOTH doubles run — getTaPubkey and runCypher are invoked before relaySource degrades to "fallback" (kills B10\'s vacuous green)', async () => {
+  const mod = loadModule();
+  let taCalls = 0; let cypherCalls = 0;
+  const deps = makeDeps({
+    getTaPubkey: () => { taCalls++; return TA_INJECTED; },
+    runCypher: async () => { cypherCalls++; return []; },
+  });
+  const r = await callBuildFeed(mod, { sessionPubkey: SOURCE, deps });
+  assert(taCalls >= 1,
+    'the injected getTaPubkey double must be invoked — the TA-pubkey read is part of the injectable seam, not a hidden require (story AC-2).');
+  assert(cypherCalls >= 1, 'the injected runCypher double must be invoked before concluding the set is empty.');
+  assert(r && r.relaySource === 'fallback', `an empty set must degrade to 'fallback'; got ${JSON.stringify(r && r.relaySource)}.`);
+});
+
+test('H3 (AC-3): a runCypher failure degrades to fallback AND the log names the underlying cause — no silent degrade (kills B11\'s vacuous green)', async () => {
+  const mod = loadModule();
+  const deps = makeDeps({
+    getTaPubkey: () => TA_INJECTED,
+    runCypher: async () => { throw new Error('neo4j unavailable (H3 sentinel)'); },
+  });
+  const { result: r, lines } = await withCapturedConsole(() => callBuildFeed(mod, { sessionPubkey: SOURCE, deps }));
+  assert(r && r.relaySource === 'fallback', `a relay-set resolution error must degrade to 'fallback'; got ${JSON.stringify(r && r.relaySource)}.`);
+  const blob = lines.join('\n');
+  assert(blob.includes('H3 sentinel'),
+    `the degrade must LOG the underlying error (expected "neo4j unavailable (H3 sentinel)" in console output) — today the catch is silent; captured: ${JSON.stringify(blob.slice(0, 200))}.`);
+  assert(/fallback/i.test(blob),
+    'the log must state the fallback decision alongside the cause (story AC-3: "alongside the fallback decision").');
+});
+
+test('H4 (AC-1/AC-3): a TA-pubkey read failure (the bare-checkout MODULE_NOT_FOUND class) degrades to fallback WITH a logged cause — the class behind B9\'s misleading bare-checkout failure', async () => {
+  const mod = loadModule();
+  const deps = makeDeps({
+    getTaPubkey: () => {
+      throw Object.assign(new Error("Cannot find module 'nostr-tools' (H4 simulation)"), { code: 'MODULE_NOT_FOUND' });
+    },
+  });
+  const { result: r, lines } = await withCapturedConsole(() => callBuildFeed(mod, { sessionPubkey: SOURCE, deps }));
+  assert(r && (r.status === 'OK' || r.status === 'EMPTY'), `the feed must survive a TA-read failure (no crash); got ${JSON.stringify(r && r.status)}.`);
+  assert(r.relaySource === 'fallback', `a TA-read failure must degrade to 'fallback'; got ${JSON.stringify(r.relaySource)}.`);
+  const blob = lines.join('\n');
+  assert(blob.includes('H4 simulation'),
+    `the degrade must LOG the swallowed error — in a bare checkout this exact class (MODULE_NOT_FOUND) is today silently converted into fallback relays, which is what made B9's failure misleading; captured: ${JSON.stringify(blob.slice(0, 200))}.`);
+});
+
+test('H5 (AC-4): a fully-injected buildFeed run reads NO host config — no brainstorm.conf / BRAINSTORM_RELAY_PUBKEY fallback noise in console output', async () => {
+  const mod = loadModule();
+  const deps = makeDeps(); // every boundary injected, incl. the default getTaPubkey fake
+  const { result: r, lines } = await withCapturedConsole(() => callBuildFeed(mod, { sessionPubkey: SOURCE, deps }));
+  assert(r && r.status === 'OK', `expected OK; got ${JSON.stringify(r && r.status)}.`);
+  const blob = lines.join('\n');
+  assert(!blob.includes('brainstorm.conf') && !blob.includes('BRAINSTORM_RELAY_PUBKEY'),
+    `a fully-injected ("hermetic") run must not read host config paths — today the non-injected TA-pubkey read prints config-fallback noise, proving the tests touch the host; captured: ${JSON.stringify(blob.slice(0, 200))}.`);
+});
+
+test('H6 (AC-3 edge): getTaPubkey resolving to null (TA identity absent) degrades cleanly to fallback — no crash, and no "set" built from a nonsense handle', async () => {
+  const mod = loadModule();
+  const deps = makeDeps({ getTaPubkey: () => null });
+  const r = await callBuildFeed(mod, { sessionPubkey: SOURCE, deps });
+  assert(r && (r.status === 'OK' || r.status === 'EMPTY'), `a null TA pubkey must not crash the feed; got ${JSON.stringify(r && r.status)}.`);
+  assert(r.relaySource === 'fallback',
+    `with no resolvable TA identity there is no valid set handle — relaySource must be 'fallback' (not a 'set' resolved from a 39999:null:… handle); got ${JSON.stringify(r.relaySource)}.`);
+});
+
+test('H7 (AC-5 guard): feedReadPath.js contains no 64-hex pubkey literal — the TA pubkey stays runtime-resolved (house rule)', () => {
+  const src = safeRead(MODULE_PATH);
+  assert(src.length > 0, 'module source must be readable.');
+  const hex64 = src.match(/[0-9a-f]{64}/gi) || [];
+  assert(hex64.length === 0,
+    `no 64-hex literal may appear in the module (TA pubkeys resolve at runtime — CLAUDE.md house rule); found: ${hex64.map((h) => h.slice(0, 12) + '…').join(', ')}.`);
+});
+
 async function run() {
-  let pass = 0, fail = 0;
+  let pass = 0, fail = 0, skipped = 0;
   for (const t of tests) {
     try {
       await t.fn();
       console.log(`  ✓ ${t.name}`);
       pass++;
     } catch (err) {
+      if (err && err.skipped) {
+        console.log(`  - SKIP ${t.name} (${err.message})`);
+        skipped++;
+        continue;
+      }
       console.log(`  ✗ ${t.name}`);
       console.log(`      ${err.message}`);
       fail++;
     }
   }
-  return { pass, fail };
+  // `skipped` returned only when nonzero — the aggregator line is unchanged in
+  // installed environments; skip surfacing in the SUMMARY is story 2's scope.
+  return skipped ? { pass, fail, skipped } : { pass, fail };
 }
 
 module.exports = { run };

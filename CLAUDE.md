@@ -2,19 +2,57 @@
 
 Decentralized knowledge-graph protocol and search engine on nostr. Reference deployment runs at brainstorm.world.
 
-Before starting work, read all four:
+**Read for your task — don't bulk-read.** The SessionStart digest (`scripts/session-start.sh`) auto-runs the harness health check; `/whats-open` gives the full roll-up. Line budgets on this file and AGENTS.md are lint-enforced (`scripts/harness-budgets.txt` — free lines before adding any).
 
-- [AGENTS.md](./AGENTS.md) — concept-graph orientation pattern. Read this BEFORE touching code.
-- [ROADMAP.md](./ROADMAP.md) — product vision, principles, and the strategic roadmap for Brainstorm Search
-- [BIBLE.md](./BIBLE.md) — architecture, protocol, data model, API, design decisions (universal, fork-agnostic)
-- [OPERATIONS.md](./OPERATIONS.md) — brainstorm.world deployment: branches, CI/CD, droplets, gotchas
+| Task | Read first |
+|---|---|
+| Touching code | [AGENTS.md](./AGENTS.md) — orientation ladder (stack-present *or* -absent) + port/TA-pubkey discovery, BEFORE code. Then [BIBLE.md](./BIBLE.md) sections via its ToC as needed (architecture, protocol, data model, API — universal, fork-agnostic). |
+| Deploying / ops | [OPERATIONS.md](./OPERATIONS.md) — brainstorm.world deployment: branches, CI/CD, droplets, gotchas. |
+| Product direction | [ROADMAP.md](./ROADMAP.md) — vision, principles, and the strategic roadmap for Brainstorm Search. |
+| Protocol / NIP / wire format | [protocols/README.md](./protocols/README.md) — per-spec status + current source of truth; open problems in [protocols/worksheet.md](./protocols/worksheet.md). Check before any wire-format work. |
+| What's still open | **`/whats-open`** (alias: `bash scripts/whats-open.sh`) — unified roll-up across sessions: the ledger + every surface below. |
+| Small / cross-cutting items | [`OPEN.md`](./OPEN.md) — the single ledger for items with no other surface. **Write discipline:** end-of-session loose ends get a row (flip to `DONE` when handled) — and an orientation doc that misled you, or any harness defect, gets a `meta` row before the session ends (escalation + full rules: OPEN.md § "How to use this ledger"). |
+| Session continuity | [`docs/*HANDOFF*.md`](./docs/) — scan the `**Status:**` line before fresh work: `🔴 OPEN` = not picked up (a previous session may have left instructions); `✅ ADDRESSED / SUPERSEDED` = shipped, body kept for history. |
+| Queued-but-unplanned work | [`engineering-team/stories/_intake.md`](./engineering-team/stories/_intake.md) — scan before opening a fresh feature request; there's often a triaged entry already (format: [engineering-team/README.md](./engineering-team/README.md)). |
 
-**Also check at session start** — or just run **`/whats-open`** (alias: `bash scripts/whats-open.sh`) for a unified roll-up of everything still open across sessions, derived from all the surfaces below plus the ledger:
+## ⚠️ Architecture invariants — read every session
 
-- [`OPEN.md`](./OPEN.md) — the single ledger for **small / cross-cutting open items that have no other surface** (one-off cleanups, "does BIBLE need a note about what we just built?" decisions, follow-ups too small for a handoff doc, a branch to delete). The surfaces below hold the larger triaged work; `/whats-open` rolls them all together. **Write discipline:** whenever you end a session with such a loose end, add a row here (and flip it to `DONE` when handled) so the next session — any session — sees it.
-- [`docs/*HANDOFF*.md`](./docs/) — session continuity notes. Each handoff doc starts with a `**Status:**` line: `🔴 OPEN` = work hasn't been picked up; `✅ ADDRESSED / SUPERSEDED` = the follow-on work has shipped (the body is preserved for historical context, no action needed). Always scan for `OPEN` handoffs before starting fresh work — a previous session may have left specific instructions for the new one.
-- [`engineering-team/stories/_intake.md`](./engineering-team/stories/_intake.md) — queued-but-unplanned work catalog. See [engineering-team/README.md](./engineering-team/README.md) for the format. Scan before opening a fresh feature request — there's often a relevant entry already triaged.
-- [`protocols/README.md`](./protocols/README.md) — index of every protocol spec we author (published Custom NIPs, local pre-NIPs) with per-spec status, plus [`protocols/worksheet.md`](./protocols/worksheet.md) for open protocol problems. Check before any protocol/NIP/wire-format work — the spec's status and current source of truth are recorded there.
+Brainstorm/Tapestry is built around three principles. Default coding instincts trained on centralized SaaS systems will silently violate these. If a design feels "obvious" and it doesn't honor these, the design is probably wrong — pause and re-derive.
+
+### 1. POV-first: there is no "the view," only views from a perspective
+
+Every personalized output — search ranking, whether a user is "in the WoT," whether a tag "counts," what's trustworthy — is computed *from a specific point-of-view*. A POV is identified by a delegated pubkey (the "house POV" is the instance's default delegate; logged-in users can switch to their own POV after computing their WoT).
+
+- Profile docs in Meilisearch already carry POV-namespaced columns: `wot_rank_<8charsuffix>`, `wot_followers_<8charsuffix>`, etc. Each suffix is one POV's perspective on that profile. Search filters/sorts are POV-namespaced.
+- When you're answering "is this user trusted?" or "does this assertion count?" — **the answer depends on the POV**. There is no global truth. Don't write code that pretends otherwise.
+- **Common mistake**: pre-computing a denormalized "trusted set," "applied tags," or "relevant assertions" column per target and treating it as global. There is no such thing. If you want per-POV behavior, either (a) provision per-POV columns and accept the denormalization burden, or (b) — usually right — *filter at query time* using the existing POV columns.
+
+### 2. Decentralized-first: publishing is permissionless; aggregation is opinionated
+
+Anyone publishes anything — follows, mutes, reports, tags, kind-39999 list-elements, profile metadata. The system does **not** gate publication. It aggregates and presents per-POV.
+
+- Don't write code that requires a "canonical author" or "approved list" before something can exist. Tags can be created by any pubkey. Tag applications can be published by any pubkey. The TA (Tapestry Assistant) is not special at write time — it's special only because it publishes the firmware seed.
+- The "trusted set" emerges from a POV's WoT computation, not from a list someone administers. If your code asks "is this user allowed?", you probably want "does this user's published assertion count *for this POV*?"
+- **Common mistake**: validation that rejects events from unknown authors, or features that only work for "verified" users. Wrong layer. Accept all signed events; trust filtering happens at read time, per POV.
+
+### 3. Filter at view time, not write time
+
+A POV's view of the world is `(assertions from anyone) × (that POV's trust scoring)`. Both inputs change over time. Storing the *result* — "what does PoV X think today" — invites stale data and a combinatorial denormalization burden across N POVs × M targets.
+
+- Prefer scanning raw assertions + applying the active POV's filter at query time. The strfry index supports filtered scans (`#z`, `#p`, `#e`, etc.); the Meili index already carries per-POV trust columns. Compose them.
+- Only denormalize per-POV columns when the query-time cost is provably unacceptable. "It might be slow" is not enough — measure.
+- **Common mistake**: "let me compute this once and store it" for anything subjective. The answer changes when the POV changes or when a new assertion arrives. Re-derive on read.
+
+### Reflex checks when designing anything
+
+Before writing the design, run these four questions on it:
+
+1. **"Who is this true for?"** If the answer is "everyone" or "the database," check again — it's usually "*this POV's view*; others may differ."
+2. **"Where does this trust come from?"** If you're about to hard-code an admin/owner/role check, look harder — there's usually a WoT-derived signal you should use instead (`wot_rank_<suffix>`, follow graph, etc.).
+3. **"Could anyone else publish their own version of this?"** If yes, your code must not gate them at write time.
+4. **"What changes when the POV changes?"** If your design forces a re-index or migration each time a user switches POV, the abstraction is at the wrong layer — push it to query time.
+
+If the design you're about to write fails any of these, stop and re-derive from a POV-aware vantage point before continuing.
 
 ## Product Team Mode (upstream — optional)
 
@@ -25,7 +63,7 @@ The boundary is clean: **the product team produces markdown (PRD, guides, story 
 - **`product-team/`** — roles, workflows, templates, guardrails, and accumulating discoveries/personas/journeys/scope/domain/prd/guides. Source of truth for product behavior. Read [product-team/README.md](./product-team/README.md) for the layout.
 - **`.claude/`** — wiring only:
   - `.claude/commands/<phase>.md` — slash commands: `/discover`, `/model-users`, `/scope`, `/model-domain`, `/design-experience`, `/assemble-prd`, `/decompose-stories`, `/discuss-product`.
-  - `.claude/agents/<role>.md` — product subagents; each can Write only into `product-team/`, and the Product Advisor cannot Write at all.
+  - `.claude/agents/<role>.md` — product subagents; writing roles' Write/Edit are permission-scoped to `product-team/**` + `OPEN.md` (out-of-tree writes need approval under default permission modes); the Product Advisor has no Write and no Bash.
 
 The seven phases — **Discovery → User Modeling → Scope → Domain Modeling → Experience Design → PRD Assembly → Story Decomposition** — each have a human approval gate and write a durable artifact. The flow ends by emitting `product-team/stories-queue.md`, an epic-aware backlog. **The handoff is doc-driven and one-directional:** the engineering Product Owner reads that queue, creates the matching epics under `engineering-team/`, and promotes each brief via `/plan-feature`. The product flow never writes into `engineering-team/`. See [product-team/README.md](./product-team/README.md) → "Handoff to the engineering team".
 
@@ -95,7 +133,7 @@ The harness lives in two places:
 - **`engineering-team/`** — roles, workflows, templates, and accumulating decisions/stories/reviews. Source of truth for behavior. Read [engineering-team/README.md](./engineering-team/README.md) for the layout and phase wiring.
 - **`.claude/`** — wiring only:
   - `.claude/commands/<phase>.md` — slash commands: `/plan-feature`, `/design-architecture`, `/design-tests`, `/implement-feature`, `/review-changes`, `/close-book`, `/discuss`.
-  - `.claude/agents/<role>.md` — subagents with role-appropriate tool whitelists. The Architect cannot Edit source. The Reviewer cannot Edit source.
+  - `.claude/agents/<role>.md` — subagents with role-appropriate tool whitelists. The Architect and Reviewer have no Edit tool (their Write is for ADR/review artifacts; Bash is trust-based).
 
 Phases 1–5 are the **per-story** cycle. Above them sits one **per-book** milestone, `/close-book` — see "Books of work and the return edge" below.
 
@@ -103,14 +141,7 @@ Phases 1–5 are the **per-story** cycle. Above them sits one **per-book** miles
 
 ### How to operate
 
-1. **Classify the request.** Ask: "Is this a new feature, a bug fix, a refactor, or a doc/typo change?" That answer determines which phases apply (Standard strictness):
-
-   | Type | Phases that apply |
-   |---|---|
-   | Feature | All five phases |
-   | Bug | Skip Architecture if obvious; otherwise all |
-   | Refactor | Skip Tests if no behavior change |
-   | Doc / typo / one-liner | Implementer + Reviewer only |
+1. **Classify the request.** Ask: "Is this a new feature, a bug fix, a refactor, or a doc/typo change?" That answer determines which phases apply — the **normative strictness table lives in [engineering-team/workflows/0-intake.md](./engineering-team/workflows/0-intake.md) step 3** (this project runs Standard). Shorthand: features get all five phases; bugs may skip Architecture if obvious; refactors may skip Tests if no behavior change; doc/typo changes fast-track to Implementer + Reviewer.
 
 2. **Know which role you're in.** When a phase command is invoked, state at the top of your first response: "I'm acting as the {Role}. Phase: {Phase}."
 3. **Stay in role.** The Architect doesn't write the implementation. The Implementer doesn't invent new requirements. If the inputs are unclear, kick back to the prior phase rather than drifting.
@@ -140,3 +171,20 @@ The per-story cycle sits inside a larger unit — a **book of work**: a PRD, one
 - Reinstall firmware after adding/changing concept definitions — see AGENTS.md §6 for the exact curl.
 - Don't add new lint or typecheck tooling without an explicit ADR. This project is intentionally JS-without-build.
 - **The stack runs in Docker.** The control panel, Neo4j, strfry, and Redis run *inside* containers (`tapestry`, `tapestry-redis`, `nostr-search-*`) — their logs and CLIs live in the container, not on the host. Read logs / run commands via the container: `docker exec tapestry tail -n100 /var/log/brainstorm/<x>.log`, `docker exec tapestry supervisorctl status`, `docker exec tapestry-redis redis-cli …`. Host paths like `/var/log/brainstorm/...` and `/etc/brainstorm.conf` do **not** exist on the host. Same on the droplets: SSH in, then `docker exec tapestry …`. The control panel binds `:7778` in-container (nginx fronts `:80`); locally the repo is bind-mounted to `/usr/local/lib/node_modules/brainstorm` (source edits are live) with `node_modules` as a separate volume. See OPERATIONS.md for container layout and ports.
+
+### Per-deployment TA pubkey — NEVER hardcode
+
+The Tapestry Assistant (TA) pubkey is **created at first container startup** (`setup/create_nostr_identity.sh`) and is **different on every deployment**. The local-dev value (`82b75e47...973833` on this machine) is NOT shared with `tags.brainstorm.world`, `staging.brainstorm.world`, `brainstorm.world`, or any other instance.
+
+A literal hardcode in shared code silently breaks the pin/TL stack (and any other surface that signs as the TA or filters events by TA author) on every non-dev deployment: the signer reads the actual on-disk TA key, but the readers filter `authors: [hardcoded]` and find nothing.
+
+**Always resolve the TA pubkey at runtime:**
+
+- **Server-side:** `const { getOwnerAssistantPubkey } = require('../../utils/assistantKeys')` then `const TA_PUBKEY = getOwnerAssistantPubkey()` at module init (the function caches internally). Falls back through env → `brainstorm.conf` → `SecureKeyStorage` JSON. See `src/utils/assistantKeys.js:49–82`.
+- **Client-side:** `const { taPubkey } = useConfig()` (backed by `/api/assistant/pubkey`). See `ui/src/context/ConfigContext.jsx:14–18`. The rest of the codebase already does this (e.g., `ui/src/pages/concepts/ConceptList.jsx:59`, `ui/src/pages/databases/Neo4jOverview.jsx:13`).
+
+This rule applies anywhere the TA pubkey is used as: an `authors:` filter on a strfry scan; a substring of a concept handle (`39998:<TA>:<slug>`); a `pubkey` argument to `nip19.naddrEncode`; or any identity check. If you find yourself typing `'82b75e47...'`, stop — use the runtime lookup instead.
+
+Reference incident: the Pin/TL stack (Stories 10–12) hardcoded the literal in `ui/src/utils/publishTagPin.js` and `src/api/profile-tags/index.js`. The local instance kept working by coincidence (same TA pubkey); `tags.brainstorm.world` reported "No TL yet" forever because TLs were signed under its real TA but searched for under the hardcoded one. Fix: replace literals with the runtime helpers above. See `engineering-team/stories/_intake.md` entry dated 2026-05-20.
+
+**Named exception (ADR 0015):** the z-tag composition for the `tag`, `nostr-user-tag`, and `tag-pinning` concept handles is intentionally bound to a literal pubkey — `LEGACY_Z_TAG_PUBKEY` in `src/api/profile-tags/index.js`, `LEGACY_TA_PUBKEY` in `ui/src/utils/publishTagPin.js`, plus the existing literal hardcodes in `ui/src/hooks/useProfileTags.js` and `ui/src/utils/publishProfileTag.js`. This preserves visibility of historical user activity (tags, applies, disputes, pins) across non-dev deployments where wholesale runtime-migration would orphan all existing events. Every OTHER use of the TA pubkey — author filtering, signer reads, signing operations — must use the runtime helper. Future re-parenting of these concepts under a non-literal pubkey is a separate epic (out of Story 16; sketched in ADR 0015's "Eventual full retirement" section). A reviewer who sees a diff removing `LEGACY_*` constants without an accompanying re-parenting migration MUST reject. See `engineering-team/decisions/0015-restore-historical-data-and-fix-tl-author-filter.md`.
