@@ -114,11 +114,15 @@ test('S2: the ORE module registers POST /search/pubkeys (ADR 0002 §Impl)', () =
 test('C1: capability doc now advertises /search/pubkeys and keeps /stats/pubkey (AC-1)', () => {
   const mod = loadModule();
   assert(mod && typeof mod.buildCapabilityDocument === 'function', 'buildCapabilityDocument missing — feature absent.');
-  const doc = mod.buildCapabilityDocument();
+  const doc = mod.buildCapabilityDocument(); // gate closed (default)
   assert(Array.isArray(doc['/search/pubkeys']) && doc['/search/pubkeys'].length >= 1,
     "capability doc must advertise '/search/pubkeys' as a non-empty array.");
-  assert(Array.isArray(doc['/stats/pubkey']) && doc['/stats/pubkey'].length === 2,
-    "'/stats/pubkey' must remain advertised with its two algorithms.");
+  // '/stats/pubkey' stays advertised; personalized is gated OFF by default now
+  // (ADR open-ranking/0005 / W12), so the default doc lists only the global algo.
+  assert(Array.isArray(doc['/stats/pubkey']) && doc['/stats/pubkey'].length === 1,
+    "'/stats/pubkey' must remain advertised with its global algorithm (personalized gated off by default).");
+  assert(mod.buildCapabilityDocument({ personalizedStats: true })['/stats/pubkey'].length === 2,
+    "opening the gate must restore '/stats/pubkey' to its two algorithms.");
 });
 
 test('C2: /search/pubkeys default is global graperank (pov:false); no personalized search algo in v1 (AC-1)', () => {

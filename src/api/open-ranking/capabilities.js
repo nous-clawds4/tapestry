@@ -34,25 +34,73 @@ const CAPABILITIES = {
   ],
 };
 
-// A fresh deep copy so callers can't mutate the registry.
-function buildCapabilityDocument() {
-  return JSON.parse(JSON.stringify(CAPABILITIES));
+/**
+ * Pre-prod gate (ADR open-ranking/0005, worksheet W12). The personalized-stats
+ * algorithm (`graperank-personalized`, pov:true on /stats/pubkey) is an
+ * UNAUTHENTICATED provisioning-enumeration oracle: a `200` vs `422` reply reveals
+ * whether a supplied pov is a provisioned customer, and a provisioned pov even
+ * returns that customer's personalized web-of-trust view of the target. Until a
+ * self-only / ORE-A auth check guards the pov:true path, the algorithm is OMITTED
+ * from the served surface — mirroring how personalized *search* is deferred above.
+ *
+ * `personalizedStats` (default OFF) re-includes it. DO NOT enable it on a public
+ * deployment without the auth work (W12) — enabling re-opens the oracle.
+ */
+function isPersonalizedStatsEnabled() {
+  try {
+    // Lazy require so the pure builders (and the hermetic test suite that loads
+    // this module directly) never touch the settings layer.
+    const { getSettings } = require('../../config/settings');
+    return (getSettings().openRanking || {}).personalizedStats === true;
+  } catch {
+    return false; // safe default: gated
+  }
 }
 
-// ORE-01: default = first element when no id is given; unknown id → null (→ 422).
-function resolveAlgorithm(endpointPath, requestedId) {
+// The algorithms VISIBLE for an endpoint under the given gate options. Everything
+// downstream (the served doc AND per-request resolution) derives from this, so the
+// capability document and validation can never drift out of sync (the ORE-01 rule).
+function visibleAlgorithms(endpointPath, opts = {}) {
   const algos = CAPABILITIES[endpointPath];
-  if (!Array.isArray(algos) || algos.length === 0) return null;
+  if (!Array.isArray(algos)) return [];
+  if (endpointPath === '/stats/pubkey' && !opts.personalizedStats) {
+    return algos.filter((a) => a.id !== 'graperank-personalized');
+  }
+  return algos;
+}
+
+// A fresh deep copy so callers can't mutate the registry.
+function buildCapabilityDocument(opts = {}) {
+  const doc = {};
+  for (const endpointPath of Object.keys(CAPABILITIES)) {
+    doc[endpointPath] = JSON.parse(JSON.stringify(visibleAlgorithms(endpointPath, opts)));
+  }
+  return doc;
+}
+
+// ORE-01: default = first element when no id is given; unknown/gated id → null (→ 422).
+// A gated personalized request is therefore indistinguishable from any unsupported
+// algorithm — the enumeration oracle never runs (no pov check, no score fetch).
+function resolveAlgorithm(endpointPath, requestedId, opts = {}) {
+  const algos = visibleAlgorithms(endpointPath, opts);
+  if (algos.length === 0) return null;
   if (requestedId === undefined || requestedId === null || requestedId === '') return algos[0];
   return algos.find((a) => a.id === requestedId) || null;
 }
 
-function buildCapabilityResponse() {
+function buildCapabilityResponse(opts = {}) {
   return {
     httpStatus: 200,
     headers: oreHeaders({ 'Cache-Control': 'public, max-age=300' }),
-    body: buildCapabilityDocument(),
+    body: buildCapabilityDocument(opts),
   };
 }
 
-module.exports = { CAPABILITIES, buildCapabilityDocument, resolveAlgorithm, buildCapabilityResponse };
+module.exports = {
+  CAPABILITIES,
+  buildCapabilityDocument,
+  resolveAlgorithm,
+  buildCapabilityResponse,
+  visibleAlgorithms,
+  isPersonalizedStatsEnabled,
+};
