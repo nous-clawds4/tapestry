@@ -33,14 +33,14 @@ Six long-lived branches, six Digital Ocean droplets, six CI/CD workflows:
 
 | Branch | Workflow | Target | Purpose |
 |--------|----------|--------|---------|
-| `main` | `deploy-brainstorm.yml` | `brainstorm.world` | Production. PRs merge here only after staging verification. |
+| `main` | `deploy-tapestry.yml` | `tapestry.brainstorm.world` | Production. PRs merge here only after staging verification. (Was `brainstorm.world` until 2026-07-10, when that name moved to the **NosFabrica** codebase — Tapestry's reference deployment is now `tapestry.brainstorm.world`, served from the same droplet `159.203.150.156`.) |
 | `staging` | `deploy-staging.yml` | `staging.brainstorm.world` | Pre-production verification. PRs from feature branches land here first. |
 | `feature-magic-carpet` | `deploy-magic-carpet.yml` | `magic-carpet.brainstorm.world` | Long-lived sandbox for Matthias's bounty-system work. |
 | `feat/pubkey-tagging-target` | `deploy-tags.yml` | `tags.brainstorm.world` | Long-lived sandbox for the pubkey-tagging feature work (NIP-85 profile-tagging UX). |
 | `feat/communities` | `deploy-communities.yml` | `communities.brainstorm.world` | Long-lived sandbox for the communities / decentralized-lists feature work (brainstorm-community concept, DList NIP-aware tag schema). |
 | `feat/curate` | `deploy-curate.yml` | `curate.brainstorm.world` | Long-lived sandbox for Avi's feature work; scope TBD by Avi. |
 
-Each workflow uses repo secrets named `DEPLOY_HOST_<NAME>`, `DEPLOY_USER_<NAME>`, `DEPLOY_SSH_KEY_<NAME>` where `<NAME>` is `BRAINSTORM`, `STAGING`, `MAGIC_CARPET`, `TAGS`, `COMMUNITIES`, or `CURATE`.
+Each workflow uses repo secrets named `DEPLOY_HOST_<NAME>`, `DEPLOY_USER_<NAME>`, `DEPLOY_SSH_KEY_<NAME>` where `<NAME>` is `TAPESTRY`, `STAGING`, `MAGIC_CARPET`, `TAGS`, `COMMUNITIES`, or `CURATE`. (The `TAPESTRY` secrets superseded `BRAINSTORM` in the 2026-07-10 cutover; they carry the same `159.203.150.156` host/user/key.)
 
 ### Standard branch promotion flow
 
@@ -48,7 +48,7 @@ Each workflow uses repo secrets named `DEPLOY_HOST_<NAME>`, `DEPLOY_USER_<NAME>`
 feat/foo (off staging)
     → PR → staging        → CI deploys to staging.brainstorm.world
     → verify on staging
-    → PR → main            → CI deploys to brainstorm.world
+    → PR → main            → CI deploys to tapestry.brainstorm.world
     → source feature branch auto-deleted
 ```
 
@@ -104,10 +104,11 @@ Short-lived feature branches (`feat/*`, `fix/*`, `chore/*`) are NOT protected; t
 
 ## 5. Droplets and empirical measurements
 
-### Production: `brainstorm.world`
+### Production: `tapestry.brainstorm.world` (`159.203.150.156`)
 
 - 32 GB RAM, AMD, 8 vCPU, 400 GB storage, Ubuntu 24.04
 - Behind host nginx + Certbot SSL; Docker stack binds to `127.0.0.1:8080`
+- **This is the former `brainstorm.world` prod droplet.** On 2026-07-10 the `brainstorm.world` name was handed to the **NosFabrica** codebase (now served from a separate host, `74.208.86.220`); this droplet was repurposed as Tapestry's reference deployment under `tapestry.brainstorm.world` (same box, same Neo4j volume). Cutover = new host-nginx `server_name` + Certbot cert for `tapestry.brainstorm.world`, `.env` `DOMAIN_NAME=tapestry.brainstorm.world`, and the `DEPLOY_*_TAPESTRY` secrets (`deploy-tapestry.yml`).
 
 ### Pre-prod: `staging.brainstorm.world`
 
