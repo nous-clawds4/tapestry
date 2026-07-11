@@ -48,6 +48,9 @@
       "tags": false
     }
   },
+  "openRanking": {
+    "personalizedStats": false
+  },
   "nip05": {
     "names": {},
     "relays": {}

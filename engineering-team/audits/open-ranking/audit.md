@@ -51,13 +51,14 @@ A public, read-only HTTP interface to Brainstorm's web of trust, conformant to t
 ## 5. Quality state at close
 
 - **Test gate:** ORE suites green — `open-ranking-stats` **20/20**, `open-ranking-search` **18/18** (38 total). Full `npm test` is not host-runnable (other suites need the live Docker stack); the real Neo4j / `nostr-search-api` paths were verified by the **staging smoke** (both PRs: capability doc, stats with real ranks, search with desc ordering, the `422` paths, stats regression).
-- **Accepted security finding (gated):** the `grapevine-personalized` **stats** path is an unauthenticated provisioning-enumeration oracle (`200` vs `422` reveals the customer set). Accepted for staging; **hard pre-prod gate** — `protocols/worksheet.md` **W12**, `reviews/open-ranking/1-...md`.
+- **Accepted security finding (gated):** the `grapevine-personalized` **stats** path is an unauthenticated provisioning-enumeration oracle (`200` vs `422` reveals the customer set). Accepted for staging; **hard pre-prod gate** — `protocols/worksheet.md` **W12**, `reviews/open-ranking/1-...md`. **→ Closed 2026-07-10 (ADR 0005):** gated behind `openRanking.personalizedStats` (default OFF) for the tapestry.brainstorm.world cutover; see §6.
 - **Debt (from ADR Consequences):** the two POV-identity schemes remain unreconciled (W13); strict ORE-00 preflight deferred; `reports`/`first_seen_at` unmapped.
 
 ## 6. Carry-forward register
 
 - [ ] **Story 3 — personalized search**: build the server-side main→delegated POV resolver (owner→TA, customer→relay key) so ORE `pov` (the main pubkey) works across stats and search (W13).
-- [ ] **Pre-prod gate**: gate the personalized-stats `pov:true` path (ORE-A/NWT auth or self-only check) before any production promotion (W12).
+- [x] **Pre-prod gate** *(2026-07-10, ADR 0005)*: the personalized-stats `pov:true` path is now gated behind `openRanking.personalizedStats` (**default OFF**) — omitted from the served surface, a request 422s as "unsupported" with **no** pov/provisioning check, so the enumeration oracle no longer runs. Done for the `main`→`tapestry.brainstorm.world` cutover. **Re-enabling requires the auth work below** — the config flag alone re-opens the oracle and must not be turned on publicly without ORE-A/self-only (still W12, next line).
+- [ ] **Auth to RE-ENABLE personalized stats**: ORE-A/NWT or a NIP-98 self-only check on the `pov:true` path, so `openRanking.personalizedStats` can be safely turned on (W12). Until then the feature stays gated OFF.
 - [ ] **ORE-A / NWT auth** and the remaining ORE endpoints (`/rank/pubkeys`, `/recommend/pubkeys`, `/followers`, `/muters`, `/compromised/pubkeys`).
 - [ ] **Upstream**: decide whether to propose a standard POV-availability/declared-POV mechanism to ORE, or stay conformant-without-it (W12).
 - [ ] **Minor**: strict-200 `OPTIONS` shim; `reports`/`first_seen_at` population if a data source appears; house-vs-owner global unification.

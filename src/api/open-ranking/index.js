@@ -10,7 +10,7 @@
  * hermetically (no live Neo4j) — see the testability seam in ADR 0001.
  */
 
-const { buildCapabilityDocument, buildCapabilityResponse } = require('./capabilities');
+const { buildCapabilityDocument, buildCapabilityResponse, isPersonalizedStatsEnabled } = require('./capabilities');
 const { buildStats, handleStatsPubkey } = require('./stats');
 const { buildSearch, handleSearchPubkeys } = require('./search');
 const { isValidHexPubkey, oreHeaders, applyTriple } = require('./shared');
@@ -19,7 +19,9 @@ const { isValidHexPubkey, oreHeaders, applyTriple } = require('./shared');
 const ORE_PATHS = new Set(['/stats/pubkey', '/search/pubkeys', '/.well-known/open-ranking.json']);
 
 function handleCapabilityDoc(req, res) {
-  applyTriple(res, buildCapabilityResponse());
+  // Advertise only what is actually served — the personalized-stats gate (ADR
+  // 0005 / W12) hides `graperank-personalized` from the doc when it's disabled.
+  applyTriple(res, buildCapabilityResponse({ personalizedStats: isPersonalizedStatsEnabled() }));
 }
 
 /**
