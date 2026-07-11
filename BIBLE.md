@@ -3,7 +3,7 @@
 > **Audience:** AI agents and developers joining the Tapestry project.
 > Read this file to fully onboard — it covers what Tapestry is, how it works, what's been built, what's in progress, and how to contribute.
 >
-> Specifics of the reference deployment at `brainstorm.world` (deploy targets, droplet specs, CI/CD workflows, branch protection ruleset, active team, tracking issues, operational gotchas we've hit) live in a sibling document: [OPERATIONS.md](./OPERATIONS.md). If you're forking this repo to run your own instance, BIBLE is the doc you want — OPERATIONS describes someone else's running instance.
+> Specifics of the reference deployment at `tapestry.brainstorm.world` (deploy targets, droplet specs, CI/CD workflows, branch protection ruleset, active team, tracking issues, operational gotchas we've hit) live in a sibling document: [OPERATIONS.md](./OPERATIONS.md). If you're forking this repo to run your own instance, BIBLE is the doc you want — OPERATIONS describes someone else's running instance.
 
 **Last updated:** 2026-07-02 (header refresh; content last changed 2026-06-20 — preferences audit §6.1 + §6.2; session persistence; user-counts; cycle-* skills)
 
@@ -83,7 +83,7 @@ Tapestry is being built under **NosFabrica**, a company focused on sovereign hea
 
 ### Recommended branch strategy
 
-`main` is the production branch — direct push triggers a deploy via `.github/workflows/deploy-brainstorm.yml`. Standard contribution flow uses an intermediate `staging` branch as a verification gate:
+`main` is the production branch — direct push triggers a deploy via `.github/workflows/deploy-tapestry.yml`. Standard contribution flow uses an intermediate `staging` branch as a verification gate:
 
 ```
 feat/foo (off staging)
@@ -94,7 +94,7 @@ feat/foo (off staging)
 
 Long-lived sandbox branches (e.g. for substantial in-progress features that need their own deploy environment) follow the same pattern: dedicated branch + dedicated workflow + dedicated droplet.
 
-For the specific branches and deploy targets configured in the reference deployment at `brainstorm.world` (including `staging`, `feature-magic-carpet`, and a few legacy/parked branches), see [OPERATIONS.md §1–§2](./OPERATIONS.md).
+For the specific branches and deploy targets configured in the reference deployment at `tapestry.brainstorm.world` (including `staging`, `feature-magic-carpet`, and a few legacy/parked branches), see [OPERATIONS.md §1–§2](./OPERATIONS.md).
 
 ---
 
@@ -1135,14 +1135,14 @@ For production behind a host nginx reverse proxy with Certbot SSL:
 sed -i 's/"80:80"/"127.0.0.1:8080:80"/' docker-compose.yml
 
 # Host nginx proxies port 80/443 → 127.0.0.1:8080
-# See .github/workflows/deploy-brainstorm.yml for CI/CD reference
+# See .github/workflows/deploy-tapestry.yml for CI/CD reference
 ```
 
 ### CI/CD Pipelines
 
 GitHub Actions workflows in `.github/workflows/` deploy long-lived branches to dedicated droplets via SSH. Each workflow follows the same shape — pull, port-remap (`sed 's/"80:80"/"127.0.0.1:8080:80"/' docker-compose.yml`), `docker compose up -d --build`, image prune. Secrets follow the convention `DEPLOY_HOST_<NAME>`, `DEPLOY_USER_<NAME>`, `DEPLOY_SSH_KEY_<NAME>`.
 
-The reference deployment at `brainstorm.world` runs three such workflows; specifics are documented in [OPERATIONS.md §1, §3](./OPERATIONS.md).
+The reference deployment at `tapestry.brainstorm.world` runs three such workflows; specifics are documented in [OPERATIONS.md §1, §3](./OPERATIONS.md).
 
 ### Branch Promotion Flow
 
@@ -1220,7 +1220,7 @@ apt install -y nginx certbot python3-certbot-nginx
 # Create nginx site config proxying to Docker on 127.0.0.1:8080
 # (include proxy_set_header, WebSocket upgrade, 100m client_max_body_size)
 
-certbot --nginx -d brainstorm.world
+certbot --nginx -d tapestry.brainstorm.world
 # Certbot auto-renews via systemd timer
 ```
 

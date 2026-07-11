@@ -1,6 +1,6 @@
-# Tapestry Operations — brainstorm.world
+# Tapestry Operations — tapestry.brainstorm.world
 
-> **Audience:** the active team running this fork at `brainstorm.world`.
+> **Audience:** the active team running this fork at `tapestry.brainstorm.world`.
 > **Prerequisite reading:** [BIBLE.md](./BIBLE.md) — what tapestry *is* and how it works. This file documents the specifics of *our* deployment that aren't useful to other operators forking the codebase.
 
 **Last updated:** 2026-07-06
@@ -330,7 +330,7 @@ Hit this on PR #29 → replaced with PR #35 on 2026-04-19.
 
 ### 9.5. Post-deploy 502 flicker until brainstorm Express binds
 
-Both `deploy-staging.yml` and `deploy-brainstorm.yml` run `docker compose up -d --build` and exit as soon as the compose command returns. That means CI reports "deploy succeeded" the moment the **container** starts — not when the brainstorm Node process inside it has finished booting (Neo4j driver init, Redis connection, Express middleware, etc., add a few seconds).
+Both `deploy-staging.yml` and `deploy-tapestry.yml` run `docker compose up -d --build` and exit as soon as the compose command returns. That means CI reports "deploy succeeded" the moment the **container** starts — not when the brainstorm Node process inside it has finished booting (Neo4j driver init, Redis connection, Express middleware, etc., add a few seconds).
 
 In that window, nginx is up but its upstream isn't, so requests get **502 Bad Gateway**. The cycle is short — observed 5–30 s across the runs we've watched (#82, #81, #84, #85 across staging and main) — but it's long enough that a naive smoke test fired right after `gh run watch` returns will get false 502s.
 
