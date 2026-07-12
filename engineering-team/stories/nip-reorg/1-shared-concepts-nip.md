@@ -1,6 +1,6 @@
 # Story 1: Author the Shared Concepts NIP
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-07-12
 **Type:** Doc
 
@@ -40,4 +40,4 @@ None mutated (docs-mode; no concept-graph or firmware change). Referenced machin
 
 - ADR: [`engineering-team/decisions/nip-reorg/0001-shared-concepts-nip.md`](../../decisions/nip-reorg/0001-shared-concepts-nip.md) (O2 resolved: ratified selector in, open problem referenced via W1)
 - Test plan: skipped — docs-mode
-- Review: (filled in after Review phase)
+- Review: [`engineering-team/reviews/nip-reorg/1-shared-concepts-nip.md`](../../reviews/nip-reorg/1-shared-concepts-nip.md) — PASS (2026-07-12; 4 non-blocking findings routed to S4)
