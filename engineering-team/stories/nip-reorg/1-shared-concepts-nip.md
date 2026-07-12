@@ -38,6 +38,6 @@ None mutated (docs-mode; no concept-graph or firmware change). Referenced machin
 
 ## Linked artifacts
 
-- ADR: (filled in after Architecture phase)
+- ADR: [`engineering-team/decisions/nip-reorg/0001-shared-concepts-nip.md`](../../decisions/nip-reorg/0001-shared-concepts-nip.md) (O2 resolved: ratified selector in, open problem referenced via W1)
 - Test plan: skipped — docs-mode
 - Review: (filled in after Review phase)
