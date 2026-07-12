@@ -12,7 +12,7 @@ This is docs-mode work (protocol-spec workflow §3): deliverables are `protocols
 ## Stories (per handoff §5)
 
 1. `stories/nip-reorg/1-shared-concepts-nip.md` — **S1: Shared Concepts** — new `protocols/drafts/shared-concepts.md`; absorbs inherit-from § Aggregation; minimal README index row (gate decision 2026-07-12).
-2. _(planned)_ **S2: Class Thread Relationships** — rename + title sweep of `class-thread-tags.md`.
+2. `stories/nip-reorg/2-class-thread-relationships-rename.md` — **S2: Class Thread Relationships** — rename + title sweep of `class-thread-tags.md`.
 3. _(planned)_ **S3: Stamping** — new `protocols/drafts/stamping.md`; tapestry-concepts § Multi-`z` → pointer; the O1 open section; new worksheet entry.
 4. _(planned)_ **S4: Index & cross-ref sweep** — remaining `protocols/README.md` rows; W1/W11 re-pointers; `tags.md`/`communities.md` reference Stamping; BIBLE pointer consistency.
 

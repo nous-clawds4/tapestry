@@ -13,7 +13,7 @@ This NIP defines a general definitional-relationship primitive in two halves: th
 
 ## Relationship to other specs
 
-The `b` tag rides on the addressable kinds defined by [Decentralized Lists](../nips/decentralized-lists.md) and [Tapestry Concepts](./tapestry-concepts.md). It is the single-char, child-claims-parent sibling of the [class-thread tags](./class-thread-tags.md) — but where `n`/`s` express *structure* (containment), `b` expresses an *editorial relation* whose meaning is selected by its type: correspondence (`"pointer"`) or definitional deference (`"inherit"`). It lets any addressable DList object bookmark, or declare deference to, another's definition.
+The `b` tag rides on the addressable kinds defined by [Decentralized Lists](../nips/decentralized-lists.md) and [Tapestry Concepts](./tapestry-concepts.md). It is the single-char, child-claims-parent sibling of the [class-thread tags](./class-thread-relationships.md) — but where `n`/`s` express *structure* (containment), `b` expresses an *editorial relation* whose meaning is selected by its type: correspondence (`"pointer"`) or definitional deference (`"inherit"`). It lets any addressable DList object bookmark, or declare deference to, another's definition.
 
 ## The `b` tag
 
@@ -31,7 +31,7 @@ The `b` tag rides on the addressable kinds defined by [Decentralized Lists](../n
 
 The type is carried as a non-indexed positional element (as NIP-01's `e` tag carries its `root`/`reply` marker) — so relays cannot filter `#b` results by type; consumers fetch and filter locally. Future type values (e.g. ADR 0027's anticipated deliberate-divergence marker) require a new ADR. The `"pointer"` type realizes the concept-level `REFERENCES` posture on the wire — it resolves what worksheet [W5](../worksheet.md#w5--references-publishing-semantics) tracked as option (a), a consumer-owned tag on the consumer's own header.
 
-**Kinds:** defined for **kind 39998 and kind 39999** — any addressable DList object (concept headers *and* items/sets/declarations). Broader than the [class-thread tags](./class-thread-tags.md), which are kind-39999-only.
+**Kinds:** defined for **kind 39998 and kind 39999** — any addressable DList object (concept headers *and* items/sets/declarations). Broader than the [class-thread tags](./class-thread-relationships.md), which are kind-39999-only.
 
 ## Multi-parent semantics
 
@@ -44,7 +44,7 @@ Derivation is **type-gated**, and the gate requires an *explicit* `"inherit"` �
 - An **inherit-typed** `b` tag derives `(child)-[INHERITS_FROM]->(parent)` — an **asserted** relationship (the child itself published the tag), canonical (no `source` property).
 - A **pointer-typed** (or untyped) `b` tag derives a concept-level `(child)-[REFERENCES {source:'b-tag'}]->(target)` edge — likewise asserted, but carrying `source`, because concept-level `REFERENCES` is overloaded with other producers and `source` is the disambiguator (see the consuming deployment's collision contract, BIBLE §22).
 
-**Direction — child→parent/target; do NOT flip.** Unlike the [class-thread tags](./class-thread-tags.md), whose child-claims-parent encoding is flipped into a *parent→child* derived relationship (containment: the parent owns the child), `b` does **not** flip — for either type: (a) deference and correspondence both read naturally child→target, and (b) a target's **incoming** edges are exactly "everyone who defers to / corresponds to this definition" — the queries the Aggregation section below needs. Implementers must not copy the `n`/`s` direction-flip.
+**Direction — child→parent/target; do NOT flip.** Unlike the [class-thread tags](./class-thread-relationships.md), whose child-claims-parent encoding is flipped into a *parent→child* derived relationship (containment: the parent owns the child), `b` does **not** flip — for either type: (a) deference and correspondence both read naturally child→target, and (b) a target's **incoming** edges are exactly "everyone who defers to / corresponds to this definition" — the queries the Aggregation section below needs. Implementers must not copy the `n`/`s` direction-flip.
 
 ## Resolution: the resolved definition
 
@@ -102,4 +102,4 @@ The policy reading of a target's incoming `b`-derived edges — deference aggreg
 | `SUPERCEDES` | replace the parent with mine | — | — | no |
 | **`b` type `"inherit"` / `INHERITS_FROM`** | **defer; parent stays authoritative** | **live (re-resolved each read)** | **first-class "unless stated"** | **no** |
 
-`b` follows the lowercase child-claims-parent direction principle and reserves uppercase `B` for a future parent-claims-child / federation inverse — see the [class-thread tags spec](./class-thread-tags.md) § "Direction principle and reserved letters"; the convention is not restated here.
+`b` follows the lowercase child-claims-parent direction principle and reserves uppercase `B` for a future parent-claims-child / federation inverse — see the [class-thread relationships spec](./class-thread-relationships.md) § "Direction principle and reserved letters"; the convention is not restated here.
