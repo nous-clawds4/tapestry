@@ -1,13 +1,13 @@
 # Tapestry / Brainstorm Search
 
-Decentralized knowledge-graph protocol and search engine on nostr. Reference deployment runs at brainstorm.world.
+Decentralized knowledge-graph protocol and search engine on nostr. Reference deployment runs at tapestry.brainstorm.world.
 
 **Read for your task — don't bulk-read.** The SessionStart digest (`scripts/session-start.sh`) auto-runs the harness health check; `/whats-open` gives the full roll-up. Line budgets on this file and AGENTS.md are lint-enforced (`scripts/harness-budgets.txt` — free lines before adding any).
 
 | Task | Read first |
 |---|---|
 | Touching code | [AGENTS.md](./AGENTS.md) — orientation ladder (stack-present *or* -absent) + port/TA-pubkey discovery, BEFORE code. Then [BIBLE.md](./BIBLE.md) sections via its ToC as needed (architecture, protocol, data model, API — universal, fork-agnostic). |
-| Deploying / ops | [OPERATIONS.md](./OPERATIONS.md) — brainstorm.world deployment: branches, CI/CD, droplets, gotchas. |
+| Deploying / ops | [OPERATIONS.md](./OPERATIONS.md) — tapestry.brainstorm.world deployment: branches, CI/CD, droplets, gotchas. |
 | Product direction | [ROADMAP.md](./ROADMAP.md) — vision, principles, and the strategic roadmap for Brainstorm Search. |
 | Protocol / NIP / wire format | [protocols/README.md](./protocols/README.md) — per-spec status + current source of truth; open problems in [protocols/worksheet.md](./protocols/worksheet.md). Check before any wire-format work. |
 | What's still open | **`/whats-open`** (alias: `bash scripts/whats-open.sh`) — unified roll-up across sessions: the ledger + every surface below. |
@@ -174,7 +174,7 @@ The per-story cycle sits inside a larger unit — a **book of work**: a PRD, one
 
 ### Per-deployment TA pubkey — NEVER hardcode
 
-The Tapestry Assistant (TA) pubkey is **created at first container startup** (`setup/create_nostr_identity.sh`) and is **different on every deployment**. The local-dev value (`82b75e47...973833` on this machine) is NOT shared with `tags.brainstorm.world`, `staging.brainstorm.world`, `brainstorm.world`, or any other instance.
+The Tapestry Assistant (TA) pubkey is **created at first container startup** (`setup/create_nostr_identity.sh`) and is **different on every deployment**. The local-dev value (`82b75e47...973833` on this machine) is NOT shared with `tags.brainstorm.world`, `staging.brainstorm.world`, `tapestry.brainstorm.world`, or any other instance.
 
 A literal hardcode in shared code silently breaks the pin/TL stack (and any other surface that signs as the TA or filters events by TA author) on every non-dev deployment: the signer reads the actual on-disk TA key, but the readers filter `authors: [hardcoded]` and find nothing.
 
