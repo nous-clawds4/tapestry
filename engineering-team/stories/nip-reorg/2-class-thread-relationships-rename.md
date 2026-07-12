@@ -1,6 +1,6 @@
 # Story 2: Rename to Class Thread Relationships
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-07-12
 **Type:** Doc
 
@@ -39,4 +39,4 @@ None mutated (docs-mode). The spec's subject matter (`n`/`s` tags, `HAS_ELEMENT`
 
 - ADR: [`engineering-team/decisions/nip-reorg/0002-class-thread-relationships-rename.md`](../../decisions/nip-reorg/0002-class-thread-relationships-rename.md) (AC4 refined: zero link-targets; the 3 rename-subject prose mentions stay)
 - Test plan: skipped — docs-mode
-- Review: (filled in after Review phase)
+- Review: [`engineering-team/reviews/nip-reorg/2-class-thread-relationships-rename.md`](../../reviews/nip-reorg/2-class-thread-relationships-rename.md) — PASS (2026-07-12; 3 nits recorded, BIBLE §23 heading display name routed to S4)
