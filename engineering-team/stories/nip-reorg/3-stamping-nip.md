@@ -37,6 +37,6 @@ None mutated (docs-mode). The spec governs items joining any concept; tag-family
 
 ## Linked artifacts
 
-- ADR: (filled in after Architecture phase)
+- ADR: [`engineering-team/decisions/nip-reorg/0003-stamping-nip.md`](../../decisions/nip-reorg/0003-stamping-nip.md) (containment-only boundary → Stamping solely; BIBLE §10 cite dropped from extracted sentence — sanctioned deviations)
 - Test plan: skipped — docs-mode
 - Review: (filled in after Review phase)
