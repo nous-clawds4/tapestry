@@ -79,7 +79,7 @@ A node's *stated fields* are the fields its own definition states. The precise b
 
 ## Scope (v1)
 
-The type registry is **closed at two values** (`"pointer"`, `"inherit"`); new values require a new ADR. In aggregation (below), pointer-typed edges carry **zero consensus weight** in v1; graded weighting is deferred to the future registry ADR. Field-level override only — a stated field replaces the inherited one wholesale. The **set-valued override algebra** — how a child adds/removes/replaces individual *elements* of an inherited set — is explicitly deferred to the first consumer that needs it, tracked as worksheet [W6](../worksheet.md#w6--set-valued-override-algebra-for-resolved-definition); when designed, it operates over the inherit-typed deference closure only.
+The type registry is **closed at two values** (`"pointer"`, `"inherit"`); new values require a new ADR. In aggregation ([Shared Concepts](./shared-concepts.md)), pointer-typed edges carry **zero aggregation weight** in v1; graded weighting is deferred to the future registry ADR. Field-level override only — a stated field replaces the inherited one wholesale. The **set-valued override algebra** — how a child adds/removes/replaces individual *elements* of an inherited set — is explicitly deferred to the first consumer that needs it, tracked as worksheet [W6](../worksheet.md#w6--set-valued-override-algebra-for-resolved-definition); when designed, it operates over the inherit-typed deference closure only.
 
 ## Security considerations
 
@@ -87,12 +87,7 @@ The type registry is **closed at two values** (`"pointer"`, `"inherit"`); new va
 
 ## Aggregation: who defers to a definition
 
-Because the derived relationships point child→target, a target's **incoming** edges enumerate its relationships — but the two types feed **different questions**:
-
-- **Consensus (deference) aggregation** counts **inherit-typed edges only**: a target's incoming `INHERITS_FROM` edges enumerate exactly "everyone who defers to this definition" — a trust-weightable signal an observer can rank. Pointer-typed edges carry zero weight here (v1): a bookmark is not agreement, and counting it would let seeded or casual correspondence masquerade as consensus. Its use as a mechanism for cross-deployment concept identity is an open protocol problem, tracked as worksheet [W1](../worksheet.md#w1--cross-deployment-concept-identity).
-- **Discovery (correspondence) walks** include **both types**: "enumerate the headers that point at this definition" (e.g. to union their items' `#z` indexes) wants every correspondence claim, pointer and inherit alike.
-
-Because the type element is non-indexed, a relay-side `#b` filter returns both types; aggregators fetch, then filter by type locally.
+The policy reading of a target's incoming `b`-derived edges — deference aggregation vs. discovery walks, observer weighting, and the cloud model built on them — is specified in [Shared Concepts](./shared-concepts.md). One mechanical fact belongs with the primitive: because the type element is non-indexed, a relay-side `#b` filter returns both types; aggregators fetch, then filter by type locally.
 
 ## Place in the editorial-relationship family
 
