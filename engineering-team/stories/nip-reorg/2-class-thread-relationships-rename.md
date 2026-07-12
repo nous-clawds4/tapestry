@@ -37,6 +37,6 @@ None mutated (docs-mode). The spec's subject matter (`n`/`s` tags, `HAS_ELEMENT`
 
 ## Linked artifacts
 
-- ADR: (filled in after Architecture phase)
+- ADR: [`engineering-team/decisions/nip-reorg/0002-class-thread-relationships-rename.md`](../../decisions/nip-reorg/0002-class-thread-relationships-rename.md) (AC4 refined: zero link-targets; the 3 rename-subject prose mentions stay)
 - Test plan: skipped — docs-mode
 - Review: (filled in after Review phase)
