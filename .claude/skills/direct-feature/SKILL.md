@@ -26,7 +26,7 @@ Staging is the hard ceiling, and it does not move. Forbidden, no exceptions:
 - `/cycle-prod`, and `/cycle-full` (it chains into prod).
 - `gh pr create --base main`, merging any PR based on `main`, any push to `main` — including revert PRs against `main`.
 - Push or merge to the sandbox long-lived branches (`feature-magic-carpet`, `feat/pubkey-tagging-target`, `feat/communities`, `feat/curate`) — each auto-deploys to a teammate's live droplet.
-- Any mutation on `https://brainstorm.world`, droplet SSH, in-container config edits on deployed droplets, BullBoard retry/remove/pause actions on deployed droplets, and triggering heavy tasks on staging as "verification" (forbidden set: any `taskRegistry.json` task with `resourceClass: "neo4j-heavy"`, plus `reconcileAll`).
+- Any mutation on `https://tapestry.brainstorm.world`, droplet SSH, in-container config edits on deployed droplets, BullBoard retry/remove/pause actions on deployed droplets, and triggering heavy tasks on staging as "verification" (forbidden set: any `taskRegistry.json` task with `resourceClass: "neo4j-heavy"`, plus `reconcileAll`).
 
 Auto mode does NOT extend the ceiling. A breach — however small — is an automatic experiment failure (Stopping rule 5 in the role file). The cost of stopping to ask is low; the cost of an unauthorized prod-side action is high.
 

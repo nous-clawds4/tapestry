@@ -1,11 +1,11 @@
 ---
 name: cycle-prod
-description: Open a `staging → main` promotion PR, merge it, watch the production deploy CI/CD, smoke-test `https://brainstorm.world`, report. Use this whenever the user wants to promote a verified staging change to production — they say things like "promote to main," "ship to prod," "let's release this," "promote to production." Modifies a shared production system; requires user confirmation before merging.
+description: Open a `staging → main` promotion PR, merge it, watch the production deploy CI/CD, smoke-test `https://tapestry.brainstorm.world`, report. Use this whenever the user wants to promote a verified staging change to production — they say things like "promote to main," "ship to prod," "let's release this," "promote to production." Modifies a shared production system; requires user confirmation before merging.
 ---
 
 # Cycle: prod
 
-Promote everything that's currently on `staging` but not on `main` to production. Open the `staging → main` PR, merge after explicit user approval, watch `deploy-brainstorm.yml`, smoke-test `brainstorm.world`, report.
+Promote everything that's currently on `staging` but not on `main` to production. Open the `staging → main` PR, merge after explicit user approval, watch `deploy-tapestry.yml`, smoke-test `tapestry.brainstorm.world`, report.
 
 ## When to use
 
@@ -65,8 +65,8 @@ Promotes staging to main after verification on `staging.brainstorm.world`.
 
 ## Test plan
 
-- [ ] After merge: deploy-brainstorm.yml runs to completion.
-- [ ] Smoke test on brainstorm.world.
+- [ ] After merge: deploy-tapestry.yml runs to completion.
+- [ ] Smoke test on tapestry.brainstorm.world.
 - [ ] <prod-specific verifications, e.g., specific URL paths, search regression>
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
@@ -94,7 +94,7 @@ Verify state is `"MERGED"`.
 
 ```bash
 sleep 3
-gh run list --repo nous-clawds4/tapestry --workflow=deploy-brainstorm.yml --limit 1 --json databaseId,status,headSha
+gh run list --repo nous-clawds4/tapestry --workflow=deploy-tapestry.yml --limit 1 --json databaseId,status,headSha
 gh run watch <run-id> --repo nous-clawds4/tapestry --exit-status
 ```
 
@@ -102,7 +102,7 @@ Typical prod deploy is ~80s warm cache, ~2m+ on first build with new deps. If it
 
 ### 6. Stability poll + smoke test
 
-Same as the staging cycle, with `H=https://brainstorm.world`. Run all five tiers from [docs/SMOKE_TEST.md](../../../docs/SMOKE_TEST.md):
+Same as the staging cycle, with `H=https://tapestry.brainstorm.world`. Run all five tiers from [docs/SMOKE_TEST.md](../../../docs/SMOKE_TEST.md):
 
 - Tier 1 stability poll (3 consecutive 200s, 4–5s settle)
 - Tier 2 sanity reachability
@@ -110,7 +110,7 @@ Same as the staging cycle, with `H=https://brainstorm.world`. Run all five tiers
 - Tier 4 Chrome visual (if any UI changed)
 - Tier 5 regression sweep
 
-For Chrome on production, the user's main browsing tab and the MCP-tool tab share cookies when they share a Chrome profile. If the user is signed in via NIP-07 to brainstorm.world, the MCP tab typically inherits the session — but don't assume; read what's actually rendered.
+For Chrome on production, the user's main browsing tab and the MCP-tool tab share cookies when they share a Chrome profile. If the user is signed in via NIP-07 to tapestry.brainstorm.world, the MCP tab typically inherits the session — but don't assume; read what's actually rendered.
 
 ### 7. Report
 
@@ -134,5 +134,5 @@ End with a status snapshot: what's now live on prod, what's still on staging awa
 ## Reference
 
 - [docs/SMOKE_TEST.md](../../../docs/SMOKE_TEST.md) — canonical smoke test
-- [OPERATIONS.md §1 "Deploy targets"](../../../OPERATIONS.md) — main → brainstorm.world flow
+- [OPERATIONS.md §1 "Deploy targets"](../../../OPERATIONS.md) — main → tapestry.brainstorm.world flow
 - [OPERATIONS.md §8.2 "auto-delete-head-branches deleted staging"](../../../OPERATIONS.md) — historical incident; the protection is now in place but worth knowing

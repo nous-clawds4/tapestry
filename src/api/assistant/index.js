@@ -103,7 +103,7 @@ function getKind0DisplayName(pubkey, fallback = 'My Owner') {
 
 /**
  * Derive the instance's bare hostname from configured domain or relay URL.
- * Returns e.g. "brainstorm.world" or "localhost" if unconfigured.
+ * Returns e.g. "tapestry.brainstorm.world" or "localhost" if unconfigured.
  */
 function getInstanceDomain() {
   const domain = getConfigFromFile('STRFRY_DOMAIN', '');
@@ -118,7 +118,7 @@ function getInstanceDomain() {
 
 /**
  * Derive the instance's https website URL.
- * Returns e.g. "https://brainstorm.world" or empty string if unconfigured.
+ * Returns e.g. "https://tapestry.brainstorm.world" or empty string if unconfigured.
  */
 function getInstanceWebsite() {
   const domain = getInstanceDomain();

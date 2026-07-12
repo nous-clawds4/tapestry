@@ -112,7 +112,7 @@ All five tiers apply for staging:
 - Tier 4 Chrome visual (when UI changed)
 - Tier 5 regression sweep
 
-For Tier 4, navigate the MCP tab to `https://staging.brainstorm.world/<page>` and confirm the rendered state. The user's signed-in cookies for `brainstorm.world` and `staging.brainstorm.world` are typically shared with the MCP tab via the same Chrome profile — so authenticated routes may render either fully or with the auth gate depending on session state. Don't assume; read what's there.
+For Tier 4, navigate the MCP tab to `https://staging.brainstorm.world/<page>` and confirm the rendered state. The user's signed-in cookies for `tapestry.brainstorm.world` and `staging.brainstorm.world` are typically shared with the MCP tab via the same Chrome profile — so authenticated routes may render either fully or with the auth gate depending on session state. Don't assume; read what's there.
 
 ### 7. Report
 
