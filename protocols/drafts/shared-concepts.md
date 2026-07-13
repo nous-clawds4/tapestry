@@ -26,7 +26,7 @@ Three terms, one per referent — signal, process, outcome:
 - [Decentralized Lists](../nips/decentralized-lists.md) supplies the kinds and the `z` parent pointer; [Tapestry Concepts](./tapestry-concepts.md) constrains `z` to the a-tag form and defines concept anatomy. This NIP treats "concept" in their sense.
 - [Inherit-From & Resolved Definition](./inherit-from.md) supplies the **primitive** this NIP consumes: the typed `b` tag and its resolution semantics. This NIP defines no `b` semantics of its own — only the aggregate reading of `b`-derived edges.
 - [Class-thread membership tags](./class-thread-relationships.md) (`n`, `s`) express structure *within* a curator's graph; they are orthogonal to this NIP's cross-author policy and appear here only in discovery-walk examples.
-- Downstream consumers: [Tags & Taggings](./tags.md) and [Communities](./communities.md) apply shared concepts to specific domains; the multi-`z` stamping convention for published items is specified in [Tapestry Concepts](./tapestry-concepts.md) § "Multi-`z` stamping" (planned to graduate to its own Stamping NIP — `nip-reorg` S3).
+- Downstream consumers: [Tags & Taggings](./tags.md) and [Communities](./communities.md) apply shared concepts to specific domains; the multi-`z` stamping convention for published items is specified in [Stamping](./stamping.md).
 
 ## Declared affiliation
 
