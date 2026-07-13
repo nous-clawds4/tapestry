@@ -57,3 +57,15 @@ Rejected: leaves the duplication ADR 0001 scheduled for cleanup, and leaves publ
 ## Out of scope
 
 Settling O1; W1/W11 re-aims, tags.md/communities.md consumer references, BIBLE §22/§23 audits (S4); publisher implementation (pins).
+
+## Amendment (2026-07-12 — post-review scope change, user-gated)
+
+After the CHANGES_REQUESTED review, the protocol author brought refined O1 considerations (2026-07-12 discussion with Vinney), approved at the planning gate as scope items 1–5:
+
+1. The Open section reframes around the **two-axis valid-`z` space** (set layers × branch layers, fine/coarse and proximal/distal orderings), with the author's clarifications binding the framing: **stamping presumes `b`-graph reachability (direct or indirect)** — no `b`-path, no candidate stamp — with the note that transitive-correspondence ("correspondence closure") semantics are themselves unspecified and part of the question; and the **smart/dumb-client capability framing** — stamps and inference are two recovery paths for the same information, "source of truth" is the wrong question, and the write-time selection sets the interop floor for non-expanding clients. Section retitled "Open: which layers to stamp (set × branch)"; intra-file § references and the tapestry-concepts pointer phrase updated to match; the W14 worksheet heading (and thus its anchor) unchanged.
+2. W14's body enriched to mirror the framing; refs credit the 2026-07-12 scoping notes.
+3. One read-contract bullet added (composes ratified facts): readers MAY infer omitted stamps via `s`/`b` walks under the class-thread security gates from their own observer position; MUST NOT assume other consumers infer.
+4. One privacy sentence added to the intro (publish-intent conditioning).
+5. The review's blocking fix at stamping.md:29 (rotation clause → link out) lands in the same pass.
+
+The ratified write rule remains untouched — the selection principles stay candidates. Story AC2/AC3/AC4 amended accordingly.
