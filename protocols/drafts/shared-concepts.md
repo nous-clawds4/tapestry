@@ -30,13 +30,9 @@ Three terms, one per referent — signal, process, outcome:
 
 ## Declared affiliation
 
-An author affiliates their own header with a shared definition by carrying a **pointer-typed `b` tag** on it:
+An author affiliates their own header with a shared definition by carrying a **pointer-typed `b` tag** on it, naming the shared header's a-tag — wire format specified once, in [Inherit-From](./inherit-from.md) § "The `b` tag".
 
-```json
-["b", "39998:<sharedHeaderAuthor>:<d-tag>", "pointer"]
-```
-
-Affiliation is **navigation, not agreement**: it says "my concept corresponds to that one," names the community the author has chosen, and gives consumers a path to walk — while carrying no deference, no trust-coupling, and **zero aggregation weight** (§ "Aggregated deference"). Affiliation is the author's own declaration; no third party can affiliate a header the author didn't sign.
+Affiliation is **navigation, not agreement**: it says "my concept corresponds to that one," names the community the author has chosen, and gives consumers a path to walk — while carrying no deference, no trust-coupling, and **zero aggregation weight** (v1 — § "Aggregated deference"). Affiliation is the author's own declaration; no third party can affiliate a header the author didn't sign.
 
 In the reference deployment, a cold-start affiliation is **seeded** at firmware install — a pointer-typed `b` published on the deployment's own header, targeting the concept named by the firmware manifest (`community-reference` ADR 0034; applied to the tag concepts by `tag-federation` ADR 0002). A seed is an affiliation like any other: pointer-typed, never deference.
 
@@ -50,7 +46,7 @@ This NIP adds nothing to the per-node semantics; it defines only what the *aggre
 
 Because `b`-derived relationships point child→target, a target's **incoming** edges enumerate its relationships — but the two `b` types feed **different questions**:
 
-- **Deference aggregation** counts **inherit-typed edges only**: a target's incoming `INHERITS_FROM` edges enumerate exactly "everyone who defers to this definition" — a signal the observer weighs (in the reference deployment, by each deferring author's GrapeRank influence from the observer's point of view) and ranks. Pointer-typed edges carry **zero weight**: a bookmark is not agreement, and counting it would let seeded or casual correspondence masquerade as deference.
+- **Deference aggregation** counts **inherit-typed edges only**: a target's incoming `INHERITS_FROM` edges enumerate exactly "everyone who defers to this definition" — a signal the observer weighs (in the reference deployment, by each deferring author's GrapeRank influence from the observer's point of view) and ranks. Pointer-typed edges carry **zero weight** (v1): a bookmark is not agreement, and counting it would let seeded or casual correspondence masquerade as deference.
 - **Discovery walks** include **both types**: "enumerate the headers that point at this definition" (e.g. to union their items' `#z` indexes) wants every correspondence claim, pointer and inherit alike.
 
 Relay-side mechanics (the `#b` filter returns both types; consumers filter locally) are specified with the primitive — [Inherit-From](./inherit-from.md) § "Aggregation".
@@ -79,6 +75,6 @@ This specification defines the aggregate machinery; it does not resolve W1.
 
 ## Security considerations
 
-**Correspondence must never masquerade as deference.** Affiliation is cheap by design — seedable by firmware, publishable in bulk, revocable without cost — so any aggregate that counted pointer-typed edges would let a deployment or a spammer manufacture apparent convergence out of bookmarks. Hence the hard rule inherited from the primitive: only explicitly **inherit-typed** edges enter deference aggregation; absent or pointer types carry zero weight.
+**Correspondence must never masquerade as deference.** Affiliation is cheap by design — seedable by firmware, publishable in bulk, revocable without cost — so any aggregate that counted pointer-typed edges would let a deployment or a spammer manufacture apparent convergence out of bookmarks. Hence the hard rule inherited from the primitive: only explicitly **inherit-typed** edges enter deference aggregation; absent or pointer types carry zero weight (v1).
 
 **Observer weighting is the second gate.** Deference aggregation ranks the *deferring authors* from the observer's point of view: convergence among authors the observer's web of trust ranks at zero contributes nothing to that observer's cloud. A sybil flock deferring to its own header converges only for observers who trust the flock.
