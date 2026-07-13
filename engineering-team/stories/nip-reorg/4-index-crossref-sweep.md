@@ -38,6 +38,6 @@ None mutated (docs-mode).
 
 ## Linked artifacts
 
-- ADR: (filled in after Architecture phase)
+- ADR: [`engineering-team/decisions/nip-reorg/0004-index-crossref-sweep.md`](../../decisions/nip-reorg/0004-index-crossref-sweep.md) (13-row edit table; tags.md wire-accuracy fix; BIBLE §22 one-pointer policy)
 - Test plan: skipped — docs-mode
 - Review: (filled in after Review phase)
