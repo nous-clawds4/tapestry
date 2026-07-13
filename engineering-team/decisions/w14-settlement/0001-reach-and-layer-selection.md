@@ -52,3 +52,13 @@ Rejected: Reach is a general `b`-graph construct (discovery walks and future con
 ## Out of scope
 
 Implementation of any kind; publication moves; tags.md/communities.md (no strictly-required touchpoint — the settled rule changes publisher policy, not the consumer specs' citations); W10/event-tagging.
+
+## Amendment (2026-07-13 — review kick-back, site-enumeration gap)
+
+The review (CHANGES_REQUESTED) found two live surfaces this ADR's plan left stale once the question settled. Added to the edit plan:
+
+**6. `protocols/drafts/tapestry-concepts.md:53`** — the § Multi-`z` pointer phrase "the write rule, re-stamping, the read contract, and the open layer-selection question" → "…and the layer-selection rule" (the question is settled; the pointer must not advertise an open question).
+
+**7. `protocols/README.md` (Stamping row)** — "…open subset question → W14" → "…layer selection settled (W14 resolved)".
+
+Verification plan updated: diff file set = exactly **6** files. Precedent: nip-reorg #3 updated the same tapestry-concepts phrase in-story; #4 swept the README row.
