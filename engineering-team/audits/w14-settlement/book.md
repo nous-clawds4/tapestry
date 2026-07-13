@@ -1,6 +1,6 @@
 # Book: w14-settlement
 
-**Status:** Open
+**Status:** Closed (2026-07-13)
 **Opened:** 2026-07-13 (eager)
 **Type:** Bounded ask (no PRD)
 **Epics:** `w14-settlement` (sole epic; single story)
@@ -17,4 +17,4 @@
 
 ## Close
 
-_(open)_
+Sole story Done (CHANGES_REQUESTED → PASS on re-review); shipped to `staging` via PR #351 (merge `76951354`). All five "Done looks like" clauses verified. Artifacts: [`audit.md`](./audit.md) + [`prd-seed.md`](./prd-seed.md) (delta on the nip-reorg seed). Confidence: **high**.
