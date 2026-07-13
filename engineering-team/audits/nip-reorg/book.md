@@ -1,6 +1,6 @@
 # Book: nip-reorg
 
-**Status:** Open
+**Status:** Closed (2026-07-13)
 **Opened:** 2026-07-12 (eager)
 **Type:** Bounded ask (no PRD)
 **Epics:** `nip-reorg` (sole epic; planned stories 1–4)
@@ -22,4 +22,4 @@ Throughout: each wire fact normative in exactly one place; no "canonical"/"conse
 
 ## Close
 
-_(open)_
+All four stories Done (S1 PASS, S2 PASS, S3 CHANGES_REQUESTED→PASS, S4 PASS + obligation-trail audit); shipped to `staging` through PRs #345–#348 (final: `staging` @ `fffadd37`). The S3 kick-back and the user-gated two-axis scope amendment are recorded in ADR 0003 § Amendment and the S3 review. Acceptance-frame bullets 1–4 all verified (S4 review). Artifacts: [`audit.md`](./audit.md) + [`prd-seed.md`](./prd-seed.md) in this folder. Confidence: **high**. Staging→main promotion of the batch is OPEN.md #26.
