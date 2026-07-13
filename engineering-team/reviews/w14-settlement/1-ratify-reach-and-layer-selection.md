@@ -30,7 +30,7 @@ Mechanical checks from ADR note 5 (verification plan), all run:
 - [x] **AC3 — read contract completes.** New bullet `stamping.md:48`: breadth queries **MUST** walk `IS_A_SUPERSET_OF` and union `#z` per subset "— or knowingly accept the **defined floor**: a non-expanding client sees the direct layer's members only. That floor is a specified outcome of this contract, not a defect." MUST-NOT bullet updated (`:46` — ancestor stamps "are the *optional* tier of the write rule (item 3), never guaranteed"); MAY-infer bullet cites § Reach for branch inference (`:47`). Mutually consistent: MAY-infer covers capability-dependent recovery generally; breadth-MUST-expand covers the specific "all X including subsets" intent; the unchanged Query-strategy bullet (`:49`) is concept-rooted (cloud + correspondence-graph walk) and does not conflict with author-rooted Reach.
 - [x] **AC4 — question closes.** `§ "Open: which layers to stamp (set × branch)"` → `## Layer selection (set × branch) — settled` (`stamping.md:51`) with provenance line (`:53` — 2026-07-13 ratification, W14, `w14-settlement` ADR 0001); two-axis space + dynamic-ladder facts kept as normative context (`:55`); the rule stated (`:57` — floor per items 1–2, extras per item 3, ancestors never required); grep for candidate/none-normative/open-design-question = 0. W14 flips to Resolved (`worksheet.md:136`) with both normative-home pointers; Resolution block appended (`:140`); question body preserved (`:138` — only the live § citation retitled, matching the nip-reorg #4 precedent of retitling live citations while leaving history unrewritten).
 - [x] **AC5 — Inherit-From intact.** One appended standalone sentence (`inherit-from.md:55`): "The **any-type** counterpart — *reach*, the closure over both `b` types — is a distinct construct defined in [Shared Concepts](./shared-concepts.md) § Reach; it feeds stamp selection, never resolution." Line 53 byte-identical (md5-verified). No other change to the file.
-- [~] **AC6 — gates and scope guard.** Reach normative in exactly one place (below); vocabulary gate clean; links/anchors resolve; historical records untouched (all remaining "Open: which layers to stamp" strings live in `engineering-team/` history: nip-reorg audit/ADRs/stories/reviews — correctly left alone); harness-lint clean; `npm test` = known-caveat baseline, no new failures; diff limited to the 4 ADR files. **However** the file-set limit leaves two *live* corpus surfaces stale — see Blocking finding 1. AC6 is met to the letter; the corpus-consistency goal behind it is not.
+- [~] **AC6 — gates and scope guard.** Reach normative in exactly one place (below); vocabulary gate clean; links/anchors resolve; historical records untouched (all remaining "Open: which layers to stamp" strings live in `engineering-team/` history: nip-reorg audit/ADRs/stories/reviews — correctly left alone); harness-lint clean; `npm test` = known-caveat baseline, no new failures; diff limited to the 4 ADR files. **However** the file-set limit leaves two *live* corpus surfaces stale — see Blocking finding 1. AC6 is met to the letter; the corpus-consistency goal behind it is not. *(Resolved at re-review — see below.)*
 
 ## Frame fidelity (the heart of this audit)
 
@@ -90,7 +90,7 @@ Nothing ratified was dropped, weakened, strengthened, or invented. Retained cont
 
 ### Blocking
 
-1. **`protocols/drafts/tapestry-concepts.md:53` + `protocols/README.md:59` — two live corpus surfaces still declare the question open after this diff settles it.**
+1. **`protocols/drafts/tapestry-concepts.md:53` + `protocols/README.md:59` — two live corpus surfaces still declare the question open after this diff settles it.** *(Resolved at re-review — see below.)*
    - `tapestry-concepts.md:53`: "The convention — the write rule, re-stamping, the read contract, and **the open layer-selection question** — is normative in [Stamping](./stamping.md)" — now false: stamping contains no open question, and the settled rule *is* normative there.
    - `protocols/README.md:59` (Stamping row, Notes): "(extraction of tapestry-concepts § Multi-`z`; **open subset question → W14**)" — now false; this README is the CLAUDE.md-designated per-spec status index that protocol work is required to consult first, so a stale "open" note here defeats the exact purpose of this book.
    - Both sentences were *true before this diff and false after it* — this change introduces the inconsistency; it is not pre-existing drift. Precedent cuts the same way: nip-reorg #3 updated the tapestry-concepts pointer phrase in-story when this very section was created (`reviews/nip-reorg/3-stamping-nip.md:102`), and nip-reorg #4 swept `protocols/README.md` cross-refs. The gap is in the ADR's site enumeration (its Out of scope considered only tags.md/communities.md), not an Implementer error — but as the last gate I can't pass a settlement ratification that leaves two live surfaces saying "open."
@@ -105,10 +105,48 @@ Nothing ratified was dropped, weakened, strengthened, or invented. Retained cont
 
 1. None. (The stale local stack / 11-suite caveat is already tracked as OPEN.md #27 and behaved exactly as documented.)
 
-## Verdict
+## Verdict — initial review (superseded by the re-review below)
 
 **CHANGES_REQUESTED** — one blocking issue (Finding 1: the two stale live "open" pointers at `protocols/drafts/tapestry-concepts.md:53` and `protocols/README.md:59`). The diff itself is otherwise fully frame-faithful, AC-complete, mechanically verified, and gate-clean; on resolution of Finding 1 the verdict flips at re-review.
 
 ## On approval (same commit)
 
 - [ ] Not applicable this round — story `**Status:**` left as `Approved`; no completion detection run.
+
+---
+
+## Re-review (2026-07-13) — Finding 1 resolution
+
+**Diff reviewed:** commits `7352dc26` (ADR amendment) + `375bf41e` (two-line fix); full-story spec diff re-checked as `git diff a0f29758..375bf41e -- protocols/`.
+
+**Note on this file's committed form:** before committing the initial review, the committing parent reworded two awk-format artifacts (the Verdict paragraph's closing clause and the closing checklist heading) so the file parsed CR under `scripts/lib/review-verdict.awk` (the documented last-token rule). Verified at re-review by full-file diff against my original text: exactly those two lines differ, verdict content untouched. That representation is accurate and is ratified here.
+
+### Finding 1 — resolved as prescribed
+
+- [x] **ADR amendment first, process respected.** ADR 0001 gained a dated `## Amendment (2026-07-13 — review kick-back, site-enumeration gap)` adding exactly the two touchpoints as edit-plan rows 6–7 and updating the verification plan to a 6-file set, with the nip-reorg #3/#4 precedent cited. The gap is owned Architect-side, matching the initial review's attribution. Commit `7352dc26` touches only the ADR.
+- [x] **`protocols/drafts/tapestry-concepts.md:53`** now reads "…the write rule, re-stamping, the read contract, and **the layer-selection rule** — is normative in [Stamping](./stamping.md)…" — accurate (the settled rule *is* normative there); the sentence's links are unchanged and resolve.
+- [x] **`protocols/README.md:59`** (Stamping row, Notes) now reads "…extraction of tapestry-concepts § Multi-`z`; **layer selection settled — W14 resolved**…" — accurate against `worksheet.md:136`; the row still carries 5 cells like its sibling rows, so the table renders. *(Trivial variance: the ADR amendment wrote "layer selection settled (W14 resolved)", the fix landed "layer selection settled — W14 resolved" — punctuation only, semantics identical; not a deviation of substance.)*
+- [x] **Repo-wide re-grep:** `open layer-selection question|open subset question` under `protocols/` → **0 hits**.
+
+### Scope of the fix commits
+
+- [x] `375bf41e` = exactly the 2 files, 1 line-pair each; nothing else. `7352dc26` = the ADR only. No spec content beyond the two prescribed phrases changed.
+- [x] Full-story spec file set now = **exactly 6** (`git diff a0f29758..375bf41e --stat -- protocols/`: `README.md`, `drafts/inherit-from.md`, `drafts/shared-concepts.md`, `drafts/stamping.md`, `drafts/tapestry-concepts.md`, `worksheet.md`), matching the amended verification plan. AC6's `[~]` above is hereby cleared to met-in-full.
+
+### Gates at re-review
+
+- [x] `bash scripts/harness-lint.sh` — re-run by reviewer after updating this file; any transient L1 pairing complaint clears when the committing parent flips the story to `Done` in the same commit as this re-review (workflow 5, "On PASS").
+- [x] `npm test` — **not re-run, deliberately:** the delta since the fully-tested `b5b2dcd4` run is markdown-only (two pointer phrases + engineering-team records), zero executable surface; the recorded run above stands as the binding gate, with CI `stack-free` as the backstop (OPEN.md #27 practice).
+
+### Non-blocking findings
+
+Unchanged — nothing in the delta touches `stamping.md:25` or the ADR's note 2 (the Amendment section is additive, below Out of scope). Both notes remain optional; no action required before merge.
+
+### Re-review verdict
+
+**PASS** — Finding 1 resolved exactly as asked; the amended ADR's 6-file plan, story ACs 1–6, and every clause of the acceptance frame (A) and (B) are satisfied with no remaining live-corpus inconsistency.
+
+## On PASS (same commit — committing parent)
+
+- [ ] Story `**Status:**` → `Done` in place (`stories/w14-settlement/1-ratify-reach-and-layer-selection.md`) — pairs this file's PASS verdict for lint L1.
+- [ ] Completion detection: this is the book's sole story. Of the acceptance frame's "Done looks like" — Stamping's Open section normative, W14 reads Resolved, Reach normative in exactly one place, inherit-from.md:53 verbatim — all are satisfied; the one remaining clause is "ships to staging". Once this branch merges to staging, the book looks complete: offer `/close-book` then (offer, don't auto-run).

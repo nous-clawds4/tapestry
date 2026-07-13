@@ -1,6 +1,6 @@
 # Story 1: Ratify Reach and the layer-selection rule (settle W14)
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-07-13
 **Type:** Doc
 
@@ -39,4 +39,4 @@ None mutated (docs-mode; no wire-format change — Reach is a definitional/read-
 
 - ADR: [`engineering-team/decisions/w14-settlement/0001-reach-and-layer-selection.md`](../../decisions/w14-settlement/0001-reach-and-layer-selection.md) (Reach → own § in Shared Concepts; stamping Open § → "Layer selection — settled"; W14 flip per W11 precedent)
 - Test plan: skipped — docs-mode
-- Review: (filled in after Review phase)
+- Review: [`engineering-team/reviews/w14-settlement/1-ratify-reach-and-layer-selection.md`](../../reviews/w14-settlement/1-ratify-reach-and-layer-selection.md) — CHANGES_REQUESTED 2026-07-13 (two stale settled-question pointers; ADR site-enumeration gap), then PASS on re-review same day
