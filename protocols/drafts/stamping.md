@@ -13,6 +13,8 @@ Stamping: z-tag selection for published list items
 
 The base NIP permits multi-`z` items while recommending one `z` per event as default practice. This convention deliberately takes the multi-stamp path for items published for community visibility, because read-side derivation cannot reach items whose personal headers are unpublished — **local-first publication**: most personal headers never leave their author's local relay, so a published item must be self-contained to be discoverable.
 
+This convention addresses items their author intends to be public and discoverable. An author with narrower disclosure intent adjusts or omits shared stamps accordingly — nothing here obliges publication.
+
 ## The write rule
 
 A deliberately-published item carries:
@@ -26,7 +28,7 @@ A deliberately-published item carries:
 
 ## Re-stamping
 
-When the author's cloud has rotated far enough that the author cares, they republish the item at its same `d`-address (kind `39999`) with fresh stamps — **lazy author re-emit**. Nobody detects rotation on the author's behalf; the author (at write time) and any consumer (at read time) each simply recompute.
+When the author's cloud has rotated far enough that the author cares, they republish the item at its same `d`-address (kind `39999`) with fresh stamps — **lazy author re-emit**. Nobody detects rotation on the author's behalf — rotation is emergent and observer-recomputed ([Shared Concepts](./shared-concepts.md) § Clouds).
 
 Accepted lossiness, named: **foreign-authored items** cannot be re-stamped (only the author can re-sign); an **inactive author's** items fade from discoverability as the cloud rotates away from their stamps; **kind-`9999`** (non-addressable) items cannot be re-stamped at all — a stated reason to prefer kind `39999` for stamped items.
 
@@ -39,17 +41,28 @@ This convention is for **containment items** — an item joining a concept's lis
 What a conforming reader MAY assume, and must not:
 
 - **MAY assume:** every deliberately-published item carries at least one `z`, and is self-contained — its stamps are sufficient to place it without fetching its author's (possibly private) headers.
-- **MUST NOT rely on:** `z` order (above); stamps reflecting the author's *current* cloud (staleness is designed in — re-stamping is lazy); **ancestor stamps existing** — whether an item joining a subset also stamps its superset chain is an open question (§ "Open: subset/ancestor stamping"); or any single shared handle's `#z` index being complete — different authors affiliate with different clouds, and clouds are an observer's view ([Shared Concepts](./shared-concepts.md) § Terminology).
+- **MUST NOT rely on:** `z` order (above); stamps reflecting the author's *current* cloud (staleness is designed in — re-stamping is lazy); **ancestor stamps existing** — whether an item joining a subset also stamps its superset chain is an open question (§ "Open: which layers to stamp"); or any single shared handle's `#z` index being complete — different authors affiliate with different clouds, and clouds are an observer's view ([Shared Concepts](./shared-concepts.md) § Terminology).
+- **MAY infer (capability-dependent):** a reader able to expand queries MAY recover omitted stamps — inferring set layers by walking derived `IS_A_SUPERSET_OF` structure ([Class Thread Relationships](./class-thread-relationships.md), under its security gates: authorship-gated, from the reader's own observer position) and branch handles by walking the `b` graph ([Shared Concepts](./shared-concepts.md)). A reader MUST NOT assume *other* consumers perform inference — plain `#z` filtering is the interop floor.
 - **Query strategy that follows:** to gather a shared concept's items, resolve the concept's cloud from your own observer position ([Shared Concepts](./shared-concepts.md) § Clouds) and union `#z` queries across those handles; for exhaustive discovery, additionally walk the correspondence graph (pointer- and inherit-typed `b`, [Shared Concepts](./shared-concepts.md) § Aggregated deference) and union the corresponding headers' `#z` indexes too.
 
-## Open: subset/ancestor stamping
+## Open: which layers to stamp (set × branch)
 
-*This section states an open design question; nothing in it is normative. Tracked as worksheet [W14](../worksheet.md#w14--subsetancestor-stamping-z-expansion-across-class-thread-structure).*
+*This section states an open design question; nothing in it is normative. Tracked as worksheet [W14](../worksheet.md#w14--subsetancestor-stamping-z-expansion-across-class-thread-structure). Framing refined 2026-07-12 from the protocol author's scoping notes.*
 
-Concepts form subset structure via `s` tags ([Class Thread Relationships](./class-thread-relationships.md)): *Widgets* is a superset of *Widgets for Carpenters* and *Widgets for Electricians*. Alice publishes an item into *Widgets for Carpenters*. Under the write rule above she stamps her personal `z` plus Widgets-for-Carpenters cloud handles. **Does the item also stamp *Widgets*?** Candidate shapes:
+**The valid-`z` space has two axes.** For an item joining a concept, every candidate stamp sits at the intersection of:
 
-- **(a) Read-time expansion (stamp the joined concept only).** Readers wanting "all Widgets" walk the derived `IS_A_SUPERSET_OF` structure and union `#z` queries per subset. Honest to the *live* hierarchy — a re-parented subset is immediately reflected — but relays cannot do transitive queries, so breadth costs one query per subset.
-- **(b) Write-time ancestor stamping.** The item carries the ancestor chain's handles too (Alice's example: 4+ `z` tags), so a single `#z` filter finds all Widgets. The costs: hierarchy is denormalized into signed history — re-parenting strands stale stamps, healing is lazy-re-emit-only (foreign-authored and inactive authors' items never heal), and cap pressure is real (roughly two slots per chain level before any cloud redundancy).
-- **(c) Hybrids.** E.g. stamp the joined concept plus the root superset only; or cap-aware truncation preferring nearest ancestors.
+- **A set layer** — climbing the ladder of derived superset structure (`s` tags, [Class Thread Relationships](./class-thread-relationships.md)): *dogs ⊂ vertebrates ⊂ animals ⊂ organisms ⊂ things*. Along a chain, layers order **fine-grained → coarse-grained**. (Incomparable layers — neither a subset of the other — exist and are permitted; ignored here.) **The ladder is dynamic**: rungs appear (a *vertebrates* division absent today may exist tomorrow; *dogs* may sprout *sheep dogs*), so no write-time selection stays complete.
+- **A branch layer** — for each set layer, the shared headers reachable through the author's own `b` graph, **directly or indirectly**: the author's personal header (most **proximal**), through intermediate correspondents, out to widely-shared community headers (most **distal**). Reach is **affiliation-backed, never free-floating**: a handle with no `b`-path from the author's own header is not a candidate stamp. (The precise reach semantics — which `b` types carry affiliation transitively, i.e. whether a *correspondence closure* mirrors [Inherit-From](./inherit-from.md)'s inherit-typed deference closure — are themselves unspecified, and part of this question.)
 
-Whichever shape lands MUST co-state its read contract — whether readers may assume ancestor stamps exist, or must expand queries — because the write rule and the read assumption are two halves of one interoperability contract.
+**Worked example.** Alice publishes an item into *Widgets for Carpenters* (⊂ *Widgets*). Under the write rule above she stamps her personal `z` plus Widgets-for-Carpenters branch handles. Open: does the item also stamp *Widgets*-layer handles — and which branches of them?
+
+**Candidate selection principles**, none normative:
+
+- **(a) Anticipated filter demand — set axis.** Stamp the layers other users and clients will plausibly filter against: if you expect one client to compile *sheep dogs* and another *vertebrates*, and want the item on both lists, stamp both. Cost: demand is speculative and time-varying, and the dynamic ladder means today's selection can't anticipate tomorrow's rungs.
+- **(b) Proximal + distal endpoints — branch axis.** For each selected set layer, stamp the most proximal and most distal branch layers. At the joined layer this reproduces the shape the ratified write rule already fixes: personal `z` (proximal) + affiliation-anchored cloud handles (distal).
+- **(c) Anticipated filter demand — branch axis.** Stamp the shared handle a particular community's tooling is known to filter against (e.g. a widely-used Spanish-language shared DList header) — valid only where the author's `b` graph reaches that header, per the reach rule above.
+- **(d) Read-time inference as the complement.** A capable reader recovers any omitted intersection by walking `s` and `b` (see the read contract). Stamps and inference are two recovery paths for the same information; which one a client uses depends on its capability — "which is the source of truth" is the wrong question.
+
+**The stakes, precisely: smart clients recover omissions; dumb clients don't.** The write-time selection sets the **interop floor for non-expanding clients** — a plain `#z` filter sees exactly what was stamped, nothing more. Pulling against exhaustive stamping: the dynamic ladder (write-time completeness is unachievable in principle), cap pressure (~2 slots per chain level before any cloud redundancy), and lazy-heal-only staleness. Pulling toward more stamping: every omitted layer is invisible at the floor.
+
+Whichever selection rule lands MUST co-state its read contract — what non-expanding readers may assume stamped — because the write rule and the read assumption are two halves of one interoperability contract.
