@@ -19,6 +19,8 @@ Three terms, one per referent — signal, process, outcome:
 - **Convergence** — the **process** by which shared conventions arise: gradual, measurable in degree, and never final. Convergence increases as independent authors defer to (or affiliate with) the same definition, and it can shift.
 - **Convention** — the **outcome**: a handle is *in conventional use* when independent authors affiliate with it and defer to it. A **shared concept** is a concept whose handle is in conventional use.
 
+(A fourth, graph-shaped term — **reach**, the any-type transitive `b` closure — is defined in § "Reach".)
+
 **The observer-relative rule (normative).** Every aggregate defined in this specification is **an observer's view** — computed from the events that observer has seen, weighted from that observer's point of view. Nothing in this NIP defines, and no conforming implementation may present, a global fact about *the* community's definition. Two observers MAY legitimately resolve different clouds for the same concept, and both are correct.
 
 ## Relationship to other specs
@@ -32,7 +34,7 @@ Three terms, one per referent — signal, process, outcome:
 
 An author affiliates their own header with a shared definition by carrying a **pointer-typed `b` tag** on it, naming the shared header's a-tag — wire format specified once, in [Inherit-From](./inherit-from.md) § "The `b` tag".
 
-Affiliation is **navigation, not agreement**: it says "my concept corresponds to that one," names the community the author has chosen, and gives consumers a path to walk — while carrying no deference, no trust-coupling, and **zero aggregation weight** (v1 — § "Aggregated deference"). Affiliation is the author's own declaration; no third party can affiliate a header the author didn't sign.
+Affiliation is **navigation, not agreement**: it says "my concept corresponds to that one," names the community the author has chosen, and gives consumers a path to walk — while carrying no deference, no trust-coupling, and **zero aggregation weight** (v1 — § "Aggregated deference"). Affiliation is the author's own declaration; no third party can affiliate a header the author didn't sign. Affiliation is the **single hop**; the transitive candidate set it opens is defined in § "Reach".
 
 In the reference deployment, a cold-start affiliation is **seeded** at firmware install — a pointer-typed `b` published on the deployment's own header, targeting the concept named by the firmware manifest (`community-reference` ADR 0034; applied to the tag concepts by `tag-federation` ADR 0002). A seed is an affiliation like any other: pointer-typed, never deference.
 
@@ -50,6 +52,25 @@ Because `b`-derived relationships point child→target, a target's **incoming** 
 - **Discovery walks** include **both types**: "enumerate the headers that point at this definition" (e.g. to union their items' `#z` indexes) wants every correspondence claim, pointer and inherit alike.
 
 Relay-side mechanics (the `#b` filter returns both types; consumers filter locally) are specified with the primitive — [Inherit-From](./inherit-from.md) § "Aggregation".
+
+## Reach
+
+Three constructs read the `b` graph, one per relation:
+
+| Construct | Edges | Transitive? | Feeds |
+|---|---|---|---|
+| **Affiliation** | the author's own pointer-typed `b` (§ "Declared affiliation") | no — one declared hop | navigation; cloud anchoring |
+| **Deference closure** | inherit-typed only ([Inherit-From](./inherit-from.md) § "Resolution: the resolved definition") | yes — pointer breaks the chain | resolution; deference aggregation |
+| **Reach** | **both** types | yes | stamp selection ([Stamping](./stamping.md)) |
+
+An author's **reach** is the set of headers connected to the author's own header through `b` edges of *either* type, followed transitively — the author's own edges and third parties' alike. Like the other closures it is computed on read, never stored; membership is a set (cycles are benign; order carries no meaning).
+
+Two properties are normative:
+
+- **Reach is permission-shaped, never action-shaped.** A third party's edge can *expand* an author's reach — opening a handle as a candidate stamp — but nothing in reach acts on the author's behalf: the author selects which reached handles to stamp, at write time, on their own signed item. Growth of the graph enables; it never routes.
+- **Reach binds publishers, not readers.** A publisher SHOULD stamp only handles within its reach — that is what keeps every stamp traceable to published `b` edges. A reader MUST NOT treat an out-of-reach stamp as invalid: there is no global stamp validity to check, path existence is view-dependent, and spam control belongs to observer-weighted trust (§ "Aggregated deference"), not to path validation.
+
+Reach, like every construct in this specification, is **an observer's view**: it is computed from the `b` events the walker has seen, so two walkers MAY compute different reach for the same author, and both are correct. Reach is consumed by [Stamping](./stamping.md) § "The write rule".
 
 ## Clouds
 
