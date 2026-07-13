@@ -33,7 +33,7 @@
 20. [People](#20-people)
 21. [Glossary](#21-glossary)
 22. [Community-Reference Model](#22-community-reference-model)
-23. [Class-Thread Membership Tags (`n`, `s`)](#23-class-thread-membership-tags-n-s)
+23. [Class Thread Relationships (`n`, `s`)](#23-class-thread-relationships-n-s)
 24. [Task Queue (BullMQ behind /api/run-task)](#24-task-queue-bullmq-behind-apirun-task)
 25. [The Inherit-From Tag (`b`)](#25-the-inherit-from-tag-b)
 26. [Resolved Definition](#26-resolved-definition)
@@ -1520,7 +1520,7 @@ A firmware concept may carry a `communityReference` — `{ headerATag, relayHint
 
 **Collision contract (binding).** `REFERENCES` is overloaded: event ingest builds high-volume `(:NostrEventTag)-[:REFERENCES]->(:NostrEvent)` for every `e`/`a` tag. Concept-level `REFERENCES` now has **two producers** — the firmware-community install stub (`source:'firmware-community'`, above) and pointer-typed `b` tags (`source:'b-tag'`, the first *asserted, wire-derived* producer — `community-reference` ADR 0029, §25). It is disambiguated by **`r.source`** (tag-level never sets it) **and** endpoint labels — noting the `b`-derived variant widens endpoints beyond `ListHeader→ListHeader`, since `b` rides on kinds 39998 *and* 39999. Any consumer traversal MUST filter on `source` (presence and value); a bare `MATCH ()-[:REFERENCES]->()` is a defect.
 
-**Resolution model.** The *correct* long-term selector of "the community's definition" is the user's Grapevine (WoT loose consensus over published curations). The firmware-baked pointer is a **cold-start default**, not the truth. Precedence: **`grapevine-resolved → firmware-blessed → none`** — mirroring the Warm Start tiered fallback (`self → owner → cold`).
+**Resolution model.** The *correct* long-term selector of "the community's definition" is the user's Grapevine (WoT loose consensus over published curations). The firmware-baked pointer is a **cold-start default**, not the truth. Precedence: **`grapevine-resolved → firmware-blessed → none`** — mirroring the Warm Start tiered fallback (`self → owner → cold`). The protocol-facing statement of this selector — and the cloud/aggregation model that consumes it — is normative in [protocols/drafts/shared-concepts.md](protocols/drafts/shared-concepts.md); this section remains the implementation-and-history record.
 
 **Accepted compromise (Flaw A) and its exit.** A firmware-baked pointer is a *centralized* editorial choice (the dev team picks the blessed curator pubkey — currently the reference deployment's TA). Accepted **temporarily**; the exit is the **registry-as-DList**: the per-concept pointer itself becomes a community-curated, Grapevine-ranked DList, retiring the hardcoded choice. `community-reference` ADR 0030 consciously **widens** the compromise as the cold-start tier only: every **manifest** firmware concept MAY carry a `communityReference` (per-concept explicit `headerATag` entries; mixed curators per concept possible; runtime-created concepts deferred — no blessing path exists). The widening does not strengthen the tier: seeds are `"pointer"`-typed (ADR 0029), so they carry **zero consensus weight** — the grapevine tier's ability to supersede the firmware tier is unimpaired and measurable.
 
@@ -1542,9 +1542,9 @@ A firmware concept may carry a `communityReference` — `{ headerATag, relayHint
 
 ---
 
-## 23. Class-Thread Membership Tags (`n`, `s`)
+## 23. Class Thread Relationships (`n`, `s`)
 
-**The wire format is specified in [protocols/drafts/class-thread-tags.md](protocols/drafts/class-thread-tags.md) — normative:** the `n`/`s` tag definitions and direction flip, value format, multi-parent semantics, retrieval, the consumer security considerations, and the direction principle with reserved letters. Established by ADR 0011. This section covers how this codebase implements it.
+**The wire format is specified in [protocols/drafts/class-thread-relationships.md](protocols/drafts/class-thread-relationships.md) — normative:** the `n`/`s` tag definitions and direction flip, value format, multi-parent semantics, retrieval, the consumer security considerations, and the direction principle with reserved letters. Established by ADR 0011. This section covers how this codebase implements it.
 
 - **Emission sites (dual-emit policy during back-compat cycle):** `handleCreateSet` emits the new `s` tag on the Set event before signing; `handleAddToSet` emits the new `n` tag via re-publishing the source event (locally-authored items only — foreign-authored items cannot be re-signed; descriptor event still fires for those). Both sites also continue publishing the prior relationship-descriptor events for one full release cycle. A future cutover ADR will deprecate the descriptor emission.
 - **Trust-gate wiring (the spec's security considerations, concretely):** the authorship gate is `pubkey === curatorPk` — the TA whose Header anchored the #11 `(localSuperset)-[:IS_A_SUPERSET_OF]->(communitySuperset)` edge (firmware install; see §22). Phase B's tag walk never MERGEs an edge whose parent endpoint is in the local TA's sub-graph; that anchor is the only cross-pubkey edge in the graph.

@@ -23,7 +23,7 @@ This family tree is ratified design direction (the protocol author's, recorded i
 
 ## Relationship to other specs
 
-Tags and taggings are ordinary kind-39999 DList items per [Tapestry Concepts](./tapestry-concepts.md): each carries a `z` tag naming the deployment's `tag`, `nostr-user-tag`, or `tag-pinning` concept address (how independent deployments agree on those concept identities is worksheet [W1](../worksheet.md#w1--cross-deployment-concept-identity)). The tagging assertion is **consumed by [Communities](./communities.md)** as its membership signal — community declarations claim tag-elements, and rosters derive from the assertions that apply them.
+Tags and taggings are ordinary kind-39999 DList items per [Tapestry Concepts](./tapestry-concepts.md): each carries one or more `z` stamps naming the deployment's `tag`, `nostr-user-tag`, or `tag-pinning` concept address — stamp selection is specified by [Stamping](./stamping.md) (how independent deployments agree on those concept identities is worksheet [W1](../worksheet.md#w1--cross-deployment-concept-identity)). The tagging assertion is **consumed by [Communities](./communities.md)** as its membership signal — community declarations claim tag-elements, and rosters derive from the assertions that apply them.
 
 ## Tag definitions
 

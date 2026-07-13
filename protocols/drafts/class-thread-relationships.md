@@ -1,14 +1,14 @@
 > **Repo metadata — not part of the spec text.**
 > **Status:** 📝 pre-NIP
 > **Canonical:** not yet published
-> **Sources:** BIBLE.md §23 (extracted per protocols-directory story 4, `protocols-directory` ADR 0002) and ADR 0011 (community-reference line); extraction pattern: `protocols-directory` ADR 0001
+> **Sources:** BIBLE.md §23 (extracted per protocols-directory story 4, `protocols-directory` ADR 0002) and ADR 0011 (community-reference line); extraction pattern: `protocols-directory` ADR 0001; renamed from `class-thread-tags.md` per `nip-reorg` ADR 0002 (2026-07-12)
 
 ---
 
-Class-Thread Membership Tags (`n`, `s`)
+Class Thread Relationships
 =====
 
-This NIP defines two single-character tags, `n` and `s`, that encode **class-thread structure** — set membership and superset relationships — directly on [Tapestry Concepts](./tapestry-concepts.md) events, in child-claims-parent direction.
+This NIP defines two single-character tags, `n` and `s`, that encode **class-thread structure** — set membership and superset relationships — directly on [Tapestry Concepts](./tapestry-concepts.md) events, in child-claims-parent direction. The relationships consumers derive from them (`HAS_ELEMENT`, `IS_A_SUPERSET_OF`) are **derived** — computed from single-char tags on the child's own signed events, never from explicit relationship events ([Tapestry Concepts](./tapestry-concepts.md) § "Derived vs. explicit relationships").
 
 ## Relationship to Tapestry Concepts
 
