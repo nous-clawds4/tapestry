@@ -4,7 +4,14 @@ _Short, do-it-tonight instructions for David + Vinney. This is the **ops half** 
 the code (Half 1 read-union) shipped; this gets the real tag **content** flowing so tags
 actually show up on `staging.brainstorm.world`. Not code — droplet + router config._
 
-## The situation (verified 2026-06-17)
+> **⚠️ CORRECTED 2026-07-13 (live census 2026-07-12 — see OPEN.md #25).** Two claims below are stale and one command class is dangerous:
+> 1. **dcosl is NOT clean.** It now holds the real tag content (48 tag-defs / 367 taggings / 36 pins under the canonical `z`) *plus massive unrelated volume*: kind `9999` ≈ 549k fetched, est. **~1.28M** events (podcastindex music-track firehose, 100% non-tags); kind `39999` = 31,928 total of which only **451** are tags-family; kind `39998` >200 (mostly third-party concept headers).
+> 2. **Never run the unfiltered 4-kind syncs shown below** — `{"kinds":[9998,9999,39998,39999]}` imports ~1.3M junk events per instance (plus Meili/pipeline churn, and dcosl per-IP throttles heavy pulls). Scope every sync/router filter to `{"kinds":[39999],"#z":["39998:82b75e474dda005e912bcbb910391c60c2b89cc7faf5d3c30b7c59a324973833:tag","…:nostr-user-tag","…:tag-pinning"]}` (`z` is relay-indexed; this selects exactly the tags-family). Fallback if `#z` filtering misbehaves in `strfry sync`: `{"kinds":[39999]}` (~32k events, bounded).
+> 3. **Always pass `--dir` explicitly** — the `strfry sync` CLI default is `both` (verified live), so an omitted `--dir` silently *uploads* too.
+> 4. Two further caveats: kind-`5` deletions (unpins) carry no `z` and don't ride the scoped filter — cross-instance unpins can resurrect (count dcosl's kind-5 volume before deciding); all three Docker instances run `writePolicy plugin=""` (no ingest gate), so a both-direction mesh has no spam filtering anywhere.
+> The stamp-selection convention itself is now specified in [protocols/drafts/stamping.md](../protocols/drafts/stamping.md).
+
+## The situation (verified 2026-06-17 — superseded by the 2026-07-13 correction above)
 
 - **`tags.brainstorm.world`** has the real tags (35+ tag elements + taggings).
 - **`staging.brainstorm.world`** has the tag UI but an **empty** tag index — its local strfry never received the tag events.
@@ -12,7 +19,7 @@ actually show up on `staging.brainstorm.world`. Not code — droplet + router co
 
 So the chain to light up staging is two hops: **(1)** get tags.bw's tag content onto dcosl, **(2)** get staging to read dcosl.
 
-Relevant kinds for all tag/list content: **9998, 9999, 39998, 39999**. Mechanism reference: `OPERATIONS.md` §"Empty tag lists" (lines ~369–377) and BIBLE §14 "Router Presets".
+Relevant kinds for all tag/list content: **9998, 9999, 39998, 39999** — but as of 2026-07-13, sync filters must scope to kind 39999 + the canonical `#z` handles (see banner); every tags-family event is kind 39999. Mechanism reference: `OPERATIONS.md` §"Empty tag lists" (lines ~369–377) and BIBLE §14 "Router Presets".
 
 ---
 
@@ -35,8 +42,9 @@ SSH to the **tags.brainstorm.world** droplet, then:
 
 ```bash
 # One-shot push (fastest way to see it tonight):
+# ⚠️ 2026-07-13: filter corrected — see banner at top (unfiltered 4-kind is dangerous)
 docker compose exec tapestry strfry sync wss://dcosl.brainstorm.world \
-  --filter '{"kinds":[9998,9999,39998,39999]}' --dir up
+  --filter '{"kinds":[39999],"#z":["39998:82b75e474dda005e912bcbb910391c60c2b89cc7faf5d3c30b7c59a324973833:tag","39998:82b75e474dda005e912bcbb910391c60c2b89cc7faf5d3c30b7c59a324973833:nostr-user-tag","39998:82b75e474dda005e912bcbb910391c60c2b89cc7faf5d3c30b7c59a324973833:tag-pinning"]}' --dir up
 ```
 
 `--dir up` = send local events the remote lacks. This uploads tags.bw's tag/tagging events to dcosl.
@@ -62,8 +70,9 @@ SSH to the **staging.brainstorm.world** droplet. Choose the lever:
 ### Option B — hoard (recommended; makes browse AND search work)
 ```bash
 # One-shot pull dcosl → staging local strfry:
+# ⚠️ 2026-07-13: filter corrected — see banner at top (unfiltered 4-kind is dangerous)
 docker compose exec tapestry strfry sync wss://dcosl.brainstorm.world \
-  --filter '{"kinds":[9998,9999,39998,39999]}' --dir down
+  --filter '{"kinds":[39999],"#z":["39998:82b75e474dda005e912bcbb910391c60c2b89cc7faf5d3c30b7c59a324973833:tag","39998:82b75e474dda005e912bcbb910391c60c2b89cc7faf5d3c30b7c59a324973833:nostr-user-tag","39998:82b75e474dda005e912bcbb910391c60c2b89cc7faf5d3c30b7c59a324973833:tag-pinning"]}' --dir down
 ```
 Durable version: enable the `dcosl` router preset on staging set to **down** (or both-direction). After events land, the normal pipeline indexes them; tag search works once you flip `search.resultTypes.tags=true` in the search admin.
 
@@ -90,7 +99,7 @@ Then load `https://staging.brainstorm.world/tapestry` (or the tags UI) and confi
 
 ## Gotchas
 
-- **dcosl is clean, not junk.** Don't expect to need a cleanup. (The ~138 `birb-test` events are only in **local-dev** strfry — purge those on dev boxes if they bug you; they never federated anywhere.)
+- ~~**dcosl is clean, not junk.**~~ **Corrected 2026-07-13:** dcosl carries ~1.3M non-tags events on the DList kinds (see banner). The scoped `#z` filter above avoids all of it. (The ~138 `birb-test` events remain a local-dev-only artifact.)
 - **Read-union does not feed search.** This is intentional and ratified (`tag-federation` ADR 0001): Meili can only rank locally-indexed content. Want federated tags searchable → hoard them (Option B).
 - **Old tags stay canonical-z-only.** Half 2 (the dual-z writer) is not deployed yet; that's fine — visibility rides the canonical z, which every existing tag already carries. Nothing here depends on Half 2.
 - **`feat/pubkey-tagging-target` auto-deploys to `tags.brainstorm.world` on push** (it's the sandbox). Don't `cycle-staging`/`cycle-prod` from that branch. (Per project memory.)
