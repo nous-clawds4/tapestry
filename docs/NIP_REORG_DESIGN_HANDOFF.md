@@ -1,6 +1,6 @@
 # NIP Reorganization — Shared Concepts / Class Thread Relationships / Stamping — Design Handoff
 
-**Status:** 🔴 OPEN — organization, names, and vocabulary policy settled in scoping (this doc); **nothing ratified yet**. Ratification stories S1–S4 (§5) each await a docs-mode pass. Flip to ✅ SUPERSEDED as the pieces land in `protocols/`.
+**Status:** ✅ SUPERSEDED — all four ratification stories landed (S1 PR #345, S2 PR #346, S3 PR #347, S4): the organization is live in `protocols/` ([shared-concepts.md](../protocols/drafts/shared-concepts.md), [class-thread-relationships.md](../protocols/drafts/class-thread-relationships.md), [stamping.md](../protocols/drafts/stamping.md) + the tapestry-concepts/inherit-from pointers). Preserved as design history; the open questions live on in worksheet W14 (subset stamping) and W1.
 
 **Created:** 2026-07-12, from a Protocol-Spec scoping session (`/discuss`, Product Expert lens), downstream of the same session's tag-sync investigation and the z/b/s stamping conversation.
 **Builds on:** [`protocols/nips/decentralized-lists.md`](../protocols/nips/decentralized-lists.md) (published base NIP); [`protocols/drafts/tapestry-concepts.md`](../protocols/drafts/tapestry-concepts.md) § "Multi-`z` stamping" (ADR 0033, graduated W11); [`protocols/drafts/inherit-from.md`](../protocols/drafts/inherit-from.md) (the `b` primitive; ADRs 0027/0028/0029); [`protocols/drafts/class-thread-relationships.md`](../protocols/drafts/class-thread-relationships.md) (`n`/`s`); [`protocols/worksheet.md`](../protocols/worksheet.md) W1/W2/W10/W11.
