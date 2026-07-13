@@ -1,6 +1,6 @@
 # Story 4: Index & cross-reference sweep (epic close-out)
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-07-13
 **Type:** Doc
 
@@ -40,4 +40,4 @@ None mutated (docs-mode).
 
 - ADR: [`engineering-team/decisions/nip-reorg/0004-index-crossref-sweep.md`](../../decisions/nip-reorg/0004-index-crossref-sweep.md) (13-row edit table; tags.md wire-accuracy fix; BIBLE §22 one-pointer policy)
 - Test plan: skipped — docs-mode
-- Review: (filled in after Review phase)
+- Review: [`engineering-team/reviews/nip-reorg/4-index-crossref-sweep.md`](../../reviews/nip-reorg/4-index-crossref-sweep.md) — PASS (2026-07-13; full obligation-trail audit: all 13 tracked items closed or O1-scoped; 3 cosmetic nits, no action)
