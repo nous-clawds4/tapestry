@@ -37,6 +37,6 @@ None mutated (docs-mode; no wire-format change — Reach is a definitional/read-
 
 ## Linked artifacts
 
-- ADR: (filled in after Architecture phase)
+- ADR: [`engineering-team/decisions/w14-settlement/0001-reach-and-layer-selection.md`](../../decisions/w14-settlement/0001-reach-and-layer-selection.md) (Reach → own § in Shared Concepts; stamping Open § → "Layer selection — settled"; W14 flip per W11 precedent)
 - Test plan: skipped — docs-mode
 - Review: (filled in after Review phase)
