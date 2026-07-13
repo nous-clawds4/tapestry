@@ -52,6 +52,8 @@ A node's **resolved definition** — what its definition actually resolves to af
 
 The **deference closure** — the set of all nodes a node transitively defers to, following unbroken chains of inherit-typed `b` tags — is likewise computed on read, never stored. A pointer-typed tag **breaks the chain**: it contributes nothing to the closure, and a node carrying only pointer-typed `b` tags has a closure of itself alone. **Affiliation rides the closure:** "is this node affiliated with definition X" = "does X appear in the node's deference closure" — transitive through deference (a deliberate, documented consequence of declaring `"inherit"`), never through mere correspondence. Closure membership is a set; `b`-tag order is irrelevant to it (order matters only for field resolution). The closure is **not guaranteed acyclic**: mutual deference (Alice `b`→Bob, Bob `b`→Alice) creates cycles, which the resolution rule's visited-set handles.
 
+The **any-type** counterpart — *reach*, the closure over both `b` types — is a distinct construct defined in [Shared Concepts](./shared-concepts.md) § Reach; it feeds stamp selection, never resolution.
+
 **Resolution rule:**
 
 1. **The node's own stated fields win.** A field the child states explicitly overrides the inherited value; an omitted field is inherited. An unedited child performs pure inheritance. Any conflict is settlable by stating the field yourself; conflicts only bite for fields you leave unstated.
