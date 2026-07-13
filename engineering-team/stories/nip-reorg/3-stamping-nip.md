@@ -1,6 +1,6 @@
 # Story 3: Author the Stamping NIP
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-07-12
 **Type:** Doc
 
@@ -39,4 +39,4 @@ None mutated (docs-mode). The spec governs items joining any concept; tag-family
 
 - ADR: [`engineering-team/decisions/nip-reorg/0003-stamping-nip.md`](../../decisions/nip-reorg/0003-stamping-nip.md) (containment-only boundary → Stamping solely; BIBLE §10 cite dropped from extracted sentence — sanctioned deviations)
 - Test plan: skipped — docs-mode
-- Review: (filled in after Review phase)
+- Review: [`engineering-team/reviews/nip-reorg/3-stamping-nip.md`](../../reviews/nip-reorg/3-stamping-nip.md) — CHANGES_REQUESTED 2026-07-12, then PASS on re-review same day (fix + user-gated two-axis amendment; 3 nits routed: 2 → S4, 1 → the future O1 /discuss)

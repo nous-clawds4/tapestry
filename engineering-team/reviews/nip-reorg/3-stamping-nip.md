@@ -6,6 +6,8 @@
 **Diff:** `git diff b7de6867..d6df79d0` (commit `d6df79d0`, branch `docs/nip-reorg-s3-stamping`, base `origin/staging` @ `f6f78eca`)
 **Files touched:** `protocols/drafts/stamping.md` (new, 55 lines), `protocols/drafts/tapestry-concepts.md` (1 hunk, −13/+1), `protocols/drafts/shared-concepts.md` (1 line), `protocols/worksheet.md` (pure append, +8), `protocols/README.md` (1 row), `engineering-team/epics/nip-reorg.md` (1 line — see Findings: ADR-unlisted, accepted). No non-`.md` file in the diff.
 
+> **Superseded 2026-07-12:** the blocking item below was fixed (`c24cb2bc`) and a user-gated scope amendment landed (`e0ff1911` + `c24cb2bc`). See "Re-review (2026-07-12)" at the end of this file for the audit of both and the final verdict. Line references in the first-review sections are to `d6df79d0`.
+
 ## Quality gates (run by reviewer, not trusted)
 
 - [x] `bash scripts/harness-lint.sh` at `d6df79d0` — **clean (0 violations)**; only pre-existing waivers/INFO rows.
@@ -75,3 +77,61 @@
 One blocking issue, one line: `stamping.md:29`'s restated rotation-recompute clause leaves a cloud property normative in two places, which is the exact condition AC5 obligates this story to end. Everything else verifies: all six ACs otherwise hold with evidence; both sanctioned deviations are in place and correctly bounded; extraction fidelity is meaning-intact under the D2 vocabulary; the O1 section is neutral and W14 is properly opened and anchored; the vocabulary gate is clean; harness-lint is clean; and the test gate shows the known 11-suite environmental set with no new failures. Fix the one clause and this is a fast re-review.
 
 Story status remains `Approved` (not flipped — flip to `Done` happens only on a passing re-review, in that review's commit). Note for the committing agent: harness-lint L1 couples story status only to PASS-final reviews, so committing this report requires no story edit.
+
+---
+
+# Re-review (2026-07-12) — blocking fix + user-gated scope amendment
+
+**Diff since first review:** `git diff d6df79d0..c24cb2bc` — commit `e0ff1911` (story AC2/AC3/AC4 amended + ADR 0003 § "Amendment (2026-07-12)" appended; user-approved as scope items 1–5 at the planning gate) and commit `c24cb2bc` (spec: the review's blocking fix + the two-axis O1 reframe). Files: `protocols/drafts/stamping.md`, `protocols/drafts/tapestry-concepts.md` (one phrase), `protocols/worksheet.md` (W14 body only), plus the story and ADR (the amendment vehicle itself). `protocols/` changes stay confined to AC6's five-file set; `README.md`/`shared-concepts.md` correctly untouched (spec title unchanged, so the index row stays accurate; the row's "open subset question → W14" matches the deliberately-unchanged W14 heading). Story `**Status:**` line untouched by the amendment (still `Approved` at review time). Line references below are to `c24cb2bc`.
+
+## Quality gates (re-run by reviewer)
+
+- [x] `bash scripts/harness-lint.sh` at `c24cb2bc` — **clean (0 violations)**.
+- [x] `npm test` at `c24cb2bc` (full suite re-run, not spot-checked): identical known 11-suite environmental set at the **same per-suite counts** as the first review (`profile-tags-publish` at the 6/1 wobble position), 25 skips, **no new failing suite**. Both new commits are `.md`-only.
+
+## Blocking item 1 — resolved as prescribed
+
+- [x] `stamping.md:31` now reads exactly the asked change: *"Nobody detects rotation on the author's behalf — rotation is emergent and observer-recomputed ([Shared Concepts](./shared-concepts.md) § Clouds)."* — the property is named-and-linked, not restated. Grep: "each simply recompute" appears **only** in `shared-concepts.md:64`. The rotation property is single-homed again; **AC5 now holds in full** (all first-review AC5 evidence unchanged, plus this).
+
+## Amendment audit (vs amended story AC2/AC3/AC4 + ADR 0003 § Amendment items 1–5)
+
+- [x] **The ratified write rule is untouched.** The `c24cb2bc` diff contains zero hunks in § The write rule, the `z`-order rule, the design-only callout, § Boundary, the MAY-assume / MUST-NOT bullets, and the query-strategy bullet (`stamping.md:18-27, 35-37, 43-44, 46` are byte-identical to `d6df79d0` modulo the shifted line numbers). All new content sits in non-normative surfaces (the Open section `:48-68`, marked "nothing in it is normative" at `:50`; the W14 worksheet body) **except** the two AC-sanctioned additions audited next. The candidate selection principles are explicitly "none normative" (`:59`). No normative drift found.
+- [x] **AC2 amendment — the privacy sentence** (`stamping.md:16`, ADR Amendment item 4): composes only ratified facts — the deliberate-publication framing (throughout ADR 0033), D1 rev 2's "self-contained public artifact carrying exactly the disclosure the author chooses" and the local-first foundational constraint ("publishing one item must not force disclosure … beyond the stamps the author chooses" — `docs/B_TAG_AFFILIATION_DESIGN_HANDOFF.md:63,69`). "Adjusts or omits shared stamps" is already within the ratified "up to a cap" (zero shared stamps was always permitted); the personal-`z` requirement is untouched. No new constraint introduced.
+- [x] **AC3 amendment — the MAY-infer bullet** (`stamping.md:45`, ADR Amendment item 3): composes ratified facts — the `s`-walk is the pre-existing read-time-expansion reading, correctly gated "under its security gates: authorship-gated, from the reader's own observer position" (verified: Class Thread Relationships § Security considerations rule 1 **is** the authorship gate, `class-thread-relationships.md:48`; the link delegates rules 2–3); the `b`-walk is Shared Concepts' discovery-walk reading (both types, already cited at `:46`). The one genuinely new normative statement — a reader MUST NOT assume *other* consumers perform inference — is exactly ADR Amendment item 3 and is entailed by the open question itself (whether readers must expand is unsettled, so nothing may rely on it); it is the read-contract mirror of the co-stated-contract rule and consistent with the interop-floor framing.
+- [x] **AC4 amendment — the two-axis reframe** (`stamping.md:48-68`, ADR Amendment items 1–2):
+  - Title "Open: which layers to stamp (set × branch)" (`:48`); intra-file § reference updated (`:44` cites the new title, short form); tapestry-concepts pointer phrase updated to "the open layer-selection question" (`tapestry-concepts.md:53`).
+  - **W14 heading and anchor unchanged** (`worksheet.md:134`) — the link at `stamping.md:50` still resolves; verified against the post-amendment heading text. Non-normative disclaimer retained (`:50`) with the framing-provenance note.
+  - Set axis (`:54`): fine→coarse ordering, dynamic ladder, incomparable-layers caveat — consistent with `s` semantics (child-claims-parent; the CTR spec imposes no exclusivity that would forbid incomparable structure).
+  - Branch axis (`:55`): indirect reach valid, reach affiliation-backed (no `b`-path, no candidate stamp), and the transitive-correspondence ("correspondence closure") semantics **flagged as unspecified and part of the question** — exactly the ADR Amendment's binding clarifications. The cited mirror object is real: Inherit-From's inherit-typed **deference closure** (`inherit-from.md:53`).
+  - Worked example retained (`:57`, Widgets ⊂-chain); candidate principles (a)–(d) (`:61-64`) each stated **neutrally with costs/limits** — filter demand on both axes with speculative-demand and reach-validity caveats, proximal+distal with the explicit convergence note ("reproduces the shape the ratified write rule already fixes"), read-time inference as the capability-dependent complement with the "source of truth is the wrong question" framing. No leaning anywhere.
+  - Stakes paragraph (`:66`): smart/dumb-client interop floor, pulls stated in both directions. Nothing ratified was lost in the reframe: cap pressure (≈2 slots/chain level) and lazy-heal-only carry over from the original shape (b); the foreign-authored/inactive-author specifics remain normative in § Re-stamping (`:33`); the original shape (a) survives as principle (d) + the MAY-infer bullet; the original "hybrids" shape is subsumed by the principles framing per the amended AC4 (which no longer requires it).
+  - Co-stated-read-contract rule retained (`:68`, now phrased for non-expanding readers — consistent).
+  - **W14 body** (`worksheet.md:138`) mirrors the framing faithfully (two axes, indirect linkage valid, closure-unspecified, principles non-normative, interop-floor stake, binding co-statement constraint, provenance note); Status line unchanged; **W11 untouched** (the diff touches only the W14 body line); cross-links both ways still resolve.
+- [x] **Seam and vocabulary gates still hold post-amendment:** duplication greps — "derived top-k" only `shared-concepts.md:60`, "lazy author re-emit" only `stamping.md:31`, the containment sentence only `stamping.md:37`, "each simply recompute" only `shared-concepts.md:64` (W11's historical record at `worksheet.md:103` unchanged, as before). The new text mentions/links cloud and closure machinery without restating any shared-concepts or inherit-from property. Vocabulary grep of `stamping.md` — `canonical|consensus` → only the `**Canonical:**` metadata field (`:3`); "convergence" (`:62`) is D2-approved Terminology. Observer-relative framing kept in all new text (`:45` "the reader's own observer position"; no "the community's cloud"). All new links/§-cites resolve (Inherit-From, CTR § Security considerations, the unchanged W14 anchor).
+
+## Findings (re-review)
+
+### Blocking
+
+None.
+
+### Non-blocking (new; first-review notes 1–5 stand as recorded, incl. the accepted epic-file deviation)
+
+6. **`protocols/worksheet.md:141`** — W14's `**Refs:**` line still cites the retired section title (§ "Open: subset/ancestor stamping") while the body one paragraph up (`:138`) correctly cites the new title. The markdown link itself resolves (file-level); only the prose §-name is stale — a leftover of the retitle. Route to S4's cross-ref sweep (alongside the W1/W11 re-aims); add it to S4's list so it isn't lost.
+7. **`protocols/drafts/stamping.md:57`** — the worked example says "she stamps her personal `z` plus Widgets-for-Carpenters **branch** handles" in a sentence attributed to the ratified write rule, which fixes affiliation-anchored **cloud** handles. Inside the nothing-is-normative section and immediately re-anchored precisely by principle (b) (`:62`), so no drift risk; tighten to "cloud handles" whenever the section is next touched.
+8. **Observation for the settling `/discuss` (no action now):** the branch-axis framing "reach is affiliation-backed" including *indirect* reach (`:55`) will eventually need explicit reconciliation with Inherit-From's affiliation definition ("transitive through deference …, never through mere correspondence" — `inherit-from.md:53`). Today the two are consistent **because** the section flags the transitive-correspondence semantics as unspecified and part of the question; the future settlement must square them explicitly.
+
+### Harness friction
+
+None new.
+
+## Verdict (re-review — supersedes the first verdict above)
+
+**PASS**
+
+The single blocking item is resolved exactly as prescribed, restoring AC5 in full (rotation single-homed; grep-verified). The user-gated amendment is properly instrumented (dated ADR Amendment section + amended ACs, approved at the planning gate) and the spec matches it precisely: the ratified write rule is untouched, all new material sits in non-normative surfaces except the two AC-sanctioned additions, and both of those compose only already-ratified facts (verified against B_TAG handoff D1 rev 2, CTR § Security considerations, Shared Concepts, and Inherit-From). The reframed Open section is neutral, loses nothing ratified, keeps the W14 anchor stable, and W11 is untouched. Duplication, vocabulary, link, harness-lint, and test gates are all clean (full suite re-run: known 11-suite environmental set, no new failures). The three new non-blocking notes are S4-sweep / future-discuss material, not defects.
+
+## Close-out (same commit as this updated review)
+
+- [ ] Story `**Status:**` flip to `Done` — **deferred to the committing agent** (this review session was instructed to update only this report, not to edit other files or commit). **Mandatory in the same commit:** with this file now parsing as a passing final verdict, harness-lint **L1** fires until `engineering-team/stories/nip-reorg/3-stamping-nip.md` reads `**Status:** Done`. Also fill the story's `Review:` link (`../../reviews/nip-reorg/3-stamping-nip.md`).
+- [ ] Completion detection — the epic/book is **not** complete: S4 (index & cross-ref sweep) remains planned (`engineering-team/epics/nip-reorg.md:17`) and now carries two routed items from this review (Non-blocking 1 and 6). No close-book offer.
