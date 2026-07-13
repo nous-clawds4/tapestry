@@ -56,7 +56,7 @@ The initial migration (protocols-directory epic, stories 1–7) is **complete** 
 | Tags & Taggings | [drafts/tags.md](./drafts/tags.md) | 📝 pre-NIP | **Working copy here** (in-flight feature on `feat/pubkey-tagging-target`) | story 7 ✅ |
 | Tapestry Assistant Designation & Dual-Author Header Resolution (companion to NIP-85) | [drafts/assistant-designation.md](./drafts/assistant-designation.md) | 📝 pre-NIP | **Working copy here** (BIBLE §953 Assistant Keys holds the pointer) | `community-reference` #35 |
 | Shared Concepts (`b`-consuming policy) | [drafts/shared-concepts.md](./drafts/shared-concepts.md) | 📝 pre-NIP | **Working copy here** (policy layer over Inherit-From; extraction of its § Aggregation) | `nip-reorg` #1 ✅ |
-| Stamping: z-tag selection for published list items | [drafts/stamping.md](./drafts/stamping.md) | 📝 pre-NIP | **Working copy here** (extraction of tapestry-concepts § Multi-`z`; open subset question → W14) | `nip-reorg` #3 ✅ |
+| Stamping: z-tag selection for published list items | [drafts/stamping.md](./drafts/stamping.md) | 📝 pre-NIP | **Working copy here** (extraction of tapestry-concepts § Multi-`z`; layer selection settled — W14 resolved) | `nip-reorg` #3 ✅ |
 
 Branch-path notation: `branch:path` means the file exists at that path on the named (unmerged) branch — read it with `git show <branch>:<path>`. Migration **copies** content from those branches; it never implies merging them.
 
