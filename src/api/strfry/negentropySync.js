@@ -20,12 +20,24 @@ const WebSocket = require('ws');
 // Track active sync so we can report status
 let activeSync = null;
 
+// Single-letter tag filters, e.g. "#z": ["39998:<pubkey>:tag"] (ADR
+// relay-management/0001). Only #<one ASCII letter> passes — strfry indexes
+// single-character tag names only, and every other unknown key stays dropped.
+const TAG_FILTER_KEY_RE = /^#[a-zA-Z]$/;
+
 function buildFilterObj(filter) {
   const filterObj = {};
   if (filter.kinds && filter.kinds.length > 0) filterObj.kinds = filter.kinds;
   if (filter.authors && filter.authors.length > 0) filterObj.authors = filter.authors;
   if (filter.since != null) filterObj.since = filter.since;
   if (filter.until != null) filterObj.until = filter.until;
+  for (const key of Object.keys(filter)) {
+    if (!TAG_FILTER_KEY_RE.test(key)) continue;
+    const values = Array.isArray(filter[key])
+      ? filter[key].filter(v => typeof v === 'string' && v.length > 0)
+      : [];
+    if (values.length > 0) filterObj[key] = values;
+  }
   return filterObj;
 }
 
@@ -346,4 +358,6 @@ function registerNegentropySyncRoutes(app) {
   app.get('/api/strfry/negentropy-sync/count', handleNegentropySyncCount);
 }
 
-module.exports = { registerNegentropySyncRoutes };
+// Pure helpers exported for direct execution by the test runner
+// (test/sync-panel-tag-filters.test.js, ADR relay-management/0001).
+module.exports = { registerNegentropySyncRoutes, buildFilterObj, buildCommand, buildPreviewCommand };

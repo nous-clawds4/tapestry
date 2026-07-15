@@ -53,6 +53,11 @@ Defaults taken to keep the approval loop to one round — flip any of these at a
 2. **Duplicate letter: merge or reject?** Default **merge + dedupe** (AC-4) — friendlier for building up a value list incrementally.
 3. **Accept bech32 (npub/nprofile/note/nevent/naddr) and normalize to hex/coordinate?** Default **yes** (AC-5/AC-6) — operators usually have an npub on the clipboard, and the decode helpers already exist in this codebase.
 
+## Deviations
+
+- **Browser verification method (2026-07-15, Implementer):** the Relay Settings page is owner-gated (NIP-07 session), which an agent can't and shouldn't sign into; and the local Docker stack serves the *shared checkout*, not this feature worktree. The panel was therefore verified in the browser by rendering `NegentropySync` in an isolated, uncommitted vite dev harness against the worktree code (temp export, reverted before commit): add/merge/dedupe, p-validation blocking error, npub→hex decode, removal, and preview-JSON composition all confirmed visually. The Count/Start round-trip against a *live updated backend* is intentionally deferred to staging verification after merge — unit tests B1–B6 pin that server contract in the meantime.
+- No spec deviations: ACs implemented as written; ADR followed without amendment.
+
 ## Linked artifacts
 
 - ADR: `engineering-team/decisions/relay-management/0001-sync-panel-tag-filters.md`
