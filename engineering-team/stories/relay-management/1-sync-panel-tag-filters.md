@@ -55,6 +55,6 @@ Defaults taken to keep the approval loop to one round — flip any of these at a
 
 ## Linked artifacts
 
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/relay-management/0001-sync-panel-tag-filters.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
