@@ -94,6 +94,7 @@ const reputationInfoPopup = require('./reputation-info-popup.test.js');
 const liveFeedReadPath = require('./live-feed-read-path.test.js');
 const stackFreeNpmTest = require('./stack-free-npm-test.test.js');
 const ciTestJob = require('./ci-test-job.test.js');
+const syncPanelTagFilters = require('./sync-panel-tag-filters.test.js');
 const liveFeedFeedPage = require('./live-feed-feed-page.test.js');
 const noteSurfacesReadPath = require('./note-surfaces-read-path.test.js');
 const noteSurfacesUi = require('./note-surfaces-ui.test.js');
@@ -327,6 +328,9 @@ async function main() {
 
   console.log('\nci-test-job suite:');
   const ciTestJobResult = await ciTestJob.run();
+
+  console.log('\nsync-panel-tag-filters suite:');
+  const syncPanelTagFiltersResult = await syncPanelTagFilters.run();
 
   console.log('\nTest Results');
   console.log('-------------');
@@ -598,6 +602,9 @@ async function main() {
   console.log(
     `ci-test-job suite:                               ${ciTestJobResult.fail === 0 ? 'PASS' : 'FAIL'} (${ciTestJobResult.pass} passed, ${ciTestJobResult.fail} failed)`
   );
+  console.log(
+    `sync-panel-tag-filters suite:                    ${syncPanelTagFiltersResult.fail === 0 ? 'PASS' : 'FAIL'} (${syncPanelTagFiltersResult.pass} passed, ${syncPanelTagFiltersResult.fail} failed)`
+  );
 
   const overallOk =
     configOk &&
@@ -689,7 +696,8 @@ async function main() {
     harnessStatsResult.fail === 0 &&
     sessionStartResult.fail === 0 &&
     stackFreeNpmTestResult.fail === 0 &&
-    ciTestJobResult.fail === 0;
+    ciTestJobResult.fail === 0 &&
+    syncPanelTagFiltersResult.fail === 0;
   // Aggregate skip visibility (story test-hermeticity-ci #2, reviewer
   // constraint: skips are counted, never silent). Purely informational —
   // overallOk above never consults .skipped.
@@ -716,7 +724,7 @@ async function main() {
     tagReadUnionResult, bTagPrimitiveResult, bTagSeedsResult, dualZWriterResult,
     openRankingStatsResult, openRankingSearchResult, verifiedMutersReadApiResult, verifiedMutersProfileSurfaceResult,
     harnessLintResult, harnessStatsResult, sessionStartResult, stackFreeNpmTestResult,
-    ciTestJobResult,
+    ciTestJobResult, syncPanelTagFiltersResult,
   ].reduce((sum, r) => sum + ((r && r.skipped) || 0), 0);
   console.log(`Total skipped:                                   ${totalSkipped}`);
   console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);
