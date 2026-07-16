@@ -63,7 +63,15 @@ Harvested from the ADRs' Consequences, the stories' Deviations/Out-of-scope/Open
 - [ ] **Personalized / customer PoV membership** for the list + endpoint (the `NostrUserWotMetricsCard` traversal) — realizes the PRD's full per-viewer vision (§4 #1; ADR 0002).
 - [ ] **Shared counts-row PoV indicator** across Following / Verified Followers / Verified Reporters — tap-friendly, single, for the whole row (§4 #2; PRD §8.3).
 - [ ] **DRY refactor:** extract a shared `<GrapevineList>` component + cypher builder for follows/followers/reporters; carry the skeleton + retry to all three (§5 debt; ADR 0030 follow-up).
-- [ ] **Report-type breakdown** (split by NIP-56 type) — PRD Phase 2.
+- [ ] **Report-type breakdown** (split by NIP-56 type) — PRD Phase 2. *Partially delivered post-close: story #4 (2026-06-15, prod) shipped per-row Report Type + Reported timestamp columns; the filtering/grouping/breakdown UI remains deferred — see the post-close addendum below.*
 - [ ] **Pile-on resistance** (tag/discount pile-on-prone reporters) — PRD Phase 3.
 - [ ] **Self-view retaliation/privacy controls** — PRD Phase 4 (note: reports are public NIP-56 events; bounded risk).
 - [ ] **Verified-influence-cutoff inconsistency** (0.01/0.05/"score>2") — existing intake item.
+
+---
+
+## Post-close addendum — 2026-07-02
+
+*Appended during the harness-review sweep (docs/HARNESS_REVIEW_HANDOFF_2026-07-02.md Appendix A). This book closed 2026-06-07; the following work landed on its epic afterwards and was not reflected here.*
+
+**Story #4 — Reporters report-type and timestamp columns** (`stories/done/verified-reporters/4-reporters-report-type-and-timestamp-columns.md`, ADR 0004, review PASS) ran a full five-phase cycle 2026-06-15/16 and shipped to production (PRs #299 → staging, #300 → main). It partially delivers the PRD Phase-2 "report-type breakdown" scope: per-row Report Type and Reported-at timestamp columns on `/reporters`. The Phase-2 filtering/grouping/aggregate-breakdown UI remains deferred (carry-forward register above, annotated). No successor book was opened at the time; the epic was retired 2026-07-02 with all four stories Done.

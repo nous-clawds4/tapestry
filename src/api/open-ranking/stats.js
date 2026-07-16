@@ -14,7 +14,7 @@
 const { runCypher } = require('../../lib/neo4j-driver');
 const { getConfigFromFile } = require('../../utils/config');
 const { fetchProfileScores } = require('../export/users/queries/get-profile-scores');
-const { resolveAlgorithm } = require('./capabilities');
+const { resolveAlgorithm, isPersonalizedStatsEnabled } = require('./capabilities');
 const { isValidHexPubkey, oreHeaders, errorTriple, applyTriple } = require('./shared');
 
 function getOwnerPubkey() {
@@ -75,7 +75,11 @@ async function buildStats(input, deps) {
     return errorTriple(422, 'invalid or missing pubkey (must be 64-char lowercase hex)');
   }
 
-  const algo = resolveAlgorithm('/stats/pubkey', body.algorithm);
+  // `deps.personalizedStats` gates the pov:true algorithm (ADR 0005 / W12). When
+  // off, `graperank-personalized` resolves to null here and is rejected as an
+  // unsupported algorithm BEFORE any pov/provisioning check — so a gated request
+  // leaks nothing about the provisioned-customer set.
+  const algo = resolveAlgorithm('/stats/pubkey', body.algorithm, { personalizedStats: deps.personalizedStats });
   if (!algo) {
     return errorTriple(422, `unsupported algorithm '${body.algorithm}' for /stats/pubkey`);
   }
@@ -106,6 +110,7 @@ async function handleStatsPubkey(req, res) {
     ownerPubkey,
     fetchProfileScores,
     isPovProvisioned: (pov) => isPovProvisioned(pov, ownerPubkey),
+    personalizedStats: isPersonalizedStatsEnabled(),
   };
   try {
     const triple = await buildStats(req.body || {}, deps);

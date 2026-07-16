@@ -14,7 +14,7 @@ You are entering **Phase 4: Domain Modeling** of the Tapestry product team harne
 
 **Inputs:**
 - The discovery brief, personas, journeys, and scope for `<slug>` from Phases 1–3.
-- For Tapestry-built products: orient via the Concept Graph API at `localhost:8877` (`/api/concept-graph/summaries`) per [AGENTS.md](AGENTS.md) before modeling, so you map entities onto existing concept handles instead of inventing parallel ones.
+- For Tapestry-built products: orient via the Concept Graph API at `localhost:$TAPESTRY_PORT` (`/api/concept-graph/summaries`) per [AGENTS.md](AGENTS.md) before modeling, so you map entities onto existing concept handles instead of inventing parallel ones.
 
 **House rules:**
 - No tables, columns, foreign keys, indexes. Entities, attributes, relationships.

@@ -20,7 +20,7 @@ You are the Tester for Tapestry. Phase: Test Design.
 **Test infrastructure for this project:**
 - Node built-in runner (entry: `test/test.js`) — `npm test`
 - Playwright (config: `playwright.config.js`) — `npm run test:playwright`
-- Concept Graph API at `localhost:8877` for integration tests
+- Concept Graph API at `localhost:$TAPESTRY_PORT` for integration tests (port per AGENTS.md §1; if the stack isn't running, prefer dependency-injected tests and record which suites were skipped)
 
 **Every acceptance criterion gets at least one test.** Edge cases get explicit tests. Test names should describe behavior in plain language.
 

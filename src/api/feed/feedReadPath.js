@@ -16,17 +16,22 @@
  *     display names (so the UI shows "@name" not a raw npub); empty when none resolve.
  *   - handleGetFeed(req, res) — the public GET /api/feed Express handler.
  *
- * Injectable dependency seam (ADR amendment 2026-06-15). buildFeed reads its four
- * I/O boundaries from `options`, each defaulting to the real helper when absent.
+ * Injectable dependency seam (ADR amendment 2026-06-15; fifth boundary added by
+ * story test-hermeticity-ci #1, 2026-07-05). buildFeed reads its five I/O
+ * boundaries from `options`, each defaulting to the real helper when absent.
  * Fakes may be spread onto the options object OR live under `options.deps`
  * (read `options.deps?.X ?? options.X ?? <realHelper>`):
  *   - getSettings()          — House-PoV read (resolveSource)
  *   - scanStrfry(filter)     — local strfry scan for kind-3 / kind-0
  *   - runCypher(cypher,prms) — general-purpose relay-set resolution
  *   - querySync(relays,flt)  — external kind-1 fetch
+ *   - getTaPubkey()          — TA pubkey for the relay-set handle (runtime-
+ *     resolved via utils/assistantKeys: env → brainstorm.conf → secure storage;
+ *     never hardcoded — CLAUDE.md house rule)
  * Production callers invoke buildFeed({ sessionPubkey }) with no deps and get the
  * real helpers unchanged. The seam is parameter wiring only — no new dependency,
- * no behavior change, no firmware change.
+ * no behavior change, no firmware change. Relay-set degrade is LEGIBLE: any
+ * resolution failure logs its cause alongside the fallback decision.
  */
 
 // nostr-tools / ws are required via the container's absolute module path, the
@@ -80,6 +85,11 @@ function realScanStrfry(filter) {
 /** Default relay-set resolution via Neo4j. */
 function realRunCypher(cypher, params) {
   return require('../../lib/neo4j-driver').runCypher(cypher, params);
+}
+
+/** Default TA-pubkey read — lazy + runtime-resolved (never hardcoded). */
+function realGetTaPubkey() {
+  return require('../../utils/assistantKeys').getOwnerAssistantPubkey();
 }
 
 /** Default external kind-1 fetch via SimplePool. */
@@ -140,13 +150,32 @@ async function getLocalFollows(pubkey, scanStrfry) {
   return { follows };
 }
 
+/** One legible line naming why the relay set degraded (see module header). */
+function logRelaySetDegrade(stage, err) {
+  const detail = err ? `${err.message}${err.code ? ` [${err.code}]` : ''}` : 'no TA pubkey resolvable';
+  console.error(`[feed] relay-set resolution failed (${stage}: ${detail}); using fallback relays`);
+}
+
 /**
  * Resolve the general-purpose relay set by slug-from-TA. Empty / error ⇒ the
  * hardcoded fallback relays. → { relays: string[], source: 'set' | 'fallback' }.
+ * The TA read and the query are guarded separately so a packaging/install
+ * failure (e.g. MODULE_NOT_FOUND) is never silently indistinguishable from an
+ * empty relay set; a null TA short-circuits (no 39999:null:… handle is queried).
  */
-async function resolveGeneralPurposeRelays(runCypher) {
+async function resolveGeneralPurposeRelays(runCypher, getTaPubkey) {
+  let ta;
   try {
-    const ta = require('../../utils/assistantKeys').getOwnerAssistantPubkey();
+    ta = getTaPubkey();
+  } catch (err) {
+    logRelaySetDegrade('TA pubkey read', err);
+    return { relays: FALLBACK_RELAYS.slice(), source: 'fallback' };
+  }
+  if (!ta) {
+    logRelaySetDegrade('TA pubkey read', null);
+    return { relays: FALLBACK_RELAYS.slice(), source: 'fallback' };
+  }
+  try {
     const handle = `39999:${ta}:${RELAY_SET_SLUG}`;
     const rows = await runCypher(
       'MATCH (s:Set {uuid:$h})-[:HAS_ELEMENT]->(m:ListItem) WHERE NOT m:Superset ' +
@@ -163,7 +192,9 @@ async function resolveGeneralPurposeRelays(runCypher) {
       } catch { /* skip unparseable member */ }
     }
     if (relays.length > 0) return { relays, source: 'set' };
-  } catch { /* fall through to fallback */ }
+  } catch (err) {
+    logRelaySetDegrade('set query', err);
+  }
   return { relays: FALLBACK_RELAYS.slice(), source: 'fallback' };
 }
 
@@ -203,6 +234,7 @@ async function buildFeed(options = {}) {
   const scanStrfry = deps?.scanStrfry ?? options.scanStrfry ?? realScanStrfry;
   const runCypher = deps?.runCypher ?? options.runCypher ?? realRunCypher;
   const querySync = deps?.querySync ?? options.querySync ?? realQuerySync;
+  const getTaPubkey = deps?.getTaPubkey ?? options.getTaPubkey ?? realGetTaPubkey;
   const untilCursor = coerceUntil(until);  // pagination cursor; junk/absent ⇒ undefined (page 1)
 
   // 1. Source identity. None ⇒ NO_SOURCE (no relays queried).
@@ -216,7 +248,7 @@ async function buildFeed(options = {}) {
   }
 
   // 3. Relay set (slug-from-TA) with fallback.
-  const { relays, source: relaySource } = await resolveGeneralPurposeRelays(runCypher);
+  const { relays, source: relaySource } = await resolveGeneralPurposeRelays(runCypher, getTaPubkey);
 
   // 4. Fetch + filter + order + cap, then enrich from local profiles.
   const notes = await fetchNotes(followResult.follows, relays, querySync, untilCursor);

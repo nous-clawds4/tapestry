@@ -1,0 +1,12 @@
+# harness-lint waivers — tab-separated: <invariant-id>	<path-or-glob>	<citation>
+# Every waiver cites the OPEN.md row (or standing reason) that tracks the exception.
+# A waiver matching nothing prints STALE-WAIVER — remove or update it then.
+L4	engineering-team/reviews/live-feed/[3-6]-*.md	OPEN.md row 16 — post-close reviews without stories; disposition pending
+L2	engineering-team/epics/live-feed.md	OPEN.md row 16 — retirement held until the post-close reviews are dispositioned
+L1	engineering-team/stories/task-queue-scheduler/22-generalized-task-scheduler.md	review 22's addendum supersedes its PASS for prod promotion (S5 unmet; superseded by #23 / ADR 0020) — the last-token verdict rule misreads its "**PASS stands** ... cannot pass" phrasing; story correctly not Done
+L5	.claude/skills/cycle-local/SKILL.md	cycle-local owns the local base-URL constant :7778 (discovery documented in AGENTS.md §1); other files must point here, not restate it
+L1	engineering-team/stories/event-tagging/*.md	OPEN.md row 37 — tags-line story statuses predate harness-lint's arrival (2026-07-16 staging sync merge); reconcile on the tags line, then drop this waiver
+L1	engineering-team/stories/tag-applicability/4-event-driven-applicability-republish.md	OPEN.md row 37 — same tags-line reconciliation batch
+L3	engineering-team/stories/pov-selectable-tag-surfaces/	OPEN.md row 37 — epic file owed on the tags line
+L3	engineering-team/stories/profile-tag-hardening/	OPEN.md row 37 — epic file owed on the tags line
+L10	commit:0143835a	OPEN.md row 37 — changelog row owed by a pre-merge tags-line harness commit

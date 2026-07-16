@@ -150,29 +150,37 @@ test('S2: src/api/index.js wires the ORE module, which registers /.well-known/op
 // ORE-01 — Capability document (AC: capability doc shape + headers)
 // ===========================================================================
 
-test('C1: the capability document advertises /stats/pubkey with its two algorithms (AC-1)', () => {
+test('C1: the capability document advertises /stats/pubkey with the global algorithm; personalized is gated OFF by default (AC-1 / ADR 0005 gate)', () => {
   // Updated by open-ranking #2: the doc now also advertises /search/pubkeys, so
-  // this no longer asserts /stats/pubkey is the ONLY endpoint — just that it
-  // remains advertised with its two algorithm objects.
+  // this no longer asserts /stats/pubkey is the ONLY endpoint. Updated again by
+  // the ADR 0005 personalized-stats gate (W12): with the gate CLOSED (the
+  // shipped default) the served doc advertises ONLY the global algorithm; the
+  // personalized algorithm re-appears only when the gate is opened.
   const mod = loadModule();
   assert(mod && typeof mod.buildCapabilityResponse === 'function', 'buildCapabilityResponse missing — feature absent.');
-  const { body } = mod.buildCapabilityResponse();
+  const { body } = mod.buildCapabilityResponse(); // no opts → gate CLOSED (default)
   assert(body && typeof body === 'object', 'capability body must be a JSON object keyed by endpoint path.');
-  assert(Array.isArray(body['/stats/pubkey']) && body['/stats/pubkey'].length === 2,
-    'the /stats/pubkey value must be an array of exactly two Algorithm Objects (global + personalized).');
+  assert(Array.isArray(body['/stats/pubkey']) && body['/stats/pubkey'].length === 1,
+    'with the gate closed, /stats/pubkey must advertise exactly one Algorithm Object (global graperank only).');
+  assert(!body['/stats/pubkey'].some((a) => a.pov === true),
+    'the gated doc must NOT advertise any pov:true (personalized) algorithm — that would signal the ungated oracle.');
+  // Gate OPEN → the personalized algorithm is advertised again (both present).
+  const opened = mod.buildCapabilityResponse({ personalizedStats: true }).body['/stats/pubkey'];
+  assert(opened.length === 2 && opened.some((a) => a.id === 'graperank-personalized' && a.pov === true),
+    'opening the gate must re-advertise graperank-personalized (pov:true) — two algorithms total.');
 });
 
-test('C2: the default (first) algorithm is global "graperank" (pov:false); the second is "graperank-personalized" (pov:true) (AC-1)', () => {
+test('C2: the default (first) algorithm is global "graperank" (pov:false); personalized is the second only when the gate is open (AC-1 / ADR 0005)', () => {
   const mod = loadModule();
   assert(mod && typeof mod.buildCapabilityResponse === 'function', 'buildCapabilityResponse missing — feature absent.');
-  const { body } = mod.buildCapabilityResponse();
-  const algos = body['/stats/pubkey'];
+  const algos = mod.buildCapabilityResponse().body['/stats/pubkey']; // gate closed
   assert(algos[0].id === 'graperank',
     `the FIRST element is the default algorithm and must be id 'graperank'; got ${JSON.stringify(algos[0].id)}.`);
   assert(algos[0].pov === false || algos[0].pov === undefined,
     `the default 'graperank' must be global (pov:false / absent) so a no-pov request never 422s; got pov=${JSON.stringify(algos[0].pov)}.`);
-  assert(algos[1].id === 'graperank-personalized' && algos[1].pov === true,
-    `the second algorithm must be id 'graperank-personalized' with pov===true; got ${JSON.stringify(algos[1])}.`);
+  const opened = mod.buildCapabilityResponse({ personalizedStats: true }).body['/stats/pubkey'];
+  assert(opened[1] && opened[1].id === 'graperank-personalized' && opened[1].pov === true,
+    `when the gate is open the second algorithm must be id 'graperank-personalized' with pov===true; got ${JSON.stringify(opened[1])}.`);
 });
 
 test('C3: the capability response is 200 with application/json and Access-Control-Allow-Origin: * (ORE-00)', () => {
@@ -230,9 +238,9 @@ test('B3 (AC: rank): influence is rounded to the nearest integer ×100 (0.915 ->
   assert(r.body.rank === 92, `rank must be round(0.915*100) = 92; got ${JSON.stringify(r.body.rank)}.`);
 });
 
-test('B4 (AC: personalized provisioned): graperank-personalized with a provisioned pov returns 200 and reads scores under that pov', async () => {
+test('B4 (AC: personalized provisioned, gate OPEN): graperank-personalized with a provisioned pov returns 200 and reads scores under that pov', async () => {
   const mod = loadModule();
-  const deps = makeDeps();
+  const deps = makeDeps({ personalizedStats: true }); // ADR 0005: pov:true path only served when the gate is open
   const r = await callBuildStats(mod, { pubkey: TARGET, algorithm: 'graperank-personalized', pov: PROV_POV }, deps);
   assert(r.httpStatus === 200, `a provisioned pov must return 200; got ${r.httpStatus}.`);
   assert(deps._provisionedCalls.includes(PROV_POV), 'isPovProvisioned must be consulted for a pov:true algorithm.');
@@ -240,9 +248,9 @@ test('B4 (AC: personalized provisioned): graperank-personalized with a provision
     `the personalized algorithm must read scores under the supplied pov as observerPubkey; got ${JSON.stringify(deps._fetchCalls)}.`);
 });
 
-test('B5 (AC: personalized unprovisioned -> 422): an unprovisioned pov returns 422 + X-Reason, with NO house fallback (scores never fetched)', async () => {
+test('B5 (AC: personalized unprovisioned -> 422, gate OPEN): an unprovisioned pov returns 422 + X-Reason, with NO house fallback (scores never fetched)', async () => {
   const mod = loadModule();
-  const deps = makeDeps();
+  const deps = makeDeps({ personalizedStats: true });
   const r = await callBuildStats(mod, { pubkey: TARGET, algorithm: 'graperank-personalized', pov: UNPROV_POV }, deps);
   assert(r.httpStatus === 422, `an unprovisioned pov on a pov:true algorithm must return 422; got ${r.httpStatus}.`);
   assert(hget(r.headers, 'X-Reason'), 'a 422 must carry a human-readable X-Reason header (ORE-00).');
@@ -250,9 +258,9 @@ test('B5 (AC: personalized unprovisioned -> 422): an unprovisioned pov returns 4
     'an unprovisioned pov must NOT fall back to the house view — scores must not be fetched (POV invariant).');
 });
 
-test('B6 (AC: conventions): graperank-personalized with NO pov returns 422 + X-Reason', async () => {
+test('B6 (AC: conventions, gate OPEN): graperank-personalized with NO pov returns 422 + X-Reason', async () => {
   const mod = loadModule();
-  const deps = makeDeps();
+  const deps = makeDeps({ personalizedStats: true });
   const r = await callBuildStats(mod, { pubkey: TARGET, algorithm: 'graperank-personalized' }, deps);
   assert(r.httpStatus === 422, `a pov:true algorithm with no pov must return 422; got ${r.httpStatus}.`);
   assert(hget(r.headers, 'X-Reason'), 'the missing-pov 422 must carry an X-Reason header.');
@@ -273,6 +281,46 @@ test('B8 (AC: conventions): an unsupported algorithm id returns 422 + X-Reason',
   const r = await callBuildStats(mod, { pubkey: TARGET, algorithm: 'definitely-not-real' }, makeDeps());
   assert(r.httpStatus === 422, `an algorithm id not advertised for /stats/pubkey must return 422; got ${r.httpStatus}.`);
   assert(hget(r.headers, 'X-Reason'), 'the unsupported-algorithm 422 must carry an X-Reason header.');
+});
+
+// ===========================================================================
+// G* — ADR open-ranking/0005 personalized-stats gate (W12 anti-oracle).
+// With the gate CLOSED (the shipped default: makeDeps() sets no personalizedStats),
+// graperank-personalized must be indistinguishable from any unsupported algorithm:
+// the provisioning oracle must never run.
+// ===========================================================================
+
+test('G1 (gate CLOSED, default): graperank-personalized is rejected as unsupported and the oracle never runs — even for a PROVISIONED pov, isPovProvisioned is not consulted and scores are not fetched', async () => {
+  const mod = loadModule();
+  const deps = makeDeps(); // no personalizedStats → gate closed (the shipped default)
+  const r = await callBuildStats(mod, { pubkey: TARGET, algorithm: 'graperank-personalized', pov: PROV_POV }, deps);
+  assert(r.httpStatus === 422, `with the gate closed a personalized request must 422 (unsupported); got ${r.httpStatus}.`);
+  assert(hget(r.headers, 'X-Reason'), 'the gated-personalized 422 must carry an X-Reason header (ORE-00).');
+  assert(deps._provisionedCalls.length === 0,
+    'the gate must reject BEFORE any provisioning check — isPovProvisioned must never be consulted (no enumeration oracle).');
+  assert(deps._fetchCalls.length === 0,
+    'the gate must reject BEFORE fetching scores — a provisioned pov must not leak its personalized view.');
+});
+
+test('G2 (gate CLOSED, anti-oracle): a provisioned pov and an unprovisioned pov yield an IDENTICAL response — the caller cannot tell provisioned from unprovisioned', async () => {
+  const mod = loadModule();
+  const prov = await callBuildStats(mod, { pubkey: TARGET, algorithm: 'graperank-personalized', pov: PROV_POV }, makeDeps());
+  const unprov = await callBuildStats(mod, { pubkey: TARGET, algorithm: 'graperank-personalized', pov: UNPROV_POV }, makeDeps());
+  assert(prov.httpStatus === 422 && unprov.httpStatus === 422,
+    `both must 422 under the closed gate; got provisioned=${prov.httpStatus}, unprovisioned=${unprov.httpStatus}.`);
+  assert(hget(prov.headers, 'X-Reason') === hget(unprov.headers, 'X-Reason'),
+    `the X-Reason must be identical for provisioned and unprovisioned povs (else it re-opens the oracle); got ${JSON.stringify(hget(prov.headers, 'X-Reason'))} vs ${JSON.stringify(hget(unprov.headers, 'X-Reason'))}.`);
+  assert(JSON.stringify(prov.body) === JSON.stringify(unprov.body),
+    'the response body must be identical for provisioned and unprovisioned povs under the closed gate.');
+});
+
+test('G3 (gate OPEN restores the feature): with personalizedStats enabled, a provisioned pov returns 200 under that pov (the pov logic is intact, just gated)', async () => {
+  const mod = loadModule();
+  const deps = makeDeps({ personalizedStats: true });
+  const r = await callBuildStats(mod, { pubkey: TARGET, algorithm: 'graperank-personalized', pov: PROV_POV }, deps);
+  assert(r.httpStatus === 200, `opening the gate must restore the personalized 200 path; got ${r.httpStatus}.`);
+  assert(deps._fetchCalls[0] && deps._fetchCalls[0].observerPubkey === PROV_POV,
+    'with the gate open the personalized path must read scores under the supplied pov.');
 });
 
 test('B9 (AC: conventions): an invalid pubkey (npub, wrong length, uppercase) or a missing pubkey returns 422', async () => {
@@ -304,9 +352,9 @@ test('B11 (ORE-00 CORS): both 200 and 422 responses carry Access-Control-Allow-O
   }
 });
 
-test('B12 (AC: personalized with the owner pubkey): pov === owner is treated as provisioned and read under owner', async () => {
+test('B12 (AC: personalized with the owner pubkey, gate OPEN): pov === owner is treated as provisioned and read under owner', async () => {
   const mod = loadModule();
-  const deps = makeDeps();
+  const deps = makeDeps({ personalizedStats: true });
   const r = await callBuildStats(mod, { pubkey: TARGET, algorithm: 'graperank-personalized', pov: OWNER }, deps);
   assert(r.httpStatus === 200, `the owner is always a provisioned POV; got ${r.httpStatus}.`);
   assert(deps._fetchCalls[0].observerPubkey === 'owner' || deps._fetchCalls[0].observerPubkey === OWNER,

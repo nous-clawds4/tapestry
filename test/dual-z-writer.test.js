@@ -117,16 +117,17 @@ t('AC-1: createTag (useProfileTags.js) stamps a NEW local z composed from runtim
     `(AC-1). tags array was:\n${tagsArr}`);
 });
 
-t('AC-1 + dual-z-count: createTag (useProfileTags.js) tags array contains EXACTLY two z entries', () => {
+t('AC-1 + dual-z-count: createTag (useProfileTags.js) tags array contains EXACTLY three z entries (canonical + local + applicability hint)', () => {
   const src = readSrc(USE_PROFILE_TAGS);
   const fromCreate = src.indexOf('createTag');
   const tagsArr = extractTagsArray(src, fromCreate);
   const n = countZEntries(tagsArr);
-  assert(n === 2,
-    `createTag's tags array must contain exactly TWO \`['z', …]\` entries (canonical + local) — ` +
-    `the dev-box-degenerate-proof assertion of record per ADR 0003 (we assert two z's are EMITTED, ` +
-    `not that their values differ, because on this dev box local TA == canonical so they resolve equal). ` +
-    `Found ${n}. tags array was:\n${tagsArr}`);
+  assert(n === 3,
+    `createTag's tags array must contain exactly THREE \`['z', …]\` entries — canonical + local ` +
+    `(dev-box-degenerate-proof per ADR 0003: we assert they are EMITTED, not that values differ, because ` +
+    `on this dev box local TA == canonical) + the tag-for-nostr-pubkey applicability hint added by the ` +
+    `tags line (tag-applicability story 1; convention recorded in protocols tags.md / event-taggings.md, ` +
+    `merged 2026-07-16). Found ${n}. tags array was:\n${tagsArr}`);
 });
 
 /* ════════════════════════════════════════════════════════════════════════

@@ -4,7 +4,7 @@
 Domain Modeler. See `product-team/roles/domain-modeler.md`.
 
 ## Input
-The discovery brief, personas, journeys, and scope document from Phases 1–3. For Tapestry-built products, the Concept Graph API at `localhost:8877`.
+The discovery brief, personas, journeys, and scope document from Phases 1–3. For Tapestry-built products, the Concept Graph API at `localhost:$TAPESTRY_PORT` (port per AGENTS.md §1; if the stack isn't running, name concepts in plain language and mark mappings unresolved).
 
 ## Output
 A domain model document at `product-team/domain/<slug>.md`, using the `domain-model.md` template. A durable artifact — Phase 6 assembles it into the PRD's data model.

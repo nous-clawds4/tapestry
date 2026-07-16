@@ -3,6 +3,7 @@
 **Slug:** task-timeline
 **Status:** Open
 **Opened:** 2026-06-10
+**Parked:** awaiting operator arming — pre-registered 2026-06-10 as the flagship Direction-mode experiment; the two shakedown runs (reputation-info-popup, live-feed) and verified-muters ran first. Arm per §Arming or close as superseded. *(recorded 2026-07-02, harness sweep)*
 **Closed:** —
 
 ## Intent anchor

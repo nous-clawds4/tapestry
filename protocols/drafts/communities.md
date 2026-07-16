@@ -23,7 +23,7 @@ Centralization must be built by participants, never assumed by the protocol.
 
 ## Relationship to other specs
 
-Communities ride entirely on primitives defined upstream: the addressable kinds and `z` conventions of [Decentralized Lists](../nips/decentralized-lists.md) and [Tapestry Concepts](./tapestry-concepts.md); definitional deference and the resolution algorithm of [Inherit-From & Resolved Definition](./inherit-from.md); and the membership signal of the pubkey-tagging wire format — specified by [Tags & Taggings](./tags.md). This spec adds only the thin community-specific layer on top.
+Communities ride entirely on primitives defined upstream: the addressable kinds and `z` conventions of [Decentralized Lists](../nips/decentralized-lists.md) and [Tapestry Concepts](./tapestry-concepts.md); definitional deference and the resolution algorithm of [Inherit-From & Resolved Definition](./inherit-from.md); and the membership signal of the pubkey-tagging wire format — specified by [Tags & Taggings](./tags.md); and, for containment items, the multi-`z` stamp selection of [Stamping](./stamping.md) (membership assertions keep their single applied-concept handle — Stamping § "Boundary: containment vs. membership"). This spec adds only the thin community-specific layer on top.
 
 ## A community is a concept
 
