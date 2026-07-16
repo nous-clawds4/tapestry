@@ -76,6 +76,6 @@ Recorded with a recommendation each; none blocks Architecture. The operator can 
 
 ## Linked artifacts
 
-- ADR: (filled in after Architecture phase)
-- Test plan: (filled in after Test Design phase)
+- ADR: `engineering-team/decisions/tag-event-inspector/0001-tag-actions-menu-and-raw-event.md`
+- Test plan: `engineering-team/stories/tag-event-inspector/1-tag-actions-menu-and-raw-event.test-plan.md`
 - Review: (filled in after Review phase)
