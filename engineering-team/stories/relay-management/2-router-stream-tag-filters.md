@@ -1,7 +1,7 @@
 # Story 2: Single-letter tag filters on Router Management streams
 
 **Epic:** relay-management
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-07-15
 **Type:** Feature
 
@@ -65,4 +65,4 @@ None. The three product questions the frame delegated to Planning are settled ab
 
 - ADR: `engineering-team/decisions/relay-management/0002-router-stream-tag-filters.md`
 - Test plan: `engineering-team/stories/relay-management/2-router-stream-tag-filters.test-plan.md` (suite: `test/router-stream-tag-filters.test.js`)
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/relay-management/2-router-stream-tag-filters.md` — PASS (2026-07-16)
