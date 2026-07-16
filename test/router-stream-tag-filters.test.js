@@ -64,6 +64,22 @@ function sliceSection(src, startMarker, endMarkers) {
   return src.slice(start, end);
 }
 
+/**
+ * ADR 0002 Amendment 1 (2026-07-16) — twin of the sibling suite's
+ * negentropySyncRegion: slice a RelaySettings surface from its top-level
+ * declaration to the NEXT top-level declaration (column-0 `function `), so an
+ * assertion about one surface can never silently match a later surface in the
+ * same file — and cannot extend to EOF when a named neighbor is renamed (the
+ * latent single-occurrence defect the amendment ratifies out). A missing
+ * start marker fails loudly, never vacuously.
+ */
+function relaySettingsRegion(src, declMarker, what) {
+  const start = src.indexOf(declMarker);
+  assert(start !== -1, `${what} declaration missing from RelaySettings.jsx — unexpected.`);
+  const end = src.indexOf('\nfunction ', start); // next top-level declaration
+  return src.slice(start, end === -1 ? src.length : end);
+}
+
 /** Match calls to sanitizeStreamFilter but not its declaration. */
 function callsSanitize(body) {
   return /sanitizeStreamFilter\s*\(/.test(body.replace(/function\s+sanitizeStreamFilter\s*\(/g, ''));
@@ -295,7 +311,7 @@ test('B8: sanitizeStreamFilter is idempotent and pure — re-saving already-pers
 test('S1: StreamEditor renders the reused TagFilterEditor driven by form.filter through the two helpers — no parallel tag state (AC-1 parity by construction, AC-4 seed)', () => {
   const src = safeRead(RELAY_SETTINGS);
   assert(src.length > 0, 'ui/src/pages/settings/RelaySettings.jsx missing — unexpected.');
-  const editor = sliceSection(src, 'function StreamEditor(', ['\nfunction ToggleSwitch', '/* ── Toggle Switch']);
+  const editor = relaySettingsRegion(src, 'function StreamEditor(', 'StreamEditor');
   assert(editor.length > 0, 'StreamEditor must exist in RelaySettings.jsx — unexpected regression.');
   assert(/<TagFilterEditor[\s\S]*?\/>/.test(editor),
     NOT_IMPL('StreamEditor must render <TagFilterEditor …/> (the story-#1 component, reused not forked)'));
@@ -319,7 +335,7 @@ test('S2: RelaySettings imports tagFiltersFromFilter and applyTagFilters from th
 
 test('S3: the Tag Filters field block sits inside the stream editor between Event Kinds and Limit (AC-1; ADR placement)', () => {
   const src = safeRead(RELAY_SETTINGS);
-  const editor = sliceSection(src, 'function StreamEditor(', ['\nfunction ToggleSwitch', '/* ── Toggle Switch']);
+  const editor = relaySettingsRegion(src, 'function StreamEditor(', 'StreamEditor');
   assert(editor.length > 0, 'StreamEditor must exist — unexpected regression.');
   const kindsIdx = editor.indexOf('Event Kinds');
   const tagIdx = editor.indexOf('Tag Filters');
@@ -332,7 +348,7 @@ test('S3: the Tag Filters field block sits inside the stream editor between Even
 
 test('S4: the stream read card displays saved tag filters (letter + values via tagFiltersFromFilter), so filters saved earlier are visible without opening the editor (AC-4 visibility)', () => {
   const src = safeRead(RELAY_SETTINGS);
-  const card = sliceSection(src, 'function RouterStatus(', ['/* ── Negentropy Sync Panel', '\nfunction NegentropySync']);
+  const card = relaySettingsRegion(src, 'function RouterStatus(', 'RouterStatus');
   assert(card.length > 0, 'RouterStatus must exist — unexpected regression.');
   assert(/tagFiltersFromFilter\s*\(/.test(card),
     NOT_IMPL('the stream card must derive saved tag filters from stream.filter via tagFiltersFromFilter (shared module, not an inline fork) and render them on the Filter line'));
