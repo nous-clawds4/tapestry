@@ -271,8 +271,9 @@ test('R1: App.jsx still registers the existing /user/:pubkey sub-routes — /not
 test('R2: NoteCard is REUSED AS-IS — it still takes a single { item } prop and renders a bsp-note-card (no variant fork)', () => {
   const src = safeRead(NOTE_CARD);
   assert(src.length > 0, 'ui/src/components/NoteCard.jsx missing — unexpected.');
-  assert(/export\s+default\s+function\s+NoteCard\s*\(\s*\{\s*item\s*\}/.test(src),
-    'NoteCard must keep its single-{ item } presentational contract — ADR 0002 chose to reuse it as-is (no variant prop added this story).');
+  assert(/export\s+default\s+function\s+NoteCard\s*\(\s*\{\s*item\s*[,}]/.test(src),
+    'NoteCard must keep its item-first presentational contract — ADR 0002 chose to reuse it as-is (no variant fork; ' +
+    'optional defaulted props like showTagScores (tag surfaces, joined at the 2026-07-15 feat/tags↔staging merge) are additive and allowed).');
   assert(/bsp-note-card/.test(src), 'NoteCard must still render the shared bsp-note-card markup (unchanged).');
 });
 

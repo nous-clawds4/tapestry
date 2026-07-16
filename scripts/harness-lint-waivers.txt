@@ -5,3 +5,7 @@ L4	engineering-team/reviews/live-feed/[3-6]-*.md	OPEN.md row 16 — post-close r
 L2	engineering-team/epics/live-feed.md	OPEN.md row 16 — retirement held until the post-close reviews are dispositioned
 L1	engineering-team/stories/task-queue-scheduler/22-generalized-task-scheduler.md	review 22's addendum supersedes its PASS for prod promotion (S5 unmet; superseded by #23 / ADR 0020) — the last-token verdict rule misreads its "**PASS stands** ... cannot pass" phrasing; story correctly not Done
 L5	.claude/skills/cycle-local/SKILL.md	cycle-local owns the local base-URL constant :7778 (discovery documented in AGENTS.md §1); other files must point here, not restate it
+L1	engineering-team/stories/event-tagging/*.md	OPEN.md row 37 — feat/tags-era Status phrasing predates harness-lint (2026-07-15 merge); reconciliation pending
+L1	engineering-team/stories/tag-applicability/4-event-driven-applicability-republish.md	OPEN.md row 37 — feat/tags-era Status phrasing predates harness-lint (2026-07-15 merge); reconciliation pending
+L3	engineering-team/stories/pov-selectable-tag-surfaces/	OPEN.md row 37 — epic file never created on feat/tags; write it or retire the (complete) epic
+L3	engineering-team/stories/profile-tag-hardening/	OPEN.md row 37 — epic file never created on feat/tags; write it or retire the epic
