@@ -92,6 +92,6 @@ user at pin time. The initial offered set is **LFO** and **Tapestry & Web of Tru
 
 ## Linked artifacts
 
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/contextual-pins/0001-context-scoped-pins.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
