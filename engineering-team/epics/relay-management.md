@@ -16,6 +16,7 @@ Operator syncs are how instances bootstrap and federate data. Blunt filters over
 ## Stories
 
 1. `stories/relay-management/1-sync-panel-tag-filters.md` — single-letter tag filters (`"#x": [...]`) in the Negentropy Sync panel, with p/e/a format validation, honored end-to-end (preview → count → executed sync).
+2. `stories/relay-management/2-router-stream-tag-filters.md` — single-letter tag filters on Router Management streams (persistent per-stream config): saved into the deployed router config, surviving save → router restart, round-tripping into the stream editor; makes the OPEN.md #25 `#z` dcosl stream UI-expressible.
 
 ## Key facts / guardrails
 
