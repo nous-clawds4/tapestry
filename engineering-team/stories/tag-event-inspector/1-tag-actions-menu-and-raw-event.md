@@ -1,7 +1,7 @@
 # Story 1: Tag actions menu and raw event inspector on the tag detail page
 
 **Epic:** tag-event-inspector
-**Status:** Draft
+**Status:** Done
 **Created:** 2026-07-16
 **Type:** Feature
 

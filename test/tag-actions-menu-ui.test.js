@@ -45,6 +45,7 @@ const TAG_ACTIONS_MENU = R('ui/src/components/TagActionsMenu.jsx');
 const NOTE_ACTIONS_MENU = R('ui/src/components/NoteActionsMenu.jsx');
 const TAG_PAGE = R('ui/src/pages/Tag.jsx');
 const PROFILE_TAGS_API = R('src/api/profile-tags/index.js');
+const STYLES = R('ui/src/styles.css');
 
 // The seven canonical NIP-01 event fields, in canonical order. Authority: the
 // concept graph's own `39998:<TA>:nostr-event` definition (ADR 0001 §Context).
@@ -504,6 +505,49 @@ t('R: this story adds no item to the feed note menu (AC-7)', () => {
     'out of scope; this story is the tag definition event on the tag detail page, full stop (AC-7).');
   assert(!/Copy Note Addr/.test(src),
     'NoteActionsMenu must NOT gain a "Copy Note Addr" item (AC-7) — a kind-1 note is not addressable.');
+});
+
+/* ─────────── D6 — the two overflow paths at 1280px ───────────
+ *
+ * Added at Review (finding 3, non-blocking): the test plan assigned D6 to
+ * verify-by-driving, which proved the rules hold *once*. These three asserts make
+ * that permanent. Deleting `break-all` reintroduces the horizontal overflow the
+ * closed event-page book enforced, and nothing else in the suite would notice —
+ * only a human at a browser would, and only if they looked.
+ *
+ * Region-scoped per OPEN.md #40: styles.css is a 7.8k-line file read by ~10 sibling
+ * suites, and `white-space: pre-wrap` appears in several unrelated rules.
+ */
+
+/** One CSS rule's body, addressed by its exact selector. */
+function cssRule(src, selector) {
+  const start = src.indexOf(selector + ' {');
+  assert(start !== -1,
+    `selector \`${selector}\` missing from ui/src/styles.css — the region slicer cannot ` +
+    'address the rule it pins. If the selector was renamed, update this test rather ' +
+    'than deleting it: the overflow guard it protects is still load-bearing (ADR 0001 D6).');
+  const end = src.indexOf('}', start);
+  return src.slice(start, end + 1);
+}
+
+t('R: SENTINEL — the raw <pre> wraps rather than scrolling horizontally (D6)', () => {
+  const rule = cssRule(safeRead(STYLES), '.bs-tag-raw-pre');
+  assert(/white-space:\s*pre-wrap/.test(rule),
+    '.bs-tag-raw-pre must set `white-space: pre-wrap` (ADR 0001 D6). Plain `pre` keeps ' +
+    "JSON.stringify's indentation but refuses to wrap, so the event's long lines scroll " +
+    'the page sideways. Do NOT reuse .json-block here — that is exactly its bug.');
+  assert(/word-break:\s*break-all/.test(rule),
+    '.bs-tag-raw-pre must set `word-break: break-all` (ADR 0001 D6). The 64-char `id` and ' +
+    '128-char `sig` are unbroken hex with no break opportunity, so pre-wrap alone will not ' +
+    'wrap them — they overflow 1280px. This is the failure case the rule exists for.');
+});
+
+t('R: SENTINEL — the tag name shrinks instead of pushing the kebab off-screen (D6)', () => {
+  const rule = cssRule(safeRead(STYLES), '.bs-tag-name-row .bs-tag-name');
+  assert(/min-width:\s*0/.test(rule),
+    '.bs-tag-name-row .bs-tag-name must set `min-width: 0` (ADR 0001 D6). Flex items default ' +
+    'to min-width:auto and refuse to shrink below their content, so a long tag name forces ' +
+    'horizontal overflow and drags the ⋯ kebab out of the viewport.');
 });
 
 /* ─────────────── Run ─────────────── */
