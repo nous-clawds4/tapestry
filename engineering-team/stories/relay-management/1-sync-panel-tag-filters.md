@@ -1,7 +1,7 @@
 # Story 1: Single-letter tag filters in the Negentropy Sync panel
 
 **Epic:** relay-management
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-07-15
 **Type:** Feature
 
@@ -62,4 +62,4 @@ Defaults taken to keep the approval loop to one round — flip any of these at a
 
 - ADR: `engineering-team/decisions/relay-management/0001-sync-panel-tag-filters.md`
 - Test plan: `engineering-team/stories/relay-management/1-sync-panel-tag-filters.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/relay-management/1-sync-panel-tag-filters.md` — PASS (2026-07-15)
