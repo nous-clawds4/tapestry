@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import AddOrEditEntryModal from './scheduledTasks/AddOrEditEntryModal.jsx';
-import { validateTagLetter, parseTagValues, mergeTagFilter } from '../../utils/tagFilterValidation';
+import { validateTagLetter, parseTagValues, mergeTagFilter, tagFiltersFromFilter, applyTagFilters } from '../../utils/tagFilterValidation';
 
 const RELAY_GROUPS = [
   { key: 'aProfileRelays', label: 'Profile Relays', hint: 'Kind 0 profiles (purplepag.es, etc.)', restart: false },
@@ -129,6 +129,20 @@ function StreamEditor({ stream, plugins, onSave, onCancel, isNew }) {
             placeholder="Kind number" style={inputStyle} />
           <button className="btn-small" onClick={addKind}>Add</button>
         </div>
+      </div>
+
+      {/* Tag filters (ADR relay-management/0002) — form.filter is the single
+          source of truth: rows are derived from it each render and written
+          back into it on change; no parallel state. */}
+      <div style={{ marginBottom: '0.75rem' }}>
+        <label style={{ fontSize: '0.75rem', fontWeight: 600, display: 'block', marginBottom: '0.25rem' }}>
+          Tag Filters <span style={{ fontWeight: 400, opacity: 0.6 }}>(optional — single-letter tag names, e.g. #z)</span>
+        </label>
+        <TagFilterEditor
+          tagFilters={tagFiltersFromFilter(form.filter)}
+          onChange={(next) => setForm(f => ({ ...f, filter: applyTagFilters(f.filter, next) }))}
+          disabled={false}
+        />
       </div>
 
       {/* Limit */}
@@ -602,10 +616,12 @@ function RouterStatus() {
                     </button>
                   </div>
                 </div>
-                {stream.filter && stream.filter.kinds?.length > 0 && (
+                {stream.filter && (stream.filter.kinds?.length > 0 || tagFiltersFromFilter(stream.filter).length > 0) && (
                   <div style={{ fontSize: '0.8rem', opacity: 0.7, marginBottom: '0.4rem', marginLeft: '3.25rem' }}>
-                    Filter: kinds {stream.filter.kinds.join(', ')}
+                    Filter:
+                    {stream.filter.kinds?.length > 0 ? ` kinds ${stream.filter.kinds.join(', ')}` : ''}
                     {stream.filter.limit ? ` (limit: ${stream.filter.limit})` : ''}
+                    {tagFiltersFromFilter(stream.filter).map(f => ` #${f.letter}: ${f.values.join(', ')}`).join('')}
                   </div>
                 )}
                 {(stream.pluginDown || stream.pluginUp) && (
