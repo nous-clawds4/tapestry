@@ -4778,6 +4778,20 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   margin: 0 0 0.4rem;
   letter-spacing: -0.01em;
 }
+/* tag-event-inspector #1 — the h1 + "⋯" row. Flex so .bsp-note-menu's existing
+   `margin-left:auto` floats the kebab right; .bs-tag-header is a plain block. */
+.bs-tag-name-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+.bs-tag-name-row .bs-tag-name {
+  min-width: 0;              /* flex items default to min-width:auto and refuse to
+                                shrink below content — a long tag name would then
+                                force horizontal overflow. */
+  overflow-wrap: anywhere;   /* long unbroken names wrap instead of pushing the
+                                kebab off-screen. */
+}
 .bs-tag-desc {
   margin: 0 0 0.75rem;
   opacity: 0.85;
@@ -4799,6 +4813,34 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   object-fit: cover;
 }
 .bs-tag-author-name { font-weight: 500; }
+
+/* tag-event-inspector #1 — raw tag-definition event panel. Modeled on .cypher-query,
+   the in-repo precedent for a wrapped, scroll-capped code block. */
+.bs-tag-raw {
+  margin: 0 0 1.5rem;
+  padding: 0.75rem 1rem;
+  background: var(--bg-secondary, #1a1a2e);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+}
+.bs-tag-raw-title {
+  font-size: 0.8rem;
+  color: var(--text-muted, #94a3b8);
+  margin: 0 0 0.5rem;
+}
+.bs-tag-raw-pre {
+  margin: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: var(--text-primary, #e2e8f0);
+  white-space: pre-wrap;     /* keep JSON.stringify's indentation, but wrap long
+                                lines instead of scrolling horizontally. */
+  word-break: break-all;     /* the 64-char id and 128-char sig have no break
+                                opportunities; without this they overflow. */
+  max-height: 60vh;          /* a pathological `content` can't swallow the page. */
+  overflow-y: auto;
+}
 
 .bs-tag-rows { margin-top: 1rem; }
 .bs-tag-sort {
