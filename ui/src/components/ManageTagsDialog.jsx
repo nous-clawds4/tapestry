@@ -17,7 +17,15 @@ export default function ManageTagsDialog({
     return () => document.removeEventListener('keydown', onKey);
   }, [onClose]);
 
-  const tagById = new Map(availableTags.map((t) => [t.eventId, t]));
+  // Consume-by-#a (ADR profile-tag-hardening/0001): resolve each assertion's
+  // tag by its stable coordinate (tagAddress) first, so a tag applied through a
+  // now-replaced version still shows its name; fall back to the event-id.
+  const byAddress = new Map();
+  const byEventId = new Map();
+  for (const t of availableTags) {
+    if (t.tagAddress) byAddress.set(t.tagAddress, t);
+    byEventId.set(t.eventId, t);
+  }
 
   const handleRevoke = async (eventId) => {
     setError(null);
@@ -50,8 +58,8 @@ export default function ManageTagsDialog({
         ) : (
           <ul className="ptd-mine">
             {myAssertions.map((a) => {
-              const tag = tagById.get(a.tagEventId);
-              const label = tag ? tag.name : `${a.tagEventId.slice(0, 12)}…`;
+              const tag = (a.tagAddress && byAddress.get(a.tagAddress)) || byEventId.get(a.tagEventId);
+              const label = tag ? tag.name : `${(a.tagAddress || a.tagEventId || '').slice(0, 12)}…`;
               const polarityLabel = a.polarity > 0 ? 'Applied' : 'Disputed';
               return (
                 <li key={a.eventId} className="ptd-mine-row">

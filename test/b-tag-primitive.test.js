@@ -356,10 +356,13 @@ t('AC-8 (post-Story-2): tag / nostr-user-tag / tag-pinning NOW carry a community
 t('AC-8 (post-Story-2): exactly nostr-relay + the three tag concepts carry a communityReference', () => {
   const manifest = JSON.parse(readSrc(MANIFEST));
   const withCR = (manifest.concepts || []).filter((c) => 'communityReference' in c).map((c) => c.slug).sort();
-  const expected = ['nostr-relay', 'nostr-user-tag', 'tag', 'tag-pinning'];
+  // Widened 2026-07-07 (OPEN.md #13): + the two event-tagging concepts, deliberately seeded with a
+  // communityReference by event-tagging Story 3 per the federation model.
+  const expected = ['nostr-event-tag', 'nostr-relay', 'nostr-user-tag', 'tag', 'tag-pinning', 'tagging-with-specific-tag'];
   assert(JSON.stringify(withCR) === JSON.stringify(expected),
-    `the four concepts carrying a communityReference must be exactly ${JSON.stringify(expected)} ` +
-    `(nostr-relay = the original pilot; the three tag concepts = Story 2's seeds). Found: ${JSON.stringify(withCR)}.`);
+    `the concepts carrying a communityReference must be exactly ${JSON.stringify(expected)} ` +
+    `(nostr-relay = pilot; tag concepts = tag-federation Story 2; event-tagging concepts = event-tagging Story 3). ` +
+    `Found: ${JSON.stringify(withCR)}.`);
 });
 
 /* ─── Run ─── */

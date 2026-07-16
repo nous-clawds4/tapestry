@@ -117,16 +117,21 @@ t('AC-1: createTag (useProfileTags.js) stamps a NEW local z composed from runtim
     `(AC-1). tags array was:\n${tagsArr}`);
 });
 
-t('AC-1 + dual-z-count: createTag (useProfileTags.js) tags array contains EXACTLY two z entries', () => {
+t('AC-1 + dual-z-count: createTag (useProfileTags.js) tags array contains EXACTLY three z entries (canonical + local + applicability hint)', () => {
   const src = readSrc(USE_PROFILE_TAGS);
   const fromCreate = src.indexOf('createTag');
   const tagsArr = extractTagsArray(src, fromCreate);
   const n = countZEntries(tagsArr);
-  assert(n === 2,
-    `createTag's tags array must contain exactly TWO \`['z', …]\` entries (canonical + local) — ` +
-    `the dev-box-degenerate-proof assertion of record per ADR 0003 (we assert two z's are EMITTED, ` +
-    `not that their values differ, because on this dev box local TA == canonical so they resolve equal). ` +
+  assert(n === 3,
+    `createTag's tags array must contain exactly THREE \`['z', …]\` entries: canonical + local ` +
+    `(the dev-box-degenerate-proof pair of record per ADR 0003 — we assert both are EMITTED, not that ` +
+    `their values differ, because on this dev box local TA == canonical so they resolve equal) PLUS the ` +
+    `pubkey-free applicability hint (tag-applicability Story 1, joined at the 2026-07-15 feat/tags↔staging merge). ` +
     `Found ${n}. tags array was:\n${tagsArr}`);
+  assert(/\[\s*['"]z['"]\s*,\s*TAG_FOR_NOSTR_PUBKEY_Z\s*\]/.test(tagsArr),
+    `the third z must be the pubkey-free applicability hint \`['z', TAG_FOR_NOSTR_PUBKEY_Z]\` ` +
+    `('tag-for-nostr-pubkey') — a concept-handle z here instead would be a real dual-z regression. ` +
+    `tags array was:\n${tagsArr}`);
 });
 
 /* ════════════════════════════════════════════════════════════════════════

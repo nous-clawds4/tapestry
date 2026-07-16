@@ -1,6 +1,8 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { usePov } from '../context/PovContext';
+import { resolvePovReadParams } from '../utils/povReadParams';
 import { useConfig } from '../context/ConfigContext';
 import { useHouseProfile } from '../components/BrainstormUserMenu';
 import TopBar from '../components/TopBar';
@@ -131,20 +133,17 @@ function UserMenu({ user, login, logout, pov, setPov, filters, setFilters, sortC
     return () => document.removeEventListener('mousedown', handleClick);
   }, []);
 
-  // Restore user prefs from server (with localStorage as fast fallback)
+  // Restore search-specific prefs from server. POV selection itself is now
+  // loaded/persisted by PovContext (ADR pov-selectable-tag-surfaces/0001);
+  // here we only restore the search UI prefs (metrics, filters, sort).
   useEffect(() => {
     if (!user) return;
-    // Fast: localStorage first
-    const cached = localStorage.getItem(POV_STORAGE_PREFIX + user.pubkey);
-    if (cached === 'user' || cached === 'nosfabrica') setPov(cached);
-    // Then load from server (source of truth)
     (async () => {
       try {
         const resp = await fetch('/api/user-prefs');
         const data = await resp.json();
         if (data.success && data.preferences) {
           const p = data.preferences;
-          if (p.pov === 'user' || p.pov === 'nosfabrica') setPov(p.pov);
           if (p.selectedMetrics) setSelectedMetrics(new Set(p.selectedMetrics));
           if (p.filters) setFilters(p.filters);
           if (p.sortConfig) setSortConfig(p.sortConfig);
@@ -153,21 +152,20 @@ function UserMenu({ user, login, logout, pov, setPov, filters, setFilters, sortC
     })();
   }, [user]);
 
-  // Persist POV to both localStorage and server
+  // Persist the resolved delegate (rankAuthor/rankRelay) so the search proxy
+  // can resolve the user's own POV (resolvePov reads rankAuthor from prefs).
+  // The PUT merges server-side, so POV — persisted separately by PovContext —
+  // is preserved. POV selection itself no longer lives here.
   useEffect(() => {
-    if (!user || !pov) return;
-    localStorage.setItem(POV_STORAGE_PREFIX + user.pubkey, pov);
-    // Save to server — include rankAuthor so the search proxy can resolve
-    // the user's delegated pubkey instead of falling back to house POV.
-    const prefs = { pov };
-    if (wotStatus.rankAuthor) prefs.rankAuthor = wotStatus.rankAuthor;
+    if (!user || !wotStatus.rankAuthor) return;
+    const prefs = { rankAuthor: wotStatus.rankAuthor };
     if (wotStatus.rankRelay) prefs.rankRelay = wotStatus.rankRelay;
     fetch('/api/user-prefs', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(prefs),
     }).catch(() => {});
-  }, [user, pov, wotStatus.rankAuthor]);
+  }, [user, wotStatus.rankAuthor, wotStatus.rankRelay]);
 
   // ── Helper: count local TAs ──
   async function countLocalTAs(delegatedPubkey) {
@@ -781,7 +779,9 @@ export default function BrainstormSearch() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState(null);
   const [nip05Result, setNip05Result] = useState(null);
-  const [pov, setPov] = useState('nosfabrica');
+  // POV selection now lives in PovContext so search and every tag surface share
+  // one value + one rule (ADR pov-selectable-tag-surfaces/0001).
+  const { selectedPov: pov, setSelectedPov: setPov } = usePov();
   const [myWotReady, setMyWotReady] = useState(false);
   const [showPovPicker, setShowPovPicker] = useState(false);
   // Story 8 / ADR-0007: indicator state for the in-flight POV switch.
@@ -831,9 +831,11 @@ export default function BrainstormSearch() {
       url += `&nip05Lookup=${encodeURIComponent(queryStr.trim())}`;
     }
 
-    url += `&wotPov=${pov === 'user' ? 'user' : 'house'}`;
-    if (pov === 'user' && user?.pubkey) {
-      url += `&userPubkey=${user.pubkey}`;
+    // Shared selected-POV → read-params rule (ADR pov-selectable-tag-surfaces/0001).
+    const povParams = resolvePovReadParams({ pov, userPubkey: user?.pubkey });
+    url += `&wotPov=${povParams.wotPov}`;
+    if (povParams.userPubkey) {
+      url += `&userPubkey=${povParams.userPubkey}`;
     }
 
     // Story 7 / ADR-0006: callers can ask the proxy for a larger tag-hits

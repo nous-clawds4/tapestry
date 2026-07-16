@@ -70,6 +70,12 @@ export default function CurationMethodDialog({
   const [cutoff, setCutoff] = useState(String(init.cutoff ?? 1));
   const [includeScoreInTL, setIncludeScoreInTL] = useState(!!init.includeScoreInTL);
   const [method, setMethod] = useState(init.method || 'nip85:rank');
+  // Story 12 / ADR 0015 — target-typed pinning. Which of the tag's target types
+  // to materialize, and (for notes) which curation. Default: both.
+  const initTypes = init.targetTypes || ['profile', 'note'];
+  const [includeProfiles, setIncludeProfiles] = useState(initTypes.includes('profile'));
+  const [includeNotes, setIncludeNotes] = useState(initTypes.includes('note'));
+  const [noteMethod, setNoteMethod] = useState(init.noteMethod || 'notes:net-endorsed');
   const [observer, setObserver] = useState(
     init.observer && init.observer !== viewerPubkey ? init.observer : ''
   );
@@ -105,6 +111,10 @@ export default function CurationMethodDialog({
     if (!observerR.ok) errs.observer = observerR.error;
     // Method enum check (defensive; the picker prevents bad values).
     if (method !== 'nip85:rank') errs.method = 'Only nip85:rank is supported in v1.';
+    const targetTypes = [];
+    if (includeProfiles) targetTypes.push('profile');
+    if (includeNotes) targetTypes.push('note');
+    if (targetTypes.length === 0) errs.targetTypes = 'Select at least one: profiles or notes.';
     setFieldErrors(errs);
     if (Object.keys(errs).length > 0) return;
 
@@ -113,6 +123,9 @@ export default function CurationMethodDialog({
       method: 'nip85:rank',
       cutoff: cutoffR.value,
       includeScoreInTL: !!includeScoreInTL,
+      // Story 12 / ADR 0015
+      targetTypes,
+      noteMethod,
     };
 
     setSubmitting(true);
@@ -250,6 +263,52 @@ export default function CurationMethodDialog({
             {fieldErrors.method && (
               <p className="pcd-error" role="alert">{fieldErrors.method}</p>
             )}
+          </div>
+
+          {/* Story 12 / ADR 0015 — target-type selection. A tag can span both
+              profiles and notes; choose which to snapshot. Profiles → a kind-30000
+              follow set; notes → a kind-30003 bookmark set. */}
+          <div className="pcd-field">
+            <span className="pcd-label">Include</span>
+            <label className="pcd-toggle">
+              <input
+                type="checkbox"
+                checked={includeProfiles}
+                onChange={(e) => setIncludeProfiles(e.target.checked)}
+                disabled={submitting}
+              />
+              <span>Profiles → follow set (kind-30000)</span>
+            </label>
+            <label className="pcd-toggle">
+              <input
+                type="checkbox"
+                checked={includeNotes}
+                onChange={(e) => setIncludeNotes(e.target.checked)}
+                disabled={submitting}
+              />
+              <span>Notes → bookmark set (kind-30003)</span>
+            </label>
+            {fieldErrors.targetTypes && (
+              <p className="pcd-error" role="alert">{fieldErrors.targetTypes}</p>
+            )}
+            {includeNotes && (
+              <div className="pcd-note-method">
+                <label htmlFor="pcd-note-method" className="pcd-label">Note curation</label>
+                <select
+                  id="pcd-note-method"
+                  className="pcd-select"
+                  value={noteMethod}
+                  onChange={(e) => setNoteMethod(e.target.value)}
+                  disabled={submitting}
+                >
+                  <option value="notes:net-endorsed">Net-endorsed (applied &gt; disputed), recent first</option>
+                  <option value="notes:most-applied">Most-applied (by application count)</option>
+                </select>
+              </div>
+            )}
+            <p className="pcd-helper">
+              Only target types the tag actually has are published; an empty set for a type is skipped.
+            </p>
           </div>
 
           {/* Story 17 / ADR 0014 Decision 8 — Advanced (observer override)

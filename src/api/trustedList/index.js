@@ -3,7 +3,7 @@
  *
  * POST /api/trusted-list/publish
  *   Body: {
- *     kind: 30392 | 30393,
+ *     kind: 30392 | 30393 | 30394 | 30395,  // p / e / a / i members (protocols/drafts/trusted-lists.md)
  *     dTag: string,
  *     title: string,
  *     metric?: string,
@@ -146,6 +146,10 @@ async function buildAndPublishTL({ kind, dTag, title, metric, items, extraTags =
       else if (item.score != null) eTag.push('');
       if (item.score != null) eTag.push(String(item.score));
       tags.push(eTag);
+    } else if (item.tag === 'a') {
+      // a-coordinate member (39999:<author>:<slug>) — the applicability lists
+      // reference tags by stable a-coordinate (tag-applicability/0001).
+      tags.push(['a', item.value]);
     }
   }
 
@@ -246,6 +250,40 @@ async function handleRefreshOnePinnedTag(req, res) {
     console.error('trusted-list/refresh-pinned-tag error:', err);
     return res.status(500).json({ success: false, error: err.message });
   }
+}
+
+/* ── tag-applicability/0001: derive + publish the two applicability lists ── */
+async function handleRefreshApplicabilityLists(req, res) {
+  // Loopback-only: triggers a TA-signed publish (same posture as refresh-all-pinned-tags).
+  // Story 1 exposes the manual trigger; the schedule is Story 2.
+  if (!isLoopbackRequest(req)) {
+    return res.status(403).json({ success: false, error: 'loopback only' });
+  }
+  try {
+    const { refreshApplicabilityLists } = require('./refreshApplicabilityLists');
+    const result = await refreshApplicabilityLists();
+    return res.json({ success: true, lists: result.lists });
+  } catch (err) {
+    console.error('trusted-list/refresh-applicability-lists error:', err);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+}
+
+// The debounced applicability-refresh scheduler singleton (ADR tag-applicability/0003). The client
+// fires notify-applicability on every tag mutation; this coalesces the bursts into one diff-guarded
+// republish. Lazy require of refreshApplicabilityLists avoids a load-time cycle.
+const { createApplicabilityScheduler } = require('./applicabilityScheduler');
+const applicabilityScheduler = createApplicabilityScheduler({
+  refresh: () => require('./refreshApplicabilityLists').refreshApplicabilityLists(),
+});
+
+// User-authed (like refresh-pinned-tag): a logged-in client notifies after creating/applying a tag.
+// Fire-and-forget on the client; here we just schedule the debounced refresh and return 202.
+async function handleNotifyApplicability(req, res) {
+  const sessionPubkey = requireAuth(req, res);
+  if (!sessionPubkey) return;
+  applicabilityScheduler.schedule();
+  return res.status(202).json({ success: true, scheduled: true });
 }
 
 async function handleRefreshForViewer(req, res) {
@@ -429,6 +467,8 @@ function register(app) {
   app.post('/api/trusted-list/refresh-all-pinned-tags', handleRefreshAllPinnedTags);
   app.post('/api/trusted-list/refresh-pinned-tag', handleRefreshOnePinnedTag);
   app.post('/api/trusted-list/refresh-pinned-tags-for-viewer', handleRefreshForViewer);
+  app.post('/api/trusted-list/refresh-applicability-lists', handleRefreshApplicabilityLists);
+  app.post('/api/trusted-list/notify-applicability', handleNotifyApplicability);
   app.post('/api/trusted-list/prepare-nip51-export', handlePrepareNip51Export);
 }
 

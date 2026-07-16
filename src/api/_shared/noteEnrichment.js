@@ -7,7 +7,8 @@
  *
  *     { id, pubkey, createdAt, content,
  *       author:   { displayName, avatar },              // from local kind-0
- *       mentions: { <pubkey>: <displayName> } }          // resolved nostr:npub/nprofile refs
+ *       mentions: { <pubkey>: <displayName> },           // resolved nostr:npub/nprofile refs
+ *       isReply:  boolean }                              // NIP-10 flat reply flag (see isReplyNote)
  *
  * Constraints (mirror the feed read path's contract):
  *  - LOCAL only: author + mention profiles come from the injected local kind-0 scan,
@@ -47,6 +48,20 @@ function loadNip19() {
   return _nip19;
 }
 
+/**
+ * NIP-10 flat reply detection (feed-usability Story 1 / ADR feed-usability/0001):
+ * a kind-1 is a reply iff it carries an `e` tag that references another note and is
+ * not a pure mention — root/reply-marked and legacy unmarked `e` tags count;
+ * `mention`-marked `e` tags and quote-only (`q`) notes do not. The tag must carry an
+ * event id (tag[1]) — an id-less `e` tag references nothing. Flat distinction only:
+ * no threading, no parent resolution. This is the ONE home of the rule; read paths
+ * inherit it via enrichNotes and must not grow their own copies.
+ */
+function isReplyNote(tags) {
+  if (!Array.isArray(tags)) return false;
+  return tags.some(t => Array.isArray(t) && t[0] === 'e' && t[1] && t[3] !== 'mention');
+}
+
 // The pubkeys referenced by `nostr:npub…` / `nostr:nprofile…` mentions in a note's
 // text (NIP-21). Undecodable refs are skipped; nsec/event refs are never matched.
 function extractMentionPubkeys(content) {
@@ -72,7 +87,7 @@ function extractMentionPubkeys(content) {
  * Missing author profile ⇒ { displayName: null, avatar: null }. `mentions` includes
  * only refs we can resolve locally (the UI falls back to a truncated npub otherwise).
  *
- * @param {Array} notes - raw kind-1 events ({ id, pubkey, created_at, content })
+ * @param {Array} notes - raw kind-1 events ({ id, pubkey, created_at, content, tags })
  * @param {Function} scanStrfry - local strfry scan: (filter) => events[]
  * @returns {Promise<Array>} enriched items (see module header for the shape)
  */
@@ -119,8 +134,9 @@ async function enrichNotes(notes, scanStrfry) {
         avatar: p ? p.avatar : null,
       },
       mentions,
+      isReply: isReplyNote(n.tags),
     };
   });
 }
 
-module.exports = { enrichNotes, extractMentionPubkeys, PROFILE_LOOKUP_CAP };
+module.exports = { enrichNotes, extractMentionPubkeys, isReplyNote, PROFILE_LOOKUP_CAP };

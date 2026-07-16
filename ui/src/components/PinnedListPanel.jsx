@@ -5,8 +5,10 @@ import CurationMethodDialog from './CurationMethodDialog';
 import { useAuth } from '../context/AuthContext';
 import { useConfig } from '../context/ConfigContext';
 import useTLDetail from '../hooks/useTLDetail';
+import usePinnedNotes from '../hooks/usePinnedNotes';
+import NoteCard from './NoteCard';
 import {
-  pinTag, unpinTag, computeTLDTag,
+  pinTag, unpinTag, computeTLDTag, publishNoteBookmarkSetForPin, computeNoteBookmarkDTag,
   syncPinnedExportsForTag, WELL_KNOWN_FALLBACK_RELAYS,
 } from '../utils/publishTagPin';
 import { copyText } from '../utils/clipboard';
@@ -153,6 +155,37 @@ export default function PinnedListPanel({ tag, viewerPin, onChanged, exportSync 
   }, [user, pinEventId]);
   useEffect(() => { let on = true; (async () => { if (on) await loadPinRow(); })(); return () => { on = false; }; }, [loadPinRow]);
 
+  // Story 12 item #3 — the viewer's pinned NOTE bookmark set (kind-30003) + its
+  // drift vs the live curated set. Curated with the same method the pin used.
+  const noteMethod = pinRow?.curationMethod?.noteMethod
+    || viewerPin?.curationMethod?.noteMethod
+    || 'notes:net-endorsed';
+  const {
+    pinned: pinnedNotes, notes: pinnedNoteItems, drift: noteDrift,
+    loading: pinnedNotesLoading, refetch: refetchPinnedNotes,
+  } = usePinnedNotes(tag, user?.pubkey, noteMethod);
+  const [repinningNotes, setRepinningNotes] = useState(false);
+  // Issue #2 — Profiles|Notes sub-switch inside the Pinned tab (mirrors the
+  // tag-detail default tab), so a big profile list and the note list don't stack.
+  const [pinnedView, setPinnedView] = useState('profiles');
+  // Recompute the note drift each time the Notes sub-tab is opened, so a note
+  // tagged since mount is reflected without a full page refresh.
+  useEffect(() => { if (pinnedView === 'notes') refetchPinnedNotes(); }, [pinnedView, refetchPinnedNotes]);
+  const handleRepinNotes = useCallback(async () => {
+    if (!tag || !user || repinningNotes) return;
+    setRepinningNotes(true);
+    try {
+      await publishNoteBookmarkSetForPin({
+        tag: { authorPubkey: tag.authorPubkey, slug: tag.slug, name: tag.name },
+        viewerPubkey: user.pubkey,
+        noteMethod,
+      });
+      await refetchPinnedNotes();
+    } catch { /* best-effort; drift line stays until it succeeds */ }
+    finally { setRepinningNotes(false); }
+  }, [tag, user, repinningNotes, noteMethod, refetchPinnedNotes]);
+  const noteDriftStale = !!noteDrift && (noteDrift.added > 0 || noteDrift.removed > 0);
+
   // AC-19 — when a tag-page-driven re-export settles ('exporting' →
   // 'idle'/'declined'), refetch so the status line + naddr rows revert to
   // their true (in-sync / stale) state.
@@ -201,6 +234,24 @@ export default function PinnedListPanel({ tag, viewerPin, onChanged, exportSync 
       });
     } catch { return null; }
   }, [dTag, user?.pubkey]);
+
+  // kind-30003 naddr (user-signed note Bookmark Set) — a DIFFERENT d-tag from
+  // the profile lists (`notes-pin-…`, not `tl-pin-…`). Only meaningful once a
+  // note bookmark set has been published (pinnedNotes).
+  const noteBookmarkDTag = useMemo(() => {
+    if (!tag || !user?.pubkey) return null;
+    try { return computeNoteBookmarkDTag({ viewerPubkey: user.pubkey, tagAuthorPubkey: tag.authorPubkey, tagSlug: tag.slug }); }
+    catch { return null; }
+  }, [tag, user?.pubkey]);
+  const naddr30003 = useMemo(() => {
+    if (!noteBookmarkDTag || !user?.pubkey) return null;
+    try {
+      return nip19.naddrEncode({
+        kind: 30003, pubkey: user.pubkey, identifier: noteBookmarkDTag,
+        relays: WELL_KNOWN_FALLBACK_RELAYS,
+      });
+    } catch { return null; }
+  }, [noteBookmarkDTag, user?.pubkey]);
 
   const canManage = !!user && !!pinEventId;
   const nip51 = pinRow?.nip51ExportStatus;
@@ -300,6 +351,8 @@ export default function PinnedListPanel({ tag, viewerPin, onChanged, exportSync 
               followPackStatus={followPack}
               variant="full"
               onExported={handleExported}
+              noteExport={pinnedNotes ? { tag, viewerPubkey: user?.pubkey, noteMethod } : null}
+              onNoteExported={refetchPinnedNotes}
             />
           )}
           {canManage && (
@@ -375,6 +428,15 @@ export default function PinnedListPanel({ tag, viewerPin, onChanged, exportSync 
             help="Others can follow the whole set at once from this address."
           />
         )}
+        {/* Story 12 — the note Bookmark Set row appears once a kind-30003 has
+            been published (i.e. the tag was pinned with notes). */}
+        {pinnedNotes && naddr30003 && (
+          <NaddrRow
+            label="Bookmark Set (naddr)"
+            naddr={naddr30003}
+            help="A NIP-51 bookmark set of the curated notes; open it in any client that supports bookmark lists."
+          />
+        )}
       </dl>
       </details>
 
@@ -388,6 +450,30 @@ export default function PinnedListPanel({ tag, viewerPin, onChanged, exportSync 
         </p>
       )}
 
+      {/* Issue #2 — Profiles|Notes sub-switch. Only shown once a note bookmark
+          set exists; otherwise the panel is profiles-only as before. */}
+      {pinnedNotes && (
+        <div className="bs-tag-view-switch" role="tablist" aria-label="Pinned content">
+          <button
+            type="button" role="tab"
+            aria-selected={pinnedView === 'profiles'}
+            className={`bs-tag-view-switch-btn${pinnedView === 'profiles' ? ' is-active' : ''}`}
+            onClick={() => setPinnedView('profiles')}
+          >
+            Profiles ({members.length})
+          </button>
+          <button
+            type="button" role="tab"
+            aria-selected={pinnedView === 'notes'}
+            className={`bs-tag-view-switch-btn${pinnedView === 'notes' ? ' is-active' : ''}`}
+            onClick={() => setPinnedView('notes')}
+          >
+            Notes ({pinnedNoteItems.length})
+          </button>
+        </div>
+      )}
+
+      <div hidden={!!pinnedNotes && pinnedView !== 'profiles'}>
       <h3 className="bs-pindetail-members-heading">
         Members ({members.length})
       </h3>
@@ -427,6 +513,68 @@ export default function PinnedListPanel({ tag, viewerPin, onChanged, exportSync 
             </li>
           ))}
         </ul>
+      )}
+      </div>
+
+      {/* Story 12 item #3 — the viewer's pinned NOTE bookmark set (kind-30003),
+          in the Notes sub-tab, with a drift indicator vs the live curated set
+          (the note analog of the profile export's diffVsTL). */}
+      {pinnedNotes && (
+        <section className="bs-pinned-notes" hidden={pinnedView !== 'notes'}>
+          <div className="bs-pinned-notes-head">
+            <h4 className="bs-pinned-notes-title">Pinned notes</h4>
+            {/* While (re)computing, show a loading chip rather than the stale
+                verdict — otherwise a just-tagged note reads as "up to date" for
+                the seconds for-tag takes to resolve. */}
+            {pinnedNotesLoading ? (
+              <span className="bs-pinned-notes-drift is-loading">Checking for changes…</span>
+            ) : noteDrift ? (
+              noteDriftStale ? (
+                <span className="bs-pinned-notes-drift is-stale">
+                  {noteDrift.added ? `${noteDrift.added} new` : ''}
+                  {noteDrift.added && noteDrift.removed ? ' · ' : ''}
+                  {noteDrift.removed ? `${noteDrift.removed} removed` : ''} since you pinned
+                </span>
+              ) : (
+                <span className="bs-pinned-notes-drift is-fresh">✓ Up to date</span>
+              )
+            ) : null}
+          </div>
+
+          {!pinnedNotesLoading && noteDriftStale && (
+            <button
+              type="button"
+              className="bs-pinned-notes-update"
+              onClick={handleRepinNotes}
+              disabled={repinningNotes}
+            >
+              {repinningNotes ? 'Updating…' : 'Update pinned notes'}
+            </button>
+          )}
+
+          {pinnedNoteItems.length > 0 ? (
+            <>
+              <ul className="bs-pinned-notes-list">
+                {pinnedNoteItems.map((n) => (
+                  <li key={n.id} className="bs-pinned-notes-item"><NoteCard item={n} /></li>
+                ))}
+              </ul>
+              {/* Honest signal: the snapshot has more notes than resolved — the
+                  rest live on relays we couldn't reach this load, not gone. */}
+              {!pinnedNotesLoading && pinnedNotes.ids.length > pinnedNoteItems.length && (
+                <p className="bs-pinned-notes-unresolved">
+                  <em>Some notes on distant relays may not have resolved…</em>
+                </p>
+              )}
+            </>
+          ) : pinnedNotesLoading ? (
+            <p className="bs-pinned-notes-empty">Loading pinned notes…</p>
+          ) : (
+            <p className="bs-pinned-notes-empty">
+              The notes in this pin are on relays we couldn’t reach this load — try again shortly.
+            </p>
+          )}
+        </section>
       )}
 
       {editing && user && (

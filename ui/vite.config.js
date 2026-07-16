@@ -1,15 +1,36 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import { fileURLToPath, URL } from 'node:url'
+
+// The event-tagging core (src/lib/event-tagging) is a dependency-free CJS tree —
+// the single source of truth for the wire shape + publish sequence (ADR
+// event-tagging/0001, 0005). The UI imports it through this alias so the hook
+// never re-inlines the wire shape. `server.fs.allow: ['..']` lets the dev server
+// read it outside ui/; `build.commonjsOptions.include` lets the prod build
+// transform the CJS tree (it lives outside node_modules). First cross-ui-boundary
+// CJS import — verify the build resolves it via cycle-local.
+const eventTaggingCore = fileURLToPath(new URL('../src/lib/event-tagging', import.meta.url))
 
 export default defineConfig({
   plugins: [react()],
   base: '/',
+  resolve: {
+    alias: {
+      '@tapestry/event-tagging': eventTaggingCore,
+    },
+  },
   build: {
     outDir: '../dist',
     emptyOutDir: true,
+    commonjsOptions: {
+      include: [/src\/lib\/event-tagging/, /node_modules/],
+    },
   },
   server: {
     port: 5173,
+    fs: {
+      allow: ['..'],
+    },
     proxy: {
       '/api': {
         // Local control panel: default `docker compose` maps host :7778 (and :80 via nginx).

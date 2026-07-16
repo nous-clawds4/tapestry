@@ -16,7 +16,7 @@ This NIP defines **tags** (community-creatable categories — "Podcaster is a ta
 A *tagging* is an assertion that a **target** belongs to a tag. The family is organized by target type:
 
 - **`nostr-user-tag`** — targets are **pubkeys**. The deployed instance, and the only member specified in this document.
-- **`nostr-event-tag`** *(planned)* — targets are **events**, beginning with kinds 39998/39999 (DList headers and items).
+- **`nostr-event-tag`** — targets are **events** (kind-1 notes and the addressable kinds 39998/39999, i.e. DList headers and items). Specified in [Event Taggings](./event-taggings.md).
 - **`dlist-tag`** *(envisioned)* — a subset of `nostr-event-tag` for DList objects specifically; an actively desired next step.
 
 This family tree is ratified design direction (the protocol author's, recorded in this epic's story 7); only the deployed instance below is normative. Whether the deployed concept should be *renamed* (e.g. `nostr-user-tag` → `nostr-user-tagging`) is open — and **wire-impactful**, since the concept slug is embedded in `z` handles on user-signed history; renames are concept migrations, never documentation edits. The family's naming and expansion are tracked as worksheet [W10](../worksheet.md#w10--taggings-family-naming--expansion).
@@ -41,6 +41,34 @@ A tag is created as a kind `39999` event joining the deployment's `tag` concept:
 ```
 
 `d` is the tag's slug (e.g. `podcaster`); the content payload mirrors it with the display name and description. The tag event — the **tag-element** — is addressable at `39999:<author>:<slug>` (its *a-coordinate*); anyone may create tags, and tags by different authors with the same slug are distinct elements.
+
+### Applicability hints (optional, additive)
+
+A tag-element MAY carry one or both of two **pubkey-free hint `z` values** recording the target
+context the author created it for (shipped 2026-07-06, tag-applicability epic):
+
+```json
+["z", "tag-for-nostr-pubkey"]   // born in a pubkey-tagging flow
+["z", "tag-for-nostr-event"]    // born in an event-tagging flow
+```
+
+Normative rules:
+
+- **Additive only.** The hint rides *alongside* the concept-membership `z` (which is unchanged and
+  still required); it never replaces it. A tag-element carrying a hint is processed identically by
+  every reader that doesn't understand hints (the strings match no concept-handle pattern).
+- **Hint, never gate.** The hint states the *author's* intent. Readers MUST NOT require it for a tag
+  to function in any context, and MUST NOT treat its absence as "not applicable." The doctrine:
+  *topic is the identity of the Tag; target-type is a property of the Tagging; applicability is a
+  derived, per-POV view.*
+- **The operative applicability source is derived**, not declared: a context's applicable tags =
+  **HINT ∪ USAGE** — tags carrying that context's hint UNION tags *observed applied* to targets of
+  that type. The reference deployment publishes this union as its kind-30394 applicability Trusted
+  Lists (see [Trusted Lists](./trusted-lists.md)); the hint's role is cold-start signal for
+  brand-new, usage-less tags.
+- The strings are the **lowest rung of the z-tag ladder** (human-readable, no pubkey — permitted by
+  the DList NIP). Do NOT compose them from a TA pubkey. A future graduation to a-tag handles is
+  anticipated and will be bridged by a pointer-typed `b` tag; committed direction, not yet wire.
 
 ## Taggings (assertions)
 
@@ -91,9 +119,9 @@ with a content payload mirroring them (`{"tagPinning":{"tagEventId":…,"curatio
 
 Unpinning is a standard NIP-09 kind-`5` deletion of the pin event. Reader semantics are existence-based: a live pin event means pinned; its absence (or deletion) means not pinned.
 
-## Event tagging (planned)
+## Event tagging
 
-Tagging **events** — beginning with kinds 39998/39999, i.e. DList headers and items — is the family's next step (see "The taggings family"). Its wire format is **not yet specified**: target reference form, concept handles, and polarity carriage for event targets are all open until the `nostr-event-tag` design lands. This section exists so the family's direction is visible; nothing here is normative.
+Tagging **events** — beginning with kind-1 notes and the addressable kinds 39998/39999 (DList headers and items) — is the family's `nostr-event-tag` member. Its wire format is specified in **[Event Taggings](./event-taggings.md)**: the target stays in the `e`/`a` slot and the descriptor is referenced indirectly via a `z`-tag pointing at a per-tag *tagging header*. That spec settles, for event targets, the `e`-vs-`a` reference question this document tracks as [W4](../worksheet.md#w4--e-vs-a-for-parent-tag-references) (`a` preferred, `e` allowed).
 
 ## Open questions
 

@@ -343,6 +343,8 @@ export default function BrainstormProfile() {
 
             <ProfileTagsSection targetPubkey={pubkey} viewerPubkey={user?.pubkey} />
 
+            {/* Story 14 — "Tagging Activity" now spans profiles AND notes,
+                intermixed in one collapsed section (AuthoredNotesSection retired). */}
             <AuthoredTaggingSection profilePubkey={pubkey} viewerPubkey={user?.pubkey} />
 
             {/* About */}

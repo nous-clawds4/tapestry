@@ -1230,10 +1230,12 @@ async function handleCreateConcept(req, res) {
       },
     };
 
-    // Merge extra fields from firmware conceptHeader (e.g., x-tapestry)
+    // Merge extra fields from firmware conceptHeader (e.g., x-tapestry).
+    // `headerTags` is excluded here — it is emitted as literal header event tags
+    // below (event-tagging ADR 0003), not folded into the json blob.
     const { conceptHeaderOverrides } = req.body;
     if (conceptHeaderOverrides) {
-      const generated = new Set(['description', 'oNames', 'oSlugs', 'oKeys', 'oTitles']);
+      const generated = new Set(['description', 'oNames', 'oSlugs', 'oKeys', 'oTitles', 'headerTags']);
       for (const [key, value] of Object.entries(conceptHeaderOverrides)) {
         if (!generated.has(key)) {
           headerWord.conceptHeader[key] = value;
@@ -1259,6 +1261,14 @@ async function handleCreateConcept(req, res) {
       ['json', JSON.stringify(headerWord)],
     ];
     if (description) headerTags.push(['description', description.trim()]);
+
+    // event-tagging ADR 0003 — emit a concept's declared literal header tags on the
+    // wire (spec fidelity), e.g. tagging-with-specific-tag's recommended/allowed.
+    // Generic: any firmware concept may declare `headerTags: [[name, ...values], …]`.
+    const declaredHeaderTags = (conceptHeaderOverrides && conceptHeaderOverrides.headerTags) || [];
+    for (const tag of declaredHeaderTags) {
+      if (Array.isArray(tag) && tag.length >= 2 && typeof tag[0] === 'string') headerTags.push(tag);
+    }
 
     const headerEvent = signAndFinalize({ kind: 39998, tags: headerTags, content: '' });
     const headerUuid = `39998:${headerEvent.pubkey}:${headerDTag}`;

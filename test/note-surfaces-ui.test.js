@@ -78,13 +78,15 @@ test('U2: useUserNotes gates on the response `success` flag, sets `error` on fai
 // Story #2 — the profile "Content" section
 // ===========================================================================
 
-test('U3 (#2 AC label): ProfileContentSection exists, uses useUserNotes(pubkey, 1), and is labelled "Content"', () => {
+test('U3 (#2 AC label): ProfileContentSection exists, consumes the content read path, and is labelled "Content"', () => {
   const src = safeRead(CONTENT);
   assert(src.length > 0, 'ui/src/components/ProfileContentSection.jsx does not exist yet — the Implementer must create the Content section (ADR 0002 §Impl).');
   assert(/export\s+default\s+function\s+ProfileContentSection\s*\(\s*\{\s*pubkey/.test(src) || (/ProfileContentSection/.test(src) && /pubkey/.test(src)),
     'ProfileContentSection({ pubkey }) must be the default export.');
-  assert(/useUserNotes\s*\(\s*pubkey\s*,\s*1\s*\)/.test(src),
-    'the Content section must consume the read path at limit 1: useUserNotes(pubkey, 1).');
+  // feed-usability/0003 replaced useUserNotes(pubkey, 1) with the dedicated one-shot
+  // useProfileContent(pubkey) (pinned-note-aware selection lives server-side).
+  assert(/useProfileContent\s*\(\s*pubkey\s*\)/.test(src),
+    'the Content section must consume the pinned-note-aware content read path via useProfileContent(pubkey) (ADR feed-usability/0003).');
   assert(/CONTENT_COPY/.test(src) && /HEADING\s*:\s*['"]Content['"]/.test(src),
     'the section must be labelled exactly "Content" via an exported CONTENT_COPY.HEADING (the operator-chosen label; kind-1 only for now, future-proofed name).');
 });
@@ -95,10 +97,12 @@ test('U4 (#2 AC latest note): the OK branch renders exactly ONE NoteCard for the
   assert(/import\s+NoteCard/.test(src) && /<NoteCard\b[^>]*\bitem=\{/.test(src),
     'the Content section must render the shared <NoteCard item={...} /> (reuse the card, no inline markup, no fork).');
   const body = helperBody(src, ['renderContentBody']);
-  assert(/items\s*\[\s*0\s*\]/.test(body) || /items\?\.\[0\]/.test(body),
-    'the OK branch must render the SINGLE most-recent note (items[0]) — the latest note, not a .map list (#2 AC: no more than one note).');
+  // feed-usability/0003: the read path returns a single `item` (pinned or latest top-level),
+  // so the OK branch renders that one item — still exactly one note, still not a .map list.
+  assert(/\bdata\.item\b/.test(body) || /items\s*\[\s*0\s*\]/.test(body) || /items\?\.\[0\]/.test(body),
+    'the OK branch must render the SINGLE selected note (data.item) — one note, not a .map list (#2/#3 AC: no more than one note).');
   assert(!/\bitems\b[\s\S]{0,16}\.map\s*\(/.test(body),
-    'the Content section must NOT map a list of notes — it shows only the single latest one (#2 AC).');
+    'the Content section must NOT map a list of notes — it shows only the single selected one (#2/#3 AC).');
 });
 
 test('U5 (#2 AC empty state): the empty/defensive branch shows a "no kind-1 events could be located" message, no card', () => {
@@ -177,8 +181,10 @@ test('U11 (#3 AC order): the OK branch maps items in ARRAY ORDER (newest-first f
   assert(src.length > 0, 'BrainstormUserNotes.jsx does not exist yet.');
   const body = helperBody(src, ['renderUserNotesState']);
   assert(/status\s*===?\s*['"]OK['"]/.test(body), "the body helper must branch on status === 'OK' (the populated list).");
-  assert(/\bitems\b[\s\S]{0,40}\.map\s*\(/.test(body) || /\.map\s*\(\s*\(?\s*(it|item|n)\b/.test(body),
-    'the OK branch must render one entry per note via items.map(...) (#3 AC: one entry per note).');
+  // feed-usability/0002 virtualized the notes list: one entry per note via items.map(...) OR
+  // react-virtuoso's itemContent (windowed) — both satisfy "one entry per note".
+  assert(/\bitems\b[\s\S]{0,40}\.map\s*\(/.test(body) || /\.map\s*\(\s*\(?\s*(it|item|n)\b/.test(body) || /itemContent=\{/.test(body),
+    'the OK branch must render one entry per note — via items.map(...) or a virtualized <Virtuoso itemContent> (#3 AC / ADR feed-usability/0002).');
   assert(!/\bitems\b[\s\S]{0,8}\.sort\s*\(/.test(body) && !/\.sort\s*\([\s\S]{0,40}createdAt/.test(src),
     'the page must render items in the array order the read path delivered (already newest-first); it must NOT re-sort (re-derivation; ADR §No re-derivation).');
 });
@@ -265,8 +271,9 @@ test('R1: App.jsx still registers the existing /user/:pubkey sub-routes — /not
 test('R2: NoteCard is REUSED AS-IS — it still takes a single { item } prop and renders a bsp-note-card (no variant fork)', () => {
   const src = safeRead(NOTE_CARD);
   assert(src.length > 0, 'ui/src/components/NoteCard.jsx missing — unexpected.');
-  assert(/export\s+default\s+function\s+NoteCard\s*\(\s*\{\s*item\s*\}/.test(src),
-    'NoteCard must keep its single-{ item } presentational contract — ADR 0002 chose to reuse it as-is (no variant prop added this story).');
+  assert(/export\s+default\s+function\s+NoteCard\s*\(\s*\{\s*item\s*[,}]/.test(src),
+    'NoteCard must keep its item-first presentational contract — ADR 0002 chose to reuse it as-is (no variant fork; ' +
+    'optional defaulted props like showTagScores (tag surfaces, joined at the 2026-07-15 feat/tags↔staging merge) are additive and allowed).');
   assert(/bsp-note-card/.test(src), 'NoteCard must still render the shared bsp-note-card markup (unchanged).');
 });
 

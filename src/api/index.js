@@ -84,6 +84,7 @@ const { handleFetchExternalReactions } = require('./reactions/fetchReactions.js'
 const { handleFetchExternalEvents } = require('./relay/fetchEvents.js');
 const { handleGetFeed } = require('./feed/feedReadPath.js');
 const { handleGetUserNotes } = require('./notes/userNotesReadPath.js');
+const { handleGetProfileContent } = require('./notes/profileContentReadPath.js');
 const { handleGetEvent } = require('./event/eventReadPath.js');
 const { requireOwner, handleGetSettings, handleGetDefaults, handleGetOverrides, handleUpdateSettings, handleResetSetting } = require('./settings/settingsApi.js');
 const { handleGetGrapevinePreferences, handleUpdateGrapevinePreferences } = require('./settings/grapevinePrefApi.js');
@@ -312,6 +313,9 @@ async function register(app) {
     // By-author notes read path (public, read-only) — Story note-surfaces #1, ADR note-surfaces/0001
     app.get('/api/user/:pubkey/notes', handleGetUserNotes);
 
+    // Profile "Content" card read path (public, read-only) — Story feed-usability #3, ADR feed-usability/0003
+    app.get('/api/user/:pubkey/content', handleGetProfileContent);
+
     // Event read path (public, read-only) — Story event-page #1, ADR event-page/0001
     app.get('/api/event', handleGetEvent);
 
@@ -528,6 +532,10 @@ async function register(app) {
     const relaysApi = require('./relays');
     app.get('/api/relays', relaysApi.handleGetRelays);
 
+    // ── Public publish policy (external-publish guard; event-tagging ADR 0002) ──
+    const publishPolicyApi = require('./publish-policy');
+    app.get('/api/publish-policy', publishPolicyApi.handleGetPublishPolicy);
+
     // ── Tapestry Property API ──
     const { registerPropertyRoutes } = require('./property');
     registerPropertyRoutes(app);
@@ -539,6 +547,17 @@ async function register(app) {
     // ── Profile Tags API (nostr-user-tag read + per-POV WoT scoring) ──
     const { registerProfileTagsRoutes } = require('./profile-tags');
     registerProfileTagsRoutes(app);
+
+    // ── Event-tagging read API (event-tagging epic, ADR 0004) ──
+    const eventTags = require('./event-tags');
+    app.get('/api/event-tags/for-event', eventTags.handleForEvent);
+    app.get('/api/event-tags/headers-for-tag', eventTags.handleHeadersForTag);
+    app.get('/api/event-tags/for-tag', eventTags.handleForTag);
+    // Unified tag directory across all tagging family members (Story 9 / ADR 0009).
+    app.get('/api/tags/index', eventTags.handleTagIndex);
+    // Type-aware picker's live HINT ∪ USAGE context list (tag-applicability #2 / ADR 0002).
+    app.get('/api/tags/applicability', eventTags.handleTagApplicability);
+    app.get('/api/event-tags/notes-by-author', eventTags.handleNotesByAuthor);
 
     // ── Tapestry I/O (Import/Export) API ──
     const { registerIORoutes } = require('./io');

@@ -1206,6 +1206,262 @@ Small future-readiness items the 2026-06-18 multi-lens review (`reviews/live-fee
 
 ---
 
+## 2026-06-30 — Feature (deferred): surface *unverifiable* event-taggings in the note UI
+
+**Raw request (verbatim):**
+
+> make sure we log the unverifiable tagging feature though so we don't lose it.
+
+**Context:** Deferred out of event-tagging **Story 6** (`stories/event-tagging/6-event-tag-affordance-on-note-surfaces.md`, PO resolution 2026-06-30). Story 6's note affordance displays only the **counted** tag set. The Story-4 read API (`/api/event-tags/for-event`) already returns a distinct **`unverifiable`** bucket — taggings whose descriptor header can't be locally resolved (per the protocol, these are *surfaced, not dropped*: see `classifyEventTaggings` and `protocols/drafts/event-taggings.md`). This entry is the follow-up to give that bucket a UI treatment.
+
+**Scope (rough):** decide and build how an unverifiable tagging appears on a note (distinct affordance/label, e.g. "tag whose header isn't resolvable from here"), distinct from counted tags and from illegitimate (excluded) ones. Read layer already provides the data — this is presentation + product decision only. Honors the same local-only build invariant while the epic's invariant is in force.
+
+**Classification:** Feature (UI). Belongs to the **event-tagging** epic, after Story 6.
+**Phase path:** Planning → (Design) → Architecture → Test Design → Implementation → Review when promoted. Not yet planned.
+
+---
+
+## 2026-06-30 — Feature: tag detail page — "Notes tagged with this tag" (event-tagging Story 8)
+
+**Raw request (verbatim):**
+
+> when i click the tag to go to the tag page, it seems like it's still configured to show only profiles with that tag. maybe we need to add view options to this page to show taggings for profiles vs taggings for kind-1?
+
+**Context:** Surfaced during Story-6 browser testing (the event-tag affordance on note cards). Clicking an event-tag chip navigates to the tag detail page (`ui/src/pages/Tag.jsx`), which fetches `/api/profile-tags/profiles-tagged` — it is the **pubkey-tagging** page and lists only **profiles** tagged with the tag. It has no notion of kind-1 **event-taggings**, so a note you just tagged doesn't appear there. (Confirmed NOT a POV artifact — the page never queries for note-taggings at all.)
+
+**Scope (rough):** Give the tag detail page a **Notes** view alongside **Profiles** (a toggle / two sections) showing the kind-1 notes tagged with this tag, POV-filtered like the rest of the epic. Two parts:
+1. **Read endpoint (new):** "notes tagged with this tag" — the **forward** discovery Story 4 did not build (it built `for-event` = tags ON a note, and `headers-for-tag`). The core primitive already exists: `filterTaggingsUsingTag({headerAuthorPubkey, slug})` (`src/lib/event-tagging/filters.js:17`, `#z` over the tagging-header coord). Needs a handler that scans it, resolves the target note ids, dedupes, and POV-filters (reuse `classifyEventTaggings` / the trust predicate where it fits). Likely also wants the viewer's-own `mine` channel (Story 7) for consistency.
+2. **UI (Tag.jsx):** a Profiles | Notes view; the Notes list renders the shared `NoteCard` (so each note also carries the Story-6 affordance).
+
+**Belongs to:** the **event-tagging** epic, after Stories 6 + 7. Honors the local-only build invariant while in force.
+**Classification:** Feature (read API + UI). **Phase path:** Planning → Architecture → Test Design → Implementation → Review when promoted. Not yet planned.
+
+**Related decision (deferred):** the event-tag chip currently links to the (profiles-only) tag page; left as-is for now since it becomes correct once this Notes view lands.
+
+---
+
+## 2026-06-30 — Scaling: for-tag pagination + kill the per-note read fan-out (event-tagging follow-up)
+
+**Raw request (verbatim):**
+
+> if 10,000 notes were tagged with drivechain … what would this UI do? choke to death? does the relay-side query work properly? what about the display? paginated?
+
+**Context:** Story 8's `/api/event-tags/for-tag` now caps to the **most-recently-tagged 50 notes** (`NOTES_CAP`, returns `total`/`truncated`) — a defensive bound that prevents the unbounded relay `ids` fetch (relays reject/time-out huge filters → silent empty) and the unbounded client render. But it's a **hard cap with no pagination**, and the deeper cost remains.
+
+**Scope (rough), two parts:**
+1. **Pagination / "load more"** for `for-tag` (cursor or offset by tagging-recency) so a tag with >50 notes is fully browsable, not silently capped.
+2. **Kill the per-note read fan-out** — every rendered `NoteCard` mounts Story-6's `NoteTags`, which fires its own `/api/event-tags/for-event` + `/api/profile-tags/available-tags`. So N cards → ~2N requests. Needs a **batch `for-events` read** (already noted as a Story-6 follow-up: lift `available-tags` to a shared cache + a batched tags-for-many-notes endpoint) so a list of notes doesn't melt the browser/server. This batch read benefits the feed and all note-list surfaces, not just the tag page.
+
+**Also consider:** the local strfry tagging scan (`filterTaggingsUsingTag`) has no `LIMIT` — bounded only by the 20MB exec buffer (~30-40k events). A very hot tag could overflow it → add a scan limit / streaming.
+
+**Belongs to:** the **event-tagging** epic, performance hardening. Not yet planned.
+
+---
+
+## 2026-07-06 — POV-selectable tag surfaces (event-tags/taggings/applicability are house-POV-only)
+
+**Raw request (verbatim, operator, paraphrasing a design discussion):**
+
+> is tags.b.w's house POV going to become LFO's, or will LFO be one of several POVs? … we do plan on
+> having them as one of several PoVs. that is central to how brainstorm works — you choose from a few
+> offered PoVs or you use your own (by logging in, becoming a customer, and having it calculated).
+
+**The gap (from a code audit, 2026-07-06):** Brainstorm's core model is *pick from a few offered POVs, or
+your own*. **Search already implements this** — `UserMenu` offers `house` / `nosfabrica` / `user`,
+persists it (`bs_pov_*` localStorage), and threads it into the search reads (`BrainstormSearch.jsx:834`
+→ `&wotPov=…`). **The tag surfaces do not consume it — they are hardcoded to house POV:**
+
+- `useEventTags` → `/api/event-tags/for-event` and the tag pages → `/api/event-tags/for-tag` pass only
+  `viewerPubkey` (which feeds the trust-*unfiltered* `mine` channel), **not** `wotPov`/`userPubkey` — so
+  every in-app tag read runs under **house** POV. There is no POV selector on the tag surfaces.
+- `/api/tags/applicability` + `useTagApplicability` (the "which tags are for events" picker) are
+  **house-POV hardcoded** (`computeTagUsageRows({wotPov:'house'})`).
+- **Footgun:** `buildTrustPredicate` (event-tags/index.js) falls back to `isAsserterTrusted = () => true`
+  — i.e. **counts everyone, no filtering** — whenever the POV lacks a `povSuffix` *or* a finite `minRank`.
+  So a POV that's *selected but not provisioned* silently shows all authors, rather than hiding non-members.
+
+The **backend read API is already POV-parameterized** (`for-tag`/`for-event`/`tags/index` accept
+`wotPov=user&userPubkey=…`) — the gap is (a) the UI not threading a selectable POV into the tag reads,
+(b) applicability being house-hardcoded, and (c) the silent unprovisioned-POV fallback.
+
+**Why it matters:** without this, "select the LFO POV → only LFO members' taggings show" does not work —
+the tag UI always shows house-POV-counted taggings, and the applicability/picker is always house. This
+blocks the multi-POV story for tags (and the LFO integration — see
+`docs/INTEGRATION_GUIDE_event-tagging-for-external-clients.md`, which currently routes Gaby around it via
+client-side filtering).
+
+**Scope (rough), likely an epic:**
+1. **Thread the selected POV** (the existing `UserMenu`/`pov` selection) into the tag reads —
+   `useEventTags`, the `for-tag` tag pages, `useTagIndex`, etc. — passing `wotPov`/`userPubkey` (or the
+   resolved delegated pubkey), mirroring `BrainstormSearch.jsx`.
+2. **Make `/api/tags/applicability` POV-aware** (accept a POV; `useTagApplicability` passes it) — pending
+   the design question below.
+3. **Provisioning + fallback UX:** a selected-but-unprovisioned POV must show an explicit
+   "computing/unavailable" state, **not** silently count everyone (fix/guard the `buildTrustPredicate`
+   fallback for the selectable-POV case).
+4. **Register "offered POVs"** (e.g. add an LFO POV to the offered set) and ensure its `wot_rank_<suffix>`
+   columns are computed on the instance — ties to the Trust-Determination / customer-POV provisioning
+   (incl. the "member-TL-as-scoring-method" path, currently unwired).
+
+**Open design questions:**
+- **Is "which tags are for events" a per-POV view or a global vocabulary?** POV-first (invariant #1) argues
+  per-POV (only my trusted authors' usage counts); cold-start/discovery argues for a broad global fallback.
+  Affects whether the published applicability TL (kind-30394, currently one house pair) must multiply per
+  POV (denormalization — weigh against invariant #3, prefer the live per-POV endpoint).
+- **How are offered POVs provisioned** on a shared instance (added to the selector + scores computed)?
+- Interaction with the note/pin TLs (already per-observer-POV) — keep consistent.
+
+**Related:** POV-first architecture invariants (CLAUDE.md); the LFO integration guide; the unwired
+"member-TL → LFO POV Trust Determination" path.
+
+**Classification:** Feature (probably an epic). **Not yet planned.**
+
+## 2026-07-09 — NIP-85 is the POV interop layer; the per-customer pipeline already exists (external-POV provisioning, LFO)
+
+**Raw request (operator):** during pov-selectable-tag-surfaces #1 architecture, asked "when LFO builds
+their tag-feed app against our API/relay, can they use a POV we calculate and maintain for them?" —
+then: "i forgot about Trusted Assertions NIP-85 — those are the interop. … it is of central importance
+to all PoV and WoT work!"
+
+**The blind spot (now corrected):** we'd been reasoning about POV access as if the HTTP API were the
+only channel and "the relay carries no POV." Wrong once NIP-85 is in view: **a POV's computed trust is
+itself published as signed nostr events**, so the relay IS the POV interop surface. NIP-85 recap:
+
+- **kind 30382/30383/30384/30385** — Trusted Assertions about a pubkey / event / addressable /
+  external-id; addressable, `["d","<subject>"]`, scores as tags (e.g. `["rank","0..100"]`).
+- **kind 10040** — the user's designation: `["30382:rank","<service_pubkey>","<relay_hint>"]` = "for
+  this assertion type I trust this authority." Portable, nostr-native POV *choice*.
+- **Consumer flow:** read 10040 → fetch the authority's 3038x from the hinted relay → apply
+  client-side. Fully decentralized; no proprietary API needed. Authorities use a **distinct service
+  key per algorithm/personalization**.
+- Our Trusted Lists (30392–30395, `protocols/drafts/trusted-lists.md`) are the deliberate **+10
+  aggregate analog** — same interop layer, list-shaped.
+
+**What ALREADY exists in this repo (verified 2026-07-09 — more turnkey than assumed):**
+
+1. **Owner NIP-85 publisher** — `src/algos/nip85/publishNip85.sh` publishes the owner POV's WoT as
+   kind-30382 to the relay.
+2. **Per-customer pipeline** (the "POV we calculate and maintain for them" machine):
+   - onboarding: `src/api/auth/signUpNewCustomer.js`, `src/api/customers/commands/add-new-customer.js`
+   - per-customer **service key** auto-created (`src/algos/customers/nip85/relayPubkey/…`,
+     `CUSTOMER_<pk>_RELAY_*` in brainstorm.conf) — exactly NIP-85's per-personalization key
+   - per-customer score computation: `src/algos/customers/updateAllScoresForSingleCustomer.sh`
+   - **interop publish:** `src/algos/customers/nip85/publish_kind30382.js` — 30382s signed by the
+     customer's service key → relay
+   - **API-path columns:** `src/algos/customers/nip85/loadScoresIntoMeilisearch.js` — reads those
+     30382s back from strfry and loads `wot_rank_<suffix>` where **suffix = service-key
+     pubkey.slice(0,8)** (NOT the customer pubkey)
+   - **maintenance:** `src/api/customer-schedule/index.js` — per-customer recurring processing
+   - **kind-10040 export command:** `src/api/export/nip85/commands/kind10040.js`
+3. **Tag TLs are already observer-POV-parameterized** — `refreshPinnedTags` computes 30392/30393
+   under `resolvePov({wotPov:'user', userPubkey: observer})`.
+
+**The ACTUAL remaining gaps (narrow; verified):**
+
+- **(a) `resolvePov` user-prefs wiring for API consumers.** The HTTP path
+  (`wotPov=user&userPubkey=<X>`) resolves via `/var/lib/brainstorm/user-prefs/<X>.json` →
+  `rankAuthor`. Customer signup does **not** appear to write `rankAuthor` (only the settings/prefs
+  APIs do), so an onboarded customer's POV may be reachable via NIP-85/Meili columns but not yet via
+  `wotPov=user&userPubkey=<customer>` until their prefs file carries `rankAuthor=<service pubkey>`
+  (+ a `filters.rank.min`). Small wiring; verify + close.
+- **(b) No named-POV branch in `resolvePov`** (`wotPov=lfo` etc.) — named→delegate map; ergonomics
+  only, since (a) covers it with a hex param.
+- **(c) Offered-POV registry in the UI selector** — house/nosfabrica/user are the only choices; no
+  way to *offer* a provisioned customer POV in-app (ties to pov-selectable-tag-surfaces epic's
+  PovContext, which was designed to accept new named values without consumer rework).
+- **(d) Turnkey-ness on tags.brainstorm.world unverified** — the pipeline exists in code; whether
+  customer processing is enabled/exercised on that deployment is an operational check (first task of
+  the epic: onboard a test customer end-to-end and watch 30382s + Meili columns appear).
+- **(e) member-TL-as-scoring-method** for a group POV like LFO (WoT seeded from a membership list
+  rather than a follow graph) — known-unwired path, separate design question.
+- **(f) kind-10040 designation for customers** — command exists; wire into onboarding so the POV
+  choice is discoverable/portable.
+
+**The LFO answer this yields (two channels, same computed scores):**
+- **NIP-85 channel (preferred, decentralized):** onboard LFO as a customer → 30382s under LFO's
+  service key on `wss://tags.brainstorm.world/relay` → their app reads + applies client-side; plus
+  the pinned-tag TLs (30392/30393) published under LFO-as-observer for ready-made per-POV tag
+  membership. Supersedes the integration guide's "filter client-side against a member list" workaround
+  (`docs/INTEGRATION_GUIDE_event-tagging-for-external-clients.md` — update it when this ships).
+- **HTTP-API channel (convenience):** `?wotPov=user&userPubkey=<LFO>` once gap (a) is closed.
+
+**Why it matters (operator):** NIP-85 is *"of central importance to all PoV and WoT work"* — every
+future POV feature should treat published Trusted Assertions/Lists as the interop contract, with the
+HTTP API as convenience on top. Decentralized-first (CLAUDE.md invariant #2) applied to trust itself.
+
+**Related:** OPEN #17 / `pov-selectable-tag-surfaces` epic (in-app selection threading; its ADR 0001
+documents that `resolvePov` is two-branch and its PovContext anticipates named POVs); the
+2026-07-06 intake entry above; `protocols/drafts/trusted-lists.md`; the LFO integration guide.
+
+**Classification:** Epic ("external/named POV provisioning via NIP-85" — mostly operate-the-existing-
+machine + close gaps a–f). **Not yet planned.**
+
+## 2026-07-09 — Event-tags in search: notes as a search result type (post-POV-threading epic)
+
+**Raw request (operator, verbatim):**
+
+> Our current event tagging feature branch doesn't touch meili search. I'm realizing this is a huge
+> gap. … essentially the event-tag tags should show up in the search. And clicking them would have the
+> same result as clicking a profile tag. That is, you go to the tag page for the event tag (and see the
+> notes). But also, what we'll have to figure out is if it's feasible to also surface the kind one
+> notes that were tagged with that tag. Similar to how we show profiles if you search a tag name, we
+> show the profile in the search result with the tag icon visible, so you understand why it's
+> appearing. We could potentially do something similar with kind ones, but we don't have a local cache
+> of those notes…
+
+**Verified current state (2026-07-09) — parts of this already exist:**
+
+1. **Tag elements already surface in search, both stacks.** `findTagsByNameSubstring` scans the
+   SHARED tag catalogue (`#z` = tag; event-tags and profile-tags mint into the same catalogue), and
+   the meili proxy exposes them as `tagHits` (Story 7 / ADR-0006, gated by the search result-type
+   controls). So an event-created tag should already appear as a tag result → **verify in planning**,
+   don't rebuild.
+2. **Clicking a tag → tag page with notes already works.** `ui/src/pages/Tag.jsx` + `useNotesForTag`
+   (event-tagging epic) show the tagged notes on the tag page.
+3. **The real gap: notes as a search RESULT type.** `computeTagMatches` decorates/appends PROFILE
+   hits from `nostr-user-tag` assertions only. There is no note analog: searching a tag name never
+   surfaces the kind-1 notes tagged with it. This is the new work.
+4. **"We don't have a local cache of those notes" is only half-true.** Taggings (kind-39999) are
+   always in local strfry. And the `for-tag` read path ALREADY hydrates note content local-first with
+   an external fallback: `realScanStrfry({kinds:[1], ids})` → for the missing ids, query the
+   general-purpose relays PLUS the NIP-01 relay hints carried on the taggings' `["e", id, relay]`
+   tags (`src/api/event-tags/index.js:360-395`; view-time, nothing persisted). The hydration
+   machinery exists; the question is only where it may run.
+
+**The design tension (the "feasible?" question):** the ratified **SEARCH-IS-LOCAL** doctrine
+(tag-federation ADR 0001; re-affirmed in profile-tag-hardening 0001) forbids live remote round-trips
+on the search hot path. Options to weigh in planning:
+
+- **(a) Hoard tagged notes into local strfry** — event-driven: when a note-tagging arrives, fetch the
+  referenced kind-1 (id + relay hint are ON the tagging) and store it locally. Bounded corpus (only
+  tagged notes), decentralized-clean (public notes), mirrors the existing "federated tags become
+  searchable by hoarding" precedent, and search then hydrates local-only. Could ride the same
+  event-driven trigger as the applicability republish (tag-applicability #4).
+- **(b) Unhydrated note hits** — search returns note ids + tag/count metadata; the client hydrates
+  lazily off the hot path (the tag page already does this pattern).
+- **(c) Local-only hydration** — surface only notes already in local strfry; a "see all on the tag
+  page" affordance covers the rest. Degrades gracefully with (a) over time.
+
+**Explicitly bigger, separate call:** indexing note CONTENT into Meili (full-text note search, per-POV
+columns on notes). Not needed for the ask (tag-NAME → tagged notes); park unless planning decides
+otherwise.
+
+**POV note:** the notes result type must be POV-filtered like `computeTagMatches` is (trust predicate
+over the taggings' authors) — and since this lands AFTER the pov-selectable-tag-surfaces epic, it
+should honor the SELECTED POV (PovContext) from day one, not the login-binary pattern.
+
+**UX sketch (operator):** note results appear like tag-matched profile results do — with the tag icon
+visible so you understand why the note is in the results.
+
+**Sequencing:** after the current `pov-selectable-tag-surfaces` epic. Related: the search-API
+result-type controls epic (in flight — "notes" becomes a third gated result type behind its
+controls); event-tagging epic's for-tag read; SEARCH-IS-LOCAL doctrine; OPEN #17.
+
+**Classification:** Epic (planning session with operator required — the (a)/(b)/(c) hydration call is
+the crux). **Not yet planned.**
+
+---
+
 ## 2026-07-02 — Provenance backfill: Assistant Profile feature (shipped 2026-05-24 outside the harness)
 
 **RESOLVED** — provenance record only; the feature shipped and works. *(entry added 2026-07-02, harness sweep — see docs/HARNESS_REVIEW_HANDOFF_2026-07-02.md §4.3.)*

@@ -33,17 +33,32 @@ export default function useTLDetail(dTag) {
           authors: [taPubkey],
           '#d': [dTag],
         });
-        const resp = await fetch(`/api/strfry/scan?filter=${encodeURIComponent(filter)}`);
-        const data = await resp.json();
-        if (cancelled) return;
-        if (!data?.success || !data.events?.length) {
+        // Retry on empty: right after a pin, the TA-signed kind-30392 TL is
+        // materialized by `refresh-pinned-tag` and then indexed — the panel can
+        // read before it lands. Poll a few times (staying in `loading`, not the
+        // "not found" error) so the first view resolves instead of flashing an
+        // error the user has to refresh away.
+        const MAX_ATTEMPTS = 5;
+        const RETRY_MS = 700;
+        let ev = null;
+        for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+          const resp = await fetch(`/api/strfry/scan?filter=${encodeURIComponent(filter)}`);
+          const data = await resp.json();
+          if (cancelled) return;
+          if (data?.success && data.events?.length) {
+            ev = [...data.events].sort((a, b) => b.created_at - a.created_at)[0];
+            break;
+          }
+          if (attempt < MAX_ATTEMPTS - 1) {
+            await new Promise((r) => setTimeout(r, RETRY_MS));
+            if (cancelled) return;
+          }
+        }
+        if (!ev) {
           setError('Trusted List not found');
           setLoading(false);
           return;
         }
-        // Latest by created_at.
-        const evs = [...data.events].sort((a, b) => b.created_at - a.created_at);
-        const ev = evs[0];
 
         const findTag = (k) => (ev.tags || []).find((t) => t[0] === k);
         const sourceTag = findTag('source-tag');

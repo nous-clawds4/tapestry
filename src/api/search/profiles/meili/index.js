@@ -18,7 +18,7 @@ const { computeTagMatches, findTagsByNameSubstring, meiliFetchProfilesByPubkey }
 // pass different `tagLimit` values; the server clamps to TAG_HITS_LIMIT_MAX.
 const TAG_HITS_LIMIT_DEFAULT = 5;
 const TAG_HITS_LIMIT_MAX = 50;
-const { resolvePov } = require('../../../_shared/pov');
+const { resolvePovWithStatus } = require('../../../_shared/povStatus');
 const { getSettings } = require('../../../../config/settings');
 
 /**
@@ -139,7 +139,7 @@ async function handleMeiliSearchProfiles(req, res) {
       : Promise.resolve(null);
 
     // ── POV resolution (extracted to src/api/_shared/pov.js per ADR-0002) ──
-    const { povSuffix, filters, sort } = resolvePov({
+    const { povSuffix, filters, sort, minRank, povResolution } = await resolvePovWithStatus({
       wotPov: req.query.wotPov || 'house',
       userPubkey: req.query.userPubkey || null,
     });
@@ -181,12 +181,14 @@ async function handleMeiliSearchProfiles(req, res) {
     // returns all positive assertions.
     // Tag-match decorates/appends PROFILE hits because of tag assertions, so
     // it needs both types enabled; tag-hits (tag elements) needs only tags.
-    const minRankFromFilters = filters?.rank?.min;
+    // Use the threshold resolvePov already computed (reads the correct
+    // rank-cutoff key) so tag-match filters consistently with the tag stacks —
+    // Story 3. (Previously re-derived a phantom key that nothing writes → null.)
     const tagMatchPromise = (resultTypes.tags && resultTypes.profiles)
       ? computeTagMatches({
         q: q.trim(),
         povSuffix,
-        minRank: typeof minRankFromFilters === 'number' ? minRankFromFilters : null,
+        minRank: Number.isFinite(minRank) ? minRank : null,
       }).catch((err) => {
         console.error(`[meili-proxy] tag-match failed: ${err.message}`);
         return { matches: [] };
@@ -278,6 +280,7 @@ async function handleMeiliSearchProfiles(req, res) {
     const responsePayload = {
       success: true,
       povSuffix,
+      povResolution,
       nip05Result,
       _wotCount: wotCount,
       _filtered: !!(filters && povSuffix),

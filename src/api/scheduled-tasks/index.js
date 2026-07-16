@@ -39,19 +39,35 @@ const EVENTS_PATH = '/var/log/brainstorm/taskQueue/events.jsonl';
 // Seeded only when the config file does not yet exist — never resurrected
 // after a user deletes entries.
 function freshInstallEntries(registry) {
-  const taskId = 'refreshPinnedTagTLs';
-  const label = (registry && registry.tasks && registry.tasks[taskId] && registry.tasks[taskId].name) || taskId;
-  return [{
-    id: `seed:${taskId}`,
-    taskId,
-    label,
-    args: {},
-    enabled: false,
-    intervalDays: 1,
-    intervalHours: 0,
-    intervalMinutes: 0,
-    cron: '',
-  }];
+  const labelOf = (taskId) => (registry && registry.tasks && registry.tasks[taskId] && registry.tasks[taskId].name) || taskId;
+  return [
+    {
+      id: 'seed:refreshPinnedTagTLs',
+      taskId: 'refreshPinnedTagTLs',
+      label: labelOf('refreshPinnedTagTLs'),
+      args: {},
+      enabled: false,
+      intervalDays: 1,
+      intervalHours: 0,
+      intervalMinutes: 0,
+      cron: '',
+    },
+    {
+      // Slow backstop for the applicability lists (ADR tag-applicability/0003): the event-driven
+      // notify keeps them fresh for app mutations; this hourly reconciles external/permissionless
+      // taggings. Churn-free via the diff-guard, so hourly just re-verifies. Disabled by default —
+      // operator opts in (same convention as every other scheduled task).
+      id: 'seed:refreshApplicabilityLists',
+      taskId: 'refreshApplicabilityLists',
+      label: labelOf('refreshApplicabilityLists'),
+      args: {},
+      enabled: false,
+      intervalDays: 0,
+      intervalHours: 1,
+      intervalMinutes: 0,
+      cron: '',
+    },
+  ];
 }
 
 // ── Registry access ───────────────────────────────────────────────────

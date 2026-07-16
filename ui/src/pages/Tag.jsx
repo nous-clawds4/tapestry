@@ -5,11 +5,13 @@ import TagPageRow from '../components/TagPageRow';
 import TagPinAffordance from '../components/TagPinAffordance';
 import TagViewControls from '../components/TagViewControls';
 import TagSomeoneModal from '../components/TagSomeoneModal';
+import TagNotesView from '../components/TagNotesView';
 import PinnedListPanel from '../components/PinnedListPanel';
+import PovStatusNotice from '../components/PovStatusNotice';
 import { useAuth } from '../context/AuthContext';
 import { useConfig } from '../context/ConfigContext';
 import { publishProfileTagAssertion } from '../utils/publishProfileTag';
-import { pinTag, defaultCurationMethod, publishNip51ExportForPin, syncPinnedExportsForTag } from '../utils/publishTagPin';
+import { pinTag, defaultCurationMethod, publishNip51ExportForPin, publishNoteBookmarkSetForPin, syncPinnedExportsForTag } from '../utils/publishTagPin';
 import useTagDetail from '../hooks/useTagDetail';
 
 /**
@@ -43,7 +45,7 @@ export default function Tag() {
   // W11 / tag-federation ADR 0003 — the runtime instance TA for the local z.
   const { taPubkey } = useConfig();
   const {
-    tag, viewerPin, rows, viewerAssertions, povSuffix, sort, setSort,
+    tag, viewerPin, rows, viewerAssertions, povSuffix, povResolution, sort, setSort,
     headerLoading, rowsLoading, headerError, rowsError,
     refetchRows, refetchHeader,
   } = useTagDetail(tagId);
@@ -57,6 +59,10 @@ export default function Tag() {
   // Story 17 new state.
   const [viewOptionsExpanded, setViewOptionsExpanded] = useState(false);
   const [filterText, setFilterText] = useState('');
+  // Story 8 — Profiles | Notes content switch on the tag page. `notesOpened`
+  // keeps the Notes view mounted after first open so toggling back doesn't re-fetch.
+  const [notesMode, setNotesMode] = useState('profiles');
+  const [notesOpened, setNotesOpened] = useState(false);
   const [tagSomeoneOpen, setTagSomeoneOpen] = useState(false);
 
   // Story 20 / ADR 0018 — the "Pinned" tab. It exists only when the
@@ -140,8 +146,22 @@ export default function Tag() {
       // is recoverable via the /pins Export button later — the pin
       // itself already landed. publishNip51ExportForPin itself skips
       // publishing when the prepared list has zero members (B2).
-      publishNip51ExportForPin({ pinEventId: signed.id })
-        .catch(() => { /* swallow — user can re-export from /pins */ });
+      const curation = customCuration || defaultCurationMethod(user.pubkey);
+      const targetTypes = curation.targetTypes || ['profile', 'note'];
+      if (targetTypes.includes('profile')) {
+        publishNip51ExportForPin({ pinEventId: signed.id })
+          .catch(() => { /* swallow — user can re-export from /pins */ });
+      }
+      // Story 12 / ADR 0015 — also materialize the note bookmark set (kind-30003)
+      // when notes are selected. Export-only: computes membership from for-tag at
+      // pin time. Skips itself when the tag has no curated notes. Fire-and-forget.
+      if (targetTypes.includes('note')) {
+        publishNoteBookmarkSetForPin({
+          tag: { authorPubkey: tag.authorPubkey, slug: tag.slug, name: tag.name },
+          viewerPubkey: user.pubkey,
+          noteMethod: curation.noteMethod,
+        }).catch(() => { /* swallow — user can re-export from /pins */ });
+      }
     } catch (e) {
       setPinError(e.message || 'Pin failed');
       throw e;
@@ -229,6 +249,8 @@ export default function Tag() {
               )}
             </header>
 
+            <PovStatusNotice status={povResolution} variant="banner" />
+
             {/* Story 20 / ADR 0018 — tab strip only when the viewer has pinned. */}
             {isPinned && (
               <div className="bs-tag-tablist" role="tablist" aria-label="Tag views">
@@ -241,7 +263,9 @@ export default function Tag() {
                   className={`bs-tag-tab${activeTab === 'default' ? ' is-active' : ''}`}
                   onClick={() => switchTab('default')}
                 >
-                  Tagged profiles
+                  {/* Story 15 — this tab holds the Profiles|Notes switch, so it
+                      spans all taggings, not just profiles. (Pins: later.) */}
+                  Taggings
                 </button>
                 <button
                   type="button"
@@ -266,52 +290,84 @@ export default function Tag() {
               aria-labelledby="bs-tag-tab-default"
               hidden={activeTab !== 'default'}
             >
-              <TagViewControls
-                sort={sort}
-                onSortChange={setSort}
-                expanded={viewOptionsExpanded}
-                onToggleExpand={setViewOptionsExpanded}
-                filterText={filterText}
-                onFilterChange={setFilterText}
-                onTagSomeoneClick={handleTagSomeoneClick}
-                signedIn={!!user}
-              />
+              {/* Story 8 — Profiles | Notes content switch. */}
+              <div className="bs-tag-view-switch" role="tablist" aria-label="Tag content">
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={notesMode === 'profiles'}
+                  className={`bs-tag-view-switch-btn${notesMode === 'profiles' ? ' is-active' : ''}`}
+                  onClick={() => setNotesMode('profiles')}
+                >
+                  Profiles
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={notesMode === 'notes'}
+                  className={`bs-tag-view-switch-btn${notesMode === 'notes' ? ' is-active' : ''}`}
+                  onClick={() => { setNotesMode('notes'); setNotesOpened(true); }}
+                >
+                  Notes
+                </button>
+              </div>
 
-              {rowsLoading && (
-                <p className="bs-tag-loading">Loading profiles…</p>
-              )}
-              {rowsError && (
-                <p className="bs-tag-error">⚠️ {rowsError}</p>
-              )}
-              {!rowsLoading && !rowsError && rows.length === 0 && tag && (
-                <p className="bs-tag-empty">
-                  No profiles in your active POV's WoT have been tagged with{' '}
-                  <strong>{tag.name}</strong> yet.
-                </p>
-              )}
-              {!rowsLoading && !rowsError && rows.length > 0 && displayedRows.length === 0 && (
-                <p className="bs-tag-empty">
-                  {filterText
-                    ? `No tagged profiles match "${filterText}".`
-                    : 'No profiles meet the Curated threshold yet. Open View options to see all rows.'}
-                </p>
+              {/* Notes view — lazily mounted on first open, then kept mounted
+                  (hidden) so re-toggling doesn't re-fetch. */}
+              {notesOpened && (
+                <div hidden={notesMode !== 'notes'}>
+                  <TagNotesView tag={tag} viewerPubkey={user?.pubkey} />
+                </div>
               )}
 
-              {!rowsLoading && displayedRows.length > 0 && (
-                <ul className="bs-tag-row-list">
-                  {displayedRows.map((row) => (
-                    <TagPageRow
-                      key={row.pubkey}
-                      row={row}
-                      viewerState={viewerAssertions[row.pubkey] || null}
-                      showActions={!!user}
-                      showActionsOnHover={!viewOptionsExpanded}
-                      onApply={handleApply}
-                      onDispute={handleDispute}
-                    />
-                  ))}
-                </ul>
-              )}
+              <div hidden={notesMode !== 'profiles'}>
+                  <TagViewControls
+                    sort={sort}
+                    onSortChange={setSort}
+                    expanded={viewOptionsExpanded}
+                    onToggleExpand={setViewOptionsExpanded}
+                    filterText={filterText}
+                    onFilterChange={setFilterText}
+                    onTagSomeoneClick={handleTagSomeoneClick}
+                    signedIn={!!user}
+                  />
+
+                  {rowsLoading && (
+                    <p className="bs-tag-loading">Loading profiles…</p>
+                  )}
+                  {rowsError && (
+                    <p className="bs-tag-error">⚠️ {rowsError}</p>
+                  )}
+                  {!rowsLoading && !rowsError && rows.length === 0 && tag && (
+                    <p className="bs-tag-empty">
+                      No profiles in your active POV's WoT have been tagged with{' '}
+                      <strong>{tag.name}</strong> yet.
+                    </p>
+                  )}
+                  {!rowsLoading && !rowsError && rows.length > 0 && displayedRows.length === 0 && (
+                    <p className="bs-tag-empty">
+                      {filterText
+                        ? `No tagged profiles match "${filterText}".`
+                        : 'No profiles meet the Curated threshold yet. Open View options to see all rows.'}
+                    </p>
+                  )}
+
+                  {!rowsLoading && displayedRows.length > 0 && (
+                    <ul className="bs-tag-row-list">
+                      {displayedRows.map((row) => (
+                        <TagPageRow
+                          key={row.pubkey}
+                          row={row}
+                          viewerState={viewerAssertions[row.pubkey] || null}
+                          showActions={!!user}
+                          showActionsOnHover={!viewOptionsExpanded}
+                          onApply={handleApply}
+                          onDispute={handleDispute}
+                        />
+                      ))}
+                    </ul>
+                  )}
+              </div>
             </section>
 
             {/* Pinned tab — the viewer's kind-30392 Trusted List view. */}

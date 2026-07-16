@@ -4,6 +4,7 @@ import { nip19 } from 'nostr-tools';
 import TopBar from '../components/TopBar';
 import SearchInput from '../components/SearchInput';
 import SortToggle from '../components/SortToggle';
+import PovStatusNotice from '../components/PovStatusNotice';
 import useTagIndex from '../hooks/useTagIndex';
 
 function shortNpub(pk) {
@@ -30,7 +31,7 @@ const SORT_LABELS = [
 
 export default function Tags() {
   const {
-    rows, total, povSuffix,
+    rows, total, povSuffix, povResolution,
     sort, setSort,
     q, setQ,
     mineOnly, setMineOnly,
@@ -56,6 +57,8 @@ export default function Tags() {
             {povSuffix && <span className="bs-tagindex-pov"> POV: <code>{povSuffix}</code></span>}
           </p>
         </header>
+
+        <PovStatusNotice status={povResolution} variant="banner" />
 
         <div className="bs-tagindex-controls">
           <SearchInput
@@ -160,6 +163,11 @@ export default function Tags() {
                       <span className="bs-tagindex-count bs-tagindex-count-pinned" title="Pins by people in your POV's WoT">
                         📌{row.pinnedCount ?? 0}
                       </span>
+                      {(row.byType?.event?.applications > 0 || row.byType?.event?.disputes > 0) && (
+                        <span className="bs-tagindex-count bs-tagindex-count-notes" title="Used on notes (applications) in your POV's WoT">
+                          📝{row.byType.event.applications || 0}
+                        </span>
+                      )}
                     </div>
                   </Link>
                 </li>

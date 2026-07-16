@@ -1,4 +1,5 @@
 import { publishEverywhere } from './nostrPublish';
+import { getActiveSignerOrThrow } from './signerGuard';
 
 /**
  * Single source of truth for the nostr-user-tag wire shape from ADR-0001.
@@ -54,7 +55,9 @@ export async function publishProfileTagAssertion({ tag, targetPubkey, polarity, 
   if (!tag || !/^[0-9a-f]{64}$/.test(tag.authorPubkey || '')) {
     throw new Error('Cannot publish tag assertion: tag.authorPubkey (the tag-element author) is missing or malformed.');
   }
-  const authorPk = await window.nostr.getPublicKey();
+  // Refuse to publish as an extension account that has drifted from the
+  // signed-in session (issue #335).
+  const authorPk = await getActiveSignerOrThrow();
   const dTag = `profile-tag-${tag.slug}-${targetPubkey.slice(0, 8)}-${authorPk.slice(0, 8)}`;
   // Hybrid e+a parent reference (ADR-0022): `a` = stable tag identity
   // (consume by #a), `e` = applied-version provenance (retained).
