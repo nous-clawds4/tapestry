@@ -1,20 +1,19 @@
 # Tapestry / Brainstorm Search
 
-Decentralized knowledge-graph protocol and search engine on nostr. Reference deployment runs at brainstorm.world.
+Decentralized knowledge-graph protocol and search engine on nostr. Reference deployment runs at tapestry.brainstorm.world.
 
-Before starting work, read all four:
+**Read for your task — don't bulk-read.** The SessionStart digest (`scripts/session-start.sh`) auto-runs the harness health check; `/whats-open` gives the full roll-up. Line budgets on this file and AGENTS.md are lint-enforced (`scripts/harness-budgets.txt` — free lines before adding any).
 
-- [AGENTS.md](./AGENTS.md) — concept-graph orientation pattern. Read this BEFORE touching code.
-- [ROADMAP.md](./ROADMAP.md) — product vision, principles, and the strategic roadmap for Brainstorm Search
-- [BIBLE.md](./BIBLE.md) — architecture, protocol, data model, API, design decisions (universal, fork-agnostic)
-- [OPERATIONS.md](./OPERATIONS.md) — brainstorm.world deployment: branches, CI/CD, droplets, gotchas
-
-**Also check at session start** — or just run **`/whats-open`** (alias: `bash scripts/whats-open.sh`) for a unified roll-up of everything still open across sessions, derived from all the surfaces below plus the ledger:
-
-- [`OPEN.md`](./OPEN.md) — the single ledger for **small / cross-cutting open items that have no other surface** (one-off cleanups, "does BIBLE need a note about what we just built?" decisions, follow-ups too small for a handoff doc, a branch to delete). The surfaces below hold the larger triaged work; `/whats-open` rolls them all together. **Write discipline:** whenever you end a session with such a loose end, add a row here (and flip it to `DONE` when handled) so the next session — any session — sees it.
-- [`docs/*HANDOFF*.md`](./docs/) — session continuity notes. Each handoff doc starts with a `**Status:**` line: `🔴 OPEN` = work hasn't been picked up; `✅ ADDRESSED / SUPERSEDED` = the follow-on work has shipped (the body is preserved for historical context, no action needed). Always scan for `OPEN` handoffs before starting fresh work — a previous session may have left specific instructions for the new one.
-- [`engineering-team/stories/_intake.md`](./engineering-team/stories/_intake.md) — queued-but-unplanned work catalog. See [engineering-team/README.md](./engineering-team/README.md) for the format. Scan before opening a fresh feature request — there's often a relevant entry already triaged.
-- [`protocols/README.md`](./protocols/README.md) — index of every protocol spec we author (published Custom NIPs, local pre-NIPs) with per-spec status, plus [`protocols/worksheet.md`](./protocols/worksheet.md) for open protocol problems. Check before any protocol/NIP/wire-format work — the spec's status and current source of truth are recorded there.
+| Task | Read first |
+|---|---|
+| Touching code | [AGENTS.md](./AGENTS.md) — orientation ladder (stack-present *or* -absent) + port/TA-pubkey discovery, BEFORE code. Then [BIBLE.md](./BIBLE.md) sections via its ToC as needed (architecture, protocol, data model, API — universal, fork-agnostic). |
+| Deploying / ops | [OPERATIONS.md](./OPERATIONS.md) — tapestry.brainstorm.world deployment: branches, CI/CD, droplets, gotchas. |
+| Product direction | [ROADMAP.md](./ROADMAP.md) — vision, principles, and the strategic roadmap for Brainstorm Search. |
+| Protocol / NIP / wire format | [protocols/README.md](./protocols/README.md) — per-spec status + current source of truth; open problems in [protocols/worksheet.md](./protocols/worksheet.md). Check before any wire-format work. |
+| What's still open | **`/whats-open`** (alias: `bash scripts/whats-open.sh`) — unified roll-up across sessions: the ledger + every surface below. |
+| Small / cross-cutting items | [`OPEN.md`](./OPEN.md) — the single ledger for items with no other surface. **Write discipline:** end-of-session loose ends get a row (flip to `DONE` when handled) — and an orientation doc that misled you, or any harness defect, gets a `meta` row before the session ends (escalation + full rules: OPEN.md § "How to use this ledger"). |
+| Session continuity | [`docs/*HANDOFF*.md`](./docs/) — scan the `**Status:**` line before fresh work: `🔴 OPEN` = not picked up (a previous session may have left instructions); `✅ ADDRESSED / SUPERSEDED` = shipped, body kept for history. |
+| Queued-but-unplanned work | [`engineering-team/stories/_intake.md`](./engineering-team/stories/_intake.md) — scan before opening a fresh feature request; there's often a triaged entry already (format: [engineering-team/README.md](./engineering-team/README.md)). |
 
 ## ⚠️ Architecture invariants — read every session
 
@@ -64,7 +63,7 @@ The boundary is clean: **the product team produces markdown (PRD, guides, story 
 - **`product-team/`** — roles, workflows, templates, guardrails, and accumulating discoveries/personas/journeys/scope/domain/prd/guides. Source of truth for product behavior. Read [product-team/README.md](./product-team/README.md) for the layout.
 - **`.claude/`** — wiring only:
   - `.claude/commands/<phase>.md` — slash commands: `/discover`, `/model-users`, `/scope`, `/model-domain`, `/design-experience`, `/assemble-prd`, `/decompose-stories`, `/discuss-product`.
-  - `.claude/agents/<role>.md` — product subagents; each can Write only into `product-team/`, and the Product Advisor cannot Write at all.
+  - `.claude/agents/<role>.md` — product subagents; writing roles' Write/Edit are permission-scoped to `product-team/**` + `OPEN.md` (out-of-tree writes need approval under default permission modes); the Product Advisor has no Write and no Bash.
 
 The seven phases — **Discovery → User Modeling → Scope → Domain Modeling → Experience Design → PRD Assembly → Story Decomposition** — each have a human approval gate and write a durable artifact. The flow ends by emitting `product-team/stories-queue.md`, an epic-aware backlog. **The handoff is doc-driven and one-directional:** the engineering Product Owner reads that queue, creates the matching epics under `engineering-team/`, and promotes each brief via `/plan-feature`. The product flow never writes into `engineering-team/`. See [product-team/README.md](./product-team/README.md) → "Handoff to the engineering team".
 
@@ -134,7 +133,7 @@ The harness lives in two places:
 - **`engineering-team/`** — roles, workflows, templates, and accumulating decisions/stories/reviews. Source of truth for behavior. Read [engineering-team/README.md](./engineering-team/README.md) for the layout and phase wiring.
 - **`.claude/`** — wiring only:
   - `.claude/commands/<phase>.md` — slash commands: `/plan-feature`, `/design-architecture`, `/design-tests`, `/implement-feature`, `/review-changes`, `/close-book`, `/discuss`.
-  - `.claude/agents/<role>.md` — subagents with role-appropriate tool whitelists. The Architect cannot Edit source. The Reviewer cannot Edit source.
+  - `.claude/agents/<role>.md` — subagents with role-appropriate tool whitelists. The Architect and Reviewer have no Edit tool (their Write is for ADR/review artifacts; Bash is trust-based).
 
 Phases 1–5 are the **per-story** cycle. Above them sits one **per-book** milestone, `/close-book` — see "Books of work and the return edge" below.
 
@@ -142,14 +141,7 @@ Phases 1–5 are the **per-story** cycle. Above them sits one **per-book** miles
 
 ### How to operate
 
-1. **Classify the request.** Ask: "Is this a new feature, a bug fix, a refactor, or a doc/typo change?" That answer determines which phases apply (Standard strictness):
-
-   | Type | Phases that apply |
-   |---|---|
-   | Feature | All five phases |
-   | Bug | Skip Architecture if obvious; otherwise all |
-   | Refactor | Skip Tests if no behavior change |
-   | Doc / typo / one-liner | Implementer + Reviewer only |
+1. **Classify the request.** Ask: "Is this a new feature, a bug fix, a refactor, or a doc/typo change?" That answer determines which phases apply — the **normative strictness table lives in [engineering-team/workflows/0-intake.md](./engineering-team/workflows/0-intake.md) step 3** (this project runs Standard). Shorthand: features get all five phases; bugs may skip Architecture if obvious; refactors may skip Tests if no behavior change; doc/typo changes fast-track to Implementer + Reviewer.
 
 2. **Know which role you're in.** When a phase command is invoked, state at the top of your first response: "I'm acting as the {Role}. Phase: {Phase}."
 3. **Stay in role.** The Architect doesn't write the implementation. The Implementer doesn't invent new requirements. If the inputs are unclear, kick back to the prior phase rather than drifting.
@@ -182,7 +174,7 @@ The per-story cycle sits inside a larger unit — a **book of work**: a PRD, one
 
 ### Per-deployment TA pubkey — NEVER hardcode
 
-The Tapestry Assistant (TA) pubkey is **created at first container startup** (`setup/create_nostr_identity.sh`) and is **different on every deployment**. The local-dev value (`82b75e47...973833` on this machine) is NOT shared with `tags.brainstorm.world`, `staging.brainstorm.world`, `brainstorm.world`, or any other instance.
+The Tapestry Assistant (TA) pubkey is **created at first container startup** (`setup/create_nostr_identity.sh`) and is **different on every deployment**. The local-dev value (`82b75e47...973833` on this machine) is NOT shared with `tags.brainstorm.world`, `staging.brainstorm.world`, `tapestry.brainstorm.world`, or any other instance.
 
 A literal hardcode in shared code silently breaks the pin/TL stack (and any other surface that signs as the TA or filters events by TA author) on every non-dev deployment: the signer reads the actual on-disk TA key, but the readers filter `authors: [hardcoded]` and find nothing.
 

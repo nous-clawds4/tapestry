@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import AddOrEditEntryModal from './scheduledTasks/AddOrEditEntryModal.jsx';
+import { validateTagLetter, parseTagValues, mergeTagFilter } from '../../utils/tagFilterValidation';
 
 const RELAY_GROUPS = [
   { key: 'aProfileRelays', label: 'Profile Relays', hint: 'Kind 0 profiles (purplepag.es, etc.)', restart: false },
@@ -768,6 +769,104 @@ function TimestampPicker({ label, value, onChange, disabled }) {
   );
 }
 
+/**
+ * Single-letter tag filters for the sync filter, e.g. #x: foo1, foo2
+ * (story relay-management #1, ADR relay-management/0001). Validation and
+ * merging live in ui/src/utils/tagFilterValidation.js; the parent owns the
+ * canonical tagFilters list ([{ letter, values }]).
+ */
+function TagFilterEditor({ tagFilters, onChange, disabled }) {
+  const [letterInput, setLetterInput] = useState('');
+  const [valuesInput, setValuesInput] = useState('');
+  const [inlineError, setInlineError] = useState(null);
+
+  const inputStyle = {
+    padding: '0.4rem 0.6rem', fontSize: '0.85rem',
+    backgroundColor: 'var(--bg-primary, #0f0f23)', color: 'var(--text-primary, #e0e0e0)',
+    border: '1px solid var(--border, #444)', borderRadius: '4px',
+  };
+
+  function handleAdd() {
+    const letterResult = validateTagLetter(letterInput);
+    if (!letterResult.ok) {
+      setInlineError(letterResult.error);
+      return;
+    }
+    const valuesResult = parseTagValues(letterResult.letter, valuesInput);
+    if (!valuesResult.ok) {
+      setInlineError(valuesResult.error);
+      return;
+    }
+    onChange(mergeTagFilter(tagFilters, letterResult.letter, valuesResult.values));
+    setLetterInput('');
+    setValuesInput('');
+    setInlineError(null);
+  }
+
+  function handleRemove(letter) {
+    onChange(tagFilters.filter(f => f.letter !== letter));
+  }
+
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+        <span style={{ fontSize: '0.9rem', opacity: 0.7, fontFamily: 'monospace' }}>#</span>
+        <input
+          type="text"
+          value={letterInput}
+          onChange={e => { setLetterInput(e.target.value); setInlineError(null); }}
+          placeholder="x"
+          maxLength={1}
+          disabled={disabled}
+          aria-label="Tag letter"
+          style={{ ...inputStyle, width: '48px', textAlign: 'center', fontFamily: 'monospace' }}
+        />
+        <input
+          type="text"
+          value={valuesInput}
+          onChange={e => { setValuesInput(e.target.value); setInlineError(null); }}
+          onKeyDown={e => { if (e.key === 'Enter') handleAdd(); }}
+          placeholder="value1, value2, …"
+          disabled={disabled}
+          aria-label="Tag values (comma-separated)"
+          style={{ ...inputStyle, flex: 1 }}
+        />
+        <button className="btn-small" onClick={handleAdd} disabled={disabled}>
+          Add
+        </button>
+      </div>
+      {inlineError && (
+        <div style={{
+          marginTop: '0.4rem', padding: '0.4rem 0.6rem', borderRadius: '4px',
+          backgroundColor: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)',
+          color: '#ef4444', fontSize: '0.8rem',
+        }}>
+          ❌ {inlineError}
+        </div>
+      )}
+      {tagFilters.length > 0 && (
+        <div style={{ marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+          {tagFilters.map(f => (
+            <div key={f.letter} style={{ display: 'flex', alignItems: 'baseline', gap: '0.5rem', fontSize: '0.85rem' }}>
+              <code style={{ fontFamily: '"JetBrains Mono", "Fira Code", monospace', color: '#a5f3fc' }}>#{f.letter}</code>
+              <span style={{ flex: 1, wordBreak: 'break-all', opacity: 0.85 }}>{f.values.join(', ')}</span>
+              <button
+                className="btn-small"
+                onClick={() => handleRemove(f.letter)}
+                disabled={disabled}
+                title={`Remove #${f.letter} filter`}
+                style={{ lineHeight: 1 }}
+              >
+                ✕
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 const KIND_PRESETS = [
   { label: 'DCoSL (9998, 9999, 39998, 39999)', kinds: [9998, 9999, 39998, 39999] },
   { label: 'Profiles (0)', kinds: [0] },
@@ -795,6 +894,7 @@ function NegentropySync({ settings }) {
   const [authors, setAuthors] = useState('');
   const [since, setSince] = useState(null);
   const [until, setUntil] = useState(null);
+  const [tagFilters, setTagFilters] = useState([]); // [{ letter, values }] — ADR relay-management/0001
   const [running, setRunning] = useState(false);
   const [output, setOutput] = useState([]);
   const [result, setResult] = useState(null); // { success, exitCode } or null
@@ -834,6 +934,7 @@ function NegentropySync({ settings }) {
   if (effectiveAuthors.length > 0) filterObj.authors = effectiveAuthors;
   if (since != null) filterObj.since = since;
   if (until != null) filterObj.until = until;
+  for (const { letter, values } of tagFilters) filterObj['#' + letter] = values;
   const filterStr = Object.keys(filterObj).length > 0 ? JSON.stringify(filterObj) : '{}';
   const dirFlag = dir !== 'both' ? ` --dir ${dir}` : '';
   const previewCmd = effectiveRelay
@@ -1057,6 +1158,14 @@ function NegentropySync({ settings }) {
           disabled={running}
           style={inputStyle}
         />
+      </div>
+
+      {/* Tag filters */}
+      <div className="settings-group" style={{ padding: '1rem' }}>
+        <label style={{ fontSize: '0.8rem', fontWeight: 600, display: 'block', marginBottom: '0.4rem' }}>
+          Tag Filters <span style={{ fontWeight: 400, opacity: 0.6 }}>(optional — single-letter tags; p/e/a values are format-checked)</span>
+        </label>
+        <TagFilterEditor tagFilters={tagFilters} onChange={setTagFilters} disabled={running} />
       </div>
 
       {/* Since / Until */}

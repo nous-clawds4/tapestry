@@ -26,7 +26,7 @@ Staging is the hard ceiling, and it does not move. Forbidden, no exceptions:
 - `/cycle-prod`, and `/cycle-full` (it chains into prod).
 - `gh pr create --base main`, merging any PR based on `main`, any push to `main` — including revert PRs against `main`.
 - Push or merge to the sandbox long-lived branches (`feature-magic-carpet`, `feat/pubkey-tagging-target`, `feat/communities`, `feat/curate`) — each auto-deploys to a teammate's live droplet.
-- Any mutation on `https://brainstorm.world`, droplet SSH, in-container config edits on deployed droplets, BullBoard retry/remove/pause actions on deployed droplets, and triggering heavy tasks on staging as "verification" (forbidden set: any `taskRegistry.json` task with `resourceClass: "neo4j-heavy"`, plus `reconcileAll`).
+- Any mutation on `https://tapestry.brainstorm.world`, droplet SSH, in-container config edits on deployed droplets, BullBoard retry/remove/pause actions on deployed droplets, and triggering heavy tasks on staging as "verification" (forbidden set: any `taskRegistry.json` task with `resourceClass: "neo4j-heavy"`, plus `reconcileAll`).
 
 Auto mode does NOT extend the ceiling. A breach — however small — is an automatic experiment failure (Stopping rule 5 in the role file). The cost of stopping to ask is low; the cost of an unauthorized prod-side action is high.
 
@@ -59,7 +59,7 @@ Follow the phase workflows in [engineering-team/workflows/](../../../engineering
 
 ### Stage 2 — deploy
 
-1. Local: follow [`/cycle-local`](../cycle-local/SKILL.md) — base URL `http://localhost:7778`; derive worktree paths, don't copy literals.
+1. Local: follow [`/cycle-local`](../cycle-local/SKILL.md) — it owns the local base URL; derive worktree paths, don’t copy literals.
 2. Staging: follow [`/cycle-staging`](../cycle-staging/SKILL.md) — push `feat/<book-slug>`, PR to `staging`, plain merge, watch `deploy-staging.yml`, five-tier smoke on `staging.brainstorm.world`. Every `gh` command includes `--repo nous-clawds4/tapestry`.
 3. On failure at any point: surface, journal, and fix forward through the per-story cycle — a fix is a story or a kick-back, never a hot patch outside the harness. **Any code change after a story's Gate-5 PASS reopens that story at Implementation: Gate 4 and a fresh Gate-5 review + judge before any redeploy.** Your own commits never author anything outside `engineering-team/audits/<book-slug>/` — CI and deploy config included; those changes come from a role, inside the cycle. Reverts to staging go through a normal revert PR, journaled; never force-push.
 

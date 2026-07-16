@@ -6,6 +6,8 @@ Append-only log of incoming requests, raw, with classification and chosen phase 
 
 ## 2026-05-13 — Scheduled task: refresh Meilisearch profiles + House PoV WoT scores
 
+**PICKED UP** → `engineering-team/stories/search-and-router/4-scheduled-search-and-house-scores-refresh.md` (review PASS). *(marker backfilled 2026-07-02, harness sweep)*
+
 **Raw request (verbatim):**
 
 > In the tapestry repository, there is a new feature I would like to add in the Home > Settings > Relays page, Scheduled Tasks tab. Currently, there is a panel to Update All Scores for Owner that can be enabled / disabled and that can be set to run on a schedule. I would like to create a new panel that Meilisearch profiles and House PoV wot scores are kept updated. Like the existing panel, it should have an enable / disable toggle button (default: disabled) and the ability to set it to Run ever __ days, __ hours.
@@ -34,6 +36,8 @@ Append-only log of incoming requests, raw, with classification and chosen phase 
 ---
 
 ## 2026-05-13 — Bug: strfry-router FATAL on first boot (missing config file)
+
+**RESOLVED** — shipped in `ffd0febb`; review `engineering-team/reviews/search-and-router/strfry-router-first-boot-config.md`. *(marker backfilled 2026-07-02, harness sweep)*
 
 **Raw request (verbatim):**
 
@@ -110,6 +114,8 @@ Append-only log of incoming requests, raw, with classification and chosen phase 
 ---
 
 ## 2026-05-19 — Bug: graperank shared CSV race blocks concurrent customer recalcs
+
+**PICKED UP** → `engineering-team/stories/community-reference/12-graperank-shared-csv-race.md` (review PASS). *(marker backfilled 2026-07-02, harness sweep)*
 
 **Raw request (verbatim, distilled from multi-turn conversation):**
 
@@ -211,6 +217,8 @@ The Architect picks the scope when the story gets planned. (1) is genuinely mini
 
 ## 2026-05-21 — Feature: generalized Task Scheduler (BullMQ repeatable jobs) — task-queue phase 2
 
+**PICKED UP** → `engineering-team/stories/task-queue-scheduler/22-generalized-task-scheduler.md` (PR #193; prod promotion later superseded by #23 rearchitecture). *(marker backfilled 2026-07-02, harness sweep)*
+
 Replace the in-process `setInterval` scheduler (`src/api/scheduled-tasks/index.js`) with a durable, generalized scheduler built on **BullMQ repeatable/cron jobs**. This is the documented phase 2 of the task queue (story #13).
 
 Why now: story #21 built three manually-triggerable reconciliation tasks (`reconcileRecent`/`reconcileAll`/`reconcileAuthor`) and deliberately did NOT wire any cadence — because the current scheduler can't serve them. Limitations of `src/api/scheduled-tasks/index.js` this would remove:
@@ -229,6 +237,8 @@ Out of scope: event/dependency-driven triggers (`processAllTasks` already handle
 **Priority:** Medium. Unblocks automated reconciliation cadence and generalizes scheduling for all tasks; until then reconciliation is manual.
 
 ## 2026-05-21 — Cleanup: deprecate legacy `reconciliation` task + `reconcile.timer` (superseded by story #21)
+
+**PICKED UP** → `engineering-team/stories/task-queue-scheduler/23-reconciliation-rearchitecture.md` (registry part; confirm systemd `reconcile.timer` removal). *(marker backfilled 2026-07-02, harness sweep)*
 
 Story #21 replaced the single `reconciliation` flow with three explicit task keys. Two now-superseded mechanisms remain for back-compat and should be removed once the new tasks are in routine use:
 
@@ -258,6 +268,8 @@ Note: `reconcileAuthor` is intentionally NOT `neo4j-heavy` so an interactive tri
 
 ## 2026-05-24 — Architecture: `launch_child_task` subshell pattern bypasses BullMQ + `neo4j-heavy` semaphore
 
+**PICKED UP** → `engineering-team/decisions/task-queue-scheduler/0023-task-queue-semaphore-protection-audit.md` (story #26, `871c9964`; deeper root-cause → #27). *(marker backfilled 2026-07-02, harness sweep)*
+
 **Surfaced during:** story #24 follow-up diagnosis — operator triggered `calculateOwnerPageRank` while `processCustomer` was running and expected the semaphore to serialize them. Neither task appeared in BullBoard's active/waiting states; events.jsonl showed they ran anyway.
 
 **Mechanism (confirmed):** parent task scripts (e.g., `updateAllScoresForOwner.sh`) `source "$BRAINSTORM_MODULE_MANAGE_DIR/taskQueue/launchChildTask.sh"` and call `launch_child_task "<child>" "<parent>" ...` as a shell function. That function runs the child's script directly as a subshell inside the parent's process tree — it does NOT enqueue via BullMQ. So:
@@ -279,6 +291,8 @@ Note: `reconcileAuthor` is intentionally NOT `neo4j-heavy` so an interactive tri
 
 ## 2026-05-24 — Architecture: BullMQ `jobId` dedup silently blocks manual re-triggers of completed tasks
 
+**PICKED UP** → `engineering-team/stories/task-queue-scheduler/25-manual-task-retrigger-after-finish.md` (ADR 0022, PR #205). *(marker backfilled 2026-07-02, harness sweep)*
+
 **Surfaced during:** story #24 follow-up diagnosis — operator manually triggered `calculateOwnerPageRank` via the legacy task explorer expecting BullMQ to enqueue a new job; the queue's only entry was a 3-day-old completed job, no new execution happened.
 
 **Mechanism (confirmed):** per ADR 0012, `jobId = ${taskName}` for non-customer tasks and `${taskName}:${pubkey}` for customer tasks. BullMQ's `queue.add(name, data, { jobId })` semantics are stricter than ADR 0012's text suggested: BullMQ dedups by `jobId` across ALL states including `completed` and `failed`, not just `wait`/`active`. So once a non-customer task has any completed job in the queue with that `jobId`, subsequent `/api/run-task` triggers silently return the existing completed job without creating a new execution. Reproduced live on staging + prod against `calculateOwnerPageRank` (only completed job dates from 2026-05-21 despite multiple subsequent runs visible in `events.jsonl` from subshell invocations).
@@ -299,6 +313,8 @@ Note: `reconcileAuthor` is intentionally NOT `neo4j-heavy` so an interactive tri
 ---
 
 ## 2026-05-24 — Feature: unified all-tasks timeline UI (cross-queue past + present + future)
+
+**PICKED UP** 2026-06-10 → `engineering-team/audits/task-timeline/book.md` (Direction-mode book, still Open/unarmed). *(marker backfilled 2026-07-02, harness sweep)*
 
 **Surfaced during:** `/discuss` triage of Intake B on 2026-05-24. Operator asked: "I'd like to have a single, compact timeline that shows all tasks past, present, and future. Ideally one that I can scroll up and down if there is a lot of data on it. Of course, there will need to be a limit on how long we keep tasks in our logs. But why does BullBoard not have this feature?"
 
@@ -435,6 +451,8 @@ Also flagged: `algos/graperank/commands/generate.js` spawns `calculatePersonaliz
 
 ## 2026-05-24 — Meta: origin-sync check at PO + Architect phase entry
 
+**PICKED UP** 2026-07-02 → `engineering-team/stories/harness-self-improvement/3-close-book-retro.md` (origin-drift preflight now step 0 of workflows 1–2; warn-and-surface, hard halt stays Direction-only). *(Open 5+ weeks while Direction Stage-0 independently implemented the same check — cited by the harness review as the propagation-gap case study.)*
+
 **Surfaced during:** the 2026-05-24 session start. A chip was spawned proposing this same idea (a pre-flight check that verifies the local branch is in sync with origin before any PO or Architect work begins). The chip was never picked up. Filed here as a proper intake so the work doesn't depend on the chip persisting.
 
 **Background:** during the work-up to story #25, the session started on a branch (`main`) that was *behind* `origin/staging`. The drift wasn't caught until pushing time, costing a small but real debugging cycle. This is a recurring class of bug at session boundaries when the operator switches between machines / branches across sessions.
@@ -551,6 +569,8 @@ reconcileAll    2026-05-25 07:51:43Z → held_seconds:  798  (baseline — alrea
 
 ## 2026-05-25 — Bug: `forceKill: false` timeout orphans suppress subsequent scheduled fires via `check_task_already_running`
 
+**PICKED UP** → `engineering-team/stories/task-queue-scheduler/28-kill-timeout-orphans-by-default.md` (ADR 0025, `5f8134c5`). *(marker backfilled 2026-07-02, harness sweep)*
+
 **Surfaced during:** prod verification of Track A (PR #217), specifically the post-deploy 20:23:04Z processCustomer tick at 22:06:32Z which logged `LAUNCHCHILDTASK_RESULT: {"launch_action":"prevented","existing_pid":195788,"launch_new":false}`. The 195788 PID came from the PREVIOUS fire (the stalled-recovered 17:23:04Z tick) whose wrapper had declared timeout at 21:53:09Z but — per the `forceKill: false` hardcode in `processor.js` — did NOT kill the backgrounded `processCustomer.sh`. The orphan was still running when the next scheduled tick fired, and the wrapper's standard `check_task_already_running` logic (`src/manage/taskQueue/launchChildTask.sh:25-67`) found it and prevented the new launch under the default `launchNew: false` policy.
 
 **Mechanism (full chain):**
@@ -585,6 +605,8 @@ reconcileAll    2026-05-25 07:51:43Z → held_seconds:  798  (baseline — alrea
 ---
 
 ## 2026-05-25 — Cleanup + Bug: per-task `forceKill: false` overrides after story #28's default-flip
+
+**PICKED UP** (Part A) → PR #222 (`32f62aa8`). **Part B still OPEN** — `taskRegistry.json:230,261` syncWoT/syncProfiles still `duration: 60000`. *(marker backfilled 2026-07-02, harness sweep)*
 
 **Surfaced during:** Architect-phase audit for story #28 / ADR 0025 (2026-05-25). The audit of all 11 per-task `forceKill: false` overrides in `taskRegistry.json` found two distinct concerns that story #28's narrow scope (flip the global default) deliberately did not address.
 
@@ -622,6 +644,8 @@ Today the `forceKill: false` override masks the impact (wrapper declares timeout
 ---
 
 ## 2026-06-05 — Feature: Tapestry Communities Protocol (full draft → BIBLE)
+
+**PICKED UP** (in progress) — #31 Done; broader protocol in `protocols/drafts/communities.md` + `docs/COMMUNITIES_PROTOCOL_DESIGN_HANDOFF.md` (founder model superseded 2026-06-05). *(marker backfilled 2026-07-02, harness sweep)*
 
 > **⚠️ Design has substantially evolved (2026-06-05) — read [`docs/COMMUNITIES_PROTOCOL_DESIGN_HANDOFF.md`](../../docs/COMMUNITIES_PROTOCOL_DESIGN_HANDOFF.md), the current source of truth, NOT the framing below.** A `/discuss` redesign **superseded the founder-centric model** in this entry: no founder, no House-PoV-canonical roster, no single-root (so "House PoV = founder", and §11 items #2 "canonical membership" and #3 "single-root" are **dropped**). Current model: *no privileged center; identity = concept identity; membership = consume the `feat/pubkey-tagging-target` nostr-user-tag, gated by a resolved definition.* Remaining open item is the **three-branch reconciliation** (staging / `feat/pubkey-tagging-target` [Vinney] / `feat/communities` [Avi]). Original triage preserved below for history.
 
@@ -674,6 +698,8 @@ Surfaced during the PoV-resolution work (`docs/POV_RESOLUTION_DESIGN_HANDOFF.md`
 **Classification:** Bug / infra hardening (task-queue-scheduler). **Phase path:** `/discuss` → Architecture (resumable-vs-drain-vs-guard is a real design choice) → Test Design → Implementation → Review. **Priority:** Medium — operator has a manual workaround; automate before it bites unattended. **Related:** the three-PoV standard (BIBLE §27) depends on Owner data being trustworthy; `docs/POV_RESOLUTION_DESIGN_HANDOFF.md` §9.
 ## 2026-05-14 — Profile-tag polish bundle: omni-search popup + POV correctness (next story: #7)
 
+**PICKED UP** → `engineering-team/stories/done/7-profile-tag-polish-omni-search-pov.md` (ADR 0006, review PASS). *(marker backfilled 2026-07-02, harness sweep)*
+
 **Context:** Stories 1–5 of the profile-tag stack shipped and are retired to `engineering-team/stories/done/`. Story 6 (tag-ux-polish) is open but mostly shipped via commit `1e5b3044`; only AC-5 (search-placeholder text mentions "tag") and possibly AC-4 (asserter list scrolls within max-height) remain. The user wants to "button up the feature" with a single bundle covering small fixes, polish, and a few correctness gaps surfaced during /discuss.
 
 **Scope agreed (intake conversation):**
@@ -703,6 +729,8 @@ Surfaced during the PoV-resolution work (`docs/POV_RESOLUTION_DESIGN_HANDOFF.md`
 
 ## 2026-05-14 — Search-result parity: popup ↔ Enter-results page (queued story: #8)
 
+**PICKED UP** → `engineering-team/stories/done/8-search-result-parity.md` (ADR 0007, review). *(marker backfilled 2026-07-02, harness sweep)*
+
 **Context:** Tabled for after story #7 lands. The user wants the root search's live popup and its Enter-results page to be coherent: same results, same sort order, same affordances. Currently they diverge (different fetch paths / debounce / ranking — needs audit during Architect phase).
 
 **Scope agreed (intake conversation):**
@@ -731,6 +759,8 @@ If a fresh PO session sees this: the two entries above are the next two stories 
 Also surfaced during the same session (parked, not for these stories): a `bin/dev-sync-ui.sh` one-liner for the local dev loop (see `engineering-team/follow-ups.md` "Local dev-loop polish"). And: a question about whether to use `e` vs `a` for the parent-tag reference in `nostr-user-tag` events (also in follow-ups).
 
 ## 2026-05-20 — Bug: hardcoded TA pubkey in pinning + TL stack breaks every non-local deployment
+
+**PICKED UP** → `engineering-team/stories/16-runtime-ta-pubkey-migration.md` (ADR 0015, review PASS). *(marker backfilled 2026-07-02, harness sweep)*
 
 **Raw observation:**
 
@@ -796,6 +826,8 @@ data-affecting cross-cutting change; deserves the full harness).
 
 ## 2026-05-30 — Add a "Follow Packs" (kind-39089) export target
 
+**PICKED UP** → `engineering-team/stories/22-follow-pack-export-target.md` (ADR 0020, review). *(marker backfilled 2026-07-02, harness sweep)*
+
 **Raw request (verbatim):**
 
 > Need to add one more option to the "What will be exported?" collapse:
@@ -827,6 +859,8 @@ Implementation landed in the same change; Review pending.
 
 ## 2026-06-01 — Two UI bugs: silent login failure + mobile tag crowding
 
+**RESOLVED** → ADR 0021 + `engineering-team/reviews/0021-login-failure-surfacing-and-tag-result-collapse.md` (PASS). *(marker backfilled 2026-07-02, harness sweep)*
+
 **Raw request (verbatim):**
 
 > Two bugs:
@@ -857,6 +891,8 @@ follow. (If a story is ever backfilled, link ADR 0021 into it.)
 ---
 
 ## 2026-06-10 — Admin control over result types in the public search API (backfill)
+
+**PICKED UP** → `engineering-team/stories/search-api-result-controls/1-search-api-result-type-settings.md` (review PASS). *(marker backfilled 2026-07-02, harness sweep)*
 
 **Raw request (verbatim):**
 
@@ -896,6 +932,8 @@ main, too?"). The carve was verified search-safe, so the setting was deferred
 ---
 
 ## 2026-06-12 — Tag-stack merge-hardening (expert AI review of feat/pubkey-tagging-target)
+
+**PICKED UP** → `engineering-team/stories/tag-stack-merge-hardening/` stories 1+2 (reviews PASS, ADR 0022). *(marker backfilled 2026-07-02, harness sweep)*
 
 **Source:** Multi-agent expert review of the full 22-story tag stack on
 `feat/pubkey-tagging-target`, run against the post-merge state (after the
@@ -979,6 +1017,8 @@ fast-follows → `engineering-team/follow-ups.md` or a post-merge cleanup epic.
 
 ## 2026-06-14 — Feature: Reputation info popup on the profile page (House vs Personalized PoV explainer)
 
+**RESOLVED** → `engineering-team/audits/reputation-info-popup/completion-report.md` (book Closed; merged; OPEN.md rows 2–3). *(marker backfilled 2026-07-02, harness sweep)*
+
 **Raw request (verbatim):**
 
 > Currently, there is an informational popup (an `i` in a circle) that explains what "Verified" means. I would like a similar informational popup, also an `i` in a circle, associated to the word Reputation, that explains where the reputational scores come from, i.e. that they reflect either the House PoV or the Personalized PoV (whichever is selected).
@@ -1007,6 +1047,8 @@ Reference profile: `https://staging.brainstorm.world/user/c4eabae1be3cf657bc1855
 ---
 
 ## 2026-06-16 — Feature (REVIVED): offline search-quality evaluation harness
+
+**PICKED UP** (partial) → `engineering-team/epics/search-quality.md` + story `search-quality/1` (Planning+Architecture ratified; Test/Impl unfinished on `feat/search-eval-harness`). *(marker backfilled 2026-07-02, harness sweep)*
 
 **Not a new request — a revival.** Planning + Architecture for an offline search-quality eval harness were found on the local-only branch `feat/search-eval-harness` during a 2026-06-16 branch-hygiene pass: a story + ADR authored 2026-05-17 by the `Clawds4` agent identity on the operator's machine, committed locally and **never pushed** (existed nowhere else). Git forensics confirmed provenance — authored locally on the operator's machine, not teammate work, not a sync artifact. The original raw request is the **2026-05-17** entry above ("…something that Vinney can evaluate and use himself…"). Revived at the operator's direction.
 
@@ -1045,6 +1087,8 @@ Full verified review (the dominant finding, the per-move verdicts, the open deci
 
 ## 2026-06-18 — Feature: profile "latest note" on `/user/:pubkey` (reuses the shared note module)
 
+**PICKED UP** 2026-06-19 → `engineering-team/stories/note-surfaces/2-profile-content-section.md` (PR #319, staging). *(marker backfilled 2026-07-02, harness sweep)*
+
 **Raw request (verbatim, from the feed session):**
 
 > I want to show kind 1 events in two new locations: first, on the user profile page, where I want to show the user's most recent kind 1 event …
@@ -1065,6 +1109,8 @@ Full verified review (the dominant finding, the per-move verdicts, the open deci
 ---
 
 ## 2026-06-18 — Feature: per-user notes page (50 most recent kind-1 from a given user)
+
+**PICKED UP** 2026-06-19 → `engineering-team/stories/note-surfaces/` stories 1+3 (PR #319, staging). *(marker backfilled 2026-07-02, harness sweep)*
 
 **Raw request (verbatim, from the feed session):**
 
@@ -1115,6 +1161,8 @@ Small future-readiness items the 2026-06-18 multi-lens review (`reviews/live-fee
 ---
 
 ## 2026-06-21 — Feature: Verified Muters profile metric (mirror of Verified Followers) — Direction-mode book
+
+**PICKED UP** → `engineering-team/audits/verified-muters/completion-report.md` (PR #333, staging; prod held — OPEN.md #12). *(marker backfilled 2026-07-02, harness sweep)*
 
 **Raw request (verbatim):**
 
@@ -1411,3 +1459,45 @@ controls); event-tagging epic's for-tag read; SEARCH-IS-LOCAL doctrine; OPEN #17
 
 **Classification:** Epic (planning session with operator required — the (a)/(b)/(c) hydration call is
 the crux). **Not yet planned.**
+
+---
+
+## 2026-07-02 — Provenance backfill: Assistant Profile feature (shipped 2026-05-24 outside the harness)
+
+**RESOLVED** — provenance record only; the feature shipped and works. *(entry added 2026-07-02, harness sweep — see docs/HARNESS_REVIEW_HANDOFF_2026-07-02.md §4.3.)*
+
+The Assistant Profile feature (profile editor UI, per-user Assistant routing) shipped to production on 2026-05-24 as four direct commits — `859865ab`, `b510e8ba`, `64ccfd6c`, `ca20070c` (PRs #207–#212, merged directly by the operator) — with no story, ADR, test plan, or review, while the harness was fully operational (stories #24/#25 ran complete five-phase cycles the same days). Its only prior trace was a passing "unrelated, merged during this session by user" note in `docs/SEMAPHORE_INVESTIGATION_HANDOFF_2026-05-24.md`. This entry exists so the feature's surface is provenanced: the book-close workflow treats unprovenanced diff as a finding, and the hotfix lane (workflows/0-intake.md step 3) now requires a trace for out-of-cycle ships. Any future story touching the Assistant Profile surface starts from this record.
+
+---
+
+## 2026-07-05 — Cleanup: cross-module clones of the non-injected TA read + silent relay-set catch
+
+**Source:** review NB3, `engineering-team/reviews/test-hermeticity-ci/1-feed-hermeticity.md` (story #1 fixed the class in `src/api/feed/feedReadPath.js` only).
+
+**Raw finding:** `src/api/_shared/relaySource.js:66–86` and `src/api/notes/userNotesReadPath.js:116` still carry the pre-fix pattern — a non-injected `require` of `utils/assistantKeys` inside a blanket try/catch that silently degrades to fallback relays (`eventReadPath` consumes the `_shared` copy). Same hazard class as OPEN.md row 13(a): a missing/broken install is indistinguishable from an empty relay set, and any future executable test of these modules inherits the bare-checkout trap.
+
+**Classification:** Refactor (mechanical port of story #1's seam + legible-degrade pattern)
+**Strictness:** Standard — Refactor; tests are the behavior here, so mirror story #1's H-block shape per module.
+**Phase path:** candidate fold-in to the `test-hermeticity-ci` book if the operator extends the frame; otherwise the deferred legibility pass. Recorded so the clones don't slip through the book unnoticed.
+
+---
+
+## 2026-07-15 — Feature: tag filters for Router Management streams (persistent config)
+
+**NOT PICKED UP** — triaged for a future session. Anchor inputs: this entry + `audits/sync-panel-tag-filters/prd-seed.md` §6–7 (the return edge from the sibling sync-panel book) + OPEN.md #25 (the ledgered `#z`-filtered dcosl router-stream plan this directly serves). **Open the book eagerly at intake this time** (OPEN.md #29).
+
+**Raw request (verbatim, 2026-07-15, on ratifying the sync-panel book):**
+
+> Before we close it, I am inclined to say that we ought to add a similar feature to the Router Management panel of https://staging.brainstorm.world/tapestry/settings/relays .
+
+**Context captured at triage:**
+
+- "Similar feature" = the single-letter tag-filter capability that just shipped in the Negentropy Sync panel (`stories/relay-management/1-sync-panel-tag-filters.md`, staged via PR #355): letter + one-or-more values, `p`/`e`/`a` (and uppercase) format-checked with bech32 decode, other letters free-form.
+- **Key difference in kind:** router streams are *persistent, always-on config* (strfry-router streams with per-stream `filter` blocks, edited via the Router Management tab's add/edit-stream UI and applied with a router restart), not a one-shot command. Save/restart semantics, preset interplay (dcosl/WoT/profiles… presets carry kinds-only filters today), and per-stream scoping are product questions — see prd-seed §7 checklist.
+- Feasibility note for the Architect: strfry-router stream filters are nostr filter JSON; OPEN.md #25's plan already assumes a `#z` filter in a router stream — verify against the deployed router config schema during Architecture, not from memory.
+- Reuse: the pure validation core `ui/src/utils/tagFilterValidation.js` (ADR relay-management/0001) is directly reusable; the stream add/edit modal is the integration surface.
+- Suggested home: epic `relay-management` (story #2), **new book** (this is a sibling ask, not an extension of the closed sync-panel frame).
+
+**Classification:** Feature
+**Strictness:** Standard
+**Phase path:** Planning → Architecture → Test Design → Implementation → Review (all five phases)

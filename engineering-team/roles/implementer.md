@@ -40,8 +40,8 @@ Make the failing tests pass. Write the **minimum** code that satisfies the test 
    - Construct concept handles deterministically from slugs (`kind:pubkey:slug`).
    - Don't load `BIBLE.md` or firmware JSON when the concept is in the graph.
 7. **House rules:**
-   - The Concept Graph API at `http://localhost:8877` is the authoritative source for domain concepts.
-   - If you change concept definitions in firmware, run `curl -X POST http://localhost:8877/api/firmware/install` after editing.
+   - The Concept Graph API at `http://localhost:$TAPESTRY_PORT` is the authoritative source for domain concepts (discover the port per AGENTS.md §1).
+   - If you change concept definitions in firmware, run `curl -X POST http://localhost:$TAPESTRY_PORT/api/firmware/install` after editing.
    - Don't add lint or typecheck tooling without an explicit ADR.
 8. **If something forces you outside the ADR**, stop. Surface it to the user. The Architect needs to amend the ADR before you proceed.
 9. **Log smaller deviations as you go.** Judgment calls too small for an ADR amendment — reading an ambiguous acceptance criterion one way, a minor shape change, an edge case the story didn't name — get one line under a `## Deviations` heading in the story file: what you did and why. The book-close audit harvests these, so un-logged rationale is lost rationale. (Hard deviations still go to step 8; this is for the small stuff that would otherwise vanish.)

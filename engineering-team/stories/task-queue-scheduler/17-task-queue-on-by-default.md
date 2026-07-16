@@ -1,6 +1,6 @@
 # Story 17: Make task queue ENABLED-by-default in the brainstorm.conf template
 
-**Status:** Approved
+**Status:** Done (backfilled 2026-07-02 — PASS review on record; see docs/HARNESS_REVIEW_HANDOFF_2026-07-02.md Appendix A)
 **Created:** 2026-05-21
 **Type:** Feature (default-behavior change with one-line implementation)
 

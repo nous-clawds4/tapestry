@@ -1,6 +1,6 @@
 # Story 32: Define the Resolved Definition primitive (read-side of the `b` tag)
 
-**Status:** In Progress
+**Status:** Done (backfilled 2026-07-02 — PASS review on record; see docs/HARNESS_REVIEW_HANDOFF_2026-07-02.md Appendix A)
 **Created:** 2026-06-05
 **Type:** Doc (protocol-definition — runs Planning → Architecture → Implementation → Review; **not** fast-tracked; carries a ratifiable design decision = an ADR. Sibling/continuation of `community-reference` #31 / ADR 0027.)
 

@@ -1,6 +1,6 @@
 # Epic: Verified Reporters
 
-**Status:** Active
+**Status:** Done (epic retired 2026-07-02 — backfill per docs/HARNESS_REVIEW_HANDOFF_2026-07-02.md Appendix A; book closed 2026-06-07)
 **Book:** `engineering-team/audits/verified-reporters/book.md` (PRD-backed)
 **Source PRD:** `product-team/prd/verified-reporters.md`
 **Guides:** `product-team/guides/verified-reporters-design-guide.md`, `verified-reporters-style-guide.md` (+ `verified-reporters-wireframes.html`)

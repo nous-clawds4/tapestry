@@ -36,7 +36,7 @@ A consequence: searchable content does **not** need to live primarily on nostr. 
 
 ## Current State
 
-Brainstorm Search today: **nostr profile search.** Live at [brainstorm.world](https://brainstorm.world). Backed by Meilisearch + GrapeRank trust scoring + the NIP-50 relay proxy. See [BIBLE.md §13 "Brainstorm Search Features"](./BIBLE.md) and [BIBLE.md §11 "Search"](./BIBLE.md) for technical details.
+Brainstorm Search today: **nostr profile search.** Live at [tapestry.brainstorm.world](https://tapestry.brainstorm.world). Backed by Meilisearch + GrapeRank trust scoring + the NIP-50 relay proxy. See [BIBLE.md §13 "Brainstorm Search Features"](./BIBLE.md) and [BIBLE.md §11 "Search"](./BIBLE.md) for technical details.
 
 ---
 

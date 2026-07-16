@@ -1,0 +1,39 @@
+name: Deploy to Tapestry
+
+# main → tapestry.brainstorm.world (droplet 159.203.150.156, the former
+# brainstorm.world prod box, repurposed 2026-07-10 after brainstorm.world moved
+# to the NosFabrica codebase). Renamed from deploy-brainstorm.yml; targets the
+# DEPLOY_*_TAPESTRY secrets. See OPERATIONS.md §1.
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1
+        timeout-minutes: 60
+        with:
+          host: ${{ secrets.DEPLOY_HOST_TAPESTRY }}
+          username: ${{ secrets.DEPLOY_USER_TAPESTRY }}
+          key: ${{ secrets.DEPLOY_SSH_KEY_TAPESTRY }}
+          command_timeout: 25m
+          script: |
+            # Fail fast: any non-zero exit aborts the script. Without this,
+            # a docker-build failure was silently followed by `docker image
+            # prune` (exit 0), and the SSH action reported success while the
+            # old container kept running (discovered on the tags droplet,
+            # 2026-05-27 — see deploy-tags.yml).
+            set -euo pipefail
+            cd /opt/tapestry
+            git checkout -- docker-compose.yml 2>/dev/null || true
+            git checkout main 2>/dev/null || git checkout -b main origin/main
+            git pull origin main
+            # Production uses host nginx on port 80, so Docker must bind to 8080 on localhost only
+            sed -i 's/"80:80"/"127.0.0.1:8080:80"/' docker-compose.yml
+            docker compose up -d --build
+            docker image prune -f

@@ -51,3 +51,5 @@ After approval: `git add product-team/stories-queue.md && git commit -m "stories
 
 ## Gate (mandatory)
 Do not auto-advance into engineering. The handoff is the user's call.
+
+**Product retro at the gate** *(mirrors the engineering post-mortem — `engineering-team/workflows/6-book-close.md` step 7)*: before handing off, answer three questions with the user — (1) which template sections went unused this product? (2) which guardrail was fought or overridden — and what amendment would resolve the tension? (3) what did the consuming team need that the artifacts lacked (check the previous book's prd-addendum if one exists)? Each substantive answer becomes a root [`OPEN.md`](../../OPEN.md) `meta` row — the shared ledger, not a product-team file, so the write-boundary holds. No new lesson surface; no fourth state.

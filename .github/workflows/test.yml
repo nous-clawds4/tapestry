@@ -1,0 +1,37 @@
+name: Test
+
+# The first CI test gate (story test-hermeticity-ci #4, ADR 0001). Runs the
+# same stack-free suite every contributor runs, on every PR to a long-lived
+# branch — a pre-merge gate that never races the push-triggered deploy
+# workflows. No retries anywhere: the stack-free suite has a zero-flake record,
+# so a red run is signal by construction (the first run's exit code is the
+# verdict). See OPERATIONS.md § "CI test gate".
+
+on:
+  pull_request:
+    branches: [staging, main]
+
+# A newer push to the same PR supersedes the older in-flight run.
+concurrency:
+  group: test-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  stack-free:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      # @scarf/scarf's postinstall phones home; suppress it. Install scripts
+      # stay ENABLED overall — lmdb/msgpackr prebuild downloads need them.
+      SCARF_ANALYTICS: "false"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Full history so harness-lint L9/L10 (git-log-based) stay live in CI.
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'   # production Dockerfile parity (nodesource 22.x)
+          cache: npm
+      - run: npm ci
+      - run: npm test

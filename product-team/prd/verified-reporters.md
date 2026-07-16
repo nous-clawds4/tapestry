@@ -2,7 +2,7 @@
 
 **Slug:** verified-reporters
 **Date:** 2026-06-07
-**Status:** Draft
+**Status:** Realized 2026-06-07 — built and shipped; see `engineering-team/audits/verified-reporters/` (audit + prd-addendum; story 4 followed post-close on 2026-06-15). *(Status backfilled 2026-07-02, harness sweep — no workflow step flipped it at approval.)*
 **Companion guides:** `guides/verified-reporters-style-guide.md`, `guides/verified-reporters-design-guide.md`
 
 > Self-contained. A reader understands the product without opening the phase artifacts.

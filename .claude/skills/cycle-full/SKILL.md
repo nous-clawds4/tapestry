@@ -1,6 +1,6 @@
 ---
 name: cycle-full
-description: Run the full local → staging → main deploy chain for the tapestry/brainstorm repo. Build locally, smoke-test on `:8080`, push and merge to staging, smoke-test `staging.brainstorm.world`, then on explicit user approval promote to main and smoke-test `brainstorm.world`. Use this whenever the user wants the entire deploy chain in one command — they say things like "ship the full thing," "all the way to prod," "local through to production." Halts on failure at any stage. Pauses between staging and prod for explicit confirmation; production is a shared system.
+description: Run the full local → staging → main deploy chain for the tapestry/brainstorm repo. Build locally, smoke-test locally (per cycle-local), push and merge to staging, smoke-test `staging.brainstorm.world`, then on explicit user approval promote to main and smoke-test `tapestry.brainstorm.world`. Use this whenever the user wants the entire deploy chain in one command — they say things like "ship the full thing," "all the way to prod," "local through to production." Halts on failure at any stage. Pauses between staging and prod for explicit confirmation; production is a shared system.
 ---
 
 # Cycle: full
@@ -33,7 +33,7 @@ Follow [`.claude/skills/cycle-local/SKILL.md`](../cycle-local/SKILL.md):
 
 1. Determine what changed (`git diff --name-only HEAD` or against the last commit).
 2. Build / docker cp / restart as appropriate for the change type.
-3. Smoke test on `http://localhost:8080` per [docs/SMOKE_TEST.md](../../../docs/SMOKE_TEST.md) (skip Tier 1).
+3. Smoke test on the local base URL per cycle-local (it owns that constant) and [docs/SMOKE_TEST.md](../../../docs/SMOKE_TEST.md) (skip Tier 1).
 4. Brief report.
 
 If anything fails at this stage, **stop**. Surface the failure and let the user decide whether to fix or abandon.
@@ -72,8 +72,8 @@ Follow [`.claude/skills/cycle-prod/SKILL.md`](../cycle-prod/SKILL.md):
 1. Confirm `git log origin/main..origin/staging` shows the expected bundle.
 2. Open the `staging → main` promotion PR.
 3. Merge it (after the gate above).
-4. Watch `deploy-brainstorm.yml`.
-5. Stability poll on `brainstorm.world`.
+4. Watch `deploy-tapestry.yml`.
+5. Stability poll on `tapestry.brainstorm.world`.
 6. Smoke test.
 7. Report.
 

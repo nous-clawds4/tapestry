@@ -14,7 +14,7 @@ You are entering **Phase 1: Discovery** of the Tapestry product team harness.
 
 **Inputs:**
 - The user's free-form description of what they want, in whatever form they have it.
-- For Tapestry-built products: the Concept Graph API at `localhost:8877` and WebSearch to ground competitive claims.
+- For Tapestry-built products: the Concept Graph API at `localhost:$TAPESTRY_PORT` (port per AGENTS.md §1) and WebSearch to ground competitive claims.
 
 **House rules:**
 - No solutions. Explore the problem, not the fix.

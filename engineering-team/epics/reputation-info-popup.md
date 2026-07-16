@@ -1,6 +1,6 @@
 # Epic: Reputation Info Popup
 
-**Status:** Active
+**Status:** Done (epic retired 2026-07-02 — backfill per docs/HARNESS_REVIEW_HANDOFF_2026-07-02.md Appendix A; book closed 2026-06-14)
 **Provenance:** `engineering-team/audits/reputation-info-popup/book.md` (Acceptance-frame book, opened 2026-06-14). Source request: the intake entry "2026-06-14 — Feature: Reputation info popup on the profile page (House vs Personalized PoV explainer)" in `engineering-team/stories/_intake.md`.
 
 ## What this is

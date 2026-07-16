@@ -1,6 +1,6 @@
 # Story 19: Admin tools panel on the dashboard + fix Neo4j-Browser link bug
 
-**Status:** Approved
+**Status:** Done (backfilled 2026-07-02 — PASS review on record; see docs/HARNESS_REVIEW_HANDOFF_2026-07-02.md Appendix A)
 **Created:** 2026-05-21
 **Type:** Feature (UI surface + bug fix bundled)
 
