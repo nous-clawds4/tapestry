@@ -1,7 +1,7 @@
 # Test Plan: Story <n> — <title>
 
-**Story:** `engineering-team/stories/<n>-<slug>.md`
-**ADR:** `engineering-team/decisions/<NNNN>-<slug>.md`
+**Story:** `engineering-team/stories/<epic-slug>/<n>-<slug>.md`
+**ADR:** `engineering-team/decisions/<epic-slug>/<NNNN>-<slug>.md`
 **Date:** <DATE>
 
 ## Coverage map
@@ -22,7 +22,7 @@ Things not in the acceptance criteria but still worth covering.
 
 ## Test infrastructure
 - Test framework: Node built-in runner (`node test/test.js`) and/or Playwright.
-- Concept Graph API: `localhost:8877` (must be running).
+- Concept Graph API: `localhost:$TAPESTRY_PORT` (port per AGENTS.md §1), if the plan includes live-API tests. If the stack isn't running, note which suites were skipped.
 - Firmware state: <list any required `POST /api/firmware/install` precondition>.
 - Fixtures: <list>
 

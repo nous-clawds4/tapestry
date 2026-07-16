@@ -28,6 +28,13 @@ function assertEqual(actual, expected, msg) {
   }
 }
 
+async function controlPanelReachable() {
+  try {
+    const r = await fetch(`${CONTROL_PANEL_BASE}/api/auth/user-classification`, { signal: AbortSignal.timeout(2000) });
+    return r.ok;
+  } catch { return false; }
+}
+
 async function fetchJson(url, opts = {}) {
   const res = await fetch(url, opts);
   const text = await res.text();
@@ -110,6 +117,11 @@ t('GET /api/profile-tags/profiles-tagged response shape is preserved (no viewerP
 
 async function run() {
   console.log('\n--- tag-detail-write tests (Story 3) ---');
+  if (!(await controlPanelReachable())) {
+    const skipped = tests.length;
+    console.log(`  - SKIP: control panel not reachable at ${CONTROL_PANEL_BASE} — live-API suite needs the local stack (${skipped} tests skipped)`);
+    return { pass: 0, fail: 0, skipped };
+  }
   let pass = 0, fail = 0;
   for (const [name, fn] of tests) {
     try {

@@ -65,6 +65,13 @@ async function postJson(url, body) {
   });
 }
 
+async function controlPanelReachable() {
+  try {
+    const r = await fetch(`${CONTROL_PANEL_BASE}/api/auth/user-classification`, { signal: AbortSignal.timeout(2000) });
+    return r.ok;
+  } catch { return false; }
+}
+
 const tests = [];
 function t(name, fn) { tests.push([name, fn]); }
 
@@ -203,6 +210,11 @@ t('/api/config/public-relay must NOT be introduced (ADR 0017 Amendment A9 forbid
 
 async function run() {
   console.log('\n--- nip51-list-export-from-pins tests (Story 19) ---');
+  if (!(await controlPanelReachable())) {
+    const skipped = tests.length;
+    console.log(`  - SKIP: control panel not reachable at ${CONTROL_PANEL_BASE} — live-API suite needs the local stack (${skipped} tests skipped)`);
+    return { pass: 0, fail: 0, skipped };
+  }
   let pass = 0, fail = 0;
   for (const [name, fn] of tests) {
     try {

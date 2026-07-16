@@ -35,6 +35,13 @@ function assertEqual(actual, expected, msg) {
   }
 }
 
+async function controlPanelReachable() {
+  try {
+    const r = await fetch(`${CONTROL_PANEL_BASE}/api/auth/user-classification`, { signal: AbortSignal.timeout(2000) });
+    return r.ok;
+  } catch { return false; }
+}
+
 async function fetchJson(url, opts = {}) {
   const res = await fetch(url, opts);
   const text = await res.text();
@@ -155,6 +162,11 @@ t('concept-graph exposes the tag-pinning ConceptHeader node', async () => {
 
 async function run() {
   console.log('\n--- pin-a-tag tests (Story 10) ---');
+  if (!(await controlPanelReachable())) {
+    const skipped = tests.length;
+    console.log(`  - SKIP: control panel not reachable at ${CONTROL_PANEL_BASE} — live-API suite needs the local stack (${skipped} tests skipped)`);
+    return { pass: 0, fail: 0, skipped };
+  }
   let pass = 0, fail = 0;
   for (const [name, fn] of tests) {
     try {

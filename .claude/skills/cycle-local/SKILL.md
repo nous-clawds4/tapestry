@@ -10,7 +10,7 @@ Build a code change, deploy it into the running local Docker container, smoke-te
 ## When to use
 
 - User wants to verify a change works before committing it.
-- User says "test locally," "smoke-test on :8080," "before I push, let's see…"
+- User says "test locally," "smoke-test on :8080" (a legacy synonym from the old port setup — the stack serves :7778 now), "before I push, let's see…"
 - The previous step in the session was an edit to `ui/src/**`, `src/**`, or `docker/**`.
 
 ## When NOT to use
@@ -26,7 +26,7 @@ The exact deploy mechanics depend on what changed. Determine the diff first (`gi
 ### 1. UI changes (`ui/src/**`)
 
 ```bash
-WT=/Users/wds4/repos/nous-clawds4/tapestry/.claude/worktrees/<this-worktree>
+WT=$(git rev-parse --show-toplevel)   # works in any checkout or worktree, on any machine
 npm --prefix $WT/ui run build 2>&1 | tail -3
 docker cp $WT/dist/. tapestry:/usr/local/lib/node_modules/brainstorm/dist/
 ```

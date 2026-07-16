@@ -102,7 +102,8 @@ test-results/
 
 # misc — gitignore Claude Code's per-user state and worktrees, but commit
 # project-level skills and engineering-team harness wiring (commands +
-# agents) so they ship with the repo for other sessions.
+# agents + the project settings.json carrying the SessionStart hook) so they
+# ship with the repo for other sessions. settings.local.json stays personal.
 # Note: must use `.claude/*` (not `.claude/`) so the un-ignores for skills/,
 # commands/, and agents/ can re-enter the directory; git doesn't traverse
 # fully-excluded dirs.
@@ -110,6 +111,7 @@ test-results/
 !.claude/skills/
 !.claude/commands/
 !.claude/agents/
+!.claude/settings.json
 
 .pi/
 

@@ -1,6 +1,6 @@
 # Epic: Note Surfaces
 
-**Status:** Active
+**Status:** Done (epic retired 2026-07-02 — OPEN.md row 17 disposition, ratified at the harness-self-improvement story-1 Review gate)
 **Provenance:** `_intake.md` entries 2026-06-18 ("profile latest note on `/user/:pubkey`" + "per-user notes page, 50 recent kind-1"); operator-confirmed scope 2026-06-18 (this session). Built atop the `live-feed` epic's shared note seam (`NoteCard` + `enrichNotes`), shipped to staging 2026-06-18.
 
 ## What this is

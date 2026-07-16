@@ -10,6 +10,13 @@ Tapestry runs locally in a Docker container. You own your data. It's designed to
 
 ## Quickstart
 
+### Contributing? Orient in four steps
+
+1. **[CLAUDE.md](./CLAUDE.md)** — the per-task pointer table + architecture invariants (auto-loaded in Claude Code sessions).
+2. **[engineering-team/README.md](./engineering-team/README.md)** — how work flows: the five-phase harness, books, epics.
+3. **`bash scripts/whats-open.sh`** — everything still open across sessions, derived live from the repo.
+4. **[BIBLE.md](./BIBLE.md) via its table of contents** — deep dives, only the sections your task needs.
+
 ### Prerequisites
 
 - **Docker Desktop** (or Docker Engine + Compose) — [install](https://docs.docker.com/get-docker/)
@@ -21,7 +28,6 @@ Tapestry runs locally in a Docker container. You own your data. It's designed to
 ```bash
 git clone https://github.com/nous-clawds4/tapestry.git
 cd tapestry
-git checkout concept-graph
 ```
 
 ### 2. Configure environment

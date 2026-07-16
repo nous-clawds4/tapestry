@@ -68,6 +68,13 @@ async function postJson(url, body) {
   });
 }
 
+async function controlPanelReachable() {
+  try {
+    const r = await fetch(`${CONTROL_PANEL_BASE}/api/auth/user-classification`, { signal: AbortSignal.timeout(2000) });
+    return r.ok;
+  } catch { return false; }
+}
+
 const tests = [];
 function t(name, fn) { tests.push([name, fn]); }
 
@@ -219,6 +226,11 @@ t('/api/profile-tags/pins for an unknown viewer returns success with empty pins 
 
 async function run() {
   console.log('\n--- tl-publication-from-pins tests (Story 11) ---');
+  if (!(await controlPanelReachable())) {
+    const skipped = tests.length;
+    console.log(`  - SKIP: control panel not reachable at ${CONTROL_PANEL_BASE} — live-API suite needs the local stack (${skipped} tests skipped)`);
+    return { pass: 0, fail: 0, skipped };
+  }
   let pass = 0, fail = 0;
   for (const [name, fn] of tests) {
     try {

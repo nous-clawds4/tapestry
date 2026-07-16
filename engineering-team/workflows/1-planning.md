@@ -13,6 +13,7 @@ A user story file at `engineering-team/stories/<epic-slug>/<n>-<slug>.md`, using
 
 ## Steps
 
+0. **Origin-drift preflight.** `git fetch origin staging` (quietly; tolerate offline). If the working base is behind `origin/staging` (else `origin/main`), say so with the behind-count and ask whether to rebase/re-branch before planning against stale state — **warn-and-surface**; the hard halt stays Direction-only (Stage-0 runs the same check). *Why: story #24 was built against a 76-commits-stale base and could not rebase without re-architecting (intake 2026-05-24).*
 1. **Restate the request** to confirm understanding.
 2. **Ask clarifying questions** about scope, users affected, success criteria. Max three at a time.
 3. **Draft the story.** Acceptance criteria must be testable from outside.
@@ -28,4 +29,4 @@ A user story file at `engineering-team/stories/<epic-slug>/<n>-<slug>.md`, using
 - Re-defining concepts that already exist in the Concept Graph. Reference by handle instead.
 
 ## Per-phase commits
-Yes. After the user approves the story, commit it: `git add engineering-team/stories/<epic-slug>/<file> && git commit -m "story: <slug>"`.
+Yes. After the user approves the story, commit it: `git add engineering-team/stories/<epic-slug>/<file> && git commit -m "story: <slug> (<epic> #<n>)"`. The slug + `(<epic> #<n>)` reference is the convention every phase commit carries — it is what `scripts/harness-stats.sh` matches for cycle-time coverage (the pre-convention history is the unmatchable gap in its coverage line).

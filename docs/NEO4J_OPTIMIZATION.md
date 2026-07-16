@@ -35,7 +35,7 @@ The optimization philosophy is:
 A separate, legacy path (`setup/install-neo4j.sh`) tunes Neo4j for
 bare-metal Linux installs. That path is static, hardcoded for 32 GB, and
 is documented below for completeness, but the Docker path is the
-production path on brainstorm.world.
+production path on tapestry.brainstorm.world.
 
 ## 2. What we tune
 
@@ -187,7 +187,7 @@ Relationship types (per [BIBLE.md](../BIBLE.md)):
 
 ## 5. What happens if we ship the defaults
 
-Concrete failure modes operators would hit on brainstorm.world if the
+Concrete failure modes operators would hit on tapestry.brainstorm.world if the
 entire §2 block of tunings were removed:
 
 1. **Heap too small for GrapeRank.** With Neo4j's auto-sized heap on a
@@ -381,7 +381,7 @@ RUN sed -i 's/#server.default_listen_address=0.0.0.0/server.default_listen_addre
 
 ### 6.8 Worked example: 32 GB / 8 CPU
 
-For the brainstorm.world reference box:
+For the tapestry.brainstorm.world reference box:
 
 | Quantity                     | Formula                          | Value      |
 | ---------------------------- | -------------------------------- | ---------- |
@@ -407,7 +407,7 @@ For a 4 GB Digital Ocean droplet with 2 vCPUs:
 
 The 1 GB floor is there so tiny boxes at least start; the 409 MB heap
 is clearly too small for any real workload, and this is expected — a
-4 GB droplet is a dev box, not a production brainstorm.world.
+4 GB droplet is a dev box, not a production tapestry.brainstorm.world.
 
 ## 7. The bare-metal installer (legacy)
 
@@ -446,7 +446,7 @@ The static 32 GB values (11 700 MB heap, 12 000 MB page cache) sum to
 23.7 GB of Neo4j-owned memory — tighter than the Docker split on the
 same box (~8 GB / ~8 GB = 16 GB). The bare-metal tuning assumes
 Meilisearch is not co-resident or is smaller than on a typical
-brainstorm.world deployment; running this on a 32 GB host that also
+tapestry.brainstorm.world deployment; running this on a 32 GB host that also
 runs Meilisearch would starve it.
 
 **On any other RAM size the bare-metal installer leaves memory
@@ -527,7 +527,7 @@ pick them up.
 The bare-metal installer enables Native Memory Tracking and GC logging
 (§7.3); the Docker entrypoint does not. Both are near-zero overhead and
 are exactly what an operator needs when diagnosing an OOM on
-brainstorm.world. Adding the four lines to `docker/entrypoint.sh`
+tapestry.brainstorm.world. Adding the four lines to `docker/entrypoint.sh`
 would give Docker parity with bare-metal.
 
 ### 9.2 Set a query / transaction timeout

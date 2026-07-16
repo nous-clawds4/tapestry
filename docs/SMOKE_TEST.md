@@ -19,7 +19,7 @@ For staging and production deploys only — skip for local. The deploy workflow 
 **Recipe:** poll a real upstream API endpoint (not just `/`, which can flicker between cached static-shell 200s and upstream 502s) until 3 consecutive 200s. Then settle 4–5 seconds — the brainstorm process can briefly cycle once more after first appearing stable, observed during the #88 production deploy.
 
 ```bash
-H=https://staging.brainstorm.world  # or https://brainstorm.world
+H=https://staging.brainstorm.world  # or https://tapestry.brainstorm.world
 PK=04c915daefee38317fa734444acee390a8269fe5810b2241e5e6dd343dfbecc9
 streak=0
 attempts=0

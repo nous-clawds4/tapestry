@@ -1,0 +1,17 @@
+# Line budgets for the always-loaded orientation files (R-S4; ADR
+# harness-self-improvement/0007). Read by scripts/harness-lint.sh (check L11:
+# over-cap is a violation). Format: <path><TAB><max-lines>.
+#
+# THE RULE (this header is its single source — the capped files point here,
+# never restate it): CLAUDE.md and AGENTS.md are loaded into EVERY session's
+# context. They are capped at the sizes measured when the pointer-table /
+# ladder restructure landed (story 7). Exact caps, no headroom: any change
+# that adds lines must free lines in the same file. Behavior that can live
+# on-demand — a command file, a skill, a script's output, a hook message —
+# goes there instead of here. Fixes to the context problem must not recreate it.
+#
+# Raising a cap is a harness-definition change: this file is a def path, so
+# the diff requires a CHANGELOG row naming the origin (L10) — cap erosion is
+# always a visible, ratified event, never a drive-by.
+CLAUDE.md	190
+AGENTS.md	102

@@ -1,6 +1,6 @@
 # Epic: Event Page
 
-**Status:** Active
+**Status:** Done (epic retired 2026-07-02 — OPEN.md row 17 disposition, ratified at the harness-self-improvement story-1 Review gate)
 **Provenance:** Operator request 2026-06-18 (this session), immediately after the `note-surfaces` epic shipped to staging. Builds on the shared note seam (`NoteCard` + `enrichNotes`) and the relay-set resolution pattern established by `live-feed` / `note-surfaces`.
 
 ## What this is

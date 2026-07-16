@@ -197,8 +197,8 @@ test('R1: App.jsx still registers the /event route → BrainstormEvent (additive
 
 test('R2: NoteCard is reused as-is — single { item } prop, bsp-note-card markup (no fork)', () => {
   const src = safeRead(NOTE_CARD);
-  assert(/export\s+default\s+function\s+NoteCard\s*\(\s*\{\s*item\s*\}/.test(src) && /bsp-note-card/.test(src),
-    'NoteCard must keep its { item } presentational contract — the event page reuses it unchanged.');
+  assert(/export\s+default\s+function\s+NoteCard\s*\(\s*\{\s*item\s*,\s*showTagScores\s*=\s*false\s*\}/.test(src) && /bsp-note-card/.test(src),
+    'NoteCard contract is { item, showTagScores = false } (additive default-off prop, event-tagging stories 6 & 15) — the event page reuses it via the plain { item } call unchanged.');
 });
 
 async function run() {

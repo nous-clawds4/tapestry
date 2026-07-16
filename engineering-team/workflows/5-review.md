@@ -31,7 +31,7 @@ A review file at `engineering-team/reviews/<epic-slug>/<n>-<slug>.md` (same epic
 Be skeptical, not pedantic. PASS means the diff is mergeable as-is. CHANGES_REQUESTED means there's at least one blocking issue. Style preferences not in house rules are not blocking.
 
 ## Per-phase commits
-Yes. Commit the review file regardless of verdict. Accumulated reviews are valuable signal over time.
+Yes. Commit the review file regardless of verdict (e.g., `review: <slug> — <VERDICT> (<epic> #<n>)` — the slug/epic reference feeds `harness-stats.sh`, per workflow 1). Accumulated reviews are valuable signal over time.
 
 ## On PASS — mark the story Done
 

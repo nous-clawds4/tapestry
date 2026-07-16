@@ -1,6 +1,6 @@
 # Story 27: Scheduled tasks bypass configured timeouts (restoring `neo4j-heavy` semaphore contract)
 
-**Status:** Draft
+**Status:** Done (backfilled 2026-07-02 — PASS review on record; see docs/HARNESS_REVIEW_HANDOFF_2026-07-02.md Appendix A)
 **Created:** 2026-05-25
 **Type:** Bug
 
