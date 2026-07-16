@@ -57,6 +57,10 @@ Carried-over defaults ratified in story #1 (the ask is "a similar feature"; thes
 
 None. The three product questions the frame delegated to Planning are settled above; entry/validation semantics carry over from story #1's ratified defaults.
 
+## Deviations
+
+- Stream read card renders saved tag entries as ` #z: v1, v2` appended to the existing `Filter:` line (same `#letter: values` format the TagFilterEditor rows use), rather than the ADR's non-normative example text `+ tag filters …` — reads cleanly both with kinds (`Filter: kinds 39999 (limit: 5) #z: …`) and without (`Filter: #z: …`); render condition adjusted to "has kinds or tag entries" exactly as the ADR directs.
+
 ## Linked artifacts
 
 - ADR: `engineering-team/decisions/relay-management/0002-router-stream-tag-filters.md`
