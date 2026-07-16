@@ -95,6 +95,7 @@ const liveFeedReadPath = require('./live-feed-read-path.test.js');
 const stackFreeNpmTest = require('./stack-free-npm-test.test.js');
 const ciTestJob = require('./ci-test-job.test.js');
 const syncPanelTagFilters = require('./sync-panel-tag-filters.test.js');
+const routerStreamTagFilters = require('./router-stream-tag-filters.test.js');
 const liveFeedFeedPage = require('./live-feed-feed-page.test.js');
 const noteSurfacesReadPath = require('./note-surfaces-read-path.test.js');
 const noteSurfacesUi = require('./note-surfaces-ui.test.js');
@@ -418,6 +419,9 @@ async function main() {
   console.log('\nsync-panel-tag-filters suite:');
   const syncPanelTagFiltersResult = await syncPanelTagFilters.run();
 
+  console.log('\nrouter-stream-tag-filters suite:');
+  const routerStreamTagFiltersResult = await routerStreamTagFilters.run();
+
   console.log('\nTest Results');
   console.log('-------------');
   console.log(`Configuration Loading:                           ${configOk ? 'PASS' : 'FAIL'}`);
@@ -700,6 +704,9 @@ async function main() {
   console.log(
     `sync-panel-tag-filters suite:                    ${syncPanelTagFiltersResult.fail === 0 ? 'PASS' : 'FAIL'} (${syncPanelTagFiltersResult.pass} passed, ${syncPanelTagFiltersResult.fail} failed)`
   );
+  console.log(
+    `router-stream-tag-filters suite:                 ${routerStreamTagFiltersResult.fail === 0 ? 'PASS' : 'FAIL'} (${routerStreamTagFiltersResult.pass} passed, ${routerStreamTagFiltersResult.fail} failed)`
+  );
 
   const overallOk =
     configOk &&
@@ -816,7 +823,8 @@ async function main() {
     sessionStartResult.fail === 0 &&
     stackFreeNpmTestResult.fail === 0 &&
     ciTestJobResult.fail === 0 &&
-    syncPanelTagFiltersResult.fail === 0;
+    syncPanelTagFiltersResult.fail === 0 &&
+    routerStreamTagFiltersResult.fail === 0;
   // Aggregate skip visibility (story test-hermeticity-ci #2, reviewer
   // constraint: skips are counted, never silent). Purely informational —
   // overallOk above never consults .skipped.
@@ -843,7 +851,7 @@ async function main() {
     tagReadUnionResult, bTagPrimitiveResult, bTagSeedsResult, dualZWriterResult,
     openRankingStatsResult, openRankingSearchResult, verifiedMutersReadApiResult, verifiedMutersProfileSurfaceResult,
     harnessLintResult, harnessStatsResult, sessionStartResult, stackFreeNpmTestResult,
-    ciTestJobResult, syncPanelTagFiltersResult,
+    ciTestJobResult, syncPanelTagFiltersResult, routerStreamTagFiltersResult,
   ].reduce((sum, r) => sum + ((r && r.skipped) || 0), 0);
   console.log(`Total skipped:                                   ${totalSkipped}`);
   console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);

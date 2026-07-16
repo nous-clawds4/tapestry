@@ -30,6 +30,16 @@ const tests = [];
 function test(name, fn) { tests.push({ name, fn }); }
 function assert(cond, msg) { if (!cond) throw new Error(msg || 'Assertion failed'); }
 function safeRead(p) { try { return fs.readFileSync(p, 'utf8'); } catch { return ''; } }
+// ADR 0002 Amendment 1 (2026-07-16): source-level assertions in a file hosting
+// multiple surfaces must be region-scoped to the owning component — never
+// file-global first-match/first-index. StreamEditor (story #2) now also uses
+// TagFilterEditor and a 'Tag Filters' label earlier in the file.
+function negentropySyncRegion(src) {
+  const start = src.indexOf('function NegentropySync');
+  assert(start !== -1, 'NegentropySync declaration missing from RelaySettings.jsx — unexpected.');
+  const end = src.indexOf('\nfunction ', start); // next top-level declaration (currently StreamingETLPanel)
+  return src.slice(start, end === -1 ? src.length : end);
+}
 async function loadEsm(absPath) { try { return await import(pathToFileURL(absPath).href); } catch { return null; } }
 function loadBackend() { try { return require(BACKEND); } catch { return null; } }
 function eq(a, b, msg) {
@@ -239,7 +249,8 @@ test('S1: RelaySettings.jsx declares TagFilterEditor and NegentropySync renders 
   assert(src.length > 0, 'ui/src/pages/settings/RelaySettings.jsx missing — unexpected.');
   assert(/function\s+TagFilterEditor\s*\(/.test(src),
     NOT_IMPL('RelaySettings.jsx must declare function TagFilterEditor (ADR §Implementation 2)'));
-  const usage = src.match(/<TagFilterEditor[\s\S]*?\/>/);
+  const panel = negentropySyncRegion(src);
+  const usage = panel.match(/<TagFilterEditor[\s\S]*?\/>/);
   assert(usage, NOT_IMPL('NegentropySync must render <TagFilterEditor …/>'));
   assert(/disabled=\{running\}/.test(usage[0]),
     'TagFilterEditor must be disabled while a sync is running, like every other sub-panel input.');
@@ -255,9 +266,10 @@ test('S2: NegentropySync owns tagFilters state and contributes it to the filterO
 
 test('S3: the Tag Filters group renders between Authors and Time Range (AC-1, story UI placement)', () => {
   const src = safeRead(RELAY_SETTINGS);
-  const authorsIdx = src.indexOf('Authors');
-  const tagIdx = src.indexOf('Tag Filters');
-  const timeIdx = src.indexOf('Time Range');
+  const panel = negentropySyncRegion(src);
+  const authorsIdx = panel.indexOf('Authors');
+  const tagIdx = panel.indexOf('Tag Filters');
+  const timeIdx = panel.indexOf('Time Range');
   assert(tagIdx !== -1, NOT_IMPL("RelaySettings.jsx must render a 'Tag Filters' group label"));
   assert(authorsIdx !== -1 && timeIdx !== -1, 'Authors / Time Range labels vanished — unexpected regression.');
   assert(authorsIdx < tagIdx && tagIdx < timeIdx,
