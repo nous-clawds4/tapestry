@@ -1504,7 +1504,7 @@ Anchor inputs: this entry + `audits/sync-panel-tag-filters/prd-seed.md` §6–7 
 **Strictness:** Standard
 **Phase path:** Planning → Architecture → Test Design → Implementation → Review (all five phases)
 
-## 2026-07-15 — Harness story proposal: meta-ledger sweep (OPEN.md #16, #21, #22, #28, #29)
+## 2026-07-15 — Harness story proposal: meta-ledger sweep (OPEN.md #16, #21, #22, #28, #29; +#40, #41 added 2026-07-16)
 
 **NOT PICKED UP** — proposal filed at triage per the meta-escalation rule (session-start digest 2026-07-15: 5 open `meta` rows ≥ the ≥3 threshold; OPEN.md § "How to use this ledger").
 
@@ -1515,6 +1515,11 @@ Anchor inputs: this entry + `audits/sync-panel-tag-filters/prd-seed.md` §6–7 
 - **#22** — `test/ci-test-job.test.js` W5 ordering check reads comment prose: scope the `npm ci`-before-`npm test` check to the `steps:` region.
 - **#21** — `check_L8` empty-`files[@]` crash under bash-3.2 `set -u`: one-line `${files[@]+…}` guard in `scripts/harness-lint.sh`.
 - **#16** — live-feed post-close reviews #3–6 have no stories: backfill the four story stubs (or record review-only status), then retire the `live-feed` epic (held since the 2026-07-02 sweep).
+
+*Added at the router-stream-tag-filters book close (2026-07-16):*
+
+- **#40** — region-scope source-level suite assertions in multi-surface files: one-line Tester role/test-plan-template rule; ADR relay-management/0002 Amendment 1 is the worked precedent.
+- **#41** — session-mode standing gate authorization: ratify as a named mode (doc amendment) or forbid; the router-stream-tag-filters book/journal is the worked clean run.
 
 **Classification:** Refactor/cleanup batch (harness infrastructure)
 **Strictness:** Standard (expect: skip Tests where no behavior change; #21/#22 are test/script one-liners, #29/#28 are doc/template edits + optional lint line, #16 is docs + epic retirement)
