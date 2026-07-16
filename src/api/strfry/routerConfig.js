@@ -21,6 +21,52 @@ const ROUTER_STATE_PATH = '/var/lib/brainstorm/router-state.json';
 const PRESETS_PATH = path.resolve(__dirname, '../../../setup/router-presets.json');
 const PLUGINS_DIR = '/usr/local/lib/strfry/plugins';
 
+// ── Stream filter sanitization (ADR relay-management/0002) ───
+//
+// The deployed strfry router hard-fails its WHOLE config on any filter key
+// outside the closed vocabulary ids/authors/kinds/since/until/limit/#<single
+// ASCII letter>. Client JSON must therefore never persist opaquely: one bad
+// key POSTed into state would crash-loop the router at the next restart.
+// Twin of the shape guard in negentropySync.js (deliberately per-surface;
+// server enforces shape, not value format — ADR relay-management/0001).
+
+const TAG_FILTER_KEY_RE = /^#[a-zA-Z]$/;
+const SCALAR_INT_FILTER_KEYS = ['since', 'until', 'limit'];
+const STRING_ARRAY_FILTER_KEYS = ['ids', 'authors'];
+
+/**
+ * Reconstruct a stream filter as an insertion-order-preserving whitelist copy
+ * of the router's legal filter vocabulary; everything else is dropped.
+ * Non-object input (null, arrays, strings, …) → undefined, so the stream
+ * persists with no filter and generateConfig omits the line. Empty kinds []
+ * is preserved — today's UI emits {"kinds":[],"limit":5} and the deployed
+ * parser accepts it (byte-compat). Pure: never mutates its input.
+ */
+function sanitizeStreamFilter(filter) {
+  if (!filter || typeof filter !== 'object' || Array.isArray(filter)) return undefined;
+  const out = {};
+  for (const key of Object.keys(filter)) {
+    const val = filter[key];
+    if (key === 'kinds') {
+      if (Array.isArray(val)) out.kinds = val.filter(Number.isInteger);
+    } else if (STRING_ARRAY_FILTER_KEYS.includes(key)) {
+      if (Array.isArray(val)) {
+        const values = val.filter(v => typeof v === 'string' && v.length > 0);
+        if (values.length > 0) out[key] = values;
+      }
+    } else if (SCALAR_INT_FILTER_KEYS.includes(key)) {
+      if (Number.isInteger(val)) out[key] = val;
+    } else if (TAG_FILTER_KEY_RE.test(key)) {
+      if (Array.isArray(val)) {
+        const values = val.filter(v => typeof v === 'string' && v.length > 0);
+        if (values.length > 0) out[key] = values;
+      }
+    }
+    // Any other key: dropped — the deployed parser hard-fails on it.
+  }
+  return out;
+}
+
 // ── State persistence ────────────────────────────────────────
 
 function loadState() {
@@ -169,8 +215,17 @@ async function handleUpdateRouterConfig(req, res) {
       return res.status(400).json({ success: false, error: `Duplicate stream names: ${dupes.join(', ')}` });
     }
 
+    // Reconstruct every stream's filter against the router's legal vocabulary
+    // — client JSON never passes through opaquely (ADR relay-management/0002).
+    const sanitizedStreams = streams.map(s => {
+      const filter = sanitizeStreamFilter(s.filter);
+      const stream = { ...s, filter };
+      if (filter === undefined) delete stream.filter; // keep state JSON clean
+      return stream;
+    });
+
     // Update state
-    const state = { streams };
+    const state = { streams: sanitizedStreams };
     saveState(state);
     await applyConfig(state);
 
@@ -325,6 +380,7 @@ async function initRouter() {
 
 module.exports = {
   generateConfig,
+  sanitizeStreamFilter,
   handleUpdateRouterConfig,
   handleToggleStream,
   handleGetPresets,
