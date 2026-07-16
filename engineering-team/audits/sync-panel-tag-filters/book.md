@@ -1,6 +1,6 @@
 # Book: sync-panel-tag-filters
 
-**Status:** Open
+**Status:** Closed (2026-07-15)
 **Opened:** 2026-07-15 (retroactive backfill at review time — the eager intake open was missed; OPEN.md #29)
 **Type:** Bounded ask (no PRD)
 **Epics:** `relay-management` (new; sole story so far)
@@ -21,4 +21,4 @@ Approved defaults folded in at the story gate: uppercase `P`/`E`/`A` validated l
 
 ## Close
 
-_(open — story 1 is Done and PASS-reviewed on `feat/sync-panel-tag-filters`; close pends the operator's ratification and the staging ship)_
+Sole story Done (PASS first review, no kick-backs); shipped to `staging` via PR #355 (merge `08d0b5c0`, deploy 92s, CI `stack-free` green). Every acceptance-frame bullet verified live on staging 2026-07-15: panel present in the served bundle and rendered as owner; validation blocking with named-value errors; the executed count discriminates (`#z` real handle → 12, nonsense → 0, unfiltered kind-39999 → 400) — the server honors tag filters end-to-end. Operator ratified completion same day. Artifacts: [`audit.md`](./audit.md) + [`prd-seed.md`](./prd-seed.md) (retro dispositions in audit §7; follow-on Router Management feature triaged in `stories/_intake.md`). Confidence: **high**. Prod promotion deliberately held (OPEN.md #30).

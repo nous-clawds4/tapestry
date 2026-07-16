@@ -1223,3 +1223,25 @@ The Assistant Profile feature (profile editor UI, per-user Assistant routing) sh
 **Classification:** Refactor (mechanical port of story #1's seam + legible-degrade pattern)
 **Strictness:** Standard — Refactor; tests are the behavior here, so mirror story #1's H-block shape per module.
 **Phase path:** candidate fold-in to the `test-hermeticity-ci` book if the operator extends the frame; otherwise the deferred legibility pass. Recorded so the clones don't slip through the book unnoticed.
+
+---
+
+## 2026-07-15 — Feature: tag filters for Router Management streams (persistent config)
+
+**NOT PICKED UP** — triaged for a future session. Anchor inputs: this entry + `audits/sync-panel-tag-filters/prd-seed.md` §6–7 (the return edge from the sibling sync-panel book) + OPEN.md #25 (the ledgered `#z`-filtered dcosl router-stream plan this directly serves). **Open the book eagerly at intake this time** (OPEN.md #29).
+
+**Raw request (verbatim, 2026-07-15, on ratifying the sync-panel book):**
+
+> Before we close it, I am inclined to say that we ought to add a similar feature to the Router Management panel of https://staging.brainstorm.world/tapestry/settings/relays .
+
+**Context captured at triage:**
+
+- "Similar feature" = the single-letter tag-filter capability that just shipped in the Negentropy Sync panel (`stories/relay-management/1-sync-panel-tag-filters.md`, staged via PR #355): letter + one-or-more values, `p`/`e`/`a` (and uppercase) format-checked with bech32 decode, other letters free-form.
+- **Key difference in kind:** router streams are *persistent, always-on config* (strfry-router streams with per-stream `filter` blocks, edited via the Router Management tab's add/edit-stream UI and applied with a router restart), not a one-shot command. Save/restart semantics, preset interplay (dcosl/WoT/profiles… presets carry kinds-only filters today), and per-stream scoping are product questions — see prd-seed §7 checklist.
+- Feasibility note for the Architect: strfry-router stream filters are nostr filter JSON; OPEN.md #25's plan already assumes a `#z` filter in a router stream — verify against the deployed router config schema during Architecture, not from memory.
+- Reuse: the pure validation core `ui/src/utils/tagFilterValidation.js` (ADR relay-management/0001) is directly reusable; the stream add/edit modal is the integration surface.
+- Suggested home: epic `relay-management` (story #2), **new book** (this is a sibling ask, not an extension of the closed sync-panel frame).
+
+**Classification:** Feature
+**Strictness:** Standard
+**Phase path:** Planning → Architecture → Test Design → Implementation → Review (all five phases)
