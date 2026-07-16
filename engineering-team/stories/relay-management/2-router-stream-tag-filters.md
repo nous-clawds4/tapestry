@@ -59,6 +59,6 @@ None. The three product questions the frame delegated to Planning are settled ab
 
 ## Linked artifacts
 
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/relay-management/0002-router-stream-tag-filters.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
