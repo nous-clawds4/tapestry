@@ -1,6 +1,6 @@
 # ADR 0002: Single-letter tag filters on Router Management streams
 
-**Status:** Accepted
+**Status:** Accepted (Amendment 1 appended 2026-07-16)
 **Date:** 2026-07-15
 **Story:** `engineering-team/stories/relay-management/2-router-stream-tag-filters.md`
 
@@ -136,7 +136,7 @@ We chose **Option A** — reuse `TagFilterEditor` inside `StreamEditor` with `fo
 - Extend `module.exports` (326–335) with `sanitizeStreamFilter` so the suite executes it directly (`generateConfig` is already exported).
 - No changes to `generateConfig`, `applyConfig`, `initRouter`, `handleToggleStream`, `handleRestoreDefaults` — AC-3's save/apply → restart mechanics are untouched.
 
-**4. Tests** (Tester's phase; levels fixed here per house precedent — the `sync-panel-tag-filters.test.js` pattern): new `test/router-stream-tag-filters.test.js` registered in `test/test.js`. The two new ESM helpers **executed** via dynamic `import(pathToFileURL(...))`; `sanitizeStreamFilter` + `generateConfig` **executed** via `require` (composition: sanitized stream → `generateConfig` output contains `"#z"` keys composed with kinds/limit; byte-identity for kinds/limit-only streams; garbage keys `bogusfield`, `#zz`, non-integer kinds entries dropped); the `StreamEditor`/card JSX surface asserted at **source level** (TagFilterEditor rendered inside StreamEditor wired to `form.filter` via the two helpers; card line extended). Round-trip AC-4 is exercised executably at the helper level (`applyTagFilters` → `tagFiltersFromFilter` inverse; remove-one-letter deletes exactly that key).
+**4. Tests** (Tester's phase; levels fixed here per house precedent — the `sync-panel-tag-filters.test.js` pattern): new `test/router-stream-tag-filters.test.js` registered in `test/test.js`. The two new ESM helpers **executed** via dynamic `import(pathToFileURL(...))`; `sanitizeStreamFilter` + `generateConfig` **executed** via `require` (composition: sanitized stream → `generateConfig` output contains `"#z"` keys composed with kinds/limit; byte-identity for kinds/limit-only streams; garbage keys `bogusfield`, `#zz`, non-integer kinds entries dropped); the `StreamEditor`/card JSX surface asserted at **source level** (TagFilterEditor rendered inside StreamEditor wired to `form.filter` via the two helpers; card line extended). Round-trip AC-4 is exercised executably at the helper level (`applyTagFilters` → `tagFiltersFromFilter` inverse; remove-one-letter deletes exactly that key). *(Amendment 1 refines this: source-level assertions in a file hosting multiple surfaces must be region-scoped to the owning component, never file-global first-match/first-index.)*
 
 ## Out of scope
 
@@ -150,3 +150,58 @@ We chose **Option A** — reuse `TagFilterEditor` inside `StreamEditor` with `fo
 ## Architecture-invariant reflex checks (CLAUDE.md)
 
 Operator-local instance configuration, not a trust surface: (1) *Who is this true for?* — this instance's operator; a router stream is inherently per-instance config, no global-truth claim. (2) *Where does this trust come from?* — no trust decision is made; the filter selects which events this instance chooses to move, which is the operator's prerogative ("aggregation is opinionated"). (3) *Could anyone else publish their own version?* — not a publish surface; no nostr event is gated at write time (a `#z`-filtered stream shapes this instance's aggregation, not anyone's ability to publish). (4) *What changes when the POV changes?* — nothing; router config is not POV-scoped data. No TA-pubkey coupling: all tag values are opaque operator-entered strings resolved by no code path.
+
+---
+
+## Amendment 1 (2026-07-16) — cross-suite collision: region-scope the sibling suite's source-level assertions
+
+### Trigger (implementation-phase evidence, routed back by the coordinator)
+
+Implementing §Implementation-notes 2 exactly as ratified regressed **story #1's** suite `test/sync-panel-tag-filters.test.js` from 20/20 to 18 pass / 2 fail, while the story-#2 suite is green (21/21) and the environmental FAILs are byte-identical to baseline:
+
+- **S1** (test file :237–246) resolves the component usage by **first match** — `src.match(/<TagFilterEditor[\s\S]*?\/>/)` — then asserts `disabled={running}` on that match. `StreamEditor` (declared at RelaySettings.jsx:39, well before `NegentropySync` at :894 post-implementation) now contains the file's first `<TagFilterEditor …/>`, which correctly carries `disabled={false}` per this ADR.
+- **S3** (:256–265) orders **file-global** `indexOf('Authors')` / `indexOf('Tag Filters')` / `indexOf('Time Range')`. `StreamEditor`'s new `Tag Filters` label precedes the sync panel's `Authors`, breaking `authorsIdx < tagIdx`.
+
+Both assertions encode a latent **single-occurrence assumption**: true when story #1 shipped (one surface used the component and label), false the moment a second surface in the same file reuses them — which is precisely what this ADR mandates (reuse `TagFilterEditor`; extend, don't fork). The sync panel's own wiring is **unchanged and correct**: its instance still carries `disabled={running}` and its group still sits between Authors and Time Range. The failure is in the sibling tests' addressing, not in either panel's behavior. CI's `stack-free` job runs the sibling suite on every PR, so the feature cannot ship around it; Gate 4 forbids `test/` changes without ratification — this amendment is that ratification.
+
+### Options weighed
+
+**(a) Region-scope the sibling suite's S1/S3 assertions to the owning component (chosen).** Slice the RelaySettings.jsx source to the `NegentropySync` function region before matching, so the two tests assert what their own names already claim ("**NegentropySync** renders it with the running-disabled wiring"; the sync panel's group placement). Pros: fixes the root cause (the single-occurrence assumption) rather than the symptom; the assertions become *stronger* — the original file-global forms had false-PASS modes (S1 could pass off a future first-in-file instance that happened to carry `disabled={running}` while the sync panel's instance lost it; S3 could satisfy its ordering with label strings belonging to other panels), which region-scoping eliminates; robust to any future third surface reusing the shared component. Cons: touches two tests in a closed book's suite — mitigated because no predicate changes and no assertion is removed (only the input string narrows), and this amendment supplies the Gate-4 ratification.
+
+**(b) Relocate `StreamEditor`'s declaration below `NegentropySync`** (function declarations hoist; runtime-inert), so first-match/first-index keeps hitting the sync panel. Pros: zero `test/` changes. Cons: source layout becomes silently load-bearing for a sibling story's test regexes — an invisible coupling that re-breaks on the next reuse or readability reordering, with a failure mode identical to today's; the latent single-occurrence defect stays armed in the tests; it scatters the Router Management section (`emptyStream`/`StreamEditor`/`ToggleSwitch`/`RouterStatus` are grouped under one banner comment) and churns ~170 lines of blame misattributed to this story; and it only *happens* to work while the sync panel is the last such surface in the file. Rejected.
+
+**(c — considered and dismissed) Rename story #2's label** (e.g. "Stream Tag Filters") to dodge S3. Does not address S1 at all (first-match hits `StreamEditor`'s usage regardless of label), and papering over a test-addressing defect with production copy changes is backwards. Rejected.
+
+### Decision
+
+Adopt **(a)**: the Tester scopes S1's usage-match and S3's three index lookups to the `NegentropySync` source region of `RelaySettings.jsx`. No predicate changes, no assertion removals, no production-source changes.
+
+### Blast radius
+
+- **Changes:** `test/sync-panel-tag-filters.test.js` — tests S1 (:237–246) and S3 (:256–265) only, plus one small region-slicing helper inside that file. Nothing else in the suite moves; S2/S4 rest on file-unique patterns (`useState` tagFilters wiring, the `filterObj['#' + …]` composition point, the import line, the `function TagFilterEditor` declaration) and stay as-is.
+- **Also ratified (optional, same pass, defensive symmetry):** if any source-level assertion in `test/router-stream-tag-filters.test.js` addresses shared strings/components by file-global first match, scope it to the `StreamEditor` region (`function StreamEditor` → next top-level declaration, currently `function ToggleSwitch`). It is green today only because `StreamEditor` happens to come first in the file — the mirrored latent defect.
+- **Not changed:** any file under `ui/src/**` or `src/**` (that is the point of (a) over (b)); `test/test.js` registrations; story #1's shipped panel behavior (its instance keeps `disabled={running}`, its group order stands — now asserted within its own region); every other test in both suites.
+- **ADR 0001:** unaffected — not superseded, not amended. Its §4 test levels (pure utils executed; JSX asserted at source level, no transpile) remain the house pattern. This amendment adds one refinement to that pattern going forward: **source-level assertions in a file hosting multiple surfaces must be region-scoped to the owning component**, never file-global first-match/first-index. This ADR's own §Implementation-notes 4 carries the same refinement (note added there).
+
+### Guarding-power constraint (binding on the Tester's edit)
+
+The change must be scoping, not weakening. After the edit, the two tests must still FAIL if: (i) `NegentropySync`'s `TagFilterEditor` instance loses `disabled={running}`; (ii) the sync panel's Tag Filters group leaves the Authors → Time Range span; (iii) the region markers cannot be found — assert the slice's start marker exists before slicing, so an `indexOf` miss fails loudly instead of passing vacuously. All existing assertion messages and predicates are retained verbatim; only their input narrows from the whole file to the region.
+
+### Exact Tester instruction
+
+In `test/sync-panel-tag-filters.test.js` only:
+
+1. Add a helper (near `safeRead`):
+   ```js
+   function negentropySyncRegion(src) {
+     const start = src.indexOf('function NegentropySync');
+     assert(start !== -1, 'NegentropySync declaration missing from RelaySettings.jsx — unexpected.');
+     const end = src.indexOf('\nfunction ', start); // next top-level declaration (currently StreamingETLPanel)
+     return src.slice(start, end === -1 ? src.length : end);
+   }
+   ```
+   (`\nfunction ` at column 0 cannot match `NegentropySync`'s *nested* handlers, which are indented — so the slice spans exactly the component.)
+2. **S1:** keep the file-global declaration assertion (`/function\s+TagFilterEditor\s*\(/.test(src)` — the declaration sits *outside* `NegentropySync` and is file-unique). Compute `const panel = negentropySyncRegion(src);` and run the existing usage match (`panel.match(/<TagFilterEditor[\s\S]*?\/>/)`) and the `disabled={running}` assertion against `panel` instead of `src`, otherwise unchanged.
+3. **S3:** compute `const panel = negentropySyncRegion(src);` and take `authorsIdx`/`tagIdx`/`timeIdx` via `panel.indexOf(…)` instead of `src.indexOf(…)`; all three existence and ordering assertions unchanged.
+4. Re-run: the `sync-panel-tag-filters` suite must return to 20/20 against the implemented worktree, and both scoped tests must fail under temporary mutation of the sync panel (remove `disabled={running}` from its instance / move its group), reverted after the spot-check.
+5. Optionally, same pass and same ratification: apply the identical region-scoping (a `streamEditorRegion` twin) to any file-global source assertions in `test/router-stream-tag-filters.test.js`, per Blast radius above.
