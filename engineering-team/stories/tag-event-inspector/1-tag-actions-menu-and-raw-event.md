@@ -74,6 +74,13 @@ Recorded with a recommendation each; none blocks Architecture. The operator can 
 
 - **(c) naddr vs event id — two identities with different meanings.** The ask requests both, and both should ship. Worth stating the semantic consciously: the **event id pins this exact version** of the definition — if the author edits the tag's name or description and republishes, the id changes and the copied one may stop resolving; the **naddr is the durable identity** and always resolves to the *latest* version. Both are legitimately useful — the id for "cite exactly the bytes I read", the naddr for "point at this tag". **Recommendation: ship both, with the user's labels and no extra explanatory copy in the menu** — an inline semantics lecture in a three-item dropdown costs more than it teaches, and the audience reaching for a raw-event viewer generally knows the difference. Related, and also recommended **against** for now: a fourth "Copy Note Link" item (page URL), which the row menu has and the user did not ask for. Both are cheap to add later if the operator wants them.
 
+## Deviations
+
+Judgment calls made at Implementation, too small for an ADR amendment (role step 9). None changes a decision; each fills a gap the ADR left open.
+
+- **The kebab's accessible name is "Tag actions", not "Note actions".** AC-1 requires "an accessible name" and the ADR requires an `aria-label` without specifying its text; the emulated component says "Note actions". Emulating the *string* would announce a kind-39999 tag element as a note to screen-reader users — the one place where copying the feed menu verbatim would be a lie rather than parity. Note this is deliberately the opposite call from open question (a), which keeps the user's "Note ID/Addr" *item* labels: those are idiomatic nostr-speak for a copyable identifier and were the user's explicit words, whereas the button's accessible name names the *object* and was never specified. Same `title` string, for parity with the emulated tooltip.
+- **`max-height: 60vh` on the panel `<pre>`, per ADR D6 as written.** Flagged only because the ADR's own precedent (`.cypher-query`) caps at `200px` and the other in-repo raw-event block (`TrustedAssertions.jsx:248-261`) caps at `400px`. Took the ADR's explicit value over the precedents' — the ratified decision wins over the code it was modeled on. A viewport-relative cap also degrades better on short screens. Verified: no page overflow at 1280px.
+
 ## Linked artifacts
 
 - ADR: `engineering-team/decisions/tag-event-inspector/0001-tag-actions-menu-and-raw-event.md`

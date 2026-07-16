@@ -1524,3 +1524,21 @@ Anchor inputs: this entry + `audits/sync-panel-tag-filters/prd-seed.md` §6–7 
 **Classification:** Refactor/cleanup batch (harness infrastructure)
 **Strictness:** Standard (expect: skip Tests where no behavior change; #21/#22 are test/script one-liners, #29/#28 are doc/template edits + optional lint line, #16 is docs + epic retirement)
 **Phase path:** Planning → (Architecture likely skippable) → Implementation → Review
+
+---
+
+## 2026-07-16 — Cleanup: extract a shared `<ActionsMenu>` shell (do it when a THIRD menu appears)
+
+**Source:** ADR `tag-event-inspector/0001` D2, recorded at Implementation of story #1.
+
+**Raw finding:** `ui/src/components/NoteActionsMenu.jsx` and `ui/src/components/TagActionsMenu.jsx` (tag-event-inspector #1) now duplicate the kebab-button / click-outside-close / transient-flash shell (~20 lines). The CSS (`bsp-note-menu*`) and `copyText` are already shared; only the shell is duplicated.
+
+**Deliberately deferred, with a trigger:** **do it when a third `⋯` menu appears** — two call sites under-determine the abstraction, three reveal the seam. D2 rejected extracting now because it would refactor a *shipped* surface (NoteActionsMenu renders on 8 surfaces with no runtime test coverage) inside a story whose AC-7 was "the existing menu is unchanged". Note `test/tag-actions-menu-ui.test.js` carries an AC-7 sentinel that fails if NoteActionsMenu is refactored into a shared shell — that sentinel is the thing to update (not delete) when this is picked up.
+
+**Natural companion:** **Escape-to-close**, which no menu currently handles and which the tag-event-inspector epic explicitly deferred as a change that must land on *every* menu at once, not one.
+
+**Priority:** Low.
+
+**Classification:** Refactor (no behavior change)
+**Strictness:** Standard — Refactor; Tests likely skippable for the extraction itself, but the two menus' source-level suites must be re-aimed at the shared shell rather than dropped.
+**Phase path:** Planning → Architecture (the abstraction is the decision) → Implementation → Review
