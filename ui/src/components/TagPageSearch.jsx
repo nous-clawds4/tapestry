@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import SearchInput from './SearchInput';
 import TagPageRow from './TagPageRow';
+import PovStatusNotice from './PovStatusNotice';
+import { usePov } from '../context/PovContext';
 
 /**
  * Page-search section on the tag-detail page: type → debounced Meili search
@@ -23,8 +25,10 @@ export default function TagPageSearch({
   onApply,
   onDispute,
 }) {
+  const { povParams } = usePov();
   const [q, setQ] = useState('');
   const [hits, setHits] = useState([]);
+  const [povResolution, setPovResolution] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -50,18 +54,15 @@ export default function TagPageSearch({
         limit: String(RESULTS_LIMIT),
         offset: '0',
       });
-      if (user?.pubkey) {
-        params.set('wotPov', 'user');
-        params.set('userPubkey', user.pubkey);
-      } else {
-        params.set('wotPov', 'house');
-      }
+      // Selected-POV read params (ADR pov-selectable-tag-surfaces/0001).
+      Object.entries(povParams).forEach(([k, v]) => params.set(k, v));
       fetch(`/api/search/profiles/meili?${params}`)
         .then(async (r) => {
           const data = await r.json().catch(() => null);
           if (mySeq !== seqRef.current) return; // stale
           if (r.ok && data?.hits) {
             setHits(data.hits);
+            setPovResolution(data.povResolution || null);
           } else {
             setError(data?.error || `status ${r.status}`);
           }
@@ -77,7 +78,7 @@ export default function TagPageSearch({
     }, DEBOUNCE_MS);
 
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
-  }, [q, user?.pubkey]);
+  }, [q, user?.pubkey, povParams.wotPov, povParams.userPubkey]);
 
   const trimmed = q.trim();
   const hasQuery = trimmed.length >= MIN_QUERY_LENGTH;
@@ -102,6 +103,7 @@ export default function TagPageSearch({
           </button>
         )}
       </SearchInput>
+      <PovStatusNotice status={povResolution} variant="compact" />
       {hasQuery && loading && (
         <p className="bs-tag-loading">Searching…</p>
       )}

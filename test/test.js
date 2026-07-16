@@ -113,6 +113,40 @@ const openRankingStats = require('./open-ranking-stats.test.js');
 const openRankingSearch = require('./open-ranking-search.test.js');
 const verifiedMutersReadApi = require('./verified-muters-read-api.test.js');
 const verifiedMutersProfileSurface = require('./verified-muters-profile-surface.test.js');
+// epic: event-tagging — Story 1 (protocol core + spec)
+const eventTaggingCore = require('./event-tagging-core.test.js');
+const eventTaggingSpec = require('./event-tagging-spec.test.js');
+const globalPublishGate = require('./global-publish-gate.test.js');
+const eventTaggingFirmwareSeed = require('./event-tagging-firmware-seed.test.js');
+const eventTaggingReadApi = require('./event-tagging-read-api.test.js');
+const eventTaggingWritePath = require('./event-tagging-write-path.test.js');
+const eventTaggingReadViewerStance = require('./event-tagging-read-viewer-stance.test.js');
+const eventTagNoteAffordanceUi = require('./event-tag-note-affordance-ui.test.js');
+const eventTaggingForTag = require('./event-tagging-for-tag.test.js');
+const unifiedTagIndex = require('./unified-tag-index.test.js');
+const eventTaggingNotesByAuthor = require('./event-tagging-notes-by-author.test.js');
+const unifiedTagsDirectory = require('./unified-tags-directory.test.js');
+const profileAuthoredNotesUi = require('./profile-authored-notes-ui.test.js');
+// epic: feed-usability — Story 1 (notes/replies toggle)
+const notesRepliesToggle = require('./notes-replies-toggle.test.js');
+// epic: feed-usability — Story 2 (load-more pagination)
+const feedPagination = require('./feed-pagination.test.js');
+// epic: feed-usability — Story 3 (pinned-note-aware Content card)
+const profileContentCard = require('./profile-content-card.test.js');
+// epic: tag-applicability — Story 1 (z-hints + applicability TLs)
+const tagApplicability = require('./tag-applicability.test.js');
+// epic: tag-applicability — Story 2 (type-aware picker + scheduled regen)
+const tagApplicabilityPicker = require('./tag-applicability-picker.test.js');
+// epic: event-tagging — Story 17 (TA-signed note Trusted List, issue #336)
+const noteTrustedList = require('./note-trusted-list.test.js');
+const profileTagConsumeByA = require('./profile-tag-consume-by-a-coordinate.test.js');
+const povSelectableTagSurfaces = require('./pov-selectable-tag-surfaces.test.js');
+const povResolutionStatus = require('./pov-resolution-status.test.js');
+const povRankThresholdKey = require('./pov-rank-threshold-key.test.js');
+const povNoticeText = require('./pov-notice-text.test.js');
+const povStateUnification = require('./pov-state-unification.test.js');
+// epic: tag-applicability — Story 4 (event-driven applicability republish)
+const applicabilityRepublish = require('./applicability-republish.test.js');
 const harnessLint = require('./harness-lint.test.js');
 const harnessStats = require('./harness-stats.test.js');
 const sessionStart = require('./session-start.test.js');
@@ -315,6 +349,58 @@ async function main() {
   console.log('\nverified-muters-profile-surface suite:');
   const verifiedMutersProfileSurfaceResult = await verifiedMutersProfileSurface.run();
 
+  console.log('\nevent-tagging-core suite:');
+  const eventTaggingCoreResult = await eventTaggingCore.run();
+  console.log('\nevent-tagging-spec suite:');
+  const eventTaggingSpecResult = await eventTaggingSpec.run();
+  console.log('\nglobal-publish-gate suite:');
+  const globalPublishGateResult = await globalPublishGate.run();
+  console.log('\nevent-tagging-firmware-seed suite:');
+  const eventTaggingFirmwareSeedResult = await eventTaggingFirmwareSeed.run();
+  console.log('\nevent-tagging-read-api suite:');
+  const eventTaggingReadApiResult = await eventTaggingReadApi.run();
+  console.log('\nevent-tagging-write-path suite:');
+  const eventTaggingWritePathResult = await eventTaggingWritePath.run();
+  console.log('\nevent-tagging-read-viewer-stance suite:');
+  const eventTaggingReadViewerStanceResult = await eventTaggingReadViewerStance.run();
+  console.log('\nevent-tag-note-affordance-ui suite:');
+  const eventTagNoteAffordanceUiResult = await eventTagNoteAffordanceUi.run();
+  console.log('\nevent-tagging-for-tag suite:');
+  const eventTaggingForTagResult = await eventTaggingForTag.run();
+  console.log('\nunified-tag-index suite:');
+  const unifiedTagIndexResult = await unifiedTagIndex.run();
+  console.log('\nevent-tagging-notes-by-author suite:');
+  const eventTaggingNotesByAuthorResult = await eventTaggingNotesByAuthor.run();
+  console.log('\nunified-tags-directory suite:');
+  const unifiedTagsDirectoryResult = await unifiedTagsDirectory.run();
+  console.log('\nprofile-authored-notes-ui suite:');
+  const profileAuthoredNotesUiResult = await profileAuthoredNotesUi.run();
+  console.log('\nnotes-replies-toggle suite:');
+  const notesRepliesToggleResult = await notesRepliesToggle.run();
+  console.log('\nfeed-pagination suite:');
+  const feedPaginationResult = await feedPagination.run();
+  console.log('\nprofile-content-card suite:');
+  const profileContentCardResult = await profileContentCard.run();
+  console.log('\ntag-applicability suite:');
+  const tagApplicabilityResult = await tagApplicability.run();
+  console.log('\ntag-applicability-picker suite:');
+  const tagApplicabilityPickerResult = await tagApplicabilityPicker.run();
+  console.log('\nnote-trusted-list suite:');
+  const noteTrustedListResult = await noteTrustedList.run();
+  console.log('\nprofile-tag-consume-by-a-coordinate suite:');
+  const profileTagConsumeByAResult = await profileTagConsumeByA.run();
+  console.log('\npov-selectable-tag-surfaces suite:');
+  const povSelectableTagSurfacesResult = await povSelectableTagSurfaces.run();
+  console.log('\npov-resolution-status suite:');
+  const povResolutionStatusResult = await povResolutionStatus.run();
+  console.log('\npov-rank-threshold-key suite:');
+  const povRankThresholdKeyResult = await povRankThresholdKey.run();
+  console.log('\npov-notice-text suite:');
+  const povNoticeTextResult = await povNoticeText.run();
+  console.log('\npov-state-unification suite:');
+  const povStateUnificationResult = await povStateUnification.run();
+  console.log('\napplicability-republish suite:');
+  const applicabilityRepublishResult = await applicabilityRepublish.run();
   console.log('\nharness-lint suite:');
   const harnessLintResult = await harnessLint.run();
 
@@ -339,6 +425,15 @@ async function main() {
   console.log('\nTest Results');
   console.log('-------------');
   console.log(`Configuration Loading:                           ${configOk ? 'PASS' : 'FAIL'}`);
+  console.log(`profile-tags suite:                              ${profileTagsResult.fail === 0 ? 'PASS' : 'FAIL'} (${profileTagsResult.pass} passed, ${profileTagsResult.fail} failed)`);
+  console.log(`note-trusted-list suite:                         ${noteTrustedListResult.fail === 0 ? 'PASS' : 'FAIL'} (${noteTrustedListResult.pass} passed, ${noteTrustedListResult.fail} failed)`);
+  console.log(`profile-tag-consume-by-a-coordinate suite:       ${profileTagConsumeByAResult.fail === 0 ? 'PASS' : 'FAIL'} (${profileTagConsumeByAResult.pass} passed, ${profileTagConsumeByAResult.fail} failed)`);
+  console.log(`pov-selectable-tag-surfaces suite:               ${povSelectableTagSurfacesResult.fail === 0 ? 'PASS' : 'FAIL'} (${povSelectableTagSurfacesResult.pass} passed, ${povSelectableTagSurfacesResult.fail} failed)`);
+  console.log(`pov-resolution-status suite:                     ${povResolutionStatusResult.fail === 0 ? 'PASS' : 'FAIL'} (${povResolutionStatusResult.pass} passed, ${povResolutionStatusResult.fail} failed)`);
+  console.log(`pov-rank-threshold-key suite:                      ${povRankThresholdKeyResult.fail === 0 ? 'PASS' : 'FAIL'} (${povRankThresholdKeyResult.pass} passed, ${povRankThresholdKeyResult.fail} failed)`);
+  console.log(`pov-notice-text suite:                            ${povNoticeTextResult.fail === 0 ? 'PASS' : 'FAIL'} (${povNoticeTextResult.pass} passed, ${povNoticeTextResult.fail} failed)`);
+  console.log(`pov-state-unification suite:                      ${povStateUnificationResult.fail === 0 ? 'PASS' : 'FAIL'} (${povStateUnificationResult.pass} passed, ${povStateUnificationResult.fail} failed)`);
+  console.log(`applicability-republish suite:                   ${applicabilityRepublishResult.fail === 0 ? 'PASS' : 'FAIL'} (${applicabilityRepublishResult.pass} passed, ${applicabilityRepublishResult.fail} failed)`);
   const profileTagsLine = profileTagsResult.skipped
     ? `SKIP (${profileTagsResult.skipped} tests; control panel not reachable)`
     : `${profileTagsResult.fail === 0 ? 'PASS' : 'FAIL'} (${profileTagsResult.pass} passed, ${profileTagsResult.fail} failed)`;
@@ -692,6 +787,12 @@ async function main() {
     profileFollowsHopsResult.fail === 0 &&
     profileHopsPathResult.fail === 0 &&
     tagReadUnionResult.fail === 0 &&
+    profileTagConsumeByAResult.fail === 0 &&
+    povSelectableTagSurfacesResult.fail === 0 &&
+    povResolutionStatusResult.fail === 0 &&
+    povRankThresholdKeyResult.fail === 0 &&
+    povNoticeTextResult.fail === 0 &&
+    povStateUnificationResult.fail === 0 &&
     bTagPrimitiveResult.fail === 0 &&
     bTagSeedsResult.fail === 0 &&
     dualZWriterResult.fail === 0 &&
@@ -699,6 +800,24 @@ async function main() {
     openRankingSearchResult.fail === 0 &&
     verifiedMutersReadApiResult.fail === 0 &&
     verifiedMutersProfileSurfaceResult.fail === 0 &&
+    eventTaggingCoreResult.fail === 0 &&
+    eventTaggingSpecResult.fail === 0 &&
+    globalPublishGateResult.fail === 0 &&
+    eventTaggingFirmwareSeedResult.fail === 0 &&
+    eventTaggingReadApiResult.fail === 0 &&
+    eventTaggingWritePathResult.fail === 0 &&
+    eventTaggingReadViewerStanceResult.fail === 0 &&
+    eventTagNoteAffordanceUiResult.fail === 0 &&
+    eventTaggingForTagResult.fail === 0 &&
+    unifiedTagIndexResult.fail === 0 &&
+    eventTaggingNotesByAuthorResult.fail === 0 &&
+    unifiedTagsDirectoryResult.fail === 0 &&
+    profileAuthoredNotesUiResult.fail === 0 &&
+    notesRepliesToggleResult.fail === 0 &&
+    feedPaginationResult.fail === 0 &&
+    profileContentCardResult.fail === 0 &&
+    tagApplicabilityResult.fail === 0 &&
+    tagApplicabilityPickerResult.fail === 0;
     harnessLintResult.fail === 0 &&
     harnessStatsResult.fail === 0 &&
     sessionStartResult.fail === 0 &&

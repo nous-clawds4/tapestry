@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import NoteActionsMenu from './NoteActionsMenu';
 import NoteContent from './NoteContent';
+import NoteTags from './NoteTags';
 import { formatTimeAgo } from '../utils/timeAgo';
 
 /**
@@ -43,7 +44,7 @@ export function absoluteTimestamp(createdAt) {
   return new Date(createdAt * 1000).toLocaleString();
 }
 
-export default function NoteCard({ item }) {
+export default function NoteCard({ item, showTagScores = false }) {
   const author = item.author || {};
   const displayName = author.displayName || (item.pubkey ? `${item.pubkey.slice(0, 8)}…` : 'Unknown');
   const avatar = author.avatar;
@@ -77,6 +78,11 @@ export default function NoteCard({ item }) {
         <NoteActionsMenu item={item} />
       </div>
       <div className="bsp-note-card-text"><NoteContent content={item.content} mentions={item.mentions} /></div>
+      {/* Event-tag affordance (Story 6) — rendered here so every note surface
+          (feed, /event, /user/:pk/notes, profile content) inherits it at once.
+          Story 15: showTagScores surfaces each chip's net/applied/disputed trio
+          inline (Notes tab, View options expanded). */}
+      <NoteTags item={item} showScores={showTagScores} />
     </div>
   );
 }

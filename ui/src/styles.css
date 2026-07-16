@@ -2594,6 +2594,48 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   border-radius: 50%;
   object-fit: cover;
 }
+/* POV switch in the global user menu (Story 4) */
+.bs-usermenu-pov-switch {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  align-items: center;
+}
+.bs-usermenu-pov-switch-label {
+  font-size: 0.72rem;
+  opacity: 0.55;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.bs-usermenu-pov-switch-btns {
+  display: inline-flex;
+  gap: 0.25rem;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 8px;
+  padding: 2px;
+}
+.bs-usermenu-pov-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.3rem 0.6rem;
+  font-size: 0.8rem;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  opacity: 0.6;
+  cursor: pointer;
+}
+.bs-usermenu-pov-btn.is-active {
+  background: rgba(165, 180, 252, 0.18);
+  color: #a5b4fc;
+  opacity: 1;
+}
+.bs-usermenu-pov-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
 .bs-usermenu-settings-btn,
 .bs-usermenu-pins-btn {
   display: block;
@@ -3810,6 +3852,38 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   position: relative;
   display: inline-block;
 }
+/* Story 15 — a chip plus its inline net/applied/disputed trio (Notes tab, View
+   options expanded). Column so the trio sits BELOW the chip (avoids line-break
+   weirdness when a note carries many tags on a narrow screen). The popover stays
+   anchored to .ptc (its top:100% is the chip height, not the trio). */
+.ptc-scored {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.15rem;
+  vertical-align: top;
+}
+.ptc-scoretrio {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.3rem;
+  padding-left: 0.3rem;
+  font-size: 0.72rem;
+  line-height: 1;
+}
+/* Net reads first — larger than the two secondary counts (mirrors the Profiles
+   tab, where .bs-tag-row-net is ~1.35x the de-saturated +N/−M counts). */
+.ptc-score-net {
+  font-weight: 700;
+  font-size: 0.98rem;
+  font-variant-numeric: tabular-nums;
+}
+.ptc-score-net.is-positive { color: #86efac; }
+.ptc-score-net.is-negative { color: #fca5a5; }
+.ptc-score-net.is-zero { color: var(--text-muted, #94a3b8); }
+.ptc-score-count { color: var(--text-muted, #94a3b8); opacity: 0.7; }
+.ptc-score-apply { color: #86efac; }
+.ptc-score-dispute { color: #fca5a5; }
 .ptc-chip {
   display: inline-flex;
   align-items: center;
@@ -4104,6 +4178,25 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
 .ptd-result-desc {
   color: var(--text-muted, #94a3b8);
 }
+/* Usage-context hint + "Show other results" (tag-applicability #2). */
+.ptd-result-ctx {
+  color: var(--accent, #a5b4fc);
+  font-size: 0.78rem;
+  font-weight: 500;
+}
+.ptd-show-other {
+  display: inline-block;
+  margin: 0.35rem 0 0.15rem;
+  font-size: 0.85rem;
+}
+.ptd-other-head {
+  margin-top: 0.5rem;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  opacity: 0.6;
+}
+.ptd-results-other .ptd-result-btn { opacity: 0.9; }
 .ptd-empty,
 .ptd-create-hint {
   padding: 0.5rem 0;
@@ -5289,6 +5382,57 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   cursor: pointer;
 }
 
+/* ── Feed / user-notes "Load more" pagination footer (feed-usability Story 2) ── */
+.bsp-loadmore-wrap {
+  display: flex;
+  justify-content: center;
+  padding: 1rem 0 1.5rem;
+}
+.bsp-loadmore {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: var(--text-primary, #e0e0e0);
+  padding: 0.5rem 1.4rem;
+  border-radius: 18px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background 0.15s, border-color 0.15s;
+}
+.bsp-loadmore:hover:not(:disabled) { background: rgba(255,255,255,0.08); }
+.bsp-loadmore:disabled { opacity: 0.5; cursor: default; }
+.bsp-loadmore-end {
+  text-align: center;
+  padding: 1rem 0 1.5rem;
+  opacity: 0.6;
+  font-size: 0.85rem;
+}
+
+/* ── Feed / user-notes "Notes | Notes + Replies" filter (feed-usability Story 1) ──
+ * Per-page wrappers on the shared SortToggle, mirroring the .bs-tag-sort treatment. */
+.bsp-feed-filter,
+.bsp-notes-filter {
+  margin-bottom: 1rem;
+}
+.bsp-feed-filter .bs-sort-toggle-btn,
+.bsp-notes-filter .bs-sort-toggle-btn {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: var(--text-primary, #e0e0e0);
+  padding: 0.4rem 0.9rem;
+  border-radius: 18px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: background 0.15s, border-color 0.15s;
+}
+.bsp-feed-filter .bs-sort-toggle-btn:hover,
+.bsp-notes-filter .bs-sort-toggle-btn:hover { background: rgba(255,255,255,0.08); }
+.bsp-feed-filter .bs-sort-toggle-btn.is-active,
+.bsp-notes-filter .bs-sort-toggle-btn.is-active {
+  background: rgba(165,180,252,0.15);
+  border-color: rgba(165,180,252,0.4);
+  color: #c7d2fe;
+}
+
 /* ── Authored-tagging section (Story 5 / ADR-0005) ── */
 .bsp-authored {
   margin: 1rem 0 1.25rem;
@@ -5961,6 +6105,32 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
 }
 .bs-pindetail-members { list-style: none; padding: 0; margin: 0; }
 .bs-pindetail-member { margin-bottom: 0.5rem; }
+
+/* Story 12 item #3 — the pinned NOTE bookmark set section in the Pinned tab. */
+.bs-pinned-notes { margin-top: 1.75rem; padding-top: 1rem; border-top: 1px solid var(--border, #1e293b); }
+.bs-pinned-notes-head { display: flex; align-items: baseline; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 0.75rem; }
+.bs-pinned-notes-title { font-size: 1.1rem; margin: 0; }
+.bs-pinned-notes-drift { font-size: 0.8rem; }
+.bs-pinned-notes-drift.is-fresh { color: #86efac; }
+.bs-pinned-notes-drift.is-stale { color: #fcd34d; }
+.bs-pinned-notes-drift.is-loading { color: var(--text-muted, #94a3b8); font-style: italic; }
+.bs-pinned-notes-update {
+  font: inherit; font-size: 0.85rem; margin-bottom: 0.75rem;
+  padding: 0.35rem 0.9rem; border-radius: 6px;
+  border: 1px solid var(--border, #334155); background: rgba(252, 211, 77, 0.12);
+  color: #fcd34d; cursor: pointer;
+}
+.bs-pinned-notes-update:disabled { opacity: 0.6; cursor: not-allowed; }
+.bs-pinned-notes-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.75rem; }
+.bs-pinned-notes-item { width: 100%; }
+.bs-pinned-notes-empty { color: var(--text-tertiary, #64748b); font-size: 0.9rem; }
+.bs-pinned-notes-unresolved {
+  text-align: center;
+  color: var(--text-muted, #94a3b8);
+  font-size: 0.82rem;
+  opacity: 0.75;
+  margin: 0.75rem 0 0.25rem;
+}
 .bs-pindetail-member-link {
   display: flex;
   align-items: center;
@@ -6396,6 +6566,11 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   justify-content: space-between;
   gap: 0.75rem;
 }
+/* Story 15 — Notes tab hides the primary ("Tag someone") button, so keep the
+   View-options disclosure right-aligned instead of drifting to the left. */
+.bs-tag-view-controls-row.is-no-primary {
+  justify-content: flex-end;
+}
 .bs-tag-view-tagsomeone {
   font: inherit;
   font-size: 0.9rem;
@@ -6552,6 +6727,50 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
 .tsm-results {
   margin-top: 0.5rem;
 }
+/* Story 16 — "+ Tag a Note" modal (reuses the .tsm-* shell). */
+.tan-search-form {
+  display: flex;
+  gap: 0.5rem;
+  align-items: stretch;
+}
+.tan-search-form .tsm-search-input { flex: 1 1 auto; }
+.tan-resolve-btn {
+  font: inherit;
+  font-size: 0.9rem;
+  padding: 0.5rem 0.9rem;
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,0.18);
+  background: rgba(255,255,255,0.06);
+  color: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.tan-resolve-btn:hover { background: rgba(255,255,255,0.12); }
+.tan-apply-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  margin: 0.85rem 0 0.5rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: 8px;
+  border: 1px solid var(--border, #334155);
+  background: rgba(148, 163, 184, 0.06);
+}
+.tan-apply-label { font-size: 0.9rem; font-weight: 600; }
+.tan-apply-actions { display: inline-flex; gap: 0.4rem; margin-left: auto; }
+.tan-apply, .tan-dispute {
+  font: inherit;
+  font-size: 0.85rem;
+  padding: 0.3rem 0.8rem;
+  border-radius: 999px;
+  border: 1px solid var(--border, #334155);
+  cursor: pointer;
+}
+.tan-apply { background: rgba(134, 239, 172, 0.12); color: #86efac; }
+.tan-dispute { background: rgba(252, 165, 165, 0.12); color: #fca5a5; }
+.tan-apply:disabled, .tan-dispute:disabled { opacity: 0.5; cursor: not-allowed; }
+.tan-note { margin-top: 0.5rem; }
 
 /* CurationMethodDialog intro paragraph (Story 17 / ADR 0014 Decision 9). */
 .pcd-intro {
@@ -7235,6 +7454,20 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   opacity: 0.6;
   padding: 0.5rem 0;
 }
+/* "Pinned" badge above the chosen note (feed-usability #3). */
+.bsp-content-pinned {
+  display: inline-block;
+  margin-bottom: 0.4rem;
+  padding: 0.15rem 0.55rem;
+  border-radius: 12px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  background: rgba(165,180,252,0.15);
+  border: 1px solid rgba(165,180,252,0.4);
+  color: #c7d2fe;
+}
 .bsp-content-viewall {
   display: inline-block;
   margin-top: 0.75rem;
@@ -7450,6 +7683,26 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   text-align: left;
 }
 
+/* POV-honesty disclosure (pov-selectable-tag-surfaces Story 2 / ADR 0002). A
+   muted amber notice — it discloses a degraded POV state, it is not an error. */
+.bs-pov-notice {
+  margin: 0.4rem 0;
+  padding: 0.4rem 0.6rem;
+  font-size: 0.8rem;
+  line-height: 1.35;
+  color: var(--text-muted, #94a3b8);
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  border-radius: 6px;
+}
+.bs-pov-notice--compact {
+  display: inline-block;
+  margin: 0.25rem 0;
+  padding: 0.1rem 0.4rem;
+  font-size: 0.75rem;
+  cursor: help;
+}
+
 .table-pagination {
   display: flex;
   align-items: center;
@@ -7473,3 +7726,71 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   .bsp-follows-colpanel { right: auto; left: 0; }
 }
 
+
+/* ── Event-tag affordance on note cards (Story 6) — mirrors .bsp-tags layout ── */
+.bsp-note-tags {
+  margin-top: 0.6rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border, #1e293b);
+}
+.bsp-note-tags-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: flex-start;
+}
+.bsp-note-tags-add {
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  border: 1px dashed var(--border, #334155);
+  background: transparent;
+  color: var(--text-muted, #94a3b8);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.bsp-note-tags-add:hover { border-color: #6366f1; color: #a5b4fc; }
+.bsp-note-tags-add:disabled { opacity: 0.5; cursor: default; }
+.bsp-note-tags-error {
+  margin-bottom: 0.4rem;
+  font-size: 0.8rem;
+  color: #fca5a5;
+}
+
+/* ── Tag page: Profiles | Notes view switch (Story 8) ── */
+.bs-tag-view-switch {
+  display: inline-flex;
+  gap: 0.25rem;
+  margin-bottom: 0.75rem;
+  background: var(--surface-2, #1e293b);
+  border-radius: 999px;
+  padding: 0.2rem;
+}
+.bs-tag-view-switch-btn {
+  border: none;
+  background: transparent;
+  color: var(--text-muted, #94a3b8);
+  padding: 0.3rem 0.9rem;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.bs-tag-view-switch-btn.is-active {
+  background: var(--surface, #0f172a);
+  color: var(--text-primary, #e2e8f0);
+}
+.bs-tag-notes-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.75rem; }
+.bs-tag-notes-item { width: 100%; }
+.bs-tag-notes-truncation { font-size: 0.8rem; color: var(--text-muted, #94a3b8); margin: 0 0 0.5rem; }
+/* Story 15 — the Notes tab now uses the shared TagViewControls (bs-tag-view-*).
+   The bespoke .bs-tag-notes-controls/-viewopts/-sort control was retired. */
+
+/* Notes tagged section on profile (Story 14) */
+/* Story 14 — a note-tagging row inside the intermixed "Tagging Activity" list.
+   Unlike the inline profile row, a note row stacks its tag badges above the NoteCard. */
+.bsp-authored-note-row { flex-direction: column; align-items: stretch; gap: 0.4rem; }
+.bsp-authored-note-tags { display: flex; flex-wrap: wrap; gap: 0.3rem; }
+.bsp-authored-note-tag { font-size: 0.75rem; padding: 0.1rem 0.5rem; border-radius: 999px; background: var(--surface-2, #1e293b); color: var(--text-muted, #94a3b8); }
+.bsp-authored-note-tag.is-dispute { color: #fca5a5; }
+.bsp-authored-note-tag.is-apply { color: #86efac; }

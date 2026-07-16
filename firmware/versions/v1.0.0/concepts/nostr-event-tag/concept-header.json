@@ -1,0 +1,21 @@
+{
+  "word": {
+    "slug": "concept-header-for-the-concept-of-nostr-event-taggings",
+    "name": "concept header for the concept of nostr event taggings",
+    "title": "Concept Header for the Concept of Nostr Event Taggings",
+    "wordTypes": ["word", "conceptHeader"]
+  },
+  "conceptHeader": {
+    "description": "A nostr-event-tag is an event that applies a specific Tag to a specific event (referenced by the e or a tag). The descriptor (which Tag) is referenced indirectly via a z-tag pointing at the Tag's per-tag tagging header, leaving e/a free for the target. Optional polarity is expressed as an event-tag (1 = applied, -1 = disputed; absent = applied). Publishing is permissionless; whether a tagging counts is computed per point-of-view at read time.",
+    "oNames": { "singular": "nostr event tagging", "plural": "nostr event taggings" },
+    "oSlugs": { "singular": "nostr-event-tag", "plural": "nostr-event-tags" },
+    "oKeys": { "singular": "nostrEventTag", "plural": "nostrEventTags" },
+    "oTitles": { "singular": "Nostr Event Tagging", "plural": "Nostr Event Taggings" },
+    "oLabels": { "singular": "NostrEventTag", "plural": "NostrEventTags" },
+    "x-tapestry": {
+      "neo4j": {
+        "nodeLabelRequired": true
+      }
+    }
+  }
+}

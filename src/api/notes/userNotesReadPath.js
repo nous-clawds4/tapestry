@@ -110,6 +110,15 @@ function clampLimit(raw) {
 }
 
 /**
+ * Coerce a pagination `until` (Unix seconds; arrives as a query string) to a positive
+ * integer, or `undefined` for absent/junk. Undefined ⇒ no cursor ⇒ the most-recent page.
+ */
+function coerceUntil(raw) {
+  const n = parseInt(raw, 10);
+  return Number.isInteger(n) && n > 0 ? n : undefined;
+}
+
+/**
  * Resolve the general-purpose relay set by slug-from-TA. Empty / error ⇒ the hardcoded fallback
  * relays. → { relays: string[], source: 'set' | 'fallback' }. (Mirrors feedReadPath.js.)
  */
@@ -140,8 +149,10 @@ async function resolveGeneralPurposeRelays(runCypher) {
  * Fetch kind-1 notes for a single author from the relays, then app-side: keep only kind-1
  * authored by that pubkey, dedup by id, sort newest-first, cap at `limit`.
  */
-async function fetchAuthorNotes(pubkey, limit, relays, querySync) {
-  const events = (await querySync(relays, { kinds: [1], authors: [pubkey], limit })) || [];
+async function fetchAuthorNotes(pubkey, limit, relays, querySync, until) {
+  const filter = { kinds: [1], authors: [pubkey], limit };
+  if (until) filter.until = until;  // relay cursor: notes at-or-before `until` (pagination)
+  const events = (await querySync(relays, filter)) || [];
   const seen = new Set();
   const notes = [];
   for (const ev of events) {
@@ -163,10 +174,11 @@ async function fetchAuthorNotes(pubkey, limit, relays, querySync) {
  *   `options.deps`): scanStrfry, runCypher, querySync.
  */
 async function buildUserNotes(options = {}) {
-  const { pubkey, limit, deps } = options;
+  const { pubkey, limit, until, deps } = options;
   const scanStrfry = deps?.scanStrfry ?? options.scanStrfry ?? realScanStrfry;
   const runCypher = deps?.runCypher ?? options.runCypher ?? realRunCypher;
   const querySync = deps?.querySync ?? options.querySync ?? realQuerySync;
+  const untilCursor = coerceUntil(until);  // pagination cursor; junk/absent ⇒ undefined (page 1)
 
   // 1. Validate the author pubkey FIRST — malformed ⇒ INVALID, no relays/Neo4j queried.
   if (!pubkey || !HEX64.test(pubkey)) return { status: 'INVALID' };
@@ -178,7 +190,7 @@ async function buildUserNotes(options = {}) {
   const { relays, source: relaySource } = await resolveGeneralPurposeRelays(runCypher);
 
   // 4. Fetch + filter + order + cap, then enrich from local profiles.
-  const notes = await fetchAuthorNotes(pubkey, n, relays, querySync);
+  const notes = await fetchAuthorNotes(pubkey, n, relays, querySync, untilCursor);
   const items = await enrichNotes(notes, scanStrfry);
 
   if (items.length === 0) {
@@ -192,7 +204,7 @@ async function buildUserNotes(options = {}) {
 /** GET /api/user/:pubkey/notes — public, read-only. INVALID → 400; OK/EMPTY → 200. */
 async function handleGetUserNotes(req, res) {
   try {
-    const r = await buildUserNotes({ pubkey: req.params.pubkey, limit: req.query.limit });
+    const r = await buildUserNotes({ pubkey: req.params.pubkey, limit: req.query.limit, until: req.query.until });
     if (r.status === 'INVALID') {
       return res.status(400).json({ success: false, ...r, error: 'invalid pubkey' });
     }

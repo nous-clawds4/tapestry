@@ -12,9 +12,12 @@
  *   2. Fall back to house prefs (settings.grapevine.searchPreferences) for
  *      anything still unresolved.
  *
- * Returns: { delegatedPubkey, povSuffix, filters, sort, minRank }.
+ * Returns: { delegatedPubkey, povSuffix, filters, sort, minRank, requestedPov, delegateSource }.
  *   - povSuffix is delegatedPubkey.slice(0,8) or null.
- *   - minRank is filters?.rank?.min when finite-numeric; otherwise null.
+ *   - minRank is filters.rank.cutoff when the rank filter is enabled and finite
+ *     (falling back to a legacy filters.rank.min); otherwise null.
+ *   - requestedPov ('user'|'house') and delegateSource ('user-prefs'|'house-prefs'|'none')
+ *     expose which cascade branch ran (pov-selectable-tag-surfaces Story 2).
  */
 
 const fs = require('fs');
@@ -43,31 +46,50 @@ function loadHousePrefs() {
   } catch { return {}; }
 }
 
-function resolvePov({ wotPov, userPubkey }) {
-  const housePrefs = loadHousePrefs();
+function resolvePov({ wotPov, userPubkey }, deps = {}) {
+  const readUserPrefsImpl = deps.readUserPrefsImpl || readUserPrefs;
+  const loadHousePrefsImpl = deps.loadHousePrefsImpl || loadHousePrefs;
+  const housePrefs = loadHousePrefsImpl();
 
   let delegatedPubkey = null;
   let filters = null;
   let sort = null;
+  // Which cascade step supplied the delegate (additive, ADR 0002 provenance).
+  let delegateSource = 'none';
+
+  const requestedPov = (wotPov === 'user' && userPubkey) ? 'user' : 'house';
 
   if (wotPov === 'user' && userPubkey) {
-    const userPrefs = readUserPrefs(userPubkey);
+    const userPrefs = readUserPrefsImpl(userPubkey);
     delegatedPubkey = userPrefs.rankAuthor || null;
+    if (delegatedPubkey) delegateSource = 'user-prefs';
     filters = userPrefs.filters || null;
     sort = userPrefs.sortConfig || null;
   }
 
-  if (!delegatedPubkey) delegatedPubkey = housePrefs.delegatedPubkey || null;
+  if (!delegatedPubkey) {
+    delegatedPubkey = housePrefs.delegatedPubkey || null;
+    if (delegatedPubkey) delegateSource = 'house-prefs';
+  }
   if (!filters) filters = housePrefs.filters || null;
   if (!sort) sort = housePrefs.sort || null;
 
   const povSuffix = delegatedPubkey ? delegatedPubkey.slice(0, 8) : null;
-  const minRankRaw = filters?.rank?.min;
-  const minRank = (typeof minRankRaw === 'number' && Number.isFinite(minRankRaw))
-    ? minRankRaw
-    : null;
+  // The trust threshold is persisted by the search-preferences UI as
+  // `filters.rank.cutoff` gated by `filters.rank.enabled` (verified in live
+  // user-prefs). Read that first (when enabled); fall back to a legacy
+  // `filters.rank.min` if some old config carries one. Nothing writes `.min`
+  // today, so reading only `.min` (as before) left minRank always null and the
+  // POV never actually filtered — pov-selectable-tag-surfaces Story 3.
+  const rankFilter = filters?.rank || null;
+  let minRank = null;
+  if (rankFilter && rankFilter.enabled !== false && Number.isFinite(rankFilter.cutoff)) {
+    minRank = rankFilter.cutoff;
+  } else if (Number.isFinite(rankFilter?.min)) {
+    minRank = rankFilter.min;
+  }
 
-  return { delegatedPubkey, povSuffix, filters, sort, minRank };
+  return { delegatedPubkey, povSuffix, filters, sort, minRank, requestedPov, delegateSource };
 }
 
 module.exports = { resolvePov, readUserPrefs };

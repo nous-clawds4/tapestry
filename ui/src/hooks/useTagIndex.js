@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { usePov } from '../context/PovContext';
 
 /**
  * Hook for the Tag-index page (Story 4 / ADR-0003).
@@ -7,13 +8,15 @@ import { useAuth } from '../context/AuthContext';
  * Manages sort/q/offset state, accumulates `rows` across "Load more" clicks,
  * and resets the row accumulator when sort or q changes.
  *
- * Fetches `/api/profile-tags/index`. Gates on auth bootstrap so a fresh load
- * of /tags resolves the active POV correctly (same pattern as useTagDetail).
+ * Fetches the unified `/api/tags/index` (notes + profiles; Story 13 / ADR 0012).
+ * Gates on auth bootstrap so a fresh load of /tags resolves the active POV
+ * correctly (same pattern as useTagDetail).
  */
 const PAGE_SIZE = 50;
 
 export default function useTagIndex() {
   const { user, loading: authLoading } = useAuth();
+  const { povParams } = usePov();
 
   const [sort, setSortState] = useState('used');
   const [q, setQState] = useState('');
@@ -25,6 +28,7 @@ export default function useTagIndex() {
   const [rows, setRows] = useState([]);
   const [total, setTotal] = useState(0);
   const [povSuffix, setPovSuffix] = useState(null);
+  const [povResolution, setPovResolution] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -63,14 +67,10 @@ export default function useTagIndex() {
       offset: String(offset),
     });
     if (q) params.set('q', q);
-    if (user?.pubkey) {
-      params.set('wotPov', 'user');
-      params.set('userPubkey', user.pubkey);
-      // Story 13 / ADR 0012 — viewerPubkey drives per-row viewerPinned.
-      params.set('viewerPubkey', user.pubkey);
-    } else {
-      params.set('wotPov', 'house');
-    }
+    // Selected-POV read params (ADR pov-selectable-tag-surfaces/0001).
+    Object.entries(povParams).forEach(([k, v]) => params.set(k, v));
+    // Story 13 / ADR 0012 — viewerPubkey drives per-row viewerPinned.
+    if (user?.pubkey) params.set('viewerPubkey', user.pubkey);
     // "Only show mine" filters to tags authored by the logged-in user.
     // Silently inactive when not logged in (toggle is hidden in the UI).
     if (mineOnly && user?.pubkey) {
@@ -81,13 +81,15 @@ export default function useTagIndex() {
       params.set('pinnedByMe', 'true');
     }
 
-    fetch(`/api/profile-tags/index?${params}`)
+    // Unified tag directory across notes + profiles (Story 13 / ADR 0012).
+    fetch(`/api/tags/index?${params}`)
       .then(async (r) => {
         const data = await r.json().catch(() => null);
         if (cancelled || mySeq !== liveSeqRef.current) return;
         if (r.ok && data?.success) {
           setTotal(data.total || 0);
           setPovSuffix(data.povSuffix || null);
+          setPovResolution(data.povResolution || null);
           // offset === 0 → replace; else → append.
           setRows((prev) => (offset === 0 ? (data.rows || []) : [...prev, ...(data.rows || [])]));
         } else {
@@ -98,7 +100,7 @@ export default function useTagIndex() {
       .finally(() => { if (!cancelled) setLoading(false); });
 
     return () => { cancelled = true; };
-  }, [authLoading, user?.pubkey, sort, q, mineOnly, pinnedByMe, offset]);
+  }, [authLoading, user?.pubkey, sort, q, mineOnly, pinnedByMe, offset, povParams.wotPov, povParams.userPubkey]);
 
   const loadMore = useCallback(() => {
     if (loading) return;
@@ -107,7 +109,7 @@ export default function useTagIndex() {
   }, [loading, rows.length, total]);
 
   return {
-    rows, total, povSuffix,
+    rows, total, povSuffix, povResolution,
     sort, setSort,
     q, setQ,
     mineOnly, setMineOnly,

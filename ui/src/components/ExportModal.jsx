@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   publishNip51ExportForPin,
+  publishNoteBookmarkSetForPin,
   fetchUserWriteRelays,
   WELL_KNOWN_FALLBACK_RELAYS,
 } from '../utils/publishTagPin';
@@ -39,6 +40,9 @@ import { timeAgo } from '../utils/timeAgo';
 export default function ExportModal({
   pinEventId, currentTitle, defaultTitle = '', followPackStatus = null,
   variant = 'full', onExported,
+  // Story 12 — when the tag was pinned with notes, the modal also offers the
+  // note Bookmark Set (kind-30003). noteExport = { tag, viewerPubkey, noteMethod }.
+  noteExport = null, onNoteExported,
 }) {
   const [open, setOpen] = useState(false);
   const [titleDraft, setTitleDraft] = useState(currentTitle || defaultTitle);
@@ -46,6 +50,7 @@ export default function ExportModal({
   const [exportFollowSet, setExportFollowSet] = useState(true);    // kind-30000
   const [exportTrustedList, setExportTrustedList] = useState(true); // kind-30392
   const [exportFollowPack, setExportFollowPack] = useState(false);  // kind-39089
+  const [exportBookmarkSet, setExportBookmarkSet] = useState(true); // kind-30003 (notes)
   const [showWhat, setShowWhat] = useState(false); // "What will be exported?" disclosure (AC-4)
   const [exporting, setExporting] = useState(false);
   const [done, setDone] = useState(false);
@@ -82,8 +87,17 @@ export default function ExportModal({
   const hasNip07 = typeof window !== 'undefined' && !!window.nostr;
   const hasWriteRelays = Array.isArray(writeRelays) && writeRelays.length > 0;
   const relaysLoading = writeRelays === null;
+  const bookmarkAvailable = !!(noteExport && noteExport.tag && noteExport.viewerPubkey);
   // AC-5: disable Export when no target is selected.
-  const nothingSelected = !exportFollowSet && !exportTrustedList && !exportFollowPack;
+  const nothingSelected = !exportFollowSet && !exportTrustedList && !exportFollowPack
+    && !(bookmarkAvailable && exportBookmarkSet);
+  // A user-signed list that publishes to relays (drives the relay preview).
+  const anyUserSignedRelayList = exportFollowSet || exportFollowPack || (bookmarkAvailable && exportBookmarkSet);
+  const selectedUserLists = [
+    exportFollowSet && 'Follow Set',
+    exportFollowPack && 'Follow Pack',
+    (bookmarkAvailable && exportBookmarkSet) && 'Bookmark Set',
+  ].filter(Boolean);
 
   // Story 22 / ADR 0020 — "last exported as a pack {ago}" memory hint. Shown
   // when a kind-39089 was exported before; it does NOT auto-check the box
@@ -130,6 +144,18 @@ export default function ExportModal({
           writeRelays: Array.isArray(writeRelays) ? writeRelays : [],
           kind: 39089,
         });
+      }
+      // 4. Bookmark Set (user-signed kind-30003 notes; another prompt). Membership
+      //    is recomputed from for-tag, so it reflects fresh taggings.
+      if (bookmarkAvailable && exportBookmarkSet) {
+        await publishNoteBookmarkSetForPin({
+          tag: noteExport.tag,
+          viewerPubkey: noteExport.viewerPubkey,
+          noteMethod: noteExport.noteMethod,
+          title: (titleDraft || '').trim() || undefined,
+          writeRelays: Array.isArray(writeRelays) ? writeRelays : undefined,
+        });
+        if (typeof onNoteExported === 'function') onNoteExported();
       }
       setDone(true);
       setOpen(false);
@@ -236,21 +262,34 @@ export default function ExportModal({
                     )}
                   </span>
                 </label>
+                {bookmarkAvailable && (
+                  <label className="bs-export-target">
+                    <input
+                      type="checkbox"
+                      checked={exportBookmarkSet}
+                      onChange={(e) => setExportBookmarkSet(e.target.checked)}
+                      disabled={exporting}
+                    />
+                    <span>
+                      <strong>Bookmark Set</strong> (kind-30003) — a NIP-51
+                      bookmark set of the curated <em>notes</em>, signed by you;
+                      any client that supports bookmark lists can open it.
+                    </span>
+                  </label>
+                )}
               </div>
             </details>
 
-            {/* Relay preview matters whenever a user-signed list (Follow Set
-                and/or Follow Pack) is exported — both publish to relays. */}
-            {(exportFollowSet || exportFollowPack) && (relaysLoading ? (
+            {/* Relay preview matters whenever a user-signed list (Follow Set,
+                Follow Pack, and/or Bookmark Set) is exported — all publish to relays. */}
+            {anyUserSignedRelayList && (relaysLoading ? (
               <div className="bs-tl-export-preview is-ok">
                 <p className="bs-tl-export-preview-lead">Reading your relay list…</p>
               </div>
             ) : (
               <div className={`bs-tl-export-preview ${hasWriteRelays ? 'is-ok' : 'is-warn'}`}>
                 <p className="bs-tl-export-preview-lead">
-                  {exportFollowSet && exportFollowPack
-                    ? 'The Follow Set & Follow Pack '
-                    : exportFollowPack ? 'The Follow Pack ' : 'The Follow Set '}
+                  {`The ${selectedUserLists.join(' & ')} `}
                   <strong>{(titleDraft || defaultTitle || 'untitled')}</strong> will publish to:
                 </p>
                 {hasWriteRelays ? (

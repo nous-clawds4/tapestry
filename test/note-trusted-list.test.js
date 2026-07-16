@@ -1,0 +1,248 @@
+/**
+ * Story event-tagging #17 (issue #336): TA-signed note Trusted List.
+ * ADR event-tagging/0016. See engineering-team/stories/event-tagging/17-...test-plan.md
+ *
+ * ADR chose Option A: extract `aggregateNotesTagged` (shared by handleForTag + the new pin path),
+ * and add `runOneNotePin(pinEvent, { deps })` mirroring the pubkey `runOnePin` — for a note-targeting
+ * pin it publishes a TA-signed **kind-30393** Trusted List of the trusted-tagged NOTES (e-tag members,
+ * per the NIP-85 TA/TL member-type convention: pubkeys→30392, events→30393), curated by the pin's
+ * `noteMethod` (`curateNotes`), under the observer POV; d-tag `tl-pin-notes-…`, metric `pinned-tag-notes`;
+ * empty curated set → empty-membership replacement. Wired into `refreshAllPinnedTags` alongside the
+ * pubkey TL, with a kind-parameterized stale retraction. Additive — pubkey 30392 TL + kind-30003
+ * export unchanged.
+ *
+ * TEST LEVELS:
+ *  - N* : EXECUTE `runOneNotePin` with injected deps ({ lookupTag, aggregateNotesTagged, publishTL })
+ *         — the kind/d-tag/metric/members/curation/observer/empty behavior, no live strfry/meili.
+ *  - S* : source sentinels (exports; refreshAllPinnedTags wiring; handleForTag re-point).
+ *
+ * ALL FAIL pre-implementation (runOneNotePin / aggregateNotesTagged absent).
+ */
+
+const fs = require('fs');
+const path = require('path');
+
+const REFRESH_PATH = path.resolve(__dirname, '../src/api/trustedList/refreshPinnedTags.js');
+const EVENT_TAGS = path.resolve(__dirname, '../src/api/event-tags/index.js');
+
+const tests = [];
+function test(name, fn) { tests.push({ name, fn }); }
+function assert(cond, msg) { if (!cond) throw new Error(msg || 'Assertion failed'); }
+function safeRead(p) { try { return fs.readFileSync(p, 'utf8'); } catch { return ''; } }
+function loadRefresh() { try { return require(REFRESH_PATH); } catch { return null; } }
+
+// ── fixtures ──
+const HEX = (c) => c.repeat(64);
+const OBSERVER = HEX('a');
+const TAGAUTHOR = HEX('b');
+const TAG_EVENT_ID = HEX('c');
+const N1 = HEX('1'); const N2 = HEX('2'); const N3 = HEX('3');
+
+function makeNotePin({ observer = OBSERVER, tagEventId = TAG_EVENT_ID, noteMethod = 'notes:net-endorsed', targetTypes } = {}) {
+  const cm = { method: 'nip85:rank', observer, cutoff: 1, noteMethod };
+  if (targetTypes !== undefined) cm.targetTypes = targetTypes;
+  return {
+    id: 'pin-' + observer.slice(0, 6),
+    kind: 39999,
+    pubkey: observer,
+    created_at: 1,
+    tags: [['e', tagEventId], ['curation-method', JSON.stringify(cm)]],
+    content: '{}',
+  };
+}
+// note membership shape (from aggregateNotesTagged): { id, applications, disputes, createdAt }
+function note(id, applications, disputes, createdAt) { return { id, applications, disputes, createdAt }; }
+
+function makeDeps({ notes = [], fullMembers, scanTruncated = false, total, tag } = {}) {
+  const publishCalls = [];
+  // ADR 0017: aggregateNotesTagged returns BOTH `members` (capped, for the UI read — runOneNotePin must
+  // NOT use it) and `fullMembers` (the complete set the durable note TL publishes) + `scanTruncated`.
+  const full = fullMembers || notes;
+  return {
+    publishCalls,
+    deps: {
+      lookupTag: async () => tag || { eventId: TAG_EVENT_ID, slug: 'funny', name: 'funny', authorPubkey: TAGAUTHOR },
+      aggregateNotesTagged: async () => ({ members: notes, fullMembers: full, scanTruncated, total: total ?? full.length }),
+      publishTL: async (args) => { publishCalls.push(args); return { event: { id: 'tl-1' }, uuid: `30393:x:${args.dTag}` }; },
+    },
+  };
+}
+// N distinct trusted (app>dis) notes so net-endorsed curation keeps them all.
+function manyNotes(n) { return Array.from({ length: n }, (_, i) => note(String(i).padStart(64, '0'), 1, 0, n - i)); }
+async function run1(mod, pin, scenario) {
+  assert(mod && typeof mod.runOneNotePin === 'function',
+    'refreshPinnedTags.js must export runOneNotePin(pinEvent, {deps}) — absent pre-implementation (ADR 0016).');
+  const { deps, publishCalls } = makeDeps(scenario || {});
+  const r = await mod.runOneNotePin(pin, { deps, ...deps });
+  return { r, publishCalls };
+}
+function eTagValues(call) { return (call.items || []).filter((i) => i.tag === 'e').map((i) => i.value); }
+function extra(call, name) { return (call.extraTags || []).find((t) => t[0] === name); }
+
+// ===========================================================================
+// STRUCTURAL
+// ===========================================================================
+
+test('S1: refreshPinnedTags exports runOneNotePin; event-tags exports aggregateNotesTagged', () => {
+  const mod = loadRefresh();
+  assert(mod && typeof mod.runOneNotePin === 'function', 'refreshPinnedTags.js must export runOneNotePin.');
+  const et = safeRead(EVENT_TAGS);
+  assert(/aggregateNotesTagged/.test(et) && /module\.exports[\s\S]*aggregateNotesTagged/.test(et),
+    'event-tags/index.js must define + export aggregateNotesTagged (shared note aggregation).');
+});
+
+test('S2: handleForTag is re-pointed onto the shared aggregateNotesTagged (DRY; guarded)', () => {
+  const et = safeRead(EVENT_TAGS);
+  assert(/function\s+handleForTag/.test(et) && /aggregateNotesTagged\s*\(/.test(et),
+    'handleForTag must call aggregateNotesTagged (extract-and-re-point, ADR §Impl).');
+});
+
+test('S3: refreshAllPinnedTags runs runOneNotePin alongside runOnePin', () => {
+  const src = safeRead(REFRESH_PATH);
+  assert(/runOneNotePin\s*\(/.test(src) && /async function refreshAllPinnedTags/.test(src),
+    'refreshAllPinnedTags must call runOneNotePin per pin (note TL refreshed alongside the pubkey TL).');
+});
+
+// ===========================================================================
+// N — runOneNotePin behavior (executes with injected deps)
+// ===========================================================================
+
+test('N1: a note-targeting pin publishes a kind-30393 TL with e-tag note members', async () => {
+  const mod = loadRefresh();
+  const { publishCalls } = await run1(mod, makeNotePin({ targetTypes: ['profile', 'note'] }),
+    { notes: [note(N1, 3, 0, 100), note(N2, 2, 0, 200)] });
+  assert(publishCalls.length === 1, `expected one note-TL publish; got ${publishCalls.length}.`);
+  const c = publishCalls[0];
+  assert(c.kind === 30393, `note TL must be kind-30393 (event-list, NIP-85 convention); got ${c.kind}.`);
+  const es = eTagValues(c);
+  assert(es.includes(N1) && es.includes(N2), 'members must be the trusted-tagged notes as e-tags.');
+  assert((c.items || []).every((i) => i.tag === 'e'), 'note-TL members must be e-tags (not p/a).');
+});
+
+test('N2: d-tag is tl-pin-notes-<obs8>-<tagAuthor8>-<slug>; metric pinned-tag-notes; observer + source-tag', async () => {
+  const mod = loadRefresh();
+  const { publishCalls } = await run1(mod, makeNotePin({ targetTypes: ['note'] }), { notes: [note(N1, 1, 0, 1)] });
+  const c = publishCalls[0];
+  assert(c.dTag === `tl-pin-notes-${OBSERVER.slice(0, 8)}-${TAGAUTHOR.slice(0, 8)}-funny`,
+    `d-tag must be tl-pin-notes-<obs8>-<tagAuthor8>-<slug>; got ${c.dTag}.`);
+  assert(c.metric === 'pinned-tag-notes', `metric must be "pinned-tag-notes"; got ${c.metric}.`);
+  assert(extra(c, 'observer') && extra(c, 'observer')[1] === OBSERVER, 'must carry an observer extraTag.');
+  assert(extra(c, 'source-tag'), 'must carry a source-tag extraTag (tagEventId/author/slug provenance).');
+});
+
+test('N2b: carries relay-filterable discovery tags — #a (the tag coordinate) and #p (the observer)', async () => {
+  const mod = loadRefresh();
+  const { publishCalls } = await run1(mod, makeNotePin({ targetTypes: ['note'] }), { notes: [note(N1, 1, 0, 1)] });
+  const c = publishCalls[0];
+  const aTag = extra(c, 'a');
+  assert(aTag && aTag[1] === `39999:${TAGAUTHOR}:funny`,
+    `must carry an #a tag = the source tag's a-coordinate (find all note TLs for a tag); got ${aTag && aTag[1]}.`);
+  const pTag = extra(c, 'p');
+  assert(pTag && pTag[1] === OBSERVER,
+    `must carry a #p tag = the observer (find all note TLs for an observer); got ${pTag && pTag[1]}.`);
+  // The e-tags remain the MEMBERS; a/p are metadata, not members.
+  assert((c.items || []).every((i) => i.tag === 'e'), 'members must still be e-tags only (a/p are metadata extraTags).');
+});
+
+test('N3: members are curated by the pin noteMethod (net-endorsed drops disputed>=applied; most-applied keeps + orders)', async () => {
+  const mod = loadRefresh();
+  const notes = [note(N1, 3, 0, 100), note(N2, 1, 5, 200), note(N3, 2, 0, 50)];
+  // net-endorsed: keep applications>disputes (N1, N3), drop N2 (1 vs 5).
+  const ne = await run1(mod, makeNotePin({ noteMethod: 'notes:net-endorsed', targetTypes: ['note'] }), { notes });
+  const neE = eTagValues(ne.publishCalls[0]);
+  assert(neE.includes(N1) && neE.includes(N3) && !neE.includes(N2),
+    `net-endorsed must keep applications>disputes and drop the disputed note; got ${JSON.stringify(neE)}.`);
+  // most-applied: keep all, ordered by applications desc (N1=3, N3=2, N2=1).
+  const ma = await run1(mod, makeNotePin({ noteMethod: 'notes:most-applied', targetTypes: ['note'] }), { notes });
+  const maE = eTagValues(ma.publishCalls[0]);
+  assert(maE[0] === N1 && maE.includes(N2), `most-applied must keep all, ordered by applications desc; got ${JSON.stringify(maE)}.`);
+});
+
+test('N4: empty curated set ⇒ empty-membership replacement (items:[]), not a stale list', async () => {
+  const mod = loadRefresh();
+  // All notes disputed → net-endorsed curates to empty.
+  const { publishCalls } = await run1(mod, makeNotePin({ noteMethod: 'notes:net-endorsed', targetTypes: ['note'] }),
+    { notes: [note(N1, 0, 3, 1), note(N2, 1, 2, 2)] });
+  assert(publishCalls.length === 1, 'an empty curated set must still publish (the empty-membership replacement).');
+  assert(eTagValues(publishCalls[0]).length === 0, 'the empty replacement must carry no e-tag members.');
+});
+
+test('N5: a NON-note-targeting pin (profile only) publishes NO note TL', async () => {
+  const mod = loadRefresh();
+  const { publishCalls } = await run1(mod, makeNotePin({ targetTypes: ['profile'] }), { notes: [note(N1, 3, 0, 1)] });
+  assert(publishCalls.length === 0, 'a pin that does not target notes must not publish a note TL.');
+});
+
+test('N6: absent targetTypes ⇒ defaults to include note (ADR-0015 default) ⇒ publishes', async () => {
+  const mod = loadRefresh();
+  const { publishCalls } = await run1(mod, makeNotePin({ targetTypes: undefined }), { notes: [note(N1, 1, 0, 1)] });
+  assert(publishCalls.length === 1, 'a pin with no targetTypes must default to including notes and publish a note TL.');
+});
+
+// ===========================================================================
+// C — completeness (event-tagging #18 / ADR 0017): the durable note TL is NOT
+//     silently capped at 50; it publishes the full set, signals when partial.
+// ===========================================================================
+
+test('C1 (uncap): runOneNotePin publishes fullMembers (complete set), NOT the capped members', async () => {
+  const mod = loadRefresh();
+  // members (capped) = 1 note; fullMembers = 60. Must publish 60 → proves it uses fullMembers.
+  const { publishCalls } = await run1(mod, makeNotePin({ targetTypes: ['note'] }),
+    { notes: [note(N1, 1, 0, 1)], fullMembers: manyNotes(60), total: 60 });
+  const es = eTagValues(publishCalls[0]);
+  assert(es.length === 60,
+    `the note TL must publish the FULL trusted-tagged set (fullMembers=60), not the capped members; got ${es.length}.`);
+  assert(!extra(publishCalls[0], 'truncated'),
+    'a complete set (scan not truncated, under the ceiling) must carry NO "truncated" marker.');
+});
+
+test('C2 (scan-truncated ⇒ partial signal): a truncated scan marks the TL partial with the total', async () => {
+  const mod = loadRefresh();
+  const { publishCalls } = await run1(mod, makeNotePin({ targetTypes: ['note'] }),
+    { fullMembers: manyNotes(10), scanTruncated: true, total: 999 });
+  const t = extra(publishCalls[0], 'truncated');
+  assert(t && t[1] === '999',
+    `when the taggings scan was truncated, the TL must carry ["truncated","<total>"] (999); got ${JSON.stringify(t)}.`);
+});
+
+test('C3 (ceiling ⇒ capped + partial signal): beyond NOTE_TL_MEMBER_CAP, publish the cap + mark partial', async () => {
+  const mod = loadRefresh();
+  const cap = mod.NOTE_TL_MEMBER_CAP;
+  assert(Number.isInteger(cap) && cap > 50,
+    'refreshPinnedTags must export NOTE_TL_MEMBER_CAP (a high, event-size-principled ceiling > 50).');
+  const total = cap + 50;
+  const { publishCalls } = await run1(mod, makeNotePin({ targetTypes: ['note'] }),
+    { fullMembers: manyNotes(total), total });
+  const es = eTagValues(publishCalls[0]);
+  assert(es.length === cap, `beyond the ceiling the TL must publish exactly NOTE_TL_MEMBER_CAP members; got ${es.length}.`);
+  const t = extra(publishCalls[0], 'truncated');
+  assert(t && t[1] === String(total), `exceeding the ceiling must add ["truncated","<total>"] (${total}); got ${JSON.stringify(t)}.`);
+});
+
+test('C4 (complete ⇒ no marker): a modest complete set publishes all with no "truncated" marker', async () => {
+  const mod = loadRefresh();
+  const { publishCalls } = await run1(mod, makeNotePin({ targetTypes: ['note'] }),
+    { fullMembers: manyNotes(7), scanTruncated: false, total: 7 });
+  assert(eTagValues(publishCalls[0]).length === 7, 'a complete 7-note set must publish all 7.');
+  assert(!extra(publishCalls[0], 'truncated'), 'a complete set must NOT carry a "truncated" marker.');
+});
+
+test('S4 (aggregateNotesTagged): returns fullMembers + scanTruncated, and the taggings scan is explicitly bounded', () => {
+  const src = safeRead(EVENT_TAGS);
+  assert(/fullMembers/.test(src), 'aggregateNotesTagged must compute + return fullMembers (the uncapped membership).');
+  assert(/scanTruncated/.test(src), 'aggregateNotesTagged must return scanTruncated (whether a bounded scan hit its limit).');
+  // The taggings scan must carry an explicit limit (not rely on the silent 20MB buffer ceiling).
+  assert(/filterTaggingsUsingTag[\s\S]{0,160}limit|TAGGING_SCAN_LIMIT/.test(src),
+    'the filterTaggingsUsingTag scan must pass an explicit limit (TAGGING_SCAN_LIMIT) so it never silently overflows.');
+});
+
+async function run() {
+  let pass = 0, fail = 0;
+  for (const t of tests) {
+    try { await t.fn(); console.log(`  ✓ ${t.name}`); pass++; }
+    catch (err) { console.log(`  ✗ ${t.name}`); console.log(`      ${err.message}`); fail++; }
+  }
+  return { pass, fail };
+}
+
+module.exports = { run };

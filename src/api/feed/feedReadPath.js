@@ -51,6 +51,15 @@ const RELAY_SET_SLUG = 'the-set-of-general-purpose-relays';
 
 const HEX64 = /^[0-9a-f]{64}$/i;
 
+/**
+ * Coerce a pagination `until` (Unix seconds; arrives as a query string) to a positive
+ * integer, or `undefined` for absent/junk. Undefined ⇒ no cursor ⇒ the most-recent page.
+ */
+function coerceUntil(raw) {
+  const n = parseInt(raw, 10);
+  return Number.isInteger(n) && n > 0 ? n : undefined;
+}
+
 // ─── Real helper defaults (used when no deps are injected) ──────────────────────
 
 /** Default House-PoV read. */
@@ -193,10 +202,12 @@ async function resolveGeneralPurposeRelays(runCypher, getTaPubkey) {
  * Fetch kind-1 notes from the relays for the followed authors, then app-side:
  * keep only kind-1 authored by a followed pubkey, sort newest-first, cap at 50.
  */
-async function fetchNotes(followPubkeys, relays, querySync) {
+async function fetchNotes(followPubkeys, relays, querySync, until) {
   if (followPubkeys.length === 0) return [];
   const followSet = new Set(followPubkeys);
-  const events = (await querySync(relays, { kinds: [1], authors: followPubkeys, limit: FEED_CAP })) || [];
+  const filter = { kinds: [1], authors: followPubkeys, limit: FEED_CAP };
+  if (until) filter.until = until;  // relay cursor: notes at-or-before `until` (pagination)
+  const events = (await querySync(relays, filter)) || [];
   const seen = new Set();
   const notes = [];
   for (const ev of events) {
@@ -218,11 +229,12 @@ async function fetchNotes(followPubkeys, relays, querySync) {
  *   or under `options.deps`): getSettings, scanStrfry, runCypher, querySync.
  */
 async function buildFeed(options = {}) {
-  const { sessionPubkey, deps } = options;
+  const { sessionPubkey, until, deps } = options;
   const getSettings = deps?.getSettings ?? options.getSettings ?? realGetSettings;
   const scanStrfry = deps?.scanStrfry ?? options.scanStrfry ?? realScanStrfry;
   const runCypher = deps?.runCypher ?? options.runCypher ?? realRunCypher;
   const querySync = deps?.querySync ?? options.querySync ?? realQuerySync;
+  const untilCursor = coerceUntil(until);  // pagination cursor; junk/absent ⇒ undefined (page 1)
   const getTaPubkey = deps?.getTaPubkey ?? options.getTaPubkey ?? realGetTaPubkey;
 
   // 1. Source identity. None ⇒ NO_SOURCE (no relays queried).
@@ -239,7 +251,7 @@ async function buildFeed(options = {}) {
   const { relays, source: relaySource } = await resolveGeneralPurposeRelays(runCypher, getTaPubkey);
 
   // 4. Fetch + filter + order + cap, then enrich from local profiles.
-  const notes = await fetchNotes(followResult.follows, relays, querySync);
+  const notes = await fetchNotes(followResult.follows, relays, querySync, untilCursor);
   const items = await enrichNotes(notes, scanStrfry);
 
   if (items.length === 0) {
@@ -253,7 +265,7 @@ async function buildFeed(options = {}) {
 /** GET /api/feed — public, read-only. */
 async function handleGetFeed(req, res) {
   try {
-    const r = await buildFeed({ sessionPubkey: req.session?.pubkey });
+    const r = await buildFeed({ sessionPubkey: req.session?.pubkey, until: req.query.until });
     res.json({ success: true, ...r });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });

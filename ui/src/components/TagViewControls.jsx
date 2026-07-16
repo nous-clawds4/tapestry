@@ -16,6 +16,11 @@ import SortToggle from './SortToggle';
  *
  * Anonymous users still see the "Tag someone" button per AC-13; the parent
  * gates the click → login() flow.
+ *
+ * Story 15 — the Notes tab reuses THIS SAME control (not a bespoke one). It
+ * passes its own `sortOptions` (recent/applied/disputed/divisive) and
+ * `hidePrimary` (the "+ Tag someone" button is Profiles-only; the Notes tab's
+ * "+ Tag a Note" arrives in Story 16). Profiles' defaults are unchanged.
  */
 const SORT_OPTIONS = [
   { key: 'applied', label: 'Most applied' },
@@ -32,24 +37,40 @@ export default function TagViewControls({
   onFilterChange,
   onTagSomeoneClick,
   signedIn = true,
+  sortOptions = SORT_OPTIONS,
+  sortAriaLabel = 'Sort tagged profiles',
+  filterPlaceholder = 'Filter this list…',
+  filterAriaLabel = 'Filter the list of tagged profiles',
+  hidePrimary = false,
+  // Story 16 — the primary (left) button is configurable so the Notes tab can
+  // show "+ Tag a Note" in the SAME slot Profiles uses for "+ Tag someone".
+  // Defaults preserve the Profiles behavior + its onTagSomeoneClick handler.
+  onPrimaryClick,
+  primaryLabel = '➕ Tag someone',
+  primaryLabelSignedOut = '🔒 Sign in to tag someone',
+  primaryAriaLabel = 'Tag someone',
+  primaryAriaLabelSignedOut = 'Sign in to tag someone',
 }) {
   const handleDetailsToggle = (e) => {
     if (onToggleExpand) onToggleExpand(e.currentTarget.open);
   };
+  const primaryClick = onPrimaryClick || onTagSomeoneClick;
 
   return (
     <div className="bs-tag-view-controls">
-      <div className="bs-tag-view-controls-row">
-        <button
-          type="button"
-          className={`bs-tag-view-tagsomeone${signedIn ? '' : ' is-disabled'}`}
-          onClick={signedIn ? onTagSomeoneClick : undefined}
-          disabled={!signedIn}
-          data-bs-tooltip={signedIn ? undefined : 'Sign in to tag someone'}
-          aria-label={signedIn ? 'Tag someone' : 'Sign in to tag someone'}
-        >
-          {signedIn ? '➕ Tag someone' : '🔒 Sign in to tag someone'}
-        </button>
+      <div className={`bs-tag-view-controls-row${hidePrimary ? ' is-no-primary' : ''}`}>
+        {!hidePrimary && (
+          <button
+            type="button"
+            className={`bs-tag-view-tagsomeone${signedIn ? '' : ' is-disabled'}`}
+            onClick={signedIn ? primaryClick : undefined}
+            disabled={!signedIn}
+            data-bs-tooltip={signedIn ? undefined : primaryAriaLabelSignedOut}
+            aria-label={signedIn ? primaryAriaLabel : primaryAriaLabelSignedOut}
+          >
+            {signedIn ? primaryLabel : primaryLabelSignedOut}
+          </button>
+        )}
 
         <details
           className="bs-tag-view-options"
@@ -66,19 +87,19 @@ export default function TagViewControls({
       {expanded && (
         <div className="bs-tag-view-options-panel">
           <SortToggle
-            options={SORT_OPTIONS}
+            options={sortOptions}
             value={sort}
             onChange={onSortChange}
-            ariaLabel="Sort tagged profiles"
+            ariaLabel={sortAriaLabel}
             className="bs-tag-sort"
           />
           <input
             type="text"
             className="bs-tag-view-filter"
-            placeholder="Filter this list…"
+            placeholder={filterPlaceholder}
             value={filterText || ''}
             onChange={(e) => onFilterChange(e.target.value)}
-            aria-label="Filter the list of tagged profiles"
+            aria-label={filterAriaLabel}
           />
         </div>
       )}

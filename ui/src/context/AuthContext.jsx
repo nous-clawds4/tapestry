@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { waitForNostr } from '../utils/nip07';
+import { setSessionPubkey } from '../utils/signerGuard';
 import LoginErrorModal from '../components/LoginErrorModal';
 
 const AuthContext = createContext(null);
@@ -31,6 +32,13 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     checkStatus();
   }, []);
+
+  // Publish the session pubkey to the signer guard so plain-util write paths
+  // (profile tags, pins, NIP-51 exports) can refuse to sign as a drifted
+  // extension account without threading it through every call site (issue #335).
+  useEffect(() => {
+    setSessionPubkey(user?.pubkey || null);
+  }, [user?.pubkey]);
 
   async function checkStatus() {
     try {

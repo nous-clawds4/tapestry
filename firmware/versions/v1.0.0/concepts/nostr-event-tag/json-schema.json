@@ -1,0 +1,49 @@
+{
+  "word": {
+    "slug": "json-schema-for-the-concept-of-nostr-event-taggings",
+    "name": "JSON schema for the concept of nostr event taggings",
+    "title": "JSON Schema for the Concept of Nostr Event Taggings",
+    "description": "the json schema for the concept of nostr event taggings",
+    "wordTypes": ["word", "jsonSchema"],
+    "coreMemberOf": [
+      {
+        "slug": "concept-header-for-the-concept-of-nostr-event-taggings",
+        "uuid": "<uuid>"
+      }
+    ]
+  },
+  "jsonSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "name": "nostr event tagging",
+    "title": "Nostr Event Tagging",
+    "description": "JSON Schema for the concept of nostr event taggings. Permissive: event-tagging assertions carry empty content (discovery runs off tags), so no content payload is required.",
+    "required": [],
+    "definitions": {},
+    "properties": {
+      "nostrEventTag": {
+        "type": "object",
+        "name": "nostr event tagging",
+        "title": "Nostr Event Tagging",
+        "slug": "nostr-event-tag",
+        "description": "Optional. Documents the (forward-compat) shape of an event-tagging assertion's payload; not required.",
+        "properties": {
+          "target": {
+            "type": "string",
+            "name": "target",
+            "title": "Target",
+            "slug": "target",
+            "description": "The tagged event, as an event id (mirrors the e tag) or an addressable coordinate <kind>:<author>:<d> (mirrors the a tag)."
+          },
+          "polarity": {
+            "type": "string",
+            "name": "polarity",
+            "title": "Polarity",
+            "slug": "polarity",
+            "description": "1 = applied, -1 = disputed; absent = applied. Mirrors the event's polarity tag."
+          }
+        }
+      }
+    }
+  }
+}

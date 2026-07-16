@@ -203,11 +203,14 @@ t('SCOPE GUARD: exactly nostr-relay + the three tag concepts carry a communityRe
     .filter((c) => 'communityReference' in c)
     .map((c) => c.slug)
     .sort();
-  const expected = ['nostr-relay', ...TAG_SLUGS].sort();
+  // Widened 2026-07-07 (OPEN.md #13): event-tagging Story 3 deliberately seeded nostr-event-tag +
+  // tagging-with-specific-tag WITH a communityReference, per the federation model. The guard's job
+  // is unchanged — nothing beyond this sanctioned set may creep in without a story updating it.
+  const expected = ['nostr-relay', ...TAG_SLUGS, 'nostr-event-tag', 'tagging-with-specific-tag'].sort();
   assert(deepEqual(withCR, expected),
-    `exactly these four concepts may carry a communityReference: ${JSON.stringify(expected)}. ` +
-    `Found: ${JSON.stringify(withCR)}. This story adds EXACTLY the three tag blocks (tag, nostr-user-tag, ` +
-    `tag-pinning) on top of the pre-existing nostr-relay — no more, no fewer, and nothing else.`);
+    `exactly these concepts may carry a communityReference: ${JSON.stringify(expected)} ` +
+    `(nostr-relay = pilot; tag/nostr-user-tag/tag-pinning = tag-federation Story 2; ` +
+    `nostr-event-tag/tagging-with-specific-tag = event-tagging Story 3). Found: ${JSON.stringify(withCR)}.`);
 });
 
 /* ─── Run ─── */
