@@ -1,7 +1,7 @@
 # Epic: relay-management
 
 **Created:** 2026-07-15
-**Status:** Active
+**Status:** Done (epic retired 2026-07-16 at the router-stream-tag-filters book close — both stories Done, both books Closed; folders under `done/relay-management/`)
 
 ## Goal
 
@@ -15,8 +15,10 @@ Operator syncs are how instances bootstrap and federate data. Blunt filters over
 
 ## Stories
 
-1. `stories/relay-management/1-sync-panel-tag-filters.md` — single-letter tag filters (`"#x": [...]`) in the Negentropy Sync panel, with p/e/a format validation, honored end-to-end (preview → count → executed sync).
-2. `stories/relay-management/2-router-stream-tag-filters.md` — single-letter tag filters on Router Management streams (persistent per-stream config): saved into the deployed router config, surviving save → router restart, round-tripping into the stream editor; makes the OPEN.md #25 `#z` dcosl stream UI-expressible.
+1. `stories/done/relay-management/1-sync-panel-tag-filters.md` — single-letter tag filters (`"#x": [...]`) in the Negentropy Sync panel, with p/e/a format validation, honored end-to-end (preview → count → executed sync). **Done** (book `audits/sync-panel-tag-filters/`).
+2. `stories/done/relay-management/2-router-stream-tag-filters.md` — the same tag-filter capability on persistent Router Management streams (per-stream, sanitized ingress, round-trip UI). **Done** (book `audits/router-stream-tag-filters/`).
+
+Future evolution (saved presets, count-for-streams, hardening trio OPEN.md #31, concept-handle sugar) is queued in `audits/router-stream-tag-filters/audit.md` §6 + `prd-seed.md` §6–7 — a successor story re-opens this epic or starts a fresh one per triage.
 
 ## Key facts / guardrails
 

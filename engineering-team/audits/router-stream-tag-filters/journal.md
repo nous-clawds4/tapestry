@@ -114,3 +114,10 @@ Append-only. Every gate decision, judge verdict, answered question, halt, and de
 **Judge:** n/a (operator: "Yes, do both small cleanups as you recommend")
 **Why:** (1) PR #364 (merge 74954576) byte-mirrors feat/tags' proven deploy-tags.yml onto staging — trigger AND droplet checkout script were stale there; post-merge the two copies diff empty; deploy-staging redeploy green, staging stable 4×2s; trace on OPEN.md #14 (operator-present hotfix path, intake step-3). (2) Correcting comment posted on PR #363 (issuecomment-4993104256) so the wrong deploy-note doesn't mislead future readers; first posting cited a from-memory run ID that was wrong — patched to the verified run 29505362212 via gh api. Lesson noted for the retro: cite IDs only from captured output.
 **Next:** All operator asks complete. Book-close offer stands.
+
+## 2026-07-16T16:39:57Z — Book closed (operator-ratified)
+**Story/Phase:** relay-management #2 / Book Close
+**Decision:** INFO
+**Judge:** n/a (close ratification is the operator's — given in-session: "Yes, let's close the book")
+**Why:** Close gate: full `npm test` on the rebased close branch Overall PASS exit 0 (CI-mirror conditions), story 21/21, sibling 20/20. All four acceptance-frame bullets checked (audit §4 dev 5 records the architectural-evidence basis for bullet 2's physical leg). Artifacts written: audit.md (7 sections; retro = 7 findings, each with one terminal state — 1 ratified commit cited, 2 new meta rows #40/#41, 1 row annotation #27, 3 declines with reasons) + prd-seed.md (resolves the sibling seed's §6 bullet 1; 7 product-validation items). Sweep: OPEN.md #42 (unauthenticated firmware-install endpoint, surfaced at the #366 promotion). Meta-sweep proposal in _intake.md extended with #40/#41. Book flipped Closed, confidence high.
+**Next:** Gate question to the operator; on approval commit book-close (+ separate SMOKE_TEST.md label-fix commit), PR to staging, then branch/worktree retirement.
