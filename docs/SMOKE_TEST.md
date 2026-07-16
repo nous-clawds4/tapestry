@@ -45,7 +45,7 @@ Confirm the basic surface area is up. All should HTTP 200:
 - **Public APIs:** `/api/get-user-data?pubkey=<pk>`, `/api/get-user-counts?pubkey=<pk>`, `/api/owner/pubkey`, `/api/relays`, `/api/auth/status`.
 - **Search regression:** `/api/search/profiles/meili?q=jack&limit=2` → 200 with non-zero hits.
 
-A "known-active" pubkey for the parameter-bearing tests: `04c915daefee38317fa734444acee390a8269fe5810b2241e5e6dd343dfbecc9` (jack).
+A "known-active" pubkey for the parameter-bearing tests: `04c915daefee38317fa734444acee390a8269fe5810b2241e5e6dd343dfbecc9` (Odell).
 
 **Known gotcha (until story #6 lands):** `/api/get-user-data?pubkey=<jack>` is expected to return **HTTP 504 with `{"success":false, "message":"Neo4j query timeout…"}`** within ~15s, not 200. Jack's follow graph is large enough that the current unbounded Cypher in `src/api/export/users/queries/userdata.js` exceeds the per-query `NEO4J_QUERY_TIMEOUT_MS` deadline (story #5 added the deadline; story #6 will rewrite the Cypher to use bounded `size(...)` pattern expressions). For this pubkey on this endpoint, a 504 with a JSON body is the **expected** smoke-test outcome — a hang or a 502 is the real regression to flag. Other pubkeys (and other endpoints for Jack, like `/api/get-user-counts`) should still 200 normally.
 

@@ -1,9 +1,9 @@
 # Book of Work: Tag filters for Router Management streams
 
 **Slug:** router-stream-tag-filters
-**Status:** Open
+**Status:** Closed (2026-07-16)
 **Opened:** 2026-07-15 (eagerly at intake — the OPEN.md #29 remedy applied this time)
-**Closed:** —
+**Closed:** 2026-07-16
 
 ## Intent anchor
 
@@ -15,10 +15,10 @@
 
 ### Acceptance frame
 
-- [ ] The **Router Management panel** (Relay Settings page) gains the *similar feature* to what the Negentropy Sync panel shipped in `stories/relay-management/1-sync-panel-tag-filters.md`: an operator can add **one or more single-letter tag filters** (`"#x": ["v1","v2"]`) to a router stream — letter + one-or-more values, entered one at a time; `p`/`e`/`a` (and uppercase) values format-checked with bech32 (`npub`/`nprofile`/`note`/`nevent`/`naddr`) normalization; other letters free-form.
-- [ ] **Persistent-config semantics honored end-to-end:** router streams are always-on config, not a one-shot command — tag filters entered in the stream add/edit UI are saved into that stream's filter in the deployed strfry-router config, survive the save → router-restart cycle, and round-trip back into the UI when the stream is re-opened for editing.
-- [ ] **The motivating case is expressible from the UI** (OPEN.md #25): an operator can configure a dcosl stream whose filter carries `{"kinds":[39999],"#z":[<canonical handles>]}` — point-and-click, no container shell.
-- [ ] Product questions the sibling book left open (prd-seed §7 bullet 1) are **settled during Planning, not silently defaulted**: per-stream scoping, interplay with preset streams (dcosl/WoT/profiles… carry kinds-only filters today), and save/restart UX.
+- [x] The **Router Management panel** (Relay Settings page) gains the *similar feature* to what the Negentropy Sync panel shipped in `stories/relay-management/1-sync-panel-tag-filters.md`: an operator can add **one or more single-letter tag filters** (`"#x": ["v1","v2"]`) to a router stream — letter + one-or-more values, entered one at a time; `p`/`e`/`a` (and uppercase) values format-checked with bech32 (`npub`/`nprofile`/`note`/`nevent`/`naddr`) normalization; other letters free-form.
+- [x] **Persistent-config semantics honored end-to-end:** router streams are always-on config, not a one-shot command — tag filters entered in the stream add/edit UI are saved into that stream's filter in the deployed strfry-router config, survive the save → router-restart cycle, and round-trip back into the UI when the stream is re-opened for editing.
+- [x] **The motivating case is expressible from the UI** (OPEN.md #25): an operator can configure a dcosl stream whose filter carries `{"kinds":[39999],"#z":[<canonical handles>]}` — point-and-click, no container shell.
+- [x] Product questions the sibling book left open (prd-seed §7 bullet 1) are **settled during Planning, not silently defaulted**: per-stream scoping, interplay with preset streams (dcosl/WoT/profiles… carry kinds-only filters today), and save/restart UX.
 
 **Done looks like:** story #2 of epic `relay-management` passes review and ships to `staging`; the running router's config carries operator-entered tag filters; the `#z` dcosl stream is UI-expressible.
 
@@ -38,10 +38,14 @@ The kickoff message instructs: *"run the full five-phase harness starting with /
 - **Halt-and-surface:** any product question the anchor inputs do not decide (beyond the three prd-seed §7 questions expressly delegated to Planning), any staging breakage not caused by this work, any gate thrashing (3 consecutive kick-backs at one gate).
 - **Pre-authorized deviations (from the kickoff itself):** work happens in a dedicated worktree off `origin/staging` (`feat/router-stream-tag-filters`; shared checkout untouched); **no `/cycle-local` Docker deploy** (the local stack bind-mounts the shared checkout — OPEN.md #27); the binding pre-staging gates are the story suite + full-suite **differential baseline vs `58314b7c`** + CI `stack-free`, then `/cycle-staging` smoke.
 
+## Close
+
+Sole story Done (PASS first review; one ratified ADR amendment; blinded judges APPROVE at Gates 1/2/3/5). Shipped 2026-07-16 to **staging** (PR #361, deploy green, five-tier smoke clean), **prod** (PR #362, operator-ratified same day, smoke clean), and **feat/tags** (PR #363, auto-deploy verified on tags.brainstorm.world). Every acceptance-frame bullet satisfied — bullet 2's physical restart leg verified by executed state/emit tests + five live post-ship router restarts (streams byte-intact on all three instances); the operator-entered live round-trip remains an offered option (audit §4 dev 5). Operator ratified the close 2026-07-16. Artifacts: [`audit.md`](./audit.md) + [`prd-seed.md`](./prd-seed.md) (retro dispositions in audit §7; carry-forward in audit §6 / seed §6–7). Full gate-by-gate record: [`journal.md`](./journal.md). Confidence: **high**.
+
 ## Provenance
 
 - **Mode:** Acceptance-frame
-- **Confidence at close:** *(set at close)*
+- **Confidence at close:** high
 
 ## Close artifacts *(filled by `/close-book`)*
 
