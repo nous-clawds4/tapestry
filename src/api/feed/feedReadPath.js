@@ -234,8 +234,8 @@ async function buildFeed(options = {}) {
   const scanStrfry = deps?.scanStrfry ?? options.scanStrfry ?? realScanStrfry;
   const runCypher = deps?.runCypher ?? options.runCypher ?? realRunCypher;
   const querySync = deps?.querySync ?? options.querySync ?? realQuerySync;
-  const getTaPubkey = deps?.getTaPubkey ?? options.getTaPubkey ?? realGetTaPubkey;
   const untilCursor = coerceUntil(until);  // pagination cursor; junk/absent ⇒ undefined (page 1)
+  const getTaPubkey = deps?.getTaPubkey ?? options.getTaPubkey ?? realGetTaPubkey;
 
   // 1. Source identity. None ⇒ NO_SOURCE (no relays queried).
   const source = resolveSource(sessionPubkey, getSettings);

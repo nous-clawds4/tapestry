@@ -1459,6 +1459,9 @@ controls); event-tagging epic's for-tag read; SEARCH-IS-LOCAL doctrine; OPEN #17
 
 **Classification:** Epic (planning session with operator required — the (a)/(b)/(c) hydration call is
 the crux). **Not yet planned.**
+
+---
+
 ## 2026-07-02 — Provenance backfill: Assistant Profile feature (shipped 2026-05-24 outside the harness)
 
 **RESOLVED** — provenance record only; the feature shipped and works. *(entry added 2026-07-02, harness sweep — see docs/HARNESS_REVIEW_HANDOFF_2026-07-02.md §4.3.)*
