@@ -1228,7 +1228,9 @@ The Assistant Profile feature (profile editor UI, per-user Assistant routing) sh
 
 ## 2026-07-15 — Feature: tag filters for Router Management streams (persistent config)
 
-**NOT PICKED UP** — triaged for a future session. Anchor inputs: this entry + `audits/sync-panel-tag-filters/prd-seed.md` §6–7 (the return edge from the sibling sync-panel book) + OPEN.md #25 (the ledgered `#z`-filtered dcosl router-stream plan this directly serves). **Open the book eagerly at intake this time** (OPEN.md #29).
+**PICKED UP** 2026-07-15 → book `engineering-team/audits/router-stream-tag-filters/book.md` (epic `relay-management`, story #2, branch `feat/router-stream-tag-filters`; book opened eagerly at intake per OPEN.md #29).
+
+Anchor inputs: this entry + `audits/sync-panel-tag-filters/prd-seed.md` §6–7 (the return edge from the sibling sync-panel book) + OPEN.md #25 (the ledgered `#z`-filtered dcosl router-stream plan this directly serves).
 
 **Raw request (verbatim, 2026-07-15, on ratifying the sync-panel book):**
 
@@ -1245,3 +1247,19 @@ The Assistant Profile feature (profile editor UI, per-user Assistant routing) sh
 **Classification:** Feature
 **Strictness:** Standard
 **Phase path:** Planning → Architecture → Test Design → Implementation → Review (all five phases)
+
+## 2026-07-15 — Harness story proposal: meta-ledger sweep (OPEN.md #16, #21, #22, #28, #29)
+
+**NOT PICKED UP** — proposal filed at triage per the meta-escalation rule (session-start digest 2026-07-15: 5 open `meta` rows ≥ the ≥3 threshold; OPEN.md § "How to use this ledger").
+
+**Proposed story:** `harness-self-improvement` epic, next story number — **"meta-ledger sweep #2"**. One bounded pass closing the five open harness lessons:
+
+- **#29** — `/plan-feature` entry skips the Phase-0 book-open: add a step-0 to `.claude/commands/plan-feature.md` that opens/verifies a covering book (or a routing-table note in CLAUDE.md sending fresh asks through Phase 0 first).
+- **#28** — `review-verdict.awk` trailing-token edge (2 live occurrences): add the "no verdict-shaped tokens after the Verdict section" line to the review template + reviewer role, and/or a lint warning when a CHANGES_REQUESTED-worded file parses PASS.
+- **#22** — `test/ci-test-job.test.js` W5 ordering check reads comment prose: scope the `npm ci`-before-`npm test` check to the `steps:` region.
+- **#21** — `check_L8` empty-`files[@]` crash under bash-3.2 `set -u`: one-line `${files[@]+…}` guard in `scripts/harness-lint.sh`.
+- **#16** — live-feed post-close reviews #3–6 have no stories: backfill the four story stubs (or record review-only status), then retire the `live-feed` epic (held since the 2026-07-02 sweep).
+
+**Classification:** Refactor/cleanup batch (harness infrastructure)
+**Strictness:** Standard (expect: skip Tests where no behavior change; #21/#22 are test/script one-liners, #29/#28 are doc/template edits + optional lint line, #16 is docs + epic retirement)
+**Phase path:** Planning → (Architecture likely skippable) → Implementation → Review
