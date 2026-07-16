@@ -58,6 +58,7 @@ const publishExportConcept = require('./publish-export-a-concept.test.js');
 const communityReferenceStub = require('./community-reference-nostr-relay-stub.test.js');
 const nip51ListExport = require('./nip51-list-export-from-pins.test.js');
 const nip51ListExportPublish = require('./nip51-list-export-from-pins-publish.test.js');
+const contextScopedPins = require('./context-scoped-pins.test.js');
 const pinDetailIntoTagTab = require('./pin-detail-into-tag-pinned-tab.test.js');
 const collapseIntoExport = require('./collapse-into-export-concept.test.js');
 const loginFailureAndTagCollapse = require('./login-failure-and-tag-collapse.test.js');
@@ -422,6 +423,9 @@ async function main() {
   console.log('\nrouter-stream-tag-filters suite:');
   const routerStreamTagFiltersResult = await routerStreamTagFilters.run();
 
+  console.log('\ncontext-scoped-pins suite:');
+  const contextScopedPinsResult = await contextScopedPins.run();
+
   console.log('\nTest Results');
   console.log('-------------');
   console.log(`Configuration Loading:                           ${configOk ? 'PASS' : 'FAIL'}`);
@@ -707,6 +711,9 @@ async function main() {
   console.log(
     `router-stream-tag-filters suite:                 ${routerStreamTagFiltersResult.fail === 0 ? 'PASS' : 'FAIL'} (${routerStreamTagFiltersResult.pass} passed, ${routerStreamTagFiltersResult.fail} failed)`
   );
+  console.log(
+    `context-scoped-pins suite:                       ${contextScopedPinsResult.fail === 0 ? 'PASS' : 'FAIL'} (${contextScopedPinsResult.pass} passed, ${contextScopedPinsResult.fail} failed)`
+  );
 
   const overallOk =
     configOk &&
@@ -824,7 +831,8 @@ async function main() {
     stackFreeNpmTestResult.fail === 0 &&
     ciTestJobResult.fail === 0 &&
     syncPanelTagFiltersResult.fail === 0 &&
-    routerStreamTagFiltersResult.fail === 0;
+    routerStreamTagFiltersResult.fail === 0 &&
+    contextScopedPinsResult.fail === 0;
   // Aggregate skip visibility (story test-hermeticity-ci #2, reviewer
   // constraint: skips are counted, never silent). Purely informational —
   // overallOk above never consults .skipped.
@@ -852,6 +860,7 @@ async function main() {
     openRankingStatsResult, openRankingSearchResult, verifiedMutersReadApiResult, verifiedMutersProfileSurfaceResult,
     harnessLintResult, harnessStatsResult, sessionStartResult, stackFreeNpmTestResult,
     ciTestJobResult, syncPanelTagFiltersResult, routerStreamTagFiltersResult,
+    contextScopedPinsResult,
   ].reduce((sum, r) => sum + ((r && r.skipped) || 0), 0);
   console.log(`Total skipped:                                   ${totalSkipped}`);
   console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);

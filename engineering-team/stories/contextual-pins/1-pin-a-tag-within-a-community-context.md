@@ -93,5 +93,5 @@ user at pin time. The initial offered set is **LFO** and **Tapestry & Web of Tru
 ## Linked artifacts
 
 - ADR: `engineering-team/decisions/contextual-pins/0001-context-scoped-pins.md`
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/contextual-pins/1-pin-a-tag-within-a-community-context.test-plan.md`
 - Review: (filled in after Review phase)
