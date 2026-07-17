@@ -79,6 +79,14 @@ Recorded with a recommendation each; none blocks Architecture.
   - **Epic → reopened.** Its goal — *"Make the signed nostr events behind tag **surfaces** directly inspectable in-product"* — is not met by one story on one object type, and profile rows on the tag page are squarely a tag surface. It was retired early, not completed. Done: Status back to `Active`, this story added to its Stories list, story #1's stale "Draft" corrected to Done, and its POV / "emulate, don't diverge" guardrails amended (open questions (b) and the Product decision #1 divergence).
   - **Book → new (`audits/profile-tagging-inspector/`), and `tag-event-inspector`'s book stays closed.** That book's four-bullet frame was fully met and remains met; reopening a satisfied frame would be dishonest bookkeeping and would leave a book that can never meaningfully complete again. That book set this precedent itself at its own open: *"this is a new capability on the tag detail page, not a continuation of either."* Taggings are a different object (`nostr-user-tag`, not `tag`) with a different cardinality — a new bounded ask, so a new frame. An epic may span books.
 
+## Deviations
+
+Judgment calls made at Implementation, too small for an ADR amendment (role step 9). None changes a decision; each fills a gap the ADR left open.
+
+- **The `⋯` trigger's render condition gained `|| showRawEvent`.** The existing condition (`hasAssertions || verificationScore != null || showActions`, `:302`) is already true for every tag-page row, so this changes nothing today. Added so the affordance cannot become unreachable if a future row renders with `showRawEvent` and no counts — AC-1's "no dead affordance" read in the other direction. Zero behavior change now.
+- **`rawNotice` renders through the existing `.bs-tag-row-error` class** rather than a new one. AC-5 wants "a visible message"; the row already has exactly one convention for that (`role="alert"`, `⚠️` prefix), and inventing a second style for the same job on the same row would be the divergence the epic guardrail warns about. It is separate *state* from `publishError` — conflating them would let a stale publish error read as a raw-event failure.
+- **The caption reads "Applied by" / "Disputed by" + the pubkey**, with the uncounted marker as a pill reading "not counted under this POV" — deliberately the row badge's vocabulary (`onlyViewerVisible`'s "not yet visible to this POV"), since it is the same idea in the same place. Story open question (a) is honored strictly: no display name is fetched or shown, so the pubkey cannot be replaced by one.
+
 ## Linked artifacts
 
 - ADR: `engineering-team/decisions/tag-event-inspector/0002-tagging-raw-event-inspector.md`
