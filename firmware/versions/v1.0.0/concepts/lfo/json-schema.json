@@ -1,0 +1,21 @@
+{
+  "word": {
+    "slug": "json-schema-for-the-lfo-community-context",
+    "name": "JSON schema for the LFO community context",
+    "title": "JSON Schema for the LFO Community Context",
+    "description": "the json schema for the LFO community context",
+    "wordTypes": ["word", "jsonSchema"],
+    "coreMemberOf": [
+      { "slug": "lfo-community-context", "uuid": "<uuid>" }
+    ]
+  },
+  "jsonSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "name": "lfo community context",
+    "title": "LFO Community Context",
+    "description": "JSON Schema for the LFO community context. The context is an anchor stamped by pins; it carries no per-element payload of its own.",
+    "definitions": {},
+    "properties": {}
+  }
+}

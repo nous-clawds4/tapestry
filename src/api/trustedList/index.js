@@ -403,8 +403,12 @@ async function handlePrepareNip51Export(req, res) {
     }
 
     // 5. Compute the d-tag (per ADR AC-6: identical to the kind-30392's
-    //    d-tag composition for the same pin).
-    const dTag = `tl-pin-${observer.slice(0, 8)}-${tagEv.pubkey.slice(0, 8)}-${tagPayload.slug}`;
+    //    d-tag composition for the same pin). contextual-pins ADR 0001 — thread
+    //    the context discriminator so a contextual pin reads ITS kind-30392 (not
+    //    the neutral pin's) and exports under its own coexisting d-tag.
+    const { pinVariantKey, contextSlugOfPin } = require('../../lib/event-tagging');
+    const contextSlug = contextSlugOfPin(pinEvent, profileTags.TA_PUBKEY);
+    const dTag = `tl-pin-${observer.slice(0, 8)}-${tagEv.pubkey.slice(0, 8)}-${tagPayload.slug}${pinVariantKey({ contextSlug })}`;
 
     // 6. Read the current kind-30392 to source membership (per ADR Q7:
     //    "read current kind-30392, don't trigger a fresh WoT-scan").

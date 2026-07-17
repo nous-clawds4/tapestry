@@ -1,0 +1,17 @@
+{
+  "word": {
+    "slug": "tapestry-web-of-trust-community-context",
+    "name": "Tapestry & Web of Trust community context",
+    "title": "Tapestry & Web of Trust Community Context",
+    "wordTypes": ["word", "conceptHeader"]
+  },
+  "conceptHeader": {
+    "description": "The Tapestry & Web of Trust community context. A kind-39998 anchor that tag-pinning events may STAMP (via an additional `z` tag) to declare that a pin belongs to this context's curated set — see contextual-pins ADR 0001. Referencing it is permissionless; a community-scoped client reads the stamped pins, per-POV, to surface the context's pinned tags. A deliberate proto-step toward a full Community Declaration: it carries no membership roster and confers no privileged authority.",
+    "oNames": { "singular": "Tapestry & Web of Trust community context", "plural": "Tapestry & Web of Trust community contexts" },
+    "oSlugs": { "singular": "tapestry-web-of-trust", "plural": "tapestry-web-of-trust" },
+    "oKeys":  { "singular": "tapestryWebOfTrust", "plural": "tapestryWebOfTrust" },
+    "oTitles":{ "singular": "Tapestry & Web of Trust", "plural": "Tapestry & Web of Trust" },
+    "oLabels":{ "singular": "TapestryWebOfTrust", "plural": "TapestryWebOfTrust" },
+    "x-tapestry": { "neo4j": { "nodeLabelRequired": true } }
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "word": {
+    "slug": "lfo-community-context",
+    "name": "LFO community context",
+    "title": "LFO Community Context",
+    "wordTypes": ["word", "conceptHeader"]
+  },
+  "conceptHeader": {
+    "description": "The LFO community context. A kind-39998 anchor that tag-pinning events may STAMP (via an additional `z` tag) to declare that a pin belongs to LFO's curated set — see contextual-pins ADR 0001. Referencing it is permissionless; a community-scoped client reads the stamped pins, per-POV, to surface LFO's pinned tags. A deliberate proto-step toward a full Community Declaration: it carries no membership roster and confers no privileged authority.",
+    "oNames": { "singular": "LFO community context", "plural": "LFO community contexts" },
+    "oSlugs": { "singular": "lfo", "plural": "lfo" },
+    "oKeys":  { "singular": "lfo", "plural": "lfo" },
+    "oTitles":{ "singular": "LFO", "plural": "LFO" },
+    "oLabels":{ "singular": "Lfo", "plural": "Lfo" },
+    "x-tapestry": { "neo4j": { "nodeLabelRequired": true } }
+  }
+}

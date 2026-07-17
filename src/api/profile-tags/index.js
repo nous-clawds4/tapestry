@@ -24,6 +24,7 @@
 
 const { exec } = require('child_process');
 const { getOwnerAssistantPubkey } = require('../../utils/assistantKeys');
+const { contextSlugOfPin } = require('../../lib/event-tagging');
 
 /**
  * Legacy z-tag-composition pubkey — see ADR 0015.
@@ -785,9 +786,14 @@ async function handleTagById(req, res) {
       }
     } catch { /* meili unreachable → author stays null */ }
 
-    // ADR 0009: optional viewerPubkey threads a `viewerPin` field onto the
-    // response. Malformed viewerPubkey is silently treated as absent (read
-    // contract preserved for clients that send junk).
+    // ADR 0009 + contextual-pins ADR 0001: optional viewerPubkey threads the
+    // viewer's pins of this tag onto the response. A user may now hold several
+    // coexisting pins of one tag — a neutral one plus one per community context
+    // — each with a distinct d-tag, so this is a LIST (`viewerPins`). Malformed
+    // viewerPubkey is silently treated as absent (read contract preserved for
+    // clients that send junk). `viewerPin` (the neutral pin, or null) is kept
+    // for back-compat with readers not yet context-aware.
+    let viewerPins = [];
     let viewerPin = null;
     if (isHexPubkey(viewerPubkey)) {
       try {
@@ -797,14 +803,15 @@ async function handleTagById(req, res) {
           authors: [viewerPubkey],
           '#e': [tagEventId],
         });
-        const survivor = dedupeReplaceable(pinEvents)[0] || null;
-        if (survivor) {
-          viewerPin = {
-            pinEventId: survivor.id,
-            createdAt: survivor.created_at,
-            curationMethod: parseCurationMethod(survivor),
-          };
-        }
+        // dedupeReplaceable keys on (author, d-tag) — neutral and contextual
+        // pins have distinct d-tags, so all survive as separate entries.
+        viewerPins = dedupeReplaceable(pinEvents).map((ev2) => ({
+          context: contextSlugOfPin(ev2, TA_PUBKEY),
+          pinEventId: ev2.id,
+          createdAt: ev2.created_at,
+          curationMethod: parseCurationMethod(ev2),
+        }));
+        viewerPin = viewerPins.find((p) => p.context === null) || null;
       } catch { /* strfry failure on the pin scan must not break the read */ }
     }
 
@@ -820,6 +827,7 @@ async function handleTagById(req, res) {
       },
       author,
       viewerPin,
+      viewerPins,
     });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });

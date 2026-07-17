@@ -24,7 +24,7 @@ const { exec } = require('child_process');
 const profileTags = require('../profile-tags');
 const { buildAndPublishTL } = require('./index');
 const { resolvePov } = require('../_shared/pov');
-const { curateNotes } = require('../../lib/event-tagging');
+const { curateNotes, pinVariantKey, contextSlugOfPin } = require('../../lib/event-tagging');
 
 const TA_PUBKEY = profileTags.TA_PUBKEY;
 const TAG_PINNING_Z_TAG = profileTags.TAG_PINNING_Z_TAG;
@@ -68,8 +68,8 @@ function dedupeReplaceable(events) {
   return Array.from(byKey.values());
 }
 
-function computeTLDTag({ observer, tagAuthorPubkey, tagSlug }) {
-  return `tl-pin-${observer.slice(0, 8)}-${tagAuthorPubkey.slice(0, 8)}-${tagSlug}`;
+function computeTLDTag({ observer, tagAuthorPubkey, tagSlug, contextSlug }) {
+  return `tl-pin-${observer.slice(0, 8)}-${tagAuthorPubkey.slice(0, 8)}-${tagSlug}${pinVariantKey({ contextSlug })}`;
 }
 
 async function enumeratePinnedTags() {
@@ -141,6 +141,12 @@ async function runOnePin(pinEvent) {
     return { status: 'error', errorReason: 'referenced tag event missing from local strfry' };
   }
 
+  // contextual-pins ADR 0001 — recover the context from the pin's z STAMP (not
+  // the d-tag). null for a neutral pin ⇒ pinVariantKey('') ⇒ unchanged d-tag.
+  // A contextual pin gets its own discriminated TL, coexisting with the neutral
+  // pin's TL — the set-based retractStaleTLs keeps both alive.
+  const contextSlug = contextSlugOfPin(pinEvent, TA_PUBKEY);
+
   // POV resolution: pass observer through the same cascade
   // handleProfilesTagged uses. When no POV is configured (no
   // povSuffix or no minRank), the aggregation falls back to "all
@@ -182,7 +188,7 @@ async function runOnePin(pinEvent) {
   }
 
   const dTag = computeTLDTag({
-    observer, tagAuthorPubkey: tag.authorPubkey, tagSlug: tag.slug,
+    observer, tagAuthorPubkey: tag.authorPubkey, tagSlug: tag.slug, contextSlug,
   });
 
   try {
@@ -334,7 +340,10 @@ async function runOneNotePin(pinEvent, options = {}) {
   const totalTrusted = Number.isFinite(total) ? total : curated.length;
   // Partial when the taggings scan was bounded, or the curated set exceeds what one event can carry.
   const partial = !!scanTruncated || curated.length > NOTE_TL_MEMBER_CAP;
-  const dTag = `tl-pin-notes-${observer.slice(0, 8)}-${tag.authorPubkey.slice(0, 8)}-${tag.slug}`;
+  // contextual-pins ADR 0001 — same context discriminator as the profile TL,
+  // so a contextual note-pin's TL coexists with the neutral one's.
+  const contextSlug = contextSlugOfPin(pinEvent, TA_PUBKEY);
+  const dTag = `tl-pin-notes-${observer.slice(0, 8)}-${tag.authorPubkey.slice(0, 8)}-${tag.slug}${pinVariantKey({ contextSlug })}`;
 
   try {
     const { event, uuid } = await publishTL({

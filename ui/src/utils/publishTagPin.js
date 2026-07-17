@@ -1,5 +1,5 @@
 import { nip19 } from 'nostr-tools';
-import { projectionFor, curateNotes } from '@tapestry/event-tagging';
+import { projectionFor, curateNotes, pinVariantKey, contextHandle } from '@tapestry/event-tagging';
 import { publishOrThrow } from './publishProfileTag';
 import { getActiveSignerOrThrow } from './signerGuard';
 import { publishEverywhere, fetchFromRelays, PUBLISH_RELAYS } from './nostrPublish';
@@ -55,8 +55,8 @@ const TAG_PINNING_HANDLE = `39998:${LEGACY_TA_PUBKEY}:tag-pinning`;
  * NOT the URL slug — see `computeTLDTag()` for the kind-30392 TL
  * identifier the `/pin/:dTag` route navigates to.
  */
-export function computePinEventDTag({ tagSlug, tagAuthorPubkey, viewerPubkey }) {
-  return `tag-pin-${tagSlug}-${tagAuthorPubkey.slice(0, 8)}-${viewerPubkey.slice(0, 8)}`;
+export function computePinEventDTag({ tagSlug, tagAuthorPubkey, viewerPubkey, contextSlug }) {
+  return `tag-pin-${tagSlug}-${tagAuthorPubkey.slice(0, 8)}-${viewerPubkey.slice(0, 8)}${pinVariantKey({ contextSlug })}`;
 }
 
 /**
@@ -71,8 +71,8 @@ export function computePinEventDTag({ tagSlug, tagAuthorPubkey, viewerPubkey }) 
  * `observer` is the curation-method's observer pubkey (defaults to
  * the viewer's own pubkey via `defaultCurationMethod()`).
  */
-export function computeTLDTag({ observer, tagAuthorPubkey, tagSlug }) {
-  return `tl-pin-${observer.slice(0, 8)}-${tagAuthorPubkey.slice(0, 8)}-${tagSlug}`;
+export function computeTLDTag({ observer, tagAuthorPubkey, tagSlug, contextSlug }) {
+  return `tl-pin-${observer.slice(0, 8)}-${tagAuthorPubkey.slice(0, 8)}-${tagSlug}${pinVariantKey({ contextSlug })}`;
 }
 
 /**
@@ -106,18 +106,32 @@ export function defaultCurationMethod(viewerPubkey) {
  *   (used in the d-tag and a-tag).
  * @param {object} [args.curationMethod] — optional override; defaults to
  *   `defaultCurationMethod(viewerPubkey)`.
+ * @param {{slug: string, name?: string}} [args.context] — optional community
+ *   context to pin within (contextual-pins ADR 0001). When present, the pin gets
+ *   a distinct d-tag (so it coexists with the neutral pin) and a second `z`
+ *   STAMP naming the context concept. Explicit declared affiliation only —
+ *   never auto-applied.
+ * @param {string} [args.taPubkey] — the deployment's RUNTIME TA pubkey
+ *   (`useConfig().taPubkey`), required when `context` is set: the context stamp
+ *   composes from the runtime TA, NOT the legacy literal (contexts are
+ *   greenfield; the ADR 0015 legacy exception does not extend to them).
  * @returns {Promise<object>} the signed Pin event.
  */
-export async function pinTag({ tag, curationMethod }) {
+export async function pinTag({ tag, curationMethod, context, taPubkey }) {
   if (!window.nostr) {
     throw new Error('No NIP-07 extension detected. Install one to pin tags.');
   }
+  if (context && !taPubkey) {
+    throw new Error('pinTag: taPubkey (runtime TA) is required to stamp a context.');
+  }
   const authorPk = await getActiveSignerOrThrow(); // issue #335 — guard drifted signer
   const curation = curationMethod || defaultCurationMethod(authorPk);
+  const contextSlug = context ? context.slug : undefined;
   const dTag = computePinEventDTag({
     tagSlug: tag.slug,
     tagAuthorPubkey: tag.authorPubkey,
     viewerPubkey: authorPk,
+    contextSlug,
   });
   const unsigned = {
     kind: 39999,
@@ -128,6 +142,9 @@ export async function pinTag({ tag, curationMethod }) {
       ['e', tag.eventId],
       ['a', `39999:${tag.authorPubkey}:${tag.slug}`],
       ['z', TAG_PINNING_HANDLE],
+      // contextual-pins ADR 0001 — runtime-TA context stamp (Stamping convention,
+      // containment side). Additive: the base TAG_PINNING_HANDLE z stays.
+      ...(context ? [['z', contextHandle(taPubkey, context.slug)]] : []),
       ['curation-method', JSON.stringify(curation)],
     ],
     content: JSON.stringify({
@@ -312,8 +329,8 @@ export async function publishNip51ExportForPin({ pinEventId, title, writeRelays,
  * Target-type-qualified (`notes-pin-…`) so a tag's note export never collides
  * with its profile follow-set export (`tl-pin-…`).
  */
-export function computeNoteBookmarkDTag({ viewerPubkey, tagAuthorPubkey, tagSlug }) {
-  return `notes-pin-${viewerPubkey.slice(0, 8)}-${tagAuthorPubkey.slice(0, 8)}-${tagSlug}`;
+export function computeNoteBookmarkDTag({ viewerPubkey, tagAuthorPubkey, tagSlug, contextSlug }) {
+  return `notes-pin-${viewerPubkey.slice(0, 8)}-${tagAuthorPubkey.slice(0, 8)}-${tagSlug}${pinVariantKey({ contextSlug })}`;
 }
 
 /**

@@ -347,6 +347,24 @@
             }
         },
         {
+            "slug": "lfo",
+            "dir": "./concepts/lfo/",
+            "conceptHeader": "concept-header.json",
+            "jsonSchema": "json-schema.json",
+            "categories": [
+                "community"
+            ]
+        },
+        {
+            "slug": "tapestry-web-of-trust",
+            "dir": "./concepts/tapestry-web-of-trust/",
+            "conceptHeader": "concept-header.json",
+            "jsonSchema": "json-schema.json",
+            "categories": [
+                "community"
+            ]
+        },
+        {
             "slug": "nostr-event-tag",
             "dir": "./concepts/nostr-event-tag/",
             "conceptHeader": "concept-header.json",

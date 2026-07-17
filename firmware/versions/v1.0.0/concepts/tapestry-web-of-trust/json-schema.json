@@ -1,0 +1,21 @@
+{
+  "word": {
+    "slug": "json-schema-for-the-tapestry-web-of-trust-community-context",
+    "name": "JSON schema for the Tapestry & Web of Trust community context",
+    "title": "JSON Schema for the Tapestry & Web of Trust Community Context",
+    "description": "the json schema for the Tapestry & Web of Trust community context",
+    "wordTypes": ["word", "jsonSchema"],
+    "coreMemberOf": [
+      { "slug": "tapestry-web-of-trust-community-context", "uuid": "<uuid>" }
+    ]
+  },
+  "jsonSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "name": "tapestry web of trust community context",
+    "title": "Tapestry & Web of Trust Community Context",
+    "description": "JSON Schema for the Tapestry & Web of Trust community context. The context is an anchor stamped by pins; it carries no per-element payload of its own.",
+    "definitions": {},
+    "properties": {}
+  }
+}

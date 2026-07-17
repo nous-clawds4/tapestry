@@ -12,6 +12,7 @@ import { useAuth } from '../context/AuthContext';
 import { useConfig } from '../context/ConfigContext';
 import { publishProfileTagAssertion } from '../utils/publishProfileTag';
 import { pinTag, defaultCurationMethod, publishNip51ExportForPin, publishNoteBookmarkSetForPin, syncPinnedExportsForTag } from '../utils/publishTagPin';
+import { KNOWN_CONTEXTS } from '@tapestry/event-tagging';
 import useTagDetail from '../hooks/useTagDetail';
 
 /**
@@ -45,7 +46,7 @@ export default function Tag() {
   // W11 / tag-federation ADR 0003 — the runtime instance TA for the local z.
   const { taPubkey } = useConfig();
   const {
-    tag, viewerPin, rows, viewerAssertions, povSuffix, povResolution, sort, setSort,
+    tag, viewerPin, viewerPins, rows, viewerAssertions, povSuffix, povResolution, sort, setSort,
     headerLoading, rowsLoading, headerError, rowsError,
     refetchRows, refetchHeader,
   } = useTagDetail(tagId);
@@ -178,6 +179,22 @@ export default function Tag() {
     } catch { /* error already surfaced via setPinError */ }
   };
 
+  // contextual-pins ADR 0001 — pin this tag WITHIN a community context. Publishes
+  // a distinct, first-class pin (its own d-tag + trusted list) that coexists with
+  // the neutral pin; stamps the runtime-TA context concept (explicit affiliation).
+  const handlePinToContext = async (context) => {
+    if (!tag || !user || !context) return;
+    setPinning(true); setPinError(null);
+    try {
+      await pinTag({ tag, curationMethod: defaultCurationMethod(user.pubkey), context, taPubkey });
+      await refetchHeader();
+    } catch (e) {
+      setPinError(e.message || 'Pin failed');
+    } finally {
+      setPinning(false);
+    }
+  };
+
   const handleTagSomeoneClick = async () => {
     if (!user) {
       try { await login(); } catch { return; }
@@ -236,7 +253,10 @@ export default function Tag() {
                   <TagPinAffordance
                     user={user}
                     viewerPin={viewerPin}
+                    viewerPins={viewerPins}
+                    contexts={KNOWN_CONTEXTS}
                     onPin={handlePin}
+                    onPinToContext={handlePinToContext}
                     loading={pinning}
                     error={pinError}
                     activeTab={activeTab}

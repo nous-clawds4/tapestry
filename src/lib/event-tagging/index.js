@@ -22,6 +22,7 @@ const classify = require('./classify');
 const apply = require('./apply');
 const taggings = require('./taggings');
 const applicability = require('./applicability');
+const pins = require('./pins');
 
 module.exports = {
   slug,
@@ -32,4 +33,5 @@ module.exports = {
   ...apply,
   ...taggings,
   ...applicability,
+  ...pins,
 };

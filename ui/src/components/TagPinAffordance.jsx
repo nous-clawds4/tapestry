@@ -17,11 +17,16 @@ import React from 'react';
  * Loading and error states are driven by the parent (Tag.jsx).
  */
 export default function TagPinAffordance({
-  user, viewerPin, onPin, loading, error, activeTab, onSwitchTab,
+  user, viewerPin, viewerPins = [], contexts = [], onPin, onPinToContext,
+  loading, error, activeTab, onSwitchTab,
 }) {
   if (!user) return null;
   const isPinned = !!viewerPin;
   const onPinnedTab = activeTab === 'pinned';
+  // contextual-pins ADR 0001 — which contexts this tag is already pinned to.
+  const pinnedContextSlugs = new Set(
+    viewerPins.filter((p) => p && p.context).map((p) => p.context)
+  );
 
   const handleClick = () => {
     if (loading) return;
@@ -65,6 +70,31 @@ export default function TagPinAffordance({
       >
         <span className="bs-tag-pin-label-default">{label}</span>
       </button>
+      {onPinToContext && contexts.length > 0 && (
+        <details className="bs-tag-pin-context">
+          <summary>📌 Pin to community…</summary>
+          <ul className="bs-tag-pin-context-list">
+            {contexts.map((c) => {
+              const already = pinnedContextSlugs.has(c.slug);
+              return (
+                <li key={c.slug}>
+                  <button
+                    type="button"
+                    className="bs-tag-pin-context-item"
+                    onClick={() => { if (!loading && !already) onPinToContext(c); }}
+                    disabled={loading || already}
+                    aria-label={already ? `Already pinned to ${c.name}` : `Pin to ${c.name}`}
+                    data-bs-tooltip={`Pin this tag within the ${c.name} community context — a distinct, first-class pin that coexists with your neutral pin.`}
+                    data-bs-tooltip-wrap="true"
+                  >
+                    {already ? `✓ ${c.name}` : c.name}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </details>
+      )}
       {error && (
         <p className="bs-tag-pin-error" role="alert">⚠️ {error}</p>
       )}

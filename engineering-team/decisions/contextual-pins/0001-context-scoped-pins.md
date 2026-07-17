@@ -123,6 +123,14 @@ dual-`z` structure later, and a genuine proto-Community-Declaration stepping sto
   expansion — out of scope, and readers must not assume the direct scan is exhaustive.
 - **Firmware reinstall required?** **Yes** — two new concepts; `POST /api/firmware/install`
   after adding them (AGENTS.md §6). Local-dev only during build (per project constraint).
+- **Amends two ADR-0015 guard tests (operator-approved 2026-07-16).** `pinTag` regains a
+  `taPubkey` parameter — used **only** to compose the context `z` stamp. ADR 0015's guards in
+  `test/restore-historical-data-and-fix-tl-author-filter.test.js` forbade `taPubkey` on
+  `pinTag` outright; they are refined to their true intent: (a) the tag-pinning **base** `z`
+  must still be composed from `LEGACY_TA_PUBKEY` (asserted directly, and strengthened); (b) a
+  caller may pass `taPubkey` **only** alongside a `context` — never into a neutral pin. The
+  ADR-0015 protection is preserved, not weakened. `LEGACY_TA_PUBKEY` / `TAG_PINNING_HANDLE`
+  are unchanged.
 
 ## Implementation notes
 

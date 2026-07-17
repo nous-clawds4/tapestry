@@ -23,6 +23,10 @@ export default function useTagDetail(tagId) {
   const [tag, setTag] = useState(null);
   const [author, setAuthor] = useState(null);
   const [viewerPin, setViewerPin] = useState(null);
+  // contextual-pins ADR 0001 — the viewer may hold several coexisting pins of
+  // one tag (neutral + one per community context). `viewerPin` stays = the
+  // neutral one for back-compat; `viewerPins` is the full list.
+  const [viewerPins, setViewerPins] = useState([]);
   const [headerLoading, setHeaderLoading] = useState(true);
   const [headerError, setHeaderError] = useState(null);
   const [headerReloadKey, setHeaderReloadKey] = useState(0);
@@ -56,10 +60,12 @@ export default function useTagDetail(tagId) {
           setTag(null);
           setAuthor(null);
           setViewerPin(null);
+          setViewerPins([]);
         } else if (r.ok && data?.success) {
           setTag(data.tag);
           setAuthor(data.author);
           setViewerPin(data.viewerPin || null);
+          setViewerPins(Array.isArray(data.viewerPins) ? data.viewerPins : []);
         } else {
           setHeaderError(data?.error || `status ${r.status}`);
         }
@@ -102,7 +108,7 @@ export default function useTagDetail(tagId) {
   }, [tagId, sort, authLoading, user?.pubkey, rowsReloadKey, povParams.wotPov, povParams.userPubkey]);
 
   return {
-    tag, author, viewerPin, rows, viewerAssertions, povSuffix, povResolution,
+    tag, author, viewerPin, viewerPins, rows, viewerAssertions, povSuffix, povResolution,
     sort, setSort,
     headerLoading, rowsLoading,
     headerError, rowsError,

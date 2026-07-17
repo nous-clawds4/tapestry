@@ -234,21 +234,25 @@ t('AC-6: publishTagPin.js composes its z-tag handle from LEGACY_TA_PUBKEY (not f
   );
 });
 
-t('AC-6: pinTag() signature no longer accepts a taPubkey parameter', () => {
+// Refined 2026-07-16 (contextual-pins ADR 0001 — approved amendment): pinTag()
+// MAY again accept a `taPubkey`, but ONLY to compose the NEW context `z` stamp
+// (runtime TA, greenfield). The ADR-0015 protection this guard exists for is
+// unchanged and asserted directly below: the tag-pinning base `z` must STILL be
+// composed from LEGACY_TA_PUBKEY, never from the runtime taPubkey. The blunt
+// "no taPubkey parameter at all" check is replaced by that precise assertion.
+t('AC-6 (ADR 0001 amends): the tag-pinning base z is STILL composed from LEGACY_TA_PUBKEY, not runtime taPubkey', () => {
   const src = readSafe(CLIENT_PUBLISH_TAG_PIN);
-  // The post-fix signature: `export async function pinTag({ tag, curationMethod })` (or similar
-  // destructuring; the `taPubkey` parameter is gone).
-  // Find the pinTag declaration line and inspect its destructured param list.
-  const sigMatch = src.match(/export\s+async\s+function\s+pinTag\s*\(\s*\{([^}]*)\}\s*\)/);
-  assert(sigMatch,
-    'AC-6: cannot find `export async function pinTag({ ... })` declaration in publishTagPin.js — has the function been renamed?');
-  const paramList = sigMatch[1];
   assert(
-    !/\btaPubkey\b/.test(paramList),
-    'AC-6: pinTag()\'s destructured parameter list must NOT include `taPubkey` (per ADR 0015 — ' +
-      'the parameter is removed; the publisher uses LEGACY_TA_PUBKEY instead). ' +
-      `Got param list: "${paramList.trim()}".`
-  );
+    src.match(/export\s+async\s+function\s+pinTag\s*\(\s*\{([^}]*)\}\s*\)/),
+    'AC-6: cannot find `export async function pinTag({ ... })` declaration in publishTagPin.js — has the function been renamed?');
+  // The legacy literal must remain declared.
+  const legacyRe = new RegExp(`const\\s+LEGACY_TA_PUBKEY\\s*=\\s*['"]${LEGACY_HEX}['"]`);
+  assert(legacyRe.test(src),
+    'AC-6: publishTagPin.js must still declare `const LEGACY_TA_PUBKEY = \'' + LEGACY_HEX + '\'` (ADR 0015).');
+  // The tag-pinning handle must be composed from LEGACY_TA_PUBKEY, NOT taPubkey.
+  assert(/TAG_PINNING_HANDLE\s*=\s*`39998:\$\{LEGACY_TA_PUBKEY\}:tag-pinning`/.test(src),
+    'AC-6: TAG_PINNING_HANDLE must be composed from LEGACY_TA_PUBKEY (ADR 0015). If a runtime taPubkey ' +
+      'is now threaded into pinTag, it is ONLY for the context stamp — the base pin z stays legacy.');
 });
 
 t('AC-6: pinTag() body no longer throws when taPubkey is missing (the validation block is removed)', () => {
@@ -292,20 +296,24 @@ t('AC-6 / R-5: publishProfileTag.js still hardcodes the literal (Story 16 delibe
 // ADR Impl Shape — Pin callers drop the taPubkey argument
 // ──────────────────────────────────────────────────────────────────
 
-t('Caller: ui/src/pages/Tag.jsx pinTag(...) call no longer passes taPubkey', () => {
+// Refined 2026-07-16 (contextual-pins ADR 0001 — approved amendment): a caller
+// MAY pass `taPubkey`, but ONLY together with a `context` (the runtime TA is the
+// context stamp's pubkey). A `taPubkey` passed to a neutral pin would be the
+// ADR-0015 regression this guard protects against — so that specific shape stays
+// forbidden.
+t('Caller: ui/src/pages/Tag.jsx passes taPubkey to pinTag ONLY alongside a context (ADR 0015 + 0001)', () => {
   const src = readSafe(CLIENT_TAG_PAGE);
-  // Find every `pinTag({ ... })` call and assert taPubkey isn't in its arg destructuring.
   const callRe = /\bpinTag\s*\(\s*\{([^}]*)\}\s*\)/g;
   let match;
   let foundAny = false;
   while ((match = callRe.exec(src)) !== null) {
     foundAny = true;
     const args = match[1];
-    assert(
-      !/\btaPubkey\b/.test(args),
-      'Caller: Tag.jsx pinTag(...) calls must NOT pass `taPubkey` (per ADR 0015 — the parameter ' +
-        `is removed). Found call with args: "${args.trim()}".`
-    );
+    if (/\btaPubkey\b/.test(args)) {
+      assert(/\bcontext\b/.test(args),
+        'Caller: a Tag.jsx pinTag(...) call passes `taPubkey` without a `context` — the runtime TA ' +
+          `must never be threaded into a neutral pin (ADR 0015). Found args: "${args.trim()}".`);
+    }
   }
   assert(foundAny,
     'Caller: cannot find any `pinTag(...)` call in Tag.jsx — has the file been restructured?');
