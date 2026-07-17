@@ -1,7 +1,7 @@
 # Epic: tag-event-inspector
 
 **Created:** 2026-07-16
-**Status:** Active
+**Status:** Done (epic retired 2026-07-16 at the tag-event-inspector book close — its one story Done + review PASS, shipped through to production; folders under `done/tag-event-inspector/`)
 
 ## Goal
 
