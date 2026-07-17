@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
+import TagRowRawEvents from './TagRowRawEvents';
 
 /**
  * One row on the tag-detail page (and on TagSomeoneModal search results).
@@ -58,6 +59,16 @@ import { nip19 } from 'nostr-tools';
  *                         from stacking menus across sibling rows.
  *   verificationScore   — number | null; rendered in the scores slot when
  *                         row.applications + row.disputes === 0.
+ *   showRawEvent        — boolean; offer the Show/Hide Raw Event item in the ⋯
+ *                         menu, and give the row a ⋯ at desktop width too
+ *                         (Story 2 / ADR 0002 D5). TAG DETAIL PAGE ONLY.
+ *                         Defaults to FALSE, and the default is load-bearing:
+ *                         TagSomeoneModal renders this same component and must
+ *                         not offer it. Gating on `row.assertions?.length`
+ *                         instead would LEAK into the modal — it passes the
+ *                         profiles-tagged row object by reference for any hit
+ *                         already in the tagged list (TagSomeoneModal.jsx:196),
+ *                         so those rows genuinely carry assertions.
  *   onApply, onDispute  — async (targetPubkey) => void publishers
  */
 
@@ -80,11 +91,20 @@ export default function TagPageRow({
   tapOpensMenu = false,
   menuRecentlyClosedRef = null,
   verificationScore = null,
+  showRawEvent = false,
   onApply,
   onDispute,
 }) {
   const [publishingPolarity, setPublishingPolarity] = useState(null);
   const [publishError, setPublishError] = useState(null);
+  // Story 2 / ADR 0002 D3 — the raw-event panel's visibility, PER ROW. Unlike
+  // Story 1 (where the menu and panel were siblings and state had to lift to
+  // Tag.jsx), both live inside this <li>, so per-instance state is the natural
+  // home — and AC-3's "several rows may have panels open at once; opening one
+  // does not close another" falls out of that for free.
+  const [rawOpen, setRawOpen] = useState(false);
+  // AC-5: reported, not silent, when a row has no assertions to show.
+  const [rawNotice, setRawNotice] = useState(null);
   // Story 18 / ADR 0016 — overflow menu open state. Replaces the
   // Story-17 `touchRevealed` row-wide tap-to-reveal, which fired on
   // *any* touch (including the start of a scroll) and caused scores
@@ -154,6 +174,10 @@ export default function TagPageRow({
     'bs-tag-row',
     showActionsOnHover ? '' : 'is-expanded-mode',
     scoresAlwaysVisible ? 'is-scores-pinned' : '',
+    // Story 2 / ADR 0002 D5 — scopes the wide-viewport ⋯ to the surface that
+    // actually offers raw-event inspection, WITHOUT touching the base
+    // .bs-tag-row-overflow rule the "Tag someone" modal shares.
+    showRawEvent ? 'is-raw-enabled' : '',
   ].filter(Boolean).join(' ');
 
   // Story 18 — in tap-opens-menu contexts (e.g. "Tag someone" search
@@ -299,7 +323,7 @@ export default function TagPageRow({
           signed in) apply/dispute buttons. The trigger renders even
           when logged out because narrow viewports hide the inline
           scores too; the menu is the way to reach them on mobile. */}
-      {(hasAssertions || verificationScore != null || showActions) && (
+      {(hasAssertions || verificationScore != null || showActions || showRawEvent) && (
         <div className="bs-tag-row-overflow" ref={overflowRef}>
           <button
             type="button"
@@ -336,7 +360,44 @@ export default function TagPageRow({
                     : <>Verification Score is this candidate's WoT rank under your active point-of-view.</>}
                 </p>
               )}
-              {showActions && renderActionsMarkup(true)}
+              {/* Story 2 / ADR 0002 D6 — Apply/Dispute stay left, Raw Event floats
+                  to the right edge (AC-2). The button is deliberately OUTSIDE
+                  renderActionsMarkup: that helper is shared with the inline row
+                  (see below), where a button placed in it would become hover-only
+                  AND break the reserved-width no-jiggle invariant. */}
+              {(showActions || showRawEvent) && (
+                <div className="bs-tag-row-overflow-actions">
+                  {showActions && renderActionsMarkup(true)}
+                  {showRawEvent && (
+                    <button
+                      type="button"
+                      className="bs-tag-row-raw-btn"
+                      aria-expanded={rawOpen}
+                      onClick={() => {
+                        if (!row.assertions?.length) {
+                          // AC-5: report, don't open an empty panel that could be
+                          // misread as "nobody asserted this".
+                          setRawNotice('Raw Event unavailable');
+                          closeOverflow();
+                          return;
+                        }
+                        setRawNotice(null);
+                        setRawOpen((o) => !o);
+                        // ADR 0002 D4 — close at BOTH widths. Under 769px this menu
+                        // is a position:fixed bottom sheet with a backdrop at
+                        // inset:0, so staying open would sit on top of the very
+                        // panel this click just opened. Deliberately the opposite of
+                        // TagActionsMenu's stays-open convention, and deliberately
+                        // the same as this component's own (Apply/Dispute already
+                        // close via closeAfter). See the amended epic guardrail.
+                        closeOverflow();
+                      }}
+                    >
+                      {rawOpen ? 'Hide Raw Event' : 'Show Raw Event'}
+                    </button>
+                  )}
+                </div>
+              )}
               {tapOpensMenu && (
                 <Link
                   to={`/user/${row.pubkey}`}
@@ -355,6 +416,20 @@ export default function TagPageRow({
 
       {publishError && (
         <p className="bs-tag-row-error" role="alert">⚠️ {publishError}</p>
+      )}
+
+      {/* Story 2 / ADR 0002 D6 — the raw assertions, below this row's own content.
+          LAST child of the <li>, after the publish-error line, so a transient error
+          stays adjacent to the row rather than being pushed below a JSON blob. Both
+          wrap onto their own line via flex-basis:100% (the .bs-tag-row-error
+          precedent) — .bs-tag-row is display:flex; flex-wrap:wrap. */}
+      {rawNotice && (
+        <p className="bs-tag-row-error" role="alert">⚠️ {rawNotice}</p>
+      )}
+      {rawOpen && row.assertions?.length > 0 && (
+        <section className="bs-tag-row-raw" aria-label={`Raw tagging events for ${displayLabel}`}>
+          <TagRowRawEvents assertions={row.assertions} />
+        </section>
       )}
     </li>
   );

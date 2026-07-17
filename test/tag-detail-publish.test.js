@@ -511,6 +511,179 @@ t('profiles-tagged drops assertions whose authors are below the POV WoT rank thr
   }
 });
 
+/* ─── row.assertions: the counted flag (epic tag-event-inspector, Story 2) ─── */
+
+/**
+ * ADR 0002 D1's `counted` flag, and the ONLY place its reason for existing can be
+ * proven at runtime.
+ *
+ * THE CASE: a viewer whose OWN assertion fails the POV's WoT filter, on a target that
+ * ALSO carries trusted assertions. Then:
+ *   - the counts read +2 (only the two in-WoT authors)
+ *   - `onlyViewerVisible` is FALSE — it requires applications===0 && disputes===0
+ *     (index.js:970), so the row shows NO explanatory badge
+ *   - but the viewer-union (:945-949) still puts the viewer's own event in the panel
+ *   ⇒ THREE blocks under a "+2", with nothing marking which one the number excludes.
+ *
+ * AC-4 promises "count the blocks, get the row's numbers". Without `counted` that
+ * promise is simply false here. With it, the exact form holds: count the counted:true
+ * blocks. This test is the difference between the two.
+ *
+ * Deliberately a sibling of the WoT-threshold test above, reusing its exact seeding
+ * shape (2 authors at rank 80, 2 at rank 10, minRank 50) — that fixture already builds
+ * the trusted/untrusted split; this adds only the viewerPubkey and the assertions
+ * assertions. Skips on the same condition, for the same reason.
+ *
+ * NB this suite is live (nak + relay + Meili + writable settings) and so does NOT gate
+ * CI. The stack-free gate for `counted` is tagging-raw-event-inspector-ui.test.js U14/U19,
+ * which can only prove the flag EXISTS — not that its semantics are right. This is where
+ * the semantics are proven. Run it locally before shipping.
+ */
+t('profiles-tagged: an untrusted viewer assertion is returned but counted:false (ADR 0002 D1)', async () => {
+  if (!canMutateSettings()) {
+    throw new SkipTest(`${SETTINGS_PATH} not writable from this process; the counted-flag semantics need a deterministic POV`);
+  }
+  const { tagSlug, publishedTag, slugBase } = ctx;
+
+  const inWotAuthors = Array.from({ length: 2 }, () => {
+    const sk = nakKeyGen();
+    return { sk, pk: nakDerivePubkey(sk) };
+  });
+  // THE VIEWER: below the rank threshold, so their own assertion is NOT counted —
+  // but the viewer-union means it must still appear in the panel.
+  const viewerSk = nakKeyGen();
+  const viewerPk = nakDerivePubkey(viewerSk);
+  const targetPk = nakDerivePubkey(nakKeyGen());
+
+  const delegatedPubkey = nakDerivePubkey(nakKeyGen());
+  const povSuffix = delegatedPubkey.slice(0, 8);
+  const minRank = 50;
+  const rankField = `wot_rank_${povSuffix}`;
+
+  for (let i = 0; i < inWotAuthors.length; i++) {
+    await meiliUpsertProfile({
+      id: inWotAuthors[i].pk, pubkey: inWotAuthors[i].pk,
+      name: `CountedInWot${i}-${slugBase}`, [rankField]: 80,
+    });
+  }
+  await meiliUpsertProfile({
+    id: viewerPk, pubkey: viewerPk, name: `CountedViewer-${slugBase}`, [rankField]: 10,
+  });
+  await meiliUpsertProfile({ id: targetPk, pubkey: targetPk, name: `CountedTarget-${slugBase}` });
+
+  // Two trusted applies + the viewer's own untrusted apply, all on one target.
+  for (const a of [...inWotAuthors, { sk: viewerSk, pk: viewerPk }]) {
+    await publish(signProfileTagEvent({
+      tagSlug, tagEventId: publishedTag.id,
+      targetPubkey: targetPk,
+      authorSk: a.sk, authorPk: a.pk,
+      polarity: 1,
+    }));
+  }
+  await sleep(PROPAGATION_MS);
+
+  const original = readSettingsFile();
+  try {
+    writeSettingsFile({
+      ...original,
+      grapevine: {
+        ...(original.grapevine || {}),
+        searchPreferences: {
+          ...((original.grapevine || {}).searchPreferences || {}),
+          delegatedPubkey,
+          filters: { rank: { min: minRank } },
+        },
+      },
+    });
+
+    const { status, json } = await fetchJson(
+      `${CONTROL_PANEL_BASE}/api/profile-tags/profiles-tagged?tagEventId=${publishedTag.id}&viewerPubkey=${viewerPk}`
+    );
+    assert(status === 200, `status ${status}`);
+    const row = (json.rows || []).find((r) => r.pubkey === targetPk);
+    assert(row, 'target row must appear');
+
+    // The premise: counts exclude the viewer, and NO badge explains it.
+    assert(row.applications === 2,
+      `precondition: expected 2 in-WoT applications, got ${row.applications}`);
+    assert(row.onlyViewerVisible === false,
+      'precondition: onlyViewerVisible must be FALSE here — the counts are non-zero, so the row shows ' +
+      'no "your assertion" badge. THAT is why the panel needs its own marker: this row explains nothing.');
+
+    // The union: all three events come back.
+    assert(Array.isArray(row.assertions), 'row.assertions must be an array (ADR 0002 D1)');
+    assert(row.assertions.length === 3,
+      `expected 3 assertion blocks (2 trusted + the viewer's own untrusted, via the viewer-union at ` +
+      `index.js:945-949); got ${row.assertions.length}`);
+
+    // The flag: exactly two are counted, and they reconcile to +2.
+    const counted = row.assertions.filter((a) => a.counted);
+    assert(counted.length === 2,
+      `expected exactly 2 assertions with counted:true (matching the row's +2); got ${counted.length}. ` +
+      'This is AC-4\'s promise in its exact form — count the counted blocks, get the row\'s numbers.');
+    assert(counted.filter((a) => a.polarity === 'apply').length === row.applications,
+      'counted apply blocks must reconcile to row.applications');
+
+    // And the uncounted one is the viewer's own.
+    const uncounted = row.assertions.filter((a) => !a.counted);
+    assert(uncounted.length === 1, `expected exactly 1 uncounted assertion; got ${uncounted.length}`);
+    assert(uncounted[0].event.pubkey === viewerPk,
+      `the uncounted assertion must be the VIEWER's own (${viewerPk.slice(0, 8)}…) — it is in the panel ` +
+      `only via the viewer-union. Got author ${uncounted[0].event.pubkey.slice(0, 8)}…`);
+    for (const a of counted) {
+      assert(a.event.pubkey !== viewerPk, 'the viewer\'s own untrusted assertion must never be counted:true');
+      assert(inWotAuthors.some((w) => w.pk === a.event.pubkey),
+        'every counted assertion must come from an author above the POV rank threshold');
+    }
+  } finally {
+    writeSettingsFile(original);
+  }
+});
+
+t('profiles-tagged: a neutral assertion is excluded from assertions entirely (decision #5)', async () => {
+  // bucketize() calls polarity strictly between -0.5 and +0.5 "neutral", and the counts
+  // already skip it (index.js:675). The panel's contract is "the events behind THIS ROW'S
+  // NUMBERS", so a neutral event is correctly outside it — otherwise the block count stops
+  // reconciling with +N/-M. DELIBERATE (story Product decision #5): a reviewer must not
+  // read this as an oversight, which is why it gets its own named test.
+  const { tagSlug, publishedTag, slugBase } = ctx;
+
+  const applier = (() => { const sk = nakKeyGen(); return { sk, pk: nakDerivePubkey(sk) }; })();
+  const neutral = (() => { const sk = nakKeyGen(); return { sk, pk: nakDerivePubkey(sk) }; })();
+  const targetPk = nakDerivePubkey(nakKeyGen());
+
+  for (const a of [applier, neutral]) {
+    await meiliUpsertProfile({ id: a.pk, pubkey: a.pk, name: `Neutral-${a.pk.slice(0, 6)}-${slugBase}` });
+  }
+  await meiliUpsertProfile({ id: targetPk, pubkey: targetPk, name: `NeutralTarget-${slugBase}` });
+
+  await publish(signProfileTagEvent({
+    tagSlug, tagEventId: publishedTag.id, targetPubkey: targetPk,
+    authorSk: applier.sk, authorPk: applier.pk, polarity: 1,
+  }));
+  await publish(signProfileTagEvent({
+    tagSlug, tagEventId: publishedTag.id, targetPubkey: targetPk,
+    authorSk: neutral.sk, authorPk: neutral.pk, polarity: 0,   // ← neutral
+  }));
+  await sleep(PROPAGATION_MS);
+
+  const { status, json } = await fetchJson(
+    `${CONTROL_PANEL_BASE}/api/profile-tags/profiles-tagged?tagEventId=${publishedTag.id}`
+  );
+  assert(status === 200, `status ${status}`);
+  const row = (json.rows || []).find((r) => r.pubkey === targetPk);
+  assert(row, 'target row must appear (the positive applier put it there)');
+  assert(Array.isArray(row.assertions), 'row.assertions must be an array (ADR 0002 D1)');
+  assert(row.assertions.length === 1,
+    `expected exactly 1 assertion block — the neutral one must be excluded; got ${row.assertions.length} ` +
+    `(authors: ${row.assertions.map((a) => a.event.pubkey.slice(0, 8)).join(', ')})`);
+  assert(row.assertions[0].event.pubkey === applier.pk,
+    'the surviving block must be the positive applier\'s, not the neutral author\'s');
+  assert(!row.assertions.some((a) => a.event.pubkey === neutral.pk),
+    'a neutral assertion must never appear in the panel — it contributes to neither +N nor -M, so ' +
+    'including it would break the block-count/number reconciliation AC-4 rests on');
+});
+
 /* ─── Run ─── */
 
 async function run() {
