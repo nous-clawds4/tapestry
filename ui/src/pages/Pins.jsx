@@ -11,17 +11,6 @@ import { KNOWN_CONTEXTS } from '@tapestry/event-tagging';
  * Story 11 / ADR 0010 — per-row tlStatus + export-status lines; top-of-list
  * Refresh all button.
  */
-function timeAgoShort(unixSeconds) {
-  if (!unixSeconds) return null;
-  const now = Date.now() / 1000;
-  const diff = now - unixSeconds;
-  if (diff < 60) return 'just now';
-  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-  if (diff < 2592000) return `${Math.floor(diff / 86400)}d ago`;
-  return `${Math.floor(diff / 2592000)}mo ago`;
-}
-
 function PinsIntro() {
   return (
     <div className="bs-pins-intro">
@@ -46,74 +35,11 @@ function PinsMemberCountHint() {
   );
 }
 
-function renderStatusLine(tlStatus) {
-  if (!tlStatus) return null;
-  switch (tlStatus.status) {
-    case 'ok':
-      return (
-        <span className="bs-pins-row-status is-ok">
-          Refreshed {timeAgoShort(tlStatus.lastRefreshAt)}
-          {tlStatus.memberCount != null && ` · ${tlStatus.memberCount} members`}
-        </span>
-      );
-    case 'never':
-      return <span className="bs-pins-row-status is-never">No TL yet</span>;
-    case 'retracted':
-      return <span className="bs-pins-row-status is-retracted">Retracted</span>;
-    case 'unsupported':
-      return (
-        <span className="bs-pins-row-status is-unsupported">
-          Unsupported curation method (v1 supports nip85:rank only)
-        </span>
-      );
-    default:
-      return null;
-  }
-}
-
 /**
- * Story 19 — render the kind-30000 NIP-51 export-status line below
- * the kind-30392 tlStatus line. Distinguishes three states:
- *   - never-exported → inviting "Not yet exported for other clients" hint
- *   - ok-fresh       → "Exported X ago · in sync"
- *   - stale          → "Exported X ago · N changes since last export"
- */
-function renderExportStatusLine(nip51) {
-  if (!nip51) return null;
-  switch (nip51.status) {
-    case 'never-exported':
-      return (
-        <span className="bs-pins-row-export-status is-never">
-          Not yet exported for other clients
-        </span>
-      );
-    case 'ok-fresh':
-      return (
-        <span className="bs-pins-row-export-status is-fresh">
-          Exported {timeAgoShort(nip51.exportedAt)} · in sync
-        </span>
-      );
-    case 'stale': {
-      const diff = nip51.diffVsTL || { added: 0, removed: 0 };
-      const total = (diff.added || 0) + (diff.removed || 0);
-      return (
-        <span className="bs-pins-row-export-status is-stale">
-          Exported {timeAgoShort(nip51.exportedAt)} · {total} change{total === 1 ? '' : 's'} since last export
-          {diff.added > 0 && ` (+${diff.added}`}{diff.removed > 0 && ` ${diff.added > 0 ? '/ ' : '('}−${diff.removed}`}{(diff.added > 0 || diff.removed > 0) && ')'}
-        </span>
-      );
-    }
-    default:
-      return null;
-  }
-}
-
-/**
- * Story 20 / ADR 0018 — one pinned-tag row is now a plain link to its
- * tag's detail page with the Pinned tab selected. No per-row actions or
- * overflow menu (per-pin management moved to the Pinned tab). A
- * right-edge chevron signals tappability — important on touch, where
- * there is no hover. Read-only status lines remain informational.
+ * Story 20 / ADR 0018 — one pinned-tag row is a plain link to its tag's detail
+ * page with the Pinned tab selected. No per-row actions or overflow menu
+ * (per-pin management moved to the Pinned tab). A right-edge chevron signals
+ * tappability — important on touch, where there is no hover.
  */
 // contextual-pins ADR 0001 — the viewer may hold several coexisting pins of one
 // tag (neutral + one per community context). The index shows each TAG once; the
