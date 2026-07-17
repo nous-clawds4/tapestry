@@ -1542,3 +1542,29 @@ Anchor inputs: this entry + `audits/sync-panel-tag-filters/prd-seed.md` §6–7 
 **Classification:** Refactor (no behavior change)
 **Strictness:** Standard — Refactor; Tests likely skippable for the extraction itself, but the two menus' source-level suites must be re-aimed at the shared shell rather than dropped.
 **Phase path:** Planning → Architecture (the abstraction is the decision) → Implementation → Review
+
+---
+
+## 2026-07-16 — Cleanup: extract a shared `<RawEventPanel>` (do it at the THIRD inspection surface)
+
+**Origin:** tag-event-inspector #2 / ADR 0002 Consequences #3 — recorded by the Implementer, not yet triaged.
+
+**Raw finding:** raw-event inspection now exists on **two** surfaces: the tag *definition* event (Story 1, a page-level panel in `ui/src/pages/Tag.jsx`) and a profile row's *taggings* (Story 2, a per-row panel via `ui/src/components/TagRowRawEvents.jsx`). Both render `JSON.stringify(event, null, 2)` into the shared `.bs-tag-raw-pre` class — the CSS is already shared; the block-rendering is not.
+
+**Deliberately deferred, with a trigger:** **do it at the third inspection surface** (Note rows are the likely next). The `prd-seed` for the closed `tag-event-inspector` book warns that generalizing gets *"expensive after three divergent one-offs"* — but the two existing instances have **already diverged structurally**, and that divergence is the argument for waiting rather than against it:
+
+| | Story 1 (tag definition) | Story 2 (taggings) |
+|---|---|---|
+| Cardinality | exactly one event | N+M events |
+| POV | invariant end-to-end | the *set* is per-POV; only the bytes are invariant |
+| Placement | page-level, sibling of the tab strip | per-row, inside the `<li>` |
+| Caption | none needed | polarity + author + `counted` marker |
+
+A common abstraction drawn over two shapes this different would have been wrong. The third instance is what reveals which parts are genuinely common (the `<pre>`, the byte-faithfulness contract, the "unavailable" degradation) versus incidental.
+
+**Not to be confused with** the `<ActionsMenu>` extraction above: that one counts `bsp-note-menu` **dropdowns**, and Story 2 added **none** — `TagPageRow`'s overflow is a different component (own classes, bottom-sheet form factor, opposite close convention), and Story 2 only added an *item* to it. That count is still **two**; its trigger has **not** fired.
+
+**Classification:** Refactor (no behavior change)
+**Strictness:** Standard — Refactor; the two surfaces' source-level suites must be re-aimed at the shared component rather than dropped.
+**Phase path:** Planning → Architecture (the abstraction is the decision) → Implementation → Review
+**Priority:** Low

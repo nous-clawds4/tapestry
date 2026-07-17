@@ -261,6 +261,184 @@ t('GET /api/profile-tags/profiles-tagged accepts each documented sort value', as
   }
 });
 
+/* ─── profiles-tagged: row.assertions (epic tag-event-inspector, Story 2) ─── */
+
+/**
+ * ADR 0002 D1 — each row carries the evidence behind its own +N/-M:
+ *   assertions: [{ polarity: 'apply'|'dispute', counted: boolean, event: <7 fields> }]
+ *
+ * FIXTURE STRATEGY — discovery, not a hardcoded id. Story 1's RAW_FIXTURE could pin one
+ * event because a tag has exactly one definition event. A tagging row's evidence depends
+ * on whichever corpus this base URL happens to hold, so these probe for the first tag
+ * that HAS rows and skip loudly when none exists (a bare local stack). Measured on this
+ * machine 2026-07-16: the local corpus tops out at ONE assertion per row, so the
+ * multi-block and `counted` semantics are NOT provable here — those live in
+ * tag-detail-publish.test.js, which seeds its own multi-author assertion graph.
+ *
+ * NB these are live-HTTP and therefore SKIP WHOLESALE in CI (:268-271). They are for
+ * local + staging verification. The CI gate for this story is the stack-free source
+ * suite, test/tagging-raw-event-inspector-ui.test.js — see its header.
+ */
+async function fetchFirstTaggedRow() {
+  const { status, json } = await fetchJson(`${CONTROL_PANEL_BASE}/api/profile-tags/available-tags`);
+  assertEqual(status, 200, 'available-tags status — PRECONDITION for the row.assertions tests');
+  const tags = (json?.tags || []).slice(0, 60);
+  for (const tag of tags) {
+    const r = await fetchJson(
+      `${CONTROL_PANEL_BASE}/api/profile-tags/profiles-tagged?tagEventId=${tag.eventId}&sort=applied`
+    );
+    const rows = r.json?.rows || [];
+    if (rows.length > 0) return { tag, rows };
+  }
+  throw new Error(
+    'PRECONDITION UNMET: no tag in the first 60 of available-tags has any tagged profile at ' +
+    `${CONTROL_PANEL_BASE}. These tests need a corpus with at least one tagging. Failing loudly ` +
+    'rather than passing vacuously against an empty graph.'
+  );
+}
+
+/**
+ * Guard against the VACUOUS PASS, which bit this suite three times while it was being
+ * written. Every test below loops `row.assertions || []`; with the feature unbuilt that
+ * is an empty list, the loop body never runs, and the test reports PASS having asserted
+ * nothing. A U test that passes before implementation is worse than no test — it is a
+ * false green. Call this in any test whose assertions live inside a loop.
+ */
+function assertNonVacuous(rows, what) {
+  const total = rows.reduce((n, r) => n + ((r.assertions || []).length), 0);
+  assert(total > 0,
+    `${what}: the fixture returned ZERO assertions across ${rows.length} row(s), so this test would ` +
+    'pass without asserting anything. Rows exist, therefore assertions must too — every row is on the ' +
+    'page BECAUSE at least one assertion put it there (ADR 0002 D1).');
+  return total;
+}
+
+t('profiles-tagged: every row carries an assertions array (always present, like onlyViewerVisible)', async () => {
+  const { rows } = await fetchFirstTaggedRow();
+  for (const row of rows) {
+    assert(Array.isArray(row.assertions),
+      `row ${row.pubkey} must carry assertions as an ARRAY (ADR 0002 D1). Always assigned (|| []) so ` +
+      'the client can read it unconditionally — the same convention onlyViewerVisible follows.');
+  }
+});
+
+t('profiles-tagged: each assertion entry is EXACTLY {polarity, counted, event}', async () => {
+  const { rows } = await fetchFirstTaggedRow();
+  const entry = rows.flatMap((r) => r.assertions || [])[0];
+  assert(entry, 'expected at least one assertion across the fixture tag\'s rows');
+  assertSetEqual(Object.keys(entry), ['polarity', 'counted', 'event'], 'assertion entry key set');
+});
+
+t('profiles-tagged: assertion.event carries EXACTLY the seven canonical NIP-01 keys', async () => {
+  // THE whitelist test — the Story-2 twin of the by-id one above, and it matters MORE
+  // here: this endpoint serializes N events per row across every row, so a leak is N×
+  // wider than Story 1's single event. A `{...ev}` spread passes a presence check and
+  // fails this one the moment a scan leg attaches anything extra — e.g. a nostr-tools
+  // upgrade turning `verifiedSymbol` (today a Symbol, silently dropped by
+  // JSON.stringify) into a string key, which would start leaking a non-canonical field
+  // into blocks captioned "the raw signed event".
+  const { rows } = await fetchFirstTaggedRow();
+  const entry = rows.flatMap((r) => r.assertions || [])[0];
+  assert(entry, 'expected at least one assertion across the fixture tag\'s rows');
+  assertSetEqual(Object.keys(entry.event), CANONICAL_EVENT_KEYS, 'assertion.event key set');
+});
+
+t('profiles-tagged: assertion.event emits the canonical fields in canonical order', async () => {
+  const { rows } = await fetchFirstTaggedRow();
+  const entry = rows.flatMap((r) => r.assertions || [])[0];
+  assert(entry, 'expected at least one assertion across the fixture tag\'s rows');
+  assertEqual(Object.keys(entry.event).join(','), CANONICAL_EVENT_KEYS.join(','),
+    'assertion.event key ORDER — a declared order gives the panel a stable rendering rather than ' +
+    'inheriting the relay\'s incidental key order, and makes the local (strfry) and remote ' +
+    '(nostr-tools) legs diffable');
+});
+
+t('profiles-tagged: each assertion is a kind-39999 event that names its row as the target', async () => {
+  const { rows } = await fetchFirstTaggedRow();
+  assertNonVacuous(rows, 'kind/p-tag check');
+  for (const row of rows) {
+    for (const a of row.assertions || []) {
+      assertEqual(a.event.kind, 39999, 'assertion.event.kind');
+      const pTag = (a.event.tags || []).find((tg) => tg[0] === 'p');
+      assert(pTag && pTag[1] === row.pubkey,
+        `assertion on row ${row.pubkey} must carry a ['p', '${row.pubkey}'] tag — that p-tag is what ` +
+        'binds the assertion to this target (the concept graph: "each element links a target pubkey ' +
+        `to a tag event ID"). Got: ${JSON.stringify(pTag)}`);
+    }
+  }
+});
+
+t('profiles-tagged: polarity is one of apply|dispute — never neutral, never raw', async () => {
+  const { rows } = await fetchFirstTaggedRow();
+  assertNonVacuous(rows, 'polarity check');
+  for (const row of rows) {
+    for (const a of row.assertions || []) {
+      assert(a.polarity === 'apply' || a.polarity === 'dispute',
+        `assertion.polarity must be 'apply' or 'dispute'; got ${JSON.stringify(a.polarity)}. Neutral ` +
+        'assertions (polarity strictly between -0.5 and +0.5) are excluded entirely (story Product ' +
+        'decision #5) — they count toward neither +N nor -M, so including them would break the ' +
+        'block-count/number reconciliation. Server-emitted, not client-derived (ADR 0002 D1).');
+    }
+  }
+});
+
+t('profiles-tagged: THE INVARIANT — counted blocks reconcile to the row\'s +N/-M (AC-4)', async () => {
+  // This is the whole story in one assert. AC-4: "a reader must be able to count the
+  // blocks and get back exactly the row's numbers." `counted` is what makes it exact —
+  // see the multi-author case in tag-detail-publish.test.js for the row where a naive
+  // implementation (no flag) would show 3 blocks under a "+2".
+  const { rows } = await fetchFirstTaggedRow();
+  for (const row of rows) {
+    const counted = (row.assertions || []).filter((a) => a.counted);
+    const applies = counted.filter((a) => a.polarity === 'apply').length;
+    const disputes = counted.filter((a) => a.polarity === 'dispute').length;
+    assertEqual(applies, row.applications,
+      `row ${row.pubkey}: counted 'apply' blocks must equal row.applications (${row.applications}); ` +
+      `got ${applies}. The panel's contract is "the events behind THIS row's numbers".`);
+    assertEqual(disputes, row.disputes,
+      `row ${row.pubkey}: counted 'dispute' blocks must equal row.disputes (${row.disputes}); got ${disputes}.`);
+  }
+});
+
+t('profiles-tagged: assertions are ordered applications-before-disputes (AC-4)', async () => {
+  const { rows } = await fetchFirstTaggedRow();
+  assertNonVacuous(rows, 'ordering check');
+  for (const row of rows) {
+    const seq = (row.assertions || []).map((a) => a.polarity);
+    const firstDispute = seq.indexOf('dispute');
+    if (firstDispute === -1) continue;
+    assert(!seq.slice(firstDispute).includes('apply'),
+      `row ${row.pubkey}: applications must precede disputes (AC-4 — matching the +N/-M reading ` +
+      `order). Got: [${seq.join(', ')}]`);
+  }
+});
+
+t('profiles-tagged: assertion order is stable across identical requests (AC-4)', async () => {
+  const { tag, rows } = await fetchFirstTaggedRow();
+  assertNonVacuous(rows, 'stable-order check');
+  const url = `${CONTROL_PANEL_BASE}/api/profile-tags/profiles-tagged?tagEventId=${tag.eventId}&sort=applied`;
+  const a = await fetchJson(url);
+  const b = await fetchJson(url);
+  const ids = (j) => (j.json?.rows || []).map((r) => (r.assertions || []).map((x) => x.event.id).join('|')).join('||');
+  assertEqual(ids(a), ids(b),
+    'two identical requests must return assertions in identical order (AC-4: "a stable, deterministic ' +
+    'order"). The sort is a TOTAL order — polarity, then created_at desc, then id — precisely so two ' +
+    'events sharing a timestamp cannot swap between requests.');
+});
+
+t('profiles-tagged: R — the documented envelope survives the additive change', async () => {
+  // Additive-safety. The UI hook depends on every field being present; ADR 0002 D1
+  // claims backward compatibility, and this is what makes the claim mechanical.
+  const validShapeId = 'd'.repeat(64);
+  const { status, json } = await fetchJson(
+    `${CONTROL_PANEL_BASE}/api/profile-tags/profiles-tagged?tagEventId=${validShapeId}`
+  );
+  assertEqual(status, 200, 'profiles-tagged status');
+  for (const k of ['success', 'povSuffix', 'minRank', 'sort', 'rows', 'viewerAssertions']) {
+    assert(k in json, `response must still include ${k} after the additive assertions change`);
+  }
+});
+
 /* ─── Run ─── */
 
 async function run() {
