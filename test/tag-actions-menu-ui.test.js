@@ -2,8 +2,8 @@
  * Tests for Story 1 (epic: tag-event-inspector) — the tag actions menu and the
  * raw event inspector on the tag detail page.
  *
- * Story: engineering-team/stories/tag-event-inspector/1-tag-actions-menu-and-raw-event.md
- * ADR:   engineering-team/decisions/tag-event-inspector/0001-tag-actions-menu-and-raw-event.md
+ * Story: engineering-team/stories/done/tag-event-inspector/1-tag-actions-menu-and-raw-event.md
+ * ADR:   engineering-team/decisions/done/tag-event-inspector/0001-tag-actions-menu-and-raw-event.md
  *
  * TEST LEVEL — source assertion, not runtime render (matching
  * event-tag-note-affordance-ui / note-surfaces-ui / the profile-* UI suites): the
