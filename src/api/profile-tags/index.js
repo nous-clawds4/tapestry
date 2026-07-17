@@ -747,6 +747,27 @@ async function aggregateTagPins({ povSuffix, minRank, viewerPubkey }) {
 }
 
 /**
+ * The 7 canonical NIP-01 fields, in canonical order. A whitelist, never a spread:
+ * `ev` arrives from federatedScan's local (strfry) OR remote (nostr-tools) leg, and
+ * the raw panel's contract is "the event as signed", not "whatever the scan leg
+ * attached". Today a spread happens to be clean — nostr-tools' verifiedSymbol is a
+ * Symbol that JSON.stringify drops — but that rests on a third-party implementation
+ * detail, and a string-keyed `verified` would silently leak into a panel captioned
+ * "the raw signed event". See tag-event-inspector ADR 0001 D1.
+ */
+function toRawEvent(ev) {
+  return {
+    id: ev.id,
+    pubkey: ev.pubkey,
+    created_at: ev.created_at,
+    kind: ev.kind,
+    tags: ev.tags,
+    content: ev.content,
+    sig: ev.sig,
+  };
+}
+
+/**
  * GET /api/profile-tags/by-id?tagEventId=<id>
  *
  * Fetch a single kind-39999 tag-element by event id. Returns the tag's
@@ -754,6 +775,10 @@ async function aggregateTagPins({ povSuffix, minRank, viewerPubkey }) {
  * block ({displayName, picture}) when the author has a Meili profile doc.
  * Author degrades to null when Meili lacks the doc; degrades to null when
  * Meili is unreachable (does not fail the whole request).
+ *
+ * tag-event-inspector ADR 0001 D1: `tag.rawEvent` carries the signed definition
+ * event itself (the 7-field toRawEvent projection) for the tag page's raw-event
+ * panel. Nested under `tag` so useTagDetail's setTag(data.tag) needs no change.
  */
 async function handleTagById(req, res) {
   const { tagEventId, viewerPubkey } = req.query;
@@ -824,6 +849,7 @@ async function handleTagById(req, res) {
         description: tagPayload.description || '',
         authorPubkey: ev.pubkey,
         createdAt: ev.created_at,
+        rawEvent: toRawEvent(ev),
       },
       author,
       viewerPin,

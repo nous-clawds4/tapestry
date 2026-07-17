@@ -6,6 +6,7 @@ import TagPinAffordance from '../components/TagPinAffordance';
 import TagViewControls from '../components/TagViewControls';
 import TagSomeoneModal from '../components/TagSomeoneModal';
 import TagNotesView from '../components/TagNotesView';
+import TagActionsMenu from '../components/TagActionsMenu';
 import PinnedListPanel from '../components/PinnedListPanel';
 import PinToContextModal from '../components/PinToContextModal';
 import PovStatusNotice from '../components/PovStatusNotice';
@@ -66,6 +67,10 @@ export default function Tag() {
   const [notesMode, setNotesMode] = useState('profiles');
   const [notesOpened, setNotesOpened] = useState(false);
   const [tagSomeoneOpen, setTagSomeoneOpen] = useState(false);
+  // tag-event-inspector #1 / ADR 0001 D4 — the raw-event panel's visibility. The
+  // menu (in the header) and the panel (page-level) are siblings, so this page is
+  // their only common ancestor that can hold it. Default hidden (AC-5).
+  const [rawOpen, setRawOpen] = useState(false);
 
   // Story 20 / ADR 0018 — the "Pinned" tab. It exists only when the
   // viewer has pinned this tag. Default selection: the Pinned tab when
@@ -294,9 +299,16 @@ export default function Tag() {
         ) : (
           <>
             <header className="bs-tag-header">
-              <h1 className="bs-tag-name">
-                {tag?.name || (headerLoading ? '…' : 'Tag')}
-              </h1>
+              <div className="bs-tag-name-row">
+                <h1 className="bs-tag-name">
+                  {tag?.name || (headerLoading ? '…' : 'Tag')}
+                </h1>
+                <TagActionsMenu
+                  tag={tag}
+                  rawOpen={rawOpen}
+                  onToggleRaw={() => setRawOpen(o => !o)}
+                />
+              </div>
               {tag?.description && (
                 <p className="bs-tag-desc">{tag.description}</p>
               )}
@@ -320,6 +332,19 @@ export default function Tag() {
             </header>
 
             <PovStatusNotice status={povResolution} variant="banner" />
+
+            {/* tag-event-inspector #1 / ADR 0001 D3 — the raw definition event.
+                PAGE-LEVEL on purpose: a sibling of the tab strip, never inside the
+                bs-tag-rows tabpanel below, which is hidden={activeTab !== 'default'}
+                and would vanish the panel on the Pinned tab while the header menu
+                still read "Hide Raw Event" (the state AC-5 forbids). Below the POV
+                banner so a tall blob can't push a page-level notice out of view. */}
+            {rawOpen && tag?.rawEvent && (
+              <section className="bs-tag-raw" aria-label="Raw tag definition event">
+                <p className="bs-tag-raw-title">Raw event — kind 39999 tag definition</p>
+                <pre className="bs-tag-raw-pre">{JSON.stringify(tag.rawEvent, null, 2)}</pre>
+              </section>
+            )}
 
             {/* Story 20 / ADR 0018 — tab strip only when the viewer has pinned. */}
             {hasAnyPin && (

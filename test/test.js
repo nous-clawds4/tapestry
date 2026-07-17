@@ -123,6 +123,7 @@ const eventTaggingReadApi = require('./event-tagging-read-api.test.js');
 const eventTaggingWritePath = require('./event-tagging-write-path.test.js');
 const eventTaggingReadViewerStance = require('./event-tagging-read-viewer-stance.test.js');
 const eventTagNoteAffordanceUi = require('./event-tag-note-affordance-ui.test.js');
+const tagActionsMenuUi = require('./tag-actions-menu-ui.test.js');
 const eventTaggingForTag = require('./event-tagging-for-tag.test.js');
 const unifiedTagIndex = require('./unified-tag-index.test.js');
 const eventTaggingNotesByAuthor = require('./event-tagging-notes-by-author.test.js');
@@ -366,6 +367,8 @@ async function main() {
   const eventTaggingReadViewerStanceResult = await eventTaggingReadViewerStance.run();
   console.log('\nevent-tag-note-affordance-ui suite:');
   const eventTagNoteAffordanceUiResult = await eventTagNoteAffordanceUi.run();
+  console.log('\ntag-actions-menu-ui suite:');
+  const tagActionsMenuUiResult = await tagActionsMenuUi.run();
   console.log('\nevent-tagging-for-tag suite:');
   const eventTaggingForTagResult = await eventTaggingForTag.run();
   console.log('\nunified-tag-index suite:');
@@ -714,6 +717,9 @@ async function main() {
   console.log(
     `context-scoped-pins suite:                       ${contextScopedPinsResult.fail === 0 ? 'PASS' : 'FAIL'} (${contextScopedPinsResult.pass} passed, ${contextScopedPinsResult.fail} failed)`
   );
+  console.log(
+    `tag-actions-menu-ui suite:                       ${tagActionsMenuUiResult.fail === 0 ? 'PASS' : 'FAIL'} (${tagActionsMenuUiResult.pass} passed, ${tagActionsMenuUiResult.fail} failed)`
+  );
 
   const overallOk =
     configOk &&
@@ -824,7 +830,8 @@ async function main() {
     feedPaginationResult.fail === 0 &&
     profileContentCardResult.fail === 0 &&
     tagApplicabilityResult.fail === 0 &&
-    tagApplicabilityPickerResult.fail === 0;
+    tagApplicabilityPickerResult.fail === 0 &&
+    tagActionsMenuUiResult.fail === 0;
     harnessLintResult.fail === 0 &&
     harnessStatsResult.fail === 0 &&
     sessionStartResult.fail === 0 &&
