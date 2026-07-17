@@ -1,0 +1,86 @@
+# Story 2: Raw event inspector for profile taggings on the tag detail page
+
+**Epic:** tag-event-inspector
+**Status:** Approved
+**Created:** 2026-07-16
+**Type:** Feature
+
+## Background
+
+Story 1 made a tag's **definition** event inspectable: a `⋯` menu beside the tag name toggles a panel showing the signed kind-39999 event the whole page is derived from. It shipped, and the book closed the same day.
+
+The book's own return edge immediately asked the follow-on question. `audits/tag-event-inspector/prd-seed.md` records raw-event inspection on **Profile rows** as "the obvious generalization, deliberately not taken", and poses the carry-forward question outright: *"Is 'inspect the event behind this thing' a page feature or a product pattern? Notes, profiles, taggings, and pins all have the same latent need. Decide deliberately — generalizing later is cheap now and expensive after three divergent one-offs."* This story is the second instance, and therefore the moment that question gets answered rather than deferred again.
+
+The gap it closes: the tag page shows you *that* a profile carries a tag, and by how much (`+3 −1`), but never *what anyone actually signed to say so*. The counts are the page's central claim about a profile, and they are the one thing on the page a reader cannot audit. For an epic whose premise is that a rendering should never have to be taken on trust, the number is exactly the wrong place to stop.
+
+**A row is not backed by one event — this is the story's central fact.** A tagging is an assertion publishable by anyone (`nostr-user-tag`: *"an assertion that a specific nostr user (pubkey) belongs to a tag category. **Each element** links a target pubkey to a tag event ID"*). A row's `+N −M` counts how many distinct WoT-trusted authors each published their own signed assertion about that profile. So `+4 −0` is four events from four authors. The original ask read as singular ("the event that applies the Tag to a specific Profile") because the page it was written against hides this — both rows on `bitcoin-physician` happen to be `+1 −0`. That is that tag's data, not the rule. Measured against staging, **10 of 49 tags have at least one multi-event row**: `podcaster` (Avi Burra `+4 −0`), `wotathon-participant` (Nathan Day `+4 −0`), `aos-2026-participant` (AJ `+3 −0`), and — the case that kills any "the applying event" framing — `verified-human`, where the NY Times NewsBot row reads `+0 −3`: **zero** applying events and three disputing ones.
+
+**Who is affected:** anyone reading a tag detail page, signed in or signed out. Most sharply the three readers the epic already named — operators debugging federation, developers learning the wire format, and readers deciding whether a tagging is trustworthy.
+
+## User-facing description
+
+As **someone reading a tag's page**, I want to open the raw signed events behind a profile's `+N −M`, so that I can see who actually asserted what about that profile and verify the score myself instead of trusting the page's arithmetic.
+
+## Acceptance criteria
+
+*Six criteria, but one affordance on one surface: a menu item and the panel it toggles. They are facets of a single user-visible capability — deliberately not split, for the same reason Story 1 wasn't. (See "Scope note" below for why the API work doesn't split out either.)*
+
+- [ ] **AC-1 (the `⋯` becomes reachable at every width):** Given a tag detail page with profile rows, a `⋯` trigger is reachable on each row at **all viewport widths** — not only below 769px as today. On narrow viewports it stays permanently visible, exactly as now (the inline action buttons are hidden there, so it is the only way to act). On wide viewports it must **not** add permanent visual noise to a long list: it follows the same reveal rule the row's existing Apply/Dispute buttons already follow (revealed on row hover, in Expanded view, or on focus within the row), and once its menu is open the trigger remains visible and usable. Given a row that renders no `⋯` today (no assertions, no scores, signed out — the existing condition), this story does not add one.
+
+- [ ] **AC-2 (menu contents differ by width, and the new item floats right):** Given the `⋯` menu is open on a **narrow** viewport, it contains what it contains today — the scores, the explanatory help line, and (when signed in) the Apply and Dispute buttons — **plus** a new item labelled **"Show Raw Event"** when the panel is hidden and **"Hide Raw Event"** when it is shown. That item sits on the same line as Apply and Dispute, to the right of Dispute, pushed to the **right edge** of the menu while Apply/Dispute stay left. Given the menu is open on a **wide** viewport, it contains **only** the Show/Hide Raw Event item — no scores, no Apply/Dispute — because those are already inline on the row at that width and duplicating them would be redundant. The item is present **whether or not the viewer is signed in**: inspection is a read over public data and carries no login gate.
+
+- [ ] **AC-3 (the panel toggles, lives below its own row, and the menu closes on select):** Given a freshly loaded page, every row's panel is **hidden** and no layout shifts. When the viewer selects "Show Raw Event", the panel appears **below that row's content, within that same row's block** — not below the list, not below a different row — and the menu **closes**, at both widths. Selecting "Hide Raw Event" (from the reopened menu) removes it. Whenever the menu is open its label reflects the panel's current state, so there is no state in which the menu reads "Hide Raw Event" while no panel is visible. Multiple rows may have their panels open at once; opening one does not close another. *(The close-on-select is a deliberate divergence from the tag header menu's "stays open" convention — see "Product decisions" #1.)*
+
+- [ ] **AC-4 (every event behind the count, faithfully, and identifiable):** Given a panel is shown for a row reading `+N −M`, it renders **exactly the set of assertions that row is derived from** — the POV's WoT-filtered non-neutral assertions, unioned with the viewer's own assertion when present (the same union rule the row itself already uses, which is why an `onlyViewerVisible` row reading `+0 −0` shows the viewer's own event rather than an empty panel). The panel therefore contains **N + M blocks** for an ordinary row. Each block renders the **complete signed event as published** — `id`, `pubkey`, `created_at`, `kind`, `tags`, `content`, `sig` — as formatted readable JSON, byte-faithful to the event as signed, with no field omitted, truncated, or summarized. Each block is captioned so a reader can tell the blocks apart without parsing JSON by eye: its **polarity** (applied or disputed) and its **author pubkey**. Blocks appear in a stable, deterministic order, applications before disputes, matching the `+N −M` reading order. A reader must be able to count the blocks and get back exactly the row's numbers.
+
+- [ ] **AC-5 (honest degradation):** Given the events for a row cannot be produced — none available, or the request for them fails — then selecting the raw-event item shows a visible message and opens **no** panel; nothing throws, and no empty panel is rendered that could be misread as "nobody asserted this". Given the events are still being retrieved, the viewer gets a visible indication rather than silence or a frozen label. The rest of the menu (scores, Apply, Dispute) keeps working throughout, and a failure on one row never affects another row.
+
+- [ ] **AC-6 (non-regression and invariants):** The `⋯` menu on the tag **header** (Story 1) is unchanged — same three items, same labels, same stays-open behavior. Apply, Dispute, the scores, the row's reserved-width no-jiggle invariant, the hover-reveal behavior, the tab strip, and the Profiles|Notes switch all behave exactly as before, signed in and signed out. The **"Tag someone" search modal is untouched** — it renders the same row component, and this story adds no raw-event affordance there. **No TA pubkey literal is introduced** (no 64-hex constant, no `LEGACY_*` import, no TA lookup): a tagging's author is an arbitrary pubkey and nothing here needs the TA. **POV correctness:** each event's *bytes* are POV-invariant and must not be filtered, annotated, or altered per POV; *which* events appear is per-POV by construction, and must be computed at read time from the active POV — never precomputed, denormalized, or stored per POV.
+
+## Product decisions (settled at Planning)
+
+1. **The menu closes when the panel opens — at both widths.** On narrow viewports this is forced: the menu is a bottom sheet with a backdrop covering the whole viewport, so leaving it open would hide the very panel just opened. On wide viewports the menu is a small anchored popover that occludes nothing, so it *could* stay open. Closing uniformly wins anyway: a control that stays open at one width and closes at another is unpredictable, and this row's menu **already** closes after a successful Apply or Dispute — that is this component's own established convention, and it is the one being followed. This **diverges from the epic's "Emulate, don't diverge — menu stays open on select" guardrail**, which was written for the header's anchored dropdown. Recorded as deliberate: the convention's purpose is to let a viewer toggle straight back without reopening, and that purpose is already defeated when the menu physically covers the thing it toggles. Cost: "Hide" requires reopening the menu. Accepted.
+2. **The wide-viewport menu keeps being a menu, even holding one item.** A `⋯` that opens a dropdown at one width and directly toggles a panel at another is two interaction models on one control. A one-item menu is unremarkable by comparison, and it is the extension point this epic will want — Story 1 established Copy Note ID / Copy Note Addr as the natural companions to Show Raw Event, and if they ever come to taggings, this is where they land.
+3. **Inspection is not login-gated** (AC-2), consistent with Story 1.
+4. **The panel is per-row, and several may be open at once** (AC-3). The toggle is per-row, so the state it controls is per-row. Nothing about opening one row's panel implies anything about another's.
+5. **Neutral assertions are excluded** (AC-4). An assertion with polarity between −0.5 and 0.5 contributes to neither `+N` nor `−M` — and a target with only neutral assertions gets no row at all. Since the panel's contract is "the events behind *this row's numbers*", neutral assertions are correctly outside it. Flagged so the Reviewer checks this deliberately rather than reading it as an oversight.
+
+## Concepts touched
+
+- `39998:<this instance's TA>:nostr-user-tag` — **nostr user tag**. The concept whose elements this panel displays: *"an assertion that a specific nostr user (pubkey) belongs to a tag category. Each element links a target pubkey to a tag event ID (kind 39999 in the tag concept), with optional polarity."* The "each element" is the story's whole premise — many elements per (tag, target).
+- `39998:<this instance's TA>:nostr-event` — **nostr event**. What each block renders: the cryptographically signed event as published. Its seven-field definition is the normative field list.
+- `39998:<this instance's TA>:tag` — **tag**. The tag whose taggings these are; its own definition event is Story 1's subject, not this story's.
+- `39998:<this instance's TA>:nostr-user` — **nostr user**. Both the target of a tagging and its author. Handle pubkeys are per-deployment — resolve at runtime, never hardcode. (The local graph currently answers `e00ed090…` while CLAUDE.md documents `82b75e47…` for this machine; that divergence is itself the argument.)
+
+## Scope note — why this isn't split
+
+The story spans a read path that must newly surface events plus the row affordance that shows them. Splitting them would produce one story with no user-visible outcome and another that can't be built, so they stay together. Splitting the wide-viewport reachability out doesn't work either: without the raw-event item, the wide menu would be empty. This is one capability.
+
+## Out of scope
+
+- **Copy Note ID / Copy Note Addr for taggings.** Story 1's header menu has them for the tag definition, where "the event" is singular. For a row backed by N events, "copy the id" has no single answer. If it comes, it belongs per-block, and it is a separate story.
+- **Raw-event inspection on Note rows**, the tag index, the Pinned tab's contents, or profile pages. The prd-seed's generalization question is *answered* by this story ("it's a pattern"), but answering it does not mean building every instance now.
+- **A close affordance on the panel itself.** The menu is the toggle. A long panel may leave the reader far from the row, which is a real cost — noted, deferred.
+- **Showing assertions from authors outside the POV's WoT.** A legitimate and interesting capability ("show me who else said this, trusted or not"), and a different one: it would break AC-4's "count the blocks, get the row's numbers" contract.
+- **Pagination, collapsing, or capping the panel when N is large.** The accepted cost of "show all the events".
+- **Syntax highlighting, a JSON tree, or a copy-the-blob button.** Plain formatted JSON is the bar, per Story 1.
+- **Client-side signature verification.** Displaying `sig` is not validating it.
+- **Escape-to-close or any other change to the `⋯` convention** across menus.
+- **The "Note" vs "Event" vocabulary question** (Story 1 open question (a)) — still open, still a rename across every surface at once.
+
+## Open questions
+
+Recorded with a recommendation each; none blocks Architecture.
+
+- **(a) Does the block caption carry a display name, or just the author pubkey?** AC-4 requires polarity + author pubkey. **Recommendation: pubkey is the bar.** The audience reaching for a raw-event viewer reads pubkeys, and a display name is a claim the event itself doesn't make. If author profiles are already in hand for other reasons, adding a name beside the pubkey is a free courtesy the Architect may take — but it must never *replace* the pubkey.
+- **(b) The epic guardrail on POV needs amending, and the Reviewer should not read this story as violating it.** The epic says: *"A raw signed event is POV-invariant… Inspection surfaces in this epic must not be POV-namespaced, POV-filtered, or POV-gated."* Written for Story 1, where it is exactly right. Read literally it forbids **this** story. The distinction the guardrail is missing: an event's **bytes** are POV-invariant (and must stay so — AC-6), but **which events are in view** here is per-POV by construction, because the set is defined as "the events behind *this POV's* `+N −M`". That is not a violation of POV-first, it is an expression of it — the prd-seed already draws the same line (*"the taggings around a tag are per-POV; the definition event is not"*), and this story lands on the per-POV side of it. **Recommendation: amend the epic guardrail to separate the two claims** as part of reopening the epic.
+- **(c) Payload strategy is genuinely open, and Story 1's answer does not transfer.** Story 1 shipped the raw event in the page's existing header response because that request fires once per page mount and the event is ~641 bytes. Here the equivalent move means N+M events for every row on every page load — `aos-2026-participant` has 99 rows — for panels almost nobody opens. **Recommendation: the Architect re-derives this from scratch rather than inheriting Story 1's shape**; the lazy-on-open option Story 1 rejected is likely right this time, and AC-5's loading/failure states exist because that is the honest cost of it.
+- **(d) Does this reopen the epic and the book, or start new ones?** — **SETTLED at the Planning gate: reopen the epic, open a new book.** *(This corrects the recommendation originally recorded here, which said "reopen both". Reading the `tag-event-inspector` book's actual acceptance frame changed the answer, and the correction is kept visible rather than overwritten.)*
+  - **Epic → reopened.** Its goal — *"Make the signed nostr events behind tag **surfaces** directly inspectable in-product"* — is not met by one story on one object type, and profile rows on the tag page are squarely a tag surface. It was retired early, not completed. Done: Status back to `Active`, this story added to its Stories list, story #1's stale "Draft" corrected to Done, and its POV / "emulate, don't diverge" guardrails amended (open questions (b) and the Product decision #1 divergence).
+  - **Book → new (`audits/profile-tagging-inspector/`), and `tag-event-inspector`'s book stays closed.** That book's four-bullet frame was fully met and remains met; reopening a satisfied frame would be dishonest bookkeeping and would leave a book that can never meaningfully complete again. That book set this precedent itself at its own open: *"this is a new capability on the tag detail page, not a continuation of either."* Taggings are a different object (`nostr-user-tag`, not `tag`) with a different cardinality — a new bounded ask, so a new frame. An epic may span books.
+
+## Linked artifacts
+
+- ADR: (filled in after Architecture phase)
+- Test plan: (filled in after Test Design phase)
+- Review: (filled in after Review phase)
