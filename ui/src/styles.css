@@ -5031,7 +5031,38 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   .bs-tag-row > .bs-tag-row-actions { display: none; }
 }
 @media (min-width: 769px) {
+  /* Base: the ⋯ is narrow-only. UNCHANGED on purpose — the "Tag someone" search
+     modal renders the same row component and shares this rule, so deleting it
+     would sprout a kebab on the modal's rows too (tag-event-inspector #2 /
+     ADR 0002 D5, story decision 3: the modal is untouched). */
   .bs-tag-row-overflow { display: none; }
+
+  /* tag-event-inspector #2 / ADR 0002 D5-D6 — only the surface that OFFERS
+     raw-event inspection gets a wide-viewport kebab. `visibility`, not `display`:
+     the row's reserved-width no-jiggle invariant (see .bs-tag-row-actions above)
+     means slots hold their width permanently and only toggle visibility — a
+     display toggle would reflow the row on hover, the exact defect that invariant
+     exists to prevent. :focus-within is load-bearing: the dropdown lives INSIDE
+     .bs-tag-row-overflow, so a :hover-only rule would hide the trigger the moment
+     the pointer entered its own menu. */
+  .bs-tag-row.is-raw-enabled .bs-tag-row-overflow {
+    display: inline-flex;
+    visibility: hidden;
+  }
+  .bs-tag-row.is-raw-enabled:hover .bs-tag-row-overflow,
+  .bs-tag-row.is-raw-enabled.is-expanded-mode .bs-tag-row-overflow,
+  .bs-tag-row.is-raw-enabled:focus-within .bs-tag-row-overflow {
+    visibility: visible;
+  }
+
+  /* AC-2: above 769px the menu carries ONLY the raw item — scores and Apply/
+     Dispute are already inline on the row at this width, so duplicating them in
+     the menu is redundant. `display: none`, NOT visibility: "contains only" has
+     to be true for a screen reader too, and visibility:hidden would leave these
+     nodes in the accessibility tree. */
+  .bs-tag-row-overflow-menu .bs-tag-row-scores,
+  .bs-tag-row-overflow-menu .bs-tag-row-actions,
+  .bs-tag-row-overflow-help { display: none; }
 }
 .bs-tag-row-overflow-trigger {
   font: inherit;
@@ -5123,6 +5154,85 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   line-height: 1.35;
   color: rgba(255, 255, 255, 0.55);
 }
+/* ── tag-event-inspector #2 / ADR 0002 — the tagging raw-event inspector ── */
+
+/* AC-2: Apply/Dispute stay left, Show/Hide Raw Event floats to the menu's right
+   edge. margin-left:auto needs a flex parent — this is that parent. Same
+   mechanism .bsp-note-menu already uses. */
+.bs-tag-row-overflow-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.bs-tag-row-raw-btn {
+  margin-left: auto;
+  flex: none;
+  font: inherit;
+  font-size: 0.85rem;
+  padding: 0.45rem 0.7rem;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.04);
+  color: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.bs-tag-row-raw-btn:hover { background: rgba(255, 255, 255, 0.08); }
+
+/* AC-3: the panel wraps onto its own line BELOW this row's content.
+   .bs-tag-row is display:flex; flex-wrap:wrap — without flex-basis:100% this
+   would lay out as another flex item IN the row. The .bs-tag-row-error rule
+   above is the in-file precedent; reuse, don't invent. */
+.bs-tag-row-raw {
+  flex-basis: 100%;
+  margin: 0 0 0.75rem;
+}
+.bs-tag-row-raw-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+.bs-tag-row-raw-block {
+  padding: 0.6rem 0.75rem;
+  background: var(--bg-secondary, #1a1a2e);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  /* min-width:0 so a long author pubkey can't force the flex row to overflow. */
+  min-width: 0;
+}
+.bs-tag-row-raw-caption {
+  margin: 0 0 0.4rem;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  font-size: 0.75rem;
+}
+.bs-tag-row-raw-polarity { font-weight: 600; }
+.bs-tag-row-raw-polarity.is-apply { color: #86efac; }
+.bs-tag-row-raw-polarity.is-dispute { color: #fca5a5; }
+.bs-tag-row-raw-author {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.7rem;
+  color: var(--text-muted, #94a3b8);
+  /* 64 unbroken hex chars have no break opportunity — without this they push
+     the caption past the viewport on a narrow screen. */
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+/* The one block the row's +N/-M does NOT account for: present via the
+   viewer-union, excluded by this POV's WoT filter. Marked because
+   onlyViewerVisible is false whenever the row also carries trusted assertions,
+   so the row badge explains nothing there (ADR 0002 D1). */
+.bs-tag-row-raw-uncounted {
+  font-size: 0.68rem;
+  padding: 0.1rem 0.4rem;
+  border-radius: 999px;
+  border: 1px solid rgba(251, 191, 36, 0.4);
+  color: #fbbf24;
+  white-space: nowrap;
+}
+
 /* Story 18 — "View profile" link inside the menu (search context).
    When the tap-on-row no longer navigates, this is the way out. */
 .bs-tag-row-overflow-visit {

@@ -626,9 +626,16 @@ function parsePinTagEventId(ev) {
  *   - deduped: the replaceable-collapsed scan, so callers (handleProfilesTagged)
  *     can reuse it for the viewer-union pre-pass without re-scanning strfry.
  *   - wotFiltering: boolean indicating whether the WoT-author filter was applied.
+ *   - authorAllowed: (authorPubkey) => boolean — this POV's trust verdict, the
+ *     same predicate the counts above were computed with (tag-event-inspector
+ *     ADR 0002 D2). Handed out rather than re-derived because it closes over
+ *     Meili docs already fetched here: rebuilding it in the caller would mean a
+ *     second meiliFetchProfilesByPubkey over every author, per request, and two
+ *     sources of truth for the one question the counts turn on.
  *
  * No response-shape enrichment (no displayName/picture, no sort, no viewer-union)
- * — that's the caller's job.
+ * — that's the caller's job. `authorAllowed` is handed out so the caller can do
+ * that job (row.assertions) without re-doing this one.
  */
 async function aggregateProfilesTagged({ tagEventId, povSuffix, minRank }) {
   const wotFiltering = !!povSuffix && Number.isFinite(minRank);
@@ -684,7 +691,7 @@ async function aggregateProfilesTagged({ tagEventId, povSuffix, minRank }) {
     else if (bucket === 'dispute') entry.disputes += 1;
   }
 
-  return { byTarget, deduped, wotFiltering };
+  return { byTarget, deduped, wotFiltering, authorAllowed };
 }
 
 /**
@@ -921,7 +928,7 @@ async function handleProfilesTagged(req, res) {
     // dispute aggregation under the active POV's WoT filter, plus the
     // deduped scan (so the viewer-union below can reuse it without a
     // second strfry round-trip).
-    const { byTarget, deduped, wotFiltering } = await aggregateProfilesTagged({
+    const { byTarget, deduped, wotFiltering, authorAllowed } = await aggregateProfilesTagged({
       tagEventId, povSuffix, minRank,
     });
 
@@ -948,6 +955,35 @@ async function handleProfilesTagged(req, res) {
       }
     }
 
+    // tag-event-inspector #2 / ADR 0002 D1-D2 — the evidence behind each row's
+    // +N/-M: the signed assertions themselves, so a reader can audit the number
+    // instead of trusting it. Same predicate the counts used (authorAllowed),
+    // unioned with the viewer's own — the row-union rule above, one level down.
+    //
+    // `counted` marks the blocks the numbers DO account for. It exists for one
+    // case: a viewer whose own assertion fails this POV's filter, on a row that
+    // ALSO carries trusted assertions. There `onlyViewerVisible` is false (the
+    // counts aren't zero, so no badge renders) yet the union still lands the
+    // viewer's event in the panel — three blocks under a "+2". Without the flag,
+    // AC-4's "count the blocks, get the row's numbers" is simply false there.
+    // With it: count the counted:true blocks, always.
+    const assertionsByTarget = new Map();
+    for (const ev of deduped) {
+      const pTag = (ev.tags || []).find((t) => t[0] === 'p');
+      if (!pTag?.[1]) continue;
+      const polarity = bucketize(readPolarity(ev));
+      // Neutral contributes to neither +N nor -M (see the counts above), and the
+      // panel's contract is "the events behind THIS ROW'S NUMBERS" — so it is
+      // correctly outside. Deliberate (story Product decision #5), not an oversight.
+      if (polarity === 'neutral') continue;
+      const counted = authorAllowed(ev.pubkey);
+      // Neither trusted by this POV nor the viewer's own ⇒ not this row's evidence.
+      if (!counted && ev.pubkey !== viewerPubkey) continue;
+      const list = assertionsByTarget.get(pTag[1]) || [];
+      list.push({ polarity, counted, event: toRawEvent(ev) });
+      assertionsByTarget.set(pTag[1], list);
+    }
+
     // Enrich each row with target Meili doc (displayName, picture). Targets
     // without a Meili doc surface with both fields null.
     const targetPubkeys = Array.from(byTarget.keys());
@@ -969,6 +1005,15 @@ async function handleProfilesTagged(req, res) {
       // unconditionally.
       entry.onlyViewerVisible = !!viewerAssertions[entry.pubkey]
         && entry.applications === 0 && entry.disputes === 0;
+      // tag-event-inspector #2 / ADR 0002 D1. Always assigned (|| []) so the
+      // client reads it unconditionally — same convention as onlyViewerVisible.
+      // Order is TOTAL and therefore stable across requests (AC-4): applications
+      // before disputes (matching the +N/-M reading order), then newest first,
+      // then event id — so two assertions sharing a created_at cannot swap.
+      entry.assertions = (assertionsByTarget.get(entry.pubkey) || []).sort((a, b) =>
+        (a.polarity === b.polarity ? 0 : a.polarity === 'apply' ? -1 : 1)
+        || (b.event.created_at - a.event.created_at)
+        || a.event.id.localeCompare(b.event.id));
     }
 
     const rows = Array.from(byTarget.values());

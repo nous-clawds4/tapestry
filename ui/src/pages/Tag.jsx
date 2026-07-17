@@ -386,6 +386,11 @@ export default function Tag() {
                           viewerState={viewerAssertions[row.pubkey] || null}
                           showActions={!!user}
                           showActionsOnHover={!viewOptionsExpanded}
+                          // tag-event-inspector #2 / ADR 0002 D5 — the tag detail
+                          // page is the one surface that offers raw-event
+                          // inspection. TagSomeoneModal renders the same component
+                          // and deliberately does NOT pass this.
+                          showRawEvent
                           onApply={handleApply}
                           onDispute={handleDispute}
                         />
