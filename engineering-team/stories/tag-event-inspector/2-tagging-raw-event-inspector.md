@@ -82,6 +82,6 @@ Recorded with a recommendation each; none blocks Architecture.
 ## Linked artifacts
 
 - ADR: `engineering-team/decisions/tag-event-inspector/0002-tagging-raw-event-inspector.md`
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/tag-event-inspector/2-tagging-raw-event-inspector.test-plan.md`
 - Review: (filled in after Review phase)
 - Book: `engineering-team/audits/profile-tagging-inspector/book.md`
