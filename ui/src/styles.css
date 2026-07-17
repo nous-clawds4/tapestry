@@ -5794,6 +5794,125 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
 .bs-tag-pins-link:hover {
   text-decoration: underline;
 }
+/* contextual-pins ADR 0001 — pin affordances, context picker, pin switcher. */
+
+/* Side-by-side Pin / Pin-to-community buttons. */
+.bs-tag-pin-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+.bs-tag-pin-secondary {
+  background: transparent;
+}
+.bs-tag-pin-secondary:hover {
+  background: rgba(99, 102, 241, 0.12);
+}
+
+/* "Pin to a community" modal — reuses the tsm-* dialog skeleton; this styles
+   the filtered context list inside it. */
+.ptc-list {
+  list-style: none;
+  margin: 0.6rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  max-height: min(50vh, 22rem);
+  overflow-y: auto;
+}
+.ptc-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  font: inherit;
+  font-size: 0.9rem;
+  text-align: left;
+  padding: 0.6rem 0.8rem;
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  border-radius: 8px;
+  background: rgba(99, 102, 241, 0.06);
+  color: #c7d2fe;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.ptc-item:hover:not([disabled]) {
+  background: rgba(99, 102, 241, 0.18);
+  border-color: rgba(99, 102, 241, 0.5);
+}
+.ptc-item.is-pinned,
+.ptc-item[disabled] {
+  cursor: default;
+  opacity: 0.85;
+}
+.ptc-item.is-pinned {
+  color: #86efac;
+  border-color: rgba(134, 239, 172, 0.35);
+  background: rgba(134, 239, 172, 0.08);
+}
+.ptc-item-badge {
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+/* Pinned-tab pin switcher — chips to navigate coexisting pins of one tag. */
+.bs-pin-switcher {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0 0 0.9rem;
+}
+.bs-pin-switcher-chip {
+  font: inherit;
+  font-size: 0.82rem;
+  padding: 0.35rem 0.7rem;
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  border-radius: 999px;
+  background: rgba(99, 102, 241, 0.06);
+  color: #a5b4fc;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.bs-pin-switcher-chip:hover {
+  background: rgba(99, 102, 241, 0.15);
+}
+.bs-pin-switcher-chip.is-active {
+  background: rgba(99, 102, 241, 0.28);
+  border-color: rgba(99, 102, 241, 0.6);
+  color: #e0e7ff;
+}
+/* Pins index — per-tag context badges (one tag row, its pins named). */
+.bs-pins-row-contexts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-top: 0.35rem;
+}
+.bs-pins-context-badge {
+  font-size: 0.75rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  background: rgba(148, 163, 184, 0.1);
+  color: var(--text-secondary, #94a3b8);
+}
+.bs-pins-context-badge.is-community {
+  border-color: rgba(99, 102, 241, 0.4);
+  background: rgba(99, 102, 241, 0.12);
+  color: #a5b4fc;
+}
+/* Context label at the top of a pin's detail panel. */
+.bs-pindetail-context {
+  margin: 0 0 0.75rem;
+  font-size: 0.85rem;
+  color: var(--text-secondary, #94a3b8);
+}
+.bs-pindetail-context strong {
+  color: #c7d2fe;
+}
 
 /* /pins page */
 .bs-pins-page {

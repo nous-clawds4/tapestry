@@ -16,6 +16,28 @@ import { applyEventTagging } from '@tapestry/event-tagging';
 const LEGACY_TA_PUBKEY = '82b75e474dda005e912bcbb910391c60c2b89cc7faf5d3c30b7c59a324973833';
 const HEX64 = /^[0-9a-f]{64}$/;
 
+// contextual-pins Story 3 — after a viewer tags an event, refresh THEIR pins so
+// the newly-tagged note is folded into the TA-signed note TLs (kind-30393) the
+// Pinned tab displays. Server-side recompute (no NIP-07 prompt); the
+// for-viewer endpoint recomputes ALL of the viewer's pins, which satisfies the
+// fan-out across coexisting neutral + context pins for free, and no-ops when the
+// viewer has no pins. Debounced per viewer to coalesce rapid tag/untag bursts.
+const _pinRefreshTimers = new Map();
+const PIN_REFRESH_DEBOUNCE_MS = 1500;
+function refreshViewerPinsDebounced(viewerPubkey) {
+  if (!HEX64.test(viewerPubkey || '')) return;
+  const existing = _pinRefreshTimers.get(viewerPubkey);
+  if (existing) clearTimeout(existing);
+  const timer = setTimeout(() => {
+    _pinRefreshTimers.delete(viewerPubkey);
+    fetch(
+      `/api/trusted-list/refresh-pinned-tags-for-viewer?viewerPubkey=${encodeURIComponent(viewerPubkey)}`,
+      { method: 'POST' }
+    ).catch(() => { /* best-effort; the note appears on the next materialization */ });
+  }, PIN_REFRESH_DEBOUNCE_MS);
+  _pinRefreshTimers.set(viewerPubkey, timer);
+}
+
 /**
  * Story 5 — the client publish path for event-taggings. Exposes apply/dispute;
  * the core orchestrator decides the 1/2/3-publish sequence (existing header /
@@ -72,9 +94,16 @@ export function useEventTagging() {
     // Creating a tag or first-applying it to an event may graduate it into the event
     // applicability list — nudge the server to republish (debounced + diff-guarded). ADR 0003.
     notifyTagApplicability();
+    // Story 3 — keep the asserter's own pins of this tag current.
+    refreshViewerPinsDebounced(user?.pubkey);
     return r;
-  }, [run]);
-  const disputeTag = useCallback((tagInput, target) => run(tagInput, target, -1), [run]);
+  }, [run, user?.pubkey]);
+  const disputeTag = useCallback(async (tagInput, target) => {
+    const r = await run(tagInput, target, -1);
+    // Story 3 — a dispute may drop the note from the pin's list; refresh too.
+    refreshViewerPinsDebounced(user?.pubkey);
+    return r;
+  }, [run, user?.pubkey]);
 
   return { applyTag, disputeTag };
 }

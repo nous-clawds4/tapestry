@@ -3,6 +3,9 @@
 **Status:** Proposed
 **Date:** 2026-07-16
 **Story:** `engineering-team/stories/contextual-pins/1-pin-a-tag-within-a-community-context.md`
+**Also realizes (batched — see Amendment I):**
+`engineering-team/stories/contextual-pins/2-display-ta-signed-note-tl-in-pinned-tab.md`,
+`engineering-team/stories/contextual-pins/3-refresh-viewer-pins-on-event-tagging.md`
 
 ## Context
 
@@ -188,8 +191,93 @@ dual-`z` structure later, and a genuine proto-Community-Declaration stepping sto
 
 ## Out of scope
 
-- In-product chip-nav rendering (our client) — follow-on story #2; this ADR ships the pins,
-  the stamp, and the pure `contextPinsToTags` helper only.
+- In-product chip-nav rendering (our client) — a separate deferred follow-on; this ADR ships
+  the pins, the stamp, and the pure `contextPinsToTags` helper only. (Note: story files #2/#3
+  in this epic are the note-TL parity + event-tagging-freshness work of Amendment I, **not**
+  the chip nav.)
 - User-created contexts; more-than-one-context-per-pin; automatic/cloud stamping;
   sub-context breadth expansion; community-derived POV; full Community Declarations. All
   deferred per the story.
+
+---
+
+## Amendment I — Usable increment: multi-pin management UX + note-list parity + event-tagging freshness
+
+**Date:** 2026-07-16 · **Status:** Proposed (batched into this ADR)
+
+**Why.** Story 1 alone ships the protocol substrate (contexts, stamps, discriminated
+first-class pins) but no usable surface: a user can create a context pin but can't see it,
+navigate between coexisting pins, or keep their notes current. This amendment records the
+architecture for the additions that make the increment self-contained and shippable — the
+management UX built on top of Story 1, plus batched **Story 2** (note-list parity) and
+**Story 3** (event-tagging freshness).
+
+### A. Multi-pin management UX (realizes Story 1's "first-class" ACs)
+
+- **Read path — plural.** `/api/profile-tags/by-id` returns `viewerPins` (one entry per
+  coexisting pin, each `{context, pinEventId, createdAt, curationMethod}`), keeping `viewerPin`
+  = the neutral entry for back-compat. `/api/profile-tags/pins` rows gain a `context` field and
+  compute their TL-status d-tag with `pinVariantKey({contextSlug: row.context})`.
+- **Affordance.** Side-by-side `Pin` / `Pin to community…`. The community button opens
+  `PinToContextModal` — a standard modal (mirrors `TagSomeoneModal`'s `tsm-*` skeleton: Esc /
+  backdrop / × dismiss, focus-on-open, mobile) with a client-side typeahead filter over
+  `KNOWN_CONTEXTS`; already-pinned contexts are disabled with a ✓ badge.
+- **Pinned tab.** Appears whenever `viewerPins.length > 0` (any pin, neutral or context), not
+  just the neutral pin. A **pin switcher** (chips) navigates the viewer's pins; order is
+  **Personal first, then contexts alphabetically by name** (never by `created_at`, which a
+  curation edit bumps). `PinnedListPanel` operates on the *selected* pin: it threads the pin's
+  `contextSlug` through `computeTLDTag` / `computeNoteBookmarkDTag`, shows a context label, and
+  **re-pins with the pin's context on curation edit** (else editing a context pin would
+  silently collapse it into the neutral pin). Context pins recompute their TA-signed TL via the
+  server refresh (`refresh-pinned-tag` by `pinEventId`, which is context-aware); the neutral
+  pin keeps the existing client re-export path.
+- **Materialize-on-create.** `handlePinToContext` awaits `refresh-pinned-tag` after pinning
+  (as the neutral path does) so the context pin's kind-30392 exists before the panel reads it.
+
+### B. Story 2 — display the TA-signed note TL (kind-30393), not the client kind-30003
+
+The Pinned tab's Notes view currently reads the client-signed **kind-30003** bookmark set
+(`usePinnedNotes`), while Profiles reads the TA-signed **kind-30392** (`useTLDetail`). The
+TA-signed **kind-30393** note TL already exists (`runOneNotePin`, ADR event-tagging/0016;
+context-aware as of §A). Repoint the display for parity:
+
+- Rewrite `usePinnedNotes` to read kind-30393 (`authors:[TA]`, `#d:[tl-pin-notes-…-in-<ctx>]`),
+  resolving the TL's `e`-tag members to note cards. Add a **client note-TL d-tag helper**
+  mirroring the server's `tl-pin-notes-…` composition (context-aware) — the profile side
+  already has `computeTLDTag`; notes need the analogous helper.
+- Re-gate the Profiles/Notes toggle on **the pin covering notes / the note TL having members**,
+  not on a client kind-30003 existing.
+- **kind-30003 stays the export artifact** (Export unchanged), exactly as kind-30000 is for
+  profiles. Repoint the drift indicator to compare the displayed kind-30393 against the live
+  curated set. Handle retracted/partial TL states like the profile TL detail does.
+- Retire the stale `publishTagPin.js` comment ("no TA-signed note-TL yet (issue #336)").
+
+### C. Story 3 — refresh the viewer's pins on event-tagging (no prompt)
+
+Mirror the profile hook (`useProfileTags → reexportAfterAssertion`) for event tagging, but —
+because §B makes the displayed note list TA-signed — as a **server-side recompute with no
+NIP-07 prompt**:
+
+- After a viewer publishes an event-tagging (apply *and* dispute/retract) for tag T, call the
+  server refresh for the viewer's pins of T. Preferred vehicle: `refresh-pinned-tags-for-viewer`
+  (recomputes all of a viewer's pins, TA-signed, already context-aware) — which satisfies the
+  **fan-out across all coexisting pins** requirement for free. No-op when the viewer has no pin
+  of T.
+- Debounce per (viewer, tag) to coalesce rapid tag/untag bursts (mirror
+  `syncPinnedExportsForTag`'s per-pin debounce).
+- **Trigger site (Architect to confirm at implementation):** locate the event-tagging publish
+  choke point(s). Unlike the centralized profile path (`useProfileTags`), event-taggings may be
+  published from several note/event surfaces; the hook must cover every apply/dispute path
+  (centralize if needed).
+- Scope: only the tagging user's **own** pins — not other users' pins (that is the separate
+  `tag-applicability/4-event-driven-applicability-republish` work).
+
+### Consequences of Amendment I
+
+- Turns the epic into a self-contained, usable increment: create → see → navigate → curate →
+  stay fresh, for both neutral and context pins, across profiles and notes.
+- Story 3 becomes cheap (one server call, no prompt) **only because** Story 2 moved the note
+  display to the TA-signed TL. Sequence accordingly: **B before C**.
+- `kind-30003` is demoted to an export-only artifact; no data migration (it stays valid, just
+  no longer the display source).
+- **Firmware reinstall required?** No additional concepts beyond Story 1's two contexts.

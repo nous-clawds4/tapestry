@@ -17,16 +17,12 @@ import React from 'react';
  * Loading and error states are driven by the parent (Tag.jsx).
  */
 export default function TagPinAffordance({
-  user, viewerPin, viewerPins = [], contexts = [], onPin, onPinToContext,
+  user, viewerPin, onPin, onOpenContextPicker,
   loading, error, activeTab, onSwitchTab,
 }) {
   if (!user) return null;
   const isPinned = !!viewerPin;
   const onPinnedTab = activeTab === 'pinned';
-  // contextual-pins ADR 0001 — which contexts this tag is already pinned to.
-  const pinnedContextSlugs = new Set(
-    viewerPins.filter((p) => p && p.context).map((p) => p.context)
-  );
 
   const handleClick = () => {
     if (loading) return;
@@ -59,42 +55,32 @@ export default function TagPinAffordance({
 
   return (
     <div className="bs-tag-pin-wrap">
-      <button
-        type="button"
-        className={`bs-tag-pin${isPinned ? ' is-pinned' : ''}`}
-        onClick={handleClick}
-        disabled={loading}
-        aria-label={ariaLabel}
-        data-bs-tooltip={tooltip}
-        data-bs-tooltip-wrap="true"
-      >
-        <span className="bs-tag-pin-label-default">{label}</span>
-      </button>
-      {onPinToContext && contexts.length > 0 && (
-        <details className="bs-tag-pin-context">
-          <summary>📌 Pin to community…</summary>
-          <ul className="bs-tag-pin-context-list">
-            {contexts.map((c) => {
-              const already = pinnedContextSlugs.has(c.slug);
-              return (
-                <li key={c.slug}>
-                  <button
-                    type="button"
-                    className="bs-tag-pin-context-item"
-                    onClick={() => { if (!loading && !already) onPinToContext(c); }}
-                    disabled={loading || already}
-                    aria-label={already ? `Already pinned to ${c.name}` : `Pin to ${c.name}`}
-                    data-bs-tooltip={`Pin this tag within the ${c.name} community context — a distinct, first-class pin that coexists with your neutral pin.`}
-                    data-bs-tooltip-wrap="true"
-                  >
-                    {already ? `✓ ${c.name}` : c.name}
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        </details>
-      )}
+      <div className="bs-tag-pin-actions">
+        <button
+          type="button"
+          className={`bs-tag-pin${isPinned ? ' is-pinned' : ''}`}
+          onClick={handleClick}
+          disabled={loading}
+          aria-label={ariaLabel}
+          data-bs-tooltip={tooltip}
+          data-bs-tooltip-wrap="true"
+        >
+          <span className="bs-tag-pin-label-default">{label}</span>
+        </button>
+        {onOpenContextPicker && (
+          <button
+            type="button"
+            className="bs-tag-pin bs-tag-pin-secondary"
+            onClick={() => { if (!loading) onOpenContextPicker(); }}
+            disabled={loading}
+            aria-label="Pin to a community"
+            data-bs-tooltip="Pin this tag within a community context — a distinct, first-class pin that coexists with your other pins of this tag."
+            data-bs-tooltip-wrap="true"
+          >
+            📌 Pin to community…
+          </button>
+        )}
+      </div>
       {error && (
         <p className="bs-tag-pin-error" role="alert">⚠️ {error}</p>
       )}

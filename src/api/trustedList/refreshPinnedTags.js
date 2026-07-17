@@ -248,7 +248,14 @@ async function refreshOnePinnedTagById({ pinEventId, sessionPubkey }) {
   if (sessionPubkey && pin.pubkey !== sessionPubkey) {
     return { status: 'error', error: 'forbidden' };
   }
-  return await runOnePin(pin);
+  // Recompute BOTH the profile TL (kind-30392) and the note TL (kind-30393) for
+  // this pin. Previously only runOnePin (profiles) ran here, so a single-pin
+  // refresh — e.g. the "Update pinned notes" button or a context-pin curation
+  // edit — never recomputed the note list, leaving its drift stuck. The note
+  // twin no-ops for profile-only pins (returns 'skipped').
+  const profileResult = await runOnePin(pin);
+  const noteResult = await runOneNotePin(pin);
+  return { ...profileResult, noteStatus: noteResult && noteResult.status };
 }
 
 /**
@@ -335,7 +342,11 @@ async function runOneNotePin(pinEvent, options = {}) {
     tagAuthor: tag.authorPubkey, slug: tag.slug, authorities: [TA_PUBKEY],
     povSuffix, minRank, viewerPubkey: undefined, sort,
   });
-  const curated = curateNotes(fullMembers || [], noteMethod);
+  // Honor the pin's cutoff for notes too (mirrors the profile side). Default 1
+  // (same fallback runOnePin uses) so a single self-tagging counts, but cutoff ≥ 2
+  // requires that many trusted taggings — contextual-pins note-curation fix.
+  const noteCutoff = Number.isFinite(curation.cutoff) ? curation.cutoff : 1;
+  const curated = curateNotes(fullMembers || [], noteMethod, noteCutoff);
   const published = curated.slice(0, NOTE_TL_MEMBER_CAP);
   const totalTrusted = Number.isFinite(total) ? total : curated.length;
   // Partial when the taggings scan was bounded, or the curated set exceeds what one event can carry.

@@ -76,6 +76,16 @@ export function computeTLDTag({ observer, tagAuthorPubkey, tagSlug, contextSlug 
 }
 
 /**
+ * Compose the kind-30393 NOTE Trusted List `d`-tag — the TA-signed note list
+ * the Pinned tab's Notes view displays (contextual-pins Story 2). Mirrors the
+ * server's formula (`src/api/trustedList/refreshPinnedTags.js` runOneNotePin:
+ * `tl-pin-notes-<obs8>-<tagAuthor8>-<slug><variant>`). Keep in lockstep with it.
+ */
+export function computeNoteTLDTag({ observer, tagAuthorPubkey, tagSlug, contextSlug }) {
+  return `tl-pin-notes-${observer.slice(0, 8)}-${tagAuthorPubkey.slice(0, 8)}-${tagSlug}${pinVariantKey({ contextSlug })}`;
+}
+
+/**
  * Default curation-method payload.
  *
  * Story 17 flipped cutoff 2→1 (WYSIWYG with Curated view) and
@@ -336,9 +346,10 @@ export function computeNoteBookmarkDTag({ viewerPubkey, tagAuthorPubkey, tagSlug
 /**
  * Story 12 / ADR 0015 — the NOTE analog of publishNip51ExportForPin: materialize
  * a note-tag's curated members into a user-signed **kind-30003 bookmark set**
- * (elements are `e` tags, per the registry projection). Export-only depth (v1):
- * membership is computed client-side from `/api/event-tags/for-tag` at pin time
- * (a point-in-time snapshot); there is no TA-signed note-TL yet (issue #336).
+ * (elements are `e` tags, per the registry projection). This is the cross-client
+ * EXPORT artifact (the note analog of the kind-30000 follow-set export). The
+ * Pinned tab now DISPLAYS the TA-signed kind-30393 note TL instead (contextual-
+ * pins Story 2); this kind-30003 export remains a separate, on-demand action.
  *
  * @param {object} args
  * @param {{authorPubkey:string, slug:string, name?:string}} args.tag

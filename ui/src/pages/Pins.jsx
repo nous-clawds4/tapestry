@@ -4,6 +4,7 @@ import TopBar from '../components/TopBar';
 import { useAuth } from '../context/AuthContext';
 import usePins from '../hooks/usePins';
 import useRefreshPin from '../hooks/useRefreshPin';
+import { KNOWN_CONTEXTS } from '@tapestry/event-tagging';
 
 /**
  * Story 10 / ADR 0009 — viewer's pinned-tag list page.
@@ -114,21 +115,40 @@ function renderExportStatusLine(nip51) {
  * right-edge chevron signals tappability — important on touch, where
  * there is no hover. Read-only status lines remain informational.
  */
-function PinRow({ row }) {
-  const isUnsupported = row.tlStatus?.status === 'unsupported';
+// contextual-pins ADR 0001 — the viewer may hold several coexisting pins of one
+// tag (neutral + one per community context). The index shows each TAG once; the
+// per-pin management lives on the tag's Pinned tab. A badge line names the pins.
+function contextLabel(context) {
+  if (!context) return 'Personal';
+  return KNOWN_CONTEXTS.find((c) => c.slug === context)?.name || context;
+}
+
+function PinRow({ group }) {
+  const { tag, pins } = group;
+  // Neutral first, then contexts alphabetically — stable regardless of pin order.
+  const ordered = [...pins].sort((a, b) => {
+    if (!a.context && b.context) return -1;
+    if (a.context && !b.context) return 1;
+    return contextLabel(a.context).localeCompare(contextLabel(b.context));
+  });
   return (
     <li className="bs-pins-row">
       <Link
         className="bs-pins-row-link"
-        to={`/tag/${encodeURIComponent(row.tag.slug)}/${row.tag.eventId}?tab=pinned`}
+        to={`/tag/${encodeURIComponent(tag.slug)}/${tag.eventId}?tab=pinned`}
       >
         <span className="bs-pins-row-main">
-          <span className="bs-pins-row-name">{row.tag.name}</span>
-          {row.tag.description && (
-            <span className="bs-pins-row-desc">{row.tag.description}</span>
+          <span className="bs-pins-row-name">{tag.name}</span>
+          {tag.description && (
+            <span className="bs-pins-row-desc">{tag.description}</span>
           )}
-          {renderStatusLine(row.tlStatus)}
-          {!isUnsupported && renderExportStatusLine(row.nip51ExportStatus)}
+          <span className="bs-pins-row-contexts">
+            {ordered.map((p) => (
+              <span key={p.pinEventId} className={`bs-pins-context-badge${p.context ? ' is-community' : ''}`}>
+                📌 {contextLabel(p.context)}
+              </span>
+            ))}
+          </span>
         </span>
         <span className="bs-pins-row-chevron" aria-hidden="true">›</span>
       </Link>
@@ -204,9 +224,18 @@ export default function Pins() {
               </div>
             )}
             <ul className="bs-pins-list">
-              {pins.map((row) => (
-                <PinRow key={row.pinEventId} row={row} />
-              ))}
+              {(() => {
+                // Group pin rows by tag so each tag appears once.
+                const byTag = new Map();
+                for (const row of pins) {
+                  const key = row.tag.eventId;
+                  if (!byTag.has(key)) byTag.set(key, { tag: row.tag, pins: [] });
+                  byTag.get(key).pins.push(row);
+                }
+                return [...byTag.values()].map((group) => (
+                  <PinRow key={group.tag.eventId} group={group} />
+                ));
+              })()}
             </ul>
             <PinsMemberCountHint />
           </>

@@ -7,6 +7,7 @@ import TagViewControls from '../components/TagViewControls';
 import TagSomeoneModal from '../components/TagSomeoneModal';
 import TagNotesView from '../components/TagNotesView';
 import PinnedListPanel from '../components/PinnedListPanel';
+import PinToContextModal from '../components/PinToContextModal';
 import PovStatusNotice from '../components/PovStatusNotice';
 import { useAuth } from '../context/AuthContext';
 import { useConfig } from '../context/ConfigContext';
@@ -71,14 +72,47 @@ export default function Tag() {
   // pinned (AC-3), unless a ?tab= param says otherwise. A stale
   // ?tab=pinned on an un-pinned tag falls back to the default tab.
   const isPinned = !!viewerPin;
+  // contextual-pins ADR 0001 — the Pinned tab exists whenever the viewer holds
+  // ANY pin of this tag (neutral OR context), not just the neutral one.
+  const hasAnyPin = (viewerPins?.length || 0) > 0;
+  const pinnedContextSlugs = new Set(
+    (viewerPins || []).filter((p) => p && p.context).map((p) => p.context)
+  );
+  const [contextPickerOpen, setContextPickerOpen] = useState(false);
+  // Which pin the Pinned tab is currently showing (by pin event id).
+  const [selectedPinId, setSelectedPinId] = useState(null);
   const tabParam = searchParams.get('tab');
   const [activeTab, setActiveTab] = useState('default');
   useEffect(() => {
-    const desired = (tabParam === 'pinned' && isPinned) ? 'pinned'
+    const desired = (tabParam === 'pinned' && hasAnyPin) ? 'pinned'
       : (tabParam === 'default') ? 'default'
-        : (isPinned ? 'pinned' : 'default');
+        : (hasAnyPin ? 'pinned' : 'default');
     setActiveTab(desired);
-  }, [tabParam, isPinned]);
+  }, [tabParam, hasAnyPin]);
+
+  // Keep the selected pin valid as viewerPins changes: default to the neutral
+  // pin, else the most recent.
+  useEffect(() => {
+    if (!viewerPins || viewerPins.length === 0) { setSelectedPinId(null); return; }
+    setSelectedPinId((cur) => {
+      if (cur && viewerPins.some((p) => p.pinEventId === cur)) return cur;
+      const neutral = viewerPins.find((p) => !p.context);
+      return (neutral || viewerPins[0]).pinEventId;
+    });
+  }, [viewerPins]);
+  const selectedPin = (viewerPins || []).find((p) => p.pinEventId === selectedPinId)
+    || viewerPin || null;
+  // Stable display order for the pin switcher: Personal (neutral) always first,
+  // then contexts alphabetically by name. NOT by recency — re-pinning on a
+  // curation edit bumps created_at, which would make the chips jump around.
+  const contextNameOf = (p) => (p.context
+    ? (KNOWN_CONTEXTS.find((c) => c.slug === p.context)?.name || p.context)
+    : '');
+  const orderedViewerPins = [...(viewerPins || [])].sort((a, b) => {
+    if (!a.context && b.context) return -1;
+    if (a.context && !b.context) return 1;
+    return contextNameOf(a).localeCompare(contextNameOf(b));
+  });
 
   const switchTab = (t) => {
     setActiveTab(t);
@@ -186,8 +220,26 @@ export default function Tag() {
     if (!tag || !user || !context) return;
     setPinning(true); setPinError(null);
     try {
-      await pinTag({ tag, curationMethod: defaultCurationMethod(user.pubkey), context, taPubkey });
+      const signed = await pinTag({
+        tag, curationMethod: defaultCurationMethod(user.pubkey), context, taPubkey,
+      });
+      setContextPickerOpen(false);
+      // Materialize this pin's TA-signed kind-30392 so the Pinned tab has a
+      // Trusted List to show. The server refresh is context-aware (runOnePin
+      // reads the context from the pin's z stamp). AWAITed (per ADR
+      // tag-stack-merge-hardening/0001 B2) so the TL exists before the panel
+      // reads it.
+      if (signed?.id) {
+        await fetch('/api/trusted-list/refresh-pinned-tag', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ pinEventId: signed.id }),
+        }).catch(() => { /* best-effort; user can refresh from the Pinned tab */ });
+      }
       await refetchHeader();
+      // Show the new pin: reveal the Pinned tab and select this pin.
+      if (signed?.id) setSelectedPinId(signed.id);
+      switchTab('pinned');
     } catch (e) {
       setPinError(e.message || 'Pin failed');
     } finally {
@@ -253,10 +305,8 @@ export default function Tag() {
                   <TagPinAffordance
                     user={user}
                     viewerPin={viewerPin}
-                    viewerPins={viewerPins}
-                    contexts={KNOWN_CONTEXTS}
                     onPin={handlePin}
-                    onPinToContext={handlePinToContext}
+                    onOpenContextPicker={() => setContextPickerOpen(true)}
                     loading={pinning}
                     error={pinError}
                     activeTab={activeTab}
@@ -272,7 +322,7 @@ export default function Tag() {
             <PovStatusNotice status={povResolution} variant="banner" />
 
             {/* Story 20 / ADR 0018 — tab strip only when the viewer has pinned. */}
-            {isPinned && (
+            {hasAnyPin && (
               <div className="bs-tag-tablist" role="tablist" aria-label="Tag views">
                 <button
                   type="button"
@@ -391,16 +441,40 @@ export default function Tag() {
             </section>
 
             {/* Pinned tab — the viewer's kind-30392 Trusted List view. */}
-            {isPinned && (
+            {hasAnyPin && (
               <section
                 role="tabpanel"
                 id="bs-tag-panel-pinned"
                 aria-labelledby="bs-tag-tab-pinned"
                 hidden={activeTab !== 'pinned'}
               >
+                {/* contextual-pins ADR 0001 — pin switcher: navigate between
+                    the viewer's coexisting pins of this tag (Personal + one
+                    per community context). Hidden when there's only one pin. */}
+                {orderedViewerPins.length > 1 && (
+                  <div className="bs-pin-switcher" role="tablist" aria-label="Your pins of this tag">
+                    {orderedViewerPins.map((p) => {
+                      const label = p.context ? contextNameOf(p) : 'Personal';
+                      const active = p.pinEventId === selectedPinId;
+                      return (
+                        <button
+                          key={p.pinEventId}
+                          type="button"
+                          role="tab"
+                          aria-selected={active}
+                          className={`bs-pin-switcher-chip${active ? ' is-active' : ''}`}
+                          onClick={() => setSelectedPinId(p.pinEventId)}
+                        >
+                          📌 {label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
                 <PinnedListPanel
+                  key={selectedPin?.pinEventId || 'none'}
                   tag={tag}
-                  viewerPin={viewerPin}
+                  pin={selectedPin}
                   onChanged={refetchHeader}
                   exportSync={exportSync}
                 />
@@ -417,6 +491,15 @@ export default function Tag() {
               povSuffix={povSuffix}
               onApply={handleApply}
               onDispute={handleDispute}
+            />
+
+            <PinToContextModal
+              open={contextPickerOpen}
+              onClose={() => setContextPickerOpen(false)}
+              contexts={KNOWN_CONTEXTS}
+              pinnedContextSlugs={pinnedContextSlugs}
+              onPick={handlePinToContext}
+              busy={pinning}
             />
           </>
         )}

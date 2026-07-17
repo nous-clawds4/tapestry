@@ -24,7 +24,7 @@
 
 const { exec } = require('child_process');
 const { getOwnerAssistantPubkey } = require('../../utils/assistantKeys');
-const { contextSlugOfPin } = require('../../lib/event-tagging');
+const { contextSlugOfPin, pinVariantKey } = require('../../lib/event-tagging');
 
 /**
  * Legacy z-tag-composition pubkey — see ADR 0015.
@@ -1516,6 +1516,9 @@ async function handlePins(req, res) {
         pinEventId: pin.id,
         createdAt: pin.created_at,
         curationMethod,
+        // contextual-pins ADR 0001 — the pin's community context (or null for a
+        // neutral pin), recovered from its z stamp. Drives per-pin TL d-tags.
+        context: contextSlugOfPin(pin, TA_PUBKEY),
         tag: {
           eventId: tagEv.id,
           slug: tagPayload.slug,
@@ -1576,7 +1579,7 @@ async function enrichRowsWithTLStatus(pins) {
       row._tlDTag = null;
       continue;
     }
-    const dTag = `tl-pin-${observer.slice(0, 8)}-${row.tag.authorPubkey.slice(0, 8)}-${row.tag.slug}`;
+    const dTag = `tl-pin-${observer.slice(0, 8)}-${row.tag.authorPubkey.slice(0, 8)}-${row.tag.slug}${pinVariantKey({ contextSlug: row.context })}`;
     row._tlDTag = dTag;
     wantedDTags.push(dTag);
   }

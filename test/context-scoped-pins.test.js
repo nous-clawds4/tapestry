@@ -220,6 +220,95 @@ t('tag pin UI offers a context/community pin affordance driven by KNOWN_CONTEXTS
   assert(/viewerPins/.test(s), 'the pin UI must consume viewerPins (per-context pin state)');
 });
 
+// ── Story 2 — Pinned tab displays the TA-signed note TL (kind-30393) ─────────
+
+t('Story 2: a client note-TL d-tag helper composes tl-pin-notes-… with the discriminator', () => {
+  const s = rd(UI('utils/publishTagPin.js'));
+  assert(/computeNoteTLDTag/.test(s), 'publishTagPin must export computeNoteTLDTag (client mirror of the server note-TL d-tag)');
+  assert(/tl-pin-notes-[\s\S]{0,120}pinVariantKey/.test(s),
+    'computeNoteTLDTag must compose tl-pin-notes-… and thread pinVariantKey (context-aware)');
+});
+
+t('Story 2: usePinnedNotes reads the TA-signed kind-30393 (authors=TA), not the client kind-30003', () => {
+  const s = rd(UI('hooks/usePinnedNotes.js'));
+  assert(/30393/.test(s), 'usePinnedNotes must read the TA-signed note TL (kind-30393)');
+  assert(/computeNoteTLDTag/.test(s), 'usePinnedNotes must key on the note-TL d-tag');
+  assert(/taPubkey/.test(s), 'usePinnedNotes must scan authors=[taPubkey] (the TA-signed list)');
+  assert(!/kinds:\s*\[30003\]/.test(s), 'usePinnedNotes must NOT read the client kind-30003 bookmark as the display source');
+});
+
+t('Story 2: the Pinned panel reads notes under the pin\'s observer + context, and updates via server refresh', () => {
+  const s = rd(UI('components/PinnedListPanel.jsx'));
+  assert(/usePinnedNotes\(\s*tag,\s*observer,\s*noteMethod,\s*contextSlug\b/.test(s),
+    'PinnedListPanel must call usePinnedNotes with the pin observer + contextSlug (its own note list)');
+  assert(/refresh-pinned-tag[\s\S]{0,200}refetchPinnedNotes/.test(s),
+    'the "update pinned notes" action must recompute the TA note TL via the server refresh (no client re-export)');
+});
+
+t('Story 2: the stale "no TA-signed note-TL yet" comment is retired', () => {
+  const s = rd(UI('utils/publishTagPin.js'));
+  assert(!/no TA-signed note-TL yet/.test(s), 'the obsolete issue-#336 comment must be removed (the note TL now exists and is displayed)');
+});
+
+// ── Story 3 — tagging an event refreshes the viewer's pins (no prompt) ───────
+
+t('Story 3: event-tagging apply/dispute refreshes the viewer\'s pins via the server (no signer prompt)', () => {
+  const s = rd(UI('hooks/useEventTagging.js'));
+  assert(/refresh-pinned-tags-for-viewer/.test(s),
+    'useEventTagging must call refresh-pinned-tags-for-viewer after a tagging (server recompute, no NIP-07 prompt)');
+  assert(/refreshViewerPinsDebounced[\s\S]{0,600}refreshViewerPinsDebounced/.test(s),
+    'both applyTag AND disputeTag must trigger the pin refresh');
+});
+
+t('Story 3: the pin refresh is debounced per viewer (coalesce tag/untag bursts)', () => {
+  const s = rd(UI('hooks/useEventTagging.js'));
+  assert(/setTimeout[\s\S]{0,200}refresh-pinned-tags-for-viewer|_pinRefreshTimers/.test(s),
+    'the refresh must be debounced (a per-viewer timer), not fired synchronously on every keystroke/tagging');
+});
+
+// ── Note-curation cutoff (mirrors the profile rule for notes) ────────────────
+
+t('Note curation honors the pin cutoff: a lone self-tagging is excluded at cutoff 2', () => {
+  const { curateNotes } = require('../src/lib/event-tagging/taggings');
+  const notes = [
+    { id: 'solo',  applications: 1, disputes: 0, createdAt: 100 }, // just the viewer
+    { id: 'voted', applications: 2, disputes: 0, createdAt: 200 }, // viewer + 1 other
+  ];
+  const at1 = curateNotes(notes, 'notes:net-endorsed', 1).map((n) => n.id);
+  assert(at1.includes('solo') && at1.includes('voted'), 'cutoff 1: both qualify');
+  const at2 = curateNotes(notes, 'notes:net-endorsed', 2).map((n) => n.id);
+  assert(!at2.includes('solo') && at2.includes('voted'),
+    'cutoff 2: a note with only one (self) tagging must be excluded — the reported bug');
+});
+
+t('Note curation cutoff mirrors the profile rule (applications >= cutoff AND applications > disputes)', () => {
+  const { curateNotes } = require('../src/lib/event-tagging/taggings');
+  const notes = [{ id: 'contested', applications: 2, disputes: 2, createdAt: 1 }]; // meets cutoff but not net-positive
+  assert(curateNotes(notes, 'notes:net-endorsed', 2).length === 0,
+    'a note that meets the cutoff but is not net-positive (apps not > disputes) must be excluded');
+});
+
+t('curateNotes default (no cutoff arg) preserves back-compat behavior', () => {
+  const { curateNotes } = require('../src/lib/event-tagging/taggings');
+  const notes = [{ id: 'a', applications: 1, disputes: 0, createdAt: 1 }];
+  assert(curateNotes(notes, 'notes:net-endorsed').map((n) => n.id).join() === 'a',
+    'default (no cutoff) keeps the prior net-endorsed behavior (a 1-application note qualifies)');
+});
+
+t('Server note curation threads the pin cutoff', () => {
+  const s = rd(SRC('api/trustedList/refreshPinnedTags.js'));
+  assert(/curateNotes\([^)]*noteCutoff|curateNotes\([\s\S]{0,80}curation\.cutoff/.test(s),
+    'runOneNotePin must pass the pin cutoff into curateNotes');
+});
+
+t('A single-pin refresh recomputes BOTH the profile and note TLs', () => {
+  const s = rd(SRC('api/trustedList/refreshPinnedTags.js'));
+  const fn = s.slice(s.indexOf('function refreshOnePinnedTagById'));
+  const body = fn.slice(0, fn.indexOf('\n}'));
+  assert(/runOnePin\(pin\)/.test(body) && /runOneNotePin\(pin\)/.test(body),
+    'refreshOnePinnedTagById must run BOTH runOnePin (profiles) and runOneNotePin (notes) — else "Update pinned notes" and context-pin edits never recompute the note list');
+});
+
 async function run() {
   console.log('\n--- context-scoped pins tests (contextual-pins Story 1, ADR 0001) ---');
   let pass = 0, fail = 0; const failures = [];

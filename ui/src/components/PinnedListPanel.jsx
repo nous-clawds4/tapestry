@@ -8,9 +8,10 @@ import useTLDetail from '../hooks/useTLDetail';
 import usePinnedNotes from '../hooks/usePinnedNotes';
 import NoteCard from './NoteCard';
 import {
-  pinTag, unpinTag, computeTLDTag, publishNoteBookmarkSetForPin, computeNoteBookmarkDTag,
+  pinTag, unpinTag, computeTLDTag, computeNoteBookmarkDTag,
   syncPinnedExportsForTag, WELL_KNOWN_FALLBACK_RELAYS,
 } from '../utils/publishTagPin';
+import { KNOWN_CONTEXTS } from '@tapestry/event-tagging';
 import { copyText } from '../utils/clipboard';
 
 /**
@@ -115,12 +116,20 @@ function NaddrRow({ label, naddr, help }) {
   );
 }
 
-export default function PinnedListPanel({ tag, viewerPin, onChanged, exportSync = 'idle' }) {
+export default function PinnedListPanel({ tag, pin, viewerPin, onChanged, exportSync = 'idle' }) {
   const { user } = useAuth();
   const { taPubkey } = useConfig();
 
-  const observer = viewerPin?.curationMethod?.observer || user?.pubkey || null;
-  const pinEventId = viewerPin?.pinEventId || null;
+  // contextual-pins ADR 0001 — the panel operates on a SELECTED pin (which may
+  // be neutral or a community context). `pin` is the new prop; `viewerPin` is
+  // the back-compat fallback (the neutral pin).
+  const activePin = pin || viewerPin;
+  const observer = activePin?.curationMethod?.observer || user?.pubkey || null;
+  const pinEventId = activePin?.pinEventId || null;
+  const contextSlug = activePin?.context || undefined;
+  const contextName = contextSlug
+    ? (KNOWN_CONTEXTS.find((c) => c.slug === contextSlug)?.name || contextSlug)
+    : null;
 
   const dTag = useMemo(() => {
     if (!tag || !observer) return null;
@@ -129,9 +138,10 @@ export default function PinnedListPanel({ tag, viewerPin, onChanged, exportSync 
         observer,
         tagAuthorPubkey: tag.authorPubkey,
         tagSlug: tag.slug,
+        contextSlug,
       });
     } catch { return null; }
-  }, [tag, observer]);
+  }, [tag, observer, contextSlug]);
 
   const { tl, members, loading, error, refetch } = useTLDetail(dTag);
 
@@ -155,15 +165,20 @@ export default function PinnedListPanel({ tag, viewerPin, onChanged, exportSync 
   }, [user, pinEventId]);
   useEffect(() => { let on = true; (async () => { if (on) await loadPinRow(); })(); return () => { on = false; }; }, [loadPinRow]);
 
-  // Story 12 item #3 — the viewer's pinned NOTE bookmark set (kind-30003) + its
-  // drift vs the live curated set. Curated with the same method the pin used.
+  // Story 2 — the pin's TA-signed NOTE Trusted List (kind-30393) + its drift vs
+  // the live curated set. Curated with the same method the pin used. Reads under
+  // the pin's observer + context (its own note list, not the neutral pin's).
   const noteMethod = pinRow?.curationMethod?.noteMethod
-    || viewerPin?.curationMethod?.noteMethod
+    || activePin?.curationMethod?.noteMethod
     || 'notes:net-endorsed';
+  // The pin's cutoff applies to notes too (mirrors profiles). Default 1.
+  const noteCutoff = Number.isFinite(pinRow?.curationMethod?.cutoff)
+    ? pinRow.curationMethod.cutoff
+    : (Number.isFinite(activePin?.curationMethod?.cutoff) ? activePin.curationMethod.cutoff : 1);
   const {
     pinned: pinnedNotes, notes: pinnedNoteItems, drift: noteDrift,
     loading: pinnedNotesLoading, refetch: refetchPinnedNotes,
-  } = usePinnedNotes(tag, user?.pubkey, noteMethod);
+  } = usePinnedNotes(tag, observer, noteMethod, contextSlug, noteCutoff);
   const [repinningNotes, setRepinningNotes] = useState(false);
   // Issue #2 — Profiles|Notes sub-switch inside the Pinned tab (mirrors the
   // tag-detail default tab), so a big profile list and the note list don't stack.
@@ -172,18 +187,21 @@ export default function PinnedListPanel({ tag, viewerPin, onChanged, exportSync 
   // tagged since mount is reflected without a full page refresh.
   useEffect(() => { if (pinnedView === 'notes') refetchPinnedNotes(); }, [pinnedView, refetchPinnedNotes]);
   const handleRepinNotes = useCallback(async () => {
-    if (!tag || !user || repinningNotes) return;
+    if (!tag || !user || !pinEventId || repinningNotes) return;
     setRepinningNotes(true);
     try {
-      await publishNoteBookmarkSetForPin({
-        tag: { authorPubkey: tag.authorPubkey, slug: tag.slug, name: tag.name },
-        viewerPubkey: user.pubkey,
-        noteMethod,
+      // Story 2/3 — the displayed note list is the TA-signed kind-30393, so
+      // "update" is a server-side recompute (no NIP-07 prompt), context-aware
+      // via the pin event id. The client kind-30003 export is a separate action.
+      await fetch('/api/trusted-list/refresh-pinned-tag', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pinEventId }),
       });
       await refetchPinnedNotes();
     } catch { /* best-effort; drift line stays until it succeeds */ }
     finally { setRepinningNotes(false); }
-  }, [tag, user, repinningNotes, noteMethod, refetchPinnedNotes]);
+  }, [tag, user, pinEventId, repinningNotes, refetchPinnedNotes]);
   const noteDriftStale = !!noteDrift && (noteDrift.added > 0 || noteDrift.removed > 0);
 
   // AC-19 — when a tag-page-driven re-export settles ('exporting' →
@@ -240,9 +258,9 @@ export default function PinnedListPanel({ tag, viewerPin, onChanged, exportSync 
   // note bookmark set has been published (pinnedNotes).
   const noteBookmarkDTag = useMemo(() => {
     if (!tag || !user?.pubkey) return null;
-    try { return computeNoteBookmarkDTag({ viewerPubkey: user.pubkey, tagAuthorPubkey: tag.authorPubkey, tagSlug: tag.slug }); }
+    try { return computeNoteBookmarkDTag({ viewerPubkey: user.pubkey, tagAuthorPubkey: tag.authorPubkey, tagSlug: tag.slug, contextSlug }); }
     catch { return null; }
-  }, [tag, user?.pubkey]);
+  }, [tag, user?.pubkey, contextSlug]);
   const naddr30003 = useMemo(() => {
     if (!noteBookmarkDTag || !user?.pubkey) return null;
     try {
@@ -271,12 +289,31 @@ export default function PinnedListPanel({ tag, viewerPin, onChanged, exportSync 
   }, [refetch, loadPinRow, onChanged]);
 
   const handleEditSubmit = async (customCuration) => {
-    const signed = await pinTag({ tag, curationMethod: customCuration });
+    // contextual-pins ADR 0001 — re-pin WITH this pin's context, else editing a
+    // context pin's curation would silently re-pin it as neutral (dropping the
+    // context and orphaning its TL).
+    const ctx = contextSlug ? { slug: contextSlug, name: contextName } : undefined;
+    const signed = await pinTag({
+      tag, curationMethod: customCuration,
+      ...(ctx ? { context: ctx, taPubkey } : {}),
+    });
     await refetch();
     onChanged?.();
-    // AC-13 — a curation reconfig recomputes the kind-30392 and re-exports
-    // the kind-30000 footprint, just like an Apply/Dispute does.
-    if (user) {
+    // AC-13 — a curation reconfig recomputes the pin's kind-30392.
+    if (ctx) {
+      // Context pins: recompute the TA-signed TL via the server (runOnePin reads
+      // the context from the pin's z stamp — the correct, context-aware d-tag).
+      // The client-signed kind-30000/30003 re-export is neutral-only for now
+      // (context-pin export is available on demand via the Export button).
+      fetch('/api/trusted-list/refresh-pinned-tag', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pinEventId: signed.id }),
+      }).catch(() => { /* best-effort */ });
+      await loadPinRow();
+    } else if (user) {
+      // Neutral pin: recompute the kind-30392 AND re-export the kind-30000
+      // footprint, just like an Apply/Dispute does.
       await syncPinnedExportsForTag({
         tag, viewerPubkey: user.pubkey, onProgress: setLocalSync,
       });
@@ -339,6 +376,12 @@ export default function PinnedListPanel({ tag, viewerPin, onChanged, exportSync 
 
   return (
     <div className="bs-pindetail-panel">
+      {/* contextual-pins ADR 0001 — which of the viewer's pins this is. */}
+      <p className="bs-pindetail-context">
+        {contextName
+          ? <>Pinned in <strong>{contextName}</strong></>
+          : <>Personal pin</>}
+      </p>
       <header className="bs-pindetail-header">
         {/* Tag title is already shown page-level (Tag.jsx <h1 bs-tag-name>);
             no duplicate heading here. */}
@@ -468,7 +511,7 @@ export default function PinnedListPanel({ tag, viewerPin, onChanged, exportSync 
             className={`bs-tag-view-switch-btn${pinnedView === 'notes' ? ' is-active' : ''}`}
             onClick={() => setPinnedView('notes')}
           >
-            Notes ({pinnedNoteItems.length})
+            Notes ({pinnedNotes.ids.length})
           </button>
         </div>
       )}
@@ -569,7 +612,15 @@ export default function PinnedListPanel({ tag, viewerPin, onChanged, exportSync 
             </>
           ) : pinnedNotesLoading ? (
             <p className="bs-pinned-notes-empty">Loading pinned notes…</p>
+          ) : pinnedNotes.ids.length === 0 ? (
+            // The note TL is genuinely empty — no note meets this pin's curation
+            // (e.g. none has enough trusted taggings to clear the cutoff). NOT a
+            // relay-resolution failure.
+            <p className="bs-pinned-notes-empty">
+              No notes meet this pin’s curation yet.
+            </p>
           ) : (
+            // The TL has members, but none resolved this load — a relay reach issue.
             <p className="bs-pinned-notes-empty">
               The notes in this pin are on relays we couldn’t reach this load — try again shortly.
             </p>
@@ -580,7 +631,7 @@ export default function PinnedListPanel({ tag, viewerPin, onChanged, exportSync 
       {editing && user && (
         <CurationMethodDialog
           tag={tag}
-          initialCuration={viewerPin.curationMethod}
+          initialCuration={activePin.curationMethod}
           mode="edit"
           viewerPubkey={user.pubkey}
           onSubmit={handleEditSubmit}

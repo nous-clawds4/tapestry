@@ -122,16 +122,21 @@ function projectionFor(targetType, members = taggingMembers) {
  *  - 'notes:most-applied': every tagged note, ordered by application count desc
  *    (recency tiebreak) — contested notes kept.
  */
-function curateNotes(notes = [], method = 'notes:net-endorsed') {
+function curateNotes(notes = [], method = 'notes:net-endorsed', cutoff = 0) {
   const arr = Array.isArray(notes) ? notes.slice() : [];
   const app = (n) => n.applications || 0;
   const dis = (n) => n.disputes || 0;
   const rec = (a, b) => (b.createdAt || 0) - (a.createdAt || 0);
+  // `cutoff` = minimum trusted applications, mirroring the profile rule
+  // (`applyDisputesFunction`: applications >= cutoff AND applications > disputes).
+  // Default 0 = no floor (back-compat); real pins pass their curation cutoff, so
+  // e.g. a lone self-tagging (1 application) is excluded once cutoff ≥ 2.
+  const min = Number.isFinite(cutoff) ? cutoff : 0;
   if (method === 'notes:most-applied') {
-    return arr.sort((a, b) => (app(b) - app(a)) || rec(a, b));
+    return arr.filter((n) => app(n) >= min).sort((a, b) => (app(b) - app(a)) || rec(a, b));
   }
   // default: net-endorsed
-  return arr.filter((n) => app(n) > dis(n)).sort(rec);
+  return arr.filter((n) => app(n) >= min && app(n) > dis(n)).sort(rec);
 }
 
 // ── Normalization ──────────────────────────────────────────────────────────
