@@ -58,10 +58,10 @@ This book runs under the Director harness — [`/direct-feature`](../../../.clau
 
 Adapted to the chat medium: **the operator ratifies this section explicitly in conversation**; the Director then records the arming by filling the lines below in a commit touching only this subsection, quoting the operator's ratification verbatim in the journal's arming entry. The decision is the operator's; the recording is clerical.
 
-- **Armed:** No *(→ `Yes — <ISO-8601 UTC datetime>`)*
-- **Deadline:** — *(→ arming instant + 72 hours, ISO-8601 UTC)*
-- **Baseline:** — *(→ the `origin/staging` SHA at arming)*
-- **Pinned governing versions:** — *(→ commit SHAs of `engineering-team/roles/director.md`, `.claude/skills/direct-feature/SKILL.md`, `.claude/agents/gate-judge.md` at arming)*
+- **Armed:** Yes — 2026-07-17T23:14:36Z
+- **Deadline:** 2026-07-20T23:14:36Z
+- **Baseline:** `89c3964f589d50e24c2ad8635584531f2322205b` (`origin/staging` at arming)
+- **Pinned governing versions:** `engineering-team/roles/director.md` @ `bdbc8cf6` · `.claude/skills/direct-feature/SKILL.md` @ `1d9f9b86` · `.claude/agents/gate-judge.md` @ `3a2657b2`
 
 A missing or ambiguous Armed/Deadline line means the book is not armed; the Director must refuse to run.
 
