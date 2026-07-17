@@ -1,7 +1,7 @@
 # Story 2: Raw event inspector for profile taggings on the tag detail page
 
 **Epic:** tag-event-inspector
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-07-16
 **Type:** Feature
 
@@ -99,5 +99,5 @@ Judgment calls made at Implementation, too small for an ADR amendment (role step
 
 - ADR: `engineering-team/decisions/tag-event-inspector/0002-tagging-raw-event-inspector.md`
 - Test plan: `engineering-team/stories/tag-event-inspector/2-tagging-raw-event-inspector.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/tag-event-inspector/2-tagging-raw-event-inspector.md` — **PASS**
 - Book: `engineering-team/audits/profile-tagging-inspector/book.md`
