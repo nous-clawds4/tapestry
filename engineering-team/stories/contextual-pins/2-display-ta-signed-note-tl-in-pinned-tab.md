@@ -1,6 +1,6 @@
 # Story 2: Show the instance-computed note list in the Pinned tab (notes/profiles parity)
 
-**Status:** Draft
+**Status:** Done
 **Created:** 2026-07-16
 **Type:** Feature
 **Depends on:** Story 1 (context-scoped pins)
@@ -68,4 +68,4 @@ covers notes.
 
 - ADR: `engineering-team/decisions/contextual-pins/0001-context-scoped-pins.md` (Amendment I)
 - Test plan: (filled in after Test Design phase)
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/contextual-pins/1-contextual-pins-increment.md`

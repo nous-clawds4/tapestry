@@ -1,6 +1,6 @@
 # Story 1: Pin a tag within a community context
 
-**Status:** Draft
+**Status:** Done
 **Created:** 2026-07-16
 **Type:** Feature
 
@@ -94,4 +94,4 @@ user at pin time. The initial offered set is **LFO** and **Tapestry & Web of Tru
 
 - ADR: `engineering-team/decisions/contextual-pins/0001-context-scoped-pins.md`
 - Test plan: `engineering-team/stories/contextual-pins/1-pin-a-tag-within-a-community-context.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/contextual-pins/1-contextual-pins-increment.md`

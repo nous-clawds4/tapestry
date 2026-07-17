@@ -1,6 +1,6 @@
 # Story 3: Refresh a viewer's pins when they tag an event (event-tagging freshness)
 
-**Status:** Draft
+**Status:** Done
 **Created:** 2026-07-16
 **Type:** Feature
 **Depends on:** Story 2 (note list displays the TA-signed kind-30393)
@@ -64,4 +64,4 @@ update so the newly-tagged note shows up in my pinned list — without an extra 
 
 - ADR: `engineering-team/decisions/contextual-pins/0001-context-scoped-pins.md` (Amendment I)
 - Test plan: (filled in after Test Design phase)
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/contextual-pins/1-contextual-pins-increment.md`
