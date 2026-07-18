@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
-import TagRowRawEvents from './TagRowRawEvents';
+import RawTaggingEvents from './RawTaggingEvents';
 
 /**
  * One row on the tag-detail page (and on TagSomeoneModal search results).
@@ -428,7 +428,7 @@ export default function TagPageRow({
       )}
       {rawOpen && row.assertions?.length > 0 && (
         <section className="bs-tag-row-raw" aria-label={`Raw tagging events for ${displayLabel}`}>
-          <TagRowRawEvents assertions={row.assertions} />
+          <RawTaggingEvents assertions={row.assertions} />
         </section>
       )}
     </li>

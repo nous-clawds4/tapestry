@@ -22,6 +22,7 @@
     "backup": "node bin/backup.js",
     "restore-from-backup": "node bin/restore-from-backup.js",
     "dev": "node bin/dev.js",
+    "refresh": "bash scripts/dev-refresh.sh",
     "test:deployment": "node bin/test-deployment.js",
     "test:deployment:smoke": "node bin/test-deployment.js smoke",
     "test:alert": "node bin/test-alert-webhook.js"

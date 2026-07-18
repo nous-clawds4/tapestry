@@ -4073,6 +4073,14 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   opacity: 0.4;
   cursor: not-allowed;
 }
+/* Story 3 (tag-event-inspector ADR 0003 D4) — the Show/Hide Raw Tagging Events
+   toggle sits on its own line BELOW the Apply/Dispute row (it is a sibling of
+   .ptc-popover-actions, not a member, so the base .ptc-btn flex:1 is inert). */
+.ptc-btn-raw {
+  display: block;
+  width: 100%;
+  margin-top: 0.5rem;
+}
 .ptc-hint {
   margin-top: 0.5rem;
   font-size: 0.75rem;
@@ -8026,6 +8034,21 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   margin-bottom: 0.4rem;
   font-size: 0.8rem;
   color: #fca5a5;
+}
+/* Raw tagging-events panels on a note card (tag-event-inspector Story 3, ADR 0003
+   D6). New classes in the note-tags namespace ONLY; the blocks inside are the
+   shared component's bs-tag-row-raw-* family (cosmetic naming debt, deliberate —
+   D5). Visual family: the raw-panel look — border-left + padding. */
+.bsp-note-tags-raw {
+  margin: 0.5rem 0;
+  padding: 0.4rem 0 0.4rem 0.75rem;
+  border-left: 2px solid var(--border, #334155);
+}
+.bsp-note-tags-raw-caption {
+  margin: 0 0 0.4rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted, #94a3b8);
 }
 
 /* ── Tag page: Profiles | Notes view switch (Story 8) ── */

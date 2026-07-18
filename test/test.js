@@ -125,6 +125,8 @@ const eventTaggingReadViewerStance = require('./event-tagging-read-viewer-stance
 const eventTagNoteAffordanceUi = require('./event-tag-note-affordance-ui.test.js');
 const tagActionsMenuUi = require('./tag-actions-menu-ui.test.js');
 const taggingRawEventInspectorUi = require('./tagging-raw-event-inspector-ui.test.js');
+const noteTaggingRawEventsInspectorUi = require('./note-tagging-raw-events-inspector-ui.test.js');
+const noteTaggingRawEventsInspectorHttp = require('./note-tagging-raw-events-inspector-http.test.js');
 const eventTaggingForTag = require('./event-tagging-for-tag.test.js');
 const unifiedTagIndex = require('./unified-tag-index.test.js');
 const eventTaggingNotesByAuthor = require('./event-tagging-notes-by-author.test.js');
@@ -371,6 +373,8 @@ async function main() {
   console.log('\ntag-actions-menu-ui suite:');
   const tagActionsMenuUiResult = await tagActionsMenuUi.run();
   const taggingRawEventInspectorUiResult = await taggingRawEventInspectorUi.run();
+  const noteTaggingRawEventsInspectorUiResult = await noteTaggingRawEventsInspectorUi.run();
+  const noteTaggingRawEventsInspectorHttpResult = await noteTaggingRawEventsInspectorHttp.run();
   console.log('\nevent-tagging-for-tag suite:');
   const eventTaggingForTagResult = await eventTaggingForTag.run();
   console.log('\nunified-tag-index suite:');
@@ -725,6 +729,16 @@ async function main() {
   console.log(
     `tagging-raw-event-inspector-ui suite:            ${taggingRawEventInspectorUiResult.fail === 0 ? 'PASS' : 'FAIL'} (${taggingRawEventInspectorUiResult.pass} passed, ${taggingRawEventInspectorUiResult.fail} failed)`
   );
+  console.log(
+    `note-tagging-raw-events-inspector-ui suite:      ${noteTaggingRawEventsInspectorUiResult.fail === 0 ? 'PASS' : 'FAIL'} (${noteTaggingRawEventsInspectorUiResult.pass} passed, ${noteTaggingRawEventsInspectorUiResult.fail} failed)`
+  );
+  // Wholesale-skip aware (this suite skips {pass:0, fail:0} when nak/the control
+  // panel is missing — CI's stack-free job); partial skips print beside PASS/FAIL.
+  const noteTaggingRawHttpLine =
+    (noteTaggingRawEventsInspectorHttpResult.pass + noteTaggingRawEventsInspectorHttpResult.fail) === 0 && noteTaggingRawEventsInspectorHttpResult.skipped
+      ? `SKIP (${noteTaggingRawEventsInspectorHttpResult.skipped} tests; preconditions not met)`
+      : `${noteTaggingRawEventsInspectorHttpResult.fail === 0 ? 'PASS' : 'FAIL'} (${noteTaggingRawEventsInspectorHttpResult.pass} passed, ${noteTaggingRawEventsInspectorHttpResult.fail} failed${noteTaggingRawEventsInspectorHttpResult.skipped ? `, ${noteTaggingRawEventsInspectorHttpResult.skipped} skipped` : ''})`;
+  console.log(`note-tagging-raw-events-inspector-http suite:    ${noteTaggingRawHttpLine}`);
 
   const overallOk =
     configOk &&
@@ -837,7 +851,9 @@ async function main() {
     tagApplicabilityResult.fail === 0 &&
     tagApplicabilityPickerResult.fail === 0 &&
     tagActionsMenuUiResult.fail === 0 &&
-    taggingRawEventInspectorUiResult.fail === 0;
+    taggingRawEventInspectorUiResult.fail === 0 &&
+    noteTaggingRawEventsInspectorUiResult.fail === 0 &&
+    noteTaggingRawEventsInspectorHttpResult.fail === 0;
     harnessLintResult.fail === 0 &&
     harnessStatsResult.fail === 0 &&
     sessionStartResult.fail === 0 &&
@@ -874,6 +890,7 @@ async function main() {
     harnessLintResult, harnessStatsResult, sessionStartResult, stackFreeNpmTestResult,
     ciTestJobResult, syncPanelTagFiltersResult, routerStreamTagFiltersResult,
     contextScopedPinsResult,
+    noteTaggingRawEventsInspectorHttpResult,
   ].reduce((sum, r) => sum + ((r && r.skipped) || 0), 0);
   console.log(`Total skipped:                                   ${totalSkipped}`);
   console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);

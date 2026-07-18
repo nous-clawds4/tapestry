@@ -1,8 +1,17 @@
 # Book of Work: Inspect the nostr events behind a profile's tagging
 
 **Slug:** profile-tagging-inspector
-**Status:** Open
+**Status:** Closed (2026-07-17)
 **Opened:** 2026-07-16 (eagerly at intake, per workflows/0-intake.md step 4)
+**Closed:** 2026-07-17 — all 4 frame bullets met (one sub-behavior, `counted:false`, proven analytically not empirically — see audit §4 #1); shipped to staging (PR #375), feat/tags/tags.brainstorm.world (back-merge `b6a7875f`), and main/tapestry.brainstorm.world (PR #377). Range `1a36935e..2831b1e0` (code).
+
+## Close artifacts
+
+- Build audit: `engineering-team/audits/profile-tagging-inspector/audit.md`
+- Product feedback: `engineering-team/audits/profile-tagging-inspector/prd-seed.md` (no-PRD → reconstructed baseline)
+- Retro dispositions: audit §7 (5 findings — OPEN.md #47/#43/#27-family, 2 declined-with-reason)
+- **Confidence:** high on the frame; the `counted:false` marker path is proven by code-read only (audit §4 #1, §6 top item)
+- **Epic NOT retired:** `tag-event-inspector` spans this book + the closed `tag-event-inspector` book, and its goal (events behind tag *surfaces*, plural) has legitimately-unbuilt future surfaces (Note rows, tag index, pins). Closing this book ≠ retiring the epic (OPEN.md #47).
 
 ## Intent anchor
 

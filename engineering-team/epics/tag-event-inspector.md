@@ -24,7 +24,8 @@ The `⋯` menu on Profile and Note rows already established the per-object actio
 ## Stories
 
 1. `stories/done/tag-event-inspector/1-tag-actions-menu-and-raw-event.md` — a `⋯` actions menu beside the tag name (Copy Note ID / Copy Note Addr / Show–Hide Raw Event) plus a default-hidden raw event panel on the tag detail page. **Done** — review PASS, shipped to production (book `audits/tag-event-inspector/`, closed). *(This line read "Draft" until 2026-07-16; the story was Done and shipped. Corrected at the #2 reopen.)*
-2. `stories/tag-event-inspector/2-tagging-raw-event-inspector.md` — the raw signed events behind a **profile row's `+N −M`**: a Show/Hide Raw Event item on the row's `⋯` menu (now reachable at every width, not only below 769px) toggling a per-row panel that renders every assertion the row's counts are derived from. **Approved** (book `audits/profile-tagging-inspector/`).
+2. `stories/tag-event-inspector/2-tagging-raw-event-inspector.md` — the raw signed events behind a **profile row's `+N −M`**: a Show/Hide Raw Event item on the row's `⋯` menu (now reachable at every width, not only below 769px) toggling a per-row panel that renders every assertion the row's counts are derived from. **Done** — review PASS (book `audits/profile-tagging-inspector/`, closed). *(This line read "Approved" until 2026-07-17; corrected at the #3 open, mirroring the #1 correction before it.)*
+3. `stories/tag-event-inspector/3-note-tagging-raw-events-inspector.md` — the raw signed events behind a **note's tag chips**: a "Show/Hide Raw Tagging Events" button in the chip popover, beside Apply/Dispute, toggling a per-(note, tag) panel between the note body and the chips row that renders every assertion the popover's counts are derived from — on every note surface. **Approved** (book `audits/note-tagging-inspector/`).
 
 ## Key facts / guardrails
 
