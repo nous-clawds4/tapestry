@@ -70,6 +70,7 @@ A completion report with bullet-by-bullet staging evidence — audited by the fi
 - Operator takeover mid-run → **failure** (autonomy hypothesis unsupported).
 - Deadline passes during a halt caused by Stopping rules 2–4 (harness thrash, design churn, scope overgrowth) → **failure**.
 - Deadline passes during a Stopping-rule-6 halt (external interference: staging broken by others, origin moved, colliding sessions) → **run void** — not informative, not a failure.
+- Deadline passes while the run is blocked in a **journaled safe-deploy-window wait** — holding a staging merge because a scheduled task is running or imminent on the target instance (checked via the deploy-safety gate endpoint, or manually until it ships) → **run void** — not informative, attributable to environment scheduling. Each wait must be journaled at its start to qualify. *(Added 2026-07-18, operator-ratified, pre-arming — see the `deploy-safety-gate` book.)*
 - Armed but never started → **run void**, attributable to the operator.
 - Frame bullet 7 is scored at evidence time: staging breakage by external cause *after* the evidence is journaled does not retroactively fail the bullet.
 
