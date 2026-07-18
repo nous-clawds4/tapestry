@@ -43,3 +43,17 @@ Append-only. Entry format: [engineering-team/roles/director.md](../../roles/dire
 **Judge:** APPROVE, blinding intact — all rubric items pass; judge verified ~20 file:line claims against source, independently cleared the closest unlisted ADR (0016 BullBoard gating) for conflict, and confirmed the unauthenticated-by-fall-through and legacy-runs-while-queue-disabled claims in code. One non-blocking defect: the Implementation-notes precedent cite says T17/T18 where the cited file's guards are T3/T4 — carried to the Tester to correct.
 **Why:** I concur: Option A (new src/api/deploy-safety/ module, pure computeVerdict core, three live in-process sources, fail-closed introspection) satisfies AC-2's two-source coverage and AC-3's phantom exclusion structurally; the payload contract cleanly feeds stories 2–3; Consequences records real debt (legacy-Map coupling, unauthenticated task names, caller-tunable buffer) instead of hiding it.
 **Next:** Commit ADR; Phase 3 — spawn tester (carry the T3/T4 correction and the OPEN.md #43 live-chain registration trap into the brief).
+
+## 2026-07-18T15:05:00Z — Gate 3 verdict VOID — judge self-reported broken blinding
+**Story/Phase:** deploy-safety-gate #1 / Gate 3 (Test plan + failing tests)
+**Decision:** INFO (verdict void; no gate decision taken)
+**Judge:** APPROVE on the merits, self-voided — the judge's read window on book.md overran the acceptance frame into the Direction-mode pre-registration (deadline, hypothesis, ceiling). Spawn prompt was protocol-clean ("read the acceptance frame section only"); the over-read was the judge's own. Per director.md → "Verdict semantics": a broken-blinding APPROVE is void (a KICK_BACK would still bind). Counted toward no stopping rule (not a KICK_BACK).
+**Why:** Protocol over convenience — the merits audit was thorough (judge independently reproduced the 23 feature-missing failures and verified live-chain gating), but an APPROVE seen through broken blinding cannot stand. Re-spawning fresh with the book read bounded to the frame's exact lines; no prior findings injected (this is a void re-spawn, not a kick-back re-judge).
+**Next:** Fresh Gate-3 judge, corrected prompt.
+
+## 2026-07-18T15:25:00Z — Gate 3 APPROVE (re-spawned judge) — test plan + failing tests, story #1
+**Story/Phase:** deploy-safety-gate #1 / Gate 3
+**Decision:** APPROVE
+**Judge:** APPROVE, blinding intact (bounded frame read worked). Judge reran the suite itself: 23/23 failures, every one feature-missing (module/export/route absent, live 404s), none environmental; independently verified the live-chain gating (term terminates the chain at test/test.js:862), the H6 trigger-safety claim (no resourceClass on refreshApplicabilityLists), and the honest coverage-limit disclosures.
+**Why:** I concur. The pure-core seam gives AC-3/AC-4 deterministic coverage; the structural sentinels are all ADR-pinned; the two live-unreachable halves are documented with Reviewer recipes instead of pretended at. The prior void verdict is recorded above; this fresh verdict is the binding one.
+**Next:** Commit test design (this commit = the Gate-3 reference for Gate 4's test-diff check); Phase 4 — spawn implementer.
