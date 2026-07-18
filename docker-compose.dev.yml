@@ -1,10 +1,17 @@
 # Development override — bind-mounts local code for live editing
 # Usage: docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
 #
-# Edit files locally → restart brainstorm to pick up changes:
-#   docker compose exec tapestry supervisorctl restart brainstorm
+# After a pull or any edit, refresh the running container in one shot:
+#   scripts/dev-refresh.sh          # rebuild UI + restart backend + smoke test
+#   scripts/dev-refresh.sh --deps   # ...also reinstall npm deps (package*.json changed)
 #
-# For frontend-only changes (HTML/CSS/JS), just refresh the browser.
+# Or by hand:
+#   Backend (src/, bin/):   docker compose exec tapestry supervisorctl restart brainstorm
+#   Frontend (ui/):         docker compose exec tapestry sh -c \
+#                             'cd /usr/local/lib/node_modules/brainstorm/ui && npm run build'
+#                           The ui/ SPA is a Vite build — a browser refresh alone is NOT
+#                           enough; dist/ must be rebuilt first.
+#   Legacy pages (public/): just refresh the browser (served straight from disk).
 
 services:
   tapestry:
