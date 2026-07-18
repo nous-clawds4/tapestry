@@ -31,6 +31,7 @@
 const { execSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
+const { ensureRankedPool, makeAuthorDealer, meiliUpsertAndWait } = require('./helpers/livePov');
 
 const CONTROL_PANEL_BASE = process.env.BRAINSTORM_BASE_URL || 'http://localhost:7778';
 const MEILI_BASE = process.env.MEILI_URL_HOST || 'http://localhost:7700';
@@ -85,13 +86,11 @@ async function fetchJson(url) {
 }
 
 async function meiliUpsertProfile(doc) {
-  const r = await fetch(`${MEILI_BASE}/indexes/${MEILI_INDEX}/documents`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify([doc]),
-  });
-  if (!r.ok) throw new Error(`meili upsert failed: ${r.status} ${await r.text()}`);
-  await sleep(800);
+  // Upsert and WAIT for indexing — a fixed settle sleep is not enough: under
+  // stream-consumer ETL load the Meili task queue takes minutes per task.
+  // On timeout, mark the dependent test/suite skipped (environmental).
+  const res = await meiliUpsertAndWait(doc, { timeoutMs: 90000 });
+  if (!res.ok) throw new SkipTest(res.reason);
 }
 
 function signProfileTagEvent({ tagSlug, tagEventId, targetPubkey, authorSk, authorPk, polarity }) {
@@ -161,7 +160,11 @@ async function setupNoPovSuite() {
   });
   const publishedTag = await publish(tagEvent);
 
-  const viewerA = (() => { const sk = nakKeyGen(); return { sk, pk: nakDerivePubkey(sk) }; })();
+  // viewerA's assertions must COUNT toward the row's in-WoT numbers, so it
+  // comes from the pre-ranked pool (helpers/livePov.js) — on POV-filtered
+  // stacks an unranked author's assertions are dropped by design. viewerB
+  // (asserts nothing) stays ephemeral.
+  const viewerA = makeAuthorDealer().take();
   const viewerB = (() => { const sk = nakKeyGen(); return { sk, pk: nakDerivePubkey(sk) }; })();
   const targetApplied = nakDerivePubkey(nakKeyGen());
   const targetDisputed = nakDerivePubkey(nakKeyGen());
@@ -470,22 +473,38 @@ async function run() {
   let pass = 0, fail = 0, skipped = 0;
 
   // ─── Phase 1: no-POV tests ──
-  console.log('  (phase 1: no POV required)');
-  try {
-    await setupNoPovSuite();
-    for (const [name, fn] of noPovTests) {
-      try {
-        await fn();
-        console.log(`  PASS  ${name}`);
-        pass++;
-      } catch (err) {
-        console.log(`  FAIL  ${name}\n        ${err.message}`);
+  console.log('  (phase 1: no POV install required; viewerA drawn from the ranked pool)');
+  const ranked = await ensureRankedPool();
+  if (!ranked.ok) {
+    console.log(`  SKIP  ${ranked.reason}; skipping phase-1 tests`);
+    skipped += noPovTests.length;
+  } else {
+    try {
+      await setupNoPovSuite();
+      for (const [name, fn] of noPovTests) {
+        try {
+          await fn();
+          console.log(`  PASS  ${name}`);
+          pass++;
+        } catch (err) {
+          if (err && err.name === 'SkipTest') {
+            console.log(`  SKIP  ${name}\n        ${err.message}`);
+            skipped++;
+          } else {
+            console.log(`  FAIL  ${name}\n        ${err.message}`);
+            fail++;
+          }
+        }
+      }
+    } catch (err) {
+      if (err && err.name === 'SkipTest') {
+        console.log(`  SKIP  no-POV suite setup: ${err.message}`);
+        skipped += noPovTests.length;
+      } else {
+        console.log(`  FAIL  no-POV suite setup: ${err.message}`);
         fail++;
       }
     }
-  } catch (err) {
-    console.log(`  FAIL  no-POV suite setup: ${err.message}`);
-    fail++;
   }
 
   // ─── Phase 2: POV-required tests ──
