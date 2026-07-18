@@ -66,9 +66,15 @@ function nakDerivePubkey(privkey) {
   return execSync(`nak key public ${privkey}`).toString().trim();
 }
 
-function nakSignEvent({ kind, tags = [], content = '', privkey }) {
+function nakSignEvent({ kind, tags = [], content = '', privkey, createdAt }) {
   const tagArgs = tags.map((t) => `--tag ${t[0]}=${t.slice(1).join('=')}`).join(' ');
-  const cmd = `nak event -k ${kind} ${tagArgs} --sec ${privkey} -c ${JSON.stringify(content)}`;
+  // Optional explicit created_at (`nak event --ts`). Without it nak stamps the
+  // current second — two events signed within the same wall-clock second get
+  // EQUAL created_at, and NIP-01's replaceable tie-break (lowest id wins) makes
+  // "which one survives" a coin flip. Any test whose premise is "the later
+  // event replaces the earlier" must make later explicit.
+  const tsArg = createdAt !== undefined && createdAt !== null ? ` --ts ${createdAt}` : '';
+  const cmd = `nak event -k ${kind} ${tagArgs}${tsArg} --sec ${privkey} -c ${JSON.stringify(content)}`;
   return JSON.parse(execSync(cmd).toString().trim());
 }
 
@@ -121,7 +127,7 @@ async function meiliUpsertProfile(doc) {
   if (!res.ok) throw skipTest(res.reason);
 }
 
-function signProfileTagEvent({ tagSlug, tagEventId, targetPubkey, authorSk, authorPk, polarity }) {
+function signProfileTagEvent({ tagSlug, tagEventId, targetPubkey, authorSk, authorPk, polarity, createdAt }) {
   const dTag = `profile-tag-${tagSlug}-${targetPubkey.slice(0, 8)}-${authorPk.slice(0, 8)}`;
   const tags = [
     ['d', dTag],
@@ -135,7 +141,7 @@ function signProfileTagEvent({ tagSlug, tagEventId, targetPubkey, authorSk, auth
   const content = JSON.stringify({
     nostrUserTag: { taggedPubkey: targetPubkey, tagEventId },
   });
-  return nakSignEvent({ kind: 39999, tags, content, privkey: authorSk });
+  return nakSignEvent({ kind: 39999, tags, content, privkey: authorSk, createdAt });
 }
 
 function sleep(ms) {
@@ -237,7 +243,13 @@ t('overwriting the same d-tag with flipped polarity moves the entry between buck
   let json = await fetchTagsForProfile(targetPk);
   assert((json.applications || []).length === 1, 'after apply, expected 1 application');
 
-  const dispute = signProfileTagEvent({ tagSlug, tagEventId, targetPubkey: targetPk, authorSk, authorPk, polarity: -1 });
+  // Sign the flip ONE SECOND LATER than the apply, explicitly. The test's
+  // premise is "the LATER event replaces the earlier"; when both land in the
+  // same wall-clock second the NIP-01 tie-break (same created_at → lowest id
+  // wins) turns replacement into a lottery — observed losing in full runs
+  // while passing standalone. created_at+1 makes the tie structurally
+  // impossible.
+  const dispute = signProfileTagEvent({ tagSlug, tagEventId, targetPubkey: targetPk, authorSk, authorPk, polarity: -1, createdAt: apply.created_at + 1 });
   await publish(dispute);
   await sleep(PROPAGATION_MS);
 
