@@ -1570,3 +1570,38 @@ A common abstraction drawn over two shapes this different would have been wrong.
 **Strictness:** Standard — Refactor; the two surfaces' source-level suites must be re-aimed at the shared component rather than dropped.
 **Phase path:** Planning → Architecture (the abstraction is the decision) → Implementation → Review
 **Priority:** Low
+
+---
+
+## 2026-07-18 — Feature: scheduled-task deploy-safety gate (safe-to-merge check + countdown UX)
+
+**Origin:** operator request (conversation of 2026-07-18). This is the ratified **guard** branch of the still-open 2026-06-08 entry "Owner scoring batch is not deploy-safe (ops bug)" — resumable checkpointing and drain-on-deploy remain open there. Book: `engineering-team/audits/deploy-safety-gate/book.md` (Direction mode).
+
+**Raw request (condensed, verbatim where quoted):**
+
+> Each tapestry instance (production, staging, and tags) has a set of Scheduled Tasks … When a new feature is committed and merged with one of the respective branches (main, staging, or feat/tags), an action is triggered that has the possibility of interrupting a scheduled-task-in-action. … I propose to address this problem by creating a new API endpoint that returns: whether any Scheduled Task is running now; and how many hours, minutes, and seconds it will be until the next Scheduled Task is set to begin. While executing any of the `cycle-` commands (cycle-staging, cycle-prod, etc), we will check the api to make sure it is safe to merge. … We can also update the UX on the settings page, Scheduled Tasks panel, to say "Next Scheduled Task, <name of task>, starts in __ hours and __ minutes."
+
+**Agreed decisions (operator Q&A, 2026-07-18):**
+
+1. **Gate policy** — replaces the originally proposed fixed 60-minute look-ahead (which can never be satisfied when any sub-hourly entry is enabled; ADR 0019 removed the 1-hour interval floor): **unsafe if any covered task is running, or if the next fire among ALL enabled scheduled entries is within a buffer defaulting to 10 minutes; safe otherwise.** All enabled entries count; if cheap frequent monitor tasks ever get in the way, narrowing to blocking-task classes is a future reconsideration, not v1.
+2. **What counts as "running"** — BullMQ active jobs on any task queue (scheduled fires AND manual `/api/run-task` triggers), plus the legacy per-customer scheduler's in-flight runs (`customer-schedule`).
+3. **Scope** — guard only. Drain/graceful shutdown (`closeTaskQueue` SIGTERM wiring), stale `job.data` on stalled recovery (2026-05-25 intake entry), resumable checkpointing, and auth-gating the scheduled-tasks POST endpoints are all explicitly out of scope (tracked separately).
+4. **Direction-mode interaction** — a safe-window-wait void clause was added (operator-ratified, pre-arming) to the task-timeline book's outcome table, and is part of the deploy-safety-gate book's own pre-registration.
+5. **Coverage** — the check must also cover promotions to `feat/tags` → tags.brainstorm.world (no cycle skill exists for that path; covered via the canonical shared recipe).
+
+**Architectural background (subsystem map, 7-reader workflow 2026-07-18 — verified against source):**
+
+- **Half exists already.** Per-entry next-fire is computed and served: `GET /api/scheduled-tasks/list` returns `timer.nextRunAt` per entry (BullMQ `getJobSchedulers()` → `.next`; `src/manage/taskQueue/queue/scheduler.js:126-144`, `src/api/scheduled-tasks/index.js:219-222, 290-309`). Unauthenticated (auth middleware fall-through, `src/middleware/auth.js:488-489`) — verified live against staging 2026-07-18. The settings panel already renders per-entry "next run" (`ui/src/pages/settings/RelaySettings.jsx:1711-1725`). The new endpoint is an aggregation + a running-now signal; the UX line needs no new backend.
+- **The phantom-running trap (critical).** Every existing "running" surface (task-watchdog, scheduled-tasks history, taskDashboard) derives from `events.jsonl` TASK_START-without-TASK_END. A deploy-killed task never writes TASK_END and reads as "running" for up to 24h — a gate built on these deadlocks after the very event it guards against. The authoritative signal is BullMQ active-job state (`getAllQueues()` + `getActiveCount()`, `src/manage/taskQueue/queue/index.js:166-174`) — nothing exposes it as JSON today (BullBoard is an owner/admin HTML UI).
+- **Legacy scheduler.** `customer-schedule` keeps in-process `setInterval` timers with an in-memory Map holding a live `taskRunning` boolean (`src/api/customer-schedule/index.js:20-22, 210-215`); its status API is per-pubkey only (`?pubkey=` required — verified live on staging 2026-07-18; no aggregate form). Same process as the control panel, so server-side aggregation is possible.
+- **Degraded mode.** With `TASK_QUEUE_ENABLED=false` the queue layer doesn't exist; `nextRunSafe` returns null and timers read inactive. The endpoint must distinguish "queue disabled" from "nothing scheduled."
+- **Deploys.** Six branch-triggered workflows (main, staging, feat/tags, feat/communities, feature-magic-carpet, feat/curate) SSH to the droplet and `docker compose up -d --build` (~80s warm + 5-30s bind window). The `tapestry` container is recreated (in-flight task child processes killed; no drain — `closeTaskQueue()` is dead code); `tapestry-redis` survives (AOF), so schedulers/waiting jobs persist and killed active jobs are stall-recovered and re-run after boot.
+- **Cycle skills.** No skill makes any pre-merge HTTP call today; all instance checks are post-deploy smoke. Natural slot: between PR-open and merge (cycle-staging step 3→4, cycle-prod step 3→4); cycle-full inherits. `docs/SMOKE_TEST.md` is the established shared-recipe pattern ("update this file and every cycle inherits") — the safe-to-merge recipe should follow it, which is also how feat/tags promotions get covered. Skill checks are plain unauthenticated curl (NIP-07 cannot be scripted, `docs/SMOKE_TEST.md:90-92`).
+- **Observed staging state (2026-07-18):** all four scheduled entries disabled, zero active tasks — the manual mitigation (disable everything before promoting) is still in effect from June. The gate replaces that practice.
+
+**Out of scope:** drain-on-deploy / SIGTERM wiring; stale `job.data` on stalled recovery; resumable checkpointing; auth for scheduled-tasks write endpoints; CI-side enforcement in deploy workflows; deploy-workflow concurrency groups and missing `set -euo pipefail` (pre-existing pipeline gaps, noted only).
+
+**Classification:** Feature (new epic `deploy-safety-gate`; task-queue-scheduler-adjacent)
+**Strictness:** Standard — but the book runs in **Direction mode**: every story runs all five phases and all judged gates regardless of classification.
+**Phase path:** Planning → Architecture → Test Design → Implementation → Review, per story, under `/direct-feature`.
+**Priority:** Medium-high — precondition for arming the parked task-timeline Direction-mode book; replaces a manual, easy-to-forget mitigation.
