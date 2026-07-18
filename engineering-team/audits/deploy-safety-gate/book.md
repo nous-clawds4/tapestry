@@ -31,10 +31,10 @@ This book runs under the Director harness — [`/direct-feature`](../../../.clau
 
 Arming is **one commit on the `staging` branch whose diff touches only this subsection**, filling in:
 
-- **Armed:** No *(→ `Yes — <ISO-8601 UTC datetime>`)*
-- **Deadline:** — *(→ arming instant + 168 hours, as an ISO-8601 UTC datetime; the arming commit's timestamp is the tiebreaker if prose and git disagree)*
-- **Baseline:** — *(→ the SHA of the arming commit's parent on `staging`. No stories, ADRs, or source changes for the `deploy-safety-gate` epic may exist at that SHA — pre-existing work voids the run)*
-- **Pinned governing versions:** — *(→ the commit SHAs of `engineering-team/roles/director.md`, `.claude/skills/direct-feature/SKILL.md`, and `.claude/agents/gate-judge.md` at arming. Scoring uses the pinned versions; any mid-run diff to the rubrics, judge protocol, stopping rules, or the judge agent is a goalpost amendment by definition)*
+- **Armed:** Yes — 2026-07-18T13:01:57Z *(operator-ratified in-session; the arming commit's timestamp is the tiebreaker)*
+- **Deadline:** 2026-07-25T13:01:57Z *(arming instant + 168 hours)*
+- **Baseline:** `04075e2bea3471974b9af179d0965492ed58120a` *(the arming commit's parent on `staging`. No stories, ADRs, or source changes for the `deploy-safety-gate` epic exist at this SHA. Recorded post-rebase: origin/staging advanced — PR #381, the note-tagging-inspector book — between local arming ratification and push; clean rebase, no conflicts)*
+- **Pinned governing versions:** `engineering-team/roles/director.md` @ `bdbc8cf6` · `.claude/skills/direct-feature/SKILL.md` @ `1d9f9b86` · `.claude/agents/gate-judge.md` @ `3a2657b2` *(scoring uses the pinned versions; any mid-run diff to the rubrics, judge protocol, stopping rules, or the judge agent is a goalpost amendment by definition)*
 
 A missing or ambiguous Armed/Deadline line means the book is not armed; the Director must refuse to run.
 
