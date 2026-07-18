@@ -76,7 +76,20 @@ EOF
 
 PR title: short, imperative-ish, under 70 chars. Body: structured per the template above. The PR description should accurately reflect what changed and what to verify, not just restate the title.
 
-### 4. Merge
+### 4. Safe-to-merge check
+
+The merge's immediate precursor. Run the pre-merge deploy-safety check as defined in [docs/SAFE_TO_MERGE.md](../../../docs/SAFE_TO_MERGE.md) against `https://staging.brainstorm.world` — the instance this merge redeploys:
+
+```bash
+scripts/check-safe-to-merge.sh https://staging.brainstorm.world
+```
+
+- **Exit 0:** safe verdict just observed — merge immediately (next step). If more than 5 minutes elapse before the merge, re-run the check.
+- **Any other exit:** stop. Do not merge. Include the check's full output in the report and hand the decision to the user — proceeding on a non-zero exit happens only as the user's explicit, recorded decision, never as this skill's default.
+
+The cadence, bound, and verdict-handling rules live in the doc and the script — don't restate or improvise them here.
+
+### 5. Merge
 
 ```bash
 gh pr merge <PR#> --repo nous-clawds4/tapestry --merge
@@ -90,7 +103,7 @@ gh pr view <PR#> --repo nous-clawds4/tapestry --json state,mergedAt,mergeCommit
 
 `state` should be `"MERGED"` and `mergedAt` should be present.
 
-### 5. Locate and watch the deploy
+### 6. Locate and watch the deploy
 
 ```bash
 sleep 3
@@ -101,7 +114,7 @@ gh run watch <run-id> --repo nous-clawds4/tapestry --exit-status
 
 Typical staging deploy is ~80s on warm Docker layer cache, ~2m+ when `package.json` or other invalidating files change. If the run fails, surface the failure and stop.
 
-### 6. Smoke test
+### 7. Smoke test
 
 Run the smoke test as defined in [docs/SMOKE_TEST.md](../../../docs/SMOKE_TEST.md) with `H=https://staging.brainstorm.world`.
 
@@ -114,7 +127,7 @@ All five tiers apply for staging:
 
 For Tier 4, navigate the MCP tab to `https://staging.brainstorm.world/<page>` and confirm the rendered state. The user's signed-in cookies for `tapestry.brainstorm.world` and `staging.brainstorm.world` are typically shared with the MCP tab via the same Chrome profile — so authenticated routes may render either fully or with the auth gate depending on session state. Don't assume; read what's there.
 
-### 7. Report
+### 8. Report
 
 Use the standard report template (see [docs/SMOKE_TEST.md](../../../docs/SMOKE_TEST.md) "Reporting" section). Include:
 
@@ -124,13 +137,14 @@ Use the standard report template (see [docs/SMOKE_TEST.md](../../../docs/SMOKE_T
 - Tier results
 - Any caveats or noted gaps
 
-### 8. Pause
+### 9. Pause
 
 After reporting, stop. **Do not promote to main without explicit user approval.** The standard prompt: "Promote #<PR#> to main?"
 
 ## Error handling
 
 - **PR creation fails with "no commits between branches":** the feature branch is already merged or has no diff. Stop.
+- **Safe-to-merge check exits 1/2 (bound exhausted while unsafe, or no usable answer):** stop without merging, surface the full journal output and the last observed state, and let the user decide. Don't merge, and don't silently retry past the bound.
 - **`mergeStateStatus` is `BLOCKED` or `BEHIND`:** rebase the branch onto current `origin/staging` and retry. If conflicts, surface them — don't auto-resolve.
 - **Deploy run shows failure:** read the workflow log (`gh run view <id> --repo nous-clawds4/tapestry --log-failed`), surface the relevant error, and stop. Don't merge a revert without the user's say-so.
 - **Stability poll never reaches streak 3 within 90×2s = 3min:** something is genuinely broken. Surface the last few HTTP codes and stop.
@@ -138,6 +152,7 @@ After reporting, stop. **Do not promote to main without explicit user approval.*
 
 ## Reference
 
+- [docs/SAFE_TO_MERGE.md](../../../docs/SAFE_TO_MERGE.md) — canonical pre-merge deploy-safety check
 - [docs/SMOKE_TEST.md](../../../docs/SMOKE_TEST.md) — canonical smoke test
 - [OPERATIONS.md §1 "Deploy targets"](../../../OPERATIONS.md) — staging branch and workflow
 - [OPERATIONS.md §8 "Operational gotchas"](../../../OPERATIONS.md) — gh CLI gotcha, post-deploy 502, etc.
