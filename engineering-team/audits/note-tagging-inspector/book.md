@@ -1,9 +1,9 @@
 # Book of Work: Inspect the nostr events behind a note's tagging
 
 **Slug:** note-tagging-inspector
-**Status:** Open
+**Status:** Closed
 **Opened:** 2026-07-17 (eagerly at intake, per workflows/0-intake.md step 4)
-**Closed:** —
+**Closed:** 2026-07-18 — all 5 frame bullets met (Tier-4 populated evidence per the pre-registered design, upgrade clause fired on staging); story #3 Done (review PASS); shipped to `staging` (PR #381, merge `8cccfd33`, code range `89c3964f..8cccfd33`) and, operator-instructed post-offer, to `feat/tags`/tags.brainstorm.world (merge `ab4087fe`) and `main`/tapestry.brainstorm.world (PR #382, merge `83d527f2`) — live and populated-drive-verified on all four deployments.
 
 ## Intent anchor
 
@@ -46,7 +46,7 @@ The ask says *"the raw nostr event that applies a tag to a content event"* — s
 
 ## Epics in this book
 
-- `tag-event-inspector` — story #3 (`stories/tag-event-inspector/3-note-tagging-raw-events-inspector.md`). Epic Active; spans three books (`tag-event-inspector` closed, `profile-tagging-inspector` closed, this one). Its POV guardrail (bytes invariant / set per-POV) and "emulate the menu you are extending" amendment — both added at the #2 reopen — govern this story unchanged.
+- `tag-event-inspector` — story #3 (`stories/tag-event-inspector/3-note-tagging-raw-events-inspector.md`). Epic Active; spans three books (`tag-event-inspector` closed, `profile-tagging-inspector` closed, this one). Its POV guardrail (bytes invariant / set per-POV) and "emulate the menu you are extending" amendment — both added at the #2 reopen — govern this story unchanged. *(At this close the audit recommends retiring the epic — see "Close artifacts"; the operator ratifies.)*
 
 ## Direction mode (delegated-gates run) — pre-registered
 
@@ -127,9 +127,12 @@ Executed **only on the operator's explicit instruction** after reviewing the HAL
 
 - **Mode:** Acceptance-frame
 - **Confidence at open:** **high** — the ask is captured verbatim in-session (not reconstructed); the two scope decisions were put to the operator explicitly and answered; the frame's one deliberate departure from the ask's literal words (singular → all events) is documented above with the operator's confirmation. The data-reality constraint on staging evidence is measured, not assumed.
-- **Confidence at close:** *(to be filled by `/close-book`)*
+- **Confidence at close:** **high** — verbatim anchor; a final-judge-approved completion report with bullet-by-bullet evidence (including an independent sha256 recomputation of a displayed event's id — cryptographic byte-faithfulness); the feature live and populated-drive-verified read-only on all four deployments on the real `cool-web-of-trust` data, including the operator's originating page. Honest residuals, named in the audit (§4/§5): the mine-only "not counted under this POV" runtime case is proven structurally, never empirically (OPEN.md #49 family, both surfaces); the feed and `/event` surfaces rest on the structural shared-unit guarantee rather than drives (local fixtures can't reach their external-relay read paths).
 
-## Close artifacts *(filled by `/close-book`)*
+## Close artifacts *(filled by `/close-book`, 2026-07-18)*
 
 - Build audit: `engineering-team/audits/note-tagging-inspector/audit.md`
 - Product feedback: `engineering-team/audits/note-tagging-inspector/prd-seed.md`
+- Completion report (Direction mode, final-judge APPROVE): `engineering-team/audits/note-tagging-inspector/completion-report.md`
+- Confidence at close: **high** (see Provenance above)
+- Epic disposition: audit §2/§6 **recommends retiring `tag-event-inspector`** (goal met at pattern level across three books; all 3 stories Done and shipped fleet-wide; retirement also lets the blunt OPEN.md-#47 L2 waiver retire). Operator ratifies at the gate; files move only on ratification.
