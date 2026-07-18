@@ -36,3 +36,10 @@ Append-only. Entry format: [engineering-team/roles/director.md](../../roles/dire
 **Judge:** APPROVE, blinding intact — all rubric items pass; judge independently verified the empty concept footprint against the live graph and the AC↔frame-bullet mapping (bullets 1–3 fully covered, out-of-scope respected).
 **Why:** My own read concurs: five externally-testable ACs, one subsystem, implementation vocabulary correctly abstracted (BullMQ/customer-schedule named only in the cited intake entry), ratified decisions carried as requirements. PO raised zero questions — the frame + intake answered everything, as designed.
 **Next:** Commit story + epic + intake markers; Phase 2 — spawn architect for ADR 0001 of the deploy-safety-gate epic.
+
+## 2026-07-18T14:00:00Z — Gate 2 APPROVE — ADR 0001 (deploy-safety-status-endpoint)
+**Story/Phase:** deploy-safety-gate #1 / Gate 2 (ADR)
+**Decision:** APPROVE
+**Judge:** APPROVE, blinding intact — all rubric items pass; judge verified ~20 file:line claims against source, independently cleared the closest unlisted ADR (0016 BullBoard gating) for conflict, and confirmed the unauthenticated-by-fall-through and legacy-runs-while-queue-disabled claims in code. One non-blocking defect: the Implementation-notes precedent cite says T17/T18 where the cited file's guards are T3/T4 — carried to the Tester to correct.
+**Why:** I concur: Option A (new src/api/deploy-safety/ module, pure computeVerdict core, three live in-process sources, fail-closed introspection) satisfies AC-2's two-source coverage and AC-3's phantom exclusion structurally; the payload contract cleanly feeds stories 2–3; Consequences records real debt (legacy-Map coupling, unauthenticated task names, caller-tunable buffer) instead of hiding it.
+**Next:** Commit ADR; Phase 3 — spawn tester (carry the T3/T4 correction and the OPEN.md #43 live-chain registration trap into the brief).
