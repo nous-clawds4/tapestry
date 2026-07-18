@@ -66,6 +66,6 @@ None. The intake entry's ratified decisions and the book's acceptance-frame bull
 ## Linked artifacts
 
 - Book: `engineering-team/audits/deploy-safety-gate/book.md`
-- ADR: (filled in after Architecture phase)
-- Test plan: (filled in after Test Design phase)
+- ADR: `engineering-team/decisions/deploy-safety-gate/0002-safe-to-merge-check-script-and-shared-recipe.md`
+- Test plan: `engineering-team/stories/deploy-safety-gate/2-cycle-safe-to-merge-check.test-plan.md`
 - Review: (filled in after Review phase)
