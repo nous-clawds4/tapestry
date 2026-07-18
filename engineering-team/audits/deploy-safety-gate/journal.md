@@ -164,3 +164,10 @@ Append-only. Entry format: [engineering-team/roles/director.md](../../roles/dire
 **Judge:** APPROVE, blinding intact. Judge verified every file:line claim (panel internals, endpoint payload, the /list null-collapse that makes AC-4 unreachable from /list, the card-toggle staleness gap), re-ran the concept-graph orientation (46, none relevant), and independently swept the decisions tree for conflicts — complete.
 **Why:** I concur — endpoint-sourced (Option A) makes AC-5 structural; the pure JSX-free helper gives the node harness its unit lane (povNoticeText precedent); 1s tick / 10s poll / mutation-bump refresh is proportionate; ceiling-rounding kills the 0h0m boundary case.
 **Next:** Commit ADR; Phase 3 — spawn tester (unit lane on the pure helper; Playwright lane for render/tick; live HTTP lane; live-chain registration).
+
+## 2026-07-19T04:55:00Z (local) — Gate 3 APPROVE — test plan + failing tests, story #3
+**Story/Phase:** deploy-safety-gate #3 / Gate 3
+**Decision:** APPROVE
+**Judge:** APPROVE, blinding intact. Judge ran all three lanes: node suite 22 fail/2 regression-pass (all feature-missing), full npm test Overall FAIL via the correctly-wired live term (only failing suite; exactly 22 FAIL lines), Playwright 7/7 failing solely at the absent element with auth/navigation succeeding. Prototype confirmed deleted; no production code in tree. One immaterial nit (plan says Playwright v1.55, package.json carries ^1.56.1).
+**Why:** I concur. Coverage maps all five ACs across lanes with real edge cases; structural probes all ADR-pinned.
+**Next:** Commit test design (Gate-3 reference for story #3's Gate-4 diff check); Phase 4 — spawn implementer.

@@ -67,6 +67,6 @@ None. The operator's verbatim phrasing, frame bullet 5, and the ratified decisio
 ## Linked artifacts
 
 - Book: `engineering-team/audits/deploy-safety-gate/book.md`
-- ADR: (filled in after Architecture phase)
-- Test plan: (filled in after Test Design phase)
+- ADR: `engineering-team/decisions/deploy-safety-gate/0003-panel-countdown-from-deploy-safety-status.md`
+- Test plan: `engineering-team/stories/deploy-safety-gate/3-scheduled-tasks-panel-countdown.test-plan.md`
 - Review: (filled in after Review phase)
