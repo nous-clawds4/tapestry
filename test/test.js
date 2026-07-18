@@ -154,6 +154,8 @@ const applicabilityRepublish = require('./applicability-republish.test.js');
 const harnessLint = require('./harness-lint.test.js');
 const harnessStats = require('./harness-stats.test.js');
 const sessionStart = require('./session-start.test.js');
+// epic: deploy-safety-gate — Story 1 (status endpoint + pure verdict core)
+const deploySafetyStatus = require('./deploy-safety-status.test.js');
 
 async function main() {
   console.log('Running Brainstorm tests...');
@@ -430,6 +432,9 @@ async function main() {
 
   console.log('\nrouter-stream-tag-filters suite:');
   const routerStreamTagFiltersResult = await routerStreamTagFilters.run();
+
+  console.log('\ndeploy-safety-status suite:');
+  const deploySafetyStatusResult = await deploySafetyStatus.run();
 
   console.log('\nTest Results');
   console.log('-------------');
@@ -730,6 +735,13 @@ async function main() {
       ? `SKIP (${noteTaggingRawEventsInspectorHttpResult.skipped} tests; preconditions not met)`
       : `${noteTaggingRawEventsInspectorHttpResult.fail === 0 ? 'PASS' : 'FAIL'} (${noteTaggingRawEventsInspectorHttpResult.pass} passed, ${noteTaggingRawEventsInspectorHttpResult.fail} failed${noteTaggingRawEventsInspectorHttpResult.skipped ? `, ${noteTaggingRawEventsInspectorHttpResult.skipped} skipped` : ''})`;
   console.log(`note-tagging-raw-events-inspector-http suite:    ${noteTaggingRawHttpLine}`);
+  // Skip-aware: H-class live tests skip when the control panel is absent
+  // (CI's stack-free job); U/S classes always run and gate.
+  const deploySafetyStatusLine =
+    (deploySafetyStatusResult.pass + deploySafetyStatusResult.fail) === 0 && deploySafetyStatusResult.skipped
+      ? `SKIP (${deploySafetyStatusResult.skipped} tests; preconditions not met)`
+      : `${deploySafetyStatusResult.fail === 0 ? 'PASS' : 'FAIL'} (${deploySafetyStatusResult.pass} passed, ${deploySafetyStatusResult.fail} failed${deploySafetyStatusResult.skipped ? `, ${deploySafetyStatusResult.skipped} skipped` : ''})`;
+  console.log(`deploy-safety-status suite:                      ${deploySafetyStatusLine}`);
 
   const overallOk =
     configOk &&
@@ -844,7 +856,10 @@ async function main() {
     tagActionsMenuUiResult.fail === 0 &&
     taggingRawEventInspectorUiResult.fail === 0 &&
     noteTaggingRawEventsInspectorUiResult.fail === 0 &&
-    noteTaggingRawEventsInspectorHttpResult.fail === 0;
+    noteTaggingRawEventsInspectorHttpResult.fail === 0 &&
+    // deploy-safety-gate #1 — registered in the LIVE overallOk chain (the
+    // block below this expression's terminator is severed — see OPEN.md #43).
+    deploySafetyStatusResult.fail === 0;
     harnessLintResult.fail === 0 &&
     harnessStatsResult.fail === 0 &&
     sessionStartResult.fail === 0 &&
@@ -879,7 +894,7 @@ async function main() {
     openRankingStatsResult, openRankingSearchResult, verifiedMutersReadApiResult, verifiedMutersProfileSurfaceResult,
     harnessLintResult, harnessStatsResult, sessionStartResult, stackFreeNpmTestResult,
     ciTestJobResult, syncPanelTagFiltersResult, routerStreamTagFiltersResult,
-    noteTaggingRawEventsInspectorHttpResult,
+    noteTaggingRawEventsInspectorHttpResult, deploySafetyStatusResult,
   ].reduce((sum, r) => sum + ((r && r.skipped) || 0), 0);
   console.log(`Total skipped:                                   ${totalSkipped}`);
   console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);
