@@ -1,7 +1,7 @@
 # Story 3: Raw tagging-events inspector for a note's tag chips
 
 **Epic:** tag-event-inspector
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-07-17
 **Type:** Feature
 
@@ -85,5 +85,5 @@ Implementation-phase judgment calls (Implementer, 2026-07-17) — none changes a
 
 - ADR: `engineering-team/decisions/tag-event-inspector/0003-note-tagging-raw-events-inspector.md`
 - Test plan: `engineering-team/stories/tag-event-inspector/3-note-tagging-raw-events-inspector.test-plan.md`
-- Review: (Review phase)
+- Review: `engineering-team/reviews/tag-event-inspector/3-note-tagging-raw-events-inspector.md` — **PASS** (2026-07-18)
 - Book: `engineering-team/audits/note-tagging-inspector/book.md`
