@@ -48,6 +48,16 @@ export default function TagChip({
                       // inline tally). Off everywhere except the Notes tab's
                       // expanded View options; the counts otherwise live in the
                       // hover popover only.
+  rawOpen,     // optional (Story 3 / ADR 0003 D4): whether this chip's raw-events
+               // panel is currently open. Owned by the surface (NoteTags), not the
+               // chip — the panel renders elsewhere in the note card.
+  onToggleRaw, // optional: when passed, the popover offers Show/Hide Raw Tagging
+               // Events. ABSENT ⇒ no button — the surface opts in by intent, never
+               // by data presence, so ProfileTagsSection (and any future consumer
+               // that passes nothing) stays byte-identical.
+  rawNotice,   // optional: a visible per-chip message when the chip's events cannot
+               // be produced (AC-4) — rendered via the existing .ptc-hint idiom,
+               // instead of a panel that could read as "nobody asserted this".
 }) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef(null);
@@ -183,6 +193,21 @@ export default function TagChip({
               Dispute
             </button>
           </div>
+
+          {/* Story 3 / ADR 0003 D4 — inspection has no login gate (AC-1), so no
+              disabled and no viewerPubkey here; and no close call (AC-2): the
+              popover keeps its own conventions (cursor-leave/Escape/blur). */}
+          {onToggleRaw && (
+            <button
+              type="button"
+              className="ptc-btn ptc-btn-raw"
+              aria-expanded={!!rawOpen}
+              onClick={(e) => { e.preventDefault(); onToggleRaw(); }}
+            >
+              {rawOpen ? 'Hide Raw Tagging Events' : 'Show Raw Tagging Events'}
+            </button>
+          )}
+          {rawNotice && <div className="ptc-hint" role="status">{rawNotice}</div>}
 
           {!viewerPubkey && (
             <div className="ptc-hint">Log in via NIP-07 to apply or dispute.</div>

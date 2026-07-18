@@ -6,6 +6,7 @@ import useTagApplicability from '../hooks/useTagApplicability';
 import TagChip from './TagChip';
 import AddTagDialog from './AddTagDialog';
 import PovStatusNotice from './PovStatusNotice';
+import RawTaggingEvents from './RawTaggingEvents';
 
 /**
  * Story 6 — the event-tag affordance for a single kind-1 note. Rendered once
@@ -21,7 +22,7 @@ import PovStatusNotice from './PovStatusNotice';
 export default function NoteTags({ item, showScores = false }) {
   const { user } = useAuth();
   const viewerPubkey = user?.pubkey || null;
-  const { tags, mine, availableTags, povResolution, error, refetch } = useEventTags(item?.id, viewerPubkey);
+  const { tags, mine, rawEvents, availableTags, povResolution, error, refetch } = useEventTags(item?.id, viewerPubkey);
   // Type-aware picker (tag-applicability #2): event-context applicable tags, viewer-inclusive.
   const { applicableKeys, contextsByKey } = useTagApplicability('event', viewerPubkey);
   const { applyTag, disputeTag } = useEventTagging();
@@ -29,6 +30,13 @@ export default function NoteTags({ item, showScores = false }) {
   const [busy, setBusy] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [actionError, setActionError] = useState(null);
+  // Story 3 / ADR 0003 D4 — which chips' raw-events panels are open, keyed by
+  // the STABLE tag coordinate `${authorPubkey}:${slug}` (t.eventId can be a
+  // synthesized fallback for mine-only chips, so it is not the key). Per-instance
+  // state ⇒ per-note isolation and multi-open stacking for free. The notices map
+  // carries AC-4's visible per-chip message when a panel cannot be produced.
+  const [openRaw, setOpenRaw] = useState(() => new Set());
+  const [rawNotices, setRawNotices] = useState({});
 
   // The viewer's own stance per tag coordinate, from `mine` (durable, trust-unfiltered).
   const myStanceByCoord = useMemo(() => {
@@ -36,6 +44,51 @@ export default function NoteTags({ item, showScores = false }) {
     for (const s of mine) m.set(`${s.authorPubkey}:${s.slug}`, s);
     return m;
   }, [mine]);
+
+  // tag-event-inspector #3 / ADR 0003 D3. The evidence blocks behind one chip,
+  // composed from the SAME arrays the popover's numbers are the lengths of —
+  // count-back is structural. `counted` = which server channel the entry rode
+  // in on (applications/disputes = this POV's counted verdict; mine-and-not-
+  // counted = the viewer-union), never re-derived from event bytes.
+  const rawBlocksFor = (t) => {
+    const entries = [
+      ...t.applications.map((e) => ({ polarity: 'apply', counted: true, id: e.eventId })),
+      ...t.disputes.map((e) => ({ polarity: 'dispute', counted: true, id: e.eventId })),
+    ];
+    const s = myStanceByCoord.get(`${t.authorPubkey}:${t.slug}`);
+    if (s && !entries.some((b) => b.id === s.mineEventId)) {
+      entries.push({ polarity: s.stance, counted: false, id: s.mineEventId });
+    }
+    const blocks = entries.map((b) => ({ polarity: b.polarity, counted: b.counted, event: rawEvents[b.id] }));
+    if (!blocks.length || blocks.some((b) => !b.event)) return null; // AC-4: all-or-nothing per chip
+    return blocks.sort((a, b) =>
+      (a.polarity === b.polarity ? 0 : a.polarity === 'apply' ? -1 : 1)
+      || (b.event.created_at - a.event.created_at)
+      || a.event.id.localeCompare(b.event.id));
+  };
+
+  // Toggle one chip's panel. Unproducible (rawBlocksFor → null) ⇒ set that
+  // coordinate's visible notice instead of opening anything (AC-4, D6); a later
+  // successful toggle clears it. Coordinate in, coordinate out — toggling one
+  // chip cannot touch another chip or note.
+  const toggleRaw = (t) => {
+    const coord = `${t.authorPubkey}:${t.slug}`;
+    if (!rawBlocksFor(t)) {
+      setRawNotices((n) => ({ ...n, [coord]: 'Raw tagging events unavailable' }));
+      return;
+    }
+    setRawNotices((n) => {
+      if (!n[coord]) return n;
+      const next = { ...n };
+      delete next[coord];
+      return next;
+    });
+    setOpenRaw((prev) => {
+      const next = new Set(prev);
+      if (next.has(coord)) next.delete(coord); else next.add(coord);
+      return next;
+    });
+  };
 
   // Displayed = the POV-counted set UNION the viewer's own (mine-only) tags, so a
   // just-applied tag the POV doesn't count still appears (and survives reload).
@@ -109,9 +162,29 @@ export default function NoteTags({ item, showScores = false }) {
         <PovStatusNotice status={povResolution} variant="compact" />
       )}
 
+      {/* Story 3 / ADR 0003 D4 — the raw-events panels: inside the note card,
+          below the note's content, above the chips row (AC-2's mandated slot).
+          displayedTags IS the chips' display order, so stacked panels are
+          ordered by construction. */}
+      {displayedTags.filter(t => openRaw.has(`${t.authorPubkey}:${t.slug}`)).map((t) => {
+        const blocks = rawBlocksFor(t);
+        if (!blocks) return null;
+        return (
+          <section
+            key={`raw-${t.authorPubkey}:${t.slug}`}
+            className="bsp-note-tags-raw"
+            aria-label={`Raw tagging events for ${t.name}`}
+          >
+            <p className="bsp-note-tags-raw-caption">Raw tagging events — {t.name}</p>
+            <RawTaggingEvents assertions={blocks} />
+          </section>
+        );
+      })}
+
       <div className="bsp-note-tags-row">
         {displayedTags.map((t) => {
-          const s = myStanceByCoord.get(`${t.authorPubkey}:${t.slug}`);
+          const coord = `${t.authorPubkey}:${t.slug}`;
+          const s = myStanceByCoord.get(coord);
           const myStance = s
             ? { authorPubkey: viewerPubkey, polarity: s.stance === 'apply' ? 1 : -1, eventId: s.eventId }
             : undefined;
@@ -127,6 +200,9 @@ export default function NoteTags({ item, showScores = false }) {
               onApply={handleApply}
               onDispute={handleDispute}
               showScores={showScores}
+              rawOpen={openRaw.has(coord)}
+              onToggleRaw={() => toggleRaw(t)}
+              rawNotice={rawNotices[coord]}
             />
           );
         })}

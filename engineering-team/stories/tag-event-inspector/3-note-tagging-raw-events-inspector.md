@@ -73,6 +73,14 @@ Handle pubkeys are per-deployment — resolve at runtime, never hardcode (CLAUDE
 - **(a) Payload strategy is genuinely open, and Story 2's answer does not transfer — in either direction.** Story 2 measured and chose "ship the assertions with the counts" because its endpoint served one page. The read path behind the chips fires **once per note card on every note surface** — a feed multiplies it. The lazy-on-open shape Story 2 rejected may well win here, and AC-4's loading/failure states exist to make that shape honest. **Recommendation: the Architect re-derives from scratch, measuring, exactly as ADR 0002 did.**
 - **(b) Book: new, or an existing open one?** — **SETTLED at the Planning gate: a new book, `audits/note-tagging-inspector/`, under the still-Active epic.** Mirrors Story 2's settled reasoning: a new bounded ask gets a new frame; the `profile-tagging-inspector` book's frame was met and closed; the open `unified-tagging-ui` book's frame ("tag surfaces stop meaning profiles-only, plus note-pins") doesn't cover inspection affordances. An epic may span books.
 
+## Deviations
+
+Implementation-phase judgment calls (Implementer, 2026-07-17) — none changes an ADR decision:
+
+- **`aria-controls` omitted from the raw button.** ADR 0003 D4's Option-A prose lists `aria-controls=<panel id>`, but the ADR's Implementation notes — the concrete work plan — give the button JSX without it and the panel `<section>` no `id` (the two live in different components, so an id contract was never specified). Implemented the notes' JSX verbatim; the expanded state is exposed via `aria-expanded`, and the panel is labelled via `aria-label`.
+- **The TagPageRow re-aim is two lines, not one.** D5 prices the Story-2 touch as "one import line", but the suite (U3) pins zero remaining `TagRowRawEvents` references, so the import's local binding is renamed and the one JSX usage line follows (`<RawTaggingEvents assertions={row.assertions} />`). Rendered output identical.
+- **Panels filter uses `t =>`, not the ADR sample's `(t) =>`.** The pinned U12 regex (`filter\([^)]*openRaw\.has`) admits no `)` before `openRaw.has`, so the arrow param is written unparenthesized. Syntax-only; semantics identical to the ADR's sample.
+
 ## Linked artifacts
 
 - ADR: `engineering-team/decisions/tag-event-inspector/0003-note-tagging-raw-events-inspector.md`

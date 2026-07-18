@@ -1547,6 +1547,8 @@ Anchor inputs: this entry + `audits/sync-panel-tag-filters/prd-seed.md` §6–7 
 
 ## 2026-07-16 — Cleanup: extract a shared `<RawEventPanel>` (do it at the THIRD inspection surface)
 
+**DONE** 2026-07-17 — discharged by tag-event-inspector ADR 0003 D5 (Story 3, the third inspection surface, exactly as the trigger predicted): `TagRowRawEvents.jsx` promoted to the shared `ui/src/components/RawTaggingEvents.jsx` — a rename, not an abstraction (identical export/props/markup/class names); consumed by `TagPageRow` (Story 2) and `NoteTags` (Story 3); both surfaces' source suites re-aimed, not dropped. Story 1's definition panel is deliberately EXCLUDED — the revealed outlier (one POV-invariant event, no envelope, no polarity captions); its genuinely shared parts are `toRawEvent` (now exported from profile-tags) and `.bs-tag-raw-pre`, not the blocks renderer.
+
 **Origin:** tag-event-inspector #2 / ADR 0002 Consequences #3 — recorded by the Implementer, not yet triaged.
 
 **Raw finding:** raw-event inspection now exists on **two** surfaces: the tag *definition* event (Story 1, a page-level panel in `ui/src/pages/Tag.jsx`) and a profile row's *taggings* (Story 2, a per-row panel via `ui/src/components/TagRowRawEvents.jsx`). Both render `JSON.stringify(event, null, 2)` into the shared `.bs-tag-raw-pre` class — the CSS is already shared; the block-rendering is not.
