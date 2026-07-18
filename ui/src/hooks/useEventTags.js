@@ -40,6 +40,9 @@ export function useEventTags(eventId, viewerPubkey) {
   const { povParams } = usePov();
   const [tags, setTags] = useState([]);
   const [mine, setMine] = useState([]);
+  // The as-signed bytes behind the channels — { [eventId]: 7-field projection }
+  // (tag-event-inspector ADR 0003 D2). Consumers join entry.eventId → bytes.
+  const [rawEvents, setRawEvents] = useState({});
   const [availableTags, setAvailableTags] = useState([]);
   const [povResolution, setPovResolution] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -49,7 +52,7 @@ export function useEventTags(eventId, viewerPubkey) {
   const refetch = useCallback(() => setNonce((n) => n + 1), []);
 
   useEffect(() => {
-    if (!eventId) { setTags([]); setMine([]); return undefined; }
+    if (!eventId) { setTags([]); setMine([]); setRawEvents({}); return undefined; }
     let cancelled = false;
     setLoading(true);
     setError(null);
@@ -96,6 +99,7 @@ export function useEventTags(eventId, viewerPubkey) {
         setAvailableTags(list);
         setTags(counted);
         setMine(mineEnriched);
+        setRawEvents(forEvent.rawEvents || {});
         setPovResolution(forEvent.povResolution || null);
       } catch (e) {
         if (!cancelled) setError(e?.message || String(e));
@@ -107,7 +111,7 @@ export function useEventTags(eventId, viewerPubkey) {
     return () => { cancelled = true; };
   }, [eventId, viewerPubkey, nonce, povParams.wotPov, povParams.userPubkey]);
 
-  return { tags, mine, availableTags, povResolution, loading, error, refetch };
+  return { tags, mine, rawEvents, availableTags, povResolution, loading, error, refetch };
 }
 
 export default useEventTags;
