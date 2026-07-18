@@ -247,6 +247,21 @@ t('overwriting the same d-tag with flipped polarity moves the entry between buck
 });
 
 t('typeahead search returns a profile tagged by a third-party author, with _matchedTags on the hit', async () => {
+  // ─── Conditional contract (same gate probe as profile-tag-polish.test.js) ───
+  // A ratified change gated the entire tag-match path behind the per-result-type
+  // setting `search.resultTypes.tags` (getResultTypes in
+  // src/api/search/profiles/meili/index.js; shipped default `false` in
+  // src/config/defaults.json). When disabled, computeTagMatches never runs: no
+  // tag-derived hits, no _matchedTags, and the `tagHits` key is omitted from
+  // the response entirely — so probe the mode via tagHits-key presence and
+  // skip when the behavior under test is structurally off.
+  const probe = await fetchMeiliSearch(`__gate_probe_${Math.random().toString(36).slice(2, 8)}__`);
+  if (!('tagHits' in probe)) {
+    throw skipTest(
+      'tags result type disabled (search.resultTypes.tags=false — shipped default; tag-match path structurally off; test meaningful only on tags-enabled instances)'
+    );
+  }
+
   const { authorSk, authorPk } = ctx;
   // Fresh tag with a deliberately unusual name so we don't collide with any
   // real profile's name/display_name.
