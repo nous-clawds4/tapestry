@@ -18,6 +18,7 @@
 const { execSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
+const { ensureRankedPool, makeAuthorDealer, meiliUpsertAndWait } = require('./helpers/livePov');
 
 const CONTROL_PANEL_BASE = process.env.BRAINSTORM_BASE_URL || 'http://localhost:7778';
 const MEILI_BASE = process.env.MEILI_URL_HOST || 'http://localhost:7700';
@@ -75,13 +76,11 @@ async function fetchJson(url) {
 }
 
 async function meiliUpsertProfile(doc) {
-  const r = await fetch(`${MEILI_BASE}/indexes/${MEILI_INDEX}/documents`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify([doc]),
-  });
-  if (!r.ok) throw new Error(`meili upsert failed: ${r.status} ${await r.text()}`);
-  await sleep(800);
+  // Upsert and WAIT for indexing — a fixed settle sleep is not enough: under
+  // stream-consumer ETL load the Meili task queue takes minutes per task.
+  // On timeout, mark the dependent test/suite skipped (environmental).
+  const res = await meiliUpsertAndWait(doc, { timeoutMs: 90000 });
+  if (!res.ok) throw new SkipTest(res.reason);
 }
 
 function signProfileTagEvent({ tagSlug, tagEventId, targetPubkey, authorSk, authorPk, polarity }) {
@@ -170,11 +169,12 @@ async function setupSuite() {
     picture: `https://example.test/${slugBase}.png`,
   });
 
-  // 4 distinct asserter authors — independent from the tag author.
-  const asserters = Array.from({ length: 4 }, () => {
-    const sk = nakKeyGen();
-    return { sk, pk: nakDerivePubkey(sk) };
-  });
+  // 4 distinct asserter authors — independent from the tag author. Drawn from
+  // the pre-ranked pool (helpers/livePov.js): on POV-filtered stacks only
+  // ranked authors' assertions count, and these tests exercise counts/sorts,
+  // not the WoT gate. run() has verified the pool via ensureRankedPool().
+  const dealer = makeAuthorDealer();
+  const asserters = Array.from({ length: 4 }, () => dealer.take());
 
   // 3 distinct target profiles.
   const targets = Array.from({ length: 3 }, () => {
@@ -646,16 +646,17 @@ t('profiles-tagged: a neutral assertion is excluded from assertions entirely (de
   // NUMBERS", so a neutral event is correctly outside it — otherwise the block count stops
   // reconciling with +N/-M. DELIBERATE (story Product decision #5): a reviewer must not
   // read this as an oversight, which is why it gets its own named test.
-  const { tagSlug, publishedTag, slugBase } = ctx;
+  const { tagSlug, publishedTag } = ctx;
 
-  const applier = (() => { const sk = nakKeyGen(); return { sk, pk: nakDerivePubkey(sk) }; })();
-  const neutral = (() => { const sk = nakKeyGen(); return { sk, pk: nakDerivePubkey(sk) }; })();
+  // Ranked pool authors (fresh target, so no d-tag collision with setup's
+  // assertions). BOTH must be ranked: the neutral author's exclusion must be
+  // attributable to POLARITY, not to the POV rank filter. No Meili upserts —
+  // row appearance needs none, and a bare doc write would clobber the pool
+  // docs' rank fields (partial-update semantics notwithstanding, there is
+  // nothing these assertions need from Meili).
+  const applier = ctx.asserters[0];
+  const neutral = ctx.asserters[1];
   const targetPk = nakDerivePubkey(nakKeyGen());
-
-  for (const a of [applier, neutral]) {
-    await meiliUpsertProfile({ id: a.pk, pubkey: a.pk, name: `Neutral-${a.pk.slice(0, 6)}-${slugBase}` });
-  }
-  await meiliUpsertProfile({ id: targetPk, pubkey: targetPk, name: `NeutralTarget-${slugBase}` });
 
   await publish(signProfileTagEvent({
     tagSlug, tagEventId: publishedTag.id, targetPubkey: targetPk,
@@ -698,9 +699,19 @@ async function run() {
     return { pass: 0, fail: 0, skipped: tests.length };
   }
 
+  const ranked = await ensureRankedPool();
+  if (!ranked.ok) {
+    console.log(`  SKIP  ${ranked.reason}; skipping live publish-flow tests`);
+    return { pass: 0, fail: 0, skipped: tests.length };
+  }
+
   try {
     await setupSuite();
   } catch (err) {
+    if (err && err.name === 'SkipTest') {
+      console.log(`  SKIP  suite setup: ${err.message}; skipping live publish-flow tests`);
+      return { pass: 0, fail: 0, skipped: tests.length };
+    }
     console.log(`  FAIL  suite setup: ${err.message}`);
     return { pass: 0, fail: 1, skipped: tests.length };
   }

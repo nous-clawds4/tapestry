@@ -27,6 +27,7 @@
 const { execSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
+const { ensureRankedPool, makeAuthorDealer, meiliUpsertAndWait } = require('./helpers/livePov');
 
 const CONTROL_PANEL_BASE = process.env.BRAINSTORM_BASE_URL || 'http://localhost:7778';
 const MEILI_BASE = process.env.MEILI_URL_HOST || 'http://localhost:7700';
@@ -83,13 +84,11 @@ async function fetchJson(url) {
 }
 
 async function meiliUpsertProfile(doc) {
-  const r = await fetch(`${MEILI_BASE}/indexes/${MEILI_INDEX}/documents`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify([doc]),
-  });
-  if (!r.ok) throw new Error(`meili upsert failed: ${r.status} ${await r.text()}`);
-  await sleep(800);
+  // Upsert and WAIT for indexing — a fixed settle sleep is not enough: under
+  // stream-consumer ETL load the Meili task queue takes minutes per task.
+  // On timeout, mark the dependent test/suite skipped (environmental).
+  const res = await meiliUpsertAndWait(doc, { timeoutMs: 90000 });
+  if (!res.ok) throw new SkipTest(res.reason);
 }
 
 function signProfileTagEvent({ tagSlug, tagEventId, targetPubkey, authorSk, authorPk, polarity }) {
@@ -134,11 +133,12 @@ let ctx = null;
 async function setupSuite() {
   const slugBase = `s4-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
-  // 7 reusable asserters.
-  const asserters = Array.from({ length: 7 }, () => {
-    const sk = nakKeyGen();
-    return { sk, pk: nakDerivePubkey(sk) };
-  });
+  // 7 reusable asserters, drawn from the pre-ranked pool (helpers/livePov.js):
+  // on POV-filtered stacks only ranked authors' assertions count, and this
+  // suite exercises volume/sort semantics, not the WoT gate. run() has
+  // verified the pool via ensureRankedPool().
+  const dealer = makeAuthorDealer();
+  const asserters = Array.from({ length: 7 }, () => dealer.take());
 
   // Author of the tag-elements themselves — distinct from asserters.
   const tagAuthorSk = nakKeyGen();
@@ -462,9 +462,19 @@ async function run() {
     return { pass: 0, fail: 0, skipped: tests.length };
   }
 
+  const ranked = await ensureRankedPool();
+  if (!ranked.ok) {
+    console.log(`  SKIP  ${ranked.reason}; skipping live publish-flow tests`);
+    return { pass: 0, fail: 0, skipped: tests.length };
+  }
+
   try {
     await setupSuite();
   } catch (err) {
+    if (err && err.name === 'SkipTest') {
+      console.log(`  SKIP  suite setup: ${err.message}; skipping live publish-flow tests`);
+      return { pass: 0, fail: 0, skipped: tests.length };
+    }
     console.log(`  FAIL  suite setup: ${err.message}`);
     return { pass: 0, fail: 1, skipped: tests.length };
   }

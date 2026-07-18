@@ -89,14 +89,16 @@ t('GET /api/profile-tags/by-id returns 404 for a well-formed but unknown tagEven
  */
 
 // Local fixture — a kind-39999 tag element in the local strfry corpus, authored
-// by a NON-TA pubkey (c06d93c9…) deliberately: a TA-hardcode regression would
+// by a NON-TA pubkey (58352e0a…) deliberately: a TA-hardcode regression would
 // pass silently against a TA-authored tag. Prerequisite: the local stack's
 // kind-39999 corpus. Against a BRAINSTORM_BASE_URL lacking this event these
 // tests fail loudly (named below) rather than pass vacuously.
+// Reseeded 2026-07-18: the original fixture (5633f149…, slug cpc-tag-s12b-…)
+// vanished from the local corpus (see OPEN.md — local strfry corpus drift).
 const RAW_FIXTURE = {
-  eventId: '5633f149de1dd8635d9b45c77ab44c7decf2ad179b76898340ed1be2537e975d',
-  slug: 'cpc-tag-s12b-1784175857927-1vizzi',
-  authorPubkey: 'c06d93c96d6e659c9f3a6af97bc490d26cc0141fd8d638d54ef20a0197938899',
+  eventId: '9ec193a73163b1220236a0106346e059bd4d0d07c27586fab27d553ae2d25a14',
+  slug: 'cpc-tag-fixture-1784351872-7e0ce5',
+  authorPubkey: 'b78e712c3c6ff6907921839ec348aae86ff210d91bf14a78d3ac1fe7ae88ca10',
 };
 
 // The seven canonical NIP-01 event fields, in canonical order. Authority: the

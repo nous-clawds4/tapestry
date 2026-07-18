@@ -1832,6 +1832,10 @@ module.exports = {
   meiliFetchProfilesByPubkey,
   aggregateProfilesTagged,
   aggregateTagPins,
+  // The 7-field "as signed" projection — one definition across both inspection
+  // APIs (tag-event-inspector ADR 0003 D2; event-tags requires it for the
+  // for-event rawEvents side-table):
+  toRawEvent,
   // Read-union (ADR tag-federation/0001) — exported for tests:
   federatedScan,
   dlistFetch,

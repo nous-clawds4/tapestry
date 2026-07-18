@@ -28,6 +28,11 @@ const { getOwnerAssistantPubkey } = require('../../utils/assistantKeys');
 // to fetch + enrich the target kind-1 notes from the relay set.
 const { resolveGeneralPurposeRelays, realQuerySync, realScanStrfry, realRunCypher } = require('../_shared/relaySource');
 const { enrichNotes } = require('../_shared/noteEnrichment');
+// The shared 7-field "as signed" projection (tag-event-inspector ADR 0003 D2) —
+// one definition of the raw-event contract across both inspection APIs. No
+// cycle: profile-tags never requires event-tags (cross-require precedent:
+// aggregateTagPins, below).
+const { toRawEvent } = require('../profile-tags');
 
 // ADR-0015 legacy literal — used ONLY as a DEFAULT honored authority (overridable
 // via ?authorities=), not as a hardcoded gate. See ADR 0004 "sovereignty".
@@ -177,7 +182,19 @@ async function handleForEvent(req, res) {
       candidates, headers: dedupedHeaders, honoredAuthorities: authorities, isAsserterTrusted, viewerPubkey,
     });
 
-    return res.json({ success: true, target, povSuffix, minRank, povResolution, authorities, tags, unverifiable, mine });
+    // tag-event-inspector #3 / ADR 0003 D1-D2. The byte source for the raw-
+    // tagging-events panel: every event the response's channels reference,
+    // exactly once, as the as-signed 7-field projection (shared toRawEvent —
+    // whitelist, never a spread). Side-table keyed by id; the channels are
+    // untouched and the client joins entry.eventId → bytes. Bytes are POV-
+    // invariant; WHICH ids are referenced is this POV's verdict (epic guardrail).
+    const referenced = new Set();
+    for (const t of tags) for (const e of [...t.applications, ...t.disputes]) referenced.add(e.eventId);
+    for (const m of mine) referenced.add(m.eventId);
+    const rawEvents = {};
+    for (const c of candidates) if (referenced.has(c.id)) rawEvents[c.id] = toRawEvent(c);
+
+    return res.json({ success: true, target, povSuffix, minRank, povResolution, authorities, tags, unverifiable, mine, rawEvents });
   } catch (err) {
     return res.status(500).json({ success: false, error: err.message });
   }

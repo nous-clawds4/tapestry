@@ -1,22 +1,35 @@
 import React from 'react';
 
 /**
- * The raw signed assertions behind one profile row's +N/-M on the tag detail page.
+ * The raw signed tagging events behind one aggregate — the shared blocks
+ * renderer for the epic's assertion-backed inspection panels.
  *
- * Story 2 / ADR 0002 (epic tag-event-inspector). Presentational and stateless:
- * TagPageRow owns the toggle, this renders the blocks.
+ * Promoted from TagRowRawEvents.jsx at the third inspection surface
+ * (tag-event-inspector ADR 0003 D5 — a rename, not an abstraction: identical
+ * export, props, markup, and class names). Presentational and stateless; the
+ * surface owns the toggle, this renders the blocks. Consumers:
+ *   - TagPageRow (Story 2 / ADR 0002): the assertions behind a profile row's
+ *     +N/-M on the tag detail page.
+ *   - NoteTags (Story 3 / ADR 0003): the assertions behind a note's tag chip.
+ * Story 1's tag-definition panel is deliberately NOT a consumer — one
+ * POV-invariant event, no envelope, no polarity; its shared parts are
+ * toRawEvent and .bs-tag-raw-pre, not these blocks.
  *
- * A tagging is an assertion publishable by ANYONE (`nostr-user-tag`: "each element
- * links a target pubkey to a tag event ID"), so a row is backed by N+M distinct
- * events from N+M distinct authors — not one. This renders every one the row's
- * numbers are derived from.
+ * The `bs-tag-row-raw-*` class names now render on a non-row surface too —
+ * cosmetic naming debt, deliberately kept (ADR 0003 D5): renaming them would
+ * touch Story 2's CSS for zero behavior gain. Rename only in a story that owns
+ * both surfaces' CSS.
+ *
+ * A tagging is an assertion publishable by ANYONE, so an aggregate is backed by
+ * N+M distinct events from N+M distinct authors — not one. This renders every
+ * one the aggregate's numbers are derived from.
  *
  * `counted` marks the blocks the numbers actually account for. A block can be
  * present but uncounted in exactly one case: it is the viewer's own assertion and
  * its author falls below the active POV's WoT threshold, so the viewer-union put it
  * in the panel while the WoT filter kept it out of the count. Marking it is what
- * keeps AC-4's promise literally true — count the counted blocks and you get the
- * row's numbers.
+ * keeps the count-the-blocks promise literally true — count the counted blocks
+ * and you get the aggregate's numbers.
  *
  * POV note (epic guardrail, as amended): each event's BYTES are POV-invariant and
  * rendered untouched. WHICH events appear is per-POV by construction, because the
@@ -26,7 +39,7 @@ import React from 'react';
  * Props:
  *   assertions — [{ polarity: 'apply'|'dispute', counted: boolean, event: {…7 fields} }]
  */
-export default function TagRowRawEvents({ assertions }) {
+export default function RawTaggingEvents({ assertions }) {
   if (!assertions?.length) return null;
 
   return (
