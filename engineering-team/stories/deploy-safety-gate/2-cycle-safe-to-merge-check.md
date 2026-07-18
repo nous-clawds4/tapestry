@@ -63,6 +63,11 @@ None. Verified live against the local Concept Graph 2026-07-18 (48 concepts): no
 
 None. The intake entry's ratified decisions and the book's acceptance-frame bullet 4 answer the policy questions this story raises; the wait bounds and recipe form are explicitly delegated to Architecture by the book's pre-registration.
 
+## Deviations
+
+- **Implementation (2026-07-18):** malformed `[max-attempts]`/`[interval-seconds]` args (non-numeric) also exit 3 with usage — the ADR's Implementation notes name only the URL arg for validation, but its Consequences exit contract reads code 3 as "usage-or-environment-error", and letting a garbage bound into the loop would be an unstated fourth behavior. No tested behavior changes.
+- **Implementation (2026-07-18):** cycle-prod's new error-handling bullet includes one sentence on the endpoint-404 transition case (prod serves the endpoint only after story #1 reaches `main`, so the first gated promotion hits exit 2 by design) — the ADR states this sequencing reality in its Consequences and the doc carries the note; naming it in the bullet keeps the first real run from reading a correct fail-closed stop as a defect. No numbers, no recipe content restated.
+
 ## Linked artifacts
 
 - Book: `engineering-team/audits/deploy-safety-gate/book.md`
