@@ -150,3 +150,10 @@ Append-only. Entry format: [engineering-team/roles/director.md](../../roles/dire
 **Why:** PR #385. Pre-merge check ran per the NEW cycle-staging step 4 — the gate protecting its own shipment, first use in anger. Verbatim journal line (bullet 6c evidence): `[2026-07-18T22:44:54Z] attempt 1/45 verdict=safe reasons=[] raw={"success":true,"safeToDeploy":true,...,"bufferMs":600000,...}` → `SAFE — merge may proceed`, exit 0. Merge landed at 22:45:01Z — 7 seconds after the verdict, well inside the 5-minute staleness rule. deploy-staging.yml run 29664008603 exit 0; Tier-1 stability in 4 attempts; Tier-2 smoke all 200 first pass including /api/deploy-safety/status (get-user-data excluded — the known shared prod+staging 504, journaled at story #1 Stage 2). docs/SAFE_TO_MERGE.md and scripts/check-safe-to-merge.sh now live on staging's tree.
 **Frame status:** bullets 1–4 satisfied and staged; 6a/6c evidence journaled; remaining: bullet 5 (settings countdown line — story #3) and bullet 6's final whole-book staging verification at completion.
 **Next:** Rebase branch onto post-merge origin/staging; story #3 Planning (spawn product-owner — settings-panel aggregate countdown, frame bullet 5).
+
+## 2026-07-19T02:40:00Z (local) — Gate 1 APPROVE — story #3 (scheduled-tasks-panel-countdown)
+**Story/Phase:** deploy-safety-gate #3 / Gate 1 (Story)
+**Decision:** APPROVE
+**Judge:** APPROVE, blinding intact; all items pass; concept-graph claim independently verified live.
+**Why:** I concur — five observable ACs including the endpoint-coherence constraint (AC-5) and the correct legacy-timer exclusion from the next-fire line (mirrors the endpoint's own nextFire semantics). Side observation for the close-out harvest: the live concept count read 48 during story #2's gates and 46 at this gate (same day, both judges verifying live) — fluctuation pattern-matches OPEN.md #50's corpus-drift forensics; noted here, not blocking (no concepts in this domain either way).
+**Next:** Commit story + epic slate; Phase 2 — spawn architect for ADR 0003.
