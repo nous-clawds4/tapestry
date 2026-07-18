@@ -69,3 +69,12 @@ None. The intake entry's ratified decisions and the book's acceptance frame answ
 - ADR: `engineering-team/decisions/deploy-safety-gate/0001-deploy-safety-status-endpoint.md`
 - Test plan: `engineering-team/stories/deploy-safety-gate/1-deploy-safety-status-endpoint.test-plan.md`
 - Review: (filled in after Review phase)
+
+## Deviations
+
+Small implementation judgment calls (2026-07-18, Implementer) — none break the ADR:
+
+- **Fractional `bufferMinutes` accepted un-rounded** (e.g. `?bufferMinutes=2.5` → `bufferMs: 150000`): the ADR's validation rule ("finite, > 0, <= 1440") is applied literally; the test plan deliberately left rounding unpinned.
+- **`nextFires` label fallback:** an enabled entry with no `label` reports its `taskId` as the label (defensive only — the migrator always assigns labels).
+- **Queue enabled but state unknown:** the `queue` block is `{ enabled: true, stateKnown: false }` with `activeCount`/`activeTasks`/`schedulerHalted` omitted — extending the ADR's "omitted or null" allowance (stated for the disabled case) to the unknown-state case, since those numbers would be fabrications when introspection failed.
+- **`schedule.enabledEntryCount` is computed from `readConfig()` regardless of queue state** (the config file is readable even when the queue layer is disabled/unavailable), matching the payload contract's unconditional `schedule` block; `nextFires` themselves are gathered only when the queue is enabled and available, per the ADR.

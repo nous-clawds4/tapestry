@@ -57,3 +57,10 @@ Append-only. Entry format: [engineering-team/roles/director.md](../../roles/dire
 **Judge:** APPROVE, blinding intact (bounded frame read worked). Judge reran the suite itself: 23/23 failures, every one feature-missing (module/export/route absent, live 404s), none environmental; independently verified the live-chain gating (term terminates the chain at test/test.js:862), the H6 trigger-safety claim (no resourceClass on refreshApplicabilityLists), and the honest coverage-limit disclosures.
 **Why:** I concur. The pure-core seam gives AC-3/AC-4 deterministic coverage; the structural sentinels are all ADR-pinned; the two live-unreachable halves are documented with Reviewer recipes instead of pretended at. The prior void verdict is recorded above; this fresh verdict is the binding one.
 **Next:** Commit test design (this commit = the Gate-3 reference for Gate 4's test-diff check); Phase 4 — spawn implementer.
+
+## 2026-07-18T18:20:00Z — Gate 4 PASS (mechanical, Director-verified) — implementation, story #1
+**Story/Phase:** deploy-safety-gate #1 / Gate 4 (Implementation)
+**Decision:** APPROVE (mechanical gate — no judge, per rubric)
+**Judge:** n/a (Gate 4 is Director-verified by design)
+**Why:** Verified myself, not from the Implementer's claim: (1) full `npm test` with the identical Stage-0 command — exit 0, zero FAIL lines, deploy-safety-status 23/23, Overall PASS (log gate4-npm-test in session scratchpad); (2) `git diff a570bae2..HEAD -- test/` and the working-tree test/ diff both empty — no test weakened in any intermediate state; (3) firmware n/a (no concept changes, per ADR). Implementer logged four judgment calls in the story's `## Deviations` (fractional bufferMinutes un-rounded; label→taskId fallback; stateKnown:false field omission mirroring the disabled case; enabledEntryCount from config regardless of queue state) — none forced an ADR amendment; the Reviewer audits them. Implementer restarted the local backend to load the module (bind-mount + supervisorctl; journal-noted, local only).
+**Next:** Commit impl; Phase 5 — spawn reviewer (fresh context, never the Implementer's).
