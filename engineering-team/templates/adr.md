@@ -32,6 +32,8 @@ We chose **Option <X>** because <reason>.
 ## Implementation notes
 Specific files, function names, module boundaries. The Implementer reads this, so be concrete.
 
+Test-file changes the ADR requires (suite re-aims, runner registration) belong to Phase 3 — the Tester's lane — never to implementation: Direction-mode Gate 4 pins an empty `test/` diff after the Gate-3 commit, and test edits during Phase 4 blur the failing-tests-first contract in the human-gated flow too. (note-tagging-inspector retro, 2026-07-18.)
+
 - File: `path/to/file.js` — add function `doX(input)`.
 - File: `path/to/other.js` — extend with the new branch.
 - Concept: new handle `kind:pubkey:new-slug` with schema `{...}`; firmware definition at `firmware/concepts/<slug>.json`.
