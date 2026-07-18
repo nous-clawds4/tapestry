@@ -691,6 +691,8 @@ Surfaced shipping the verified-followers count (#33) + followers table (#34) to 
 
 ## 2026-06-08 — Owner scoring batch is not deploy-safe (ops bug)
 
+**Guard branch → `deploy-safety-gate` (2026-07-18):** the "at minimum a guard" option is being realized by book `engineering-team/audits/deploy-safety-gate/book.md`, starting with story `engineering-team/stories/deploy-safety-gate/1-deploy-safety-status-endpoint.md`. The **resumable-checkpointing** and **drain-on-deploy** branches remain open here — this entry is deliberately left unmarked so it stays on the open-intake radar.
+
 Surfaced during the PoV-resolution work (`docs/POV_RESOLUTION_DESIGN_HANDOFF.md` §9, now BIBLE §27). A redeploy can interrupt a running `updateAllScoresForOwner` mid-`processOwnerFollowsMutesReports`, leaving Owner `influence` partial — which made staging Owner numbers unreliable until a full re-run (hours-long at prod scale, ~32M FOLLOWS). The operator is currently mitigating **manually** (disable scheduled tasks before promoting to staging/main), so this does not block, but the manual step is easy to forget and the failure is silent + expensive.
 
 **Want:** make long scoring jobs **deploy-safe** — resumable (checkpoint mid-`processOwnerFollowsMutesReports` so a restart continues rather than abandons), or **drained on deploy** (the deploy waits for / cleanly pauses an in-flight batch), or at minimum a **guard** that refuses/warns on deploy while a scoring batch is running. Task-queue-scheduler territory.
@@ -1574,6 +1576,8 @@ A common abstraction drawn over two shapes this different would have been wrong.
 ---
 
 ## 2026-07-18 — Feature: scheduled-task deploy-safety gate (safe-to-merge check + countdown UX)
+
+**PICKED UP** 2026-07-18 → `engineering-team/stories/deploy-safety-gate/1-deploy-safety-status-endpoint.md` (epic `engineering-team/epics/deploy-safety-gate.md` created; story 1 = the status endpoint, acceptance-frame bullets 1–3; the cycle-skill safe-to-merge check and the settings countdown follow as later stories under the same book).
 
 **Origin:** operator request (conversation of 2026-07-18). This is the ratified **guard** branch of the still-open 2026-06-08 entry "Owner scoring batch is not deploy-safe (ops bug)" — resumable checkpointing and drain-on-deploy remain open there. Book: `engineering-team/audits/deploy-safety-gate/book.md` (Direction mode).
 
