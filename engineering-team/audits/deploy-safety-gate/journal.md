@@ -135,3 +135,10 @@ Append-only. Entry format: [engineering-team/roles/director.md](../../roles/dire
 **Judge:** pending
 **Why:** Fresh-context Reviewer demonstrated everything: own standalone (16/16) + full suite (exit 0, zero FAIL lines, no flakes this run), own script exercises (safe→exit 0 attempt 1/45; dead port→exactly 3 no-answer strikes→exit 2; bad args→exit 3+usage, three variants), all five ACs verified against the files on disk, ADR sub-decisions 1–9 conformant, both story Deviations audited and accepted, lane separation proven (`git diff 387fc8ec..ffcf0f8a -- test/` empty), harness-lint clean, L10 row well-formed. One non-blocking comment-accuracy note (script line 96 "404 body" — real 404s route through the curl -f branch; behavior identical). Completion detection: bullets 5 (countdown UI) and 6 (staging evidence) remain — no close offer.
 **Next:** Commit review + close-out; Gate-5 judge (bounded frame read).
+
+## 2026-07-19T01:05:00Z (local) — Gate 5 APPROVE — story #2 complete through Review
+**Story/Phase:** deploy-safety-gate #2 / Gate 5 (Review audit)
+**Decision:** APPROVE
+**Judge:** APPROVE, blinding intact. Judge reproduced: both test runs (16/16, full suite exit 0 with identical tails), all three script exit-code demonstrations (0 / 3-strike 2 / 3+usage), the grep negatives, lint, the L10 row at CHANGELOG.md:51, the lane-separation diffs, and every cited file:line down to cycle-staging/SKILL.md:147. The review's non-blocking 404-comment finding corroborated as a genuine only-visible-by-reading subtlety.
+**Why:** The review demonstrates rather than asserts; nothing diverged under reproduction. Story #2 Done. Frame bullet 4 satisfied at the tree level; staging evidence (bullet 6, incl. 6c's journaled safe-to-merge run) lands at Stage 2 now.
+**Next:** Stage 2 — push, PR to staging, then THE FIRST GATED MERGE: run scripts/check-safe-to-merge.sh against staging.brainstorm.world per the new cycle-staging step 4 (the endpoint is live there from story #1); its journal output is bullet-6c evidence. Merge on exit 0, watch deploy, smoke. Then story #3 Planning (settings countdown, frame bullet 5).
