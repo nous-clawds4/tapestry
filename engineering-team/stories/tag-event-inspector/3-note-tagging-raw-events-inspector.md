@@ -75,7 +75,7 @@ Handle pubkeys are per-deployment — resolve at runtime, never hardcode (CLAUDE
 
 ## Linked artifacts
 
-- ADR: (Architecture phase)
-- Test plan: (Test Design phase)
+- ADR: `engineering-team/decisions/tag-event-inspector/0003-note-tagging-raw-events-inspector.md`
+- Test plan: `engineering-team/stories/tag-event-inspector/3-note-tagging-raw-events-inspector.test-plan.md`
 - Review: (Review phase)
 - Book: `engineering-team/audits/note-tagging-inspector/book.md`

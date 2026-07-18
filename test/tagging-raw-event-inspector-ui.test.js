@@ -56,7 +56,10 @@ const REPO_ROOT = path.resolve(__dirname, '..');
 const R = (p) => path.resolve(REPO_ROOT, p);
 
 const TAG_PAGE_ROW = R('ui/src/components/TagPageRow.jsx');
-const TAG_ROW_RAW_EVENTS = R('ui/src/components/TagRowRawEvents.jsx');
+// Re-aimed per tag-event-inspector ADR 0003 D5 (Story 3, Phase 3): the blocks
+// renderer TagRowRawEvents.jsx is promoted to the shared RawTaggingEvents.jsx
+// (identical export/props/markup/classes). Path retargeted; assertions unchanged.
+const TAG_ROW_RAW_EVENTS = R('ui/src/components/RawTaggingEvents.jsx');
 const TAG_SOMEONE_MODAL = R('ui/src/components/TagSomeoneModal.jsx');
 const TAG_PAGE = R('ui/src/pages/Tag.jsx');
 const TAG_ACTIONS_MENU = R('ui/src/components/TagActionsMenu.jsx');
@@ -145,9 +148,9 @@ function wideMediaRegion(src) {
 
 /* ═══════════════════════════ U — must fail now ═══════════════════════════ */
 
-t('U1: a TagRowRawEvents component exists to render the assertion blocks (D3)', () => {
+t('U1: a RawTaggingEvents component exists to render the assertion blocks (D3)', () => {
   assert(fs.existsSync(TAG_ROW_RAW_EVENTS),
-    'ui/src/components/TagRowRawEvents.jsx must exist (ADR 0002 D3) — the presentational ' +
+    'ui/src/components/RawTaggingEvents.jsx must exist (ADR 0002 D3, re-aimed per ADR 0003 D5) — the presentational ' +
     'component that renders one JSON block per assertion, kept out of TagPageRow so the row ' +
     'does not grow ~30 lines of block-rendering.');
 });
@@ -249,9 +252,9 @@ t('U17: neutral assertions are excluded from the panel, matching the counts (dec
 
 t('U18: each block shows the assertion\'s AUTHOR PUBKEY (story open question (a))', () => {
   const src = safeRead(TAG_ROW_RAW_EVENTS);
-  assert(src, 'ui/src/components/TagRowRawEvents.jsx must exist (see U1).');
+  assert(src, 'ui/src/components/RawTaggingEvents.jsx must exist (see U1).');
   assert(/\.pubkey/.test(src),
-    'TagRowRawEvents must render each assertion\'s author pubkey (story open question (a), ADR 0002 ' +
+    'RawTaggingEvents must render each assertion\'s author pubkey (story open question (a), ADR 0002 ' +
     'Implementation notes). The pubkey is THE BAR: the audience reaching for a raw-event viewer reads ' +
     'pubkeys, and a display name is a claim the event itself does not make. A name may sit BESIDE it; ' +
     'it must never REPLACE it.');
@@ -259,9 +262,9 @@ t('U18: each block shows the assertion\'s AUTHOR PUBKEY (story open question (a)
 
 t('U19: blocks the counts do not account for are marked (D1 — AC-4 kept honest)', () => {
   const src = safeRead(TAG_ROW_RAW_EVENTS);
-  assert(src, 'ui/src/components/TagRowRawEvents.jsx must exist (see U1).');
+  assert(src, 'ui/src/components/RawTaggingEvents.jsx must exist (see U1).');
   assert(/counted/.test(src),
-    'TagRowRawEvents must distinguish `counted: false` blocks (ADR 0002 D1). Otherwise a viewer whose ' +
+    'RawTaggingEvents must distinguish `counted: false` blocks (ADR 0002 D1). Otherwise a viewer whose ' +
     'own assertion fails this POV\'s filter, on a row that also has trusted assertions, sees THREE blocks ' +
     'under a "+2" with nothing marking which one the number excludes — and onlyViewerVisible is false in ' +
     'that case, so the row badge does not explain it either.');
@@ -322,9 +325,9 @@ t('R7: SENTINEL — the "Tag someone" modal never gains the raw-event affordance
 });
 
 t('R1: SENTINEL — no TA pubkey literal reaches the row or the panel (AC-6)', () => {
-  for (const [file, label] of [[TAG_PAGE_ROW, 'TagPageRow.jsx'], [TAG_ROW_RAW_EVENTS, 'TagRowRawEvents.jsx']]) {
+  for (const [file, label] of [[TAG_PAGE_ROW, 'TagPageRow.jsx'], [TAG_ROW_RAW_EVENTS, 'RawTaggingEvents.jsx']]) {
     const src = stripComments(safeRead(file));
-    if (!src) continue;   // TagRowRawEvents does not exist yet; U1 owns that failure.
+    if (!src) continue;   // RawTaggingEvents does not exist yet; U1 owns that failure.
     assert(!/[0-9a-f]{64}/.test(src),
       `${label} must not contain a 64-hex pubkey constant (AC-6, CLAUDE.md § "Per-deployment TA pubkey"). ` +
       'A tagging\'s author is arbitrary runtime data read off the event — this feature needs no TA at all.');
