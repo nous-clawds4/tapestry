@@ -92,3 +92,10 @@ Append-only. Entry format: [engineering-team/roles/director.md](../../roles/dire
 **Judge:** APPROVE, blinding intact (bounded frame read; re-verified the concept-graph claim live). All rubric items pass; judge confirmed the requirement/delegation boundary sits exactly where the pre-registration's delegated decision 4 puts it.
 **Why:** I concur — the five ACs pin the consuming behavior (check-before-merge on the right instance, bounded journaled wait, loud stop with operator handoff, delegation-inheritance, single canonical recipe covering tags) without solutioning; sandbox branches correctly out of scope.
 **Next:** Commit story + epic slate; Phase 2 — spawn architect for ADR 0002.
+
+## 2026-07-18T22:10:00Z — Gate 2 APPROVE — ADR 0002 (safe-to-merge check script + shared recipe)
+**Story/Phase:** deploy-safety-gate #2 / Gate 2 (ADR)
+**Decision:** APPROVE
+**Judge:** APPROVE, blinding intact. Judge independently verified: the AC quotes against the story, the live concept graph (48 — matching), cycle-staging/prod merge-step claims, cycle-full's inline lists, L5's actual grep surface (localhost-only — public URLs clean), def-paths (skills yes, docs no → L10 CHANGELOG row required on the impl commit), the 30-min kill-timeout grounding, and ADR-0001 contract continuity (bufferMinutes pin-or-state satisfied by stating). Two non-blocking notes: concept-count growth 46→48 same-day (real growth), and a legacy-timeout citation imprecision that the bound sizing doesn't lean on.
+**Why:** I concur — Option A makes AC-2/AC-3 properties of tested code rather than per-run transcription, keeps AC-5's single canonical doc, and the 60s×45 bound is sized to the common case with AC-3 as the escape. The approval-stands rule for cycle-prod resolves the interaction I flagged at spawn.
+**Next:** Commit ADR; Phase 3 — spawn tester (script behavior via controllable endpoint fixture; doc/skill content assertions; cycle-full negative assertion; live-chain registration; L10 row noted for the impl commit).
