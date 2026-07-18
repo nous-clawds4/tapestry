@@ -1,7 +1,7 @@
 # Story 1: Deploy-safety status endpoint
 
 **Epic:** deploy-safety-gate
-**Status:** Draft
+**Status:** Done
 **Created:** 2026-07-18
 **Type:** Feature
 
@@ -21,15 +21,15 @@ As **an operator about to promote a branch that will redeploy an instance**, I w
 
 ## Acceptance criteria
 
-- [ ] **AC-1 (one read-only unauthenticated GET, complete answer):** Given a deployed instance, when its deploy-safety status endpoint is fetched with a plain unauthenticated GET — no login, no signing, no credentials; the calling convention available to a shell script — then a single successful machine-readable response reports all three of: (a) whether any covered task is running right now; (b) the next scheduled fire — the entry's name, its fire time, and the time remaining until it; and (c) an explicit safe/unsafe verdict. The request is read-only and repeatable: calling it any number of times changes no state, starts nothing, and cancels nothing.
+- [x] **AC-1 (one read-only unauthenticated GET, complete answer):** Given a deployed instance, when its deploy-safety status endpoint is fetched with a plain unauthenticated GET — no login, no signing, no credentials; the calling convention available to a shell script — then a single successful machine-readable response reports all three of: (a) whether any covered task is running right now; (b) the next scheduled fire — the entry's name, its fire time, and the time remaining until it; and (c) an explicit safe/unsafe verdict. The request is read-only and repeatable: calling it any number of times changes no state, starts nothing, and cancels nothing.
 
-- [ ] **AC-2 (what "running" covers — both sources, per the ratified decision):** Given a covered task is executing at request time, when the endpoint is called, then running-now is true and the verdict is unsafe. Covered tasks span both execution paths, each verified independently: (a) an active job on any task queue — whether it was started by the schedule or by a manual run-task trigger; and (b) an in-flight run of the legacy per-customer scheduler.
+- [x] **AC-2 (what "running" covers — both sources, per the ratified decision):** Given a covered task is executing at request time, when the endpoint is called, then running-now is true and the verdict is unsafe. Covered tasks span both execution paths, each verified independently: (a) an active job on any task queue — whether it was started by the schedule or by a manual run-task trigger; and (b) an in-flight run of the legacy per-customer scheduler.
 
-- [ ] **AC-3 (phantom-running exclusion — ratified):** Given the task-event history contains a task start with no matching end (the signature left when a previous container restart killed a task mid-run), and no covered task is actually executing now, when the endpoint is called, then running-now is false and the verdict is not made unsafe by the stale record. This exclusion has an explicit automated test.
+- [x] **AC-3 (phantom-running exclusion — ratified):** Given the task-event history contains a task start with no matching end (the signature left when a previous container restart killed a task mid-run), and no covered task is actually executing now, when the endpoint is called, then running-now is false and the verdict is not made unsafe by the stale record. This exclusion has an explicit automated test.
 
-- [ ] **AC-4 (verdict policy — ratified):** Given no covered task is running, then the verdict is unsafe when the next fire among **all enabled** scheduled entries is within the buffer (defaulting to **10 minutes**), and safe when the next fire is beyond the buffer or no entries are enabled. Every enabled entry counts toward "next fire," regardless of what the task does — narrowing to blocking-task classes is explicitly not v1.
+- [x] **AC-4 (verdict policy — ratified):** Given no covered task is running, then the verdict is unsafe when the next fire among **all enabled** scheduled entries is within the buffer (defaulting to **10 minutes**), and safe when the next fire is beyond the buffer or no entries are enabled. Every enabled entry counts toward "next fire," regardless of what the task does — narrowing to blocking-task classes is explicitly not v1.
 
-- [ ] **AC-5 (queue-disabled is not nothing-scheduled):** Given the instance's task-queue layer is disabled, when the endpoint is called, then the response states that the queue is disabled, distinguishably from "queue enabled but nothing scheduled," and still returns a verdict per the ratified policy (with no upcoming fire to buffer against, unsafe only if a covered task — e.g. a legacy per-customer run — is in flight).
+- [x] **AC-5 (queue-disabled is not nothing-scheduled):** Given the instance's task-queue layer is disabled, when the endpoint is called, then the response states that the queue is disabled, distinguishably from "queue enabled but nothing scheduled," and still returns a verdict per the ratified policy (with no upcoming fire to buffer against, unsafe only if a covered task — e.g. a legacy per-customer run — is in flight).
 
 ## Product decisions (operator-ratified at intake, 2026-07-18 — requirements, not open for relitigation)
 
@@ -68,7 +68,7 @@ None. The intake entry's ratified decisions and the book's acceptance frame answ
 - Book: `engineering-team/audits/deploy-safety-gate/book.md`
 - ADR: `engineering-team/decisions/deploy-safety-gate/0001-deploy-safety-status-endpoint.md`
 - Test plan: `engineering-team/stories/deploy-safety-gate/1-deploy-safety-status-endpoint.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/deploy-safety-gate/1-deploy-safety-status-endpoint.md` — **PASS**, 2026-07-18
 
 ## Deviations
 
