@@ -1,7 +1,7 @@
 # Story 2: Cycle-skill safe-to-merge check + canonical shared recipe
 
 **Epic:** deploy-safety-gate
-**Status:** Draft
+**Status:** Done
 **Created:** 2026-07-18
 **Type:** Feature
 
@@ -21,15 +21,15 @@ As **an operator promoting a branch that will redeploy an instance** — via cyc
 
 ## Acceptance criteria
 
-- [ ] **AC-1 (check before merge, on the instance that merge redeploys):** Given a cycle-staging or cycle-prod run has a change ready to merge, when the procedure reaches the deploy-triggering merge, then as that merge's immediate precursor it obtains the deploy-safety status answer shipped by story #1 **from the instance this specific merge will redeploy** (a staging promotion asks the staging instance; a production promotion asks the production instance), and it merges only on a safe verdict just observed — a safe answer is acted on, not banked across an open-ended delay. The procedure consumes the verdict as delivered; it does not re-derive its own safety policy from raw schedule data.
+- [x] **AC-1 (check before merge, on the instance that merge redeploys):** Given a cycle-staging or cycle-prod run has a change ready to merge, when the procedure reaches the deploy-triggering merge, then as that merge's immediate precursor it obtains the deploy-safety status answer shipped by story #1 **from the instance this specific merge will redeploy** (a staging promotion asks the staging instance; a production promotion asks the production instance), and it merges only on a safe verdict just observed — a safe answer is acted on, not banked across an open-ended delay. The procedure consumes the verdict as delivered; it does not re-derive its own safety policy from raw schedule data.
 
-- [ ] **AC-2 (unsafe → bounded, journaled wait-and-recheck; never merge on unsafe):** Given the verdict is unsafe, when the check runs, then the procedure does not merge; it waits and rechecks on a stated cadence up to a stated bound — both written into the recipe, not improvised per run — and every attempt is visibly recorded in the run's record: when the check was made, what the verdict was, and, when unsafe, the reason the answer gave. At no point does the procedure merge while the most recently observed verdict is unsafe, and at no point does it wait without recording that it is waiting.
+- [x] **AC-2 (unsafe → bounded, journaled wait-and-recheck; never merge on unsafe):** Given the verdict is unsafe, when the check runs, then the procedure does not merge; it waits and rechecks on a stated cadence up to a stated bound — both written into the recipe, not improvised per run — and every attempt is visibly recorded in the run's record: when the check was made, what the verdict was, and, when unsafe, the reason the answer gave. At no point does the procedure merge while the most recently observed verdict is unsafe, and at no point does it wait without recording that it is waiting.
 
-- [ ] **AC-3 (bound exhausted or no usable answer → loud stop, operator decides):** Given the verdict is still unsafe when the bound is exhausted — or the status answer cannot be obtained at all (instance unreachable, no usable answer) — then the procedure stops without merging, reports the last observed state and why it stopped, and hands the decision to the operator. An answer that could not be obtained is never treated as safe; proceeding anyway happens only as an explicit, recorded operator decision, never as the procedure's silent default. "Merged anyway without saying so" and "hung with no output" are both defects.
+- [x] **AC-3 (bound exhausted or no usable answer → loud stop, operator decides):** Given the verdict is still unsafe when the bound is exhausted — or the status answer cannot be obtained at all (instance unreachable, no usable answer) — then the procedure stops without merging, reports the last observed state and why it stopped, and hands the decision to the operator. An answer that could not be obtained is never treated as safe; proceeding anyway happens only as an explicit, recorded operator decision, never as the procedure's silent default. "Merged anyway without saying so" and "hung with no output" are both defects.
 
-- [ ] **AC-4 (cycle-full inherits by delegation):** Given a cycle-full run performs its promotions, then each deploy-triggering merge it makes is protected by the same check because cycle-full delegates to the underlying cycle procedures — it carries no check logic or recipe text of its own, and no path through cycle-full reaches a deploy-triggering merge without the check.
+- [x] **AC-4 (cycle-full inherits by delegation):** Given a cycle-full run performs its promotions, then each deploy-triggering merge it makes is protected by the same check because cycle-full delegates to the underlying cycle procedures — it carries no check logic or recipe text of its own, and no path through cycle-full reaches a deploy-triggering merge without the check.
 
-- [ ] **AC-5 (one canonical recipe; `feat/tags` explicitly covered):** The check recipe exists in exactly **one** shared document, following the same update-once-inherit-everywhere pattern the smoke-test recipe uses: each cycle procedure points to it rather than restating it, so changing the recipe changes every consumer at once. The document explicitly covers promotions to `feat/tags` → tags.brainstorm.world — which has no cycle procedure of its own — stating how to run the identical check against that instance before such a merge, so a tags promotion is never the uncovered path.
+- [x] **AC-5 (one canonical recipe; `feat/tags` explicitly covered):** The check recipe exists in exactly **one** shared document, following the same update-once-inherit-everywhere pattern the smoke-test recipe uses: each cycle procedure points to it rather than restating it, so changing the recipe changes every consumer at once. The document explicitly covers promotions to `feat/tags` → tags.brainstorm.world — which has no cycle procedure of its own — stating how to run the identical check against that instance before such a merge, so a tags promotion is never the uncovered path.
 
 ## Product decisions (operator-ratified at intake, 2026-07-18 — requirements, not open for relitigation)
 
@@ -73,4 +73,4 @@ None. The intake entry's ratified decisions and the book's acceptance-frame bull
 - Book: `engineering-team/audits/deploy-safety-gate/book.md`
 - ADR: `engineering-team/decisions/deploy-safety-gate/0002-safe-to-merge-check-script-and-shared-recipe.md`
 - Test plan: `engineering-team/stories/deploy-safety-gate/2-cycle-safe-to-merge-check.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/deploy-safety-gate/2-cycle-safe-to-merge-check.md` (PASS, 2026-07-18)
