@@ -182,4 +182,4 @@ docker stats tapestry
 - **Author display:** Always use the shared `AuthorCell` component — it shows avatar + name and links to the user profile
 - **Profile fetching:** Use the `useProfiles` hook — it handles caching and async loading
 - **Tables:** Use the `DataTable` component for consistent styling and row click behavior
-- **Neo4j queries:** Use the `useCypher` hook for React components, or `GET /api/neo4j/run-query?cypher=` for server-side
+- **Neo4j queries:** Use the `useCypher` hook for React components, or `POST /api/neo4j/query` with a JSON body `{ "cypher": "...", "params": {...} }` for server-side (the legacy `GET /api/neo4j/run-query?cypher=` was removed 2026-07-19 — it leaked the Neo4j credential and was shell-injectable)

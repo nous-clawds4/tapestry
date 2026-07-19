@@ -10,7 +10,6 @@ const { handleRouterStatus } = require('./strfry/routerStatus');
 const { handleUpdateRouterConfig, handleToggleStream, handleGetPresets, handleListPlugins, handleRestartRouter, handleRestoreDefaults, initRouter } = require('./strfry/routerConfig');
 const { handleWipeStrfry } = require('./strfry/wipe');
 const { getNeo4jStatus } = require('./neo4j/neo4jStatus');
-const { runQuery } = require('./neo4j/runQuery');
 const { queryPost } = require('./neo4j/queryPost');
 const { getListStatus } = require('./lists/listStatus');
 const { getRankingStatus } = require('./ranking/rankingStatus');
@@ -251,10 +250,12 @@ async function register(app) {
     app.get('/api/calculation-status', status.handleCalculationStatus);
     app.get('/api/status/neo4j-constraints', status.handleGetNeo4jConstraintsStatus);
 
-    // Generic neo4j query endpoint; requires authentication
-    // temporarily disabled
-    app.get('/api/neo4j/run-query', runQuery);       // legacy — deprecate after migration
-    app.post('/api/neo4j/query', queryPost);          // new POST endpoint
+    // Generic neo4j query endpoint (Bolt-driver backed; see queryPost.js).
+    // The legacy GET /api/neo4j/run-query was removed 2026-07-19: it shelled
+    // out to cypher-shell with the password on the command line, leaking the
+    // Neo4j credential into the error-response body and process args, and was
+    // shell-injectable. Use this POST endpoint (its full replacement).
+    app.post('/api/neo4j/query', queryPost);
     
     // Strfry plugin endpoints - with clearer separation of concerns
     app.get('/api/strfry/scan', strfry.handleStrfryScan);  // Scan events from strfry (public)
