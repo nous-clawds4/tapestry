@@ -131,8 +131,10 @@ test.describe('Scheduled Tasks panel aggregate countdown (deploy-safety-gate #3 
     await expect(line(page)).toContainText(/1 hour and 30 minutes/); // ceil(≈90 min) at minutes granularity
 
     // The per-entry rows remain present and unchanged alongside the line.
-    await expect(page.locator('h3', { hasText: 'Alpha Export' })).toBeVisible();
-    await expect(page.locator('h3', { hasText: 'Beta Sweep' })).toBeVisible();
+    // exact:true keeps these strict-mode-safe: each card renders a second
+    // pre-existing heading, "Recent Runs (<title>)", which must not resolve.
+    await expect(page.getByRole('heading', { name: 'Alpha Export', exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Beta Sweep', exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: '+ Add Scheduled Entry' })).toBeVisible();
   });
 
