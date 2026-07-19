@@ -1,6 +1,6 @@
 # Story 1: Close the unauthenticated write-surface exposure
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-07-19
 **Type:** Bug (security / authorization)
 **Epic:** `security-auth-exposure`
@@ -47,4 +47,4 @@ No single concept-graph concept is central. The affected surface is the **concep
 ## Linked artifacts
 - ADR: `engineering-team/decisions/security-auth-exposure/0001-honest-local-bypass-and-neo4j-write-gate.md`
 - Test plan: `engineering-team/stories/security-auth-exposure/1-close-unauthenticated-write-surface.test-plan.md` (tests: `test/close-unauth-write-surface.test.js`)
-- Review: *(after Review)*
+- Review: `engineering-team/reviews/security-auth-exposure/1-close-unauthenticated-write-surface.md` (PASS)
