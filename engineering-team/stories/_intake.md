@@ -1741,3 +1741,54 @@ function publishToStrfry(event) {
 **Classification:** Bug (correctness / silent data loss).
 **Strictness:** Standard — a fix should consolidate the three copies and assert on strfry's reported counts, not just exit code.
 **Priority:** Medium-high — it silently corrupts the local↔wire relationship, and it is the reason a routine 5-element set move produced an inconsistent half-written state.
+
+---
+
+## 2026-07-19 — Defect: `/api/normalize/*` has no server-side auth, and the localhost bypass may expose it (plus arbitrary Cypher) to the public internet
+
+**How it surfaced:** incidental. The operator asked whether editing a concept element's description was supported; verifying the write path end-to-end turned up the auth gap on that same path. Not a reported failure — no exploitation observed, no anomaly in the logs. Filed because the write path it guards is the one the operator is about to start using routinely.
+
+**⚠️ Verified by code reading only. Nothing was probed against a deployed instance.** The exposure claim below is a reasoned chain over four files, not an observation. **First task for whoever picks this up is to confirm or refute it** with a single safe, read-only, unauthenticated request against staging — e.g. `GET https://staging.brainstorm.world/api/neo4j/run-query?query=RETURN%201`. If that returns data without a session cookie, the chain holds. Do not test by writing.
+
+**Finding 1 — no server-side authorization on the normalize surface.** All 20 `POST /api/normalize/*` routes register bare (`src/api/normalize/index.js:3299-3328`); none uses the `requireOwner` middleware that the concept routes do (`src/api/index.js:578,582`). `handleSaveElementJson` (`:1981-2010`) validates only that `uuid` and `json` are present and that the node exists. The owner check on element editing is **client-side only** — `isOwner` in `ui/src/pages/concepts/ElementDetail.jsx:19`, used to hide the button (`:276`), show a lock banner (`:283-288`), and disable submit (`:343`). All three are trivially bypassed by calling the endpoint directly. The same holds for the other 7 concepts-UI pages that repeat the identical `isOwner` expression.
+
+**Finding 2 — the localhost bypass fires for *every* request on a deployed instance.** `src/middleware/auth.js:317-324`:
+
+> ```js
+> const isLocal = ['127.0.0.1', '::1', '::ffff:127.0.0.1', '172.18.0.1', '::ffff:172.18.0.1'].includes(remoteAddr);
+> if (isLocal && (req.path.startsWith('/api/normalize') || req.path.startsWith('/api/neo4j'))) {
+>     return next();
+> }
+> ```
+
+The intent (per its comment, *"trusted local operator"*) is CLI access from the host. The problem is that on a deployed instance **all** traffic arrives from localhost:
+
+1. `docker/nginx.conf:40-43` — `location /` → `proxy_pass http://127.0.0.1:7778/`, in-container, so Express's peer address is `127.0.0.1`.
+2. `app.set('trust proxy')` is **never called anywhere in the repo** (grepped: zero hits). With trust-proxy disabled, Express's `req.ip` returns the socket address and **ignores `X-Forwarded-For`** — which nginx does set (`:41`), but nothing reads.
+3. Droplets add a *host* nginx + Certbot hop in front of a stack bound to `127.0.0.1:8080` (`OPERATIONS.md:111,125,132,138`) — another localhost hop.
+4. `172.18.0.1` (the Docker bridge gateway) is *also* whitelisted, covering the case where the peer address is the bridge rather than loopback.
+
+If this holds, the following are reachable unauthenticated from the internet on `staging.brainstorm.world` and `tapestry.brainstorm.world`:
+
+- `GET /api/neo4j/run-query` (`src/api/index.js:256`) — **arbitrary Cypher, over GET.** Read *and* write. This is the severe one; a GET is triggerable by a link.
+- `POST /api/neo4j/query` (`:257`) — same, POST.
+- All 20 `/api/normalize/*` writes — including `save-element-json`, `create-element`, `create-concept`, `set-slug`, `fork-node`. Each re-signs events **as the TA** and publishes to strfry, so an unauthenticated caller could mint TA-signed events on a deployment they do not own.
+
+**Prior art in this log:** the 2026-07-18 relationship-primitives entry (`_intake.md:1659`) already records the bypass as a fact — *"requests from localhost/Docker-host to `/api/normalize` and `/api/neo4j` bypass session auth entirely"* — and notes new endpoints would inherit it. It treats it as a property to inherit; this entry argues it is a defect to close, and that any new primitive endpoints should land **after** it, or they widen the hole.
+
+**Also on this surface (minor, same file, fix opportunistically):** `src/api/openapi.yaml:439` documents `save-element-json` as `required: [concept, element, json]`; the handler requires `uuid` and 400s on anything else. Anyone building to the published spec fails.
+
+**Open Planning questions:**
+
+1. Is the exposure real? (The read-only staging probe above. Everything below is conditional on it.)
+2. Correct fix layer — `app.set('trust proxy', …)` so `req.ip` reflects the true client, or drop the IP heuristic entirely in favor of an explicit local-operator credential (shared secret / unix socket / bound-to-loopback admin port)? The IP heuristic is load-bearing for the documented CLI workflow, so it cannot simply be deleted.
+3. Does `requireOwner` go on all 20 normalize routes uniformly, or is the read/write split finer?
+4. What is the disposition of `GET /api/neo4j/run-query`? It is already marked *"legacy — deprecate after migration"* (`src/api/index.js:256`). Deprecating it may be cheaper than securing it.
+5. Firmware install calls normalize endpoints internally over HTTP (hence the `req.connection` guard at `auth.js:320`) — whichever fix lands must not break it.
+6. Does this need coordinated disclosure / a staging+prod hotfix ahead of the normal branch train, or does it ride the usual `staging` → `main` chain?
+
+**Out of scope:** the element-editor UX asymmetry (separate project element, `39999:<TA>:fix-element-json-editor-*`); any change to the client-side `isOwner` pattern; the 8-way duplication of that expression across the concepts pages.
+
+**Classification:** Defect (security / authorization).
+**Strictness:** Standard.
+**Priority:** **High if question 1 confirms**, otherwise Low (defense-in-depth on a local-only surface). Deliberately not marked Critical while unverified.
