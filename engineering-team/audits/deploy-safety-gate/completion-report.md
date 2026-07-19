@@ -1,0 +1,26 @@
+# Completion report — deploy-safety-gate (Direction mode, run 2)
+
+**Assembled:** 2026-07-19 (local) by the Director, per direct-feature Stage 3.
+**Stories:** 3 planned, 3 Done (no fix-forward stories). **Blinded verdicts:** 15 APPROVE, 1 void (self-reported blinding break, re-judged clean), 0 KICK_BACKs. **Ceiling:** never approached — no prod/tags mutation, no forbidden task triggers, staging-only merges (PRs #384, #385, #386, all to `staging`).
+
+## Bullet-by-bullet against the acceptance frame (book.md lines 14–19, quoted at Gate time by each judge)
+
+**Bullet 1 — the endpoint.** `GET /api/deploy-safety/status` (story #1, ADR 0001). Staging evidence: first live call journaled 2026-07-18T16:31:40Z with the full contract (safeToDeploy, verdict, reasons, per-source blocks, schedule.nextFire, bufferMs 600000); re-verified 2026-07-19T02:10:28Z (verbatim in the Stage-2 journal entries). Unauthenticated plain curl — the cycle skills' calling convention — demonstrated by the check script's own runs. 23-test suite in the live gating chain.
+
+**Bullet 2 — running coverage + phantom exclusion.** BullMQ active jobs (scheduled + manual: same queues, verified in ADR 0001 design and testcode) via getActive; legacy customer-schedule via the new getInFlightCount export. Phantom exclusion: explicit automated tests U1 (orphan TASK_START invisible to the verdict) and S1 (the module structurally cannot read events.jsonl — source sentinel). Live AC-2(a) observed: H6 caught refreshApplicabilityLists active flipping the verdict (story-1 suite, multiple independent runs incl. two judges').
+
+**Bullet 3 — verdict policy.** Unsafe on any covered run OR next fire within the 10-minute default buffer over ALL enabled entries (U5/U6 boundary tests at bufferMs and bufferMs+1); queue-disabled distinguished from nothing-scheduled (U10/U11, and the response's queue.enabled/stateKnown fields — visible in both staging captures).
+
+**Bullet 4 — cycle-skill check + canonical recipe + tags coverage.** `scripts/check-safe-to-merge.sh` + `docs/SAFE_TO_MERGE.md` (story #2, ADR 0002): cycle-staging step 4 (pre-merge) and cycle-prod step 4 (post-approval, approval-stands rule); cycle-full inherits by pure delegation (negative-tested C6: no recipe content of its own); the doc's branch→instance table explicitly covers `feat/tags` → tags.brainstorm.world with the manual procedure (C2/C3). 16-test suite in the live chain.
+
+**Bullet 5 — the countdown line.** `NextScheduledTaskLine` (story #3, ADR 0003), endpoint-sourced so the panel cannot contradict the gate (AC-5 structural). Operator's phrasing verbatim; soonest-among-enabled; 1s tick, 10s poll, schedule-change bumps; three-way empty states. 24-test node suite + 7/7 Playwright (render, tick across a minute boundary, zero-cross move-on, both empty states, endpoint-consistency).
+
+**Bullet 6 — live on staging, evidence tier.**
+- **(a) Endpoint JSON from staging:** two journaled captures (2026-07-18T16:31 and 2026-07-19T02:10), correct shape, verdict safe, queue known.
+- **(b) Rendered-line evidence (local, per the frame's documented NIP-07 limit) + staging data path:** journaled DOM extract from the live local stack (2026-07-19): `<p data-testid="next-task-line" data-state="countdown" data-entry-id="entry-demo">Next Scheduled Task, <strong>Demo Export</strong>, starts in 1 hour and 30 minutes.</p>` — captured via browser against the served local bundle. Staging serves the same bundle (asset `index-_ADNcIKp.js`, marker grep positive, journaled) and the line's consumed API (`/api/deploy-safety/status`, per ADR 0003 — superseding the frame's anticipated list API, which also answers 200 on staging) returns the data live.
+- **(c) Gated-merge journal output:** two runs of the check against staging before this book's own merges — PR #385 (2026-07-18T22:44:54Z, `verdict=safe`, merged +7s) and PR #386 (2026-07-19T02:10:28Z, `verdict=safe`, merged +6s) — verbatim in the journal.
+
+**Staging smoke:** deploy runs 29652078853 / 29664008603 / 29669783719 all exit 0; Tier-1 stability reached each time; Tier-2 endpoints 200 (the pre-existing `get-user-data` 504 verified shared with untouched prod — journaled as external, OPEN.md-adjacent).
+
+## Residuals and debts (for the audit/close)
+ADR-recorded debts (legacy-Map coupling; unauthenticated task names; caller-tunable buffer; payload-contract hardening; proceed-after-stop procedural-only). Ledger rows this run filed: OPEN.md #50–#53 (pre-arming baseline forensics), #58 (summary display defect), #59/#60 (zombie-test class + tie-break lottery, both repaired). Meta observations journaled: concept-count fluctuation 46↔48 (ties to #50); the endpoint-404 transition stop the first prod promotion will correctly hit (ADR 0002 sequencing reality — an explicit, recorded operator decision when it happens).
