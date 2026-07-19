@@ -20,8 +20,8 @@ A deploy-killed scoring batch leaves owner trust scores partially written and si
 ## Stories
 
 1. `stories/deploy-safety-gate/1-deploy-safety-status-endpoint.md` — the deploy-safety status endpoint: one read-only unauthenticated GET reporting running-now (both task sources, phantom-running excluded), the next scheduled fire, and the safe/unsafe verdict, with the queue-disabled/nothing-scheduled distinction. **Done** (review PASS 2026-07-18; live on staging).
-2. `stories/deploy-safety-gate/2-cycle-safe-to-merge-check.md` — cycle-skill safe-to-merge check + canonical shared recipe: the pre-merge check of the story-1 answer against the instance the merge will redeploy, bounded journaled wait-and-recheck while unsafe (never merge on unsafe, never wait silently), cycle-full inheriting by delegation, canonical in one shared recipe that also covers `feat/tags` → tags.brainstorm.world promotions. **Draft**.
-3. *(planned)* Settings Scheduled Tasks panel aggregate countdown — "next scheduled task, its name, fires in H h M m", live-updating, alongside the existing per-entry rows.
+2. `stories/deploy-safety-gate/2-cycle-safe-to-merge-check.md` — cycle-skill safe-to-merge check + canonical shared recipe: the pre-merge check of the story-1 answer against the instance the merge will redeploy, bounded journaled wait-and-recheck while unsafe (never merge on unsafe, never wait silently), cycle-full inheriting by delegation, canonical in one shared recipe that also covers `feat/tags` → tags.brainstorm.world promotions. **Done** (review PASS 2026-07-18).
+3. `stories/deploy-safety-gate/3-scheduled-tasks-panel-countdown.md` — Scheduled Tasks panel aggregate countdown: one line, in the operator's phrasing ("Next Scheduled Task, \<name\>, starts in __ hours and __ minutes"), naming the soonest upcoming fire among all enabled entries and counting down live alongside the existing per-entry rows, with distinct nothing-scheduled and queue-disabled states, never contradicting the deploy-safety answer. **Draft**.
 
 ## Key facts / guardrails
 

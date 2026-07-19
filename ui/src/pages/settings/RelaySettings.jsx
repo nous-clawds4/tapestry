@@ -1,6 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import AddOrEditEntryModal from './scheduledTasks/AddOrEditEntryModal.jsx';
 import { validateTagLetter, parseTagValues, mergeTagFilter, tagFiltersFromFilter, applyTagFilters } from '../../utils/tagFilterValidation';
+import { formatTimeToFire, deriveNextTaskLine } from '../../utils/nextTaskCountdown';
 
 const RELAY_GROUPS = [
   { key: 'aProfileRelays', label: 'Profile Relays', hint: 'Kind 0 profiles (purplepag.es, etc.)', restart: false },
@@ -1516,7 +1517,7 @@ function HousePovUnconfiguredBanner() {
 // and takes the full `entry` object instead of just a taskId. Multi-entry-
 // per-task UX — Alice and Bob each get their own card on the processCustomer
 // queue.
-function ScheduledEntryCard({ entry, displayTitle, onEdit, onDelete, banner = null }) {
+function ScheduledEntryCard({ entry, displayTitle, onEdit, onDelete, banner = null, onScheduleChanged = () => {} }) {
   const taskId = entry.taskId;
   const title = displayTitle || entry.label || taskId;
   const [runs, setRuns] = useState([]);
@@ -1580,6 +1581,10 @@ function ScheduledEntryCard({ entry, displayTitle, onEdit, onDelete, banner = nu
       if (data.success) {
         flash(data.message);
         if (data.timer) setTimer(data.timer);
+        // Schedule mutated (toggle/interval/cron) — let the parent refetch
+        // /list so its entries (and the aggregate line) stop going stale
+        // (ADR deploy-safety-gate/0003 sub-decision 2).
+        onScheduleChanged();
       } else {
         flashError(data.error || 'Failed to update');
       }
@@ -1785,6 +1790,77 @@ const LEGACY_TITLE_OVERRIDES = {
   'legacy:refreshSearchIndex':      'Refresh Meilisearch profiles & House PoV scores',
 };
 
+// Aggregate countdown line (deploy-safety-gate story #3 / ADR 0003).
+// Isolated component so the 1 s tick re-renders one line, not every
+// ScheduledEntryCard. Sourced from GET /api/deploy-safety/status — the same
+// schedule.nextFire selection the merge gate's verdict is computed from
+// (ADR 0001's payload contract: queue.enabled/stateKnown +
+// schedule.nextFire{entryId,taskId,label,at}; if that endpoint is ever
+// auth-gated or its payload versioned, this component must move with it).
+function NextScheduledTaskLine({ resolveTitle, scheduleVersion }) {
+  const [status, setStatus] = useState(null); // last successful payload
+  const [nowTick, setNowTick] = useState(() => Date.now());
+  const zeroFetchedAtRef = useRef(null); // one zero-crossing re-fetch per distinct `at`
+
+  const fetchStatus = useCallback(async () => {
+    try {
+      const res = await fetch('/api/deploy-safety/status');
+      const data = await res.json();
+      setStatus(data);
+    } catch {
+      // Keep the last payload — the 1 s tick keeps the countdown honest;
+      // with no payload at all, deriveNextTaskLine(null) reads "unknown".
+    }
+  }, []);
+
+  // Fetch on mount and whenever the parent's schedule mutates (version bump).
+  useEffect(() => { fetchStatus(); }, [fetchStatus, scheduleVersion]);
+
+  // 10 s poll (StreamingETLPanel precedent) + 1 s tick, cleared on unmount.
+  useEffect(() => {
+    const poll = setInterval(fetchStatus, 10000);
+    const tick = setInterval(() => setNowTick(Date.now()), 1000);
+    return () => { clearInterval(poll); clearInterval(tick); };
+  }, [fetchStatus]);
+
+  const line = deriveNextTaskLine(status);
+  const remainingMs = line.state === 'countdown' ? Date.parse(line.at) - nowTick : null;
+  const formatted = line.state === 'countdown' ? formatTimeToFire(remainingMs) : null;
+
+  // Zero-crossing: once the displayed fire time is reached, re-fetch so the
+  // line moves on to the then-current state (AC-3). Guarded once per `at`;
+  // the 10 s poll bounds the rate if the endpoint keeps returning a past at.
+  useEffect(() => {
+    if (line.state === 'countdown' && remainingMs <= 0 && zeroFetchedAtRef.current !== line.at) {
+      zeroFetchedAtRef.current = line.at;
+      fetchStatus();
+    }
+  }, [line.state, line.at, remainingMs, fetchStatus]);
+
+  const baseStyle = { fontSize: '0.9rem', color: '#e0e0e0', margin: '0 0 1rem 0' };
+  if (line.state === 'countdown') {
+    const name = resolveTitle(line.entryId, line.label);
+    return (
+      <p data-testid="next-task-line" data-state={formatted ? 'countdown' : 'starting'}
+        data-entry-id={line.entryId} style={baseStyle}>
+        {formatted
+          ? <>Next Scheduled Task, <strong>{name}</strong>, starts in {formatted}.</>
+          : <>Next Scheduled Task, <strong>{name}</strong>, starting now…</>}
+      </p>
+    );
+  }
+  const copy = line.state === 'queue-disabled'
+    ? 'Task scheduling is disabled on this instance — scheduled entries will not fire.'
+    : line.state === 'none-upcoming'
+      ? 'No scheduled task is upcoming — no enabled entry has a next fire.'
+      : 'Schedule status is currently unavailable.';
+  return (
+    <p data-testid="next-task-line" data-state={line.state} style={{ ...baseStyle, color: '#aaa' }}>
+      {copy}
+    </p>
+  );
+}
+
 // Per-entry panel (story #24 / ADR 0021). Lists every scheduled entry from
 // /api/scheduled-tasks/list, with the option to add new ones via the
 // AddOrEditEntryModal. Cross-references /api/get-customers at render time
@@ -1797,13 +1873,21 @@ function ScheduledTasksPanel() {
   const [customers, setCustomers] = useState([]);
   const [error, setError] = useState(null);
   const [editingEntry, setEditingEntry] = useState(null); // null | 'new' | <entry object>
+  // Bumped on every successful /list refetch (mount, modal save, delete,
+  // card toggle via onScheduleChanged) — NextScheduledTaskLine re-fetches
+  // the deploy-safety status on its change (ADR 0003 sub-decision 2).
+  const [scheduleVersion, setScheduleVersion] = useState(0);
 
   const fetchList = useCallback(async () => {
     try {
       const res = await fetch('/api/scheduled-tasks/list');
       const data = await res.json();
-      if (data.success) setEntries(data.entries || []);
-      else setError(data.error || 'Failed to load scheduled entries');
+      if (data.success) {
+        setEntries(data.entries || []);
+        setScheduleVersion((v) => v + 1);
+      } else {
+        setError(data.error || 'Failed to load scheduled entries');
+      }
     } catch (e) {
       setError(e.message);
     }
@@ -1855,6 +1939,16 @@ function ScheduledTasksPanel() {
       return `${taskName} — ${customerByPubkey[entry.args.customer].name}`;
     }
     return entry.label || entry.taskId;
+  }
+
+  // Display name for the aggregate line (ADR 0003 sub-decision 1): the
+  // panel's own computeDisplayTitle for the matching entry, else the
+  // endpoint's label (entry not in the local list yet — stale or
+  // mid-refresh) — so the line and the row beneath it name the task
+  // identically while the identity stays endpoint-owned (entryId).
+  function resolveTitle(entryId, fallback) {
+    const entry = (entries || []).find((e) => e.id === entryId);
+    return entry ? computeDisplayTitle(entry) : fallback;
   }
 
   // Render-time orphan check (T33). True when a customer-task entry's
@@ -1922,6 +2016,8 @@ function ScheduledTasksPanel() {
         Each entry has its own enable toggle, schedule (interval or cron, down to minutes), and arguments.
       </p>
 
+      <NextScheduledTaskLine resolveTitle={resolveTitle} scheduleVersion={scheduleVersion} />
+
       <div style={{ marginBottom: '1rem' }}>
         <button className="btn-small" onClick={() => setEditingEntry('new')}
           style={{ padding: '0.4rem 0.75rem', fontSize: '0.9rem' }}>
@@ -1942,6 +2038,7 @@ function ScheduledTasksPanel() {
             onEdit={() => setEditingEntry(entry)}
             onDelete={() => handleDelete(entry)}
             banner={renderBannerFor(entry)}
+            onScheduleChanged={fetchList}
           />
         ))
       )}

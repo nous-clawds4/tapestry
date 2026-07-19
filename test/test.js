@@ -158,6 +158,8 @@ const sessionStart = require('./session-start.test.js');
 const deploySafetyStatus = require('./deploy-safety-status.test.js');
 // epic: deploy-safety-gate — Story 2 (safe-to-merge check script + shared recipe)
 const safeToMergeCheck = require('./safe-to-merge-check.test.js');
+// epic: deploy-safety-gate — Story 3 (Scheduled Tasks panel aggregate countdown)
+const nextTaskCountdown = require('./next-task-countdown.test.js');
 
 async function main() {
   console.log('Running Brainstorm tests...');
@@ -440,6 +442,9 @@ async function main() {
 
   console.log('\nsafe-to-merge-check suite:');
   const safeToMergeCheckResult = await safeToMergeCheck.run();
+
+  console.log('\nnext-task-countdown suite:');
+  const nextTaskCountdownResult = await nextTaskCountdown.run();
 
   console.log('\nTest Results');
   console.log('-------------');
@@ -750,6 +755,9 @@ async function main() {
   console.log(
     `safe-to-merge-check suite:                       ${safeToMergeCheckResult.fail === 0 ? 'PASS' : 'FAIL'} (${safeToMergeCheckResult.pass} passed, ${safeToMergeCheckResult.fail} failed)`
   );
+  console.log(
+    `next-task-countdown suite:                       ${nextTaskCountdownResult.fail === 0 ? 'PASS' : 'FAIL'} (${nextTaskCountdownResult.pass} passed, ${nextTaskCountdownResult.fail} failed)`
+  );
 
   const overallOk =
     configOk &&
@@ -869,7 +877,9 @@ async function main() {
     // block below this expression's terminator is severed — see OPEN.md #43).
     deploySafetyStatusResult.fail === 0 &&
     // deploy-safety-gate #2 — safe-to-merge check script + shared recipe.
-    safeToMergeCheckResult.fail === 0;
+    safeToMergeCheckResult.fail === 0 &&
+    // deploy-safety-gate #3 — Scheduled Tasks panel aggregate countdown.
+    nextTaskCountdownResult.fail === 0;
     harnessLintResult.fail === 0 &&
     harnessStatsResult.fail === 0 &&
     sessionStartResult.fail === 0 &&
@@ -904,7 +914,7 @@ async function main() {
     openRankingStatsResult, openRankingSearchResult, verifiedMutersReadApiResult, verifiedMutersProfileSurfaceResult,
     harnessLintResult, harnessStatsResult, sessionStartResult, stackFreeNpmTestResult,
     ciTestJobResult, syncPanelTagFiltersResult, routerStreamTagFiltersResult,
-    noteTaggingRawEventsInspectorHttpResult, deploySafetyStatusResult, safeToMergeCheckResult,
+    noteTaggingRawEventsInspectorHttpResult, deploySafetyStatusResult, safeToMergeCheckResult, nextTaskCountdownResult,
   ].reduce((sum, r) => sum + ((r && r.skipped) || 0), 0);
   console.log(`Total skipped:                                   ${totalSkipped}`);
   console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);

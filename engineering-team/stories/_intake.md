@@ -1609,3 +1609,97 @@ A common abstraction drawn over two shapes this different would have been wrong.
 **Strictness:** Standard — but the book runs in **Direction mode**: every story runs all five phases and all judged gates regardless of classification.
 **Phase path:** Planning → Architecture → Test Design → Implementation → Review, per story, under `/direct-feature`.
 **Priority:** Medium-high — precondition for arming the parked task-timeline Direction-mode book; replaces a manual, easy-to-forget mitigation.
+
+---
+
+## 2026-07-18 — Defect: UI advertises a `tapestry` CLI that does not exist
+
+**Found:** incidentally, during a concept-graph tooling assessment (session 2026-07-18).
+
+The concepts Health Audit tab renders a CLI hint — `ui/src/pages/concepts/ConceptHealth.jsx:320`:
+
+> `CLI: tapestry audit concept "<name>" · tapestry normalize skeleton "<name>"`
+
+and the manage/Audit page presents three more (`ui/src/pages/manage/Audit.jsx:12, 35, 50` — `tapestry audit health`, `tapestry audit stats`, `tapestry audit concept`), with a comment at `:6` stating each "mirrors a `tapestry audit` subcommand."
+
+**No such binary exists.** `package.json` `bin` declares only `brainstorm-publish`, `brainstorm-control-panel`, `brainstorm-install`, `brainstorm-init-db`; there is no `bin/tapestry*`; and `command -v tapestry` inside the `tapestry` container returns not-found (verified 2026-07-18). The pages themselves work — they call the server API (`src/api/audit/`); only the advertised CLI equivalent is phantom.
+
+**Impact:** low but corrosive — an operator who copies the hint gets `command not found`, and it misrepresents the tooling surface to agents reading the UI for orientation.
+
+**Disposition options:** (a) drop the CLI hints, (b) reword to the actual API/curl equivalent, or (c) build the CLI. Not yet triaged.
+
+**Classification:** Bug (doc/UI copy) — trivial unless (c).
+**Priority:** Low.
+
+---
+
+## 2026-07-18 — Defect: two `shared concept` a-tag pointers dangle on the community relay
+
+**Found:** by census during the same session — three read-only probes over neo4j + local strfry + `wss://dcosl.brainstorm.world`.
+
+The local concept `39998:<local-TA>:shared-concept` catalogs 5 elements, each carrying `sharedConcept.identifiers['a-tag']` pointing at the origin deployment's published concepts (author `82b75e47…`). Queried against the community relay 2026-07-18:
+
+| a-tag (`39998:82b75e47…:<slug>`) | resolvable on `dcosl.brainstorm.world` |
+|---|---|
+| `tag` | ✅ |
+| `nostr-user-tag` | ✅ |
+| `tag-pinning` | ✅ |
+| `nostr-event-tag` | ❌ **dangles** |
+| `tagging-with-specific-tag` | ❌ **dangles** |
+
+**Why it matters beyond the two rows:** the catalog records *observed* sharing as hand-written static JSON, so it rots silently as relay state changes. This is the concrete argument for storing publication *intent* and computing observation, rather than freezing observation into a JSON field. Any future reconciler/verifier work should treat this entry as its motivating case.
+
+**Unknown:** whether the two events were never published, were published to a different relay, or have been dropped/expired by `dcosl`. Determining which is the first triage step.
+
+**Classification:** Bug (data) — investigate before deciding a fix.
+**Priority:** Low-medium (no user-facing breakage today; it is a correctness signal about the catalog pattern).
+
+---
+
+## 2026-07-18 — Feature: primitive relationship add/delete endpoints (Neo4j-only, strfry-free)
+
+**Raw request (verbatim):**
+
+> In any case, I am thinking that for now, we should just build simple tool that allows me to add (or delete) a HAS_ELEMENT relationship in neo4j between two nodes that exist in neo4j, without dealing with strfry at all. And we're going to need a lot more very simple, very basic tools like that, starting with tools to add or delete the other basic relationship types. Do these tools exist, either individually or as a family of tools?
+
+**Operator's framing (verbatim, same session) — the premise that makes strfry-free correct:**
+
+> The information in neo4j should be considered the reference; it is "me", the second brain of the tapestry owner / operator, or perhaps the brain of the tapestry assistant -- or perhaps both. Strfry is simply one format by which information can be communicated between one tapestry instance and another.
+
+**Answer to "do these tools exist?": No.** Verified across the whole authoring surface 2026-07-18:
+
+- All 20 `POST /api/normalize/*` routes are *composite* — each bakes in node-type assumptions, side effects, and strfry emission. The three that create membership edges all publish: `add-to-set` (dual-emits an `n` tag + descriptor), `add-node-as-element` (re-signs the class-graph JSON node), `link-concepts` (`signAndFinalize` + `publishToStrfry`, `src/api/normalize/index.js:2643`).
+- **No single-edge DELETE exists anywhere.** The only edge removal is the bulk heuristic `prune-superset-edges` / the prune pass inside `wire-implicit-elements`.
+- The only strfry-free, arbitrary-pair primitive is `POST /api/neo4j/query` (raw Cypher) — no existence checks, no relationship-type whitelist, no idempotency contract, no structured result. A scalpel with no handle.
+- No UI affordance (and the closest one, `/elements/add-node`, currently crashes — `TypeError: A?.get is not a function` on a clean load).
+- No CLI (see the phantom-`tapestry`-CLI defect above).
+
+**Proposed shape (operator-approved in conversation):** two endpoints, parameterized by relationship type rather than one endpoint per type.
+
+- **Add** — `{fromUuid, toUuid, relType}`; both nodes must already exist; `relType` from a whitelist; idempotent `MERGE`; response distinguishes `created` from `already-existed`.
+- **Delete** — same body; targeted single-edge delete; response distinguishes `deleted` from `not-found`.
+- **No strfry, no JSON regeneration, no derivation.** Pure reference-graph edits.
+
+**Architectural background (verified this session):**
+
+- Relationship type names are firmware-aliased, not literals: `REL.CLASS_THREAD_TERMINATION` → `HAS_ELEMENT`, `CLASS_THREAD_PROPAGATION` → `IS_A_SUPERSET_OF`, `CLASS_THREAD_INITIATION` → `IS_THE_CONCEPT_FOR` (`src/api/normalize/firmware.js:71-80`; table at `src/firmware/install.js:518-521`). A whitelist should resolve through the alias layer, not hardcode strings.
+- Auth: requests from localhost/Docker-host to `/api/normalize` and `/api/neo4j` bypass session auth entirely (`src/middleware/auth.js:321-324`). New endpoints inherit this if mounted under `/api/normalize`.
+- **Firmware-install interaction (known hazard, needs a disposition):** install pass 1d re-derives `HAS_ELEMENT` from every `z` tag across *every* ConceptHeader in the graph with no already-explicit guard (`src/firmware/install.js:594-634`), while the redundancy prune runs *only* for concepts having a firmware `manifest.json` (`:758`, `:764`). Net effect: a firmware install can silently re-add operator-deleted edges, and silently delete operator-added ones it deems redundant. Under the Neo4j-as-reference stance these passes overwrite the reference.
+- Census baseline (2026-07-18): 621 membership edges — 465 z-tag-justified, 80 firmware-manifest, 10 descriptor, 1 s-tag, 0 n-tag, **65 bare** (no wire record). Neo4j holds 497 concept-graph nodes; local strfry holds 8,535 events from 562 pubkeys — neo4j is a curated view, not a mirror.
+
+**Open Planning questions (to resolve at Planning):**
+
+1. Route naming/mount point (`/api/normalize/*` for auth+convention inheritance vs. a new namespace).
+2. Initial `relType` whitelist membership — `HAS_ELEMENT` + `IS_A_SUPERSET_OF` only, or the core-node wiring types too.
+3. Whether add and delete are two routes or one route with an action/method discriminator.
+4. Endpoint-level validation: are parent-label constraints enforced (`Set`/`Superset` only) or is any existing node pair permitted?
+5. Response shape and status codes for the idempotent cases (`already-existed`, `not-found`).
+6. Whether the firmware-install interaction is documented-only in this book or gets its own story.
+7. Test strategy for endpoints whose contract is a Neo4j side effect.
+
+**Out of scope:** strfry emission of any kind; a reconciler; publication-intent modeling; curator-assertion wire format; UI affordances; fixing the `/elements/add-node` crash; fixing the `publishToStrfry` silent-drop bug (own entry needed — see the 2026-07-18 session findings on `add-to-set`).
+
+**Classification:** Feature (new epic).
+**Strictness:** Standard.
+**Phase path:** operator has requested **Direction mode** through cycle-staging — every story runs all five phases and all judged gates. Requires an armed `## Direction mode` section in the book; **the operator arms it, never the Director.**
+**Priority:** Medium — unblocks routine graph curation that currently requires raw Cypher.
