@@ -342,7 +342,6 @@ async function authMiddleware(req, res, next) {
 
         const customerOrOwnerEndpoints = [
             '/get-customer',
-            '/neo4j/run-query',
             '/neo4j/query',
         ]
         // Define owner-only endpoints (administrative actions)
