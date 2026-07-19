@@ -185,3 +185,10 @@ Append-only. Entry format: [engineering-team/roles/director.md](../../roles/dire
 **Judge:** n/a
 **Why:** Commit 9fd94be6 ("intake: two defects + relationship-primitives feature request", author Nous, co-author a different Claude session, 20:10 local) appeared on feat/deploy-safety-gate between my Gate-3 and Gate-4 commits — another session filed intake entries from this same checkout. Assessment against Stopping rule 6: NOT interference — the commit is append-only to the shared _intake.md triage surface (the canonical operator activity), touches no book artifact, no source, no tests, and my working tree and commits were undisturbed (verified: my Gate-4 commits contain exactly the intended paths). The filed items are future triage material, not this run's scope. Precedent: the Stage-0 rebase handled the same class of concurrent-session activity on staging.
 **Next:** Push branch; Phase 5 — spawn reviewer for story #3.
+
+## 2026-07-19T07:40:00Z (local) — Review PASS — story #3; Gate 5 judge next
+**Story/Phase:** deploy-safety-gate #3 / Phase 5 (Review)
+**Decision:** INFO (Reviewer verdict PASS; Gate 5 pending)
+**Judge:** pending
+**Why:** Fresh-context Reviewer ran all lanes itself (node 24/24; full suite exit 0 with zero individual FAIL lines and only the pre-existing 28 environmental skips; Playwright 7/7; lint clean), verified the live data path INCLUDING the served container bundle (next-task-line present in dist asset), audited the Deviation live, and confirmed both adjacent commits' separation (Tester re-baseline: real defect, meaning preserved; concurrent intake commit: benign). Three non-blocking observations recorded. Completion detection: bullet 5 satisfied by this PASS; bullet 6(b) lands at Stage 2; close offer correctly withheld.
+**Next:** Commit review + close-out; Gate-5 judge (bounded frame read).

@@ -1,7 +1,7 @@
 # Story 3: Scheduled Tasks panel aggregate countdown
 
 **Epic:** deploy-safety-gate
-**Status:** Draft
+**Status:** Done
 **Created:** 2026-07-18
 **Type:** Feature
 
@@ -21,15 +21,15 @@ As **an operator looking at the settings page's Scheduled Tasks panel**, I want 
 
 ## Acceptance criteria
 
-- [ ] **AC-1 (the aggregate line, in the operator's phrasing):** Given the settings page's Scheduled Tasks panel is open and at least one enabled scheduled entry has an upcoming fire, when the panel renders, then exactly one aggregate line appears alongside the existing per-entry rows — which remain present and unchanged — communicating, in the operator's requested form "Next Scheduled Task, \<name of task\>, starts in __ hours and __ minutes": the name of a scheduled task and the time remaining until it fires, at hours-and-minutes granularity.
+- [x] **AC-1 (the aggregate line, in the operator's phrasing):** Given the settings page's Scheduled Tasks panel is open and at least one enabled scheduled entry has an upcoming fire, when the panel renders, then exactly one aggregate line appears alongside the existing per-entry rows — which remain present and unchanged — communicating, in the operator's requested form "Next Scheduled Task, \<name of task\>, starts in __ hours and __ minutes": the name of a scheduled task and the time remaining until it fires, at hours-and-minutes granularity.
 
-- [ ] **AC-2 (soonest fire among all enabled entries — and only enabled entries):** Given several scheduled entries with differing next-fire times, some enabled and some disabled, when the aggregate line is shown, then the task it names is the one with the soonest upcoming fire among the **enabled** entries, and the time shown is the time remaining until that fire. A disabled entry never appears as the next scheduled task, however soon its nominal time; and when the enabled set or its ordering changes (an entry is toggled, or the current soonest fire passes), the line comes to reflect the new soonest rather than continuing to show the old one.
+- [x] **AC-2 (soonest fire among all enabled entries — and only enabled entries):** Given several scheduled entries with differing next-fire times, some enabled and some disabled, when the aggregate line is shown, then the task it names is the one with the soonest upcoming fire among the **enabled** entries, and the time shown is the time remaining until that fire. A disabled entry never appears as the next scheduled task, however soon its nominal time; and when the enabled set or its ordering changes (an entry is toggled, or the current soonest fire passes), the line comes to reflect the new soonest rather than continuing to show the old one.
 
-- [ ] **AC-3 (it visibly counts down):** Given the panel stays open with no operator interaction, when time passes, then the displayed time remaining decreases observably — the operator can watch the countdown tick down without reloading the page — and the display is never frozen at a stale value and never counts into negative time; once the displayed fire time is reached, the line moves on to the then-current state (the next soonest upcoming fire, or the nothing-upcoming state of AC-4).
+- [x] **AC-3 (it visibly counts down):** Given the panel stays open with no operator interaction, when time passes, then the displayed time remaining decreases observably — the operator can watch the countdown tick down without reloading the page — and the display is never frozen at a stale value and never counts into negative time; once the displayed fire time is reached, the line moves on to the then-current state (the next soonest upcoming fire, or the nothing-upcoming state of AC-4).
 
-- [ ] **AC-4 (sensible empty states — nothing-scheduled and queue-disabled, not conflated):** Given the task-queue layer is enabled but no scheduled entry is enabled (or none has an upcoming fire), when the panel renders, then in place of the countdown the aggregate line states plainly that no scheduled task is upcoming — never a blank, a stale task name, or a nonsense countdown. Given instead the instance's task-queue layer is disabled, then the panel states that in plain language, distinguishably from "nothing scheduled" — the same distinction the deploy-safety answer already makes — so the operator is never told nothing is scheduled when scheduling is simply switched off.
+- [x] **AC-4 (sensible empty states — nothing-scheduled and queue-disabled, not conflated):** Given the task-queue layer is enabled but no scheduled entry is enabled (or none has an upcoming fire), when the panel renders, then in place of the countdown the aggregate line states plainly that no scheduled task is upcoming — never a blank, a stale task name, or a nonsense countdown. Given instead the instance's task-queue layer is disabled, then the panel states that in plain language, distinguishably from "nothing scheduled" — the same distinction the deploy-safety answer already makes — so the operator is never told nothing is scheduled when scheduling is simply switched off.
 
-- [ ] **AC-5 (never contradicts the deploy-safety answer):** Given the instance's deploy-safety status answer (deploy-safety-gate #1) reports a next scheduled fire, when the panel is viewed at effectively the same moment, then the aggregate line names the same task and shows a time remaining consistent with the same fire time — any difference explained by hours-and-minutes rounding and the moments elapsed between the two observations. The panel and the merge gate speak from the same schedule: the line never names as "next" a task the status answer would not, nor the reverse, and the empty states of AC-4 mirror the answer's own queue-disabled / nothing-scheduled distinction.
+- [x] **AC-5 (never contradicts the deploy-safety answer):** Given the instance's deploy-safety status answer (deploy-safety-gate #1) reports a next scheduled fire, when the panel is viewed at effectively the same moment, then the aggregate line names the same task and shows a time remaining consistent with the same fire time — any difference explained by hours-and-minutes rounding and the moments elapsed between the two observations. The panel and the merge gate speak from the same schedule: the line never names as "next" a task the status answer would not, nor the reverse, and the empty states of AC-4 mirror the answer's own queue-disabled / nothing-scheduled distinction.
 
 ## Product decisions (operator-ratified at intake, 2026-07-18 — requirements, not open for relitigation)
 
@@ -73,4 +73,4 @@ None. The operator's verbatim phrasing, frame bullet 5, and the ratified decisio
 - Book: `engineering-team/audits/deploy-safety-gate/book.md`
 - ADR: `engineering-team/decisions/deploy-safety-gate/0003-panel-countdown-from-deploy-safety-status.md`
 - Test plan: `engineering-team/stories/deploy-safety-gate/3-scheduled-tasks-panel-countdown.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/deploy-safety-gate/3-scheduled-tasks-panel-countdown.md` — **PASS**, 2026-07-18
