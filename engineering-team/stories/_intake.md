@@ -1703,3 +1703,41 @@ The local concept `39998:<local-TA>:shared-concept` catalogs 5 elements, each ca
 **Strictness:** Standard.
 **Phase path:** operator has requested **Direction mode** through cycle-staging — every story runs all five phases and all judged gates. Requires an armed `## Direction mode` section in the book; **the operator arms it, never the Director.**
 **Priority:** Medium — unblocks routine graph curation that currently requires raw Cypher.
+
+---
+
+## 2026-07-18 — Defect: `publishToStrfry` in `normalize` silently drops writes and reports success
+
+**Found:** live, while executing `POST /api/normalize/add-to-set` five times against the local stack (all five returned `success: true`). Actual landing rate: **4/5 in Neo4j, 1/5 in strfry.** All changes have since been rolled back.
+
+**The helper** — `src/api/normalize/index.js:115-124`:
+
+```js
+function publishToStrfry(event) {
+  return new Promise((resolve, reject) => {
+    const child = exec('strfry import', { timeout: 10000 }, (err) => {
+      if (err) reject(new Error(`strfry import failed: ${err.message}`));
+      else resolve();                       // exit 0 ⇒ treated as success
+    });
+    child.stdin.write(JSON.stringify(event) + '\n');
+    child.stdin.end();
+  });
+}
+```
+
+**Two defects:**
+
+1. **Exit 0 ≠ event stored.** Verified by hand in-container: re-importing an existing event printed `Writer: added: 0 dups: 1 replaced: 0 deleted: 0` / `Done. Processed 1 lines. 0 added, 0 rejected, 1 dups` and exited **0**. strfry reports outcome as counts on stderr and exits 0 regardless; this helper never parses them, so a dropped or rejected write is indistinguishable from a stored one. An event that never reaches stdin yields `Processed 0 lines` — also exit 0.
+2. **It is an un-hardened duplicate.** `src/api/trustedList/index.js:73` is the same function, fixed under ADR `tag-stack-merge-hardening/0001 (B4b)`: `spawn` instead of `exec`, explicit `child.stdin.on('error')`, `--no-verify`, and a settled-once guard. The `normalize` copy never received that fix. A **third** copy exists at `src/api/normalize/helpers.js:53`.
+
+**Ruled out:** no strfry write-policy plugin is active (`writePolicy.plugin = ""` in `/etc/strfry.conf`), so nothing is rejecting these events by policy.
+
+**Not yet established — the actual gap:** *why* 4 of 5 dropped while 1 landed. Candidate causes, untested: the `exec`-then-late-`stdin.write` race; LMDB write-lock contention with the running relay; the 10s timeout. A controlled reproduction (replicate the exact pattern in a standalone in-container script, ~20 throwaway events, count landed vs. "succeeded"; then the same against the hardened `spawn` pattern) is the proposed first step — deliberately deferred by the operator pending design decisions.
+
+**Blast radius:** the same helper backs `create-element`, `create-set`, `link-concepts`, `set-json-tag`, `save-element-json`, and `add-to-set` — i.e. most of the runtime authoring surface. Any of them can report success while leaving no durable event.
+
+**Interaction:** in `handleAddToSet` the Neo4j import is sequenced *after* the publish inside one `try` (`index.js:3062-3063`), so a publish rejection also silently skips the graph write — the observed `tag` case (neither tier updated, endpoint still returned success).
+
+**Classification:** Bug (correctness / silent data loss).
+**Strictness:** Standard — a fix should consolidate the three copies and assert on strfry's reported counts, not just exit code.
+**Priority:** Medium-high — it silently corrupts the local↔wire relationship, and it is the reason a routine 5-element set move produced an inconsistent half-written state.
