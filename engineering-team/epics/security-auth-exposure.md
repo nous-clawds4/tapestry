@@ -15,7 +15,7 @@ The write surface signs events **as the instance's Tapestry Assistant** and can 
 
 ## Stories
 
-1. `stories/security-auth-exposure/1-close-unauthenticated-write-surface.md` — reject unauthenticated callers on the `/api/normalize/*` writes and `POST /api/neo4j/query`, resistant to the `X-Forwarded-For: 127.0.0.1` spoof, without breaking the owner UI, the public read endpoints (including the deploy-safety curl the cycle skills depend on), or firmware install. Ships to staging → prod → feat/tags. **Approved**.
+1. `stories/security-auth-exposure/1-close-unauthenticated-write-surface.md` — reject unauthenticated callers on the `/api/normalize/*` writes and `POST /api/neo4j/query`, resistant to the `X-Forwarded-For: 127.0.0.1` spoof, without breaking the owner UI, the public read endpoints (including the deploy-safety curl the cycle skills depend on), or firmware install. Ships to staging → prod → feat/tags. **Done** (review PASS 2026-07-19; code verified local — deploy to the three instances pending).
 
 *(Further stories drawn at Planning as the work proceeds — see the book's indicative list: the middleware default-open posture audit is the expected follow-up.)*
 
