@@ -1746,6 +1746,8 @@ function publishToStrfry(event) {
 
 ## 2026-07-19 — Defect: `/api/normalize/*` has no server-side auth, and the localhost bypass may expose it (plus arbitrary Cypher) to the public internet
 
+**PICKED UP** → book scaffolded at `engineering-team/audits/security-auth-exposure/book.md` (human-gated). Open Q1 (is the exposure real?) **CONFIRMED** live on staging + prod 2026-07-19; open Q4 (`run-query` disposition) **DONE** — the GET endpoint was removed and deployed to staging/prod/feat/tags (#388/#389/#390), closing its leak + RCE. This book carries the *root cause* (localhost bypass) + the rest of the write surface + the operator-side password rotation and Bolt-port firewalling. Remaining open Planning questions (Q2, Q3, Q5, Q6) move to that book.
+
 **How it surfaced:** incidental. The operator asked whether editing a concept element's description was supported; verifying the write path end-to-end turned up the auth gap on that same path. Not a reported failure — no exploitation observed, no anomaly in the logs. Filed because the write path it guards is the one the operator is about to start using routinely.
 
 **⚠️ Verified by code reading only. Nothing was probed against a deployed instance.** The exposure claim below is a reasoned chain over four files, not an observation. **First task for whoever picks this up is to confirm or refute it** with a single safe, read-only, unauthenticated request against staging — e.g. `GET https://staging.brainstorm.world/api/neo4j/run-query?query=RETURN%201`. If that returns data without a session cookie, the chain holds. Do not test by writing.
