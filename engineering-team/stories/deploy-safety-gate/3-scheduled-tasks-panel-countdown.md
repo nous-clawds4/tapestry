@@ -64,6 +64,10 @@ None. Verified live against the local Concept Graph 2026-07-18 (46 concepts): no
 
 None. The operator's verbatim phrasing, frame bullet 5, and the ratified decisions (all-enabled-entries selection; queue-disabled vs nothing-scheduled) answer the product questions this story raises; refresh mechanics, edge-case copy, and placement are explicitly delegated to Architecture.
 
+## Deviations
+
+- `formatTimeToFire` drops zero-valued units in compound renderings (exactly 1 h → "1 hour", exactly 1 day → "1 day" — never "1 hour and 0 minutes"). ADR 0003 sub-decision 3 spells out only the "0 hours and" drop for the under-an-hour band; extending the drop to any zero unit keeps its "never shows '0 minutes' while time remains" literal at band boundaries, under the story scope note delegating edge-case copy to the Implementer. All ADR-listed example renderings are unchanged.
+
 ## Linked artifacts
 
 - Book: `engineering-team/audits/deploy-safety-gate/book.md`
