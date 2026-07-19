@@ -178,3 +178,10 @@ Append-only. Entry format: [engineering-team/roles/director.md](../../roles/dire
 **Judge:** n/a
 **Why:** My own runs: full npm test exit 0 (next-task-countdown 24/24; zero FAIL lines; Overall PASS) and Playwright 7/7 (after the Tester's strict-mode locator re-baseline — the AC-1 spec's h3 locators ambiguously matched the pre-existing "Recent Runs" headings, a defect that fails against ANY correct implementation; Implementer correctly halted rather than touch tests/, Tester fixed with exact:true, meaning preserved). Test-integrity: `git diff 72f42af4..HEAD -- test/ tests/` empty at the pre-fix tree — the Implementer touched no tests; the only tests/ commit is the attributable Tester re-baseline. harness-lint clean. Implementer's honesty flags journaled: one killed background Playwright task re-run in foreground; UI bundle rebuilt + docker cp'd per cycle-local (dist/ gitignored).
 **Next:** Commit impl; Phase 5 — spawn reviewer (fresh context; runs all lanes itself including Playwright).
+
+## 2026-07-19T06:35:00Z (local) — Concurrent operator activity observed on the branch (benign; journaled, not a halt)
+**Story/Phase:** deploy-safety-gate #3 / between Gate 4 and Phase 5
+**Decision:** INFO
+**Judge:** n/a
+**Why:** Commit 9fd94be6 ("intake: two defects + relationship-primitives feature request", author Nous, co-author a different Claude session, 20:10 local) appeared on feat/deploy-safety-gate between my Gate-3 and Gate-4 commits — another session filed intake entries from this same checkout. Assessment against Stopping rule 6: NOT interference — the commit is append-only to the shared _intake.md triage surface (the canonical operator activity), touches no book artifact, no source, no tests, and my working tree and commits were undisturbed (verified: my Gate-4 commits contain exactly the intended paths). The filed items are future triage material, not this run's scope. Precedent: the Stage-0 rebase handled the same class of concurrent-session activity on staging.
+**Next:** Push branch; Phase 5 — spawn reviewer for story #3.
