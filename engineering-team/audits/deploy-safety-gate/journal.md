@@ -199,3 +199,24 @@ Append-only. Entry format: [engineering-team/roles/director.md](../../roles/dire
 **Judge:** APPROVE, blinding intact. Judge reproduced all four gate runs, the live payload, and the served-bundle markers (exact dist hash); sampled file:line anchors accurate; separation audit verified by its own git show --stat on all three commits; the story flip confirmed inside the review commit. Two 1–2-line helper cite drifts noted, immaterial.
 **Why:** The review demonstrates rather than asserts; nothing diverged under reproduction. Story #3 Done — frame bullet 5 satisfied. All three planned stories complete with 15 blinded verdicts, 0 kick-backs, story count 3 of 5 (no fix-forward stories needed).
 **Next:** Stage 2 — push, PR to staging, gated merge (scripts/check-safe-to-merge.sh against staging.brainstorm.world), watch deploy, smoke; then Stage 3 — completion report, final gate-judge audit, completion offer to the operator.
+
+## 2026-07-19T09:20:00Z (local) — Stage 2 complete for story #3; completion report assembled — frame bullet 6 evidence complete
+**Story/Phase:** deploy-safety-gate #3 / Stage 2 → Stage 3
+**Decision:** INFO
+**Judge:** final completion audit pending
+**Why:** PR #386: gated pre-merge check `[2026-07-19T02:10:28Z] attempt 1/45 verdict=safe reasons=[]` → merged +6s (85a769fc); deploy run 29669783719 exit 0; stability in 5 attempts; staging endpoint re-verified (verdict safe, queue known); staging serves bundle `index-_ADNcIKp.js` with the countdown markers (grep positive); staging /api/scheduled-tasks/list 200. Bullet 6(b) rendered evidence captured from the live local stack (frame's documented NIP-07 limit): DOM extract journaled in the completion report — `data-state="countdown"`, text "Next Scheduled Task, Demo Export, starts in 1 hour and 30 minutes." Completion report assembled at audits/deploy-safety-gate/completion-report.md, bullet-by-bullet.
+**Next:** Final gate-judge audits the completion report against the frame (Stage 3); on APPROVE, the completion offer goes to the operator. The Director does not ratify.
+
+## 2026-07-19T10:15:00Z (local) — Completion audit KICK_BACK — report misstated the verdict tally; corrected
+**Story/Phase:** — / Stage 3 (completion audit)
+**Decision:** KICK_BACK (accepted; report corrected)
+**Judge:** KICK_BACK, blinding intact (journal read pre-authorized for the completion audit). All six frame bullets judged SATISFIED on reproduced evidence — live staging endpoint, all three suites rerun green (23/16/24), staging bundle markers verified in the named asset, recipe + skill wiring on disk, journaled check outputs matched to GitHub merge timestamps to the second. The single blocking finding: completion-report.md line 4 claimed "15 APPROVE" blinded verdicts; the journal records 12 blinded APPROVEs + 1 void + 0 KICK_BACKs (13 spawns). The Director's tally had counted the 3 mechanical Gate-4 verifications as blinded verdicts — they are not.
+**Why accepted without dispute:** the judge is correct on the record; the report the operator ratifies from must state the scrutiny level exactly. Corrected the report to the journaled tally with the mechanical/Reviewer passes counted separately and this KICK_BACK disclosed in the report itself. Note: the Director's interim reports to the operator repeated the inflated count — corrected in the completion offer.
+**Next:** Re-spawn the completion judge on the corrected report.
+
+## 2026-07-19T10:50:00Z (local) — Completion audit APPROVE (re-judge) — offer made to the operator
+**Story/Phase:** — / Stage 3 (completion audit, re-judge)
+**Decision:** APPROVE (judge); completion OFFER made — ratification is the operator's alone
+**Judge:** APPROVE, blinding intact (authorized journal read; incidental deadline exposure disclosed, non-operative). Judge independently counted the journal: 13 blinded spawns = 12 APPROVE + 1 void + 0 KICK_BACKs; 3 mechanical Gate-4 passes and 3 Reviewer PASSes separate — matching the corrected report exactly. Correction commit verified minimal (one line + journal append). Spot checks reproduced (staging endpoint live/correct/safe; story-3 suite 24/24). Non-blocking residual noted: the append-only journal's Gate-5 story-3 entry carries the superseded "15" phrasing — corrected on the record by the KICK_BACK entry, not editable retroactively (append-only discipline).
+**Why:** All six frame bullets SATISFIED on reproduced evidence per both completion audits; the record now states its own scrutiny level exactly.
+**Next:** Completion offer to the operator. On "yes": /close-book (audit.md + prd-seed.md — the failure-honest return edge). On rejection: journal and act per the operator's instruction. The Director does not ratify.
