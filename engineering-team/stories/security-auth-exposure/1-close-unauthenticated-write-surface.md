@@ -20,7 +20,7 @@ As the instance owner, I want every graph-mutating endpoint to reject unauthenti
 ## Acceptance criteria
 
 - [ ] Given a deployed instance, when an **unauthenticated** request hits any `/api/normalize/*` write endpoint, then it is rejected with a 401/403-class response and the handler does not execute. *(Testable with a benign non-mutating body.)*
-- [ ] Given a deployed instance, when an **unauthenticated** `POST /api/neo4j/query` is made, then it is rejected 401/403 and no Cypher runs.
+- [ ] Given a deployed instance, when an **unauthenticated** `POST /api/neo4j/query` carrying **write** Cypher (`CREATE`/`MERGE`/`DELETE`/`SET`/`REMOVE`/`DETACH`/`DROP`/`CALL{}`) is made, then it is rejected 403 and no write runs. *(Refined during Architecture, operator-approved 2026-07-19: **read** Cypher stays open — it is the read backbone of 20+ UI pages incl. public browsing; the danger is unauthenticated writes. Residual risk of unauthenticated reads is tracked in ADR 0001.)*
 - [ ] Given a request whose network peer is **not** loopback but that carries `X-Forwarded-For: 127.0.0.1` (or any spoofed loopback forwarding header), when it hits those endpoints, then it is treated as **remote** and rejected — spoofing the header does not earn "local."
 - [ ] Given a valid **owner session**, when the owner uses those endpoints (as the concepts UI does), then the requests still succeed — no owner-facing regression.
 - [ ] Given an **unauthenticated** request to a legitimately-public read endpoint — the deploy-safety status endpoint, concept-graph reads, strfry scan, `assistant/pubkey`, `auth/status` — then it still succeeds. *(The deploy-safety endpoint especially: the cycle skills curl it with no auth.)*
@@ -45,6 +45,6 @@ No single concept-graph concept is central. The affected surface is the **concep
 - Rollout: same `staging → main`/`feat/tags` chain as the run-query fix, or a coordinated hotfix? (Intake Q6 — resolve with the operator before/at deploy.)
 
 ## Linked artifacts
-- ADR: *(after Architecture)*
+- ADR: `engineering-team/decisions/security-auth-exposure/0001-honest-local-bypass-and-neo4j-write-gate.md`
 - Test plan: *(after Test Design)*
 - Review: *(after Review)*
