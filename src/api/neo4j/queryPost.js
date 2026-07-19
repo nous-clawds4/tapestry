@@ -11,6 +11,7 @@
  */
 
 const { runCypher, writeCypher } = require('../../lib/neo4j-driver');
+const { isOwner } = require('../../middleware/auth');
 
 // Detect write operations that require WRITE access mode
 const WRITE_KEYWORDS = /\b(CREATE|MERGE|DELETE|SET|REMOVE|DETACH|DROP|CALL\s*\{)\b/i;
@@ -25,6 +26,16 @@ async function queryPost(req, res) {
 
     try {
         const isWrite = WRITE_KEYWORDS.test(cypherCommand);
+
+        // Write Cypher (CREATE/MERGE/DELETE/SET/…) mutates the graph, so it is
+        // owner-only. Reads stay open — this endpoint is the read backbone of the
+        // browsing UI. A genuinely-local request (req.localTrusted, stamped by the
+        // auth middleware for the in-process bridge and direct-local operator) is
+        // authorized too. (ADR security-auth-exposure/0001.)
+        if (isWrite && !isOwner(req) && !req.localTrusted) {
+            return res.status(403).json({ success: false, error: 'Write queries require owner authentication' });
+        }
+
         const rows = isWrite
             ? await writeCypher(cypherCommand, params)
             : await runCypher(cypherCommand, params);
