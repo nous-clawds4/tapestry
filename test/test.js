@@ -160,6 +160,7 @@ const deploySafetyStatus = require('./deploy-safety-status.test.js');
 const safeToMergeCheck = require('./safe-to-merge-check.test.js');
 // epic: deploy-safety-gate — Story 3 (Scheduled Tasks panel aggregate countdown)
 const nextTaskCountdown = require('./next-task-countdown.test.js');
+const closeUnauthWriteSurface = require('./close-unauth-write-surface.test.js');
 
 async function main() {
   console.log('Running Brainstorm tests...');
@@ -445,6 +446,7 @@ async function main() {
 
   console.log('\nnext-task-countdown suite:');
   const nextTaskCountdownResult = await nextTaskCountdown.run();
+  const closeUnauthWriteSurfaceResult = await closeUnauthWriteSurface.run();
 
   console.log('\nTest Results');
   console.log('-------------');
@@ -879,7 +881,10 @@ async function main() {
     // deploy-safety-gate #2 — safe-to-merge check script + shared recipe.
     safeToMergeCheckResult.fail === 0 &&
     // deploy-safety-gate #3 — Scheduled Tasks panel aggregate countdown.
-    nextTaskCountdownResult.fail === 0;
+    nextTaskCountdownResult.fail === 0 &&
+    // security-auth-exposure #1 — close the unauthenticated write-surface.
+    // (LIVE chain — before the terminator; the block below is severed, OPEN.md #43.)
+    closeUnauthWriteSurfaceResult.fail === 0;
     harnessLintResult.fail === 0 &&
     harnessStatsResult.fail === 0 &&
     sessionStartResult.fail === 0 &&
@@ -915,6 +920,7 @@ async function main() {
     harnessLintResult, harnessStatsResult, sessionStartResult, stackFreeNpmTestResult,
     ciTestJobResult, syncPanelTagFiltersResult, routerStreamTagFiltersResult,
     noteTaggingRawEventsInspectorHttpResult, deploySafetyStatusResult, safeToMergeCheckResult, nextTaskCountdownResult,
+    closeUnauthWriteSurfaceResult,
   ].reduce((sum, r) => sum + ((r && r.skipped) || 0), 0);
   console.log(`Total skipped:                                   ${totalSkipped}`);
   console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);

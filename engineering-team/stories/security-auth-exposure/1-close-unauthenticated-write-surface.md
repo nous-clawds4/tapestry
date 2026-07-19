@@ -46,5 +46,5 @@ No single concept-graph concept is central. The affected surface is the **concep
 
 ## Linked artifacts
 - ADR: `engineering-team/decisions/security-auth-exposure/0001-honest-local-bypass-and-neo4j-write-gate.md`
-- Test plan: *(after Test Design)*
+- Test plan: `engineering-team/stories/security-auth-exposure/1-close-unauthenticated-write-surface.test-plan.md` (tests: `test/close-unauth-write-surface.test.js`)
 - Review: *(after Review)*
