@@ -1,7 +1,7 @@
 # Completion report — deploy-safety-gate (Direction mode, run 2)
 
 **Assembled:** 2026-07-19 (local) by the Director, per direct-feature Stage 3.
-**Stories:** 3 planned, 3 Done (no fix-forward stories). **Blinded verdicts:** 15 APPROVE, 1 void (self-reported blinding break, re-judged clean), 0 KICK_BACKs. **Ceiling:** never approached — no prod/tags mutation, no forbidden task triggers, staging-only merges (PRs #384, #385, #386, all to `staging`).
+**Stories:** 3 planned, 3 Done (no fix-forward stories). **Blinded per-story verdicts (as journaled):** 13 spawns — 12 APPROVE + 1 void (story #1 Gate 3: judge self-reported a blinding break; APPROVE voided per protocol, re-judged clean) — 0 KICK_BACKs. Separately, not blinded verdicts: 3 mechanical Gate-4 Director verifications and 3 Reviewer PASSes. **Completion-audit history:** the first completion audit returned KICK_BACK on this report itself — its predecessor misstated the verdict tally as "15 APPROVE" by counting the mechanical Gate-4 passes as blinded verdicts; corrected here, re-audit follows. **Ceiling:** never approached — no prod/tags mutation, no forbidden task triggers, staging-only merges (PRs #384, #385, #386, all to `staging`).
 
 ## Bullet-by-bullet against the acceptance frame (book.md lines 14–19, quoted at Gate time by each judge)
 
