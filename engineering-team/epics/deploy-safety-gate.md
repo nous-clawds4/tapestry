@@ -1,7 +1,7 @@
 # Epic: deploy-safety-gate
 
 **Created:** 2026-07-18
-**Status:** Active
+**Status:** Done (epic retired 2026-07-19 at deploy-safety-gate book close — all 3 stories Done, live on staging)
 
 ## Goal
 
