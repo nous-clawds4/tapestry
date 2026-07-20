@@ -17,7 +17,7 @@ The write surface signs events **as the instance's Tapestry Assistant** and can 
 
 1. `stories/security-auth-exposure/1-close-unauthenticated-write-surface.md` — reject unauthenticated callers on the `/api/normalize/*` writes and `POST /api/neo4j/query`, resistant to the `X-Forwarded-For: 127.0.0.1` spoof, without breaking the owner UI, the public read endpoints (including the deploy-safety curl the cycle skills depend on), or firmware install. Ships to staging → prod → feat/tags. **Done** (review PASS 2026-07-19; code verified local — deploy to the three instances pending).
 
-2. `stories/security-auth-exposure/2-default-deny-mutating-endpoints.md` — flip the central auth middleware from default-open to **default-deny for mutations**: `POST/PUT/PATCH/DELETE` (and `?action=`-style state changes) require auth unless a route is on an explicit, documented public-mutation allowlist. Closes the known unauthenticated-callable `POST /api/firmware/install` gap by construction. Ships to staging → prod → feat/tags. **Approved**.
+2. `stories/security-auth-exposure/2-default-deny-mutating-endpoints.md` — flip the central auth middleware from default-open to **default-deny for mutations**: `POST/PUT/PATCH/DELETE` (and `?action=`-style state changes) require auth unless a route is on an explicit, documented public-mutation allowlist. Closes the known unauthenticated-callable `POST /api/firmware/install` gap by construction. Ships to staging → prod → feat/tags. **Done** (review PASS 2026-07-20; code verified local — deploy pending).
 
 *(Further stories drawn at Planning as the work proceeds.)*
 

@@ -1,6 +1,6 @@
 # Story 2: Default-deny for unauthenticated mutating endpoints
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-07-20
 **Type:** Bug (security / authorization)
 **Epic:** `security-auth-exposure`
@@ -44,4 +44,4 @@ None — auth-middleware infrastructure. No concept-graph concepts in scope.
 ## Linked artifacts
 - ADR: `engineering-team/decisions/security-auth-exposure/0002-default-deny-for-mutations.md`
 - Test plan: `engineering-team/stories/security-auth-exposure/2-default-deny-mutating-endpoints.test-plan.md` (tests: `test/default-deny-mutations.test.js`)
-- Review: *(after Review)*
+- Review: `engineering-team/reviews/security-auth-exposure/2-default-deny-mutating-endpoints.md` (PASS)
