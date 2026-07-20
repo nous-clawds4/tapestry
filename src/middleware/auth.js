@@ -326,7 +326,13 @@ async function authMiddleware(req, res, next) {
     const isLoopbackPeer = ['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(remoteAddr);
     const viaProxy = !!(req.headers && (req.headers['x-forwarded-for'] || req.headers['x-real-ip']));
     const isDirectLocal = isLoopbackPeer && !viaProxy;
-    if (isDirectLocal && (req.path.startsWith('/api/normalize') || req.path.startsWith('/api/neo4j'))) {
+    // Broadened to all /api paths (ADR security-auth-exposure/0002): a genuinely-
+    // direct-local call (loopback + no proxy header) is the operator, the
+    // in-process firmware-install bridge, or a server-side loopback cron (e.g. the
+    // trusted-list refreshers, which curl 127.0.0.1 directly) — all trusted. The
+    // signal is externally unspoofable (nginx always sets X-Forwarded-For; a direct
+    // hit to the app port has a non-loopback peer), so this never trusts remote traffic.
+    if (isDirectLocal && req.path.startsWith('/api/')) {
         req.localTrusted = true;
         return next();
     }
@@ -433,66 +439,38 @@ async function authMiddleware(req, res, next) {
         // User is authenticated and has appropriate permissions
         return next();
     } else {
-        // For API calls that modify data, return unauthorized status
-        const writeEndpoints = [
-            '/post-graperank-config',
-            '/api/post-blacklist-config',
-            '/post-whitelist-config',
-            '/generate-blacklist',
-            '/export-whitelist',
-            '/generate-graperank',
-            '/generate-pagerank',
-            '/personalized-pagerank',
-            '/generate-verified-followers',
-            '/generate-reports',
-            '/generate-nip85',
-            '/systemd-services',
-            '/brainstorm-control',
-            '/toggle-strfry-filteredContent',  // New endpoint for enabling/disabling
-            '/delete-all-relationships',
-            '/batch-transfer',
-            '/reconciliation',
-            '/calculate-hops',
-            '/neo4j-setup-constraints-and-indexes',
-            '/run-script',
-            '/process-all-active-customers',
-            '/create-all-customer-relays',
-            '/sign-up-new-customer',
-            '/delete-customer',
-            '/change-customer-status',
-            '/service-management/control',
-            '/add-new-customer',
-            '/update-customer-display-name',
-            '/backup-customers',
-            '/backups',
-            '/backups/download',
-            '/restore/upload',
-            '/restore/sets',
-            '/restore/customer',
-            '/api/normalize'
-        ];
-        
-        // Check if the current path is a write endpoint
-        const isWriteEndpoint = writeEndpoints.some(endpoint => 
-            req.path.includes(endpoint) && (req.method === 'POST' || req.path.includes('?action=enable') || req.path.includes('?action=disable'))
-        );
+        // Default-DENY for mutations (ADR security-auth-exposure/0002): any
+        // state-changing request from an unauthenticated caller is rejected unless
+        // its path is explicitly public. This replaces the old hand-maintained
+        // `writeEndpoints` allowlist, which was POST-only (so PUT/PATCH/DELETE
+        // mutations like `DELETE .../meili/wipe` slipped through) and left every
+        // unlisted mutation — e.g. `/api/firmware/install` — reachable by anyone.
+        const MUTATING = ['POST', 'PUT', 'PATCH', 'DELETE'];
+        // Mutations that must stay reachable without a session. Each defers its own
+        // finer gate to the handler: `/api/neo4j/query` gates write-Cypher (ADR 0001);
+        // `/api/strfry/publish` gates signAs:'assistant' (ADR 0002); client-signed
+        // publishing is permissionless by design. Exact-match — an allowlist must
+        // never over-match a private path.
+        const PUBLIC_MUTATIONS = ['/api/neo4j/query', '/api/strfry/publish'];
+        if (MUTATING.includes(req.method) && !PUBLIC_MUTATIONS.includes(req.path)) {
+            return res.status(401).json({ error: 'Authentication required for this action' });
+        }
 
-        // Sensitive GET endpoints that also require authentication
+        // Sensitive GET reads that also require authentication.
         const protectedGetEndpoints = [
             '/backups',
             '/backups/download',
             '/restore/sets',
             '/get-customer-relay-keys'
         ];
-        const isProtectedGetEndpoint = protectedGetEndpoints.some(endpoint => 
+        const isProtectedGetEndpoint = protectedGetEndpoints.some(endpoint =>
             req.path.includes(endpoint) && req.method === 'GET'
         );
-        
-        if (isWriteEndpoint || isProtectedGetEndpoint) {
+        if (isProtectedGetEndpoint) {
             return res.status(401).json({ error: 'Authentication required for this action' });
         }
-        
-        // Allow read-only API access
+
+        // Public read-only API access.
         return next();
     }
 }
