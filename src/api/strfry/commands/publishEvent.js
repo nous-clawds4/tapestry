@@ -7,6 +7,7 @@
  */
 const { exec } = require('child_process');
 const { getOwnerAssistantKeys } = require('../../../utils/assistantKeys');
+const { isOwner } = require('../../../middleware/auth');
 
 // Lazy-load nostr-tools (ESM-friendly path inside Docker)
 let _nt = null;
@@ -28,6 +29,13 @@ async function handlePublishEvent(req, res) {
     let signedEvent;
 
     if (signAs === 'assistant') {
+      // Signing as the Tapestry Assistant is privileged: only the owner (session)
+      // or a genuinely-direct-local caller (req.localTrusted, stamped by the auth
+      // middleware) may mint TA-signed events. Client-signed publishing below is
+      // permissionless. (ADR security-auth-exposure/0002.)
+      if (!isOwner(req) && !req.localTrusted) {
+        return res.status(403).json({ success: false, error: 'Signing as the assistant requires owner authentication' });
+      }
       // Sign with Tapestry Assistant private key
       const taKeys = await getOwnerAssistantKeys();
       if (!taKeys || !taKeys.privkey) {
