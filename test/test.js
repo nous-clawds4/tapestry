@@ -161,6 +161,7 @@ const safeToMergeCheck = require('./safe-to-merge-check.test.js');
 // epic: deploy-safety-gate — Story 3 (Scheduled Tasks panel aggregate countdown)
 const nextTaskCountdown = require('./next-task-countdown.test.js');
 const closeUnauthWriteSurface = require('./close-unauth-write-surface.test.js');
+const defaultDenyMutations = require('./default-deny-mutations.test.js');
 
 async function main() {
   console.log('Running Brainstorm tests...');
@@ -447,6 +448,7 @@ async function main() {
   console.log('\nnext-task-countdown suite:');
   const nextTaskCountdownResult = await nextTaskCountdown.run();
   const closeUnauthWriteSurfaceResult = await closeUnauthWriteSurface.run();
+  const defaultDenyMutationsResult = await defaultDenyMutations.run();
 
   console.log('\nTest Results');
   console.log('-------------');
@@ -884,7 +886,9 @@ async function main() {
     nextTaskCountdownResult.fail === 0 &&
     // security-auth-exposure #1 — close the unauthenticated write-surface.
     // (LIVE chain — before the terminator; the block below is severed, OPEN.md #43.)
-    closeUnauthWriteSurfaceResult.fail === 0;
+    closeUnauthWriteSurfaceResult.fail === 0 &&
+    // security-auth-exposure #2 — default-deny for unauthenticated mutations.
+    defaultDenyMutationsResult.fail === 0;
     harnessLintResult.fail === 0 &&
     harnessStatsResult.fail === 0 &&
     sessionStartResult.fail === 0 &&
@@ -920,7 +924,7 @@ async function main() {
     harnessLintResult, harnessStatsResult, sessionStartResult, stackFreeNpmTestResult,
     ciTestJobResult, syncPanelTagFiltersResult, routerStreamTagFiltersResult,
     noteTaggingRawEventsInspectorHttpResult, deploySafetyStatusResult, safeToMergeCheckResult, nextTaskCountdownResult,
-    closeUnauthWriteSurfaceResult,
+    closeUnauthWriteSurfaceResult, defaultDenyMutationsResult,
   ].reduce((sum, r) => sum + ((r && r.skipped) || 0), 0);
   console.log(`Total skipped:                                   ${totalSkipped}`);
   console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);

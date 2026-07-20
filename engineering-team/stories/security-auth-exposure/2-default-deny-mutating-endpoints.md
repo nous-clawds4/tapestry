@@ -43,5 +43,5 @@ None — auth-middleware infrastructure. No concept-graph concepts in scope.
 
 ## Linked artifacts
 - ADR: `engineering-team/decisions/security-auth-exposure/0002-default-deny-for-mutations.md`
-- Test plan: *(after Test Design)*
+- Test plan: `engineering-team/stories/security-auth-exposure/2-default-deny-mutating-endpoints.test-plan.md` (tests: `test/default-deny-mutations.test.js`)
 - Review: *(after Review)*
