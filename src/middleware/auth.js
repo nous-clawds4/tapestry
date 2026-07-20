@@ -314,12 +314,20 @@ async function authMiddleware(req, res, next) {
         return next();
     }
     
-    // Allow localhost/Docker-host CLI access to normalize endpoints (trusted local operator)
-    // Guard against missing connection (e.g., internal HTTP requests from firmware install)
+    // Allow GENUINELY-DIRECT local access to normalize/neo4j (the trusted local
+    // operator and the in-process firmware-install bridge). "Local" means the socket
+    // peer is loopback AND the request carries no proxy-forwarding header: every nginx
+    // hop in front of the app sets X-Forwarded-For ($proxy_add_x_forwarded_for), so a
+    // proxied/external request always has one — a spoofed `X-Forwarded-For: 127.0.0.1`
+    // is still a *present* header and is therefore treated as remote. `trust proxy`
+    // stays OFF so req.ip is the real socket peer. (ADR security-auth-exposure/0001.)
     let remoteAddr = '';
     try { remoteAddr = req.ip || req.connection?.remoteAddress || ''; } catch { }
-    const isLocal = ['127.0.0.1', '::1', '::ffff:127.0.0.1', '172.18.0.1', '::ffff:172.18.0.1'].includes(remoteAddr);
-    if (isLocal && (req.path.startsWith('/api/normalize') || req.path.startsWith('/api/neo4j'))) {
+    const isLoopbackPeer = ['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(remoteAddr);
+    const viaProxy = !!(req.headers && (req.headers['x-forwarded-for'] || req.headers['x-real-ip']));
+    const isDirectLocal = isLoopbackPeer && !viaProxy;
+    if (isDirectLocal && (req.path.startsWith('/api/normalize') || req.path.startsWith('/api/neo4j'))) {
+        req.localTrusted = true;
         return next();
     }
 

@@ -1346,11 +1346,13 @@ function createInternalBridge(app) {
         query: Object.fromEntries(url.searchParams),
         params: {},
         body: method === 'POST' ? bodyOrParams : {},
-        headers: { 'content-type': 'application/json', 'x-forwarded-for': '127.0.0.1' },
+        // No proxy-forwarding header here: this is an in-process trusted call,
+        // not a proxied request. Its absence makes it honestly direct-local so
+        // the auth middleware stamps req.localTrusted. (ADR security-auth-exposure/0001.)
+        headers: { 'content-type': 'application/json' },
         get: (h) => {
           const key = h.toLowerCase();
           if (key === 'content-type') return 'application/json';
-          if (key === 'x-forwarded-for') return '127.0.0.1';
           return undefined;
         },
         connection: { remoteAddress: '127.0.0.1' },
