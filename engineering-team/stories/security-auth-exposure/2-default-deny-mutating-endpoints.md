@@ -42,6 +42,6 @@ None — auth-middleware infrastructure. No concept-graph concepts in scope.
 - **"Mutating" is not purely method-based** — the current middleware already recognizes `?action=enable/disable` state changes on some GETs. Architecture must define what counts as a mutation (method + the `?action=` pattern) and confirm no mutating GET slips through as a "read."
 
 ## Linked artifacts
-- ADR: *(after Architecture)*
+- ADR: `engineering-team/decisions/security-auth-exposure/0002-default-deny-for-mutations.md`
 - Test plan: *(after Test Design)*
 - Review: *(after Review)*
