@@ -3,8 +3,17 @@
  * Deletes all events from the local strfry relay.
  */
 const { exec } = require('child_process');
+const { isOwner } = require('../../middleware/auth');
 
 async function handleWipeStrfry(req, res) {
+  // Wiping the local relay is a destructive, owner-grade operation. Require the
+  // owner OR a genuinely-local operator (req.localTrusted = loopback + no proxy
+  // header), mirroring the neo4j/query write-gate and strfry/publish assistant-gate
+  // (ADR security-auth-exposure 0001/0002). Default-deny already blocks the
+  // unauthenticated case; this also blocks an authenticated non-owner.
+  if (!isOwner(req) && !req.localTrusted) {
+    return res.status(403).json({ success: false, error: 'Wiping strfry requires owner authentication' });
+  }
   try {
     // First get the count
     const countResult = await new Promise((resolve, reject) => {

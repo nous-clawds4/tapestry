@@ -20,6 +20,8 @@ function formatAge(createdAt) {
 /* ─── Onboarding ──────────────────────────────────────────── */
 
 function WelcomeCard({ taProfile, onSetupProfile, onSurpriseMe }) {
+  const { user } = useAuth();
+  const isOwner = user?.classification === 'owner' || user?.classification === 'admin';
   const hasProfile = taProfile && (taProfile.name || taProfile.picture);
 
   if (hasProfile) return null;
@@ -44,9 +46,11 @@ function WelcomeCard({ taProfile, onSetupProfile, onSurpriseMe }) {
             <button className="btn btn-primary" onClick={onSetupProfile}>
               🎨 Set up my Assistant's profile
             </button>
-            <button className="btn" onClick={onSurpriseMe}>
-              🎲 Surprise me
-            </button>
+            {isOwner && (
+              <button className="btn" onClick={onSurpriseMe}>
+                🎲 Surprise me
+              </button>
+            )}
           </div>
         </div>
       </div>
