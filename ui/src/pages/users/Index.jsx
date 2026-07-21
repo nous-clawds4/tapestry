@@ -24,11 +24,18 @@ export default function UsersIndex() {
         setLoading(true);
         setError(null);
 
-        // Fetch Neo4j users and strfry kind 0 events in parallel
+        // Fetch Neo4j users and strfry kind 0 events in parallel.
+        // Neo4j: POST /api/neo4j/query (the GET run-query endpoint was removed
+        // 2026-07-19); this is a read, so no auth gate applies. The response still
+        // carries `cypherResults` in the same CSV shape parsed below.
         const [neo4jRes, strfryRes] = await Promise.all([
-          fetch(`/api/neo4j/run-query?cypher=${encodeURIComponent(
-            'MATCH (u:NostrUser) RETURN u.pubkey AS pubkey ORDER BY u.pubkey'
-          )}`).then(r => r.json()),
+          fetch('/api/neo4j/query', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              cypher: 'MATCH (u:NostrUser) RETURN u.pubkey AS pubkey ORDER BY u.pubkey',
+            }),
+          }).then(r => r.json()),
           fetch(`/api/strfry/scan?filter=${encodeURIComponent(
             JSON.stringify({ kinds: [0] })
           )}`).then(r => r.json()).catch(() => ({ events: [] })),
