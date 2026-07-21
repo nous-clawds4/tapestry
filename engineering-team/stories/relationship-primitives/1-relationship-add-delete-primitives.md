@@ -65,6 +65,6 @@ None blocking. The book's pre-registration delegates six design decisions to the
 - Book: `engineering-team/audits/relationship-primitives/book.md` (acceptance frame — this story traces to all its bullets)
 - Intake: `engineering-team/stories/_intake.md` → "2026-07-18 — Feature: primitive relationship add/delete endpoints (Neo4j-only, strfry-free)"
 - Handoff: `docs/RELATIONSHIP_PRIMITIVES_HANDOFF.md`
-- ADR: (filled in after Architecture phase)
-- Test plan: (filled in after Test Design phase)
+- ADR: `engineering-team/decisions/relationship-primitives/0001-strfry-free-relationship-primitives.md`
+- Test plan: `engineering-team/stories/relationship-primitives/1-relationship-add-delete-primitives.test-plan.md`
 - Review: (filled in after Review phase)
