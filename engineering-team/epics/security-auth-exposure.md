@@ -1,7 +1,7 @@
 # Epic: security-auth-exposure
 
 **Created:** 2026-07-19
-**Status:** Active
+**Status:** Done (epic retired 2026-07-20 at book close — both stories Done + live on all three instances; audit + prd-seed under `audits/security-auth-exposure/`)
 
 ## Goal
 

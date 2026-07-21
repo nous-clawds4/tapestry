@@ -1,9 +1,9 @@
 # Book of Work: Auth Exposure Hardening (localhost-bypass + unauthenticated write surface)
 
 **Slug:** security-auth-exposure
-**Status:** Open
+**Status:** Closed
 **Opened:** 2026-07-19
-**Closed:** —
+**Closed:** 2026-07-20 — both stories Done + deployed to staging/prod/feat/tags; Neo4j password rotated + verified on all three; firewall companion deferred and carried forward as OPEN.md #66. Operator-ratified close. Audit + prd-seed under this dir.
 **Gating:** **Human-gated.** Every phase gate is answered by the operator. This book is deliberately **not** run in Direction mode — a live security fix touching the auth middleware is where a human belongs at each gate, not an autonomy experiment. There is no `## Direction mode` section by design; do not add one without the operator's explicit decision.
 
 ## Intent anchor
