@@ -1285,38 +1285,10 @@ paths:
   # ──────────────────────────────────────────────
   # Neo4j
   # ──────────────────────────────────────────────
-  /api/neo4j/run-query:
-    get:
-      tags: [Neo4j]
-      summary: Run Cypher query (legacy GET)
-      deprecated: true
-      description: Use POST /api/neo4j/query instead.
-      parameters:
-        - name: cypher
-          in: query
-          required: true
-          schema:
-            type: string
-          description: URL-encoded Cypher query
-      responses:
-        '200':
-          description: Query results
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                  cypherCommand:
-                    type: string
-                  cypherResults:
-                    type: string
-
   /api/neo4j/query:
     post:
       tags: [Neo4j]
-      summary: Run Cypher query (preferred)
+      summary: Run Cypher query. Reads are public; write queries require owner/local-trusted auth (see the auth middleware).
       requestBody:
         required: true
         content:
