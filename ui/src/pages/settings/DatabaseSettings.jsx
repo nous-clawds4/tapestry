@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useAuth } from '../../context/AuthContext';
 
 function useDatabaseStats() {
   const [stats, setStats] = useState(null);
@@ -39,6 +40,8 @@ function useDatabaseStats() {
 }
 
 export default function DatabaseSettings() {
+  const { user } = useAuth();
+  const isOwner = user?.classification === 'owner' || user?.classification === 'admin';
   const { stats, loading: statsLoading, refresh } = useDatabaseStats();
   const [wipingNeo4j, setWipingNeo4j] = useState(false);
   const [wipingStrfry, setWipingStrfry] = useState(false);
@@ -194,7 +197,8 @@ export default function DatabaseSettings() {
           These actions are <strong>irreversible</strong>. All data will be permanently deleted.
         </p>
 
-        {/* Wipe Neo4j */}
+        {/* Wipe Neo4j — owner-only: write Cypher (DETACH DELETE) 403s for non-owners */}
+        {isOwner && (
         <div className="settings-group" style={{ padding: '0.75rem 1rem', marginBottom: '0.75rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div>
@@ -231,8 +235,10 @@ export default function DatabaseSettings() {
             )}
           </div>
         </div>
+        )}
 
-        {/* Wipe Strfry */}
+        {/* Wipe Strfry — owner-only: /api/strfry/wipe now 403s for non-owners */}
+        {isOwner && (
         <div className="settings-group" style={{ padding: '0.75rem 1rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div>
@@ -269,6 +275,7 @@ export default function DatabaseSettings() {
             )}
           </div>
         </div>
+        )}
       </div>
     </div>
   );
