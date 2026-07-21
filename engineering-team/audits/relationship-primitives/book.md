@@ -41,10 +41,10 @@ This book runs under the Director harness — [`/direct-feature`](../../../.clau
 
 Arming is **one commit on the `staging` branch whose diff touches only this subsection**, filling in:
 
-- **Armed:** No *(→ `Yes — <ISO-8601 UTC datetime>`)*
-- **Deadline:** — *(→ arming instant + **48 hours**, as an ISO-8601 UTC datetime; the arming commit's timestamp is the tiebreaker if prose and git disagree)*
-- **Baseline:** — *(→ the arming commit's parent on `staging`. No stories, ADRs, or source changes for the `relationship-primitives` epic may exist at that SHA — pre-existing work voids the run. The intake entry is expected to pre-exist and is **not** contamination: it is the Planning input.)*
-- **Pinned governing versions:** — *(→ the commit SHAs of `engineering-team/roles/director.md`, `.claude/skills/direct-feature/SKILL.md`, and `.claude/agents/gate-judge.md` at arming. Scoring uses the pinned versions; any mid-run diff to the rubrics, judge protocol, stopping rules, or the judge agent is a goalpost amendment by definition)*
+- **Armed:** Yes — 2026-07-21T08:09:50Z
+- **Deadline:** 2026-07-23T08:09:50Z
+- **Baseline:** 270049818842af7c52db2efe5f90a31ec226e59f
+- **Pinned governing versions:** `engineering-team/roles/director.md` @ bdbc8cf65f56067ccf8626eff27dc9bb7a387ec0 · `.claude/skills/direct-feature/SKILL.md` @ 1d9f9b864bfa085c50b2a4d115e6f8cd407b55b3 · `.claude/agents/gate-judge.md` @ 3a2657b28427658a0774a7ffdba5f642a2f968ec
 
 A missing or ambiguous Armed/Deadline line means the book is not armed; the Director must refuse to run.
 
