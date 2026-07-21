@@ -1794,3 +1794,36 @@ If this holds, the following are reachable unauthenticated from the internet on 
 **Classification:** Defect (security / authorization).
 **Strictness:** Standard.
 **Priority:** **High if question 1 confirms**, otherwise Low (defense-in-depth on a local-only surface). Deliberately not marked Critical while unverified.
+
+---
+
+## 2026-07-21 — Security: gate authenticated-non-owner access to admin mutations (security-auth-exposure phase 2)
+
+**Origin:** the post-fix regression audit of 2026-07-21 (after the `run-query` client-caller regression). The audit confirmed **0 active regressions** from the security changes, but surfaced a concrete instance of a **pre-existing** gap: `POST /api/strfry/wipe` had no owner check and could be triggered by a **logged-in non-owner** to wipe the local relay (it execs `strfry delete --filter='{}'`). That one instance was **closed this session** (`7873f156` — `isOwner || localTrusted → 403` gate + `test/strfry-wipe-owner-gate.test.js` + hid the button; shipped staging/prod/tags). This entry scopes the **class** it was one instance of. Operator explicitly asked to scope it as a follow-up.
+
+**The gap (pre-existing; deferred at the security-auth-exposure book close — audit §5–6 / prd-seed §7 Q4):**
+Default-deny (security-auth-exposure story 2) rejects **unauthenticated** mutations, but the authenticated branch falls through to `next()` for **any** logged-in session — owner *or* non-owner. So an admin mutation with **no route-level `requireOwner` and no in-handler `isOwner`** is reachable by an **authenticated non-owner (a logged-in guest)**. Unchanged from before the security work — default-deny only narrowed it (unauth is now blocked). On a public-facing instance, anyone can obtain a non-owner session via NIP-07 login.
+
+**Current protection inventory (2026-07-21, quick pass — Architecture must make it exhaustive):**
+- **~19 routes** carry a route-level owner guard (`requireOwner` / `requireOwnerOrAdmin`) — settings, `admin/*`, `grapevine/preferences`, etc. → SAFE.
+- **4 handlers** self-gate in-handler (`isOwner(req)`): `neo4j/queryPost`, `strfry/commands/publishEvent` (signAs:assistant), `strfry/wipe` (this session), `taskExplorer/getTaskExplorerData` → SAFE.
+- **The exposed set** = the rest of the security book's "44 previously-unguarded admin mutations" (audit line 15) that have NEITHER guard — e.g. `POST /api/firmware/install`, `tapestry-key/*`, `run-task`, `DELETE /api/search/profiles/meili/wipe`, `trusted-list/publish`. These 401 for unauth (default-deny) but **execute for an authenticated non-owner**.
+
+**Scope:** inventory every mutating endpoint (POST/PUT/PATCH/DELETE), classify each (owner-only admin / customer / intentionally-public), and put a route-level owner guard on every owner-only admin mutation currently relying on default-deny. **Prefer route-level `requireOwner` over per-handler `isOwner`** — the strfry/wipe in-handler gate was an expedient one-off; the systemic answer is route-level (fewer places to forget; new endpoints inherit nothing, so pair it with a lint/test that flags an ungated mutating route).
+
+**Guardrails (verified working this session — must stay working):**
+- The two intentionally-public mutations stay public: `POST /api/neo4j/query` (reads; write-Cypher already in-handler-gated) and `POST /api/strfry/publish` (client-signed permissionless; assistant-sign already gated). Do NOT put a blanket requireOwner on these.
+- Loopback crons (`refresh*` → `curl 127.0.0.1:$PORT`) + the firmware-install internal bridge are `localTrusted` — must keep working. A route-level guard must still admit `req.localTrusted` (mirror the existing `isOwner(req) || req.localTrusted` shape), or exempt those paths.
+- Owner UI (owner session passes requireOwner) and the deploy-safety curl / public reads must not regress.
+
+**Acceptance criteria sketch:**
+1. An authenticated **non-owner** session POST to each owner-only admin mutation (firmware/install, meili/wipe, run-task, tapestry-key/*, trusted-list/publish, …) → 401/403, not executed. Automated test with a mock non-owner session (extend the security suites' style).
+2. Owner session → still succeeds.
+3. Loopback/`localTrusted` (cron/bridge) → still succeeds (firmware install 39/39; refresh crons run).
+4. The two allowlisted public endpoints unchanged.
+5. Shipped staging → prod → feat/tags (the exposure is live on all three).
+
+**Classification:** Defect (security / authorization). Candidate **epic** (`security-auth-exposure` phase 2) if the inventory is large; a single Standard story if the guard sweep is mostly mechanical — Architecture decides.
+**Strictness:** Standard. **Human-gated** (live auth-middleware/route change, like the parent book — not Direction mode).
+**Phase path:** Planning → Architecture (the route inventory + guard strategy is the real design work) → Test Design → Implementation → Review.
+**References:** `engineering-team/audits/security-auth-exposure/audit.md` §5–6 + `prd-seed.md` §7 Q4; this session's `src/api/strfry/wipe.js` (in-handler template) + `test/strfry-wipe-owner-gate.test.js`; `src/middleware/auth.js` (default-deny + `req.localTrusted`); the ~19 existing `requireOwner` routes as the pattern to extend; `src/api/admin/index.js` (`requireOwnerOnly` vs `requireOwnerOrAdmin` distinction).

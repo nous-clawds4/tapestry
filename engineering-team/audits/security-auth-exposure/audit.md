@@ -57,7 +57,7 @@
 
 - [ ] **Firewall the internet-exposed backend ports** (`7474`/`7687`/`8687` Neo4j, `7778` control-panel-API, `7700` Meili, `3069` nostr-search-api) — DO Cloud Firewall, default-deny allow 22/80/443. **OPEN.md #66** (full runbook in `book.md` § Companion). The last book companion; operator-deferred 2026-07-20.
 - [ ] **Restrict unauthenticated read Cypher** (deviation #1) — migrate public UI reads to `/api/concept-graph/*`, then lock `/api/neo4j/query` fully.
-- [ ] **Default-deny for authenticated-non-owner mutations** — tighten the authenticated branch so a logged-in guest can't reach non-owner-listed mutations. Candidate story.
+- [ ] **Default-deny for authenticated-non-owner mutations** — tighten the authenticated branch so a logged-in guest can't reach non-owner-listed mutations. **Scoped 2026-07-21 → `_intake.md` "Security: gate authenticated-non-owner access to admin mutations (security-auth-exposure phase 2)".** One instance (`POST /api/strfry/wipe`, found by the 2026-07-21 regression audit) was closed ad-hoc (`7873f156` — in-handler `isOwner||localTrusted` gate + test); the class (firmware/install, tapestry-key/*, run-task, meili/wipe, trusted-list/publish, …) remains for that story's route-level guard sweep.
 - [ ] **Durable port hardening (code)** — bind the backend ports to `127.0.0.1` in `docker-compose.yml` (as the deploy already does for `:80`); defense-in-depth vs a misconfigured firewall.
 - [ ] *(Optional UX)* gate `ProfileTagsSection` behind login for consistency with its siblings (deviation #5).
 
