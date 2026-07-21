@@ -19,7 +19,7 @@ Paste this into a fresh session (in the `tapestry` repo):
 > 2. `engineering-team/audits/relationship-primitives/book.md` (the book of work)
 > 3. The intake entry "2026-07-18 — Feature: primitive relationship add/delete endpoints (Neo4j-only, strfry-free)" in `engineering-team/stories/_intake.md` (~line 1659) — the real spec, with verified file:line background and the open Planning questions.
 >
-> Key context that changed since the book was written: the `/api/normalize/*` and `/api/neo4j/*` surface is now **default-deny for unauthenticated mutations** (security-auth-exposure stories 1 & 2 — ADRs `security-auth-exposure/0001` and `0002`, merged to staging/prod/feat/tags). So these new **write** endpoints will land on a **secured** surface — mount them under `/api/normalize` to inherit that auth (Planning question #1, which previously had *no* auth to inherit, is now resolved in favor of mounting there).
+> Key context that changed since the book was written: the `/api/normalize/*` and `/api/neo4j/*` surface is now **default-deny for unauthenticated mutations** (security-auth-exposure stories 1 & 2 — ADRs `security-auth-exposure/0001` and `0002`, merged to staging/prod/feat/tags). So these new **write** endpoints will land on a **secured** surface — mount them under `/api/normalize` to inherit that auth (Planning question #1, which previously had *no* auth to inherit, is now resolved in favor of mounting there). **But the mount is not sufficient on its own:** default-deny only blocks *unauthenticated* callers — an authenticated non-owner still reaches an ungated `/api/normalize/*` mutation. Since these endpoints write to the reference graph, give **each** an explicit owner gate — route-level `requireOwner`, or the in-handler `isOwner(req) || req.localTrusted → 403` pattern now templated in `src/api/strfry/wipe.js`. Do **not** rely on the mount alone, or you reintroduce the authenticated-non-owner gap scoped in `_intake.md` (2026-07-21).
 >
 > Run it **human-gated** through the engineering harness: `/plan-feature` → `/design-architecture` → `/design-tests` → `/implement-feature` → `/review-changes`, then ship `staging → prod → feat/tags` (surgical cherry-pick of the source commit for prod + tags, as the security stories did). Use the local Docker stack at `http://localhost:7778` to verify end-to-end.
 >
@@ -39,11 +39,11 @@ Today the only way to add/remove a single Neo4j relationship between two existin
 
 - Relationship-type names are firmware-aliased, not literals (`REL.CLASS_THREAD_TERMINATION` → `HAS_ELEMENT`, etc.; `src/api/normalize/firmware.js:71-80`). The whitelist should resolve through that alias layer.
 - Start the whitelist with `HAS_ELEMENT` + `IS_A_SUPERSET_OF`; the core-node wiring types (`IS_THE_CONCEPT_FOR`, `IS_THE_JSON_SCHEMA_FOR`, `IS_A_PROPERTY_OF`, …) can join as needed.
-- Mount under `/api/normalize/*` (inherits the now-correct auth; localhost/loopback-trusted + owner). Two routes vs one route with an action discriminator is an open question.
+- Mount under `/api/normalize/*` for default-deny-on-unauth, **and add an explicit owner gate to each endpoint** — route-level `requireOwner`, or in-handler `isOwner(req) || req.localTrusted → 403` (templated in `src/api/strfry/wipe.js`). The mount alone only blocks *unauthenticated* callers; these graph-mutating writes must be owner-grade (owner session **or** loopback-local operator/cron), else they reintroduce the authenticated-non-owner gap (`_intake.md` 2026-07-21). Two routes vs one route with an action discriminator is an open question.
 
 ## Delegated Planning questions (open — resolve with the operator at Planning)
 
-1. Route naming/mount point — `/api/normalize/*` (recommended; inherits auth) vs a new namespace.
+1. Route naming/mount point — `/api/normalize/*` (recommended; inherits default-deny for unauth — but still add an explicit owner gate per Design shape) vs a new namespace.
 2. Initial `relType` whitelist membership.
 3. Two routes (add + delete) vs one route with an action discriminator.
 4. Endpoint-level validation strictness — enforce `Set`/`Superset` parent-label constraints, or allow any existing node pair?
