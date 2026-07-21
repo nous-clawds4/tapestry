@@ -162,6 +162,8 @@ const safeToMergeCheck = require('./safe-to-merge-check.test.js');
 const nextTaskCountdown = require('./next-task-countdown.test.js');
 const closeUnauthWriteSurface = require('./close-unauth-write-surface.test.js');
 const defaultDenyMutations = require('./default-deny-mutations.test.js');
+// bug: users page called the removed run-query endpoint (regression guard).
+const usersPageNeo4jEndpoint = require('./users-page-neo4j-endpoint.test.js');
 
 async function main() {
   console.log('Running Brainstorm tests...');
@@ -449,6 +451,7 @@ async function main() {
   const nextTaskCountdownResult = await nextTaskCountdown.run();
   const closeUnauthWriteSurfaceResult = await closeUnauthWriteSurface.run();
   const defaultDenyMutationsResult = await defaultDenyMutations.run();
+  const usersPageNeo4jEndpointResult = await usersPageNeo4jEndpoint.run();
 
   console.log('\nTest Results');
   console.log('-------------');
@@ -888,7 +891,9 @@ async function main() {
     // (LIVE chain — before the terminator; the block below is severed, OPEN.md #43.)
     closeUnauthWriteSurfaceResult.fail === 0 &&
     // security-auth-exposure #2 — default-deny for unauthenticated mutations.
-    defaultDenyMutationsResult.fail === 0;
+    defaultDenyMutationsResult.fail === 0 &&
+    // bug — users page called the removed run-query endpoint (regression guard).
+    usersPageNeo4jEndpointResult.fail === 0;
     harnessLintResult.fail === 0 &&
     harnessStatsResult.fail === 0 &&
     sessionStartResult.fail === 0 &&
@@ -924,7 +929,7 @@ async function main() {
     harnessLintResult, harnessStatsResult, sessionStartResult, stackFreeNpmTestResult,
     ciTestJobResult, syncPanelTagFiltersResult, routerStreamTagFiltersResult,
     noteTaggingRawEventsInspectorHttpResult, deploySafetyStatusResult, safeToMergeCheckResult, nextTaskCountdownResult,
-    closeUnauthWriteSurfaceResult, defaultDenyMutationsResult,
+    closeUnauthWriteSurfaceResult, defaultDenyMutationsResult, usersPageNeo4jEndpointResult,
   ].reduce((sum, r) => sum + ((r && r.skipped) || 0), 0);
   console.log(`Total skipped:                                   ${totalSkipped}`);
   console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);
