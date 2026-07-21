@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>second-brain — wireframes</title>
+<style>
+  :root{
+    --accent:#58a6ff; --accent-hover:#79c0ff; --bg:#0d1117; --surface:#161b22;
+    --surface-2:#21262d; --border:#30363d; --text:#e6edf3; --text-muted:#8b949e;
+    --green:#3fb950; --orange:#d29922; --red:#f85149; --radius:8px;
+    --space-1:4px; --space-2:8px; --space-3:16px; --space-4:24px;
+  }
+  *{box-sizing:border-box}
+  body{background:var(--bg);color:var(--text);font:15px/1.5 -apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;margin:0;padding:var(--space-4)}
+  h1{font-size:1.1rem;color:var(--text-muted);font-weight:600;margin:0 0 var(--space-4)}
+  h2{font-size:1rem;color:var(--text-muted);border-top:1px solid var(--border);padding-top:var(--space-4);margin-top:var(--space-4)}
+  .frame{max-width:860px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:var(--space-4);margin-bottom:var(--space-4)}
+  .view-title{font-size:1.4rem;font-weight:600;margin:0 0 var(--space-3)}
+  .note{color:var(--text-muted);font-size:.85rem;margin:var(--space-2) 0 var(--space-3)}
+  /* goal tree */
+  .grow{display:flex;align-items:center;gap:var(--space-2);padding:10px var(--space-2);border-radius:6px;min-height:44px}
+  .grow:hover{background:var(--surface-2)}
+  .disc{color:var(--text-muted);width:16px;display:inline-block}
+  .gname{font-weight:600}
+  .standing{font-size:.75rem;letter-spacing:.06em;text-transform:uppercase;color:var(--text-muted)}
+  .standing.achieved{color:var(--green)}
+  .chip{background:var(--surface-2);border-radius:999px;padding:1px 10px;font-size:.8rem;color:var(--text-muted)}
+  .meta{font-size:.85rem;color:var(--text-muted);margin-left:auto}
+  .indent1{margin-left:20px}.indent2{margin-left:40px}
+  .hint{color:var(--text-muted);font-size:.85rem;font-style:italic;margin-left:36px}
+  /* pointer card */
+  .pcard{border:1px solid var(--border);border-radius:var(--radius);padding:var(--space-3);margin:var(--space-2) 0;background:var(--bg)}
+  .pkind{font-size:.75rem;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted)}
+  .ptitle{color:var(--accent);font-weight:600;text-decoration:none}
+  .ptitle:hover{color:var(--accent-hover)}
+  .ploc{font-family:ui-monospace,Menlo,monospace;font-size:.8rem;color:var(--text-muted);margin-top:2px}
+  .fresh{font-size:.85rem;color:var(--text-muted);margin-top:var(--space-1)}
+  .fresh.stale{color:var(--orange)} .fresh.dead{color:var(--red)}
+  .why{font-style:italic;color:var(--text-muted);font-size:.9rem;margin-top:var(--space-1)}
+  /* proposal card */
+  .prop{background:rgba(88,166,255,0.08);border:1px solid var(--border);border-radius:var(--radius);padding:var(--space-3);margin:var(--space-3) 0}
+  .prop .next{font-weight:600}
+  .whynow{margin:var(--space-2) 0}
+  .considered{border-top:1px solid var(--border);margin-top:var(--space-3);padding-top:var(--space-2)}
+  .considered .label{font-size:.75rem;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted)}
+  .also{display:flex;gap:var(--space-2);font-size:.9rem;padding:3px 0}
+  .also .whynot{color:var(--text-muted)}
+  .actions{display:flex;gap:var(--space-2);margin-top:var(--space-3)}
+  .btn{min-height:44px;padding:0 var(--space-4);border-radius:6px;font-weight:600;font-size:.95rem;cursor:pointer;border:1px solid transparent}
+  .btn.approve{background:var(--accent);color:#0d1117}
+  .btn.skip{background:transparent;color:var(--accent);border-color:var(--accent)}
+  .btn.cancel{background:none;border:none;color:var(--text-muted);text-decoration:underline}
+  .skipfield{display:flex;gap:var(--space-2);margin-top:var(--space-3)}
+  .skipfield input{flex:1;background:var(--surface-2);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:10px var(--space-3);font-size:.95rem}
+  .skipfield input::placeholder{color:var(--text-muted)}
+  /* record */
+  .rec{border-left:2px solid var(--border);margin:var(--space-3) 0 0 var(--space-2);padding-left:var(--space-3)}
+  .rentry{display:flex;gap:var(--space-2);padding:6px 0;font-size:.9rem;align-items:baseline}
+  .rdate{color:var(--text-muted);font-size:.8rem;min-width:86px}
+  .rtype{font-size:.75rem;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);min-width:70px}
+  .rtype.approved{color:var(--green)}
+  /* empty & loading */
+  .empty{text-align:center;padding:var(--space-4)}
+  .empty .big{font-size:1.05rem;font-weight:600;margin-bottom:var(--space-2)}
+  .empty .how{color:var(--text-muted)}
+  .skel{height:14px;border-radius:4px;background:linear-gradient(90deg,var(--surface-2) 25%,var(--border) 50%,var(--surface-2) 75%);background-size:200% 100%;animation:sh 1.4s infinite;margin:12px 0}
+  @keyframes sh{0%{background-position:200% 0}100%{background-position:-200% 0}}
+  .privacy{font-size:.8rem;color:var(--text-muted);margin-top:var(--space-3)}
+</style>
+</head>
+<body>
+<h1>second-brain — v1 wireframes (owner-gated control panel views; tokens inherited, none added)</h1>
+
+<h2>§1 Goals view — the tree</h2>
+<div class="frame">
+  <div class="view-title">Goals</div>
+  <div class="note">Filter: <span class="chip">all</span> <span class="chip">graph upkeep</span> <span class="chip">vault maps</span> <span class="chip">engineering</span></div>
+  <div class="grow"><span class="disc">▾</span><span class="gname">Typo-tolerant search</span><span class="standing">captured</span><span class="chip">engineering</span><span class="meta">2 pieces · 1 pointer</span></div>
+  <div class="grow indent1"><span class="disc">·</span><span class="gname">Pick the matching approach</span><span class="standing">viable</span><span class="meta">1 pointer</span></div>
+  <div class="grow indent1"><span class="disc">·</span><span class="gname">Wire it into the search page</span><span class="standing">viable</span><span class="meta">—</span></div>
+  <div class="grow"><span class="disc">▸</span><span class="gname">Vault map for physics notes</span><span class="standing">captured</span><span class="chip">vault maps</span><span class="meta">3 pieces</span></div>
+  <div class="grow"><span class="disc">·</span><span class="gname">Prune duplicate relay entries</span><span class="standing achieved">achieved</span><span class="chip">graph upkeep</span><span class="meta">done Jul 18</span></div>
+  <div class="grow"><span class="disc">·</span><span class="gname">Write the August newsletter</span><span class="standing">captured</span><span class="meta">—</span></div>
+  <div class="hint">needs a deliverable and boundary before it can be proposed</div>
+  <div class="privacy">This brain stays on this machine — nothing here is published.</div>
+</div>
+
+<h2>§2 Goal detail — one spine</h2>
+<div class="frame">
+  <div class="note"><a class="ptitle" href="#">← Goals</a></div>
+  <div class="view-title">Pick the matching approach</div>
+  <div class="note">viable · engineering · part of “Typo-tolerant search” · captured Jul 20 by you</div>
+  <p><strong>Done means:</strong> a one-page comparison of the candidate approaches with a recommendation.<br>
+  <strong>Stays inside:</strong> research and writing only — no code changes anywhere.</p>
+  <div class="pcard">
+    <div class="pkind">web</div>
+    <a class="ptitle" href="#">Fuzzy matching survey — typo tolerance in search engines</a>
+    <div class="ploc">https://example.org/articles/fuzzy-match…survey</div>
+    <div class="fresh">verified 3 days ago</div>
+    <div class="why">the survey that framed the options</div>
+  </div>
+  <div class="pcard">
+    <div class="pkind">vault</div>
+    <a class="ptitle" href="#">Search ideas — scratch note</a>
+    <div class="ploc">Vault/Projects/search-ideas.md</div>
+    <div class="fresh stale">not verified in 40 days</div>
+  </div>
+  <div class="rec">
+    <div class="rentry"><span class="rdate">Jul 21 09:12</span><span class="rtype">proposed</span><span>nominated over “Vault map” — smaller and unblocks the parent</span></div>
+    <div class="rentry"><span class="rdate">Jul 21 09:30</span><span class="rtype approved">approved</span><span>you launched a session on it</span></div>
+    <div class="rentry"><span class="rdate">Jul 21 11:04</span><span class="rtype">worked</span><span>session s-0721a: draft comparison started — one question for you</span></div>
+  </div>
+</div>
+
+<h2>§3 Proposal queue — approve / skip-with-reason</h2>
+<div class="frame">
+  <div class="view-title">What next?</div>
+  <div class="prop">
+    <div class="next">Next: Pick the matching approach</div>
+    <div class="whynow">Smallest viable piece of your highest-priority goal, and it unblocks its sibling. One session should finish it.</div>
+    <div class="considered">
+      <div class="label">considered instead</div>
+      <div class="also"><span>Vault map for physics notes</span><span class="whynot">— bigger; no session has scoped it yet</span></div>
+      <div class="also"><span>Prune duplicate relay entries</span><span class="whynot">— routine; loses nothing by waiting</span></div>
+    </div>
+    <div class="actions"><button class="btn approve">Approve</button><button class="btn skip">Skip…</button></div>
+  </div>
+  <div class="prop">
+    <div class="next">Next: Write the August newsletter</div>
+    <div class="whynow">Time-sensitive this week; everything else can wait a day.</div>
+    <div class="considered">
+      <div class="label">considered instead</div>
+      <div class="also"><span>Pick the matching approach</span><span class="whynot">— already has an open proposal</span></div>
+    </div>
+    <div class="skipfield">
+      <input placeholder="why not this one, in a few words" value="newsletter needs the launch date first">
+      <button class="btn approve">Skip</button><button class="btn cancel">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<h2>§4 Cold start — the empty state is the onboarding</h2>
+<div class="frame">
+  <div class="view-title">Goals</div>
+  <div class="empty">
+    <div class="big">Your brain is empty — that's the right place to start.</div>
+    <div class="how">Tell your assistant a goal in plain words — “I want …” — and it will appear here.<br>Big or small; big ones get broken into pieces together.</div>
+  </div>
+</div>
+
+<h2>§5 Loading — skeleton, never a bare spinner</h2>
+<div class="frame">
+  <div class="view-title">Goals</div>
+  <div class="skel" style="width:60%"></div>
+  <div class="skel" style="width:45%"></div>
+  <div class="skel" style="width:52%"></div>
+</div>
+</body>
+</html>
