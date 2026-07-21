@@ -16,6 +16,7 @@ function getAllTags(event, name) {
 export default function NewDListItem() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const isOwner = user?.classification === 'owner' || user?.classification === 'admin';
   const { event: parentEvent } = useOutletContext();
 
   // Derive parent list info
@@ -328,16 +329,18 @@ export default function NewDListItem() {
               {user && <small> — {user.profile?.display_name || user.profile?.name || user.pubkey?.slice(0, 12) + '…'}</small>}
             </span>
           </label>
-          <label className="radio-label">
-            <input
-              type="radio"
-              checked={signAs === 'assistant'}
-              onChange={() => setSignAs('assistant')}
-            />
-            <span>
-              <strong>Tapestry Assistant</strong> (server-side signing)
-            </span>
-          </label>
+          {isOwner && (
+            <label className="radio-label">
+              <input
+                type="radio"
+                checked={signAs === 'assistant'}
+                onChange={() => setSignAs('assistant')}
+              />
+              <span>
+                <strong>Tapestry Assistant</strong> (server-side signing)
+              </span>
+            </label>
+          )}
         </div>
       </div>
 
