@@ -84,14 +84,14 @@ async function apiGet(endpoint, params = {}) {
 
 /**
  * Run a Cypher query via the POST endpoint (avoids URL length limits).
- * Returns the same shape as the GET run-query endpoint for backward compat.
+ * Returns the `cypherResults` CSV shape (parsed by parseCsvRows below).
  */
 async function runCypherApi(cypher, params = {}) {
   return apiPost('/api/neo4j/query', { cypher, params });
 }
 
 /**
- * Parse CSV-style results from the Neo4j run-query API.
+ * Parse CSV-style results from the Neo4j query API (the `cypherResults` field).
  * First line is headers, subsequent lines are values (quoted strings stripped).
  */
 function parseCsvRows(csvText) {
