@@ -164,6 +164,8 @@ const closeUnauthWriteSurface = require('./close-unauth-write-surface.test.js');
 const defaultDenyMutations = require('./default-deny-mutations.test.js');
 // bug: users page called the removed run-query endpoint (regression guard).
 const usersPageNeo4jEndpoint = require('./users-page-neo4j-endpoint.test.js');
+// security follow-up: strfry/wipe owner-gate (audit 2026-07-21).
+const strfryWipeOwnerGate = require('./strfry-wipe-owner-gate.test.js');
 
 async function main() {
   console.log('Running Brainstorm tests...');
@@ -452,6 +454,7 @@ async function main() {
   const closeUnauthWriteSurfaceResult = await closeUnauthWriteSurface.run();
   const defaultDenyMutationsResult = await defaultDenyMutations.run();
   const usersPageNeo4jEndpointResult = await usersPageNeo4jEndpoint.run();
+  const strfryWipeOwnerGateResult = await strfryWipeOwnerGate.run();
 
   console.log('\nTest Results');
   console.log('-------------');
@@ -893,7 +896,9 @@ async function main() {
     // security-auth-exposure #2 — default-deny for unauthenticated mutations.
     defaultDenyMutationsResult.fail === 0 &&
     // bug — users page called the removed run-query endpoint (regression guard).
-    usersPageNeo4jEndpointResult.fail === 0;
+    usersPageNeo4jEndpointResult.fail === 0 &&
+    // security follow-up — strfry/wipe owner-gate (audit 2026-07-21).
+    strfryWipeOwnerGateResult.fail === 0;
     harnessLintResult.fail === 0 &&
     harnessStatsResult.fail === 0 &&
     sessionStartResult.fail === 0 &&
@@ -929,7 +934,7 @@ async function main() {
     harnessLintResult, harnessStatsResult, sessionStartResult, stackFreeNpmTestResult,
     ciTestJobResult, syncPanelTagFiltersResult, routerStreamTagFiltersResult,
     noteTaggingRawEventsInspectorHttpResult, deploySafetyStatusResult, safeToMergeCheckResult, nextTaskCountdownResult,
-    closeUnauthWriteSurfaceResult, defaultDenyMutationsResult, usersPageNeo4jEndpointResult,
+    closeUnauthWriteSurfaceResult, defaultDenyMutationsResult, usersPageNeo4jEndpointResult, strfryWipeOwnerGateResult,
   ].reduce((sum, r) => sum + ((r && r.skipped) || 0), 0);
   console.log(`Total skipped:                                   ${totalSkipped}`);
   console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);
