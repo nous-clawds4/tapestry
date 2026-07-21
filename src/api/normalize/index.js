@@ -3322,6 +3322,13 @@ async function registerNormalizeRoutes(app) {
   app.post('/api/normalize/apply-enumerations', handleApplyEnumerations);
   app.post('/api/normalize/wire-implicit-elements', handleWireImplicitElements);
 
+  // Relationship primitives — strfry-free add/delete of a single typed edge
+  // (ADR relationship-primitives/0001; separate module so its import surface
+  // stays auditable)
+  const { handleAddRelationship, handleDeleteRelationship } = require('./relationships');
+  app.post('/api/normalize/add-relationship', handleAddRelationship);
+  app.post('/api/normalize/delete-relationship', handleDeleteRelationship);
+
   // Firmware install
   const { handleFirmwareInstall } = require('../../firmware/install');
   app.post('/api/firmware/install', handleFirmwareInstall);

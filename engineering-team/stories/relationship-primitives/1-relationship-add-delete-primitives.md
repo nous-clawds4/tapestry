@@ -60,6 +60,10 @@ Additionally, per the book and its pre-arming refresh (2026-07-21):
 
 None blocking. The book's pre-registration delegates six design decisions to the Director (exhaustive list in `book.md` → "Open design decisions delegated to the Director"): route naming under the fixed `/api/normalize/*` mount; initial whitelist membership among firmware-aliased types; one route vs two; parent-label validation strictness; response shape and status codes for the idempotent cases; and the test strategy for a contract that is a Neo4j side effect. The acceptance criteria above are deliberately neutral to how each resolves; resolutions are journaled at the phase boundary per the pre-registration.
 
+## Deviations
+
+- (Implementation, 2026-07-21) The module-header usage example sends `"relType":"CLASS_THREAD_TERMINATION"` (canonical slug) instead of the ADR's sketched `"relType":"HAS_ELEMENT"`, with the alias spelling mentioned unquoted alongside. The ADR's own S-class spec (ratified as test S2) forbids any whitelisted Neo4j alias appearing as a quoted literal anywhere in `relationships.js` — including the doc comment — so the stricter clause won. No behavior difference: both spellings are accepted at runtime.
+
 ## Linked artifacts
 
 - Book: `engineering-team/audits/relationship-primitives/book.md` (acceptance frame — this story traces to all its bullets)
