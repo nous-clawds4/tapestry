@@ -51,3 +51,10 @@ Append-only. Format per `engineering-team/roles/director.md` → "The decision j
 **Judge:** n/a
 **Why:** Surfaced question (journal 2026-07-21T09:33:34Z): frame bullet 8(a)'s 401-discrimination premise is falsified (default-deny answers before route matching; global CORS answers OPTIONS 204 on every path — both verified locally). Operator ruled in-session, from the presented options: add a **fix-forward story #2** — a minimal read-only GET route deployed alongside the primitives whose 200-vs-404 is itself "a response distinguishable from a missing route," satisfying 8(a) as written with no frame amendment (frame text unchanged; run not voided). Alternatives declined: ruling CI-pipeline evidence sufficient (interpretation risk at the blinded completion audit); amending the frame (voids the run per the pre-registration). Story count will be 2 of 3 — within the cap; stopping rule 4 untriggered.
 **Next:** Spawn `product-owner` for story #2 Planning; story #2 runs all five phases and all judged gates per Direction-mode rule.
+
+## 2026-07-21T14:14:13Z — Gate 1 APPROVED (story #2, read-only deployment probe)
+**Story/Phase:** relationship-primitives #2 / Gate 1 (Story)
+**Decision:** APPROVE
+**Judge:** APPROVE, blinding intact (spawn prompt carried the falsification/ruling trace, which the story itself records — no external progress state leaked). All rubric items pass: five solution-neutral, externally testable ACs; one subsystem with the scope note fencing off health/monitoring growth; concepts vacuously satisfied (no graph access by contract); placement/numbering/Status correct; trace chain frame-8(a) → falsification → ruling → AC5 explicit in the artifact. Judge's one observation (epic roster missing story #2) was a stale read — the roster line exists in the working tree, verified by diff; resolved in the PO's favor.
+**Why:** Judge APPROVE + my concurrence. Story #2 is the operator-ruled fix-forward capture, bounded to exactly the evidence job.
+**Next:** Commit (`story: read-only-deployment-probe`). Architecture for #2 deliberately held until story #1 clears Gate 4, so the Architect designs against settled source rather than mid-edit state.
