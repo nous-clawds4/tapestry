@@ -444,8 +444,7 @@ Base URL: `http://localhost:8080`
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/neo4j/run-query?cypher=<query>` | Run Cypher query (legacy, use POST) |
-| POST | `/api/neo4j/query` | Run Cypher query (preferred) |
+| POST | `/api/neo4j/query` | Run Cypher query. Reads are public; writes require owner/local-trusted auth (see §Auth). |
 | GET | `/api/neo4j/event-check?uuid=<uuid>` | Check if event exists in Neo4j |
 | POST | `/api/neo4j/event-update` | Import/update a single event in Neo4j |
 | GET | `/api/neo4j/event-uuids` | List all event UUIDs |

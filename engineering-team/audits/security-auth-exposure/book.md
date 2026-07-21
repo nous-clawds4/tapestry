@@ -1,9 +1,9 @@
 # Book of Work: Auth Exposure Hardening (localhost-bypass + unauthenticated write surface)
 
 **Slug:** security-auth-exposure
-**Status:** Open
+**Status:** Closed
 **Opened:** 2026-07-19
-**Closed:** —
+**Closed:** 2026-07-20 — both stories Done + deployed to staging/prod/feat/tags; Neo4j password rotated + verified on all three; firewall companion deferred and carried forward as OPEN.md #66. Operator-ratified close. Audit + prd-seed under this dir.
 **Gating:** **Human-gated.** Every phase gate is answered by the operator. This book is deliberately **not** run in Direction mode — a live security fix touching the auth middleware is where a human belongs at each gate, not an autonomy experiment. There is no `## Direction mode` section by design; do not add one without the operator's explicit decision.
 
 ## Intent anchor
@@ -30,10 +30,50 @@ The exposure is **real**, verified by safe read-only probes 2026-07-19:
 
 ## Companion operator-side tasks (NOT code — tracked here so they aren't lost)
 
-These are **infrastructure/secrets** actions the operator performs (droplet SSH / credential handling); they are out of the code harness but are part of closing the exposure and must not be forgotten. The code fix does **not** accomplish them:
+These are **infrastructure/secrets** actions the operator performs (droplet SSH / credential handling); they are out of the code harness but are part of closing the exposure. The code fix does **not** accomplish them.
 
-- **Rotate the Neo4j password** on staging, production, and `feat/tags`. It was served publicly for months (`satoshi21xyz420` on prod), so removing the leak does not un-leak it. Note it appears to be a hand-set config value (`.env` → `brainstorm.conf`); verify the rotation persists across a container restart.
-- **Bind/firewall the Neo4j ports.** `159.203.150.156:7474` and `:7687` (Bolt) are directly internet-reachable — a second door the app-layer fix does not close. Bind to localhost or firewall on all droplets.
+### 1. Rotate the Neo4j password — ✅ DONE (2026-07-20)
+
+All three instances (staging, production, `feat/tags`) rotated off the leaked credentials (`satoshi21xyz420` on prod, `neo4jneo4j` on staging) and verified healthy: app↔Neo4j Bolt auth works and real graph data is returned (staging 46 concepts / 462 nodes, prod 45 / 436, tags 47 / 454), with the story-1/2 default-deny posture intact.
+
+**Method that worked** (record for future rotations): change the password on the Neo4j the *app* uses — the in-container one — then point config at it:
+```bash
+docker exec tapestry cypher-shell -u neo4j -p '<OLD>' "ALTER CURRENT USER SET PASSWORD FROM '<OLD>' TO '<NEW>';"
+# ensure /opt/tapestry/.env NEO4J_PASSWORD = <NEW> (entrypoint re-renders /etc/brainstorm.conf from it on start)
+docker exec tapestry supervisorctl restart brainstorm     # or: docker compose up -d
+```
+**Do NOT rotate via the web Neo4j Browser at `:7474`** — it can reach a different instance/droplet than the app, which caused a cross-instance mix-up during this rotation.
+
+### 2. Firewall the internet-exposed backend ports — ⏳ DEFERRED (operator, 2026-07-20)
+
+Deferred for a future session; full runbook kept here so it isn't lost. Tracked in **OPEN.md #66**.
+
+**The exposure (broader than Neo4j).** The deploy workflows' `sed` remaps only `"80:80"` → `127.0.0.1:8080` (`.github/workflows/deploy-*.yml`); every other Docker-published port stays on `0.0.0.0`. Confirmed internet-reachable on prod (`159.203.150.156`), 2026-07-20:
+
+| Port | Service |
+|---|---|
+| 7474 | Neo4j Browser |
+| 7687 | Neo4j Bolt |
+| 8687 | Neo4j Bolt (nginx TCP stream) |
+| 7778 | Control-panel API — **direct, bypassing host nginx** |
+| 7700 | Meilisearch |
+| 3069 | nostr-search-api |
+
+Nothing external legitimately needs these — the app reaches them internally (`bolt://localhost:7687`, etc.); the site is served via host nginx on 80/443.
+
+**Fix — DigitalOcean Cloud Firewall (default-deny, allow only 22/80/443).**
+- **Why a DO firewall, NOT `ufw`:** Docker's port publishing rewrites the droplet's iptables *ahead of* ufw, so `ufw deny 7687` is silently bypassed. A DO Cloud Firewall filters at the network layer *before* the packet reaches the droplet — Docker can't bypass it.
+- DO console → Networking → Firewalls → Create:
+  - **Inbound:** TCP `22` (All — keep; deploy CI SSHes in, key-only + fail2ban), TCP `80` (All — nginx/Certbot), TCP `443` (All — the app). Nothing else → 7474/7687/8687/7778/7700/3069 implicitly denied.
+  - **Outbound:** leave default (allow all — droplet needs relays, repos).
+  - Apply to all three droplets (staging, tapestry/prod, tags).
+- `doctl` equivalent: `doctl compute firewall create --name tapestry-web --inbound-rules "protocol:tcp,ports:22,address:0.0.0.0/0,address:::/0 protocol:tcp,ports:80,address:0.0.0.0/0,address:::/0 protocol:tcp,ports:443,address:0.0.0.0/0,address:::/0" --outbound-rules "protocol:tcp,ports:all,address:0.0.0.0/0 protocol:udp,ports:all,address:0.0.0.0/0" --droplet-ids <id1> <id2> <id3>`
+
+**Durable code alternative (defense-in-depth, optional follow-up story).** Bind these ports to `127.0.0.1` in `docker-compose.yml` (as the deploy already does for `:80`), so they are never on `0.0.0.0` even if a firewall is misconfigured. A small, harness-sized change.
+
+**Verification (read-only — an assistant can run it):** from outside, `nc -z <droplet-ip> 7687` should become closed while `443` stays open and the site loads; from the app, the Neo4j-data smoke (`POST /api/neo4j/query {"cypher":"RETURN 1"}` → `success:true`; `/api/concept-graph/summaries` returns concepts) confirms nothing over-blocked.
+
+**No stray host Neo4j.** Checked on prod 2026-07-20: `systemctl status neo4j` → not found; the `neo4j` processes in `ps aux` are the **container's** (low in-namespace PID, no systemd unit) — **do not kill them.** Re-check per droplet when firewalling.
 
 ## Epics in this book
 - `security-auth-exposure` — the localhost-bypass root-cause fix, server-side authorization for the normalize + neo4j-query write surface, and the middleware default-posture disposition. (Epic file to be created at Planning.)
