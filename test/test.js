@@ -166,6 +166,10 @@ const defaultDenyMutations = require('./default-deny-mutations.test.js');
 const usersPageNeo4jEndpoint = require('./users-page-neo4j-endpoint.test.js');
 // security follow-up: strfry/wipe owner-gate (audit 2026-07-21).
 const strfryWipeOwnerGate = require('./strfry-wipe-owner-gate.test.js');
+// epic: relationship-primitives — Story 1 (strfry-free relationship add/delete primitives).
+const relationshipPrimitives = require('./relationship-primitives.test.js');
+// epic: relationship-primitives — Story 2 (read-only deployment probe).
+const relationshipPrimitivesProbe = require('./relationship-primitives-probe.test.js');
 
 async function main() {
   console.log('Running Brainstorm tests...');
@@ -455,6 +459,8 @@ async function main() {
   const defaultDenyMutationsResult = await defaultDenyMutations.run();
   const usersPageNeo4jEndpointResult = await usersPageNeo4jEndpoint.run();
   const strfryWipeOwnerGateResult = await strfryWipeOwnerGate.run();
+  const relationshipPrimitivesResult = await relationshipPrimitives.run();
+  const relationshipPrimitivesProbeResult = await relationshipPrimitivesProbe.run();
 
   console.log('\nTest Results');
   console.log('-------------');
@@ -768,6 +774,20 @@ async function main() {
   console.log(
     `next-task-countdown suite:                       ${nextTaskCountdownResult.fail === 0 ? 'PASS' : 'FAIL'} (${nextTaskCountdownResult.pass} passed, ${nextTaskCountdownResult.fail} failed)`
   );
+  // Skip-aware: H-class live tests skip when the local stack is absent (CI's
+  // stack-free job); U/S classes always run and gate.
+  const relationshipPrimitivesLine =
+    (relationshipPrimitivesResult.pass + relationshipPrimitivesResult.fail) === 0 && relationshipPrimitivesResult.skipped
+      ? `SKIP (${relationshipPrimitivesResult.skipped} tests; preconditions not met)`
+      : `${relationshipPrimitivesResult.fail === 0 ? 'PASS' : 'FAIL'} (${relationshipPrimitivesResult.pass} passed, ${relationshipPrimitivesResult.fail} failed${relationshipPrimitivesResult.skipped ? `, ${relationshipPrimitivesResult.skipped} skipped` : ''})`;
+  console.log(`relationship-primitives suite:                   ${relationshipPrimitivesLine}`);
+  // Skip-aware: H-class live tests skip when the local stack is absent (CI's
+  // stack-free job); U/S classes always run and gate.
+  const relationshipPrimitivesProbeLine =
+    (relationshipPrimitivesProbeResult.pass + relationshipPrimitivesProbeResult.fail) === 0 && relationshipPrimitivesProbeResult.skipped
+      ? `SKIP (${relationshipPrimitivesProbeResult.skipped} tests; preconditions not met)`
+      : `${relationshipPrimitivesProbeResult.fail === 0 ? 'PASS' : 'FAIL'} (${relationshipPrimitivesProbeResult.pass} passed, ${relationshipPrimitivesProbeResult.fail} failed${relationshipPrimitivesProbeResult.skipped ? `, ${relationshipPrimitivesProbeResult.skipped} skipped` : ''})`;
+  console.log(`relationship-primitives-probe suite:             ${relationshipPrimitivesProbeLine}`);
 
   const overallOk =
     configOk &&
@@ -898,7 +918,13 @@ async function main() {
     // bug — users page called the removed run-query endpoint (regression guard).
     usersPageNeo4jEndpointResult.fail === 0 &&
     // security follow-up — strfry/wipe owner-gate (audit 2026-07-21).
-    strfryWipeOwnerGateResult.fail === 0;
+    strfryWipeOwnerGateResult.fail === 0 &&
+    // relationship-primitives #1 — strfry-free add/delete primitives
+    // (LIVE chain — before the severed terminator; OPEN.md #43).
+    relationshipPrimitivesResult.fail === 0 &&
+    // relationship-primitives #2 — read-only deployment probe
+    // (LIVE chain — before the severed terminator; OPEN.md #43).
+    relationshipPrimitivesProbeResult.fail === 0;
     harnessLintResult.fail === 0 &&
     harnessStatsResult.fail === 0 &&
     sessionStartResult.fail === 0 &&
@@ -935,6 +961,7 @@ async function main() {
     ciTestJobResult, syncPanelTagFiltersResult, routerStreamTagFiltersResult,
     noteTaggingRawEventsInspectorHttpResult, deploySafetyStatusResult, safeToMergeCheckResult, nextTaskCountdownResult,
     closeUnauthWriteSurfaceResult, defaultDenyMutationsResult, usersPageNeo4jEndpointResult, strfryWipeOwnerGateResult,
+    relationshipPrimitivesResult, relationshipPrimitivesProbeResult,
   ].reduce((sum, r) => sum + ((r && r.skipped) || 0), 0);
   console.log(`Total skipped:                                   ${totalSkipped}`);
   console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);
