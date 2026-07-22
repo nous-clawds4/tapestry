@@ -170,7 +170,17 @@ async function handleCreateBounty(req, res) {
 async function handleListBounties(req, res) {
   const statusFilter = (req.query.status || 'open').toLowerCase();
   const limit = Math.min(Number(req.query.limit) || 100, 500);
-  const rows = statusFilter === 'all' ? listAllBounties({ limit }) : listOpenBounties({ limit });
+
+  let issuer = null;
+  if (req.query.issuer !== undefined) {
+    const rawIssuer = String(req.query.issuer);
+    if (!/^[0-9a-f]{64}$/i.test(rawIssuer)) {
+      return res.status(400).json({ success: false, error: 'issuer must be a 64-char hex pubkey' });
+    }
+    issuer = rawIssuer.toLowerCase();
+  }
+
+  const rows = statusFilter === 'all' ? listAllBounties({ limit, issuer }) : listOpenBounties({ limit, issuer });
   const now = Math.floor(Date.now() / 1000);
 
   const enriched = await Promise.all(rows.map(async b => {
@@ -272,7 +282,12 @@ async function handleAutoPayReset(req, res) {
   if (!claimEventId) {
     return res.status(400).json({ success: false, error: 'claimEventId is required' });
   }
-  res.json({ success: true, ...resetPayment(claimEventId) });
+  // resetPayment is owned/evolved in src/db/autoPay.js by another workstream: it is
+  // moving to resetPayment(claimEventId, opts) -> { reset, blocked? }. If that
+  // signature isn't deployed yet, the extra arg is harmlessly ignored and the
+  // legacy boolean-shaped result is normalized below rather than assumed.
+  const result = resetPayment(claimEventId, { force: req.body.force === true });
+  res.json({ success: true, ...(typeof result === 'object' ? result : { reset: !!result }) });
 }
 
 async function handlePaymentsToMe(req, res) {
@@ -386,6 +401,7 @@ function register(app) {
 }
 
 module.exports = {
+  handleListBounties,
   isAutoPayAuthorized,
   listClaimsFor,
   paymentStateForBounty,

@@ -102,8 +102,12 @@ async function request(method, urlPath, { body, useCookie = false } = {}) {
   return json;
 }
 
-function publishSigned(event) {
-  return request('POST', '/api/strfry/publish', { body: { event, signAs: 'client' } });
+async function publishSigned(event) {
+  // The endpoint returns HTTP 200 with {success:false} on a strfry import
+  // failure, so a status-only check would swallow it (the Fresno failure mode).
+  const res = await request('POST', '/api/strfry/publish', { body: { event, signAs: 'client' } });
+  if (res && res.success === false) throw new Error(res.error || 'strfry publish failed');
+  return res;
 }
 
 function relays() {

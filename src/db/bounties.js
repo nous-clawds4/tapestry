@@ -73,6 +73,12 @@ const selectOpenStmt = db.prepare(`
   ORDER BY amount_sats DESC
   LIMIT @limit
 `);
+const selectOpenByIssuerStmt = db.prepare(`
+  SELECT * FROM bounties
+  WHERE status = 'open' AND issuer_pubkey = @issuer AND (expiration IS NULL OR expiration > @now)
+  ORDER BY amount_sats DESC
+  LIMIT @limit
+`);
 const selectAutoPayOpenStmt = db.prepare(`
   SELECT * FROM bounties
   WHERE status = 'open' AND auto_pay = 1 AND (expiration IS NULL OR expiration > @now)
@@ -80,6 +86,9 @@ const selectAutoPayOpenStmt = db.prepare(`
   LIMIT @limit
 `);
 const selectAllStmt = db.prepare(`SELECT * FROM bounties ORDER BY amount_sats DESC LIMIT @limit`);
+const selectAllByIssuerStmt = db.prepare(`
+  SELECT * FROM bounties WHERE issuer_pubkey = @issuer ORDER BY amount_sats DESC LIMIT @limit
+`);
 const selectByIdStmt = db.prepare(`SELECT * FROM bounties WHERE id = ?`);
 const selectByIssuerStmt = db.prepare(`SELECT * FROM bounties WHERE issuer_pubkey = ? ORDER BY created_at DESC`);
 const markFulfilledStmt = db.prepare(`UPDATE bounties SET status = 'fulfilled' WHERE id = ?`);
@@ -115,9 +124,11 @@ function createBounty({
   return { ...row, status: 'open' };
 }
 
-function listOpenBounties({ limit = 100 } = {}) {
+function listOpenBounties({ limit = 100, issuer = null } = {}) {
   const now = Math.floor(Date.now() / 1000);
-  return selectOpenStmt.all({ now, limit });
+  return issuer
+    ? selectOpenByIssuerStmt.all({ now, limit, issuer })
+    : selectOpenStmt.all({ now, limit });
 }
 
 function listAutoPayOpenBounties({ limit = 100 } = {}) {
@@ -125,8 +136,10 @@ function listAutoPayOpenBounties({ limit = 100 } = {}) {
   return selectAutoPayOpenStmt.all({ now, limit });
 }
 
-function listAllBounties({ limit = 100 } = {}) {
-  return selectAllStmt.all({ limit });
+function listAllBounties({ limit = 100, issuer = null } = {}) {
+  return issuer
+    ? selectAllByIssuerStmt.all({ limit, issuer })
+    : selectAllStmt.all({ limit });
 }
 
 function getBounty(id) {

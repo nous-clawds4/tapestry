@@ -62,11 +62,14 @@ const sumSpendCapableByIssuerStmt = db.prepare(`
     AND state IN ('attempting','paid','settled','paid_unreceipted')
 `);
 
-// A crashed attempt leaves an 'attempting' row that reserves cap and blocks the
-// claim forever; reconcile stale ones to 'failed' (frees cap, surfaces in audit).
-const reconcileStuckStmt = db.prepare(`
-  UPDATE auto_payments
-  SET state = 'failed', reason = 'stuck_timeout', updated_at = @now
+// A crashed/stalled attempt leaves an 'attempting' row that reserves cap and
+// blocks the claim forever. This used to flip stale rows straight to 'failed'
+// by SQL alone; now that a bolt11 may already be in flight when a row goes
+// stale, deciding the final state needs a wallet-status check per row (see
+// autoPayWatcher.reconcileStuckAttempts), so this only selects candidates —
+// it never writes state itself.
+const selectStuckAttemptingStmt = db.prepare(`
+  SELECT * FROM auto_payments
   WHERE state = 'attempting' AND updated_at < @cutoff
 `);
 
@@ -276,15 +279,35 @@ function getDelegatePubkey(issuerPubkey) {
   return selectDelegateStmt.get(issuerPubkey)?.delegate_pubkey ?? null;
 }
 
-function reconcileStuckAttempts({ olderThanSeconds = 600, now = nowSeconds() } = {}) {
-  const info = reconcileStuckStmt.run({ now, cutoff: now - olderThanSeconds });
-  return { reconciled: info.changes };
+// Raw candidate list for the stuck-attempt sweep — see selectStuckAttemptingStmt.
+function listStuckAttempting({ olderThanSeconds = 600, now = nowSeconds() } = {}) {
+  return selectStuckAttemptingStmt.all({ cutoff: now - olderThanSeconds });
 }
 
 // Admin escape hatch: drop a payment row so the claim can be re-attempted. We
 // never auto-retry a payment (could double-pay); this is a deliberate reset.
-function resetPayment(claimEventId) {
+//
+// Only 'failed' rows are resettable AT ALL: an 'attempting' row may have a
+// live send still in flight, and paid/settled/paid_unreceipted rows are
+// definitively-paid money — deleting any of those re-opens the claim for a
+// second send. force does not override this; those rows need a different
+// remediation (wait, or manual DB surgery with wallet history in hand).
+//
+// Among 'failed' rows, a reason prefixed 'ambiguous_send:' represents a send
+// we could not verify as failed (the wallet was inconclusive after an error) —
+// blocked unless the caller explicitly forces it after checking wallet
+// history. (Pinned contract: the auto-pay reset API spreads this return value
+// as-is, so the shape here — {reset} or {reset:false, blocked} — must not change.)
+function resetPayment(claimEventId, opts = {}) {
   if (!claimEventId) throw new Error('claimEventId is required');
+  const existing = getAutoPaymentByClaimId(claimEventId);
+  if (!existing) return { reset: false };
+  if (existing.state !== 'failed') {
+    return { reset: false, blocked: 'not_failed' };
+  }
+  if (String(existing.reason || '').startsWith('ambiguous_send:') && opts.force !== true) {
+    return { reset: false, blocked: 'ambiguous_payment' };
+  }
   return { reset: deletePaymentStmt.run(claimEventId).changes > 0 };
 }
 
@@ -311,7 +334,7 @@ module.exports = {
   insertAttemptingPayment,
   listAutoPaymentsByClaimIds,
   listRecentAutoPayments,
-  reconcileStuckAttempts,
+  listStuckAttempting,
   resetPayment,
   rowToClient,
   spendCapableTotalSince,

@@ -6,6 +6,22 @@ const MEILI_INDEX = process.env.MEILI_INDEX || 'profiles';
 const USER_PREFS_DIR = process.env.USER_PREFS_DIR || '/var/lib/brainstorm/user-prefs';
 const STRFRY_SCAN_URL = process.env.STRFRY_SCAN_URL || 'http://localhost:7778';
 const DEV_SKIP = process.env.DEV_SKIP_TRUST_CHECK === 'true';
+let warnedDevSkipRefusedInProd = false;
+
+// DEV_SKIP_TRUST_CHECK is a local-dev convenience and must never bypass the
+// trust gate in production. Checked at call time (not module load) so it
+// reflects the live NODE_ENV; warns once per process, not once per call.
+function devSkipBypassActive() {
+  if (!DEV_SKIP) return false;
+  if (process.env.NODE_ENV === 'production') {
+    if (!warnedDevSkipRefusedInProd) {
+      warnedDevSkipRefusedInProd = true;
+      console.warn('[trust-rank] DEV_SKIP_TRUST_CHECK is set but refused because NODE_ENV=production');
+    }
+    return false;
+  }
+  return true;
+}
 
 function readUserPrefs(pubkey) {
   if (!pubkey || !/^[0-9a-f]{64}$/i.test(pubkey)) return {};
@@ -65,7 +81,7 @@ async function fetchStrfryTaRank(rankAuthor, subjectPubkey) {
  * of which algorithm produced it.
  */
 async function rank(observerPubkey, subjectPubkey) {
-  if (DEV_SKIP) return 100;
+  if (devSkipBypassActive()) return 100;
   if (!observerPubkey || !subjectPubkey) return 0;
   if (observerPubkey === subjectPubkey) return 100;
 

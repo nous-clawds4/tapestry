@@ -5,6 +5,8 @@
  *   User agent (runs anywhere, signs locally with MC_NSEC):
  *     auth-login                         verify-user → sign kind-22242 → login-user
  *     discover [--eligible] [--limit N]  list open / eligible bounties
+ *     create-list --singular <name> ...  sign+publish a kind-39998/9998 list header
+ *     create-bounty --list <coord> ...   POST /api/bounties (needs a prior auth-login)
  *     submit --bounty <id> --content <t> sign+publish a kind-39999 claim (keyless)
  *     negotiate send --bounty <id> ...   publish a kind-1111 negotiation comment
  *     negotiate scan --bounty <id>       read the negotiation thread off the relay
@@ -102,8 +104,12 @@ async function request(method, urlPath, { body, useCookie = false } = {}) {
   return json;
 }
 
-function publishSigned(event) {
-  return request('POST', '/api/strfry/publish', { body: { event, signAs: 'client' } });
+async function publishSigned(event) {
+  // The publish endpoint returns HTTP 200 with {success:false} on a strfry
+  // import failure, so a status-only check would swallow it — surface it.
+  const res = await request('POST', '/api/strfry/publish', { body: { event, signAs: 'client' } });
+  if (res && res.success === false) throw new Error(res.error || 'strfry publish failed');
+  return res;
 }
 
 function relays() {
@@ -165,6 +171,64 @@ const commands = {
     const event = sign({ kind: 39999, tags: [['z', bounty.list_coordinate], ['d', dTag]], content: String(flags.content) }, sk);
     await publishSigned(event);
     emit({ ok: true, claimEventId: event.id, listCoordinate: bounty.list_coordinate, dTag });
+  },
+
+  // Publish a DList header (kind-39998 replaceable, or 9998 permanent). Mirrors
+  // the NewDList form: ['d',dTag] (replaceable only), ['names',singular,plural],
+  // optional ['description',…], and one [requirement,name] tag per item property.
+  async 'create-list'(flags) {
+    const { sk, pk } = loadKey();
+    const singular = String(flags.singular || flags.name || '').trim();
+    if (!singular) throw new Error('--singular <item name> is required');
+    const plural = String(flags.plural || singular).trim();
+    const replaceable = flags.replaceable !== 'false' && flags.replaceable !== false;
+    const kind = replaceable ? 39998 : 9998;
+    const slug = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '').slice(0, 48);
+    const dTag = String(flags.d || slug(singular) || `list-${nowSec()}`);
+    const tags = [];
+    if (replaceable) tags.push(['d', dTag]);
+    tags.push(['names', singular, plural]);
+    if (flags.description) tags.push(['description', String(flags.description)]);
+    // --properties "required:name,optional:url,recommended:description"
+    const REQS = ['required', 'optional', 'recommended'];
+    for (const raw of String(flags.properties || '').split(',').map(s => s.trim()).filter(Boolean)) {
+      const idx = raw.indexOf(':');
+      const req = (idx === -1 ? 'required' : raw.slice(0, idx)).toLowerCase();
+      const name = (idx === -1 ? raw : raw.slice(idx + 1)).trim();
+      if (!REQS.includes(req)) throw new Error(`property requirement must be one of ${REQS.join('|')} (got "${req}")`);
+      if (name) tags.push([req, name]);
+    }
+    const event = sign({ kind, tags, content: '' }, sk);
+    await publishSigned(event);
+    // A bounty target must be a 3-part <kind>:<pubkey>:<dtag>; a non-replaceable
+    // (9998) list has no d-tag, so it can't be a bounty coordinate.
+    emit({ ok: true, listEventId: event.id, coordinate: replaceable ? `${kind}:${pk}:${dTag}` : null, kind, pubkey: pk, dTag: replaceable ? dTag : null });
+  },
+
+  // Post a bounty against a list coordinate. Requires a prior `auth-login` (the
+  // server sets issuer = the session pubkey and ignores any issuer in the body).
+  // --auto-pay is intentionally not exposed: it needs owner/admin/allowlist.
+  async 'create-bounty'(flags) {
+    loadKey(); // fail fast if MC_NSEC is missing — you must auth-login as this key first
+    // A bare `--amount` (no value) becomes boolean true, and Number(true)===1
+    // would silently post a 1-sat bounty; require a real integer string.
+    const posInt = (v, name) => {
+      if (typeof v !== 'string' || !/^\d+$/.test(v.trim())) throw new Error(`--${name} must be a positive integer`);
+      const n = Number(v);
+      if (!Number.isInteger(n) || n <= 0) throw new Error(`--${name} must be a positive integer`);
+      return n;
+    };
+    const listCoordinate = flags.list || flags.coordinate || flags['list-coordinate'];
+    if (!listCoordinate || typeof listCoordinate !== 'string') throw new Error('--list <kind:pubkey:dtag> is required');
+    if (flags.amount === undefined) throw new Error('--amount <sats> is required');
+    if (!flags.criteria || typeof flags.criteria !== 'string') throw new Error('--criteria <text> is required');
+    const body = { listCoordinate, amountSats: posInt(flags.amount, 'amount'), criteria: String(flags.criteria) };
+    if (flags.cap !== undefined) body.bountyCapSats = posInt(flags.cap, 'cap');
+    if (flags['reward-per-item'] === true || flags['reward-per-item'] === 'true') body.rewardPerItem = true;
+    if (flags['max-rewards'] !== undefined) body.maxRewardsPerNpub = posInt(flags['max-rewards'], 'max-rewards');
+    if (flags.expiration !== undefined) body.expiration = posInt(flags.expiration, 'expiration');
+    const res = await request('POST', '/api/bounties', { body, useCookie: true });
+    emit({ ok: true, ...res });
   },
 
   async negotiate(flags, positionals) {
@@ -254,7 +318,7 @@ async function main() {
   const argv = process.argv.slice(2);
   const cmd = argv[0];
   if (!cmd || cmd === '--help' || cmd === '-h' || !commands[cmd]) {
-    const usage = 'magic-carpet-agent <auth-login|discover|submit|negotiate send|scan|balance|provision-delegate|pay> [flags]';
+    const usage = 'magic-carpet-agent <auth-login|discover|create-list|create-bounty|submit|negotiate send|scan|balance|provision-delegate|pay> [flags]';
     if (!cmd || cmd === '--help' || cmd === '-h') { emit({ usage, commands: Object.keys(commands) }); return; }
     throw new Error(`unknown command: ${cmd}. ${usage}`);
   }

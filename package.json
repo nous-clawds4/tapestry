@@ -11,7 +11,7 @@
     "brainstorm-init-db": "./bin/init-db.sh"
   },
   "scripts": {
-    "test": "node test/test.js && node test/auto-pay.test.js && node test/wallet.test.js && node test/boot-safety.test.js && node test/zap-bridge.test.js && node test/agent-cli.test.js && node test/operator-judgment.test.js && node test/agent-e2e.test.js && node test/auth-signature.test.js",
+    "test": "node test/test.js && node test/auto-pay.test.js && node test/bounties-api.test.js && node test/wallet.test.js && node test/boot-safety.test.js && node test/zap-bridge.test.js && node test/agent-cli.test.js && node test/operator-judgment.test.js && node test/agent-e2e.test.js && node test/auth-signature.test.js",
     "test:boot-safety": "node test/boot-safety.test.js",
     "test:zap-bridge": "node test/zap-bridge.test.js",
     "test:agent-cli": "node test/agent-cli.test.js",
@@ -19,6 +19,7 @@
     "test:agent-e2e": "node test/agent-e2e.test.js",
     "agent": "node bin/agent.js",
     "test:auto-pay": "node test/auto-pay.test.js",
+    "test:bounties-api": "node test/bounties-api.test.js",
     "test:wallet": "node test/wallet.test.js",
     "test:receiving": "node test/receiving.test.js",
     "test:receiving:api": "node test/receiving.api.test.js",

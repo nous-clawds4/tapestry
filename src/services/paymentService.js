@@ -21,13 +21,24 @@ async function payClaim({ bountyId, claimEventId, dryRun = false } = {}) {
   const claim = paymentState.payableClaims.find(c => c.event.id === claimEventId);
   if (!claim) return { ok: false, reason: 'claim_not_payable' };
 
+  // Fail-closed: a bounty issuer can never be paid on their own bounty. This
+  // must come before the rank gate — trust-rank's observer===subject
+  // shortcut would otherwise hand a self-claim a rank of 100 and sail
+  // straight through it.
+  if (String(claim.event.pubkey || '').toLowerCase() === String(bounty.issuer_pubkey || '').toLowerCase()) {
+    return { ok: false, reason: 'self_claim' };
+  }
+
   const minRank = bounty.auto_pay ? Math.max(TRUST_FLOOR, bounty.auto_pay_min_rank) : TRUST_FLOOR;
   const claimantRank = await rank(bounty.issuer_pubkey, claim.event.pubkey);
   if (claimantRank < minRank) return { ok: false, reason: 'rank_too_low', claimantRank, minRank };
 
-  // Fail-closed judgment gate: when enabled, never pay a claim the operator
-  // hasn't recorded an accept-judgment for (real money requires a yes on record).
-  if (process.env.AGENT_REQUIRE_JUDGMENT === 'true' && !dryRun) {
+  // Fail-closed judgment gate: ON by default for every live (non-dry-run)
+  // payment — never pay a claim the operator hasn't recorded an accept-judgment
+  // for (real money requires a yes on record). Only an explicit
+  // AGENT_REQUIRE_JUDGMENT=false opts out; unset or misspelled leaves the gate
+  // enforced, unlike the old fail-open default.
+  if (!dryRun && process.env.AGENT_REQUIRE_JUDGMENT !== 'false') {
     const judgment = latestJudgment(bountyId, claimEventId);
     if (!judgment?.pay) return { ok: false, reason: 'no_accept_judgment' };
   }

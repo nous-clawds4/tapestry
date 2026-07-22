@@ -1,6 +1,6 @@
 const assert = require('assert');
 
-const { getBalance, payBolt11, walletCliPath } = require('../src/lib/wallet');
+const { getBalance, getPaymentStatus, payBolt11, walletCliPath } = require('../src/lib/wallet');
 
 // Stub execFile factory: records the call, invokes the callback with canned
 // (err, stdout, stderr) like child_process.execFile would.
@@ -94,6 +94,49 @@ async function test(name, fn) {
     const err = Object.assign(new Error('Command failed'), { code: 1 });
     const exec = stubExec(err, '', '{"error":"Not initialized. Run: npx @moneydevkit/agent-wallet init"}');
     await assert.rejects(getBalance({ execFileImpl: exec }), /Not initialized/);
+  });
+
+  await test('getPaymentStatus matches a completed outbound payment by exact destination and reports paid', async () => {
+    const exec = stubExec(null, JSON.stringify({
+      payments: [
+        { destination: 'lnbc10n1demo', direction: 'outbound', status: 'completed' },
+      ],
+    }));
+    const result = await getPaymentStatus({ bolt11: 'lnbc10n1demo' }, { execFileImpl: exec });
+    assert.deepStrictEqual(result, { paid: true });
+    assert.deepStrictEqual(exec.calls[0].args, ['payments']);
+  });
+
+  await test('getPaymentStatus matches a failed outbound payment by paymentHash and reports not paid', async () => {
+    const exec = stubExec(null, JSON.stringify({
+      payments: [
+        { paymentHash: 'f'.repeat(64), direction: 'outbound', status: 'failed' },
+      ],
+    }));
+    const result = await getPaymentStatus({ paymentHash: 'f'.repeat(64) }, { execFileImpl: exec });
+    assert.deepStrictEqual(result, { paid: false });
+  });
+
+  await test('getPaymentStatus is inconclusive when no wallet record matches', async () => {
+    const exec = stubExec(null, JSON.stringify({ payments: [] }));
+    const result = await getPaymentStatus({ bolt11: 'lnbc10n1unseen' }, { execFileImpl: exec });
+    assert.strictEqual(result.inconclusive, true);
+    assert.strictEqual(result.reason, 'no_matching_payment_record');
+  });
+
+  await test('getPaymentStatus is inconclusive (never throws) when the wallet CLI errors', async () => {
+    const err = Object.assign(new Error('Command failed'), { code: 1 });
+    const exec = stubExec(err, '', JSON.stringify({ error: 'daemon unreachable' }));
+    const result = await getPaymentStatus({ bolt11: 'lnbc10n1demo' }, { execFileImpl: exec });
+    assert.strictEqual(result.inconclusive, true);
+    assert.match(result.reason, /^wallet_cli_lookup_failed:/);
+  });
+
+  await test('getPaymentStatus is inconclusive without spawning when given no lookup key', async () => {
+    const exec = stubExec(null, '{"payments":[]}');
+    const result = await getPaymentStatus({}, { execFileImpl: exec });
+    assert.deepStrictEqual(result, { inconclusive: true, reason: 'no_lookup_key' });
+    assert.strictEqual(exec.calls.length, 0);
   });
 
   console.log(`\n${passed} wallet tests passed`);
