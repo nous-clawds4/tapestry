@@ -1,6 +1,6 @@
 # Story 1: Strfry-free relationship add/delete primitives
 
-**Status:** Draft
+**Status:** Done
 **Created:** 2026-07-21
 **Type:** Feature
 **Epic:** `relationship-primitives`
@@ -25,11 +25,11 @@ As the Tapestry operator, I want to add or delete a single, typed relationship b
 
 ## Acceptance criteria
 
-- [ ] **Add is idempotent.** Given two nodes that already exist in Neo4j (each identified by uuid) and a whitelisted relationship type supplied by the caller, when the add operation is called, then the relationship exists afterward and the response reports *created*; when the identical call is repeated, then exactly one such relationship exists and the response reports *already-existed*.
-- [ ] **Delete is targeted.** Given that relationship exists, when the delete operation is called, then only the named relationship type between the named node pair is removed (never a bulk sweep) and the response reports *deleted*; when the call is repeated — or made for a relationship that never existed — then nothing is removed and the response reports *not-found*.
-- [ ] **Preconditions fail loudly, never silently no-op.** When either operation is given a `fromUuid` or `toUuid` that does not exist in Neo4j, or a relationship type absent from the whitelist, then nothing changes and the error response names which precondition failed. The whitelist admits only relationship types already carried by the firmware alias layer, and its names resolve through that alias layer rather than hardcoded string literals — so an alias change cannot silently orphan the whitelist. Net-new custom types (e.g. `HAS_SUBGOAL`) are rejected.
-- [ ] **Owner-gated, locally reachable.** Each operation independently enforces an explicit owner gate — it does not rely on the surface's default-deny alone, which blocks only unauthenticated callers. An owner session or a trusted local caller (plain `curl` from the local/Docker host, consistent with the existing `/api/normalize` calling convention) succeeds; an authenticated **non-owner** receives 403 from both operations; an unauthenticated remote caller is denied.
-- [ ] **Strfry-free, with the install hazard documented.** Neither operation touches strfry, re-signs or publishes any nostr event, regenerates any `json` tag, or triggers derivation — an automated test asserts no event is written by either operation. The firmware-install overwrite hazard (an install can re-add a deleted edge and delete an added one) is documented where an operator using these operations will encounter it; changing install's behavior is explicitly out of scope (operator decision, 2026-07-18).
+- [x] **Add is idempotent.** Given two nodes that already exist in Neo4j (each identified by uuid) and a whitelisted relationship type supplied by the caller, when the add operation is called, then the relationship exists afterward and the response reports *created*; when the identical call is repeated, then exactly one such relationship exists and the response reports *already-existed*.
+- [x] **Delete is targeted.** Given that relationship exists, when the delete operation is called, then only the named relationship type between the named node pair is removed (never a bulk sweep) and the response reports *deleted*; when the call is repeated — or made for a relationship that never existed — then nothing is removed and the response reports *not-found*.
+- [x] **Preconditions fail loudly, never silently no-op.** When either operation is given a `fromUuid` or `toUuid` that does not exist in Neo4j, or a relationship type absent from the whitelist, then nothing changes and the error response names which precondition failed. The whitelist admits only relationship types already carried by the firmware alias layer, and its names resolve through that alias layer rather than hardcoded string literals — so an alias change cannot silently orphan the whitelist. Net-new custom types (e.g. `HAS_SUBGOAL`) are rejected.
+- [x] **Owner-gated, locally reachable.** Each operation independently enforces an explicit owner gate — it does not rely on the surface's default-deny alone, which blocks only unauthenticated callers. An owner session or a trusted local caller (plain `curl` from the local/Docker host, consistent with the existing `/api/normalize` calling convention) succeeds; an authenticated **non-owner** receives 403 from both operations; an unauthenticated remote caller is denied.
+- [x] **Strfry-free, with the install hazard documented.** Neither operation touches strfry, re-signs or publishes any nostr event, regenerates any `json` tag, or triggers derivation — an automated test asserts no event is written by either operation. The firmware-install overwrite hazard (an install can re-add a deleted edge and delete an added one) is documented where an operator using these operations will encounter it; changing install's behavior is explicitly out of scope (operator decision, 2026-07-18).
 
 **Minimum test coverage** (floor fixed by the book's acceptance frame, for Test Design): add-new, add-idempotent, delete-existing, delete-missing, nonexistent endpoint node, rejected `relType`, authenticated non-owner → 403 from both operations, and the no-strfry-write assertion. Tests exercise the **local** stack only and leave the graph as they found it — create and clean up their own fixture nodes; never mutate firmware or `39998:<TA>:shared-concept` structure as a side effect (book ceiling clarification).
 
@@ -71,4 +71,4 @@ None blocking. The book's pre-registration delegates six design decisions to the
 - Handoff: `docs/RELATIONSHIP_PRIMITIVES_HANDOFF.md`
 - ADR: `engineering-team/decisions/relationship-primitives/0001-strfry-free-relationship-primitives.md`
 - Test plan: `engineering-team/stories/relationship-primitives/1-relationship-add-delete-primitives.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/relationship-primitives/1-relationship-add-delete-primitives.md` (PASS, 2026-07-21)
