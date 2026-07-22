@@ -53,6 +53,6 @@ None blocking. The probe's route naming/placement and response shape are the Arc
 - Decision journal: `engineering-team/audits/relationship-primitives/journal.md` (falsification finding + operator ruling, 2026-07-21)
 - Predecessor: `engineering-team/stories/relationship-primitives/1-relationship-add-delete-primitives.md` (the surface this probe evidences)
 - Intake: `engineering-team/stories/_intake.md` → "2026-07-18 — Feature: primitive relationship add/delete endpoints (Neo4j-only, strfry-free)"
-- ADR: (filled in after Architecture phase)
-- Test plan: (filled in after Test Design phase)
+- ADR: `engineering-team/decisions/relationship-primitives/0002-read-only-deployment-probe.md`
+- Test plan: `engineering-team/stories/relationship-primitives/2-read-only-deployment-probe.test-plan.md`
 - Review: (filled in after Review phase)
