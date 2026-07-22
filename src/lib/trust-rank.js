@@ -60,8 +60,10 @@ async function fetchStrfryTaRank(rankAuthor, subjectPubkey) {
     const url = `${STRFRY_SCAN_URL}/api/strfry/scan?filter=${encodeURIComponent(JSON.stringify(filter))}`;
     const resp = await fetch(url);
     if (!resp.ok) return null;
-    const events = await resp.json();
-    const ev = Array.isArray(events) ? events[0] : null;
+    const body = await resp.json();
+    // /api/strfry/scan responds {success, events:[...]}; tolerate a bare array too.
+    const events = Array.isArray(body) ? body : (Array.isArray(body?.events) ? body.events : []);
+    const ev = events[0] || null;
     if (!ev) return null;
     for (const tag of ev.tags || []) {
       if (tag[0] === 'rank') {

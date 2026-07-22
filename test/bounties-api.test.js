@@ -273,6 +273,32 @@ async function main() {
     });
   });
 
+  await check('reads a kind-30382 rank through the real /api/strfry/scan envelope ({success, events})', async () => {
+    await withEnv({ NODE_ENV: 'production', DEV_SKIP_TRUST_CHECK: undefined, OWNER_PUBKEY: pk('a') }, async () => {
+      const { rank } = reloadTrustRank();
+      const observer = pk('a');
+      const subject = pk('b');
+      const originalFetch = global.fetch;
+      global.fetch = async (url) => {
+        if (String(url).includes('/api/strfry/scan')) {
+          return {
+            ok: true,
+            json: async () => ({
+              success: true,
+              events: [{ kind: 30382, pubkey: observer, tags: [['d', subject], ['p', subject], ['rank', '5']] }],
+            }),
+          };
+        }
+        return { ok: false, json: async () => ({}) }; // meili miss
+      };
+      try {
+        assert.strictEqual(await rank(observer, subject), 5, 'rank tag must be read from the {success, events} envelope');
+      } finally {
+        global.fetch = originalFetch;
+      }
+    });
+  });
+
   // Leave a clean, unpatched trust-rank module cached for any later require in
   // this process (none currently, but avoid surprising a future test added here).
   reloadTrustRank();
