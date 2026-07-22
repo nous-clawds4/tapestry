@@ -75,6 +75,20 @@ Handles are the local instance's (TA pubkey resolved at runtime — never hardco
 None — resolved 2026-07-22 with the operator: both placement kinds; all three surfaces; instant
 reference-graph edit with the warning surfaced.
 
+## Deviations
+
+- **Placements section is owner-only as a whole** (ElementDetail). AC3 ("the node's page shows
+  its direct parent set(s)") and AC6 ("non-owner views are unchanged from today") pull apart for
+  the read-only placements *display*: rendering it to everyone would change the anon view. Read
+  AC6 strictly — the section (display included) renders only for owner/admin, since it exists for
+  the owner's curation flow. The data itself is public either way (same edges the set page
+  already shows). 2026-07-22, Implementer.
+- **`forNode` mode without an explicit source offers a "move from" select** (PlacementDialog)
+  listing the node's current placements, defaulting to "add as a new placement." The ADR named
+  the source-prefilled path (Element page "Move…") and a plain add; the optional select is the
+  minimal way to make ConceptDag's single "Place / move…" affordance honor both verbs in its
+  label. 2026-07-22, Implementer.
+
 ## Linked artifacts
 
 - ADR: `engineering-team/decisions/graph-curation-ui/0001-shared-placement-dialog-over-primitives.md`

@@ -4,6 +4,9 @@ import { useCypher } from '../../hooks/useCypher';
 import { useAuth } from '../../context/AuthContext';
 import useProfiles from '../../hooks/useProfiles';
 import AuthorCell from '../../components/AuthorCell';
+import { deleteRelationship } from '../../api/relationships';
+import PlacementDialog from '../../components/PlacementDialog';
+import ConfirmDialog from '../../components/ConfirmDialog';
 
 /**
  * Element detail page within a concept's context.
@@ -25,6 +28,13 @@ export default function ElementDetail() {
   const [saveError, setSaveError] = useState(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
+  // Placements (AC3/AC4): dialog state carries an optional source placement
+  // (Move…) or null source (Add placement…); null = closed.
+  const [placeState, setPlaceState] = useState(null);
+  const [removeTarget, setRemoveTarget] = useState(null); // { setUuid, setName, relType }
+  const [removeBusy, setRemoveBusy] = useState(false);
+  const [placeOutcome, setPlaceOutcome] = useState(null); // { type, message, note }
+
   // Fetch the element node
   const { data: elemData, loading: elemLoading, refetch: refetchElem } = useCypher(`
     MATCH (e:NostrEvent {uuid: '${elemUuid}'})
@@ -44,6 +54,40 @@ export default function ElementDetail() {
     OPTIONAL MATCH (js)-[:HAS_TAG]->(jt:NostrEventTag {type: 'json'})
     RETURN head(collect(jt.value)) AS schemaJson
   `);
+
+  // Direct parent placements of this node across BOTH placement kinds (AC3).
+  const { data: parents, refetch: refetchParents } = useCypher(`
+    MATCH (p)-[r:HAS_ELEMENT|IS_A_SUPERSET_OF]->(e:NostrEvent {uuid: '${elemUuid}'})
+    RETURN p.uuid AS uuid, p.name AS name, labels(p) AS nodeLabels, type(r) AS relType
+    ORDER BY p.name
+  `);
+
+  async function handleRemovePlacement() {
+    if (!removeTarget || removeBusy) return;
+    setRemoveBusy(true);
+    try {
+      const data = await deleteRelationship({
+        fromUuid: removeTarget.setUuid,
+        toUuid: elemUuid,
+        relType: removeTarget.relType,
+      });
+      if (data.result === 'deleted') {
+        setPlaceOutcome({
+          type: 'success',
+          message: `Removed the placement under "${removeTarget.setName || removeTarget.setUuid}".`,
+          note: data.note || null,
+        });
+      } else {
+        setPlaceOutcome({ type: 'nochange', message: 'No change was needed — that placement no longer exists.', note: null });
+      }
+      refetchParents();
+    } catch (err) {
+      setPlaceOutcome({ type: 'error', message: err.message, note: null });
+    } finally {
+      setRemoveBusy(false);
+      setRemoveTarget(null);
+    }
+  }
 
   const elem = elemData?.[0];
   const fullJson = useMemo(() => {
@@ -248,6 +292,100 @@ export default function ElementDetail() {
             )}
           </div>
 
+          {/* Placements — the node's direct parent sets, both kinds (AC3/AC4).
+              Owner-only as a whole: AC6 pins the non-owner view unchanged from
+              today, and this section exists for the owner's curation flow. */}
+          {isOwner && (
+          <div style={{ marginTop: '1.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <h3 style={{ margin: 0 }}>Placements</h3>
+              {isOwner && (
+                <button
+                  className="btn btn-small"
+                  onClick={() => { setPlaceOutcome(null); setPlaceState({ source: null }); }}
+                >
+                  ＋ Add placement…
+                </button>
+              )}
+            </div>
+
+            {placeOutcome && (
+              <div
+                className={`health-banner ${placeOutcome.type === 'success' ? 'health-pass' : placeOutcome.type === 'nochange' ? 'health-warn' : 'health-fail'}`}
+                style={{ margin: '0.5rem 0', fontSize: '0.85rem' }}
+              >
+                <span className="health-banner-icon">
+                  {placeOutcome.type === 'success' ? '✅' : placeOutcome.type === 'nochange' ? 'ℹ️' : '❌'}
+                </span>
+                <span>{placeOutcome.message}</span>
+              </div>
+            )}
+            {placeOutcome && placeOutcome.note && (
+              <div className="health-banner health-warn" style={{ margin: '0.5rem 0', fontSize: '0.8rem' }}>
+                <span className="health-banner-icon">⚠️</span>
+                <span>{placeOutcome.note}</span>
+              </div>
+            )}
+
+            {(parents || []).length === 0 ? (
+              <p style={{ opacity: 0.5, fontSize: '0.85rem', marginTop: '0.5rem' }}>
+                Not placed in any set yet.
+              </p>
+            ) : (
+              <table className="data-table" style={{ marginTop: '0.5rem', maxWidth: 700 }}>
+                <thead>
+                  <tr>
+                    <th>Set</th>
+                    <th>Placement</th>
+                    {isOwner && <th style={{ width: '1%' }}></th>}
+                  </tr>
+                </thead>
+                <tbody>
+                  {(parents || []).map(p => (
+                    <tr key={`${p.uuid}|${p.relType}`}>
+                      <td>
+                        <a
+                          className="clickable-text"
+                          onClick={() => navigate(`/tapestry/concepts/${encodeURIComponent(conceptUuid)}/dag/${encodeURIComponent(p.uuid)}`)}
+                        >
+                          {p.name || p.uuid}
+                        </a>
+                      </td>
+                      <td style={{ color: 'var(--text-muted)' }}>
+                        {p.relType === 'IS_A_SUPERSET_OF' ? 'subset' : 'element'}
+                      </td>
+                      {isOwner && (
+                        <td style={{ whiteSpace: 'nowrap' }}>
+                          <button
+                            className="btn btn-small"
+                            title="Move this placement to another set"
+                            onClick={() => {
+                              setPlaceOutcome(null);
+                              setPlaceState({ source: { setUuid: p.uuid, setName: p.name, relType: p.relType } });
+                            }}
+                          >
+                            Move…
+                          </button>{' '}
+                          <button
+                            className="btn btn-small"
+                            title="Remove this placement"
+                            onClick={() => {
+                              setPlaceOutcome(null);
+                              setRemoveTarget({ setUuid: p.uuid, setName: p.name, relType: p.relType });
+                            }}
+                          >
+                            🗑
+                          </button>
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+          )}
+
           {/* Concept-scoped JSON preview */}
           {schemaProperties.length > 0 && (
             <div style={{ marginTop: '1.5rem' }}>
@@ -409,6 +547,24 @@ export default function ElementDetail() {
           )}
         </div>
       )}
+
+      <ConfirmDialog
+        open={!!removeTarget}
+        title="Remove placement?"
+        message={`Remove this node's ${removeTarget?.relType === 'IS_A_SUPERSET_OF' ? 'subset' : 'element'} placement under "${removeTarget?.setName || removeTarget?.setUuid || ''}"? The node itself is not deleted.`}
+        onConfirm={handleRemovePlacement}
+        onCancel={() => setRemoveTarget(null)}
+      />
+
+      <PlacementDialog
+        open={!!placeState}
+        mode="forNode"
+        conceptUuid={conceptUuid}
+        fixedNode={{ uuid: elemUuid, name: elem.name }}
+        source={placeState?.source || undefined}
+        onChanged={refetchParents}
+        onClose={() => setPlaceState(null)}
+      />
     </div>
   );
 }

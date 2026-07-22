@@ -1,6 +1,10 @@
 import { useState } from 'react';
 import { useParams, useOutletContext, useNavigate } from 'react-router-dom';
 import { useCypher } from '../../hooks/useCypher';
+import { useAuth } from '../../context/AuthContext';
+import { deleteRelationship } from '../../api/relationships';
+import PlacementDialog from '../../components/PlacementDialog';
+import ConfirmDialog from '../../components/ConfirmDialog';
 
 /**
  * Set Detail page — shown within a concept's Organization (Sets) tab.
@@ -13,8 +17,15 @@ export default function SetDetail() {
   const decodedSetUuid = decodeURIComponent(setUuid);
   const encodedConceptUuid = encodeURIComponent(conceptUuid);
 
+  const { user } = useAuth();
+  const isOwner = user?.classification === 'owner' || user?.classification === 'admin';
+
   const [graphOpen, setGraphOpen] = useState(false);
   const [elementsOpen, setElementsOpen] = useState(true);
+  const [placeOpen, setPlaceOpen] = useState(false);
+  const [removeTarget, setRemoveTarget] = useState(null); // { uuid, name, relType }
+  const [removeBusy, setRemoveBusy] = useState(false);
+  const [removeOutcome, setRemoveOutcome] = useState(null); // { type, message, note }
 
   // Fetch set info
   const { data: setData, loading: setLoading, error: setError } = useCypher(
@@ -36,7 +47,7 @@ export default function SetDetail() {
   );
 
   // Direct supersets (nodes that this set is a subset of)
-  const { data: supersets, loading: supersetsLoading } = useCypher(
+  const { data: supersets, loading: supersetsLoading, refetch: refetchSupersets } = useCypher(
     decodedSetUuid ? `
       MATCH (parent)-[:IS_A_SUPERSET_OF]->(s:NostrEvent {uuid: '${decodedSetUuid}'})
       RETURN parent.uuid AS uuid, parent.name AS name, labels(parent) AS nodeLabels
@@ -45,7 +56,7 @@ export default function SetDetail() {
   );
 
   // Direct subsets (nodes that this set is a superset of)
-  const { data: subsets, loading: subsetsLoading } = useCypher(
+  const { data: subsets, loading: subsetsLoading, refetch: refetchSubsets } = useCypher(
     decodedSetUuid ? `
       MATCH (s:NostrEvent {uuid: '${decodedSetUuid}'})-[:IS_A_SUPERSET_OF]->(child)
       RETURN child.uuid AS uuid, child.name AS name, labels(child) AS nodeLabels
@@ -53,15 +64,52 @@ export default function SetDetail() {
     ` : null
   );
 
-  // All elements (direct + indirect via IS_A_SUPERSET_OF chain)
-  const { data: elements, loading: elementsLoading } = useCypher(
+  // All elements (direct + indirect via IS_A_SUPERSET_OF chain). The `direct`
+  // flag marks rows whose HAS_ELEMENT edge starts at THIS set — only those
+  // placements can be removed from this page (AC2 / ADR decision 4).
+  const { data: elements, loading: elementsLoading, refetch: refetchElements } = useCypher(
     decodedSetUuid ? `
       MATCH (s:NostrEvent {uuid: '${decodedSetUuid}'})-[:IS_A_SUPERSET_OF*0..10]->(ss)-[:HAS_ELEMENT]->(elem)
-      WITH DISTINCT elem
-      RETURN elem.uuid AS uuid, elem.name AS name, labels(elem) AS nodeLabels
+      WITH DISTINCT s, elem
+      RETURN elem.uuid AS uuid, elem.name AS name, labels(elem) AS nodeLabels,
+             EXISTS { MATCH (s)-[:HAS_ELEMENT]->(elem) } AS direct
       ORDER BY elem.name
     ` : null
   );
+
+  function refetchAll() {
+    refetchSupersets();
+    refetchSubsets();
+    refetchElements();
+  }
+
+  async function handleRemoveConfirmed() {
+    if (!removeTarget || removeBusy) return;
+    setRemoveBusy(true);
+    try {
+      const data = await deleteRelationship({
+        fromUuid: decodedSetUuid,
+        toUuid: removeTarget.uuid,
+        relType: removeTarget.relType,
+      });
+      if (data.result === 'deleted') {
+        setRemoveOutcome({
+          type: 'success',
+          message: `Removed "${removeTarget.name || removeTarget.uuid}" from this set.`,
+          note: data.note || null,
+        });
+        refetchAll();
+      } else {
+        setRemoveOutcome({ type: 'nochange', message: 'No change was needed — that placement no longer exists.', note: null });
+        refetchAll();
+      }
+    } catch (err) {
+      setRemoveOutcome({ type: 'error', message: err.message, note: null });
+    } finally {
+      setRemoveBusy(false);
+      setRemoveTarget(null);
+    }
+  }
 
   const set = setData?.[0];
 
@@ -119,9 +167,16 @@ export default function SetDetail() {
       </button>
 
       {/* Set header */}
-      <h2 style={{ margin: '0 0 0.25rem 0' }}>
-        {set.name || '(unnamed)'}
-      </h2>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem' }}>
+        <h2 style={{ margin: '0 0 0.25rem 0' }}>
+          {set.name || '(unnamed)'}
+        </h2>
+        {isOwner && (
+          <button className="btn btn-primary btn-small" onClick={() => setPlaceOpen(true)}>
+            ＋ Add to this set…
+          </button>
+        )}
+      </div>
       <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', marginBottom: '0.75rem' }}>
         <span style={{
           fontSize: '0.75rem', padding: '0.15rem 0.5rem', borderRadius: '4px',
@@ -137,6 +192,25 @@ export default function SetDetail() {
         <p style={{ opacity: 0.8, marginBottom: '1rem', fontStyle: 'italic' }}>
           {description}
         </p>
+      )}
+
+      {/* Placement-removal outcome (hazard note never suppressed) */}
+      {removeOutcome && (
+        <div
+          className={`health-banner ${removeOutcome.type === 'success' ? 'health-pass' : removeOutcome.type === 'nochange' ? 'health-warn' : 'health-fail'}`}
+          style={{ marginBottom: '0.75rem', fontSize: '0.85rem' }}
+        >
+          <span className="health-banner-icon">
+            {removeOutcome.type === 'success' ? '✅' : removeOutcome.type === 'nochange' ? 'ℹ️' : '❌'}
+          </span>
+          <span>{removeOutcome.message}</span>
+        </div>
+      )}
+      {removeOutcome && removeOutcome.note && (
+        <div className="health-banner health-warn" style={{ marginBottom: '0.75rem', fontSize: '0.8rem' }}>
+          <span className="health-banner-icon">⚠️</span>
+          <span>{removeOutcome.note}</span>
+        </div>
       )}
 
       {/* ── Subsets & Supersets (collapsed by default) ── */}
@@ -213,6 +287,7 @@ export default function SetDetail() {
                   <tr>
                     <th>Name</th>
                     <th>Type</th>
+                    {isOwner && <th style={{ width: '1%' }}></th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -225,6 +300,21 @@ export default function SetDetail() {
                     >
                       <td>{row.name || row.uuid?.slice(0, 20) + '…'}</td>
                       <td><span style={{ color: typeColor(row.nodeLabels) }}>{nodeType(row.nodeLabels)}</span></td>
+                      {isOwner && (
+                        <td>
+                          <button
+                            className="btn btn-small"
+                            title="Remove this subset placement from this set"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setRemoveOutcome(null);
+                              setRemoveTarget({ uuid: row.uuid, name: row.name, relType: 'IS_A_SUPERSET_OF' });
+                            }}
+                          >
+                            🗑
+                          </button>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
@@ -272,6 +362,7 @@ export default function SetDetail() {
                   <tr>
                     <th>Name</th>
                     <th>Type</th>
+                    {isOwner && <th style={{ width: '1%' }}></th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -294,6 +385,25 @@ export default function SetDetail() {
                             }}>{l}</span>
                           ))}
                       </td>
+                      {isOwner && (
+                        <td>
+                          {/* Only a DIRECT placement can be removed here — indirect
+                              rows belong to a descendant set (AC2). */}
+                          {row.direct ? (
+                            <button
+                              className="btn btn-small"
+                              title="Remove this element placement from this set"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setRemoveOutcome(null);
+                                setRemoveTarget({ uuid: row.uuid, name: row.name, relType: 'HAS_ELEMENT' });
+                              }}
+                            >
+                              🗑
+                            </button>
+                          ) : null}
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
@@ -302,6 +412,23 @@ export default function SetDetail() {
           </div>
         )}
       </div>
+
+      <ConfirmDialog
+        open={!!removeTarget}
+        title="Remove placement?"
+        message={`Remove "${removeTarget?.name || removeTarget?.uuid || ''}" from this set? Only this one ${removeTarget?.relType === 'IS_A_SUPERSET_OF' ? 'subset' : 'element'} placement is removed — the node itself is not deleted.`}
+        onConfirm={handleRemoveConfirmed}
+        onCancel={() => setRemoveTarget(null)}
+      />
+
+      <PlacementDialog
+        open={placeOpen}
+        mode="intoSet"
+        conceptUuid={conceptUuid}
+        fixedSet={{ uuid: decodedSetUuid, name: set.name }}
+        onChanged={refetchAll}
+        onClose={() => setPlaceOpen(false)}
+      />
     </div>
   );
 }
