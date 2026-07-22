@@ -3329,6 +3329,11 @@ async function registerNormalizeRoutes(app) {
   app.post('/api/normalize/add-relationship', handleAddRelationship);
   app.post('/api/normalize/delete-relationship', handleDeleteRelationship);
 
+  // Read-only deployment probe for the relationship-primitives surface
+  // (ADR relationship-primitives/0002; evidence-only — NOT a health endpoint)
+  const { handleRelationshipPrimitivesProbe } = require('./probe');
+  app.get('/api/normalize/relationship-primitives', handleRelationshipPrimitivesProbe);
+
   // Firmware install
   const { handleFirmwareInstall } = require('../../firmware/install');
   app.post('/api/firmware/install', handleFirmwareInstall);
