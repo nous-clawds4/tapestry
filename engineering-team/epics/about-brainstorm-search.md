@@ -1,6 +1,6 @@
 # Epic: About Brainstorm Search
 
-**Status:** Active
+**Status:** Done (epic retired 2026-07-22 at book close — story 1 Done + live on all three instances; audit + prd-seed under `audits/about-brainstorm-search/`)
 **Provenance:** Operator request 2026-07-21. The search home page's only explanatory footer link was `How search works` — a *mechanism* page (Meilisearch + GrapeRank verification). Nothing told a visitor **what they could do** with Brainstorm Search, or that it can be reached other than through the search bar.
 
 ## What this is
