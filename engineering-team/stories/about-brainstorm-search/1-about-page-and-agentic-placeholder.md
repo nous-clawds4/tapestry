@@ -1,6 +1,6 @@
 # Story 1: About Brainstorm Search page + agentic-search placeholder
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-07-21
 **Type:** Feature (UI / docs)
 
@@ -60,4 +60,4 @@ None blocking. Resolved during planning:
 
 - ADR: none (lightweight docs-UI treatment, operator-approved 2026-07-21)
 - Test plan: none (browser-verified)
-- Review: (filled after Review phase)
+- Review: none — lightweight docs-UI treatment (operator-approved 2026-07-21); reviewed at book scope in `engineering-team/audits/about-brainstorm-search/audit.md`
