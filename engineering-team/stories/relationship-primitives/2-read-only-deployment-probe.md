@@ -1,6 +1,6 @@
 # Story 2: Read-only deployment probe for the primitives surface
 
-**Status:** Draft
+**Status:** Done
 **Created:** 2026-07-21
 **Type:** Feature (fix-forward)
 **Epic:** `relationship-primitives`
@@ -55,4 +55,4 @@ None blocking. The probe's route naming/placement and response shape are the Arc
 - Intake: `engineering-team/stories/_intake.md` → "2026-07-18 — Feature: primitive relationship add/delete endpoints (Neo4j-only, strfry-free)"
 - ADR: `engineering-team/decisions/relationship-primitives/0002-read-only-deployment-probe.md`
 - Test plan: `engineering-team/stories/relationship-primitives/2-read-only-deployment-probe.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/relationship-primitives/2-read-only-deployment-probe.md`
