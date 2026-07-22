@@ -1,6 +1,6 @@
 # Story 1: Place and move nodes between sets from the concept pages
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-07-22
 **Type:** Feature
 
@@ -28,24 +28,24 @@ can reorganize my concept graph in a few clicks instead of hand-crafted API call
 A "placement" = one node put under one set, as either *element* or *subset*, chosen per action.
 All destination choices are scoped to the same concept's sets.
 
-- [ ] **Set page — place:** Given the owner views a set's detail page, when they choose "add a
+- [x] **Set page — place:** Given the owner views a set's detail page, when they choose "add a
       node to this set…", pick an existing node of the concept and a placement kind
       (element / subset), and confirm, then the node appears in the corresponding table
       (Elements / Direct Subsets) without a full page reload.
-- [ ] **Set page — remove:** rows that represent a *direct* placement in this set offer a remove
+- [x] **Set page — remove:** rows that represent a *direct* placement in this set offer a remove
       control (with confirmation); after removal the row disappears. Rows shown via indirect
       chains (elements belonging to a descendant set) offer no remove here.
-- [ ] **Element page — current placement visible:** the node's page shows its direct parent
+- [x] **Element page — current placement visible:** the node's page shows its direct parent
       set(s), each linking to that set's page. (Today this page shows none.)
-- [ ] **Element page — move / add:** the owner can move a specific existing placement to a
+- [x] **Element page — move / add:** the owner can move a specific existing placement to a
       different set (old placement removed, new one created in one flow) and can add an
       additional placement; the page reflects the change.
-- [ ] **Organization (Sets) overview:** each row offers the same place/move affordance.
-- [ ] **Gating:** a logged-out visitor or an authenticated non-owner sees none of these
+- [x] **Organization (Sets) overview:** each row offers the same place/move affordance.
+- [x] **Gating:** a logged-out visitor or an authenticated non-owner sees none of these
       affordances; their views are unchanged from today.
-- [ ] **Warning on every change:** every successful graph change surfaces the backend's hazard
+- [x] **Warning on every change:** every successful graph change surfaces the backend's hazard
       warning (a firmware install can overwrite manual edits).
-- [ ] **Failures surfaced:** a failed operation (missing node, disallowed relationship kind,
+- [x] **Failures surfaced:** a failed operation (missing node, disallowed relationship kind,
       insufficient permissions) shows an inline error; no silent failures.
 
 ## Concepts touched
@@ -93,4 +93,4 @@ reference-graph edit with the warning surfaced.
 
 - ADR: `engineering-team/decisions/graph-curation-ui/0001-shared-placement-dialog-over-primitives.md`
 - Test plan: `engineering-team/stories/graph-curation-ui/1-move-nodes-between-sets-ui.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/graph-curation-ui/1-move-nodes-between-sets-ui.md` — **PASS** (2026-07-22)
