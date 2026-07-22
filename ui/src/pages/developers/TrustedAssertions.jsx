@@ -16,6 +16,14 @@ export default function DevelopersTrustedAssertions() {
         and apply its own trust perspective without depending on this instance.
       </p>
 
+      <p style={S.p}>
+        Read about Trusted Assertions in the{' '}
+        <a href="https://github.com/nostr-protocol/nips/blob/master/85.md" target="_blank" rel="noreferrer">
+          NIP-85
+        </a>{' '}
+        specification.
+      </p>
+
       <p style={{ ...S.p, marginTop: '2rem', opacity: 0.6 }}>Documentation coming soon.</p>
     </DevPage>
   );
