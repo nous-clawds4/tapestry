@@ -1,9 +1,9 @@
 # Book of Work: Relationship Primitives (Neo4j-only add/delete)
 
 **Slug:** relationship-primitives
-**Status:** Open
+**Status:** Closed
 **Opened:** 2026-07-18
-**Closed:** —
+**Closed:** 2026-07-22 — operator-ratified after the Direction-mode run's completion offer (all 9 frame bullets evidenced; final blinded audit APPROVE). Close artifacts: [`audit.md`](./audit.md) (confidence: high) · [`prd-seed.md`](./prd-seed.md) (ingest into second-brain Phase-2 scoping) · [`completion-report.md`](./completion-report.md) · [`journal.md`](./journal.md).
 
 ## Intent anchor
 

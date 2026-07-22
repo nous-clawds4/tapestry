@@ -1,7 +1,7 @@
 # Epic: relationship-primitives
 
 **Created:** 2026-07-21
-**Status:** Open
+**Status:** Done *(book closed 2026-07-22; retirement to `done/` on next-phase ingestion)*
 
 ## Goal
 
@@ -17,8 +17,8 @@ They also land on a freshly **secured** surface: unauthenticated mutations are n
 
 ## Stories
 
-1. `stories/relationship-primitives/1-relationship-add-delete-primitives.md` — both operations (add + delete) in one story — operator-ratified in the book's story-count rationale: they share a whitelist, a validation path, and a test harness. **Draft.**
-2. `stories/relationship-primitives/2-read-only-deployment-probe.md` — fix-forward (operator ruling 2026-07-21): a minimal read-only deployment probe shipped alongside the primitives, so the frame's bullet 8(a) evidence — a response distinguishable from a missing route — is satisfiable; the anticipated auth-class mechanism was falsified during story #1's Test Design. No credentials, no graph access, no mutation; deployment evidence only, not a health/monitoring surface. **Draft.**
+1. `stories/relationship-primitives/1-relationship-add-delete-primitives.md` — both operations (add + delete) in one story — operator-ratified in the book's story-count rationale: they share a whitelist, a validation path, and a test harness. **Done** (review PASS, Gate 5 APPROVE).
+2. `stories/relationship-primitives/2-read-only-deployment-probe.md` — fix-forward (operator ruling 2026-07-21): a minimal read-only deployment probe shipped alongside the primitives, so the frame's bullet 8(a) evidence — a response distinguishable from a missing route — is satisfiable; the anticipated auth-class mechanism was falsified during story #1's Test Design. No credentials, no graph access, no mutation; deployment evidence only, not a health/monitoring surface. **Done** (review PASS, Gate 5 APPROVE).
 
 ## Key facts / guardrails
 
