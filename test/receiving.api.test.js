@@ -7,6 +7,9 @@
  *     private, accept public) + host extraction for lud16 / lnurl
  *   - probe → tracked verdict mapping (the same trackedVerdict the /probe route returns)
  *   - build field + cleared per method, including clearing a legacy bolt12
+ *   - GET /show and /resolve: pubkey param validation + response shaping
+ *     (normalizePubkeyParam, shapeShowResponse, shapePayout, applyProbeVerdict,
+ *     shapeProbe), stubbed against a resolveProfile()-shaped object — no network.
  *
  * The async DNS path uses literal IPs so dns.lookup resolves them to themselves
  * without touching the network.
@@ -19,6 +22,13 @@ const assert = require('assert');
 const { checkReceivingTarget, isBlockedAddress, ipv4Blocked, extractTarget } = require('../src/api/receiving/ssrfGuard');
 const { trackedVerdict } = require('../src/lib/receiving/probe');
 const { buildReceivingContent } = require('../src/lib/receiving/mergeKind0');
+const {
+  normalizePubkeyParam,
+  shapeProbe,
+  shapeShowResponse,
+  shapePayout,
+  applyProbeVerdict,
+} = require('../src/api/receiving');
 
 const A = 'a'.repeat(64);
 const GOOD_LNURL = 'lnurl1dp68gurn8ghj7um9wfmxjcm99e3k7mf0v9cxj0m385ekvcenxc6r2c35xvukxefcv5mkvv34x5ekzd3ev56nyd3hxqurzepexejxxepnxscrvwfnv9nxzcn9xq6xyefhvgcxxcmyxymnserxfq5fns';
@@ -145,6 +155,109 @@ async function main() {
   });
   await check('bolt12 is not a settable method (removed)', () => {
     assert.throws(() => buildReceivingContent({ profile: {}, method: 'bolt12', value: 'lno1abc', pubkeyHex: A }), /Unknown receiving method/);
+  });
+
+  // ---- GET /show, /resolve: pubkey param validation -----------------------
+  console.log('\npubkey param validation (normalizePubkeyParam):');
+  await check('rejects a short hex string', () => {
+    assert.strictEqual(normalizePubkeyParam('abcd'), null);
+  });
+  await check('rejects non-hex characters at 64 length', () => {
+    assert.strictEqual(normalizePubkeyParam('g'.repeat(64)), null);
+  });
+  await check('rejects undefined/empty', () => {
+    assert.strictEqual(normalizePubkeyParam(undefined), null);
+    assert.strictEqual(normalizePubkeyParam(''), null);
+  });
+  await check('accepts 64-char hex and lowercases it', () => {
+    assert.strictEqual(normalizePubkeyParam(A), A);
+    assert.strictEqual(normalizePubkeyParam(A.toUpperCase()), A);
+  });
+
+  // ---- GET /show response shaping ------------------------------------------
+  console.log('\nGET /show response shaping (shapeShowResponse):');
+  await check('no profile on any relay → null (route 404s)', () => {
+    assert.strictEqual(shapeShowResponse(A, { profile: null, source: null, createdAt: null, sources: { local: 0, external: 0 } }), null);
+    assert.strictEqual(shapeShowResponse(A, null), null);
+  });
+  await check('profile with a lud16 → method/source/createdAt/sources, no raw content leak', () => {
+    const resolved = {
+      profile: { name: 'Alice', about: 'secret bio', lud16: 'alice@walletofsatoshi.com' },
+      source: 'external',
+      createdAt: 1700000000,
+      sources: { local: 0, external: 2 },
+    };
+    const body = shapeShowResponse(A, resolved);
+    assert.strictEqual(body.success, true);
+    assert.strictEqual(body.pubkey, A);
+    assert.strictEqual(body.method.method, 'lud16');
+    assert.strictEqual(body.method.value, 'alice@walletofsatoshi.com');
+    assert.strictEqual(body.createdAt, 1700000000);
+    assert.deepStrictEqual(body.sources, { local: 0, external: 2 });
+    assert.strictEqual(body.source, 'external');
+    // Only receiving-relevant fields + created_at — no raw profile passthrough.
+    assert.strictEqual(body.profile, undefined);
+    assert.strictEqual(body.about, undefined);
+  });
+  await check('profile found but no receiving method set → method:null, not 404', () => {
+    const resolved = { profile: { name: 'Bob' }, source: 'local', createdAt: 42, sources: { local: 1, external: 0 } };
+    const body = shapeShowResponse(A, resolved);
+    assert.notStrictEqual(body, null);
+    assert.strictEqual(body.method, null);
+  });
+
+  // ---- GET /resolve payout shaping -----------------------------------------
+  console.log('\nGET /resolve payout shaping (shapePayout / applyProbeVerdict):');
+  await check('no profile → payment type none, no probe needed', () => {
+    const { payment, payTarget, needsProbe } = shapePayout({ profile: null });
+    assert.strictEqual(payment.type, 'none');
+    assert.strictEqual(needsProbe, false);
+    assert.strictEqual(payTarget, undefined);
+  });
+  await check('lud16 profile → bolt11 via lud16, needs probe', () => {
+    const { payment, payTarget, needsProbe } = shapePayout({ profile: { lud16: 'alice@walletofsatoshi.com' } });
+    assert.strictEqual(payment.type, 'bolt11');
+    assert.strictEqual(payment.lud16, 'alice@walletofsatoshi.com');
+    assert.strictEqual(payTarget, 'alice@walletofsatoshi.com');
+    assert.strictEqual(needsProbe, true);
+  });
+  await check('static lnurl profile → bolt11 via lnurl, needs probe', () => {
+    const { payment, payTarget, needsProbe } = shapePayout({ profile: { lud06: GOOD_LNURL } });
+    assert.strictEqual(payment.type, 'bolt11');
+    assert.strictEqual(payment.via, 'lnurl');
+    assert.strictEqual(payTarget, GOOD_LNURL);
+    assert.strictEqual(needsProbe, true);
+  });
+  await check('legacy bolt12-only profile → type none, unsupported, no probe', () => {
+    const { payment, needsProbe } = shapePayout({ profile: { bolt12: 'lno1legacyoffer1234567890' } });
+    assert.strictEqual(payment.type, 'none');
+    assert.strictEqual(payment.unsupported, true);
+    assert.strictEqual(needsProbe, false);
+  });
+  await check('applyProbeVerdict: allowsNostr → tracked, payable untouched', () => {
+    const payment = { type: 'bolt11', lud16: 'a@b.com', tracked: true };
+    applyProbeVerdict(payment, { reachable: true, ok: true, allowsNostr: true });
+    assert.strictEqual(payment.tracked, true);
+    assert.strictEqual(typeof payment.probeNote, 'string');
+    assert.strictEqual(payment.payable, undefined);
+  });
+  await check('applyProbeVerdict: no allowsNostr → not tracked, payable:false', () => {
+    const payment = { type: 'bolt11', lud16: 'a@b.com', tracked: true };
+    applyProbeVerdict(payment, { reachable: true, ok: true, allowsNostr: false });
+    assert.strictEqual(payment.tracked, false);
+    assert.strictEqual(payment.payable, false);
+  });
+
+  // ---- probe response shaping (shared by /probe and /resolve) -------------
+  console.log('\nProbe result whitelisting (shapeProbe):');
+  await check('shapeProbe only exposes the whitelisted fields — never a raw body', () => {
+    const probe = {
+      ok: true, reachable: true, allowsNostr: true, minSendable: 1000, maxSendable: 5000000,
+      callback: 'https://evil.example/secret-callback', tag: 'payRequest', metadata: '[["text/plain","hi"]]',
+    };
+    const shaped = shapeProbe(probe);
+    assert.deepStrictEqual(Object.keys(shaped).sort(), ['allowsNostr', 'error', 'maxSendable', 'minSendable', 'ok', 'reachable']);
+    assert.strictEqual(shaped.error, null);
   });
 
   console.log('\n-------------');
