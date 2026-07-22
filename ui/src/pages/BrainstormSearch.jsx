@@ -1306,7 +1306,7 @@ export default function BrainstormSearch() {
 
         <div className="bs-footer">
           <a href="/developers" className="bs-footer-link">Developers</a>
-          <a href="/how-search-works" className="bs-footer-link">How search works</a>
+          <a href="/about-brainstorm-search" className="bs-footer-link">About Brainstorm Search</a>
           <a href="/settings" className="bs-footer-link">Settings</a>
         </div>
       </div>

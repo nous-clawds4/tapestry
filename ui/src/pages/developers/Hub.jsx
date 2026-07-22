@@ -28,6 +28,20 @@ export default function DevelopersHub() {
         </div>
       </Link>
 
+      <Link to="/developers/trusted-assertions" style={card}>
+        <div style={{ fontSize: '1.05rem', fontWeight: 600 }}>Trusted Assertions →</div>
+        <div style={{ ...S.p, opacity: 0.7, marginTop: '0.25rem' }}>
+          Web-of-trust scores published as ordinary nostr events, so any client can fetch and verify them.
+        </div>
+      </Link>
+
+      <Link to="/developers/relay-tools" style={card}>
+        <div style={{ fontSize: '1.05rem', fontWeight: 600 }}>Relay Tools →</div>
+        <div style={{ ...S.p, opacity: 0.7, marginTop: '0.25rem' }}>
+          Screen spam from your own hosted relay using a personalized whitelist drawn from your web of trust.
+        </div>
+      </Link>
+
       <h2 style={S.h2}>Open-source</h2>
       <ul style={{ ...S.p }}>
         <li><a href="https://github.com/nous-clawds4/tapestry" target="_blank" rel="noreferrer">Brainstorm Search repo</a> (this website)</li>
