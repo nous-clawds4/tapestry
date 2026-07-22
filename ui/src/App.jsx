@@ -75,9 +75,13 @@ import BrainstormSettings from './pages/BrainstormSettings';
 import BrainstormPersonalization from './pages/BrainstormPersonalization';
 import BrainstormHowSearchWorks from './pages/BrainstormHowSearchWorks';
 import BrainstormAbout from './pages/BrainstormAbout';
+import BrainstormAboutSearch from './pages/BrainstormAboutSearch';
+import BrainstormSkill from './pages/BrainstormSkill';
 import DevelopersHub from './pages/developers/Hub';
 import DevelopersNip50 from './pages/developers/Nip50';
 import DevelopersOpenRanking from './pages/developers/OpenRanking';
+import DevelopersTrustedAssertions from './pages/developers/TrustedAssertions';
+import DevelopersRelayTools from './pages/developers/RelayTools';
 import Tag from './pages/Tag';
 import Tags from './pages/Tags';
 import Pins from './pages/Pins';
@@ -155,6 +159,14 @@ const router = createBrowserRouter([
     element: <BrainstormAbout />,
   },
   {
+    path: '/about-brainstorm-search',
+    element: <BrainstormAboutSearch />,
+  },
+  {
+    path: '/brainstorm-skill',
+    element: <BrainstormSkill />,
+  },
+  {
     path: '/feed',
     element: <BrainstormFeed />,
   },
@@ -173,6 +185,14 @@ const router = createBrowserRouter([
   {
     path: '/developers/open-ranking',
     element: <DevelopersOpenRanking />,
+  },
+  {
+    path: '/developers/trusted-assertions',
+    element: <DevelopersTrustedAssertions />,
+  },
+  {
+    path: '/developers/relay-tools',
+    element: <DevelopersRelayTools />,
   },
   {
     path: '/tapestry',

@@ -1,9 +1,9 @@
 # Book of Work: Scheduled-Task Deploy-Safety Gate
 
 **Slug:** deploy-safety-gate
-**Status:** Open
+**Status:** Closed
 **Opened:** 2026-07-18
-**Closed:** —
+**Closed:** 2026-07-19 (operator-ratified completion; completion audit APPROVE after one KICK_BACK→correction)
 
 ## Intent anchor
 **Acceptance frame (no PRD)** — the operator's ask, restated and confirmed in the conversation of 2026-07-18. Completion is *judged* against the bullets below.
@@ -99,10 +99,14 @@ Executed **only on the operator's explicit instruction** after reviewing the HAL
 
 **Decision journal:** `engineering-team/audits/deploy-safety-gate/journal.md` — append-only, committed at every phase boundary.
 
+## Direction-mode outcome (run 2) — recorded at close
+
+**SUCCESS.** Completion offer made 2026-07-19 (~10:50 local), ~6.1 days before the deadline; operator ratified the same hour. 3 stories planned, 3 Done, 0 fix-forward; 13 blinded per-story spawns (12 APPROVE, 1 void — story-1 Gate 3 self-reported blinding break, re-judged clean), 0 per-story KICK_BACKs; completion audit KICK_BACK→corrected→APPROVE (report tally integrity — the harness caught its own Director). Ceiling never approached; both of the book's later staging merges ran through the gate the book itself shipped. Full trail: journal.md; retro dispositions: audit.md §7. The pre-registration estimated ~75% success; the hypothesis (the harness can carry a feature of this size end-to-end without a human at the gates) is supported for this size class.
+
 ## Provenance
 - **Mode:** Acceptance-frame
-- **Confidence at close:** *(to be filled by `/close-book`)*
+- **Confidence at close:** high — acceptance-frame mode, armed anchor; all six bullets evidence-satisfied per two completion audits (first KICK_BACKed the report's verdict tally, corrected and disclosed; re-audit APPROVE).
 
 ## Close artifacts *(filled by `/close-book`)*
-- Build audit: `engineering-team/audits/deploy-safety-gate/audit.md`
-- Product feedback: `engineering-team/audits/deploy-safety-gate/prd-seed.md`
+- Build audit: `engineering-team/audits/deploy-safety-gate/audit.md` ✅ (2026-07-19)
+- Product feedback: `engineering-team/audits/deploy-safety-gate/prd-seed.md` ✅ (2026-07-19)

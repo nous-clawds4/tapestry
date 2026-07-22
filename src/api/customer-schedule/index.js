@@ -118,6 +118,25 @@ function stopCustomerTimer(pubkey) {
   }
 }
 
+// ── Aggregate in-flight count ──────────────────────────────
+
+/**
+ * Count of legacy per-customer runs currently in flight (taskRunning === true
+ * across all customer timers). Live in-process state — cleared by any
+ * container restart, so it cannot phantom.
+ *
+ * Consumer: the deploy-safety status endpoint (src/api/deploy-safety,
+ * epic deploy-safety-gate ADR 0001). If this legacy scheduler is ever
+ * retired, deploy-safety must drop this source.
+ */
+function getInFlightCount() {
+  let count = 0;
+  for (const state of customerTimers.values()) {
+    if (state && state.taskRunning === true) count++;
+  }
+  return count;
+}
+
 // ── History from events.jsonl ──────────────────────────────
 
 function getCustomerRuns(pubkey, maxRuns = 5) {
@@ -319,4 +338,6 @@ module.exports = {
   handleTrigger,
   handleHistory,
   initCustomerSchedulers,
+  // Exported for the deploy-safety status endpoint (ADR deploy-safety-gate/0001):
+  getInFlightCount,
 };

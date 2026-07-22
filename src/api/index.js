@@ -482,6 +482,12 @@ async function register(app) {
     app.post('/api/scheduled-tasks/delete', scheduledTasks.handleDelete);
     app.get('/api/scheduled-tasks/registry-tasks', scheduledTasks.handleRegistryTasks);
 
+    // ── Deploy-Safety Status API (epic deploy-safety-gate, ADR 0001) ──
+    // Registered unconditionally — OUTSIDE the TASK_QUEUE_ENABLED gate below —
+    // so the AC-5 queue-disabled response can still be served.
+    const deploySafety = require('./deploy-safety');
+    app.get('/api/deploy-safety/status', deploySafety.handleStatus);
+
     // ── Per-Customer Scheduled Tasks API ──
     const customerSchedule = require('./customer-schedule');
     app.get('/api/customer-schedule/status', customerSchedule.handleStatus);

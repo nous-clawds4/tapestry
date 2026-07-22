@@ -426,6 +426,29 @@ If a droplet shows high abuse counts in the third check but the first two pass, 
 
 **Tracking:** add a row to §8 "Active tracking issues" when starting the audit; remove it once all four droplets pass. The audit doesn't need to be scheduled — it's a one-time backfill; new droplets are protected by §6.3 step 2 going forward.
 
+### 9.10. 2026-07-19: unauthenticated write-surface exposure + Neo4j credential leak (closed)
+
+Two related exposures, confirmed **live** on staging *and* production by read-only probes 2026-07-19:
+
+- `GET /api/neo4j/run-query?cypher=` ran server-side **unauthenticated**, shelled out to `cypher-shell` with the Neo4j password interpolated into the command string, and returned the password in the error body — an internet-reachable **credential leak + shell-injection RCE**.
+- The auth middleware's "localhost bypass" treated *all* nginx-proxied traffic as local (on a droplet every request arrives proxied from `127.0.0.1`), so the entire `/api/normalize/*` + `/api/neo4j/query` **write** surface — which mints TA-signed events and can `DETACH DELETE` the graph — was reachable unauthenticated.
+
+**Fix (shipped to staging + prod + `feat/tags`):** `run-query` deleted; the bypass now requires loopback peer **and** no `X-Forwarded-For`/`X-Real-IP` (so proxied = remote, and a spoofed `XFF: 127.0.0.1` is still remote); the middleware is **default-deny for mutations** (`POST/PUT/PATCH/DELETE` → 401 unless the exact path is on a two-entry public allowlist). Full as-built record: `engineering-team/audits/security-auth-exposure/audit.md`.
+
+**Operator companion — rotate the leaked Neo4j password.** ✅ done on all three instances 2026-07-20. **The method that worked, and the trap that didn't:**
+
+```bash
+# Rotate on the Neo4j the APP uses — the in-container one — then point config at it:
+docker exec tapestry cypher-shell -u neo4j -p '<OLD>' \
+  "ALTER CURRENT USER SET PASSWORD FROM '<OLD>' TO '<NEW>';"
+# set /opt/tapestry/.env  NEO4J_PASSWORD=<NEW>  (entrypoint re-renders /etc/brainstorm.conf on start)
+docker exec tapestry supervisorctl restart brainstorm    # or: docker compose up -d
+```
+
+**Do NOT rotate via the web Neo4j Browser at `:7474`.** It can reach a *different* instance/droplet than the app's in-container Neo4j — during this rotation that caused a cross-instance mix-up where the app got "unauthorized due to authentication failure" because config held the new password but the Neo4j the app actually talks to still had the old one. Always rotate through `docker exec tapestry cypher-shell` so you're changing the same database the app uses.
+
+**Lesson:** the deploy `sed` only remaps `80:80` → `127.0.0.1:8080`; every other Docker-published port (`7474`/`7687`/`8687` Neo4j, `7778` control-panel API, `7700` Meili, `3069` nostr-search-api) stays on `0.0.0.0` and is internet-reachable. Nothing external needs them. **Firewalling them is deferred → OPEN.md #66** (full runbook in `engineering-team/audits/security-auth-exposure/book.md` § Companion). Use a **DO Cloud Firewall, not `ufw`** — Docker rewrites iptables ahead of ufw, so `ufw deny 7687` is silently bypassed; a network-layer firewall filters before the packet reaches the droplet.
+
 ---
 
 ## 10. Task queue (BullMQ behind /api/run-task)

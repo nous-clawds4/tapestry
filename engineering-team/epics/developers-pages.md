@@ -13,9 +13,11 @@ Each feature page links back to the hub. Additive, frontend-only (React routes +
 
 ## Stories
 `stories/developers-pages/`:
-1. **multipage-developers** — the hub + the two feature pages + routing + shared dev-page chrome. *(this story)*
+1. **multipage-developers** — the hub + the two feature pages + routing + shared dev-page chrome.
+2. **hub-trusted-assertions-and-relay-tools** — expands the hub to four cards, adding placeholder pages for **Trusted Assertions** (`/developers/trusted-assertions`) and **Relay Tools** (`/developers/relay-tools`). Requested 2026-07-21 alongside the `about-brainstorm-search` epic, which routes "via other nostr clients" traffic into this hub.
 
 ## Out of scope
-- Other protocol pages (future feature pages slot into the same hub).
+- Other protocol pages beyond the four now on the hub (future feature pages continue to slot in the same way).
+- Real documentation for the Trusted Assertions and Relay Tools pages — story 2 ships placeholders only; the actual integration docs are future work (one story each).
 - Any backend, API, or data change; any change to the ORE endpoints themselves.
 - ADR + failing-tests ceremony (lightweight docs-UI treatment, operator-approved); verification is browser-based.
