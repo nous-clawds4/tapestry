@@ -221,9 +221,9 @@ export function buildClaudePrompt(lists = [], request = '') {
 
   return [
     'You are helping me configure Nostr "bounties" on Tapestry. A bounty attaches a sats',
-    'reward to one of my lists; people I trust (web-of-trust rank >= 2) submit items to earn it.',
+    'reward to a list; people I trust (web-of-trust rank >= 2) submit items to earn it.',
     '',
-    'Here are my lists. Use the COORDINATE (not the name) in your output:',
+    'Here are the lists on the relay. Use the COORDINATE (not the name) in your output:',
     listLines,
     ...requestLines,
     '',

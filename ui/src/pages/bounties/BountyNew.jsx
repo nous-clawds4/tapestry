@@ -50,6 +50,7 @@ export default function BountyNew() {
 
   // Claude/TOML drop-in state
   const [myLists, setMyLists] = useState([]);
+  const [listLimit, setListLimit] = useState(500); // how many relay lists to pull into the prompt
   const [query, setQuery] = useState('');           // plain-English request baked into the deep link
   const [tomlText, setTomlText] = useState('');
   const [parsed, setParsed] = useState(null);        // { bounties, errors } from the last Load
@@ -63,14 +64,15 @@ export default function BountyNew() {
     }
   }, [authLoading, user, navigate]);
 
-  // Load the signed-in user's addressable (kind 39998) lists for the Claude prompt.
+  // Load every addressable (kind 39998) list on the relay for the Claude prompt.
   // Only 39998 lists have a kind:pubkey:d-tag coordinate a bounty can target.
   useEffect(() => {
     if (!user?.pubkey) return;
     let cancelled = false;
     (async () => {
       try {
-        const events = await queryRelay({ kinds: [39998], authors: [user.pubkey] });
+        // ponytail: limit caps the relay fan-out; paginate if list count outgrows it
+        const events = await queryRelay({ kinds: [39998], limit: listLimit });
         if (cancelled) return;
         const lists = events
           .map(ev => {
@@ -88,7 +90,7 @@ export default function BountyNew() {
       }
     })();
     return () => { cancelled = true; };
-  }, [user]);
+  }, [user, listLimit]);
 
   const prompt = buildClaudePrompt(myLists, query);
   const deepLink = buildClaudeDeepLink(prompt);
@@ -202,7 +204,7 @@ export default function BountyNew() {
           ⚡ Set up with Claude — describe it, paste the TOML
         </summary>
         <p style={{ opacity: 0.7, fontSize: '0.9rem', marginTop: '0.75rem' }}>
-          Describe the bounty you want, open Claude pre-loaded with your lists and your request,
+          Describe the bounty you want, open Claude pre-loaded with the available lists and your request,
           then paste the <code>toml</code> it gives back and hit Load. Set up several at once with
           multiple <code>[[bounty]]</code> tables.
         </p>
@@ -233,8 +235,18 @@ export default function BountyNew() {
             {copied ? 'Copied ✓' : 'Copy prompt'}
           </button>
           <span style={{ alignSelf: 'center', fontSize: '0.8rem', opacity: 0.6 }}>
-            {myLists.length} of your lists included
+            {myLists.length} lists included
           </span>
+          <label style={{ alignSelf: 'center', fontSize: '0.8rem', opacity: 0.6, display: 'flex', gap: '0.35rem', alignItems: 'center' }}>
+            max lists
+            <input
+              type="number"
+              min={1}
+              value={listLimit}
+              onChange={e => setListLimit(Math.max(1, Number(e.target.value) || 1))}
+              style={{ width: '5rem', ...inputStyle, padding: '0.2rem 0.4rem' }}
+            />
+          </label>
         </div>
 
         {/* Step 2 — paste back what Claude gives you */}
