@@ -77,6 +77,6 @@ reference-graph edit with the warning surfaced.
 
 ## Linked artifacts
 
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/graph-curation-ui/0001-shared-placement-dialog-over-primitives.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
