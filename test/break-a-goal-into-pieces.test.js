@@ -530,15 +530,18 @@ test('U9 (row 85c): an unreadable SCHEMA reports kind schema-unreadable; an unre
 
 /* ══════════════ S-class — source assertions (stack-free) ══════════════ */
 
-test('S1 (sentinel — ADR d5): the brain import surface is UNCHANGED — the same five require specs, nothing new', () => {
+test('S1 (sentinel — ADR d5, re-pinned by second-brain #4): the brain import surface allows the story-3 five plus lib/brain/resources, nothing else', () => {
   const src = safeRead(BRAIN_API);
   assert(src, 'src/api/brain/index.js missing — story 1 regression.');
   const requires = [...src.matchAll(/require\s*\(\s*['"`]([^'"`]+)['"`]\s*\)/g)].map((m) => m[1]);
-  const allowed = [/neo4j-driver$/, /middleware\/auth$/, /assistantKeys$/, /lib\/brain\/goals$/, /lib\/brain\/hygiene$/];
+  // second-brain #4 (ADR 0004 d5) widened this by exactly one — lib/brain/resources,
+  // the freshness core the per-goal endpoint reads. Green on both sides: a pre-#4
+  // module has five requires (all allowed), a post-#4 module six (all allowed).
+  const allowed = [/neo4j-driver$/, /middleware\/auth$/, /assistantKeys$/, /lib\/brain\/goals$/, /lib\/brain\/hygiene$/, /lib\/brain\/resources$/];
   for (const spec of requires) {
     assert(allowed.some((re) => re.test(spec)),
-      `import surface violation: require('${spec}') — story 3 must arrive through NEW EXPORTS of the two ` +
-      'already-required cores, never a new require (ADR 0003 d5; story-1 S2 + story-2 S3 pins).');
+      `import surface violation: require('${spec}') — story 3/4 behavior arrives through the goals/hygiene/resources ` +
+      'cores only, never an unlisted require (ADR 0003 d5; ADR 0004 d5; story-1 S2 + story-2 S3 pins).');
   }
 });
 
