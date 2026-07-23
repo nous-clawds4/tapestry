@@ -66,6 +66,19 @@ None open. Three were resolved at the planning gate (operator, 2026-07-23):
 2. **Adoption ratified.** The owner may place an existing *parentless* goal under a parent in conversation; self-parenting and cycles are refused loudly (folded into AC 1). Changing an already-set parent stays out of scope.
 3. **Legacy-goal hint confirmed as designed.** All three pre-existing goals carry the inline hint (childless, no deliverable) — the design guide's literal behavior, wanted as honest onboarding.
 
+## Deviations
+
+*(Implementer log, 2026-07-23 — small judgment calls; the ADR was not departed from.)*
+
+- **Journaled schema extension — the d8 fold's first live use (ADR d13, operational step):** after the code deploy (`supervisorctl restart brainstorm`), one `POST /api/normalize/save-schema` call for `tapestry owner goal` with the complete schema — the existing five properties plus optional `deliverable` (*"what 'done' produces, in the owner's words"*), `boundary` (*"what pursuing this goal may not touch, in the owner's words"*), `parent` (*"the slug of the parent goal this goal is part of (one parent at most)"*); `required` and `x-tapestry.unique` unchanged. Response carried `primaryProperty: {result: 'reconciled', properties: {before: [5 keys], after: [8 keys]}}` — **no paired reconcile call was needed**; hygiene read back green (`sound:true`, 0 problems). Other deployments: extend the current schema the same way at bootstrap; the fold auto-reconciles.
+- **Refusal responses carry a machine-readable `refusal` key** alongside the human `error` sentence (e.g. `{success:false, refusal:'name-collides', error:'…'}`) — additive; gives the conversational agent the discriminated contract the ADR's named refusals imply. Same pattern: the extracted `reconcilePrimaryPropertyForConcept` failures carry a `code` key (needed by the fold's `not-applicable` mapping) — additive on the endpoint's otherwise byte-equivalent responses.
+- **The core's refusal kinds pass through from `validateDecompositionOp`** (`parent-not-found`, `ambiguous-slug`, `self-parent`, `cycle`, `already-has-parent` originate in `lib/brain/goals`); `name-collides`, `empty-value`, `goal-not-found` are built endpoint-side (d-tags and body validation are endpoint knowledge). The handlers' refusal-contract comments document the full set at the route.
+- **`resolveDecomposition` also annotates cycle members with `cycleOf`** (the smallest member uuid — the cycle's stable identity) beyond the ADR's flag list — additive; it is how `classifyDecomposition` groups one problem per cycle deterministically.
+- **`resolveGoalConcept` adopts create-element's exact lookup** (ListHeader OR ClassThreadHeader, no ConceptHeader — matching the write path the child-create rides, rather than save-schema's wider match).
+- **UI hint condition is `!hasChildren && standing !== 'viable'`** — equivalent to `=== 'captured'` while only two standings exist; story 6's ADR revisits when `achieved`/`abandoned` become derivable.
+- **Detail page gate/loading/error branches title the page "Goal"** (the goal's name is unavailable in those branches); the not-found line is *"Couldn't find this goal — it may have been renamed or removed."* (register-conformant, reviewer-checkable).
+- **Visual verification stopped at the gate branch:** in-container `vite build` clean (the established JSX gap-filler); browser smoke of `/tapestry/goals` renders the owner gate with zero console errors (an unauthenticated browser is the remote caller class — the tree needs an owner session); tree behavior is verified end-to-end through the same endpoint the view consumes (suite H3–H6).
+
 ## Linked artifacts
 
 - ADR: `engineering-team/decisions/second-brain/0003-record-based-decomposition-and-validated-goal-writes.md`
