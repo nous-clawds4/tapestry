@@ -17,7 +17,7 @@ Three owner-gated views inside the existing control panel (Goals view, Goal deta
 
 `stories/second-brain/` — dependency-ordered (see the queue's sequence summary):
 
-1. **capture-a-goal-and-see-it** — state a goal in conversation, see it in the Goals view; adopts the existing goal concept; cold-start empty state; privacy indicator line. *(In planning)*
+1. **capture-a-goal-and-see-it** — state a goal in conversation, see it in the Goals view; adopts the existing goal concept; cold-start empty state; privacy indicator line. **Done** (review PASS 2026-07-23).
 2. **structures-the-brain-can-trust** — hygiene check against class discipline; clean the two known stray membership edges. *(Queued — may depend on relationship-primitives cleanup ops, shipped 2026-07-22)*
 3. **break-a-goal-into-pieces** — child goals; viable = deliverable ("done means") + boundary ("stays inside"); parents never proposed. *(Queued — edge materialization depends on the relationship-primitives whitelist-extension path; do not extend the whitelist inside the story)*
 4. **attach-the-world** — External Resource pointers; freshness standing; the one-spine Goal detail. *(Queued)*

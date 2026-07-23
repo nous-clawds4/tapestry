@@ -1,6 +1,6 @@
 # Story 1: Capture a goal and see it
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-07-22
 **Type:** Feature
 
@@ -71,4 +71,4 @@ None open. Two were resolved at the planning gate (operator, 2026-07-22):
 
 - ADR: `engineering-team/decisions/second-brain/0001-goal-capture-and-goals-view.md`
 - Test plan: `engineering-team/stories/second-brain/1-capture-a-goal-and-see-it.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/second-brain/1-capture-a-goal-and-see-it.md` (PASS)
