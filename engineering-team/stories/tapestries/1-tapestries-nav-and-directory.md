@@ -49,6 +49,6 @@ Testable from the outside. Each criterion gets at least one test.
 None outstanding.
 
 ## Linked artifacts
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/tapestries/0001-nav-directory-and-strfry-element-read.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
