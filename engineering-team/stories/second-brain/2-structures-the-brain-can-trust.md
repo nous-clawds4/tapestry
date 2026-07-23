@@ -69,5 +69,5 @@ None open. Three were resolved at the planning gate (operator, 2026-07-23):
 ## Linked artifacts
 
 - ADR: `engineering-team/decisions/second-brain/0002-hygiene-check-and-primary-property-reconcile.md`
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/second-brain/2-structures-the-brain-can-trust.test-plan.md`
 - Review: (filled in after Review phase)
