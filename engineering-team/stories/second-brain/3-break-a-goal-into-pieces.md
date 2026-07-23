@@ -68,6 +68,6 @@ None open. Three were resolved at the planning gate (operator, 2026-07-23):
 
 ## Linked artifacts
 
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/second-brain/0003-record-based-decomposition-and-validated-goal-writes.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
