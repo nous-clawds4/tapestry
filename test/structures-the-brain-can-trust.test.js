@@ -456,7 +456,7 @@ test('S3 (ADR d1): brain import surface re-pin — the 0001 four plus lib/brain/
   }
 });
 
-test('S4 (ADR d4): the reconcile primitive — route, gate, regenerateJson mechanism, discriminated results', () => {
+test('S4 (ADR d4, as amended by 0003 d8): the reconcile primitive — route, gate, regenerateJson mechanism, discriminated results', () => {
   const src = safeRead(NORMALIZE_INDEX);
   assert(/\/api\/normalize\/reconcile-primary-property/.test(src),
     'POST /api/normalize/reconcile-primary-property is not registered (ADR 0002 decision 4) — not implemented yet.');
@@ -467,9 +467,19 @@ test('S4 (ADR d4): the reconcile primitive — route, gate, regenerateJson mecha
   assert(/isOwner\s*\(\s*req\s*\)/.test(body) && /localTrusted/.test(body) && /403/.test(body),
     'the reconcile handler must carry the explicit in-handler gate (isOwner(req) || req.localTrusted → 403) — ' +
     'the relationships.js template (security-auth-exposure discipline).');
-  assert(/regenerateJson\s*\(/.test(body),
+  // Mechanism + discriminated results: ADR 0003 d8 extracts the post-gate body
+  // into reconcilePrimaryPropertyForConcept (the save-schema fold). Accept the
+  // tokens in the handler OR the extracted function, so this pin stays green
+  // across the 0003 transition. (Amended in story-3 Test Design.)
+  let mech = body;
+  const exStart = src.indexOf('function reconcilePrimaryPropertyForConcept');
+  if (exStart !== -1) {
+    const exNext = src.indexOf('\nasync function ', exStart + 1);
+    mech = body + src.slice(exStart, exNext === -1 ? src.length : exNext);
+  }
+  assert(/regenerateJson\s*\(/.test(mech),
     'the reconcile must ride regenerateJson() — the same sign/publish/import path save-schema uses (ADR decision 4).');
-  assert(/already-consistent/.test(body) && /reconciled/.test(body),
+  assert(/already-consistent/.test(mech) && /reconciled/.test(mech),
     "the reconcile must answer discriminated results: 'reconciled' | 'already-consistent' (idempotency contract).");
 });
 

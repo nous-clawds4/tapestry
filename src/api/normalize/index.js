@@ -1960,10 +1960,34 @@ async function handleSaveSchema(req, res) {
 
     await regenerateJson(schemaUuid, wordWrapper);
 
+    // Fold (second-brain #3, ADR 0003 d8 — ADR 0002's Option C lands): a
+    // schema write regenerates only the schema node, so reconcile the
+    // primary-property record in the same call and report the outcome as
+    // `primaryProperty`. Structural non-fits (no pp node, unconventional
+    // schema shape, unreadable pp json) map to 'not-applicable' — this path
+    // also runs for every firmware concept during install pass 2 and must
+    // not turn unconventional concepts into noise. A fold failure after the
+    // successful schema write is surfaced loudly here (no rollback exists;
+    // the hygiene check stands guard).
+    let primaryProperty;
+    try {
+      const rec = await reconcilePrimaryPropertyForConcept(concept);
+      if (rec.success) {
+        primaryProperty = { result: rec.result, ...(rec.properties ? { properties: rec.properties } : {}) };
+      } else if (rec.code === 'no-primary-property' || rec.code === 'schema-shape' || rec.code === 'pp-unreadable') {
+        primaryProperty = { result: 'not-applicable', detail: rec.error };
+      } else {
+        primaryProperty = { result: 'error', detail: rec.error };
+      }
+    } catch (foldErr) {
+      primaryProperty = { result: 'error', detail: foldErr.message };
+    }
+
     return res.json({
       success: true,
       message: `JSON Schema for "${concept}" updated.`,
       schemaUuid,
+      primaryProperty,
     });
 
   } catch (error) {
@@ -1987,6 +2011,91 @@ async function handleSaveSchema(req, res) {
 //   at point of use; installer untouched — operator decision 2026-07-18).
 // ══════════════════════════════════════════════════════════════
 
+// The reconcile mechanism, extracted from the route handler (second-brain #3,
+// ADR 0003 d8) so handleSaveSchema can fold it in. Behavior is byte-equivalent
+// for the endpoint; failures carry a discriminated `code` so the fold can map
+// structural non-fits to a non-alarming result while the standalone endpoint
+// keeps its loud named refusals.
+async function reconcilePrimaryPropertyForConcept(concept) {
+  // The save-schema lookup idiom, extended to the primary-property node.
+  const rows = await runCypher(`
+    MATCH (h:NostrEvent)
+    WHERE (h:ListHeader OR h:ClassThreadHeader OR h:ConceptHeader) AND h.kind IN [9998, 39998]
+      AND h.name = $concept
+    OPTIONAL MATCH (js:JSONSchema)-[:${REL.CORE_NODE_JSON_SCHEMA}]->(h)
+    OPTIONAL MATCH (js)-[:HAS_TAG]->(jt:NostrEventTag {type: 'json'})
+    OPTIONAL MATCH (pp:Property)-[:${REL.CORE_NODE_PRIMARY_PROPERTY}]->(h)
+    OPTIONAL MATCH (pp)-[:HAS_TAG]->(pt:NostrEventTag {type: 'json'})
+    RETURN h.uuid AS headerUuid, js.uuid AS schemaUuid, head(collect(DISTINCT jt.value)) AS schemaJson,
+           pp.uuid AS ppUuid, head(collect(DISTINCT pt.value)) AS ppJson
+    LIMIT 1
+  `, { concept });
+
+  if (rows.length === 0) {
+    return { success: false, code: 'not-found', error: `Concept "${concept}" not found` };
+  }
+  const { schemaUuid, ppUuid, schemaJson, ppJson } = rows[0];
+  if (!schemaUuid) {
+    return { success: false, code: 'no-schema', error: `Concept "${concept}" has no JSON Schema node — nothing to reconcile against.` };
+  }
+  if (!ppUuid) {
+    return { success: false, code: 'no-primary-property', error: `Concept "${concept}" has no Primary Property node to reconcile.` };
+  }
+
+  let schemaWrapper, ppWrapper;
+  try { schemaWrapper = JSON.parse(schemaJson); } catch { schemaWrapper = null; }
+  try { ppWrapper = JSON.parse(ppJson); } catch { ppWrapper = null; }
+  const jsonSchema = schemaWrapper && schemaWrapper.jsonSchema;
+  const topProps = jsonSchema && jsonSchema.properties;
+  const topKeys = topProps ? Object.keys(topProps) : [];
+  if (topKeys.length !== 1 || !topProps[topKeys[0]] || typeof topProps[topKeys[0]] !== 'object') {
+    return {
+      success: false,
+      code: 'schema-shape',
+      error: `Concept "${concept}" has an unexpected schema shape (expected exactly one top-level property object; found ${topKeys.length}) — refusing to reconcile.`,
+    };
+  }
+  if (!ppWrapper || typeof ppWrapper !== 'object') {
+    return { success: false, code: 'pp-unreadable', error: `Concept "${concept}"'s Primary Property node ${ppUuid} has no readable json tag — refusing to reconcile.` };
+  }
+  const key = topKeys[0];
+  const schemaObject = topProps[key];
+
+  // Consistent already? Judged by the hygiene check's own comparison.
+  const { comparePropertyRecord } = require('../../lib/brain/hygiene');
+  const current = ppWrapper.property && typeof ppWrapper.property === 'object' ? ppWrapper.property : null;
+  if (comparePropertyRecord({ concept, schemaObject, propertySection: current }).length === 0) {
+    return { success: true, result: 'already-consistent', concept, ppUuid };
+  }
+
+  // Derive the target property section per the create-concept convention:
+  // per-property definitions stripped to { type }, required mirrored.
+  const targetProps = {};
+  for (const [k, v] of Object.entries(schemaObject.properties || {})) {
+    targetProps[k] = { type: v && v.type };
+  }
+  const target = {
+    key,
+    title: (current && current.title) || schemaObject.title || key,
+    type: 'object',
+    required: [...(schemaObject.required || [])],
+    properties: targetProps,
+  };
+  const before = current && current.properties ? Object.keys(current.properties) : [];
+  const wrapper = { ...ppWrapper, property: target };
+
+  await regenerateJson(ppUuid, wrapper);
+
+  return {
+    success: true,
+    result: 'reconciled',
+    concept,
+    ppUuid,
+    properties: { before, after: Object.keys(targetProps) },
+    note: 'A firmware install overwrites primary-property nodes of firmware-seeded concepts from their firmware definitions; runtime-created concepts are untouched.',
+  };
+}
+
 async function handleReconcilePrimaryProperty(req, res) {
   try {
     const { isOwner } = require('../../middleware/auth');
@@ -1995,87 +2104,257 @@ async function handleReconcilePrimaryProperty(req, res) {
     }
     const { concept } = req.body || {};
     if (!concept) return res.status(400).json({ success: false, error: 'Missing concept name' });
-
-    // The save-schema lookup idiom, extended to the primary-property node.
-    const rows = await runCypher(`
-      MATCH (h:NostrEvent)
-      WHERE (h:ListHeader OR h:ClassThreadHeader OR h:ConceptHeader) AND h.kind IN [9998, 39998]
-        AND h.name = $concept
-      OPTIONAL MATCH (js:JSONSchema)-[:${REL.CORE_NODE_JSON_SCHEMA}]->(h)
-      OPTIONAL MATCH (js)-[:HAS_TAG]->(jt:NostrEventTag {type: 'json'})
-      OPTIONAL MATCH (pp:Property)-[:${REL.CORE_NODE_PRIMARY_PROPERTY}]->(h)
-      OPTIONAL MATCH (pp)-[:HAS_TAG]->(pt:NostrEventTag {type: 'json'})
-      RETURN h.uuid AS headerUuid, js.uuid AS schemaUuid, head(collect(DISTINCT jt.value)) AS schemaJson,
-             pp.uuid AS ppUuid, head(collect(DISTINCT pt.value)) AS ppJson
-      LIMIT 1
-    `, { concept });
-
-    if (rows.length === 0) {
-      return res.json({ success: false, error: `Concept "${concept}" not found` });
-    }
-    const { schemaUuid, ppUuid, schemaJson, ppJson } = rows[0];
-    if (!schemaUuid) {
-      return res.json({ success: false, error: `Concept "${concept}" has no JSON Schema node — nothing to reconcile against.` });
-    }
-    if (!ppUuid) {
-      return res.json({ success: false, error: `Concept "${concept}" has no Primary Property node to reconcile.` });
-    }
-
-    let schemaWrapper, ppWrapper;
-    try { schemaWrapper = JSON.parse(schemaJson); } catch { schemaWrapper = null; }
-    try { ppWrapper = JSON.parse(ppJson); } catch { ppWrapper = null; }
-    const jsonSchema = schemaWrapper && schemaWrapper.jsonSchema;
-    const topProps = jsonSchema && jsonSchema.properties;
-    const topKeys = topProps ? Object.keys(topProps) : [];
-    if (topKeys.length !== 1 || !topProps[topKeys[0]] || typeof topProps[topKeys[0]] !== 'object') {
-      return res.json({
-        success: false,
-        error: `Concept "${concept}" has an unexpected schema shape (expected exactly one top-level property object; found ${topKeys.length}) — refusing to reconcile.`,
-      });
-    }
-    if (!ppWrapper || typeof ppWrapper !== 'object') {
-      return res.json({ success: false, error: `Concept "${concept}"'s Primary Property node ${ppUuid} has no readable json tag — refusing to reconcile.` });
-    }
-    const key = topKeys[0];
-    const schemaObject = topProps[key];
-
-    // Consistent already? Judged by the hygiene check's own comparison.
-    const { comparePropertyRecord } = require('../../lib/brain/hygiene');
-    const current = ppWrapper.property && typeof ppWrapper.property === 'object' ? ppWrapper.property : null;
-    if (comparePropertyRecord({ concept, schemaObject, propertySection: current }).length === 0) {
-      return res.json({ success: true, result: 'already-consistent', concept, ppUuid });
-    }
-
-    // Derive the target property section per the create-concept convention:
-    // per-property definitions stripped to { type }, required mirrored.
-    const targetProps = {};
-    for (const [k, v] of Object.entries(schemaObject.properties || {})) {
-      targetProps[k] = { type: v && v.type };
-    }
-    const target = {
-      key,
-      title: (current && current.title) || schemaObject.title || key,
-      type: 'object',
-      required: [...(schemaObject.required || [])],
-      properties: targetProps,
-    };
-    const before = current && current.properties ? Object.keys(current.properties) : [];
-    const wrapper = { ...ppWrapper, property: target };
-
-    await regenerateJson(ppUuid, wrapper);
-
-    return res.json({
-      success: true,
-      result: 'reconciled',
-      concept,
-      ppUuid,
-      properties: { before, after: Object.keys(targetProps) },
-      note: 'A firmware install overwrites primary-property nodes of firmware-seeded concepts from their firmware definitions; runtime-created concepts are untouched.',
-    });
+    return res.json(await reconcilePrimaryPropertyForConcept(concept));
   } catch (error) {
     console.error('normalize/reconcile-primary-property error:', error);
     return res.status(500).json({ success: false, error: error.message });
   }
+}
+
+// ══════════════════════════════════════════════════════════════
+// Second Brain decomposition writes (second-brain #3, ADR 0003 d6/d7)
+//   POST /api/normalize/create-child-goal   { parent, name, statement, deliverable?, boundary?, origin?, capturedOn? }
+//   POST /api/normalize/update-goal-intent  { goal, deliverable?, boundary?, parent? }
+//   Validated goal writes: all checks precede all writes; refusals are loud,
+//   named, and leave nothing written. Both ride the module's own machinery
+//   (signAndFinalize → publishToStrfry → importEventDirect / regenerateJson —
+//   local-only, never publishEverywhere).
+// ══════════════════════════════════════════════════════════════
+
+// Serialization (ADR 0003 d7): both primitives are read-validate-write; two
+// concurrent adoptions could otherwise commit a decomposition cycle that has
+// no in-contract repair (re-parenting is out of scope). The module is a
+// process singleton, so a promise-queue mutex serializes the write bodies.
+let _goalWriteChain = Promise.resolve();
+function serializeGoalWrite(task) {
+  const run = _goalWriteChain.then(task, task);
+  _goalWriteChain = run.then(() => undefined, () => undefined);
+  return run;
+}
+
+// The goal concept is runtime-created under this fixed name (second-brain
+// ADR 0001 d1; slug/name constants are legitimate — the TA pubkey is not).
+const GOAL_CONCEPT_NAME = 'tapestry owner goal';
+
+// Fetch the concept's goal rows (explicit walk ∪ implicit z-tag members —
+// the brain read's union shape) and parse them through the shared core.
+async function fetchGoalRecords(headerUuid) {
+  const { parseGoalRow } = require('../../lib/brain/goals');
+  const [explicitRows, implicitRows] = await Promise.all([
+    runCypher(`
+      MATCH (h:NostrEvent {uuid: $headerUuid})-[:${REL.CLASS_THREAD_INITIATION}]->(s:Superset)
+      MATCH (s)-[:${REL.CLASS_THREAD_PROPAGATION}*0..10]->(ss)-[:${REL.CLASS_THREAD_TERMINATION}]->(e:NostrEvent)
+      WHERE e.kind = 39999
+      OPTIONAL MATCH (e)-[:HAS_TAG]->(j:NostrEventTag {type: 'json'})
+      WITH DISTINCT e, head(collect(j.value)) AS json
+      RETURN e.uuid AS uuid, e.name AS name, e.created_at AS createdAt, json AS json
+    `, { headerUuid }),
+    runCypher(`
+      MATCH (e:NostrEvent)-[:HAS_TAG]->(:NostrEventTag {type: 'z', value: $headerUuid})
+      WHERE e.kind = 39999
+      OPTIONAL MATCH (e)-[:HAS_TAG]->(j:NostrEventTag {type: 'json'})
+      WITH DISTINCT e, head(collect(j.value)) AS json
+      RETURN e.uuid AS uuid, e.name AS name, e.created_at AS createdAt, json AS json
+    `, { headerUuid }),
+  ]);
+  const rowByUuid = new Map();
+  for (const row of [...explicitRows, ...implicitRows]) {
+    if (row && row.uuid && !rowByUuid.has(row.uuid)) rowByUuid.set(row.uuid, row);
+  }
+  const records = [...rowByUuid.values()].map(parseGoalRow).filter(Boolean);
+  return { rowByUuid, records };
+}
+
+async function resolveGoalConcept() {
+  const rows = await runCypher(`
+    MATCH (h:NostrEvent)
+    WHERE (h:ListHeader OR h:ClassThreadHeader) AND h.kind IN [9998, 39998]
+      AND h.name = $concept
+    OPTIONAL MATCH (h)-[:${REL.CLASS_THREAD_INITIATION}]->(sup:Superset)
+    RETURN h.uuid AS headerUuid, sup.uuid AS supersetUuid
+    LIMIT 1
+  `, { concept: GOAL_CONCEPT_NAME });
+  if (rows.length === 0) return { error: `Concept "${GOAL_CONCEPT_NAME}" not found` };
+  if (!rows[0].supersetUuid) return { error: `Concept "${GOAL_CONCEPT_NAME}" has no Superset node.` };
+  return { headerUuid: rows[0].headerUuid, supersetUuid: rows[0].supersetUuid };
+}
+
+async function handleCreateChildGoal(req, res) {
+  try {
+    const { isOwner } = require('../../middleware/auth');
+    if (!isOwner(req) && !req.localTrusted) {
+      return res.status(403).json({ success: false, error: 'Owner access required' });
+    }
+    const { parent, name, statement, deliverable, boundary, origin, capturedOn } = req.body || {};
+    if (!parent || typeof parent !== 'string' || !parent.trim()) {
+      return res.status(400).json({ success: false, error: 'Missing parent slug' });
+    }
+    if (!name || typeof name !== 'string' || !name.trim()) {
+      return res.status(400).json({ success: false, error: 'Goal name is required' });
+    }
+    if (!statement || typeof statement !== 'string' || !statement.trim()) {
+      return res.status(400).json({ success: false, error: 'Goal statement is required' });
+    }
+    // Refusal contract (ADR 0003 d6), passed through from the shared core or
+    // built here: parent-not-found | ambiguous-slug | name-collides — each
+    // answers success:false with the named refusal and writes NOTHING.
+    const result = await serializeGoalWrite(() => createChildGoal({
+      parentSlug: parent.trim(),
+      name: name.trim(),
+      statement: statement.trim(),
+      deliverable: typeof deliverable === 'string' && deliverable.trim() ? deliverable.trim() : null,
+      boundary: typeof boundary === 'string' && boundary.trim() ? boundary.trim() : null,
+      origin: typeof origin === 'string' && origin.trim() ? origin.trim() : null,
+      capturedOn: typeof capturedOn === 'string' && capturedOn.trim() ? capturedOn.trim() : null,
+    }));
+    return res.json(result);
+  } catch (error) {
+    console.error('normalize/create-child-goal error:', error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+}
+
+async function createChildGoal({ parentSlug, name, statement, deliverable, boundary, origin, capturedOn }) {
+  const { validateDecompositionOp } = require('../../lib/brain/goals');
+  const concept = await resolveGoalConcept();
+  if (concept.error) return { success: false, error: concept.error };
+  const { headerUuid, supersetUuid } = concept;
+  const { records } = await fetchGoalRecords(headerUuid);
+
+  const v = validateDecompositionOp(records, { type: 'create-child', parentSlug });
+  if (!v.ok) return { success: false, refusal: v.refusal, error: v.detail };
+
+  // Collision refusal (ADR 0003 d2/d6): the json slug and the d-tag both
+  // derive from the name, and a colliding d-tag would make importEventDirect
+  // MERGE over the existing goal — a silent overwrite. Refuse loudly instead.
+  const derivedSlug = dtag.slug(name);
+  const dTag = dtag.childDTag(name, headerUuid);
+  const collision = records.find((r) => r.name === name
+    || r.slug === derivedSlug
+    || (r.uuid.split(':').pop() || '') === dTag);
+  if (collision) {
+    return {
+      success: false,
+      refusal: 'name-collides',
+      error: `the name "${name}" collides with the existing goal "${collision.name}" (shared name, slug '${derivedSlug}', ` +
+        'or replaceable-event d-tag) — creating it would silently overwrite. Pick a different name.',
+    };
+  }
+
+  const section = { name, slug: derivedSlug, description: statement };
+  if (origin) section.origin = origin;
+  if (capturedOn) section.capturedOn = capturedOn;
+  if (deliverable) section.deliverable = deliverable;
+  if (boundary) section.boundary = boundary;
+  section.parent = parentSlug;
+
+  const tags = [
+    ['d', dTag],
+    ['name', name],
+    ['z', headerUuid],
+    ['json', JSON.stringify({ tapestryOwnerGoal: section })],
+  ];
+  const evt = signAndFinalize({ kind: 39999, tags, content: '' });
+  const elemUuid = `39999:${evt.pubkey}:${dTag}`;
+  await publishToStrfry(evt);
+  await importEventDirect(evt, elemUuid);
+  await writeCypher(`MATCH (n:NostrEvent {uuid: $uuid}) SET n:ListItem, n.slug = $slug`, { uuid: elemUuid, slug: derivedSlug });
+  await writeCypher(`
+    MATCH (sup:NostrEvent {uuid: $supersetUuid}), (elem:NostrEvent {uuid: $elemUuid})
+    MERGE (sup)-[:${REL.CLASS_THREAD_TERMINATION}]->(elem)
+  `, { supersetUuid, elemUuid });
+
+  return {
+    success: true,
+    result: 'created',
+    element: { uuid: elemUuid, name, slug: derivedSlug, parent: parentSlug },
+  };
+}
+
+async function handleUpdateGoalIntent(req, res) {
+  try {
+    const { isOwner } = require('../../middleware/auth');
+    if (!isOwner(req) && !req.localTrusted) {
+      return res.status(403).json({ success: false, error: 'Owner access required' });
+    }
+    const { goal, deliverable, boundary, parent } = req.body || {};
+    if (!goal || typeof goal !== 'string' || !goal.trim()) {
+      return res.status(400).json({ success: false, error: 'Missing goal slug' });
+    }
+    const provided = [['deliverable', deliverable], ['boundary', boundary], ['parent', parent]]
+      .filter(([, value]) => value !== undefined);
+    if (provided.length === 0) {
+      return res.status(400).json({ success: false, error: 'At least one of deliverable, boundary, parent is required' });
+    }
+    // Refusal contract (ADR 0003 d7): goal-not-found | ambiguous-slug |
+    // self-parent | already-has-parent | cycle | empty-value — loud, named,
+    // nothing written. Supplied values must be the owner's words: an empty
+    // string would function as a clear, and clearing is out of scope.
+    for (const [field, value] of provided) {
+      if (typeof value !== 'string' || !value.trim()) {
+        return res.json({
+          success: false,
+          refusal: 'empty-value',
+          error: `empty value for ${field} — a blank would silently clear durable intent, and clearing is out of scope.`,
+        });
+      }
+    }
+    const result = await serializeGoalWrite(() => updateGoalIntent({
+      goalSlug: goal.trim(),
+      deliverable: deliverable !== undefined ? deliverable.trim() : undefined,
+      boundary: boundary !== undefined ? boundary.trim() : undefined,
+      parentSlug: parent !== undefined ? parent.trim() : undefined,
+    }));
+    return res.json(result);
+  } catch (error) {
+    console.error('normalize/update-goal-intent error:', error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+}
+
+async function updateGoalIntent({ goalSlug, deliverable, boundary, parentSlug }) {
+  const { validateDecompositionOp, resolveCaptureDate } = require('../../lib/brain/goals');
+  const concept = await resolveGoalConcept();
+  if (concept.error) return { success: false, error: concept.error };
+  const { rowByUuid, records } = await fetchGoalRecords(concept.headerUuid);
+
+  const matches = records.filter((r) => r.slug === goalSlug);
+  if (matches.length === 0) {
+    return { success: false, refusal: 'goal-not-found', error: `no goal has the slug '${goalSlug}' — the goal was not found.` };
+  }
+  if (matches.length > 1) {
+    return { success: false, refusal: 'ambiguous-slug', error: `${matches.length} goals share the slug '${goalSlug}' — refusing to guess which is meant.` };
+  }
+  const target = matches[0];
+
+  if (parentSlug !== undefined) {
+    const v = validateDecompositionOp(records, { type: 'set-parent', goalSlug, parentSlug });
+    if (!v.ok) return { success: false, refusal: v.refusal, error: v.detail };
+  }
+
+  const row = rowByUuid.get(target.uuid);
+  let wrapper;
+  try { wrapper = JSON.parse(row.json); } catch { wrapper = null; }
+  const section = wrapper && wrapper.tapestryOwnerGoal;
+  if (!section || typeof section !== 'object' || Array.isArray(section)) {
+    return { success: false, error: `goal ${target.uuid} has no readable goal record — refusing to rewrite it.` };
+  }
+
+  // capturedOn backfill (ADR 0003 d7): regenerateJson re-signs with a fresh
+  // created_at, and legacy goals resolve their capture date FROM created_at —
+  // pin the true date into the record before the first re-sign moves it.
+  if (section.capturedOn == null || section.capturedOn === '') {
+    const pinned = resolveCaptureDate({ capturedOn: null, createdAt: typeof row.createdAt === 'number' ? row.createdAt : null });
+    if (pinned) section.capturedOn = pinned;
+  }
+
+  const fields = [];
+  if (deliverable !== undefined) { section.deliverable = deliverable; fields.push('deliverable'); }
+  if (boundary !== undefined) { section.boundary = boundary; fields.push('boundary'); }
+  if (parentSlug !== undefined) { section.parent = parentSlug; fields.push('parent'); }
+
+  await regenerateJson(target.uuid, { ...wrapper, tapestryOwnerGoal: section });
+  return { success: true, result: 'updated', fields, goal: { uuid: target.uuid, slug: goalSlug } };
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -3412,6 +3691,8 @@ async function registerNormalizeRoutes(app) {
   app.post('/api/normalize/create-element', handleCreateElement);
   app.post('/api/normalize/save-schema', handleSaveSchema);
   app.post('/api/normalize/reconcile-primary-property', handleReconcilePrimaryProperty);
+  app.post('/api/normalize/create-child-goal', handleCreateChildGoal);
+  app.post('/api/normalize/update-goal-intent', handleUpdateGoalIntent);
   app.post('/api/normalize/save-element-json', handleSaveElementJson);
   app.post('/api/normalize/create-property', handleCreateProperty);
   app.post('/api/normalize/generate-property-tree', handleGeneratePropertyTree);

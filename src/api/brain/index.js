@@ -23,8 +23,8 @@
 const { runCypher } = require('../../lib/neo4j-driver');
 const { isOwner } = require('../../middleware/auth');
 const { getOwnerAssistantPubkey } = require('../../utils/assistantKeys');
-const { parseGoalRow, deriveStanding, resolveCaptureDate, sortGoals } = require('../../lib/brain/goals');
-const { classifyHeaderEdges, classifyElementConsistency, comparePropertyRecord, assembleReport } = require('../../lib/brain/hygiene');
+const { parseGoalRow, deriveStanding, resolveCaptureDate, sortGoals, resolveDecomposition } = require('../../lib/brain/goals');
+const { classifyHeaderEdges, classifyElementConsistency, comparePropertyRecord, classifyDecomposition, assembleReport } = require('../../lib/brain/hygiene');
 
 const GOAL_CONCEPT_SLUG = 'tapestry-owner-goal';
 
@@ -77,15 +77,25 @@ async function handleGetGoals(req, res) {
     const records = [...byUuid.values()]
       .map(parseGoalRow)
       .filter(Boolean);
-    const goals = sortGoals(records).map((r) => ({
+    // Decomposition annotations (second-brain #3, ADR 0003 d4/d5): parentUuid
+    // is the resolved attachment (null = render at root — dangling and
+    // cycle-broken refs degrade there), hasChildren feeds the standing rule.
+    const resolved = resolveDecomposition(records);
+    const goals = sortGoals(resolved).map((r) => ({
       uuid: r.uuid,
       name: r.name,
+      slug: r.slug,
       statement: r.statement,
       origin: r.origin,
       capturedOn: r.capturedOn,
       createdAt: r.createdAt,
-      standing: deriveStanding(r),
+      standing: deriveStanding(r, { hasChildren: r.hasChildren }),
       captureDate: resolveCaptureDate(r),
+      deliverable: r.deliverable,
+      boundary: r.boundary,
+      parent: r.parent,
+      parentUuid: r.parentUuid,
+      hasChildren: r.hasChildren,
     }));
     return res.json({ success: true, goals });
   } catch (err) {
@@ -175,6 +185,15 @@ async function checkConcept({ slug, parseRecord }, taPubkey) {
   }
   const elements = [...byUuid.values()];
   problems.push(...classifyElementConsistency({ concept: slug, elements, parseRecord }));
+
+  // Decomposition structure (second-brain #3, ADR 0003 d9) — goal concept
+  // only: parent refs live in goal records, parsed by the shared classifier.
+  if (typeof parseRecord === 'function') {
+    const records = elements
+      .map((el) => parseRecord({ uuid: el.uuid, name: el.name, createdAt: el.createdAt, json: el.json }))
+      .filter(Boolean);
+    problems.push(...classifyDecomposition({ concept: slug, records }));
+  }
 
   // Property-record comparison — node uuids resolved from the machinery edges,
   // never assumed from d-tag convention. If the machinery is missing, the

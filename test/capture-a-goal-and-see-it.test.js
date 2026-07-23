@@ -382,14 +382,18 @@ test('S6 (ADR d5): Goals view is owner-gated with the platform classification ch
     'the view must gate on the platform pair-check (owner || admin), mirroring settings/Index.jsx (ADR decision 5).');
 });
 
-test('S7 (AC 2/AC 6): the only standing word in the view is lowercase "captured"; later-story standings are absent', () => {
+test('S7 (AC 2/AC 6): standing words in the view stay within the canonical set the epic has reached', () => {
   const src = safeRead(GOALS_PAGE);
   assert(src, 'Goals.jsx missing (see S5).');
   assert(/['"`>]captured['"`<]/.test(src) || /captured/.test(src),
-    'the standing word "captured" (lowercase, canonical) must appear — it is the only standing this story produces.');
-  for (const w of ['viable', 'achieved', 'abandoned']) {
+    'the standing word "captured" (lowercase, canonical) must appear — it is the baseline standing.');
+  // 'viable' admitted by second-brain #3 (ADR 0003 d3/d10) — story 3's own
+  // suite asserts it renders; this pin now excludes only the still-future
+  // standings. (Amended in story-3 Test Design, per the story-2 lesson:
+  // sibling re-pins are planned in Phase 3, never discovered at the impl gate.)
+  for (const w of ['achieved', 'abandoned']) {
     assert(!new RegExp(`['"\`>]${w}['"\`<]`).test(src),
-      `standing word "${w}" belongs to later stories (3/6) — rendering it now is scope leak (AC 6: canonical set only).`);
+      `standing word "${w}" belongs to later stories (6+) — rendering it now is scope leak (AC 6: canonical set only).`);
   }
 });
 
@@ -454,7 +458,7 @@ test('S12 (design guide): loading skeleton and plain-language error-with-retry a
 
 /* ══════════════ H-class — live local stack (SKIP when absent) ══════════════ */
 
-test('H1 (AC 3): GET /api/brain/goals returns the three adopted legacy goals, standing "captured"', async () => {
+test('H1 (AC 3): GET /api/brain/goals returns the three adopted legacy goals; standing always follows the derivation rule', async () => {
   if (!(await stackAvailable())) return 'SKIP';
   const r = loopbackGetJson('/api/brain/goals');
   assert(r && r.success === true && Array.isArray(r.goals),
@@ -465,9 +469,18 @@ test('H1 (AC 3): GET /api/brain/goals returns the three adopted legacy goals, st
       `adoption failure: legacy goal "${legacy}" missing from the Goals read (AC 3 — the brain adopts the ` +
       `existing concept's elements). Got names: ${short(names)}.`);
   }
+  // Amended by second-brain #3 (ADR 0003 d3): the old pin — "every goal is
+  // captured" — is falsified by the feature's first real use (any sharpened
+  // leaf derives viable, durably). The durable invariant is derivation
+  // CONSISTENCY: standing must match the goal's own record fields. Both
+  // fields undefined pre-story-3 → 'captured', so this passes on both sides.
   for (const g of r.goals) {
-    assert(g.standing === 'captured',
-      `every v1 goal derives standing 'captured' (got ${short(g.standing)} on "${short(g.name)}").`);
+    const both = typeof g.deliverable === 'string' && g.deliverable.trim() !== '' &&
+                 typeof g.boundary === 'string' && g.boundary.trim() !== '';
+    const expected = g.hasChildren ? 'captured' : (both ? 'viable' : 'captured');
+    assert(g.standing === expected,
+      `standing must follow the derivation rule (leaf + deliverable + boundary → viable; children → captured; ` +
+      `else captured — ADR 0003 d3): expected '${expected}', got ${short(g.standing)} on "${short(g.name)}".`);
   }
 });
 

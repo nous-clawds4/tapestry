@@ -1,5 +1,6 @@
 /**
- * Second Brain — pure hygiene core (second-brain #2, ADR 0002 decision 2).
+ * Second Brain — pure hygiene core (second-brain #2, ADR 0002 decision 2;
+ * decomposition taxonomy second-brain #3, ADR 0003 d9).
  *
  * The defect taxonomy for the goal structures, as pure classifiers: rows in,
  * problem records out. CommonJS; requires ONLY the goals core — the shared
@@ -17,11 +18,25 @@
  *   property-record-drift          — the primary-property record disagrees
  *                                    with the schema on key set, required
  *                                    list, or per-key type (cosmetic extras
- *                                    are never defects)
+ *                                    are never defects), or the record itself
+ *                                    is unreadable
+ *   schema-unreadable              — the SCHEMA side of that comparison is
+ *                                    missing/unreadable (split from drift by
+ *                                    ADR 0003 d9 / OPEN.md row 85c: it is the
+ *                                    schema's defect, not the record's)
  *   machinery-incomplete           — expected header wiring missing or
  *                                    duplicated
  *   unreadable-record              — a goal-concept element the shared
  *                                    classification rejects
+ *   dangling-parent-reference      — a goal's parent slug resolves to no goal
+ *                                    (ADR 0003 d9)
+ *   decomposition-cycle            — a parent chain revisits a goal;
+ *                                    self-parenting is the length-1 case
+ *                                    (ADR 0003 d9)
+ *   duplicate-slug                 — two or more goal records share a slug;
+ *                                    parent references and the detail route
+ *                                    cannot distinguish them (ADR 0003 d9 —
+ *                                    the out-of-contract collision detector)
  *
  * Incoming memberships are SOUND: the goal superset is an element of the
  * set/superset concepts, and every concept header is an element of the
@@ -32,7 +47,7 @@
 
 'use strict';
 
-const { parseGoalRow } = require('./goals');
+const { parseGoalRow, resolveDecomposition } = require('./goals');
 
 // The six per-concept machinery relationships every sound runtime concept
 // carries into its header, plus exactly one outgoing IS_THE_CONCEPT_FOR and
@@ -89,6 +104,10 @@ function classifyHeaderEdges({ concept, headerUuid, edges }) {
   }
 
   // The universal concept-header class membership (incoming HAS_ELEMENT from a Superset).
+  // DELIBERATE (ADR 0003 d9 / OPEN.md row 85d): an incoming HAS_ELEMENT from a
+  // NON-Superset node is neither counted as the class membership nor flagged —
+  // no known structure produces such an edge; if a future class-thread change
+  // can, give it its own kind rather than widening this filter silently.
   const membership = list.filter((e) => e && e.direction === 'in' && e.rel === 'HAS_ELEMENT' && isSupersetLabeled(e.otherLabels));
   if (membership.length < 1) {
     problems.push(problem(concept, headerUuid, 'machinery-incomplete',
@@ -141,7 +160,9 @@ function comparePropertyRecord({ concept, schemaObject, propertySection }) {
   const subject = `${concept}:primary-property`;
   const schemaProps = (schemaObject && typeof schemaObject === 'object' && schemaObject.properties) || null;
   if (!schemaProps) {
-    return [problem(concept, subject, 'property-record-drift',
+    // The SCHEMA side is unreadable — its own kind (ADR 0003 d9, row 85c);
+    // the unreadable-RECORD path below stays property-record-drift.
+    return [problem(concept, subject, 'schema-unreadable',
       `the schema for ${concept} is missing or unreadable — cannot verify the property record against it.`)];
   }
   const section = (propertySection && typeof propertySection === 'object' && !Array.isArray(propertySection)) ? propertySection : null;
@@ -171,6 +192,70 @@ function comparePropertyRecord({ concept, schemaObject, propertySection }) {
   if (!requiredAgrees) parts.push(`required list disagrees (schema [${schemaRequired.join(', ')}] vs record [${sectionRequired.join(', ')}])`);
   return [problem(concept, subject, 'property-record-drift',
     `the primary-property record for ${concept} lags its schema — ${parts.join('; ')}.`)];
+}
+
+/**
+ * Classify the goal concept's decomposition structure (ADR 0003 d9): the
+ * write path refuses these at the contract boundary, so anything found here
+ * arrived out-of-contract (raw create-element / save-element-json writes).
+ * Records are parsed goal records (the shared classification); resolution
+ * rides resolveDecomposition — the one tree truth the API and view use.
+ * @param {{concept: string, records: Array}} input
+ * @returns {Array} problem records, deterministically ordered
+ */
+function classifyDecomposition({ concept, records }) {
+  const list = Array.isArray(records) ? records : [];
+  const problems = [];
+
+  // duplicate-slug: parent refs and the detail route cannot distinguish them.
+  const groups = new Map();
+  for (const r of list) {
+    if (!r || typeof r.slug !== 'string' || r.slug === '') continue;
+    if (!groups.has(r.slug)) groups.set(r.slug, []);
+    groups.get(r.slug).push(r);
+  }
+  for (const [slug, sharers] of groups) {
+    if (sharers.length > 1) {
+      const uuids = sharers.map((r) => r.uuid).sort();
+      problems.push(problem(concept, slug, 'duplicate-slug',
+        `${sharers.length} goals share the slug '${slug}' (${uuids.join(', ')}) — parent references and the ` +
+        'detail route cannot distinguish them; reads resolve to the oldest record.'));
+    }
+  }
+
+  // dangling-parent-reference: the stated parent slug matches no goal at all.
+  for (const r of list) {
+    if (r && typeof r.parent === 'string' && r.parent.trim() !== '' && !groups.has(r.parent.trim())) {
+      problems.push(problem(concept, r.uuid, 'dangling-parent-reference',
+        `goal ${r.uuid} ("${r.name}") references parent slug '${r.parent.trim()}', which resolves to no goal — ` +
+        'it renders at the root until the reference is repaired.'));
+    }
+  }
+
+  // decomposition-cycle: one problem per cycle; subject is the cycle's stable
+  // identity (the smallest member uuid), detail names every member.
+  const resolved = resolveDecomposition(list);
+  const cycles = new Map();
+  for (const r of resolved) {
+    if (r.cycleOf) {
+      if (!cycles.has(r.cycleOf)) cycles.set(r.cycleOf, []);
+      cycles.get(r.cycleOf).push(r);
+    }
+  }
+  for (const [cycleId, members] of cycles) {
+    const names = members.map((m) => m.slug || m.uuid).sort();
+    problems.push(problem(concept, cycleId, 'decomposition-cycle',
+      `goals form a parent cycle (${names.join(' ⇄ ')}) — each member renders at the root until the cycle ` +
+      'is repaired; self-parenting is the length-1 case.'));
+  }
+
+  // Deterministic regardless of input order (the assembleReport convention).
+  problems.sort((a, b) => {
+    const ka = `${a.kind} ${a.subject || ''}`;
+    const kb = `${b.kind} ${b.subject || ''}`;
+    return ka < kb ? -1 : ka > kb ? 1 : 0;
+  });
+  return problems;
 }
 
 /**
@@ -206,4 +291,4 @@ function assembleReport(conceptResults) {
   return { sound: problems.length === 0, problems, checked };
 }
 
-module.exports = { classifyHeaderEdges, classifyElementConsistency, comparePropertyRecord, assembleReport, MACHINERY_IN };
+module.exports = { classifyHeaderEdges, classifyElementConsistency, comparePropertyRecord, classifyDecomposition, assembleReport, MACHINERY_IN };
