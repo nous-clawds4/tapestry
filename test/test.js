@@ -170,6 +170,8 @@ const strfryWipeOwnerGate = require('./strfry-wipe-owner-gate.test.js');
 const relationshipPrimitives = require('./relationship-primitives.test.js');
 // epic: relationship-primitives — Story 2 (read-only deployment probe).
 const relationshipPrimitivesProbe = require('./relationship-primitives-probe.test.js');
+// epic: graph-curation-ui — Story 1 (place/move nodes between sets from the concept pages).
+const moveNodesBetweenSetsUi = require('./move-nodes-between-sets-ui.test.js');
 
 async function main() {
   console.log('Running Brainstorm tests...');
@@ -461,6 +463,7 @@ async function main() {
   const strfryWipeOwnerGateResult = await strfryWipeOwnerGate.run();
   const relationshipPrimitivesResult = await relationshipPrimitives.run();
   const relationshipPrimitivesProbeResult = await relationshipPrimitivesProbe.run();
+  const moveNodesBetweenSetsUiResult = await moveNodesBetweenSetsUi.run();
 
   console.log('\nTest Results');
   console.log('-------------');
@@ -788,6 +791,13 @@ async function main() {
       ? `SKIP (${relationshipPrimitivesProbeResult.skipped} tests; preconditions not met)`
       : `${relationshipPrimitivesProbeResult.fail === 0 ? 'PASS' : 'FAIL'} (${relationshipPrimitivesProbeResult.pass} passed, ${relationshipPrimitivesProbeResult.fail} failed${relationshipPrimitivesProbeResult.skipped ? `, ${relationshipPrimitivesProbeResult.skipped} skipped` : ''})`;
   console.log(`relationship-primitives-probe suite:             ${relationshipPrimitivesProbeLine}`);
+  // Skip-aware: H-class live sentinels skip when the local stack is absent
+  // (CI's stack-free job); U/S classes always run and gate.
+  const moveNodesBetweenSetsUiLine =
+    (moveNodesBetweenSetsUiResult.pass + moveNodesBetweenSetsUiResult.fail) === 0 && moveNodesBetweenSetsUiResult.skipped
+      ? `SKIP (${moveNodesBetweenSetsUiResult.skipped} tests; preconditions not met)`
+      : `${moveNodesBetweenSetsUiResult.fail === 0 ? 'PASS' : 'FAIL'} (${moveNodesBetweenSetsUiResult.pass} passed, ${moveNodesBetweenSetsUiResult.fail} failed${moveNodesBetweenSetsUiResult.skipped ? `, ${moveNodesBetweenSetsUiResult.skipped} skipped` : ''})`;
+  console.log(`move-nodes-between-sets-ui suite:                ${moveNodesBetweenSetsUiLine}`);
 
   const overallOk =
     configOk &&
@@ -924,7 +934,10 @@ async function main() {
     relationshipPrimitivesResult.fail === 0 &&
     // relationship-primitives #2 — read-only deployment probe
     // (LIVE chain — before the severed terminator; OPEN.md #43).
-    relationshipPrimitivesProbeResult.fail === 0;
+    relationshipPrimitivesProbeResult.fail === 0 &&
+    // graph-curation-ui #1 — place/move nodes between sets UI
+    // (LIVE chain — before the severed terminator; OPEN.md #43).
+    moveNodesBetweenSetsUiResult.fail === 0;
     harnessLintResult.fail === 0 &&
     harnessStatsResult.fail === 0 &&
     sessionStartResult.fail === 0 &&
@@ -961,7 +974,7 @@ async function main() {
     ciTestJobResult, syncPanelTagFiltersResult, routerStreamTagFiltersResult,
     noteTaggingRawEventsInspectorHttpResult, deploySafetyStatusResult, safeToMergeCheckResult, nextTaskCountdownResult,
     closeUnauthWriteSurfaceResult, defaultDenyMutationsResult, usersPageNeo4jEndpointResult, strfryWipeOwnerGateResult,
-    relationshipPrimitivesResult, relationshipPrimitivesProbeResult,
+    relationshipPrimitivesResult, relationshipPrimitivesProbeResult, moveNodesBetweenSetsUiResult,
   ].reduce((sum, r) => sum + ((r && r.skipped) || 0), 0);
   console.log(`Total skipped:                                   ${totalSkipped}`);
   console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);
