@@ -574,6 +574,10 @@ async function register(app) {
     const { registerConceptGraphRoutes } = require('./concept-graph');
     registerConceptGraphRoutes(app);
 
+    // ── Second Brain read surface (second-brain #1 / ADR 0001) ──
+    const { registerBrainRoutes } = require('./brain');
+    registerBrainRoutes(app);
+
     // ── Concept export (Story #9 / ADR 0004) — owner-only ──
     const { handleConceptExportSet } = require('./concept/exportSet.js');
     app.get('/api/concept/:handle/export-set', requireOwner, handleConceptExportSet);

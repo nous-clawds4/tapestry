@@ -11,6 +11,8 @@ const dashboardItem = { to: '/tapestry/', label: '📊 Dashboard', end: true };
 
 const mainNavItems = [
   dashboardItem,
+  // Owner-gated: the second-brain Goals view (second-brain #1, ADR 0001).
+  { to: '/tapestry/goals', label: '🧠 Goals', ownerOnly: true },
   {
     label: '📋 Simple Lists',
     prefix: '/tapestry/lists',

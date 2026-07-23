@@ -172,6 +172,8 @@ const relationshipPrimitives = require('./relationship-primitives.test.js');
 const relationshipPrimitivesProbe = require('./relationship-primitives-probe.test.js');
 // epic: graph-curation-ui — Story 1 (place/move nodes between sets from the concept pages).
 const moveNodesBetweenSetsUi = require('./move-nodes-between-sets-ui.test.js');
+// epic: second-brain — Story 1 (capture a goal and see it).
+const captureAGoalAndSeeIt = require('./capture-a-goal-and-see-it.test.js');
 
 async function main() {
   console.log('Running Brainstorm tests...');
@@ -464,6 +466,7 @@ async function main() {
   const relationshipPrimitivesResult = await relationshipPrimitives.run();
   const relationshipPrimitivesProbeResult = await relationshipPrimitivesProbe.run();
   const moveNodesBetweenSetsUiResult = await moveNodesBetweenSetsUi.run();
+  const captureAGoalAndSeeItResult = await captureAGoalAndSeeIt.run();
 
   console.log('\nTest Results');
   console.log('-------------');
@@ -798,6 +801,13 @@ async function main() {
       ? `SKIP (${moveNodesBetweenSetsUiResult.skipped} tests; preconditions not met)`
       : `${moveNodesBetweenSetsUiResult.fail === 0 ? 'PASS' : 'FAIL'} (${moveNodesBetweenSetsUiResult.pass} passed, ${moveNodesBetweenSetsUiResult.fail} failed${moveNodesBetweenSetsUiResult.skipped ? `, ${moveNodesBetweenSetsUiResult.skipped} skipped` : ''})`;
   console.log(`move-nodes-between-sets-ui suite:                ${moveNodesBetweenSetsUiLine}`);
+  // Skip-aware: H-class live tests skip when the local stack is absent (CI's
+  // stack-free job); U/S classes always run and gate.
+  const captureAGoalAndSeeItLine =
+    (captureAGoalAndSeeItResult.pass + captureAGoalAndSeeItResult.fail) === 0 && captureAGoalAndSeeItResult.skipped
+      ? `SKIP (${captureAGoalAndSeeItResult.skipped} tests; preconditions not met)`
+      : `${captureAGoalAndSeeItResult.fail === 0 ? 'PASS' : 'FAIL'} (${captureAGoalAndSeeItResult.pass} passed, ${captureAGoalAndSeeItResult.fail} failed${captureAGoalAndSeeItResult.skipped ? `, ${captureAGoalAndSeeItResult.skipped} skipped` : ''})`;
+  console.log(`capture-a-goal-and-see-it suite:                 ${captureAGoalAndSeeItLine}`);
 
   const overallOk =
     configOk &&
@@ -937,7 +947,10 @@ async function main() {
     relationshipPrimitivesProbeResult.fail === 0 &&
     // graph-curation-ui #1 — place/move nodes between sets UI
     // (LIVE chain — before the severed terminator; OPEN.md #43).
-    moveNodesBetweenSetsUiResult.fail === 0;
+    moveNodesBetweenSetsUiResult.fail === 0 &&
+    // second-brain #1 — capture a goal and see it
+    // (LIVE chain — before the severed terminator; OPEN.md #43).
+    captureAGoalAndSeeItResult.fail === 0;
     harnessLintResult.fail === 0 &&
     harnessStatsResult.fail === 0 &&
     sessionStartResult.fail === 0 &&

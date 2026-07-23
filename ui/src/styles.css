@@ -8075,3 +8075,21 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
 .bsp-authored-note-tag { font-size: 0.75rem; padding: 0.1rem 0.5rem; border-radius: 999px; background: var(--surface-2, #1e293b); color: var(--text-muted, #94a3b8); }
 .bsp-authored-note-tag.is-dispute { color: #fca5a5; }
 .bsp-authored-note-tag.is-apply { color: #86efac; }
+
+/* ── Second Brain: Goals view (second-brain #1, ADR 0001 decision 6) ──
+   Tokens only; guide's --surface/--surface-2 map to --bg-secondary/--bg-tertiary.
+   Radius/spacing literals live here in the stylesheet, per app idiom. */
+.brain-goals h1 { font-size: 1.4rem; }
+.brain-goal-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.brain-goal-row { display: flex; align-items: center; gap: 8px; padding: 10px 8px; min-height: 44px; border-radius: 6px; }
+.brain-goal-row:hover { background: var(--bg-tertiary); }
+.brain-goal-name { font-weight: 600; }
+.brain-goal-standing { font-size: 0.75rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-muted); }
+.brain-row-new { animation: brain-row-fade 2s ease-out; }
+@keyframes brain-row-fade { from { background: var(--bg-tertiary); } to { background: transparent; } }
+.brain-muted { color: var(--text-muted); }
+.brain-gate { color: var(--text-muted); padding: 16px 0; }
+.brain-empty { color: var(--text-muted); padding: 16px 0; max-width: 60ch; }
+.brain-error { padding: 8px 0; }
+.brain-retry { color: var(--accent); cursor: pointer; }
+.brain-privacy-line { margin-top: 24px; color: var(--text-muted); font-size: 0.85rem; }
