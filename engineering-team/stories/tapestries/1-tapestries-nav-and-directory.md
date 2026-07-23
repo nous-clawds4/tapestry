@@ -50,5 +50,5 @@ None outstanding.
 
 ## Linked artifacts
 - ADR: `engineering-team/decisions/tapestries/0001-nav-directory-and-strfry-element-read.md`
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/tapestries/1-tapestries-nav-and-directory.test-plan.md`
 - Review: (filled in after Review phase)
