@@ -23,7 +23,8 @@ top-level superset.
 
 1. `stories/graph-curation-ui/1-move-nodes-between-sets-ui.md` — place / move / remove
    placements from the set detail page, the element detail page, and the Organization (Sets)
-   overview; both placement kinds (element, subset). **Approved** (2026-07-22).
+   overview; both placement kinds (element, subset). **Done** (review PASS 2026-07-22; live on
+   staging, tapestry.brainstorm.world, and tags.brainstorm.world as of 2026-07-23).
 
 ## Key facts / guardrails
 
