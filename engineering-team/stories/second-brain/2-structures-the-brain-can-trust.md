@@ -1,6 +1,6 @@
 # Story 2: Structures the brain can trust
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-07-23
 **Type:** Feature
 
@@ -82,4 +82,4 @@ None open. Three were resolved at the planning gate (operator, 2026-07-23):
 
 - ADR: `engineering-team/decisions/second-brain/0002-hygiene-check-and-primary-property-reconcile.md`
 - Test plan: `engineering-team/stories/second-brain/2-structures-the-brain-can-trust.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/second-brain/2-structures-the-brain-can-trust.md` (PASS)
