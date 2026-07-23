@@ -4,6 +4,15 @@ import {
   fetchFirmwareVersions, fetchInstallStatus, installFirmware,
 } from '../../api/firmware';
 import JsonView from '../../components/JsonView';
+import ConceptMembersView from './ConceptMembersView';
+
+// Per-concept membership views — the concept's live elements and sets, rendered
+// as a list → JSON-detail drill-down (distinct from the manifest-level
+// Integrations section in the sidebar).
+const MEMBER_VIEWS = [
+  { key: 'elements', label: 'Elements' },
+  { key: 'sets',     label: 'Sets' },
+];
 
 const CORE_NODES = [
   { key: 'overview',        label: 'Overview' },
@@ -340,9 +349,19 @@ export default function FirmwareExplorer() {
                 />
               ) : (
                 <>
-                  {/* Top: node selector tabs */}
+                  {/* Top: node selector tabs (core class-thread nodes + membership views) */}
                   <div className="firmware-node-tabs">
                     {CORE_NODES.map(n => (
+                      <button
+                        key={n.key}
+                        className={`firmware-node-tab ${selectedNode === n.key ? 'active' : ''}`}
+                        onClick={() => setSelectedNode(n.key)}
+                      >
+                        {n.label}
+                      </button>
+                    ))}
+                    <span className="firmware-node-tab-divider" aria-hidden="true" />
+                    {MEMBER_VIEWS.map(n => (
                       <button
                         key={n.key}
                         className={`firmware-node-tab ${selectedNode === n.key ? 'active' : ''}`}
@@ -373,6 +392,12 @@ export default function FirmwareExplorer() {
                       </div>
                     ) : selectedNode === 'overview' ? (
                       <FirmwareOverview data={conceptData} />
+                    ) : selectedNode === 'elements' || selectedNode === 'sets' ? (
+                      <ConceptMembersView
+                        key={`${conceptData.nodes?.header?.uuid}:${selectedNode}`}
+                        conceptData={conceptData}
+                        kind={selectedNode}
+                      />
                     ) : (
                       <FirmwareNodeJson data={conceptData} nodeKey={selectedNode} />
                     )}
