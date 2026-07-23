@@ -3,6 +3,7 @@
 **Status:** Accepted
 **Date:** 2026-07-23
 **Story:** `engineering-team/stories/second-brain/3-break-a-goal-into-pieces.md`
+**Amended by:** ADR 0004 (d11's interim read-path — "no new API; the detail page selects from the list read" — superseded by the per-goal endpoint `GET /api/brain/goals/:slug`).
 **Amends:** second-brain ADR 0002 — d4's schema-object resolution phrasing ("sole top-level *required* key" → the implemented and hereby-ratified "sole top-level *properties* key"), and Consequences (a)'s paired-reconcile requirement (dissolved by d8 below for the save-schema path). ADR 0002's header gains the reciprocal `**Amended by:**` pointer in this story's diff (body untouched — the repo's 0027/0028/0029 convention).
 
 ## Context

@@ -1,6 +1,6 @@
 # Second Brain — Story 3 Session Handoff (2026-07-23)
 
-**Status:** 🔴 OPEN
+**Status:** ✅ ADDRESSED — story 3 (break-a-goal-into-pieces) review PASS 2026-07-23, shipped to production 2026-07-23 (staging PR #432, prod promotion PR #433, merge `89e5d8f`). Record-based decomposition (deliverable/boundary/parent-slug on the goal record); `viable` standing derived at read time; two validated+gated+serialized normalize primitives (`create-child-goal`, `update-goal-intent`) refusing dangling/cycle/self-parent/already-parented/collision/empty; the save-schema→primary-property reconcile fold landed (ADR 0002's Option C, via ADR 0003 d8); hygiene taxonomy grown to nine kinds; Goals tree + minimal Goal detail. See `engineering-team/reviews/second-brain/3-break-a-goal-into-pieces.md` and the story-4 handoff.
 
 > Written at the close of the story-2 session (structures-the-brain-can-trust: review
 > PASS, promoted to production 2026-07-23, PRs #429/#430). This is the pickup prompt
