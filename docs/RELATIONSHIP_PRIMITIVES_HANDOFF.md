@@ -1,6 +1,6 @@
 # Relationship Primitives — Build Handoff
 
-**Status:** 🔴 OPEN — feature **not started**. The book is scaffolded (unarmed); no story, ADR, tests, or code exist yet. Flip to ✅ ADDRESSED once the endpoints ship to all three instances.
+**Status:** ✅ ADDRESSED — built by the armed Direction-mode `relationship-primitives` book (closed 2026-07-22; stories, ADRs, tests, and audit under `engineering-team/{stories,decisions,audits}/relationship-primitives/`). Endpoints live on local, staging, tapestry.brainstorm.world (PR #416) and tags.brainstorm.world (merge `30e4ff68`) as of 2026-07-23; an owner-facing UI shipped as `graph-curation-ui` #1. Body below kept for history.
 
 **Created:** 2026-07-20, at the end of a long session that scoped this feature, then pivoted to a security fix (below) before building it. Written so a fresh session can pick it up cold.
 **Builds on:** [`engineering-team/audits/relationship-primitives/book.md`](../engineering-team/audits/relationship-primitives/book.md) (the book of work, unarmed Direction-mode pre-registration); the intake entry **"2026-07-18 — Feature: primitive relationship add/delete endpoints (Neo4j-only, strfry-free)"** in [`engineering-team/stories/_intake.md`](../engineering-team/stories/_intake.md) (~line 1659) — its verified architectural background and open Planning questions are the real spec.
