@@ -1,6 +1,6 @@
 # Story 4: Attach the world — pointers and the goal's page
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-07-23
 **Type:** Feature
 **Epic:** `second-brain` (#4) · PRD §5.3, §5.8, §6
@@ -46,4 +46,4 @@ Remaining, deferred to the Architect / design (a value, not an intent decision):
 ## Linked artifacts
 - ADR: `engineering-team/decisions/second-brain/0004-external-resource-pointers-and-one-spine-detail.md`
 - Test plan: `engineering-team/stories/second-brain/4-attach-the-world.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/second-brain/4-attach-the-world.md` (PASS)
