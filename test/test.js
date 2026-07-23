@@ -175,6 +175,8 @@ const moveNodesBetweenSetsUi = require('./move-nodes-between-sets-ui.test.js');
 // epic: second-brain — Story 1 (capture a goal and see it).
 const captureAGoalAndSeeIt = require('./capture-a-goal-and-see-it.test.js');
 const firmwareConceptElementsSets = require('./firmware-concept-elements-sets.test.js');
+// epic: second-brain — Story 2 (hygiene check + primary-property reconcile).
+const structuresTheBrainCanTrust = require('./structures-the-brain-can-trust.test.js');
 
 async function main() {
   console.log('Running Brainstorm tests...');
@@ -469,6 +471,7 @@ async function main() {
   const moveNodesBetweenSetsUiResult = await moveNodesBetweenSetsUi.run();
   const captureAGoalAndSeeItResult = await captureAGoalAndSeeIt.run();
   const firmwareConceptElementsSetsResult = await firmwareConceptElementsSets.run();
+  const structuresTheBrainCanTrustResult = await structuresTheBrainCanTrust.run();
 
   console.log('\nTest Results');
   console.log('-------------');
@@ -810,6 +813,13 @@ async function main() {
       ? `SKIP (${captureAGoalAndSeeItResult.skipped} tests; preconditions not met)`
       : `${captureAGoalAndSeeItResult.fail === 0 ? 'PASS' : 'FAIL'} (${captureAGoalAndSeeItResult.pass} passed, ${captureAGoalAndSeeItResult.fail} failed${captureAGoalAndSeeItResult.skipped ? `, ${captureAGoalAndSeeItResult.skipped} skipped` : ''})`;
   console.log(`capture-a-goal-and-see-it suite:                 ${captureAGoalAndSeeItLine}`);
+  // Skip-aware: H-class live tests skip when the local stack is absent (CI's
+  // stack-free job); U/S classes always run and gate.
+  const structuresTheBrainCanTrustLine =
+    (structuresTheBrainCanTrustResult.pass + structuresTheBrainCanTrustResult.fail) === 0 && structuresTheBrainCanTrustResult.skipped
+      ? `SKIP (${structuresTheBrainCanTrustResult.skipped} tests; preconditions not met)`
+      : `${structuresTheBrainCanTrustResult.fail === 0 ? 'PASS' : 'FAIL'} (${structuresTheBrainCanTrustResult.pass} passed, ${structuresTheBrainCanTrustResult.fail} failed${structuresTheBrainCanTrustResult.skipped ? `, ${structuresTheBrainCanTrustResult.skipped} skipped` : ''})`;
+  console.log(`structures-the-brain-can-trust suite:            ${structuresTheBrainCanTrustLine}`);
 
   const firmwareConceptElementsSetsLine =
     (firmwareConceptElementsSetsResult.pass + firmwareConceptElementsSetsResult.fail) === 0 && firmwareConceptElementsSetsResult.skipped
@@ -961,7 +971,10 @@ async function main() {
     captureAGoalAndSeeItResult.fail === 0 &&
     // firmware-explorer #1 — concept Elements & Sets viewer
     // (LIVE chain — before the severed terminator; OPEN.md #43).
-    firmwareConceptElementsSetsResult.fail === 0;
+    firmwareConceptElementsSetsResult.fail === 0 &&
+    // second-brain #2 — structures the brain can trust (hygiene + reconcile)
+    // (LIVE chain — before the severed terminator; OPEN.md #43).
+    structuresTheBrainCanTrustResult.fail === 0;
     harnessLintResult.fail === 0 &&
     harnessStatsResult.fail === 0 &&
     sessionStartResult.fail === 0 &&
@@ -999,7 +1012,7 @@ async function main() {
     noteTaggingRawEventsInspectorHttpResult, deploySafetyStatusResult, safeToMergeCheckResult, nextTaskCountdownResult,
     closeUnauthWriteSurfaceResult, defaultDenyMutationsResult, usersPageNeo4jEndpointResult, strfryWipeOwnerGateResult,
     relationshipPrimitivesResult, relationshipPrimitivesProbeResult, moveNodesBetweenSetsUiResult,
-    captureAGoalAndSeeItResult, firmwareConceptElementsSetsResult,
+    captureAGoalAndSeeItResult, firmwareConceptElementsSetsResult, structuresTheBrainCanTrustResult,
   ].reduce((sum, r) => sum + ((r && r.skipped) || 0), 0);
   console.log(`Total skipped:                                   ${totalSkipped}`);
   console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);

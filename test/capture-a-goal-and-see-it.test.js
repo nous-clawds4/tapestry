@@ -326,12 +326,14 @@ test('S2 (ADR d3): brain API module — gate, route, and exact import surface', 
     '(route-level requireOwner would 401 the loopback conversational agent — ADR Context).');
   const requires = [...src.matchAll(/require\s*\(\s*['"`]([^'"`]+)['"`]\s*\)/g)].map((m) => m[1]);
   assert(requires.length > 0, 'the module must declare its imports via require().');
-  const allowed = [/neo4j-driver$/, /middleware\/auth$/, /assistantKeys$/, /lib\/brain\/goals$/];
+  // lib/brain/hygiene added by second-brain #2 (ADR 0002: "the 0001 four plus
+  // lib/brain/hygiene") — story 2's S3 re-pins the full five-entry surface.
+  const allowed = [/neo4j-driver$/, /middleware\/auth$/, /assistantKeys$/, /lib\/brain\/goals$/, /lib\/brain\/hygiene$/];
   for (const spec of requires) {
     assert(allowed.some((re) => re.test(spec)),
       `import surface violation: require('${spec}') — the brain read module allows only lib/neo4j-driver, ` +
-      'middleware/auth, utils/assistantKeys, lib/brain/goals (ADR implementation notes; keeps the module S-auditable ' +
-      'and structurally strfry-free).');
+      'middleware/auth, utils/assistantKeys, lib/brain/goals, lib/brain/hygiene (ADR 0001 implementation notes + ' +
+      'ADR 0002 re-pin; keeps the module S-auditable and structurally strfry-free).');
   }
 });
 
