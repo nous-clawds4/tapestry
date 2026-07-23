@@ -101,6 +101,6 @@ hardcode; `getOwnerAssistantPubkey()` / `useConfig()`):
    2026-07-23.)
 
 ## Linked artifacts
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/firmware-explorer/0001-concept-elements-and-sets-viewer.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
