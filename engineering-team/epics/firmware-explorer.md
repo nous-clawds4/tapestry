@@ -25,8 +25,9 @@ Firmware Explorer or dropping to raw Cypher.
 `stories/firmware-explorer/`:
 
 1. **concept-elements-and-sets-viewer** — per-concept Elements and Sets views with a
-   list → JSON-detail drill-down; Elements list has a Direct/Full scope toggle
-   (default Direct). *(In flight)*
+   list → JSON-detail drill-down; a Direct/Full scope toggle (default Direct) governs
+   both lists. **Done** — review PASS (`98b266f6`); shipped staging (#426) + prod (#427)
+   on 2026-07-23. Book closed (`audits/firmware-explorer/`).
 
 Prior work in this line (pre-epic, shipped directly): the core-node JSON Viewer/Raw
 toggle + the dependency-free `JsonView` component (`fea8b0ef`).
