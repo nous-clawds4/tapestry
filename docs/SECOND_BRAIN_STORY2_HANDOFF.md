@@ -1,6 +1,6 @@
 # Second Brain — Story 2 Session Handoff (2026-07-23)
 
-**Status:** 🔴 OPEN
+**Status:** ✅ ADDRESSED — story 2 (structures-the-brain-can-trust) review PASS 2026-07-23; the queue's defect inventory was falsified live (edges adjudicated legitimate-and-retained, operator-ratified); the real drift (primary-property records lagging extended schemas) reconciled on both work-item concepts. See `engineering-team/reviews/second-brain/2-structures-the-brain-can-trust.md` and the story-3 handoff.
 
 > Written at the close of the story-1 session (capture-a-goal-and-see-it: shipped to
 > production 2026-07-23, review PASS). This is the pickup prompt for the next session,
