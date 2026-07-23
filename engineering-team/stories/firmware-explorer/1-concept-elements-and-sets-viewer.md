@@ -1,6 +1,6 @@
 # Story 1: Browse a concept's Elements and Sets in the Firmware Explorer
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-07-23
 **Type:** Feature
 
@@ -103,4 +103,4 @@ hardcode; `getOwnerAssistantPubkey()` / `useConfig()`):
 ## Linked artifacts
 - ADR: `engineering-team/decisions/firmware-explorer/0001-concept-elements-and-sets-viewer.md`
 - Test plan: `engineering-team/stories/firmware-explorer/1-concept-elements-and-sets-viewer.test-plan.md` (suite: `test/firmware-concept-elements-sets.test.js`)
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/firmware-explorer/1-concept-elements-and-sets-viewer.md` — **PASS** (2026-07-23)
