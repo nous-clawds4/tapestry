@@ -691,6 +691,8 @@ Surfaced shipping the verified-followers count (#33) + followers table (#34) to 
 
 ## 2026-06-08 — Owner scoring batch is not deploy-safe (ops bug)
 
+**Guard branch → `deploy-safety-gate` (2026-07-18):** the "at minimum a guard" option is being realized by book `engineering-team/audits/deploy-safety-gate/book.md`, starting with story `engineering-team/stories/deploy-safety-gate/1-deploy-safety-status-endpoint.md`. The **resumable-checkpointing** and **drain-on-deploy** branches remain open here — this entry is deliberately left unmarked so it stays on the open-intake radar.
+
 Surfaced during the PoV-resolution work (`docs/POV_RESOLUTION_DESIGN_HANDOFF.md` §9, now BIBLE §27). A redeploy can interrupt a running `updateAllScoresForOwner` mid-`processOwnerFollowsMutesReports`, leaving Owner `influence` partial — which made staging Owner numbers unreliable until a full re-run (hours-long at prod scale, ~32M FOLLOWS). The operator is currently mitigating **manually** (disable scheduled tasks before promoting to staging/main), so this does not block, but the manual step is easy to forget and the failure is silent + expensive.
 
 **Want:** make long scoring jobs **deploy-safe** — resumable (checkpoint mid-`processOwnerFollowsMutesReports` so a restart continues rather than abandons), or **drained on deploy** (the deploy waits for / cleanly pauses an in-flight batch), or at minimum a **guard** that refuses/warns on deploy while a scoring batch is running. Task-queue-scheduler territory.
@@ -1570,3 +1572,258 @@ A common abstraction drawn over two shapes this different would have been wrong.
 **Strictness:** Standard — Refactor; the two surfaces' source-level suites must be re-aimed at the shared component rather than dropped.
 **Phase path:** Planning → Architecture (the abstraction is the decision) → Implementation → Review
 **Priority:** Low
+
+---
+
+## 2026-07-18 — Feature: scheduled-task deploy-safety gate (safe-to-merge check + countdown UX)
+
+**PICKED UP** 2026-07-18 → `engineering-team/stories/deploy-safety-gate/1-deploy-safety-status-endpoint.md` (epic `engineering-team/epics/deploy-safety-gate.md` created; story 1 = the status endpoint, acceptance-frame bullets 1–3; the cycle-skill safe-to-merge check and the settings countdown follow as later stories under the same book).
+
+**Origin:** operator request (conversation of 2026-07-18). This is the ratified **guard** branch of the still-open 2026-06-08 entry "Owner scoring batch is not deploy-safe (ops bug)" — resumable checkpointing and drain-on-deploy remain open there. Book: `engineering-team/audits/deploy-safety-gate/book.md` (Direction mode).
+
+**Raw request (condensed, verbatim where quoted):**
+
+> Each tapestry instance (production, staging, and tags) has a set of Scheduled Tasks … When a new feature is committed and merged with one of the respective branches (main, staging, or feat/tags), an action is triggered that has the possibility of interrupting a scheduled-task-in-action. … I propose to address this problem by creating a new API endpoint that returns: whether any Scheduled Task is running now; and how many hours, minutes, and seconds it will be until the next Scheduled Task is set to begin. While executing any of the `cycle-` commands (cycle-staging, cycle-prod, etc), we will check the api to make sure it is safe to merge. … We can also update the UX on the settings page, Scheduled Tasks panel, to say "Next Scheduled Task, <name of task>, starts in __ hours and __ minutes."
+
+**Agreed decisions (operator Q&A, 2026-07-18):**
+
+1. **Gate policy** — replaces the originally proposed fixed 60-minute look-ahead (which can never be satisfied when any sub-hourly entry is enabled; ADR 0019 removed the 1-hour interval floor): **unsafe if any covered task is running, or if the next fire among ALL enabled scheduled entries is within a buffer defaulting to 10 minutes; safe otherwise.** All enabled entries count; if cheap frequent monitor tasks ever get in the way, narrowing to blocking-task classes is a future reconsideration, not v1.
+2. **What counts as "running"** — BullMQ active jobs on any task queue (scheduled fires AND manual `/api/run-task` triggers), plus the legacy per-customer scheduler's in-flight runs (`customer-schedule`).
+3. **Scope** — guard only. Drain/graceful shutdown (`closeTaskQueue` SIGTERM wiring), stale `job.data` on stalled recovery (2026-05-25 intake entry), resumable checkpointing, and auth-gating the scheduled-tasks POST endpoints are all explicitly out of scope (tracked separately).
+4. **Direction-mode interaction** — a safe-window-wait void clause was added (operator-ratified, pre-arming) to the task-timeline book's outcome table, and is part of the deploy-safety-gate book's own pre-registration.
+5. **Coverage** — the check must also cover promotions to `feat/tags` → tags.brainstorm.world (no cycle skill exists for that path; covered via the canonical shared recipe).
+
+**Architectural background (subsystem map, 7-reader workflow 2026-07-18 — verified against source):**
+
+- **Half exists already.** Per-entry next-fire is computed and served: `GET /api/scheduled-tasks/list` returns `timer.nextRunAt` per entry (BullMQ `getJobSchedulers()` → `.next`; `src/manage/taskQueue/queue/scheduler.js:126-144`, `src/api/scheduled-tasks/index.js:219-222, 290-309`). Unauthenticated (auth middleware fall-through, `src/middleware/auth.js:488-489`) — verified live against staging 2026-07-18. The settings panel already renders per-entry "next run" (`ui/src/pages/settings/RelaySettings.jsx:1711-1725`). The new endpoint is an aggregation + a running-now signal; the UX line needs no new backend.
+- **The phantom-running trap (critical).** Every existing "running" surface (task-watchdog, scheduled-tasks history, taskDashboard) derives from `events.jsonl` TASK_START-without-TASK_END. A deploy-killed task never writes TASK_END and reads as "running" for up to 24h — a gate built on these deadlocks after the very event it guards against. The authoritative signal is BullMQ active-job state (`getAllQueues()` + `getActiveCount()`, `src/manage/taskQueue/queue/index.js:166-174`) — nothing exposes it as JSON today (BullBoard is an owner/admin HTML UI).
+- **Legacy scheduler.** `customer-schedule` keeps in-process `setInterval` timers with an in-memory Map holding a live `taskRunning` boolean (`src/api/customer-schedule/index.js:20-22, 210-215`); its status API is per-pubkey only (`?pubkey=` required — verified live on staging 2026-07-18; no aggregate form). Same process as the control panel, so server-side aggregation is possible.
+- **Degraded mode.** With `TASK_QUEUE_ENABLED=false` the queue layer doesn't exist; `nextRunSafe` returns null and timers read inactive. The endpoint must distinguish "queue disabled" from "nothing scheduled."
+- **Deploys.** Six branch-triggered workflows (main, staging, feat/tags, feat/communities, feature-magic-carpet, feat/curate) SSH to the droplet and `docker compose up -d --build` (~80s warm + 5-30s bind window). The `tapestry` container is recreated (in-flight task child processes killed; no drain — `closeTaskQueue()` is dead code); `tapestry-redis` survives (AOF), so schedulers/waiting jobs persist and killed active jobs are stall-recovered and re-run after boot.
+- **Cycle skills.** No skill makes any pre-merge HTTP call today; all instance checks are post-deploy smoke. Natural slot: between PR-open and merge (cycle-staging step 3→4, cycle-prod step 3→4); cycle-full inherits. `docs/SMOKE_TEST.md` is the established shared-recipe pattern ("update this file and every cycle inherits") — the safe-to-merge recipe should follow it, which is also how feat/tags promotions get covered. Skill checks are plain unauthenticated curl (NIP-07 cannot be scripted, `docs/SMOKE_TEST.md:90-92`).
+- **Observed staging state (2026-07-18):** all four scheduled entries disabled, zero active tasks — the manual mitigation (disable everything before promoting) is still in effect from June. The gate replaces that practice.
+
+**Out of scope:** drain-on-deploy / SIGTERM wiring; stale `job.data` on stalled recovery; resumable checkpointing; auth for scheduled-tasks write endpoints; CI-side enforcement in deploy workflows; deploy-workflow concurrency groups and missing `set -euo pipefail` (pre-existing pipeline gaps, noted only).
+
+**Classification:** Feature (new epic `deploy-safety-gate`; task-queue-scheduler-adjacent)
+**Strictness:** Standard — but the book runs in **Direction mode**: every story runs all five phases and all judged gates regardless of classification.
+**Phase path:** Planning → Architecture → Test Design → Implementation → Review, per story, under `/direct-feature`.
+**Priority:** Medium-high — precondition for arming the parked task-timeline Direction-mode book; replaces a manual, easy-to-forget mitigation.
+
+---
+
+## 2026-07-18 — Defect: UI advertises a `tapestry` CLI that does not exist
+
+**Found:** incidentally, during a concept-graph tooling assessment (session 2026-07-18).
+
+The concepts Health Audit tab renders a CLI hint — `ui/src/pages/concepts/ConceptHealth.jsx:320`:
+
+> `CLI: tapestry audit concept "<name>" · tapestry normalize skeleton "<name>"`
+
+and the manage/Audit page presents three more (`ui/src/pages/manage/Audit.jsx:12, 35, 50` — `tapestry audit health`, `tapestry audit stats`, `tapestry audit concept`), with a comment at `:6` stating each "mirrors a `tapestry audit` subcommand."
+
+**No such binary exists.** `package.json` `bin` declares only `brainstorm-publish`, `brainstorm-control-panel`, `brainstorm-install`, `brainstorm-init-db`; there is no `bin/tapestry*`; and `command -v tapestry` inside the `tapestry` container returns not-found (verified 2026-07-18). The pages themselves work — they call the server API (`src/api/audit/`); only the advertised CLI equivalent is phantom.
+
+**Impact:** low but corrosive — an operator who copies the hint gets `command not found`, and it misrepresents the tooling surface to agents reading the UI for orientation.
+
+**Disposition options:** (a) drop the CLI hints, (b) reword to the actual API/curl equivalent, or (c) build the CLI. Not yet triaged.
+
+**Classification:** Bug (doc/UI copy) — trivial unless (c).
+**Priority:** Low.
+
+---
+
+## 2026-07-18 — Defect: two `shared concept` a-tag pointers dangle on the community relay
+
+**Found:** by census during the same session — three read-only probes over neo4j + local strfry + `wss://dcosl.brainstorm.world`.
+
+The local concept `39998:<local-TA>:shared-concept` catalogs 5 elements, each carrying `sharedConcept.identifiers['a-tag']` pointing at the origin deployment's published concepts (author `82b75e47…`). Queried against the community relay 2026-07-18:
+
+| a-tag (`39998:82b75e47…:<slug>`) | resolvable on `dcosl.brainstorm.world` |
+|---|---|
+| `tag` | ✅ |
+| `nostr-user-tag` | ✅ |
+| `tag-pinning` | ✅ |
+| `nostr-event-tag` | ❌ **dangles** |
+| `tagging-with-specific-tag` | ❌ **dangles** |
+
+**Why it matters beyond the two rows:** the catalog records *observed* sharing as hand-written static JSON, so it rots silently as relay state changes. This is the concrete argument for storing publication *intent* and computing observation, rather than freezing observation into a JSON field. Any future reconciler/verifier work should treat this entry as its motivating case.
+
+**Unknown:** whether the two events were never published, were published to a different relay, or have been dropped/expired by `dcosl`. Determining which is the first triage step.
+
+**Classification:** Bug (data) — investigate before deciding a fix.
+**Priority:** Low-medium (no user-facing breakage today; it is a correctness signal about the catalog pattern).
+
+---
+
+## 2026-07-18 — Feature: primitive relationship add/delete endpoints (Neo4j-only, strfry-free)
+
+**Raw request (verbatim):**
+
+> In any case, I am thinking that for now, we should just build simple tool that allows me to add (or delete) a HAS_ELEMENT relationship in neo4j between two nodes that exist in neo4j, without dealing with strfry at all. And we're going to need a lot more very simple, very basic tools like that, starting with tools to add or delete the other basic relationship types. Do these tools exist, either individually or as a family of tools?
+
+**Operator's framing (verbatim, same session) — the premise that makes strfry-free correct:**
+
+> The information in neo4j should be considered the reference; it is "me", the second brain of the tapestry owner / operator, or perhaps the brain of the tapestry assistant -- or perhaps both. Strfry is simply one format by which information can be communicated between one tapestry instance and another.
+
+**Answer to "do these tools exist?": No.** Verified across the whole authoring surface 2026-07-18:
+
+- All 20 `POST /api/normalize/*` routes are *composite* — each bakes in node-type assumptions, side effects, and strfry emission. The three that create membership edges all publish: `add-to-set` (dual-emits an `n` tag + descriptor), `add-node-as-element` (re-signs the class-graph JSON node), `link-concepts` (`signAndFinalize` + `publishToStrfry`, `src/api/normalize/index.js:2643`).
+- **No single-edge DELETE exists anywhere.** The only edge removal is the bulk heuristic `prune-superset-edges` / the prune pass inside `wire-implicit-elements`.
+- The only strfry-free, arbitrary-pair primitive is `POST /api/neo4j/query` (raw Cypher) — no existence checks, no relationship-type whitelist, no idempotency contract, no structured result. A scalpel with no handle.
+- No UI affordance (and the closest one, `/elements/add-node`, currently crashes — `TypeError: A?.get is not a function` on a clean load).
+- No CLI (see the phantom-`tapestry`-CLI defect above).
+
+**Proposed shape (operator-approved in conversation):** two endpoints, parameterized by relationship type rather than one endpoint per type.
+
+- **Add** — `{fromUuid, toUuid, relType}`; both nodes must already exist; `relType` from a whitelist; idempotent `MERGE`; response distinguishes `created` from `already-existed`.
+- **Delete** — same body; targeted single-edge delete; response distinguishes `deleted` from `not-found`.
+- **No strfry, no JSON regeneration, no derivation.** Pure reference-graph edits.
+
+**Architectural background (verified this session):**
+
+- Relationship type names are firmware-aliased, not literals: `REL.CLASS_THREAD_TERMINATION` → `HAS_ELEMENT`, `CLASS_THREAD_PROPAGATION` → `IS_A_SUPERSET_OF`, `CLASS_THREAD_INITIATION` → `IS_THE_CONCEPT_FOR` (`src/api/normalize/firmware.js:71-80`; table at `src/firmware/install.js:518-521`). A whitelist should resolve through the alias layer, not hardcode strings.
+- Auth: requests from localhost/Docker-host to `/api/normalize` and `/api/neo4j` bypass session auth entirely (`src/middleware/auth.js:321-324`). New endpoints inherit this if mounted under `/api/normalize`.
+- **Firmware-install interaction (known hazard, needs a disposition):** install pass 1d re-derives `HAS_ELEMENT` from every `z` tag across *every* ConceptHeader in the graph with no already-explicit guard (`src/firmware/install.js:594-634`), while the redundancy prune runs *only* for concepts having a firmware `manifest.json` (`:758`, `:764`). Net effect: a firmware install can silently re-add operator-deleted edges, and silently delete operator-added ones it deems redundant. Under the Neo4j-as-reference stance these passes overwrite the reference.
+- Census baseline (2026-07-18): 621 membership edges — 465 z-tag-justified, 80 firmware-manifest, 10 descriptor, 1 s-tag, 0 n-tag, **65 bare** (no wire record). Neo4j holds 497 concept-graph nodes; local strfry holds 8,535 events from 562 pubkeys — neo4j is a curated view, not a mirror.
+
+**Open Planning questions (to resolve at Planning):**
+
+1. Route naming/mount point (`/api/normalize/*` for auth+convention inheritance vs. a new namespace).
+2. Initial `relType` whitelist membership — `HAS_ELEMENT` + `IS_A_SUPERSET_OF` only, or the core-node wiring types too.
+3. Whether add and delete are two routes or one route with an action/method discriminator.
+4. Endpoint-level validation: are parent-label constraints enforced (`Set`/`Superset` only) or is any existing node pair permitted?
+5. Response shape and status codes for the idempotent cases (`already-existed`, `not-found`).
+6. Whether the firmware-install interaction is documented-only in this book or gets its own story.
+7. Test strategy for endpoints whose contract is a Neo4j side effect.
+
+**Out of scope:** strfry emission of any kind; a reconciler; publication-intent modeling; curator-assertion wire format; UI affordances; fixing the `/elements/add-node` crash; fixing the `publishToStrfry` silent-drop bug (own entry needed — see the 2026-07-18 session findings on `add-to-set`).
+
+**Classification:** Feature (new epic).
+**Strictness:** Standard.
+**Phase path:** operator has requested **Direction mode** through cycle-staging — every story runs all five phases and all judged gates. Requires an armed `## Direction mode` section in the book; **the operator arms it, never the Director.**
+**Priority:** Medium — unblocks routine graph curation that currently requires raw Cypher.
+
+---
+
+## 2026-07-18 — Defect: `publishToStrfry` in `normalize` silently drops writes and reports success
+
+**Found:** live, while executing `POST /api/normalize/add-to-set` five times against the local stack (all five returned `success: true`). Actual landing rate: **4/5 in Neo4j, 1/5 in strfry.** All changes have since been rolled back.
+
+**The helper** — `src/api/normalize/index.js:115-124`:
+
+```js
+function publishToStrfry(event) {
+  return new Promise((resolve, reject) => {
+    const child = exec('strfry import', { timeout: 10000 }, (err) => {
+      if (err) reject(new Error(`strfry import failed: ${err.message}`));
+      else resolve();                       // exit 0 ⇒ treated as success
+    });
+    child.stdin.write(JSON.stringify(event) + '\n');
+    child.stdin.end();
+  });
+}
+```
+
+**Two defects:**
+
+1. **Exit 0 ≠ event stored.** Verified by hand in-container: re-importing an existing event printed `Writer: added: 0 dups: 1 replaced: 0 deleted: 0` / `Done. Processed 1 lines. 0 added, 0 rejected, 1 dups` and exited **0**. strfry reports outcome as counts on stderr and exits 0 regardless; this helper never parses them, so a dropped or rejected write is indistinguishable from a stored one. An event that never reaches stdin yields `Processed 0 lines` — also exit 0.
+2. **It is an un-hardened duplicate.** `src/api/trustedList/index.js:73` is the same function, fixed under ADR `tag-stack-merge-hardening/0001 (B4b)`: `spawn` instead of `exec`, explicit `child.stdin.on('error')`, `--no-verify`, and a settled-once guard. The `normalize` copy never received that fix. A **third** copy exists at `src/api/normalize/helpers.js:53`.
+
+**Ruled out:** no strfry write-policy plugin is active (`writePolicy.plugin = ""` in `/etc/strfry.conf`), so nothing is rejecting these events by policy.
+
+**Not yet established — the actual gap:** *why* 4 of 5 dropped while 1 landed. Candidate causes, untested: the `exec`-then-late-`stdin.write` race; LMDB write-lock contention with the running relay; the 10s timeout. A controlled reproduction (replicate the exact pattern in a standalone in-container script, ~20 throwaway events, count landed vs. "succeeded"; then the same against the hardened `spawn` pattern) is the proposed first step — deliberately deferred by the operator pending design decisions.
+
+**Blast radius:** the same helper backs `create-element`, `create-set`, `link-concepts`, `set-json-tag`, `save-element-json`, and `add-to-set` — i.e. most of the runtime authoring surface. Any of them can report success while leaving no durable event.
+
+**Interaction:** in `handleAddToSet` the Neo4j import is sequenced *after* the publish inside one `try` (`index.js:3062-3063`), so a publish rejection also silently skips the graph write — the observed `tag` case (neither tier updated, endpoint still returned success).
+
+**Classification:** Bug (correctness / silent data loss).
+**Strictness:** Standard — a fix should consolidate the three copies and assert on strfry's reported counts, not just exit code.
+**Priority:** Medium-high — it silently corrupts the local↔wire relationship, and it is the reason a routine 5-element set move produced an inconsistent half-written state.
+
+---
+
+## 2026-07-19 — Defect: `/api/normalize/*` has no server-side auth, and the localhost bypass may expose it (plus arbitrary Cypher) to the public internet
+
+**PICKED UP** → book scaffolded at `engineering-team/audits/security-auth-exposure/book.md` (human-gated). Open Q1 (is the exposure real?) **CONFIRMED** live on staging + prod 2026-07-19; open Q4 (`run-query` disposition) **DONE** — the GET endpoint was removed and deployed to staging/prod/feat/tags (#388/#389/#390), closing its leak + RCE. This book carries the *root cause* (localhost bypass) + the rest of the write surface + the operator-side password rotation and Bolt-port firewalling. Remaining open Planning questions (Q2, Q3, Q5, Q6) move to that book.
+
+**How it surfaced:** incidental. The operator asked whether editing a concept element's description was supported; verifying the write path end-to-end turned up the auth gap on that same path. Not a reported failure — no exploitation observed, no anomaly in the logs. Filed because the write path it guards is the one the operator is about to start using routinely.
+
+**⚠️ Verified by code reading only. Nothing was probed against a deployed instance.** The exposure claim below is a reasoned chain over four files, not an observation. **First task for whoever picks this up is to confirm or refute it** with a single safe, read-only, unauthenticated request against staging — e.g. `GET https://staging.brainstorm.world/api/neo4j/run-query?query=RETURN%201`. If that returns data without a session cookie, the chain holds. Do not test by writing.
+
+**Finding 1 — no server-side authorization on the normalize surface.** All 20 `POST /api/normalize/*` routes register bare (`src/api/normalize/index.js:3299-3328`); none uses the `requireOwner` middleware that the concept routes do (`src/api/index.js:578,582`). `handleSaveElementJson` (`:1981-2010`) validates only that `uuid` and `json` are present and that the node exists. The owner check on element editing is **client-side only** — `isOwner` in `ui/src/pages/concepts/ElementDetail.jsx:19`, used to hide the button (`:276`), show a lock banner (`:283-288`), and disable submit (`:343`). All three are trivially bypassed by calling the endpoint directly. The same holds for the other 7 concepts-UI pages that repeat the identical `isOwner` expression.
+
+**Finding 2 — the localhost bypass fires for *every* request on a deployed instance.** `src/middleware/auth.js:317-324`:
+
+> ```js
+> const isLocal = ['127.0.0.1', '::1', '::ffff:127.0.0.1', '172.18.0.1', '::ffff:172.18.0.1'].includes(remoteAddr);
+> if (isLocal && (req.path.startsWith('/api/normalize') || req.path.startsWith('/api/neo4j'))) {
+>     return next();
+> }
+> ```
+
+The intent (per its comment, *"trusted local operator"*) is CLI access from the host. The problem is that on a deployed instance **all** traffic arrives from localhost:
+
+1. `docker/nginx.conf:40-43` — `location /` → `proxy_pass http://127.0.0.1:7778/`, in-container, so Express's peer address is `127.0.0.1`.
+2. `app.set('trust proxy')` is **never called anywhere in the repo** (grepped: zero hits). With trust-proxy disabled, Express's `req.ip` returns the socket address and **ignores `X-Forwarded-For`** — which nginx does set (`:41`), but nothing reads.
+3. Droplets add a *host* nginx + Certbot hop in front of a stack bound to `127.0.0.1:8080` (`OPERATIONS.md:111,125,132,138`) — another localhost hop.
+4. `172.18.0.1` (the Docker bridge gateway) is *also* whitelisted, covering the case where the peer address is the bridge rather than loopback.
+
+If this holds, the following are reachable unauthenticated from the internet on `staging.brainstorm.world` and `tapestry.brainstorm.world`:
+
+- `GET /api/neo4j/run-query` (`src/api/index.js:256`) — **arbitrary Cypher, over GET.** Read *and* write. This is the severe one; a GET is triggerable by a link.
+- `POST /api/neo4j/query` (`:257`) — same, POST.
+- All 20 `/api/normalize/*` writes — including `save-element-json`, `create-element`, `create-concept`, `set-slug`, `fork-node`. Each re-signs events **as the TA** and publishes to strfry, so an unauthenticated caller could mint TA-signed events on a deployment they do not own.
+
+**Prior art in this log:** the 2026-07-18 relationship-primitives entry (`_intake.md:1659`) already records the bypass as a fact — *"requests from localhost/Docker-host to `/api/normalize` and `/api/neo4j` bypass session auth entirely"* — and notes new endpoints would inherit it. It treats it as a property to inherit; this entry argues it is a defect to close, and that any new primitive endpoints should land **after** it, or they widen the hole.
+
+**Also on this surface (minor, same file, fix opportunistically):** `src/api/openapi.yaml:439` documents `save-element-json` as `required: [concept, element, json]`; the handler requires `uuid` and 400s on anything else. Anyone building to the published spec fails.
+
+**Open Planning questions:**
+
+1. Is the exposure real? (The read-only staging probe above. Everything below is conditional on it.)
+2. Correct fix layer — `app.set('trust proxy', …)` so `req.ip` reflects the true client, or drop the IP heuristic entirely in favor of an explicit local-operator credential (shared secret / unix socket / bound-to-loopback admin port)? The IP heuristic is load-bearing for the documented CLI workflow, so it cannot simply be deleted.
+3. Does `requireOwner` go on all 20 normalize routes uniformly, or is the read/write split finer?
+4. What is the disposition of `GET /api/neo4j/run-query`? It is already marked *"legacy — deprecate after migration"* (`src/api/index.js:256`). Deprecating it may be cheaper than securing it.
+5. Firmware install calls normalize endpoints internally over HTTP (hence the `req.connection` guard at `auth.js:320`) — whichever fix lands must not break it.
+6. Does this need coordinated disclosure / a staging+prod hotfix ahead of the normal branch train, or does it ride the usual `staging` → `main` chain?
+
+**Out of scope:** the element-editor UX asymmetry (separate project element, `39999:<TA>:fix-element-json-editor-*`); any change to the client-side `isOwner` pattern; the 8-way duplication of that expression across the concepts pages.
+
+**Classification:** Defect (security / authorization).
+**Strictness:** Standard.
+**Priority:** **High if question 1 confirms**, otherwise Low (defense-in-depth on a local-only surface). Deliberately not marked Critical while unverified.
+
+---
+
+## 2026-07-21 — Security: gate authenticated-non-owner access to admin mutations (security-auth-exposure phase 2)
+
+**Origin:** the post-fix regression audit of 2026-07-21 (after the `run-query` client-caller regression). The audit confirmed **0 active regressions** from the security changes, but surfaced a concrete instance of a **pre-existing** gap: `POST /api/strfry/wipe` had no owner check and could be triggered by a **logged-in non-owner** to wipe the local relay (it execs `strfry delete --filter='{}'`). That one instance was **closed this session** (`7873f156` — `isOwner || localTrusted → 403` gate + `test/strfry-wipe-owner-gate.test.js` + hid the button; shipped staging/prod/tags). This entry scopes the **class** it was one instance of. Operator explicitly asked to scope it as a follow-up.
+
+**The gap (pre-existing; deferred at the security-auth-exposure book close — audit §5–6 / prd-seed §7 Q4):**
+Default-deny (security-auth-exposure story 2) rejects **unauthenticated** mutations, but the authenticated branch falls through to `next()` for **any** logged-in session — owner *or* non-owner. So an admin mutation with **no route-level `requireOwner` and no in-handler `isOwner`** is reachable by an **authenticated non-owner (a logged-in guest)**. Unchanged from before the security work — default-deny only narrowed it (unauth is now blocked). On a public-facing instance, anyone can obtain a non-owner session via NIP-07 login.
+
+**Current protection inventory (2026-07-21, quick pass — Architecture must make it exhaustive):**
+- **~19 routes** carry a route-level owner guard (`requireOwner` / `requireOwnerOrAdmin`) — settings, `admin/*`, `grapevine/preferences`, etc. → SAFE.
+- **4 handlers** self-gate in-handler (`isOwner(req)`): `neo4j/queryPost`, `strfry/commands/publishEvent` (signAs:assistant), `strfry/wipe` (this session), `taskExplorer/getTaskExplorerData` → SAFE.
+- **The exposed set** = the rest of the security book's "44 previously-unguarded admin mutations" (audit line 15) that have NEITHER guard — e.g. `POST /api/firmware/install`, `tapestry-key/*`, `run-task`, `DELETE /api/search/profiles/meili/wipe`, `trusted-list/publish`. These 401 for unauth (default-deny) but **execute for an authenticated non-owner**.
+
+**Scope:** inventory every mutating endpoint (POST/PUT/PATCH/DELETE), classify each (owner-only admin / customer / intentionally-public), and put a route-level owner guard on every owner-only admin mutation currently relying on default-deny. **Prefer route-level `requireOwner` over per-handler `isOwner`** — the strfry/wipe in-handler gate was an expedient one-off; the systemic answer is route-level (fewer places to forget; new endpoints inherit nothing, so pair it with a lint/test that flags an ungated mutating route).
+
+**Guardrails (verified working this session — must stay working):**
+- The two intentionally-public mutations stay public: `POST /api/neo4j/query` (reads; write-Cypher already in-handler-gated) and `POST /api/strfry/publish` (client-signed permissionless; assistant-sign already gated). Do NOT put a blanket requireOwner on these.
+- Loopback crons (`refresh*` → `curl 127.0.0.1:$PORT`) + the firmware-install internal bridge are `localTrusted` — must keep working. A route-level guard must still admit `req.localTrusted` (mirror the existing `isOwner(req) || req.localTrusted` shape), or exempt those paths.
+- Owner UI (owner session passes requireOwner) and the deploy-safety curl / public reads must not regress.
+
+**Acceptance criteria sketch:**
+1. An authenticated **non-owner** session POST to each owner-only admin mutation (firmware/install, meili/wipe, run-task, tapestry-key/*, trusted-list/publish, …) → 401/403, not executed. Automated test with a mock non-owner session (extend the security suites' style).
+2. Owner session → still succeeds.
+3. Loopback/`localTrusted` (cron/bridge) → still succeeds (firmware install 39/39; refresh crons run).
+4. The two allowlisted public endpoints unchanged.
+5. Shipped staging → prod → feat/tags (the exposure is live on all three).
+
+**Classification:** Defect (security / authorization). Candidate **epic** (`security-auth-exposure` phase 2) if the inventory is large; a single Standard story if the guard sweep is mostly mechanical — Architecture decides.
+**Strictness:** Standard. **Human-gated** (live auth-middleware/route change, like the parent book — not Direction mode).
+**Phase path:** Planning → Architecture (the route inventory + guard strategy is the real design work) → Test Design → Implementation → Review.
+**References:** `engineering-team/audits/security-auth-exposure/audit.md` §5–6 + `prd-seed.md` §7 Q4; this session's `src/api/strfry/wipe.js` (in-handler template) + `test/strfry-wipe-owner-gate.test.js`; `src/middleware/auth.js` (default-deny + `req.localTrusted`); the ~19 existing `requireOwner` routes as the pattern to extend; `src/api/admin/index.js` (`requireOwnerOnly` vs `requireOwnerOrAdmin` distinction).

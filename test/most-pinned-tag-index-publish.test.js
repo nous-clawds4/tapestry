@@ -24,6 +24,7 @@
  */
 
 const { execSync, execFileSync } = require('child_process');
+const { ensureRankedPool, makeAuthorDealer } = require('./helpers/livePov');
 const fs = require('fs');
 const path = require('path');
 
@@ -52,16 +53,15 @@ async function controlPanelReachable() {
   } catch { return false; }
 }
 
-// TA pubkey resolved at runtime from the instance — never hardcoded
-// (CLAUDE.md "Per-deployment TA pubkey").
-let _taPubkey = null;
+// Z-TAG COMPOSITION pubkey. This suite previously resolved it at runtime from
+// /api/assistant/pubkey, citing CLAUDE.md's "never hardcode" rule — but z-tag
+// composition for tag/nostr-user-tag/tag-pinning is that rule's NAMED
+// EXCEPTION (ADR 0015): the server reads pins via handles built from the
+// LEGACY literal (src/api/profile-tags/index.js:49-61), so pins composed
+// under a rebuilt container's fresh runtime TA are invisible to every read.
+const LEGACY_Z_TAG_PUBKEY = '82b75e474dda005e912bcbb910391c60c2b89cc7faf5d3c30b7c59a324973833';
 async function fetchTaPubkey() {
-  if (_taPubkey) return _taPubkey;
-  const r = await fetch(`${CONTROL_PANEL_BASE}/api/assistant/pubkey`);
-  const j = await r.json();
-  if (!j?.success || !j.pubkey) throw new Error('could not resolve TA pubkey');
-  _taPubkey = j.pubkey;
-  return _taPubkey;
+  return LEGACY_Z_TAG_PUBKEY;
 }
 
 function nakKeyGen() { return execSync('nak key generate').toString().trim(); }
@@ -203,15 +203,20 @@ async function setupBasicSuite() {
     authorSk: tagAuthorSk, taPubkey,
   });
 
-  const viewer = (() => { const sk = nakKeyGen(); return { sk, pk: nakDerivePubkey(sk) }; })();
-  const otherPinner = (() => { const sk = nakKeyGen(); return { sk, pk: nakDerivePubkey(sk) }; })();
+  // Pinners and the endorser come from the pre-ranked pool (helpers/livePov.js):
+  // pinnedCount and assertion counts include only POV-counted authors, so on a
+  // POV-filtered stack ephemeral identities' pins/endorsements are dropped.
+  const dealer = makeAuthorDealer();
+  const viewer = dealer.take();
+  const otherPinner = dealer.take();
+  const endorser = dealer.take();
   const someTarget = nakDerivePubkey(nakKeyGen());
 
   // One endorsement for tagA — so tagA shows up in the existing
   // assertion-driven sorts too. (tagB has none → tests the union.)
   await publish(buildProfileTagAssertion({
     tagSlug: `mpt-a-${slugBase}`, tagEventId: tagA.id, targetPubkey: someTarget,
-    authorSk: tagAuthorSk, authorPk: tagAuthorPk, polarity: 1, taPubkey,
+    authorSk: endorser.sk, authorPk: endorser.pk, polarity: 1, taPubkey,
   }));
 
   // Pins.
@@ -443,6 +448,11 @@ async function run() {
   }
   if (!(await controlPanelReachable())) {
     console.log(`  SKIP  control panel not reachable at ${CONTROL_PANEL_BASE}; skipping live publish-flow tests`);
+    return { pass: 0, fail: 0, skipped: basicTests.length + povTests.length };
+  }
+  const ranked = await ensureRankedPool();
+  if (!ranked.ok) {
+    console.log(`  SKIP  ${ranked.reason}; skipping live publish-flow tests`);
     return { pass: 0, fail: 0, skipped: basicTests.length + povTests.length };
   }
 

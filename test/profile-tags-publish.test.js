@@ -17,10 +17,20 @@
  */
 
 const { execSync } = require('child_process');
+const { ensureRankedPool, makeAuthorDealer, meiliUpsertAndWait, fetchPovFilter } = require('./helpers/livePov');
 
 const CONTROL_PANEL_BASE = process.env.BRAINSTORM_BASE_URL || 'http://localhost:7778';
 const MEILI_BASE = process.env.MEILI_URL_HOST || 'http://localhost:7700';
 const MEILI_INDEX = process.env.MEILI_INDEX || 'profiles';
+
+// Sentinel: throw to mark a single test as skipped (vs pass/fail) — e.g. when
+// a Meili doc this test depends on cannot be indexed within the wait budget.
+const SKIP = Symbol('skip');
+function skipTest(reason) {
+  const e = new Error(reason);
+  e[SKIP] = true;
+  return e;
+}
 const TA_PUBKEY = '82b75e474dda005e912bcbb910391c60c2b89cc7faf5d3c30b7c59a324973833';
 const NOSTR_USER_TAG_HANDLE = `39998:${TA_PUBKEY}:nostr-user-tag`;
 const TAG_HANDLE = `39998:${TA_PUBKEY}:tag`;
@@ -56,9 +66,15 @@ function nakDerivePubkey(privkey) {
   return execSync(`nak key public ${privkey}`).toString().trim();
 }
 
-function nakSignEvent({ kind, tags = [], content = '', privkey }) {
+function nakSignEvent({ kind, tags = [], content = '', privkey, createdAt }) {
   const tagArgs = tags.map((t) => `--tag ${t[0]}=${t.slice(1).join('=')}`).join(' ');
-  const cmd = `nak event -k ${kind} ${tagArgs} --sec ${privkey} -c ${JSON.stringify(content)}`;
+  // Optional explicit created_at (`nak event --ts`). Without it nak stamps the
+  // current second — two events signed within the same wall-clock second get
+  // EQUAL created_at, and NIP-01's replaceable tie-break (lowest id wins) makes
+  // "which one survives" a coin flip. Any test whose premise is "the later
+  // event replaces the earlier" must make later explicit.
+  const tsArg = createdAt !== undefined && createdAt !== null ? ` --ts ${createdAt}` : '';
+  const cmd = `nak event -k ${kind} ${tagArgs}${tsArg} --sec ${privkey} -c ${JSON.stringify(content)}`;
   return JSON.parse(execSync(cmd).toString().trim());
 }
 
@@ -103,21 +119,15 @@ async function fetchMeiliSearch(q) {
 }
 
 async function meiliUpsertProfile(doc) {
-  // Upsert a single profile document directly. Reachable from host because
-  // nostr-search-meili exposes port 7700 in the dev stack.
-  const r = await fetch(`${MEILI_BASE}/indexes/${MEILI_INDEX}/documents`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify([doc]),
-  });
-  if (!r.ok) {
-    throw new Error(`meili upsert failed: ${r.status} ${await r.text()}`);
-  }
-  // Meili indexes asynchronously; give it a beat to settle.
-  await sleep(800);
+  // Upsert a single profile document and WAIT for Meili to index it — a fixed
+  // settle sleep is not enough: under stream-consumer ETL load the task queue
+  // has been observed taking minutes per task. On timeout, skip the test
+  // rather than fail (environmental, not a code defect).
+  const res = await meiliUpsertAndWait(doc, { timeoutMs: 90000 });
+  if (!res.ok) throw skipTest(res.reason);
 }
 
-function signProfileTagEvent({ tagSlug, tagEventId, targetPubkey, authorSk, authorPk, polarity }) {
+function signProfileTagEvent({ tagSlug, tagEventId, targetPubkey, authorSk, authorPk, polarity, createdAt }) {
   const dTag = `profile-tag-${tagSlug}-${targetPubkey.slice(0, 8)}-${authorPk.slice(0, 8)}`;
   const tags = [
     ['d', dTag],
@@ -131,7 +141,7 @@ function signProfileTagEvent({ tagSlug, tagEventId, targetPubkey, authorSk, auth
   const content = JSON.stringify({
     nostrUserTag: { taggedPubkey: targetPubkey, tagEventId },
   });
-  return nakSignEvent({ kind: 39999, tags, content, privkey: authorSk });
+  return nakSignEvent({ kind: 39999, tags, content, privkey: authorSk, createdAt });
 }
 
 function sleep(ms) {
@@ -144,8 +154,13 @@ function t(name, fn) { tests.push([name, fn]); }
 let ctx = null;
 
 async function setupSuite() {
-  const authorSk = nakKeyGen();
-  const authorPk = nakDerivePubkey(authorSk);
+  // Shipped behavior (pov-selectable-tag-surfaces ADR-0006): assertions only
+  // count when their author's wot_rank_<povSuffix> >= minRank in Meili. Sign
+  // as a pre-ranked pool author (helpers/livePov.js) so the tests exercise
+  // bucketing/replacement/deletion, not the WoT gate. run() has already
+  // verified the pool docs via ensureRankedPool().
+  const { sk: authorSk, pk: authorPk } = makeAuthorDealer().take();
+
   const tagSlug = `test-tag-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const tagContent = JSON.stringify({
     tag: { slug: tagSlug, name: `Test Tag ${tagSlug}`, description: 'integration-test tag' },
@@ -228,7 +243,13 @@ t('overwriting the same d-tag with flipped polarity moves the entry between buck
   let json = await fetchTagsForProfile(targetPk);
   assert((json.applications || []).length === 1, 'after apply, expected 1 application');
 
-  const dispute = signProfileTagEvent({ tagSlug, tagEventId, targetPubkey: targetPk, authorSk, authorPk, polarity: -1 });
+  // Sign the flip ONE SECOND LATER than the apply, explicitly. The test's
+  // premise is "the LATER event replaces the earlier"; when both land in the
+  // same wall-clock second the NIP-01 tie-break (same created_at → lowest id
+  // wins) turns replacement into a lottery — observed losing in full runs
+  // while passing standalone. created_at+1 makes the tie structurally
+  // impossible.
+  const dispute = signProfileTagEvent({ tagSlug, tagEventId, targetPubkey: targetPk, authorSk, authorPk, polarity: -1, createdAt: apply.created_at + 1 });
   await publish(dispute);
   await sleep(PROPAGATION_MS);
 
@@ -238,6 +259,21 @@ t('overwriting the same d-tag with flipped polarity moves the entry between buck
 });
 
 t('typeahead search returns a profile tagged by a third-party author, with _matchedTags on the hit', async () => {
+  // ─── Conditional contract (same gate probe as profile-tag-polish.test.js) ───
+  // A ratified change gated the entire tag-match path behind the per-result-type
+  // setting `search.resultTypes.tags` (getResultTypes in
+  // src/api/search/profiles/meili/index.js; shipped default `false` in
+  // src/config/defaults.json). When disabled, computeTagMatches never runs: no
+  // tag-derived hits, no _matchedTags, and the `tagHits` key is omitted from
+  // the response entirely — so probe the mode via tagHits-key presence and
+  // skip when the behavior under test is structurally off.
+  const probe = await fetchMeiliSearch(`__gate_probe_${Math.random().toString(36).slice(2, 8)}__`);
+  if (!('tagHits' in probe)) {
+    throw skipTest(
+      'tags result type disabled (search.resultTypes.tags=false — shipped default; tag-match path structurally off; test meaningful only on tags-enabled instances)'
+    );
+  }
+
   const { authorSk, authorPk } = ctx;
   // Fresh tag with a deliberately unusual name so we don't collide with any
   // real profile's name/display_name.
@@ -265,12 +301,19 @@ t('typeahead search returns a profile tagged by a third-party author, with _matc
   // enrichment data to return. Name is deliberately UNRELATED to the
   // search query so the only reason this profile can appear in results
   // is the tag match.
-  await meiliUpsertProfile({
+  // On rank-filtered instances the settings' rank cutoff becomes a Meili
+  // engine filter on the search itself — an unranked profile never appears in
+  // hits, tag-matched or not. Rank the target into the active POV so the test
+  // exercises the tag-match mechanism, not the WoT gate. No-op when unfiltered.
+  const { povSuffix, minRank } = await fetchPovFilter();
+  const targetDoc = {
     id: targetPk,
     pubkey: targetPk,
     name: `ProfileTagsTest-${Date.now()}`,
     display_name: `ProfileTagsTest-${Date.now()}`,
-  });
+  };
+  if (povSuffix && minRank !== null) targetDoc[`wot_rank_${povSuffix}`] = minRank;
+  await meiliUpsertProfile(targetDoc);
 
   // Apply the tag (positive polarity) — author A → target T.
   const assertion = signProfileTagEvent({
@@ -336,6 +379,11 @@ async function run() {
     console.log(`  SKIP  control panel not reachable at ${CONTROL_PANEL_BASE}; skipping live publish-flow tests`);
     return { pass: 0, fail: 0, skipped: tests.length };
   }
+  const ranked = await ensureRankedPool();
+  if (!ranked.ok) {
+    console.log(`  SKIP  ${ranked.reason}; skipping live publish-flow tests`);
+    return { pass: 0, fail: 0, skipped: tests.length };
+  }
 
   try {
     await setupSuite();
@@ -346,18 +394,24 @@ async function run() {
 
   let pass = 0;
   let fail = 0;
+  let skipped = 0;
   for (const [name, fn] of tests) {
     try {
       await fn();
       console.log(`  PASS  ${name}`);
       pass++;
     } catch (err) {
-      console.log(`  FAIL  ${name}\n        ${err.message}`);
-      fail++;
+      if (err && err[SKIP]) {
+        console.log(`  SKIP  ${name}\n        ${err.message}`);
+        skipped++;
+      } else {
+        console.log(`  FAIL  ${name}\n        ${err.message}`);
+        fail++;
+      }
     }
   }
-  console.log(`\nprofile-tags-publish: ${pass} passed, ${fail} failed`);
-  return { pass, fail, skipped: 0 };
+  console.log(`\nprofile-tags-publish: ${pass} passed, ${fail} failed${skipped ? `, ${skipped} skipped` : ''}`);
+  return { pass, fail, skipped };
 }
 
 if (require.main === module) {

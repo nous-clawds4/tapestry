@@ -32,6 +32,7 @@
 const { execSync, execFileSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
+const { ensureRankedPool, makeAuthorDealer } = require('./helpers/livePov');
 
 const CONTROL_PANEL_BASE = process.env.BRAINSTORM_BASE_URL || 'http://localhost:7778';
 // ADR tag-stack-merge-hardening/0001: /api/trusted-list/refresh-all-pinned-tags
@@ -54,10 +55,25 @@ async function refreshAllViaLoopback() {
 }
 const MEILI_BASE = process.env.MEILI_URL_HOST || 'http://localhost:7700';
 const MEILI_INDEX = process.env.MEILI_INDEX || 'profiles';
-const TA_PUBKEY = '82b75e474dda005e912bcbb910391c60c2b89cc7faf5d3c30b7c59a324973833';
-const TAG_HANDLE = `39998:${TA_PUBKEY}:tag`;
-const NOSTR_USER_TAG_HANDLE = `39998:${TA_PUBKEY}:nostr-user-tag`;
-const TAG_PINNING_HANDLE = `39998:${TA_PUBKEY}:tag-pinning`;
+// ADR 0015's split, which this suite previously conflated into one constant:
+// Z-TAG COMPOSITION for tag/nostr-user-tag/tag-pinning is bound to the LEGACY
+// literal (named exception), while TL SIGNING and AUTHOR FILTERING use the
+// per-deployment runtime TA (/api/assistant/pubkey). The two matched only by
+// coincidence on the original dev container; a container rebuild mints a new
+// runtime TA and the coincidence breaks.
+const LEGACY_Z_TAG_PUBKEY = '82b75e474dda005e912bcbb910391c60c2b89cc7faf5d3c30b7c59a324973833';
+const TAG_HANDLE = `39998:${LEGACY_Z_TAG_PUBKEY}:tag`;
+const NOSTR_USER_TAG_HANDLE = `39998:${LEGACY_Z_TAG_PUBKEY}:nostr-user-tag`;
+const TAG_PINNING_HANDLE = `39998:${LEGACY_Z_TAG_PUBKEY}:tag-pinning`;
+
+// Runtime TA — resolved once per run from the instance itself; TLs are signed
+// under this key. Populated by the runner before any test executes.
+let RUNTIME_TA_PUBKEY = null;
+async function fetchRuntimeTaPubkey() {
+  const r = await fetch(`${CONTROL_PANEL_BASE}/api/assistant/pubkey`);
+  const j = await r.json().catch(() => null);
+  return (j && (j.pubkey || j.taPubkey)) || null;
+}
 const PROPAGATION_MS = 800;
 
 const SETTINGS_PATH = process.env.TAPESTRY_SETTINGS_PATH
@@ -254,8 +270,13 @@ async function setupBasicSuite() {
   const viewerPk = nakDerivePubkey(viewerSk);
 
   // Two assertion authors — applying the tag to a single target.
-  const authorA = (() => { const sk = nakKeyGen(); return { sk, pk: nakDerivePubkey(sk) }; })();
-  const authorB = (() => { const sk = nakKeyGen(); return { sk, pk: nakDerivePubkey(sk) }; })();
+  // Endorsing authors come from the pre-ranked pool (helpers/livePov.js): TL
+  // membership counts endorsements from POV-counted authors only, so on a
+  // POV-filtered stack ephemeral authors' endorsements are dropped and the
+  // target never qualifies. run() has verified the pool via ensureRankedPool().
+  const dealer = makeAuthorDealer();
+  const authorA = dealer.take();
+  const authorB = dealer.take();
   const targetPk = nakDerivePubkey(nakKeyGen());
 
   // Publish a tag for "unsupported method" testing — separate so the
@@ -309,7 +330,7 @@ async function setupBasicSuite() {
 }
 
 async function findLatestTL(dTag) {
-  const events = await strfryScan({ kinds: [30392], authors: [TA_PUBKEY], '#d': [dTag] });
+  const events = await strfryScan({ kinds: [30392], authors: [RUNTIME_TA_PUBKEY], '#d': [dTag] });
   if (events.length === 0) return null;
   events.sort((a, b) => b.created_at - a.created_at);
   return events[0];
@@ -326,8 +347,8 @@ tBasic('refresh-all-pinned-tags publishes a kind-30392 TL for the supported pin 
   const tl = await findLatestTL(dTag);
   assert(tl, `Expected a kind-30392 TL at d-tag ${dTag}; got none`);
   assert(tl.kind === 30392, `TL kind must be 30392; got ${tl.kind}`);
-  assert(tl.pubkey === TA_PUBKEY,
-    `TL must be signed by the TA pubkey ${TA_PUBKEY.slice(0,8)}…; got ${tl.pubkey?.slice(0,8)}…`);
+  assert(tl.pubkey === RUNTIME_TA_PUBKEY,
+    `TL must be signed by the runtime TA pubkey ${RUNTIME_TA_PUBKEY.slice(0,8)}…; got ${tl.pubkey?.slice(0,8)}…`);
 });
 
 tBasic('published TL carries the AC-10 + product-constraint tag set (d/title/metric/observer/source-tag/cutoff/min-rank)', async () => {
@@ -649,6 +670,16 @@ async function run() {
   }
   if (!(await controlPanelReachable())) {
     console.log(`  SKIP  control panel not reachable at ${CONTROL_PANEL_BASE}; skipping live publish-flow tests`);
+    return { pass: 0, fail: 0, skipped: basicTests.length + povTests.length };
+  }
+  RUNTIME_TA_PUBKEY = await fetchRuntimeTaPubkey();
+  if (!RUNTIME_TA_PUBKEY) {
+    console.log('  SKIP  could not resolve the runtime TA pubkey from /api/assistant/pubkey; TL signature checks need it');
+    return { pass: 0, fail: 0, skipped: basicTests.length + povTests.length };
+  }
+  const ranked = await ensureRankedPool();
+  if (!ranked.ok) {
+    console.log(`  SKIP  ${ranked.reason}; skipping live publish-flow tests`);
     return { pass: 0, fail: 0, skipped: basicTests.length + povTests.length };
   }
 

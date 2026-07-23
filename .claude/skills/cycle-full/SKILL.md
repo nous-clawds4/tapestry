@@ -47,11 +47,12 @@ Follow [`.claude/skills/cycle-staging/SKILL.md`](../cycle-staging/SKILL.md):
 1. Verify preconditions (clean tree, on a feature branch).
 2. Push the branch with `-u origin <branch>`.
 3. Open the PR (`gh pr create --repo nous-clawds4/tapestry --base staging`).
-4. Merge it (`gh pr merge … --merge`).
-5. Watch `deploy-staging.yml` to completion.
-6. Stability poll on `staging.brainstorm.world`.
-7. Smoke test (all five tiers).
-8. Report.
+4. Safe-to-merge check (delegated to cycle-staging — the merge's immediate precursor).
+5. Merge it (`gh pr merge … --merge`).
+6. Watch `deploy-staging.yml` to completion.
+7. Stability poll on `staging.brainstorm.world`.
+8. Smoke test (all five tiers).
+9. Report.
 
 If staging fails (deploy red, smoke test reveals regression, console errors in Chrome), **halt**. Surface to the user — they may want to fix and retry, or revert. Don't proceed to prod.
 
@@ -71,11 +72,12 @@ Follow [`.claude/skills/cycle-prod/SKILL.md`](../cycle-prod/SKILL.md):
 
 1. Confirm `git log origin/main..origin/staging` shows the expected bundle.
 2. Open the `staging → main` promotion PR.
-3. Merge it (after the gate above).
-4. Watch `deploy-tapestry.yml`.
-5. Stability poll on `tapestry.brainstorm.world`.
-6. Smoke test.
-7. Report.
+3. Safe-to-merge check (delegated to cycle-prod — the merge's immediate precursor).
+4. Merge it (after the gate above).
+5. Watch `deploy-tapestry.yml`.
+6. Stability poll on `tapestry.brainstorm.world`.
+7. Smoke test.
+8. Report.
 
 ### Stage 5: Final report
 
@@ -103,6 +105,7 @@ Any of these stops the chain:
 - Local smoke test reveals a regression
 - `git push` fails (auth, conflicts)
 - `gh pr create` fails or the PR is in a non-mergeable state
+- Safe-to-merge check stops (bound exhausted while unsafe, or no usable answer)
 - `gh pr merge` returns a state that isn't `"MERGED"`
 - `gh run watch` reports a failed deploy
 - Stability poll exceeds 90 attempts (3 minutes) without reaching streak 3

@@ -27,6 +27,7 @@
 const { execSync, execFileSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
+const { ensureRankedPool, makeAuthorDealer } = require('./helpers/livePov');
 
 const CONTROL_PANEL_BASE = process.env.BRAINSTORM_BASE_URL || 'http://localhost:7778';
 // ADR tag-stack-merge-hardening/0001: /api/trusted-list/refresh-all-pinned-tags
@@ -225,10 +226,17 @@ async function setupSuite() {
   if (!nakAvailable()) { suiteSkipped = true; suiteSkipReason = '`nak` not on PATH'; return; }
   if (!(await controlPanelReachable())) { suiteSkipped = true; suiteSkipReason = `control panel not reachable at ${CONTROL_PANEL_BASE}`; return; }
 
+  // ADR 0015's split: taPubkey (runtime, from /api/assistant/pubkey) is kept
+  // for TL AUTHOR scans — TLs are signed under the runtime TA — while Z-TAG
+  // COMPOSITION uses the LEGACY literal (the ADR's named exception; the server
+  // reads pins/tags/assertions via legacy-built handles). Deriving the handles
+  // from the runtime TA matched only by coincidence on the original dev
+  // container.
   const taPubkey = await fetchTaPubkey();
-  const TAG_HANDLE = `39998:${taPubkey}:tag`;
-  const NOSTR_USER_TAG_HANDLE = `39998:${taPubkey}:nostr-user-tag`;
-  const TAG_PINNING_HANDLE = `39998:${taPubkey}:tag-pinning`;
+  const LEGACY_Z_TAG_PUBKEY = '82b75e474dda005e912bcbb910391c60c2b89cc7faf5d3c30b7c59a324973833';
+  const TAG_HANDLE = `39998:${LEGACY_Z_TAG_PUBKEY}:tag`;
+  const NOSTR_USER_TAG_HANDLE = `39998:${LEGACY_Z_TAG_PUBKEY}:nostr-user-tag`;
+  const TAG_PINNING_HANDLE = `39998:${LEGACY_Z_TAG_PUBKEY}:tag-pinning`;
 
   const tagAuthorSk = nakKeyGen();
   const tagAuthorPk = nakDerivePubkey(tagAuthorSk);
@@ -246,9 +254,12 @@ async function setupSuite() {
   const viewerSk = nakKeyGen();
   const viewerPk = nakDerivePubkey(viewerSk);
 
-  // Three authors so we can shape per-target endorsement/dispute counts.
-  const authorA = (() => { const sk = nakKeyGen(); return { sk, pk: nakDerivePubkey(sk) }; })();
-  const authorB = (() => { const sk = nakKeyGen(); return { sk, pk: nakDerivePubkey(sk) }; })();
+  // Authors shape per-target endorsement/dispute counts — drawn from the
+  // pre-ranked pool (helpers/livePov.js): the Curated view and TL membership
+  // count POV-counted authors only.
+  const dealer = makeAuthorDealer();
+  const authorA = dealer.take();
+  const authorB = dealer.take();
 
   // Three target profiles, each with distinct (apps, disputes) under no
   // WoT-filter (the basic-suite path mirroring customize-pin-curation-publish
@@ -378,6 +389,11 @@ t('AC-22: published TL membership (using defaultCurationMethod from source) equa
 
 async function run() {
   console.log('\n--- tag-detail-curated-view-and-pin-polish-publish tests (Story 17 AC-22) ---');
+  const ranked = await ensureRankedPool().catch((e) => ({ ok: false, reason: e.message }));
+  if (!ranked.ok) {
+    console.log(`  SKIP — ${ranked.reason}`);
+    return { pass: 0, fail: 0, skipped: tests.length };
+  }
   try {
     await setupSuite();
   } catch (err) {

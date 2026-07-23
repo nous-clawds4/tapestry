@@ -111,45 +111,77 @@ t('GET /api/profile-tags/wot-tags returns POV-echo fields', async () => {
   assert('minRank' in json, 'response must include minRank (may be null)');
 });
 
-/* ─── search proxy: tagHits + tagHitsHasMore + tagLimit ─── */
+/* ─── search proxy: tagHits + tagHitsHasMore + tagLimit ───
+ *
+ * These fields shipped unconditionally with Story 7, but a later ratified
+ * change gated them behind `search.resultTypes.tags` (see getResultTypes in
+ * src/api/search/profiles/meili/index.js — "Shipped defaults reproduce main's
+ * pre-tag response contract exactly: profiles on, tags off"; keys are OMITTED
+ * entirely when disabled). The tests assert the CONDITIONAL contract, so they
+ * hold on instances in either mode.
+ */
 
-t('GET /api/search/profiles/meili returns tagHits field in response (array)', async () => {
+let _tagsGate = null;
+async function tagsGateEnabled() {
+  if (_tagsGate !== null) return _tagsGate;
+  const { json } = await fetchJson(
+    `${CONTROL_PANEL_BASE}/api/search/profiles/meili?q=__gate_probe_${Math.random().toString(36).slice(2, 8)}__`
+  );
+  _tagsGate = !!json && 'tagHits' in json;
+  return _tagsGate;
+}
+
+t('search proxy: tagHits follows the resultTypes.tags gate (array when enabled, absent when disabled)', async () => {
+  const enabled = await tagsGateEnabled();
   const { status, json } = await fetchJson(
     `${CONTROL_PANEL_BASE}/api/search/profiles/meili?q=__no_match_${Math.random().toString(36).slice(2, 8)}__`
   );
   assertEqual(status, 200, 'status');
   assert(json?.success === true, 'success');
-  // Field must exist as an array (may be empty for a no-match query).
-  assert(Array.isArray(json.tagHits), 'tagHits must be an array (possibly empty)');
+  if (enabled) {
+    assert(Array.isArray(json.tagHits), 'tagHits must be an array (possibly empty) when tags result type is enabled');
+  } else {
+    assert(!('tagHits' in json), 'tagHits key must be omitted entirely when tags result type is disabled');
+  }
 });
 
-t('GET /api/search/profiles/meili returns tagHitsHasMore field (boolean)', async () => {
+t('search proxy: tagHitsHasMore follows the resultTypes.tags gate (boolean when enabled, absent when disabled)', async () => {
+  const enabled = await tagsGateEnabled();
   const { status, json } = await fetchJson(
     `${CONTROL_PANEL_BASE}/api/search/profiles/meili?q=__no_match_${Math.random().toString(36).slice(2, 8)}__`
   );
   assertEqual(status, 200, 'status');
-  assert(typeof json?.tagHitsHasMore === 'boolean', 'tagHitsHasMore must be a boolean');
+  if (enabled) {
+    assert(typeof json?.tagHitsHasMore === 'boolean', 'tagHitsHasMore must be a boolean when tags result type is enabled');
+  } else {
+    assert(!json || !('tagHitsHasMore' in json), 'tagHitsHasMore key must be omitted entirely when tags result type is disabled');
+  }
 });
 
-t('GET /api/search/profiles/meili accepts tagLimit query param', async () => {
+t('GET /api/search/profiles/meili accepts tagLimit query param in either gate mode', async () => {
+  const enabled = await tagsGateEnabled();
   const { status, json } = await fetchJson(
     `${CONTROL_PANEL_BASE}/api/search/profiles/meili?q=__no_match_${Math.random().toString(36).slice(2, 8)}__&tagLimit=10`
   );
   assertEqual(status, 200, 'status');
   assert(json?.success === true, 'success');
-  assert(Array.isArray(json.tagHits), 'tagHits remains array');
+  if (enabled) assert(Array.isArray(json.tagHits), 'tagHits remains array');
 });
 
-t('GET /api/search/profiles/meili clamps tagLimit to server-side max (<= 50)', async () => {
+t('GET /api/search/profiles/meili tolerates a huge tagLimit (clamped <= 50 when enabled)', async () => {
+  const enabled = await tagsGateEnabled();
   const { status, json } = await fetchJson(
     `${CONTROL_PANEL_BASE}/api/search/profiles/meili?q=__no_match_${Math.random().toString(36).slice(2, 8)}__&tagLimit=99999`
   );
   assertEqual(status, 200, 'status');
-  // Server must not crash on a huge value; tagHits length is always <= 50
-  // even when input asks for more. (Empty for this no-match query, but the
-  // contract holds.)
-  assert(Array.isArray(json?.tagHits), 'tagHits is array');
-  assert(json.tagHits.length <= 50, `tagHits.length must be <= 50; got ${json.tagHits.length}`);
+  // Server must not crash on a huge value in either mode; when enabled,
+  // tagHits length is always <= 50 even when input asks for more.
+  if (enabled) {
+    assert(Array.isArray(json?.tagHits), 'tagHits is array');
+    assert(json.tagHits.length <= 50, `tagHits.length must be <= 50; got ${json.tagHits.length}`);
+  } else {
+    assert(json?.success === true, 'success (tags disabled: no tagHits key, request must still succeed)');
+  }
 });
 
 /* ─── Run ─── */

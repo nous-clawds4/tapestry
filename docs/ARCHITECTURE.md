@@ -81,7 +81,7 @@ Neo4j turns flat nostr events into a navigable knowledge graph. A DList header b
 The Express server provides:
 
 - **Strfry API** (`/api/strfry/scan`, `/api/strfry/publish`) — query and publish events
-- **Neo4j API** (`/api/neo4j/run-query`, `/api/neo4j/event-check`, etc.) — Cypher queries, event sync
+- **Neo4j API** (`/api/neo4j/query`, `/api/neo4j/event-check`, etc.) — Cypher queries, event sync
 - **Profiles API** (`/api/profiles`) — fetch kind:0 profiles from external relays with caching
 - **Settings API** (`/api/settings`) — two-layer config management
 - **Auth API** (`/api/auth/*`) — NIP-07 challenge-response authentication

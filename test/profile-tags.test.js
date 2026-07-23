@@ -17,10 +17,27 @@
 const fs = require('fs');
 const path = require('path');
 
-const TA_PUBKEY = '82b75e474dda005e912bcbb910391c60c2b89cc7faf5d3c30b7c59a324973833';
+// Concept-graph node handles are addressed under the PER-DEPLOYMENT runtime
+// TA (firmware installs under the instance's own key — CLAUDE.md
+// "Per-deployment TA pubkey"). The previous hardcoded literal matched only by
+// coincidence on the original dev container; a container rebuild mints a new
+// TA and every graph-handle lookup 404s. (The ADR-0015 legacy literal governs
+// z-tag composition only — not graph addresses.)
+let _runtimeTa = null;
+async function runtimeTaPubkey() {
+  if (_runtimeTa) return _runtimeTa;
+  const r = await fetch(`${CONTROL_PANEL_BASE}/api/assistant/pubkey`);
+  const j = await r.json().catch(() => null);
+  _runtimeTa = (j && (j.pubkey || j.taPubkey)) || null;
+  if (!_runtimeTa) throw new Error('could not resolve runtime TA pubkey from /api/assistant/pubkey');
+  return _runtimeTa;
+}
 const FIRMWARE_DIR = path.resolve(__dirname, '..', 'firmware', 'versions', 'v1.0.0', 'concepts');
 const CONTROL_PANEL_BASE = process.env.BRAINSTORM_BASE_URL || 'http://localhost:7778';
-const CONCEPT_GRAPH_BASE = process.env.CONCEPT_GRAPH_URL || 'http://localhost:8877';
+// The concept-graph API is served by the control panel itself (AGENTS.md §3);
+// the old standalone :8877 default predates that and left these tests failing
+// on stacks where nothing listens there. Env var still wins for remote graphs.
+const CONCEPT_GRAPH_BASE = process.env.CONCEPT_GRAPH_URL || CONTROL_PANEL_BASE;
 
 function assert(cond, msg) {
   if (!cond) throw new Error(msg);
@@ -156,14 +173,14 @@ t('concept-graph /summaries lists nostr-user-tag', async () => {
   const { status, json } = await fetchJson(`${CONCEPT_GRAPH_BASE}/api/concept-graph/summaries`);
   assertEqual(status, 200, '/summaries status');
   const handles = (json.summaries || []).map((s) => s.handle);
-  const handle = `39998:${TA_PUBKEY}:nostr-user-tag`;
+  const handle = `39998:${await runtimeTaPubkey()}:nostr-user-tag`;
   assert(handles.includes(handle),
     `${handle} not in /summaries; firmware reinstall (POST /api/firmware/install) required`);
 });
 
 t('concept-graph nostr-user-tag-schema requires taggedPubkey + tagEventId only (no polarity)', async () => {
   const { status, json } = await fetchJson(
-    `${CONCEPT_GRAPH_BASE}/api/concept-graph/node/39999:${TA_PUBKEY}:nostr-user-tag-schema`
+    `${CONCEPT_GRAPH_BASE}/api/concept-graph/node/39999:${await runtimeTaPubkey()}:nostr-user-tag-schema`
   );
   assertEqual(status, 200, 'schema node status');
   const parsed = parseSchemaJsonTag(json.node);
@@ -179,7 +196,7 @@ t('concept-graph nostr-user-tag-schema requires taggedPubkey + tagEventId only (
 
 t('concept-graph tag-schema declares name and description', async () => {
   const { status, json } = await fetchJson(
-    `${CONCEPT_GRAPH_BASE}/api/concept-graph/node/39999:${TA_PUBKEY}:tag-schema`
+    `${CONCEPT_GRAPH_BASE}/api/concept-graph/node/39999:${await runtimeTaPubkey()}:tag-schema`
   );
   assertEqual(status, 200, 'tag-schema node status');
   const parsed = parseSchemaJsonTag(json.node);

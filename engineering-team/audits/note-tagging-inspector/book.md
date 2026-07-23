@@ -1,9 +1,9 @@
 # Book of Work: Inspect the nostr events behind a note's tagging
 
 **Slug:** note-tagging-inspector
-**Status:** Open
+**Status:** Closed
 **Opened:** 2026-07-17 (eagerly at intake, per workflows/0-intake.md step 4)
-**Closed:** —
+**Closed:** 2026-07-18 — all 5 frame bullets met (Tier-4 populated evidence per the pre-registered design, upgrade clause fired on staging); story #3 Done (review PASS); shipped to `staging` (PR #381, merge `8cccfd33`, code range `89c3964f..8cccfd33`) and, operator-instructed post-offer, to `feat/tags`/tags.brainstorm.world (merge `ab4087fe`) and `main`/tapestry.brainstorm.world (PR #382, merge `83d527f2`) — live and populated-drive-verified on all four deployments.
 
 ## Intent anchor
 
@@ -30,11 +30,11 @@ The ask says *"the raw nostr event that applies a tag to a content event"* — s
 
 ### Acceptance frame
 
-- [ ] **1. The raw signed events behind a note's tag chip are viewable in-product.** From the chip's hover popover, a reader can open a panel and read each assertion as the signed event as published — `id`, `pubkey`, `created_at`, `kind`, `tags`, `content`, `sig` — as formatted JSON, byte-faithful, not a summary.
-- [ ] **2. The panel shows *every* event behind the chip's counts, not one.** The active POV's WoT-filtered non-neutral assertions unioned with the viewer's own when present; applications before disputes; each block identifiable by polarity and author pubkey without parsing JSON by eye; a viewer-own-but-uncounted block marked as not counted under the POV. A reader can count the blocks and get back the popover's numbers.
-- [ ] **3. Hidden by default; toggles from the popover; works signed out.** A "Show Raw Tagging Events" / "Hide Raw Tagging Events" button beside Apply/Dispute, label reflecting current state, enabled without login; the panel renders between the note's body and the chips row, captioned with the tag's name; the toggle is per (note, tag) and panels may stack.
-- [ ] **4. Uniform across note surfaces, with nothing regressed.** The affordance behaves identically wherever a note's chips render (feed, `/event`, tag-page Notes tab, profile notes). Chip/popover interactions, Apply/Dispute, the Story-1 and Story-2 inspectors, and profile pages' own tag chips (which gain no affordance) behave as before.
-- [ ] **5. Live on `staging.brainstorm.world` with the five-tier smoke passing**, Tier-4 evidence per the pre-registered evidence design below.
+- [x] **1. The raw signed events behind a note's tag chip are viewable in-product.** From the chip's hover popover, a reader can open a panel and read each assertion as the signed event as published — `id`, `pubkey`, `created_at`, `kind`, `tags`, `content`, `sig` — as formatted JSON, byte-faithful, not a summary.
+- [x] **2. The panel shows *every* event behind the chip's counts, not one.** The active POV's WoT-filtered non-neutral assertions unioned with the viewer's own when present; applications before disputes; each block identifiable by polarity and author pubkey without parsing JSON by eye; a viewer-own-but-uncounted block marked as not counted under the POV. A reader can count the blocks and get back the popover's numbers.
+- [x] **3. Hidden by default; toggles from the popover; works signed out.** A "Show Raw Tagging Events" / "Hide Raw Tagging Events" button beside Apply/Dispute, label reflecting current state, enabled without login; the panel renders between the note's body and the chips row, captioned with the tag's name; the toggle is per (note, tag) and panels may stack.
+- [x] **4. Uniform across note surfaces, with nothing regressed.** The affordance behaves identically wherever a note's chips render (feed, `/event`, tag-page Notes tab, profile notes). Chip/popover interactions, Apply/Dispute, the Story-1 and Story-2 inspectors, and profile pages' own tag chips (which gain no affordance) behave as before.
+- [x] **5. Live on `staging.brainstorm.world` with the five-tier smoke passing**, Tier-4 evidence per the pre-registered evidence design below.
 
 **Evidence design (pre-registered against measured data reality).** Measured at open (2026-07-17): staging surfaces **zero** event-type taggings — `for-tag` for `cool-web-of-trust` (tagAuthor `e5272de9…`) returns `total: 0` on staging vs `total: 2` on `tags.brainstorm.world`, and staging's unified tags index carries no event-type rows. The Director holds no signing keys (and staging mutations beyond the deploy are forbidden), so staging cannot be seeded by this run. Therefore:
 
@@ -46,7 +46,7 @@ The ask says *"the raw nostr event that applies a tag to a content event"* — s
 
 ## Epics in this book
 
-- `tag-event-inspector` — story #3 (`stories/tag-event-inspector/3-note-tagging-raw-events-inspector.md`). Epic Active; spans three books (`tag-event-inspector` closed, `profile-tagging-inspector` closed, this one). Its POV guardrail (bytes invariant / set per-POV) and "emulate the menu you are extending" amendment — both added at the #2 reopen — govern this story unchanged.
+- `tag-event-inspector` — story #3 (`stories/tag-event-inspector/3-note-tagging-raw-events-inspector.md`). Epic Active; spans three books (`tag-event-inspector` closed, `profile-tagging-inspector` closed, this one). Its POV guardrail (bytes invariant / set per-POV) and "emulate the menu you are extending" amendment — both added at the #2 reopen — govern this story unchanged. *(At this close the audit recommends retiring the epic — see "Close artifacts"; the operator ratifies.)*
 
 ## Direction mode (delegated-gates run) — pre-registered
 
@@ -127,9 +127,12 @@ Executed **only on the operator's explicit instruction** after reviewing the HAL
 
 - **Mode:** Acceptance-frame
 - **Confidence at open:** **high** — the ask is captured verbatim in-session (not reconstructed); the two scope decisions were put to the operator explicitly and answered; the frame's one deliberate departure from the ask's literal words (singular → all events) is documented above with the operator's confirmation. The data-reality constraint on staging evidence is measured, not assumed.
-- **Confidence at close:** *(to be filled by `/close-book`)*
+- **Confidence at close:** **high** — verbatim anchor; a final-judge-approved completion report with bullet-by-bullet evidence (including an independent sha256 recomputation of a displayed event's id — cryptographic byte-faithfulness); the feature live and populated-drive-verified read-only on all four deployments on the real `cool-web-of-trust` data, including the operator's originating page. Honest residuals, named in the audit (§4/§5): the mine-only "not counted under this POV" runtime case is proven structurally, never empirically (OPEN.md #49 family, both surfaces); the feed and `/event` surfaces rest on the structural shared-unit guarantee rather than drives (local fixtures can't reach their external-relay read paths).
 
-## Close artifacts *(filled by `/close-book`)*
+## Close artifacts *(filled by `/close-book`, 2026-07-18)*
 
 - Build audit: `engineering-team/audits/note-tagging-inspector/audit.md`
 - Product feedback: `engineering-team/audits/note-tagging-inspector/prd-seed.md`
+- Completion report (Direction mode, final-judge APPROVE): `engineering-team/audits/note-tagging-inspector/completion-report.md`
+- Confidence at close: **high** (see Provenance above)
+- Epic disposition: audit §2/§6 **recommends retiring `tag-event-inspector`** (goal met at pattern level across three books; all 3 stories Done and shipped fleet-wide; retirement also lets the blunt OPEN.md-#47 L2 waiver retire). Operator ratifies at the gate; files move only on ratification.

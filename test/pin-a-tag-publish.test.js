@@ -78,12 +78,6 @@ async function fetchJson(url) {
   return { status: r.status, json };
 }
 
-async function fetchTaPubkey() {
-  const r = await fetch(`${CONTROL_PANEL_BASE}/api/assistant/pubkey`);
-  const j = await r.json().catch(() => null);
-  return (j && (j.pubkey || j.taPubkey)) || null;
-}
-
 const tests = [];
 function t(name, fn) { tests.push([name, fn]); }
 
@@ -124,10 +118,18 @@ function buildPinEvent({ tag, viewerSk, viewerPk, tagPinningHandle, curationMeth
 }
 
 async function setupSuite() {
-  const taPubkey = await fetchTaPubkey();
-  assert(taPubkey, `could not fetch TA pubkey from /api/assistant/pubkey`);
-  const tagHandle = `39998:${taPubkey}:tag`;
-  const tagPinningHandle = `39998:${taPubkey}:tag-pinning`;
+  // ADR 0015 (named exception): the z-tag composition for the `tag` and
+  // `tag-pinning` concept handles is intentionally bound to the LEGACY literal
+  // pubkey — the server reads pins via TAG_PINNING_Z_TAG built from
+  // LEGACY_Z_TAG_PUBKEY (src/api/profile-tags/index.js:49,61), and the UI
+  // publishes the same way (ui/src/utils/publishTagPin.js LEGACY_TA_PUBKEY).
+  // This suite previously derived the handles from /api/assistant/pubkey (the
+  // runtime TA), which matched only by coincidence on the original dev
+  // container (same key); a container rebuild mints a new TA and the pins
+  // vanish from the read path. Compose with the literal, as the ADR ratifies.
+  const LEGACY_Z_TAG_PUBKEY = '82b75e474dda005e912bcbb910391c60c2b89cc7faf5d3c30b7c59a324973833';
+  const tagHandle = `39998:${LEGACY_Z_TAG_PUBKEY}:tag`;
+  const tagPinningHandle = `39998:${LEGACY_Z_TAG_PUBKEY}:tag-pinning`;
 
   const slugBase = `s10-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const tagSlug = `pin-tag-${slugBase}`;
@@ -188,7 +190,7 @@ async function setupSuite() {
   };
 
   ctx = {
-    taPubkey, tagHandle, tagPinningHandle,
+    tagHandle, tagPinningHandle,
     tagAuthorSk, tagAuthorPk,
     tag, tag2, tag3,
     viewerSk, viewerPk,
