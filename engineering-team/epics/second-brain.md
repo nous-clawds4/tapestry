@@ -38,6 +38,7 @@ Three owner-gated views inside the existing control panel (Goals view, Goal deta
 - **TA pubkey is resolved at runtime, never hardcoded** (house rule; PRD §7.8) — the goal concept handle is `39998:<TA>:tapestry-owner-goal` with `<TA>` from `getOwnerAssistantPubkey()` / `useConfig()`.
 - **Referenced, never re-specified (PRD §7.9):** the `relationship-primitives` book (closed 2026-07-22 — add/delete primitives live; `HAS_SUBGOAL` is its documented post-book whitelist-extension path, needs cardinality-safety thought per its ADR 0001) and the future firmware clobber-protection work (until it lands, story 8's export **is** the protection). Stories declare these dependencies and wait; they never re-implement.
 - **Second-operator guard (PRD §5.9):** no reference-instance identities or paths baked in; the empty brain offers one obvious first action.
+- **Known coverage gaps vs the PRD (record, revisit before book close):** (a) PRD §5.1 owner actions **rename** and **abandon** have no covering queue story — deferred at the story-1 planning gate (operator, 2026-07-22); likely a small later story. (b) The Goals view's **category filter** (design guide) waits until category instances exist — no queue story creates them; the category chip renders whenever a goal has one.
 
 ## Related
 
