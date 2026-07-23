@@ -1973,6 +1973,112 @@ async function handleSaveSchema(req, res) {
 }
 
 // ══════════════════════════════════════════════════════════════
+// POST /api/normalize/reconcile-primary-property
+//   Body: { concept: "<name>" }
+//   Derives the primary-property node's property section from the concept's
+//   CURRENT json schema and re-publishes it when they disagree (second-brain
+//   ADR 0002 decision 4). save-schema regenerates only the schema node, so
+//   every schema extension leaves the property record lagging until this runs.
+//   Idempotent: 'reconciled' | 'already-consistent'. Consistency is judged by
+//   the same comparison the hygiene check uses (lib/brain/hygiene) — the two
+//   surfaces can never disagree about "consistent".
+//   NOTE: for firmware-seeded concepts a firmware reinstall overwrites the
+//   reconciled node from the firmware definition (install hazard, documented
+//   at point of use; installer untouched — operator decision 2026-07-18).
+// ══════════════════════════════════════════════════════════════
+
+async function handleReconcilePrimaryProperty(req, res) {
+  try {
+    const { isOwner } = require('../../middleware/auth');
+    if (!isOwner(req) && !req.localTrusted) {
+      return res.status(403).json({ success: false, error: 'Owner access required' });
+    }
+    const { concept } = req.body || {};
+    if (!concept) return res.status(400).json({ success: false, error: 'Missing concept name' });
+
+    // The save-schema lookup idiom, extended to the primary-property node.
+    const rows = await runCypher(`
+      MATCH (h:NostrEvent)
+      WHERE (h:ListHeader OR h:ClassThreadHeader OR h:ConceptHeader) AND h.kind IN [9998, 39998]
+        AND h.name = $concept
+      OPTIONAL MATCH (js:JSONSchema)-[:${REL.CORE_NODE_JSON_SCHEMA}]->(h)
+      OPTIONAL MATCH (js)-[:HAS_TAG]->(jt:NostrEventTag {type: 'json'})
+      OPTIONAL MATCH (pp:Property)-[:${REL.CORE_NODE_PRIMARY_PROPERTY}]->(h)
+      OPTIONAL MATCH (pp)-[:HAS_TAG]->(pt:NostrEventTag {type: 'json'})
+      RETURN h.uuid AS headerUuid, js.uuid AS schemaUuid, head(collect(DISTINCT jt.value)) AS schemaJson,
+             pp.uuid AS ppUuid, head(collect(DISTINCT pt.value)) AS ppJson
+      LIMIT 1
+    `, { concept });
+
+    if (rows.length === 0) {
+      return res.json({ success: false, error: `Concept "${concept}" not found` });
+    }
+    const { schemaUuid, ppUuid, schemaJson, ppJson } = rows[0];
+    if (!schemaUuid) {
+      return res.json({ success: false, error: `Concept "${concept}" has no JSON Schema node — nothing to reconcile against.` });
+    }
+    if (!ppUuid) {
+      return res.json({ success: false, error: `Concept "${concept}" has no Primary Property node to reconcile.` });
+    }
+
+    let schemaWrapper, ppWrapper;
+    try { schemaWrapper = JSON.parse(schemaJson); } catch { schemaWrapper = null; }
+    try { ppWrapper = JSON.parse(ppJson); } catch { ppWrapper = null; }
+    const jsonSchema = schemaWrapper && schemaWrapper.jsonSchema;
+    const topProps = jsonSchema && jsonSchema.properties;
+    const topKeys = topProps ? Object.keys(topProps) : [];
+    if (topKeys.length !== 1 || !topProps[topKeys[0]] || typeof topProps[topKeys[0]] !== 'object') {
+      return res.json({
+        success: false,
+        error: `Concept "${concept}" has an unexpected schema shape (expected exactly one top-level property object; found ${topKeys.length}) — refusing to reconcile.`,
+      });
+    }
+    if (!ppWrapper || typeof ppWrapper !== 'object') {
+      return res.json({ success: false, error: `Concept "${concept}"'s Primary Property node ${ppUuid} has no readable json tag — refusing to reconcile.` });
+    }
+    const key = topKeys[0];
+    const schemaObject = topProps[key];
+
+    // Consistent already? Judged by the hygiene check's own comparison.
+    const { comparePropertyRecord } = require('../../lib/brain/hygiene');
+    const current = ppWrapper.property && typeof ppWrapper.property === 'object' ? ppWrapper.property : null;
+    if (comparePropertyRecord({ concept, schemaObject, propertySection: current }).length === 0) {
+      return res.json({ success: true, result: 'already-consistent', concept, ppUuid });
+    }
+
+    // Derive the target property section per the create-concept convention:
+    // per-property definitions stripped to { type }, required mirrored.
+    const targetProps = {};
+    for (const [k, v] of Object.entries(schemaObject.properties || {})) {
+      targetProps[k] = { type: v && v.type };
+    }
+    const target = {
+      key,
+      title: (current && current.title) || schemaObject.title || key,
+      type: 'object',
+      required: [...(schemaObject.required || [])],
+      properties: targetProps,
+    };
+    const before = current && current.properties ? Object.keys(current.properties) : [];
+    const wrapper = { ...ppWrapper, property: target };
+
+    await regenerateJson(ppUuid, wrapper);
+
+    return res.json({
+      success: true,
+      result: 'reconciled',
+      concept,
+      ppUuid,
+      properties: { before, after: Object.keys(targetProps) },
+      note: 'A firmware install overwrites primary-property nodes of firmware-seeded concepts from their firmware definitions; runtime-created concepts are untouched.',
+    });
+  } catch (error) {
+    console.error('normalize/reconcile-primary-property error:', error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
 // POST /api/normalize/save-element-json
 //   Body: { uuid: "<element uuid>", json: { ... merged JSON } }
 //   Replaces the JSON tag on an element and re-publishes.
@@ -3305,6 +3411,7 @@ async function registerNormalizeRoutes(app) {
   app.post('/api/normalize/create-concept', handleCreateConcept);
   app.post('/api/normalize/create-element', handleCreateElement);
   app.post('/api/normalize/save-schema', handleSaveSchema);
+  app.post('/api/normalize/reconcile-primary-property', handleReconcilePrimaryProperty);
   app.post('/api/normalize/save-element-json', handleSaveElementJson);
   app.post('/api/normalize/create-property', handleCreateProperty);
   app.post('/api/normalize/generate-property-tree', handleGeneratePropertyTree);
