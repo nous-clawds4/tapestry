@@ -1,6 +1,9 @@
+import { useState } from 'react';
 import { useOutletContext, useNavigate } from 'react-router-dom';
 import { useCypher } from '../../hooks/useCypher';
+import { useAuth } from '../../context/AuthContext';
 import DataTable from '../../components/DataTable';
+import PlacementDialog from '../../components/PlacementDialog';
 
 /**
  * Organization (Sets) tab
@@ -13,11 +16,14 @@ export default function ConceptDag() {
   const { concept, uuid } = useOutletContext();
   const navigate = useNavigate();
   const encodedUuid = encodeURIComponent(uuid);
+  const { user } = useAuth();
+  const isOwner = user?.classification === 'owner' || user?.classification === 'admin';
+  const [placeTarget, setPlaceTarget] = useState(null); // { uuid, name }
 
   // Fetch the superset + all downstream sets via IS_A_SUPERSET_OF
   // directCount = elements connected directly to this set
   // totalCount = elements reachable through this set + all its subsets
-  const { data, loading, error } = useCypher(
+  const { data, loading, error, refetch } = useCypher(
     uuid ? `
       MATCH (h:NostrEvent {uuid: '${uuid}'})-[:IS_THE_CONCEPT_FOR]->(sup:Superset)
       OPTIONAL MATCH path = (sup)-[:IS_A_SUPERSET_OF*0..10]->(s)
@@ -68,6 +74,28 @@ export default function ConceptDag() {
     },
   ];
 
+  // Owner-only per-row placement affordance (AC5): opens the shared dialog
+  // in forNode mode for the row's set; subset kind preselected (re-parenting
+  // a set is the common case here).
+  if (isOwner) {
+    columns.push({
+      key: 'actions',
+      label: '',
+      render: (_val, row) => (
+        <button
+          className="btn btn-small"
+          title="Place or move this node under a set"
+          onClick={(e) => {
+            e.stopPropagation();
+            setPlaceTarget({ uuid: row.uuid, name: row.name });
+          }}
+        >
+          Place / move…
+        </button>
+      ),
+    });
+  }
+
   return (
     <div>
       {/* Header row with buttons */}
@@ -108,6 +136,16 @@ export default function ConceptDag() {
           onRowClick={(row) => navigate(`/tapestry/concepts/${encodedUuid}/dag/${encodeURIComponent(row.uuid)}`)}
         />
       )}
+
+      <PlacementDialog
+        open={!!placeTarget}
+        mode="forNode"
+        conceptUuid={uuid}
+        fixedNode={placeTarget || undefined}
+        defaultKind="subset"
+        onChanged={refetch}
+        onClose={() => setPlaceTarget(null)}
+      />
     </div>
   );
 }
