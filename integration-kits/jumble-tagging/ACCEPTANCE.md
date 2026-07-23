@@ -67,17 +67,26 @@ Check every box. "Chip" = the tag UI element on a note/profile.
 
 ## 6. Trust behavior
 
-- [ ] With trust mode `house-ta`: an asserter WITH a house 30382 below `minRank`/beyond `maxHops`
-      does not count toward chip totals (fabricate by tightening minRank in config, reload) —
-      but the viewer's OWN stance still renders via `mine`.
+Context: the house 30382 corpus currently on the relay is a 2026-05-26 snapshot signed by the
+RETIRED key in `nip85AuthorPubkeys` (see config comments) — many asserters are unscored and
+count via `unknownPolicy: "trusted"`. These checks are designed to work with that reality.
+
+- [ ] Console check: `trust.ensure([...])` with a handful of pubkeys taken from live tagging
+      asserters returns, and at least some resolve to scored entries (cache hit with
+      rank/hops) — proving the retired-key corpus is being read via `trustRelays`.
+- [ ] Crank `minRank` very high (e.g. 99999) in config and reload: every SCORED asserter's
+      taggings drop out of chip totals (unscored ones still count via unknownPolicy) — and the
+      viewer's OWN stance still renders via `mine`. Restore config afterward.
 - [ ] Network tab: 30382 REQs are batched `authors + #d` lookups only — never an open-ended
-      kinds:[30382] subscription.
-- [ ] Trust-source unreachable → app degrades to counting everyone (per `unknownPolicy`),
-      no errors surfaced to the user.
+      kinds:[30382] subscription — and they go to the trustRelays, not only the hub.
+- [ ] Trust-source unreachable (bogus trustRelays entry) → app degrades to counting everyone
+      (per `unknownPolicy`), no errors surfaced to the user; restoring connectivity and
+      re-triggering reads recovers scores (failed chunks are retried, not negatively cached).
 
 ## 7. Hygiene
 
 - [ ] Tag relay list is editable in Settings and persists.
 - [ ] No 64-hex pubkey literals in source (grep) — config only.
-- [ ] No requests to `tags.brainstorm.world/api/*` from the browser (network tab).
+- [ ] No requests to `tags.brainstorm.world/api/*` from the browser (network tab) — the kit is
+      pure-relay by design; the API answering cross-origin today is not a license to use it.
 - [ ] Build is clean; existing Jumble tests still pass.

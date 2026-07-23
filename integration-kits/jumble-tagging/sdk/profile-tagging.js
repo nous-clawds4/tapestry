@@ -197,9 +197,22 @@ export async function applyProfileTagging({ tagInput, targetPubkey, polarity, as
     tag = { authorPubkey: tagInput.authorPubkey, slug: tagInput.slug, eventId: tagInput.eventId };
   }
 
-  const built = buildProfileTagAssertion({ tag, targetPubkey, polarity, asserterPubkey, zHandlePubkeys });
-  const unsigned = { ...built, pubkey: asserterPubkey, created_at: deps.now() };
-  const signed = await deps.sign(unsigned);
+  // Build + sign + publish the assertion. Failure handling depends on whether
+  // anything is already on the wire: with NOTHING published yet (existing-tag
+  // path), a sign rejection throws — a clean all-or-nothing abort, matching
+  // applyEventTagging. AFTER the tag-element has published, errors return
+  // `{ published, failedAt }` so the caller can report the partial result (a
+  // reusable orphan tag-element) instead of losing it to a throw.
+  let signed;
+  let built;
+  try {
+    built = buildProfileTagAssertion({ tag, targetPubkey, polarity, asserterPubkey, zHandlePubkeys });
+    const unsigned = { ...built, pubkey: asserterPubkey, created_at: deps.now() };
+    signed = await deps.sign(unsigned);
+  } catch (err) {
+    if (published.length === 0) throw err;
+    return { published, failedAt: { kind: 39999, what: 'assertion', error: err && err.message } };
+  }
   try {
     await deps.publish(signed);
   } catch (err) {

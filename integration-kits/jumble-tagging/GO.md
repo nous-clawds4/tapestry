@@ -18,8 +18,7 @@ Work through this document top to bottom. Do not skip the Ground Rules.
 | `sdk/event-tagging/` | The protocol core for tagging **events** (notes). Pure ESM, zero deps: builders (unsigned events), filter builders, classifiers, and the `applyEventTagging` orchestrator. `index.js` re-exports everything. |
 | `sdk/profile-tagging.js` | The protocol core for tagging **pubkeys** (profiles) — a simpler, direct wire shape. Builders, filters, `applyProfileTagging` orchestrator. |
 | `sdk/trust.js` | The trust seam: builds the `(pubkey) => boolean` predicate every classifier takes, from the house's NIP-85 kind-30382 assertions. Also fetches the published content/profile applicability lists. |
-| `protocol/event-taggings.md` | Normative wire spec for event-tagging. Reference — the SDK already implements it. |
-| `protocol/trusted-lists.md` | Wire spec for the kind-30392/30393/30394 Trusted Lists trust.js reads. |
+| `protocol/` | Normative wire specs, for reference — the SDK already implements them: `event-taggings.md` (event-tagging), `tags.md` (tags + profile-tagging), `trusted-lists.md` (the kind-30392/30393/30394 Trusted Lists trust.js reads). |
 | `ACCEPTANCE.md` | The manual test script. You are done when every item passes. |
 
 ## 1. Ground rules (violating any of these is a bug)
@@ -27,16 +26,25 @@ Work through this document top to bottom. Do not skip the Ground Rules.
 1. **The SDK owns the wire shape. Never hand-roll a kind-39999 event or a discovery filter.** If
    you need a shape the SDK doesn't export, stop and re-read — it almost certainly does. The SDK
    builders return *unsigned partial* events (`{kind, tags, content}`); you add `pubkey` +
-   `created_at`, sign, publish.
-2. **Pure relay. Never call the Brainstorm REST API from the browser** — it is not CORS-open and
-   every call will fail. All reads are Nostr subscriptions; all writes are Nostr publishes.
+   `created_at`, sign, publish. *One sanctioned composition:* for batching you may MERGE
+   SDK-built filters of the same shape by unioning their value lists (e.g. many
+   `filterTagsAppliedToEvent` results → one filter with `'#e': [all ids]`) — that is combining
+   SDK output, not hand-rolling.
+2. **Pure relay by design. Never build on the Brainstorm REST API from the browser.** The API
+   happens to answer cross-origin today (reflective CORS — observed, not contractual); treat
+   that as incidental. Depending on it would couple the client to one instance's uptime and
+   API surface and break the decentralized model. All reads are Nostr subscriptions; all
+   writes are Nostr publishes.
 3. **No protocol literals in source.** Every pubkey, relay URL, and namespace comes from
-   `CONFIG.json` through a single config module you create. The two pubkeys in the config have
+   `CONFIG.json` through a single config module you create. The pubkeys in the config have
    precise, different roles — read the `_comment` keys. If you find yourself typing a 64-hex
    literal in a `.ts`/`.tsx` file, stop.
-4. **Relay routing:** tag/tagging *reads* query `CONFIG.tagRelays ∪ (user's read relays)`;
-   tag/tagging *writes* publish to `CONFIG.tagRelays ∪ (user's write relays)`. Reuse Jumble's
-   existing pool/relay infrastructure — do not create a second websocket pool.
+4. **Relay routing — two lanes.** *Tags/taggings* (kind 39999): reads query
+   `CONFIG.tagRelays ∪ (user's read relays)`; writes publish to `CONFIG.tagRelays ∪ (user's
+   write relays)`. *House trust artifacts* (kinds 30382/30392/30393/30394): read from
+   `CONFIG.trustRelays` — they live on the house relay ONLY, not the hub (verified; see the
+   config comments). Reuse Jumble's existing pool/relay infrastructure — do not create a
+   second websocket pool.
 5. **Dedupe replaceables before classifying.** Kind 39999/30382/30394 are parameterized-replaceable:
    before feeding events to any classifier, keep only the latest `created_at` per
    `(kind, pubkey, d-tag)`. Write one shared `latestByCoord(events)` helper and use it everywhere.
@@ -75,13 +83,18 @@ Create a small `tagging/` module in Jumble's source (name/place it per Jumble's 
   letting the user edit the tag-relay list (persist like Jumble persists its other settings).
 - **`relays.ts`** — `tagReadRelays()` / `tagWriteRelays()` implementing rule §1.4 on top of
   Jumble's pool. Export `fetchTagEvents(filter)` (one-shot query across `tagReadRelays()`,
-  deduped via `latestByCoord`) — this is also the `fetchEvents` you inject into `trust.js`.
+  deduped via `latestByCoord`) **and** `fetchTrustEvents(filter)` (same, but across
+  `CONFIG.trustRelays ∪ tagReadRelays()`).
 - **`publish.ts`** — `publishTagEvent(signed)` to `tagWriteRelays()`; success = accepted by ≥1
   relay (report partial failures like Jumble reports other publish results).
 - **`sign.ts`** — adapter from Jumble's signer to the SDK's `deps.sign(unsigned)` contract
   (fills `created_at` if absent; `now = () => Math.floor(Date.now()/1000)`).
-- **`trust.ts`** — instantiate `createHouseTrustSource` + `fetchApplicabilityLists` from
-  `sdk/trust.js` with the config; export a singleton used by every read surface.
+- **`trust.ts`** — instantiate `createHouseTrustSource({ fetchEvents: fetchTrustEvents,
+  assertionAuthorPubkeys: CONFIG.nip85AuthorPubkeys, ...CONFIG.trust })` and
+  `fetchApplicabilityLists({ fetchEvents: fetchTrustEvents, houseAssistantPubkey:
+  CONFIG.localTaPubkey })` from `sdk/trust.js`; export a singleton used by every read
+  surface. Note the two different identity params — 30382s are authored by the (rotatable)
+  keys in `nip85AuthorPubkeys`; the applicability TLs by the current TA.
 - Copy `sdk/` into the source tree wherever Jumble keeps framework-agnostic libs. It is plain
   ESM JavaScript with JSDoc; if the project enforces TS, add a thin `.d.ts` or enable
   `allowJs` — do **not** rewrite the SDK.
@@ -141,7 +154,9 @@ never silently vanish).
   polarity: 1, asserterPubkey, taPubkeys: CONFIG.zHandlePubkeys, deps})`. The `deps.findHeaders`
   you inject wraps `fetchTagEvents(filterTaggingHeadersForTag(...))` — query once per honored
   authority in `zHandlePubkeys` and concatenate — returning `[{author}]` per the orchestrator's
-  contract.
+  contract. When Jumble knows which relays the target note was seen on, pass them as
+  `target:{id, relays:[...]}` — the assertion then carries a NIP-01 relay hint that helps other
+  readers fetch the note.
 - Selecting a tag on a **profile** → `applyProfileTagging({tagInput:{authorPubkey, slug, eventId},
   targetPubkey, polarity: 1, ...})` (pass the cached tag-element's event id for provenance).
 - After a successful apply, optimistically update the chip row (the `mine` overlay makes this
@@ -162,7 +177,11 @@ never silently vanish).
     header + assertion (3 publishes) in order, automatically.
   - on a profile: `applyProfileTagging({tagInput:{name, description}, ...})` — mints tag-element +
     assertion (2 publishes).
-- Surface multi-publish progress/failure honestly (the orchestrators return `published`/`failedAt`).
+- Surface multi-publish progress/failure honestly. Two failure modes, by design: the
+  orchestrators **throw** when the signer rejects before anything hit the wire (clean
+  all-or-nothing abort — show a plain "cancelled"); they **return `{published, failedAt}`**
+  when something already published (tell the user what landed — leftovers are reusable
+  tag-elements/headers, never a dangling assertion).
 
 ### F5 — Tag pages (click a tag → everything tagged with it)
 
@@ -181,9 +200,12 @@ never silently vanish).
 
 ## 6. Suggested build order (verify each step before the next)
 
-1. Config + service layer (§3) — smoke-test with a console query: fetch tag-elements from
-   dcosl, log names. **You should see a substantial list of existing tags; if you see zero,
-   stop and debug relay connectivity before building UI.**
+1. Config + service layer (§3) — smoke-test with console queries: (a) fetch tag-elements from
+   the tag relays, log names — **you should see a substantial list of existing tags; if you
+   see zero, stop and debug relay connectivity before building UI**; (b) call
+   `fetchApplicabilityLists` and one `trust.ensure([...])` batch via `fetchTrustEvents` — both
+   should return data (the applicability lists are known-published; 30382s exist under the
+   retired author key — see the config comments).
 2. F1 profiles (simplest read: direct shape, no headers), then F1 notes (adds header resolution
    + batching).
 3. F5 tag pages (reuses F1's machinery in the forward direction) + chip → page links.
@@ -234,6 +256,14 @@ Fetch your published event back from the relay and check, byte for byte:
   it — don't reimplement.
 - 30382 lookups: only ever by `authors + '#d': [specific pubkeys]` (lazy). An unfiltered
   `kinds:[30382]` subscription can pull hundreds of thousands of events.
+- House trust artifacts (30382/3039x) are on the HOUSE relay (`trustRelays`), not the hub —
+  a trust reader pointed at the hub alone silently finds nothing (degrades to count-everyone).
+- The 30382 corpus may be signed by a RETIRED house key (it is, today — see
+  `nip85AuthorPubkeys` in the config): honor every configured author, latest-per-subject wins.
+  `trust.js` already does this; don't "simplify" it to a single author.
+- If your publishes are rejected (relay `OK false`), the relay's write policy may be closed to
+  your pubkey — surface the relay message and have the operator confirm write access; don't
+  silently retry.
 
 ## 10. Done means
 

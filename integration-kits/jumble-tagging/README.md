@@ -19,3 +19,10 @@ is extracted into the shared lib.
 Decisions baked in (2026-07-23): dcosl.brainstorm.world as the default (configurable) tag-hub
 relay; house-POV trust via lazy NIP-85 kind-30382 lookups with count-everyone degrade; legacy
 hashtag bridging and pinning explicitly out of scope for v1.
+
+Empirical caveats (probed live 2026-07-23, both encoded in CONFIG.json — details in its
+comments): (1) the house's TA-signed trust artifacts (30382/3039x) exist on the **house relay
+only**, not on dcosl — hence `trustRelays`; (2) the entire live 30382 corpus is signed by a
+**retired** house key (2026-05-26 snapshot; assistant keys rotate on container re-init) — hence
+`nip85AuthorPubkeys` is a list, latest-per-subject wins across authors. When the house re-runs
+its NIP-85 pipeline under the current TA, fresher events simply supersede; no kit change needed.
