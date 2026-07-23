@@ -57,6 +57,16 @@ None open. Two were resolved at the planning gate (operator, 2026-07-22):
 1. **Rename/abandon placement** → **deferred.** Story 1 ships capture-to-view only, per the queue's decomposition. The gap (PRD §5.1 owner actions rename/abandon have no covering queue story) is recorded in the epic's coverage-gap note; revisit before book close so the PRD-computed completion isn't surprised.
 2. **Category filter** → **scoped out.** No filter UI until category instances exist; the category chip on a goal row still renders whenever a goal has one.
 
+## Deviations
+
+*(Implementer log, 2026-07-22 — small judgment calls; the ADR was not departed from.)*
+
+- **Schema-extension step executed (journal):** `POST /api/normalize/save-schema` run once against the local instance, 2026-07-22, complete-schema resend adding **optional** `origin` and `capturedOn` to `tapestryOwnerGoal.properties`; `required` unchanged (`[name, slug, description]`); response `success:true`, schemaUuid `…:tapestry-owner-goal-schema`. Other deployments apply the same call at their bootstrap (ADR decision 1).
+- **Response carries one extra derived field:** `captureDate` (resolved capture date) alongside the contracted keys — additive convenience so the view renders dates without re-deriving; H6's contract keys are all present.
+- **Test-fixture amendment during Phase 4 (Tester's lane, teardown-only):** the H4 teardown originally `DETACH DELETE`d the element node, orphaning its four `NostrEventTag` nodes; the next create-element then collided on the deterministic tag-node uuid constraint (found live). Teardown now deletes attached *and* orphaned tag nodes (uuids recomputed via the `sha256(uuid:tagjoin:index)` derivation, `src/api/normalize/index.js:165`). No assertion was changed. Live graph verified: zero orphan tag nodes, zero fixture residue.
+- **S1 comment wording:** the core's docblock originally contained the phrase "require/import calls", which the source-level purity scan (rightly, bluntly) flags — reworded; no behavior involved.
+- **Owner-eye UI verification bound:** the harness browser has no NIP-07 signer, so the signed-in Goals list cannot be exercised in-browser; list content is proven at the API layer (H1/H2/H4/H6) and the compiled view's gate renders correctly signed-out (screenshot at Implementation). The owner sees the full list with their own session.
+
 ## Linked artifacts
 
 - ADR: `engineering-team/decisions/second-brain/0001-goal-capture-and-goals-view.md`

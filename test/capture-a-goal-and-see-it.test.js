@@ -48,6 +48,7 @@
 const fs = require('fs');
 const path = require('path');
 const cp = require('child_process');
+const crypto = require('crypto');
 
 const ROOT = path.resolve(__dirname, '..');
 const CORE = path.join(ROOT, 'src/lib/brain/goals.js');
@@ -78,7 +79,17 @@ const LEGACY_GOAL_NAMES = [
 ];
 
 // H4 fixture — fixed sentinel name so repeated runs overwrite, never accumulate.
+// FIXTURE_JSON is shared between the capture body and the teardown: the json
+// tag's byte-exact string is an input to the deterministic tag-node uuids.
 const FIXTURE_NAME = 'harness capture round-trip goal';
+const FIXTURE_DTAG = 'harness-capture-round-trip-goal-1903378a';
+const FIXTURE_JSON = { tapestryOwnerGoal: {
+  name: FIXTURE_NAME,
+  slug: 'harness-capture-round-trip-goal',
+  description: 'prove the capture contract lands a readable goal',
+  origin: 'harness test, in conversation',
+  capturedOn: '2026-07-22',
+} };
 
 const tests = [];
 function test(name, fn) { tests.push([name, fn]); }
@@ -154,13 +165,38 @@ function fixtureUuid() {
   return `39999:${getTaPubkey()}:harness-capture-round-trip-goal-1903378a`;
 }
 
+// The element's tag-node uuids are deterministic — sha256(`${uuid}:${tag.join(',')}:${i}`)
+// over the exact tags create-element mints ([d, name, z, json] in order; the
+// json string is JSON.stringify(FIXTURE_JSON) verbatim). Reproducing them
+// lets teardown also remove ORPHANED tag nodes: a plain DETACH DELETE of the
+// element leaves its NostrEventTag nodes behind, and the next create-element
+// then collides on the tag-uuid uniqueness constraint (found live 2026-07-22).
+function fixtureTagUuids() {
+  const uuid = fixtureUuid();
+  const headerUuid = `39998:${getTaPubkey()}:tapestry-owner-goal`;
+  const tags = [
+    ['d', FIXTURE_DTAG],
+    ['name', FIXTURE_NAME],
+    ['z', headerUuid],
+    ['json', JSON.stringify(FIXTURE_JSON)],
+  ];
+  return tags.map((tag, i) =>
+    crypto.createHash('sha256').update(`${uuid}:${tag.join(',')}:${i}`).digest('hex'));
+}
+
 function deleteFixtureFromNeo4j() {
-  const q = {
-    cypher: 'MATCH (e:NostrEvent {uuid: $uuid}) DETACH DELETE e',
+  const q1 = {
+    cypher: 'MATCH (e:NostrEvent {uuid: $uuid}) OPTIONAL MATCH (e)-[:HAS_TAG]->(t:NostrEventTag) DETACH DELETE e, t',
     params: { uuid: fixtureUuid() },
   };
-  const r = loopbackPostJson('/api/neo4j/query', q);
-  assert(r && r.success !== false, `fixture Neo4j teardown query failed: ${short(r)}`);
+  const r1 = loopbackPostJson('/api/neo4j/query', q1);
+  assert(r1 && r1.success !== false, `fixture Neo4j teardown query failed: ${short(r1)}`);
+  const q2 = {
+    cypher: 'MATCH (t:NostrEventTag) WHERE t.uuid IN $tagUuids DETACH DELETE t',
+    params: { tagUuids: fixtureTagUuids() },
+  };
+  const r2 = loopbackPostJson('/api/neo4j/query', q2);
+  assert(r2 && r2.success !== false, `fixture orphan-tag teardown query failed: ${short(r2)}`);
 }
 
 function deleteFixtureFromStrfry() {
@@ -479,13 +515,7 @@ test('H4 (AC 1): capture round-trip — the create-element contract body reads b
   const body = {
     concept: 'tapestry owner goal',
     name: FIXTURE_NAME,
-    json: { tapestryOwnerGoal: {
-      name: FIXTURE_NAME,
-      slug: 'harness-capture-round-trip-goal',
-      description: 'prove the capture contract lands a readable goal',
-      origin: 'harness test, in conversation',
-      capturedOn: '2026-07-22',
-    } },
+    json: FIXTURE_JSON,
   };
   const created = loopbackPostJson('/api/normalize/create-element', body);
   assert(created && created.success === true,

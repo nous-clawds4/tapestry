@@ -63,6 +63,7 @@ import StrfryOverview from './pages/databases/StrfryOverview';
 import ExportPage from './pages/io/ExportPage';
 import ImportPage from './pages/io/ImportPage';
 import Dashboard from './pages/Dashboard';
+import Goals from './pages/brain/Goals';
 import BrainstormSearch from './pages/BrainstormSearch';
 import BrainstormProfile from './pages/BrainstormProfile';
 import BrainstormFollows from './pages/BrainstormFollows';
@@ -200,6 +201,7 @@ const router = createBrowserRouter([
     handle: { crumb: 'Home' },
     children: [
       { index: true, element: <Dashboard /> },
+      { path: 'goals', element: <Goals />, handle: { crumb: 'Goals' } },
       {
         path: 'concepts',
         handle: { crumb: 'Concepts' },
