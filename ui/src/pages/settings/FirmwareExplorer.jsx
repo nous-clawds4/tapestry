@@ -3,6 +3,7 @@ import {
   fetchFirmwareManifest, fetchFirmwareConcept,
   fetchFirmwareVersions, fetchInstallStatus, installFirmware,
 } from '../../api/firmware';
+import JsonView from '../../components/JsonView';
 
 const CORE_NODES = [
   { key: 'overview',        label: 'Overview' },
@@ -879,6 +880,7 @@ function IntegrationDetail({ type, item, manifest }) {
 function FirmwareNodeJson({ data, nodeKey }) {
   const nodeInfo = CORE_NODES.find(n => n.key === nodeKey);
   const node = data.nodes[nodeKey];
+  const [viewMode, setViewMode] = useState('viewer'); // 'viewer' | 'raw'
 
   if (!node?.uuid) {
     return (
@@ -906,10 +908,28 @@ function FirmwareNodeJson({ data, nodeKey }) {
         <span className="firmware-json-meta">
           {node.name} · <code className="uuid-short" title={node.uuid}>{node.uuid?.slice(-16)}</code>
         </span>
+        <div className="firmware-view-toggle">
+          {[
+            { key: 'viewer', label: 'Viewer' },
+            { key: 'raw', label: 'Raw JSON' },
+          ].map(opt => (
+            <button
+              key={opt.key}
+              className={`firmware-view-btn ${viewMode === opt.key ? 'active' : ''}`}
+              onClick={() => setViewMode(opt.key)}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
       </div>
-      <pre className="firmware-json-pre">
-        {JSON.stringify(node.json, null, 2)}
-      </pre>
+      {viewMode === 'viewer' ? (
+        <JsonView data={node.json} />
+      ) : (
+        <pre className="firmware-json-pre">
+          {JSON.stringify(node.json, null, 2)}
+        </pre>
+      )}
     </div>
   );
 }
