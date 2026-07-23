@@ -174,6 +174,7 @@ const relationshipPrimitivesProbe = require('./relationship-primitives-probe.tes
 const moveNodesBetweenSetsUi = require('./move-nodes-between-sets-ui.test.js');
 // epic: second-brain — Story 1 (capture a goal and see it).
 const captureAGoalAndSeeIt = require('./capture-a-goal-and-see-it.test.js');
+const firmwareConceptElementsSets = require('./firmware-concept-elements-sets.test.js');
 
 async function main() {
   console.log('Running Brainstorm tests...');
@@ -467,6 +468,7 @@ async function main() {
   const relationshipPrimitivesProbeResult = await relationshipPrimitivesProbe.run();
   const moveNodesBetweenSetsUiResult = await moveNodesBetweenSetsUi.run();
   const captureAGoalAndSeeItResult = await captureAGoalAndSeeIt.run();
+  const firmwareConceptElementsSetsResult = await firmwareConceptElementsSets.run();
 
   console.log('\nTest Results');
   console.log('-------------');
@@ -809,6 +811,12 @@ async function main() {
       : `${captureAGoalAndSeeItResult.fail === 0 ? 'PASS' : 'FAIL'} (${captureAGoalAndSeeItResult.pass} passed, ${captureAGoalAndSeeItResult.fail} failed${captureAGoalAndSeeItResult.skipped ? `, ${captureAGoalAndSeeItResult.skipped} skipped` : ''})`;
   console.log(`capture-a-goal-and-see-it suite:                 ${captureAGoalAndSeeItLine}`);
 
+  const firmwareConceptElementsSetsLine =
+    (firmwareConceptElementsSetsResult.pass + firmwareConceptElementsSetsResult.fail) === 0 && firmwareConceptElementsSetsResult.skipped
+      ? `SKIP (${firmwareConceptElementsSetsResult.skipped} tests; preconditions not met)`
+      : `${firmwareConceptElementsSetsResult.fail === 0 ? 'PASS' : 'FAIL'} (${firmwareConceptElementsSetsResult.pass} passed, ${firmwareConceptElementsSetsResult.fail} failed${firmwareConceptElementsSetsResult.skipped ? `, ${firmwareConceptElementsSetsResult.skipped} skipped` : ''})`;
+  console.log(`firmware-concept-elements-sets suite:            ${firmwareConceptElementsSetsLine}`);
+
   const overallOk =
     configOk &&
     profileTagsResult.fail === 0 &&
@@ -950,7 +958,10 @@ async function main() {
     moveNodesBetweenSetsUiResult.fail === 0 &&
     // second-brain #1 — capture a goal and see it
     // (LIVE chain — before the severed terminator; OPEN.md #43).
-    captureAGoalAndSeeItResult.fail === 0;
+    captureAGoalAndSeeItResult.fail === 0 &&
+    // firmware-explorer #1 — concept Elements & Sets viewer
+    // (LIVE chain — before the severed terminator; OPEN.md #43).
+    firmwareConceptElementsSetsResult.fail === 0;
     harnessLintResult.fail === 0 &&
     harnessStatsResult.fail === 0 &&
     sessionStartResult.fail === 0 &&
@@ -988,6 +999,7 @@ async function main() {
     noteTaggingRawEventsInspectorHttpResult, deploySafetyStatusResult, safeToMergeCheckResult, nextTaskCountdownResult,
     closeUnauthWriteSurfaceResult, defaultDenyMutationsResult, usersPageNeo4jEndpointResult, strfryWipeOwnerGateResult,
     relationshipPrimitivesResult, relationshipPrimitivesProbeResult, moveNodesBetweenSetsUiResult,
+    captureAGoalAndSeeItResult, firmwareConceptElementsSetsResult,
   ].reduce((sum, r) => sum + ((r && r.skipped) || 0), 0);
   console.log(`Total skipped:                                   ${totalSkipped}`);
   console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);

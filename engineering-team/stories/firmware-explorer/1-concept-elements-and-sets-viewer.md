@@ -102,5 +102,5 @@ hardcode; `getOwnerAssistantPubkey()` / `useConfig()`):
 
 ## Linked artifacts
 - ADR: `engineering-team/decisions/firmware-explorer/0001-concept-elements-and-sets-viewer.md`
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/firmware-explorer/1-concept-elements-and-sets-viewer.test-plan.md` (suite: `test/firmware-concept-elements-sets.test.js`)
 - Review: (filled in after Review phase)
