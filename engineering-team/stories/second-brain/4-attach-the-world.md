@@ -44,6 +44,6 @@ Remaining, deferred to the Architect / design (a value, not an intent decision):
 1. **Staleness threshold** — the day-count that flips a resource `current` → `stale` (and whether it is fixed, per-kind, or configurable). Left unpinned here rather than inventing a number; the freshness wording (`verified N days ago` / `not verified in N days`) is fixed regardless.
 
 ## Linked artifacts
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/second-brain/0004-external-resource-pointers-and-one-spine-detail.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
