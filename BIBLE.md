@@ -5,7 +5,7 @@
 >
 > Specifics of the reference deployment at `tapestry.brainstorm.world` (deploy targets, droplet specs, CI/CD workflows, branch protection ruleset, active team, tracking issues, operational gotchas we've hit) live in a sibling document: [OPERATIONS.md](./OPERATIONS.md). If you're forking this repo to run your own instance, BIBLE is the doc you want — OPERATIONS describes someone else's running instance.
 
-**Last updated:** 2026-07-02 (header refresh; content last changed 2026-06-20 — preferences audit §6.1 + §6.2; session persistence; user-counts; cycle-* skills)
+**Last updated:** 2026-07-23 (content: §11 relationship primitives + probe; §13 set-detail route + owner placement affordances — graph-curation-ui #1 / relationship-primitives book)
 
 ---
 
@@ -409,6 +409,9 @@ Base URL: `http://localhost:8080`
 | POST | `/api/normalize/create-property` | Create a property for a concept |
 | POST | `/api/normalize/generate-property-tree` | Generate property tree from JSON Schema (idempotent) |
 | POST | `/api/normalize/prune-superset-edges` | Prune redundant direct Superset edges |
+| POST | `/api/normalize/add-relationship` | Add ONE typed edge `(fromUuid)-[relType]->(toUuid)` between two existing nodes — strfry-free reference-graph edit; owner-gated; relType whitelist `HAS_ELEMENT`/`IS_A_SUPERSET_OF` (either spelling); idempotent (`created`/`already-existed`); graph-changing success carries a firmware-install-overwrite hazard `note` |
+| POST | `/api/normalize/delete-relationship` | Delete that same single typed, directed edge — same gate/whitelist/idempotency (`deleted`/`not-found`), same hazard `note` |
+| GET | `/api/normalize/relationship-primitives` | Read-only, credential-free deployment probe advertising the two primitives (registration evidence, not health) |
 | POST | `/api/normalize/add-node-as-element` | Wire an existing node as element of a concept |
 | POST | `/api/normalize/link-concepts` | Create IS_A_SUPERSET_OF between concepts |
 | POST | `/api/normalize/enumerate` | Create ENUMERATES relationship |
@@ -682,11 +685,12 @@ Legacy Brainstorm HTML pages are served at `/legacy/` (not part of the React SPA
 │       ├── elements/             Element list
 │       │   ├── new               Create element
 │       │   ├── add-node          Add existing node as element
-│       │   └── :elemUuid         Element detail
+│       │   └── :elemUuid         Element detail (owner: Placements panel — move/add/remove)
 │       ├── properties/           Property list
 │       │   └── new               Create property
-│       ├── dag/                  Organization (Sets) view
-│       │   └── new-set           Create set
+│       ├── dag/                  Organization (Sets) view (owner: per-row Place/move…)
+│       │   ├── new-set           Create set
+│       │   └── :setUuid          Set detail — supersets/subsets/elements (owner: add to set, remove direct placements)
 │       ├── visualization         Graph visualization (placeholder)
 │       └── schema                JSON Schema editor
 ├── lists/                        Simple Lists (raw DList browser)
