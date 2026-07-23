@@ -60,5 +60,5 @@ None open. Two were resolved at the planning gate (operator, 2026-07-22):
 ## Linked artifacts
 
 - ADR: `engineering-team/decisions/second-brain/0001-goal-capture-and-goals-view.md`
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/second-brain/1-capture-a-goal-and-see-it.test-plan.md`
 - Review: (filled in after Review phase)
