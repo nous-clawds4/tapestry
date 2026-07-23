@@ -1913,7 +1913,8 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
 .firmware-json-header {
   display: flex;
   align-items: baseline;
-  gap: 1rem;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
   margin-bottom: 1rem;
 }
 
@@ -1936,6 +1937,111 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   overflow-x: auto;
   white-space: pre;
   max-height: 50vh;
+}
+
+/* ── JSON view toggle (Viewer / Raw JSON) ── */
+.firmware-view-toggle {
+  margin-left: auto;
+  align-self: center;
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.firmware-view-btn {
+  padding: 0.25rem 0.6rem;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.firmware-view-btn:hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.05);
+}
+.firmware-view-btn.active {
+  background: rgba(99, 102, 241, 0.18);
+  color: #a5b4fc;
+}
+.firmware-view-btn + .firmware-view-btn {
+  border-left: 1px solid var(--border);
+}
+
+/* ── JSON tree viewer (JsonView component) ── */
+.jsonview {
+  --jv-key: #79c0ff;
+  --jv-string: #7ee787;
+  --jv-number: #f0883e;
+  --jv-boolean: #d2a8ff;
+  --jv-null: #8b949e;
+  --jv-punct: #8b949e;
+  background: var(--bg-code, #1e1e2e);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.jsonview-controls {
+  display: flex;
+  gap: 0.4rem;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+.jsonview-ctrl-btn {
+  padding: 0.2rem 0.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.jsonview-ctrl-btn:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text);
+}
+.jsonview-tree {
+  padding: 0.75rem 1rem;
+  overflow: auto;
+  max-height: 50vh;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.8rem;
+  line-height: 1.6;
+  color: var(--text-code, #cdd6f4);
+}
+.jsonview-row {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.jsonview-toggle {
+  cursor: pointer;
+  border-radius: 3px;
+}
+.jsonview-toggle:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+.jsonview-caret {
+  display: inline-block;
+  width: 1.1rem;
+  color: var(--jv-punct);
+  user-select: none;
+  font-size: 0.7rem;
+}
+.jsonview-caret-empty {
+  visibility: hidden;
+}
+.jsonview-key { color: var(--jv-key); }
+.jsonview-string { color: var(--jv-string); }
+.jsonview-number { color: var(--jv-number); }
+.jsonview-boolean { color: var(--jv-boolean); }
+.jsonview-null { color: var(--jv-null); font-style: italic; }
+.jsonview-punct { color: var(--jv-punct); }
+.jsonview-summary {
+  color: var(--jv-null);
+  font-style: italic;
+  opacity: 0.8;
+  margin: 0 0.4rem;
 }
 
 .firmware-missing-node,
