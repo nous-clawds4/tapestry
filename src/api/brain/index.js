@@ -24,8 +24,17 @@ const { runCypher } = require('../../lib/neo4j-driver');
 const { isOwner } = require('../../middleware/auth');
 const { getOwnerAssistantPubkey } = require('../../utils/assistantKeys');
 const { parseGoalRow, deriveStanding, resolveCaptureDate, sortGoals } = require('../../lib/brain/goals');
+const { classifyHeaderEdges, classifyElementConsistency, comparePropertyRecord, assembleReport } = require('../../lib/brain/hygiene');
 
 const GOAL_CONCEPT_SLUG = 'tapestry-owner-goal';
+
+// The hygiene check's confirmed scope (story #2, planning gate): the two
+// work-item concepts. parseRecord: null skips goal-record classification on
+// the sibling — its elements are projects, not goals.
+const HYGIENE_CONCEPTS = [
+  { slug: GOAL_CONCEPT_SLUG, parseRecord: parseGoalRow },
+  { slug: 'project-for-the-engineering-team', parseRecord: null },
+];
 
 // Explicit members: the directed downward walk from the concept's superset.
 // Direction is the stray filter — incoming HAS_ELEMENT edges (the goal
@@ -84,8 +93,132 @@ async function handleGetGoals(req, res) {
   }
 }
 
+// ── Hygiene (second-brain #2, ADR 0002) ──────────────────────────────────
+// Directed, parameterized queries only — never the /neighbors view, whose
+// direction-erasure produced the false defect inventory this story corrects.
+
+// A header's full directed edge inventory, both directions, with labels.
+const HEADER_EDGES_CYPHER = `
+  MATCH (h:NostrEvent {uuid: $headerUuid})-[r]->(t)
+  RETURN 'out' AS direction, type(r) AS rel, t.uuid AS otherUuid, labels(t) AS otherLabels
+  UNION ALL
+  MATCH (h:NostrEvent {uuid: $headerUuid})<-[r]-(s)
+  RETURN 'in' AS direction, type(r) AS rel, s.uuid AS otherUuid, labels(s) AS otherLabels`;
+
+// Explicit members via the directed downward walk (the 0001 EXPLICIT_CYPHER
+// shape), each annotated with whether its z-tag declaration is present.
+const ELEMENTS_WITH_EDGE_CYPHER = `
+  MATCH (h:NostrEvent {uuid: $headerUuid})-[:IS_THE_CONCEPT_FOR]->(s:Superset)
+  MATCH (s)-[:IS_A_SUPERSET_OF*0..10]->(ss)-[:HAS_ELEMENT]->(e:NostrEvent)
+  WHERE e.kind = 39999
+  OPTIONAL MATCH (e)-[:HAS_TAG]->(j:NostrEventTag {type: 'json'})
+  OPTIONAL MATCH (e)-[:HAS_TAG]->(z:NostrEventTag {type: 'z', value: $headerUuid})
+  WITH DISTINCT e, head(collect(DISTINCT j.value)) AS json, count(DISTINCT z) > 0 AS hasZTag
+  RETURN e.uuid AS uuid, e.name AS name, e.created_at AS createdAt, json AS json, hasZTag AS hasZTag`;
+
+// Implicit members: z-tag declarations (the 0001 IMPLICIT_CYPHER shape).
+const ELEMENTS_WITH_ZTAG_CYPHER = `
+  MATCH (e:NostrEvent)-[:HAS_TAG]->(:NostrEventTag {type: 'z', value: $headerUuid})
+  WHERE e.kind = 39999
+  OPTIONAL MATCH (e)-[:HAS_TAG]->(j:NostrEventTag {type: 'json'})
+  WITH DISTINCT e, head(collect(j.value)) AS json
+  RETURN e.uuid AS uuid, e.name AS name, e.created_at AS createdAt, json AS json`;
+
+// The json tags of the two nodes the property comparison needs.
+const NODE_JSON_CYPHER = `
+  UNWIND $uuids AS u
+  MATCH (n:NostrEvent {uuid: u})-[:HAS_TAG]->(t:NostrEventTag {type: 'json'})
+  RETURN n.uuid AS uuid, t.value AS json`;
+
+const HEADER_PRESENT_CYPHER = 'MATCH (h:NostrEvent {uuid: $headerUuid}) RETURN h.uuid AS uuid';
+
+function parseJsonSafe(s) {
+  if (typeof s !== 'string' || s === '') return null;
+  try { return JSON.parse(s); } catch { return null; }
+}
+
+// The schema wrapper's single concept-object: jsonSchema.properties[<key>].
+function extractSchemaObject(wrapper) {
+  const schema = wrapper && wrapper.jsonSchema;
+  const props = schema && schema.properties;
+  if (!props || typeof props !== 'object') return null;
+  const keys = Object.keys(props);
+  if (keys.length !== 1) return null;
+  const obj = props[keys[0]];
+  return (obj && typeof obj === 'object') ? obj : null;
+}
+
+async function checkConcept({ slug, parseRecord }, taPubkey) {
+  const headerUuid = `39998:${taPubkey}:${slug}`;
+  const present = await runCypher(HEADER_PRESENT_CYPHER, { headerUuid });
+  if (!present || present.length === 0) {
+    return { concept: slug, present: false };
+  }
+
+  const edges = await runCypher(HEADER_EDGES_CYPHER, { headerUuid });
+  const problems = classifyHeaderEdges({ concept: slug, headerUuid, edges });
+
+  // Full outer join of edge-side and z-tag-side membership.
+  const [edgeRows, ztagRows] = await Promise.all([
+    runCypher(ELEMENTS_WITH_EDGE_CYPHER, { headerUuid }),
+    runCypher(ELEMENTS_WITH_ZTAG_CYPHER, { headerUuid }),
+  ]);
+  const byUuid = new Map();
+  for (const row of edgeRows) {
+    if (row && row.uuid) byUuid.set(row.uuid, { ...row, hasEdge: true, hasZTag: !!row.hasZTag });
+  }
+  for (const row of ztagRows) {
+    if (!row || !row.uuid) continue;
+    const existing = byUuid.get(row.uuid);
+    if (existing) existing.hasZTag = true;
+    else byUuid.set(row.uuid, { ...row, hasEdge: false, hasZTag: true });
+  }
+  const elements = [...byUuid.values()];
+  problems.push(...classifyElementConsistency({ concept: slug, elements, parseRecord }));
+
+  // Property-record comparison — node uuids resolved from the machinery edges,
+  // never assumed from d-tag convention. If the machinery is missing, the
+  // classifyHeaderEdges problems above already say so specifically.
+  const schemaEdge = edges.find((e) => e.direction === 'in' && e.rel === 'IS_THE_JSON_SCHEMA_FOR');
+  const ppEdge = edges.find((e) => e.direction === 'in' && e.rel === 'IS_THE_PRIMARY_PROPERTY_FOR');
+  if (schemaEdge && ppEdge) {
+    const jsonRows = await runCypher(NODE_JSON_CYPHER, { uuids: [schemaEdge.otherUuid, ppEdge.otherUuid] });
+    const jsonByUuid = new Map(jsonRows.map((r) => [r.uuid, r.json]));
+    const schemaObject = extractSchemaObject(parseJsonSafe(jsonByUuid.get(schemaEdge.otherUuid)));
+    const ppWrapper = parseJsonSafe(jsonByUuid.get(ppEdge.otherUuid));
+    problems.push(...comparePropertyRecord({
+      concept: slug,
+      schemaObject,
+      propertySection: ppWrapper && ppWrapper.property,
+    }));
+  }
+
+  return { concept: slug, present: true, elements: elements.length, problems };
+}
+
+async function handleGetHygiene(req, res) {
+  if (!isOwner(req) && !req.localTrusted) {
+    return res.status(403).json({ success: false, error: 'Owner access required' });
+  }
+  try {
+    const taPubkey = getOwnerAssistantPubkey();
+    if (!taPubkey) {
+      return res.status(500).json({ success: false, error: 'Assistant identity unavailable' });
+    }
+    const results = [];
+    for (const concept of HYGIENE_CONCEPTS) {
+      results.push(await checkConcept(concept, taPubkey));
+    }
+    const report = assembleReport(results);
+    return res.json({ success: true, sound: report.sound, problems: report.problems, checked: report.checked });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+}
+
 function registerBrainRoutes(app) {
   app.get('/api/brain/goals', handleGetGoals);
+  app.get('/api/brain/hygiene', handleGetHygiene);
 }
 
 module.exports = { registerBrainRoutes };
