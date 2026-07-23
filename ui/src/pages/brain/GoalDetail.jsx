@@ -1,43 +1,86 @@
-import { useMemo } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import Breadcrumbs from '../../components/Breadcrumbs';
-import useBrainGoals from '../../hooks/useBrainGoals';
+import useBrainGoalDetail from '../../hooks/useBrainGoalDetail';
 
 /**
- * Minimal Goal detail (second-brain #3, ADR 0003 d11): the goal's intent —
- * name, statement, standing, capture metadata, parent context, and the two
- * labelled fields — read-only, owner-gated. Story 4 grows this page into the
- * one-spine view (pointers + record). No new read endpoint: the page selects
- * its goal from the same list read the tree uses; when duplicates exist it
- * shows the resolver's winning record (oldest capture, uuid tie-break) — the
- * same truth the tree renders.
+ * Goal detail — the one spine (second-brain #4, ADR 0004 d10; grows the minimal
+ * detail from #3). Intent (name, standing, capture metadata, parent context,
+ * "Done means" / "Stays inside") on top, then the goal's resource pointers, then
+ * its append-only record. Read-only, owner-gated: attaching and verifying happen
+ * in conversation, never here. Copy comes verbatim from the style/design guides.
  */
 
 const HINT_LINE = 'needs a deliverable and boundary before it can be proposed';
+const POINTER_EMPTY = 'Nothing attached yet — resources this goal needs will appear here.';
+
+// Design-guide pointer-card kind markers (typography, not icons). These short
+// markers are the design guide's own vocabulary — the sanctioned exception to
+// the banned-jargon rule (ADR 0004 d11).
+const KIND_MARKER = {
+  'file': 'file',
+  'vault-note': 'vault',
+  'nostr-event': 'event',
+  'repository': 'repo',
+  'web-address': 'web',
+};
+
+function truncateMiddle(s, max = 48) {
+  if (typeof s !== 'string' || s.length <= max) return s || '';
+  const keep = Math.floor((max - 1) / 2);
+  return `${s.slice(0, keep)}…${s.slice(s.length - keep)}`;
+}
+
+// The freshness line, worded verbatim per the style guide, colored by the
+// server-derived standing word (the color only reinforces the word).
+function freshnessLine(p) {
+  const n = typeof p.freshnessDays === 'number' ? Math.max(0, p.freshnessDays) : null;
+  if (p.freshness === 'unreachable') return 'unreachable at last check';
+  if (p.freshness === 'stale') return n == null ? 'not verified recently' : `not verified in ${n} days`;
+  return n == null ? 'verified recently' : `verified ${n} days ago`;
+}
+
+function PointerCard({ pointer }) {
+  const marker = KIND_MARKER[pointer.locatorKind] || pointer.locatorKind;
+  return (
+    <li className="brain-pointer-card">
+      <span className="brain-pointer-kind">{marker}</span>
+      <span className="brain-pointer-main">
+        {pointer.locator ? (
+          <a
+            className="brain-pointer-title"
+            href={pointer.locator}
+            target="_blank"
+            rel="noopener noreferrer"
+          >{pointer.title}</a>
+        ) : (
+          <span className="brain-pointer-title">{pointer.title}</span>
+        )}
+        <span className="brain-pointer-locator">{truncateMiddle(pointer.locator)}</span>
+        <span className={`brain-freshness brain-fresh-${pointer.freshness || 'current'}`}>{freshnessLine(pointer)}</span>
+        {pointer.whyKept && <span className="brain-pointer-why">{pointer.whyKept}</span>}
+      </span>
+    </li>
+  );
+}
+
+function RecordEntry({ entry }) {
+  // Append-only: a dated fact with a type word and a one-sentence summary. No
+  // edit affordance exists on any entry, ever (AC 6; the ledger is the ledger).
+  return (
+    <li className="brain-record-entry">
+      <span className="brain-record-date">{entry.date}</span>
+      <span className="brain-record-type">{entry.type}</span>
+      <span className="brain-record-summary">{entry.summary}</span>
+    </li>
+  );
+}
 
 export default function GoalDetail() {
   const { slug } = useParams();
   const { user, loading: authLoading } = useAuth();
-  const { goals, loading, error, refetch } = useBrainGoals();
+  const { goal, pointers, records, loading, error, refetch } = useBrainGoalDetail(slug);
   const isOwner = user?.classification === 'owner' || user?.classification === 'admin';
-
-  const goal = useMemo(() => {
-    if (!Array.isArray(goals)) return null;
-    const matches = goals.filter((g) => g.slug === slug);
-    if (matches.length === 0) return null;
-    return [...matches].sort((a, b) => {
-      const ca = typeof a.createdAt === 'number' ? a.createdAt : Infinity;
-      const cb = typeof b.createdAt === 'number' ? b.createdAt : Infinity;
-      if (ca !== cb) return ca - cb;
-      return a.uuid < b.uuid ? -1 : 1;
-    })[0];
-  }, [goals, slug]);
-
-  const parentGoal = useMemo(() => {
-    if (!goal || !goal.parentUuid || !Array.isArray(goals)) return null;
-    return goals.find((g) => g.uuid === goal.parentUuid) || null;
-  }, [goals, goal]);
 
   if (authLoading) {
     return (
@@ -97,8 +140,7 @@ export default function GoalDetail() {
   }
 
   // A leaf still missing a deliverable or boundary carries the hint; 'viable'
-  // leaves have both. Goals with children show no hint (they are never
-  // proposed as a whole — their pieces are).
+  // leaves have both. Goals with children show no hint (their pieces are).
   const showHint = !goal.hasChildren && goal.standing !== 'viable';
 
   return (
@@ -108,10 +150,10 @@ export default function GoalDetail() {
       <h1>{goal.name}</h1>
       <p className="brain-detail-meta">
         <span className="brain-goal-standing">{goal.standing || 'captured'}</span>
-        {parentGoal && parentGoal.slug && (
-          <> · part of "<Link to={`/tapestry/goals/${parentGoal.slug}`}>{parentGoal.name}</Link>"</>
+        {goal.parentSlug && (
+          <> · part of "<Link to={`/tapestry/goals/${goal.parentSlug}`}>{goal.parentName}</Link>"</>
         )}
-        {parentGoal && !parentGoal.slug && <> · part of "{parentGoal.name}"</>}
+        {!goal.parentSlug && goal.parentName && <> · part of "{goal.parentName}"</>}
         {goal.captureDate && <> · captured {goal.captureDate}</>}
         {goal.origin && <> · {goal.origin}</>}
       </p>
@@ -123,6 +165,26 @@ export default function GoalDetail() {
         <p className="brain-detail-field"><strong>Stays inside:</strong> {goal.boundary}</p>
       )}
       {showHint && <p className="brain-goal-hint">{HINT_LINE}</p>}
+
+      <section className="brain-pointers">
+        <h2 className="brain-section-title">Resources</h2>
+        {pointers.length === 0 ? (
+          <p className="brain-empty">{POINTER_EMPTY}</p>
+        ) : (
+          <ul className="brain-pointer-list">
+            {pointers.map((p, i) => <PointerCard key={p.locator || i} pointer={p} />)}
+          </ul>
+        )}
+      </section>
+
+      {records.length > 0 && (
+        <section className="brain-record">
+          <h2 className="brain-section-title">Record</h2>
+          <ul className="brain-record-list">
+            {records.map((entry, i) => <RecordEntry key={i} entry={entry} />)}
+          </ul>
+        </section>
+      )}
     </div>
   );
 }

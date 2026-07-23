@@ -144,6 +144,9 @@ export default function Goals() {
           {showHint && <span className="brain-goal-hint">{HINT_LINE}</span>}
         </span>
         <span className="brain-goal-standing">{g.standing || 'captured'}</span>
+        {g.pointerCount > 0 && (
+          <span className="brain-goal-pointers">{g.pointerCount} pointer{g.pointerCount === 1 ? '' : 's'}</span>
+        )}
       </li>
     );
   };
