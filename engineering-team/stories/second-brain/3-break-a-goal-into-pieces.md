@@ -1,6 +1,6 @@
 # Story 3: Break a goal into pieces
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-07-23
 **Type:** Feature
 
@@ -83,4 +83,4 @@ None open. Three were resolved at the planning gate (operator, 2026-07-23):
 
 - ADR: `engineering-team/decisions/second-brain/0003-record-based-decomposition-and-validated-goal-writes.md`
 - Test plan: `engineering-team/stories/second-brain/3-break-a-goal-into-pieces.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/second-brain/3-break-a-goal-into-pieces.md` (PASS — independent reviewer subagent; the main session implemented)
