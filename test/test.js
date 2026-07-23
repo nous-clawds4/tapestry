@@ -177,6 +177,8 @@ const captureAGoalAndSeeIt = require('./capture-a-goal-and-see-it.test.js');
 const firmwareConceptElementsSets = require('./firmware-concept-elements-sets.test.js');
 // epic: second-brain — Story 2 (hygiene check + primary-property reconcile).
 const structuresTheBrainCanTrust = require('./structures-the-brain-can-trust.test.js');
+// epic: second-brain — Story 3 (break a goal into pieces — decomposition).
+const breakAGoalIntoPieces = require('./break-a-goal-into-pieces.test.js');
 
 async function main() {
   console.log('Running Brainstorm tests...');
@@ -472,6 +474,7 @@ async function main() {
   const captureAGoalAndSeeItResult = await captureAGoalAndSeeIt.run();
   const firmwareConceptElementsSetsResult = await firmwareConceptElementsSets.run();
   const structuresTheBrainCanTrustResult = await structuresTheBrainCanTrust.run();
+  const breakAGoalIntoPiecesResult = await breakAGoalIntoPieces.run();
 
   console.log('\nTest Results');
   console.log('-------------');
@@ -826,6 +829,13 @@ async function main() {
       ? `SKIP (${firmwareConceptElementsSetsResult.skipped} tests; preconditions not met)`
       : `${firmwareConceptElementsSetsResult.fail === 0 ? 'PASS' : 'FAIL'} (${firmwareConceptElementsSetsResult.pass} passed, ${firmwareConceptElementsSetsResult.fail} failed${firmwareConceptElementsSetsResult.skipped ? `, ${firmwareConceptElementsSetsResult.skipped} skipped` : ''})`;
   console.log(`firmware-concept-elements-sets suite:            ${firmwareConceptElementsSetsLine}`);
+  // Skip-aware: H-class live tests skip when the local stack is absent (CI's
+  // stack-free job); U/S classes always run and gate.
+  const breakAGoalIntoPiecesLine =
+    (breakAGoalIntoPiecesResult.pass + breakAGoalIntoPiecesResult.fail) === 0 && breakAGoalIntoPiecesResult.skipped
+      ? `SKIP (${breakAGoalIntoPiecesResult.skipped} tests; preconditions not met)`
+      : `${breakAGoalIntoPiecesResult.fail === 0 ? 'PASS' : 'FAIL'} (${breakAGoalIntoPiecesResult.pass} passed, ${breakAGoalIntoPiecesResult.fail} failed${breakAGoalIntoPiecesResult.skipped ? `, ${breakAGoalIntoPiecesResult.skipped} skipped` : ''})`;
+  console.log(`break-a-goal-into-pieces suite:                  ${breakAGoalIntoPiecesLine}`);
 
   const overallOk =
     configOk &&
@@ -974,7 +984,10 @@ async function main() {
     firmwareConceptElementsSetsResult.fail === 0 &&
     // second-brain #2 — structures the brain can trust (hygiene + reconcile)
     // (LIVE chain — before the severed terminator; OPEN.md #43).
-    structuresTheBrainCanTrustResult.fail === 0;
+    structuresTheBrainCanTrustResult.fail === 0 &&
+    // second-brain #3 — break a goal into pieces (decomposition)
+    // (LIVE chain — before the severed terminator; OPEN.md #43).
+    breakAGoalIntoPiecesResult.fail === 0;
     harnessLintResult.fail === 0 &&
     harnessStatsResult.fail === 0 &&
     sessionStartResult.fail === 0 &&
@@ -1013,6 +1026,7 @@ async function main() {
     closeUnauthWriteSurfaceResult, defaultDenyMutationsResult, usersPageNeo4jEndpointResult, strfryWipeOwnerGateResult,
     relationshipPrimitivesResult, relationshipPrimitivesProbeResult, moveNodesBetweenSetsUiResult,
     captureAGoalAndSeeItResult, firmwareConceptElementsSetsResult, structuresTheBrainCanTrustResult,
+    breakAGoalIntoPiecesResult,
   ].reduce((sum, r) => sum + ((r && r.skipped) || 0), 0);
   console.log(`Total skipped:                                   ${totalSkipped}`);
   console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);

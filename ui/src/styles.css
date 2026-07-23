@@ -8179,3 +8179,23 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
 .brain-error { padding: 8px 0; }
 .brain-retry { color: var(--accent); cursor: pointer; }
 .brain-privacy-line { margin-top: 24px; color: var(--text-muted); font-size: 0.85rem; }
+/* Decomposition tree + minimal detail (second-brain #3, ADR 0003 d10/d11).
+   --brain-depth is a per-row custom property set inline by the view — 20px
+   per depth level (12px under 768px, per the design guide); no new :root
+   tokens. The disclosure control spans the full row HEIGHT at the left edge;
+   the rest of the row navigates to the detail. */
+.brain-goal-row { cursor: pointer; padding-left: calc(8px + var(--brain-depth, 0) * 20px); }
+.brain-goal-row:focus { outline: 2px solid var(--accent); outline-offset: -2px; }
+.brain-goal-main { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+.brain-goal-hint { font-size: 0.8rem; color: var(--text-muted); }
+.brain-disclose { display: inline-flex; align-items: center; justify-content: center; align-self: stretch; min-width: 24px; color: var(--text-muted); user-select: none; transition: transform 0.12s ease; }
+.brain-disclose:focus { outline: 2px solid var(--accent); outline-offset: -2px; }
+.brain-disclose-open { transform: rotate(90deg); }
+.brain-leaf-dot { cursor: default; }
+.brain-detail-meta { color: var(--text-muted); font-size: 0.85rem; }
+.brain-detail-meta a { color: var(--accent); text-decoration: none; }
+.brain-detail-statement { max-width: 70ch; }
+.brain-detail-field { max-width: 70ch; }
+@media (max-width: 768px) {
+  .brain-goal-row { padding-left: calc(8px + var(--brain-depth, 0) * 12px); }
+}

@@ -1,6 +1,7 @@
 # ADR 0002: Read-only hygiene surface on the brain seam; targeted primary-property reconcile primitive in normalize
 
 **Status:** Accepted
+**Amended by:** ADR 0003 (d4 schema-object resolution — sole top-level *properties* key, not *required* key; Consequences (a) paired-reconcile requirement dissolved for the save-schema path by the 0003 d8 fold)
 **Date:** 2026-07-23
 **Story:** `engineering-team/stories/second-brain/2-structures-the-brain-can-trust.md`
 
