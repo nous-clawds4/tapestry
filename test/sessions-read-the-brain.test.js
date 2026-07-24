@@ -510,28 +510,32 @@ test('S4 (ADR d9): both new writes run through the existing serializeGoalWrite m
   }
 });
 
-test('S5 (ADR d3 — append-only by construction): the work-record mint uses a nonce/random d-tag and NEVER regenerateJsons a record', () => {
+test('S5 (ADR d3 — append-only by construction): the work-record write uses a random/nonce d-tag and never regenerateJsons a record', () => {
   const src = safeRead(NORMALIZE_INDEX);
-  for (const [handler, core] of [['handleCreateWorkRecord', 'createWorkRecord'], ['handleNoteGoalIdea', 'noteGoalIdea']]) {
-    const start = src.indexOf(`function ${core}`) !== -1 ? src.indexOf(`function ${core}`) : src.indexOf(handler);
-    if (start === -1) continue; // S1/S2 fail loudly on a missing handler
-    const slice = src.slice(start, start + 12000);
-    // Append-only: a fresh element each write — a random d-tag or a 3-arg
-    // childDTag(base, header, nonce), never a deterministic 2-arg natural-key
-    // d-tag that could MERGE over a prior record. (H3 is the live proof; this
-    // is the supporting source pin.)
-    assert(/randomDTag\s*\(|childDTag\s*\([^)]+,[^)]+,[^)]+\)/.test(slice),
-      `${core} must mint each work record under a random d-tag or a nonce'd childDTag (ADR 0005 d3) — append-only by ` +
-      'construction, so a second record can never MERGE over a prior one.');
-  }
-  // The record-writing cores must NOT re-sign an existing record. regenerateJson
-  // is the durable-intent mutation path (resources/goals) — never a work record.
-  const cwrStart = src.indexOf('function createWorkRecord');
-  if (cwrStart !== -1) {
-    const cwrSlice = src.slice(cwrStart, cwrStart + 12000);
-    assert(!/regenerateJson\s*\(/.test(cwrSlice),
-      'createWorkRecord must NOT regenerateJson — work records are append-only and never re-signed (ADR 0005 d3; PRD §7.2).');
-  }
+  // The ADR pins the append-only PROPERTY, not where the mint lives — inline in
+  // the cores or in a shared helper are both valid. Gather each function's body
+  // (bounded to the next declaration, so no bleed into neighbours) and check the
+  // write region as a whole.
+  const fnBody = (name) => {
+    const i = src.indexOf(`function ${name}`);
+    if (i === -1) return '';
+    const after = src.slice(i + 10);
+    const next = after.search(/\n(?:async )?function /);
+    return next === -1 ? src.slice(i) : src.slice(i, i + 10 + next);
+  };
+  const region = ['createWorkRecord', 'noteGoalIdea', 'mintWorkRecordElement', 'mintWorkRecord'].map(fnBody).join('\n--\n');
+  assert(/function createWorkRecord|function noteGoalIdea/.test(src),
+    'the work-record write cores are not implemented yet (createWorkRecord / noteGoalIdea) — ADR 0005 d6/d7.');
+  // A fresh element each write — a random d-tag or a 3-arg childDTag(base, header,
+  // nonce), never a deterministic 2-arg natural-key d-tag that could MERGE over a
+  // prior record. (H3 is the live proof; this is the supporting source pin.)
+  assert(/randomDTag\s*\(|childDTag\s*\([^)]+,[^)]+,[^)]+\)/.test(region),
+    'the work-record mint must use a random d-tag or a nonce\'d childDTag (ADR 0005 d3) — append-only by construction, ' +
+    'so a second record can never MERGE over a prior one.');
+  // Work records are never re-signed — regenerateJson is the durable-intent
+  // mutation path (resources/goals), never the append-only record path.
+  assert(!/regenerateJson\s*\(/.test(region),
+    'the work-record write path must NEVER regenerateJson — work records are append-only and never re-signed (ADR 0005 d3; PRD §7.2).');
 });
 
 test('S6 (ADR d11/d15): GET /api/brain/orient — route, gate, and the single named ORIENT_ROOT_CAP applied', () => {
@@ -625,8 +629,10 @@ test('S12 (OPEN.md row 87a/87b): the dead freshness fallback is dropped; the rat
   const src = safeRead(DETAIL_PAGE);
   assert(src, 'ui/src/pages/brain/GoalDetail.jsx missing — regression.');
   // 87a: the dead `current`-branch null fallback is removed (the server never
-  // returns 'current' with a null day-count — ADR 0005 d12).
-  assert(!/verified recently/.test(src),
+  // returns 'current' with a null day-count — ADR 0005 d12). Match the LITERAL
+  // `'verified recently'` (with quotes) so the ratified stale fallback
+  // `'not verified recently'` — which contains the substring — is not tripped.
+  assert(!/'verified recently'/.test(src),
     "the dead freshness fallback 'verified recently' must be dropped (OPEN.md row 87a; ADR 0005 d12) — it is unreachable.");
   // 87b: the section headings are ratified and pinned (they aid the one spine).
   assert(/>Resources</.test(src) && />Record</.test(src),
