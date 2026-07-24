@@ -1,6 +1,6 @@
 # Story 6: The proposal loop — nominate one viable goal, decide it on the spine
 
-**Status:** Draft
+**Status:** Done
 **Created:** 2026-07-24
 **Type:** Feature
 **Epic:** `second-brain` (#6) · PRD §5.5, §5.8, §7.1–7.2, §7.7
@@ -69,4 +69,4 @@ The workflow flags >5 acceptance criteria as a signal to consider splitting. Thi
 ## Linked artifacts
 - ADR: `engineering-team/decisions/second-brain/0006-the-proposal-loop.md` (Accepted 2026-07-24) — new append-only `tapestry-proposal` concept, type-discriminated (`proposed`/`approved`/`skipped`), decisions appended as separate facts (the load-bearing (a)/(b) question resolved to append-only shape (b)); three gated producers (`make-proposal`/`approve-proposal`/`skip-proposal`); derive-open-at-read; the goal-detail `records` projection extended (8th brain require); `GET /api/brain/proposals`; the "What next?" queue view. Approve copy ratified: *"Approved — launch it when you're ready."*
 - Test plan: `engineering-team/stories/second-brain/6-the-proposal-loop.test-plan.md` — `test/the-proposal-loop.test.js` (U/S/H/R). Pre-impl: **6 passed, 27 failed, 0 skipped** (right-reason failures; feature absent). Five siblings green under the widen-only import re-pin (8th brain require). Verified 2026-07-24 at `48ca2507`.
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/second-brain/6-the-proposal-loop.md` — **PASS** (independent reviewer, 2026-07-24). Full `npm test` Overall PASS (the-proposal-loop 33/0/0; five siblings green; 51 pre-existing env skips); impl-commit touched no test file; vite build clean; live round-trip + gates re-verified; append-only shape (b) confirmed (no `regenerateJson`, `proposed` byte-unchanged after a decision). 2 non-blocking findings (error-state Retry button omitted vs ADR d12; benign `ensureProposalConcept`/`already-open` ordering).

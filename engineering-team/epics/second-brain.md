@@ -22,7 +22,7 @@ Three owner-gated views inside the existing control panel (Goals view, Goal deta
 3. **break-a-goal-into-pieces** — child goals; viable = deliverable ("done means") + boundary ("stays inside"); parents never proposed. *(Queued — edge materialization depends on the relationship-primitives whitelist-extension path; do not extend the whitelist inside the story)*
 4. **attach-the-world** — External Resource pointers; freshness standing; the one-spine Goal detail. *(Queued)*
 5. **sessions-read-the-brain** — bounded, corpus-independent orientation; append-only work records. *(Queued)*
-6. **the-proposal-loop** — one viable goal nominated with why-now + runners-up; approve / skip-with-reason; every decision recorded. *(Queued)*
+6. **the-proposal-loop** — one viable goal nominated with why-now + runners-up; approve / skip-with-reason; every decision recorded. **Done** (review PASS 2026-07-24).
 7. **teach-it-what-matters** — pairwise priority signals, framing-tagged, recorded only. *(Queued)*
 8. **the-brain-survives** — export of owner-authored content + one journaled restore drill against a scratch target. *(Queued — interim protection until the firmware clobber-protection epic lands)*
 
