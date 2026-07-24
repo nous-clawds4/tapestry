@@ -8254,8 +8254,16 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
 .tapestry-concept-option:hover { background: var(--bg-tertiary); }
 .tapestry-concept-option input { margin: 0; }
 .tapestry-selected-count { color: var(--text-muted); font-size: 0.85rem; margin: 0.4rem 0 0; }
-.tapestry-signing { border: 1px solid var(--border); border-radius: 6px; padding: 0.6rem 0.9rem; }
-.tapestry-signing legend { padding: 0 0.4rem; color: var(--text-muted); font-size: 0.85rem; }
-.tapestry-radio { display: flex; align-items: center; gap: 0.5rem; padding: 0.2rem 0; cursor: pointer; }
-.tapestry-radio input { margin: 0; }
+.tapestry-signing { max-width: 500px; }
+.form-field select {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 12px;
+  color: var(--text);
+  font-size: 0.95em;
+  width: 100%;
+  max-width: 500px;
+  cursor: pointer;
+}
 .tapestry-validation { margin-top: 0.5rem; }

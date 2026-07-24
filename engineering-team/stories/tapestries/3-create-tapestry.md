@@ -93,6 +93,10 @@ Logged per `roles/implementer.md` §9. Review-fix cycle (review verdict CHANGES_
   `nostr-event-tagging-concept-graph`, verified live). The picker now captures `conceptGraphSlug =
   oSlugs.singular` and the import uuid is built from it.
 - **[non-blocking fix]** Added an `if (submitting) return;` re-entry guard to `NewTapestry.onSubmit`.
+- **[post-staging UX polish, operator request]** The "Sign as" signing selector was changed from a
+  full-width `<fieldset>` with two stacked radios to a compact `<select>` dropdown (same two `signAs`
+  values, zero behavior change — presentation only). Treated as a trivial mechanical edit; suite stays
+  21/21 (S2 unaffected), Playwright E1/E6 updated for the `<select>` (combobox + `selectOption`).
 - **[judgment call]** The Implementer authored the regression tests for these fixes in the fix cycle
   (unit P10 = uuid-per-signer, P11 = import-from-`conceptGraphSlug`, source S7; updated the P5 fixture;
   strengthened Playwright E6 to assert own-key navigation) rather than round-tripping to the Tester —
