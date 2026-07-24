@@ -21,7 +21,7 @@ const APPROVE_CONFIRM = "Approved — launch it when you're ready.";
 
 export default function Proposals() {
   const { user, loading: authLoading } = useAuth();
-  const { proposals, loading, error, approve, skip } = useBrainProposals();
+  const { proposals, loading, error, refetch, approve, skip } = useBrainProposals();
   const isOwner = user?.classification === 'owner' || user?.classification === 'admin';
 
   const [skippingId, setSkippingId] = useState(null);
@@ -85,7 +85,8 @@ export default function Proposals() {
 
       {!loading && error && (
         <p className="brain-error">
-          The proposer couldn't run — its last message: {String(error)}. Nothing was decided for you.
+          The proposer couldn't run — its last message: {String(error)}. Nothing was decided for you.{' '}
+          <button type="button" className="brain-retry" onClick={refetch}>Retry</button>
         </p>
       )}
 
