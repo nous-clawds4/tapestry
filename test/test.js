@@ -70,6 +70,7 @@ const taskQueueNeo4jResourceClass = require('./task-queue-neo4j-resource-class.t
 const entrypointTemplateRendering = require('./entrypoint-template-rendering.test.js');
 const bullboardAdminAccess = require('./bullboard-admin-access.test.js');
 const adminToolsDashboardPanel = require('./admin-tools-dashboard-panel.test.js');
+const createTapestry = require('./create-tapestry.test.js');
 const reconciliationIncrementalMode = require('./reconciliation-incremental-mode.test.js');
 const generalizedTaskScheduler = require('./generalized-task-scheduler.test.js');
 const reconciliationRearchitecture = require('./reconciliation-rearchitecture.test.js');
@@ -268,6 +269,9 @@ async function main() {
 
   console.log('\nadmin-tools-dashboard-panel suite:');
   const adminToolsDashboardPanelResult = await adminToolsDashboardPanel.run();
+
+  console.log('\ncreate-tapestry suite:');
+  const createTapestryResult = await createTapestry.run();
 
   console.log('\nreconciliation-incremental-mode suite:');
   const reconciliationIncrementalModeResult = await reconciliationIncrementalMode.run();
@@ -628,6 +632,9 @@ async function main() {
   );
   console.log(
     `admin-tools-dashboard-panel suite:               ${adminToolsDashboardPanelResult.fail === 0 ? 'PASS' : 'FAIL'} (${adminToolsDashboardPanelResult.pass} passed, ${adminToolsDashboardPanelResult.fail} failed)`
+  );
+  console.log(
+    `create-tapestry suite:                           ${createTapestryResult.fail === 0 ? 'PASS' : 'FAIL'} (${createTapestryResult.pass} passed, ${createTapestryResult.fail} failed)`
   );
   console.log(
     `reconciliation-incremental-mode suite:           ${reconciliationIncrementalModeResult.fail === 0 ? 'PASS' : 'FAIL'} (${reconciliationIncrementalModeResult.pass} passed, ${reconciliationIncrementalModeResult.fail} failed)`
@@ -1011,7 +1018,10 @@ async function main() {
     attachTheWorldResult.fail === 0 &&
     // second-brain #5 — sessions read the brain (work records + bounded orient)
     // (LIVE chain — before the severed terminator; OPEN.md #43).
-    sessionsReadTheBrainResult.fail === 0;
+    sessionsReadTheBrainResult.fail === 0 &&
+    // tapestries #3 — create a tapestry (members-only authoring)
+    // (LIVE chain — before the severed terminator; OPEN.md #43).
+    createTapestryResult.fail === 0;
     harnessLintResult.fail === 0 &&
     harnessStatsResult.fail === 0 &&
     sessionStartResult.fail === 0 &&
@@ -1034,7 +1044,7 @@ async function main() {
     nip51ListExportPublishResult, pinDetailIntoTagTabResult, collapseIntoExportResult, loginFailureAndTagCollapseResult,
     headerConceptGraphTagResult, communityReferenceSupersetLinkResult, graperankSharedCsvRaceResult, communityClassThreadPullResult,
     taskQueueBullmqResult, taskQueueNeo4jResourceClassResult, entrypointTemplateRenderingResult, bullboardAdminAccessResult,
-    adminToolsDashboardPanelResult, reconciliationIncrementalModeResult, generalizedTaskSchedulerResult, reconciliationRearchitectureResult,
+    adminToolsDashboardPanelResult, createTapestryResult, reconciliationIncrementalModeResult, generalizedTaskSchedulerResult, reconciliationRearchitectureResult,
     scheduledTasksWithArgumentsResult, manualTaskRetriggerAfterFinishResult, scheduledTaskTimeoutPropagationResult, killTimeoutOrphansByDefaultResult,
     taskQueueSemaphoreProtectionAuditResult, profileFollowsListResult, profileWebsiteLinkResult, profileVerifiedFollowersCountResult,
     profileFollowersListResult, profileVerifiedReportersCountResult, verifiedReportersMembershipDataResult, verifiedReportersListPageResult,

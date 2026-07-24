@@ -1,10 +1,18 @@
 # Book: tapestries
 
-**Status:** Open
+**Status:** Closed
 **Opened:** 2026-07-23 *(eagerly, at the Story 1 Review gate — the intake `/plan-feature` step
 skipped the anchor; caught and opened here rather than reconstructed at close. 3rd occurrence of
 OPEN.md #78.)*
+**Closed:** 2026-07-24
 **Mode:** human-gated per-story cycle (no Direction-mode section; never armed)
+
+## Close artifacts
+
+- Build audit: `engineering-team/audits/tapestries/audit.md`
+- PRD seed (no PRD existed): `engineering-team/audits/tapestries/prd-seed.md`
+- **Provenance:** acceptance-frame (quoted below) · **Confidence: medium** — same-session, operator-gated at every gate; two full per-story cycles with PASS reviews; shipped to prod (staging #438, prod #440, 2026-07-24) and smoke-verified. Not higher: there was no ratified PRD to reconcile against.
+- Retro dispositions: `audit.md` §7. Epic retired to `done/tapestries/`; `epics/tapestries.md` Status: Done.
 
 ## Intent anchor — acceptance frame (no PRD; captured from the operator's ask)
 
@@ -24,21 +32,21 @@ Scope fixed by operator answers during Planning / Architecture (2026-07-23):
 
 1. **Read-only skeleton**; create/edit deferred to future stories.
 2. **Directory data source = strfry** (`queryRelay`), not Neo4j — forced by an observed Neo4j
-   reconcile that drops tapestry elements (ADR `tapestries/0001`; root cause deferred to OPEN.md #87).
+   reconcile that drops tapestry elements (ADR `tapestries/0001`; root cause deferred to OPEN.md #88).
 3. **Route by uuid** (the a-tag coordinate); **public** placement in the main nav.
 4. **Exploration page = as-authored** rendering from the element's `graph` block + resolved imports,
    modeled on the Firmware Explorer's read-only views (drop install/version/constraints); no new
    backend.
 
 Definition of done: the acceptance criteria of both stories under
-`engineering-team/stories/tapestries/`, operator-gated at every phase.
+`engineering-team/stories/done/tapestries/`, operator-gated at every phase.
 
 ## Epic set
 
 - `engineering-team/epics/tapestries.md` — 2 stories:
-  1. `stories/tapestries/1-tapestries-nav-and-directory.md` — nav shell + View Tapestries directory
+  1. `stories/done/tapestries/1-tapestries-nav-and-directory.md` — nav shell + View Tapestries directory
      + Create stub. **Done** (review PASS 2026-07-23, ADR 0001; on `feat/tapestries-skeleton`).
-  2. `stories/tapestries/2-tapestry-exploration-page.md` — the Tapestry Exploration page. **Done**
+  2. `stories/done/tapestries/2-tapestry-exploration-page.md` — the Tapestry Exploration page. **Done**
      (review PASS 2026-07-23, ADR 0002; on `feat/tapestries-skeleton`).
 
 **Both stories are Done → the book looks complete; `/close-book` offered at the Story-2 review gate.**
@@ -51,4 +59,4 @@ POV/WoT filtering of the directory.
 Authored on the local stack during this book: element `39999:<TA>:tapestry-for-dog-ca3b675e`
 ("Tapestry for Dog") with a full `graph` block, plus the `dog`, `dog-breed`, `irish-setter`, and
 `golden-retriever` concepts. (Durable in strfry; the Neo4j projection of the element is subject to
-the OPEN.md #87 desync — the directory reads strfry, so it is unaffected.)
+the OPEN.md #88 desync — the directory reads strfry, so it is unaffected.)
