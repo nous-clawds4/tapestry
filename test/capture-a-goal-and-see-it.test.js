@@ -327,14 +327,15 @@ test('S2 (ADR d3): brain API module — gate, route, and exact import surface', 
   const requires = [...src.matchAll(/require\s*\(\s*['"`]([^'"`]+)['"`]\s*\)/g)].map((m) => m[1]);
   assert(requires.length > 0, 'the module must declare its imports via require().');
   // lib/brain/hygiene added by second-brain #2; lib/brain/resources added by
-  // second-brain #4 (ADR 0004 d5, the per-goal endpoint's freshness core) —
-  // this re-pin admits exactly those six, nothing else.
-  const allowed = [/neo4j-driver$/, /middleware\/auth$/, /assistantKeys$/, /lib\/brain\/goals$/, /lib\/brain\/hygiene$/, /lib\/brain\/resources$/];
+  // second-brain #4 (ADR 0004 d5); lib/brain/work-records added by second-brain
+  // #5 (ADR 0005 d10, the records projection core) — this re-pin admits exactly
+  // those seven, nothing else.
+  const allowed = [/neo4j-driver$/, /middleware\/auth$/, /assistantKeys$/, /lib\/brain\/goals$/, /lib\/brain\/hygiene$/, /lib\/brain\/resources$/, /lib\/brain\/work-records$/];
   for (const spec of requires) {
     assert(allowed.some((re) => re.test(spec)),
       `import surface violation: require('${spec}') — the brain read module allows only lib/neo4j-driver, ` +
-      'middleware/auth, utils/assistantKeys, lib/brain/goals, lib/brain/hygiene, lib/brain/resources (ADR 0001 + ' +
-      'ADR 0002 + ADR 0004 re-pins; keeps the module S-auditable and structurally strfry-free).');
+      'middleware/auth, utils/assistantKeys, lib/brain/goals, lib/brain/hygiene, lib/brain/resources, lib/brain/work-records ' +
+      '(ADR 0001 + ADR 0002 + ADR 0004 + ADR 0005 re-pins; keeps the module S-auditable and structurally strfry-free).');
   }
 });
 

@@ -60,5 +60,5 @@ Deferred to the Architect (mechanism / value, not intent):
 
 ## Linked artifacts
 - ADR: `engineering-team/decisions/second-brain/0005-work-records-and-bounded-orientation.md`
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/second-brain/5-sessions-read-the-brain.test-plan.md`
 - Review: (filled in after Review phase)
