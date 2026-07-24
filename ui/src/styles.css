@@ -8199,3 +8199,24 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
 @media (max-width: 768px) {
   .brain-goal-row { padding-left: calc(8px + var(--brain-depth, 0) * 12px); }
 }
+
+/* Story 4 (second-brain #4) — pointers + the one-spine record.
+   Token-driven only; no new :root tokens (ADR 0004 d10). */
+.brain-goal-pointers { font-size: 0.75rem; color: var(--text-muted); }
+.brain-section-title { font-size: 0.95rem; font-weight: 600; margin: 24px 0 8px; }
+.brain-pointers, .brain-record { margin-top: 8px; }
+.brain-pointer-list, .brain-record-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.brain-pointer-card { display: flex; align-items: flex-start; gap: 12px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; }
+.brain-pointer-kind { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); min-width: 3.5em; padding-top: 2px; }
+.brain-pointer-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.brain-pointer-title { font-weight: 600; color: var(--accent); text-decoration: none; }
+.brain-pointer-title:hover { color: var(--accent-hover); text-decoration: underline; }
+.brain-pointer-locator { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.8rem; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.brain-freshness { font-size: 0.8rem; color: var(--text-muted); }
+.brain-fresh-stale { color: var(--orange); }
+.brain-fresh-unreachable { color: var(--red); }
+.brain-pointer-why { font-size: 0.85rem; font-style: italic; color: var(--text-muted); }
+.brain-record-entry { display: flex; align-items: baseline; gap: 10px; font-size: 0.9rem; }
+.brain-record-date { color: var(--text-muted); font-size: 0.8rem; min-width: 6em; }
+.brain-record-type { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); min-width: 5em; }
+.brain-record-summary { min-width: 0; }

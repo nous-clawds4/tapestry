@@ -2358,6 +2358,302 @@ async function updateGoalIntent({ goalSlug, deliverable, boundary, parentSlug })
 }
 
 // ══════════════════════════════════════════════════════════════
+// External Resource pointers (second-brain #4, ADR 0004 d6/d7/d8).
+//   POST /api/normalize/create-resource — attach a resource to a goal.
+//   POST /api/normalize/verify-resource — an asserted re-check (no egress).
+// Both ride the goal-write machinery: gated (owner/loopback), validated before
+// any write, serialized through serializeGoalWrite, local-only (publishToStrfry
+// + importEventDirect — never publishEverywhere). The concept self-bootstraps
+// on the first attach (ADR 0004 d8; never firmware-seeded).
+// ══════════════════════════════════════════════════════════════
+
+const RESOURCE_CONCEPT_NAME = 'tapestry external resource';
+const RESOURCE_KINDS = ['file', 'vault-note', 'nostr-event', 'repository', 'web-address'];
+
+// The External Resource schema (ADR 0004 d1) — a single concept-object wrapper
+// so the save-schema primary-property fold (ADR 0003 d8) has its one top-level
+// properties key; `required` is mirrored into the primary-property node.
+const RESOURCE_SCHEMA = {
+  type: 'object',
+  properties: {
+    externalResource: {
+      type: 'object',
+      title: 'External Resource',
+      required: ['name', 'slug', 'description', 'locatorKind', 'locator', 'goal'],
+      properties: {
+        name: { type: 'string', description: 'the resource title, in plain words' },
+        slug: { type: 'string', description: 'stable identity derived from the goal and the locator' },
+        description: { type: 'string', description: 'a short description (defaults to the title)' },
+        locatorKind: { type: 'string', enum: RESOURCE_KINDS, description: 'what kind of resource this points at' },
+        locator: { type: 'string', description: 'where the resource lives: a path, address, event id, or repository' },
+        goal: { type: 'string', description: 'the slug of the goal this resource is attached to' },
+        whyKept: { type: 'string', description: 'why this resource is worth keeping (optional)' },
+        keywords: { type: 'array', items: { type: 'string' }, description: 'optional keywords for finding it later' },
+        notedOn: { type: 'string', description: 'the date this resource was attached' },
+        lastVerified: { type: 'string', description: 'the date this resource was last verified' },
+        lastVerifyStatus: { type: 'string', enum: ['reachable', 'unreachable'], description: 'the outcome of the last verification' },
+      },
+      'x-tapestry': { unique: ['slug'] },
+    },
+  },
+  required: ['externalResource'],
+};
+
+// Resolve the runtime-created External Resource concept's header + superset
+// (mirrors resolveGoalConcept; the header match is broad to tolerate a
+// freshly-created concept's labels).
+async function resolveResourceConcept() {
+  const rows = await runCypher(`
+    MATCH (h:NostrEvent)
+    WHERE (h:ListHeader OR h:ClassThreadHeader OR h:ConceptHeader) AND h.kind IN [9998, 39998]
+      AND h.name = $concept
+    OPTIONAL MATCH (h)-[:${REL.CLASS_THREAD_INITIATION}]->(sup:Superset)
+    RETURN h.uuid AS headerUuid, sup.uuid AS supersetUuid
+    LIMIT 1
+  `, { concept: RESOURCE_CONCEPT_NAME });
+  if (rows.length === 0) return { error: `Concept "${RESOURCE_CONCEPT_NAME}" not found` };
+  if (!rows[0].supersetUuid) return { error: `Concept "${RESOURCE_CONCEPT_NAME}" has no Superset node.` };
+  return { headerUuid: rows[0].headerUuid, supersetUuid: rows[0].supersetUuid };
+}
+
+// Fetch the resource rows (explicit walk ∪ implicit z-tag members — the brain
+// read's union shape) and parse them through the shared core.
+async function fetchResourceRecords(headerUuid) {
+  const { parseResourceRow } = require('../../lib/brain/resources');
+  const [explicitRows, implicitRows] = await Promise.all([
+    runCypher(`
+      MATCH (h:NostrEvent {uuid: $headerUuid})-[:${REL.CLASS_THREAD_INITIATION}]->(s:Superset)
+      MATCH (s)-[:${REL.CLASS_THREAD_PROPAGATION}*0..10]->(ss)-[:${REL.CLASS_THREAD_TERMINATION}]->(e:NostrEvent)
+      WHERE e.kind = 39999
+      OPTIONAL MATCH (e)-[:HAS_TAG]->(j:NostrEventTag {type: 'json'})
+      WITH DISTINCT e, head(collect(j.value)) AS json
+      RETURN e.uuid AS uuid, e.name AS name, e.created_at AS createdAt, json AS json
+    `, { headerUuid }),
+    runCypher(`
+      MATCH (e:NostrEvent)-[:HAS_TAG]->(:NostrEventTag {type: 'z', value: $headerUuid})
+      WHERE e.kind = 39999
+      OPTIONAL MATCH (e)-[:HAS_TAG]->(j:NostrEventTag {type: 'json'})
+      WITH DISTINCT e, head(collect(j.value)) AS json
+      RETURN e.uuid AS uuid, e.name AS name, e.created_at AS createdAt, json AS json
+    `, { headerUuid }),
+  ]);
+  const rowByUuid = new Map();
+  for (const row of [...explicitRows, ...implicitRows]) {
+    if (row && row.uuid && !rowByUuid.has(row.uuid)) rowByUuid.set(row.uuid, row);
+  }
+  const records = [...rowByUuid.values()].map(parseResourceRow).filter(Boolean);
+  return { rowByUuid, records };
+}
+
+// Invoke a (req,res) normalize handler internally, capturing its json response.
+// Used only for the self-bootstrap: the caller is already gated, and
+// create-concept/save-schema carry no in-handler gate (middleware-gated) — a
+// server-side call satisfies req.localTrusted.
+function invokeNormalizeHandler(handler, body) {
+  return new Promise((resolve) => {
+    const req = { body, localTrusted: true, params: {}, query: {} };
+    const res = {
+      statusCode: 200,
+      status(code) { this.statusCode = code; return this; },
+      json(payload) { resolve({ statusCode: this.statusCode, body: payload }); return this; },
+    };
+    Promise.resolve(handler(req, res)).catch((err) =>
+      resolve({ statusCode: 500, body: { success: false, error: err.message } }));
+  });
+}
+
+// Self-bootstrap the External Resource concept (ADR 0004 d8): idempotent —
+// create-concept ("already exists" is treated as success) + save-schema
+// (idempotent; folds the primary-property reconcile) run ONLY when the concept
+// is absent, so there is no per-write churn after the first attach. §5.9: a
+// fresh instance self-provisions with no manual step.
+async function ensureResourceConcept() {
+  const existing = await resolveResourceConcept();
+  if (!existing.error) return existing;
+  await invokeNormalizeHandler(handleCreateConcept, {
+    name: RESOURCE_CONCEPT_NAME,
+    description: 'A resource a goal points at — a file, vault note, nostr event, repository, or web address. The brain organizes knowledge; it never contains it.',
+  });
+  await invokeNormalizeHandler(handleSaveSchema, { concept: RESOURCE_CONCEPT_NAME, schema: RESOURCE_SCHEMA });
+  const provisioned = await resolveResourceConcept();
+  if (provisioned.error) {
+    throw new Error(`ensureResourceConcept failed to provision the concept: ${provisioned.error}`);
+  }
+  return provisioned;
+}
+
+async function handleCreateResource(req, res) {
+  try {
+    const { isOwner } = require('../../middleware/auth');
+    if (!isOwner(req) && !req.localTrusted) {
+      return res.status(403).json({ success: false, error: 'Owner access required' });
+    }
+    const { goal, title, locatorKind, locator, whyKept, keywords } = req.body || {};
+    if (!goal || typeof goal !== 'string' || !goal.trim()) {
+      return res.status(400).json({ success: false, error: 'Missing goal slug' });
+    }
+    if (!title || typeof title !== 'string' || !title.trim()) {
+      return res.status(400).json({ success: false, error: 'Resource title is required' });
+    }
+    if (!locator || typeof locator !== 'string' || !locator.trim()) {
+      return res.status(400).json({ success: false, error: 'Resource locator is required' });
+    }
+    const result = await serializeGoalWrite(() => createResource({
+      goalSlug: goal.trim(),
+      title: title.trim(),
+      locatorKind: typeof locatorKind === 'string' ? locatorKind.trim() : '',
+      locator: locator.trim(),
+      whyKept: typeof whyKept === 'string' && whyKept.trim() ? whyKept.trim() : null,
+      keywords: Array.isArray(keywords) ? keywords.filter((k) => typeof k === 'string' && k.trim()).map((k) => k.trim()) : null,
+    }));
+    return res.json(result);
+  } catch (error) {
+    console.error('normalize/create-resource error:', error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+}
+
+async function createResource({ goalSlug, title, locatorKind, locator, whyKept, keywords }) {
+  // Kind must be one of the five (ADR 0004 d1) — refuse an unknown kind loudly.
+  if (!RESOURCE_KINDS.includes(locatorKind)) {
+    return {
+      success: false,
+      refusal: 'unknown-kind',
+      error: `unknown resource kind '${locatorKind}' — must be one of: ${RESOURCE_KINDS.join(', ')}.`,
+    };
+  }
+  // A pointer must attach to a real goal (ADR 0004 d6).
+  const goalConcept = await resolveGoalConcept();
+  if (goalConcept.error) return { success: false, error: goalConcept.error };
+  const { records: goalRecords } = await fetchGoalRecords(goalConcept.headerUuid);
+  const goalMatches = goalRecords.filter((g) => g.slug === goalSlug);
+  if (goalMatches.length === 0) {
+    return { success: false, refusal: 'goal-not-found', error: `no goal has the slug '${goalSlug}' — a resource must attach to an existing goal.` };
+  }
+  if (goalMatches.length > 1) {
+    return { success: false, refusal: 'ambiguous-slug', error: `${goalMatches.length} goals share the slug '${goalSlug}' — refusing to guess which is meant.` };
+  }
+
+  // Provision the concept if this is the first attach ever (ADR 0004 d8).
+  const concept = await ensureResourceConcept();
+  const { headerUuid, supersetUuid } = concept;
+
+  // Identity = (goal, locator), title-independent + verify-stable (ADR 0004 d3):
+  // the slug encodes the goal and a hash of (kind, locator), so two goals may
+  // point at the same locator without colliding, and re-verifying reuses the
+  // same d-tag/uuid. x-tapestry.unique is advisory — this write path enforces it.
+  const identitySlug = `${goalSlug}-${dtag.hash8(`${locatorKind}\n${locator}`)}`;
+  const { records: existing } = await fetchResourceRecords(headerUuid);
+  if (existing.some((r) => r.goal === goalSlug && r.locator === locator)) {
+    return {
+      success: false,
+      refusal: 'resource-exists',
+      error: `this goal already points at '${locator}' — refusing to attach it twice. Verify it instead.`,
+    };
+  }
+
+  const today = new Date().toISOString().slice(0, 10);
+  const section = {
+    name: title,
+    slug: identitySlug,
+    description: whyKept || title,
+    locatorKind,
+    locator,
+    goal: goalSlug,
+    notedOn: today,
+    lastVerified: today,
+    lastVerifyStatus: 'reachable',
+  };
+  if (whyKept) section.whyKept = whyKept;
+  if (keywords && keywords.length) section.keywords = keywords;
+
+  const dTag = dtag.childDTag(identitySlug, headerUuid);
+  const tags = [
+    ['d', dTag],
+    ['name', title],
+    ['z', headerUuid],
+    ['json', JSON.stringify({ externalResource: section })],
+  ];
+  const evt = signAndFinalize({ kind: 39999, tags, content: '' });
+  const elemUuid = `39999:${evt.pubkey}:${dTag}`;
+  await publishToStrfry(evt);
+  await importEventDirect(evt, elemUuid);
+  await writeCypher(`MATCH (n:NostrEvent {uuid: $uuid}) SET n:ListItem, n.slug = $slug`, { uuid: elemUuid, slug: identitySlug });
+  await writeCypher(`
+    MATCH (sup:NostrEvent {uuid: $supersetUuid}), (elem:NostrEvent {uuid: $elemUuid})
+    MERGE (sup)-[:${REL.CLASS_THREAD_TERMINATION}]->(elem)
+  `, { supersetUuid, elemUuid });
+
+  return {
+    success: true,
+    result: 'attached',
+    resource: { uuid: elemUuid, slug: identitySlug, goal: goalSlug, title, locatorKind },
+  };
+}
+
+async function handleVerifyResource(req, res) {
+  try {
+    const { isOwner } = require('../../middleware/auth');
+    if (!isOwner(req) && !req.localTrusted) {
+      return res.status(403).json({ success: false, error: 'Owner access required' });
+    }
+    const { goal, locator, reachable } = req.body || {};
+    if (!goal || typeof goal !== 'string' || !goal.trim()) {
+      return res.status(400).json({ success: false, error: 'Missing goal slug' });
+    }
+    if (!locator || typeof locator !== 'string' || !locator.trim()) {
+      return res.status(400).json({ success: false, error: 'Missing resource locator' });
+    }
+    const result = await serializeGoalWrite(() => verifyResource({
+      goalSlug: goal.trim(),
+      locator: locator.trim(),
+      reachable: reachable !== false, // default: a plain verify asserts reachable
+    }));
+    return res.json(result);
+  } catch (error) {
+    console.error('normalize/verify-resource error:', error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+}
+
+// An ASSERTED re-check (ADR 0004 d7 / PRD §7.4): the owner (or a session on
+// their behalf) attests to the resource's state. This handler NEVER fetches,
+// crawls, or pings the locator — it only reads and re-writes the record.
+async function verifyResource({ goalSlug, locator, reachable }) {
+  const concept = await resolveResourceConcept();
+  if (concept.error) {
+    // No concept means nothing was ever attached — the resource cannot exist.
+    return { success: false, refusal: 'resource-not-found', error: `no resource is attached to goal '${goalSlug}' at '${locator}'.` };
+  }
+  const { rowByUuid, records } = await fetchResourceRecords(concept.headerUuid);
+  const match = records.find((r) => r.goal === goalSlug && r.locator === locator);
+  if (!match) {
+    return { success: false, refusal: 'resource-not-found', error: `no resource is attached to goal '${goalSlug}' at '${locator}'.` };
+  }
+  const row = rowByUuid.get(match.uuid);
+  let wrapper;
+  try { wrapper = JSON.parse(row.json); } catch { wrapper = null; }
+  const section = wrapper && wrapper.externalResource;
+  if (!section || typeof section !== 'object' || Array.isArray(section)) {
+    return { success: false, error: `resource ${match.uuid} has no readable record — refusing to rewrite it.` };
+  }
+  section.lastVerified = new Date().toISOString().slice(0, 10);
+  section.lastVerifyStatus = reachable ? 'reachable' : 'unreachable';
+  await regenerateJson(match.uuid, { ...wrapper, externalResource: section });
+
+  const { deriveFreshness } = require('../../lib/brain/resources');
+  return {
+    success: true,
+    result: 'verified',
+    resource: {
+      uuid: match.uuid,
+      slug: match.slug,
+      freshness: deriveFreshness({ lastVerified: section.lastVerified, lastVerifyStatus: section.lastVerifyStatus }, Date.now()),
+    },
+  };
+}
+
+// ══════════════════════════════════════════════════════════════
 // POST /api/normalize/save-element-json
 //   Body: { uuid: "<element uuid>", json: { ... merged JSON } }
 //   Replaces the JSON tag on an element and re-publishes.
@@ -3693,6 +3989,8 @@ async function registerNormalizeRoutes(app) {
   app.post('/api/normalize/reconcile-primary-property', handleReconcilePrimaryProperty);
   app.post('/api/normalize/create-child-goal', handleCreateChildGoal);
   app.post('/api/normalize/update-goal-intent', handleUpdateGoalIntent);
+  app.post('/api/normalize/create-resource', handleCreateResource);
+  app.post('/api/normalize/verify-resource', handleVerifyResource);
   app.post('/api/normalize/save-element-json', handleSaveElementJson);
   app.post('/api/normalize/create-property', handleCreateProperty);
   app.post('/api/normalize/generate-property-tree', handleGeneratePropertyTree);
