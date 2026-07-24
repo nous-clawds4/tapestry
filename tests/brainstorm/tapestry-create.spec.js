@@ -96,9 +96,9 @@ test.describe('Create a Tapestry (tapestries #3)', () => {
   }
 
   async function pickConcept(page, name) {
-    // Tolerate checkbox/label/button/option affordances for selecting a concept.
-    const opt = page.getByRole('checkbox', { name }).or(page.getByRole('option', { name })).or(page.getByText(name, { exact: false })).first();
-    await opt.click();
+    // Typeahead: search for the concept, then click its "Add <name>" result row.
+    await page.getByRole('textbox', { name: /search concepts/i }).fill(name);
+    await page.getByRole('button', { name: `Add ${name}`, exact: true }).first().click();
   }
 
   /* ───────── E1 — owner sees the working form ───────── */
@@ -108,7 +108,9 @@ test.describe('Create a Tapestry (tapestries #3)', () => {
     await page.waitForLoadState('networkidle');
 
     await expect(page.getByLabel(/title/i).or(page.getByPlaceholder(/tapestry for dog/i)).first()).toBeVisible({ timeout: 10000 });
-    await expect(page.getByText(/dog/i).first()).toBeVisible();               // picker populated from the scan
+    // Concept typeahead: the search box is present; the results panel stays hidden until you search.
+    await expect(page.getByRole('textbox', { name: /search concepts/i })).toBeVisible();
+    await expect(page.getByRole('listbox')).toHaveCount(0);
     const signAs = page.getByRole('combobox'); // the "Sign as" dropdown (the only select on the page)
     await expect(signAs).toBeVisible();
     await expect(signAs.locator('option', { hasText: /Tapestry Assistant/i })).toHaveCount(1);
@@ -201,5 +203,31 @@ test.describe('Create a Tapestry (tapestries #3)', () => {
     // Round-trip: the redirect must land on the OWNER-keyed coordinate (39999:<OWNER>:…), not the
     // TA's — the own-key event is authored by the owner, so a TA-keyed redirect would 404.
     await page.waitForURL(new RegExp(`/tapestry/tapestries/39999(%3A|:)${OWNER}`), { timeout: 10000 });
+  });
+
+  /* ───────── E7 — concept typeahead: panel only while searching; adds to a chip list ───────── */
+  test('E7: the results panel appears only while searching; adding a concept moves it into the selected list', async ({ page }) => {
+    await mock(page, { classification: 'owner' });
+    await page.goto(URL);
+    await page.waitForLoadState('networkidle');
+
+    const search = page.getByRole('textbox', { name: /search concepts/i });
+    // Empty search → no results panel (the space-saving behavior).
+    await expect(page.getByRole('listbox')).toHaveCount(0);
+    // Typing shows matching concepts.
+    await search.fill('dog');
+    await expect(page.getByRole('listbox')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Add dog', exact: true })).toBeVisible();
+    // Adding it → becomes a removable chip and drops out of the results.
+    await page.getByRole('button', { name: 'Add dog', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Remove dog', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Add dog', exact: true })).toHaveCount(0);
+    // Clearing the search hides the panel again; the chip persists.
+    await search.fill('');
+    await expect(page.getByRole('listbox')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Remove dog', exact: true })).toBeVisible();
+    // Removing the chip empties the selection.
+    await page.getByRole('button', { name: 'Remove dog', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Remove dog', exact: true })).toHaveCount(0);
   });
 });
