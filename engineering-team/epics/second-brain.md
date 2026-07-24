@@ -19,9 +19,9 @@ Three owner-gated views inside the existing control panel (Goals view, Goal deta
 
 1. **capture-a-goal-and-see-it** — state a goal in conversation, see it in the Goals view; adopts the existing goal concept; cold-start empty state; privacy indicator line. **Done** (review PASS 2026-07-23).
 2. **structures-the-brain-can-trust** — hygiene check against class discipline; the queue's "stray membership edges" adjudicated legitimate-and-retained (falsified premise, operator-ratified); the real drift (primary-property records lagging extended schemas) reconciled on both work-item concepts. **Done** (review PASS 2026-07-23).
-3. **break-a-goal-into-pieces** — child goals; viable = deliverable ("done means") + boundary ("stays inside"); parents never proposed. *(Queued — edge materialization depends on the relationship-primitives whitelist-extension path; do not extend the whitelist inside the story)*
-4. **attach-the-world** — External Resource pointers; freshness standing; the one-spine Goal detail. *(Queued)*
-5. **sessions-read-the-brain** — bounded, corpus-independent orientation; append-only work records. *(Queued)*
+3. **break-a-goal-into-pieces** — child goals; viable = deliverable ("done means") + boundary ("stays inside"); parents never proposed. **Done** (review PASS 2026-07-23; the whitelist was not extended — decomposition shipped record-based per ADR 0003).
+4. **attach-the-world** — External Resource pointers; freshness standing; the one-spine Goal detail. **Done** (review PASS 2026-07-23).
+5. **sessions-read-the-brain** — bounded, corpus-independent orientation; append-only work records. **Done** (review PASS 2026-07-24).
 6. **the-proposal-loop** — one viable goal nominated with why-now + runners-up; approve / skip-with-reason; every decision recorded. **Done** (review PASS 2026-07-24).
 7. **teach-it-what-matters** — pairwise priority signals, framing-tagged, recorded only. *(Queued)*
 8. **the-brain-survives** — export of owner-authored content + one journaled restore drill against a scratch target. *(Queued — interim protection until the firmware clobber-protection epic lands)*
