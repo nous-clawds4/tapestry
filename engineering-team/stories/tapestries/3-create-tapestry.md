@@ -1,6 +1,6 @@
 # Story 3: Create a Tapestry (members-only authoring)
 
-**Status:** Draft
+**Status:** Done
 **Created:** 2026-07-24
 **Type:** Feature
 
@@ -101,4 +101,4 @@ Logged per `roles/implementer.md` §9. Review-fix cycle (review verdict CHANGES_
 ## Linked artifacts
 - ADR: `engineering-team/decisions/tapestries/0003-create-tapestry-authoring.md`
 - Test plan: `engineering-team/stories/tapestries/3-create-tapestry.test-plan.md`
-- Review: `engineering-team/reviews/tapestries/3-create-tapestry.md` — **CHANGES_REQUESTED** (own-key redirect 404; 2026-07-24)
+- Review: `engineering-team/reviews/tapestries/3-create-tapestry.md` — **PASS** (CHANGES_REQUESTED → fixed → re-verified; 2026-07-24)

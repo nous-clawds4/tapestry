@@ -104,10 +104,36 @@
    worktree. Verify worktree UI via the Node suite + `vite build` + code reading instead. (Confirmed
    this session; matches the "shared-checkout" caution in session notes.)
 
+## Re-review — fix cycle (commit 1314e543, 2026-07-24)
+
+The Implementer addressed all three findings; I re-ran the gates and got **independent, fresh-context
+adversarial re-verification** (one verifier, code trace + whole-graph live probe) — verdict FIX-VERIFIED.
+
+- **Blocking #1 (own-key redirect) — RESOLVED.** `buildTapestryDraft` gained `authorPubkey`
+  (default `taPubkey`); `uuid = 39999:${authorPubkey}:${dTag}` (`tapestryDraft.mjs:46`). The hook's
+  client branch resolves the signer first and passes `authorPubkey: authorPk`
+  (`useCreateTapestry.js:84-88`), so the returned uuid's author segment == the published pubkey for
+  both paths; z-tag + imports stay TA-namespaced. Locked by P10, S7, Playwright E6.
+- **Non-blocking #1 (import naming) — RESOLVED.** Import uuid now built from
+  `conceptGraphSlug = conceptHeader.oSlugs.singular` (`useCreateTapestry.js:33`, `tapestryDraft.mjs:63-64`).
+  Live sweep of all 41 headers: the single divergence (`nostr-event-tag` → `nostr-event-tagging`) is the
+  only one, and the fix is necessary **and** sufficient (no header left unresolvable). Locked by P11 + updated P5.
+- **Non-blocking #2 (re-entry guard) — RESOLVED** (`NewTapestry.jsx:54`).
+- **Non-blocking #3 (P5 tautology) — ADDRESSED**: P11 now exercises the divergence with a real
+  `oSlugs.singular != d-tag` fixture.
+- Gates: create-tapestry suite **21/21**; `vite build` compiles; read-path & `publishEvent.js` still
+  untouched. Two residual **non-blocking** observations, both accepted (not fixing): a pre-existing
+  NIP-07 TOCTOU account-switch edge (already mitigated by the signer guard), and an unreachable
+  signer-prompt-before-empty-members-throw ordering nit (the page pre-validates zero-concepts).
+
 ## Verdict
-**CHANGES_REQUESTED** — one blocking defect (own-key redirect 404, a Round-trips AC failure). The
-architecture, security, scope, and read-path integrity are all sound; the fix is small and localized to
-the uuid the hook returns, plus the two cheap non-blocking correctness items and a test to close the gap.
+**PASS** — the one blocking defect is fixed and independently re-verified; all non-blocking items are
+resolved or accepted. Architecture, security, scope, POV-first/decentralized-first, and read-path
+integrity were clean throughout. (Original verdict this story: CHANGES_REQUESTED → fixed → PASS.)
 
 ## On PASS (same commit)
-- [ ] *(Not applicable — CHANGES_REQUESTED. Story stays Draft; kick back to `/implement-feature`.)*
+- [x] Story `**Status:**` flipped to `Done` in place.
+- [x] Completion detection run: the members-only create ask is delivered; the broader Create/Edit
+  Tapestry phase (edit, cross-concept integration authoring, real-deployment seeding) remains deferred
+  per the story's Out-of-scope + `audits/tapestries/prd-seed.md` §6–§7, and the `tapestries` epic is
+  still in flight — so **no `/close-book` offered**. Next step is the deploy chain (`cycle-staging`).
