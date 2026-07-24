@@ -1,7 +1,25 @@
 # Second Brain — Story 6 Session Handoff (2026-07-24)
 
-**Status:** 🔴 OPEN
+**Status:** ✅ ADDRESSED
 
+> **ADDRESSED 2026-07-24** — story 6 "the-proposal-loop" shipped to production
+> (staging PR #449, prod promotion PR #450). Full human-gated cycle: story →
+> ADR 0006 → tests (33/0) → impl → independent review PASS → local → staging →
+> prod. **The load-bearing (a)/(b) design question resolved to append-only
+> shape (b):** a decision is a separate appended fact referencing the proposal by
+> `proposalId` — the proposal element is never mutated, nothing on the path
+> `regenerateJson`s, and open-ness is derived at read from a decision's absence
+> (`openProposals`). Decided on the §6 durable-intent-vs-append-only distinction
+> (Proposal is append-only, unlike External Resource). New `tapestry-proposal`
+> concept (type-discriminated `proposed/approved/skipped`), three gated producers
+> (`make-proposal` validates a viable-leaf nominee against the live graph +
+> `approve/skip-proposal`), the "What next?" queue view, the goal-detail
+> `records[]` merge (8th brain require), and the ratified approve string
+> *"Approved — launch it when you're ready."* The story-7 pickup is
+> `docs/SECOND_BRAIN_STORY7_HANDOFF.md`.
+>
+> _Original pickup prompt retained below for history._
+>
 > Written at the close of the story-5 session (sessions-read-the-brain: review
 > PASS, shipped to production 2026-07-24, staging PR #439, carried to prod by the
 > concurrent promotion PR #440). This is the pickup prompt for the next session,
