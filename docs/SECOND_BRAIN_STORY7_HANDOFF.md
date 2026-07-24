@@ -1,6 +1,6 @@
 # Second Brain — Story 7 Session Handoff (2026-07-24)
 
-**Status:** 🔴 OPEN
+**Status:** ✅ ADDRESSED — story 7 (teach-it-what-matters) shipped to production 2026-07-24: staging PR #454, prod promotion PR #455, independent review PASS (`engineering-team/reviews/second-brain/7-teach-it-what-matters.md`). Pickup for story 8: `docs/SECOND_BRAIN_STORY8_HANDOFF.md`.
 
 > Written at the close of the story-6 session (the-proposal-loop: review PASS,
 > shipped to production 2026-07-24, staging PR #449, prod promotion PR #450). This

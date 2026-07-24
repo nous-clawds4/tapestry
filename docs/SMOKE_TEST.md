@@ -4,7 +4,7 @@
 >
 > **Purpose:** A single canonical definition of "smoke-tested clean" so the four `/cycle-*` slash commands don't each carry their own variant. When a new gotcha is discovered, update this file and every cycle inherits.
 
-**Last updated:** 2026-05-04
+**Last updated:** 2026-07-24
 
 ---
 
@@ -47,7 +47,7 @@ Confirm the basic surface area is up. All should HTTP 200:
 
 A "known-active" pubkey for the parameter-bearing tests: `04c915daefee38317fa734444acee390a8269fe5810b2241e5e6dd343dfbecc9` (Odell).
 
-**Known gotcha (until story #6 lands):** `/api/get-user-data?pubkey=<jack>` is expected to return **HTTP 504 with `{"success":false, "message":"Neo4j query timeout…"}`** within ~15s, not 200. Jack's follow graph is large enough that the current unbounded Cypher in `src/api/export/users/queries/userdata.js` exceeds the per-query `NEO4J_QUERY_TIMEOUT_MS` deadline (story #5 added the deadline; story #6 will rewrite the Cypher to use bounded `size(...)` pattern expressions). For this pubkey on this endpoint, a 504 with a JSON body is the **expected** smoke-test outcome — a hang or a 502 is the real regression to flag. Other pubkeys (and other endpoints for Jack, like `/api/get-user-counts`) should still 200 normally.
+**Known gotcha (until story #6 lands):** `/api/get-user-data?pubkey=<large-graph-pk>` is expected to return **HTTP 504 with `{"success":false, "message":"Neo4j query timeout…"}`** in ~16s, not 200. A large-enough follow graph makes the current unbounded Cypher in `src/api/export/users/queries/userdata.js` exceed the per-query `NEO4J_QUERY_TIMEOUT_MS` deadline (story #5 added the deadline; story #6 will rewrite the Cypher to use bounded `size(...)` pattern expressions). This started with Jack; **as of 2026-07-24 the Odell pubkey above is in the same class on both staging and prod** (identical 504-in-~16s, self-describing JSON body) — so a Tier-5 sweep using Odell should expect 504 here, not 200. For these pubkeys on this endpoint, a 504 with a JSON body is the **expected** smoke-test outcome — a hang, a 502, or a bare `000` at a client timeout ≥45s is the real regression to flag (a `000` at a short client timeout like `-m 15` just means you raced the server's ~16s answer — retry with `-m 45`). Other endpoints for these pubkeys (like `/api/get-user-counts`) should still 200 normally.
 
 ### Tier 3 — PR-specific (depends on what changed)
 
