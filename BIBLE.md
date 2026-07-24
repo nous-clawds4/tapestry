@@ -5,7 +5,7 @@
 >
 > Specifics of the reference deployment at `tapestry.brainstorm.world` (deploy targets, droplet specs, CI/CD workflows, branch protection ruleset, active team, tracking issues, operational gotchas we've hit) live in a sibling document: [OPERATIONS.md](./OPERATIONS.md). If you're forking this repo to run your own instance, BIBLE is the doc you want — OPERATIONS describes someone else's running instance.
 
-**Last updated:** 2026-07-23 (content: §11 relationship primitives + probe; §13 set-detail route + owner placement affordances — graph-curation-ui #1 / relationship-primitives book)
+**Last updated:** 2026-07-24 (content: §6 graph-embedding convention + §13 Tapestries area + §16 changelog — tapestries book; prior: §11 relationship primitives + probe, §13 set-detail route + owner placement affordances — graph-curation-ui / relationship-primitives)
 
 ---
 
@@ -289,6 +289,17 @@ ConceptHeader ──IS_THE_CONCEPT_FOR──→ Superset ──IS_A_SUPERSET_OF�
 ```
 (animal)──→(allAnimals:Superset)──→(allDogs:Superset)──→(allSheepDogs:Superset)──→(rover:ListItem)
 ```
+
+### Graph-embedding convention (Tapestries)
+
+A **Tapestry** (`39998:<TA>:tapestry`) is a subset of Graph — "a graph of concept graphs." Its elements are self-describing: a tapestry element (kind-39999) carries a top-level **`graph`** block alongside `tapestry`:
+
+- `nodes` — the member concepts / supersets / synthetic property nodes (`{slug, uuid?, name?}`)
+- `relationshipTypes` — `{slug (semantic, e.g. CLASS_THREAD_PROPAGATION), alias (Neo4j edge label, e.g. IS_A_SUPERSET_OF)}`
+- `relationships` — the asserted integrations `{nodeFrom, relationshipType, nodeTo}` (referenced by slug)
+- `imports` — the member concepts' `*-concept-graph` core nodes, resolved at read time
+
+The Tapestries UI (§13) renders this **as-authored**: it reads the element — and resolves its `imports` — from **strfry**, not the Neo4j projection, which drops tapestry elements (`OPEN.md` #88). This is the shipped *read-side* convention; the *authoring* side (how a curator defines a tapestry's membership) is deferred and still an open product question — see `engineering-team/audits/tapestries/prd-seed.md`.
 
 ---
 
@@ -712,6 +723,9 @@ Legacy Brainstorm HTML pages are served at `/legacy/` (not part of the React SPA
 ├── users/                        Nostr user directory
 │   ├── search                    Profile search (admin, backend)
 │   └── :pubkey                   User profile
+├── tapestries/                   Tapestries — View Tapestries directory (elements of the tapestry concept, read from strfry)
+│   ├── new                       Create New Tapestry (inert placeholder; create/edit authoring deferred)
+│   └── :uuid                     Tapestry Exploration — concept sidebar + integration graph + enum/element/subset tables + JSON (as-authored: element graph block + resolved imports)
 ├── io/
 │   ├── import                    Import tools
 │   └── export                    Export tools
@@ -1382,6 +1396,7 @@ docker compose exec tapestry strfry sync wss://dcosl.brainstorm.world \
 - ✅ Follows-hops **path page** + HOPS link activation (2026-06-17, staging) — the HOPS stat becomes a link to a new **`/user/:pubkey/follows-hops`** page showing one shortest follow-path as a vertical chain of profile cards (picture, name, Owner-PoV rank = `round(influence×100)`), ordered source→target, with a **re-roll** button that swaps in a random one of the equally-short paths (shown only when >1 exists). Backed by new public `GET /api/get-follows-hops-paths` (`allShortestPaths`, cap 20, `LIMIT 25`, returning up to 25 ordered `[{pubkey,influence}]` paths + a `truncated` flag); the client re-rolls client-side over the returned set. profile #39, ADR `profile/0035`. On staging; held with #38.
 - ✅ Note surfaces — profile "Content" section + per-user `/user/:pubkey/notes` (2026-06-19, staging) — two read-only surfaces showing a *viewed user's own* kind-1 notes (no follow list, no PoV), reusing the shared `NoteCard` + `enrichNotes` seam (§13): a **"Content"** section at the bottom of `/user/:pubkey` showing the single most-recent note (empty state when none located) + a link, and a **`/user/:pubkey/notes`** page showing the 50 most-recent. New by-author read path **`GET /api/user/:pubkey/notes?limit=`** (`src/api/notes/userNotesReadPath.js`; `status` OK/EMPTY/INVALID; notes from the general-purpose relays, enriched from local kind-0). Additive; no firmware/ranking/search change. epic `note-surfaces`, ADRs `note-surfaces/0001` (read path) + `0002` (surfaces). Staging only; prod promotion not yet done.
 - ✅ Event page — working `/event` single-event view (2026-06-19, staging) — replaces the placeholder. Resolves **kind-1** from six identifier formats (**nevent, id, naddr, pubkey, npub, nprofile**; precedence in that order), with a search-field fallback when no valid param. `nevent`/`id` → fetch the event (non-kind-1 → "kind N not yet supported"; fails verification → "does not validate"; valid → render like `/feed`); `pubkey`/`npub`/`nprofile` → the author's most-recent kind-1; `naddr` → "kind N not yet supported" from the coordinate (no fetch). New **`GET /api/event`** (`src/api/event/eventReadPath.js`): relay **union** = embedded hints + the author's NIP-65 (kind-10002) **outbox** write relays + well-known set/fallback; on-fetch `verifyEvent` (via a no-verify pool so the distinct does-not-validate outcome is reachable) + kind-gate; reuses `enrichNotes`. Introduced `src/api/_shared/relaySource.js` (extracted relay-sourcing; feed/user-notes re-point deferred — `follow-ups.md`). Additive; no firmware change. epic `event-page`, ADRs `event-page/0001` (read path) + `0002` (page UI). Staging only; prod promotion not yet done.
+- ✅ Tapestries — browse & explore (2026-07-24, prod) — a public, read-only surface for **Tapestries** (curated collections of concepts; a Tapestry is a subset of Graph — "a graph of concept graphs"). A "🧵 Tapestries" nav group under Nostr Users → **View Tapestries** (directory of every element of the `tapestry` concept) + **Create New Tapestry** (inert placeholder; create/edit authoring deferred). Each row opens a per-tapestry **Exploration page** (`/tapestry/tapestries/:uuid`) modeled on the Firmware Explorer's read-only views — concept sidebar + vis-network integration graph + enumerations/elements/subsets tables + JSON viewer — rendered **as-authored** from the element's own `graph` block plus one-level-resolved `imports` (see §6 "Graph-embedding convention"). Reads tapestry elements from **strfry** via the existing `GET /api/strfry/scan` (not Neo4j — a reconcile drops tapestry elements; `OPEN.md` #88); additive, **no new backend/endpoints, no new deps** (vis-network already bundled); route by uuid (a-tag coordinate). epic `tapestries` (stories #1–#2), ADRs `tapestries/0001` (strfry read) + `0002` (as-authored render). Shipped staging (#438) + prod (#440).
 
 ### CLI (tapestry-cli repo)
 
