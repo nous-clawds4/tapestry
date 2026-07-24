@@ -47,6 +47,9 @@ import TrustedListDetail from './pages/grapevine/TrustedListDetail';
 import UsersIndex from './pages/users/Index';
 import UserSearch from './pages/users/Search';
 import UserDetail from './pages/users/UserDetail';
+import TapestriesIndex from './pages/tapestries/Index';
+import NewTapestry from './pages/tapestries/NewTapestry';
+import TapestryDetail from './pages/tapestries/TapestryDetail';
 import AboutIndex from './pages/about/Index';
 import SettingsIndex from './pages/settings/Index';
 
@@ -336,6 +339,15 @@ const router = createBrowserRouter([
           { index: true, element: <UsersIndex /> },
           { path: 'search', element: <UserSearch />, handle: { crumb: 'Search' } },
           { path: ':pubkey', element: <UserDetail />, handle: { crumb: 'Profile' } },
+        ],
+      },
+      {
+        path: 'tapestries',
+        handle: { crumb: 'Tapestries' },
+        children: [
+          { index: true, element: <TapestriesIndex />, handle: { crumb: 'View Tapestries' } },
+          { path: 'new', element: <NewTapestry />, handle: { crumb: 'New Tapestry' } },
+          { path: ':uuid', element: <TapestryDetail />, handle: { crumb: 'Detail' } },
         ],
       },
       { path: 'relationships', element: <RelationshipsIndex />, handle: { crumb: 'Relationships' } },
