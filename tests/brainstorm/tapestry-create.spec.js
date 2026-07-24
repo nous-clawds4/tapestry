@@ -109,8 +109,10 @@ test.describe('Create a Tapestry (tapestries #3)', () => {
 
     await expect(page.getByLabel(/title/i).or(page.getByPlaceholder(/tapestry for dog/i)).first()).toBeVisible({ timeout: 10000 });
     await expect(page.getByText(/dog/i).first()).toBeVisible();               // picker populated from the scan
-    await expect(page.getByText(/Tapestry Assistant/i).first()).toBeVisible(); // signing selector
-    await expect(page.getByText(/own key/i).first()).toBeVisible();
+    const signAs = page.getByRole('combobox'); // the "Sign as" dropdown (the only select on the page)
+    await expect(signAs).toBeVisible();
+    await expect(signAs.locator('option', { hasText: /Tapestry Assistant/i })).toHaveCount(1);
+    await expect(signAs.locator('option', { hasText: /own key/i })).toHaveCount(1);
     await expect(page.getByRole('button', { name: /create tapestry/i })).toBeVisible();
   });
 
@@ -188,7 +190,7 @@ test.describe('Create a Tapestry (tapestries #3)', () => {
 
     await page.getByLabel(/title/i).or(page.getByPlaceholder(/tapestry for dog/i)).first().fill('My Dogs');
     await pickConcept(page, 'dog');
-    await page.getByText(/own key/i).first().click(); // switch signing identity
+    await page.getByRole('combobox').selectOption('client'); // switch signing identity to own key
     await page.getByRole('button', { name: /create tapestry/i }).click();
 
     await expect.poll(() => published.length, { timeout: 10000 }).toBeGreaterThan(0);

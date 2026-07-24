@@ -131,29 +131,13 @@ export default function NewTapestry() {
           )}
         </div>
 
-        <fieldset className="form-field tapestry-signing">
-          <legend>Sign as</legend>
-          <label className="tapestry-radio">
-            <input
-              type="radio"
-              name="signAs"
-              value="assistant"
-              checked={signAs === 'assistant'}
-              onChange={() => setSignAs('assistant')}
-            />
-            <span>Tapestry Assistant</span>
-          </label>
-          <label className="tapestry-radio">
-            <input
-              type="radio"
-              name="signAs"
-              value="client"
-              checked={signAs === 'client'}
-              onChange={() => setSignAs('client')}
-            />
-            <span>My own key</span>
-          </label>
-        </fieldset>
+        <label className="form-field tapestry-signing">
+          <span>Sign as</span>
+          <select value={signAs} onChange={(e) => setSignAs(e.target.value)}>
+            <option value="assistant">Tapestry Assistant</option>
+            <option value="client">My own key</option>
+          </select>
+        </label>
 
         {validation && <p className="error tapestry-validation">{validation}</p>}
         {error && <p className="error">{error}</p>}
