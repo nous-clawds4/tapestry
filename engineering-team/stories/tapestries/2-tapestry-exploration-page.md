@@ -63,6 +63,6 @@ import-resolution rendering** approach (source of truth = element `graph` block 
 no new backend).
 
 ## Linked artifacts
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/tapestries/0002-exploration-page-as-authored-rendering.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
