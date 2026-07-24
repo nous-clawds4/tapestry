@@ -59,6 +59,6 @@ Deferred to the Architect (mechanism / value, not intent):
 3. **AC5 capture shape (confirm at gate).** Whether a session-born idea reuses the story-1 goal-capture path with session attribution (a real captured goal now, surfaced as `noted`), or records a `noted`-only marker and defers goal creation to story 6's proposal intake. Default carried in AC5: capture it as a dated, session-attributed goal now, launching nothing.
 
 ## Linked artifacts
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/second-brain/0005-work-records-and-bounded-orientation.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
