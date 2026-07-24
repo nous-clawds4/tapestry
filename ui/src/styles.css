@@ -8231,3 +8231,33 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
 .brain-record-produced { margin-top: 4px; }
 .brain-record-questions { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
 .brain-record-question { font-size: 0.85rem; color: var(--text-muted); }
+
+/* Proposal queue — "What next?" (second-brain #6, ADR 0006 d12). The emphasis
+   card of the product: the ONE permitted derived tint (the accent at 8%); no new
+   :root tokens. Two equal-weight actions; the inline skip-reason field on the
+   contrasting input background. */
+.brain-proposal-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 16px; }
+.brain-proposal-card { background: rgba(88, 166, 255, 0.08); border: 1px solid var(--border); border-radius: 8px; padding: 16px; display: flex; flex-direction: column; gap: 8px; }
+.brain-proposal-next { font-size: 1rem; }
+.brain-proposal-next strong { font-weight: 600; }
+.brain-proposal-whynow { margin: 0; max-width: 70ch; }
+.brain-proposal-considered { display: flex; flex-direction: column; gap: 2px; margin-top: 4px; }
+.brain-proposal-considered-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); }
+.brain-proposal-runners { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.brain-proposal-runner { font-size: 0.9rem; }
+.brain-proposal-runner-name { font-weight: 600; }
+.brain-proposal-runner-why { color: var(--text-muted); }
+.brain-proposal-actions { display: flex; gap: 8px; margin-top: 8px; }
+.brain-proposal-skipfield { display: flex; gap: 8px; align-items: center; margin-top: 8px; flex-wrap: wrap; }
+.brain-proposal-reason { flex: 1; min-width: 12rem; background: var(--bg-tertiary); border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px; color: var(--text); font: inherit; }
+.brain-proposal-reason:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.brain-proposal-confirm { margin: 8px 0 0; color: var(--text-muted); }
+.brain-btn { min-height: 44px; padding: 8px 16px; border-radius: 6px; font: inherit; cursor: pointer; }
+.brain-btn:disabled { opacity: 0.5; cursor: default; }
+.brain-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.brain-btn-approve, .brain-btn-skip { background: var(--accent); border: 1px solid var(--accent); color: #0d1117; }
+.brain-btn-approve:hover:not(:disabled), .brain-btn-skip:hover:not(:disabled) { background: var(--accent-hover); border-color: var(--accent-hover); }
+.brain-btn-skip-open { background: transparent; border: 1px solid var(--accent); color: var(--accent); }
+.brain-btn-skip-open:hover:not(:disabled) { background: rgba(88, 166, 255, 0.08); }
+.brain-btn-text { background: none; border: none; color: var(--accent); cursor: pointer; font: inherit; padding: 0 4px; }
+.brain-btn-text:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }

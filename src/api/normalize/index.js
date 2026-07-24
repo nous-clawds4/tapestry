@@ -2957,6 +2957,343 @@ async function noteGoalIdea({ name, statement, session }) {
 }
 
 // ══════════════════════════════════════════════════════════════
+// Proposals + decisions (second-brain #6, ADR 0006 d6/d7/d8).
+//   POST /api/normalize/make-proposal — nominate one viable goal (proposed).
+//   POST /api/normalize/approve-proposal — record an approved decision.
+//   POST /api/normalize/skip-proposal — record a skipped decision (reason required).
+// All ride the goal-write machinery: gated (owner/loopback), validated before any
+// write, serialized through serializeGoalWrite, local-only (publishToStrfry +
+// importEventDirect — never published to the wider network). The concept
+// self-bootstraps on the first proposal (ADR 0006 d8; never firmware-seeded). Both
+// the nomination and its decisions are
+// APPEND-ONLY (PRD §7.2): every write mints a fresh element under a random d-tag —
+// a decision never mutates the proposal (the load-bearing (a)/(b) call: shape (b),
+// append a separate decision fact; open-ness is derived at read from its absence).
+// ══════════════════════════════════════════════════════════════
+
+const PROPOSAL_CONCEPT_NAME = 'tapestry proposal';
+const MAX_PASSED_OVER = 8;  // ADR 0006 d15: the legibility bound on "considered instead".
+
+// The Proposal schema (ADR 0006 d1) — a single concept-object wrapper so the
+// save-schema primary-property fold (ADR 0003 d8) has its one top-level properties
+// key; `required` is mirrored into the primary-property node. type-specific fields
+// (whyNow/passedOver on a nomination; proposalId/reason on a decision) vary by
+// `type`, so they are not globally required — the write path is the enforcer.
+const PROPOSAL_SCHEMA = {
+  type: 'object',
+  properties: {
+    proposal: {
+      type: 'object',
+      title: 'Proposal',
+      required: ['name', 'slug', 'description', 'type', 'goal', 'happenedOn'],
+      properties: {
+        name: { type: 'string', description: 'a short label for this proposal fact, in plain words' },
+        slug: { type: 'string', description: 'stable identity for this fact (unique per element)' },
+        description: { type: 'string', description: 'a short description (the one-line summary)' },
+        summary: { type: 'string', description: 'the one-line summary shown on the goal record' },
+        type: { type: 'string', enum: ['proposed', 'approved', 'skipped'], description: 'a nomination, or a decision on one' },
+        goal: { type: 'string', description: 'the slug of the nominated goal this fact is about' },
+        whyNow: { type: 'string', description: 'why this goal is the next thing (on a nomination)' },
+        passedOver: {
+          type: 'array',
+          description: 'the goals passed over, each with a one-line why-not (on a nomination)',
+          items: {
+            type: 'object',
+            properties: {
+              goal: { type: 'string', description: 'the slug of a passed-over goal' },
+              whyNot: { type: 'string', description: 'one line on why it was passed over' },
+            },
+          },
+        },
+        proposalId: { type: 'string', description: 'the proposed fact this decision refers to (on a decision)' },
+        reason: { type: 'string', description: 'the one-line reason (required on a skip)' },
+        happenedOn: { type: 'string', description: 'the date this happened' },
+      },
+      'x-tapestry': { unique: ['slug'] },
+    },
+  },
+  required: ['proposal'],
+};
+
+// Resolve the runtime-created Proposal concept's header + superset (mirrors
+// resolveWorkRecordConcept; the header match tolerates a freshly-created concept's
+// labels).
+async function resolveProposalConcept() {
+  const rows = await runCypher(`
+    MATCH (h:NostrEvent)
+    WHERE (h:ListHeader OR h:ClassThreadHeader OR h:ConceptHeader) AND h.kind IN [9998, 39998]
+      AND h.name = $concept
+    OPTIONAL MATCH (h)-[:${REL.CLASS_THREAD_INITIATION}]->(sup:Superset)
+    RETURN h.uuid AS headerUuid, sup.uuid AS supersetUuid
+    LIMIT 1
+  `, { concept: PROPOSAL_CONCEPT_NAME });
+  if (rows.length === 0) return { error: `Concept "${PROPOSAL_CONCEPT_NAME}" not found` };
+  if (!rows[0].supersetUuid) return { error: `Concept "${PROPOSAL_CONCEPT_NAME}" has no Superset node.` };
+  return { headerUuid: rows[0].headerUuid, supersetUuid: rows[0].supersetUuid };
+}
+
+// Fetch the concept's proposal rows (explicit walk ∪ implicit z-tag members — the
+// brain read's union shape) and parse them through the shared core.
+async function fetchProposals(headerUuid) {
+  const { parseProposalRow } = require('../../lib/brain/proposals');
+  const [explicitRows, implicitRows] = await Promise.all([
+    runCypher(`
+      MATCH (h:NostrEvent {uuid: $headerUuid})-[:${REL.CLASS_THREAD_INITIATION}]->(s:Superset)
+      MATCH (s)-[:${REL.CLASS_THREAD_PROPAGATION}*0..10]->(ss)-[:${REL.CLASS_THREAD_TERMINATION}]->(e:NostrEvent)
+      WHERE e.kind = 39999
+      OPTIONAL MATCH (e)-[:HAS_TAG]->(j:NostrEventTag {type: 'json'})
+      WITH DISTINCT e, head(collect(j.value)) AS json
+      RETURN e.uuid AS uuid, e.name AS name, e.created_at AS createdAt, json AS json
+    `, { headerUuid }),
+    runCypher(`
+      MATCH (e:NostrEvent)-[:HAS_TAG]->(:NostrEventTag {type: 'z', value: $headerUuid})
+      WHERE e.kind = 39999
+      OPTIONAL MATCH (e)-[:HAS_TAG]->(j:NostrEventTag {type: 'json'})
+      WITH DISTINCT e, head(collect(j.value)) AS json
+      RETURN e.uuid AS uuid, e.name AS name, e.created_at AS createdAt, json AS json
+    `, { headerUuid }),
+  ]);
+  const rowByUuid = new Map();
+  for (const row of [...explicitRows, ...implicitRows]) {
+    if (row && row.uuid && !rowByUuid.has(row.uuid)) rowByUuid.set(row.uuid, row);
+  }
+  const records = [...rowByUuid.values()].map(parseProposalRow).filter(Boolean);
+  return { rowByUuid, records };
+}
+
+// Self-bootstrap the Proposal concept (ADR 0006 d8): idempotent — a structural
+// copy of ensureWorkRecordConcept. create-concept ("already exists" → success) +
+// save-schema (folds the primary-property reconcile) run ONLY when the concept is
+// absent, so there is no per-write churn after the first proposal. §5.9: a fresh
+// instance self-provisions with no manual step; never firmware-seeded.
+async function ensureProposalConcept() {
+  const existing = await resolveProposalConcept();
+  if (!existing.error) return existing;
+  await invokeNormalizeHandler(handleCreateConcept, {
+    name: PROPOSAL_CONCEPT_NAME,
+    description: 'A dated, append-only proposal a session leaves for the owner — one viable goal nominated with why-now and the goals it passed over — and its decision (approved or skipped). Never edited; a decision is a new fact.',
+  });
+  await invokeNormalizeHandler(handleSaveSchema, { concept: PROPOSAL_CONCEPT_NAME, schema: PROPOSAL_SCHEMA });
+  const provisioned = await resolveProposalConcept();
+  if (provisioned.error) {
+    throw new Error(`ensureProposalConcept failed to provision the concept: ${provisioned.error}`);
+  }
+  return provisioned;
+}
+
+// The append-only Proposal element mint (ADR 0006 d3): a fresh RANDOM d-tag each
+// call, so a decision can never MERGE over the proposal (nor a re-proposal over a
+// prior one) and nothing is re-signed (the mintWorkRecordElement idiom). Builds
+// the json section from the caller's fields plus the derived unique slug; returns
+// the minted element's uuid + slug.
+async function mintProposalElement({ headerUuid, supersetUuid, label, section }) {
+  const nonce = randomDTag();
+  const dTag = dtag.childDTag(label, headerUuid, nonce);
+  const slug = `${dtag.slug(label)}-${nonce}`;
+  const recordSection = { name: `${section.type}: ${section.goal}`, slug, description: section.summary, ...section };
+  const tags = [
+    ['d', dTag],
+    ['name', recordSection.name],
+    ['z', headerUuid],
+    ['json', JSON.stringify({ proposal: recordSection })],
+  ];
+  const evt = signAndFinalize({ kind: 39999, tags, content: '' });
+  const elemUuid = `39999:${evt.pubkey}:${dTag}`;
+  await publishToStrfry(evt);
+  await importEventDirect(evt, elemUuid);
+  await writeCypher(`MATCH (n:NostrEvent {uuid: $uuid}) SET n:ListItem, n.slug = $slug`, { uuid: elemUuid, slug });
+  await writeCypher(`
+    MATCH (sup:NostrEvent {uuid: $supersetUuid}), (elem:NostrEvent {uuid: $elemUuid})
+    MERGE (sup)-[:${REL.CLASS_THREAD_TERMINATION}]->(elem)
+  `, { supersetUuid, elemUuid });
+  return { uuid: elemUuid, slug };
+}
+
+async function handleMakeProposal(req, res) {
+  try {
+    const { isOwner } = require('../../middleware/auth');
+    if (!isOwner(req) && !req.localTrusted) {
+      return res.status(403).json({ success: false, error: 'Owner access required' });
+    }
+    const { goal, whyNow, passedOver } = req.body || {};
+    if (!goal || typeof goal !== 'string' || !goal.trim()) {
+      return res.status(400).json({ success: false, error: 'Missing nominated goal slug' });
+    }
+    if (!whyNow || typeof whyNow !== 'string' || !whyNow.trim()) {
+      return res.status(400).json({ success: false, error: 'A why-now is required' });
+    }
+    const runners = Array.isArray(passedOver) ? passedOver : [];
+    if (runners.length > MAX_PASSED_OVER) {
+      return res.json({
+        success: false,
+        refusal: 'too-many-runners-up',
+        error: `a proposal names at most ${MAX_PASSED_OVER} passed-over goals — got ${runners.length}. Keep the ones that matter.`,
+      });
+    }
+    for (const r of runners) {
+      if (!r || typeof r !== 'object' || typeof r.goal !== 'string' || !r.goal.trim()
+        || typeof r.whyNot !== 'string' || !r.whyNot.trim()) {
+        return res.json({
+          success: false,
+          refusal: 'runner-up-incomplete',
+          error: 'each passed-over goal needs a goal and a one-line why-not.',
+        });
+      }
+    }
+    const result = await serializeGoalWrite(() => makeProposal({
+      goalSlug: goal.trim(),
+      whyNow: whyNow.trim(),
+      passedOver: runners.map((r) => ({ goal: r.goal.trim(), whyNot: r.whyNot.trim() })),
+    }));
+    return res.json(result);
+  } catch (error) {
+    console.error('normalize/make-proposal error:', error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+}
+
+async function makeProposal({ goalSlug, whyNow, passedOver }) {
+  const { deriveStanding, resolveDecomposition } = require('../../lib/brain/goals');
+  // Viability is graph-truth: resolve goals + decomposition, then a viable leaf is
+  // deriveStanding === 'viable' (a leaf with a done-means and a stays-inside; a
+  // parent is 'captured', never viable — ADR 0006 d5).
+  const goalConcept = await resolveGoalConcept();
+  if (goalConcept.error) return { success: false, error: goalConcept.error };
+  const { records: goalRecords } = await fetchGoalRecords(goalConcept.headerUuid);
+  const resolved = resolveDecomposition(goalRecords);
+  const bySlug = (slug) => resolved.filter((g) => g.slug === slug);
+  const isViable = (g) => deriveStanding(g, { hasChildren: g.hasChildren }) === 'viable';
+
+  // The nominee must be a single viable leaf.
+  const nomMatches = bySlug(goalSlug);
+  if (nomMatches.length === 0) {
+    return { success: false, refusal: 'goal-not-found', error: `no goal has the slug '${goalSlug}' — a proposal must nominate an existing goal.` };
+  }
+  if (nomMatches.length > 1) {
+    return { success: false, refusal: 'ambiguous-slug', error: `${nomMatches.length} goals share the slug '${goalSlug}' — refusing to guess which is meant.` };
+  }
+  if (!isViable(nomMatches[0])) {
+    return { success: false, refusal: 'not-viable', error: `goal '${goalSlug}' is not viable — only a leaf goal with a done-means and a stays-inside can be proposed.` };
+  }
+
+  // Each runner-up must resolve, be viable, and be distinct from the nominee + each other.
+  const seen = new Set();
+  for (const r of passedOver) {
+    if (r.goal === goalSlug) {
+      return { success: false, refusal: 'runner-up-is-nominee', error: `the passed-over goal '${r.goal}' is the nominee itself — a runner-up must be a different goal.` };
+    }
+    if (seen.has(r.goal)) {
+      return { success: false, refusal: 'runner-up-duplicate', error: `the passed-over goal '${r.goal}' is named twice.` };
+    }
+    seen.add(r.goal);
+    const rm = bySlug(r.goal);
+    if (rm.length === 0) {
+      return { success: false, refusal: 'runner-up-unknown', error: `no goal has the slug '${r.goal}' — a passed-over goal must exist.` };
+    }
+    if (rm.length > 1) {
+      return { success: false, refusal: 'ambiguous-slug', error: `${rm.length} goals share the slug '${r.goal}' — refusing to guess which is meant.` };
+    }
+    if (!isViable(rm[0])) {
+      return { success: false, refusal: 'runner-up-not-viable', error: `passed-over goal '${r.goal}' is not viable — the runners-up are other viable goals.` };
+    }
+  }
+
+  // Provision the concept if this is the first proposal ever (ADR 0006 d8).
+  const concept = await ensureProposalConcept();
+  // One OPEN proposal per goal (ADR 0006 d6) — derived from the current facts.
+  const { openProposals } = require('../../lib/brain/proposals');
+  const { records: proposalRecords } = await fetchProposals(concept.headerUuid);
+  if (openProposals(proposalRecords).some((p) => p.goal === goalSlug)) {
+    return { success: false, refusal: 'already-open', error: `goal '${goalSlug}' already has an open proposal — decide it before proposing it again.` };
+  }
+
+  const today = new Date().toISOString().slice(0, 10);
+  const section = { type: 'proposed', goal: goalSlug, summary: whyNow, whyNow, happenedOn: today };
+  if (passedOver.length) section.passedOver = passedOver;
+
+  const { uuid, slug } = await mintProposalElement({
+    headerUuid: concept.headerUuid, supersetUuid: concept.supersetUuid, label: `proposed-${goalSlug}`, section,
+  });
+  return { success: true, result: 'proposed', proposal: { uuid, slug, goal: goalSlug } };
+}
+
+async function handleApproveProposal(req, res) {
+  try {
+    const { isOwner } = require('../../middleware/auth');
+    if (!isOwner(req) && !req.localTrusted) {
+      return res.status(403).json({ success: false, error: 'Owner access required' });
+    }
+    const { proposalId } = req.body || {};
+    if (!proposalId || typeof proposalId !== 'string' || !proposalId.trim()) {
+      return res.status(400).json({ success: false, error: 'Missing proposalId' });
+    }
+    const result = await serializeGoalWrite(() => decideProposal({ proposalId: proposalId.trim(), decision: 'approved' }));
+    return res.json(result);
+  } catch (error) {
+    console.error('normalize/approve-proposal error:', error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+}
+
+async function handleSkipProposal(req, res) {
+  try {
+    const { isOwner } = require('../../middleware/auth');
+    if (!isOwner(req) && !req.localTrusted) {
+      return res.status(403).json({ success: false, error: 'Owner access required' });
+    }
+    const { proposalId, reason } = req.body || {};
+    if (!proposalId || typeof proposalId !== 'string' || !proposalId.trim()) {
+      return res.status(400).json({ success: false, error: 'Missing proposalId' });
+    }
+    // The one-line reason is required before a skip can complete (AC4 — the UI
+    // disables Skip until non-empty; the server enforces it too).
+    if (!reason || typeof reason !== 'string' || !reason.trim()) {
+      return res.json({
+        success: false,
+        refusal: 'reason-required',
+        error: 'a skip needs a one-line reason — why not this one, in a few words.',
+      });
+    }
+    const result = await serializeGoalWrite(() => decideProposal({
+      proposalId: proposalId.trim(), decision: 'skipped', reason: reason.trim(),
+    }));
+    return res.json(result);
+  } catch (error) {
+    console.error('normalize/skip-proposal error:', error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+}
+
+// The shared decision core (ADR 0006 d7): resolve the open proposal, refuse if
+// already decided (the decided-exactly-once guard — safe under serializeGoalWrite
+// against a double-click), then APPEND a separate decision fact referencing the
+// proposal by proposalId. Never mutates the proposed element (shape (b)).
+async function decideProposal({ proposalId, decision, reason }) {
+  const concept = await resolveProposalConcept();
+  if (concept.error) {
+    // No concept means no proposal was ever made — it cannot be decided.
+    return { success: false, refusal: 'proposal-not-found', error: `no proposal has the id '${proposalId}'.` };
+  }
+  const { records } = await fetchProposals(concept.headerUuid);
+  const proposed = records.find((r) => r.type === 'proposed' && r.slug === proposalId);
+  if (!proposed) {
+    return { success: false, refusal: 'proposal-not-found', error: `no proposal has the id '${proposalId}'.` };
+  }
+  const alreadyDecided = records.some((r) => (r.type === 'approved' || r.type === 'skipped') && r.proposalId === proposalId);
+  if (alreadyDecided) {
+    return { success: false, refusal: 'already-decided', error: `proposal '${proposalId}' has already been decided — a decision is final (propose it again as a new fact if needed).` };
+  }
+  const today = new Date().toISOString().slice(0, 10);
+  const summary = decision === 'skipped' ? reason : proposed.whyNow;
+  const section = { type: decision, goal: proposed.goal, proposalId, summary, happenedOn: today };
+  if (decision === 'skipped') section.reason = reason;
+  const { uuid, slug } = await mintProposalElement({
+    headerUuid: concept.headerUuid, supersetUuid: concept.supersetUuid, label: `${decision}-${proposed.goal}`, section,
+  });
+  return { success: true, result: decision, decision: { uuid, slug, proposalId, goal: proposed.goal, type: decision } };
+}
+
+// ══════════════════════════════════════════════════════════════
 // POST /api/normalize/save-element-json
 //   Body: { uuid: "<element uuid>", json: { ... merged JSON } }
 //   Replaces the JSON tag on an element and re-publishes.
@@ -4296,6 +4633,9 @@ async function registerNormalizeRoutes(app) {
   app.post('/api/normalize/verify-resource', handleVerifyResource);
   app.post('/api/normalize/create-work-record', handleCreateWorkRecord);
   app.post('/api/normalize/note-goal-idea', handleNoteGoalIdea);
+  app.post('/api/normalize/make-proposal', handleMakeProposal);
+  app.post('/api/normalize/approve-proposal', handleApproveProposal);
+  app.post('/api/normalize/skip-proposal', handleSkipProposal);
   app.post('/api/normalize/save-element-json', handleSaveElementJson);
   app.post('/api/normalize/create-property', handleCreateProperty);
   app.post('/api/normalize/generate-property-tree', handleGeneratePropertyTree);
