@@ -82,6 +82,22 @@ Handles use the instance's runtime-resolved TA pubkey (`<TA>`) — **never hardc
   verifiable via unit tests + `vite build` + mocked UI, and must degrade gracefully when no concepts are
   available. *Flagged for the Architect (data source + empty-state); not a blocker for approval.*
 
+## Deviations
+Logged per `roles/implementer.md` §9. Review-fix cycle (review verdict CHANGES_REQUESTED → fixes):
+- **[blocking fix]** The own-key (`signAs:'client'`) path returned a TA-namespaced uuid, so the
+  post-create redirect 404'd. `buildTapestryDraft` gained an `authorPubkey` param (default = `taPubkey`)
+  and now namespaces the returned `uuid` to the signer; the hook resolves the owner's signer first and
+  passes `authorPubkey: authorPk`. The z-tag and concept-graph imports stay TA-namespaced.
+- **[non-blocking fix]** Concept-graph imports were built from the header d-tag, but derived
+  concept-graphs are named from `conceptHeader.oSlugs.singular` (diverges for `nostr-event-tag` →
+  `nostr-event-tagging-concept-graph`, verified live). The picker now captures `conceptGraphSlug =
+  oSlugs.singular` and the import uuid is built from it.
+- **[non-blocking fix]** Added an `if (submitting) return;` re-entry guard to `NewTapestry.onSubmit`.
+- **[judgment call]** The Implementer authored the regression tests for these fixes in the fix cycle
+  (unit P10 = uuid-per-signer, P11 = import-from-`conceptGraphSlug`, source S7; updated the P5 fixture;
+  strengthened Playwright E6 to assert own-key navigation) rather than round-tripping to the Tester —
+  proportionate for a localized review-fix; the tests lock the exact review findings. Suite: 21/21.
+
 ## Linked artifacts
 - ADR: `engineering-team/decisions/tapestries/0003-create-tapestry-authoring.md`
 - Test plan: `engineering-team/stories/tapestries/3-create-tapestry.test-plan.md`

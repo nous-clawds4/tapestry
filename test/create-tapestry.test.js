@@ -42,8 +42,8 @@ const PUBLISH_EVENT   = path.join(ROOT, 'src/api/strfry/commands/publishEvent.js
 // Grounded in the live graph (TA e00ed090…df36). Descriptive slugs are the real word.slug values.
 const TA = 'e00ed09087b831ecf40442c82768b2114b707008916ac801dabbfbe76ae9df36';
 const MEMBERS = [
-  { handle: `39998:${TA}:dog`,              shortSlug: 'dog',              descriptiveSlug: 'concept-header-for-the-concept-of-dogs',              name: 'dog' },
-  { handle: `39998:${TA}:golden-retriever`, shortSlug: 'golden-retriever', descriptiveSlug: 'concept-header-for-the-concept-of-golden-retrievers', name: 'golden retriever' },
+  { handle: `39998:${TA}:dog`,              shortSlug: 'dog',              conceptGraphSlug: 'dog',              descriptiveSlug: 'concept-header-for-the-concept-of-dogs',              name: 'dog' },
+  { handle: `39998:${TA}:golden-retriever`, shortSlug: 'golden-retriever', conceptGraphSlug: 'golden-retriever', descriptiveSlug: 'concept-header-for-the-concept-of-golden-retrievers', name: 'golden retriever' },
 ];
 
 const tests = [];
@@ -117,8 +117,8 @@ test('P5: each member node uses uuid=handle and slug=descriptiveSlug so it DEDUP
       `composeGraph dedups by slug; matching the derived concept-graph's header-node slug is what makes each member render ` +
       `EXACTLY ONCE on the Exploration page (ADR Decision 2-A, verified live). Got slug="${node.slug}".`);
     assert(node.name === m.name, `node for ${m.shortSlug} must carry the display name "${m.name}", got ${JSON.stringify(node.name)}.`);
-    const imp = g.imports.find((i) => i.uuid === `39999:${TA}:${m.shortSlug}-concept-graph`);
-    assert(imp, `no import with uuid 39999:${TA}:${m.shortSlug}-concept-graph — the Exploration page resolves this to add the superset + spine.`);
+    const imp = g.imports.find((i) => i.uuid === `39999:${TA}:${m.conceptGraphSlug}-concept-graph`);
+    assert(imp, `no import with uuid 39999:${TA}:${m.conceptGraphSlug}-concept-graph — the Exploration page resolves this to add the superset + spine.`);
   }
 });
 
@@ -150,6 +150,33 @@ test('P9: slugifyTitle lowercases, collapses non-alphanumerics to single dashes,
   const messy = slugifyTitle('  My Dogs & Cats!! ');
   assert(/^[a-z0-9]+(-[a-z0-9]+)*$/.test(messy), `slugifyTitle must yield a clean kebab slug (no leading/trailing/double dashes, lowercase), got ${JSON.stringify(messy)}.`);
   assert(messy.includes('dogs') && messy.includes('cats'), `slug must preserve the words, got ${JSON.stringify(messy)}.`);
+});
+
+test('P10: the returned uuid is namespaced to the AUTHOR (signer), not always the TA (AC Round-trips — own-key redirect fix)', async () => {
+  const { buildTapestryDraft } = await loadDraft();
+  const OWNER = '1'.repeat(64);
+  const own = buildTapestryDraft({ title: 'My Dogs', members: MEMBERS, taPubkey: TA, authorPubkey: OWNER, dTagSuffix: 'abcd1234' });
+  assert(own.uuid === `39999:${OWNER}:tapestry-my-dogs-abcd1234`,
+    `own-key uuid must be namespaced to the SIGNER — the own-key event is authored by the owner, so a TA-keyed uuid ` +
+    `makes the post-create redirect 404 (readByUuid queries authors:[<TA>]). Got ${own.uuid}.`);
+  // The z-tag and concept-graph imports stay TA-namespaced (concept handles are always TA), regardless of author.
+  assert(tagVal(own.unsignedEvent, 'z') === `39998:${TA}:tapestry`, 'z-tag must remain TA-namespaced regardless of signer.');
+  assert(jsonTag(own.unsignedEvent).graph.imports.every((i) => i.uuid.startsWith(`39999:${TA}:`)),
+    'concept-graph imports must remain TA-namespaced regardless of signer.');
+  // Default author is the TA (assistant path).
+  const ta = buildTapestryDraft({ title: 'My Dogs', members: MEMBERS, taPubkey: TA, dTagSuffix: 'abcd1234' });
+  assert(ta.uuid === `39999:${TA}:tapestry-my-dogs-abcd1234`, 'default authorPubkey must be the TA (assistant path).');
+});
+
+test('P11: the *-concept-graph import uuid is built from conceptGraphSlug (oSlugs.singular), not the header d-tag (dedup fix — nostr-event-tag)', async () => {
+  const { buildTapestryDraft } = await loadDraft();
+  // A real concept (verified live) whose concept-graph name diverges from its header d-tag:
+  // d-tag 'nostr-event-tag' but oSlugs.singular 'nostr-event-tagging'.
+  const divergent = { handle: `39998:${TA}:nostr-event-tag`, shortSlug: 'nostr-event-tag', conceptGraphSlug: 'nostr-event-tagging', descriptiveSlug: 'concept-header-for-the-concept-of-nostr-event-taggings', name: 'nostr event tag' };
+  const g = jsonTag(buildTapestryDraft({ title: 'Tags', members: [divergent], taPubkey: TA, dTagSuffix: 'x9' }).unsignedEvent).graph;
+  assert(g.imports.length === 1 && g.imports[0].uuid === `39999:${TA}:nostr-event-tagging-concept-graph`,
+    `import must be built from conceptGraphSlug (nostr-event-tagging) so it resolves — the d-tag-based ` +
+    `'39999:${TA}:nostr-event-tag-concept-graph' does not exist and would render the member isolated. Got ${g.imports[0]?.uuid}.`);
 });
 
 // ───────────────────────── Source sentinels — pinned by the spec, exercised by Playwright ─────────────────────────
@@ -198,6 +225,15 @@ test('S4: useCreateTapestry.js implements BOTH publish paths — NIP-07 own-key 
   assert(/\/api\/strfry\/publish/.test(src) && /assistant/.test(src),
     'useCreateTapestry.js does not POST /api/strfry/publish with signAs:"assistant" for the TA path (AC Signing selector). ' +
     'The server signs as the TA (and 403s non-owners).');
+});
+
+test('S7: useCreateTapestry keys the own-key uuid to the SIGNER (passes authorPubkey: authorPk) so the redirect matches (AC Round-trips)', () => {
+  const src = readSafe(USE_CREATE_HOOK);
+  assert(src !== null, 'useCreateTapestry.js missing — S3 must pass first.');
+  assert(/authorPubkey\s*:\s*authorPk/.test(src),
+    'useCreateTapestry.js client (own-key) path does not pass `authorPubkey: authorPk` to buildTapestryDraft (review ' +
+    'blocking fix). The own-key event is authored by the owner, so the returned uuid must be 39999:<ownerKey>:<dTag> — ' +
+    'otherwise the post-create redirect 404s (useTapestryGraph.readByUuid queries authors:[<TA>]).');
 });
 
 test('S5: Index.jsx gates the "+ Create New Tapestry" affordance behind hasAdminAccess (AC Owner-gated)', () => {

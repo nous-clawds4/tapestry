@@ -51,6 +51,7 @@ export default function NewTapestry() {
 
   async function onSubmit(e) {
     e.preventDefault();
+    if (submitting) return; // re-entry guard — defense beyond the disabled button
     setValidation(null);
     setError(null);
     if (!title.trim()) { setValidation('Please enter a title.'); return; }

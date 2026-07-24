@@ -26,8 +26,11 @@ function toConcept(ev) {
     if (raw) { const j = JSON.parse(raw); word = j.word || {}; conceptHeader = j.conceptHeader || {}; }
   } catch { /* malformed json → fall back to the d-tag below */ }
   return {
-    handle: `39998:${ev.pubkey}:${dTag}`,        // the concept-header coordinate
-    shortSlug: dTag,                              // the d-tag = short slug (→ *-concept-graph import)
+    handle: `39998:${ev.pubkey}:${dTag}`,        // the concept-header coordinate (d-tag = short slug)
+    shortSlug: dTag,
+    // oSlugs.singular is what the derived *-concept-graph is named after (diverges from the d-tag
+    // for some concepts, e.g. nostr-event-tag) — used to build a resolvable import uuid.
+    conceptGraphSlug: conceptHeader.oSlugs?.singular || dTag,
     descriptiveSlug: word.slug || `concept-header-for-${dTag}`, // word.slug → clean dedup at read time
     name: conceptHeader.oNames?.singular || word.name || dTag,  // friendly display name
   };
@@ -74,26 +77,29 @@ export default function useCreateTapestry() {
     const members = (selectedHandles || [])
       .map((h) => concepts.find((c) => c.handle === h))
       .filter(Boolean);
-    const draft = buildTapestryDraft({ title, description, members, taPubkey, dTagSuffix: randomSuffix() });
 
     if (signAs === 'client') {
-      // Own-key path: NIP-07 sign under the owner's key, then publish (local + external).
+      // Own-key path: resolve the signer FIRST so the tapestry's coordinate (uuid) is keyed to the
+      // owner's own key — the event is published under that key, so the redirect must match it.
       const authorPk = await getActiveSignerOrThrow(user?.pubkey || undefined);
+      const draft = buildTapestryDraft({ title, description, members, taPubkey, authorPubkey: authorPk, dTagSuffix: randomSuffix() });
       const signed = await window.nostr.signEvent({ ...draft.unsignedEvent, pubkey: authorPk });
-      await publishOrThrow(signed);
-    } else {
-      // Tapestry Assistant path: the server signs as the TA and publishes (owner-gated → 403 otherwise).
-      const resp = await fetch('/api/strfry/publish', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ event: draft.unsignedEvent, signAs: 'assistant' }),
-      });
-      const data = await resp.json().catch(() => null);
-      if (!resp.ok || !data?.success) {
-        throw new Error(data?.error || `Publish failed: status ${resp.status}`);
-      }
+      await publishOrThrow(signed); // local + external
+      return { uuid: draft.uuid };
     }
 
+    // Tapestry Assistant path: the server signs as the TA (author == taPubkey) and publishes
+    // (owner-gated → 403 otherwise). authorPubkey defaults to taPubkey.
+    const draft = buildTapestryDraft({ title, description, members, taPubkey, dTagSuffix: randomSuffix() });
+    const resp = await fetch('/api/strfry/publish', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ event: draft.unsignedEvent, signAs: 'assistant' }),
+    });
+    const data = await resp.json().catch(() => null);
+    if (!resp.ok || !data?.success) {
+      throw new Error(data?.error || `Publish failed: status ${resp.status}`);
+    }
     return { uuid: draft.uuid };
   }, [concepts, taPubkey, user?.pubkey]);
 

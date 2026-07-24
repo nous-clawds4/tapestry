@@ -18,15 +18,19 @@ export function slugifyTitle(title) {
  * @param {object} args
  * @param {string} args.title                 required; a whitespace-only title throws.
  * @param {string} [args.description='']
- * @param {Array<{handle,shortSlug,descriptiveSlug,name}>} args.members  ≥1 required; empty throws.
- *        handle          = the concept-header coordinate `39998:<TA>:<shortSlug>`.
+ * @param {Array<{handle,shortSlug,conceptGraphSlug,descriptiveSlug,name}>} args.members  ≥1 required; empty throws.
+ *        handle          = the concept-header coordinate `39998:<TA>:<shortSlug>` (short slug = its d-tag).
+ *        conceptGraphSlug= the header's `oSlugs.singular` — the name its derived `*-concept-graph` uses
+ *                          (diverges from the d-tag for some concepts, e.g. nostr-event-tag).
  *        descriptiveSlug = the concept-header `word.slug` — used as the node slug so it dedups
  *                          with the resolved `*-concept-graph` import at read time (ADR Decision 2-A).
  * @param {string} args.taPubkey              runtime-resolved TA pubkey (never hardcode).
+ * @param {string} [args.authorPubkey=taPubkey] who SIGNS the element — the owner's key for own-key
+ *        publishing, the TA for assistant publishing. Namespaces the tapestry's own coordinate (uuid).
  * @param {string} args.dTagSuffix            short unique suffix for the parameterized-replaceable d-tag.
  * @returns {{dTag, uuid, tapestry, graph, unsignedEvent}}
  */
-export function buildTapestryDraft({ title, description = '', members, taPubkey, dTagSuffix }) {
+export function buildTapestryDraft({ title, description = '', members, taPubkey, authorPubkey = taPubkey, dTagSuffix }) {
   const cleanTitle = String(title || '').trim();
   if (!cleanTitle) throw new Error('A tapestry needs a title.');
   if (!Array.isArray(members) || members.length === 0) {
@@ -36,7 +40,10 @@ export function buildTapestryDraft({ title, description = '', members, taPubkey,
 
   const slug = slugifyTitle(cleanTitle);
   const dTag = `tapestry-${slug}-${dTagSuffix || ''}`;
-  const uuid = `39999:${taPubkey}:${dTag}`;
+  // The tapestry's own coordinate is namespaced to whoever SIGNS it (owner key for own-key
+  // publishing, the TA for assistant publishing) — the directory + Exploration page resolve it by
+  // author. The z-tag below stays TA-namespaced (it is the concept handle, always TA).
+  const uuid = `39999:${authorPubkey}:${dTag}`;
 
   const tapestry = { slug, title: cleanTitle, description: String(description || '') };
 
@@ -50,10 +57,12 @@ export function buildTapestryDraft({ title, description = '', members, taPubkey,
     // resolution, and explicit authoring is a fast-follow.
     relationshipTypes: [],
     relationships: [],
-    imports: members.map((m) => ({
-      slug: `concept-graph-for-${m.shortSlug}`,
-      uuid: `39999:${taPubkey}:${m.shortSlug}-concept-graph`,
-    })),
+    imports: members.map((m) => {
+      // Concept-graphs are named from the header's oSlugs.singular, which diverges from the
+      // header d-tag for some concepts (e.g. nostr-event-tag → nostr-event-tagging-concept-graph).
+      const cg = m.conceptGraphSlug || m.shortSlug;
+      return { slug: `concept-graph-for-${cg}`, uuid: `39999:${taPubkey}:${cg}-concept-graph` };
+    }),
   };
 
   const unsignedEvent = {

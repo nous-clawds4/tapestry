@@ -196,5 +196,8 @@ test.describe('Create a Tapestry (tapestries #3)', () => {
     expect(body.signAs, 'own-key path publishes a client-signed event').toBe('client');
     expect(body.event.pubkey, 'client-signed event is authored by the owner').toBe(OWNER);
     expect(body.event.sig, 'client-signed event must carry a signature').toBeTruthy();
+    // Round-trip: the redirect must land on the OWNER-keyed coordinate (39999:<OWNER>:…), not the
+    // TA's — the own-key event is authored by the owner, so a TA-keyed redirect would 404.
+    await page.waitForURL(new RegExp(`/tapestry/tapestries/39999(%3A|:)${OWNER}`), { timeout: 10000 });
   });
 });
