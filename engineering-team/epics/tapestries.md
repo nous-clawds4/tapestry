@@ -1,7 +1,7 @@
 # Epic: tapestries
 
 **Created:** 2026-07-23
-**Status:** Active
+**Status:** Done
 
 ## Goal
 
