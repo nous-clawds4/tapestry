@@ -1,12 +1,20 @@
 # Second Brain — Story 5 Session Handoff (2026-07-23)
 
-**Status:** 🔴 OPEN
+**Status:** ✅ ADDRESSED
 
-> Written at the close of the story-4 session (attach-the-world: review PASS,
-> shipped to production 2026-07-23, staging PR #435, prod promotion PR #436).
-> This is the pickup prompt for the next session, with the load-bearing
-> discoveries from story 4 baked in. When story 5 ships, flip this Status to
-> ✅ ADDRESSED.
+> **Shipped to production 2026-07-24.** Story 5 "sessions-read-the-brain" ran the
+> full engineering cycle (story → ADR 0005 → tests → impl → independent review
+> **PASS**), merged to staging via **PR #439**, and reached production via the
+> concurrent `staging → main` promotion **PR #440** (which bundled it with the
+> tapestries book). Prod-verified live: `GET /api/brain/orient` (bounded, 403
+> owner-gated), `create-work-record` / `note-goal-idea` (401-gated), the
+> goal-detail `records[]` projection, and the UI record-entry rendering. The
+> new self-bootstrapping `tapestry-work-record` concept provisions per instance
+> on its first live write. Non-blocking findings → OPEN.md **row 91**. Next:
+> **story 6 (the proposal loop)** — see `docs/SECOND_BRAIN_STORY6_HANDOFF.md`.
+>
+> _Body preserved below for history — it was the pickup prompt for the story-5
+> session, with the load-bearing discoveries from story 4 baked in._
 
 ## Pickup prompt
 
