@@ -186,6 +186,8 @@ const attachTheWorld = require('./attach-the-world.test.js');
 const sessionsReadTheBrain = require('./sessions-read-the-brain.test.js');
 const theProposalLoop = require('./the-proposal-loop.test.js');
 const teachItWhatMatters = require('./teach-it-what-matters.test.js');
+// bug — tapestry-key handlePut must await the async LMDB write (regression guard).
+const tapestryKeyPutAwait = require('./tapestry-key-put-await.test.js');
 
 async function main() {
   console.log('Running Brainstorm tests...');
@@ -490,6 +492,9 @@ async function main() {
   const theProposalLoopResult = await theProposalLoop.run();
   const teachItWhatMattersResult = await teachItWhatMatters.run();
 
+  console.log('\ntapestry-key-put-await suite:');
+  const tapestryKeyPutAwaitResult = await tapestryKeyPutAwait.run();
+
   console.log('\nTest Results');
   console.log('-------------');
   console.log(`Configuration Loading:                           ${configOk ? 'PASS' : 'FAIL'}`);
@@ -639,6 +644,9 @@ async function main() {
   );
   console.log(
     `create-tapestry suite:                           ${createTapestryResult.fail === 0 ? 'PASS' : 'FAIL'} (${createTapestryResult.pass} passed, ${createTapestryResult.fail} failed)`
+  );
+  console.log(
+    `tapestry-key-put-await suite:                    ${tapestryKeyPutAwaitResult.fail === 0 ? 'PASS' : 'FAIL'} (${tapestryKeyPutAwaitResult.pass} passed, ${tapestryKeyPutAwaitResult.fail} failed)`
   );
   console.log(
     `reconciliation-incremental-mode suite:           ${reconciliationIncrementalModeResult.fail === 0 ? 'PASS' : 'FAIL'} (${reconciliationIncrementalModeResult.pass} passed, ${reconciliationIncrementalModeResult.fail} failed)`
@@ -1040,6 +1048,9 @@ async function main() {
     // tapestries #3 — create a tapestry (members-only authoring)
     // (LIVE chain — before the severed terminator; OPEN.md #43).
     createTapestryResult.fail === 0 &&
+    // bug — tapestry-key handlePut must await the async LMDB write.
+    // (LIVE chain — before the severed terminator; OPEN.md #43.)
+    tapestryKeyPutAwaitResult.fail === 0 &&
     // second-brain #7 — teach it what matters (priority signals)
     // (LIVE chain — before the severed terminator; OPEN.md #43).
     teachItWhatMattersResult.fail === 0;
