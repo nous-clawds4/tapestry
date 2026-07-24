@@ -34,12 +34,12 @@ test.describe('Create a Tapestry (tapestries #3)', () => {
 
   // Concept-header fixtures for the picker (kind-39998 scan), shaped like the live events:
   // d-tag = short slug, json.word.slug = descriptive slug, json.conceptHeader.oNames.singular = name.
-  function headerEv(shortSlug, descriptiveSlug, name) {
+  function headerEv(shortSlug, descriptiveSlug, name, description = '') {
     return {
       id: 'a'.repeat(64), pubkey: TA, kind: 39998, created_at: 1784821324,
       tags: [['d', shortSlug], ['json', JSON.stringify({
         word: { slug: descriptiveSlug, name },
-        conceptHeader: { oNames: { singular: name } },
+        conceptHeader: { oNames: { singular: name }, description },
       })]],
       content: '', sig: '0'.repeat(128),
     };
@@ -47,6 +47,9 @@ test.describe('Create a Tapestry (tapestries #3)', () => {
   const CONCEPTS = [
     headerEv('dog', 'concept-header-for-the-concept-of-dogs', 'dog'),
     headerEv('golden-retriever', 'concept-header-for-the-concept-of-golden-retrievers', 'golden retriever'),
+    // A concept whose name shares no keyword with its description — proves description-based search (E8).
+    headerEv('graperank', 'concept-header-for-the-concept-of-graperanks', 'graperank',
+      'A contextual Web of Trust scoring algorithm for Nostr.'),
   ];
 
   /**
@@ -229,5 +232,18 @@ test.describe('Create a Tapestry (tapestries #3)', () => {
     // Removing the chip empties the selection.
     await page.getByRole('button', { name: 'Remove dog', exact: true }).click();
     await expect(page.getByRole('button', { name: 'Remove dog', exact: true })).toHaveCount(0);
+  });
+
+  /* ───────── E8 — keyword search matches the description, not just the name ───────── */
+  test('E8: searching a keyword that appears only in a concept\'s description surfaces that concept', async ({ page }) => {
+    await mock(page, { classification: 'owner' });
+    await page.goto(URL);
+    await page.waitForLoadState('networkidle');
+
+    // "algorithm" appears only in graperank's description ("…scoring algorithm…"), never in its name.
+    await page.getByRole('textbox', { name: /search concepts/i }).fill('algorithm');
+    await expect(page.getByRole('button', { name: 'Add graperank', exact: true })).toBeVisible();
+    // And it must NOT surface unrelated concepts (dog has no such description keyword).
+    await expect(page.getByRole('button', { name: 'Add dog', exact: true })).toHaveCount(0);
   });
 });

@@ -252,6 +252,21 @@ test('S6: NewTapestry.jsx no longer advertises the inert placeholder (AC — the
     'inert preview with a working, owner-gated authoring form.');
 });
 
+test('S8: concept keyword search covers the o* naming fields + the description, not just the name (operator request 2026-07-24)', () => {
+  const hook = readSafe(USE_CREATE_HOOK);
+  const page = readSafe(NEW_TAPESTRY);
+  assert(hook !== null && page !== null, 'useCreateTapestry.js / NewTapestry.jsx missing — re-baseline.');
+  // The picker parse builds a searchable blob spanning the header's naming forms + free-text description…
+  assert(/searchText/.test(hook),
+    'useCreateTapestry.js builds no searchText blob — the keyword search would still match only the display name.');
+  assert(/description/.test(hook) && /oSlugs/.test(hook) && /oKeys/.test(hook),
+    'searchText omits the concept-header description and/or the o* fields (oSlugs/oKeys/…). The operator asked to search ' +
+    'the description (most important) plus the other naming fields, not just oNames.singular.');
+  // …and the typeahead filters against that blob rather than name/shortSlug alone.
+  assert(/searchText/.test(page),
+    'NewTapestry.jsx results filter does not reference searchText — the expanded keyword search is not wired into the typeahead.');
+});
+
 // ───────────────────────── Regression guards — PASS pre AND post ─────────────────────────
 
 test('R1: the shipped Exploration read-path model is untouched (composeGraph + inferNodeType still exported)', () => {

@@ -37,9 +37,9 @@ export default function NewTapestry() {
   const results = useMemo(() => {
     const q = filter.trim().toLowerCase();
     if (!q) return [];
+    // Match the full searchText blob (names/slugs/keys/titles/labels + description), not just the name.
     return concepts.filter(
-      (c) => !selected.includes(c.handle)
-        && (c.name.toLowerCase().includes(q) || c.shortSlug.includes(q)),
+      (c) => !selected.includes(c.handle) && (c.searchText || '').includes(q),
     );
   }, [concepts, filter, selected]);
 
