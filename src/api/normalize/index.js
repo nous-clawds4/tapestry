@@ -2654,6 +2654,309 @@ async function verifyResource({ goalSlug, locator, reachable }) {
 }
 
 // ══════════════════════════════════════════════════════════════
+// Work records + session-born ideas (second-brain #5, ADR 0005 d6/d7/d8).
+//   POST /api/normalize/create-work-record — a session records `worked`.
+//   POST /api/normalize/note-goal-idea — a session captures an idea + `noted`.
+// Both ride the goal-write machinery: gated (owner/loopback), validated before
+// any write, serialized through serializeGoalWrite, local-only (publishToStrfry
+// + importEventDirect — never publishEverywhere). The concept self-bootstraps on
+// first use (ADR 0005 d8; never firmware-seeded). Work records are APPEND-ONLY
+// (PRD §7.2): each write mints a fresh element under a random d-tag — no dedup,
+// no MERGE-over, never regenerateJson'd.
+// ══════════════════════════════════════════════════════════════
+
+const WORK_RECORD_CONCEPT_NAME = 'tapestry work record';
+const MAX_QUESTIONS = 2;  // ADR 0005 d15: the ≤2-questions rule as one constant.
+
+// The Work Record schema (ADR 0005 d1) — a single concept-object wrapper so the
+// save-schema primary-property fold (ADR 0003 d8) has its one top-level
+// properties key; `required` is mirrored into the primary-property node.
+const WORK_RECORD_SCHEMA = {
+  type: 'object',
+  properties: {
+    workRecord: {
+      type: 'object',
+      title: 'Work Record',
+      required: ['name', 'slug', 'description', 'type', 'goal', 'session', 'happenedOn'],
+      properties: {
+        name: { type: 'string', description: 'a short label for this record, in plain words' },
+        slug: { type: 'string', description: 'stable identity for this record (unique per record)' },
+        description: { type: 'string', description: 'a short description (the one-sentence summary)' },
+        type: { type: 'string', enum: ['worked', 'noted'], description: 'whether a session worked on the goal or noted an idea' },
+        goal: { type: 'string', description: 'the slug of the goal this record is about' },
+        session: { type: 'string', description: 'the session that produced this record' },
+        summary: { type: 'string', description: 'a one-sentence summary of where things stand' },
+        questions: { type: 'array', items: { type: 'string' }, description: 'at most two plain-language questions for the owner' },
+        produced: { type: 'array', items: { type: 'string' }, description: 'locators of the resources this record produced' },
+        happenedOn: { type: 'string', description: 'the date this happened' },
+      },
+      'x-tapestry': { unique: ['slug'] },
+    },
+  },
+  required: ['workRecord'],
+};
+
+// Resolve the runtime-created Work Record concept's header + superset (mirrors
+// resolveResourceConcept; the header match tolerates a freshly-created concept's
+// labels).
+async function resolveWorkRecordConcept() {
+  const rows = await runCypher(`
+    MATCH (h:NostrEvent)
+    WHERE (h:ListHeader OR h:ClassThreadHeader OR h:ConceptHeader) AND h.kind IN [9998, 39998]
+      AND h.name = $concept
+    OPTIONAL MATCH (h)-[:${REL.CLASS_THREAD_INITIATION}]->(sup:Superset)
+    RETURN h.uuid AS headerUuid, sup.uuid AS supersetUuid
+    LIMIT 1
+  `, { concept: WORK_RECORD_CONCEPT_NAME });
+  if (rows.length === 0) return { error: `Concept "${WORK_RECORD_CONCEPT_NAME}" not found` };
+  if (!rows[0].supersetUuid) return { error: `Concept "${WORK_RECORD_CONCEPT_NAME}" has no Superset node.` };
+  return { headerUuid: rows[0].headerUuid, supersetUuid: rows[0].supersetUuid };
+}
+
+// Fetch the concept's work-record rows (explicit walk ∪ implicit z-tag members —
+// the brain read's union shape) and parse them through the shared core.
+async function fetchWorkRecords(headerUuid) {
+  const { parseWorkRecordRow } = require('../../lib/brain/work-records');
+  const [explicitRows, implicitRows] = await Promise.all([
+    runCypher(`
+      MATCH (h:NostrEvent {uuid: $headerUuid})-[:${REL.CLASS_THREAD_INITIATION}]->(s:Superset)
+      MATCH (s)-[:${REL.CLASS_THREAD_PROPAGATION}*0..10]->(ss)-[:${REL.CLASS_THREAD_TERMINATION}]->(e:NostrEvent)
+      WHERE e.kind = 39999
+      OPTIONAL MATCH (e)-[:HAS_TAG]->(j:NostrEventTag {type: 'json'})
+      WITH DISTINCT e, head(collect(j.value)) AS json
+      RETURN e.uuid AS uuid, e.name AS name, e.created_at AS createdAt, json AS json
+    `, { headerUuid }),
+    runCypher(`
+      MATCH (e:NostrEvent)-[:HAS_TAG]->(:NostrEventTag {type: 'z', value: $headerUuid})
+      WHERE e.kind = 39999
+      OPTIONAL MATCH (e)-[:HAS_TAG]->(j:NostrEventTag {type: 'json'})
+      WITH DISTINCT e, head(collect(j.value)) AS json
+      RETURN e.uuid AS uuid, e.name AS name, e.created_at AS createdAt, json AS json
+    `, { headerUuid }),
+  ]);
+  const rowByUuid = new Map();
+  for (const row of [...explicitRows, ...implicitRows]) {
+    if (row && row.uuid && !rowByUuid.has(row.uuid)) rowByUuid.set(row.uuid, row);
+  }
+  const records = [...rowByUuid.values()].map(parseWorkRecordRow).filter(Boolean);
+  return { rowByUuid, records };
+}
+
+// Self-bootstrap the Work Record concept (ADR 0005 d8): idempotent — a byte-for-
+// byte copy of ensureResourceConcept. create-concept ("already exists" → success)
+// + save-schema (folds the primary-property reconcile) run ONLY when the concept
+// is absent, so there is no per-write churn after the first record. §5.9: a fresh
+// instance self-provisions with no manual step; never firmware-seeded.
+async function ensureWorkRecordConcept() {
+  const existing = await resolveWorkRecordConcept();
+  if (!existing.error) return existing;
+  await invokeNormalizeHandler(handleCreateConcept, {
+    name: WORK_RECORD_CONCEPT_NAME,
+    description: 'A dated, append-only record a session leaves on a goal — what it worked on and produced, or an idea it noted. Never edited; corrections are new records.',
+  });
+  await invokeNormalizeHandler(handleSaveSchema, { concept: WORK_RECORD_CONCEPT_NAME, schema: WORK_RECORD_SCHEMA });
+  const provisioned = await resolveWorkRecordConcept();
+  if (provisioned.error) {
+    throw new Error(`ensureWorkRecordConcept failed to provision the concept: ${provisioned.error}`);
+  }
+  return provisioned;
+}
+
+// The append-only Work Record element mint (ADR 0005 d3): a fresh RANDOM d-tag
+// each call, so a record can never MERGE over a prior one and is never re-signed
+// (createWorkRecord and noteGoalIdea each inline it — the createResource /
+// createChildGoal element-mint idiom). Builds the json section from the caller's
+// fields plus the derived unique slug; returns the minted element's uuid + slug.
+async function mintWorkRecordElement({ headerUuid, supersetUuid, label, section }) {
+  const nonce = randomDTag();
+  const dTag = dtag.childDTag(label, headerUuid, nonce);
+  const slug = `${dtag.slug(label)}-${nonce}`;
+  const recordSection = { name: `${section.type}: ${section.goal}`, slug, description: section.summary, ...section };
+  const tags = [
+    ['d', dTag],
+    ['name', recordSection.name],
+    ['z', headerUuid],
+    ['json', JSON.stringify({ workRecord: recordSection })],
+  ];
+  const evt = signAndFinalize({ kind: 39999, tags, content: '' });
+  const elemUuid = `39999:${evt.pubkey}:${dTag}`;
+  await publishToStrfry(evt);
+  await importEventDirect(evt, elemUuid);
+  await writeCypher(`MATCH (n:NostrEvent {uuid: $uuid}) SET n:ListItem, n.slug = $slug`, { uuid: elemUuid, slug });
+  await writeCypher(`
+    MATCH (sup:NostrEvent {uuid: $supersetUuid}), (elem:NostrEvent {uuid: $elemUuid})
+    MERGE (sup)-[:${REL.CLASS_THREAD_TERMINATION}]->(elem)
+  `, { supersetUuid, elemUuid });
+  return { uuid: elemUuid, slug };
+}
+
+async function handleCreateWorkRecord(req, res) {
+  try {
+    const { isOwner } = require('../../middleware/auth');
+    if (!isOwner(req) && !req.localTrusted) {
+      return res.status(403).json({ success: false, error: 'Owner access required' });
+    }
+    const { goal, session, summary, questions, produced } = req.body || {};
+    if (!goal || typeof goal !== 'string' || !goal.trim()) {
+      return res.status(400).json({ success: false, error: 'Missing goal slug' });
+    }
+    if (!session || typeof session !== 'string' || !session.trim()) {
+      return res.status(400).json({ success: false, error: 'A session is required to attribute the record' });
+    }
+    if (!summary || typeof summary !== 'string' || !summary.trim()) {
+      return res.status(400).json({ success: false, error: 'A one-sentence summary is required' });
+    }
+    const qs = Array.isArray(questions) ? questions.filter((q) => typeof q === 'string' && q.trim()).map((q) => q.trim()) : [];
+    if (qs.length > MAX_QUESTIONS) {
+      return res.json({
+        success: false,
+        refusal: 'too-many-questions',
+        error: `a session hand-off asks at most ${MAX_QUESTIONS} questions — got ${qs.length}. Keep the two that matter.`,
+      });
+    }
+    const prod = Array.isArray(produced) ? produced.filter((p) => p && typeof p === 'object') : [];
+    const result = await serializeGoalWrite(() => createWorkRecord({
+      goalSlug: goal.trim(), session: session.trim(), summary: summary.trim(), questions: qs, produced: prod,
+    }));
+    return res.json(result);
+  } catch (error) {
+    console.error('normalize/create-work-record error:', error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+}
+
+async function createWorkRecord({ goalSlug, session, summary, questions, produced }) {
+  // A record must attach to a real goal (ADR 0005 d6).
+  const goalConcept = await resolveGoalConcept();
+  if (goalConcept.error) return { success: false, error: goalConcept.error };
+  const { records: goalRecords } = await fetchGoalRecords(goalConcept.headerUuid);
+  const goalMatches = goalRecords.filter((g) => g.slug === goalSlug);
+  if (goalMatches.length === 0) {
+    return { success: false, refusal: 'goal-not-found', error: `no goal has the slug '${goalSlug}' — a work record must attach to an existing goal.` };
+  }
+  if (goalMatches.length > 1) {
+    return { success: false, refusal: 'ambiguous-slug', error: `${goalMatches.length} goals share the slug '${goalSlug}' — refusing to guess which is meant.` };
+  }
+
+  // Ensure each produced resource is attached to the goal (ADR 0005 d4:
+  // ensure-and-reference). The createResource CORE is unserialized (its mutex is
+  // at handleCreateResource), so composing it inside this already-serialized body
+  // does not nest the mutex. An already-attached resource (resource-exists) is
+  // referenced, not re-attached; a genuine refusal (unknown-kind…) fails the call.
+  const producedLocators = [];
+  for (const spec of produced) {
+    const attach = await createResource({
+      goalSlug,
+      title: typeof spec.title === 'string' ? spec.title : spec.locator,
+      locatorKind: typeof spec.locatorKind === 'string' ? spec.locatorKind.trim() : '',
+      locator: typeof spec.locator === 'string' ? spec.locator.trim() : '',
+      whyKept: typeof spec.whyKept === 'string' && spec.whyKept.trim() ? spec.whyKept.trim() : null,
+      keywords: Array.isArray(spec.keywords) ? spec.keywords : null,
+    });
+    if (!attach.success && attach.refusal !== 'resource-exists') {
+      return attach; // named refusal, nothing further written
+    }
+    if (typeof spec.locator === 'string' && spec.locator.trim()) producedLocators.push(spec.locator.trim());
+  }
+
+  // Provision the concept if this is the first record ever (ADR 0005 d8).
+  const concept = await ensureWorkRecordConcept();
+  const today = new Date().toISOString().slice(0, 10);
+  const section = { type: 'worked', goal: goalSlug, session, summary, happenedOn: today };
+  if (questions && questions.length) section.questions = questions;
+  if (producedLocators.length) section.produced = producedLocators;
+
+  const { uuid, slug } = await mintWorkRecordElement({
+    headerUuid: concept.headerUuid, supersetUuid: concept.supersetUuid, label: `worked-${goalSlug}`, section,
+  });
+  return { success: true, result: 'recorded', record: { uuid, slug, goal: goalSlug, type: 'worked' } };
+}
+
+async function handleNoteGoalIdea(req, res) {
+  try {
+    const { isOwner } = require('../../middleware/auth');
+    if (!isOwner(req) && !req.localTrusted) {
+      return res.status(403).json({ success: false, error: 'Owner access required' });
+    }
+    // servingGoal is accepted in the contract for forward-compat (traceability);
+    // v1 records the idea's own statement as the summary (no raw slug in copy).
+    const { name, statement, session } = req.body || {};
+    if (!name || typeof name !== 'string' || !name.trim()) {
+      return res.status(400).json({ success: false, error: 'An idea name is required' });
+    }
+    if (!statement || typeof statement !== 'string' || !statement.trim()) {
+      return res.status(400).json({ success: false, error: 'A statement is required to capture the idea' });
+    }
+    if (!session || typeof session !== 'string' || !session.trim()) {
+      return res.status(400).json({ success: false, error: 'A session is required to attribute the capture' });
+    }
+    const result = await serializeGoalWrite(() => noteGoalIdea({
+      name: name.trim(), statement: statement.trim(), session: session.trim(),
+    }));
+    return res.json(result);
+  } catch (error) {
+    console.error('normalize/note-goal-idea error:', error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+}
+
+async function noteGoalIdea({ name, statement, session }) {
+  // Capture a NEW root goal (no parent), attributed to the session, with the
+  // createChildGoal collision guard (ADR 0005 d7). This launches nothing — it
+  // only writes facts (a goal + a noted record); the v1 launcher is the owner.
+  const concept = await resolveGoalConcept();
+  if (concept.error) return { success: false, error: concept.error };
+  const { headerUuid, supersetUuid } = concept;
+  const { records } = await fetchGoalRecords(headerUuid);
+
+  const derivedSlug = dtag.slug(name);
+  const dTag = dtag.childDTag(name, headerUuid);
+  const collision = records.find((r) => r.name === name
+    || r.slug === derivedSlug
+    || (r.uuid.split(':').pop() || '') === dTag);
+  if (collision) {
+    return {
+      success: false,
+      refusal: 'name-collides',
+      error: `the name "${name}" collides with the existing goal "${collision.name}" (shared name, slug '${derivedSlug}', ` +
+        'or replaceable-event d-tag) — creating it would silently overwrite. Pick a different name.',
+    };
+  }
+
+  const today = new Date().toISOString().slice(0, 10);
+  const goalSection = { name, slug: derivedSlug, description: statement, origin: 'noted in an assistant session', capturedOn: today };
+  const goalTags = [
+    ['d', dTag],
+    ['name', name],
+    ['z', headerUuid],
+    ['json', JSON.stringify({ tapestryOwnerGoal: goalSection })],
+  ];
+  const goalEvt = signAndFinalize({ kind: 39999, tags: goalTags, content: '' });
+  const goalUuid = `39999:${goalEvt.pubkey}:${dTag}`;
+  await publishToStrfry(goalEvt);
+  await importEventDirect(goalEvt, goalUuid);
+  await writeCypher(`MATCH (n:NostrEvent {uuid: $uuid}) SET n:ListItem, n.slug = $slug`, { uuid: goalUuid, slug: derivedSlug });
+  await writeCypher(`
+    MATCH (sup:NostrEvent {uuid: $supersetUuid}), (elem:NostrEvent {uuid: $elemUuid})
+    MERGE (sup)-[:${REL.CLASS_THREAD_TERMINATION}]->(elem)
+  `, { supersetUuid, elemUuid: goalUuid });
+
+  // The append-only NOTED record on the new goal — its provenance (ADR 0005 d7).
+  const wr = await ensureWorkRecordConcept();
+  const record = await mintWorkRecordElement({
+    headerUuid: wr.headerUuid, supersetUuid: wr.supersetUuid, label: `noted-${derivedSlug}`,
+    section: { type: 'noted', goal: derivedSlug, session, summary: statement, happenedOn: today },
+  });
+
+  return {
+    success: true,
+    result: 'noted',
+    goal: { uuid: goalUuid, slug: derivedSlug, name },
+    record: { uuid: record.uuid, slug: record.slug, type: 'noted' },
+  };
+}
+
+// ══════════════════════════════════════════════════════════════
 // POST /api/normalize/save-element-json
 //   Body: { uuid: "<element uuid>", json: { ... merged JSON } }
 //   Replaces the JSON tag on an element and re-publishes.
@@ -3991,6 +4294,8 @@ async function registerNormalizeRoutes(app) {
   app.post('/api/normalize/update-goal-intent', handleUpdateGoalIntent);
   app.post('/api/normalize/create-resource', handleCreateResource);
   app.post('/api/normalize/verify-resource', handleVerifyResource);
+  app.post('/api/normalize/create-work-record', handleCreateWorkRecord);
+  app.post('/api/normalize/note-goal-idea', handleNoteGoalIdea);
   app.post('/api/normalize/save-element-json', handleSaveElementJson);
   app.post('/api/normalize/create-property', handleCreateProperty);
   app.post('/api/normalize/generate-property-tree', handleGeneratePropertyTree);

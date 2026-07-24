@@ -555,11 +555,13 @@ test('S11 (ADR d5): the brain import surface is re-pinned to SIX — the story-3
   const requires = [...src.matchAll(/require\s*\(\s*['"`]([^'"`]+)['"`]\s*\)/g)].map((m) => m[1]);
   assert(requires.some((s) => /lib\/brain\/resources$/.test(s)),
     'the brain module must require ../../lib/brain/resources — the freshness core (ADR 0004 d4) is not wired yet.');
-  const allowed = [/neo4j-driver$/, /middleware\/auth$/, /assistantKeys$/, /lib\/brain\/goals$/, /lib\/brain\/hygiene$/, /lib\/brain\/resources$/];
+  // second-brain #5 (ADR 0005 d10) widens this by lib/brain/work-records, the
+  // records projection core — this pin stays green (widen-only) and admits seven.
+  const allowed = [/neo4j-driver$/, /middleware\/auth$/, /assistantKeys$/, /lib\/brain\/goals$/, /lib\/brain\/hygiene$/, /lib\/brain\/resources$/, /lib\/brain\/work-records$/];
   for (const spec of requires) {
     assert(allowed.some((re) => re.test(spec)),
-      `import surface violation: require('${spec}') — story 4 adds exactly lib/brain/resources; the brain module ` +
-      'allows only the six cores (ADR 0004 d5; story-1 S2 + story-2 S3 + story-3 S1 re-pins).');
+      `import surface violation: require('${spec}') — story 4 adds lib/brain/resources, story 5 adds lib/brain/work-records; ` +
+      'the brain module allows only the seven cores (ADR 0004 d5 + ADR 0005 d10; story-1 S2 + story-2 S3 + story-3 S1 re-pins).');
   }
 });
 

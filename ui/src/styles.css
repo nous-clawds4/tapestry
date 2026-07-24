@@ -8177,7 +8177,10 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
 .brain-gate { color: var(--text-muted); padding: 16px 0; }
 .brain-empty { color: var(--text-muted); padding: 16px 0; max-width: 60ch; }
 .brain-error { padding: 8px 0; }
-.brain-retry { color: var(--accent); cursor: pointer; }
+/* An accessible, focusable control that keeps the link appearance (OPEN.md
+   row 86b — was a href-less <a onClick>). Button reset, no new tokens. */
+.brain-retry { color: var(--accent); cursor: pointer; background: none; border: none; padding: 0; font: inherit; }
+.brain-retry:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .brain-privacy-line { margin-top: 24px; color: var(--text-muted); font-size: 0.85rem; }
 /* Decomposition tree + minimal detail (second-brain #3, ADR 0003 d10/d11).
    --brain-depth is a per-row custom property set inline by the view — 20px
@@ -8216,7 +8219,15 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
 .brain-fresh-stale { color: var(--orange); }
 .brain-fresh-unreachable { color: var(--red); }
 .brain-pointer-why { font-size: 0.85rem; font-style: italic; color: var(--text-muted); }
-.brain-record-entry { display: flex; align-items: baseline; gap: 10px; font-size: 0.9rem; }
-.brain-record-date { color: var(--text-muted); font-size: 0.8rem; min-width: 6em; }
-.brain-record-type { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); min-width: 5em; }
+/* Record entries grow a session line, produced pointer cards, and ≤2 questions
+   (second-brain #5, ADR 0005 d12) — a column so the nested lists sit under the
+   head. Still append-only: no edit affordance. Token-driven; no new tokens. */
+.brain-record-entry { display: flex; flex-direction: column; gap: 4px; font-size: 0.9rem; }
+.brain-record-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.brain-record-date { color: var(--text-muted); font-size: 0.8rem; }
+.brain-record-type { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); }
+.brain-record-session { font-size: 0.8rem; color: var(--text-muted); }
 .brain-record-summary { min-width: 0; }
+.brain-record-produced { margin-top: 4px; }
+.brain-record-questions { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.brain-record-question { font-size: 0.85rem; color: var(--text-muted); }

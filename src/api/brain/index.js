@@ -26,13 +26,23 @@ const { getOwnerAssistantPubkey } = require('../../utils/assistantKeys');
 const { parseGoalRow, deriveStanding, resolveCaptureDate, sortGoals, resolveDecomposition } = require('../../lib/brain/goals');
 const { classifyHeaderEdges, classifyElementConsistency, comparePropertyRecord, classifyDecomposition, assembleReport } = require('../../lib/brain/hygiene');
 const { parseResourceRow, deriveFreshness, freshnessDays, groupResourcesByGoal } = require('../../lib/brain/resources');
+const { parseWorkRecordRow, groupWorkRecordsByGoal, sortRecordsByRecency } = require('../../lib/brain/work-records');
 
 const GOAL_CONCEPT_SLUG = 'tapestry-owner-goal';
+
+// Bounded orientation (second-brain #5, ADR 0005 d11/d15) — the single cap on
+// the orient roots slice, so the payload stays flat as the corpus grows.
+const ORIENT_ROOT_CAP = 24;
 
 // External Resource pointers (second-brain #4, ADR 0004 d1) — the concept is
 // runtime-created (never firmware-seeded); the read is tolerant of its absence
 // (no header ⇒ no rows ⇒ an empty pointer set, never an error).
 const RESOURCE_CONCEPT_SLUG = 'tapestry-external-resource';
+
+// Work records (second-brain #5, ADR 0005 d10) — the concept is runtime-created
+// (never firmware-seeded); the read is tolerant of its absence (no header ⇒ no
+// rows ⇒ an empty record set, never an error).
+const WORK_RECORD_CONCEPT_SLUG = 'tapestry-work-record';
 
 // The hygiene check's confirmed scope (story #2, planning gate): the two
 // work-item concepts. parseRecord: null skips goal-record classification on
@@ -97,6 +107,22 @@ async function readResourceRecords(taPubkey) {
   return [...byUuid.values()].map(parseResourceRow).filter(Boolean);
 }
 
+// Work records for this owner (second-brain #5, ADR 0005 d10). The SAME
+// ConceptElements union the goals/resources use, on the work-record concept's
+// header — tolerant of the concept being absent (a fresh instance answers []).
+async function readWorkRecords(taPubkey) {
+  const headerUuid = `39998:${taPubkey}:${WORK_RECORD_CONCEPT_SLUG}`;
+  const [explicitRows, implicitRows] = await Promise.all([
+    runCypher(EXPLICIT_CYPHER, { headerUuid }),
+    runCypher(IMPLICIT_CYPHER, { headerUuid }),
+  ]);
+  const byUuid = new Map();
+  for (const row of [...explicitRows, ...implicitRows]) {
+    if (row && row.uuid && !byUuid.has(row.uuid)) byUuid.set(row.uuid, row);
+  }
+  return [...byUuid.values()].map(parseWorkRecordRow).filter(Boolean);
+}
+
 async function handleGetGoals(req, res) {
   if (!isOwner(req) && !req.localTrusted) {
     return res.status(403).json({ success: false, error: 'Owner access required' });
@@ -149,21 +175,18 @@ async function handleGetGoalDetail(req, res) {
     const slug = req.params.slug;
     const resolved = await readResolvedGoals(taPubkey);
     const matches = resolved.filter((r) => r.slug === slug);
-    if (matches.length === 0) {
-      return res.json({ success: true, goal: null, pointers: [], records: [] });
-    }
     // The resolver-winner: oldest createdAt, uuid tie-break — the same truth the
-    // tree and the list read use for a duplicated slug.
-    const winner = [...matches].sort((a, b) => {
+    // tree and the list read use for a duplicated slug. An unknown slug yields no
+    // winner: goal:null with empty pointers/records (an empty state, not an error).
+    const winner = matches.length === 0 ? null : [...matches].sort((a, b) => {
       const ca = typeof a.createdAt === 'number' ? a.createdAt : Infinity;
       const cb = typeof b.createdAt === 'number' ? b.createdAt : Infinity;
       if (ca !== cb) return ca - cb;
       return a.uuid < b.uuid ? -1 : 1;
     })[0];
-    const parent = winner.parentUuid ? resolved.find((r) => r.uuid === winner.parentUuid) : null;
 
     const now = Date.now();
-    const mine = groupResourcesByGoal(await readResourceRecords(taPubkey)).get(winner.slug) || [];
+    const mine = winner ? (groupResourcesByGoal(await readResourceRecords(taPubkey)).get(winner.slug) || []) : [];
     const pointers = mine
       .slice()
       .sort((a, b) => {
@@ -184,7 +207,32 @@ async function handleGetGoalDetail(req, res) {
         freshnessDays: freshnessDays(r, now),
       }));
 
-    const goal = {
+    // Records (second-brain #5, ADR 0005 d10): the goal's append-only work
+    // records, newest first, each projected to the record-entry shape; produced
+    // locators resolve against `mine` into pointer cards. Extensible — stories
+    // 6/7 merge their concepts' projections into this same array. Empty when
+    // there is no winner (unknown slug) — no hardcoded placeholder.
+    const wr = winner ? (groupWorkRecordsByGoal(await readWorkRecords(taPubkey)).get(winner.slug) || []) : [];
+    const records = sortRecordsByRecency(wr).map((r) => ({
+      date: r.happenedOn,
+      type: r.type,
+      summary: r.summary,
+      session: r.session,
+      questions: Array.isArray(r.questions) ? r.questions : [],
+      produced: (Array.isArray(r.produced) ? r.produced : [])
+        .map((loc) => mine.find((res) => res.locator === loc))
+        .filter(Boolean)
+        .map((res) => ({
+          title: res.title,
+          locatorKind: res.locatorKind,
+          locator: res.locator,
+          freshness: deriveFreshness(res, now),
+          freshnessDays: freshnessDays(res, now),
+        })),
+    }));
+
+    const parent = winner && winner.parentUuid ? resolved.find((r) => r.uuid === winner.parentUuid) : null;
+    const goal = winner ? {
       uuid: winner.uuid,
       name: winner.name,
       slug: winner.slug,
@@ -202,8 +250,74 @@ async function handleGetGoalDetail(req, res) {
       parentName: parent ? parent.name : null,
       hasChildren: winner.hasChildren,
       pointerCount: pointers.length,
-    };
-    return res.json({ success: true, goal, pointers, records: [] });
+    } : null;
+    return res.json({ success: true, goal, pointers, records });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+}
+
+// GET /api/brain/orient — bounded, corpus-independent session orientation
+// (second-brain #5, ADR 0005 d11). A fresh session states which goals exist and
+// which one it serves from a payload whose SIZE stays flat as the corpus grows:
+// a goalCount scalar, a CAPPED slice of the root goals, and — when asked
+// (?goal=<slug>) — the served goal in full with its deliverable/boundary
+// verbatim and its (bounded) ancestry. Boundedness is a property of the response
+// (the session's token budget); a sub-linear server index is Phase 4.
+async function handleGetOrient(req, res) {
+  if (!isOwner(req) && !req.localTrusted) {
+    return res.status(403).json({ success: false, error: 'Owner access required' });
+  }
+  try {
+    const taPubkey = getOwnerAssistantPubkey();
+    if (!taPubkey) {
+      return res.status(500).json({ success: false, error: 'Assistant identity unavailable' });
+    }
+    const resolved = await readResolvedGoals(taPubkey);
+    // "What exists": a count, plus a bounded slice of the root (parent-less)
+    // goals — capped so the slice never grows with the corpus.
+    const roots = sortGoals(resolved)
+      .filter((r) => !r.parentUuid)
+      .slice(0, ORIENT_ROOT_CAP)
+      .map((r) => ({ slug: r.slug, name: r.name, standing: deriveStanding(r, { hasChildren: r.hasChildren }) }));
+
+    // "Where its goal sits": the served goal in full (when named), resolver-
+    // winner just like the detail read, with its ancestry chain (bounded by tree
+    // depth, not N) and deliverable/boundary verbatim.
+    let served = null;
+    const wantSlug = req.query && typeof req.query.goal === 'string' ? req.query.goal : null;
+    if (wantSlug) {
+      const matches = resolved.filter((r) => r.slug === wantSlug);
+      const winner = matches.length === 0 ? null : [...matches].sort((a, b) => {
+        const ca = typeof a.createdAt === 'number' ? a.createdAt : Infinity;
+        const cb = typeof b.createdAt === 'number' ? b.createdAt : Infinity;
+        if (ca !== cb) return ca - cb;
+        return a.uuid < b.uuid ? -1 : 1;
+      })[0];
+      if (winner) {
+        const ancestry = [];
+        let cur = winner.parentUuid ? resolved.find((r) => r.uuid === winner.parentUuid) : null;
+        let guard = 0;
+        while (cur && guard < 32) {
+          ancestry.push({ slug: cur.slug, name: cur.name });
+          cur = cur.parentUuid ? resolved.find((r) => r.uuid === cur.parentUuid) : null;
+          guard++;
+        }
+        served = {
+          slug: winner.slug,
+          name: winner.name,
+          statement: winner.statement,
+          standing: deriveStanding(winner, { hasChildren: winner.hasChildren }),
+          captureDate: resolveCaptureDate(winner),
+          deliverable: winner.deliverable,
+          boundary: winner.boundary,
+          parentSlug: ancestry.length ? ancestry[0].slug : null,
+          parentName: ancestry.length ? ancestry[0].name : null,
+          ancestry,
+        };
+      }
+    }
+    return res.json({ success: true, goalCount: resolved.length, roots, served });
   } catch (err) {
     return res.status(500).json({ success: false, error: err.message });
   }
@@ -343,6 +457,7 @@ async function handleGetHygiene(req, res) {
 
 function registerBrainRoutes(app) {
   app.get('/api/brain/goals', handleGetGoals);
+  app.get('/api/brain/orient', handleGetOrient);
   app.get('/api/brain/goals/:slug', handleGetGoalDetail);
   app.get('/api/brain/hygiene', handleGetHygiene);
 }
