@@ -48,6 +48,14 @@ const mainNavItems = [
       { to: '/tapestry/users/search', label: 'Search' },
     ],
   },
+  {
+    label: '🧵 Tapestries',
+    prefix: '/tapestry/tapestries',
+    children: [
+      { to: '/tapestry/tapestries', label: 'View Tapestries', end: true },
+      { to: '/tapestry/tapestries/new', label: 'Create New Tapestry' },
+    ],
+  },
 ];
 
 const managementNavItems = [
