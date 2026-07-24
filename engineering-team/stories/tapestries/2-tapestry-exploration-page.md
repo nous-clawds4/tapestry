@@ -64,5 +64,5 @@ no new backend).
 
 ## Linked artifacts
 - ADR: `engineering-team/decisions/tapestries/0002-exploration-page-as-authored-rendering.md`
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/tapestries/2-tapestry-exploration-page.test-plan.md`
 - Review: (filled in after Review phase)
