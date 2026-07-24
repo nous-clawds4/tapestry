@@ -27,6 +27,7 @@ const { parseGoalRow, deriveStanding, resolveCaptureDate, sortGoals, resolveDeco
 const { classifyHeaderEdges, classifyElementConsistency, comparePropertyRecord, classifyDecomposition, assembleReport } = require('../../lib/brain/hygiene');
 const { parseResourceRow, deriveFreshness, freshnessDays, groupResourcesByGoal } = require('../../lib/brain/resources');
 const { parseWorkRecordRow, groupWorkRecordsByGoal, sortRecordsByRecency } = require('../../lib/brain/work-records');
+const { parseProposalRow, groupProposalsByGoal, openProposals, proposalEntry } = require('../../lib/brain/proposals');
 
 const GOAL_CONCEPT_SLUG = 'tapestry-owner-goal';
 
@@ -43,6 +44,11 @@ const RESOURCE_CONCEPT_SLUG = 'tapestry-external-resource';
 // (never firmware-seeded); the read is tolerant of its absence (no header ⇒ no
 // rows ⇒ an empty record set, never an error).
 const WORK_RECORD_CONCEPT_SLUG = 'tapestry-work-record';
+
+// Proposals (second-brain #6, ADR 0006 d10) — the concept is runtime-created
+// (never firmware-seeded); the read is tolerant of its absence (no header ⇒ no
+// rows ⇒ an empty proposal set, never an error).
+const PROPOSAL_CONCEPT_SLUG = 'tapestry-proposal';
 
 // The hygiene check's confirmed scope (story #2, planning gate): the two
 // work-item concepts. parseRecord: null skips goal-record classification on
@@ -121,6 +127,22 @@ async function readWorkRecords(taPubkey) {
     if (row && row.uuid && !byUuid.has(row.uuid)) byUuid.set(row.uuid, row);
   }
   return [...byUuid.values()].map(parseWorkRecordRow).filter(Boolean);
+}
+
+// Proposal facts for this owner (second-brain #6, ADR 0006 d10). The SAME
+// ConceptElements union the goals/resources/records use, on the proposal concept's
+// header — tolerant of the concept being absent (a fresh instance answers []).
+async function readProposals(taPubkey) {
+  const headerUuid = `39998:${taPubkey}:${PROPOSAL_CONCEPT_SLUG}`;
+  const [explicitRows, implicitRows] = await Promise.all([
+    runCypher(EXPLICIT_CYPHER, { headerUuid }),
+    runCypher(IMPLICIT_CYPHER, { headerUuid }),
+  ]);
+  const byUuid = new Map();
+  for (const row of [...explicitRows, ...implicitRows]) {
+    if (row && row.uuid && !byUuid.has(row.uuid)) byUuid.set(row.uuid, row);
+  }
+  return [...byUuid.values()].map(parseProposalRow).filter(Boolean);
 }
 
 async function handleGetGoals(req, res) {
@@ -207,13 +229,14 @@ async function handleGetGoalDetail(req, res) {
         freshnessDays: freshnessDays(r, now),
       }));
 
-    // Records (second-brain #5, ADR 0005 d10): the goal's append-only work
-    // records, newest first, each projected to the record-entry shape; produced
-    // locators resolve against `mine` into pointer cards. Extensible — stories
-    // 6/7 merge their concepts' projections into this same array. Empty when
-    // there is no winner (unknown slug) — no hardcoded placeholder.
+    // Records (second-brain #5, ADR 0005 d10; extended #6, ADR 0006 d10): the
+    // goal's append-only spine — work records AND proposal facts, each projected
+    // to the record-entry shape and MERGED newest-date first (the morning-review
+    // reads downward). Produced locators resolve against `mine` into pointer
+    // cards. Empty when there is no winner (unknown slug) — no hardcoded
+    // placeholder. `_createdAt` is an internal tie-break key, stripped on the way out.
     const wr = winner ? (groupWorkRecordsByGoal(await readWorkRecords(taPubkey)).get(winner.slug) || []) : [];
-    const records = sortRecordsByRecency(wr).map((r) => ({
+    const workEntries = wr.map((r) => ({
       date: r.happenedOn,
       type: r.type,
       summary: r.summary,
@@ -229,7 +252,27 @@ async function handleGetGoalDetail(req, res) {
           freshness: deriveFreshness(res, now),
           freshnessDays: freshnessDays(res, now),
         })),
+      _createdAt: r.createdAt,
     }));
+    // Proposal facts (second-brain #6, ADR 0006 d10): proposed/approved/skipped,
+    // projected to the same record-entry shape (session/questions/produced empty)
+    // and merged into the spine. RecordEntry renders any type word unchanged.
+    const pf = winner ? (groupProposalsByGoal(await readProposals(taPubkey)).get(winner.slug) || []) : [];
+    const proposalEntries = pf.map((r) => ({
+      ...proposalEntry(r),
+      session: null,
+      questions: [],
+      produced: [],
+      _createdAt: r.createdAt,
+    }));
+    const records = [...workEntries, ...proposalEntries]
+      .sort((a, b) => {
+        const da = a.date || '';
+        const db = b.date || '';
+        if (da !== db) return da < db ? 1 : -1;               // newest date first
+        return (b._createdAt || 0) - (a._createdAt || 0);     // createdAt tie-break
+      })
+      .map(({ _createdAt, ...entry }) => entry);
 
     const parent = winner && winner.parentUuid ? resolved.find((r) => r.uuid === winner.parentUuid) : null;
     const goal = winner ? {
@@ -318,6 +361,48 @@ async function handleGetOrient(req, res) {
       }
     }
     return res.json({ success: true, goalCount: resolved.length, roots, served });
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+}
+
+// GET /api/brain/proposals — the Proposal queue's read (second-brain #6, ADR
+// 0006 d11). The OPEN proposals only: a `proposed` fact with no decision
+// referencing it (openProposals derives this at read — never a stored flag).
+// Each is projected to an owner-facing card (the nominated goal's NAME resolved
+// from the goals read; the passed-over runners-up likewise). An empty or absent
+// concept answers {success:true, proposals:[]} — an empty queue is a state, not
+// an error. No numeric score (AC6); the card carries comparisons and words only.
+async function handleGetProposals(req, res) {
+  if (!isOwner(req) && !req.localTrusted) {
+    return res.status(403).json({ success: false, error: 'Owner access required' });
+  }
+  try {
+    const taPubkey = getOwnerAssistantPubkey();
+    if (!taPubkey) {
+      return res.status(500).json({ success: false, error: 'Assistant identity unavailable' });
+    }
+    const [proposals, resolved] = await Promise.all([
+      readProposals(taPubkey),
+      readResolvedGoals(taPubkey),
+    ]);
+    const nameBySlug = new Map();
+    for (const g of resolved) {
+      if (g && typeof g.slug === 'string' && !nameBySlug.has(g.slug)) nameBySlug.set(g.slug, g.name);
+    }
+    const open = openProposals(proposals).map((p) => ({
+      proposalId: p.slug,
+      goal: p.goal,
+      goalName: nameBySlug.get(p.goal) || p.goal,
+      whyNow: p.whyNow,
+      passedOver: (Array.isArray(p.passedOver) ? p.passedOver : []).map((x) => ({
+        goal: x.goal,
+        goalName: nameBySlug.get(x.goal) || x.goal,
+        whyNot: x.whyNot,
+      })),
+      madeOn: p.happenedOn,
+    }));
+    return res.json({ success: true, proposals: open });
   } catch (err) {
     return res.status(500).json({ success: false, error: err.message });
   }
@@ -458,6 +543,7 @@ async function handleGetHygiene(req, res) {
 function registerBrainRoutes(app) {
   app.get('/api/brain/goals', handleGetGoals);
   app.get('/api/brain/orient', handleGetOrient);
+  app.get('/api/brain/proposals', handleGetProposals);
   app.get('/api/brain/goals/:slug', handleGetGoalDetail);
   app.get('/api/brain/hygiene', handleGetHygiene);
 }

@@ -13,6 +13,8 @@ const mainNavItems = [
   dashboardItem,
   // Owner-gated: the second-brain Goals view (second-brain #1, ADR 0001).
   { to: '/tapestry/goals', label: '🧠 Goals', ownerOnly: true },
+  // Owner-gated: the second-brain Proposal queue (second-brain #6, ADR 0006).
+  { to: '/tapestry/proposals', label: '🗳️ Proposals', ownerOnly: true },
   {
     label: '📋 Simple Lists',
     prefix: '/tapestry/lists',

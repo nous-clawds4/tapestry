@@ -68,6 +68,7 @@ import ImportPage from './pages/io/ImportPage';
 import Dashboard from './pages/Dashboard';
 import Goals from './pages/brain/Goals';
 import GoalDetail from './pages/brain/GoalDetail';
+import Proposals from './pages/brain/Proposals';
 import BrainstormSearch from './pages/BrainstormSearch';
 import BrainstormProfile from './pages/BrainstormProfile';
 import BrainstormFollows from './pages/BrainstormFollows';
@@ -207,6 +208,7 @@ const router = createBrowserRouter([
       { index: true, element: <Dashboard /> },
       { path: 'goals', element: <Goals />, handle: { crumb: 'Goals' } },
       { path: 'goals/:slug', element: <GoalDetail />, handle: { crumb: 'Detail' } },
+      { path: 'proposals', element: <Proposals />, handle: { crumb: 'Proposals' } },
       {
         path: 'concepts',
         handle: { crumb: 'Concepts' },
