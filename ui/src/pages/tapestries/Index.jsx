@@ -5,6 +5,8 @@ import Breadcrumbs from '../../components/Breadcrumbs';
 import AuthorCell from '../../components/AuthorCell';
 import useProfiles from '../../hooks/useProfiles';
 import { useConfig } from '../../context/ConfigContext';
+import { useAuth } from '../../context/AuthContext';
+import { hasAdminAccess } from '../../utils/auth';
 import { queryRelay } from '../../api/relay';
 
 // A tapestry is an element of the `tapestry` concept: a kind-39999 addressable
@@ -36,6 +38,8 @@ function toRow(ev) {
 export default function TapestriesIndex() {
   const navigate = useNavigate();
   const { taPubkey } = useConfig();
+  const { user } = useAuth();
+  const isOwner = hasAdminAccess(user); // creating a tapestry is owner-only (tapestries #3)
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -87,9 +91,11 @@ export default function TapestriesIndex() {
       <Breadcrumbs />
       <div className="page-header-row">
         <h1>🧵 View Tapestries</h1>
-        <button className="btn btn-primary" onClick={() => navigate('/tapestry/tapestries/new')}>
-          + Create New Tapestry
-        </button>
+        {isOwner && (
+          <button className="btn btn-primary" onClick={() => navigate('/tapestry/tapestries/new')}>
+            + Create New Tapestry
+          </button>
+        )}
       </div>
 
       {loading && <p>Loading tapestries…</p>}

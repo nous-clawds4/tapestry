@@ -8231,3 +8231,31 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
 .brain-record-produced { margin-top: 4px; }
 .brain-record-questions { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
 .brain-record-question { font-size: 0.85rem; color: var(--text-muted); }
+
+/* Create-a-Tapestry authoring form (tapestries #3). Token-driven; no new tokens. */
+.tapestry-new-form { max-width: 640px; }
+.tapestry-concept-filter { margin-bottom: 0.5rem; }
+.tapestry-concept-picker {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-secondary);
+  max-height: 260px;
+  overflow-y: auto;
+  padding: 0.25rem;
+}
+.tapestry-concept-option {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.3rem 0.4rem;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.tapestry-concept-option:hover { background: var(--bg-tertiary); }
+.tapestry-concept-option input { margin: 0; }
+.tapestry-selected-count { color: var(--text-muted); font-size: 0.85rem; margin: 0.4rem 0 0; }
+.tapestry-signing { border: 1px solid var(--border); border-radius: 6px; padding: 0.6rem 0.9rem; }
+.tapestry-signing legend { padding: 0 0.4rem; color: var(--text-muted); font-size: 0.85rem; }
+.tapestry-radio { display: flex; align-items: center; gap: 0.5rem; padding: 0.2rem 0; cursor: pointer; }
+.tapestry-radio input { margin: 0; }
+.tapestry-validation { margin-top: 0.5rem; }
