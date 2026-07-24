@@ -84,5 +84,5 @@ Handles use the instance's runtime-resolved TA pubkey (`<TA>`) — **never hardc
 
 ## Linked artifacts
 - ADR: `engineering-team/decisions/tapestries/0003-create-tapestry-authoring.md`
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/tapestries/3-create-tapestry.test-plan.md`
 - Review: (filled in after Review phase)
