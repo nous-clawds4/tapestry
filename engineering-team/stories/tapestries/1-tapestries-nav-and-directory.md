@@ -1,6 +1,6 @@
 # Story 1: Tapestries navigation + View Tapestries directory + Create stub
 
-**Status:** Draft
+**Status:** Done
 **Created:** 2026-07-23
 **Type:** Feature
 
@@ -51,4 +51,4 @@ None outstanding.
 ## Linked artifacts
 - ADR: `engineering-team/decisions/tapestries/0001-nav-directory-and-strfry-element-read.md`
 - Test plan: `engineering-team/stories/tapestries/1-tapestries-nav-and-directory.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/tapestries/1-nav-and-directory.md` — **PASS** (2026-07-23)
