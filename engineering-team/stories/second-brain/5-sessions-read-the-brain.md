@@ -1,6 +1,6 @@
 # Story 5: Sessions read the brain — bounded orientation and work records
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-07-23
 **Type:** Feature
 **Epic:** `second-brain` (#5) · PRD §5.4, §6, §7.1–7.3
@@ -61,4 +61,4 @@ Deferred to the Architect (mechanism / value, not intent):
 ## Linked artifacts
 - ADR: `engineering-team/decisions/second-brain/0005-work-records-and-bounded-orientation.md`
 - Test plan: `engineering-team/stories/second-brain/5-sessions-read-the-brain.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/second-brain/5-sessions-read-the-brain.md` (PASS)
