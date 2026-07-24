@@ -1,6 +1,6 @@
 # Story 7: Teach it what matters — priority signals
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-07-24
 **Type:** Feature
 **Epic:** `second-brain` (#7) · PRD §5.6, §6, §7.2, §7.6
@@ -66,4 +66,4 @@ The workflow flags >5 acceptance criteria as a split signal. This story maps **1
 ## Linked artifacts
 - ADR: `engineering-team/decisions/second-brain/0007-teach-it-what-matters.md` (Accepted 2026-07-24; wording bundle d5 + no-standing d4 + stamped-framing d8 + `judgedBy:'owner'` d7 all operator-ratified at the gate) — new append-only single-shape `tapestry-priority-signal` concept (fourth runtime-created concept; born final, no lifecycle); one gated producer `record-priority-signal` (no viability requirement; server-stamped `solve-one-today` framing; `judgedBy:'owner'`); the two-goal spine fan-out at READ (one fact → both spines, side-worded); ninth brain require; zero UI diff (GoalDetail byte-pinned).
 - Test plan: `engineering-team/stories/second-brain/7-teach-it-what-matters.test-plan.md` — `test/teach-it-what-matters.test.js` (U/S/H/R). Pre-impl: **10 passed, 17 failed, 0 skipped** (right-reason failures; feature absent). Six siblings green under the widen-only import re-pin (9th brain require). Verified 2026-07-24 at `37c950c0`.
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/second-brain/7-teach-it-what-matters.md` — **PASS** (independent reviewer, 2026-07-24). Full `npm test` Overall PASS (teach-it-what-matters 27/0/0 standalone ×2 and in-gate; six siblings green; 41 pre-existing env skips; router quiesced per OPEN.md 75); impl-commit touched no test file; ui/ diff EMPTY (zero-UI byte-pin held); independent rev7 live round-trip 24/24 (d4 non-viable pair recorded; d5 wording verbatim both spines; stored judgedBy/judgedOn/framing; reversal + byte-unchanged append-only proof; refusals wrote nothing; proposals queue untouched; 401/404 caller classes; teardown to zero residue). `fetchSignals` implementation-note deviation adjudicated defensible (no consumer in the decided design). 4 non-blocking findings (stray blank line; stale epic marker for #7; the notes/code gap on the record; OPEN.md row-94 pre-clean pattern shared by this suite).
