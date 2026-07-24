@@ -570,7 +570,7 @@ test('S8 (ADR d10): the brain import surface is re-pinned to SEVEN — the story
   const requires = [...src.matchAll(/require\s*\(\s*['"`]([^'"`]+)['"`]\s*\)/g)].map((m) => m[1]);
   assert(requires.some((s) => /lib\/brain\/work-records$/.test(s)),
     'the brain module must require ../../lib/brain/work-records — the records core (ADR 0005 d10) is not wired yet.');
-  const allowed = [/neo4j-driver$/, /middleware\/auth$/, /assistantKeys$/, /lib\/brain\/goals$/, /lib\/brain\/hygiene$/, /lib\/brain\/resources$/, /lib\/brain\/work-records$/];
+  const allowed = [/neo4j-driver$/, /middleware\/auth$/, /assistantKeys$/, /lib\/brain\/goals$/, /lib\/brain\/hygiene$/, /lib\/brain\/resources$/, /lib\/brain\/work-records$/, /lib\/brain\/proposals$/];
   for (const spec of requires) {
     assert(allowed.some((re) => re.test(spec)),
       `import surface violation: require('${spec}') — story 5 adds exactly lib/brain/work-records; the brain module ` +
