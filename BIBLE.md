@@ -5,7 +5,7 @@
 >
 > Specifics of the reference deployment at `tapestry.brainstorm.world` (deploy targets, droplet specs, CI/CD workflows, branch protection ruleset, active team, tracking issues, operational gotchas we've hit) live in a sibling document: [OPERATIONS.md](./OPERATIONS.md). If you're forking this repo to run your own instance, BIBLE is the doc you want — OPERATIONS describes someone else's running instance.
 
-**Last updated:** 2026-07-24 (content: §6 graph-embedding convention + §13 Tapestries area + §16 changelog — tapestries book; prior: §11 relationship primitives + probe, §13 set-detail route + owner placement affordances — graph-curation-ui / relationship-primitives)
+**Last updated:** 2026-07-24 (content: §29 Derived-JSON Store — documents the standalone tapestry-store LMDB layer (`tapestryKey` + `lmdb:` pointers), alongside a `handlePut` await fix; prior: §6 graph-embedding convention + §13 Tapestries area + §16 changelog — tapestries book; §11 relationship primitives + probe, §13 set-detail route + owner placement affordances — graph-curation-ui / relationship-primitives)
 
 ---
 
@@ -38,6 +38,8 @@
 25. [The Inherit-From Tag (`b`)](#25-the-inherit-from-tag-b)
 26. [Resolved Definition](#26-resolved-definition)
 27. [Point of View (PoV) Resolution](#27-point-of-view-pov-resolution)
+28. [Open Ranking (ORE) Provider](#28-open-ranking-ore-provider)
+29. [Derived-JSON Store: tapestryKey and the tapestry-store LMDB](#29-derived-json-store-tapestrykey-and-the-tapestry-store-lmdb)
 
 ---
 
@@ -159,6 +161,8 @@ For the specific branches and deploy targets configured in the reference deploym
 | `tapestry-data` | `/var/lib/brainstorm` | App data + user settings |
 | `tapestry-logs` | `/var/log/brainstorm` | Logs |
 | `nostr-search-meili` | `/meili_data` | Meilisearch index data |
+
+**Not a Docker volume — the derived-JSON store.** Separate from strfry's LMDB above, the control panel keeps its own application-level LMDB (the `lmdb` npm package) at `~/.tapestry/lmdb` inside the container, holding derived per-node JSON keyed by each node's `tapestryKey`. It is **not** mapped to a named volume — a rebuildable cache, not a source of truth — so don't confuse it with strfry's event store. See §29.
 
 ### Data Flow
 
@@ -357,6 +361,8 @@ Triggered via the Dashboard "Install Tapestry firmware" button or `POST /api/fir
 ## 8. Word-Wrapper JSON Format
 
 **The format is specified in [protocols/drafts/tapestry-concepts.md](protocols/drafts/tapestry-concepts.md) → "The word-wrapper format" — normative** (structure, the `word` block, type-specific keys, worked examples). In this codebase, all core nodes and firmware concepts carry word-wrapper JSON in their `json` tag; firmware schemas validate it at install time (§7).
+
+A node's `json`-tag value may be held **inline** (as above) or **offloaded** to the derived-JSON LMDB store as an `lmdb:<tapestryKey>` pointer, resolved transparently on read (§29). That is a local storage detail; the wire format is unchanged.
 
 ---
 
@@ -1731,6 +1737,26 @@ The `graperank-personalized` **stats** path is an **unauthenticated provisioning
 ### Deployment
 
 Live on **`staging.brainstorm.world`**: ORE-01 + ORE-02 via [apps#318](https://github.com/nous-clawds4/tapestry/pull/318) (2026-06-18); ORE-05 via [apps#322](https://github.com/nous-clawds4/tapestry/pull/322) (2026-06-19). **Not on production** (the personalized-stats gate above must be resolved first). Sources: ADRs `engineering-team/decisions/open-ranking/0001`–`0002`; book `engineering-team/audits/open-ranking/`; worksheet W12/W13.
+
+---
+
+## 29. Derived-JSON Store: tapestryKey and the tapestry-store LMDB
+
+> **Status: in progress.** This layer is scaffolded and wired, but the migration into it is **not** complete — most node JSON is still stored inline in the `json` tag (§8). Read this section as describing an in-flight subsystem, not a settled state.
+
+Separate from strfry's internal LMDB event store (§4), the control panel keeps its **own** application-level LMDB key-value store — the [`lmdb`](https://www.npmjs.com/package/lmdb) npm package — for **serialized / derived per-node representations**. This is the "tapestry-store". It is unrelated to strfry's LMDB beyond both happening to use the LMDB library.
+
+**Where it lives.** `src/lib/tapestry-store.js` opens a singleton LMDB at `process.env.TAPESTRY_LMDB_PATH || ~/.tapestry/lmdb` (compression on, 256 MB map). Inside the container that resolves under `/root/.tapestry/`, which is **not** mapped to a named Docker volume (§4) — so it is a **rebuildable cache**: lost on container *recreation* and repopulated by the derive engine, never a source of truth.
+
+**Keying — the `tapestryKey` node property.** Each Neo4j node carries a `tapestryKey` (a v4 UUID, assigned once and never changed) that **is** the LMDB key. `POST /api/tapestry-key/initialize` stamps `SET n.tapestryKey` on every node lacking one, and the firmware install does the same (`src/firmware/install.js`, "assign tapestryKeys to all nodes"). Stored values are envelopes: `{ updatedAt, rebuiltFrom?, data }`. A companion `tapestryJsonUpdatedAt` timestamp is written back onto the node whenever the LMDB entry is (re)written.
+
+**The `lmdb:` pointer convention.** Any string property value may hold either the inline value **or** a pointer of the form `lmdb:<tapestryKey>`. `src/lib/tapestry-resolve.js` (`isLmdbRef` / `toLmdbRef` / `resolveValue` / `resolveDeep`) resolves these transparently server-side; the client does the same via `ui/src/utils/lmdb.js`, which fetches `/api/tapestry-key/:key`. A reader gets the data whether it is inline or offloaded — so **resolve through this layer rather than reading a raw property**, since you cannot assume which form a given node uses.
+
+**Write / derive path.** `src/lib/tapestry-derive.js` computes derived JSON per node and calls `store.put(node.tapestryKey, data, …)`, then stamps `tapestryJsonUpdatedAt`. The "offload" endpoints (`POST /api/tapestry-key/offload`, `/offload-all`) take an inline `json`-tag value, write it into LMDB under the parent event's `tapestryKey`, and replace the tag value with the `lmdb:` pointer. The full API surface (`status` / `initialize` / `get` / `put` / `offload` / `resolve` / `derive`) lives in `src/api/tapestry-key/index.js`. All async `store.put` writes must be awaited before the node timestamp is written or the response is sent (regression-guarded by `test/tapestry-key-put-await.test.js`).
+
+**Relationship to the protocol (§5, §8).** Node content is still *specified* in the event's `json` tag (word-wrapper format); the tapestry-store is a **local storage optimization** over that content, not a wire-format change. a-tag addressing and the `json`-tag spec are unaffected.
+
+**Migration status (as of 2026-07).** Per the post-install dashboard (`README.md`), a minority of nodes still need a `tapestryKey` and most `json` tags remain inline in Neo4j — reported there as "harmless and expected for now". The offload is incremental and ongoing.
 
 ---
 
