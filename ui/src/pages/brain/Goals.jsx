@@ -175,7 +175,7 @@ export default function Goals() {
 
       {!loading && error && (
         <p className="brain-error">
-          Couldn't load your goals — <a className="brain-retry" onClick={refetch}>Retry</a>
+          Couldn't load your goals — <button type="button" className="brain-retry" onClick={refetch}>Retry</button>
         </p>
       )}
 

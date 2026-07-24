@@ -181,6 +181,8 @@ const structuresTheBrainCanTrust = require('./structures-the-brain-can-trust.tes
 const breakAGoalIntoPieces = require('./break-a-goal-into-pieces.test.js');
 // epic: second-brain — Story 4 (attach the world — pointers + one-spine detail).
 const attachTheWorld = require('./attach-the-world.test.js');
+// epic: second-brain — Story 5 (sessions read the brain — work records + orient).
+const sessionsReadTheBrain = require('./sessions-read-the-brain.test.js');
 
 async function main() {
   console.log('Running Brainstorm tests...');
@@ -478,6 +480,7 @@ async function main() {
   const structuresTheBrainCanTrustResult = await structuresTheBrainCanTrust.run();
   const breakAGoalIntoPiecesResult = await breakAGoalIntoPieces.run();
   const attachTheWorldResult = await attachTheWorld.run();
+  const sessionsReadTheBrainResult = await sessionsReadTheBrain.run();
 
   console.log('\nTest Results');
   console.log('-------------');
@@ -846,6 +849,12 @@ async function main() {
       : `${attachTheWorldResult.fail === 0 ? 'PASS' : 'FAIL'} (${attachTheWorldResult.pass} passed, ${attachTheWorldResult.fail} failed${attachTheWorldResult.skipped ? `, ${attachTheWorldResult.skipped} skipped` : ''})`;
   console.log(`attach-the-world suite:                          ${attachTheWorldLine}`);
 
+  const sessionsReadTheBrainLine =
+    (sessionsReadTheBrainResult.pass + sessionsReadTheBrainResult.fail) === 0 && sessionsReadTheBrainResult.skipped
+      ? `SKIP (${sessionsReadTheBrainResult.skipped} tests; preconditions not met)`
+      : `${sessionsReadTheBrainResult.fail === 0 ? 'PASS' : 'FAIL'} (${sessionsReadTheBrainResult.pass} passed, ${sessionsReadTheBrainResult.fail} failed${sessionsReadTheBrainResult.skipped ? `, ${sessionsReadTheBrainResult.skipped} skipped` : ''})`;
+  console.log(`sessions-read-the-brain suite:                   ${sessionsReadTheBrainLine}`);
+
   const overallOk =
     configOk &&
     profileTagsResult.fail === 0 &&
@@ -999,7 +1008,10 @@ async function main() {
     breakAGoalIntoPiecesResult.fail === 0 &&
     // second-brain #4 — attach the world (pointers + one-spine detail)
     // (LIVE chain — before the severed terminator; OPEN.md #43).
-    attachTheWorldResult.fail === 0;
+    attachTheWorldResult.fail === 0 &&
+    // second-brain #5 — sessions read the brain (work records + bounded orient)
+    // (LIVE chain — before the severed terminator; OPEN.md #43).
+    sessionsReadTheBrainResult.fail === 0;
     harnessLintResult.fail === 0 &&
     harnessStatsResult.fail === 0 &&
     sessionStartResult.fail === 0 &&
@@ -1038,7 +1050,7 @@ async function main() {
     closeUnauthWriteSurfaceResult, defaultDenyMutationsResult, usersPageNeo4jEndpointResult, strfryWipeOwnerGateResult,
     relationshipPrimitivesResult, relationshipPrimitivesProbeResult, moveNodesBetweenSetsUiResult,
     captureAGoalAndSeeItResult, firmwareConceptElementsSetsResult, structuresTheBrainCanTrustResult,
-    breakAGoalIntoPiecesResult, attachTheWorldResult,
+    breakAGoalIntoPiecesResult, attachTheWorldResult, sessionsReadTheBrainResult,
   ].reduce((sum, r) => sum + ((r && r.skipped) || 0), 0);
   console.log(`Total skipped:                                   ${totalSkipped}`);
   console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);

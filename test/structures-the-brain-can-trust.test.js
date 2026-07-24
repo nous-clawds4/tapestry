@@ -448,13 +448,14 @@ test('S3 (ADR d1): brain import surface re-pin — the 0001 four plus lib/brain/
   const requires = [...src.matchAll(/require\s*\(\s*['"`]([^'"`]+)['"`]\s*\)/g)].map((m) => m[1]);
   assert(requires.some((s) => /lib\/brain\/hygiene$/.test(s)),
     'the brain module must require ../../lib/brain/hygiene — the checker core (ADR 0002) is not wired yet.');
-  // second-brain #4 (ADR 0004 d5) adds lib/brain/resources — the per-goal
-  // endpoint's freshness core; this re-pin admits the six, nothing else.
-  const allowed = [/neo4j-driver$/, /middleware\/auth$/, /assistantKeys$/, /lib\/brain\/goals$/, /lib\/brain\/hygiene$/, /lib\/brain\/resources$/];
+  // second-brain #4 (ADR 0004 d5) adds lib/brain/resources; second-brain #5
+  // (ADR 0005 d10) adds lib/brain/work-records — this re-pin admits the seven,
+  // nothing else.
+  const allowed = [/neo4j-driver$/, /middleware\/auth$/, /assistantKeys$/, /lib\/brain\/goals$/, /lib\/brain\/hygiene$/, /lib\/brain\/resources$/, /lib\/brain\/work-records$/];
   for (const spec of requires) {
     assert(allowed.some((re) => re.test(spec)),
       `import surface violation: require('${spec}') — the brain module allows only lib/neo4j-driver, ` +
-      'middleware/auth, utils/assistantKeys, lib/brain/goals, lib/brain/hygiene, lib/brain/resources (ADR 0002 + ADR 0004 re-pins).');
+      'middleware/auth, utils/assistantKeys, lib/brain/goals, lib/brain/hygiene, lib/brain/resources, lib/brain/work-records (ADR 0002 + ADR 0004 + ADR 0005 re-pins).');
   }
 });
 

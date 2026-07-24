@@ -37,7 +37,8 @@ function freshnessLine(p) {
   const n = typeof p.freshnessDays === 'number' ? Math.max(0, p.freshnessDays) : null;
   if (p.freshness === 'unreachable') return 'unreachable at last check';
   if (p.freshness === 'stale') return n == null ? 'not verified recently' : `not verified in ${n} days`;
-  return n == null ? 'verified recently' : `verified ${n} days ago`;
+  // 'current' is only ever server-derived with a real day-count (OPEN.md row 87a).
+  return `verified ${n} days ago`;
 }
 
 function PointerCard({ pointer }) {
@@ -65,13 +66,28 @@ function PointerCard({ pointer }) {
 }
 
 function RecordEntry({ entry }) {
-  // Append-only: a dated fact with a type word and a one-sentence summary. No
-  // edit affordance exists on any entry, ever (AC 6; the ledger is the ledger).
+  // Append-only: a dated fact with a type word, a one-sentence summary, the
+  // session that left it, any produced resources as pointer cards, and at most
+  // two plain-language questions. No edit affordance exists on any entry, ever
+  // (AC 6; the ledger is the ledger).
   return (
     <li className="brain-record-entry">
-      <span className="brain-record-date">{entry.date}</span>
-      <span className="brain-record-type">{entry.type}</span>
+      <span className="brain-record-head">
+        <span className="brain-record-date">{entry.date}</span>
+        <span className="brain-record-type">{entry.type}</span>
+        {entry.session && <span className="brain-record-session">{entry.session}</span>}
+      </span>
       <span className="brain-record-summary">{entry.summary}</span>
+      {Array.isArray(entry.produced) && entry.produced.length > 0 && (
+        <ul className="brain-record-produced brain-pointer-list">
+          {entry.produced.map((p, i) => <PointerCard key={p.locator || i} pointer={p} />)}
+        </ul>
+      )}
+      {Array.isArray(entry.questions) && entry.questions.length > 0 && (
+        <ul className="brain-record-questions">
+          {entry.questions.map((q, i) => <li key={i} className="brain-record-question">{q}</li>)}
+        </ul>
+      )}
     </li>
   );
 }
@@ -123,7 +139,7 @@ export default function GoalDetail() {
         <Breadcrumbs />
         <Link to="/tapestry/goals" className="bsp-back-link">← Goals</Link>
         <p className="brain-error">
-          Couldn't load this goal — <a className="brain-retry" onClick={refetch}>Retry</a>
+          Couldn't load this goal — <button type="button" className="brain-retry" onClick={refetch}>Retry</button>
         </p>
       </div>
     );

@@ -1,6 +1,6 @@
 # Second Brain — Story 4 Session Handoff (2026-07-23)
 
-**Status:** 🔴 OPEN
+**Status:** ✅ ADDRESSED — story 4 (attach-the-world) review PASS 2026-07-23, shipped to production 2026-07-23 (staging PR #435, prod promotion PR #436, merge `75a81376`). External Resource pointers on a new runtime-created, self-bootstrapping concept (`39998:<TA>:tapestry-external-resource`); `create-resource`/`verify-resource` normalize primitives (gated, local-only, no egress, `(goal, locator)` identity, `serializeGoalWrite`-serialized); the per-goal read `GET /api/brain/goals/:slug` + `pointerCount` on the list read; freshness (`current/stale/unreachable`) derived at read time in the pure `src/lib/brain/resources.js` (STALE_AFTER_DAYS=30); the one-spine Goal detail (pointer cards + append-only record) and the Goals-tree pointer count. Independent review PASS (row 80(b)); 3 non-blocking findings → OPEN.md row 87. See `engineering-team/reviews/second-brain/4-attach-the-world.md` and the story-5 handoff.
 
 > Written at the close of the story-3 session (break-a-goal-into-pieces: review
 > PASS, promoted to production 2026-07-23, PRs #432/#433). This is the pickup
