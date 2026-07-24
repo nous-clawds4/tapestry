@@ -3293,7 +3293,6 @@ async function decideProposal({ proposalId, decision, reason }) {
   return { success: true, result: decision, decision: { uuid, slug, proposalId, goal: proposed.goal, type: decision } };
 }
 
-
 // ══════════════════════════════════════════════════════════════
 // POST /api/normalize/save-element-json
 //   Body: { uuid: "<element uuid>", json: { ... merged JSON } }
