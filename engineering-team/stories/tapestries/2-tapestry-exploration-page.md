@@ -1,6 +1,6 @@
 # Story 2: Tapestry Exploration page
 
-**Status:** Draft
+**Status:** Done
 **Created:** 2026-07-23
 **Type:** Feature
 
@@ -65,4 +65,4 @@ no new backend).
 ## Linked artifacts
 - ADR: `engineering-team/decisions/tapestries/0002-exploration-page-as-authored-rendering.md`
 - Test plan: `engineering-team/stories/tapestries/2-tapestry-exploration-page.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/tapestries/2-tapestry-exploration-page.md` — **PASS** (2026-07-23)

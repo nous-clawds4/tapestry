@@ -38,8 +38,10 @@ Definition of done: the acceptance criteria of both stories under
 - `engineering-team/epics/tapestries.md` — 2 stories:
   1. `stories/tapestries/1-tapestries-nav-and-directory.md` — nav shell + View Tapestries directory
      + Create stub. **Done** (review PASS 2026-07-23, ADR 0001; on `feat/tapestries-skeleton`).
-  2. `stories/tapestries/2-tapestry-exploration-page.md` — the Tapestry Exploration page. **Draft**
-     (not yet started).
+  2. `stories/tapestries/2-tapestry-exploration-page.md` — the Tapestry Exploration page. **Done**
+     (review PASS 2026-07-23, ADR 0002; on `feat/tapestries-skeleton`).
+
+**Both stories are Done → the book looks complete; `/close-book` offered at the Story-2 review gate.**
 
 Future (not yet storied, out of this book unless re-scoped): create a Tapestry; edit a Tapestry;
 POV/WoT filtering of the directory.
