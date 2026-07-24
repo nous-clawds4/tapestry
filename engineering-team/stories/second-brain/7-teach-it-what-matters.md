@@ -64,6 +64,6 @@ Deferred to a gate (intent fixed; wording/mechanism proposed by the Architect, r
 The workflow flags >5 acceptance criteria as a split signal. This story maps **1:1** to the product team's ratified queue unit "Story 7: Teach it what matters — priority signals" and the epic's named story `teach-it-what-matters`; record → both-spine visibility → never-acted-on is a single cohesive contract (splitting would ship a signal that can be recorded but not seen, or seen but not bounded). Stories 5 and 6 shipped at 7 ACs by the same reasoning; this one is 6.
 
 ## Linked artifacts
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/second-brain/0007-teach-it-what-matters.md` (Accepted 2026-07-24; wording bundle d5 + no-standing d4 + stamped-framing d8 + `judgedBy:'owner'` d7 all operator-ratified at the gate) — new append-only single-shape `tapestry-priority-signal` concept (fourth runtime-created concept; born final, no lifecycle); one gated producer `record-priority-signal` (no viability requirement; server-stamped `solve-one-today` framing; `judgedBy:'owner'`); the two-goal spine fan-out at READ (one fact → both spines, side-worded); ninth brain require; zero UI diff (GoalDetail byte-pinned).
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
