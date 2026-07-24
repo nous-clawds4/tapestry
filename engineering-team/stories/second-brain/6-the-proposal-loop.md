@@ -68,5 +68,5 @@ The workflow flags >5 acceptance criteria as a signal to consider splitting. Thi
 
 ## Linked artifacts
 - ADR: `engineering-team/decisions/second-brain/0006-the-proposal-loop.md` (Accepted 2026-07-24) — new append-only `tapestry-proposal` concept, type-discriminated (`proposed`/`approved`/`skipped`), decisions appended as separate facts (the load-bearing (a)/(b) question resolved to append-only shape (b)); three gated producers (`make-proposal`/`approve-proposal`/`skip-proposal`); derive-open-at-read; the goal-detail `records` projection extended (8th brain require); `GET /api/brain/proposals`; the "What next?" queue view. Approve copy ratified: *"Approved — launch it when you're ready."*
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/second-brain/6-the-proposal-loop.test-plan.md` — `test/the-proposal-loop.test.js` (U/S/H/R). Pre-impl: **6 passed, 27 failed, 0 skipped** (right-reason failures; feature absent). Five siblings green under the widen-only import re-pin (8th brain require). Verified 2026-07-24 at `48ca2507`.
 - Review: (filled in after Review phase)

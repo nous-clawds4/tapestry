@@ -557,7 +557,7 @@ test('S11 (ADR d5): the brain import surface is re-pinned to SIX — the story-3
     'the brain module must require ../../lib/brain/resources — the freshness core (ADR 0004 d4) is not wired yet.');
   // second-brain #5 (ADR 0005 d10) widens this by lib/brain/work-records, the
   // records projection core — this pin stays green (widen-only) and admits seven.
-  const allowed = [/neo4j-driver$/, /middleware\/auth$/, /assistantKeys$/, /lib\/brain\/goals$/, /lib\/brain\/hygiene$/, /lib\/brain\/resources$/, /lib\/brain\/work-records$/];
+  const allowed = [/neo4j-driver$/, /middleware\/auth$/, /assistantKeys$/, /lib\/brain\/goals$/, /lib\/brain\/hygiene$/, /lib\/brain\/resources$/, /lib\/brain\/work-records$/, /lib\/brain\/proposals$/];
   for (const spec of requires) {
     assert(allowed.some((re) => re.test(spec)),
       `import surface violation: require('${spec}') — story 4 adds lib/brain/resources, story 5 adds lib/brain/work-records; ` +

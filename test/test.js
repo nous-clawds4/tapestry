@@ -183,6 +183,7 @@ const breakAGoalIntoPieces = require('./break-a-goal-into-pieces.test.js');
 const attachTheWorld = require('./attach-the-world.test.js');
 // epic: second-brain — Story 5 (sessions read the brain — work records + orient).
 const sessionsReadTheBrain = require('./sessions-read-the-brain.test.js');
+const theProposalLoop = require('./the-proposal-loop.test.js');
 
 async function main() {
   console.log('Running Brainstorm tests...');
@@ -481,6 +482,7 @@ async function main() {
   const breakAGoalIntoPiecesResult = await breakAGoalIntoPieces.run();
   const attachTheWorldResult = await attachTheWorld.run();
   const sessionsReadTheBrainResult = await sessionsReadTheBrain.run();
+  const theProposalLoopResult = await theProposalLoop.run();
 
   console.log('\nTest Results');
   console.log('-------------');
@@ -855,6 +857,12 @@ async function main() {
       : `${sessionsReadTheBrainResult.fail === 0 ? 'PASS' : 'FAIL'} (${sessionsReadTheBrainResult.pass} passed, ${sessionsReadTheBrainResult.fail} failed${sessionsReadTheBrainResult.skipped ? `, ${sessionsReadTheBrainResult.skipped} skipped` : ''})`;
   console.log(`sessions-read-the-brain suite:                   ${sessionsReadTheBrainLine}`);
 
+  const theProposalLoopLine =
+    (theProposalLoopResult.pass + theProposalLoopResult.fail) === 0 && theProposalLoopResult.skipped
+      ? `SKIP (${theProposalLoopResult.skipped} tests; preconditions not met)`
+      : `${theProposalLoopResult.fail === 0 ? 'PASS' : 'FAIL'} (${theProposalLoopResult.pass} passed, ${theProposalLoopResult.fail} failed${theProposalLoopResult.skipped ? `, ${theProposalLoopResult.skipped} skipped` : ''})`;
+  console.log(`the-proposal-loop suite:                         ${theProposalLoopLine}`);
+
   const overallOk =
     configOk &&
     profileTagsResult.fail === 0 &&
@@ -1011,7 +1019,10 @@ async function main() {
     attachTheWorldResult.fail === 0 &&
     // second-brain #5 — sessions read the brain (work records + bounded orient)
     // (LIVE chain — before the severed terminator; OPEN.md #43).
-    sessionsReadTheBrainResult.fail === 0;
+    sessionsReadTheBrainResult.fail === 0 &&
+    // second-brain #6 — the proposal loop (propose/decide + queue view)
+    // (LIVE chain — before the severed terminator; OPEN.md #43).
+    theProposalLoopResult.fail === 0;
     harnessLintResult.fail === 0 &&
     harnessStatsResult.fail === 0 &&
     sessionStartResult.fail === 0 &&
@@ -1050,7 +1061,7 @@ async function main() {
     closeUnauthWriteSurfaceResult, defaultDenyMutationsResult, usersPageNeo4jEndpointResult, strfryWipeOwnerGateResult,
     relationshipPrimitivesResult, relationshipPrimitivesProbeResult, moveNodesBetweenSetsUiResult,
     captureAGoalAndSeeItResult, firmwareConceptElementsSetsResult, structuresTheBrainCanTrustResult,
-    breakAGoalIntoPiecesResult, attachTheWorldResult, sessionsReadTheBrainResult,
+    breakAGoalIntoPiecesResult, attachTheWorldResult, sessionsReadTheBrainResult, theProposalLoopResult,
   ].reduce((sum, r) => sum + ((r && r.skipped) || 0), 0);
   console.log(`Total skipped:                                   ${totalSkipped}`);
   console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);
