@@ -85,4 +85,4 @@ Handles use the instance's runtime-resolved TA pubkey (`<TA>`) — **never hardc
 ## Linked artifacts
 - ADR: `engineering-team/decisions/tapestries/0003-create-tapestry-authoring.md`
 - Test plan: `engineering-team/stories/tapestries/3-create-tapestry.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/tapestries/3-create-tapestry.md` — **CHANGES_REQUESTED** (own-key redirect 404; 2026-07-24)
