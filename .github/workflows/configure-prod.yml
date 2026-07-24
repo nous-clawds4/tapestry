@@ -49,13 +49,12 @@ jobs:
           SET_MNEMONIC: ${{ inputs.set_mnemonic }}
           SET_WALLET_ID: ${{ inputs.set_wallet_id }}
         run: |
-          # max_sats: positive integer, no leading zeros, <= 100. NaN would defeat
-          # the per-payment cap check in autoPayWatcher.js, so reject it up front.
-          if ! printf '%s' "$MAX_SATS" | grep -Eq '^[1-9][0-9]*$'; then
-            echo "::error::max_sats must be a positive integer with no leading zeros (got '$MAX_SATS')"; exit 1
-          fi
-          if [ "$MAX_SATS" -gt 100 ]; then
-            echo "::error::max_sats must be <= 100 (got '$MAX_SATS')"; exit 1
+          # max_sats: integer 1-100, bounded in the regex itself. An arithmetic
+          # `-gt 100` test errors on values above int64; under set -e inside an
+          # `if`, that error is swallowed and the cap is silently bypassed. A
+          # NaN/huge value would also defeat the per-payment cap in autoPayWatcher.js.
+          if ! printf '%s' "$MAX_SATS" | grep -Eq '^([1-9][0-9]?|100)$'; then
+            echo "::error::max_sats must be an integer 1-100 (got '$MAX_SATS')"; exit 1
           fi
           if [ "$SET_MNEMONIC" = "true" ] && [ -z "$MNEMONIC" ]; then
             echo "::error::set_mnemonic=true but secret MDK_DEMO_WALLET_MNEMONIC is empty"; exit 1
@@ -133,7 +132,7 @@ jobs:
             set_kv AUTO_PAY_MAX_SATS "$MAX_SATS_IN"
             if [ "$CLEAR_MNEMONIC_IN" = "true" ]; then
               # Remove the seed from prod .env (no SSH-less alternative otherwise).
-              grep -v '^MDK_WALLET_MNEMONIC=' .env > .env.tmp && mv .env.tmp .env
+              grep -v '^MDK_WALLET_MNEMONIC=' .env > .env.tmp || true; mv .env.tmp .env
               echo "mnemonic: cleared"
             fi
             chmod 600 .env
@@ -143,7 +142,7 @@ jobs:
             if [ -n "$ISSUER_IN" ]; then
               echo "$ISSUER_IN" | grep -Eq '^[0-9a-f]{64}$' || { echo "::error::issuer_pubkey must be 64-char lowercase hex"; exit 1; }
               sleep 5
-              docker compose exec -T tapestry node bin/agent.js provision-delegate --issuer "$ISSUER_IN"
+              docker compose exec -T tapestry node /usr/local/lib/node_modules/brainstorm/bin/agent.js provision-delegate --issuer "$ISSUER_IN"
             fi
             if [ -n "$PREFLIGHT_CLAIMANTS_IN" ]; then
               echo "$ISSUER_IN" | grep -Eq '^[0-9a-f]{64}$' || { echo "::error::preflight_claimants requires issuer_pubkey as 64-char lowercase hex"; exit 1; }
@@ -153,8 +152,10 @@ jobs:
               # Absolute path: the whole repo is COPYed to this dir in the image
               # (Dockerfile: COPY . /usr/local/lib/node_modules/brainstorm/), so the
               # script + its node_modules resolve regardless of container CWD.
-              # || true: print PASS/FAIL, never fail the job.
-              docker compose exec -T tapestry node /usr/local/lib/node_modules/brainstorm/scripts/phase1-preflight.js "$ISSUER_IN" $CLAIMANTS_SP --min-rank "$MIN_RANK_IN" || true
+              # || true: print PASS/FAIL, never fail the job. set -f: the unquoted
+              # $CLAIMANTS_SP is intentionally word-split; disable globbing so a
+              # stray '*' in the input can't expand against the droplet filesystem.
+              ( set -f; docker compose exec -T tapestry node /usr/local/lib/node_modules/brainstorm/scripts/phase1-preflight.js "$ISSUER_IN" $CLAIMANTS_SP --min-rank "$MIN_RANK_IN" ) || true
             fi
             echo "done"
         env:

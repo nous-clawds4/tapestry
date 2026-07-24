@@ -270,12 +270,21 @@ fi
 # survives recreates. The seed is passed via process.env (never argv/logs); mode
 # 600 file, 700 dir. Guarded on both env vars being present.
 if [ -n "${MDK_WALLET_MNEMONIC:-}" ] && [ -n "${MDK_WALLET_ID:-}" ]; then
-  MDK_WALLET_NETWORK="${MDK_WALLET_NETWORK:-mainnet}" node -e '
+  # HOME=/root is pinned so the writer targets the exact dir the brainstorm
+  # supervisord program (HOME=/root) reads, rather than relying on the passwd
+  # fallback happening to agree.
+  if HOME=/root MDK_WALLET_NETWORK="${MDK_WALLET_NETWORK:-mainnet}" node -e '
     const fs=require("fs"),os=require("os"),p=require("path");
     const dir=p.join(os.homedir(),".mdk-wallet");
     fs.mkdirSync(dir,{recursive:true,mode:0o700});
     fs.writeFileSync(p.join(dir,"config.json"),JSON.stringify({mnemonic:process.env.MDK_WALLET_MNEMONIC,network:process.env.MDK_WALLET_NETWORK||"mainnet",walletId:process.env.MDK_WALLET_ID}),{mode:0o600});
-  ' && echo "[entrypoint] mdk wallet config materialized" || echo "[entrypoint] WARNING: could not materialize mdk wallet config"
+  '; then
+    echo "[entrypoint] mdk wallet config materialized"
+  else
+    # Loud on stderr: the operator opted in (both vars set), so a failure here
+    # means auto-pay is silently broken even though the container comes up.
+    echo "[entrypoint] ERROR: could not materialize mdk wallet config — auto-pay will not work" >&2
+  fi
 fi
 
 # --- Ensure node_modules exist (handles bind-mount + volume case) ---
