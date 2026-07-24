@@ -8,41 +8,118 @@ on:
         type: boolean
         default: true
       max_sats:
-        description: "AUTO_PAY_MAX_SATS"
+        description: "AUTO_PAY_MAX_SATS (positive integer, <= 100)"
         type: string
         default: "100"
       set_mnemonic:
         description: "Write MDK_WALLET_MNEMONIC from secret MDK_DEMO_WALLET_MNEMONIC"
         type: boolean
         default: false
+      set_wallet_id:
+        description: "Write MDK_WALLET_ID from secret MDK_DEMO_WALLET_ID"
+        type: boolean
+        default: false
+      clear_mnemonic:
+        description: "Remove MDK_WALLET_MNEMONIC from prod .env, then restart"
+        type: boolean
+        default: false
       issuer_pubkey:
         description: "If set (64-char hex), provision the auto-pay delegate for this issuer"
         type: string
         default: ""
+      preflight_claimants:
+        description: "Comma-separated claimant npubs/hex; runs read-only trust preflight (needs issuer_pubkey)"
+        type: string
+        default: ""
+      min_rank:
+        description: "Minimum trust rank for the preflight (default 3)"
+        type: string
+        default: "3"
 
 jobs:
   configure:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - name: Guard mnemonic secret
-        if: ${{ inputs.set_mnemonic }}
+      - name: Validate inputs and guard secrets
         env:
           MNEMONIC: ${{ secrets.MDK_DEMO_WALLET_MNEMONIC }}
+          WALLET_ID: ${{ secrets.MDK_DEMO_WALLET_ID }}
+          MAX_SATS: ${{ inputs.max_sats }}
+          SET_MNEMONIC: ${{ inputs.set_mnemonic }}
+          SET_WALLET_ID: ${{ inputs.set_wallet_id }}
         run: |
-          if [ -z "$MNEMONIC" ]; then
+          # max_sats: positive integer, no leading zeros, <= 100. NaN would defeat
+          # the per-payment cap check in autoPayWatcher.js, so reject it up front.
+          if ! printf '%s' "$MAX_SATS" | grep -Eq '^[1-9][0-9]*$'; then
+            echo "::error::max_sats must be a positive integer with no leading zeros (got '$MAX_SATS')"; exit 1
+          fi
+          if [ "$MAX_SATS" -gt 100 ]; then
+            echo "::error::max_sats must be <= 100 (got '$MAX_SATS')"; exit 1
+          fi
+          if [ "$SET_MNEMONIC" = "true" ] && [ -z "$MNEMONIC" ]; then
             echo "::error::set_mnemonic=true but secret MDK_DEMO_WALLET_MNEMONIC is empty"; exit 1
           fi
-      - name: Configure via SSH
-        uses: appleboy/ssh-action@v1
+          if [ "$SET_WALLET_ID" = "true" ] && [ -z "$WALLET_ID" ]; then
+            echo "::error::set_wallet_id=true but secret MDK_DEMO_WALLET_ID is empty"; exit 1
+          fi
+          echo "inputs valid"
+
+      # ── Step 1: write the two secret keys (mnemonic + wallet id). This step is
+      # the ONLY one that receives the mnemonic in its env, and it does not
+      # restart the stack — so a delegate-only / operate-only run never forwards
+      # the seed to a runner that has no reason to hold it. ──
+      - name: Write secrets via SSH
+        if: ${{ inputs.set_mnemonic || inputs.set_wallet_id }}
+        uses: appleboy/ssh-action@v1.2.2
+        timeout-minutes: 10
+        with:
+          host: ${{ secrets.DEPLOY_HOST_MAGIC_CARPET }}
+          username: ${{ secrets.DEPLOY_USER_MAGIC_CARPET }}
+          key: ${{ secrets.DEPLOY_SSH_KEY_MAGIC_CARPET }}
+          command_timeout: 8m
+          envs: SET_MNEMONIC_IN,MNEMONIC_IN,SET_WALLET_ID_IN,WALLET_ID_IN
+          script: |
+            umask 077
+            set -eu
+            cd /opt/tapestry
+            touch .env
+            set_kv() { # idempotent key replace/append; never prints values
+              key="$1"; val="$2"
+              grep -v "^${key}=" .env > .env.tmp || true
+              printf '%s=%s\n' "$key" "$val" >> .env.tmp
+              mv .env.tmp .env
+            }
+            if [ "$SET_MNEMONIC_IN" = "true" ]; then
+              set_kv MDK_WALLET_MNEMONIC "$MNEMONIC_IN"
+              echo "mnemonic: written"
+            fi
+            if [ "$SET_WALLET_ID_IN" = "true" ]; then
+              set_kv MDK_WALLET_ID "$WALLET_ID_IN"
+              echo "wallet id: written"
+            fi
+            chmod 600 .env
+            echo "secrets step done"
+        env:
+          SET_MNEMONIC_IN: ${{ inputs.set_mnemonic }}
+          MNEMONIC_IN: ${{ secrets.MDK_DEMO_WALLET_MNEMONIC }}
+          SET_WALLET_ID_IN: ${{ inputs.set_wallet_id }}
+          WALLET_ID_IN: ${{ secrets.MDK_DEMO_WALLET_ID }}
+
+      # ── Step 2: operate. Has NO mnemonic in its env. Applies non-secret config,
+      # optionally clears the seed, restarts the stack, provisions the delegate,
+      # and runs the read-only trust preflight. ──
+      - name: Operate via SSH
+        uses: appleboy/ssh-action@v1.2.2
         timeout-minutes: 15
         with:
           host: ${{ secrets.DEPLOY_HOST_MAGIC_CARPET }}
           username: ${{ secrets.DEPLOY_USER_MAGIC_CARPET }}
           key: ${{ secrets.DEPLOY_SSH_KEY_MAGIC_CARPET }}
           command_timeout: 12m
-          envs: AUTO_PAY_ENABLED_IN,MAX_SATS_IN,SET_MNEMONIC_IN,MNEMONIC_IN,ISSUER_IN
+          envs: AUTO_PAY_ENABLED_IN,MAX_SATS_IN,CLEAR_MNEMONIC_IN,ISSUER_IN,PREFLIGHT_CLAIMANTS_IN,MIN_RANK_IN
           script: |
+            umask 077
             set -eu
             cd /opt/tapestry
             touch .env
@@ -54,9 +131,10 @@ jobs:
             }
             set_kv AUTO_PAY_ENABLED "$AUTO_PAY_ENABLED_IN"
             set_kv AUTO_PAY_MAX_SATS "$MAX_SATS_IN"
-            if [ "$SET_MNEMONIC_IN" = "true" ]; then
-              set_kv MDK_WALLET_MNEMONIC "$MNEMONIC_IN"
-              echo "mnemonic: written"
+            if [ "$CLEAR_MNEMONIC_IN" = "true" ]; then
+              # Remove the seed from prod .env (no SSH-less alternative otherwise).
+              grep -v '^MDK_WALLET_MNEMONIC=' .env > .env.tmp && mv .env.tmp .env
+              echo "mnemonic: cleared"
             fi
             chmod 600 .env
             echo "env keys now present:"
@@ -67,10 +145,22 @@ jobs:
               sleep 5
               docker compose exec -T tapestry node bin/agent.js provision-delegate --issuer "$ISSUER_IN"
             fi
+            if [ -n "$PREFLIGHT_CLAIMANTS_IN" ]; then
+              echo "$ISSUER_IN" | grep -Eq '^[0-9a-f]{64}$' || { echo "::error::preflight_claimants requires issuer_pubkey as 64-char lowercase hex"; exit 1; }
+              # Comma list -> space-separated positional args for the preflight CLI.
+              CLAIMANTS_SP=$(printf '%s' "$PREFLIGHT_CLAIMANTS_IN" | tr ',' ' ')
+              echo "running read-only trust preflight for issuer $ISSUER_IN (min-rank $MIN_RANK_IN) ..."
+              # Absolute path: the whole repo is COPYed to this dir in the image
+              # (Dockerfile: COPY . /usr/local/lib/node_modules/brainstorm/), so the
+              # script + its node_modules resolve regardless of container CWD.
+              # || true: print PASS/FAIL, never fail the job.
+              docker compose exec -T tapestry node /usr/local/lib/node_modules/brainstorm/scripts/phase1-preflight.js "$ISSUER_IN" $CLAIMANTS_SP --min-rank "$MIN_RANK_IN" || true
+            fi
             echo "done"
         env:
           AUTO_PAY_ENABLED_IN: ${{ inputs.enable_auto_pay }}
           MAX_SATS_IN: ${{ inputs.max_sats }}
-          SET_MNEMONIC_IN: ${{ inputs.set_mnemonic }}
-          MNEMONIC_IN: ${{ secrets.MDK_DEMO_WALLET_MNEMONIC }}
+          CLEAR_MNEMONIC_IN: ${{ inputs.clear_mnemonic }}
           ISSUER_IN: ${{ inputs.issuer_pubkey }}
+          PREFLIGHT_CLAIMANTS_IN: ${{ inputs.preflight_claimants }}
+          MIN_RANK_IN: ${{ inputs.min_rank }}

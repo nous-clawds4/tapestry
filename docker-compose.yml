@@ -29,6 +29,8 @@ services:
       - AUTO_PAY_INTERVAL_MS=${AUTO_PAY_INTERVAL_MS:-30000}
       - AUTO_PAY_ZAP_RELAYS=${AUTO_PAY_ZAP_RELAYS:-wss://localhost:7777}
       - MDK_WALLET_MNEMONIC=${MDK_WALLET_MNEMONIC:-}
+      - MDK_WALLET_ID=${MDK_WALLET_ID:-}
+      - MDK_WALLET_NETWORK=${MDK_WALLET_NETWORK:-mainnet}
       - RELAY_KEY_MASTER_KEY=${RELAY_KEY_MASTER_KEY:-}
     volumes:
       - tapestry-neo4j:/var/lib/neo4j/data

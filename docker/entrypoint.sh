@@ -262,6 +262,22 @@ if [ -f "${BRAINSTORM_MODULE_BASE_DIR}setup/create_nostr_identity.sh" ]; then
   "${BRAINSTORM_MODULE_BASE_DIR}setup/create_nostr_identity.sh" || echo "WARNING: Failed to generate Nostr identity"
 fi
 
+# --- MDK agent-wallet config bootstrap (runs as root here; HOME=/root, same as
+# the brainstorm supervisord program, so os.homedir() matches). agent-wallet's
+# loadConfig() reads walletId ONLY from ~/.mdk-wallet/config.json — never from an
+# env var — so without this file the wallet reports "Wallet not initialized" and
+# every auto-pay claim fails. Idempotent: rewritten on every boot from env, so it
+# survives recreates. The seed is passed via process.env (never argv/logs); mode
+# 600 file, 700 dir. Guarded on both env vars being present.
+if [ -n "${MDK_WALLET_MNEMONIC:-}" ] && [ -n "${MDK_WALLET_ID:-}" ]; then
+  MDK_WALLET_NETWORK="${MDK_WALLET_NETWORK:-mainnet}" node -e '
+    const fs=require("fs"),os=require("os"),p=require("path");
+    const dir=p.join(os.homedir(),".mdk-wallet");
+    fs.mkdirSync(dir,{recursive:true,mode:0o700});
+    fs.writeFileSync(p.join(dir,"config.json"),JSON.stringify({mnemonic:process.env.MDK_WALLET_MNEMONIC,network:process.env.MDK_WALLET_NETWORK||"mainnet",walletId:process.env.MDK_WALLET_ID}),{mode:0o600});
+  ' && echo "[entrypoint] mdk wallet config materialized" || echo "[entrypoint] WARNING: could not materialize mdk wallet config"
+fi
+
 # --- Ensure node_modules exist (handles bind-mount + volume case) ---
 if [ ! -d "${BRAINSTORM_MODULE_BASE_DIR}node_modules/express" ]; then
   echo "Installing npm dependencies..."
