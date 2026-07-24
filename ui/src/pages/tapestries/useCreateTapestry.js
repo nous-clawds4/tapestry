@@ -25,6 +25,15 @@ function toConcept(ev) {
     const raw = ev.tags?.find((t) => t[0] === 'json')?.[1];
     if (raw) { const j = JSON.parse(raw); word = j.word || {}; conceptHeader = j.conceptHeader || {}; }
   } catch { /* malformed json → fall back to the d-tag below */ }
+  // Keyword search matches this blob (not just the display name): every naming form the
+  // concept-header carries — oNames/oSlugs/oKeys/oTitles/oLabels (singular+plural), word.name/slug,
+  // the d-tag — plus the free-text description. Built once here; the typeahead filters on it.
+  const both = (o) => (o ? [o.singular, o.plural] : []);
+  const searchText = [
+    ...both(conceptHeader.oNames), ...both(conceptHeader.oSlugs), ...both(conceptHeader.oKeys),
+    ...both(conceptHeader.oTitles), ...both(conceptHeader.oLabels),
+    word.name, word.slug, dTag, conceptHeader.description,
+  ].filter(Boolean).join(' ').toLowerCase();
   return {
     handle: `39998:${ev.pubkey}:${dTag}`,        // the concept-header coordinate (d-tag = short slug)
     shortSlug: dTag,
@@ -33,6 +42,7 @@ function toConcept(ev) {
     conceptGraphSlug: conceptHeader.oSlugs?.singular || dTag,
     descriptiveSlug: word.slug || `concept-header-for-${dTag}`, // word.slug → clean dedup at read time
     name: conceptHeader.oNames?.singular || word.name || dTag,  // friendly display name
+    searchText,
   };
 }
 

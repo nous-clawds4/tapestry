@@ -102,6 +102,10 @@ Logged per `roles/implementer.md` §9. Review-fix cycle (review verdict CHANGES_
   has text (hidden when empty), clicking a match adds it to a compact always-visible removable-chip list
   (added concepts drop out of results). Input-UX only — published wire shape unchanged. Verified by
   executing the Playwright spec (E1/E7 + updated pickConcept) against the built UI: **7/7 in chromium**.
+- **[post-staging UX polish, operator request]** Broadened the concept **keyword search** beyond the
+  display name to a `searchText` blob spanning all concept-header naming fields
+  (oNames/oSlugs/oKeys/oTitles/oLabels + word.name/slug + d-tag) **and the description** — all already
+  present on the strfry kind-39998 event (no new data source). Node S8 + Playwright E8 (8/8 chromium).
 - **[judgment call]** The Implementer authored the regression tests for these fixes in the fix cycle
   (unit P10 = uuid-per-signer, P11 = import-from-`conceptGraphSlug`, source S7; updated the P5 fixture;
   strengthened Playwright E6 to assert own-key navigation) rather than round-tripping to the Tester —
