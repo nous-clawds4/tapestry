@@ -83,6 +83,6 @@ Handles use the instance's runtime-resolved TA pubkey (`<TA>`) — **never hardc
   available. *Flagged for the Architect (data source + empty-state); not a blocker for approval.*
 
 ## Linked artifacts
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/tapestries/0003-create-tapestry-authoring.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
