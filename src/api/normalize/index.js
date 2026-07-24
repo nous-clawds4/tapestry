@@ -3293,6 +3293,7 @@ async function decideProposal({ proposalId, decision, reason }) {
   return { success: true, result: decision, decision: { uuid, slug, proposalId, goal: proposed.goal, type: decision } };
 }
 
+
 // ══════════════════════════════════════════════════════════════
 // POST /api/normalize/save-element-json
 //   Body: { uuid: "<element uuid>", json: { ... merged JSON } }
@@ -4617,6 +4618,194 @@ async function handleSetJsonTag(req, res) {
   }
 }
 
+// ══════════════════════════════════════════════════════════════
+// Priority signals (second-brain #7, ADR 0007). The owner's pairwise choices
+// — "solve one today: which?" — recorded as dated, attributed, framing-tagged
+// facts on a new runtime-created concept. Gated first, validated before any
+// write, serialized through serializeGoalWrite, local-only (publishToStrfry +
+// importEventDirect — never published to the wider network). The concept
+// self-bootstraps on the first signal (ADR 0007 d9; never firmware-seeded).
+// A signal is BORN FINAL (PRD §7.2): single shape, no lifecycle, no decision,
+// no dedup — the same pair may be chosen again (each a new dated fact, the
+// corpus accumulating, reversals included); every write mints a fresh element
+// under a random d-tag and nothing on this path ever regenerates or re-signs.
+// The framing is SERVER-STAMPED (ADR 0007 d8): a caller-supplied framing is
+// the §7.6 swap hatch, deliberately not built in v1.
+// ══════════════════════════════════════════════════════════════
+
+const SIGNAL_CONCEPT_NAME = 'tapestry priority signal';
+const SIGNAL_FRAMING_V1 = 'solve-one-today';  // ADR 0007 d8/d13: the v1 framing tag, stamped on every signal.
+
+// The Priority Signal schema (ADR 0007 d1) — a single concept-object wrapper so
+// the save-schema primary-property fold (ADR 0003 d8) has its one top-level
+// properties key; `required` is mirrored into the primary-property node. The
+// reason is the ONE optional field (AC2: judged-by, judged-on, and the framing
+// are all present on every signal).
+const SIGNAL_SCHEMA = {
+  type: 'object',
+  properties: {
+    prioritySignal: {
+      type: 'object',
+      title: 'Priority Signal',
+      required: ['name', 'slug', 'description', 'prefers', 'over', 'judgedBy', 'judgedOn', 'framing'],
+      properties: {
+        name: { type: 'string', description: 'a short label for this signal, in plain words' },
+        slug: { type: 'string', description: 'stable identity for this signal (unique per element)' },
+        description: { type: 'string', description: 'a short description (the choice, with both goals named)' },
+        prefers: { type: 'string', description: 'the slug of the goal the owner chose' },
+        over: { type: 'string', description: 'the slug of the goal passed over in this choice' },
+        reason: { type: 'string', description: 'the optional one-line reason for the choice' },
+        judgedBy: { type: 'string', description: 'who made the choice (the owner in v1)' },
+        judgedOn: { type: 'string', description: 'the date the choice was made' },
+        framing: { type: 'string', description: 'the framing that produced this signal (which question was asked)' },
+      },
+      'x-tapestry': { unique: ['slug'] },
+    },
+  },
+  required: ['prioritySignal'],
+};
+
+// Resolve the runtime-created Priority Signal concept's header + superset
+// (mirrors resolveProposalConcept; the header match tolerates a freshly-created
+// concept's labels).
+async function resolveSignalConcept() {
+  const rows = await runCypher(`
+    MATCH (h:NostrEvent)
+    WHERE (h:ListHeader OR h:ClassThreadHeader OR h:ConceptHeader) AND h.kind IN [9998, 39998]
+      AND h.name = $concept
+    OPTIONAL MATCH (h)-[:${REL.CLASS_THREAD_INITIATION}]->(sup:Superset)
+    RETURN h.uuid AS headerUuid, sup.uuid AS supersetUuid
+    LIMIT 1
+  `, { concept: SIGNAL_CONCEPT_NAME });
+  if (rows.length === 0) return { error: `Concept "${SIGNAL_CONCEPT_NAME}" not found` };
+  if (!rows[0].supersetUuid) return { error: `Concept "${SIGNAL_CONCEPT_NAME}" has no Superset node.` };
+  return { headerUuid: rows[0].headerUuid, supersetUuid: rows[0].supersetUuid };
+}
+
+// Self-bootstrap the Priority Signal concept (ADR 0007 d9): idempotent — a
+// structural copy of ensureProposalConcept. create-concept ("already exists" →
+// success) + save-schema (folds the primary-property reconcile) run ONLY when
+// the concept is absent, so there is no per-write churn after the first signal.
+// §5.9: a fresh instance self-provisions with no manual step; never
+// firmware-seeded.
+async function ensureSignalConcept() {
+  const existing = await resolveSignalConcept();
+  if (!existing.error) return existing;
+  await invokeNormalizeHandler(handleCreateConcept, {
+    name: SIGNAL_CONCEPT_NAME,
+    description: 'A dated, append-only record of the owner choosing one goal over another — who judged, when, and under which framing. Never edited; a changed mind is a new signal.',
+  });
+  await invokeNormalizeHandler(handleSaveSchema, { concept: SIGNAL_CONCEPT_NAME, schema: SIGNAL_SCHEMA });
+  const provisioned = await resolveSignalConcept();
+  if (provisioned.error) {
+    throw new Error(`ensureSignalConcept failed to provision the concept: ${provisioned.error}`);
+  }
+  return provisioned;
+}
+
+// The append-only Priority Signal mint (ADR 0007 d2): a fresh RANDOM d-tag each
+// call, so no write can ever MERGE over a prior signal (the
+// mintProposalElement idiom — reversals and repeat pairs are each their own
+// fact) and nothing is re-signed. Builds the json section from the caller's
+// fields plus the derived unique slug; returns the minted element's uuid + slug.
+async function mintSignalElement({ headerUuid, supersetUuid, label, section }) {
+  const nonce = randomDTag();
+  const dTag = dtag.childDTag(label, headerUuid, nonce);
+  const slug = `${dtag.slug(label)}-${nonce}`;
+  const recordSection = { name: `preferred: ${section.prefers} over ${section.over}`, slug, ...section };
+  const tags = [
+    ['d', dTag],
+    ['name', recordSection.name],
+    ['z', headerUuid],
+    ['json', JSON.stringify({ prioritySignal: recordSection })],
+  ];
+  const evt = signAndFinalize({ kind: 39999, tags, content: '' });
+  const elemUuid = `39999:${evt.pubkey}:${dTag}`;
+  await publishToStrfry(evt);
+  await importEventDirect(evt, elemUuid);
+  await writeCypher(`MATCH (n:NostrEvent {uuid: $uuid}) SET n:ListItem, n.slug = $slug`, { uuid: elemUuid, slug });
+  await writeCypher(`
+    MATCH (sup:NostrEvent {uuid: $supersetUuid}), (elem:NostrEvent {uuid: $elemUuid})
+    MERGE (sup)-[:${REL.CLASS_THREAD_TERMINATION}]->(elem)
+  `, { supersetUuid, elemUuid });
+  return { uuid: elemUuid, slug };
+}
+
+async function handleRecordPrioritySignal(req, res) {
+  try {
+    const { isOwner } = require('../../middleware/auth');
+    if (!isOwner(req) && !req.localTrusted) {
+      return res.status(403).json({ success: false, error: 'Owner access required' });
+    }
+    const { prefers, over, reason } = req.body || {};
+    if (!prefers || typeof prefers !== 'string' || !prefers.trim()) {
+      return res.status(400).json({ success: false, error: 'Missing the chosen goal slug' });
+    }
+    if (!over || typeof over !== 'string' || !over.trim()) {
+      return res.status(400).json({ success: false, error: 'Missing the passed-over goal slug' });
+    }
+    if (reason != null && typeof reason !== 'string') {
+      return res.status(400).json({ success: false, error: 'The reason must be a short sentence when given' });
+    }
+    const result = await serializeGoalWrite(() => recordPrioritySignal({
+      prefersSlug: prefers.trim(),
+      overSlug: over.trim(),
+      reason: typeof reason === 'string' && reason.trim() ? reason.trim() : null,
+    }));
+    return res.json(result);
+  } catch (error) {
+    console.error('normalize/record-priority-signal error:', error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+}
+
+async function recordPrioritySignal({ prefersSlug, overSlug, reason }) {
+  // A choice needs two different goals (AC1) — refused before anything is read.
+  if (prefersSlug === overSlug) {
+    return { success: false, refusal: 'same-goal', error: `a choice needs two different goals — '${prefersSlug}' is on both sides.` };
+  }
+  const { resolveDecomposition } = require('../../lib/brain/goals');
+  // Both goals must resolve to existing, unambiguous goals. NO standing
+  // requirement (ADR 0007 d4, operator-ratified): the owner is teaching
+  // relative value, not certifying execution-readiness — a parent or captured
+  // goal may be preferred or passed over.
+  const goalConcept = await resolveGoalConcept();
+  if (goalConcept.error) return { success: false, error: goalConcept.error };
+  const { records: goalRecords } = await fetchGoalRecords(goalConcept.headerUuid);
+  const resolved = resolveDecomposition(goalRecords);
+  const bySlug = (slug) => resolved.filter((g) => g.slug === slug);
+  let prefersGoal = null;
+  let overGoal = null;
+  for (const [slug, which] of [[prefersSlug, 'prefers'], [overSlug, 'over']]) {
+    const matches = bySlug(slug);
+    if (matches.length === 0) {
+      return { success: false, refusal: 'goal-not-found', error: `no goal has the slug '${slug}' — a choice must name existing goals.` };
+    }
+    if (matches.length > 1) {
+      return { success: false, refusal: 'ambiguous-slug', error: `${matches.length} goals share the slug '${slug}' — refusing to guess which is meant.` };
+    }
+    if (which === 'prefers') prefersGoal = matches[0]; else overGoal = matches[0];
+  }
+
+  // Provision the concept if this is the first signal ever (ADR 0007 d9).
+  const concept = await ensureSignalConcept();
+  const today = new Date().toISOString().slice(0, 10);
+  const section = {
+    description: `chose "${prefersGoal.name || prefersSlug}" over "${overGoal.name || overSlug}"`,
+    prefers: prefersSlug,
+    over: overSlug,
+    judgedBy: 'owner',              // ADR 0007 d7: v1's single judge, instance-relative.
+    judgedOn: today,
+    framing: SIGNAL_FRAMING_V1,     // ADR 0007 d8: server-stamped, never caller-supplied.
+  };
+  if (reason) section.reason = reason;
+
+  const { uuid, slug } = await mintSignalElement({
+    headerUuid: concept.headerUuid, supersetUuid: concept.supersetUuid, label: `preferred-${prefersSlug}`, section,
+  });
+  return { success: true, result: 'recorded', signal: { uuid, slug, prefers: prefersSlug, over: overSlug } };
+}
+
 async function registerNormalizeRoutes(app) {
   // Load TA signing key from secure storage at startup
   await loadTAKey();
@@ -4636,6 +4825,7 @@ async function registerNormalizeRoutes(app) {
   app.post('/api/normalize/make-proposal', handleMakeProposal);
   app.post('/api/normalize/approve-proposal', handleApproveProposal);
   app.post('/api/normalize/skip-proposal', handleSkipProposal);
+  app.post('/api/normalize/record-priority-signal', handleRecordPrioritySignal);
   app.post('/api/normalize/save-element-json', handleSaveElementJson);
   app.post('/api/normalize/create-property', handleCreateProperty);
   app.post('/api/normalize/generate-property-tree', handleGeneratePropertyTree);

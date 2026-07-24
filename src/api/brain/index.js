@@ -28,6 +28,7 @@ const { classifyHeaderEdges, classifyElementConsistency, comparePropertyRecord, 
 const { parseResourceRow, deriveFreshness, freshnessDays, groupResourcesByGoal } = require('../../lib/brain/resources');
 const { parseWorkRecordRow, groupWorkRecordsByGoal, sortRecordsByRecency } = require('../../lib/brain/work-records');
 const { parseProposalRow, groupProposalsByGoal, openProposals, proposalEntry } = require('../../lib/brain/proposals');
+const { parseSignalRow, groupSignalsByGoal, signalEntry } = require('../../lib/brain/signals');
 
 const GOAL_CONCEPT_SLUG = 'tapestry-owner-goal';
 
@@ -49,6 +50,11 @@ const WORK_RECORD_CONCEPT_SLUG = 'tapestry-work-record';
 // (never firmware-seeded); the read is tolerant of its absence (no header ⇒ no
 // rows ⇒ an empty proposal set, never an error).
 const PROPOSAL_CONCEPT_SLUG = 'tapestry-proposal';
+
+// Priority signals (second-brain #7, ADR 0007 d10) — the concept is
+// runtime-created (never firmware-seeded); the read is tolerant of its absence
+// (no header ⇒ no rows ⇒ an empty signal set, never an error).
+const SIGNAL_CONCEPT_SLUG = 'tapestry-priority-signal';
 
 // The hygiene check's confirmed scope (story #2, planning gate): the two
 // work-item concepts. parseRecord: null skips goal-record classification on
@@ -143,6 +149,23 @@ async function readProposals(taPubkey) {
     if (row && row.uuid && !byUuid.has(row.uuid)) byUuid.set(row.uuid, row);
   }
   return [...byUuid.values()].map(parseProposalRow).filter(Boolean);
+}
+
+// Priority signals for this owner (second-brain #7, ADR 0007 d10). The SAME
+// ConceptElements union the goals/resources/records/proposals use, on the
+// signal concept's header — tolerant of the concept being absent (a fresh
+// instance answers []).
+async function readSignals(taPubkey) {
+  const headerUuid = `39998:${taPubkey}:${SIGNAL_CONCEPT_SLUG}`;
+  const [explicitRows, implicitRows] = await Promise.all([
+    runCypher(EXPLICIT_CYPHER, { headerUuid }),
+    runCypher(IMPLICIT_CYPHER, { headerUuid }),
+  ]);
+  const byUuid = new Map();
+  for (const row of [...explicitRows, ...implicitRows]) {
+    if (row && row.uuid && !byUuid.has(row.uuid)) byUuid.set(row.uuid, row);
+  }
+  return [...byUuid.values()].map(parseSignalRow).filter(Boolean);
 }
 
 async function handleGetGoals(req, res) {
@@ -265,7 +288,25 @@ async function handleGetGoalDetail(req, res) {
       produced: [],
       _createdAt: r.createdAt,
     }));
-    const records = [...workEntries, ...proposalEntries]
+    // Priority signals (second-brain #7, ADR 0007 d10): ONE stored fact touches
+    // TWO goals — the grouper fans it out under both slugs, and each side is
+    // worded from this goal's perspective at read (the other goal's current
+    // display name resolves from the already-loaded goal set; a vanished goal
+    // falls back to its slug).
+    const sf = winner ? (groupSignalsByGoal(await readSignals(taPubkey)).get(winner.slug) || []) : [];
+    const signalEntries = sf.map((r) => {
+      const side = r.prefers === winner.slug ? 'prefers' : 'over';
+      const otherSlug = side === 'prefers' ? r.over : r.prefers;
+      const other = resolved.find((g) => g.slug === otherSlug);
+      return {
+        ...signalEntry(r, side, other ? other.name : null),
+        session: null,
+        questions: [],
+        produced: [],
+        _createdAt: r.createdAt,
+      };
+    });
+    const records = [...workEntries, ...proposalEntries, ...signalEntries]
       .sort((a, b) => {
         const da = a.date || '';
         const db = b.date || '';
