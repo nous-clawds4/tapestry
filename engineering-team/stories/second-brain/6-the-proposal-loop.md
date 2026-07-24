@@ -67,6 +67,6 @@ Deferred to the Architect (mechanism / value, not intent):
 The workflow flags >5 acceptance criteria as a signal to consider splitting. This story maps **1:1** to the product team's ratified queue unit "Story 6: The proposal loop" and the epic's named story `the-proposal-loop`; the make → view → decide → record loop is a single cohesive unit (splitting it would fork from the ratified decomposition and ship a half-loop). Story 5 shipped at 7 ACs by the same reasoning. Kept whole intentionally.
 
 ## Linked artifacts
-- ADR: (filled in after Architecture phase) — `engineering-team/decisions/second-brain/0006-*.md`
+- ADR: `engineering-team/decisions/second-brain/0006-the-proposal-loop.md` (Accepted 2026-07-24) — new append-only `tapestry-proposal` concept, type-discriminated (`proposed`/`approved`/`skipped`), decisions appended as separate facts (the load-bearing (a)/(b) question resolved to append-only shape (b)); three gated producers (`make-proposal`/`approve-proposal`/`skip-proposal`); derive-open-at-read; the goal-detail `records` projection extended (8th brain require); `GET /api/brain/proposals`; the "What next?" queue view. Approve copy ratified: *"Approved — launch it when you're ready."*
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
