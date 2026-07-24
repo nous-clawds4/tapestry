@@ -185,6 +185,7 @@ const attachTheWorld = require('./attach-the-world.test.js');
 // epic: second-brain — Story 5 (sessions read the brain — work records + orient).
 const sessionsReadTheBrain = require('./sessions-read-the-brain.test.js');
 const theProposalLoop = require('./the-proposal-loop.test.js');
+const teachItWhatMatters = require('./teach-it-what-matters.test.js');
 
 async function main() {
   console.log('Running Brainstorm tests...');
@@ -487,6 +488,7 @@ async function main() {
   const attachTheWorldResult = await attachTheWorld.run();
   const sessionsReadTheBrainResult = await sessionsReadTheBrain.run();
   const theProposalLoopResult = await theProposalLoop.run();
+  const teachItWhatMattersResult = await teachItWhatMatters.run();
 
   console.log('\nTest Results');
   console.log('-------------');
@@ -869,6 +871,11 @@ async function main() {
       ? `SKIP (${theProposalLoopResult.skipped} tests; preconditions not met)`
       : `${theProposalLoopResult.fail === 0 ? 'PASS' : 'FAIL'} (${theProposalLoopResult.pass} passed, ${theProposalLoopResult.fail} failed${theProposalLoopResult.skipped ? `, ${theProposalLoopResult.skipped} skipped` : ''})`;
   console.log(`the-proposal-loop suite:                         ${theProposalLoopLine}`);
+  const teachItWhatMattersLine =
+    (teachItWhatMattersResult.pass + teachItWhatMattersResult.fail) === 0 && teachItWhatMattersResult.skipped
+      ? `SKIP (${teachItWhatMattersResult.skipped} tests; preconditions not met)`
+      : `${teachItWhatMattersResult.fail === 0 ? 'PASS' : 'FAIL'} (${teachItWhatMattersResult.pass} passed, ${teachItWhatMattersResult.fail} failed${teachItWhatMattersResult.skipped ? `, ${teachItWhatMattersResult.skipped} skipped` : ''})`;
+  console.log(`teach-it-what-matters suite:                     ${teachItWhatMattersLine}`);
 
   const overallOk =
     configOk &&
@@ -1032,7 +1039,10 @@ async function main() {
     theProposalLoopResult.fail === 0 &&
     // tapestries #3 — create a tapestry (members-only authoring)
     // (LIVE chain — before the severed terminator; OPEN.md #43).
-    createTapestryResult.fail === 0;
+    createTapestryResult.fail === 0 &&
+    // second-brain #7 — teach it what matters (priority signals)
+    // (LIVE chain — before the severed terminator; OPEN.md #43).
+    teachItWhatMattersResult.fail === 0;
     harnessLintResult.fail === 0 &&
     harnessStatsResult.fail === 0 &&
     sessionStartResult.fail === 0 &&
@@ -1055,7 +1065,7 @@ async function main() {
     nip51ListExportPublishResult, pinDetailIntoTagTabResult, collapseIntoExportResult, loginFailureAndTagCollapseResult,
     headerConceptGraphTagResult, communityReferenceSupersetLinkResult, graperankSharedCsvRaceResult, communityClassThreadPullResult,
     taskQueueBullmqResult, taskQueueNeo4jResourceClassResult, entrypointTemplateRenderingResult, bullboardAdminAccessResult,
-    adminToolsDashboardPanelResult, createTapestryResult, reconciliationIncrementalModeResult, generalizedTaskSchedulerResult, reconciliationRearchitectureResult,
+    adminToolsDashboardPanelResult, createTapestryResult, teachItWhatMattersResult, reconciliationIncrementalModeResult, generalizedTaskSchedulerResult, reconciliationRearchitectureResult,
     scheduledTasksWithArgumentsResult, manualTaskRetriggerAfterFinishResult, scheduledTaskTimeoutPropagationResult, killTimeoutOrphansByDefaultResult,
     taskQueueSemaphoreProtectionAuditResult, profileFollowsListResult, profileWebsiteLinkResult, profileVerifiedFollowersCountResult,
     profileFollowersListResult, profileVerifiedReportersCountResult, verifiedReportersMembershipDataResult, verifiedReportersListPageResult,
