@@ -97,6 +97,11 @@ Logged per `roles/implementer.md` §9. Review-fix cycle (review verdict CHANGES_
   full-width `<fieldset>` with two stacked radios to a compact `<select>` dropdown (same two `signAs`
   values, zero behavior change — presentation only). Treated as a trivial mechanical edit; suite stays
   21/21 (S2 unaffected), Playwright E1/E6 updated for the `<select>` (combobox + `selectOption`).
+- **[post-staging UX polish, operator request]** Concept selection reworked from an always-open
+  checkbox panel to a **typeahead + selected-chips**: the results panel shows only while the search box
+  has text (hidden when empty), clicking a match adds it to a compact always-visible removable-chip list
+  (added concepts drop out of results). Input-UX only — published wire shape unchanged. Verified by
+  executing the Playwright spec (E1/E7 + updated pickConcept) against the built UI: **7/7 in chromium**.
 - **[judgment call]** The Implementer authored the regression tests for these fixes in the fix cycle
   (unit P10 = uuid-per-signer, P11 = import-from-`conceptGraphSlug`, source S7; updated the P5 fixture;
   strengthened Playwright E6 to assert own-key navigation) rather than round-tripping to the Tester —
