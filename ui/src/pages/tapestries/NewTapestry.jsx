@@ -26,11 +26,22 @@ export default function NewTapestry() {
   const [validation, setValidation] = useState(null);
   const [error, setError] = useState(null);
 
-  const filtered = useMemo(() => {
+  // The compact, always-visible list of concepts the owner has added (chips).
+  const selectedConcepts = useMemo(
+    () => selected.map((h) => concepts.find((c) => c.handle === h)).filter(Boolean),
+    [selected, concepts],
+  );
+
+  // Typeahead results: matches for the current query, excluding already-added concepts.
+  // Empty when the search box is empty — so the panel only appears while searching.
+  const results = useMemo(() => {
     const q = filter.trim().toLowerCase();
-    if (!q) return concepts;
-    return concepts.filter((c) => c.name.toLowerCase().includes(q) || c.shortSlug.includes(q));
-  }, [concepts, filter]);
+    if (!q) return [];
+    return concepts.filter(
+      (c) => !selected.includes(c.handle)
+        && (c.name.toLowerCase().includes(q) || c.shortSlug.includes(q)),
+    );
+  }, [concepts, filter, selected]);
 
   // Owner gate: non-owner/admin visitors get an explanation, never a working form.
   if (!isOwner) {
@@ -45,8 +56,11 @@ export default function NewTapestry() {
     );
   }
 
-  function toggle(handle) {
-    setSelected((prev) => (prev.includes(handle) ? prev.filter((h) => h !== handle) : [...prev, handle]));
+  function add(handle) {
+    setSelected((prev) => (prev.includes(handle) ? prev : [...prev, handle]));
+  }
+  function remove(handle) {
+    setSelected((prev) => prev.filter((h) => h !== handle));
   }
 
   async function onSubmit(e) {
@@ -103,30 +117,56 @@ export default function NewTapestry() {
           )}
           {!conceptsLoading && !conceptsError && concepts.length > 0 && (
             <>
+              {/* The persistent, compact list of what will be included. */}
+              {selectedConcepts.length === 0 ? (
+                <p className="placeholder">No concepts added yet — search below to add some.</p>
+              ) : (
+                <ul className="tapestry-selected-list" aria-label="Selected member concepts">
+                  {selectedConcepts.map((c) => (
+                    <li key={c.handle} className="tapestry-selected-chip">
+                      <span>{c.name}</span>
+                      <button
+                        type="button"
+                        className="tapestry-chip-remove"
+                        aria-label={`Remove ${c.name}`}
+                        onClick={() => remove(c.handle)}
+                      >
+                        ×
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              {/* Typeahead: the results panel only appears while the search box has text. */}
               <input
                 type="text"
                 className="tapestry-concept-filter"
                 value={filter}
                 onChange={(e) => setFilter(e.target.value)}
-                placeholder="Filter concepts…"
-                aria-label="Filter concepts"
+                placeholder="Search concepts to add…"
+                aria-label="Search concepts"
               />
-              <div className="tapestry-concept-picker" role="group" aria-label="Member concepts">
-                {filtered.map((c) => (
-                  <label key={c.handle} className="tapestry-concept-option">
-                    <input
-                      type="checkbox"
-                      checked={selected.includes(c.handle)}
-                      onChange={() => toggle(c.handle)}
-                    />
-                    <span>{c.name}</span>
-                  </label>
-                ))}
-                {filtered.length === 0 && (
-                  <p className="placeholder" style={{ margin: '0.25rem' }}>No concepts match “{filter}”.</p>
-                )}
-              </div>
-              <p className="tapestry-selected-count">{selected.length} selected</p>
+              {filter.trim() && (
+                <div className="tapestry-concept-picker" role="listbox" aria-label="Matching concepts">
+                  {results.length === 0 ? (
+                    <p className="placeholder" style={{ margin: '0.25rem' }}>No concepts match “{filter}”.</p>
+                  ) : (
+                    results.map((c) => (
+                      <button
+                        key={c.handle}
+                        type="button"
+                        className="tapestry-concept-option"
+                        aria-label={`Add ${c.name}`}
+                        onClick={() => add(c.handle)}
+                      >
+                        <span>{c.name}</span>
+                        <span className="tapestry-concept-add">+ Add</span>
+                      </button>
+                    ))
+                  )}
+                </div>
+              )}
             </>
           )}
         </div>
