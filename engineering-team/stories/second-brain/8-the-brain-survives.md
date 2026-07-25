@@ -1,6 +1,6 @@
 # Story 8: The brain survives — export and restore
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-07-24
 **Type:** Feature
 **Epic:** `second-brain` (#8) · PRD §5.7, §7.4, §7.2, §5.9, §10
@@ -68,4 +68,4 @@ Five ACs, mapping 1:1 to the product team's ratified queue unit "Story 8: The br
 ## Linked artifacts
 - ADR: `engineering-team/decisions/second-brain/0008-the-brain-survives.md` (Accepted 2026-07-24; the full Q1–Q5 bundle operator-ratified at the gate) — identity-free verbatim-section artifact via read-only `GET /api/brain/export` + Goals-view footer affordance; collision-refusing verbatim re-mint `restore-brain` in normalize (goals name-derived, records nonce d-tags; `ensureGoalConcept` closes ADR 0001's bootstrap gap); fifth runtime concept `tapestry-restore-drill` journals the drill (both outcomes); scripted one-time drill against an ephemeral fresh-TA scratch container (`scripts/brain-drill.sh`); one `contentEquivalent` definition serves AC2+AC4; tenth brain require re-pins the allowlist ×7.
 - Test plan: `engineering-team/stories/second-brain/8-the-brain-survives.test-plan.md` — `test/the-brain-survives.test.js` (U/S/H/R, 31 tests). Pre-impl: **6 passed, 25 failed, 0 skipped** (right-reason failures; feature absent; H rows ran live). Seven siblings green under the widen-only TEN import re-pin. State-free discovery teardown (OPEN.md row 94's fix) adopted for this suite. Verified 2026-07-24 at `03a68913`.
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/second-brain/8-the-brain-survives.md` — **PASS** (independent row-80(b) audit, 2026-07-25, at `35506766`). Full `npm test` re-run: `Overall: PASS`, exit 0 (story suite 31/0/0 standalone ×2 and in-gate; seven siblings green; 41 pre-existing env skips; router quiesced per OPEN.md 75); impl commit touched no test file; independent `rev8-audit` live round-trip 45/45 (envelope + identity-freedom; AC4 equivalence via the shipped core; verbatim restore with decomposition/pointers/spines/decision-closes-proposal; capturedOn not restamped; three collision refusals wrote nothing incl. live-export-vs-live-brain; bad drill outcome 400 + nothing written; 403/401/401 caller classes; teardown to zero residue, hygiene sound). Drill journal element verified live: outcome `matched`, performedBy `owner`, drilledOn 2026-07-25 — the §10 metric row countable. 4 non-blocking findings (stale epic marker for #8; S10 jargon list at 9 of 12 words; drill-script environmental accommodations on the record; unmutexed export read noted as considered).
