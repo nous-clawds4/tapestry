@@ -366,10 +366,18 @@ test('R1: FirmwareExplorer keeps its core-node tabs (Overview, Concept Header, S
     'the existing per-concept core-node tab row must survive this additive change.');
 });
 
-test('R2: FirmwareExplorer keeps the FirmwareNodeJson Viewer/Raw toggle over JsonView', () => {
+test('R2: the core-node Viewer/Raw JSON toggle survives — extracted to CoreNodeViews, still used by FirmwareExplorer', () => {
+  // Re-aimed for ADR tapestries/0004 Decision 3: the inline FirmwareNodeJson (with the
+  // Viewer/Raw toggle over JsonView) was extracted VERBATIM into the shared CoreNodeViews
+  // module (as ConceptNodeJson), which FirmwareExplorer now imports aliased as FirmwareNodeJson.
+  // The behavior is unchanged; only the source location moved. This sentinel guards that the
+  // toggle is not deleted — now checking its new home plus FirmwareExplorer's continued use.
   const src = safeRead(FE);
-  assert(/FirmwareNodeJson/.test(src) && /firmware-view-toggle/.test(src) && /JsonView/.test(src),
-    'the shipped core-node Viewer/Raw toggle (fea8b0ef) must remain intact.');
+  const shared = safeRead(path.join(ROOT, 'ui/src/components/concept/CoreNodeViews.jsx'));
+  assert(/FirmwareNodeJson/.test(src),
+    'FirmwareExplorer must still render the core-node JSON view (imported/aliased as FirmwareNodeJson).');
+  assert(/firmware-view-toggle/.test(shared) && /JsonView/.test(shared) && /ConceptNodeJson/.test(shared),
+    'the shipped Viewer/Raw toggle over JsonView must remain intact — now in the shared CoreNodeViews module, not deleted.');
 });
 
 test('R3: FirmwareExplorer keeps the Integrations views (manifest-level Elements/Subsets/Graph)', () => {

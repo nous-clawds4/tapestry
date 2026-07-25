@@ -21,6 +21,7 @@
  */
 
 const { runCypher } = require('../../lib/neo4j-driver');
+const { getConceptCoreNodes } = require('../../lib/conceptCoreNodes');
 
 // ─── Summaries ────────────────────────────────────────────────────────────────
 
@@ -128,6 +129,22 @@ async function handleNeighbors(req, res) {
   }
 }
 
+// ─── Core nodes ──────────────────────────────────────────────────────────────
+// A concept's 8 core nodes + JSON, keyed by header handle. Relationships from Neo4j;
+// JSON resolved through Tapestry LMDB (ADR tapestries/0004). Powers the tapestry
+// per-concept detail views (and shares the read helper with the Firmware Explorer).
+
+async function handleCoreNodes(req, res) {
+  const handle = decodeURIComponent(req.params.handle);
+  try {
+    const { found, nodes } = await getConceptCoreNodes(handle);
+    res.json({ success: true, handle, found, nodes });
+  } catch (err) {
+    console.error('[concept-graph] core-nodes error:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+}
+
 // ─── Subgraph (BFS) ──────────────────────────────────────────────────────────
 
 async function handleSubgraph(req, res) {
@@ -193,6 +210,7 @@ async function handleSubgraph(req, res) {
 function registerConceptGraphRoutes(app) {
   app.get('/api/concept-graph/summaries',             handleSummaries);
   app.get('/api/concept-graph/node/:handle/neighbors', handleNeighbors);
+  app.get('/api/concept-graph/node/:handle/core-nodes', handleCoreNodes);
   app.get('/api/concept-graph/node/:handle',           handleNode);
   app.get('/api/concept-graph/subgraph/:handle',       handleSubgraph);
 }
