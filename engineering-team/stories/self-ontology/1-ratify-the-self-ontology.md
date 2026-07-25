@@ -144,4 +144,4 @@ reasoning that produced it.
 - ADR: `engineering-team/decisions/self-ontology/0001-ratify-the-self-ontology.md`
 - Test plan: **skipped — docs-mode** (no executable behavior; the Reviewer performs an accuracy and
   cross-reference audit instead, and runs `npm test` to confirm no regression)
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/self-ontology/1-ratify-the-self-ontology.md` — **CHANGES_REQUESTED** (2026-07-25; harness-lint L10: missing CHANGELOG row)
