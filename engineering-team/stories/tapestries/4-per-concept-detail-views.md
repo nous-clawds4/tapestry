@@ -1,6 +1,6 @@
 # Story 4: Per-concept detail views in the Tapestry exploration page (Firmware-Explorer parity)
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-07-25
 **Type:** Feature
 
@@ -84,4 +84,4 @@ that I understand what each concept *is*, not just its skeletal header.
 ## Linked artifacts
 - ADR: `engineering-team/decisions/tapestries/0004-per-concept-detail-views-neo4j-lmdb.md` (Accepted) — partially supersedes ADR 0002 Decision 2 for per-concept detail data.
 - Test plan: `engineering-team/stories/tapestries/4-per-concept-detail-views.test-plan.md` — suite `test/tapestry-per-concept-detail-views.test.js` (U/S executed gate, H live sentinels, R regression).
-- Review: *(after Review)*
+- Review: `engineering-team/reviews/tapestries/4-per-concept-detail-views.md` — **PASS** (2026-07-25).
