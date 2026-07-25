@@ -48,5 +48,5 @@ Both resolved at the planning gate (operator delegated the calls):
 - Book: `engineering-team/audits/harness-gate-integrity/book.md`
 - Investigation: workflow `wf_0c836c19-53d` (2026-07-25) — per-item live verification, exact locations, fixes, cross-item ordering.
 - ADR: `engineering-team/decisions/harness-gate-integrity/0001-gate-integrity-and-lint-robustness.md` (two invariant-placement decisions — #46 → new `harness-lint` L13 [active-only, heading-presence, one offender backfilled]; AC2 → strengthen G5, no unification; the other four items mechanical)
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/harness-gate-integrity/1-gate-integrity-and-lint-robustness.test-plan.md` (7 ACs → G5/G6/G7 in stack-free-npm-test, L13 ×2 + L8/#21 in harness-lint, W5b in ci-test-job; RED-confirmed + post-fix satisfiability simulated)
 - Review: (filled in after Review phase)

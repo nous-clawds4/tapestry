@@ -242,6 +242,49 @@ test('L12: a def-path row naming a file that does not exist is a violation namin
     'the violation must name the missing path so the drift is actionable\n' + out);
 });
 
+test('L13: an active ADR missing the template-required ## Consequences section is a violation (harness-gate-integrity #1 / #46 — the build-audit §5 debt roll-up harvests that section)', () => {
+  const { code, out } = lint(withClean({
+    'engineering-team/decisions/foo/0001-thing.md':
+      '# ADR 0001: thing\n\n**Status:** Accepted\n\n## Context\nx\n\n## Decision\ny\n',
+  }));
+  assert.notStrictEqual(code, 0,
+    `an active ADR with no ## Consequences must FAIL the lint — templates/build-audit.md:42 harvests \`Consequences → new debt\`, so a missing section silently under-reports debt at book close\n${out}`);
+  assert.match(out, /VIOLATION L13 .*decisions\/foo\/0001-thing\.md/,
+    `the violation must name the offending ADR so it is actionable\n${out}`);
+});
+
+test('L13 scope A (active-only): an active ADR WITH ## Consequences is clean, and a retired ADR under decisions/done/ WITHOUT it does NOT fire (mirrors the check_reviews/check_L2 done/-skip)', () => {
+  const { code, out } = lint(withClean({
+    'engineering-team/decisions/foo/0001-thing.md':
+      '# ADR 0001: thing\n\n**Status:** Accepted\n\n## Decision\ny\n\n## Consequences\n- enables x.\n',
+    'engineering-team/decisions/done/bar/0001-old.md':
+      '# ADR 0001: old\n\n**Status:** Superseded\n\n## Decision\nz\n',
+  }));
+  assert.strictEqual(code, 0,
+    `L13 must pass when active ADRs carry ## Consequences and must NOT scan the retired done/ tree (scope A)\n${out}`);
+  assert(!/VIOLATION L13/.test(out),
+    `L13 must not fire on a done/ ADR — active-only scope, consistent with check_reviews (:94) and check_L2 (:130)\n${out}`);
+});
+
+test('L8/#21: check_L8 does not crash on a tree with zero wiring/link-doc files under bash 3.2 (empty `${files[@]}` under set -u)', () => {
+  // The empty-array-under-`set -u` error only occurs on bash < 4.4 (macOS ships
+  // /bin/bash 3.2); bash >= 4.4 tolerates it, so reproduce on the oldest bash.
+  const OLD_BASH = '/bin/bash';
+  let ver = '';
+  try { ver = execSync(`${OLD_BASH} -c 'echo "$BASH_VERSION"'`, { encoding: 'utf8' }).trim(); } catch { ver = ''; }
+  const [major, minor] = ver.split('.').map((n) => parseInt(n, 10));
+  const pre44 = ver && (major < 4 || (major === 4 && (minor || 0) < 4));
+  if (!pre44) {
+    console.log(`      (note) ${OLD_BASH} is ${ver || 'unavailable'} — the #21 crash only reproduces on bash <4.4; the length-guard is verified structurally here`);
+    return; // vacuously pass on modern bash (e.g. Linux CI)
+  }
+  const dir = makeFixture({ 'placeholder.txt': 'not a wiring or link-doc file\n' }); // zero wiring/link-doc files
+  const res = spawnSync(OLD_BASH, [SCRIPT], { cwd: dir, encoding: 'utf8' });
+  const out = `${res.stdout || ''}${res.stderr || ''}`;
+  assert(!/unbound variable/.test(out),
+    `check_L8 crashed on an empty wiring set under bash ${ver} (set -u + empty "\${files[@]}") — guard the expansion with the length-check precedent (violation():67, whats-open.sh:166):\n${out}`);
+});
+
 test('L9 is skipped silently when the tree has no git history', () => {
   const { code, out } = lint(withClean(
     { 'BIBLE.md': '# BIBLE\n\n**Last updated:** 2020-01-01\n' },
