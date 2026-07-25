@@ -173,5 +173,117 @@ in CI. Fix Blocking #1 (add the CHANGELOG row, correct the ADR's two "no CHANGEL
 re-run `harness-lint.sh`, and this is a PASS.
 
 ## On PASS (same commit)
-- [ ] Story `**Status:**` flipped to `Done` in place. *(Withheld — verdict is CHANGES_REQUESTED.)*
-- [ ] Completion detection run. *(Withheld.)*
+- [ ] Story `**Status:**` flipped to `Done` in place. *(Withheld at first pass — see RE-REVIEW.)*
+- [ ] Completion detection run. *(Withheld at first pass — see RE-REVIEW.)*
+
+---
+
+# RE-REVIEW (2026-07-25) — fix commit `1867ea53`
+
+Focused re-audit of the fix for the single blocking finding. The first pass's accuracy and
+conformance checks on `BIBLE.md` §30 and `CLAUDE.md` are not re-derived from scratch; they were
+spot-checked for disturbance instead (see (d)).
+
+## (a) Blocking finding — RESOLVED
+
+- `bash scripts/harness-lint.sh` (run by reviewer, **post-commit**): **clean (0 violations)**.
+- `harness-lint` test suite (run by reviewer): **PASS (29 passed, 0 failed)** — recovered from 28/29.
+- L10 mechanism verified directly: the latest def-path commit is now `1867ea53`, and it **does**
+  touch `engineering-team/CHANGELOG.md`, satisfying the touch-rule. The fix works because
+  `CHANGELOG.md` is itself a def path, exactly as the first pass predicted.
+
+## (b) CHANGELOG row — well-formed and accurate
+
+- Appended at the **bottom**, **chronological** (prior row `2026-07-18` → new row `2026-07-25`),
+  correct **4-column** shape (5 pipes).
+- Every factual claim in the row independently verified against the tree: principle 4 exists in
+  `CLAUDE.md` under that exact heading; `BIBLE.md` §30 exists under that exact title; the
+  "non-technical journey" block is gone; `CLAUDE.md` is **190** lines; `scripts/harness-budgets.txt`
+  is untouched; principles 1–3 are explicitly "not repealed". No overstatement.
+
+## (c) ADR 0001 correction — accurate and complete
+
+- **Zero surviving assertions** of "no CHANGELOG row" as a *claim*. `0001-…md:219` now reads
+  "there is no cap change" (correct — the cap genuinely did not move), and a new bullet at :220–225
+  states the CHANGELOG requirement, names `scripts/harness-def-paths.txt` and **L10**, requires the
+  row in the *same commit*, and records the pre-commit blind spot.
+- `0001-…md:242–244` ("Out of scope") now explicitly says the rejected cap change does **not** exempt
+  the work from the touch-rule.
+- The one grep hit at `:226–227` is the **corrective note quoting the old error** for provenance, not
+  a live assertion. Correct and desirable.
+- `scripts/harness-budgets.txt` confirmed untouched — there is genuinely no cap change.
+
+## (d) Fix-commit scope — disciplined
+
+`1867ea53` touches exactly two files: `engineering-team/CHANGELOG.md` and
+`engineering-team/decisions/self-ontology/0001-ratify-the-self-ontology.md`. **`BIBLE.md` and
+`CLAUDE.md` were not re-touched**, so the first pass's accuracy findings on them stand unchanged.
+
+## (e) Regression — differential confirmed independently
+
+The completed full run finished `Overall: FAIL`, 48 skipped, **13 FAIL suites vs the session
+baseline of 12**. That run **straddled** the fix. Differential by suite *name*, re-derived here
+rather than accepted:
+
+- **`+ harness-lint`** — the L10 violation, captured pre-fix. Now verified **29/29 PASS** directly.
+  Straddle artifact.
+- **`+ teach-it-what-matters`** (22 passed, 5 failed) — **not attributable to this story**, proven
+  three ways: (1) it originates in `72b50aa9` ("test: failing tests for teach-it-what-matters
+  (second-brain #7)"), verified an **ancestor of `origin/staging`** — inherited, not introduced;
+  (2) it appears **0 times** in this branch's diff, and its file is **byte-identical** to
+  `origin/staging:test/teach-it-what-matters.test.js`; (3) it contains **zero** references to any
+  file this story changed.
+- **`- relationship-primitives-probe`** — cleared vs baseline (environmental).
+
+Decisive backstop: this branch's diff is **100% `.md`** — no JS, JSON, config, or workflow file is
+touched, so no executable behavior can regress. The binding regression gate remains CI's stack-free
+`test.yml` on the PR.
+
+## Completion detection
+
+**No book covers the `self-ontology` epic.** All 26 `engineering-team/audits/*/book.md` files were
+enumerated; the three Open books are `second-brain`, `task-timeline`, and `unified-tagging-ui`, none
+of which names `self-ontology` (grep: 0 hits). **`/close-book` is therefore not offered** — there is
+no book to close, and inventing one here would be wrong. See Non-blocking #4.
+
+## Findings (re-review)
+
+### Blocking
+None.
+
+### Non-blocking
+4. **No book was opened for the `self-ontology` epic at intake.** CLAUDE.md's "Books of work" section
+   calls for an *eager anchor* — a `book.md` with an intent anchor or acceptance frame — opened at
+   intake, warning that without it "completion can't be detected across sessions and the close drops
+   to low confidence." This epic anticipates six stories, so a book with an acceptance frame would be
+   worth opening before story 2. Not blocking story 1: the epic file
+   (`engineering-team/epics/self-ontology.md`) records intent and the story is self-contained.
+5. Non-blocking items 1–3 from the first pass stand unchanged (the "restores the self in full"
+   definitional-vs-operational nuance at `BIBLE.md:1772`; the letter analogy at `:1776`; the handoff's
+   line-6 boilerplate tension). None was asked to change.
+
+### Harness friction *(candidate OPEN.md rows, type `meta`)*
+1. *(carried from the first pass)* **L10 is structurally uncatchable pre-commit** — the gate reads
+   clean while def-path edits are uncommitted and fails only after the phase-boundary commit, so the
+   harness's own commit convention creates the red state. Two candidate fixes proposed there.
+2. **`engineering-team/stories/second-brain/7-teach-it-what-matters.md` is marked `**Status:** Done`
+   on `origin/staging` while its suite fails 5 tests** (22 passed, 5 failed) in a full run of that
+   tree. Observed in passing; **outside this story's scope and deliberately not chased.** Flagged
+   because a Done story with failing tests on the integration branch is the kind of signal that
+   silently rots — the owner or the co-tenant session that authored `72b50aa9` should confirm whether
+   the implementation landed on `staging` or only the Phase-3 failing tests did.
+
+## Verdict
+
+**PASS**
+
+The single blocking finding is genuinely resolved — verified by running the gate myself, post-commit,
+and by confirming the L10 mechanism (latest def-path commit now touches the CHANGELOG). The fix was
+scoped to exactly the two files it should touch, the CHANGELOG row's every claim checks out against
+the tree, and the ADR correction is complete and additionally records the pre-commit blind spot so
+the next docs-mode story does not repeat it. The one new full-run failure is proven inherited from
+`origin/staging` and byte-identically untouched by this branch, whose diff is entirely markdown.
+
+## On PASS (same commit)
+- [x] Story `**Status:**` flipped to `Done` in place.
+- [x] Completion detection run: **no book covers this epic**; `/close-book` correctly not offered.
