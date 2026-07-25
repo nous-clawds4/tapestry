@@ -29,6 +29,7 @@ const { parseResourceRow, deriveFreshness, freshnessDays, groupResourcesByGoal }
 const { parseWorkRecordRow, groupWorkRecordsByGoal, sortRecordsByRecency } = require('../../lib/brain/work-records');
 const { parseProposalRow, groupProposalsByGoal, openProposals, proposalEntry } = require('../../lib/brain/proposals');
 const { parseSignalRow, groupSignalsByGoal, signalEntry } = require('../../lib/brain/signals');
+const { familyEntries, assembleExport } = require('../../lib/brain/export');
 
 const GOAL_CONCEPT_SLUG = 'tapestry-owner-goal';
 
@@ -166,6 +167,23 @@ async function readSignals(taPubkey) {
     if (row && row.uuid && !byUuid.has(row.uuid)) byUuid.set(row.uuid, row);
   }
   return [...byUuid.values()].map(parseSignalRow).filter(Boolean);
+}
+
+// One family's raw rows ({uuid, name, createdAt, json}) — the SAME explicit ∪
+// implicit union every reader above uses, returned unparsed so the export can
+// carry the RAW stored sections verbatim (second-brain #8, ADR 0008 d3).
+// Tolerant of an absent concept (no header ⇒ no rows ⇒ an empty family).
+async function readFamilyRows(taPubkey, conceptSlug) {
+  const headerUuid = `39998:${taPubkey}:${conceptSlug}`;
+  const [explicitRows, implicitRows] = await Promise.all([
+    runCypher(EXPLICIT_CYPHER, { headerUuid }),
+    runCypher(IMPLICIT_CYPHER, { headerUuid }),
+  ]);
+  const byUuid = new Map();
+  for (const row of [...explicitRows, ...implicitRows]) {
+    if (row && row.uuid && !byUuid.has(row.uuid)) byUuid.set(row.uuid, row);
+  }
+  return [...byUuid.values()];
 }
 
 async function handleGetGoals(req, res) {
@@ -581,12 +599,52 @@ async function handleGetHygiene(req, res) {
   }
 }
 
+// GET /api/brain/export — the dated, identity-free artifact of the owner's
+// brain content (second-brain #8, ADR 0008 d1/d3): each family's parser-valid
+// rows as {name, section} with the RAW stored section VERBATIM (membership is
+// the parser's call; fidelity is raw — a protection artifact never silently
+// drops what the owner stored). A pure read on the same union the other reads
+// use: provisions nothing, changes nothing, answers as a dated attachment
+// download. No uuids, no created-at stamps, no assistant identity anywhere in
+// the artifact (§5.9 — the portability seed carries content, not identity).
+async function handleGetExport(req, res) {
+  if (!isOwner(req) && !req.localTrusted) {
+    return res.status(403).json({ success: false, error: 'Owner access required' });
+  }
+  try {
+    const taPubkey = getOwnerAssistantPubkey();
+    if (!taPubkey) {
+      return res.status(500).json({ success: false, error: 'Assistant identity unavailable' });
+    }
+    const [goalRows, resourceRows, workRows, proposalRows, signalRows] = await Promise.all([
+      readFamilyRows(taPubkey, GOAL_CONCEPT_SLUG),
+      readFamilyRows(taPubkey, RESOURCE_CONCEPT_SLUG),
+      readFamilyRows(taPubkey, WORK_RECORD_CONCEPT_SLUG),
+      readFamilyRows(taPubkey, PROPOSAL_CONCEPT_SLUG),
+      readFamilyRows(taPubkey, SIGNAL_CONCEPT_SLUG),
+    ]);
+    const takenOn = new Date().toISOString().slice(0, 10);
+    const artifact = assembleExport({
+      goals: familyEntries(goalRows, 'tapestryOwnerGoal', parseGoalRow),
+      resources: familyEntries(resourceRows, 'externalResource', parseResourceRow),
+      workRecords: familyEntries(workRows, 'workRecord', parseWorkRecordRow),
+      proposals: familyEntries(proposalRows, 'proposal', parseProposalRow),
+      signals: familyEntries(signalRows, 'prioritySignal', parseSignalRow),
+    }, takenOn);
+    res.setHeader('Content-Disposition', `attachment; filename="brain-export-${takenOn}.json"`);
+    return res.json(artifact);
+  } catch (err) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+}
+
 function registerBrainRoutes(app) {
   app.get('/api/brain/goals', handleGetGoals);
   app.get('/api/brain/orient', handleGetOrient);
   app.get('/api/brain/proposals', handleGetProposals);
   app.get('/api/brain/goals/:slug', handleGetGoalDetail);
   app.get('/api/brain/hygiene', handleGetHygiene);
+  app.get('/api/brain/export', handleGetExport);
 }
 
 module.exports = { registerBrainRoutes };

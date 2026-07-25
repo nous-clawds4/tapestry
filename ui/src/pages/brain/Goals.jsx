@@ -18,6 +18,12 @@ const COLD_START =
   "Your brain is empty — that's the right place to start. Tell your assistant a goal in plain words and it will appear here.";
 const PRIVACY_LINE = 'This brain stays on this machine — nothing here is published.';
 const HINT_LINE = 'needs a deliverable and boundary before it can be proposed';
+// Export affordance (second-brain #8, ADR 0008 d11/d12). The button label is
+// the style guide's pinned verbatim; the confirmation and failure sentences
+// are the gate-ratified d12 strings — verbatim, or the review blocks.
+const EXPORT_LABEL = 'Export brain.';
+const EXPORT_CONFIRM = 'Exported — saved to this machine.';
+const EXPORT_FAIL = "Couldn't export — nothing was saved. Try again.";
 
 export default function Goals() {
   const { user, loading: authLoading } = useAuth();
@@ -27,6 +33,31 @@ export default function Goals() {
 
   // Disclosure state: uuids whose children are hidden (default: all open).
   const [closedIds, setClosedIds] = useState(() => new Set());
+
+  // Export state: null | 'busy' | 'done' | 'failed' (ADR 0008 d11 — quiet
+  // footer affordance; no spinner theater, the button just disables).
+  const [exportState, setExportState] = useState(null);
+  const exportBrain = async () => {
+    setExportState('busy');
+    try {
+      const res = await fetch('/api/brain/export');
+      if (!res.ok) throw new Error('export failed');
+      const text = await res.text();
+      const artifact = JSON.parse(text);
+      const takenOn = artifact && artifact.takenOn ? artifact.takenOn : new Date().toISOString().slice(0, 10);
+      const url = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `brain-export-${takenOn}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      setExportState('done');
+    } catch {
+      setExportState('failed');
+    }
+  };
   const discloseRow = (uuid) => {
     setClosedIds((prev) => {
       const next = new Set(prev);
@@ -188,6 +219,16 @@ export default function Goals() {
       )}
 
       <p className="brain-privacy-line">{PRIVACY_LINE}</p>
+      <div className="brain-export-row">
+        <button
+          type="button"
+          className="brain-btn brain-export-btn"
+          disabled={exportState === 'busy'}
+          onClick={exportBrain}
+        >{EXPORT_LABEL}</button>
+        {exportState === 'done' && <span className="brain-export-note">{EXPORT_CONFIRM}</span>}
+        {exportState === 'failed' && <span className="brain-export-note brain-export-note-failed">{EXPORT_FAIL}</span>}
+      </div>
     </div>
   );
 }

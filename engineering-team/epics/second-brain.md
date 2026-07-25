@@ -1,7 +1,7 @@
 # Epic: Second Brain (display name: "Tapestry Harness")
 
 **Created:** 2026-07-22
-**Status:** Active
+**Status:** Done *(book closed 2026-07-25 — all 8 stories Done, see `audits/second-brain/audit.md` + `prd-addendum.md`; retirement to `done/` on next-phase ingestion — OPEN.md row 96)*
 **Book:** `engineering-team/audits/second-brain/book.md` (PRD-backed)
 **Source PRD:** `product-team/prd/second-brain.md`
 **Guides:** `product-team/guides/second-brain-design-guide.md`, `second-brain-style-guide.md` (+ `second-brain-wireframes.html`) — binding at review
@@ -24,7 +24,7 @@ Three owner-gated views inside the existing control panel (Goals view, Goal deta
 5. **sessions-read-the-brain** — bounded, corpus-independent orientation; append-only work records. **Done** (review PASS 2026-07-24).
 6. **the-proposal-loop** — one viable goal nominated with why-now + runners-up; approve / skip-with-reason; every decision recorded. **Done** (review PASS 2026-07-24).
 7. **teach-it-what-matters** — pairwise priority signals, framing-tagged, recorded only. **Done** (review PASS 2026-07-24).
-8. **the-brain-survives** — export of owner-authored content + one journaled restore drill against a scratch target. *(Queued — interim protection until the firmware clobber-protection epic lands)*
+8. **the-brain-survives** — export of owner-authored content + one journaled restore drill against a scratch target (the interim clobber protection until the firmware-protection epic lands). **Done** (review PASS 2026-07-25; drill run and journaled `matched`, 2026-07-25).
 
 ## ADRs
 
