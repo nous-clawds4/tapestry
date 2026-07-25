@@ -1,16 +1,20 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import Breadcrumbs from '../../components/Breadcrumbs';
 import JsonView from '../../components/JsonView';
 import useTapestryGraph from './useTapestryGraph';
 import TapestryIntegrationGraph from './TapestryIntegrationGraph';
 import { inferNodeType, groupRelationships, nodeName } from './tapestryGraphModel';
+import { fetchConceptCoreNodes } from '../../api/conceptCoreNodes';
+import { CORE_NODES, ConceptOverview, ConceptNodeJson } from '../../components/concept/CoreNodeViews';
+import ConceptMembersView from '../settings/ConceptMembersView';
 
 /**
- * Tapestry Exploration page (ADR tapestries/0002). Renders a tapestry as-authored:
- * the element's graph block + one-level resolved imports, composed into the
- * Firmware-Explorer-style read-only views (integration graph, integration tables,
- * per-concept JSON). Reads everything from strfry via useTapestryGraph.
+ * Tapestry Exploration page (ADR tapestries/0002, extended by 0004). Membership and the
+ * tapestry-level integration views render as-authored from strfry (useTapestryGraph). The
+ * per-concept DETAIL (Overview / 8 core nodes / Elements / Sets) is read from Neo4j + Tapestry
+ * LMDB via the concept-graph core-nodes endpoint, mirroring the Firmware Explorer's per-concept
+ * experience — relationships from Neo4j, node JSON resolved from LMDB (owner ontology).
  */
 
 const INTEGRATION_ITEMS = [
@@ -19,6 +23,12 @@ const INTEGRATION_ITEMS = [
   { key: 'elements', label: 'Elements', icon: '📦' },
   { key: 'subsets', label: 'Subsets', icon: '🔀' },
   { key: 'json', label: 'JSON', icon: '{ }' },
+];
+
+// Per-concept membership tabs (mirror the Firmware Explorer's Elements / Sets views).
+const MEMBER_VIEWS = [
+  { key: 'elements', label: 'Elements' },
+  { key: 'sets', label: 'Sets' },
 ];
 
 /** JsonView with a Viewer / Raw toggle (mirrors the Firmware Explorer's node JSON view). */
@@ -70,28 +80,98 @@ function RelationshipTable({ groupKey, label, rows, composed }) {
   );
 }
 
-function ConceptDetail({ composed, imports, slug }) {
-  const node = (composed?.nodes || []).find((n) => n.slug === slug);
-  const name = node?.name || slug;
-  // The concept's resolved concept-graph is the import whose graph includes this
-  // concept's header node.
-  const match = (imports || []).find((i) => (i.graph?.nodes || []).some((n) => n.uuid && n.uuid === node?.uuid));
+/**
+ * Per-concept detail — the Firmware-Explorer-style views for one member concept, read from
+ * Neo4j + Tapestry LMDB by the concept's header handle (ADR tapestries/0004). Overview + the
+ * 8 core-node types reuse the shared CoreNodeViews; Elements / Sets reuse ConceptMembersView.
+ * The concept's identity/JSON comes from the instance's graph, NOT the tapestry's authored event.
+ */
+function ConceptDetail({ concept }) {
+  const handle = concept?.uuid || null;
+  const name = concept?.name || concept?.slug || 'Concept';
+
+  const [selectedNode, setSelectedNode] = useState('overview');
+  const [result, setResult] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    if (!handle) { setResult({ found: false, nodes: {} }); setLoading(false); return; }
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    setSelectedNode('overview');
+    fetchConceptCoreNodes(handle)
+      .then((res) => { if (!cancelled) setResult(res); })
+      .catch((e) => { if (!cancelled) setError(e.message || String(e)); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [handle]);
+
+  // Adapt the endpoint's { found, nodes } into the shape the shared components expect.
+  const headerJson = result?.nodes?.header?.json || null;
+  const description =
+    headerJson?.word?.description || headerJson?.set?.description || headerJson?.conceptHeader?.description || '';
+  const data = result
+    ? { name, title: name, description, nodes: result.nodes || {}, installed: result.found }
+    : null;
 
   return (
-    <div className="firmware-node-content">
-      <h2>🧩 {name}</h2>
-      {match ? (
-        <JsonPanel data={match.graph} />
-      ) : (
-        <p className="placeholder">No resolved concept graph for this concept.</p>
-      )}
-    </div>
+    <>
+      <div className="firmware-node-tabs">
+        {CORE_NODES.map((n) => (
+          <button
+            key={n.key}
+            className={`firmware-node-tab ${selectedNode === n.key ? 'active' : ''}`}
+            onClick={() => setSelectedNode(n.key)}
+          >
+            {n.label}
+          </button>
+        ))}
+        <span className="firmware-node-tab-divider" aria-hidden="true" />
+        {MEMBER_VIEWS.map((n) => (
+          <button
+            key={n.key}
+            className={`firmware-node-tab ${selectedNode === n.key ? 'active' : ''}`}
+            onClick={() => setSelectedNode(n.key)}
+          >
+            {n.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="firmware-node-content">
+        {loading ? (
+          <div className="loading">Loading…</div>
+        ) : error ? (
+          <p className="error">Error: {error}</p>
+        ) : !data || !data.installed ? (
+          <div className="firmware-not-installed">
+            <h3>⚠️ Not in the graph</h3>
+            <p>
+              <strong>{name}</strong> is a member of this tapestry but was not found in the concept
+              graph, so there is nothing to inspect yet.
+            </p>
+          </div>
+        ) : selectedNode === 'overview' ? (
+          <ConceptOverview data={data} />
+        ) : selectedNode === 'elements' || selectedNode === 'sets' ? (
+          <ConceptMembersView
+            key={`${data.nodes?.header?.uuid}:${selectedNode}`}
+            conceptData={data}
+            kind={selectedNode}
+          />
+        ) : (
+          <ConceptNodeJson data={data} nodeKey={selectedNode} />
+        )}
+      </div>
+    </>
   );
 }
 
 export default function TapestryDetail() {
   const { uuid } = useParams();
-  const { loading, error, tapestry, rawGraph, composed, imports, degraded, notFound } = useTapestryGraph(uuid);
+  const { loading, error, tapestry, rawGraph, composed, degraded, notFound } = useTapestryGraph(uuid);
   const [selected, setSelected] = useState({ kind: 'integration', key: 'graph' });
 
   const title = tapestry?.title || 'Tapestry';
@@ -170,7 +250,7 @@ export default function TapestryDetail() {
             </div>
           )}
           {selected.kind === 'concept' && (
-            <ConceptDetail composed={composed} imports={imports} slug={selected.slug} />
+            <ConceptDetail concept={memberConcepts.find((c) => c.slug === selected.slug)} />
           )}
         </div>
       </div>

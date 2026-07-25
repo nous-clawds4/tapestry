@@ -4,6 +4,12 @@
 **Date:** 2026-07-23
 **Story:** `engineering-team/stories/tapestries/2-tapestry-exploration-page.md`
 
+> **Update (2026-07-25):** **Decision 2** (import/data path) is **partially superseded by ADR
+> `tapestries/0004`** for per-concept *detail* data. Under the owner's ratified ontology (neo4j =
+> definitive source of truth; LMDB = its cache), the Exploration page's **per-concept detail views**
+> read core nodes + JSON from neo4j+LMDB. **Membership and the composed integration graph remain
+> strfry-sourced, exactly as decided here** — this update narrows Decision 2, it does not reverse it.
+
 ## Context
 
 Story `tapestries` #2 replaces the Story-1 placeholder `ui/src/pages/tapestries/TapestryDetail.jsx`
