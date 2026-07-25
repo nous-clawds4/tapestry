@@ -66,6 +66,6 @@ Deferred to a gate (intent fixed; mechanism/wording proposed by the Architect, r
 Five ACs, mapping 1:1 to the product team's ratified queue unit "Story 8: The brain survives — export and restore" and the epic's named story `the-brain-survives`. Export without a drilled restore is an unproven promise; a drill without a journal is unverifiable; no-egress and repeatability are properties of the same artifact. Splitting would ship a backup nobody has proven restorable — the exact failure §5.7 exists to prevent. (Precedent: stories 5–7 shipped at 6–7 ACs; this is 5.)
 
 ## Linked artifacts
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/second-brain/0008-the-brain-survives.md` (Accepted 2026-07-24; the full Q1–Q5 bundle operator-ratified at the gate) — identity-free verbatim-section artifact via read-only `GET /api/brain/export` + Goals-view footer affordance; collision-refusing verbatim re-mint `restore-brain` in normalize (goals name-derived, records nonce d-tags; `ensureGoalConcept` closes ADR 0001's bootstrap gap); fifth runtime concept `tapestry-restore-drill` journals the drill (both outcomes); scripted one-time drill against an ephemeral fresh-TA scratch container (`scripts/brain-drill.sh`); one `contentEquivalent` definition serves AC2+AC4; tenth brain require re-pins the allowlist ×7.
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
