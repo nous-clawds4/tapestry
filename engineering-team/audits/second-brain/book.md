@@ -1,9 +1,9 @@
 # Book of Work: Second Brain (MVP — Capture, Decompose, Propose)
 
 **Slug:** second-brain
-**Status:** Open
+**Status:** Closed
 **Opened:** 2026-07-22
-**Closed:** —
+**Closed:** 2026-07-25
 
 ## Intent anchor
 
@@ -22,9 +22,9 @@ Companion guides, binding at engineering review: `product-team/guides/second-bra
 ## Provenance
 
 - **Mode:** PRD-backed
-- **Confidence at close:** —
+- **Confidence at close:** **high** — the anchor was eager (opened 2026-07-22 with the PRD §8.1 decomposition); completion computed: all 8 queue stories Done with PASS reviews (story 8's an independent row-80(b) audit), the epic closed, the §10 drill row journaled `matched` and verified live.
 
 ## Close artifacts *(filled by `/close-book`)*
 
-- Build audit: `engineering-team/audits/second-brain/audit.md`
-- Product feedback: `engineering-team/audits/second-brain/prd-addendum.md`
+- Build audit: `engineering-team/audits/second-brain/audit.md` *(written 2026-07-25)*
+- Product feedback: `engineering-team/audits/second-brain/prd-addendum.md` *(written 2026-07-25 — carries the guide back-fill bundle: ADR 0006 d16 + 0007 d5 + 0008 d12 strings, the export-affordance placement, and two pattern rulings)*

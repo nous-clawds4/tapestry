@@ -560,7 +560,7 @@ test('S8 (ADR d10): the goal-detail projects signal facts into records[]; the br
   assert(/signal/i.test(slice),
     'handleGetGoalDetail must MERGE the signal projection into records[] (ADR 0007 d10) — the signal facts must reach BOTH touched goals\' spines.');
   const requires = [...src.matchAll(/require\s*\(\s*['"`]([^'"`]+)['"`]\s*\)/g)].map((m) => m[1]);
-  const allowed = [/neo4j-driver$/, /middleware\/auth$/, /assistantKeys$/, /lib\/brain\/goals$/, /lib\/brain\/hygiene$/, /lib\/brain\/resources$/, /lib\/brain\/work-records$/, /lib\/brain\/proposals$/, /lib\/brain\/signals$/];
+  const allowed = [/neo4j-driver$/, /middleware\/auth$/, /assistantKeys$/, /lib\/brain\/goals$/, /lib\/brain\/hygiene$/, /lib\/brain\/resources$/, /lib\/brain\/work-records$/, /lib\/brain\/proposals$/, /lib\/brain\/signals$/, /lib\/brain\/export$/];
   for (const spec of requires) {
     assert(allowed.some((re) => re.test(spec)),
       `import surface violation: require('${spec}') — story 7 adds exactly lib/brain/signals; the brain module ` +
