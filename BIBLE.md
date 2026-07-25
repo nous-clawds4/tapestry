@@ -5,7 +5,7 @@
 >
 > Specifics of the reference deployment at `tapestry.brainstorm.world` (deploy targets, droplet specs, CI/CD workflows, branch protection ruleset, active team, tracking issues, operational gotchas we've hit) live in a sibling document: [OPERATIONS.md](./OPERATIONS.md). If you're forking this repo to run your own instance, BIBLE is the doc you want — OPERATIONS describes someone else's running instance.
 
-**Last updated:** 2026-07-24 (content: §29 Derived-JSON Store — documents the standalone tapestry-store LMDB layer (`tapestryKey` + `lmdb:` pointers), alongside a `handlePut` await fix; prior: §6 graph-embedding convention + §13 Tapestries area + §16 changelog — tapestries book; §11 relationship primitives + probe, §13 set-detail route + owner placement affordances — graph-curation-ui / relationship-primitives)
+**Last updated:** 2026-07-25 (content: §30 The Self and Its Stores — ratifies the self ontology (Neo4j = the definitive "me"; LMDB = subordinate cache; events = "letters") plus the binding obligations it creates — self-ontology #1 / ADR 0001; prior: §29 Derived-JSON Store — documents the standalone tapestry-store LMDB layer (`tapestryKey` + `lmdb:` pointers), alongside a `handlePut` await fix; §6 graph-embedding convention + §13 Tapestries area + §16 changelog — tapestries book; §11 relationship primitives + probe, §13 set-detail route + owner placement affordances — graph-curation-ui / relationship-primitives)
 
 ---
 
@@ -40,6 +40,7 @@
 27. [Point of View (PoV) Resolution](#27-point-of-view-pov-resolution)
 28. [Open Ranking (ORE) Provider](#28-open-ranking-ore-provider)
 29. [Derived-JSON Store: tapestryKey and the tapestry-store LMDB](#29-derived-json-store-tapestrykey-and-the-tapestry-store-lmdb)
+30. [The Self and Its Stores](#30-the-self-and-its-stores)
 
 ---
 
@@ -1757,6 +1758,69 @@ Separate from strfry's internal LMDB event store (§4), the control panel keeps 
 **Relationship to the protocol (§5, §8).** Node content is still *specified* in the event's `json` tag (word-wrapper format); the tapestry-store is a **local storage optimization** over that content, not a wire-format change. a-tag addressing and the `json`-tag spec are unaffected.
 
 **Migration status (as of 2026-07).** Per the post-install dashboard (`README.md`), a minority of nodes still need a `tapestryKey` and most `json` tags remain inline in Neo4j — reported there as "harmless and expected for now". The offload is incremental and ongoing.
+
+---
+
+## 30. The Self and Its Stores
+
+**Tapestry is, first and foremost, a local-first personal knowledge graph.** The same data may live in several stores at once — Neo4j, the tapestry LMDB, local strfry, and external homes such as nostr relays or the filesystem. This section defines **which store holds the self**, and what each of the others is for. It governs the *identity* axis; it does not change any wire format.
+
+### The ontology (ratified)
+
+| Store | Role | Notes |
+|---|---|---|
+| **Neo4j** | **The definitive "me."** | Complete, and mortal. A Neo4j backup restores the self in full. |
+| **tapestry LMDB** | **"Me," but a subordinate cache** — never a co-equal seat of self. | Derivable from Neo4j; see §29. |
+| **Signed nostr events** | **"Letters"** — authored by me, or received from peers. | The proof / communication / durability axis, **not** the identity substrate. |
+
+**Derivability ≠ identity.** Events sit at the bottom of the *derivation* stack (events → graph → cache), but that does not make them the seat of self. A letter is derivable from me; a letter is not me. The derivation axis and the identity axis are different axes.
+
+**Publishing is optional to selfhood.** A Neo4j write that is never published is a private thought; signing and publishing an event is writing and mailing a letter. A Tapestry instance may in principle operate without ever signing a single event. Consequently, unpublished state is **mortal and box-bound** — durability is provided deliberately (backup), never assumed.
+
+**The asserted core.** The minimal full representation of the self is **"me minus everything recomputable."** Recomputable material includes (non-exhaustively):
+
+- derived / implicit relationships, re-materializable from event structure and the normalization rules (§5–§6, §10);
+- WoT scores (GrapeRank / influence / verified counts), recomputable from the follow / mute / report graph;
+- JSON Schema documents, recomputable from a full property tree;
+- all tapestry-LMDB derived JSON, by definition (§29).
+
+This boundary is load-bearing: it scopes what a backup must preserve losslessly, and it bounds what a rebuild may legitimately touch.
+
+### How this relates to principles 1–3
+
+The architecture invariants in `CLAUDE.md` — POV-first, decentralized-first, filter-at-view-time — are **not repealed**. They continue to govern the **event and social axis unchanged**:
+
+- Accept **all** signed events. Publication is never gated at write time, and this section grants no license to reject events from unknown or untrusted authors.
+- Trust filtering stays at **read time, per POV**. There is still no global "the view."
+- A trusted peer's incoming event is often more authoritative than the local graph's current belief — that is what learning from peers *is*. It **updates** the brain; it does not replace the brain as the seat of self.
+
+On a multi-tenant instance, "me" is the **owner-POV slice**, not the whole database (§27). The ontology as stated targets the single-owner personal deployment.
+
+### Obligations this creates (binding; not yet enforced)
+
+**These are requirements the system must grow into. None of them is enforced today.** Each carries its current status; as the `self-ontology` epic lands, these statuses change.
+
+- **Provenance taxonomy.** Every node and edge is exactly one of: **asserted / locally-authored** (precious — survives every rebuild), **event-projection** (disposable — re-derivable from the local event archive), or **peer-received** (recorded, trust-weighted per POV).
+  *Status: no provenance marking exists. Representation, migration, and writer discipline are deferred.*
+- **Non-destructive rebuild invariant.** No pipeline — strfry→Neo4j import, the stream-consumer ETL, normalization, firmware reinstall (including `tapestryKey` re-initialization), reconciliation, or dev tooling — may destroy locally-authored state. **Interim rule until provenance exists: treat any state a rebuild cannot reproduce as precious by default.**
+  *Status: not enforced; the risk surfaces above are unaudited.*
+- **LMDB dual role.** One store, two non-overlapping purposes: **primary / ongoing** — a compact low-latency cache, lossy and partial *by right*; **secondary / intermittent** — a full lossless serialization produced for backup. The two modes must be **distinguishable**, so a cache entry is never mistaken for backup-grade data (§29).
+  *Status: only the cache mode exists; live instances report `derived: 0`. The serialization mode is unbuilt.*
+- **Coverage.** A set of derived documents **covers** the graph iff every node and edge is losslessly represented in at least one document and the set reassembles the graph exactly. **Coverage is distinct from normalization:** the normalization rules (§10) guarantee the graph's internal consistency, not the completeness of the deriver set.
+  *Status: today's derivers cover only concept-graph labels (Set, Superset, ListItem, ListHeader, ConceptHeader, JSONSchema, Property) — not the NostrUser / FOLLOWS / MUTES / REPORTS social graph.*
+
+### Deliberately open
+
+Not yet decided. These are this epic's deferred work, not omissions:
+
+- **Provenance representation** — property, label, or separate ledger — plus migration of the existing graph and per-write-path writer discipline.
+- **Backup mechanics** — encryption scheme; **key custody** (the key protecting the self's backup must survive *outside* the self); chunking against relay event-size limits; manifest and reassembly design; relay choice; retention and rotation.
+- **Serialization-mode marking and run manifests** — the *requirement* that modes be distinguishable is ratified above; the design is not.
+- **The "normalization ⇒ covering" conjecture** — that error-free normalization makes a concept-graph covering achievable is considered plausible and is **deliberately deferred, not assumed**.
+
+The **shape** of the backup pipeline is ratified — a lossless serialization, encrypted and chunked into nostr events, stashed on a mirror relay — while none of its mechanics are. Note the asymmetry this ontology forces: publishing the graph as its constituent *semantic* events is nostr-native and verifiable, but **necessarily lossy for the definitive-me**, because asserted state has no event form. "I can always reconstruct myself from my published events" is false here.
+
+See ADR 0001 (`self-ontology`) for the ratification decision; working notes and the reasoning that produced this section live in `docs/SELF_ONTOLOGY_DESIGN_HANDOFF.md`.
 
 ---
 
