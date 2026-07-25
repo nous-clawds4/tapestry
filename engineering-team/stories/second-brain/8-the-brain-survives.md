@@ -1,0 +1,71 @@
+# Story 8: The brain survives — export and restore
+
+**Status:** Approved
+**Created:** 2026-07-24
+**Type:** Feature
+**Epic:** `second-brain` (#8) · PRD §5.7, §7.4, §7.2, §5.9, §10
+
+## Background
+Stories 1–7 filled the brain with everything the product promised to remember: goals with their decomposition, resource pointers, append-only work records, proposals with their decisions, and priority signals — the owner's intent and judgment accumulated as durable facts. All of it lives in one place, and the known reinstall-clobber hazard is real: the PRD's own purpose line for §5.7 is *"the brain must be trustworthy before it is trusted."* The separate firmware clobber-protection engineering work is a referenced dependency, never re-specified here (§7.9) — and the queue is explicit that **until it lands, this story's export IS the protection**.
+
+Story 8 lays the trust floor: the owner can take a dated export of the brain's owner-authored content, and a restore from that export has been **proven once** — drilled against a scratch target, never the live brain — with the drill's result journaled. A backup that has never been restored is a promise, not a protection; the §10 MVP metric is *"1 journaled export/restore drill,"* countable by inspection. The export is also the **portability seed** (§5.9): the same artifact that protects this instance is the first concrete form of "another owner could stand this up," so nothing in it may bake in reference-instance identities.
+
+This is the **book's last story**. Stories 1–7 are Done and in production; story 7 completed the live producers for all five owner-authored content families, so the export finally has everything to carry. After this story PASSes, the Second Brain MVP block is complete (book-close follows separately).
+
+Affected: **The Delegating Owner** (the trust floor under everything they've poured into the brain — no rush jobs, no irreversible loss). **The Second Operator** (the export format is the portability seed; their instance restores it without inheriting this instance's identities). The Fresh-Context Session benefits indirectly (a brain that survives is a brain worth orienting from), but the owner journey is the justification (traceability guard).
+
+## User-facing description
+As the owner, I want to export everything I've put into my brain — goals, resources, judgments, decisions, work — as a dated artifact that stays on my machine, and to have proven once, against a scratch copy rather than the brain itself, that restoring from that artifact brings it all back, so that the brain I'm trusting with my intent has a floor under it: if the worst happens, what I authored survives, and I know the restore works because it was drilled, not promised.
+
+## Acceptance criteria
+Testable from the outside (input → observable behavior). Owner-facing strings follow `product-team/guides/second-brain-style-guide.md` — two are **already pinned verbatim**: the button label **"Export brain."** and the drill confirmation **"Restore drill complete — your brain matches the export."** The design guide's screen inventory (three views + cold start) and do-not-design list remain binding — it names **no export surface**, so placement is gate-ratified (Open Q1). Writes ride the epic's settled discipline: gated, validated before any write, serialized, local-only, append-only by construction.
+
+- [ ] **AC1 — An export produces a dated, local artifact carrying the owner-authored brain content — all five families.** Given a brain holding owner-authored content, when the owner invokes export (the pinned **"Export brain."** affordance), then a dated export artifact is produced on the owner's machine containing the brain's owner-authored content: **goals** (each with its PRD §6 attribute set **and its decomposition position** — which goal is whose child), **resources** (the pointers, with their §6 attributes including locators and verification dates), **priority signals** (with judged-by, judged-on, and framing tags), **proposals with their decisions** (nominee, why-now, passed-over goals with why-nots, decision state, decision reasons, dates), and **work records** (session, goal served, resources produced, summaries, questions, dates). Scope is the owner-authored second-brain content, **not a whole-database backup**. *(Testable: run export → the artifact exists, carries when it was taken, and every family's live content reads back from it.)*
+
+- [ ] **AC2 — A restore drill against a scratch target reproduces the content, leaves the live brain untouched, and is journaled.** Given an export artifact, when the restore drill is performed against a **scratch target** — any environment that is not the live brain — then: **(a)** the scratch target afterwards reads back the exported goals (with their decomposition positions), pointers, and records as **equivalent content**; **(b)** the live brain's existing content is unchanged by the drill — the restore writes nothing into the live brain; **the drill must not risk the thing it protects**; and **(c)** the drill's result is **journaled**: a dated, durable, append-only record that the drill ran and the restored content matched, discoverable from the brain itself — the journal entry is the only trace the drill leaves in the live brain (surface per Open Q3, gate-ratified). The drill's completion is confirmed in the pinned sentence: *"Restore drill complete — your brain matches the export."* This story is not done until the drill has actually been performed once and its journal entry exists (the §10 metric row). *(Testable: after the drill, the scratch target's read-back matches the export's content per the ratified equivalence definition; the live brain's prior content is byte-for-byte its prior self except the new journal entry; the journal entry exists, dated, append-only.)*
+
+- [ ] **AC3 — No egress.** (§7.4.) The export completes **without touching or publishing anything outward** — no outbound sync, no network publication, nothing leaves the machine; the artifact lands locally. The restore drill's writes are equally local, confined to its scratch target (plus the live brain's own journal entry). The privacy posture — *"This brain stays on this machine — nothing here is published."* — remains true throughout. *(Testable: export and drill complete with zero outward publication; structurally verifiable over the export and restore paths, extending the epic's standing no-egress scans.)*
+
+- [ ] **AC4 — Export is repeatable: run twice with no changes, get equivalent content.** Given a brain, when export runs twice with no changes to the brain in between, then the two artifacts carry **equivalent content**: the owner-authored material is the same. Equivalence is about the content, not the wrapper — the artifact's own taken-on dating identifies the export moment and may differ; nothing about the *content* may. The precise equivalence definition (what participates in the comparison, what merely identifies the export moment) is proposed by the Architect and ratified at the gate (Open Q4), so this criterion is mechanically checkable. *(Testable: export, export again with no brain writes between, compare per the ratified definition → equal.)*
+
+- [ ] **AC5 — Copy discipline, portability seed, and no regression.** Every owner-facing string this story adds passes the **banned-jargon scan** (*element, kind, schema, event, pubkey, superset, concept header, persona, acceptance criteria, lease, payload, endpoint*), carries **no exclamation marks**, and shows no scores or progress theater (dates render as the record spine already renders dates). The two pinned strings appear **verbatim**; any NEW owner-facing sentence (e.g., an export-complete confirmation) is authored to register and **ratified at a gate** (Open Q2), then back-filled into the guides at book-close. The export artifact and restore path bake in **no reference-instance identities** — the assistant identity is resolved at runtime wherever needed (§7.8), the artifact restores on an instance whose assistant identity differs, and a scratch target that starts truly empty self-provisions whatever structure the restore needs (nothing assumes pre-existing structure — §5.9). Stories 1–7's shipped surfaces continue to pass their suites, amended only where this story legitimately extends them. *(Testable: jargon scan over new strings; no hardcoded assistant identity anywhere in the export/restore paths; restore-on-empty succeeds; prior suites green.)*
+
+## Concepts touched
+All five owner-authored content families exist live on the graph (confirmed 2026-07-24; 54 concepts; `<TA>` resolved at runtime — local instance currently `11f23fe4…93767` — never hardcoded, §7.8):
+
+- `39998:<TA>:tapestry-owner-goal` — **Goal** (existing) — exported with decomposition positions.
+- `39998:<TA>:tapestry-external-resource` — **External Resource** (existing) — exported pointers.
+- `39998:<TA>:tapestry-priority-signal` — **Priority Signal** (existing) — exported with judged-by / judged-on / framing.
+- `39998:<TA>:tapestry-proposal` — **Proposal** (existing) — exported with decisions and reasons.
+- `39998:<TA>:tapestry-work-record` — **Work Record** (existing) — exported records; also the natural candidate surface for the drill journal (Open Q3 — mechanism is the Architect's).
+
+Whether export/restore introduces any machinery of its own (and where the drill journal lives) is the Architect's; this story adds **no new owner-authored content family**.
+
+## Out of scope
+- **A whole-database backup.** The search index, trust scores, relay data, other authors' events, configuration, UI state — none of it. Owner-authored second-brain content only (queue note, verbatim scope).
+- **The firmware clobber-protection epic** — referenced, never re-specified (§7.9). This export is the interim protection until that work lands; nothing here re-implements install-time protection.
+- **Scheduled, automatic, or periodic exports**; retention/rotation policies; export reminders. One owner-invoked export capability.
+- **A routine restore surface in the live brain's UI.** The restore capability exists and is drilled against a scratch target; restoring *into* the live brain remains a deliberate operator act, not a button beside "Export brain." — an in-UI restore invites exactly the clobber this story guards against. (The gate may overrule; flagged as the PO's product boundary.)
+- **Merge, partial, or selective restore; restoring into a brain that already has content.** The drill target is scratch; merge semantics are a later product question.
+- **Encrypted artifacts, cloud copies, off-machine sync** (§7.4 — local by convention; where the owner carries the artifact afterwards is their business).
+- **Category instances** — the epic's recorded coverage gap, landing in the book-close addendum, not here. Goals' own category naming rides along inside goal content.
+- **Ongoing or scheduled drills.** The product commitment is **one** verified, journaled drill (§5.7, §10); routine drilling is a later phase's question.
+
+## Open questions
+Resolved from the queue + PRD + guides + the story-8 handoff:
+- Dependencies: **story 1** (something to export) is Done and in production; in fact all five content families have live producers (stories 1–7 Done). The firmware-protection dependency is referenced-not-waited-on: until it lands, this export **is** the protection (queue, verbatim).
+
+Deferred to a gate (intent fixed; mechanism/wording proposed by the Architect, ratified by the operator — the d16/d5 precedent):
+1. **Where the export affordance lives.** The style guide pins the **button label** "Export brain." — so a button exists somewhere — but the design guide's binding screen inventory (Goals view, Goal detail, Proposal queue, cold start) has no export surface, and the do-not-design list still binds. Which existing view carries it (or how else the pinned label surfaces) is the Architect's to propose, operator-ratified.
+2. **The export-complete confirmation.** The style guide pins confirmations for capture, skip, and the restore drill — nothing for a completed export. If completing an export surfaces an owner-facing sentence, its canonical one-sentence form is authored to register and ratified at a gate, then back-filled at book-close alongside the d16/d5 strings.
+3. **The drill journal's surface.** Intent is pinned in AC2: dated, durable, append-only, discoverable from the brain itself. The mechanism — a work-record entry on some goal (story 5's spine is the natural candidate), another dated fact, or something else — is the Architect's to propose, operator-ratified. (If it is a work record: which goal does the drill serve?)
+4. **The equivalence definition.** "Equivalent content" (queue AC4, load-bearing word choice) means content equality, not byte-identity of storage identities — but AC2 and AC4 need a precise, mechanically checkable definition of what participates in the comparison. The Architect specifies it; ratified at the gate.
+5. **The scratch target's concrete form.** "Any environment that is not the live brain" (queue, verbatim), which must not risk the live brain and may start truly empty (§5.9 — nothing assumes pre-existing structure). The concrete drill environment is the Architect's.
+
+## Cohesion note (why this is one story, not several)
+Five ACs, mapping 1:1 to the product team's ratified queue unit "Story 8: The brain survives — export and restore" and the epic's named story `the-brain-survives`. Export without a drilled restore is an unproven promise; a drill without a journal is unverifiable; no-egress and repeatability are properties of the same artifact. Splitting would ship a backup nobody has proven restorable — the exact failure §5.7 exists to prevent. (Precedent: stories 5–7 shipped at 6–7 ACs; this is 5.)
+
+## Linked artifacts
+- ADR: (filled in after Architecture phase)
+- Test plan: (filled in after Test Design phase)
+- Review: (filled in after Review phase)
