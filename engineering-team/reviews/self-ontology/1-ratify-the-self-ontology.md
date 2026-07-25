@@ -266,12 +266,21 @@ None.
 1. *(carried from the first pass)* **L10 is structurally uncatchable pre-commit** — the gate reads
    clean while def-path edits are uncommitted and fails only after the phase-boundary commit, so the
    harness's own commit convention creates the red state. Two candidate fixes proposed there.
-2. **`engineering-team/stories/second-brain/7-teach-it-what-matters.md` is marked `**Status:** Done`
-   on `origin/staging` while its suite fails 5 tests** (22 passed, 5 failed) in a full run of that
-   tree. Observed in passing; **outside this story's scope and deliberately not chased.** Flagged
-   because a Done story with failing tests on the integration branch is the kind of signal that
-   silently rots — the owner or the co-tenant session that authored `72b50aa9` should confirm whether
-   the implementation landed on `staging` or only the Phase-3 failing tests did.
+2. ~~**`second-brain/7-teach-it-what-matters.md` is `Status: Done` while its suite fails 5 tests** —
+   the owner should confirm whether the implementation landed on `staging`.~~
+   **RETRACTED (2026-07-25, same session) — the flag was raised on an incomplete diagnosis and is
+   wrong.** The story is legitimately complete: impl commit `03a8af9c` and review `af7e45be`
+   ("PASS") are both on `origin/staging`, alongside the Phase-3 test commit `72b50aa9`. The 5
+   failures are **local-environment artifacts**, not a process-integrity defect — two fail with
+   `Concept "tapestry owner goal" not found` (incomplete local graph) and two with
+   `Cannot POST /api/normalize/record-priority-signal` returning a 404 HTML page (the running
+   container predates `03a8af9c`). That is precisely the already-logged condition in **OPEN.md #27**
+   ("Local dev stack is stale vs origin … stack-dependent suites fail environmentally — missing
+   endpoints + empty graph") and **#69** (stale container image missing the ETL). No new ledger row
+   was opened, because the ledger is for items with **no other surface** and this one has two.
+   Retained here rather than deleted: a reviewer flag that turned out to be wrong is part of the
+   audit trail, and the lesson — *diagnose an inherited failure before characterizing it* — is the
+   reusable part.
 
 ## Verdict
 
