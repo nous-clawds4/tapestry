@@ -8262,6 +8262,14 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
 .brain-btn-text { background: none; border: none; color: var(--accent); cursor: pointer; font: inherit; padding: 0 4px; }
 .brain-btn-text:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
+/* Export brain affordance — Goals-view footer (second-brain #8, ADR 0008 d11).
+   Token-driven; no new tokens; the outline treatment mirrors the skip button. */
+.brain-export-row { margin-top: 8px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.brain-export-btn { background: transparent; border: 1px solid var(--accent); color: var(--accent); }
+.brain-export-btn:hover:not(:disabled) { background: rgba(88, 166, 255, 0.08); }
+.brain-export-note { color: var(--text-muted); font-size: 0.85rem; }
+.brain-export-note-failed { color: var(--red); }
+
 /* Create-a-Tapestry authoring form (tapestries #3). Token-driven; no new tokens. */
 .tapestry-new-form { max-width: 640px; }
 .tapestry-concept-filter { margin-bottom: 0.5rem; }

@@ -451,7 +451,7 @@ test('S3 (ADR d1): brain import surface re-pin — the 0001 four plus lib/brain/
   // second-brain #4 (ADR 0004 d5) adds lib/brain/resources; second-brain #5
   // (ADR 0005 d10) adds lib/brain/work-records — this re-pin admits the seven,
   // nothing else.
-  const allowed = [/neo4j-driver$/, /middleware\/auth$/, /assistantKeys$/, /lib\/brain\/goals$/, /lib\/brain\/hygiene$/, /lib\/brain\/resources$/, /lib\/brain\/work-records$/, /lib\/brain\/proposals$/, /lib\/brain\/signals$/];
+  const allowed = [/neo4j-driver$/, /middleware\/auth$/, /assistantKeys$/, /lib\/brain\/goals$/, /lib\/brain\/hygiene$/, /lib\/brain\/resources$/, /lib\/brain\/work-records$/, /lib\/brain\/proposals$/, /lib\/brain\/signals$/, /lib\/brain\/export$/];
   for (const spec of requires) {
     assert(allowed.some((re) => re.test(spec)),
       `import surface violation: require('${spec}') — the brain module allows only lib/neo4j-driver, ` +

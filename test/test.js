@@ -186,6 +186,7 @@ const attachTheWorld = require('./attach-the-world.test.js');
 const sessionsReadTheBrain = require('./sessions-read-the-brain.test.js');
 const theProposalLoop = require('./the-proposal-loop.test.js');
 const teachItWhatMatters = require('./teach-it-what-matters.test.js');
+const theBrainSurvives = require('./the-brain-survives.test.js');
 // bug — tapestry-key handlePut must await the async LMDB write (regression guard).
 const tapestryKeyPutAwait = require('./tapestry-key-put-await.test.js');
 
@@ -491,6 +492,7 @@ async function main() {
   const sessionsReadTheBrainResult = await sessionsReadTheBrain.run();
   const theProposalLoopResult = await theProposalLoop.run();
   const teachItWhatMattersResult = await teachItWhatMatters.run();
+  const theBrainSurvivesResult = await theBrainSurvives.run();
 
   console.log('\ntapestry-key-put-await suite:');
   const tapestryKeyPutAwaitResult = await tapestryKeyPutAwait.run();
@@ -884,6 +886,11 @@ async function main() {
       ? `SKIP (${teachItWhatMattersResult.skipped} tests; preconditions not met)`
       : `${teachItWhatMattersResult.fail === 0 ? 'PASS' : 'FAIL'} (${teachItWhatMattersResult.pass} passed, ${teachItWhatMattersResult.fail} failed${teachItWhatMattersResult.skipped ? `, ${teachItWhatMattersResult.skipped} skipped` : ''})`;
   console.log(`teach-it-what-matters suite:                     ${teachItWhatMattersLine}`);
+  const theBrainSurvivesLine =
+    (theBrainSurvivesResult.pass + theBrainSurvivesResult.fail) === 0 && theBrainSurvivesResult.skipped
+      ? `SKIP (${theBrainSurvivesResult.skipped} tests; preconditions not met)`
+      : `${theBrainSurvivesResult.fail === 0 ? 'PASS' : 'FAIL'} (${theBrainSurvivesResult.pass} passed, ${theBrainSurvivesResult.fail} failed${theBrainSurvivesResult.skipped ? `, ${theBrainSurvivesResult.skipped} skipped` : ''})`;
+  console.log(`the-brain-survives suite:                        ${theBrainSurvivesLine}`);
 
   const overallOk =
     configOk &&
@@ -1053,7 +1060,10 @@ async function main() {
     tapestryKeyPutAwaitResult.fail === 0 &&
     // second-brain #7 — teach it what matters (priority signals)
     // (LIVE chain — before the severed terminator; OPEN.md #43).
-    teachItWhatMattersResult.fail === 0;
+    teachItWhatMattersResult.fail === 0 &&
+    // second-brain #8 — the brain survives (export + restore drill)
+    // (LIVE chain — before the severed terminator; OPEN.md #43).
+    theBrainSurvivesResult.fail === 0;
     harnessLintResult.fail === 0 &&
     harnessStatsResult.fail === 0 &&
     sessionStartResult.fail === 0 &&
@@ -1076,7 +1086,7 @@ async function main() {
     nip51ListExportPublishResult, pinDetailIntoTagTabResult, collapseIntoExportResult, loginFailureAndTagCollapseResult,
     headerConceptGraphTagResult, communityReferenceSupersetLinkResult, graperankSharedCsvRaceResult, communityClassThreadPullResult,
     taskQueueBullmqResult, taskQueueNeo4jResourceClassResult, entrypointTemplateRenderingResult, bullboardAdminAccessResult,
-    adminToolsDashboardPanelResult, createTapestryResult, teachItWhatMattersResult, reconciliationIncrementalModeResult, generalizedTaskSchedulerResult, reconciliationRearchitectureResult,
+    adminToolsDashboardPanelResult, createTapestryResult, teachItWhatMattersResult, theBrainSurvivesResult, reconciliationIncrementalModeResult, generalizedTaskSchedulerResult, reconciliationRearchitectureResult,
     scheduledTasksWithArgumentsResult, manualTaskRetriggerAfterFinishResult, scheduledTaskTimeoutPropagationResult, killTimeoutOrphansByDefaultResult,
     taskQueueSemaphoreProtectionAuditResult, profileFollowsListResult, profileWebsiteLinkResult, profileVerifiedFollowersCountResult,
     profileFollowersListResult, profileVerifiedReportersCountResult, verifiedReportersMembershipDataResult, verifiedReportersListPageResult,

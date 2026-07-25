@@ -1,6 +1,6 @@
 # Second Brain — Story 8 Session Handoff (2026-07-24)
 
-**Status:** 🔴 OPEN
+**Status:** ✅ ADDRESSED *(2026-07-25 — story 8 review PASS (independent, `d21ea321`); the restore drill ran and journaled `matched`; the BOOK CLOSED (`audits/second-brain/{audit,prd-addendum}.md`); shipped to production: staging PR #459, prod promotion PR #460. One handoff correction discovered en route: the goal concept was never firmware-seeded either (ADR 0001) — restore now ensures all five concepts. Next pickup: the product team scopes Phase 2 from the addendum — no story-9 handoff exists by design.)*
 
 > Written at the close of the story-7 session (teach-it-what-matters: review PASS,
 > shipped to production 2026-07-24, staging PR #454, prod promotion PR #455). This
