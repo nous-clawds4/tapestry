@@ -82,6 +82,6 @@ that I understand what each concept *is*, not just its skeletal header.
   likely means authoring one via the owner-gated Create page. To confirm in Test Design.
 
 ## Linked artifacts
-- ADR: *(after Architecture)*
+- ADR: `engineering-team/decisions/tapestries/0004-per-concept-detail-views-neo4j-lmdb.md` (Accepted) — partially supersedes ADR 0002 Decision 2 for per-concept detail data.
 - Test plan: *(after Test Design)*
 - Review: *(after Review)*
