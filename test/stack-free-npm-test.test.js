@@ -18,8 +18,16 @@
  *  - The stack-PRESENT no-coverage-loss check (G2) self-skips when the real
  *    control panel is unreachable — the same honesty rule this story ships.
  *
- * G1, G3, G4 FAIL pre-implementation; G2 and G5 are standing regression
- * guards (green pre- and post-) against over-guarding and skip-masking.
+ * G1, G3, G4 FAIL pre-implementation; G2 is a standing regression guard.
+ *
+ * harness-gate-integrity #1 (ADR 0001) extends this suite — it already owns
+ * test.js's exit-strictness contract. G5 is STRENGTHENED to assert every
+ * `await <suite>.run()` result gates INSIDE the overallOk expression itself
+ * (chain[1], not merely present somewhere in the file — the `src.includes`
+ * gap is exactly why G5 missed #43). G6 (AC1, behavioral) evaluates the real
+ * overallOk expression with a planted suite failure; G7 (AC3) forbids the
+ * summary lines that branch on `.skipped` alone (#58). G5/G6/G7 FAIL until
+ * #43's chain repair and #58's summary rewrite land.
  */
 
 const { spawnSync } = require('child_process');
@@ -56,6 +64,18 @@ function assert(cond, msg) { if (!cond) throw new Error(msg || 'Assertion failed
 function skip(reason) { throw Object.assign(new Error(reason), { skipped: true }); }
 
 const RESULT_MARKER = '___SUITE_RESULT___';
+
+/**
+ * The captured `overallOk` expression from test.js source. `//` line comments
+ * are stripped FIRST: several comments inside the chain carry a literal ';'
+ * ("before the terminator; …"), which would otherwise truncate the non-greedy
+ * `([\s\S]*?);` capture at the comment rather than at the real code terminator.
+ * Returns the expression text or null if not found. (harness-gate-integrity #1)
+ */
+function overallOkExpr(src) {
+  const m = src.replace(/\/\/[^\n]*/g, '').match(/const overallOk =([\s\S]*?);/);
+  return m ? m[1] : null;
+}
 
 /** Spawn one suite module in a child node process; parse its run() result. */
 function runSuiteChild(file, envOverrides) {
@@ -152,24 +172,85 @@ test('G4 (AC-4): each of the 12 suites carries a bounded reachability guard (pro
     `every target suite needs the bounded-probe guard the *-publish suites already use (story AC-4); offenders:\n      - ${offenders.join('\n      - ')}`);
 });
 
-test('G5 (AC-5 guard): skips can never mask failures — every target suite\'s `.fail === 0` stays in the overallOk chain, the chain never consults `.skipped`, and the exit code stays strict', () => {
+test('G5 (test-hermeticity-ci #2 AC-5 + harness-gate-integrity #1 AC2): skips never mask failures AND every registered suite gates — each `await <suite>.run()` result has `<var>.fail === 0` INSIDE the overallOk expression (chain[1], not merely present in the file), the chain never consults `.skipped`, and the exit code stays strict', () => {
   const src = fs.readFileSync(TEST_JS, 'utf8');
+  const chainExpr = overallOkExpr(src);
+  assert(chainExpr !== null, 'test.js must compute overallOk (the aggregate exit expression) — not found.');
+  // Every gating suite: `const <var> = await <suite>.run()`. Verified 142/142 —
+  // there is no non-gating *Result var, so this cannot false-fire.
+  const suites = [...new Set(
+    [...src.matchAll(/const\s+(\w+Result)\s*=\s*await\s+\w+\.run\(\)/g)].map((m) => m[1]),
+  )];
+  assert(suites.length > 0, 'no `const <var> = await <suite>.run()` suite results found in test.js — the enumeration is broken.');
   const offenders = [];
-  for (const { file, resultVar } of TARGETS) {
-    if (!src.includes(`${resultVar}.fail === 0`)) {
-      offenders.push(`${file}: ${resultVar}.fail === 0 missing from the overallOk chain`);
+  for (const v of suites) {
+    // Membership is checked against the CAPTURED overallOk expression, not the
+    // whole file — a term sitting in a dead post-`;` block IS in the file yet
+    // does not gate. That whole-file `src.includes` blind spot is why G5 missed #43.
+    if (!new RegExp(`\\b${v}\\.fail === 0`).test(chainExpr)) {
+      offenders.push(`${v}.fail === 0 is not in the overallOk chain — the suite runs but does not gate the exit code (#43: severed chain, or a term never added)`);
     }
   }
-  const chain = src.match(/const overallOk =([\s\S]*?);/);
-  assert(chain, 'test.js must compute overallOk (the aggregate exit expression) — not found.');
-  if (/\.skipped/.test(chain[1])) {
+  if (/\.skipped/.test(chainExpr)) {
     offenders.push('the overallOk expression consults .skipped — skip state must never influence pass/fail semantics');
   }
   if (!/process\.exit\(overallOk \? 0 : 1\)/.test(src)) {
     offenders.push('process.exit(overallOk ? 0 : 1) missing — the exit code must remain the strict verdict');
   }
   assert(offenders.length === 0,
-    `exit-code strictness regressed (story AC-5); offenders:\n      - ${offenders.join('\n      - ')}`);
+    `exit-code strictness / gate completeness regressed (test-hermeticity-ci #2 AC-5 + harness-gate-integrity #1 AC2); offenders:\n      - ${offenders.join('\n      - ')}`);
+});
+
+test('G6 (harness-gate-integrity #1 AC1): the exit gate fails on ANY suite failure — evaluating test.js\'s real overallOk expression with one suite failed yields false, for a re-attached AND for a never-wired suite', () => {
+  const src = fs.readFileSync(TEST_JS, 'utf8');
+  const expr = overallOkExpr(src);
+  assert(expr !== null, 'test.js must compute overallOk (the aggregate exit expression) — not found.');
+  const declared = [...new Set(
+    [...src.matchAll(/const\s+(\w+Result)\s*=\s*await\s+\w+\.run\(\)/g)].map((m) => m[1]),
+  )];
+  assert(declared.length > 0, 'no `const <var> = await <suite>.run()` suite results found in test.js — the enumeration is broken.');
+  // Every FREE identifier the expression references — the `*Result` vars AND any
+  // bare boolean term like `configOk` (line 896). A `.fail` after `.` is a
+  // property, not a free var, so the negative lookbehind excludes it.
+  const idents = [...new Set((expr.match(/(?<![.\w])[A-Za-z_$][\w$]*/g) || [])
+    .filter((t) => !['true', 'false', 'null'].includes(t)))];
+  // Evaluate the REAL captured overallOk expression with a synthetic result set:
+  // all suites pass except those in `failing`; bare terms (configOk) are true.
+  // No recursion, no full run.
+  function overallOkWith(failing) {
+    const values = idents.map((id) => {
+      if (failing.includes(id)) return { pass: 0, fail: 1, skipped: 0 };
+      if (declared.includes(id)) return { pass: 1, fail: 0, skipped: 0 };
+      return true; // bare boolean terms (e.g. configOk)
+    });
+    // eslint-disable-next-line no-new-func
+    const fn = new Function(...idents, `return (${expr});`);
+    return fn(...values);
+  }
+  const offenders = [];
+  if (overallOkWith([]) !== true) {
+    offenders.push('with every suite passing, overallOk does not evaluate true — the expression is malformed');
+  }
+  // harnessLintResult is a dead-block (re-attached) suite; noteTrustedList / applicabilityRepublish were never wired.
+  for (const v of ['harnessLintResult', 'noteTrustedListResult', 'applicabilityRepublishResult']) {
+    assert(declared.includes(v), `expected ${v} to be a declared suite result — test.js changed; update this guard`);
+    if (overallOkWith([v]) !== false) {
+      offenders.push(`${v} failing does NOT flip overallOk to false — the suite runs but is orphaned from the exit gate (#43: severed chain or never-added term)`);
+    }
+  }
+  if (!/process\.exit\(overallOk \? 0 : 1\)/.test(src)) {
+    offenders.push('process.exit(overallOk ? 0 : 1) missing — the exit code must be the strict verdict');
+  }
+  assert(offenders.length === 0,
+    `every registered suite must gate the exit code (story AC1); offenders:\n      - ${offenders.join('\n      - ')}`);
+});
+
+test('G7 (harness-gate-integrity #1 AC3): no per-suite summary line masks a real failure — every summary ternary guards on (pass+fail)===0, never on `.skipped` alone', () => {
+  const src = fs.readFileSync(TEST_JS, 'utf8');
+  const allLines = [...src.matchAll(/^\s*const\s+(\w+Line)\s*=/gm)].map((m) => m[1]);
+  const badForm = [...src.matchAll(/^[ \t]*const\s+\w+Line\s*=\s*\w+Result\.skipped[ \t]*$/gm)].map((m) => m[0].trim());
+  assert(badForm.length === 0,
+    `${badForm.length} of ${allLines.length} summary lines mask failures (story AC3): they branch on \`.skipped\` alone, so a {fail>=1, skipped>=1} run prints SKIP and hides the failure (#58). Rewrite each to the good-form guard \`(<r>.pass + <r>.fail) === 0 && <r>.skipped ? SKIP : …\` used by the 14 correct siblings (e.g. deploySafetyStatusLine):\n      - ${badForm.join('\n      - ')}`);
 });
 
 async function run() {

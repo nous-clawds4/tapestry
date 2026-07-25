@@ -24,6 +24,7 @@
 #                        itself a violation; waiver shape: commit:<short-sha>
 #   L11 line-budgets     always-loaded files hold the caps in scripts/harness-budgets.txt
 #   L12 def-paths-exist  every def-path row names something present on disk
+#   L13 adr-consequences active ADR (decisions/, not done/) carries ## Consequences
 #
 # Review verdicts (L1/L4): the LAST verdict-shaped token in the file wins —
 # a token is PASS or CHANGES_REQUESTED appearing on a heading line or inside
@@ -195,6 +196,9 @@ check_L8() {
     while IFS= read -r f; do files+=("$f"); done < <(find "$d" -name '*.md' 2>/dev/null)
   done
   for f in "${LINK_DOCS_EXTRA[@]}"; do [ -f "$f" ] && files+=("$f"); done
+  # bash-3.2 + set -u: expanding an empty array errors — guard the length first
+  # (same precedent as violation():67 and whats-open.sh def_paths). (#21)
+  [ "${#files[@]}" -eq 0 ] && return 0
   for f in "${files[@]}"; do
     dir=$(dirname "$f")
     while IFS= read -r target; do
@@ -291,6 +295,22 @@ check_L11() {
   return 0
 }
 
+# ---------- L13: active ADRs carry the template-required ## Consequences ----------
+# templates/adr.md requires `## Consequences`; templates/build-audit.md:42 harvests
+# it for the close-book §5 debt roll-up, so a missing section silently under-reports
+# debt (tag-event-inspector/0001 shipped without it, unseen — OPEN.md #46). Active
+# ADRs only: the retired done/ tree is frozen history (same done/-skip as
+# check_reviews and check_L2). Heading-presence only — sub-bullet wording varies.
+check_L13() {
+  local f
+  for f in engineering-team/decisions/*/*.md; do
+    [ -e "$f" ] || continue
+    case "$f" in engineering-team/decisions/done/*) continue ;; esac
+    grep -qE '^##[[:space:]]+Consequences' "$f" \
+      || violation L13 "$f" "ADR missing the template-required '## Consequences' — build-audit §5 (templates/build-audit.md:42) harvests it for the debt roll-up"
+  done
+}
+
 # ---------- run ----------
 check_reviews
 check_L2
@@ -302,6 +322,7 @@ check_L9
 check_L10
 check_L11
 check_L12
+check_L13
 
 # stale waivers — visible, non-fatal (same bash-3.2 empty-array guard as violation())
 if [ "${#W_IDS[@]}" -gt 0 ]; then
