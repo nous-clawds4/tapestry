@@ -1,7 +1,7 @@
 # Epic: Second Brain (display name: "Tapestry Harness")
 
 **Created:** 2026-07-22
-**Status:** Active
+**Status:** Done *(book closed 2026-07-25 — all 8 stories Done, see `audits/second-brain/audit.md` + `prd-addendum.md`; retirement to `done/` on next-phase ingestion — OPEN.md row 96)*
 **Book:** `engineering-team/audits/second-brain/book.md` (PRD-backed)
 **Source PRD:** `product-team/prd/second-brain.md`
 **Guides:** `product-team/guides/second-brain-design-guide.md`, `second-brain-style-guide.md` (+ `second-brain-wireframes.html`) — binding at review
