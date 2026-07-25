@@ -67,5 +67,5 @@ Five ACs, mapping 1:1 to the product team's ratified queue unit "Story 8: The br
 
 ## Linked artifacts
 - ADR: `engineering-team/decisions/second-brain/0008-the-brain-survives.md` (Accepted 2026-07-24; the full Q1–Q5 bundle operator-ratified at the gate) — identity-free verbatim-section artifact via read-only `GET /api/brain/export` + Goals-view footer affordance; collision-refusing verbatim re-mint `restore-brain` in normalize (goals name-derived, records nonce d-tags; `ensureGoalConcept` closes ADR 0001's bootstrap gap); fifth runtime concept `tapestry-restore-drill` journals the drill (both outcomes); scripted one-time drill against an ephemeral fresh-TA scratch container (`scripts/brain-drill.sh`); one `contentEquivalent` definition serves AC2+AC4; tenth brain require re-pins the allowlist ×7.
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/second-brain/8-the-brain-survives.test-plan.md` — `test/the-brain-survives.test.js` (U/S/H/R, 31 tests). Pre-impl: **6 passed, 25 failed, 0 skipped** (right-reason failures; feature absent; H rows ran live). Seven siblings green under the widen-only TEN import re-pin. State-free discovery teardown (OPEN.md row 94's fix) adopted for this suite. Verified 2026-07-24 at `03a68913`.
 - Review: (filled in after Review phase)
