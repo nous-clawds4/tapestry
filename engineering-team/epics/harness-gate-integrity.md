@@ -1,6 +1,6 @@
 # Epic: Harness Gate-Integrity & Lint Robustness
 
-**Status:** Active
+**Status:** Done
 **Book:** `engineering-team/audits/harness-gate-integrity/book.md` (acceptance-frame)
 **Parent lineage:** `harness-self-improvement` (Done) — this epic fixes defects in that epic's own deliverables (the aggregate test runner and `scripts/harness-lint.sh`), rather than adding any new surface.
 

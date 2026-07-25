@@ -1,8 +1,9 @@
 # Book of Work: Harness Gate-Integrity & Lint Robustness
 
 **Slug:** harness-gate-integrity
-**Status:** Open
+**Status:** Closed
 **Opened:** 2026-07-25
+**Closed:** 2026-07-25
 
 ## Intent anchor
 **Acceptance frame (no PRD)** — the operator's ask, restated and confirmed at kickoff. Completion is *judged* against the bullets below.
@@ -16,20 +17,21 @@ The load-bearing defect: **the harness's own aggregate gate does not gate.** The
 All six items were verified LIVE on staging before the book opened (investigation workflow, 2026-07-25) — exact line numbers, fixes, risks, and cross-item ordering captured in the story.
 
 ### Acceptance frame
-- [ ] **The aggregate gate actually gates every registered suite.** A failure planted in any one of the nine currently-non-gating suites flips Overall to FAIL and the exit code to non-zero (today: exit 0). Proven for at least one re-attached suite and one of the two never-wired suites.
-- [ ] **The gate is self-defending.** A registered suite left un-wired into the aggregate gate is flagged mechanically by a harness self-check — so the class of #43 cannot silently recur.
-- [ ] **The per-suite summary is honest.** A suite result with a real failure plus a skip prints FAIL (skips noted), never SKIP; a purely-skipped suite still prints SKIP.
-- [ ] **The ADR `## Consequences` section is enforced.** A `decisions/**` ADR missing the template-required section is flagged by the harness invariant check; the tree checks clean on landing (both existing offenders resolved).
-- [ ] **The CI-ordering invariant is robust to prose.** A comment naming a build command before the workflow's steps does not false-fail the install-before-gate check, which still catches a genuine mis-ordering.
-- [ ] **The invariant checker survives an empty tree.** A repo tree with zero wiring/link-doc files does not crash the checker under macOS system bash (3.2).
-- [ ] **The harness stays green; ships on harness-infra cadence.** Full harness runs Overall PASS / exit 0 on staging with no suite newly failing; the change is NOT part of the prod-held feature bundle.
-- [ ] **Each defect carries a regression test that would have caught it.** The five fixes each land with a test that fails on the pre-fix behavior.
+- [x] **The aggregate gate actually gates every registered suite.** A failure planted in any one of the nine currently-non-gating suites flips Overall to FAIL and the exit code to non-zero (today: exit 0). Proven for at least one re-attached suite and one of the two never-wired suites.
+- [x] **The gate is self-defending.** A registered suite left un-wired into the aggregate gate is flagged mechanically by a harness self-check — so the class of #43 cannot silently recur.
+- [x] **The per-suite summary is honest.** A suite result with a real failure plus a skip prints FAIL (skips noted), never SKIP; a purely-skipped suite still prints SKIP.
+- [x] **The ADR `## Consequences` section is enforced.** A `decisions/**` ADR missing the template-required section is flagged by the harness invariant check; the tree checks clean on landing (both existing offenders resolved).
+- [x] **The CI-ordering invariant is robust to prose.** A comment naming a build command before the workflow's steps does not false-fail the install-before-gate check, which still catches a genuine mis-ordering.
+- [x] **The invariant checker survives an empty tree.** A repo tree with zero wiring/link-doc files does not crash the checker under macOS system bash (3.2).
+- [x] **The harness stays green; ships on harness-infra cadence.** Full harness runs Overall PASS / exit 0 on staging with no suite newly failing; the change is NOT part of the prod-held feature bundle.
+- [x] **Each defect carries a regression test that would have caught it.** The five fixes each land with a test that fails on the pre-fix behavior.
 
 ## Epics in this book
 - `harness-gate-integrity` — story #1 (`gate-integrity-and-lint-robustness`).
 
 ## Provenance
 - **Mode:** Acceptance-frame
+- **Confidence at close:** **high** — all 8 frame bullets satisfied; independent Phase-5 audit (OPEN.md #80b) re-ran every gate; full gate Overall PASS / exit 0 (quiesced); the one un-quiesced failure was the pre-existing OPEN.md #75 flake, not this change.
 - **Investigation:** workflow `wf_0c836c19-53d` (2026-07-25) — six read-only agents verified all items live on staging.
 
 ## Close artifacts *(filled by `/close-book`)*
