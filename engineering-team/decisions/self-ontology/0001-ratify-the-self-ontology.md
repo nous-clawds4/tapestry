@@ -216,7 +216,15 @@ Three blocks, in this order:
   closing sentence so designs touching storage, rebuilds, or backup are also checked against
   principle 4.
 - **Verify:** `wc -l CLAUDE.md` returns **190**, and `bash scripts/harness-lint.sh` is clean.
-  Do **not** edit `scripts/harness-budgets.txt` — no cap change, therefore no CHANGELOG row.
+  Do **not** edit `scripts/harness-budgets.txt` — there is no cap change.
+- **A CHANGELOG row IS required.** `CLAUDE.md` is listed in `scripts/harness-def-paths.txt`, so any
+  commit touching it is a **harness-definition commit** and must also touch
+  `engineering-team/CHANGELOG.md` (the touch-rule, lint check **L10**) — independently of whether a
+  budget cap moved. Add the row in the **same commit** as the `CLAUDE.md` edit. Note that
+  `harness-lint.sh` cannot catch this pre-commit: L10 inspects the latest *commit* touching def
+  paths, so the gate reads clean while the edits are still uncommitted and only fails afterwards.
+  *(Corrected after the self-ontology #1 review — the original text wrongly inferred "no cap change,
+  therefore no CHANGELOG row", conflating the budgets-file cap rule with L10.)*
 
 ### 4. `docs/SELF_ONTOLOGY_DESIGN_HANDOFF.md` — annotate, keep OPEN
 
@@ -232,7 +240,8 @@ Three blocks, in this order:
   pipeline, no monitoring. Those are epic stories 2–6.
 - **Deciding any open question** from handoff §11 — they are documented as open, not resolved.
 - **Raising the `CLAUDE.md` line cap** — explicitly rejected by the owner; hence no
-  `scripts/harness-budgets.txt` edit and no CHANGELOG row.
+  `scripts/harness-budgets.txt` edit. (This does **not** exempt the change from the CHANGELOG
+  touch-rule — see Implementation notes §3: editing `CLAUDE.md` at all requires a CHANGELOG row.)
 - **Flipping the handoff to SUPERSEDED** — deferred until the rest of its content ratifies.
 - **Test Design** — skipped (docs-mode; no executable behavior). The gates are `npm test` staying
   green, `harness-lint` clean, `CLAUDE.md` at 190, and the Reviewer's accuracy/cross-reference audit.
