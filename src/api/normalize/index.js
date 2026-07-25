@@ -4805,6 +4805,385 @@ async function recordPrioritySignal({ prefersSlug, overSlug, reason }) {
   return { success: true, result: 'recorded', signal: { uuid, slug, prefers: prefersSlug, over: overSlug } };
 }
 
+// ══════════════════════════════════════════════════════════════
+// Second Brain export/restore (second-brain #8, ADR 0008)
+//   POST /api/normalize/restore-brain         { artifact }
+//   POST /api/normalize/record-restore-drill  { exportTakenOn, outcome, target? }
+//   Restore re-mints an export artifact's sections VERBATIM under THIS
+//   instance's own identity: goals under name-derived d-tags (the
+//   createChildGoal idiom), records under fresh nonce d-tags (the
+//   mint*Element idiom) — every slug-based cross-record link survives
+//   byte-for-byte. ALL collision checks precede ALL writes (the pure
+//   planRestore core); a refusal is loud, named, and writes NOTHING.
+//   The drill journal is the FIFTH runtime-created append-only concept
+//   (born final, the signal precedent). Writes ride the module's own
+//   local-only machinery — nothing publishes outward (§7.4).
+// ══════════════════════════════════════════════════════════════
+
+// The goal concept's schema for ensureGoalConcept (ADR 0008 d8) — the live
+// concept's field set (ADR 0001/0003), carried here so a truly fresh target
+// (which lacks ALL five brain concepts — the ADR 0001 recon correction) can
+// self-provision before the first restored goal mints. On the reference
+// instance the concept already exists and the ensure is a no-op.
+const GOAL_SCHEMA = {
+  type: 'object',
+  properties: {
+    tapestryOwnerGoal: {
+      type: 'object',
+      title: 'Tapestry Owner Goal',
+      required: ['name', 'slug', 'description'],
+      properties: {
+        name: { type: 'string', description: 'The name of the tapestry owner goal' },
+        slug: { type: 'string', description: 'A unique kebab-case identifier for this tapestry owner goal' },
+        description: { type: 'string', description: 'A brief description of the tapestry owner goal' },
+        origin: { type: 'string', description: "where this goal came from, in plain words (e.g. 'owner, in conversation')" },
+        capturedOn: { type: 'string', description: 'the date the goal was captured, ISO 8601 (YYYY-MM-DD); stable across re-signs' },
+        deliverable: { type: 'string', description: "what 'done' produces, in the owner's words" },
+        boundary: { type: 'string', description: "what pursuing this goal may not touch, in the owner's words" },
+        parent: { type: 'string', description: 'the slug of the parent goal this goal is part of (one parent at most)' },
+      },
+      'x-tapestry': { unique: ['name', 'slug'] },
+    },
+  },
+  required: ['tapestryOwnerGoal'],
+};
+
+// Self-bootstrap the goal concept (ADR 0008 d8) — closing the ADR 0001
+// bootstrap gap: idempotent, a structural copy of ensureSignalConcept.
+// create-concept ("already exists" → success) + save-schema run ONLY when the
+// concept is absent. §5.9: a fresh instance self-provisions with no manual
+// step; never firmware-seeded.
+async function ensureGoalConcept() {
+  const existing = await resolveGoalConcept();
+  if (!existing.error) return existing;
+  await invokeNormalizeHandler(handleCreateConcept, {
+    name: GOAL_CONCEPT_NAME,
+    description: 'A goal the owner captured in plain words — its name, statement, origin, capture date, its place in the decomposition, and (for viable leaves) the deliverable and boundary. Standing is derived from dated facts, never stored.',
+  });
+  await invokeNormalizeHandler(handleSaveSchema, { concept: GOAL_CONCEPT_NAME, schema: GOAL_SCHEMA });
+  const provisioned = await resolveGoalConcept();
+  if (provisioned.error) {
+    throw new Error(`ensureGoalConcept failed to provision the concept: ${provisioned.error}`);
+  }
+  return provisioned;
+}
+
+// One family's CURRENT records on this instance (the explicit ∪ implicit
+// union, parsed through the family's own core) — the restore pre-check's
+// input. Tolerant of an absent concept (no header ⇒ no rows ⇒ []). These
+// have a real consumer here (the 0007 review's fetchSignals lesson).
+async function fetchFamilyRecords(headerUuid, parseRow) {
+  const [explicitRows, implicitRows] = await Promise.all([
+    runCypher(`
+      MATCH (h:NostrEvent {uuid: $headerUuid})-[:${REL.CLASS_THREAD_INITIATION}]->(s:Superset)
+      MATCH (s)-[:${REL.CLASS_THREAD_PROPAGATION}*0..10]->(ss)-[:${REL.CLASS_THREAD_TERMINATION}]->(e:NostrEvent)
+      WHERE e.kind = 39999
+      OPTIONAL MATCH (e)-[:HAS_TAG]->(j:NostrEventTag {type: 'json'})
+      WITH DISTINCT e, head(collect(j.value)) AS json
+      RETURN e.uuid AS uuid, e.name AS name, e.created_at AS createdAt, json AS json
+    `, { headerUuid }),
+    runCypher(`
+      MATCH (e:NostrEvent)-[:HAS_TAG]->(:NostrEventTag {type: 'z', value: $headerUuid})
+      WHERE e.kind = 39999
+      OPTIONAL MATCH (e)-[:HAS_TAG]->(j:NostrEventTag {type: 'json'})
+      WITH DISTINCT e, head(collect(j.value)) AS json
+      RETURN e.uuid AS uuid, e.name AS name, e.created_at AS createdAt, json AS json
+    `, { headerUuid }),
+  ]);
+  const rowByUuid = new Map();
+  for (const row of [...explicitRows, ...implicitRows]) {
+    if (row && row.uuid && !rowByUuid.has(row.uuid)) rowByUuid.set(row.uuid, row);
+  }
+  return [...rowByUuid.values()].map(parseRow).filter(Boolean);
+}
+
+// Mint one RESTORED goal (ADR 0008 d7): the artifact's section VERBATIM —
+// capturedOn is NOT restamped, out-of-contract fields ride along — under the
+// NAME-DERIVED d-tag (the createChildGoal idiom; deterministic per instance).
+// The planRestore pre-check already refused every collision, so the MERGE
+// hazard the createChildGoal guard names cannot occur here.
+async function mintRestoredGoal({ headerUuid, supersetUuid, name, section }) {
+  const dTag = dtag.childDTag(name, headerUuid);
+  const tags = [
+    ['d', dTag],
+    ['name', name],
+    ['z', headerUuid],
+    ['json', JSON.stringify({ tapestryOwnerGoal: section })],
+  ];
+  const evt = signAndFinalize({ kind: 39999, tags, content: '' });
+  const elemUuid = `39999:${evt.pubkey}:${dTag}`;
+  await publishToStrfry(evt);
+  await importEventDirect(evt, elemUuid);
+  await writeCypher(`MATCH (n:NostrEvent {uuid: $uuid}) SET n:ListItem, n.slug = $slug`, { uuid: elemUuid, slug: section.slug });
+  await writeCypher(`
+    MATCH (sup:NostrEvent {uuid: $supersetUuid}), (elem:NostrEvent {uuid: $elemUuid})
+    MERGE (sup)-[:${REL.CLASS_THREAD_TERMINATION}]->(elem)
+  `, { supersetUuid, elemUuid });
+  return { uuid: elemUuid, slug: section.slug };
+}
+
+// Mint one RESTORED record element (ADR 0008 d7): the artifact's section
+// VERBATIM under a fresh RANDOM d-tag (the mint*Element idiom — no write can
+// ever MERGE over an existing record) with this instance's own signature.
+async function mintRestoredElement({ headerUuid, supersetUuid, familyKey, name, section }) {
+  const nonce = randomDTag();
+  const dTag = dtag.childDTag(name, headerUuid, nonce);
+  const tags = [
+    ['d', dTag],
+    ['name', name],
+    ['z', headerUuid],
+    ['json', JSON.stringify({ [familyKey]: section })],
+  ];
+  const evt = signAndFinalize({ kind: 39999, tags, content: '' });
+  const elemUuid = `39999:${evt.pubkey}:${dTag}`;
+  await publishToStrfry(evt);
+  await importEventDirect(evt, elemUuid);
+  await writeCypher(`MATCH (n:NostrEvent {uuid: $uuid}) SET n:ListItem, n.slug = $slug`, { uuid: elemUuid, slug: section.slug });
+  await writeCypher(`
+    MATCH (sup:NostrEvent {uuid: $supersetUuid}), (elem:NostrEvent {uuid: $elemUuid})
+    MERGE (sup)-[:${REL.CLASS_THREAD_TERMINATION}]->(elem)
+  `, { supersetUuid, elemUuid });
+  return { uuid: elemUuid, slug: section.slug };
+}
+
+async function handleRestoreBrain(req, res) {
+  try {
+    const { isOwner } = require('../../middleware/auth');
+    if (!isOwner(req) && !req.localTrusted) {
+      return res.status(403).json({ success: false, error: 'Owner access required' });
+    }
+    const { artifact } = req.body || {};
+    if (!artifact || typeof artifact !== 'object' || Array.isArray(artifact)) {
+      return res.status(400).json({ success: false, error: 'Missing artifact' });
+    }
+    // Shape problems are 400s (ADR 0008 d6); domain refusals come back from
+    // the core as HTTP-200 {success:false, refusal, ...} — the epic contract.
+    const { validateArtifact } = require('../../lib/brain/export');
+    const shape = validateArtifact(artifact);
+    if (!shape.ok) {
+      return res.status(400).json({ success: false, error: shape.error });
+    }
+    const result = await serializeGoalWrite(() => restoreBrain({ artifact }));
+    return res.json(result);
+  } catch (error) {
+    console.error('normalize/restore-brain error:', error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+}
+
+async function restoreBrain({ artifact }) {
+  const { parseGoalRow } = require('../../lib/brain/goals');
+  const { parseResourceRow } = require('../../lib/brain/resources');
+  const { parseWorkRecordRow } = require('../../lib/brain/work-records');
+  const { parseProposalRow } = require('../../lib/brain/proposals');
+  const { parseSignalRow } = require('../../lib/brain/signals');
+  const { planRestore } = require('../../lib/brain/restore');
+  const { getOwnerAssistantPubkey } = require('../../utils/assistantKeys');
+  const ta = getOwnerAssistantPubkey();
+  if (!ta) return { success: false, error: 'Assistant identity unavailable' };
+
+  // The target's CURRENT families — absence-tolerant (a fresh target answers
+  // [] everywhere). Header handles are constructible from slugs; nothing here
+  // requires the concepts to exist yet.
+  const goalHeaderUuid = `39998:${ta}:tapestry-owner-goal`;
+  const existing = {
+    goals: await fetchFamilyRecords(goalHeaderUuid, parseGoalRow),
+    resources: await fetchFamilyRecords(`39998:${ta}:tapestry-external-resource`, parseResourceRow),
+    workRecords: await fetchFamilyRecords(`39998:${ta}:tapestry-work-record`, parseWorkRecordRow),
+    proposals: await fetchFamilyRecords(`39998:${ta}:tapestry-proposal`, parseProposalRow),
+    signals: await fetchFamilyRecords(`39998:${ta}:tapestry-priority-signal`, parseSignalRow),
+  };
+
+  // ALL checks precede ALL writes (ADR 0008 d5): the pure core computes every
+  // collision — the goal triple (name/slug/derived-d-tag) plus family-scoped
+  // record slugs — and a refusal lists every one of them.
+  const plan = planRestore(artifact, existing, {
+    deriveGoalDTag: (name) => dtag.childDTag(name, goalHeaderUuid),
+  });
+  if (!plan.ok) {
+    // The named refusals (ADR 0008 d5): 'goal-collides' | 'record-collides'.
+    const kind = plan.refusal === 'record-collides' ? 'record' : 'goal';
+    return {
+      success: false,
+      refusal: plan.refusal,
+      collisions: plan.collisions,
+      error: `the artifact collides with ${plan.collisions.length} existing ${kind}${plan.collisions.length === 1 ? '' : 's'} on this instance — nothing was restored. Remove the colliding entries or use a different target.`,
+    };
+  }
+
+  // Ensure concepts lazily — only families that actually mint (ADR 0008 d8:
+  // the self-provision-on-first-content semantic; ensureGoalConcept closes
+  // the ADR 0001 gap for truly fresh targets).
+  const FAMILY_TO_KEY = {
+    goals: 'tapestryOwnerGoal',
+    resources: 'externalResource',
+    workRecords: 'workRecord',
+    proposals: 'proposal',
+    signals: 'prioritySignal',
+  };
+  const FAMILY_ENSURE = {
+    goals: ensureGoalConcept,
+    resources: ensureResourceConcept,
+    workRecords: ensureWorkRecordConcept,
+    proposals: ensureProposalConcept,
+    signals: ensureSignalConcept,
+  };
+  const concepts = {};
+  const restored = { goals: 0, resources: 0, workRecords: 0, proposals: 0, signals: 0 };
+  for (const mint of plan.mints) {
+    if (!concepts[mint.family]) concepts[mint.family] = await FAMILY_ENSURE[mint.family]();
+    const { headerUuid, supersetUuid } = concepts[mint.family];
+    if (mint.family === 'goals') {
+      await mintRestoredGoal({ headerUuid, supersetUuid, name: mint.name, section: mint.section });
+    } else {
+      await mintRestoredElement({
+        headerUuid, supersetUuid, familyKey: FAMILY_TO_KEY[mint.family], name: mint.name, section: mint.section,
+      });
+    }
+    restored[mint.family] += 1;
+  }
+  return { success: true, result: 'restored', restored };
+}
+
+// ── The drill journal — the FIFTH runtime-created append-only concept ────
+// (ADR 0008 d9). Born final, the signal precedent: a drill record has no
+// lifecycle, no dedup, no natural key; BOTH outcomes are journaled.
+
+const DRILL_CONCEPT_NAME = 'tapestry restore drill';
+const DRILL_OUTCOMES = ['matched', 'did-not-match'];
+const DEFAULT_DRILL_TARGET = 'a fresh scratch instance';
+
+const DRILL_SCHEMA = {
+  type: 'object',
+  properties: {
+    restoreDrill: {
+      type: 'object',
+      title: 'Restore Drill',
+      required: ['name', 'slug', 'description', 'exportTakenOn', 'drilledOn', 'outcome', 'target', 'performedBy'],
+      properties: {
+        name: { type: 'string', description: 'a short label for this drill record, in plain words' },
+        slug: { type: 'string', description: 'stable identity for this drill record (unique per record)' },
+        description: { type: 'string', description: 'one plain sentence: which export was drilled, where, and how it came out' },
+        exportTakenOn: { type: 'string', description: 'the date of the export that was drilled' },
+        drilledOn: { type: 'string', description: 'the date the drill ran' },
+        outcome: { type: 'string', description: "how the drill came out — 'matched' or 'did-not-match'" },
+        target: { type: 'string', description: 'the scratch environment the export was restored to, in plain words' },
+        performedBy: { type: 'string', description: 'who performed the drill (the owner in v1)' },
+      },
+      'x-tapestry': { unique: ['slug'] },
+    },
+  },
+  required: ['restoreDrill'],
+};
+
+// Resolve the runtime-created Restore Drill concept's header + superset
+// (mirrors resolveSignalConcept).
+async function resolveRestoreDrillConcept() {
+  const rows = await runCypher(`
+    MATCH (h:NostrEvent)
+    WHERE (h:ListHeader OR h:ClassThreadHeader OR h:ConceptHeader) AND h.kind IN [9998, 39998]
+      AND h.name = $concept
+    OPTIONAL MATCH (h)-[:${REL.CLASS_THREAD_INITIATION}]->(sup:Superset)
+    RETURN h.uuid AS headerUuid, sup.uuid AS supersetUuid
+    LIMIT 1
+  `, { concept: DRILL_CONCEPT_NAME });
+  if (rows.length === 0) return { error: `Concept "${DRILL_CONCEPT_NAME}" not found` };
+  if (!rows[0].supersetUuid) return { error: `Concept "${DRILL_CONCEPT_NAME}" has no Superset node.` };
+  return { headerUuid: rows[0].headerUuid, supersetUuid: rows[0].supersetUuid };
+}
+
+// Self-bootstrap the Restore Drill concept (ADR 0008 d9): idempotent — a
+// structural copy of ensureSignalConcept. create-concept ("already exists" →
+// success) + save-schema run ONLY when the concept is absent. §5.9: a fresh
+// instance self-provisions with no manual step; never firmware-seeded.
+async function ensureRestoreDrillConcept() {
+  const existing = await resolveRestoreDrillConcept();
+  if (!existing.error) return existing;
+  await invokeNormalizeHandler(handleCreateConcept, {
+    name: DRILL_CONCEPT_NAME,
+    description: 'A dated, append-only record that a restore drill ran — which export was drilled, where, when, who performed it, and whether the restored content matched. Never edited; every drill is a new record.',
+  });
+  await invokeNormalizeHandler(handleSaveSchema, { concept: DRILL_CONCEPT_NAME, schema: DRILL_SCHEMA });
+  const provisioned = await resolveRestoreDrillConcept();
+  if (provisioned.error) {
+    throw new Error(`ensureRestoreDrillConcept failed to provision the concept: ${provisioned.error}`);
+  }
+  return provisioned;
+}
+
+// The append-only drill-record mint (ADR 0008 d9): a fresh RANDOM d-tag each
+// call (the mintSignalElement idiom) and nothing on this path is re-signed.
+async function mintRestoreDrillElement({ headerUuid, supersetUuid, label, section }) {
+  const nonce = randomDTag();
+  const dTag = dtag.childDTag(label, headerUuid, nonce);
+  const slug = `${dtag.slug(label)}-${nonce}`;
+  const recordSection = { name: label, slug, ...section };
+  const tags = [
+    ['d', dTag],
+    ['name', recordSection.name],
+    ['z', headerUuid],
+    ['json', JSON.stringify({ restoreDrill: recordSection })],
+  ];
+  const evt = signAndFinalize({ kind: 39999, tags, content: '' });
+  const elemUuid = `39999:${evt.pubkey}:${dTag}`;
+  await publishToStrfry(evt);
+  await importEventDirect(evt, elemUuid);
+  await writeCypher(`MATCH (n:NostrEvent {uuid: $uuid}) SET n:ListItem, n.slug = $slug`, { uuid: elemUuid, slug });
+  await writeCypher(`
+    MATCH (sup:NostrEvent {uuid: $supersetUuid}), (elem:NostrEvent {uuid: $elemUuid})
+    MERGE (sup)-[:${REL.CLASS_THREAD_TERMINATION}]->(elem)
+  `, { supersetUuid, elemUuid });
+  return { uuid: elemUuid, slug };
+}
+
+async function handleRecordRestoreDrill(req, res) {
+  try {
+    const { isOwner } = require('../../middleware/auth');
+    if (!isOwner(req) && !req.localTrusted) {
+      return res.status(403).json({ success: false, error: 'Owner access required' });
+    }
+    const { exportTakenOn, outcome, target } = req.body || {};
+    if (!exportTakenOn || typeof exportTakenOn !== 'string' || !exportTakenOn.trim()) {
+      return res.status(400).json({ success: false, error: 'Missing the drilled export\'s taken-on date' });
+    }
+    if (typeof outcome !== 'string' || !DRILL_OUTCOMES.includes(outcome)) {
+      return res.status(400).json({ success: false, error: `The outcome must be one of: ${DRILL_OUTCOMES.join(', ')}` });
+    }
+    if (target != null && typeof target !== 'string') {
+      return res.status(400).json({ success: false, error: 'The target must be a short plain-words description when given' });
+    }
+    const result = await serializeGoalWrite(() => recordRestoreDrill({
+      exportTakenOn: exportTakenOn.trim(),
+      outcome,
+      target: typeof target === 'string' && target.trim() ? target.trim() : DEFAULT_DRILL_TARGET,
+    }));
+    return res.json(result);
+  } catch (error) {
+    console.error('normalize/record-restore-drill error:', error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+}
+
+async function recordRestoreDrill({ exportTakenOn, outcome, target }) {
+  // Provision the concept if this is the first drill ever (ADR 0008 d9).
+  const concept = await ensureRestoreDrillConcept();
+  const drilledOn = new Date().toISOString().slice(0, 10);
+  const worded = outcome === 'matched' ? 'matched the export' : 'did not match the export';
+  const section = {
+    description: `restore drill: the export taken ${exportTakenOn} was restored to ${target} and ${worded}.`,
+    exportTakenOn,
+    drilledOn,
+    outcome,
+    target,
+    performedBy: 'owner',   // ADR 0008 d9 — the d7 precedent, instance-relative.
+  };
+  const { uuid, slug } = await mintRestoreDrillElement({
+    headerUuid: concept.headerUuid, supersetUuid: concept.supersetUuid,
+    label: `restore drill ${drilledOn}`, section,
+  });
+  return { success: true, result: 'journaled', drill: { uuid, slug, drilledOn, outcome } };
+}
+
 async function registerNormalizeRoutes(app) {
   // Load TA signing key from secure storage at startup
   await loadTAKey();
@@ -4825,6 +5204,8 @@ async function registerNormalizeRoutes(app) {
   app.post('/api/normalize/approve-proposal', handleApproveProposal);
   app.post('/api/normalize/skip-proposal', handleSkipProposal);
   app.post('/api/normalize/record-priority-signal', handleRecordPrioritySignal);
+  app.post('/api/normalize/restore-brain', handleRestoreBrain);
+  app.post('/api/normalize/record-restore-drill', handleRecordRestoreDrill);
   app.post('/api/normalize/save-element-json', handleSaveElementJson);
   app.post('/api/normalize/create-property', handleCreateProperty);
   app.post('/api/normalize/generate-property-tree', handleGeneratePropertyTree);
