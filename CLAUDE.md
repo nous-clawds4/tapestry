@@ -17,7 +17,7 @@ Decentralized knowledge-graph protocol and search engine on nostr. Reference dep
 
 ## ⚠️ Architecture invariants — read every session
 
-Brainstorm/Tapestry is built around three principles. Default coding instincts trained on centralized SaaS systems will silently violate these. If a design feels "obvious" and it doesn't honor these, the design is probably wrong — pause and re-derive.
+Brainstorm/Tapestry is built around four principles. Default coding instincts trained on centralized SaaS systems will silently violate 1–3; instincts trained on event-sourced or fully-decentralized systems will violate 4 in the opposite direction, treating the graph as a disposable projection of the relay. If a design feels "obvious" and it doesn't honor these, the design is probably wrong — pause and re-derive.
 
 ### 1. POV-first: there is no "the view," only views from a perspective
 
@@ -43,6 +43,10 @@ A POV's view of the world is `(assertions from anyone) × (that POV's trust scor
 - Only denormalize per-POV columns when the query-time cost is provably unacceptable. "It might be slow" is not enough — measure.
 - **Common mistake**: "let me compute this once and store it" for anything subjective. The answer changes when the POV changes or when a new assertion arrives. Re-derive on read.
 
+### 4. Local-first: neo4j is the definitive "me"
+
+Tapestry is first and foremost a *local-first personal knowledge graph*. **neo4j is the definitive self**; the tapestry LMDB is a subordinate cache; signed events are "letters" — the proof/communication/durability axis, not the identity substrate. Locally-authored graph state may have **no event behind it** (see the strfry-free relationship primitives), so never discard it as "rebuildable from strfry" — no import, normalization, firmware reinstall, reconciliation, or dev-tooling wipe may destroy it. Principles 1–3 still govern the event/social axis unchanged: accept all signed events, filter per POV at read time. **Common mistake**: treating the graph as a disposable projection of the relay. Full standard + the obligations it creates: **BIBLE §30**.
+
 ### Reflex checks when designing anything
 
 Before writing the design, run these four questions on it:
@@ -52,7 +56,7 @@ Before writing the design, run these four questions on it:
 3. **"Could anyone else publish their own version of this?"** If yes, your code must not gate them at write time.
 4. **"What changes when the POV changes?"** If your design forces a re-index or migration each time a user switches POV, the abstraction is at the wrong layer — push it to query time.
 
-If the design you're about to write fails any of these, stop and re-derive from a POV-aware vantage point before continuing.
+If the design you're about to write fails any of these, stop and re-derive from a POV-aware vantage point before continuing. If it touches storage, rebuilds, or backup, check it against principle 4 (BIBLE §30) as well — "it can be rebuilt from the relay" is the failure mode there.
 
 ## Product Team Mode (upstream — optional)
 
@@ -119,10 +123,6 @@ Between phases the gate is **conversational, never a command**: "I've captured t
 | "what do you think about," "help me think through" (stack / feasibility) | `/discuss` |
 
 **When in doubt, ask one question:** "Are you exploring a product idea (figuring out *what* to build) or ready to start engineering (*how* to build it)?" Then route.
-
-### The non-technical journey, end to end
-
-A product person opens Claude Code and says *"I have an idea for a community feature and I want to figure out what to build."* Claude confirms it's the start of product discovery, explains in plain words that it'll ask about the problem, the people, and what exists today, and asks "Ready?" From there each phase flows into the next through conversational gates. The user talks in whatever words they have — *"the women in the community need a way to vouch for each other"* — and the harness translates that into structured artifacts behind the scenes. When the product work is done, Claude presents the PRD and guides and offers to break the work into engineering tasks. If the user says "let's start building," Claude decomposes the stories and either hands to the engineering flow or notes that the engineering side is best run by (or with) a technical teammate. The user never types a slash command, never hears "persona" or "acceptance criteria," and never sees a phase number.
 
 ## Engineering Team Mode
 
