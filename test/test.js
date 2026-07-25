@@ -176,6 +176,8 @@ const moveNodesBetweenSetsUi = require('./move-nodes-between-sets-ui.test.js');
 // epic: second-brain — Story 1 (capture a goal and see it).
 const captureAGoalAndSeeIt = require('./capture-a-goal-and-see-it.test.js');
 const firmwareConceptElementsSets = require('./firmware-concept-elements-sets.test.js');
+// epic: tapestries — Story 4 (per-concept detail views, Neo4j+LMDB read path).
+const tapestryPerConceptDetailViews = require('./tapestry-per-concept-detail-views.test.js');
 // epic: second-brain — Story 2 (hygiene check + primary-property reconcile).
 const structuresTheBrainCanTrust = require('./structures-the-brain-can-trust.test.js');
 // epic: second-brain — Story 3 (break a goal into pieces — decomposition).
@@ -486,6 +488,7 @@ async function main() {
   const moveNodesBetweenSetsUiResult = await moveNodesBetweenSetsUi.run();
   const captureAGoalAndSeeItResult = await captureAGoalAndSeeIt.run();
   const firmwareConceptElementsSetsResult = await firmwareConceptElementsSets.run();
+  const tapestryPerConceptDetailViewsResult = await tapestryPerConceptDetailViews.run();
   const structuresTheBrainCanTrustResult = await structuresTheBrainCanTrust.run();
   const breakAGoalIntoPiecesResult = await breakAGoalIntoPieces.run();
   const attachTheWorldResult = await attachTheWorld.run();
@@ -880,6 +883,12 @@ async function main() {
       ? `SKIP (${firmwareConceptElementsSetsResult.skipped} tests; preconditions not met)`
       : `${firmwareConceptElementsSetsResult.fail === 0 ? 'PASS' : 'FAIL'} (${firmwareConceptElementsSetsResult.pass} passed, ${firmwareConceptElementsSetsResult.fail} failed${firmwareConceptElementsSetsResult.skipped ? `, ${firmwareConceptElementsSetsResult.skipped} skipped` : ''})`;
   console.log(`firmware-concept-elements-sets suite:            ${firmwareConceptElementsSetsLine}`);
+
+  const tapestryPerConceptDetailViewsLine =
+    (tapestryPerConceptDetailViewsResult.pass + tapestryPerConceptDetailViewsResult.fail) === 0 && tapestryPerConceptDetailViewsResult.skipped
+      ? `SKIP (${tapestryPerConceptDetailViewsResult.skipped} tests; preconditions not met)`
+      : `${tapestryPerConceptDetailViewsResult.fail === 0 ? 'PASS' : 'FAIL'} (${tapestryPerConceptDetailViewsResult.pass} passed, ${tapestryPerConceptDetailViewsResult.fail} failed${tapestryPerConceptDetailViewsResult.skipped ? `, ${tapestryPerConceptDetailViewsResult.skipped} skipped` : ''})`;
+  console.log(`tapestry-per-concept-detail-views suite:         ${tapestryPerConceptDetailViewsLine}`);
   // Skip-aware: H-class live tests skip when the local stack is absent (CI's
   // stack-free job); U/S classes always run and gate.
   const breakAGoalIntoPiecesLine =
@@ -1055,6 +1064,8 @@ async function main() {
     captureAGoalAndSeeItResult.fail === 0 &&
     // firmware-explorer #1 — concept Elements & Sets viewer
     firmwareConceptElementsSetsResult.fail === 0 &&
+    // tapestries #4 — per-concept detail views (Neo4j+LMDB read path)
+    tapestryPerConceptDetailViewsResult.fail === 0 &&
     // second-brain #2 — structures the brain can trust (hygiene + reconcile)
     structuresTheBrainCanTrustResult.fail === 0 &&
     // second-brain #3 — break a goal into pieces (decomposition)
@@ -1114,7 +1125,7 @@ async function main() {
     noteTaggingRawEventsInspectorHttpResult, deploySafetyStatusResult, safeToMergeCheckResult, nextTaskCountdownResult,
     closeUnauthWriteSurfaceResult, defaultDenyMutationsResult, usersPageNeo4jEndpointResult, strfryWipeOwnerGateResult,
     relationshipPrimitivesResult, relationshipPrimitivesProbeResult, moveNodesBetweenSetsUiResult,
-    captureAGoalAndSeeItResult, firmwareConceptElementsSetsResult, structuresTheBrainCanTrustResult,
+    captureAGoalAndSeeItResult, firmwareConceptElementsSetsResult, tapestryPerConceptDetailViewsResult, structuresTheBrainCanTrustResult,
     breakAGoalIntoPiecesResult, attachTheWorldResult, sessionsReadTheBrainResult, theProposalLoopResult,
   ].reduce((sum, r) => sum + ((r && r.skipped) || 0), 0);
   console.log(`Total skipped:                                   ${totalSkipped}`);
