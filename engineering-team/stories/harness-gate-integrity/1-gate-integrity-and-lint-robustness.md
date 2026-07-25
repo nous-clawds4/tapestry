@@ -47,6 +47,6 @@ Both resolved at the planning gate (operator delegated the calls):
 ## Linked artifacts
 - Book: `engineering-team/audits/harness-gate-integrity/book.md`
 - Investigation: workflow `wf_0c836c19-53d` (2026-07-25) — per-item live verification, exact locations, fixes, cross-item ordering.
-- ADR: (filled in after Architecture phase — recommended light pass scoped to the #46 invariant contract + offender disposition)
+- ADR: `engineering-team/decisions/harness-gate-integrity/0001-gate-integrity-and-lint-robustness.md` (two invariant-placement decisions — #46 → new `harness-lint` L13 [active-only, heading-presence, one offender backfilled]; AC2 → strengthen G5, no unification; the other four items mechanical)
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
