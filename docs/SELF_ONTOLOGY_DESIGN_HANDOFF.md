@@ -1,6 +1,7 @@
 # The Self and Its Stores — Ontology, Provenance, and Backup — Design Handoff
 
 **Status:** 🔴 OPEN
+**Partly ratified (2026-07-25, `self-ontology` #1 / ADR 0001):** the settled material now lives in **`BIBLE.md` §30 (The Self and Its Stores)** — §2/§3/§9 as the ratified ontology (plus the "How this relates to principles 1–3" non-repeal), and §4/§5/§6/§8 as *binding obligations, not yet enforced*, each carrying a current-status line. `CLAUDE.md` gained a fourth architecture invariant pointing at §30. **This doc stays OPEN**: the open designs in §4 (provenance representation/migration), §7 (backup mechanics — encryption, key custody, chunking), and §8 (the normalization ⇒ covering conjecture) have **not** landed. They remain this epic's deferred work — see §11 and `engineering-team/epics/self-ontology.md`. Flip to ✅ SUPERSEDED only once they ratify. Where §30 and this doc overlap, **§30 is authoritative**; this doc keeps the reasoning that produced it.
 **Created:** 2026-07-24
 **Provenance:** Scoped in direct owner conversation (2026-07-24, the session that shipped the tapestry-key await fix + BIBLE §29), not via a `/discuss` subagent — the scoping *was* the conversation. This is the **Capture** step of the Protocol-Spec Workflow (`engineering-team/workflows/protocol-spec-workflow.md`): settled decisions + open questions, recorded so nothing lives only in the transcript. Ratify settled pieces into `BIBLE.md` + ADRs in docs-mode; flip this to ✅ SUPERSEDED once they land.
 
