@@ -153,3 +153,29 @@ One observation the judge explicitly placed outside its verdict: OPEN.md #102 sa
 
 **Counters:** Gate 1 KICK_BACKs on story #1 = **1** of 3 (stopping rule 2 halts at 3 consecutive).
 **Next:** Route back to Planning for a split. I will **not** disclose the 5-story cap — a split shaped to fit a budget hides the very signal the cap exists to raise. If the honest split exceeds 5, that is a halt, and the halt is the system working.
+
+## 2026-07-26T19:00:00Z — Planning rework: three bounded stories; the role reversed itself on evidence
+
+**Story/Phase:** `goal-intent-fields` #1–#3 / Planning (round 2)
+**Decision:** INFO
+**Judge:** n/a
+**Why:** Split into **three** stories — write path, read surfaces, existing screens — four criteria each, strict 1→2→3 dependency. **Book total is 3, under stopping rule 4's cap of 5, so no halt** — and reached without the cap ever being disclosed, which is the outcome I was hoping for when I withheld it.
+
+The role fixed the *actual* defect rather than the symptom: the kick-back was not about the count but about extent being deferred, so each story now **enumerates its surfaces** and carries a clause routing back to Planning if Architecture finds one off the list. Bounded at the gate instead of delegated.
+
+Worth recording: the role **withdrew its own earlier objection on evidence**, unprompted. It had argued a split would leave story 2 with no architecture of its own; verifying its inventory it found `familyEntries` builds export entries from the raw record and uses `parseGoalRow` only as a validity filter — so the export already returns all four today while every parsed surface drops them. A real seam, found by looking rather than by being told.
+
+**Two Director calls.** (1) Numbering 1–3 reused rather than renumbered to 4–6: the rejected draft was never committed, slugs differ, story 1 carries an explicit `Supersedes:` line, and renumbering would leave phantom gaps implying missing stories. (2) I committed the rework **before** re-judging. The judge protocol says an artifact unchanged since its last verdict may not be re-judged and names a commit as the mechanism; the skill says commit on approve. Those pull opposite ways, and I resolved it toward the anti-judge-shopping purpose — the commit message states plainly that approval was still pending.
+**Next:** Terms check, then Gate 1 round 2.
+
+## 2026-07-26T19:08:53Z — Gate 1 (story #1): APPROVE
+
+**Story/Phase:** `goal-intent-fields` #1 / Gate 1
+**Decision:** APPROVE
+**Judge:** **APPROVE**, blinding intact — and the judge explicitly treated my prompt's claim that no intake entry exists as *unverified*, checking it itself with two keyword sweeps. All six rubric items pass. All three prior findings confirmed resolved: extent now fixed at Planning by an inventory the judge **confirmed against the tree** (the three named write operations are three POST handlers in one server module, and it verified the four are genuinely dropped there today); the `0/unset` disjunction replaced by a single outcome (absent from the stored record), with read-layer defaults separated into the epic; the "register" clause demoted to a review consideration.
+**Why:** I concur independently, and the concurrence is not a formality — the thing that persuaded me is that story 1 is **externally verifiable the moment it lands, with no read work**, because the export already returns each goal's raw stored record. A story whose acceptance can be observed without its successors is genuinely one subsystem, which is exactly what the prior verdict said was missing. Terms-mismatch check re-run immediately before this decision: PASS.
+
+**Two non-blocking notes the judge left for Architecture, carried forward so they are not lost:** (a) `create-element`'s no-json branch auto-populates every declared property with type defaults, so a goal captured with no explicit json body would carry `prompt: ''`, `chanceOfSuccess: 0` and both flags `false` — **present rather than absent**, in tension with the story's AC2; (b) `restore-brain` is a **fourth** goal-writing path, though it passes the record section through verbatim and so adds no subsystem. If either turns out to be in scope, the story's own clause routes it back to Planning rather than letting it be absorbed silently.
+
+**Counters:** Gate 1 on story #1 — 1 kick-back, then APPROVE. Stories #2 and #3 are drafted but **not** gated; each gets its own Gate 1 when its cycle begins.
+**Next:** Phase 2, Architecture on story #1.
