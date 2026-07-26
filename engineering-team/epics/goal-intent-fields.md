@@ -57,13 +57,20 @@ listed, it returns to Planning to re-bound the extent rather than absorbing it s
 happened twice on story 1** — Architecture returned it, then Gate 1 found a counterexample by reading
 the route list — which is the clause working, at the cost of two round trips.
 
-**The lesson, recorded because it will recur.** Both misses were the same shape: a write path that
-needs *no work* because it stores whatever it is handed. A list recalled from what needs changing
-systematically forgets that class. Story 1's extent is therefore now **derived and the derivation
-stated** — every site that constructs a goal section (the ones that can drop fields), every caller of
-the primitive that replaces a stored record (the ones that cannot), cross-checked against the
-Architect's inventory and the write-route list. An enumeration a gate can re-derive beats one it has
-to trust.
+**The lesson, recorded because it will recur.** Every miss was the same shape: a write path that
+needs *no work* because it replicates whatever record it is handed. A list recalled from what must
+change systematically forgets that class. Story 1's extent is therefore **derived, with the
+derivation stated** — and the two classes carry different claims, deliberately:
+
+- **The work-bearing class is closed.** Sites that *construct* a goal section can drop properties;
+  there are four repo-wide, all in one module, independently re-derived from source at Gate 1. A
+  fifth would be work, and the kickback clause applies.
+- **The no-work class is characterized, not enumerated.** Paths that replicate a supplied or stored
+  record cannot drop anything, so the list of them is record-keeping. Claiming it exhaustive would
+  be claiming something unprovable to no purpose — membership follows from the property.
+
+An enumeration a gate can re-derive beats one it has to trust; and where re-derivation isn't
+possible, a stated property beats a list that pretends to be complete.
 
 ## Ratified at the Planning gate (2026-07-26)
 
@@ -92,12 +99,23 @@ them rather than restating the reasoning.
    undeclared properties are silently dropped, *"I can set"* fails outright on a fresh or restored
    instance regardless of what the write paths accept. Same module, same subsystem as story 1.
 
-**A Gate-1 note that was wrong, recorded so no one designs around it:** the audit claimed the
-direct-record capture path auto-populates every declared property with type defaults when no record
-is supplied, which would make the four *present* rather than absent. It does not — the defaults loop
-iterates only the schema's **top-level** properties, and the goal schema's sole top-level key is the
-goal section itself (an object), so it yields an empty section and never descends. Story 1's
-"absent when not supplied" criterion is sound; nothing defends against this case.
+**Two gate-judge asides that were wrong, recorded so no one designs around them.** Both verdicts
+were sound and binding; the incidental claims inside them were not, and were disproved by reading
+the code:
+
+1. That the direct-record capture path auto-populates every declared property with type defaults
+   when no record is supplied — which would make the four *present* rather than absent. It does not:
+   the defaults loop iterates only the schema's **top-level** properties, and the goal schema's sole
+   top-level key is the goal section itself (an object), so it yields an empty section and never
+   descends. Story 1's "absent when not supplied" criterion is sound and defends against nothing.
+2. That re-import from the relay is unreachable from any screen. It is reachable — four screens post
+   to it, two of them list screens. The conclusion (it cannot drop the four) still holds, but for a
+   different reason: it replicates the relay's copy of the record. Reachability was never the
+   operative property.
+
+**Standing practice this establishes:** a gate verdict binds; the incidental claims inside it are
+unverified until checked against source — the same standard applied to our own inventories, which is
+what caught both of these.
 
 ## ADRs
 

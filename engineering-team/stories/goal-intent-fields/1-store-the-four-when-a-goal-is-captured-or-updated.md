@@ -42,21 +42,29 @@ paths. These four were declared and left behind.
 ### How this table was derived
 
 Stated so the gate can audit the derivation rather than trust the list. A goal record can be written
-in exactly two ways, and each class was enumerated at its source on 2026-07-26:
+in exactly two ways, and the two classes are known with **different kinds of certainty** — which is
+itself the point:
 
-- **Paths that build a goal section from a fixed set of fields.** These can drop properties, so
-  these are the ones that need work. Found by enumerating *every* site in the server that constructs
-  a goal section — four in total: three write paths, plus the restore mint, which passes its section
-  through untouched and so belongs to the other class.
-- **Paths that store a supplied record as given.** These carry any property they are handed, so they
-  need no work but must not regress. Found by enumerating every caller of the primitive that
-  replaces a record's stored json, plus what the generic element screen posts to, plus the two
-  archive-shaped writers.
+- **Paths that build a goal section from a fixed set of fields — the work-bearing class, and it is
+  closed.** These can drop properties, so these are the ones that need work. Derived by enumerating
+  *every* site in the server that constructs a goal section: **four repo-wide, all in one module** —
+  three write paths, plus the restore mint, which passes its section through untouched and so
+  behaves as the other class. Independently re-derived from source at Gate 1. Should a fifth
+  construction site ever appear, it is work, and the kickback clause applies to it.
+- **Paths that store a supplied record as given — the no-work class, characterized rather than
+  enumerated.** These replicate whatever record they are handed, so **none of them can drop the
+  four**, and no number of them changes this story's work. The rows below are the ones found so far,
+  via the callers of the primitive that replaces a stored record, the generic element screen's own
+  write, the archive-shaped writers, and the replicating operations. This list is deliberately
+  **not** claimed exhaustive: membership is decided by the property — does it replicate a supplied
+  or stored record verbatim? — not by appearing here. A path missing from it is a record-keeping
+  gap, not a scope gap.
 
-Cross-checked against the Architect's six-row inventory and the server's write-route list. **Both
-rows found missing in earlier rounds were in the "stores as given" class** — the class a recalled
-list forgets, because those paths need no work. The derivation above closes that class by
-construction rather than by memory.
+Cross-checked against the Architect's inventory and the server's write-route list. **Every path
+found missing across three rounds of review has been in the no-work class**, which is what the
+asymmetry predicts: a list recalled from "what must change" omits precisely the paths that change
+nothing. So the work-bearing class is closed by construction, and the other is closed by its
+defining property instead — the only closure it can have, and the only one it needs.
 
 ### The ways a goal record gets written
 
@@ -67,9 +75,11 @@ construction rather than by memory.
 | updating an existing goal's intent | **drops all four** — it merges onto the existing section, so any four already stored survive, but none can be set |
 | capturing a goal by supplying its record directly, from the generic element screen | **already carries all four** — stores the record as given. No work; must not regress. |
 | replacing an existing goal's record wholesale, from the generic element screen | **already carries all four** — stores the record as given, ungated by concept type. The update-side twin of the row above. No work; must not regress. |
-| replacing a record's stored json directly through the graph-maintenance tooling (no screen posts to it) | **already carries all four** — same wholesale replacement. No work; must not regress. |
+| replacing a record's stored json directly through the graph-maintenance tooling | **already carries all four** — same wholesale replacement. No work; must not regress. |
 | restoring the brain from an export | **already carries all four** — the artifact's section is restored verbatim, out-of-contract fields riding along |
 | importing events from an archive | **already carries all four** — whole records are written as given |
+| forking a node into a new one | **already carries all four** — every tag on the original is copied onto the new signed event, the goal-marking tag included, so the fork surfaces as a goal carrying whatever the original held |
+| re-importing a record from the relay (reachable from the list screens) | **already carries all four** — the stored tags are dropped and the record is rebuilt from the relay's copy. It takes only an identifier, so it replicates rather than composes; that, not who can reach it, is why it cannot drop anything |
 
 A goal captured by noting a new root goal, with a prompt supplied, loses the prompt. That is the
 invisibility the ask describes, reached through a dedicated path with its own owner gate and its own
@@ -89,9 +99,11 @@ read surface and no screen changes here; those are `goal-intent-fields` #2 and #
 **Verification without new read work:** the export already returns each goal's stored record as
 given, so what this story stores is externally observable the moment it is stored.
 
-**The kickback clause stands, and it has fired twice.** If a later phase finds a further way a goal
-record gets written, it returns to Planning rather than absorbing it. Both misses so far were
-omissions from a recalled list; the derivation above is the repair.
+**The kickback clause stands, and it has fired twice.** It bites on the work-bearing class: if a
+later phase finds a further site that *constructs* a goal section, that is work, and it returns to
+Planning rather than being absorbed. A further *replicating* path is a record-keeping addition to
+the table above — worth making, but it changes no criterion and no extent, so it does not re-open
+this gate.
 
 ## User-facing description
 
@@ -134,12 +146,14 @@ No concept is added and none is redefined; all four are already declared on this
 
 - **Returning the four on read surfaces** — `goal-intent-fields` #2.
 - **Showing the four on the owner's screens** — `goal-intent-fields` #3.
-- **The five "stores as given" write paths need no change** — direct-record capture and wholesale
+- **Every "stores as given" write path needs no change** — direct-record capture and wholesale
   record replacement from the generic element screen, direct json replacement through the
-  graph-maintenance tooling, restore from an export, and archive import. They are named in the table
-  rather than omitted so their absence from the work is deliberate and checkable; Architecture should
-  record each as "no change." They carry the four because they store what they are handed, which is
-  also why they are the class most easily forgotten.
+  graph-maintenance tooling, restore from an export, archive import, forking a node, and re-import
+  from the relay. They are named in the table rather than omitted so their absence from the work is
+  deliberate and checkable; **Architecture records each as "no change."** They carry the four
+  because they replicate what they are handed — which is both why they are safe and why they are the
+  class most easily forgotten. If Architecture finds another of them, it adds a row; it does not
+  return the story.
 - **Values outside the concept's declared shape** (an estimate above 100 or below 0, a non-boolean
   flag). The frame is storing and showing; it makes no rules, so this story invents neither a
   rejection rule nor a clamping rule. What happens to a malformed value stays undefined here.
