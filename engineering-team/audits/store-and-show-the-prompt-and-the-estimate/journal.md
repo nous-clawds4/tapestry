@@ -211,3 +211,19 @@ Worth recording: the role **withdrew its own earlier objection on evidence**, un
 
 **Counters:** Gate 1 on story #1 — round 1 KICK_BACK, round 2 APPROVE (counter reset), round 3 KICK_BACK. **Consecutive = 1 of 3.** Book story count unchanged at 3.
 **Next:** Back to Planning for a one-row fix; then Gate 1 round 4.
+
+## 2026-07-26T20:06:16Z — Gate 1 round 4: APPROVE (concurred, over one known inaccuracy I am naming)
+
+**Story/Phase:** `goal-intent-fields` #1 / Gate 1 (round 4)
+**Decision:** APPROVE
+**Judge:** **APPROVE**, blinding intact. Prior finding **resolved** — `save-element-json` is now a table row, correctly classified, and confirmed against source. All six items pass, and the judge certified the boundary by **re-deriving it from source rather than trusting the table**: `tapestryOwnerGoal` is constructed at exactly four sites repo-wide, all in one module, and the fresh-instance schema is in that same module. All eight table rows verified accurate.
+**Why:** The re-derivation is what earns the approval. The **work-bearing class is closed by construction** — four construction sites, now independently verified twice by two different judges — and the work extent is one module. That is precisely what this rubric item asks a gate to certify, and it is certified by evidence rather than by the story's word.
+
+**I am approving over a known inaccuracy, and stating it rather than absorbing it.** The judge found two further goal-record writers absent from the table — `fork-node` and `POST /api/neo4j/event-update` — and classified them immaterial. I checked its reasoning instead of accepting it, and **one leg of it is false**: it wrote that neither is reachable from any screen, but `event-update` is called from two list screens (`DListOverview.jsx`, `DListRatings.jsx`). The verdict survives anyway, because the load-bearing leg holds — `handleEventUpdate` takes only `{uuid}`, finds the event in strfry and re-imports it, so it **cannot drop the four** no matter who reaches it. Reachability is irrelevant when the operation is a verbatim re-import.
+
+**Second judge factual error this run, and the pattern is worth naming.** Gate 1 round 2 claimed `create-element`'s no-json branch auto-populates the four (false — it yields an empty section). Round 4 claims `event-update` has no screen callers (false — two). Both were **non-blocking asides**; both verdicts were sound. The emerging shape: these judges are **reliable on verdicts and unreliable on incidental claims**, which is an argument for continuing to verify every finding I act on and for never letting an aside travel into an artifact unchecked. Proposed post-mortem amendment, not a mid-run change.
+
+**Why I did not kick back a fourth time, having considered it.** The story's taxonomy — construct a section vs. store what you are given — is *sound*; what is overstated is calling the **store-as-given class** closed by construction. That class is open-ended and does not need closing, because nothing in it can drop the four. Criteria and work extent are unchanged by the correction, so re-gating would buy accuracy in a sentence at the cost of a full Planning-plus-judge cycle on the no-work class — and thrash is itself a harm the stopping rules exist to bound. I am requiring the precision fix **before Test Design**, since the test plan derives from this story, rather than letting it evaporate into a note.
+
+**Counters:** Gate 1 story #1 — KICK_BACK, APPROVE, KICK_BACK, **APPROVE**. Consecutive counter reset to 0. Book story count 3.
+**Next:** Precision correction to Planning (no re-gate), then Architecture resumes.
