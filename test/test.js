@@ -189,6 +189,8 @@ const sessionsReadTheBrain = require('./sessions-read-the-brain.test.js');
 const theProposalLoop = require('./the-proposal-loop.test.js');
 const teachItWhatMatters = require('./teach-it-what-matters.test.js');
 const theBrainSurvives = require('./the-brain-survives.test.js');
+// epic: operational-direction — Story 1 (goal-derived Director run terms).
+const operationalDirection = require('./operational-direction.test.js');
 // bug — tapestry-key handlePut must await the async LMDB write (regression guard).
 const tapestryKeyPutAwait = require('./tapestry-key-put-await.test.js');
 
@@ -496,6 +498,7 @@ async function main() {
   const theProposalLoopResult = await theProposalLoop.run();
   const teachItWhatMattersResult = await teachItWhatMatters.run();
   const theBrainSurvivesResult = await theBrainSurvives.run();
+  const operationalDirectionResult = await operationalDirection.run();
 
   console.log('\ntapestry-key-put-await suite:');
   const tapestryKeyPutAwaitResult = await tapestryKeyPutAwait.run();
@@ -924,6 +927,11 @@ async function main() {
       ? `SKIP (${theBrainSurvivesResult.skipped} tests; preconditions not met)`
       : `${theBrainSurvivesResult.fail === 0 ? 'PASS' : 'FAIL'} (${theBrainSurvivesResult.pass} passed, ${theBrainSurvivesResult.fail} failed${theBrainSurvivesResult.skipped ? `, ${theBrainSurvivesResult.skipped} skipped` : ''})`;
   console.log(`the-brain-survives suite:                        ${theBrainSurvivesLine}`);
+  const operationalDirectionLine =
+    (operationalDirectionResult.pass + operationalDirectionResult.fail) === 0 && operationalDirectionResult.skipped
+      ? `SKIP (${operationalDirectionResult.skipped} tests; preconditions not met)`
+      : `${operationalDirectionResult.fail === 0 ? 'PASS' : 'FAIL'} (${operationalDirectionResult.pass} passed, ${operationalDirectionResult.fail} failed${operationalDirectionResult.skipped ? `, ${operationalDirectionResult.skipped} skipped` : ''})`;
+  console.log(`operational-direction suite:                     ${operationalDirectionLine}`);
 
   const overallOk =
     configOk &&
@@ -1084,6 +1092,8 @@ async function main() {
     teachItWhatMattersResult.fail === 0 &&
     // second-brain #8 — the brain survives (export + restore drill)
     theBrainSurvivesResult.fail === 0 &&
+    // operational-direction #1 — goal-derived Director run terms
+    operationalDirectionResult.fail === 0 &&
     harnessLintResult.fail === 0 &&
     harnessStatsResult.fail === 0 &&
     sessionStartResult.fail === 0 &&
@@ -1127,6 +1137,7 @@ async function main() {
     relationshipPrimitivesResult, relationshipPrimitivesProbeResult, moveNodesBetweenSetsUiResult,
     captureAGoalAndSeeItResult, firmwareConceptElementsSetsResult, tapestryPerConceptDetailViewsResult, structuresTheBrainCanTrustResult,
     breakAGoalIntoPiecesResult, attachTheWorldResult, sessionsReadTheBrainResult, theProposalLoopResult,
+    operationalDirectionResult,
   ].reduce((sum, r) => sum + ((r && r.skipped) || 0), 0);
   console.log(`Total skipped:                                   ${totalSkipped}`);
   console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);

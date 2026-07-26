@@ -1,0 +1,82 @@
+# Story 1: Operational direction — a run's terms derived from the goal
+
+**Status:** Done
+**Created:** 2026-07-25
+**Type:** Feature (governance)
+
+## Background
+
+Direction mode has one on-ramp: a hand-written, armed pre-registration. It works and it goes unused. Read `engineering-team/audits/relationship-primitives/book.md` § "Direction mode — pre-registered" and most of it is **experiment apparatus** rather than work order — it says "Hypothesis being tested," estimates "~80% chance of full success," declares that an operator goalpost amendment mid-run *voids* the run, and counts the operator doing any of the work as **experiment failure**. Those are the rules of a scientific pre-registration. They exist so the harness cannot grade its own homework, and they are right when the question is *"does autonomous direction work?"*
+
+They are pure overhead when the question is *"please do this piece of work."* Direction mode conflates the two, and the cost of the first is suppressing all use of the second.
+
+**Who is affected:** the owner, who currently must choose between writing a ~2,000-word pre-registration or not using the Director at all — and every goal that is ready to be worked but sits unhanded because arming is too expensive.
+
+**The shape of the fix.** A second mode whose terms are *derived* from the goal being pursued rather than authored per run. The owner still sets every goalpost; they set them once, when writing the goal, instead of again per run. Arming stops being authorship and becomes transcription, and the act of arming becomes the owner approving the proposal that nominated the goal.
+
+**The safety edge — and why it grew.** Deriving goalposts from a goal record is only safe if the record is the owner's. Sessions can author goals today (`createChildGoal`, second-brain #3), and the owner's own goal `make-sure-only-prompts-i-wrote-can-run` states the hazard: *"a session can leave instructions for a future session … that loop has to be closed before anything runs unattended."* So the mode carries an **owner-ratified anchor** requirement, paired inseparably with a **boundary-narrowing invariant**. The pairing is not decoration: a distant anchor without boundary inheritance is a laundering path — a hundred goals deep, nobody can say what was actually sanctioned. Shipping the anchor without the inheritance rule is worse than shipping neither.
+
+The anchor's permitted distance is a **policy parameter**, not a hard-coded rule. PRD §7.6 governs: *"No accepted deliverable — including an 'improve the harness' deliverable — may alter selection policy, tiers, caps, or this constitution without a separate, explicit owner act."* v1 sets the distance to zero (the anchor must be the goal itself); loosening it later — so one ratified top goal legitimizes a subtree — must be a **policy change, not a redesign**. This is PRD §7.5's tier model arriving early.
+
+**Knowingly surrendered:** the baseline commit and the pinned governing versions. They buy reproducibility — knowing which Director ran under which rubric — an acceptable trade for operational runs and *not* acceptable for experimental ones. That asymmetry is why this is a second mode and not a replacement, and it gets **stated in the artifacts, not quietly dropped**.
+
+**Why the full phase set:** this changes the rules governing autonomous runs. Getting it subtly wrong weakens safety in ways that are hard to see. The first run is necessarily human-gated, since the thing that would reduce the gating is what is being built.
+
+## User-facing description
+
+As the owner of this tapestry, I want to hand an already-ratified goal to the engineering team without writing a pre-registration, so that the Director actually gets used for real work — while the staging ceiling, the stopping rules, the blinded judges, and my sole authority to call a book done all stay exactly as strong as they are today.
+
+## Acceptance criteria
+
+Testable from the outside — "outside" here is what the governing artifacts say, and what an operational run does or refuses to do when confronted with a given goal.
+
+- [ ] **AC1 — Two named modes; armed mode unweakened; row 41 disposed.** Given the harness's governing text after the change, `roles/director.md`, the `direct-feature` skill, and the book template each name **exactly two** Direction on-ramps — *pre-registered / armed* (for when the harness itself is under test) and *operational* — and state which to use when. Given a diff of the armed mode's rules, no armed-mode rule is removed, weakened, or made conditional; the only permitted armed-mode edits are ones that name the second mode's existence. And OPEN.md row 41 is dispositioned: operational direction is the named-mode answer, ad-hoc per-session gate pre-authorization is forbidden going forward, and the row cites this story.
+
+- [ ] **AC2 — Terms derived from the goal, with gaps named rather than hidden.** Given a goal record carrying a statement, a deliverable, and a boundary, an operational run's terms are **transcribed** from those fields — deliverable → success criteria, boundary → ceiling, statement → the ask restated — with no hand-authored hypothesis, probability, outcome table, or experiment-scoring language required to start the run. Given a goal whose estimate is present, it is transcribed; given one where it is absent, the artifact records it as **absent** rather than inventing a number. And the run's artifacts state in their own text that (a) the baseline commit and pinned governing versions are deliberately **not** captured in this mode, and why — reproducibility traded for operational cost, retained in armed mode; and (b) the estimate is not returned by the goals read API today and prerequisites (`dependsOn`) do not exist as a field at all, both named as dependencies rather than left silently missing.
+
+- [ ] **AC3 — Owner-ratified anchor required to start.** Given a goal, an operational run may begin only if an **owner-ratified anchor** resolves: the nearest goal in the ancestry chain — the goal itself or an ancestor — named by an *approved proposal fact*. Given a goal with no such anchor inside the configured distance, the run **refuses to start** and reports which goals it walked and what it did not find. The permitted anchor distance is a **stated policy parameter whose v1 value is zero** (the anchor must be the goal itself), expressed as a walk up the ancestry chain, such that changing the parameter is an owner policy act (PRD §7.5 / §7.6) rather than a redesign of the resolution procedure.
+
+- [ ] **AC4 — Boundary narrows, never widens, along the anchor chain.** Given any parent→child step in the resolved chain from the anchor down to the goal being run, the child's boundary narrows or restates the parent's; given a step where the child's boundary admits something the parent's excludes, the run **refuses to start** and names the widening step. Given a configured anchor distance greater than zero, this check is exercised over a multi-goal chain — so raising the parameter later requires no new machinery. The rule is stated as holding regardless of anchor distance.
+
+- [ ] **AC5 — Every non-negotiable in force, by reference not by copy.** Given an operational run, all of the following apply verbatim and are traceable to the *same* governing text armed mode uses, not a restated second copy: staging is the hard ceiling (no `/cycle-prod`, no `/cycle-full`, nothing touching `main`); all six stopping rules; blinded gate judges at Gates 1/2/3/5 plus the final completion audit, with every verdict journaled and only the operator able to void one; ratifying the book complete remains the owner's act alone; and the append-only decision journal. Given the five engineering phases, the gate rubrics, and `.claude/agents/gate-judge.md`, none is changed beyond what naming the second mode requires.
+
+## Concepts touched
+
+Referenced, not redefined. `<TA>` is the per-deployment Tapestry Assistant pubkey — resolved at runtime, never hardcoded (CLAUDE.md § "Per-deployment TA pubkey").
+
+- `39998:<TA>:tapestry-owner-goal` — the record a run's terms are derived from (`statement`, `deliverable`, `boundary`, `parent`, `origin`).
+- `39998:<TA>:tapestry-proposal` — the append-only nomination and its `approved` / `skipped` decision fact; an `approved` fact naming a goal is what "owner-ratified" means here.
+- `39998:<TA>:project-for-the-engineering-team` — the adjacent framing for work handed to this team.
+
+**No concept definitions change** in this story, so no firmware reinstall is required.
+
+## Out of scope
+
+- **Making the estimate and the goal `prompt` readable through the goals API.** `parseGoalRow` drops both; the goal `store-and-show-the-prompt-and-the-estimate` exists precisely for this ("no producer accepts them and no read surface returns them, so anything set today is invisible"). Named as a dependency, not built here.
+- **Who may author a prompt** — the goal `make-sure-only-prompts-i-wrote-can-run`. A named dependency; explicitly not this book's work.
+- **`dependsOn` / prerequisites** — the field is on no goal and nowhere in the codebase. Out until it exists.
+- **The `task-timeline` pre-arming refresh.** `engineering-team/audits/task-timeline/book.md` is pre-registered but `Armed: No`; if this lands first, its Direction-mode section needs a refresh before arming (precedent: relationship-primitives' "Pre-arming refresh, operator-ratified"). **Flag it as a dependency; do not perform it in this book.**
+- **The pending goalpost-class amendments against the same two files** — OPEN.md rows 57 (judge-spawn blinding boundary), 63 (bounded-read recipe, twice-recurred), 64 (journal-counted tallies), 74 (silent role stalls / heartbeat), 76 (journal append stranding), 92 (`curl`-in-subshell smoke guidance). Each proposes an edit to `roles/director.md` or the `direct-feature` skill and each awaits its own owner ratification. **Do not fold any of them in** — a diff that quietly lands them is scope creep on goalpost-class text.
+- **Any change to armed Direction mode's rules**, to the five engineering phases, to the gate rubrics, or to `.claude/agents/gate-judge.md` beyond what the new mode requires.
+- **Loosening the anchor distance past the goal itself** — a future owner policy act under PRD §7.6.
+
+## Open questions
+
+Both are **deliberately reserved**, not unresolved planning work.
+
+1. ~~**Ratification staleness — reserved for Architecture (owner's instruction).**~~ — **RESOLVED at Architecture: detected, not stored.** Proposal facts never re-sign (second-brain ADR 0006 d3); `updateGoalIntent` always does (`normalize/index.js:2356`). So `goal.createdAt > approval.createdAt` ⟺ the goal was rewritten after ratification → refuse `anchor-stale`. No new field, no schema change, no firmware. Remedy is a fresh proposal + approval. See ADR 0001 **d4**.
+2. ~~**Whether operational mode writes a `## Direction mode` section into `book.md`**~~ — **RESOLVED at the Architecture gate (owner, 2026-07-25): it writes one, under three conditions.** A **distinctly headed** `## Direction mode (operational) — goal-derived` section: (1) **generated — hand-editing it is a defect**, said in the section's own body (PRD §7.1 posture: terms are authored on the goal, never in a second place); (2) it **carries provenance** — goal slug, the *verbatim* deliverable and boundary derived from, the derivation timestamp, and the ratifying proposal, so what this run was told stays reconstructable after the goal moves; (3) on any mismatch between the goal's live terms and the recorded text, the run **halts and re-derives — never proceeds on stale terms** (armed mode's pinned-hashes check, with the goal as the pinned input). See ADR 0001 **d9.1–d9.3**.
+
+## Linked artifacts
+
+- Epic: `engineering-team/epics/operational-direction.md`
+- Source brief: owner goal `hand-work-to-the-engineering-team-without-arming-a-book` (parent `hand-a-goal-to-a-session`), held in the local graph. Note: `GET /api/brain/goals/:slug` does **not** return the `prompt` field — `parseGoalRow` drops it; read the raw record via the Neo4j query endpoint from inside the container (host-side `:7778` returns 403 on brain endpoints).
+- Book: `engineering-team/audits/operational-direction/book.md` *(to be opened — acceptance-frame)*
+- ADR: `engineering-team/decisions/operational-direction/0001-operational-direction-mode.md` — pure core `src/lib/brain/direction.js` + read-only `GET /api/brain/direction/:slug`; anchor distance a policy parameter (v1 = 0, not special-cased); staleness *detected* via the goals-re-sign / proposals-never-re-sign asymmetry (no schema change); boundary verdicts blinded and injected. Open Q #2 reserved for the owner at the Architecture gate.
+- ADR (amendment): `engineering-team/decisions/operational-direction/0002-fail-closed-boundary-judgment.md` — after review CHANGES_REQUESTED. **d10** seventh refusal `boundary-unjudged` (the core fails closed when steps exist and nobody judged, and says *that* rather than asserting a widening); **d11** the ordered `?verdicts=` channel and the two-call flow, with the trust model stated rather than implied; **d12** staleness fails closed on unknowable currency; **d13** the chain carries `uuid` so the endpoint stops re-resolving ancestors by slug; **d6 corrected** to the real response shape. Inert at v1 (distance 0 ⇒ zero steps) — its purpose is that raising the policy parameter stays safe.
+- Test plan: `engineering-team/stories/operational-direction/1-operational-direction-mode.test-plan.md` — `test/operational-direction.test.js`, 61 tests (33 U / 16 S / 6 H / 6 R), wired into the aggregate exit gate (G5-verified). RED-confirmed at `dca847a8`: **8 passed, 53 failed**, the 53 naming the absent artifact. H-class is read-only and fixture-free (sidesteps OPEN.md row 94). Also carries this phase's two lane-deliverables: runner registration and the eight-suite `lib/brain/direction` import re-pin.
+- ADR (round 3): `engineering-team/decisions/operational-direction/0003-one-boundary-review-shape.md` — resolves ADR 0002's d11/d6 contradiction. **d14** the refusal envelope carries `boundaryReview`, so the shape is symmetric and `director.md`/the skill become true as already written (no doc edit); **d15** `required` redefined as "steps still need verdicts" (false on an eligible answer); **d16** steps live at exactly one address — top-level `steps` on both paths, `detail` keeps diagnostics only.
+- Review: `engineering-team/reviews/operational-direction/1-operational-direction-mode.md` — two rounds, both **CHANGES_REQUESTED** (2026-07-26).
+  - **Round 1** — AC1/2/3/5 verified; **AC4 only partially**: the boundary invariant ran only when a caller injected a verdict, and the endpoint never did, so `eligible: true` could be returned over unjudged steps once the anchor-distance policy parameter was raised. Resolved by ADR 0002 + `a84bd51c`; all three blocking items and both non-blocking items **verified closed by re-probe** in round 2.
+  - **Round 3** — **PASS.** The two-call flow verified end to end (call 1 → `boundary-unjudged` + `boundaryReview.steps`; call 2 with verdicts → `eligible`, `required:false`). d14 symmetry holds across every refusal; `blindSteps` is the single projection on all three return paths. `S21`'s repaired extraction independently re-verified with the suite's own extractors — fails on the defect it names, passes on shipped code. **AC4 now fully satisfied.** Four non-blocking items carried forward. Outstanding risk is environmental: **`H1`–`H10` have never run against this code — the deploy chain must show them green before staging.**
+  - **Round 2** — the fail-closed guard is confirmed correct on every branch, but the two-call flow it introduces **cannot be executed as documented**: `roles/director.md:38` and the skill both instruct the Director to read `boundaryReview.steps` on a `boundary-unjudged` refusal, and the refusal envelope has no `boundaryReview` key (the steps sit at `detail.steps`). ADR 0002 contradicts itself — d11 says the refusal carries it, d6's refusal shape omits it. Fail-safe and one line to fix, but inert-now/broken-when-raised is the same standard that blocked round 1. Route: Architect (resolve d11/d6 into one shape) → Tester (assert call 1's payload) → Implementer (align the envelope).

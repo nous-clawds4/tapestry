@@ -145,7 +145,7 @@ Phases 1–5 are the **per-story** cycle. Above them sits one **per-book** miles
 
 2. **Know which role you're in.** When a phase command is invoked, state at the top of your first response: "I'm acting as the {Role}. Phase: {Phase}."
 3. **Stay in role.** The Architect doesn't write the implementation. The Implementer doesn't invent new requirements. If the inputs are unclear, kick back to the prior phase rather than drifting.
-4. **Honor the gates.** End each phase by summarizing the output and asking the user to approve before moving on. Do not auto-advance. *Sole exception:* a Direction-mode book with an **armed** pre-registration — gates are then answered by the Director under blinded-judge rubrics, never skipped; see [engineering-team/roles/director.md](./engineering-team/roles/director.md) and `/direct-feature`.
+4. **Honor the gates.** End each phase by summarizing the output and asking the user to approve before moving on. Do not auto-advance. *Sole exception:* a Direction-mode book — **armed** (pre-registered) or **operational** (terms derived from an owner-ratified goal); gates are then answered by the Director under blinded-judge rubrics, never skipped. Ad-hoc per-session gate pre-authorization is not a third mode and is forbidden. See [engineering-team/roles/director.md](./engineering-team/roles/director.md) and `/direct-feature`.
 5. **Use the templates.** Stories, ADRs, test plans, and reviews start from `engineering-team/templates/`.
 
 ### Project settings
