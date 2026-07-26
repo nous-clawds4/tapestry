@@ -56,6 +56,25 @@
  * endpoint 404s, the docs name one mode, the book template has no operational
  * section, row 41 is OPEN). H tests SKIP when the stack is absent (CI's
  * stack-free job); they were confirmed EXECUTING (not skipping) at Gate 3.
+ *
+ * ── ADR 0002 (fail-closed boundary judgment) — U34–U44, S17–S20, H7–H8 ──
+ *
+ * Added after review CHANGES_REQUESTED. The guard being closed is that
+ * `resolveAnchor` ran the boundary check ONLY when a caller injected a verdict,
+ * so the same chain was eligible or refused depending on whether the caller
+ * remembered. U34 is the regression guard for exactly that.
+ *
+ * Two of these pass BEFORE the amendment, for different reasons — stated so 64
+ * green lines don't hide one of them:
+ *   - U40 is a true regression sentinel: at the v1 policy distance (0) the chain
+ *     is one goal, so there are zero steps and the new guard must NOT fire. It
+ *     must keep passing afterward — that is the proof v1 behavior is unchanged.
+ *   - U38 currently passes VACUOUSLY: the un-amended core ignores the
+ *     `boundaryVerdicts` array entirely, so its eligible:true comes from the
+ *     ABSENT guard rather than from verdicts working. It is not discriminating
+ *     on its own; it becomes meaningful only once the guard exists, and the
+ *     discrimination in the meantime is carried by U34/U36/U37/U39, which all
+ *     fail now.
  */
 
 'use strict';
@@ -93,8 +112,9 @@ const IMPORT_PINNED_SUITES = [
   'the-proposal-loop.test.js',
 ];
 
-// The six refusal codes the ADR names (d2, d4, d5).
-const REFUSALS = ['goal-not-found', 'ambiguous-slug', 'no-anchor-in-range', 'chain-broken', 'anchor-stale', 'boundary-widened'];
+// The refusal codes the ADRs name — SEVEN since ADR 0002 d10 added the
+// fail-closed `boundary-unjudged` (0001 d2/d4/d5 named the first six).
+const REFUSALS = ['goal-not-found', 'ambiguous-slug', 'no-anchor-in-range', 'chain-broken', 'anchor-stale', 'boundary-widened', 'boundary-unjudged'];
 
 const tests = [];
 function test(name, fn) { tests.push([name, fn]); }
@@ -210,7 +230,19 @@ function anchor(core, over = {}) {
     goalSlug: over.goalSlug || 'some-goal',
     maxAnchorDistance: over.maxAnchorDistance === undefined ? 0 : over.maxAnchorDistance,
     ...(over.boundaryVerdict ? { boundaryVerdict: over.boundaryVerdict } : {}),
+    ...(over.boundaryVerdicts !== undefined ? { boundaryVerdicts: over.boundaryVerdicts } : {}),
   });
+}
+
+/** A distance-2 chain whose grandparent is ratified — 2 boundary steps to judge. */
+function judgeableChain(over = {}) {
+  return {
+    goals: chainOfThree(),
+    proposals: [approvedFor('grandparent')],
+    goalSlug: 'child',
+    maxAnchorDistance: 2,
+    ...over,
+  };
 }
 
 /* ── live-stack helpers (H-class; the house pattern) ──────────────────── */
@@ -611,14 +643,13 @@ test('U32: every refusal the ADR names is reachable, and no refusal outside the 
     goals: [goal({ slug: 'some-goal', createdAt: 2 })],
     proposals: [approvedFor('some-goal', { createdAt: 1 })],
   }));
-  collect(anchor(core, {
-    goals: chainOfThree(), proposals: [approvedFor('grandparent')], goalSlug: 'child',
-    maxAnchorDistance: 2, boundaryVerdict: () => 'widens',
-  }));
+  collect(anchor(core, judgeableChain({ boundaryVerdict: () => 'widens' })));
+  // ADR 0002 d10 — the seventh: steps exist and nobody judged them.
+  collect(anchor(core, judgeableChain()));
   for (const code of produced) {
-    assert(REFUSALS.includes(code), `unnamed refusal code '${code}' — the ADR names exactly: ${REFUSALS.join(', ')}`);
+    assert(REFUSALS.includes(code), `unnamed refusal code '${code}' — the ADRs name exactly: ${REFUSALS.join(', ')}`);
   }
-  for (const code of ['goal-not-found', 'ambiguous-slug', 'no-anchor-in-range', 'chain-broken', 'anchor-stale', 'boundary-widened']) {
+  for (const code of REFUSALS) {
     assert(produced.has(code), `refusal '${code}' was never produced by its scenario — got: ${[...produced].join(', ') || '(none)'}`);
   }
 });
@@ -627,6 +658,120 @@ test('U33 (AC3): DEFAULT_MAX_ANCHOR_DISTANCE is 0 — v1 policy is the goal itse
   const core = loadDirectionCore();
   assert(core.DEFAULT_MAX_ANCHOR_DISTANCE === 0,
     `ADR d3 fixes the v1 policy value at 0 (the anchor must be the goal itself); got ${short(core.DEFAULT_MAX_ANCHOR_DISTANCE)}`);
+});
+
+/* ══════════════════════════════════════════════════════════════════════
+   U-class, ADR 0002 — the boundary guard must FAIL CLOSED (d10–d13)
+   ══════════════════════════════════════════════════════════════════════ */
+
+test('U34 (0002 d10, THE REGRESSION GUARD): steps exist and NOBODY judged them — the run is refused, not blessed', () => {
+  const core = loadDirectionCore();
+  const r = anchor(core, judgeableChain());
+  assert(r.eligible === false,
+    'ADR 0002 d10: a chain with unjudged boundary steps must NEVER be eligible. Before this fix the same call returned eligible:true — the invariant was opt-in, so a caller who forgot to inject a verdict silently bypassed half a paired guard.');
+  assert(r.refusal === 'boundary-unjudged', `expected refusal 'boundary-unjudged'; got ${short(r.refusal)}`);
+});
+
+test('U35 (0002 d10): the unjudged refusal is HONEST — it says nobody judged, never that something widened', () => {
+  const core = loadDirectionCore();
+  const r = anchor(core, judgeableChain());
+  const said = `${r.error || ''} ${short(r.detail, 400)}`;
+  assert(!/widen/i.test(said),
+    `the refusal must not assert a widening no judge produced — that sentence lands in the decision journal and the book audit as though a judgment happened. Got: ${short(said, 400)}`);
+  assert(/judg/i.test(said),
+    `the refusal must say the steps were not judged; got: ${short(said, 400)}`);
+});
+
+test('U36 (0002 d11): a verdict list shorter or longer than the step count refuses — never a silent pass', () => {
+  const core = loadDirectionCore();
+  const short1 = anchor(core, judgeableChain({ boundaryVerdicts: ['narrows'] }));
+  assert(short1.refusal === 'boundary-unjudged',
+    `2 steps but 1 verdict must refuse 'boundary-unjudged'; got ${short(short1)}`);
+  const long1 = anchor(core, judgeableChain({ boundaryVerdicts: ['narrows', 'narrows', 'narrows'] }));
+  assert(long1.refusal === 'boundary-unjudged',
+    `2 steps but 3 verdicts must refuse 'boundary-unjudged'; got ${short(long1)}`);
+  const empty = anchor(core, judgeableChain({ boundaryVerdicts: [] }));
+  assert(empty.refusal === 'boundary-unjudged',
+    `2 steps but 0 verdicts must refuse 'boundary-unjudged'; got ${short(empty)}`);
+});
+
+test('U37 (0002 d11): an unrecognized verdict token refuses — a typo must not read as approval', () => {
+  const core = loadDirectionCore();
+  for (const bad of [['narrows', 'yes'], ['ok', 'narrows'], ['narrows', ''], ['narrows', null]]) {
+    const r = anchor(core, judgeableChain({ boundaryVerdicts: bad }));
+    assert(r.refusal === 'boundary-unjudged',
+      `verdict list ${JSON.stringify(bad)} contains a token that is neither 'narrows' nor 'widens' and must refuse 'boundary-unjudged'; got ${short(r)}`);
+  }
+});
+
+test('U38 (0002 d11): a complete valid verdict list of all-narrows passes the guard', () => {
+  const core = loadDirectionCore();
+  const r = anchor(core, judgeableChain({ boundaryVerdicts: ['narrows', 'narrows'] }));
+  assert(r.eligible === true, `2 steps + 2 'narrows' verdicts must be eligible; got ${short(r)}`);
+  assert(r.anchor && r.anchor.slug === 'grandparent', `expected the grandparent anchor; got ${short(r.anchor)}`);
+});
+
+test('U39 (0002 d11): a `widens` token in the list refuses boundary-WIDENED, distinct from unjudged, and names the step', () => {
+  const core = loadDirectionCore();
+  const r = anchor(core, judgeableChain({ boundaryVerdicts: ['narrows', 'widens'] }));
+  assert(r.refusal === 'boundary-widened',
+    `a judged widening is 'boundary-widened' — NOT 'boundary-unjudged'. The two must stay distinguishable in the journal so an operator can tell "a judge said no" from "nobody looked". Got ${short(r.refusal)}`);
+  const said = `${r.error || ''} ${short(r.detail, 400)}`;
+  assert(said.includes('child') || said.includes('parent'), `the refusal must name the widening step; got ${short(said, 400)}`);
+});
+
+test('U40 (0002 d11 — v1 IS UNCHANGED): at the v1 policy distance there are no steps, so no verdicts are needed', () => {
+  const core = loadDirectionCore();
+  const r = anchor(core, { proposals: [approvedFor('some-goal')], maxAnchorDistance: 0 });
+  assert(r.eligible === true,
+    `at maxAnchorDistance 0 the chain is one goal, so there are zero steps and the fail-closed guard must not fire. Got ${short(r)}`);
+  assert(r.refusal == null, `expected no refusal at v1; got ${short(r.refusal)}`);
+});
+
+test('U41 (0002 d12): staleness fails CLOSED — an unknowable goal timestamp is treated as stale', () => {
+  const core = loadDirectionCore();
+  const isAnchorStale = needFn(core, 'isAnchorStale');
+  assert(isAnchorStale(goal({ slug: 'g', createdAt: null }), approvedFor('g', { createdAt: 100 })) === true,
+    'a missing goal createdAt means currency cannot be established; a safety guard must refuse rather than assume fresh.');
+  assert(isAnchorStale(goal({ slug: 'g', createdAt: 100 }), approvedFor('g', { createdAt: null })) === true,
+    'a missing approval createdAt likewise cannot establish currency.');
+});
+
+test('U42 (0002 d12): the unknowable-currency refusal is distinguishable from "rewritten after ratification"', () => {
+  const core = loadDirectionCore();
+  const unknowable = anchor(core, {
+    goals: [goal({ slug: 'some-goal', createdAt: null })],
+    proposals: [approvedFor('some-goal', { createdAt: 100 })],
+  });
+  assert(unknowable.refusal === 'anchor-stale', `expected 'anchor-stale'; got ${short(unknowable)}`);
+  const said = `${unknowable.error || ''} ${short(unknowable.detail, 400)}`;
+  assert(!/rewritten/i.test(said),
+    `an unknowable timestamp must NOT be reported as "rewritten after ratification" — nothing established that it was. Got: ${short(said, 400)}`);
+  assert(/currency|could not|unknown|missing/i.test(said),
+    `the refusal must say currency could not be established; got: ${short(said, 400)}`);
+});
+
+test('U43 (0002 d13): the chain carries identity — each entry has both slug and uuid', () => {
+  const core = loadDirectionCore();
+  const r = anchor(core, judgeableChain({ boundaryVerdicts: ['narrows', 'narrows'] }));
+  assert(Array.isArray(r.chain) && r.chain.length === 3, `expected a 3-goal chain; got ${short(r.chain)}`);
+  for (const entry of r.chain) {
+    assert(entry && typeof entry === 'object' && !Array.isArray(entry),
+      `ADR 0002 d13: chain entries must be objects carrying identity, not bare slugs; got ${short(entry)}`);
+    assert(typeof entry.slug === 'string' && entry.slug !== '', `each chain entry needs a slug; got ${short(entry)}`);
+    assert(typeof entry.uuid === 'string' && entry.uuid !== '',
+      `each chain entry needs a uuid so the endpoint stops re-resolving ancestors by slug (a shadowed duplicate would otherwise surface the wrong boundary text to a judge); got ${short(entry)}`);
+  }
+});
+
+test('U44 (0002 d13): a refusal carries the same identity-bearing chain shape as a success', () => {
+  const core = loadDirectionCore();
+  const r = anchor(core, judgeableChain());
+  assert(Array.isArray(r.chain), `a refusal must still carry its chain; got ${short(r.chain)}`);
+  for (const entry of r.chain) {
+    assert(entry && typeof entry.slug === 'string' && typeof entry.uuid === 'string',
+      `refusal chains must use the same {slug, uuid} shape as success chains, so callers need no branch; got ${short(entry)}`);
+  }
 });
 
 /* ══════════════════════════════════════════════════════════════════════
@@ -797,6 +942,42 @@ test('S16 (AC1/d8): OPEN.md row 41 is dispositioned DONE and cites this work', (
     `row 41's disposition must cite operational direction as its named-mode answer; got: ${short(row, 300)}`);
 });
 
+test('S17 (0002 d11): the endpoint threads the ordered `verdicts` query parameter into the core', () => {
+  const src = safeRead(BRAIN_API);
+  const idx = src.indexOf('handleGetDirection');
+  assert(idx > -1, 'src/api/brain/index.js must define handleGetDirection.');
+  const body = src.slice(idx, idx + 2600);
+  assert(/req\.query/.test(body) && /verdicts/.test(body),
+    'ADR 0002 d11: the handler must read req.query.verdicts and pass the ordered list to the core — otherwise the two-call flow has no second call.');
+  assert(!/app\.post\(\s*['"`]\/api\/brain\/direction/.test(src),
+    'the eligibility surface must stay a GET — the brain routes carry no writes (ADR 0002 Context constraint 3).');
+});
+
+test('S18 (0002 d13): the endpoint builds boundary steps from the walked chain, not by re-resolving slugs', () => {
+  const src = safeRead(BRAIN_API);
+  const idx = src.indexOf('handleGetDirection');
+  assert(idx > -1, 'src/api/brain/index.js must define handleGetDirection.');
+  const body = src.slice(idx, idx + 2600);
+  assert(!/resolved\.find\s*\(\s*\(?\s*g\s*\)?\s*=>\s*g\s*&&\s*g\.slug\s*===\s*slug/.test(body),
+    'ADR 0002 d13: re-resolving chain ancestors by slug can surface a shadowed duplicate\'s boundary text to a judge — build the steps from what the walk actually visited.');
+});
+
+test('S19 (0002 d11): director.md documents the two-call flow AND that passed verdicts must match journaled ones', () => {
+  const src = safeRead(DIRECTOR_ROLE);
+  assert(/boundary-unjudged/.test(src),
+    'roles/director.md must name the boundary-unjudged outcome so a Director knows it is a judge-then-re-ask, not a halt.');
+  assert(/verdicts/.test(src),
+    'roles/director.md must document the verdicts channel (ADR 0002 d11).');
+  assert(/journal/i.test(src) && /match/i.test(src),
+    'ADR 0002 d11: the query parameter is NOT a trust boundary — director.md must require that verdicts passed here match the journaled judge verdicts.');
+});
+
+test('S20 (0002 d11): the skill treats boundary-unjudged as judge-then-re-ask, not a halt', () => {
+  const src = safeRead(DIRECT_SKILL);
+  assert(/boundary-unjudged/.test(src),
+    '.claude/skills/direct-feature/SKILL.md Stage 0 must distinguish boundary-unjudged (judge, journal, re-ask) from the refusals that halt.');
+});
+
 /* ══════════════════════════════════════════════════════════════════════
    H-class — live local stack, READ-ONLY, fixture-free (SKIP when absent)
    ══════════════════════════════════════════════════════════════════════ */
@@ -863,6 +1044,22 @@ test('H6: the direction read WRITES NOTHING — the goal element count is unchan
   const after = goalElementCount();
   assert(after === before,
     `the direction endpoint is read-only (ADR d1) — goal element count moved ${before} → ${after}.`);
+});
+
+test('H7 (0002 d11): the endpoint accepts a `verdicts` parameter without changing the v1 answer', async () => {
+  if (!(await stackAvailable())) return 'SKIP';
+  const slug = 'hand-work-to-the-engineering-team-without-arming-a-book';
+  const plain = loopbackGetJson(`/api/brain/direction/${slug}`);
+  const withV = loopbackGetJson(`/api/brain/direction/${slug}?verdicts=narrows,narrows`);
+  assert(plain.refusal === withV.refusal && plain.eligible === withV.eligible,
+    `at the v1 policy distance there are zero boundary steps, so supplying verdicts must not change the answer (the parameter is inert until the policy parameter is raised). plain=${short(plain.refusal)} withVerdicts=${short(withV.refusal)}`);
+});
+
+test('H8 (0002 d6): the response reports which policy value was actually in force', async () => {
+  if (!(await stackAvailable())) return 'SKIP';
+  const r = loopbackGetJson('/api/brain/direction/hand-work-to-the-engineering-team-without-arming-a-book');
+  assert(typeof r.maxAnchorDistance === 'number',
+    `ADR 0002 d6: maxAnchorDistance is contractual — a run's artifacts must record which policy value was in force, since it is the one goalpost read from the environment rather than the goal. Got ${short(r.maxAnchorDistance)}`);
 });
 
 /* ══════════════════════════════════════════════════════════════════════

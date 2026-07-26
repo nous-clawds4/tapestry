@@ -141,7 +141,46 @@ FAIL  H1: GET /api/brain/direction/:slug answers on loopback (not 404)
 
 **The 8 that pass are pass-by-design and documented in the suite header:** `R1`–`R6` (regression sentinels that must *still* pass afterward), `S8` (regression sentinel in effect — see above), and `S5` (asserts this phase's own re-pin deliverable).
 
-### Kick-back from Implementation — `U23` was unsatisfiable (fixed 2026-07-26)
+### Round 2 — ADR 0002 coverage (fail-closed boundary judgment)
+
+Added after review **CHANGES_REQUESTED**. Suite grows **61 → 79**: `U34`–`U44`, `S17`–`S20`, `H7`–`H8`, plus `U32` extended.
+
+| ADR 0002 decision | Tests |
+|---|---|
+| **d10** — `boundary-unjudged`, fail closed, honest message | `U34` (the regression guard), `U35` (must not assert a widening nobody judged), `U32` |
+| **d11** — the ordered `verdicts` channel, two-call flow | `U36` (length mismatch), `U37` (unrecognized token), `U38` (happy path), `U39` (judged widen stays distinct), `U40` (v1 unchanged), `S17`, `S19`, `S20`, `H7` |
+| **d12** — staleness fails closed on unknowable currency | `U41`, `U42` (distinguishable from "rewritten") |
+| **d13** — chain carries `{slug, uuid}` | `U43`, `U44` (refusals use the same shape), `S18` |
+| **d6 corrected** — `maxAnchorDistance` contractual | `H8` |
+
+### RED confirmation (round 2)
+
+Run against the un-amended implementation at `8da154ec`:
+
+```
+operational-direction: 64 passed, 14 failed, 0 skipped
+```
+
+The 14 fail because the amendment is absent — `boundary-unjudged` does not exist, `boundaryVerdicts` is ignored, `isAnchorStale` still fails open, `chain` is bare slugs, and the two doc files don't mention the flow.
+
+### Two of the new tests pass before the fix — stated, not buried
+
+- **`U40` is a true regression sentinel.** At the v1 policy distance the chain is one goal ⇒ zero steps ⇒ the new guard must *not* fire. It must keep passing afterward; that is the proof v1 behavior is unchanged.
+- **`U38` currently passes VACUOUSLY, and that is a real weakness.** The un-amended core ignores the `boundaryVerdicts` array entirely, so its `eligible:true` comes from the *absent* guard, not from verdicts working. Verified directly:
+
+  ```
+  eligible: true — but boundaryVerdicts is IGNORED by the current core
+  ```
+
+  It is not discriminating on its own. The discrimination is carried by `U34`/`U36`/`U37`/`U39`, which all fail now, and `U38` becomes meaningful once the guard exists. Recorded rather than left as an unexplained green line.
+
+### Correction to ADR 0002's Phase-3 note
+
+ADR 0002's Consequences states that `U32` *"currently asserts exactly the six named codes and **will fail as written**."* **That is not accurate, and the truth is worse.** None of `U32`'s original scenarios produced boundary steps without a verdict, so `boundary-unjudged` would never have appeared in its `produced` set — the first loop checks only that *produced* codes are named, and the second checked only the six. **Original `U32` would have silently passed while missing the seventh refusal entirely** — a quiet coverage gap rather than a loud failure.
+
+`U32` has been extended: `REFUSALS` grows to seven, a steps-without-verdict scenario is added, and the reachability loop now iterates `REFUSALS` itself rather than a hardcoded six-item list, so the next refusal code cannot be added without a scenario proving it reachable.
+
+## Kick-back from Implementation — `U23` was unsatisfiable (fixed 2026-07-26)
 
 The Implementer halted at 60/61 and kicked back rather than editing a test mid-phase. **`U23` could not be passed by any correct implementation**, and the fault was this plan's fixture, not the code.
 
