@@ -91,3 +91,23 @@ Mode: **operational Direction** (goal-derived terms). Staging is the ceiling.
 **Judge:** n/a
 **Why:** (1) **OPEN.md #102 is only fixed on local.** The same schema node presumably still carries `chanceOfSuccess` in `required` on staging and production; repairing those is an operational act on deployed instances, outside my ceiling, and belongs to the operator. The row should not be closed on the strength of this local repair. (2) **The strfry-count race is expected to recur** in the new baseline (`relationship-primitives` H8 / `-probe` H4). If it does, I will treat it as environmental **only** on the evidence already gathered — isolated re-run green at 23/0 and 9/0 — and I will say so explicitly rather than quietly discounting a red. If anything *else* fails, that is a fresh halt.
 **Next:** Read `BASELINE_EXIT` and `Overall:` from the log when the run completes — never the notification's exit code.
+
+## 2026-07-26T18:33:00Z — Baseline GREEN, and verified to be a real green
+
+**Story/Phase:** `goal-intent-fields` / Stage 0 preflight (step 6) — CLEARED
+**Decision:** INFO
+**Judge:** n/a
+**Why:** `BASELINE_EXIT=0`, `Overall: PASS`, **zero** `FAIL` lines, no suite reporting a failure. Baseline command of record: **`npm test`** — Gate 4 reruns exactly this. Log committed as `baseline-green-2026-07-26.log`.
+
+I did not stop at "PASS", because OPEN.md #104/#106 documents that a **fully-skipped H-class still reports suite PASS** — a green that means "nothing ran." Checked: all four suites of interest ran with **0 skipped** — `relationship-primitives` 23/0/0, `relationship-primitives-probe` 9/0/0, `structures-the-brain-can-trust` 24/0/0, `break-a-goal-into-pieces` 30/0/0 — and each previously-failing H test is present in the log as an executed PASS (`H8 (AC-5)`, `H4 (AC-4)`, `H4 (AC 3)`, `H1 (ADR d13)`). 26 tests skipped elsewhere in the run, none in these suites.
+
+The strfry-count race did **not** recur, so the prediction I recorded before the run went unused — noted because a pre-commitment that turns out unnecessary is still worth recording honestly, and because it means the environmental-race discount was never actually applied to reach this green.
+**Next:** Stage 1, Planning.
+
+## 2026-07-26T18:38:47Z — Planning spawned
+
+**Story/Phase:** `goal-intent-fields` #1 / Planning
+**Decision:** INFO
+**Judge:** n/a
+**Why:** Spawned the `product-owner` subagent. Inputs given: the acceptance frame by path, the three goal terms verbatim, and two disclosures — that **no intake entry exists** (all 58 checked, none match), and that the book's "Context available to Planning — not terms" section is informational and may not be used to widen scope, with the already-repaired schema defect named as explicitly out of scope so it is not written up as a story. Told it to return questions rather than invent product intent, and not to put file paths or function names in the story (Gate 1 fails on solutioning). Asked it to state a recommended story count; stopping rule 4 caps the book at 5, which I deliberately did **not** disclose — a role told its own budget tends to decompose to fit the budget rather than the frame.
+**Next:** On its return, re-run the terms-mismatch check, then Gate 1 with a fresh blinded `gate-judge`.
