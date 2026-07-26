@@ -67,3 +67,27 @@ Mode: **operational Direction** (goal-derived terms). Staging is the ceiling.
 
 **Why I am not proceeding on my own judgement.** Whether the #102 schema fix falls inside this goal's frame — *"set … when capturing or updating a goal"* — is genuinely arguable in both directions, and the frame does not decide it in terms I can quote. Role file rule 3 makes that the operator's call, not mine. Fixing it directly would also be a hot patch outside the harness, which Stage 2 forbids.
 **Next:** Surface to the operator with the options; resume only on their explicit instruction.
+
+## 2026-07-26T18:08:09Z — Operator instruction: repair the live schema, then run clean
+
+**Story/Phase:** `goal-intent-fields` / Stage 0 preflight (step 6)
+**Decision:** ANSWER
+**Judge:** n/a
+**Why:** Presented three options; the operator chose **repair the schema first, then run the book on a green baseline**, explicitly authorizing the `save-schema` call against the **local** stack. This resolves the question I could not answer myself: OPEN.md #102 is treated as **live-data repair, not this book's scope**, so the frame is untouched and the 5-story budget stays with the feature work. Recording it as an ANSWER because it is the operator deciding a scope question, not me inferring one. The act is local-only — no staging or prod schema was touched, and the same defect presumably still stands on those instances (flagged below, not fixed here).
+**Next:** Apply, verify, re-baseline.
+
+## 2026-07-26T18:07:00Z — Live schema repaired; exactly one field moved
+
+**Story/Phase:** `goal-intent-fields` / Stage 0 preflight (step 6)
+**Decision:** INFO
+**Judge:** n/a
+**Why:** `save-schema` **replaces** the schema, so I read the live node first (`GET /api/concept-graph/node/39999:<TA>:tapestry-owner-goal-schema`, the same read path the failing test uses) and mutated only `required`, inventing nothing. Diff of the whole schema object before/after is **one hunk**: `["name","slug","description","chanceOfSuccess"] → ["name","slug","description"]`. Verified after the write: `required` reads back correct; all **12** properties intact (`prompt`, `chanceOfSuccess`, `needsHumanInput`, `needsBreakdown` still declared — the goal's premise is unchanged); `x-tapestry.unique` still `["name","slug"]`; the d8 primary-property fold reported `reconciled` with before/after property lists **identical**; `GET /api/brain/hygiene` green (`sound: true`, 0 problems). The two deterministic failures then went green in isolation — `structures-the-brain-can-trust` **24/0** (was 23/1) and `break-a-goal-into-pieces` **30/0** (was 29/1).
+**Next:** Full `npm test` re-baseline — targeted re-runs are not a baseline, and Gate 4 must rerun the identical command.
+
+## 2026-07-26T18:08:09Z — Two facts recorded now, so they are not lost later
+
+**Story/Phase:** `goal-intent-fields` / Stage 0 preflight
+**Decision:** INFO
+**Judge:** n/a
+**Why:** (1) **OPEN.md #102 is only fixed on local.** The same schema node presumably still carries `chanceOfSuccess` in `required` on staging and production; repairing those is an operational act on deployed instances, outside my ceiling, and belongs to the operator. The row should not be closed on the strength of this local repair. (2) **The strfry-count race is expected to recur** in the new baseline (`relationship-primitives` H8 / `-probe` H4). If it does, I will treat it as environmental **only** on the evidence already gathered — isolated re-run green at 23/0 and 9/0 — and I will say so explicitly rather than quietly discounting a red. If anything *else* fails, that is a fresh halt.
+**Next:** Read `BASELINE_EXIT` and `Overall:` from the log when the run completes — never the notification's exit code.
