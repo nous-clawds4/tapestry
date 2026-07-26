@@ -30,6 +30,10 @@ const { parseWorkRecordRow, groupWorkRecordsByGoal, sortRecordsByRecency } = req
 const { parseProposalRow, groupProposalsByGoal, openProposals, proposalEntry } = require('../../lib/brain/proposals');
 const { parseSignalRow, groupSignalsByGoal, signalEntry } = require('../../lib/brain/signals');
 const { familyEntries, assembleExport } = require('../../lib/brain/export');
+const {
+  DEFAULT_MAX_ANCHOR_DISTANCE, SURRENDERED, UNAVAILABLE,
+  parseEstimate, deriveTerms, resolveAnchor, boundarySteps,
+} = require('../../lib/brain/direction');
 
 const GOAL_CONCEPT_SLUG = 'tapestry-owner-goal';
 
@@ -102,6 +106,25 @@ async function readResolvedGoals(taPubkey) {
   // parentUuid is the resolved attachment (null = render at root — dangling and
   // cycle-broken refs degrade there); hasChildren feeds the standing rule.
   return resolveDecomposition(records);
+}
+
+// The same goal read, but keeping the RAW rows alongside the resolved records
+// (operational-direction #1, ADR 0001 d6): the direction core reads
+// chanceOfSuccess off the raw json, which parseGoalRow drops. One union, both
+// shapes — readResolvedGoals stays untouched for every other caller.
+async function readGoalRowsAndResolved(taPubkey) {
+  const headerUuid = `39998:${taPubkey}:${GOAL_CONCEPT_SLUG}`;
+  const [explicitRows, implicitRows] = await Promise.all([
+    runCypher(EXPLICIT_CYPHER, { headerUuid }),
+    runCypher(IMPLICIT_CYPHER, { headerUuid }),
+  ]);
+  const byUuid = new Map();
+  for (const row of [...explicitRows, ...implicitRows]) {
+    if (row && row.uuid && !byUuid.has(row.uuid)) byUuid.set(row.uuid, row);
+  }
+  const rows = [...byUuid.values()];
+  const records = rows.map(parseGoalRow).filter(Boolean);
+  return { rowByUuid: byUuid, resolved: resolveDecomposition(records) };
 }
 
 // External Resource pointers for this owner (second-brain #4, ADR 0004 d5). The
@@ -579,6 +602,86 @@ async function checkConcept({ slug, parseRecord }, taPubkey) {
   return { concept: slug, present: true, elements: elements.length, problems };
 }
 
+// GET /api/brain/direction/:slug — may this goal be run under operational
+// direction, and on what terms? (operational-direction #1, ADR 0001 d1/d6.)
+//
+// Read-only: it resolves the owner-ratified anchor, checks ratification
+// staleness, and transcribes the run's terms from the goal. It writes nothing.
+//
+// It does NOT render the boundary verdict. Boundaries are prose, so that
+// judgment is a blinded gate-judge the Director spawns (ADR d5) — this handler
+// reports the steps needing one via `boundaryReview` and never blesses what it
+// did not check. At the v1 policy distance the chain is one goal, so
+// `boundaryReview.required` is false and the question does not arise.
+async function handleGetDirection(req, res) {
+  if (!isOwner(req) && !req.localTrusted) {
+    return res.status(403).json({ success: false, error: 'Owner access required' });
+  }
+  try {
+    const taPubkey = getOwnerAssistantPubkey();
+    if (!taPubkey) {
+      return res.status(500).json({ success: false, error: 'Assistant identity unavailable' });
+    }
+    const goalSlug = String((req.params && req.params.slug) || '').trim();
+    if (!goalSlug) {
+      return res.json({ success: false, eligible: false, refusal: 'goal-not-found', error: 'no goal slug was given.' });
+    }
+
+    // The anchor distance is a POLICY parameter, owner-set (PRD §7.5/§7.6).
+    // v1 is 0 — the anchor must be the goal itself. Raising it is a policy act.
+    const raw = process.env.BRAINSTORM_MAX_ANCHOR_DISTANCE;
+    const parsedLimit = raw === undefined ? NaN : Number(raw);
+    const maxAnchorDistance = Number.isInteger(parsedLimit) && parsedLimit >= 0
+      ? parsedLimit
+      : DEFAULT_MAX_ANCHOR_DISTANCE;
+
+    const [{ rowByUuid, resolved }, proposals] = await Promise.all([
+      readGoalRowsAndResolved(taPubkey),
+      readProposals(taPubkey),
+    ]);
+
+    const outcome = resolveAnchor({ goals: resolved, proposals, goalSlug, maxAnchorDistance });
+    if (!outcome.eligible) {
+      return res.json({
+        success: false,
+        eligible: false,
+        refusal: outcome.refusal,
+        error: outcome.error,
+        detail: outcome.detail || null,
+        chain: outcome.chain || [],
+        maxAnchorDistance,
+      });
+    }
+
+    const target = resolved.find((g) => g && g.slug === goalSlug) || null;
+    const terms = deriveTerms(target, parseEstimate(target ? rowByUuid.get(target.uuid) : null));
+
+    // Only the two boundary strings per step — the blinding the judge depends on.
+    const chainRecords = (outcome.chain || [])
+      .map((slug) => resolved.find((g) => g && g.slug === slug))
+      .filter(Boolean);
+    const steps = boundarySteps(chainRecords).map((s) => ({
+      parentBoundary: s.parentBoundary, childBoundary: s.childBoundary,
+    }));
+
+    return res.json({
+      success: true,
+      eligible: true,
+      anchor: outcome.anchor,
+      terms,
+      surrendered: SURRENDERED,
+      unavailable: UNAVAILABLE,
+      chain: outcome.chain || [],
+      maxAnchorDistance,
+      boundaryReview: { required: steps.length > 0, steps },
+      derivedAt: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error('brain/direction error:', error);
+    return res.status(500).json({ success: false, error: 'Failed to resolve direction eligibility' });
+  }
+}
+
 async function handleGetHygiene(req, res) {
   if (!isOwner(req) && !req.localTrusted) {
     return res.status(403).json({ success: false, error: 'Owner access required' });
@@ -642,6 +745,7 @@ function registerBrainRoutes(app) {
   app.get('/api/brain/goals', handleGetGoals);
   app.get('/api/brain/orient', handleGetOrient);
   app.get('/api/brain/proposals', handleGetProposals);
+  app.get('/api/brain/direction/:slug', handleGetDirection);
   app.get('/api/brain/goals/:slug', handleGetGoalDetail);
   app.get('/api/brain/hygiene', handleGetHygiene);
   app.get('/api/brain/export', handleGetExport);
