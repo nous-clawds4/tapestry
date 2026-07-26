@@ -251,3 +251,19 @@ The role went further than instructed and made the **kick-back clause asymmetric
 
 **One lane boundary held.** The Architect suggested I fill the story's `Linked artifacts → ADR:` line when committing. I did not: **the Director never edits the story file.** Routing it to the Product Owner, which owns that artifact — and doing it *after* Gate 2 rather than during, so no judge reads a file mid-edit.
 **Next:** ADR link via Planning, then Phase 3 Test Design.
+
+## 2026-07-26T22:29:13Z — Gate 3 (story #1): APPROVE
+
+**Story/Phase:** `goal-intent-fields` #1 / Gate 3
+**Decision:** APPROVE
+**Judge:** **APPROVE**, blinding intact. It **ran the full suite itself** rather than reading my committed log, and reproduced the RED exactly: 40 tests, **16 pass / 24 fail**, H-class **11 executed / 0 skipped**, `Overall: FAIL`, exit 1. It then confirmed each failure class **against source and the live graph rather than against the failure messages** — `src/lib/brain/goals.js` requires cleanly and exports only its six pre-existing functions (so the U-class is not an import error), `pickIntentFields` appears nowhere in the normalize module, `GOAL_SCHEMA` declares exactly 8 inner properties, and `update-goal-intent` still answers its own 400 verbatim. It also verified the live concept node declares all four, so H10 fails on the constant and not on a moved premise.
+**Why:** I concur, and my own independent run agreed before the judge's did. The 16 passes are **exactly** the 16 sentinels the plan declared in advance — a pre-declared pass set is what makes a partial-RED suite auditable instead of convenient.
+
+**The most valuable artifact of this phase is a pin that would have failed on correct code.** The Tester measured the ADR's claim that additive growth keeps every source pin inside its window instead of trusting it, and found one that did not hold: `the-brain-survives` S7 anchors on a **comment** five lines above `GOAL_SCHEMA`, so its 4000-char window spanned the very constant this story grows — ~1631 chars of headroom against ~700 chars of new declarations. Re-aimed to structure-bounded extraction with **assertions byte-identical**, and the judge confirmed the re-aim is a genuine re-aim and not a weakening (extracted body 1047 chars, both required tokens present, suite 31/0). That is OPEN.md #109's failure class caught **prospectively**, before it broke anything.
+
+**A side effect worth keeping.** The suite now prints its own `H-class: n executed / m skipped` roll-up and supports `TAPESTRY_REQUIRE_LIVE=1` to make an all-skipped live class a *suite failure*. That is a partial fix for OPEN.md #104/#106 arriving as a by-product of ordinary story work.
+
+**Three non-blocking notes, one of which is a forward risk I am naming now rather than discovering at Gate 4.** (1) The plan quotes `Total skipped: 51` where my committed log tail reads 39 — two runs of the same code state, the suite's own block identical in all three. (2) The plan is right and the **ADR is wrong** about a sibling pin's slice width (12000, not 8000); the ADR's figure is stricter, so it errs safe. (3) **`relationship-primitives` H8 and `-probe` H4 failed in the judge's run too**, on global strfry scan-count brackets, ~1,000 log lines before this suite's first write — environmental, not caused by this change. **Gate 4 demands a clean full suite, and these two are count-bracket flaky in this environment.** Baseline run 2 was fully green, so it does pass; I will re-run rather than discount, and if it persists I will say so plainly instead of waving a red suite through a mechanical gate.
+
+**The Gate-3 commit of record is `39b9a98c`** — Gate 4's `git diff 39b9a98c..HEAD -- test/` must come back empty.
+**Next:** Phase 4, Implementation.
