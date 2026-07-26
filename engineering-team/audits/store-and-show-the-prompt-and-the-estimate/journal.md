@@ -111,3 +111,29 @@ The strfry-count race did **not** recur, so the prediction I recorded before the
 **Judge:** n/a
 **Why:** Spawned the `product-owner` subagent. Inputs given: the acceptance frame by path, the three goal terms verbatim, and two disclosures — that **no intake entry exists** (all 58 checked, none match), and that the book's "Context available to Planning — not terms" section is informational and may not be used to widen scope, with the already-repaired schema defect named as explicitly out of scope so it is not written up as a story. Told it to return questions rather than invent product intent, and not to put file paths or function names in the story (Gate 1 fails on solutioning). Asked it to state a recommended story count; stopping rule 4 caps the book at 5, which I deliberately did **not** disclose — a role told its own budget tends to decompose to fit the budget rather than the frame.
 **Next:** On its return, re-run the terms-mismatch check, then Gate 1 with a fresh blinded `gate-judge`.
+
+## 2026-07-26T18:44:00Z — Terms-mismatch check before Gate 1: PASS
+
+**Story/Phase:** `goal-intent-fields` #1 / pre-Gate-1
+**Decision:** INFO
+**Judge:** n/a
+**Why:** Role file requires this check before **every** gate decision, not just at preflight. Re-asked the endpoint: `eligible: true`, anchor distance 0, and both verbatim blocks in the book still match the goal's live `deliverable` and `boundary` exactly. No `anchor-stale`.
+**Next:** Answer the Product Owner's three questions.
+
+## 2026-07-26T18:45:17Z — ANSWER ×3 to Planning: all three settled by the frame, none delegated
+
+**Story/Phase:** `goal-intent-fields` #1 / Planning
+**Decision:** ANSWER
+**Judge:** n/a
+**Why:** The Product Owner returned three product questions rather than guessing — correct behavior. **None of them was a halt and none required rule 2's "underdetermined → simplest":** the operational book's generated section carries no delegation list (that is an armed-mode field), so rule 2 was unavailable to me by construction, and all three had to be answered from the frame's own words under rule 1 or halted. All three were quotable:
+
+1. **Full prompt on every surface, no truncation.** Frame: *"all four **come back** on every surface that shows a goal."* A truncated prompt is not the value coming back, and nothing licenses a list-surface exception.
+2. **"Every surface" is universal, including a goal embedded in something else.** *"Every"* is the owner's word. Narrowing it to goal-centric surfaces would shrink the owner's terms to make the work smaller — as illegitimate as widening them, and it would let this book claim done with the bullet unmet. Corroborated by the book's own `unavailable` block: the Direction endpoint reads the estimate from the raw record *because* the goals API drops it, so an embedded reader is the named beneficiary.
+3. **Setting only; clearing back to unset stays out.** The frame's verb is *"set."* Erasing a value is a capability the frame does not name, so adding it would widen the frame.
+
+Each answer is the most literal reading, which is also what the role recommended — noted because agreement is not evidence of correctness, and the reasoning above stands independent of it.
+
+**One correction issued.** The Product Owner observed the live local schema now reads `required: ["name","slug","description"]` and inferred OPEN.md #102 is stale and flippable. Wrong, and corrected before it could reach another artifact: the repair was **local-only**; staging and production presumably still carry the defect, which is where the "25 of 30 goals schema-invalid" consequence actually bites. Instructed not to flip the row and to confirm no flip was written anywhere.
+
+I also withheld one thing deliberately: I did **not** tell the role whether its recommended story count is acceptable, so its answer stays grounded in the frame rather than in what it infers I want.
+**Next:** On its return, Gate 1 — fresh blinded `gate-judge`.
