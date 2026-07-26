@@ -141,7 +141,55 @@ FAIL  H1: GET /api/brain/direction/:slug answers on loopback (not 404)
 
 **The 8 that pass are pass-by-design and documented in the suite header:** `R1`–`R6` (regression sentinels that must *still* pass afterward), `S8` (regression sentinel in effect — see above), and `S5` (asserts this phase's own re-pin deliverable).
 
-### Round 2 — ADR 0002 coverage (fail-closed boundary judgment)
+### Round 3 — ADR 0003 coverage (one `boundaryReview` shape)
+
+Added after review round 2. Suite grows **78 → 86**: `U45`–`U48`, `S21`–`S22`, `H9`–`H10`.
+
+### The coverage hole this round closes, measured
+
+Before this round, `boundaryReview` appeared **zero times** in a 78-test suite — the envelope key the entire two-call flow depends on was asserted nowhere. That is *why* round 2's defect survived: coverage was structurally shaped so nothing could catch it.
+
+| level | what it covers | why it missed the defect |
+|---|---|---|
+| U-class (33 tests) | the pure core's return values | never sees the assembled HTTP envelope |
+| S-class (`S17`, `S18`) | handler source text | asserted the query parse and the step source, not the envelope keys |
+| H-class | the live wire | **skips** whenever the stack is down — as it is now |
+
+`S21` is the structural fix: it locates the refusal envelope by `refusal: outcome.refusal` and the success envelope by `eligible: true`, and asserts **each** carries `boundaryReview`. It runs stack-free, so it cannot skip away.
+
+| ADR 0003 decision | Tests |
+|---|---|
+| **d14** — symmetric envelope, refusal carries `boundaryReview` | `S21` (the round-2 guard), `H9` |
+| **d15** — `required` means "steps still need verdicts" | `S22`, `H10` |
+| **d16** — steps at exactly one address | `U45` (unjudged), `U46` (widened), `U47` (no duplicate in `detail`) |
+| **Constraint 2** — blinding survives on the refusal path | `U48` |
+
+### RED confirmation (round 3)
+
+Against the un-amended implementation at `1822b03d`:
+
+```
+operational-direction: 70 passed, 6 failed, 10 skipped
+```
+
+`H9`/`H10` **skip** — Docker's daemon is down this session. They are written anyway: they are the wire proof that `S21` can only approximate, and they will execute the moment the stack returns.
+
+### `U48` was vacuous on first write — caught and fixed before commit
+
+Written as `for (const s of r.steps || [])`, it passed against the un-amended core because `r.steps` is `undefined` there, so the loop body never ran — **the identical failure mode as `U38` in round 2.** Verified directly:
+
+```
+U48 iterates (r.steps || []) — r.steps is currently: undefined
+=> loop body never runs. U48 passes VACUOUSLY, exactly like U38 did in round 2.
+```
+
+Fixed by asserting the payload exists (`length === 2`) *before* inspecting its keys. It now fails red like the rest. Two vacuous passes in two rounds is a pattern worth a `meta` row: **a test that iterates a collection the feature does not yet produce is green by default** — assert arity first.
+
+### ADR 0003's self-flagged prediction — checked, and it held
+
+ADR 0003 marked its own test-impact bullet as untrustworthy ("the Tester should *run* the suite rather than trust this bullet") because ADR 0002 mis-called impact twice. Ran it: **all 6 of `U34`–`U39` pass** — they assert refusal *codes*, which d14/d15/d16 do not change. The prediction was correct this time. Recorded because the ADR earned the doubt and should get the credit when it is right.
+
+## Round 2 — ADR 0002 coverage (fail-closed boundary judgment)
 
 Added after review **CHANGES_REQUESTED**. Suite grows **61 → 79**: `U34`–`U44`, `S17`–`S20`, `H7`–`H8`, plus `U32` extended.
 

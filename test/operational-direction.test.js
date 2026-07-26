@@ -786,6 +786,52 @@ test('U44 (0002 d13): a refusal carries the same identity-bearing chain shape as
 });
 
 /* ══════════════════════════════════════════════════════════════════════
+   U-class, ADR 0003 — one address for the steps (d16)
+   ══════════════════════════════════════════════════════════════════════ */
+
+test('U45 (0003 d16): the boundary-unjudged refusal returns steps at the TOP LEVEL, same address as an eligible answer', () => {
+  const core = loadDirectionCore();
+  const r = anchor(core, judgeableChain());
+  assert(r.refusal === 'boundary-unjudged', `precondition: expected 'boundary-unjudged'; got ${short(r.refusal)}`);
+  assert(Array.isArray(r.steps),
+    'ADR 0003 d16: steps must live at ONE address regardless of outcome. They were at detail.steps on this path and top-level on the eligible path, so every consumer needed a branch — and the endpoint wired up only one of the two. That asymmetry IS the round-2 defect.');
+  assert(r.steps.length === 2, `expected 2 steps for a 3-goal chain; got ${short(r.steps)}`);
+});
+
+test('U46 (0003 d16): the boundary-widened refusal also returns top-level steps', () => {
+  const core = loadDirectionCore();
+  const r = anchor(core, judgeableChain({ boundaryVerdicts: ['narrows', 'widens'] }));
+  assert(r.refusal === 'boundary-widened', `precondition: expected 'boundary-widened'; got ${short(r.refusal)}`);
+  assert(Array.isArray(r.steps) && r.steps.length === 2,
+    `the same symmetry applies to every boundary outcome, so a caller never branches on refusal code to find the steps; got ${short(r.steps)}`);
+});
+
+test('U47 (0003 d16): `detail` no longer carries a duplicate steps copy — one address, nothing to drift', () => {
+  const core = loadDirectionCore();
+  const r = anchor(core, judgeableChain());
+  assert(r.detail && typeof r.detail === 'object', `expected a detail object; got ${short(r.detail)}`);
+  assert(r.detail.steps === undefined,
+    'ADR 0003 d16: detail keeps diagnostics (walked, stepCount, verdictsSupplied) and must NOT keep a second copy of the steps — two copies can diverge, and `detail` is the free-form diagnostic bag, never the contract a caller acts on.');
+  assert(typeof r.detail.stepCount === 'number' && typeof r.detail.verdictsSupplied === 'number',
+    `the diagnostics themselves must survive; got ${short(r.detail)}`);
+});
+
+test('U48 (0003 constraint 2): refusal steps carry ONLY the two boundary strings — the blinding contract holds on this path too', () => {
+  const core = loadDirectionCore();
+  const r = anchor(core, judgeableChain());
+  // Assert the payload EXISTS before inspecting it — an empty/absent array
+  // would make the key check vacuous, which is precisely how U38 passed for
+  // the wrong reason in round 2.
+  assert(Array.isArray(r.steps) && r.steps.length === 2,
+    `precondition: the refusal must carry its 2 steps (d16) before their shape can be checked; got ${short(r.steps)}`);
+  for (const s of r.steps) {
+    const keys = Object.keys(s).sort().join(',');
+    assert(keys === 'childBoundary,parentBoundary',
+      `a step handed toward a blinded judge may carry only parentBoundary and childBoundary — no slugs, no chain position, nothing carrying a progress signal (ADR 0001 d5). Got keys: ${keys}`);
+  }
+});
+
+/* ══════════════════════════════════════════════════════════════════════
    S-class — source + doc assertions (AC1, AC5, d1, d7, d9)
    ══════════════════════════════════════════════════════════════════════ */
 
@@ -973,6 +1019,39 @@ test('S18 (0002 d13): the endpoint builds boundary steps from the walked chain, 
     'ADR 0002 d13: re-resolving chain ancestors by slug can surface a shadowed duplicate\'s boundary text to a judge — build the steps from what the walk actually visited.');
 });
 
+test('S21 (0003 d14, THE ROUND-2 GUARD): BOTH the refusal and the success envelope carry `boundaryReview` — the two-call flow dead-ends without it', () => {
+  const src = safeRead(BRAIN_API);
+  const idx = src.indexOf('handleGetDirection');
+  assert(idx > -1, 'src/api/brain/index.js must define handleGetDirection.');
+  const body = src.slice(idx, idx + 3200);
+
+  // The refusal envelope is the one that relays the core's verdict — it is
+  // identifiable by `refusal: outcome.refusal` (the bare empty-slug guard above
+  // it walks no chain and needs no steps).
+  const refusalAt = body.indexOf('refusal: outcome.refusal');
+  assert(refusalAt > -1, 'the handler must have an envelope relaying outcome.refusal.');
+  const refusalEnvelope = body.slice(Math.max(0, refusalAt - 200), refusalAt + 400);
+  assert(/boundaryReview/.test(refusalEnvelope),
+    'ADR 0003 d14: the refusal envelope MUST carry boundaryReview. roles/director.md:38 and the direct-feature skill both instruct the Director to read `boundaryReview.steps` on a boundary-unjudged refusal — without it the Director reads undefined and the two-call flow cannot reach step 2. This is the exact round-2 blocking defect; nothing in the suite asserted it before.');
+
+  const successAt = body.indexOf('eligible: true');
+  assert(successAt > -1, 'the handler must have a success envelope.');
+  const successEnvelope = body.slice(successAt, successAt + 500);
+  assert(/boundaryReview/.test(successEnvelope),
+    'the success envelope must keep boundaryReview so the shape is symmetric and callers never branch on outcome to find the steps.');
+});
+
+test('S22 (0003 d15): `required` is derived from the refusal code, not from the step count', () => {
+  const src = safeRead(BRAIN_API);
+  const idx = src.indexOf('handleGetDirection');
+  assert(idx > -1, 'src/api/brain/index.js must define handleGetDirection.');
+  const body = src.slice(idx, idx + 3200);
+  assert(!/required:\s*steps\.length\s*>\s*0/.test(body),
+    "ADR 0003 d15: `required: steps.length > 0` reports true on an ELIGIBLE answer whose steps were just judged — read literally, an instruction to go judge them again. It must mean 'these steps still need verdicts'.");
+  assert(/required:\s*[^,\n]*boundary-unjudged/.test(body),
+    "d15: `required` must be true iff this answer is the boundary-unjudged refusal — that is the only question a caller asks of the field.");
+});
+
 test('S19 (0002 d11): director.md documents the two-call flow AND that passed verdicts must match journaled ones', () => {
   const src = safeRead(DIRECTOR_ROLE);
   assert(/boundary-unjudged/.test(src),
@@ -1071,6 +1150,31 @@ test('H8 (0002 d6): the response reports which policy value was actually in forc
   const r = loopbackGetJson('/api/brain/direction/hand-work-to-the-engineering-team-without-arming-a-book');
   assert(typeof r.maxAnchorDistance === 'number',
     `ADR 0002 d6: maxAnchorDistance is contractual — a run's artifacts must record which policy value was in force, since it is the one goalpost read from the environment rather than the goal. Got ${short(r.maxAnchorDistance)}`);
+});
+
+test('H9 (0003 d14): every direction answer carries a boundaryReview, refusal or not — the wire proof of the symmetric shape', async () => {
+  if (!(await stackAvailable())) return 'SKIP';
+  const slug = 'hand-work-to-the-engineering-team-without-arming-a-book';
+  const r = loopbackGetJson(`/api/brain/direction/${slug}`);
+  assert(r && typeof r === 'object', `expected JSON; got ${short(r)}`);
+  assert(r.boundaryReview && typeof r.boundaryReview === 'object',
+    `ADR 0003 d14: boundaryReview must be present on BOTH envelopes. This is the round-2 defect's live proof — the S-class assertion catches it in source, this catches it over the wire. Got ${short(r.boundaryReview)}`);
+  assert(Array.isArray(r.boundaryReview.steps),
+    `boundaryReview.steps must always be an array — director.md tells the Director to read it unconditionally; got ${short(r.boundaryReview.steps)}`);
+  assert(typeof r.boundaryReview.required === 'boolean',
+    `boundaryReview.required must be a boolean; got ${short(r.boundaryReview.required)}`);
+});
+
+test('H10 (0003 d15): `required` is false on an answer with no outstanding judging work', async () => {
+  if (!(await stackAvailable())) return 'SKIP';
+  const r = loopbackGetJson('/api/brain/direction/hand-work-to-the-engineering-team-without-arming-a-book');
+  if (r.refusal === 'boundary-unjudged') {
+    assert(r.boundaryReview.required === true,
+      'a boundary-unjudged refusal is exactly the case where judging work IS outstanding.');
+  } else {
+    assert(r.boundaryReview.required === false,
+      `ADR 0003 d15: anything other than a boundary-unjudged refusal has no outstanding judging work — at the v1 policy distance there are zero steps at all. Got required=${short(r.boundaryReview.required)} with refusal=${short(r.refusal)}`);
+  }
 });
 
 /* ══════════════════════════════════════════════════════════════════════
