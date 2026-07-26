@@ -1,9 +1,9 @@
 # Book of Work: Operational Direction
 
 **Slug:** operational-direction
-**Status:** Open
+**Status:** Closed
 **Opened:** 2026-07-26 — **retroactively.** See § Provenance: this manifest was written *after* the work shipped to production, so it did not function as an eager anchor.
-**Closed:** —
+**Closed:** 2026-07-26 — closed at book scope after the story reached production (promotion PR #470, `911b8855`). Close artifacts: [`audit.md`](./audit.md) (confidence: **high on intent, medium on completion**) · [`prd-seed.md`](./prd-seed.md). Retro dispositions in audit §7; six `meta` rows filed (OPEN.md #105–110). **Gate at close was RED on two pre-existing `OPEN.md` #102 failures unrelated to this book** — audit §5.1.
 
 ## Intent anchor
 
@@ -49,7 +49,7 @@ Derived from the goal's `deliverable` and `boundary` **verbatim** — written fr
 ## Provenance
 
 - **Mode:** Acceptance-frame *(anchor transcribed from a pre-existing owner goal — **not** reconstructed from `_intake.md` + git)*
-- **Confidence at close:** *(to be filled by `/close-book`)*
+- **Confidence at close:** **high on intent fidelity · medium on completion** — deliberately two judgments, not one average. The anchor is verbatim and predates the work; the capability is enabled but has never been exercised (audit §0, §4 D5).
 
 ### What this book's retroactive opening does and does not give us — stated plainly
 
