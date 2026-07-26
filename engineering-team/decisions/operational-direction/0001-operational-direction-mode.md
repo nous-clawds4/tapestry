@@ -3,6 +3,7 @@
 **Status:** Proposed
 **Date:** 2026-07-25
 **Story:** `engineering-team/stories/operational-direction/1-operational-direction-mode.md`
+**Amended by:** ADR 0002 (d5's optional verdict → fail-closed `boundary-unjudged`; d6's response contract corrected; d4's staleness fail-open on unknowable timestamps)
 
 ## Context
 
