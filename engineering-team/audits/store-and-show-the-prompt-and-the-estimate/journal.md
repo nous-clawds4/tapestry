@@ -179,3 +179,21 @@ Worth recording: the role **withdrew its own earlier objection on evidence**, un
 
 **Counters:** Gate 1 on story #1 — 1 kick-back, then APPROVE. Stories #2 and #3 are drafted but **not** gated; each gets its own Gate 1 when its cycle begins.
 **Next:** Phase 2, Architecture on story #1.
+
+## 2026-07-26T19:30:00Z — Architecture invoked the story's kick-back clause; a judge finding disproved
+
+**Story/Phase:** `goal-intent-fields` #1 / Architecture
+**Decision:** KICK_BACK (Architecture → Planning, via the story's own clause)
+**Judge:** n/a — no ADR was written, so there is nothing for Gate 2 to judge
+**Why:** The Architect declined to write the ADR and returned the story, because writing one would have forced it to answer a scope question the clause reserves for Planning. That is the clause working exactly as intended, and it is the outcome I told it I would rather receive.
+
+**The finding: "capture from scratch" maps to *two* endpoints, not one.** The story enumerates three write paths; "from scratch" is `create-element` **and** `note-goal-idea`, and they behave **oppositely** — `create-element` stores the caller's json verbatim (already carries the four), `note-goal-idea` builds the section from a fixed whitelist and silently **drops** them. `note-goal-idea` is no edge case: dedicated route, owner/loopback gate, its own refusal, ADR 0005 d7 ("Capture a NEW root goal"), and live H-coverage. A goal captured through it with a prompt loses the prompt.
+
+**A gate judge's finding was factually wrong, and I verified the correction myself rather than choosing between two agents.** Gate 1's non-blocking note (a) claimed `create-element`'s no-json branch would auto-populate the four with type defaults, making them *present* rather than absent. I read `src/api/normalize/index.js:1823-1843` directly: the loop iterates the **top-level** schema properties, and the goal schema is a single-concept wrapper whose only top-level key is `tapestryOwnerGoal` (type `object`), so it takes the `t === 'object'` branch and yields `{tapestryOwnerGoal: {}}` — an empty section. It never descends into the inner properties. The tension does not arise. **The Gate 1 APPROVE stands**: the note was explicitly non-blocking and the verdict rested on none of it. Recorded because a judge being wrong on a detail while right on the verdict is exactly the kind of thing that quietly rots a record if unlogged. Judge note (b), `restore-brain` as a fourth writer, **holds** — verbatim passthrough, no work needed, to be named in the ADR.
+
+**ANSWER to the Architect's Question 1 — `note-goal-idea` is in scope.** Frame-decided under rule 1, quotable: *"I can set any of the four … when **capturing** or updating a goal."* `note-goal-idea` captures a goal; therefore setting the four there is in the frame. Excluding it would **narrow** the frame — the identical error I refused at answer 2 — and would leave the owner capturing a goal with a prompt and silently losing it, which is precisely the invisibility the ask describes.
+
+**ANSWER to Question 2 — operator's call, not mine.** `GOAL_SCHEMA` (used by `ensureGoalConcept` to self-provision on a fresh instance) has drifted to 8 properties and omits the four. Zero effect on this instance; on a fresh or restored one it would provision a schema that does not declare them, and undeclared fields are silently dropped by the element editor. The frame does not settle whether that is in scope — genuinely arguable both ways — so under rule 3 I surfaced it rather than deciding. **Operator: fold it into story 1.** Same module, same subsystem, and story 1 was returning to Planning regardless, so it costs no extra round trip.
+
+**Counters:** this is a phase kick-back from the story's own clause, **not** a judge KICK_BACK at a gate; stopping rule 2's Gate 1 consecutive counter reset to 0 at the APPROVE and is unaffected. Book story count stays **3**.
+**Next:** Return to Planning with both answers to re-bound story 1's inventory, then a fresh Gate 1 — the enumeration is what Gate 1 certified as bounded, so changing it re-opens that gate.
