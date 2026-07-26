@@ -182,12 +182,22 @@ function annotate(records) {
   return resolveDecomposition(records);
 }
 
-/** A three-generation chain: grandparent ← parent ← child (child is the target). */
+/**
+ * A three-generation chain: grandparent ← parent ← child (child is the target).
+ *
+ * The boundary TEXT is deliberately slug-free. `goal()`'s default boundary
+ * embeds its own slug ("what child stays inside"), which would make U23's
+ * blinding assertion — "no slug appears in what the verdict function receives"
+ * — unsatisfiable by ANY correct implementation, since the two boundary strings
+ * are exactly what a blinded judge is supposed to get. Neutral text keeps the
+ * assertion honest: the slugs stay `grandparent`/`parent`/`child`, so a leak of
+ * slugs or chain position still trips it.
+ */
 function chainOfThree() {
   return [
-    goal({ slug: 'grandparent' }),
-    goal({ slug: 'parent', parent: 'grandparent' }),
-    goal({ slug: 'child', parent: 'parent' }),
+    goal({ slug: 'grandparent', boundary: 'the outermost limit of this work' }),
+    goal({ slug: 'parent', parent: 'grandparent', boundary: 'a narrower limit inside the outermost one' }),
+    goal({ slug: 'child', parent: 'parent', boundary: 'the narrowest limit of the three' }),
   ];
 }
 

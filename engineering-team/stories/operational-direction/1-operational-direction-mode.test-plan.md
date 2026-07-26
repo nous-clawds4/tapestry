@@ -121,6 +121,25 @@ FAIL  H1: GET /api/brain/direction/:slug answers on loopback (not 404)
 
 **The 8 that pass are pass-by-design and documented in the suite header:** `R1`–`R6` (regression sentinels that must *still* pass afterward), `S8` (regression sentinel in effect — see above), and `S5` (asserts this phase's own re-pin deliverable).
 
+### Kick-back from Implementation — `U23` was unsatisfiable (fixed 2026-07-26)
+
+The Implementer halted at 60/61 and kicked back rather than editing a test mid-phase. **`U23` could not be passed by any correct implementation**, and the fault was this plan's fixture, not the code.
+
+`U23` asserts the injected boundary-verdict function receives no slug — the blinding contract. But `chainOfThree()` used `goal()`'s default boundary, `` `what ${slug} stays inside` ``, so the two boundary strings a blinded judge is *supposed* to receive were literally `"what grandparent stays inside"` / `"what parent stays inside"`. The assertion tripped on the very data the ADR requires be passed. Not calling the verdict failed the `seen.length > 0` guard; passing anything else violated ADR d5. No exit.
+
+**Fix:** `chainOfThree()` now supplies slug-free boundary text (`"the outermost limit of this work"`, etc.). The assertion is untouched — only the fixture changed.
+
+**The fix preserves the test's teeth**, verified by simulating both implementations against the new fixture:
+
+```
+leaky impl (passes the whole step object) → assertion trips: true   (must be true)
+blind impl (passes the two strings only)  → assertion trips: false  (must be false)
+```
+
+Slugs remain `grandparent`/`parent`/`child`, so a leak of slugs or chain position still fails the test. Suite now **61 passed, 0 failed, 0 skipped** with the implementation present.
+
+*Process note: this is the failing-tests-first contract working as designed — the Implementer could not quietly weaken a test to go green, so the defect surfaced in the phase that owns it.*
+
 ### Defect found and fixed during verification
 
 `R5` initially failed with *"CLAUDE.md is 191 lines against a cap of 190."* That was a bug in the test, not the repo: `split('\n').length` over-counts by one on a trailing newline, so the sentinel would have failed forever regardless of implementation. Corrected to count as `harness-lint` L11 does (`wc -l` = newline count). This is exactly the "confirm the test fails for the *right* reason" step earning its keep.
