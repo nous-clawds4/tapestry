@@ -2,9 +2,10 @@
 
 **Status:** Approved
 **Created:** 2026-07-26
-**Re-bounded:** 2026-07-26 — returned from Architecture via this story's own kickback clause; the
-capture inventory below was wrong (see *Extent*). Returns to Gate 1, because the enumeration is what
-that gate certified as bounded.
+**Re-bounded:** 2026-07-26 (twice) — first from Architecture via this story's kickback clause, then
+from Gate 1, which found a counterexample to the extent table by reading the route list. The table
+below is now **derived** rather than recalled, and the derivation is stated so the gate can check it
+instead of trusting it. Returns to Gate 1.
 **Type:** Feature
 **Epic:** `goal-intent-fields`
 **Book:** `engineering-team/audits/store-and-show-the-prompt-and-the-estimate/book.md` — the
@@ -16,9 +17,9 @@ That draft was never committed; the number returns to the pool and this story ta
 
 ## Background
 
-Four properties are declared on the goal concept — the prompt, the estimate, and two flags — and
-most of the ways a goal gets written silently drop them. This is the **write half** of the gap:
-values the owner supplies have nowhere to land.
+Four properties are declared on the goal concept — the prompt, the estimate, and two flags — and the
+goal-specific write paths silently drop them. This is the **write half** of the gap: values the
+owner supplies have nowhere to land.
 
 > **The ask (verbatim, from the frame):** All four properties we added to goals — the prompt, the
 > estimate, and the two flags — are declared on the goal concept, but no producer accepts them and
@@ -38,19 +39,37 @@ paths. These four were declared and left behind.
 
 ## Extent of this story — bounded at the Planning gate
 
-### The ways a goal gets written
+### How this table was derived
 
-Re-inventoried 2026-07-26 after Architecture returned this story. The first inventory said "capture
-from scratch" was one path; it is **two, and they behave oppositely**. Which paths already carry the
-four is now load-bearing, so it is recorded per path.
+Stated so the gate can audit the derivation rather than trust the list. A goal record can be written
+in exactly two ways, and each class was enumerated at its source on 2026-07-26:
 
-| How a goal gets written | State today |
+- **Paths that build a goal section from a fixed set of fields.** These can drop properties, so
+  these are the ones that need work. Found by enumerating *every* site in the server that constructs
+  a goal section — four in total: three write paths, plus the restore mint, which passes its section
+  through untouched and so belongs to the other class.
+- **Paths that store a supplied record as given.** These carry any property they are handed, so they
+  need no work but must not regress. Found by enumerating every caller of the primitive that
+  replaces a record's stored json, plus what the generic element screen posts to, plus the two
+  archive-shaped writers.
+
+Cross-checked against the Architect's six-row inventory and the server's write-route list. **Both
+rows found missing in earlier rounds were in the "stores as given" class** — the class a recalled
+list forgets, because those paths need no work. The derivation above closes that class by
+construction rather than by memory.
+
+### The ways a goal record gets written
+
+| How a goal record gets written | State today |
 |---|---|
-| capturing a goal by supplying its record directly (the general element-capture path) | **already carries all four** — the supplied record is stored as given. No work; must not regress. |
-| noting a new root goal from a session — capture from scratch, built from a fixed set of fields | **drops all four**, silently |
-| capturing a goal while breaking a bigger one down (a child goal) | **drops all four** |
-| updating an existing goal's intent | **drops all four** |
-| restoring the brain from an export | passes each record through as given, so it **carries the four with no work** — see *Out of scope* |
+| noting a new root goal from a session | **drops all four**, silently — builds its section from a fixed set of fields |
+| capturing a goal while breaking a bigger one down (a child goal) | **drops all four** — same fixed-field construction |
+| updating an existing goal's intent | **drops all four** — it merges onto the existing section, so any four already stored survive, but none can be set |
+| capturing a goal by supplying its record directly, from the generic element screen | **already carries all four** — stores the record as given. No work; must not regress. |
+| replacing an existing goal's record wholesale, from the generic element screen | **already carries all four** — stores the record as given, ungated by concept type. The update-side twin of the row above. No work; must not regress. |
+| replacing a record's stored json directly through the graph-maintenance tooling (no screen posts to it) | **already carries all four** — same wholesale replacement. No work; must not regress. |
+| restoring the brain from an export | **already carries all four** — the artifact's section is restored verbatim, out-of-contract fields riding along |
+| importing events from an archive | **already carries all four** — whole records are written as given |
 
 A goal captured by noting a new root goal, with a prompt supplied, loses the prompt. That is the
 invisibility the ask describes, reached through a dedicated path with its own owner gate and its own
@@ -70,8 +89,9 @@ read surface and no screen changes here; those are `goal-intent-fields` #2 and #
 **Verification without new read work:** the export already returns each goal's stored record as
 given, so what this story stores is externally observable the moment it is stored.
 
-**The kickback clause stands, and it has already fired once.** If Architecture finds a further way a
-goal gets written, it returns to Planning to have the extent re-bounded rather than absorbing it.
+**The kickback clause stands, and it has fired twice.** If a later phase finds a further way a goal
+record gets written, it returns to Planning rather than absorbing it. Both misses so far were
+omissions from a recalled list; the derivation above is the repair.
 
 ## User-facing description
 
@@ -114,13 +134,18 @@ No concept is added and none is redefined; all four are already declared on this
 
 - **Returning the four on read surfaces** — `goal-intent-fields` #2.
 - **Showing the four on the owner's screens** — `goal-intent-fields` #3.
-- **Restoring the brain from an export.** It is a genuine fourth writer of goal records, and it is
-  named here deliberately rather than omitted: it passes each record through as given, so it already
-  carries the four and needs no change and no criterion. Architecture should record it as "no
-  change" rather than leaving its absence to look like an oversight.
+- **The five "stores as given" write paths need no change** — direct-record capture and wholesale
+  record replacement from the generic element screen, direct json replacement through the
+  graph-maintenance tooling, restore from an export, and archive import. They are named in the table
+  rather than omitted so their absence from the work is deliberate and checkable; Architecture should
+  record each as "no change." They carry the four because they store what they are handed, which is
+  also why they are the class most easily forgotten.
 - **Values outside the concept's declared shape** (an estimate above 100 or below 0, a non-boolean
   flag). The frame is storing and showing; it makes no rules, so this story invents neither a
   rejection rule nor a clamping rule. What happens to a malformed value stays undefined here.
+- **The ungated nature of wholesale record replacement.** That any element's record can be replaced
+  with no concept-type check is pre-existing debt already noted against second-brain ADR 0003; this
+  story neither fixes nor widens it.
 - **Which properties are required.** Criterion 4 adds the four as declared properties and changes
   nothing about `required` — this story does not touch that question on any instance.
 - **The schema-`required` defect (OPEN.md row 102).** Out of scope — handled separately as live-data

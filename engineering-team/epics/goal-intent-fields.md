@@ -32,9 +32,10 @@ which *are* already carried end to end. That existing plumbing is the shape this
 `stories/goal-intent-fields/` — strictly ordered; each depends on the one before.
 
 1. **store-the-four-when-a-goal-is-captured-or-updated** — the write half: all four accepted by every
-   way a goal gets written (two distinct from-scratch capture paths, child capture, update), plus the
-   goal concept a fresh instance provisions for itself, which today omits all four. Server write
-   path. **Approved** 2026-07-26, **re-bounded** 2026-07-26 → returns to Gate 1.
+   way a goal record gets written — three fixed-field paths that drop them today (noting a root goal,
+   child capture, intent update) and five that already store what they are handed — plus the goal
+   concept a fresh instance provisions for itself, which today omits all four. Server write path.
+   **Approved** 2026-07-26, **re-bounded twice** 2026-07-26 → returns to Gate 1.
 2. **return-the-four-on-every-read-surface** — the read half: all four returned by the goals list, a
    goal's detail, the session orientation read, the proposal queue, and the Direction transcription;
    the export already carries them and must not regress. Server read surfaces. **Approved**
@@ -53,8 +54,16 @@ story, so "every surface that shows a goal" remains universal across the epic.
 **The inventories are boundaries, not guesses — and they are enforced.** Each story lists what it
 covers, verified against the running stack. If a later phase finds something that belongs and is not
 listed, it returns to Planning to re-bound the extent rather than absorbing it silently. **This has
-already happened once:** Architecture returned story 1 rather than widening it (see below), which is
-the clause working as intended.
+happened twice on story 1** — Architecture returned it, then Gate 1 found a counterexample by reading
+the route list — which is the clause working, at the cost of two round trips.
+
+**The lesson, recorded because it will recur.** Both misses were the same shape: a write path that
+needs *no work* because it stores whatever it is handed. A list recalled from what needs changing
+systematically forgets that class. Story 1's extent is therefore now **derived and the derivation
+stated** — every site that constructs a goal section (the ones that can drop fields), every caller of
+the primitive that replaces a stored record (the ones that cannot), cross-checked against the
+Architect's inventory and the write-route list. An enumeration a gate can re-derive beats one it has
+to trust.
 
 ## Ratified at the Planning gate (2026-07-26)
 
