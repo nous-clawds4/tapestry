@@ -1,7 +1,7 @@
 # Epic: Operational Direction
 
-**Status:** Open
-**Book:** `engineering-team/audits/operational-direction/book.md` (acceptance-frame) *(to be opened)*
+**Status:** Done
+**Book:** `engineering-team/audits/operational-direction/book.md` (acceptance-frame, goal-derived anchor) — **Closed 2026-07-26**; close artifacts `audit.md` + `prd-seed.md`.
 **Parent lineage:** `harness-self-improvement` (Done) → `harness-gate-integrity` (Done). Neither is reopened; this epic adds a second on-ramp to a harness those epics built and repaired.
 
 ## What this is
