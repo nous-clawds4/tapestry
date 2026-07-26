@@ -137,3 +137,19 @@ Each answer is the most literal reading, which is also what the role recommended
 
 I also withheld one thing deliberately: I did **not** tell the role whether its recommended story count is acceptable, so its answer stays grounded in the frame rather than in what it infers I want.
 **Next:** On its return, Gate 1 — fresh blinded `gate-judge`.
+
+## 2026-07-26T18:53:41Z — Gate 1: KICK_BACK (binding) — story is not one subsystem
+
+**Story/Phase:** `goal-intent-fields` #1 / Gate 1
+**Decision:** KICK_BACK
+**Judge:** **KICK_BACK**, blinding reported intact. Fails one rubric item — *"≤ ~5 criteria, one subsystem. Larger → split before approving."* Six criteria is within tolerance of "~5"; the decisive half is **one subsystem**, and the story spans three: the goal write path, a **deliberately unenumerated universal** of read surfaces, and the control-panel React screens. Verified against the tree rather than asserted (server `brain/goals`, `api/brain`, `brain/direction`, `normalize`; React `Goals.jsx`, `GoalDetail.jsx`, `Proposals.jsx`, plus two hooks) — server API and React client are two subsystems at minimum. Compounding it: *"the story's extent is undetermined by construction at this gate — a judge cannot confirm 'one subsystem' for a scope the story declines to bound."* Five other items pass, several with independent verification (property meanings checked against the live Concept Graph; the intake absence confirmed by its own search rather than taken from my prompt).
+**Why:** Binding, and I do not approve over it — but I also concur on the merits, which matters more than the bindingness. The judge caught something my own read missed: I was watching the **six-vs-five count**, which is the surface reading of that rubric item and the part the Product Owner had already argued well. The real failure is the *unbounded* half — answer 2, my own answer, made the read surface a universal, and a universal cannot be confirmed as one subsystem by anyone, at any gate. That is a direct consequence of a Director answer, not a Planning defect, and I am recording it as such rather than letting it read as the role's mistake.
+
+Two criteria the judge flagged for tightening while reworking, recorded so they are not lost before Gate 3: (a) *"the estimate as 0/unset"* names two mutually exclusive observable outcomes as both acceptable and sits in tension with *"the ones not supplied stay unset"* — no test can discriminate; (b) *"visible there in the register those screens already use"* is an editorial judgment, not an external observation.
+
+The judge's closing point resolves the tension I expected here: **"Splitting does not narrow the owner's frame, since the frame is satisfied by the book rather than by any single story."** That is correct and worth pinning — the frame is the *book's* contract, so decomposition across stories neither widens nor narrows it. Answer 2 stands unchanged.
+
+One observation the judge explicitly placed outside its verdict: OPEN.md #102 says the schema fix *"belongs with `store-and-show-the-prompt-and-the-estimate`"* while the story scopes it out. That is not a contradiction the judge should resolve and it did not try — it is the operator's ANSWER of 18:08Z, already on this record.
+
+**Counters:** Gate 1 KICK_BACKs on story #1 = **1** of 3 (stopping rule 2 halts at 3 consecutive).
+**Next:** Route back to Planning for a split. I will **not** disclose the 5-story cap — a split shaped to fit a budget hides the very signal the cap exists to raise. If the honest split exceeds 5, that is a halt, and the halt is the system working.
