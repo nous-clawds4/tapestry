@@ -346,7 +346,14 @@ test('U6 (AC3, THE POLICY-PARAMETER PROOF): the SAME call resolves an ancestor a
   assert(atZero.eligible === false && atZero.refusal === 'no-anchor-in-range',
     `at v1's distance 0 an ancestor ratification must NOT anchor the child; got ${short(atZero)}`);
 
-  const atTwo = anchor(core, { goals, proposals, goalSlug: 'child', maxAnchorDistance: 2 });
+  // Since ADR 0002 d10 a distance-2 chain has 2 boundary steps that must be
+  // judged — so the proof is now the stronger statement: raising the parameter
+  // resolves the ancestor anchor AND obliges boundary judgment. Verdicts are
+  // supplied here; U34 owns the case where they are not.
+  const atTwo = anchor(core, {
+    goals, proposals, goalSlug: 'child', maxAnchorDistance: 2,
+    boundaryVerdicts: ['narrows', 'narrows'],
+  });
   assert(atTwo.eligible === true,
     `raising the policy parameter to 2 must resolve the grandparent anchor through the SAME code path (ADR d3 — loosening is a policy act, not a redesign); got ${short(atTwo)}`);
   assert(atTwo.anchor.slug === 'grandparent', `expected anchor 'grandparent'; got ${short(atTwo.anchor)}`);
@@ -355,7 +362,10 @@ test('U6 (AC3, THE POLICY-PARAMETER PROOF): the SAME call resolves an ancestor a
 
 test('U7 (AC3): distance 1 resolves a parent anchor — the walk is continuous, not two special cases', () => {
   const core = loadDirectionCore();
-  const r = anchor(core, { goals: chainOfThree(), proposals: [approvedFor('parent')], goalSlug: 'child', maxAnchorDistance: 1 });
+  const r = anchor(core, {
+    goals: chainOfThree(), proposals: [approvedFor('parent')], goalSlug: 'child',
+    maxAnchorDistance: 1, boundaryVerdicts: ['narrows'],   // 2-goal chain ⇒ 1 step (ADR 0002 d10)
+  });
   assert(r.eligible === true, `a parent ratification must anchor at distance 1; got ${short(r)}`);
   assert(r.anchor.slug === 'parent' && r.anchor.distance === 1, `expected parent@1; got ${short(r.anchor)}`);
 });
@@ -367,6 +377,7 @@ test('U8 (AC3): the nearest ratified ancestor wins when several are approved', (
     proposals: [approvedFor('grandparent'), approvedFor('parent')],
     goalSlug: 'child',
     maxAnchorDistance: 2,
+    boundaryVerdicts: ['narrows'],   // anchors at parent ⇒ 2-goal chain ⇒ 1 step (ADR 0002 d10)
   });
   assert(r.eligible === true, `expected eligible; got ${short(r)}`);
   assert(r.anchor.slug === 'parent',

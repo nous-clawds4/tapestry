@@ -174,6 +174,22 @@ The 14 fail because the amendment is absent — `boundary-unjudged` does not exi
 
   It is not discriminating on its own. The discrimination is carried by `U34`/`U36`/`U37`/`U39`, which all fail now, and `U38` becomes meaningful once the guard exists. Recorded rather than left as an unexplained green line.
 
+### Second gap in ADR 0002's test obligations — `U6`, `U7`, `U8` (found at Implementation)
+
+ADR 0002's Consequences states: *"The existing `U17`–`U23` stay valid — they inject verdicts and continue to pass."* True, but **incomplete**. `U6`, `U7`, and `U8` also exercise anchors at distance > 0 and inject **no** verdicts, so the fail-closed guard correctly refuses them with `boundary-unjudged`. All three went red the moment d10 landed.
+
+The implementation is right and the tests were stale. Each now supplies verdicts sized to its chain:
+
+| Test | Chain | Steps | Verdicts added |
+|---|---|---|---|
+| `U6` | grandparent → parent → child (distance 2) | 2 | `['narrows','narrows']` |
+| `U7` | parent → child (distance 1) | 1 | `['narrows']` |
+| `U8` | anchors at parent (distance 1) | 1 | `['narrows']` |
+
+`U6`'s proof is now the **stronger** statement: raising the policy parameter resolves the ancestor anchor *and* obliges boundary judgment. The un-judged path it used to cover implicitly is now owned explicitly by `U34`.
+
+This is the **second** miss in the same ADR section (the first being the `U32` claim below). Both are the same shape — the ADR enumerated which existing tests the amendment touches and under-counted. Worth a `meta` row at book close: *an ADR that predicts test impact should be checked by running the suite, not by reading it.*
+
 ### Correction to ADR 0002's Phase-3 note
 
 ADR 0002's Consequences states that `U32` *"currently asserts exactly the six named codes and **will fail as written**."* **That is not accurate, and the truth is worse.** None of `U32`'s original scenarios produced boundary steps without a verdict, so `boundary-unjudged` would never have appeared in its `produced` set — the first loop checks only that *produced* codes are named, and the second checked only the six. **Original `U32` would have silently passed while missing the seventh refusal entirely** — a quiet coverage gap rather than a loud failure.
