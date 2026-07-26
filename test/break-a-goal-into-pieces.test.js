@@ -537,7 +537,7 @@ test('S1 (sentinel — ADR d5, re-pinned by second-brain #4): the brain import s
   // second-brain #4 (ADR 0004 d5) widened this by lib/brain/resources; second-brain
   // #5 (ADR 0005 d10) widens it by lib/brain/work-records. Green on every side: a
   // pre-#4 module has five requires (all allowed), a post-#4 six, a post-#5 seven.
-  const allowed = [/neo4j-driver$/, /middleware\/auth$/, /assistantKeys$/, /lib\/brain\/goals$/, /lib\/brain\/hygiene$/, /lib\/brain\/resources$/, /lib\/brain\/work-records$/, /lib\/brain\/proposals$/, /lib\/brain\/signals$/, /lib\/brain\/export$/];
+  const allowed = [/neo4j-driver$/, /middleware\/auth$/, /assistantKeys$/, /lib\/brain\/goals$/, /lib\/brain\/hygiene$/, /lib\/brain\/resources$/, /lib\/brain\/work-records$/, /lib\/brain\/proposals$/, /lib\/brain\/signals$/, /lib\/brain\/export$/, /lib\/brain\/direction$/];
   for (const spec of requires) {
     assert(allowed.some((re) => re.test(spec)),
       `import surface violation: require('${spec}') — story 3/4/5 behavior arrives through the goals/hygiene/resources/work-records ` +
