@@ -71,6 +71,26 @@ Both are the Tester's lane by ADR Consequences, because Direction-mode Gate 4 pi
 
 1. **Runner registration** — `test/test.js`: require, invoke, summary line (guarding on `(pass+fail)===0`, never `.skipped` alone — G7), the `overallOk` term (G5), and the `totalSkipped` roll-up.
 2. **The eight-suite import re-pin** — `attach-the-world`, `break-a-goal-into-pieces`, `capture-a-goal-and-see-it`, `sessions-read-the-brain`, `structures-the-brain-can-trust`, `teach-it-what-matters`, `the-brain-survives`, `the-proposal-loop` each admit `lib/brain/direction` (the ninth). Asserted by `S5`.
+3. **The brain ROUTE re-pin** *(missed in the first pass; caught by the full gate)* — `the-brain-survives` `S3` pins `registerBrainRoutes` to an **exact route count**, and the new eligibility read makes seven. Re-pinned to admit `/api/brain/direction/:slug`. **The exact-length check is deliberately kept**, so an unintended eighth route still fails until someone re-pins it on purpose. The ADR's Consequences enumerated only the *import* re-pin — this second pin was a Phase-3 completeness gap, not an ADR defect.
+
+## Pre-existing failures found by the full gate — NOT caused by this story
+
+The full-gate run at `a0fb44f3` was **RED**, with three failures. One was ours (the route re-pin above). **Two are pre-existing live-instance drift and are deliberately left alone**, because fixing them is the territory of the goal `store-and-show-the-prompt-and-the-estimate`, which this story explicitly scopes out.
+
+- `structures-the-brain-can-trust` **H4** and `break-a-goal-into-pieces` **H1**, identical cause:
+
+  ```
+  required must stay exactly [name, slug, description] — the new fields are OPTIONAL
+  (got ["name","slug","description","chanceOfSuccess"]).
+  ```
+
+  The **live** goal-concept schema node carries `required = ['name','slug','description','chanceOfSuccess']`, violating second-brain ADR 0003 d13's invariant that `required` stays exactly `[name, slug, description]`. Verified directly against the graph.
+
+  **Why it cannot be ours:** these are H-class assertions reading live graph state, and this story's diff contains **zero** schema, firmware, or concept writes — the whole feature is one read-only endpoint plus a pure module. The drift is consistent with `chanceOfSuccess` having been declared on the goal concept (the condition the `store-and-show-…` goal describes: *"declared on the goal concept but no producer accepts them and no read surface returns them"*), with the declaration landing in `required` instead of optional.
+
+  **Why it matters beyond a red test:** a goal captured *without* `chanceOfSuccess` now violates its own concept's schema. That is a real instance defect, not a test artifact.
+
+  **Recommended:** an OPEN.md row, and repair under `store-and-show-the-prompt-and-the-estimate`. Not fixed here — out of scope, and a schema write is exactly the kind of change this story promised not to make.
 
 ## Observation for the Reviewer (not fixed here)
 
