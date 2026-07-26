@@ -651,6 +651,19 @@ async function handleGetDirection(req, res) {
       : rawVerdicts.split(',').map((v) => v.trim().toLowerCase());
 
     const outcome = resolveAnchor({ goals: resolved, proposals, goalSlug, maxAnchorDistance, boundaryVerdicts });
+
+    // Built ONCE, above the branch, so both envelopes carry the same shape and a
+    // caller never branches on outcome to find the steps (ADR 0003 d14). The
+    // asymmetry this replaces was the round-2 defect: `roles/director.md` tells
+    // the Director to read `boundaryReview.steps` on a `boundary-unjudged`
+    // refusal, and the refusal envelope did not carry it.
+    // `required` answers only "is there judging work outstanding?" (d15) — it is
+    // NOT "were there steps", which read `true` on an already-judged success.
+    const boundaryReview = {
+      required: outcome.refusal === 'boundary-unjudged',
+      steps: outcome.steps || [],
+    };
+
     if (!outcome.eligible) {
       return res.json({
         success: false,
@@ -660,6 +673,7 @@ async function handleGetDirection(req, res) {
         detail: outcome.detail || null,
         chain: outcome.chain || [],
         maxAnchorDistance,
+        boundaryReview,
       });
     }
 
@@ -670,8 +684,6 @@ async function handleGetDirection(req, res) {
     // Built from what the walk ACTUALLY visited (ADR 0002 d13): the core returns
     // the steps alongside the chain, so a duplicated ancestor slug can no longer
     // surface a different record's boundary text to a judge.
-    const steps = outcome.steps || [];
-
     return res.json({
       success: true,
       eligible: true,
@@ -681,7 +693,7 @@ async function handleGetDirection(req, res) {
       unavailable: UNAVAILABLE,
       chain: outcome.chain || [],
       maxAnchorDistance,
-      boundaryReview: { required: steps.length > 0, steps },
+      boundaryReview,
       derivedAt: new Date().toISOString(),
     });
   } catch (error) {

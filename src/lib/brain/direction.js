@@ -276,6 +276,19 @@ function identify(records) {
   }));
 }
 
+/**
+ * A step as a blinded judge may see it: the two boundary strings and nothing
+ * else — no slugs, no chain position, nothing carrying a progress signal
+ * (ADR 0001 d5). One projection shared by every return path (ADR 0003 d16), so
+ * the blinding contract is stated once rather than re-derived per outcome.
+ */
+function blindSteps(steps) {
+  return (Array.isArray(steps) ? steps : []).map((s) => ({
+    parentBoundary: s.parentBoundary,
+    childBoundary: s.childBoundary,
+  }));
+}
+
 function refuse(refusal, error, extra) {
   return Object.assign({ eligible: false, anchor: null, chain: [], refusal, error }, extra || {});
 }
@@ -399,16 +412,16 @@ function resolveAnchor({ goals, proposals, goalSlug, maxAnchorDistance, boundary
             walked: walkedSlugs,
             stepCount: steps.length,
             verdictsSupplied: Array.isArray(verdicts) ? verdicts.length : 0,
-            steps: steps.map((s) => ({ parentBoundary: s.parentBoundary, childBoundary: s.childBoundary })),
           },
           chain: identify(chain),
+          steps: blindSteps(steps),
         });
     }
     const widening = applyBoundaryVerdicts(steps, verdicts);
     if (widening) {
       return refuse('boundary-widened',
         `'${widening.childSlug}' widens the boundary of its parent '${widening.parentSlug}' — a sub-goal may narrow what it stays inside, never widen it.`,
-        { detail: { walked: walkedSlugs, step: widening }, chain: identify(chain) });
+        { detail: { walked: walkedSlugs, step: widening }, chain: identify(chain), steps: blindSteps(steps) });
     }
   }
 
@@ -421,7 +434,7 @@ function resolveAnchor({ goals, proposals, goalSlug, maxAnchorDistance, boundary
       approvedOn: anchorFact.happenedOn != null ? anchorFact.happenedOn : null,
     },
     chain: identify(chain),
-    steps: steps.map((s) => ({ parentBoundary: s.parentBoundary, childBoundary: s.childBoundary })),
+    steps: blindSteps(steps),
     refusal: null,
   };
 }
