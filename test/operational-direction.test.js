@@ -125,6 +125,49 @@ function short(x, n = 260) {
   return s == null ? String(s) : s.slice(0, n);
 }
 
+/**
+ * The full source of a top-level function, bounded by the NEXT top-level
+ * declaration rather than by a fixed byte count. Fixed windows silently
+ * mis-slice the moment a handler grows — S21 reported "no success envelope"
+ * against a correct implementation because `eligible: true` had moved to +3344
+ * past a 3200-char window. A source assertion that can fail for a reason
+ * unrelated to its claim is worse than no assertion.
+ */
+function functionBody(src, name) {
+  const start = src.indexOf(name);
+  if (start === -1) return '';
+  const after = src.slice(start + name.length);
+  const nextDecl = after.search(/\n(?:async )?function \w/);
+  return nextDecl === -1 ? src.slice(start) : src.slice(start, start + name.length + nextDecl);
+}
+
+/**
+ * Every `res.json({...})` object literal in a function body, each captured to
+ * its own matching brace. Windowed slices around a marker BLEED into the
+ * adjacent envelope — verified: a ±400-char window around the refusal marker
+ * picks up the success envelope's keys in a compact handler, so the assertion
+ * reports a pass the code has not earned. Brace-matching is the only way an
+ * envelope assertion means what it says.
+ */
+function resJsonBlocks(body) {
+  const blocks = [];
+  const marker = 'res.json({';
+  let from = 0;
+  for (;;) {
+    const start = body.indexOf(marker, from);
+    if (start === -1) break;
+    let depth = 0;
+    let i = start + marker.length - 1;           // sit on the opening brace
+    for (; i < body.length; i += 1) {
+      if (body[i] === '{') depth += 1;
+      else if (body[i] === '}') { depth -= 1; if (depth === 0) break; }
+    }
+    blocks.push(body.slice(start, i + 1));
+    from = i + 1;
+  }
+  return blocks;
+}
+
 function loadDirectionCore() {
   if (!fs.existsSync(DIRECTION_CORE)) {
     throw new Error('src/lib/brain/direction.js does not exist yet — the direction core (ADR 0001 d1) is not implemented.');
@@ -853,18 +896,16 @@ test('S2 (d1): the brain module requires the direction core and registers the re
 
 test('S3 (d1): the direction endpoint carries the platform gate — isOwner(req) || req.localTrusted → 403', () => {
   const src = safeRead(BRAIN_API);
-  const idx = src.indexOf('handleGetDirection');
-  assert(idx > -1, 'src/api/brain/index.js must define handleGetDirection.');
-  const body = src.slice(idx, idx + 1200);
+  const body = functionBody(src, 'handleGetDirection');
+  assert(body, 'src/api/brain/index.js must define handleGetDirection.');
   assert(/isOwner\s*\(\s*req\s*\)/.test(body) && /localTrusted/.test(body) && /403/.test(body),
     'the handler must gate with the platform template isOwner(req) || req.localTrusted → 403 (route-level requireOwner would 401 the loopback agent).');
 });
 
 test('S4 (d1): the direction endpoint is READ-ONLY — no mutation or strfry tokens in its handler', () => {
   const src = safeRead(BRAIN_API);
-  const idx = src.indexOf('handleGetDirection');
-  assert(idx > -1, 'src/api/brain/index.js must define handleGetDirection.');
-  const body = src.slice(idx, idx + 1200);
+  const body = functionBody(src, 'handleGetDirection');
+  assert(body, 'src/api/brain/index.js must define handleGetDirection.');
   for (const tok of ['regenerateJson', 'publishToStrfry', 'signAndFinalize', 'MERGE', 'CREATE ', 'DELETE ']) {
     assert(!body.includes(tok), `the direction read must not contain the mutation token '${tok}'.`);
   }
@@ -1001,9 +1042,8 @@ test('S16 (AC1/d8): OPEN.md row 41 is dispositioned DONE and cites this work', (
 
 test('S17 (0002 d11): the endpoint threads the ordered `verdicts` query parameter into the core', () => {
   const src = safeRead(BRAIN_API);
-  const idx = src.indexOf('handleGetDirection');
-  assert(idx > -1, 'src/api/brain/index.js must define handleGetDirection.');
-  const body = src.slice(idx, idx + 2600);
+  const body = functionBody(src, 'handleGetDirection');
+  assert(body, 'src/api/brain/index.js must define handleGetDirection.');
   assert(/req\.query/.test(body) && /verdicts/.test(body),
     'ADR 0002 d11: the handler must read req.query.verdicts and pass the ordered list to the core — otherwise the two-call flow has no second call.');
   assert(!/app\.post\(\s*['"`]\/api\/brain\/direction/.test(src),
@@ -1012,40 +1052,39 @@ test('S17 (0002 d11): the endpoint threads the ordered `verdicts` query paramete
 
 test('S18 (0002 d13): the endpoint builds boundary steps from the walked chain, not by re-resolving slugs', () => {
   const src = safeRead(BRAIN_API);
-  const idx = src.indexOf('handleGetDirection');
-  assert(idx > -1, 'src/api/brain/index.js must define handleGetDirection.');
-  const body = src.slice(idx, idx + 2600);
+  const body = functionBody(src, 'handleGetDirection');
+  assert(body, 'src/api/brain/index.js must define handleGetDirection.');
   assert(!/resolved\.find\s*\(\s*\(?\s*g\s*\)?\s*=>\s*g\s*&&\s*g\.slug\s*===\s*slug/.test(body),
     'ADR 0002 d13: re-resolving chain ancestors by slug can surface a shadowed duplicate\'s boundary text to a judge — build the steps from what the walk actually visited.');
 });
 
 test('S21 (0003 d14, THE ROUND-2 GUARD): BOTH the refusal and the success envelope carry `boundaryReview` — the two-call flow dead-ends without it', () => {
   const src = safeRead(BRAIN_API);
-  const idx = src.indexOf('handleGetDirection');
-  assert(idx > -1, 'src/api/brain/index.js must define handleGetDirection.');
-  const body = src.slice(idx, idx + 3200);
+  const body = functionBody(src, 'handleGetDirection');
+  assert(body, 'src/api/brain/index.js must define handleGetDirection.');
 
-  // The refusal envelope is the one that relays the core's verdict — it is
-  // identifiable by `refusal: outcome.refusal` (the bare empty-slug guard above
-  // it walks no chain and needs no steps).
-  const refusalAt = body.indexOf('refusal: outcome.refusal');
-  assert(refusalAt > -1, 'the handler must have an envelope relaying outcome.refusal.');
-  const refusalEnvelope = body.slice(Math.max(0, refusalAt - 200), refusalAt + 400);
+  // Each envelope captured to its own matching brace — never a window around a
+  // marker, which bleeds into the neighbouring envelope and manufactures a pass.
+  const blocks = resJsonBlocks(body);
+  assert(blocks.length >= 2, `expected at least the refusal and success envelopes; found ${blocks.length}`);
+
+  // The refusal envelope relays the core's verdict — identifiable by
+  // `refusal: outcome.refusal` (the bare empty-slug guard walks no chain).
+  const refusalEnvelope = blocks.find((b) => b.includes('refusal: outcome.refusal'));
+  assert(refusalEnvelope, 'the handler must have an envelope relaying outcome.refusal.');
   assert(/boundaryReview/.test(refusalEnvelope),
     'ADR 0003 d14: the refusal envelope MUST carry boundaryReview. roles/director.md:38 and the direct-feature skill both instruct the Director to read `boundaryReview.steps` on a boundary-unjudged refusal — without it the Director reads undefined and the two-call flow cannot reach step 2. This is the exact round-2 blocking defect; nothing in the suite asserted it before.');
 
-  const successAt = body.indexOf('eligible: true');
-  assert(successAt > -1, 'the handler must have a success envelope.');
-  const successEnvelope = body.slice(successAt, successAt + 500);
+  const successEnvelope = blocks.find((b) => b.includes('eligible: true'));
+  assert(successEnvelope, 'the handler must have a success envelope.');
   assert(/boundaryReview/.test(successEnvelope),
     'the success envelope must keep boundaryReview so the shape is symmetric and callers never branch on outcome to find the steps.');
 });
 
 test('S22 (0003 d15): `required` is derived from the refusal code, not from the step count', () => {
   const src = safeRead(BRAIN_API);
-  const idx = src.indexOf('handleGetDirection');
-  assert(idx > -1, 'src/api/brain/index.js must define handleGetDirection.');
-  const body = src.slice(idx, idx + 3200);
+  const body = functionBody(src, 'handleGetDirection');
+  assert(body, 'src/api/brain/index.js must define handleGetDirection.');
   assert(!/required:\s*steps\.length\s*>\s*0/.test(body),
     "ADR 0003 d15: `required: steps.length > 0` reports true on an ELIGIBLE answer whose steps were just judged — read literally, an instruction to go judge them again. It must mean 'these steps still need verdicts'.");
   assert(/required:\s*[^,\n]*boundary-unjudged/.test(body),

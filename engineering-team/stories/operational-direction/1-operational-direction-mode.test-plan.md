@@ -185,6 +185,30 @@ U48 iterates (r.steps || []) — r.steps is currently: undefined
 
 Fixed by asserting the payload exists (`length === 2`) *before* inspecting its keys. It now fails red like the rest. Two vacuous passes in two rounds is a pattern worth a `meta` row: **a test that iterates a collection the feature does not yet produce is green by default** — assert arity first.
 
+### `S21` was not reliably discriminating as first written — found by probing, not by running
+
+The round-3 tests went green against the implementation. Because `S21` is *the* guard for the round-2 defect, I checked it had teeth rather than trusting the green — by running its logic against a synthetic handler that **has** the defect. It reported a pass:
+
+```
+Against a handler WITH the round-2 defect:
+  S21 refusal check passes? true   <-- must be false
+```
+
+**Cause:** `S21` sliced a ±400-character window around the `refusal: outcome.refusal` marker. In a compact handler that window **bleeds into the adjacent success envelope** and picks up *its* `boundaryReview`. Measured against the real file: the refusal marker sits at +2612, the success envelope's `boundaryReview` at +3532 — a 920-char gap. The window reached +3012 and missed it **by 520 characters of luck**, not by design. Any future edit shortening that gap would have silently disarmed the assertion while it kept reporting PASS.
+
+**Fix:** `resJsonBlocks()` captures each `res.json({…})` literal to its own **matching brace**, and the envelopes are selected by content (`refusal: outcome.refusal` / `eligible: true`). Re-verified after the rewrite:
+
+| handler | refusal carries `boundaryReview` | success |
+|---|---|---|
+| synthetic, **with** the round-2 defect | **false** → `S21` fails, defect caught | true |
+| real, as shipped | true | true |
+
+**Two related fixes in the same pass.** `S21` originally also failed on *correct* code — `eligible: true` had moved to +3344 past a fixed 3200-char window, so it reported "no success envelope." Every windowed source assertion (`S3`, `S4`, `S17`, `S18`, `S21`, `S22`) now uses `functionBody()`, which bounds on the next top-level declaration instead of a byte count.
+
+**The lesson, for the `meta` row:** a source assertion sliced by byte offset can fail for a reason unrelated to its claim *and* pass for one — both happened here, in the same test, in the same round. Extraction must be bounded by structure. **A green suite is not evidence a guard works; running the guard against the defect it names is.**
+
+*Known remaining brittleness, deliberately not touched:* `S9` slices `director.md`'s operational section with a fixed 4000-char window. Different extraction problem (markdown headings, not JS braces), currently passing, and out of this round's scope — but the same latent class, and that section grew this story. Worth folding into the `meta` row.
+
 ### ADR 0003's self-flagged prediction — checked, and it held
 
 ADR 0003 marked its own test-impact bullet as untrustworthy ("the Tester should *run* the suite rather than trust this bullet") because ADR 0002 mis-called impact twice. Ran it: **all 6 of `U34`–`U39` pass** — they assert refusal *codes*, which d14/d15/d16 do not change. The prediction was correct this time. Recorded because the ADR earned the doubt and should get the credit when it is right.
