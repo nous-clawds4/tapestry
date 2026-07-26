@@ -179,5 +179,6 @@ answered on return. All are recorded in the epic.
 ## Linked artifacts
 
 - ADR: `engineering-team/decisions/goal-intent-fields/0001-shared-intent-field-picker-and-provisioned-schema.md`
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/goal-intent-fields/1-store-the-four-when-a-goal-is-captured-or-updated.test-plan.md`
+  (tests: `test/store-the-four-when-a-goal-is-captured-or-updated.test.js`)
 - Review: (filled in after Review phase)
