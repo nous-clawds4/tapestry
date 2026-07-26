@@ -142,13 +142,115 @@ I independently confirm the Implementer's split. Accepting a red gate on these t
 - `git diff 02dc2bfa..HEAD -- test/` is **empty** — the implementation commit touched no test.
 - Both post-Gate-3 test edits were separately committed with reasoning and are positive/fixture-only. I checked each for weakening and found none.
 
-## Verdict
+## Verdict — Round 1
 
 **CHANGES_REQUESTED**
 
 Three blocking items, one root cause. The design is sound, the anchor and staleness guards are well-built and genuinely testable, and the doc work is careful. But the boundary half of a *paired* invariant — one the owner explicitly said must not ship alone — is enforced by prose rather than by code, in a design that chose code enforcement on principle. At v1 it is inert; the moment the policy parameter is raised, which the ADR advertises as a safe config change, the guard silently half-disappears.
 
 Route order: **Architect** ratifies the fail-closed shape (amending ADR d6 and adding the sub-decision) → **Tester** adds the unjudged-steps coverage → **Implementer** makes the core refuse. Non-blocking 1 and 2 are cheap to fold into the same touch.
+
+### Round 1 disposition
+
+All three round-1 blocking items are **verified closed** in Round 2 below.
+
+---
+
+# Round 2 — ADR 0002 (fail-closed boundary judgment)
+
+**Date:** 2026-07-26
+**Diff:** `git diff origin/staging...HEAD` (impl `a84bd51c`; Tester-lane fix `ea8bc058`)
+**ADR:** `engineering-team/decisions/operational-direction/0002-fail-closed-boundary-judgment.md` (amends `0001`)
+
+## Round-1 findings — verified closed, by probe
+
+Each re-run rather than read.
+
+| Round-1 finding | Probe | Result |
+|---|---|---|
+| **B1** boundary guard fails open | the exact failing call: distance 2, no verdicts | `eligible:false`, `refusal:'boundary-unjudged'` — **closed** |
+| — length mismatch | `['narrows']` for 2 steps | `boundary-unjudged` — **closed** |
+| — unrecognized token | `['narrows','yes']` | `boundary-unjudged` — **closed** |
+| — judged widen still distinct | `['narrows','widens']` | `boundary-widened` — **closed** |
+| — honest message | `/widen/i` on the unjudged error | absent — **closed** |
+| **B2** ADR contract stale | ADR 0002 d6 rewrites the shape; `0001` carries the reciprocal `**Amended by:**` header | **closed** (but see R2-1) |
+| **B3** no unjudged coverage | `U34`–`U37`, `U39` | **closed** |
+| **NB1** staleness fails open | `isAnchorStale({createdAt:null}, …)` | `true` — **closed** (d12) |
+| **NB2** chain re-resolved by slug | `chain[0].uuid` present; handler uses `outcome.steps` | **closed** (d13) |
+
+## Quality gates (run by reviewer, not trusted)
+
+- [x] `npm test` — see § "Gate result (round 2)". **`Overall: PASS`** — with a caveat that materially limits what it proves.
+- [ ] `npm run test:playwright` — N/A, no UI.
+- [x] `harness-lint.sh` — clean, 0 violations.
+- [x] **Gate-4 mechanicals:** `git diff ea8bc058..HEAD -- test/` is **empty** (0 lines); core has **0** `require()` calls; `package.json`/`package-lock.json` diff is **empty**.
+
+## Findings — Round 2
+
+### Blocking
+
+1. **`src/api/brain/index.js` (`handleGetDirection`, refusal envelope) — the documented two-call flow dead-ends: the refusal carries no `boundaryReview`.**
+
+   Both governing documents instruct the Director to read `boundaryReview.steps` on a `boundary-unjudged` refusal:
+
+   - `engineering-team/roles/director.md:38` — *"Then: (1) read `boundaryReview.steps`; (2) spawn one fresh blinded judge per step…"*
+   - `.claude/skills/direct-feature/SKILL.md:46` — *"…re-ask with `?verdicts=<ordered,list>` in `boundaryReview.steps` order."*
+
+   The refusal envelope has no such key. Simulated exactly from the handler's own object:
+
+   ```
+   What a Director actually receives on call 1:
+     envelope keys  : success, eligible, refusal, error, detail, chain, maxAnchorDistance
+     boundaryReview : undefined
+     director.md says to read boundaryReview.steps → UNDEFINED — cannot judge
+     steps are actually at detail.steps → [{"parentBoundary":"BOUNDARY-gp","childBoundary":"BOUNDARY-p"}, …]
+   ```
+
+   The data exists — at `detail.steps` — so this is **fail-safe, not fail-open**, and materially less severe than the round-1 finding. The guard still refuses correctly; nothing unjudged can run. But a Director following its role file finds `undefined` and cannot execute step 2, so **the mechanism this entire amendment exists to provide is unusable by the agent it was written for.** Improvising past a broken mechanism by reading the raw JSON is precisely the behavior this design rejects.
+
+   **ADR 0002 contradicts itself here, which is how it slipped through.** d11 (line 75) says call 1 returns *"`eligible:false`, `refusal:'boundary-unjudged'`, plus `boundaryReview.steps`"*; d6's refusal shape (line 105) omits `boundaryReview` entirely. The implementation faithfully followed d6 and thereby broke d11.
+
+   Inert at v1 (distance 0 ⇒ eligible directly). Broken the moment `BRAINSTORM_MAX_ANCHOR_DISTANCE` is raised — **the same trigger, and the same "inert now, wrong when raised" reasoning that made the round-1 finding blocking.** Passing this while having blocked that would apply a weaker standard to the fix than to the defect.
+
+   **Asked change:** include `boundaryReview: { required, steps }` in the refusal envelope (one line), **or** correct both docs to say `detail.steps`. Either is fine; the ADR's d11/d6 contradiction must be resolved in the same touch so the contract has one answer.
+
+### Non-blocking
+
+1. **`src/api/brain/index.js` — `boundaryReview.required` is `true` on a *successful* judged response.** After call 2 succeeds, `required: steps.length > 0` is still `true`, meaning "there were steps," not "steps still need review." Nothing keys on it any more — both docs now key on the `boundary-unjudged` refusal — so it is misleading rather than harmful. Worth either renaming to `stepCount`/`judged` or computing it as "still outstanding."
+
+2. **No test covers the call-1 → call-2 data handoff.** `S17` asserts the handler reads `req.query.verdicts`; `H7` asserts the parameter is inert at v1. Nothing asserts that call 1's refusal hands the Director what call 2 needs — which is exactly why Blocking 1 survived. A test pinning the refusal envelope's step payload belongs with the fix.
+
+3. **Round-1 NB3 (stale import-violation error strings across the eight brain suites) is unchanged** — still pre-existing, still correctly untouched.
+
+## Gate result (round 2)
+
+**`Overall: PASS`.** The story suite: **70 passed, 0 failed, 8 skipped.**
+
+**The green is weaker than it looks, and the Implementer flagged this rather than banking it.** The Docker daemon is down this session, so H-class everywhere skips: **371 skipped, against 51 when the stack was up.** Two consequences:
+
+- **OPEN.md #102 is masked, not fixed.** The two pre-existing schema failures now read `SKIP`:
+  ```
+  SKIP  H4 (AC 3): the primary-property record agrees with the extended schema on the live instance
+  SKIP  H1 (ADR d13): the goal schema declares optional deliverable, boundary, parent
+  ```
+  A green gate here is not evidence that defect is resolved — it is evidence the tests that catch it did not run.
+- **The `?verdicts=` path has never been exercised over the wire.** `H1`–`H8` last ran green at `a0fb44f3`, which predates the parameter. Coverage of the new behavior is 33 executed U-class tests plus two source assertions — good, but no live call. Blocking 1 is precisely the class of defect an executed `H` test would have caught, which is corroboration, not coincidence.
+
+## Process notes
+
+- The Implementer **disclosed** the H-class gap and the masked #102 rather than reporting "gate green." That is the behavior the harness wants, and it is why this review could focus on the wire contract instead of re-deriving the gate's meaning.
+- **The Tester-lane discipline held under pressure.** `U6`/`U7`/`U8` went red from a correct implementation; the fix supplied verdicts rather than relaxing assertions, landed in its own commit *before* the implementation, and left `git diff ea8bc058..HEAD -- test/` empty. I checked all three for weakening — `U6`'s proof is now strictly stronger than before.
+- **ADR 0002's test-impact predictions were wrong twice** (`U32`, then `U6`/`U7`/`U8`), and Blocking 1 is a third mis-specification in the same document — its own d11 and d6 disagree. All three share a cause: the ADR described consequences by reading rather than by executing. → `meta` row at book close.
+
+## Verdict — Round 2
+
+**CHANGES_REQUESTED**
+
+The blocking defect from round 1 is genuinely and thoroughly fixed — I re-ran the exact probe and every adjacent branch, and the guard now fails closed for every caller, with an honest refusal that does not claim a judgment nobody made. The staleness and chain-identity fixes are clean. The Tester-lane work was disciplined.
+
+One blocking item remains, and it is the fix's own blind spot rather than a regression: the flow the amendment introduces cannot be executed as documented, because the refusal that triggers it withholds the data the Director is told to read. Fail-safe, one line to fix, and inert until the policy parameter is raised — but that is the identical circumstance under which I blocked round 1, and consistency requires the same answer.
+
+Route: **Architect** resolves the d11/d6 contradiction (one shape, stated once) → **Tester** adds the call-1 payload assertion → **Implementer** aligns the envelope. Non-blocking 1 folds into the same touch.
 
 ## On PASS (same commit)
 
