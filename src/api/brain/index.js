@@ -640,7 +640,17 @@ async function handleGetDirection(req, res) {
       readProposals(taPubkey),
     ]);
 
-    const outcome = resolveAnchor({ goals: resolved, proposals, goalSlug, maxAnchorDistance });
+    // Ordered boundary verdicts, one per step in boundaryReview.steps order
+    // (ADR 0002 d11). Absent/empty ⇒ none supplied ⇒ the core refuses
+    // `boundary-unjudged` whenever steps exist. This parameter is NOT a trust
+    // boundary — see ADR 0002 d11; the controls are the blinded judge, the
+    // journal, and operator audit, exactly as for every other gate.
+    const rawVerdicts = String((req.query && req.query.verdicts) || '').trim();
+    const boundaryVerdicts = rawVerdicts === ''
+      ? undefined
+      : rawVerdicts.split(',').map((v) => v.trim().toLowerCase());
+
+    const outcome = resolveAnchor({ goals: resolved, proposals, goalSlug, maxAnchorDistance, boundaryVerdicts });
     if (!outcome.eligible) {
       return res.json({
         success: false,
@@ -657,12 +667,10 @@ async function handleGetDirection(req, res) {
     const terms = deriveTerms(target, parseEstimate(target ? rowByUuid.get(target.uuid) : null));
 
     // Only the two boundary strings per step — the blinding the judge depends on.
-    const chainRecords = (outcome.chain || [])
-      .map((slug) => resolved.find((g) => g && g.slug === slug))
-      .filter(Boolean);
-    const steps = boundarySteps(chainRecords).map((s) => ({
-      parentBoundary: s.parentBoundary, childBoundary: s.childBoundary,
-    }));
+    // Built from what the walk ACTUALLY visited (ADR 0002 d13): the core returns
+    // the steps alongside the chain, so a duplicated ancestor slug can no longer
+    // surface a different record's boundary text to a judge.
+    const steps = outcome.steps || [];
 
     return res.json({
       success: true,

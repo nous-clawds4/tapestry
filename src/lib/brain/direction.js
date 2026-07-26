@@ -27,10 +27,16 @@
  *      ratification, and carries a ratification nobody granted.
  *   3. BOUNDARY — a sub-goal's boundary may narrow its parent's, never widen
  *      it. A distant anchor without this is a laundering path. Boundaries are
- *      prose, so the verdict is a blinded judgment injected by the caller; this
- *      core only assembles the steps and applies the verdicts.
+ *      prose, so the verdict itself is a blinded judgment made outside this
+ *      core and supplied to it — but the GATE is here and it FAILS CLOSED
+ *      (ADR 0002 d10): steps that exist and were not judged refuse. It was
+ *      previously opt-in, running only when a caller injected a verdict, which
+ *      made the same chain eligible or refused depending on whether the caller
+ *      remembered. Half of a paired invariant must not be advisory.
  *
- * All three refuse loudly and namedly. Nothing here writes.
+ * All three refuse loudly and namedly, and each says only what it established:
+ * an unjudged boundary is never reported as a widening, and an unknowable
+ * timestamp is never reported as a rewrite. Nothing here writes.
  */
 
 'use strict';
@@ -51,7 +57,11 @@ const REFUSALS = [
   'chain-broken',
   'anchor-stale',
   'boundary-widened',
+  'boundary-unjudged',
 ];
+
+/** The only verdict tokens a boundary step accepts (ADR 0002 d11). */
+const BOUNDARY_VERDICTS = ['narrows', 'widens'];
 
 /**
  * What operational mode knowingly gives up relative to armed mode, and why
@@ -136,7 +146,8 @@ function deriveTerms(goalRecord, estimate) {
 }
 
 /**
- * Is this ratification still the one that was granted? (ADR d4.)
+ * Is this ratification still the one that was granted? (ADR 0001 d4, amended by
+ * ADR 0002 d12.)
  *
  * True iff the goal element was re-signed AFTER its approval was written. The
  * comparison is exact because the two sides have opposite re-signing behavior:
@@ -146,12 +157,29 @@ function deriveTerms(goalRecord, estimate) {
  * capturedOn backfill or a raw update-element-json touch. That is correct at
  * arming, where no recorded text exists to compare against yet; once a run has
  * derived its terms, termsMatch() below is the exact instrument.
+ *
+ * **Fails CLOSED on unknowable currency (d12).** A missing `createdAt` on either
+ * side means currency cannot be established, and a safety guard must refuse
+ * rather than assume fresh. Reachability is low — `e.created_at` is present on
+ * every real event — so the cost is a loud refusal on a malformed record.
  */
 function isAnchorStale(goalRecord, approvalRecord) {
   const g = goalRecord && typeof goalRecord.createdAt === 'number' ? goalRecord.createdAt : null;
   const a = approvalRecord && typeof approvalRecord.createdAt === 'number' ? approvalRecord.createdAt : null;
-  if (g === null || a === null) return false; // unknowable ⇒ not asserted stale
+  if (g === null || a === null) return true; // unknowable ⇒ treated as stale (d12)
   return g > a;
+}
+
+/**
+ * Which timestamp, if either, is missing — so the refusal can distinguish
+ * "could not establish currency" from "rewritten after ratification" (d12).
+ * Returns [] when both are present.
+ */
+function missingTimestamps(goalRecord, approvalRecord) {
+  const missing = [];
+  if (!goalRecord || typeof goalRecord.createdAt !== 'number') missing.push('goal');
+  if (!approvalRecord || typeof approvalRecord.createdAt !== 'number') missing.push('approval');
+  return missing;
 }
 
 /**
@@ -210,6 +238,44 @@ function applyBoundaryVerdicts(steps, verdicts) {
   return null;
 }
 
+/**
+ * Collect one verdict per step, from either supported source (ADR 0002 d11):
+ * the `boundaryVerdict(parentBoundary, childBoundary)` function (the test seam,
+ * and the shape that preserves blinding — it receives EXACTLY the two boundary
+ * strings), or the ordered `boundaryVerdicts` array the endpoint threads in from
+ * the query string.
+ *
+ * Returns { verdicts, usable }. `usable` is false when ANY step lacks a
+ * recognized verdict — a length mismatch or an unrecognized token makes the
+ * whole set unusable, so a typo can never read as approval.
+ */
+function collectVerdicts(steps, boundaryVerdict, boundaryVerdicts) {
+  if (typeof boundaryVerdict === 'function') {
+    const verdicts = steps.map((s) => boundaryVerdict(s.parentBoundary, s.childBoundary));
+    return { verdicts, usable: verdicts.every((x) => BOUNDARY_VERDICTS.includes(x)) };
+  }
+  if (Array.isArray(boundaryVerdicts)) {
+    const usable = boundaryVerdicts.length === steps.length
+      && boundaryVerdicts.every((x) => BOUNDARY_VERDICTS.includes(x));
+    return { verdicts: boundaryVerdicts, usable };
+  }
+  return { verdicts: [], usable: false };
+}
+
+/**
+ * Project records to identity-bearing chain entries (ADR 0002 d13): `{slug, uuid}`.
+ * The uuid is what lets the endpoint build boundary steps from what the walk
+ * ACTUALLY visited — `ambiguous-slug` guards only the target, so a duplicated
+ * ancestor slug could otherwise surface a different record's boundary text to a
+ * judge. Success and refusal envelopes use the same shape, so callers need no branch.
+ */
+function identify(records) {
+  return (Array.isArray(records) ? records : []).map((g) => ({
+    slug: g && g.slug != null ? g.slug : null,
+    uuid: g && g.uuid != null ? g.uuid : null,
+  }));
+}
+
 function refuse(refusal, error, extra) {
   return Object.assign({ eligible: false, anchor: null, chain: [], refusal, error }, extra || {});
 }
@@ -228,7 +294,7 @@ function refuse(refusal, error, extra) {
  * anchor-first and lists the goals actually WALKED, which is what a refusal
  * reports.
  */
-function resolveAnchor({ goals, proposals, goalSlug, maxAnchorDistance, boundaryVerdict } = {}) {
+function resolveAnchor({ goals, proposals, goalSlug, maxAnchorDistance, boundaryVerdict, boundaryVerdicts } = {}) {
   const records = Array.isArray(goals) ? goals : [];
   const facts = Array.isArray(proposals) ? proposals : [];
   const limit = typeof maxAnchorDistance === 'number' && Number.isFinite(maxAnchorDistance) && maxAnchorDistance >= 0
@@ -270,14 +336,14 @@ function resolveAnchor({ goals, proposals, goalSlug, maxAnchorDistance, boundary
     if (cur.parentUnresolved || cur.cycleOf) {
       return refuse('chain-broken',
         `the ancestry chain above '${cur.slug}' is broken (${cur.cycleOf ? 'parent cycle' : 'unresolvable parent'}) — refusing to walk it.`,
-        { detail: { walked: walked.map((g) => g.slug) } });
+        { detail: { walked: walked.map((g) => g.slug) }, chain: identify(walked) });
     }
     if (!cur.parentUuid) break;
     const next = byUuid.get(cur.parentUuid);
     if (!next) {
       return refuse('chain-broken',
         `the parent of '${cur.slug}' does not resolve to a known goal — refusing to walk a broken chain.`,
-        { detail: { walked: walked.map((g) => g.slug) } });
+        { detail: { walked: walked.map((g) => g.slug) }, chain: identify(walked) });
     }
     cur = next;
     distance += 1;
@@ -288,35 +354,61 @@ function resolveAnchor({ goals, proposals, goalSlug, maxAnchorDistance, boundary
   if (!anchorRecord) {
     return refuse('no-anchor-in-range',
       `no owner-ratified anchor within ${limit} step(s) of '${goalSlug}' — walked: ${walkedSlugs.join(' → ')}. An operational run needs an approved proposal fact naming one of these goals.`,
-      { detail: { walked: walkedSlugs, maxAnchorDistance: limit }, chain: walkedSlugs });
+      { detail: { walked: walkedSlugs, maxAnchorDistance: limit }, chain: identify(walked) });
   }
 
   if (isAnchorStale(anchorRecord, anchorFact)) {
-    return refuse('anchor-stale',
-      `'${anchorRecord.slug}' was rewritten after it was ratified (goal createdAt ${anchorRecord.createdAt} > approval createdAt ${anchorFact.createdAt}) — the approval ratified terms that have since changed. Propose and approve it again, then re-derive.`,
-      {
-        detail: {
-          walked: walkedSlugs,
-          goal: anchorRecord.slug,
-          goalCreatedAt: anchorRecord.createdAt,
-          approvalCreatedAt: anchorFact.createdAt,
-        },
-        chain: walkedSlugs,
-      });
+    // d12 — distinguish "currency could not be established" from "rewritten".
+    // Asserting a rewrite that nothing established would be the same dishonesty
+    // d10 forbids on the boundary side.
+    const missing = missingTimestamps(anchorRecord, anchorFact);
+    const error = missing.length > 0
+      ? `the currency of '${anchorRecord.slug}''s ratification could not be established — the ${missing.join(' and ')} record${missing.length > 1 ? 's carry' : ' carries'} no timestamp, so there is no way to tell whether the goal changed after it was approved. Refusing rather than assuming it is current.`
+      : `'${anchorRecord.slug}' was rewritten after it was ratified (goal createdAt ${anchorRecord.createdAt} > approval createdAt ${anchorFact.createdAt}) — the approval ratified terms that have since changed. Propose and approve it again, then re-derive.`;
+    return refuse('anchor-stale', error, {
+      detail: {
+        walked: walkedSlugs,
+        goal: anchorRecord.slug,
+        goalCreatedAt: anchorRecord.createdAt != null ? anchorRecord.createdAt : null,
+        approvalCreatedAt: anchorFact.createdAt != null ? anchorFact.createdAt : null,
+        missingTimestamps: missing,
+      },
+      chain: identify(walked),
+    });
   }
 
   // Anchor-first, down to the target: the order the boundary steps are judged in.
   const chain = walked.slice().reverse();
+  const steps = boundarySteps(chain);
 
-  if (typeof boundaryVerdict === 'function') {
-    const steps = boundarySteps(chain);
-    // The judge sees the two boundary strings and nothing else (d5).
-    const verdicts = steps.map((s) => boundaryVerdict(s.parentBoundary, s.childBoundary));
+  // ── The boundary guard, FAIL-CLOSED (ADR 0002 d10) ───────────────────
+  // Previously this ran only when a caller injected a verdict function, so the
+  // same chain was eligible or refused depending on whether the caller
+  // remembered. That made half of a paired invariant opt-in. It is now a gate
+  // every caller passes through: steps that exist and were not judged refuse.
+  if (steps.length > 0) {
+    const { verdicts, usable } = collectVerdicts(steps, boundaryVerdict, boundaryVerdicts);
+    if (!usable) {
+      // Says nobody judged. It must NOT claim a widening no judge produced —
+      // that sentence would land in the decision journal and the book audit as
+      // though a judgment had happened.
+      return refuse('boundary-unjudged',
+        `the ancestry chain has ${steps.length} boundary step(s) that were not judged — supply one verdict per step, in order, before this goal can be run. No judgment was supplied, so none is assumed.`,
+        {
+          detail: {
+            walked: walkedSlugs,
+            stepCount: steps.length,
+            verdictsSupplied: Array.isArray(verdicts) ? verdicts.length : 0,
+            steps: steps.map((s) => ({ parentBoundary: s.parentBoundary, childBoundary: s.childBoundary })),
+          },
+          chain: identify(chain),
+        });
+    }
     const widening = applyBoundaryVerdicts(steps, verdicts);
     if (widening) {
       return refuse('boundary-widened',
         `'${widening.childSlug}' widens the boundary of its parent '${widening.parentSlug}' — a sub-goal may narrow what it stays inside, never widen it.`,
-        { detail: { walked: walkedSlugs, step: widening }, chain: chain.map((g) => g.slug) });
+        { detail: { walked: walkedSlugs, step: widening }, chain: identify(chain) });
     }
   }
 
@@ -328,7 +420,8 @@ function resolveAnchor({ goals, proposals, goalSlug, maxAnchorDistance, boundary
       proposalId: anchorFact.proposalId != null ? anchorFact.proposalId : null,
       approvedOn: anchorFact.happenedOn != null ? anchorFact.happenedOn : null,
     },
-    chain: chain.map((g) => g.slug),
+    chain: identify(chain),
+    steps: steps.map((s) => ({ parentBoundary: s.parentBoundary, childBoundary: s.childBoundary })),
     refusal: null,
   };
 }
@@ -344,5 +437,6 @@ module.exports = {
   termsMatch,
   boundarySteps,
   applyBoundaryVerdicts,
+  BOUNDARY_VERDICTS,
   resolveAnchor,
 };
