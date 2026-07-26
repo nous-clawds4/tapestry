@@ -252,6 +252,117 @@ One blocking item remains, and it is the fix's own blind spot rather than a regr
 
 Route: **Architect** resolves the d11/d6 contradiction (one shape, stated once) → **Tester** adds the call-1 payload assertion → **Implementer** aligns the envelope. Non-blocking 1 folds into the same touch.
 
+### Round 2 disposition
+
+The round-2 blocking item is **verified closed** in Round 3 below.
+
+---
+
+# Round 3 — ADR 0003 (one `boundaryReview` shape)
+
+**Date:** 2026-07-26
+**Diff:** `git diff origin/staging...HEAD` (impl `54875c07`; Tester-lane `b74d8fcd`)
+**ADR:** `engineering-team/decisions/operational-direction/0003-one-boundary-review-shape.md` (amends `0002`)
+
+## Round-2 finding — verified closed by walking the whole flow
+
+Not "the key is present" — the actual two-call sequence, envelope assembly reproduced from the handler:
+
+```
+call 1 refusal      : boundary-unjudged
+boundaryReview.steps: [{"parentBoundary":"B-gp","childBoundary":"B-p"},{"parentBoundary":"B-p","childBoundary":"B-c"}]
+required            : true
+call 2 eligible     : true
+required after judge: false          ← d15
+steps still present : 2
+```
+
+A Director following `roles/director.md:38` verbatim can now read `boundaryReview.steps`, judge each blind, and re-ask. **The flow executes.**
+
+Corroborating checks:
+
+| claim | probe | result |
+|---|---|---|
+| d14 symmetry across *all* refusals | `goal-not-found`, `no-anchor-in-range`, `anchor-stale` | each carries `steps: []`, `required: false` — no caller branch needed |
+| d15 `required` semantics | eligible-after-judging | `false` — the round-2 NB1 wart is gone |
+| d16 one address | `detail.steps` | absent; `stepCount`/`verdictsSupplied` retained |
+| blinding on refusal path | step keys | `childBoundary,parentBoundary` only |
+| `blindSteps` coverage | all three return paths | `:417`, `:424`, `:437` — one projection, no per-path re-derivation |
+
+## The Tester's `S21` repair — independently verified, not taken on trust
+
+`S21` is *the* guard for the round-2 defect, and the Tester rewrote its extraction mid-round. A guard that was silently disarmed would be worse than no guard, so I re-ran it **using the suite's own `functionBody()` and `resJsonBlocks()`** (`eval`'d out of the test file — not a reimplementation that might differ):
+
+```
+S21 vs handler WITH round-2 defect : {"refusalOk":false,"successOk":true}
+S21 vs shipped handler             : {"refusalOk":true, "successOk":true}
+```
+
+It fails on the defect it names and passes on the shipped code. **The teeth are real.** The Tester's own account of the two defects in that assertion — failing on correct code at a 3200-byte window, *and* passing on broken code through a bleeding ±400 window that missed by 520 characters of luck — matches what I reproduced.
+
+## Quality gates (run by reviewer, not trusted)
+
+- [x] `npm test` — **`Overall: PASS`**, `REVIEWER_EXIT=0`. Story suite **76 passed, 0 failed, 10 skipped**. Matches the Implementer's report exactly.
+- [ ] `npm run test:playwright` — N/A, no UI.
+- [x] `harness-lint.sh` — clean, 0 violations.
+- [x] **Gate-4 mechanicals:** `git diff b74d8fcd..HEAD -- test/` **empty**; core at **0** `require()`; `package.json`/`package-lock.json` diff **empty**.
+- [x] Secrets/debug sweep on the round-3 diff — clean.
+
+## Spec adherence
+
+| AC | Covered by | Verdict |
+|---|---|---|
+| **AC1** | `S6`, `S11`, `S15`, `S16`, `R1`, `R2`, `R6` | ✅ |
+| **AC2** | `U24`–`U28`, `S14`, `H5` | ✅ |
+| **AC3** | `U1`–`U13`, `U32`, `U33`, `S7`, `H3`, `H4` | ✅ |
+| **AC4** | `U17`–`U23`, `U34`–`U40`, `U45`–`U48`, `S9`, `S21` | ✅ — **now fully satisfied.** Round 1 marked this partial; the guard fails closed *and* the flow it requires is executable. |
+| **AC5** | `S8`, `R3`, `R4` | ✅ |
+
+## Findings — Round 3
+
+### Blocking
+
+**None.**
+
+### Non-blocking
+
+1. **`src/api/brain/index.js` (`handleGetDirection`, empty-slug guard) — one envelope still escapes d14's symmetric shape.** The early return for a blank slug emits `{success, eligible, refusal, error}` with **no `boundaryReview` and no `maxAnchorDistance`**, so a caller reading `boundaryReview.steps` unconditionally — exactly what `director.md:38` instructs — would throw on `undefined`. Reachable: `GET /api/brain/direction/%20` trims to `''`.
+
+   **Deliberately not blocking, and the reasoning matters for consistency.** Rounds 1 and 2 were blocked because their triggers were *anticipated legitimate acts* — raising `BRAINSTORM_MAX_ANCHOR_DISTANCE`, which ADR 0001 d3 advertises as safe. This trigger is a malformed URL no documented caller constructs (a Director builds the path from the book's goal slug), and the outcome is fail-safe: a refusal either way, nothing runs. Blocking it would be pedantry, not skepticism. Fold into the next touch: give the guard the same `boundaryReview: {required:false, steps:[]}` and `maxAnchorDistance`.
+
+2. **`H9` cannot catch finding 1** — it exercises one well-formed slug. The envelope-shape claim deserves a degenerate-input case whenever finding 1 is fixed.
+
+3. **`resJsonBlocks()` brace-matching is string-naive.** It counts `{`/`}` without skipping string or template literals, so a `res.json` literal containing a brace inside a string would miscount. No such literal exists today. Worth a comment or a guard before this extractor is reused elsewhere.
+
+4. **`S9`'s 4000-char markdown window** — the same byte-offset class the Tester eliminated for JS, still present for the `director.md` section slice, which grew this story. Correctly scoped out; belongs in the `meta` row.
+
+### Harness friction
+
+Carried forward, unchanged: the **"exit code 0" misreporting** on background gate runs (two occurrences, both actually `Overall: FAIL`); the **flaky stack probe** flipping H-class between executed and skipped. Both still want `meta` rows.
+
+New: **ADR-authored test-impact predictions were wrong twice and self-contradictory once across this story** (`0002`'s `U32` call, `0002`'s `U6`/`U7`/`U8` omission, `0002`'s d11-vs-d6 conflict). ADR 0003 responded by marking its own prediction untrustworthy and telling the Tester to run the suite — which the Tester did, and it held. That is a good pattern worth generalizing: **an ADR should state test impact as a hypothesis to execute, not as a fact.**
+
+## Gate result (round 3) — and what it does not prove
+
+**`Overall: PASS`, `REVIEWER_EXIT=0`.** Same structural caveat as round 2, and it has not improved:
+
+- **373 skipped**, against **51** with the stack up. Docker's daemon is down this session.
+- **OPEN.md #102 remains masked, not fixed** — its two tests still `SKIP`.
+- **`H1`–`H10` have never executed against this code.** The `?verdicts=` parameter and the new symmetric envelope have **never been exercised over the wire.** Coverage is 37 executed U-class tests plus structure-bounded source assertions — strong, and strictly better than round 2 — but not a live call.
+
+**Consequence for the deploy chain, stated as a precondition rather than a worry:** `/cycle-local` brings the stack up, so `H1`–`H10` will execute there. **They must be green before staging.** A PASS on this diff is not a substitute for that run, and two of this story's three blocking findings were the class an executed H-test would have caught first.
+
+## Verdict — Round 3
+
+**PASS**
+
+The round-2 blocking finding is closed, verified by executing the whole two-call sequence rather than by confirming a key exists. Every acceptance criterion is now satisfied and tested, AC4 included — which round 1 could only mark partial. The design that emerged over three rounds is materially better than what round 1 proposed: a paired invariant enforced in code for both halves, one address for the steps, refusals that assert only what they established, and `required` that answers the question actually asked of it.
+
+Two things earn this PASS beyond the diff itself. The Tester caught and fixed a guard that was **passing on broken code**, and disclosed it rather than banking the green — I reproduced that independently with the suite's own extractors. And the Implementer twice declined to fold Tester-lane repairs into implementation commits, keeping `git diff <gate-3>..HEAD -- test/` empty both times, so the failing-tests-first contract held under three rounds of pressure.
+
+Four non-blocking items remain, all cheap, none load-bearing. The real outstanding risk is environmental, not in the diff: **the wire contract is unverified, and the deploy chain must run H-class green before staging.**
+
 ## On PASS (same commit)
 
-Not applicable — verdict is CHANGES_REQUESTED. The story `**Status:**` stays `Approved`; completion detection is not run.
+- [x] Story `**Status:**` flipped to `Done` in place.
+- [x] Completion detection run — **no book exists.** `engineering-team/audits/operational-direction/` was never opened; it was flagged at Planning and the operator elected not to open one. There is therefore no acceptance frame to compute or judge completion against, and **no `/close-book` offer is made.** Recorded here because a future `/close-book` will want an anchor and will find none — the operator may want to open one retroactively before the epic retires.

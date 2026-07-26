@@ -1,6 +1,6 @@
 # Story 1: Operational direction — a run's terms derived from the goal
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-07-25
 **Type:** Feature (governance)
 
@@ -78,4 +78,5 @@ Both are **deliberately reserved**, not unresolved planning work.
 - ADR (round 3): `engineering-team/decisions/operational-direction/0003-one-boundary-review-shape.md` — resolves ADR 0002's d11/d6 contradiction. **d14** the refusal envelope carries `boundaryReview`, so the shape is symmetric and `director.md`/the skill become true as already written (no doc edit); **d15** `required` redefined as "steps still need verdicts" (false on an eligible answer); **d16** steps live at exactly one address — top-level `steps` on both paths, `detail` keeps diagnostics only.
 - Review: `engineering-team/reviews/operational-direction/1-operational-direction-mode.md` — two rounds, both **CHANGES_REQUESTED** (2026-07-26).
   - **Round 1** — AC1/2/3/5 verified; **AC4 only partially**: the boundary invariant ran only when a caller injected a verdict, and the endpoint never did, so `eligible: true` could be returned over unjudged steps once the anchor-distance policy parameter was raised. Resolved by ADR 0002 + `a84bd51c`; all three blocking items and both non-blocking items **verified closed by re-probe** in round 2.
+  - **Round 3** — **PASS.** The two-call flow verified end to end (call 1 → `boundary-unjudged` + `boundaryReview.steps`; call 2 with verdicts → `eligible`, `required:false`). d14 symmetry holds across every refusal; `blindSteps` is the single projection on all three return paths. `S21`'s repaired extraction independently re-verified with the suite's own extractors — fails on the defect it names, passes on shipped code. **AC4 now fully satisfied.** Four non-blocking items carried forward. Outstanding risk is environmental: **`H1`–`H10` have never run against this code — the deploy chain must show them green before staging.**
   - **Round 2** — the fail-closed guard is confirmed correct on every branch, but the two-call flow it introduces **cannot be executed as documented**: `roles/director.md:38` and the skill both instruct the Director to read `boundaryReview.steps` on a `boundary-unjudged` refusal, and the refusal envelope has no `boundaryReview` key (the steps sit at `detail.steps`). ADR 0002 contradicts itself — d11 says the refusal carries it, d6's refusal shape omits it. Fail-safe and one line to fix, but inert-now/broken-when-raised is the same standard that blocked round 1. Route: Architect (resolve d11/d6 into one shape) → Tester (assert call 1's payload) → Implementer (align the envelope).
