@@ -227,3 +227,27 @@ Worth recording: the role **withdrew its own earlier objection on evidence**, un
 
 **Counters:** Gate 1 story #1 — KICK_BACK, APPROVE, KICK_BACK, **APPROVE**. Consecutive counter reset to 0. Book story count 3.
 **Next:** Precision correction to Planning (no re-gate), then Architecture resumes.
+
+## 2026-07-26T20:20:00Z — Planning correction landed, and improved on the instruction
+
+**Story/Phase:** `goal-intent-fields` #1 / post-Gate-1 correction
+**Decision:** INFO
+**Judge:** n/a
+**Why:** Criteria untouched at 5, extent unchanged — which is why this did not re-open Gate 1. The claim asymmetry is now explicit: the **work-bearing class is closed** (four construction sites, one module, independently re-derived), the **no-work class is characterized, not enumerated** — membership decided by the property, with the story stating outright that the list is *not* claimed exhaustive and that a path missing from it is a record-keeping gap rather than a scope gap.
+
+The role went further than instructed and made the **kick-back clause asymmetric to match**: a further *constructing* site returns the story; a further *replicating* one just adds a row. Better than what I specified — the clause now costs a round trip only when one buys something. It also explained the run's own history rather than excusing it: every path missed across three rounds was in the no-work class, exactly what the asymmetry predicts. And it caught more than I did — the re-import path is reachable from **four** screens, not the two I found. The judge's false unreachability reason is **not** in the story; replication is stated as the actual reason.
+**Next:** Release Architecture.
+
+## 2026-07-26T20:23:58Z — Gate 2 (story #1): APPROVE
+
+**Story/Phase:** `goal-intent-fields` #1 / Gate 2
+**Decision:** APPROVE
+**Judge:** **APPROVE**, blinding intact. All seven rubric items pass, and by the judge's own account *"on evidence I gathered myself rather than on the ADR's word"* — it re-ran the three-call Concept Graph orientation against the live instance (57 concepts, the schema node's twelve inner properties, `required` exactly `["name","slug","description"]`, all four declared optional), reproduced the live-corpus counts, verified the firmware absence by grep, and spot-checked roughly two dozen line references, all landing exactly. Its own repo-wide sweep for `tapestryOwnerGoal` construction returned precisely the work-bearing set the ADR enumerates, and it sampled the replicating paths to confirm the "no change" rows are *earned rather than inherited*.
+**Why:** I concur. The decisive quality is that the ADR's central claim is **checkable, and was checked by someone who did not write it** — twice now, independently, by two different judges at two different gates. Notably the Gate 2 judge also independently confirmed the correction I made to the Gate 1 judge's aside: the `create-element` defaults loop iterates top-level properties and yields `{tapestryOwnerGoal:{}}`, so the ADR is right to record that aside as not holding.
+
+**The ADR's most valuable content is a trap it disarms.** `handleUpdateGoalIntent` keeps two field lists deliberately; appending the four to the existing list is a one-line change that *looks like tidying* and would silently create a rule the frame forbids — the `empty-value` loop would refuse `chanceOfSuccess: 75` **because of what it contains** (violating AC5), and the trim would break AC3's byte-identical prompt. The ADR requires an in-code comment on the asymmetry so a later reader does not "clean it up." That is exactly the kind of thing that survives review and breaks in production.
+
+**Three non-blocking imperfections, recorded so they are not lost:** AC2 is engaged in substance but not cited by number; the ADR states an 8000-char S-pin slice budget where one pin actually slices 12000 (**stricter than reality, so it errs safe**); and a one-line off-by-one on the `GOAL_SCHEMA` range (`:4849`, not `:4850`). None touches a rubric item's purpose. The slice-budget one goes to the Tester, since it writes against those pins.
+
+**One lane boundary held.** The Architect suggested I fill the story's `Linked artifacts → ADR:` line when committing. I did not: **the Director never edits the story file.** Routing it to the Product Owner, which owns that artifact — and doing it *after* Gate 2 rather than during, so no judge reads a file mid-edit.
+**Next:** ADR link via Planning, then Phase 3 Test Design.
