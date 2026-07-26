@@ -572,7 +572,7 @@ test('S2 (ADR d13): the brain module requires the export core; the import surfac
   assert(/require\s*\(\s*['"`][^'"`]*lib\/brain\/export['"`]\s*\)/.test(src),
     'the brain module must require ../../lib/brain/export — the artifact assembly core (ADR 0008 d4) is not wired yet.');
   const requires = [...src.matchAll(/require\s*\(\s*['"`]([^'"`]+)['"`]\s*\)/g)].map((m) => m[1]);
-  const allowed = [/neo4j-driver$/, /middleware\/auth$/, /assistantKeys$/, /lib\/brain\/goals$/, /lib\/brain\/hygiene$/, /lib\/brain\/resources$/, /lib\/brain\/work-records$/, /lib\/brain\/proposals$/, /lib\/brain\/signals$/, /lib\/brain\/export$/];
+  const allowed = [/neo4j-driver$/, /middleware\/auth$/, /assistantKeys$/, /lib\/brain\/goals$/, /lib\/brain\/hygiene$/, /lib\/brain\/resources$/, /lib\/brain\/work-records$/, /lib\/brain\/proposals$/, /lib\/brain\/signals$/, /lib\/brain\/export$/, /lib\/brain\/direction$/];
   for (const spec of requires) {
     assert(allowed.some((re) => re.test(spec)),
       `import surface violation: require('${spec}') — story 8 adds exactly lib/brain/export; the brain module ` +
