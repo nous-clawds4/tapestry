@@ -64,14 +64,14 @@ Referenced, not redefined. `<TA>` is the per-deployment Tapestry Assistant pubke
 
 Both are **deliberately reserved**, not unresolved planning work.
 
-1. **Ratification staleness — reserved for Architecture (owner's instruction).** An approval ratifies the deliverable *as it stood at approval time*, but goals are mutable — `update-goal-intent` calls `regenerateJson`. Either the ratification fact records what it approved, or a goal edited after approval silently retains a ratification nobody granted. Settle at Architecture.
-2. **Whether operational mode writes a `## Direction mode` section into `book.md` — reserved for the owner at the Architecture gate (brief's instruction).** Either it writes a derived section for the audit trail, or it skips the section and reads the goal live. There are defensible answers both ways; **put it to the owner at the Architecture gate rather than picking silently.**
+1. ~~**Ratification staleness — reserved for Architecture (owner's instruction).**~~ — **RESOLVED at Architecture: detected, not stored.** Proposal facts never re-sign (second-brain ADR 0006 d3); `updateGoalIntent` always does (`normalize/index.js:2356`). So `goal.createdAt > approval.createdAt` ⟺ the goal was rewritten after ratification → refuse `anchor-stale`. No new field, no schema change, no firmware. Remedy is a fresh proposal + approval. See ADR 0001 **d4**.
+2. ~~**Whether operational mode writes a `## Direction mode` section into `book.md`**~~ — **RESOLVED at the Architecture gate (owner, 2026-07-25): it writes one, under three conditions.** A **distinctly headed** `## Direction mode (operational) — goal-derived` section: (1) **generated — hand-editing it is a defect**, said in the section's own body (PRD §7.1 posture: terms are authored on the goal, never in a second place); (2) it **carries provenance** — goal slug, the *verbatim* deliverable and boundary derived from, the derivation timestamp, and the ratifying proposal, so what this run was told stays reconstructable after the goal moves; (3) on any mismatch between the goal's live terms and the recorded text, the run **halts and re-derives — never proceeds on stale terms** (armed mode's pinned-hashes check, with the goal as the pinned input). See ADR 0001 **d9.1–d9.3**.
 
 ## Linked artifacts
 
 - Epic: `engineering-team/epics/operational-direction.md`
 - Source brief: owner goal `hand-work-to-the-engineering-team-without-arming-a-book` (parent `hand-a-goal-to-a-session`), held in the local graph. Note: `GET /api/brain/goals/:slug` does **not** return the `prompt` field — `parseGoalRow` drops it; read the raw record via the Neo4j query endpoint from inside the container (host-side `:7778` returns 403 on brain endpoints).
 - Book: `engineering-team/audits/operational-direction/book.md` *(to be opened — acceptance-frame)*
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/operational-direction/0001-operational-direction-mode.md` — pure core `src/lib/brain/direction.js` + read-only `GET /api/brain/direction/:slug`; anchor distance a policy parameter (v1 = 0, not special-cased); staleness *detected* via the goals-re-sign / proposals-never-re-sign asymmetry (no schema change); boundary verdicts blinded and injected. Open Q #2 reserved for the owner at the Architecture gate.
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
