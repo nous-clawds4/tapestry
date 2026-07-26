@@ -197,3 +197,17 @@ Worth recording: the role **withdrew its own earlier objection on evidence**, un
 
 **Counters:** this is a phase kick-back from the story's own clause, **not** a judge KICK_BACK at a gate; stopping rule 2's Gate 1 consecutive counter reset to 0 at the APPROVE and is unaffected. Book story count stays **3**.
 **Next:** Return to Planning with both answers to re-bound story 1's inventory, then a fresh Gate 1 — the enumeration is what Gate 1 certified as bounded, so changing it re-opens that gate.
+
+## 2026-07-26T19:48:30Z — Gate 1 round 3: KICK_BACK — the extent table is still incomplete
+
+**Story/Phase:** `goal-intent-fields` #1 / Gate 1 (round 3)
+**Decision:** KICK_BACK
+**Judge:** **KICK_BACK**, blinding reported intact. Five of six items pass, with the judge independently confirming every per-path "state today" claim against source and the concept table against the live graph. The failure is the extent table: it omits `POST /api/normalize/save-element-json` — a live, owner-reachable route wired to the generic element screen that writes an existing goal's record as given. Its reasoning is the part that convinces: the table **lists the generic element *capture* path** as "no work; must not regress" and then **omits the generic element *update* path — the same mechanism on the other verb.** Its closing line is fair: *"I cannot certify an enumeration as the story's boundary when I found a counterexample to it by reading the route table."*
+**Why:** Binding, and I verified the finding myself rather than relaying it: `handleSaveElementJson` (`:3302`) takes any element uuid, checks only that the element exists, and replaces the json wholesale via `regenerateJson` — **no concept-type gate** — and `ui/src/pages/concepts/ElementDetail.jsx:164` posts to it. It is unambiguously a goal-record write path.
+
+**The sharper finding is where the omission came from.** This was not a discovery gap. The **Architect's own inventory named `save-element-json`** — "wholesale replacement, ungated (ADR 0003 debt (a)) … almost certainly how the 8 live goals got theirs." It had six rows; the re-bounded story has five, and this is the one that fell out. The information was in hand and was lost in transcription between roles. That is worth more attention than the missing row itself, because it is a failure mode no gate rubric currently names: an inventory can be *correct at discovery* and *incomplete at hand-off*.
+
+**Two blinding disclosures from the judge, both honest, neither voiding the verdict — and one is a real harness defect.** (a) The story and epic files themselves carry run-state text the judge must read to do its job — "Re-bounded … returned from Architecture", "**Supersedes:** … KICK_BACK". The protocol says a judge must never receive prior verdicts beyond findings carried on a re-judge; here the *artifact* leaks what the *prompt* carefully withholds, and no amount of prompt discipline fixes it. (b) `Read` returned `book.md` in full despite the instruction to read the frame sections only — the blinding instruction is unenforceable at the tool layer. Both are **proposed amendments for the post-mortem**, not mid-run changes: goalpost-class material (judge protocol) is frozen while the run is live.
+
+**Counters:** Gate 1 on story #1 — round 1 KICK_BACK, round 2 APPROVE (counter reset), round 3 KICK_BACK. **Consecutive = 1 of 3.** Book story count unchanged at 3.
+**Next:** Back to Planning for a one-row fix; then Gate 1 round 4.
