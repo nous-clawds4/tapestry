@@ -1,6 +1,7 @@
 # ADR 0002: Fail-closed boundary judgment, and the corrected eligibility contract
 
 **Status:** Proposed
+**Amended by:** ADR 0003 (d6's refusal shape gains `boundaryReview`, resolving its contradiction with d11 — **d11 stands as written**; `required` redefined to mean "steps still need verdicts")
 **Date:** 2026-07-26
 **Story:** `engineering-team/stories/operational-direction/1-operational-direction-mode.md`
 **Amends:** ADR `operational-direction/0001` — **d5** (the boundary verdict was optional, so the check was opt-in and failed open), **d6** (the documented response shape omitted three shipped fields), and **d4** (staleness failed open on unknowable timestamps). ADR 0001's header gains the reciprocal `**Amended by:**` pointer in this story's diff; its body is untouched, per the repo's 0027/0028/0029 convention.
