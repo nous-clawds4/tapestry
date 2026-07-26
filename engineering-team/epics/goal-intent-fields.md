@@ -8,9 +8,9 @@
 ## What this is
 
 Four properties are declared on the goal concept — **the prompt**, **the estimate**, and **two
-flags** — and none of them survives a round trip. Nothing accepts them when a goal is captured or
-updated, and the read surfaces drop them, so anything set today is invisible. This epic makes those
-four writable and readable end to end.
+flags** — and none of them survives a round trip. Most of the ways a goal gets written drop them,
+and the read surfaces drop them, so anything set today is invisible. This epic makes those four
+writable and readable end to end.
 
 Storing and showing only. The four are carried, not consulted: no rule says which prompts may run,
 and nothing ranks, gates, filters, or acts on the estimate or the flags. No new screen.
@@ -31,9 +31,10 @@ which *are* already carried end to end. That existing plumbing is the shape this
 
 `stories/goal-intent-fields/` — strictly ordered; each depends on the one before.
 
-1. **store-the-four-when-a-goal-is-captured-or-updated** — the write half: all four accepted when a
-   goal is captured (from scratch or while breaking a bigger one down) and when it is updated.
-   Server write path. **Approved** 2026-07-26.
+1. **store-the-four-when-a-goal-is-captured-or-updated** — the write half: all four accepted by every
+   way a goal gets written (two distinct from-scratch capture paths, child capture, update), plus the
+   goal concept a fresh instance provisions for itself, which today omits all four. Server write
+   path. **Approved** 2026-07-26, **re-bounded** 2026-07-26 → returns to Gate 1.
 2. **return-the-four-on-every-read-surface** — the read half: all four returned by the goals list, a
    goal's detail, the session orientation read, the proposal queue, and the Direction transcription;
    the export already carries them and must not regress. Server read surfaces. **Approved**
@@ -49,14 +50,16 @@ Each story above is bounded at Planning by an explicit inventory and sits in exa
 **Splitting does not narrow the frame** — the frame is satisfied by the book, not by any single
 story, so "every surface that shows a goal" remains universal across the epic.
 
-**The inventories are boundaries, not guesses.** Each story lists the surfaces it covers, verified
-against the running stack on 2026-07-26. If Architecture finds a surface that shows a goal and is
-not listed, it returns to Planning to re-bound the extent rather than absorbing it silently.
+**The inventories are boundaries, not guesses — and they are enforced.** Each story lists what it
+covers, verified against the running stack. If a later phase finds something that belongs and is not
+listed, it returns to Planning to re-bound the extent rather than absorbing it silently. **This has
+already happened once:** Architecture returned story 1 rather than widening it (see below), which is
+the clause working as intended.
 
 ## Ratified at the Planning gate (2026-07-26)
 
-Three questions were raised at Planning and answered by the owner. Recorded once here; the stories
-reference them rather than restating the reasoning.
+Questions raised at Planning and answered by the owner. Recorded once here; the stories reference
+them rather than restating the reasoning.
 
 1. **How much of the prompt on list-type surfaces?** → **Full prompt everywhere; no truncation.**
    The frame says all four *come back* on every surface; a truncated prompt is a different, smaller
@@ -68,6 +71,25 @@ reference them rather than restating the reasoning.
 3. **Is "clear it back to unset" needed?** → **No — setting only.** The frame's verb is *set*;
    erasing a value back to absent is a capability it does not name. Binds story 1.
 
+## Ratified on return from Architecture (2026-07-26) — story 1
+
+4. **Is noting a new root goal from a session in scope?** → **Yes.** "Capture from scratch" is two
+   paths that behave oppositely: supplying a record directly already carries all four, while noting
+   a new root goal builds its section from a fixed set of fields and silently drops them. It
+   captures a goal, so the frame's *"when capturing"* covers it; excluding it would narrow the frame
+   and would leave the owner losing a prompt at capture — the exact invisibility the ask describes.
+5. **Does the goal concept a fresh instance provisions belong in story 1?** → **Yes** (operator's
+   call). What a fresh instance self-provisions declares eight properties and omits all four; since
+   undeclared properties are silently dropped, *"I can set"* fails outright on a fresh or restored
+   instance regardless of what the write paths accept. Same module, same subsystem as story 1.
+
+**A Gate-1 note that was wrong, recorded so no one designs around it:** the audit claimed the
+direct-record capture path auto-populates every declared property with type defaults when no record
+is supplied, which would make the four *present* rather than absent. It does not — the defaults loop
+iterates only the schema's **top-level** properties, and the goal schema's sole top-level key is the
+goal section itself (an object), so it yields an empty section and never descends. Story 1's
+"absent when not supplied" criterion is sound; nothing defends against this case.
+
 ## ADRs
 
 `decisions/goal-intent-fields/` — created per story at Architecture.
@@ -76,11 +98,12 @@ reference them rather than restating the reasoning.
 
 - **The book's acceptance frame is the constitution.** Derived verbatim from an owner-ratified goal,
   not hand-authored. It may not be widened — the ceiling ("storing and showing only") is
-  review-enforceable, and so is "no new screen is built." It may not be narrowed either: decision 2
-  above stands for the whole epic.
+  review-enforceable, and so is "no new screen is built." It may not be narrowed either: decisions
+  2 and 4 above both turned on refusing to narrow it.
 - **The goal concept is adopted, never re-derived** — `39998:<TA>:tapestry-owner-goal`, `<TA>`
   resolved at runtime per the house rule. All four properties are already declared on it; this epic
-  adds no properties and redefines none.
+  adds no properties and redefines none. Story 1's criterion 4 brings a *fresh* instance's
+  self-provisioned concept up to that same declaration — it does not invent properties.
 - **The declared defaults come from the concept, not from us** — the estimate reads `0` when never
   estimated; each flag reads `false` when absent. Stories 2 and 3 use exactly those, once each, so
   a test can discriminate. On the stored record itself (story 1), a value never supplied is
@@ -89,7 +112,8 @@ reference them rather than restating the reasoning.
   guide). A review consideration, not an acceptance criterion.
 - **Out of this epic, by the book's own words:** the schema-`required` defect filed as OPEN.md row
   102 — out of scope here, handled separately as live-data cleanup; this epic neither fixes nor
-  closes it, and nothing in it is evidence about that row's state. Likewise `dependsOn` /
+  closes it, and nothing in it is evidence about that row's state. Story 1's criterion 4 leaves
+  `required` untouched on every instance, so the two do not overlap. Likewise `dependsOn` /
   prerequisites (not one of the four — the book says the close should report it still unavailable
   rather than missed).
 

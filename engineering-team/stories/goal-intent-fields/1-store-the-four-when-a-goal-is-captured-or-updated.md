@@ -2,6 +2,9 @@
 
 **Status:** Approved
 **Created:** 2026-07-26
+**Re-bounded:** 2026-07-26 — returned from Architecture via this story's own kickback clause; the
+capture inventory below was wrong (see *Extent*). Returns to Gate 1, because the enumeration is what
+that gate certified as bounded.
 **Type:** Feature
 **Epic:** `goal-intent-fields`
 **Book:** `engineering-team/audits/store-and-show-the-prompt-and-the-estimate/book.md` — the
@@ -14,8 +17,8 @@ That draft was never committed; the number returns to the pool and this story ta
 ## Background
 
 Four properties are declared on the goal concept — the prompt, the estimate, and two flags — and
-nothing accepts them when a goal is written. This is the **write half** of the gap: values the owner
-supplies have nowhere to land.
+most of the ways a goal gets written silently drop them. This is the **write half** of the gap:
+values the owner supplies have nowhere to land.
 
 > **The ask (verbatim, from the frame):** All four properties we added to goals — the prompt, the
 > estimate, and the two flags — are declared on the goal concept, but no producer accepts them and
@@ -35,34 +38,54 @@ paths. These four were declared and left behind.
 
 ## Extent of this story — bounded at the Planning gate
 
-**In scope: the three ways a goal gets written**, inventoried 2026-07-26 against the running stack:
+### The ways a goal gets written
 
-1. capturing a goal from scratch
-2. capturing a goal while breaking a bigger one down (a child goal)
-3. updating an existing goal's intent
+Re-inventoried 2026-07-26 after Architecture returned this story. The first inventory said "capture
+from scratch" was one path; it is **two, and they behave oppositely**. Which paths already carry the
+four is now load-bearing, so it is recorded per path.
 
-**Subsystem: the server-side goal write path only.** No read surface and no screen changes here —
-those are `goal-intent-fields` #2 and #3.
+| How a goal gets written | State today |
+|---|---|
+| capturing a goal by supplying its record directly (the general element-capture path) | **already carries all four** — the supplied record is stored as given. No work; must not regress. |
+| noting a new root goal from a session — capture from scratch, built from a fixed set of fields | **drops all four**, silently |
+| capturing a goal while breaking a bigger one down (a child goal) | **drops all four** |
+| updating an existing goal's intent | **drops all four** |
+| restoring the brain from an export | passes each record through as given, so it **carries the four with no work** — see *Out of scope* |
 
-**Verification without new read work:** the export already returns each goal's stored record
-verbatim, so what this story stores is externally observable the moment it is stored.
+A goal captured by noting a new root goal, with a prompt supplied, loses the prompt. That is the
+invisibility the ask describes, reached through a dedicated path with its own owner gate and its own
+refusals — not an edge case.
 
-**If the inventory is wrong, that is a kickback, not a silent widening.** If Architecture finds a
-fourth way a goal gets written, it returns to Planning to have the extent re-bounded rather than
-absorbing it.
+### The goal concept a fresh instance provisions for itself
+
+An instance that does not yet have the goal concept **self-provisions** it. What it provisions today
+declares eight properties and **omits all four**. Undeclared properties are silently dropped, so on
+a fresh or restored instance the frame's *"I can set"* fails outright — no matter what the write
+paths above accept. This instance is unaffected (its concept already exists), which is exactly why
+the drift is invisible here and fatal there.
+
+**Subsystem: the server-side goal write path and the goal concept it provisions** — one module. No
+read surface and no screen changes here; those are `goal-intent-fields` #2 and #3.
+
+**Verification without new read work:** the export already returns each goal's stored record as
+given, so what this story stores is externally observable the moment it is stored.
+
+**The kickback clause stands, and it has already fired once.** If Architecture finds a further way a
+goal gets written, it returns to Planning to have the extent re-bounded rather than absorbing it.
 
 ## User-facing description
 
 As the owner of this tapestry, I want the prompt, the estimate, and the two flags to be accepted
-when I capture or update a goal, so that what I know about a goal is actually recorded instead of
-being dropped on the way in.
+however I capture or update a goal — including on a brand-new instance — so that what I know about a
+goal is actually recorded instead of being dropped on the way in.
 
 ## Acceptance criteria
 
-- [ ] **Accepted at capture.** Given a goal is captured — from scratch or while breaking a bigger
-      one down — with any subset of the four supplied, when the capture completes, then the stored
-      record carries exactly the supplied values, and each one not supplied is **absent** from the
-      record. Capturing a goal with none of the four supplied still succeeds.
+- [ ] **Accepted at capture, by every capture path.** Given a goal is captured through **any** of the
+      capture paths inventoried above, with any subset of the four supplied, when the capture
+      completes, then the stored record carries exactly the supplied values, and each one not
+      supplied is **absent** from the record. Capturing a goal with none of the four supplied still
+      succeeds.
 - [ ] **Accepted at update.** Given an existing goal, when any subset of the four is updated, then
       those values are stored, and the other three are unchanged — as is everything else already on
       the goal (name, statement, origin, capture date, deliverable, boundary, parent).
@@ -70,6 +93,11 @@ being dropped on the way in.
       estimate within 0–100, and either flag set true or false, when the record is read back, then
       the prompt is byte-identical to what was supplied, the estimate is stored as a number, and
       each flag is stored as a boolean.
+- [ ] **A fresh instance declares all four.** Given an instance where the goal concept does not yet
+      exist, when that instance self-provisions it, then the provisioned concept declares all four
+      properties alongside the ones it already declares, and **which properties are required is
+      unchanged** — so a goal captured on a fresh instance can carry the four rather than having
+      them silently dropped as undeclared.
 - [ ] **Nothing acts on them at write time.** Given goals written with differing prompts, estimates,
       and flags, when each is captured or updated, then no write is rejected, gated, reordered, or
       transformed because of what those four contain. No rule decides which prompts may run.
@@ -77,28 +105,37 @@ being dropped on the way in.
 ## Concepts touched
 
 - `39998:<TA>:tapestry-owner-goal` — tapestry owner goal (the record that carries all four declared
-  properties). `<TA>` is resolved at runtime per the house rule — never hardcoded.
+  properties, and the concept a fresh instance provisions). `<TA>` is resolved at runtime per the
+  house rule — never hardcoded.
 
-No concept is added and none is redefined; all four are already declared.
+No concept is added and none is redefined; all four are already declared on this instance's concept.
 
 ## Out of scope
 
 - **Returning the four on read surfaces** — `goal-intent-fields` #2.
 - **Showing the four on the owner's screens** — `goal-intent-fields` #3.
+- **Restoring the brain from an export.** It is a genuine fourth writer of goal records, and it is
+  named here deliberately rather than omitted: it passes each record through as given, so it already
+  carries the four and needs no change and no criterion. Architecture should record it as "no
+  change" rather than leaving its absence to look like an oversight.
 - **Values outside the concept's declared shape** (an estimate above 100 or below 0, a non-boolean
-  flag). The frame is storing and showing; it makes no rules, so this story neither invents a
+  flag). The frame is storing and showing; it makes no rules, so this story invents neither a
   rejection rule nor a clamping rule. What happens to a malformed value stays undefined here.
+- **Which properties are required.** Criterion 4 adds the four as declared properties and changes
+  nothing about `required` — this story does not touch that question on any instance.
+- **The schema-`required` defect (OPEN.md row 102).** Out of scope — handled separately as live-data
+  cleanup. This story neither fixes nor closes it, and nothing here is evidence about its state.
+  Criterion 4 concerns what a *fresh* instance provisions, which is a different layer from the
+  already-signed schema that row 102 reports.
 - **Clearing a value back to unset.** The frame's verb is *set*; a clear-to-unset capability it does
   not name would widen it. (Ratified at the Planning gate — see the epic.)
 - **Backfilling values** onto goals that already exist.
-- **The schema-`required` defect (OPEN.md row 102).** Out of scope for this story — handled
-  separately as live-data cleanup. This story neither fixes nor closes it, and nothing here is
-  evidence about its state.
 - **`dependsOn` / prerequisites** — not one of the four; stays unavailable.
 
 ## Open questions
 
-None. The three raised at Planning were answered at the gate and are recorded in the epic.
+None. The three raised at Planning were answered at the gate; the two raised by Architecture were
+answered on return. All are recorded in the epic.
 
 ## Linked artifacts
 
