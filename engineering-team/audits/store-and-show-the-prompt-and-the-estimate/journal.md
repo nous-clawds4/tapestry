@@ -349,3 +349,29 @@ It is not a wording slip, and I verified the substance myself rather than relayi
 
 **Counters:** Gate 1 on story #2 — **1** kick-back, 1 of 3 consecutive. Story #1 remains Done. Book story count 3.
 **Next:** Route to Planning with the two-class answer; Gate 1 round 2 on story #2.
+
+## 2026-07-27T01:50:00Z — Planning corrected MY answer, and was right
+
+**Story/Phase:** `goal-intent-fields` #2 / Planning (round 2)
+**Decision:** INFO
+**Judge:** n/a
+**Why:** I told Planning the declared defaults belong on the **projecting** reads. That rule was wrong. The Direction transcription **is** a projecting surface — it builds terms from a parsed record — and U25 is precisely the pin that it must never invent an estimate. My rule would have broken the same closed-book production contract I was protecting, one surface over. **The projecting/verbatim boundary and the invent/don't-invent boundary are not the same line.** My conclusion held; the rule I gave to carry it did not.
+
+Its fix is better than my instruction: the two classes bind to **where the work is**, and the defaults rule binds to **neither**. AC3 becomes a *no-invention invariant* rather than a value, naming both shipped ways of saying "not set"; the declared defaults move to the interpretation point, the screens, in story #3.
+
+**It also supplied an argument I had not made, which upgrades my reading from "safer bet" to "only one that survives."** Materializing defaults on the export path would be **destructive**, not merely wrong-shaped: restore stores the artifact's section verbatim, so an export inventing `chanceOfSuccess: 0` would have restore write those zeros back in — silently converting *"never estimated"* into *"estimated at zero"* on every goal, permanently, across a single backup cycle.
+**Next:** Gate 1 round 2.
+
+## 2026-07-27T01:54:35Z — Gate 1 (story #2, round 2): KICK_BACK — the epic still carries the rejected answer
+
+**Story/Phase:** `goal-intent-fields` #2 / Gate 1 (round 2)
+**Decision:** KICK_BACK
+**Judge:** **KICK_BACK**, blinding intact. **Both prior findings confirmed genuinely resolved**, verified against source rather than the story's account — it independently re-derived the projecting class from the parser call sites and got exactly the story's five. One new blocker: the rework edited **only the two story files**. `engineering-team/epics/goal-intent-fields.md:134-136` still reads *"the estimate reads `0` when never estimated; each flag reads `false` when absent. **Stories 2 and 3 use exactly those, once each, so a test can discriminate.**"* — the rejected answer, still standing in the artifact the story itself points to for its ratified Planning answers, and **addressed squarely at the next gate's audience, the Tester.**
+**Why:** Binding, correct, and **partly my fault**: when I routed the correction I told Planning to fix the stories and check story #3, and did not say *"and update the epic."* The epic is this epic's ratified-decision record and the story explicitly redirects readers to it, so leaving it stale relocated the contradiction rather than removing it — the same defect class as the prior FAIL, one document over. I verified the finding myself: `git show --stat ce205321` touched two story files and no epic.
+
+**Non-blocking, carried forward:** a **fourth** off-list parser call-site exists — the hygiene check — which the story's accounting sentence does not cover. It emits problem records rather than goal fields, so it is neither projecting nor a scope gap; the sentence claiming a gate can account for *every* hit is simply incomplete. Also record-drift: the epic's story-2 entry still reads `**Approved** 2026-07-26` with no trace of this return and rework, unlike story #1's entry.
+
+**A second blinding-leak vector, and this one is worse than the first.** The judge disclosed that a `git log --oneline -8` surfaced **commit subjects naming other gates' outcomes**. My own commit messages are the leak: they say things like "Gate 1 KICK_BACK", "Gate 5 APPROVE". Any judge that runs a git command can read the run's progress state straight out of history. Combined with the earlier finding that story/epic files carry `Supersedes: … KICK_BACK` text, this is now two independent channels by which artifacts and history defeat prompt-level blinding. **Proposed post-mortem amendment** — goalpost-class material is frozen mid-run, and I will not start sanitizing commit subjects while the run is live, because that would degrade the audit record to protect a control that needs redesigning anyway.
+
+**Counters:** Gate 1 on story #2 — **2 consecutive KICK_BACKs. Stopping rule 2 halts the run at 3.** I am stating that before the next attempt, not after it. The fix here is a few lines in one file, so I expect it to clear; if it does not, the run halts and the operator looks at it, which is the rule working rather than failing.
+**Next:** Planning updates the epic — retract or re-allocate the defaults sentence, record story #2's return, and widen the accounting sentence to the fourth call-site. Then Gate 1 round 3.
