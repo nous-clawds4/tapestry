@@ -429,3 +429,19 @@ I added the epic because it holds this epic's ratified decisions and I wanted th
 
 **The frame-section-only instruction leaked again, harmlessly and unavoidably.** This judge disclosed that its `grep -A 80` on the book pulled the adjacent generated Direction-mode terms block. Same unenforceable-at-the-tool-layer issue already logged; the block carries goal-derived terms only, no progress or budget state. Third consecutive judge to disclose it, which is itself evidence the instruction needs a structural fix rather than better wording.
 **Next:** Phase 3, Test Design on story #2.
+
+## 2026-07-27T05:13:51Z — Gate 3 (story #2): APPROVE — and a Director defect the judge caught
+
+**Story/Phase:** `goal-intent-fields` #2 / Gate 3
+**Decision:** APPROVE
+**Judge:** **APPROVE**, blinding intact. It **ran the full suite twice itself** rather than reading my committed log, reproducing 24 passed / 30 failed with the H-class 8 executed / 0 skipped, `Overall: FAIL`, exit 1, and **exactly 31 test-level failures across the entire run**. It verified feature-absence against source rather than inferring it from messages (`goals.js` still projects ten fields and exports no `projectIntentFields`; `direction.js` still returns five `terms` keys), cross-checked all 54 test IDs against the plan with zero dangling references, and confirmed the 24 passes are **precisely** the 24 the plan declares pass-by-design. It also confirmed the `require.cache` injection does not contaminate the shared process — the six second-brain suites that pin the brain module's require list all passed.
+**Why:** I concur; my own run agreed before its did. On the sibling `R1` it did the check that mattered: the diff shows the sentinel **keeps** its exact-key *and* exact-order assertion, keeps the ten-field correctness assertion, and **gains** a verbatim-value assertion. Strengthened, not weakened — and story 1 had itself nominated it as this story's re-pin.
+
+**The defect it caught is mine, and it is the worst kind — a false claim in the permanent record.** `.gitignore:3` (`*.log`) silently excluded **every evidence log I believed I was committing**. `git add` succeeded each time because the other files in the same command were fine, so nothing errored and I never checked. **Four commit messages in this run state that a log was "committed as evidence." All four were false.** None of the five logs was tracked, while the journal referenced them by name — so the audit trail had holes precisely where it advertised itself as strongest.
+
+Fixed: all five force-added (1.5 MB, 18,187 lines) — both Stage-0 baselines, story 1's Gate-3 RED and Gate-4 GREEN, story 2's Gate-3 RED. Force-add rather than editing `.gitignore`, because the ignore rule is correct for stray logs and `.gitignore` is outside the Director's lane while these files are inside it.
+
+**The lesson is this run's own, turned on me.** I verified every claim a *role* made — I re-ran suites, re-read diffs, checked judge asides against source, and corrected two of them. I did not verify my own. A `git add` that succeeds while silently ignoring its argument is **exactly the shape of the lying exit codes I have been guarding against since the first baseline**, and I walked into it four times because the failure was mine rather than something handed to me.
+
+**Two further non-blocking notes:** the test plan's pasted verification block quotes an earlier run than the committed evidence log (they agree on everything this gate turns on), and `relationship-primitives-probe` H4 — failing in the plan's block — **passes** in both the committed log and the judge's runs, corroborating the pre-existing/environmental reading.
+**Next:** Phase 4, Implementation on story #2. Gate-3 commit of record: `e288539b`.
