@@ -2,6 +2,14 @@ import { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import Breadcrumbs from '../../components/Breadcrumbs';
 import useBrainProposals from '../../hooks/useBrainProposals';
+import {
+  LABEL_ESTIMATE,
+  LABEL_NEEDS_YOU,
+  LABEL_TOO_BIG,
+  estimateLineOnProposalCard,
+  flagWord,
+  promptDisplay,
+} from '../../utils/goalIntent';
 
 /**
  * Proposal queue — "What next?" (second-brain #6, ADR 0006 d12). The third
@@ -9,8 +17,9 @@ import useBrainProposals from '../../hooks/useBrainProposals';
  * Approve / Skip-with-reason. Copy comes verbatim from the style/design guides.
  * The MAKING of proposals happens in conversation (make-proposal); this view is
  * where the owner DECIDES. Decisions are append-only facts — a decided proposal
- * leaves the queue and shows on its goal's spine. No numbers anywhere
- * (design principle 2): comparisons and words only, never a decimal.
+ * leaves the queue and shows on its goal's spine. A number appears only where
+ * the owner recorded one on the goal — never a system-generated one (ADR
+ * second-brain 0006 d13, narrowed by goal-intent-fields 0003 d1/d2).
  */
 
 const VIEW_TITLE = 'What next?';
@@ -100,6 +109,10 @@ export default function Proposals() {
             <li key={p.proposalId} className="brain-proposal-card" role="region" aria-label={`Proposal: ${p.goalName}`}>
               <div className="brain-proposal-next"><strong>Next:</strong> {p.goalName}</div>
               {p.whyNow && <p className="brain-proposal-whynow">{p.whyNow}</p>}
+              <p className="brain-proposal-whynow">
+                {`${LABEL_ESTIMATE} ${estimateLineOnProposalCard(p.chanceOfSuccess)} · ${LABEL_NEEDS_YOU} ${flagWord(p.needsHumanInput)} · ${LABEL_TOO_BIG} ${flagWord(p.needsBreakdown)}`}
+              </p>
+              <p className="brain-proposal-whynow">{promptDisplay(p.prompt).text}</p>
               {Array.isArray(p.passedOver) && p.passedOver.length > 0 && (
                 <div className="brain-proposal-considered">
                   <span className="brain-proposal-considered-label">considered instead</span>

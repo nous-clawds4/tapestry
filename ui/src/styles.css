@@ -8199,6 +8199,7 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
 .brain-detail-meta a { color: var(--accent); text-decoration: none; }
 .brain-detail-statement { max-width: 70ch; }
 .brain-detail-field { max-width: 70ch; }
+.brain-detail-prompt { white-space: pre-wrap; }
 @media (max-width: 768px) {
   .brain-goal-row { padding-left: calc(8px + var(--brain-depth, 0) * 12px); }
 }

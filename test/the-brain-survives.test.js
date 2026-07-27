@@ -662,7 +662,13 @@ test('S7 (ADR d8): ensureGoalConcept exists — closing the ADR 0001 bootstrap g
   const src = safeRead(NORMALIZE_INDEX);
   assert(/ensureGoalConcept/.test(src),
     'ensureGoalConcept does not exist yet (ADR 0008 d8) — a truly fresh target lacks ALL FIVE concepts (the ADR 0001 recon correction), so restore must be able to provision the goal concept too.');
-  const ensure = src.slice(src.indexOf('ensureGoalConcept'), src.indexOf('ensureGoalConcept') + 4000);
+  // Structure-bounded, not a byte window (OPEN.md row 109; re-aimed by
+  // goal-intent-fields #1, Phase 3). The first literal 'ensureGoalConcept' in
+  // the module is a COMMENT four lines above the GOAL_SCHEMA constant, so the
+  // old 4000-char window spanned that constant: growing GOAL_SCHEMA — which
+  // goal-intent-fields #1 does, by four declared properties — ate the window's
+  // headroom and would eventually have failed this pin on correct code.
+  const ensure = fnBody(src, 'ensureGoalConcept');
   assert(/create-concept|handleCreateConcept/.test(ensure) && /save-schema|handleSaveSchema/.test(ensure),
     'ensureGoalConcept must provision via create-concept + save-schema when the concept is absent (ADR 0008 d8).');
   assert(/GOAL_SCHEMA/.test(src) && /tapestryOwnerGoal/.test(src),
