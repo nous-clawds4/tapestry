@@ -578,3 +578,23 @@ Its response is the most valuable exchange of this run. It owned the claim plain
 
 **One observation the judge flagged as not-a-story-3-defect:** its run also failed `most-pinned-tag-index-publish` (3 passed, 4 failed), PASS in the Tester's log, with a different skip count (29 vs 51) — a tag-pin publish suite touching nothing this story touches. **Environmental divergence between runs; I will watch for it at Gate 4** rather than assume it away.
 **Next:** Architect amends ADR 0003's tooling premise; then Tester adds the missing coverage; then Gate 3 round 2.
+
+## 2026-07-27T15:13:43Z — Gate 3 (story #3, round 2): APPROVE — the hole is closed and proved closed
+
+**Story/Phase:** `goal-intent-fields` #3 / Gate 3 (round 2)
+**Decision:** APPROVE
+**Judge:** **APPROVE**, blinding intact. All six items pass, and it verified the decisive question the strongest way available: it **wrote its own ADR-faithful formatter**, dropped it in with the three screens untouched, and confirmed `B1`–`B6` each resolve a locator against a live rendered page and then fail on the missing value — quoting the owner's-eye DOM back (*"Row read: `·Wire the greenhouse sensorsviable`"*). Then removed it; `git status --porcelain` empty, verified by me too.
+**Why:** I concur, and one check of the judge's is subtler than the headline. Its independently-written module took the **Node class to 33 passed / 4 failed** — proving the U-class is satisfiable by an implementation written *without* the plan, so **the browser class is doing real work rather than compensating for a broken unit class**. That distinction is what separates a genuine instrument from another layer of theatre, and I would not have thought to test it.
+
+**All three prior findings resolved.** AC1/AC2's untestability closed by the B class; the record-rendering clause re-bound to the story's actual named member, with the ADR ruling it a regression guard rather than a capability test; the false tooling premise struck with in-repo citations.
+
+**The Tester ran the test I set it on its own work and reproduced the judge's finding to the number** — implemented the story, deleted *only* the render calls: Node **37/0 still green**, browser **6 failed**. The Node class genuinely cannot catch this; the browser class can.
+
+**A Director defect, mine, recorded because it nearly mattered.** My Gate-3 commit hung for two minutes: I put backticks inside a double-quoted shell string, so the message shell-expanded as **command substitution** — one term being a `ui` build. I checked rather than assumed: `dist/` is gitignored and unmodified since 13:00, and the two long-running vite processes predate this session by a day. No harm, but had it rebuilt the served bundle it would have silently changed the very artifact the browser tests measure against, mid-gate. Redone with a quoted heredoc.
+
+**A second near-miss the same hour.** My first browser run used all five Playwright projects; **only chromium's browser is installed**, so four failed at launch with *"Executable doesn't exist."* Had I read that red as the Gate-3 RED, I would have "confirmed" the feature missing on evidence that never touched it. Both misses came from reading *that* something failed instead of *why*.
+
+**Two limits the judge carried to Gate 4, neither blocking here:** it did **not** rebuild `ui/` for a correct-implementation run, so *"the B class passes when the feature lands"* remains the plan's claim and not a finding; and `B6` scopes its no-digit check to the innermost element carrying the estimate label, so it will fail if the Implementer renders the estimate inside a container that also holds a date — a **Gate-4 signal, not a Gate-3 defect**.
+
+**Counters:** Gate 3 on story #3 — KICK_BACK, **APPROVE**. Consecutive reset to 0. ADR amendments on #3: 1 of 2. **Gate-3 commit of record: `ccd23e28`.**
+**Next:** Phase 4, Implementation — the last implementation in the book. Gate 4 now requires **both** gates, not `npm test` alone.
