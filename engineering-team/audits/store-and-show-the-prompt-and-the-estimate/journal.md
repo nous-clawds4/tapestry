@@ -477,3 +477,21 @@ What survives: the review's *conclusion* — that the blinding contract holds �
 
 **One non-blocking delta in the judge's own run:** `relationship-primitives` H8 failed for it (scan `6016414→6016415`) where the review and my Gate-4 run had it green — OPEN.md row 75's documented signature, an untouched suite, not a defect in this diff. Eighth occurrence.
 **Next:** Route the kick-back to the Reviewer to correct or substantiate that paragraph; then Gate 5 round 2.
+
+## 2026-07-27T09:42:22Z — Gate 5 (story #2, round 2): APPROVE — story #2 complete
+
+**Story/Phase:** `goal-intent-fields` #2 / Gate 5 (round 2)
+**Decision:** APPROVE
+**Judge:** **APPROVE**, blinding intact. Prior finding **resolved**. It ran the full suite itself — a **3,724-line log, the same length the review reports** — and reproduced every figure including `Overall: PASS`, `EXIT=0`, both H-class roll-ups, the live census string byte-identical, and the two benign `FAIL` strings at the *exact* line numbers cited. Then it did the thing that matters after an accuracy failure: it **probed ~30 independently checkable claims for a second instance of the same defect class and found none wrong**.
+**Why:** I concur, and I verified the item the rubric assigns to me: `git show --name-status 79226b1c` is exactly `A` review + `M` story, `Approved → Done`, no renames, no separate Director commit touching the story file.
+
+**The correction was substantive, not cosmetic.** The judge confirmed the corrected account matches the artifact line-for-line, and that the Reviewer's new attribution is *mechanically* coherent: `boundarySteps` emits zero steps for a length-1 chain, so an `every(...)` over it would indeed pass vacuously — while `D13`'s arity assertion could not. The Reviewer's probe really did have the defect it first mis-attributed to `D13`.
+
+**What the whole detour actually produced.** Two agents, independently, named the same failure mode within an hour: *conclusions that are right protect provenance that is wrong, because nothing downstream forces a re-read*. The Reviewer said it of its own section; I said it of my own verification habits. That convergence is worth more to the harness than the finding that triggered it, and it is the one thing from this phase I would carry into the post-mortem ahead of any rubric change.
+
+**Two judge disclosures, recorded:** it did **not** verify the review's OPEN.md row citations, because that file was not handed to it by path — it reproduced the underlying results directly instead, which is the better substitute. And one imprecision without weight: the review says a commit "carries six evidence logs" where that is true of the audited *range*, not the single commit.
+
+**Counters:** Gate 5 on story #2 — KICK_BACK, **APPROVE**. Consecutive reset to 0. **Stories #1 and #2 both Done; #3 is the last.**
+**Next:** Gate 1 on story #3. It is drafted and revised but **never gated** — being written early grandfathers nothing.
+
+**On the Gate-1 epic leak, since story #3 is next.** The Gate-1 rubric requires confirming `epics/<epic-slug>.md` carries a `**Status:**` line, while the epic is not on the blinding-safe input list and now holds kick-back counts and prior-verdict summaries. I cannot fix that mid-run — it is goalpost-class. What I *can* do is stop being the channel: the story names its own epic slug, so a judge can derive and check the file without me handing it over annotated. That is what I will do. The residual leak is structural and stays logged as a post-mortem amendment.
