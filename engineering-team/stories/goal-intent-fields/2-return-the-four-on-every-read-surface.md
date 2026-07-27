@@ -1,6 +1,6 @@
 # Story 2: Return the four on every read surface that shows a goal
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-07-26
 **Type:** Feature
 **Epic:** `goal-intent-fields`
@@ -147,4 +147,4 @@ None. The three raised at Planning were answered at the gate and are recorded in
 - Test plan: `engineering-team/stories/goal-intent-fields/2-return-the-four-on-every-read-surface.test-plan.md`
   (tests: `test/return-the-four-on-every-read-surface.test.js`; plus the re-aimed **R1** in
   `test/store-the-four-when-a-goal-is-captured-or-updated.test.js`)
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/goal-intent-fields/2-return-the-four-on-every-read-surface.md` (PASS, 2026-07-27)
