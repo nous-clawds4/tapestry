@@ -11,6 +11,10 @@ precedent, verified in git rather than assumed: `second-brain` 0002's pointer an
 `operational-direction` 0001's pointer were each written in the amending ADR's `adr:` commit
 (`d7bd8b53`, `8da154ec`), not in a later `impl:` one. (`community-reference` 0027/0028 differ because
 that is the Protocol-Spec docs-mode flow, where the `spec:` commit *is* the implementation step.)
+**Amended:** 2026-07-27 — **Amendment 1** (below), routed back by Gate 3: this ADR's test-level premise
+was false. Playwright is existing, already-used repo tooling in this exact position, so the UI flow
+belongs at the browser level. **The supersession (d1), the AC2/AC4 resolution (d2), the option set and
+the no-shipped-test-changes evidence are untouched by the amendment.**
 **Builds on:** `goal-intent-fields` ADR 0001 (the write half; `INTENT_FIELDS`, absence as key-absence) and
 ADR 0002 (the read half; `projectIntentFields`, absence as `null` on the four projecting responses) — both
 **shipped on this branch**. This ADR consumes ADR 0002's contract and adds no server code.
@@ -610,8 +614,12 @@ story does not touch.
 - **H** (live stack, the ADR 0003/0004 sentinel-fixture precedent; legacy goals never mutated) — a fixture
   goal with all four set (multi-line prompt, an estimate, `needsHumanInput: false` stored **explicitly**)
   and one with none; assert each of the three endpoints still returns the four, so a screen failure can
-  be told apart from a story-2 regression. Screen rendering itself is S-class here: this project has no
-  browser test harness, and adding one is new tooling the house rule forbids without its own ADR.
+  be told apart from a story-2 regression.
+- **B** (browser, network-mocked — `tests/brainstorm/*.spec.js`, `npm run test:playwright`) — **added by
+  Amendment 1 below, which corrects a false premise this line originally carried.** The struck sentence
+  claimed screen rendering was S-class "because this project has no browser test harness, and adding one
+  is new tooling the house rule forbids without its own ADR." **That was wrong on both halves.** See
+  Amendment 1 for the evidence and for what the B class must establish.
 
 ## Out of scope
 
@@ -630,3 +638,130 @@ story does not touch.
   close carries it on the return edge.
 - **OPEN.md row 102** (the schema-`required` defect) and **`dependsOn` / prerequisites** — neither fixed,
   closed, nor evidenced here.
+## Amendment 1 (2026-07-27) — the test-level premise was false: Playwright is existing repo tooling, and the UI flow belongs at the browser level
+
+### Trigger (Gate-3 kick-back, routed back by the coordinator)
+
+Gate 3 built a probe against the ratified design: `goalIntent.js` implemented faithfully, imported into
+all three screens, all four properties named, every formatter **called** — and **none of the results
+rendered**. The committed suite goes **36 passed, 0 failed**. The owner sees exactly what they see today:
+nothing.
+
+That is not a Tester error. It is this ADR's error. AC1's *"all four visible"* and AC2's *"still shows the
+goal"* **cannot fail** against the test classes this ADR authorized, because an S-class scan asserts that a
+token appears **in a file**, not that a value reaches **a screen**. I wrote the guidance that produced it.
+
+The sharpest instance is my own load-bearing decision: **d2 is a rendering-time branch.** "A number renders
+only where the owner recorded one" is decided by which arm of `estimateLineOnProposalCard` executes. A
+source scan sees both arms in the file and can distinguish neither. The ADR's central resolution had no
+test at the level where it is actually decided.
+
+### The premise, and why it was false
+
+The struck sentence claimed screen rendering was S-class "because this project has no browser test
+harness, and adding one is new tooling the house rule forbids without its own ADR." **Both halves are
+false.** Verified in this repo, 2026-07-27:
+
+- **`playwright.config.js:32`** — `baseURL: process.env.BRAINSTORM_BASE_URL || 'http://localhost:7778'`.
+  That default **is the local control panel** (AGENTS.md §1's port), not a deployed instance.
+- **`package.json:14`** — `"test:playwright": "playwright test"`; **`:89`** — `"@playwright/test": "^1.56.1"`
+  is already a dependency. **Nothing is added.**
+- **`tests/brainstorm/`** holds 20+ specs against control-panel pages.
+- **This harness has already ratified it at a Gate 3.**
+  `engineering-team/stories/tapestries/3-create-tapestry.test-plan.md:51-52` reads: *"**Framework:** Node
+  built-in runner (`node test/test.js`) + Playwright (`npm run test:playwright`). **No new frameworks.**"*
+- **The precedent is the same shape as this story.** `tests/brainstorm/tapestry-create.spec.js` is a
+  network-mocked browser round-trip driving a **React control-panel page**
+  (`ui/src/pages/tapestries/NewTapestry.jsx` at `/tapestry/tapestries/new`), with **nine** `page.route(…)`
+  API mocks, written **RED** — its header (`:19`) says *"These FAIL against the current build:
+  NewTapestry.jsx is still the inert placeholder."* Exactly the failing-tests-first contract, at exactly
+  this level, for exactly this kind of page.
+- **Its skip discipline is the H class's.** `test.beforeEach` (`:25-26`) skips unless
+  `BRAINSTORM_SERVER_ACCESSIBLE === 'true'`.
+
+**Context constraint 7 is unchanged and still binding** — no new dependencies, no new lint/typecheck/build
+tooling. Playwright simply **is not new**, which is the fact the original line got wrong. No ADR is needed
+to adopt it, because it is already adopted.
+
+### Decision
+
+Add a fourth test class, **B (browser)**, to this ADR's test-class guidance alongside U/S/H:
+
+> **B** — `tests/brainstorm/*.spec.js`, run by `npm run test:playwright`, APIs stubbed with
+> `page.route(…)` → `r.fulfill(…)`, gated by `BRAINSTORM_SERVER_ACCESSIBLE=true` — the
+> `tapestry-create.spec.js` pattern, followed rather than re-invented.
+
+**B is additive, not a replacement.** The S-class pins stay exactly as ratified: B skips when no server is
+reachable, so S remains the always-on layer and B becomes the layer that can actually fail when nothing
+renders.
+
+### What the B class must establish (the level, bounded — the specs are Phase 3's)
+
+Two goals throughout: one with **all four set** (multi-line prompt longer than `PROMPT_EXCERPT_MAX`, an
+estimate, `needsHumanInput: false` stored **explicitly**), one with **none of the four set**.
+
+**Mocks the Tester will need, named here so they are not discovered late** (verified from source):
+`/api/brain/goals`, `/api/brain/goals/:slug`, `/api/brain/proposals`, **plus** `/api/auth/status` and
+`/api/auth/user-classification` returning `classification: 'owner'` — all three pages gate on
+`user?.classification === 'owner' || 'admin'` and render a lock panel otherwise.
+
+1. **Goals list** (`/tapestry/goals`) — for the all-four goal, its row carries the estimate's rendered
+   number, both flag words, and prompt text drawn from **the prompt's own opening characters**. AC1's *"a
+   bare presence indicator … does not satisfy this"* is a claim about what is rendered, so it is settled
+   here and nowhere else. For the none-set goal, the row is **present** and carries `0 out of 100`, `no`,
+   `no`, and `PROMPT_UNSET`.
+2. **Goal detail** (`/tapestry/goals/:slug`) — the same four; and the assertion that distinguishes *"in
+   full"* from *"an excerpt"*: **a substring taken from beyond `PROMPT_EXCERPT_MAX`, deep inside the
+   prompt, is present.** No source-level instrument can make that distinction.
+3. **Proposals card** (`/tapestry/proposals`) — with an owner-recorded estimate, its number appears on the
+   card. With **none**, `ESTIMATE_UNSET_ON_CARD` appears and **no digit appears in the estimate's
+   position**. This is **d2's boundary at the level where d2 is decided**, and it is the single most
+   important assertion this amendment authorizes.
+4. **AC4, at rendered level** — mock the list so the estimates run in an order the server order does not
+   follow, then assert the **rendered row order equals the mocked response order**. A sort-by-estimate
+   implementation fails visibly; a token scan cannot see it at all.
+
+**Not B's job:** AC3 (no new screen/route) stays S-class over `App.jsx` / `Layout.jsx` — a route that does
+not exist renders nothing to assert against.
+
+### AC1's record-rendering clause — it needs one sentinel, and the plan's mapping is wrong
+
+The clause: *"On a record-rendering screen, all four remain visible as stored, unchanged by this story."*
+Ruling, so the Tester can stop trying to map it:
+
+- **It maps to exactly one file:** `ui/src/pages/concepts/ElementDetail.jsx` `:403` / `:545` —
+  `<pre className="json-block">{JSON.stringify(fullJson, null, 2)}</pre>`. That is the story's named member,
+  "the generic element screen's record view".
+- **It is a regression guard, not a capability test.** The capability is already true, and stories 1 and 2
+  are what made it true: the screen stringifies the **whole** parsed record, so the four appear the moment
+  they are stored. Nothing in *this* story makes them appear there. The only thing this story could do is
+  break it.
+- **So: one S-class sentinel** — that record view still stringifies the whole parsed record (no key
+  whitelist, no `pick`, no destructured subset) — plus the untouchables byte-pin that this story's diff
+  does not touch the file at all. This ADR already forbids touching it (Implementation notes, "Unchanged,
+  deliberately").
+- **It does not map to the three projecting screens.** Mapping it to tests over those surfaces is a
+  mis-mapping: they are the *projecting* class, governed by AC1's other half.
+- **It does not extend to `ConceptElements.jsx`.** The generic element *list*'s 80-character JSON preview
+  puts it in **neither** class (Context, "The record-rendering class — two facts the Gate-1 audit is right
+  about"). No test, deliberately.
+- **No B-class test.** Driving a screen this story does no work on would test the class's membership
+  *property* rather than the story — and the story's extent says membership follows from the property, not
+  from an enumeration.
+
+### Blast radius
+
+- **Changes:** this ADR's test-class guidance gains **B**; the record-rendering clause gets the ruling
+  above; one false sentence is corrected in place with a pointer here.
+- **Not changed, deliberately:** **d1 (the narrow supersession of `second-brain` 0006 d13/AC6), d2 (the
+  AC2/AC4 resolution), d3–d8, Options A–F, Consequences, and the Implementation-notes production-file
+  list.** All survived Gate 2 on verified evidence. This amendment adds a **test level**; it changes no
+  design decision and no production instruction.
+- **No new dependency, no new framework, no new ADR** — `@playwright/test` is already in `package.json`.
+  Context constraint 7 stands as written.
+- **`second-brain` 0006:** unaffected. Its `**Amended by:**` pointer stands exactly as written.
+- **The honest limit, stated so no one over-reads the fix:** B **skips** when no server is reachable,
+  including stack-free CI. It closes the nothing-renders gap for any run with a stack — the same bargain
+  the H class already makes — and it does **not** make CI catch it. If an always-on guard for
+  "a formatter's result reaches the DOM" is wanted, that is a harness change with its own ADR, and it is
+  not this story's.
