@@ -129,6 +129,27 @@ three answered at the Planning gate, plus the supersession above and the two pro
 Owner calls rather than owner ratifications**, and are flagged as such in the epic so the operator can
 overrule either without disturbing the rest.
 
+## Deviations (Implementer, 2026-07-27)
+
+Judgment calls too small for an ADR amendment, recorded so the book-close audit can harvest them.
+
+- **`promptDisplay`'s truncation switch is total, not two-valued.** ADR 0003 d4 names `max = 0` (or
+  `Infinity`) as "no truncation". Implemented as: any `max` that is not a **finite positive number**
+  disables truncation. `0` and `Infinity` behave exactly as d4 says; the generalization exists only so
+  the function is total, because U13 drives every formatter with eleven value shapes and AC2 requires
+  the screen to render "without error" whatever it is handed. No caller passes anything else — the goal
+  detail passes `0`, the two list screens pass nothing.
+- **When truncation is off, the prompt returned is the *raw* stored string, not the collapsed one.**
+  d4 says the detail screen renders the verbatim prompt with its line structure preserved, so the
+  whitespace collapse is applied only on the excerpt path. The collapsed copy is still computed first,
+  because it is what decides `empty` vs `text` for a whitespace-only prompt.
+- **The estimate and the two flags share one element per d5, and that element must stay digit-free.**
+  On the Goals row and the Proposals card the three render as a single text node in one `span`/`p`
+  (ADR d5's `·`-separated line). The browser test `B6` scopes its "no digit in the estimate's position"
+  assertion to the **innermost element carrying the estimate label** — so adding a date, a count or any
+  other number to that same element would break AC4's Proposals-card boundary. Recorded because d5 does
+  not say it and a later editor would not guess it.
+
 ## Linked artifacts
 
 - ADR: `engineering-team/decisions/goal-intent-fields/0003-screen-side-intent-display-and-the-narrow-d13-supersession.md`
