@@ -45,11 +45,12 @@ record. Five, and no others.
 | the proposal queue (a proposal names the goal it nominates) | drops all four |
 | the Direction transcription for a goal | reads the estimate off the raw record as a workaround; drops the other three |
 
-**Three parser call-sites are deliberately *not* on this list**, named so a gate re-running the query
+**Four parser call-sites are deliberately *not* on this list**, named so a gate re-running the query
 can account for every hit it will find: the decomposition validator and the restore planner are
 write-side internals, not surfaces anyone reads a goal from (and both belong to story 1's territory);
-and **the export calls the parser only as a validity filter** — it returns the raw stored section, so
-it belongs to the verbatim class below.
+**the export calls the parser only as a validity filter** — it returns the raw stored section, so it
+belongs to the verbatim class below; and **the hygiene check** emits check results rather than goal
+fields, so it shows no goal to anyone. None of the four is a scope gap.
 
 ### Verbatim surfaces — no work, characterized rather than enumerated
 
