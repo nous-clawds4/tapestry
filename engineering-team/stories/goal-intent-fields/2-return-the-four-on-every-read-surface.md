@@ -28,24 +28,49 @@ estimated"*; each flag is a boolean where *"absent means false."*
 
 ## Extent of this story — bounded at the Planning gate
 
-**In scope: the surfaces that show a goal**, inventoried 2026-07-26 against the running stack:
+A surface that shows a goal either **projects** it — builds a response shape from a parsed record —
+or returns the **stored record as stored**. The two classes carry different work and different
+claims, the same asymmetry story 1 established for write paths.
 
-| Surface | State today |
+### Projecting reads — the work, exhaustively derived
+
+Derived from a query a gate can re-run: every place that builds a goal response from a parsed goal
+record. Five, and no others.
+
+| Projecting surface | State today |
 |---|---|
 | the goals list | drops all four |
 | a single goal's detail | drops all four |
 | the session orientation read | drops all four |
 | the proposal queue (a proposal names the goal it nominates) | drops all four |
 | the Direction transcription for a goal | reads the estimate off the raw record as a workaround; drops the other three |
-| the export | **already returns all four** — it returns each goal's stored record verbatim. No work; must not regress. |
+
+**Three parser call-sites are deliberately *not* on this list**, named so a gate re-running the query
+can account for every hit it will find: the decomposition validator and the restore planner are
+write-side internals, not surfaces anyone reads a goal from (and both belong to story 1's territory);
+and **the export calls the parser only as a validity filter** — it returns the raw stored section, so
+it belongs to the verbatim class below.
+
+### Verbatim surfaces — no work, characterized rather than enumerated
+
+Any surface that returns a goal's **stored record as stored**. These carry whatever the record holds,
+so **none of them can drop the four and none needs work** — they must simply not start projecting.
+Known members: the export; the concept-graph node read (full node content, including the stored
+record); the generic element screen's record view. This list is **not** claimed exhaustive, and does
+not need to be: membership follows from the property, not from appearing here. A verbatim surface
+missing from it is a record-keeping gap, not a scope gap — and unlike the projecting class, finding
+one does not return this story.
 
 **Subsystem: the server-side goal read surfaces only.** The owner's screens are
 `goal-intent-fields` #3.
 
-**"Every surface that shows a goal" stays universal at the book level.** This table is not a
-narrowing of the frame — it is this story's bounded extent, so the gate can confirm one subsystem.
-**If Architecture finds a surface that shows a goal and is not in this table, that is a kickback to
-Planning** to have the extent re-bounded, not something to absorb quietly.
+**"Every surface that shows a goal" stays universal at the book level.** Splitting the surfaces into
+two classes is not a narrowing of the frame: both classes return all four when a goal has them. The
+split says where the *work* is, so the gate can confirm one subsystem.
+
+**The kickback clause applies to the projecting class.** If a later phase finds a further surface
+that *projects* a goal, that is work, and it returns to Planning rather than being absorbed. A
+further *verbatim* surface is a record-keeping addition to the list above.
 
 ## User-facing description
 
@@ -56,15 +81,19 @@ about a goal is actually there when I or a session goes looking.
 ## Acceptance criteria
 
 - [ ] **All four, on each surface.** Given a goal with all four stored, when it is read on each
-      surface in the table above, then that surface returns all four, with the stored values.
+      projecting surface above, then that surface returns all four with the stored values; and when
+      it is read on a verbatim surface, all four still come back as stored, unchanged by this story.
 - [ ] **The prompt comes back whole.** Given a prompt of several lines of markdown, when the goal is
       read on each surface — **including the list-type surfaces** — then the prompt is byte-identical
       to what was stored: not truncated, not reflowed, not re-escaped, and not replaced by a
       presence indicator.
-- [ ] **A goal with none of them stored reads as the declared defaults.** Given a goal that has
-      never had any of the four set (most goals today), when it is read on each surface, then the
-      surface returns the goal without error and returns the estimate as `0` and both flags as
-      `false`. No surface omits the goal or fails because the values are absent.
+- [ ] **Nothing is invented for a property that was never set.** Given a goal that has never had any
+      of the four set (most goals today), when it is read on **any** surface, then the surface
+      returns the goal without error and without omitting it, and reports each of the four as *not
+      set* rather than substituting a value — no surface returns `0` for an estimate, `false` for a
+      flag, or an empty prompt that the owner never supplied. Where a surface already has a shipped
+      way of reporting "not set", that behavior is preserved exactly: the Direction transcription
+      still records an absent estimate as absent, and the export still omits the key entirely.
 - [ ] **Nothing acts on them.** Given goals whose stored estimates and flags differ, when these
       surfaces are read, then which goals they return, and in what order, is identical to before
       this story. No ranking, filtering, gating, or selection keys off the four, and no rule decides
@@ -77,6 +106,10 @@ about a goal is actually there when I or a session goes looking.
 
 ## Out of scope
 
+- **Materializing the concept's declared defaults.** *"The default is 0, if not otherwise estimated"*
+  and *"absent means false"* tell a **consumer how to interpret absence**; they do not oblige a read
+  surface to fabricate a value. Inventing one would also be *acting on* the estimate, which the
+  ceiling forbids. The interpretation point is where a goal is displayed — `goal-intent-fields` #3.
 - **Accepting the four at write time** — `goal-intent-fields` #1.
 - **Showing the four on the owner's screens** — `goal-intent-fields` #3.
 - **Shrinking any payload for size.** The full prompt travels on list-type surfaces. If that later

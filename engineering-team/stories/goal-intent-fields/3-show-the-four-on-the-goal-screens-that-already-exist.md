@@ -49,7 +49,10 @@ through an export.
 - [ ] **A goal with none of them stored still renders.** Given a goal that has never had any of the
       four set, when the owner views each screen above, then the screen renders without error, the
       goal is still listed or shown, and the four appear at their declared defaults — the estimate
-      `0`, both flags `false`.
+      `0`, both flags `false`. **The screen is the interpretation point**: it applies the concept's
+      own *"default is 0, if not otherwise estimated"* and *"absent means false"* to a property the
+      read surface reported as not set. It is not handed fabricated values — `goal-intent-fields` #2
+      forbids any surface from inventing one.
 - [ ] **No new screen.** Given the change is complete, when the control panel is navigated, then no
       new screen and no new route exists — every change lands on one of the three screens above.
 - [ ] **Nothing acts on them.** Given goals whose stored estimates and flags differ, when the owner
