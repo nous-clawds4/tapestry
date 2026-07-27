@@ -43,9 +43,12 @@ which *are* already carried end to end. That existing plumbing is the shape this
    never-set property is reported as not set, never invented (decision 6). Server read surfaces.
    **Approved** 2026-07-26; **returned by Gate 1 twice** — AC3 collided with two shipped "not set"
    contracts, then this epic still carried the superseded defaults rule → returns to Gate 1.
-3. **show-the-four-on-the-goal-screens-that-already-exist** — the show half: all four visible on the
-   Goals screen, the Goal detail screen, and the Proposals screen. No new screen. Control-panel
-   client. **Approved** 2026-07-26.
+3. **show-the-four-on-the-goal-screens-that-already-exist** — the show half, in two classes: the
+   three **projecting** screens that build a display from the goal reads (Goals, Goal detail,
+   Proposals), plus the **record-rendering** screens that show a goal's stored record as stored and
+   already display the four. No new screen. Control-panel client. **Approved** 2026-07-26;
+   **returned by Gate 1** 2026-07-27 — the prompt has no declared default, the extent omitted the
+   record-rendering class, and the ADR 0006 supersession was recorded nowhere → returns to Gate 1.
 
 **Why three, not one.** Gate 1 kicked back a single combined story: its extent was unbounded by
 construction (it deferred enumerating the read surfaces to Architecture), so no one could confirm
@@ -60,8 +63,16 @@ listed, it returns to Planning to re-bound the extent rather than absorbing it s
 happened four times across two stories** — story 1: Architecture returned it, then Gate 1 found a
 counterexample in the route list; story 2: Gate 1 found AC3 collided with two shipped "not set"
 contracts, then found this epic still carrying the superseded rule the story had already dropped.
-Each was the clause working, at the cost of a round trip — and the last of them is the reminder that
-**a ratified answer has to land everywhere it is recorded, not only in the story that prompted it.**
+story 3: Gate 1 found the prompt has no declared default, an omitted screen class, and a ratified
+supersession recorded in no artifact. Each was the clause working, at the cost of a round trip.
+
+**The recurring one, now three times over:** *a ratified answer has to land everywhere it is
+recorded, not only in the story that prompted it.* Twice it was a superseded rule left standing in
+this epic; the third time an owner ratification lived only in the Director's journal, which no role
+reads — so an Architect would have reached Gate 2 mandated into a collision with a live Accepted ADR
+and no recorded authority to resolve it. **The practice that prevents it:** a ratified answer is
+recorded in this epic's decision list *at the moment of ratification*, with its provenance — not when
+the next story happens to need it. Journaling is not recording.
 
 **The lesson, recorded because it will recur — and it already has, on both halves.** Every miss had
 the same shape: a path or surface that needs *no work* because it passes through whatever it is
@@ -160,6 +171,32 @@ what caught both of these.
    `estimateSource: hasEstimate ? 'goal' : 'absent'`, pinned by U25. Binding the defaults to
    "projecting surfaces" would have relocated the contradiction instead of removing it, which is why
    decision 6 binds no class: it binds every layer.
+
+## Ratified on return from Gate 1 (2026-07-27) — story 3
+
+8. **May the estimate appear on the Proposals screen, given `second-brain` ADR 0006 d13/AC6?** →
+   **Yes, under a narrow, explicit supersession.** ADR 0006 is live and **Accepted**, and d13/AC6
+   forbids "no numeric score, percentage, gauge, or ranking number" in any owner-facing proposal
+   string or rendered card content. The owner has ratified a supersession **scoped to owner-authored
+   values only**: the prohibition targets *system-generated* scores that would make proposals look
+   ranked, and `chanceOfSuccess` is the owner's own estimate — a materially different thing. **The
+   system-generated-ranking prohibition remains fully intact**, and story 3's AC4 is where that
+   boundary is tested. **Story 3's ADR carries the supersession explicitly.**
+   *Provenance:* raised through the **Director**, **ratified by the operator** 2026-07-27.
+9. **Two Product Owner calls on showing the prompt — flagged as PO calls, not owner ratifications**,
+   so either can be overruled without disturbing anything else:
+   **(a) The never-set prompt.** The concept declares a default for only three of the four —
+   `needsHumanInput` and `needsBreakdown` carry `default: false`, and `chanceOfSuccess`'s description
+   names 0. **`prompt` declares no default at all**, so "show the declared default" is undefined for
+   it. Call: the screen shows the prompt explicitly as *not set*; a literal `null`/`undefined`, or an
+   area indistinguishable from a prompt set to empty, does not satisfy it. This keeps the epic's rule
+   intact — absence is interpreted at the screen, never invented — and extends it to the one property
+   where the concept supplies nothing to interpret with.
+   **(b) The prompt on list-type screens.** Ratified decision 1 (full prompt, no truncation) binds
+   the *read surfaces* of story 2, not the screens of story 3, so "visible" needed deciding. Call:
+   full text on the goal detail screen; an **excerpt of the actual prompt text** on list-type
+   screens; and — consistent with decision 1's reasoning — a bare presence indicator with none of the
+   text does not count as visible on any screen.
 
 ## ADRs
 
