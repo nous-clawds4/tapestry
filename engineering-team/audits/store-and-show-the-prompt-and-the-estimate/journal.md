@@ -513,3 +513,19 @@ What survives: the review's *conclusion* — that the blinding contract holds �
 
 **Counters:** Gate 1 on story #3 — **1** kick-back, 1 of 3. Stories #1 and #2 remain Done.
 **Next:** Route all three to Planning, with the ratification text to record in both the story and the epic.
+
+## 2026-07-27T10:05:14Z — Gate 1 (story #3, round 2): APPROVE — all three stories now gated
+
+**Story/Phase:** `goal-intent-fields` #3 / Gate 1 (round 2)
+**Decision:** APPROVE
+**Judge:** **APPROVE**, blinding intact. All six items pass; **both prior findings resolved on their merits**, verified rather than asserted. It read the concept's JSON Schema **off the running stack** (not just source) to confirm `prompt` genuinely declares no default while the two flags carry `default: false` — the fact AC2's split rests on. And it **re-ran the screen derivation** instead of accepting it: the only client consumers of a goal read are three hooks feeding exactly Goals, GoalDetail and Proposals; the one other `/api/brain/*` client call renders nothing. Three, no others.
+**Why:** I concur. Planning did not merely fix what I listed — it verified all three findings against source *before* applying them, split AC2 into the two distinct problems it actually was, and fixed the extent **by class** rather than by adding a fourth row.
+
+**The rework's most valuable output is a mechanism, not a fix.** My failure to record the ratification was the *third* instance of one pattern, and the epic already carried the lesson as prose. It now carries a practice: *"a ratified answer is recorded in this epic's decision list **at the moment of ratification**, with its provenance — not when the next story happens to need it. **Journaling is not recording.**"* A line saying "don't do that" did not stop the third occurrence; a rule about *when* recording happens might.
+
+**Two Planning judgment calls, flagged by the role as PO calls rather than owner ratifications so either can be overruled alone — I accept both.** The never-set prompt must render as visibly *not set*, with a literal `null` **or** an area indistinguishable from a set-but-empty prompt **failing** the criterion. And the prompt appears on list screens as an **excerpt of the actual text**, with a bare "has prompt" badge satisfying neither — preserving decision 1's substance (a presence indicator is not the value) without mandating a wall of markdown in a list row. The data still arrives in full; story #2 guarantees that.
+
+**Three non-blocking notes carried to Architecture. The first is sharp and I am giving it weight.** (1) **AC2 requires the interpreted default `0` on the Proposals card for a never-set estimate — and that displayed value is not literally "owner-authored," which is the exact scope the supersession was ratified in.** A screen-applied default may therefore fall *outside* the supersession and still violate d13. Gate 2 checks ADR-vs-ADR contradictions explicitly, so the ADR must resolve this in as many words. (2) The record-rendering class's blanket claim is not true of the generic concept-element list, which shows an 80-character truncated preview — not projecting, class pre-declared non-exhaustive, so no clause fires. (3) *"list-type screens"* is never defined, leaving the Test Designer to infer whether the Proposals card counts.
+
+**Counters:** Gate 1 on story #3 — KICK_BACK, **APPROVE**. Consecutive reset to 0. **All three stories gated; #1 and #2 Done.**
+**Next:** Architecture on story #3 — the last ADR before the deploy chain.
