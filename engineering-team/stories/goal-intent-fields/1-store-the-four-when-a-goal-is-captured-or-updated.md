@@ -1,6 +1,6 @@
 # Story 1: Store the four when a goal is captured or updated
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-07-26
 **Re-bounded:** 2026-07-26 (twice) — first from Architecture via this story's kickback clause, then
 from Gate 1, which found a counterexample to the extent table by reading the route list. The table
@@ -181,4 +181,4 @@ answered on return. All are recorded in the epic.
 - ADR: `engineering-team/decisions/goal-intent-fields/0001-shared-intent-field-picker-and-provisioned-schema.md`
 - Test plan: `engineering-team/stories/goal-intent-fields/1-store-the-four-when-a-goal-is-captured-or-updated.test-plan.md`
   (tests: `test/store-the-four-when-a-goal-is-captured-or-updated.test.js`)
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/goal-intent-fields/1-store-the-four-when-a-goal-is-captured-or-updated.md` (PASS, 2026-07-26)
