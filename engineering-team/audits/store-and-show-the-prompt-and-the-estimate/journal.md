@@ -325,3 +325,27 @@ I offered four concrete levers — judges on a faster model, judges reading my c
 
 **Ledger items accumulating that are outside my lane to file** (evidence is in this journal for whoever writes them): (1) the global-counter bracket unsoundness, quantified; (2) the zsh/`PIPESTATUS` hole in #103's own mitigation; (3) ADR `Status: Proposed` never flips to `Accepted` because no workflow step assigns it.
 **Next:** Story #2 — `2-return-the-four-on-every-read-surface`. It is drafted but **not gated**; being written early grandfathers nothing. Gate 1 on it as it stands.
+
+## 2026-07-27T01:40:20Z — Gate 1 (story #2): KICK_BACK — AC3 contradicts a shipped production contract
+
+**Story/Phase:** `goal-intent-fields` #2 / Gate 1
+**Decision:** KICK_BACK
+**Judge:** **KICK_BACK**, blinding intact. Five items pass — well-bounded, no solutioning, correctly anchored, and its "state today" column verified accurate **against the current branch** (which matters, because story #1's code shipped underneath it since drafting). One item fails: **AC3 is not testable as written.**
+**Why:** Binding, and this is the sharpest finding of the run. AC3 requires every surface in the story's own table to return the estimate as `0` and both flags as `false` for a never-set goal — while **the same table's export row** says the export returns the stored record *verbatim* and "must not regress." Two opposite outputs demanded from one surface; a tester has no determinate expected value.
+
+It is not a wording slip, and I verified the substance myself rather than relaying it:
+
+- **Story #1's shipped ADR deliberately encodes absence as key-absence**, and says why: *"the only representation of 'unset' that survives storage, export and restore."* AC3 erases exactly that distinction on the export/restore path.
+- **It would break a shipped, test-pinned production contract.** `test/operational-direction.test.js` **U25** reads *"an absent estimate is RECORDED AS ABSENT — never invented"*, asserting `estimate === null` and `estimateSource === 'absent'`; `src/lib/brain/direction.js:136-145` implements it. That pin came from the **operational-direction book, which is closed and in production**. AC3 mandates `0` there.
+
+**ANSWER — the declared defaults are interpretation-side; verbatim surfaces must not inject them.** Decided from the frame plus the ceiling plus the shipped contract, jointly:
+1. The frame says *"all four **come back** on every surface."* For a property never set there is nothing to come back — materializing a value is **adding** behavior the frame does not name.
+2. The ceiling says *"nothing acts on the estimate or the flags."* Inventing a default **is** acting on the estimate.
+3. The concept's own words — *"The default is 0, if not otherwise estimated"*, *"Absent means false"* — tell a **consumer how to interpret absence**; they do not oblige storage or transport to materialize it.
+
+**I am recording the alternative reading rather than pretending it does not exist:** "all four come back" could be read as "all four keys are present in every response." I reject it because it would require breaking a production contract from a previously-closed book — which a frame cannot do silently — and because the risk is asymmetric: my reading preserves shipped behavior and adds nothing, and if it is wrong the correction is purely additive later. **Flagged to the operator as overrulable.**
+
+**Secondary finding, same class as story #1's.** Two further verbatim goal-showing read surfaces sit outside the table (`/api/concept-graph/node/:handle`, `/api/concept/:handle/export-set`), and by the story's own clause they would bounce it back from Architecture anyway. The fix is the one the epic **already invented** for story #1's write paths: characterize the verbatim class by its property instead of enumerating it, and enumerate only the projecting class that does work. Story #2 currently enumerates one member of the verbatim class and closes the list.
+
+**Counters:** Gate 1 on story #2 — **1** kick-back, 1 of 3 consecutive. Story #1 remains Done. Book story count 3.
+**Next:** Route to Planning with the two-class answer; Gate 1 round 2 on story #2.
