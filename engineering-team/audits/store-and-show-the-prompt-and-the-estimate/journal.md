@@ -598,3 +598,34 @@ Its response is the most valuable exchange of this run. It owned the claim plain
 
 **Counters:** Gate 3 on story #3 — KICK_BACK, **APPROVE**. Consecutive reset to 0. ADR amendments on #3: 1 of 2. **Gate-3 commit of record: `ccd23e28`.**
 **Next:** Phase 4, Implementation — the last implementation in the book. Gate 4 now requires **both** gates, not `npm test` alone.
+
+## 2026-07-27T19:13:14Z — Gate 4 (story #3): PASS — on the second run, nothing discounted
+
+**Story/Phase:** `goal-intent-fields` #3 / Gate 4 (mechanical)
+**Decision:** APPROVE
+**Judge:** n/a — mechanical, verified personally, across **both** classes
+**Why:** Browser: **8 tests ran, 8 passed**, exit 0 — and I checked *"Running 8 tests"* against *"8 passed"*, because **a spec that runs zero tests also exits 0**. That is the third distinct way a green signal could have lied in this run, after the notification exit codes and the missing-browser reds. Node: first run **RED** on two known-noisy suites; I re-ran rather than discounting, per the commitment made at story #1's Gate 4. Second run: exit 0, `Overall: PASS`, **no failing suite**, all three epic suites green with live classes fully executed. `git diff ccd23e28 -- test/ tests/` = **0 lines**, re-verified at commit time. `src/` untouched, zero pubkey literals, zero package changes.
+
+**Row 75's cost, now measured.** Across **ten** full runs of this branch the `relationship-primitives` pair fired in **4** and was green in **6** — a **~40% spurious-red rate at a gate whose entire value is being mechanical**. The cost is not the 25-minute re-run; it is that a two-in-five false-positive rate trains whoever runs the gate to expect red and shrug, quietly converting a mechanical check back into a judgement call. Recorded for the close; row 75 is the operator's to update, and `OPEN.md` is currently held by a concurrent session besides.
+
+**I committed only my own paths.** A concurrent session's `OPEN.md` row 115 and its `product-team/discoveries/` file were left untouched and uncommitted — **the exact mistake I made in this session's first hour**, not repeated at the last gate.
+
+## 2026-07-27T20:36:26Z — Gate 5 (story #3): APPROVE — all three stories Done
+
+**Story/Phase:** `goal-intent-fields` #3 / Gate 5
+**Decision:** APPROVE
+**Judge:** **APPROVE**, blinding intact. It re-ran **both** gates itself. Its corroboration method is the sharpest of the run: the review's quoted pins matched its own Node log **line-for-line at a uniform +1 offset** — and it identified that offset as *"the fingerprint of a real, honestly transcribed run."* A fabricated citation list would not have a uniform offset. It further established the review's independence from the Implementer by showing the committed Gate-4 log has different line numbers, skip counts and browser timings.
+**Why:** I concur, and verified the item the rubric assigns to me: `git show --name-status 5bd270b8` is exactly `A` review + `M` story, `Approved → Done`, no renames, no Director edit.
+
+**The Reviewer's decisive work was checking premises rather than conclusions:** it re-derived absence semantics **from the module source** instead of from the four tests that claim to kill the falsiness bug; it re-ran the closed book's own S11 regex against the new code rather than trusting that the pins stayed green; and — the check I had not asked for and should have — **it rebuilt the committed `ui/` tree into a scratch dir and `diff -rq`'d it against the served `dist/`**, confirming identical content hashes. Given that *green-and-invisible* was this story's entire risk, that closes the last gap: the browser class measured the committed diff, not a stale artifact.
+
+**A divergence recorded honestly rather than smoothed:** the judge's own run ended `Overall: FAIL` on `most-pinned-tag-index-publish` AC-8 — unreachable from a client-only `ui/` diff, and the exact single test separating its 1311 PASS from the review's 1312. It noted whole-suite cleanliness is **Gate 4's** mechanical item, not a Gate-5 rubric item, so it recorded rather than charged it. That is a judge declining to import another gate's standard, which is as disciplined as enforcing its own.
+
+**Three trivial numeric slips in the review, none touching a check:** "six call sites" while enumerating eight lines (the substantive *no guard on the four* claim is true), a `+17/−2` header where numstat gives `+15/−2`, and a quoted census silently dropping one key.
+
+**Harness friction for the close, outside my lane to file:** `roles/reviewer.md:22` reads *"test: `npm test` (or `npm run test:playwright`)"* — but for a display story the gates are **conjunctive**, and 37/0 on a build that renders nothing was the exact Gate-3 finding. It is the first file every Reviewer reads.
+
+**The Reviewer offered `/close-book`; I answered "not yet."** A real "not yet", not a formality: the deploy chain has not run, the frame's bullets have been verified locally and not on staging, and Stage 2 precedes any completion offer. Saying yes now would ratify a book whose work has never left this machine. **The frame was not extended by that answer.**
+
+**Counters:** Gate 5 on story #3 — **APPROVE** first time. **Stories #1, #2, #3 all Done; every one through five phases and every judged gate.**
+**Next:** Stage 2 — the deploy chain. `/cycle-local`, then `/cycle-staging`. **Staging is the ceiling.**
