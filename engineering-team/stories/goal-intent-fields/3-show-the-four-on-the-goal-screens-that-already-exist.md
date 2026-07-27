@@ -1,6 +1,6 @@
 # Story 3: Show the four on the goal screens that already exist
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-07-26
 **Type:** Feature
 **Epic:** `goal-intent-fields`
@@ -157,4 +157,4 @@ Judgment calls too small for an ADR amendment, recorded so the book-close audit 
   - Node suite (`npm test`): `test/show-the-four-on-the-goal-screens-that-already-exist.test.js`
   - Browser suite (`npm run test:playwright`): `tests/brainstorm/goal-intent-screens.spec.js`
     — **both gates are required; `npm test` alone cannot fail on a screen that renders nothing**
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/goal-intent-fields/3-show-the-four-on-the-goal-screens-that-already-exist.md` (PASS, 2026-07-27)
