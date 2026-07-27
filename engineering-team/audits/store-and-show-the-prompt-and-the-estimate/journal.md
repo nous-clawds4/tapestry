@@ -415,3 +415,17 @@ I added the epic because it holds this epic's ratified decisions and I wanted th
 
 **Not a Director defect, but the same class:** ADR 0002 itself contains *"this epic has already spent two Planning rounds on it"* (`:182`) — an artifact leaking its own run history to any judge required to read it.
 **Next:** Re-spawn Gate 2 fresh, with **only** the protocol's Gate-2 inputs — ADR path, `decisions/` directory, story path, acceptance-frame-only book — no epic, no annotations.
+
+## 2026-07-27T03:00:21Z — Gate 2 (story #2, clean re-spawn): APPROVE
+
+**Story/Phase:** `goal-intent-fields` #2 / Gate 2
+**Decision:** APPROVE
+**Judge:** **APPROVE**, **blinding intact** — fresh judge, minimal prompt, no epic and no annotations. All seven items pass. In its own words it *"audited this by re-deriving rather than reading along,"* re-running the three Concept-Graph calls against the live stack, re-deriving ~30 citations, and independently reproducing the extent claim: six `parseGoalRow` call sites, five projecting consumers, **no sixth** — so the story's kickback clause does not fire.
+**Why:** I concur. Two probes make this verdict worth more than its predecessor's: it verified the places a widened parser *could* have leaked into behavior are inert (`planRestore` compares on name/slug only; `hygiene.js` has no `Object.keys`), and it established that **the only exact-key sentinel over a goal shape in the entire suite** is the one the ADR names as its single re-pin — which is what makes the "expected to pass unmodified" list credible rather than hopeful.
+
+**This verdict replaces the void one and is not a re-judge of it.** Fresh judge, no findings carried, no knowledge of the prior spawn. The earlier APPROVE stays discarded on the record rather than quietly reinstated by a second one agreeing with it.
+
+**Two items to carry to Test Design.** (1) **Corpus drift:** the ADR says 6 of the 8 goals carrying `needsHumanInput` store `false` explicitly; a live read now shows **5 of 8**. Every other corpus count matches exactly. The load-bearing argument — an explicit stored `false` coexists with never-set, so fabricating `false` is lossy — is unaffected, but the Tester should read live rather than quote the ADR. (2) Two citation imprecisions, neither load-bearing: the Direction envelope is anchored on an ADR sub-decision that was itself superseded (the `terms` sub-shape is byte-identical in the corrected block, so the reasoning stands), and one shared-reader attribution names the wrong ADR inside a *rejected* option's con.
+
+**The frame-section-only instruction leaked again, harmlessly and unavoidably.** This judge disclosed that its `grep -A 80` on the book pulled the adjacent generated Direction-mode terms block. Same unenforceable-at-the-tool-layer issue already logged; the block carries goal-derived terms only, no progress or budget state. Third consecutive judge to disclose it, which is itself evidence the instruction needs a structural fix rather than better wording.
+**Next:** Phase 3, Test Design on story #2.
