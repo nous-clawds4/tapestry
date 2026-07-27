@@ -495,3 +495,21 @@ What survives: the review's *conclusion* — that the blinding contract holds �
 **Next:** Gate 1 on story #3. It is drafted and revised but **never gated** — being written early grandfathers nothing.
 
 **On the Gate-1 epic leak, since story #3 is next.** The Gate-1 rubric requires confirming `epics/<epic-slug>.md` carries a `**Status:**` line, while the epic is not on the blinding-safe input list and now holds kick-back counts and prior-verdict summaries. I cannot fix that mid-run — it is goalpost-class. What I *can* do is stop being the channel: the story names its own epic slug, so a judge can derive and check the file without me handing it over annotated. That is what I will do. The residual leak is structural and stays logged as a post-mortem amendment.
+
+## 2026-07-27T09:51:22Z — Gate 1 (story #3): KICK_BACK — and the same Director failure, for the third time
+
+**Story/Phase:** `goal-intent-fields` #3 / Gate 1
+**Decision:** KICK_BACK
+**Judge:** **KICK_BACK**, blinding intact — and it noted the sibling-implemented fact was independently visible in the repo rather than taking it from my prompt. Four items pass; two fail. I verified all three findings personally.
+**Why:** Binding, and one finding is squarely mine.
+
+**Finding 1 — AC2's "declared defaults" has no meaning for one of the four.** The concept declares `default: false` on `needsHumanInput` and `needsBreakdown`, and `chanceOfSuccess`'s description names 0 — but **`prompt` has no declared default at all** (verified at `src/api/normalize/index.js:4882`). So in the never-set case, which is the case AC2 exists to cover, one of the four has no derivable expected result: a screen rendering the literal `null` that story #2's read surface returns satisfies every word of AC2. Relatedly, AC1's "all four are visible" does not pin the prompt on the *list* screen — the no-truncation ratification binds story #2, not #3.
+
+**Finding 2 — the owner's ratified supersession is recorded nowhere, and that is my failure.** The operator ratified it at 02:45Z; I journaled it, and then **routed it into no artifact**. I searched: story, epic, and both goal-intent ADRs. The only hit is ADR 0002 *describing what would be needed* — not a record that authority was granted. Meanwhile story #3 declares **"Open questions: None"** and AC1 mandates the estimate be visible on the Proposals screen unconditionally, while `second-brain` 0006 d13/AC6 is live and forbids exactly that. An Architect reading only these artifacts arrives at Gate 2 mandated into a collision with no recorded authority to resolve it.
+
+**This is the third occurrence of one failure mode of mine, and the epic already records the lesson.** `epics/goal-intent-fields.md:64` says it in the epic's own words: *"a ratified answer has to land everywhere it is recorded, not only in the story that prompted it."* That line exists **because I made this mistake in round 2 of story #2**. I then made it again. Journaling an answer is not recording it — the journal is the Director's log, and no role reads it. The pattern across all three: **I treat my having decided something as equivalent to the artifacts knowing it.**
+
+**Finding 3 — the extent omits a fourth screen.** `ui/src/pages/concepts/ElementDetail.jsx:542-545` renders a goal element's **full stored JSON**, including the four — and **story #2 already names that surface**. Story #3 states one class and claims it complete, so its own kickback clause fires on a screen the epic already knows about. This is the *same* one-class-list failure the epic says has bitten repeatedly; stories #1 and #2 both solved it with a characterized no-work class alongside the closed work-bearing list, and #3 did not adopt it.
+
+**Counters:** Gate 1 on story #3 — **1** kick-back, 1 of 3. Stories #1 and #2 remain Done.
+**Next:** Route all three to Planning, with the ratification text to record in both the story and the epic.
