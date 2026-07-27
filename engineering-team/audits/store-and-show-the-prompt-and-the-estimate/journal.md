@@ -554,3 +554,27 @@ Its response is the most valuable exchange of this run. It owned the claim plain
 
 **One non-blocking nit:** the ADR says a grep "returns exactly four hits" where the raw grep returns seven lines (three are doc-comments). The four fetch call sites and the three-screen conclusion are correct.
 **Next:** Phase 3, Test Design on story #3 — the last test plan.
+
+## 2026-07-27T12:54:53Z — Gate 3 (story #3): KICK_BACK — the suite goes green on a feature the owner cannot see
+
+**Story/Phase:** `goal-intent-fields` #3 / Gate 3
+**Decision:** KICK_BACK
+**Judge:** **KICK_BACK**, blinding intact. Four items pass; two fail. **This is the sharpest finding of the run**, and the judge did not argue it — it *built* it.
+**Why:** Binding. I verified every load-bearing claim myself.
+
+**The finding: the committed suite reports 36 passed / 0 failed on an implementation that displays nothing.** The judge wrote the ADR-faithful formatter, imported it into all three screens, named all four properties, and called every formatter — **while rendering none of the results** (each computed value declared once, never referenced). Full green. *"The owner would see exactly what they see today: nothing."* AC1's *"all four visible"* and AC2's *"still shows the goal"* **cannot fail**, because the S-class asserts that tokens appear in the file, not that any value reaches a screen. The plan's own composition argument — *"(the formatter produces the right text — U) × (the screen puts the goal's value through that formatter **and renders it** — S)"* — is not what the S-class actually checks.
+
+**The stated reason for stopping short is factually false, and I confirmed each part.** The plan and **ADR 0003** both claim this project has no browser harness for the control panel and that Playwright targets only a deployed instance. But `playwright.config.js:32` defaults `baseURL` to **`http://localhost:7778` — the control panel itself**; `package.json` carries `test:playwright`; and this harness has its **own Gate-3 precedent**: `engineering-team/stories/tapestries/3-create-tapestry.test-plan.md` with `tests/brainstorm/tapestry-create.spec.js`, a network-mocked browser round-trip against a React control-panel page, written RED for a story. 21 API-mocking lines. **The level the rubric assigns to UI flows was available with no new tooling**, and mocking also sidesteps the host-side 403 the plan cites as an obstacle.
+
+**A third finding:** AC1's record-rendering clause is mapped to two tests covering different surfaces and is in fact untested — the suite has **zero** references to the story's named record-rendering member.
+
+**Both directed claims I asked it to test rather than accept:** Claim 1 (adversarial verification) **reproduced true** — it rebuilt both probes; the falsiness design dies four ways, the ADR design passes the whole unit class. Claim 2 (the non-discriminable flag) **half true, and the correction matters**: S4 keys on the four *property names*, so a probe using `v ? "yes" : "no"` **passes S4**. No acceptance criterion is left exposed, because `v ?` and `v === true ?` render identically across all four inputs — but the plan's *"S4 is the only pin for that case"* overstates what S4 reaches.
+
+**Why this one matters beyond the fix.** Every other kick-back in this run caught an artifact that was wrong. This one caught a suite that was *right about everything it measured* and did not measure the thing the story exists for. A green suite is the strongest signal this harness produces, and here it would have been earned by an implementation displaying nothing — through Gate 4's mechanical check, through Review, to staging.
+
+**Routing: this needs the Architect before the Tester.** ADR 0003 carries the same false premise and explicitly declines a browser harness as *"tooling requiring its own ADR."* The Tester cannot add Playwright coverage without contradicting a ratified ADR, so the ADR is amended first. **That will be ADR amendment #1 on this story after its Gate-2 APPROVE; stopping rule 3 halts at more than 2.**
+
+**Counters:** Gate 3 on story #3 — **1** kick-back, 1 of 3.
+
+**One observation the judge flagged as not-a-story-3-defect:** its run also failed `most-pinned-tag-index-publish` (3 passed, 4 failed), PASS in the Tester's log, with a different skip count (29 vs 51) — a tag-pin publish suite touching nothing this story touches. **Environmental divergence between runs; I will watch for it at Gate 4** rather than assume it away.
+**Next:** Architect amends ADR 0003's tooling premise; then Tester adds the missing coverage; then Gate 3 round 2.
