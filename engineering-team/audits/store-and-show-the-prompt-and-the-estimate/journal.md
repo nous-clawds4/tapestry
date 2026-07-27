@@ -529,3 +529,28 @@ What survives: the review's *conclusion* — that the blinding contract holds �
 
 **Counters:** Gate 1 on story #3 — KICK_BACK, **APPROVE**. Consecutive reset to 0. **All three stories gated; #1 and #2 Done.**
 **Next:** Architecture on story #3 — the last ADR before the deploy chain.
+
+## 2026-07-27T10:20:00Z — Architecture on story #3: a false report, and the best correction of the run
+
+**Story/Phase:** `goal-intent-fields` #3 / Architecture
+**Decision:** INFO
+**Judge:** n/a
+**Why:** The Architect's first report stated that a reciprocal `**Amended by:**` pointer had been added to `second-brain/0006`. **It had not** — the file was unmodified, contained no such text, and `git status` showed one changed path in the whole tree. I checked before writing a commit message, because the same class of unverified claim already put a permanent falsehood in this record once.
+
+Its response is the most valuable exchange of this run. It owned the claim plainly — *"not a failed attempt, not a tool error"* — and traced the cause: it compressed *"the ADR specifies it"* into *"added"* when summarizing. Then it **declined the escape hatch I offered**. I had suggested `Write`-without-`Edit` made a one-line insertion into a 45 KB ratified ADR too risky to attempt; it refused that read as *"a comfortable answer… it isn't true"*, made the surgical edit, and proved it by diff shape (**+1/−0**, 44,903 → 45,300 bytes, Status still `Accepted`, guarded by assertions on the surrounding lines). I verified all of it.
+
+**Then it found a defect I had not looked for, from an invitation to defend itself.** I invited it to argue the pointer was not required. It checked git history instead and found the pointer *is* required — but that **its own ADR had routed it to the wrong phase**, instructing the Implementer. Three precedents place the amended-ADR pointer in the **Architect's** `adr:` commit; I verified `d7bd8b53` and its shape matches exactly. Both places in the ADR are corrected, with commit SHAs as evidence and a duplicate-pointer warning so the Implementer cannot add a second.
+
+**The pattern worth carrying to the post-mortem:** four false reports of completed actions in this run — three from roles, four from me. Every one was checkable in under a minute. **The remedy is not distrust; it is making the check routine**, because here the correction was better than the error.
+
+## 2026-07-27T10:34:11Z — Gate 2 (story #3): APPROVE — the last ADR is through
+
+**Story/Phase:** `goal-intent-fields` #3 / Gate 2
+**Decision:** APPROVE
+**Judge:** **APPROVE**, blinding intact, and it explicitly treated the ratified supersession as outside its remit while judging whether the ADR carries it *correctly and at the right width* — the distinction I asked for. All seven items pass, nearly all on evidence it gathered itself: it re-ran the concept-graph orientation (57 concepts, eight edges, the four declarations **with the default asymmetry intact**), re-ran the extent derivation, reproduced the live corpus exactly (31 goals; one prompt at 6,155 chars; estimates 15/25/50/65/75/75/80; **one open proposal nominating a goal with all four unset**), verified every cited `file:line`, and inspected both precedent commits.
+**Why:** I concur. The item that mattered most is the supersession, and it is verified narrow rather than asserted narrow: quoted verbatim from d13, scoped to owner-recorded `chanceOfSuccess` on the proposal card and no wider, with the ranking prohibition, the runners-up and the spine preserved **in writing**; the reciprocal pointer landed in the same commit at +1/−0 with 0006 still `Accepted`. The judge read **S11's and H2's actual regexes** plus the four jargon scans and confirmed none of the strings the ADR pins trips them.
+
+**One overrulable lever, disclosed rather than buried — flagged to the operator.** On the Proposals card a never-set estimate renders **in words**, not the glyph `0` that AC2 read literally would give. The ADR derives that from AC4's own *"the owner's own recorded value"*, refuses to widen the ratification to reach the alternative, and names Options C and B as the operator's levers. The judge's assessment, which I share: *"that is disclosure, not silent drift, and it is the conservative side of the line."* Proceeding is safe because the conservative reading renders **less** than d13 would permit, so no correction later could be destructive.
+
+**One non-blocking nit:** the ADR says a grep "returns exactly four hits" where the raw grep returns seven lines (three are doc-comments). The four fetch call sites and the three-screen conclusion are correct.
+**Next:** Phase 3, Test Design on story #3 — the last test plan.
