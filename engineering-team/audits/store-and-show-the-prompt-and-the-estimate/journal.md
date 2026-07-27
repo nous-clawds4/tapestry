@@ -375,3 +375,17 @@ Its fix is better than my instruction: the two classes bind to **where the work 
 
 **Counters:** Gate 1 on story #2 — **2 consecutive KICK_BACKs. Stopping rule 2 halts the run at 3.** I am stating that before the next attempt, not after it. The fix here is a few lines in one file, so I expect it to clear; if it does not, the run halts and the operator looks at it, which is the rule working rather than failing.
 **Next:** Planning updates the epic — retract or re-allocate the defaults sentence, record story #2's return, and widen the accounting sentence to the fourth call-site. Then Gate 1 round 3.
+
+## 2026-07-27T02:07:47Z — Gate 1 (story #2, round 3): APPROVE — no halt
+
+**Story/Phase:** `goal-intent-fields` #2 / Gate 1 (round 3)
+**Decision:** APPROVE
+**Judge:** **APPROVE**, blinding intact. All six items pass. It **re-derived the projecting-class inventory from source** rather than accepting the story's word and got exactly the story's five handlers, confirming every other `parseGoalRow` hit is write-side, hygiene, or the verbatim export. Both prior findings **resolved at root**: the epic now supersedes the rejected defaults rule in place and records decisions 6 and 7 in its stead, and grep confirms the only surviving "once each" sits inside the sentence retracting it. It checked story #3's AC2 as the mirror image and confirmed no governing document now demands opposite outputs for a never-set property.
+**Why:** I concur. What earns it is that the fix was made **at the root rather than at the symptom** — the contradiction was removed from the artifact that *governs*, not patched in the artifact that was *judged*. Had Planning only edited story #2, the same defect would have relocated a third time.
+
+**Three non-blocking observations, carried to Architecture rather than dropped:** (1) the story labels one normalize parser site "the decomposition validator" where it actually serves seven write functions — all write-side, none returning any of the four, so the accounting still balances; (2) AC1/AC3's verbatim clause names one client-side member while the subsystem line confines the story to server reads — testable via the export and the concept-graph node read, so not a defect; (3) generic graph-traversal reads return only a goal element's name and labels, so they fall outside the projecting/verbatim dichotomy while carrying no goal fields at all.
+
+**Counters:** Gate 1 on story #2 — KICK_BACK, KICK_BACK, **APPROVE**. Consecutive counter **reset to 0**; the run did not reach stopping rule 2. Story #1 Done, story #2 through Gate 1, story #3 revised and not yet gated.
+
+**Worth stating plainly at this point in the run: four Planning returns across two stories, and three trace to me** — the unbounded "every surface" answer, the projecting-surfaces rule that would have broken U25 one surface over, and routing a correction to the stories without saying "and the epic." The gates caught all three. The honest reading is not that the roles have been sloppy; it is that **the Director's answers have been the expensive part of this run**, and the blinded gates are what kept each of my errors from reaching code.
+**Next:** Phase 2, Architecture on story #2.
