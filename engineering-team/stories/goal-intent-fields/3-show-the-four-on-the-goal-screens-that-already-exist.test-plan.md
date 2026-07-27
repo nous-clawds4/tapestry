@@ -3,8 +3,18 @@
 **Story:** `engineering-team/stories/goal-intent-fields/3-show-the-four-on-the-goal-screens-that-already-exist.md`
 **ADR:** `engineering-team/decisions/goal-intent-fields/0003-screen-side-intent-display-and-the-narrow-d13-supersession.md`
 **Book:** `engineering-team/audits/store-and-show-the-prompt-and-the-estimate/book.md`
-**Date:** 2026-07-27
-**Suite:** `test/show-the-four-on-the-goal-screens-that-already-exist.test.js` — 36 tests, registered in `test/test.js`
+**Date:** 2026-07-27 (round 2 — after the Gate-3 kick-back; ADR **Amendment 1** applied)
+**Suites:**
+- `test/show-the-four-on-the-goal-screens-that-already-exist.test.js` — 37 tests (U/S/H/R), registered in `test/test.js`, run by `npm test`
+- `tests/brainstorm/goal-intent-screens.spec.js` — 8 tests (**B**, browser), run by `npm run test:playwright`
+
+> ### ⚠️ `npm test` alone cannot pass this story
+>
+> The Node gate does **not** run Playwright. Gate 3 proved that a build which imports the formatter,
+> names all four properties and calls every function **while rendering nothing** takes the Node suite
+> to **37 passed, 0 failed** — I reproduced that exact number below. The owner sees nothing.
+> **The Implementer and the Reviewer must run `npm run test:playwright` as well.** The B class is the
+> only layer that can fail when nothing renders.
 
 ---
 
@@ -31,53 +41,68 @@ falsiness and I ran a falsiness implementation to prove it** (see *Adversarial v
 - **S4** — the structural pin: no `!`, `?`, `||`, `&&`, `if (x)` or `Boolean()` guard on any of the
   four, anywhere in the module or the three screens.
 
-**One case is deliberately *not* discriminable, and the plan says so out loud.** AC2 makes a never-set
-flag display the declared default `false`, and a stored `false` also displays `false` — so on screen
-they legitimately look identical. No unit assertion can catch falsiness on a flag. **S4 is the only
-pin for that case**, which is why it is structural rather than behavioural. A reviewer should treat
-S4 as load-bearing, not as belt-and-braces.
+**One case is deliberately *not* discriminable.** AC2 makes a never-set flag display the declared
+default `false`, and a stored `false` also displays `false` — so on screen they legitimately look
+identical. No unit assertion can catch falsiness on a flag.
+
+> **Correction (round 1 said more than was true).** Round 1 claimed *"S4 is the only pin for that
+> case."* The Gate-3 judge showed why that overstates it: **S4 keys on the four property names**, so
+> it catches `!goal.needsHumanInput` at a *call site* — but a module written
+> `flagWord(v) { return v ? 'yes' : 'no'; }` names none of the four and **passes S4**.
+> **No acceptance criterion is left exposed**, because for the only inputs the read surface can
+> deliver — `true`, `false`, `null`, `undefined` — `v ?` and `v === true ?` render identically, so AC1
+> and AC2 hold either way. The residue is a *malformed* stored flag (a truthy non-boolean such as
+> `'yes'`), which no acceptance criterion rules on and which this suite therefore does not pin.
+> Recorded so no one reads S4 as more than it is.
 
 ---
 
 ## Coverage map
 
-Every acceptance criterion maps to more than one test. `U` = pure unit (stack-free, gates CI),
-`S` = structure-bounded source assertion (stack-free), `H` = live local stack (read-only, skips when
-absent), `R` = regression sentinel (passes before *and* after).
+Every acceptance criterion maps to more than one test, and **every "visible" criterion now maps to a
+B-class test** — the only level at which "visible" is decidable.
+
+`U` = pure unit (stack-free, gates CI) · `S` = structure-bounded source assertion (stack-free) ·
+**`B` = browser, `tests/brainstorm/goal-intent-screens.spec.js` (ADR Amendment 1)** ·
+`H` = live local stack (read-only) · `R` = regression sentinel (passes before *and* after).
+
+**The decisive column is B.** U proves the formatter computes the right text; S proves the screen
+imports it and calls it; only **B proves the result reaches the owner's eyes.**
 
 | Criterion | Test | Level |
 |---|---|---|
-| **AC1** all four visible; estimate + flags as values | `U1` the three screens share one formatter that knows how to show each of the four | unit |
-| AC1 | `U2` an estimate the owner recorded is shown as the number they recorded | unit |
-| AC1 | `U6` a flag set to true reads differently from one set to false | unit |
-| AC1 | `S2` all three goal screens draw their wording from the one shared formatter | source |
-| AC1 | `S3` all three goal screens render all four — estimate, both flags, prompt as text | source |
-| **AC1** prompt **as its own text**, excerpt on list-type screens | `U9` a long multi-line prompt becomes an excerpt of the prompt's **own opening**, on one line | unit |
-| AC1 | `U10` a prompt that already fits is shown whole, with no truncation mark | unit |
-| **AC1** prompt **in full** on the goal detail | `U11` with truncation off the prompt comes through byte-identical, every line preserved | unit |
-| AC1 (no bare presence indicator) | `S3` (`promptDisplay(` required) + `S4` (a `{g.prompt && <badge/>}` guard is a falsiness guard and fails) | source |
-| AC1 (malformed stored value) | `U12` a malformed stored estimate is shown as stored — the screen adds no type rule | unit |
-| AC1 (record-rendering class unchanged) | `S9` the four never enter `RecordEntry`; `S10` the three hooks name none of the four | source |
-| **AC2** never-set estimate shows the declared `0` (Goals list, Goal detail) | `U3` an estimate nobody set is shown at the declared default of 0 | unit |
+| **AC1** all four **visible** on the Goals list | **`B1`** the row carries the estimate's number, both flag words, and the prompt's own opening characters | **browser** |
+| **AC1** all four **visible** on the Goal detail | **`B3`** the same three, on the detail page | **browser** |
+| **AC1** all four **visible** on the Proposals card | **`B5`** the card carries the estimate's number, both flag words, and the prompt excerpt | **browser** |
+| **AC1** prompt **in full** on the goal detail | **`B3`** a marker taken from **beyond `PROMPT_EXCERPT_MAX`**, ~2 000 chars into the prompt, is on screen — *the only instrument that separates "in full" from "an excerpt"* | **browser** |
+| **AC1** no **bare presence indicator** | **`B1`/`B5`** the rendered text contains the prompt's own opening; a badge would not | **browser** |
+| AC1 (the formatter computes it correctly) | `U1` `U2` `U6` `U9` `U10` `U11` `U12` | unit |
+| AC1 (the screen imports and calls it) | `S2` `S3` — *necessary, not sufficient: this is exactly what the Gate-3 probe satisfied* | source |
+| **AC1** record-rendering clause (ADR Amendment 1's ruling) | **`S12`** `ElementDetail.jsx` still stringifies the **whole** parsed record — one file, one sentinel, **regression guard not capability test**, no browser test | source |
+| **AC2** a never-set goal still **renders**, Goals list | **`B2`** the row is present and carries the declared defaults + `PROMPT_UNSET`, and no literal `null` | **browser** |
+| **AC2** a never-set goal still **renders**, Goal detail | **`B4`** the page shows the goal and the declared defaults, and no literal `null` | **browser** |
+| AC2 (the declared default `0`) | `U3` an estimate nobody set is shown at the declared default of 0 | unit |
 | **AC2** never-set estimate on the Proposals card (ADR d2) | **`U4`** a stored 0 is a number and a never-set estimate is words | unit |
 | AC2 (d2's boundary) | **`U5`** the two formatters agree where the owner recorded a value, differ only where nobody did | unit |
 | **AC2** never-set flags show the declared `false` | `U6` a flag nobody set reads exactly as a flag set to false | unit |
 | **AC2** never-set prompt shown explicitly as *not set* | **`U7`** unset / empty / text are three different things | unit |
-| AC2 (never a literal `null`/`undefined`, never a blank area) | `U8` a prompt nobody wrote says so in words | unit |
-| AC2 (renders without error) | `U13` every formatter answers without throwing for every value a record can hold | unit |
-| AC2 (the falsiness prohibition, structural) | **`S4`** no screen and no formatter decides "not set" by falsiness | source |
-| **AC3** no new screen, no new route | `S5` `ui/src/pages/brain/` holds exactly three files; App.jsx route count and Layout.jsx nav count frozen | source |
+| AC2 (never a literal `null`/`undefined`) | `U8` (formatter) + **`B2`/`B4`/`B6`** (rendered — no `\bnull\b` anywhere on screen) | unit + **browser** |
+| AC2 (renders without error) | `U13` + **`B2`/`B4`** the page renders and still shows the goal | unit + **browser** |
+| AC2 (the falsiness prohibition, structural) | **`S4`** no screen and no formatter decides "not set" by falsiness — *see the correction above for what it reaches* | source |
+| **AC3** no new screen, no new route | `S5` `ui/src/pages/brain/` holds exactly three files; App.jsx route count and Layout.jsx nav count frozen. **Deliberately not B's job** — a route that does not exist renders nothing to assert against (Amendment 1) | source |
 | AC3 (no new component / design token) | `S1` the formatter is a plain utility, not a component; `S11` no new `--` custom property | source |
-| **AC4** nothing acts on them; order identical to before | `S6` no sort/filter/reduce/reverse/useMemo region on the three screens names any of the four | source |
+| **AC4** rendered order is the server's order | **`B7`** the list is mocked so the estimates run counter to the sent order; the rendered row order must equal the sent order | **browser** |
+| AC4 (nothing sorts/filters/groups by the four) | `S6` no sort/filter/reduce/reverse/useMemo region names any of the four | source |
 | AC4 (no badge-driven prioritization) | `S7` none of the four drives a colour, a badge or a conditional style | source |
-| **AC4** the estimate on the Proposals card is the owner's own recorded value | **`U4`** (no digit where nothing was recorded) + **`S8`** (`estimateLine` may not appear in `Proposals.jsx`) | unit + source |
+| **AC4** the estimate on the Proposals card is the owner's own recorded value | **`B6`** — **no digit appears in the estimate's position** when the owner recorded nothing. *ADR d2 is a rendering-time branch; a source scan sees both arms and can distinguish neither. This is the single most important assertion in the plan.* Plus `U4` and `S8` | **browser** + unit + source |
 | AC4 (no ordering helper exists at all) | `U14` the shared formatter exposes no rank/order/compare/filter export | unit |
-| **The narrow supersession stays narrow** (ADR d1) | `S8` the words-only formatter is used on the card and nowhere else | source |
-| d1 — d13's reach over `passedOver` is untouched | `S9` the runners-up block names none of the four | source |
+| **The narrow supersession stays narrow** (ADR d1) | `S8` the words-only formatter is used on the card and nowhere else; **`B5`** the owner's recorded number does render there | source + **browser** |
+| d1 — d13's reach over `passedOver` is untouched | `S9` (source) + **`B5`** every rendered runner-up carries **no digit at all** | source + **browser** |
 | d1 — d13's reach over the spine is untouched | `S9` `RecordEntry` names none of the four | source |
 | d1 — the system-generated-ranking prohibition survives | `R1` (source, closed-book pin) + `H5` (live card keys) | source + live |
 | **Attribution** — a blank screen is *this* story's defect, not story 2's | `H2` `H3` `H4` the three reads still carry all four | live |
 | Evidence that the live cases exist at all | `H1` census of the live corpus | live |
+| **The bundle under test is the bundle being served** | **`B0`** the built bundle contains the module's own strings | **browser** |
 | Shipped pins from **closed books** must stay green | `R1` `R2` `R3` `R4` re-asserted against the **new** file contents | source |
 | The gap those pins cannot reach | `R5` the shared module's copy held to the same register | source |
 | Stories 1 and 2 untouched (client-only) | `R6` `pickIntentFields` / `projectIntentFields` contracts, stack-free | unit |
@@ -106,18 +131,49 @@ absent), `R` = regression sentinel (passes before *and* after).
 - [x] **The live proposal queue is empty** — H4/H5 return `SKIP`, never a silent pass (OPEN.md #108).
 - [x] **Concept Graph API / stack unavailable** — every H test skips; the U and S classes still gate.
 
-**Not covered, and why:** rendered pixels. This project has no browser test harness for the control
-panel, and ADR 0003 explicitly declines to ratify one ("adding one is new tooling the house rule
-forbids without its own ADR"). Playwright exists in the repo but targets a deployed instance, not the
-React tree. AC1's *"visible"* is therefore proved as **(the formatter produces the right text — U)
-× (the screen puts the goal's value through that formatter and renders it — S)**. That composition is
-the ADR's own sanctioned level; the residue is a Reviewer eyeball on the three screens, listed below.
+- [x] **The owner is not signed in as owner** — all three pages render a lock panel; the B class mocks
+      `/api/auth/user-classification` → `owner` (Amendment 1 names this so it is not discovered late).
+- [x] **The served bundle is stale** — `B0`, verified in both directions.
+
+> ### Correction: round 1's composition claim was false, and so was the premise under it
+>
+> Round 1 said AC1's *"visible"* was proved by **(the formatter produces the right text — U) × (the
+> screen puts the goal's value through that formatter **and renders it** — S)**. **The second factor
+> does not exist.** `S3` checks that the four property names and the formatter call tokens appear in
+> the file; it cannot see whether the result is rendered. The Gate-3 probe — import, name, call,
+> render nothing — satisfies both factors and leaves the owner with a blank screen.
+>
+> The reason round 1 gave for stopping at S was also false, and I inherited it from the ADR instead
+> of checking it: *"this project has no browser test harness … adding one is new tooling."*
+> Verified in-repo — `playwright.config.js:32` defaults `baseURL` to `http://localhost:7778`, **which
+> is the local control panel**; `@playwright/test` is already a dependency; `tests/brainstorm/` holds
+> 20+ control-panel specs; and `engineering-team/stories/tapestries/3-create-tapestry.test-plan.md:51`
+> already ratified *"Node built-in runner + Playwright. **No new frameworks.**"* at a Gate 3, for a
+> network-mocked round-trip against a React control-panel page written RED. **Nothing is added.**
+>
+> ADR 0003 **Amendment 1** corrects the premise and authorizes the **B class**. The S-class pins stay
+> exactly as ratified and remain the always-on layer; B is additive and is the layer that can fail
+> when nothing renders.
+
+**Still not covered, and why:**
+
+- **Visual layout, colour, typography.** B asserts text reaches the DOM, not that it is legible or
+  well placed. Reviewer eyeball.
+- **The record-rendering screen driven in a browser.** Deliberately none — Amendment 1: driving a
+  screen this story does no work on would test the class's membership *property* rather than the
+  story. `S12` is the whole coverage, and it is a regression guard, not a capability test.
+- **`ConceptElements.jsx`'s 80-character preview.** In neither class; no test, deliberately.
+- **A stack-free CI run.** B needs a server. The honest limit, stated as Amendment 1 states it: this
+  closes the nothing-renders gap for any run with a stack, and does **not** make CI catch it.
 
 ---
 
 ## Test infrastructure
 
-- **Framework:** Node's built-in runner, `npm test` (entry `test/test.js`). No new framework.
+- **Framework:** Node's built-in runner (`npm test`) **and Playwright** (`npm run test:playwright`).
+  **No new frameworks** — the same sentence `tapestries` #3's test plan was approved on.
+  `@playwright/test@^1.56.1` is already in `package.json`; installed version 1.55.0; chromium already
+  cached on this machine.
 - **New suite:** `test/show-the-four-on-the-goal-screens-that-already-exist.test.js`, wired into
   `test/test.js` (require, `await run()`, summary line, `H-class` roll-up line, `overallOk` conjunct,
   `totalSkipped` list). **That is the only file outside the new suite that this phase touched.**
@@ -131,6 +187,30 @@ the ADR's own sanctioned level; the residue is a Reviewer eyeball on the three s
   return 403.
 - **Firmware state:** **no `POST /api/firmware/install` precondition.** ADR 0003 adds no concept and
   redefines none; the goal concept is runtime-created and has never been firmware-seeded.
+
+### Prerequisites for the browser (B) class — read these, they bite
+
+1. **The control panel must be up** on `$BRAINSTORM_BASE_URL` (default `http://localhost:7778`).
+   **Note the actual behaviour, which differs from Amendment 1's wording:** `tests/global-setup.js`
+   probes the server and **throws** when it is unreachable, aborting the whole Playwright run — it
+   does not skip. Verified by pointing `BRAINSTORM_BASE_URL` at a dead port. That is repo-wide
+   behaviour affecting all 20+ specs, not something this story introduces, and it fails loudly rather
+   than passing silently — the opposite of OPEN.md #104/#106. The `test.beforeEach` gate on
+   `BRAINSTORM_SERVER_ACCESSIBLE` is kept for parity with `tapestry-create.spec.js`; **global-setup
+   sets that variable itself**, so you do not need to export it.
+2. **The UI must be BUILT.** `bin/control-panel.js:124` serves `<repo>/dist`, and `ui/` builds there
+   (`ui/vite.config.js` → `outDir: '../dist'`). **A source-only edit is invisible to the B class.**
+   After changing anything under `ui/src/`, run `cd ui && npm run build`.
+   **`B0` guards exactly this** — it asserts the built bundle contains a string the module exports.
+   Verified in both directions: green with a fresh build, red with a stale one, with the message
+   *"the served bundle does not contain … run `cd ui && npm run build`"*.
+   *(B0 was originally mtime-based. Running it showed that was wrong: `git checkout`, `git stash` and
+   a fresh clone all rewrite source mtimes, so a stale bundle can look fresh. It is now content-based.)*
+3. **No graph state at all.** Every endpoint is stubbed with `page.route(…)`; the B class reads
+   nothing real and writes nothing. It is deterministic and safe to run repeatedly.
+4. Run one browser project locally to keep it quick:
+   `npx playwright test tests/brainstorm/goal-intent-screens.spec.js --project=chromium`.
+   Whole-suite runs execute all five configured projects.
 
 ### Prerequisites for the live (H) class
 
@@ -192,10 +272,16 @@ Two further traps this suite closes that no ledger row names yet:
 ## How to run
 
 ```
-npm test                                    # the full gate
-node test/show-the-four-on-the-goal-screens-that-already-exist.test.js   # this suite alone
+npm test                                    # the Node gate (U/S/H/R) — does NOT run Playwright
+cd ui && npm run build && cd ..             # REQUIRED before the browser class means anything
+npm run test:playwright                     # the browser gate (B) — all five browser projects
+node test/show-the-four-on-the-goal-screens-that-already-exist.test.js   # the Node suite alone
+npx playwright test tests/brainstorm/goal-intent-screens.spec.js --project=chromium   # B alone
 TAPESTRY_REQUIRE_LIVE=1 npm test            # fail if the H-class did not execute
 ```
+
+**Both gates are required for this story.** `npm test` green is not evidence the feature landed —
+that is the whole finding of the Gate-3 kick-back, reproduced below.
 
 Read the verdict from the log, never from a notification (OPEN.md #111):
 
@@ -253,6 +339,7 @@ Confirmed 2026-07-27 at commit `19a6e428`, with the stack up (H-class **5 execut
   PASS  S9 (ADR d1): the four never enter the goal's record spine and never attach to a runner-up
   PASS  S10 (ADR d7): the three brain hooks are untouched — they already pass the four through
   PASS  S11 (story scope): no new design token is invented for the four
+  PASS  S12 (AC1, the record-rendering clause — pass-by-design): the generic element record view still stringifies the whole stored record
       live corpus census: {"total":31,"withPrompt":1,"longestPrompt":6155,"multiLinePrompt":1,"withEstimate":7,"storedFalse":7,"storedTrue":3,"noneOfTheFour":23}
   PASS  H1 (evidence — pass-by-design): the live corpus still holds every case these screens must render
   PASS  H2 (attribution): every goal the Goals list serves already carries all four, so a blank screen is this story's defect
@@ -269,7 +356,7 @@ Confirmed 2026-07-27 at commit `19a6e428`, with the stack up (H-class **5 execut
   PASS  R6 (stories 1 and 2, stack-free): the write and read halves this story rests on are untouched
 show-the-four: H-class 5 executed / 0 skipped
 
-show-the-four-on-the-goal-screens-that-already-exist: 15 passed, 21 failed, 0 skipped
+show-the-four-on-the-goal-screens-that-already-exist: 16 passed, 21 failed, 0 skipped
 EXIT=1
 ```
 
@@ -282,12 +369,92 @@ right-reason shapes appear:
    assertion names the missing import, the missing property names, and the missing formatter.
 3. **The sweep inspected nothing** (S7) — the arity guard fires rather than passing vacuously.
 
-**The 15 that pass today are pass-by-design and are listed in the suite header** so a green line is
-never mistaken for evidence the feature landed: `S5 S6 S9 S10 S11` (AC3/AC4 hold by non-action),
+**The 16 that pass today are pass-by-design and are listed in the suite header** so a green line is
+never mistaken for evidence the feature landed: `S5 S6 S9 S10 S11 S12` (AC3/AC4 and the
+record-rendering clause hold by non-action),
 `H1–H5` (story 2's reads, which this story consumes), `R1–R4` and `R6` (closed-book pins and the
 story-1/2 contracts). **They must still pass after implementation.**
 
-### Adversarial verification — proving the discriminating tests discriminate
+### The browser class, before implementation
+
+Clean tree, stack up, `dist` as found:
+
+```
+$ npx playwright test tests/brainstorm/goal-intent-screens.spec.js --project=chromium --reporter=line
+  7 failed
+  1 passed (2.1s)
+EXIT=1
+```
+
+All seven fail on the same right-reason message, raised before any browser assertion runs:
+
+```
+Error: ui/src/utils/goalIntent.js does not exist yet — ADR 0003 d3's one pure formatter is not
+implemented, so nothing can reach any of these three screens. (The unit half of this story fails
+the same way.)
+```
+
+`B7` (rendered order) is the one that passes: it needs no formatter, and today's build already
+renders the server's order. Pass-by-design, and it must stay green.
+
+### Adversarial verification 2 — **the Gate-3 counterexample, reproduced and then killed**
+
+This is the check the coordinator asked for: *implement the story, delete the render calls, confirm
+the suite goes red.* I did exactly that, in three stages, and restored the tree afterwards.
+
+**Stage 1 — the full implementation** (`goalIntent.js` per d3/d4; the three screens per d5; the one
+`styles.css` rule per d8; `cd ui && npm run build`):
+
+```
+$ npx playwright test … --project=chromium --reporter=line
+  8 passed (2.2s)
+EXIT=0
+```
+
+The B class is satisfiable by the design the ADR chose — it is not over-constrained.
+
+**Stage 2 — the counterexample.** Same module, still imported into all three screens, all four
+properties still named, **every formatter still called** — each result assigned to a local and never
+referenced. Nothing renders. Rebuilt, then ran **both** gates:
+
+```
+################ U/S/H/R (npm test suite) vs the never-render probe ################
+show-the-four-on-the-goal-screens-that-already-exist: 37 passed, 0 failed, 0 skipped
+EXIT=0
+
+################ B (browser) vs the same probe ################
+  6 failed
+  2 passed (2.2s)
+EXIT=1
+```
+
+**The Node suite goes fully green — 37 passed, 0 failed — on a build the owner cannot see anything
+in.** That is the Gate-3 finding reproduced exactly (the judge measured 36; this round has 37 with
+`S12` added). The browser class fails `B1`–`B6`. What it prints is what the owner sees:
+
+```
+1) B1: on the Goals list a goal with all four shows the estimate, both flags, and the prompt as text
+   Error: AC1: the estimate must be VISIBLE as a value on the row.
+          Row read: "·Wire the greenhouse sensorsviable"
+   Expected pattern: /Could run on its own:\s*75 out of 100/
+   Received string:  "·Wire the greenhouse sensorsviable"
+
+6) B6: on the Proposals card an estimate nobody recorded appears in words, with no digit in its place
+   Error: ADR 0003 d2: when the owner recorded nothing, the card states the declared default IN PLAIN
+          WORDS. Card read: "Next: Repaint the potting shednothing else is blocked by itconsidered
+          insteadSome other goal — it can waitApproveSkip…"
+   Expected substring: "no — you haven't estimated this one"
+```
+
+The goal's name and its standing, and nothing else. `B0` and `B7` pass — correctly: the bundle *was*
+built from those sources, and the order *is* the server's.
+
+**Stage 3 — restore.** The three screens and `styles.css` restored with `git checkout --`,
+`ui/src/utils/goalIntent.js` deleted, and `dist/` restored from a byte-level backup taken before any
+build (`diff -rq` confirms it is identical to the bundle I found). `git status --porcelain -- ui/ src/`
+is empty. **No production code was written by this phase.**
+
+### Adversarial verification 1 — proving the *unit* class discriminates
 
 A failing test proves the feature is absent. It does **not** prove the test would catch a *wrong*
 implementation. So I built two throwaway `ui/src/utils/goalIntent.js` implementations, ran the suite
@@ -322,24 +489,28 @@ falsiness — that is the flag case the plan flags above, and it is why S4 exist
 
 ### The full gate
 
-`{ npm test; echo "EXIT=$?"; } > gate3-full.log 2>&1` — 3 790 lines, ~28 minutes, stack up.
-**`show-the-four` is the only failing suite in the entire gate.**
+`{ npm test; echo "EXIT=$?"; } > gate3-full-r2.log 2>&1` — 3 821 lines, ~26 minutes, stack up.
+Re-run in full after the round-2 changes. **`show-the-four` is the only failing suite in the entire
+gate**, in both rounds.
 
 ```
-$ grep -nE "suite: +.*FAIL" gate3-full.log
-3786:show-the-four suite:                             FAIL (15 passed, 21 failed)
+$ grep -nE "suite: +.*FAIL" gate3-full-r2.log
+3817:show-the-four suite:                             FAIL (16 passed, 21 failed)
 
-$ grep -E "^(store|return|show)-the-four|^Total skipped:|^Overall:|^EXIT=" gate3-full.log
+$ grep -E "^(store|return|show)-the-four|^Total skipped:|^Overall:|^EXIT=" gate3-full-r2.log
 store-the-four suite:                            PASS (40 passed, 0 failed)
 store-the-four H-class:                          11 executed / 0 skipped
 return-the-four suite:                           PASS (54 passed, 0 failed)
 return-the-four H-class:                         8 executed / 0 skipped
-show-the-four suite:                             FAIL (15 passed, 21 failed)
+show-the-four suite:                             FAIL (16 passed, 21 failed)
 show-the-four H-class:                           5 executed / 0 skipped
-Total skipped:                                   51
+Total skipped:                                   29
 Overall:                                         FAIL
 EXIT=1
 ```
+
+**And, said plainly: this green-except-for-my-suite log is exactly what a nothing-renders build also
+produces.** It is necessary evidence, not sufficient. The B-class run above is the sufficient half.
 
 **Siblings 1 and 2 stay fully green and untouched** — 40/0 and 54/0, with their live classes
 executing (11 and 8, 0 skipped). No sibling test was modified by this phase.
@@ -373,19 +544,25 @@ fixed here.)
 **Total skipped: 51** — all pre-existing publish-flow suites whose preconditions were unmet; none of
 them belongs to this epic, and this suite contributed 0 skips.
 
-**Files this phase touched, in full:**
+**Files this phase touched, in full (round 2, on top of commit `79863244`):**
 
 ```
-?? test/show-the-four-on-the-goal-screens-that-already-exist.test.js   (the failing suite)
-?? engineering-team/stories/goal-intent-fields/3-…​.test-plan.md        (this plan)
- M test/test.js                                                        (+12 −1: registration only)
- M OPEN.md                                                             (row 112 new; #109 and #111 occurrence notes)
+ M test/show-the-four-on-the-goal-screens-that-already-exist.test.js   (+S12, +U1 constants, header corrections)
+?? tests/brainstorm/goal-intent-screens.spec.js                        (the new B class)
+ M engineering-team/stories/goal-intent-fields/3-…​.test-plan.md         (this plan)
 ```
 
-`test/test.js` gains only the require, the `await showTheFour.run()` call, the summary line, the
-`H-class` roll-up line, the `overallOk` conjunct and the `totalSkipped` entry. **No production code
-and no sibling test was written or modified.** The two throwaway probe implementations were deleted;
-`git status --porcelain ui/src/` is clean.
+Round 1 additionally added the Node suite, `test/test.js` registration (+12 −1) and the OPEN.md rows;
+those are already committed. **No production code and no sibling test was written or modified in
+either round.** The B class needs no registration — Playwright discovers `tests/**` via
+`playwright.config.js`'s `testDir: './tests'`.
+
+**Everything the probes touched was restored and verified:**
+
+```
+$ git status --porcelain -- ui/ src/
+$ diff -rq dist <backup taken before any build>   →  identical
+```
 
 ---
 
@@ -393,7 +570,8 @@ and no sibling test was written or modified.** The two throwaway probe implement
 
 | Not asserted | Why | Who covers it |
 |---|---|---|
-| Rendered pixels / a real browser | No browser harness for the control panel; ADR 0003 declines to add one (house rule: no new tooling without an ADR) | Reviewer eyeball on the three screens |
+| ~~Rendered pixels / a real browser~~ | **Struck — this was the round-1 error.** The B class asserts it (ADR Amendment 1) | `tests/brainstorm/goal-intent-screens.spec.js` |
+| Visual layout, colour, typography | B asserts text reaches the DOM, not that it is well placed | Reviewer eyeball |
 | **`git diff --stat -- src/` is empty** | A test has no stable baseline to diff against mid-branch | **Reviewer must run it.** ADR 0003: "everything under `src/` — the story is client-only and a server diff means the extent was mis-derived." `R6` covers the *contracts*, not the diff |
 | The exact owner-facing wording | The story says copy is "a review consideration, not an externally testable criterion" | Reviewer's register audit. The suite pins *structure* (three distinct states, words vs numbers, no jargon, no `!`), never a sentence |
 | `.brain-detail-prompt { white-space: pre-wrap; }` by name | A class name is an implementation detail the ACs do not pin; `S11` pins the criterion that *is* in the story (no new design token) | Reviewer against ADR d8 |
@@ -404,7 +582,17 @@ and no sibling test was written or modified.** The two throwaway probe implement
 
 ## Open questions for the Product Owner / Architect
 
-**None blocking.** Two things the Implementer should know are decided:
+**None blocking.** Four things the Implementer should know are decided:
+
+0. **The B class builds its expected strings from `goalIntent.js`'s own exports**, never from a
+   hard-coded sentence — so the copy stays the operator's to reword and the tests follow. That makes
+   `LABEL_ESTIMATE`, `LABEL_NEEDS_YOU`, `LABEL_TOO_BIG`, `PROMPT_UNSET` and `ESTIMATE_UNSET_ON_CARD`
+   **required exports** (ADR d3's own table); `U1` fails in one line if any is missing, rather than
+   letting it surface as an obscure import error inside Playwright.
+0b. **Amendment 1's wording about skipping is slightly off, and the plan records what actually
+   happens** (see B-class prerequisite 1): `tests/global-setup.js` **throws** when no server is
+   reachable, aborting the run rather than skipping. Repo-wide, pre-existing, and it fails loudly —
+   worth a one-word correction in the amendment if the Architect wants the artifact exact.
 
 1. **`estimateLineOnProposalCard` is pinned as a separate function name** (`S8`, `U5`). ADR d3 names
    it and d2 makes it a contract rather than a helper; the suite enforces that

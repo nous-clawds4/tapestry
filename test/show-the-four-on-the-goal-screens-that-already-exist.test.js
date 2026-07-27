@@ -33,9 +33,18 @@
  * The flags are the case where discrimination is deliberately NOT observable
  * at the screen: AC2 says a never-set flag displays the declared default
  * `false`, and a stored `false` displays `false`, so the two legitimately look
- * the same. There is therefore no U-class assertion that can catch falsiness on
- * a flag — the pin for that is structural, in S4, which forbids `!x.needsHumanInput`
- * anywhere in the module or the three screens.
+ * the same. No U-class assertion can catch falsiness on a flag.
+ *
+ * **What S4 actually reaches, stated precisely** (an earlier draft of this
+ * header overclaimed it). S4 keys on THE FOUR PROPERTY NAMES, so it catches
+ * `!goal.needsHumanInput` at a call site — but a module written
+ * `flagWord(v) { return v ? 'yes' : 'no'; }` names none of the four and PASSES
+ * it. No acceptance criterion is left exposed by that: for the only inputs the
+ * read surface can deliver — `true`, `false`, `null`, `undefined` — `v ?` and
+ * `v === true ?` render identically, so AC1 and AC2 hold either way. The
+ * residue is a malformed stored flag (a truthy non-boolean such as `'yes'`),
+ * which no acceptance criterion rules on and which this suite therefore does
+ * not pin. Recorded so no one reads S4 as more than it is.
  *
  * ── Test classes (per test-hermeticity-ci/0001) ──────────────────────────
  *
@@ -56,6 +65,16 @@
  *     bounded by the next top-level declaration or by paren balance computed on
  *     a string/comment-masked copy that preserves offsets.
  *
+ *   B-class — NOT IN THIS FILE. `tests/brainstorm/goal-intent-screens.spec.js`,
+ *     run by `npm run test:playwright`. **The layer that can fail when nothing
+ *     renders.** Gate 3 built a probe that imported this module into all three
+ *     screens, named all four properties, called every formatter and rendered
+ *     NONE of the results — and an earlier version of this file went 36 passed,
+ *     0 failed against it. An S-class scan asserts a token appears IN A FILE;
+ *     only a browser asserts a value reaches A SCREEN. ADR 0003 Amendment 1
+ *     authorizes that class; the S-class pins below stay exactly as ratified and
+ *     remain the always-on layer, because B skips with no server.
+ *
  *   H-class (live local stack, READ-ONLY, FIXTURE-FREE, per-test SKIP) — the
  *     three reads the three screens consume, over the REAL corpus. Its only job
  *     is ATTRIBUTION: if a screen shows nothing, these say whether the data was
@@ -72,16 +91,19 @@
  *     R5 scans the shared module, because moving owner-facing copy out of a
  *     .jsx moves it out of the four per-file jargon scans that guard it.
  *
- * ── Pass-by-design sentinels — 15 of the 36. They pass BEFORE the Implementer
+ * ── Pass-by-design sentinels — 16 of the 37. They pass BEFORE the Implementer
  *    touches anything and must STILL pass after. Stated here so a green line is
  *    never mistaken for evidence the feature landed: ──
- *      S5 S6 S9 S10 S11      no new screen/route, no ordering, the spine and the
- *                            runners-up clear, hooks and design tokens untouched
+ *      S5 S6 S9 S10 S11 S12  no new screen/route, no ordering, the spine and the
+ *                            runners-up clear, hooks and design tokens untouched,
+ *                            and the record-rendering screen still whole (AC1's
+ *                            record clause is a REGRESSION GUARD, not a
+ *                            capability test — ADR 0003 Amendment 1)
  *      H1 H2 H3 H4 H5        the live reads (story 2 shipped them)
  *      R1 R2 R3 R4 R6        the closed-book pins + the story-1/2 contracts
  *    (R5 fails today only because the file it scans does not exist yet.)
  *    The other 21 FAIL until the feature lands. Verified by running the suite
- *    before any implementation existed: 15 passed, 21 failed, 0 skipped.
+ *    before any implementation existed: 16 passed, 21 failed, 0 skipped.
  *
  * ── Harness defects this suite is designed around (OPEN.md) ──
  *   #104/#106 — a fully-skipped H-class still reports suite PASS. run() prints
@@ -113,6 +135,8 @@ const STYLES_CSS = path.join(ROOT, 'ui/src/styles.css');
 const BRAIN_PAGES_DIR = path.join(ROOT, 'ui/src/pages/brain');
 const APP_JSX = path.join(ROOT, 'ui/src/App.jsx');
 const LAYOUT_JSX = path.join(ROOT, 'ui/src/components/Layout.jsx');
+/** AC1's record-rendering clause maps here and nowhere else (ADR 0003 Amendment 1). */
+const ELEMENT_DETAIL = path.join(ROOT, 'ui/src/pages/concepts/ElementDetail.jsx');
 const HOOKS = [
   path.join(ROOT, 'ui/src/hooks/useBrainGoals.js'),
   path.join(ROOT, 'ui/src/hooks/useBrainGoalDetail.js'),
@@ -375,6 +399,17 @@ test('U1 (AC1/AC2): the three goal screens share one formatter that knows how to
   assert(typeof mod.PROMPT_EXCERPT_MAX === 'number' && Number.isFinite(mod.PROMPT_EXCERPT_MAX) && mod.PROMPT_EXCERPT_MAX > 0,
     'it must also export PROMPT_EXCERPT_MAX — the bound that makes a list-screen excerpt an excerpt (AC1). ' +
     `Got ${quoted(mod.PROMPT_EXCERPT_MAX)}.`);
+  // The owner-facing constants of ADR 0003 d3. The browser class builds every
+  // expected on-screen string FROM THESE rather than hard-coding a sentence, so
+  // the copy stays the operator's to reword — but a missing constant must fail
+  // here, in one line, rather than as an obscure import error inside Playwright.
+  const labels = ['LABEL_ESTIMATE', 'LABEL_NEEDS_YOU', 'LABEL_TOO_BIG', 'PROMPT_UNSET', 'ESTIMATE_UNSET_ON_CARD'];
+  assert(labels.length === 5, 'the expected-constant list changed shape.');
+  const missingLabels = labels.filter((n) => typeof mod[n] !== 'string' || mod[n].trim() === '');
+  assert(missingLabels.length === 0,
+    `ui/src/utils/goalIntent.js must export the owner-facing constants as non-empty strings (ADR 0003 d3): ` +
+    `missing or empty ${short(missingLabels)}. tests/brainstorm/goal-intent-screens.spec.js asserts these exact ` +
+    'strings reach the DOM, which is how "visible" is proved without pinning a sentence.');
 });
 
 test('U2 (AC1): an estimate the owner recorded is shown as the number they recorded', async () => {
@@ -838,6 +873,32 @@ test('S11 (story scope): no new design token is invented for the four', () => {
   assert(props.length === CSS_CUSTOM_PROPERTIES,
     `and no new custom property at all: styles.css defined ${CSS_CUSTOM_PROPERTIES} when this story was specified, ` +
     `and now defines ${props.length}. Everything the four need reuses classes that already exist (ADR 0003 d8).`);
+});
+
+test('S12 (AC1, the record-rendering clause — pass-by-design): the generic element record view still stringifies the whole stored record', () => {
+  const src = safeRead(ELEMENT_DETAIL);
+  assert(src, 'ui/src/pages/concepts/ElementDetail.jsx is missing — regression.');
+  // ADR 0003 Amendment 1's ruling: AC1's "on a record-rendering screen, all four
+  // remain visible as stored" maps to EXACTLY THIS FILE, and it is a REGRESSION
+  // GUARD, not a capability test. The capability is already true — stories 1 and
+  // 2 made it so — because this view stringifies the WHOLE parsed record. The
+  // only thing this story could do is break it, so that is all this asserts.
+  const whole = [...src.matchAll(/JSON\.stringify\(\s*fullJson\s*,/g)];
+  assert(whole.length >= 2,
+    'the record view must still render the whole parsed record via JSON.stringify(fullJson, …) — the story\'s ' +
+    `named record-rendering member (ElementDetail.jsx :403 / :545). Found ${whole.length} of the 2 expected sites.`);
+  const masked = maskComments(src);
+  for (const bad of [/JSON\.stringify\(\s*\{\s*\.\.\.\s*fullJson\s*\}\s*,\s*\[/, /\bpick\s*\(\s*fullJson/, /\bomit\s*\(\s*fullJson/]) {
+    assert(!bad.test(masked),
+      'and it must render the record WHOLE — no key whitelist, no pick/omit, no destructured subset. A filter ' +
+      'here would hide the four the moment they are stored, which is the one way this story could break a ' +
+      'screen it is forbidden to touch (ADR 0003 Amendment 1).');
+  }
+  const named = fourNamesIn(src);
+  assert(named.length === 0,
+    `ElementDetail.jsx names ${short(named)}. This story does not touch it — the four appear there by virtue of ` +
+    'being in the record, not by anything this story does (ADR 0003, "Unchanged, deliberately"). ' +
+    'A diff naming them here is a defect.');
 });
 
 /* ══════════════════════════════════════════════════════════════════════

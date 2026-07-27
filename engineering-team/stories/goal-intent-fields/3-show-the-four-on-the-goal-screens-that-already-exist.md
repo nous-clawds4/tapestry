@@ -133,5 +133,7 @@ overrule either without disturbing the rest.
 
 - ADR: `engineering-team/decisions/goal-intent-fields/0003-screen-side-intent-display-and-the-narrow-d13-supersession.md`
 - Test plan: `engineering-team/stories/goal-intent-fields/3-show-the-four-on-the-goal-screens-that-already-exist.test-plan.md`
-  (suite: `test/show-the-four-on-the-goal-screens-that-already-exist.test.js`)
+  - Node suite (`npm test`): `test/show-the-four-on-the-goal-screens-that-already-exist.test.js`
+  - Browser suite (`npm run test:playwright`): `tests/brainstorm/goal-intent-screens.spec.js`
+    — **both gates are required; `npm test` alone cannot fail on a screen that renders nothing**
 - Review: (filled in after Review phase)
