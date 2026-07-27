@@ -131,6 +131,7 @@ overrule either without disturbing the rest.
 
 ## Linked artifacts
 
-- ADR: (filled in after Architecture phase)
-- Test plan: (filled in after Test Design phase)
+- ADR: `engineering-team/decisions/goal-intent-fields/0003-screen-side-intent-display-and-the-narrow-d13-supersession.md`
+- Test plan: `engineering-team/stories/goal-intent-fields/3-show-the-four-on-the-goal-screens-that-already-exist.test-plan.md`
+  (suite: `test/show-the-four-on-the-goal-screens-that-already-exist.test.js`)
 - Review: (filled in after Review phase)
