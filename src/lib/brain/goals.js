@@ -11,11 +11,14 @@
  *   { uuid, name, createdAt, json }  — json is the element's json-tag string.
  * A "record" is the parsed goal:
  *   { uuid, name, slug, statement, origin, capturedOn, createdAt,
- *     deliverable, boundary, parent }
+ *     deliverable, boundary, parent,
+ *     prompt, chanceOfSuccess, needsHumanInput, needsBreakdown }
  * The PRD's "statement" IS the concept's existing description field (ADR 0001
  * decision 2) — adopted, not duplicated. "parent" is the parent goal's json
  * slug (ADR 0003 d2: instance-portable, unique-by-intent, stable across
- * re-signs — never the TA-bound uuid/d-tag).
+ * re-signs — never the TA-bound uuid/d-tag). The last four are the concept's
+ * intent properties (goal-intent-fields ADR 0002 d1), appended after `parent`:
+ * a stored value comes back verbatim, and a never-set one reads null.
  */
 
 'use strict';
@@ -36,7 +39,7 @@ function parseGoalRow(row) {
   }
   const section = parsed && parsed.tapestryOwnerGoal;
   if (!section || typeof section !== 'object' || Array.isArray(section)) return null;
-  return {
+  const record = {
     uuid: row.uuid,
     name: row.name != null ? row.name : (section.name != null ? section.name : null),
     slug: section.slug != null ? section.slug : null,
@@ -48,6 +51,17 @@ function parseGoalRow(row) {
     boundary: section.boundary != null ? section.boundary : null,
     parent: section.parent != null ? section.parent : null,
   };
+  // The four intent properties, appended after `parent` in INTENT_FIELDS order
+  // (goal-intent-fields ADR 0002 d1) — the read-side mirror of what
+  // pickIntentFields writes. Presence is the ONLY test, and a present value is
+  // copied VERBATIM: no trim, no coercion, no type check, no range clamp, no
+  // default substitution. A stored 0, false or '' comes back as itself; only a
+  // never-set property reads null. The list is declared below and read here at
+  // call time — module scope is fully evaluated before any caller runs.
+  for (const field of INTENT_FIELDS) {
+    record[field] = section[field] != null ? section[field] : null;
+  }
+  return record;
 }
 
 /** A field "counts" only as the owner's words — a non-empty trimmed string. */
@@ -294,6 +308,41 @@ function pickIntentFields(input) {
   return out;
 }
 
+/**
+ * The read-side sibling of pickIntentFields (goal-intent-fields ADR 0002 d2).
+ * Pure and non-mutating: returns a NEW object carrying ALL FOUR keys, always,
+ * in INTENT_FIELDS order — present ⇒ the stored value VERBATIM, absent ⇒ null.
+ * The projecting read surfaces spread it into their response literals, so a
+ * response has the same shape whether or not anything was set.
+ *
+ * THE ASYMMETRY WITH pickIntentFields IS DELIBERATE. Collapsing the two into
+ * one convention is a regression, not a cleanup:
+ *   - on a stored RECORD, absence is KEY-ABSENCE — the only representation of
+ *     "unset" that survives storage, export and restore (ADR 0001 d2). The
+ *     export omits the key, and restore writes an artifact's section back
+ *     verbatim, so a value invented there would be made permanent.
+ *   - on a PROJECTING RESPONSE, absence is null — the shipped idiom of every
+ *     sibling field on these surfaces.
+ *
+ * null REPORTS not-set; it never SUBSTITUTES a value. Nothing is manufactured
+ * here: not 0 for an estimate, not false for a flag, not an empty prompt. The
+ * concept's declared defaults ("the default is 0", "absent means false") tell a
+ * CONSUMER how to read absence — they do not license a read layer to fabricate
+ * one, and a fabricated false would be lossy against the goals that store false
+ * explicitly today. Stored-false and never-set stay distinguishable.
+ *
+ * Tolerant by construction, as read paths are: a missing or empty record yields
+ * the same four-key shape with every value null.
+ */
+function projectIntentFields(record) {
+  const r = record || {};
+  const out = {};
+  for (const field of INTENT_FIELDS) {
+    out[field] = r[field] != null ? r[field] : null;
+  }
+  return out;
+}
+
 module.exports = {
   parseGoalRow,
   deriveStanding,
@@ -303,4 +352,5 @@ module.exports = {
   validateDecompositionOp,
   INTENT_FIELDS,
   pickIntentFields,
+  projectIntentFields,
 };

@@ -127,6 +127,20 @@ about a goal is actually there when I or a session goes looking.
 
 None. The three raised at Planning were answered at the gate and are recorded in the epic.
 
+## Deviations
+
+- **The proposal card's name lookup went through a two-line local helper, not an inlined expression.**
+  ADR d9 turns `nameBySlug` into `recordBySlug` and says `goalName` reads `rec && rec.name` with the
+  identical `|| p.goal` fallback. The old map served *two* call sites — the card and each
+  `passedOver` runner-up — so inlining the record lookup would have restated it twice. A local
+  `nameOf(slug)` states it once and is behavior-identical at both sites for every input (a record
+  with a null or empty name, and a slug with no record, all still fall through to the slug). The
+  runners-up keep their exact three-key shape; only the card gains the four.
+- **`parseGoalRow` assigns the four in a loop after building the record**, rather than moving
+  `INTENT_FIELDS` above the function. Both were explicitly the implementer's call (ADR
+  Implementation notes); the loop leaves the constant in the place story 1 put it, next to
+  `pickIntentFields`, so the one list still reads as one list.
+
 ## Linked artifacts
 
 - ADR: `engineering-team/decisions/goal-intent-fields/0002-read-side-intent-projection-absence-as-null.md`

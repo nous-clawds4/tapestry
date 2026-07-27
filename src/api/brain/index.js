@@ -23,7 +23,7 @@
 const { runCypher } = require('../../lib/neo4j-driver');
 const { isOwner } = require('../../middleware/auth');
 const { getOwnerAssistantPubkey } = require('../../utils/assistantKeys');
-const { parseGoalRow, deriveStanding, resolveCaptureDate, sortGoals, resolveDecomposition } = require('../../lib/brain/goals');
+const { parseGoalRow, deriveStanding, resolveCaptureDate, sortGoals, resolveDecomposition, projectIntentFields } = require('../../lib/brain/goals');
 const { classifyHeaderEdges, classifyElementConsistency, comparePropertyRecord, classifyDecomposition, assembleReport } = require('../../lib/brain/hygiene');
 const { parseResourceRow, deriveFreshness, freshnessDays, groupResourcesByGoal } = require('../../lib/brain/resources');
 const { parseWorkRecordRow, groupWorkRecordsByGoal, sortRecordsByRecency } = require('../../lib/brain/work-records');
@@ -238,6 +238,10 @@ async function handleGetGoals(req, res) {
       parentUuid: r.parentUuid,
       hasChildren: r.hasChildren,
       pointerCount: (countByGoal.get(r.slug) || []).length,
+      // The four intent properties, flat under the concept's own names
+      // alongside deliverable/boundary/parent (goal-intent-fields ADR 0002 d4).
+      // The full prompt travels here — the list is a surface that shows a goal.
+      ...projectIntentFields(r),
     }));
     return res.json({ success: true, goals });
   } catch (err) {
@@ -375,6 +379,10 @@ async function handleGetGoalDetail(req, res) {
       parentName: parent ? parent.name : null,
       hasChildren: winner.hasChildren,
       pointerCount: pointers.length,
+      // The four, from THIS goal's record (ADR 0002 d4) — never the parent's:
+      // parentSlug/parentName name a different goal, which carries its own four
+      // on its own detail read (d6).
+      ...projectIntentFields(winner),
     } : null;
     return res.json({ success: true, goal, pointers, records });
   } catch (err) {
@@ -439,6 +447,11 @@ async function handleGetOrient(req, res) {
           parentSlug: ancestry.length ? ancestry[0].slug : null,
           parentName: ancestry.length ? ancestry[0].name : null,
           ancestry,
+          // The four ride on `served` — "the goal in full" (ADR 0005 d11) — and
+          // deliberately NOT on `roots` or `ancestry` (goal-intent-fields ADR
+          // 0002 d6): those are a bounded slice and references to OTHER goals,
+          // and boundedness is a ratified property of this response.
+          ...projectIntentFields(winner),
         };
       }
     }
@@ -468,21 +481,35 @@ async function handleGetProposals(req, res) {
       readProposals(taPubkey),
       readResolvedGoals(taPubkey),
     ]);
-    const nameBySlug = new Map();
+    // ONE record per slug now, not just its name (goal-intent-fields ADR 0002
+    // d9): the card's goalName and its four then describe the SAME record and
+    // can never disagree. The first-wins-in-scan-order selection is preserved
+    // exactly — it is deliberately NOT the resolver-winner the detail read
+    // uses; that difference is pre-existing and changing it would be a content
+    // change this story does not sanction.
+    const recordBySlug = new Map();
     for (const g of resolved) {
-      if (g && typeof g.slug === 'string' && !nameBySlug.has(g.slug)) nameBySlug.set(g.slug, g.name);
+      if (g && typeof g.slug === 'string' && !recordBySlug.has(g.slug)) recordBySlug.set(g.slug, g);
     }
+    const nameOf = (slug) => {
+      const rec = recordBySlug.get(slug);
+      return (rec && rec.name) || slug;
+    };
     const open = openProposals(proposals).map((p) => ({
       proposalId: p.slug,
       goal: p.goal,
-      goalName: nameBySlug.get(p.goal) || p.goal,
+      goalName: nameOf(p.goal),
       whyNow: p.whyNow,
       passedOver: (Array.isArray(p.passedOver) ? p.passedOver : []).map((x) => ({
         goal: x.goal,
-        goalName: nameBySlug.get(x.goal) || x.goal,
+        goalName: nameOf(x.goal),
         whyNot: x.whyNot,
       })),
       madeOn: p.happenedOn,
+      // The NOMINATED goal's four (ADR 0002 d4/d9) — never the runners-up' (d6):
+      // a passedOver entry is the proposal's record of what it passed over and
+      // why, not the goal this card is about.
+      ...projectIntentFields(recordBySlug.get(p.goal) || {}),
     }));
     return res.json({ success: true, proposals: open });
   } catch (err) {
