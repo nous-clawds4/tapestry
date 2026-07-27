@@ -254,6 +254,46 @@ function validateDecompositionOp(records, op) {
   return { ok: true };
 }
 
+/**
+ * The four intent properties the goal concept declares, in the concept's own
+ * names and order (goal-intent-fields ADR 0001 d1). One list, one place: the
+ * constructing write paths carry them onto a goal section through
+ * pickIntentFields, and the read side imports this rather than re-declaring
+ * the names. The names double as request-body keys — no new vocabulary.
+ */
+const INTENT_FIELDS = ['prompt', 'chanceOfSuccess', 'needsHumanInput', 'needsBreakdown'];
+
+/**
+ * The whitelist that carries the four onto a goal section (ADR 0001 d2). Pure
+ * and non-mutating: returns a NEW object holding exactly those of
+ * INTENT_FIELDS the caller supplied.
+ *
+ * Three prohibitions, each deliberate:
+ *   - values are copied VERBATIM — no trim, no coercion, no type check, no
+ *     range clamp, no default substitution, no rejection. The four are
+ *     carried, never consulted: nothing may reject or transform a write
+ *     because of what they contain (story AC5), and a prompt must come back
+ *     byte-identical (AC3).
+ *   - `undefined` is the ONLY omission test. A supplied null is a supplied
+ *     value and is kept; a `!= null` test would silently drop it, which is a
+ *     content-driven transform AC5 forbids.
+ *   - nothing about a value is inspected, so a falsy-but-supplied 0, false or
+ *     '' is carried like any other value (a truthiness test drops all three).
+ *
+ * Absence is expressed by NOT writing the key — the only representation of
+ * "unset" that survives storage, export and restore. Object.keys() of the
+ * result doubles as the "which fields were written" report, deterministically
+ * in INTENT_FIELDS order.
+ */
+function pickIntentFields(input) {
+  const supplied = input || {};
+  const out = {};
+  for (const field of INTENT_FIELDS) {
+    if (supplied[field] !== undefined) out[field] = supplied[field];
+  }
+  return out;
+}
+
 module.exports = {
   parseGoalRow,
   deriveStanding,
@@ -261,4 +301,6 @@ module.exports = {
   sortGoals,
   resolveDecomposition,
   validateDecompositionOp,
+  INTENT_FIELDS,
+  pickIntentFields,
 };

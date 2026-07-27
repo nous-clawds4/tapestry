@@ -2198,6 +2198,11 @@ async function handleCreateChildGoal(req, res) {
     // Refusal contract (ADR 0003 d6), passed through from the shared core or
     // built here: parent-not-found | ambiguous-slug | name-collides — each
     // answers success:false with the named refusal and writes NOTHING.
+
+    // The four intent properties, whitelisted at the handler — the trust
+    // boundary — so no raw body object reaches the core (ADR 0001 d3).
+    const { pickIntentFields } = require('../../lib/brain/goals');
+    const intent = pickIntentFields(req.body || {});
     const result = await serializeGoalWrite(() => createChildGoal({
       parentSlug: parent.trim(),
       name: name.trim(),
@@ -2206,6 +2211,7 @@ async function handleCreateChildGoal(req, res) {
       boundary: typeof boundary === 'string' && boundary.trim() ? boundary.trim() : null,
       origin: typeof origin === 'string' && origin.trim() ? origin.trim() : null,
       capturedOn: typeof capturedOn === 'string' && capturedOn.trim() ? capturedOn.trim() : null,
+      intent,
     }));
     return res.json(result);
   } catch (error) {
@@ -2214,7 +2220,7 @@ async function handleCreateChildGoal(req, res) {
   }
 }
 
-async function createChildGoal({ parentSlug, name, statement, deliverable, boundary, origin, capturedOn }) {
+async function createChildGoal({ parentSlug, name, statement, deliverable, boundary, origin, capturedOn, intent }) {
   const { validateDecompositionOp } = require('../../lib/brain/goals');
   const concept = await resolveGoalConcept();
   if (concept.error) return { success: false, error: concept.error };
@@ -2247,6 +2253,9 @@ async function createChildGoal({ parentSlug, name, statement, deliverable, bound
   if (deliverable) section.deliverable = deliverable;
   if (boundary) section.boundary = boundary;
   section.parent = parentSlug;
+  // Only the fields the owner actually supplied (ADR 0001 d2/d3) — the rest
+  // stay absent from the record, which is what "unset" means here.
+  Object.assign(section, intent);
 
   const tags = [
     ['d', dTag],
@@ -2281,10 +2290,25 @@ async function handleUpdateGoalIntent(req, res) {
     if (!goal || typeof goal !== 'string' || !goal.trim()) {
       return res.status(400).json({ success: false, error: 'Missing goal slug' });
     }
+    // TWO field lists, deliberately (goal-intent-fields ADR 0001 d4) — do NOT
+    // collapse them into one. `provided` stays exactly the three string fields
+    // the empty-value refusal and the .trim() calls below were written for.
+    // The four intent properties are whitelisted separately and copied
+    // verbatim. Appending them to `provided` is a one-line change that looks
+    // like tidying and silently creates a rule the story forbids: that loop
+    // rejects any non-string and any empty-after-trim value, so
+    // `chanceOfSuccess: 75` would be refused for what it CONTAINS (AC5), and
+    // the trim would break AC3's byte-identical prompt. Hence the refusal
+    // below is a PRESENCE test across both lists, never a content test.
+    const { pickIntentFields } = require('../../lib/brain/goals');
+    const intent = pickIntentFields(req.body || {});
     const provided = [['deliverable', deliverable], ['boundary', boundary], ['parent', parent]]
       .filter(([, value]) => value !== undefined);
-    if (provided.length === 0) {
-      return res.status(400).json({ success: false, error: 'At least one of deliverable, boundary, parent is required' });
+    if (provided.length === 0 && Object.keys(intent).length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'At least one of deliverable, boundary, parent, prompt, chanceOfSuccess, needsHumanInput, needsBreakdown is required',
+      });
     }
     // Refusal contract (ADR 0003 d7): goal-not-found | ambiguous-slug |
     // self-parent | already-has-parent | cycle | empty-value — loud, named,
@@ -2304,6 +2328,7 @@ async function handleUpdateGoalIntent(req, res) {
       deliverable: deliverable !== undefined ? deliverable.trim() : undefined,
       boundary: boundary !== undefined ? boundary.trim() : undefined,
       parentSlug: parent !== undefined ? parent.trim() : undefined,
+      intent,
     }));
     return res.json(result);
   } catch (error) {
@@ -2312,7 +2337,7 @@ async function handleUpdateGoalIntent(req, res) {
   }
 }
 
-async function updateGoalIntent({ goalSlug, deliverable, boundary, parentSlug }) {
+async function updateGoalIntent({ goalSlug, deliverable, boundary, parentSlug, intent }) {
   const { validateDecompositionOp, resolveCaptureDate } = require('../../lib/brain/goals');
   const concept = await resolveGoalConcept();
   if (concept.error) return { success: false, error: concept.error };
@@ -2352,6 +2377,11 @@ async function updateGoalIntent({ goalSlug, deliverable, boundary, parentSlug })
   if (deliverable !== undefined) { section.deliverable = deliverable; fields.push('deliverable'); }
   if (boundary !== undefined) { section.boundary = boundary; fields.push('boundary'); }
   if (parentSlug !== undefined) { section.parent = parentSlug; fields.push('parent'); }
+  // The four are merged verbatim (ADR 0001 d4) — the three the caller did not
+  // supply, and every other field already on the goal (including
+  // out-of-contract riders), pass through untouched.
+  Object.assign(section, intent);
+  fields.push(...Object.keys(intent || {}));
 
   await regenerateJson(target.uuid, { ...wrapper, tapestryOwnerGoal: section });
   return { success: true, result: 'updated', fields, goal: { uuid: target.uuid, slug: goalSlug } };
@@ -2890,8 +2920,13 @@ async function handleNoteGoalIdea(req, res) {
     if (!session || typeof session !== 'string' || !session.trim()) {
       return res.status(400).json({ success: false, error: 'A session is required to attribute the capture' });
     }
+    // The four intent properties ride along on the existing contract
+    // (goal-intent-fields ADR 0001 d3). Whitelisted HERE — the handler is the
+    // trust boundary — so no raw body object ever reaches the core.
+    const { pickIntentFields } = require('../../lib/brain/goals');
+    const intent = pickIntentFields(req.body || {});
     const result = await serializeGoalWrite(() => noteGoalIdea({
-      name: name.trim(), statement: statement.trim(), session: session.trim(),
+      name: name.trim(), statement: statement.trim(), session: session.trim(), intent,
     }));
     return res.json(result);
   } catch (error) {
@@ -2900,7 +2935,7 @@ async function handleNoteGoalIdea(req, res) {
   }
 }
 
-async function noteGoalIdea({ name, statement, session }) {
+async function noteGoalIdea({ name, statement, session, intent }) {
   // Capture a NEW root goal (no parent), attributed to the session, with the
   // createChildGoal collision guard (ADR 0005 d7). This launches nothing — it
   // only writes facts (a goal + a noted record); the v1 launcher is the owner.
@@ -2925,6 +2960,9 @@ async function noteGoalIdea({ name, statement, session }) {
 
   const today = new Date().toISOString().slice(0, 10);
   const goalSection = { name, slug: derivedSlug, description: statement, origin: 'noted in an assistant session', capturedOn: today };
+  // Only the fields the owner actually supplied (ADR 0001 d2/d3) — the rest
+  // stay absent from the record, which is what "unset" means here.
+  Object.assign(goalSection, intent);
   const goalTags = [
     ['d', dTag],
     ['name', name],
@@ -4841,6 +4879,10 @@ const GOAL_SCHEMA = {
         deliverable: { type: 'string', description: "what 'done' produces, in the owner's words" },
         boundary: { type: 'string', description: "what pursuing this goal may not touch, in the owner's words" },
         parent: { type: 'string', description: 'the slug of the parent goal this goal is part of (one parent at most)' },
+        prompt: { type: 'string', description: 'A markdown file that is intended to serve as the prompt given to an agent at the start of a session, the goal of which is to achieve the stated goal.' },
+        chanceOfSuccess: { type: 'number', description: 'A number between 0 and 100 which indicates the estimated probability of success if an agent were to attempt to complete this goal without any human input. The default is 0, if not otherwise estimated.' },
+        needsHumanInput: { type: 'boolean', default: false, description: 'Whether this goal cannot be carried forward without the owner answering something. Absent means false.' },
+        needsBreakdown: { type: 'boolean', default: false, description: 'Whether this goal is judged too large to work on as it stands and should be broken into smaller goals. Absent means false.' },
       },
       'x-tapestry': { unique: ['name', 'slug'] },
     },

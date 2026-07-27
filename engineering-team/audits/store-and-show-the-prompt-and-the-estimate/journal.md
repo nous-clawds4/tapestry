@@ -279,3 +279,29 @@ I offered four concrete levers — judges on a faster model, judges reading my c
 
 **The operator elected to change nothing.** Recorded because it matters at close: the run's thoroughness is now explicitly ratified rather than merely tolerated, and if this book is later audited for pace, the trade was surfaced with its costs and chosen deliberately. No rubric, budget, or ceiling was altered by this exchange — it changed nothing about the gates.
 **Next:** Await Implementation; then Gate 4, which I verify mechanically myself.
+
+## 2026-07-27T00:14:42Z — Gate 4 (story #1): PASS — on the second run, with nothing discounted
+
+**Story/Phase:** `goal-intent-fields` #1 / Gate 4 (mechanical — no judge, by rubric)
+**Decision:** APPROVE
+**Judge:** n/a — Gate 4 is mechanical and the Director verifies it personally
+**Why:** Every check verified by me, not read from the Implementer's report:
+
+| Check | Result |
+|---|---|
+| Full suite, **identical** Stage-0 command `npm test` | `GATE4B_EXIT=0`, `Overall: PASS`, **no suite reported FAIL** |
+| Story's own suite | **40 passed / 0 failed / 0 skipped** |
+| H-class genuinely executed | **11 executed / 0 skipped** |
+| `git diff 39b9a98c -- test/` | **0 lines** — re-verified at commit time |
+| 64-hex pubkey literals added | **0** |
+| `package.json` / lockfile changes | **0** |
+| Firmware reinstall | correctly **not** run (ADR d7) |
+
+**The first Gate-4 run was RED, and I did not wave it through.** It failed on `relationship-primitives` H8 and `-probe` H4 — the two I had named as a forward risk at Gate 3, with the pre-commitment *"I will re-run rather than discount."* I honored that: the story's own suite had **zero** FAIL lines in that run too, so the tempting move was to call the gate satisfied and note the flake. That is precisely the rationalization a mechanical gate exists to prevent. Re-ran the whole suite; it came back clean without intervention. **No quiescing, no filtering, no exception — the green is a real green.**
+
+**Diagnosis of the flake, quantified rather than shrugged at.** `strfry-router` and `stream-consumer` run continuously and import from remote relays at a measured **~1 event per 15 seconds (0.07/sec)**. Both failing tests assert "this operation wrote nothing to strfry" by bracketing a **global** event count. That is **structurally unsound**, not merely flaky: any bracket spanning more than a few seconds will eventually catch an unrelated router write, so passing is the coincidence and failing is the expected behavior. Distinct from OPEN.md #104/#106, which is about probe timing and skipped classes. **Proposed OPEN.md row** (outside my lane to file): *a global-counter bracket cannot prove "wrote nothing" while a router is importing; the assertion needs to be scoped to the events under test, not the whole relay.* Evidence for whoever files it: counts moved `6014735 → 6014739` inside one bracket, and `6014739 → 6014740` in the next.
+
+**The d4 trap is disarmed as specified, verified by reading the diff.** `intent` is computed **before** the refusal; the refusal is a presence test across both lists (`provided.length === 0 && Object.keys(intent).length === 0`); `provided` still holds exactly the three string fields, so the `empty-value` loop and the `.trim()` calls cannot reach the four; `intent` is passed through untrimmed and merged with `Object.assign`. The mandated comment is present and names the trap explicitly — that collapsing the lists "looks like tidying" but "silently creates a rule the story forbids."
+
+**Two honest choices by the Implementer, recorded because both could have been hidden.** It declined to run the scratch-instance drill that would close AC4 end-to-end — it journals a durable record into the live brain and boots a second container, real side effects beyond a test gate — and said so rather than quietly skipping or quietly doing it. And it left the story's Deviations section **absent** rather than padding it, because nothing in the diff diverges from the ADR.
+**Next:** Phase 5, Review — fresh context, never the Implementer's.
