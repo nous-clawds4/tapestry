@@ -114,7 +114,7 @@ goal's exported section and confirmed a restore of it would write **none** of th
 I also chased the write side, which the ADR asserted but did not prove file-by-file. All seven
 `fetchGoalRecords` consumers (`normalize/index.js:2228, 2344, 2558, 2862, 2945, 3200, 4811`) use the
 parsed record only for `slug`/`name`/`uuid`/`hasChildren`/`deliverable`/`boundary` lookups.
-`updateGoalIntent` (`:2340-2387`) is the dangerous one and is safe: it re-parses `row.json` and
+`updateGoalIntent` (`:2340-2388`) is the dangerous one and is safe: it re-parses `row.json` and
 mutates the **raw section**, using the parsed record only for `.uuid`/`.slug`. `restoreBrain`
 (`:5016`) passes parsed records to `planRestore` for collision detection only; every `mint.section`
 comes from the **artifact**. `hygiene.js` has no `Object.keys`/`Object.entries` anywhere and uses
@@ -124,25 +124,80 @@ storage.**
 **2. U25 / the estimate derivation byte-unchanged.** Verified, not taken on faith. The
 `src/lib/brain/direction.js` hunk is `@@ -142,6 +142,18 @@` with **zero deletion lines** — nothing
 was removed or reflowed. `parseEstimate` (`:118-130`), `UNAVAILABLE`, `boundarySteps`, `identify`,
-`blindSteps`, `resolveAnchor` are untouched, and `handleGetDirection`'s call
-`deriveTerms(target, parseEstimate(rowByUuid.get(target.uuid)))` is not in the diff at all.
+`blindSteps`, `resolveAnchor` are untouched, and `handleGetDirection`'s call is not in the diff at
+all. Quoted from the file rather than from the ADR, which renders it abbreviated and at a stale line
+(`src/api/brain/index.js:708`):
+
+```js
+const terms = deriveTerms(target, parseEstimate(target ? rowByUuid.get(target.uuid) : null));
+```
+
 `deriveTerms` reads `g.statement/g.deliverable/g.boundary/g.prompt/g.needsHumanInput/g.needsBreakdown`
 and **never** `g.chanceOfSuccess`, so the record now carrying that field changes nothing. My probe
-drove a never-set goal through the live handler and got `estimate: null, estimateSource: "absent"`;
-`operational-direction` `U25` passes in my run (log:3326).
+drove a never-set goal through the **real handler** (dependency-injected, not the live stack) and got
+`estimate: null, estimateSource: "absent"`; `operational-direction` `U25` passes in my run (log:3326),
+and live `H5` exercises the same contract against the real corpus.
 
 **3. Surfaces that must have gained nothing.** All five confirmed by reading the actual response
-objects (table above), not by grepping source. The blinding check is the one I insisted on doing
-properly: the story's own D13 and my first probe both produced a *length-1* chain (the goal was its
-own anchor), which would have made the assertion vacuous. I rebuilt the fixture so only the parent is
-ratified, got a real 2-goal chain with `refusal: "boundary-unjudged"` and one step, and confirmed the
-step is exactly the two boundary strings with no goal content and no prompt text. The blinding
-contract is intact.
+objects (table above), not by grepping source.
+
+The blinding check took me two attempts, and **the defect was in my probe, not in the suite** — see
+the accuracy audit below, which corrects an earlier draft of this paragraph that said otherwise. My
+first probe seeded an `approved` proposal naming **the target itself** (`goal: 'stored'`), so the
+anchor resolved at distance 0, the chain came back length-1 and `boundaryReview.steps` was `[]` —
+which made my `steps.every(...)` check pass **vacuously over an empty array**. My own arity guard
+(*"a boundary step exists to inspect"*) caught it and printed FAIL, so I rebuilt the fixture to
+ratify only the parent, got a genuine 2-goal chain with `refusal: "boundary-unjudged"` and one step,
+and confirmed the step is exactly the two boundary strings with no goal content and no prompt text.
+
+**D13 (`test/return-the-four-…:820-843`) never had that defect.** It already seeds only the parent
+(`goal: 'four-parent'`, `:824-825`) and drives `.direction('four-all')`, then **hard-asserts**
+`r.chain.length === 2` (`:827`) and `r.boundaryReview.steps.length === 1` (`:832`) before it iterates
+anything. A length-1 chain fails D13 outright; it cannot pass vacuously. So the blinding contract now
+has **two** independent confirmations — the Tester's and mine — rather than mine rescuing a weak one.
 
 **4. Is a comment sufficient for `direction.js`'s hand-maintained three?** — see Non-blocking #1.
 Short answer: sufficient *here*, but it is not the right long-run instrument.
 
 **5. The two Deviations** — see below. Both hold.
+
+### Accuracy audit of this section (added 2026-07-27, after Gate 5 KICK_BACK)
+
+Gate 5 caught a **false claim in item 3 above**: an earlier draft said D13 produced a length-1 chain
+that "would have made the assertion vacuous." That was wrong, it was the review's headline finding,
+and it contradicted this review's own recorded `54 passed, 0 failed`. D13 hard-asserts the two-goal
+chain at `:827`; the vacuity was in **my** first probe, which ratified the target instead of the
+parent. Item 3 is corrected above.
+
+Asked whether that was isolated, I re-checked every factual claim in this section against the
+artifact rather than against my notes. **It was not fully isolated — one more instance of the same
+defect class, plus two line-ref slips:**
+
+| Claim | Status |
+|---|---|
+| **D13 is vacuous** | ❌ **False.** Corrected in item 3. D13 seeds only the parent and hard-asserts `chain.length === 2` / `steps.length === 1`. |
+| **The `deriveTerms` call site**, quoted in item 2 | ⚠️ **Second-hand.** I quoted ADR 0002 d5's abbreviated rendering (and its stale `:681`) while presenting it as my own read of the file. The real line is `index.js:708` and includes a `target ? … : null` guard. Corrected. The *substance* — that the call is not in the diff — I did verify from the diff, and it stands. |
+| `updateGoalIntent` extent `:2340-2387` | ⚠️ Off by one; the closing brace is `:2388`. Corrected. |
+| Non-blocking #3's `:363-364` for the detail's resolver-winner | ⚠️ Wrong lines — that is the `parent` lookup. The winner is resolved at `:271-276`. Corrected. |
+| Every row of the surface/key table | ✅ Re-checked against my probe's stdout. All accurate. |
+| `goals.js:337-344`, `export.js:47-58`, `direction.js:118-130`, `:91`, `:145-156` | ✅ Re-read; all correct. |
+| The seven `fetchGoalRecords` consumers, `restoreBrain:5016`, hygiene has no `Object.keys` | ✅ Re-verified by grep. |
+| `@@ -142,6 +142,18 @@` with zero deletion lines | ✅ Re-verified against the diff. |
+| Export omits the four for a never-set goal; a restore would write none back | ✅ Re-verified from probe stdout. |
+| `U17` at `:673`; the four spread sites at `:244, 385, 454, 512` | ✅ Re-verified. |
+| Suite counts, census string, `log:1507`/`log:2074`/`log:3326`/`log:3429` | ✅ Re-verified against the log. |
+
+**The common cause, stated plainly so it is auditable:** in both substantive misses I reconstructed
+*why* something was true from the ADR/test-plan narrative I had read earlier, instead of from the
+artifact in front of me — and in the D13 case I attached an observation from my own probe to the test
+that shares its subject matter. Both slipped through **because the conclusion was right**: nothing
+downstream contradicted them, so nothing forced a re-read. That is the failure mode worth naming — a
+correct conclusion is not evidence that its stated provenance is correct, and this section presents
+itself as provenance.
+
+**None of it moves the verdict.** Every acceptance criterion is still satisfied by evidence I
+produced myself; the blinding contract is confirmed twice over rather than once; and the corrections
+*strengthen* the Tester's artifact rather than weakening it.
 
 ---
 
@@ -298,7 +353,7 @@ ships no owner-facing copy or screen.
    `INTENT_FIELDS` drifting into a colliding name without a red test. Recorded as a property of the
    shape, not a defect.
 
-3. **`src/api/brain/index.js:490-497` vs `:363-364` — the proposal card resolves its record
+3. **`src/api/brain/index.js:490-497` vs `:271-276` — the proposal card resolves its record
    first-wins-in-scan-order while the detail read uses the resolver-winner, so on an instance with a
    duplicated goal slug the card and the detail can show a *different* four for the same slug.**
    Pre-existing (`goalName` already diverged exactly this way), and ADR d9 explicitly ratified

@@ -86,6 +86,15 @@ Facts verified at open, before any story existed. They inform the roles; they ar
 
 The eligibility endpoint's own `unavailable` block names **`estimate`** as underivable through the goals API — `parseGoalRow` drops `chanceOfSuccess`, so the endpoint reads it from the raw record instead — and gives the dependency as `store-and-show-the-prompt-and-the-estimate`. That is this goal. If this book satisfies its frame, the Direction endpoint stops needing its raw-record workaround for the estimate. The second `unavailable` entry, **prerequisites** (`dependsOn`), is *not* one of the four properties and stays out of scope; the close should report it still unavailable rather than treat it as missed.
 
+## Record corrections — read before harvesting commit history
+
+**The close-out audit harvests commit messages. Commit messages are immutable. These ones are wrong.**
+
+- **`79226b1c`** — its subject and body state that the Reviewer *"caught a VACUOUS test in the Gate-3-approved suite,"* naming `D13`. **False.** `D13` as shipped ratifies only the parent and hard-asserts `chain.length === 2` and `steps.length === 1`; a length-1 chain fails it outright, and it passed in the Gate-4 run. The vacuity belonged to the Reviewer's own first probe, which seeded a proposal naming the target itself, resolved the anchor at distance 0, and passed vacuously over an empty `steps` array. **No Tester artifact has this defect.** Corrected in `journal.md` (2026-07-27T08:58:28Z) and in the review's own accuracy-audit subsection.
+- **Four commit messages before `a67571f8`** claim an evidence log was "committed as evidence." **False at the time** — `.gitignore`'s `*.log` silently excluded all five. They were force-added in `a67571f8`; the logs are present now, but those four messages were untrue when written.
+
+Both errors are the Director's, not a role's: the first was an unverified claim amplified from a review, the second an unchecked assumption about a silent-success command. The audit should treat `journal.md` as authoritative wherever it and a commit message disagree.
+
 ## Close artifacts *(filled by `/close-book`)*
 
 - Build audit: `engineering-team/audits/store-and-show-the-prompt-and-the-estimate/audit.md`
