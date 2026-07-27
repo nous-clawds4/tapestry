@@ -305,3 +305,23 @@ I offered four concrete levers — judges on a faster model, judges reading my c
 
 **Two honest choices by the Implementer, recorded because both could have been hidden.** It declined to run the scratch-instance drill that would close AC4 end-to-end — it journals a durable record into the live brain and boots a second container, real side effects beyond a test gate — and said so rather than quietly skipping or quietly doing it. And it left the story's Deviations section **absent** rather than padding it, because nothing in the diff diverges from the ADR.
 **Next:** Phase 5, Review — fresh context, never the Implementer's.
+
+## 2026-07-27T01:29:15Z — Gate 5 (story #1): APPROVE — story #1 complete through all five phases
+
+**Story/Phase:** `goal-intent-fields` #1 / Gate 5
+**Decision:** APPROVE
+**Judge:** **APPROVE**, blinding intact. Its summary is the standard I want held: *"This review demonstrates rather than asserts."* It **reproduced the Reviewer's test gate twice** — a full `npm test` whose roll-up matches the review's quoted block *line for line* (including the two false-positive `FAIL` regex hits), plus the `TAPESTRY_REQUIRE_LIVE=1` standalone at exit 0, 40/0/0, live class genuinely executed. It re-ran the review's independent greps, and sampled ~20 file:line references, all resolving to the construct claimed.
+**Why:** I concur, and I verified the one thing the rubric assigns to me personally: the `**Status:** Done` flip is **present in the review commit** and is the Reviewer's own — `git show --name-status b942fd07` is exactly `A` review + `M` story, with `Approved → Done`, no renames, no moves, and no separate Director commit touching the story file.
+
+**Defects found: cosmetic only.** An off-by-one line reference for `INTENT_FIELDS` (`:263` vs `:264`), a diff-size figure of +96 where the true insertion count is **+90**, a skipped-test total that does not reproduce (41 vs 51 — live-stack-dependent elsewhere in the suite, load-bearing for nothing), and the conditional product-guide section omitted rather than marked N/A (the book is explicitly no-PRD, so the condition does not apply). None is a rubric item; none affects mergeability.
+
+**The Reviewer found a hole in the harness's own safety net — and caught itself falling into it.** Its `EXIT=${PIPESTATUS[0]}` echo came back **empty**: `PIPESTATUS` is bash and this shell is zsh, so **OPEN.md #103's own recommended mitigation silently evaporates under the `| tee` idiom that same row recommends**. It closed the hole with a second independent run rather than resting on a log line. Fifth exit-code incident this session, and the first where the *documented fix* was the thing that failed. Worth noting precisely: my own runs use `{ npm test; echo "EXIT=$?"; } > log`, which avoids the pipe entirely — **the brace form works, the pipe form does not**, and the ledger should say which.
+
+**A Reviewer conclusion I can correct, because it lacked context I have.** It read the live schema's `required` as correct and concluded OPEN.md #102 "looks stale." It is not — I repaired that on **local only** at 18:07Z; staging and production presumably still carry it. Its restraint was right: it logged the observation for triage and explicitly declined to "close someone else's bug from a review." Right instinct, wrong conclusion, and only because the repair is invisible from where it stood.
+
+**Completion detection correctly made no offer.** The frame's *"all four come back on every surface that shows a goal"* is untouched by design; stories #2 and #3 remain `Approved`. The book stays Open. That is the Reviewer declining to propose done on a third of a frame.
+
+**Director sequencing call: no deploy yet.** The skill reads *"Phases 1–5 per story, then `/cycle-local` → `/cycle-staging`"*. Story #1 alone leaves the four **storable but still invisible** — precisely the state the goal's ask complains about — so shipping it to shared staging buys nothing and ships a half-feature. Local verification is already substantial: the H-class ran against the live local stack and passed, twice, in my Gate-4 runs. Deploy chain runs once all three stories are through their gates.
+
+**Ledger items accumulating that are outside my lane to file** (evidence is in this journal for whoever writes them): (1) the global-counter bracket unsoundness, quantified; (2) the zsh/`PIPESTATUS` hole in #103's own mitigation; (3) ADR `Status: Proposed` never flips to `Accepted` because no workflow step assigns it.
+**Next:** Story #2 — `2-return-the-four-on-every-read-surface`. It is drafted but **not gated**; being written early grandfathers nothing. Gate 1 on it as it stands.
