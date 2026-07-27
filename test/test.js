@@ -193,6 +193,8 @@ const theBrainSurvives = require('./the-brain-survives.test.js');
 const operationalDirection = require('./operational-direction.test.js');
 // epic: goal-intent-fields — Story 1 (store the four when a goal is captured or updated).
 const storeTheFour = require('./store-the-four-when-a-goal-is-captured-or-updated.test.js');
+// epic: goal-intent-fields — Story 2 (return the four on every read surface).
+const returnTheFour = require('./return-the-four-on-every-read-surface.test.js');
 // bug — tapestry-key handlePut must await the async LMDB write (regression guard).
 const tapestryKeyPutAwait = require('./tapestry-key-put-await.test.js');
 
@@ -502,6 +504,7 @@ async function main() {
   const theBrainSurvivesResult = await theBrainSurvives.run();
   const operationalDirectionResult = await operationalDirection.run();
   const storeTheFourResult = await storeTheFour.run();
+  const returnTheFourResult = await returnTheFour.run();
 
   console.log('\ntapestry-key-put-await suite:');
   const tapestryKeyPutAwaitResult = await tapestryKeyPutAwait.run();
@@ -943,6 +946,12 @@ async function main() {
   // OPEN.md #104/#106 — an all-skipped live class is otherwise invisible in the
   // roll-up. Say which live classes actually ran.
   console.log(`store-the-four H-class:                          ${storeTheFourResult.hExecuted} executed / ${storeTheFourResult.hSkipped} skipped`);
+  const returnTheFourLine =
+    (returnTheFourResult.pass + returnTheFourResult.fail) === 0 && returnTheFourResult.skipped
+      ? `SKIP (${returnTheFourResult.skipped} tests; preconditions not met)`
+      : `${returnTheFourResult.fail === 0 ? 'PASS' : 'FAIL'} (${returnTheFourResult.pass} passed, ${returnTheFourResult.fail} failed${returnTheFourResult.skipped ? `, ${returnTheFourResult.skipped} skipped` : ''})`;
+  console.log(`return-the-four suite:                           ${returnTheFourLine}`);
+  console.log(`return-the-four H-class:                         ${returnTheFourResult.hExecuted} executed / ${returnTheFourResult.hSkipped} skipped`);
 
   const overallOk =
     configOk &&
@@ -1107,6 +1116,8 @@ async function main() {
     operationalDirectionResult.fail === 0 &&
     // goal-intent-fields #1 — store the four when a goal is captured or updated
     storeTheFourResult.fail === 0 &&
+    // goal-intent-fields #2 — return the four on every read surface
+    returnTheFourResult.fail === 0 &&
     harnessLintResult.fail === 0 &&
     harnessStatsResult.fail === 0 &&
     sessionStartResult.fail === 0 &&
@@ -1150,7 +1161,7 @@ async function main() {
     relationshipPrimitivesResult, relationshipPrimitivesProbeResult, moveNodesBetweenSetsUiResult,
     captureAGoalAndSeeItResult, firmwareConceptElementsSetsResult, tapestryPerConceptDetailViewsResult, structuresTheBrainCanTrustResult,
     breakAGoalIntoPiecesResult, attachTheWorldResult, sessionsReadTheBrainResult, theProposalLoopResult,
-    operationalDirectionResult, storeTheFourResult,
+    operationalDirectionResult, storeTheFourResult, returnTheFourResult,
   ].reduce((sum, r) => sum + ((r && r.skipped) || 0), 0);
   console.log(`Total skipped:                                   ${totalSkipped}`);
   console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);

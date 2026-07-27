@@ -129,6 +129,8 @@ None. The three raised at Planning were answered at the gate and are recorded in
 
 ## Linked artifacts
 
-- ADR: (filled in after Architecture phase)
-- Test plan: (filled in after Test Design phase)
+- ADR: `engineering-team/decisions/goal-intent-fields/0002-read-side-intent-projection-absence-as-null.md`
+- Test plan: `engineering-team/stories/goal-intent-fields/2-return-the-four-on-every-read-surface.test-plan.md`
+  (tests: `test/return-the-four-on-every-read-surface.test.js`; plus the re-aimed **R1** in
+  `test/store-the-four-when-a-goal-is-captured-or-updated.test.js`)
 - Review: (filled in after Review phase)

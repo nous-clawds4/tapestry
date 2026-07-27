@@ -44,11 +44,14 @@
  *     0003/0004 precedent) — no real goal is ever written or mutated, and a
  *     before/after export snapshot proves it.
  *
- *   R-class (regression sentinels, stack-free, pass BEFORE and after) — the
- *     read side stays story 2's lane (parseGoalRow's projection unchanged), the
- *     Direction core keeps its local chanceOfSuccess read (operational-direction
- *     ADR 0001 d6 — retiring it is story 2's call), and the goals core keeps
- *     every export it already had.
+ *   R-class (regression sentinels, stack-free) — the goal shape's single
+ *     exact-key sentinel (R1), the Direction core keeping its local
+ *     chanceOfSuccess read (operational-direction ADR 0001 d6 — retiring it is
+ *     story 2's call), and the goals core keeping every export it already had.
+ *     **R1 was RE-AIMED by goal-intent-fields #2** (ADR 0002 d1), which it
+ *     named as its re-pin: the goal shape grows from ten fields to fourteen, so
+ *     R1 alone in this suite fails until #2's parser change lands. R2/R3 still
+ *     pass before and after.
  *
  * ── Pass-by-design sentinels (they pass BEFORE the Implementer touches
  *    anything, and must STILL pass after) — 16 of 40. Stated here so a green
@@ -66,7 +69,7 @@
  *      H3  a capture with none of the four still succeeds
  *      H9  the replicating create-element path already carries all four
  *      H11 no goal outside the fixtures is written or moved
- *      R1/R2/R3 the scope sentinels
+ *      R2/R3 the scope sentinels (R1 was re-aimed by #2 — see the R-class note)
  *    The other 24 FAIL until the feature lands.
  *
  * ── Harness defects this suite is designed around (OPEN.md) ──
@@ -1115,7 +1118,12 @@ htest('H11 (AC2 safety): no record outside the harness fixtures was written, mov
    R-class — regression sentinels (pass BEFORE and after)
    ══════════════════════════════════════════════════════════════════════ */
 
-test('R1 (scope): the read side is untouched — parseGoalRow still projects exactly its ten fields, and returning the four is story 2', () => {
+// RE-AIMED by goal-intent-fields #2 (ADR 0002 d1), which this sentinel named as
+// its re-pin: the read side now carries the four, so the goal shape grows from
+// ten fields to fourteen — the four APPENDED after `parent`, in the concept's
+// own order. Still the single exact-key sentinel over a goal shape in this
+// suite; nothing about it is weakened. It FAILS until #2's parser change lands.
+test('R1 (scope): parseGoalRow projects exactly its fourteen fields — the ten it had, plus the four appended after the parent', () => {
   const core = loadGoalsCore();
   const section = {
     name: 'a goal', slug: 'a-goal', description: 'its ask', origin: 'owner', capturedOn: '2026-07-01',
@@ -1124,13 +1132,16 @@ test('R1 (scope): the read side is untouched — parseGoalRow still projects exa
   };
   const rec = core.parseGoalRow({ uuid: '39999:ta:a-goal', name: 'a goal', createdAt: 1784000000, json: JSON.stringify({ tapestryOwnerGoal: section }) });
   assert(rec && typeof rec === 'object', 'parseGoalRow must still parse a goal row.');
-  const expected = ['uuid', 'name', 'slug', 'statement', 'origin', 'capturedOn', 'createdAt', 'deliverable', 'boundary', 'parent'];
+  const expected = ['uuid', 'name', 'slug', 'statement', 'origin', 'capturedOn', 'createdAt', 'deliverable', 'boundary', 'parent',
+    ...EXPECTED_FIELDS];
   const keys = Object.keys(rec);
   assert(Array.isArray(keys) && keys.length === expected.length,
-    `parseGoalRow must project exactly ${expected.length} fields in this story — returning the four on read surfaces ` +
-    `is goal-intent-fields #2, which re-pins this sentinel. Got ${short(keys)}.`);
+    `parseGoalRow must project exactly ${expected.length} fields — the ten it projected for story 1 plus the four this ` +
+    `story's sibling (goal-intent-fields #2, ADR 0002 d1) appends after \`parent\`. Got ${keys.length}: ${short(keys)}.`);
   assert(sameArray(keys, expected), `parseGoalRow's projection changed; got ${short(keys)}.`);
   assert(rec.deliverable === 'what done produces' && rec.parent === 'a-parent', 'the existing projection must still be correct.');
+  assert(rec.prompt === 'a prompt' && rec.chanceOfSuccess === 60 && rec.needsHumanInput === true && rec.needsBreakdown === false,
+    `the four must be projected VERBATIM from the stored section; got ${short({ prompt: rec.prompt, chanceOfSuccess: rec.chanceOfSuccess, needsHumanInput: rec.needsHumanInput, needsBreakdown: rec.needsBreakdown })}.`);
 });
 
 test('R2 (scope): the Direction core keeps its own local chanceOfSuccess read — retiring it is story 2\'s call, not this story\'s', () => {
