@@ -44,3 +44,35 @@ Mode: **operational Direction** (goal-derived terms). Staging is the ceiling.
 **Judge:** n/a
 **Why:** Preflight state, honestly recorded. **Step 2 arming baseline — not applicable, and not silently skipped:** operational mode *knowingly surrenders* the pinned baseline commit and pinned governing versions, for the endpoint's own stated reason (reproducibility traded for operational cost; both retained in armed mode). The branch point (`origin/staging` `db7c5a7a`) is noted for cold resume only and is **not** a pinned baseline. **Contamination check passes, and not vacuously:** the `tapestries` epic exists (`**Status:** Done`) with shipped stories 3–4 belonging to the *closed* `tapestries` book — prior art, not contamination; nothing for **this** goal predates the run (no story or ADR about adding a concept to an existing Tapestry — `stories/tapestries/` holds only 3–4, `decisions/tapestries/` only 0003 create-authoring and 0004 detail-views; branch tip **equals** `origin/staging` at `db7c5a7a`, zero commits, no source changes). **Step 3:** working tree clean; fetched; no drift to rebase. **Step 4:** the two other open books (`task-timeline`, `unified-tagging-ui`) and the `🔴 OPEN` handoffs (communities protocol delivery, harness review, b-tag affiliation) were scanned — none touches the tapestries UI surface; no entanglement. **Step 5:** on `feat/add-a-concept-to-a-tapestry` (created in the operator's preflight). **Step 6:** baseline GREEN, **operator-attested** (previous entry) — command of record **`npm test`**, no filters; Gate 4 reruns exactly this, tee'd to a log, with the verdict read from the log's `Overall:` line and an explicitly echoed exit code — never the background notification's exit code (OPEN.md #103/#105) — and with skip-scrutiny on the suites the diff touches (#104/#106).
 **Next:** Stage 1, Planning — spawn `product-owner` with the acceptance frame, the goal terms verbatim, and the prompt as context-not-terms.
+
+## 2026-07-28T04:15:00Z — Planning returned: one story, epic reactivated
+
+**Story/Phase:** `tapestries` #5 / Planning
+**Decision:** INFO
+**Judge:** n/a
+**Why:** The Product Owner wrote `stories/tapestries/5-add-a-concept-to-a-tapestry.md` (Draft; 5 acceptance criteria, one subsystem — the tapestries UI surface) and reactivated `epics/tapestries.md` (Done → Active with a reopen note; story list corrected to the real Done paths including `stories/done/tapestries/` for #1–2; future list narrowed to what add-only leaves behind). **Recommended story count: 1** — grounded in the frame: every frame bullet is observable in one loop through one existing view, and the only visible seam ("affordance + gating" vs "publish + visibility") would split into a first story with no independent value and a second that cannot be demonstrated without the first. I spot-checked its accuracy claims rather than taking them: the epic's new `ADR tapestries/0002` reference is real (`decisions/done/tapestries/0002-exploration-page-as-authored-rendering.md`), and story numbering 5 is correct across `stories/tapestries/` + `stories/done/tapestries/`. **One honest note:** the role's report shows it read the book's Operator-instructions section despite my scoping instruction ("the operator's cap of 2 is headroom, not a target") — roles are not blinded, so this is no protocol breach, but it is the exposure I tried to avoid; recorded because the pattern matters. It cannot have inflated the decomposition: the recommendation (1) sits *below* the cap, and I never confirmed or denied any count preference to the role.
+**Next:** Answer the one recorded reading, then Gate 1.
+
+## 2026-07-28T04:16:15Z — Terms-mismatch check before Gate 1: PASS
+
+**Story/Phase:** `tapestries` #5 / pre-Gate-1
+**Decision:** INFO
+**Judge:** n/a
+**Why:** Re-asked the endpoint from inside the container: `eligible: true`, anchor distance 0, and the live `deliverable` and `boundary` byte-match the verbatim blocks in the book's derived section (compared programmatically, not by eye). No `anchor-stale`.
+**Next:** Journal the ANSWER, spawn the Gate-1 judge.
+
+## 2026-07-28T04:17:00Z — ANSWER to Planning: "my" = the instance owner; reading confirmed from the frame
+
+**Story/Phase:** `tapestries` #5 / Planning
+**Decision:** ANSWER
+**Judge:** n/a
+**Why:** The Product Owner recorded one reading for veto: that the frame's *"my own key or my assistant one"* means **the instance owner's key and the instance TA**, so non-owner sessions get no affordance anywhere. Confirmed under rule 1 (answer from the frame) — the words are quotable: the goal's prompt says *"let the **owner** add a concept to a Tapestry from the Tapestry view"*; the boundary's first person (*"**my** own key or **my** assistant one"*) is the goal's author, the owner; and *"a Tapestry published by someone else cannot be edited here and the option is not offered for it"* excludes every other author, which forecloses the alternative reading (any signed-in user editing tapestries under their own key — such a tapestry is "published by someone else" from this instance's view). Story #3's owner-gated authoring is corroborating precedent, not the ground. No delegation was needed and nothing was frame-changing, so no halt.
+**Next:** Gate 1 — fresh blinded `gate-judge`.
+
+## 2026-07-28T04:22:00Z — Gate 1: APPROVE
+
+**Story/Phase:** `tapestries` #5 / Gate 1
+**Decision:** APPROVE
+**Judge:** **APPROVE**, blinding reported intact. All six rubric items pass with file:line findings: five externally testable criteria (the one soft adjective, "a clear error," judged non-blocking because the operative assertions — error shown, membership unchanged — are testable); exactly 5 criteria on one surface (AC-3's density accepted as one cohesive claim: "republish changes membership and nothing else"); no solutioning (the URL route and the prior-story publish-behavior description are user-visible facts, not implementation artifacts); concept handles in required form with `<TA>` left to runtime; filing/numbering continuous across `stories/tapestries/` + `stories/done/tapestries/`; full bidirectional frame coverage (every frame bullet lands in a criterion, every boundary exclusion lands in Out of scope). The judge independently verified the intake-absence claim against `_intake.md` (full heading scan + keyword greps) rather than taking my prompt's word.
+**Why:** I concur on the merits — my own pre-gate read found the same shape (and my spot-checks of the epic edit's factual claims held). The story adds nothing to the owner's words; the one interpretive move ("my" = instance owner) is the ANSWER I gave from quotable frame text, surfaced in the story for exactly this veto. Approving and committing the Planning artifacts.
+**Next:** Phase 2 — spawn the `architect` for ADR 0005 under `decisions/tapestries/`.
