@@ -106,6 +106,6 @@ None blocking. One reading is recorded for the Director to veto at the gate if w
 
 ## Linked artifacts
 
-- ADR: (filled in after Architecture phase)
-- Test plan: (filled in after Test Design phase)
+- ADR: `engineering-team/decisions/tapestries/0005-add-concept-add-only-republish.md`
+- Test plan: `engineering-team/stories/tapestries/5-add-a-concept-to-a-tapestry.test-plan.md`
 - Review: (filled in after Review phase)
