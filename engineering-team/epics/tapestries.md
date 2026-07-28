@@ -1,7 +1,7 @@
 # Epic: tapestries
 
 **Created:** 2026-07-23
-**Status:** Done
+**Status:** Active *(reopened 2026-07-28 for story #5 under the Direction book `audits/add-a-concept-to-a-tapestry/book.md`; previously Done after the read-only/create book)*
 
 ## Goal
 
@@ -10,8 +10,8 @@ concepts and their integrations — in the app. A Tapestry is a subset of Graph 
 graphs"): each Tapestry element carries its own `graph` block (nodes / relationshipTypes /
 relationships / imports) that names its member concepts and the integrations between them. This
 epic builds the **read-only** surface (a directory plus a per-tapestry exploration view), modeled
-on the read-only parts of the Firmware Explorer. Authoring (create / edit) is explicitly deferred
-to later stories.
+on the read-only parts of the Firmware Explorer. Authoring landed incrementally: create (#3), and
+add-only membership editing (#5).
 
 ## Why it matters
 
@@ -23,21 +23,32 @@ rendering conventions the later authoring features will build on.
 
 ## Stories
 
-1. `stories/tapestries/1-tapestries-nav-and-directory.md` — "Tapestries" nav group under Nostr
-   Users + the **View Tapestries** directory + the **Create New Tapestry** stub. *(Draft)*
-2. `stories/tapestries/2-tapestry-exploration-page.md` — the per-tapestry **Exploration page**,
-   modeled on the Firmware Explorer's read-only views, rendered as-authored from the element's
-   `graph` block + resolved imports. *(Draft)*
+1. `stories/done/tapestries/1-tapestries-nav-and-directory.md` — "Tapestries" nav group under
+   Nostr Users + the **View Tapestries** directory + the **Create New Tapestry** stub. *(Done)*
+2. `stories/done/tapestries/2-tapestry-exploration-page.md` — the per-tapestry **Exploration
+   page**, modeled on the Firmware Explorer's read-only views, rendered as-authored from the
+   element's `graph` block + resolved imports. *(Done)*
+3. `stories/tapestries/3-create-tapestry.md` — **Create a Tapestry** (members-only authoring):
+   owner-gated title/description + concept picker, published under the owner's key or the TA.
+   *(Done)*
+4. `stories/tapestries/4-per-concept-detail-views.md` — per-concept detail views in the
+   Exploration page (Firmware-Explorer parity). *(Done)*
+5. `stories/tapestries/5-add-a-concept-to-a-tapestry.md` — **Add a concept to a Tapestry**:
+   add-only membership editing on the existing Exploration page, for tapestries authored under
+   the owner's key or the TA, republished the way tapestries are already published. *(Draft)*
 
-Future (not yet storied): Create a Tapestry; Edit a Tapestry; POV/WoT filtering of which
-tapestries are shown; re-parenting/durability concerns.
+Future (not yet storied): the rest of Edit a Tapestry — removing a member, changing how concepts
+connect (integrations), editing title/description; editing tapestries published by someone else
+(whose key may republish is unsettled — has its own goal); POV/WoT filtering of which tapestries
+are shown; re-parenting/durability concerns.
 
 ## Key facts / guardrails
 
 - **Render as-authored.** The Exploration page's source of truth is the tapestry element's own
   `graph` JSON block, plus resolving each `graph.imports` entry (a concept-graph core node) via the
   existing read-only concept-graph API. It does **not** re-derive the tapestry from live Neo4j the
-  way the Firmware Explorer derives firmware from the manifest. To be ratified in an ADR (story 2).
+  way the Firmware Explorer derives firmware from the manifest. Ratified in ADR tapestries/0002;
+  evolved for the per-concept drill-down by story #4's ADR.
 - **No new backend.** Reuse existing read-only endpoints (concept-graph API, `/api/neo4j/query`).
   If a convenience "resolve-tapestry" endpoint is ever warranted, that is a separate, measured
   decision — not part of this epic.

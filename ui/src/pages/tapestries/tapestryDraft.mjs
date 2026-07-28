@@ -80,3 +80,103 @@ export function buildTapestryDraft({ title, description = '', members, taPubkey,
 
   return { dTag, uuid, tapestry, graph, unsignedEvent };
 }
+
+/**
+ * Build the add-only replacement for an EXISTING tapestry element (ADR tapestries/0005
+ * Decision 1-A): copy the event verbatim — same d-tag (same coordinate → relay-native
+ * replacement), every non-json tag byte-identical and in order, content unchanged — and
+ * append exactly ONE member node + concept-graph import inside the json tag. A graph-less
+ * event (the live b0b48b00 shape) gains the minimal envelope on first add. Refuses — throws,
+ * with messages the UI shows verbatim — anything it cannot preserve.
+ *
+ * @param {object} args
+ * @param {object} args.event    the tapestry element as read from the relay (kind 39999).
+ * @param {{handle,shortSlug,conceptGraphSlug,descriptiveSlug,name}} args.member
+ *        the same member object shape buildTapestryDraft consumes (shared; see ADR 0005
+ *        Consequences — a change to it touches both builders).
+ * @param {string} args.taPubkey runtime-resolved TA pubkey (never hardcode) — namespaces the
+ *        new import; the tapestry's own coordinate follows the EVENT's author, not the TA.
+ * @returns {{dTag, uuid, unsignedEvent}} unsignedEvent carries no pubkey/sig — the own-key
+ *        branch attaches the author before NIP-07 signing; the TA branch lets the server re-sign.
+ */
+export function buildAddConceptDraft({ event, member, taPubkey }) {
+  if (!event || event.kind !== 39999) {
+    throw new Error('Only a kind-39999 tapestry element can have a concept added.');
+  }
+  const tags = Array.isArray(event.tags) ? event.tags : [];
+  const dEntry = tags.find((t) => t[0] === 'd');
+  const dTag = dEntry && dEntry[1];
+  if (!dTag) {
+    throw new Error('This tapestry has no d tag — there is no coordinate to republish to.');
+  }
+  if (!taPubkey) throw new Error('Adding a concept needs the instance TA pubkey.');
+  const cg = member && (member.conceptGraphSlug || member.shortSlug);
+  if (!member || !member.handle || !member.descriptiveSlug || !member.name || !cg) {
+    throw new Error('Adding a concept needs a member with a handle, descriptive slug, name, and concept-graph slug.');
+  }
+
+  // Parse the existing json tag; a missing tag is treated as {}. Refuse what cannot be
+  // preserved — silently replacing an unreadable payload would destroy it.
+  const jsonIdx = tags.findIndex((t) => t[0] === 'json');
+  let json = {};
+  if (jsonIdx >= 0) {
+    try {
+      json = JSON.parse(tags[jsonIdx][1]);
+    } catch {
+      throw new Error('This tapestry’s json tag is not valid JSON — refusing to republish over a payload that cannot be preserved.');
+    }
+    if (json === null || typeof json !== 'object' || Array.isArray(json)) {
+      throw new Error('This tapestry’s json tag does not hold an object — refusing to republish over a payload that cannot be preserved.');
+    }
+  }
+
+  // Missing graph block (undefined or null) → create the minimal envelope on first add.
+  // A graph block that EXISTS but is not appendable is refused, never rebuilt.
+  const existing = json.graph;
+  if (existing != null) {
+    if (typeof existing !== 'object' || !Array.isArray(existing.nodes)) {
+      throw new Error('This tapestry’s graph block has no nodes array — an add-only republish cannot preserve a structure it does not understand.');
+    }
+    if (existing.imports !== undefined && !Array.isArray(existing.imports)) {
+      throw new Error('This tapestry’s graph imports are not an array — an add-only republish cannot preserve a structure it does not understand.');
+    }
+    for (const n of existing.nodes) {
+      if (n && n.uuid === member.handle) {
+        throw new Error(`“${member.name}” is already a member of this tapestry.`);
+      }
+      if (n && n.slug === member.descriptiveSlug && n.uuid !== member.handle) {
+        throw new Error(`Another node in this tapestry already uses the slug “${member.descriptiveSlug}” — adding “${member.name}” would merge them at read time.`);
+      }
+    }
+  }
+
+  const newNode = { slug: member.descriptiveSlug, uuid: member.handle, name: member.name };
+  const newImport = { slug: `concept-graph-for-${cg}`, uuid: `39999:${taPubkey}:${cg}-concept-graph` };
+
+  if (existing == null) {
+    json.graph = { graphType: 'tapestry', nodes: [newNode], relationshipTypes: [], relationships: [], imports: [newImport] };
+  } else {
+    // `existing` is freshly parsed above — mutating it never touches the input event.
+    existing.nodes = [...existing.nodes, newNode];
+    const imports = Array.isArray(existing.imports) ? existing.imports : [];
+    existing.imports = imports.some((i) => i && i.uuid === newImport.uuid) ? imports : [...imports, newImport];
+    json.graph = existing;
+  }
+
+  // Copy every tag in order; only the (first) json tag's VALUE changes. Append one if none existed.
+  const jsonValue = JSON.stringify(json);
+  const newTags = jsonIdx >= 0
+    ? tags.map((t, i) => (i === jsonIdx ? ['json', jsonValue] : t))
+    : [...tags, ['json', jsonValue]];
+
+  const unsignedEvent = {
+    kind: 39999,
+    // Strictly newer than the base so replacement can never tie — NIP-01 resolves equal
+    // timestamps by id, which could keep the OLD event on a same-second create-then-add.
+    created_at: Math.max(Math.floor(Date.now() / 1000), (event.created_at || 0) + 1),
+    content: event.content,
+    tags: newTags,
+  };
+
+  return { dTag, uuid: `39999:${event.pubkey}:${dTag}`, unsignedEvent };
+}

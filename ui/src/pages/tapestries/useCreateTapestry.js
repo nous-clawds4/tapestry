@@ -1,50 +1,25 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback } from 'react';
 import { useConfig } from '../../context/ConfigContext';
 import { useAuth } from '../../context/AuthContext';
-import { queryRelay } from '../../api/relay';
 import { publishOrThrow } from '../../utils/publishProfileTag';
 import { getActiveSignerOrThrow } from '../../utils/signerGuard';
 import { buildTapestryDraft } from './tapestryDraft.mjs';
+import useConceptOptions from './useConceptOptions';
 
 /**
  * Authoring hook for "Create a Tapestry" (members-only v1). See ADR tapestries/0003.
  *
- * - Loads the concept picker from strfry concept headers (the canonical source per ADR
- *   tapestries/0002 — not Neo4j /summaries).
+ * - The concept picker comes from the shared useConceptOptions hook (extracted verbatim per
+ *   ADR tapestries/0005 Decision 4 so create and add-a-concept read ONE loader, no drift).
+ *   The delegated contract is unchanged from #3: a queryRelay({kinds:[39998], authors:[taPubkey]})
+ *   scan of strfry concept headers — the canonical picker source (ADR tapestries/0002), not
+ *   Neo4j /summaries — parsed into options carrying the searchText keyword blob (the o*
+ *   naming fields oNames/oSlugs/oKeys/oTitles/oLabels, word.name/slug, the d-tag, and the
+ *   free-text description) that the NewTapestry typeahead filters on.
  * - create() builds the wire shape via the pure tapestryDraft model and publishes it either
  *   under the owner's own key (NIP-07 → signAs "client") or as the Tapestry Assistant
  *   (server-signed → signAs "assistant", owner-gated by the server).
  */
-
-/** Parse a kind-39998 concept-header event into a picker option (or null to skip). */
-function toConcept(ev) {
-  const dTag = ev.tags?.find((t) => t[0] === 'd')?.[1];
-  if (!dTag) return null; // an addressable event with no d-tag has no stable identity
-  let word = {}, conceptHeader = {};
-  try {
-    const raw = ev.tags?.find((t) => t[0] === 'json')?.[1];
-    if (raw) { const j = JSON.parse(raw); word = j.word || {}; conceptHeader = j.conceptHeader || {}; }
-  } catch { /* malformed json → fall back to the d-tag below */ }
-  // Keyword search matches this blob (not just the display name): every naming form the
-  // concept-header carries — oNames/oSlugs/oKeys/oTitles/oLabels (singular+plural), word.name/slug,
-  // the d-tag — plus the free-text description. Built once here; the typeahead filters on it.
-  const both = (o) => (o ? [o.singular, o.plural] : []);
-  const searchText = [
-    ...both(conceptHeader.oNames), ...both(conceptHeader.oSlugs), ...both(conceptHeader.oKeys),
-    ...both(conceptHeader.oTitles), ...both(conceptHeader.oLabels),
-    word.name, word.slug, dTag, conceptHeader.description,
-  ].filter(Boolean).join(' ').toLowerCase();
-  return {
-    handle: `39998:${ev.pubkey}:${dTag}`,        // the concept-header coordinate (d-tag = short slug)
-    shortSlug: dTag,
-    // oSlugs.singular is what the derived *-concept-graph is named after (diverges from the d-tag
-    // for some concepts, e.g. nostr-event-tag) — used to build a resolvable import uuid.
-    conceptGraphSlug: conceptHeader.oSlugs?.singular || dTag,
-    descriptiveSlug: word.slug || `concept-header-for-${dTag}`, // word.slug → clean dedup at read time
-    name: conceptHeader.oNames?.singular || word.name || dTag,  // friendly display name
-    searchText,
-  };
-}
 
 /** Short random hex for the parameterized-replaceable d-tag suffix. */
 function randomSuffix() {
@@ -56,32 +31,7 @@ function randomSuffix() {
 export default function useCreateTapestry() {
   const { taPubkey } = useConfig();
   const { user } = useAuth();
-  const [concepts, setConcepts] = useState([]);
-  const [conceptsLoading, setConceptsLoading] = useState(true);
-  const [conceptsError, setConceptsError] = useState(null);
-
-  useEffect(() => {
-    if (!taPubkey) return; // wait for the runtime-resolved TA pubkey (never hardcode)
-    let cancelled = false;
-
-    (async () => {
-      try {
-        setConceptsLoading(true);
-        setConceptsError(null);
-        const events = await queryRelay({ kinds: [39998], authors: [taPubkey] });
-        if (cancelled) return;
-        const list = (events || []).map(toConcept).filter(Boolean)
-          .sort((a, b) => a.name.localeCompare(b.name));
-        setConcepts(list);
-      } catch (err) {
-        if (!cancelled) setConceptsError(err.message);
-      } finally {
-        if (!cancelled) setConceptsLoading(false);
-      }
-    })();
-
-    return () => { cancelled = true; };
-  }, [taPubkey]);
+  const { concepts, conceptsLoading, conceptsError } = useConceptOptions();
 
   const create = useCallback(async ({ title, description, selectedHandles, signAs }) => {
     const members = (selectedHandles || [])
