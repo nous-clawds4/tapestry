@@ -541,7 +541,7 @@ Its response is the most valuable exchange of this run. It owned the claim plain
 
 **Then it found a defect I had not looked for, from an invitation to defend itself.** I invited it to argue the pointer was not required. It checked git history instead and found the pointer *is* required — but that **its own ADR had routed it to the wrong phase**, instructing the Implementer. Three precedents place the amended-ADR pointer in the **Architect's** `adr:` commit; I verified `d7bd8b53` and its shape matches exactly. Both places in the ADR are corrected, with commit SHAs as evidence and a duplicate-pointer warning so the Implementer cannot add a second.
 
-**The pattern worth carrying to the post-mortem:** four false reports of completed actions in this run — three from roles, four from me. Every one was checkable in under a minute. **The remedy is not distrust; it is making the check routine**, because here the correction was better than the error.
+**The pattern worth carrying to the post-mortem:** false reports of completed actions — **two role-originated and two Director-originated** on the checkable inventory. *(Corrected at book close: this line originally read "four … three from roles, four from me," which does not sum and overstated the roles' share. The book-close audit caught it.)* Every one was checkable in under a minute. **The remedy is not distrust; it is making the check routine**, because here the correction was better than the error.
 
 ## 2026-07-27T10:34:11Z — Gate 2 (story #3): APPROVE — the last ADR is through
 
@@ -623,7 +623,7 @@ Its response is the most valuable exchange of this run. It owned the claim plain
 
 **Three trivial numeric slips in the review, none touching a check:** "six call sites" while enumerating eight lines (the substantive *no guard on the four* claim is true), a `+17/−2` header where numstat gives `+15/−2`, and a quoted census silently dropping one key.
 
-**Harness friction for the close, outside my lane to file:** `roles/reviewer.md:22` reads *"test: `npm test` (or `npm run test:playwright`)"* — but for a display story the gates are **conjunctive**, and 37/0 on a build that renders nothing was the exact Gate-3 finding. It is the first file every Reviewer reads.
+**Harness friction for the close, outside my lane to file:** `roles/reviewer.md:21` reads *"test: `npm test` (or `npm run test:playwright`)"* — but for a display story the gates are **conjunctive**, and 37/0 on a build that renders nothing was the exact Gate-3 finding. It is the first file every Reviewer reads.
 
 **The Reviewer offered `/close-book`; I answered "not yet."** A real "not yet", not a formality: the deploy chain has not run, the frame's bullets have been verified locally and not on staging, and Stage 2 precedes any completion offer. Saying yes now would ratify a book whose work has never left this machine. **The frame was not extended by that answer.**
 
@@ -663,3 +663,21 @@ The operator ratified with that qualification in front of them, alongside three 
 
 **This is the one answer the Director never gives.** Everything else in this run — every gate, every kick-back, every deploy through staging — was mine to decide under written rubrics. This one is not, and the run stopped at it rather than reasoning its way past it. The operator also asked me to run `/cycle-prod` earlier and I declined; that answer did not change and the ceiling held to the end.
 **Next:** `/close-book` — the Reviewer at book scope writes `audit.md` and `prd-seed.md`, the return edge to the product team.
+
+## 2026-07-28T02:20:00Z — Book closed; the close-out audit corrected my own record
+
+**Story/Phase:** book scope / Book Close
+**Decision:** INFO
+**Judge:** n/a — the book-close audit was written by a **fresh Reviewer at book scope**, not by me. I directed this run, made several of the errors the gates caught, and had my completion report kicked back for leading with a false claim; auditing my own run would have been the grade-your-own-homework problem the whole harness exists to prevent.
+
+**It found three places where this journal overstates itself, and I have corrected all three in place:**
+1. *"four false reports of completed actions — three from roles, four from me"* **does not sum**, and overstated the roles' share. Checkable inventory: **two role-originated, two Director-originated.**
+2. `roles/reviewer.md` — the test-gate line is **`:21`**, cited twice here as `:22`.
+3. This journal claimed **four** wrong judge asides; **two** are substantiated. The other two were judges catching *artifact* inaccuracies — **the instrument working, not failing.** I had filed them as judge fallibility, which flattered my own vigilance at the judges' expense.
+
+**And one where the run's own framing is generous:** *"all four come back on **every** surface"* is satisfied **as ratified, not as written** — three goal-showing payloads (orient's `roots`, `ancestry`, the card's `passedOver`) plus the Direction envelope's `chain`/`blindSteps` carry none of the four, by ADR 0002 d6. The auditor verified all four exclusions live.
+
+**A finding about the instruments, not the work:** `harness-stats.sh` scores this book at **kick-back rate 0 / churn 0** while this journal records **8 gate kick-backs and 3 halts** — the stats tool is blind to Direction-mode gates, and workflow step 7 directs the retro to lean on that very instrument. A retro reading the stats alone would conclude this run was frictionless.
+
+**The close-out gate is RED, deterministically, because of the close itself:** `harness-lint` L2 — *the book is `Closed` but epic `goal-intent-fields` is `Active`*. Not row 75's flake (`relationship-primitives` 23/0 and `-probe` 9/0 both green). The book's own suites are green with live classes executed (40/0 H11, 54/0 H8, 37/0 H5). **The epic retirement is the operator's act, not mine** — `roles/director.md` reserves the `done/` folder moves to the operator at book close, and the Reviewer deliberately declined them because those three `git mv`s invalidate every `stories/goal-intent-fields/…` path reference in the audit, the book, three reviews, the completion report and this journal. Filed as audit §7 P14 with a drafted ledger row.
+**Next:** Present the close to the operator with the gate question. Five drafted `OPEN.md` rows and two appends remain **uninserted** — that file is held by a concurrent session.
