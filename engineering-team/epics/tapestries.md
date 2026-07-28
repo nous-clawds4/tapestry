@@ -1,7 +1,7 @@
 # Epic: tapestries
 
 **Created:** 2026-07-23
-**Status:** Active *(reopened 2026-07-28 for story #5 under the Direction book `audits/add-a-concept-to-a-tapestry/book.md`; previously Done after the read-only/create book)*
+**Status:** Done *(retired 2026-07-28 at the `add-a-concept-to-a-tapestry` book close — all five stories Done, folders under `done/tapestries/`; previously reopened 2026-07-28 for story #5 under the Direction book `audits/add-a-concept-to-a-tapestry/book.md`, and Done before that after the read-only/create book)*
 
 ## Goal
 
@@ -28,14 +28,14 @@ rendering conventions the later authoring features will build on.
 2. `stories/done/tapestries/2-tapestry-exploration-page.md` — the per-tapestry **Exploration
    page**, modeled on the Firmware Explorer's read-only views, rendered as-authored from the
    element's `graph` block + resolved imports. *(Done)*
-3. `stories/tapestries/3-create-tapestry.md` — **Create a Tapestry** (members-only authoring):
+3. `stories/done/tapestries/3-create-tapestry.md` — **Create a Tapestry** (members-only authoring):
    owner-gated title/description + concept picker, published under the owner's key or the TA.
    *(Done)*
-4. `stories/tapestries/4-per-concept-detail-views.md` — per-concept detail views in the
+4. `stories/done/tapestries/4-per-concept-detail-views.md` — per-concept detail views in the
    Exploration page (Firmware-Explorer parity). *(Done)*
-5. `stories/tapestries/5-add-a-concept-to-a-tapestry.md` — **Add a concept to a Tapestry**:
+5. `stories/done/tapestries/5-add-a-concept-to-a-tapestry.md` — **Add a concept to a Tapestry**:
    add-only membership editing on the existing Exploration page, for tapestries authored under
-   the owner's key or the TA, republished the way tapestries are already published. *(Draft)*
+   the owner's key or the TA, republished the way tapestries are already published. *(Done)*
 
 Future (not yet storied): the rest of Edit a Tapestry — removing a member, changing how concepts
 connect (integrations), editing title/description; editing tapestries published by someone else
@@ -61,6 +61,10 @@ are shown; re-parenting/durability concerns.
   / version / Neo4j-constraints controls are firmware-only and are omitted.
 - **Don't hardcode the TA pubkey.** Concept handles are `39998:<TA>:<slug>`; `<TA>` is the
   runtime-resolved owner-assistant pubkey (client: `useConfig().taPubkey`) — never a literal.
+- **Two curator gates exist by ratified decision** (ADR tapestries/0005, Director ruling
+  2026-07-28): create (#3) admits owner-or-admin (`hasAdminAccess`); add-a-concept (#5) admits
+  the **owner only**. An admin who is not the owner can create a tapestry but cannot add to one.
+  Harmonizing "who curates" epic-wide is separately-goaled work if ever wanted.
 - **Seed data already exists** (local + intended for staging): element
   `39999:<TA>:tapestry-for-dog-ca3b675e` ("Tapestry for Dog") with a full `graph` block, plus the
   `dog`, `dog-breed`, `irish-setter`, and `golden-retriever` concepts.
