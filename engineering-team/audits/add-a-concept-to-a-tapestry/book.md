@@ -1,8 +1,9 @@
 # Book of Work: Add a Concept to a Tapestry
 
 **Slug:** add-a-concept-to-a-tapestry
-**Status:** Open
+**Status:** Closed
 **Opened:** 2026-07-28 — **eagerly**, before any story exists, so the anchor gates the work while it happens.
+**Closed:** 2026-07-28 — ratified by the operator (`/close-book` invoked in response to the completion offer; journal `2026-07-28T08:55:00Z`); closed by the Reviewer at book scope.
 
 ## Intent anchor
 
@@ -18,20 +19,20 @@ Decomposed from the goal's `deliverable` and `boundary` **verbatim** — every b
 
 **From the deliverable** — *"From a Tapestry I am looking at, I can add a concept that is not already in it. After I save, the Tapestry shows the new concept — to me, and to anyone else who opens it afterwards."*
 
-- [ ] From a Tapestry I am looking at, I can **add a concept that is not already in it**.
-- [ ] After I save, **the Tapestry shows the new concept to me**.
-- [ ] After I save, the Tapestry shows the new concept **to anyone else who opens it afterwards**.
+- [x] From a Tapestry I am looking at, I can **add a concept that is not already in it**.
+- [x] After I save, **the Tapestry shows the new concept to me**.
+- [x] After I save, the Tapestry shows the new concept **to anyone else who opens it afterwards**.
 
 **From the boundary** — *"Adding only: taking a concept out, and changing how concepts connect, both stay out. It works on Tapestries published under my own key or my assistant one; a Tapestry published by someone else cannot be edited here and the option is not offered for it. No new page and no new server endpoint — this is an affordance on the Tapestry view that already exists, publishing the way Tapestries are already published."*
 
-- [ ] **Adding only** — taking a concept out, and changing how concepts connect, both stay out.
-- [ ] It works on Tapestries published under **my own key or my assistant one**.
-- [ ] A Tapestry published by **someone else cannot be edited here**, and **the option is not offered** for it.
-- [ ] **No new page and no new server endpoint** — an affordance on the Tapestry view that already exists, publishing the way Tapestries are already published.
+- [x] **Adding only** — taking a concept out, and changing how concepts connect, both stay out.
+- [x] It works on Tapestries published under **my own key or my assistant one**.
+- [x] A Tapestry published by **someone else cannot be edited here**, and **the option is not offered** for it.
+- [x] **No new page and no new server endpoint** — an affordance on the Tapestry view that already exists, publishing the way Tapestries are already published.
 
 **Knowingly surrendered in this mode** — stated rather than quietly dropped; the generated section carries the endpoint's own wording and reasons:
 
-- [ ] The **baseline commit** and the **pinned governing versions** are deliberately not captured in operational mode, and the artifacts say so and say why (reproducibility traded for operational cost; both retained in armed mode, which is unchanged).
+- [x] The **baseline commit** and the **pinned governing versions** are deliberately not captured in operational mode, and the artifacts say so and say why (reproducibility traded for operational cost; both retained in armed mode, which is unchanged).
 
 ## Epics in this book
 
@@ -119,4 +120,10 @@ Facts verified at open, before any story existed. They inform the roles; they ar
 
 ## Close artifacts
 
-*(To be written at close by the Reviewer at book scope — `audit.md` plus `prd-seed.md` (no PRD backs this book). The close itself is the operator's to ratify; the Director only offers it.)*
+- **Build audit:** `engineering-team/audits/add-a-concept-to-a-tapestry/audit.md` — written 2026-07-28 by the Reviewer at book scope, **not** by the Director that ran this book. Every mechanically checkable claim in the run record was re-verified there rather than harvested; §4 and §7 record where the record and reality disagree (notably: several committed journal timestamps post-date their own commits, and the run's strfry-CLI `#z` probe caveat did not reproduce at close).
+- **Product feedback:** `engineering-team/audits/add-a-concept-to-a-tapestry/prd-seed.md` — no PRD backs this book, so the feedback artifact is a reconstructed baseline in PRD shape, every section tagged `[FROM FRAME]` / `[INFERRED]` / `[UNKNOWN]`.
+- **Retro dispositions:** audit §7 — every process lesson carries exactly one terminal state (operator-ratified harness commit · OPEN.md `meta` row · declined-with-reason). The rows this close inserts into `OPEN.md` include the five rows + two appends the `store-and-show-the-prompt-and-the-estimate` close drafted but never landed (repaired here, renumbered).
+- **Epic close-out performed at this close:** `epics/tapestries.md` → `**Status:** Done`; stories/ADRs/reviews for #3–#5 moved under the existing `done/tapestries/` folders (per-file `git mv` — the "one mv on the directory" form was unavailable because the first tapestries close already created the `done/` folders). `harness-lint` L2 is green at close — the previous book's deliberate L2-red close is not repeated.
+- **Story #5 shipped to:** `staging` as merge `ac09d591` (PR #476, deploy run 30340623300, success, 1m32s). **Not promoted to `main`** — production untouched (verified at close: `ac09d591` is not an ancestor of `origin/main`).
+- **Branch-local at close:** the completion report (`f10b53f5`) and this close commit are **not on `staging`** — the audit trail lands there via a docs-only PR (OPEN.md row filed, mirroring the live-feed/open-ranking/verified-muters/test-hermeticity-ci pattern).
+- **Demonstration state, honestly:** the live end-to-end add was performed on **local only** (the `cat` concept into the real `b0b48b00` tapestry, assistant path, relay-native replacement verified). Staging smoke was **read-only by rule**; the staging live add and the owner NIP-07 click-through remain one-click operator acts, not automated anywhere.
