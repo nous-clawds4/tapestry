@@ -17,9 +17,11 @@ The frame is in [`book.md`](./book.md) → `### Acceptance frame`, decomposed at
 
 **Shipped:** `INTENT_FIELDS` + pure `pickIntentFields()` in `src/lib/brain/goals.js`, applied at every constructing capture path in `src/api/normalize/index.js`.
 
-**Evidence.** Story #1's suite (29 tests) covers this class and is green; its H-class runs against the live stack (**11 executed / 0 skipped** — not silently skipped). Live corpus read from `GET /api/brain/export` at report time: of 31 goals, **7 carry `chanceOfSuccess`, 8 `needsHumanInput`, 7 `needsBreakdown`, 1 `prompt`** — values that reached storage through the write paths this story built.
+**Evidence — the H-class, not the corpus.** Story #1's live tests capture through the real endpoints and read the record back through the export (H1–H4, H8). Suite green with **H-class 11 executed / 0 skipped** — the live class genuinely ran rather than silently skipping.
 
-**The extent was derived, not recalled.** The story enumerates **eight** ways a goal record is written, split into a *closed* work-bearing class (four construction sites repo-wide, independently re-derived by two different judges) and a *characterized* no-work class. Gate 1 took four rounds to reach that; rounds 3 and 4 each found a write path the previous enumeration had missed.
+> **Corrected after the final audit.** An earlier draft of this report cited the live corpus — 8 of 31 goals carrying values — as *"values that reached storage through the write paths this story built."* **That was false, and it was the report's own leading claim.** Every one of those 8 goals was signed between `2026-07-25T23:13:11Z` and `2026-07-26T16:37:24Z`; story #1's write paths landed at `2026-07-27T00:15:18Z` (`53eaa20d`), and every goal write re-signs with a fresh `created_at`. Those values therefore **predate the implementation** and arrived through the pre-existing *replicating* paths — the class story #1 documents as "already carries all four — no work." [`book.md`](./book.md) said as much at open, recording all four as already observable via the export. The corpus proves the properties are storable; it proves nothing about the paths this story built. **The H-class does, and it is what this bullet rests on.**
+
+**The extent was derived, not recalled.** The story enumerates **ten** ways a goal record is written, split into a *closed* work-bearing class (four construction sites repo-wide, independently re-derived by two different judges) and a *characterized* no-work class. Gate 1 took four rounds to reach that; rounds 3 and 4 each found a write path the previous enumeration had missed. *(An earlier draft said "eight" — miscounted, and contradicted by this paragraph's own next sentence.)*
 
 **Log:** `gate4-green-2026-07-26.log`.
 
@@ -38,6 +40,8 @@ The frame is in [`book.md`](./book.md) → `### Acceptance frame`, decomposed at
 **Evidence, screens:** the browser class (8 tests) drives the three real screens in a real browser and asserts the **rendered text the owner sees** — including a substring drawn from *beyond* the excerpt bound on the detail screen, which is the only instrument that distinguishes "in full" from "an excerpt".
 
 **Why this bullet's evidence is stronger than a passing suite.** Story #3's first test suite reported **36 passed / 0 failed against an implementation that rendered nothing on screen.** Gate 3 caught it by *building* that counterexample rather than reasoning about it; a second judge later rebuilt it independently and confirmed the fix. The browser class exists because of that finding.
+
+**What "every surface" does *not* include, stated here where the word is being certified.** Three goal-showing payloads deliberately carry **none** of the four, and I verified this live: orient's bounded `roots` slice (`slug, name, standing`), `ancestry` (`slug, name`), and the proposal card's `passedOver` runners-up (`goal, goalName, whyNot`). This is ratified design — ADR 0002 d6 — and the Direction envelope's `chain` and `blindSteps` are excluded for a harder reason: a goal field there would break the boundary judge's blinding contract. **But these are exclusions from "every," and they belong under this bullet rather than filed two bullets later as evidence of non-action.** A reader certifying the word "every" should see them here.
 
 **The honest gap.** On **staging**, this bullet is verified only to the level of *correct gating plus a byte-identical bundle*: all four brain endpoints return `403 Owner access required` (the right gate, not a 500), and the deployed bundle is `index-EZ-5jXBH.js` — **the same hash verified locally**, which the Reviewer confirmed by rebuilding the committed `ui/` tree into a scratch directory and `diff -rq`-ing it against the served `dist/`. The bundle contains the story's new owner-facing strings. **I could not read the brain endpoints' JSON on staging**: they are owner-gated and droplet SSH is outside this run's ceiling. Reading them there requires a signed-in session or in-container access.
 
@@ -73,7 +77,25 @@ The frame is in [`book.md`](./book.md) → `### Acceptance frame`, decomposed at
 - **The four are not exercised end to end on a fresh instance.** Story #1's criterion 4 (a self-provisioning instance declares all four) is covered by three decomposed assertions, all green; the scratch-instance drill that would prove it end to end was deliberately not run, because it journals a durable record into the live brain and boots a second container.
 - **`dependsOn` / prerequisites** remains underivable, exactly as the endpoint's `unavailable` block said at open. It is not one of the four and was never in scope.
 
+## The obligation this book set for itself — discharged
+
+[`book.md`](./book.md) → "One thing this book closes about itself" required this close to report on the *other* entry in the eligibility endpoint's `unavailable` block, and Review #2's non-blocking finding #5 repeated the instruction. **Discharged here, having been missed in the first draft of this report:**
+
+`src/lib/brain/direction.js:91` still ships the string *"chanceOfSuccess is read here from the goal's raw record; the goals read API drops it (parseGoalRow)."* **That is now false.** `GET /api/brain/goals` returns `chanceOfSuccess` as of `c7b11d56`, verified live — the parser no longer drops it. The Direction endpoint's raw-record workaround is therefore no longer *necessary*, though it is still *present* and still correct in behaviour.
+
+It was deliberately not fixed in this book: the constant is pinned by `operational-direction` **U28**, and editing a closed book's shipped constant is precisely what kicked this epic back twice. Retiring the workaround and correcting that text is a follow-up, not a defect in what shipped. **The book predicted this outcome at open and asked to be told; this is the telling.**
+
 ## Defects found in the run's own record, corrected rather than buried
 
 - **Four commit messages claimed an evidence log was committed when `.gitignore` had silently swallowed it.** All five logs were later force-added.
 - **One commit message elevated a review finding I had not verified** — that a Tester artifact contained a vacuous test. It did not; the vacuity was in the Reviewer's own probe. Commit messages are immutable, so [`book.md`](./book.md) carries a **"Record corrections — read before harvesting commit history"** section instructing the close-out audit to treat [`journal.md`](./journal.md) as authoritative where the two disagree.
+
+## On this report's calibration — the final audit's sharpest finding
+
+The final audit was asked whether this report's honesty is *calibrated*, or whether it concedes small things while overclaiming large ones. Its answer, and it was right:
+
+> the declinations are genuinely good, but the asymmetry is real and runs the wrong way. Everything conceded costs nothing (a staging read it cannot reach, a prod it must not touch, a drill it chose to skip, a bug it disclaims), while the one place the report reaches past its evidence is the corpus provenance it leads with.
+
+That is the exact failure mode of a self-written completion report: **performative honesty about what is free to concede, and looseness where a claim actually carries weight.** Four separate declinations cost this report nothing to make. The single sentence that cost something — attributing live data to write paths that did not exist when that data was signed — is the one that went unchecked, and it was the report's leading evidence.
+
+Recorded here rather than quietly fixed, because a completion report that silently absorbs its own audit is worth less than one that shows where it was wrong.
