@@ -104,6 +104,29 @@ None blocking. One reading is recorded for the Director to veto at the gate if w
   owner's key and the instance TA — matching the goal's prompt ("let the owner add a concept")
   and #3's owner-gated authoring. Non-owner sessions get no affordance anywhere.
 
+## Deviations
+
+Implementation-phase judgment calls too small for an ADR amendment (Implementer, 2026-07-28):
+
+- **`AddConceptToTapestry` does not call `useAuth()`** although the ADR's implementation note
+  lists it among the component's internals. Decision 3's signing branch keys off the *event's
+  author* (data), the render gate lives in `TapestryDetail`, and `getActiveSignerOrThrow(author)`
+  pins the extension to the author key — the session user is never read inside the component, so
+  the unused hook call was dropped. Every normative behavior of Decision 3 is implemented as
+  written.
+- **`useCreateTapestry.js`'s docstring documents the delegated picker contract** (the
+  kind-39998 `queryRelay` scan and the `searchText` blob's fields) after the ADR-mandated
+  extraction into `useConceptOptions.js`. Reason: story #3's committed sentinels
+  (`test/create-tapestry.test.js` S3/S8) regex-check those terms in that file; the extraction
+  moves the code, the docstring truthfully documents what the shared hook now provides, and both
+  suites stay green with no test file touched. If the Tester prefers, relaxing S3/S8 to point at
+  the shared hook is the cleaner long-term fix.
+- **Transform refusals are slightly broader than the ADR's named list**, within Decision 1-A's
+  "refuse what can't be preserved" principle: a `json` tag that parses to a non-object throws;
+  `graph.imports` present-but-not-an-array throws; `graph: null` is treated as *absent* (first-add
+  envelope path — aligned with the page's `rawGraph === null` gate, which maps `graph: null` to
+  the first-add offer).
+
 ## Linked artifacts
 
 - ADR: `engineering-team/decisions/tapestries/0005-add-concept-add-only-republish.md`
