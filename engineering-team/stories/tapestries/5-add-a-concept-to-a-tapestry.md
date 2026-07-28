@@ -1,6 +1,6 @@
 # Story 5: Add a concept to a Tapestry (add-only, on the existing Exploration page)
 
-**Status:** Draft
+**Status:** Done
 **Created:** 2026-07-28
 **Type:** Feature
 
@@ -131,4 +131,4 @@ Implementation-phase judgment calls too small for an ADR amendment (Implementer,
 
 - ADR: `engineering-team/decisions/tapestries/0005-add-concept-add-only-republish.md`
 - Test plan: `engineering-team/stories/tapestries/5-add-a-concept-to-a-tapestry.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/tapestries/5-add-a-concept-to-a-tapestry.md` — **PASS** (2026-07-28)
