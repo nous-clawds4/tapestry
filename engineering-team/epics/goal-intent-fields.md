@@ -1,6 +1,6 @@
 # Epic: Goal Intent Fields
 
-**Status:** Active
+**Status:** Done
 **Created:** 2026-07-26
 **Book:** `engineering-team/audits/store-and-show-the-prompt-and-the-estimate/book.md` (no PRD — operational Direction, goal-derived acceptance frame)
 **Named by:** the book, at open — the story path was fixed in advance.
