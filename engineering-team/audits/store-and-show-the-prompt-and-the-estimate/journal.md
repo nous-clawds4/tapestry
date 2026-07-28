@@ -541,7 +541,7 @@ Its response is the most valuable exchange of this run. It owned the claim plain
 
 **Then it found a defect I had not looked for, from an invitation to defend itself.** I invited it to argue the pointer was not required. It checked git history instead and found the pointer *is* required — but that **its own ADR had routed it to the wrong phase**, instructing the Implementer. Three precedents place the amended-ADR pointer in the **Architect's** `adr:` commit; I verified `d7bd8b53` and its shape matches exactly. Both places in the ADR are corrected, with commit SHAs as evidence and a duplicate-pointer warning so the Implementer cannot add a second.
 
-**The pattern worth carrying to the post-mortem:** four false reports of completed actions in this run — three from roles, four from me. Every one was checkable in under a minute. **The remedy is not distrust; it is making the check routine**, because here the correction was better than the error.
+**The pattern worth carrying to the post-mortem:** false reports of completed actions — **two role-originated and two Director-originated** on the checkable inventory. *(Corrected at book close: this line originally read "four … three from roles, four from me," which does not sum and overstated the roles' share. The book-close audit caught it.)* Every one was checkable in under a minute. **The remedy is not distrust; it is making the check routine**, because here the correction was better than the error.
 
 ## 2026-07-27T10:34:11Z — Gate 2 (story #3): APPROVE — the last ADR is through
 
@@ -623,9 +623,61 @@ Its response is the most valuable exchange of this run. It owned the claim plain
 
 **Three trivial numeric slips in the review, none touching a check:** "six call sites" while enumerating eight lines (the substantive *no guard on the four* claim is true), a `+17/−2` header where numstat gives `+15/−2`, and a quoted census silently dropping one key.
 
-**Harness friction for the close, outside my lane to file:** `roles/reviewer.md:22` reads *"test: `npm test` (or `npm run test:playwright`)"* — but for a display story the gates are **conjunctive**, and 37/0 on a build that renders nothing was the exact Gate-3 finding. It is the first file every Reviewer reads.
+**Harness friction for the close, outside my lane to file:** `roles/reviewer.md:21` reads *"test: `npm test` (or `npm run test:playwright`)"* — but for a display story the gates are **conjunctive**, and 37/0 on a build that renders nothing was the exact Gate-3 finding. It is the first file every Reviewer reads.
 
 **The Reviewer offered `/close-book`; I answered "not yet."** A real "not yet", not a formality: the deploy chain has not run, the frame's bullets have been verified locally and not on staging, and Stage 2 precedes any completion offer. Saying yes now would ratify a book whose work has never left this machine. **The frame was not extended by that answer.**
 
 **Counters:** Gate 5 on story #3 — **APPROVE** first time. **Stories #1, #2, #3 all Done; every one through five phases and every judged gate.**
 **Next:** Stage 2 — the deploy chain. `/cycle-local`, then `/cycle-staging`. **Staging is the ceiling.**
+
+## 2026-07-28T01:40:00Z — Final completion audit: KICK_BACK, corrected, then APPROVE
+
+**Story/Phase:** book scope / Stage 3 — completion
+**Decision:** APPROVE *(after one binding KICK_BACK on my own report)*
+**Judge:** Round 1 **KICK_BACK**; round 2 **APPROVE**, blinding intact both times.
+**Why:** The first audit kicked back **my** completion report, and every finding was correct. I verified each before fixing rather than taking them on the judge's word.
+
+**The serious one: the report's leading evidence was false.** I cited 8 goals carrying values as *"values that reached storage through the write paths this story built."* They were not. All 8 were signed `2026-07-25T23:13:11Z`–`2026-07-26T16:37:24Z`; story #1's write paths landed `2026-07-27T00:15:18Z` (`53eaa20d`), and every goal write re-stamps `created_at`, so anything written through the new code would carry a post-implementation stamp. **None does.** Those values predate the implementation and arrived through the *pre-existing* replicating paths — and **`book.md`, which I wrote at open, records exactly that.** I contradicted my own book to make a shipped capability look proven by data that proves nothing about it. Re-grounded on the H-class, which captures through the real endpoints and reads back.
+
+Also corrected: "eight ways a goal record is written" → **ten** (the draft's own next sentence said the count had grown); the `roots`/`ancestry`/`passedOver` exclusions moved **up into bullet 3**, where the word *"every"* is certified, instead of sitting two bullets later as evidence of non-action; and the close-time obligation the book set for itself — that `direction.js:91` still ships text calling the goals API a dropper of `chanceOfSuccess`, now false — **discharged**, having been missed entirely in the first draft while its sibling entry was handled.
+
+**The finding that matters most is about the shape of my honesty, not any single claim:**
+
+> the declinations are genuinely good, but the asymmetry is real and runs the wrong way. Everything conceded costs nothing … while the one place the report reaches past its evidence is the corpus provenance it leads with.
+
+Four declinations that cost nothing to make; one sentence that carried weight, unchecked, and it was the lead. **Performative honesty is worse than plain overclaiming, because it reads as scrupulous.** Appended to the report verbatim rather than absorbed — a completion report that silently swallows its own audit is worth less than one that shows where it was wrong.
+
+**Round 2 APPROVE**, on evidence the judge gathered itself: a full `npm test` (`Overall: PASS`, zero FAIL lines, H-classes 11/8/5 all executed, none skipped), an 8-of-8 chromium browser run, live reads of all five projecting surfaces from inside the container, and byte-comparisons of the frame's verbatim blocks and the surrendered block against the live endpoint. It states it **looked specifically for a substituted overclaim and found none**.
+
+**Two of its three non-blocking observations were overstatements of the same class, so I fixed them rather than banking the APPROVE:** "four brain endpoints" → **five**, each verified 403 individually; and the claim that `UNAVAILABLE` is *"pinned by U28"* — `U28` asserts only that the serialized block names the dependency slug and `dependsOn`, so correcting the stale sentence would **not** turn it red. The restraint rests on the governance argument alone, which stands without the test limb. The third observation — that several process claims rest on the decision journal, which the protocol withholds from judges — is fair and unfixable by design; every bullet they decorate is independently satisfied, so they are decoration, not load.
+**Next:** Present the completion offer. **The "yes" is not mine.**
+
+## 2026-07-28T01:45:00Z — OPERATOR RATIFIED THE BOOK COMPLETE
+
+**Story/Phase:** book scope / Stage 3 — completion
+**Decision:** ANSWER *(the operator's, not mine)*
+**Judge:** n/a — this decision has no judge and never transfers
+**Why:** The completion offer was made with the skill's verbatim line **deliberately altered**, because that line asserts every bullet is "verified on staging" and bullet 3 is not. Presenting it as written would have repeated the exact calibration failure the final audit had just caught — a claim that costs something, made loosely, dressed as procedure. The offer instead stated: six bullets verified end to end, bullet 3 verified on local live data and on staging only to correct-gating-plus-identical-bundle.
+
+The operator ratified with that qualification in front of them, alongside three other things I put in the offer rather than in a footnote: `OPEN.md` row 102 is **not** closed by this book (local-only repair), `direction.js:91` ships a now-false sentence this book deliberately did not fix, and several ledger items remain unfiled because `OPEN.md` is held by a concurrent session.
+
+**This is the one answer the Director never gives.** Everything else in this run — every gate, every kick-back, every deploy through staging — was mine to decide under written rubrics. This one is not, and the run stopped at it rather than reasoning its way past it. The operator also asked me to run `/cycle-prod` earlier and I declined; that answer did not change and the ceiling held to the end.
+**Next:** `/close-book` — the Reviewer at book scope writes `audit.md` and `prd-seed.md`, the return edge to the product team.
+
+## 2026-07-28T02:20:00Z — Book closed; the close-out audit corrected my own record
+
+**Story/Phase:** book scope / Book Close
+**Decision:** INFO
+**Judge:** n/a — the book-close audit was written by a **fresh Reviewer at book scope**, not by me. I directed this run, made several of the errors the gates caught, and had my completion report kicked back for leading with a false claim; auditing my own run would have been the grade-your-own-homework problem the whole harness exists to prevent.
+
+**It found three places where this journal overstates itself, and I have corrected all three in place:**
+1. *"four false reports of completed actions — three from roles, four from me"* **does not sum**, and overstated the roles' share. Checkable inventory: **two role-originated, two Director-originated.**
+2. `roles/reviewer.md` — the test-gate line is **`:21`**, cited twice here as `:22`.
+3. This journal claimed **four** wrong judge asides; **two** are substantiated. The other two were judges catching *artifact* inaccuracies — **the instrument working, not failing.** I had filed them as judge fallibility, which flattered my own vigilance at the judges' expense.
+
+**And one where the run's own framing is generous:** *"all four come back on **every** surface"* is satisfied **as ratified, not as written** — three goal-showing payloads (orient's `roots`, `ancestry`, the card's `passedOver`) plus the Direction envelope's `chain`/`blindSteps` carry none of the four, by ADR 0002 d6. The auditor verified all four exclusions live.
+
+**A finding about the instruments, not the work:** `harness-stats.sh` scores this book at **kick-back rate 0 / churn 0** while this journal records **8 gate kick-backs and 3 halts** — the stats tool is blind to Direction-mode gates, and workflow step 7 directs the retro to lean on that very instrument. A retro reading the stats alone would conclude this run was frictionless.
+
+**The close-out gate is RED, deterministically, because of the close itself:** `harness-lint` L2 — *the book is `Closed` but epic `goal-intent-fields` is `Active`*. Not row 75's flake (`relationship-primitives` 23/0 and `-probe` 9/0 both green). The book's own suites are green with live classes executed (40/0 H11, 54/0 H8, 37/0 H5). **The epic retirement is the operator's act, not mine** — `roles/director.md` reserves the `done/` folder moves to the operator at book close, and the Reviewer deliberately declined them because those three `git mv`s invalidate every `stories/goal-intent-fields/…` path reference in the audit, the book, three reviews, the completion report and this journal. Filed as audit §7 P14 with a drafted ledger row.
+**Next:** Present the close to the operator with the gate question. Five drafted `OPEN.md` rows and two appends remain **uninserted** — that file is held by a concurrent session.

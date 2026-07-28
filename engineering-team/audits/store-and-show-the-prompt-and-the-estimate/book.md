@@ -1,9 +1,9 @@
 # Book of Work: Store and Show the Prompt and the Estimate
 
 **Slug:** store-and-show-the-prompt-and-the-estimate
-**Status:** Open
+**Status:** Closed
 **Opened:** 2026-07-26 — **eagerly**, before any story exists, so the anchor gates the work while it happens.
-**Closed:** —
+**Closed:** 2026-07-27 — ratified complete by the operator 2026-07-28T01:45:00Z (journal); closed by the Reviewer at book scope.
 
 ## Intent anchor
 
@@ -72,7 +72,7 @@ Decomposed from the goal's `deliverable` and `boundary` **verbatim** — every b
 ## Provenance
 
 - **Mode:** Operational Direction — goal-derived acceptance frame *(terms transcribed from an owner-ratified goal by the eligibility endpoint; **not** hand-authored, **not** reconstructed at close)*
-- **Confidence at close:** *(to be filled by `/close-book`)*
+- **Confidence at close:** **high** for what shipped and for local behaviour; **medium** for staging (correct owner-gating and a byte-identical bundle verified there, but the owner-gated JSON could not be read); **n/a** for production (nothing promoted — `origin/main` is `f7ff5392` and this work is not an ancestor of it). Full reasoning in the audit header.
 
 ### Context available to Planning — not terms
 
@@ -95,7 +95,11 @@ The eligibility endpoint's own `unavailable` block names **`estimate`** as under
 
 Both errors are the Director's, not a role's: the first was an unverified claim amplified from a review, the second an unchecked assumption about a silent-success command. The audit should treat `journal.md` as authoritative wherever it and a commit message disagree.
 
-## Close artifacts *(filled by `/close-book`)*
+## Close artifacts
 
-- Build audit: `engineering-team/audits/store-and-show-the-prompt-and-the-estimate/audit.md`
-- Product feedback: `engineering-team/audits/store-and-show-the-prompt-and-the-estimate/prd-seed.md`
+- **Build audit:** `engineering-team/audits/store-and-show-the-prompt-and-the-estimate/audit.md` — written 2026-07-27 by the Reviewer at book scope, **not** by the Director that ran this book. Every mechanically checkable claim in the run record was re-verified there rather than harvested.
+- **Product feedback:** `engineering-team/audits/store-and-show-the-prompt-and-the-estimate/prd-seed.md` — no PRD backs this book, so the feedback artifact is a reconstructed baseline in PRD shape, every section tagged `[FROM FRAME]` / `[INFERRED]` / `[UNKNOWN]`.
+- **Retro dispositions:** audit §7 — 15 process findings, each with exactly one terminal state. **Five new `OPEN.md` `meta` rows and two appends are drafted paste-ready in audit §7a and are NOT yet inserted**: `OPEN.md` is held by a concurrent session (uncommitted row 115). The dispositions are recorded; the insertion is the operator's.
+- **The close-out gate is RED, deterministically and for one reason:** `harness-lint` L2 fires because this file now reads `Closed` while `epics/goal-intent-fields.md` still reads `Active`. Every other suite is green and all three of the book's own suites pass with their live classes executed. **The epic close-out (`workflows/5-review.md` → Epic close-out) is owed and was deliberately not performed by the Reviewer** — see audit §5 and §7 P14.
+- **Not closed by this book:** `OPEN.md` row 102. The goal-schema `required` defect was repaired on the **local stack only**; staging and production presumably still carry it.
+- **Shipped to:** `staging` as `c0565e15` (PR #473, deploy run 30313783862). Not promoted to `main`.
