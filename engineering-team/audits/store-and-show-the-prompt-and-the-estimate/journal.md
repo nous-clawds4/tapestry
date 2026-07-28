@@ -651,3 +651,15 @@ Four declinations that cost nothing to make; one sentence that carried weight, u
 
 **Two of its three non-blocking observations were overstatements of the same class, so I fixed them rather than banking the APPROVE:** "four brain endpoints" → **five**, each verified 403 individually; and the claim that `UNAVAILABLE` is *"pinned by U28"* — `U28` asserts only that the serialized block names the dependency slug and `dependsOn`, so correcting the stale sentence would **not** turn it red. The restraint rests on the governance argument alone, which stands without the test limb. The third observation — that several process claims rest on the decision journal, which the protocol withholds from judges — is fair and unfixable by design; every bullet they decorate is independently satisfied, so they are decoration, not load.
 **Next:** Present the completion offer. **The "yes" is not mine.**
+
+## 2026-07-28T01:45:00Z — OPERATOR RATIFIED THE BOOK COMPLETE
+
+**Story/Phase:** book scope / Stage 3 — completion
+**Decision:** ANSWER *(the operator's, not mine)*
+**Judge:** n/a — this decision has no judge and never transfers
+**Why:** The completion offer was made with the skill's verbatim line **deliberately altered**, because that line asserts every bullet is "verified on staging" and bullet 3 is not. Presenting it as written would have repeated the exact calibration failure the final audit had just caught — a claim that costs something, made loosely, dressed as procedure. The offer instead stated: six bullets verified end to end, bullet 3 verified on local live data and on staging only to correct-gating-plus-identical-bundle.
+
+The operator ratified with that qualification in front of them, alongside three other things I put in the offer rather than in a footnote: `OPEN.md` row 102 is **not** closed by this book (local-only repair), `direction.js:91` ships a now-false sentence this book deliberately did not fix, and several ledger items remain unfiled because `OPEN.md` is held by a concurrent session.
+
+**This is the one answer the Director never gives.** Everything else in this run — every gate, every kick-back, every deploy through staging — was mine to decide under written rubrics. This one is not, and the run stopped at it rather than reasoning its way past it. The operator also asked me to run `/cycle-prod` earlier and I declined; that answer did not change and the ceiling held to the end.
+**Next:** `/close-book` — the Reviewer at book scope writes `audit.md` and `prd-seed.md`, the return edge to the product team.
