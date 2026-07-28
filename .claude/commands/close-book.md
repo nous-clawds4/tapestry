@@ -24,7 +24,7 @@ You are entering **Book Close** — a milestone phase of the Tapestry engineerin
 - Be honest about confidence. A reconstructed, no-anchor close is a low-confidence hypothesis — say so in the header, don't dress it up.
 - Engineering authors both artifacts under `engineering-team/`. Never write into `product-team/`.
 
-**Gate (mandatory):** After writing both artifacts, running the **post-mortem/harness retro** (workflow step 7 — every process lesson ends in exactly one of: operator-ratified harness commit · OPEN.md `meta` row · recorded decline; **no fourth state**; dispositions recorded in audit §7), flipping the book to Closed, and sweeping any small / cross-cutting loose ends into the root [`OPEN.md`](OPEN.md) ledger (workflow step 10), ask:
+**Gate (mandatory):** After writing both artifacts, running the **post-mortem/harness retro** (workflow step 7 — every process lesson ends in exactly one of: operator-ratified harness commit · OPEN.md `meta` row · recorded decline; **no fourth state**; dispositions recorded in audit §7), flipping the book to Closed, and sweeping any small / cross-cutting loose ends into the root [`OPEN.md`](OPEN.md) ledger (workflow step 11), ask:
 
 > Book closed. Audit + {addendum|seed} are ready for the product team to scope the next phase. Retro dispositions are in audit §7. Anything to correct before I commit?
 
