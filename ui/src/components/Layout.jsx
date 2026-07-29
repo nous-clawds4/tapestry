@@ -11,8 +11,20 @@ const dashboardItem = { to: '/tapestry/', label: '📊 Dashboard', end: true };
 
 const mainNavItems = [
   dashboardItem,
-  // Owner-gated: the second-brain Goals view (second-brain #1, ADR 0001).
-  { to: '/tapestry/goals', label: '🧠 Goals', ownerOnly: true },
+  // Owner-gated: the second-brain goal surfaces (second-brain #1, ADR 0001).
+  // Only Goals (table) is a real view today; the rest are placeholder pages.
+  {
+    label: '🧠 Goals',
+    prefix: '/tapestry/goals',
+    ownerOnly: true,
+    children: [
+      { to: '/tapestry/goals', label: 'Goals (table)', end: true },
+      { to: '/tapestry/goals/graph', label: 'Goals (graph)' },
+      { to: '/tapestry/goals/rationale', label: 'Rationale' },
+      { to: '/tapestry/goals/sets', label: 'Goal Sets' },
+      { to: '/tapestry/goals/relationship-types', label: 'Goal Relationship Types' },
+    ],
+  },
   // Owner-gated: the second-brain Proposal queue (second-brain #6, ADR 0006).
   { to: '/tapestry/proposals', label: '🗳️ Proposals', ownerOnly: true },
   {

@@ -788,6 +788,69 @@ async function handleGetExport(req, res) {
   }
 }
 
+// SERVES shortest paths (Rationale page). Mirrors the follows-hops-paths
+// three-state contract (ADR 0035): up to 25 equally-short directed SERVES
+// paths (cap 20) from the child goal to the parent goal, each an ordered
+// [{uuid, name}]. hops:null + paths:[] is a confirmed no-path (a state, not
+// an error). The cap and LIMIT are literals — Neo4j cannot parameterize a
+// variable-length bound; the uuids are bound parameters.
+const SERVES_PATHS_QUERY_TIMEOUT_MS = 3000;
+
+const GOAL_UUID_RE = /^39999:[0-9a-f]{64}:.+$/;
+
+const SERVES_PATHS_CYPHER =
+  'MATCH p = allShortestPaths((c:NostrEvent {uuid: $child})-[:SERVES*..20]->(g:NostrEvent {uuid: $parent})) ' +
+  'RETURN [n IN nodes(p) | { uuid: n.uuid, name: n.name }] AS nodes ' +
+  'LIMIT 25';
+
+const SERVES_SELF_CYPHER = 'MATCH (c:NostrEvent {uuid: $child}) RETURN c.name AS name';
+
+async function handleGetServesPath(req, res) {
+  if (!isOwner(req) && !req.localTrusted) {
+    return res.status(403).json({ success: false, error: 'Owner access required' });
+  }
+  const child = (req.query.child || '').trim();
+  const parent = (req.query.parent || '').trim();
+  if (!GOAL_UUID_RE.test(child) || !GOAL_UUID_RE.test(parent)) {
+    return res.status(400).json({
+      success: false,
+      error: 'child and parent must each be a goal element uuid (39999:<pubkey>:<d-tag>)',
+    });
+  }
+  try {
+    // A goal is 0 hops from itself — a single-card "path", no traversal.
+    if (child === parent) {
+      const rows = await runCypher(SERVES_SELF_CYPHER, { child }, { timeout: SERVES_PATHS_QUERY_TIMEOUT_MS });
+      if (rows.length === 0) return res.json({ success: true, hops: null, paths: [] });
+      return res.json({
+        success: true,
+        hops: 0,
+        paths: [[{ uuid: child, name: rows[0].name ?? null }]],
+        truncated: false,
+      });
+    }
+
+    const rows = await runCypher(
+      SERVES_PATHS_CYPHER,
+      { child, parent },
+      { timeout: SERVES_PATHS_QUERY_TIMEOUT_MS }
+    );
+    if (rows.length === 0) {
+      return res.json({ success: true, hops: null, paths: [] });
+    }
+    const paths = rows.map((r) => r.nodes);
+    return res.json({
+      success: true,
+      hops: paths[0].length - 1,
+      paths,
+      truncated: rows.length === 25,
+    });
+  } catch (error) {
+    console.error('Error computing serves paths:', error);
+    return res.json({ success: false, error: error.message });
+  }
+}
+
 function registerBrainRoutes(app) {
   app.get('/api/brain/goals', handleGetGoals);
   app.get('/api/brain/orient', handleGetOrient);
@@ -796,6 +859,7 @@ function registerBrainRoutes(app) {
   app.get('/api/brain/goals/:slug', handleGetGoalDetail);
   app.get('/api/brain/hygiene', handleGetHygiene);
   app.get('/api/brain/export', handleGetExport);
+  app.get('/api/brain/serves-path', handleGetServesPath);
 }
 
 module.exports = { registerBrainRoutes };
