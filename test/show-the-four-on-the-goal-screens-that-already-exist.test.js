@@ -168,10 +168,13 @@ const THREE_SCREENS = [
  * Measured 2026-07-27 on this branch, with the regexes used below. A story that
  * legitimately adds a route/nav entry/design token updates these three numbers
  * AND says so in its own artifacts — that is the point of freezing them.
+ * Re-measured 2026-07-29 for PR #480 (goals submenu + Rationale/GoalSets/
+ * GoalPlaceholders): +3 screens, +4 route entries, +4 nav destinations; CSS
+ * custom properties unchanged at 45. Operator-authorized re-pin.
  */
-const BRAIN_PAGE_FILES = ['GoalDetail.jsx', 'Goals.jsx', 'Proposals.jsx'];
-const ROUTE_PATH_ENTRIES = 104;
-const NAV_TO_ENTRIES = 21;
+const BRAIN_PAGE_FILES = ['GoalDetail.jsx', 'GoalPlaceholders.jsx', 'GoalSets.jsx', 'Goals.jsx', 'Proposals.jsx', 'Rationale.jsx'];
+const ROUTE_PATH_ENTRIES = 108;
+const NAV_TO_ENTRIES = 25;
 const CSS_CUSTOM_PROPERTIES = 45;
 
 const tests = [];

@@ -586,13 +586,14 @@ test('S3 (ADR d3/d6 — the lanes): restore lives in normalize, never in the bra
   assert(!/restore/i.test(brain),
     'the brain module must carry NO restore surface — the brain is pinned read-only; RESTORE writes and lives in normalize (ADR 0008 d6; the story-7 handoff\'s own constraint).');
   const routes = [...brain.matchAll(/app\.get\s*\(\s*['"`]([^'"`]+)['"`]/g)].map((m) => m[1]);
-  // Re-pinned to SEVEN by operational-direction #1 (ADR 0001 d1): the
-  // eligibility read /api/brain/direction/:slug is a deliberate addition and is
-  // read-only like its siblings. The exact-length check is DELIBERATELY kept —
-  // an eighth route still fails here until someone re-pins it on purpose.
-  const want = ['/api/brain/goals', '/api/brain/orient', '/api/brain/proposals', '/api/brain/direction/:slug', '/api/brain/goals/:slug', '/api/brain/hygiene', '/api/brain/export'];
+  // Re-pinned to SEVEN by operational-direction #1 (ADR 0001 d1), then to
+  // EIGHT for PR #480 (goals-rationale: the /api/brain/serves-path read,
+  // operator-authorized re-pin 2026-07-29). The exact-length check is
+  // DELIBERATELY kept — a ninth route still fails here until someone re-pins
+  // it on purpose.
+  const want = ['/api/brain/goals', '/api/brain/orient', '/api/brain/proposals', '/api/brain/direction/:slug', '/api/brain/goals/:slug', '/api/brain/hygiene', '/api/brain/export', '/api/brain/serves-path'];
   assert(routes.length === want.length && want.every((w) => routes.includes(w)),
-    `registerBrainRoutes must carry exactly the seven reads (the six prior + /api/brain/direction/:slug — ADR 0008 d3/d14 + operational-direction/0001 d1); got ${short(routes)}.`);
+    `registerBrainRoutes must carry exactly the eight reads (the seven prior + /api/brain/serves-path — PR #480 goals-rationale, re-pinned 2026-07-29); got ${short(routes)}.`);
 });
 
 test('S4 (ADR d6): restore-brain — route, gate-first, one mutex task, artifact validation, named refusals', () => {
