@@ -1827,3 +1827,38 @@ Default-deny (security-auth-exposure story 2) rejects **unauthenticated** mutati
 **Strictness:** Standard. **Human-gated** (live auth-middleware/route change, like the parent book — not Direction mode).
 **Phase path:** Planning → Architecture (the route inventory + guard strategy is the real design work) → Test Design → Implementation → Review.
 **References:** `engineering-team/audits/security-auth-exposure/audit.md` §5–6 + `prd-seed.md` §7 Q4; this session's `src/api/strfry/wipe.js` (in-handler template) + `test/strfry-wipe-owner-gate.test.js`; `src/middleware/auth.js` (default-deny + `req.localTrusted`); the ~19 existing `requireOwner` routes as the pattern to extend; `src/api/admin/index.js` (`requireOwnerOnly` vs `requireOwnerOrAdmin` distinction).
+
+## 2026-07-28 — Harness story proposal: Direction-mode blinding rebuild (OPEN.md #117, #119)
+
+**NOT PICKED UP** — proposal filed at the store-and-show postmortem per the meta-escalation rule (session-start digest 2026-07-28: 35 open `meta` rows, oldest >3 weeks).
+
+**Proposed story:** `harness-gate-integrity` epic, next story number — **"move gate history out of judge-read surfaces."** Prompt-level blinding is structurally dead: four independent leak channels defeat it — three catalogued at the store-and-show close (OPEN.md #117: artifacts carry `Supersedes: … KICK_BACK` text; Director commit subjects name gate outcomes in `git log`; the Gate-1 rubric *requires* the epic file, which accumulates verdicts by design) and a fourth at the add-a-concept close (audit §7 F3: run meta-state reaches judged artifacts through unblinded roles). **Ratified direction (operator, 2026-07-28): gate history moves somewhere no rubric requires a judge to read; the blinding contract becomes artifact hygiene enforced by construction, not prompt discipline.** One bounded pass:
+
+- **Epic files stop accumulating verdicts** — kick-back counts and prior-verdict summaries live in the run journal (already forbidden to judges); Gate 1's epic check becomes a derived existence/`Status:` assertion so no judge is handed the file (#117 channel c — the structural one).
+- **Story/ADR hygiene** — `Supersedes:` lines and ADR prose carry no verdict words; a template line + lint-shaped check pins it (#117 channel a).
+- **Commit-subject discipline** — journal commits stop naming gate outcomes (`journal: gate decision (story #n)`, outcome inside the body a judge never reads) (#117 channel b).
+- **Frame-only reads made structural** — the judge receives a generated frame excerpt (or the book gains a frame-only sibling file) instead of an instruction to read part of `book.md`; three consecutive judges disclosed the instruction is unenforceable at the tool layer (#117, fourth instance).
+- **Role scoping** — unblinded roles stop receiving run meta-state they don't need: the PO read the story cap despite a scoping instruction; a review's mandated On-PASS section carried a cap remark the Gate-5 judge then met (add-a-concept §7 F3).
+- **#119 rides along** — `scripts/harness-stats.sh` learns Direction-mode outcomes (parse `journal.md` for gate kick-backs and halts) so the retro's instrument stops scoring an 8-kick-back run at "kick-back rate 0".
+
+**Classification:** Harness infrastructure (docs / templates / lint / script; no product surface).
+**Strictness:** Standard (expect: Tests only for the stats/lint pieces).
+**Phase path:** Planning → Architecture (the Gate-1 rubric change wants a real design pass) → Implementation → Review.
+**References:** OPEN.md #117, #119 (both stay OPEN until this story closes them); `engineering-team/audits/store-and-show-the-prompt-and-the-estimate/audit.md` §7 P1/P2/P8 + §7a; `engineering-team/audits/add-a-concept-to-a-tapestry/audit.md` §7 F3; `engineering-team/CHANGELOG.md` 2026-07-28 rows (the postmortem's ratified siblings).
+
+## 2026-07-28 — Harness story proposal: OPEN.md file-per-row migration (kill the last flat counter)
+
+**NOT PICKED UP** — filed at the store-and-show postmortem, sibling to the blinding-rebuild proposal above; motivated by the same two-session collision that stranded that close's §7a drafts for a day (store-and-show audit §7a preamble: "held by a concurrent session"; add-a-concept audit §7 F8: "the previous close's retro dispositions never landed").
+
+**Proposed story:** `harness-self-improvement` epic (reactivate, per the tapestries precedent), next story number — **"one file per row: the ledger becomes a directory."** OPEN.md's dense sequential row numbers are the repo's **last flat global counter**, and it has now produced the same collision class the 2026-06-04 epic-folders migration was ratified to kill for stories and ADRs ("three real numbering collisions"): a live row-number collision at second-brain story 5 (renumbered by hand + numbering note), and the §7a stranding above. Two distinct races: the **counter** (an ID mint requiring global state) and the **tail** (two sessions appending to the same end-of-file region conflict textually even with unique IDs). The fix kills both by making additions file-creations, which git merges perfectly:
+
+- **`engineering-team/open/` holds one file per row.** Legacy rows keep their numbers frozen forever (`0075-strfry-router-scan-flake.md`) so every existing citation — waiver file, commit messages, audits, CHANGELOG origins — stays resolvable; numbers are never reclaimed. New rows mint **date+slug** IDs (`2026-07-28-judge-blinding-channels.md`) — no global state needed, no two sessions can mint the same ID for different findings.
+- **Status, type, and dates live inside the row file.** A DONE-flip touches one file; concurrent flips of different rows cannot conflict, and a conflict on the *same* row is a real disagreement that *should* surface.
+- **OPEN.md becomes a generated index** (or a pointer stub) — the table everyone reads is derived at view time from append-only facts, per architecture invariant #3 and the `/whats-open` precedent.
+- **Consumers re-pointed:** `scripts/whats-open.sh`, `scripts/lib/collect-meta.sh` (aging + meta-escalation thresholds), `scripts/harness-lint.sh` + `harness-lint-waivers.txt` (waivers cite rows by ID), `scripts/session-start.sh` digest, and the CLAUDE.md/OPEN.md "How to use this ledger" prose.
+- **One-time migration:** split the ~125 existing rows into files; delete nothing; the numbering note added after the story-5 collision retires with the mechanism that made it necessary.
+
+**Classification:** Harness infrastructure (scripts + docs migration; no product surface).
+**Strictness:** Standard (Tests for the parser scripts — lint fixtures exist; the migration itself is verified by diffing the generated index against the pre-migration table).
+**Phase path:** Planning → Architecture (ID scheme + index generation + citation freezing want a real design pass) → Test Design → Implementation → Review.
+**References:** `engineering-team/audits/store-and-show-the-prompt-and-the-estimate/audit.md` §7a preamble; `engineering-team/audits/add-a-concept-to-a-tapestry/audit.md` §7 F8; `engineering-team/CHANGELOG.md` 2026-06-04 epic-folders row (the ratified precedent for exactly this collision class); OPEN.md § "How to use this ledger" (the post-collision numbering note this retires).

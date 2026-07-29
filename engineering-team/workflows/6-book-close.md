@@ -7,7 +7,7 @@ Reviewer, operating at **book scope**. See `engineering-team/roles/reviewer.md` 
 This phase does **not** run per story or per epic. It runs once, when a **book of work** completes — a PRD (or one roadmap phase of a PRD), or, with no PRD, the ask captured in the book's acceptance frame. The per-story cycle (Phases 1–5) is orthogonal and keeps running underneath.
 
 ## Trigger
-Human-ratified. Engineering **offers** to close; the human's "yes" is the invocation. See `workflows/5-review.md` → "Completion detection" for how the offer fires at the review boundary, and `CLAUDE.md` → "Intent Detection" for the natural-language completion triggers. `/close-book` is the explicit override.
+Human-ratified. Engineering **offers** to close; the human's "yes" is the invocation. See `workflows/5-review.md` → "Completion detection" for how the offer fires at the review boundary, and `CLAUDE.md` → "Intent Detection" for the natural-language completion triggers. `/close-book` is the explicit override. For a **Direction-mode** book the offer itself is gated: it is valid only with the final completion judge's APPROVE of the completion report in hand (`direct-feature` skill, Stage 3) — an offer made without that audit is void, the same class as approving over a KICK_BACK. *(Ratified 2026-07-28 — store-and-show postmortem, audit §7 P12 residual.)*
 
 ## Input
 - The book manifest `engineering-team/audits/<book-slug>/book.md` (anchor + epic set). If none exists, reconstruct one first (see Provenance in step 1).
