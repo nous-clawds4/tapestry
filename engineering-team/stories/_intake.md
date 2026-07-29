@@ -1845,3 +1845,20 @@ Default-deny (security-auth-exposure story 2) rejects **unauthenticated** mutati
 **Strictness:** Standard (expect: Tests only for the stats/lint pieces).
 **Phase path:** Planning → Architecture (the Gate-1 rubric change wants a real design pass) → Implementation → Review.
 **References:** OPEN.md #117, #119 (both stay OPEN until this story closes them); `engineering-team/audits/store-and-show-the-prompt-and-the-estimate/audit.md` §7 P1/P2/P8 + §7a; `engineering-team/audits/add-a-concept-to-a-tapestry/audit.md` §7 F3; `engineering-team/CHANGELOG.md` 2026-07-28 rows (the postmortem's ratified siblings).
+
+## 2026-07-28 — Harness story proposal: OPEN.md file-per-row migration (kill the last flat counter)
+
+**NOT PICKED UP** — filed at the store-and-show postmortem, sibling to the blinding-rebuild proposal above; motivated by the same two-session collision that stranded that close's §7a drafts for a day (store-and-show audit §7a preamble: "held by a concurrent session"; add-a-concept audit §7 F8: "the previous close's retro dispositions never landed").
+
+**Proposed story:** `harness-self-improvement` epic (reactivate, per the tapestries precedent), next story number — **"one file per row: the ledger becomes a directory."** OPEN.md's dense sequential row numbers are the repo's **last flat global counter**, and it has now produced the same collision class the 2026-06-04 epic-folders migration was ratified to kill for stories and ADRs ("three real numbering collisions"): a live row-number collision at second-brain story 5 (renumbered by hand + numbering note), and the §7a stranding above. Two distinct races: the **counter** (an ID mint requiring global state) and the **tail** (two sessions appending to the same end-of-file region conflict textually even with unique IDs). The fix kills both by making additions file-creations, which git merges perfectly:
+
+- **`engineering-team/open/` holds one file per row.** Legacy rows keep their numbers frozen forever (`0075-strfry-router-scan-flake.md`) so every existing citation — waiver file, commit messages, audits, CHANGELOG origins — stays resolvable; numbers are never reclaimed. New rows mint **date+slug** IDs (`2026-07-28-judge-blinding-channels.md`) — no global state needed, no two sessions can mint the same ID for different findings.
+- **Status, type, and dates live inside the row file.** A DONE-flip touches one file; concurrent flips of different rows cannot conflict, and a conflict on the *same* row is a real disagreement that *should* surface.
+- **OPEN.md becomes a generated index** (or a pointer stub) — the table everyone reads is derived at view time from append-only facts, per architecture invariant #3 and the `/whats-open` precedent.
+- **Consumers re-pointed:** `scripts/whats-open.sh`, `scripts/lib/collect-meta.sh` (aging + meta-escalation thresholds), `scripts/harness-lint.sh` + `harness-lint-waivers.txt` (waivers cite rows by ID), `scripts/session-start.sh` digest, and the CLAUDE.md/OPEN.md "How to use this ledger" prose.
+- **One-time migration:** split the ~125 existing rows into files; delete nothing; the numbering note added after the story-5 collision retires with the mechanism that made it necessary.
+
+**Classification:** Harness infrastructure (scripts + docs migration; no product surface).
+**Strictness:** Standard (Tests for the parser scripts — lint fixtures exist; the migration itself is verified by diffing the generated index against the pre-migration table).
+**Phase path:** Planning → Architecture (ID scheme + index generation + citation freezing want a real design pass) → Test Design → Implementation → Review.
+**References:** `engineering-team/audits/store-and-show-the-prompt-and-the-estimate/audit.md` §7a preamble; `engineering-team/audits/add-a-concept-to-a-tapestry/audit.md` §7 F8; `engineering-team/CHANGELOG.md` 2026-06-04 epic-folders row (the ratified precedent for exactly this collision class); OPEN.md § "How to use this ledger" (the post-collision numbering note this retires).
