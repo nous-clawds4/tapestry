@@ -68,6 +68,9 @@ import ImportPage from './pages/io/ImportPage';
 import Dashboard from './pages/Dashboard';
 import Goals from './pages/brain/Goals';
 import GoalDetail from './pages/brain/GoalDetail';
+import { GoalsGraph, GoalRelationshipTypes } from './pages/brain/GoalPlaceholders';
+import Rationale from './pages/brain/Rationale';
+import GoalSets from './pages/brain/GoalSets';
 import Proposals from './pages/brain/Proposals';
 import BrainstormSearch from './pages/BrainstormSearch';
 import BrainstormProfile from './pages/BrainstormProfile';
@@ -207,6 +210,10 @@ const router = createBrowserRouter([
     children: [
       { index: true, element: <Dashboard /> },
       { path: 'goals', element: <Goals />, handle: { crumb: 'Goals' } },
+      { path: 'goals/graph', element: <GoalsGraph />, handle: { crumb: 'Goals (graph)' } },
+      { path: 'goals/rationale', element: <Rationale />, handle: { crumb: 'Rationale' } },
+      { path: 'goals/sets', element: <GoalSets />, handle: { crumb: 'Goal Sets' } },
+      { path: 'goals/relationship-types', element: <GoalRelationshipTypes />, handle: { crumb: 'Goal Relationship Types' } },
       { path: 'goals/:slug', element: <GoalDetail />, handle: { crumb: 'Detail' } },
       { path: 'proposals', element: <Proposals />, handle: { crumb: 'Proposals' } },
       {
