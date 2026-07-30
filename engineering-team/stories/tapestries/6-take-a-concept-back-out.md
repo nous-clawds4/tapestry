@@ -139,6 +139,6 @@ None blocking. Readings recorded for the Director to veto at the gate if wrong:
 
 ## Linked artifacts
 
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/tapestries/0006-remove-concept-remove-only-republish.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
