@@ -48,6 +48,10 @@ Transcribed from the operator's kickoff instruction and journaled the same day. 
 4. **The Stage-0 baseline is this run's own — no earlier log may be reused.** Context transcribed with the instruction: the operator's preflight baseline on the night of 2026-07-28 went red on two sentinel pins broken by PR #480 and re-pinned in PR #481; confirm #481 is in the branch's history **before** diagnosing any sentinel failure as this run's own (confirmed at open: `b6c23d43` is an ancestor of the branch tip). Quiesce `strfry-router` for the run (OPEN.md #75) and restart it after — read at open as governing each full-suite gate run, the baseline first among them.
 5. **Do not edit the goal.** Any change to its `deliverable` or `boundary` halts the run with `anchor-stale` and costs a fresh approval.
 
+### Deadline reset — transcribed 2026-07-30
+
+Operator instruction, verbatim: *"To address the deadline, I say we reset the clock to now."* Given in chat at the Director's deadline surfacing, **before** the original deadline fired (transcribed 2026-07-30T05:40:43Z against the original 2026-07-30T05:59:07Z — no stopping-rule-1 halt ever occurred). Transcription: the clock is the kickoff's "+ 24 hours"; resetting it to now re-pins the anchor instant to the transcription instant. **New deadline: `2026-07-31T05:40:43Z`** (= 2026-07-30T05:40:43Z + 24h). Supersedes instruction 1's deadline; every other instruction stands unchanged — story cap **2** (0 consumed), own-baseline rule (post-cleanup run in flight at transcription), router quiesce per full-suite run, goal read-only. Operator-authored; the Director transcribes and may never move this number unprompted (goalpost class).
+
 ## Direction mode (operational) — goal-derived
 
 > **This section is GENERATED — derived from the goal below. Do not hand-edit it.**
