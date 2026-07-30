@@ -9,3 +9,4 @@ L1	engineering-team/stories/event-tagging/*.md	OPEN.md row 38 — feat/tags-era 
 L1	engineering-team/stories/tag-applicability/4-event-driven-applicability-republish.md	OPEN.md row 38 — feat/tags-era Status phrasing predates harness-lint (2026-07-15 merge); reconciliation pending
 L3	engineering-team/stories/pov-selectable-tag-surfaces/	OPEN.md row 38 — epic file never created on feat/tags; write it or retire the (complete) epic
 L3	engineering-team/stories/profile-tag-hardening/	OPEN.md row 38 — epic file never created on feat/tags; write it or retire the epic
+L2	engineering-team/epics/tapestries.md	OPEN.md row 129 — epic legitimately Active for the open Direction book take-a-concept-back-out (story #6); the closed add-a-concept book also names it (L2 reopen blind spot); remove at book close
