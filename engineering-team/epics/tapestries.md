@@ -1,7 +1,7 @@
 # Epic: tapestries
 
 **Created:** 2026-07-23
-**Status:** Done *(retired 2026-07-28 at the `add-a-concept-to-a-tapestry` book close — all five stories Done, folders under `done/tapestries/`; previously reopened 2026-07-28 for story #5 under the Direction book `audits/add-a-concept-to-a-tapestry/book.md`, and Done before that after the read-only/create book)*
+**Status:** Active *(reopened 2026-07-30 for story #6 under the Direction book `audits/take-a-concept-back-out/book.md`; previously retired 2026-07-28 at the `add-a-concept-to-a-tapestry` book close — all five stories Done, folders under `done/tapestries/` — after being reopened the same day for story #5 under `audits/add-a-concept-to-a-tapestry/book.md`, and Done before that after the read-only/create book)*
 
 ## Goal
 
@@ -36,9 +36,13 @@ rendering conventions the later authoring features will build on.
 5. `stories/done/tapestries/5-add-a-concept-to-a-tapestry.md` — **Add a concept to a Tapestry**:
    add-only membership editing on the existing Exploration page, for tapestries authored under
    the owner's key or the TA, republished the way tapestries are already published. *(Done)*
+6. `stories/tapestries/6-take-a-concept-back-out.md` — **Take a concept out of a Tapestry**:
+   remove-only membership editing on the existing Exploration page, for tapestries authored under
+   the owner's key or the TA, republished the way tapestries are already published; a tapestry
+   keeps at least one concept (taking out the last one is refused). *(Draft)*
 
-Future (not yet storied): the rest of Edit a Tapestry — removing a member, changing how concepts
-connect (integrations), editing title/description; editing tapestries published by someone else
+Future (not yet storied): the rest of Edit a Tapestry — changing how concepts connect
+(integrations), editing title/description; editing tapestries published by someone else
 (whose key may republish is unsettled — has its own goal); POV/WoT filtering of which tapestries
 are shown; re-parenting/durability concerns.
 

@@ -201,6 +201,8 @@ const showTheFour = require('./show-the-four-on-the-goal-screens-that-already-ex
 const tapestryKeyPutAwait = require('./tapestry-key-put-await.test.js');
 // epic: tapestries — Story 5 (add a concept to a tapestry — add-only, same-coordinate republish).
 const addConceptToTapestry = require('./add-a-concept-to-a-tapestry.test.js');
+// epic: tapestries — Story 6 (take a concept back out — remove-only, same-coordinate republish).
+const takeAConceptBackOut = require('./take-a-concept-back-out.test.js');
 
 async function main() {
   console.log('Running Brainstorm tests...');
@@ -516,6 +518,9 @@ async function main() {
 
   console.log('\nadd-a-concept-to-a-tapestry suite:');
   const addConceptToTapestryResult = await addConceptToTapestry.run();
+
+  console.log('\ntake-a-concept-back-out suite:');
+  const takeAConceptBackOutResult = await takeAConceptBackOut.run();
 
   console.log('\nTest Results');
   console.log('-------------');
@@ -967,6 +972,7 @@ async function main() {
   console.log(`show-the-four suite:                             ${showTheFourLine}`);
   console.log(`show-the-four H-class:                           ${showTheFourResult.hExecuted} executed / ${showTheFourResult.hSkipped} skipped`);
   console.log(`add-a-concept-to-a-tapestry suite:               ${addConceptToTapestryResult.fail === 0 ? 'PASS' : 'FAIL'} (${addConceptToTapestryResult.pass} passed, ${addConceptToTapestryResult.fail} failed)`);
+  console.log(`take-a-concept-back-out suite:                   ${takeAConceptBackOutResult.fail === 0 ? 'PASS' : 'FAIL'} (${takeAConceptBackOutResult.pass} passed, ${takeAConceptBackOutResult.fail} failed)`);
 
   const overallOk =
     configOk &&
@@ -1137,6 +1143,8 @@ async function main() {
     showTheFourResult.fail === 0 &&
     // tapestries #5 — add a concept to a tapestry (add-only, same-coordinate republish)
     addConceptToTapestryResult.fail === 0 &&
+    // tapestries #6 — take a concept back out (remove-only, same-coordinate republish)
+    takeAConceptBackOutResult.fail === 0 &&
     harnessLintResult.fail === 0 &&
     harnessStatsResult.fail === 0 &&
     sessionStartResult.fail === 0 &&
@@ -1181,7 +1189,7 @@ async function main() {
     captureAGoalAndSeeItResult, firmwareConceptElementsSetsResult, tapestryPerConceptDetailViewsResult, structuresTheBrainCanTrustResult,
     breakAGoalIntoPiecesResult, attachTheWorldResult, sessionsReadTheBrainResult, theProposalLoopResult,
     operationalDirectionResult, storeTheFourResult, returnTheFourResult, showTheFourResult,
-    addConceptToTapestryResult,
+    addConceptToTapestryResult, takeAConceptBackOutResult,
   ].reduce((sum, r) => sum + ((r && r.skipped) || 0), 0);
   console.log(`Total skipped:                                   ${totalSkipped}`);
   console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);
