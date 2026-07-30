@@ -137,6 +137,51 @@ None blocking. Readings recorded for the Director to veto at the gate if wrong:
    "Everything else in it stays as it was" is read as everything not carried solely on the
    removed member's behalf.
 
+## Deviations
+
+Implementation-phase judgment calls too small for an ADR amendment (Implementer, 2026-07-30):
+
+- **Matcher (b) truthiness guard.** The options-derivation matcher composes
+  `39999:<pubkeyOf(O.handle)>:<O.conceptGraphSlug>-concept-graph` exactly per ADR 0006
+  Decision 2-A, but only when `O.conceptGraphSlug` is truthy — a malformed option without
+  the field would otherwise compose a literal `undefined-concept-graph` uuid and could
+  false-match a pathological import. Real `useConceptOptions` rows always carry the field.
+- **Refusal message prose.** The ADR pins the exact last-member sentence (used verbatim,
+  matching `/keeps at least one concept/i` in both transform and component). The other
+  transform refusals (wrong kind, no d tag, unpreservable json/graph, ghost member,
+  shared slug) reuse/mirror `buildAddConceptDraft`'s message style; their wording is the
+  Implementer's, as the ADR's "messages the UI shows verbatim" implies.
+- **Component placement.** `RemoveConceptFromTapestry` renders directly under the member
+  rows and **above** `AddConceptToTapestry` (the ADR allowed "above/beside"); the confirm
+  block reuses the generic `btn`/`btn-primary` classes alongside the ADR-named
+  `tapestry-concept-option` family — no new CSS.
+- **Defensive input normalization.** `buildRemoveConceptDraft` treats a non-array
+  `resolvedImports`/`conceptOptions` as `[]` rather than throwing — the transform's
+  refusals are reserved for the *event* it cannot preserve; bad evidence inputs just
+  contribute no evidence.
+- **`removed.node` is the verbatim element node.** The returned `removed.node` is the
+  node object as parsed from the element (all keys, not a rebuilt `{slug, uuid, name}`
+  triple) — the page's selected-reset consumes `.slug`; tests consume `.uuid`.
+- **Stale module docstring refreshed.** `tapestryDraft.mjs`'s header still described the
+  create builder only (stale since #5); updated to name all three builders and their ADRs.
+  Comment-only.
+
+**Phase-3 defects found during this phase (Tester's lane — surfaced to the Director, no
+test file touched):** two committed sub-assertions are unsatisfiable by construction and
+cap the achievable pre-fix results at Node 20/22 and Playwright 13/14. (1) In
+`test/take-a-concept-back-out.test.js`, `liveEvent({}, undefined)` — used by P10's
+"ABSENT graph" case and P13's "absent graph → []" case — produces an event byte-identical
+to `liveEvent()` (the default parameter makes explicit `undefined` indistinguishable from
+not-passed, so the intended graph-less payload is unreachable), contradicting P1/P13's own
+first assertion on the same input. (2) In `tests/brainstorm/tapestry-remove-concept.spec.js:359`,
+`getByText(/take out\s+[“"']?cow/i).first()` trips a Playwright 1.55.0 selector-serialization
+bug (quotes in the regex source break `>>` chaining) DOM-independently — reproduced against
+a static page containing the matching text. Both were latent pre-implementation because the
+suites failed earlier, at the missing-feature assertions. The implemented behavior behind
+all three sub-assertions is verified by out-of-repo probes (absent graph → transform throws
+/ helper returns `[]`; E7's arm-then-cancel flow passes verbatim once `.first()` is dropped
+— the confirm copy appears exactly once, so strict mode needs no `.first()`).
+
 ## Linked artifacts
 
 - ADR: `engineering-team/decisions/tapestries/0006-remove-concept-remove-only-republish.md`
