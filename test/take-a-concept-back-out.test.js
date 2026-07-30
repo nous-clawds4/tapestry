@@ -87,10 +87,19 @@ function liveGraph() {
   };
 }
 
-/** The instance's one live tapestry, shape-verified: bare-hex d-tag, name tag = the SLUG. */
-function liveEvent(overrides = {}, graphOverride = undefined) {
-  const graph = graphOverride === undefined ? liveGraph() : graphOverride;
-  const json = graph === undefined ? { tapestry: B0B_TAPESTRY } : { tapestry: B0B_TAPESTRY, graph };
+// Distinct sentinel for "the json tag carries NO graph key at all". An explicitly passed
+// `undefined` cannot express this — default-parameter semantics resolve it right back to
+// the default (the Gate-3 kick-back: the absent-graph branch was dead code until the
+// Implementer's transform made the surrounding assertions reachable).
+const OMIT_GRAPH = Symbol('omit the graph key entirely');
+
+/** The instance's one live tapestry, shape-verified: bare-hex d-tag, name tag = the SLUG.
+ *  graphOverride: omit the argument for the live 4-member graph; pass OMIT_GRAPH for a
+ *  json tag with NO graph key; pass null / a malformed shape to embed exactly that value. */
+function liveEvent(overrides = {}, graphOverride = liveGraph()) {
+  const json = graphOverride === OMIT_GRAPH
+    ? { tapestry: B0B_TAPESTRY }
+    : { tapestry: B0B_TAPESTRY, graph: graphOverride };
   return {
     id: 'a'.repeat(64), pubkey: TA, kind: 39999, created_at: 1773183323, content: '',
     tags: [
@@ -378,7 +387,7 @@ test('P10: refuses what it cannot preserve — wrong kind, missing d tag, unpars
   const arrJson = liveEvent(); arrJson.tags = arrJson.tags.map((t) => (t[0] === 'json' ? ['json', '["not an object"]'] : t));
   expectThrow(() => build({ event: arrJson, memberUuid: CAT_UUID }),
     'a json tag that does not hold an object must be refused.');
-  expectThrow(() => build({ event: liveEvent({}, undefined /* graph absent entirely */), memberUuid: CAT_UUID }),
+  expectThrow(() => build({ event: liveEvent({}, OMIT_GRAPH /* graph absent entirely */), memberUuid: CAT_UUID }),
     'an event with NO graph block has no members to take out (the story\'s Out of scope: degraded tapestries) — the transform must refuse, never invent an empty graph to subtract from.');
   expectThrow(() => build({ event: liveEvent({}, null), memberUuid: CAT_UUID }),
     'a null graph must be refused the same as an absent one.');
@@ -427,7 +436,7 @@ test('P13: authoredConceptMembers — the ONE membership definition: 39998:-uuid
   deepEq(members(noJson), [], 'no json tag → [] (the page uses this for eligibility; it must never throw).');
   const badJson = liveEvent(); badJson.tags = badJson.tags.map((t) => (t[0] === 'json' ? ['json', '{not json'] : t));
   deepEq(members(badJson), [], 'unparseable json → [].');
-  deepEq(members(liveEvent({}, undefined)), [], 'absent graph → [].');
+  deepEq(members(liveEvent({}, OMIT_GRAPH)), [], 'absent graph → [].');
   deepEq(members(liveEvent({}, null)), [], 'null graph → [].');
   deepEq(members(liveEvent({}, { nodes: 'broken' })), [], 'nodes not an array → [].');
   deepEq(members(null), [], 'a null event → [] (defensive: the page may render before the event loads).');

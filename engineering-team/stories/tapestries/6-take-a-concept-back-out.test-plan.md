@@ -26,7 +26,7 @@ Two suites, mirroring the epic's #5 split:
 **UI contract pinned by the spec** (Tester's mechanics under ADR 0006 Decision 5): each
 eligible member gets a **button accessible-named `Take out <name>`**; arming publishes
 nothing and swaps in an inline confirm **naming the member** (text matching
-`/take out\s+["'"]?<name>/i`) with buttons **`Take out`** (exact) and **`Cancel`** (exact);
+`/take out\s+\W?<name>/i`) with buttons **`Take out`** (exact) and **`Cancel`** (exact);
 a one-concept tapestry renders the refusal sentence **matching `/keeps at least one
 concept/i`** instead of any control (the same regex the transform's last-member throw and
 the component source must match — the boundary's own words, pinned loosely enough that the

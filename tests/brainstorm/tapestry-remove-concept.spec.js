@@ -356,7 +356,11 @@ test.describe('Take a concept back out of a Tapestry (tapestries #6)', () => {
     await takeOutBtn(page, 'cow').click();
 
     // Armed: the confirm step names the member and offers Take out / Cancel — no publish yet.
-    await expect(page.getByText(/take out\s+[“"']?cow/i).first()).toBeVisible({ timeout: 10000 });
+    // (\W? = optional quote/punct before the name, with no quote characters in the regex
+    // source: Playwright's selector-chain splitter tracks quotes, so an unbalanced " or '
+    // inside a regex breaks any appended chaining like `>> nth=0` — the Gate-3 kick-back.
+    // The confirm copy renders exactly once, so no .first() is needed under strict mode.)
+    await expect(page.getByText(/take out\s+\W?cow/i)).toBeVisible({ timeout: 10000 });
     await expect(confirmBtn(page)).toBeVisible();
     await expect(cancelBtn(page)).toBeVisible();
     expect(published.length, 'arming must publish nothing — the save is the owner\'s explicit confirmation (ratified reading 2)').toBe(0);
