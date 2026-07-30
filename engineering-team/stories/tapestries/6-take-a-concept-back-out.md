@@ -1,6 +1,6 @@
 # Story 6: Take a concept out of a Tapestry (remove-only, on the existing Exploration page)
 
-**Status:** Draft
+**Status:** Done
 **Created:** 2026-07-30
 **Type:** Feature
 
@@ -186,4 +186,4 @@ all three sub-assertions is verified by out-of-repo probes (absent graph → tra
 
 - ADR: `engineering-team/decisions/tapestries/0006-remove-concept-remove-only-republish.md`
 - Test plan: `engineering-team/stories/tapestries/6-take-a-concept-back-out.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/tapestries/6-take-a-concept-back-out.md` — **PASS** (2026-07-30)
