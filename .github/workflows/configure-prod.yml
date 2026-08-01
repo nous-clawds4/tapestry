@@ -39,6 +39,10 @@ on:
         description: "Comma-separated 64-char hex pubkeys to write to AUTO_PAY_ALLOWLIST_PUBKEYS (empty = leave unchanged)"
         type: string
         default: ""
+      debug_tick:
+        description: "Run one auto-pay tick in the container and print the result JSON (read-only diagnostics; may attempt a real payment)"
+        type: boolean
+        default: false
 
 jobs:
   configure:
@@ -120,7 +124,7 @@ jobs:
           username: ${{ secrets.DEPLOY_USER_MAGIC_CARPET }}
           key: ${{ secrets.DEPLOY_SSH_KEY_MAGIC_CARPET }}
           command_timeout: 12m
-          envs: AUTO_PAY_ENABLED_IN,MAX_SATS_IN,CLEAR_MNEMONIC_IN,ISSUER_IN,PREFLIGHT_CLAIMANTS_IN,MIN_RANK_IN,ALLOWLIST_IN
+          envs: AUTO_PAY_ENABLED_IN,MAX_SATS_IN,CLEAR_MNEMONIC_IN,ISSUER_IN,PREFLIGHT_CLAIMANTS_IN,MIN_RANK_IN,ALLOWLIST_IN,DEBUG_TICK_IN
           script: |
             umask 077
             set -eu
@@ -166,8 +170,15 @@ jobs:
               # stray '*' in the input can't expand against the droplet filesystem.
               ( set -f; docker compose exec -T tapestry node /usr/local/lib/node_modules/brainstorm/scripts/phase1-preflight.js "$ISSUER_IN" $CLAIMANTS_SP --min-rank "$MIN_RANK_IN" ) || true
             fi
+            if [ "$DEBUG_TICK_IN" = "true" ]; then
+              echo "=== auto-pay debug tick ==="
+              docker compose exec -T tapestry node -e 'require("/usr/local/lib/node_modules/brainstorm/src/services/autoPayWatcher.js").runAutoPayTick().then(r=>{console.log(JSON.stringify(r,null,2));process.exit(0)}).catch(e=>{console.error("TICK_ERR",e.message);process.exit(1)})' || true
+              echo "=== recent tapestry logs (auto-pay) ==="
+              docker compose logs --tail 400 tapestry 2>&1 | grep -i 'auto-pay\|wallet\|rank' | tail -60 || true
+            fi
             echo "done"
         env:
+          DEBUG_TICK_IN: ${{ inputs.debug_tick }}
           AUTO_PAY_ENABLED_IN: ${{ inputs.enable_auto_pay }}
           MAX_SATS_IN: ${{ inputs.max_sats }}
           CLEAR_MNEMONIC_IN: ${{ inputs.clear_mnemonic }}
