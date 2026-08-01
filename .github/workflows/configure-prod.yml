@@ -35,6 +35,10 @@ on:
         description: "Minimum trust rank for the preflight (default 3)"
         type: string
         default: "3"
+      allowlist_pubkeys:
+        description: "Comma-separated 64-char hex pubkeys to write to AUTO_PAY_ALLOWLIST_PUBKEYS (empty = leave unchanged)"
+        type: string
+        default: ""
 
 jobs:
   configure:
@@ -116,7 +120,7 @@ jobs:
           username: ${{ secrets.DEPLOY_USER_MAGIC_CARPET }}
           key: ${{ secrets.DEPLOY_SSH_KEY_MAGIC_CARPET }}
           command_timeout: 12m
-          envs: AUTO_PAY_ENABLED_IN,MAX_SATS_IN,CLEAR_MNEMONIC_IN,ISSUER_IN,PREFLIGHT_CLAIMANTS_IN,MIN_RANK_IN
+          envs: AUTO_PAY_ENABLED_IN,MAX_SATS_IN,CLEAR_MNEMONIC_IN,ISSUER_IN,PREFLIGHT_CLAIMANTS_IN,MIN_RANK_IN,ALLOWLIST_IN
           script: |
             umask 077
             set -eu
@@ -130,6 +134,11 @@ jobs:
             }
             set_kv AUTO_PAY_ENABLED "$AUTO_PAY_ENABLED_IN"
             set_kv AUTO_PAY_MAX_SATS "$MAX_SATS_IN"
+            if [ -n "$ALLOWLIST_IN" ]; then
+              printf '%s' "$ALLOWLIST_IN" | grep -Eq '^[0-9a-f]{64}(,[0-9a-f]{64})*$' || { echo "::error::allowlist_pubkeys must be comma-separated 64-char lowercase hex"; exit 1; }
+              set_kv AUTO_PAY_ALLOWLIST_PUBKEYS "$ALLOWLIST_IN"
+              echo "allowlist: written"
+            fi
             if [ "$CLEAR_MNEMONIC_IN" = "true" ]; then
               # Remove the seed from prod .env (no SSH-less alternative otherwise).
               grep -v '^MDK_WALLET_MNEMONIC=' .env > .env.tmp || true; mv .env.tmp .env
@@ -165,3 +174,4 @@ jobs:
           ISSUER_IN: ${{ inputs.issuer_pubkey }}
           PREFLIGHT_CLAIMANTS_IN: ${{ inputs.preflight_claimants }}
           MIN_RANK_IN: ${{ inputs.min_rank }}
+          ALLOWLIST_IN: ${{ inputs.allowlist_pubkeys }}
