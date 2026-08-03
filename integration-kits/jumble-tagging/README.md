@@ -10,11 +10,11 @@ Contents: `GO.md` (the build instructions), `ACCEPTANCE.md` (definition of done)
 (deployment identity — see its `_comment` keys, especially if pointing at a different instance),
 `sdk/` (the dependency-free protocol core, ESM), `protocol/` (normative wire specs, reference).
 
-Maintained in the Tapestry repo at `integration-kits/jumble-tagging/`. The `sdk/event-tagging/`
-files are an ESM port of `src/lib/event-tagging/` (CJS) — if the source lib changes, re-port
-(mechanical: `require`→`import`, `module.exports`→`export`). `sdk/profile-tagging.js` mirrors the
-wire shape in `ui/src/utils/publishProfileTag.js`; keep them in sync until the profile-tag shape
-is extracted into the shared lib.
+Maintained in the Tapestry repo at `integration-kits/jumble-tagging/`. **Since 2026-08-03 the
+canonical home of `sdk/` and `protocol/` is `../tagging-core/`** (extracted from this kit) —
+fix there first, then propagate here; its README carries the SDK sync rules. This kit predates
+the core/overlay split and keeps its own flat copies plus the Jumble-coupled GO.md; newer kits
+(e.g. `../nosfabrica-tagging/`) embed the core as `core/` and add only a target overlay.
 
 Decisions baked in (2026-07-23): dcosl.brainstorm.world as the default (configurable) tag-hub
 relay; house-POV trust via lazy NIP-85 kind-30382 lookups with count-everyone degrade; legacy
