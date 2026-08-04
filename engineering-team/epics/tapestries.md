@@ -1,7 +1,7 @@
 # Epic: tapestries
 
 **Created:** 2026-07-23
-**Status:** Active *(reopened 2026-07-30 for story #6 under the Direction book `audits/take-a-concept-back-out/book.md`; previously retired 2026-07-28 at the `add-a-concept-to-a-tapestry` book close — all five stories Done, folders under `done/tapestries/` — after being reopened the same day for story #5 under `audits/add-a-concept-to-a-tapestry/book.md`, and Done before that after the read-only/create book)*
+**Status:** Done *(re-retired 2026-08-04 at the `take-a-concept-back-out` book close — all six stories Done, folders under `done/tapestries/`; previously reopened 2026-07-30 for story #6 under the Direction book `audits/take-a-concept-back-out/book.md`; retired 2026-07-28 at the `add-a-concept-to-a-tapestry` book close after being reopened the same day for story #5, and Done before that after the read-only/create book)*
 
 ## Goal
 
@@ -36,10 +36,10 @@ rendering conventions the later authoring features will build on.
 5. `stories/done/tapestries/5-add-a-concept-to-a-tapestry.md` — **Add a concept to a Tapestry**:
    add-only membership editing on the existing Exploration page, for tapestries authored under
    the owner's key or the TA, republished the way tapestries are already published. *(Done)*
-6. `stories/tapestries/6-take-a-concept-back-out.md` — **Take a concept out of a Tapestry**:
+6. `stories/done/tapestries/6-take-a-concept-back-out.md` — **Take a concept out of a Tapestry**:
    remove-only membership editing on the existing Exploration page, for tapestries authored under
    the owner's key or the TA, republished the way tapestries are already published; a tapestry
-   keeps at least one concept (taking out the last one is refused). *(Draft)*
+   keeps at least one concept (taking out the last one is refused). *(Done)*
 
 Future (not yet storied): the rest of Edit a Tapestry — changing how concepts connect
 (integrations), editing title/description; editing tapestries published by someone else

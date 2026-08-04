@@ -1,8 +1,9 @@
 # Book of Work: Take a Concept Back Out
 
 **Slug:** take-a-concept-back-out
-**Status:** Open
+**Status:** Closed
 **Opened:** 2026-07-29 — **eagerly**, before any story exists, so the anchor gates the work while it happens.
+**Closed:** 2026-08-04 — ratified by the operator in-session (*"Yes, close the book"*, journal `2026-08-04T16:01:06Z`), after the operator's own live validation of the feature on local **and** staging closed the run's one disclosed demonstration gap (journal `2026-08-04T15:50:00Z`); production promotion explicitly deferred by the same instruction for a future batch. Closed by the Reviewer at book scope.
 
 ## Intent anchor
 
@@ -18,21 +19,21 @@ Decomposed from the goal's `deliverable` and `boundary` **verbatim** — every b
 
 **From the deliverable** — *"From a Tapestry I am looking at, I can take out a concept that is in it. After I save, the Tapestry no longer shows that concept — to me, or to anyone else who opens it afterwards — and everything else in it stays as it was."*
 
-- [ ] From a Tapestry I am looking at, I can **take out a concept that is in it**.
-- [ ] After I save, **the Tapestry no longer shows that concept to me**.
-- [ ] After I save, the Tapestry no longer shows that concept **to anyone else who opens it afterwards**.
-- [ ] **Everything else in it stays as it was.**
+- [x] From a Tapestry I am looking at, I can **take out a concept that is in it**.
+- [x] After I save, **the Tapestry no longer shows that concept to me**.
+- [x] After I save, the Tapestry no longer shows that concept **to anyone else who opens it afterwards**.
+- [x] **Everything else in it stays as it was.**
 
 **From the boundary** — *"Removing only: adding is already built and stays as it is, and changing how concepts connect stays out. A Tapestry keeps at least one concept — taking out the last one is refused, because an emptied Tapestry is a deletion, and deleting is not this goal. It works on Tapestries published under my own key or my assistant one; anyone else cannot be edited here and the option is not offered. No new page and no new server endpoint — it lives on the Tapestry view that already exists and publishes the way Tapestries are already published."*
 
-- [ ] **Removing only** — adding is already built and **stays as it is**; changing how concepts connect stays out.
-- [ ] **A Tapestry keeps at least one concept** — taking out the last one is **refused**, because an emptied Tapestry is a deletion, and deleting is not this goal.
-- [ ] It works on Tapestries published under **my own key or my assistant one**; **anyone else cannot be edited here and the option is not offered**.
-- [ ] **No new page and no new server endpoint** — it lives on the Tapestry view that already exists and publishes the way Tapestries are already published.
+- [x] **Removing only** — adding is already built and **stays as it is**; changing how concepts connect stays out.
+- [x] **A Tapestry keeps at least one concept** — taking out the last one is **refused**, because an emptied Tapestry is a deletion, and deleting is not this goal.
+- [x] It works on Tapestries published under **my own key or my assistant one**; **anyone else cannot be edited here and the option is not offered**.
+- [x] **No new page and no new server endpoint** — it lives on the Tapestry view that already exists and publishes the way Tapestries are already published.
 
 **Knowingly surrendered in this mode** — stated rather than quietly dropped; the generated section carries the endpoint's own wording and reasons:
 
-- [ ] The **baseline commit** and the **pinned governing versions** are deliberately not captured in operational mode, and the artifacts say so and say why (reproducibility traded for operational cost; both retained in armed mode, which is unchanged).
+- [x] The **baseline commit** and the **pinned governing versions** are deliberately not captured in operational mode, and the artifacts say so and say why (reproducibility traded for operational cost; both retained in armed mode, which is unchanged).
 
 ## Epics in this book
 
@@ -123,3 +124,13 @@ Facts verified at open, before any story existed. They inform the roles; they ar
 - **No intake entry exists** for this request in `engineering-team/stories/_intake.md` (headings and keywords scanned at open — no match for concept-removal from a Tapestry).
 - **No overlap with open work.** The two open books (`task-timeline`, `unified-tagging-ui`) mention no tapestries surface (grep over their epics and stories at open). The five `🔴 OPEN` handoffs (communities protocol delivery, b-tag affiliation, harness review §5 loop, profile followers, self-ontology) touch none of the tapestries UI surface.
 - **Branch point, for cold resume only — not a pinned baseline:** `feat/take-a-concept-back-out` created at `origin/staging` = `ea2250d0` (merge of PR #481), zero commits ahead at open, clean tree.
+
+## Close artifacts
+
+- **Build audit:** `engineering-team/audits/take-a-concept-back-out/audit.md` — written 2026-08-04 by the Reviewer at book scope, **not** by the Director that ran this book. Every mechanically checkable claim in the run record was re-verified there rather than harvested; §4 and §7 record where the record and reality disagree (notably: the run-era "local relay unmutated" state is superseded — by design — by the operator's own live removal, whose remove-only fingerprint the audit verified on the relay; three post-correction journal stamps still post-date their commits at second-to-minute scale; the epic's story list still said *(Draft)* for a story flipped Done 2026-07-30, repaired at this close).
+- **Product feedback:** `engineering-team/audits/take-a-concept-back-out/prd-seed.md` — no PRD backs this book, so the feedback artifact is a reconstructed baseline in PRD shape, every section tagged `[FROM FRAME]` / `[INFERRED]` / `[UNKNOWN]`, sibling to the add-a-concept seed (the two together now describe both directions of membership editing).
+- **Retro dispositions:** audit §7 — every process lesson carries exactly one terminal state (operator-ratified harness commit · OPEN.md `meta` row · declined-with-reason). This close flips row 129 DONE (waiver removed; rule-fix proposal kept visible), appends the timestamp-drift recurrence to row 122, and inserts rows 130–133 (close-trail PR · deferred batch promotion · classifier-vs-sanctioned-acts · gate-judge scoped-read rule).
+- **Epic close-out performed at this close:** `epics/tapestries.md` → `**Status:** Done` (re-retired, dated note preserving the reopen/retire history); story #6's story, test plan, ADR 0006, and review moved under the existing `done/tapestries/` folders (per-file `git mv`); the L2 waiver for the reopened epic removed from `scripts/harness-lint-waivers.txt`. `harness-lint` is green at close **without** the waiver — L2's reopen blind spot (row 129) closed the way the row pinned.
+- **Story #6 shipped to:** `staging` as merge `cafbc7cc` (PR #482, deploy run 30538834189, success). **NOT promoted to `main`** — production untouched (verified at close: `cafbc7cc` is not an ancestor of `origin/main`); the operator explicitly deferred promotion for a future multi-feature batch (OPEN.md #131).
+- **Branch-local at close:** everything after the merge — the completion report (`18fbc56f`), the final completion audit (`5c8196a3`), the operator attestation (`482a7bab`), and this close commit — is **not on `staging`**; the close trail lands there via a docs-only PR (OPEN.md #130, mirroring the add-a-concept close).
+- **Demonstration state, honestly:** automated evidence (mocked E2E round-trip against the actually-published body, full suites, two judges' independent reproductions, live-transform exercise on the real event) **plus operator live validation on both targets** — the Director's prepared live publish was classifier-declined at Stage 2 and honestly recorded as not executed; the operator performed the click-through on local and staging on 2026-08-04 and attested it, and the close audit corroborated both on the relays (local `b0b48b00`: 4→3 members, solely-carried import gone, same coordinate, newer `created_at`; staging element republished the same day).
