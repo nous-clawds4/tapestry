@@ -16,7 +16,7 @@ jobs:
           host: ${{ secrets.DEPLOY_HOST_TAGS }}
           username: ${{ secrets.DEPLOY_USER_TAGS }}
           key: ${{ secrets.DEPLOY_SSH_KEY_TAGS }}
-          command_timeout: 25m
+          command_timeout: 50m
           script: |
             # Fail fast: any non-zero exit aborts the script. Without this,
             # a docker-build failure was silently followed by `docker image
