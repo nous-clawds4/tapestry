@@ -1,0 +1,20 @@
+🚀 Starting Brainstorm test suite global setup...
+📡 Checking Brainstorm server accessibility at http://localhost:7778
+✅ Brainstorm server is accessible
+✅ Neo4j health endpoint is accessible
+✅ Global setup completed successfully
+
+Running 8 tests using 8 workers
+
+[1A[2K[1/8] [chromium] › tests/brainstorm/goal-intent-screens.spec.js:411:3 › Show the four on the goal screens (goal-intent-fields #3) › B6: on the Proposals card an estimate nobody recorded appears in words, with no digit in its place
+[1A[2K[2/8] [chromium] › tests/brainstorm/goal-intent-screens.spec.js:325:3 › Show the four on the goal screens (goal-intent-fields #3) › B3: on the Goal detail all four are visible and the prompt appears in full, not as an excerpt
+[1A[2K[3/8] [chromium] › tests/brainstorm/goal-intent-screens.spec.js:357:3 › Show the four on the goal screens (goal-intent-fields #3) › B4: the Goal detail of a goal with none of them renders the declared defaults and never a literal null
+[1A[2K[4/8] [chromium] › tests/brainstorm/goal-intent-screens.spec.js:274:3 › Show the four on the goal screens (goal-intent-fields #3) › B1: on the Goals list a goal with all four shows the estimate, both flags, and the prompt as text
+[1A[2K[5/8] [chromium] › tests/brainstorm/goal-intent-screens.spec.js:378:3 › Show the four on the goal screens (goal-intent-fields #3) › B5: on the Proposals card an estimate the owner recorded appears as its number
+[1A[2K[6/8] [chromium] › tests/brainstorm/goal-intent-screens.spec.js:303:3 › Show the four on the goal screens (goal-intent-fields #3) › B2: on the Goals list a goal with none of them still renders, at the declared defaults, and says the prompt is not set
+[1A[2K[7/8] [chromium] › tests/brainstorm/goal-intent-screens.spec.js:443:3 › Show the four on the goal screens (goal-intent-fields #3) › B7: the rendered order of the Goals list is the order the server sent, not an order the estimates imply
+[1A[2K[8/8] [chromium] › tests/brainstorm/goal-intent-screens.spec.js:251:3 › Show the four on the goal screens (goal-intent-fields #3) › B0: the control panel is serving a bundle built from the sources under test
+🧹 Starting Brainstorm test suite global teardown...
+✅ Global teardown completed successfully
+[1A[2K  8 passed (2.3s)
+PW_EXIT=0

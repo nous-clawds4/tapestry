@@ -1,0 +1,189 @@
+🚀 Starting Brainstorm test suite global setup...
+📡 Checking Brainstorm server accessibility at http://localhost:7778
+✅ Brainstorm server is accessible
+✅ Neo4j health endpoint is accessible
+✅ Global setup completed successfully
+
+Running 8 tests using 8 workers
+
+[1A[2K[1/8] [chromium] › tests/brainstorm/goal-intent-screens.spec.js:411:3 › Show the four on the goal screens (goal-intent-fields #3) › B6: on the Proposals card an estimate nobody recorded appears in words, with no digit in its place
+[1A[2K[2/8] [chromium] › tests/brainstorm/goal-intent-screens.spec.js:274:3 › Show the four on the goal screens (goal-intent-fields #3) › B1: on the Goals list a goal with all four shows the estimate, both flags, and the prompt as text
+[1A[2K[3/8] [chromium] › tests/brainstorm/goal-intent-screens.spec.js:378:3 › Show the four on the goal screens (goal-intent-fields #3) › B5: on the Proposals card an estimate the owner recorded appears as its number
+[1A[2K[4/8] [chromium] › tests/brainstorm/goal-intent-screens.spec.js:303:3 › Show the four on the goal screens (goal-intent-fields #3) › B2: on the Goals list a goal with none of them still renders, at the declared defaults, and says the prompt is not set
+[1A[2K[5/8] [chromium] › tests/brainstorm/goal-intent-screens.spec.js:443:3 › Show the four on the goal screens (goal-intent-fields #3) › B7: the rendered order of the Goals list is the order the server sent, not an order the estimates imply
+[1A[2K[6/8] [chromium] › tests/brainstorm/goal-intent-screens.spec.js:251:3 › Show the four on the goal screens (goal-intent-fields #3) › B0: the control panel is serving a bundle built from the sources under test
+[1A[2K[7/8] [chromium] › tests/brainstorm/goal-intent-screens.spec.js:357:3 › Show the four on the goal screens (goal-intent-fields #3) › B4: the Goal detail of a goal with none of them renders the declared defaults and never a literal null
+[1A[2K[8/8] [chromium] › tests/brainstorm/goal-intent-screens.spec.js:325:3 › Show the four on the goal screens (goal-intent-fields #3) › B3: on the Goal detail all four are visible and the prompt appears in full, not as an excerpt
+[1A[2K  1) [chromium] › tests/brainstorm/goal-intent-screens.spec.js:303:3 › Show the four on the goal screens (goal-intent-fields #3) › B2: on the Goals list a goal with none of them still renders, at the declared defaults, and says the prompt is not set 
+
+    Error: ui/src/utils/goalIntent.js does not exist yet — ADR 0003 d3's one pure formatter is not implemented, so nothing can reach any of these three screens. (The unit half of this story fails the same way.)
+
+      87 |     if (giCache) return giCache;
+      88 |     if (!fs.existsSync(GOAL_INTENT)) {
+    > 89 |       throw new Error(
+         |             ^
+      90 |         'ui/src/utils/goalIntent.js does not exist yet — ADR 0003 d3\'s one pure formatter is not implemented, ' +
+      91 |         'so nothing can reach any of these three screens. (The unit half of this story fails the same way.)');
+      92 |     }
+        at gi (/Users/wds4/repos/nous-clawds4/tapestry/tests/brainstorm/goal-intent-screens.spec.js:89:13)
+        at /Users/wds4/repos/nous-clawds4/tapestry/tests/brainstorm/goal-intent-screens.spec.js:304:21
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/brainstorm-goal-intent-scr-5c973--says-the-prompt-is-not-set-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results/brainstorm-goal-intent-scr-5c973--says-the-prompt-is-not-set-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K  2) [chromium] › tests/brainstorm/goal-intent-screens.spec.js:357:3 › Show the four on the goal screens (goal-intent-fields #3) › B4: the Goal detail of a goal with none of them renders the declared defaults and never a literal null 
+
+    Error: ui/src/utils/goalIntent.js does not exist yet — ADR 0003 d3's one pure formatter is not implemented, so nothing can reach any of these three screens. (The unit half of this story fails the same way.)
+
+      87 |     if (giCache) return giCache;
+      88 |     if (!fs.existsSync(GOAL_INTENT)) {
+    > 89 |       throw new Error(
+         |             ^
+      90 |         'ui/src/utils/goalIntent.js does not exist yet — ADR 0003 d3\'s one pure formatter is not implemented, ' +
+      91 |         'so nothing can reach any of these three screens. (The unit half of this story fails the same way.)');
+      92 |     }
+        at gi (/Users/wds4/repos/nous-clawds4/tapestry/tests/brainstorm/goal-intent-screens.spec.js:89:13)
+        at /Users/wds4/repos/nous-clawds4/tapestry/tests/brainstorm/goal-intent-screens.spec.js:358:21
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/brainstorm-goal-intent-scr-d803d-ts-and-never-a-literal-null-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results/brainstorm-goal-intent-scr-d803d-ts-and-never-a-literal-null-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K  3) [chromium] › tests/brainstorm/goal-intent-screens.spec.js:274:3 › Show the four on the goal screens (goal-intent-fields #3) › B1: on the Goals list a goal with all four shows the estimate, both flags, and the prompt as text 
+
+    Error: ui/src/utils/goalIntent.js does not exist yet — ADR 0003 d3's one pure formatter is not implemented, so nothing can reach any of these three screens. (The unit half of this story fails the same way.)
+
+      87 |     if (giCache) return giCache;
+      88 |     if (!fs.existsSync(GOAL_INTENT)) {
+    > 89 |       throw new Error(
+         |             ^
+      90 |         'ui/src/utils/goalIntent.js does not exist yet — ADR 0003 d3\'s one pure formatter is not implemented, ' +
+      91 |         'so nothing can reach any of these three screens. (The unit half of this story fails the same way.)');
+      92 |     }
+        at gi (/Users/wds4/repos/nous-clawds4/tapestry/tests/brainstorm/goal-intent-screens.spec.js:89:13)
+        at /Users/wds4/repos/nous-clawds4/tapestry/tests/brainstorm/goal-intent-screens.spec.js:275:21
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/brainstorm-goal-intent-scr-74de9-lags-and-the-prompt-as-text-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results/brainstorm-goal-intent-scr-74de9-lags-and-the-prompt-as-text-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K  4) [chromium] › tests/brainstorm/goal-intent-screens.spec.js:251:3 › Show the four on the goal screens (goal-intent-fields #3) › B0: the control panel is serving a bundle built from the sources under test 
+
+    Error: ui/src/utils/goalIntent.js does not exist yet — ADR 0003 d3's one pure formatter is not implemented, so nothing can reach any of these three screens. (The unit half of this story fails the same way.)
+
+      87 |     if (giCache) return giCache;
+      88 |     if (!fs.existsSync(GOAL_INTENT)) {
+    > 89 |       throw new Error(
+         |             ^
+      90 |         'ui/src/utils/goalIntent.js does not exist yet — ADR 0003 d3\'s one pure formatter is not implemented, ' +
+      91 |         'so nothing can reach any of these three screens. (The unit half of this story fails the same way.)');
+      92 |     }
+        at gi (/Users/wds4/repos/nous-clawds4/tapestry/tests/brainstorm/goal-intent-screens.spec.js:89:13)
+        at /Users/wds4/repos/nous-clawds4/tapestry/tests/brainstorm/goal-intent-screens.spec.js:252:21
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/brainstorm-goal-intent-scr-067b0-from-the-sources-under-test-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results/brainstorm-goal-intent-scr-067b0-from-the-sources-under-test-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K  5) [chromium] › tests/brainstorm/goal-intent-screens.spec.js:411:3 › Show the four on the goal screens (goal-intent-fields #3) › B6: on the Proposals card an estimate nobody recorded appears in words, with no digit in its place 
+
+    Error: ui/src/utils/goalIntent.js does not exist yet — ADR 0003 d3's one pure formatter is not implemented, so nothing can reach any of these three screens. (The unit half of this story fails the same way.)
+
+      87 |     if (giCache) return giCache;
+      88 |     if (!fs.existsSync(GOAL_INTENT)) {
+    > 89 |       throw new Error(
+         |             ^
+      90 |         'ui/src/utils/goalIntent.js does not exist yet — ADR 0003 d3\'s one pure formatter is not implemented, ' +
+      91 |         'so nothing can reach any of these three screens. (The unit half of this story fails the same way.)');
+      92 |     }
+        at gi (/Users/wds4/repos/nous-clawds4/tapestry/tests/brainstorm/goal-intent-screens.spec.js:89:13)
+        at /Users/wds4/repos/nous-clawds4/tapestry/tests/brainstorm/goal-intent-screens.spec.js:412:21
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/brainstorm-goal-intent-scr-abe98--with-no-digit-in-its-place-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results/brainstorm-goal-intent-scr-abe98--with-no-digit-in-its-place-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K  6) [chromium] › tests/brainstorm/goal-intent-screens.spec.js:378:3 › Show the four on the goal screens (goal-intent-fields #3) › B5: on the Proposals card an estimate the owner recorded appears as its number 
+
+    Error: ui/src/utils/goalIntent.js does not exist yet — ADR 0003 d3's one pure formatter is not implemented, so nothing can reach any of these three screens. (The unit half of this story fails the same way.)
+
+      87 |     if (giCache) return giCache;
+      88 |     if (!fs.existsSync(GOAL_INTENT)) {
+    > 89 |       throw new Error(
+         |             ^
+      90 |         'ui/src/utils/goalIntent.js does not exist yet — ADR 0003 d3\'s one pure formatter is not implemented, ' +
+      91 |         'so nothing can reach any of these three screens. (The unit half of this story fails the same way.)');
+      92 |     }
+        at gi (/Users/wds4/repos/nous-clawds4/tapestry/tests/brainstorm/goal-intent-screens.spec.js:89:13)
+        at /Users/wds4/repos/nous-clawds4/tapestry/tests/brainstorm/goal-intent-screens.spec.js:379:21
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/brainstorm-goal-intent-scr-fed1d-orded-appears-as-its-number-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results/brainstorm-goal-intent-scr-fed1d-orded-appears-as-its-number-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+[1A[2K  7) [chromium] › tests/brainstorm/goal-intent-screens.spec.js:325:3 › Show the four on the goal screens (goal-intent-fields #3) › B3: on the Goal detail all four are visible and the prompt appears in full, not as an excerpt 
+
+    Error: ui/src/utils/goalIntent.js does not exist yet — ADR 0003 d3's one pure formatter is not implemented, so nothing can reach any of these three screens. (The unit half of this story fails the same way.)
+
+      87 |     if (giCache) return giCache;
+      88 |     if (!fs.existsSync(GOAL_INTENT)) {
+    > 89 |       throw new Error(
+         |             ^
+      90 |         'ui/src/utils/goalIntent.js does not exist yet — ADR 0003 d3\'s one pure formatter is not implemented, ' +
+      91 |         'so nothing can reach any of these three screens. (The unit half of this story fails the same way.)');
+      92 |     }
+        at gi (/Users/wds4/repos/nous-clawds4/tapestry/tests/brainstorm/goal-intent-screens.spec.js:89:13)
+        at /Users/wds4/repos/nous-clawds4/tapestry/tests/brainstorm/goal-intent-screens.spec.js:326:21
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results/brainstorm-goal-intent-scr-cce93-s-in-full-not-as-an-excerpt-chromium/test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    test-results/brainstorm-goal-intent-scr-cce93-s-in-full-not-as-an-excerpt-chromium/video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+
+🧹 Starting Brainstorm test suite global teardown...
+✅ Global teardown completed successfully
+[1A[2K  7 failed
+    [chromium] › tests/brainstorm/goal-intent-screens.spec.js:251:3 › Show the four on the goal screens (goal-intent-fields #3) › B0: the control panel is serving a bundle built from the sources under test 
+    [chromium] › tests/brainstorm/goal-intent-screens.spec.js:274:3 › Show the four on the goal screens (goal-intent-fields #3) › B1: on the Goals list a goal with all four shows the estimate, both flags, and the prompt as text 
+    [chromium] › tests/brainstorm/goal-intent-screens.spec.js:303:3 › Show the four on the goal screens (goal-intent-fields #3) › B2: on the Goals list a goal with none of them still renders, at the declared defaults, and says the prompt is not set 
+    [chromium] › tests/brainstorm/goal-intent-screens.spec.js:325:3 › Show the four on the goal screens (goal-intent-fields #3) › B3: on the Goal detail all four are visible and the prompt appears in full, not as an excerpt 
+    [chromium] › tests/brainstorm/goal-intent-screens.spec.js:357:3 › Show the four on the goal screens (goal-intent-fields #3) › B4: the Goal detail of a goal with none of them renders the declared defaults and never a literal null 
+    [chromium] › tests/brainstorm/goal-intent-screens.spec.js:378:3 › Show the four on the goal screens (goal-intent-fields #3) › B5: on the Proposals card an estimate the owner recorded appears as its number 
+    [chromium] › tests/brainstorm/goal-intent-screens.spec.js:411:3 › Show the four on the goal screens (goal-intent-fields #3) › B6: on the Proposals card an estimate nobody recorded appears in words, with no digit in its place 
+  1 passed (2.1s)
+PW_EXIT=1
