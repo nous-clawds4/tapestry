@@ -25,6 +25,9 @@
 #   L11 line-budgets     always-loaded files hold the caps in scripts/harness-budgets.txt
 #   L12 def-paths-exist  every def-path row names something present on disk
 #   L13 adr-consequences active ADR (decisions/, not done/) carries ## Consequences
+#   L14 verdict-hygiene  active stories/decisions/epics record no gate verdicts
+#                        (two shapes; backtick/fenced mentions exempt; done/ and
+#                        stories/_intake.md exempt — ADR harness-gate-integrity/0002)
 #
 # Review verdicts (L1/L4): the LAST verdict-shaped token in the file wins —
 # a token is PASS or CHANGES_REQUESTED appearing on a heading line or inside
@@ -311,6 +314,32 @@ check_L13() {
   done
 }
 
+# ---------- L14: verdict vocabulary stays out of judge-read artifacts ----------
+# Gate history lives in the run journal (ADR harness-gate-integrity/0002 — the
+# blinding rebuild): a blinded judge reads stories, ADRs, and (via pinned
+# extraction) epic status, so those artifacts must not RECORD verdict history.
+# Two shapes, matched after stripping fenced blocks and `inline code` spans (an
+# artifact ABOUT the mechanism may mention tokens in backticks): (i) a
+# Supersedes reference bearing KICK_BACK/CHANGES_REQUESTED/APPROVE; (ii) a
+# STANDALONE Gate-<n>/round word plus KICK_BACK/CHANGES_REQUESTED on one line
+# — boundary-guarded so "Background" cannot match via its "round" substring.
+# done/ trees and stories/_intake.md are exempt: grandfather by location.
+check_L14() {
+  local f hits
+  for f in engineering-team/stories/*/*.md engineering-team/stories/*.md \
+           engineering-team/decisions/*/*.md engineering-team/epics/*.md; do
+    [ -e "$f" ] || continue
+    case "$f" in
+      */done/*) continue ;;
+      engineering-team/stories/_intake.md) continue ;;
+    esac
+    hits=$(awk '/^[[:space:]]*```/ { fence = !fence; next } fence { next } { gsub(/`[^`]*`/, ""); print }' "$f" \
+      | grep -cE 'Supersedes.*(KICK_BACK|CHANGES_REQUESTED|APPROVE)|(KICK_BACK|CHANGES_REQUESTED).*(^|[^A-Za-z])([Gg]ate[- ][0-9]|[Rr]ounds?)([^A-Za-z]|$)|(^|[^A-Za-z])([Gg]ate[- ][0-9]|[Rr]ounds?)([^A-Za-z]|$).*(KICK_BACK|CHANGES_REQUESTED)') || true
+    [ "${hits:-0}" -gt 0 ] \
+      && violation L14 "$f" "$hits line(s) record gate verdicts in a judge-read artifact — verdict outcomes live in the run journal only (ADR harness-gate-integrity/0002); backticked mentions are exempt"
+  done
+}
+
 # ---------- run ----------
 check_reviews
 check_L2
@@ -323,6 +352,7 @@ check_L10
 check_L11
 check_L12
 check_L13
+check_L14
 
 # stale waivers — visible, non-fatal (same bash-3.2 empty-array guard as violation())
 if [ "${#W_IDS[@]}" -gt 0 ]; then
