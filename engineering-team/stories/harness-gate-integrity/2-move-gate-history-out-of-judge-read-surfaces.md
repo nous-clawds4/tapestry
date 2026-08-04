@@ -55,6 +55,6 @@ None blocking. The one intent-level choice — **forward-only hygiene with the p
 ## Linked artifacts
 
 - Book: `engineering-team/audits/blinding-rebuild/book.md`
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/harness-gate-integrity/0002-move-gate-history-out-of-judge-read-surfaces.md`
 - Test plan: (filled in after Test Design phase — folded to criteria 2 and 6 per the book's classification)
 - Review: (filled in after Review phase)
