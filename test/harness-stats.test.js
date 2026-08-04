@@ -153,6 +153,85 @@ test('the real repo: runs, exits 0, prints the summary block', () => {
   assert.match(out, /matched \d+ of \d+ stories/, out.slice(-2000));
 });
 
+// ---------- (b2) Direction-mode gate outcomes (harness-gate-integrity #2, ADR 0002) ----------
+// The blinding rebuild makes journals the SOLE store of gate history, so the
+// instrument must read them or Direction rework stays invisible (store-and-show
+// scored "kick-back rate 0" against a journal holding 8 KICK_BACKs). Contract:
+// a "Direction-mode gate outcomes" section tallies `**Decision:**` lines per
+// journal-bearing book (APPROVE/KICK_BACK/ANSWER/HALT/INFO); journalless books
+// are absent, zero-decision journals print all-zero counts, exit 0 always.
+
+/** Structure-bounded section extraction — never byte windows (OPEN.md #109). */
+function sectionOf(out, title) {
+  const lines = out.split('\n');
+  const start = lines.findIndex((l) => l.includes(title));
+  if (start === -1) return null;
+  const rest = lines.slice(start + 1);
+  const end = rest.findIndex((l) => /────────/.test(l));
+  return rest.slice(0, end === -1 ? rest.length : end).join('\n');
+}
+
+function journalFixture() {
+  const dir = seedFixture();
+  writeTree(dir, {
+    'engineering-team/audits/newbook/journal.md': [
+      '# Journal',
+      '## 2026-06-02T01:00:00Z — Gate 1',
+      '**Decision:** APPROVE',
+      '## 2026-06-02T02:00:00Z — Gate 2',
+      '**Decision:** KICK_BACK',
+      '## 2026-06-02T03:00:00Z — Gate 2 re-judge',
+      '**Decision:** APPROVE',
+      '## 2026-06-02T04:00:00Z — a question answered',
+      '**Decision:** ANSWER',
+      '## 2026-06-02T05:00:00Z — deadline trip',
+      '**Decision:** HALT',
+      '## 2026-06-02T06:00:00Z — note',
+      '**Decision:** INFO',
+      '',
+    ].join('\n'),
+  });
+  commitAt(dir, 'journal: gate decisions (fixture)', '2026-06-02');
+  return dir;
+}
+
+test('(b2) per-book gate tally from journal Decision lines, with controlled counts', () => {
+  const { code, out } = stats(journalFixture());
+  assert.strictEqual(code, 0, out);
+  const sec = sectionOf(out, 'Direction-mode gate outcomes');
+  assert.ok(sec !== null, 'a "Direction-mode gate outcomes" section must exist\n' + out);
+  assert.match(sec, /newbook: APPROVE 2 · KICK_BACK 1 · ANSWER 1 · HALT 1 · INFO 1/, sec);
+});
+
+test('(b2) books without a journal are absent from the section, not zero-filled', () => {
+  const { out } = stats(journalFixture());
+  const sec = sectionOf(out, 'Direction-mode gate outcomes');
+  assert.ok(sec !== null, 'section must exist\n' + out);
+  assert.doesNotMatch(sec, /oldbook/, 'journalless books must not appear in (b2)\n' + sec);
+});
+
+test('(b2) a journal with zero Decision lines prints all-zero counts and the script still exits 0', () => {
+  const dir = seedFixture();
+  writeTree(dir, { 'engineering-team/audits/newbook/journal.md': '# Journal\n\nno decisions yet\n' });
+  commitAt(dir, 'journal: empty (fixture)', '2026-06-02');
+  const { code, out } = stats(dir);
+  assert.strictEqual(code, 0, out);
+  const sec = sectionOf(out, 'Direction-mode gate outcomes');
+  assert.ok(sec !== null, 'section must exist even with an empty journal\n' + out);
+  assert.match(sec, /newbook: APPROVE 0 · KICK_BACK 0 · ANSWER 0 · HALT 0 · INFO 0/, sec);
+});
+
+test('(b2) real repo: the store-and-show tally is exact (frozen history) and the summary carries direction gates', () => {
+  const { code, out } = stats(REPO_ROOT);
+  assert.strictEqual(code, 0, out.slice(-2000));
+  const sec = sectionOf(out, 'Direction-mode gate outcomes');
+  assert.ok(sec !== null, 'section must exist in the real-repo run\n' + out.slice(-2000));
+  assert.match(sec, /store-and-show-the-prompt-and-the-estimate: APPROVE 17 · KICK_BACK 8 · ANSWER 5 · HALT 3 · INFO 15/,
+    'the store-and-show tally must match its journal exactly (counted directly 2026-08-04)\n' + sec);
+  assert.match(out, /direction gates — approve: \d+ · kick-back: \d+ · halt: \d+/,
+    'the summary block must carry the direction-gate line\n' + out.slice(-2000));
+});
+
 // ---------- runner ----------
 
 async function run() {
