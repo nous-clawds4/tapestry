@@ -84,6 +84,8 @@ Mid-run, you may answer "not yet" to the Reviewer's completion-detection offers 
 
 Any stopping rule or escalation trigger (role file) → write a HALT journal entry, leave the working tree committed and clean, report the state honestly, stop directing. Don't auto-revert; don't sneak in "one more fix." Rollback after a failure is executed only on the operator's explicit instruction (the book's rollback procedure names the steps).
 
+Permission-layer denials are not halts by default — follow the ratified response shapes in [engineering-team/roles/director.md](../../../engineering-team/roles/director.md) § "Permission-layer denials": a batch-denied sanctioned op becomes individual transparent calls; denied non-essential verification is recorded prepared-not-executed and offered to the operator; only an essential, unsanctioned act's denial halts.
+
 ## Self-pacing (runs span sessions)
 
 Within a session, spawned roles notify on completion — don't poll. Schedule wakeups (dynamic `/loop`) only for genuinely external waits: `deploy-staging.yml` finishes in ~90s once started, so first check ~2 min after merge; idle or overnight blocks, 1200s+. Always journal before sleeping so any future session can resume cold from Stage 0.
