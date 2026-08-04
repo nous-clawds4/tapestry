@@ -1830,7 +1830,7 @@ Default-deny (security-auth-exposure story 2) rejects **unauthenticated** mutati
 
 ## 2026-07-28 — Harness story proposal: Direction-mode blinding rebuild (OPEN.md #117, #119)
 
-**NOT PICKED UP** — proposal filed at the store-and-show postmortem per the meta-escalation rule (session-start digest 2026-07-28: 35 open `meta` rows, oldest >3 weeks).
+**PICKED UP** 2026-08-04 → book `engineering-team/audits/blinding-rebuild/book.md` (epic `harness-gate-integrity` reactivation, story #2; branch `harness/blinding-rebuild`; book opened eagerly at intake per OPEN.md #29/#78/#110). Scope note at pickup: the "frame-only reads" bullet is partially delivered by the 2026-08-04 ratification of pinned line-range judge reads (OPEN.md #133, rows 132/133 commit `e189d471`) — Architecture decides whether that closes the channel or a generated frame excerpt is still warranted.
 
 **Proposed story:** `harness-gate-integrity` epic, next story number — **"move gate history out of judge-read surfaces."** Prompt-level blinding is structurally dead: four independent leak channels defeat it — three catalogued at the store-and-show close (OPEN.md #117: artifacts carry `Supersedes: … KICK_BACK` text; Director commit subjects name gate outcomes in `git log`; the Gate-1 rubric *requires* the epic file, which accumulates verdicts by design) and a fourth at the add-a-concept close (audit §7 F3: run meta-state reaches judged artifacts through unblinded roles). **Ratified direction (operator, 2026-07-28): gate history moves somewhere no rubric requires a judge to read; the blinding contract becomes artifact hygiene enforced by construction, not prompt discipline.** One bounded pass:
 

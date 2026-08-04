@@ -46,6 +46,7 @@ Everything else is unchanged and applies verbatim: the autonomy ceiling, the sto
 - Open or resume a run per the procedure in [`.claude/skills/direct-feature/SKILL.md`](../../.claude/skills/direct-feature/SKILL.md).
 - Spawn the engineering roles as subagents (`product-owner`, `architect`, `tester`, `implementer`, `reviewer`) — one phase at a time, per story.
 - Answer their questions **as the user**, from the book's acceptance frame and the intake entry. Journal every answer.
+- Scope role inputs like judge inputs: a role that needs the acceptance frame receives it via the same pinned partial-read mechanism as judges — never the whole book — and run meta-state (deadline, story cap, budgets, gate tallies) reaches a role only if its phase function requires it; none does. *(ADR harness-gate-integrity/0002.)*
 - Run the gate procedure at each phase boundary: spawn a fresh `gate-judge`, weigh its verdict, decide, journal, commit.
 - Supervise deploys: `/cycle-local` then `/cycle-staging` semantics. Staging is the ceiling.
 - Track the stopping rules and budgets; halt loudly when one trips.
@@ -80,8 +81,8 @@ The harness's quality came from a gate-keeper who wasn't invested in progress. Y
 - **One spawn, one reply.** Never send a judge a follow-up message. A verdict produced after any follow-up is void and journaled as a protocol breach. If the judge lacked an input, fix the spawn prompt and re-spawn fresh.
 - **The spawn prompt contains exactly the items below and nothing else** — no summaries or paraphrases of other documents, no commentary on the artifact's quality, no annotations asserting compliance. The judge reads primary sources by path:
   - **Partial reads are pinned mechanically:** when a judge must read only part of a file (the book's acceptance-frame section, always), the prompt gives an explicit line-range command (`sed -n '1,36p' <file>`) and forbids opening the file any other way — never a "stop at section X" instruction. A Gate-5 spawn over-read past exactly such an instruction and voided its own APPROVE; the pinned read held on re-spawn. *(Ratified 2026-08-04, OPEN.md #133.)*
-  - every gate: the gate name; the path to this file (for the rubric); the story path; the book path with the instruction to read *the acceptance frame section only*;
-  - Gate 1: also the intake entry's location in `engineering-team/stories/_intake.md` (its out-of-scope list and architectural background carry no progress signal — blinding survives);
+  - every gate: the gate name; the path to this file (for the rubric); the story path; the book path with its pinned frame-read command (per the partial-reads rule above) — a partial read is never phrased as an instruction to stop at a section;
+  - Gate 1: also the intake entry's location in `engineering-team/stories/_intake.md` (its out-of-scope list and architectural background carry no progress signal — blinding survives), and the pinned epic-status extraction `grep -m1 -o '^\*\*Status:\*\* *[A-Za-z-]*' engineering-team/epics/<epic-slug>.md` — the judge runs it, and empty output fails the rubric's epic item;
   - Gate 2: also the ADR path and the `engineering-team/decisions/` directory (for the conflict check);
   - Gate 3: also the ADR path, the test-plan path, and the new test file paths;
   - Gate 5: also the ADR path, the test-plan path, the test file paths, and the review path;
@@ -99,7 +100,7 @@ The judge applies these; you confirm the judge actually applied them. Items mark
 - ≤ ~5 criteria, one subsystem. Larger → split before approving.
 - No solutioning: no file paths, libraries, or function names — that's the Architect's job.
 - ⚙ Concepts referenced by Concept Graph handle (`kind:pubkey:slug`), never re-defined in prose.
-- Story sits at `stories/<epic-slug>/<n>-<slug>.md`, numbered per-epic, `**Status:**` line present; the epic file `epics/<epic-slug>.md` exists with a `**Status:**` line.
+- Story sits at `stories/<epic-slug>/<n>-<slug>.md`, numbered per-epic, `**Status:**` line present; the epic file `epics/<epic-slug>.md` exists with a `**Status:**` line — verified only via the spawn prompt's pinned extraction; the judge never opens the epic file.
 - Story traces to the book's acceptance frame and respects the intake entry's out-of-scope list.
 
 ### Gate 2 — ADR (after Architecture)
@@ -178,6 +179,10 @@ A denial of an act that is *essential* to the run and not plainly sanctioned is 
 ```
 
 Commit the journal with each phase-boundary commit. The journal is the experiment's primary artifact: if the run fails, the journal is what makes the failure worth having.
+
+**Journal locality (ADR harness-gate-integrity/0002):** verdict outcomes, kick-back counts, and gate tallies live only in this journal. They never land in the epic file, the story, or the ADR — rule 7 ("Journaling is not recording") carries *product decisions* into role-read artifacts, never verdicts; `harness-lint` L14 enforces the token shapes.
+
+**Journal-commit subjects carry no outcomes:** use `journal: gate decision (<epic> #<n>, gate <G>)` — the Decision value appears in the entry body, never in the subject, so `git log` stays blinding-safe for every future judge.
 
 ## Amendments — two classes
 

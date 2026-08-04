@@ -59,4 +59,4 @@
 
 ## On PASS (same commit)
 - [ ] Story `**Status:**` flipped to `Done` in place.
-- [ ] Completion detection run: book checked; `/close-book` offered if the book looks complete.
+- [ ] Completion detection performed; the result and any book arithmetic recorded in the run journal (Direction) or the chat (human-gated) — never in this file. `/close-book` offered if the book looks complete.
