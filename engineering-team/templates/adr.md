@@ -9,6 +9,8 @@ What is the situation that requires a decision? Pull the relevant facts from the
 
 If the change affects concepts, name them by handle and describe their current shape (from `/api/concept-graph/node/:handle`).
 
+No gate history here or anywhere in this ADR — don't mention prior rounds' verdicts or kick-back counts (bare `KICK_BACK`/`CHANGES_REQUESTED` tokens in `Supersedes` or gate/round context trip harness-lint L14; backticked mentions are exempt). Outcomes belong to reviews and the run journal. (ADR harness-gate-integrity/0002.)
+
 ## Options considered
 
 ### Option A — <name>
