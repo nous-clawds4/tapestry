@@ -1,6 +1,6 @@
 # Epic: Harness Gate-Integrity & Lint Robustness
 
-**Status:** Active *(reopened 2026-08-04 for story #2 under the human-gated book `audits/blinding-rebuild/book.md`; previously Done since the 2026-07-25 book close — story #1 shipped; `done/`-folder retirement still pending per OPEN.md #101)*
+**Status:** Done *(re-retired 2026-08-04 at the `blinding-rebuild` book close — story #2 Done; reopened earlier the same day from the 2026-07-25 story-#1 close; `stories`/`decisions`/`reviews` folders moved under `done/` at this close per workflow 5 § Epic close-out)*
 **Book:** `engineering-team/audits/harness-gate-integrity/book.md` (story #1, closed 2026-07-25) · `engineering-team/audits/blinding-rebuild/book.md` (story #2, open — acceptance-frame)
 **Parent lineage:** `harness-self-improvement` (Done) — this epic fixes defects in that epic's own deliverables (the aggregate test runner and `scripts/harness-lint.sh`), rather than adding any new surface.
 

@@ -1,8 +1,9 @@
 # Book of Work: Blinding Rebuild — move gate history out of judge-read surfaces
 
 **Slug:** blinding-rebuild
-**Status:** Open
+**Status:** Closed
 **Opened:** 2026-08-04 — **eagerly, at intake**, before any story exists (the rows-78/99/110 lesson, practiced on a harness story).
+**Closed:** 2026-08-04 — story #2 Done (review PASS `7420fde4`), template follow-up `f4a84bcc`, operator-ratified close. Close artifacts: [`audit.md`](audit.md) · [`prd-seed.md`](prd-seed.md). Confidence: **high** (same-day acceptance-frame anchor; every frame bullet checked below at close).
 **Mode:** Human-gated — deliberate. This book rewrites Direction mode's own gate protocol; a Direction run whose deliverable changes its governing rules mid-flight is exactly what the goalpost-class freeze forbids. The operator holds every phase gate.
 
 ## Intent anchor
@@ -13,13 +14,13 @@
 
 Done means the catalogued leak channels are closed structurally, not by instruction:
 
-- [ ] **Epic files stop accumulating verdicts.** Kick-back counts and prior-verdict summaries live in the run journal (already forbidden to judges); Gate 1's epic check becomes a derived existence/`Status:` assertion so no judge is handed the epic file. (#117 channel c — the structural one.)
-- [ ] **Story/ADR hygiene:** `Supersedes:` lines and ADR prose carry no verdict words; a template line plus a lint-shaped check pins it. (#117 channel a.)
-- [ ] **Commit-subject discipline:** journal commits stop naming gate outcomes in subjects; the outcome lives in the body a judge never reads. (#117 channel b.)
-- [ ] **Frame-only reads:** decide at Architecture whether the mechanically pinned line-range read — ratified 2026-08-04 per OPEN.md #133 (`sed -n '1,36p'` in the spawn prompt; over-read voids; now in `roles/director.md` + `.claude/agents/gate-judge.md`) — is the structural answer for this channel, or whether a generated frame excerpt / frame-only sibling file replaces it. The intake proposal predates #133's ratification; do not duplicate what it already closed. (#117, fourth instance.)
-- [ ] **Role scoping:** unblinded roles stop receiving run meta-state they don't need (fifth channel, add-a-concept audit §7 F3: the PO read the story cap; a review's mandated On-PASS section carried a cap remark a judge then met).
-- [ ] **The retro instrument sees Direction outcomes:** `scripts/harness-stats.sh` parses `audits/*/journal.md` `**Decision:**` lines into a per-book gate tally (APPROVE / KICK_BACK / HALT / ANSWER), so an 8-kick-back run stops scoring "kick-back rate 0". (#119.)
-- [ ] **Ledger effect:** OPEN.md #117 and #119 flip DONE; the L2 reopen waiver added for the epic reactivation (citing #129) is removed at this book's close; no new waiver outlives the book.
+- [x] **Epic files stop accumulating verdicts.** Kick-back counts and prior-verdict summaries live in the run journal (already forbidden to judges); Gate 1's epic check becomes a derived existence/`Status:` assertion so no judge is handed the epic file. (#117 channel c — the structural one.)
+- [x] **Story/ADR hygiene:** `Supersedes:` lines and ADR prose carry no verdict words; a template line plus a lint-shaped check pins it. (#117 channel a.)
+- [x] **Commit-subject discipline:** journal commits stop naming gate outcomes in subjects; the outcome lives in the body a judge never reads. (#117 channel b.)
+- [x] **Frame-only reads:** decide at Architecture whether the mechanically pinned line-range read — ratified 2026-08-04 per OPEN.md #133 (`sed -n '1,36p'` in the spawn prompt; over-read voids; now in `roles/director.md` + `.claude/agents/gate-judge.md`) — is the structural answer for this channel, or whether a generated frame excerpt / frame-only sibling file replaces it. The intake proposal predates #133's ratification; do not duplicate what it already closed. (#117, fourth instance.)
+- [x] **Role scoping:** unblinded roles stop receiving run meta-state they don't need (fifth channel, add-a-concept audit §7 F3: the PO read the story cap; a review's mandated On-PASS section carried a cap remark a judge then met).
+- [x] **The retro instrument sees Direction outcomes:** `scripts/harness-stats.sh` parses `audits/*/journal.md` `**Decision:**` lines into a per-book gate tally (APPROVE / KICK_BACK / HALT / ANSWER), so an 8-kick-back run stops scoring "kick-back rate 0". (#119.)
+- [x] **Ledger effect:** OPEN.md #117 and #119 flip DONE; the L2 reopen waiver added for the epic reactivation (citing #129) is removed at this book's close; no new waiver outlives the book.
 
 ## Epics in this book
 
