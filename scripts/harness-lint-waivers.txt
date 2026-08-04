@@ -9,4 +9,3 @@ L1	engineering-team/stories/event-tagging/*.md	OPEN.md row 38 — feat/tags-era 
 L1	engineering-team/stories/tag-applicability/4-event-driven-applicability-republish.md	OPEN.md row 38 — feat/tags-era Status phrasing predates harness-lint (2026-07-15 merge); reconciliation pending
 L3	engineering-team/stories/pov-selectable-tag-surfaces/	OPEN.md row 38 — epic file never created on feat/tags; write it or retire the (complete) epic
 L3	engineering-team/stories/profile-tag-hardening/	OPEN.md row 38 — epic file never created on feat/tags; write it or retire the epic
-L2	engineering-team/epics/harness-gate-integrity.md	OPEN.md row 129 (L2 reopen blind spot; rule fix unshipped) — epic legitimately Active for the open book blinding-rebuild (story #2); the closed harness-gate-integrity book names it; remove at book close
