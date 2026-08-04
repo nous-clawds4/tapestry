@@ -1,6 +1,6 @@
 # Story 2: Move gate history out of judge-read surfaces
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-08-04
 **Type:** Feature (harness infrastructure — docs, templates, lint-shaped checks, one script; no product surface)
 
@@ -61,4 +61,4 @@ None blocking. The one intent-level choice — **forward-only hygiene with the p
 - Book: `engineering-team/audits/blinding-rebuild/book.md`
 - ADR: `engineering-team/decisions/harness-gate-integrity/0002-move-gate-history-out-of-judge-read-surfaces.md`
 - Test plan: `engineering-team/stories/harness-gate-integrity/2-move-gate-history-out-of-judge-read-surfaces.test-plan.md` (folded to criteria 2, 4, and 6 per the book's classification; 1/3/5 review-verified)
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/harness-gate-integrity/2-move-gate-history-out-of-judge-read-surfaces.md` (2026-08-04)
