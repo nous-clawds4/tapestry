@@ -52,6 +52,10 @@ None. This story touches harness definition surfaces only — no concept-graph e
 
 None blocking. The one intent-level choice — **forward-only hygiene with the pre-existing corpus grandfathered** — is stated in criterion 2 and Out of scope, and is ratified by approving this story.
 
+## Deviations
+
+- The ADR's L14 calibration bar assumed a zero-hit corpus, but its Architecture-phase measurement covered shape (i) only; the shape-(ii) calibration run at implementation found **one** active-path instance — operational-direction #1's Linked-artifacts line recording its own review rounds' verdicts. Reworded that one line outcome-free (pointer, rounds, and date kept; verdicts remain in the review file, which is exempt by design) rather than waiving it (the test plan's zero-waiver bar) or widening the check's shapes. `done/`-grandfathering doesn't apply to an active-path file, and fixing current violations when introducing an invariant is the story-#1 precedent.
+
 ## Linked artifacts
 
 - Book: `engineering-team/audits/blinding-rebuild/book.md`
