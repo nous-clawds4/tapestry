@@ -19,7 +19,7 @@
 
 ## 3. Scope (as-built)
 
-`[FROM FRAME]` Creating a tapestry (either signing mode) writes the brain and mails the letter in one flow; edits (add/remove a concept) keep the two agreeing; the node carries its `tapestryKey` with a derived cache doc; the authored JSON carries `word` + `tapestry` + `graph`. `[FROM FRAME]` Out of scope, stated at intake and held: backfill of pre-existing tapestries; the general letter ingest; the LMDB completeness doctrine; flipping the directory's read source. `[INFERRED]` Also shipped as enabling behavior: third-party publishing is untouched (allow-list), and a failed brain write reports in the API response without failing the publish.
+`[FROM FRAME]` Creating a tapestry (either signing mode) writes the brain and mails the letter in one flow; edits (add/remove a concept) keep the two agreeing; the node carries its `tapestryKey` with a derived cache doc; the authored JSON carries `word` + `tapestry` + `graph`. `[FROM FRAME]` Out of scope, stated at intake and held: backfill of pre-existing tapestries; the general letter ingest; the LMDB completeness doctrine; flipping the directory's read source. `[INFERRED]` Also shipped as enabling behavior: third-party publishing is untouched (allow-list), and a failed brain write reports in the API response without failing the publish. `[INFERRED, operator-validated on staging]` An emergent property narrows the backfill gap: because the hook fires on every *owned republish*, editing a legacy (pre-#7) tapestry heals it into the brain — only **untouched** legacy elements still wait for stage-2 ingest.
 
 ## 4. Domain model
 

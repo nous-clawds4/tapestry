@@ -3,7 +3,7 @@
 **Slug:** brain-first-tapestry-authoring
 **Status:** Closed
 **Opened:** 2026-08-04 — **eagerly at intake**, before any phase ran (the OPEN.md #78 lesson: a bounded ask opens its anchor when the book opens, not at close).
-**Closed:** 2026-08-05 — ratified by the operator in-session (*"Let's close the book and also deploy to staging"*), deploy-first per the Reviewer's recommendation: staging deploy PR [#489](https://github.com/nous-clawds4/tapestry/pull/489) (merge `1b0cb47d`, run 30969587875 green in 83s, five-tier smoke clean) preceded this close so the audit records the deployed state. Close artifacts: `audit.md` + `prd-seed.md` (acceptance-frame provenance, confidence high). Story #7 review: PASS. Prod promotion deliberately not part of this book — rides the operator's #131 batch.
+**Closed:** 2026-08-05 — ratified by the operator in-session (*"Let's close the book and also deploy to staging"*), deploy-first per the Reviewer's recommendation: staging deploy PR [#489](https://github.com/nous-clawds4/tapestry/pull/489) (merge `1b0cb47d`, run 30969587875 green in 83s, five-tier smoke clean) preceded this close so the audit records the deployed state. Close artifacts: `audit.md` + `prd-seed.md` (acceptance-frame provenance, confidence high). Story #7 review: PASS. **Operator validation on staging (2026-08-05):** created a tapestry, saw it in both views; edited a pre-#7 tapestry and watched it appear in the Elements view — *"all of which is as intended"* (the edit-heals-legacy property; audit §3). Prod promotion deliberately not part of this book — rides the operator's #131 batch.
 
 ## Intent anchor
 
