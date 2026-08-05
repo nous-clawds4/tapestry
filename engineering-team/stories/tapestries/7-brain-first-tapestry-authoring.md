@@ -1,6 +1,6 @@
 # Story 7: Brain-first tapestry authoring
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-08-04
 **Type:** Bug
 
@@ -52,4 +52,4 @@ None — all three resolved by the owner at approval (2026-08-04):
 
 - ADR: engineering-team/decisions/tapestries/0007-brain-first-authoring-publish-hook.md
 - Test plan: engineering-team/stories/tapestries/7-brain-first-tapestry-authoring.test-plan.md
-- Review: (filled in after Review phase)
+- Review: engineering-team/reviews/tapestries/7-brain-first-tapestry-authoring.md
