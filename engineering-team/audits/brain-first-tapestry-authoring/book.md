@@ -1,8 +1,9 @@
 # Book of Work: Brain-First Tapestry Authoring
 
 **Slug:** brain-first-tapestry-authoring
-**Status:** Open
+**Status:** Closed
 **Opened:** 2026-08-04 — **eagerly at intake**, before any phase ran (the OPEN.md #78 lesson: a bounded ask opens its anchor when the book opens, not at close).
+**Closed:** 2026-08-05 — ratified by the operator in-session (*"Let's close the book and also deploy to staging"*), deploy-first per the Reviewer's recommendation: staging deploy PR [#489](https://github.com/nous-clawds4/tapestry/pull/489) (merge `1b0cb47d`, run 30969587875 green in 83s, five-tier smoke clean) preceded this close so the audit records the deployed state. Close artifacts: `audit.md` + `prd-seed.md` (acceptance-frame provenance, confidence high). Story #7 review: PASS. Prod promotion deliberately not part of this book — rides the operator's #131 batch.
 
 ## Intent anchor
 
@@ -10,11 +11,11 @@
 
 **The ask, as confirmed:** every tapestry authoring write is brain-first — the tapestry exists in Neo4j, the signed event is published to strfry as its letter, the node is stamped with its `tapestryKey` and its LMDB doc derived, and the authored JSON carries `word` alongside `tapestry` and `graph`. Success is the end of the split-brain: View Tapestries and the tapestry concept's Elements view agree without manual repair.
 
-- [ ] Creating a tapestry (assistant-signed) leaves it visible in **View Tapestries** and in the **tapestry concept's Elements view**, no manual repair step.
-- [ ] Creating a tapestry (own-key / NIP-07) reaches the same end state **by flow completion**.
-- [ ] The authored letter carries `word` + `tapestry` + `graph`, stays schema-valid, and the directory + Exploration surfaces render as before.
-- [ ] The new node carries a `tapestryKey` and a derived LMDB doc (`word`/`tapestry`/`graph` + derivation metadata).
-- [ ] Add-a-concept and take-a-concept-out keep brain and letter agreeing (AC5 — edits are in scope by owner decision at story approval).
+- [x] Creating a tapestry (assistant-signed) leaves it visible in **View Tapestries** and in the **tapestry concept's Elements view**, no manual repair step.
+- [x] Creating a tapestry (own-key / NIP-07) reaches the same end state **by flow completion**.
+- [x] The authored letter carries `word` + `tapestry` + `graph`, stays schema-valid, and the directory + Exploration surfaces render as before.
+- [x] The new node carries a `tapestryKey` and a derived LMDB doc (`word`/`tapestry`/`graph` + derivation metadata).
+- [x] Add-a-concept and take-a-concept-out keep brain and letter agreeing (AC5 — edits are in scope by owner decision at story approval).
 
 **Out of frame** (stated, not silently dropped): backfill of the two pre-existing tapestries (Farm Animals local, Cat staging — #136 stage 2's ingest covers them); the general strfry→Neo4j letter ingest; the LMDB completeness doctrine (#137); flipping View Tapestries' read source to the brain.
 
