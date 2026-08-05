@@ -44,10 +44,14 @@
  *
  * Fixture safety (OPEN.md #128 lesson): live writes use STABLE, recognizable
  * d-tags (`tapestry-brainfirst-fixture-t7fixture`, `test-brainfirst-thirdparty-t7`)
- * so each run REPLACES the previous run's addressable event — zero corpus growth,
- * and any future relay sweep can classify them by the brainfirst prefix. Pubkeys
- * in fixtures are literals (test files only — production code resolves the TA at
- * runtime, never hardcodes; CLAUDE.md).
+ * AND stable keys, so each run REPLACES the previous run's addressable event —
+ * zero corpus growth, and any future relay sweep can classify them by the
+ * brainfirst prefix. R2's third-party letter additionally self-cleans by exact
+ * event id on the way out (best-effort), so the permissionless View Tapestries
+ * directory carries no third-party residue between runs. Keys in fixtures are
+ * literals, including R2's deliberately NON-SECRET throwaway private key (test
+ * files only — production code resolves the TA at runtime, never hardcodes;
+ * CLAUDE.md).
  */
 
 const fs = require('fs');
@@ -482,13 +486,19 @@ test('R1 (regression): a legacy word-less letter stays word-less through an add-
 test('R2 (regression + allow-list): a third-party client-signed tapestry letter publishes permissionlessly but produces NO brain node and NO brainWrite result', async () => {
   const st = await stack();
   if (!st.up) return 'SKIP';
-  const { generateSecretKey, getPublicKey, finalizeEvent } = require('nostr-tools');
-  const sk = generateSecretKey();
+  const { getPublicKey, finalizeEvent } = require('nostr-tools');
+  // STABLE throwaway keypair — deliberately non-secret fixture material. A
+  // per-run random key would mint a NEW addressable coordinate every run and
+  // grow user-visible junk rows in the permissionless View Tapestries
+  // directory (observed live, 2026-08-04); a fixed key keeps one replaceable
+  // coordinate, and the cleanup below removes even that.
+  const sk = Uint8Array.from(Buffer.from('d7'.repeat(32), 'hex'));
   const pk = getPublicKey(sk);
   const handle = `39998:${st.ta}:tapestry`;
+  const prior = await scanEvents({ kinds: [39999], authors: [pk], '#d': [THIRD_PARTY_DTAG] });
   const event = finalizeEvent({
     kind: 39999,
-    created_at: Math.floor(Date.now() / 1000),
+    created_at: Math.max(Math.floor(Date.now() / 1000), prior[0] ? prior[0].created_at + 1 : 0),
     content: '',
     tags: [
       ['d', THIRD_PARTY_DTAG],
@@ -499,13 +509,25 @@ test('R2 (regression + allow-list): a third-party client-signed tapestry letter 
   }, sk);
 
   const resp = await hostPostJson('/api/strfry/publish', { event, signAs: 'client' });
-  assert(resp && resp.success === true,
-    `third-party client-signed publishing must remain permissionless (ADR security-auth-exposure/0002) — got ${JSON.stringify(resp).slice(0, 200)}`);
-  assert(!resp.brainWrite || resp.brainWrite.skipped || resp.brainWrite.success !== true,
-    `a third-party letter must NOT brain-write (stage-2 ingest's lane, not this story's): ${JSON.stringify(resp.brainWrite || null).slice(0, 200)}`);
-  const rows = await cypher('MATCH (e:NostrEvent {uuid: $u}) RETURN e.uuid AS uuid', { u: `39999:${pk}:${THIRD_PARTY_DTAG}` });
-  assert(rows.length === 0,
-    'the brain has a node for a third-party-authored tapestry letter — the author allow-list is not holding');
+  // Best-effort self-cleanup on exit (hygiene, never spec): delete this run's
+  // letter by exact id so the directory carries zero third-party residue.
+  const cleanup = () => {
+    try {
+      cp.execFileSync('docker', ['exec', CONTAINER, 'strfry', 'delete', `--filter={"ids":["${event.id}"]}`],
+        { encoding: 'utf8', timeout: 15000 });
+    } catch { /* cleanup is best-effort */ }
+  };
+  try {
+    assert(resp && resp.success === true,
+      `third-party client-signed publishing must remain permissionless (ADR security-auth-exposure/0002) — got ${JSON.stringify(resp).slice(0, 200)}`);
+    assert(!resp.brainWrite || resp.brainWrite.skipped || resp.brainWrite.success !== true,
+      `a third-party letter must NOT brain-write (stage-2 ingest's lane, not this story's): ${JSON.stringify(resp.brainWrite || null).slice(0, 200)}`);
+    const rows = await cypher('MATCH (e:NostrEvent {uuid: $u}) RETURN e.uuid AS uuid', { u: `39999:${pk}:${THIRD_PARTY_DTAG}` });
+    assert(rows.length === 0,
+      'the brain has a node for a third-party-authored tapestry letter — the author allow-list is not holding');
+  } finally {
+    cleanup();
+  }
 });
 
 // ═══ runner ════════════════════════════════════════════════════════════

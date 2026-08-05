@@ -43,6 +43,11 @@ None — all three resolved by the owner at approval (2026-08-04):
 2. Backfill of pre-existing tapestries confirmed **out of scope** (stage 2 ingest covers them).
 3. Own-key bar confirmed: **brain-known by flow completion**, same as assistant-signed.
 
+## Deviations
+
+- **R2 fixture hygiene fix during Implementation** (Implementer, 2026-08-04, disclosed): the approved suite's R2 minted a random throwaway key per run, so every run added a new junk row to the permissionless View Tapestries directory (observed live: five accumulated during verification; swept with a dry-run-first `strfry delete`). Fixed in-place to a stable non-secret fixture key + tie-safe `created_at` + best-effort self-cleanup by event id. Assertion semantics untouched — this is fixture hygiene, not a spec change; flagged here because test edits in Phase 4 deserve the Reviewer's explicit eye.
+- **Cache invalidation before re-derive** (Implementer, 2026-08-04): the generic word deriver's base prefers an existing LMDB doc over the node's json tag, so a republish would re-derive from its own stale output (surfaced by I6's first run). The hook now calls `store.remove(tapestryKey)` before `deriveByKey` — the caller that knows content changed invalidates, the deriver's fallback re-reads the brain's fresh json tag, and derivation stays brain-sourced (§29). One line beyond the ADR's step list; the deriver itself is untouched. The deriver's cache-first preference on *unchanged* content is pre-existing behavior, deliberately left alone.
+
 ## Linked artifacts
 
 - ADR: engineering-team/decisions/tapestries/0007-brain-first-authoring-publish-hook.md
