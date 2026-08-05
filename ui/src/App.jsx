@@ -50,6 +50,13 @@ import UserDetail from './pages/users/UserDetail';
 import TapestriesIndex from './pages/tapestries/Index';
 import NewTapestry from './pages/tapestries/NewTapestry';
 import TapestryDetail from './pages/tapestries/TapestryDetail';
+import SharedConceptsIndex from './pages/shared-concepts/Index';
+import SharedConceptDetail from './pages/shared-concepts/Detail';
+import NewSharedConcept from './pages/shared-concepts/New';
+import ActiveBTags from './pages/shared-concepts/ActiveBTags';
+import BTagDetail from './pages/shared-concepts/BTagDetail';
+import SelfDeclaredSharedConcepts from './pages/shared-concepts/SelfDeclaredSharedConcepts';
+import SelfDeclaredDetail from './pages/shared-concepts/SelfDeclaredDetail';
 import AboutIndex from './pages/about/Index';
 import SettingsIndex from './pages/settings/Index';
 
@@ -357,6 +364,19 @@ const router = createBrowserRouter([
           { index: true, element: <TapestriesIndex />, handle: { crumb: 'View Tapestries' } },
           { path: 'new', element: <NewTapestry />, handle: { crumb: 'New Tapestry' } },
           { path: ':uuid', element: <TapestryDetail />, handle: { crumb: 'Detail' } },
+        ],
+      },
+      {
+        path: 'shared-concepts',
+        handle: { crumb: 'Shared Concepts' },
+        children: [
+          { index: true, element: <SharedConceptsIndex />, handle: { crumb: 'View Shared Concepts' } },
+          { path: 'new', element: <NewSharedConcept />, handle: { crumb: 'New Shared Concept' } },
+          { path: 'b-tags', element: <ActiveBTags />, handle: { crumb: 'Active b-tags' } },
+          { path: 'b-tags/:uuid', element: <BTagDetail />, handle: { crumb: 'b-tag Detail' } },
+          { path: 'self-declared', element: <SelfDeclaredSharedConcepts />, handle: { crumb: 'Self-declared Shared Concepts' } },
+          { path: 'self-declared/:uuid', element: <SelfDeclaredDetail />, handle: { crumb: 'Detail' } },
+          { path: ':uuid', element: <SharedConceptDetail />, handle: { crumb: 'Detail' } },
         ],
       },
       { path: 'relationships', element: <RelationshipsIndex />, handle: { crumb: 'Relationships' } },
