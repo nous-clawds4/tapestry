@@ -45,6 +45,6 @@ None — all three resolved by the owner at approval (2026-08-04):
 
 ## Linked artifacts
 
-- ADR: (filled in after Architecture phase)
+- ADR: engineering-team/decisions/tapestries/0007-brain-first-authoring-publish-hook.md
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
