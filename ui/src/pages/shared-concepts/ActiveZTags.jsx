@@ -6,6 +6,27 @@ import useProfiles from '../../hooks/useProfiles';
 import { useConfig } from '../../context/ConfigContext';
 import { queryRelay } from '../../api/relay';
 
+/**
+ * Scan for z-carriers in bounded chunks: the filter rides the scan API's GET
+ * query string, and ~100 coordinates in one filter blows past nginx's URI
+ * limit on deployed instances (HTML 414 instead of JSON). Per-chunk failures
+ * degrade to partial results rather than killing the page.
+ */
+async function chunkedZScan(coords, chunkSize = 20) {
+  const out = [];
+  let failures = 0;
+  for (let i = 0; i < coords.length; i += chunkSize) {
+    const chunk = coords.slice(i, i + chunkSize);
+    try {
+      const events = await queryRelay({ '#z': chunk });
+      out.push(...(events || []));
+    } catch {
+      failures += 1;
+    }
+  }
+  return { events: out, failedChunks: failures, totalChunks: Math.ceil(coords.length / chunkSize) };
+}
+
 /** The singular name: `names` tag = ["names", singular, plural, …]; falls
  * back to a `name` tag (elements). */
 function bestName(ev) {
@@ -53,9 +74,13 @@ export default function ActiveZTags() {
         }
         if (targets.size === 0) { setRows([]); return; }
 
-        // 2. One merged scan: every local event z-pointing at any of them.
-        const carriers = await queryRelay({ '#z': [...targets.keys()] });
+        // 2. Chunked scans: every local event z-pointing at any of them.
+        const scan = await chunkedZScan([...targets.keys()]);
         if (cancelled) return;
+        const carriers = scan.events;
+        if (scan.failedChunks > 0 && scan.failedChunks === scan.totalChunks) {
+          throw new Error('the local z-tag scan failed');
+        }
         const usage = new Map(); // coord → { events: Set, authors: Set }
         for (const ev of carriers || []) {
           for (const t of ev.tags || []) {
