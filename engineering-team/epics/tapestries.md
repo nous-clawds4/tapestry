@@ -1,7 +1,7 @@
 # Epic: tapestries
 
 **Created:** 2026-07-23
-**Status:** Done *(re-retired 2026-08-04 at the `take-a-concept-back-out` book close — all six stories Done, folders under `done/tapestries/`; previously reopened 2026-07-30 for story #6 under the Direction book `audits/take-a-concept-back-out/book.md`; retired 2026-07-28 at the `add-a-concept-to-a-tapestry` book close after being reopened the same day for story #5, and Done before that after the read-only/create book)*
+**Status:** Active *(reopened 2026-08-04 for story #7 — brain-first authoring, OPEN.md #136 — under the book `audits/brain-first-tapestry-authoring/book.md`; re-retired earlier 2026-08-04 at the `take-a-concept-back-out` book close — all six stories Done, folders under `done/tapestries/`; previously reopened 2026-07-30 for story #6 under the Direction book `audits/take-a-concept-back-out/book.md`; retired 2026-07-28 at the `add-a-concept-to-a-tapestry` book close after being reopened the same day for story #5, and Done before that after the read-only/create book)*
 
 ## Goal
 

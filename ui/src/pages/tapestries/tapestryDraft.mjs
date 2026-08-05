@@ -29,7 +29,7 @@ export function slugifyTitle(title) {
  * @param {string} [args.authorPubkey=taPubkey] who SIGNS the element — the owner's key for own-key
  *        publishing, the TA for assistant publishing. Namespaces the tapestry's own coordinate (uuid).
  * @param {string} args.dTagSuffix            short unique suffix for the parameterized-replaceable d-tag.
- * @returns {{dTag, uuid, tapestry, graph, unsignedEvent}}
+ * @returns {{dTag, uuid, word, tapestry, graph, unsignedEvent}}
  */
 export function buildTapestryDraft({ title, description = '', members, taPubkey, authorPubkey = taPubkey, dTagSuffix }) {
   const cleanTitle = String(title || '').trim();
@@ -47,6 +47,14 @@ export function buildTapestryDraft({ title, description = '', members, taPubkey,
   const uuid = `39999:${authorPubkey}:${dTag}`;
 
   const tapestry = { slug, title: cleanTitle, description: String(description || '') };
+
+  // Authored word section (story tapestries #7 / ADR 0007): the letter carries
+  // word alongside tapestry + graph. Values mirror the generic word deriver's
+  // own defaults (word.slug = the element slug, word.name = the display name,
+  // wordTypes ["word"]) so derive never fights authoring. Create-only: the
+  // add/remove republish builders pass unknown top-level sections through
+  // verbatim and never retrofit legacy word-less letters.
+  const word = { slug, name: cleanTitle, wordTypes: ['word'] };
 
   const graph = {
     graphType: 'tapestry',
@@ -75,11 +83,11 @@ export function buildTapestryDraft({ title, description = '', members, taPubkey,
       ['name', cleanTitle],
       // The z-tag to the tapestry concept handle is what the directory reads (queryRelay #z).
       ['z', `39998:${taPubkey}:tapestry`],
-      ['json', JSON.stringify({ tapestry, graph })],
+      ['json', JSON.stringify({ word, tapestry, graph })],
     ],
   };
 
-  return { dTag, uuid, tapestry, graph, unsignedEvent };
+  return { dTag, uuid, word, tapestry, graph, unsignedEvent };
 }
 
 /**
