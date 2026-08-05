@@ -4,6 +4,8 @@ import DataTable from '../../components/DataTable';
 import Breadcrumbs from '../../components/Breadcrumbs';
 import AuthorCell from '../../components/AuthorCell';
 import useProfiles from '../../hooks/useProfiles';
+import { useConfig } from '../../context/ConfigContext';
+import { queryRelay } from '../../api/relay';
 import { fetchFromRelays } from '../../utils/nostrPublish';
 
 // The public relay searched for self-declarations. Hardcoded for now — the
@@ -82,6 +84,7 @@ export default function SelfDeclaredSharedConcepts() {
         if (!selfDeclared) continue;
         out.push({
           uuid: coord,
+          eventId: ev.id,
           name: singularName(ev),
           description: descriptionOf(ev),
           author: ev.pubkey,
@@ -96,8 +99,81 @@ export default function SelfDeclaredSharedConcepts() {
     return () => { cancelled = true; };
   }, []);
 
+  // ── Local-usage indicators, one per definition of "using locally" ───────
+  // b: some OTHER local event points at the concept via a b-tag (the
+  //    concept's own self-pointer — including pulled copies of its header —
+  //    is the declaration itself, not usage, and is excluded);
+  // record: the local `shared concept` registry holds an element whose
+  //    identifiers reference it (official recognition, not actual usage);
+  // z: some event in the local strfry files itself under the concept via a
+  //    z-tag — the purest usage signal.
+  const { taPubkey } = useConfig();
+  const [usage, setUsage] = useState({ map: {}, done: false });
+
+  useEffect(() => {
+    setUsage({ map: {}, done: false });
+    if (!rows || rows.length === 0 || !taPubkey) return undefined;
+    let cancelled = false;
+
+    (async () => {
+      const coords = rows.map((r) => r.uuid);
+      const [bCarriers, zCarriers, registryElems] = await Promise.all([
+        queryRelay({ '#b': coords }).catch(() => []),
+        queryRelay({ '#z': coords }).catch(() => []),
+        queryRelay({ kinds: [39999], '#z': [`39998:${taPubkey}:shared-concept`] }).catch(() => []),
+      ]);
+      if (cancelled) return;
+
+      const usedB = new Set();
+      for (const ev of bCarriers || []) {
+        const d = ev.tags?.find((t) => t[0] === 'd')?.[1];
+        const own = d != null ? `${ev.kind}:${ev.pubkey}:${d}` : null;
+        for (const t of ev.tags || []) {
+          if (t[0] === 'b' && coords.includes(t[1]) && t[1] !== own) usedB.add(t[1]);
+        }
+      }
+
+      const usedZ = new Set();
+      for (const ev of zCarriers || []) {
+        for (const t of ev.tags || []) {
+          if (t[0] === 'z' && coords.includes(t[1])) usedZ.add(t[1]);
+        }
+      }
+
+      const recordATags = new Set();
+      const recordEventIds = new Set();
+      for (const ev of registryElems || []) {
+        try {
+          const raw = ev.tags?.find((t) => t[0] === 'json')?.[1];
+          const ids = (raw ? JSON.parse(raw).sharedConcept : null)?.identifiers || {};
+          if (typeof ids['a-tag'] === 'string' && ids['a-tag'].trim() !== '') recordATags.add(ids['a-tag'].trim());
+          if (typeof ids['event-id'] === 'string' && ids['event-id'].trim() !== '') recordEventIds.add(ids['event-id'].trim());
+        } catch { /* malformed registry element — skip */ }
+      }
+
+      const map = {};
+      for (const r of rows) {
+        map[r.uuid] = {
+          b: usedB.has(r.uuid),
+          record: recordATags.has(r.uuid) || recordEventIds.has(r.eventId),
+          z: usedZ.has(r.uuid),
+        };
+      }
+      setUsage({ map, done: true });
+    })();
+
+    return () => { cancelled = true; };
+  }, [rows, taPubkey]);
+
   const authors = useMemo(() => (rows || []).map((r) => r.author), [rows]);
   const profiles = useProfiles(authors);
+
+  const usageCell = (indicator) => (coord) => {
+    if (!usage.done) return <span className="text-muted">…</span>;
+    return usage.map[coord]?.[indicator]
+      ? <span title="in local use">✓</span>
+      : <span className="text-muted">—</span>;
+  };
 
   const columns = [
     {
@@ -120,6 +196,9 @@ export default function SelfDeclaredSharedConcepts() {
       label: 'Age',
       render: (val) => <span style={{ whiteSpace: 'nowrap' }}>{formatAge((loadedAt || 0) - val)}</span>,
     },
+    { key: 'uuid', label: 'used (b-tag)', render: usageCell('b') },
+    { key: 'uuid', label: 'record', render: usageCell('record') },
+    { key: 'uuid', label: 'used (z-tag)', render: usageCell('z') },
   ];
 
   return (

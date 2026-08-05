@@ -4,7 +4,7 @@ import { useCypher } from '../../hooks/useCypher';
 import Breadcrumbs from '../../components/Breadcrumbs';
 import useProfiles from '../../hooks/useProfiles';
 import AuthorCell from '../../components/AuthorCell';
-import { publishEverywhere } from '../../utils/nostrPublish';
+import { publishEverywhere, publishToRelays } from '../../utils/nostrPublish';
 
 export default function ConceptDetail() {
   const { uuid } = useParams();
@@ -37,6 +37,47 @@ export default function ConceptDetail() {
   const CONCEPT_PUBLISH_RELAYS = ['wss://dcosl.brainstorm.world'];
   const [publishStatus, setPublishStatus] = useState(null);
   const [publishing, setPublishing] = useState(false);
+
+  // Submit as a Shared Concept — one event, not the export set: the server
+  // re-signs OUR header with a SELF-pointing pointer-b appended (existing
+  // b-tags preserved — ADR 0029 multi-b), publishes/imports locally, and
+  // returns the signed event; the browser finishes by broadcasting it to the
+  // community relay (ADR 0004 Option A). Idempotent server-side: an
+  // already-declared header is returned unchanged so a repeat click just
+  // re-broadcasts it.
+  const [declaring, setDeclaring] = useState(false);
+  const [declareStatus, setDeclareStatus] = useState(null);
+
+  const submitAsSharedConcept = async () => {
+    setDeclaring(true);
+    setDeclareStatus('Signing the self-declaration…');
+    try {
+      const resp = await fetch(`/api/concept/${encodeURIComponent(decodedUuid)}/self-declare`, { method: 'POST' });
+      const data = await resp.json().catch(() => null);
+      if (!resp.ok || !data?.success) {
+        setDeclareStatus(`Error: ${data?.error || `HTTP ${resp.status}`}`);
+        return;
+      }
+      const already = data.result === 'already-declared';
+      setDeclareStatus('Publishing to the community relay…');
+      const r = await publishToRelays(data.event, CONCEPT_PUBLISH_RELAYS);
+      if (r?.skippedByGate) {
+        setDeclareStatus(already
+          ? 'Already self-declared — kept local (external publishing is off).'
+          : 'Self-declared locally — external publishing is off for this deployment.');
+      } else if (r?.successes?.length > 0) {
+        setDeclareStatus(already
+          ? 'Already self-declared — re-broadcast to the community relay.'
+          : 'Self-declared — published to the community relay.');
+      } else {
+        setDeclareStatus('Self-declared locally, but the community relay publish failed — click again to retry.');
+      }
+    } catch (err) {
+      setDeclareStatus(`Error: ${err.message}`);
+    } finally {
+      setDeclaring(false);
+    }
+  };
 
   const publishConcept = async () => {
     setPublishing(true);
@@ -145,7 +186,18 @@ export default function ConceptDetail() {
             >
               {publishing ? 'Publishing…' : 'Publish concept to community'}
             </button>
+            <button
+              type="button"
+              className="btn"
+              style={{ marginLeft: '0.5rem' }}
+              onClick={submitAsSharedConcept}
+              disabled={declaring}
+              title="Re-sign this concept's header with a self-pointing pointer-b tag and publish that one event to the community relay, so it appears as a Self-declared Shared Concept"
+            >
+              {declaring ? 'Submitting…' : 'Submit as a Shared Concept'}
+            </button>
             {publishStatus && <span className="meta-item" style={{ marginLeft: '0.75rem' }}>{publishStatus}</span>}
+            {declareStatus && <span className="meta-item" style={{ marginLeft: '0.75rem' }}>{declareStatus}</span>}
           </div>
 
           <div className="concept-actions" style={{ marginTop: '0.5rem' }}>

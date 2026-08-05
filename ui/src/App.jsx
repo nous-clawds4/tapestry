@@ -55,6 +55,7 @@ import SharedConceptDetail from './pages/shared-concepts/Detail';
 import NewSharedConcept from './pages/shared-concepts/New';
 import ActiveBTags from './pages/shared-concepts/ActiveBTags';
 import BTagDetail from './pages/shared-concepts/BTagDetail';
+import ActiveZTags from './pages/shared-concepts/ActiveZTags';
 import SelfDeclaredSharedConcepts from './pages/shared-concepts/SelfDeclaredSharedConcepts';
 import SelfDeclaredDetail from './pages/shared-concepts/SelfDeclaredDetail';
 import AboutIndex from './pages/about/Index';
@@ -374,6 +375,7 @@ const router = createBrowserRouter([
           { path: 'new', element: <NewSharedConcept />, handle: { crumb: 'New Shared Concept' } },
           { path: 'b-tags', element: <ActiveBTags />, handle: { crumb: 'Active b-tags' } },
           { path: 'b-tags/:uuid', element: <BTagDetail />, handle: { crumb: 'b-tag Detail' } },
+          { path: 'z-tags', element: <ActiveZTags />, handle: { crumb: 'Active z-tags' } },
           { path: 'self-declared', element: <SelfDeclaredSharedConcepts />, handle: { crumb: 'Self-declared Shared Concepts' } },
           { path: 'self-declared/:uuid', element: <SelfDeclaredDetail />, handle: { crumb: 'Detail' } },
           { path: ':uuid', element: <SharedConceptDetail />, handle: { crumb: 'Detail' } },

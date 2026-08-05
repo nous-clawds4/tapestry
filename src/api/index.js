@@ -582,6 +582,10 @@ async function register(app) {
     const { handleConceptExportSet } = require('./concept/exportSet.js');
     app.get('/api/concept/:handle/export-set', requireOwner, handleConceptExportSet);
 
+    // ── Self-declare as a Shared Concept (pointer-b on own header, ADR 0029 types) — owner-only ──
+    const { handleConceptSelfDeclare } = require('./concept/selfDeclare.js');
+    app.post('/api/concept/:handle/self-declare', requireOwner, handleConceptSelfDeclare);
+
     // ── Phase B pull (Story #14 / ADR 0010, mechanism amended by ADR 0011) — owner-only ──
     const { handlePullCommunityClassThread } = require('./concept/pullClassThread.js');
     app.post('/api/concept/:handle/pull-community-class-thread', requireOwner, handlePullCommunityClassThread);
