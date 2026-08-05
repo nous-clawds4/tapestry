@@ -43,12 +43,19 @@ function bestName(ev) {
  * local TA) that at least one local event z-points at, with usage counts.
  * z-tags to the instance's OWN concepts are ordinary internal filing and are
  * deliberately out of scope — this page is about shared usage.
+ *
+ * Self-filed z-tags — carrier authored by the SAME pubkey as the concept
+ * header — are likewise internal filing, not shared usage (Alice filing her
+ * own items under her own concept), so they are disregarded by default; a
+ * toggle includes them. Both tallies are computed in one pass, so the toggle
+ * never refetches.
  */
 export default function ActiveZTags() {
   const { taPubkey } = useConfig();
 
-  const [rows, setRows] = useState(null); // null = loading
+  const [data, setData] = useState(null); // per-target rows with both tallies; null = loading
   const [error, setError] = useState(null);
+  const [showSelfFiled, setShowSelfFiled] = useState(false);
 
   useEffect(() => {
     if (!taPubkey) return undefined;
@@ -72,7 +79,7 @@ export default function ActiveZTags() {
             targets.set(coord, { name: bestName(ev), author: ev.pubkey, created_at: ev.created_at });
           }
         }
-        if (targets.size === 0) { setRows([]); return; }
+        if (targets.size === 0) { setData([]); return; }
 
         // 2. Chunked scans: every local event z-pointing at any of them.
         const scan = await chunkedZScan([...targets.keys()]);
@@ -81,14 +88,26 @@ export default function ActiveZTags() {
         if (scan.failedChunks > 0 && scan.failedChunks === scan.totalChunks) {
           throw new Error('the local z-tag scan failed');
         }
-        const usage = new Map(); // coord → { events: Set, authors: Set }
+        // Two tallies per target: everything, and shared-only (carrier
+        // author ≠ the concept header's author).
+        const usage = new Map(); // coord → { all: {e,a}, shared: {e,a} }
         for (const ev of carriers || []) {
           for (const t of ev.tags || []) {
             if (t[0] !== 'z' || !targets.has(t[1])) continue;
             let u = usage.get(t[1]);
-            if (!u) { u = { events: new Set(), authors: new Set() }; usage.set(t[1], u); }
-            u.events.add(ev.id);
-            u.authors.add(ev.pubkey);
+            if (!u) {
+              u = {
+                allEvents: new Set(), allAuthors: new Set(),
+                sharedEvents: new Set(), sharedAuthors: new Set(),
+              };
+              usage.set(t[1], u);
+            }
+            u.allEvents.add(ev.id);
+            u.allAuthors.add(ev.pubkey);
+            if (ev.pubkey !== targets.get(t[1]).author) {
+              u.sharedEvents.add(ev.id);
+              u.sharedAuthors.add(ev.pubkey);
+            }
           }
         }
 
@@ -99,20 +118,34 @@ export default function ActiveZTags() {
             uuid: coord,
             name: target.name,
             author: target.author,
-            eventCount: u.events.size,
-            authorCount: u.authors.size,
+            allEvents: u.allEvents.size,
+            allAuthors: u.allAuthors.size,
+            sharedEvents: u.sharedEvents.size,
+            sharedAuthors: u.sharedAuthors.size,
           });
         }
-        out.sort((a, b) => b.eventCount - a.eventCount);
-        setRows(out);
+        setData(out);
         setError(null);
       } catch (err) {
-        if (!cancelled) { setError(err.message); setRows([]); }
+        if (!cancelled) { setError(err.message); setData([]); }
       }
     })();
 
     return () => { cancelled = true; };
   }, [taPubkey]);
+
+  // The toggle re-derives rows from the stored tallies — no refetch.
+  const rows = useMemo(() => {
+    if (data === null) return null;
+    return data
+      .map((r) => ({
+        ...r,
+        eventCount: showSelfFiled ? r.allEvents : r.sharedEvents,
+        authorCount: showSelfFiled ? r.allAuthors : r.sharedAuthors,
+      }))
+      .filter((r) => r.eventCount > 0)
+      .sort((a, b) => b.eventCount - a.eventCount);
+  }, [data, showSelfFiled]);
 
   const authors = useMemo(() => (rows || []).map((r) => r.author), [rows]);
   const profiles = useProfiles(authors);
@@ -144,6 +177,8 @@ export default function ActiveZTags() {
       <p className="subtitle">
         Shared concepts — concept headers authored by other instances — ranked by actual local
         usage: events in the local strfry that file themselves under the concept via the z-tag.
+        Self-filed z-tags — where the event and the concept header share an author — are internal
+        filing, not shared usage, and are disregarded by default.
       </p>
 
       {error && <p className="error">Error: {error}</p>}
@@ -151,7 +186,15 @@ export default function ActiveZTags() {
         <p>Scanning local z-tag usage…</p>
       ) : (
         <>
-          <p className="subtitle">{rows.length} shared concepts in local z-tag use</p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+            <p className="subtitle" style={{ margin: 0 }}>
+              {rows.length} shared concepts in local z-tag use
+              {!showSelfFiled && ' (self-filed disregarded)'}
+            </p>
+            <button className="btn" type="button" onClick={() => setShowSelfFiled((v) => !v)}>
+              {showSelfFiled ? 'Hide self-filed z-tags' : 'Show self-filed z-tags'}
+            </button>
+          </div>
           <DataTable
             columns={columns}
             data={rows}
