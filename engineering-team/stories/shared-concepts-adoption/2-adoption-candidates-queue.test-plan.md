@@ -43,6 +43,27 @@ node test/adoption-candidates-queue.test.js
 
 Full gate: `npm test`.
 
+## Implementation-phase suite amendments (2026-08-06, surfaced at the phase gate)
+
+Four amendments were made to this suite during Phase 4 — all fixture-infrastructure or
+test-harness-defect fixes discovered through the failing-tests-first process; none weakens an
+assertion:
+
+1. **S2's gate regex** accepted only the positive spelling (`isOwner(req) || req.localTrusted`);
+   the normalize producers' house idiom is the De Morgan form. Corrected to accept both — still
+   failed pre-implementation (neither form existed).
+2. **A fixture-integrity assert** added to H1: the signed carrier the server returns must carry its
+   z tag (distinguishes publish-path tag loss from scan-side loss).
+3. **Bounded settle-polls** (`queueUntil`, ≤6s, fail-on-timeout with self-describing diagnostics)
+   replaced single-shot queue reads in H1–H5 — semantic assertions preserved.
+4. **Strictly-monotonic fixture stamps** (`nextStamp`: read the coordinate's current version,
+   stamp `max(now, current+1)`): blind `now` stamps let a teardown TIE a server-side bumped
+   re-sign of the same coordinate, and strfry's replaceable tie-break then keeps an arbitrary
+   version — in practice a silently-still-wired twin poisoning the next run's queue through the
+   S2a exclusion. Root-caused after an extended forensic chase; the general lesson (and its latent
+   sibling in the F5 suite's teardown) is **OPEN.md #144**. Five consecutive full-suite runs green
+   after the fix.
+
 ## Verification
 
 The suite fails with current code for the right reasons. Confirmed 2026-08-06 at commit `6bededd3` (stack up):

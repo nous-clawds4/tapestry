@@ -253,8 +253,10 @@ test('S2: the disposition producer is registered and gates owner-only BEFORE any
     'the ledger schema + ensure must exist (the runtime-concept idiom)');
   const body = topLevelFunctionBody(src, 'handleAdoptionDisposition');
   assert(body, 'function handleAdoptionDisposition not found as a top-level declaration');
-  const gateAt = body.search(/isOwner\(req\)\s*\|\|\s*req\.localTrusted/);
-  assert(gateAt >= 0, 'the handler must carry the F5 gate pair (isOwner || localTrusted)');
+  // Both house spellings of the same gate are valid: the positive pair
+  // (bDisposition.js) and the normalize producers' De Morgan form.
+  const gateAt = body.search(/isOwner\(req\)\s*\|\|\s*req\.localTrusted|!isOwner\(req\)\s*&&\s*!req\.localTrusted/);
+  assert(gateAt >= 0, 'the handler must carry the F5 gate pair (isOwner || localTrusted, either spelling)');
   const mintAt = body.search(/invokeNormalizeHandler|handleCreateElement/);
   assert(mintAt === -1 || gateAt < mintAt, 'the gate must run BEFORE the mint call in the handler body');
 });
@@ -298,7 +300,29 @@ async function stack() {
 }
 
 function dockerCurl(args) {
-  return cp.execFileSync('docker', ['exec', CONTAINER, 'curl', ...args], { encoding: 'utf8', timeout: 30000 });
+  return cp.execFileSync('docker', ['exec', CONTAINER, 'curl', ...args], { encoding: 'utf8', timeout: 30000, maxBuffer: 32 * 1024 * 1024 });
+}
+
+/** Current created_at of a replaceable fixture event (0 when absent). */
+async function currentStamp(filter) {
+  try {
+    const f = encodeURIComponent(JSON.stringify(filter));
+    const r = await fetch(`${HOST_BASE}/api/strfry/scan?filter=${f}`, { signal: AbortSignal.timeout(15000) });
+    const j = await r.json();
+    const events = j.events || j.data || [];
+    return events.reduce((m, e) => Math.max(m, e.created_at || 0), 0);
+  } catch { return 0; }
+}
+
+/**
+ * Strictly-monotonic stamp for a replaceable fixture write: max(now, cur+1).
+ * Blind `now` stamps let two writes tie within a second — and strfry's
+ * replaceable tie-break (lowest id) then keeps an ARBITRARY version, which is
+ * exactly the shadow this suite spent an evening chasing. Every fixture write
+ * out-stamps whatever version currently holds the coordinate.
+ */
+async function nextStamp(filter) {
+  return Math.max(Math.floor(Date.now() / 1000), (await currentStamp(filter)) + 1);
 }
 function loopbackPostJson(pathname, body) {
   const out = dockerCurl(['-s', '-m', '25', '-X', 'POST', '-H', 'Content-Type: application/json',
@@ -323,21 +347,24 @@ function foreignPk() {
   const { getPublicKey } = require('nostr-tools');
   return getPublicKey(FOREIGN_SK);
 }
-function publishForeignHeader(extraTags) {
+async function publishForeignHeader(extraTags) {
   const { finalizeEvent } = require('nostr-tools');
+  const created_at = await nextStamp({ kinds: [39998], authors: [foreignPk()], '#d': [FOREIGN_DTAG] });
   const event = finalizeEvent({
     kind: 39998, content: '',
     tags: [['d', FOREIGN_DTAG], ['names', 'adoption queue fixture', 'adoption queue fixtures'], ...(extraTags || [])],
-    created_at: Math.floor(Date.now() / 1000),
+    created_at,
   }, FOREIGN_SK);
   return loopbackPostJson('/api/strfry/publish', { event, signAs: 'client' });
 }
-function publishTaEvent(dTag, kind, extraTags) {
+async function publishTaEvent(dTag, kind, extraTags) {
+  const s = await stack();
+  const created_at = await nextStamp({ kinds: [kind], authors: [s.ta], '#d': [dTag] });
   return loopbackPostJson('/api/strfry/publish', {
     event: {
       kind, content: '',
       tags: [['d', dTag], ['name', dTag], ...(extraTags || [])],
-      created_at: Math.floor(Date.now() / 1000),
+      created_at,
     },
     signAs: 'assistant',
   });
@@ -353,15 +380,56 @@ async function queue() {
   return json;
 }
 
+/**
+ * Bounded settle-poll: strfry's LMDB writes propagate to a NEW scan process
+ * sub-second but not instantaneously (cross-process visibility — the OPEN.md
+ * #141 genus; observed intermittently on back-to-back runs). The product
+ * contract is the next human-timescale read, so H rows poll the queue until
+ * the expected transition shows (≤6s) and FAIL on exhaustion — the semantic
+ * assertion is preserved; only cross-process propagation is absorbed.
+ */
+async function queueUntil(predicate, label) {
+  let last = null;
+  for (let i = 0; i < 12; i++) {
+    last = await queue();
+    if (predicate(last)) return last;
+    await new Promise((r) => setTimeout(r, 500));
+  }
+  // Self-describing timeout: dump the direct-scan view of every queue input
+  // for the fixture, so a flake names its own missing ingredient.
+  let diag = '';
+  try {
+    const s = await stack();
+    const sscan = (f) => {
+      const out = dockerCurl(['-s', '-m', '20', '-G', '--data-urlencode', `filter=${JSON.stringify(f)}`, `${CONTAINER_BASE}/api/strfry/scan`]);
+      try { const j = JSON.parse(out); return j.events || j.data || []; } catch { return []; }
+    };
+    const hdr = sscan({ kinds: [39998], authors: [foreignPk()] }).length;
+    const carZ = sscan({ kinds: [39999], authors: [s.ta], '#d': [CARRIER_DTAG] })
+      .filter((e) => (e.tags || []).some((t) => t[0] === 'z' && t[1] === fixtureCoord())).length;
+    const myB = sscan({ kinds: [39998, 39999], authors: [s.ta] })
+      .flatMap((e) => (e.tags || []).filter((t) => t[0] === 'b').map((t) => t[1]))
+      .filter((v) => v === fixtureCoord()).length;
+    const zhit = sscan({ '#z': [fixtureCoord()] }).length;
+    diag = ` [diag hdrScan:${hdr} carZ:${carZ} myB-hits:${myB} zFilterHits:${zhit}]`;
+  } catch (e) { diag = ` [diag failed: ${e.message}]`; }
+  throw new Error(`${label} — not observed within 6s${diag}; last state: nominations=${JSON.stringify((last.nominations || []).map((n) => n.coord)).slice(0, 200)} declined=${JSON.stringify((last.declined || []).map((d) => d.target)).slice(0, 200)}`);
+}
+
 test('H1: a foreign header with a cross-author TA carrier is nominated with correct evidence', async () => {
   const s = await stack(); if (!s.up) return 'SKIP';
-  const ph = publishForeignHeader();
+  const ph = await publishForeignHeader();
   assert(ph && ph.success === true, `foreign fixture publish failed: ${JSON.stringify(ph).slice(0, 200)}`);
-  const pc = publishTaEvent(CARRIER_DTAG, 39999, [['z', fixtureCoord()]]);
+  const pc = await publishTaEvent(CARRIER_DTAG, 39999, [['z', fixtureCoord()]]);
   assert(pc && pc.success === true, `carrier fixture publish failed: ${JSON.stringify(pc).slice(0, 200)}`);
-  const q = await queue();
+  // Fixture integrity: the signed event the server returns must carry the z —
+  // if this trips, the publish path dropped the tag; if it holds and the scan
+  // still misses, the loss is strfry-side.
+  assert(pc.event && (pc.event.tags || []).some((t) => t[0] === 'z' && t[1] === fixtureCoord()),
+    `the signed carrier must carry the z tag; got tags ${JSON.stringify(pc.event && pc.event.tags).slice(0, 200)}`);
+  const q = await queueUntil((s) => s.nominations.some((x) => x.coord === fixtureCoord()),
+    'the fixture must be nominated');
   const n = q.nominations.find((x) => x.coord === fixtureCoord());
-  assert(n, `the fixture must be nominated; nominations: ${JSON.stringify(q.nominations.map((x) => x.coord)).slice(0, 300)}`);
   assert(n.eventCount >= 1 && n.authorCount >= 1, `usage evidence must be present, got ${JSON.stringify(n)}`);
   assert(n.usedByMe === true, 'the TA carrier must set usedByMe');
 });
@@ -370,39 +438,41 @@ test('H2: decline removes the nomination and the Declined view lists it', async 
   const s = await stack(); if (!s.up) return 'SKIP';
   const resp = loopbackPostJson('/api/normalize/adoption-disposition', { target: fixtureCoord(), disposition: 'declined' });
   assert(resp && resp.success === true, `decline failed: ${JSON.stringify(resp).slice(0, 200)}`);
-  const q = await queue();
-  assert(!q.nominations.some((x) => x.coord === fixtureCoord()), 'a declined target must leave the queue');
-  const d = q.declined.find((x) => x.target === fixtureCoord());
-  assert(d, `the Declined view must list the target; got ${JSON.stringify(q.declined).slice(0, 300)}`);
+  await queueUntil((s) => !s.nominations.some((x) => x.coord === fixtureCoord())
+    && s.declined.some((x) => x.target === fixtureCoord()),
+  'a declined target must leave the queue and appear in the Declined view');
 });
 
 test('H3: requeue (un-decline) returns the nomination', async () => {
   const s = await stack(); if (!s.up) return 'SKIP';
   const resp = loopbackPostJson('/api/normalize/adoption-disposition', { target: fixtureCoord(), disposition: 'requeued' });
   assert(resp && resp.success === true, `requeue failed: ${JSON.stringify(resp).slice(0, 200)}`);
-  const q = await queue();
-  assert(q.nominations.some((x) => x.coord === fixtureCoord()), 'a requeued target must return to the queue');
-  assert(!q.declined.some((x) => x.target === fixtureCoord()), 'and leave the Declined view');
+  await queueUntil((s) => s.nominations.some((x) => x.coord === fixtureCoord())
+    && !s.declined.some((x) => x.target === fixtureCoord()),
+  'a requeued target must return to the queue and leave the Declined view');
 });
 
 test('H4: wiring a twin via the shipped primitive removes the nomination (S2a)', async () => {
   const s = await stack(); if (!s.up) return 'SKIP';
-  const pt = publishTaEvent(TWIN_DTAG, 39998, [['names', 'adoption twin fixture', 'adoption twin fixtures']]);
+  const pt = await publishTaEvent(TWIN_DTAG, 39998, [['names', 'adoption twin fixture', 'adoption twin fixtures']]);
   assert(pt && pt.success === true, `twin fixture publish failed: ${JSON.stringify(pt).slice(0, 200)}`);
   const resp = loopbackPostJson(`/api/concept/${encodeURIComponent(`39998:${s.ta}:${TWIN_DTAG}`)}/b-append`, { target: fixtureCoord() });
   assert(resp && resp.success === true, `b-append failed: ${JSON.stringify(resp).slice(0, 200)}`);
-  const q = await queue();
-  assert(!q.nominations.some((x) => x.coord === fixtureCoord()), 'a wired target must leave the queue');
+  await queueUntil((s2) => !s2.nominations.some((x) => x.coord === fixtureCoord()),
+    'a wired target must leave the queue');
 });
 
 test('H5: the queue survives an empty world — bare teardown drops the fixture from the base', async () => {
   const s = await stack(); if (!s.up) return 'SKIP';
   // Teardown first half: republish carrier bare (no z) and twin bare (no b).
-  const pc = publishTaEvent(CARRIER_DTAG, 39999);
-  const pt = publishTaEvent(TWIN_DTAG, 39998, [['names', 'adoption twin fixture', 'adoption twin fixtures']]);
+  // The twin's teardown must OUT-STAMP the b-append monotonic bump (F5's
+  // resignWithTags stamps max(now, prev+1)): a same-second bare republish
+  // would LOSE the replaceable tie and leave the twin wired — which then
+  // poisons the NEXT run's H1 via the wired exclusion (found the hard way).
+  const pc = await publishTaEvent(CARRIER_DTAG, 39999);
+  const pt = await publishTaEvent(TWIN_DTAG, 39998, [['names', 'adoption twin fixture', 'adoption twin fixtures']]);
   assert(pc.success === true && pt.success === true, 'teardown republishes failed');
-  const q = await queue();
-  assert(!q.nominations.some((x) => x.coord === fixtureCoord()),
+  await queueUntil((s2) => !s2.nominations.some((x) => x.coord === fixtureCoord()),
     'with zero carriers the fixture must drop out of the S3 base entirely');
 });
 
@@ -415,7 +485,7 @@ test('H6: the producer refuses remote unauthenticated callers (401, regression-c
     assert(bad && bad.success === false && bad.error,
       `an unknown disposition word must be refused with a named error, got ${JSON.stringify(bad).slice(0, 200)}`);
   } finally {
-    publishForeignHeader(); // teardown second half: bare foreign header
+    await publishForeignHeader(); // teardown second half: bare foreign header
   }
 });
 
