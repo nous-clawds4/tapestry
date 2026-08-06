@@ -40,6 +40,20 @@
   the staging smoke's bundle check + any owner-performed pin after deploy.
 - No firmware precondition; no Playwright row.
 
+## Implementation-phase note (2026-08-06, surfaced at the phase gate)
+
+**The poisoned-singleton transitional state, and its one-time fix.** H2's fixed-name element was
+first minted during the *pre-implementation* (failing-first) verification run — single-z, as the
+code then produced — and the dupe check thereafter refused the re-mint, so the first
+post-implementation run still scanned the stale event. This is a one-time artifact of the
+failing-first era, not a standing flaw: any instance carrying the implementation mints the
+singleton dual-stamped on first contact. Fixed by a single surgical graph delete of the stale
+element node (its strfry coordinate is replaceable — the re-mint superseded it), after which three
+consecutive runs held 14/14. The suite itself was not modified. Lesson noted for singleton-fixture
+designs: a fixed-name element whose asserted property depends on *creation-time* code state can be
+poisoned by red-era runs; prefer assertions that hold across eras (as H1/H3's do) or plan the
+one-time reset.
+
 ## How to run
 
 ```

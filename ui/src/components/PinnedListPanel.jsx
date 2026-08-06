@@ -176,6 +176,7 @@ export default function PinnedListPanel({ tag, viewerPin, onChanged, exportSync 
     setRepinningNotes(true);
     try {
       await publishNoteBookmarkSetForPin({
+        localTaPubkey: taPubkey,
         tag: { authorPubkey: tag.authorPubkey, slug: tag.slug, name: tag.name },
         viewerPubkey: user.pubkey,
         noteMethod,
@@ -271,7 +272,7 @@ export default function PinnedListPanel({ tag, viewerPin, onChanged, exportSync 
   }, [refetch, loadPinRow, onChanged]);
 
   const handleEditSubmit = async (customCuration) => {
-    const signed = await pinTag({ tag, curationMethod: customCuration });
+    const signed = await pinTag({ tag, curationMethod: customCuration, localTaPubkey: taPubkey });
     await refetch();
     onChanged?.();
     // AC-13 — a curation reconfig recomputes the kind-30392 and re-exports
