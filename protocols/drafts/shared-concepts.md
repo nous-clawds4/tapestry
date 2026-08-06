@@ -38,6 +38,10 @@ Affiliation is **navigation, not agreement**: it says "my concept corresponds to
 
 In the reference deployment, a cold-start affiliation is **seeded** at firmware install — a pointer-typed `b` published on the deployment's own header, targeting the concept named by the firmware manifest (`community-reference` ADR 0034; applied to the tag concepts by `tag-federation` ADR 0002). A seed is an affiliation like any other: pointer-typed, never deference.
 
+## Deliberate non-affiliation
+
+An author marks a header as **deliberately unaffiliated** — "I considered a shared twin and chose none" — by carrying the reserved sentinel `["b", "b-tag-deferred"]` (value reserved in [Inherit-From](./inherit-from.md) § "The `b` tag"; resolved worksheet W16). The sentinel is a **disposition marker, not a correspondence claim**: it opens no path, joins no walk, carries **zero weight in every aggregate** in this specification, and never enters reach, deference closure, or clouds. Its one consumer is coverage tooling — audit surfaces treat a sentinel-carrying header as *dispositioned* (stop re-prompting) and render the state as its own thing, never as a failed lookup. A real affiliation supersedes it: when an author later wires or self-declares the header, the sentinel is replaced, not accumulated. Like any tag it travels with its header if the header is published; a header that never leaves its author's local relay keeps its deferral private by construction.
+
 ## Deference
 
 An author defers to a shared definition by carrying an **inherit-typed `b` tag** — live definitional deference, with the override and resolution semantics specified in [Inherit-From](./inherit-from.md). Deference is the strong claim: it couples the child to the parent's future edits, which is exactly why it is the signal worth aggregating and why it must be explicit (an absent type reads as `"pointer"`, never as deference).

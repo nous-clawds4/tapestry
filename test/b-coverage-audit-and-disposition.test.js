@@ -309,7 +309,12 @@ test('G3 (regression, passes pre AND post): valid pointer and inherit values kee
 
 // ═══ S — structural pins (line-based; no byte windows — OPEN.md #109) ══
 
-test('S1: both disposition routes are registered owner-only', () => {
+test('S1: both disposition routes are registered and gate owner-only in-handler (loopback-operable)', () => {
+  // ADR 0001's dated correction: requireOwner middleware is session-only and
+  // blocks the localTrusted class the H rows and operational scripts need; the
+  // shipped pattern is the in-handler gate (publishEvent.js:37, the brain
+  // module). Pin the corrected contract: routes registered without middleware,
+  // one gate helper carrying BOTH classes, invoked first in BOTH handlers.
   const src = safeRead(API_INDEX_JS);
   assert(src, 'src/api/index.js unreadable');
   const lines = src.split('\n');
@@ -317,9 +322,12 @@ test('S1: both disposition routes are registered owner-only', () => {
   const deferLine = lines.find((l) => l.includes("'/api/concept/:handle/b-defer'"));
   assert(appendLine, 'POST /api/concept/:handle/b-append is not registered');
   assert(deferLine, 'POST /api/concept/:handle/b-defer is not registered');
-  assert(/requireOwner/.test(appendLine), 'b-append must be gated requireOwner on its registration line');
-  assert(/requireOwner/.test(deferLine), 'b-defer must be gated requireOwner on its registration line');
-  assert(fs.existsSync(B_DISPOSITION_API_JS), 'src/api/concept/bDisposition.js is missing');
+  const bd = safeRead(B_DISPOSITION_API_JS);
+  assert(bd, 'src/api/concept/bDisposition.js is missing');
+  assert(/isOwner\(req\)\s*\|\|\s*req\.localTrusted/.test(bd),
+    'the gate must carry exactly the owner-or-localTrusted pair (publishEvent.js:37 pattern)');
+  const gateCalls = (bd.match(/refuseUnlessOwnerOrLocal\(req,\s*res\)/g) || []).length;
+  assert(gateCalls >= 2, `both handlers must invoke the gate first (found ${gateCalls} call sites)`);
 });
 
 test('S2: the chokepoint requires the value-form lib', () => {

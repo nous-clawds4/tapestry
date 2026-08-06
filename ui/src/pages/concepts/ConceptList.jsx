@@ -7,6 +7,8 @@ import useProfiles from '../../hooks/useProfiles';
 import AuthorCell from '../../components/AuthorCell';
 import { DAVE_PUBKEY } from '../../config/pubkeys';
 import { useConfig } from '../../context/ConfigContext';
+import DispositionPanel from '../../components/DispositionPanel';
+import { dispositionOf } from '../../utils/bDisposition';
 
 const QUERY = `
   MATCH (h:NostrEvent)
@@ -21,7 +23,9 @@ const QUERY = `
   OPTIONAL MATCH (h)-[:IS_THE_CONCEPT_FOR]->(s)-[:IS_A_SUPERSET_OF*0..5]->(ss)-[:HAS_ELEMENT]->(explicitElem:NostrEvent)
   OPTIONAL MATCH (h)-[:IS_THE_CONCEPT_FOR]->(s)-[:IS_A_SUPERSET_OF*0..5]->(setNode)
   OPTIONAL MATCH (p:Property)-[:IS_A_PROPERTY_OF]->(js)
+  OPTIONAL MATCH (h)-[:HAS_TAG]->(bt:NostrEventTag {type: 'b'})
   WITH h,
+    collect(DISTINCT bt.value) AS bValues,
     count(DISTINCT s) AS supersetCount,
     count(DISTINCT js) AS schemaCount,
     count(DISTINCT pp) AS ppCount,
@@ -33,12 +37,13 @@ const QUERY = `
     collect(DISTINCT explicitElem.uuid) AS explicitUuids,
     count(DISTINCT p) AS propertyCount
   OPTIONAL MATCH (implicitElem:NostrEvent)-[:HAS_TAG]->(zt:NostrEventTag {type: 'z', value: h.uuid})
-  WITH h, supersetCount, schemaCount, ppCount, propsSetCount, coreGraphCount, conceptGraphCount, propTreeGraphCount, setCount,
+  WITH h, bValues, supersetCount, schemaCount, ppCount, propsSetCount, coreGraphCount, conceptGraphCount, propTreeGraphCount, setCount,
     explicitUuids, propertyCount,
     collect(DISTINCT implicitElem.uuid) AS implicitUuids
-  WITH h, supersetCount, schemaCount, ppCount, propsSetCount, coreGraphCount, conceptGraphCount, propTreeGraphCount, setCount, propertyCount,
+  WITH h, bValues, supersetCount, schemaCount, ppCount, propsSetCount, coreGraphCount, conceptGraphCount, propTreeGraphCount, setCount, propertyCount,
     size(explicitUuids) + size([u IN implicitUuids WHERE NOT u IN explicitUuids]) AS elementCount
   RETURN h.uuid AS uuid,
+    bValues,
     h.name AS name,
     h.pubkey AS author,
     CASE WHEN 'ConceptHeader' IN labels(h) THEN 1 ELSE 0 END AS hasConceptHeader,
@@ -61,6 +66,11 @@ export default function ConceptList() {
   const navigate = useNavigate();
   const [healthMap, setHealthMap] = useState({});
   const [authorFilter, setAuthorFilter] = useState('');
+  const [undispositionedOnly, setUndispositionedOnly] = useState(false);
+  const [panelRow, setPanelRow] = useState(null); // { uuid, name } | null
+  // Headers acted on this session leave the undispositioned set IMMEDIATELY
+  // (AC-2) — the Cypher rows refresh only on reload, so overlay locally.
+  const [actedUuids, setActedUuids] = useState(() => new Set());
 
   // Fetch audit summary for all concepts
   useEffect(() => {
@@ -88,15 +98,26 @@ export default function ConceptList() {
   const num = (val) => parseInt(val) || '—';
   const iconHeader = (icon, tooltip) => <span title={tooltip} style={{ cursor: 'help' }}>{icon}</span>;
 
-  // Merge health status into row data for sorting
+  // Merge health status + b-disposition into row data for sorting/filtering.
+  // Disposition (ADR shared-concepts-adoption/0001): derived per row from the
+  // header's b-tag values; "undispositioned (mine)" = TA-authored with no b —
+  // the BIBLE §31 first-person prompt set.
   const enrichedData = useMemo(() => {
     if (!data) return [];
     return data.map(row => {
       const h = healthMap[row.uuid];
       const healthSort = h ? (h.status === 'pass' ? 0 : h.status === 'warn' ? 1 : 2) : 3;
-      return { ...row, _healthSort: healthSort, _healthSummary: h?.summary || '' };
+      const disp = dispositionOf(row.bValues, row.uuid);
+      const acted = actedUuids.has(row.uuid);
+      const undispositioned = !disp.wired && !disp.selfDeclared && !disp.deferred && !acted;
+      return {
+        ...row,
+        _healthSort: healthSort, _healthSummary: h?.summary || '',
+        _disp: disp, _acted: acted,
+        _undispositionedMine: undispositioned && row.author === TA_PUBKEY,
+      };
     });
-  }, [data, healthMap]);
+  }, [data, healthMap, TA_PUBKEY, actedUuids]);
 
   // Author filter options
   const authorOptions = useMemo(() => {
@@ -126,6 +147,15 @@ export default function ConceptList() {
     return enrichedData.filter(r => r.author === authorFilter);
   }, [enrichedData, authorFilter]);
 
+  const visibleData = useMemo(
+    () => (undispositionedOnly ? filteredData.filter(r => r._undispositionedMine) : filteredData),
+    [filteredData, undispositionedOnly]
+  );
+
+  // "Save & next" iterates the undispositioned-mine set in table order.
+  const nextUndispositioned = (afterUuid) =>
+    enrichedData.find(r => r._undispositionedMine && r.uuid !== afterUuid) || null;
+
   const healthIcon = (val, row) => {
     const h = healthMap[row?.uuid];
     if (!h) return <span style={{ opacity: 0.3 }}>…</span>;
@@ -133,8 +163,35 @@ export default function ConceptList() {
     return <span title={h.summary} style={{ cursor: 'help' }}>{icon}</span>;
   };
 
+  // Disposition chips (ADR shared-concepts-adoption/0001): wired /
+  // self-declared / deliberately private / undispositioned. The sentinel
+  // renders as its own state — never as a lookup error.
+  const dispositionCell = (val, row) => {
+    if (row._acted) return <span title="dispositioned this session — reload for detail">✓</span>;
+    const d = row._disp || {};
+    const chips = [];
+    if (d.wired) chips.push(<span key="w" title="wired to an external shared concept">🔗</span>);
+    if (d.selfDeclared) chips.push(<span key="s" title="self-declared shared concept">🤝</span>);
+    if (d.deferred) chips.push(<span key="p" title="deliberately private (no shared affiliation)">🔒</span>);
+    if (chips.length === 0) {
+      return row.author === TA_PUBKEY
+        ? (
+          <button
+            className="btn" style={{ fontSize: '0.75rem', padding: '0.1rem 0.4rem' }}
+            title="undispositioned — choose: wire external / submit as shared / keep private"
+            onClick={(e) => { e.stopPropagation(); setPanelRow({ uuid: row.uuid, name: row.name, disp: row._disp }); }}
+          >
+            Disposition…
+          </button>
+        )
+        : <span className="text-muted">—</span>;
+    }
+    return <span style={{ display: 'inline-flex', gap: '0.2rem' }}>{chips}</span>;
+  };
+
   const columns = [
     { key: 'name', label: 'Name' },
+    { key: '_undispositionedMine', label: iconHeader('🧭', 'b-disposition (wired / self-declared / private)'), render: dispositionCell },
     { key: '_healthSort', label: iconHeader('🩺', 'Audit Health'), render: healthIcon },
     { key: 'elementCount', label: iconHeader('📝', 'Elements'), render: num },
     { key: 'setCount', label: iconHeader('🗂️', 'Sets (incl. superset)'), render: num },
@@ -193,20 +250,48 @@ export default function ConceptList() {
             ))}
           </select>
         </div>
+        <div>
+          <label style={{ fontSize: '0.75rem', fontWeight: 600, display: 'block', marginBottom: '0.25rem' }}>
+            🧭 Coverage
+          </label>
+          <label style={{ fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              checked={undispositionedOnly}
+              onChange={e => setUndispositionedOnly(e.target.checked)}
+            />
+            Undispositioned (mine)
+          </label>
+        </div>
       </div>
+
+      {panelRow && (
+        <DispositionPanel
+          handle={panelRow.uuid}
+          name={panelRow.name}
+          disposition={panelRow.disp}
+          onActed={() => setActedUuids(prev => new Set(prev).add(panelRow.uuid))}
+          hasNext={!!nextUndispositioned(panelRow.uuid)}
+          onNext={() => {
+            const next = nextUndispositioned(panelRow.uuid);
+            setPanelRow(next ? { uuid: next.uuid, name: next.name, disp: next._disp } : null);
+          }}
+          onClose={() => setPanelRow(null)}
+        />
+      )}
 
       {loading && <div className="loading">Loading concepts…</div>}
       {error && <div className="error">Error: {error.message}</div>}
       {!loading && !error && (
         <>
           <p style={{ fontSize: '0.8rem', color: 'var(--text-muted, #888)', marginBottom: '0.5rem' }}>
-            {filteredData.length === enrichedData.length
+            {visibleData.length === enrichedData.length
               ? `${enrichedData.length} concepts`
-              : `${filteredData.length} of ${enrichedData.length} concepts`}
+              : `${visibleData.length} of ${enrichedData.length} concepts`}
           </p>
           <DataTable
             columns={columns}
-            data={filteredData}
+            data={visibleData}
             onRowClick={(row) => navigate(`/tapestry/concepts/${encodeURIComponent(row.uuid)}`)}
             emptyMessage="No concepts match your filters"
           />

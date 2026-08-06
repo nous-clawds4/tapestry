@@ -116,6 +116,22 @@ route.
 
 ## Implementation notes
 
+> **Correction (2026-08-06, at implementation; surfaced at the phase gate).** This ADR prescribed
+> `requireOwner` middleware on the two new routes "matching selfDeclare (:587)" — but
+> `requireOwner` (`src/api/settings/settingsApi.js`) is **session-only** and rejects the
+> `localTrusted` loopback class, contradicting this same ADR's H-test design (loopback rows, the
+> brain-first suite's pattern) and the operational need for script/loopback disposition. The
+> shipped pattern for loopback-operable owner-only writes is the **in-handler gate**
+> `isOwner(req) || req.localTrusted` (`src/api/strfry/commands/publishEvent.js:37`; the entire
+> brain module). Both endpoints therefore gate **first-line in-handler** with exactly that pair and
+> register without route middleware; the S1 structural test pins the corrected contract (gate
+> helper present and invoked first in both handlers). Owner-only intent is unchanged — loopback is
+> the operator's own machine (ADR security-auth-exposure/0002's unspoofability rationale).
+> **The correction extends to `selfDeclare`** (its `requireOwner` registration had the identical
+> session-only limitation): all three symmetric disposition actions now share the one in-handler
+> gate, keeping the security envelope uniform, letting the H-suite prove the declare-after-defer
+> replace end-to-end, and making F1's queue automation loopback-operable from day one.
+
 - **New `src/lib/bValueForms.js`** — pure CJS, zero requires: `SENTINEL`,
   `A_TAG_RE = /^\d+:[0-9a-f]{64}:.+$/`, `EVENT_ID_RE = /^[0-9a-f]{64}$/`, `classifyBValue`,
   `dispositionOf(bValues, selfCoord)`.
