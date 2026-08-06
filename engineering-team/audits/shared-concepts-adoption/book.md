@@ -10,7 +10,7 @@
 
 **The frame:** each feature below is realized through its own story cycle (F0 via the Protocol-Spec docs-mode variant; F1–F5 as Standard feature stories), gate-approved by the owner per phase.
 
-- [ ] **F0 — instance-identity doctrine** (prerequisite, docs-mode): ratify "me" = the TA into BIBLE §31 + `self-ontology` ADR 0002; W15 → Graduated. Story: `stories/self-ontology/2-ratify-instance-identity.md`.
+- [x] **F0 — instance-identity doctrine** (prerequisite, docs-mode): ratify "me" = the TA into BIBLE §31 + `self-ontology` ADR 0002; W15 → Graduated. Story: `stories/self-ontology/2-ratify-instance-identity.md` — Done 2026-08-06 (review 2, PASS).
 - [ ] **F1 — adoption-candidates queue**: S3 (∪ S3a/S3b) ∖ S2a → a review surface prompting the owner per concept (adopt via pointer-b on the local twin header — needs the generalized b-append endpoint — and/or create the registry record). Proposal-loop shape: the system nominates, the owner ratifies.
 - [ ] **F2 — inverse queue (self-declare candidates)**: my headers with cross-author z/b usage but no self-pointing b → prompt "Submit as a Shared Concept" (the existing button is the action).
 - [ ] **F3 — trusted dictionary**: S3b with a minimum-trusted-users threshold; a dated derived artifact; explicitly NOT the W1 inherit-consensus signal (ADR 0029 keeps pointer/usage at zero weight there).

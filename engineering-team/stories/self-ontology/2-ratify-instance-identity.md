@@ -1,6 +1,6 @@
 # Story 2: Ratify instance identity — the TA is the instance's "me"
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-08-05
 **Type:** Doc
 **Epic:** `self-ontology`
@@ -121,4 +121,4 @@ produced it.
 - ADR: `engineering-team/decisions/self-ontology/0002-ratify-instance-identity.md`
 - Test plan: **skipped — docs-mode** (no executable behavior; the Reviewer performs an accuracy and
   cross-reference audit instead, and runs `npm test` to confirm no regression)
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/self-ontology/2-ratify-instance-identity.md`
