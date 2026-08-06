@@ -83,6 +83,6 @@ handling in the resolver against ADR 0029's semantics.
 
 ## Linked artifacts
 
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/shared-concepts-adoption/0004-publish-time-default-stamping.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
