@@ -60,6 +60,45 @@ function strfryScan(filter) {
 }
 
 /**
+ * Streaming variant for corpus-scale scans (fix/adoption-queue-stream-scan):
+ * exec's stdout buffer caps at maxBuffer and a deployed instance's corpus can
+ * exceed any fixed cap (staging's dcosl read-union did, at 16MB — the
+ * adoption queue's smoke failure). Spawns `strfry scan`, consumes stdout
+ * line-by-line, and keeps only what `project` returns — memory stays
+ * proportional to the PROJECTED result, never the corpus.
+ */
+function strfryScanStream(filter, project) {
+  const { spawn } = require('child_process');
+  return new Promise((resolve, reject) => {
+    const child = spawn('strfry', ['scan', JSON.stringify(filter)], { stdio: ['ignore', 'pipe', 'pipe'] });
+    const out = [];
+    let buf = '';
+    child.stdout.setEncoding('utf8');
+    child.stdout.on('data', (chunk) => {
+      buf += chunk;
+      let nl;
+      while ((nl = buf.indexOf('\n')) >= 0) {
+        const line = buf.slice(0, nl).trim();
+        buf = buf.slice(nl + 1);
+        if (!line) continue;
+        try {
+          const ev = JSON.parse(line);
+          const kept = project ? project(ev) : ev;
+          if (kept != null) out.push(kept);
+        } catch { /* malformed line — skip */ }
+      }
+    });
+    child.on('error', reject);
+    child.on('close', (code) => {
+      if (code !== 0) return reject(new Error(`strfry scan exited ${code}`));
+      const tail = buf.trim();
+      if (tail) { try { const ev = JSON.parse(tail); const kept = project ? project(ev) : ev; if (kept != null) out.push(kept); } catch {} }
+      resolve(out);
+    });
+  });
+}
+
+/**
  * Resolve the latest version of one of THIS instance's own headers, or answer
  * with the appropriate error. Returns null after responding on failure.
  */
@@ -166,6 +205,6 @@ async function handleBDefer(req, res) {
   }
 }
 
-// strfryScan is exported for the adoption module (ADR shared-concepts-adoption/0002)
-// — shared, never copied (OPEN.md #142).
-module.exports = { handleBAppend, handleBDefer, strfryScan };
+// strfryScan + strfryScanStream are exported for the adoption module (ADR
+// shared-concepts-adoption/0002) — shared, never copied (OPEN.md #142).
+module.exports = { handleBAppend, handleBDefer, strfryScan, strfryScanStream };
