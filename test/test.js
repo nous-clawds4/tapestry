@@ -209,6 +209,8 @@ const brainFirstTapestryAuthoring = require('./brain-first-tapestry-authoring.te
 const bCoverageAuditAndDisposition = require('./b-coverage-audit-and-disposition.test.js');
 // epic: shared-concepts-adoption — Story 2 (adoption-candidates queue).
 const adoptionCandidatesQueue = require('./adoption-candidates-queue.test.js');
+// epic: shared-concepts-adoption — Story 3 (inverse queue — publish candidates).
+const inverseQueuePublishCandidates = require('./inverse-queue-publish-candidates.test.js');
 
 async function main() {
   console.log('Running Brainstorm tests...');
@@ -536,6 +538,9 @@ async function main() {
 
   console.log('\nadoption-candidates-queue suite:');
   const adoptionCandidatesQueueResult = await adoptionCandidatesQueue.run();
+
+  console.log('\ninverse-queue-publish-candidates suite:');
+  const inverseQueuePublishCandidatesResult = await inverseQueuePublishCandidates.run();
 
   console.log('\nTest Results');
   console.log('-------------');
@@ -991,6 +996,7 @@ async function main() {
   console.log(`brain-first-tapestry-authoring suite:            ${brainFirstTapestryAuthoringResult.fail === 0 ? 'PASS' : 'FAIL'} (${brainFirstTapestryAuthoringResult.pass} passed, ${brainFirstTapestryAuthoringResult.fail} failed, ${brainFirstTapestryAuthoringResult.skipped} skipped)`);
   console.log(`b-coverage-audit-and-disposition suite:          ${bCoverageAuditAndDispositionResult.fail === 0 ? 'PASS' : 'FAIL'} (${bCoverageAuditAndDispositionResult.pass} passed, ${bCoverageAuditAndDispositionResult.fail} failed, ${bCoverageAuditAndDispositionResult.skipped} skipped)`);
   console.log(`adoption-candidates-queue suite:                 ${adoptionCandidatesQueueResult.fail === 0 ? 'PASS' : 'FAIL'} (${adoptionCandidatesQueueResult.pass} passed, ${adoptionCandidatesQueueResult.fail} failed, ${adoptionCandidatesQueueResult.skipped} skipped)`);
+  console.log(`inverse-queue-publish-candidates suite:          ${inverseQueuePublishCandidatesResult.fail === 0 ? 'PASS' : 'FAIL'} (${inverseQueuePublishCandidatesResult.pass} passed, ${inverseQueuePublishCandidatesResult.fail} failed, ${inverseQueuePublishCandidatesResult.skipped} skipped)`);
 
   const overallOk =
     configOk &&
@@ -1169,6 +1175,8 @@ async function main() {
     bCoverageAuditAndDispositionResult.fail === 0 &&
     // shared-concepts-adoption #2 — adoption-candidates queue
     adoptionCandidatesQueueResult.fail === 0 &&
+    // shared-concepts-adoption #3 — inverse queue (publish candidates)
+    inverseQueuePublishCandidatesResult.fail === 0 &&
     harnessLintResult.fail === 0 &&
     harnessStatsResult.fail === 0 &&
     sessionStartResult.fail === 0 &&
@@ -1214,7 +1222,7 @@ async function main() {
     breakAGoalIntoPiecesResult, attachTheWorldResult, sessionsReadTheBrainResult, theProposalLoopResult,
     operationalDirectionResult, storeTheFourResult, returnTheFourResult, showTheFourResult,
     addConceptToTapestryResult, takeAConceptBackOutResult, brainFirstTapestryAuthoringResult,
-    bCoverageAuditAndDispositionResult, adoptionCandidatesQueueResult,
+    bCoverageAuditAndDispositionResult, adoptionCandidatesQueueResult, inverseQueuePublishCandidatesResult,
   ].reduce((sum, r) => sum + ((r && r.skipped) || 0), 0);
   console.log(`Total skipped:                                   ${totalSkipped}`);
   console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);
