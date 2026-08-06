@@ -1,6 +1,6 @@
 # Story 2: Adoption-candidates queue
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-08-06
 **Type:** Feature
 **Epic:** `shared-concepts-adoption`
@@ -90,4 +90,4 @@ machinery or server-side.
 
 - ADR: `engineering-team/decisions/shared-concepts-adoption/0002-adoption-candidates-queue.md`
 - Test plan: `engineering-team/stories/shared-concepts-adoption/2-adoption-candidates-queue.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/shared-concepts-adoption/2-adoption-candidates-queue.md`
