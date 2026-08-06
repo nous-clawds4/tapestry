@@ -4,27 +4,31 @@ import Breadcrumbs from '../../components/Breadcrumbs';
 import AuthorCell from '../../components/AuthorCell';
 import useProfiles from '../../hooks/useProfiles';
 import { useConfig } from '../../context/ConfigContext';
-import { publishToRelays } from '../../utils/nostrPublish';
-
-// Same community target as the disposition panel and the self-declare button.
-const CONCEPT_PUBLISH_RELAYS = ['wss://dcosl.brainstorm.world'];
+import { declareAndBroadcast, defer as deferHeader, wireAndBroadcast } from '../../utils/dispositionActions';
 
 /**
- * Adoption Queue (ADR shared-concepts-adoption/0002) — the S3 ∖ S2a
- * nomination surface. The SERVER assembles the queue (/api/adoption-queue);
- * this page never re-derives the arithmetic. Proposal-loop shape: the system
- * nominates, the owner ratifies — Adopt (wire one of my headers as the local
- * twin, via the F5 b-append primitive), Recognize (registry record via
- * create-element, identifiers prefilled), or Decline (dated ledger record;
- * reversible from the Declined view). Nothing ever auto-acts.
+ * Adoption Queue (ADRs shared-concepts-adoption/0002 + 0003) — one page for
+ * the whole adoption loop. The SERVER assembles everything
+ * (/api/adoption-queue); this page never re-derives the arithmetic.
+ *
+ *   Theirs to adopt (F1): foreign shared concepts in cross-author use that
+ *     this instance hasn't adopted — Adopt (wire a twin) / Recognize /
+ *     Decline (dated ledger; reversible from the Declined view).
+ *   Mine to publish (F2): my headers others demonstrably use (z filings and
+ *     b affiliations, distinguishably) that carry no b — Submit as a Shared
+ *     Concept / Keep private (the sentinel). Kept-private headers with active
+ *     usage sit behind a collapsed reveal.
+ *
+ * Nothing ever auto-acts.
  */
 export default function AdoptionQueue() {
   const { taPubkey } = useConfig();
-  const [data, setData] = useState(null); // { nominations, declined } | null
+  const [data, setData] = useState(null); // { nominations, declined, publishCandidates, deferredInUse } | null
   const [error, setError] = useState(null);
-  const [showDeclined, setShowDeclined] = useState(false);
+  const [view, setView] = useState('theirs'); // 'theirs' | 'mine' | 'declined'
+  const [revealDeferred, setRevealDeferred] = useState(false);
   const [openCoord, setOpenCoord] = useState(null);
-  const [twins, setTwins] = useState(null); // my headers for the picker
+  const [twins, setTwins] = useState(null);
   const [twinChoice, setTwinChoice] = useState('');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState(null);
@@ -34,16 +38,21 @@ export default function AdoptionQueue() {
       const resp = await fetch('/api/adoption-queue');
       const json = await resp.json();
       if (!resp.ok || json.success === false) throw new Error(json.error || `status ${resp.status}`);
-      setData({ nominations: json.nominations || [], declined: json.declined || [] });
+      setData({
+        nominations: json.nominations || [],
+        declined: json.declined || [],
+        publishCandidates: json.publishCandidates || [],
+        deferredInUse: json.deferredInUse || [],
+      });
       setError(null);
     } catch (err) {
       setError(err.message);
-      setData({ nominations: [], declined: [] });
+      setData({ nominations: [], declined: [], publishCandidates: [], deferredInUse: [] });
     }
   };
   useEffect(() => { load(); }, []);
 
-  // Twin picker source: this instance's own concept headers.
+  // Twin picker source (F1's adopt action): this instance's own headers.
   useEffect(() => {
     if (!taPubkey) return;
     (async () => {
@@ -74,30 +83,25 @@ export default function AdoptionQueue() {
   );
   const profiles = useProfiles(authors);
 
-  const act = async (fn, doneText) => {
+  const act = async (fn, fallbackDone) => {
     setBusy(true); setMessage(null);
     try {
-      await fn();
-      setMessage(doneText);
+      const msg = await fn();
+      setMessage(typeof msg === 'string' ? msg : fallbackDone);
       setOpenCoord(null);
       setTwinChoice('');
-      await load(); // the acted-on row leaves its set on the server's say-so
+      await load(); // acted-on rows leave their sets on the server's say-so
     } catch (err) {
       setMessage(err.message);
     } finally { setBusy(false); }
   };
 
+  // ── F1 actions (theirs to adopt) ────────────────────────────────────────
   const adopt = (nom) => act(async () => {
     if (!twinChoice) throw new Error('Pick one of your headers as the local twin first.');
-    const resp = await fetch(`/api/concept/${encodeURIComponent(twinChoice)}/b-append`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ target: nom.coord }),
-    });
-    const json = await resp.json();
-    if (!resp.ok || !json.success) throw new Error(json.error || 'Wiring failed.');
-    try { await publishToRelays(json.event, CONCEPT_PUBLISH_RELAYS); } catch { /* local success stands */ }
-  }, 'Adopted — your twin header now points at the shared concept.');
-
+    const msg = await wireAndBroadcast(twinChoice, nom.coord);
+    return `Adopted — ${msg}`;
+  });
   const recognize = (nom) => act(async () => {
     const name = (nom.name || nom.coord).trim();
     const resp = await fetch('/api/normalize/create-element', {
@@ -117,8 +121,8 @@ export default function AdoptionQueue() {
     });
     const json = await resp.json();
     if (!resp.ok || !json.success) throw new Error(json.error || 'Recognition failed.');
-  }, 'Recognized — the registry now identifies this shared concept.');
-
+    return 'Recognized — the registry now identifies this shared concept.';
+  });
   const disposition = (target, word, doneText) => act(async () => {
     const resp = await fetch('/api/normalize/adoption-disposition', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -126,7 +130,12 @@ export default function AdoptionQueue() {
     });
     const json = await resp.json();
     if (!resp.ok || !json.success) throw new Error(json.error || `${word} failed.`);
-  }, doneText);
+    return doneText;
+  });
+
+  // ── F2 actions (mine to publish) ────────────────────────────────────────
+  const submitMine = (coord) => act(() => declareAndBroadcast(coord));
+  const keepPrivate = (coord) => act(() => deferHeader(coord));
 
   const nominationColumns = [
     { key: 'name', label: 'Name', render: (v, r) => v || <span className="text-muted">{r.coord.slice(0, 24)}…</span> },
@@ -157,25 +166,71 @@ export default function AdoptionQueue() {
     },
   ];
 
+  const evidenceCell = (r) => (
+    <span style={{ whiteSpace: 'nowrap' }} title="cross-author filings (events / authors) · affiliations (events / authors)">
+      📄 {r.filingEvents}/{r.filingAuthors} · 🔗 {r.affiliationEvents}/{r.affiliationAuthors}
+    </span>
+  );
+  const mineActions = (coord) => (
+    <span style={{ display: 'inline-flex', gap: '0.4rem' }}>
+      <button className="btn btn-primary" style={{ fontSize: '0.75rem' }} disabled={busy}
+        onClick={(e) => { e.stopPropagation(); submitMine(coord); }}>
+        🤝 Submit as a Shared Concept
+      </button>
+      <button className="btn" style={{ fontSize: '0.75rem' }} disabled={busy}
+        title="Mark as deliberately unaffiliated (never broadcast)."
+        onClick={(e) => { e.stopPropagation(); keepPrivate(coord); }}>
+        🔒 Keep private
+      </button>
+    </span>
+  );
+  const mineColumns = [
+    { key: 'name', label: 'Name', render: (v, r) => v || <span className="text-muted">{r.coord.slice(0, 24)}…</span> },
+    { key: 'filingEvents', label: 'Used by others', render: (v, r) => evidenceCell(r) },
+    { key: 'coord', label: '', render: (coord) => mineActions(coord) },
+  ];
+  const deferredColumns = [
+    { key: 'name', label: 'Name', render: (v, r) => v || <span className="text-muted">{r.coord.slice(0, 24)}…</span> },
+    { key: 'filingEvents', label: 'Used by others', render: (v, r) => evidenceCell(r) },
+    {
+      key: 'coord', label: '', render: (coord) => (
+        <button className="btn btn-primary" style={{ fontSize: '0.75rem' }} disabled={busy}
+          title="Publishing replaces the keep-private marker (the un-defer path)."
+          onClick={(e) => { e.stopPropagation(); submitMine(coord); }}>
+          🤝 Submit as a Shared Concept
+        </button>
+      ),
+    },
+  ];
+
   const openNom = (data?.nominations || []).find((n) => n.coord === openCoord) || null;
+  const viewBtn = (key, label) => (
+    <button
+      className={view === key ? 'btn btn-primary' : 'btn'}
+      style={{ fontSize: '0.85rem' }}
+      onClick={() => { setView(key); setOpenCoord(null); setMessage(null); }}
+    >
+      {label}
+    </button>
+  );
 
   return (
     <div className="page">
       <Breadcrumbs />
       <h1>📥 Adoption Queue</h1>
       <p className="subtitle">
-        Shared concepts in demonstrable use that this instance hasn't adopted. The system nominates;
-        you ratify — wire a twin, recognize it in the registry, or decline. Nothing happens on its own.
+        The adoption loop, both directions. The system nominates; you ratify. Nothing happens on its own.
       </p>
 
-      <label style={{ fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer', marginBottom: '1rem' }}>
-        <input type="checkbox" checked={showDeclined} onChange={(e) => setShowDeclined(e.target.checked)} />
-        Show declined
-      </label>
+      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
+        {viewBtn('theirs', 'Theirs to adopt')}
+        {viewBtn('mine', 'Mine to publish')}
+        {viewBtn('declined', 'Declined')}
+      </div>
 
       {message && <p style={{ fontSize: '0.85rem' }}>{message}</p>}
 
-      {openNom && (
+      {view === 'theirs' && openNom && (
         <div style={{
           border: '1px solid var(--border, #444)', borderRadius: '8px', padding: '1rem',
           marginBottom: '1rem', backgroundColor: 'var(--bg-secondary, #1a1a2e)',
@@ -207,12 +262,32 @@ export default function AdoptionQueue() {
       {error && <div className="error">Error: {error}</div>}
       {data === null ? (
         <p>Assembling the queue…</p>
-      ) : showDeclined ? (
+      ) : view === 'declined' ? (
         <DataTable
           columns={declinedColumns}
           data={data.declined}
           emptyMessage="Nothing declined — every nomination is still open or adopted."
         />
+      ) : view === 'mine' ? (
+        <>
+          <DataTable
+            columns={mineColumns}
+            data={data.publishCandidates}
+            emptyMessage="Nothing to publish — every header others use is offered or deliberately private."
+          />
+          {data.deferredInUse.length > 0 && (
+            <div style={{ marginTop: '1rem' }}>
+              <button className="btn" style={{ fontSize: '0.8rem' }} onClick={() => setRevealDeferred(!revealDeferred)}>
+                {revealDeferred ? '▾' : '▸'} {data.deferredInUse.length} kept-private headers have active usage {revealDeferred ? '' : '— show'}
+              </button>
+              {revealDeferred && (
+                <div style={{ marginTop: '0.5rem' }}>
+                  <DataTable columns={deferredColumns} data={data.deferredInUse} emptyMessage="" />
+                </div>
+              )}
+            </div>
+          )}
+        </>
       ) : (
         <DataTable
           columns={nominationColumns}

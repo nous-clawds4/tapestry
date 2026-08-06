@@ -1,18 +1,16 @@
 import { useState } from 'react';
 import useCommunitySharedConcepts from '../hooks/useCommunitySharedConcepts';
 import { classifyBValue } from '../utils/bDisposition';
-import { publishToRelays } from '../utils/nostrPublish';
-
-// Same community target as the self-declare button (ConceptDetail.jsx).
-const CONCEPT_PUBLISH_RELAYS = ['wss://dcosl.brainstorm.world'];
+import { declareAndBroadcast, defer, wireAndBroadcast } from '../utils/dispositionActions';
 
 /**
  * The guided-disposition panel (ADR shared-concepts-adoption/0001): three
  * symmetric actions on one of the instance's own concept headers — wire to an
  * external shared concept (pointer-b), submit as a shared concept
- * (self-declare), or keep private (the reserved sentinel). Wire and declare
- * broadcast the re-signed header to the community relay; keep-private never
- * broadcasts. No route of its own — rendered inline by ConceptList.
+ * (self-declare), or keep private (the reserved sentinel). The action
+ * mechanics + broadcast-fallback strings live in utils/dispositionActions
+ * (extracted behavior-preserving, ADR 0003, shared with the Adoption Queue's
+ * publish view). No route of its own — rendered inline by ConceptList.
  */
 export default function DispositionPanel({ handle, name, disposition, onActed, onNext, hasNext, onClose }) {
   const { rows: communityRows } = useCommunitySharedConcepts();
@@ -21,59 +19,23 @@ export default function DispositionPanel({ handle, name, disposition, onActed, o
   const [message, setMessage] = useState(null);
   const [acted, setActed] = useState(false);
 
-  const post = async (action, body) => {
-    const resp = await fetch(`/api/concept/${encodeURIComponent(handle)}/${action}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body || {}),
-    });
-    return resp.json();
+  const finish = (text) => { setMessage(text); setActed(true); setBusy(false); onActed?.(); };
+  const run = async (fn) => {
+    setBusy(true); setMessage(null);
+    try { finish(await fn()); }
+    catch (err) { setMessage(err.message); setBusy(false); }
   };
 
-  const finish = (text) => { setMessage(text); setActed(true); setBusy(false); onActed?.(); };
-
-  const doWire = async () => {
+  const doWire = () => {
     const t = target.trim();
     if (classifyBValue(t) !== 'a-tag') {
       setMessage('The target must be an a-tag coordinate (kind:pubkey:d-tag).');
       return;
     }
-    setBusy(true); setMessage(null);
-    try {
-      const data = await post('b-append', { target: t });
-      if (!data.success) { setMessage(data.error || 'Wiring failed.'); setBusy(false); return; }
-      try {
-        await publishToRelays(data.event, CONCEPT_PUBLISH_RELAYS);
-        finish(data.result === 'already-wired' ? 'Already wired — re-broadcast to the community relay.' : 'Wired — broadcast to the community relay.');
-      } catch {
-        finish('Wired locally — community broadcast failed (retry from the concept page).');
-      }
-    } catch (err) { setMessage(err.message); setBusy(false); }
+    run(() => wireAndBroadcast(handle, t));
   };
-
-  const doDeclare = async () => {
-    setBusy(true); setMessage(null);
-    try {
-      const data = await post('self-declare');
-      if (!data.success) { setMessage(data.error || 'Self-declare failed.'); setBusy(false); return; }
-      try {
-        await publishToRelays(data.event, CONCEPT_PUBLISH_RELAYS);
-        finish(data.result === 'already-declared' ? 'Already self-declared — re-broadcast to the community relay.' : 'Submitted as a shared concept.');
-      } catch {
-        finish('Self-declared locally — community broadcast failed (retry from the concept page).');
-      }
-    } catch (err) { setMessage(err.message); setBusy(false); }
-  };
-
-  const doDefer = async () => {
-    setBusy(true); setMessage(null);
-    try {
-      const data = await post('b-defer');
-      if (!data.success) { setMessage(data.error || 'Keep-private failed.'); setBusy(false); return; }
-      // Deliberately NO broadcast: deferral is a stance, not an announcement.
-      finish('Kept private — this header is marked as deliberately unaffiliated.');
-    } catch (err) { setMessage(err.message); setBusy(false); }
-  };
+  const doDeclare = () => run(() => declareAndBroadcast(handle));
+  const doDefer = () => run(() => defer(handle));
 
   const deferBlocked = disposition && (disposition.wired || disposition.selfDeclared);
 
