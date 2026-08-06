@@ -277,13 +277,15 @@ test('S4: the UI seams exist — page, route by NAME (never a count), nav entry,
   assert(page && page.includes('/api/adoption-queue'), 'the page must fetch the server-assembled queue (never re-derive the arithmetic)');
 });
 
-test('S5: the scan helper is shared, not copied — bDisposition exports strfryScan and the adoption module imports it (OPEN.md #142)', () => {
+test('S5: the scan helper is shared, not copied — bDisposition exports the scan family and the adoption module STREAMS (OPEN.md #142; corpus-scale fix)', () => {
   const bd = safeRead(B_DISPOSITION_API_JS);
   assert(bd && /module\.exports\s*=\s*\{[^}]*strfryScan/.test(bd),
-    'bDisposition.js must export strfryScan for the adoption module');
+    'bDisposition.js must export the scan helpers for the adoption module');
+  assert(bd && /function strfryScanStream/.test(bd),
+    'the streaming variant must live beside strfryScan (a deployed corpus exceeds any fixed exec buffer — the staging smoke failure)');
   const mod = safeRead(ADOPTION_API_JS);
-  assert(mod && /require\([^)]*concept\/bDisposition/.test(mod) && /strfryScan/.test(mod),
-    'the adoption module must import strfryScan from bDisposition — no new divergent copy');
+  assert(mod && /require\([^)]*concept\/bDisposition/.test(mod) && /strfryScanStream/.test(mod),
+    'the adoption module must import the STREAMING scan from bDisposition — no new copy, no buffered corpus reads');
 });
 
 // ═══ H — live integration (SKIP when the stack is down) ════════════════
