@@ -35,7 +35,7 @@ Anticipated (not yet planned — numbers assigned at planning; see handoff §10 
 - Health monitoring — orphans, missing/stale LMDB docs, schema-invalid docs, coverage drift.
 
 ## ADRs
-`decisions/self-ontology/` — 0001 (story 1; umbrella ontology ADR). 0002 lands with story 2.
+`decisions/self-ontology/` — 0001 (story 1; umbrella ontology ADR) · 0002 (story 2; instance identity).
 
 ## Notes
 The handoff doc stays **🔴 OPEN** after story 1 — only part of its content ratifies here. It flips to

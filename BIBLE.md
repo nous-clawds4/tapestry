@@ -5,7 +5,7 @@
 >
 > Specifics of the reference deployment at `tapestry.brainstorm.world` (deploy targets, droplet specs, CI/CD workflows, branch protection ruleset, active team, tracking issues, operational gotchas we've hit) live in a sibling document: [OPERATIONS.md](./OPERATIONS.md). If you're forking this repo to run your own instance, BIBLE is the doc you want — OPERATIONS describes someone else's running instance.
 
-**Last updated:** 2026-08-05 (content: §6 tapestry elements author `word` + brain-first authoring note (misdiagnosis corrected), §16 changelog row — brain-first-tapestry-authoring book / ADR tapestries/0007; prior: §30 The Self and Its Stores — ratifies the self ontology (Neo4j = the definitive "me"; LMDB = subordinate cache; events = "letters") plus the binding obligations it creates — self-ontology #1 / ADR 0001; prior: §29 Derived-JSON Store — documents the standalone tapestry-store LMDB layer (`tapestryKey` + `lmdb:` pointers), alongside a `handlePut` await fix; §6 graph-embedding convention + §13 Tapestries area + §16 changelog — tapestries book; §11 relationship primitives + probe, §13 set-detail route + owner placement affordances — graph-curation-ui / relationship-primitives)
+**Last updated:** 2026-08-05 (content: §31 The Self and Its Keys — ratifies the instance-identity doctrine (the TA pubkey is the instance's "me"; the Owner a distinct correspondent; absorption explicit, chosen per feature) + §30 cross-ref + §16 changelog row — self-ontology #2 / ADR 0002, F0 of the shared-concepts-adoption book; prior: §6 tapestry elements author `word` + brain-first authoring note (misdiagnosis corrected), §16 changelog row — brain-first-tapestry-authoring book / ADR tapestries/0007; prior: §30 The Self and Its Stores — ratifies the self ontology (Neo4j = the definitive "me"; LMDB = subordinate cache; events = "letters") plus the binding obligations it creates — self-ontology #1 / ADR 0001; prior: §29 Derived-JSON Store — documents the standalone tapestry-store LMDB layer (`tapestryKey` + `lmdb:` pointers), alongside a `handlePut` await fix; §6 graph-embedding convention + §13 Tapestries area + §16 changelog — tapestries book; §11 relationship primitives + probe, §13 set-detail route + owner placement affordances — graph-curation-ui / relationship-primitives)
 
 ---
 
@@ -41,6 +41,7 @@
 28. [Open Ranking (ORE) Provider](#28-open-ranking-ore-provider)
 29. [Derived-JSON Store: tapestryKey and the tapestry-store LMDB](#29-derived-json-store-tapestrykey-and-the-tapestry-store-lmdb)
 30. [The Self and Its Stores](#30-the-self-and-its-stores)
+31. [The Self and Its Keys](#31-the-self-and-its-keys)
 
 ---
 
@@ -1405,6 +1406,7 @@ docker compose exec tapestry strfry sync wss://dcosl.brainstorm.world \
 - ✅ Event page — working `/event` single-event view (2026-06-19, staging) — replaces the placeholder. Resolves **kind-1** from six identifier formats (**nevent, id, naddr, pubkey, npub, nprofile**; precedence in that order), with a search-field fallback when no valid param. `nevent`/`id` → fetch the event (non-kind-1 → "kind N not yet supported"; fails verification → "does not validate"; valid → render like `/feed`); `pubkey`/`npub`/`nprofile` → the author's most-recent kind-1; `naddr` → "kind N not yet supported" from the coordinate (no fetch). New **`GET /api/event`** (`src/api/event/eventReadPath.js`): relay **union** = embedded hints + the author's NIP-65 (kind-10002) **outbox** write relays + well-known set/fallback; on-fetch `verifyEvent` (via a no-verify pool so the distinct does-not-validate outcome is reachable) + kind-gate; reuses `enrichNotes`. Introduced `src/api/_shared/relaySource.js` (extracted relay-sourcing; feed/user-notes re-point deferred — `follow-ups.md`). Additive; no firmware change. epic `event-page`, ADRs `event-page/0001` (read path) + `0002` (page UI). Staging only; prod promotion not yet done.
 - ✅ Tapestries — browse & explore (2026-07-24, prod) — a public, read-only surface for **Tapestries** (curated collections of concepts; a Tapestry is a subset of Graph — "a graph of concept graphs"). A "🧵 Tapestries" nav group under Nostr Users → **View Tapestries** (directory of every element of the `tapestry` concept) + **Create New Tapestry** (inert placeholder; create/edit authoring deferred). Each row opens a per-tapestry **Exploration page** (`/tapestry/tapestries/:uuid`) modeled on the Firmware Explorer's read-only views — concept sidebar + vis-network integration graph + enumerations/elements/subsets tables + JSON viewer — rendered **as-authored** from the element's own `graph` block plus one-level-resolved `imports` (see §6 "Graph-embedding convention"). Reads tapestry elements from **strfry** via the existing `GET /api/strfry/scan` (not Neo4j — a reconcile drops tapestry elements; `OPEN.md` #88); additive, **no new backend/endpoints, no new deps** (vis-network already bundled); route by uuid (a-tag coordinate). epic `tapestries` (stories #1–#2), ADRs `tapestries/0001` (strfry read) + `0002` (as-authored render). Shipped staging (#438) + prod (#440).
 - ✅ Brain-first tapestry authoring (2026-08-05, staging) — tapestry authoring writes the brain, per §30: a scoped post-import hook in `POST /api/strfry/publish` imports the instance's **own** tapestry letters (kind-39999, z-tagged to this instance's `tapestry` concept, authored by the TA or owner — both runtime-resolved) into Neo4j in the same request — event node + tags, `ListItem` label, `HAS_ELEMENT` placement under the tapestry Superset, `tapestryKey` (assigned once, §29), and the derived LMDB doc (cache invalidated pre-derive so republishes re-derive from the brain's fresh json). Response gains an additive `brainWrite` field; a hook failure is reported alongside publish success, never conflated (the letter cannot be unsent). Create drafts now author **`word`** alongside `tapestry`+`graph` (§6); republish builders pass it through and never retrofit legacy letters. Third-party client-signed publishing stays permissionless with **no** brain import (stage-2 ingest's lane, OPEN.md #136). Ends the split-brain where View Tapestries (strfry) listed tapestries the concept's Elements view (Neo4j) said didn't exist. epic `tapestries` story #7, ADR `tapestries/0007`. Staging via PR #489; prod held with the #131 batch.
+- ✅ The Self and Its Keys — BIBLE §31 (2026-08-05, staging) — ratifies the instance-identity doctrine (worksheet W15, graduated): the instance is its own person and the **TA pubkey is its key**; the Owner is a distinct, maximally-trusted **correspondent** whose letters enter the brain only by explicit absorption (re-mint or TA-authored pointer, chosen per feature); every first-person query answers `authors:[TA]`. External readers resolving a *human's* headers keep assistant-designation's personal-wins rule byte-unchanged (ratified as a custody-asymmetry security posture); the tapestries-#7 owner lane is ruled an eager near-term absorption, with stage-2 ingest (OPEN.md #136) inheriting the general provenance lane — no permanent "counts as me" carve-out. Docs-only: no code, no wire format, no firmware change. epic `self-ontology` story #2, ADR `self-ontology/0002`. F0 of the `shared-concepts-adoption` book.
 
 ### CLI (tapestry-cli repo)
 
@@ -1764,7 +1766,7 @@ Separate from strfry's internal LMDB event store (§4), the control panel keeps 
 
 ## 30. The Self and Its Stores
 
-**Tapestry is, first and foremost, a local-first personal knowledge graph.** The same data may live in several stores at once — Neo4j, the tapestry LMDB, local strfry, and external homes such as nostr relays or the filesystem. This section defines **which store holds the self**, and what each of the others is for. It governs the *identity* axis; it does not change any wire format.
+**Tapestry is, first and foremost, a local-first personal knowledge graph.** The same data may live in several stores at once — Neo4j, the tapestry LMDB, local strfry, and external homes such as nostr relays or the filesystem. This section defines **which store holds the self**, and what each of the others is for. It governs the *identity* axis; it does not change any wire format. Which *key* speaks for the self is **§31**'s subject.
 
 ### The ontology (ratified)
 
@@ -1822,6 +1824,45 @@ Not yet decided. These are this epic's deferred work, not omissions:
 The **shape** of the backup pipeline is ratified — a lossless serialization, encrypted and chunked into nostr events, stashed on a mirror relay — while none of its mechanics are. Note the asymmetry this ontology forces: publishing the graph as its constituent *semantic* events is nostr-native and verifiable, but **necessarily lossy for the definitive-me**, because asserted state has no event form. "I can always reconstruct myself from my published events" is false here.
 
 See ADR 0001 (`self-ontology`) for the ratification decision; working notes and the reasoning that produced this section live in `docs/SELF_ONTOLOGY_DESIGN_HANDOFF.md`.
+
+---
+
+## 31. The Self and Its Keys
+
+**The Tapestry instance is its own person, and the Tapestry Assistant (TA) pubkey is that person's key.** §30 defined which *store* holds the self; this section defines which *key* speaks for it. It governs the key axis of identity only — it defines no new tag, kind, or reader rule, and changes no wire format.
+
+### The doctrine (ratified)
+
+| Key | Role | Custody |
+|---|---|---|
+| **TA pubkey** | **The instance's "me."** Signs the instance's own headers, brain writes, and letters; every first-person query answers `authors:[TA]`. | Hot — created at first container startup, lives on the server. |
+| **Owner main pubkey** | **The principal correspondent.** Maximally trusted, distinct in identity; letters absorbed only by explicit act (below). | Cold — interactive signing (NIP-07 / external signer); never held server-side. |
+| **Customer relay keys** (multi-tenant) | Stated direction only, not normative — see Scope. | Server-side, per customer. |
+
+- **The first-person rule.** Every "which events are mine?" question the instance asks — its own concept headers, its brain content, its first-person activity filters — is answered by author identity: `authors:[TA]`. (The Owner is Tony Stark; the TA is Jarvis.)
+- **The Owner is a correspondent, not an alias.** Owner-authored events are letters *from* the Owner — privileged in trust, never conflated in identity. An owner-signed item filed under a TA-authored header is a correspondent using the instance's concept, and it is counted as exactly that.
+- **Identity attaches to the instance, not the key custodian.** In the default deployment one human holds both nsecs — "the same person" in the everyday sense. But the custodians can differ: a non-technical owner may pay an administrator — human or LLM — to run the server, and then the TA nsec is handled by someone who is not the Owner at all. The doctrine holds unchanged in that world, which is precisely why the TA is not "the owner's second key": it is the instance's own name.
+
+### The external layer (unchanged)
+
+"What does this *human* think?" is a different question from "what is in the instance's filing system?", and it keeps its own rule. External readers resolving a human's concept/DList headers follow [protocols/drafts/assistant-designation.md](protocols/drafts/assistant-designation.md): the personally-signed header governs; the TA-authored header is the designated fallback. That specification's wire format and precedence are **byte-unchanged** by this section, and its personal-wins rule is ratified here as a **security posture**: the TA nsec is a hot server key, the Owner nsec is cold and interactive, and a compromised server must never be able to shadow the owner's deliberate personal statements. (Assistant-designation is itself specified-not-yet-wired; its own deployment-status note governs that.) External callers name humans by their main pubkey throughout — the instance's TA selfhood is never how the outside world addresses the human.
+
+### Absorption (explicit, two modes)
+
+Owner-authored letters enter the instance's brain only by an **explicit, auditable act** — never a silent identity merge. Two modes, both legitimate:
+
+- **Re-mint** — the TA re-signs the content as its own: first-class owned state the TA can evolve and re-sign later (the restore-brain precedent, second-brain ADR 0008).
+- **Pointer** — a TA-authored pointer event references the original: provenance preserved, no copy drift.
+
+The choice between them — and whether a re-mint carries a provenance link back to its source event — is made **per feature, in that feature's ADR**; this section supplies the vocabulary only.
+
+**Ruling (tapestries #7; binds future work).** The brain-first publish hook (ADR `tapestries/0007`) imports the instance's own tapestry letters where "own" includes *owner-signed* — an eager absorption of a maximally-trusted correspondent's letters, acceptable near-term. Stage-2 letter ingest (OPEN.md #136) inherits the correction: owner letters route through the general provenance-carrying ingest lane like any correspondent's, with **no permanent "counts as me" carve-out**. Stage-2 does not exist yet; this is a ruling about future work, not a description of present behavior.
+
+### Scope
+
+Normative for the **single-owner personal deployment**, like §30. On a multi-tenant instance the stated *direction* — not yet built, not yet normative — is that each provisioned persona's instance-side identity is its **delegated key**: the owner's is the TA; a customer's is their relay key (worksheet W13's resolver direction).
+
+See ADR 0002 (`self-ontology`) for the ratification decision; the scoping that produced this section is preserved in `docs/INSTANCE_IDENTITY_DESIGN_HANDOFF.md` (superseded).
 
 ---
 
