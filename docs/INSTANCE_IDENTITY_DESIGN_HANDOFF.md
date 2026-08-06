@@ -1,6 +1,6 @@
 # Instance Identity — "Me" Is the TA — Design Handoff
 
-**Status:** 🔴 OPEN
+**Status:** ✅ SUPERSEDED (2026-08-05) — ratified in full, same day: the doctrine, reconciliation, absorption modes, tapestries-#7 ruling, and scope (§§2–6 below) landed as **BIBLE §31 "The Self and Its Keys"**; the landing plan (§7) executed as written (`self-ontology` ADR 0002; worksheet W15 → Graduated; assistant-designation gained its cross-reference note; W16 untouched; the story is `stories/self-ontology/2-ratify-instance-identity.md`, F0 of the `shared-concepts-adoption` book). Body kept for history — where §31 and this doc overlap, **§31 is authoritative**.
 **Created:** 2026-08-05
 **Provenance:** Scoped via `/discuss` (Product Expert lens) in direct owner conversation, 2026-08-05 — the session that opened the **Shared-concepts adoption suite** (`engineering-team/stories/_intake.md` entry 2026-08-05; this doctrine is **F0**, the suite's prerequisite). This is the **Capture** step of the Protocol-Spec Workflow (`engineering-team/workflows/protocol-spec-workflow.md`): settled decisions recorded so nothing lives only in the transcript. Ratify into `BIBLE.md` §31 + a `self-ontology` ADR in docs-mode; flip to ✅ SUPERSEDED once they land. Where the ratified §31 and this doc overlap, **§31 is authoritative**; this doc keeps the reasoning that produced it.
 
