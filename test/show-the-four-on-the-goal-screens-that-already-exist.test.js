@@ -171,10 +171,17 @@ const THREE_SCREENS = [
  * Re-measured 2026-07-29 for PR #480 (goals submenu + Rationale/GoalSets/
  * GoalPlaceholders): +3 screens, +4 route entries, +4 nav destinations; CSS
  * custom properties unchanged at 45. Operator-authorized re-pin.
+ *
+ * 2026-08-06 (OPEN.md #143, operator-authorized): the ABSOLUTE route/nav
+ * counts were retired after their SECOND drift — every unrelated feature
+ * that adds a route or nav entry broke them (PRs #491–#494 took routes
+ * 108→116; #499 →117), leaving the CI Test workflow red for two days.
+ * AC3's real intent — this story added no screen, no route, no nav — is
+ * carried by the name-based assertions below (nothing route- or nav-named
+ * for the four; the brain surfaces exactly as shipped), which cannot rot
+ * under unrelated additive features.
  */
 const BRAIN_PAGE_FILES = ['GoalDetail.jsx', 'GoalPlaceholders.jsx', 'GoalSets.jsx', 'Goals.jsx', 'Proposals.jsx', 'Rationale.jsx'];
-const ROUTE_PATH_ENTRIES = 108;
-const NAV_TO_ENTRIES = 25;
 const CSS_CUSTOM_PROPERTIES = 45;
 
 const tests = [];
@@ -730,20 +737,20 @@ test('S5 (AC3): no new screen and no new route — the change lands only on the 
   const app = safeRead(APP_JSX);
   assert(app, 'ui/src/App.jsx is missing — regression.');
   const routePaths = [...app.matchAll(/\bpath:\s*['"`]([^'"`]*)['"`]/g)].map((m) => m[1]);
-  assert(routePaths.length === ROUTE_PATH_ENTRIES,
-    `AC3: no new route. ui/src/App.jsx carried ${ROUTE_PATH_ENTRIES} route path entries when this story was ` +
-    `specified; it now carries ${routePaths.length}. AC3 holds by NON-ACTION — this file is untouched by this story.`);
+  // AC3 by NAME, not by count (OPEN.md #143 — absolute counts over a file
+  // every feature touches rot under unrelated additive routes): no route may
+  // be named for the four, and the brain's own routes stand exactly as shipped.
   const suspicious = routePaths.filter((p) => /prompt|estimate|intent|chance|needs|flag/i.test(p));
-  assert(suspicious.length === 0, `and no route may be named for the four; found ${short(suspicious)}.`);
+  assert(suspicious.length === 0, `AC3: no route may be named for the four; found ${short(suspicious)}.`);
   assert(/path:\s*['"`]goals['"`]/.test(app) && /path:\s*['"`]goals\/:slug['"`]/.test(app) && /path:\s*['"`]proposals['"`]/.test(app),
     'the three brain routes must still be registered exactly as they were (second-brain 0001 d5, 0004 d10, 0006 d12).');
 
   const layout = safeRead(LAYOUT_JSX);
   assert(layout, 'ui/src/components/Layout.jsx is missing — regression.');
   const navTo = [...layout.matchAll(/\bto:\s*['"`]([^'"`]*)['"`]/g)].map((m) => m[1]);
-  assert(navTo.length === NAV_TO_ENTRIES,
-    `AC3: no new nav entry either. ui/src/components/Layout.jsx carried ${NAV_TO_ENTRIES} nav destinations when ` +
-    `this story was specified; it now carries ${navTo.length}.`);
+  const suspiciousNav = navTo.filter((p) => /prompt|estimate|intent|chance|needs|flag/i.test(p));
+  assert(suspiciousNav.length === 0,
+    `AC3: no nav destination may be named for the four; found ${short(suspiciousNav)}.`);
 });
 
 test('S6 (AC4): nothing on these screens sorts, filters or groups by the four', () => {
