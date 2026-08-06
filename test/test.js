@@ -205,6 +205,8 @@ const addConceptToTapestry = require('./add-a-concept-to-a-tapestry.test.js');
 const takeAConceptBackOut = require('./take-a-concept-back-out.test.js');
 // epic: tapestries — Story 7 (brain-first tapestry authoring — publish-hook dual write).
 const brainFirstTapestryAuthoring = require('./brain-first-tapestry-authoring.test.js');
+// epic: shared-concepts-adoption — Story 1 (b-coverage audit + guided disposition).
+const bCoverageAuditAndDisposition = require('./b-coverage-audit-and-disposition.test.js');
 
 async function main() {
   console.log('Running Brainstorm tests...');
@@ -526,6 +528,9 @@ async function main() {
 
   console.log('\nbrain-first-tapestry-authoring suite:');
   const brainFirstTapestryAuthoringResult = await brainFirstTapestryAuthoring.run();
+
+  console.log('\nb-coverage-audit-and-disposition suite:');
+  const bCoverageAuditAndDispositionResult = await bCoverageAuditAndDisposition.run();
 
   console.log('\nTest Results');
   console.log('-------------');
@@ -979,6 +984,7 @@ async function main() {
   console.log(`add-a-concept-to-a-tapestry suite:               ${addConceptToTapestryResult.fail === 0 ? 'PASS' : 'FAIL'} (${addConceptToTapestryResult.pass} passed, ${addConceptToTapestryResult.fail} failed)`);
   console.log(`take-a-concept-back-out suite:                   ${takeAConceptBackOutResult.fail === 0 ? 'PASS' : 'FAIL'} (${takeAConceptBackOutResult.pass} passed, ${takeAConceptBackOutResult.fail} failed)`);
   console.log(`brain-first-tapestry-authoring suite:            ${brainFirstTapestryAuthoringResult.fail === 0 ? 'PASS' : 'FAIL'} (${brainFirstTapestryAuthoringResult.pass} passed, ${brainFirstTapestryAuthoringResult.fail} failed, ${brainFirstTapestryAuthoringResult.skipped} skipped)`);
+  console.log(`b-coverage-audit-and-disposition suite:          ${bCoverageAuditAndDispositionResult.fail === 0 ? 'PASS' : 'FAIL'} (${bCoverageAuditAndDispositionResult.pass} passed, ${bCoverageAuditAndDispositionResult.fail} failed, ${bCoverageAuditAndDispositionResult.skipped} skipped)`);
 
   const overallOk =
     configOk &&
@@ -1153,6 +1159,8 @@ async function main() {
     takeAConceptBackOutResult.fail === 0 &&
     // tapestries #7 — brain-first tapestry authoring (publish-hook dual write)
     brainFirstTapestryAuthoringResult.fail === 0 &&
+    // shared-concepts-adoption #1 — b-coverage audit + guided disposition
+    bCoverageAuditAndDispositionResult.fail === 0 &&
     harnessLintResult.fail === 0 &&
     harnessStatsResult.fail === 0 &&
     sessionStartResult.fail === 0 &&
@@ -1198,6 +1206,7 @@ async function main() {
     breakAGoalIntoPiecesResult, attachTheWorldResult, sessionsReadTheBrainResult, theProposalLoopResult,
     operationalDirectionResult, storeTheFourResult, returnTheFourResult, showTheFourResult,
     addConceptToTapestryResult, takeAConceptBackOutResult, brainFirstTapestryAuthoringResult,
+    bCoverageAuditAndDispositionResult,
   ].reduce((sum, r) => sum + ((r && r.skipped) || 0), 0);
   console.log(`Total skipped:                                   ${totalSkipped}`);
   console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);

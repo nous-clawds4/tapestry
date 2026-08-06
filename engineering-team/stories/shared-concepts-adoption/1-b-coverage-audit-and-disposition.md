@@ -106,5 +106,5 @@ For the Architect:
 ## Linked artifacts
 
 - ADR: `engineering-team/decisions/shared-concepts-adoption/0001-b-coverage-audit-and-disposition.md`
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/shared-concepts-adoption/1-b-coverage-audit-and-disposition.test-plan.md`
 - Review: (filled in after Review phase)
