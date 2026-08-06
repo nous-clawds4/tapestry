@@ -31,6 +31,8 @@ The `b` tag rides on the addressable kinds defined by [Decentralized Lists](../n
 
 The type is carried as a non-indexed positional element (as NIP-01's `e` tag carries its `root`/`reply` marker) — so relays cannot filter `#b` results by type; consumers fetch and filter locally. Future type values (e.g. ADR 0027's anticipated deliberate-divergence marker) require a new ADR. The `"pointer"` type realizes the concept-level `REFERENCES` posture on the wire — it resolves what worksheet [W5](../worksheet.md#w5--references-publishing-semantics) tracked as option (a), a consumer-owned tag on the consumer's own header.
 
+**Reserved value (element 2).** Exactly one non-locator value is **reserved**: the literal string `b-tag-deferred` — carried as a bare `["b", "b-tag-deferred"]` with no type element, it marks its carrier as **deliberately unaffiliated** ("I considered a shared twin and chose none"; semantics in [Shared Concepts](./shared-concepts.md) § "Deliberate non-affiliation", resolved worksheet [W16](../worksheet.md#w16--marking-deliberately-no-shared-affiliation-sentinel-b-value-vs-local-disposition)). It is by construction neither an a-tag nor an event id; the value form remains otherwise closed, and no other non-locator string is valid. Consumers MUST derive nothing from it — no edge, no target node, no aggregation weight of any kind — and SHOULD render it as its own disposition state, never as a failed lookup. The type registry above is untouched: this reserves a *value*, not a type.
+
 **Kinds:** defined for **kind 39998 and kind 39999** — any addressable DList object (concept headers *and* items/sets/declarations). Broader than the [class-thread tags](./class-thread-relationships.md), which are kind-39999-only.
 
 ## Multi-parent semantics

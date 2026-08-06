@@ -582,9 +582,17 @@ async function register(app) {
     const { handleConceptExportSet } = require('./concept/exportSet.js');
     app.get('/api/concept/:handle/export-set', requireOwner, handleConceptExportSet);
 
-    // ── Self-declare as a Shared Concept (pointer-b on own header, ADR 0029 types) — owner-only ──
+    // ── Self-declare as a Shared Concept (pointer-b on own header, ADR 0029 types) — owner-only,
+    //    gated in-handler like its b-disposition siblings below (ADR shared-concepts-adoption/0001) ──
     const { handleConceptSelfDeclare } = require('./concept/selfDeclare.js');
-    app.post('/api/concept/:handle/self-declare', requireOwner, handleConceptSelfDeclare);
+    app.post('/api/concept/:handle/self-declare', handleConceptSelfDeclare);
+
+    // ── b-disposition: wire-external + keep-private (ADR shared-concepts-adoption/0001) — owner-only,
+    //    gated in-handler (isOwner || localTrusted — the publishEvent.js:37 pattern) so loopback
+    //    scripts and the H-suite can operate them; see the ADR's dated correction note. ──
+    const { handleBAppend, handleBDefer } = require('./concept/bDisposition.js');
+    app.post('/api/concept/:handle/b-append', handleBAppend);
+    app.post('/api/concept/:handle/b-defer', handleBDefer);
 
     // ── Phase B pull (Story #14 / ADR 0010, mechanism amended by ADR 0011) — owner-only ──
     const { handlePullCommunityClassThread } = require('./concept/pullClassThread.js');

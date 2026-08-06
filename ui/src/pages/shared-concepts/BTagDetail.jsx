@@ -5,6 +5,7 @@ import AuthorCell from '../../components/AuthorCell';
 import useProfiles from '../../hooks/useProfiles';
 import { queryRelay } from '../../api/relay';
 import { fetchFromRelays } from '../../utils/nostrPublish';
+import { SENTINEL } from '../../utils/bDisposition';
 
 // Where the b-tag target is looked up (same constant as the table page) —
 // hardcoded for now; future source is the nostr-relays concept subset.
@@ -117,11 +118,16 @@ export default function BTagDetail() {
     return () => { cancelled = true; };
   }, [kind, pubkey, dTag]);
 
-  // Which b-tag to follow: ?b= when given, else the local event's first.
+  // Which b-tag to follow: ?b= when given, else the local event's first REAL
+  // b — the reserved `b-tag-deferred` sentinel is a disposition marker that
+  // locates nothing and is skipped by name, never rendered as "cannot locate"
+  // (ADR shared-concepts-adoption/0001).
   const bTag = useMemo(() => {
     const fromQuery = (searchParams.get('b') || '').trim();
-    if (fromQuery) return fromQuery;
-    const t = localEvent?.tags?.find((x) => x[0] === 'b' && typeof x[1] === 'string' && x[1].trim() !== '');
+    if (fromQuery && fromQuery !== SENTINEL) return fromQuery;
+    const t = localEvent?.tags?.find(
+      (x) => x[0] === 'b' && typeof x[1] === 'string' && x[1].trim() !== '' && x[1].trim() !== SENTINEL,
+    );
     return t ? t[1].trim() : '';
   }, [searchParams, localEvent]);
 

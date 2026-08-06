@@ -6,6 +6,7 @@ import AuthorCell from '../../components/AuthorCell';
 import useProfiles from '../../hooks/useProfiles';
 import { useConfig } from '../../context/ConfigContext';
 import { queryRelay } from '../../api/relay';
+import { SENTINEL } from '../../utils/bDisposition';
 import { fetchFromRelays } from '../../utils/nostrPublish';
 
 // Where b-tag targets are looked up. Hardcoded for now — the future source is
@@ -61,7 +62,10 @@ export default function ActiveBTags() {
         for (const ev of events || []) {
           const d = ev.tags?.find((t) => t[0] === 'd')?.[1];
           for (const t of ev.tags || []) {
-            if (t[0] === 'b' && typeof t[1] === 'string' && t[1].trim() !== '') {
+            // Skip the reserved `b-tag-deferred` sentinel by name — it is a
+            // disposition marker, not a correspondence claim, and must never
+            // render as an unresolvable target (ADR shared-concepts-adoption/0001).
+            if (t[0] === 'b' && typeof t[1] === 'string' && t[1].trim() !== '' && t[1].trim() !== SENTINEL) {
               out.push({
                 uuid: `${ev.id}:${t[1]}`,
                 localName: singularName(ev),
