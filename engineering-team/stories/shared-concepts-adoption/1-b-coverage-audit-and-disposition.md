@@ -1,6 +1,6 @@
 # Story 1: Concept-header b-coverage audit and guided disposition
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-08-06
 **Type:** Feature
 **Epic:** `shared-concepts-adoption`
@@ -107,4 +107,4 @@ For the Architect:
 
 - ADR: `engineering-team/decisions/shared-concepts-adoption/0001-b-coverage-audit-and-disposition.md`
 - Test plan: `engineering-team/stories/shared-concepts-adoption/1-b-coverage-audit-and-disposition.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/shared-concepts-adoption/1-b-coverage-audit-and-disposition.md`
