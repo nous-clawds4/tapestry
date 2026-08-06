@@ -118,7 +118,7 @@ produced it.
 
 ## Linked artifacts
 
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/self-ontology/0002-ratify-instance-identity.md`
 - Test plan: **skipped — docs-mode** (no executable behavior; the Reviewer performs an accuracy and
   cross-reference audit instead, and runs `npm test` to confirm no regression)
 - Review: (filled in after Review phase)
