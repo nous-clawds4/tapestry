@@ -85,6 +85,6 @@ stands beside it; reuse boundaries with the F1 page components.
 
 ## Linked artifacts
 
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/shared-concepts-adoption/0003-inverse-queue-publish-candidates.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
