@@ -1,6 +1,6 @@
 # Story 3: Inverse queue — publish candidates
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-08-06
 **Type:** Feature
 **Epic:** `shared-concepts-adoption`
@@ -87,4 +87,4 @@ stands beside it; reuse boundaries with the F1 page components.
 
 - ADR: `engineering-team/decisions/shared-concepts-adoption/0003-inverse-queue-publish-candidates.md`
 - Test plan: `engineering-team/stories/shared-concepts-adoption/3-inverse-queue-publish-candidates.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/shared-concepts-adoption/3-inverse-queue-publish-candidates.md`
