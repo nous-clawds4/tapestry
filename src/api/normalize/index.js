@@ -5226,6 +5226,107 @@ async function recordRestoreDrill({ exportTakenOn, outcome, target }) {
   return { success: true, result: 'journaled', drill: { uuid, slug, drilledOn, outcome } };
 }
 
+// ══════════════════════════════════════════════════════════════
+// Adoption disposition — the instance-private ledger of stances about
+// FOREIGN shared concepts (ADR shared-concepts-adoption/0002). Records are
+// append-only, dated, attributed; newest-per-target wins (the queue's pure
+// core owns that arithmetic). Runtime-created concept — never firmware.
+// ══════════════════════════════════════════════════════════════
+
+const ADOPTION_DISPOSITION_CONCEPT_NAME = 'adoption disposition';
+const ADOPTION_DISPOSITIONS = ['declined', 'requeued'];
+const ADOPTION_DISPOSITION_SCHEMA = {
+  type: 'object',
+  properties: {
+    adoptionDisposition: {
+      type: 'object',
+      title: 'Adoption Disposition',
+      required: ['name', 'slug', 'target', 'disposition', 'decidedOn'],
+      properties: {
+        name: { type: 'string', description: 'the record name, dated, in plain words' },
+        slug: { type: 'string', description: 'stable identity derived from the target and the moment' },
+        target: { type: 'string', description: 'the foreign shared concept this stance is about (its a-tag coordinate)' },
+        disposition: { type: 'string', enum: ADOPTION_DISPOSITIONS, description: 'declined (leave my queue) or requeued (bring it back)' },
+        decidedOn: { type: 'string', description: 'the date the owner decided' },
+      },
+    },
+  },
+};
+
+async function resolveAdoptionDispositionConcept() {
+  const rows = await runCypher(`
+    MATCH (h:NostrEvent)
+    WHERE (h:ListHeader OR h:ClassThreadHeader OR h:ConceptHeader) AND h.kind IN [9998, 39998]
+      AND h.name = $concept
+    OPTIONAL MATCH (h)-[:${REL.CLASS_THREAD_INITIATION}]->(sup:Superset)
+    RETURN h.uuid AS headerUuid, sup.uuid AS supersetUuid
+    LIMIT 1
+  `, { concept: ADOPTION_DISPOSITION_CONCEPT_NAME });
+  if (rows.length === 0) return { error: `Concept "${ADOPTION_DISPOSITION_CONCEPT_NAME}" not found` };
+  if (!rows[0].supersetUuid) return { error: `Concept "${ADOPTION_DISPOSITION_CONCEPT_NAME}" has no Superset node.` };
+  return { headerUuid: rows[0].headerUuid, supersetUuid: rows[0].supersetUuid };
+}
+
+// Self-bootstrap (the ensure idiom — ADR second-brain/0004 d8 lineage):
+// idempotent create-concept + save-schema, run only when absent.
+async function ensureAdoptionDispositionConcept() {
+  const existing = await resolveAdoptionDispositionConcept();
+  if (!existing.error) return existing;
+  await invokeNormalizeHandler(handleCreateConcept, {
+    name: ADOPTION_DISPOSITION_CONCEPT_NAME,
+    description: 'A dated record of the owner declining (or re-queueing) a foreign shared concept nominated for adoption. Instance-private stance history — never published outward, never firmware-seeded.',
+  });
+  await invokeNormalizeHandler(handleSaveSchema, { concept: ADOPTION_DISPOSITION_CONCEPT_NAME, schema: ADOPTION_DISPOSITION_SCHEMA });
+  const provisioned = await resolveAdoptionDispositionConcept();
+  if (provisioned.error) {
+    throw new Error(`ensureAdoptionDispositionConcept failed to provision the concept: ${provisioned.error}`);
+  }
+  return provisioned;
+}
+
+async function handleAdoptionDisposition(req, res) {
+  try {
+    const { isOwner } = require('../../middleware/auth');
+    if (!isOwner(req) && !req.localTrusted) {
+      return res.status(403).json({ success: false, error: 'Owner access required' });
+    }
+    const { target, disposition } = req.body || {};
+    const { classifyBValue } = require('../../lib/bValueForms');
+    if (typeof target !== 'string' || classifyBValue(target.trim()) !== 'a-tag') {
+      return res.status(400).json({ success: false, error: 'target must be an a-tag coordinate (kind:pubkey:d-tag)' });
+    }
+    if (typeof disposition !== 'string' || !ADOPTION_DISPOSITIONS.includes(disposition)) {
+      return res.json({ success: false, error: `disposition must be one of: ${ADOPTION_DISPOSITIONS.join(', ')}` });
+    }
+    const trimmedTarget = target.trim();
+
+    await ensureAdoptionDispositionConcept();
+
+    const now = new Date();
+    const decidedOn = now.toISOString().slice(0, 10);
+    const stamp = now.toISOString().slice(0, 19).replace('T', ' ');
+    const targetDTag = trimmedTarget.split(':').slice(2).join(':');
+    const name = `adoption: ${targetDTag} — ${disposition} ${stamp}`;
+    const slug = `adoption-${targetDTag}-${disposition}-${now.getTime()}`
+      .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+
+    const minted = await invokeNormalizeHandler(handleCreateElement, {
+      concept: ADOPTION_DISPOSITION_CONCEPT_NAME,
+      name,
+      random: true,
+      json: { adoptionDisposition: { name, slug, target: trimmedTarget, disposition, decidedOn } },
+    });
+    if (!minted.body || minted.body.success !== true) {
+      return res.status(minted.statusCode >= 400 ? minted.statusCode : 500)
+        .json({ success: false, error: (minted.body && minted.body.error) || 'ledger mint failed' });
+    }
+    return res.json({ success: true, result: disposition, element: minted.body.element });
+  } catch (error) {
+    console.error('normalize/adoption-disposition error:', error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+}
+
 async function registerNormalizeRoutes(app) {
   // Load TA signing key from secure storage at startup
   await loadTAKey();
@@ -5248,6 +5349,7 @@ async function registerNormalizeRoutes(app) {
   app.post('/api/normalize/record-priority-signal', handleRecordPrioritySignal);
   app.post('/api/normalize/restore-brain', handleRestoreBrain);
   app.post('/api/normalize/record-restore-drill', handleRecordRestoreDrill);
+  app.post('/api/normalize/adoption-disposition', handleAdoptionDisposition);
   app.post('/api/normalize/save-element-json', handleSaveElementJson);
   app.post('/api/normalize/create-property', handleCreateProperty);
   app.post('/api/normalize/generate-property-tree', handleGeneratePropertyTree);

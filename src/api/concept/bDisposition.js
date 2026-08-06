@@ -166,4 +166,6 @@ async function handleBDefer(req, res) {
   }
 }
 
-module.exports = { handleBAppend, handleBDefer };
+// strfryScan is exported for the adoption module (ADR shared-concepts-adoption/0002)
+// — shared, never copied (OPEN.md #142).
+module.exports = { handleBAppend, handleBDefer, strfryScan };

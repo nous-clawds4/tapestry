@@ -58,6 +58,7 @@ import BTagDetail from './pages/shared-concepts/BTagDetail';
 import ActiveZTags from './pages/shared-concepts/ActiveZTags';
 import SelfDeclaredSharedConcepts from './pages/shared-concepts/SelfDeclaredSharedConcepts';
 import SelfDeclaredDetail from './pages/shared-concepts/SelfDeclaredDetail';
+import AdoptionQueue from './pages/shared-concepts/AdoptionQueue';
 import AboutIndex from './pages/about/Index';
 import SettingsIndex from './pages/settings/Index';
 
@@ -378,6 +379,7 @@ const router = createBrowserRouter([
           { path: 'z-tags', element: <ActiveZTags />, handle: { crumb: 'Active z-tags' } },
           { path: 'self-declared', element: <SelfDeclaredSharedConcepts />, handle: { crumb: 'Self-declared Shared Concepts' } },
           { path: 'self-declared/:uuid', element: <SelfDeclaredDetail />, handle: { crumb: 'Detail' } },
+          { path: 'adoption-queue', element: <AdoptionQueue />, handle: { crumb: 'Adoption Queue' } },
           { path: ':uuid', element: <SharedConceptDetail />, handle: { crumb: 'Detail' } },
         ],
       },

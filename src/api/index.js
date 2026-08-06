@@ -594,6 +594,10 @@ async function register(app) {
     app.post('/api/concept/:handle/b-append', handleBAppend);
     app.post('/api/concept/:handle/b-defer', handleBDefer);
 
+    // ── Adoption queue — server-assembled S3 ∖ S2a read (ADR shared-concepts-adoption/0002) ──
+    const { registerAdoptionRoutes } = require('./adoption/index.js');
+    registerAdoptionRoutes(app);
+
     // ── Phase B pull (Story #14 / ADR 0010, mechanism amended by ADR 0011) — owner-only ──
     const { handlePullCommunityClassThread } = require('./concept/pullClassThread.js');
     app.post('/api/concept/:handle/pull-community-class-thread', requireOwner, handlePullCommunityClassThread);
