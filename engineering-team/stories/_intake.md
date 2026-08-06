@@ -1862,3 +1862,44 @@ Default-deny (security-auth-exposure story 2) rejects **unauthenticated** mutati
 **Strictness:** Standard (Tests for the parser scripts — lint fixtures exist; the migration itself is verified by diffing the generated index against the pre-migration table).
 **Phase path:** Planning → Architecture (ID scheme + index generation + citation freezing want a real design pass) → Test Design → Implementation → Review.
 **References:** `engineering-team/audits/store-and-show-the-prompt-and-the-estimate/audit.md` §7a preamble; `engineering-team/audits/add-a-concept-to-a-tapestry/audit.md` §7 F8; `engineering-team/CHANGELOG.md` 2026-06-04 epic-folders row (the ratified precedent for exactly this collision class); OPEN.md § "How to use this ledger" (the post-collision numbering note this retires).
+
+## 2026-08-05 — Shared-concepts adoption suite: S-subset taxonomy, adoption queues, coverage audit, stamping defaults
+
+**NOT PICKED UP** — laid out at the end of the session that built the Shared Concepts area (PRs #491–#494); recorded here so a fresh session can pick features off one at a time. The owner's S-subset taxonomy and rationale, verbatim:
+
+> * S1: author-promoted shared concepts (auto b-tag)
+> * S2: user-promoted shared concepts (b-tag but not by the author of the concept header)
+> * S2a: Same as S2 but where I am the user
+> * S2b: Same as S2 but where the user is in my trust network
+> * S3: user-used shared concepts (z-tag but where user is not the author of the concept header)
+> * S3a: Same as S3 but where I am the user
+> * S3b: Same as S3 but where the user is in my trust network
+>
+> * an element of S3, S3a, or S3b that is not in S2a would be a candidate element of S2a, which would prompt me to update my local concept header accordingly
+> * I can use this to create a "dictionary" of concepts: concepts that are in S3b, perhaps with added qualifications, such as needs to be used by some minimum threshold number of trusted users
+> * I might identify events authored by me that I should auto-b-tag, because others are using it
+> * This will help me select z-tags when I publish events: my default behaviour should be to use the z-tag for my personal concept header + the z-tag for my shared concept header of choice
+
+**Analysis captured in-session:** the taxonomy formalizes surfaces that already exist — S1 = the Self-declared page's population; S2-evidence = the "used (b-tag)" indicator (self-pointers already excluded, which IS the S1/S2 boundary); S3 = Active z-tags' default view (the carrier≠header-author rule, PR #494). The a/b refinements are the same queries with one author filter swapped (me / my WoT). S1/S2/S3 are objective observables — keep them computed, never stored; S2b/S3b are (concept, POV, time) properties — if materialized (the dictionary), store as dated, attributed derivations per house style. "Me" is defined by W15's doctrine (below).
+
+**Feature list, dependency-ordered:**
+
+- **F0 (prerequisite, docs-mode ADR): instance identity = the TA** — ratify the owner-stated doctrine (see worksheet W15): the Tapestry instance's "me" is the TA pubkey, distinct from the Tapestry Owner; owner-authored content is absorbed by TA re-mint (the restore-brain precedent, second-brain ADR 0008) or by a TA-authored pointer event. Simplifies every S*a definition to `authors:[TA]`; resolves the tapestries-#7 client-signed-path question against a doctrine.
+- **F1: adoption-candidates queue** — S3 (∪ S3a/S3b) ∖ S2a → a review surface prompting the owner per concept: adopt via pointer-b on the local twin header (needs a generalized b-append endpoint — `selfDeclare` with an arbitrary target instead of self) and/or create the registry record. Proposal-loop shape: the system nominates, the owner ratifies; never auto-acts.
+- **F2: inverse queue (self-declare candidates)** — my headers with cross-author z/b usage but no self-pointing b → prompt "Submit as a Shared Concept" (the existing button is the action). Query = Active z-tags with the foreign-target filter inverted.
+- **F3: trusted dictionary** — S3b with a minimum-trusted-users threshold; a dated derived artifact (GrapeRank/WoT machinery scores the carriers); explicitly NOT the W1 inherit-consensus signal (ADR 0029 keeps pointer/usage at zero weight there) — this is a separate, usage-based aggregate.
+- **F4: publish-time default stamping** — implement the ratified stamping floor (personal `z` + the joined shared concept's handles) in the authoring flows; the registry element (Concept for Shared Concepts) records the "shared header of choice" that supplies the second stamp. NOT protocol-blocked: the floor is ratified in protocols/drafts/stamping.md (W11 graduated; W14 settled extras), and tag events already dual-stamp (tag-federation ADR 0003). Gap = the resolver + the remaining single-z writers.
+- **F5: concept-header b-coverage audit + guided disposition** — owner's ask, verbatim:
+
+> within the list of concept headers, we should keep track of which ones have a b-tag to a shared concept and which ones do not. The goal should be to prompt users to iterate through all of the ones that do not, and take one of the following actions:
+> * find an external shared concept and wire to it using a standard b-tag
+> * create an auto b-tag and publish it so the community can use it
+> * create an auto b-tag, but don't publish it (questionable whether this option should exist)
+> * decide to keep the concept completely private and label the event in some manner as not needing a b-tag; perhaps a modified b-tag that instead of an a-tag or event-id, there is a string saying something like "b-tag-deferred"
+
+  In-session notes: coverage column/filter on Concept Headers is cheap (b-tags are already scanned); actions 1–2 map to F1's adopt endpoint and the existing self-declare button. Action 3 (unpublished auto-b) is a half-state — the b lives ON the header event, so it persists in local strfry and silently rides any later publish; recommend dropping it or reframing as "declare now, broadcast later." Action 4's marker form is a wire-format question — worksheet W16 (sentinel b-value vs local disposition record); the b-tag surfaces should skip sentinel values whichever lands. Intended effect (owner): "prompting users to auto publish lots of shared concepts, the result being an ever-growing community dictionary."
+
+**Classification:** Feature suite (F0 = protocol-spec docs-mode; F1–F5 = Standard features, one story each; F3 depends on WoT scoring plumbing; F4 depends on F0 only for whose "personal" stamps — the floor itself is ratified).
+**Strictness:** Standard.
+**Phase path:** per story — F0 via the Protocol-Spec workflow; F1/F2/F5 Planning → Architecture → Test Design → Implementation → Review; F3/F4 likely warrant `/discuss` first (scoring semantics; authoring-flow reach).
+**References:** protocols/worksheet.md W15 + W16 (new, this date) and W1/W13/W14; protocols/drafts/stamping.md (floor + read contract) + drafts/shared-concepts.md (§ Reach; resolver); community-reference ADR 0029 (b-type registry; consensus scoping); second-brain ADR 0008 (re-mint precedent); ui/src/pages/shared-concepts/* (the S1/S2/S3 observation instruments, PRs #491–#494); src/api/concept/selfDeclare.js (the F1/F2 action primitive); OPEN.md row 142 (primitive consolidation — touch F1's endpoint work with it in view).
