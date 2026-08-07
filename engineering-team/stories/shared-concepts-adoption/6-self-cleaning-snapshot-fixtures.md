@@ -1,6 +1,6 @@
 # Story 6: Self-cleaning snapshot fixtures — the suite's mints leave the strip
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-08-07
 **Type:** Bug (test-hygiene; fast-track — Architecture skipped as obvious, the change lives in the
 test suite; approved by the owner in-session 2026-08-07)
@@ -61,4 +61,4 @@ None — direction settled at discussion 2026-08-07 (owner chose source-cleanup 
 ## Linked artifacts
 - ADR: skipped (fast-track; approach recorded in this story's Background)
 - Test plan: story-5 plan's residue note amended in place (`5-trusted-dictionary.test-plan.md`)
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/shared-concepts-adoption/6-self-cleaning-snapshot-fixtures.md`
