@@ -58,5 +58,6 @@ None.
 ## Linked artifacts
 
 - ADR: `engineering-team/decisions/ta-avatar/0003-owner-composited-avatar-hosted-by-the-instance.md`
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/ta-avatar/3-stamped-composite-avatar-on-nostr.test-plan.md`
+  (tests: `test/stamped-composite-avatar.test.js` + `tests/brainstorm/ta-composite-avatar.spec.js`)
 - Review: (filled in after Review phase)
