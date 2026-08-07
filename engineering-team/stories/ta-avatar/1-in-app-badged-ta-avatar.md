@@ -64,5 +64,6 @@ None. (Scope — full composite, published — was ratified at kickoff; this sto
 ## Linked artifacts
 
 - ADR: `engineering-team/decisions/ta-avatar/0001-shared-avatar-with-ta-badge-overlay.md`
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/ta-avatar/1-in-app-badged-ta-avatar.test-plan.md`
+  (tests: `test/in-app-badged-ta-avatar.test.js` + `tests/brainstorm/ta-badged-avatar.spec.js`)
 - Review: (filled in after Review phase)
