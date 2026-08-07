@@ -3,7 +3,6 @@ import DataTable from '../../components/DataTable';
 import Breadcrumbs from '../../components/Breadcrumbs';
 import AuthorCell from '../../components/AuthorCell';
 import useProfiles from '../../hooks/useProfiles';
-import { useConfig } from '../../context/ConfigContext';
 import { declareAndBroadcast, defer as deferHeader, wireAndBroadcast } from '../../utils/dispositionActions';
 
 /**
@@ -22,7 +21,6 @@ import { declareAndBroadcast, defer as deferHeader, wireAndBroadcast } from '../
  * Nothing ever auto-acts.
  */
 export default function AdoptionQueue() {
-  const { taPubkey } = useConfig();
   const [data, setData] = useState(null); // { nominations, declined, publishCandidates, deferredInUse } | null
   const [error, setError] = useState(null);
   const [view, setView] = useState('theirs'); // 'theirs' | 'mine' | 'declined'
@@ -52,30 +50,20 @@ export default function AdoptionQueue() {
   };
   useEffect(() => { load(); }, []);
 
-  // Twin picker source (F1's adopt action): this instance's own headers.
+  // Twin picker source (F1's adopt action; story #7): my WIREABLE concepts —
+  // graph concept headers ∩ has a kind-39998 event, server-assembled. The
+  // graph is the identity source (BIBLE §30); raw wire enumeration offered
+  // dead orphan addresses.
   useEffect(() => {
-    if (!taPubkey) return;
     (async () => {
       try {
-        const filter = encodeURIComponent(JSON.stringify({ kinds: [39998], authors: [taPubkey] }));
-        const resp = await fetch(`/api/strfry/scan?filter=${filter}`);
+        const resp = await fetch('/api/adoption-twins');
         const json = await resp.json();
-        const events = json.events || json.data || [];
-        const byD = new Map();
-        for (const ev of events) {
-          const d = ev.tags?.find((t) => t[0] === 'd')?.[1];
-          if (d == null) continue;
-          const prev = byD.get(d);
-          if (!prev || ev.created_at > prev.created_at) byD.set(d, ev);
-        }
-        const rows = [...byD.entries()].map(([d, ev]) => ({
-          handle: `39998:${taPubkey}:${d}`,
-          name: ev.tags?.find((t) => t[0] === 'names')?.[1] || d,
-        })).sort((a, b) => a.name.localeCompare(b.name));
-        setTwins(rows);
+        if (!resp.ok || json.success === false) throw new Error(json.error || `status ${resp.status}`);
+        setTwins(json.twins || []);
       } catch { setTwins([]); }
     })();
-  }, [taPubkey]);
+  }, []);
 
   const authors = useMemo(
     () => [...new Set([...(data?.nominations || []), ...(data?.declined || [])].map((r) => r.author).filter(Boolean))],
