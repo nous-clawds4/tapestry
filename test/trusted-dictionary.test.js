@@ -44,9 +44,13 @@
  * coordinate's current version (nextStamp — OPEN.md #144), teardown
  * republishes bare and DETACH-DELETEs the Neo4j fixture rows. All carrier /
  * observer identities are deliberately NON-SECRET throwaway keys (the F1
- * idiom). Documented residue (the F4 precedent): each full run mints ONE
- * snapshot element (create-element has no delete path) — self-identifying by
- * its fixture member coords.
+ * idiom). Snapshot mints SELF-CLEAN (story #6): teardown bares every
+ * fixture-membered snapshot element — including earlier runs' residue — so
+ * the strip shows only deliberate publishes; the graph-side element nodes
+ * remain (no delete primitive, by design) but nothing user-facing reads
+ * them. Spike-verified 2026-08-07: the bare republish has no graph
+ * side-effect (the OPEN.md #142 re-import class does not fire on plain
+ * strfry publishes).
  */
 
 const fs = require('fs');
@@ -489,6 +493,23 @@ test('H5 (regression, passes pre AND post): the adoption queue is untouched — 
       { pks: [pkOf(T1_SK), pkOf(T2_SK), pkOf(T3_SK)] });
     cypher('MATCH (c:NostrUserWotMetricsCard {observer_pubkey: $obs}) WHERE c.observee_pubkey IN $pks DETACH DELETE c',
       { obs: pkOf(OBS_SK), pks: [pkOf(T1_SK), pkOf(T3_SK)] });
+    // Snapshot self-cleaning (story #6): bare every FIXTURE-MEMBERED snapshot
+    // element — this run's mint and any earlier residue — so the strip shows
+    // only deliberate publishes. A snapshot with any non-fixture member (or
+    // no members) is never touched.
+    const sf = encodeURIComponent(JSON.stringify({ kinds: [39999], '#z': [`39998:${s.ta}:${SNAPSHOT_SLUG}`] }));
+    const sr = await fetch(`${HOST_BASE}/api/strfry/scan?filter=${sf}`, { signal: AbortSignal.timeout(15000) });
+    const sj = await sr.json();
+    const fixturePrefix = `39998:${s.ta}:trusted-dictionary-fixture-`;
+    for (const ev of (sj.events || sj.data || [])) {
+      const jsonTag = (ev.tags || []).find((t) => t[0] === 'json');
+      let members = null;
+      try { members = JSON.parse(jsonTag[1]).trustedDictionarySnapshot.members; } catch { members = null; }
+      if (!Array.isArray(members) || members.length === 0) continue;
+      if (!members.every((m) => m && typeof m.coord === 'string' && m.coord.startsWith(fixturePrefix))) continue;
+      const dTag = (ev.tags || []).find((t) => t[0] === 'd')?.[1];
+      if (dTag) await publishTaEvent(dTag, 39999);
+    }
   }
 });
 

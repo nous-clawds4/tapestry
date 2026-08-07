@@ -46,9 +46,12 @@
 - strfry fixtures (stable d-tags; teardown republishes bare): four TA headers
   (`trusted-dictionary-fixture-f3a/b/c/d`; `f3b` carries the F5 sentinel) and nine kind-39999
   z-carriers (`td-z-*`).
-- **Documented residue** (the F4 singleton precedent): each full run mints ONE
-  `trusted dictionary snapshot` element (create-element has no delete path); it is
-  self-identifying by its fixture member coords and the dated name.
+- **Self-cleaning mints** (amended by story #6, 2026-08-07 — originally "documented residue"):
+  each full run mints ONE `trusted dictionary snapshot` element to prove the publish path (H4),
+  and teardown then bares every fixture-membered snapshot element (this run's and any earlier
+  residue), so the strip shows only deliberate publishes. Graph-side element nodes remain (no
+  delete primitive, by design); spike-verified that the bare republish has no re-import side
+  effect (the OPEN.md #142 class does not fire on plain strfry publishes).
 - No firmware precondition; no Playwright row (the page is fetch+render over the server assembly;
   the publish action is the H-covered normalize endpoint; review-phase manual walk covers the
   visual pass).
