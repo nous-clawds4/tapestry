@@ -2,7 +2,8 @@
 
 **Reviewer:** Claude (acting as Reviewer)
 **Date:** 2026-08-07
-**Diff:** `git diff feat/ta-published-profile...HEAD` (commit `00d5e562`, branch `feat/ta-composite-avatar`)
+**Diff:** `git diff feat/ta-published-profile...HEAD` (commits `00d5e562` + fix round `fe613e46`, branch `feat/ta-composite-avatar`)
+**Rounds:** 1 — CHANGES_REQUESTED 2026-08-07 · 2 — **PASS** 2026-08-07 (below)
 **Story:** `engineering-team/stories/ta-avatar/3-stamped-composite-avatar-on-nostr.md`
 **ADR:** `engineering-team/decisions/ta-avatar/0003-owner-composited-avatar-hosted-by-the-instance.md`
 **Test plan:** `engineering-team/stories/ta-avatar/3-stamped-composite-avatar-on-nostr.test-plan.md`
@@ -118,7 +119,7 @@ Both are in one function and together are a few lines. Nothing else in the diff 
 None this story. The OPEN.md #149 practice (checkout-the-base rather than `git stash`) worked
 cleanly, and the co-tenant stashes were verified intact afterwards.
 
-## Verdict
+## Verdict (round 1)
 
 **CHANGES_REQUESTED**
 
@@ -137,7 +138,81 @@ Finding 1 is blocking mainly because it is an *unlogged* departure from a bound 
 next reader will trust the ADR. Either honour it or record it. Finding 2 is a one-line hardening on
 the same function, so it costs nothing to do in the same pass.
 
-## On CHANGES_REQUESTED
+## On CHANGES_REQUESTED (round 1)
 
-Kick back to `/implement-feature` with the two asks above. The story stays `Approved`; no completion
-detection is run on a non-passing review.
+Kicked back to `/implement-feature` with the two asks above.
+
+---
+
+# Round 2 — re-review of `fe613e46`
+
+**Verdict: PASS.**
+
+## What changed
+
+Exactly the two asks, and nothing else: `src/api/assistant/avatar.js` (+71/-13) and the story's
+Deviations. `git diff --stat` over the fix round confirms no other file moved.
+
+- **Ask 1 — redirects bounded.** `redirect: 'manual'` with an explicit one-hop loop
+  (`MAX_REDIRECTS = 1`), and — the part that matters — each hop is re-validated by the *same*
+  `parseFetchableUrl()` applied to the owner's published URL. Following a redirect can no longer
+  reach a scheme the original check would have refused. This restores what ADR D2 always specified,
+  so it is a fix, not a deviation; the story says so explicitly.
+- **Ask 2 — SVG refused.** The `image/*` prefix test became an explicit raster allow-list
+  (`ALLOWED_SOURCE_TYPES`). Logged as deviation 4, correctly: it is narrower than the ADR's literal
+  `image/*`, in the safer direction, and the composite source is only ever drawn into a canvas.
+
+## Verified against a real server, with cases the fix round did not test
+
+I re-ran the Implementer's six cases and added six more rather than re-running their probe:
+
+| case | result |
+|---|---|
+| baseline PNG | `200 image/png` |
+| **content-type with params + uppercase** (`IMAGE/PNG; charset=binary`) | `200` — normalised correctly |
+| **308 permanent redirect** | `200` — followed |
+| **relative `Location`** | `200` — resolved against the current URL |
+| **redirect loop (A→A)** | `404`, refused in **12 ms** — bounded, no hang |
+| **302 with no `Location`** | `404` — refused |
+| **redirect → slow endpoint** | `404` at **5011 ms** — the single timeout budget spans the whole chain rather than resetting per hop |
+
+The last one is the non-obvious property and it holds: one `AbortController` is created before the
+loop and cleared in `finally`, so a redirect chain cannot extend the deadline.
+
+*Cosmetic only:* a `302` with an empty `Location` resolves to the current URL, burns the hop, and is
+refused with "redirected too many times" rather than "somewhere unfetchable". Still bounded, still
+fast, still refused — the message is just the less precise of the two. Not worth a round trip.
+
+## Gates (round 2, all reviewer-run)
+
+- **Server class** — 13 passed, 0 failed, 2 skipped (H-class, by design).
+- **Browser class** — 5 passed, against a bundle I rebuilt myself.
+- **Differential** (checkout-base method per OPEN.md #149, never `git stash`) — `in-app-badged-ta-avatar`
+  13/0, `recognizable-published-ta-profile` 11/2, `admin-tools-dashboard-panel` 9/0: **identical with
+  and without**. Story 2's pair is its own known-environmental `H1`/`H5`.
+- `harness-lint` clean; working tree clean; **both co-tenant stashes verified intact** afterwards.
+
+## The three round-1 non-blocking findings
+
+1. **Authenticated non-owner reaches `multer` before the 403** — unchanged (`src/api/index.js:538`).
+   Still low: the global default-deny stops anonymous callers, so this needs a valid session.
+2. **`multer` limit breach unhandled** — unchanged (no `MulterError` handling in either file). Cosmetic.
+3. **Old composites accumulate** — unchanged, and intended by ADR D3.
+
+All three were explicitly non-blocking and remain so; none was made worse by the fix round.
+
+## Verdict
+
+**PASS**
+
+Both blocking asks are genuinely fixed, not papered over — and the redirect fix does the harder half
+correctly by re-validating each hop rather than only counting them. The fix stayed inside the scope
+the review set, the ADR and the code now agree, and the one place they intentionally differ is logged.
+
+Everything from round 1 that passed still passes on gates I ran again: all six acceptance criteria,
+both classes, a clean three-suite differential, and D3 proved behaviourally.
+
+## On PASS (same commit)
+
+- [x] Story `**Status:**` flipped to `Done` in place.
+- [x] Completion detection performed; result reported in chat, not here.

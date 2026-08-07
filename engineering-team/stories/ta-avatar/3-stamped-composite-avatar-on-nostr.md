@@ -1,6 +1,6 @@
 # Story 3: The stamped composite avatar, published to nostr
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-08-06
 **Type:** Feature
 **Epic:** `ta-avatar`
@@ -85,4 +85,4 @@ the original check would have refused.)*
 - ADR: `engineering-team/decisions/ta-avatar/0003-owner-composited-avatar-hosted-by-the-instance.md`
 - Test plan: `engineering-team/stories/ta-avatar/3-stamped-composite-avatar-on-nostr.test-plan.md`
   (tests: `test/stamped-composite-avatar.test.js` + `tests/brainstorm/ta-composite-avatar.spec.js`)
-- Review: `engineering-team/reviews/ta-avatar/3-stamped-composite-avatar-on-nostr.md` — **CHANGES_REQUESTED** 2026-08-07 (two lines on the outbound fetch; everything else passed)
+- Review: `engineering-team/reviews/ta-avatar/3-stamped-composite-avatar-on-nostr.md` — **PASS** 2026-08-07 (round 1 CHANGES_REQUESTED on two lines of the outbound fetch; round 2 PASS after `fe613e46`)
