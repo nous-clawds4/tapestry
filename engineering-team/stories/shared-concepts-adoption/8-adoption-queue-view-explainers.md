@@ -1,6 +1,6 @@
 # Story 8: Adoption Queue view explainers — say what each table means
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-08-07
 **Type:** Doc (UI copy; fast-track Implementer + Reviewer per the strictness table's doc class —
 no ADR, no test plan; the review's manual walk verifies all three views)
@@ -47,4 +47,4 @@ None — copy only. No firmware reinstall.
 ## Linked artifacts
 - ADR: skipped (doc-class fast-track)
 - Test plan: skipped (doc-class fast-track; manual walk in the review)
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/shared-concepts-adoption/8-adoption-queue-view-explainers.md`
