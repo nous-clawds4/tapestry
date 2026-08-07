@@ -213,6 +213,8 @@ const adoptionCandidatesQueue = require('./adoption-candidates-queue.test.js');
 const inverseQueuePublishCandidates = require('./inverse-queue-publish-candidates.test.js');
 // epic: shared-concepts-adoption — Story 4 (publish-time default stamping).
 const publishTimeDefaultStamping = require('./publish-time-default-stamping.test.js');
+// epic: shared-concepts-adoption — Story 5 (trusted dictionary).
+const trustedDictionary = require('./trusted-dictionary.test.js');
 
 async function main() {
   console.log('Running Brainstorm tests...');
@@ -546,6 +548,9 @@ async function main() {
 
   console.log('\npublish-time-default-stamping suite:');
   const publishTimeDefaultStampingResult = await publishTimeDefaultStamping.run();
+
+  console.log('\ntrusted-dictionary suite:');
+  const trustedDictionaryResult = await trustedDictionary.run();
 
   console.log('\nTest Results');
   console.log('-------------');
@@ -1003,6 +1008,7 @@ async function main() {
   console.log(`adoption-candidates-queue suite:                 ${adoptionCandidatesQueueResult.fail === 0 ? 'PASS' : 'FAIL'} (${adoptionCandidatesQueueResult.pass} passed, ${adoptionCandidatesQueueResult.fail} failed, ${adoptionCandidatesQueueResult.skipped} skipped)`);
   console.log(`inverse-queue-publish-candidates suite:          ${inverseQueuePublishCandidatesResult.fail === 0 ? 'PASS' : 'FAIL'} (${inverseQueuePublishCandidatesResult.pass} passed, ${inverseQueuePublishCandidatesResult.fail} failed, ${inverseQueuePublishCandidatesResult.skipped} skipped)`);
   console.log(`publish-time-default-stamping suite:             ${publishTimeDefaultStampingResult.fail === 0 ? 'PASS' : 'FAIL'} (${publishTimeDefaultStampingResult.pass} passed, ${publishTimeDefaultStampingResult.fail} failed, ${publishTimeDefaultStampingResult.skipped} skipped)`);
+  console.log(`trusted-dictionary suite:                        ${trustedDictionaryResult.fail === 0 ? 'PASS' : 'FAIL'} (${trustedDictionaryResult.pass} passed, ${trustedDictionaryResult.fail} failed, ${trustedDictionaryResult.skipped} skipped)`);
 
   const overallOk =
     configOk &&
@@ -1185,6 +1191,8 @@ async function main() {
     inverseQueuePublishCandidatesResult.fail === 0 &&
     // shared-concepts-adoption #4 — publish-time default stamping
     publishTimeDefaultStampingResult.fail === 0 &&
+    // shared-concepts-adoption #5 — trusted dictionary
+    trustedDictionaryResult.fail === 0 &&
     harnessLintResult.fail === 0 &&
     harnessStatsResult.fail === 0 &&
     sessionStartResult.fail === 0 &&
@@ -1231,7 +1239,7 @@ async function main() {
     operationalDirectionResult, storeTheFourResult, returnTheFourResult, showTheFourResult,
     addConceptToTapestryResult, takeAConceptBackOutResult, brainFirstTapestryAuthoringResult,
     bCoverageAuditAndDispositionResult, adoptionCandidatesQueueResult, inverseQueuePublishCandidatesResult,
-    publishTimeDefaultStampingResult,
+    publishTimeDefaultStampingResult, trustedDictionaryResult,
   ].reduce((sum, r) => sum + ((r && r.skipped) || 0), 0);
   console.log(`Total skipped:                                   ${totalSkipped}`);
   console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);

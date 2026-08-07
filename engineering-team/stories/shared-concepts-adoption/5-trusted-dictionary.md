@@ -102,5 +102,5 @@ reinstall expected**.
 
 ## Linked artifacts
 - ADR: `engineering-team/decisions/shared-concepts-adoption/0005-trusted-dictionary.md`
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/shared-concepts-adoption/5-trusted-dictionary.test-plan.md`
 - Review: (filled in after Review phase)
