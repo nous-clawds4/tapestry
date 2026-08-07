@@ -1,6 +1,7 @@
 # Epic: Self Ontology
 
-**Status:** Active
+**Status:** Done
+**Retired:** 2026-08-07 at the `shared-concepts-adoption` book close — both stories (1 ratify-the-self-ontology, 2 ratify-instance-identity) Done and in production. The broader consequence-trajectory this epic names (provenance, non-destructive rebuilds, serialization, backup) is future work: reopen this epic per the established reopen pattern (run-scoped L2 waiver) when its next story lands.
 **Provenance:** `docs/SELF_ONTOLOGY_DESIGN_HANDOFF.md` (Protocol-Spec Workflow — Scope+Capture done, 2026-07-24)
 
 ## What this is
