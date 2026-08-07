@@ -1,22 +1,25 @@
 /**
- * Adoption queue — the server-assembled read (ADR shared-concepts-adoption/0002).
+ * Adoption queue — the server-assembled read for the whole adoption loop
+ * (ADRs shared-concepts-adoption/0002 + 0003).
  *
  * GET /api/adoption-queue  (public read, the sibling-instrument posture)
- *   → { success, nominations: [{coord, name, author, eventCount, authorCount,
- *      usedByMe}], declined: [{target, name, author, decidedOn}] }
+ *   → { success,
+ *       nominations, declined,                  — F1: theirs to adopt (byte-compatible)
+ *       publishCandidates, deferredInUse }      — F2: mine to publish (additive)
  *
- * Assembly: five STREAMING strfry scans (fix/adoption-queue-stream-scan: a
- * deployed corpus can exceed any fixed exec buffer — staging's did at 16MB —
- * so each scan streams line-by-line and keeps only a slim projection; memory
- * follows the projected result, never the corpus), piped through the pure
- * arithmetic core (src/lib/adoptionQueue.js). The endpoint never writes.
+ * Assembly: streaming strfry scans with slim per-event projections (the #500
+ * corpus-scale fix — memory follows the projection, never the corpus), piped
+ * through the pure arithmetic cores (src/lib/adoptionQueue.js). My headers are
+ * classified at THIS seam via bValueForms.dispositionOf (the b-semantics
+ * single owner), so the cores stay zero-require. The endpoint never writes.
  */
 
 'use strict';
 
 const { getOwnerAssistantPubkey } = require('../../utils/assistantKeys');
 const { strfryScanStream } = require('../concept/bDisposition');
-const { computeQueue } = require('../../lib/adoptionQueue');
+const { computeQueue, computePublishCandidates, bestName } = require('../../lib/adoptionQueue');
+const { dispositionOf } = require('../../lib/bValueForms');
 
 const REGISTRY_SLUG = 'shared-concept';
 const LEDGER_SLUG = 'adoption-disposition';
@@ -30,23 +33,46 @@ async function handleAdoptionQueue(req, res) {
       return res.status(500).json({ success: false, error: 'TA pubkey unavailable' });
     }
 
-    // 1. All local kind-39998 headers, projected slim; foreign = author ≠ TA.
-    const foreignHeaders = await strfryScanStream({ kinds: [39998] }, (ev) => (
-      ev.pubkey === taPubkey ? null : {
-        kind: ev.kind, pubkey: ev.pubkey, created_at: ev.created_at, id: ev.id,
-        tags: keepTags(ev, ['d', 'names', 'name']),
-      }
-    ));
-    const coords = [];
-    for (const ev of foreignHeaders) {
+    // 1. All local kind-39998 headers, projected slim — BOTH populations
+    //    (ADR 0003: the TA-authored ones, once discarded, are F2's input).
+    const allHeaders = await strfryScanStream({ kinds: [39998] }, (ev) => ({
+      kind: ev.kind, pubkey: ev.pubkey, created_at: ev.created_at, id: ev.id,
+      tags: keepTags(ev, ['d', 'names', 'name', 'b']),
+    }));
+    const foreignHeaders = [];
+    const mineNewest = new Map(); // d-tag → newest slim header
+    for (const ev of allHeaders) {
+      if (ev.pubkey !== taPubkey) { foreignHeaders.push(ev); continue; }
       const d = ev.tags.find((t) => t[0] === 'd')?.[1];
-      if (d != null) coords.push(`${ev.kind}:${ev.pubkey}:${d}`);
+      if (d == null) continue;
+      const prev = mineNewest.get(d);
+      if (!prev || (ev.created_at || 0) > (prev.created_at || 0)) mineNewest.set(d, ev);
     }
 
-    // 2–5. Carriers for those coords; my b-values (S2a); registry; ledger.
-    const [zCarriers, myBTargetArrays, registryRecords, dispositionRecords] = await Promise.all([
-      coords.length
-        ? strfryScanStream({ '#z': coords }, (ev) => {
+    const foreignCoords = [];
+    for (const ev of foreignHeaders) {
+      const d = ev.tags.find((t) => t[0] === 'd')?.[1];
+      if (d != null) foreignCoords.push(`${ev.kind}:${ev.pubkey}:${d}`);
+    }
+
+    // Classification at the seam (ADR 0003): my headers → {coord, name, bState}.
+    const myHeaders = [];
+    const myCoords = [];
+    for (const [d, ev] of mineNewest) {
+      const coord = `39998:${taPubkey}:${d}`;
+      const bValues = ev.tags.filter((t) => t[0] === 'b').map((t) => t[1]);
+      const disp = dispositionOf(bValues, coord);
+      const bState = (disp.wired || disp.selfDeclared) ? 'real' : (disp.deferred ? 'deferred' : 'none');
+      myHeaders.push({ coord, name: bestName(ev), bState });
+      myCoords.push(coord);
+    }
+
+    // 2–6. Union #z carriers; my b-values (S2a); foreign #b affiliations on my
+    //      coords; registry; ledger.
+    const zScanCoords = [...foreignCoords, ...myCoords];
+    const [zCarriers, myBTargetArrays, bCarriers, registryRecords, dispositionRecords] = await Promise.all([
+      zScanCoords.length
+        ? strfryScanStream({ '#z': zScanCoords }, (ev) => {
           const z = keepTags(ev, ['z']);
           return z.length ? { pubkey: ev.pubkey, id: ev.id, tags: z } : null;
         })
@@ -55,6 +81,12 @@ async function handleAdoptionQueue(req, res) {
         const bs = (ev.tags || []).filter((t) => t && t[0] === 'b' && typeof t[1] === 'string' && t[1]).map((t) => t[1]);
         return bs.length ? bs : null;
       }),
+      myCoords.length
+        ? strfryScanStream({ '#b': myCoords }, (ev) => {
+          const bs = keepTags(ev, ['b']);
+          return bs.length ? { pubkey: ev.pubkey, id: ev.id, tags: bs } : null;
+        })
+        : Promise.resolve([]),
       strfryScanStream({ kinds: [39999], '#z': [`39998:${taPubkey}:${REGISTRY_SLUG}`] }, (ev) => ({
         pubkey: ev.pubkey, created_at: ev.created_at, tags: keepTags(ev, ['json']),
       })),
@@ -65,8 +97,15 @@ async function handleAdoptionQueue(req, res) {
 
     const myBTargets = myBTargetArrays.flat();
 
-    const out = computeQueue({ foreignHeaders, zCarriers, myBTargets, registryRecords, dispositionRecords, taPubkey });
-    return res.json({ success: true, ...out });
+    const adopt = computeQueue({ foreignHeaders, zCarriers, myBTargets, registryRecords, dispositionRecords, taPubkey });
+    const publish = computePublishCandidates({ myHeaders, zCarriers, bCarriers, taPubkey });
+
+    return res.json({
+      success: true,
+      ...adopt,
+      publishCandidates: publish.candidates,
+      deferredInUse: publish.deferredInUse,
+    });
   } catch (error) {
     console.error('adoption-queue error:', error);
     return res.status(500).json({ success: false, error: error.message });

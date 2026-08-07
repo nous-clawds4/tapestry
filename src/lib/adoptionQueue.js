@@ -120,4 +120,65 @@ function computeQueue({ foreignHeaders, zCarriers, myBTargets, registryRecords, 
   return { nominations, declined };
 }
 
-module.exports = { computeQueue, latestPerTarget, sectionOf, bestName };
+/**
+ * The inverse queue (F2, ADR shared-concepts-adoption/0003): which of MY
+ * headers should I publish? Headers arrive PRE-CLASSIFIED at the handler seam
+ * ({coord, name, bState: 'none'|'deferred'|'real'} — b semantics stay in
+ * bValueForms, their single owner, keeping this core zero-require).
+ *
+ * Evidence is cross-author only, counted DISTINGUISHABLY: z filings (others
+ * filing under my header) and b affiliations (others pointing at it).
+ * Routing: bState 'none' ∧ usage → candidate; 'deferred' ∧ usage →
+ * deferredInUse (the collapsed reveal's data); 'real' → dispositioned,
+ * excluded everywhere. Sorted by total cross-author usage.
+ */
+function computePublishCandidates({ myHeaders, zCarriers, bCarriers, taPubkey } = {}) {
+  const headers = new Map(); // coord → { name, bState }
+  for (const h of Array.isArray(myHeaders) ? myHeaders : []) {
+    if (h && typeof h.coord === 'string') headers.set(h.coord, { name: h.name || null, bState: h.bState });
+  }
+
+  const usage = new Map(); // coord → { fe:Set, fa:Set, ae:Set, aa:Set }
+  const bump = (coord, ev, kind) => {
+    let u = usage.get(coord);
+    if (!u) { u = { fe: new Set(), fa: new Set(), ae: new Set(), aa: new Set() }; usage.set(coord, u); }
+    if (kind === 'z') { u.fe.add(ev.id); u.fa.add(ev.pubkey); }
+    else { u.ae.add(ev.id); u.aa.add(ev.pubkey); }
+  };
+  for (const ev of Array.isArray(zCarriers) ? zCarriers : []) {
+    if (!ev || ev.pubkey === taPubkey) continue; // my own filings are never evidence
+    for (const t of ev.tags || []) {
+      if (t && t[0] === 'z' && headers.has(t[1])) bump(t[1], ev, 'z');
+    }
+  }
+  for (const ev of Array.isArray(bCarriers) ? bCarriers : []) {
+    if (!ev || ev.pubkey === taPubkey) continue; // my own wirings are never evidence
+    for (const t of ev.tags || []) {
+      if (t && t[0] === 'b' && headers.has(t[1])) bump(t[1], ev, 'b');
+    }
+  }
+
+  const candidates = [];
+  const deferredInUse = [];
+  for (const [coord, u] of usage) {
+    const h = headers.get(coord);
+    const row = {
+      coord,
+      name: h.name,
+      filingEvents: u.fe.size,
+      filingAuthors: u.fa.size,
+      affiliationEvents: u.ae.size,
+      affiliationAuthors: u.aa.size,
+    };
+    if (h.bState === 'none') candidates.push(row);
+    else if (h.bState === 'deferred') deferredInUse.push(row);
+    // 'real' → dispositioned; excluded everywhere.
+  }
+  const total = (r) => r.filingEvents + r.affiliationEvents;
+  candidates.sort((a, b) => total(b) - total(a) || (b.filingAuthors + b.affiliationAuthors) - (a.filingAuthors + a.affiliationAuthors));
+  deferredInUse.sort((a, b) => total(b) - total(a));
+
+  return { candidates, deferredInUse };
+}
+
+module.exports = { computeQueue, computePublishCandidates, latestPerTarget, sectionOf, bestName };
