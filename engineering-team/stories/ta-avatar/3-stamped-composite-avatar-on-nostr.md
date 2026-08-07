@@ -39,7 +39,9 @@ assistant wearing my avatar with the badge.
 
 ## Concepts touched
 
-None known — same note as stories 1–2; the Architect should confirm against the concept graph.
+None. **Confirmed at Architecture** against the live concept graph: `39998:<TA>:image` resolves to a
+bare node (no description, and `…:image-schema` returns `No node found`) and models images as
+knowledge-graph nodes, not files on a volume — see ADR 0003. No firmware reinstall.
 
 ## Out of scope
 
@@ -55,6 +57,6 @@ None.
 
 ## Linked artifacts
 
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/ta-avatar/0003-owner-composited-avatar-hosted-by-the-instance.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
