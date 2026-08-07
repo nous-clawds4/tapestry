@@ -128,8 +128,14 @@ export default function AdoptionQueue() {
   const nominationColumns = [
     { key: 'name', label: 'Name', render: (v, r) => v || <span className="text-muted">{r.coord.slice(0, 24)}…</span> },
     { key: 'author', label: 'Author', render: (v) => <AuthorCell pubkey={v} profiles={profiles} /> },
-    { key: 'eventCount', label: 'Events' },
-    { key: 'authorCount', label: 'Authors' },
+    {
+      key: 'eventCount',
+      label: <span title="How many events use this concept — each carries a z-tag pointing at this concept header. The concept author's own filings don't count.">Events</span>,
+    },
+    {
+      key: 'authorCount',
+      label: <span title="How many distinct people signed those z-tagged events.">Authors</span>,
+    },
     { key: 'usedByMe', label: 'Used by me', render: (v) => (v ? <span title="my own filings use this concept (S3a)">✓</span> : <span className="text-muted">—</span>) },
     {
       key: 'coord', label: '', render: (coord) => (
