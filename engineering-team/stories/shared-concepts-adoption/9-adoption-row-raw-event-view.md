@@ -1,6 +1,6 @@
 # Story 9: Clickable queue rows — view the raw header event
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-08-07
 **Type:** Feature (fast-track — Architecture skipped as obvious; UI-only, no server change;
 approved by the owner in-session 2026-08-07: "make the row clickable, so it takes me to a new
@@ -46,4 +46,4 @@ None — a read-only view over existing header events. No firmware reinstall.
 ## Linked artifacts
 - ADR: skipped (fast-track; approach in Background)
 - Test plan: `engineering-team/stories/shared-concepts-adoption/9-adoption-row-raw-event-view.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/shared-concepts-adoption/9-adoption-row-raw-event-view.md`
