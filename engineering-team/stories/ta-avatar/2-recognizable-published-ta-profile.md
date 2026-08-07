@@ -56,5 +56,6 @@ None.
 ## Linked artifacts
 
 - ADR: `engineering-team/decisions/ta-avatar/0002-branded-published-profile-defaults.md`
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/ta-avatar/2-recognizable-published-ta-profile.test-plan.md`
+  (tests: `test/recognizable-published-ta-profile.test.js`)
 - Review: (filled in after Review phase)
