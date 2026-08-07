@@ -5335,6 +5335,134 @@ async function handleAdoptionDisposition(req, res) {
   }
 }
 
+// ══════════════════════════════════════════════════════════════
+// Trusted dictionary snapshot (ADR shared-concepts-adoption/0005).
+// The owner's dated offering of the live dictionary view: recomputed
+// server-side (a client-posted member list is never trusted), minus the
+// sentinel-deferred headers (F5's keep-private carve-out), self-describing
+// as usage-derived — NEVER the W1 inherit-consensus signal (community-
+// reference ADR 0029 keeps z-usage at zero consensus weight). Runtime-
+// created concept — never firmware. Nothing publishes without this
+// explicit owner act.
+// ══════════════════════════════════════════════════════════════
+
+const TRUSTED_DICTIONARY_SNAPSHOT_CONCEPT_NAME = 'trusted dictionary snapshot';
+const TRUSTED_DICTIONARY_SNAPSHOT_SCHEMA = {
+  type: 'object',
+  properties: {
+    trustedDictionarySnapshot: {
+      type: 'object',
+      title: 'Trusted Dictionary Snapshot',
+      required: ['name', 'slug', 'derivation', 'pov', 'cutoff', 'threshold', 'computedAt', 'memberCount', 'members'],
+      properties: {
+        name: { type: 'string', description: 'the snapshot name, dated, in plain words' },
+        slug: { type: 'string', description: 'stable identity derived from the moment' },
+        derivation: { type: 'string', enum: ['z-usage'], description: 'what this aggregate is derived from — usage, never inherit-consensus' },
+        pov: { type: 'object', description: 'the point of view that scored the carriers (branch + observer)' },
+        cutoff: { type: 'number', description: 'the influence cutoff that gated trusted authors' },
+        threshold: { type: 'number', description: 'the minimum distinct trusted users per member' },
+        computedAt: { type: 'string', description: 'when the view was computed (ISO timestamp)' },
+        memberCount: { type: 'number', description: 'how many concepts the snapshot carries' },
+        members: { type: 'array', description: 'the member concepts (coord, name, qualifying-author count)' },
+      },
+    },
+  },
+};
+
+async function resolveTrustedDictionarySnapshotConcept() {
+  const rows = await runCypher(`
+    MATCH (h:NostrEvent)
+    WHERE (h:ListHeader OR h:ClassThreadHeader OR h:ConceptHeader) AND h.kind IN [9998, 39998]
+      AND h.name = $concept
+    OPTIONAL MATCH (h)-[:${REL.CLASS_THREAD_INITIATION}]->(sup:Superset)
+    RETURN h.uuid AS headerUuid, sup.uuid AS supersetUuid
+    LIMIT 1
+  `, { concept: TRUSTED_DICTIONARY_SNAPSHOT_CONCEPT_NAME });
+  if (rows.length === 0) return { error: `Concept "${TRUSTED_DICTIONARY_SNAPSHOT_CONCEPT_NAME}" not found` };
+  if (!rows[0].supersetUuid) return { error: `Concept "${TRUSTED_DICTIONARY_SNAPSHOT_CONCEPT_NAME}" has no Superset node.` };
+  return { headerUuid: rows[0].headerUuid, supersetUuid: rows[0].supersetUuid };
+}
+
+// Self-bootstrap (the ensure idiom — ADR second-brain/0004 d8 lineage):
+// idempotent create-concept + save-schema, run only when absent.
+async function ensureTrustedDictionarySnapshotConcept() {
+  const existing = await resolveTrustedDictionarySnapshotConcept();
+  if (!existing.error) return existing;
+  await invokeNormalizeHandler(handleCreateConcept, {
+    name: TRUSTED_DICTIONARY_SNAPSHOT_CONCEPT_NAME,
+    description: 'A dated, attributed publication of the trusted dictionary — the concepts this instance\'s trust network demonstrably uses, with the parameters that derived them. Usage-derived; never a consensus signal.',
+  });
+  await invokeNormalizeHandler(handleSaveSchema, { concept: TRUSTED_DICTIONARY_SNAPSHOT_CONCEPT_NAME, schema: TRUSTED_DICTIONARY_SNAPSHOT_SCHEMA });
+  const provisioned = await resolveTrustedDictionarySnapshotConcept();
+  if (provisioned.error) {
+    throw new Error(`ensureTrustedDictionarySnapshotConcept failed to provision the concept: ${provisioned.error}`);
+  }
+  return provisioned;
+}
+
+async function handleTrustedDictionarySnapshot(req, res) {
+  try {
+    const { isOwner } = require('../../middleware/auth');
+    if (!isOwner(req) && !req.localTrusted) {
+      return res.status(403).json({ success: false, error: 'Owner access required' });
+    }
+    const { wotPov, userPubkey } = req.body || {};
+    // Server-side recompute — the GET's exact assembly (lazy require: adoption
+    // has no dependency back on normalize, this just dodges load-order coupling).
+    const { assembleTrustedDictionary } = require('../adoption');
+    const dict = await assembleTrustedDictionary({ wotPov, userPubkey });
+
+    // The sentinel-deferred rows stay in the VIEW (marked) but never ride
+    // into a published snapshot (AC-6, F5's keep-private semantics).
+    const members = dict.entries
+      .filter((e) => !e.sentinelDeferred)
+      .map((e) => ({ coord: e.coord, name: e.name, qualifyingAuthorCount: e.qualifyingAuthorCount }));
+
+    await ensureTrustedDictionarySnapshotConcept();
+
+    const now = new Date();
+    const computedAt = now.toISOString();
+    // Second-resolution stamp IN the name (the F1 disposition-naming idiom):
+    // create-element dedupes by name-under-superset, and each publish is a
+    // distinct dated record — a date-only name collides on the second
+    // same-day publish.
+    const stamp = computedAt.slice(0, 19).replace('T', ' ');
+    const name = `dictionary ${stamp} — ${members.length} concept${members.length === 1 ? '' : 's'}`;
+    const slug = `trusted-dictionary-${now.getTime()}`;
+
+    const minted = await invokeNormalizeHandler(handleCreateElement, {
+      concept: TRUSTED_DICTIONARY_SNAPSHOT_CONCEPT_NAME,
+      name,
+      random: true,
+      json: {
+        trustedDictionarySnapshot: {
+          name,
+          slug,
+          derivation: 'z-usage',
+          pov: { branch: dict.pov.branch, observer: dict.pov.observer },
+          cutoff: dict.cutoff,
+          threshold: dict.threshold,
+          computedAt,
+          memberCount: members.length,
+          members,
+        },
+      },
+    });
+    if (!minted.body || minted.body.success !== true) {
+      return res.status(minted.statusCode >= 400 ? minted.statusCode : 500)
+        .json({ success: false, error: (minted.body && minted.body.error) || 'snapshot mint failed' });
+    }
+    return res.json({
+      success: true,
+      snapshot: { name, slug, computedAt, memberCount: members.length, pov: dict.pov.branch },
+      element: minted.body.element,
+    });
+  } catch (error) {
+    console.error('normalize/trusted-dictionary-snapshot error:', error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+}
+
 async function registerNormalizeRoutes(app) {
   // Load TA signing key from secure storage at startup
   await loadTAKey();
@@ -5358,6 +5486,7 @@ async function registerNormalizeRoutes(app) {
   app.post('/api/normalize/restore-brain', handleRestoreBrain);
   app.post('/api/normalize/record-restore-drill', handleRecordRestoreDrill);
   app.post('/api/normalize/adoption-disposition', handleAdoptionDisposition);
+  app.post('/api/normalize/trusted-dictionary-snapshot', handleTrustedDictionarySnapshot);
   app.post('/api/normalize/save-element-json', handleSaveElementJson);
   app.post('/api/normalize/create-property', handleCreateProperty);
   app.post('/api/normalize/generate-property-tree', handleGeneratePropertyTree);
