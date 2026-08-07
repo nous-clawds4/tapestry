@@ -1,7 +1,8 @@
 # Book of Work: Shared-Concepts Adoption Suite
 
 **Slug:** shared-concepts-adoption
-**Status:** Open
+**Status:** Closed
+**Closed:** 2026-08-07 — frame 6/6 (F0–F5) + hygiene stories 6–9, all in production (PR #510, `f3d3ae43`). Close artifacts: [`audit.md`](./audit.md) + [`prd-seed.md`](./prd-seed.md) (acceptance-frame provenance, confidence high). Retro dispositions: audit §7. Epics retired at close: `shared-concepts-adoption` (stories 1–9), `self-ontology` (stories 1–2; its broader consequence-trajectory reopens per the established reopen pattern when a next story lands).
 **Opened:** 2026-08-05 — **eagerly at the Planning of its first story** (self-ontology #2 / F0), per the OPEN.md #78 lesson: a bounded ask opens its anchor when the book opens, not at close. The intake entry (`stories/_intake.md` 2026-08-05) predates the book by one session; this anchor restates it, owner-confirmed in-session on 2026-08-05.
 
 ## Intent anchor
