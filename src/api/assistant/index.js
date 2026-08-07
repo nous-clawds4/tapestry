@@ -126,6 +126,28 @@ function getInstanceWebsite() {
 }
 
 /**
+ * Could a stranger's nostr client actually fetch something from `website`?
+ *
+ * This is deliberately stricter than "is it set". getInstanceDomain falls back to
+ * BRAINSTORM_RELAY_URL's host, so a dev instance reports `https://localhost:7777`
+ * — truthy, and not equal to the string 'localhost', so an emptiness check lets it
+ * through. Publishing a loopback URL in a kind 0 is worse than publishing nothing:
+ * every client that fetched it would resolve it against **its own** machine.
+ */
+function isPubliclyReachable(website) {
+  if (!website) return false;
+  let hostname;
+  try { hostname = new URL(website).hostname; } catch { return false; }
+  const host = hostname.toLowerCase().replace(/^\[|\]$/g, '');
+  if (host === 'localhost' || host === '::1' || host === '0.0.0.0') return false;
+  if (host.endsWith('.local') || host.endsWith('.localhost')) return false;
+  if (/^127\./.test(host)) return false;
+  // A bare hostname resolves only inside someone's own network, never from outside.
+  if (!host.includes('.')) return false;
+  return true;
+}
+
+/**
  * Compute a deterministic NIP-05 local-part for an Assistant.
  *
  * Format: `<sanitized-name>-tapestry-assistant-<6-char-suffix>`
@@ -177,13 +199,23 @@ function updateNip05Mapping(localPart, assistantPubkey) {
  */
 async function buildDefaultProfileContent(pubkey, isOwner) {
   const website = getInstanceWebsite();
+  // The branded avatar is committed at ui/public/ta-avatar.png and copied into
+  // dist/ by the Vite build, so it is served at this instance's site root. Offer
+  // it only when the instance is somewhere a third party could fetch it from;
+  // otherwise offer none and let handlePublishProfile's empty-string pass drop
+  // the field rather than publish a link nobody can follow.
+  const hostedFrom = isPubliclyReachable(website) ? website : '';
   if (isOwner) {
-    const ownerName = await getKind0DisplayName(pubkey, 'the owner');
+    // Empty fallback, not a readable one: a placeholder like 'the owner' is
+    // indistinguishable from a real name, which would make the generic branch
+    // below unreachable.
+    const ownerName = await getKind0DisplayName(pubkey, '');
+    const assistantName = ownerName ? `${ownerName}'s Tapestry Assistant` : 'Tapestry Assistant';
     return {
-      name: 'Tapestry Assistant',
-      display_name: 'Tapestry Assistant',
-      about: `Server-side Tapestry Assistant for ${ownerName}. Signs firmware events, concept graph nodes, kind 30382 Trust Assertions, and other automated events on behalf of this Tapestry instance.`,
-      picture: '',
+      name: assistantName,
+      display_name: assistantName,
+      about: `Server-side Tapestry Assistant for ${ownerName || 'the owner'}. Signs firmware events, concept graph nodes, kind 30382 Trust Assertions, and other automated events on behalf of this Tapestry instance.`,
+      picture: hostedFrom ? `${hostedFrom}/ta-avatar.png` : '',
       banner: '',
       website,
       nip05: '',
@@ -195,7 +227,7 @@ async function buildDefaultProfileContent(pubkey, isOwner) {
     name: `${customerName}'s Tapestry Assistant`,
     display_name: `${customerName}'s Tapestry Assistant`,
     about: `I am the Tapestry Assistant for ${customerName}. My primary task is to publish kind 30382 Trusted Assertions so that ${customerName}'s personalized web of trust metrics are available to be utilized by any nostr client that supports NIP-85.`,
-    picture: '',
+    picture: hostedFrom ? `${hostedFrom}/ta-avatar.png` : '',
     banner: '',
     website,
     nip05: '',
@@ -502,4 +534,13 @@ async function handleProvisionAssistantKey(req, res) {
   }
 }
 
-module.exports = { handlePublishProfile, handleAssistantStatus, handleGetTAPubkey, handleProvisionAssistantKey };
+// buildDefaultProfileContent is exported for tests: it is the sole producer of the
+// defaults the editor offers and a content-less publish signs, so asserting on it
+// directly is the only stack-free handle on that contract.
+// getInstanceWebsite + isPubliclyReachable are exported so ./avatar.js can gate the
+// composite's publishable URL on the SAME rule as the branded default — one notion
+// of "could a stranger fetch this", not two (ADR ta-avatar/0003 D4).
+module.exports = {
+  handlePublishProfile, handleAssistantStatus, handleGetTAPubkey, handleProvisionAssistantKey,
+  buildDefaultProfileContent, getInstanceWebsite, isPubliclyReachable,
+};

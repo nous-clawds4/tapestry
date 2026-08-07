@@ -530,6 +530,12 @@ async function register(app) {
     app.post('/api/assistant/provision-key', assistantApi.handleProvisionAssistantKey);
     app.get('/api/assistant/status', assistantApi.handleAssistantStatus);
     app.get('/api/assistant/pubkey', assistantApi.handleGetTAPubkey);
+    // The composite avatar (ta-avatar #3, ADR 0003). Both are owner-only: the
+    // first reveals the owner's picture URL, the second writes into a directory
+    // that is served publicly.
+    const assistantAvatarApi = require('./assistant/avatar');
+    app.get('/api/assistant/owner-avatar', assistantAvatarApi.handleOwnerAvatar);
+    app.post('/api/assistant/avatar', assistantAvatarApi.uploadMiddleware, assistantAvatarApi.handleUploadAvatar);
 
     // ── Owner pubkey (public) ──
     const ownerApi = require('./owner');

@@ -17,7 +17,7 @@
       strfry count and lost the race to live `strfry-router` network ingest. Dispositioned as
       environmental flake, not regression: the diff is read-only on those paths, the same suite
       passed three full runs earlier tonight on adjacent trees, and an immediate standalone
-      re-run passed 9/9. Filed as **OPEN.md #148** with the mechanism and fix shape.
+      re-run passed 9/9. Filed as **OPEN.md #150** with the mechanism and fix shape.
 
 ## Spec adherence (fast-track — Bug; Architecture skipped per the story)
 
@@ -60,7 +60,7 @@ None.
 ### Harness friction
 
 1. `relationship-primitives-probe` H4's whole-corpus bracket is flaky under live router ingest —
-   filed as OPEN.md **#148** (type `bug`) with mechanism, evidence, and fix shape.
+   filed as OPEN.md **#150** (type `bug`) with mechanism, evidence, and fix shape.
 
 ## Verdict
 
