@@ -3,6 +3,7 @@
 **Status:** Accepted
 **Date:** 2026-07-24
 **Story:** `engineering-team/stories/second-brain/6-the-proposal-loop.md`
+**Amended by:** `goal-intent-fields` ADR 0003 — **d13 / AC6 only**, narrowly: a value the **owner recorded** on the nominated goal (`chanceOfSuccess`) may render as its number on the proposal card. The prohibition on *system-generated* scores, percentages, gauges and ranking numbers is **untouched**, as is every other clause of this ADR. Ratified by the operator 2026-07-27 (epic decision 8).
 **Builds on:** second-brain ADR 0005 — this story is the **second producer** of the goal-detail `records` array ADR 0005 d10 built as an explicit extension seam ("Extensible — stories 6/7 merge their concepts' projections into this same array"). It reuses ADR 0005's runtime-created-concept pattern (`ensureWorkRecordConcept` → `ensureProposalConcept`), the append-only-by-construction mint (`mintWorkRecordElement` → `mintProposalElement`; nonce/random d-tag, never `regenerateJson`), the pure-core + read-time-derivation idiom (`work-records.js` → `proposals.js`), the record-based-linkage idiom (d4), and the gated/validated/serialized/local-only write pattern. ADRs 0001 (capture contract; adopt element machinery; derived-not-stored standing; read seam), 0002 (read-only brain module), 0003 (`serializeGoalWrite`; validated goal writes; the collision guard; the d8 save-schema fold), 0004 (runtime-created concept + self-bootstrap; the `verifyResource` **durable-intent** update) all remain binding.
 
 ## Context

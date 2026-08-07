@@ -1771,8 +1771,10 @@ async function handleCreateElement(req, res) {
       WHERE (h:ListHeader OR h:ClassThreadHeader) AND h.kind IN [9998, 39998]
         AND h.name = $concept
       OPTIONAL MATCH (h)-[:${REL.CLASS_THREAD_INITIATION}]->(sup:Superset)
+      OPTIONAL MATCH (h)-[:HAS_TAG]->(bt:NostrEventTag {type: 'b'})
       RETURN h.uuid AS headerUuid, h.name AS headerName,
-             sup.uuid AS supersetUuid
+             sup.uuid AS supersetUuid,
+             collect({value: bt.value, type: bt.value1}) AS bRows
       LIMIT 1
     `, { concept });
 
@@ -1847,12 +1849,18 @@ async function handleCreateElement(req, res) {
       }
     }
 
-    // Create the element event
+    // Create the element event. The z list is the ratified stamping floor
+    // (ADR shared-concepts-adoption/0004): the personal handle plus the
+    // header's declared affiliation (pointer-b targets via the selector —
+    // unwired/deferred concepts yield exactly the single personal z).
+    const { selectPointerTargets } = require('../../lib/bValueForms');
+    const bRows = (rows[0].bRows || []).filter((r) => r && r.value != null);
+    const sharedStamps = selectPointerTargets(bRows, headerUuid);
     const dTag = req.body.dTag || (req.body.random ? randomDTag() : dtag.childDTag(trimName, headerUuid, req.body.nonce));
     const tags = [
       ['d', dTag],
       ['name', trimName],
-      ['z', headerUuid],
+      ...[headerUuid, ...sharedStamps].map((h) => ['z', h]),
       ['json', typeof finalJson === 'string' ? finalJson : JSON.stringify(finalJson)],
     ];
 
@@ -2198,6 +2206,11 @@ async function handleCreateChildGoal(req, res) {
     // Refusal contract (ADR 0003 d6), passed through from the shared core or
     // built here: parent-not-found | ambiguous-slug | name-collides — each
     // answers success:false with the named refusal and writes NOTHING.
+
+    // The four intent properties, whitelisted at the handler — the trust
+    // boundary — so no raw body object reaches the core (ADR 0001 d3).
+    const { pickIntentFields } = require('../../lib/brain/goals');
+    const intent = pickIntentFields(req.body || {});
     const result = await serializeGoalWrite(() => createChildGoal({
       parentSlug: parent.trim(),
       name: name.trim(),
@@ -2206,6 +2219,7 @@ async function handleCreateChildGoal(req, res) {
       boundary: typeof boundary === 'string' && boundary.trim() ? boundary.trim() : null,
       origin: typeof origin === 'string' && origin.trim() ? origin.trim() : null,
       capturedOn: typeof capturedOn === 'string' && capturedOn.trim() ? capturedOn.trim() : null,
+      intent,
     }));
     return res.json(result);
   } catch (error) {
@@ -2214,7 +2228,7 @@ async function handleCreateChildGoal(req, res) {
   }
 }
 
-async function createChildGoal({ parentSlug, name, statement, deliverable, boundary, origin, capturedOn }) {
+async function createChildGoal({ parentSlug, name, statement, deliverable, boundary, origin, capturedOn, intent }) {
   const { validateDecompositionOp } = require('../../lib/brain/goals');
   const concept = await resolveGoalConcept();
   if (concept.error) return { success: false, error: concept.error };
@@ -2247,6 +2261,9 @@ async function createChildGoal({ parentSlug, name, statement, deliverable, bound
   if (deliverable) section.deliverable = deliverable;
   if (boundary) section.boundary = boundary;
   section.parent = parentSlug;
+  // Only the fields the owner actually supplied (ADR 0001 d2/d3) — the rest
+  // stay absent from the record, which is what "unset" means here.
+  Object.assign(section, intent);
 
   const tags = [
     ['d', dTag],
@@ -2281,10 +2298,25 @@ async function handleUpdateGoalIntent(req, res) {
     if (!goal || typeof goal !== 'string' || !goal.trim()) {
       return res.status(400).json({ success: false, error: 'Missing goal slug' });
     }
+    // TWO field lists, deliberately (goal-intent-fields ADR 0001 d4) — do NOT
+    // collapse them into one. `provided` stays exactly the three string fields
+    // the empty-value refusal and the .trim() calls below were written for.
+    // The four intent properties are whitelisted separately and copied
+    // verbatim. Appending them to `provided` is a one-line change that looks
+    // like tidying and silently creates a rule the story forbids: that loop
+    // rejects any non-string and any empty-after-trim value, so
+    // `chanceOfSuccess: 75` would be refused for what it CONTAINS (AC5), and
+    // the trim would break AC3's byte-identical prompt. Hence the refusal
+    // below is a PRESENCE test across both lists, never a content test.
+    const { pickIntentFields } = require('../../lib/brain/goals');
+    const intent = pickIntentFields(req.body || {});
     const provided = [['deliverable', deliverable], ['boundary', boundary], ['parent', parent]]
       .filter(([, value]) => value !== undefined);
-    if (provided.length === 0) {
-      return res.status(400).json({ success: false, error: 'At least one of deliverable, boundary, parent is required' });
+    if (provided.length === 0 && Object.keys(intent).length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'At least one of deliverable, boundary, parent, prompt, chanceOfSuccess, needsHumanInput, needsBreakdown is required',
+      });
     }
     // Refusal contract (ADR 0003 d7): goal-not-found | ambiguous-slug |
     // self-parent | already-has-parent | cycle | empty-value — loud, named,
@@ -2304,6 +2336,7 @@ async function handleUpdateGoalIntent(req, res) {
       deliverable: deliverable !== undefined ? deliverable.trim() : undefined,
       boundary: boundary !== undefined ? boundary.trim() : undefined,
       parentSlug: parent !== undefined ? parent.trim() : undefined,
+      intent,
     }));
     return res.json(result);
   } catch (error) {
@@ -2312,7 +2345,7 @@ async function handleUpdateGoalIntent(req, res) {
   }
 }
 
-async function updateGoalIntent({ goalSlug, deliverable, boundary, parentSlug }) {
+async function updateGoalIntent({ goalSlug, deliverable, boundary, parentSlug, intent }) {
   const { validateDecompositionOp, resolveCaptureDate } = require('../../lib/brain/goals');
   const concept = await resolveGoalConcept();
   if (concept.error) return { success: false, error: concept.error };
@@ -2352,6 +2385,11 @@ async function updateGoalIntent({ goalSlug, deliverable, boundary, parentSlug })
   if (deliverable !== undefined) { section.deliverable = deliverable; fields.push('deliverable'); }
   if (boundary !== undefined) { section.boundary = boundary; fields.push('boundary'); }
   if (parentSlug !== undefined) { section.parent = parentSlug; fields.push('parent'); }
+  // The four are merged verbatim (ADR 0001 d4) — the three the caller did not
+  // supply, and every other field already on the goal (including
+  // out-of-contract riders), pass through untouched.
+  Object.assign(section, intent);
+  fields.push(...Object.keys(intent || {}));
 
   await regenerateJson(target.uuid, { ...wrapper, tapestryOwnerGoal: section });
   return { success: true, result: 'updated', fields, goal: { uuid: target.uuid, slug: goalSlug } };
@@ -2890,8 +2928,13 @@ async function handleNoteGoalIdea(req, res) {
     if (!session || typeof session !== 'string' || !session.trim()) {
       return res.status(400).json({ success: false, error: 'A session is required to attribute the capture' });
     }
+    // The four intent properties ride along on the existing contract
+    // (goal-intent-fields ADR 0001 d3). Whitelisted HERE — the handler is the
+    // trust boundary — so no raw body object ever reaches the core.
+    const { pickIntentFields } = require('../../lib/brain/goals');
+    const intent = pickIntentFields(req.body || {});
     const result = await serializeGoalWrite(() => noteGoalIdea({
-      name: name.trim(), statement: statement.trim(), session: session.trim(),
+      name: name.trim(), statement: statement.trim(), session: session.trim(), intent,
     }));
     return res.json(result);
   } catch (error) {
@@ -2900,7 +2943,7 @@ async function handleNoteGoalIdea(req, res) {
   }
 }
 
-async function noteGoalIdea({ name, statement, session }) {
+async function noteGoalIdea({ name, statement, session, intent }) {
   // Capture a NEW root goal (no parent), attributed to the session, with the
   // createChildGoal collision guard (ADR 0005 d7). This launches nothing — it
   // only writes facts (a goal + a noted record); the v1 launcher is the owner.
@@ -2925,6 +2968,9 @@ async function noteGoalIdea({ name, statement, session }) {
 
   const today = new Date().toISOString().slice(0, 10);
   const goalSection = { name, slug: derivedSlug, description: statement, origin: 'noted in an assistant session', capturedOn: today };
+  // Only the fields the owner actually supplied (ADR 0001 d2/d3) — the rest
+  // stay absent from the record, which is what "unset" means here.
+  Object.assign(goalSection, intent);
   const goalTags = [
     ['d', dTag],
     ['name', name],
@@ -4841,6 +4887,10 @@ const GOAL_SCHEMA = {
         deliverable: { type: 'string', description: "what 'done' produces, in the owner's words" },
         boundary: { type: 'string', description: "what pursuing this goal may not touch, in the owner's words" },
         parent: { type: 'string', description: 'the slug of the parent goal this goal is part of (one parent at most)' },
+        prompt: { type: 'string', description: 'A markdown file that is intended to serve as the prompt given to an agent at the start of a session, the goal of which is to achieve the stated goal.' },
+        chanceOfSuccess: { type: 'number', description: 'A number between 0 and 100 which indicates the estimated probability of success if an agent were to attempt to complete this goal without any human input. The default is 0, if not otherwise estimated.' },
+        needsHumanInput: { type: 'boolean', default: false, description: 'Whether this goal cannot be carried forward without the owner answering something. Absent means false.' },
+        needsBreakdown: { type: 'boolean', default: false, description: 'Whether this goal is judged too large to work on as it stands and should be broken into smaller goals. Absent means false.' },
       },
       'x-tapestry': { unique: ['name', 'slug'] },
     },
@@ -5184,6 +5234,235 @@ async function recordRestoreDrill({ exportTakenOn, outcome, target }) {
   return { success: true, result: 'journaled', drill: { uuid, slug, drilledOn, outcome } };
 }
 
+// ══════════════════════════════════════════════════════════════
+// Adoption disposition — the instance-private ledger of stances about
+// FOREIGN shared concepts (ADR shared-concepts-adoption/0002). Records are
+// append-only, dated, attributed; newest-per-target wins (the queue's pure
+// core owns that arithmetic). Runtime-created concept — never firmware.
+// ══════════════════════════════════════════════════════════════
+
+const ADOPTION_DISPOSITION_CONCEPT_NAME = 'adoption disposition';
+const ADOPTION_DISPOSITIONS = ['declined', 'requeued'];
+const ADOPTION_DISPOSITION_SCHEMA = {
+  type: 'object',
+  properties: {
+    adoptionDisposition: {
+      type: 'object',
+      title: 'Adoption Disposition',
+      required: ['name', 'slug', 'target', 'disposition', 'decidedOn'],
+      properties: {
+        name: { type: 'string', description: 'the record name, dated, in plain words' },
+        slug: { type: 'string', description: 'stable identity derived from the target and the moment' },
+        target: { type: 'string', description: 'the foreign shared concept this stance is about (its a-tag coordinate)' },
+        disposition: { type: 'string', enum: ADOPTION_DISPOSITIONS, description: 'declined (leave my queue) or requeued (bring it back)' },
+        decidedOn: { type: 'string', description: 'the date the owner decided' },
+      },
+    },
+  },
+};
+
+async function resolveAdoptionDispositionConcept() {
+  const rows = await runCypher(`
+    MATCH (h:NostrEvent)
+    WHERE (h:ListHeader OR h:ClassThreadHeader OR h:ConceptHeader) AND h.kind IN [9998, 39998]
+      AND h.name = $concept
+    OPTIONAL MATCH (h)-[:${REL.CLASS_THREAD_INITIATION}]->(sup:Superset)
+    RETURN h.uuid AS headerUuid, sup.uuid AS supersetUuid
+    LIMIT 1
+  `, { concept: ADOPTION_DISPOSITION_CONCEPT_NAME });
+  if (rows.length === 0) return { error: `Concept "${ADOPTION_DISPOSITION_CONCEPT_NAME}" not found` };
+  if (!rows[0].supersetUuid) return { error: `Concept "${ADOPTION_DISPOSITION_CONCEPT_NAME}" has no Superset node.` };
+  return { headerUuid: rows[0].headerUuid, supersetUuid: rows[0].supersetUuid };
+}
+
+// Self-bootstrap (the ensure idiom — ADR second-brain/0004 d8 lineage):
+// idempotent create-concept + save-schema, run only when absent.
+async function ensureAdoptionDispositionConcept() {
+  const existing = await resolveAdoptionDispositionConcept();
+  if (!existing.error) return existing;
+  await invokeNormalizeHandler(handleCreateConcept, {
+    name: ADOPTION_DISPOSITION_CONCEPT_NAME,
+    description: 'A dated record of the owner declining (or re-queueing) a foreign shared concept nominated for adoption. Instance-private stance history — never published outward, never firmware-seeded.',
+  });
+  await invokeNormalizeHandler(handleSaveSchema, { concept: ADOPTION_DISPOSITION_CONCEPT_NAME, schema: ADOPTION_DISPOSITION_SCHEMA });
+  const provisioned = await resolveAdoptionDispositionConcept();
+  if (provisioned.error) {
+    throw new Error(`ensureAdoptionDispositionConcept failed to provision the concept: ${provisioned.error}`);
+  }
+  return provisioned;
+}
+
+async function handleAdoptionDisposition(req, res) {
+  try {
+    const { isOwner } = require('../../middleware/auth');
+    if (!isOwner(req) && !req.localTrusted) {
+      return res.status(403).json({ success: false, error: 'Owner access required' });
+    }
+    const { target, disposition } = req.body || {};
+    const { classifyBValue } = require('../../lib/bValueForms');
+    if (typeof target !== 'string' || classifyBValue(target.trim()) !== 'a-tag') {
+      return res.status(400).json({ success: false, error: 'target must be an a-tag coordinate (kind:pubkey:d-tag)' });
+    }
+    if (typeof disposition !== 'string' || !ADOPTION_DISPOSITIONS.includes(disposition)) {
+      return res.json({ success: false, error: `disposition must be one of: ${ADOPTION_DISPOSITIONS.join(', ')}` });
+    }
+    const trimmedTarget = target.trim();
+
+    await ensureAdoptionDispositionConcept();
+
+    const now = new Date();
+    const decidedOn = now.toISOString().slice(0, 10);
+    const stamp = now.toISOString().slice(0, 19).replace('T', ' ');
+    const targetDTag = trimmedTarget.split(':').slice(2).join(':');
+    const name = `adoption: ${targetDTag} — ${disposition} ${stamp}`;
+    const slug = `adoption-${targetDTag}-${disposition}-${now.getTime()}`
+      .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+
+    const minted = await invokeNormalizeHandler(handleCreateElement, {
+      concept: ADOPTION_DISPOSITION_CONCEPT_NAME,
+      name,
+      random: true,
+      json: { adoptionDisposition: { name, slug, target: trimmedTarget, disposition, decidedOn } },
+    });
+    if (!minted.body || minted.body.success !== true) {
+      return res.status(minted.statusCode >= 400 ? minted.statusCode : 500)
+        .json({ success: false, error: (minted.body && minted.body.error) || 'ledger mint failed' });
+    }
+    return res.json({ success: true, result: disposition, element: minted.body.element });
+  } catch (error) {
+    console.error('normalize/adoption-disposition error:', error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+// Trusted dictionary snapshot (ADR shared-concepts-adoption/0005).
+// The owner's dated offering of the live dictionary view: recomputed
+// server-side (a client-posted member list is never trusted), minus the
+// sentinel-deferred headers (F5's keep-private carve-out), self-describing
+// as usage-derived — NEVER the W1 inherit-consensus signal (community-
+// reference ADR 0029 keeps z-usage at zero consensus weight). Runtime-
+// created concept — never firmware. Nothing publishes without this
+// explicit owner act.
+// ══════════════════════════════════════════════════════════════
+
+const TRUSTED_DICTIONARY_SNAPSHOT_CONCEPT_NAME = 'trusted dictionary snapshot';
+const TRUSTED_DICTIONARY_SNAPSHOT_SCHEMA = {
+  type: 'object',
+  properties: {
+    trustedDictionarySnapshot: {
+      type: 'object',
+      title: 'Trusted Dictionary Snapshot',
+      required: ['name', 'slug', 'derivation', 'pov', 'cutoff', 'threshold', 'computedAt', 'memberCount', 'members'],
+      properties: {
+        name: { type: 'string', description: 'the snapshot name, dated, in plain words' },
+        slug: { type: 'string', description: 'stable identity derived from the moment' },
+        derivation: { type: 'string', enum: ['z-usage'], description: 'what this aggregate is derived from — usage, never inherit-consensus' },
+        pov: { type: 'object', description: 'the point of view that scored the carriers (branch + observer)' },
+        cutoff: { type: 'number', description: 'the influence cutoff that gated trusted authors' },
+        threshold: { type: 'number', description: 'the minimum distinct trusted users per member' },
+        computedAt: { type: 'string', description: 'when the view was computed (ISO timestamp)' },
+        memberCount: { type: 'number', description: 'how many concepts the snapshot carries' },
+        members: { type: 'array', description: 'the member concepts (coord, name, qualifying-author count)' },
+      },
+    },
+  },
+};
+
+async function resolveTrustedDictionarySnapshotConcept() {
+  const rows = await runCypher(`
+    MATCH (h:NostrEvent)
+    WHERE (h:ListHeader OR h:ClassThreadHeader OR h:ConceptHeader) AND h.kind IN [9998, 39998]
+      AND h.name = $concept
+    OPTIONAL MATCH (h)-[:${REL.CLASS_THREAD_INITIATION}]->(sup:Superset)
+    RETURN h.uuid AS headerUuid, sup.uuid AS supersetUuid
+    LIMIT 1
+  `, { concept: TRUSTED_DICTIONARY_SNAPSHOT_CONCEPT_NAME });
+  if (rows.length === 0) return { error: `Concept "${TRUSTED_DICTIONARY_SNAPSHOT_CONCEPT_NAME}" not found` };
+  if (!rows[0].supersetUuid) return { error: `Concept "${TRUSTED_DICTIONARY_SNAPSHOT_CONCEPT_NAME}" has no Superset node.` };
+  return { headerUuid: rows[0].headerUuid, supersetUuid: rows[0].supersetUuid };
+}
+
+// Self-bootstrap (the ensure idiom — ADR second-brain/0004 d8 lineage):
+// idempotent create-concept + save-schema, run only when absent.
+async function ensureTrustedDictionarySnapshotConcept() {
+  const existing = await resolveTrustedDictionarySnapshotConcept();
+  if (!existing.error) return existing;
+  await invokeNormalizeHandler(handleCreateConcept, {
+    name: TRUSTED_DICTIONARY_SNAPSHOT_CONCEPT_NAME,
+    description: 'A dated, attributed publication of the trusted dictionary — the concepts this instance\'s trust network demonstrably uses, with the parameters that derived them. Usage-derived; never a consensus signal.',
+  });
+  await invokeNormalizeHandler(handleSaveSchema, { concept: TRUSTED_DICTIONARY_SNAPSHOT_CONCEPT_NAME, schema: TRUSTED_DICTIONARY_SNAPSHOT_SCHEMA });
+  const provisioned = await resolveTrustedDictionarySnapshotConcept();
+  if (provisioned.error) {
+    throw new Error(`ensureTrustedDictionarySnapshotConcept failed to provision the concept: ${provisioned.error}`);
+  }
+  return provisioned;
+}
+
+async function handleTrustedDictionarySnapshot(req, res) {
+  try {
+    const { isOwner } = require('../../middleware/auth');
+    if (!isOwner(req) && !req.localTrusted) {
+      return res.status(403).json({ success: false, error: 'Owner access required' });
+    }
+    const { wotPov, userPubkey } = req.body || {};
+    // Server-side recompute — the GET's exact assembly (lazy require: adoption
+    // has no dependency back on normalize, this just dodges load-order coupling).
+    const { assembleTrustedDictionary } = require('../adoption');
+    const dict = await assembleTrustedDictionary({ wotPov, userPubkey });
+
+    // The sentinel-deferred rows stay in the VIEW (marked) but never ride
+    // into a published snapshot (AC-6, F5's keep-private semantics).
+    const members = dict.entries
+      .filter((e) => !e.sentinelDeferred)
+      .map((e) => ({ coord: e.coord, name: e.name, qualifyingAuthorCount: e.qualifyingAuthorCount }));
+
+    await ensureTrustedDictionarySnapshotConcept();
+
+    const now = new Date();
+    const computedAt = now.toISOString();
+    // Second-resolution stamp IN the name (the F1 disposition-naming idiom):
+    // create-element dedupes by name-under-superset, and each publish is a
+    // distinct dated record — a date-only name collides on the second
+    // same-day publish.
+    const stamp = computedAt.slice(0, 19).replace('T', ' ');
+    const name = `dictionary ${stamp} — ${members.length} concept${members.length === 1 ? '' : 's'}`;
+    const slug = `trusted-dictionary-${now.getTime()}`;
+
+    const minted = await invokeNormalizeHandler(handleCreateElement, {
+      concept: TRUSTED_DICTIONARY_SNAPSHOT_CONCEPT_NAME,
+      name,
+      random: true,
+      json: {
+        trustedDictionarySnapshot: {
+          name,
+          slug,
+          derivation: 'z-usage',
+          pov: { branch: dict.pov.branch, observer: dict.pov.observer },
+          cutoff: dict.cutoff,
+          threshold: dict.threshold,
+          computedAt,
+          memberCount: members.length,
+          members,
+        },
+      },
+    });
+    if (!minted.body || minted.body.success !== true) {
+      return res.status(minted.statusCode >= 400 ? minted.statusCode : 500)
+        .json({ success: false, error: (minted.body && minted.body.error) || 'snapshot mint failed' });
+    }
+    return res.json({
+      success: true,
+      snapshot: { name, slug, computedAt, memberCount: members.length, pov: dict.pov.branch },
+      element: minted.body.element,
+    });
+  } catch (error) {
+    console.error('normalize/trusted-dictionary-snapshot error:', error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+}
+
 async function registerNormalizeRoutes(app) {
   // Load TA signing key from secure storage at startup
   await loadTAKey();
@@ -5206,6 +5485,8 @@ async function registerNormalizeRoutes(app) {
   app.post('/api/normalize/record-priority-signal', handleRecordPrioritySignal);
   app.post('/api/normalize/restore-brain', handleRestoreBrain);
   app.post('/api/normalize/record-restore-drill', handleRecordRestoreDrill);
+  app.post('/api/normalize/adoption-disposition', handleAdoptionDisposition);
+  app.post('/api/normalize/trusted-dictionary-snapshot', handleTrustedDictionarySnapshot);
   app.post('/api/normalize/save-element-json', handleSaveElementJson);
   app.post('/api/normalize/create-property', handleCreateProperty);
   app.post('/api/normalize/generate-property-tree', handleGeneratePropertyTree);

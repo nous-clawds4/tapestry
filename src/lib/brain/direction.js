@@ -142,6 +142,18 @@ function deriveTerms(goalRecord, estimate) {
     ceiling: g.boundary != null ? g.boundary : null,
     estimate: hasEstimate ? estimate : null,
     estimateSource: hasEstimate ? 'goal' : 'absent',
+    // The goal's other three intent properties (goal-intent-fields ADR 0002
+    // d5), transcribed with the same idiom as the prose terms above: a stored
+    // value verbatim, a never-set one null — never a manufactured false or an
+    // empty prompt. NAMED LITERALLY on purpose. The shared list of the four is
+    // INTENT_FIELDS in src/lib/brain/goals.js, but this core is pinned
+    // dependency-free (operational-direction S1) and so cannot read it; these
+    // three must be kept in step with that list by hand.
+    // The estimate above keeps this surface's own word (chanceOfSuccess →
+    // estimate) and its derivation is byte-unchanged by that story.
+    prompt: g.prompt != null ? g.prompt : null,
+    needsHumanInput: g.needsHumanInput != null ? g.needsHumanInput : null,
+    needsBreakdown: g.needsBreakdown != null ? g.needsBreakdown : null,
   };
 }
 

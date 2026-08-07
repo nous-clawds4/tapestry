@@ -530,6 +530,12 @@ async function register(app) {
     app.post('/api/assistant/provision-key', assistantApi.handleProvisionAssistantKey);
     app.get('/api/assistant/status', assistantApi.handleAssistantStatus);
     app.get('/api/assistant/pubkey', assistantApi.handleGetTAPubkey);
+    // The composite avatar (ta-avatar #3, ADR 0003). Both are owner-only: the
+    // first reveals the owner's picture URL, the second writes into a directory
+    // that is served publicly.
+    const assistantAvatarApi = require('./assistant/avatar');
+    app.get('/api/assistant/owner-avatar', assistantAvatarApi.handleOwnerAvatar);
+    app.post('/api/assistant/avatar', assistantAvatarApi.uploadMiddleware, assistantAvatarApi.handleUploadAvatar);
 
     // ── Owner pubkey (public) ──
     const ownerApi = require('./owner');
@@ -581,6 +587,22 @@ async function register(app) {
     // ── Concept export (Story #9 / ADR 0004) — owner-only ──
     const { handleConceptExportSet } = require('./concept/exportSet.js');
     app.get('/api/concept/:handle/export-set', requireOwner, handleConceptExportSet);
+
+    // ── Self-declare as a Shared Concept (pointer-b on own header, ADR 0029 types) — owner-only,
+    //    gated in-handler like its b-disposition siblings below (ADR shared-concepts-adoption/0001) ──
+    const { handleConceptSelfDeclare } = require('./concept/selfDeclare.js');
+    app.post('/api/concept/:handle/self-declare', handleConceptSelfDeclare);
+
+    // ── b-disposition: wire-external + keep-private (ADR shared-concepts-adoption/0001) — owner-only,
+    //    gated in-handler (isOwner || localTrusted — the publishEvent.js:37 pattern) so loopback
+    //    scripts and the H-suite can operate them; see the ADR's dated correction note. ──
+    const { handleBAppend, handleBDefer } = require('./concept/bDisposition.js');
+    app.post('/api/concept/:handle/b-append', handleBAppend);
+    app.post('/api/concept/:handle/b-defer', handleBDefer);
+
+    // ── Adoption queue — server-assembled S3 ∖ S2a read (ADR shared-concepts-adoption/0002) ──
+    const { registerAdoptionRoutes } = require('./adoption/index.js');
+    registerAdoptionRoutes(app);
 
     // ── Phase B pull (Story #14 / ADR 0010, mechanism amended by ADR 0011) — owner-only ──
     const { handlePullCommunityClassThread } = require('./concept/pullClassThread.js');

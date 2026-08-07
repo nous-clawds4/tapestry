@@ -3,6 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import Breadcrumbs from '../../components/Breadcrumbs';
 import useBrainGoals from '../../hooks/useBrainGoals';
+import {
+  LABEL_ESTIMATE,
+  LABEL_NEEDS_YOU,
+  LABEL_TOO_BIG,
+  estimateLine,
+  flagWord,
+  promptDisplay,
+} from '../../utils/goalIntent';
 
 /**
  * Goals view (second-brain #1, ADR 0001 decision 5; decomposition tree
@@ -173,6 +181,10 @@ export default function Goals() {
         <span className="brain-goal-main">
           <span className="brain-goal-name">{g.name}</span>
           {showHint && <span className="brain-goal-hint">{HINT_LINE}</span>}
+          <span className="brain-goal-hint">
+            {`${LABEL_ESTIMATE} ${estimateLine(g.chanceOfSuccess)} · ${LABEL_NEEDS_YOU} ${flagWord(g.needsHumanInput)} · ${LABEL_TOO_BIG} ${flagWord(g.needsBreakdown)}`}
+          </span>
+          <span className="brain-goal-hint">{promptDisplay(g.prompt).text}</span>
         </span>
         <span className="brain-goal-standing">{g.standing || 'captured'}</span>
         {g.pointerCount > 0 && (

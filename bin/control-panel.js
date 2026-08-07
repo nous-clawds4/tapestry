@@ -148,6 +148,18 @@ app.use('/control', express.static(path.join(__dirname, '../public')));
 // (e.g. ./components/header/header.js, ./css/common.css) resolve correctly.
 app.use('/legacy', express.static(path.join(__dirname, '../public')));
 
+// Serve generated assistant composite avatars (ta-avatar #3, ADR 0003).
+// This is the only directory that is BOTH persisted (the tapestry-data volume at
+// /var/lib/brainstorm, docker-compose.yml) and web-served — a published kind 0
+// names a URL here, so it must survive redeploys and be fetchable without auth.
+// Only the owner-gated upload writes here, under server-generated content-hash
+// filenames, so a caller cannot choose a path. No directory index.
+app.use('/generated', express.static('/var/lib/brainstorm/generated', {
+    index: false,
+    fallthrough: true,
+    maxAge: '7d',
+}));
+
 // Serve Chart.js from node_modules
 app.use('/libs/chart.js', express.static(path.join(__dirname, '../node_modules/chart.js/dist')));
 app.use('/libs/chartjs-adapter-date-fns', express.static(path.join(__dirname, '../node_modules/chartjs-adapter-date-fns/dist')));

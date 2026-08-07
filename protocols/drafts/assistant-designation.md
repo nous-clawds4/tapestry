@@ -71,6 +71,10 @@ This precedence is **deterministic, author-controlled, and observer-independent*
 
 — an inherit-typed `b` tag (per [Inherit-From](./inherit-from.md), `community-reference` ADR 0029) deferring to the TA header. The precedence question then collapses into the ordinary resolution rule, and the deference is explicit and revocable.
 
+## Relationship to instance identity (BIBLE §31)
+
+This specification is the **external layer**: it tells a reader resolving a *human's* concept/DList headers which of the two possible authors governs. It does not define the instance's own first person. Per BIBLE §31 ("The Self and Its Keys"), the Tapestry instance is its own person whose key is the TA; the "authors my headers on my behalf" framing above is the external view of that arrangement — from the instance's own vantage the TA is not a delegate but the instance's identity, and the human user is a distinct correspondent. The dual-author precedence is unchanged by §31: personal-signed wins remains correct for the external question, and §31 ratifies it as a **security posture** grounded in custody asymmetry (the TA key is hot and server-resident; the personal key is cold and interactive). Wire format and behavior above are byte-unchanged.
+
 ## Deployment status (not normative)
 
 As of ratification this is **specified, not yet wired**: the deployment's kind-10040 generators do not yet emit the `39998:dlist-header` entry, and no resolver applies the precedence rule. Two follow-on engineering changes are required and tracked separately: a **merge-preserve** fix (the generators rebuild the full 10040 tag list from config, so the entry must be merged in rather than clobbered on regeneration) and a **resolver** that applies the precedence rule. See BIBLE §953 (Assistant Keys) for the deployment-side pointer.

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { queryRelay } from '../../api/relay';
 import { composeGraph } from './tapestryGraphModel';
 
@@ -26,14 +26,19 @@ async function readByUuid(uuid) {
 /**
  * Read a tapestry element from strfry by uuid, resolve its graph.imports one level
  * (also from strfry), and compose an as-authored graph model. Per ADR tapestries/0002.
- * Returns { loading, error, tapestry, rawGraph, composed, imports, degraded, notFound }.
- * A missing/invalid graph block → degraded; a failed import is skipped, not fatal.
+ * Returns { loading, error, tapestry, rawGraph, composed, imports, degraded, notFound,
+ * event, reload }. A missing/invalid graph block → degraded; a failed import is skipped,
+ * not fatal. `event` is the raw fetched element (the add-a-concept transform's input) and
+ * `reload()` re-reads the same coordinate from strfry — post-save visibility is by re-read,
+ * not optimism (ADR tapestries/0005 Decision 4).
  */
 export default function useTapestryGraph(uuid) {
   const [state, setState] = useState({
     loading: true, error: null, tapestry: null, rawGraph: null,
-    composed: null, imports: [], degraded: false, notFound: false,
+    composed: null, imports: [], degraded: false, notFound: false, event: null,
   });
+  const [reloadCount, setReloadCount] = useState(0);
+  const reload = useCallback(() => setReloadCount((c) => c + 1), []);
 
   useEffect(() => {
     let cancelled = false;
@@ -45,7 +50,7 @@ export default function useTapestryGraph(uuid) {
         if (cancelled) return;
 
         if (!ev) {
-          setState({ loading: false, error: null, tapestry: null, rawGraph: null, composed: null, imports: [], degraded: false, notFound: true });
+          setState({ loading: false, error: null, tapestry: null, rawGraph: null, composed: null, imports: [], degraded: false, notFound: true, event: null });
           return;
         }
 
@@ -54,7 +59,7 @@ export default function useTapestryGraph(uuid) {
         const graph = content.graph;
 
         if (!graph || !Array.isArray(graph.nodes)) {
-          setState({ loading: false, error: null, tapestry, rawGraph: graph || null, composed: null, imports: [], degraded: true, notFound: false });
+          setState({ loading: false, error: null, tapestry, rawGraph: graph || null, composed: null, imports: [], degraded: true, notFound: false, event: ev });
           return;
         }
 
@@ -71,16 +76,16 @@ export default function useTapestryGraph(uuid) {
 
         const imports = resolved.filter(Boolean);
         const composed = composeGraph(graph, imports.map((i) => i.graph));
-        setState({ loading: false, error: null, tapestry, rawGraph: graph, composed, imports, degraded: false, notFound: false });
+        setState({ loading: false, error: null, tapestry, rawGraph: graph, composed, imports, degraded: false, notFound: false, event: ev });
       } catch (err) {
         if (!cancelled) {
-          setState({ loading: false, error: err.message, tapestry: null, rawGraph: null, composed: null, imports: [], degraded: false, notFound: false });
+          setState({ loading: false, error: err.message, tapestry: null, rawGraph: null, composed: null, imports: [], degraded: false, notFound: false, event: null });
         }
       }
     })();
 
     return () => { cancelled = true; };
-  }, [uuid]);
+  }, [uuid, reloadCount]);
 
-  return state;
+  return { ...state, reload };
 }

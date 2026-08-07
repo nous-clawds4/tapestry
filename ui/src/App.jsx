@@ -50,6 +50,17 @@ import UserDetail from './pages/users/UserDetail';
 import TapestriesIndex from './pages/tapestries/Index';
 import NewTapestry from './pages/tapestries/NewTapestry';
 import TapestryDetail from './pages/tapestries/TapestryDetail';
+import SharedConceptsIndex from './pages/shared-concepts/Index';
+import SharedConceptDetail from './pages/shared-concepts/Detail';
+import NewSharedConcept from './pages/shared-concepts/New';
+import ActiveBTags from './pages/shared-concepts/ActiveBTags';
+import BTagDetail from './pages/shared-concepts/BTagDetail';
+import ActiveZTags from './pages/shared-concepts/ActiveZTags';
+import SelfDeclaredSharedConcepts from './pages/shared-concepts/SelfDeclaredSharedConcepts';
+import SelfDeclaredDetail from './pages/shared-concepts/SelfDeclaredDetail';
+import AdoptionQueue from './pages/shared-concepts/AdoptionQueue';
+import TrustedDictionary from './pages/shared-concepts/TrustedDictionary';
+import HeaderEvent from './pages/shared-concepts/HeaderEvent';
 import AboutIndex from './pages/about/Index';
 import SettingsIndex from './pages/settings/Index';
 
@@ -68,6 +79,9 @@ import ImportPage from './pages/io/ImportPage';
 import Dashboard from './pages/Dashboard';
 import Goals from './pages/brain/Goals';
 import GoalDetail from './pages/brain/GoalDetail';
+import { GoalsGraph, GoalRelationshipTypes } from './pages/brain/GoalPlaceholders';
+import Rationale from './pages/brain/Rationale';
+import GoalSets from './pages/brain/GoalSets';
 import Proposals from './pages/brain/Proposals';
 import BrainstormSearch from './pages/BrainstormSearch';
 import BrainstormProfile from './pages/BrainstormProfile';
@@ -207,6 +221,10 @@ const router = createBrowserRouter([
     children: [
       { index: true, element: <Dashboard /> },
       { path: 'goals', element: <Goals />, handle: { crumb: 'Goals' } },
+      { path: 'goals/graph', element: <GoalsGraph />, handle: { crumb: 'Goals (graph)' } },
+      { path: 'goals/rationale', element: <Rationale />, handle: { crumb: 'Rationale' } },
+      { path: 'goals/sets', element: <GoalSets />, handle: { crumb: 'Goal Sets' } },
+      { path: 'goals/relationship-types', element: <GoalRelationshipTypes />, handle: { crumb: 'Goal Relationship Types' } },
       { path: 'goals/:slug', element: <GoalDetail />, handle: { crumb: 'Detail' } },
       { path: 'proposals', element: <Proposals />, handle: { crumb: 'Proposals' } },
       {
@@ -350,6 +368,23 @@ const router = createBrowserRouter([
           { index: true, element: <TapestriesIndex />, handle: { crumb: 'View Tapestries' } },
           { path: 'new', element: <NewTapestry />, handle: { crumb: 'New Tapestry' } },
           { path: ':uuid', element: <TapestryDetail />, handle: { crumb: 'Detail' } },
+        ],
+      },
+      {
+        path: 'shared-concepts',
+        handle: { crumb: 'Shared Concepts' },
+        children: [
+          { index: true, element: <SharedConceptsIndex />, handle: { crumb: 'View Shared Concepts' } },
+          { path: 'new', element: <NewSharedConcept />, handle: { crumb: 'New Shared Concept' } },
+          { path: 'b-tags', element: <ActiveBTags />, handle: { crumb: 'Active b-tags' } },
+          { path: 'b-tags/:uuid', element: <BTagDetail />, handle: { crumb: 'b-tag Detail' } },
+          { path: 'z-tags', element: <ActiveZTags />, handle: { crumb: 'Active z-tags' } },
+          { path: 'self-declared', element: <SelfDeclaredSharedConcepts />, handle: { crumb: 'Self-declared Shared Concepts' } },
+          { path: 'self-declared/:uuid', element: <SelfDeclaredDetail />, handle: { crumb: 'Detail' } },
+          { path: 'adoption-queue', element: <AdoptionQueue />, handle: { crumb: 'Adoption Queue' } },
+          { path: 'dictionary', element: <TrustedDictionary />, handle: { crumb: 'Trusted Dictionary' } },
+          { path: 'header/:coord', element: <HeaderEvent />, handle: { crumb: 'Header Event' } },
+          { path: ':uuid', element: <SharedConceptDetail />, handle: { crumb: 'Detail' } },
         ],
       },
       { path: 'relationships', element: <RelationshipsIndex />, handle: { crumb: 'Relationships' } },

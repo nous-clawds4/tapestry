@@ -108,7 +108,7 @@ export function defaultCurationMethod(viewerPubkey) {
  *   `defaultCurationMethod(viewerPubkey)`.
  * @returns {Promise<object>} the signed Pin event.
  */
-export async function pinTag({ tag, curationMethod }) {
+export async function pinTag({ tag, curationMethod, localTaPubkey }) {
   if (!window.nostr) {
     throw new Error('No NIP-07 extension detected. Install one to pin tags.');
   }
@@ -127,7 +127,8 @@ export async function pinTag({ tag, curationMethod }) {
       ['d', dTag],
       ['e', tag.eventId],
       ['a', `39999:${tag.authorPubkey}:${tag.slug}`],
-      ['z', TAG_PINNING_HANDLE],
+      ['z', TAG_PINNING_HANDLE],                       // canonical (ADR-0015 literal) — unchanged
+      ...(/^[0-9a-f]{64}$/.test(localTaPubkey || '') ? [['z', `39998:${localTaPubkey}:tag-pinning`]] : []), // local (runtime TA) — W11 parity, ADR 0004
       ['curation-method', JSON.stringify(curation)],
     ],
     content: JSON.stringify({
@@ -331,7 +332,7 @@ export function computeNoteBookmarkDTag({ viewerPubkey, tagAuthorPubkey, tagSlug
  * @param {string[]} [args.writeRelays]
  * @returns {Promise<{signed, naddr, dTag, memberCount} | {skipped:true, memberCount:0, dTag}>}
  */
-export async function publishNoteBookmarkSetForPin({ tag, viewerPubkey, noteMethod = 'notes:net-endorsed', title, writeRelays } = {}) {
+export async function publishNoteBookmarkSetForPin({ tag, viewerPubkey, noteMethod = 'notes:net-endorsed', title, writeRelays, localTaPubkey } = {}) {
   if (!window.nostr) {
     throw new Error('No NIP-07 extension detected. Install one to export lists.');
   }
@@ -365,7 +366,8 @@ export async function publishNoteBookmarkSetForPin({ tag, viewerPubkey, noteMeth
     created_at: Math.floor(Date.now() / 1000),
     tags: [
       ['d', dTag],
-      ['z', TAG_PINNING_HANDLE],
+      ['z', TAG_PINNING_HANDLE],                       // canonical (ADR-0015 literal) — unchanged
+      ...(/^[0-9a-f]{64}$/.test(localTaPubkey || '') ? [['z', `39998:${localTaPubkey}:tag-pinning`]] : []), // local (runtime TA) — W11 parity, ADR 0004
       ['title', listTitle],
       ['description', `Notes tagged "${tag.name || tag.slug}", pinned by ${viewerPubkey.slice(0, 8)}…`],
       ...curated.map((n) => [elementTag, n.id]),

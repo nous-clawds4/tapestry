@@ -191,8 +191,45 @@ const teachItWhatMatters = require('./teach-it-what-matters.test.js');
 const theBrainSurvives = require('./the-brain-survives.test.js');
 // epic: operational-direction — Story 1 (goal-derived Director run terms).
 const operationalDirection = require('./operational-direction.test.js');
+// epic: goal-intent-fields — Story 1 (store the four when a goal is captured or updated).
+const storeTheFour = require('./store-the-four-when-a-goal-is-captured-or-updated.test.js');
+// epic: goal-intent-fields — Story 2 (return the four on every read surface).
+const returnTheFour = require('./return-the-four-on-every-read-surface.test.js');
+// epic: goal-intent-fields — Story 3 (show the four on the goal screens that already exist).
+const showTheFour = require('./show-the-four-on-the-goal-screens-that-already-exist.test.js');
 // bug — tapestry-key handlePut must await the async LMDB write (regression guard).
 const tapestryKeyPutAwait = require('./tapestry-key-put-await.test.js');
+// epic: tapestries — Story 5 (add a concept to a tapestry — add-only, same-coordinate republish).
+const addConceptToTapestry = require('./add-a-concept-to-a-tapestry.test.js');
+// epic: tapestries — Story 6 (take a concept back out — remove-only, same-coordinate republish).
+const takeAConceptBackOut = require('./take-a-concept-back-out.test.js');
+// epic: tapestries — Story 7 (brain-first tapestry authoring — publish-hook dual write).
+const brainFirstTapestryAuthoring = require('./brain-first-tapestry-authoring.test.js');
+// epic: ta-avatar — Story 1 (in-app badged TA avatar). S/R source class; the ACs
+// themselves are settled by the browser class, tests/brainstorm/ta-badged-avatar.spec.js.
+const inAppBadgedTaAvatar = require('./in-app-badged-ta-avatar.test.js');
+// epic: ta-avatar — Story 2 (recognizable published TA profile defaults). A/U/S are
+// stack-free; the H class asserts one invariant whose branch is chosen by whether the
+// instance under test has a publicly reachable address.
+const recognizablePublishedTaProfile = require('./recognizable-published-ta-profile.test.js');
+// epic: ta-avatar — Story 3 (the stamped composite). U/S are stack-free; the H class
+// SKIPs unless the reachable instance actually serves this story. AC1's preview and the
+// composite geometry are settled by tests/brainstorm/ta-composite-avatar.spec.js.
+const stampedCompositeAvatar = require('./stamped-composite-avatar.test.js');
+// epic: shared-concepts-adoption — Story 1 (b-coverage audit + guided disposition).
+const bCoverageAuditAndDisposition = require('./b-coverage-audit-and-disposition.test.js');
+// epic: shared-concepts-adoption — Story 2 (adoption-candidates queue).
+const adoptionCandidatesQueue = require('./adoption-candidates-queue.test.js');
+// epic: shared-concepts-adoption — Story 3 (inverse queue — publish candidates).
+const inverseQueuePublishCandidates = require('./inverse-queue-publish-candidates.test.js');
+// epic: shared-concepts-adoption — Story 4 (publish-time default stamping).
+const publishTimeDefaultStamping = require('./publish-time-default-stamping.test.js');
+// epic: shared-concepts-adoption — Story 5 (trusted dictionary).
+const trustedDictionary = require('./trusted-dictionary.test.js');
+// epic: shared-concepts-adoption — Story 7 (graph-derived twin picker).
+const adoptionTwins = require('./adoption-twins.test.js');
+// epic: shared-concepts-adoption — Story 9 (clickable rows → raw header event).
+const adoptionRawEventView = require('./adoption-raw-event-view.test.js');
 
 async function main() {
   console.log('Running Brainstorm tests...');
@@ -499,9 +536,47 @@ async function main() {
   const teachItWhatMattersResult = await teachItWhatMatters.run();
   const theBrainSurvivesResult = await theBrainSurvives.run();
   const operationalDirectionResult = await operationalDirection.run();
+  const storeTheFourResult = await storeTheFour.run();
+  const returnTheFourResult = await returnTheFour.run();
+  const showTheFourResult = await showTheFour.run();
+
+  console.log('\nin-app-badged-ta-avatar suite:');
+  const inAppBadgedTaAvatarResult = await inAppBadgedTaAvatar.run();
+  const recognizablePublishedTaProfileResult = await recognizablePublishedTaProfile.run();
+  const stampedCompositeAvatarResult = await stampedCompositeAvatar.run();
 
   console.log('\ntapestry-key-put-await suite:');
   const tapestryKeyPutAwaitResult = await tapestryKeyPutAwait.run();
+
+  console.log('\nadd-a-concept-to-a-tapestry suite:');
+  const addConceptToTapestryResult = await addConceptToTapestry.run();
+
+  console.log('\ntake-a-concept-back-out suite:');
+  const takeAConceptBackOutResult = await takeAConceptBackOut.run();
+
+  console.log('\nbrain-first-tapestry-authoring suite:');
+  const brainFirstTapestryAuthoringResult = await brainFirstTapestryAuthoring.run();
+
+  console.log('\nb-coverage-audit-and-disposition suite:');
+  const bCoverageAuditAndDispositionResult = await bCoverageAuditAndDisposition.run();
+
+  console.log('\nadoption-candidates-queue suite:');
+  const adoptionCandidatesQueueResult = await adoptionCandidatesQueue.run();
+
+  console.log('\ninverse-queue-publish-candidates suite:');
+  const inverseQueuePublishCandidatesResult = await inverseQueuePublishCandidates.run();
+
+  console.log('\npublish-time-default-stamping suite:');
+  const publishTimeDefaultStampingResult = await publishTimeDefaultStamping.run();
+
+  console.log('\ntrusted-dictionary suite:');
+  const trustedDictionaryResult = await trustedDictionary.run();
+
+  console.log('\nadoption-twins suite:');
+  const adoptionTwinsResult = await adoptionTwins.run();
+
+  console.log('\nadoption-raw-event-view suite:');
+  const adoptionRawEventViewResult = await adoptionRawEventView.run();
 
   console.log('\nTest Results');
   console.log('-------------');
@@ -932,6 +1007,43 @@ async function main() {
       ? `SKIP (${operationalDirectionResult.skipped} tests; preconditions not met)`
       : `${operationalDirectionResult.fail === 0 ? 'PASS' : 'FAIL'} (${operationalDirectionResult.pass} passed, ${operationalDirectionResult.fail} failed${operationalDirectionResult.skipped ? `, ${operationalDirectionResult.skipped} skipped` : ''})`;
   console.log(`operational-direction suite:                     ${operationalDirectionLine}`);
+  const storeTheFourLine =
+    (storeTheFourResult.pass + storeTheFourResult.fail) === 0 && storeTheFourResult.skipped
+      ? `SKIP (${storeTheFourResult.skipped} tests; preconditions not met)`
+      : `${storeTheFourResult.fail === 0 ? 'PASS' : 'FAIL'} (${storeTheFourResult.pass} passed, ${storeTheFourResult.fail} failed${storeTheFourResult.skipped ? `, ${storeTheFourResult.skipped} skipped` : ''})`;
+  console.log(`store-the-four suite:                            ${storeTheFourLine}`);
+  // OPEN.md #104/#106 — an all-skipped live class is otherwise invisible in the
+  // roll-up. Say which live classes actually ran.
+  console.log(`store-the-four H-class:                          ${storeTheFourResult.hExecuted} executed / ${storeTheFourResult.hSkipped} skipped`);
+  const returnTheFourLine =
+    (returnTheFourResult.pass + returnTheFourResult.fail) === 0 && returnTheFourResult.skipped
+      ? `SKIP (${returnTheFourResult.skipped} tests; preconditions not met)`
+      : `${returnTheFourResult.fail === 0 ? 'PASS' : 'FAIL'} (${returnTheFourResult.pass} passed, ${returnTheFourResult.fail} failed${returnTheFourResult.skipped ? `, ${returnTheFourResult.skipped} skipped` : ''})`;
+  console.log(`return-the-four suite:                           ${returnTheFourLine}`);
+  console.log(`return-the-four H-class:                         ${returnTheFourResult.hExecuted} executed / ${returnTheFourResult.hSkipped} skipped`);
+  const showTheFourLine =
+    (showTheFourResult.pass + showTheFourResult.fail) === 0 && showTheFourResult.skipped
+      ? `SKIP (${showTheFourResult.skipped} tests; preconditions not met)`
+      : `${showTheFourResult.fail === 0 ? 'PASS' : 'FAIL'} (${showTheFourResult.pass} passed, ${showTheFourResult.fail} failed${showTheFourResult.skipped ? `, ${showTheFourResult.skipped} skipped` : ''})`;
+  console.log(`show-the-four suite:                             ${showTheFourLine}`);
+  console.log(`show-the-four H-class:                           ${showTheFourResult.hExecuted} executed / ${showTheFourResult.hSkipped} skipped`);
+  console.log(`in-app-badged-ta-avatar suite:                   ${inAppBadgedTaAvatarResult.fail === 0 ? 'PASS' : 'FAIL'} (${inAppBadgedTaAvatarResult.pass} passed, ${inAppBadgedTaAvatarResult.fail} failed)`);
+  console.log(`in-app-badged-ta-avatar B-class:                 browser only — tests/brainstorm/ta-badged-avatar.spec.js (npm run test:playwright)`);
+  console.log(`recognizable-published-ta-profile suite:         ${recognizablePublishedTaProfileResult.fail === 0 ? 'PASS' : 'FAIL'} (${recognizablePublishedTaProfileResult.pass} passed, ${recognizablePublishedTaProfileResult.fail} failed${recognizablePublishedTaProfileResult.skipped ? `, ${recognizablePublishedTaProfileResult.skipped} skipped` : ''})`);
+  console.log(`recognizable-published-ta-profile H-class:       ${recognizablePublishedTaProfileResult.hExecuted} executed / ${recognizablePublishedTaProfileResult.hSkipped} skipped`);
+  console.log(`stamped-composite-avatar suite:                  ${stampedCompositeAvatarResult.fail === 0 ? 'PASS' : 'FAIL'} (${stampedCompositeAvatarResult.pass} passed, ${stampedCompositeAvatarResult.fail} failed${stampedCompositeAvatarResult.skipped ? `, ${stampedCompositeAvatarResult.skipped} skipped` : ''})`);
+  console.log(`stamped-composite-avatar H-class:                ${stampedCompositeAvatarResult.hExecuted} executed / ${stampedCompositeAvatarResult.hSkipped} skipped`);
+  console.log(`stamped-composite-avatar B-class:                browser only — tests/brainstorm/ta-composite-avatar.spec.js (npm run test:playwright)`);
+  console.log(`add-a-concept-to-a-tapestry suite:               ${addConceptToTapestryResult.fail === 0 ? 'PASS' : 'FAIL'} (${addConceptToTapestryResult.pass} passed, ${addConceptToTapestryResult.fail} failed)`);
+  console.log(`take-a-concept-back-out suite:                   ${takeAConceptBackOutResult.fail === 0 ? 'PASS' : 'FAIL'} (${takeAConceptBackOutResult.pass} passed, ${takeAConceptBackOutResult.fail} failed)`);
+  console.log(`brain-first-tapestry-authoring suite:            ${brainFirstTapestryAuthoringResult.fail === 0 ? 'PASS' : 'FAIL'} (${brainFirstTapestryAuthoringResult.pass} passed, ${brainFirstTapestryAuthoringResult.fail} failed, ${brainFirstTapestryAuthoringResult.skipped} skipped)`);
+  console.log(`b-coverage-audit-and-disposition suite:          ${bCoverageAuditAndDispositionResult.fail === 0 ? 'PASS' : 'FAIL'} (${bCoverageAuditAndDispositionResult.pass} passed, ${bCoverageAuditAndDispositionResult.fail} failed, ${bCoverageAuditAndDispositionResult.skipped} skipped)`);
+  console.log(`adoption-candidates-queue suite:                 ${adoptionCandidatesQueueResult.fail === 0 ? 'PASS' : 'FAIL'} (${adoptionCandidatesQueueResult.pass} passed, ${adoptionCandidatesQueueResult.fail} failed, ${adoptionCandidatesQueueResult.skipped} skipped)`);
+  console.log(`inverse-queue-publish-candidates suite:          ${inverseQueuePublishCandidatesResult.fail === 0 ? 'PASS' : 'FAIL'} (${inverseQueuePublishCandidatesResult.pass} passed, ${inverseQueuePublishCandidatesResult.fail} failed, ${inverseQueuePublishCandidatesResult.skipped} skipped)`);
+  console.log(`publish-time-default-stamping suite:             ${publishTimeDefaultStampingResult.fail === 0 ? 'PASS' : 'FAIL'} (${publishTimeDefaultStampingResult.pass} passed, ${publishTimeDefaultStampingResult.fail} failed, ${publishTimeDefaultStampingResult.skipped} skipped)`);
+  console.log(`trusted-dictionary suite:                        ${trustedDictionaryResult.fail === 0 ? 'PASS' : 'FAIL'} (${trustedDictionaryResult.pass} passed, ${trustedDictionaryResult.fail} failed, ${trustedDictionaryResult.skipped} skipped)`);
+  console.log(`adoption-twins suite:                            ${adoptionTwinsResult.fail === 0 ? 'PASS' : 'FAIL'} (${adoptionTwinsResult.pass} passed, ${adoptionTwinsResult.fail} failed, ${adoptionTwinsResult.skipped} skipped)`);
+  console.log(`adoption-raw-event-view suite:                   ${adoptionRawEventViewResult.fail === 0 ? 'PASS' : 'FAIL'} (${adoptionRawEventViewResult.pass} passed, ${adoptionRawEventViewResult.fail} failed, ${adoptionRawEventViewResult.skipped} skipped)`);
 
   const overallOk =
     configOk &&
@@ -1094,6 +1206,38 @@ async function main() {
     theBrainSurvivesResult.fail === 0 &&
     // operational-direction #1 — goal-derived Director run terms
     operationalDirectionResult.fail === 0 &&
+    // goal-intent-fields #1 — store the four when a goal is captured or updated
+    storeTheFourResult.fail === 0 &&
+    // goal-intent-fields #2 — return the four on every read surface
+    returnTheFourResult.fail === 0 &&
+    // goal-intent-fields #3 — show the four on the goal screens that already exist
+    showTheFourResult.fail === 0 &&
+    // ta-avatar #1 — in-app badged TA avatar (S/R source class; ACs live in the Playwright class)
+    inAppBadgedTaAvatarResult.fail === 0 &&
+    // ta-avatar #2 — recognizable published TA profile defaults
+    recognizablePublishedTaProfileResult.fail === 0 &&
+    // ta-avatar #3 — the stamped composite avatar (server half)
+    stampedCompositeAvatarResult.fail === 0 &&
+    // tapestries #5 — add a concept to a tapestry (add-only, same-coordinate republish)
+    addConceptToTapestryResult.fail === 0 &&
+    // tapestries #6 — take a concept back out (remove-only, same-coordinate republish)
+    takeAConceptBackOutResult.fail === 0 &&
+    // tapestries #7 — brain-first tapestry authoring (publish-hook dual write)
+    brainFirstTapestryAuthoringResult.fail === 0 &&
+    // shared-concepts-adoption #1 — b-coverage audit + guided disposition
+    bCoverageAuditAndDispositionResult.fail === 0 &&
+    // shared-concepts-adoption #2 — adoption-candidates queue
+    adoptionCandidatesQueueResult.fail === 0 &&
+    // shared-concepts-adoption #3 — inverse queue (publish candidates)
+    inverseQueuePublishCandidatesResult.fail === 0 &&
+    // shared-concepts-adoption #4 — publish-time default stamping
+    publishTimeDefaultStampingResult.fail === 0 &&
+    // shared-concepts-adoption #5 — trusted dictionary
+    trustedDictionaryResult.fail === 0 &&
+    // shared-concepts-adoption #7 — graph-derived twin picker
+    adoptionTwinsResult.fail === 0 &&
+    // shared-concepts-adoption #9 — clickable rows → raw header event
+    adoptionRawEventViewResult.fail === 0 &&
     harnessLintResult.fail === 0 &&
     harnessStatsResult.fail === 0 &&
     sessionStartResult.fail === 0 &&
@@ -1137,7 +1281,11 @@ async function main() {
     relationshipPrimitivesResult, relationshipPrimitivesProbeResult, moveNodesBetweenSetsUiResult,
     captureAGoalAndSeeItResult, firmwareConceptElementsSetsResult, tapestryPerConceptDetailViewsResult, structuresTheBrainCanTrustResult,
     breakAGoalIntoPiecesResult, attachTheWorldResult, sessionsReadTheBrainResult, theProposalLoopResult,
-    operationalDirectionResult,
+    operationalDirectionResult, storeTheFourResult, returnTheFourResult, showTheFourResult,
+    inAppBadgedTaAvatarResult, recognizablePublishedTaProfileResult, stampedCompositeAvatarResult,
+    addConceptToTapestryResult, takeAConceptBackOutResult, brainFirstTapestryAuthoringResult,
+    bCoverageAuditAndDispositionResult, adoptionCandidatesQueueResult, inverseQueuePublishCandidatesResult,
+    publishTimeDefaultStampingResult, trustedDictionaryResult, adoptionTwinsResult, adoptionRawEventViewResult,
   ].reduce((sum, r) => sum + ((r && r.skipped) || 0), 0);
   console.log(`Total skipped:                                   ${totalSkipped}`);
   console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);

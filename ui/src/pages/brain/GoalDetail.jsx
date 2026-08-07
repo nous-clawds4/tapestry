@@ -2,6 +2,15 @@ import { Link, useParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import Breadcrumbs from '../../components/Breadcrumbs';
 import useBrainGoalDetail from '../../hooks/useBrainGoalDetail';
+import {
+  LABEL_ESTIMATE,
+  LABEL_NEEDS_YOU,
+  LABEL_PROMPT,
+  LABEL_TOO_BIG,
+  estimateLine,
+  flagWord,
+  promptDisplay,
+} from '../../utils/goalIntent';
 
 /**
  * Goal detail — the one spine (second-brain #4, ADR 0004 d10; grows the minimal
@@ -180,6 +189,10 @@ export default function GoalDetail() {
       {goal.boundary && (
         <p className="brain-detail-field"><strong>Stays inside:</strong> {goal.boundary}</p>
       )}
+      <p className="brain-detail-field"><strong>{LABEL_ESTIMATE}</strong> {estimateLine(goal.chanceOfSuccess)}</p>
+      <p className="brain-detail-field"><strong>{LABEL_NEEDS_YOU}</strong> {flagWord(goal.needsHumanInput)}</p>
+      <p className="brain-detail-field"><strong>{LABEL_TOO_BIG}</strong> {flagWord(goal.needsBreakdown)}</p>
+      <p className="brain-detail-field brain-detail-prompt"><strong>{LABEL_PROMPT}</strong> {promptDisplay(goal.prompt, 0).text}</p>
       {showHint && <p className="brain-goal-hint">{HINT_LINE}</p>}
 
       <section className="brain-pointers">

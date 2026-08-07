@@ -1032,6 +1032,57 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
   flex-shrink: 0;
   margin: -8px 0;
 }
+/* Shared avatar (components/Avatar.jsx) — the picture, the lettered fallback, and
+   the Tapestry Assistant badge overlaid on either. ADR ta-avatar/0001.
+   The size comes from the component as an inline width/height on .avatar-wrap. */
+.avatar-wrap {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+  /* The badge's separation ring. Defaults to the table-row background, which is
+     where most avatars in this app live; a surface on a different background
+     overrides this one property rather than restyling the badge. */
+  --avatar-ring: var(--bg-secondary);
+}
+.avatar-img,
+.avatar-initial {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+}
+.avatar-img {
+  object-fit: cover;
+}
+.avatar-initial {
+  background: var(--bg-tertiary);
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  user-select: none;
+}
+.avatar-ta-badge {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  width: 45%;
+  height: 45%;
+  /* Percentages alone stop being legible on a small avatar. */
+  min-width: 14px;
+  min-height: 14px;
+  border-radius: 50%;
+  border: 2px solid var(--avatar-ring);
+  box-sizing: border-box;
+  background: #9546ed;
+}
+/* Table rows are 10px-padded, so a 40px circle would stretch them. This
+   compensation is true of tables and of nothing else, so it lives here rather
+   than inside the shared component. (It is what .author-avatar carried below.) */
+.author-cell .avatar-wrap {
+  margin: -8px 0;
+}
+
 .author-avatar-placeholder {
   width: 40px;
   height: 40px;
@@ -8199,6 +8250,7 @@ code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.85em; }
 .brain-detail-meta a { color: var(--accent); text-decoration: none; }
 .brain-detail-statement { max-width: 70ch; }
 .brain-detail-field { max-width: 70ch; }
+.brain-detail-prompt { white-space: pre-wrap; }
 @media (max-width: 768px) {
   .brain-goal-row { padding-left: calc(8px + var(--brain-depth, 0) * 12px); }
 }

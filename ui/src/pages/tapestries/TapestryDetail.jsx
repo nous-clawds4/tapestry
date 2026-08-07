@@ -2,7 +2,11 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import Breadcrumbs from '../../components/Breadcrumbs';
 import JsonView from '../../components/JsonView';
+import { useAuth } from '../../context/AuthContext';
+import { useConfig } from '../../context/ConfigContext';
 import useTapestryGraph from './useTapestryGraph';
+import AddConceptToTapestry from './AddConceptToTapestry';
+import RemoveConceptFromTapestry from './RemoveConceptFromTapestry';
 import TapestryIntegrationGraph from './TapestryIntegrationGraph';
 import { inferNodeType, groupRelationships, nodeName } from './tapestryGraphModel';
 import { fetchConceptCoreNodes } from '../../api/conceptCoreNodes';
@@ -171,10 +175,32 @@ function ConceptDetail({ concept }) {
 
 export default function TapestryDetail() {
   const { uuid } = useParams();
-  const { loading, error, tapestry, rawGraph, composed, degraded, notFound } = useTapestryGraph(uuid);
+  const { loading, error, tapestry, rawGraph, composed, imports, degraded, notFound, event, reload } = useTapestryGraph(uuid);
   const [selected, setSelected] = useState({ kind: 'integration', key: 'graph' });
+  const { user } = useAuth();
+  const { taPubkey } = useConfig();
 
   const title = tapestry?.title || 'Tapestry';
+
+  // ONE owner-strict edit gate for BOTH affordances, add and remove (ADR tapestries/0005
+  // Decision 3, Director ruling; renamed + shared per ADR tapestries/0006 Decision 4):
+  // the affordances render iff the viewer's classification is 'owner' (an admin who is not
+  // the owner gets NO affordance — deliberately narrower than #3's owner-or-admin create
+  // gate) AND the tapestry's author is this instance's TA (runtime-resolved, never a
+  // literal) or the owner's own session key. Any other author is not editable here.
+  const canEdit = user?.classification === 'owner' && !!event &&
+    (event.pubkey === taPubkey || event.pubkey === user?.pubkey);
+
+  // After a take-out is published the page RE-READS the same coordinate (reload — the
+  // same read any session performs; ADR 0005 Decision 4, unchanged mechanism); and iff
+  // the removed member was the selected concept, reset the pane so the page never shows
+  // the detail of a concept that is no longer a member (ADR tapestries/0006 Decision 5).
+  const handleRemoved = (node) => {
+    if (selected.kind === 'concept' && node && selected.slug === node.slug) {
+      setSelected({ kind: 'integration', key: 'graph' });
+    }
+    reload();
+  };
 
   if (loading) {
     return <div className="page"><Breadcrumbs /><h1>🧵 {title}</h1><p>Loading tapestry…</p></div>;
@@ -191,6 +217,13 @@ export default function TapestryDetail() {
         <Breadcrumbs />
         <h1>🧵 {title}</h1>
         <p className="placeholder">This tapestry has no graph to explore yet — nothing to explore.</p>
+        {/* First-add path (ADR 0005 Decisions 1-A + 4): a GRAPH-LESS tapestry (rawGraph === null,
+            the live b0b48b00 shape) can still be grown — the first add creates the minimal
+            envelope and un-degrades it. A MALFORMED graph (degraded with rawGraph !== null)
+            gets no affordance; the transform would refuse it anyway. */}
+        {rawGraph === null && canEdit && (
+          <AddConceptToTapestry event={event} onAdded={reload} />
+        )}
       </div>
     );
   }
@@ -217,6 +250,8 @@ export default function TapestryDetail() {
               {c.name || c.slug}
             </button>
           ))}
+          {canEdit && <RemoveConceptFromTapestry event={event} imports={imports} onRemoved={handleRemoved} />}
+          {canEdit && <AddConceptToTapestry event={event} onAdded={reload} />}
 
           <div className="firmware-sidebar-divider">Integrations</div>
           {INTEGRATION_ITEMS.map((it) => (

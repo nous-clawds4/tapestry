@@ -16,7 +16,7 @@ jobs:
           host: ${{ secrets.DEPLOY_HOST_COMMUNITIES }}
           username: ${{ secrets.DEPLOY_USER_COMMUNITIES }}
           key: ${{ secrets.DEPLOY_SSH_KEY_COMMUNITIES }}
-          command_timeout: 25m
+          command_timeout: 50m
           script: |
             cd /opt/tapestry
             git checkout -- docker-compose.yml 2>/dev/null
