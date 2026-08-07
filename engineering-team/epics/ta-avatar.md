@@ -1,6 +1,6 @@
 # Epic: Recognizable TA Avatar
 
-**Status:** Active
+**Status:** Done
 **Created:** 2026-08-06
 **Book:** `engineering-team/audits/ta-avatar/book.md` (no PRD — acceptance frame confirmed at kickoff)
 
