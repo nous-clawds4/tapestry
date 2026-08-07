@@ -86,8 +86,11 @@ test('W2 (AC-1): triggered by pull_request targeting staging AND main (pre-merge
 test('W3 (AC-1): checks out with full history (fetch-depth: 0) so lint L9/L10 stay live in CI', () => {
   const src = workflow();
   const f = flat(src);
-  assert(/uses:\s*actions\/checkout@v4/.test(f),
-    'must use actions/checkout@v4 (ADR 0001 Implementation notes).');
+  // v4 → v5 (2026-08-06, chore/ci-green, operator-approved): GitHub deprecated
+  // the Node 20 runtime and force-runs node20-targeting actions on Node 24;
+  // v5 targets Node 24 natively. Supersedes ADR 0001's @v4 implementation note.
+  assert(/uses:\s*actions\/checkout@v5/.test(f),
+    'must use actions/checkout@v5 (Node-24-native; chore/ci-green 2026-08-06, superseding ADR 0001 Implementation notes).');
   assert(/fetch-depth:\s*0/.test(f),
     'checkout must set fetch-depth: 0 — a shallow clone silently disables harness-lint L9/L10 in the CI real-repo pass (ADR 0001 Decision table).');
 });
@@ -95,8 +98,8 @@ test('W3 (AC-1): checks out with full history (fetch-depth: 0) so lint L9/L10 st
 test('W4 (AC-1): sets up Node 22 (production Dockerfile parity) with npm cache', () => {
   const src = workflow();
   const f = flat(src);
-  assert(/uses:\s*actions\/setup-node@v4/.test(f),
-    'must use actions/setup-node@v4 (ADR 0001 Implementation notes).');
+  assert(/uses:\s*actions\/setup-node@v5/.test(f),
+    'must use actions/setup-node@v5 (Node-24-native; chore/ci-green 2026-08-06, superseding ADR 0001 Implementation notes).');
   assert(/node-version:\s*['"]?22['"]?/.test(f),
     'node-version must be 22 to match the production Dockerfile (nodesource 22.x); ADR 0001 Decision table.');
   assert(/cache:\s*['"]?npm['"]?/.test(f),
