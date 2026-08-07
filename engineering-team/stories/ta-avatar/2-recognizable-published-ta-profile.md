@@ -38,7 +38,10 @@ what it is and whose it is — even before the full stamped composite (story 3) 
 
 ## Concepts touched
 
-None known — same note as story 1; the Architect should confirm against the concept graph.
+None. **Confirmed at Architecture** against the live concept graph (48 concepts; `/summaries` then
+the three-call pattern on `39998:<TA>:image`). An `image` concept exists but models images as
+knowledge-graph nodes, not static brand assets served over HTTP — see ADR 0002 for why it does not
+apply. No firmware reinstall.
 
 ## Out of scope
 
@@ -52,6 +55,6 @@ None.
 
 ## Linked artifacts
 
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/ta-avatar/0002-branded-published-profile-defaults.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
