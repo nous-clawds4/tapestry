@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import DataTable from '../../components/DataTable';
 import Breadcrumbs from '../../components/Breadcrumbs';
 import AuthorCell from '../../components/AuthorCell';
 import useProfiles from '../../hooks/useProfiles';
-import { useConfig } from '../../context/ConfigContext';
 import { declareAndBroadcast, defer as deferHeader, wireAndBroadcast } from '../../utils/dispositionActions';
 
 /**
@@ -22,7 +22,11 @@ import { declareAndBroadcast, defer as deferHeader, wireAndBroadcast } from '../
  * Nothing ever auto-acts.
  */
 export default function AdoptionQueue() {
-  const { taPubkey } = useConfig();
+  const navigate = useNavigate();
+  // Row click (story #9): any queue row opens the raw event behind it.
+  const openHeaderEvent = (coord) => {
+    if (coord) navigate(`/tapestry/shared-concepts/header/${encodeURIComponent(coord)}`);
+  };
   const [data, setData] = useState(null); // { nominations, declined, publishCandidates, deferredInUse } | null
   const [error, setError] = useState(null);
   const [view, setView] = useState('theirs'); // 'theirs' | 'mine' | 'declined'
@@ -52,30 +56,20 @@ export default function AdoptionQueue() {
   };
   useEffect(() => { load(); }, []);
 
-  // Twin picker source (F1's adopt action): this instance's own headers.
+  // Twin picker source (F1's adopt action; story #7): my WIREABLE concepts —
+  // graph concept headers ∩ has a kind-39998 event, server-assembled. The
+  // graph is the identity source (BIBLE §30); raw wire enumeration offered
+  // dead orphan addresses.
   useEffect(() => {
-    if (!taPubkey) return;
     (async () => {
       try {
-        const filter = encodeURIComponent(JSON.stringify({ kinds: [39998], authors: [taPubkey] }));
-        const resp = await fetch(`/api/strfry/scan?filter=${filter}`);
+        const resp = await fetch('/api/adoption-twins');
         const json = await resp.json();
-        const events = json.events || json.data || [];
-        const byD = new Map();
-        for (const ev of events) {
-          const d = ev.tags?.find((t) => t[0] === 'd')?.[1];
-          if (d == null) continue;
-          const prev = byD.get(d);
-          if (!prev || ev.created_at > prev.created_at) byD.set(d, ev);
-        }
-        const rows = [...byD.entries()].map(([d, ev]) => ({
-          handle: `39998:${taPubkey}:${d}`,
-          name: ev.tags?.find((t) => t[0] === 'names')?.[1] || d,
-        })).sort((a, b) => a.name.localeCompare(b.name));
-        setTwins(rows);
+        if (!resp.ok || json.success === false) throw new Error(json.error || `status ${resp.status}`);
+        setTwins(json.twins || []);
       } catch { setTwins([]); }
     })();
-  }, [taPubkey]);
+  }, []);
 
   const authors = useMemo(
     () => [...new Set([...(data?.nominations || []), ...(data?.declined || [])].map((r) => r.author).filter(Boolean))],
@@ -140,8 +134,14 @@ export default function AdoptionQueue() {
   const nominationColumns = [
     { key: 'name', label: 'Name', render: (v, r) => v || <span className="text-muted">{r.coord.slice(0, 24)}…</span> },
     { key: 'author', label: 'Author', render: (v) => <AuthorCell pubkey={v} profiles={profiles} /> },
-    { key: 'eventCount', label: 'Events' },
-    { key: 'authorCount', label: 'Authors' },
+    {
+      key: 'eventCount',
+      label: <span title="How many events use this concept — each carries a z-tag pointing at this concept header. The concept author's own filings don't count.">Events</span>,
+    },
+    {
+      key: 'authorCount',
+      label: <span title="How many distinct people signed those z-tagged events.">Authors</span>,
+    },
     { key: 'usedByMe', label: 'Used by me', render: (v) => (v ? <span title="my own filings use this concept (S3a)">✓</span> : <span className="text-muted">—</span>) },
     {
       key: 'coord', label: '', render: (coord) => (
@@ -203,6 +203,14 @@ export default function AdoptionQueue() {
     },
   ];
 
+  // Per-view explainers (story #8): each table says what it is and what the
+  // buttons do, in the page's plain proposal-loop voice.
+  const VIEW_EXPLAINERS = {
+    theirs: "Shared concepts published by others that people are actively using by way of the z-tag, included in an element's nostr event to point to the concept header. These elements may be published by you (the 'Used by me' check) and/or by others. Adopt one to wire it (via the b-tag) to your own matching concept, Recognize it in your registry (add it as an element of the concept for Shared Concepts), or Decline to keep it out of this queue.",
+    mine: 'Your own concepts that other people already use — 📄 counts filings made under your concept, 🔗 counts affiliations pointing at it. Submit one to offer it as a Shared Concept, or Keep private to stop this page from suggesting it.',
+    declined: 'Nominations you turned down. Nothing is deleted — they simply stay out of the queue until you Un-decline them.',
+  };
+
   const openNom = (data?.nominations || []).find((n) => n.coord === openCoord) || null;
   const viewBtn = (key, label) => (
     <button
@@ -222,11 +230,15 @@ export default function AdoptionQueue() {
         The adoption loop, both directions. The system nominates; you ratify. Nothing happens on its own.
       </p>
 
-      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem', flexWrap: 'wrap' }}>
         {viewBtn('theirs', 'Theirs to adopt')}
         {viewBtn('mine', 'Mine to publish')}
         {viewBtn('declined', 'Declined')}
       </div>
+
+      <p className="text-muted" style={{ fontSize: '0.85rem', marginBottom: '1rem', maxWidth: '52rem' }}>
+        {VIEW_EXPLAINERS[view]}
+      </p>
 
       {message && <p style={{ fontSize: '0.85rem' }}>{message}</p>}
 
@@ -246,13 +258,19 @@ export default function AdoptionQueue() {
               <option value="">Choose my twin header…</option>
               {(twins || []).map((t) => <option key={t.handle} value={t.handle}>{t.name}</option>)}
             </select>
-            <button className="btn btn-primary" disabled={busy || !twinChoice} onClick={() => adopt(openNom)}>
+            <button className="btn btn-primary" disabled={busy || !twinChoice}
+              title="Writes a pointer b-tag on your chosen concept header and rebroadcasts it — your concept declares correspondence to this one, and items you publish under it will carry both addresses."
+              onClick={() => adopt(openNom)}>
               🔗 Adopt (wire my twin)
             </button>
-            <button className="btn" disabled={busy} onClick={() => recognize(openNom)}>
+            <button className="btn" disabled={busy}
+              title="Adds this concept as an element of your Shared Concepts registry — catalogued and tracked, with no b-tag written and no affiliation claimed."
+              onClick={() => recognize(openNom)}>
               📒 Recognize in registry
             </button>
-            <button className="btn" disabled={busy} onClick={() => disposition(openNom.coord, 'declined', 'Declined — it will stay out of the queue until you reverse it.')}>
+            <button className="btn" disabled={busy}
+              title="Records a dated keep-it-out stance. Nothing is deleted — reverse it any time from the Declined view."
+              onClick={() => disposition(openNom.coord, 'declined', 'Declined — it will stay out of the queue until you reverse it.')}>
               🚫 Decline
             </button>
           </div>
@@ -266,6 +284,7 @@ export default function AdoptionQueue() {
         <DataTable
           columns={declinedColumns}
           data={data.declined}
+          onRowClick={(row) => openHeaderEvent(row.target)}
           emptyMessage="Nothing declined — every nomination is still open or adopted."
         />
       ) : view === 'mine' ? (
@@ -273,6 +292,7 @@ export default function AdoptionQueue() {
           <DataTable
             columns={mineColumns}
             data={data.publishCandidates}
+            onRowClick={(row) => openHeaderEvent(row.coord)}
             emptyMessage="Nothing to publish — every header others use is offered or deliberately private."
           />
           {data.deferredInUse.length > 0 && (
@@ -282,7 +302,7 @@ export default function AdoptionQueue() {
               </button>
               {revealDeferred && (
                 <div style={{ marginTop: '0.5rem' }}>
-                  <DataTable columns={deferredColumns} data={data.deferredInUse} emptyMessage="" />
+                  <DataTable columns={deferredColumns} data={data.deferredInUse} onRowClick={(row) => openHeaderEvent(row.coord)} emptyMessage="" />
                 </div>
               )}
             </div>
@@ -292,6 +312,7 @@ export default function AdoptionQueue() {
         <DataTable
           columns={nominationColumns}
           data={data.nominations}
+          onRowClick={(row) => openHeaderEvent(row.coord)}
           emptyMessage="The queue is empty — everything in use is adopted, recognized, or declined."
         />
       )}

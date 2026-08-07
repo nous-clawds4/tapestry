@@ -255,9 +255,55 @@ async function handleTrustedDictionary(req, res) {
   }
 }
 
+/**
+ * The twin picker's population (story #7): MY WIREABLE concepts — graph
+ * concept headers ∩ has a kind-39998 event. The graph is the identity source
+ * (BIBLE §30); the event requirement exists because Adopt appends a
+ * pointer-b to the twin's EVENT and republishes it. Same-uuid graph
+ * duplicates collapse in the aggregation; event-only wire addresses
+ * (orphans, fixtures) never appear.
+ */
+async function handleAdoptionTwins(req, res) {
+  try {
+    const taPubkey = getOwnerAssistantPubkey();
+    if (!taPubkey) {
+      return res.status(500).json({ success: false, error: 'TA pubkey unavailable' });
+    }
+    const prefix = `39998:${taPubkey}:`;
+
+    const rows = await runCypher(
+      `MATCH (h:NostrEvent)
+       WHERE (h:ListHeader OR h:ClassThreadHeader OR h:ConceptHeader)
+         AND h.uuid STARTS WITH $prefix
+       WITH h.uuid AS uuid, collect(h.name)[0] AS name
+       RETURN uuid, name`,
+      { prefix },
+    );
+
+    const eventCoords = new Set(await strfryScanStream(
+      { kinds: [39998], authors: [taPubkey] },
+      (ev) => {
+        const d = (ev.tags || []).find((t) => t && t[0] === 'd')?.[1];
+        return d == null ? null : `39998:${ev.pubkey}:${d}`;
+      },
+    ));
+
+    const twins = rows
+      .filter((r) => r.uuid && eventCoords.has(r.uuid))
+      .map((r) => ({ handle: r.uuid, name: r.name || r.uuid.slice(prefix.length) }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+
+    return res.json({ success: true, twins });
+  } catch (error) {
+    console.error('adoption-twins error:', error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+}
+
 function registerAdoptionRoutes(app) {
   app.get('/api/adoption-queue', handleAdoptionQueue);
   app.get('/api/trusted-dictionary', handleTrustedDictionary);
+  app.get('/api/adoption-twins', handleAdoptionTwins);
 }
 
 module.exports = { registerAdoptionRoutes, assembleTrustedDictionary };

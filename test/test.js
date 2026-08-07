@@ -226,6 +226,10 @@ const inverseQueuePublishCandidates = require('./inverse-queue-publish-candidate
 const publishTimeDefaultStamping = require('./publish-time-default-stamping.test.js');
 // epic: shared-concepts-adoption — Story 5 (trusted dictionary).
 const trustedDictionary = require('./trusted-dictionary.test.js');
+// epic: shared-concepts-adoption — Story 7 (graph-derived twin picker).
+const adoptionTwins = require('./adoption-twins.test.js');
+// epic: shared-concepts-adoption — Story 9 (clickable rows → raw header event).
+const adoptionRawEventView = require('./adoption-raw-event-view.test.js');
 
 async function main() {
   console.log('Running Brainstorm tests...');
@@ -567,6 +571,12 @@ async function main() {
 
   console.log('\ntrusted-dictionary suite:');
   const trustedDictionaryResult = await trustedDictionary.run();
+
+  console.log('\nadoption-twins suite:');
+  const adoptionTwinsResult = await adoptionTwins.run();
+
+  console.log('\nadoption-raw-event-view suite:');
+  const adoptionRawEventViewResult = await adoptionRawEventView.run();
 
   console.log('\nTest Results');
   console.log('-------------');
@@ -1032,6 +1042,8 @@ async function main() {
   console.log(`inverse-queue-publish-candidates suite:          ${inverseQueuePublishCandidatesResult.fail === 0 ? 'PASS' : 'FAIL'} (${inverseQueuePublishCandidatesResult.pass} passed, ${inverseQueuePublishCandidatesResult.fail} failed, ${inverseQueuePublishCandidatesResult.skipped} skipped)`);
   console.log(`publish-time-default-stamping suite:             ${publishTimeDefaultStampingResult.fail === 0 ? 'PASS' : 'FAIL'} (${publishTimeDefaultStampingResult.pass} passed, ${publishTimeDefaultStampingResult.fail} failed, ${publishTimeDefaultStampingResult.skipped} skipped)`);
   console.log(`trusted-dictionary suite:                        ${trustedDictionaryResult.fail === 0 ? 'PASS' : 'FAIL'} (${trustedDictionaryResult.pass} passed, ${trustedDictionaryResult.fail} failed, ${trustedDictionaryResult.skipped} skipped)`);
+  console.log(`adoption-twins suite:                            ${adoptionTwinsResult.fail === 0 ? 'PASS' : 'FAIL'} (${adoptionTwinsResult.pass} passed, ${adoptionTwinsResult.fail} failed, ${adoptionTwinsResult.skipped} skipped)`);
+  console.log(`adoption-raw-event-view suite:                   ${adoptionRawEventViewResult.fail === 0 ? 'PASS' : 'FAIL'} (${adoptionRawEventViewResult.pass} passed, ${adoptionRawEventViewResult.fail} failed, ${adoptionRawEventViewResult.skipped} skipped)`);
 
   const overallOk =
     configOk &&
@@ -1222,6 +1234,10 @@ async function main() {
     publishTimeDefaultStampingResult.fail === 0 &&
     // shared-concepts-adoption #5 — trusted dictionary
     trustedDictionaryResult.fail === 0 &&
+    // shared-concepts-adoption #7 — graph-derived twin picker
+    adoptionTwinsResult.fail === 0 &&
+    // shared-concepts-adoption #9 — clickable rows → raw header event
+    adoptionRawEventViewResult.fail === 0 &&
     harnessLintResult.fail === 0 &&
     harnessStatsResult.fail === 0 &&
     sessionStartResult.fail === 0 &&
@@ -1269,7 +1285,7 @@ async function main() {
     inAppBadgedTaAvatarResult, recognizablePublishedTaProfileResult, stampedCompositeAvatarResult,
     addConceptToTapestryResult, takeAConceptBackOutResult, brainFirstTapestryAuthoringResult,
     bCoverageAuditAndDispositionResult, adoptionCandidatesQueueResult, inverseQueuePublishCandidatesResult,
-    publishTimeDefaultStampingResult, trustedDictionaryResult,
+    publishTimeDefaultStampingResult, trustedDictionaryResult, adoptionTwinsResult, adoptionRawEventViewResult,
   ].reduce((sum, r) => sum + ((r && r.skipped) || 0), 0);
   console.log(`Total skipped:                                   ${totalSkipped}`);
   console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);
