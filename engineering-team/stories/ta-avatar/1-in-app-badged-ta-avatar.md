@@ -44,9 +44,9 @@ instantly recognize both that the author is the assistant and whose instance it 
 
 ## Concepts touched
 
-None known — the TA is an infrastructure identity, not a concept-graph concept. The local stack was
-not reachable at planning time; the Architect should confirm via the concept-graph summaries that no
-concept models the assistant identity before assuming so.
+None. **Confirmed at Architecture** against the live concept graph (48 concepts; `/summaries` then
+`/neighbors` on `39998:<TA>:nostr-user`): no concept models the assistant identity, and this story
+defines no graph structure. No firmware reinstall.
 
 ## Out of scope
 
@@ -63,6 +63,6 @@ None. (Scope — full composite, published — was ratified at kickoff; this sto
 
 ## Linked artifacts
 
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/ta-avatar/0001-shared-avatar-with-ta-badge-overlay.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
