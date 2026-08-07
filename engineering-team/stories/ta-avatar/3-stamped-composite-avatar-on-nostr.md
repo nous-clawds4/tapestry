@@ -85,4 +85,5 @@ the original check would have refused.)*
 - ADR: `engineering-team/decisions/ta-avatar/0003-owner-composited-avatar-hosted-by-the-instance.md`
 - Test plan: `engineering-team/stories/ta-avatar/3-stamped-composite-avatar-on-nostr.test-plan.md`
   (tests: `test/stamped-composite-avatar.test.js` + `tests/brainstorm/ta-composite-avatar.spec.js`)
-- Review: `engineering-team/reviews/ta-avatar/3-stamped-composite-avatar-on-nostr.md` — **PASS** 2026-08-07 (round 1 CHANGES_REQUESTED on two lines of the outbound fetch; round 2 PASS after `fe613e46`)
+- Review: `engineering-team/reviews/ta-avatar/3-stamped-composite-avatar-on-nostr.md` — **PASS** 2026-08-07
+  (two rounds; the first returned two asks on the outbound fetch, both fixed in `fe613e46`)
