@@ -1,6 +1,6 @@
 # Story 2: Recognizable published TA profile defaults
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-08-06
 **Type:** Feature
 **Epic:** `ta-avatar`
@@ -78,4 +78,4 @@ None.
 - ADR: `engineering-team/decisions/ta-avatar/0002-branded-published-profile-defaults.md`
 - Test plan: `engineering-team/stories/ta-avatar/2-recognizable-published-ta-profile.test-plan.md`
   (tests: `test/recognizable-published-ta-profile.test.js`)
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/ta-avatar/2-recognizable-published-ta-profile.md` — **PASS** 2026-08-07
