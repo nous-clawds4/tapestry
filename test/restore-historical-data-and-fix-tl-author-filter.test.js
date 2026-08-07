@@ -294,17 +294,26 @@ t('AC-6 / R-5: publishProfileTag.js still hardcodes the literal (Story 16 delibe
 
 t('Caller: ui/src/pages/Tag.jsx pinTag(...) call no longer passes taPubkey', () => {
   const src = readSafe(CLIENT_TAG_PAGE);
-  // Find every `pinTag({ ... })` call and assert taPubkey isn't in its arg destructuring.
+  // Find every `pinTag({ ... })` call and assert the REMOVED `taPubkey`
+  // parameter isn't reintroduced AS A KEY. Amended 2026-08-06 (ADR
+  // shared-concepts-adoption/0004): the W11 personal-stamp param
+  // `localTaPubkey` legitimately carries the runtime TA as its VALUE
+  // (`localTaPubkey: taPubkey`, sourced from useConfig — the very pattern
+  // ADR 0015 sanctioned for publishProfileTagAssertion). The guard's intent —
+  // no revival of the removed handle-composition parameter — is preserved by
+  // checking parameter KEYS, not raw token presence.
   const callRe = /\bpinTag\s*\(\s*\{([^}]*)\}\s*\)/g;
   let match;
   let foundAny = false;
   while ((match = callRe.exec(src)) !== null) {
     foundAny = true;
     const args = match[1];
+    const keys = [...args.matchAll(/(?:^|,)\s*(\w+)\s*(?=[:,}]|$)/g)].map((m) => m[1]);
     assert(
-      !/\btaPubkey\b/.test(args),
-      'Caller: Tag.jsx pinTag(...) calls must NOT pass `taPubkey` (per ADR 0015 — the parameter ' +
-        `is removed). Found call with args: "${args.trim()}".`
+      !keys.includes('taPubkey'),
+      'Caller: Tag.jsx pinTag(...) calls must NOT pass a `taPubkey` PARAMETER (per ADR 0015 — ' +
+        'removed; `localTaPubkey:` is the sanctioned ADR-0004 personal-stamp param). ' +
+        `Found call with args: "${args.trim()}".`
     );
   }
   assert(foundAny,
