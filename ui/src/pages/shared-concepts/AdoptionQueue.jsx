@@ -191,6 +191,14 @@ export default function AdoptionQueue() {
     },
   ];
 
+  // Per-view explainers (story #8): each table says what it is and what the
+  // buttons do, in the page's plain proposal-loop voice.
+  const VIEW_EXPLAINERS = {
+    theirs: "Shared concepts published by others that people are actively using — sometimes including you (the 'Used by me' check). Adopt one to wire it to your own matching concept, Recognize it in your registry, or Decline to keep it out of this queue.",
+    mine: 'Your own concepts that other people already use — 📄 counts filings made under your concept, 🔗 counts affiliations pointing at it. Submit one to offer it as a Shared Concept, or Keep private to stop this page from suggesting it.',
+    declined: 'Nominations you turned down. Nothing is deleted — they simply stay out of the queue until you Un-decline them.',
+  };
+
   const openNom = (data?.nominations || []).find((n) => n.coord === openCoord) || null;
   const viewBtn = (key, label) => (
     <button
@@ -210,11 +218,15 @@ export default function AdoptionQueue() {
         The adoption loop, both directions. The system nominates; you ratify. Nothing happens on its own.
       </p>
 
-      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem', flexWrap: 'wrap' }}>
         {viewBtn('theirs', 'Theirs to adopt')}
         {viewBtn('mine', 'Mine to publish')}
         {viewBtn('declined', 'Declined')}
       </div>
+
+      <p className="text-muted" style={{ fontSize: '0.85rem', marginBottom: '1rem', maxWidth: '52rem' }}>
+        {VIEW_EXPLAINERS[view]}
+      </p>
 
       {message && <p style={{ fontSize: '0.85rem' }}>{message}</p>}
 
