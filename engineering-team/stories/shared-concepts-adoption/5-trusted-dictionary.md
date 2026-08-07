@@ -1,6 +1,6 @@
 # Story 5: Trusted dictionary — S3b with a trusted-usage threshold
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-08-07
 **Type:** Feature
 **Epic:** `shared-concepts-adoption`
@@ -121,4 +121,4 @@ reinstall expected**.
 ## Linked artifacts
 - ADR: `engineering-team/decisions/shared-concepts-adoption/0005-trusted-dictionary.md`
 - Test plan: `engineering-team/stories/shared-concepts-adoption/5-trusted-dictionary.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/shared-concepts-adoption/5-trusted-dictionary.md`
