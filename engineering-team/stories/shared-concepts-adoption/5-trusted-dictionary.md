@@ -100,6 +100,24 @@ reinstall expected**.
 - (For the Architect, not blocking approval:) the snapshot artifact's concrete home and whether
   it mints a runtime concept.
 
+## Deviations
+
+- The GET's `pov` disclosure block also echoes `cutoff`, `threshold`, and `computedAt` (the ADR
+  named branch/fallback; the extras let the UI state the active parameters without a second
+  source). The snapshot embeds them regardless, per AC-5.
+- The personalized-availability probe runs even when the carrier-author set is empty, so the
+  `fellBackToHouse` disclosure stays truthful on an empty corpus (AC-3's honesty, edge case the
+  story didn't name).
+- The publish-snapshot button renders for every visitor and the SERVER enforces the owner gate
+  (H4's 401/403) — the AdoptionQueue page's established action-visibility approach; AC-5's
+  "owner-gated" is the server-side contract.
+- Nav label "Trusted Dictionary" on route path `dictionary` (the ADR fixed the path; the label
+  wording is mine).
+- The snapshot element's name carries a second-resolution stamp (`dictionary 2026-08-07 01:58:11 —
+  2 concepts`), not the ADR sketch's date-only form: create-element dedupes by name-under-superset,
+  so a date-only name collides on the second same-day publish (caught by the full-suite run; the
+  F1 disposition-naming idiom restored).
+
 ## Linked artifacts
 - ADR: `engineering-team/decisions/shared-concepts-adoption/0005-trusted-dictionary.md`
 - Test plan: `engineering-team/stories/shared-concepts-adoption/5-trusted-dictionary.test-plan.md`
