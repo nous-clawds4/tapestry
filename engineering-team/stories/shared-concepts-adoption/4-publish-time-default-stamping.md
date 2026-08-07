@@ -1,6 +1,6 @@
 # Story 4: Publish-time default stamping — parity, the resolver, and the central seam
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-08-06
 **Type:** Feature
 **Epic:** `shared-concepts-adoption`
@@ -85,4 +85,4 @@ handling in the resolver against ADR 0029's semantics.
 
 - ADR: `engineering-team/decisions/shared-concepts-adoption/0004-publish-time-default-stamping.md`
 - Test plan: `engineering-team/stories/shared-concepts-adoption/4-publish-time-default-stamping.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/shared-concepts-adoption/4-publish-time-default-stamping.md`
