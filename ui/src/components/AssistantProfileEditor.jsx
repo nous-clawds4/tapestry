@@ -1,5 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
+import { buildCompositeAvatar } from '../utils/compositeAvatar';
+
+// Story 2's branded image, served from the instance root. Offered when the owner
+// has no picture of their own to stamp (ta-avatar #3 AC5).
+const BRANDED_FALLBACK_SRC = '/ta-avatar.png';
 
 // NIP-05 is omitted on purpose — the server computes it deterministically
 // from the caller's name + the Assistant's pubkey, and writes the matching
@@ -47,6 +52,12 @@ export default function AssistantProfileEditor({ customerPubkey }) {
   const [publishResult, setPublishResult] = useState(null);
   const [provisioning, setProvisioning] = useState(false);
   const [provisionError, setProvisionError] = useState(null);
+  // The stamped composite (ta-avatar #3). `composite` holds the preview until the
+  // owner accepts it — generating publishes and stores nothing on its own.
+  const [composite, setComposite] = useState(null);
+  const [generating, setGenerating] = useState(false);
+  const [compositeNotice, setCompositeNotice] = useState(null);
+  const [offerFallback, setOfferFallback] = useState(false);
 
   const loadStatus = useCallback(async () => {
     if (!customerPubkey) return;
@@ -74,9 +85,69 @@ export default function AssistantProfileEditor({ customerPubkey }) {
     setPublishResult(null);
   }
 
+  /**
+   * Build the stamped avatar and show it. Deliberately stores nothing: the owner
+   * sees the composite first and accepts it (AC1 — "before anything is published").
+   */
+  async function generateComposite() {
+    setGenerating(true);
+    setCompositeNotice(null);
+    setOfferFallback(false);
+    setComposite(null);
+    try {
+      // Same-origin proxy, so the canvas is not tainted. It answers 404 when the
+      // owner has no picture — that is the fallback path, not an error.
+      const res = await fetch('/api/assistant/owner-avatar');
+      if (!res.ok) {
+        setOfferFallback(true);
+        setCompositeNotice(
+          'You have no profile picture to stamp yet, so there is nothing to composite. '
+          + 'You can use the branded Tapestry image instead, or set a picture on your own profile and try again.');
+        return;
+      }
+      const built = await buildCompositeAvatar(await res.blob());
+      setComposite(built);
+    } catch (err) {
+      setOfferFallback(true);
+      setCompositeNotice(`Could not build the composite (${err.message}). You can use the branded image instead.`);
+    } finally {
+      setGenerating(false);
+    }
+  }
+
+  /** Store the accepted composite and point the picture field at it (AC2). */
+  async function useComposite() {
+    if (!composite) return;
+    setGenerating(true);
+    setCompositeNotice(null);
+    try {
+      const body = new FormData();
+      body.append('avatar', composite.blob, 'ta-avatar.png');
+      const res = await fetch('/api/assistant/avatar', { method: 'POST', body });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || 'Upload failed');
+      updateField('picture', data.url || data.path);
+      setCompositeNotice('Saved. Publish the profile to point your assistant at it.');
+      setComposite(null);
+    } catch (err) {
+      setCompositeNotice(`Could not save the composite: ${err.message}`);
+    } finally {
+      setGenerating(false);
+    }
+  }
+
+  function useBrandedFallback() {
+    updateField('picture', status?.defaults?.picture || BRANDED_FALLBACK_SRC);
+    setOfferFallback(false);
+    setCompositeNotice('Using the branded Tapestry image.');
+  }
+
   function resetToDefaults() {
     if (!status?.defaults) return;
     setForm(pickFields(status.defaults));
+    setComposite(null);
+    setOfferFallback(false);
+    setCompositeNotice(null);
     setPublishResult(null);
   }
 
@@ -199,6 +270,58 @@ export default function AssistantProfileEditor({ customerPubkey }) {
             ? <span style={{ color: '#22c55e' }}>✅ Yes</span>
             : <span style={{ color: '#f59e0b' }}>⚠️ Not yet</span>}
         </div>
+      </div>
+
+      {/* The stamped composite: your avatar, wearing the mark (ta-avatar #3). */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+          <button
+            className="settings-action-btn settings-action-btn-secondary"
+            onClick={generateComposite}
+            disabled={generating || publishing}
+          >
+            {generating ? 'Working…' : '🎨 Generate badged avatar'}
+          </button>
+          <span style={{ fontSize: '0.8rem', opacity: 0.75 }}>
+            Stamps your own profile picture with the Tapestry mark.
+          </span>
+        </div>
+
+        {composite && (
+          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+            <img
+              className="ta-composite-preview"
+              src={composite.dataUrl}
+              alt="Preview of the assistant avatar: your picture with the Tapestry mark"
+              width={96}
+              height={96}
+              style={{ borderRadius: '50%', border: '1px solid var(--border, #444)' }}
+            />
+            <button className="settings-action-btn" onClick={useComposite} disabled={generating}>
+              Use this avatar
+            </button>
+          </div>
+        )}
+
+        {offerFallback && (
+          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+            <img
+              className="ta-composite-fallback"
+              src={BRANDED_FALLBACK_SRC}
+              alt="The branded Tapestry Assistant image"
+              width={96}
+              height={96}
+              style={{ borderRadius: '50%', border: '1px solid var(--border, #444)' }}
+            />
+            <button className="settings-action-btn" onClick={useBrandedFallback} disabled={generating}>
+              Use the branded image instead
+            </button>
+          </div>
+        )}
+
+        {compositeNotice && (
+          <div style={{ fontSize: '0.8rem', opacity: 0.85 }}>{compositeNotice}</div>
+        )}
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>

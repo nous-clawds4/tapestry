@@ -1,6 +1,6 @@
 # Story 3: The stamped composite avatar, published to nostr
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-08-06
 **Type:** Feature
 **Epic:** `ta-avatar`
@@ -39,7 +39,9 @@ assistant wearing my avatar with the badge.
 
 ## Concepts touched
 
-None known — same note as stories 1–2; the Architect should confirm against the concept graph.
+None. **Confirmed at Architecture** against the live concept graph: `39998:<TA>:image` resolves to a
+bare node (no description, and `…:image-schema` returns `No node found`) and models images as
+knowledge-graph nodes, not files on a volume — see ADR 0003. No firmware reinstall.
 
 ## Out of scope
 
@@ -53,8 +55,35 @@ None known — same note as stories 1–2; the Architect should confirm against 
 
 None.
 
+## Deviations
+
+1. **`getInstanceWebsite` and `isPubliclyReachable` are now exported from
+   `src/api/assistant/index.js`.** ADR D4 requires the composite's publishable URL to reuse story 2's
+   reachability rule rather than fork a second one; exporting the two helpers is the mechanism. No
+   behavior change to either — additive exports only.
+2. **The canvas maths lives in `ui/src/utils/compositeAvatar.js`, not inline in the editor.** The ADR
+   said "the editor" draws the composite; the editor is already ~300 lines and the cover-fit +
+   badge-placement geometry is self-contained and worth reading on its own. The editor still owns the
+   flow (fetch → build → preview → accept); only the pixel maths moved one file over.
+3. **The kind-0 helper is named `getOwnerKind0PictureUrl`.** Prompted by the test that checks the
+   proxy's URL provenance: the original name (`getOwnerPictureUrl`) left it ambiguous whether the URL
+   came from the request or from the owner's own event. The name now says which.
+4. **The composite source allow-list is raster-only, narrower than the ADR's `image/*`.** ADR D2 says
+   "`content-type: image/*` allow-list"; the implementation admits PNG/JPEG/WebP/GIF/AVIF/BMP and
+   refuses `image/svg+xml`. Taken on the review's second ask: SVG can carry script, and this response
+   is served from our own origin, so echoing that content-type back would make the endpoint a
+   same-origin script-execution vector. The composite source is only ever drawn into a canvas, so no
+   raster capability is lost. Narrower than the ADR, in the safer direction.
+
+*(The review's first ask was **not** a deviation — it restored the "at most one redirect" bound ADR D2
+already specified. `redirect: 'manual'` with a one-hop loop, and each hop re-validated by the same
+`parseFetchableUrl` used on the owner's published URL, so a redirect cannot reach a scheme or shape
+the original check would have refused.)*
+
 ## Linked artifacts
 
-- ADR: (filled in after Architecture phase)
-- Test plan: (filled in after Test Design phase)
-- Review: (filled in after Review phase)
+- ADR: `engineering-team/decisions/ta-avatar/0003-owner-composited-avatar-hosted-by-the-instance.md`
+- Test plan: `engineering-team/stories/ta-avatar/3-stamped-composite-avatar-on-nostr.test-plan.md`
+  (tests: `test/stamped-composite-avatar.test.js` + `tests/brainstorm/ta-composite-avatar.spec.js`)
+- Review: `engineering-team/reviews/ta-avatar/3-stamped-composite-avatar-on-nostr.md` — **PASS** 2026-08-07
+  (two rounds; the first returned two asks on the outbound fetch, both fixed in `fe613e46`)
