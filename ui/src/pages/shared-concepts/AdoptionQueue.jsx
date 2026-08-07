@@ -200,7 +200,7 @@ export default function AdoptionQueue() {
   // Per-view explainers (story #8): each table says what it is and what the
   // buttons do, in the page's plain proposal-loop voice.
   const VIEW_EXPLAINERS = {
-    theirs: "Shared concepts published by others that people are actively using by way of the z-tag, included in an element's nostr event to point to the concept header. These elements may be published by you (the 'Used by me' check) and/or by others. Adopt one to wire it (via the b-tag) to your own matching concept, Recognize it in your registry, or Decline to keep it out of this queue.",
+    theirs: "Shared concepts published by others that people are actively using by way of the z-tag, included in an element's nostr event to point to the concept header. These elements may be published by you (the 'Used by me' check) and/or by others. Adopt one to wire it (via the b-tag) to your own matching concept, Recognize it in your registry (add it as an element of the concept for Shared Concepts), or Decline to keep it out of this queue.",
     mine: 'Your own concepts that other people already use — 📄 counts filings made under your concept, 🔗 counts affiliations pointing at it. Submit one to offer it as a Shared Concept, or Keep private to stop this page from suggesting it.',
     declined: 'Nominations you turned down. Nothing is deleted — they simply stay out of the queue until you Un-decline them.',
   };
@@ -252,13 +252,19 @@ export default function AdoptionQueue() {
               <option value="">Choose my twin header…</option>
               {(twins || []).map((t) => <option key={t.handle} value={t.handle}>{t.name}</option>)}
             </select>
-            <button className="btn btn-primary" disabled={busy || !twinChoice} onClick={() => adopt(openNom)}>
+            <button className="btn btn-primary" disabled={busy || !twinChoice}
+              title="Writes a pointer b-tag on your chosen concept header and rebroadcasts it — your concept declares correspondence to this one, and items you publish under it will carry both addresses."
+              onClick={() => adopt(openNom)}>
               🔗 Adopt (wire my twin)
             </button>
-            <button className="btn" disabled={busy} onClick={() => recognize(openNom)}>
+            <button className="btn" disabled={busy}
+              title="Adds this concept as an element of your Shared Concepts registry — catalogued and tracked, with no b-tag written and no affiliation claimed."
+              onClick={() => recognize(openNom)}>
               📒 Recognize in registry
             </button>
-            <button className="btn" disabled={busy} onClick={() => disposition(openNom.coord, 'declined', 'Declined — it will stay out of the queue until you reverse it.')}>
+            <button className="btn" disabled={busy}
+              title="Records a dated keep-it-out stance. Nothing is deleted — reverse it any time from the Declined view."
+              onClick={() => disposition(openNom.coord, 'declined', 'Declined — it will stay out of the queue until you reverse it.')}>
               🚫 Decline
             </button>
           </div>
