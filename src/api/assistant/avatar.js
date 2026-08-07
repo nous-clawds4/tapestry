@@ -38,6 +38,18 @@ const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0
 const MAX_SOURCE_BYTES = 5 * 1024 * 1024;   // what we will pull from a remote host
 const MAX_UPLOAD_BYTES = 2 * 1024 * 1024;   // what we will store
 const FETCH_TIMEOUT_MS = 5000;
+// Redirects are the one part of this fetch where a THIRD PARTY picks the
+// destination, so we follow at most one hop and validate where it lands exactly
+// as we validate the URL the owner published (ADR ta-avatar/0003 D2).
+const MAX_REDIRECTS = 1;
+
+// The composite source is drawn into a canvas, so raster formats are all we need.
+// SVG is excluded deliberately: it can carry script, and this response is served
+// from our own origin — echoing `image/svg+xml` back would turn this endpoint into
+// a same-origin script-execution vector for anyone who opened it directly.
+const ALLOWED_SOURCE_TYPES = new Set([
+  'image/png', 'image/jpeg', 'image/jpg', 'image/webp', 'image/gif', 'image/avif', 'image/bmp',
+]);
 
 function ensureDir(p) {
   try { fs.mkdirSync(p, { recursive: true }); } catch (_) { /* fall through to the caller's check */ }
@@ -125,6 +137,26 @@ function getOwnerKind0PictureUrl(pubkey) {
   });
 }
 
+const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
+function isRedirect(status) { return REDIRECT_STATUSES.has(status); }
+
+/**
+ * Parse a candidate URL and accept it only if it is something we are willing to
+ * fetch. Used for the owner's published URL and, unchanged, for a redirect hop —
+ * a redirect must clear the same bar as the original, or following one would be a
+ * hole straight through the check.
+ *
+ * @param {string} candidate
+ * @param {URL} [relativeTo]  base for a relative Location header
+ * @returns {URL|null}
+ */
+function parseFetchableUrl(candidate, relativeTo) {
+  let parsed;
+  try { parsed = relativeTo ? new URL(candidate, relativeTo) : new URL(candidate); } catch { return null; }
+  if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return null;
+  return parsed;
+}
+
 /**
  * Read at most `limit` bytes from a fetch response.
  * A chunked response declares no content-length, so the body itself is bounded
@@ -166,23 +198,33 @@ async function handleOwnerAvatar(req, res) {
       return res.status(404).json({ success: false, error: 'The owner has no profile picture' });
     }
 
-    let parsed;
-    try { parsed = new URL(pictureUrl); } catch {
-      return res.status(404).json({ success: false, error: 'The owner picture URL is not a URL' });
-    }
-    if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
-      return res.status(404).json({ success: false, error: 'Only http(s) picture URLs can be fetched' });
+    let parsed = parseFetchableUrl(pictureUrl);
+    if (!parsed) {
+      return res.status(404).json({ success: false, error: 'The owner picture URL is not a fetchable http(s) URL' });
     }
 
+    // At most one redirect, and the hop is validated the same way the original
+    // URL is — otherwise the far-end host, not the owner, chooses what we fetch.
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
     let upstream;
     try {
-      upstream = await fetch(parsed.toString(), {
-        signal: controller.signal,
-        redirect: 'follow',
-        headers: { accept: 'image/*' },
-      });
+      for (let hop = 0; ; hop += 1) {
+        upstream = await fetch(parsed.toString(), {
+          signal: controller.signal,
+          redirect: 'manual',
+          headers: { accept: 'image/*' },
+        });
+        if (!isRedirect(upstream.status)) break;
+        if (hop >= MAX_REDIRECTS) {
+          return res.status(404).json({ success: false, error: 'The owner picture host redirected too many times' });
+        }
+        const next = parseFetchableUrl(upstream.headers.get('location') || '', parsed);
+        if (!next) {
+          return res.status(404).json({ success: false, error: 'The owner picture host redirected somewhere unfetchable' });
+        }
+        parsed = next;
+      }
     } finally {
       clearTimeout(timer);
     }
@@ -191,8 +233,11 @@ async function handleOwnerAvatar(req, res) {
     }
 
     const type = (upstream.headers.get('content-type') || '').split(';')[0].trim().toLowerCase();
-    if (!type.startsWith('image/')) {
-      return res.status(404).json({ success: false, error: `The owner picture is ${type || 'untyped'}, not an image` });
+    if (!ALLOWED_SOURCE_TYPES.has(type)) {
+      return res.status(404).json({
+        success: false,
+        error: `The owner picture is ${type || 'untyped'}, which cannot be used as a composite source`,
+      });
     }
 
     const body = await readBounded(upstream, MAX_SOURCE_BYTES);

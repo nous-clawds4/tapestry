@@ -68,6 +68,17 @@ None.
 3. **The kind-0 helper is named `getOwnerKind0PictureUrl`.** Prompted by the test that checks the
    proxy's URL provenance: the original name (`getOwnerPictureUrl`) left it ambiguous whether the URL
    came from the request or from the owner's own event. The name now says which.
+4. **The composite source allow-list is raster-only, narrower than the ADR's `image/*`.** ADR D2 says
+   "`content-type: image/*` allow-list"; the implementation admits PNG/JPEG/WebP/GIF/AVIF/BMP and
+   refuses `image/svg+xml`. Taken on the review's second ask: SVG can carry script, and this response
+   is served from our own origin, so echoing that content-type back would make the endpoint a
+   same-origin script-execution vector. The composite source is only ever drawn into a canvas, so no
+   raster capability is lost. Narrower than the ADR, in the safer direction.
+
+*(The review's first ask was **not** a deviation — it restored the "at most one redirect" bound ADR D2
+already specified. `redirect: 'manual'` with a one-hop loop, and each hop re-validated by the same
+`parseFetchableUrl` used on the owner's published URL, so a redirect cannot reach a scheme or shape
+the original check would have refused.)*
 
 ## Linked artifacts
 
