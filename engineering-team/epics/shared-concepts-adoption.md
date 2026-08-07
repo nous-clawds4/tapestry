@@ -1,6 +1,6 @@
 # Epic: Shared-Concepts Adoption
 
-**Status:** Active
+**Status:** Done
 **Provenance:** `engineering-team/stories/_intake.md` entry 2026-08-05 (the owner's S-subset taxonomy + features F0–F5); book anchor at `engineering-team/audits/shared-concepts-adoption/book.md`. Doctrine prerequisite (F0) ratified as BIBLE §31 via `self-ontology` #2.
 
 ## What this is
@@ -9,19 +9,21 @@ The adoption machinery over the Shared Concepts observation surfaces (PRs #491�
 
 ## Stories
 
-`stories/shared-concepts-adoption/`:
+`stories/done/shared-concepts-adoption/` (all Done; retired at the book close 2026-08-07):
 
-1. **b-coverage-audit-and-disposition** — F5: coverage states on the concept-headers list (wired / self-declared / deliberately private / undispositioned) + guided iteration through the undispositioned with three symmetric actions (wire external b / auto b-tag / sentinel `b-tag-deferred`). Carries the W16 ruling (sentinel as reserved third `b` value form) + the wire-external b-append primitive that F1 later consumes.
-
-Anticipated (not yet planned — numbers assigned at planning; see the book anchor):
-- F1 adoption-candidates queue (S3 ∖ S2a nomination surface; consumes story 1's primitive).
-- F2 inverse queue (self-declare candidates).
-- F3 trusted dictionary (S3b + threshold; dated derived artifact).
-- F4 publish-time default stamping (the ratified floor in the authoring flows).
+1. **b-coverage-audit-and-disposition** (F5) — coverage states + guided disposition + W16 sentinel + the wire-external b-append primitive.
+2. **adoption-candidates-queue** (F1) — the S3 ∖ S2a nomination surface; Adopt / Recognize / Decline with the dated supersedable ledger.
+3. **inverse-queue-publish-candidates** (F2) — "Mine to publish" with distinguishable z/b evidence; sentinel decline; deferred-in-use reveal.
+4. **publish-time-default-stamping** (F4) — pin/TL personal-z parity + `selectPointerTargets` + the create-element dual-stamp seam.
+5. **trusted-dictionary** (F3) — per-POV live view (verified-cutoff qualifying set) + owner-minted dated snapshots.
+6. **self-cleaning-snapshot-fixtures** — the story-5 suite sweeps its own mints.
+7. **graph-derived-twin-picker** — `GET /api/adoption-twins`: graph ∩ has-event, uuid-deduped.
+8. **adoption-queue-view-explainers** — per-view explainers (owner's wording) + column/action tooltips.
+9. **adoption-row-raw-event-view** — queue rows click through to the raw header event (`header/:coord`).
 
 ## ADRs
 
-`decisions/shared-concepts-adoption/` — none yet; 0001 lands with story 1.
+`decisions/done/shared-concepts-adoption/` — 0001 (b-coverage), 0002 (adoption queue), 0003 (inverse queue), 0004 (stamping stage 1 + sweep map), 0005 (trusted dictionary).
 
 ## Notes
 
