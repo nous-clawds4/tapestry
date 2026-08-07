@@ -74,4 +74,4 @@ None.
 - ADR: `engineering-team/decisions/ta-avatar/0003-owner-composited-avatar-hosted-by-the-instance.md`
 - Test plan: `engineering-team/stories/ta-avatar/3-stamped-composite-avatar-on-nostr.test-plan.md`
   (tests: `test/stamped-composite-avatar.test.js` + `tests/brainstorm/ta-composite-avatar.spec.js`)
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/ta-avatar/3-stamped-composite-avatar-on-nostr.md` — **CHANGES_REQUESTED** 2026-08-07 (two lines on the outbound fetch; everything else passed)
