@@ -125,7 +125,7 @@ export default function Tag() {
     if (!tag) return;
     setPinning(true); setPinError(null);
     try {
-      const signed = await pinTag({ tag, curationMethod: customCuration });
+      const signed = await pinTag({ tag, curationMethod: customCuration, localTaPubkey: taPubkey });
       await refetchHeader();
       // AC-4 — first pin auto-switches to the Pinned tab.
       setActiveTab('pinned');

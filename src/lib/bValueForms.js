@@ -57,4 +57,32 @@ function stripSentinel(tags) {
   return (Array.isArray(tags) ? tags : []).filter((t) => !(t && t[0] === 'b' && t[1] === SENTINEL));
 }
 
-module.exports = { SENTINEL, A_TAG_RE, EVENT_ID_RE, classifyBValue, dispositionOf, stripSentinel };
+// The stamping cap (~5): W11/ADR 0033 ratified the shape and deliberately
+// deferred the exact number to implementation. Chosen here (ADR
+// shared-concepts-adoption/0004); changing it is a one-line, spec-annotated edit.
+const STAMP_CAP = 5;
+
+/**
+ * Select the shared stamp targets from a header's b rows (ADR 0004): the
+ * declared affiliation only — pointer-typed or untyped (absent reads as
+ * pointer, ADR 0029), a-tag form only (an event-id b locates an event, not a
+ * stampable concept; the sentinel and malformed values fail the form), the
+ * self coordinate excluded (it is already the personal stamp), deduplicated,
+ * capped. Rows are {value, type} — mirroring the graph's value/value1 columns.
+ */
+function selectPointerTargets(rows, selfCoord, cap = STAMP_CAP) {
+  const out = [];
+  const seen = new Set();
+  for (const r of Array.isArray(rows) ? rows : []) {
+    if (!r || typeof r.value !== 'string') continue;
+    if (r.type != null && r.type !== 'pointer') continue; // inherit (or future types) never stamp
+    if (classifyBValue(r.value) !== 'a-tag') continue;
+    if (r.value === selfCoord || seen.has(r.value)) continue;
+    seen.add(r.value);
+    out.push(r.value);
+    if (out.length >= cap) break;
+  }
+  return out;
+}
+
+module.exports = { SENTINEL, A_TAG_RE, EVENT_ID_RE, STAMP_CAP, classifyBValue, dispositionOf, stripSentinel, selectPointerTargets };

@@ -1771,8 +1771,10 @@ async function handleCreateElement(req, res) {
       WHERE (h:ListHeader OR h:ClassThreadHeader) AND h.kind IN [9998, 39998]
         AND h.name = $concept
       OPTIONAL MATCH (h)-[:${REL.CLASS_THREAD_INITIATION}]->(sup:Superset)
+      OPTIONAL MATCH (h)-[:HAS_TAG]->(bt:NostrEventTag {type: 'b'})
       RETURN h.uuid AS headerUuid, h.name AS headerName,
-             sup.uuid AS supersetUuid
+             sup.uuid AS supersetUuid,
+             collect({value: bt.value, type: bt.value1}) AS bRows
       LIMIT 1
     `, { concept });
 
@@ -1847,12 +1849,18 @@ async function handleCreateElement(req, res) {
       }
     }
 
-    // Create the element event
+    // Create the element event. The z list is the ratified stamping floor
+    // (ADR shared-concepts-adoption/0004): the personal handle plus the
+    // header's declared affiliation (pointer-b targets via the selector —
+    // unwired/deferred concepts yield exactly the single personal z).
+    const { selectPointerTargets } = require('../../lib/bValueForms');
+    const bRows = (rows[0].bRows || []).filter((r) => r && r.value != null);
+    const sharedStamps = selectPointerTargets(bRows, headerUuid);
     const dTag = req.body.dTag || (req.body.random ? randomDTag() : dtag.childDTag(trimName, headerUuid, req.body.nonce));
     const tags = [
       ['d', dTag],
       ['name', trimName],
-      ['z', headerUuid],
+      ...[headerUuid, ...sharedStamps].map((h) => ['z', h]),
       ['json', typeof finalJson === 'string' ? finalJson : JSON.stringify(finalJson)],
     ];
 
