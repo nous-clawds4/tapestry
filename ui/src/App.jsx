@@ -60,6 +60,7 @@ import SelfDeclaredSharedConcepts from './pages/shared-concepts/SelfDeclaredShar
 import SelfDeclaredDetail from './pages/shared-concepts/SelfDeclaredDetail';
 import AdoptionQueue from './pages/shared-concepts/AdoptionQueue';
 import TrustedDictionary from './pages/shared-concepts/TrustedDictionary';
+import HeaderEvent from './pages/shared-concepts/HeaderEvent';
 import AboutIndex from './pages/about/Index';
 import SettingsIndex from './pages/settings/Index';
 
@@ -382,6 +383,7 @@ const router = createBrowserRouter([
           { path: 'self-declared/:uuid', element: <SelfDeclaredDetail />, handle: { crumb: 'Detail' } },
           { path: 'adoption-queue', element: <AdoptionQueue />, handle: { crumb: 'Adoption Queue' } },
           { path: 'dictionary', element: <TrustedDictionary />, handle: { crumb: 'Trusted Dictionary' } },
+          { path: 'header/:coord', element: <HeaderEvent />, handle: { crumb: 'Header Event' } },
           { path: ':uuid', element: <SharedConceptDetail />, handle: { crumb: 'Detail' } },
         ],
       },
