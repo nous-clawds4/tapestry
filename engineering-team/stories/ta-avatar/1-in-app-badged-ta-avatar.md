@@ -1,6 +1,6 @@
 # Story 1: In-app badged TA avatar
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-08-06
 **Type:** Feature
 **Epic:** `ta-avatar`
@@ -81,4 +81,4 @@ Judgment calls made at Implementation, too small for an ADR amendment.
 - ADR: `engineering-team/decisions/ta-avatar/0001-shared-avatar-with-ta-badge-overlay.md`
 - Test plan: `engineering-team/stories/ta-avatar/1-in-app-badged-ta-avatar.test-plan.md`
   (tests: `test/in-app-badged-ta-avatar.test.js` + `tests/brainstorm/ta-badged-avatar.spec.js`)
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/ta-avatar/1-in-app-badged-ta-avatar.md` — **PASS** 2026-08-06
