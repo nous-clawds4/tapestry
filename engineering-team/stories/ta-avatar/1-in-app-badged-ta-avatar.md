@@ -61,6 +61,21 @@ defines no graph structure. No firmware reinstall.
 
 None. (Scope — full composite, published — was ratified at kickoff; this story is layer 1 of 3.)
 
+## Deviations
+
+Judgment calls made at Implementation, too small for an ADR amendment.
+
+1. **The mark inside the badge is scaled 0.86, not the ADR's "≈70–75%".** At 0.75 the badge read as a
+   plain purple dot at the 18px the table rows render it (verified by screenshot before/after) — it
+   distinguished the assistant but was not *recognizable*, which is the epic's whole point. The ADR's
+   stated requirement for that number was "so the mark never touches or clips at the disc edge"; at
+   0.86 the mark's widest point lands 161 from the centre, inside the 187.5 radius, so that
+   requirement still holds with ~14% clearance. Badge size (45%, 14px floor) is unchanged.
+2. **The TA name fallback was applied to the user page as well as to AuthorCell.** The ADR named only
+   AuthorCell, but `UserDetail` computes its own display name, so the assistant's own page — the
+   click-through destination AC5 names — still titled itself `aaaaaaaa…aaaa`. Same two-line fallback,
+   same rationale the ADR gives for AuthorCell ("naming nothing to a reader").
+
 ## Linked artifacts
 
 - ADR: `engineering-team/decisions/ta-avatar/0001-shared-avatar-with-ta-badge-overlay.md`
