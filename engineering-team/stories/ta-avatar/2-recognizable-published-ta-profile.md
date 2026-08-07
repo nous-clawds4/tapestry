@@ -53,6 +53,26 @@ apply. No firmware reinstall.
 
 None.
 
+## Deviations
+
+1. **The ADR's stated AC4 mechanism was wrong, so the implementation adds a guard the ADR did not
+   specify.** ADR 0002 says "AC4 is free" — a local instance has no website, so `picture` stays `''`
+   and the existing empty-string strip drops it. It isn't: `getInstanceDomain()` falls back to
+   `BRAINSTORM_RELAY_URL`'s host, so a dev instance reports `https://localhost:7777` — truthy, and
+   not equal to the string `'localhost'`. The ADR's literal recipe would have published a loopback
+   URL that resolves, for every client that fetched it, to *their own* machine. Implemented
+   `isPubliclyReachable(website)` (`src/api/assistant/index.js`) and gated the picture on it. The
+   ADR's actual decision — Option A, URL derived from `getInstanceWebsite()` — is unchanged. Found by
+   the Tester and surfaced before Implementation began.
+2. **Two live tests cannot pass from an isolated worktree, and were proved by other means.** `H1`
+   (owner-linked name) and `H5` (the instance serves the asset) query `localhost:7778`, which runs
+   the *shared* checkout — not this worktree — so they exercise old server code and an old `dist/`.
+   Both behaviors were verified directly instead: the named branch by running the real builder with
+   a `strfry` on PATH that returns a kind-0 (→ `"Thelonious Greenhouse's Tapestry Assistant"`), and
+   the asset by building this worktree and fetching `/ta-avatar.png` from its own preview (200,
+   `image/png`, 16863 bytes, 512×512). Both become ordinary passes once the code is deployed —
+   staging is where they are decisive.
+
 ## Linked artifacts
 
 - ADR: `engineering-team/decisions/ta-avatar/0002-branded-published-profile-defaults.md`
