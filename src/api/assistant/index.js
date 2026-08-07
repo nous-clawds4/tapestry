@@ -537,4 +537,10 @@ async function handleProvisionAssistantKey(req, res) {
 // buildDefaultProfileContent is exported for tests: it is the sole producer of the
 // defaults the editor offers and a content-less publish signs, so asserting on it
 // directly is the only stack-free handle on that contract.
-module.exports = { handlePublishProfile, handleAssistantStatus, handleGetTAPubkey, handleProvisionAssistantKey, buildDefaultProfileContent };
+// getInstanceWebsite + isPubliclyReachable are exported so ./avatar.js can gate the
+// composite's publishable URL on the SAME rule as the branded default — one notion
+// of "could a stranger fetch this", not two (ADR ta-avatar/0003 D4).
+module.exports = {
+  handlePublishProfile, handleAssistantStatus, handleGetTAPubkey, handleProvisionAssistantKey,
+  buildDefaultProfileContent, getInstanceWebsite, isPubliclyReachable,
+};

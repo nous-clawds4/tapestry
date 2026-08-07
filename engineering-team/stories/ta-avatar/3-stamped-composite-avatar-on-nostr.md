@@ -55,6 +55,20 @@ knowledge-graph nodes, not files on a volume — see ADR 0003. No firmware reins
 
 None.
 
+## Deviations
+
+1. **`getInstanceWebsite` and `isPubliclyReachable` are now exported from
+   `src/api/assistant/index.js`.** ADR D4 requires the composite's publishable URL to reuse story 2's
+   reachability rule rather than fork a second one; exporting the two helpers is the mechanism. No
+   behavior change to either — additive exports only.
+2. **The canvas maths lives in `ui/src/utils/compositeAvatar.js`, not inline in the editor.** The ADR
+   said "the editor" draws the composite; the editor is already ~300 lines and the cover-fit +
+   badge-placement geometry is self-contained and worth reading on its own. The editor still owns the
+   flow (fetch → build → preview → accept); only the pixel maths moved one file over.
+3. **The kind-0 helper is named `getOwnerKind0PictureUrl`.** Prompted by the test that checks the
+   proxy's URL provenance: the original name (`getOwnerPictureUrl`) left it ambiguous whether the URL
+   came from the request or from the owner's own event. The name now says which.
+
 ## Linked artifacts
 
 - ADR: `engineering-team/decisions/ta-avatar/0003-owner-composited-avatar-hosted-by-the-instance.md`
