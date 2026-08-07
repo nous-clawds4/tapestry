@@ -1,6 +1,6 @@
 # Story 7: Graph-derived twin picker — offer wireable concepts, not wire archaeology
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-08-07
 **Type:** Bug (fast-track — Architecture skipped, the approach was settled at discussion with the
 owner 2026-08-07; tests retained since production code changes)
@@ -62,4 +62,4 @@ None — direction settled at discussion 2026-08-07 (graph ∩ has-event, per th
 ## Linked artifacts
 - ADR: skipped (fast-track; approach recorded in Background)
 - Test plan: `engineering-team/stories/shared-concepts-adoption/7-graph-derived-twin-picker.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/shared-concepts-adoption/7-graph-derived-twin-picker.md`
