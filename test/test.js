@@ -205,6 +205,9 @@ const addConceptToTapestry = require('./add-a-concept-to-a-tapestry.test.js');
 const takeAConceptBackOut = require('./take-a-concept-back-out.test.js');
 // epic: tapestries — Story 7 (brain-first tapestry authoring — publish-hook dual write).
 const brainFirstTapestryAuthoring = require('./brain-first-tapestry-authoring.test.js');
+// epic: ta-avatar — Story 1 (in-app badged TA avatar). S/R source class; the ACs
+// themselves are settled by the browser class, tests/brainstorm/ta-badged-avatar.spec.js.
+const inAppBadgedTaAvatar = require('./in-app-badged-ta-avatar.test.js');
 // epic: shared-concepts-adoption — Story 1 (b-coverage audit + guided disposition).
 const bCoverageAuditAndDisposition = require('./b-coverage-audit-and-disposition.test.js');
 // epic: shared-concepts-adoption — Story 2 (adoption-candidates queue).
@@ -524,6 +527,9 @@ async function main() {
   const storeTheFourResult = await storeTheFour.run();
   const returnTheFourResult = await returnTheFour.run();
   const showTheFourResult = await showTheFour.run();
+
+  console.log('\nin-app-badged-ta-avatar suite:');
+  const inAppBadgedTaAvatarResult = await inAppBadgedTaAvatar.run();
 
   console.log('\ntapestry-key-put-await suite:');
   const tapestryKeyPutAwaitResult = await tapestryKeyPutAwait.run();
@@ -1001,6 +1007,8 @@ async function main() {
       : `${showTheFourResult.fail === 0 ? 'PASS' : 'FAIL'} (${showTheFourResult.pass} passed, ${showTheFourResult.fail} failed${showTheFourResult.skipped ? `, ${showTheFourResult.skipped} skipped` : ''})`;
   console.log(`show-the-four suite:                             ${showTheFourLine}`);
   console.log(`show-the-four H-class:                           ${showTheFourResult.hExecuted} executed / ${showTheFourResult.hSkipped} skipped`);
+  console.log(`in-app-badged-ta-avatar suite:                   ${inAppBadgedTaAvatarResult.fail === 0 ? 'PASS' : 'FAIL'} (${inAppBadgedTaAvatarResult.pass} passed, ${inAppBadgedTaAvatarResult.fail} failed)`);
+  console.log(`in-app-badged-ta-avatar B-class:                 browser only — tests/brainstorm/ta-badged-avatar.spec.js (npm run test:playwright)`);
   console.log(`add-a-concept-to-a-tapestry suite:               ${addConceptToTapestryResult.fail === 0 ? 'PASS' : 'FAIL'} (${addConceptToTapestryResult.pass} passed, ${addConceptToTapestryResult.fail} failed)`);
   console.log(`take-a-concept-back-out suite:                   ${takeAConceptBackOutResult.fail === 0 ? 'PASS' : 'FAIL'} (${takeAConceptBackOutResult.pass} passed, ${takeAConceptBackOutResult.fail} failed)`);
   console.log(`brain-first-tapestry-authoring suite:            ${brainFirstTapestryAuthoringResult.fail === 0 ? 'PASS' : 'FAIL'} (${brainFirstTapestryAuthoringResult.pass} passed, ${brainFirstTapestryAuthoringResult.fail} failed, ${brainFirstTapestryAuthoringResult.skipped} skipped)`);
@@ -1177,6 +1185,8 @@ async function main() {
     returnTheFourResult.fail === 0 &&
     // goal-intent-fields #3 — show the four on the goal screens that already exist
     showTheFourResult.fail === 0 &&
+    // ta-avatar #1 — in-app badged TA avatar (S/R source class; ACs live in the Playwright class)
+    inAppBadgedTaAvatarResult.fail === 0 &&
     // tapestries #5 — add a concept to a tapestry (add-only, same-coordinate republish)
     addConceptToTapestryResult.fail === 0 &&
     // tapestries #6 — take a concept back out (remove-only, same-coordinate republish)
@@ -1237,6 +1247,7 @@ async function main() {
     captureAGoalAndSeeItResult, firmwareConceptElementsSetsResult, tapestryPerConceptDetailViewsResult, structuresTheBrainCanTrustResult,
     breakAGoalIntoPiecesResult, attachTheWorldResult, sessionsReadTheBrainResult, theProposalLoopResult,
     operationalDirectionResult, storeTheFourResult, returnTheFourResult, showTheFourResult,
+    inAppBadgedTaAvatarResult,
     addConceptToTapestryResult, takeAConceptBackOutResult, brainFirstTapestryAuthoringResult,
     bCoverageAuditAndDispositionResult, adoptionCandidatesQueueResult, inverseQueuePublishCandidatesResult,
     publishTimeDefaultStampingResult, trustedDictionaryResult,

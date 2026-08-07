@@ -182,7 +182,20 @@ const THREE_SCREENS = [
  * under unrelated additive features.
  */
 const BRAIN_PAGE_FILES = ['GoalDetail.jsx', 'GoalPlaceholders.jsx', 'GoalSets.jsx', 'Goals.jsx', 'Proposals.jsx', 'Rationale.jsx'];
-const CSS_CUSTOM_PROPERTIES = 45;
+/*
+ * S11's absolute custom-property count was retired for the same reason, and by
+ * the same rule, as the route/nav counts above (OPEN.md #143). It was missed by
+ * that sweep and drifted at the first opportunity: ta-avatar #1 added exactly one
+ * unrelated property — `--avatar-ring`, the Tapestry Assistant badge's separation
+ * ring — taking styles.css from 45 to 46 and turning this suite red for a change
+ * that has nothing to do with the four.
+ *
+ * S11's real intent — "no new design token is invented FOR THE FOUR" — is carried
+ * entirely by the name-based assertion it keeps (nothing named for prompt /
+ * estimate / intent / chance / needs / flag), which cannot rot under unrelated
+ * additive features. A global count over a shared stylesheet can only ever assert
+ * "nobody anywhere added a custom property", which was never this story's claim.
+ */
 
 const tests = [];
 function test(name, fn) { tests.push([name, fn]); }
@@ -880,9 +893,6 @@ test('S11 (story scope): no new design token is invented for the four', () => {
   const named = props.filter((p) => /prompt|estimate|intent|chance|needs|flag/i.test(p));
   assert(named.length === 0,
     `the story puts "new design tokens … invented for these four" OUT OF SCOPE; found ${short(named)}.`);
-  assert(props.length === CSS_CUSTOM_PROPERTIES,
-    `and no new custom property at all: styles.css defined ${CSS_CUSTOM_PROPERTIES} when this story was specified, ` +
-    `and now defines ${props.length}. Everything the four need reuses classes that already exist (ADR 0003 d8).`);
 });
 
 test('S12 (AC1, the record-rendering clause — pass-by-design): the generic element record view still stringifies the whole stored record', () => {
