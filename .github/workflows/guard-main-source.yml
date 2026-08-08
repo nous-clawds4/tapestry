@@ -46,3 +46,4 @@ jobs:
               exit 1
               ;;
           esac
+# enforcement verification — throwaway, do not merge
