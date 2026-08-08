@@ -46,3 +46,4 @@ jobs:
               exit 1
               ;;
           esac
+# smoke test (DENIED) — throwaway, do not merge
