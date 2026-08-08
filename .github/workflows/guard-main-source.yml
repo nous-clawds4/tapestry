@@ -1,0 +1,48 @@
+name: Guard main PR source
+
+# Restricts which branches may open a pull request into `main`.
+#
+# Why this exists: PR #446 (2026-07-24) merged a magic-carpet ops workflow
+# straight into `main` from an arbitrary feature branch, bypassing staging. The
+# stale copy then diverged into a less-safe version of a workflow that writes a
+# Lightning wallet seed to a droplet, and sat reachable on the default branch
+# for two weeks. See issue #515 / PR #516.
+#
+# `pull_request_target` (not `pull_request`) is deliberate: `pull_request` runs
+# the workflow from the PR's merge commit, so a PR could edit this guard away in
+# the same PR that violates it. `pull_request_target` runs the copy on `main`,
+# which cannot be bypassed from a branch. That trigger is normally risky because
+# it pairs a write token with untrusted code — this job checks out nothing and
+# reads only `github.head_ref`, so that risk does not apply.
+
+on:
+  pull_request_target:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  source-branch:
+    name: main-source-guard
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check head branch
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+        run: |
+          case "$HEAD_REF" in
+            staging|promote/*|hotfix/*)
+              echo "OK: '$HEAD_REF' is an allowed source for main."
+              ;;
+            *)
+              echo "::error::PRs into main must come from 'staging', 'promote/*', or 'hotfix/*' (got '$HEAD_REF')."
+              echo ""
+              echo "The normal path is: feature -> staging -> main."
+              echo "Merge your work into staging first, then promote staging -> main."
+              echo ""
+              echo "  promote/*  full or selective promotions of staging to main"
+              echo "  hotfix/*   emergency fixes that must reach prod without waiting on staging"
+              exit 1
+              ;;
+          esac
