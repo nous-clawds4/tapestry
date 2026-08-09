@@ -1903,3 +1903,171 @@ Default-deny (security-auth-exposure story 2) rejects **unauthenticated** mutati
 **Strictness:** Standard.
 **Phase path:** per story — F0 via the Protocol-Spec workflow; F1/F2/F5 Planning → Architecture → Test Design → Implementation → Review; F3/F4 likely warrant `/discuss` first (scoring semantics; authoring-flow reach).
 **References:** protocols/worksheet.md W15 + W16 (new, this date) and W1/W13/W14; protocols/drafts/stamping.md (floor + read contract) + drafts/shared-concepts.md (§ Reach; resolver); community-reference ADR 0029 (b-type registry; consensus scoping); second-brain ADR 0008 (re-mint precedent); ui/src/pages/shared-concepts/* (the S1/S2/S3 observation instruments, PRs #491–#494); src/api/concept/selfDeclare.js (the F1/F2 action primitive); OPEN.md row 142 (primitive consolidation — touch F1's endpoint work with it in view).
+
+---
+
+## 2026-08-09 — Shared Concepts Registry: read from Neo4j, become a materialization target, and the `membersUpdatedAt` question
+
+**NOT PICKED UP** — laid out in a walkthrough session where the owner drove the Shared Concepts feature as a naive user (the "cat breed" scenario: four instances, one of whom — the staging owner — is the domain expert seeding a concept the others lack). Two label changes shipped in-session (below); everything else is recorded here.
+
+**Shipped in-session (no story — string-only rename, doc lane):** `View Shared Concepts` → **`Shared Concepts Registry`** (h1 `ui/src/pages/shared-concepts/Index.jsx:93`, breadcrumb `ui/src/App.jsx:377`) and the left-nav label → **`Registry`** (`ui/src/components/Layout.jsx:77`, short form because it sits inside the Shared Concepts section). Rationale: the page was the most confusable name in the feature — it reads as the master list of shared concepts, but it is the owner's own curated/materialized record. Not yet built or deployed locally.
+
+### The owner's plan, verbatim
+
+> My plan for the Concept of Shared Concepts is to create multiple sets, some of which do not yet exist. And on each (or most of) of the other pages, there will be a button to take the data that is compiled fresh and to store it in the Concept Graph. Later, we may automate this process. The end result is that each page will have the option to show fresh data or data from the registry; maybe decide on the fly, depending on how quickly fresh data can be processed. The implications are that most of the elements of the Concept for Shared Concepts will not be hand-picked by the Owner. Indeed, most of them will not be.
+
+> I would prefer for the Shared Concepts Registry to read from neo4j, not directly from strfry. This is consistent with the "neo4j is me" ontology. If any given node in neo4j points to a strfry event, then pulling data from that event becomes fair game, to be handled on a case by case basis. In some cases, it might make more sense to pull data from the Tapestry LMDB entry for that node instead.
+
+And on the distinguishing property of the page (the framing that motivated the rename):
+
+> it is reading data from the local Tapestry concept graph … and is therefore precomputed data, whereas the other pages are calculating using raw data. The tradeoff is that calculating from raw data yields fresh results, with precomputed results potentially being stale, but retrieval from precomputed results will be faster if the amount of raw data becomes sufficiently vast.
+
+**Framing settled in-session:** the distinguishing axis is **as-of-when**, not authored-vs-derived. The registry holds *dated* answers; the live pages (Self-declared, Active z-tags/b-tags, Adoption Queue, Trusted Dictionary) compute *now* answers. This survives the owner's plan, where most registry elements become machine-materialized rather than hand-picked; "you chose these one at a time" would not. An explainer for the page top was drafted and **deliberately deferred** until the shape below is settled — it would be written against the wrong model today.
+
+### In-session findings (verified against source and the live staging instance)
+
+- **The registry read is a strfry scan** — `queryRelay({kinds:[39999], '#z':['39998:<TA>:shared-concept']})`, `Index.jsx:55` → `/api/strfry/scan`. The element *does* land in Neo4j (create-element imports and wires `HAS_ELEMENT`), but this page never looks there.
+- **Set membership exists only as graph edges** (`Superset -[:IS_A_SUPERSET_OF*]-> Set -[:HAS_ELEMENT]-> element`). Nothing on the element event encodes which subset it belongs to. **Therefore the Neo4j read is a hard prerequisite for the multi-set plan, not a parallel cleanup** — the current strfry read cannot express "show me set X."
+- **The read pattern already exists**: `ui/src/pages/concepts/ConceptElements.jsx:33–40` reads a concept's elements from Neo4j *with a set-filter dropdown*, using exactly that traversal. Adoptable near-wholesale.
+- **`create-element` has no target-set parameter** — it always wires `HAS_ELEMENT` from the concept's superset (`src/api/normalize/index.js:1883`). A general edge-wiring endpoint does exist (`~:5528`, `relType: 'HAS_ELEMENT' | 'IS_A_SUPERSET_OF'`), so subset placement is a second call today.
+- **Staging currently holds zero registry elements** (`kind 39999` z-tagged to its shared-concept header). The read swap carries no migration risk there; also means Recognize has never been used on that instance.
+- **The materialization precedent is already shipped**: the Trusted Dictionary Snapshot (`src/api/normalize/index.js:5350`) is a dated derived artifact carried as *one element of its own concept*, with its own JSON Schema — `required: [name, slug, derivation, pov, cutoff, threshold, computedAt, memberCount, members]`. Members are inline JSON; no set node involved; no universal schema touched.
+
+### The open fork: how a materialization is shaped
+
+| | **A — snapshot-as-element** (shipped precedent) | **B — snapshot-as-set** (the owner's multi-set instinct) |
+|---|---|---|
+| Shape | one element, members inline as JSON | a Set node, `HAS_ELEMENT` → real element nodes |
+| Timestamp home | `computedAt` field in its own schema | unresolved — see below |
+| Traversable in Cypher | ✗ members opaque | ✓ graph-native |
+| History | mint another, keep both | must decide: overwrite or version |
+| Universal-schema impact | none | none *if* the timestamp question resolves |
+
+Under B, **the sets are themselves the provenance** — if each set is "the materialization of page X," set membership carries the derivation label structurally and each element needs only an as-of stamp. Worth weighing against A's portability (one event = one complete, self-describing dated answer).
+
+### The timestamp question — `membersUpdatedAt` (owner UNDECIDED on punting)
+
+The owner's correction of an in-session wrong turn (the analyst had proposed reusing the set node's event `created_at`), verbatim:
+
+> There is a big difference between "when was this Set node published to strfry?" versus "when were the elements of this Set node last updated?" It is the latter that we are interested in, not the former. And as I think about it, a timestamp field that corresponds to the latter might in fact be of general utility throughout the entirety of the concept graph. In particular, it might be used as a tool to keep track of whether the Tapestry LMDB for any given Set node needs to be recalculated. (In the future, the Tapestry LMDB JSON will contain a list of all elements of the set, the digestion of which might be more performant than a cypher path query.)
+
+And the reservation that motivates the possible punt:
+
+> the JSON Schema for set nodes does not currently have a timestamp field, and if it did, then what would the timestamp indicate? It might mean one thing for our use case (the Concept for Shared Concepts) but something completely different for other Concepts. So there is a possibility we may decide to punt on the timestamp feature altogether, for now. I'm not convinced that is the case, but it might be.
+
+**Why `created_at` cannot serve.** Adding an element writes a Cypher edge and never touches the set's own event (`:1883`), so the set node's `created_at` tracks its own event lifecycle and is decoupled from membership. Confirmed wrong turn; recorded so it isn't re-proposed.
+
+**Why the value is not derivable today either.** Membership mutation has **no complete record**:
+- `add-to-set` *does* emit a descriptor event per edge (`:4441` — kind 39999, `nodeFrom`/`nodeTo`/`relationshipType`), so `max(created_at)` over those is derivable in principle;
+- but `create-element` emits none (bare Cypher, `:1883`) — two writers, one records;
+- and removals emit none (`:3744` unwires with bare Cypher), so a `max()` never decreases and cannot see a deletion;
+- and the descriptor is **slated for deprecation** — ADR 0011 dual-emit policy, "remains during the back-compat cycle; the cutover ADR will eventually deprecate it."
+
+So an LMDB cache cannot be safely invalidated from any signal the graph currently produces. That is the strongest argument for an explicit field, and it is independent of the Shared Concepts use case.
+
+**On the "means different things for different concepts" reservation.** The analyst initially argued for a subtype (a `derived set` concept with its own schema) over a field on the universal `set` schema, on the grounds that the meaning was use-case-specific. **The owner's generalization inverts that**: "when did this set's membership last change" means the same thing for every set in the graph — it is a structural property of sets as such, not a Shared-Concepts-specific one. If that holds, the universal type is the correct home after all, and the subtyping argument does not apply.
+
+**Sub-fork — where the field physically lives** (unresolved):
+1. **Neo4j node property** (`n.membersUpdatedAt`) — cheapest; but it is locally-authored graph state with no event behind it, which BIBLE §30 / CLAUDE.md invariant 4 explicitly permits *and* explicitly protects: no import, normalization, firmware reinstall, or dev wipe may destroy it. Must be added to whatever guards that invariant.
+2. **In the set event's JSON** — portable and verifiable, but forces a republish of the set node on every membership change; floods the relay and re-couples the two timestamps the owner just distinguished.
+3. **Derived from complete membership-descriptor events** — no new state, but requires closing all three gaps above *and* reversing the ADR 0011 deprecation. Probably the most expensive path.
+
+Option 1 aligns with "neo4j is the definitive me, LMDB is a subordinate cache": the cache-invalidation signal belongs to the authority, and the cache compares against it.
+
+**Owner status: undecided whether to punt.** Punting is currently cheap for the Shared Concepts work specifically — the read swap (registry-reads-graph) is timestamp-agnostic, and the writers that would need the stamp do not exist yet. It is *not* cheap for the LMDB-cache trajectory, which is blocked on it.
+
+### Feature list
+
+**Owner-set order (2026-08-09, supersedes the dependency sketch below): the legibility gaps in the companion entry come FIRST, then the Registry description, then registry-reads-graph → materialization-writers → registry-sets-and-provenance.** The owner is using the cat-breed user story as the prioritization instrument — architecture that the story can't feel waits behind the pain the story surfaces. Two consequences worth carrying:
+
+- **materialization-writers before registry-sets-and-provenance is deliberate and sound.** `create-element` already wires everything to the concept's superset (`:1883`), so materialization-writers's writers have somewhere to land without any set structure. Partition from evidence afterward rather than designing the taxonomy in the abstract — the same way the S1/S2/S3 taxonomy in the 2026-08-05 entry above formalized surfaces that already existed. The owner also expects the user story to surface further pain points before registry-sets-and-provenance is worth specifying.
+- **The condition that makes it safe:** materialization-writers MUST stamp provenance on each element as it writes (which page produced it, plus `computedAt`), even with no sets to file it under. With the stamp, registry-sets-and-provenance partitions retroactively by reading it — mechanical. Without it, registry-sets-and-provenance inherits a pile of indistinguishable elements and its only option is delete-and-re-materialize.
+- **Bonus: the A/B fork stops blocking.** If materialization-writers follows the shipped Trusted Dictionary Snapshot precedent (one element per materialization, members inline, own schema) it *is* option A, and it leaves option B available — registry-sets-and-provenance decides later whether to additionally explode those into set structure. Low-regret either way.
+
+- **registry-reads-graph** — the Registry page reads Neo4j instead of scanning strfry. Swap `queryRelay` for a Cypher read modeled on `ConceptElements.jsx`, keeping today's flat list and columns. Small (~30 lines), timestamp-agnostic, zero data at risk on staging. Queued behind the legibility gaps + the page description.
+- **registry-sets-and-provenance — the sets + provenance shape.** Resolve the A/B fork; define the sets under the Concept for Shared Concepts; decide whether set membership *is* the derivation label; teach `create-element` a target set (or standardize on the second wiring call). **Last, not second** — see the owner-set order above.
+- **materialization-writers** — the writers, plus the fresh/stored toggle. "Store this to the registry" on the live pages; per-page as-of display; the on-the-fly fresh-vs-stored decision the owner describes. The actual epic. Wants the timestamp resolved, or an explicit decision to ship without it.
+- **members-updated-timestamp (cross-cutting, may be punted) — `membersUpdatedAt` on sets.** Per above. Independent of the three registry items in the short run; blocking for the LMDB-cache trajectory. Warrants `/discuss` then likely a docs-mode ADR, since it touches a universal schema and the local-first invariant.
+
+**Classification:** Feature suite (registry-reads-graph = Feature — small, but the visible row set can change, see below; registry-sets-and-provenance = feature, wants `/discuss` first; materialization-writers = feature epic; members-updated-timestamp = protocol/architecture, `/discuss` → ADR).
+**Strictness:** Standard.
+**Phase path:** **all five phases for the three registry items** per the normative table in `workflows/0-intake.md` step 3 — under Standard, only *Bugs* skip Architecture and only *Refactors* skip Tests. (An earlier draft of this entry claimed registry-reads-graph could skip Architecture; corrected 2026-08-09. registry-reads-graph is not a pure refactor: the strfry scan and the Neo4j traversal can return **different sets** — a relay event never imported would disappear, and locally-authored graph state with no event behind it would newly appear. That divergence is precisely what BIBLE §30 / invariant 4 protects, so it wants an ADR and a test, not a fast lane.) members-updated-timestamp via `/discuss` then Protocol-Spec docs-mode.
+**References:** `ui/src/pages/shared-concepts/Index.jsx` (the read to replace); `ui/src/pages/concepts/ConceptElements.jsx:33–40` (the Neo4j+set-filter pattern to adopt); `src/api/normalize/index.js:1883` (superset-only wiring, no descriptor), `:3744` (removals unrecorded), `:4441` (add-to-set descriptor, ADR 0011 deprecation), `:5350` (Trusted Dictionary Snapshot schema — the materialization precedent), `~:5528` (general edge-wiring endpoint); BIBLE §30 + CLAUDE.md invariant 4 (local-first; protected locally-authored graph state); the 2026-08-05 intake entry above (S-subset taxonomy — the live pages materialization-writers would materialize from); `engineering-team/audits/shared-concepts-adoption/audit.md` §6 (carry-forward: snapshot lifecycle, recognized-by-event-id staleness).
+
+---
+
+## 2026-08-09 — Shared Concepts legibility: can a user tell what they've already done, and find their own offerings?
+
+**NOT PICKED UP** — surfaced in the same 2026-08-09 walkthrough as the entry above, but a distinct thread: that entry is the registry's *architecture*, this one is whether the feature is *legible to the person using it*. The owner's stated goals for the walkthrough: "understand which required features and abilities are in place and which are missing," and "ensure that the features and abilities are described well enough for a new user to understand what the features do and how to use them." Framing constraint, verbatim:
+
+> some of the features confuse me to the point that I'm not sure how to navigate them, and I am the builder! So we're not going to jump to a slick and polished UX quite yet. But at the least, the descriptions of the features need to be done well enough so that I don't get them confused in my own head!
+
+### The driving scenario (owner's, condensed)
+
+Four instances. **Stacie** (staging) is a veterinarian and the only one whose graph holds a cat-breed concept. **Nous** (local), **Tom** (production), and **Ark** (a fourth local instance) want to benefit from her expertise. Stacie wants to offer her concept to the community. The walkthrough question: *how does she determine whether she has already done that, and can she see a list of shared concepts her own TA has authored?*
+
+### Live state at the time of the walkthrough (verified, not inferred)
+
+- Staging TA = `8e901369…e5fb1`. Its `cat-breed` header carries **no b-tag at all** — undispositioned, never submitted.
+- Its `bengal-cat` header **is** self-declared (`["b","39998:8e9013…:bengal-cat","pointer"]`) and is live on `wss://dcosl.brainstorm.world`. So the instance has submitted exactly one thing, and it is not the one the owner meant.
+- The community relay holds **7 self-declared headers across 4 TAs**; instance `11f23fe4…` has already declared `dog`, `dog breed`, and `tapestry` — the exact structural analog of the target scenario.
+- Staging's `/api/adoption-queue` returns `publishCandidates: 0`.
+
+### Gaps
+
+- **state-on-concept-page — the concept detail page shows no disposition state.** `ui/src/pages/concepts/ConceptDetail.jsx:189` renders **"Submit as a Shared Concept"** with identical text whether or not the header is already self-declared. The only way to learn the answer is to click and read a transient string (`dispositionActions.js:28` — "Already self-declared — re-broadcast to the community relay."). It is idempotent and safe, but it is discovery-by-side-effect, and it is the page a user actually lands on. **This is the direct answer to the walkthrough question, and it is "no."** Fix shape: a state badge next to the button (undispositioned / self-declared / wired to X / kept private), with the button relabeling to "Re-broadcast" once declared. Related minor: the button renders on every concept detail page regardless of author or role, though the server rejects both non-own headers (`src/api/concept/selfDeclare.js:75`) and non-owners.
+
+- **seeding-path — there is no seeding path; "Mine to publish" is gated on demand the seeding case by definition lacks.** `computePublishCandidates` (`src/lib/adoptionQueue.js:148–176`) builds a row only for coords appearing in *another author's* z- or b-tag (own-author events skipped at `:149`/`:155`). A concept nobody else uses yet can never appear. That view answers *"which of my concepts are already in demand?"* — the opposite of the expert-seeding case that motivates the whole scenario. Confirmed empirically: `publishCandidates: 0` on staging while `cat-breed` sits undispositioned. Fix shape: either a third Adoption Queue view listing the owner's headers **by disposition state** rather than by demand, or an explicit decision that the concept page (state-on-concept-page) is the only seeding entry point — in which case state-on-concept-page becomes load-bearing rather than a nicety.
+
+- **mine-only-self-declared — no "mine only" view of self-declared concepts.** `SelfDeclaredSharedConcepts.jsx` lists every author's, with an Author column but no filter. Nearest surface to "what has my TA offered?", and the one the owner asked for. Note it reads the **community relay**, so it answers "did my declaration reach the community?" — worth distinguishing in the UI from "did I declare it locally?", since the two can diverge (`dispositionActions.js:32` — "Self-declared locally — community broadcast failed").
+
+- **disposition-filter-on-concepts — the Concepts list can't compose author + disposition.** The author filter exists (`ConceptList.jsx:238–251`) and disposition chips render (`:169–190`), but the coverage filter is a single checkbox, "Undispositioned (mine)" (`:257–264`). There is no "self-declared" / "wired" / "private" filter, so "show me everything my TA has offered" is not expressible. Cheapest of the four: the data is already on every row (`row._disp`).
+
+- **shared-concept-vocabulary — "shared concept" names four different wire facts.** The vocabulary problem underneath the other four:
+
+  | Wire fact | Meaning | Verb | Surface |
+  |---|---|---|---|
+  | b-tag → **itself** | "I offer this" | Submit | Concept detail / Disposition panel |
+  | b-tag → **another's header** | "mine corresponds to theirs" | Adopt | Adoption Queue |
+  | kind-39999 registry element | "I catalogue this" | Recognize | Registry / Create New |
+  | ≥N trusted authors z-use it | derived, no action | — | Trusted Dictionary |
+
+  All four sit under one nav section and all four say "shared concept." **One rename shipped 2026-08-09** (`View Shared Concepts` → `Shared Concepts Registry`, nav `Registry`) on the principle that names should be verb-anchored to the button that produces the data. The remaining surfaces are unreviewed against that principle — in particular `Create New Shared Concept` (creates a *registry element*, i.e. the manual form of Recognize — arguably the next most misleading label) and `Active b-tags` / `Active z-tags` (raw-wire views whose names describe the mechanism rather than the question they answer).
+
+**Sequencing (owner-set, 2026-08-09): this entry goes FIRST — ahead of the registry work in the companion entry.** The owner is prioritizing off the cat-breed user story, and the story's blocking question is Stacie not knowing what she has already shared. That is state-on-concept-page / mine-only-self-declared / disposition-filter-on-concepts. Architecture the story can't feel (registry-reads-graph) waits.
+
+Within this entry: **shared-concept-vocabulary's registry rename + description first** (shipped rename 2026-08-09; description still open — the owner's bar is "descriptions good enough that I don't get them confused in my own head"). Then **state-on-concept-page** — the concept detail page is where a user actually lands, and identical button text is actively misleading, so it is both the highest-value fix and the direct answer to the walkthrough question. Then **disposition-filter-on-concepts** (cheapest — `row._disp` is already on every row), then **mine-only-self-declared**. **seeding-path waits**: its fix shape depends on a product decision (is the concept page the seeding entry point, or does the Adoption Queue get a third view?) that is worth a `/discuss`, and the owner expects continuing to walk the user story to reshape it.
+
+**Registry description — drafted, ready to take.** Deferred once on 2026-08-09 because the first draft ("you chose them, one at a time") is falsified by materialization-writers. The **as-of-when** framing settled later is durable; the shape agreed in-session is a durable frame plus one honestly-dated sentence, so only the italic line expires:
+
+> **This page is the stored list.** The other Shared Concepts pages work out their answer fresh every time you load them. This one shows what was written down, and when.
+>
+> *Right now, everything here was added by hand* — with "Recognize in registry" on the Adoption Queue, or "Create New Shared Concept."
+
+**Relationship to the entry above:** independent. the three registry items change where the registry's data comes from and what it holds; the legibility gaps change whether a user can tell what they have done. Neither blocks the other, though disposition-filter-on-concepts's disposition filter and registry-reads-graph's Neo4j read touch adjacent queries.
+
+**Classification:** state-on-concept-page / mine-only-self-declared / disposition-filter-on-concepts = small features, Standard. seeding-path = feature, wants `/discuss` first (product decision on the seeding entry point). shared-concept-vocabulary = doc/label lane per the strictness table, but the *taxonomy* decision behind it may warrant `/discuss`.
+**Strictness:** Standard.
+**Phase path:** shared-concept-vocabulary — label and prose changes only — takes the doc lane (Implementer + Reviewer) once the naming is agreed. **Everything else here is a Feature under Standard, so all five phases** per the normative table in `workflows/0-intake.md` step 3 — only *Bugs* skip Architecture. (An earlier draft of this entry called state-on-concept-page / mine-only-self-declared / disposition-filter-on-concepts "Architecture skippable"; corrected 2026-08-09, same error as the companion entry. state-on-concept-page in particular sounds cosmetic but is not: `ConceptDetail.jsx:13` fetches only name/author/element-count and never reads b-tags, so a state badge needs a new read plus the `bValues` collection shape `ConceptList.jsx:26` uses.) seeding-path: `/discuss` first, then all five.
+**References:** `ui/src/pages/concepts/ConceptDetail.jsx:189` (state-on-concept-page); `src/lib/adoptionQueue.js:148–176` (seeding-path); `ui/src/hooks/useCommunitySharedConcepts.js` + `ui/src/pages/shared-concepts/SelfDeclaredSharedConcepts.jsx` (mine-only-self-declared); `ui/src/pages/concepts/ConceptList.jsx:169–264` (disposition-filter-on-concepts); `ui/src/utils/bDisposition.js` (the disposition vocabulary all of these share); `ui/src/utils/dispositionActions.js` (the action primitives and their outcome strings); `engineering-team/audits/shared-concepts-adoption/audit.md` §6 (carry-forward: adoption-queue polish seeds).
+
+---
+
+## 2026-08-09 — TA ↔ owner two-way handshake (park; do not pull into current work)
+
+**NOT PICKED UP — parked deliberately.** Surfaced while landing the Shared Concepts Registry description: the page's Author column reads "Tapestry Assistant" for every row, and the owner named the general problem behind it. The owner's framing, verbatim:
+
+> The issue of getting confused between Alice and Alice's Tapestry Assistant is a big one, that I think is beyond the scope of what we're doing right now. At some point we may want the Tapestry Assistant profile to "claim" its owner using a p-tag; and we may want Alice to "claim" her Tapestry Assistant(s) using a Tagging. In other words, a two-way handshake so it will always be easy to map a TA to its owner. Maybe that could be filed away as something to do later. But I don't want to get too distracted from the tasks at hand.
+
+**Shape as described:** TA profile claims its owner via a `p` tag; the owner claims her TA(s) via a Tagging. Note the asymmetry is deliberate — one owner may run several TAs (see the `two-parallel-dev-machines` situation), so the owner→TA direction is one-to-many while TA→owner is one-to-one.
+
+**Why it matters beyond cosmetics:** BIBLE §31 ratified instance identity as the TA pubkey, distinct from the Tapestry Owner. Every first-person query answers `authors:[TA]`. But nothing on the wire connects a TA back to the human it acts for, so any surface showing "who did this" must either display a robot the viewer can't attribute, or hardcode the mapping. `ConceptList.jsx:134–142` already hand-maps owner / Dave / Assistant to display names using config-supplied pubkeys — a local workaround for exactly this missing wire fact, and one that cannot work for *other people's* TAs.
+
+**Likely home when picked up:** wire-format question → `protocols/worksheet.md` item first (claim event shapes, verification rules, what a one-sided claim means), then the usual cycle. Check `protocols/README.md` before any work per the house rule.
+
+**Explicitly NOT blocking:** the shared-concepts legibility work, or anything in the two companion 2026-08-09 entries. Filed to stop it from being rediscovered, not to schedule it.
+
+**Classification:** Feature (protocol-touching).
+**Strictness:** Standard.
+**Phase path:** `/discuss` → protocols worksheet item → Protocol-Spec docs-mode for the wire format, then Standard for the surfaces that consume it.
+**References:** BIBLE §31 (instance identity = the TA); `ui/src/pages/concepts/ConceptList.jsx:134–142` (the hand-mapped display-name workaround); `ui/src/pages/shared-concepts/Index.jsx:34` (the Author column that surfaced it); `src/utils/assistantKeys.js` (runtime TA resolution).

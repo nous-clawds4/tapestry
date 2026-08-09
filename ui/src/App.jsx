@@ -374,7 +374,7 @@ const router = createBrowserRouter([
         path: 'shared-concepts',
         handle: { crumb: 'Shared Concepts' },
         children: [
-          { index: true, element: <SharedConceptsIndex />, handle: { crumb: 'View Shared Concepts' } },
+          { index: true, element: <SharedConceptsIndex />, handle: { crumb: 'Shared Concepts Registry' } },
           { path: 'new', element: <NewSharedConcept />, handle: { crumb: 'New Shared Concept' } },
           { path: 'b-tags', element: <ActiveBTags />, handle: { crumb: 'Active b-tags' } },
           { path: 'b-tags/:uuid', element: <BTagDetail />, handle: { crumb: 'b-tag Detail' } },
