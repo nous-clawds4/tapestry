@@ -128,6 +128,6 @@ the relevant relay set from the concept graph.
   *list* is a different surface and is not reachable from here.)
 
 ## Linked artifacts
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/shared-concepts-legibility/0001-sharing-state-resolver.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
