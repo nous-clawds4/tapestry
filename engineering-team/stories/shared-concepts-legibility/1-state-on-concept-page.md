@@ -129,5 +129,5 @@ the relevant relay set from the concept graph.
 
 ## Linked artifacts
 - ADR: `engineering-team/decisions/shared-concepts-legibility/0001-sharing-state-resolver.md`
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/shared-concepts-legibility/1-state-on-concept-page.test-plan.md`
 - Review: (filled in after Review phase)

@@ -123,16 +123,24 @@ the local copy is not is precisely the local-state-loss case invariant 4 cares a
 
 ## Implementation notes
 
-**New — `src/lib/sharingState.js`** (pure, zero-require, the `adoptionQueue.js` idiom):
+> **Amended 2026-08-09 (Test Design).** As first written, this section put `dispositionOf` *inside*
+> `src/lib/sharingState.js`. That would have broken the house pure-lib pattern: `adoptionQueue.js`,
+> `trustedDictionary.js` and `bValueForms.js` are all **strictly** zero-require (0 matches for
+> `require(` in each), and `adoption-candidates-queue.test.js:219` pins that as a rule. Classification
+> moves to the **handler seam** — the precedent `trustedDictionary` set when it resolved its
+> qualifying set there. The Decision above is unchanged; only the composition point moved.
+
+**New — `src/lib/sharingState.js`** (pure, **zero-require**, the `adoptionQueue.js` idiom):
 
 - `carriesSelfPointer(event, coord)` → boolean. True when the event has a `b` tag whose value,
   trimmed, equals `coord`. Third tag elements (`'pointer'`) are ignored — see the live wire form
-  `["b", "39998:…:bengal-cat", "pointer"]`.
-- `resolveSharingState({ localEvent, relayEvent, relayOk, coord })` → the response body below.
-  Local classification delegates to `dispositionOf` from `src/lib/bValueForms.js` — do not
-  reimplement it. `wiredTo` is the b values that classify as `a-tag`/`event-id` and are **not** the
-  self coordinate.
-- `published`: `relayOk === false` → `null`; else `relayEvent && carriesSelfPointer(relayEvent, coord)`.
+  `["b", "39998:…:bengal-cat", "pointer"]`. Returns false — never throws — for a missing or
+  malformed event.
+- `resolveSharingState({ coord, disposition, wiredTo, relayEvent, relayOk })` → the response body
+  below. It receives `disposition` and `wiredTo` **already classified**; it must not import
+  `bValueForms` or re-derive them.
+- `published`: `relayOk === false` → `null`; else `Boolean(relayEvent && carriesSelfPointer(relayEvent, coord))`.
+  Note the two-part rule — a relay copy that exists without the self-pointer is *not* published.
 
 **New — `src/api/concept/sharingState.js`**, registered in `src/api/index.js` beside the existing
 `/api/concept/:handle/...` routes:
@@ -145,6 +153,11 @@ the local copy is not is precisely the local-state-loss case invariant 4 cares a
   `{kinds:[kind], authors:[pubkey], '#d':[dTag]}`, newest by `created_at`. Use the handle's own
   pubkey — **not** the TA — so the endpoint answers for any header; the TA restriction belongs to
   the write path.
+- **Classification happens here, not in the lib** (see the amendment above): collect the local
+  event's `b` values, call `dispositionOf(bValues, coord)` from `src/lib/bValueForms.js` for
+  `{wired, selfDeclared, deferred}`, and build `wiredTo` as the values that `classifyBValue` rates
+  `a-tag` or `event-id` and that are **not** the self coordinate. The sentinel must never reach
+  `wiredTo` — the UI would render it as a broken link.
 - Relay read: the same filter against `wss://dcosl.brainstorm.world` through the `SimplePool` path
   `src/api/relay/fetchEvents.js` uses. Preserve the failure/emptiness distinction into `relayOk`.
 - Response: `{ success, handle, local: { wired, selfDeclared, deferred, wiredTo }, published, relay, relayError }`.
