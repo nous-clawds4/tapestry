@@ -1,6 +1,6 @@
 # Story 2: One place that lists everything my instance has offered
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-08-09
 **Type:** Feature
 **Epic:** `shared-concepts-legibility`
@@ -105,4 +105,4 @@ either can be widened without invalidating the criteria above.
 ## Linked artifacts
 - ADR: `engineering-team/decisions/shared-concepts-legibility/0002-my-offerings-bulk-resolver.md`
 - Test plan: `engineering-team/stories/shared-concepts-legibility/2-mine-only-self-declared.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/shared-concepts-legibility/2-mine-only-self-declared.md`
