@@ -78,6 +78,7 @@ const mainNavItems = [
       { to: '/tapestry/shared-concepts/new', label: 'Create New Shared Concept' },
       { to: '/tapestry/shared-concepts/b-tags', label: 'Active b-tags' },
       { to: '/tapestry/shared-concepts/z-tags', label: 'Active z-tags' },
+      { to: '/tapestry/shared-concepts/mine', label: 'My Offerings' },
       { to: '/tapestry/shared-concepts/self-declared', label: 'Self-declared Shared Concepts' },
       { to: '/tapestry/shared-concepts/adoption-queue', label: 'Adoption Queue' },
       { to: '/tapestry/shared-concepts/dictionary', label: 'Trusted Dictionary' },
