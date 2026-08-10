@@ -93,7 +93,7 @@ export default function SharedConceptsIndex() {
         <h1>🤝 Shared Concepts Registry</h1>
         {isOwner && (
           <button className="btn btn-primary" onClick={() => navigate('/tapestry/shared-concepts/new')}>
-            + Create New Shared Concept
+            + Add to Registry
           </button>
         )}
       </div>
@@ -111,7 +111,7 @@ export default function SharedConceptsIndex() {
       </p>
       <p className="subtitle" style={{ maxWidth: '52rem', marginBottom: '1.25rem' }}>
         <em>Right now, everything here was added by hand</em> — with “Recognize in registry” on
-        the Adoption Queue, or “Create New Shared Concept.”
+        the Adoption Queue, or “Add to Registry.”
       </p>
 
       {loading && <p>Loading shared concepts…</p>}

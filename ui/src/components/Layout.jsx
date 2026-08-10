@@ -75,10 +75,11 @@ const mainNavItems = [
     prefix: '/tapestry/shared-concepts',
     children: [
       { to: '/tapestry/shared-concepts', label: 'Registry', end: true },
-      { to: '/tapestry/shared-concepts/new', label: 'Create New Shared Concept' },
+      { to: '/tapestry/shared-concepts/new', label: 'Add to Registry' },
       { to: '/tapestry/shared-concepts/b-tags', label: 'Active b-tags' },
       { to: '/tapestry/shared-concepts/z-tags', label: 'Active z-tags' },
-      { to: '/tapestry/shared-concepts/self-declared', label: 'Self-declared Shared Concepts' },
+      { to: '/tapestry/shared-concepts/mine', label: 'My Offerings' },
+      { to: '/tapestry/shared-concepts/self-declared', label: 'Community Offerings' },
       { to: '/tapestry/shared-concepts/adoption-queue', label: 'Adoption Queue' },
       { to: '/tapestry/shared-concepts/dictionary', label: 'Trusted Dictionary' },
     ],
