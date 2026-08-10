@@ -2,7 +2,8 @@
 
 **Reviewer:** Claude (acting as Reviewer)
 **Date:** 2026-08-10
-**Diff:** `git diff 5da565df~1..5da565df` — 6 files, +21, −16.
+**Diff:** `5da565df` (the naming pass) + `7a7a2dd3` (the sweep completion, after one round back to
+Implementation). Findings below are preserved as originally written; each carries its resolution.
 **File:** non-numbered by convention — this lane has no story to match (see Harness friction 1).
 **Lane:** doc/label (Implementer + Reviewer per `workflows/0-intake.md` step 3). No story/ADR/test
 plan by design; the deliverable is words, so this audit is a cross-reference sweep.
@@ -13,10 +14,11 @@ plan by design; the deliverable is words, so this audit is a cross-reference swe
       `state-on-concept-page` **20/20**. Neither asserts on the changed labels, and neither moved.
 - [x] `harness-lint` — clean at audit time.
 - [x] UI build succeeds; both renamed pages verified live at `:7778`.
-- [~] `npm test` — the Implementer's complete 4142-line capture reads `Overall: PASS`, all suites
-      `0 failed`, 53 skipped, and I grepped that file rather than taking the summary on trust. A
-      reviewer-initiated full run is **deliberately deferred**: this verdict requires further edits,
-      so a full gate now would be superseded by the one that must follow them.
+- [x] `npm test` — **reviewer-initiated run after the fixes**: `Overall: PASS`, every suite
+      `0 failed`, 53 skipped, read from a complete 4142-line capture. No divergence from the
+      Implementer's run and no row-150 flake this time — the first gate in this book where the two
+      runs agreed outright. (At the first pass this line was deferred on purpose: a gate run before
+      the required edits would have been superseded by the one that had to follow them.)
 
 ## Spec adherence — frame bullet 4
 
@@ -46,7 +48,7 @@ The bullet: *the words on these surfaces distinguish offering, adopting, and cat
 
 ## Findings
 
-### Blocking
+### Blocking — both RESOLVED in `7a7a2dd3`
 
 1. **`ui/src/pages/shared-concepts/SelfDeclaredDetail.jsx:78` — the child page still carries the
    retired name.** Clicking a row on **Community Offerings** navigates to a page whose heading reads
@@ -58,6 +60,9 @@ The bullet: *the words on these surfaces distinguish offering, adopting, and cat
    vocabulary — e.g. **"Community Offering"** — matching the parent. Note `:89` is the happy-path
    heading and correctly shows the concept's own name; only the fallback heading at `:78` is affected.
 
+   **RESOLVED.** Now `🤝 Community Offering` (`:81`) and "Loading community offering…" (`:72`);
+   verified live by requesting a nonexistent coordinate. The happy-path heading (`:92`) is untouched.
+
 2. **`ui/src/pages/concepts/ConceptDetail.jsx:256` — a tooltip points at a page that no longer
    exists by that name.** The submit button's title ends *"…so it appears as a Self-declared Shared
    Concept."* Capitalised as a proper noun, that is a promise about where the user will find their
@@ -68,6 +73,10 @@ The bullet: *the words on these surfaces distinguish offering, adopting, and cat
    *Asked change:* update the tooltip to name the surface the user will actually see. (It should
    arguably say **My Offerings** — that is where the author's own declaration now shows up, and it
    shows it even when the broadcast fails. Implementer's call.)
+
+   **RESOLVED, and improved on the ask.** The tooltip now names *both* surfaces — "listed under My
+   Offerings — and under Community Offerings for everyone else" — which teaches the distinction at
+   the moment of action rather than merely avoiding the stale name. Present in the built bundle.
 
 **Why blocking rather than noted.** For a story whose entire deliverable is naming consistency,
 these are not cosmetic residue — they are the defect the story was opened to remove, surviving in
@@ -83,6 +92,8 @@ what would trip that walkthrough. Both fixes are single-line.
    subtitle introduces the mechanism explicitly — but jarring at a glance, and cheap to align while
    the blocking items are being fixed. *Optional:* "7 offered by the community" / "No community
    offerings found."
+
+   **RESOLVED** — taken in the same pass, in those words.
 
 ### Harness friction
 
@@ -105,22 +116,36 @@ what would trip that walkthrough. Both fixes are single-line.
 
 ## Verdict
 
-**CHANGES_REQUESTED**
+**PASS**
 
-The naming judgement is right and I would not change any of it. `Add to Registry` fixes a label that
-was pointing the wrong way; `Community Offerings` completes the pair story 2 implied; and keeping
-the two wire inspectors on their tag names is the more disciplined call, backed by a rule that is
-short enough to remember — *workflow surfaces get the verb, wire inspectors get the tag.*
+The naming judgement was right at the first pass and is unchanged: `Add to Registry` fixes a label
+that pointed the wrong way, `Community Offerings` completes the pair story 2 implied, and keeping
+the two wire inspectors on their tag names is the more disciplined call — under a rule short enough
+to actually hold: *workflow surfaces get the verb, wire inspectors get the tag.*
 
-What is not finished is the sweep. A rename is only as good as its least-updated reference, and two
-user-facing ones survive: the detail page one click below Community Offerings still announces itself
-by the retired name, and a tooltip elsewhere still directs users to that name as though it were a
-place they could go. The Implementer found and fixed four such references and deserves credit for
-the instinct — these two are in files the rename did not otherwise touch, which is precisely where
-this class of rot hides.
+What was missing was the tail of the sweep, and it is now complete. Neither retired label survives
+anywhere in `ui/src`, `src`, `test`, **or the built bundle** — checked in both directions, because a
+rename is only as good as its least-updated reference.
 
-Two single-line edits, then a full gate run, and this passes.
+Two things the second pass got right that were not asked for, and both are the difference between a
+rename and a vocabulary:
 
-## On CHANGES_REQUESTED
-- Kick back to `/implement-feature` with Blocking 1 and 2; Non-blocking 1 optional in the same pass.
-- No story status flipped (this lane has no story file); no completion detection performed.
+- **The four code comments.** The kick-back scoped to user-facing text. The Implementer also found
+  four *comments* naming the page by its retired name — including this page's own docblock at line
+  29, which is the first thing the next reader meets. Out of scope as written, correct to fix.
+- **The durability note.** `SelfDeclaredDetail.jsx:30–32` now records *why* "self-declared" still
+  appears below it: it names the **wire fact** — a b-tag pointing at its own event — never a
+  surface. That is the naming rule written down at the one spot where someone would otherwise
+  "helpfully" finish the rename and quietly break the mechanism vocabulary. Verified intact:
+  `dispositionActions.js` (2), `ConceptDetail.jsx` (6) and `ConceptList.jsx` (3) keep their
+  wire-fact uses, and all three `self-declared` route paths are unchanged — renaming those would
+  have broken existing links for no user-visible gain.
+
+Frame bullet 4 is met. The Shared Concepts section now reads: **Registry · Add to Registry ·**
+*Active b-tags · Active z-tags ·* **My Offerings · Community Offerings · Adoption Queue · Trusted
+Dictionary** — two verb-anchored pairs with the wire inspectors between them, still named for their
+tags.
+
+## On PASS
+- No story status to flip — the doc/label lane has no story file by design (see Harness friction 1).
+- Completion detection performed; result reported in chat, not recorded here.
