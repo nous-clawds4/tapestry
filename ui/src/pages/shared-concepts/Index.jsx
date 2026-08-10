@@ -90,17 +90,28 @@ export default function SharedConceptsIndex() {
     <div className="page">
       <Breadcrumbs />
       <div className="page-header-row">
-        <h1>🤝 View Shared Concepts</h1>
+        <h1>🤝 Shared Concepts Registry</h1>
         {isOwner && (
           <button className="btn btn-primary" onClick={() => navigate('/tapestry/shared-concepts/new')}>
             + Create New Shared Concept
           </button>
         )}
       </div>
-      <p className="subtitle">
-        These are concepts recognized by the local tapestry (me) as being authoritative. They
-        typically will not be authored by me (the Tapestry owner) or my Tapestry Assistant,
-        although they could be.
+      {/* What sets this page apart from every other Shared Concepts surface: it
+          reads a STORED list, where the others recompute from raw events on each
+          load. The durable framing is as-of-when — the registry holds dated
+          answers, the live pages hold "now" answers. The second paragraph is
+          scoped to the present on purpose: once the materialization writers land,
+          most entries here will be machine-written rather than hand-added, and
+          that sentence (only that sentence) will need updating. */}
+      <p className="subtitle" style={{ maxWidth: '52rem' }}>
+        <strong>This page is the stored list.</strong> The other Shared Concepts pages work out
+        their answer fresh every time you load them. This one shows what was written down, and
+        when.
+      </p>
+      <p className="subtitle" style={{ maxWidth: '52rem', marginBottom: '1.25rem' }}>
+        <em>Right now, everything here was added by hand</em> — with “Recognize in registry” on
+        the Adoption Queue, or “Create New Shared Concept.”
       </p>
 
       {loading && <p>Loading shared concepts…</p>}
