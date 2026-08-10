@@ -29,7 +29,7 @@ Queued behind it (from the intake entry, not yet planned):
 
 ## Notes
 
-**Not in this epic, deliberately:** `seeding-path` (there is no way to offer a concept nobody else uses yet — "Mine to publish" is gated on cross-author demand, which the expert-seeding case by definition lacks). It joins the book only if a `/discuss` rules that the concept page carries seeding; otherwise it brackets separately.
+**Not in this epic, deliberately:** `seeding-path`. **Correction 2026-08-10 (owner `/discuss`):** an earlier draft of this line said there was *no way* to offer a concept nobody else uses. **That was wrong** — the capability has always existed in two places: the concept page's `Submit as a Shared Concept` button, and the same button inside the Concepts-list disposition panel. Both run `declareAndBroadcast` → `POST /api/concept/:handle/self-declare`, which appends the self-pointing b, publishes to local strfry and imports to Neo4j (`selfDeclare.js:97,105`), after which the browser broadcasts to `wss://dcosl.brainstorm.world`. What is demand-gated is only the Adoption Queue's *nomination* view — so nothing ever **suggests** an unused concept. The gap is discovery, not capability, and the two must not be conflated again. The demand gate: "Mine to publish" is gated on cross-author demand, which the expert-seeding case by definition lacks). It joins the book only if a `/discuss` rules that the concept page carries seeding; otherwise it brackets separately.
 
 **Also parked:** the TA ↔ owner two-way handshake. Every Author column in this area shows a robot the viewer cannot attribute back to a person — genuinely related, but a wire-format question the owner explicitly deferred.
 
