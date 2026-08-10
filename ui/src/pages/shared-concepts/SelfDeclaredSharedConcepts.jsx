@@ -26,7 +26,7 @@ function formatAge(totalSeconds) {
 }
 
 /**
- * Self-declared Shared Concepts — the community-relay fetch (dedupe +
+ * Community Offerings — what everyone has offered. The community-relay fetch (dedupe +
  * self-coordinate match) lives in useCommunitySharedConcepts (extracted
  * behavior-preserving, ADR shared-concepts-adoption/0001, so the disposition
  * panel's wire-external picker shares it). This page adds the local-usage
@@ -144,23 +144,24 @@ export default function SelfDeclaredSharedConcepts() {
   return (
     <div className="page">
       <Breadcrumbs />
-      <h1>🤝 Self-declared Shared Concepts</h1>
-      <p className="subtitle">
-        Events published to a public relay whose author offers them as shared concepts, as
-        evidenced by a b-tag that points to the event itself. To make use of one, point to it
-        with the same b-tag it uses to point to itself.
+      <h1>🤝 Community Offerings</h1>
+      <p className="subtitle" style={{ maxWidth: '52rem' }}>
+        What <strong>everyone</strong> has offered to the community — the mirror of My Offerings,
+        which shows only yours. These are events on a public relay that declare themselves shared,
+        by carrying a b-tag pointing at the event itself. To make use of one, point to it with that
+        same b-tag.
       </p>
 
       {rows === null ? (
         <p>Searching the community relay…</p>
       ) : (
         <>
-          <p className="subtitle">{rows.length} self-declared shared concepts</p>
+          <p className="subtitle">{rows.length} offered by the community</p>
           <DataTable
             columns={columns}
             data={rows}
             onRowClick={(row) => navigate(`/tapestry/shared-concepts/self-declared/${encodeURIComponent(row.uuid)}`)}
-            emptyMessage="No self-declared shared concepts found."
+            emptyMessage="No community offerings found."
           />
         </>
       )}

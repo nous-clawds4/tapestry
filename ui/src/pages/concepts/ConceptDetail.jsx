@@ -253,7 +253,7 @@ export default function ConceptDetail() {
               disabled={declaring}
               title={alreadyShared
                 ? 'This concept is already on the community relay. Re-submitting broadcasts the same header again — harmless, but rarely needed.'
-                : "Re-sign this concept's header with a self-pointing pointer-b tag and publish that one event to the community relay, so it appears as a Self-declared Shared Concept"}
+                : "Re-sign this concept's header with a self-pointing pointer-b tag and publish that one event to the community relay. It will then be listed under My Offerings — and under Community Offerings for everyone else."}
             >
               {declaring
                 ? 'Submitting…'

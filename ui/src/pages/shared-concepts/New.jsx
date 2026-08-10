@@ -44,9 +44,9 @@ export default function NewSharedConcept() {
     return (
       <div className="page">
         <Breadcrumbs />
-        <h1>🤝 Create New Shared Concept</h1>
+        <h1>🤝 Add to Registry</h1>
         <p className="placeholder">
-          Creating a Shared Concept is owner-only. Sign in as the instance owner to author one.
+          Adding to the registry is owner-only. Sign in as the instance owner to record one.
         </p>
       </div>
     );
@@ -130,8 +130,12 @@ export default function NewSharedConcept() {
   return (
     <div className="page">
       <Breadcrumbs />
-      <h1>🤝 Create New Shared Concept</h1>
-      <p className="subtitle">Register a concept shared by another instance, by its identifiers.</p>
+      <h1>🤝 Add to Registry</h1>
+      <p className="subtitle">
+        Record a concept <em>someone else</em> has shared, by its identifiers, so this instance keeps
+        track of it. This catalogues an existing shared concept — it does not create or offer one.
+        To offer a concept of your own, submit it from its concept page.
+      </p>
 
       <form className="tapestry-new-form" onSubmit={onSubmit}>
         <label className="form-field">

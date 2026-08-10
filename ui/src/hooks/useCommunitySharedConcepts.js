@@ -5,7 +5,7 @@ import { fetchFromRelays } from '../utils/nostrPublish';
 // future source is the appropriate subset of the nostr-relays concept.
 // (Extracted behavior-preserving from SelfDeclaredSharedConcepts.jsx — ADR
 // shared-concepts-adoption/0001 — so the disposition panel's wire-external
-// picker and the Self-declared directory share one fetch.)
+// picker and the Community Offerings directory share one fetch.)
 export const COMMUNITY_RELAYS = ['wss://dcosl.brainstorm.world'];
 
 // Relay filters cannot express "has a b tag", so the search is bounded by

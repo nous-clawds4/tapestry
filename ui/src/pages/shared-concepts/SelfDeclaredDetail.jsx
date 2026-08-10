@@ -5,7 +5,7 @@ import AuthorCell from '../../components/AuthorCell';
 import useProfiles from '../../hooks/useProfiles';
 import { fetchFromRelays } from '../../utils/nostrPublish';
 
-// The public relay the self-declared listing searches — its detail reads
+// The public relay Community Offerings searches — its detail reads
 // from the same place. Hardcoded for now (future: nostr-relays concept).
 const COMMUNITY_RELAYS = ['wss://dcosl.brainstorm.world'];
 
@@ -22,11 +22,14 @@ function descriptionOf(ev) {
 }
 
 /**
- * Self-declared Shared Concept detail: the event behind one row of the
- * self-declared listing, fetched from the community relay by its own
- * coordinate (the same value its self-pointing b-tag carries). Shows name,
- * description, author, and the raw event — hidden by default behind a
- * toggle.
+ * Community offering detail: the event behind one row of Community Offerings,
+ * fetched from the community relay by its own coordinate (the same value its
+ * self-pointing b-tag carries). Shows name, description, author, and the raw
+ * event — hidden by default behind a toggle.
+ *
+ * "Self-declared" survives below only where it names the WIRE FACT (a b-tag
+ * pointing at its own event), never as a surface name — the naming rule from
+ * the 2026-08-09 vocabulary pass.
  */
 export default function SelfDeclaredDetail() {
   const { uuid } = useParams();
@@ -66,7 +69,7 @@ export default function SelfDeclaredDetail() {
     return (
       <div className="page">
         <Breadcrumbs />
-        <p>Loading self-declared shared concept…</p>
+        <p>Loading community offering…</p>
       </div>
     );
   }
@@ -75,7 +78,7 @@ export default function SelfDeclaredDetail() {
     return (
       <div className="page">
         <Breadcrumbs />
-        <h1>🤝 Self-declared Shared Concept</h1>
+        <h1>🤝 Community Offering</h1>
         {error
           ? <p className="error">Error: {error}</p>
           : <p className="text-muted">Cannot locate the event on the community relay.</p>}

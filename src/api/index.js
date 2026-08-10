@@ -606,6 +606,12 @@ async function register(app) {
     const { handleConceptSharingState } = require('./concept/sharingState.js');
     app.get('/api/concept/:handle/sharing-state', handleConceptSharingState);
 
+    // ── My offerings: everything this instance has declared, each marked shared / not-yet-sent /
+    //    unconfirmed. The bulk sibling of the read above (ADR shared-concepts-legibility/0002);
+    //    public for the same reason. Two queries regardless of how many concepts are offered. ──
+    const { handleMyOfferings } = require('./concept/myOfferings.js');
+    app.get('/api/my-offerings', handleMyOfferings);
+
     // ── Adoption queue — server-assembled S3 ∖ S2a read (ADR shared-concepts-adoption/0002) ──
     const { registerAdoptionRoutes } = require('./adoption/index.js');
     registerAdoptionRoutes(app);
