@@ -26,7 +26,7 @@ function formatAge(totalSeconds) {
 }
 
 /**
- * Self-declared Shared Concepts — the community-relay fetch (dedupe +
+ * Community Offerings — what everyone has offered. The community-relay fetch (dedupe +
  * self-coordinate match) lives in useCommunitySharedConcepts (extracted
  * behavior-preserving, ADR shared-concepts-adoption/0001, so the disposition
  * panel's wire-external picker shares it). This page adds the local-usage
@@ -156,12 +156,12 @@ export default function SelfDeclaredSharedConcepts() {
         <p>Searching the community relay…</p>
       ) : (
         <>
-          <p className="subtitle">{rows.length} self-declared shared concepts</p>
+          <p className="subtitle">{rows.length} offered by the community</p>
           <DataTable
             columns={columns}
             data={rows}
             onRowClick={(row) => navigate(`/tapestry/shared-concepts/self-declared/${encodeURIComponent(row.uuid)}`)}
-            emptyMessage="No self-declared shared concepts found."
+            emptyMessage="No community offerings found."
           />
         </>
       )}

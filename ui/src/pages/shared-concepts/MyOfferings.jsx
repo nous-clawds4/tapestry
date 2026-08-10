@@ -7,7 +7,7 @@ import Breadcrumbs from '../../components/Breadcrumbs';
  * My Offerings — everything this instance has offered to the community
  * (story shared-concepts-legibility #2, ADR 0002).
  *
- * Distinct from the Self-declared directory beside it: that page answers "what
+ * Distinct from Community Offerings beside it: that page answers "what
  * has the community offered?" from the relay, while this answers "what have I
  * offered?" from two stores — and carries a state the community view cannot
  * have, a declaration that never left this machine.
