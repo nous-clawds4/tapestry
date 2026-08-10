@@ -1,6 +1,6 @@
 # Story 1: Tell me what actually happened when I offer or wire a concept
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-08-10
 **Type:** Bug
 **Epic:** `shared-concepts-seeding`
@@ -105,4 +105,4 @@ action, the wire format, or any concept definition. No firmware reinstall.
 - ADR: (skipped — Bug under Standard; the concept page's handler is the working model, so there is
   no design choice to make)
 - Test plan: `engineering-team/stories/shared-concepts-seeding/1-honest-broadcast-reporting.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/shared-concepts-seeding/1-honest-broadcast-reporting.md`
