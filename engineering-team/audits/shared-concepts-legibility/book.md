@@ -1,9 +1,9 @@
 # Book of Work: Shared Concepts legibility — can a user tell what they have already shared?
 
 **Slug:** shared-concepts-legibility
-**Status:** Open
+**Status:** Closed
 **Opened:** 2026-08-09
-**Closed:** —
+**Closed:** 2026-08-10
 
 ## Intent anchor
 
@@ -19,10 +19,10 @@ Live state at kickoff, verified: staging's `cat-breed` header carries no b-tag (
 
 ### Acceptance frame
 
-- [ ] From the concept page she lands on, Stacie can tell whether she has already shared that concept — **without clicking anything**.
-- [ ] She can see, in one place, **every concept her own instance has offered** to the community.
-- [ ] Where "offered locally" and "reached the community" can differ, the surfaces **say which one they are showing**.
-- [ ] The words on these surfaces **distinguish offering, adopting, and cataloguing**.
+- [x] From the concept page she lands on, Stacie can tell whether she has already shared that concept — **without clicking anything**.
+- [x] She can see, in one place, **every concept her own instance has offered** to the community.
+- [x] Where "offered locally" and "reached the community" can differ, the surfaces **say which one they are showing**.
+- [x] The words on these surfaces **distinguish offering, adopting, and cataloguing**.
 
 ### Scope notes
 
@@ -38,8 +38,8 @@ Live state at kickoff, verified: staging's `cat-breed` header carries no b-tag (
 
 ## Provenance
 - **Mode:** Acceptance-frame
-- **Confidence at close:** —
+- **Confidence at close:** high
 
-## Close artifacts *(filled by `/close-book`)*
+## Close artifacts
 - Build audit: `engineering-team/audits/shared-concepts-legibility/audit.md`
 - Product feedback: `engineering-team/audits/shared-concepts-legibility/prd-seed.md`

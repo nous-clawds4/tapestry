@@ -1,6 +1,6 @@
 # Epic: Shared Concepts Legibility
 
-**Status:** In Progress
+**Status:** Done
 **Provenance:** `engineering-team/stories/_intake.md` entry 2026-08-09 (the cat-breed walkthrough — the owner driving the Shared Concepts feature as a naive user); book anchor at `engineering-team/audits/shared-concepts-legibility/book.md`.
 
 ## What this is
@@ -13,7 +13,7 @@ The work is display and vocabulary, not new capability. Every fact these surface
 
 ## Stories
 
-`stories/shared-concepts-legibility/`:
+`stories/done/shared-concepts-legibility/`:
 
 1. **state-on-concept-page** — a concept's page shows whether it has been shared, and how, before anything is clicked.
 
@@ -25,7 +25,7 @@ Queued behind it (from the intake entry, not yet planned):
 
 ## ADRs
 
-`decisions/shared-concepts-legibility/` — none yet.
+`decisions/done/shared-concepts-legibility/` — 0001 (sharing-state resolver; implementation notes amended at Test Design when the handler-seam constraint surfaced), 0002 (my-offerings bulk resolver).
 
 ## Notes
 
