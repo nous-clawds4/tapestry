@@ -183,7 +183,14 @@ test('V8 (AC-8): the internal surface is clean too — endpoint, response field,
   assert(apiFiles.length === 0, `no handler filename may carry it — found ${JSON.stringify(apiFiles)}`);
   const pageFiles = ls(SHARED_CONCEPTS_DIR).filter((f) => RETIRED.test(f));
   assert(pageFiles.length === 0, `no page filename may carry it — found ${JSON.stringify(pageFiles)}`);
-  const testFiles = ls(path.join(ROOT, 'test')).filter((f) => RETIRED.test(f));
+  // This suite is exempt from its own filename rule: it is NAMED for the
+  // retirement, so carrying the word is its subject, not rot. Same shape as
+  // V6's comment exemption — the rule is about names that mislead, and a guard
+  // called "retire-offering-vocabulary" misleads nobody. Exempting by exact
+  // basename rather than by pattern, so a genuinely stale test filename cannot
+  // hide behind the carve-out.
+  const SELF = path.basename(__filename);
+  const testFiles = ls(path.join(ROOT, 'test')).filter((f) => f !== SELF && RETIRED.test(f));
   assert(testFiles.length === 0, `no test filename may carry it — found ${JSON.stringify(testFiles)}`);
 
   // The response field the page reads must not be named for the retired concept.

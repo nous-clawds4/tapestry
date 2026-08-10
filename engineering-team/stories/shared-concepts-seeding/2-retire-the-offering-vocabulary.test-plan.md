@@ -98,27 +98,46 @@ npm test
 
 ## Verification
 
-Confirmed on 2026-08-10 at commit `19c71e88`, stack up at :7778.
+### First pass — 2026-08-10, commit `19c71e88`
 
-**`retire-offering-vocabulary` — 8 failed, 2 passed, 0 skipped.**
+**`retire-offering-vocabulary` — 8 failed, 2 passed.** **`shared-by-me` (re-aimed) — 13 passed, 1
+failed.** Exactly the intended shape: the discovery helpers resolved against the *old* names, so
+every behaviour test passed before the rename — which is the point, since they had to pass after it
+too. The single failure was `S6`, whose middle-state pin this phase deliberately re-aimed.
+
+### Kick-back from Implementation — 2026-08-10, product side at `e18fd020`
+
+Implementation completed all three tiers and then stopped at the gate: the two remaining failures
+were **defects in these test files, not in the product**, and editing tests is this phase's lane.
+Both were mine from the first pass, and both are the same mistake in different clothes — *a rule
+that did not account for itself*.
+
+**Gap 1 — `V8` flagged its own filename.** The rule "no test filename may carry the retired stem"
+matched `retire-offering-vocabulary.test.js`, which carries the word because it is *named for the
+retirement*. This is the third instance of the over-breadth `V6` already had to correct (which
+started by flagging ordinary English in unrelated comments). *Fix:* exempt by **exact basename**,
+not by pattern — so a genuinely stale test filename cannot hide behind the carve-out.
+
+**Gap 2 — the suite was agnostic about three names out of four.** `shared-by-me` was deliberately
+built to discover the page component, the endpoint and the handler, so a rename could not break it.
+It still hardcoded `json.offerings`, and `AC-8` required that field renamed — so the suite the
+rename was supposed to survive was broken by the rename anyway. *Fix at the root, not the symptom:*
+a fourth discovery helper, `rowsOf(json)`, takes the response's **sole array-valued property**.
+Ambiguity returns `null` and fails loudly rather than guessing.
+
+**The lesson worth carrying:** "make the test agnostic about the names" is only as good as the
+enumeration of names. Three of four is a suite that *looks* rename-proof and is not.
+
+### After the kick-back
 
 ```
-  ✗ V1   the heading must be named for sharing — got "🤝 My Offerings"
-  ✗ V2   the two nav labels must read as a pair … got ["My Offerings","Community Offerings"]
-  ✗ V3   the middle state must say it did not REACH the community (story AC-4)
-  ✓ V4   the unconfirmed state survives and stays distinct from the failure
-  ✗ V5   no outcome message may use the retired vocabulary
-  ✗ V6   no user-readable string may use the retired vocabulary — 26 hit(s) …
-  ✗ V6b  the retired page names must survive nowhere, comments included …
-  ✗ V7   Layout.jsx's shared-concepts entries must not use the retired vocabulary
-  ✗ V8   no registered route may carry the retired vocabulary — found ["/api/my-offerings"]
-  ✓ R1 (regression) the tri-state itself is untouched
+retire-offering-vocabulary: 10 passed, 0 failed, 0 skipped
+shared-by-me:               14 passed, 0 failed, 0 skipped
+honest-broadcast-reporting: 15 passed, 0 failed, 0 skipped
 ```
 
-**`shared-by-me` (re-aimed) — 13 passed, 1 failed, 0 skipped.** Exactly the intended shape: the
-discovery helpers resolve against today's names, so every behaviour test still passes *before* the
-rename — which is the point, since they must also pass *after* it. The single failure is `S6`, whose
-middle-state pin this phase deliberately re-aimed from `not yet sent` to the new failure wording.
+Endpoint verified live: `/api/shared-by-me` → 200, `/api/my-offerings` → 404. `harness-lint` exit 0.
 
-Every failure names the artifact or the string it found, and `V6`/`V6b` list their hits with
-`file:line` so the Implementer has a worklist rather than a puzzle.
+Note the counts differ from a normal Test Design close: the tests **pass** here rather than failing,
+because the product change was already complete when the kick-back was raised. What this phase
+produced is two corrected rules, not a new red bar.

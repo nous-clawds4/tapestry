@@ -71,6 +71,21 @@ function discovered() {
 }
 const ENDPOINT = () => discovered().endpoint || '/api/(not-discovered)';
 
+/**
+ * The response's row array — the FOURTH name this suite is agnostic about.
+ * The first pass discovered the component, the endpoint and the handler but
+ * hardcoded the field, so a rename the suite was built to tolerate broke it
+ * anyway (kick-back, 2026-08-10). Discovered as the response's sole
+ * array-valued property; ambiguity returns null and fails loudly rather than
+ * guessing.
+ */
+function rowsOf(json) {
+  if (!json || typeof json !== 'object') return null;
+  const arrays = Object.entries(json).filter(([, v]) => Array.isArray(v));
+  if (arrays.length !== 1) return null;
+  return arrays[0][1];
+}
+
 /** Structure-bounded function body (the OPEN.md #109-ratified shape). */
 function topLevelFunctionBody(src, name) {
   const re = new RegExp(`^(async )?function ${name}\\b`, 'm');
@@ -230,10 +245,12 @@ test('H1: the endpoint answers with the documented shape', async () => {
   const { status, json } = await hostGetJson(ENDPOINT());
   assert(status === 200, `expected 200 from ${ENDPOINT()}, got ${status}`);
   assert(json && json.success === true, `expected success:true, got ${JSON.stringify(json)}`);
-  assert(Array.isArray(json.offerings), `offerings must be an array, got ${typeof json.offerings}`);
+  const rows = rowsOf(json);
+  assert(Array.isArray(rows),
+    `the response must carry exactly one array of rows — got ${JSON.stringify(Object.keys(json || {}))}`);
   assert(json.ta === s.ta, `ta must be the runtime TA ${s.ta}, got ${json.ta}`);
   assert(typeof json.relayOk === 'boolean', 'relayOk must be a boolean so the page can state one failed check once');
-  for (const row of json.offerings) {
+  for (const row of rows) {
     assert(typeof row.coord === 'string', `each row needs a coord, got ${JSON.stringify(row)}`);
     assert(row.published === true || row.published === false || row.published === null,
       `published must be the tri-state true|false|null, got ${JSON.stringify(row.published)} on ${row.coord}`);
@@ -244,9 +261,9 @@ test('H2 (AC-1, the completeness test): every locally declared concept is listed
   const s = await stack();
   if (!s.up) return 'SKIP';
   const expected = await localSelfDeclared(s.ta);
-  if (expected.size === 0) return 'SKIP'; // this instance has offered nothing to assert about
+  if (expected.size === 0) return 'SKIP'; // this instance has shared nothing to assert about
   const { json } = await hostGetJson(ENDPOINT());
-  const got = new Set((json && json.offerings ? json.offerings : []).map((r) => r.coord));
+  const got = new Set((rowsOf(json) || []).map((r) => r.coord));
   const missing = [...expected].filter((c) => !got.has(c));
   assert(missing.length === 0,
     `every self-declared header in local strfry must be listed. Missing ${missing.length}: ${JSON.stringify(missing)}. `
@@ -259,34 +276,36 @@ test('H3 (AC-2/AC-3): published matches relay presence, computed independently �
   const s = await stack();
   if (!s.up) return 'SKIP';
   const { status, json } = await hostGetJson(ENDPOINT());
-  assert(status === 200 && json && Array.isArray(json.offerings),
+  const rows = rowsOf(json);
+  assert(status === 200 && Array.isArray(rows),
     `the endpoint must answer before published can be checked — got ${status} ${JSON.stringify(json)}`);
-  if (json.offerings.length === 0) return 'SKIP';
+  if (rows.length === 0) return 'SKIP';
   const onRelay = await relaySelfDeclared(s.ta);
 
   if (onRelay === null || json.relayOk === false) {
-    for (const row of json.offerings) {
+    for (const row of rows) {
       assert(row.published === null,
         `the relay could not be read, so every row must report published:null — got ${JSON.stringify(row.published)} on ${row.coord}. Reporting false here would claim "not shared" on the strength of a check that failed to run.`);
     }
     return;
   }
-  for (const row of json.offerings) {
+  for (const row of rows) {
     const expected = onRelay.has(row.coord);
     assert(row.published === expected,
       `published for ${row.coord} should be ${expected} (independently checked against ${COMMUNITY_RELAY}), got ${JSON.stringify(row.published)}`);
   }
 });
 
-test('H4 (AC-5): only this instance\'s offerings appear', async () => {
+test('H4 (AC-5): only this instance\'s own concepts appear', async () => {
   const s = await stack();
   if (!s.up) return 'SKIP';
   const { status, json } = await hostGetJson(ENDPOINT());
   // Assert the endpoint answered FIRST — otherwise this passes vacuously on an
   // empty/absent response and reports coverage it does not have.
-  assert(status === 200 && json && Array.isArray(json.offerings),
+  const rows = rowsOf(json);
+  assert(status === 200 && Array.isArray(rows),
     `the endpoint must answer before authorship can be checked — got ${status} ${JSON.stringify(json)}`);
-  const foreign = json.offerings.filter((r) => r.coord.split(':')[1] !== s.ta);
+  const foreign = rows.filter((r) => r.coord.split(':')[1] !== s.ta);
   assert(foreign.length === 0,
     `every row must be authored by this instance's TA; found ${foreign.length} foreign: ${JSON.stringify(foreign.map((r) => r.coord))}`);
 });
@@ -295,7 +314,7 @@ test('H5: rows are ordered newest-declared first', async () => {
   const s = await stack();
   if (!s.up) return 'SKIP';
   const { json } = await hostGetJson(ENDPOINT());
-  const rows = (json && json.offerings) || [];
+  const rows = rowsOf(json) || [];
   if (rows.length < 2) return 'SKIP';
   for (let i = 1; i < rows.length; i++) {
     assert(rows[i - 1].declaredAt >= rows[i].declaredAt,
