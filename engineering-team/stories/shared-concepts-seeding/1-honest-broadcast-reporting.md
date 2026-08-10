@@ -104,5 +104,5 @@ action, the wire format, or any concept definition. No firmware reinstall.
 ## Linked artifacts
 - ADR: (skipped — Bug under Standard; the concept page's handler is the working model, so there is
   no design choice to make)
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/shared-concepts-seeding/1-honest-broadcast-reporting.test-plan.md`
 - Review: (filled in after Review phase)
