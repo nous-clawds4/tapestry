@@ -376,11 +376,11 @@ const router = createBrowserRouter([
         handle: { crumb: 'Shared Concepts' },
         children: [
           { index: true, element: <SharedConceptsIndex />, handle: { crumb: 'Shared Concepts Registry' } },
-          { path: 'new', element: <NewSharedConcept />, handle: { crumb: 'New Shared Concept' } },
+          { path: 'new', element: <NewSharedConcept />, handle: { crumb: 'Add to Registry' } },
           { path: 'b-tags', element: <ActiveBTags />, handle: { crumb: 'Active b-tags' } },
           { path: 'b-tags/:uuid', element: <BTagDetail />, handle: { crumb: 'b-tag Detail' } },
           { path: 'z-tags', element: <ActiveZTags />, handle: { crumb: 'Active z-tags' } },
-          { path: 'self-declared', element: <SelfDeclaredSharedConcepts />, handle: { crumb: 'Self-declared Shared Concepts' } },
+          { path: 'self-declared', element: <SelfDeclaredSharedConcepts />, handle: { crumb: 'Community Offerings' } },
           { path: 'mine', element: <MyOfferings />, handle: { crumb: 'My Offerings' } },
           { path: 'self-declared/:uuid', element: <SelfDeclaredDetail />, handle: { crumb: 'Detail' } },
           { path: 'adoption-queue', element: <AdoptionQueue />, handle: { crumb: 'Adoption Queue' } },

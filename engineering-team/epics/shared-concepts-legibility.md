@@ -21,7 +21,7 @@ Queued behind it (from the intake entry, not yet planned):
 
 - **disposition-filter-on-concepts** — the Concepts list can filter by affiliation state, so author + state composes into "everything my instance has offered."
 - **mine-only-self-declared** — a "mine" view of the Self-declared directory; also the natural home for *reached the community* as distinct from *declared locally*.
-- **shared-concept-vocabulary** — the remaining labels reviewed against the rule that a surface is named for the verb that produces its data. The Registry rename (2026-08-09, commit `15b7d753`) was the first pass; `Create New Shared Concept` and the raw-wire `Active b-tags` / `Active z-tags` are unreviewed.
+- **shared-concept-vocabulary** — the remaining labels reviewed against the naming rule. Done in two passes: the Registry rename (commit `15b7d753`), then `Create New Shared Concept` → **Add to Registry** and `Self-declared Shared Concepts` → **Community Offerings**. The rule the review settled: **workflow surfaces are named for the verb; wire inspectors are named for the tag.** `Active b-tags` / `Active z-tags` were therefore deliberately KEPT — for a tool whose job is to show raw b-tags, the mechanism *is* the question, and a friendlier name would hide what the page is. `Community Offerings` pairs with the `My Offerings` page story 2 built: same verb, two subjects, adjacent in the nav.
 
 ## ADRs
 

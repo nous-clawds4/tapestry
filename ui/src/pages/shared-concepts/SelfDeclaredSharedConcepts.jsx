@@ -144,11 +144,12 @@ export default function SelfDeclaredSharedConcepts() {
   return (
     <div className="page">
       <Breadcrumbs />
-      <h1>🤝 Self-declared Shared Concepts</h1>
-      <p className="subtitle">
-        Events published to a public relay whose author offers them as shared concepts, as
-        evidenced by a b-tag that points to the event itself. To make use of one, point to it
-        with the same b-tag it uses to point to itself.
+      <h1>🤝 Community Offerings</h1>
+      <p className="subtitle" style={{ maxWidth: '52rem' }}>
+        What <strong>everyone</strong> has offered to the community — the mirror of My Offerings,
+        which shows only yours. These are events on a public relay that declare themselves shared,
+        by carrying a b-tag pointing at the event itself. To make use of one, point to it with that
+        same b-tag.
       </p>
 
       {rows === null ? (
