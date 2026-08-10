@@ -1,6 +1,6 @@
 # Story 1: Show a concept's sharing state on its own page
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-08-09
 **Type:** Feature
 **Epic:** `shared-concepts-legibility`
@@ -130,4 +130,4 @@ the relevant relay set from the concept graph.
 ## Linked artifacts
 - ADR: `engineering-team/decisions/shared-concepts-legibility/0001-sharing-state-resolver.md`
 - Test plan: `engineering-team/stories/shared-concepts-legibility/1-state-on-concept-page.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/shared-concepts-legibility/1-state-on-concept-page.md`
