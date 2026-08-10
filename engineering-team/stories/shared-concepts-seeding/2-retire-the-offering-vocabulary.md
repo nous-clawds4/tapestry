@@ -96,5 +96,5 @@ wire format, no concept definition, no firmware reinstall.
 
 ## Linked artifacts
 - ADR: (skipped — Refactor with the naming already settled; no design choice remains)
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/shared-concepts-seeding/2-retire-the-offering-vocabulary.test-plan.md`
 - Review: (filled in after Review phase)
