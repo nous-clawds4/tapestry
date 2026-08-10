@@ -230,6 +230,8 @@ const trustedDictionary = require('./trusted-dictionary.test.js');
 const adoptionTwins = require('./adoption-twins.test.js');
 // epic: shared-concepts-adoption — Story 9 (clickable rows → raw header event).
 const adoptionRawEventView = require('./adoption-raw-event-view.test.js');
+// epic: shared-concepts-legibility — Story 1 (sharing state on the concept page).
+const stateOnConceptPage = require('./state-on-concept-page.test.js');
 
 async function main() {
   console.log('Running Brainstorm tests...');
@@ -577,6 +579,9 @@ async function main() {
 
   console.log('\nadoption-raw-event-view suite:');
   const adoptionRawEventViewResult = await adoptionRawEventView.run();
+
+  console.log('\nstate-on-concept-page suite:');
+  const stateOnConceptPageResult = await stateOnConceptPage.run();
 
   console.log('\nTest Results');
   console.log('-------------');
@@ -1044,6 +1049,7 @@ async function main() {
   console.log(`trusted-dictionary suite:                        ${trustedDictionaryResult.fail === 0 ? 'PASS' : 'FAIL'} (${trustedDictionaryResult.pass} passed, ${trustedDictionaryResult.fail} failed, ${trustedDictionaryResult.skipped} skipped)`);
   console.log(`adoption-twins suite:                            ${adoptionTwinsResult.fail === 0 ? 'PASS' : 'FAIL'} (${adoptionTwinsResult.pass} passed, ${adoptionTwinsResult.fail} failed, ${adoptionTwinsResult.skipped} skipped)`);
   console.log(`adoption-raw-event-view suite:                   ${adoptionRawEventViewResult.fail === 0 ? 'PASS' : 'FAIL'} (${adoptionRawEventViewResult.pass} passed, ${adoptionRawEventViewResult.fail} failed, ${adoptionRawEventViewResult.skipped} skipped)`);
+  console.log(`state-on-concept-page suite:                     ${stateOnConceptPageResult.fail === 0 ? 'PASS' : 'FAIL'} (${stateOnConceptPageResult.pass} passed, ${stateOnConceptPageResult.fail} failed, ${stateOnConceptPageResult.skipped} skipped)`);
 
   const overallOk =
     configOk &&
@@ -1238,6 +1244,8 @@ async function main() {
     adoptionTwinsResult.fail === 0 &&
     // shared-concepts-adoption #9 — clickable rows → raw header event
     adoptionRawEventViewResult.fail === 0 &&
+    // shared-concepts-legibility #1 — sharing state on the concept page
+    stateOnConceptPageResult.fail === 0 &&
     harnessLintResult.fail === 0 &&
     harnessStatsResult.fail === 0 &&
     sessionStartResult.fail === 0 &&
@@ -1286,6 +1294,7 @@ async function main() {
     addConceptToTapestryResult, takeAConceptBackOutResult, brainFirstTapestryAuthoringResult,
     bCoverageAuditAndDispositionResult, adoptionCandidatesQueueResult, inverseQueuePublishCandidatesResult,
     publishTimeDefaultStampingResult, trustedDictionaryResult, adoptionTwinsResult, adoptionRawEventViewResult,
+    stateOnConceptPageResult,
   ].reduce((sum, r) => sum + ((r && r.skipped) || 0), 0);
   console.log(`Total skipped:                                   ${totalSkipped}`);
   console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);

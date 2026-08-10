@@ -600,6 +600,12 @@ async function register(app) {
     app.post('/api/concept/:handle/b-append', handleBAppend);
     app.post('/api/concept/:handle/b-defer', handleBDefer);
 
+    // ── Sharing state: is this header declared here, and is it SHARED (published to the
+    //    public relay)? Public read (ADR shared-concepts-legibility/0001) — it reveals nothing
+    //    an observer could not read off the relay; only the write paths above are gated. ──
+    const { handleConceptSharingState } = require('./concept/sharingState.js');
+    app.get('/api/concept/:handle/sharing-state', handleConceptSharingState);
+
     // ── Adoption queue — server-assembled S3 ∖ S2a read (ADR shared-concepts-adoption/0002) ──
     const { registerAdoptionRoutes } = require('./adoption/index.js');
     registerAdoptionRoutes(app);
