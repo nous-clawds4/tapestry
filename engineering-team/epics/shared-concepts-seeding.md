@@ -5,14 +5,14 @@
 
 ## What this is
 
-Making it easy to offer a concept — and honest about whether the offer landed.
+Making it easy to share a concept — and honest about whether it landed.
 
 The previous epic made an instance's sharing state visible on three surfaces. It did not make
-offering discoverable, and its own close recorded why that matters: the kickoff persona was a
+sharing discoverable, and its own close recorded why that matters: the kickoff persona was a
 veterinarian with a cat-breed taxonomy, and she finished that book able to *see* that her concept
 was unshared with nothing inviting her to share it.
 
-**The load-bearing correction this epic inherits:** the capability to offer a concept nobody else
+**The load-bearing correction this epic inherits:** the capability to share a concept nobody else
 uses has always existed — the concept page's submit button, and the same button in the Concepts-list
 disposition panel. **The gap is discovery, not capability.** An earlier analyst claim to the
 contrary was written into three documents before being caught; rebuilding the action is the specific
@@ -23,15 +23,16 @@ trap this epic must not fall into.
 `stories/shared-concepts-seeding/`:
 
 1. **honest-broadcast-reporting** — the two broadcast-bearing disposition actions discard the publish result and claim community reach unconditionally. Four affected actions across two pages, including the Adoption Queue's **Adopt**.
+2. **retire-the-offering-vocabulary** — "offering" named a category the owner had already ruled out on 2026-08-06; retired in favour of *shared* and *didn't reach the community*, the latter a failure to retry rather than a resting state.
 
-Queued behind it (frame-ratified, not yet planned):
+Queued behind them (frame-ratified, not yet planned):
 
-- **offer-from-my-offerings** — an "Offer a concept…" affordance on the page about offerings, picking from headers not yet offered. The frame's first bullet.
-- **disposition-filter-on-concepts** — the bulk sweep: filter the Concepts list to "not yet offered". **Moved here** from the legibility book's queue, because filtering by that state is the bulk half of seeding rather than a legibility filter.
+- **share-from-shared-by-me** — a way to share a concept from the page about what you have shared, picking from headers not yet shared. The frame's first bullet. **Reduced in scope 2026-08-10:** the owner observed this largely duplicates the bulk filter below, and story #1's precedent says a page routes to an action rather than hosting a second copy of it — so it is likely a link to the filtered Concepts list, not a third host for self-declare.
+- **disposition-filter-on-concepts** — the bulk sweep: filter the Concepts list to "not yet shared". **Moved here** from the legibility book's queue, because filtering by that state is the bulk half of seeding rather than a legibility filter.
 
 ## ADRs
 
-`decisions/shared-concepts-seeding/` — none yet. Story 1 skips Architecture (Bug under Standard; the concept page's handler is the working model).
+`decisions/shared-concepts-seeding/` — none yet. Both stories skipped Architecture by design: #1 as a Bug whose working model already existed, #2 as a Refactor whose names were settled with the owner before Planning.
 
 ## Notes
 

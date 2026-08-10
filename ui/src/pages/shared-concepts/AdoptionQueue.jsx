@@ -207,7 +207,7 @@ export default function AdoptionQueue() {
   // buttons do, in the page's plain proposal-loop voice.
   const VIEW_EXPLAINERS = {
     theirs: "Shared concepts published by others that people are actively using by way of the z-tag, included in an element's nostr event to point to the concept header. These elements may be published by you (the 'Used by me' check) and/or by others. Adopt one to wire it (via the b-tag) to your own matching concept, Recognize it in your registry (add it as an element of the concept for Shared Concepts), or Decline to keep it out of this queue.",
-    mine: 'Your own concepts that other people already use — 📄 counts filings made under your concept, 🔗 counts affiliations pointing at it. Submit one to offer it as a Shared Concept, or Keep private to stop this page from suggesting it.',
+    mine: 'Your own concepts that other people already use — 📄 counts filings made under your concept, 🔗 counts affiliations pointing at it. Submit one to share it as a Shared Concept, or Keep private to stop this page from suggesting it.',
     declined: 'Nominations you turned down. Nothing is deleted — they simply stay out of the queue until you Un-decline them.',
   };
 
@@ -293,7 +293,7 @@ export default function AdoptionQueue() {
             columns={mineColumns}
             data={data.publishCandidates}
             onRowClick={(row) => openHeaderEvent(row.coord)}
-            emptyMessage="Nothing to publish — every header others use is offered or deliberately private."
+            emptyMessage="Nothing to publish — every header others use is already shared or deliberately private."
           />
           {data.deferredInUse.length > 0 && (
             <div style={{ marginTop: '1rem' }}>

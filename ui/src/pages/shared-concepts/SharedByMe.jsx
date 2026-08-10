@@ -4,13 +4,17 @@ import DataTable from '../../components/DataTable';
 import Breadcrumbs from '../../components/Breadcrumbs';
 
 /**
- * My Offerings — everything this instance has offered to the community
- * (story shared-concepts-legibility #2, ADR 0002).
+ * Shared by me — every concept this instance has shared with the community
+ * (story shared-concepts-legibility #2, ADR 0002; renamed by seeding #2).
  *
- * Distinct from Community Offerings beside it: that page answers "what
- * has the community offered?" from the relay, while this answers "what have I
- * offered?" from two stores — and carries a state the community view cannot
- * have, a declaration that never left this machine.
+ * Distinct from Shared by others beside it: that page answers "what has the
+ * community shared?" from the relay, while this answers "what have I shared?"
+ * from two stores — and can therefore surface something the community view
+ * cannot, a share that never left this machine.
+ *
+ * There is no category between shared and not-shared. A concept whose local
+ * write succeeded but whose broadcast did not land is a FAILURE to be retried,
+ * not a resting state (owner ruling 2026-08-06; seeding #2).
  *
  * `published` is tri-state. `null` means the relay could not be asked and must
  * never render as not-sent.
@@ -18,13 +22,13 @@ import Breadcrumbs from '../../components/Breadcrumbs';
 
 const STATE = {
   shared: { icon: '🤝', label: 'Shared', title: 'This declaration is live on the community relay.' },
-  unsent: { icon: '⚠️', label: 'Declared here — not yet sent', title: 'Declared on this instance, but the community relay does not have it. Open the concept to send it.' },
+  unsent: { icon: '⚠️', label: "Didn't reach the community — try again", title: 'Saved on this instance, but the community relay does not have it. Open the concept to try again.' },
   unknown: { icon: '⏳', label: 'Unconfirmed', title: 'The community relay could not be reached, so publication could not be confirmed.' },
 };
 
 const stateOf = (published) => (published === null ? STATE.unknown : published ? STATE.shared : STATE.unsent);
 
-export default function MyOfferings() {
+export default function SharedByMe() {
   const navigate = useNavigate();
   const [data, setData] = useState(null); // null = loading
   const [error, setError] = useState(null);
@@ -33,11 +37,11 @@ export default function MyOfferings() {
     let cancelled = false;
     (async () => {
       try {
-        const resp = await fetch('/api/my-offerings');
+        const resp = await fetch('/api/shared-by-me');
         const json = await resp.json().catch(() => null);
         if (cancelled) return;
         // A failed local read is a non-200 by design — surface it as an error,
-        // never as an empty list, which would read as "you have offered nothing".
+        // never as an empty list, which would read as "you have shared nothing".
         if (!resp.ok || !json?.success) {
           setError(json?.error || `HTTP ${resp.status}`);
           return;
@@ -74,16 +78,16 @@ export default function MyOfferings() {
   return (
     <div className="page">
       <Breadcrumbs />
-      <h1>🤝 My Offerings</h1>
+      <h1>🤝 Shared by me</h1>
       <p className="subtitle" style={{ maxWidth: '52rem' }}>
-        Every concept this instance has offered to the community — <strong>including any that never
-        made it out</strong>. Declaring a concept and sending it are two steps, and the second can
-        fail, so a concept can be offered here without the community ever seeing it. Open a row to
-        send one.
+        Every concept this instance has shared with the community — <strong>including any that
+        never made it out</strong>. Saving a concept and sending it are two steps, and the second can
+        fail, so a share can be recorded here without the community ever seeing it. Open a row to
+        try again.
       </p>
 
-      {error && <p className="error">Could not read your offerings: {error}</p>}
-      {!error && data === null && <p>Loading your offerings…</p>}
+      {error && <p className="error">Could not read what you have shared: {error}</p>}
+      {!error && data === null && <p>Loading what you have shared…</p>}
 
       {data && (
         <>
@@ -96,12 +100,12 @@ export default function MyOfferings() {
               these are your declarations as this instance recorded them. None is known to be unsent.
             </p>
           )}
-          <p className="subtitle">{data.offerings.length} offered</p>
+          <p className="subtitle">{data.concepts.length} shared</p>
           <DataTable
             columns={columns}
-            data={data.offerings}
+            data={data.concepts}
             onRowClick={(row) => navigate(`/tapestry/concepts/${encodeURIComponent(row.coord)}`)}
-            emptyMessage="You haven't offered any concepts yet. Submit one from its concept page."
+            emptyMessage="You haven't shared any concepts yet. Submit one from its concept page."
           />
         </>
       )}

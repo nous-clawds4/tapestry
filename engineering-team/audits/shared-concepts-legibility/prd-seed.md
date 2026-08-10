@@ -6,6 +6,13 @@
 **Confidence:** medium-high — the frame is a real anchor and every bullet is verified in production, so §3 is solid. §1–§2 are inferred from one owner's walkthrough of their own instance; no other user has touched these surfaces.
 **Date:** 2026-08-10
 
+> **Forward pointer (2026-08-10):** the surfaces below are described by the names they carried at
+> this book's close. `shared-concepts-seeding` story #2 later retired the "offering" vocabulary —
+> **My Offerings → Shared by me**, **Community Offerings → Shared by others**, and the
+> declared-but-unsent state became a failure-to-retry rather than a category. This record is left
+> accurate as of its close rather than retconned.
+
+
 > A **reverse-engineered baseline** in the PRD shape, built from what shipped. A strawman for the product team, not a ratified spec. Sections are tagged `[FROM FRAME]`, `[INFERRED]`, or `[UNKNOWN — product input needed]`.
 
 ## 1. Product vision

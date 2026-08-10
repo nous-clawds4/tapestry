@@ -6,6 +6,13 @@
 **Provenance:** Acceptance-frame — owner-confirmed at book open, 2026-08-09
 **Confidence:** high — all four frame bullets met, every story reviewed PASS, everything smoke-verified on staging *and* production against live data rather than fixtures.
 
+> **Forward pointer (2026-08-10):** the surfaces below are described by the names they carried at
+> this book's close. `shared-concepts-seeding` story #2 later retired the "offering" vocabulary —
+> **My Offerings → Shared by me**, **Community Offerings → Shared by others**, and the
+> declared-but-unsent state became a failure-to-retry rather than a category. This record is left
+> accurate as of its close rather than retconned.
+
+
 > The Build Audit is the **as-built record** — what the product *is* now, factual and source-linked. It does not propose changes — that's the seed's job.
 
 ## 1. What shipped

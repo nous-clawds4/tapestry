@@ -28,11 +28,11 @@ present on `dcosl` by direct relay query. The path works — it is just not one 
 
 ### Acceptance frame
 
-- [ ] From the page about her offerings, the owner can **offer a concept she hasn't offered yet**,
-      without knowing which other page to visit.
-- [ ] Every path that offers a concept **tells her truthfully** whether it reached the community —
+- [ ] From the page about what she has shared, the owner can **share a concept she hasn't shared
+      yet**, without knowing which other page to visit.
+- [ ] Every path that shares a concept **tells her truthfully** whether it reached the community —
       including when it didn't.
-- [ ] She can find, in bulk, **which of her concepts she hasn't offered**.
+- [ ] She can find, in bulk, **which of her concepts she hasn't shared**.
 
 ### Scope notes
 
@@ -58,7 +58,11 @@ present on `dcosl` by direct relay query. The path works — it is just not one 
   an open product question — it is **not** in the frame above.
 
 ## Epics in this book
-- `shared-concepts-seeding` — offering a concept easily, and reporting honestly whether it landed.
+- `shared-concepts-seeding` — sharing a concept easily, and reporting honestly whether it landed.
+
+> **Vocabulary note (story #2, 2026-08-10):** "offering" was retired. It named a category — a concept
+> put forward but not published — that the owner had already ruled out on 2026-08-06. There is only
+> *shared*, and *didn't reach the community*, which is a failure to retry rather than a resting state.
 
 ## Provenance
 - **Mode:** Acceptance-frame
