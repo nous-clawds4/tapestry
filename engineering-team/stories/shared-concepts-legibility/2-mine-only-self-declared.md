@@ -103,6 +103,6 @@ either can be widened without invalidating the criteria above.
    criterion asks only that a not-yet-sent row lead somewhere useful.
 
 ## Linked artifacts
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/shared-concepts-legibility/0002-my-offerings-bulk-resolver.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
