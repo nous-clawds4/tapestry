@@ -171,6 +171,8 @@ const strfryWipeOwnerGate = require('./strfry-wipe-owner-gate.test.js');
 const relationshipPrimitives = require('./relationship-primitives.test.js');
 // epic: relationship-primitives — Story 2 (read-only deployment probe).
 const relationshipPrimitivesProbe = require('./relationship-primitives-probe.test.js');
+// epic: test-suite-hermeticity — Story 1 (author-scoped strfry write-assertion brackets).
+const strfryWriteAssertionBracket = require('./strfry-write-assertion-bracket.test.js');
 // epic: graph-curation-ui — Story 1 (place/move nodes between sets from the concept pages).
 const moveNodesBetweenSetsUi = require('./move-nodes-between-sets-ui.test.js');
 // epic: second-brain — Story 1 (capture a goal and see it).
@@ -532,6 +534,7 @@ async function main() {
   const strfryWipeOwnerGateResult = await strfryWipeOwnerGate.run();
   const relationshipPrimitivesResult = await relationshipPrimitives.run();
   const relationshipPrimitivesProbeResult = await relationshipPrimitivesProbe.run();
+  const strfryWriteAssertionBracketResult = await strfryWriteAssertionBracket.run();
   const moveNodesBetweenSetsUiResult = await moveNodesBetweenSetsUi.run();
   const captureAGoalAndSeeItResult = await captureAGoalAndSeeIt.run();
   const firmwareConceptElementsSetsResult = await firmwareConceptElementsSets.run();
@@ -954,6 +957,13 @@ async function main() {
       ? `SKIP (${relationshipPrimitivesProbeResult.skipped} tests; preconditions not met)`
       : `${relationshipPrimitivesProbeResult.fail === 0 ? 'PASS' : 'FAIL'} (${relationshipPrimitivesProbeResult.pass} passed, ${relationshipPrimitivesProbeResult.fail} failed${relationshipPrimitivesProbeResult.skipped ? `, ${relationshipPrimitivesProbeResult.skipped} skipped` : ''})`;
   console.log(`relationship-primitives-probe suite:             ${relationshipPrimitivesProbeLine}`);
+  // Skip-aware: H-class teeth tests skip when the local stack is absent (CI's
+  // stack-free job); the S-class bracket audit always runs and gates.
+  const strfryWriteAssertionBracketLine =
+    (strfryWriteAssertionBracketResult.pass + strfryWriteAssertionBracketResult.fail) === 0 && strfryWriteAssertionBracketResult.skipped
+      ? `SKIP (${strfryWriteAssertionBracketResult.skipped} tests; preconditions not met)`
+      : `${strfryWriteAssertionBracketResult.fail === 0 ? 'PASS' : 'FAIL'} (${strfryWriteAssertionBracketResult.pass} passed, ${strfryWriteAssertionBracketResult.fail} failed${strfryWriteAssertionBracketResult.skipped ? `, ${strfryWriteAssertionBracketResult.skipped} skipped` : ''})`;
+  console.log(`strfry-write-assertion-bracket suite:            ${strfryWriteAssertionBracketLine}`);
   // Skip-aware: H-class live sentinels skip when the local stack is absent
   // (CI's stack-free job); U/S classes always run and gate.
   const moveNodesBetweenSetsUiLine =
@@ -1202,6 +1212,8 @@ async function main() {
     relationshipPrimitivesResult.fail === 0 &&
     // relationship-primitives #2 — read-only deployment probe
     relationshipPrimitivesProbeResult.fail === 0 &&
+    // test-suite-hermeticity #1 — author-scoped strfry write-assertion brackets
+    strfryWriteAssertionBracketResult.fail === 0 &&
     // graph-curation-ui #1 — place/move nodes between sets UI
     moveNodesBetweenSetsUiResult.fail === 0 &&
     // second-brain #1 — capture a goal and see it

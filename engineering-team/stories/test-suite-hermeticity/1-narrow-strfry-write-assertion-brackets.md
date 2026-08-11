@@ -95,5 +95,5 @@ BIBLE §30.)
 
 ## Linked artifacts
 - ADR: `engineering-team/decisions/test-suite-hermeticity/0001-author-scoped-write-assertion-brackets.md`
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/test-suite-hermeticity/1-narrow-strfry-write-assertion-brackets.test-plan.md`
 - Review: (filled in after Review phase)
