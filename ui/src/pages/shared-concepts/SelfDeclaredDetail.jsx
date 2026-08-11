@@ -5,7 +5,7 @@ import AuthorCell from '../../components/AuthorCell';
 import useProfiles from '../../hooks/useProfiles';
 import { fetchFromRelays } from '../../utils/nostrPublish';
 
-// The public relay Community Offerings searches — its detail reads
+// The public relay Shared with the community searches — its detail reads
 // from the same place. Hardcoded for now (future: nostr-relays concept).
 const COMMUNITY_RELAYS = ['wss://dcosl.brainstorm.world'];
 
@@ -22,7 +22,7 @@ function descriptionOf(ev) {
 }
 
 /**
- * Community offering detail: the event behind one row of Community Offerings,
+ * Shared-concept detail: the event behind one row of Shared with the community,
  * fetched from the community relay by its own coordinate (the same value its
  * self-pointing b-tag carries). Shows name, description, author, and the raw
  * event — hidden by default behind a toggle.
@@ -69,7 +69,7 @@ export default function SelfDeclaredDetail() {
     return (
       <div className="page">
         <Breadcrumbs />
-        <p>Loading community offering…</p>
+        <p>Loading shared concept…</p>
       </div>
     );
   }
@@ -78,7 +78,7 @@ export default function SelfDeclaredDetail() {
     return (
       <div className="page">
         <Breadcrumbs />
-        <h1>🤝 Community Offering</h1>
+        <h1>🤝 Shared concept</h1>
         {error
           ? <p className="error">Error: {error}</p>
           : <p className="text-muted">Cannot locate the event on the community relay.</p>}

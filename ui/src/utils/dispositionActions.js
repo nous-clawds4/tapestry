@@ -1,4 +1,5 @@
 import { publishToRelays } from './nostrPublish';
+import { classifyBroadcast, outcomeMessage } from '@tapestry/broadcast-outcome';
 
 // Same community target as the self-declare button (ConceptDetail.jsx) and the
 // F1 panel. Extracted (ADR shared-concepts-adoption/0003) so the disposition
@@ -23,14 +24,20 @@ async function postJson(pathname, body) {
 export async function declareAndBroadcast(handle) {
   const data = await postJson(`/api/concept/${encodeURIComponent(handle)}/self-declare`);
   if (!data.success) throw new Error(data.error || 'Self-declare failed.');
+  // The local declaration has succeeded by this point. What the broadcast did
+  // is a SEPARATE fact — publishToRelays resolves rather than throwing on
+  // failure, so it has to be read, not assumed.
+  let result = null;
   try {
-    await publishToRelays(data.event, CONCEPT_PUBLISH_RELAYS);
-    return data.result === 'already-declared'
-      ? 'Already self-declared — re-broadcast to the community relay.'
-      : 'Submitted as a shared concept.';
+    result = await publishToRelays(data.event, CONCEPT_PUBLISH_RELAYS);
   } catch {
-    return 'Self-declared locally — community broadcast failed (retry from the concept page).';
+    result = null; // classifies as not-delivered — the honest direction
   }
+  return outcomeMessage({
+    outcome: classifyBroadcast(result),
+    verb: 'submit',
+    already: data.result === 'already-declared',
+  });
 }
 
 /**
@@ -50,12 +57,17 @@ export async function defer(handle) {
 export async function wireAndBroadcast(handle, target) {
   const data = await postJson(`/api/concept/${encodeURIComponent(handle)}/b-append`, { target });
   if (!data.success) throw new Error(data.error || 'Wiring failed.');
+  // Identical treatment to declareAndBroadcast above — this path carried the
+  // same defect and must not be left behind.
+  let result = null;
   try {
-    await publishToRelays(data.event, CONCEPT_PUBLISH_RELAYS);
-    return data.result === 'already-wired'
-      ? 'Already wired — re-broadcast to the community relay.'
-      : 'Wired — broadcast to the community relay.';
+    result = await publishToRelays(data.event, CONCEPT_PUBLISH_RELAYS);
   } catch {
-    return 'Wired locally — community broadcast failed (retry from the concept page).';
+    result = null;
   }
+  return outcomeMessage({
+    outcome: classifyBroadcast(result),
+    verb: 'wire',
+    already: data.result === 'already-wired',
+  });
 }

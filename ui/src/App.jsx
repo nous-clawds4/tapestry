@@ -57,7 +57,7 @@ import ActiveBTags from './pages/shared-concepts/ActiveBTags';
 import BTagDetail from './pages/shared-concepts/BTagDetail';
 import ActiveZTags from './pages/shared-concepts/ActiveZTags';
 import SelfDeclaredSharedConcepts from './pages/shared-concepts/SelfDeclaredSharedConcepts';
-import MyOfferings from './pages/shared-concepts/MyOfferings';
+import SharedByMe from './pages/shared-concepts/SharedByMe';
 import SelfDeclaredDetail from './pages/shared-concepts/SelfDeclaredDetail';
 import AdoptionQueue from './pages/shared-concepts/AdoptionQueue';
 import TrustedDictionary from './pages/shared-concepts/TrustedDictionary';
@@ -380,8 +380,8 @@ const router = createBrowserRouter([
           { path: 'b-tags', element: <ActiveBTags />, handle: { crumb: 'Active b-tags' } },
           { path: 'b-tags/:uuid', element: <BTagDetail />, handle: { crumb: 'b-tag Detail' } },
           { path: 'z-tags', element: <ActiveZTags />, handle: { crumb: 'Active z-tags' } },
-          { path: 'self-declared', element: <SelfDeclaredSharedConcepts />, handle: { crumb: 'Community Offerings' } },
-          { path: 'mine', element: <MyOfferings />, handle: { crumb: 'My Offerings' } },
+          { path: 'self-declared', element: <SelfDeclaredSharedConcepts />, handle: { crumb: 'Shared with the community' } },
+          { path: 'mine', element: <SharedByMe />, handle: { crumb: 'Shared by me' } },
           { path: 'self-declared/:uuid', element: <SelfDeclaredDetail />, handle: { crumb: 'Detail' } },
           { path: 'adoption-queue', element: <AdoptionQueue />, handle: { crumb: 'Adoption Queue' } },
           { path: 'dictionary', element: <TrustedDictionary />, handle: { crumb: 'Trusted Dictionary' } },

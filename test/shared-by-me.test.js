@@ -1,33 +1,27 @@
 /**
- * shared-concepts-legibility #2 — one place listing everything this instance
- * has offered.
- * Story: engineering-team/stories/shared-concepts-legibility/2-mine-only-self-declared.md
- * ADR:   engineering-team/decisions/shared-concepts-legibility/0002-my-offerings-bulk-resolver.md
+ * shared-concepts-legibility #2 — one place listing every concept this instance
+ * has shared with the community.
+ * Story: engineering-team/stories/done/shared-concepts-legibility/2-mine-only-self-declared.md
+ * ADR:   engineering-team/decisions/done/shared-concepts-legibility/0002-my-offerings-bulk-resolver.md
+ *
+ * RE-AIMED at shared-concepts-seeding #2 (the vocabulary retirement). The page,
+ * its handler and its endpoint were renamed away from "offerings"; this suite
+ * now DISCOVERS all three rather than hardcoding any — App.jsx names the
+ * component for the `mine` route, the page names the endpoint it fetches, and
+ * index.js names the handler that serves it.
+ *
+ * The division of labour matters: what these may be CALLED is enforced by
+ * test/retire-offering-vocabulary.test.js. THIS suite asserts only that the
+ * behaviour is unchanged, which is story #2's ninth acceptance criterion — so
+ * a rename that quietly altered what the page returns fails here, not there.
  *
  * The page's promise is COMPLETENESS, so the tests are built around the two
- * ways it could lie: dropping a declaration that never reached the relay
- * (H2), and rendering an empty list when the local read failed (S3).
+ * ways it could lie: dropping a declaration that never reached the relay (H2),
+ * and rendering an empty list when the local read failed (S3).
  *
- *   S1..S8 — structural: registration and public posture, the ADR's asked-for
- *            pin that BOTH sharing-state endpoints resolve through the pure
- *            core rather than re-deriving the tri-state, the no-swallow pin on
- *            the local read, runtime TA resolution, page/route/nav wiring, and
- *            a regression pin on the community directory.
- *   H1..H6 — live (SKIP when the stack is down). H2 and H3 recompute the
- *            expected answer from the two stores INDEPENDENTLY and compare —
- *            they do not trust the endpoint to grade itself.
- *
- * Coverage honesty (see the test plan): the genuinely new logic in this story
- * is the handler's local↔relay join, which is exercised live rather than by
- * unit tests — the pure core it calls was unit-tested by story 1 and is
- * unchanged. The one requirement that CANNOT be tested behaviourally without
- * breaking the instance is "a failed local scan must not render as an empty
- * list" (S3): breaking strfry to prove it is not an acceptable test cost, so
- * S3 is a structural pin and is labelled as one.
- *
- * EXPECTED NOW (pre-implementation): S1–S6 FAIL (endpoint, page, route absent);
- * S7, S8 PASS (regression guards); H1–H5 FAIL with 404; H6 PASS; all H SKIP
- * when the stack is down.
+ * EXPECTED after the rename lands: all green. While it is mid-flight, the
+ * discovery helpers return null and the S/H tests fail naming the piece they
+ * could not find.
  */
 
 const fs = require('fs');
@@ -36,9 +30,7 @@ const path = require('path');
 const ROOT = path.resolve(__dirname, '..');
 const LIB_JS = path.join(ROOT, 'src/lib/sharingState.js');
 const API_INDEX_JS = path.join(ROOT, 'src/api/index.js');
-const HANDLER_JS = path.join(ROOT, 'src/api/concept/myOfferings.js');
 const STORY1_HANDLER_JS = path.join(ROOT, 'src/api/concept/sharingState.js');
-const PAGE_JSX = path.join(ROOT, 'ui/src/pages/shared-concepts/MyOfferings.jsx');
 const APP_JSX = path.join(ROOT, 'ui/src/App.jsx');
 const LAYOUT_JSX = path.join(ROOT, 'ui/src/components/Layout.jsx');
 const DIRECTORY_JSX = path.join(ROOT, 'ui/src/pages/shared-concepts/SelfDeclaredSharedConcepts.jsx');
@@ -51,6 +43,48 @@ const tests = [];
 function test(name, fn) { tests.push({ name, fn }); }
 function assert(cond, msg) { if (!cond) throw new Error(msg); }
 function safeRead(p) { try { return fs.readFileSync(p, 'utf8'); } catch { return null; } }
+
+// ── Discovery: this suite must not hardcode the names it is agnostic about ──
+let _cache = null;
+function discovered() {
+  if (_cache) return _cache;
+  const app = safeRead(APP_JSX) || '';
+  const routed = app.match(/path:\s*['"`]mine['"`][^}]*element:\s*<(\w+)/);
+  const component = routed ? routed[1] : null;
+  const imported = component && app.match(new RegExp(`import ${component} from '([^']+)'`));
+  const pageJsx = imported ? path.join(ROOT, 'ui/src', imported[1].replace(/^\.\//, '') + '.jsx') : null;
+  const pageSrc = pageJsx ? safeRead(pageJsx) : null;
+  const ep = pageSrc && pageSrc.match(/fetch\('(\/api\/[^']+)'\)/);
+  const endpoint = ep ? ep[1] : null;
+  // The handler is the module required on the line that registers that route.
+  const idx = safeRead(API_INDEX_JS) || '';
+  const line = endpoint ? (idx.split('\n').find((l) => l.includes(`'${endpoint}'`)) || '') : '';
+  const idxLines = idx.split('\n');
+  const at = line ? idxLines.indexOf(line) : -1;
+  let handlerJs = null;
+  for (let i = at; i >= 0 && i > at - 4; i--) {
+    const req = (idxLines[i] || '').match(/require\('\.\/(concept\/[\w.]+)'\)/);
+    if (req) { handlerJs = path.join(ROOT, 'src/api', req[1]); break; }
+  }
+  _cache = { component, pageJsx, pageSrc, endpoint, routeLine: line, handlerJs };
+  return _cache;
+}
+const ENDPOINT = () => discovered().endpoint || '/api/(not-discovered)';
+
+/**
+ * The response's row array — the FOURTH name this suite is agnostic about.
+ * The first pass discovered the component, the endpoint and the handler but
+ * hardcoded the field, so a rename the suite was built to tolerate broke it
+ * anyway (kick-back, 2026-08-10). Discovered as the response's sole
+ * array-valued property; ambiguity returns null and fails loudly rather than
+ * guessing.
+ */
+function rowsOf(json) {
+  if (!json || typeof json !== 'object') return null;
+  const arrays = Object.entries(json).filter(([, v]) => Array.isArray(v));
+  if (arrays.length !== 1) return null;
+  return arrays[0][1];
+}
 
 /** Structure-bounded function body (the OPEN.md #109-ratified shape). */
 function topLevelFunctionBody(src, name) {
@@ -65,13 +99,14 @@ function topLevelFunctionBody(src, name) {
 
 // ═══ S — structural pins ═══════════════════════════════════════════════
 
-test('S1: GET /api/my-offerings is registered and is a PUBLIC read', () => {
-  assert(fs.existsSync(HANDLER_JS), 'src/api/concept/myOfferings.js is missing');
-  const idx = safeRead(API_INDEX_JS);
-  assert(idx, 'src/api/index.js unreadable');
-  const line = (idx.split('\n').find((l) => l.includes('my-offerings')) || '');
-  assert(line, "src/api/index.js must register '/api/my-offerings'");
-  assert(/app\.get\(/.test(line), 'the my-offerings route must be a GET');
+test('S1: the page\'s endpoint is registered and is a PUBLIC read', () => {
+  const d = discovered();
+  assert(d.pageJsx, "App.jsx must route 'mine' to a page component this suite can find");
+  assert(d.endpoint, `the page (${d.pageJsx}) must fetch an /api/… endpoint this suite can find`);
+  assert(d.handlerJs && fs.existsSync(d.handlerJs), `the handler serving ${d.endpoint} is missing`);
+  assert(d.routeLine, `src/api/index.js must register '${d.endpoint}'`);
+  const line = d.routeLine;
+  assert(/app\.get\(/.test(line), `the ${d.endpoint} route must be a GET`);
   assert(!/requireOwner/.test(line),
     'the read is public (ADR 0002) — it reveals nothing an observer could not read off the relay; only the write paths are gated');
 });
@@ -80,7 +115,7 @@ test('S2 (ADR-required): BOTH sharing-state endpoints resolve through the pure c
   const lib = safeRead(LIB_JS);
   assert(lib && /relayOk === false \? null/.test(lib),
     'the tri-state rule must live in src/lib/sharingState.js (this is the pin the other two assertions are measured against)');
-  for (const [label, file] of [['my-offerings', HANDLER_JS], ['sharing-state', STORY1_HANDLER_JS]]) {
+  for (const [label, file] of [['bulk', discovered().handlerJs], ['sharing-state', STORY1_HANDLER_JS]]) {
     const src = safeRead(file);
     assert(src, `${file} unreadable`);
     assert(/resolveSharingState/.test(src),
@@ -91,10 +126,12 @@ test('S2 (ADR-required): BOTH sharing-state endpoints resolve through the pure c
 });
 
 test('S3 (structural pin — see plan): a failed local scan must not degrade to an empty list', () => {
-  const src = safeRead(HANDLER_JS);
-  assert(src, 'src/api/concept/myOfferings.js unreadable');
-  const body = topLevelFunctionBody(src, 'handleMyOfferings');
-  assert(body, 'function handleMyOfferings not found as a top-level declaration');
+  const src = safeRead(discovered().handlerJs);
+  assert(src, 'the bulk handler is unreadable');
+  const named = src.match(/^async function (\w+)\(req, res\)/m);
+  assert(named, 'the handler must declare a top-level async handler function');
+  const body = topLevelFunctionBody(src, named[1]);
+  assert(body, `function ${named[1]} not found as a top-level declaration`);
   assert(!/strfryScan\([^;]*\.catch\s*\(\s*\(\s*\)\s*=>\s*(\[\]|null)/s.test(body),
     'the local scan must NOT be swallowed into [] or null — an empty list would assert "you have offered nothing", the one lie a completeness page must not tell (ADR 0002 Decision)');
   assert(/status\(5\d\d\)|status\(500\)/.test(body),
@@ -104,8 +141,8 @@ test('S3 (structural pin — see plan): a failed local scan must not degrade to 
 });
 
 test('S4: "mine" is the runtime TA — no hardcoded pubkey', () => {
-  const src = safeRead(HANDLER_JS);
-  assert(src, 'handler unreadable');
+  const src = safeRead(discovered().handlerJs);
+  assert(src, 'the bulk handler is unreadable');
   assert(/getOwnerAssistantPubkey/.test(src),
     'the TA must be resolved at runtime via getOwnerAssistantPubkey (per-deployment rule; three different TA values are in play across this project\'s instances)');
   const hex = src.match(/[0-9a-f]{64}/g);
@@ -113,11 +150,12 @@ test('S4: "mine" is the runtime TA — no hardcoded pubkey', () => {
 });
 
 test('S5: the page, its route and its nav entry exist, and rows lead to where sending lives', () => {
-  const page = safeRead(PAGE_JSX);
-  assert(page, 'ui/src/pages/shared-concepts/MyOfferings.jsx is missing');
-  assert(/my-offerings/.test(page), 'the page must read GET /api/my-offerings');
+  const d = discovered();
+  const page = d.pageSrc;
+  assert(page, 'the page component for the `mine` route is missing');
+  assert(d.endpoint && page.includes(d.endpoint), 'the page must read its endpoint');
   const app = safeRead(APP_JSX);
-  assert(app && /path:\s*['"`]mine['"`]/.test(app) && /MyOfferings/.test(app),
+  assert(app && /path:\s*['"`]mine['"`]/.test(app),
     "App.jsx must register 'mine' under shared-concepts");
   const layout = safeRead(LAYOUT_JSX);
   assert(layout && /shared-concepts\/mine/.test(layout), 'Layout.jsx must carry a nav entry for the page');
@@ -126,11 +164,15 @@ test('S5: the page, its route and its nav entry exist, and rows lead to where se
 });
 
 test('S6: the page distinguishes the three row states and reports an unconfirmed relay once, page-level', () => {
-  const page = safeRead(PAGE_JSX);
-  assert(page, 'MyOfferings.jsx unreadable');
+  const page = discovered().pageSrc;
+  assert(page, 'the page component is unreadable');
   assert(/[Ss]hared/.test(page), 'a published offering must read as shared');
-  assert(/not yet sent|not been sent|never sent/i.test(page),
-    'an unpublished offering must read as declared-but-not-sent, distinct from shared');
+  assert(/did ?n[o']?t reach|didn't reach|failed to reach/i.test(page),
+    'an unpublished share must read as a FAILURE to reach the community, not as a category of its own (story #2 AC-4)');
+  assert(/again|retry/i.test(page),
+    'that failure must offer a retry — it is a problem to fix, not a resting state (story #2 AC-4)');
+  assert(!/not yet sent|offering|offered/i.test(page),
+    'the retired vocabulary must not survive on this page (story #2 AC-7)');
   assert(/[Uu]nconfirmed|could not (be )?confirm/i.test(page),
     'published === null must render as unconfirmed — never as not-sent');
   assert(/relayOk/.test(page),
@@ -200,13 +242,15 @@ async function relaySelfDeclared(ta) {
 test('H1: the endpoint answers with the documented shape', async () => {
   const s = await stack();
   if (!s.up) return 'SKIP';
-  const { status, json } = await hostGetJson('/api/my-offerings');
-  assert(status === 200, `expected 200 from /api/my-offerings, got ${status}`);
+  const { status, json } = await hostGetJson(ENDPOINT());
+  assert(status === 200, `expected 200 from ${ENDPOINT()}, got ${status}`);
   assert(json && json.success === true, `expected success:true, got ${JSON.stringify(json)}`);
-  assert(Array.isArray(json.offerings), `offerings must be an array, got ${typeof json.offerings}`);
+  const rows = rowsOf(json);
+  assert(Array.isArray(rows),
+    `the response must carry exactly one array of rows — got ${JSON.stringify(Object.keys(json || {}))}`);
   assert(json.ta === s.ta, `ta must be the runtime TA ${s.ta}, got ${json.ta}`);
   assert(typeof json.relayOk === 'boolean', 'relayOk must be a boolean so the page can state one failed check once');
-  for (const row of json.offerings) {
+  for (const row of rows) {
     assert(typeof row.coord === 'string', `each row needs a coord, got ${JSON.stringify(row)}`);
     assert(row.published === true || row.published === false || row.published === null,
       `published must be the tri-state true|false|null, got ${JSON.stringify(row.published)} on ${row.coord}`);
@@ -217,9 +261,9 @@ test('H2 (AC-1, the completeness test): every locally declared concept is listed
   const s = await stack();
   if (!s.up) return 'SKIP';
   const expected = await localSelfDeclared(s.ta);
-  if (expected.size === 0) return 'SKIP'; // this instance has offered nothing to assert about
-  const { json } = await hostGetJson('/api/my-offerings');
-  const got = new Set((json && json.offerings ? json.offerings : []).map((r) => r.coord));
+  if (expected.size === 0) return 'SKIP'; // this instance has shared nothing to assert about
+  const { json } = await hostGetJson(ENDPOINT());
+  const got = new Set((rowsOf(json) || []).map((r) => r.coord));
   const missing = [...expected].filter((c) => !got.has(c));
   assert(missing.length === 0,
     `every self-declared header in local strfry must be listed. Missing ${missing.length}: ${JSON.stringify(missing)}. `
@@ -231,35 +275,37 @@ test('H2 (AC-1, the completeness test): every locally declared concept is listed
 test('H3 (AC-2/AC-3): published matches relay presence, computed independently — and null only when the relay failed', async () => {
   const s = await stack();
   if (!s.up) return 'SKIP';
-  const { status, json } = await hostGetJson('/api/my-offerings');
-  assert(status === 200 && json && Array.isArray(json.offerings),
+  const { status, json } = await hostGetJson(ENDPOINT());
+  const rows = rowsOf(json);
+  assert(status === 200 && Array.isArray(rows),
     `the endpoint must answer before published can be checked — got ${status} ${JSON.stringify(json)}`);
-  if (json.offerings.length === 0) return 'SKIP';
+  if (rows.length === 0) return 'SKIP';
   const onRelay = await relaySelfDeclared(s.ta);
 
   if (onRelay === null || json.relayOk === false) {
-    for (const row of json.offerings) {
+    for (const row of rows) {
       assert(row.published === null,
         `the relay could not be read, so every row must report published:null — got ${JSON.stringify(row.published)} on ${row.coord}. Reporting false here would claim "not shared" on the strength of a check that failed to run.`);
     }
     return;
   }
-  for (const row of json.offerings) {
+  for (const row of rows) {
     const expected = onRelay.has(row.coord);
     assert(row.published === expected,
       `published for ${row.coord} should be ${expected} (independently checked against ${COMMUNITY_RELAY}), got ${JSON.stringify(row.published)}`);
   }
 });
 
-test('H4 (AC-5): only this instance\'s offerings appear', async () => {
+test('H4 (AC-5): only this instance\'s own concepts appear', async () => {
   const s = await stack();
   if (!s.up) return 'SKIP';
-  const { status, json } = await hostGetJson('/api/my-offerings');
+  const { status, json } = await hostGetJson(ENDPOINT());
   // Assert the endpoint answered FIRST — otherwise this passes vacuously on an
   // empty/absent response and reports coverage it does not have.
-  assert(status === 200 && json && Array.isArray(json.offerings),
+  const rows = rowsOf(json);
+  assert(status === 200 && Array.isArray(rows),
     `the endpoint must answer before authorship can be checked — got ${status} ${JSON.stringify(json)}`);
-  const foreign = json.offerings.filter((r) => r.coord.split(':')[1] !== s.ta);
+  const foreign = rows.filter((r) => r.coord.split(':')[1] !== s.ta);
   assert(foreign.length === 0,
     `every row must be authored by this instance's TA; found ${foreign.length} foreign: ${JSON.stringify(foreign.map((r) => r.coord))}`);
 });
@@ -267,8 +313,8 @@ test('H4 (AC-5): only this instance\'s offerings appear', async () => {
 test('H5: rows are ordered newest-declared first', async () => {
   const s = await stack();
   if (!s.up) return 'SKIP';
-  const { json } = await hostGetJson('/api/my-offerings');
-  const rows = (json && json.offerings) || [];
+  const { json } = await hostGetJson(ENDPOINT());
+  const rows = rowsOf(json) || [];
   if (rows.length < 2) return 'SKIP';
   for (let i = 1; i < rows.length; i++) {
     assert(rows[i - 1].declaredAt >= rows[i].declaredAt,
@@ -302,7 +348,7 @@ async function run() {
       fail++;
     }
   }
-  console.log(`\nmy-offerings: ${pass} passed, ${fail} failed, ${skipped} skipped`);
+  console.log(`\nshared-by-me: ${pass} passed, ${fail} failed, ${skipped} skipped`);
   return { pass, fail, skipped, failures };
 }
 
