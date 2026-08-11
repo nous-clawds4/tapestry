@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCypher } from '../../hooks/useCypher';
 import DataTable from '../../components/DataTable';
@@ -9,6 +9,7 @@ import { DAVE_PUBKEY } from '../../config/pubkeys';
 import { useConfig } from '../../context/ConfigContext';
 import DispositionPanel from '../../components/DispositionPanel';
 import { dispositionOf } from '../../utils/bDisposition';
+import { STATES, matchesState, needsPublication, unconfirmedCount } from '../../utils/conceptStateFilter';
 
 const QUERY = `
   MATCH (h:NostrEvent)
@@ -66,7 +67,14 @@ export default function ConceptList() {
   const navigate = useNavigate();
   const [healthMap, setHealthMap] = useState({});
   const [authorFilter, setAuthorFilter] = useState('');
-  const [undispositionedOnly, setUndispositionedOnly] = useState(false);
+  const [stateFilter, setStateFilter] = useState('');
+  // Publication, as /api/shared-by-me resolved it — the SAME source the Shared
+  // by me page renders, so the two pages cannot disagree about a concept
+  // (ADR shared-concepts-seeding/0001). Fetched lazily: only the two
+  // publication-bearing states need it, so an ordinary page load never pays for
+  // the relay round trip.
+  //   null = not fetched | {loading} | {ok:true, map, relayOk} | {ok:false, error}
+  const [sharing, setSharing] = useState(null);
   const [panelRow, setPanelRow] = useState(null); // { uuid, name } | null
   // Headers acted on this session leave the undispositioned set IMMEDIATELY
   // (AC-2) — the Cypher rows refresh only on reload, so overlay locally.
@@ -87,6 +95,39 @@ export default function ConceptList() {
       })
       .catch(() => {}); // silently fail
   }, []);
+
+  // Publication is fetched only when a state actually needs it. A failure here
+  // must NOT degrade quietly the way the health fetch above does: answering
+  // "not shared" from a check that did not run is the defect the legibility
+  // book removed, so the error is recorded and the state is surfaced.
+  // The in-flight guard is a ref, NOT the `sharing` state: making `sharing` a
+  // dependency re-runs this effect the moment it is set to {loading}, and the
+  // re-run's cleanup cancels the very fetch that is still in flight — the page
+  // then shows "Checking…" forever while the 200 is discarded. Only unmount
+  // may cancel; switching states must not.
+  const sharingRequested = useRef(false);
+  const mounted = useRef(true);
+  useEffect(() => () => { mounted.current = false; }, []);
+
+  useEffect(() => {
+    if (!needsPublication(stateFilter) || sharingRequested.current) return;
+    sharingRequested.current = true;
+    setSharing({ loading: true });
+    fetch('/api/shared-by-me')
+      .then(async (resp) => {
+        const json = await resp.json().catch(() => null);
+        if (!mounted.current) return;
+        if (!resp.ok || !json?.success) {
+          // The row set itself is unknown — never fall back to the local chip.
+          setSharing({ ok: false, error: json?.error || `HTTP ${resp.status}` });
+          return;
+        }
+        const map = new Map();
+        for (const c of json.concepts || []) map.set(c.coord, c.published);
+        setSharing({ ok: true, map, relayOk: json.relayOk !== false });
+      })
+      .catch((err) => { if (mounted.current) setSharing({ ok: false, error: err.message }); });
+  }, [stateFilter]);
 
   const authorPubkeys = useMemo(
     () => [...new Set((data || []).map(r => r.author).filter(Boolean))],
@@ -147,10 +188,30 @@ export default function ConceptList() {
     return enrichedData.filter(r => r.author === authorFilter);
   }, [enrichedData, authorFilter]);
 
-  const visibleData = useMemo(
-    () => (undispositionedOnly ? filteredData.filter(r => r._undispositionedMine) : filteredData),
-    [filteredData, undispositionedOnly]
-  );
+  // The state stage runs after the author stage, so the two narrow together.
+  const stateCtx = useMemo(() => ({
+    taPubkey: TA_PUBKEY,
+    publishedByCoord: sharing?.ok ? sharing.map : null,
+    relayOk: sharing?.ok ? sharing.relayOk : undefined,
+  }), [TA_PUBKEY, sharing]);
+
+  // Publication-bearing states cannot answer until the fetch resolves, and must
+  // not answer at all if it failed — showing rows either way would present a
+  // guess as fact.
+  const stateAnswerable = !needsPublication(stateFilter) || Boolean(sharing?.ok);
+
+  const visibleData = useMemo(() => {
+    if (!stateFilter) return filteredData;
+    if (!stateAnswerable) return [];
+    return filteredData.filter(r => matchesState(r, stateFilter, stateCtx));
+  }, [filteredData, stateFilter, stateAnswerable, stateCtx]);
+
+  // How many of my concepts the unreachable relay is hiding from this answer.
+  const withheld = useMemo(() => (
+    stateFilter === 'not-yet-shared' && sharing?.ok && sharing.relayOk === false
+      ? unconfirmedCount(filteredData, stateCtx)
+      : 0
+  ), [stateFilter, sharing, filteredData, stateCtx]);
 
   // "Save & next" iterates the undispositioned-mine set in table order.
   const nextUndispositioned = (afterUuid) =>
@@ -254,14 +315,19 @@ export default function ConceptList() {
           <label style={{ fontSize: '0.75rem', fontWeight: 600, display: 'block', marginBottom: '0.25rem' }}>
             🧭 Coverage
           </label>
-          <label style={{ fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.4rem', cursor: 'pointer' }}>
-            <input
-              type="checkbox"
-              checked={undispositionedOnly}
-              onChange={e => setUndispositionedOnly(e.target.checked)}
-            />
-            Undispositioned (mine)
-          </label>
+          <select
+            value={stateFilter}
+            onChange={e => setStateFilter(e.target.value === 'all' ? '' : e.target.value)}
+            style={{
+              width: '100%', padding: '0.4rem 0.6rem', fontSize: '0.85rem',
+              backgroundColor: 'var(--bg-primary, #0f0f23)', color: 'var(--text-primary, #e0e0e0)',
+              border: '1px solid var(--border, #444)', borderRadius: '4px', cursor: 'pointer',
+            }}
+          >
+            {STATES.map(s => (
+              <option key={s.id} value={s.id}>{s.label}</option>
+            ))}
+          </select>
         </div>
       </div>
 
@@ -278,6 +344,27 @@ export default function ConceptList() {
           }}
           onClose={() => setPanelRow(null)}
         />
+      )}
+
+      {/* Publication state: pending, unavailable, or partial. Each says which,
+          because "no rows" and "we could not check" are different answers. */}
+      {needsPublication(stateFilter) && sharing?.loading && (
+        <p style={{ fontSize: '0.8rem', color: 'var(--text-muted, #888)', marginBottom: '0.5rem' }}>
+          ⏳ Checking the community relay…
+        </p>
+      )}
+      {needsPublication(stateFilter) && sharing?.ok === false && (
+        <div className="error" style={{ marginBottom: '0.5rem' }}>
+          Could not read what this instance has shared ({sharing.error}), so “{STATES.find(s => s.id === stateFilter)?.label}”
+          cannot be answered. Nothing is listed rather than guessing from local state alone.
+        </div>
+      )}
+      {withheld > 0 && (
+        <p style={{ fontSize: '0.8rem', color: 'var(--text-muted, #888)', marginBottom: '0.5rem' }}>
+          ⏳ The community relay could not be reached, so {withheld} declared concept{withheld === 1 ? '' : 's'} could
+          not be confirmed and {withheld === 1 ? 'is' : 'are'} not listed here. Only concepts that were never declared
+          are shown — those are known not to be shared without asking the relay.
+        </p>
       )}
 
       {loading && <div className="loading">Loading concepts…</div>}
