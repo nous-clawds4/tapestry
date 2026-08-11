@@ -94,6 +94,6 @@ BIBLE §30.)
   be recorded in an ADR, because this bracket guards a named invariant rather than ordinary behavior.
 
 ## Linked artifacts
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/test-suite-hermeticity/0001-author-scoped-write-assertion-brackets.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
