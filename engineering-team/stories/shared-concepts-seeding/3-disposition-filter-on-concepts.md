@@ -1,6 +1,6 @@
 # Story 3: Find, in bulk, which of my concepts I haven't shared
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-08-10
 **Type:** Feature
 
