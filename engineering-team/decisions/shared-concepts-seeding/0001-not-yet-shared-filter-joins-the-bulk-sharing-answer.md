@@ -165,7 +165,17 @@ stay instant.
 
 ## Implementation notes
 
-All changes are in one file plus its tests. No server change.
+No server change.
+
+> **Refinement ratified at the Phase-3 gate (2026-08-11).** This section originally said "all changes
+> are in one file". Test Design showed that a predicate living inside the React component can only be
+> checked by source grep, and a grep cannot distinguish a correct predicate from a plausible-but-wrong
+> one — the exact failure this story exists to prevent. So the predicate is extracted to
+> **`ui/src/utils/conceptStateFilter.js`**, dependency-free (no React, no `fetch`, no app imports),
+> exporting `STATES` and `matchesState(row, state, ctx)`. This follows the existing
+> `ui/src/utils/bDisposition.js` shape and the "pure core" split of ADR firmware-explorer/0001; `ui/`
+> is `"type": "module"`, so the module loads under plain node via dynamic import. The page becomes a
+> renderer of the predicate rather than its owner. Two files, not one.
 
 - **File: `ui/src/pages/concepts/ConceptList.jsx`**
   - Replace `undispositionedOnly` (`:69`) with a single `stateFilter` string, default `''` (All).

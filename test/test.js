@@ -240,6 +240,8 @@ const sharedByMe = require('./shared-by-me.test.js');
 const retireOfferingVocabulary = require('./retire-offering-vocabulary.test.js');
 // epic: shared-concepts-seeding — Story 1 (honest broadcast reporting).
 const honestBroadcastReporting = require('./honest-broadcast-reporting.test.js');
+// epic: shared-concepts-seeding — Story 3 (not-yet-shared filter on the Concepts list).
+const notYetSharedFilter = require('./not-yet-shared-filter.test.js');
 
 async function main() {
   console.log('Running Brainstorm tests...');
@@ -600,6 +602,7 @@ async function main() {
 
   console.log('\nhonest-broadcast-reporting suite:');
   const honestBroadcastReportingResult = await honestBroadcastReporting.run();
+  const notYetSharedFilterResult = await notYetSharedFilter.run();
 
   console.log('\nTest Results');
   console.log('-------------');
@@ -1078,6 +1081,13 @@ async function main() {
   console.log(`shared-by-me suite:                              ${sharedByMeResult.fail === 0 ? 'PASS' : 'FAIL'} (${sharedByMeResult.pass} passed, ${sharedByMeResult.fail} failed, ${sharedByMeResult.skipped} skipped)`);
   console.log(`retire-offering-vocabulary suite:                ${retireOfferingVocabularyResult.fail === 0 ? 'PASS' : 'FAIL'} (${retireOfferingVocabularyResult.pass} passed, ${retireOfferingVocabularyResult.fail} failed, ${retireOfferingVocabularyResult.skipped} skipped)`);
   console.log(`honest-broadcast-reporting suite:                ${honestBroadcastReportingResult.fail === 0 ? 'PASS' : 'FAIL'} (${honestBroadcastReportingResult.pass} passed, ${honestBroadcastReportingResult.fail} failed, ${honestBroadcastReportingResult.skipped} skipped)`);
+  // Skip-aware: H-class contract checks skip when the local stack is absent;
+  // the U-class predicate and S-class source audit always run and gate.
+  const notYetSharedFilterLine =
+    (notYetSharedFilterResult.pass + notYetSharedFilterResult.fail) === 0 && notYetSharedFilterResult.skipped
+      ? `SKIP (${notYetSharedFilterResult.skipped} tests; preconditions not met)`
+      : `${notYetSharedFilterResult.fail === 0 ? 'PASS' : 'FAIL'} (${notYetSharedFilterResult.pass} passed, ${notYetSharedFilterResult.fail} failed${notYetSharedFilterResult.skipped ? `, ${notYetSharedFilterResult.skipped} skipped` : ''})`;
+  console.log(`not-yet-shared-filter suite:                     ${notYetSharedFilterLine}`);
 
   const overallOk =
     configOk &&
@@ -1282,6 +1292,8 @@ async function main() {
     retireOfferingVocabularyResult.fail === 0 &&
     // shared-concepts-seeding #1 — honest broadcast reporting
     honestBroadcastReportingResult.fail === 0 &&
+    // shared-concepts-seeding #3 — not-yet-shared filter on the Concepts list
+    notYetSharedFilterResult.fail === 0 &&
     harnessLintResult.fail === 0 &&
     harnessStatsResult.fail === 0 &&
     sessionStartResult.fail === 0 &&

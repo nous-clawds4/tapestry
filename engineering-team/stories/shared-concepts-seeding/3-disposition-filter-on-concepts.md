@@ -126,5 +126,5 @@ call, not a requirement.
 
 ## Linked artifacts
 - ADR: `engineering-team/decisions/shared-concepts-seeding/0001-not-yet-shared-filter-joins-the-bulk-sharing-answer.md`
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/shared-concepts-seeding/3-disposition-filter-on-concepts.test-plan.md`
 - Review: (filled in after Review phase)
