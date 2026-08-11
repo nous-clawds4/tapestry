@@ -2073,3 +2073,32 @@ Within this entry: **shared-concept-vocabulary's registry rename + description f
 **Strictness:** Standard.
 **Phase path:** `/discuss` → protocols worksheet item → Protocol-Spec docs-mode for the wire format, then Standard for the surfaces that consume it.
 **References:** BIBLE §31 (instance identity = the TA); `ui/src/pages/concepts/ConceptList.jsx:134–142` (the hand-mapped display-name workaround); `ui/src/pages/shared-concepts/Index.jsx:34` (the Author column that surfaced it); `src/utils/assistantKeys.js` (runtime TA resolution).
+
+---
+
+## 2026-08-10 — Assistant-key lifecycle: provision admins automatically, deprovision on role change, re-key the owner slot
+
+**NOT PICKED UP.** Surfaced by the TA key exposure audit (`docs/TA_KEY_EXPOSURE_AUDIT_2026-08-10.md` §4), which was scoped to "is there a hardcoded TA nsec?" (answer: **no**). These gaps were found while establishing the as-built identity model and are filed so they are not rediscovered.
+
+**The good news first — this is a gap-filling job, not a build.** The per-principal design is already ~80% built and is the documented intent at `BIBLE.md:1046`: *"Every owner, admin, and customer has an assistant."* `SecureKeyStorage` is a flat store where the slot is only ever used as a filename (the parameter is spelled `customerPubkey` but is never validated as one), so **no storage-layer redesign is needed** — `'tapestry-assistant'` is already just one slot among many.
+
+**All four provisioning sites (exhaustive, verified via `storeRelayKeys` grep):** owner → `'tapestry-assistant'` at `setup/create_nostr_identity.sh:127` (automatic, first container start); customer → their hex pubkey at `src/utils/customerRelayKeys.js:66` (automatic, on signup / owner-add); admin and everyone-else fallback → their hex pubkey at `src/api/assistant/index.js:522` (**manual only** — a UI button at `ui/src/components/AssistantProfileEditor.jsx:158`); restore → `src/utils/customerManager.js:1080`. Guests get none and cannot provision (403) — correct.
+
+**Gap 1 — admins get nothing automatically.** Promotion to admin (`src/api/admin/index.js`) creates no identity; an admin has an assistant only if someone clicks the button.
+
+**Gap 2 — deprovisioning covers only customer hard-delete.** `deleteRelayKeys` has exactly one caller: `customerManager.removeCustomerSecureKeys` (`:666`), reached only from the delete path (`:524`). Customer *deactivation* (`:295`/`:370`) and admin *demotion* (`api/admin/index.js:221`) leave a fully working signing identity in place. **Gaps 1 and 2 are one story, not two** — shipping auto-provisioning without deprovisioning means every admin ever appointed accumulates a permanent signing identity that survives demotion.
+
+**Gap 3 — the owner's slot is name-keyed while everyone else's is pubkey-keyed.** Visible directly in this instance's secure-keys dir: `6086b083….json` (a customer, keyed by *who they are*) alongside `tapestry-assistant.json` (the owner, keyed by *a role name*). The resolver is `if (pubkey === BRAINSTORM_OWNER_PUBKEY) → 'tapestry-assistant'` (`src/utils/assistantKeys.js:22`), so **the owner's assistant is bound to the role, not the person**: if `BRAINSTORM_OWNER_PUBKEY` ever changes (ownership transfer, or the owner rotating their key) the new owner silently inherits the previous owner's assistant nsec *and its entire published history*, while the outgoing owner is left with none. No key is stolen — the pointer moves underneath it. Second-order: the filename records no owner, so nothing on the filesystem distinguishes the current owner's assistant from a predecessor's. **This is a one-way door — it gets harder the longer it runs.** Fix shape: key the owner by pubkey too, keep `'tapestry-assistant'` as a compatibility alias, plus a one-time migration.
+
+**Gap 4 — no test coverage** for any of the above.
+
+**Owner's stated priority (2026-08-10):** if only one gap were filled, admin auto-provisioning — with the caveat above that it should carry deprovisioning with it.
+
+**Related, deliberately separate:** the `2026-08-09 — TA ↔ owner two-way handshake` entry above is the *wire-format* question (how does anyone learn which human a TA acts for). This entry is the *lifecycle* question (who gets a key, when, and when is it taken away). They touch the same subsystem and would sequence well together, but neither blocks the other. Also related: memory note `multi_role_user_concern` — the backend classifies a user as one of {owner, admin, customer, guest} and does not model multi-role state, which this work would have to confront when a customer is promoted to admin.
+
+**Explicitly NOT a security incident.** No hardcoded TA nsec exists; key material at rest is AES-256-GCM encrypted with a per-install master key; the one HTTP route returning nsec/privkey is owner-gated in the auth middleware. These are unbuilt features, not exposures.
+
+**Classification:** Feature (identity lifecycle; touches auth + customer management).
+**Strictness:** Standard.
+**Phase path:** `/plan-feature` — likely two stories (1: auto-provision on role grant + deprovision on role loss; 2: owner slot re-key + migration). Consider whether the retired `security-auth-exposure` epic's successor should host them or a new `assistant-key-lifecycle` epic is warranted.
+**References:** `docs/TA_KEY_EXPOSURE_AUDIT_2026-08-10.md` §4; `BIBLE.md:1046` (Assistant Keys); `src/utils/assistantKeys.js:20-39`; `src/utils/customerRelayKeys.js:66`; `src/api/assistant/index.js:486-522`; `src/utils/customerManager.js:524,666,295,370`; `src/api/admin/index.js:221`; `setup/create_nostr_identity.sh:127`.
