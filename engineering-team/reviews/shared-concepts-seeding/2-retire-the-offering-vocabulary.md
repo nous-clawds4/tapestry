@@ -3,7 +3,9 @@
 **Reviewer:** Claude (acting as Reviewer)
 **Date:** 2026-08-10
 **Diff:** `e18fd020` (product side, committed short of the gate and marked partial) + `f5432ece`
-(Test Design corrections after a kick-back).
+(Test Design corrections after a kick-back) + `b9144aea` (both blocking findings resolved).
+**Rounds:** one Test Design kick-back, one Review kick-back. Findings below are preserved as first
+written; each carries its resolution.
 **ADR:** none — Architecture skipped by design (Refactor).
 
 ## Quality gates (run by reviewer, not trusted)
@@ -51,7 +53,7 @@ things they cannot back, and it shipped two of them.
 
 ## Findings
 
-### Blocking
+### Blocking — both RESOLVED in `b9144aea`
 
 1. **`Shared by others` lists this instance's own shares. The name promises an exclusion it does not
    perform.** Verified against live data, not inferred: the page shows 9 rows including `tapestry`,
@@ -72,6 +74,15 @@ things they cannot back, and it shipped two of them.
    the title true of the rows. The alternative considered and declined was filtering out this
    instance, which would have changed what the page *is* rather than what it is called.
 
+   **RESOLVED, and the copy fixed with the label.** The heading, nav, breadcrumb, count line, empty
+   message, three docblocks and the concept-page tooltip all now read **Shared with the community**.
+   The subtitle was rewritten rather than substituted — it had claimed *"What everyone else has
+   shared … the mirror of Shared by me"*, wrong twice over, since the page is not "everyone else"
+   and "mirror" implies the two partition when one is a subset of the other. It now states the
+   containment outright, *"including your own"*. Verified by the reviewer's own visual: the page
+   lists nine, with `tapestry`/`dog`/`dog breed` (mine) beside `cat breed`/`cat`/`bengal cat`
+   (staging's) under a heading that is now true of all of them.
+
 2. **`ui/src/pages/shared-concepts/SharedByMe.jsx:99` — the count line says "4 shared" when 3 are
    shared and 1 explicitly did not reach.** The page prints `{data.concepts.length} shared`, so the
    count is of *rows*, not of *shares*. Live: 4 rows, 3 `published: true`, 1 `false`.
@@ -84,7 +95,24 @@ things they cannot back, and it shipped two of them.
    *Asked change:* count what is true. `3 of 4 shared`, or `4 concepts · 1 didn't reach`, or drop the
    noun and print the number. Any of these; the wording is the Implementer's to choose.
 
+   **RESOLVED, and better than asked.** Rather than pick one phrasing, the count computes, and the
+   reviewer exercised every branch rather than the single state the live data happens to show:
+   all-landed → `3 shared`; some-missing → `2 of 3 shared`; none-landed → `0 of 2 shared`;
+   relay-unreachable → `3 to confirm`; empty → `0 shared`. That fourth branch is the one worth
+   noticing — `0 of M shared` on an unreachable relay would be a false negative of exactly the kind
+   this feature refuses to produce, and it is avoided deliberately. Live page reads **3 of 4
+   shared**.
+
 ### Non-blocking
+
+0. **`SharedByMe.jsx` count — a latent trap in the mixed case, unreachable today.** Exercising the
+   branches turned up one that misreports: rows that are part `null` and part `false` yield
+   `1 of 3 shared`, which counts an *unconfirmed* row as known-unshared — the false negative the
+   feature exists to avoid. **Not reachable now**: `relay.ok` is one value per request
+   (`src/api/concept/sharedByMe.js:141` passes the same flag to every row), so `published: null` is
+   all-or-nothing. It becomes reachable the moment the relay check goes per-row — which the
+   predecessor book's PRD seed already flags as an open question (*"is one relay the community?"*).
+   *Optional:* treat any `null` as unconfirmable rather than assuming the flag stays global.
 
 1. **`ui/src/pages/shared-concepts/SelfDeclaredDetail.jsx` — the file name no longer matches its
    subject.** Its heading is now "Shared concept" and its docblock says "Shared by others", but the
@@ -114,28 +142,26 @@ things they cannot back, and it shipped two of them.
 
 ## Verdict
 
-**CHANGES_REQUESTED**
+**PASS** *(after one Review kick-back; the CHANGES_REQUESTED reasoning is preserved above)*
 
-The mechanical work is genuinely good. The retired vocabulary is gone from strings, page names,
-comments, the endpoint, the response field and three filenames; the middle state now reads as a
-failure with a retry rather than a resting place, which is the substantive point of the story; and
-the Test Design kick-back was raised and resolved cleanly rather than papered over.
+Both blocking findings are resolved and independently re-verified — the reviewer rebuilt, exercised
+the count on every branch rather than the one the data shows, and looked at both pages. The wider
+rename holds: no `Shared by others` survives in source or bundle, all eight pages in the section
+answer 200, and the nav now reads **Registry · Add to Registry · Active b-tags · Active z-tags ·
+Shared by me · Shared with the community · Adoption Queue · Trusted Dictionary**.
 
-But the story's deliverable is *surfaces that only say true things*, and two surfaces say false
-things. **`Shared by others` lists my own shares**, and **"4 shared" counts a row that explicitly
-didn't reach the community**. Neither is a typo; each is a name asserting more than the data
-supports — the identical failure the story was opened to correct.
+Two things the fix did better than the ask. The subtitle was **rewritten rather than substituted** —
+the old text was wrong twice over and a label-only change would have left the page contradicting
+itself in prose. And the count **computes** instead of picking a phrase, with a dedicated branch so
+an unreachable relay reads *"to confirm"* rather than *"0 of M shared"*.
 
-I want to be clear about where the first one came from, because it is not an implementation slip:
-**AC-2 was written on a false premise** ("the page listing what other instances have put out"), and
-the name was chosen to match the premise rather than the page. Planning, Test Design and
-Implementation all passed it through because none of them looked at the rows. That is the finding
-under the finding, and it is why Harness friction 1 matters more than the two fixes.
+What this story should be remembered for is not the rename. It is that **AC-2 was written on a false
+premise** — "the page listing what other instances have put out" — and Planning, Test Design and
+Implementation all passed it through, because every one of them checked the words against the
+*criterion* and none checked the criterion against the *rows*. The suites were green throughout and
+always would have been. A person looking at the screen was the only guard that worked, and it nearly
+did not happen: the Tier 4 visual had no owner once the phase sequence deviated (Harness friction 2).
 
-Both are small changes. Blocking 1 needs the owner's decision between renaming and filtering, since
-those mean different things about what the page is for.
-
-## On CHANGES_REQUESTED
-- Kick back to `/implement-feature` with Blocking 1 (after the owner picks rename-or-filter) and
-  Blocking 2.
-- Story status left `Approved`; no completion detection performed.
+## On PASS (same commit)
+- [x] Story `**Status:**` flipped to `Done` in place.
+- [x] Completion detection performed; result reported in chat, not recorded here.

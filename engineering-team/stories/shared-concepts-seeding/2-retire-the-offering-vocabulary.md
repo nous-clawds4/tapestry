@@ -1,6 +1,6 @@
 # Story 2: Retire "offering" — there is only shared, and didn't-reach
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-08-10
 **Type:** Refactor
 **Epic:** `shared-concepts-seeding`
@@ -97,4 +97,4 @@ wire format, no concept definition, no firmware reinstall.
 ## Linked artifacts
 - ADR: (skipped — Refactor with the naming already settled; no design choice remains)
 - Test plan: `engineering-team/stories/shared-concepts-seeding/2-retire-the-offering-vocabulary.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/shared-concepts-seeding/2-retire-the-offering-vocabulary.md`
