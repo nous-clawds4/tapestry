@@ -125,6 +125,6 @@ what AC-5 forbids — a named state selector may serve better than a second chec
 call, not a requirement.
 
 ## Linked artifacts
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/shared-concepts-seeding/0001-not-yet-shared-filter-joins-the-bulk-sharing-answer.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
