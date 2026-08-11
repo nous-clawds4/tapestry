@@ -109,6 +109,6 @@ shared*; **that definition is settled and out of scope here** (see Out of scope)
    when the list is empty".
 
 ## Linked artifacts
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/shared-concepts-seeding/0002-the-route-and-its-count-reuse-the-shipped-predicate.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
