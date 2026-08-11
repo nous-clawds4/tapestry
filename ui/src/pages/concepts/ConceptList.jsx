@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useCypher } from '../../hooks/useCypher';
 import DataTable from '../../components/DataTable';
 import Breadcrumbs from '../../components/Breadcrumbs';
@@ -9,7 +9,7 @@ import { DAVE_PUBKEY } from '../../config/pubkeys';
 import { useConfig } from '../../context/ConfigContext';
 import DispositionPanel from '../../components/DispositionPanel';
 import { dispositionOf } from '../../utils/bDisposition';
-import { STATES, matchesState, needsPublication, unconfirmedCount } from '../../utils/conceptStateFilter';
+import { STATES, matchesState, needsPublication, unconfirmedCount, normalizeState } from '../../utils/conceptStateFilter';
 
 const QUERY = `
   MATCH (h:NostrEvent)
@@ -67,7 +67,20 @@ export default function ConceptList() {
   const navigate = useNavigate();
   const [healthMap, setHealthMap] = useState({});
   const [authorFilter, setAuthorFilter] = useState('');
-  const [stateFilter, setStateFilter] = useState('');
+  // The address is the source of truth for the state filter, so another page can
+  // link straight to a narrowed list and a reload keeps it (ADR
+  // shared-concepts-seeding/0002). normalizeState turns anything unrecognised
+  // back into All — a stale bookmark must not render an empty table.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const stateFilter = normalizeState(searchParams.get('state'));
+  const setStateFilter = (next) => {
+    const clean = normalizeState(next);
+    const params = new URLSearchParams(searchParams);
+    if (clean) params.set('state', clean); else params.delete('state');
+    // replace: selecting from a dropdown is not a navigation the back button
+    // should have to replay one step at a time.
+    setSearchParams(params, { replace: true });
+  };
   // Publication, as /api/shared-by-me resolved it — the SAME source the Shared
   // by me page renders, so the two pages cannot disagree about a concept
   // (ADR shared-concepts-seeding/0001). Fetched lazily: only the two
@@ -319,8 +332,8 @@ export default function ConceptList() {
             🧭 Coverage
           </label>
           <select
-            value={stateFilter}
-            onChange={e => setStateFilter(e.target.value === 'all' ? '' : e.target.value)}
+            value={stateFilter || 'all'}
+            onChange={e => setStateFilter(e.target.value)}
             style={{
               width: '100%', padding: '0.4rem 0.6rem', fontSize: '0.85rem',
               backgroundColor: 'var(--bg-primary, #0f0f23)', color: 'var(--text-primary, #e0e0e0)',

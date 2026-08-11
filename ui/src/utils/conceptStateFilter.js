@@ -43,6 +43,22 @@ export function needsPublication(state) {
   return Boolean(s && s.needsPublication);
 }
 
+/**
+ * Turn whatever arrives in the address into a state the page can render.
+ *
+ * A stale bookmark, a typo, or a hand-edited link must not produce an empty
+ * table — "no rows" reads as "you have no concepts", which is a claim, not a
+ * shrug. Anything unrecognised falls back to All.
+ *
+ * `'all'` normalises to `''` so the page can leave the parameter out of the
+ * address entirely on an ordinary visit rather than writing `?state=all`
+ * (ADR shared-concepts-seeding/0002).
+ */
+export function normalizeState(raw) {
+  if (typeof raw !== 'string' || raw === '' || raw === 'all') return '';
+  return STATES.some((s) => s.id === raw && s.id !== 'all') ? raw : '';
+}
+
 const dispOf = (row) => (row && row._disp) || {};
 
 /** Mine = authored by this instance's TA, matching the existing "(mine)" scoping. */
@@ -138,6 +154,38 @@ export function matchesState(row, state, ctx = {}) {
  * wired and private rows because they were never candidates, while `shared`
  * counts every declaration whose fate is unknown.
  */
+/**
+ * How the route to the not-yet-shared list should present itself.
+ *
+ * **Zero is a claim of completion.** "0 waiting" tells the owner she has shared
+ * everything, so it may only be said when both inputs are sound. There are
+ * three ways to arrive at a zero and only one of them earns that sentence
+ * (ADR shared-concepts-seeding/0002, "Honesty rules for the count"):
+ *
+ *   rows == null       → the population could not be read. UNKNOWN, no number.
+ *   ctx.relayOk false  → publication is unconfirmed, so matchesState withholds
+ *                        those rows and any count here is a LOWER BOUND —
+ *                        showing it reads as "you are closer to done than you
+ *                        are". UNKNOWN, no number.
+ *   count === 0        → genuinely nothing waiting. CLEAR — say so rather than
+ *                        presenting an errand with nothing in it.
+ *   otherwise          → WAITING, with the count.
+ *
+ * An EMPTY population is clear; a MISSING one is unknown. Collapsing the two —
+ * `(rows || [])` — is how "we could not check" turns into "you are done".
+ *
+ * The count comes from matchesState, the same function the destination filters
+ * with, so the number and the list it advertises cannot disagree.
+ *
+ * @returns {{kind: 'waiting'|'clear'|'unknown', count: number|null}}
+ */
+export function summarizeNotYetShared(rows, ctx = {}) {
+  if (!Array.isArray(rows)) return { kind: 'unknown', count: null };
+  if (ctx.relayOk === false) return { kind: 'unknown', count: null };
+  const count = rows.filter((row) => matchesState(row, 'not-yet-shared', ctx)).length;
+  return count === 0 ? { kind: 'clear', count: 0 } : { kind: 'waiting', count };
+}
+
 export function unconfirmedCount(rows, ctx = {}, state = 'not-yet-shared') {
   if (!Array.isArray(rows)) return 0;
   return rows.filter((row) => {
