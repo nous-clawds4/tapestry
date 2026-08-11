@@ -110,5 +110,5 @@ shared*; **that definition is settled and out of scope here** (see Out of scope)
 
 ## Linked artifacts
 - ADR: `engineering-team/decisions/shared-concepts-seeding/0002-the-route-and-its-count-reuse-the-shipped-predicate.md`
-- Test plan: (filled in after Test Design phase)
+- Test plan: `engineering-team/stories/shared-concepts-seeding/4-share-from-shared-by-me.test-plan.md`
 - Review: (filled in after Review phase)
