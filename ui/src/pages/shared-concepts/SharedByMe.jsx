@@ -1,7 +1,11 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect, useMemo } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import DataTable from '../../components/DataTable';
 import Breadcrumbs from '../../components/Breadcrumbs';
+import { useCypher } from '../../hooks/useCypher';
+import { useConfig } from '../../context/ConfigContext';
+import { dispositionOf } from '../../utils/bDisposition';
+import { summarizeNotYetShared } from '../../utils/conceptStateFilter';
 
 /**
  * Shared by me — every concept this instance has shared with the community
@@ -28,10 +32,25 @@ const STATE = {
 
 const stateOf = (published) => (published === null ? STATE.unknown : published ? STATE.shared : STATE.unsent);
 
+// The concept population, for the waiting-count only. Deliberately minimal —
+// this page needs no element counts, no schema joins, none of the Concepts
+// list's aggregation; just enough to ask the shipped predicate whether each
+// header is still waiting (ADR shared-concepts-seeding/0002).
+const POPULATION_QUERY = `
+  MATCH (h:NostrEvent)
+  WHERE (h:ListHeader OR h:ConceptHeader) AND h.kind IN [9998, 39998]
+  OPTIONAL MATCH (h)-[:HAS_TAG]->(bt:NostrEventTag {type: 'b'})
+  RETURN h.uuid AS uuid, h.pubkey AS author, collect(DISTINCT bt.value) AS bValues
+`;
+
+const NOT_YET_SHARED_HREF = '/tapestry/concepts?state=not-yet-shared';
+
 export default function SharedByMe() {
   const navigate = useNavigate();
+  const { taPubkey } = useConfig();
   const [data, setData] = useState(null); // null = loading
   const [error, setError] = useState(null);
+  const { data: population, error: populationError } = useCypher(POPULATION_QUERY);
 
   useEffect(() => {
     let cancelled = false;
@@ -53,6 +72,23 @@ export default function SharedByMe() {
     })();
     return () => { cancelled = true; };
   }, []);
+
+  // How the route should present itself. The population and the publication map
+  // are two separate reads, and either can fail — summarizeNotYetShared owns the
+  // rule that a number may only be shown when both are sound, because "0" would
+  // tell the owner she has shared everything.
+  const waiting = useMemo(() => {
+    const rowsKnown = !populationError && Array.isArray(population) && population.length > 0;
+    const rows = rowsKnown
+      ? population.map((r) => ({ ...r, _disp: dispositionOf(r.bValues, r.uuid) }))
+      : null;
+    const publishedByCoord = new Map((data?.concepts || []).map((c) => [c.coord, c.published]));
+    return summarizeNotYetShared(rows, {
+      taPubkey,
+      publishedByCoord,
+      relayOk: data ? data.relayOk !== false : false,
+    });
+  }, [population, populationError, data, taPubkey]);
 
   const columns = [
     {
@@ -113,11 +149,29 @@ export default function SharedByMe() {
               return landed === total ? `${total} shared` : `${landed} of ${total} shared`;
             })()}
           </p>
+
+          {/* The way out of this page. `clear` is the state the owner is working
+              toward, so it reads as done rather than as an errand with nothing
+              in it; `unknown` still shows the route but makes no claim about
+              how much is left. */}
+          <p className="subtitle" style={{ maxWidth: '52rem' }}>
+            {waiting.kind === 'clear' ? (
+              <>✅ Nothing left to share — every concept here is either out with the community or
+              deliberately kept back.</>
+            ) : (
+              <Link to={NOT_YET_SHARED_HREF}>
+                {waiting.kind === 'waiting'
+                  ? `Haven't shared these yet — ${waiting.count} waiting →`
+                  : "Haven't shared these yet →"}
+              </Link>
+            )}
+          </p>
+
           <DataTable
             columns={columns}
             data={data.concepts}
             onRowClick={(row) => navigate(`/tapestry/concepts/${encodeURIComponent(row.coord)}`)}
-            emptyMessage="You haven't shared any concepts yet. Submit one from its concept page."
+            emptyMessage="You haven't shared anything with the community yet. The link above lists the concepts waiting to go out."
           />
         </>
       )}
