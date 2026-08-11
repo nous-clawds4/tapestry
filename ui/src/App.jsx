@@ -380,7 +380,7 @@ const router = createBrowserRouter([
           { path: 'b-tags', element: <ActiveBTags />, handle: { crumb: 'Active b-tags' } },
           { path: 'b-tags/:uuid', element: <BTagDetail />, handle: { crumb: 'b-tag Detail' } },
           { path: 'z-tags', element: <ActiveZTags />, handle: { crumb: 'Active z-tags' } },
-          { path: 'self-declared', element: <SelfDeclaredSharedConcepts />, handle: { crumb: 'Shared by others' } },
+          { path: 'self-declared', element: <SelfDeclaredSharedConcepts />, handle: { crumb: 'Shared with the community' } },
           { path: 'mine', element: <SharedByMe />, handle: { crumb: 'Shared by me' } },
           { path: 'self-declared/:uuid', element: <SelfDeclaredDetail />, handle: { crumb: 'Detail' } },
           { path: 'adoption-queue', element: <AdoptionQueue />, handle: { crumb: 'Adoption Queue' } },

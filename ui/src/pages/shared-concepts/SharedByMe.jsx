@@ -7,10 +7,10 @@ import Breadcrumbs from '../../components/Breadcrumbs';
  * Shared by me — every concept this instance has shared with the community
  * (story shared-concepts-legibility #2, ADR 0002; renamed by seeding #2).
  *
- * Distinct from Shared by others beside it: that page answers "what has the
- * community shared?" from the relay, while this answers "what have I shared?"
- * from two stores — and can therefore surface something the community view
- * cannot, a share that never left this machine.
+ * The narrower of the pair: Shared with the community shows every instance's
+ * shares (this one included), read from the relay. This one is only yours, read
+ * from two stores — so it can surface something the relay-only view cannot, a
+ * share that never left this machine.
  *
  * There is no category between shared and not-shared. A concept whose local
  * write succeeded but whose broadcast did not land is a FAILURE to be retried,
@@ -100,7 +100,19 @@ export default function SharedByMe() {
               these are your declarations as this instance recorded them. None is known to be unsent.
             </p>
           )}
-          <p className="subtitle">{data.concepts.length} shared</p>
+          {/* Count what is true: "N shared" over a list that includes a row which
+              did NOT reach the community is the same conflation this page exists
+              to remove (review, 2026-08-10). */}
+          <p className="subtitle">
+            {(() => {
+              const total = data.concepts.length;
+              const landed = data.concepts.filter((c) => c.published === true).length;
+              const unknown = data.concepts.filter((c) => c.published === null).length;
+              if (total === 0) return '0 shared';
+              if (unknown === total) return `${total} to confirm`;
+              return landed === total ? `${total} shared` : `${landed} of ${total} shared`;
+            })()}
+          </p>
           <DataTable
             columns={columns}
             data={data.concepts}

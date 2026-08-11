@@ -26,7 +26,9 @@ function formatAge(totalSeconds) {
 }
 
 /**
- * Shared by others — what every other instance has shared. The community-relay fetch (dedupe +
+ * Shared with the community — every instance's shares, THIS ONE INCLUDED. The hook applies no
+ * author filter, so a name promising "others" would be false (review, 2026-08-10).
+ * The community-relay fetch (dedupe +
  * self-coordinate match) lives in useCommunitySharedConcepts (extracted
  * behavior-preserving, ADR shared-concepts-adoption/0001, so the disposition
  * panel's wire-external picker shares it). This page adds the local-usage
@@ -144,24 +146,24 @@ export default function SelfDeclaredSharedConcepts() {
   return (
     <div className="page">
       <Breadcrumbs />
-      <h1>🤝 Shared by others</h1>
+      <h1>🤝 Shared with the community</h1>
       <p className="subtitle" style={{ maxWidth: '52rem' }}>
-        What <strong>everyone else</strong> has shared with the community — the mirror of Shared by
-        me, which shows only yours. These are events on a public relay that declare themselves
-        shared, by carrying a b-tag pointing at the event itself. To make use of one, point to it
-        with that same b-tag.
+        Everything on the community relay that declares itself shared — <strong>including your
+        own</strong>. Shared by me is the narrower view: only yours, and it can also show a share
+        that never made it out. A concept appears here by carrying a b-tag pointing at its own event;
+        to make use of one, point to it with that same b-tag.
       </p>
 
       {rows === null ? (
         <p>Searching the community relay…</p>
       ) : (
         <>
-          <p className="subtitle">{rows.length} shared by others</p>
+          <p className="subtitle">{rows.length} shared with the community</p>
           <DataTable
             columns={columns}
             data={rows}
             onRowClick={(row) => navigate(`/tapestry/shared-concepts/self-declared/${encodeURIComponent(row.uuid)}`)}
-            emptyMessage="Nothing shared by others found."
+            emptyMessage="Nothing shared with the community found."
           />
         </>
       )}

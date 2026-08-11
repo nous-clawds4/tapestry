@@ -79,7 +79,7 @@ const mainNavItems = [
       { to: '/tapestry/shared-concepts/b-tags', label: 'Active b-tags' },
       { to: '/tapestry/shared-concepts/z-tags', label: 'Active z-tags' },
       { to: '/tapestry/shared-concepts/mine', label: 'Shared by me' },
-      { to: '/tapestry/shared-concepts/self-declared', label: 'Shared by others' },
+      { to: '/tapestry/shared-concepts/self-declared', label: 'Shared with the community' },
       { to: '/tapestry/shared-concepts/adoption-queue', label: 'Adoption Queue' },
       { to: '/tapestry/shared-concepts/dictionary', label: 'Trusted Dictionary' },
     ],
