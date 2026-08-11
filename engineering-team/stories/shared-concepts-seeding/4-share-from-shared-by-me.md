@@ -1,6 +1,6 @@
 # Story 4: Reach the not-yet-shared list from the page about what I've shared
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-08-11
 **Type:** Feature
 
@@ -111,4 +111,4 @@ shared*; **that definition is settled and out of scope here** (see Out of scope)
 ## Linked artifacts
 - ADR: `engineering-team/decisions/shared-concepts-seeding/0002-the-route-and-its-count-reuse-the-shipped-predicate.md`
 - Test plan: `engineering-team/stories/shared-concepts-seeding/4-share-from-shared-by-me.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/shared-concepts-seeding/4-share-from-shared-by-me.md`
