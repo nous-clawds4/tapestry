@@ -88,7 +88,10 @@ done
 hr "Intake entries with no PICKED UP / RESOLVED marker — heuristic, review manually"
 awk '
   /^## 20[0-9][0-9]-/ { if (h != "" && !d) print "  " h; h=$0; d=0 }
-  /PICKED UP|RESOLVED/ { d=1 }
+  # Anchor the marker to the start of its line. Unanchored, /PICKED UP/ also
+  # matches the substring inside "**NOT PICKED UP**" — the standard phrasing for
+  # an entry that is explicitly still open — which silently hid 8 entries.
+  /^\*\*PICKED UP|^\*\*RESOLVED/ { d=1 }
   END { if (h != "" && !d) print "  " h }
 ' engineering-team/stories/_intake.md 2>/dev/null || echo "  (intake not found)"
 
