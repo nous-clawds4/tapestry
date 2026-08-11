@@ -207,9 +207,12 @@ export default function ConceptList() {
   }, [filteredData, stateFilter, stateAnswerable, stateCtx]);
 
   // How many of my concepts the unreachable relay is hiding from this answer.
+  // BOTH publication-bearing states need this: with the relay unreachable a
+  // "Shared (mine)" list shrinks to nothing, and an unexplained empty list
+  // asserts "you have shared nothing" (sharedByMe.js:12-21).
   const withheld = useMemo(() => (
-    stateFilter === 'not-yet-shared' && sharing?.ok && sharing.relayOk === false
-      ? unconfirmedCount(filteredData, stateCtx)
+    needsPublication(stateFilter) && sharing?.ok && sharing.relayOk === false
+      ? unconfirmedCount(filteredData, stateCtx, stateFilter)
       : 0
   ), [stateFilter, sharing, filteredData, stateCtx]);
 
@@ -362,8 +365,10 @@ export default function ConceptList() {
       {withheld > 0 && (
         <p style={{ fontSize: '0.8rem', color: 'var(--text-muted, #888)', marginBottom: '0.5rem' }}>
           ⏳ The community relay could not be reached, so {withheld} declared concept{withheld === 1 ? '' : 's'} could
-          not be confirmed and {withheld === 1 ? 'is' : 'are'} not listed here. Only concepts that were never declared
-          are shown — those are known not to be shared without asking the relay.
+          not be confirmed and {withheld === 1 ? 'is' : 'are'} not listed here.{' '}
+          {stateFilter === 'shared'
+            ? 'This list is incomplete — it is not a claim that you have shared nothing more.'
+            : 'Only concepts that were never declared are shown — those are known not to be shared without asking the relay.'}
         </p>
       )}
 

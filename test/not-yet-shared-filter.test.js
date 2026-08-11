@@ -188,6 +188,31 @@ test('U7 (AC-5): "not yet shared" and "undispositioned" select DIFFERENT sets �
     `the declared-but-unpublished one. Got ${short(undisp)}.`);
 });
 
+test('U10 (AC-3, both directions): a relay outage is accounted for by BOTH publication-bearing states, so neither shrinks silently', async () => {
+  const { matchesState, unconfirmedCount, STATES } = await loadFilterUtil();
+  assert(typeof unconfirmedCount === 'function',
+    'conceptStateFilter.js must export unconfirmedCount(rows, ctx, state) — the number the page shows ' +
+    'so an unreachable relay is visible rather than silently shrinking a list.');
+  const nulls = new Map([[ROWS.shared.uuid, null], [ROWS.declaredUnpublished.uuid, null]]);
+  const outage = ctx({ relayOk: false, publishedByCoord: nulls });
+
+  // With the relay unasked, "Shared (mine)" matches nothing — an empty list that,
+  // left unexplained, asserts "you have shared nothing" (sharedByMe.js:12-21).
+  const shared = ALL_ROWS.filter((r) => matchesState(r, 'shared', outage));
+  assert(shared.length === 0,
+    `sanity: with publication unknown nothing can be confirmed shared. Got ${short(shared.map((r) => r.name))}.`);
+
+  for (const state of STATES.filter((s) => s.needsPublication).map((s) => s.id)) {
+    const n = unconfirmedCount(ALL_ROWS, outage, state);
+    assert(n > 0,
+      `"${state}" must report how many concepts the outage hid from its answer — got ${n}. Both ` +
+      'publication-bearing states shrink during an outage, so both need the count: reporting it for ' +
+      'one and staying silent for the other leaves the silent list reading as fact.');
+  }
+  assert(unconfirmedCount(ALL_ROWS, ctx(), 'shared') === 0,
+    'with the relay reachable nothing is unconfirmed, so no notice should be shown.');
+});
+
 test('U8: the "all" state filters nothing out', async () => {
   const got = await selected('all');
   assert(got.length === ALL_ROWS.length,
@@ -252,6 +277,25 @@ test('S3 (ADR 0001, failure tier 1): the shared-by-me fetch does not fail silent
     '(a health icon may degrade quietly); the shared-by-me fetch must NOT — a swallowed failure ' +
     'leaves the state filter answering from no data, which AC-3 forbids. Record the failure and ' +
     'make the publication-dependent options unavailable with the reason shown.');
+});
+
+test('S5 (AC-3, review kick-back): the outage notice is not gated to ONE state — an unexplained empty "Shared (mine)" asserts "you have shared nothing"', () => {
+  const src = safeRead(CONCEPT_LIST_JSX);
+  assert(src !== null, 'ui/src/pages/concepts/ConceptList.jsx is unreadable.');
+  const at = src.indexOf('const withheld');
+  assert(at !== -1,
+    'ConceptList.jsx must compute a withheld/unconfirmed count so a relay outage is visible rather ' +
+    'than silently shrinking a list.');
+  const block = src.slice(at, at + 400);
+  assert(!/stateFilter\s*===\s*'(not-yet-shared|shared)'/.test(block),
+    'the outage notice must not be gated on a single state literal. Both publication-bearing states ' +
+    'shrink when the relay cannot be asked: "not yet shared" withholds declarations that might be ' +
+    'shared, and "Shared (mine)" collapses to an empty list that reads as "you have shared nothing" ' +
+    '— the one lie src/api/concept/sharedByMe.js:12-21 says a completeness surface must never tell. ' +
+    `Gate it on needsPublication(stateFilter) instead. Got: ${short(block.split('\n').slice(0, 4).join(' '), 200)}`);
+  assert(/needsPublication\s*\(\s*stateFilter\s*\)/.test(block),
+    'the withheld count must be gated on needsPublication(stateFilter) so every state that depends ' +
+    'on publication reports an outage, including any added later.');
 });
 
 test('S4: the existing undispositioned traversal survives — "Save & next" is not collateral damage', () => {

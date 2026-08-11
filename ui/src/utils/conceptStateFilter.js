@@ -125,13 +125,27 @@ export function matchesState(row, state, ctx = {}) {
  * How many of a row set are being withheld because publication could not be
  * confirmed — the count the page shows so an unreachable relay is visible
  * rather than silently shrinking the list.
+ *
+ * BOTH publication-bearing states need this, in opposite directions. When the
+ * relay cannot be asked, every declared concept resolves to `null`, so
+ * `not-yet-shared` withholds them (they might be shared) and `shared` withholds
+ * them too (they might not be). A `shared` list that silently shrank to nothing
+ * would assert "you have shared nothing" — the one lie src/api/concept/
+ * sharedByMe.js:12-21 says a completeness surface must never tell.
+ *
+ * The count is scoped the way its state's predicate is scoped, so the number
+ * shown is the number actually missing from THAT list: `not-yet-shared` drops
+ * wired and private rows because they were never candidates, while `shared`
+ * counts every declaration whose fate is unknown.
  */
-export function unconfirmedCount(rows, ctx = {}) {
+export function unconfirmedCount(rows, ctx = {}, state = 'not-yet-shared') {
   if (!Array.isArray(rows)) return 0;
   return rows.filter((row) => {
     if (!isMine(row, ctx.taPubkey)) return false;
-    const d = dispOf(row);
-    if (d.wired || d.deferred) return false;
+    if (state === 'not-yet-shared') {
+      const d = dispOf(row);
+      if (d.wired || d.deferred) return false;
+    }
     return publicationOf(row, ctx) === null;
   }).length;
 }
