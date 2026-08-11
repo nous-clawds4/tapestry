@@ -242,6 +242,8 @@ const retireOfferingVocabulary = require('./retire-offering-vocabulary.test.js')
 const honestBroadcastReporting = require('./honest-broadcast-reporting.test.js');
 // epic: shared-concepts-seeding — Story 3 (not-yet-shared filter on the Concepts list).
 const notYetSharedFilter = require('./not-yet-shared-filter.test.js');
+// epic: shared-concepts-seeding — Story 4 (route from Shared by me to the not-yet-shared list).
+const shareFromSharedByMe = require('./share-from-shared-by-me.test.js');
 
 async function main() {
   console.log('Running Brainstorm tests...');
@@ -603,6 +605,7 @@ async function main() {
   console.log('\nhonest-broadcast-reporting suite:');
   const honestBroadcastReportingResult = await honestBroadcastReporting.run();
   const notYetSharedFilterResult = await notYetSharedFilter.run();
+  const shareFromSharedByMeResult = await shareFromSharedByMe.run();
 
   console.log('\nTest Results');
   console.log('-------------');
@@ -1088,6 +1091,7 @@ async function main() {
       ? `SKIP (${notYetSharedFilterResult.skipped} tests; preconditions not met)`
       : `${notYetSharedFilterResult.fail === 0 ? 'PASS' : 'FAIL'} (${notYetSharedFilterResult.pass} passed, ${notYetSharedFilterResult.fail} failed${notYetSharedFilterResult.skipped ? `, ${notYetSharedFilterResult.skipped} skipped` : ''})`;
   console.log(`not-yet-shared-filter suite:                     ${notYetSharedFilterLine}`);
+  console.log(`share-from-shared-by-me suite:                   ${shareFromSharedByMeResult.fail === 0 ? 'PASS' : 'FAIL'} (${shareFromSharedByMeResult.pass} passed, ${shareFromSharedByMeResult.fail} failed)`);
 
   const overallOk =
     configOk &&
@@ -1294,6 +1298,8 @@ async function main() {
     honestBroadcastReportingResult.fail === 0 &&
     // shared-concepts-seeding #3 — not-yet-shared filter on the Concepts list
     notYetSharedFilterResult.fail === 0 &&
+    // shared-concepts-seeding #4 — route from Shared by me to the not-yet-shared list
+    shareFromSharedByMeResult.fail === 0 &&
     harnessLintResult.fail === 0 &&
     harnessStatsResult.fail === 0 &&
     sessionStartResult.fail === 0 &&
