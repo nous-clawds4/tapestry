@@ -133,8 +133,8 @@ export default function NewSharedConcept() {
       <h1>🤝 Add to Registry</h1>
       <p className="subtitle">
         Record a concept <em>someone else</em> has shared, by its identifiers, so this instance keeps
-        track of it. This catalogues an existing shared concept — it does not create or offer one.
-        To offer a concept of your own, submit it from its concept page.
+        track of it. This catalogues an existing shared concept — it does not create or share one.
+        To share a concept of your own, submit it from its concept page.
       </p>
 
       <form className="tapestry-new-form" onSubmit={onSubmit}>

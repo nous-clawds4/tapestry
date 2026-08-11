@@ -1,7 +1,7 @@
 /**
- * Everything this instance has offered to the community.
+ * Every concept this instance has shared with the community.
  *
- * GET /api/my-offerings   (public read)
+ * GET /api/shared-by-me   (public read)
  *
  * The bulk sibling of /api/concept/:handle/sharing-state (ADR
  * shared-concepts-legibility/0002). Both stores answer for ALL of one author's
@@ -14,7 +14,7 @@
  *   relay unreachable → the local list is still complete and only PUBLICATION
  *                       is unknown, so rows render with published:null.
  *   local scan fails  → the row set itself is unknown, so this returns non-200.
- *                       An empty list would assert "you have offered nothing",
+ *                       An empty list would assert "you have shared nothing",
  *                       the one lie a completeness page must never tell.
  *
  * That asymmetry is deliberate (ADR 0002 Decision), not inherited from the
@@ -101,7 +101,7 @@ async function fetchRelayHeaders(filter) {
   }
 }
 
-async function handleMyOfferings(req, res) {
+async function handleSharedByMe(req, res) {
   try {
     const taPubkey = getOwnerAssistantPubkey();
     if (!taPubkey) {
@@ -123,7 +123,7 @@ async function handleMyOfferings(req, res) {
 
     const relay = await fetchRelayHeaders(filter);
 
-    const offerings = [];
+    const concepts = [];
     for (const [coord, ev] of newestByCoord(localEvents)) {
       if (!carriesSelfPointer(ev, coord)) continue; // declared = points at itself
 
@@ -141,7 +141,7 @@ async function handleMyOfferings(req, res) {
         coord, disposition, wiredTo, relayEvent: relay.byCoord.get(coord) || null, relayOk: relay.ok,
       });
 
-      offerings.push({
+      concepts.push({
         coord,
         name: tagValue(ev, 'names'),
         description: tagValue(ev, 'description'),
@@ -150,7 +150,7 @@ async function handleMyOfferings(req, res) {
       });
     }
 
-    offerings.sort((a, b) => b.declaredAt - a.declaredAt);
+    concepts.sort((a, b) => b.declaredAt - a.declaredAt);
 
     return res.json({
       success: true,
@@ -158,12 +158,12 @@ async function handleMyOfferings(req, res) {
       relay: COMMUNITY_RELAY,
       relayOk: relay.ok,
       relayError: relay.error,
-      offerings,
+      concepts,
     });
   } catch (error) {
-    console.error('concept/my-offerings error:', error);
+    console.error('concept/shared-by-me error:', error);
     return res.status(500).json({ success: false, error: error.message });
   }
 }
 
-module.exports = { handleMyOfferings };
+module.exports = { handleSharedByMe };

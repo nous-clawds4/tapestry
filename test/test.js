@@ -233,7 +233,11 @@ const adoptionRawEventView = require('./adoption-raw-event-view.test.js');
 // epic: shared-concepts-legibility — Story 1 (sharing state on the concept page).
 const stateOnConceptPage = require('./state-on-concept-page.test.js');
 // epic: shared-concepts-legibility — Story 2 (my offerings: local ∪ relay).
-const myOfferings = require('./my-offerings.test.js');
+const sharedByMe = require('./shared-by-me.test.js');
+// epic: shared-concepts-seeding — Story 2 (retire the offering vocabulary).
+const retireOfferingVocabulary = require('./retire-offering-vocabulary.test.js');
+// epic: shared-concepts-seeding — Story 1 (honest broadcast reporting).
+const honestBroadcastReporting = require('./honest-broadcast-reporting.test.js');
 
 async function main() {
   console.log('Running Brainstorm tests...');
@@ -585,8 +589,14 @@ async function main() {
   console.log('\nstate-on-concept-page suite:');
   const stateOnConceptPageResult = await stateOnConceptPage.run();
 
-  console.log('\nmy-offerings suite:');
-  const myOfferingsResult = await myOfferings.run();
+  console.log('\nshared-by-me suite:');
+  const sharedByMeResult = await sharedByMe.run();
+
+  console.log('\nretire-offering-vocabulary suite:');
+  const retireOfferingVocabularyResult = await retireOfferingVocabulary.run();
+
+  console.log('\nhonest-broadcast-reporting suite:');
+  const honestBroadcastReportingResult = await honestBroadcastReporting.run();
 
   console.log('\nTest Results');
   console.log('-------------');
@@ -1055,7 +1065,9 @@ async function main() {
   console.log(`adoption-twins suite:                            ${adoptionTwinsResult.fail === 0 ? 'PASS' : 'FAIL'} (${adoptionTwinsResult.pass} passed, ${adoptionTwinsResult.fail} failed, ${adoptionTwinsResult.skipped} skipped)`);
   console.log(`adoption-raw-event-view suite:                   ${adoptionRawEventViewResult.fail === 0 ? 'PASS' : 'FAIL'} (${adoptionRawEventViewResult.pass} passed, ${adoptionRawEventViewResult.fail} failed, ${adoptionRawEventViewResult.skipped} skipped)`);
   console.log(`state-on-concept-page suite:                     ${stateOnConceptPageResult.fail === 0 ? 'PASS' : 'FAIL'} (${stateOnConceptPageResult.pass} passed, ${stateOnConceptPageResult.fail} failed, ${stateOnConceptPageResult.skipped} skipped)`);
-  console.log(`my-offerings suite:                              ${myOfferingsResult.fail === 0 ? 'PASS' : 'FAIL'} (${myOfferingsResult.pass} passed, ${myOfferingsResult.fail} failed, ${myOfferingsResult.skipped} skipped)`);
+  console.log(`shared-by-me suite:                              ${sharedByMeResult.fail === 0 ? 'PASS' : 'FAIL'} (${sharedByMeResult.pass} passed, ${sharedByMeResult.fail} failed, ${sharedByMeResult.skipped} skipped)`);
+  console.log(`retire-offering-vocabulary suite:                ${retireOfferingVocabularyResult.fail === 0 ? 'PASS' : 'FAIL'} (${retireOfferingVocabularyResult.pass} passed, ${retireOfferingVocabularyResult.fail} failed, ${retireOfferingVocabularyResult.skipped} skipped)`);
+  console.log(`honest-broadcast-reporting suite:                ${honestBroadcastReportingResult.fail === 0 ? 'PASS' : 'FAIL'} (${honestBroadcastReportingResult.pass} passed, ${honestBroadcastReportingResult.fail} failed, ${honestBroadcastReportingResult.skipped} skipped)`);
 
   const overallOk =
     configOk &&
@@ -1253,7 +1265,11 @@ async function main() {
     // shared-concepts-legibility #1 — sharing state on the concept page
     stateOnConceptPageResult.fail === 0 &&
     // shared-concepts-legibility #2 — my offerings
-    myOfferingsResult.fail === 0 &&
+    sharedByMeResult.fail === 0 &&
+    // shared-concepts-seeding #2 — the vocabulary guard
+    retireOfferingVocabularyResult.fail === 0 &&
+    // shared-concepts-seeding #1 — honest broadcast reporting
+    honestBroadcastReportingResult.fail === 0 &&
     harnessLintResult.fail === 0 &&
     harnessStatsResult.fail === 0 &&
     sessionStartResult.fail === 0 &&
@@ -1302,7 +1318,8 @@ async function main() {
     addConceptToTapestryResult, takeAConceptBackOutResult, brainFirstTapestryAuthoringResult,
     bCoverageAuditAndDispositionResult, adoptionCandidatesQueueResult, inverseQueuePublishCandidatesResult,
     publishTimeDefaultStampingResult, trustedDictionaryResult, adoptionTwinsResult, adoptionRawEventViewResult,
-    stateOnConceptPageResult, myOfferingsResult,
+    stateOnConceptPageResult, sharedByMeResult, honestBroadcastReportingResult,
+    retireOfferingVocabularyResult,
   ].reduce((sum, r) => sum + ((r && r.skipped) || 0), 0);
   console.log(`Total skipped:                                   ${totalSkipped}`);
   console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);
