@@ -41,7 +41,8 @@
  *     edges survive) -> delete-missing -> nonexistent-node 404 -> rejected
  *     relType 400 -> host-side unauthenticated 401 -> no-strfry-write
  *     (GET /api/strfry/scan/count equality bracketing a full add+delete
- *     cycle).
+ *     cycle, scoped to this instance's own TA identity so live router ingest
+ *     cannot move it — ADR test-suite-hermeticity/0001).
  *
  * ALL U/S tests and (stack-present) H tests FAIL until the feature lands —
  * src/api/normalize/relationships.js does not exist yet. That is the point.
@@ -258,9 +259,35 @@ async function hostPostJson(pathname, body) {
   return { status: r.status, json };
 }
 
+// This deployment's Tapestry Assistant pubkey, resolved at runtime — it is
+// created at first container startup and differs on every deployment, so it can
+// never be a literal here (CLAUDE.md).
+let taPubkey = null;
+async function resolveTaPubkey() {
+  if (taPubkey) return taPubkey;
+  const r = await fetch(`${HOST_BASE}/api/assistant/pubkey`, { signal: AbortSignal.timeout(5000) });
+  const j = await r.json().catch(() => null);
+  if (!j || j.success !== true || !/^[0-9a-f]{64}$/.test(j.pubkey || '')) {
+    throw new Error(
+      `GET /api/assistant/pubkey did not answer this deployment's TA pubkey (got ${short(j)}). ` +
+      'The write-assertion bracket counts only TA-authored events, so it cannot run without one — ' +
+      'and must not silently fall back to a whole-corpus count, which live strfry-router ingest ' +
+      'races (ADR test-suite-hermeticity/0001).');
+  }
+  taPubkey = j.pubkey;
+  return taPubkey;
+}
+
+// Counts ONLY events this instance could have authored. Server-side signing
+// resolves solely through getOwnerAssistantKeys (publishEvent.js:38-53), so the
+// TA identity is the only author these operations could produce — and it is the
+// one axis live strfry-router ingest cannot move. The whole-corpus count this
+// replaced drifted ~0.8 events/second and failed 5 runs in 6
+// (ADR test-suite-hermeticity/0001; OPEN.md row 150).
 async function strfryEventCount() {
-  const r = await fetch(`${HOST_BASE}/api/strfry/scan/count?filter=${encodeURIComponent('{}')}`, {
-    signal: AbortSignal.timeout(60000),
+  const filter = JSON.stringify({ authors: [await resolveTaPubkey()] });
+  const r = await fetch(`${HOST_BASE}/api/strfry/scan/count?filter=${encodeURIComponent(filter)}`, {
+    signal: AbortSignal.timeout(15000),
   });
   const j = await r.json().catch(() => null);
   if (!j || j.success !== true || typeof j.count !== 'number') {
@@ -680,8 +707,8 @@ t('H8 (AC-5): a full add+delete cycle writes NO event to strfry — scan counts 
   if (!(await stackAvailable())) return 'SKIP';
   const { uuidA, uuidB } = ensureFixtures();
   // Tight bracket around one full cycle of both operations (H4 left a->b with
-  // no HAS_ELEMENT edge) — minimizes the concurrent-publish race window while
-  // still covering every mutation path.
+  // no HAS_ELEMENT edge), scoped to this instance's own TA identity — router
+  // traffic is authored by other pubkeys and cannot move it.
   const before = await strfryEventCount();
   const add = loopbackPost(ADD_ROUTE, { fromUuid: uuidA, toUuid: uuidB, relType: 'HAS_ELEMENT' });
   assert(add.status === 200 && add.json && add.json.result === 'created',
@@ -692,8 +719,11 @@ t('H8 (AC-5): a full add+delete cycle writes NO event to strfry — scan counts 
     `bracketed delete must succeed with result:'deleted' — got status=${del.status}, body=${short(del.json || del.raw, 120)}.`);
   const after = await strfryEventCount();
   assert(before === after,
-    `NEITHER operation may write any event to strfry (AC-5): scan count went ${before} -> ${after}. ` +
-    'If a concurrent publisher (scheduled task / sync) is suspected, quiesce it and re-run.');
+    `NEITHER operation may write any event to strfry (AC-5): TA-authored scan count went ${before} -> ${after}. ` +
+    'This count is scoped to this instance\'s own Tapestry Assistant identity, so it is NOT router ' +
+    'traffic — this instance authored an event. Either add/delete wrote one (the principle-4 ' +
+    'violation this test exists to catch) or another process on this machine published as the TA ' +
+    'while the bracket was open (e.g. a firmware reinstall). Check which before dismissing it.');
 });
 
 /* ─────────────── Run ─────────────── */

@@ -171,6 +171,8 @@ const strfryWipeOwnerGate = require('./strfry-wipe-owner-gate.test.js');
 const relationshipPrimitives = require('./relationship-primitives.test.js');
 // epic: relationship-primitives — Story 2 (read-only deployment probe).
 const relationshipPrimitivesProbe = require('./relationship-primitives-probe.test.js');
+// epic: test-suite-hermeticity — Story 1 (author-scoped strfry write-assertion brackets).
+const strfryWriteAssertionBracket = require('./strfry-write-assertion-bracket.test.js');
 // epic: graph-curation-ui — Story 1 (place/move nodes between sets from the concept pages).
 const moveNodesBetweenSetsUi = require('./move-nodes-between-sets-ui.test.js');
 // epic: second-brain — Story 1 (capture a goal and see it).
@@ -238,6 +240,8 @@ const sharedByMe = require('./shared-by-me.test.js');
 const retireOfferingVocabulary = require('./retire-offering-vocabulary.test.js');
 // epic: shared-concepts-seeding — Story 1 (honest broadcast reporting).
 const honestBroadcastReporting = require('./honest-broadcast-reporting.test.js');
+// epic: shared-concepts-seeding — Story 3 (not-yet-shared filter on the Concepts list).
+const notYetSharedFilter = require('./not-yet-shared-filter.test.js');
 
 async function main() {
   console.log('Running Brainstorm tests...');
@@ -532,6 +536,7 @@ async function main() {
   const strfryWipeOwnerGateResult = await strfryWipeOwnerGate.run();
   const relationshipPrimitivesResult = await relationshipPrimitives.run();
   const relationshipPrimitivesProbeResult = await relationshipPrimitivesProbe.run();
+  const strfryWriteAssertionBracketResult = await strfryWriteAssertionBracket.run();
   const moveNodesBetweenSetsUiResult = await moveNodesBetweenSetsUi.run();
   const captureAGoalAndSeeItResult = await captureAGoalAndSeeIt.run();
   const firmwareConceptElementsSetsResult = await firmwareConceptElementsSets.run();
@@ -597,6 +602,7 @@ async function main() {
 
   console.log('\nhonest-broadcast-reporting suite:');
   const honestBroadcastReportingResult = await honestBroadcastReporting.run();
+  const notYetSharedFilterResult = await notYetSharedFilter.run();
 
   console.log('\nTest Results');
   console.log('-------------');
@@ -954,6 +960,13 @@ async function main() {
       ? `SKIP (${relationshipPrimitivesProbeResult.skipped} tests; preconditions not met)`
       : `${relationshipPrimitivesProbeResult.fail === 0 ? 'PASS' : 'FAIL'} (${relationshipPrimitivesProbeResult.pass} passed, ${relationshipPrimitivesProbeResult.fail} failed${relationshipPrimitivesProbeResult.skipped ? `, ${relationshipPrimitivesProbeResult.skipped} skipped` : ''})`;
   console.log(`relationship-primitives-probe suite:             ${relationshipPrimitivesProbeLine}`);
+  // Skip-aware: H-class teeth tests skip when the local stack is absent (CI's
+  // stack-free job); the S-class bracket audit always runs and gates.
+  const strfryWriteAssertionBracketLine =
+    (strfryWriteAssertionBracketResult.pass + strfryWriteAssertionBracketResult.fail) === 0 && strfryWriteAssertionBracketResult.skipped
+      ? `SKIP (${strfryWriteAssertionBracketResult.skipped} tests; preconditions not met)`
+      : `${strfryWriteAssertionBracketResult.fail === 0 ? 'PASS' : 'FAIL'} (${strfryWriteAssertionBracketResult.pass} passed, ${strfryWriteAssertionBracketResult.fail} failed${strfryWriteAssertionBracketResult.skipped ? `, ${strfryWriteAssertionBracketResult.skipped} skipped` : ''})`;
+  console.log(`strfry-write-assertion-bracket suite:            ${strfryWriteAssertionBracketLine}`);
   // Skip-aware: H-class live sentinels skip when the local stack is absent
   // (CI's stack-free job); U/S classes always run and gate.
   const moveNodesBetweenSetsUiLine =
@@ -1068,6 +1081,13 @@ async function main() {
   console.log(`shared-by-me suite:                              ${sharedByMeResult.fail === 0 ? 'PASS' : 'FAIL'} (${sharedByMeResult.pass} passed, ${sharedByMeResult.fail} failed, ${sharedByMeResult.skipped} skipped)`);
   console.log(`retire-offering-vocabulary suite:                ${retireOfferingVocabularyResult.fail === 0 ? 'PASS' : 'FAIL'} (${retireOfferingVocabularyResult.pass} passed, ${retireOfferingVocabularyResult.fail} failed, ${retireOfferingVocabularyResult.skipped} skipped)`);
   console.log(`honest-broadcast-reporting suite:                ${honestBroadcastReportingResult.fail === 0 ? 'PASS' : 'FAIL'} (${honestBroadcastReportingResult.pass} passed, ${honestBroadcastReportingResult.fail} failed, ${honestBroadcastReportingResult.skipped} skipped)`);
+  // Skip-aware: H-class contract checks skip when the local stack is absent;
+  // the U-class predicate and S-class source audit always run and gate.
+  const notYetSharedFilterLine =
+    (notYetSharedFilterResult.pass + notYetSharedFilterResult.fail) === 0 && notYetSharedFilterResult.skipped
+      ? `SKIP (${notYetSharedFilterResult.skipped} tests; preconditions not met)`
+      : `${notYetSharedFilterResult.fail === 0 ? 'PASS' : 'FAIL'} (${notYetSharedFilterResult.pass} passed, ${notYetSharedFilterResult.fail} failed${notYetSharedFilterResult.skipped ? `, ${notYetSharedFilterResult.skipped} skipped` : ''})`;
+  console.log(`not-yet-shared-filter suite:                     ${notYetSharedFilterLine}`);
 
   const overallOk =
     configOk &&
@@ -1202,6 +1222,8 @@ async function main() {
     relationshipPrimitivesResult.fail === 0 &&
     // relationship-primitives #2 — read-only deployment probe
     relationshipPrimitivesProbeResult.fail === 0 &&
+    // test-suite-hermeticity #1 — author-scoped strfry write-assertion brackets
+    strfryWriteAssertionBracketResult.fail === 0 &&
     // graph-curation-ui #1 — place/move nodes between sets UI
     moveNodesBetweenSetsUiResult.fail === 0 &&
     // second-brain #1 — capture a goal and see it
@@ -1270,6 +1292,8 @@ async function main() {
     retireOfferingVocabularyResult.fail === 0 &&
     // shared-concepts-seeding #1 — honest broadcast reporting
     honestBroadcastReportingResult.fail === 0 &&
+    // shared-concepts-seeding #3 — not-yet-shared filter on the Concepts list
+    notYetSharedFilterResult.fail === 0 &&
     harnessLintResult.fail === 0 &&
     harnessStatsResult.fail === 0 &&
     sessionStartResult.fail === 0 &&
