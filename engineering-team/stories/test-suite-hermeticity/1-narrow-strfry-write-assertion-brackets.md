@@ -1,6 +1,6 @@
 # Story 1: The "writes nothing to strfry" assertions must measure only what this instance could have written
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-08-10
 **Type:** Bug
 
@@ -96,4 +96,4 @@ BIBLE §30.)
 ## Linked artifacts
 - ADR: `engineering-team/decisions/test-suite-hermeticity/0001-author-scoped-write-assertion-brackets.md`
 - Test plan: `engineering-team/stories/test-suite-hermeticity/1-narrow-strfry-write-assertion-brackets.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/test-suite-hermeticity/1-narrow-strfry-write-assertion-brackets.md`
