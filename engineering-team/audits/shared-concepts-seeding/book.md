@@ -1,9 +1,9 @@
 # Book of Work: Seeding — making it easy to offer a concept, and honest about whether it landed
 
 **Slug:** shared-concepts-seeding
-**Status:** Open
+**Status:** Closed
 **Opened:** 2026-08-10
-**Closed:** —
+**Closed:** 2026-08-11
 
 ## Intent anchor
 
@@ -28,11 +28,13 @@ present on `dcosl` by direct relay query. The path works — it is just not one 
 
 ### Acceptance frame
 
-- [ ] From the page about what she has shared, the owner can **share a concept she hasn't shared
-      yet**, without knowing which other page to visit.
-- [ ] Every path that shares a concept **tells her truthfully** whether it reached the community —
-      including when it didn't.
-- [ ] She can find, in bulk, **which of her concepts she hasn't shared**.
+- [x] From the page about what she has shared, the owner can **share a concept she hasn't shared
+      yet**, without knowing which other page to visit. — **story #4**, shipped as a *signpost* into
+      the filtered Concepts list rather than a second list on this page (reduction ratified
+      2026-08-11); the errand completes one page over.
+- [x] Every path that shares a concept **tells her truthfully** whether it reached the community —
+      including when it didn't. — **story #1**, with the vocabulary corrected by **story #2**.
+- [x] She can find, in bulk, **which of her concepts she hasn't shared**. — **story #3**.
 
 ### Scope notes
 
@@ -66,8 +68,10 @@ present on `dcosl` by direct relay query. The path works — it is just not one 
 
 ## Provenance
 - **Mode:** Acceptance-frame
-- **Confidence at close:** —
+- **Confidence at close:** **High** — the frame predated the work, all four stories carry story +
+  review artifacts, and every bullet was verified on a rendered page in production (three corpora:
+  45 waiting local, 35 staging, 33 production, each matching its destination's row count).
 
-## Close artifacts *(filled by `/close-book`)*
+## Close artifacts
 - Build audit: `engineering-team/audits/shared-concepts-seeding/audit.md`
 - Product feedback: `engineering-team/audits/shared-concepts-seeding/prd-seed.md`
