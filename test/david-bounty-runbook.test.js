@@ -31,7 +31,8 @@ assert.ok(pin, 'the runbook must pin a real repository, branch, and commit');
 const [, pinnedRepo, pinnedBranch, pinnedSha] = pin;
 assert.equal(pinnedRepo, 'https://github.com/nous-clawds4/tapestry.git');
 assert.ok(readme.includes(`export DEPLOY_REF="${pinnedBranch}"`), 'section 0 must export the pinned branch');
-assert.ok(readme.includes(`export DEPLOY_SHA="${pinnedSha}"`), 'section 0 must export the pinned commit');
+assert.ok(readme.includes(`export PINNED_IMPLEMENTATION="${pinnedSha}"`), 'section 0 must export the pinned commit');
+assert.ok(readme.includes('git merge-base --is-ancestor "$PINNED_IMPLEMENTATION" "$DEPLOY_SHA"'), 'section 0 must refuse a branch tip that does not contain the pinned commit');
 
 const warningSection = goal.match(/## Hard constraints — these go in the pack verbatim as warnings\n\n([\s\S]*?)\n\n## Tasks/)[1];
 const warnings = warningSection.split(/\n(?=- )/);
@@ -143,6 +144,7 @@ set -eu
 case "\${1-}" in
  clone) target="\${!#}"; mkdir -p "$target/.git" ;;
  check-ref-format|fetch|checkout) ;;
+ merge-base) if test "\${RUNBOOK_ANCESTOR-1}" = 1; then exit 0; fi; exit 1 ;;
  rev-parse) printf '%s\\n' '${pinnedSha}' ;;
  *) echo "unhandled git: $*" >&2; exit 64 ;;
 esac
@@ -378,7 +380,8 @@ assert.notEqual(runFence(fenceIndex('initial settlement dry-run'), {
 }).status, 0, 'fatal dry-run without judgment rows must fail');
 assert.notEqual(runFence(fenceIndex('canonical checkout'), { env: { SSH_HOST: '' } }).status, 0, 'a missing SSH_HOST must fail');
 assert.notEqual(runFence(fenceIndex('canonical checkout'), { env: { MC_NSEC: '' } }).status, 0, 'a missing MC_NSEC must fail');
+assert.notEqual(runFence(fenceIndex('canonical checkout'), { env: { RUNBOOK_ANCESTOR: '0' } }).status, 0, 'a branch tip without the pinned commit must fail');
 assert.notEqual(runFence(fenceIndex('durable ledger'), { env: { LEDGER_RECONCILE_ACK: '' } }).status, 0, 'an unacknowledged ledger import must fail');
 assert.notEqual(runFence(fenceIndex('ordinary failed reset'), { env: { BOUNTY_ID: '' } }).status, 0, 'a reset without a bounty id must fail');
 
-console.log(`${blocks.length} runbook shell fences passed in isolated simulation; ${remoteChecks.length} remote-placement and 13 refusal scenarios passed`);
+console.log(`${blocks.length} runbook shell fences passed in isolated simulation; ${remoteChecks.length} remote-placement and 14 refusal scenarios passed`);

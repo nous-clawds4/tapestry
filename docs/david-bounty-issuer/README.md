@@ -55,7 +55,7 @@ export SSH_HOST MC_NSEC
 export GH_REPO="nous-clawds4/tapestry"
 export GH_URL="https://github.com/$GH_REPO.git"
 export DEPLOY_REF="david-bounty-issuer"
-export DEPLOY_SHA="8b2880e7a6e9bc8def807b73747e2601e2cbe87a"
+export PINNED_IMPLEMENTATION="8b2880e7a6e9bc8def807b73747e2601e2cbe87a"
 export REPO="$HOME/src/magic-carpet-v2"
 for command in git node npm jq curl ssh gh sort comm sed tr paste wc grep install date; do command -v "$command" >/dev/null; done
 node -e 'const major=Number(process.versions.node.split(".")[0]);if(major<18)throw new Error("Node.js 18 or newer is required")'
@@ -67,8 +67,10 @@ if ! test -d "$REPO/.git"; then
 fi
 cd "$REPO"
 git check-ref-format --branch "$DEPLOY_REF" >/dev/null
-printf '%s' "$DEPLOY_SHA" | grep -Ex '[0-9a-f]{40}' >/dev/null
+printf '%s' "$PINNED_IMPLEMENTATION" | grep -Ex '[0-9a-f]{40}' >/dev/null
 git fetch --no-tags "$GH_URL" "refs/heads/$DEPLOY_REF"
+export DEPLOY_SHA="$(git rev-parse --verify 'FETCH_HEAD^{commit}')"
+git merge-base --is-ancestor "$PINNED_IMPLEMENTATION" "$DEPLOY_SHA"
 git checkout --detach "$DEPLOY_SHA"
 test "$(git rev-parse HEAD)" = "$DEPLOY_SHA"
 npm ci
@@ -81,8 +83,9 @@ export DAVID_BOUNTY_LEDGER_DIR="$HOME/.local/state/magic-carpet"
 install -d -m 0700 "$DAVID_BOUNTY_LEDGER_DIR" "$(dirname "$MC_COOKIE_JAR")"
 ```
 
-The pinned commit is the tested implementation. A later commit on the same
-branch is acceptable. Any other ref is not.
+`DEPLOY_SHA` is the current tip of the pinned branch. The `merge-base` check
+refuses that tip unless it contains the reviewed implementation commit, so
+"commit X or later on this branch" is enforced, not just stated.
 
 Use GNU `shuf`, `gshuf`, or the Node.js substitute below.
 
