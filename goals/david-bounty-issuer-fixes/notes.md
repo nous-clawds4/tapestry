@@ -191,17 +191,63 @@ checks, 22 settlement checks, and the rest of the suite.
   `gh api repos/nous-clawds4/tapestry` reports `push: true` for
   `matthiasdebernardini`, so no fork was needed.
 - Branch: `david-bounty-issuer`.
-- Implementation commit: `IMPLEMENTATION_SHA`.
-- Documentation and pin commit: `PIN_SHA`.
-- The runbook pins the implementation commit and says "or later on that branch".
+- Implementation commit: `8b2880e7a6e9bc8def807b73747e2601e2cbe87a`.
+- Pin commit: `e6c9286ed44cdca6f9319127edb988487860a1ab`.
+- Branch tip: `9fb659721e956f8f8b77ca784290752cfe3acf20`.
+- The runbook pins the implementation commit and enforces "or later on that
+  branch" with `git merge-base --is-ancestor`. The first pin attempt checked out
+  the implementation commit directly, which served a README older than the one
+  being read. Section 0 now deploys the branch tip and refuses it unless the
+  reviewed commit is an ancestor. `test/david-bounty-runbook.test.js` asserts
+  both the pin block and the ancestor check, and a `RUNBOOK_ANCESTOR=0` scenario
+  proves the refusal fires.
 
 ## Fresh-clone verification
 
-FRESH_CLONE_TRANSCRIPT
+```
+$ git clone --branch david-bounty-issuer https://github.com/nous-clawds4/tapestry.git repo
+$ cd repo && git rev-parse HEAD
+9fb659721e956f8f8b77ca784290752cfe3acf20
+$ git merge-base --is-ancestor 8b2880e7a6e9bc8def807b73747e2601e2cbe87a HEAD && echo ancestor
+ancestor
+$ diff -q docs/david-bounty-issuer/README.md <local working tree copy>
+(no output: identical)
+$ npm ci
+EXIT=0
+$ npm test
+EXIT=0
+34 runbook shell fences passed in isolated simulation; 3 remote-placement and 14 refusal scenarios passed
+```
+
+An earlier clone of the implementation commit `8b2880e7` alone also matched the
+local working tree byte for byte on every source and test file checked
+(`src/db/autoPay.js`, `src/api/bounties.js`, `src/services/autoPayWatcher.js`,
+`docker/entrypoint.sh`, `scripts/david-bounty-settle.js`, `bin/agent.js`, and
+the three new or reworked test files).
 
 ## Cloudflare site
 
-SITE_SECTION
+- Live URL: **https://magic-carpet-david-issuer.matthias-4ff.workers.dev**
+- Source: `NostrFabrica/david-issuer-site/` (outside the tapestry checkout, next
+  to `phase1-site/`). Committed to the outer `NostrFabrica` repository as
+  `76a5006`, then rebuilt and redeployed after the pin change.
+- `build.js` renders `docs/david-bounty-issuer/README.md` into
+  `site/index.html`. The page is never hand-edited, so the site and the
+  repository cannot drift. Rebuild after every runbook commit:
+  `node build.js && wrangler deploy`.
+- The page has a sticky table of contents, a copy button on all 34 command
+  blocks, the honesty box and the hard constraints in red, and a header giving
+  the clone URL, branch, and commit. No framework, no external assets, one
+  system font stack.
+- Secrets scan before deploy, blocking, both runs clean:
+  `rg -i 'nsec1|SESSION_SECRET=|Cookie:' site/` returns two hits and both are
+  names, not values: the literal prefix test `raw.startsWith("nsec1")` and the
+  sed pattern `s/^SESSION_SECRET=//p`. A stricter value-shaped scan
+  (`nsec1[bech32]{20,}`, `SESSION_SECRET=<value>`, `-----BEGIN`, `connect.sid=`,
+  dotted-quad IP addresses) returns nothing. The only long hex literals on the
+  page are the two public issuer pubkeys and the pinned commit.
+- Served HTML fetched back and diffed against the local file: identical
+  (71,575 bytes, `diff` silent).
 
 ## Still needs Matthias or David
 
