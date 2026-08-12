@@ -173,6 +173,7 @@ const relationshipPrimitives = require('./relationship-primitives.test.js');
 const relationshipPrimitivesProbe = require('./relationship-primitives-probe.test.js');
 // epic: graph-curation-ui — Story 1 (place/move nodes between sets from the concept pages).
 const moveNodesBetweenSetsUi = require('./move-nodes-between-sets-ui.test.js');
+const siteTrustSignals = require('./site-trust-signals.test.js');
 
 async function main() {
   console.log('Running Brainstorm tests...');
@@ -468,6 +469,7 @@ async function main() {
   const relationshipPrimitivesResult = await relationshipPrimitives.run();
   const relationshipPrimitivesProbeResult = await relationshipPrimitivesProbe.run();
   const moveNodesBetweenSetsUiResult = await moveNodesBetweenSetsUi.run();
+  const siteTrustSignalsResult = await siteTrustSignals.run();
 
   console.log('\nTest Results');
   console.log('-------------');
@@ -589,6 +591,7 @@ async function main() {
   console.log(`pin-detail-into-tag-pinned-tab suite:            ${pinDetailIntoTagTabResult.fail === 0 ? 'PASS' : 'FAIL'} (${pinDetailIntoTagTabResult.pass} passed, ${pinDetailIntoTagTabResult.fail} failed)`);
   console.log(`collapse-into-export-concept suite:              ${collapseIntoExportResult.fail === 0 ? 'PASS' : 'FAIL'} (${collapseIntoExportResult.pass} passed, ${collapseIntoExportResult.fail} failed)`);
   console.log(`login-failure-and-tag-collapse suite:            ${loginFailureAndTagCollapseResult.fail === 0 ? 'PASS' : 'FAIL'} (${loginFailureAndTagCollapseResult.pass} passed, ${loginFailureAndTagCollapseResult.fail} failed)`);
+  console.log(`site-trust-signals suite:                        ${siteTrustSignalsResult.fail === 0 ? 'PASS' : 'FAIL'} (${siteTrustSignalsResult.pass} passed, ${siteTrustSignalsResult.fail} failed, ${siteTrustSignalsResult.skipped} skipped)`);
   console.log(
     `header-conceptgraph-tag suite:                   ${headerConceptGraphTagResult.fail === 0 ? 'PASS' : 'FAIL'} (${headerConceptGraphTagResult.pass} passed, ${headerConceptGraphTagResult.fail} failed)`
   );
@@ -954,7 +957,8 @@ async function main() {
     ciTestJobResult.fail === 0 &&
     syncPanelTagFiltersResult.fail === 0 &&
     routerStreamTagFiltersResult.fail === 0 &&
-    contextScopedPinsResult.fail === 0;
+    contextScopedPinsResult.fail === 0 &&
+    siteTrustSignalsResult.fail === 0;
   // Aggregate skip visibility (story test-hermeticity-ci #2, reviewer
   // constraint: skips are counted, never silent). Purely informational —
   // overallOk above never consults .skipped.
@@ -986,6 +990,7 @@ async function main() {
     noteTaggingRawEventsInspectorHttpResult, deploySafetyStatusResult, safeToMergeCheckResult, nextTaskCountdownResult,
     closeUnauthWriteSurfaceResult, defaultDenyMutationsResult, usersPageNeo4jEndpointResult, strfryWipeOwnerGateResult,
     relationshipPrimitivesResult, relationshipPrimitivesProbeResult, moveNodesBetweenSetsUiResult,
+    siteTrustSignalsResult,
   ].reduce((sum, r) => sum + ((r && r.skipped) || 0), 0);
   console.log(`Total skipped:                                   ${totalSkipped}`);
   console.log(`Overall:                                         ${overallOk ? 'PASS' : 'FAIL'}`);
