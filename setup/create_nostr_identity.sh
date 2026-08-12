@@ -65,11 +65,9 @@ fi
 # Get the directory where the script is located
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
 
-# Create directory for storing keys if it doesn't exist
-KEYS_DIR="${SCRIPT_DIR}/nostr/keys"
-mkdir -p "$KEYS_DIR"
-
 # Create a project directory for Node.js dependencies
+# (mkdir -p creates the parent nostr/ too — no separate keys dir is made any
+# more; key material lives only in SECURE_KEYS_DIR, encrypted at rest.)
 NOSTR_PROJECT_DIR="${SCRIPT_DIR}/nostr/node_project"
 mkdir -p "$NOSTR_PROJECT_DIR"
 
@@ -156,6 +154,5 @@ fi
 echo "Nostr identity created successfully!"
 echo "PUBKEY: $BRAINSTORM_RELAY_PUBKEY"
 echo "NPUB: $BRAINSTORM_RELAY_NPUB"
-echo "Keys stored securely in JSON format in $KEYS_FILE"
-echo "Shell-compatible keys also stored in $KEYS_SH_FILE for backward compatibility"
-echo "Keys have also been added to /etc/brainstorm.conf (if it exists)"
+echo "Private key stored encrypted (AES-256-GCM) in $SECURE_KEYS_DIR/tapestry-assistant.json"
+echo "Only the PUBKEY and NPUB were written to /etc/brainstorm.conf (if it exists)"
