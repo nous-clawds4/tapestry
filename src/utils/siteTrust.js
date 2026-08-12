@@ -180,7 +180,19 @@ function isBlockedProbePath(pathname) {
   const segments = clean.split('/').filter(Boolean);
   if (segments.length === 0) return false;
 
-  // Rule 1 — dotfiles and dot-directories, including all of /.well-known/.
+  // ACME HTTP-01 challenges are NEVER blocked. cert-manager (the k8s fleet,
+  // cluster-issuers.yaml uses an http01 solver) and certbot (the droplets)
+  // both answer /.well-known/acme-challenge/<token> over plain HTTP, and a 404
+  // there fails certificate issuance AND renewal. That failure is silent for
+  // weeks and then surfaces as expired TLS across every host at once.
+  //
+  // Today this path is handled above the application layer, so returning false
+  // simply preserves the pre-existing behavior rather than granting anything
+  // new. The exemption exists so that a future change to how challenges are
+  // routed cannot be broken by this rule.
+  if (clean.startsWith('/.well-known/acme-challenge/')) return false;
+
+  // Rule 1 — dotfiles and dot-directories, including the rest of /.well-known/.
   if (segments.some((s) => s.startsWith('.'))) return true;
 
   // Rule 2 — known probe/asset extension on the final segment.
