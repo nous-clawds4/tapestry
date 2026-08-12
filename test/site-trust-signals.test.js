@@ -219,6 +219,31 @@ test('U6 security.txt names every official host in the estate attestation', () =
     'This list is the substantive answer to "these domains look like clones of each other."');
 });
 
+test('U6b the attestation claims our own domains rather than disclaiming them', () => {
+  const { buildSecurityTxt, ESTATE_ATTESTATION } = loadSiteTrust();
+  const body = buildSecurityTxt({ domain: 'tapestry.brainstorm.world' });
+
+  // The shipped file closed with "Any *.brainstorm.world or *.nosfabrica.com
+  // host not listed above is not operated by us." Both apex domains are ours,
+  // so that disclaimed our OWN subdomains — and would disclaim every new one
+  // the moment it was added, since the list can never be exhaustive. In a file
+  // whose entire purpose is to assert ownership, a false disclaimer is worse
+  // than saying nothing.
+  assert(!/not operated by us/i.test(body),
+    'the attestation must not contain "not operated by us" — both apex domains are ours, ' +
+    'so any host under them IS operated by us. Disclaim look-alikes on OTHER domains instead.');
+
+  // It must positively claim both apexes, and say the inventory is not exhaustive
+  // so that adding a subdomain cannot make the published document wrong.
+  for (const apex of ['brainstorm.world', 'nosfabrica.com']) {
+    assert(ESTATE_ATTESTATION.includes(apex),
+      `the attestation must name the ${apex} apex domain as ours.`);
+  }
+  assert(/not an exhaustive claim|current inventory/i.test(ESTATE_ATTESTATION),
+    'the attestation must state that the host list is a current inventory rather than an ' +
+    'exhaustive claim, or it goes stale into falsehood the next time a host is added.');
+});
+
 test('U7 robots.txt disallows everything by default', () => {
   const { buildRobotsTxt } = loadSiteTrust();
   for (const arg of [{ allowIndexing: false }, {}, undefined]) {
