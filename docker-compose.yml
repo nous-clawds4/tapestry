@@ -32,6 +32,10 @@ services:
       - MDK_WALLET_ID=${MDK_WALLET_ID:-}
       - MDK_WALLET_NETWORK=${MDK_WALLET_NETWORK:-mainnet}
       - RELAY_KEY_MASTER_KEY=${RELAY_KEY_MASTER_KEY:-}
+      # Search-engine indexing opt-in (ADR 0036). Defaults to false so a new
+      # sandbox never competes with production in search results before anyone
+      # remembers to configure it. Production sets ALLOW_INDEXING=true in .env.
+      - ALLOW_INDEXING=${ALLOW_INDEXING:-false}
     volumes:
       - tapestry-neo4j:/var/lib/neo4j/data
       - tapestry-strfry:/var/lib/strfry
