@@ -29,7 +29,7 @@ Pinned implementation:
 
 - Repository: `https://github.com/nous-clawds4/tapestry.git`
 - Branch: `david-bounty-issuer`
-- Commit: `0000000000000000000000000000000000000000` or later on that branch.
+- Commit: `8b2880e7a6e9bc8def807b73747e2601e2cbe87a` or later on that branch.
 
 ## 0. Prepare a fresh checkout
 
@@ -55,7 +55,7 @@ export SSH_HOST MC_NSEC
 export GH_REPO="nous-clawds4/tapestry"
 export GH_URL="https://github.com/$GH_REPO.git"
 export DEPLOY_REF="david-bounty-issuer"
-export DEPLOY_SHA="0000000000000000000000000000000000000000"
+export DEPLOY_SHA="8b2880e7a6e9bc8def807b73747e2601e2cbe87a"
 export REPO="$HOME/src/magic-carpet-v2"
 for command in git node npm jq curl ssh gh sort comm sed tr paste wc grep install date; do command -v "$command" >/dev/null; done
 node -e 'const major=Number(process.versions.node.split(".")[0]);if(major<18)throw new Error("Node.js 18 or newer is required")'
