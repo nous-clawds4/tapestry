@@ -54,6 +54,7 @@ const api = require('../src/api');
 
 // Import centralized configuration utility
 const { getConfigFromFile } = require('../src/utils/config');
+const { buildSecurityTxt, buildRobotsTxt, isBlockedProbePath } = require('../src/utils/siteTrust');
 
 // Determine if we should use HTTPS (local development) or HTTP (behind proxy)
 let useHTTPS = process.env.USE_HTTPS === 'true';
@@ -168,6 +169,26 @@ app.use('/legacy', express.static(path.join(__dirname, '../public')));
 // Serve Chart.js from node_modules
 app.use('/libs/chart.js', express.static(path.join(__dirname, '../node_modules/chart.js/dist')));
 app.use('/libs/chartjs-adapter-date-fns', express.static(path.join(__dirname, '../node_modules/chartjs-adapter-date-fns/dist')));
+
+// Site trust signals (story site-trust-signals/1, ADR 0036).
+//
+// Two well-known documents that state who operates this deployment and whether
+// it should be indexed. Registered here deliberately: after the static
+// middleware above, and BEFORE the session middleware below, so that scanners
+// and crawlers fetching them do not mint a Redis session on every request.
+//
+// These cannot be plain files under public/ — express.static ignores dotfile
+// paths by default, so /.well-known/* would never be served. Rendering them
+// also lets Canonical name the actual deployment instead of a hardcoded host.
+app.get('/.well-known/security.txt', (req, res) => {
+    res.set('Content-Type', 'text/plain; charset=utf-8');
+    res.send(buildSecurityTxt({ domain: process.env.DOMAIN_NAME }));
+});
+
+app.get('/robots.txt', (req, res) => {
+    res.set('Content-Type', 'text/plain; charset=utf-8');
+    res.send(buildRobotsTxt({ allowIndexing: process.env.ALLOW_INDEXING === 'true' }));
+});
 
 // Session middleware — Redis-backed so sessions survive Docker rebuilds.
 const RedisStore = require('connect-redis').default;
@@ -308,6 +329,24 @@ app.use(authMiddleware);
   } else {
     console.log('Task queue disabled — recurring scheduler not started (scheduling requires the queue)');
   }
+
+  // Honest 404s (story site-trust-signals/1, ADR 0036). Probe and asset-shaped
+  // paths must not fall through to the SPA shell — a host that answers 200 to
+  // /.env, /wp-login.php, and /robots.txt reads to a reputation scanner as a
+  // parked or cloned site, which is how this estate ended up on a blocklist.
+  //
+  // Placement is load-bearing: AFTER every express.static registration (so real
+  // assets are served before this runs) and BEFORE the catch-all below (or the
+  // catch-all swallows every probe path first and this becomes dead code).
+  // It runs ahead of the host-aware dispatch below because a probe path must
+  // 404 identically on the communities host and every other host.
+  app.use((req, res, next) => {
+    if (req.path.startsWith('/api/')) return next();
+    if (!isBlockedProbePath(req.path)) return next();
+    res.status(404);
+    res.set('Content-Type', 'text/plain; charset=utf-8');
+    res.send('Not found\n');
+  });
 
   // Host-aware SPA catch-all: any route that didn't match a static file, API endpoint, or
   // legacy page gets served the appropriate React app's index.html so client-side routing
