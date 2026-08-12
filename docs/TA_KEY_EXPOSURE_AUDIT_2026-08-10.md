@@ -147,8 +147,8 @@ Bounded, and none of it changes the verdict:
 | § | Item | Where |
 |---|---|---|
 | 1 | `grep` shim honors `.gitignore` — harness lesson | OPEN.md #165 (`meta`) |
-| 2 | Prune legacy key + dead generator scaffolding | OPEN.md #161 (`cleanup`) |
-| 2 | `.dockerignore` does not exclude `setup/nostr/keys/` | OPEN.md #162 (`cleanup`) |
+| 2 | Prune legacy key + dead generator scaffolding | OPEN.md #161 — ✅ **DONE 2026-08-11** (key archived not deleted; scaffolding removed) |
+| 2 | `.dockerignore` does not exclude `setup/nostr/keys/` | OPEN.md #162 — ✅ **DONE 2026-08-11** (`**/keys/` added; exclusion canary-tested) |
 | 3 | 44 committed test-fixture keys — recorded, deliberate non-action | OPEN.md #163 (`docs`) |
 | 4 | Assistant-key lifecycle: admin auto-provision, deprovision on role change, owner slot re-key | `engineering-team/stories/_intake.md` (2026-08-10) |
 | 5, 6 | Delete `createAllCustomerRelays.js`; fix or drop the dead fallback | OPEN.md #164 (`cleanup`) |
