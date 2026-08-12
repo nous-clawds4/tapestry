@@ -474,6 +474,9 @@ function listRecentAutoPayments({ limit = 50, issuerPubkey = null } = {}) {
   return selectRecentByIssuerStmt.all({ ...params, issuer: issuerPubkey });
 }
 function receiptGraceSeconds(value = process.env.AUTO_PAY_RECEIPT_GRACE_SECONDS) {
+  // Blank means unset: docker-compose's ${VAR:-} pattern passes "" and Number("") is 0,
+  // which would silently collapse the grace window to zero seconds.
+  if (value == null || String(value).trim() === '') return DEFAULT_RECEIPT_GRACE_SECONDS;
   const configured = Number(value);
   if (!Number.isSafeInteger(configured) || configured < 0) return DEFAULT_RECEIPT_GRACE_SECONDS;
   return configured;

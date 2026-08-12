@@ -856,6 +856,17 @@ function claim(id, pubkey, createdAt, autoPayment = null, listCoordinate = 'list
     assert.equal(getAutoPaymentByClaimId(failedClaim, 'reconcile-bounty').state, 'failed');
   });
 
+  // docker-compose passes "" when the host .env leaves the var unset; Number("")
+  // is 0, which used to collapse the grace window to zero seconds.
+  await test('receiptGraceSeconds treats blank env values as unset', () => {
+    const { receiptGraceSeconds } = require('../src/db/autoPay');
+    const fallback = receiptGraceSeconds(undefined);
+    assert.ok(fallback > 0);
+    assert.equal(receiptGraceSeconds(''), fallback);
+    assert.equal(receiptGraceSeconds('   '), fallback);
+    assert.equal(receiptGraceSeconds('3600'), 3600);
+  });
+
   // One unreceipted payment used to fail every later pass, so the settlement
   // timer reported failed forever and the runbook gate could never pass again.
   await test('reconcileIssuerPayments makes paid_unreceipted terminal once the receipt grace window closes', async () => {

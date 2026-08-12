@@ -37,7 +37,7 @@ Pre-fix output:
 
 ```
 AssertionError: Expected values to be strictly equal:
-+ 'f960ef382a49411c60468d1d335c7ad0265813cbab87a7c4e489949f2f33b9b9'
++ '<64-hex freshly minted by the pre-fix entrypoint; redacted — secret-shaped value in a public repo>'
 - 'operator-supplied-session-secret-value'
 ```
 

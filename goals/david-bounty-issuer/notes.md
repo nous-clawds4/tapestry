@@ -184,8 +184,8 @@ Each applicable class below remains a blocker:
 The proof also needs a trusted non-David claimant with rank 2 or more.
 No class completed against David's production identity and host in this pass. The local checks above covered syntax and isolated behavior only.
 
-The production name resolves to `68.183.114.219`; the local Magic Carpet key was denied for `root`.
-The configured legacy host `159.223.141.132` accepts that key but has no `/opt/tapestry` checkout.
+The production name resolves to a DigitalOcean droplet; the local Magic Carpet key was denied for `root`.
+The configured legacy host (IP redacted — public repo) accepts that key but has no `/opt/tapestry` checkout.
 Production SSH host, user, and key access remain unresolved.
 
 ## Remaining validation gates
