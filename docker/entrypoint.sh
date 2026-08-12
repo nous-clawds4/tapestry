@@ -10,7 +10,11 @@ RELAY_URL="${RELAY_URL:-ws://localhost:7777}"
 
 BRAINSTORM_MODULE_BASE_DIR="/usr/local/lib/node_modules/brainstorm/"
 BRAINSTORM_NODE_BIN="$(which node)"
-SESSION_SECRET="$(openssl rand -hex 32)"
+# Keep the secret the operator supplied. Regenerating it on every boot would
+# invalidate every signed cookie, so each container restart would log out the
+# settlement timer and any other scheduled agent. Only mint one when the
+# environment has none.
+SESSION_SECRET="${SESSION_SECRET:-$(openssl rand -hex 32)}"
 
 # Calculate owner npub (best effort, fallback to unassigned)
 OWNER_NPUB="unassigned"

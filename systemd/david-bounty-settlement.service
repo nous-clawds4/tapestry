@@ -1,0 +1,12 @@
+[Unit]
+Description=Settle judged David bounty claims
+After=docker.service network-online.target
+Requires=docker.service
+ConditionPathExists=/opt/tapestry/docker-compose.yml
+
+[Service]
+Type=oneshot
+TimeoutStartSec=infinity
+WorkingDirectory=/opt/tapestry
+EnvironmentFile=/etc/magic-carpet-david-settlement.conf
+ExecStart=/usr/bin/docker compose exec -T tapestry node /usr/local/lib/node_modules/brainstorm/scripts/david-bounty-settle.js --issuer ${DAVID_ISSUER_PUBKEY} --base-url http://localhost:7778 --cookie-jar /var/lib/brainstorm/david-bounty-cookies.json --decisions /var/lib/brainstorm/david-bounty-decisions.jsonl --state /var/lib/brainstorm/david-bounty-settlement-state.json --queue /var/lib/brainstorm/david-bounty-judgment-queue.json --log /var/log/brainstorm/david-bounty-settlement.jsonl --live

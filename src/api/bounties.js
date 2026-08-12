@@ -12,11 +12,13 @@ const {
 } = require('../db/bounties');
 const {
   dailyLimitStatus,
+  getAutoPayment,
   getDelegatePubkey,
-  listAutoPaymentsByClaimIds,
+  listAutoPaymentsForBounty,
   listRecentAutoPayments,
   resetPayment,
   rowToClient,
+  stableClaimAddress,
 } = require('../db/autoPay');
 const { rank } = require('../lib/trust-rank');
 const { normalizeBountyCreatePayload } = require('../lib/bounty-fields');
@@ -48,6 +50,16 @@ async function scanStrfry(filter) {
   }
 }
 
+// Read one kind-39999 claim event by id from the local relay. The legacy
+// payment repair path needs the event itself to recover the claimant identity
+// that old payment rows never stored.
+async function scanClaimEvent(eventId) {
+  const id = String(eventId || '').toLowerCase();
+  if (!/^[0-9a-f]{64}$/.test(id)) return null;
+  const events = await scanStrfry({ ids: [id], kinds: [39999] });
+  return events.find(event => String(event.id).toLowerCase() === id) || null;
+}
+
 function getTag(event, name, index = 1) {
   const tag = event.tags?.find(t => t[0] === name);
   return tag ? tag[index] : null;
@@ -66,12 +78,17 @@ function csvPubkeys(value) {
     .filter(Boolean);
 }
 
-function isAutoPayAuthorized(pubkey) {
+function isAutoPayPrivileged(pubkey) {
   const key = String(pubkey || '').toLowerCase();
   if (!key) return false;
   const ownerPubkey = String(getOwnerPubkey() || '').toLowerCase();
-  if (ownerPubkey && key === ownerPubkey) return true;
-  if (isAdminPubkey(key)) return true;
+  return Boolean(ownerPubkey && key === ownerPubkey) || isAdminPubkey(key);
+}
+
+function isAutoPayAuthorized(pubkey) {
+  const key = String(pubkey || '').toLowerCase();
+  if (!key) return false;
+  if (isAutoPayPrivileged(key)) return true;
   return csvPubkeys(process.env.AUTO_PAY_ALLOWLIST_PUBKEYS).includes(key);
 }
 
@@ -124,24 +141,103 @@ async function paymentStateForBounty(bounty, options = {}) {
   };
 }
 
+function paymentConsumesSlot(payment) {
+  return ['attempting', 'paid', 'settled', 'paid_unreceipted'].includes(payment?.state)
+    || (payment?.state === 'failed' && String(payment.reason || '').startsWith('ambiguous_send:'));
+}
+
 async function listClaimsFor(bounty, { trustFilter = true } = {}) {
-  const items = await scanStrfry({
+  const scanned = await scanStrfry({
     kinds: [39999],
     '#z': [bounty.list_coordinate],
     since: bounty.created_at,
   });
-  const autoPayments = listAutoPaymentsByClaimIds(items.map(item => item.id));
+  const payments = listAutoPaymentsForBounty({
+    bountyId: bounty.id,
+    issuerPubkey: bounty.issuer_pubkey,
+  });
+  const paymentsByAddress = new Map(
+    payments
+      .filter(row => !String(row.claim_address).startsWith('legacy:'))
+      .map(row => [row.claim_address, row]),
+  );
+  const legacyByEvent = new Map(
+    payments
+      .filter(row => String(row.claim_address).startsWith('legacy:'))
+      .map(row => [row.claim_event_id, row]),
+  );
   const acceptedZapPubkeys = acceptedZapPubkeysForBounty(bounty);
 
-  const results = [];
-  for (const item of items) {
-    if (trustFilter) {
-      const r = await rank(bounty.issuer_pubkey, item.pubkey);
-      if (r < 2) continue;
+  // Kind-39999 is replaceable. Keep one current event per stable
+  // claimant/list-coordinate address so a replacement never opens a second reward.
+  const currentByAddress = new Map();
+  for (const item of scanned) {
+    const address = stableClaimAddress(item, bounty.list_coordinate);
+    if (!address) continue;
+    const previous = currentByAddress.get(address);
+    if (!previous
+        || Number(item.created_at || 0) > Number(previous.created_at || 0)
+        || (Number(item.created_at || 0) === Number(previous.created_at || 0) && String(item.id).localeCompare(String(previous.id)) > 0)) {
+      currentByAddress.set(address, item);
     }
-    const receipts = await scanStrfry({ kinds: [9735], '#e': [item.id] });
-    const zapReceipt = receipts.find(r => acceptedZapPubkeys.has(String(parseZapRequestPubkey(r) || '').toLowerCase())) ?? null;
-    results.push({ event: item, zapReceipt, autoPayment: rowToClient(autoPayments.get(item.id)) });
+  }
+
+  const results = [];
+  const representedPaymentIds = new Set();
+  for (const [address, item] of currentByAddress) {
+    const payment = paymentsByAddress.get(address) || legacyByEvent.get(item.id) || null;
+    if (payment) representedPaymentIds.add(payment.id);
+    // Only a payment that consumes a slot earns the rank skip. A row that
+    // consumes nothing (a plain 'failed' attempt) must not smuggle an untrusted
+    // claim into payments-due.
+    if (trustFilter && !(payment && paymentConsumesSlot(payment))) {
+      const score = await rank(bounty.issuer_pubkey, item.pubkey);
+      if (score < 2) continue;
+    }
+    const receiptClaimId = payment?.claim_event_id || item.id;
+    const receipts = await scanStrfry({ kinds: [9735], '#e': [receiptClaimId] });
+    const zapReceipt = receipts.find(receipt => acceptedZapPubkeys.has(
+      String(parseZapRequestPubkey(receipt) || '').toLowerCase(),
+    )) ?? null;
+    results.push({
+      event: item,
+      zapReceipt,
+      autoPayment: rowToClient(payment),
+      claimAddress: address,
+      paymentClaimEventId: payment?.claim_event_id || null,
+      // A migrated row reaches this loop only through legacyByEvent, so its
+      // claim event is still on the relay and the claimant and stable address
+      // are both known. Such a row is resolved, not a block: it holds its own
+      // slot and leaves the other slots claimable. Only rows with no live event
+      // (the durable-only pass below) still block the bounty.
+      legacyPaymentBlock: false,
+    });
+  }
+
+  // A relay replacement or deletion must not reopen a consumed reward slot.
+  // Carry durable spend-capable rows into accounting even without an event.
+  for (const payment of payments) {
+    const consumesSlot = paymentConsumesSlot(payment);
+    if (representedPaymentIds.has(payment.id) || !consumesSlot) continue;
+    const receipts = await scanStrfry({ kinds: [9735], '#e': [payment.claim_event_id] });
+    const zapReceipt = receipts.find(receipt => acceptedZapPubkeys.has(
+      String(parseZapRequestPubkey(receipt) || '').toLowerCase(),
+    )) ?? null;
+    results.push({
+      event: {
+        id: payment.claim_event_id,
+        kind: 39999,
+        pubkey: payment.claimant_pubkey || '',
+        created_at: payment.created_at,
+        tags: [],
+        content: '',
+      },
+      zapReceipt,
+      autoPayment: rowToClient(payment),
+      claimAddress: payment.claim_address,
+      durableOnly: true,
+      legacyPaymentBlock: String(payment.claim_address).startsWith('legacy:'),
+    });
   }
   return results;
 }
@@ -265,12 +361,17 @@ async function handleAutoPayStatus(req, res) {
   if (!isAutoPayAuthorized(req.session.pubkey)) {
     return res.status(403).json({ success: false, error: 'Owner, admin, or auto-pay allowlist access required' });
   }
+  const operator = String(req.session.pubkey).toLowerCase();
+  const recentPayments = listRecentAutoPayments({
+    limit: 50,
+    issuerPubkey: isAutoPayPrivileged(operator) ? null : operator,
+  }).map(rowToClient);
   res.json({
     success: true,
     enabled: process.env.AUTO_PAY_ENABLED === 'true',
     authorized: true,
     dailyLimitSats: 5000,
-    recentPayments: listRecentAutoPayments({ limit: 50 }).map(rowToClient),
+    recentPayments,
   });
 }
 
@@ -278,16 +379,49 @@ async function handleAutoPayReset(req, res) {
   if (!isAutoPayAuthorized(req.session.pubkey)) {
     return res.status(403).json({ success: false, error: 'Owner, admin, or auto-pay allowlist access required' });
   }
-  const claimEventId = req.body?.claimEventId;
-  if (!claimEventId) {
-    return res.status(400).json({ success: false, error: 'claimEventId is required' });
+  const { bountyId, claimEventId } = req.body || {};
+  if (!bountyId || !claimEventId) {
+    return res.status(400).json({ success: false, error: 'bountyId and claimEventId are required' });
   }
-  // resetPayment is owned/evolved in src/db/autoPay.js by another workstream: it is
-  // moving to resetPayment(claimEventId, opts) -> { reset, blocked? }. If that
-  // signature isn't deployed yet, the extra arg is harmlessly ignored and the
-  // legacy boolean-shaped result is normalized below rather than assumed.
-  const result = resetPayment(claimEventId, { force: req.body.force === true });
-  res.json({ success: true, ...(typeof result === 'object' ? result : { reset: !!result }) });
+  let payment = getAutoPayment({ bountyId, claimEventId });
+  const operator = String(req.session.pubkey).toLowerCase();
+  if (!payment) {
+    const bounty = getBounty(bountyId);
+    if (!bounty) return res.status(404).json({ success: false, error: 'Bounty not found' });
+    if (!isAutoPayPrivileged(operator)
+        && String(bounty.issuer_pubkey).toLowerCase() !== operator) {
+      return res.status(403).json({
+        success: false,
+        error: 'Allowlisted issuers may reset only their own payments',
+      });
+    }
+    const claim = (await listClaimsFor(bounty, { trustFilter: false }))
+      .find(item => item.event.id === claimEventId);
+    if (claim?.claimAddress) {
+      payment = getAutoPayment({
+        bountyId,
+        claimAddress: claim.claimAddress,
+        issuerPubkey: bounty.issuer_pubkey,
+      });
+    }
+  }
+  if (!payment) return res.json({ success: true, reset: false });
+  if (!isAutoPayPrivileged(operator) && String(payment.issuer_pubkey).toLowerCase() !== operator) {
+    return res.status(403).json({
+      success: false,
+      error: 'Allowlisted issuers may reset only their own payments',
+    });
+  }
+  try {
+    const result = resetPayment({
+      bountyId,
+      claimEventId: payment.claim_event_id,
+      issuerPubkey: payment.issuer_pubkey,
+    }, { force: req.body.force === true });
+    res.json({ success: true, ...result });
+  } catch (error) {
+    res.status(409).json({ success: false, error: error.message });
+  }
 }
 
 async function handlePaymentsToMe(req, res) {
@@ -406,4 +540,5 @@ module.exports = {
   listClaimsFor,
   paymentStateForBounty,
   register,
+  scanClaimEvent,
 };

@@ -139,6 +139,86 @@ function parseNegotiation(event) {
 }
 
 // ── subcommands ──
+function provisionDelegate(issuerValue) {
+  const issuer = String(issuerValue || '').toLowerCase();
+  if (!/^[0-9a-f]{64}$/.test(issuer)) throw new Error('--issuer <64-char hex pubkey> is required');
+  const { getDelegatePubkey, insertDelegateIfAbsent } = require('../src/db/autoPay');
+  const existing = getDelegatePubkey(issuer);
+  if (existing) return { ok: true, issuer, delegatePubkey: existing, reused: true };
+  const { generateSecretKey, getPublicKey: pub, nip19: n19 } = require('nostr-tools');
+  const sk = generateSecretKey();
+  const inserted = insertDelegateIfAbsent({
+    issuerPubkey: issuer,
+    delegatePubkey: pub(sk),
+    delegateNsec: n19.nsecEncode(sk),
+  });
+  return {
+    ok: true,
+    issuer,
+    delegatePubkey: inserted.delegatePubkey,
+    reused: !inserted.inserted,
+  };
+}
+
+// One-shot repair for rows the schema migration could not identify. Old
+// auto_payments rows stored only a claim event id, so the migration writes
+// `legacy:<event>` and the read path treats a row with no live claim event as a
+// block on its bounty. This resolves those rows against the relay. It never
+// guesses: a claim event that is gone stays unresolved for a human to decide.
+async function repairLegacyPayments(flags) {
+  const issuer = flags.issuer ? String(flags.issuer).toLowerCase() : null;
+  if (issuer && !/^[0-9a-f]{64}$/.test(issuer)) {
+    throw new Error('--issuer must be a 64-char hex pubkey');
+  }
+  const dryRun = flags['dry-run'] === true || flags['dry-run'] === 'true';
+  const { repairLegacyPayments: repair, stableClaimAddress } = require('../src/db/autoPay');
+  const { getBounty } = require('../src/db/bounties');
+  const { scanClaimEvent } = require('../src/api/bounties');
+
+  const result = await repair({
+    issuerPubkey: issuer,
+    dryRun,
+    async resolveIdentity(row) {
+      const bounty = getBounty(row.bounty_id);
+      if (!bounty) return null;
+      const event = await scanClaimEvent(row.claim_event_id);
+      if (!event) return null;
+      const claimAddress = stableClaimAddress(event, bounty.list_coordinate);
+      if (!claimAddress) return null;
+      return { claimantPubkey: String(event.pubkey).toLowerCase(), claimAddress };
+    },
+  });
+  return { ...result, issuer };
+}
+
+async function resetClaim(flags, requestImpl = request) {
+  if (!flags.bounty) throw new Error('--bounty <bountyId> is required');
+  if (!flags.claim) throw new Error('--claim <claimEventId> is required');
+  const force = flags.force === true || flags.force === 'true';
+  const response = await requestImpl('POST', '/api/bounties/auto-pay/reset', {
+    body: { bountyId: flags.bounty, claimEventId: flags.claim, force },
+    useCookie: true,
+  });
+  return {
+    ...response,
+    ok: response.success === true && response.reset === true,
+  };
+}
+
+async function paymentsDue(requestImpl = request) {
+  const response = await requestImpl('GET', '/api/bounties/mine/payments-due', { useCookie: true });
+  return {
+    ...response,
+    ok: response.success === true && Array.isArray(response.items),
+  };
+}
+
+function emitCommandResult(result) {
+  emit(result);
+  if (!result.ok) process.exitCode = 1;
+}
+
+
 const commands = {
   async 'auth-login'() {
     const { sk, pk } = loadKey();
@@ -296,13 +376,33 @@ const commands = {
   },
 
   async 'provision-delegate'(flags) {
-    if (!/^[0-9a-f]{64}$/i.test(String(flags.issuer || ''))) throw new Error('--issuer <64-char hex pubkey> is required');
-    const { generateSecretKey, getPublicKey: pub, nip19: n19 } = require('nostr-tools');
-    const { upsertDelegate } = require('../src/db/autoPay');
-    const sk = generateSecretKey();
-    const delegatePubkey = pub(sk);
-    upsertDelegate({ issuerPubkey: String(flags.issuer).toLowerCase(), delegatePubkey, delegateNsec: n19.nsecEncode(sk) });
-    emit({ ok: true, issuer: String(flags.issuer).toLowerCase(), delegatePubkey }); // never prints the nsec
+    emit(provisionDelegate(flags.issuer));
+  },
+
+  async reconcile(flags) {
+    if (!/^[0-9a-f]{64}$/i.test(String(flags.issuer || ''))) {
+      throw new Error('--issuer <64-char hex pubkey> is required');
+    }
+    const { reconcileIssuerPayments } = require('../src/services/autoPayWatcher');
+    const dryRun = flags['dry-run'] === true || flags['dry-run'] === 'true';
+    const result = await reconcileIssuerPayments({
+      issuerPubkey: String(flags.issuer).toLowerCase(),
+      dryRun,
+    });
+    emit(result);
+    if (!result.ok) process.exitCode = 1;
+  },
+
+  async 'repair-legacy-payments'(flags) {
+    emitCommandResult(await repairLegacyPayments(flags));
+  },
+
+  async reset(flags) {
+    emitCommandResult(await resetClaim(flags));
+  },
+
+  async 'payments-due'() {
+    emitCommandResult(await paymentsDue());
   },
 
   async pay(flags) {
@@ -318,7 +418,7 @@ async function main() {
   const argv = process.argv.slice(2);
   const cmd = argv[0];
   if (!cmd || cmd === '--help' || cmd === '-h' || !commands[cmd]) {
-    const usage = 'magic-carpet-agent <auth-login|discover|create-list|create-bounty|submit|negotiate send|scan|balance|provision-delegate|pay> [flags]';
+    const usage = 'magic-carpet-agent <auth-login|discover|create-list|create-bounty|submit|negotiate send|scan|balance|provision-delegate|reconcile|repair-legacy-payments|reset|payments-due|pay> [flags]';
     if (!cmd || cmd === '--help' || cmd === '-h') { emit({ usage, commands: Object.keys(commands) }); return; }
     throw new Error(`unknown command: ${cmd}. ${usage}`);
   }
@@ -328,6 +428,6 @@ async function main() {
 
 // Exit explicitly: fetch (undici) and any ws sockets keep the loop alive, so a
 // CLI that just lets main() resolve would hang instead of returning.
-if (require.main === module) main().then(() => process.exit(0)).catch(die);
+if (require.main === module) main().then(() => process.exit(process.exitCode || 0)).catch(die);
 
-module.exports = { parseArgs, buildNegotiationEvent, parseNegotiation, NEGOTIATION_TOPIC, NEGOTIATION_KIND };
+module.exports = { commands, parseArgs, buildNegotiationEvent, parseNegotiation, paymentsDue, provisionDelegate, repairLegacyPayments, resetClaim, NEGOTIATION_TOPIC, NEGOTIATION_KIND };

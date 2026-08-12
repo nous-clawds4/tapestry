@@ -14,11 +14,15 @@ process.env.AUTO_PAY_ALLOWLIST_PUBKEYS = `${'d'.repeat(64)}`;
 process.env.AUTO_PAY_MAX_SATS = '1000000';
 
 const {
-  getAutoPaymentByClaimId,
+  FINAL_STATES,
+  getAutoPayment,
   insertAttemptingPayment,
+  listReconciliationPayments,
   dailyLimitStatus,
-  resetPayment,
-  updatePaymentState,
+  resetPayment: resetScopedPayment,
+  paymentReference,
+  stableClaimAddress,
+  updatePaymentState: updateScopedPaymentState,
 } = require('../src/db/autoPay');
 const {
   annotateClaimsWithPaymentState,
@@ -131,7 +135,7 @@ function clearProcessStubs() {
 }
 
 const { payClaim } = require('../src/services/paymentService');
-const { runAutoPayTick, reconcileStuckAttempts, processAutoPayClaim } = require('../src/services/autoPayWatcher');
+const { runAutoPayTick, maxPaymentSats, reconcileIssuerPayments, reconcileStuckAttempts, processAutoPayClaim } = require('../src/services/autoPayWatcher');
 
 const SAMPLE_2000_SAT_INVOICE = 'lnbc20u1p3y0x3hpp5743k2g0fsqqxj7n8qzuhns5gmkk4djeejk3wkp64ppevgekvc0jsdqcve5kzar2v9nr5gpqd4hkuetesp5ez2g297jduwc20t6lmqlsg3man0vf2jfd8ar9fh8fhn2g8yttfkqxqy9gcqcqzys9qrsgqrzjqtx3k77yrrav9hye7zar2rtqlfkytl094dsp0ms5majzth6gt7ca6uhdkxl983uywgqqqqlgqqqvx5qqjqrzjqd98kxkpyw0l9tyy8r8q57k7zpy9zjmh6sez752wj6gcumqnj3yxzhdsmg6qq56utgqqqqqqqqqqqeqqjq7jd56882gtxhrjm03c93aacyfy306m4fq0tskf83c0nmet8zc2lxyyg3saz8x6vwcp26xnrlagf9semau3qm2glysp7sv95693fphvsp54l567';
 
@@ -143,19 +147,43 @@ async function test(name, fn) {
   console.log(`  ok  ${name}`);
 }
 
-function basePayment(claimId, amountSats, now) {
+function basePayment(claimId, amountSats, now, overrides = {}) {
+  const claimantPubkey = overrides.claimantPubkey || 'b'.repeat(64);
+  const bountyId = overrides.bountyId || 'bounty-1';
   return {
     claimEventId: claimId,
-    bountyId: 'bounty-1',
-    issuerPubkey: 'a'.repeat(64),
+    bountyId,
+    issuerPubkey: overrides.issuerPubkey || 'a'.repeat(64),
+    claimantPubkey,
+    claimAddress: overrides.claimAddress || `39999:${claimantPubkey}:${claimId}`,
     amountSats,
     now,
   };
 }
 
-function claim(id, pubkey, createdAt, autoPayment = null) {
+function paymentByClaim(claimId, bountyId = 'bounty-1') {
+  return getAutoPayment({ bountyId, claimEventId: claimId });
+}
+function getAutoPaymentByClaimId(claimId, bountyId = 'bounty-1') {
+  return paymentByClaim(claimId, bountyId);
+}
+
+function resetPayment(claimId, opts = {}, bountyId = 'bounty-1') {
+  const row = paymentByClaim(claimId, bountyId);
+  const issuerPubkey = row?.issuer_pubkey || 'a'.repeat(64);
+  return resetScopedPayment({ bountyId, claimEventId: claimId, issuerPubkey }, opts);
+}
+
+
+function updatePaymentState(claimId, state, fields = {}, bountyId = 'bounty-1') {
+  const row = paymentByClaim(claimId, bountyId);
+  if (!row) throw new Error(`missing payment ${bountyId}/${claimId}`);
+  return updateScopedPaymentState(paymentReference(row), state, fields);
+}
+
+function claim(id, pubkey, createdAt, autoPayment = null, listCoordinate = 'list-coordinate') {
   return {
-    event: { id, pubkey, created_at: createdAt },
+    event: { id, kind: 39999, pubkey, created_at: createdAt, tags: [['z', listCoordinate], ['d', id]] },
     zapReceipt: null,
     autoPayment,
   };
@@ -179,7 +207,62 @@ function claim(id, pubkey, createdAt, autoPayment = null) {
     const blocked = insertAttemptingPayment(basePayment('cap-blocked', 1, now + 3));
     assert.strictEqual(blocked.inserted, false);
     assert.strictEqual(blocked.reason, 'daily_cap_exceeded');
-    assert.strictEqual(getAutoPaymentByClaimId('cap-blocked'), null);
+    assert.strictEqual(paymentByClaim('cap-blocked'), null);
+  });
+
+  await test('per-payment cap fails closed for invalid values and never exceeds the daily ceiling', () => {
+    assert.strictEqual(maxPaymentSats('not-a-number'), 0);
+    assert.strictEqual(maxPaymentSats('Infinity'), 0);
+    assert.strictEqual(maxPaymentSats('0'), 0);
+    assert.strictEqual(maxPaymentSats('5000'), 5000);
+    assert.strictEqual(maxPaymentSats('5001'), 5000);
+  });
+
+  await test('stable claim identity requires the bounty list coordinate in a z tag', () => {
+    const claimant = '9'.repeat(64);
+    const event = claim('identity-event', claimant, 1, null, 'expected-list').event;
+    assert.strictEqual(
+      stableClaimAddress(event, 'expected-list'),
+      `39999:${claimant}:expected-list`,
+    );
+    assert.strictEqual(stableClaimAddress(event, 'other-list'), null);
+    assert.strictEqual(stableClaimAddress({ ...event, tags: [['d', 'only-d']] }, 'expected-list'), null);
+    assert.strictEqual(
+      stableClaimAddress({ ...event, tags: [['z', 'expected-list'], ['z', 'other-list']] }, 'expected-list'),
+      null,
+    );
+    assert.strictEqual(
+      stableClaimAddress({ ...event, tags: [['z', 'expected-list'], ['z', 'expected-list']] }, 'expected-list'),
+      null,
+    );
+  });
+
+  await test('payment identity is bounty plus replaceable claim address', () => {
+    const now = 2_500_000;
+    const claimant = '9'.repeat(64);
+    const sharedEvent = 'shared-event';
+    const sharedAddress = `39999:${claimant}:list-coordinate`;
+    const first = basePayment(sharedEvent, 10, now, {
+      bountyId: 'identity-bounty-1',
+      claimantPubkey: claimant,
+      claimAddress: sharedAddress,
+    });
+    const second = { ...first, bountyId: 'identity-bounty-2', now: now + 1 };
+    assert.strictEqual(insertAttemptingPayment(first).inserted, true);
+    assert.strictEqual(insertAttemptingPayment(second).inserted, true);
+
+    const replacement = {
+      ...first,
+      claimEventId: 'replacement-event',
+      now: now + 2,
+    };
+    const duplicate = insertAttemptingPayment(replacement);
+    assert.strictEqual(duplicate.inserted, false);
+    assert.strictEqual(duplicate.existing.claim_event_id, sharedEvent);
+    assert.notStrictEqual(
+      getAutoPayment({ bountyId: first.bountyId, claimAddress: sharedAddress }).id,
+      getAutoPayment({ bountyId: second.bountyId, claimAddress: sharedAddress }).id,
+    );
   });
 
   await test('rolling cap counts spend-capable states and ignores failed rows', () => {
@@ -192,10 +275,77 @@ function claim(id, pubkey, createdAt, autoPayment = null) {
     updatePaymentState('unreceipted-row', 'paid_unreceipted', { reason: 'receipt_timeout', now: now + 3 });
     assert.strictEqual(dailyLimitStatus({ amountSats: 1, now: now + 4 }).ok, false);
   });
+  await test('ambiguous send remains reserved in issuer cap until an explicit forced reset', () => {
+    const now = 3_100_000;
+    assert.strictEqual(insertAttemptingPayment(basePayment('ambiguous-cap', 5000, now)).inserted, true);
+    updatePaymentState('ambiguous-cap', 'failed', { reason: 'ambiguous_send: timeout', now: now + 1 });
+    assert.strictEqual(dailyLimitStatus({ amountSats: 1, now: now + 2 }).ok, false);
+
+    assert.deepStrictEqual(resetPayment('ambiguous-cap'), { reset: false, blocked: 'ambiguous_payment' });
+    assert.deepStrictEqual(resetPayment('ambiguous-cap', { force: true }), { reset: true });
+    assert.strictEqual(dailyLimitStatus({ amountSats: 5000, now: now + 3 }).ok, true);
+  });
+
 
   await test('spend gate authorizes allowlisted pubkeys and rejects ordinary users', () => {
     assert.strictEqual(isAutoPayAuthorized('d'.repeat(64)), true);
     assert.strictEqual(isAutoPayAuthorized('f'.repeat(64)), false);
+  });
+
+  await test('allowlisted issuers can reset and inspect only their own payment rows', async () => {
+    const issuer = 'd'.repeat(64);
+    const otherIssuer = 'e'.repeat(64);
+    for (const [claimId, rowIssuer] of [
+      ['scope-own-reset', issuer],
+      ['scope-foreign-reset', otherIssuer],
+      ['scope-own-status', issuer],
+    ]) {
+      assert.strictEqual(insertAttemptingPayment({
+        ...basePayment(claimId, 10, 4_000_000),
+        issuerPubkey: rowIssuer,
+      }).inserted, true);
+      updatePaymentState(claimId, 'failed', { reason: 'test failure', now: 4_000_001 });
+    }
+
+    const routes = new Map();
+    bountiesApi.register({
+      get: (route, ...handlers) => routes.set(`GET ${route}`, handlers),
+      post: (route, ...handlers) => routes.set(`POST ${route}`, handlers),
+    });
+    async function invoke(method, route, body = {}) {
+      const req = { session: { authenticated: true, pubkey: issuer }, body };
+      const response = { statusCode: 200, body: null };
+      const res = {
+        status(code) { response.statusCode = code; return this; },
+        json(payload) { response.body = payload; return this; },
+      };
+      for (const handler of routes.get(`${method} ${route}`)) {
+        let advanced = false;
+        await handler(req, res, () => { advanced = true; });
+        if (response.body || !advanced) break;
+      }
+      return response;
+    }
+
+    const denied = await invoke('POST', '/api/bounties/auto-pay/reset', {
+      bountyId: 'bounty-1',
+      claimEventId: 'scope-foreign-reset',
+    });
+    assert.strictEqual(denied.statusCode, 403);
+    assert.ok(paymentByClaim('scope-foreign-reset'));
+
+    const own = await invoke('POST', '/api/bounties/auto-pay/reset', {
+      bountyId: 'bounty-1',
+      claimEventId: 'scope-own-reset',
+    });
+    assert.strictEqual(own.statusCode, 200);
+    assert.strictEqual(own.body.reset, true);
+    assert.strictEqual(paymentByClaim('scope-own-reset'), null);
+
+    const status = await invoke('GET', '/api/bounties/auto-pay/status');
+    assert.strictEqual(status.statusCode, 200);
+    assert.ok(status.body.recentPayments.some(row => row.claim_event_id === 'scope-own-status'));
+    assert.ok(status.body.recentPayments.every(row => row.issuer_pubkey === issuer));
   });
 
   await test('SSRF guard rejects private callback targets and LNURL redirects', async () => {
@@ -237,6 +387,7 @@ function claim(id, pubkey, createdAt, autoPayment = null) {
     const bob = 'b'.repeat(64);
     const state = calculateBountyPaymentState({
       amount_sats: 1000,
+
       bounty_cap_sats: 1000,
       reward_per_item: 0,
     }, [
@@ -256,6 +407,97 @@ function claim(id, pubkey, createdAt, autoPayment = null) {
     assert.strictEqual(annotated[0].duplicatePaymentSuppressed, true);
     assert.notStrictEqual(annotated[0].paymentStatus, 'payable');
   });
+  for (const legacyPayment of [
+    { state: 'paid' },
+    { state: 'failed', reason: 'ambiguous_send: timeout' },
+  ]) {
+    await test(`legacy ${legacyPayment.state} payment blocks replacement claims for the whole bounty`, () => {
+      const state = calculateBountyPaymentState({
+        amount_sats: 100,
+        bounty_cap_sats: 500,
+        reward_per_item: 0,
+      }, [
+        {
+          ...claim('old-event', '', 1, legacyPayment),
+          durableOnly: true,
+          legacyPaymentBlock: true,
+        },
+        claim('replacement-event', 'a'.repeat(64), 2),
+      ]);
+      assert.equal(state.legacyPaymentBlock, true);
+      assert.deepStrictEqual(state.payableClaims, []);
+      assert.deepStrictEqual(
+        state.closedClaims.map(item => item.closedReason),
+        ['legacy_payment_reconciliation_required'],
+      );
+    });
+  }
+  await test('ambiguous send consumes bounty and per-pubkey capacity', () => {
+    const claimant = 'a'.repeat(64);
+    const next = 'b'.repeat(64);
+    const state = calculateBountyPaymentState({
+      amount_sats: 100,
+      bounty_cap_sats: 200,
+      reward_per_item: 0,
+      max_rewards_per_npub: 1,
+    }, [
+      claim('ambiguous-held', claimant, 1, { state: 'failed', reason: 'ambiguous_send: timeout' }),
+      claim('same-claimant', claimant, 2),
+      claim('next-claimant', next, 3),
+    ]);
+
+    assert.deepStrictEqual(state.heldClaims.map(item => item.event.id), ['ambiguous-held']);
+    assert.deepStrictEqual(state.reconciliationClaims.map(item => item.event.id), ['ambiguous-held']);
+    assert.deepStrictEqual(state.payableClaims.map(item => item.event.id), ['next-claimant']);
+    assert.strictEqual(state.remainingRewardSlots, 1);
+  });
+
+
+  await test('attempting, paid, and paid_unreceipted claims remain visible for reconciliation', () => {
+    const state = calculateBountyPaymentState({
+      amount_sats: 100,
+      bounty_cap_sats: 300,
+      reward_per_item: 1,
+    }, [
+      claim('attempting-visible', 'a'.repeat(64), 1, { state: 'attempting' }),
+      claim('paid-visible', 'b'.repeat(64), 2, { state: 'paid' }),
+      claim('unreceipted-visible', 'c'.repeat(64), 3, { state: 'paid_unreceipted' }),
+    ]);
+    assert.deepStrictEqual(
+      state.reconciliationClaims.map(item => item.event.id),
+      ['attempting-visible', 'paid-visible', 'unreceipted-visible'],
+    );
+    assert.deepStrictEqual(FINAL_STATES, ['settled', 'paid_unreceipted']);
+  });
+
+  await test('payClaim reports an existing failed row without treating it as terminal or retrying', async () => {
+    const issuer = 'd'.repeat(64);
+    const claimant = 'e'.repeat(64);
+    const bounty = createBounty({
+      issuerPubkey: issuer,
+      listCoordinate: `39998:${issuer}:failed-row`,
+      amountSats: 25,
+      criteria: 'test',
+    });
+    const payable = claim('failed-payment-visible', claimant, 1, null, bounty.list_coordinate);
+    payable.paymentAmountSats = 25;
+    setFakePayableClaims(bounty.id, [payable]);
+    insertAttemptingPayment({
+      claimEventId: payable.event.id,
+      bountyId: bounty.id,
+      issuerPubkey: issuer,
+      claimantPubkey: claimant,
+      claimAddress: `39999:${claimant}:${bounty.list_coordinate}`,
+      amountSats: 25,
+    });
+    updatePaymentState(payable.event.id, 'failed', { reason: 'wallet rejected' }, bounty.id);
+
+    const result = await payClaim({ bountyId: bounty.id, claimEventId: payable.event.id, dryRun: true });
+    assert.equal(result.ok, false);
+    assert.equal(result.reason, 'already_attempted');
+    assert.equal(result.payment.state, 'failed');
+    assert.equal(getAutoPaymentByClaimId(payable.event.id, bounty.id).state, 'failed');
+  });
 
   await test('payClaim refuses a same-case self-claim before the rank gate and writes no auto_payments row', async () => {
     const issuer = 'a'.repeat(64);
@@ -266,7 +508,7 @@ function claim(id, pubkey, createdAt, autoPayment = null) {
       bountyCapSats: 500,
       criteria: 'self-claim guard (exact case)',
     });
-    setFakePayableClaims(bounty.id, [claim('self-claim-exact', issuer, 1)]);
+    setFakePayableClaims(bounty.id, [claim('self-claim-exact', issuer, 1, null, bounty.list_coordinate)]);
 
     const result = await payClaim({ bountyId: bounty.id, claimEventId: 'self-claim-exact' });
     assert.deepStrictEqual(result, { ok: false, reason: 'self_claim' });
@@ -282,7 +524,7 @@ function claim(id, pubkey, createdAt, autoPayment = null) {
       bountyCapSats: 500,
       criteria: 'self-claim guard (mixed case)',
     });
-    setFakePayableClaims(bounty.id, [claim('self-claim-mixed', issuerUpper.toLowerCase(), 1)]);
+    setFakePayableClaims(bounty.id, [claim('self-claim-mixed', issuerUpper.toLowerCase(), 1, null, bounty.list_coordinate)]);
 
     const result = await payClaim({ bountyId: bounty.id, claimEventId: 'self-claim-mixed' });
     assert.deepStrictEqual(result, { ok: false, reason: 'self_claim' });
@@ -305,7 +547,7 @@ function claim(id, pubkey, createdAt, autoPayment = null) {
         autoPayMinRank: 2,
         criteria: 'tick self-claim guard',
       });
-      setFakePayableClaims(bounty.id, [claim('tick-self-claim', issuer, 1)]);
+      setFakePayableClaims(bounty.id, [claim('tick-self-claim', issuer, 1, null, bounty.list_coordinate)]);
 
       const result = await runAutoPayTick();
 
@@ -341,13 +583,13 @@ function claim(id, pubkey, createdAt, autoPayment = null) {
     stubGetBalance.set(async () => ({ balance_sats: 10_000 }));
     stubMintZapInvoice.set(async () => ({ type: 'bolt11', payload: SAMPLE_2000_SAT_INVOICE }));
     stubPayBolt11.set(async () => {
-      bolt11WhenPayBolt11Called = getAutoPaymentByClaimId(claimEventId)?.bolt11 ?? null;
+      bolt11WhenPayBolt11Called = getAutoPaymentByClaimId(claimEventId, bounty.id)?.bolt11 ?? null;
       throw new Error('send exploded');
     });
     stubGetPaymentStatus.set(async () => ({ inconclusive: true, reason: 'test_stub' }));
 
     try {
-      const result = await processAutoPayClaim(bounty, claim(claimEventId, claimant, 1), {
+      const result = await processAutoPayClaim(bounty, claim(claimEventId, claimant, 1, null, bounty.list_coordinate), {
         delegate: { delegate_pubkey: 'd'.repeat(64), delegate_nsec: 'a'.repeat(64) },
       });
       assert.strictEqual(bolt11WhenPayBolt11Called, SAMPLE_2000_SAT_INVOICE, 'bolt11 was already persisted when payBolt11 ran');
@@ -381,7 +623,7 @@ function claim(id, pubkey, createdAt, autoPayment = null) {
     stubGetPaymentStatus.set(async () => ({ inconclusive: true, reason: 'wallet_cli_no_lookup' }));
 
     try {
-      const result = await processAutoPayClaim(bounty, claim(claimEventId, claimant, 1), {
+      const result = await processAutoPayClaim(bounty, claim(claimEventId, claimant, 1, null, bounty.list_coordinate), {
         delegate: { delegate_pubkey: 'd'.repeat(64), delegate_nsec: 'a'.repeat(64) },
       });
       assert.strictEqual(result.ok, false);
@@ -389,7 +631,7 @@ function claim(id, pubkey, createdAt, autoPayment = null) {
       assert.strictEqual(result.error, 'socket hang up');
       assert.strictEqual(result.payment.reason, 'ambiguous_send: socket hang up');
 
-      const row = getAutoPaymentByClaimId(claimEventId);
+      const row = getAutoPaymentByClaimId(claimEventId, bounty.id);
       assert.strictEqual(row.state, 'failed');
       assert.strictEqual(row.reason, 'ambiguous_send: socket hang up');
     } finally {
@@ -423,7 +665,7 @@ function claim(id, pubkey, createdAt, autoPayment = null) {
     ]);
 
     try {
-      const result = await processAutoPayClaim(bounty, claim(claimEventId, claimant, 1), {
+      const result = await processAutoPayClaim(bounty, claim(claimEventId, claimant, 1, null, bounty.list_coordinate), {
         delegate: { delegate_pubkey: 'd'.repeat(64), delegate_nsec: 'a'.repeat(64) },
       });
       assert.strictEqual(result.ok, true);
@@ -433,7 +675,7 @@ function claim(id, pubkey, createdAt, autoPayment = null) {
         `expected a paid-family state, got: ${result.state}`
       );
 
-      const row = getAutoPaymentByClaimId(claimEventId);
+      const row = getAutoPaymentByClaimId(claimEventId, bounty.id);
       assert.notStrictEqual(row.state, 'failed');
       assert.ok(['paid', 'settled', 'paid_unreceipted'].includes(row.state));
 
@@ -470,6 +712,7 @@ function claim(id, pubkey, createdAt, autoPayment = null) {
   });
 
   await test('resetPayment refuses non-failed rows entirely — attempting/paid/settled/paid_unreceipted, even with force', () => {
+
     const now = 14_500_000;
     // Mid-flight: a live send may still be outstanding; deleting the row would
     // drop the already_attempted guard and allow a second mint+send.
@@ -502,6 +745,173 @@ function claim(id, pubkey, createdAt, autoPayment = null) {
     // row is genuinely failed, reset works again.
     updatePaymentState('reset-attempting', 'failed', { reason: 'test_cleanup', now: now + 3 });
     assert.deepStrictEqual(resetPayment('reset-attempting'), { reset: true });
+  });
+  await test('reconcileIssuerPayments resolves ambiguous sends from wallet facts', async () => {
+    const issuer = '1'.repeat(64);
+    const cases = [
+      ['ambiguous-now-settled', 'invoice-settled', { paid: true }],
+      ['ambiguous-now-unreceipted', 'invoice-unreceipted', { paid: true }],
+      ['ambiguous-now-unpaid', 'invoice-unpaid', { paid: false }],
+      ['ambiguous-still-unknown', 'invoice-unknown', { inconclusive: true, reason: 'wallet_pending' }],
+    ];
+    for (const [index, [claimId, bolt11]] of cases.entries()) {
+      assert.strictEqual(insertAttemptingPayment({
+        ...basePayment(claimId, 25, 14_900_000 + index),
+        bountyId: 'ambiguous-reconcile-bounty',
+        issuerPubkey: issuer,
+      }).inserted, true);
+      updatePaymentState(claimId, 'attempting', { bolt11, now: 14_900_010 + index }, 'ambiguous-reconcile-bounty');
+      updatePaymentState(claimId, 'failed', { reason: 'ambiguous_send: timeout', now: 14_900_020 + index }, 'ambiguous-reconcile-bounty');
+    }
+
+    const statusByInvoice = new Map(cases.map(([, bolt11, status]) => [bolt11, status]));
+    // now sits just after the fixture rows, so no row has aged past the
+    // receipt grace window yet.
+    const result = await reconcileIssuerPayments({ issuerPubkey: issuer, now: 14_900_100 }, {
+      getPaymentStatus: async ({ bolt11 }) => statusByInvoice.get(bolt11),
+      getBounty: () => ({ id: 'ambiguous-reconcile-bounty' }),
+      bridgeZapReceipt: async () => null,
+      readLocalReceipt: async (_bounty, claimId) => (
+        claimId === 'ambiguous-now-settled' ? { id: 'receipt' } : null
+      ),
+    });
+
+    assert.deepStrictEqual(
+      result.results.map(item => [item.claimEventId, item.state, item.status]),
+      [
+        ['ambiguous-now-settled', 'settled', 'settled'],
+        ['ambiguous-now-unreceipted', 'paid_unreceipted', 'reconciliation_unresolved'],
+        ['ambiguous-now-unpaid', 'failed', 'reset_required'],
+        ['ambiguous-still-unknown', 'failed', 'ambiguous_reconciliation'],
+      ],
+    );
+    assert.equal(
+      getAutoPaymentByClaimId('ambiguous-now-unpaid', 'ambiguous-reconcile-bounty').reason,
+      'wallet_confirmed_unpaid',
+    );
+    assert.equal(
+      getAutoPaymentByClaimId('ambiguous-still-unknown', 'ambiguous-reconcile-bounty').reason,
+      'ambiguous_send: timeout',
+    );
+  });
+
+  await test('reconcileIssuerPayments dry-run writes nothing and live mode settles an observed receipt without paying', async () => {
+    const issuer = 'f'.repeat(64);
+    const claimId = 'reconcile-observed-receipt';
+    assert.strictEqual(insertAttemptingPayment({
+      ...basePayment(claimId, 50, 14_700_000),
+      bountyId: 'reconcile-bounty',
+      issuerPubkey: issuer,
+    }).inserted, true);
+    updatePaymentState(claimId, 'attempting', { bolt11: SAMPLE_2000_SAT_INVOICE, now: 14_700_001 }, 'reconcile-bounty');
+    let bridgeCalls = 0;
+    const dependencies = {
+      getPaymentStatus: async () => ({ paid: true }),
+      getBounty: () => ({ id: 'reconcile-bounty' }),
+      readLocalReceipt: async () => ({ id: 'receipt-event' }),
+      bridgeZapReceipt: async () => { bridgeCalls += 1; return null; },
+    };
+
+    const dryRun = await reconcileIssuerPayments({ issuerPubkey: issuer, dryRun: true }, dependencies);
+    assert.equal(dryRun.ok, true);
+    assert.equal(dryRun.dryRun, true);
+    assert.equal(dryRun.results[0].state, 'settled');
+    assert.equal(getAutoPaymentByClaimId(claimId, 'reconcile-bounty').state, 'attempting');
+    assert.equal(bridgeCalls, 0);
+
+    const live = await reconcileIssuerPayments({ issuerPubkey: issuer }, dependencies);
+    assert.equal(live.ok, true);
+    assert.equal(live.dryRun, false);
+    assert.equal(live.results[0].status, 'settled');
+    assert.equal(getAutoPaymentByClaimId(claimId, 'reconcile-bounty').state, 'settled');
+    assert.equal(bridgeCalls, 1);
+  });
+
+  await test('reconcileIssuerPayments reports missing receipts and failed rows as unresolved work', async () => {
+    const issuer = '9'.repeat(64);
+    const paidClaim = 'reconcile-missing-receipt';
+    const failedClaim = 'reconcile-reset-required';
+    assert.strictEqual(insertAttemptingPayment({
+      ...basePayment(paidClaim, 50, 14_800_000),
+      bountyId: 'reconcile-bounty',
+      issuerPubkey: issuer,
+    }).inserted, true);
+    updatePaymentState(paidClaim, 'paid', { bolt11: SAMPLE_2000_SAT_INVOICE, now: 14_800_001 }, 'reconcile-bounty');
+    assert.strictEqual(insertAttemptingPayment({
+      ...basePayment(failedClaim, 50, 14_800_002),
+      bountyId: 'reconcile-bounty',
+      issuerPubkey: issuer,
+    }).inserted, true);
+    updatePaymentState(failedClaim, 'failed', { reason: 'wallet rejected', now: 14_800_003 }, 'reconcile-bounty');
+
+    const result = await reconcileIssuerPayments({ issuerPubkey: issuer, now: 14_800_100 }, {
+      getBounty: () => ({ id: 'reconcile-bounty' }),
+      readLocalReceipt: async () => null,
+      bridgeZapReceipt: async () => null,
+    });
+    assert.equal(result.ok, false);
+    assert.equal(result.results.find(item => item.claimEventId === paidClaim).status, 'reconciliation_unresolved');
+    assert.equal(result.results.find(item => item.claimEventId === failedClaim).status, 'reset_required');
+    assert.equal(getAutoPaymentByClaimId(paidClaim, 'reconcile-bounty').state, 'paid_unreceipted');
+    assert.equal(getAutoPaymentByClaimId(failedClaim, 'reconcile-bounty').state, 'failed');
+  });
+
+  // One unreceipted payment used to fail every later pass, so the settlement
+  // timer reported failed forever and the runbook gate could never pass again.
+  await test('reconcileIssuerPayments makes paid_unreceipted terminal once the receipt grace window closes', async () => {
+    const issuer = '7'.repeat(64);
+    const claimId = 'reconcile-receipt-grace';
+    const createdAt = 14_850_000;
+    const graceSeconds = 3600;
+    assert.strictEqual(insertAttemptingPayment({
+      ...basePayment(claimId, 50, createdAt),
+      bountyId: 'receipt-grace-bounty',
+      issuerPubkey: issuer,
+    }).inserted, true);
+    updatePaymentState(claimId, 'paid', { bolt11: SAMPLE_2000_SAT_INVOICE, now: createdAt + 1 }, 'receipt-grace-bounty');
+    const dependencies = {
+      getBounty: () => ({ id: 'receipt-grace-bounty' }),
+      readLocalReceipt: async () => null,
+      bridgeZapReceipt: async () => null,
+    };
+
+    const insideGrace = await reconcileIssuerPayments({
+      issuerPubkey: issuer, now: createdAt + 60, graceSeconds,
+    }, dependencies);
+    assert.equal(insideGrace.ok, false);
+    assert.equal(insideGrace.results[0].status, 'reconciliation_unresolved');
+    assert.equal(getAutoPaymentByClaimId(claimId, 'receipt-grace-bounty').state, 'paid_unreceipted');
+
+    const afterGrace = await reconcileIssuerPayments({
+      issuerPubkey: issuer, now: createdAt + graceSeconds + 60, graceSeconds,
+    }, dependencies);
+    assert.equal(afterGrace.ok, true, 'an aged unreceipted payment must stop failing the run');
+    assert.equal(afterGrace.results.length, 0, 'an aged unreceipted payment leaves the reconciliation queue');
+    assert.equal(getAutoPaymentByClaimId(claimId, 'receipt-grace-bounty').state, 'paid_unreceipted');
+
+    // A row that ages out during the same pass reports its terminal status once.
+    const agedClaimId = 'reconcile-receipt-grace-aged';
+    assert.strictEqual(insertAttemptingPayment({
+      ...basePayment(agedClaimId, 50, createdAt),
+      bountyId: 'receipt-grace-bounty',
+      issuerPubkey: issuer,
+    }).inserted, true);
+    updatePaymentState(agedClaimId, 'paid', { bolt11: SAMPLE_2000_SAT_INVOICE, now: createdAt + 1 }, 'receipt-grace-bounty');
+    const agedOut = await reconcileIssuerPayments({
+      issuerPubkey: issuer, now: createdAt + graceSeconds + 60, graceSeconds,
+    }, dependencies);
+    assert.equal(agedOut.ok, true);
+    assert.equal(agedOut.results.length, 1);
+    assert.equal(agedOut.results[0].status, 'paid_unreceipted_final');
+    assert.equal(agedOut.results[0].reason, 'receipt_grace_elapsed');
+
+    // The row also leaves the reconciliation query, so later passes never see it.
+    const stillQueued = listReconciliationPayments(issuer, { now: createdAt + 60, graceSeconds });
+    assert.equal(stillQueued.some(row => row.claim_event_id === claimId), true);
+    const droppedFromQueue = listReconciliationPayments(issuer, {
+      now: createdAt + graceSeconds + 60, graceSeconds,
+    });
+    assert.equal(droppedFromQueue.some(row => row.claim_event_id === claimId), false);
   });
 
   await test('reconcileStuckAttempts: bolt11-less stuck row fails stuck_timeout; bolt11-bearing + inconclusive row goes ambiguous', async () => {
@@ -562,7 +972,7 @@ function claim(id, pubkey, createdAt, autoPayment = null) {
         bountyCapSats: 500,
         criteria: 'judgment gate default (blocked)',
       });
-      setFakePayableClaims(bounty.id, [claim('judgment-default-block', claimant, 1)]);
+      setFakePayableClaims(bounty.id, [claim('judgment-default-block', claimant, 1, null, bounty.list_coordinate)]);
 
       const result = await payClaim({ bountyId: bounty.id, claimEventId: 'judgment-default-block' });
       assert.deepStrictEqual(result, { ok: false, reason: 'no_accept_judgment' });
@@ -586,7 +996,7 @@ function claim(id, pubkey, createdAt, autoPayment = null) {
         criteria: 'judgment gate default (allowed)',
       });
       const claimEventId = 'judgment-default-allow';
-      setFakePayableClaims(bounty.id, [claim(claimEventId, claimant, 1)]);
+      setFakePayableClaims(bounty.id, [claim(claimEventId, claimant, 1, null, bounty.list_coordinate)]);
       appendAudit({ kind: 'judgment', bountyId: bounty.id, claimEventId, decision: 'accept', pay: true });
 
       const result = await payClaim({ bountyId: bounty.id, claimEventId });
@@ -598,7 +1008,7 @@ function claim(id, pubkey, createdAt, autoPayment = null) {
       assert.strictEqual(result.ok, false);
       assert.strictEqual(result.state, 'failed');
       assert.match(result.error, /delegate/);
-      const row = getAutoPaymentByClaimId(claimEventId);
+      const row = getAutoPaymentByClaimId(claimEventId, bounty.id);
       assert.ok(row, 'auto_payments row was created (payment was actually attempted)');
       assert.strictEqual(row.state, 'failed');
     } finally {
@@ -620,7 +1030,7 @@ function claim(id, pubkey, createdAt, autoPayment = null) {
         criteria: 'judgment gate opt-out',
       });
       const claimEventId = 'judgment-opt-out';
-      setFakePayableClaims(bounty.id, [claim(claimEventId, claimant, 1)]);
+      setFakePayableClaims(bounty.id, [claim(claimEventId, claimant, 1, null, bounty.list_coordinate)]);
       // Deliberately no judgment recorded — the opt-out must skip the gate anyway.
 
       const result = await payClaim({ bountyId: bounty.id, claimEventId });

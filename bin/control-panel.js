@@ -40,7 +40,7 @@ if (!configLoaded) {
 const express = require('express');
 const https = require('https');
 const http = require('http');
-const session = require('express-session');
+const { configureSession } = require('../src/middleware/sessionStore');
 const cors = require('cors');
 const WebSocket = require('ws');
 const { useWebSocketImplementation } = require('nostr-tools/pool');
@@ -152,13 +152,8 @@ app.use('/legacy', express.static(path.join(__dirname, '../public')));
 app.use('/libs/chart.js', express.static(path.join(__dirname, '../node_modules/chart.js/dist')));
 app.use('/libs/chartjs-adapter-date-fns', express.static(path.join(__dirname, '../node_modules/chartjs-adapter-date-fns/dist')));
 
-// Session middleware
-app.use(session({
-    secret: getConfigFromFile('SESSION_SECRET', 'brainstorm-default-session-secret-please-change-in-production'),
-    resave: false,
-    saveUninitialized: true,
-    cookie: { secure: useHTTPS } // Set to true if using HTTPS
-}));
+// One durable store keeps scheduled authentication valid across container restarts.
+configureSession(app, { secure: useHTTPS });
 
 // Helper function to serve HTML files
 function serveHtmlFile(filename, res) {

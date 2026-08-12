@@ -49,9 +49,15 @@ function claimCreatedAt(claim) {
 function autoPaymentState(claim) {
   return claim?.autoPayment?.state ?? null;
 }
+function ambiguousPayment(claim) {
+  return autoPaymentState(claim) === 'failed'
+    && String(claim?.autoPayment?.reason || '').startsWith('ambiguous_send:');
+}
+
 
 function suppressesDuplicatePayment(claim) {
-  return ['attempting', 'paid', 'settled', 'paid_unreceipted'].includes(autoPaymentState(claim));
+  return ['attempting', 'paid', 'settled', 'paid_unreceipted'].includes(autoPaymentState(claim))
+    || ambiguousPayment(claim);
 }
 
 function compareClaims(a, b) {
@@ -76,6 +82,7 @@ function publicPaymentState(state) {
     remainingRewardSlots: state.remainingRewardSlots,
     payableRewardCount: state.payableClaims.length,
     reconciliationRewardCount: state.reconciliationClaims.length,
+    legacyPaymentBlock: state.legacyPaymentBlock,
     openRewardSlots: state.openRewardSlots,
     fulfilled: state.fulfilled,
   };
@@ -89,14 +96,19 @@ function calculateBountyPaymentState(bounty, claims = []) {
   const reconciliationClaims = [];
   const unpaidClaims = [];
   const paidByPubkey = new Map();
+  const legacyPaymentBlock = sortedClaims.some(claim => claim.legacyPaymentBlock === true);
+
 
   for (const claim of sortedClaims) {
     if (claim.zapReceipt) {
       paidClaims.push(claim);
       increment(paidByPubkey, claimPubkey(claim));
     } else if (suppressesDuplicatePayment(claim)) {
+      const paymentState = autoPaymentState(claim);
       heldClaims.push(claim);
-      if (autoPaymentState(claim) === 'paid_unreceipted') reconciliationClaims.push(claim);
+      if (['attempting', 'paid', 'paid_unreceipted'].includes(paymentState) || ambiguousPayment(claim)) {
+        reconciliationClaims.push(claim);
+      }
       increment(paidByPubkey, claimPubkey(claim));
     } else {
       unpaidClaims.push(claim);
@@ -116,6 +128,10 @@ function calculateBountyPaymentState(bounty, claims = []) {
     const pubkey = claimPubkey(claim);
     const pubkeyReserved = reservedByPubkey.get(pubkey) || 0;
 
+    if (legacyPaymentBlock) {
+      closedClaims.push({ ...claim, closedReason: 'legacy_payment_reconciliation_required' });
+      continue;
+    }
     if (openRewardSlots <= 0) {
       closedClaims.push({ ...claim, closedReason: 'cap' });
       continue;
@@ -142,6 +158,7 @@ function calculateBountyPaymentState(bounty, claims = []) {
     totalRewardSlots: policy.totalRewardSlots,
     paidRewardCount,
     heldRewardCount,
+    legacyPaymentBlock,
     remainingRewardSlots,
     openRewardSlots,
     fulfilled: policy.totalRewardSlots > 0 && paidRewardCount >= policy.totalRewardSlots,
@@ -171,7 +188,7 @@ function annotateClaimsWithPaymentState(claims = [], state) {
         paymentStatus: autoState,
         paymentAmountSats: state.rewardAmountSats,
         duplicatePaymentSuppressed: true,
-        reconciliationRequired: autoState === 'paid_unreceipted',
+        reconciliationRequired: ['attempting', 'paid', 'paid_unreceipted'].includes(autoState) || ambiguousPayment(claim),
       };
     }
     const payable = payableById.get(id);
@@ -193,6 +210,7 @@ function canAcceptNewClaimFrom(state, pubkey) {
 }
 
 module.exports = {
+  ambiguousPayment,
   annotateClaimsWithPaymentState,
   autoPaymentState,
   bountyPolicy,

@@ -42,23 +42,23 @@ test('disabled auto-pay never eager-loads the wallet/zap-node deps', () => {
 });
 
 test('delegate read path returns the pubkey without a master key', () => {
-  const { upsertDelegate, getDelegatePubkey } = require('../src/db/autoPay');
+  const { insertDelegateIfAbsent, getDelegatePubkey } = require('../src/db/autoPay');
   const issuer = 'a'.repeat(64);
   const delegatePubkey = 'b'.repeat(64);
   // Seed the row WITH a master key (encrypts the nsec), then drop the key and
   // prove receipt matching reads the plaintext pubkey without it.
   process.env.RELAY_KEY_MASTER_KEY = 'test-master-key';
-  upsertDelegate({ issuerPubkey: issuer, delegatePubkey, delegateNsec: 'c'.repeat(64) });
+  insertDelegateIfAbsent({ issuerPubkey: issuer, delegatePubkey, delegateNsec: 'c'.repeat(64) });
   delete process.env.RELAY_KEY_MASTER_KEY;
   assert.strictEqual(getDelegatePubkey(issuer), delegatePubkey);
   assert.strictEqual(getDelegatePubkey('f'.repeat(64)), null);
 });
 
 test('provisioning a delegate without a master key fails closed (no plaintext secret)', () => {
-  const { upsertDelegate } = require('../src/db/autoPay');
+  const { insertDelegateIfAbsent } = require('../src/db/autoPay');
   delete process.env.RELAY_KEY_MASTER_KEY;
   assert.throws(
-    () => upsertDelegate({ issuerPubkey: 'e'.repeat(64), delegatePubkey: 'b'.repeat(64), delegateNsec: 'c'.repeat(64) }),
+    () => insertDelegateIfAbsent({ issuerPubkey: 'e'.repeat(64), delegatePubkey: 'b'.repeat(64), delegateNsec: 'c'.repeat(64) }),
     /Master key required/,
   );
 });

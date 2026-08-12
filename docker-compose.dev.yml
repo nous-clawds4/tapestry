@@ -9,6 +9,7 @@
 services:
   tapestry:
     environment:
+      - NODE_ENV=development
       # Auto-pay bounty payouts (values come from .env; all default to off/empty)
       - AUTO_PAY_ENABLED=${AUTO_PAY_ENABLED:-false}
       - AUTO_PAY_ALLOWLIST_PUBKEYS=${AUTO_PAY_ALLOWLIST_PUBKEYS:-}

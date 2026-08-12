@@ -11,7 +11,7 @@
     "brainstorm-init-db": "./bin/init-db.sh"
   },
   "scripts": {
-    "test": "node test/test.js && node test/auto-pay.test.js && node test/bounties-api.test.js && node test/wallet.test.js && node test/boot-safety.test.js && node test/zap-bridge.test.js && node test/agent-cli.test.js && node test/operator-judgment.test.js && node test/agent-e2e.test.js && node test/auth-signature.test.js",
+    "test": "node test/test.js && node test/auto-pay.test.js && node test/auto-pay-migration.test.js && node test/bounties-api.test.js && node test/wallet.test.js && node test/boot-safety.test.js && node test/zap-bridge.test.js && node test/agent-cli.test.js && node test/agent-auth-commands.test.js && node test/operator-judgment.test.js && node test/agent-e2e.test.js && node test/auth-signature.test.js && node test/configure-prod.test.js && node test/david-bounty-settle.test.js && node test/reconcile-cli.test.js && node test/session-store.test.js && node test/david-bounty-runbook.test.js",
     "test:boot-safety": "node test/boot-safety.test.js",
     "test:zap-bridge": "node test/zap-bridge.test.js",
     "test:agent-cli": "node test/agent-cli.test.js",

@@ -128,11 +128,6 @@ function handlePublishKind10040(req, res) {
         // Set session as authenticated
         req.session.authenticated = true;
         
-        // Store nsec in session if provided
-        if (req.body.nsec) {
-            req.session.nsec = req.body.nsec;
-            console.log('Private key stored in session for signing events');
-        }
         
         // Define data directories
         const dataDir = '/var/lib/brainstorm/data';

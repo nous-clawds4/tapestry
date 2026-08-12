@@ -1,15 +1,15 @@
 const { getBounty } = require('../db/bounties');
+const { getAutoPayment, stableClaimAddress } = require('../db/autoPay');
 const { paymentStateForBounty } = require('../api/bounties');
 const { rank } = require('../lib/trust-rank');
 const { processAutoPayClaim } = require('./autoPayWatcher');
-const { appendAudit, latestJudgment } = require('../lib/agentAudit');
+const { latestJudgment } = require('../lib/agentAudit');
 
 const TRUST_FLOOR = 2;
 
-// The single payment entry point shared by the operator loop and the CLI `pay`,
-// so the rank gate, dry-run, and audit live in exactly one place. Settlement is
-// still the kind-9735 — this just mints + pays; processAutoPayClaim does the
-// cap/idempotency/float-preflight and writes the auto_payments row.
+// The single payment entry point shared by the operator loop and the CLI `pay`.
+// Settlement is still the kind-9735 — this just mints + pays;
+// processAutoPayClaim owns cap enforcement, idempotency, and payment state.
 async function payClaim({ bountyId, claimEventId, dryRun = false } = {}) {
   if (!bountyId) throw new Error('bountyId is required');
   if (!claimEventId) throw new Error('claimEventId is required');
@@ -17,8 +17,11 @@ async function payClaim({ bountyId, claimEventId, dryRun = false } = {}) {
   const bounty = getBounty(bountyId);
   if (!bounty) return { ok: false, reason: 'bounty_not_found' };
 
-  const { paymentState } = await paymentStateForBounty(bounty, { trustFilter: true });
-  const claim = paymentState.payableClaims.find(c => c.event.id === claimEventId);
+  const { claims = [], paymentState } = await paymentStateForBounty(bounty, { trustFilter: true });
+  const payableClaim = paymentState.payableClaims.find(c => c.event.id === claimEventId);
+  const claim = claims.find(c => c.event.id === claimEventId)
+    || payableClaim
+    || paymentState.reconciliationClaims?.find(c => c.event.id === claimEventId);
   if (!claim) return { ok: false, reason: 'claim_not_payable' };
 
   // Fail-closed: a bounty issuer can never be paid on their own bounty. This
@@ -28,6 +31,16 @@ async function payClaim({ bountyId, claimEventId, dryRun = false } = {}) {
   if (String(claim.event.pubkey || '').toLowerCase() === String(bounty.issuer_pubkey || '').toLowerCase()) {
     return { ok: false, reason: 'self_claim' };
   }
+  const claimAddress = stableClaimAddress(claim.event, bounty.list_coordinate);
+  if (!claimAddress) return { ok: false, reason: 'invalid_claim_address' };
+  const existing = claimAddress
+    ? getAutoPayment({ bountyId, claimAddress, issuerPubkey: bounty.issuer_pubkey })
+    : null;
+  if (existing) {
+    return { ok: false, skipped: true, reason: 'already_attempted', payment: existing };
+  }
+  if (!payableClaim) return { ok: false, reason: 'claim_not_payable' };
+
 
   const minRank = bounty.auto_pay ? Math.max(TRUST_FLOOR, bounty.auto_pay_min_rank) : TRUST_FLOOR;
   const claimantRank = await rank(bounty.issuer_pubkey, claim.event.pubkey);
@@ -43,16 +56,13 @@ async function payClaim({ bountyId, claimEventId, dryRun = false } = {}) {
     if (!judgment?.pay) return { ok: false, reason: 'no_accept_judgment' };
   }
 
-  const amountSats = Number(claim.paymentAmountSats ?? bounty.amount_sats);
+  const amountSats = Number(payableClaim.paymentAmountSats ?? bounty.amount_sats);
 
   if (dryRun) {
-    // Dry-run NEVER writes an auto_payments row (that would reserve a slot and
-    // suppress the real payment) — it goes to the append-only audit channel.
-    appendAudit({ kind: 'dry_run_payment', bountyId, claimEventId, claimant: claim.event.pubkey, amountSats, claimantRank, minRank });
     return { ok: true, dryRun: true, wouldPay: { bountyId, claimEventId, amountSats, claimantRank } };
   }
 
-  const result = await processAutoPayClaim(bounty, claim);
+  const result = await processAutoPayClaim(bounty, payableClaim);
   return { ...result, bountyId, claimEventId, amountSats };
 }
 

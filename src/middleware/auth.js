@@ -125,7 +125,7 @@ function handleAuthVerify(req, res) {
  */
 function handleAuthLogin(req, res) {
     try {
-        const { event, nsec } = req.body;
+        const { event } = req.body;
         
         if (!event) {
             return res.status(400).json({ error: 'Missing event parameter' });
@@ -179,11 +179,6 @@ function handleAuthLogin(req, res) {
         // Set session as authenticated
         req.session.authenticated = true;
 
-        // Store nsec in session if provided
-        if (nsec) {
-            req.session.nsec = nsec;
-            console.log('Private key stored in session for signing events');
-        }
         
         return res.json({ 
             success: true, 

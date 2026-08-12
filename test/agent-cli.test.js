@@ -1,10 +1,15 @@
 const assert = require('assert');
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
 const { generateSecretKey, getPublicKey, verifyEvent } = require('nostr-tools');
 const {
   parseArgs,
   buildNegotiationEvent,
   parseNegotiation,
   NEGOTIATION_KIND,
+  provisionDelegate,
+  resetClaim,
   NEGOTIATION_TOPIC,
 } = require('../bin/agent');
 
@@ -58,4 +63,43 @@ test('parseNegotiation round-trips the envelope content + bountyId tag', () => {
   assert.strictEqual(parsed.eventId, event.id);
 });
 
-console.log(`\n${passed} agent-cli tests passed`);
+test('delegate provisioning reuses each issuer-specific delegate', () => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-delegate-'));
+  process.env.BOUNTIES_DB_PATH = path.join(directory, 'bounties.db');
+  process.env.RELAY_KEY_MASTER_KEY = 'delegate-provision-test-key';
+  const issuerA = 'a'.repeat(64);
+  const issuerB = 'b'.repeat(64);
+  const firstA = provisionDelegate(issuerA);
+  const firstB = provisionDelegate(issuerB);
+  const secondA = provisionDelegate(issuerA);
+  const { getDelegatePubkey } = require('../src/db/autoPay');
+
+  assert.equal(firstA.reused, false);
+  assert.equal(secondA.reused, true);
+  assert.equal(secondA.delegatePubkey, firstA.delegatePubkey);
+  assert.equal(getDelegatePubkey(issuerB), firstB.delegatePubkey);
+  assert.notEqual(firstA.delegatePubkey, firstB.delegatePubkey);
+});
+
+(async () => {
+  let request;
+  const result = await resetClaim({ bounty: 'bounty-1', claim: 'c'.repeat(64), force: true }, async (method, route, options) => {
+    request = { method, route, options };
+    return { success: true, reset: true };
+  });
+  assert.deepStrictEqual(request, {
+    method: 'POST',
+    route: '/api/bounties/auto-pay/reset',
+    options: {
+      body: { bountyId: 'bounty-1', claimEventId: 'c'.repeat(64), force: true },
+      useCookie: true,
+    },
+  });
+  assert.equal(result.ok, true);
+  passed += 1;
+  console.log('  ok  reset scopes the request by bounty and claim');
+  console.log(`\n${passed} agent-cli tests passed`);
+})().catch(error => {
+  console.error(error);
+  process.exit(1);
+});

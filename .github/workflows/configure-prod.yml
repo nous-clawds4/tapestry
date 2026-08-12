@@ -4,13 +4,13 @@ on:
   workflow_dispatch:
     inputs:
       enable_auto_pay:
-        description: "Set AUTO_PAY_ENABLED"
-        type: boolean
-        default: true
-      max_sats:
-        description: "AUTO_PAY_MAX_SATS (positive integer, <= 100)"
+        description: "AUTO_PAY_ENABLED (true/false; blank preserves both enable and cap)"
         type: string
-        default: "100"
+        default: ""
+      max_sats:
+        description: "AUTO_PAY_MAX_SATS (1-100; blank preserves both enable and cap)"
+        type: string
+        default: ""
       set_mnemonic:
         description: "Write MDK_WALLET_MNEMONIC from secret MDK_DEMO_WALLET_MNEMONIC"
         type: boolean
@@ -57,16 +57,21 @@ jobs:
         env:
           MNEMONIC: ${{ secrets.MDK_DEMO_WALLET_MNEMONIC }}
           WALLET_ID: ${{ secrets.MDK_DEMO_WALLET_ID }}
+          ENABLE_AUTO_PAY: ${{ inputs.enable_auto_pay }}
           MAX_SATS: ${{ inputs.max_sats }}
           SET_MNEMONIC: ${{ inputs.set_mnemonic }}
           SET_WALLET_ID: ${{ inputs.set_wallet_id }}
         run: |
-          # max_sats: integer 1-100, bounded in the regex itself. An arithmetic
-          # `-gt 100` test errors on values above int64; under set -e inside an
-          # `if`, that error is swallowed and the cap is silently bypassed. A
-          # NaN/huge value would also defeat the per-payment cap in autoPayWatcher.js.
-          if ! printf '%s' "$MAX_SATS" | grep -Eq '^([1-9][0-9]?|100)$'; then
-            echo "::error::max_sats must be an integer 1-100 (got '$MAX_SATS')"; exit 1
+          if [ -n "$ENABLE_AUTO_PAY" ] || [ -n "$MAX_SATS" ]; then
+            if [ -z "$ENABLE_AUTO_PAY" ] || [ -z "$MAX_SATS" ]; then
+              echo "::error::enable_auto_pay and max_sats must both be supplied, or both left blank"; exit 1
+            fi
+            if [ "$ENABLE_AUTO_PAY" != "true" ] && [ "$ENABLE_AUTO_PAY" != "false" ]; then
+              echo "::error::enable_auto_pay must be true or false (got '$ENABLE_AUTO_PAY')"; exit 1
+            fi
+            if ! printf '%s' "$MAX_SATS" | grep -Eq '^([1-9][0-9]?|100)$'; then
+              echo "::error::max_sats must be an integer 1-100 (got '$MAX_SATS')"; exit 1
+            fi
           fi
           if [ "$SET_MNEMONIC" = "true" ] && [ -z "$MNEMONIC" ]; then
             echo "::error::set_mnemonic=true but secret MDK_DEMO_WALLET_MNEMONIC is empty"; exit 1
@@ -132,7 +137,7 @@ jobs:
           script: |
             umask 077
             set -eu
-            cd /opt/tapestry
+            cd "${TAPESTRY_DIR:-/opt/tapestry}"
             touch .env
             set_kv() { # idempotent key replace/append; never prints values
               key="$1"; val="$2"
@@ -140,8 +145,34 @@ jobs:
               printf '%s=%s\n' "$key" "$val" >> .env.tmp
               mv .env.tmp .env
             }
-            set_kv AUTO_PAY_ENABLED "$AUTO_PAY_ENABLED_IN"
-            set_kv AUTO_PAY_MAX_SATS "$MAX_SATS_IN"
+            session_secret=$(sed -n 's/^SESSION_SECRET=//p' .env | tail -n 1)
+            session_secret_check=$session_secret
+            case "$session_secret_check" in
+              \"*\") session_secret_check=${session_secret_check#\"}; session_secret_check=${session_secret_check%\"} ;;
+              \'*\') session_secret_check=${session_secret_check#\'}; session_secret_check=${session_secret_check%\'} ;;
+            esac
+            session_secret_bytes=$(printf '%s' "$session_secret_check" | LC_ALL=C wc -c | tr -d '[:space:]')
+            case "$session_secret_check" in
+              ""|"brainstorm-default-session-secret-please-change-in-production") replace_session_secret=true ;;
+              *) [ "$session_secret_bytes" -lt 32 ] && replace_session_secret=true || replace_session_secret=false ;;
+            esac
+            if [ "$replace_session_secret" = "true" ]; then
+              session_secret=$(openssl rand -hex 32)
+              [ "${#session_secret}" -eq 64 ] || { echo "::error::failed to generate SESSION_SECRET"; exit 1; }
+              set_kv SESSION_SECRET "$session_secret"
+              echo "session secret: generated"
+            else
+              echo "session secret: preserved"
+            fi
+            unset session_secret
+            unset replace_session_secret
+            unset session_secret_check
+            unset session_secret_bytes
+            if [ -n "$AUTO_PAY_ENABLED_IN" ] && [ -n "$MAX_SATS_IN" ]; then
+              set_kv AUTO_PAY_ENABLED "$AUTO_PAY_ENABLED_IN"
+              set_kv AUTO_PAY_MAX_SATS "$MAX_SATS_IN"
+              echo "auto-pay enable and cap: written"
+            fi
             if [ -n "$ALLOWLIST_IN" ]; then
               printf '%s' "$ALLOWLIST_IN" | grep -Eq '^[0-9a-f]{64}(,[0-9a-f]{64})*$' || { echo "::error::allowlist_pubkeys must be comma-separated 64-char lowercase hex"; exit 1; }
               set_kv AUTO_PAY_ALLOWLIST_PUBKEYS "$ALLOWLIST_IN"
