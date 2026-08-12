@@ -282,6 +282,26 @@ test('U12 isBlockedProbePath is not bypassed by percent-encoding', () => {
   }
 });
 
+test('U13 isBlockedProbePath NEVER blocks an ACME HTTP-01 challenge', () => {
+  const { isBlockedProbePath } = loadSiteTrust();
+  // cert-manager (k8s, http01 solver) and certbot (droplets) both answer
+  // /.well-known/acme-challenge/<token>. A 404 here fails certificate issuance
+  // and renewal — silent for weeks, then expired TLS on every host at once.
+  for (const p of [
+    '/.well-known/acme-challenge/abc123',
+    '/.well-known/acme-challenge/Xy_-9.token',
+    '/.well-known/acme-challenge/nested/token',
+  ]) {
+    assert(isBlockedProbePath(p) === false,
+      `isBlockedProbePath("${p}") must be false — blocking ACME breaks TLS renewal fleet-wide.`);
+  }
+  // The exemption must be exactly that prefix, not all of /.well-known/.
+  assert(isBlockedProbePath('/.well-known/acme-challenge') === true,
+    'the bare /.well-known/acme-challenge path (no trailing token) is not a challenge and must 404.');
+  assert(isBlockedProbePath('/.well-known/nonsense') === true,
+    'the exemption must not widen to the whole /.well-known/ prefix.');
+});
+
 /* ─────────────── S-class: source sentinels ─────────────── */
 
 test('S1 control-panel registers both document routes', () => {
