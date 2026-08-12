@@ -158,7 +158,7 @@ app.use('/libs/chartjs-adapter-date-fns', express.static(path.join(__dirname, '.
 // Two well-known documents that state who operates this deployment and whether
 // it should be indexed. Registered here deliberately: after the static
 // middleware above, and BEFORE the session middleware below, so that scanners
-// and crawlers fetching them do not mint a Redis session on every request.
+// and crawlers fetching them do not mint a session on every request.
 //
 // These cannot be plain files under public/ — express.static ignores dotfile
 // paths by default, so /.well-known/* would never be served. Rendering them
@@ -174,12 +174,6 @@ app.get('/robots.txt', (req, res) => {
 });
 
 // Session middleware
-const RedisStore = require('connect-redis').default;
-const Redis = require('ioredis');
-const sessionRedisHost = getConfigFromFile('REDIS_HOST', 'redis');
-const sessionRedisPort = parseInt(getConfigFromFile('REDIS_PORT', '6379'), 10);
-const sessionRedisClient = new Redis({ host: sessionRedisHost, port: sessionRedisPort });
-sessionRedisClient.on('error', (err) => console.error('Session-store Redis error:', err.message));
 app.use(session({
     secret: getConfigFromFile('SESSION_SECRET', 'brainstorm-default-session-secret-please-change-in-production'),
     resave: false,
