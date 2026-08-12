@@ -152,12 +152,27 @@ const configTest = testConfigLoading();
 const bountyFieldsTest = testBountyFieldValidation();
 const bountyPolicyTest = testBountyPaymentPolicy();
 
-console.log('\nTest Results:');
-console.log('-------------');
-console.log(`Configuration Loading: ${configTest ? 'PASS' : 'FAIL'}`);
-console.log(`Bounty Field Validation: ${bountyFieldsTest ? 'PASS' : 'FAIL'}`);
-console.log(`Bounty Payment Policy: ${bountyPolicyTest ? 'PASS' : 'FAIL'}`);
-console.log(`Overall: ${configTest && bountyFieldsTest && bountyPolicyTest ? 'PASS' : 'FAIL'}`);
+// site-trust-signals (epic site-trust-signals, Story 1). This branch's runner
+// predates the multi-suite registration pattern used on staging — there is no
+// suite list to append to — so the suite is awaited here instead. Its H-class
+// tests SKIP cleanly when no stack is running, so this stays CI-safe.
+const siteTrustSignals = require('./site-trust-signals.test.js');
 
-// Exit with appropriate code
-process.exit(configTest && bountyFieldsTest && bountyPolicyTest ? 0 : 1);
+siteTrustSignals.run().then(({ pass, fail, skipped }) => {
+  const siteTrustTest = fail === 0;
+  const overall = configTest && bountyFieldsTest && bountyPolicyTest && siteTrustTest;
+
+  console.log('\nTest Results:');
+  console.log('-------------');
+  console.log(`Configuration Loading: ${configTest ? 'PASS' : 'FAIL'}`);
+  console.log(`Bounty Field Validation: ${bountyFieldsTest ? 'PASS' : 'FAIL'}`);
+  console.log(`Bounty Payment Policy: ${bountyPolicyTest ? 'PASS' : 'FAIL'}`);
+  console.log(`Site Trust Signals: ${siteTrustTest ? 'PASS' : 'FAIL'} (${pass} passed, ${fail} failed, ${skipped} skipped)`);
+  console.log(`Overall: ${overall ? 'PASS' : 'FAIL'}`);
+
+  // Exit with appropriate code
+  process.exit(overall ? 0 : 1);
+}).catch((err) => {
+  console.error('site-trust-signals suite crashed:', err);
+  process.exit(1);
+});
