@@ -1,6 +1,6 @@
 # Epic: Shared Concepts Seeding
 
-**Status:** In Progress
+**Status:** Done *(book closed 2026-08-11; retirement to `done/` on next-phase ingestion)*
 **Provenance:** Owner `/discuss` 2026-08-10, following the `shared-concepts-legibility` close; book anchor at `engineering-team/audits/shared-concepts-seeding/book.md`. The predecessor's PRD seed named this gap explicitly: that book served the operator's *legibility*, not the domain expert's *contribution*.
 
 ## What this is
@@ -25,14 +25,17 @@ trap this epic must not fall into.
 1. **honest-broadcast-reporting** — the two broadcast-bearing disposition actions discard the publish result and claim community reach unconditionally. Four affected actions across two pages, including the Adoption Queue's **Adopt**.
 2. **retire-the-offering-vocabulary** — "offering" named a category the owner had already ruled out on 2026-08-06; retired in favour of *shared* and *didn't reach the community*, the latter a failure to retry rather than a resting state.
 
-Queued behind them (frame-ratified, not yet planned):
-
-- **share-from-shared-by-me** — a way to share a concept from the page about what you have shared, picking from headers not yet shared. The frame's first bullet. **Reduced in scope 2026-08-10:** the owner observed this largely duplicates the bulk filter below, and story #1's precedent says a page routes to an action rather than hosting a second copy of it — so it is likely a link to the filtered Concepts list, not a third host for self-declare.
-- **disposition-filter-on-concepts** — the bulk sweep: filter the Concepts list to "not yet shared". **Moved here** from the legibility book's queue, because filtering by that state is the bulk half of seeding rather than a legibility filter.
+3. **disposition-filter-on-concepts** — the bulk sweep: filter the Concepts list to "not yet shared". **Moved here** from the legibility book's queue, because filtering by that state is the bulk half of seeding rather than a legibility filter. **Done** (review PASS after one kick-back). ADR 0001.
+4. **share-from-shared-by-me** — the frame's first bullet. **Reduced in scope 2026-08-11** and ratified in `/discuss`: it shipped as a **signpost** into the filtered Concepts list, not a second list with its own share control — a page routes to an action rather than hosting a copy of it. The substance turned out to be making the destination arrive already narrowed, since the Concepts filter reset on every visit and no link could set it. **Done** (review PASS). ADR 0002.
 
 ## ADRs
 
-`decisions/shared-concepts-seeding/` — none yet. Both stories skipped Architecture by design: #1 as a Bug whose working model already existed, #2 as a Refactor whose names were settled with the owner before Planning.
+`decisions/shared-concepts-seeding/`:
+
+- **0001** — the not-yet-shared filter joins the bulk sharing answer (`/api/shared-by-me`) rather than re-deriving it from the row's disposition chip.
+- **0002** — the route carries its state in the address, and its count reuses the shipped predicate.
+
+Stories #1 and #2 skipped Architecture by design: #1 as a Bug whose working model already existed, #2 as a Refactor whose names were settled with the owner before Planning. Both later stories needed one, and both ADRs turn on the same argument — one definition, one home, so two surfaces cannot contradict each other.
 
 ## Notes
 
