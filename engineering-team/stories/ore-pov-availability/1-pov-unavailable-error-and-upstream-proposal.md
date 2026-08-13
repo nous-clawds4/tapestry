@@ -52,7 +52,7 @@ None blocking. Two defaults ratified at this story's approval gate (strike eithe
 2. **`202` cross-reference** — the upstream proposal explicitly maps "POV still being computed" to the spec's existing `202` + `Retry-After`, covering the "signed up 30 seconds ago" case from the issue thread.
 
 ## Linked artifacts
-- ADR: (filled in after Architecture phase)
+- ADR: `engineering-team/decisions/ore-pov-availability/0001-pov-unavailable-semantics-and-upstream-proposal.md`
 - Test plan: (filled in after Test Design phase)
 - Review: (filled in after Review phase)
 
