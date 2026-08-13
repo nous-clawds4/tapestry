@@ -1,6 +1,6 @@
 # Story 1: POV-unavailable error — never substitute, propose upstream, document
 
-**Status:** Approved
+**Status:** Done
 **Created:** 2026-08-12
 **Type:** Feature
 
@@ -54,6 +54,6 @@ None blocking. Two defaults ratified at this story's approval gate (strike eithe
 ## Linked artifacts
 - ADR: `engineering-team/decisions/ore-pov-availability/0001-pov-unavailable-semantics-and-upstream-proposal.md`
 - Test plan: `engineering-team/stories/ore-pov-availability/1-pov-unavailable-error-and-upstream-proposal.test-plan.md`
-- Review: (filled in after Review phase)
+- Review: `engineering-team/reviews/ore-pov-availability/1-pov-unavailable-error-and-upstream-proposal.md`
 
 Link by path only — never record verdicts or round history in this file (bare `KICK_BACK`/`CHANGES_REQUESTED` tokens in gate/round context trip harness-lint L14; backticked mentions are exempt). Outcomes live in the review file and, in Direction mode, the run journal. (ADR harness-gate-integrity/0002.)
