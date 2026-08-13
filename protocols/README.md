@@ -23,6 +23,7 @@ protocols/
   worksheet.md    # cross-cutting protocol problems & ideas not yet owned by one spec
   nips/           # published specs (NostrHub Custom NIPs / github NIPs) — working copies
   drafts/         # pre-NIPs: local drafts; may publish later, may stay internal
+  upstream/       # proposals to EXTERNAL protocols (e.g. ORE) — drafted here; submission is the author's act
 ```
 
 ## Status ladder
