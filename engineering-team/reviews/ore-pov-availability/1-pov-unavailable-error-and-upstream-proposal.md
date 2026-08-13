@@ -54,6 +54,10 @@ None.
 ### Harness friction
 None — orientation docs, ports, and paths were accurate this story.
 
+## Addendum — 2026-08-13 (fast-track doc amendment, operator-directed)
+
+Post-PASS amendment to the AC4 artifact only (`protocols/upstream/ore-01-pov-unavailable.md`): the proposal now also restates the rule as one `422` row in each endpoint ORE's Error Codes table (`02.md`–`07.md`, inserted beneath the existing missing-`pov` row — mirroring how those tables already restate ORE-01's missing-`pov` rule, and completing the missing/cannot-serve pairing that ORE-04's `topic` rows already have); "How to submit" gains the corresponding step; the PR description gains the table-row rationale and an aside flagging ORE-08's pre-existing pov-row gap (deliberately untouched there). No code, test, or runtime behavior change; `open-ranking-stats` suite re-run green after the edit (P2 artifact pins intact). The verdict below is unaffected.
+
 ## Verdict
 **PASS**
 
