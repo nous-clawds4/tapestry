@@ -1723,7 +1723,7 @@ ORE's `pov` is §27's PoV machinery. The **global `graperank`** is the instance'
 
 The two stores key a PoV by **different pubkeys** — Neo4j cards by the human's **main pubkey** (`observer_pubkey`), Meili columns by the **delegated-key suffix** — which is the open seam recorded in worksheet **W13**.
 
-**Personalized `graperank-personalized`** (stats only): the request `pov` is used directly as the Neo4j `observer_pubkey`, served **only for a provisioned PoV** — `isPovProvisioned(pov)` = (`pov === owner`) OR a `NostrUserWotMetricsCard {observer_pubkey: pov}` exists. An unprovisioned `pov` returns **`422` + `X-Reason: pov not provisioned`**, never a silent fallback to the owner view (the architecture-invariant rule: a global answer must not be presented as the caller's personal one).
+**Personalized `graperank-personalized`** (stats only): the request `pov` is used directly as the Neo4j `observer_pubkey`, served **only for a provisioned PoV** — `isPovProvisioned(pov)` = (`pov === owner`) OR a `NostrUserWotMetricsCard {observer_pubkey: pov}` exists. An unprovisioned `pov` returns **`422`** with an `X-Reason` that explains the unavailability and names the endpoint's default global algorithm (the `pov not provisioned:` prefix is kept for log continuity), never a silent fallback to the owner view (the architecture-invariant rule: a global answer must not be presented as the caller's personal one). Upstream contract draft: `protocols/upstream/ore-01-pov-unavailable.md`.
 
 ### Conventions (ORE-00, as-built)
 

@@ -57,8 +57,9 @@ export default function DevelopersOpenRanking() {
       <h2 style={S.h2}>2. Web-of-trust stats — <code style={S.code}>POST /stats/pubkey</code></h2>
       <p style={S.p}>
         Returns this instance's web-of-trust metrics for one pubkey. Algorithms: <code style={S.code}>graperank</code> (global, the default)
-        and <code style={S.code}>graperank-personalized</code> (requires a provisioned <code style={S.code}>pov</code>; an unprovisioned
-        one returns <code style={S.code}>422</code>).
+        and <code style={S.code}>graperank-personalized</code> (requires a provisioned <code style={S.code}>pov</code>; advertised in the
+        capability document only when this instance serves it — check there first). An unprovisioned <code style={S.code}>pov</code> returns{' '}
+        <code style={S.code}>422</code> whose <code style={S.code}>X-Reason</code> explains the unavailability and says what to do instead.
       </p>
       <pre style={S.pre}>{statsReq}</pre>
       <p style={{ ...S.p, marginTop: '0.5rem' }}>Response:</p>
@@ -94,11 +95,18 @@ export default function DevelopersOpenRanking() {
         <code style={S.code}>422</code> (invalid input / unsupported algorithm / missing or unprovisioned <code style={S.code}>pov</code>) —
         with a human-readable <code style={S.code}>X-Reason</code> header.
       </p>
+      <p style={S.p}>
+        Point-of-view honesty: a personalized request for a <code style={S.code}>pov</code> this instance cannot serve is refused —
+        results are never silently computed from another point of view (such as the global house view) and presented as personalized.
+        On that <code style={S.code}>422</code>, fall back explicitly: re-request the default global algorithm. The same contract is
+        proposed upstream for all Open Ranking providers (see Reference).
+      </p>
 
       <h2 style={S.h2}>Reference</h2>
       <ul style={{ ...S.p }}>
         <li><a href="https://github.com/Open-Ranking/protocol" target="_blank" rel="noreferrer">Open Ranking protocol spec</a> — ORE-01 (discovery), ORE-02 (stats), ORE-05 (search)</li>
         <li><a href="https://github.com/nous-clawds4/tapestry" target="_blank" rel="noreferrer">Brainstorm Search repo</a> — this provider's implementation</li>
+        <li><a href="https://github.com/Open-Ranking/protocol/issues/8" target="_blank" rel="noreferrer">Open-Ranking/protocol#8</a> — personalization honesty: the upstream proposal behind this provider's never-substitute rule (draft: <code style={S.code}>protocols/upstream/ore-01-pov-unavailable.md</code>)</li>
       </ul>
     </DevPage>
   );
