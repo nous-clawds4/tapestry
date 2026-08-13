@@ -1,6 +1,6 @@
 # Epic: ORE POV Availability
 
-**Status:** Active (opened 2026-08-12)
+**Status:** Done (epic retired 2026-08-13 — book closed; shipped to production via PRs #549/#550)
 **Book:** `engineering-team/audits/ore-pov-availability/book.md` (acceptance-frame, standard gated mode)
 **Provenance:** Operator request 2026-08-12 — adopt [Open-Ranking/protocol#8](https://github.com/Open-Ranking/protocol/issues/8) "Solution 1" (error on unavailable POV). Realizes the carry-forward named in `audits/open-ranking/prd-seed.md` §6/§7 ("Standards stance (W12)") and ADR `open-ranking/0005`'s out-of-scope item ("the upstream question of proposing a standard POV-availability mechanism to ORE"). Successor to the retired `epics/open-ranking.md`.
 
